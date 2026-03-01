@@ -10,6 +10,10 @@ import os
 import sys
 import time
 
+# Force UTF-8 stdout — prevents UnicodeEncodeError on Windows cp1252 terminals
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 
 def find_latest_report(reports_dir: str) -> str | None:
     if not os.path.isdir(reports_dir):

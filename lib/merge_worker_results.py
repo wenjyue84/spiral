@@ -10,6 +10,10 @@ import os
 import shutil
 import sys
 
+# Force UTF-8 stdout — prevents UnicodeEncodeError on Windows cp1252 terminals
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Merge parallel worker prd.json results")

@@ -17,6 +17,10 @@ import shutil
 import sys
 from typing import Any
 
+# Force UTF-8 stdout — prevents UnicodeEncodeError on Windows cp1252 terminals
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 PRIORITY_RANK = {"critical": 0, "high": 1, "medium": 2, "low": 3}
 
 # Story ID prefix from env

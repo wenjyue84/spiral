@@ -15,6 +15,10 @@ import re
 import sys
 from typing import Any
 
+# Force UTF-8 stdout — prevents UnicodeEncodeError on Windows cp1252 terminals
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 
 # Default priority mapping for test categories.
 # Projects can override by using different category names in their test reports.
