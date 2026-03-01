@@ -1,0 +1,63 @@
+{
+  "productName": "My App",
+  "branchName": "main",
+  "overview": "Example PRD for testing SPIRAL. Replace with your own project requirements.",
+  "goals": [
+    "Demonstrate SPIRAL workflow with minimal stories",
+    "Test research, merge, and implementation phases"
+  ],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Create hello world endpoint",
+      "priority": "high",
+      "description": "Create a simple HTTP endpoint that returns a greeting message. This is the entry point for the application.",
+      "acceptanceCriteria": [
+        "GET /hello returns JSON { \"message\": \"Hello, World!\" }",
+        "Response status code is 200",
+        "Content-Type is application/json"
+      ],
+      "technicalNotes": [
+        "Create server.js or app.py in project root",
+        "Use the simplest framework available (Express, Flask, etc.)"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "Add personalized greeting parameter",
+      "priority": "medium",
+      "description": "Extend the hello endpoint to accept an optional name parameter for personalized greetings.",
+      "acceptanceCriteria": [
+        "GET /hello?name=Alice returns { \"message\": \"Hello, Alice!\" }",
+        "GET /hello without name still returns { \"message\": \"Hello, World!\" }",
+        "Name parameter is sanitized (no HTML/script injection)"
+      ],
+      "technicalNotes": [
+        "Add query parameter parsing to the existing endpoint",
+        "Sanitize the name input to prevent XSS"
+      ],
+      "dependencies": ["US-001"],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Add health check endpoint",
+      "priority": "low",
+      "description": "Add a /health endpoint that returns server status. Already implemented as an example of a completed story.",
+      "acceptanceCriteria": [
+        "GET /health returns { \"status\": \"ok\" }",
+        "Response status code is 200"
+      ],
+      "technicalNotes": [
+        "Simple status endpoint, no external dependencies"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true
+    }
+  ]
+}

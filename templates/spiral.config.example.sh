@@ -13,8 +13,8 @@
 
 # ── Ralph path ───────────────────────────────────────────────────────────────
 # Path to ralph.sh implementation loop.
-# Default: $HOME/.ai/Skills/ralph/ralph.sh
-# SPIRAL_RALPH="$HOME/.ai/Skills/ralph/ralph.sh"
+# Default: $SPIRAL_HOME/ralph/ralph.sh (bundled with spiral)
+# SPIRAL_RALPH="$SPIRAL_HOME/ralph/ralph.sh"
 
 # ── Research prompt ──────────────────────────────────────────────────────────
 # Path to the research prompt template file. Use a project-specific prompt
@@ -74,5 +74,5 @@
 
 # ── Stream formatter (optional) ─────────────────────────────────────────────
 # Path to Node.js stream formatter for Claude output. Used in Phase R.
-# Default: $HOME/.ai/Skills/ralph/stream-formatter.mjs
-# SPIRAL_STREAM_FMT="$HOME/.ai/Skills/ralph/stream-formatter.mjs"
+# Default: $SPIRAL_HOME/ralph/stream-formatter.mjs (bundled with spiral)
+# SPIRAL_STREAM_FMT="$SPIRAL_HOME/ralph/stream-formatter.mjs"

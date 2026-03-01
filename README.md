@@ -2,54 +2,125 @@
 
 **Self-iterating PRD Research & Implementation Autonomous Loop**
 
-SPIRAL autonomously discovers requirements, generates user stories, and implements them. Given a `prd.json` file, it loops through research, test synthesis, story merging, and implementation until all stories pass.
+SPIRAL autonomously discovers requirements, generates user stories, and implements them. Given a `prd.json`, it loops through research, test synthesis, story merging, and implementation until all stories pass.
 
-## How It Works
+It ships with **Ralph** (the implementation engine) and **two skills** (`/ralph` and `/prd`) bundled — one `git clone` gives you everything.
 
-Each iteration runs 7 phases:
+## One-Command Install
 
-```
-R) RESEARCH     — Claude agent searches sources → story candidates
-T) TEST SYNTH   — Scan test failures → story candidates
-M) MERGE        — Deduplicate + patch prd.json
-G) GATE         — Human checkpoint (or auto: --gate proceed/skip/quit)
-I) IMPLEMENT    — Ralph autonomous loop (sequential or parallel workers)
-V) VALIDATE     — Run project test suite
-C) CHECK DONE   — All stories pass? Exit. Otherwise loop.
+```bash
+bash <(curl -sL https://raw.githubusercontent.com/wenjyue84/spiral/main/setup.sh)
 ```
 
-## Install
+Or manually:
 
 ```bash
 git clone https://github.com/wenjyue84/spiral.git ~/.ai/Skills/spiral
+bash ~/.ai/Skills/spiral/setup.sh
 ```
 
-Requires:
-- `bash` (Git Bash / MSYS2 on Windows, native on Mac/Linux)
-- `jq` (`choco install jq` / `brew install jq` / `apt install jq`)
-- [Ralph](https://github.com/wenjyue84/ralph) at `~/.ai/Skills/ralph/`
-- `claude` CLI (Anthropic Claude Code)
-- Python 3.10+
+## Prerequisites
+
+| Tool | Required? | Install |
+|------|-----------|---------|
+| **git** | Yes | [git-scm.com](https://git-scm.com/downloads) |
+| **bash** | Yes | Git Bash / MSYS2 (Windows), native (Mac/Linux) |
+| **Python 3.10+** | Yes | `choco install python3` / `brew install python3` / `apt install python3` |
+| **Node.js 16+** | Yes | `choco install nodejs` / `brew install node` / `apt install nodejs` |
+| **jq** | Windows: bundled | `brew install jq` / `apt install jq` |
+| **Claude CLI** | Yes | `npm install -g @anthropic-ai/claude-code` |
+| **Gemini CLI** | Optional | `npm install -g @google/gemini-cli` |
+| **Codex CLI** | Optional | `npm install -g @openai/codex` |
+
+`setup.sh` auto-installs everything except git.
+
+## AI Model Strategy
+
+SPIRAL uses multiple AI models to optimize cost, speed, and quality:
+
+| Model | Role | When Used | Why |
+|-------|------|-----------|-----|
+| **Claude Sonnet/Opus** | Primary engine | Phase I (implementation), Phase R (research fallback) | Best code quality, understands complex projects |
+| **Gemini 2.5 Pro** | Token saver | Phase R (web research pre-fetch) | Free-tier web search; feeds results to Claude so it skips URL browsing |
+| **Codex (GPT-5)** | Token saver | Phase I (`UT-*` test stories via `--tool auto`) | Offloads simple test fixes from Claude |
+| **Qwen Code** | Token saver | Phase I (first attempt via `--tool auto`) | Unlimited local/free-tier; Claude retries on failure |
+
+**Default mode:** Claude handles everything. Use `--tool auto` in Ralph to enable multi-model routing.
+
+The token-saving strategy: Gemini does free web research in Phase R, then Claude synthesizes the results without browsing URLs itself. In Phase I, `--tool auto` routes simple stories to cheaper/free models first, escalating to Claude only on retry.
 
 ## Quickstart
 
 ```bash
-cd your-project
+# 1. Install
+bash <(curl -sL https://raw.githubusercontent.com/wenjyue84/spiral/main/setup.sh)
 
-# 1. Create config (copy and edit)
+# 2. Set up a test project
+mkdir my-project && cd my-project
+cp ~/.ai/Skills/spiral/templates/prd.example.json prd.json
 cp ~/.ai/Skills/spiral/templates/spiral.config.example.sh spiral.config.sh
+echo ".spiral/" >> .gitignore
+git init && git add -A && git commit -m "init"
 
-# 2. Ensure prd.json exists in project root
-#    (see prd.json format below)
-
-# 3. Run — research + merge only (no implementation)
+# 3. Run research + merge only (no implementation)
 bash ~/.ai/Skills/spiral/spiral.sh 1 --gate skip
 
-# 4. Run — fully autonomous
+# 4. Run fully autonomous
 bash ~/.ai/Skills/spiral/spiral.sh 20 --gate proceed
 
-# 5. Run — parallel with 3 workers
+# 5. Run with 3 parallel workers
 bash ~/.ai/Skills/spiral/spiral.sh 5 --gate proceed --ralph-workers 3
+```
+
+## How It Works
+
+Each SPIRAL iteration runs 7 phases:
+
+```
+                    ┌──────────────────────────────────┐
+                    │        SPIRAL Iteration N         │
+                    └──────────────────────────────────┘
+                                    │
+                    ┌───────────────▼───────────────────┐
+                    │  R) RESEARCH                       │
+                    │  Gemini web search → Claude agent   │
+                    │  → story candidates JSON            │
+                    └───────────────┬───────────────────┘
+                                    │
+                    ┌───────────────▼───────────────────┐
+                    │  T) TEST SYNTHESIS                  │
+                    │  Scan test report failures           │
+                    │  → regression story candidates       │
+                    └───────────────┬───────────────────┘
+                                    │
+                    ┌───────────────▼───────────────────┐
+                    │  M) MERGE                           │
+                    │  Deduplicate + patch prd.json        │
+                    │  (overflow → next iteration)         │
+                    └───────────────┬───────────────────┘
+                                    │
+                    ┌───────────────▼───────────────────┐
+                    │  G) GATE                            │
+                    │  Human checkpoint (or --gate auto)   │
+                    │  proceed / skip / quit               │
+                    └───────────────┬───────────────────┘
+                                    │
+                    ┌───────────────▼───────────────────┐
+                    │  I) IMPLEMENT                       │
+                    │  Ralph loop (sequential or parallel) │
+                    │  Fresh Claude per story              │
+                    └───────────────┬───────────────────┘
+                                    │
+                    ┌───────────────▼───────────────────┐
+                    │  V) VALIDATE                        │
+                    │  Run project test suite              │
+                    └───────────────┬───────────────────┘
+                                    │
+                    ┌───────────────▼───────────────────┐
+                    │  C) CHECK DONE                      │
+                    │  All stories pass? → EXIT            │
+                    │  Otherwise → loop back to R          │
+                    └──────────────────────────────────┘
 ```
 
 ## CLI Options
@@ -69,49 +140,56 @@ Options:
   --help                     Show help
 ```
 
-## Configuration
+### Common Patterns
 
-Place `spiral.config.sh` in your project root. All variables have defaults:
+```bash
+# Fully autonomous (research + implement)
+bash spiral.sh 20 --gate proceed
+
+# Research-only (discover stories, skip implementation)
+bash spiral.sh 1 --gate skip
+
+# Implementation-only (skip web research)
+bash spiral.sh 5 --gate proceed --skip-research
+
+# Parallel with 3 workers
+bash spiral.sh 5 --gate proceed --ralph-workers 3
+
+# Custom config file
+bash spiral.sh 10 --gate proceed --config /path/to/my-config.sh
+```
+
+## Configuration Reference
+
+Place `spiral.config.sh` in your project root. All variables have defaults — only set what you need to override.
 
 | Variable | Purpose | Default |
 |----------|---------|---------|
 | `SPIRAL_PYTHON` | Python interpreter | `python3` |
-| `SPIRAL_RALPH` | Path to ralph.sh | `~/.ai/Skills/ralph/ralph.sh` |
+| `SPIRAL_RALPH` | Path to ralph.sh | `$SPIRAL_HOME/ralph/ralph.sh` (bundled) |
 | `SPIRAL_RESEARCH_PROMPT` | Research prompt template | bundled generic |
-| `SPIRAL_GEMINI_PROMPT` | Gemini pre-research prompt | _(skip)_ |
-| `SPIRAL_GEMINI_ANNOTATE_PROMPT` | Gemini filesTouch prompt | _(skip)_ |
+| `SPIRAL_GEMINI_PROMPT` | Gemini pre-research prompt | _(skip Gemini)_ |
+| `SPIRAL_GEMINI_ANNOTATE_PROMPT` | Gemini filesTouch prompt | _(skip annotation)_ |
 | `SPIRAL_VALIDATE_CMD` | Test suite command | `$SPIRAL_PYTHON tests/run_tests.py --report-dir test-reports` |
 | `SPIRAL_REPORTS_DIR` | Test reports directory | `test-reports` |
 | `SPIRAL_STORY_PREFIX` | Story ID prefix | `US` |
-| `SPIRAL_PATCH_DIRS` | Dirs for git diff patches (parallel) | _(all)_ |
+| `SPIRAL_PATCH_DIRS` | Dirs for git diff patches (parallel) | _(all files)_ |
 | `SPIRAL_DEPLOY_CMD` | Post-merge deploy command | _(skip)_ |
-| `SPIRAL_TERMINAL` | Terminal emulator for --monitor | _(auto-detect)_ |
-| `SPIRAL_STREAM_FMT` | Node.js stream formatter | `~/.ai/Skills/ralph/stream-formatter.mjs` |
+| `SPIRAL_TERMINAL` | Terminal emulator for `--monitor` | _(auto-detect)_ |
+| `SPIRAL_STREAM_FMT` | Node.js stream formatter | `$SPIRAL_HOME/ralph/stream-formatter.mjs` (bundled) |
 
-See [`templates/spiral.config.example.sh`](templates/spiral.config.example.sh) for full documentation.
-
-## Runtime Scratch Directory
-
-SPIRAL writes all temporary files to `.spiral/` in the project root:
-
-```
-.spiral/
-├── _checkpoint.json         # Crash recovery state
-├── _last_run.log            # Full console output
-├── _research_output.json    # Phase R output
-├── _test_stories_output.json # Phase T output
-├── _research_overflow.json  # Unused candidates for next iteration
-└── workers/                 # Parallel worker prd files + logs
-```
-
-Add `.spiral/` to your `.gitignore`.
+See [`templates/spiral.config.example.sh`](templates/spiral.config.example.sh) for full documentation with examples.
 
 ## prd.json Format
 
-SPIRAL expects a `prd.json` in the project root with this structure:
+SPIRAL expects a `prd.json` in the project root:
 
 ```json
 {
+  "productName": "My App",
+  "branchName": "main",
+  "overview": "What we are building",
+  "goals": ["Goal 1", "Goal 2"],
   "userStories": [
     {
       "id": "US-001",
@@ -128,15 +206,113 @@ SPIRAL expects a `prd.json` in the project root with this structure:
 }
 ```
 
-Key fields:
-- `id`: Unique identifier (`{SPIRAL_STORY_PREFIX}-NNN`)
-- `passes`: `true` when the story is implemented and verified
-- `priority`: `critical` | `high` | `medium` | `low`
-- `filesTouch`: Optional hint for parallel partitioning
+### Key Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Unique identifier (`{SPIRAL_STORY_PREFIX}-NNN`) |
+| `title` | string | Short descriptive name |
+| `priority` | string | `critical` \| `high` \| `medium` \| `low` |
+| `passes` | boolean | `true` when implemented and verified |
+| `dependencies` | string[] | Story IDs that must complete first |
+| `filesTouch` | string[] | Optional hint for parallel worker partitioning |
+| `acceptanceCriteria` | string[] | Verifiable conditions for "done" |
+| `technicalNotes` | string[] | Implementation hints |
+
+Use `templates/prd.example.json` as a starter.
+
+## Bundled Components
+
+### Ralph (Implementation Engine)
+
+Located at `ralph/`. Ralph is the inner loop that implements one story at a time:
+
+1. Reads `prd.json` — finds next `passes: false` story (sorted by priority)
+2. Checks dependency chain (skips blocked stories)
+3. Spawns a fresh Claude/Codex/Qwen instance with the project prompt
+4. AI implements the story, runs quality checks, marks `passes: true`
+5. Ralph verifies quality gates (TypeScript, lint — configurable)
+6. On success: commits. On failure: retries (max 3, then skips)
+
+Run Ralph standalone: `bash ralph/ralph.sh [max_iters] [--tool auto] [--prd prd.json]`
+
+### Skills
+
+Located at `ralph/skills/`. Two Claude Code skills are bundled:
+
+| Skill | Trigger | What It Does |
+|-------|---------|--------------|
+| `/ralph` | "run ralph", "implement prd" | Runs the Ralph autonomous loop |
+| `/prd` | "create a prd", "plan this feature" | Generates a structured PRD with clarifying questions |
+
+To install skills into your Claude Code environment, symlink or copy:
+
+```bash
+# Symlink (recommended)
+ln -s ~/.ai/Skills/spiral/ralph/skills/ralph.md ~/.claude/skills/ralph/SKILL.md
+ln -s ~/.ai/Skills/spiral/ralph/skills/prd.md ~/.claude/skills/prd/SKILL.md
+
+# Or copy
+mkdir -p ~/.claude/skills/ralph ~/.claude/skills/prd
+cp ~/.ai/Skills/spiral/ralph/skills/ralph.md ~/.claude/skills/ralph/SKILL.md
+cp ~/.ai/Skills/spiral/ralph/skills/prd.md ~/.claude/skills/prd/SKILL.md
+```
 
 ## Crash Recovery
 
-If SPIRAL is interrupted, re-running resumes from the last completed phase via `_checkpoint.json`. No work is lost.
+If SPIRAL is interrupted mid-iteration, re-running resumes from the last completed phase via `.spiral/_checkpoint.json`. No work is lost.
+
+```bash
+# Just re-run — it picks up where it left off
+bash ~/.ai/Skills/spiral/spiral.sh 20 --gate proceed
+```
+
+## Runtime Scratch Directory
+
+SPIRAL writes all temporary files to `.spiral/` in the project root:
+
+```
+.spiral/
+├── _checkpoint.json           # Crash recovery state
+├── _last_run.log              # Full console output
+├── _research_output.json      # Phase R output
+├── _test_stories_output.json  # Phase T output
+├── _research_overflow.json    # Unused candidates for next iteration
+└── workers/                   # Parallel worker prd files + logs
+```
+
+Add `.spiral/` to your `.gitignore`.
+
+## Repo Structure
+
+```
+spiral/
+├── spiral.sh                        # Main entry point (7-phase loop)
+├── setup.sh                         # Fully automatic bootstrap
+├── ralph/                           # Implementation engine (bundled)
+│   ├── ralph.sh                     # Inner loop: one story at a time
+│   ├── CLAUDE.md                    # Default per-iteration prompt
+│   ├── stream-formatter.mjs         # Colorized output formatter
+│   ├── jq.exe                       # Windows jq binary (bundled)
+│   └── skills/                      # Claude Code skills
+│       ├── ralph.md                 # /ralph skill
+│       └── prd.md                   # /prd skill
+├── lib/                             # Python + bash helpers
+│   ├── check_done.py                # Phase C: completion check
+│   ├── merge_stories.py             # Phase M: deduplicate + patch
+│   ├── merge_worker_results.py      # Parallel: merge worker outputs
+│   ├── partition_prd.py             # Parallel: wave-based partitioning
+│   ├── populate_hints.py            # Parallel: filesTouch from git history
+│   ├── run_parallel_ralph.sh        # Parallel: multi-worker orchestrator
+│   └── synthesize_tests.py          # Phase T: test failure → stories
+├── templates/
+│   ├── spiral.config.example.sh     # Config template (all variables documented)
+│   ├── research_prompt.example.md   # Generic research prompt
+│   └── prd.example.json             # Starter PRD for testing
+├── README.md
+├── LICENSE
+└── .gitignore
+```
 
 ## License
 

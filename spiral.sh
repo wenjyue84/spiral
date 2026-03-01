@@ -100,13 +100,13 @@ fi
 
 # Apply config with defaults
 SPIRAL_PYTHON="${SPIRAL_PYTHON:-python3}"
-SPIRAL_RALPH="${SPIRAL_RALPH:-$HOME/.ai/Skills/ralph/ralph.sh}"
+SPIRAL_RALPH="${SPIRAL_RALPH:-$SPIRAL_HOME/ralph/ralph.sh}"
 SPIRAL_RESEARCH_PROMPT="${SPIRAL_RESEARCH_PROMPT:-$SPIRAL_HOME/templates/research_prompt.example.md}"
 SPIRAL_GEMINI_PROMPT="${SPIRAL_GEMINI_PROMPT:-}"
 SPIRAL_VALIDATE_CMD="${SPIRAL_VALIDATE_CMD:-$SPIRAL_PYTHON tests/run_tests.py --report-dir test-reports}"
 SPIRAL_REPORTS_DIR="${SPIRAL_REPORTS_DIR:-test-reports}"
 SPIRAL_STORY_PREFIX="${SPIRAL_STORY_PREFIX:-US}"
-STREAM_FMT="${SPIRAL_STREAM_FMT:-$HOME/.ai/Skills/ralph/stream-formatter.mjs}"
+STREAM_FMT="${SPIRAL_STREAM_FMT:-$SPIRAL_HOME/ralph/stream-formatter.mjs}"
 
 # Scratch directory in project root
 SCRATCH_DIR="$REPO_ROOT/.spiral"
@@ -114,7 +114,7 @@ PRD_FILE="$REPO_ROOT/prd.json"
 CHECKPOINT_FILE="$SCRATCH_DIR/_checkpoint.json"
 
 # ── jq resolution (reuse ralph.sh pattern) ───────────────────────────────────
-RALPH_JQ_DIR="$HOME/.ai/Skills/ralph"
+RALPH_JQ_DIR="$SPIRAL_HOME/ralph"
 if command -v jq &>/dev/null; then
   JQ="jq"
 elif [[ -f "$RALPH_JQ_DIR/jq.exe" ]]; then
