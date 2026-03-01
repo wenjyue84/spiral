@@ -1,0 +1,14 @@
+# SPIRAL runtime scratch (lives in project root)
+.spiral/
+
+# Python
+*.pyc
+__pycache__/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
