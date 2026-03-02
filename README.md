@@ -32,6 +32,8 @@ bash ~/.ai/Skills/spiral/setup.sh
 | **Gemini CLI** | Optional | `npm install -g @google/gemini-cli` |
 | **Codex CLI** | Optional | `npm install -g @openai/codex` |
 | **Firecrawl MCP** | Optional | See [Firecrawl setup](#firecrawl-mcp-optional) below |
+| **Chrome DevTools MCP** | Optional | `npm i -g chrome-devtools-mcp` — see [Browser Testing](#browser-testing-optional) below |
+| **agent-browser skill** | Optional | See [Browser Testing](#browser-testing-optional) below |
 
 `setup.sh` auto-installs everything except git.
 
@@ -403,6 +405,70 @@ SPIRAL_GITNEXUS_REPO="your-repo-name"  # from: gitnexus list
 ```
 
 When `SPIRAL_GITNEXUS_REPO` is empty (default), the feature is completely disabled — zero overhead, keyword matching only.
+
+## Browser Testing (Optional)
+
+Two complementary tools enable Claude to drive a real browser during Phase I implementation and Phase V validation — useful whenever stories involve web UI features, form behaviour, or end-to-end flows.
+
+| Tool | Role | When used |
+|------|------|-----------|
+| **Chrome DevTools MCP** | Gives Claude direct browser control via MCP tools (`navigate`, `click`, `fill`, `screenshot`, `evaluate_script`, …) | Inside Ralph's agent sessions — Claude can open the running app, interact with it, and visually verify results without leaving the implementation loop |
+| **agent-browser skill** | High-level CLI (`agent-browser open/snapshot/click/fill/close`) invoked from Bash — wraps browser automation as simple commands | In Claude Code sessions running SPIRAL itself, for manual or scripted validation steps |
+
+**Why both matter for SPIRAL:**
+- After Ralph implements a UI story, Chrome DevTools MCP lets Claude instantly screenshot and verify the page looks right before marking `passes: true`
+- agent-browser enables shell-level browser scripting in SPIRAL's validation hooks without needing Playwright/Selenium installed separately
+
+### Setup
+
+**1. Chrome DevTools MCP** (`npm i -g chrome-devtools-mcp` by Google LLC):
+
+```bash
+npm i -g chrome-devtools-mcp
+```
+
+Add to your Claude Code MCP config (`~/.claude/settings.json` or `claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "chrome-devtools": {
+      "command": "chrome-devtools-mcp",
+      "args": []
+    }
+  }
+}
+```
+
+Or use npx (no global install needed):
+
+```json
+{
+  "mcpServers": {
+    "chrome-devtools": {
+      "command": "npx",
+      "args": ["-y", "chrome-devtools-mcp"]
+    }
+  }
+}
+```
+
+**2. agent-browser skill** — install into Claude Code's skills directory:
+
+```bash
+# From the SPIRAL skills bundle or your own skills repo
+ln -s /path/to/agent-browser ~/.claude/skills/agent-browser
+
+# Quick-start commands (inside a Claude Code session or Bash)
+agent-browser open http://localhost:8080
+agent-browser snapshot -i           # Lists interactive elements with refs
+agent-browser click @e1
+agent-browser fill @e2 "value"
+agent-browser screenshot
+agent-browser close
+```
+
+Neither tool is required — SPIRAL works without them. They activate automatically when available (Chrome DevTools MCP via `mcp__chrome-devtools__*` tools; agent-browser via the skill).
 
 ## License
 
