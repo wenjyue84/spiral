@@ -39,6 +39,12 @@ if _hint_dirs_env:
 # Story ID prefix from env
 STORY_PREFIX = os.environ.get("SPIRAL_STORY_PREFIX", "US")
 
+# GitNexus knowledge graph repo name — semantic fallback for populate_hints when
+# keyword matching against git history finds nothing (e.g., new story areas with
+# no commit history yet). Set SPIRAL_GITNEXUS_REPO to a repo name from `gitnexus list`.
+# Default: empty (skip gitnexus — use keyword matching only)
+GITNEXUS_REPO = os.environ.get("SPIRAL_GITNEXUS_REPO", "")
+
 # Stop words to exclude from keyword matching
 STOP_WORDS = {
     "a", "an", "the", "and", "or", "for", "in", "on", "to", "of", "is",
@@ -152,6 +158,40 @@ def build_keyword_file_mapping(
     return dict(keyword_files)
 
 
+def query_gitnexus_files(title: str, repo_root: str) -> list[str]:
+    """
+    Query GitNexus knowledge graph for files semantically related to a story title.
+    Used as a fallback when keyword matching against git history finds nothing.
+    Returns up to 5 file paths that exist on disk, or [] on any error.
+    Requires: gitnexus CLI (`npm i -g gitnexus`) and SPIRAL_GITNEXUS_REPO set.
+    """
+    try:
+        result = subprocess.run(
+            ["gitnexus", "query", title, "-r", GITNEXUS_REPO, "--limit", "8"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=10
+        )
+        if result.returncode != 0:
+            return []
+        # Parse file paths from definitions output
+        file_pattern = re.compile(r"\b([\w][\w/._-]+\.(?:py|js|ts|java|go|rb|php))\b")
+        found: list[str] = []
+        seen: set[str] = set()
+        for line in result.stdout.splitlines():
+            for m in file_pattern.finditer(line):
+                fp = m.group(1)
+                if fp in seen:
+                    continue
+                seen.add(fp)
+                if os.path.isfile(os.path.join(repo_root, fp)):
+                    found.append(fp)
+                    if len(found) >= 5:
+                        return found
+        return found
+    except (subprocess.TimeoutExpired, FileNotFoundError, Exception):
+        return []
+
+
 def populate_hints(prd: dict, repo_root: str) -> int:
     """
     Pre-populate filesTouch on pending stories using keyword matching.
@@ -160,17 +200,18 @@ def populate_hints(prd: dict, repo_root: str) -> int:
     stories = prd.get("userStories", [])
     story_files = get_completed_story_files(repo_root)
 
-    if not story_files:
+    if not story_files and not GITNEXUS_REPO:
         print("[hints] No story commit history found — skipping")
         return 0
 
-    keyword_files = build_keyword_file_mapping(stories, story_files)
+    keyword_files = build_keyword_file_mapping(stories, story_files) if story_files else {}
 
-    if not keyword_files:
+    if not keyword_files and not GITNEXUS_REPO:
         print("[hints] No keyword→file mapping built — skipping")
         return 0
 
     updated = 0
+    gitnexus_count = 0
     for story in stories:
         if story.get("passes"):
             continue
@@ -192,6 +233,14 @@ def populate_hints(prd: dict, repo_root: str) -> int:
                 matched_files.update(keyword_files[kw])
 
         if not matched_files:
+            if GITNEXUS_REPO:
+                # Keyword matching found nothing — try gitnexus knowledge graph
+                gn_files = query_gitnexus_files(story.get("title", ""), repo_root)
+                if gn_files:
+                    story["filesTouch"] = gn_files
+                    story["_hintsSource"] = "gitnexus"
+                    updated += 1
+                    gitnexus_count += 1
             continue
 
         # Cap at 10 files to avoid noise
@@ -201,6 +250,8 @@ def populate_hints(prd: dict, repo_root: str) -> int:
         story["filesTouch"] = files_list
         updated += 1
 
+    if gitnexus_count:
+        print(f"[hints] gitnexus filled {gitnexus_count} stories (keyword matching missed them)")
     return updated
 
 

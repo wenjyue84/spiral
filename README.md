@@ -187,6 +187,7 @@ Place `spiral.config.sh` in your project root. All variables have defaults — o
 | `SPIRAL_STREAM_FMT` | Node.js stream formatter | `$SPIRAL_HOME/ralph/stream-formatter.mjs` (bundled) |
 | `SPIRAL_MODEL_ROUTING` | Claude model selection strategy | `auto` (by story complexity) |
 | `SPIRAL_RESEARCH_MODEL` | Claude model for Phase R | `sonnet` |
+| `SPIRAL_GITNEXUS_REPO` | GitNexus repo name for semantic file hints | _(skip)_ |
 
 See [`templates/spiral.config.example.sh`](templates/spiral.config.example.sh) for full documentation with examples.
 
@@ -368,6 +369,40 @@ That's it. When enabled, Phase R uses `mcp__firecrawl__scrape` instead of `WebFe
 | `mcp__firecrawl__scrape` | Scrape a URL → clean markdown |
 | `mcp__firecrawl__search` | Search with Firecrawl's index |
 | `mcp__firecrawl__crawl` | Crawl an entire site section |
+
+## GitNexus (Optional)
+
+GitNexus is an optional parallel-mode enhancement for `populate_hints.py`. It uses a local **code knowledge graph** (KuzuDB) to fill `filesTouch` hints for stories that have no git commit history — typically new story areas added after the baseline was established.
+
+**Why it matters for long-running projects:**
+- `populate_hints.py` builds its keyword→file mapping from completed story commits. Stories added in later SPIRAL iterations (e.g., US-200+ on a project that started at US-001) have no commits yet, so keyword matching returns 0 files.
+- Without hints, `partition_prd.py` assigns those stories to parallel workers by load balancing alone — which means stories that actually share imports may end up in different workers, producing `.rej` merge conflicts.
+- GitNexus understands semantic relationships in the current codebase, not just commit history. It fills the gap for zero-history stories.
+
+**Performance:**
+- Runs once per SPIRAL iteration, pre-partition (before any Claude agent is spawned)
+- ~1s per story with empty hints; ~1-2 min total for a typical batch
+- Results are cached in `prd.json` (`filesTouch` persists, never re-queried)
+- Zero overhead inside agent sessions — no hook, no Grep/Glob interception
+
+**Setup:**
+
+1. Install gitnexus: `npm i -g gitnexus`
+
+2. Index your repo (one-time, re-run after large changes):
+
+```bash
+cd /path/to/your/repo
+gitnexus analyze
+```
+
+3. Enable in your project's `spiral.config.sh`:
+
+```bash
+SPIRAL_GITNEXUS_REPO="your-repo-name"  # from: gitnexus list
+```
+
+When `SPIRAL_GITNEXUS_REPO` is empty (default), the feature is completely disabled — zero overhead, keyword matching only.
 
 ## License
 

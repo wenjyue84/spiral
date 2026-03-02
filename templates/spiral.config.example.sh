@@ -116,3 +116,14 @@
 # CLI --model flag overrides this setting.
 # Default: sonnet
 # SPIRAL_RESEARCH_MODEL="sonnet"
+
+# ── GitNexus knowledge graph (hints + partition quality) ──────────────────
+# When set, populate_hints.py uses the GitNexus knowledge graph to find
+# relevant files for stories that keyword matching fails on (no git history
+# for new story areas). Runs once per SPIRAL iteration, before workers launch.
+#
+# Must match a repo name from: gitnexus list
+# Requires: gitnexus CLI installed (npm i -g gitnexus) + prior `gitnexus analyze`
+# Cost: ~1s per story with empty hints, ~1-2 min total; results cached in prd.json
+# Default: empty (skip gitnexus — use keyword matching only)
+# SPIRAL_GITNEXUS_REPO="my-repo"
