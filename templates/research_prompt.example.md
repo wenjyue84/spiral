@@ -73,6 +73,13 @@ Write the following JSON to `__OUTPUT_PATH__` using the Write tool:
 | medium | Useful but optional for basic functionality |
 | low | Edge case; niche scenarios |
 
+## Scraping Strategy
+
+When fetching specific URLs:
+- **Prefer `mcp__firecrawl__scrape`** if available — it returns clean LLM-optimized markdown and handles JavaScript-rendered pages
+- Fall back to `WebFetch` if Firecrawl is not available
+- Use `mcp__firecrawl__search` for domain-specific searches when available
+
 ## Action
 
-Now research the sources above using WebSearch and WebFetch. Then write your findings to `__OUTPUT_PATH__`.
+Now research the sources above using WebSearch and WebFetch (or Firecrawl MCP if available). Then write your findings to `__OUTPUT_PATH__`.

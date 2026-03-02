@@ -31,6 +31,7 @@ bash ~/.ai/Skills/spiral/setup.sh
 | **Claude CLI** | Yes | `npm install -g @anthropic-ai/claude-code` |
 | **Gemini CLI** | Optional | `npm install -g @google/gemini-cli` |
 | **Codex CLI** | Optional | `npm install -g @openai/codex` |
+| **Firecrawl MCP** | Optional | See [Firecrawl setup](#firecrawl-mcp-optional) below |
 
 `setup.sh` auto-installs everything except git.
 
@@ -40,14 +41,19 @@ SPIRAL uses multiple AI models to optimize cost, speed, and quality:
 
 | Model | Role | When Used | Why |
 |-------|------|-----------|-----|
-| **Claude Sonnet/Opus** | Primary engine | Phase I (implementation), Phase R (research fallback) | Best code quality, understands complex projects |
+| **Claude Haiku/Sonnet/Opus** | Primary engine | Phase I (implementation), Phase R (research fallback) | Auto-routes by story complexity — haiku for trivial, opus for hard |
 | **Gemini 2.5 Pro** | Token saver | Phase R (web research pre-fetch) | Free-tier web search; feeds results to Claude so it skips URL browsing |
+| **Firecrawl MCP** | Token saver | Phase R (URL scraping) | Returns clean LLM-optimized markdown; handles JS-rendered pages; offloads heavy scraping |
 | **Codex (GPT-5)** | Token saver | Phase I (`UT-*` test stories via `--tool auto`) | Offloads simple test fixes from Claude |
 | **Qwen Code** | Token saver | Phase I (first attempt via `--tool auto`) | Unlimited local/free-tier; Claude retries on failure |
 
 **Default mode:** Claude handles everything. Use `--tool auto` in Ralph to enable multi-model routing.
 
-The token-saving strategy: Gemini does free web research in Phase R, then Claude synthesizes the results without browsing URLs itself. In Phase I, `--tool auto` routes simple stories to cheaper/free models first, escalating to Claude only on retry.
+**Token-saving strategy:**
+1. **Phase R discovery:** Gemini runs free web search → Claude synthesizes results without browsing URLs
+2. **Phase R scraping:** Firecrawl (optional) converts raw HTML → clean markdown before Claude reads it
+3. **Phase I routing:** `--tool auto` sends simple stories to Qwen/Codex first; escalates to Claude on retry
+4. **Model routing:** Ralph auto-selects haiku/sonnet/opus per story complexity; escalates on retry
 
 ## Quickstart
 
@@ -134,6 +140,7 @@ Options:
   --ralph-workers N          Parallel worktree workers (default: 1)
   --skip-research            Skip Phase R (web research)
   --capacity-limit N         Skip Phase R when pending > N (default: 50)
+  --model haiku|sonnet|opus  Claude model override (default: auto-route by complexity)
   --monitor                  Open terminal per worker (default: on)
   --no-monitor               Disable per-worker terminals
   --config PATH              Path to spiral.config.sh (default: $REPO_ROOT/spiral.config.sh)
@@ -170,6 +177,7 @@ Place `spiral.config.sh` in your project root. All variables have defaults — o
 | `SPIRAL_RESEARCH_PROMPT` | Research prompt template | bundled generic |
 | `SPIRAL_GEMINI_PROMPT` | Gemini pre-research prompt | _(skip Gemini)_ |
 | `SPIRAL_GEMINI_ANNOTATE_PROMPT` | Gemini filesTouch prompt | _(skip annotation)_ |
+| `SPIRAL_FIRECRAWL_ENABLED` | Use Firecrawl MCP for Phase R scraping | `0` (disabled) |
 | `SPIRAL_VALIDATE_CMD` | Test suite command | `$SPIRAL_PYTHON tests/run_tests.py --report-dir test-reports` |
 | `SPIRAL_REPORTS_DIR` | Test reports directory | `test-reports` |
 | `SPIRAL_STORY_PREFIX` | Story ID prefix | `US` |
@@ -177,6 +185,8 @@ Place `spiral.config.sh` in your project root. All variables have defaults — o
 | `SPIRAL_DEPLOY_CMD` | Post-merge deploy command | _(skip)_ |
 | `SPIRAL_TERMINAL` | Terminal emulator for `--monitor` | _(auto-detect)_ |
 | `SPIRAL_STREAM_FMT` | Node.js stream formatter | `$SPIRAL_HOME/ralph/stream-formatter.mjs` (bundled) |
+| `SPIRAL_MODEL_ROUTING` | Claude model selection strategy | `auto` (by story complexity) |
+| `SPIRAL_RESEARCH_MODEL` | Claude model for Phase R | `sonnet` |
 
 See [`templates/spiral.config.example.sh`](templates/spiral.config.example.sh) for full documentation with examples.
 
@@ -313,6 +323,51 @@ spiral/
 ├── LICENSE
 └── .gitignore
 ```
+
+## Firecrawl MCP (Optional)
+
+Firecrawl is an optional Phase R enhancement. It replaces `WebFetch` with a dedicated scraper that returns **clean LLM-optimized markdown**, handles JavaScript-rendered pages, and offloads heavy scraping from Claude — saving significant tokens on research iterations.
+
+**Why it matters for research-heavy projects:**
+- Government portals and compliance documentation sites are often HTML-heavy or JS-rendered
+- `WebFetch` makes Claude parse raw HTML, wasting many tokens before getting to the actual content
+- Firecrawl strips all that noise and delivers structured markdown — Claude synthesizes faster and more accurately
+
+**Setup (5 minutes):**
+
+1. Get a free API key at [firecrawl.dev](https://www.firecrawl.dev) — 500 free credits/month
+
+2. Add to your Claude Code MCP config (`~/.claude/settings.json`):
+
+```json
+{
+  "mcpServers": {
+    "firecrawl": {
+      "command": "npx",
+      "args": ["-y", "firecrawl-mcp"],
+      "env": {
+        "FIRECRAWL_API_KEY": "fc-your-api-key-here"
+      }
+    }
+  }
+}
+```
+
+3. Enable in your project's `spiral.config.sh`:
+
+```bash
+SPIRAL_FIRECRAWL_ENABLED=1
+```
+
+That's it. When enabled, Phase R uses `mcp__firecrawl__scrape` instead of `WebFetch`. When disabled (default), SPIRAL uses the built-in `WebFetch` — no Firecrawl account required.
+
+**Available Firecrawl tools (used automatically when enabled):**
+
+| Tool | What it does |
+|------|-------------|
+| `mcp__firecrawl__scrape` | Scrape a URL → clean markdown |
+| `mcp__firecrawl__search` | Search with Firecrawl's index |
+| `mcp__firecrawl__crawl` | Crawl an entire site section |
 
 ## License
 

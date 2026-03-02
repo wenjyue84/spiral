@@ -76,3 +76,43 @@
 # Path to Node.js stream formatter for Claude output. Used in Phase R.
 # Default: $SPIRAL_HOME/ralph/stream-formatter.mjs (bundled with spiral)
 # SPIRAL_STREAM_FMT="$SPIRAL_HOME/ralph/stream-formatter.mjs"
+
+# ── Firecrawl MCP (Phase R — web scraping) ──────────────────────────────────
+# When enabled, Phase R uses Firecrawl MCP instead of WebFetch for scraping URLs.
+# Firecrawl returns clean LLM-optimized markdown, handles JS-rendered pages better,
+# and offloads heavy scraping from Claude — saving significant tokens on research.
+#
+# Setup (one-time):
+#   1. Get a free API key: https://firecrawl.dev (500 credits/month free)
+#   2. Add to ~/.claude/settings.json (or your Claude Code MCP config):
+#      {
+#        "mcpServers": {
+#          "firecrawl": {
+#            "command": "npx",
+#            "args": ["-y", "firecrawl-mcp"],
+#            "env": { "FIRECRAWL_API_KEY": "fc-your-api-key-here" }
+#          }
+#        }
+#      }
+#   3. Set SPIRAL_FIRECRAWL_ENABLED=1 below
+#
+# Default: 0 (disabled — WebFetch used instead)
+# SPIRAL_FIRECRAWL_ENABLED=0
+
+# ── Model routing (Claude model selection) ──────────────────────────────────
+# Controls which Claude model Ralph uses for implementation.
+#   "auto"   — auto-classify per story: haiku (trivial), sonnet (default), opus (complex)
+#   "haiku"  — always use haiku (fastest, cheapest)
+#   "sonnet" — always use sonnet (balanced)
+#   "opus"   — always use opus (most capable)
+# Retry escalation always applies: failed attempts escalate one tier (haiku→sonnet→opus).
+# CLI --model flag overrides this setting.
+# Default: auto
+# SPIRAL_MODEL_ROUTING="auto"
+
+# ── Research model (Phase R) ────────────────────────────────────────────────
+# Which Claude model to use for Phase R (web research agent).
+# Research benefits from good reasoning — sonnet is recommended.
+# CLI --model flag overrides this setting.
+# Default: sonnet
+# SPIRAL_RESEARCH_MODEL="sonnet"

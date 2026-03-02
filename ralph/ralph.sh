@@ -15,6 +15,7 @@ set -e
 # Default values
 MAX_ITERATIONS=60
 AI_TOOL="claude"
+RALPH_MODEL=""
 PRD_FILE="prd.json"
 PROGRESS_FILE="progress.txt"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -28,6 +29,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --prd)
       PRD_FILE="$2"
+      shift 2
+      ;;
+    --model)
+      RALPH_MODEL="$2"
       shift 2
       ;;
     --dry-run)
@@ -223,6 +228,89 @@ check_deps_met() {
   return 0
 }
 
+# ── Model routing functions ───────────────────────────────────────
+# Score a story's complexity and return the appropriate Claude model tier.
+# Score 0-1 → haiku (trivial), 2-4 → sonnet (default), 5+ → opus (complex)
+classify_model() {
+  local story_id="$1" score=0
+
+  local complexity priority deps_count ac_count
+  complexity=$($JQ -r ".userStories[] | select(.id == \"$story_id\") | .estimatedComplexity // \"medium\"" "$PRD_FILE" | tr -d '\r')
+  priority=$($JQ -r ".userStories[] | select(.id == \"$story_id\") | .priority // \"medium\"" "$PRD_FILE" | tr -d '\r')
+  deps_count=$($JQ ".userStories[] | select(.id == \"$story_id\") | .dependencies // [] | length" "$PRD_FILE" | tr -d '\r')
+  ac_count=$($JQ ".userStories[] | select(.id == \"$story_id\") | .acceptanceCriteria // [] | length" "$PRD_FILE" | tr -d '\r')
+
+  # estimatedComplexity: small=0, medium=2, large=5
+  case "$complexity" in
+    small)  score=$((score + 0)) ;;
+    large)  score=$((score + 5)) ;;
+    *)      score=$((score + 2)) ;;  # medium or missing
+  esac
+
+  # priority: low=0, medium=1, high=2, critical=3
+  case "$priority" in
+    low)      score=$((score + 0)) ;;
+    high)     score=$((score + 2)) ;;
+    critical) score=$((score + 3)) ;;
+    *)        score=$((score + 1)) ;;  # medium or missing
+  esac
+
+  # dependencies: 0-1 deps=0, 2+=1
+  if [[ "$deps_count" -ge 2 ]]; then
+    score=$((score + 1))
+  fi
+
+  # acceptanceCriteria: ≤6=0, 7+=1
+  if [[ "$ac_count" -ge 7 ]]; then
+    score=$((score + 1))
+  fi
+
+  # Map score to model tier
+  if [[ "$score" -le 1 ]]; then
+    echo "haiku"
+  elif [[ "$score" -le 4 ]]; then
+    echo "sonnet"
+  else
+    echo "opus"
+  fi
+}
+
+# Escalate model tier based on retry count.
+# retry 0: keep base; retry 1: +1 tier; retry 2+: opus
+escalate_model() {
+  local base_model="$1" retry_count="$2"
+
+  if [[ "$retry_count" -le 0 ]]; then
+    echo "$base_model"
+  elif [[ "$retry_count" -eq 1 ]]; then
+    case "$base_model" in
+      haiku)  echo "sonnet" ;;
+      sonnet) echo "opus" ;;
+      *)      echo "opus" ;;
+    esac
+  else
+    echo "opus"
+  fi
+}
+
+# Resolve the effective model: CLI override > config fixed > auto-classify+escalate
+resolve_model() {
+  local story_id="$1" retry_count="$2"
+
+  # CLI --model always wins
+  if [[ -n "$RALPH_MODEL" ]]; then
+    local escalated
+    escalated=$(escalate_model "$RALPH_MODEL" "$retry_count")
+    echo "$escalated"
+    return
+  fi
+
+  # Auto-classify from story metadata + escalate on retry
+  local base_model
+  base_model=$(classify_model "$story_id")
+  escalate_model "$base_model" "$retry_count"
+}
+
 # ── Dry run mode ─────────────────────────────────────────────────
 if [[ "$DRY_RUN" == "true" ]]; then
   echo "[dry-run] Would process $INCOMPLETE_STORIES stories"
@@ -320,6 +408,28 @@ while [[ $ITERATION -lt $MAX_ITERATIONS ]]; do
     EFFECTIVE_TOOL="$AI_TOOL"
   fi
 
+  # ── Model routing (only applies when effective tool is claude) ──
+  EFFECTIVE_MODEL=""
+  MODEL_REASON=""
+  if [[ "$EFFECTIVE_TOOL" == "claude" ]]; then
+    EFFECTIVE_MODEL=$(resolve_model "$NEXT_STORY" "$RETRY_NOW")
+    if [[ -n "$RALPH_MODEL" ]]; then
+      if [[ "$RETRY_NOW" -gt 0 ]]; then
+        MODEL_REASON="cli override + retry escalation"
+      else
+        MODEL_REASON="cli override"
+      fi
+    else
+      BASE_MODEL=$(classify_model "$NEXT_STORY")
+      if [[ "$RETRY_NOW" -gt 0 && "$EFFECTIVE_MODEL" != "$BASE_MODEL" ]]; then
+        MODEL_REASON="auto ($BASE_MODEL→$EFFECTIVE_MODEL, retry $RETRY_NOW)"
+      else
+        MODEL_REASON="auto (score-based)"
+      fi
+    fi
+    echo "  [model] $NEXT_STORY → $EFFECTIVE_MODEL ($MODEL_REASON)"
+  fi
+
   echo ""
   echo "  ┌─ Story ─────────────────────────────┐"
   echo "  │ ID:       $NEXT_STORY"
@@ -327,6 +437,8 @@ while [[ $ITERATION -lt $MAX_ITERATIONS ]]; do
   echo "  │ Priority: $STORY_PRIORITY"
   echo "  │ Deps:     ${STORY_DEPS:-none}"
   echo "  │ Attempt:  $((RETRY_NOW + 1))/$MAX_RETRIES"
+  [[ -n "$EFFECTIVE_MODEL" ]] && \
+  echo "  │ Model:    $EFFECTIVE_MODEL ($MODEL_REASON)"
   echo "  └─────────────────────────────────────┘"
   echo ""
 
@@ -384,8 +496,12 @@ Story JSON: $STORY_JSON"
 
   echo "  ─────── AI Output Start ($EFFECTIVE_TOOL) ───────"
   if [[ "$EFFECTIVE_TOOL" == "claude" ]]; then
+    # Build model flag (empty if no model routing)
+    CLAUDE_MODEL_FLAG=""
+    [[ -n "$EFFECTIVE_MODEL" ]] && CLAUDE_MODEL_FLAG="--model $EFFECTIVE_MODEL"
     # Unset CLAUDECODE to allow nested Claude Code invocation from within an active session
     (unset CLAUDECODE; claude -p "$(cat "$PROMPT_FILE")" \
+      $CLAUDE_MODEL_FLAG \
       --allowedTools "Edit,Write,Read,Glob,Grep,Bash,Skill,Task" \
       --max-turns 75 \
       --verbose \
@@ -420,12 +536,14 @@ Story JSON: $STORY_JSON"
     if run_project_quality_checks "$PRE_STORY_TS_ERRORS"; then
       reset_retry "$NEXT_STORY"
 
+      COAUTHOR_MODEL="${EFFECTIVE_MODEL:-sonnet}"
+      COAUTHOR_LABEL="${COAUTHOR_MODEL^}"
       git add -A
       git commit -m "feat: $NEXT_STORY - $STORY_TITLE
 
 Completed by Ralph iteration $ITERATION (${STORY_DURATION}m)
 
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>" || echo "[warn] No changes to commit"
+Co-Authored-By: Claude ${COAUTHOR_LABEL} 4.6 <noreply@anthropic.com>" || echo "[warn] No changes to commit"
 
       echo "## Iteration $ITERATION - $(date)" >> "$PROGRESS_FILE"
       echo "Completed: $STORY_TITLE (ID: $NEXT_STORY) in ${STORY_DURATION}m" >> "$PROGRESS_FILE"

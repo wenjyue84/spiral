@@ -12,7 +12,7 @@
 #   - Optional deploy command runs
 #   - Worktrees and branches are cleaned up
 #
-# Usage: bash run_parallel_ralph.sh WORKERS MAX_ITERS REPO_ROOT PRD_FILE SCRATCH_DIR RALPH_SKILL JQ PYTHON MONITOR SPIRAL_HOME
+# Usage: bash run_parallel_ralph.sh WORKERS MAX_ITERS REPO_ROOT PRD_FILE SCRATCH_DIR RALPH_SKILL JQ PYTHON MONITOR SPIRAL_HOME [RALPH_MODEL]
 #
 # Environment variables (from spiral.config.sh):
 #   SPIRAL_PATCH_DIRS           — space-separated dirs for git diff patches (default: all)
@@ -32,6 +32,7 @@ JQ="$7"
 PYTHON="$8"
 MONITOR_TERMINALS="${9:-0}"
 SPIRAL_HOME="${10:-}"
+RALPH_MODEL="${11:-}"
 
 WORKER_DIR="$SCRATCH_DIR/workers"
 WORKTREE_BASE="$REPO_ROOT/.spiral-workers"
@@ -197,11 +198,14 @@ for i in $(seq 1 "$RALPH_WORKERS"); do
   touch "$LOG"   # pre-create so tail -f attaches even if worker is slow to start
 
   echo "  [parallel] Launching worker $i → log: $LOG"
+  # Build model flag for this worker
+  _WORKER_MODEL_FLAG=""
+  [[ -n "$RALPH_MODEL" ]] && _WORKER_MODEL_FLAG="--model $RALPH_MODEL"
   (
     cd "$WTREE"
     # Put lock wrapper first in PATH so docker calls are intercepted
     export PATH="$WTREE/.spiral-bin:$PATH"
-    bash "$RALPH_SKILL" "$ITER_PER_WORKER" --prd prd.json \
+    bash "$RALPH_SKILL" "$ITER_PER_WORKER" --prd prd.json $_WORKER_MODEL_FLAG \
       > "$LOG" 2>&1
   ) &
   WORKER_PIDS+=($!)

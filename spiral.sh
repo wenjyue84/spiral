@@ -39,6 +39,7 @@ RALPH_WORKERS=1        # >1 = parallel mode (git worktrees + docker lock)
 CAPACITY_LIMIT=50      # Phase R is skipped when PENDING exceeds this threshold
 MONITOR_TERMINALS=1    # 1 = open a terminal window per worker to tail logs
 SPIRAL_CONFIG_PATH=""  # explicit --config path
+SPIRAL_CLI_MODEL=""    # explicit --model override (haiku|sonnet|opus)
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -58,6 +59,8 @@ while [[ $# -gt 0 ]]; do
       MONITOR_TERMINALS=0; shift ;;
     --config)
       SPIRAL_CONFIG_PATH="$2"; shift 2 ;;
+    --model)
+      SPIRAL_CLI_MODEL="$2"; shift 2 ;;
     --help|-h)
       echo "SPIRAL — Self-iterating PRD Research & Implementation Autonomous Loop"
       echo ""
@@ -71,6 +74,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --capacity-limit N         Skip Phase R when pending > N (default: 50)"
       echo "  --monitor                  Open terminal per worker (default: on)"
       echo "  --no-monitor               Disable per-worker terminals"
+      echo "  --model haiku|sonnet|opus  Claude model override (default: auto-route by story complexity)"
       echo "  --config PATH              Path to spiral.config.sh (default: \$REPO_ROOT/spiral.config.sh)"
       echo ""
       echo "Config: Place spiral.config.sh in project root (or use --config)."
@@ -107,6 +111,9 @@ SPIRAL_VALIDATE_CMD="${SPIRAL_VALIDATE_CMD:-$SPIRAL_PYTHON tests/run_tests.py --
 SPIRAL_REPORTS_DIR="${SPIRAL_REPORTS_DIR:-test-reports}"
 SPIRAL_STORY_PREFIX="${SPIRAL_STORY_PREFIX:-US}"
 STREAM_FMT="${SPIRAL_STREAM_FMT:-$SPIRAL_HOME/ralph/stream-formatter.mjs}"
+SPIRAL_MODEL_ROUTING="${SPIRAL_MODEL_ROUTING:-auto}"
+SPIRAL_RESEARCH_MODEL="${SPIRAL_RESEARCH_MODEL:-sonnet}"
+SPIRAL_FIRECRAWL_ENABLED="${SPIRAL_FIRECRAWL_ENABLED:-0}"
 
 # Scratch directory in project root
 SCRATCH_DIR="$REPO_ROOT/.spiral"
@@ -209,6 +216,18 @@ echo "  ║  PRD:         $PRD_FILE"
 echo "  ║  Stories:     $DONE/$TOTAL complete ($PENDING pending)"
 echo "  ║  Max iters:   $MAX_SPIRAL_ITERS"
 echo "  ║  Ralph iters: $RALPH_MAX_ITERS per phase"
+if [[ -n "$SPIRAL_CLI_MODEL" ]]; then
+  echo "  ║  Model:       $SPIRAL_CLI_MODEL (cli override)"
+elif [[ "$SPIRAL_MODEL_ROUTING" == "auto" ]]; then
+  echo "  ║  Model:       auto (haiku/sonnet/opus by complexity)"
+else
+  echo "  ║  Model:       $SPIRAL_MODEL_ROUTING (config fixed)"
+fi
+if [[ "$SPIRAL_FIRECRAWL_ENABLED" -eq 1 ]]; then
+  echo "  ║  Research:    $SPIRAL_RESEARCH_MODEL model + Firecrawl MCP"
+else
+  echo "  ║  Research:    $SPIRAL_RESEARCH_MODEL model (WebFetch fallback)"
+fi
 [[ "$RALPH_WORKERS" -gt 1 ]] && echo "  ║  Workers:     $RALPH_WORKERS parallel (git worktrees)"
 [[ "$SKIP_RESEARCH" -eq 1 ]] && echo "  ║  Mode:        --skip-research (Phase R skipped)"
 [[ "$MONITOR_TERMINALS" -eq 1 ]] && echo "  ║  Monitor:     terminal per worker (--monitor)"
@@ -299,12 +318,25 @@ $GEMINI_RESEARCH
 $INJECTED_PROMPT"
     fi
 
-    echo "  [R] Spawning Claude research agent (max 30 turns)..."
+    # Resolve research model: CLI override > config
+    RESEARCH_MODEL="${SPIRAL_RESEARCH_MODEL:-sonnet}"
+    [[ -n "$SPIRAL_CLI_MODEL" ]] && RESEARCH_MODEL="$SPIRAL_CLI_MODEL"
+
+    # Build allowed tools: prefer Firecrawl MCP when configured
+    if [[ "${SPIRAL_FIRECRAWL_ENABLED:-0}" -eq 1 ]]; then
+      RESEARCH_TOOLS="WebSearch,mcp__firecrawl__scrape,mcp__firecrawl__search,mcp__firecrawl__crawl,Write,Read"
+      echo "  [R] Firecrawl MCP enabled — using clean markdown scraping"
+    else
+      RESEARCH_TOOLS="WebSearch,WebFetch,Write,Read"
+    fi
+
+    echo "  [R] Spawning Claude research agent (max 30 turns, model: $RESEARCH_MODEL)..."
     echo "  ─────── Research Agent Start ─────────────────────────"
 
     if command -v node &>/dev/null && [[ -f "$STREAM_FMT" ]]; then
       (unset CLAUDECODE; claude -p "$INJECTED_PROMPT" \
-        --allowedTools "WebSearch,WebFetch,Write,Read" \
+        --model "$RESEARCH_MODEL" \
+        --allowedTools "$RESEARCH_TOOLS" \
         --max-turns 30 \
         --verbose \
         --output-format stream-json \
@@ -312,7 +344,8 @@ $INJECTED_PROMPT"
         </dev/null 2>&1 | node "$STREAM_FMT") || true
     else
       (unset CLAUDECODE; claude -p "$INJECTED_PROMPT" \
-        --allowedTools "WebSearch,WebFetch,Write,Read" \
+        --model "$RESEARCH_MODEL" \
+        --allowedTools "$RESEARCH_TOOLS" \
         --max-turns 30 \
         --dangerously-skip-permissions \
         </dev/null 2>&1) || true
@@ -434,6 +467,15 @@ $INJECTED_PROMPT"
         [[ "$PENDING_SHOWN" -gt 20 ]] && echo "    ... and $((PENDING_SHOWN - 20)) more"
         echo ""
 
+        # Build model flag for ralph invocations
+        RALPH_MODEL_FLAG=""
+        if [[ -n "$SPIRAL_CLI_MODEL" ]]; then
+          RALPH_MODEL_FLAG="--model $SPIRAL_CLI_MODEL"
+        elif [[ "$SPIRAL_MODEL_ROUTING" != "auto" && -n "$SPIRAL_MODEL_ROUTING" ]]; then
+          RALPH_MODEL_FLAG="--model $SPIRAL_MODEL_ROUTING"
+        fi
+        # Note: when RALPH_MODEL_FLAG is empty, ralph.sh auto-classifies per story
+
         RALPH_RAN=1
         PRE_RALPH_PRD_JSON=$(cat "$PRD_FILE")
         DONE_BEFORE=$("$JQ" '[.userStories[] | select(.passes == true)] | length' "$PRD_FILE")
@@ -482,12 +524,12 @@ $INJECTED_PROMPT"
               fi
               RALPH_TIMEOUT=3600
               if command -v timeout &>/dev/null; then
-                timeout "$RALPH_TIMEOUT" bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" || {
+                timeout "$RALPH_TIMEOUT" bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $RALPH_MODEL_FLAG || {
                   RC=$?
                   [[ "$RC" -eq 124 ]] && echo "  [I] WARNING: Ralph timed out after ${RALPH_TIMEOUT}s"
                 }
               else
-                bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" || true
+                bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $RALPH_MODEL_FLAG || true
               fi
             else
               # Cap workers to story count so no worker sits idle
@@ -497,10 +539,14 @@ $INJECTED_PROMPT"
                 echo "  [I] Wave $((WAVE+1)): capping to $WAVE_WORKERS workers (only $WAVE_STORY_COUNT stories)"
               fi
 
+              # 11th arg: model override for parallel workers
+              _RALPH_MODEL_FOR_PARALLEL=""
+              [[ -n "$SPIRAL_CLI_MODEL" ]] && _RALPH_MODEL_FOR_PARALLEL="$SPIRAL_CLI_MODEL"
+              [[ -z "$_RALPH_MODEL_FOR_PARALLEL" && "$SPIRAL_MODEL_ROUTING" != "auto" && -n "$SPIRAL_MODEL_ROUTING" ]] && _RALPH_MODEL_FOR_PARALLEL="$SPIRAL_MODEL_ROUTING"
               bash "$SPIRAL_HOME/lib/run_parallel_ralph.sh" \
                 "$WAVE_WORKERS" "$RALPH_MAX_ITERS" "$REPO_ROOT" "$PRD_FILE" \
                 "$SCRATCH_DIR" "$SPIRAL_RALPH" "$JQ" "$SPIRAL_PYTHON" \
-                "$MONITOR_TERMINALS" "$SPIRAL_HOME" || true
+                "$MONITOR_TERMINALS" "$SPIRAL_HOME" "$_RALPH_MODEL_FOR_PARALLEL" || true
             fi
 
             WAVE=$((WAVE + 1))
@@ -517,14 +563,14 @@ $INJECTED_PROMPT"
           fi
           RALPH_TIMEOUT=3600  # 1 hour
           if command -v timeout &>/dev/null; then
-            timeout "$RALPH_TIMEOUT" bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" || {
+            timeout "$RALPH_TIMEOUT" bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $RALPH_MODEL_FLAG || {
               RC=$?
               if [[ "$RC" -eq 124 ]]; then
                 echo "  [I] WARNING: Ralph timed out after ${RALPH_TIMEOUT}s — partial progress saved"
               fi
             }
           else
-            bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" || true
+            bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $RALPH_MODEL_FLAG || true
           fi
         fi
 
