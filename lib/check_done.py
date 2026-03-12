@@ -45,7 +45,7 @@ def main() -> int:
 
     stories = prd.get("userStories", [])
     total = len(stories)
-    pending = [s for s in stories if not s.get("passes")]
+    pending = [s for s in stories if not s.get("passes") and not s.get("_decomposed")]
     done = total - len(pending)
 
     print(f"[check_done] PRD: {done}/{total} stories complete, {len(pending)} pending")

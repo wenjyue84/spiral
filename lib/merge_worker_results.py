@@ -28,8 +28,13 @@ def main() -> int:
     with open(args.main, encoding="utf-8") as f:
         main_prd = json.load(f)
 
-    # Collect all story IDs that passed in ANY worker
+    main_ids = {s["id"] for s in main_prd.get("userStories", [])}
+
+    # Collect passes, decomposition flags, and new sub-stories from workers
     passed_ids: set[str] = set()
+    decomposed_map: dict[str, list[str]] = {}  # parent_id → child_ids
+    new_substories: list[dict] = []
+
     for wpath in args.workers:
         if not os.path.isfile(wpath):
             print(f"[merge_workers] WARNING: {wpath} not found — skipping")
@@ -39,6 +44,12 @@ def main() -> int:
         for s in worker_prd.get("userStories", []):
             if s.get("passes"):
                 passed_ids.add(s["id"])
+            # Collect decomposition flags from workers
+            if s.get("_decomposed") and s["id"] in main_ids:
+                decomposed_map[s["id"]] = s.get("_decomposedInto", [])
+            # Collect new sub-stories created by decomposition in workers
+            if s.get("_decomposedFrom") and s["id"] not in main_ids:
+                new_substories.append(s)
 
     # Promote passes in main prd
     newly_passed = 0
@@ -47,6 +58,17 @@ def main() -> int:
             s["passes"] = True
             newly_passed += 1
             print(f"[merge_workers]   + {s['id']} — {s.get('title', '')[:60]}")
+        # Apply decomposition flags from workers
+        if s["id"] in decomposed_map:
+            s["_decomposed"] = True
+            s["_decomposedInto"] = decomposed_map[s["id"]]
+            print(f"[merge_workers]   ~ {s['id']} decomposed → [{', '.join(decomposed_map[s['id']])}]")
+
+    # Append new sub-stories from worker decompositions
+    if new_substories:
+        main_prd["userStories"].extend(new_substories)
+        for ss in new_substories:
+            print(f"[merge_workers]   + {ss['id']} (sub-story of {ss.get('_decomposedFrom')}) — {ss.get('title', '')[:60]}")
 
     # Atomic write
     tmp = args.main + ".tmp"
