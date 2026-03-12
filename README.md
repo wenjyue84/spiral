@@ -59,6 +59,23 @@ SPIRAL uses multiple AI models to optimize cost, speed, and quality:
 
 ## Quickstart
 
+### Option A: Setup Wizard (Recommended)
+
+In any project directory inside Claude Code, run:
+
+```
+/spiral-init
+```
+
+The wizard will:
+1. **Scan your codebase** — detects language, framework, test runner, project structure
+2. **Ask questions** — project goals, test command, model preferences (with pre-filled defaults from scan)
+3. **Generate config files** — `spiral.config.sh`, `prd.json`, `progress.txt`, updates `.gitignore`
+
+The wizard also triggers automatically if you run `/ralph` in a project that hasn't been set up yet.
+
+### Option B: Manual Setup
+
 ```bash
 # 1. Install
 bash <(curl -sL https://raw.githubusercontent.com/wenjyue84/spiral/main/setup.sh)
@@ -255,7 +272,8 @@ Located at `ralph/skills/`. Two Claude Code skills are bundled:
 
 | Skill | Trigger | What It Does |
 |-------|---------|--------------|
-| `/ralph` | "run ralph", "implement prd" | Runs the Ralph autonomous loop |
+| `/spiral-init` | "init spiral", "setup spiral" | Setup wizard: scans codebase, asks questions, generates config files |
+| `/ralph` | "run ralph", "implement prd" | Runs the Ralph autonomous loop (auto-redirects to `/spiral-init` if no `prd.json`) |
 | `/prd` | "create a prd", "plan this feature" | Generates a structured PRD with clarifying questions |
 
 To install skills into your Claude Code environment, symlink or copy:
@@ -308,6 +326,7 @@ spiral/
 │   ├── stream-formatter.mjs         # Colorized output formatter
 │   ├── jq.exe                       # Windows jq binary (bundled)
 │   └── skills/                      # Claude Code skills
+│       ├── spiral-init.md           # /spiral-init setup wizard
 │       ├── ralph.md                 # /ralph skill
 │       └── prd.md                   # /prd skill
 ├── lib/                             # Python + bash helpers
