@@ -406,6 +406,39 @@ show_progress_bar() {
   printf "] %d/%d (%d%%)\n" "$done" "$total" "$pct"
 }
 
+# ── Periodic status report ────────────────────────────────────────
+SPIRAL_STATUS_INTERVAL="${SPIRAL_STATUS_INTERVAL:-1800}"  # default 30 min (1800s)
+LAST_STATUS_TIME=$(date +%s)
+
+periodic_status_report() {
+  local now=$(date +%s)
+  local elapsed=$((now - LAST_STATUS_TIME))
+  if [[ "$elapsed" -lt "$SPIRAL_STATUS_INTERVAL" ]]; then
+    return
+  fi
+  LAST_STATUS_TIME=$now
+
+  local total_elapsed=$(( (now - START_TIME) / 60 ))
+  local done=$($JQ '[.userStories[] | select(.passes == true)] | length' "$PRD_FILE")
+  local total=$($JQ '[.userStories | length] | .[0]' "$PRD_FILE")
+  local pending=$((total - done))
+  local skipped=0
+  if [[ -f "$RETRY_FILE" ]]; then
+    skipped=$($JQ "[to_entries[] | select(.value >= $MAX_RETRIES)] | length" "$RETRY_FILE")
+  fi
+
+  echo ""
+  echo "  ┌─ Periodic Status (every $((SPIRAL_STATUS_INTERVAL / 60))m) ──────┐"
+  echo "  │ Elapsed:    ${total_elapsed}m"
+  echo "  │ Iteration:  $ITERATION/$MAX_ITERATIONS"
+  echo "  │ Completed:  $done/$total"
+  echo "  │ Pending:    $pending"
+  echo "  │ Skipped:    $skipped"
+  show_progress_bar "$done" "$total"
+  echo "  └──────────────────────────────────────┘"
+  echo ""
+}
+
 # ── Main loop ────────────────────────────────────────────────────
 ITERATION=0
 STORIES_COMPLETED=$COMPLETE_STORIES
@@ -414,6 +447,9 @@ START_TIME=$(date +%s)
 
 while [[ $ITERATION -lt $MAX_ITERATIONS ]]; do
   ITERATION=$((ITERATION + 1))
+
+  # Periodic status report (default every 30m)
+  periodic_status_report
 
   # Show progress bar
   CURRENT_DONE=$($JQ '[.userStories[] | select(.passes == true)] | length' "$PRD_FILE")
