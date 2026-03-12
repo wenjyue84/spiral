@@ -34,6 +34,14 @@ MONITOR_TERMINALS="${9:-0}"
 SPIRAL_HOME="${10:-}"
 RALPH_MODEL="${11:-}"
 
+# ── Source memory pressure helper (if available) ──────────────────────────────
+SPIRAL_SCRATCH_DIR="${SPIRAL_SCRATCH_DIR:-$SCRATCH_DIR}"
+export SPIRAL_SCRATCH_DIR
+_PRESSURE_HELPER="$SPIRAL_HOME/lib/memory-pressure-check.sh"
+if [[ -f "$_PRESSURE_HELPER" ]]; then
+  source "$_PRESSURE_HELPER"
+fi
+
 WORKER_DIR="$SCRATCH_DIR/workers"
 WORKTREE_BASE="$REPO_ROOT/.spiral-workers"
 # Unique lock dir per invocation (using PID avoids collisions if SPIRAL is re-run)
@@ -47,12 +55,72 @@ DEPLOY_CMD="${SPIRAL_DEPLOY_CMD:-}"
 TERMINAL_EMU="${SPIRAL_TERMINAL:-}"
 GEMINI_ANNOTATE="${SPIRAL_GEMINI_ANNOTATE_PROMPT:-}"
 
+# ── Graceful cleanup trap — kill orphaned workers on exit/interrupt ─────────
+cleanup_parallel() {
+  echo ""
+  echo "  [parallel] Cleaning up workers..."
+  # Two-phase kill: SIGTERM first, wait, then SIGKILL stragglers
+  local child_pids
+  child_pids=$(jobs -p 2>/dev/null) || true
+  if [[ -n "$child_pids" ]]; then
+    echo "$child_pids" | xargs kill 2>/dev/null || true
+    sleep 2
+    echo "$child_pids" | xargs kill -9 2>/dev/null || true
+  fi
+  # Clean up lock dir and pause files
+  rm -rf "$LOCK_DIR" 2>/dev/null || true
+  for n in $(seq 1 "$RALPH_WORKERS"); do
+    rm -f "${SPIRAL_SCRATCH_DIR}/_worker_pause_${n}" 2>/dev/null || true
+  done
+  # Clean up worktrees and branches
+  for i in $(seq 1 "$RALPH_WORKERS"); do
+    local branch="${WORKER_BRANCHES[$((i-1))]:-}"
+    local wtree="${WORKER_DIRS[$((i-1))]:-}"
+    [[ -n "$wtree" && -d "$wtree" ]] && git -C "$REPO_ROOT" worktree remove "$wtree" --force 2>/dev/null || true
+    [[ -n "$branch" ]] && git -C "$REPO_ROOT" branch -D "$branch" 2>/dev/null || true
+  done
+  rm -rf "$WORKTREE_BASE" 2>/dev/null || true
+  echo "  [parallel] Cleanup done."
+}
+trap cleanup_parallel EXIT INT TERM
+
 REAL_DOCKER="$(command -v docker 2>/dev/null || echo docker)"
+
+# ── Pre-flight memory check — auto-reduce workers if RAM is low ────────────
+if command -v powershell.exe &>/dev/null; then
+  FREE_MB=$(powershell.exe -Command \
+    "[math]::Floor((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory / 1024)" 2>/dev/null | tr -d '\r')
+  if [[ -n "$FREE_MB" && "$FREE_MB" =~ ^[0-9]+$ ]]; then
+    NEEDED_MB=$(( RALPH_WORKERS * 2560 + 512 ))
+    if [[ "$RALPH_WORKERS" -gt 1 && "$FREE_MB" -lt "$NEEDED_MB" ]]; then
+      MAX_SAFE=$(( (FREE_MB - 512) / 2560 ))
+      [[ "$MAX_SAFE" -lt 1 ]] && MAX_SAFE=1
+      if [[ "$MAX_SAFE" -lt "$RALPH_WORKERS" ]]; then
+        echo "  [parallel] Memory: ${FREE_MB}MB free, need ${NEEDED_MB}MB for $RALPH_WORKERS workers"
+        echo "  [parallel] Auto-reducing workers: $RALPH_WORKERS → $MAX_SAFE"
+        RALPH_WORKERS="$MAX_SAFE"
+        ITER_PER_WORKER=$(( (RALPH_MAX_ITERS + RALPH_WORKERS - 1) / RALPH_WORKERS ))
+      fi
+    fi
+  fi
+fi
+
+# ── Initial worker cap from pressure file ──────────────────────────────────────
+if type spiral_recommended_workers &>/dev/null && [[ "${SPIRAL_LOW_POWER_MODE:-1}" -eq 1 ]]; then
+  _REC_W=$(spiral_recommended_workers)
+  if [[ -n "$_REC_W" && "$_REC_W" =~ ^[0-9]+$ && "$_REC_W" -lt "$RALPH_WORKERS" ]]; then
+    echo "  [parallel] Memory pressure: capping workers $RALPH_WORKERS -> $_REC_W"
+    spiral_log_low_power "run_parallel: initial worker cap $RALPH_WORKERS -> $_REC_W"
+    RALPH_WORKERS="$_REC_W"
+    ITER_PER_WORKER=$(( (RALPH_MAX_ITERS + RALPH_WORKERS - 1) / RALPH_WORKERS ))
+  fi
+fi
 
 echo "  [parallel] ═══════════════════════════════════════════════════"
 echo "  [parallel]  PARALLEL RALPH — $RALPH_WORKERS workers"
 echo "  [parallel]  Iters/worker:  $ITER_PER_WORKER (total budget: $RALPH_MAX_ITERS)"
 echo "  [parallel]  Docker lock:   $LOCK_DIR"
+[[ -n "${SPIRAL_FOCUS:-}" ]] && echo "  [parallel]  Focus:         $SPIRAL_FOCUS"
 [[ -n "$PATCH_DIRS" ]] && echo "  [parallel]  Patch dirs:    $PATCH_DIRS"
 [[ -n "$DEPLOY_CMD" ]] && echo "  [parallel]  Deploy cmd:    (configured)"
 echo "  [parallel] ═══════════════════════════════════════════════════"
@@ -205,6 +273,7 @@ for i in $(seq 1 "$RALPH_WORKERS"); do
     cd "$WTREE"
     # Put lock wrapper first in PATH so docker calls are intercepted
     export PATH="$WTREE/.spiral-bin:$PATH"
+    export SPIRAL_WORKER_ID=$i
     bash "$RALPH_SKILL" "$ITER_PER_WORKER" --prd prd.json $_WORKER_MODEL_FLAG \
       > "$LOG" 2>&1
   ) &
@@ -219,16 +288,81 @@ echo "  [parallel] Monitor all:     tail -f $TAIL_LOGS"
 echo "  [parallel] Waiting for completion..."
 echo ""
 
-# ── Step 4: Wait for all workers ──────────────────────────────────────────────
+# ── Step 4: Adaptive wait loop — monitor workers + manage pressure ────────────
+declare -a WORKER_FINISHED=()
 for i in "${!WORKER_PIDS[@]}"; do
-  PID="${WORKER_PIDS[$i]}"
-  WORKER_NUM=$((i + 1))
-  wait "$PID" || true  # ralph exits non-zero when no stories remain — expected
+  WORKER_FINISHED+=("0")
+done
 
-  WTREE="${WORKER_DIRS[$i]}"
-  DONE_W=$("$JQ" '[.userStories[] | select(.passes == true)] | length' "$WTREE/prd.json" 2>/dev/null || echo "?")
-  TOTAL_W=$("$JQ" '[.userStories | length] | .[0]' "$WTREE/prd.json" 2>/dev/null || echo "?")
-  echo "  [parallel] Worker $WORKER_NUM finished: $DONE_W/$TOTAL_W stories passed"
+_ALL_DONE=0
+while [[ "$_ALL_DONE" -eq 0 ]]; do
+  _ALL_DONE=1
+  _ACTIVE_COUNT=0
+
+  for i in "${!WORKER_PIDS[@]}"; do
+    if [[ "${WORKER_FINISHED[$i]}" -eq 0 ]]; then
+      if ! kill -0 "${WORKER_PIDS[$i]}" 2>/dev/null; then
+        # Worker finished
+        WORKER_FINISHED[$i]=1
+        WORKER_NUM=$((i + 1))
+        wait "${WORKER_PIDS[$i]}" 2>/dev/null || true
+        WTREE="${WORKER_DIRS[$i]}"
+        DONE_W=$("$JQ" '[.userStories[] | select(.passes == true)] | length' "$WTREE/prd.json" 2>/dev/null || echo "?")
+        TOTAL_W=$("$JQ" '[.userStories | length] | .[0]' "$WTREE/prd.json" 2>/dev/null || echo "?")
+        echo "  [parallel] Worker $WORKER_NUM finished: $DONE_W/$TOTAL_W stories passed"
+        # Remove pause file if it exists
+        rm -f "${SPIRAL_SCRATCH_DIR}/_worker_pause_${WORKER_NUM}" 2>/dev/null || true
+      else
+        _ALL_DONE=0
+        _ACTIVE_COUNT=$((_ACTIVE_COUNT + 1))
+      fi
+    fi
+  done
+
+  [[ "$_ALL_DONE" -eq 1 ]] && break
+
+  # ── Adaptive pressure management: pause/resume workers ─────────────────────
+  if type spiral_recommended_workers &>/dev/null && [[ "${SPIRAL_LOW_POWER_MODE:-1}" -eq 1 ]]; then
+    _REC_W=$(spiral_recommended_workers)
+    if [[ -n "$_REC_W" && "$_REC_W" =~ ^[0-9]+$ ]]; then
+      if [[ "$_REC_W" -lt "$_ACTIVE_COUNT" ]]; then
+        # Need to pause some workers — pause highest-numbered first
+        _RUNNING=0
+        for j in "${!WORKER_PIDS[@]}"; do
+          WORKER_NUM=$((j + 1))
+          if [[ "${WORKER_FINISHED[$j]}" -eq 0 ]]; then
+            _RUNNING=$((_RUNNING + 1))
+            if [[ "$_RUNNING" -gt "$_REC_W" ]]; then
+              _PAUSE_F="${SPIRAL_SCRATCH_DIR}/_worker_pause_${WORKER_NUM}"
+              if [[ ! -f "$_PAUSE_F" ]]; then
+                touch "$_PAUSE_F"
+                echo "  [parallel] Pausing worker $WORKER_NUM (pressure: recommended $_REC_W workers)"
+                spiral_log_low_power "run_parallel: paused worker $WORKER_NUM (recommended $_REC_W)"
+              fi
+            fi
+          fi
+        done
+      else
+        # Pressure eased — resume any paused workers
+        for j in "${!WORKER_PIDS[@]}"; do
+          WORKER_NUM=$((j + 1))
+          _PAUSE_F="${SPIRAL_SCRATCH_DIR}/_worker_pause_${WORKER_NUM}"
+          if [[ -f "$_PAUSE_F" ]]; then
+            rm -f "$_PAUSE_F"
+            echo "  [parallel] Resuming worker $WORKER_NUM (pressure eased)"
+            spiral_log_low_power "run_parallel: resumed worker $WORKER_NUM"
+          fi
+        done
+      fi
+    fi
+  fi
+
+  sleep 10
+done
+
+# Resume all paused workers before returning (safety net)
+for i in $(seq 1 "$RALPH_WORKERS"); do
+  rm -f "${SPIRAL_SCRATCH_DIR}/_worker_pause_${i}" 2>/dev/null || true
 done
 
 # ── Step 5: Print last 5 lines of each worker log ─────────────────────────────
@@ -383,6 +517,16 @@ if [[ -n "$DEPLOY_CMD" ]]; then
 else
   echo "  [parallel] No deploy command configured — skipping container deploy"
 fi
+
+# ── Step 8.5: Merge worker results.tsv files ─────────────────────────────────
+for wtree in "${WORKER_DIRS[@]}"; do
+  [[ -f "$wtree/results.tsv" ]] || continue
+  if [[ ! -f "$REPO_ROOT/results.tsv" ]]; then
+    cp "$wtree/results.tsv" "$REPO_ROOT/results.tsv"
+  else
+    tail -n +2 "$wtree/results.tsv" >> "$REPO_ROOT/results.tsv"
+  fi
+done
 
 # ── Step 9: Cleanup worktrees, branches, and lock ────────────────────────────
 rm -rf "$LOCK_DIR" 2>/dev/null || true
