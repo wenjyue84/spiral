@@ -10,6 +10,13 @@ description: >
 
 Implements user stories from `prd.json` one at a time using fresh Claude instances.
 
+## First-Run Detection
+
+**Before running Ralph**, check if `prd.json` exists at the project root (use Glob for `prd.json`).
+
+- If `prd.json` **does NOT exist**: Tell the user this project hasn't been set up for SPIRAL yet, and invoke the `/spiral-init` skill to run the setup wizard. Do NOT proceed with Ralph until the wizard completes.
+- If `prd.json` **exists**: Proceed normally with Ralph below.
+
 ## Usage
 
 From any project root that has a `prd.json`:
