@@ -99,6 +99,24 @@
 # Default: 0 (disabled — WebFetch used instead)
 # SPIRAL_FIRECRAWL_ENABLED=0
 
+# ── Max pending stories ────────────────────────────────────────────────────
+# Hard cap on total incomplete (pending) stories in prd.json.
+# Phase M will stop adding new stories once pending count reaches this limit.
+# Prevents the backlog from growing uncontrollably.
+# 0 = unlimited (no cap). Recommended: 5-15 for focused projects.
+# Default: 0 (unlimited)
+# SPIRAL_MAX_PENDING=9
+
+# ── Focus theme (iteration scoping) ─────────────────────────────────────────
+# Scopes the entire SPIRAL iteration to a specific theme.
+# Phase R only discovers focus-matching stories.
+# Phase M hard-filters research stories; soft-prioritizes test stories.
+# Phase I injects focus context for the implementation agent.
+# CLI --focus flag overrides this setting.
+# Examples: "performance", "security hardening", "accessibility", "error handling"
+# Default: empty (no focus — all stories considered)
+# SPIRAL_FOCUS="performance"
+
 # ── Model routing (Claude model selection) ──────────────────────────────────
 # Controls which Claude model Ralph uses for implementation.
 #   "auto"   — auto-classify per story: haiku (trivial), sonnet (default), opus (complex)
@@ -109,6 +127,13 @@
 # CLI --model flag overrides this setting.
 # Default: auto
 # SPIRAL_MODEL_ROUTING="auto"
+
+# ── Story time budget (per-story wall-clock limit) ──────────────────────────
+# Maximum wall-clock seconds per story attempt in Ralph.
+# Stories exceeding this budget are discarded and retried.
+# Makes results more comparable across stories (inspired by autoresearch).
+# 0 = disabled (default). Recommended: 300 (5 min) for fast iteration.
+# SPIRAL_STORY_TIME_BUDGET=300
 
 # ── Research model (Phase R) ────────────────────────────────────────────────
 # Which Claude model to use for Phase R (web research agent).
@@ -127,3 +152,75 @@
 # Cost: ~1s per story with empty hints, ~1-2 min total; results cached in prd.json
 # Default: empty (skip gitnexus — use keyword matching only)
 # SPIRAL_GITNEXUS_REPO="my-repo"
+
+# ── Spec-Kit Integration (optional) ──────────────────────────────────────
+# When set, SPIRAL reads spec-kit's constitution and specs to enrich:
+#   - Phase R: Research agent respects constitutional constraints
+#   - Phase I: Ralph agents read constitution as quality governance
+#
+# Setup (one-time per target project):
+#   1. Install: npm install -g @spec-kit/cli  (or create .specify/ manually)
+#   2. In your project: specify   (follow the wizard)
+#   3. Write your constitution: /speckit.constitution (in Claude Code)
+#   4. Set variables below
+#
+# NOTE: @spec-kit/cli v0.3.1 has a packaging bug (workspace:* deps).
+#       You can manually create the directory structure instead:
+#         mkdir -p .specify/memory && touch .specify/memory/constitution.md
+#
+# Path to spec-kit constitution (relative to project root).
+# Default: empty (spec-kit not used)
+# SPIRAL_SPECKIT_CONSTITUTION=".specify/memory/constitution.md"
+#
+# Path to specs directory (relative to project root).
+# Default: empty (stories use prd.json only)
+# SPIRAL_SPECKIT_SPECS_DIR="specs"
+
+# ── Memory management (OOM prevention) ───────────────────────────────────────
+# V8 heap cap per process (MB). Controls --max-heap-size for all spawned Claude
+# CLI instances. Lower on 8GB machines, raise on 32GB+.
+# Default: 2048
+# SPIRAL_MEMORY_LIMIT=2048
+
+# Memory watchdog: background PowerShell monitor that kills Node.js processes
+# exceeding the RSS threshold. Requires PowerShell on Windows.
+# 1 = enabled (default), 0 = disabled.
+# SPIRAL_MEMORY_WATCHDOG=1
+
+# Watchdog kill threshold (MB RSS). When a Node.js process exceeds this,
+# the watchdog terminates it. Should be > SPIRAL_MEMORY_LIMIT to allow for
+# non-heap allocations. Default: 2560 (25% above V8 cap).
+# SPIRAL_MEMORY_THRESHOLD=2560
+
+# ── Adaptive memory management ("Low Power Mode") ──────────────────────────
+# Graduated memory pressure system that throttles SPIRAL instead of killing.
+# The watchdog writes a pressure level (0-4) to a signal file. All scripts
+# self-regulate by reading it at natural decision points.
+#
+# Level 0 (normal):    >40% free  -> full speed
+# Level 1 (elevated):  25-40%     -> brief delays
+# Level 2 (high):      15-25%     -> reduce workers, cap model at sonnet, skip Phase R
+# Level 3 (critical):  8-15%      -> 1 worker, haiku, skip R+T, pause workers
+# Level 4 (emergency): <8%        -> kill largest process
+#
+# 1 = enabled (default), 0 = disabled (kill-only watchdog behavior)
+# SPIRAL_LOW_POWER_MODE=1
+
+# Comma-separated free RAM % boundaries for pressure levels 1-4 (descending).
+# Format: normal,elevated,high,critical (% free RAM thresholds)
+# Default: "40,25,15,8"
+# SPIRAL_PRESSURE_THRESHOLDS="40,25,15,8"
+
+# Watchdog poll interval in seconds. Lower = more responsive, higher = less CPU.
+# Default: 15
+# SPIRAL_MEMORY_POLL_INTERVAL=15
+
+# Which degradation strategies to apply under pressure.
+# Comma-separated: workers,model,phases,cooldown
+# Default: "workers,model,phases,cooldown" (all strategies)
+# SPIRAL_DEGRADATION_STRATEGIES="workers,model,phases,cooldown"
+
+# Number of consecutive polls at a lower level before reporting the drop.
+# Prevents oscillation when memory hovers near a threshold boundary.
+# Default: 2
+# SPIRAL_PRESSURE_HYSTERESIS=2

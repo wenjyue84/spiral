@@ -6,6 +6,8 @@ You are a research agent for a software project. Your task is to identify **new,
 
 Research relevant sources for **new requirements** and produce a JSON file of story candidates.
 
+__SPIRAL_FOCUS_SECTION__
+
 ## Sources to Search
 
 Search for:
@@ -36,6 +38,7 @@ These stories are already queued for implementation (not yet complete). Do NOT s
 2. **Only include verified requirements** from official sources — NO hallucination
 3. **Be specific** — acceptanceCriteria must be testable, not vague
 4. **Skip if uncertain** — better to omit than add noise
+5. **Prefer simplicity** — do NOT suggest stories that add unnecessary abstraction or complexity. Prefer stories that simplify, remove dead code, or consolidate duplicated logic.
 
 ## Output Schema
 
