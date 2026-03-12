@@ -27,6 +27,15 @@
 
 set -euo pipefail
 
+# ── Memory guard — cap V8 heap to prevent OOM on 16 GB machines ─────────────
+# Each Claude CLI (Node.js) can consume 4 GB+ uncapped; with multiple processes
+# running (research + ralph + main session), this exceeds available RAM.
+# --max-old-space-size caps old generation heap. --max-semi-space-size=8 reduces
+# new space (default 16MB → 8MB). Together they tighten total V8 memory.
+# Note: --max-heap-size and --optimize-for-size are NOT allowed in NODE_OPTIONS.
+SPIRAL_V8_FLAGS="--max-old-space-size=${SPIRAL_MEMORY_LIMIT:-2048} --max-semi-space-size=8"
+export NODE_OPTIONS="${NODE_OPTIONS:-$SPIRAL_V8_FLAGS}"
+
 # ── Resolve SPIRAL_HOME (where this script + lib/ live) ─────────────────────
 SPIRAL_HOME="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -40,6 +49,7 @@ CAPACITY_LIMIT=50      # Phase R is skipped when PENDING exceeds this threshold
 MONITOR_TERMINALS=1    # 1 = open a terminal window per worker to tail logs
 SPIRAL_CONFIG_PATH=""  # explicit --config path
 SPIRAL_CLI_MODEL=""    # explicit --model override (haiku|sonnet|opus)
+SPIRAL_CLI_FOCUS=""    # explicit --focus override
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -61,6 +71,8 @@ while [[ $# -gt 0 ]]; do
       SPIRAL_CONFIG_PATH="$2"; shift 2 ;;
     --model)
       SPIRAL_CLI_MODEL="$2"; shift 2 ;;
+    --focus)
+      SPIRAL_CLI_FOCUS="$2"; shift 2 ;;
     --help|-h)
       echo "SPIRAL — Self-iterating PRD Research & Implementation Autonomous Loop"
       echo ""
@@ -75,6 +87,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --monitor                  Open terminal per worker (default: on)"
       echo "  --no-monitor               Disable per-worker terminals"
       echo "  --model haiku|sonnet|opus  Claude model override (default: auto-route by story complexity)"
+      echo "  --focus TEXT               Focus iteration on a theme (e.g., 'performance', 'security')"
       echo "  --config PATH              Path to spiral.config.sh (default: \$REPO_ROOT/spiral.config.sh)"
       echo ""
       echo "Config: Place spiral.config.sh in project root (or use --config)."
@@ -114,11 +127,23 @@ STREAM_FMT="${SPIRAL_STREAM_FMT:-$SPIRAL_HOME/ralph/stream-formatter.mjs}"
 SPIRAL_MODEL_ROUTING="${SPIRAL_MODEL_ROUTING:-auto}"
 SPIRAL_RESEARCH_MODEL="${SPIRAL_RESEARCH_MODEL:-sonnet}"
 SPIRAL_FIRECRAWL_ENABLED="${SPIRAL_FIRECRAWL_ENABLED:-0}"
+SPIRAL_SPECKIT_CONSTITUTION="${SPIRAL_SPECKIT_CONSTITUTION:-}"
+SPIRAL_SPECKIT_SPECS_DIR="${SPIRAL_SPECKIT_SPECS_DIR:-}"
+SPIRAL_FOCUS="${SPIRAL_CLI_FOCUS:-${SPIRAL_FOCUS:-}}"
+SPIRAL_MAX_PENDING="${SPIRAL_MAX_PENDING:-0}"  # 0 = unlimited
+SPIRAL_LOW_POWER_MODE="${SPIRAL_LOW_POWER_MODE:-1}"
+SPIRAL_PRESSURE_THRESHOLDS="${SPIRAL_PRESSURE_THRESHOLDS:-40,25,15,8}"
+SPIRAL_MEMORY_POLL_INTERVAL="${SPIRAL_MEMORY_POLL_INTERVAL:-15}"
+SPIRAL_PRESSURE_HYSTERESIS="${SPIRAL_PRESSURE_HYSTERESIS:-2}"
 
 # Scratch directory in project root
 SCRATCH_DIR="$REPO_ROOT/.spiral"
 PRD_FILE="$REPO_ROOT/prd.json"
 CHECKPOINT_FILE="$SCRATCH_DIR/_checkpoint.json"
+
+# ── Source memory pressure helper library ────────────────────────────────────
+export SPIRAL_SCRATCH_DIR="$SCRATCH_DIR"
+source "$SPIRAL_HOME/lib/memory-pressure-check.sh"
 
 # ── jq resolution (reuse ralph.sh pattern) ───────────────────────────────────
 RALPH_JQ_DIR="$SPIRAL_HOME/ralph"
@@ -146,6 +171,53 @@ fi
 # ── Tee all output to log file ──────────────────────────────────────────────
 mkdir -p "$SCRATCH_DIR"
 exec > >(tee "$SCRATCH_DIR/_last_run.log") 2>&1
+SESSION_START=$(date +%s)
+
+# ── Graceful cleanup trap — kill orphaned processes on exit/interrupt ───────
+WATCHDOG_PID=""
+cleanup() {
+  echo ""
+  echo "  [cleanup] Shutting down child processes..."
+  # Kill memory watchdog
+  [[ -n "$WATCHDOG_PID" ]] && kill "$WATCHDOG_PID" 2>/dev/null || true
+  # Two-phase kill: SIGTERM first, wait, then SIGKILL stragglers
+  local child_pids
+  child_pids=$(jobs -p 2>/dev/null) || true
+  if [[ -n "$child_pids" ]]; then
+    echo "$child_pids" | xargs kill 2>/dev/null || true
+    sleep 2
+    echo "$child_pids" | xargs kill -9 2>/dev/null || true
+  fi
+  # Clean up orphaned git worktrees
+  if [[ -d "$REPO_ROOT/.spiral-workers" ]]; then
+    for wt in "$REPO_ROOT/.spiral-workers"/worker-*; do
+      [[ -d "$wt" ]] && git -C "$REPO_ROOT" worktree remove "$wt" --force 2>/dev/null || true
+    done
+    rm -rf "$REPO_ROOT/.spiral-workers" 2>/dev/null || true
+  fi
+  # Clean up docker lock dirs
+  rm -rf /tmp/spiral-docker-lock-* 2>/dev/null || true
+  # Clean up memory pressure signal files
+  rm -f "$SCRATCH_DIR/_memory_pressure.json" "$SCRATCH_DIR/_low_power_active" 2>/dev/null || true
+  rm -f "$SCRATCH_DIR"/_worker_pause_* 2>/dev/null || true
+  echo "  [cleanup] Done."
+}
+trap cleanup EXIT INT TERM
+
+# ── Memory watchdog — background monitor (graduated pressure or kill-only) ────
+if [[ "${SPIRAL_MEMORY_WATCHDOG:-1}" -eq 1 ]] && command -v powershell.exe &>/dev/null; then
+  _WATCHDOG_ARGS="-ThresholdMB ${SPIRAL_MEMORY_THRESHOLD:-2560} -ParentPID $$ -IntervalSec ${SPIRAL_MEMORY_POLL_INTERVAL}"
+  if [[ "$SPIRAL_LOW_POWER_MODE" -eq 1 ]]; then
+    _WATCHDOG_ARGS="$_WATCHDOG_ARGS -ScratchDir $SCRATCH_DIR -ThresholdPct $SPIRAL_PRESSURE_THRESHOLDS -Hysteresis $SPIRAL_PRESSURE_HYSTERESIS"
+    _WATCHDOG_MODE="graduated"
+  else
+    _WATCHDOG_MODE="kill-only"
+  fi
+  powershell.exe -ExecutionPolicy Bypass -File "$SPIRAL_HOME/lib/memory-watchdog.ps1" \
+    $_WATCHDOG_ARGS &
+  WATCHDOG_PID=$!
+  echo "  [memory] Watchdog started (PID: $WATCHDOG_PID, mode: $_WATCHDOG_MODE, threshold: ${SPIRAL_MEMORY_THRESHOLD:-2560}MB)"
+fi
 
 # ── Backup prd.json before any modifications ────────────────────────────────
 cp "$PRD_FILE" "${PRD_FILE}.bak"
@@ -200,11 +272,39 @@ build_research_prompt() {
   prompt_content="${prompt_content//__NEXT_ID_NUM__/$next_id_num}"
   prompt_content="${prompt_content//__OUTPUT_PATH__/$output_path}"
   prompt_content="${prompt_content//__STORY_PREFIX__/$SPIRAL_STORY_PREFIX}"
-  # Replace __EXISTING_TITLES__ and __PENDING_TITLES__ placeholders
+  local focus_section=""
+  if [[ -n "$SPIRAL_FOCUS" ]]; then
+    focus_section="## FOCUS DIRECTIVE\n\n**This iteration is scoped to: \"$SPIRAL_FOCUS\"**\n\nYou MUST only discover stories directly related to this theme. Skip any story that does not clearly improve or relate to \"$SPIRAL_FOCUS\". When in doubt, omit rather than include."
+  fi
+
+  # Replace __EXISTING_TITLES__, __PENDING_TITLES__, and __SPIRAL_FOCUS_SECTION__ placeholders
   printf '%s' "$prompt_content" | \
-    awk -v existing="$existing_titles" -v pending="$pending_titles" \
-      '{gsub(/__EXISTING_TITLES__/, existing); gsub(/__PENDING_TITLES__/, pending); print}'
+    awk -v existing="$existing_titles" -v pending="$pending_titles" -v focus="$focus_section" \
+      '{gsub(/__EXISTING_TITLES__/, existing); gsub(/__PENDING_TITLES__/, pending); gsub(/__SPIRAL_FOCUS_SECTION__/, focus); print}'
 }
+
+# ── Pre-flight memory check — auto-adjust workers if RAM is low ────────────
+if command -v powershell.exe &>/dev/null; then
+  FREE_MB=$(powershell.exe -Command \
+    "[math]::Floor((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory / 1024)" 2>/dev/null | tr -d '\r')
+  if [[ -n "$FREE_MB" && "$FREE_MB" =~ ^[0-9]+$ ]]; then
+    # Each Claude instance needs ~2.5GB; plus 512MB overhead
+    NEEDED_MB=$(( (RALPH_WORKERS + 1) * 2560 + 512 ))
+    if [[ "$FREE_MB" -lt 3072 ]]; then
+      echo "  [memory] WARNING: Only ${FREE_MB}MB free RAM — OOM risk is high"
+      echo "  [memory] Consider closing applications or reducing --ralph-workers"
+    fi
+    if [[ "$RALPH_WORKERS" -gt 1 && "$FREE_MB" -lt "$NEEDED_MB" ]]; then
+      # Auto-reduce workers to fit available memory
+      MAX_SAFE_WORKERS=$(( (FREE_MB - 512) / 2560 ))
+      [[ "$MAX_SAFE_WORKERS" -lt 1 ]] && MAX_SAFE_WORKERS=1
+      if [[ "$MAX_SAFE_WORKERS" -lt "$RALPH_WORKERS" ]]; then
+        echo "  [memory] Auto-reducing workers: $RALPH_WORKERS → $MAX_SAFE_WORKERS (${FREE_MB}MB free, need ${NEEDED_MB}MB)"
+        RALPH_WORKERS="$MAX_SAFE_WORKERS"
+      fi
+    fi
+  fi
+fi
 
 # ── SPIRAL banner ───────────────────────────────────────────────────────────
 prd_stats
@@ -231,6 +331,11 @@ fi
 [[ "$RALPH_WORKERS" -gt 1 ]] && echo "  ║  Workers:     $RALPH_WORKERS parallel (git worktrees)"
 [[ "$SKIP_RESEARCH" -eq 1 ]] && echo "  ║  Mode:        --skip-research (Phase R skipped)"
 [[ "$MONITOR_TERMINALS" -eq 1 ]] && echo "  ║  Monitor:     terminal per worker (--monitor)"
+[[ -n "$SPIRAL_SPECKIT_CONSTITUTION" && -f "$REPO_ROOT/$SPIRAL_SPECKIT_CONSTITUTION" ]] && \
+  echo "  ║  Spec-Kit:    constitution loaded"
+[[ -n "$SPIRAL_FOCUS" ]] && echo "  ║  Focus:       $SPIRAL_FOCUS"
+[[ "$SPIRAL_MAX_PENDING" -gt 0 ]] && echo "  ║  Max pending: $SPIRAL_MAX_PENDING incomplete stories"
+[[ "$SPIRAL_LOW_POWER_MODE" -eq 1 ]] && echo "  ║  Low power:   adaptive memory management enabled"
 echo "  ║  Capacity:    Phase R skipped when pending > $CAPACITY_LIMIT"
 echo "  ║  Scratch:     $SCRATCH_DIR"
 echo "  ╚══════════════════════════════════════════════╝"
@@ -239,6 +344,9 @@ echo ""
 # ── Startup: initialize counters and resume from checkpoint if available ────
 ZERO_PROGRESS_COUNT=0
 SPIRAL_ITER=0
+
+export SPIRAL_FOCUS
+export SPIRAL_ITER
 
 if [[ -f "$CHECKPOINT_FILE" ]]; then
   CKPT_ITER=$("$JQ" -r '.iter // 0' "$CHECKPOINT_FILE")
@@ -251,6 +359,7 @@ fi
 # ── Main SPIRAL loop ────────────────────────────────────────────────────────
 while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
   SPIRAL_ITER=$((SPIRAL_ITER + 1))
+  ITER_START=$(date +%s)
 
   prd_stats
   ADDED=0           # new stories added this iter (set in Phase M; default 0 if skipped)
@@ -286,6 +395,12 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
     echo "  [R] Skipping (over-capacity: $PENDING pending > $CAPACITY_LIMIT)"
     echo '{"stories":[]}' > "$RESEARCH_OUTPUT"
     write_checkpoint "$SPIRAL_ITER" "R"
+  elif [[ "$SPIRAL_LOW_POWER_MODE" -eq 1 ]] && spiral_should_skip_phase "R"; then
+    _P_LVL=$(spiral_pressure_level)
+    echo "  [R] Skipping (memory pressure: level $_P_LVL)"
+    spiral_log_low_power "Phase R skipped (pressure level $_P_LVL, iter $SPIRAL_ITER)"
+    echo '{"stories":[]}' > "$RESEARCH_OUTPUT"
+    write_checkpoint "$SPIRAL_ITER" "R"
   else
     # ── Gemini web research (optional, configured via SPIRAL_GEMINI_PROMPT) ──
     GEMINI_RESEARCH=""
@@ -316,6 +431,23 @@ $GEMINI_RESEARCH
 ---
 
 $INJECTED_PROMPT"
+    fi
+
+    # Inject spec-kit constitution so research respects project standards
+    if [[ -n "$SPIRAL_SPECKIT_CONSTITUTION" && -f "$REPO_ROOT/$SPIRAL_SPECKIT_CONSTITUTION" ]]; then
+      CONSTITUTION_CONTENT=$(cat "$REPO_ROOT/$SPIRAL_SPECKIT_CONSTITUTION")
+      INJECTED_PROMPT="## Project Constitution (Spec-Kit)
+
+The following constitution defines non-negotiable project standards.
+All new stories MUST comply with these principles. Do NOT suggest stories
+that would violate these standards.
+
+$CONSTITUTION_CONTENT
+
+---
+
+$INJECTED_PROMPT"
+      echo "  [R] Spec-Kit constitution injected into research prompt"
     fi
 
     # Resolve research model: CLI override > config
@@ -371,12 +503,19 @@ $INJECTED_PROMPT"
 
   if checkpoint_phase_done "T"; then
     echo "  [T] Skipping (checkpoint: already done this iter)"
+  elif [[ "$SPIRAL_LOW_POWER_MODE" -eq 1 ]] && spiral_should_skip_phase "T"; then
+    _P_LVL=$(spiral_pressure_level)
+    echo "  [T] Skipping (memory pressure: level $_P_LVL)"
+    spiral_log_low_power "Phase T skipped (pressure level $_P_LVL, iter $SPIRAL_ITER)"
+    echo '{"stories":[]}' > "$TEST_OUTPUT"
+    write_checkpoint "$SPIRAL_ITER" "T"
   else
     "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/synthesize_tests.py" \
       --prd "$PRD_FILE" \
       --reports-dir "$REPO_ROOT/$SPIRAL_REPORTS_DIR" \
       --output "$TEST_OUTPUT" \
-      --repo-root "$REPO_ROOT" || true
+      --repo-root "$REPO_ROOT" \
+      ${SPIRAL_FOCUS:+--focus "$SPIRAL_FOCUS"} || true
 
     TEST_COUNT=$("$JQ" '.stories | length' "$TEST_OUTPUT" 2>/dev/null || echo "0")
     echo "  [T] Test synthesis complete — $TEST_COUNT story candidates from failures"
@@ -399,7 +538,9 @@ $INJECTED_PROMPT"
       --test-stories "$TEST_OUTPUT" \
       --overflow-in  "$OVERFLOW_FILE" \
       --overflow-out "$OVERFLOW_FILE" \
-      --max-new 50 || true
+      --max-new 50 \
+      --max-pending "$SPIRAL_MAX_PENDING" \
+      ${SPIRAL_FOCUS:+--focus "$SPIRAL_FOCUS"} || true
     AFTER_TOTAL=$("$JQ" '[.userStories | length] | .[0]' "$PRD_FILE")
     ADDED=$((AFTER_TOTAL - BEFORE_TOTAL))
     echo "  [M] Merge complete — $ADDED new stories added (total: $AFTER_TOTAL)"
@@ -419,6 +560,8 @@ $INJECTED_PROMPT"
     echo "  ║  New stories added:  $ADDED"
     echo "  ║  Total pending:      $PENDING"
     echo "  ║  Total stories:      $TOTAL ($DONE complete)"
+    [[ -n "$SPIRAL_FOCUS" ]] && \
+    echo "  ║  Focus:              $SPIRAL_FOCUS"
     echo "  ╠══════════════════════════════════════════════════════╣"
     echo "  ║  Options:"
     echo "  ║    proceed — run ralph to implement pending stories"
@@ -459,6 +602,25 @@ $INJECTED_PROMPT"
         if [[ "$PENDING" -eq 0 ]]; then
           echo "  [Phase I] IMPLEMENT — skipping (no pending stories)"
         else
+        # ── Adaptive memory: reduce workers and override model under pressure ──
+        if [[ "$SPIRAL_LOW_POWER_MODE" -eq 1 ]]; then
+          _PRESSURE_LVL=$(spiral_pressure_level)
+          if [[ "$_PRESSURE_LVL" -ge 2 ]]; then
+            _REC_WORKERS=$(spiral_recommended_workers)
+            if [[ -n "$_REC_WORKERS" && "$_REC_WORKERS" -lt "$RALPH_WORKERS" ]]; then
+              spiral_log_low_power "Workers reduced: $RALPH_WORKERS -> $_REC_WORKERS (pressure level $_PRESSURE_LVL, iter $SPIRAL_ITER)"
+              echo "  [memory] Pressure level $_PRESSURE_LVL — reducing workers: $RALPH_WORKERS -> $_REC_WORKERS"
+              RALPH_WORKERS="$_REC_WORKERS"
+            fi
+            _REC_MODEL=$(spiral_recommended_model)
+            if [[ -n "$_REC_MODEL" && -z "$SPIRAL_CLI_MODEL" ]]; then
+              spiral_log_low_power "Model capped: $_REC_MODEL (pressure level $_PRESSURE_LVL, iter $SPIRAL_ITER)"
+              echo "  [memory] Pressure level $_PRESSURE_LVL — model cap: $_REC_MODEL"
+              SPIRAL_CLI_MODEL="$_REC_MODEL"
+            fi
+          fi
+        fi
+
         echo "  [Phase I] IMPLEMENT — running ralph ($RALPH_MAX_ITERS inner iterations)..."
         echo "  [I] Pending stories ($PENDING):"
         "$JQ" -r '.userStories[] | select(.passes != true) | "    [\(.id)] \(.title)"' "$PRD_FILE" \
@@ -737,6 +899,16 @@ PYEOF
     echo "  ║   All stories implemented and tests passing.         ║"
     echo "  ║   Iterations: $SPIRAL_ITER / $MAX_SPIRAL_ITERS"
     echo "  ╚══════════════════════════════════════════════════════╝"
+
+    if [[ -f "$REPO_ROOT/results.tsv" ]]; then
+      echo ""
+      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/spiral_report.py" --results "$REPO_ROOT/results.tsv" 2>/dev/null || true
+    fi
+
+    SESSION_END=$(date +%s)
+    SESSION_MINUTES=$(( (SESSION_END - SESSION_START) / 60 ))
+    echo "  Session: ${SESSION_MINUTES}m total, $SPIRAL_ITER iterations"
+
     exit 0
   fi
 
@@ -748,6 +920,32 @@ PYEOF
     ITERS_LEFT=$(( (PENDING + RALPH_PROGRESS - 1) / RALPH_PROGRESS ))
     echo "  [C] Velocity: ~${RALPH_PROGRESS} stories/iter | ~${ITERS_LEFT} more iters to completion"
   fi
+
+  # ── Iteration dashboard ─────────────────────────────────────────────────
+  ITER_END=$(date +%s)
+  ITER_DURATION=$(( ITER_END - ITER_START ))
+  ITER_MINUTES=$(( ITER_DURATION / 60 ))
+  echo ""
+  echo "  ┌─ Iteration $SPIRAL_ITER Summary ─────────────────┐"
+  echo "  │  Stories:   +${RALPH_PROGRESS:-0} completed, $PENDING remaining"
+  echo "  │  Duration:  ${ITER_MINUTES}m (${ITER_DURATION}s)"
+  if [[ "${RALPH_PROGRESS:-0}" -gt 0 && "$ITER_DURATION" -gt 0 ]]; then
+    VEL=$(awk "BEGIN {printf \"%.1f\", ${RALPH_PROGRESS} / ($ITER_DURATION / 3600.0)}")
+    echo "  │  Velocity:  ${VEL} stories/hour"
+  fi
+  echo "  └──────────────────────────────────────────────────┘"
+
+  # ── Adaptive cooldown under memory pressure ─────────────────────────────────
+  if [[ "$SPIRAL_LOW_POWER_MODE" -eq 1 ]]; then
+    _PRESSURE_LVL=$(spiral_pressure_level)
+    if [[ "$_PRESSURE_LVL" -ge 2 ]]; then
+      _COOLDOWN=$(( _PRESSURE_LVL * 15 ))
+      echo "  [memory] Pressure cooldown: ${_COOLDOWN}s (level $_PRESSURE_LVL)"
+      spiral_log_low_power "Inter-iteration cooldown: ${_COOLDOWN}s (level $_PRESSURE_LVL, iter $SPIRAL_ITER)"
+      sleep "$_COOLDOWN"
+    fi
+  fi
+
   echo "  [C] Looping back to Phase R"
   echo ""
 done
@@ -760,4 +958,14 @@ echo "  ║  SPIRAL reached max iterations ($MAX_SPIRAL_ITERS)           ║"
 echo "  ║  Stories: $DONE/$TOTAL complete ($PENDING pending)   ║"
 echo "  ║  Run again to continue: bash spiral.sh 20            ║"
 echo "  ╚══════════════════════════════════════════════════════╝"
+
+if [[ -f "$REPO_ROOT/results.tsv" ]]; then
+  echo ""
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/spiral_report.py" --results "$REPO_ROOT/results.tsv" 2>/dev/null || true
+fi
+
+SESSION_END=$(date +%s)
+SESSION_MINUTES=$(( (SESSION_END - SESSION_START) / 60 ))
+echo "  Session: ${SESSION_MINUTES}m total, $SPIRAL_ITER iterations"
+
 exit 0
