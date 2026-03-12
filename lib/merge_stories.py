@@ -62,6 +62,15 @@ def sort_key(story: dict[str, Any]) -> int:
     return PRIORITY_RANK.get(story.get("priority", "medium"), 2)
 
 
+def matches_focus(story: dict[str, Any], focus: str) -> bool:
+    """Case-insensitive keyword match against title + description."""
+    if not focus:
+        return True
+    focus_lower = focus.lower()
+    searchable = (story.get("title", "") + " " + story.get("description", "")).lower()
+    return focus_lower in searchable
+
+
 def load_candidates(path: str) -> list[dict[str, Any]]:
     if not os.path.isfile(path):
         print(f"[merge] WARNING: {path} not found — treating as empty")
@@ -118,6 +127,8 @@ def main() -> int:
         help="Write leftover research candidates here for next iteration",
     )
     parser.add_argument("--max-new", type=int, default=50, help="Max new stories to add per iteration")
+    parser.add_argument("--max-pending", type=int, default=0, help="Max total pending (incomplete) stories allowed. 0 = unlimited")
+    parser.add_argument("--focus", default="", help="Focus theme — hard-filter research, soft-prioritize tests")
     args = parser.parse_args()
 
     if not os.path.isfile(args.prd):
@@ -130,7 +141,18 @@ def main() -> int:
     existing_stories: list[dict[str, Any]] = prd.get("userStories", [])
     existing_titles = [s.get("title", "") for s in existing_stories]
 
-    print(f"[merge] prd.json: {len(existing_stories)} existing stories")
+    current_pending = sum(1 for s in existing_stories if not s.get("passes"))
+    print(f"[merge] prd.json: {len(existing_stories)} existing stories ({current_pending} pending)")
+
+    # Compute effective cap: min(max_new, remaining room under max_pending)
+    effective_cap = args.max_new
+    if args.max_pending > 0:
+        room = max(0, args.max_pending - current_pending)
+        effective_cap = min(effective_cap, room)
+        print(f"[merge] Max pending limit: {args.max_pending} (current: {current_pending}, room: {room})")
+        if room == 0:
+            print(f"[merge] At or over max pending limit ({current_pending}/{args.max_pending}) — no new stories will be added")
+            return 0
 
     # Load all candidate sources
     test_candidates = load_candidates(args.test_stories)
@@ -145,13 +167,17 @@ def main() -> int:
     test_candidates.sort(key=sort_key)
     research_candidates.sort(key=sort_key)
 
+    if args.focus:
+        test_candidates.sort(key=lambda s: (0 if matches_focus(s, args.focus) else 1, sort_key(s)))
+        print(f"[merge] Focus: \"{args.focus}\" — research hard-filtered, test stories soft-prioritized")
+
     new_stories: list[dict[str, Any]] = []
     seen_titles: list[str] = list(existing_titles)
 
     # ── Group 1: Test-synthesis candidates (never overflow — regenerated each iteration) ──
     for story in test_candidates:
-        if len(new_stories) >= args.max_new:
-            print(f"[merge] Cap of {args.max_new} reached during test candidates")
+        if len(new_stories) >= effective_cap:
+            print(f"[merge] Cap of {effective_cap} reached during test candidates")
             break
         title = story.get("title", "")
         if not title:
@@ -172,10 +198,13 @@ def main() -> int:
         title = story.get("title", "")
         if not title:
             continue
+        if args.focus and not matches_focus(story, args.focus):
+            print(f"[merge] Skip (focus mismatch): {title[:80]}")
+            continue
         if is_duplicate(title, seen_titles):
             print(f"[merge] Skip duplicate (research): {title[:80]}")
             continue
-        if len(new_stories) >= args.max_new:
+        if len(new_stories) >= effective_cap:
             # Cap hit — save non-duplicate for next iteration
             leftover_research.append({k: v for k, v in story.items() if not k.startswith("_")})
         else:

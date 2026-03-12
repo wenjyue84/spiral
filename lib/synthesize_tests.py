@@ -259,7 +259,11 @@ def main() -> int:
         default=".",
         help="Repo root for test source extraction (default: current dir)",
     )
+    parser.add_argument("--focus", default="", help="Focus theme — tag matching stories for priority boost")
     args = parser.parse_args()
+
+    if args.focus:
+        print(f"[synthesize] Focus active: \"{args.focus}\" — matching stories tagged for priority boost")
 
     # Load existing titles from prd.json for dedup
     existing_titles: list[str] = []
@@ -300,6 +304,11 @@ def main() -> int:
             continue
         candidates.append(story)
         seen_titles.append(title)
+
+        if args.focus:
+            focus_lower = args.focus.lower()
+            searchable = (story.get("title", "") + " " + story.get("description", "")).lower()
+            story["_focusRelevant"] = focus_lower in searchable
 
     print(f"[synthesize] Generated {len(candidates)} new story candidates from test failures")
 
