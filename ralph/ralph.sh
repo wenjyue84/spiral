@@ -12,10 +12,17 @@
 
 set -e
 
+# ── Memory guard — cap V8 heap to prevent OOM ───────────────────────────────
+# --max-old-space-size caps old generation. --max-semi-space-size=8 tightens new space.
+SPIRAL_V8_FLAGS="--max-old-space-size=${SPIRAL_MEMORY_LIMIT:-2048} --max-semi-space-size=8"
+export NODE_OPTIONS="${NODE_OPTIONS:-$SPIRAL_V8_FLAGS}"
+
 # Default values
 MAX_ITERATIONS=60
 AI_TOOL="claude"
 RALPH_MODEL=""
+RALPH_FOCUS="${SPIRAL_FOCUS:-}"
+STORY_TIME_BUDGET="${SPIRAL_STORY_TIME_BUDGET:-0}"  # 0 = disabled
 PRD_FILE="prd.json"
 PROGRESS_FILE="progress.txt"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -71,6 +78,13 @@ else
   exit 1
 fi
 
+# ── Source memory pressure helper (if available) ──────────────────────────────
+SPIRAL_SCRATCH_DIR="${SPIRAL_SCRATCH_DIR:-.spiral}"
+_PRESSURE_HELPER="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd)/lib/memory-pressure-check.sh"
+if [[ -f "$_PRESSURE_HELPER" ]]; then
+  source "$_PRESSURE_HELPER"
+fi
+
 # Source project-specific quality gates if available
 if [[ -f "./ralph-config.sh" ]]; then
   echo "[config] Loading project quality gates from ./ralph-config.sh"
@@ -113,6 +127,8 @@ echo "  ║  Branch:     $BRANCH_NAME"
 echo "  ║  Stories:    $COMPLETE_STORIES/$TOTAL_STORIES complete"
 echo "  ║  Remaining:  $INCOMPLETE_STORIES stories"
 echo "  ║  Max iters:  $MAX_ITERATIONS"
+[[ "$STORY_TIME_BUDGET" -gt 0 ]] && \
+echo "  ║  Time budget: ${STORY_TIME_BUDGET}s per story"
 echo "  ╚══════════════════════════════════════╝"
 echo ""
 
@@ -208,6 +224,60 @@ reset_retry() {
   local story_id="$1"
   $JQ "del(.\"$story_id\")" "$RETRY_FILE" > "${RETRY_FILE}.tmp"
   mv "${RETRY_FILE}.tmp" "$RETRY_FILE"
+}
+
+# ── Story decomposition ──────────────────────────────────────────
+decompose_story() {
+  local story_id="$1"
+  local model="${2:-sonnet}"
+
+  # Guard: sub-stories cannot be decomposed (prevent infinite recursion)
+  local from_parent
+  from_parent=$($JQ -r ".userStories[] | select(.id == \"$story_id\") | ._decomposedFrom // \"\"" "$PRD_FILE" | tr -d '\r')
+  if [[ -n "$from_parent" ]]; then
+    echo "  [decompose] $story_id is a sub-story of $from_parent — skipping decomposition"
+    return 1
+  fi
+
+  local python_cmd="${SPIRAL_PYTHON:-python3}"
+  local decompose_script
+  decompose_script="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd)/lib/decompose_story.py"
+
+  if [[ ! -f "$decompose_script" ]]; then
+    echo "  [decompose] decompose_story.py not found — skipping"
+    return 1
+  fi
+
+  echo "  [decompose] Decomposing $story_id into sub-stories..."
+  if "$python_cmd" "$decompose_script" \
+    --prd "$PRD_FILE" \
+    --story-id "$story_id" \
+    --progress "$PROGRESS_FILE" \
+    --model "$model"; then
+    echo "  [decompose] $story_id decomposed successfully"
+    TOTAL_STORIES=$($JQ '[.userStories | length] | .[0]' "$PRD_FILE")
+    return 0
+  else
+    echo "  [decompose] Failed to decompose $story_id — will skip instead"
+    return 1
+  fi
+}
+
+# ── Results ledger (autoresearch-inspired) ──────────────────────
+RESULTS_FILE="results.tsv"
+append_result() {
+  local status="$1" commit_sha="${2:-}"
+  local ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  local duration_sec=$((STORY_END - STORY_START))
+  local model_col="${EFFECTIVE_MODEL:-${EFFECTIVE_TOOL:-unknown}}"
+  if [[ ! -f "$RESULTS_FILE" ]]; then
+    printf 'timestamp\tspiral_iter\tralph_iter\tstory_id\tstory_title\tstatus\tduration_sec\tmodel\tretry_num\tcommit_sha\n' > "$RESULTS_FILE"
+  fi
+  local safe_title="${STORY_TITLE//$'\t'/ }"
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+    "$ts" "${SPIRAL_ITER:-0}" "$ITERATION" "$NEXT_STORY" "$safe_title" \
+    "$status" "$duration_sec" "$model_col" "$RETRY_NOW" "$commit_sha" \
+    >> "$RESULTS_FILE"
 }
 
 # Check if all dependencies of a story are complete (passes: true)
@@ -355,7 +425,7 @@ while [[ $ITERATION -lt $MAX_ITERATIONS ]]; do
 
   # Find next incomplete story — respecting retries and dependencies
   NEXT_STORY=""
-  ALL_INCOMPLETE=$($JQ -r '[.userStories[] | select(.passes == false)] | sort_by(.priority) | .[].id' "$PRD_FILE" | tr -d '\r')
+  ALL_INCOMPLETE=$($JQ -r '[.userStories[] | select(.passes == false and (._decomposed | not))] | sort_by(.priority) | .[].id' "$PRD_FILE" | tr -d '\r')
 
   for candidate in $ALL_INCOMPLETE; do
     retries=$(get_retry_count "$candidate")
@@ -379,9 +449,19 @@ while [[ $ITERATION -lt $MAX_ITERATIONS ]]; do
       for sid in $ALL_INCOMPLETE; do
         retries=$(get_retry_count "$sid")
         stitle=$($JQ -r ".userStories[] | select(.id == \"$sid\") | .title" "$PRD_FILE")
-        if [[ "$retries" -ge "$MAX_RETRIES" ]]; then
+        local is_decomposed_parent
+        is_decomposed_parent=$($JQ -r ".userStories[] | select(.id == \"$sid\") | ._decomposed // false" "$PRD_FILE" | tr -d '\r')
+        if [[ "$is_decomposed_parent" == "true" ]]; then
+          local children
+          children=$($JQ -r ".userStories[] | select(.id == \"$sid\") | ._decomposedInto // [] | join(\", \")" "$PRD_FILE" | tr -d '\r')
+          echo "    DECOMPOSED:            [$sid] $stitle → [$children]"
+        elif [[ "$retries" -ge "$MAX_RETRIES" ]]; then
           echo "    SKIPPED (${retries}x failed): [$sid] $stitle"
           STORIES_SKIPPED=$((STORIES_SKIPPED + 1))
+          # Log skip to results ledger
+          NEXT_STORY="$sid"; STORY_TITLE="$stitle"; RETRY_NOW="$retries"
+          STORY_START=$(date +%s); STORY_END=$STORY_START
+          append_result "skip"
         else
           echo "    BLOCKED (deps unmet):  [$sid] $stitle"
         fi
@@ -461,6 +541,40 @@ while [[ $ITERATION -lt $MAX_ITERATIONS ]]; do
   PRE_STORY_TS_ERRORS=$(capture_ts_baseline)
   echo "$PRE_STORY_TS_ERRORS errors"
 
+  # ── Memory pressure gate (cooperative) ────────────────────────────────────
+  if type spiral_pressure_level &>/dev/null; then
+    _P_LVL=$(spiral_pressure_level)
+    # Level 3-4: wait until pressure drops below 3
+    while [[ "$_P_LVL" -ge 3 ]]; do
+      echo "  [memory] Pressure level $_P_LVL — waiting 15s before spawn..."
+      spiral_log_low_power "ralph: waiting to spawn $NEXT_STORY (pressure level $_P_LVL)"
+      sleep 15
+      _P_LVL=$(spiral_pressure_level)
+    done
+    # Model downgrade under pressure (only downgrade, never upgrade)
+    _REC_MODEL=$(spiral_recommended_model)
+    if [[ -n "$_REC_MODEL" && "$EFFECTIVE_TOOL" == "claude" && -n "$EFFECTIVE_MODEL" ]]; then
+      declare -A _MODEL_RANK=([haiku]=1 [sonnet]=2 [opus]=3)
+      _CUR_RANK=${_MODEL_RANK[${EFFECTIVE_MODEL}]:-2}
+      _REC_RANK=${_MODEL_RANK[$_REC_MODEL]:-2}
+      if [[ "$_REC_RANK" -lt "$_CUR_RANK" ]]; then
+        spiral_log_low_power "ralph: model downgrade $EFFECTIVE_MODEL -> $_REC_MODEL for $NEXT_STORY"
+        echo "  [memory] Model downgrade: $EFFECTIVE_MODEL -> $_REC_MODEL (pressure)"
+        EFFECTIVE_MODEL="$_REC_MODEL"
+      fi
+    fi
+  fi
+
+  # ── Cooperative pause (parallel workers only) ───────────────────────────────
+  if [[ -n "${SPIRAL_WORKER_ID:-}" ]] && type spiral_pressure_level &>/dev/null; then
+    _PAUSE_FILE="${SPIRAL_SCRATCH_DIR}/_worker_pause_${SPIRAL_WORKER_ID}"
+    while [[ -f "$_PAUSE_FILE" ]]; do
+      echo "  [memory] Worker $SPIRAL_WORKER_ID paused — waiting for resume..."
+      spiral_log_low_power "ralph: worker $SPIRAL_WORKER_ID paused between stories"
+      sleep 10
+    done
+  fi
+
   # Spawn fresh AI instance with real-time stream output
   STORY_START=$(date +%s)
   echo ""
@@ -499,8 +613,32 @@ Story JSON: $STORY_JSON"
     # Build model flag (empty if no model routing)
     CLAUDE_MODEL_FLAG=""
     [[ -n "$EFFECTIVE_MODEL" ]] && CLAUDE_MODEL_FLAG="--model $EFFECTIVE_MODEL"
+    # Build prompt content (base + optional spec-kit constitution)
+    RALPH_PROMPT_CONTENT="$(cat "$PROMPT_FILE")"
+    SPECKIT_CONST=".specify/memory/constitution.md"
+    if [[ -f "$SPECKIT_CONST" ]]; then
+      RALPH_PROMPT_CONTENT="$RALPH_PROMPT_CONTENT
+
+---
+
+## Project Constitution (Spec-Kit — non-negotiable standards)
+
+$(cat "$SPECKIT_CONST")
+"
+      echo "  [speckit] Constitution loaded ($(wc -l < "$SPECKIT_CONST") lines)"
+    fi
+    if [[ -n "$RALPH_FOCUS" ]]; then
+      RALPH_PROMPT_CONTENT="$RALPH_PROMPT_CONTENT
+
+---
+
+## Iteration Focus: $RALPH_FOCUS
+
+This SPIRAL iteration is focused on **$RALPH_FOCUS**. Keep this theme in mind while implementing the assigned story. Prioritize approaches that align with this focus area."
+      echo "  [focus] Focus context injected: \"$RALPH_FOCUS\""
+    fi
     # Unset CLAUDECODE to allow nested Claude Code invocation from within an active session
-    (unset CLAUDECODE; claude -p "$(cat "$PROMPT_FILE")" \
+    (unset CLAUDECODE; claude -p "$RALPH_PROMPT_CONTENT" \
       $CLAUDE_MODEL_FLAG \
       --allowedTools "Edit,Write,Read,Glob,Grep,Bash,Skill,Task" \
       --max-turns 75 \
@@ -524,6 +662,33 @@ Story JSON: $STORY_JSON"
   STORY_DURATION=$(( (STORY_END - STORY_START) / 60 ))
   echo "  [time] Story took ${STORY_DURATION}m"
 
+  # ── Time budget enforcement ──────────────────────────────────
+  if [[ "$STORY_TIME_BUDGET" -gt 0 ]]; then
+    STORY_DURATION_SEC=$((STORY_END - STORY_START))
+    if [[ "$STORY_DURATION_SEC" -gt "$STORY_TIME_BUDGET" ]]; then
+      echo "  [time] Story exceeded budget (${STORY_DURATION_SEC}s > ${STORY_TIME_BUDGET}s) — discarding"
+      $JQ "(.userStories[] | select(.id == \"$NEXT_STORY\") | .passes) = false" "$PRD_FILE" > "${PRD_FILE}.tmp"
+      mv "${PRD_FILE}.tmp" "$PRD_FILE"
+      increment_retry "$NEXT_STORY"
+      RETRY_NOW=$(get_retry_count "$NEXT_STORY")
+      STORY_TITLE=$($JQ -r ".userStories[] | select(.id == \"$NEXT_STORY\") | .title" "$PRD_FILE" | tr -d '\r')
+      append_result "discard"
+      echo "## Iteration $ITERATION - $(date)" >> "$PROGRESS_FILE"
+      echo "TIME BUDGET EXCEEDED: $STORY_TITLE ($NEXT_STORY) — ${STORY_DURATION_SEC}s > ${STORY_TIME_BUDGET}s budget" >> "$PROGRESS_FILE"
+      if [[ "$RETRY_NOW" -ge "$MAX_RETRIES" ]]; then
+        if decompose_story "$NEXT_STORY" "${EFFECTIVE_MODEL:-sonnet}"; then
+          echo "DECOMPOSED: $NEXT_STORY after $MAX_RETRIES failed attempts — sub-stories created" >> "$PROGRESS_FILE"
+          echo "[decompose] $NEXT_STORY decomposed after $MAX_RETRIES attempts"
+        else
+          echo "SKIPPED: $NEXT_STORY after $MAX_RETRIES failed attempts" >> "$PROGRESS_FILE"
+          echo "[skip] $NEXT_STORY skipped after $MAX_RETRIES attempts — moving on"
+        fi
+      fi
+      echo "" >> "$PROGRESS_FILE"
+      continue
+    fi
+  fi
+
   # Check if story was completed
   PASSES=$($JQ -r ".userStories[] | select(.id == \"$NEXT_STORY\") | .passes" "$PRD_FILE" | tr -d '\r')
 
@@ -545,6 +710,8 @@ Completed by Ralph iteration $ITERATION (${STORY_DURATION}m)
 
 Co-Authored-By: Claude ${COAUTHOR_LABEL} 4.6 <noreply@anthropic.com>" || echo "[warn] No changes to commit"
 
+      append_result "keep" "$(git rev-parse HEAD 2>/dev/null)"
+
       echo "## Iteration $ITERATION - $(date)" >> "$PROGRESS_FILE"
       echo "Completed: $STORY_TITLE (ID: $NEXT_STORY) in ${STORY_DURATION}m" >> "$PROGRESS_FILE"
       echo "" >> "$PROGRESS_FILE"
@@ -556,13 +723,19 @@ Co-Authored-By: Claude ${COAUTHOR_LABEL} 4.6 <noreply@anthropic.com>" || echo "[
       increment_retry "$NEXT_STORY"
       RETRY_NOW=$(get_retry_count "$NEXT_STORY")
       echo "[retry] $NEXT_STORY attempt $RETRY_NOW/$MAX_RETRIES"
+      append_result "discard"
 
       echo "## Iteration $ITERATION - $(date)" >> "$PROGRESS_FILE"
       echo "FAILED quality gates: $STORY_TITLE (ID: $NEXT_STORY) — attempt $RETRY_NOW/$MAX_RETRIES" >> "$PROGRESS_FILE"
       if [[ "$RETRY_NOW" -ge "$MAX_RETRIES" ]]; then
-        echo "SKIPPED: $NEXT_STORY after $MAX_RETRIES failed attempts" >> "$PROGRESS_FILE"
-        echo "[skip] $NEXT_STORY skipped after $MAX_RETRIES attempts — moving on"
         git checkout -- . 2>/dev/null || true
+        if decompose_story "$NEXT_STORY" "${EFFECTIVE_MODEL:-sonnet}"; then
+          echo "DECOMPOSED: $NEXT_STORY after $MAX_RETRIES failed attempts — sub-stories created" >> "$PROGRESS_FILE"
+          echo "[decompose] $NEXT_STORY decomposed after $MAX_RETRIES attempts"
+        else
+          echo "SKIPPED: $NEXT_STORY after $MAX_RETRIES failed attempts" >> "$PROGRESS_FILE"
+          echo "[skip] $NEXT_STORY skipped after $MAX_RETRIES attempts — moving on"
+        fi
       fi
       echo "" >> "$PROGRESS_FILE"
     fi
@@ -573,13 +746,19 @@ Co-Authored-By: Claude ${COAUTHOR_LABEL} 4.6 <noreply@anthropic.com>" || echo "[
     increment_retry "$NEXT_STORY"
     RETRY_NOW=$(get_retry_count "$NEXT_STORY")
     echo "[retry] $NEXT_STORY attempt $RETRY_NOW/$MAX_RETRIES"
+    append_result "discard"
 
     echo "## Iteration $ITERATION - $(date)" >> "$PROGRESS_FILE"
     echo "Incomplete: $STORY_TITLE (ID: $NEXT_STORY) — attempt $RETRY_NOW/$MAX_RETRIES" >> "$PROGRESS_FILE"
     if [[ "$RETRY_NOW" -ge "$MAX_RETRIES" ]]; then
-      echo "SKIPPED: $NEXT_STORY after $MAX_RETRIES failed attempts" >> "$PROGRESS_FILE"
-      echo "[skip] $NEXT_STORY skipped after $MAX_RETRIES attempts — moving on"
       git checkout -- . 2>/dev/null || true
+      if decompose_story "$NEXT_STORY" "${EFFECTIVE_MODEL:-sonnet}"; then
+        echo "DECOMPOSED: $NEXT_STORY after $MAX_RETRIES failed attempts — sub-stories created" >> "$PROGRESS_FILE"
+        echo "[decompose] $NEXT_STORY decomposed after $MAX_RETRIES attempts"
+      else
+        echo "SKIPPED: $NEXT_STORY after $MAX_RETRIES failed attempts" >> "$PROGRESS_FILE"
+        echo "[skip] $NEXT_STORY skipped after $MAX_RETRIES attempts — moving on"
+      fi
     fi
     echo "" >> "$PROGRESS_FILE"
   fi
