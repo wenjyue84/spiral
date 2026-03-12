@@ -903,6 +903,10 @@ PYEOF
     if [[ -f "$REPO_ROOT/results.tsv" ]]; then
       echo ""
       "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/spiral_report.py" --results "$REPO_ROOT/results.tsv" 2>/dev/null || true
+      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/spiral_dashboard.py" \
+        --prd "$PRD_FILE" --results "$REPO_ROOT/results.tsv" \
+        --retries "$REPO_ROOT/retry-counts.json" --progress "$REPO_ROOT/progress.txt" \
+        --output "$SCRATCH_DIR/dashboard.html" --open 2>/dev/null || true
     fi
 
     SESSION_END=$(date +%s)
@@ -935,6 +939,14 @@ PYEOF
   fi
   echo "  └──────────────────────────────────────────────────┘"
 
+  # ── Generate & open iteration dashboard ─────────────────────────────────────
+  if [[ -f "$REPO_ROOT/results.tsv" ]]; then
+    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/spiral_dashboard.py" \
+      --prd "$PRD_FILE" --results "$REPO_ROOT/results.tsv" \
+      --retries "$REPO_ROOT/retry-counts.json" --progress "$REPO_ROOT/progress.txt" \
+      --output "$SCRATCH_DIR/dashboard.html" --open 2>/dev/null || true
+  fi
+
   # ── Adaptive cooldown under memory pressure ─────────────────────────────────
   if [[ "$SPIRAL_LOW_POWER_MODE" -eq 1 ]]; then
     _PRESSURE_LVL=$(spiral_pressure_level)
@@ -962,6 +974,10 @@ echo "  ╚═══════════════════════
 if [[ -f "$REPO_ROOT/results.tsv" ]]; then
   echo ""
   "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/spiral_report.py" --results "$REPO_ROOT/results.tsv" 2>/dev/null || true
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/spiral_dashboard.py" \
+    --prd "$PRD_FILE" --results "$REPO_ROOT/results.tsv" \
+    --retries "$REPO_ROOT/retry-counts.json" --progress "$REPO_ROOT/progress.txt" \
+    --output "$SCRATCH_DIR/dashboard.html" --open 2>/dev/null || true
 fi
 
 SESSION_END=$(date +%s)
