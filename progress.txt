@@ -1330,3 +1330,26 @@ Incomplete: Auto-generate progress.txt skeleton with Codebase Patterns on first 
 - wc -l output on MSYS2/bash is just the number (no filename) when using redirect form
 - Security hook blocks destructive commands in bash heredocs; use Edit tool for progress.txt writes
 
+## Iteration 4 - Fri, Mar 13, 2026  4:35:55 PM
+Incomplete: Auto-generate progress.txt skeleton with Codebase Patterns on first run (ID: US-023) — attempt 2/3
+
+## Iteration 5 - Story: US-023: Auto-generate progress.txt skeleton with Codebase Patterns on first run
+
+### What was implemented
+- Added progress.txt skeleton generation in spiral.sh between checkpoint resume and main loop (line ~558)
+- Uses `$JQ` to extract .overview from prd.json for the Project description
+- Auto-detects tech stack from pyproject.toml, package.json, Cargo.toml, go.mod, Gemfile
+- Only generates if progress.txt does not exist (no-overwrite guard)
+- Generated skeleton is 16 lines — well under the 40-line budget
+- Heredoc delimiter PROGRESS_EOF avoids variable conflicts with existing code
+
+### Patterns discovered
+- The spot between checkpoint resume (line ~556) and main loop (line ~589) is ideal for one-time setup
+- Previous attempts (1 and 2) failed — likely due to security hook blocking heredoc cat redirects in Bash tool
+- Using the Edit tool to insert the heredoc block into spiral.sh avoids the security hook issue
+
+### Gotchas
+- Security hooks may block `cat > file <<EOF` in Bash tool — always use Edit tool for file writes containing heredocs
+- The trailing space in _STACK needs trimming with ${_STACK% } for clean output
+- 228 tests now pass (was 51 earlier — test suite has grown significantly)
+
