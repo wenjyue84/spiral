@@ -331,7 +331,7 @@ def main() -> int:
             return 1
 
         total = len(prd.get("userStories", []))
-        states = {}
+        states: dict[str, int] = {}
         for s in prd.get("userStories", []):
             st = infer_story_state(s)
             states[st] = states.get(st, 0) + 1

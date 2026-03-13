@@ -44,7 +44,7 @@ def section_summary(rows):
     timestamps = [r["timestamp"] for r in rows if r.get("timestamp")]
     date_range = f"{timestamps[0]} → {timestamps[-1]}" if len(timestamps) >= 2 else (timestamps[0] if timestamps else "?")
 
-    status_counts = defaultdict(int)
+    status_counts: defaultdict[str, int] = defaultdict(int)
     for r in rows:
         status_counts[r.get("status", "unknown")] += 1
 
@@ -77,7 +77,7 @@ def section_summary(rows):
 def section_velocity(rows):
     """2. Velocity Trend — stories kept per hour, text bar chart."""
     # Group by spiral_iter
-    iters = defaultdict(lambda: {"keep": 0, "total": 0, "duration": 0})
+    iters: defaultdict[int, dict[str, int]] = defaultdict(lambda: {"keep": 0, "total": 0, "duration": 0})
     for r in rows:
         si = r.get("spiral_iter", 0)
         iters[si]["total"] += 1
@@ -129,7 +129,7 @@ def section_duration(rows):
 
 def section_models(rows):
     """4. Model Breakdown — attempts per model, success rate."""
-    model_stats = defaultdict(lambda: {"total": 0, "keep": 0})
+    model_stats: defaultdict[str, dict[str, int]] = defaultdict(lambda: {"total": 0, "keep": 0})
     for r in rows:
         model = r.get("model", "unknown")
         model_stats[model]["total"] += 1
@@ -150,7 +150,7 @@ def section_models(rows):
 
 def section_retries(rows):
     """5. Retry Analysis — success rate by attempt number."""
-    retry_stats = defaultdict(lambda: {"total": 0, "keep": 0})
+    retry_stats: defaultdict[str, dict[str, int]] = defaultdict(lambda: {"total": 0, "keep": 0})
     for r in rows:
         retry = r.get("retry_num", 0)
         label = f"attempt {retry + 1}" if isinstance(retry, int) else f"attempt {retry}"

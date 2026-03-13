@@ -18,5 +18,42 @@ py-modules = ["main"]
 [dependency-groups]
 dev = [
     "hypothesis>=6.151.9",
+    "mypy==1.11.2",
     "pytest>=9.0.2",
 ]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+ignore_missing_imports = true
+
+# Gradual adoption: existing lib files are opted in incrementally.
+# Files listed here relax strict flags until they are fully annotated.
+# To graduate a module: remove it from this list and fix the remaining errors.
+[[tool.mypy.overrides]]
+module = [
+    "check_dag",
+    "cost_check",
+    "decompose_story",
+    "merge_results_tsv",
+    "merge_stories",
+    "merge_worker_results",
+    "migrate_prd",
+    "partition_prd",
+    "populate_hints",
+    "prd_lock",
+    "prd_schema",
+    "recommend_workers",
+    "research_cache",
+    "route_stories",
+    "setup",
+    "slice_prd",
+    "spiral_dashboard",
+    "spiral_report",
+    "state_machine",
+    "story_review_report",
+]
+disallow_any_generics = false
+disallow_untyped_defs = false
+disallow_untyped_calls = false
+warn_return_any = false

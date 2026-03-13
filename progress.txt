@@ -2052,3 +2052,32 @@ Incomplete: Emit per-iteration summary JSON to .spiral/_iteration_summary.json (
 ### Gotchas
 - prd.json must be read with `encoding='utf-8'` on Windows (cp1252 default fails on em-dash chars)
 - `koalaman/shellcheck-action@v1` takes `args:` as a multiline block-scalar for multiple file paths
+## Iteration 1 - Fri, Mar 13, 2026 11:09:29 PM
+Completed: Add shellcheck static analysis gate to CI for all bash scripts (ID: US-125) in 9m
+
+
+## Iteration - Story: US-126: Add mypy strict type checking enforcement to Python CI pipeline
+
+### What was implemented
+- Added `mypy==1.11.2` to `[dependency-groups] dev` in `pyproject.toml`
+- Added `[tool.mypy]` section with `strict = true`, `python_version = "3.13"`, `ignore_missing_imports = true`
+- Added `[[tool.mypy.overrides]]` for 20 existing lib files with gradual adoption flags: `disallow_any_generics = false`, `disallow_untyped_defs = false`, `disallow_untyped_calls = false`, `warn_return_any = false`
+- Fixed 8 actual type errors in existing code (var-annotated, misc):
+  - `lib/state_machine.py:334` — `states: dict[str, int] = {}`
+  - `lib/spiral_report.py` — 4 defaultdict variables with type annotations
+  - `lib/synthesize_tests.py:288` — `output: dict[str, Any] = {"stories": []}`
+  - `lib/spiral_dashboard.py:170` — `attempt_status: defaultdict[str, int]`
+  - `lib/spiral_dashboard.py:226` — renamed `most_retried` → `top_retried` for reassignment type mismatch
+  - `lib/prd_lock.py:62` — added `-> Generator[dict[str, Any], None, None]` return type
+- Created `lib/mypy_to_github_annotations.py` — converts mypy `--output json` to GitHub Actions `::error::` annotations
+- Added `mypy` job to `.github/workflows/ci.yml` with `set -o pipefail` for proper error propagation
+- `check_done.py` and `synthesize_tests.py` already pass full strict mode (no overrides needed)
+
+### Patterns discovered
+- When `lib/` has no `__init__.py`, mypy sees modules as `check_dag` not `lib.check_dag` — use bare name in `[[tool.mypy.overrides]]`
+- `disallow_incomplete_defs` (also set by --strict) fires on functions with SOME but not all annotations — separate from `disallow_untyped_defs`
+- `prd_locked` context manager needed `-> Generator[dict[str, Any], None, None]` return type to satisfy `disallow_incomplete_defs`
+
+### Gotchas
+- Per-module overrides in pyproject.toml use bare module names (no `lib.` prefix) when lib/ is not a Python package
+- `set -o pipefail` is required in CI shell commands that use `|` to ensure mypy exit code propagates

@@ -285,7 +285,7 @@ def main() -> int:
     report_paths = find_recent_reports(args.reports_dir, args.recent_reports)
     if not report_paths:
         print(f"[synthesize] WARNING: No test reports found in {args.reports_dir}/")
-        output = {"stories": []}
+        output: dict[str, Any] = {"stories": []}
         os.makedirs(os.path.dirname(os.path.abspath(args.output)), exist_ok=True)
         with open(args.output, "w", encoding="utf-8") as f:
             json.dump(output, f, indent=2)

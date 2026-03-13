@@ -23,6 +23,8 @@ import os
 import shutil
 import sys
 import time
+from collections.abc import Generator
+from typing import Any
 
 # Force UTF-8 stdout — prevents UnicodeEncodeError on Windows cp1252 terminals
 if hasattr(sys.stdout, "reconfigure"):
@@ -59,7 +61,7 @@ def _unlock_fd(fd: int) -> None:
 
 
 @contextlib.contextmanager
-def prd_locked(prd_path: str, timeout: float = 30.0):
+def prd_locked(prd_path: str, timeout: float = 30.0) -> Generator[dict[str, Any], None, None]:
     """Context manager: acquire lock, yield loaded prd dict, write back on exit.
 
     Parameters

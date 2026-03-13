@@ -31,6 +31,27 @@ jobs:
             lib/validate_preflight.sh
             lib/worker_heartbeat.sh
 
+  mypy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: uv sync --group dev
+
+      - name: Run mypy strict
+        run: |
+          set -o pipefail
+          uv run mypy lib/ --strict --output json \
+            | uv run python lib/mypy_to_github_annotations.py
+
   test:
     runs-on: ubuntu-latest
 

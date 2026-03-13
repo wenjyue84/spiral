@@ -167,7 +167,7 @@ def compute_status_breakdown(prd: dict, results: list[dict]) -> dict:
         "decomposed": sum(1 for s in stories if s.get("_decomposed")),
         "skipped": sum(1 for s in stories if s.get("_skipped")),
     }
-    attempt_status = defaultdict(int)
+    attempt_status: defaultdict[str, int] = defaultdict(int)
     for r in results:
         attempt_status[r.get("status", "unknown")] += 1
     return {"stories": story_status, "attempts": dict(attempt_status)}
@@ -221,10 +221,10 @@ def compute_retry_analysis(results: list[dict]) -> list[dict]:
 def compute_bottlenecks(results: list[dict], retries: dict, prd: dict) -> dict:
     # Most retried stories
     story_titles = {s["id"]: s.get("title", "") for s in prd.get("userStories", [])}
-    most_retried = sorted(retries.items(), key=lambda x: x[1], reverse=True)[:5]
+    top_retried = sorted(retries.items(), key=lambda x: x[1], reverse=True)[:5]
     most_retried = [
         {"story_id": sid, "title": story_titles.get(sid, ""), "retries": count}
-        for sid, count in most_retried if count > 0
+        for sid, count in top_retried if count > 0
     ]
 
     # Longest duration (kept stories)
