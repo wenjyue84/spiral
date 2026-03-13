@@ -844,3 +844,26 @@ Incomplete: Dynamic worker count: auto-select 1-3 workers based on story indepen
 ### Gotchas
 - recommend_workers.py outputs TWO lines: log message + bare number. Shell must parse last line via `tail -1`
 - Must guard with `|| true` to prevent set -e from aborting if python script fails
+## Iteration 8 - Fri, Mar 13, 2026 12:27:17 PM
+Completed: Dynamic worker count: auto-select 1-3 workers based on story independence (ID: US-009) in 7m
+
+
+## Iteration - Story: US-016: Add unit tests for populate_hints.py
+
+### What was implemented
+- Created tests/test_populate_hints.py with 13 unit tests across 5 test classes
+- TestExtractKeywords: stop words excluded, short words excluded, story prefix stripped, mixed case normalised
+- TestBuildKeywordFileMapping: only passed stories contribute, keywords map to correct files
+- TestPopulateHints: existing filesTouch not overwritten, pending story gets hints, empty git log no crash, passed stories skipped
+- TestGetCompletedStoryFiles: parses git log + diff-tree, empty log returns {}, INCLUDE_DIRS filtering
+- All 202 tests pass (was 189, +13 new)
+
+### Patterns discovered
+- populate_hints.py has module-level INCLUDE_DIRS and STORY_PREFIX from env vars — need to save/restore in tests
+- get_completed_story_files makes two subprocess.run calls per commit (git log then diff-tree per hash)
+- build_keyword_file_mapping only considers stories with passes=True
+- populate_hints skips stories that have existing filesTouch or passes=True
+
+### Gotchas
+- prd.json was found truncated (19 lines instead of 1673) — had to restore from git HEAD before updating
+- Mock subprocess.run side_effect needs one MagicMock per call (log + N diff-tree calls)
