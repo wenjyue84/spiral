@@ -921,15 +921,27 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
     GEMINI_RESEARCH=""
     if command -v gemini &>/dev/null && [[ -n "$SPIRAL_GEMINI_PROMPT" ]]; then
       echo "  [R] Running Gemini 2.5 Pro web research (-y web search enabled)..."
+      GEMINI_ERR_TMP=$(mktemp)
       GEMINI_RESEARCH=$(gemini \
         -m gemini-2.5-pro \
         -p "$SPIRAL_GEMINI_PROMPT" \
-        -y --output-format text 2>/dev/null || true)
+        -y --output-format text 2>"$GEMINI_ERR_TMP" || true)
       if [[ -n "$GEMINI_RESEARCH" ]]; then
         echo "  [R] Gemini web research complete ($(echo "$GEMINI_RESEARCH" | wc -l) lines)"
       else
-        echo "  [R] Gemini web research returned empty — Claude will browse URLs directly"
+        # Diagnose failure reason from stderr
+        if grep -qi '429\|RESOURCE_EXHAUSTED\|rate.limit\|quota' "$GEMINI_ERR_TMP" 2>/dev/null; then
+          echo "  [R] Gemini rate-limited — Claude will browse URLs directly"
+        elif grep -qi 'PERMISSION_DENIED\|API.key\|api_key\|UNAUTHENTICATED' "$GEMINI_ERR_TMP" 2>/dev/null; then
+          echo "  [R] Gemini auth error — check GEMINI_API_KEY"
+        elif [[ -s "$GEMINI_ERR_TMP" ]]; then
+          GEMINI_ERR_FIRST=$(head -1 "$GEMINI_ERR_TMP")
+          echo "  [R] Gemini web research returned empty — $GEMINI_ERR_FIRST"
+        else
+          echo "  [R] Gemini web research returned empty — Claude will browse URLs directly"
+        fi
       fi
+      rm -f "$GEMINI_ERR_TMP"
     fi
 
     INJECTED_PROMPT=$(build_research_prompt "$SPIRAL_ITER" "$RESEARCH_OUTPUT")

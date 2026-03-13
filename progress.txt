@@ -2015,3 +2015,24 @@ Incomplete: Emit per-iteration summary JSON to .spiral/_iteration_summary.json (
 ### Gotchas
 - The export must happen INSIDE the subshell `(...)` so it doesn't leak back to the orchestrator's environment
 - Default fallback chain: SPIRAL_WORKER_MEMORY_LIMIT → SPIRAL_MEMORY_LIMIT → 1024 (via ralph.sh)
+## Iteration 6 - Fri, Mar 13, 2026 10:44:14 PM
+Incomplete: Emit per-iteration summary JSON to .spiral/_iteration_summary.json (ID: US-039) — attempt 2/3
+
+
+## Iteration - Story: US-067 Log Gemini Phase R failure reason
+
+### What was implemented
+- Replaced `2>/dev/null` on Gemini CLI invocation with stderr capture to temp file (`GEMINI_ERR_TMP`)
+- Added 4-branch diagnostic on empty GEMINI_RESEARCH:
+  1. Rate limit (429/RESOURCE_EXHAUSTED/rate.limit/quota) → "[R] Gemini rate-limited"
+  2. Auth error (PERMISSION_DENIED/API.key/api_key/UNAUTHENTICATED) → "[R] Gemini auth error"
+  3. Unknown stderr present → prints first line as diagnostic context
+  4. No stderr → original fallback message preserved
+- Temp file cleaned up via `rm -f` after the check block
+
+### Patterns discovered
+- Gemini invocation is only in spiral.sh (line ~924), not in ralph.sh or other scripts
+- setup.sh also has gemini 2>/dev/null but that's for npm install, not research — left as-is
+
+### Gotchas
+- prd.json requires explicit `encoding='utf-8'` when reading/writing with Python on Windows (cp1252 default fails on Unicode chars like —)
