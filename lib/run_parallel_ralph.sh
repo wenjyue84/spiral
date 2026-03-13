@@ -42,8 +42,15 @@ if [[ -f "$_PRESSURE_HELPER" ]]; then
   source "$_PRESSURE_HELPER"
 fi
 
+# ── Source worker heartbeat helper ──────────────────────────────────────────────
+_HEARTBEAT_HELPER="$SPIRAL_HOME/lib/worker_heartbeat.sh"
+if [[ -f "$_HEARTBEAT_HELPER" ]]; then
+  source "$_HEARTBEAT_HELPER"
+fi
+
 WORKER_DIR="$SCRATCH_DIR/workers"
 WORKTREE_BASE="$REPO_ROOT/.spiral-workers"
+HEARTBEAT_DIR="$SCRATCH_DIR/workers"  # Heartbeat files written here
 # Unique lock dir per invocation (using PID avoids collisions if SPIRAL is re-run)
 LOCK_DIR="/tmp/spiral-docker-lock-$$"
 TIMESTAMP=$(date +%s)
@@ -81,6 +88,8 @@ cleanup_parallel() {
     [[ -n "$branch" ]] && git -C "$REPO_ROOT" branch -D "$branch" 2>/dev/null || true
   done
   rm -rf "$WORKTREE_BASE" 2>/dev/null || true
+  # Clean up heartbeat files
+  rm -f "$HEARTBEAT_DIR"/worker_*.heartbeat 2>/dev/null || true
   echo "  [parallel] Cleanup done."
 }
 trap cleanup_parallel EXIT INT TERM
@@ -382,11 +391,23 @@ for i in $(seq 1 "$RALPH_WORKERS"); do
     # Unlock the worktree on exit (fires even on crash) so git worktree prune can clean up later
     _UNLOCK_REPO="$REPO_ROOT"
     _UNLOCK_WTREE="$WTREE"
-    trap 'git -C "$_UNLOCK_REPO" worktree unlock "$_UNLOCK_WTREE" 2>/dev/null || true' EXIT
+    _WORKER_NUM=$i
+    _HB_CLEANUP='
+      if type worker_heartbeat_stop &>/dev/null; then
+        worker_heartbeat_stop "$_WORKER_NUM" 2>/dev/null || true
+      fi
+      git -C "$_UNLOCK_REPO" worktree unlock "$_UNLOCK_WTREE" 2>/dev/null || true
+    '
+    trap "$_HB_CLEANUP" EXIT
     cd "$WTREE"
     # Put lock wrapper first in PATH so docker calls are intercepted
     export PATH="$WTREE/.spiral-bin:$PATH"
     export SPIRAL_WORKER_ID=$i
+    export HEARTBEAT_DIR="$HEARTBEAT_DIR"
+    # Start heartbeat loop in background
+    if type worker_heartbeat_start &>/dev/null; then
+      worker_heartbeat_start "$i" 30 2>/dev/null || true
+    fi
     if [[ "$WORKER_TIMEOUT" -gt 0 ]] && command -v timeout &>/dev/null; then
       timeout --kill-after=60 "${WORKER_TIMEOUT}" \
         bash "$RALPH_SKILL" "$ITER_PER_WORKER" --prd prd.json $_WORKER_MODEL_FLAG \
@@ -463,6 +484,33 @@ while [[ "$_ALL_DONE" -eq 0 ]]; do
   done
 
   [[ "$_ALL_DONE" -eq 1 ]] && break
+
+  # ── Stale heartbeat detection — re-queue stuck stories ──────────────────────
+  if type check_stale_heartbeats &>/dev/null; then
+    _STALE_JSON=$(check_stale_heartbeats "$HEARTBEAT_DIR" 120)
+    # Parse the JSON array and process each stale worker
+    if [[ "$_STALE_JSON" != "[]" ]]; then
+      # Extract worker IDs and story IDs from stale info
+      local stale_count
+      stale_count=$("$JQ" 'length' <<< "$_STALE_JSON" 2>/dev/null || echo "0")
+      if [[ "$stale_count" -gt 0 ]]; then
+        echo "  [parallel] WARNING: Detected $stale_count stale heartbeat(s) — re-queueing..."
+        for idx in $(seq 0 $((stale_count - 1))); do
+          _WID=$("$JQ" -r ".[$idx].workerId" <<< "$_STALE_JSON")
+          _SID=$("$JQ" -r ".[$idx].storyId" <<< "$_STALE_JSON")
+          _AGED=$("$JQ" -r ".[$idx].staledSinceSeconds" <<< "$_STALE_JSON")
+          echo "    [parallel] Worker $_WID: story $_SID stale for ${_AGED}s"
+          # Re-queue the story in the worker's prd.json
+          WTREE="${WORKER_DIRS[$((${_WID:-0} - 1))]}"
+          if [[ -f "$WTREE/prd.json" ]]; then
+            if type requeue_stale_stories &>/dev/null; then
+              requeue_stale_stories "$WTREE/prd.json" "$_SID" "$JQ" 2>/dev/null || true
+            fi
+          fi
+        done
+      fi
+    fi
+  fi
 
   # ── Adaptive pressure management: pause/resume workers ─────────────────────
   if type spiral_recommended_workers &>/dev/null && [[ "${SPIRAL_LOW_POWER_MODE:-1}" -eq 1 ]]; then

@@ -1706,3 +1706,9 @@ Incomplete: Warn when resuming from a checkpoint older than 24 hours (ID: US-038
 - prd.json has non-UTF-8 bytes (0x97 at position 118424) — cannot use Python json.load with utf-8 encoding
 - Must use binary read/write for prd.json modifications to preserve encoding
 - Previous attempts (1/3, 2/3) left no failure notes — likely hit the encoding issue when updating prd.json
+## Iteration 9 - Fri, Mar 13, 2026  8:23:14 PM
+Completed: Warn when resuming from a checkpoint older than 24 hours (ID: US-038) in 10m
+
+## Iteration 10 - Fri, Mar 13, 2026  8:29:32 PM
+Incomplete: Emit per-iteration summary JSON to .spiral/_iteration_summary.json (ID: US-039) — attempt 1/3
+
