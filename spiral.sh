@@ -516,6 +516,59 @@ prd_stats() {
   PENDING=$((TOTAL - DONE))
 }
 
+# ── Helper: write per-iteration summary JSON (US-039) ──────────────────────
+# Writes $SCRATCH_DIR/_iteration_summary.json with compact iteration stats.
+# Overwrites each iteration. Non-fatal on write failure.
+write_iter_summary() {
+  local _iter_end _iter_dur _attempted _failed _phases_json _sep _p _var
+  _iter_end=$(date +%s)
+  _iter_dur=$(( _iter_end - ITER_START ))
+
+  # stories_passed = RALPH_PROGRESS (set in Phase I)
+  # stories_attempted: count from results.tsv if available, else = stories_passed
+  _attempted=${RALPH_PROGRESS:-0}
+  if [[ -f "$REPO_ROOT/results.tsv" ]]; then
+    local _tsv_count
+    _tsv_count=$(awk -F'\t' -v iter="$SPIRAL_ITER" 'NR>1 && $2==iter' "$REPO_ROOT/results.tsv" | wc -l)
+    _tsv_count=$(( _tsv_count + 0 ))  # trim whitespace
+    [[ "$_tsv_count" -gt "$_attempted" ]] && _attempted=$_tsv_count
+  fi
+  _failed=$(( _attempted - ${RALPH_PROGRESS:-0} ))
+
+  # Build phases_completed from phase start timestamps
+  _phases_json="["
+  _sep=""
+  for _p in R T M I V C; do
+    _var="_PHASE_TS_${_p}"
+    if [[ "${!_var:-0}" -gt 0 ]]; then
+      _phases_json="${_phases_json}${_sep}\"${_p}\""
+      _sep=","
+    fi
+  done
+  _phases_json="${_phases_json}]"
+
+  "$SPIRAL_PYTHON" -c "
+import json, sys
+d = {
+    'iter': int(sys.argv[1]),
+    'ts_start': int(sys.argv[2]),
+    'ts_end': int(sys.argv[3]),
+    'duration_sec': int(sys.argv[4]),
+    'stories_attempted': int(sys.argv[5]),
+    'stories_passed': int(sys.argv[6]),
+    'stories_failed': int(sys.argv[7]),
+    'phases_completed': json.loads(sys.argv[8])
+}
+with open(sys.argv[9], 'w') as f:
+    json.dump(d, f, indent=2)
+    f.write('\n')
+" "$SPIRAL_ITER" "$ITER_START" "$_iter_end" "$_iter_dur" \
+    "$_attempted" "${RALPH_PROGRESS:-0}" "$_failed" \
+    "$_phases_json" "$SCRATCH_DIR/_iteration_summary.json" 2>/dev/null || {
+    echo "  [C] WARNING: Failed to write _iteration_summary.json (non-fatal)"
+  }
+}
+
 # ── Helper: write checkpoint ────────────────────────────────────────────────
 write_checkpoint() {
   local iter="$1" phase="$2"
@@ -1780,6 +1833,9 @@ PYEOF
     SESSION_MINUTES=$(( (SESSION_END - SESSION_START) / 60 ))
     echo "  Session: ${SESSION_MINUTES}m total, $SPIRAL_ITER iterations"
 
+    # ── Write iteration summary (US-039) ──────────────────────────────────
+    write_iter_summary
+
     # ── Run SPIRAL_ON_COMPLETE hook (US-049) ──────────────────────────────
     if [[ -n "${SPIRAL_ON_COMPLETE:-}" ]]; then
       _HOOK_PREVIEW="${SPIRAL_ON_COMPLETE:0:80}"
@@ -1812,6 +1868,9 @@ PYEOF
 
   # Reset phase order tracker for next iteration
   rm -f "${SCRATCH_DIR:-/tmp}/_last_phase"
+
+  # ── Write iteration summary (US-039) ──────────────────────────────────
+  write_iter_summary
 
   # ── Iteration dashboard ─────────────────────────────────────────────────
   ITER_END=$(date +%s)

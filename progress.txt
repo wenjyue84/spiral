@@ -2124,3 +2124,27 @@ Completed: Add mypy strict type checking enforcement to Python CI pipeline (ID: 
 - The jq pattern uses --arg to safely escape the reason string into JSON
 - _failureReason is independent of _skipped — a story can have a failure reason without being marked skipped (e.g., cost ceiling)
 
+
+## Iteration N - Story: US-039: Emit per-iteration summary JSON to .spiral/_iteration_summary.json
+
+### What was implemented
+- Added write_iter_summary() function to spiral.sh (after prd_stats helper, before write_checkpoint)
+- Function writes $SCRATCH_DIR/_iteration_summary.json with schema: { iter, ts_start, ts_end, duration_sec, stories_attempted, stories_passed, stories_failed, phases_completed }
+- Uses $SPIRAL_PYTHON to write JSON (avoids bash escaping issues per technical notes)
+- stories_attempted derived from results.tsv (counts entries for current iteration) with fallback to RALPH_PROGRESS
+- phases_completed built from _PHASE_TS_* variables (set when phase starts, so they're > 0 only for executed phases)
+- Called in both "done" path (before exit 0) and "not done" path (before iteration dashboard)
+- Write failure prints warning but does NOT abort (non-fatal, per AC)
+- Added load_iter_summary(path) to lib/spiral_dashboard.py — returns {} if file missing/invalid
+- Dashboard optionally merges iteration summary into overview dict as last_iter_summary key
+- File is overwritten each iteration (only current iteration retained)
+
+### Patterns discovered
+- ${!var} indirect variable expansion works in bash for dynamic variable names (_PHASE_TS_R, _PHASE_TS_T, etc.)
+- write_checkpoint() at line ~571 uses printf for JSON — write_iter_summary uses Python for robustness
+- prd.json has non-UTF-8 bytes — must use binary read/write (rb/wb) when modifying it programmatically
+
+### Gotchas
+- ITER_START is set at line 846 (top of main loop), but ITER_END is computed later at the iteration dashboard section — write_iter_summary computes its own _iter_end to be self-contained
+- _PHASE_TS_* variables are NOT initialized to 0; they're only set when phases execute — checking ${!_var:-0} -gt 0 handles this correctly
+- Previous attempts (1/3, 2/3) failed without notes — likely ran out of context window before completing

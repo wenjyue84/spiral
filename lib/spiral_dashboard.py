@@ -67,6 +67,17 @@ def load_retries(path: str) -> dict:
         return json.load(f)
 
 
+def load_iter_summary(path: str) -> dict:
+    """Load _iteration_summary.json. Returns {} if missing or invalid."""
+    if not os.path.isfile(path):
+        return {}
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
 def load_progress(path: str, max_entries: int = 10) -> list[str]:
     """Load progress.txt and return last *max_entries* iteration sections.
 
@@ -821,8 +832,16 @@ def main() -> int:
     retries = load_retries(args.retries)
     activity = load_progress(args.progress)
 
+    # Load optional iteration summary (US-039)
+    iter_summary_path = os.path.join(args.scratch_dir, "_iteration_summary.json")
+    iter_summary = load_iter_summary(iter_summary_path)
+
     # Compute metrics
     overview = compute_overview(prd, results)
+
+    # Merge latest iteration summary into overview if present
+    if iter_summary:
+        overview["last_iter_summary"] = iter_summary
     velocity = compute_velocity(results)
     status = compute_status_breakdown(prd, results)
     model_perf = compute_model_performance(results)
