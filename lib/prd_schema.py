@@ -185,6 +185,17 @@ def validate_prd(prd: dict) -> list[str]:
         if "isTestFix" in story and not isinstance(story["isTestFix"], bool):
             errors.append(f"{prefix}: isTestFix must be boolean")
 
+        if "tags" in story:
+            if not isinstance(story["tags"], list):
+                errors.append(f"{prefix}: tags must be a list")
+            else:
+                tag_pattern = re.compile(r"^[a-z0-9_-]+$")
+                for ti, tag in enumerate(story["tags"]):
+                    if not isinstance(tag, str) or not tag:
+                        errors.append(f"{prefix}: tags[{ti}] must be a non-empty string")
+                    elif not tag_pattern.match(tag):
+                        errors.append(f"{prefix}: tags[{ti}] '{tag}' must match /^[a-z0-9_-]+$/")
+
         if "epicId" in story:
             if not isinstance(story["epicId"], str) or not story["epicId"].strip():
                 errors.append(f"{prefix}: epicId must be a non-empty string")

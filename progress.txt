@@ -1885,3 +1885,21 @@ Incomplete: Add model fallback chain with per-model circuit breaker state (ID: U
 - Fallback only applies when EFFECTIVE_TOOL is "claude" — codex/qwen/amp don't have model-level circuit breakers
 - The primary model in the chain is skipped (already checked before entering fallback logic)
 - bats is not globally installed; use `npx bats` to run bats tests
+
+## Iteration 12 - Story: US-055: Add story tags field and --focus-tags CLI filter to spiral.sh
+
+### What was implemented
+- prd_schema.py: Added optional `tags` field validation — list of non-empty lowercase strings matching /^[a-z0-9_-]+$/
+- prd.schema.json: Added `tags` property to JSON Schema (array of pattern-constrained strings)
+- spiral.sh: Added `--focus-tags TAG,TAG` CLI flag with SPIRAL_FOCUS_TAGS env var, exported to ralph
+- ralph/ralph.sh: Added tag filtering in story selection loop — stories without matching tags are silently skipped (not failed, not retry-counted)
+- merge_stories.py: Auto-assigns 'bugfix' tag when isTestFix=true; carries over tags from research output
+
+### Patterns discovered
+- Tags are additive: a story with tags ['frontend', 'auth'] matches --focus-tags 'auth'
+- SPIRAL_FOCUS_TAGS is exported from spiral.sh so ralph.sh reads it from env
+- Story selection uses CSV-based membership check in bash: ",$_STORY_TAGS," == *",$_wt,"*
+
+### Gotchas
+- When --focus-tags is set but no stories match, ralph exits cleanly ("No actionable stories left")
+- Tags are comma-separated in CLI and env var, but colon-separated would conflict with PATH-like vars

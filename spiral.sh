@@ -64,6 +64,7 @@ MONITOR_TERMINALS=1    # 1 = open a terminal window per worker to tail logs
 SPIRAL_CONFIG_PATH=""  # explicit --config path
 SPIRAL_CLI_MODEL=""    # explicit --model override (haiku|sonnet|opus)
 SPIRAL_CLI_FOCUS=""    # explicit --focus override
+SPIRAL_FOCUS_TAGS=""   # comma-separated tags filter (--focus-tags)
 TIME_LIMIT_MINS=0      # 0 = no limit; >0 = stop after N minutes (--time-limit or --until)
 DRY_RUN=0              # 1 = dry-run mode: skip API calls (R, T, I, V) but run control flow
 DOCTOR_MODE=0          # 1 = run dependency check and exit (--doctor)
@@ -93,6 +94,8 @@ while [[ $# -gt 0 ]]; do
       SPIRAL_CLI_MODEL="$2"; shift 2 ;;
     --focus)
       SPIRAL_CLI_FOCUS="$2"; shift 2 ;;
+    --focus-tags)
+      SPIRAL_FOCUS_TAGS="$2"; shift 2 ;;
     --time-limit)
       TIME_LIMIT_MINS="$2"; shift 2 ;;
     --until)
@@ -135,6 +138,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --no-monitor               Disable per-worker terminals"
       echo "  --model haiku|sonnet|opus  Claude model override (default: auto-route by story complexity)"
       echo "  --focus TEXT               Focus iteration on a theme (e.g., 'performance', 'security')"
+      echo "  --focus-tags TAG,TAG       Only implement stories matching at least one tag (e.g., 'frontend,auth')"
       echo "  --config PATH              Path to spiral.config.sh (default: \$REPO_ROOT/spiral.config.sh)"
       echo "  --time-limit N             Stop after N minutes (e.g., 60, 90, 120)"
       echo "  --until HH:MM              Stop at a wall-clock time (e.g., 14:30, 18:00)"
@@ -604,6 +608,7 @@ fi
 [[ -n "$SPIRAL_SPECKIT_CONSTITUTION" && -f "$REPO_ROOT/$SPIRAL_SPECKIT_CONSTITUTION" ]] && \
   echo "  ║  Spec-Kit:    constitution loaded"
 [[ -n "$SPIRAL_FOCUS" ]] && echo "  ║  Focus:       $SPIRAL_FOCUS"
+[[ -n "$SPIRAL_FOCUS_TAGS" ]] && echo "  ║  Focus tags:  $SPIRAL_FOCUS_TAGS"
 [[ "$SPIRAL_MAX_PENDING" -gt 0 ]] && echo "  ║  Max pending: $SPIRAL_MAX_PENDING incomplete stories"
 [[ "$SPIRAL_MAX_RESEARCH_STORIES" -gt 0 ]] && echo "  ║  Max research: $SPIRAL_MAX_RESEARCH_STORIES stories per iteration"
 [[ "$SPIRAL_STORY_BATCH_SIZE" -gt 0 ]] && echo "  ║  Batch size:  $SPIRAL_STORY_BATCH_SIZE stories per iteration"
@@ -742,6 +747,7 @@ ZERO_PROGRESS_COUNT=0
 SPIRAL_ITER=0
 
 export SPIRAL_FOCUS
+export SPIRAL_FOCUS_TAGS
 export SPIRAL_ITER
 export SPIRAL_MAX_RESEARCH_STORIES
 export DRY_RUN

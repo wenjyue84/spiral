@@ -115,6 +115,12 @@ def story_to_prd_entry(story: dict[str, Any], story_id: str) -> dict[str, Any]:
     # Enhancement 7: flag test-synthesis stories for audit trail + future ralph prioritisation
     if story.get("_isTestFix"):
         entry["isTestFix"] = True
+    # Carry over tags from research output; auto-assign 'bugfix' for test-fix stories
+    tags = list(story.get("tags", []))
+    if story.get("_isTestFix") and "bugfix" not in tags:
+        tags.append("bugfix")
+    if tags:
+        entry["tags"] = tags
     return entry
 
 

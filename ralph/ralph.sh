@@ -578,6 +578,21 @@ while [[ $ITERATION -lt $MAX_ITERATIONS ]]; do
     if [[ "$retries" -ge "$MAX_RETRIES" ]]; then
       continue
     fi
+    # ── Focus-tags filter: skip stories that don't match any requested tag ──
+    if [[ -n "${SPIRAL_FOCUS_TAGS:-}" ]]; then
+      _STORY_TAGS=$($JQ -r ".userStories[] | select(.id == \"$candidate\") | .tags // [] | join(\",\")" "$PRD_FILE" | tr -d '\r')
+      _TAG_MATCH=0
+      IFS=',' read -ra _WANTED_TAGS <<< "$SPIRAL_FOCUS_TAGS"
+      for _wt in "${_WANTED_TAGS[@]}"; do
+        if [[ ",$_STORY_TAGS," == *",$_wt,"* ]]; then
+          _TAG_MATCH=1
+          break
+        fi
+      done
+      if [[ "$_TAG_MATCH" -eq 0 ]]; then
+        continue  # skip — no matching tag (not failed, not retry-counted)
+      fi
+    fi
     if check_deps_met "$candidate"; then
       NEXT_STORY="$candidate"
       break
