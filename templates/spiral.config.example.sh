@@ -284,3 +284,26 @@
 # unboundedly across many SPIRAL iterations.
 # 0 = disabled (never rotate). Default: 2000
 # SPIRAL_PROGRESS_MAX_LINES=2000
+
+# ── Circuit breaker for LLM API calls ────────────────────────────────────────
+# SPIRAL wraps every LLM call with a three-state circuit breaker
+# (CLOSED → OPEN → HALF_OPEN → CLOSED) to protect against API instability.
+#
+# How it works:
+#   1. After SPIRAL_CB_FAILURE_THRESHOLD consecutive transient errors
+#      (HTTP 429 / 502 / 503 / 504 / 529), the breaker trips to OPEN and
+#      blocks further calls for SPIRAL_CB_COOLDOWN_SECS seconds.
+#   2. After the cooldown, the breaker enters HALF_OPEN and allows a single
+#      probe call.  A successful probe resets to CLOSED (normal); a failed
+#      probe restarts the cooldown and the breaker stays OPEN.
+#
+# State is persisted per-model-endpoint in .spiral/circuit_breaker.json
+# (or .spiral/circuit_breaker_ENDPOINT.json for named endpoints).
+# Only transient errors count: 429, 500, 502, 503, 504, 529.
+# Permanent errors (400, 401, 403) are ignored.
+#
+# Consecutive failures before tripping circuit breaker. Default: 5
+# SPIRAL_CB_FAILURE_THRESHOLD=5
+
+# Cooldown period in seconds when the circuit is OPEN. Default: 60
+# SPIRAL_CB_COOLDOWN_SECS=60

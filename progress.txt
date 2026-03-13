@@ -1712,3 +1712,28 @@ Completed: Warn when resuming from a checkpoint older than 24 hours (ID: US-038)
 ## Iteration 10 - Fri, Mar 13, 2026  8:29:32 PM
 Incomplete: Emit per-iteration summary JSON to .spiral/_iteration_summary.json (ID: US-039) — attempt 1/3
 
+
+## Iteration N - Story: US-108: Add circuit breaker for LLM API calls with half-open recovery
+
+### What was implemented
+- Created lib/circuit_breaker.sh with full three-state (CLOSED/OPEN/HALF_OPEN) circuit breaker
+- Functions: cb_check, cb_record_success, cb_record_failure, cb_read, cb_write
+- State persisted atomically in .spiral/circuit_breaker.json (default endpoint) or .spiral/circuit_breaker_ENDPOINT.json (named endpoints)
+- Per-model-endpoint circuit breaker (not global) — allows fallback routing
+- Transient errors (429, 500, 502, 503, 504, 529) increment failure count; permanent (400, 401, 403) are ignored
+- HALF_OPEN after cooldown expires: allows single probe call; success → CLOSED, failure → OPEN
+- State transitions logged to spiral_events.jsonl via _cb_log (uses log_spiral_event or log_ralph_event if available)
+- Integrated into ralph/ralph.sh: sourced at startup, cb_check before rate-limit retry loop, cb_record_failure on 429/502/503 detection, cb_record_success on clean call
+- Documented SPIRAL_CB_FAILURE_THRESHOLD (default: 5) and SPIRAL_CB_COOLDOWN_SECS (default: 60) in templates/spiral.config.example.sh
+- Created tests/circuit_breaker.bats with 15 bats tests covering all state transitions
+
+### Patterns discovered
+- lib/*.sh helper libs follow: source at top of ralph.sh via _HELPER="$(cd $(dirname BASH_SOURCE[0])/.." && pwd)/lib/X.sh"
+- JQ variable is set globally in ralph.sh and available to sourced libs — pass it via export JQ
+- cb_write uses printf for atomic write-to-tmp then mv pattern
+- SPIRAL_SCRATCH_DIR defaults to .spiral (set early in ralph.sh before sourcing libs)
+
+### Gotchas
+- `declare -f cb_check` guard pattern prevents errors when lib is not sourced (optional sourcing)
+- 529 overloaded_error is already handled separately in ralph.sh (separate while loop) — CB also counts it as transient
+- bats not installed on this system; tests/circuit_breaker.bats is a valid bats file but cannot be run natively yet

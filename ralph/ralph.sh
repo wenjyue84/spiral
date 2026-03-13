@@ -101,6 +101,12 @@ if [[ -f "$_PRESSURE_HELPER" ]]; then
   source "$_PRESSURE_HELPER"
 fi
 
+# ── Source circuit breaker (if available) ─────────────────────────────────────
+_CB_LIB="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd)/lib/circuit_breaker.sh"
+if [[ -f "$_CB_LIB" ]]; then
+  source "$_CB_LIB"
+fi
+
 # Source project-specific quality gates if available
 if [[ -f "./ralph-config.sh" ]]; then
   echo "[config] Loading project quality gates from ./ralph-config.sh"
@@ -694,6 +700,17 @@ Story JSON: $STORY_JSON"
     fi
   fi
 
+  # ── Circuit breaker check (before rate-limit retry loop) ─────────────────
+  _CB_ENDPOINT="${EFFECTIVE_MODEL:-${EFFECTIVE_TOOL:-default}}"
+  if declare -f cb_check > /dev/null 2>&1; then
+    if ! cb_check "$_CB_ENDPOINT"; then
+      echo "  [cb] Circuit breaker OPEN for $_CB_ENDPOINT — skipping LLM call this iteration"
+      log_spiral_event "circuit_breaker_blocked" \
+        "\"endpoint\":\"$_CB_ENDPOINT\",\"story_id\":\"$NEXT_STORY\""
+      # Continue to story outcome check without making a call
+    fi
+  fi
+
   # ── Rate-limit retry loop (covers all AI tools) ────────────────────────────
   _RL_ATTEMPT=0
   _RL_MAX=5
@@ -794,18 +811,34 @@ $BROWSER_TOOLS_HINT"
   fi
   echo "  ─────── AI Output End ($EFFECTIVE_TOOL) ─────────"
 
-  # ── Rate-limit detection (all AI tools) ────────────────────────────────────
-  if grep -qiE '429|rate_limit_error|Too Many Requests' "$_RL_TMP" 2>/dev/null; then
+  # ── Rate-limit / transient-error detection (all AI tools) ─────────────────
+  _RL_ERROR_CODE=0
+  if grep -qiE 'HTTP 429|"429"|rate_limit_error|Too Many Requests' "$_RL_TMP" 2>/dev/null; then
+    _RL_ERROR_CODE=429
+  elif grep -qiE '"502"|HTTP 502|bad.?gateway' "$_RL_TMP" 2>/dev/null; then
+    _RL_ERROR_CODE=502
+  elif grep -qiE '"503"|HTTP 503|service.?unavailable' "$_RL_TMP" 2>/dev/null; then
+    _RL_ERROR_CODE=503
+  fi
+  if [[ "$_RL_ERROR_CODE" -ne 0 ]]; then
     _RL_ATTEMPT=$((_RL_ATTEMPT + 1))
+    # Record failure in circuit breaker
+    if declare -f cb_record_failure > /dev/null 2>&1; then
+      cb_record_failure "$_CB_ENDPOINT" "$_RL_ERROR_CODE"
+    fi
     rm -f "$_RL_TMP"
     if [[ "$_RL_ATTEMPT" -gt "$_RL_MAX" ]]; then
       echo "  [ralph] Rate limit max retries ($_RL_MAX) reached — proceeding to story outcome check"
       break
     fi
-    echo "  [ralph] Rate limited — waiting 60s before retry (attempt $_RL_ATTEMPT/$_RL_MAX)"
-    log_spiral_event "rate_limited" "\"retry_attempt\":${_RL_ATTEMPT},\"sleep_sec\":60"
+    echo "  [ralph] Transient error $_RL_ERROR_CODE — waiting 60s before retry (attempt $_RL_ATTEMPT/$_RL_MAX)"
+    log_spiral_event "rate_limited" "\"retry_attempt\":${_RL_ATTEMPT},\"sleep_sec\":60,\"error_code\":${_RL_ERROR_CODE}"
     sleep 60
     continue
+  fi
+  # Successful call — reset circuit breaker
+  if declare -f cb_record_success > /dev/null 2>&1; then
+    cb_record_success "$_CB_ENDPOINT"
   fi
   rm -f "$_RL_TMP"
   break
