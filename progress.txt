@@ -1499,3 +1499,4 @@ Completed: Detect git merge conflicts with `git merge-tree` before parallel work
 - `log_spiral_event` is defined at line ~437 — replay code must be AFTER that line
 - With `set -euo pipefail`, pipeline exit code via `|| RC=$?` works correctly; `$?` inside `||` captures the pipeline's overall exit code
 - Worktree cleanup removes both the worktree directory AND the branch (`git branch -D`); otherwise orphaned branches accumulate
+
