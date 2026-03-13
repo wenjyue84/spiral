@@ -1,6 +1,10 @@
 ## Codebase Patterns
 
-(Patterns will be added by Ralph iterations as they discover them)
+- lib/ Python scripts follow pattern: function(stories) → tuple/value + main() CLI with argparse
+- Tests in tests/test_*.py import from lib/ via sys.path.insert; use pytest classes grouped by scenario
+- spiral.sh CLI flags parsed in while/case block (lines ~66-110), defaults at lines ~55-64
+- WORKERS_EXPLICIT=0 flag tracks if --ralph-workers was explicitly set by user
+- Dynamic worker recommendation inserted before Phase I Tier 2 baseline (line ~815)
 
 ---
 
@@ -814,3 +818,29 @@ Incomplete: Dynamic worker count: auto-select 1-3 workers based on story indepen
 - SPIRAL_MAX_PENDING already defaults to 0 (unlimited) on line 186 before validate_config runs, so `:=50` in validate_config only applies if that line is removed
 - `${!key:-}` indirect expansion used to check variable by name in bash loop
 - `set -euo pipefail` means `[[ "$_errors" -eq 1 ]] && exit 1` must be the pattern (not bare `exit 1` after loop)
+## Iteration 7 - Fri, Mar 13, 2026 12:19:53 PM
+Incomplete: Dynamic worker count: auto-select 1-3 workers based on story independence (ID: US-009) — attempt 2/3
+
+## Iteration 8 - Story: US-009: Dynamic worker count: auto-select 1-3 workers based on story independence
+
+### What was implemented
+- Created lib/recommend_workers.py with recommend_workers(stories) function
+  - Computes independence ratio of pending stories (no unresolved deps = independent)
+  - Thresholds: ratio >= 0.6 → 3 workers, >= 0.3 → 2, else 1
+  - CLI entrypoint outputs log line + recommended count for shell parsing
+- Added WORKERS_EXPLICIT=0 flag to spiral.sh defaults (line 59)
+- Set WORKERS_EXPLICIT=1 when --ralph-workers is parsed (line 75)
+- Added dynamic worker recommendation block before Phase I Tier 2 baseline
+  - Calls recommend_workers.py only if WORKERS_EXPLICIT=0
+  - Parses last line of output as worker count, validates it's 1-3
+- Created tests/test_recommend_workers.py with 12 tests across 4 classes:
+  - TestAllIndependent (2 tests), TestAllDependent (2), TestMixed (3), TestEdgeCases (5)
+
+### Patterns discovered
+- spiral.sh uses `$SPIRAL_PYTHON` for all Python invocations
+- `$SPIRAL_HOME` for lib/ path references
+- Existing memory pressure worker reduction at lines 796-803 already modifies RALPH_WORKERS
+
+### Gotchas
+- recommend_workers.py outputs TWO lines: log message + bare number. Shell must parse last line via `tail -1`
+- Must guard with `|| true` to prevent set -e from aborting if python script fails

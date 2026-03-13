@@ -56,6 +56,7 @@ GATE_DEFAULT=""        # empty = interactive; "proceed"|"skip"|"quit" = auto
 RALPH_MAX_ITERS=120
 SKIP_RESEARCH=0        # 1 = skip Phase R (Claude web research); T and M still run
 RALPH_WORKERS=1        # >1 = parallel mode (git worktrees + docker lock)
+WORKERS_EXPLICIT=0     # 1 = user passed --ralph-workers explicitly
 CAPACITY_LIMIT=50      # Phase R is skipped when PENDING exceeds this threshold
 MONITOR_TERMINALS=1    # 1 = open a terminal window per worker to tail logs
 SPIRAL_CONFIG_PATH=""  # explicit --config path
@@ -72,7 +73,7 @@ while [[ $# -gt 0 ]]; do
     --skip-research)
       SKIP_RESEARCH=1; shift ;;
     --ralph-workers)
-      RALPH_WORKERS="$2"; shift 2 ;;
+      RALPH_WORKERS="$2"; WORKERS_EXPLICIT=1; shift 2 ;;
     --capacity-limit)
       CAPACITY_LIMIT="$2"; shift 2 ;;
     --monitor)
@@ -807,6 +808,19 @@ $INJECTED_PROMPT"
               spiral_log_low_power "Model capped: $_REC_MODEL (pressure level $_PRESSURE_LVL, iter $SPIRAL_ITER)"
               echo "  [memory] Pressure level $_PRESSURE_LVL — model cap: $_REC_MODEL"
               SPIRAL_CLI_MODEL="$_REC_MODEL"
+            fi
+          fi
+        fi
+
+        # ── Dynamic worker recommendation (if not explicitly set) ─────────
+        if [[ "$WORKERS_EXPLICIT" -eq 0 ]]; then
+          _REC_OUTPUT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/recommend_workers.py" "$PRD_FILE" 2>/dev/null) || true
+          if [[ -n "$_REC_OUTPUT" ]]; then
+            # Log line is first, recommended count is last line
+            echo "  $_REC_OUTPUT" | head -1
+            _AUTO_WORKERS=$(echo "$_REC_OUTPUT" | tail -1)
+            if [[ "$_AUTO_WORKERS" =~ ^[1-3]$ ]]; then
+              RALPH_WORKERS="$_AUTO_WORKERS"
             fi
           fi
         fi
