@@ -1958,3 +1958,23 @@ Incomplete: Emit per-iteration summary JSON to .spiral/_iteration_summary.json (
 ### Gotchas
 - compute_overview completion_pct uses effective_total (total - decomposed) as denominator, not raw total
 - compute_model_performance sorts by success_rate descending — test assertions must account for sort order
+
+
+## Iteration N - Story: US-064: Add --prd flag to spiral.sh to specify alternate PRD file path
+
+### What was implemented
+- Added `SPIRAL_CLI_PRD=""` default variable at defaults section of spiral.sh
+- Added `--prd) SPIRAL_CLI_PRD="$2"; shift 2 ;;` to the argument parsing while/case block
+- Added `--prd PATH` help text entry (next to --config)
+- Added override block after PRD_FILE/SCRATCH_DIR defaults: resolves relative path to absolute using `cd && pwd`, sets REPO_ROOT to PRD dir, updates all derived paths (SCRATCH_DIR, CHECKPOINT_FILE, RESEARCH_CACHE_DIR)
+- Error check: if the --prd directory doesn't exist, exits with clear error before any processing
+- The existing `if [[ ! -f "$PRD_FILE" ]]` check (line ~322) handles non-existent file within a valid directory
+
+### Patterns discovered
+- All derived paths (SCRATCH_DIR, CHECKPOINT_FILE, RESEARCH_CACHE_DIR) depend on REPO_ROOT — all must be re-derived after a --prd override
+- `$(cd "$(dirname "$path")" && pwd)/$(basename "$path")` is the idiomatic bash way to resolve absolute path
+- The || { echo...; exit 1 } pattern catches cd failures when the parent directory doesn't exist
+
+### Gotchas
+- PRD_FILE is first set at line ~286 from REPO_ROOT, so the --prd override must come AFTER that assignment (not at argument parse time)
+- SPIRAL_SCRATCH_DIR export at line ~309 happens after the override, so it correctly picks up the updated SCRATCH_DIR

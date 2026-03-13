@@ -62,6 +62,7 @@ WORKERS_EXPLICIT=0     # 1 = user passed --ralph-workers explicitly
 CAPACITY_LIMIT=50      # Phase R is skipped when PENDING exceeds this threshold
 MONITOR_TERMINALS=1    # 1 = open a terminal window per worker to tail logs
 SPIRAL_CONFIG_PATH=""  # explicit --config path
+SPIRAL_CLI_PRD=""      # explicit --prd path override
 SPIRAL_CLI_MODEL=""    # explicit --model override (haiku|sonnet|opus)
 SPIRAL_CLI_FOCUS=""    # explicit --focus override
 SPIRAL_FOCUS_TAGS=""   # comma-separated tags filter (--focus-tags)
@@ -88,6 +89,8 @@ while [[ $# -gt 0 ]]; do
       MONITOR_TERMINALS=1; shift ;;
     --no-monitor)
       MONITOR_TERMINALS=0; shift ;;
+    --prd)
+      SPIRAL_CLI_PRD="$2"; shift 2 ;;
     --config)
       SPIRAL_CONFIG_PATH="$2"; shift 2 ;;
     --model)
@@ -139,7 +142,8 @@ while [[ $# -gt 0 ]]; do
       echo "  --model haiku|sonnet|opus  Claude model override (default: auto-route by story complexity)"
       echo "  --focus TEXT               Focus iteration on a theme (e.g., 'performance', 'security')"
       echo "  --focus-tags TAG,TAG       Only implement stories matching at least one tag (e.g., 'frontend,auth')"
-      echo "  --config PATH              Path to spiral.config.sh (default: \$REPO_ROOT/spiral.config.sh)"
+      echo "  --prd PATH                 Path to prd.json (default: prd.json in current directory)"
+  echo "  --config PATH              Path to spiral.config.sh (default: \$REPO_ROOT/spiral.config.sh)"
       echo "  --time-limit N             Stop after N minutes (e.g., 60, 90, 120)"
       echo "  --until HH:MM              Stop at a wall-clock time (e.g., 14:30, 18:00)"
       echo "  --dry-run                  Test loop control flow without API calls"
@@ -282,6 +286,18 @@ SCRATCH_DIR="$REPO_ROOT/.spiral"
 PRD_FILE="$REPO_ROOT/prd.json"
 CHECKPOINT_FILE="$SCRATCH_DIR/_checkpoint.json"
 RESEARCH_CACHE_DIR="$SCRATCH_DIR/research_cache"
+
+# ── --prd override: resolve absolute path and update derived paths ────────────
+if [[ -n "$SPIRAL_CLI_PRD" ]]; then
+  _PRD_DIR="$(cd "$(dirname "$SPIRAL_CLI_PRD")" 2>/dev/null && pwd)" || {
+    echo "[spiral] ERROR: --prd directory does not exist: $(dirname "$SPIRAL_CLI_PRD")"; exit 1
+  }
+  PRD_FILE="$_PRD_DIR/$(basename "$SPIRAL_CLI_PRD")"
+  REPO_ROOT="$_PRD_DIR"
+  SCRATCH_DIR="$REPO_ROOT/.spiral"
+  CHECKPOINT_FILE="$SCRATCH_DIR/_checkpoint.json"
+  RESEARCH_CACHE_DIR="$SCRATCH_DIR/research_cache"
+fi
 
 # ── --reset: remove checkpoint and start fresh ───────────────────────────────
 if [[ "$RESET_CHECKPOINT" -eq 1 ]] && [[ -f "$CHECKPOINT_FILE" ]]; then
