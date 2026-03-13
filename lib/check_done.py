@@ -36,7 +36,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="SPIRAL check-done gate")
     parser.add_argument("--prd", default="prd.json", help="Path to prd.json")
     parser.add_argument("--reports-dir", default="test-reports", help="Test reports directory")
+    parser.add_argument("--skip-ids", default="",
+                        help="Comma-separated story IDs to treat as manually skipped (non-blocking)")
     args = parser.parse_args()
+
+    manual_skip_ids = {s.strip() for s in args.skip_ids.split(",") if s.strip()}
 
     # ── Check prd.json ────────────────────────────────────────────
     if not os.path.isfile(args.prd):
@@ -55,7 +59,7 @@ def main() -> int:
 
     stories = prd.get("userStories", [])
     total = len(stories)
-    pending = [s for s in stories if not s.get("passes") and not s.get("_decomposed") and not s.get("_skipped")]
+    pending = [s for s in stories if not s.get("passes") and not s.get("_decomposed") and not s.get("_skipped") and s.get("id", "") not in manual_skip_ids]
     done = total - len(pending)
 
     print(f"[check_done] PRD: {done}/{total} stories complete, {len(pending)} pending")

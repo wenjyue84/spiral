@@ -240,6 +240,7 @@ SPIRAL_FIRECRAWL_ENABLED="${SPIRAL_FIRECRAWL_ENABLED:-0}"
 SPIRAL_SPECKIT_CONSTITUTION="${SPIRAL_SPECKIT_CONSTITUTION:-}"
 SPIRAL_SPECKIT_SPECS_DIR="${SPIRAL_SPECKIT_SPECS_DIR:-}"
 SPIRAL_FOCUS="${SPIRAL_CLI_FOCUS:-${SPIRAL_FOCUS:-}}"
+SPIRAL_SKIP_STORY_IDS="${SPIRAL_SKIP_STORY_IDS:-}"  # comma-separated IDs to permanently skip without penalty
 SPIRAL_MAX_PENDING="${SPIRAL_MAX_PENDING:-0}"  # 0 = unlimited
 SPIRAL_MAX_RESEARCH_STORIES="${SPIRAL_MAX_RESEARCH_STORIES:-0}"  # 0 = unlimited; cap research candidates per iteration
 SPIRAL_STORY_BATCH_SIZE="${SPIRAL_STORY_BATCH_SIZE:-20}"  # 0 = disabled (show all)
@@ -378,6 +379,16 @@ except Exception:
 " 2>/dev/null || echo "?")
     echo "  Run cost  : ${_TOTAL_COST} USD (from story_costs.json)"
   fi
+  # Show manually-skipped stories
+  if [[ -n "$SPIRAL_SKIP_STORY_IDS" ]]; then
+    IFS=',' read -ra _SKIP_ARR <<< "$SPIRAL_SKIP_STORY_IDS"
+    for _SID in "${_SKIP_ARR[@]}"; do
+      _SID=$(echo "$_SID" | tr -d ' ')
+      [[ -z "$_SID" ]] && continue
+      _TITLE=$("$JQ" -r --arg sid "$_SID" '.userStories[] | select(.id == $sid) | .title' "$PRD_FILE" 2>/dev/null || echo "?")
+      echo "  [MANUAL SKIP] [$_SID] $_TITLE"
+    done
+  fi
   exit 0
 fi
 
@@ -515,7 +526,16 @@ echo "[spiral] Backup: ${PRD_FILE}.bak"
 prd_stats() {
   TOTAL=$("$JQ" '[.userStories | length] | .[0]' "$PRD_FILE")
   DONE=$("$JQ" '[.userStories[] | select(.passes == true)] | length' "$PRD_FILE")
-  PENDING=$((TOTAL - DONE))
+  # Exclude manually-skipped stories from pending count
+  if [[ -n "$SPIRAL_SKIP_STORY_IDS" ]]; then
+    local _manual_skip_count
+    _manual_skip_count=$("$JQ" --arg ids "$SPIRAL_SKIP_STORY_IDS" \
+      '[.userStories[] | select(.passes != true) | select(.id as $sid | ($ids | split(",") | map(gsub("^\\s+|\\s+$";"")) | any(. == $sid)))] | length' \
+      "$PRD_FILE" 2>/dev/null || echo 0)
+    PENDING=$((TOTAL - DONE - _manual_skip_count))
+  else
+    PENDING=$((TOTAL - DONE))
+  fi
 }
 
 # ── Helper: write per-iteration summary JSON (US-039) ──────────────────────
@@ -1436,8 +1456,14 @@ $INJECTED_PROMPT"
         fi
 
         echo "  [I] Pending stories ($PENDING):"
-        "$JQ" -r '.userStories[] | select(.passes != true) | "    [\(.id)] \(.title)"' "$PRD_FILE" \
-          2>/dev/null | head -20 || true
+        if [[ -n "$SPIRAL_SKIP_STORY_IDS" ]]; then
+          "$JQ" -r --arg ids "$SPIRAL_SKIP_STORY_IDS" \
+            '.userStories[] | select(.passes != true) | select(.id as $sid | ($ids | split(",") | map(gsub("^\\s+|\\s+$";"")) | any(. == $sid)) | not) | "    [\(.id)] \(.title)"' \
+            "$PRD_FILE" 2>/dev/null | head -20 || true
+        else
+          "$JQ" -r '.userStories[] | select(.passes != true) | "    [\(.id)] \(.title)"' "$PRD_FILE" \
+            2>/dev/null | head -20 || true
+        fi
         PENDING_SHOWN=$("$JQ" '[.userStories[] | select(.passes != true)] | length' "$PRD_FILE" 2>/dev/null || echo "$PENDING")
         [[ "$PENDING_SHOWN" -gt 20 ]] && echo "    ... and $((PENDING_SHOWN - 20)) more"
         echo ""
@@ -1847,7 +1873,8 @@ PYEOF
   else
     "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/check_done.py" \
       --prd "$PRD_FILE" \
-      --reports-dir "$REPO_ROOT/$SPIRAL_REPORTS_DIR" || _CHECK_DONE_RC=$?
+      --reports-dir "$REPO_ROOT/$SPIRAL_REPORTS_DIR" \
+      --skip-ids "${SPIRAL_SKIP_STORY_IDS:-}" || _CHECK_DONE_RC=$?
   fi
   if [[ "$_CHECK_DONE_RC" -eq 0 ]]; then
     rm -f "$CHECKPOINT_FILE"

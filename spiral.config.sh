@@ -60,6 +60,12 @@ SPIRAL_RESEARCH_SPECIALIST_PROMPT=""
 # Leave empty to disable.
 # SPIRAL_PINCHTAB_URL="http://localhost:9867"
 
+# ── Manual story exclusion ─────────────────────────────────────────────────
+# Comma-separated story IDs to permanently skip without penalty (no retry
+# increment). Use for stories that are blocked externally or descoped mid-run.
+# Example: SPIRAL_SKIP_STORY_IDS="US-042,US-099"
+# SPIRAL_SKIP_STORY_IDS=""
+
 # ── Dashboard auto-refresh interval (seconds) ─────────────────────────────
 # The HTML dashboard includes a <meta http-equiv='refresh'> tag so the browser
 # reloads automatically during active runs. Set to 0 to disable (static mode).
