@@ -40,8 +40,7 @@ def route_stories(prd_path, profile):
     Analyzes each pending story in the PRD file and annotates it with a recommended model.
     """
     if not os.path.exists(prd_path):
-        print(f"[router] ERROR: PRD file not found at {prd_path}")
-        return
+        raise FileNotFoundError(f"[router] ERROR: PRD file not found at {prd_path}")
 
     try:
         with open(prd_path, 'r', encoding='utf-8') as f:

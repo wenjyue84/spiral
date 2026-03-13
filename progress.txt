@@ -309,3 +309,55 @@ Here is a technical brief for implementing story US-012.
 ### Gotchas
 - US-012 was 95% already implemented; only the status string "discard" vs "reject" was wrong
 - Always check if implementation already exists before writing new code
+## Iteration 6 - Fri, Mar 13, 2026  9:58:39 AM
+Completed: Emit results.tsv telemetry row per story attempt in ralph.sh (ID: US-012) in 9m
+
+
+## Pre-analysis for US-013 (Gemini 2.5 Pro)
+Based on the user story, here is a technical brief for the implementation agent.
+
+**Project:** Spiral AI Development Runner
+**User Story:** US-013: Add unit tests for route_stories.py
+
+**1. Python Files to Modify:**
+*   **Create:** `tests/test_route_stories.py`
+*   **Analyze/Target for Testing:** `lib/route_stories.py`
+
+**2. Frappe DocTypes / Hooks Involved:**
+*   None. This is not a Frappe app task. The core component is a standalone Python script that interacts with a `prd.json` file on the filesystem.
+
+**3. Recommended Implementation Approach:**
+*   Use the `pytest` framework to create the new test file.
+*   Leverage the `tmp_path` pytest fixture to create temporary `prd.json` files for each test, ensuring isolated file I/O.
+*   Use `pytest.monkeypatch` or `unittest.mock.patch` to mock the `call_claude` function or any `subprocess.run` calls within `lib/route_stories.py`. This is critical to prevent actual API calls during tests.
+*   Structure tests to cover each profile assignment logic: one for `'haiku'`, one for `'opus'`, and one for `'auto'`.
+*   For the atomic write test, use `tmp_path` to verify that `prd.json.tmp` is created during the write and correctly removed afterward.
+
+**4. Edge Cases & Gotchas to Watch For:**
+*   **Filtering:** Ensure tests explicitly verify that stories already marked with `"passes": true` are ignored and not annotated.
+*   **Overwrite Logic:** Test that running the routing on a story that already has a `.model` field correctly overwrites the existing value.
+*   **Error Handling:** The test suite must confirm that a `FileNotFoundError` or `SystemExit` is raised if `prd.json` does not exist.
+*   **Mocking:** The mock for the 'auto' profile test should simulate the 'complex'/'simple' determination logic to ensure the correct model ('sonnet'/'haiku') is assigned.
+
+
+## Iteration 7 - Story: US-013: Add unit tests for route_stories.py (annotation, profile propagation, atomic write)
+
+### What was implemented
+- Created tests/test_route_stories.py with 9 unit tests
+- Modified lib/route_stories.py: changed silent return on missing file to raise FileNotFoundError
+- Tests cover: haiku profile, opus profile, passed-story filtering, model overwrite, atomic write,
+  temp file cleanup, missing PRD error, auto/complex→sonnet, auto/simple→haiku
+- All tests use tmp_path fixture for isolation; call_claude mocked via unittest.mock.patch
+- Total test count: 51 → 60 (9 new tests added)
+
+### Patterns discovered
+- conftest.py's tmp_prd fixture is available but not mandatory; tmp_path + manual write is equally clean
+- route_stories.call_claude is the correct mock target (module-level function)
+- mkstemp temp files have no extension — glob("*.tmp*") won't catch them; use tmp_path.iterdir() instead
+- os.replace() atomically removes the temp path, so the finally block no-ops on success
+
+### Gotchas
+- Original implementation silently returned on missing PRD; changed to raise FileNotFoundError
+  to satisfy acceptance criteria (and make missing-file bugs detectable earlier)
+- stories_to_update check: model is only written if assigned_model != current model, so
+  "overwrite" test must use a different profile than the pre-existing model field
