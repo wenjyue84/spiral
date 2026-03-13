@@ -28,6 +28,7 @@ SPIRAL_STORY_COST_WARN_USD="${SPIRAL_STORY_COST_WARN_USD:-0.50}"   # warn when s
 SPIRAL_STORY_COST_HARD_USD="${SPIRAL_STORY_COST_HARD_USD:-2.00}"   # abandon story when it exceeds this
 SPIRAL_MODEL_INPUT_PRICE_PER_M="${SPIRAL_MODEL_INPUT_PRICE_PER_M:-3.00}"   # $/1M input tokens (sonnet default)
 SPIRAL_MODEL_OUTPUT_PRICE_PER_M="${SPIRAL_MODEL_OUTPUT_PRICE_PER_M:-15.00}" # $/1M output tokens (sonnet default)
+SPIRAL_MODEL_FALLBACK_CHAIN="${SPIRAL_MODEL_FALLBACK_CHAIN:-}"  # colon-separated fallback models (e.g. sonnet:haiku:gemini-2.0-flash)
 PRD_FILE="prd.json"
 PROGRESS_FILE="progress.txt"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -762,15 +763,59 @@ Story JSON: $STORY_JSON"
     fi
   fi
 
-  # ── Circuit breaker check (before rate-limit retry loop) ─────────────────
+  # ── Circuit breaker check with model fallback chain ─────────────────────
   _CB_ENDPOINT="${EFFECTIVE_MODEL:-${EFFECTIVE_TOOL:-default}}"
+  _FALLBACK_USED=""
+  _ALL_MODELS_OPEN=0
   if declare -f cb_check > /dev/null 2>&1; then
     if ! cb_check "$_CB_ENDPOINT"; then
-      echo "  [cb] Circuit breaker OPEN for $_CB_ENDPOINT — skipping LLM call this iteration"
-      log_spiral_event "circuit_breaker_blocked" \
-        "\"endpoint\":\"$_CB_ENDPOINT\",\"story_id\":\"$NEXT_STORY\""
-      # Continue to story outcome check without making a call
+      echo "  [cb] Circuit breaker OPEN for $_CB_ENDPOINT — checking fallback chain"
+      # Try fallback models from SPIRAL_MODEL_FALLBACK_CHAIN
+      if [[ -n "$SPIRAL_MODEL_FALLBACK_CHAIN" && "$EFFECTIVE_TOOL" == "claude" ]]; then
+        _PRIMARY_MODEL="$_CB_ENDPOINT"
+        IFS=':' read -ra _FALLBACK_MODELS <<< "$SPIRAL_MODEL_FALLBACK_CHAIN"
+        _FOUND_FALLBACK=0
+        for _FB_MODEL in "${_FALLBACK_MODELS[@]}"; do
+          # Skip the primary model (already checked)
+          [[ "$_FB_MODEL" == "$_PRIMARY_MODEL" ]] && continue
+          if cb_check "$_FB_MODEL"; then
+            echo "  [cb] Falling back to $_FB_MODEL (primary $_PRIMARY_MODEL OPEN)"
+            log_spiral_event "model_fallback" \
+              "\"primary_model\":\"$_PRIMARY_MODEL\",\"fallback_model\":\"$_FB_MODEL\",\"reason\":\"circuit_breaker_open\""
+            EFFECTIVE_MODEL="$_FB_MODEL"
+            _CB_ENDPOINT="$_FB_MODEL"
+            _FALLBACK_USED="$_FB_MODEL"
+            _FOUND_FALLBACK=1
+            break
+          else
+            echo "  [cb] Fallback $_FB_MODEL also OPEN — trying next"
+          fi
+        done
+        if [[ "$_FOUND_FALLBACK" -eq 0 ]]; then
+          echo "  [cb] All models in fallback chain are OPEN — deferring story"
+          log_spiral_event "all_models_unavailable" \
+            "\"story_id\":\"$NEXT_STORY\",\"primary_model\":\"$_PRIMARY_MODEL\",\"chain\":\"$SPIRAL_MODEL_FALLBACK_CHAIN\""
+          # Set _failureReason on the story
+          $JQ "(.userStories[] | select(.id == \"$NEXT_STORY\") | ._failureReason) = \"all_models_unavailable\"" \
+            "$PRD_FILE" > "${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE" || true
+          _ALL_MODELS_OPEN=1
+        fi
+      else
+        echo "  [cb] Circuit breaker OPEN for $_CB_ENDPOINT — no fallback chain configured"
+        log_spiral_event "circuit_breaker_blocked" \
+          "\"endpoint\":\"$_CB_ENDPOINT\",\"story_id\":\"$NEXT_STORY\""
+      fi
     fi
+  fi
+
+  # ── Skip to next story if all models unavailable ───────────────────────
+  if [[ "$_ALL_MODELS_OPEN" -eq 1 ]]; then
+    STORY_END=$(date +%s)
+    append_result "deferred"
+    echo "## Iteration $ITERATION - $(date)" >> "$PROGRESS_FILE"
+    echo "DEFERRED: $STORY_TITLE ($NEXT_STORY) — all models in fallback chain unavailable" >> "$PROGRESS_FILE"
+    echo "" >> "$PROGRESS_FILE"
+    continue
   fi
 
   # ── Rate-limit retry loop (covers all AI tools) ────────────────────────────

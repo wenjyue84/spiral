@@ -1862,3 +1862,26 @@ Completed: Add per-story token cost accumulation and soft/hard budget enforcemen
 ## Iteration 6 - Fri, Mar 13, 2026  9:43:14 PM
 Incomplete: Add model fallback chain with per-model circuit breaker state (ID: US-112) — attempt 1/3
 
+
+## Iteration 11 - Story: US-112: Add model fallback chain with per-model circuit breaker state
+
+### What was implemented
+- Added SPIRAL_MODEL_FALLBACK_CHAIN env var (colon-separated model list, e.g. `sonnet:haiku:opus`)
+- Modified circuit breaker check in ralph.sh (lines ~766-810) to iterate through fallback chain when primary model is OPEN
+- When a fallback model is found with CLOSED breaker, EFFECTIVE_MODEL and _CB_ENDPOINT are switched to it
+- When all models in chain are OPEN, story gets `_failureReason: all_models_unavailable` and is deferred to next iteration
+- Emits `model_fallback` event to spiral_events.jsonl with primary_model, fallback_model, reason
+- Emits `all_models_unavailable` event when chain is exhausted
+- Original behavior preserved when SPIRAL_MODEL_FALLBACK_CHAIN is empty (no fallback)
+- Added config docs to templates/spiral.config.example.sh
+- Created tests/model_fallback.bats with 9 tests covering: chain parsing, per-model isolation, all-OPEN scenario, _failureReason in prd.json, event logging
+
+### Patterns discovered
+- Circuit breaker state files are per-endpoint in $SPIRAL_SCRATCH_DIR/circuit_breaker_<endpoint>.json — fallback models naturally get their own state files
+- _CB_ENDPOINT is used for both cb_record_failure and cb_record_success later in the rate-limit loop, so updating it during fallback correctly targets the fallback model's breaker
+- The `continue` statement after _ALL_MODELS_OPEN skips directly to next story in the main loop
+
+### Gotchas
+- Fallback only applies when EFFECTIVE_TOOL is "claude" — codex/qwen/amp don't have model-level circuit breakers
+- The primary model in the chain is skipped (already checked before entering fallback logic)
+- bats is not globally installed; use `npx bats` to run bats tests

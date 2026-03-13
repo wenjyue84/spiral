@@ -188,6 +188,16 @@
 # SPIRAL_MODEL_INPUT_PRICE_PER_M=3.00    # claude-sonnet: $3.00 / 1M input
 # SPIRAL_MODEL_OUTPUT_PRICE_PER_M=15.00  # claude-sonnet: $15.00 / 1M output
 
+# ── Model fallback chain ──────────────────────────────────────────────────
+# Colon-separated list of model identifiers to try when the primary model's
+# circuit breaker is OPEN. Each model maintains its own circuit breaker state.
+# If all models in the chain are OPEN, the story is deferred with
+# _failureReason: all_models_unavailable.
+# Only applies when EFFECTIVE_TOOL is "claude".
+# Example: SPIRAL_MODEL_FALLBACK_CHAIN="sonnet:haiku:opus"
+# Default: empty (no fallback — original circuit breaker behavior)
+# SPIRAL_MODEL_FALLBACK_CHAIN=""
+
 # ── Research model (Phase R) ────────────────────────────────────────────────
 # Which Claude model to use for Phase R (web research agent).
 # Research benefits from good reasoning — sonnet is recommended.
