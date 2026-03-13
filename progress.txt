@@ -1161,3 +1161,27 @@ Completed: Guard against 'branch already checked out' before git worktree add (I
 - The temp file uses `$$` (shell PID) — safe for parallel workers since each has own PID
 - After retry loop, the original story outcome check (`PASSES=$($JQ ...)`) runs normally
 
+## Iteration 5 - Fri, Mar 13, 2026  3:41:01 PM
+Completed: Handle HTTP 529 overloaded_error with separate backoff strategy from 429 (ID: US-079) in 6m
+
+
+## Iteration N - Story: US-032: Add --status flag to spiral.sh
+
+### What was implemented
+- Added `STATUS_ONLY=0` default variable in the args block (line ~55)
+- Added `--status)` case in the while/case argument parser
+- Added `--status` to --help output
+- Inserted status logic block AFTER JQ is resolved and prerequisite checks pass (but before tee/exec log setup)
+- Reads CHECKPOINT_FILE with jq for iter/phase/ts; prints "No active session" if absent
+- Reads prd.json for total/passed/pending story counts
+- Exits 0 immediately after printing — never enters main loop, never modifies files
+
+### Patterns discovered
+- STATUS_ONLY logic must go AFTER JQ resolution (~line 244) — JQ is set in lines ~232-243
+- Must also go AFTER prerequisite checks (PRD_FILE existence) to avoid code duplication
+- Should go BEFORE `exec > >(tee ...)` to avoid creating _last_run.log for a simple status query
+- `$JQ` is the portable jq binary variable (may be system jq or ralph/jq.exe on Windows)
+
+### Gotchas
+- JQ not resolved at SCRATCH_DIR/PRD_FILE/CHECKPOINT_FILE definition block — status must come later
+- config/memory-pressure-check.sh runs before JQ resolution; unavoidable since it's sourced earlier

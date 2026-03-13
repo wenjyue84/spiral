@@ -53,6 +53,7 @@ SPIRAL_HOME="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # ── Argument parsing ─────────────────────────────────────────────────────────
 MAX_SPIRAL_ITERS=20
 GATE_DEFAULT=""        # empty = interactive; "proceed"|"skip"|"quit" = auto
+STATUS_ONLY=0          # 1 = print session state and exit (--status)
 RALPH_MAX_ITERS=120
 SKIP_RESEARCH=0        # 1 = skip Phase R (Claude web research); T and M still run
 RALPH_WORKERS=1        # >1 = parallel mode (git worktrees + docker lock)
@@ -101,6 +102,8 @@ while [[ $# -gt 0 ]]; do
       [[ "$_TARGET_TOTAL" -le "$_NOW_TOTAL" ]] && _TARGET_TOTAL=$(( _TARGET_TOTAL + 1440 ))
       TIME_LIMIT_MINS=$(( _TARGET_TOTAL - _NOW_TOTAL ))
       ;;
+    --status)
+      STATUS_ONLY=1; shift ;;
     --help|-h)
       echo "SPIRAL — Self-iterating PRD Research & Implementation Autonomous Loop"
       echo ""
@@ -119,6 +122,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --config PATH              Path to spiral.config.sh (default: \$REPO_ROOT/spiral.config.sh)"
       echo "  --time-limit N             Stop after N minutes (e.g., 60, 90, 120)"
       echo "  --until HH:MM              Stop at a wall-clock time (e.g., 14:30, 18:00)"
+      echo "  --status                   Print session state and story counts, then exit"
       echo ""
       echo "Config: Place spiral.config.sh in project root (or use --config)."
       echo "  See templates/spiral.config.example.sh for all variables."
@@ -246,6 +250,26 @@ fi
 if [[ ! -f "$SPIRAL_RALPH" ]]; then
   echo "[spiral] ERROR: ralph.sh not found at $SPIRAL_RALPH"
   exit 1
+fi
+
+# ── --status: print session state and exit ───────────────────────────────────
+if [[ "$STATUS_ONLY" -eq 1 ]]; then
+  TOTAL=$("$JQ" '[.userStories[]] | length' "$PRD_FILE" 2>/dev/null || echo "?")
+  PASSED=$("$JQ" '[.userStories[] | select(.passes == true)] | length' "$PRD_FILE" 2>/dev/null || echo "?")
+  PENDING=$("$JQ" '[.userStories[] | select(.passes != true)] | length' "$PRD_FILE" 2>/dev/null || echo "?")
+  if [[ -f "$CHECKPOINT_FILE" ]]; then
+    CKPT_ITER=$("$JQ" -r '.iter // "?"' "$CHECKPOINT_FILE" 2>/dev/null || echo "?")
+    CKPT_PHASE=$("$JQ" -r '.phase // "?"' "$CHECKPOINT_FILE" 2>/dev/null || echo "?")
+    CKPT_TS=$("$JQ" -r '.ts // "?"' "$CHECKPOINT_FILE" 2>/dev/null || echo "?")
+    echo "[spiral] Session status"
+    echo "  Iteration : $CKPT_ITER"
+    echo "  Last phase: $CKPT_PHASE"
+    echo "  Timestamp : $CKPT_TS"
+  else
+    echo "[spiral] No active session (no checkpoint found)"
+  fi
+  echo "  Stories   : $TOTAL total / $PASSED passed / $PENDING pending"
+  exit 0
 fi
 
 # ── Tee all output to log file ──────────────────────────────────────────────
