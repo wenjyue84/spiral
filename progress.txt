@@ -1379,3 +1379,26 @@ Completed: Auto-generate progress.txt skeleton with Codebase Patterns on first r
 - log_spiral_event uses 2>/dev/null || true to avoid failing if .spiral dir doesn't exist yet
 - In _spiral_cleanup, log_spiral_event must also use || true since SCRATCH_DIR may not be set
 - Phase G has no dedicated block close — use the I-block end (same fi) for both phase_end events
+## Iteration 6 - Fri, Mar 13, 2026  4:55:11 PM
+Incomplete: Add TLA+ ModelAssignmentConsistent invariant to SpiralWorkers.tla (ID: US-024) — attempt 1/3
+
+
+## Iteration - Story: US-045 Cache research HTTP responses with TTL
+
+### What was implemented
+- Created `lib/research_cache.py` with URL-level cache: store, lookup, prune, list, inject functions
+- Cache key = md5(normalised URL), entries stored as `{url, fetched_ts, content}` JSON
+- Added `SPIRAL_RESEARCH_CACHE_TTL_HOURS` config variable (default: 24, 0 = disabled)
+- Wired into spiral.sh Phase R: prune at start, inject cached content into prompt, store source URLs after research
+- Added config example documentation in `templates/spiral.config.example.sh`
+- Banner displays cache TTL when enabled
+- 32 new tests covering all cache operations (store/lookup/prune/list/inject/CLI)
+
+### Patterns discovered
+- `.spiral/` is already in .gitignore, so `.spiral/research_cache/` inherits exclusion
+- Phase R prompt injection pattern: prepend context blocks (like Gemini pre-research) before the main prompt
+- Cache injects as "Pre-Fetched URL Cache" block instructing agent not to re-fetch cached URLs
+
+### Gotchas
+- spiral.sh uses `grep -oP` (Perl regex) which requires GNU grep; works on MSYS2/Git Bash
+- Cache store after research extracts source URLs from `_research_output.json` — stories without a `source` field are skipped

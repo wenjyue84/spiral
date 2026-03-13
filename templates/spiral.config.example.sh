@@ -99,6 +99,14 @@
 # Default: 0 (disabled — WebFetch used instead)
 # SPIRAL_FIRECRAWL_ENABLED=0
 
+# ── Research cache TTL (Phase R — URL response caching) ──────────────────
+# Caches fetched URL responses in .spiral/research_cache/ to eliminate
+# redundant HTTP requests across iterations. Cache key = md5(url).
+# Each entry stores {url, fetched_ts, content} as JSON.
+# Expired entries are automatically pruned at the start of Phase R.
+# 0 = disabled (no caching). Default: 24 (hours)
+# SPIRAL_RESEARCH_CACHE_TTL_HOURS=24
+
 # ── Max research stories per iteration ────────────────────────────────────
 # Caps how many NEW research candidates Phase R can inject per iteration.
 # Applied BEFORE deduplication in Phase M merge. Prevents a single research

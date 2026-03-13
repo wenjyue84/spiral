@@ -208,6 +208,8 @@ SPIRAL_PRESSURE_HYSTERESIS="${SPIRAL_PRESSURE_HYSTERESIS:-2}"
 SPIRAL_DEV_URL="${SPIRAL_DEV_URL:-}"  # empty = disabled; URL for Phase V screenshot
 SPIRAL_PROGRESS_MAX_LINES="${SPIRAL_PROGRESS_MAX_LINES:-2000}"  # 0 = disabled; rotate progress.txt when over this limit
 SPIRAL_EVENT_LOG_MAX_LINES="${SPIRAL_EVENT_LOG_MAX_LINES:-10000}"  # 0 = disabled; rotate spiral_events.jsonl when over this limit
+SPIRAL_RESEARCH_CACHE_TTL_HOURS="${SPIRAL_RESEARCH_CACHE_TTL_HOURS:-24}"  # 0 = disabled; cache TTL for Phase R URL responses
+RESEARCH_CACHE_DIR=""  # set after SCRATCH_DIR is known
 
 # ── Config validation ─────────────────────────────────────────────────────────
 # Validates required keys are set and applies defaults for optional keys.
@@ -236,6 +238,7 @@ validate_config
 SCRATCH_DIR="$REPO_ROOT/.spiral"
 PRD_FILE="$REPO_ROOT/prd.json"
 CHECKPOINT_FILE="$SCRATCH_DIR/_checkpoint.json"
+RESEARCH_CACHE_DIR="$SCRATCH_DIR/research_cache"
 
 # ── Source memory pressure helper library ────────────────────────────────────
 export SPIRAL_SCRATCH_DIR="$SCRATCH_DIR"
@@ -560,6 +563,7 @@ if [[ "$TIME_LIMIT_MINS" -gt 0 ]]; then
     || echo "~${TIME_LIMIT_MINS}m from now")
   echo "  ║  Time limit:  ${TIME_LIMIT_MINS}m (stops ~${_DEADLINE_DISPLAY})"
 fi
+[[ "$SPIRAL_RESEARCH_CACHE_TTL_HOURS" -gt 0 ]] && echo "  ║  Cache TTL:   ${SPIRAL_RESEARCH_CACHE_TTL_HOURS}h (research URL responses)"
 echo "  ║  Capacity:    Phase R skipped when pending > $CAPACITY_LIMIT"
 echo "  ║  Scratch:     $SCRATCH_DIR"
 echo "  ╚══════════════════════════════════════════════╝"
@@ -680,6 +684,13 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
     echo '{"stories":[]}' > "$RESEARCH_OUTPUT"
     write_checkpoint "$SPIRAL_ITER" "R"
   else
+    # ── Research cache: prune expired entries ──────────────────────────────
+    if [[ "$SPIRAL_RESEARCH_CACHE_TTL_HOURS" -gt 0 ]]; then
+      mkdir -p "$RESEARCH_CACHE_DIR"
+      PRUNED=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/research_cache.py" prune "$RESEARCH_CACHE_DIR" --ttl-hours "$SPIRAL_RESEARCH_CACHE_TTL_HOURS" 2>/dev/null | grep -oP '\d+' || echo "0")
+      [[ "$PRUNED" -gt 0 ]] && echo "  [R] Cache: pruned $PRUNED expired entries (TTL=${SPIRAL_RESEARCH_CACHE_TTL_HOURS}h)"
+    fi
+
     # ── Gemini web research (optional, configured via SPIRAL_GEMINI_PROMPT) ──
     GEMINI_RESEARCH=""
     if command -v gemini &>/dev/null && [[ -n "$SPIRAL_GEMINI_PROMPT" ]]; then
@@ -709,6 +720,20 @@ $GEMINI_RESEARCH
 ---
 
 $INJECTED_PROMPT"
+    fi
+
+    # ── Inject cached URL content so agent skips re-fetching ──────────────
+    if [[ "$SPIRAL_RESEARCH_CACHE_TTL_HOURS" -gt 0 ]]; then
+      CACHE_CONTEXT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/research_cache.py" inject "$RESEARCH_CACHE_DIR" --ttl-hours "$SPIRAL_RESEARCH_CACHE_TTL_HOURS" 2>/dev/null || true)
+      if [[ -n "$CACHE_CONTEXT" ]]; then
+        CACHE_COUNT=$(ls "$RESEARCH_CACHE_DIR"/*.json 2>/dev/null | wc -l)
+        echo "  [R] Cache: injecting $CACHE_COUNT cached URL responses into prompt"
+        INJECTED_PROMPT="$CACHE_CONTEXT
+
+---
+
+$INJECTED_PROMPT"
+      fi
     fi
 
     # Inject spec-kit constitution so research respects project standards
@@ -769,6 +794,22 @@ $INJECTED_PROMPT"
     else
       RESEARCH_COUNT=$("$JQ" '.stories | length' "$RESEARCH_OUTPUT" 2>/dev/null || echo "?")
       echo "  [R] Research complete — $RESEARCH_COUNT story candidates found"
+
+      # ── Cache source URLs from research output ─────────────────────────
+      if [[ "$SPIRAL_RESEARCH_CACHE_TTL_HOURS" -gt 0 ]]; then
+        CACHED_URLS=0
+        while IFS= read -r src_url; do
+          [[ -z "$src_url" ]] && continue
+          # Extract story content referencing this source for cache value
+          STORY_CONTENT=$("$JQ" -r --arg url "$src_url" \
+            '[.stories[] | select(.source == $url)] | map(.title + ": " + .description) | join("\n")' \
+            "$RESEARCH_OUTPUT" 2>/dev/null || true)
+          if [[ -n "$STORY_CONTENT" ]]; then
+            echo "$STORY_CONTENT" | "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/research_cache.py" store "$RESEARCH_CACHE_DIR" "$src_url" - >/dev/null 2>&1 && ((CACHED_URLS++)) || true
+          fi
+        done < <("$JQ" -r '[.stories[].source // empty] | unique | .[]' "$RESEARCH_OUTPUT" 2>/dev/null || true)
+        [[ "$CACHED_URLS" -gt 0 ]] && echo "  [R] Cache: stored $CACHED_URLS source URLs for future iterations"
+      fi
     fi
 
     write_checkpoint "$SPIRAL_ITER" "R"
