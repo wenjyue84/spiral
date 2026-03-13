@@ -620,6 +620,14 @@ $INJECTED_PROMPT"
   if checkpoint_phase_done "M"; then
     echo "  [M] Skipping (checkpoint: already done this iter)"
   else
+    # ── Phase M backup: snapshot prd.json before merge ──────────────────────
+    if [[ -f "$PRD_FILE" ]]; then
+      mkdir -p "$SCRATCH_DIR/prd-backups"
+      cp "$PRD_FILE" "$SCRATCH_DIR/prd-backups/prd-iter${SPIRAL_ITER}.json"
+      # Keep only last 10 backups
+      ls -t "$SCRATCH_DIR/prd-backups"/ | tail -n +11 | xargs -I{} rm -f "$SCRATCH_DIR/prd-backups/{}"
+    fi
+
     OVERFLOW_FILE="$SCRATCH_DIR/_research_overflow.json"
     BEFORE_TOTAL=$("$JQ" '[.userStories | length] | .[0]' "$PRD_FILE")
     if [[ -n "$SPIRAL_CORE_BIN" ]]; then

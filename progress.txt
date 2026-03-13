@@ -481,3 +481,25 @@ Completed: Add unit tests for check_done.py (PRD gate + report logic) (ID: US-02
 ### Gotchas
 - test_find_next_id_ignores_non_prefix: only non-US-prefix IDs are ignored by find_next_id — mix in a US-NNN to confirm it IS counted
 - The "stories" key pattern in extract_json_from_response requires the word "stories" in the JSON object
+## Iteration 3 - Fri, Mar 13, 2026 10:48:01 AM
+Completed: Add unit tests for decompose_story.py (ID allocation + JSON extraction) (ID: US-027) in 4m
+
+
+## Iteration 12 - Story: US-028: Auto-create timestamped prd.json backup before Phase M merge
+
+### What was implemented
+- Added backup block in spiral.sh Phase M block, before merge_stories.py call
+- Block guards with [[ -f "$PRD_FILE" ]] — no-op if prd.json missing
+- mkdir -p creates $SCRATCH_DIR/prd-backups/ on first run
+- cp saves snapshot as prd-iter${SPIRAL_ITER}.json
+- ls -t | tail -n +11 | xargs rm -f prunes to last 10 backups automatically
+- All 87 pytest tests pass
+
+### Patterns discovered
+- Phase M else branch starts at ~line 622 in spiral.sh — backup inserted before OVERFLOW_FILE setup
+- SPIRAL_ITER is the iteration counter variable (not ITER)
+- Prune uses ls -t (time-sorted) so newest 10 are kept, oldest deleted
+
+### Gotchas
+- prd.json encoding is utf-8; must open with encoding='utf-8' on Windows
+- Backup is inside the `else` branch of checkpoint_phase_done "M" — so it's skipped on resume (same as merge), which is correct
