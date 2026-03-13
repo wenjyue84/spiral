@@ -164,7 +164,7 @@ def main() -> int:
 
     stories = prd.get("userStories", [])
     completed = [s for s in stories if s.get("passes")]
-    pending = [s for s in stories if not s.get("passes") and not s.get("_decomposed")]
+    pending = [s for s in stories if not s.get("passes") and not s.get("_decomposed") and not s.get("_skipped")]
 
     # ── Query mode: --list-waves ──────────────────────────────────────────────
     if args.list_waves:

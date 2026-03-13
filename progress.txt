@@ -361,3 +361,49 @@ Based on the user story, here is a technical brief for the implementation agent.
   to satisfy acceptance criteria (and make missing-file bugs detectable earlier)
 - stories_to_update check: model is only written if assigned_model != current model, so
   "overwrite" test must use a different profile than the pre-existing model field
+## Iteration 7 - Fri, Mar 13, 2026 10:04:40 AM
+Completed: Add unit tests for route_stories.py (annotation, profile propagation, atomic write) (ID: US-013) in 5m
+
+
+## Pre-analysis for US-014 (Gemini 2.5 Pro)
+Here is the technical brief for implementing user story US-014.
+
+**Project:** Spiral (local dev tool)
+**Objective:** Introduce a `_skipped` state for stories that fail after `MAX_RETRIES`.
+
+**Files to Modify:**
+*   `spiral.sh`: To handle retry exhaustion logic.
+*   `lib/check_done.py`: To exclude skipped stories from the "pending" count.
+*   `lib/partition_prd.py`: To prevent skipped stories from being assigned to workers.
+*   `lib/spiral_dashboard.py`: To add a "skipped" category to the status display.
+
+**Implementation Approach:**
+1.  In `spiral.sh`, within the story retry loop, add a condition: if the retry count exceeds `MAX_RETRIES`, use `jq` to patch the relevant story in `prd.json`, setting `_skipped: true` and `_skipReason: 'MAX_RETRIES exhausted...'`.
+2.  In both `check_done.py` and `partition_prd.py`, update the story filtering logic to exclude stories where `story.get("_skipped")` is true, treating them similarly to `_decomposed` stories.
+3.  In `spiral_dashboard.py`, add logic to count skipped stories and render a new grey segment in the status bar to represent them.
+
+**Gotchas & Edge Cases:**
+*   The `jq` update command in `spiral.sh` must be precise to avoid corrupting `prd.json`.
+*   Ensure the `_skipped` check is consistently applied in all Python scripts that filter or count stories to prevent discrepancies.
+*   The dashboard update requires both backend data aggregation and a frontend CSS/HTML change.
+*   Remember to run `uv run pytest` to ensure existing tests still pass.
+
+
+## Iteration 8 - Story: US-014: Mark stories _skipped: true when MAX_RETRIES is exhausted
+
+### What was implemented
+- ralph.sh: After retry_count >= MAX_RETRIES, write `_skipped: true` and `_skipReason` to prd.json (both quality-fail and incomplete branches)
+- lib/check_done.py: Added `not s.get("_skipped")` to pending filter (treats same as _decomposed)
+- lib/partition_prd.py: Added `not s.get("_skipped")` to pending filter (excludes from worker assignment)
+- lib/spiral_dashboard.py: Added skipped count to compute_overview, compute_status_breakdown, and 4th grey (#888) stacked bar segment in render_html
+- lib/merge_worker_results.py: Propagates _skipped/_skipReason from worker prd.json files to main prd.json (analogous to _decomposed merging)
+- All 60 pytest tests pass
+
+### Patterns discovered
+- ralph.sh has TWO exhaustion branches: quality-fail (line ~595) and incomplete (line ~612) — both needed the jq write
+- Dashboard uses `compute_status_breakdown` for bar data and `compute_overview` for card metrics — both needed skipped field
+- total_s in stacked bar must include skipped to get correct percentages
+
+### Gotchas
+- The skip segment is only rendered when ss["skipped"] > 0 (same conditional pattern as decomposed segment)
+- merge_worker_results.py must propagate _skipped so parallel workers' exhaustions survive the merge back to main

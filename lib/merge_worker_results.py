@@ -40,9 +40,10 @@ def main() -> int:
 
     main_ids = {s["id"] for s in main_prd.get("userStories", [])}
 
-    # Collect passes, decomposition flags, and new sub-stories from workers
+    # Collect passes, decomposition flags, skipped flags, and new sub-stories from workers
     passed_ids: set[str] = set()
     decomposed_map: dict[str, list[str]] = {}  # parent_id → child_ids
+    skipped_map: dict[str, str] = {}  # story_id → _skipReason
     new_substories: list[dict] = []
 
     for wpath in args.workers:
@@ -63,6 +64,9 @@ def main() -> int:
             # Collect decomposition flags from workers
             if s.get("_decomposed") and s["id"] in main_ids:
                 decomposed_map[s["id"]] = s.get("_decomposedInto", [])
+            # Collect skipped flags from workers
+            if s.get("_skipped") and s["id"] in main_ids:
+                skipped_map[s["id"]] = s.get("_skipReason", "MAX_RETRIES exhausted")
             # Collect new sub-stories created by decomposition in workers
             if s.get("_decomposedFrom") and s["id"] not in main_ids:
                 new_substories.append(s)
@@ -79,6 +83,11 @@ def main() -> int:
             s["_decomposed"] = True
             s["_decomposedInto"] = decomposed_map[s["id"]]
             print(f"[merge_workers]   ~ {s['id']} decomposed → [{', '.join(decomposed_map[s['id']])}]")
+        # Apply skipped flags from workers
+        if s["id"] in skipped_map and not s.get("_skipped"):
+            s["_skipped"] = True
+            s["_skipReason"] = skipped_map[s["id"]]
+            print(f"[merge_workers]   x {s['id']} skipped — {s['_skipReason']}")
 
     # Append new sub-stories from worker decompositions
     if new_substories:

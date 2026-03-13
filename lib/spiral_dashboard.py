@@ -71,7 +71,8 @@ def compute_overview(prd: dict, results: list[dict]) -> dict:
     passed = sum(1 for s in stories if s.get("passes"))
     decomposed = sum(1 for s in stories if s.get("_decomposed"))
     sub_stories = sum(1 for s in stories if s.get("_decomposedFrom"))
-    pending = sum(1 for s in stories if not s.get("passes") and not s.get("_decomposed"))
+    skipped = sum(1 for s in stories if s.get("_skipped"))
+    pending = sum(1 for s in stories if not s.get("passes") and not s.get("_decomposed") and not s.get("_skipped"))
     effective_total = total - decomposed
     completion_pct = (passed / effective_total * 100) if effective_total > 0 else 0
 
@@ -99,6 +100,7 @@ def compute_overview(prd: dict, results: list[dict]) -> dict:
         "passed": passed,
         "pending": pending,
         "decomposed": decomposed,
+        "skipped": skipped,
         "sub_stories": sub_stories,
         "completion_pct": completion_pct,
         "total_attempts": len(results),
@@ -134,8 +136,9 @@ def compute_status_breakdown(prd: dict, results: list[dict]) -> dict:
     stories = prd.get("userStories", [])
     story_status = {
         "passed": sum(1 for s in stories if s.get("passes")),
-        "pending": sum(1 for s in stories if not s.get("passes") and not s.get("_decomposed")),
+        "pending": sum(1 for s in stories if not s.get("passes") and not s.get("_decomposed") and not s.get("_skipped")),
         "decomposed": sum(1 for s in stories if s.get("_decomposed")),
+        "skipped": sum(1 for s in stories if s.get("_skipped")),
     }
     attempt_status = defaultdict(int)
     for r in results:
@@ -298,13 +301,14 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
 
     # Status stacked bar
     ss = status["stories"]
-    total_s = ss["passed"] + ss["pending"] + ss["decomposed"]
+    total_s = ss["passed"] + ss["pending"] + ss["decomposed"] + ss["skipped"]
     if total_s > 0:
         pct_passed = ss["passed"] / total_s * 100
         pct_pending = ss["pending"] / total_s * 100
         pct_decomp = ss["decomposed"] / total_s * 100
+        pct_skipped = ss["skipped"] / total_s * 100
     else:
-        pct_passed = pct_pending = pct_decomp = 0
+        pct_passed = pct_pending = pct_decomp = pct_skipped = 0
 
     # Attempt status
     att = status["attempts"]
@@ -406,6 +410,7 @@ section h2{{font-size:14px;color:#6c63ff;margin-bottom:12px;text-transform:upper
 .stacked-bar .seg.pass{{background:#00d4aa}}
 .stacked-bar .seg.pend{{background:#6c63ff}}
 .stacked-bar .seg.dec{{background:#ffd93d;color:#333}}
+.stacked-bar .seg.skip{{background:#888;color:#fff}}
 .att-line{{color:#888;font-size:11px;margin-top:6px}}
 table{{width:100%;border-collapse:collapse;font-size:12px}}
 th{{text-align:left;color:#888;font-size:10px;text-transform:uppercase;padding:6px 8px;border-bottom:1px solid #333}}
@@ -472,6 +477,7 @@ footer{{text-align:center;color:#444;font-size:10px;margin-top:16px;padding-top:
 <div class="seg pass" style="width:{pct_passed:.0f}%">{ss["passed"]}</div>
 <div class="seg pend" style="width:{pct_pending:.0f}%">{ss["pending"]}</div>
 {f'<div class="seg dec" style="width:{pct_decomp:.0f}%">{ss["decomposed"]}</div>' if ss["decomposed"] else ''}
+{f'<div class="seg skip" style="width:{pct_skipped:.0f}%">{ss["skipped"]}</div>' if ss["skipped"] else ''}
 </div>
 <div class="att-line">Attempts: {att_html if att_html else 'none'}</div>
 </section>
