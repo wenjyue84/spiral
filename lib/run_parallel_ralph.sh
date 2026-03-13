@@ -229,6 +229,8 @@ for i in $(seq 1 "$RALPH_WORKERS"); do
   # Remove stale worktree if it exists
   git -C "$REPO_ROOT" worktree remove "$WTREE" --force 2>/dev/null || rm -rf "$WTREE" 2>/dev/null || true
   git -C "$REPO_ROOT" worktree add "$WTREE" -b "$BRANCH" HEAD
+  # Lock worktree immediately to prevent git worktree prune from removing it while active
+  git -C "$REPO_ROOT" worktree lock "$WTREE" --reason "spiral worker-${i} active" 2>/dev/null || true
 
   # Overlay worker prd.json + override branchName to match the worker's own branch
   cp "$WORKER_DIR/worker_${i}.json" "$WTREE/prd.json"
@@ -363,6 +365,10 @@ for i in $(seq 1 "$RALPH_WORKERS"); do
   _WORKER_MODEL_FLAG=""
   [[ -n "$RALPH_MODEL" ]] && _WORKER_MODEL_FLAG="--model $RALPH_MODEL"
   (
+    # Unlock the worktree on exit (fires even on crash) so git worktree prune can clean up later
+    _UNLOCK_REPO="$REPO_ROOT"
+    _UNLOCK_WTREE="$WTREE"
+    trap 'git -C "$_UNLOCK_REPO" worktree unlock "$_UNLOCK_WTREE" 2>/dev/null || true' EXIT
     cd "$WTREE"
     # Put lock wrapper first in PATH so docker calls are intercepted
     export PATH="$WTREE/.spiral-bin:$PATH"

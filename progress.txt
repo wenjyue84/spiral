@@ -1094,3 +1094,22 @@ Incomplete: Add SIGCHLD trap to spiral.sh to reap zombie worker processes (ID: U
 ### Gotchas
 - `wait -n` requires bash 4.3+ (already a project requirement)
 - SIGCHLD trap fires for every child exit, including background watchdog — the while/wait pattern handles all
+## Iteration 2 - Fri, Mar 13, 2026  3:23:29 PM
+Completed: Add SIGCHLD trap to spiral.sh to reap zombie worker processes (ID: US-076) in 5m
+
+
+## Iteration N - Story: US-077: Lock git worktrees during active worker execution
+
+### What was implemented
+- Added `git worktree lock "$WTREE" --reason "spiral worker-${i} active"` immediately after `git worktree add` in the Step 2 loop (lib/run_parallel_ralph.sh:233)
+- Added EXIT trap in each worker subshell: `trap 'git -C "$_UNLOCK_REPO" worktree unlock "$_UNLOCK_WTREE" 2>/dev/null || true' EXIT` — fires even on crash (lib/run_parallel_ralph.sh:371)
+- Used captured variables `_UNLOCK_REPO`/`_UNLOCK_WTREE` to snapshot values before subshell scope changes
+
+### Patterns discovered
+- Worker subshells inherit parent variables; capture snapshots before `cd "$WTREE"` for use in EXIT trap
+- `git worktree lock --reason <string>` requires Git 2.7+; suppressed errors with `|| true` for graceful degradation
+- Cleanup `cleanup_parallel` already uses `--force` on `worktree remove` which bypasses lock; this is correct (cleanup on SIGINT/EXIT should still succeed)
+
+### Gotchas
+- The `_WORKER_MODEL_FLAG` variable is unquoted in the original `bash "$RALPH_SKILL" ... $_WORKER_MODEL_FLAG` — word splitting intentional (flag may be empty or `--model claude-...`)
+- EXIT trap must be set BEFORE `cd "$WTREE"` since the trap captures `_UNLOCK_REPO`/`_UNLOCK_WTREE` which reference the worktree path
