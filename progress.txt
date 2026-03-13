@@ -547,3 +547,29 @@ Incomplete: Implement real Claude API call in route_stories.py auto mode (ID: US
 ### Gotchas
 - Must handle FileNotFoundError (claude CLI not installed) separately from subprocess errors
 - "complex" default ensures expensive fallback (sonnet) rather than cheap model on uncertainty — safer for quality
+## Iteration 6 - Fri, Mar 13, 2026 11:03:53 AM
+Completed: Implement real Claude API call in route_stories.py auto mode (ID: US-029) in 5m
+
+
+
+## Iteration 15 - Story: US-007: Wizard: ask about browser testing setup
+
+### What was implemented
+- Added Group 8: Browser Testing (Optional) to spiral-init.md wizard (ralph/skills/spiral-init.md)
+- Detection logic: npm list -g chrome-devtools-mcp and ls ~/.claude/skills/agent-browser.md
+- If Chrome DevTools MCP detected: explain capability, ask to enable, default y
+- If not detected: show install command (npm i -g chrome-devtools-mcp) without blocking
+- If agent-browser skill detected: inform user it will be included when SPIRAL_BROWSER_TESTING=1
+- Writes SPIRAL_BROWSER_TESTING=1 to spiral.config.sh when user opts in
+- Added SPIRAL_BROWSER_TESTING commented entry to spiral.config.sh template in Step 5a
+- Added "If the user opted in to browser testing (Group 8)" instruction for Step 5a
+- Shows MCP config snippet for claude settings.json (manual setup — wizard is informational only)
+- All 87 pytest tests pass
+
+### Patterns discovered
+- spiral-init.md is a markdown skill file, not a Python module — no pytest coverage needed
+- wizard groups follow sequential numbering; add new groups before Step 3b
+
+### Gotchas
+- The MCP config (claude settings.json) requires manual setup outside the wizard — wizard only shows the snippet
+- Do not block setup if tools are missing — the section is purely informational

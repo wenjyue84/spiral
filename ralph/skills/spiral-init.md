@@ -198,6 +198,50 @@ If the user says **no**, skip to Step 4.
 
 (Note: Groups renumbered — Research Phase Configuration added as Group 5, pushing Preferences to Group 6 and Optional Features to Group 7.)
 
+### Group 8: Browser Testing (Optional)
+
+Detect whether Chrome DevTools MCP and the agent-browser skill are available:
+
+```bash
+# Check Chrome DevTools MCP
+npm list -g chrome-devtools-mcp 2>/dev/null | grep -q chrome-devtools-mcp && echo "found" || echo "not found"
+
+# Check agent-browser skill
+ls ~/.claude/skills/agent-browser.md 2>/dev/null && echo "found" || echo "not found"
+```
+
+**If Chrome DevTools MCP is detected:**
+> **Chrome DevTools MCP is installed** — Claude can take screenshots and interact with your running app during Phase V validation.
+>
+> Enable browser testing in SPIRAL? (y/n, default: y)
+> This writes `SPIRAL_BROWSER_TESTING=1` to spiral.config.sh, enabling Phase V visual checks.
+
+**If Chrome DevTools MCP is NOT detected:**
+> **Chrome DevTools MCP not found** (optional). To enable visual validation during Phase V:
+>
+>     npm i -g chrome-devtools-mcp
+>
+> Skip for now? (y/n, default: y — you can enable it later in spiral.config.sh)
+
+**If agent-browser skill is detected:**
+> **agent-browser skill is installed** — Claude can use the browser agent for automated UI testing during Phase V.
+> Included when `SPIRAL_BROWSER_TESTING=1` is set.
+
+**If agent-browser skill is NOT detected:**
+> **agent-browser skill not found** (optional). Install it to enable autonomous browser interaction.
+> Skip for now — this is informational only.
+
+If the user opts in to browser testing (either tool detected + confirmed, or user requests it manually), write `SPIRAL_BROWSER_TESTING=1` to spiral.config.sh.
+
+Do **not** block setup if tools are missing — this section is informational. The MCP config itself (claude settings.json) requires manual setup outside the wizard; show the snippet:
+
+```json
+// Add to ~/.claude/settings.json under "mcpServers":
+"chrome-devtools": {
+  "command": "chrome-devtools-mcp"
+}
+```
+
 ### Step 3b: Generate Constitution
 
 Based on the codebase scan results, **draft a constitution** and present it for the user to review. The constitution should be derived from what was actually detected — not generic boilerplate.
@@ -332,6 +376,12 @@ SPIRAL_RESEARCH_MODEL="{user choice, default: sonnet}"
 # Set to 0 for unlimited
 SPIRAL_MAX_PENDING={user choice, default: 50}
 
+# --- Browser Testing (Phase V) ---
+
+# Chrome DevTools MCP + agent-browser: visual screenshot validation during Phase V
+# Set to 1 to enable (requires chrome-devtools-mcp installed: npm i -g chrome-devtools-mcp)
+# SPIRAL_BROWSER_TESTING=1
+
 # Focus theme (empty = all stories)
 # SPIRAL_FOCUS=""
 ```
@@ -343,6 +393,8 @@ If the user said **yes** to `--tool auto`, uncomment and set `SPIRAL_TOOL_AUTO=1
 If the user said **yes** to Gemini pre-research, uncomment and set `SPIRAL_GEMINI_ENABLED=1`. If they provided a focus prompt, uncomment and set `SPIRAL_GEMINI_PROMPT="{user's prompt}"`.
 
 If the user said **yes** to Firecrawl, uncomment and set `SPIRAL_FIRECRAWL_ENABLED=1`.
+
+If the user opted in to browser testing (Group 8), uncomment and set `SPIRAL_BROWSER_TESTING=1`.
 
 If the user enabled the constitution, add:
 ```bash
