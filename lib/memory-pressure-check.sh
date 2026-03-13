@@ -78,7 +78,7 @@ spiral_should_skip_phase() {
     return 1  # don't skip
   fi
   local skip_list
-  skip_list=$("$_PRESSURE_JQ" -r '.skip_phases // [] | .[]' "$_SPIRAL_PRESSURE_FILE" 2>/dev/null)
+  skip_list=$("$_PRESSURE_JQ" -r '.skip_phases // [] | .[]' "$_SPIRAL_PRESSURE_FILE" 2>/dev/null | tr -d '\r')
   local p
   for p in $skip_list; do
     if [[ "$p" == "$phase" ]]; then

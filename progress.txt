@@ -2643,3 +2643,49 @@ This brief outlines the implementation for story US-139, focusing on shell scrip
 - [[ $VAR -gt 0 ]] && ... at the end of a function will cause bats to report failure if VAR is 0 (set -e)
 - --betas flag only works with API key auth, not OAuth tokens
 - Anthropic prompt caching requires minimum 1024 tokens in the cached block; ralph system prompts easily exceed this
+## Iteration 2 - Sat, Mar 14, 2026  2:51:59 AM
+Completed: Enable Anthropic prompt caching for ralph.sh system prompts (ID: US-139) in 10m
+
+
+## Pre-analysis for US-140 (Gemini 2.5 Pro)
+This user story pertains to the "Spiral" AI orchestrator project, not a Frappe/Python application. No Frappe DocTypes or hooks are involved.
+
+**Technical Brief: US-140 Gitleaks Secret Scanning Gate**
+
+**1. Files to Modify:**
+*   `ralph/ralph.sh`: To integrate the secret scanning logic before the `git commit` command.
+*   `lib/spiral_doctor.sh`: To add a health check that verifies the `gitleaks` binary is installed.
+*   `.gitleaks.toml` (New file): To configure gitleaks and prevent false positives on project variables.
+
+**2. Implementation Approach:**
+*   In `ralph.sh`, locate the `git commit` sequence.
+*   Before the commit, add a shell function to perform the scan:
+    *   Check for the `SPIRAL_SKIP_SECRET_SCAN=true` environment variable; if true, log a warning and bypass the scan.
+    *   Execute `gitleaks detect --staged --report-format json --report-path .spiral/gitleaks-report.json`.
+    *   Use `jq` to parse the report. If the resulting JSON array is not empty, abort the commit and write `_failureReason: 'secret_detected'` to the story's progress file.
+*   In `lib/spiral_doctor.sh`, add a check using `command -v gitleaks` and report the `gitleaks version`. If it's missing, fail the doctor script with an informative error.
+
+**3. Edge Cases & Gotchas:**
+*   The gitleaks command could fail if not installed; the `spiral_doctor.sh` check should mitigate this.
+*   The `.gitleaks.toml` file is critical for allow-listing legitimate secrets/variables (e.g., from `spiral.config.sh`) to avoid false positives that block valid commits.
+*   Ensure the gitleaks report itself (`.spiral/gitleaks-report.json`) is added to `.gitignore`.
+
+
+## Iteration N - Story: US-085: Add bats tests for lib/ shell utility scripts
+
+### What was implemented
+- Created tests/lib/validate_preflight.bats (12 tests) — tests spiral_preflight_check pass/fail, checkpoint cleanup, config warnings
+- Created tests/lib/memory_pressure.bats (18 tests) — tests all memory-pressure-check.sh public API functions
+- Created tests/lib/spiral_assert.bats (25 tests) — tests _spiral_assert_fail, ids_unique, count_bounded, passes_monotonic, merge_no_loss, iteration_progress
+- Fixed bug in lib/memory-pressure-check.sh: spiral_should_skip_phase() used jq output split by newline, but jq on Windows/MINGW64 emits CRLF (\r\n). First element had trailing \r causing [[ "R\r" == "R" ]] to fail. Fixed by piping through `tr -d '\r'`.
+- All 55 bats tests pass with `bats tests/lib/`
+
+### Patterns discovered
+- bats tests/lib/ dir used (tests/ with 's' to match existing project convention)
+- bats `run` executes functions in current shell with output/status captured — shell vars like _SPIRAL_PRESSURE_FILE are accessible
+- jq on Windows/MINGW64 Git Bash emits CRLF for multi-line output — always pipe through `tr -d '\r'` when iterating over jq multi-line output
+
+### Gotchas
+- Windows CRLF from jq: multi-value jq output (`.[]` over arrays) gets \r\n separators on Windows. Only the last element has just \n; all others have \r\n. For-loop iteration leaves \r on all-but-last values.
+- validate_preflight.sh doesn't check PATH for jq/git — it delegates to prd_schema.py. Tests should mock SPIRAL_PYTHON to simulate tool failure.
+- memory-pressure-check.sh is a library (no main). Tests must source it and call functions directly.
