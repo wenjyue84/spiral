@@ -1039,3 +1039,6 @@ Incomplete: Implement main.py as a proper CLI with init, run, and status subcomm
 ### Notes
 - Story marked passes: true based on full acceptance criteria satisfaction
 - This was a discovery story - feature existed but wasn't documented in prd.json
+## Iteration 10 - Fri, Mar 13, 2026  2:46:35 PM
+Incomplete: Implement main.py as a proper CLI with init, run, and status subcommands (ID: US-020) — attempt 1/3
+

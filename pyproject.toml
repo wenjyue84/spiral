@@ -8,6 +8,12 @@ dependencies = [
     "questionary>=2.0.1",
 ]
 
+[project.scripts]
+spiral = "main:main"
+
+[tool.setuptools]
+py-modules = ["main"]
+
 [dependency-groups]
 dev = [
     "hypothesis>=6.151.9",
