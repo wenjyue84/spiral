@@ -574,6 +574,21 @@ while [[ $ITERATION -lt $MAX_ITERATIONS ]]; do
   ALL_INCOMPLETE=$($JQ -r '[.userStories[] | select(.passes == false and (._decomposed | not))] | sort_by(.priority) | .[].id' "$PRD_FILE" | tr -d '\r')
 
   for candidate in $ALL_INCOMPLETE; do
+    # ── Manual skip filter: skip stories in SPIRAL_SKIP_STORY_IDS without penalty ──
+    if [[ -n "${SPIRAL_SKIP_STORY_IDS:-}" ]]; then
+      _MANUAL_SKIP=0
+      IFS=',' read -ra _SKIP_IDS <<< "$SPIRAL_SKIP_STORY_IDS"
+      for _sid in "${_SKIP_IDS[@]}"; do
+        _sid=$(echo "$_sid" | tr -d ' \r')
+        if [[ "$candidate" == "$_sid" ]]; then
+          _MANUAL_SKIP=1
+          break
+        fi
+      done
+      if [[ "$_MANUAL_SKIP" -eq 1 ]]; then
+        continue  # manual skip — no retry increment
+      fi
+    fi
     retries=$(get_retry_count "$candidate")
     if [[ "$retries" -ge "$MAX_RETRIES" ]]; then
       continue

@@ -2311,3 +2311,27 @@ Incomplete: Add SPIRAL_SKIP_STORY_IDS for permanent manual story exclusion (ID: 
 ### Gotchas
 - Shell escaping in bats: `echo '...\"..\"..'` in single-quotes produces literal backslashes; use `printf` to write files with literal `"529"` for grep pattern matching
 - `detect_overload` helper mirrors ralph.sh logic exactly and must be exported for `run` command
+## Iteration 2 - Sat, Mar 14, 2026  1:34:08 AM
+Incomplete: Add SPIRAL_SKIP_STORY_IDS for permanent manual story exclusion (ID: US-057) — attempt 2/3
+
+
+## Iteration - Story: US-057: Add SPIRAL_SKIP_STORY_IDS for permanent manual story exclusion
+
+### What was implemented
+- Added SPIRAL_SKIP_STORY_IDS documentation to templates/spiral.config.example.sh (AC-1)
+- Added export of SPIRAL_SKIP_STORY_IDS in spiral.sh (line ~868) so ralph.sh can access it
+- Added manual skip filter in ralph.sh story selection loop (before retry check) — skips without incrementing retryCount (AC-2)
+- spiral.sh --status already had [MANUAL SKIP] indicator (lines 382-391) (AC-3)
+- check_done.py already had --skip-ids support and was called with SPIRAL_SKIP_STORY_IDS (AC-4)
+- Added 'Skipped by user' display in HTML dashboard via _get_manual_skip_ids() helper and manual_skip status (technical note)
+
+### Patterns discovered
+- spiral.sh already had most SPIRAL_SKIP_STORY_IDS support: config var, --status display, prd_stats() exclusion, check_done.py --skip-ids
+- ralph.sh was the main gap — no filtering of manually-skipped stories in the story selection loop
+- SPIRAL_SKIP_STORY_IDS was defined but never exported — ralph.sh (subshell) couldn't see it
+- Dashboard reads env vars directly (os.environ.get) rather than CLI args for some settings
+
+### Gotchas
+- Must place manual skip filter BEFORE retry count check in ralph.sh — otherwise retryCount would still increment
+- The IFS=',' read -ra pattern for parsing comma-separated IDs is used consistently throughout spiral.sh
+- Hypothesis test_partition.py::test_deps_at_lower_level is flaky (HealthCheck.too_slow) — not a regression

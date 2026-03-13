@@ -153,6 +153,15 @@
 # Default: empty (no focus — all stories considered)
 # SPIRAL_FOCUS="performance"
 
+# ── Manual story exclusion ─────────────────────────────────────────────────
+# Comma-separated story IDs to permanently skip without penalty (no retry
+# increment). Use for stories that are blocked externally or descoped mid-run.
+# These stories are excluded from Phase I selection, appear in --status output
+# with a [MANUAL SKIP] indicator, and are treated as non-blocking by check_done.
+# Default: empty (no manual exclusions)
+# Example: SPIRAL_SKIP_STORY_IDS="US-042,US-099"
+# SPIRAL_SKIP_STORY_IDS=""
+
 # ── Model routing (Claude model selection) ──────────────────────────────────
 # Controls which Claude model Ralph uses for implementation.
 #   "auto"   — auto-classify per story: haiku (trivial), sonnet (default), opus (complex)

@@ -95,6 +95,14 @@ def load_progress(path: str, max_entries: int = 10) -> list[str]:
     return sections[-max_entries:]
 
 
+# ── Manual skip IDs (from environment) ───────────────────────────────────────
+
+def _get_manual_skip_ids() -> set[str]:
+    """Return set of story IDs from SPIRAL_SKIP_STORY_IDS env var."""
+    raw = os.environ.get("SPIRAL_SKIP_STORY_IDS", "")
+    return {s.strip() for s in raw.split(",") if s.strip()}
+
+
 # ── Metrics Computation ──────────────────────────────────────────────────────
 
 def compute_overview(prd: dict, results: list[dict]) -> dict:
@@ -369,10 +377,21 @@ def compute_story_attempts(prd: dict, results: list[dict]) -> dict:
         attempts = by_story.get(sid, [])
         # Sort by timestamp descending (most recent first)
         attempts.sort(key=lambda r: r.get("timestamp", ""), reverse=True)
+        manual_skip_ids = _get_manual_skip_ids()
+        if story.get("passes"):
+            status = "pass"
+        elif story.get("_decomposed"):
+            status = "decomposed"
+        elif story.get("_skipped"):
+            status = "skipped"
+        elif sid in manual_skip_ids:
+            status = "manual_skip"
+        else:
+            status = "pending"
         result[sid] = {
             "story_id": sid,
             "title": story.get("title", ""),
-            "status": "pass" if story.get("passes") else ("decomposed" if story.get("_decomposed") else ("skipped" if story.get("_skipped") else "pending")),
+            "status": status,
             "attempts": attempts,
         }
 
@@ -696,6 +715,7 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
         for story_id in sorted(story_attempts.keys()):
             story = story_attempts[story_id]
             status_color = "good" if story["status"] == "pass" else "bad" if story["status"] == "pending" else "warn"
+            display_status = "Skipped by user" if story["status"] == "manual_skip" else story["status"]
             attempts = story["attempts"]
 
             # Build attempt table HTML
@@ -727,7 +747,7 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
                 f'<details style="margin-bottom:8px;border:1px solid #333;border-radius:4px">'
                 f'<summary style="cursor:pointer;padding:8px;background:#0f3460;color:#fff;font-weight:bold;display:flex;justify-content:space-between;align-items:center">'
                 f'<span>{escape(story_id)}: {escape(story["title"][:50])}</span>'
-                f'<span class="{status_color}" style="font-size:11px;padding:2px 6px;border-radius:3px">{story["status"]}</span>'
+                f'<span class="{status_color}" style="font-size:11px;padding:2px 6px;border-radius:3px">{display_status}</span>'
                 f'</summary>'
                 f'<div style="padding:8px;overflow-x:auto">'
                 f'<table style="font-size:11px;width:100%">'
