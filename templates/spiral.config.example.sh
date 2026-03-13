@@ -64,6 +64,23 @@
 # Default: 300
 # SPIRAL_VALIDATE_TIMEOUT=300
 
+# ── API Retry Jitter (prevents thundering herd) ───────────────────────────────
+# When multiple parallel SPIRAL workers hit rate limits (429/529) simultaneously,
+# retry delays are staggered with random jitter to avoid synchronized retries.
+# Each worker's RANDOM seed is unique (based on PID), so delays vary per worker.
+#
+# SPIRAL_RETRY_JITTER_S — max random jitter in seconds added to exponential backoff
+# Default: 5
+# SPIRAL_RETRY_JITTER_S=5
+#
+# SPIRAL_RETRY_MAX_ATTEMPTS — max retry attempts before giving up
+# Default: 3
+# SPIRAL_RETRY_MAX_ATTEMPTS=3
+#
+# SPIRAL_RETRY_BASE_DELAY — initial backoff in seconds (scaled by attempt number)
+# Default: 1
+# SPIRAL_RETRY_BASE_DELAY=1
+
 # ── Test reports directory ───────────────────────────────────────────────────
 # Where test reports are written (relative to project root).
 # Must contain timestamped subdirs with report.json inside.

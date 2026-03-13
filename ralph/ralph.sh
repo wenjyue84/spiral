@@ -84,6 +84,10 @@ else
   exit 1
 fi
 
+# ── Source spiral_retry library for API retry with jitter ───────────────────
+SPIRAL_HOME="${SPIRAL_HOME:-.}"
+[[ -f "$SPIRAL_HOME/lib/spiral_retry.sh" ]] && source "$SPIRAL_HOME/lib/spiral_retry.sh"
+
 # ── Helper: append a JSONL event to spiral_events.jsonl ─────────────────────
 SPIRAL_SCRATCH_DIR="${SPIRAL_SCRATCH_DIR:-.spiral}"
 log_ralph_event() {

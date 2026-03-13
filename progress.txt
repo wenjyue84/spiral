@@ -2335,3 +2335,66 @@ Incomplete: Add SPIRAL_SKIP_STORY_IDS for permanent manual story exclusion (ID: 
 - Must place manual skip filter BEFORE retry count check in ralph.sh — otherwise retryCount would still increment
 - The IFS=',' read -ra pattern for parsing comma-separated IDs is used consistently throughout spiral.sh
 - Hypothesis test_partition.py::test_deps_at_lower_level is flaky (HealthCheck.too_slow) — not a regression
+## Iteration 3 - Sat, Mar 14, 2026  1:50:26 AM
+Completed: Add SPIRAL_SKIP_STORY_IDS for permanent manual story exclusion (ID: US-057) in 16m
+
+
+## Pre-analysis for US-073 (Gemini 2.5 Pro)
+This user story is for a shell script, not a Frappe/Python application. The instructions below are adjusted accordingly.
+
+**Project:** spiral
+**User Story:** US-073: Add --version flag
+
+**Technical Brief:**
+
+*   **Files to Modify:**
+    *   `spiral.sh`: This is the main file for all modifications.
+
+*   **Frappe DocTypes/Hooks:**
+    *   None. This story concerns a shell script, not the Frappe framework.
+
+*   **Recommended Implementation:**
+    1.  In `spiral.sh`, locate the main argument parsing loop (likely a `while` loop with a `case` statement).
+    2.  Add a new case for `--version` near the top of the argument processing.
+    3.  This case should execute `git -C "$SPIRAL_HOME" describe --tags --always --dirty=+ 2>/dev/null`.
+    4.  If the git command fails (e.g., not a git repo), it should default to a string like "unknown (not a git repository)".
+    5.  Print the formatted output "SPIRAL version <version_string>" and exit with code 0.
+    6.  Locate the script's `usage` or `help` function and add a line documenting the new `--version` flag.
+    7.  Near the top of the script, define and export a `SPIRAL_VERSION` environment variable using the same git/fallback logic.
+
+*   **Edge Cases/Gotchas:**
+    *   Ensure `$SPIRAL_HOME` is defined and points to the correct directory before the version command is executed.
+    *   The `--version` check must happen early to prevent other argument validation logic from executing first.
+    *   The exit code must be `0` after printing the version.
+
+
+## Iteration [N] - Story: US-082: Apply jitter to all API retries in ralph.sh to prevent thundering herd
+
+### What was implemented
+- Created `lib/spiral_retry.sh` with two functions:
+  - `spiral_api_retry <cmd>`: Generic retry wrapper for any CLI command with exponential backoff + jitter
+  - `spiral_api_retry_on_error <exit_code> <cmd>`: Conditional retry for specific error codes
+- Each worker's RANDOM seed is initialized to PID (line: `RANDOM=$$`) for unique retry stagger
+- Retry formula: `sleep_s = base_delay * attempt + (RANDOM % jitter_range)` — exponential backoff scaled by attempt + random jitter
+- Sourced `lib/spiral_retry.sh` in both:
+  - `spiral.sh` (line 399): After other spiral lib sources (validate_preflight, spiral_doctor, spiral_assert)
+  - `ralph/ralph.sh` (line 87-88): After jq resolution, before helper functions
+- Documented SPIRAL_RETRY_JITTER_S (default: 5), SPIRAL_RETRY_MAX_ATTEMPTS (default: 3), SPIRAL_RETRY_BASE_DELAY (default: 1) in `templates/spiral.config.example.sh`
+
+### Patterns discovered
+- spiral_*.sh utility libraries follow pattern: export functions + configuration vars (RANDOM seeding for PID-based uniqueness)
+- Libraries sourced early in spiral.sh/ralph.sh before they're used
+- Configuration variables documented in templates/spiral.config.example.sh with defaults and purpose comments
+- Existing 529 retry logic in ralph.sh (lines 903-942) already has jitter; this creates a reusable abstraction
+
+### Gotchas
+- RANDOM in bash is per-shell-session, not global — must seed RANDOM=PID in library for per-worker uniqueness
+- ralph.sh doesn't source $SPIRAL_HOME libs by default; added conditional source with [[ -f ]] check for robustness
+- Exponential backoff formula avoids "thundering herd" by staggering retries across workers
+- All 438 pytest tests pass; shell syntax validated with `bash -n`
+
+Acceptance criteria met:
+- [x] New `lib/spiral_retry.sh` exports `spiral_api_retry <cmd>` function
+- [x] Each retry adds `RANDOM % SPIRAL_RETRY_JITTER_S` to base backoff (configurable, default 5)
+- [x] spiral_retry.sh sourced by both spiral.sh and ralph.sh
+- [x] SPIRAL_RETRY_JITTER_S documented in templates/spiral.config.example.sh

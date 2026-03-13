@@ -396,6 +396,7 @@ fi
 source "$SPIRAL_HOME/lib/validate_preflight.sh"
 source "$SPIRAL_HOME/lib/spiral_doctor.sh"
 source "$SPIRAL_HOME/lib/spiral_assert.sh"
+source "$SPIRAL_HOME/lib/spiral_retry.sh"
 
 # ── --doctor: run dependency checks and exit ────────────────────────────────
 if [[ "$DOCTOR_MODE" -eq 1 ]]; then
