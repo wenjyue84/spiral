@@ -1450,3 +1450,29 @@ Completed: Add per-worker execution timeout using `timeout --kill-after` in run_
 ### Gotchas
 - Must use `bash -c "eval ..."` not `eval` directly inside timeout, otherwise timeout has no subprocess to kill
 - SPIRAL_VALIDATE_TIMEOUT=0 check must use integer comparison `[[ -gt 0 ]]` not string equality
+## Iteration 2 - Fri, Mar 13, 2026  5:44:11 PM
+Completed: Add SPIRAL_VALIDATE_TIMEOUT to bound Phase V test-suite execution time (ID: US-096) in 5m
+
+
+## Iteration - Story: US-097: Detect git merge conflicts with git merge-tree before parallel worker integration
+
+### What was implemented
+- Replaced `git apply --check` in run_parallel_ralph.sh Step 6.5 with `git merge-tree --write-tree` dry-run per-worker
+- Added `_detect_merge_conflicts()` helper function with git 2.38+ new-style support and old-style fallback
+- Conflicting workers have their passed stories reset to `passes: false` with `_failureReason: 'merge_conflict'` in both worker and main prd.json
+- `merge_conflict_detected` event (with workerId, branch, conflictingFiles) logged to spiral_events.jsonl per conflicting worker
+- `merge_conflict_summary` event (cleanWorkers/conflictWorkers counts) logged after all workers checked
+- Step 7 now SKIPS conflict workers entirely (no more --reject partial apply); clean workers apply normally
+- Created tests/test_merge_conflict_detection.py: 16 tests covering detection, story requeue, events logging, and full integration path
+
+### Patterns discovered
+- `git merge-tree --write-tree HEAD BRANCH` exits 0 = clean, 1 = conflict (git 2.38+)
+- Old-style `git merge-tree BASE HEAD BRANCH` shows `<<<<<<<` markers in stdout; need both branches to have diverged from common ancestor for a true conflict
+- Git on Windows uses `master` as default branch in new repos; use `git rev-parse --abbrev-ref HEAD` in tests instead of hardcoding `main`
+- prd.json can have encoding issues (cp1252 from git show on Windows); restore with `git show HEAD:prd.json`
+- The `_detect_merge_conflicts` function must be called in the coordinator (after workers finish), not in ralph.sh, because workers run in isolation and can't detect inter-worker conflicts
+
+### Gotchas
+- Test fixture for conflicting branches: BOTH HEAD (main) AND branch must have changed the same line from the common ancestor — if only branch changes the file, it's a clean merge
+- prd.json restoration: use `git show HEAD:prd.json > prd.json` if file gets truncated by jq parse errors
+- CONFLICT_WORKERS array iteration in bash: use `"${CONFLICT_WORKERS[@]:-}"` to avoid "unbound variable" error when array is empty

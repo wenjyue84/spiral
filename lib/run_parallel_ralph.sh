@@ -573,8 +573,12 @@ git -C "$REPO_ROOT" add "$PRD_FILE" 2>/dev/null
 git -C "$REPO_ROOT" commit -m "chore(spiral): merge prd.json from $RALPH_WORKERS parallel workers" \
   2>/dev/null || true
 
-# ── Step 6.5: Extract patches + pre-detect conflicts via dry-run ─────────────
-echo "  [parallel] Extracting and pre-checking patches for conflicts..."
+# ── Step 6.5: Detect merge conflicts via git merge-tree dry-run ──────────────
+# Uses git merge-tree (non-destructive) to detect per-worker branch conflicts
+# before applying any patches. Conflicting workers have their stories reset to
+# pending (not failed) with _failureReason: 'merge_conflict' so they are
+# requeued in the next Spiral run without discarding sibling workers' results.
+echo "  [parallel] Checking worker branches for merge conflicts (git merge-tree)..."
 declare -a CLEAN_WORKERS=()
 declare -a CONFLICT_WORKERS=()
 
@@ -586,9 +590,65 @@ if [[ -n "$PATCH_DIRS" ]]; then
   done
 fi
 
+# Detect if git supports the new merge-tree --write-tree API (git 2.38+)
+_GIT_VER=$(git -C "$REPO_ROOT" version 2>/dev/null | grep -oP '[0-9]+\.[0-9]+' | head -1 || echo "0.0")
+_GIT_MAJOR=$(echo "$_GIT_VER" | cut -d. -f1)
+_GIT_MINOR=$(echo "$_GIT_VER" | cut -d. -f2)
+_MERGE_TREE_NEW=0
+if [[ "$_GIT_MAJOR" -gt 2 ]] || [[ "$_GIT_MAJOR" -eq 2 && "$_GIT_MINOR" -ge 38 ]]; then
+  _MERGE_TREE_NEW=1
+fi
+
+_detect_merge_conflicts() {
+  local repo="$1" branch="$2"
+  local rc=0 files=()
+
+  if [[ "$_MERGE_TREE_NEW" -eq 1 ]]; then
+    # New-style: git merge-tree --write-tree HEAD BRANCH
+    # Exits 0 = clean, 1 = conflicts; conflict lines have "CONFLICT" prefix
+    local output
+    output=$(git -C "$repo" merge-tree --write-tree HEAD "$branch" 2>&1) && rc=0 || rc=$?
+    if [[ "$rc" -ne 0 ]]; then
+      while IFS= read -r line; do
+        if [[ "$line" == *"Merge conflict in"* ]]; then
+          files+=("${line#*Merge conflict in }")
+        elif [[ "$line" == CONFLICT* ]]; then
+          files+=("$line")
+        fi
+      done <<< "$output"
+    fi
+  else
+    # Old-style fallback: git merge-tree BASE HEAD BRANCH
+    local base
+    base=$(git -C "$repo" merge-base HEAD "$branch" 2>/dev/null || true)
+    if [[ -n "$base" ]]; then
+      local output
+      output=$(git -C "$repo" merge-tree "$base" HEAD "$branch" 2>/dev/null) || true
+      if echo "$output" | grep -q "^<<<<<<<"; then
+        rc=1
+        # Extract file paths from "changed in both" markers
+        while IFS= read -r line; do
+          [[ "$line" == "changed in both"* ]] && files+=("${line#*: }")
+        done <<< "$output"
+      fi
+    fi
+  fi
+
+  # Print detected files to stdout for caller to capture
+  printf '%s\n' "${files[@]:-}"
+  return "$rc"
+}
+
 for i in $(seq 1 "$RALPH_WORKERS"); do
   BRANCH="${WORKER_BRANCHES[$((i-1))]}"
   PATCH_FILE="$WORKER_DIR/worker_${i}.patch"
+
+  # Extract patch for Step 7 application
+  if [[ -z "$BRANCH" ]]; then
+    echo "  [parallel] Worker $i: detached HEAD — skipping conflict check"
+    CLEAN_WORKERS+=($i)
+    continue
+  fi
 
   if [[ ${#DIFF_PATHS[@]} -gt 0 ]]; then
     git -C "$REPO_ROOT" diff "HEAD..$BRANCH" -- \
@@ -604,18 +664,67 @@ for i in $(seq 1 "$RALPH_WORKERS"); do
     continue
   fi
 
-  if git -C "$REPO_ROOT" apply --check "$PATCH_FILE" 2>/dev/null; then
+  # Run merge-tree dry-run to check for conflicts
+  _CF_LINES=$(_detect_merge_conflicts "$REPO_ROOT" "$BRANCH") && _MT_CLEAN=1 || _MT_CLEAN=0
+
+  if [[ "$_MT_CLEAN" -eq 1 ]]; then
     CLEAN_WORKERS+=($i)
+    echo "  [parallel] Worker $i: clean merge ✓"
   else
     CONFLICT_WORKERS+=($i)
-    echo "  [parallel] WARNING: Worker $i patch will conflict"
+    _CF_DISPLAY="${_CF_LINES:-unknown files}"
+    echo "  [parallel] Worker $i: CONFLICT detected — stories will be requeued"
+    [[ -n "$_CF_LINES" ]] && echo "$_CF_LINES" | sed 's/^/  [parallel]   conflict: /'
+
+    # Build JSON array of conflicting file paths
+    _CF_JSON=$(printf '%s\n' "$_CF_LINES" | \
+      "$PYTHON" -c "import sys,json; lines=[l.strip() for l in sys.stdin if l.strip()]; print(json.dumps(lines))" \
+      2>/dev/null || echo "[]")
+
+    # Log merge_conflict_detected event to spiral_events.jsonl
+    _EV_TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    printf '%s\n' \
+      "{\"ts\":\"$_EV_TS\",\"event\":\"merge_conflict_detected\",\"workerId\":$i,\"branch\":\"$BRANCH\",\"conflictingFiles\":$_CF_JSON}" \
+      >> "$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || true
+
+    # Reset conflicting worker's passed stories to pending in worker prd.json
+    # (merge_worker_results.py already ran in Step 6, so also reset in main prd.json)
+    WTREE="${WORKER_DIRS[$((i-1))]}"
+    for _prd_path in "$WTREE/prd.json" "$PRD_FILE"; do
+      [[ ! -f "$_prd_path" ]] && continue
+      # Collect story IDs that this worker passed (to reset in main prd.json)
+      _WORKER_PASSED_IDS=$("$JQ" -r '.userStories[] | select(.passes == true) | .id' \
+        "$WTREE/prd.json" 2>/dev/null | tr -d '\r' || true)
+      if [[ -z "$_WORKER_PASSED_IDS" ]]; then
+        continue
+      fi
+      # Build a jq filter to reset only this worker's stories
+      _JQ_IDS=$(printf '%s\n' "$_WORKER_PASSED_IDS" | \
+        "$PYTHON" -c "import sys,json; ids=[l.strip() for l in sys.stdin if l.strip()]; print(json.dumps(ids))" \
+        2>/dev/null || echo "[]")
+      "$JQ" --argjson ids "$_JQ_IDS" \
+        '(.userStories[] | select(.id as $id | $ids | index($id) != null) | (.passes)) = false |
+         (.userStories[] | select(.id as $id | $ids | index($id) != null) | (._failureReason)) = "merge_conflict"' \
+        "$_prd_path" > "${_prd_path}.tmp" && mv "${_prd_path}.tmp" "$_prd_path" || true
+    done
   fi
 done
-echo "  [parallel] Pre-check: ${#CLEAN_WORKERS[@]} clean, ${#CONFLICT_WORKERS[@]} conflicting"
 
-# ── Step 7: Apply code changes — clean patches first, largest-first within each group ──
+# Log conflict summary event to spiral_events.jsonl
+_EV_TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+printf '%s\n' \
+  "{\"ts\":\"$_EV_TS\",\"event\":\"merge_conflict_summary\",\"cleanWorkers\":${#CLEAN_WORKERS[@]},\"conflictWorkers\":${#CONFLICT_WORKERS[@]}}" \
+  >> "$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || true
+
+echo "  [parallel] Pre-check: ${#CLEAN_WORKERS[@]} clean, ${#CONFLICT_WORKERS[@]} conflicting"
+[[ "${#CONFLICT_WORKERS[@]}" -gt 0 ]] && \
+  echo "  [parallel] Conflicting worker stories reset to pending (requeue on next run)"
+
+# ── Step 7: Apply code changes — clean patches only; conflict workers are skipped ──
+# Conflict workers' stories were reset to pending above; they'll be requeued.
+# Non-conflicting workers' patches are applied cleanly.
 PATCHES_APPLIED=0
-PATCHES_CONFLICTED=0
+PATCHES_SKIPPED_CONFLICT=0
 
 sort_by_patch_size() {
   for i in "$@"; do
@@ -625,9 +734,8 @@ sort_by_patch_size() {
 }
 
 SORTED_CLEAN=$(sort_by_patch_size "${CLEAN_WORKERS[@]}")
-SORTED_CONFLICT=$(sort_by_patch_size "${CONFLICT_WORKERS[@]}")
 
-for i in $SORTED_CLEAN $SORTED_CONFLICT; do
+for i in $SORTED_CLEAN; do
   PATCH_FILE="$WORKER_DIR/worker_${i}.patch"
   LINES=$(wc -l < "$PATCH_FILE")
   SIZE=$(wc -c < "$PATCH_FILE" 2>/dev/null || echo 0)
@@ -641,19 +749,28 @@ for i in $SORTED_CLEAN $SORTED_CONFLICT; do
     PATCHES_APPLIED=$((PATCHES_APPLIED + 1))
     echo "  [parallel] Worker $i code applied cleanly"
   else
-    # 3-way failed — apply with --reject to get partial apply + .rej files
-    echo "  [parallel] WARNING: Worker $i patch had conflicts — applying with --reject"
+    # Unexpected failure (merge-tree said clean but apply failed) — fall back to --reject
+    echo "  [parallel] WARNING: Worker $i unexpected conflict — applying with --reject"
     git -C "$REPO_ROOT" apply --reject "$PATCH_FILE" 2>/dev/null || true
     git -C "$REPO_ROOT" add -A 2>/dev/null
     git -C "$REPO_ROOT" commit \
       -m "feat(spiral): worker $i code (partial — .rej files need review)" \
       2>/dev/null || true
-    PATCHES_CONFLICTED=$((PATCHES_CONFLICTED + 1))
-    echo "  [parallel] Worker $i: partial apply done; review *.rej files for conflicts"
+    PATCHES_APPLIED=$((PATCHES_APPLIED + 1))
+    echo "  [parallel] Worker $i: partial apply done; review *.rej files"
   fi
 done
 
-echo "  [parallel] Code patches: $PATCHES_APPLIED clean, $PATCHES_CONFLICTED with conflicts"
+# Report skipped conflict workers
+for i in "${CONFLICT_WORKERS[@]:-}"; do
+  PATCH_FILE="$WORKER_DIR/worker_${i}.patch"
+  [[ -f "$PATCH_FILE" ]] || continue
+  SIZE=$(wc -c < "$PATCH_FILE" 2>/dev/null || echo 0)
+  echo "  [parallel] Worker $i: SKIPPED (merge conflict — ${SIZE}B patch, stories requeued)"
+  PATCHES_SKIPPED_CONFLICT=$((PATCHES_SKIPPED_CONFLICT + 1))
+done
+
+echo "  [parallel] Code patches: $PATCHES_APPLIED applied, $PATCHES_SKIPPED_CONFLICT skipped (conflict)"
 
 # ── Step 8: Deploy merged code (optional, configured via SPIRAL_DEPLOY_CMD) ──
 if [[ -n "$DEPLOY_CMD" ]]; then
