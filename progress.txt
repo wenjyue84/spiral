@@ -625,3 +625,25 @@ Completed: Add prd.json write lock to prevent parallel worker corruption (ID: US
 ### Gotchas
 - ralph.sh lives in C:/Users/Jyue/.ai/Skills/ralph/ — outside the Spiral repo; changes there are not tracked by the Spiral git repo
 - The _decomposed flag also means the story itself should NOT be selected as a candidate (not just that it satisfies deps)
+## Iteration 9 - Fri, Mar 13, 2026 11:26:40 AM
+Completed: Enforce dependency-order execution: skip story if deps not yet passed (ID: US-041) in 11m
+
+
+## Iteration - Story: US-059: Add disk space preflight check before creating N git worktrees
+
+### What was implemented
+- Added disk space preflight block in run_parallel_ralph.sh after spiral_assert_worker_disjoint and before Step 2 (worktree creation loop)
+- Uses `du -sk "$REPO_ROOT"` for repo size and `df -k "$REPO_ROOT"` for available space
+- Aborts with clear error (repo size, worker count, estimated need, available) if estimated_need * 10 > available * 9 (>90% threshold)
+- Gracefully degrades (prints warning, continues) if du/df output is non-numeric or empty
+- Skipped entirely when SPIRAL_SKIP_DISK_CHECK=1 is set
+- All 114 pytest tests pass
+
+### Patterns discovered
+- run_parallel_ralph.sh uses `(( arithmetic ))` for integer math — same idiom used here
+- df check uses REPO_ROOT (not WORKTREE_BASE) since WORKTREE_BASE doesn't exist yet at check time
+- The 90% threshold is expressed as integer inequality: `_NEEDED_KB * 10 > _AVAIL_KB * 9`
+
+### Gotchas
+- WORKTREE_BASE may not exist yet, so df must be run against REPO_ROOT instead
+- du -sk on large repos can be slow; output must be validated as numeric before arithmetic

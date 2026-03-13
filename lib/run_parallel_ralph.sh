@@ -192,6 +192,32 @@ for i in $(seq 1 "$RALPH_WORKERS"); do
 done
 spiral_assert_worker_disjoint "$WORKER_DIR" "${WORKER_PRD_FILES[@]}"
 
+# ── Disk space preflight check ────────────────────────────────────────────────
+# Estimates working-tree size × workers; aborts if > 90% of available space.
+# Git worktrees share .git objects, so actual use ≈ working tree size per worker.
+if [[ "${SPIRAL_SKIP_DISK_CHECK:-0}" != "1" ]]; then
+  _REPO_SIZE_KB=$(du -sk "$REPO_ROOT" 2>/dev/null | awk '{print $1}' || echo "0")
+  _AVAIL_KB=$(df -k "$REPO_ROOT" 2>/dev/null | awk 'NR==2 {print $4}' || echo "0")
+  if [[ "$_REPO_SIZE_KB" =~ ^[0-9]+$ && "$_AVAIL_KB" =~ ^[0-9]+$ \
+     && "$_REPO_SIZE_KB" -gt 0 && "$_AVAIL_KB" -gt 0 ]]; then
+    _NEEDED_KB=$(( _REPO_SIZE_KB * RALPH_WORKERS ))
+    # Abort if estimated need exceeds 90% of available space
+    if (( _NEEDED_KB * 10 > _AVAIL_KB * 9 )); then
+      echo "  [parallel] ERROR: Insufficient disk space for $RALPH_WORKERS worktrees."
+      echo "  [parallel]   Repo size:       $(( _REPO_SIZE_KB / 1024 )) MB"
+      echo "  [parallel]   Workers:         $RALPH_WORKERS"
+      echo "  [parallel]   Estimated need:  $(( _NEEDED_KB / 1024 )) MB  ($RALPH_WORKERS × $(( _REPO_SIZE_KB / 1024 )) MB)"
+      echo "  [parallel]   Available:       $(( _AVAIL_KB / 1024 )) MB"
+      echo "  [parallel]   Set SPIRAL_SKIP_DISK_CHECK=1 to bypass this check."
+      exit 1
+    else
+      echo "  [parallel] Disk OK: need ~$(( _NEEDED_KB / 1024 ))MB, have $(( _AVAIL_KB / 1024 ))MB free"
+    fi
+  else
+    echo "  [parallel] Disk check: could not read disk stats — skipping (graceful degradation)"
+  fi
+fi
+
 # ── Step 2: Create git worktrees + docker lock wrapper per worker ─────────────
 declare -a WORKER_DIRS=()
 declare -a WORKER_BRANCHES=()
