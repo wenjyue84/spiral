@@ -50,3 +50,52 @@ Started autonomous agent loop for PRD completion
 ### Gotchas
 - US-001 was already implemented in code; only prd.json marker was missing
 - Always check if implementation exists before writing new code
+## Iteration 1 - Fri, Mar 13, 2026  9:21:15 AM
+Completed: Wire validate_preflight.sh into spiral.sh startup (ID: US-001) in 4m
+
+
+## Pre-analysis for US-002 (Gemini 2.5 Pro)
+Here is the technical brief for the Claude agent:
+
+### Technical Brief: US-002 DAG Cycle Detection
+
+This story requires modifying the main orchestrator script to prevent silent failures from dependency cycles in `prd.json`. The user's mention of Frappe/Python appears to be a context error; the project is a shell-and-python-based workflow.
+
+**1. Files to Modify:**
+*   `spiral.sh`: This is the primary file to be modified. The logic will be added to the start of the "Phase I" block.
+*   `lib/check_dag.py`: No modification needed, but it's the script that will be executed. It provides the cycle detection logic.
+
+**2. Frappe Hooks/DocTypes:**
+*   None. This is not a Frappe application.
+
+**3. Implementation Approach:**
+1.  In `spiral.sh`, locate the `while` loop for Phase I.
+2.  At the beginning of the loop, execute `output=$($SPIRAL_PYTHON "$SPIRAL_HOME/lib/check_dag.py" "$PRD_FILE")` to capture potential cycle members.
+3.  Check the script's exit code (`$?`).
+4.  If the exit code is `1` (cycle detected), `echo` a warning message to stderr including the captured `$output` and `continue` to the next loop iteration, skipping the implementation steps below it.
+5.  If the exit code is `0`, proceed with the existing Phase I implementation logic (the `ralph` invocation) as normal.
+
+**4. Edge Cases & Gotchas:**
+*   The script must *not* abort on a cycle. The change should only skip the implementation for the current iteration.
+*   Ensure the warning message clearly prints the cycle members captured from the python script's output.
+*   Final implementation must pass the existing test suite by running `uv run pytest`.
+
+
+## Iteration 2 - Story: US-002: Run DAG cycle detection before Phase I implementation
+
+### What was implemented
+- Added DAG cycle check in spiral.sh after routing step, before Phase I ralph invocation
+- Runs: $SPIRAL_PYTHON $SPIRAL_HOME/lib/check_dag.py $PRD_FILE at the start of Phase I
+- On cycle (exit 1): captures output, prints warning to stderr, sets DAG_SKIP_IMPL=1
+- Added elif branch: skips ralph if DAG_SKIP_IMPL=1 (does NOT abort, continues to Phase V)
+- All 51 pytest tests pass
+
+### Patterns discovered
+- Phase I block is nested inside proceed|p|"") case branch, inside the `if checkpoint_phase_done "I"` else block
+- The PENDING check (if/else) at line ~721 is the gating structure for ralph invocation
+- Adding elif between "no pending" and "else" is the clean way to add skip conditions
+
+### Gotchas
+- Must capture both stdout and stderr (2>&1) from check_dag.py since it writes to stderr
+- Set -e is NOT globally active; || {} syntax used to catch non-zero exit without aborting
+- The `fi  # end PENDING > 0 block` at ~line 948 closes only the elif/else block, not the case

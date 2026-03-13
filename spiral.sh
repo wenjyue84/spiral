@@ -713,6 +713,14 @@ $INJECTED_PROMPT"
         echo "  [I-Pre] Routing stories to optimal models..."
         "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/route_stories.py" --prd "$PRD_FILE" --profile "$SPIRAL_MODEL_ROUTING"
 
+        # ── DAG cycle detection ──────────────────────────────────────────
+        DAG_SKIP_IMPL=0
+        DAG_OUTPUT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/check_dag.py" "$PRD_FILE" 2>&1) || {
+          echo "  [Phase I] WARNING: Dependency cycle detected — skipping implementation" >&2
+          echo "$DAG_OUTPUT" >&2
+          DAG_SKIP_IMPL=1
+        }
+
         # ── Phase I: IMPLEMENT (Ralph) ──────────────────────────────────
         echo ""
 
@@ -720,6 +728,8 @@ $INJECTED_PROMPT"
         prd_stats
         if [[ "$PENDING" -eq 0 ]]; then
           echo "  [Phase I] IMPLEMENT — skipping (no pending stories)"
+        elif [[ "$DAG_SKIP_IMPL" -eq 1 ]]; then
+          echo "  [Phase I] IMPLEMENT — skipping (dependency cycles detected — fix prd.json dependencies)"
         else
         # ── Adaptive memory: reduce workers and override model under pressure ──
         if [[ "$SPIRAL_LOW_POWER_MODE" -eq 1 ]]; then
