@@ -162,6 +162,29 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# ── Validate integer CLI arguments ────────────────────────────────────────────
+_validate_pos_int() {
+  local name="$1" value="$2"
+  if [[ ! "$value" =~ ^[1-9][0-9]*$ ]]; then
+    echo "Error: $name requires a positive integer, got: '$value'"
+    exit 1
+  fi
+}
+_validate_non_neg_int() {
+  local name="$1" value="$2"
+  if [[ ! "$value" =~ ^[0-9]+$ ]]; then
+    echo "Error: $name requires a non-negative integer, got: '$value'"
+    exit 1
+  fi
+}
+_validate_pos_int "max_iters (positional)" "$MAX_SPIRAL_ITERS"
+_validate_pos_int "--ralph-iters" "$RALPH_MAX_ITERS"
+_validate_pos_int "--ralph-workers" "$RALPH_WORKERS"
+_validate_non_neg_int "--capacity-limit" "$CAPACITY_LIMIT"
+if [[ "$TIME_LIMIT_MINS" -ne 0 ]] 2>/dev/null; then
+  _validate_pos_int "--time-limit" "$TIME_LIMIT_MINS"
+fi
+
 # ── Configuration ─────────────────────────────────────────────────────────────
 REPO_ROOT="$(pwd)"
 

@@ -1903,3 +1903,18 @@ Incomplete: Add model fallback chain with per-model circuit breaker state (ID: U
 ### Gotchas
 - When --focus-tags is set but no stories match, ralph exits cleanly ("No actionable stories left")
 - Tags are comma-separated in CLI and env var, but colon-separated would conflict with PATH-like vars
+
+## Iteration 13 - Story: US-061: Validate spiral.sh integer CLI arguments before arithmetic
+
+### What was implemented
+- Added _validate_pos_int and _validate_non_neg_int helper functions right after the argument parsing loop in spiral.sh
+- Validates MAX_SPIRAL_ITERS (>=1), RALPH_MAX_ITERS (>=1), RALPH_WORKERS (>=1), CAPACITY_LIMIT (>=0)
+- TIME_LIMIT_MINS validated only when non-zero (0 means disabled)
+- Clear error message: "Error: --flag requires a positive integer, got: 'VALUE'" + exit 1
+
+### Patterns discovered
+- Validation helpers use bash regex [[ "$value" =~ ^[1-9][0-9]*$ ]] for positive ints
+- TIME_LIMIT_MINS has a special case: 0 is valid (disabled), so only validate when non-zero
+
+### Gotchas
+- The --until flag computes TIME_LIMIT_MINS from wall-clock time, so it's always a valid positive int if used — but still worth validating
