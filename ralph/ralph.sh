@@ -105,13 +105,16 @@ log_ralph_event() {
 }
 
 # ── Per-story token cost accumulation ────────────────────────────────────────
-# accumulate_story_cost <story_id> <tokens_input> <tokens_output>
+# accumulate_story_cost <story_id> <tokens_input> <tokens_output> [cache_creation_tokens] [cache_read_tokens]
 # Writes atomically to $SPIRAL_SCRATCH_DIR/story_costs.json.
 # Emits a cost_update event to spiral_events.jsonl.
 # Prints the new cumulative estimated_usd for the story on stdout.
 # Returns 0 always (errors are non-fatal).
+# When prompt caching is active, cache_read tokens are priced at 10% of input price
+# and cache_creation tokens at 125% of input price (per Anthropic pricing).
 accumulate_story_cost() {
   local story_id="$1" tokens_input="${2:-0}" tokens_output="${3:-0}"
+  local cache_creation="${4:-0}" cache_read="${5:-0}"
   local cost_file="$SPIRAL_SCRATCH_DIR/story_costs.json"
   local input_price="$SPIRAL_MODEL_INPUT_PRICE_PER_M"
   local output_price="$SPIRAL_MODEL_OUTPUT_PRICE_PER_M"
@@ -123,6 +126,8 @@ import json, os, sys
 story_id = '$story_id'
 tokens_input = int('$tokens_input') if '$tokens_input'.isdigit() else 0
 tokens_output = int('$tokens_output') if '$tokens_output'.isdigit() else 0
+cache_creation = int('$cache_creation') if '$cache_creation'.isdigit() else 0
+cache_read = int('$cache_read') if '$cache_read'.isdigit() else 0
 input_price = float('$input_price')
 output_price = float('$output_price')
 cost_file = '$cost_file'
@@ -136,7 +141,12 @@ except (FileNotFoundError, json.JSONDecodeError, OSError):
 entry = costs.get(story_id, {'tokens_input': 0, 'tokens_output': 0, 'estimated_usd': 0.0})
 entry['tokens_input'] = entry.get('tokens_input', 0) + tokens_input
 entry['tokens_output'] = entry.get('tokens_output', 0) + tokens_output
-call_cost = (tokens_input / 1_000_000) * input_price + (tokens_output / 1_000_000) * output_price
+# Cost calculation: non-cached input at full price, cache creation at 1.25x, cache read at 0.1x
+non_cached_input = max(0, tokens_input - cache_creation - cache_read)
+call_cost = ((non_cached_input / 1_000_000) * input_price
+             + (cache_creation / 1_000_000) * input_price * 1.25
+             + (cache_read / 1_000_000) * input_price * 0.1
+             + (tokens_output / 1_000_000) * output_price)
 entry['estimated_usd'] = round(entry.get('estimated_usd', 0.0) + call_cost, 6)
 costs[story_id] = entry
 
@@ -295,6 +305,8 @@ if [[ ! -f "$RETRY_FILE" ]]; then
   echo '{}' > "$RETRY_FILE"
 fi
 MAX_RETRIES=3
+ESCALATION_FILE="escalation-counts.json"
+MAX_ESCALATIONS=2
 
 get_retry_count() {
   local story_id="$1"
@@ -313,6 +325,29 @@ reset_retry() {
   local story_id="$1"
   $JQ "del(.\"$story_id\")" "$RETRY_FILE" > "${RETRY_FILE}.tmp"
   mv "${RETRY_FILE}.tmp" "$RETRY_FILE"
+}
+
+if [[ ! -f "$ESCALATION_FILE" ]]; then
+  echo '{}' > "$ESCALATION_FILE"
+fi
+
+get_escalation_count() {
+  local story_id="$1"
+  $JQ -r ".\"$story_id\" // 0" "$ESCALATION_FILE" | tr -d '\r'
+}
+
+increment_escalation() {
+  local story_id="$1"
+  local current
+  current=$(get_escalation_count "$story_id")
+  $JQ ".\"$story_id\" = $((current + 1))" "$ESCALATION_FILE" > "${ESCALATION_FILE}.tmp"
+  mv "${ESCALATION_FILE}.tmp" "$ESCALATION_FILE"
+}
+
+reset_escalation() {
+  local story_id="$1"
+  $JQ "del(.\"$story_id\")" "$ESCALATION_FILE" > "${ESCALATION_FILE}.tmp"
+  mv "${ESCALATION_FILE}.tmp" "$ESCALATION_FILE"
 }
 
 # ── Story decomposition ──────────────────────────────────────────
@@ -360,12 +395,13 @@ append_result() {
   local duration_sec=$((STORY_END - STORY_START))
   local model_col="${EFFECTIVE_MODEL:-${EFFECTIVE_TOOL:-unknown}}"
   if [[ ! -f "$RESULTS_FILE" ]]; then
-    printf 'timestamp\tspiral_iter\tralph_iter\tstory_id\tstory_title\tstatus\tduration_sec\tmodel\tretry_num\tcommit_sha\trun_id\n' > "$RESULTS_FILE"
+    printf 'timestamp\tspiral_iter\tralph_iter\tstory_id\tstory_title\tstatus\tduration_sec\tmodel\tretry_num\tcommit_sha\trun_id\tcache_hit\tcache_read_tokens\n' > "$RESULTS_FILE"
   fi
   local safe_title="${STORY_TITLE//$'\t'/ }"
-  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
     "$ts" "${SPIRAL_ITER:-0}" "$ITERATION" "$NEXT_STORY" "$safe_title" \
     "$status" "$duration_sec" "$model_col" "$RETRY_NOW" "$commit_sha" "${SPIRAL_RUN_ID:-}" \
+    "${_CACHE_HIT:-false}" "${_CACHE_READ_TOKENS:-0}" \
     >> "$RESULTS_FILE"
 }
 
@@ -451,9 +487,9 @@ classify_model() {
   fi
 }
 
-# Escalate model tier based on retry count.
+# Escalate model tier based on retry count for incomplete stories.
 # retry 0: keep base; retry 1: +1 tier; retry 2+: opus
-escalate_model() {
+escalate_model_by_retry() {
   local base_model="$1" retry_count="$2"
 
   if [[ "$retry_count" -le 0 ]]; then
@@ -469,22 +505,43 @@ escalate_model() {
   fi
 }
 
+# Escalate model tier based on quality gate failures.
+# escalation 0: keep base; escalation 1: +1 tier; escalation 2+: opus
+escalate_model_by_quality_failure() {
+    local base_model="$1" escalation_count="$2"
+    if [[ "$escalation_count" -le 0 ]]; then
+        echo "$base_model"
+    elif [[ "$escalation_count" -eq 1 ]]; then
+        case "$base_model" in
+            haiku)  echo "sonnet" ;;
+            sonnet) echo "opus" ;;
+            *)      echo "opus" ;;
+        esac
+    else
+        echo "opus"
+    fi
+}
+
+
 # Resolve the effective model: prd.json annotation > CLI override > auto-classify+escalate
 resolve_model() {
-  local story_id="$1" retry_count="$2"
+  local story_id="$1" retry_count="$2" escalation_count="$3"
 
   # Per-story .model annotation in prd.json overrides everything (including --model flag)
   local prd_model
   prd_model=$($JQ -r ".userStories[] | select(.id == \"$story_id\") | .model // empty" "$PRD_FILE" 2>/dev/null | tr -d '\r' || echo '')
   if [[ -n "$prd_model" ]]; then
-    escalate_model "$prd_model" "$retry_count"
+    local escalated_model
+    escalated_model=$(escalate_model_by_retry "$prd_model" "$retry_count")
+    escalate_model_by_quality_failure "$escalated_model" "$escalation_count"
     return
   fi
 
   # CLI --model wins next
   if [[ -n "$RALPH_MODEL" ]]; then
     local escalated
-    escalated=$(escalate_model "$RALPH_MODEL" "$retry_count")
+    escalated=$(escalate_model_by_retry "$RALPH_MODEL" "$retry_count")
+    escalate_model_by_quality_failure "$escalated" "$escalation_count"
     echo "$escalated"
     return
   fi
@@ -492,7 +549,9 @@ resolve_model() {
   # Auto-classify from story metadata + escalate on retry
   local base_model
   base_model=$(classify_model "$story_id")
-  escalate_model "$base_model" "$retry_count"
+  local escalated_model
+  escalated_model=$(escalate_model_by_retry "$base_model" "$retry_count")
+  escalate_model_by_quality_failure "$escalated_model" "$escalation_count"
 }
 
 # ── Dry run mode ─────────────────────────────────────────────────
@@ -863,11 +922,13 @@ Story JSON: $STORY_JSON"
     # Build model flag (empty if no model routing)
     CLAUDE_MODEL_FLAG=""
     [[ -n "$EFFECTIVE_MODEL" ]] && CLAUDE_MODEL_FLAG="--model $EFFECTIVE_MODEL"
-    # Build prompt content (base + optional spec-kit constitution)
-    RALPH_PROMPT_CONTENT="$(cat "$PROMPT_FILE")"
+    # Build prompt content — split into system prompt (cacheable) and user prompt (minimal)
+    # The system prompt is stable across story iterations so Anthropic prompt caching
+    # (cache_control: {type: ephemeral}) can cache it, saving ~90% input token cost.
+    RALPH_SYSTEM_PROMPT="$(cat "$PROMPT_FILE")"
     SPECKIT_CONST=".specify/memory/constitution.md"
     if [[ -f "$SPECKIT_CONST" ]]; then
-      RALPH_PROMPT_CONTENT="$RALPH_PROMPT_CONTENT
+      RALPH_SYSTEM_PROMPT="$RALPH_SYSTEM_PROMPT
 
 ---
 
@@ -878,7 +939,7 @@ $(cat "$SPECKIT_CONST")
       echo "  [speckit] Constitution loaded ($(wc -l < "$SPECKIT_CONST") lines)"
     fi
     if [[ -n "$RALPH_FOCUS" ]]; then
-      RALPH_PROMPT_CONTENT="$RALPH_PROMPT_CONTENT
+      RALPH_SYSTEM_PROMPT="$RALPH_SYSTEM_PROMPT
 
 ---
 
@@ -893,7 +954,7 @@ This SPIRAL iteration is focused on **$RALPH_FOCUS**. Keep this theme in mind wh
       BROWSER_TOOLS_HINT="Chrome DevTools MCP is available. Use visual verification for UI stories."
     fi
     if [[ -n "$BROWSER_TOOLS_HINT" ]]; then
-      RALPH_PROMPT_CONTENT="$RALPH_PROMPT_CONTENT
+      RALPH_SYSTEM_PROMPT="$RALPH_SYSTEM_PROMPT
 
 ---
 
@@ -902,6 +963,9 @@ This SPIRAL iteration is focused on **$RALPH_FOCUS**. Keep this theme in mind wh
 $BROWSER_TOOLS_HINT"
       echo "  [browser] Chrome DevTools MCP detected — visual verification enabled"
     fi
+    # Minimal user prompt — the system prompt has all instructions
+    RALPH_USER_PROMPT="Implement the next incomplete story from prd.json now. Read prd.json and progress.txt, pick the highest priority story where passes is false, and implement it."
+    echo "  [cache] System prompt: $(echo "$RALPH_SYSTEM_PROMPT" | wc -c) bytes (cacheable via prompt-caching beta)"
     # Unset CLAUDECODE to allow nested Claude Code invocation from within an active session
     # Wrap with 529 overloaded_error retry loop (separate from 429 rate-limit handling)
     _529_ATTEMPT=0
@@ -911,8 +975,10 @@ $BROWSER_TOOLS_HINT"
     while true; do
       _CLAUDE_TMP="${SPIRAL_SCRATCH_DIR}/_claude_raw_$$.tmp"
       mkdir -p "${SPIRAL_SCRATCH_DIR}"
-      (unset CLAUDECODE; claude -p "$RALPH_PROMPT_CONTENT" \
+      (unset CLAUDECODE; claude -p "$RALPH_USER_PROMPT" \
         $CLAUDE_MODEL_FLAG \
+        --append-system-prompt "$RALPH_SYSTEM_PROMPT" \
+        --betas prompt-caching-2024-07-31 \
         --allowedTools "Edit,Write,Read,Glob,Grep,Bash,Skill,Task" \
         --max-turns 75 \
         --verbose \
@@ -990,6 +1056,9 @@ $BROWSER_TOOLS_HINT"
   # ── Parse token counts from LLM output (before cleanup) ─────────────────
   _CALL_TOKENS_INPUT=0
   _CALL_TOKENS_OUTPUT=0
+  _CACHE_CREATION_TOKENS=0
+  _CACHE_READ_TOKENS=0
+  _CACHE_HIT=false
   if [[ "$EFFECTIVE_TOOL" == "claude" && -f "$_RL_TMP" ]]; then
     _RESULT_LINE=$(grep -m1 '"type":"result"' "$_RL_TMP" 2>/dev/null || true)
     if [[ -n "$_RESULT_LINE" ]]; then
@@ -997,6 +1066,17 @@ $BROWSER_TOOLS_HINT"
       _to=$($JQ -r '.usage.output_tokens // 0' <<< "$_RESULT_LINE" 2>/dev/null || echo 0)
       [[ "$_ti" =~ ^[0-9]+$ ]] && _CALL_TOKENS_INPUT=$_ti
       [[ "$_to" =~ ^[0-9]+$ ]] && _CALL_TOKENS_OUTPUT=$_to
+      # Extract prompt caching fields from usage (present when prompt-caching beta is active)
+      _cc=$($JQ -r '.usage.cache_creation_input_tokens // 0' <<< "$_RESULT_LINE" 2>/dev/null || echo 0)
+      _cr=$($JQ -r '.usage.cache_read_input_tokens // 0' <<< "$_RESULT_LINE" 2>/dev/null || echo 0)
+      [[ "$_cc" =~ ^[0-9]+$ ]] && _CACHE_CREATION_TOKENS=$_cc
+      [[ "$_cr" =~ ^[0-9]+$ ]] && _CACHE_READ_TOKENS=$_cr
+      [[ "$_CACHE_READ_TOKENS" -gt 0 ]] && _CACHE_HIT=true
+      if [[ "$_CACHE_CREATION_TOKENS" -gt 0 || "$_CACHE_READ_TOKENS" -gt 0 ]]; then
+        echo "  [cache] creation=${_CACHE_CREATION_TOKENS} read=${_CACHE_READ_TOKENS} hit=${_CACHE_HIT}"
+        log_spiral_event "prompt_cache" \
+          "\"cache_creation_tokens\":${_CACHE_CREATION_TOKENS},\"cache_read_tokens\":${_CACHE_READ_TOKENS},\"cache_hit\":${_CACHE_HIT}"
+      fi
     fi
   fi
 
@@ -1007,7 +1087,7 @@ $BROWSER_TOOLS_HINT"
   # ── Accumulate per-story token cost ───────────────────────────────────────
   _STORY_CUMULATIVE_USD=0
   if [[ "$_CALL_TOKENS_INPUT" -gt 0 || "$_CALL_TOKENS_OUTPUT" -gt 0 ]]; then
-    _STORY_CUMULATIVE_USD=$(accumulate_story_cost "$NEXT_STORY" "$_CALL_TOKENS_INPUT" "$_CALL_TOKENS_OUTPUT" 2>/dev/null || echo 0)
+    _STORY_CUMULATIVE_USD=$(accumulate_story_cost "$NEXT_STORY" "$_CALL_TOKENS_INPUT" "$_CALL_TOKENS_OUTPUT" "$_CACHE_CREATION_TOKENS" "$_CACHE_READ_TOKENS" 2>/dev/null || echo 0)
     echo "  [cost] Story $NEXT_STORY: input=${_CALL_TOKENS_INPUT} output=${_CALL_TOKENS_OUTPUT} tokens | cumulative \$${_STORY_CUMULATIVE_USD}"
   fi
 
