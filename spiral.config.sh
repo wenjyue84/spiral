@@ -37,6 +37,10 @@ SPIRAL_MAX_PENDING=30
 # passed to ralph. 0 = disabled (all pending stories visible, current behavior).
 SPIRAL_STORY_BATCH_SIZE=20
 
+# ── Cost ceiling: abort when cumulative API spend exceeds budget ──────────────
+# Set to a USD amount (e.g., 50.0) to cap spending. Empty = disabled.
+# SPIRAL_COST_CEILING=""
+
 # ── Specialist prompt file (optional) ────────────────────────────────────────
 # Path to a static prompt file used as fallback when Gemini is unavailable.
 # Leave empty unless you have a domain-specific specialist prompt.

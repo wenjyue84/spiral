@@ -185,6 +185,7 @@ SPIRAL_SPECKIT_SPECS_DIR="${SPIRAL_SPECKIT_SPECS_DIR:-}"
 SPIRAL_FOCUS="${SPIRAL_CLI_FOCUS:-${SPIRAL_FOCUS:-}}"
 SPIRAL_MAX_PENDING="${SPIRAL_MAX_PENDING:-0}"  # 0 = unlimited
 SPIRAL_STORY_BATCH_SIZE="${SPIRAL_STORY_BATCH_SIZE:-20}"  # 0 = disabled (show all)
+SPIRAL_COST_CEILING="${SPIRAL_COST_CEILING:-}"  # empty = disabled; USD amount to cap spend
 SPIRAL_LOW_POWER_MODE="${SPIRAL_LOW_POWER_MODE:-1}"
 SPIRAL_PRESSURE_THRESHOLDS="${SPIRAL_PRESSURE_THRESHOLDS:-40,25,15,8}"
 SPIRAL_MEMORY_POLL_INTERVAL="${SPIRAL_MEMORY_POLL_INTERVAL:-15}"
@@ -412,6 +413,7 @@ fi
 [[ -n "$SPIRAL_FOCUS" ]] && echo "  ║  Focus:       $SPIRAL_FOCUS"
 [[ "$SPIRAL_MAX_PENDING" -gt 0 ]] && echo "  ║  Max pending: $SPIRAL_MAX_PENDING incomplete stories"
 [[ "$SPIRAL_STORY_BATCH_SIZE" -gt 0 ]] && echo "  ║  Batch size:  $SPIRAL_STORY_BATCH_SIZE stories per iteration"
+[[ -n "$SPIRAL_COST_CEILING" ]] && echo "  ║  Cost cap:    \$${SPIRAL_COST_CEILING} USD"
 [[ "$SPIRAL_LOW_POWER_MODE" -eq 1 ]] && echo "  ║  Low power:   adaptive memory management enabled"
 if [[ "$TIME_LIMIT_MINS" -gt 0 ]]; then
   _DEADLINE_DISPLAY=$(date -d "@$SESSION_DEADLINE" +"%H:%M" 2>/dev/null \
@@ -453,6 +455,21 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
   echo "  │  SPIRAL Iteration $SPIRAL_ITER / $MAX_SPIRAL_ITERS"
   echo "  │  Stories: $DONE/$TOTAL complete ($PENDING pending)"
   echo "  └─────────────────────────────────────────────────────┘"
+
+  # ── Cost ceiling guard ─────────────────────────────────────────────────────
+  if [[ -n "$SPIRAL_COST_CEILING" && -f "$REPO_ROOT/results.tsv" ]]; then
+    _COST_RC=0
+    _COST_OUTPUT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/cost_check.py" \
+      --results "$REPO_ROOT/results.tsv" --ceiling "$SPIRAL_COST_CEILING" 2>&1) || _COST_RC=$?
+    echo "$_COST_OUTPUT"
+    if [[ "$_COST_RC" -eq 2 ]]; then
+      echo ""
+      echo "  ╔══════════════════════════════════════════════════════╗"
+      echo "  ║  SPIRAL stopped: cost ceiling reached (\$${SPIRAL_COST_CEILING})  ║"
+      echo "  ╚══════════════════════════════════════════════════════╝"
+      exit 2
+    fi
+  fi
 
   # ── Capacity guard → skip Phase R only when over capacity ────────────────
   OVER_CAPACITY=0
@@ -1162,6 +1179,11 @@ PYEOF
   if [[ "${RALPH_PROGRESS:-0}" -gt 0 && "$ITER_DURATION" -gt 0 ]]; then
     VEL=$(awk "BEGIN {printf \"%.1f\", ${RALPH_PROGRESS} / ($ITER_DURATION / 3600.0)}")
     echo "  │  Velocity:  ${VEL} stories/hour"
+  fi
+  if [[ -f "$REPO_ROOT/results.tsv" ]]; then
+    _ITER_COST=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/cost_check.py" \
+      --results "$REPO_ROOT/results.tsv" 2>/dev/null | head -1) || true
+    [[ -n "$_ITER_COST" ]] && echo "  │  ${_ITER_COST#*] }"
   fi
   echo "  └──────────────────────────────────────────────────┘"
 

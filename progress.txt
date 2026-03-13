@@ -706,3 +706,35 @@ Incomplete: Add SPIRAL_COST_CEILING to abort when cumulative API spend exceeds b
 - Previous implementation (bash tail -n +2 append) had no deduplication — re-running merge would insert duplicate rows
 - Must use newline="" in csv writer on Windows to avoid double newlines
 - Worker results.tsv files use UTF-8 encoding; errors="replace" handles corrupt data gracefully
+## Iteration 3 - Fri, Mar 13, 2026 11:53:48 AM
+Incomplete: Add SPIRAL_COST_CEILING to abort when cumulative API spend exceeds budget (ID: US-043) — attempt 2/3
+
+
+## Iteration - Story: US-043: Add SPIRAL_COST_CEILING to abort when cumulative API spend exceeds budget
+
+### What was implemented
+- Created lib/cost_check.py with cost estimation using Anthropic 2025 pricing table
+- Pricing: haiku $0.80/$4, sonnet $3/$15, opus $15/$75 per MTok in/out
+- Token estimation heuristic: ~20 tok/s output, input ~3x output (from duration_sec)
+- compute_cumulative_cost() reads results.tsv, sums per-row cost estimates
+- main() returns exit code 2 when cumulative cost >= ceiling (0 = under/disabled)
+- spiral.sh: SPIRAL_COST_CEILING default added (empty = disabled)
+- spiral.sh: cost ceiling guard at start of each iteration (before Phase R)
+- spiral.sh: cumulative cost printed in per-iteration summary
+- spiral.sh: cost cap shown in startup banner
+- spiral.config.sh: SPIRAL_COST_CEILING template entry (commented out)
+- Created tests/test_cost_check.py with 23 tests covering:
+  - normalise_model (6 tests), estimate_tokens (2), compute_row_cost (5),
+  - compute_cumulative_cost (4), format_cost_summary (2), main (4)
+- All 167 pytest tests pass
+
+### Patterns discovered
+- results.tsv model column may contain full model IDs like "claude-sonnet-4-20250514" — normalise_model extracts the key
+- Shell exit code capture pattern: `_RC=0; output=$(cmd) || _RC=$?` avoids set -e abort
+- Per-iteration summary cost uses `head -1` to extract just the first line from cost_check output
+
+### Gotchas
+- Previous 2 attempts failed — keeping implementation focused on Python lib + shell integration was the key
+- || true swallows exit code entirely; must use `|| _RC=$?` pattern to capture non-zero exits
+- results.tsv may not exist on first iteration (no attempts yet) — guard with [[ -f ]] check
+
