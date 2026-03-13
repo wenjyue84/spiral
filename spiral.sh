@@ -206,6 +206,7 @@ SPIRAL_PRESSURE_THRESHOLDS="${SPIRAL_PRESSURE_THRESHOLDS:-40,25,15,8}"
 SPIRAL_MEMORY_POLL_INTERVAL="${SPIRAL_MEMORY_POLL_INTERVAL:-15}"
 SPIRAL_PRESSURE_HYSTERESIS="${SPIRAL_PRESSURE_HYSTERESIS:-2}"
 SPIRAL_DEV_URL="${SPIRAL_DEV_URL:-}"  # empty = disabled; URL for Phase V screenshot
+SPIRAL_PROGRESS_MAX_LINES="${SPIRAL_PROGRESS_MAX_LINES:-2000}"  # 0 = disabled; rotate progress.txt when over this limit
 
 # ── Config validation ─────────────────────────────────────────────────────────
 # Validates required keys are set and applies defaults for optional keys.
@@ -822,6 +823,17 @@ $INJECTED_PROMPT"
     spiral_assert_decomposition_integrity "$PRD_FILE"
     spiral_assert_dependency_completion_order "$PRD_FILE"
     fi  # end validation else
+  fi
+
+  # ── progress.txt rotation (before Phase I) ────────────────────────────────
+  if [[ "$SPIRAL_PROGRESS_MAX_LINES" -gt 0 && -f "$REPO_ROOT/progress.txt" ]]; then
+    _PROGRESS_LINES=$(wc -l < "$REPO_ROOT/progress.txt" 2>/dev/null || echo 0)
+    if [[ "$_PROGRESS_LINES" -gt "$SPIRAL_PROGRESS_MAX_LINES" ]]; then
+      _PROGRESS_ARCHIVE="$REPO_ROOT/progress-$(date +%Y%m%d-%H%M%S).txt"
+      mv "$REPO_ROOT/progress.txt" "$_PROGRESS_ARCHIVE"
+      touch "$REPO_ROOT/progress.txt"
+      echo "  [spiral] progress.txt rotated ($_PROGRESS_LINES lines → $(basename "$_PROGRESS_ARCHIVE"))"
+    fi
   fi
 
   # ── Phase G: HUMAN GATE + Phase I: IMPLEMENT ───────────────────────────────

@@ -260,3 +260,11 @@
 # Does not fail the build — informational only.
 # Default: 50
 # SPIRAL_LIGHTHOUSE_THRESHOLD=50
+
+# ── progress.txt rotation ─────────────────────────────────────────────────
+# Maximum number of lines in progress.txt before it is archived and reset.
+# When exceeded, progress.txt is renamed to progress-YYYYMMDD-HHMMSS.txt and
+# a fresh empty progress.txt is created. This prevents the file from growing
+# unboundedly across many SPIRAL iterations.
+# 0 = disabled (never rotate). Default: 2000
+# SPIRAL_PROGRESS_MAX_LINES=2000

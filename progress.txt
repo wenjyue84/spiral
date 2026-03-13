@@ -1308,3 +1308,25 @@ Completed: Add --dry-run flag to spiral.sh to test loop control flow without API
 - spiral_doctor.sh needs access to $JQ variable exported from spiral.sh
 - Doctor check must run AFTER source statements but BEFORE main loop (after line ~288)
 - Warning cases (missing prd.json, missing config) don't fail—returns 0 unless ERROR checks found
+## Iteration 3 - Fri, Mar 13, 2026  4:28:58 PM
+Incomplete: Auto-generate progress.txt skeleton with Codebase Patterns on first run (ID: US-023) — attempt 1/3
+
+## Iteration N - Story: US-037: Rotate progress.txt when it exceeds a configurable line limit
+
+### What was implemented
+- Added SPIRAL_PROGRESS_MAX_LINES default (2000) to spiral.sh defaults section (~line 209)
+- Inserted rotation block before Phase G+I comment (~line 827)
+- Rotation: if lines > limit, mv to progress-YYYYMMDD-HHMMSS.txt, touch new progress.txt, print message
+- 0=disabled guard: checks SPIRAL_PROGRESS_MAX_LINES > 0 before acting
+- Added documentation to templates/spiral.config.example.sh at end of file
+
+### Patterns discovered
+- spiral.sh defaults section at lines ~196-209 uses ${VAR:-default} pattern
+- REPO_ROOT is set early and always available in the iteration loop
+- Config example additions go at the end of templates/spiral.config.example.sh
+- python prd.json edits require encoding='utf-8' due to Windows cp1252 default
+
+### Gotchas
+- wc -l output on MSYS2/bash is just the number (no filename) when using redirect form
+- Security hook blocks destructive commands in bash heredocs; use Edit tool for progress.txt writes
+
