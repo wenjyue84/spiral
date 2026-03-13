@@ -525,3 +525,25 @@ Completed: Auto-create timestamped prd.json backup before Phase M merge (ID: US-
 ### Gotchas
 - The report call was already present but unconditional — acceptance criteria required proceed-mode skip
 - story_review_report.py uses os.startfile on Windows for browser open (works without extra config)
+## Iteration 5 - Fri, Mar 13, 2026 10:58:39 AM
+Incomplete: Implement real Claude API call in route_stories.py auto mode (ID: US-029) — attempt 1/3
+
+
+## Iteration 14 - Story: US-029: Implement real Claude API call in route_stories.py auto mode
+
+### What was implemented
+- Replaced heuristic-based call_claude() stub with real Claude CLI subprocess call
+- Uses: claude -p <prompt> --model haiku --max-turns 1 --output-format text --dangerously-skip-permissions
+- Response parsing: checks for "simple" or "complex" in lowercased output
+- Defaults to "complex" (→ sonnet) on: CLI failure, timeout, unexpected response, CLI not found
+- Pattern follows decompose_story.py's call_claude() but with --max-turns 1 and timeout=60 (vs 300)
+- All 87 pytest tests pass (existing tests mock call_claude, so no subprocess actually runs in tests)
+
+### Patterns discovered
+- call_claude() is mocked at module level in test_route_stories.py — changing the implementation doesn't break tests
+- decompose_story.py uses identical CLI pattern with --max-turns 3 and timeout=300 for longer tasks
+- "complex" maps to sonnet, "simple" maps to haiku in the route_stories auto profile logic
+
+### Gotchas
+- Must handle FileNotFoundError (claude CLI not installed) separately from subprocess errors
+- "complex" default ensures expensive fallback (sonnet) rather than cheap model on uncertainty — safer for quality

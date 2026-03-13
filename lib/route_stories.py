@@ -5,17 +5,40 @@ import os
 import subprocess
 import tempfile
 
-# Placeholder for the actual API call to Claude.
-# In a real scenario, this would use the 'claude' or a similar library.
 def call_claude(prompt, model="haiku"):
-    """
-    A placeholder function to simulate calling the Claude API.
-    For this implementation, it uses simple heuristics to classify a story.
-    """
-    print(f"  [router] Simulating '{model}' call to classify story...")
-    if "refactor" in prompt.lower() or "architecture" in prompt.lower() or "design" in prompt.lower():
+    """Call Claude CLI to classify a story's complexity. Returns 'simple' or 'complex'."""
+    cmd = [
+        "claude", "-p", prompt,
+        "--model", model,
+        "--max-turns", "1",
+        "--output-format", "text",
+        "--dangerously-skip-permissions",
+    ]
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=60,
+            encoding="utf-8",
+            errors="replace",
+        )
+        if result.returncode != 0:
+            print(f"  [router] Claude CLI failed (exit {result.returncode}), defaulting to sonnet")
+            return "complex"
+        output = result.stdout.strip().lower()
+        if "simple" in output:
+            return "simple"
+        if "complex" in output:
+            return "complex"
+        print(f"  [router] Unexpected response '{output[:80]}', defaulting to complex")
         return "complex"
-    return "simple"
+    except subprocess.TimeoutExpired:
+        print("  [router] Claude CLI timed out, defaulting to complex")
+        return "complex"
+    except FileNotFoundError:
+        print("  [router] Claude CLI not found, defaulting to complex")
+        return "complex"
 
 def get_router_prompt(story):
     """
