@@ -1016,3 +1016,26 @@ Incomplete: Implement main.py as a proper CLI with init, run, and status subcomm
 - The validation else block needs its own `fi` before the outer checkpoint `fi`
 - spiral_assert_* functions at lines 758-765 are inside the validation else, so they only run on successful merge
 - There are two identical post-merge assertion blocks in the file (line 765 and 1130) — be careful with edits
+
+
+## Iteration N - Story: US-031: Detect duplicate story IDs in validate_prd and reject them
+
+### What was implemented
+- Feature was already fully implemented in lib/prd_schema.py (lines 67-89)
+- seen_ids dict tracks all story IDs and detects duplicates
+- Error message includes duplicate ID and first occurrence index
+- test_prd_schema.py::TestInvalidPrd::test_duplicate_ids_detected already exists and passes
+
+### Quality checks
+- All 202 pytest tests pass (uv run pytest tests/ -q)
+- Duplicate ID detection test passes with existing infrastructure
+- No code changes needed; feature was already complete
+
+### Patterns discovered
+- prd_schema.py validation logic is comprehensive with 170 lines of schema checks
+- Each story validation is prefixed with array index for precise error reporting
+- seen_ids pattern is used for both ID uniqueness and dependency tracking
+
+### Notes
+- Story marked passes: true based on full acceptance criteria satisfaction
+- This was a discovery story - feature existed but wasn't documented in prd.json
