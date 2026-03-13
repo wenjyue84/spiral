@@ -63,16 +63,25 @@ TERMINAL_EMU="${SPIRAL_TERMINAL:-}"
 GEMINI_ANNOTATE="${SPIRAL_GEMINI_ANNOTATE_PROMPT:-}"
 WORKER_TIMEOUT="${SPIRAL_WORKER_TIMEOUT:-600}"  # per-worker wall-clock limit (0 = unlimited)
 
+# Pre-declare worker PID array so cleanup_parallel can safely reference it (US-088)
+declare -a WORKER_PIDS=()
+
 # ── Graceful cleanup trap — kill orphaned workers on exit/interrupt ─────────
 cleanup_parallel() {
   echo ""
   echo "  [parallel] Cleaning up workers..."
   # Two-phase kill: SIGTERM first, wait, then SIGKILL stragglers
-  local child_pids
-  child_pids=$(jobs -p 2>/dev/null) || true
+  # After disown, jobs -p no longer lists workers — kill via WORKER_PIDS array (US-088)
+  local child_pids=""
+  child_pids="${WORKER_PIDS[*]:-}"
+  local job_pids
+  job_pids=$(jobs -p 2>/dev/null) || true
+  [[ -n "$job_pids" ]] && child_pids="${child_pids:+$child_pids }$job_pids"
   if [[ -n "$child_pids" ]]; then
+    # shellcheck disable=SC2086
     echo "$child_pids" | xargs kill 2>/dev/null || true
     sleep 2
+    # shellcheck disable=SC2086
     echo "$child_pids" | xargs kill -9 2>/dev/null || true
   fi
   # Clean up lock dir and pause files
@@ -372,7 +381,6 @@ wait_for_memory() {
 # ── Step 3: Launch all workers in background (staggered) ─────────────────────
 # Workers are staggered by 20 seconds to let each process complete its initial
 # V8 compilation (the most memory-intensive phase) before the next one starts.
-declare -a WORKER_PIDS=()
 STAGGER_DELAY=20  # seconds between worker launches
 
 for i in $(seq 1 "$RALPH_WORKERS"); do
@@ -422,7 +430,11 @@ for i in $(seq 1 "$RALPH_WORKERS"); do
         > "$LOG" 2>&1
     fi
   ) &
-  WORKER_PIDS+=($!)
+  worker_pid=$!
+  WORKER_PIDS+=("$worker_pid")
+  # Write PID file before disown so workers remain trackable (US-088)
+  echo "$worker_pid" > "$WORKTREE_BASE/worker-${i}/worker.pid"
+  disown "$worker_pid"
 
   # Stagger launches — let V8 init settle before spawning next worker
   if [[ "$i" -lt "$RALPH_WORKERS" ]]; then

@@ -1926,7 +1926,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-089",
@@ -3014,6 +3014,447 @@
         "ralph/CLAUDE.md already updated: clarifies Chrome DevTools MCP is for Phase I inline checks; pinchtab is Phase V only",
         "Do NOT start/stop pinchtab server from spiral.sh — user manages the server lifecycle externally"
       ]
+    },
+    {
+      "id": "US-139",
+      "title": "Enable Anthropic prompt caching for ralph.sh system prompts",
+      "priority": "high",
+      "description": "Use Anthropic's prompt caching beta (cache_control breakpoints) to cache the large system prompt sent to Claude on every ralph.sh invocation. Cache hits reduce input token cost by 90% and latency by 85%, compounding significantly across hundreds of story attempts per run.",
+      "acceptanceCriteria": [
+        "ralph.sh adds cache_control: {type: ephemeral} breakpoint after the system prompt in API payloads",
+        "cache_creation_input_tokens and cache_read_input_tokens fields are extracted from API responses and appended to the structured log",
+        "results.tsv gains cache_hit (boolean) and cache_read_tokens columns",
+        "Integration test verifies that on second invocation with identical system prompt, cache_read_input_tokens > 0"
+      ],
+      "technicalNotes": [
+        "Requires X-Anthropic-Beta: prompt-caching-2024-07-31 header on API requests",
+        "Cache TTL is 5 minutes for ephemeral; keyed on exact prefix byte sequence",
+        "Minimum cacheable block is 1024 tokens; system prompts in ralph.sh comfortably exceed this",
+        "Official docs: https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-140",
+      "title": "Add gitleaks secret scanning gate before AI-generated code is committed",
+      "priority": "high",
+      "description": "Run gitleaks detect on the staged diff before committing AI-generated code to prevent accidentally committing API keys, tokens, or credentials that an LLM might hallucinate into implementation files. This is a critical security gate unique to AI-assisted development workflows.",
+      "acceptanceCriteria": [
+        "ralph.sh runs `gitleaks detect --staged --report-format json` before git commit in Phase I",
+        "If gitleaks finds any findings, the commit is aborted and the story is marked _failureReason: 'secret_detected'",
+        "SPIRAL_SKIP_SECRET_SCAN=true bypasses the gate with a structured warning log entry",
+        "spiral-doctor verifies gitleaks binary is present and reports its version"
+      ],
+      "technicalNotes": [
+        "gitleaks GitHub: https://github.com/gitleaks/gitleaks",
+        "Command: gitleaks detect --source . --staged --report-format json --report-path .spiral/gitleaks-report.json",
+        "Allow-list spiral's own config variable names via .gitleaks.toml to prevent false positives",
+        "Alternative: trufflehog OSS (https://github.com/trufflesecurity/trufflehog)"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-141",
+      "title": "Truncate story context to fit Claude context window using token counting",
+      "priority": "high",
+      "description": "Before sending a story implementation request to Claude, measure the assembled prompt token count using the Anthropic token-counting API (or tiktoken approximation). If the count exceeds a configurable threshold (default: 180,000 tokens), truncate the least-relevant context sections to fit. Prevents silent context truncation by the API that causes incomplete implementations.",
+      "acceptanceCriteria": [
+        "ralph.sh calls lib/truncate_context.py to measure token count before every API call",
+        "Truncation priority: drop _researchOutput first, then hints, then filesTouch context; never drop story spec",
+        "When truncation occurs, a structured warning is emitted with original_tokens and truncated_tokens fields",
+        "SPIRAL_CONTEXT_LIMIT env var overrides the default 180000 token threshold",
+        "Unit tests cover: truncation ordering, edge case where story spec alone exceeds limit, no-op when under threshold"
+      ],
+      "technicalNotes": [
+        "Anthropic token-counting endpoint: POST /v1/messages/count_tokens (beta, no charge)",
+        "tiktoken cl100k_base is a reasonable local approximation: https://github.com/openai/tiktoken",
+        "Official token counting docs: https://docs.anthropic.com/en/docs/build-with-claude/token-counting",
+        "Cache token counts per (story_id, attempt) to avoid redundant API calls on retries"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-142",
+      "title": "Add `spiral.sh --rollback STORY_ID` to revert a passed story's commit",
+      "priority": "medium",
+      "description": "Provide a one-command way to revert the git commit(s) associated with a specific passed story, resetting its prd.json status back to pending. This complements the existing --replay flag and closes the full undo/redo cycle for story implementations.",
+      "acceptanceCriteria": [
+        "`spiral.sh --rollback US-042` reads _passedCommit SHA from prd.json and runs `git revert --no-edit <sha>`",
+        "prd.json story status resets to pending; _passedCommit, _passedAt, and _adrPath fields are cleared",
+        "If _passedCommit is absent, print actionable error message and exit 1",
+        "Rollback is rejected with an error if there are uncommitted working-tree changes",
+        "Unit test covers: successful rollback, missing _passedCommit error, dirty working-tree guard"
+      ],
+      "technicalNotes": [
+        "`git revert --no-edit <sha>` creates a new revert commit without opening an editor",
+        "Prefer revert over reset --hard to preserve linear history and auditability",
+        "Pair with --replay to form a full redo cycle: rollback then replay",
+        "git revert docs: https://git-scm.com/docs/git-revert"
+      ],
+      "dependencies": [
+        "Record _passedCommit git SHA in prd.json when story passes"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-143",
+      "title": "Create GitHub PR per passed story when SPIRAL_CREATE_PRS=true",
+      "priority": "medium",
+      "description": "After a story passes validation, optionally push the story commit to a feature branch and open a GitHub Pull Request using the gh CLI. Enables human review of AI-generated code before it reaches main, supporting team workflows where all changes go through PR review.",
+      "acceptanceCriteria": [
+        "When SPIRAL_CREATE_PRS=true, ralph.sh pushes story commit to branch `spiral/<STORY_ID>` and calls `gh pr create`",
+        "PR title matches the story title; PR body includes story description, acceptanceCriteria, and SPIRAL_RUN_ID",
+        "PR URL is stored in prd.json as _prUrl field on the story",
+        "If gh CLI is not authenticated, emit actionable error and skip PR creation without failing the story",
+        "SPIRAL_PR_BASE_BRANCH env var sets target base branch (default: main)"
+      ],
+      "technicalNotes": [
+        "GitHub CLI pr create docs: https://cli.github.com/manual/gh_pr_create",
+        "Command: gh pr create --base main --head spiral/US-042 --title '...' --body '...' --label 'spiral-ai'",
+        "Auto-create 'spiral-ai' label if it does not exist via `gh label create`",
+        "SPIRAL_PR_DRAFT=true creates draft PRs to prevent auto-merge triggers"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-144",
+      "title": "Add Ollama local LLM fallback when Claude API is unreachable",
+      "priority": "medium",
+      "description": "Configure a fallback LLM provider (Ollama with qwen2.5-coder or codellama) that activates when Claude API returns repeated connection errors or 529 overload responses. Improves offline resilience and reduces hard dependency on a single API provider during extended outages.",
+      "acceptanceCriteria": [
+        "SPIRAL_OLLAMA_FALLBACK_MODEL env var specifies Ollama model name (e.g., qwen2.5-coder:32b)",
+        "After 3 consecutive Claude API connection failures (curl exit 7 or 28), ralph.sh switches to Ollama for the current story",
+        "Ollama requests use the OpenAI-compatible endpoint at SPIRAL_OLLAMA_HOST (default: http://localhost:11434/v1)",
+        "Stories implemented via Ollama are tagged _model: 'ollama/<model>' in prd.json",
+        "spiral-doctor checks Ollama reachability when SPIRAL_OLLAMA_FALLBACK_MODEL is configured"
+      ],
+      "technicalNotes": [
+        "Ollama OpenAI-compatible API docs: https://github.com/ollama/ollama/blob/main/docs/openai.md",
+        "Endpoint: POST http://localhost:11434/v1/chat/completions with standard OpenAI payload format",
+        "Recommended coding models: qwen2.5-coder:32b, codellama:34b, deepseek-coder-v2:16b",
+        "curl exit code 7 = connection refused; exit code 28 = timeout; both indicate API unreachable"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-145",
+      "title": "Add LLM self-review gate (Phase I.5) between implementation and validation",
+      "priority": "medium",
+      "description": "After Phase I (implement) and before Phase V (validate), send the generated diff to Claude with a structured code-review prompt asking it to identify bugs, security issues, and spec deviations. If the self-review flags critical issues, re-enter Phase I with the issue list as additional context, reducing first-attempt test failures.",
+      "acceptanceCriteria": [
+        "New Phase I.5 (REVIEW) sends story spec + git diff to Claude with a JSON-mode review prompt",
+        "Review response schema: {issues: [{severity: critical|major|minor, location: string, description: string}]}",
+        "If any issue has severity='critical', Phase I is re-entered with the issue list injected into the implementation prompt",
+        "SPIRAL_SKIP_SELF_REVIEW=true disables Phase I.5; review is also skipped on retries beyond SPIRAL_MAX_RETRIES/2",
+        "review_tokens column is added to results.tsv to track self-review cost"
+      ],
+      "technicalNotes": [
+        "Use haiku model for self-review to minimise cost; escalate to sonnet only on complex diffs",
+        "Limit git diff to 500 lines to prevent context overflow in the review step",
+        "Review system prompt should be a cacheable constant using prompt caching",
+        "Anthropic JSON mode reference: https://docs.anthropic.com/en/docs/test-and-evaluate/strengthen-guardrails/increase-consistency"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-146",
+      "title": "Generate Conventional Commit message from story metadata in ralph.sh",
+      "priority": "medium",
+      "description": "Replace the current freeform commit message with a Conventional Commits-compliant message derived from story metadata: type from story tags, scope from the primary filesTouch path, and subject from the story title. Enables automated CHANGELOG generation and semantic versioning tools to parse SPIRAL commit history.",
+      "acceptanceCriteria": [
+        "Commit message format: `<type>(<scope>): <story title>` with Story and SPIRAL-Run trailers in the footer",
+        "Type is derived from story tags field (feat, fix, chore, refactor, test, docs); defaults to feat when absent",
+        "Scope is the top-level directory of the first filesTouch entry (e.g., lib, ralph, spiral)",
+        "Footer lines: `Story: <STORY_ID>` and `SPIRAL-Run: <SPIRAL_RUN_ID>`",
+        "Unit test verifies correct message format for stories with tags, without tags, and with no filesTouch entries"
+      ],
+      "technicalNotes": [
+        "Conventional Commits v1.0 spec: https://www.conventionalcommits.org/en/v1.0.0/",
+        "Git trailer format: key-colon-space-value lines after a blank line in the commit body",
+        "git-cliff uses these trailers for automatic CHANGELOG generation",
+        "Validate with: echo '<message>' | npx commitlint in CI"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-147",
+      "title": "Add pre-flight API cost projection before spiral.sh loop start",
+      "priority": "medium",
+      "description": "Before starting a SPIRAL run, estimate the total API cost of implementing all pending stories using historical results.tsv token data and current model pricing. Display a cost projection table and prompt for confirmation when the projected cost exceeds SPIRAL_COST_WARN_THRESHOLD. Prevents surprise bills on large PRD files.",
+      "acceptanceCriteria": [
+        "spiral.sh prints a cost projection table (model tier, story count, estimated tokens, estimated USD) before entering the main loop",
+        "Projection uses mean tokens-per-story from recent results.tsv rows; falls back to SPIRAL_DEFAULT_TOKENS_PER_STORY (default: 8000) when insufficient history",
+        "When projected cost > SPIRAL_COST_WARN_THRESHOLD (default: $5.00), prompts `Estimated cost: $X.XX — Continue? [y/N]`",
+        "--yes flag skips the confirmation prompt for non-interactive CI environments",
+        "Projection is skipped when results.tsv has fewer than 5 data rows"
+      ],
+      "technicalNotes": [
+        "Claude model pricing page: https://www.anthropic.com/pricing",
+        "haiku-4-5: ~$0.80/MTok input; sonnet-4-6: ~$3.00/MTok input; opus-4-6: ~$15.00/MTok input",
+        "Implement projection in lib/cost_project.py; expose via main.py estimate subcommand",
+        "Show confidence range: projection ± 1 std deviation from results.tsv sample"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-148",
+      "title": "Parallelize Phase V test execution with pytest-xdist or parallel bats",
+      "priority": "medium",
+      "description": "When SPIRAL_PARALLEL_TESTS=true, run the Phase V test suite in parallel across available CPU cores using pytest-xdist (Python) or GNU parallel (bats). Reduces Phase V wall-clock time on large test suites, directly improving story throughput on multi-core workers.",
+      "acceptanceCriteria": [
+        "SPIRAL_PARALLEL_TESTS=true activates parallel test execution",
+        "SPIRAL_TEST_WORKERS controls parallelism level (default: nproc/2, minimum 1)",
+        "For pytest suites, SPIRAL_VALIDATE_CMD automatically gains `-n $SPIRAL_TEST_WORKERS` when xdist is installed",
+        "For bats suites, SPIRAL_VALIDATE_CMD gains `--jobs $SPIRAL_TEST_WORKERS` when GNU parallel is available",
+        "spiral-doctor reports whether pytest-xdist and GNU parallel are installed"
+      ],
+      "technicalNotes": [
+        "pytest-xdist docs: https://pytest-xdist.readthedocs.io/en/stable/",
+        "bats parallel support: https://bats-core.readthedocs.io/en/stable/parallel-support.html",
+        "Detect xdist: `python -c 'import xdist; print(xdist.__version__)'`",
+        "Detect GNU parallel: `command -v parallel && parallel --version`",
+        "Warn when SPIRAL_PARALLEL_TESTS=true but tests use shared file-system state"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-149",
+      "title": "Emit SARIF 2.1.0 report from static analysis gates for GitHub Code Scanning",
+      "priority": "medium",
+      "description": "Output static analysis results (shellcheck, semgrep, pylint) in SARIF 2.1.0 format and upload to GitHub Advanced Security Code Scanning. Provides inline PR annotations for security and quality findings without requiring a separate plugin installation.",
+      "acceptanceCriteria": [
+        "CI workflow runs `semgrep --sarif --output semgrep.sarif` and uploads via github/codeql-action/upload-sarif",
+        "shellcheck output is converted to SARIF using the shellcheck-sarif converter tool",
+        "SARIF files are also uploaded as GitHub Actions artifacts for offline inspection",
+        "Upload step uses `continue-on-error: true` so SARIF findings do not fail the build",
+        "SARIF output passes schema validation against https://json.schemastore.org/sarif-2.1.0.json"
+      ],
+      "technicalNotes": [
+        "SARIF 2.1.0 spec: https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html",
+        "GitHub upload-sarif action: https://github.com/github/codeql-action/tree/main/upload-sarif",
+        "shellcheck-sarif converter: https://github.com/rust-phile/shellcheck-sarif (cargo install shellcheck-sarif)",
+        "Semgrep SARIF: `semgrep scan --sarif --output results.sarif`"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-150",
+      "title": "Guard against story scope creep: warn when implementation touches > N files",
+      "priority": "medium",
+      "description": "After Phase I commits the story implementation, count the number of files modified. If the count exceeds SPIRAL_MAX_FILES_PER_STORY (default: 10), emit a structured scope-creep warning. Scope creep is a leading indicator that a story should be decomposed and correlates with higher first-attempt failure rates.",
+      "acceptanceCriteria": [
+        "ralph.sh counts modified files via `git diff --name-only HEAD~1 | wc -l` after Phase I commit",
+        "When count exceeds SPIRAL_MAX_FILES_PER_STORY, a scope_creep event is emitted to spiral_events.jsonl with the file list",
+        "SPIRAL_SCOPE_CREEP_ACTION=abort marks story _failureReason: 'scope_creep' and triggers retry with decomposition hint",
+        "SPIRAL_SCOPE_CREEP_ACTION=warn (default) logs the warning but continues to Phase V",
+        "spiral_dashboard.py highlights stories that triggered scope-creep warnings in the story table"
+      ],
+      "technicalNotes": [
+        "Exclude lock files and generated files from the count via a configurable .spiralignore pattern list",
+        "Example exclusions: *.lock, *_generated.*, *pb.go",
+        "Combine with auto-trigger decomposition story for a full guard pipeline",
+        "Google Engineering recommends <10 files per change for reviewability"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-151",
+      "title": "Add API rate-limit budget forecasting widget to spiral_dashboard.py",
+      "priority": "medium",
+      "description": "Based on current story velocity and per-request token usage from results.tsv, forecast when the daily API rate limit will be exhausted and display a projected completion time. Helps users schedule runs, manage quota, and avoid unexpected mid-run throttling.",
+      "acceptanceCriteria": [
+        "Dashboard shows: current burn rate (tokens/hour), projected daily-limit exhaustion time, and projected run completion time",
+        "Forecast uses a rolling 1-hour window of results.tsv timestamps and token usage columns",
+        "When projected exhaustion is less than 2 hours away, the widget is highlighted in amber",
+        "SPIRAL_DAILY_TOKEN_LIMIT env var sets the budget ceiling for forecast calculation (default: 1,000,000)",
+        "Forecast widget is hidden when results.tsv has fewer than 3 recent data rows"
+      ],
+      "technicalNotes": [
+        "Anthropic rate limits reference: https://docs.anthropic.com/en/api/rate-limits",
+        "Default tier: 40k tokens/min, 1M tokens/day (varies by usage tier)",
+        "Burn rate formula: sum(input_tokens + output_tokens for rows in last 3600s) / 3600",
+        "Display format: 'At current pace, daily limit reached in ~2h 15m (at 14:32)'"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-152",
+      "title": "Validate prd.json for non-UTF-8 bytes and control characters at startup",
+      "priority": "medium",
+      "description": "Add a startup preflight check that validates prd.json is well-formed UTF-8 and contains no ASCII control characters (0x00-0x1F except tab and newline) in string values. LLM-generated content occasionally embeds null bytes or other control characters that silently corrupt downstream JSON parsing and bash variable assignments.",
+      "acceptanceCriteria": [
+        "validate_preflight.sh checks prd.json UTF-8 validity using `python3 -c 'import json,sys; json.load(open(sys.argv[1]))'`",
+        "Additional scan checks all string values for control characters via regex matching bytes 0x00-0x08, 0x0b-0x0c, 0x0e-0x1f",
+        "On detection, emit structured error with field path and hex representation of the offending byte",
+        "SPIRAL_SANITIZE_PRD=true auto-strips control characters instead of aborting",
+        "Unit tests: valid file passes, file with null byte in description fails, SANITIZE mode strips and continues"
+      ],
+      "technicalNotes": [
+        "JSON UTF-8 requirement: RFC 8259 Section 8.1 (https://www.rfc-editor.org/rfc/rfc8259#section-8.1)",
+        "Shell-level check: `jq . prd.json > /dev/null 2>&1` exits non-zero on malformed input",
+        "Use json.loads() after reading raw bytes to obtain precise error offset",
+        "Common causes: LLM-generated content with Windows CRLF, smart quotes, or Word clipboard paste artifacts"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-153",
+      "title": "Add `spiral status` subcommand with color-coded story progress table",
+      "priority": "medium",
+      "description": "Implement a spiral status CLI subcommand that prints a compact color-coded story progress table to stdout without launching the full dashboard server. Provides a fast at-a-glance view of story counts by status, current iteration, and estimated completion for use in terminal sessions and CI logs.",
+      "acceptanceCriteria": [
+        "`spiral status` prints a table with columns: status, count, percentage, avg_retry_count",
+        "Header shows SPIRAL_RUN_ID and current iteration number",
+        "Color coding uses ANSI codes: green=passed, yellow=in_progress, red=skipped, grey=pending; respects NO_COLOR env var",
+        "`spiral status --json` outputs machine-readable JSON for CI pipeline consumption",
+        "Command completes in under 1 second (reads only prd.json and results.tsv, no API calls)"
+      ],
+      "technicalNotes": [
+        "Use rich library for table rendering: https://github.com/Textualize/rich",
+        "NO_COLOR standard: https://no-color.org/ — check `os.environ.get('NO_COLOR')` before applying ANSI",
+        "Falls back to plain aligned text when rich is not installed",
+        "Distinct from existing --status flag: this is a full subcommand with richer output and --json mode"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-154",
+      "title": "Add `spiral search QUERY` subcommand to find stories by natural language",
+      "priority": "low",
+      "description": "Implement a local semantic/fuzzy search over prd.json story titles, descriptions, and acceptanceCriteria, allowing users to quickly find a story ID without scrolling through the full PRD. Provides fast relevance-ranked results directly in the terminal.",
+      "acceptanceCriteria": [
+        "`spiral search 'rate limit retry'` prints top-5 matching stories with ID, title, status, and relevance score",
+        "Search covers title, description, and acceptanceCriteria fields",
+        "Uses rapidfuzz fuzzy matching when sentence-transformers is unavailable; uses cosine similarity when available",
+        "Results are printed as a compact table; --json flag outputs machine-readable JSON",
+        "Command exits 0 even when no results found; prints 'No matching stories found'"
+      ],
+      "technicalNotes": [
+        "rapidfuzz for fuzzy matching: https://github.com/rapidfuzz/RapidFuzz (pip install rapidfuzz)",
+        "sentence-transformers for semantic search: https://www.sbert.net/",
+        "Implement in lib/search_stories.py; expose via main.py search subcommand",
+        "Cache sentence-transformer embeddings in .spiral/story_embeddings.pkl to avoid recomputation"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-155",
+      "title": "Auto-generate Architecture Decision Record (ADR) when story passes",
+      "priority": "low",
+      "description": "After a story passes validation, generate a lightweight ADR markdown file capturing the design choices made during implementation. ADRs are placed in docs/decisions/ and committed as part of the story commit, building a long-term architectural knowledge base alongside the code.",
+      "acceptanceCriteria": [
+        "On story pass, ralph.sh calls Claude (haiku) with the story spec + diff and an ADR generation prompt",
+        "Generated ADR follows MADR format: Title, Status: Accepted, Context, Decision, Consequences",
+        "ADR file is saved to docs/decisions/<STORY_ID>-<kebab-title>.md and included in the story commit",
+        "SPIRAL_SKIP_ADR=true disables ADR generation entirely",
+        "prd.json story record gains _adrPath field pointing to the generated ADR file"
+      ],
+      "technicalNotes": [
+        "MADR (Markdown Architectural Decision Records) format: https://adr.github.io/madr/",
+        "Use haiku model for ADR generation to minimise cost (~$0.001 per ADR)",
+        "Store the ADR prompt template in lib/prompts/adr_template.md for maintainability",
+        "adr-tools CLI (optional integration): https://github.com/npryce/adr-tools"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-156",
+      "title": "Add `spiral compact-prd` command to strip transient runtime fields from prd.json",
+      "priority": "low",
+      "description": "Provide a spiral compact-prd subcommand that strips transient runtime fields (_lastAttempt, _workerPid, _researchOutput, _routerScore) from completed/skipped stories in prd.json. Keeps the PRD file clean and human-readable as it accumulates hundreds of stories across multiple runs.",
+      "acceptanceCriteria": [
+        "`spiral compact-prd` removes transient fields from all stories with status passed or skipped",
+        "Original prd.json is backed up to .spiral/prd_pre_compact_<timestamp>.json before modification",
+        "Write operation is atomic: write to prd.json.tmp then rename",
+        "Prints summary: 'Compacted N stories, removed M fields, saved X KB'",
+        "Unit test verifies that required schema fields (id, title, status) are never removed"
+      ],
+      "technicalNotes": [
+        "Fields to strip: _lastAttempt, _workerPid, _researchOutput, _routerScore, _lastResearchAttempt",
+        "Implement in lib/compact_prd.py; expose via main.py compact subcommand",
+        "Reuse the atomic write pattern from merge_stories.py",
+        "Add to spiral-doctor: warn when prd.json file size exceeds 1MB"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-157",
+      "title": "Add SPIRAL_BRANCH_PREFIX for per-story feature branch creation and naming",
+      "priority": "low",
+      "description": "Optionally check out a dedicated feature branch for each story before Phase I implementation, enabling clean PR-per-story workflows. Branch name follows `<SPIRAL_BRANCH_PREFIX>/<STORY_ID>` convention (e.g., spiral/US-042). After story passes, branch is merged back to the base branch or left open for PR creation.",
+      "acceptanceCriteria": [
+        "When SPIRAL_BRANCH_PREFIX is set, ralph.sh creates branch `<SPIRAL_BRANCH_PREFIX>/<STORY_ID>` before Phase I",
+        "After Phase V passes, branch is merged to SPIRAL_BASE_BRANCH with --no-ff unless SPIRAL_CREATE_PRS=true",
+        "When SPIRAL_CREATE_PRS=true, branch is pushed to remote and left open for PR creation step",
+        "Branch creation is idempotent: reuses existing branch for the same STORY_ID to support replays",
+        "Branch is deleted after successful merge unless SPIRAL_KEEP_STORY_BRANCHES=true"
+      ],
+      "technicalNotes": [
+        "Use git worktree for parallel worker isolation rather than local branch switching",
+        "For sequential mode, use `git checkout -B spiral/US-042` (force create or reset)",
+        "Guard against 'branch already checked out in another worktree' with `git worktree list`",
+        "Git branching workflows: https://git-scm.com/book/en/v2/Git-Branching-Branching-Workflows"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-158",
+      "title": "Add per-worker CPU and memory resource accounting columns to results.tsv",
+      "priority": "low",
+      "description": "Record per-story CPU time (user+system seconds) and peak RSS memory alongside token counts in results.tsv. Enables identifying computationally expensive stories, correlating resource usage with model choice and story complexity, and feeding data into OOM watchdog threshold calibration.",
+      "acceptanceCriteria": [
+        "ralph.sh wraps the Phase I+V execution block with `/usr/bin/time -f '%e %U %S %M'` measurement",
+        "results.tsv gains columns: wall_seconds, user_cpu_s, sys_cpu_s, peak_rss_kb",
+        "spiral_dashboard.py displays median and p95 resource usage grouped by model tier",
+        "When peak_rss_kb exceeds SPIRAL_WORKER_MEMORY_LIMIT, the existing OOM guard is triggered",
+        "Unit test verifies all four new columns are present in the results.tsv header and populated per row"
+      ],
+      "technicalNotes": [
+        "GNU time format string: '%e %U %S %M' (wall seconds, user CPU, sys CPU, max RSS KB)",
+        "macOS uses `/usr/bin/time -l` instead; detect platform with `uname -s`",
+        "Portable alternative: `{ TIMEFORMAT='%R %U %S'; time cmd; } 2>&1` in bash",
+        "GNU time man page: https://man7.org/linux/man-pages/man1/time.1.html"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
     }
   ]
 }

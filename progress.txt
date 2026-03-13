@@ -2501,3 +2501,92 @@ Here is the technical brief for implementing the user story.
   - ralph.sh: `{type, ts, story_id, run_id, ...extra}` (uses "type" instead of "event")
 - This difference is intentional: spiral.sh logs phase events, ralph.sh logs story implementation events
 - All 11 references to SPIRAL_RUN_ID now properly included in JSON/TSV output
+
+## Iteration N - Story: US-084: Add bats test scaffold for spiral.sh phase transitions
+
+### What was implemented
+- Created tests/spiral_phases.bats with 9 comprehensive integration tests
+- Set up bats-core, bats-assert, bats-support as git submodules in tests/
+- Tests cover phase flags: --gate skip (exits 0), --gate quit (exits 0), --skip-research
+- Created test environment with:
+  - Minimal but valid prd.json (schemaVersion must be integer, not string)
+  - spiral.config.sh test config pointing to temp directories
+  - Mocked `claude` binary returning canned research output
+  - Mocked `ralph` script for implementation runner
+  - Stub Python scripts (lib/check_dag.py, lib/validate_preflight.sh, etc.)
+- All 9 bats tests pass without live API calls or network access
+
+### Patterns discovered
+- bats test setup_file() runs once per file; teardown_file() cleans up
+- setup()/teardown() run before/after each test — use for test isolation
+- Use simple bash test operators ([, [[) instead of bats-assert for portable tests
+- prd.json schema requires:
+  - schemaVersion as integer (not string)
+  - productName and branchName fields (not optional)
+  - estimatedComplexity must be 'small', 'medium', or 'large' (not 'low')
+- spiral.sh validation happens early (preflight), so temp prd.json must be schema-valid
+
+### Gotchas
+- Initially tried to load bats-assert in setup_file() but failed—bats helpers only available in test body
+- bats-mock repo doesn't exist; used bats-support instead (provides assertion helpers)
+- shell test operators work better than bats-assert assertions for this use case
+- Export PATH with bin/ directory to inject mocked binaries ahead of real ones
+
+## Summary for US-084
+Completed: Add bats test scaffold for spiral.sh phase transitions (ID: US-084)
+- 9/9 tests passing
+- All acceptance criteria met
+- No live API calls or network access required
+- Test isolation via temp directories and mocked binaries
+## Iteration 1 - Sat, Mar 14, 2026  2:20:10 AM
+Incomplete: Add --version flag to spiral.sh showing installed git version (ID: US-073) — attempt 2/3
+
+DECOMPOSED: US-073 after 3 failed attempts — sub-stories created
+
+## Pre-analysis for US-139 (Gemini 2.5 Pro)
+Based on the user story and project structure, here is a technical brief for the implementation. Note that this project does not appear to use Frappe or `lhdn_payroll_integration`; the plan has been adapted to the actual project files (`ralph.sh`, Python scripts, etc.).
+
+***
+
+**Subject: Technical Brief for US-139: Anthropic Prompt Caching**
+
+This document outlines the implementation plan for enabling prompt caching in `ralph.sh`.
+
+**1. Python/Shell Files to Modify:**
+*   `ralph/ralph.sh`: The main script making the `curl` request to the Anthropic API.
+*   `ralph/stream-formatter.mjs`: A Node.js script that likely parses the streaming API response and generates structured logs.
+*   `lib/spiral_report.py`: The likely candidate for processing logs and generating `results.tsv`.
+*   `tests/prompt_caching.bats` (New File): A new BASH test file to verify the caching implementation.
+
+**2. Frappe DocTypes/Hooks Involved:**
+*   None. The implementation is confined to shell, Python, and Node.js scripts.
+
+**3. Recommended Implementation Approach:**
+1.  **Modify `ralph.sh`:** Add the `X-Anthropic-Beta: prompt-caching-2024-07-31` header to the `curl` API call. Inject a `{"type": "cache_control", "cache": {"type": "ephemeral"}}` message into the JSON payload's `messages` array immediately after the system prompt.
+2.  **Update `stream-formatter.mjs`:** Enhance the stream parsing logic to extract `cache_creation_input_tokens` and `cache_read_input_tokens` from the `usage` object in the `message_stop` event. Add these fields, plus a derived boolean `cache_hit`, to the final structured log entry.
+3.  **Adjust `lib/spiral_report.py`:** Update the script to handle the new log fields, adding `cache_hit` and `cache_read_tokens` columns to the `results.tsv` file.
+4.  **Create `tests/prompt_caching.bats`:** Implement a test that calls `ralph.sh` twice in quick succession with an identical, large system prompt, and asserts that the structured log for the second call shows `cache_read_input_tokens > 0`.
+
+**4. Edge Cases & Gotchas:**
+*   **Cache Key Sensitivity:** The cache is keyed on the exact byte sequence of the prompt. Any variation, including whitespace, will result in a cache miss.
+*   **Cache TTL:** The `ephemeral` cache has a 5-minute TTL. The integration test must execute its second call within this window.
+*   **Minimum Token Size:** The system prompt must exceed Anthropic's 1024-token minimum for the cache to activate.
+*   **Backwards Compatibility:** The reporting script must gracefully handle older logs that do not contain the new cache-related fields.
+
+
+## Iteration N - Story: US-088: disown background workers in spiral.sh to decouple from terminal SIGHUP
+
+### What was implemented
+- Pre-declared `WORKER_PIDS=()` before `cleanup_parallel` function definition so it's safely accessible in the trap handler even if trap fires before the array is populated in Step 3
+- Updated `cleanup_parallel` to kill workers via `WORKER_PIDS` array (since `jobs -p` no longer lists disowned workers), with `jobs -p` retained as fallback for any non-disowned children
+- In the worker launch loop (Step 3): capture `$!` into `worker_pid`, write it to `$WORKTREE_BASE/worker-${i}/worker.pid` before disowning, then call `disown "$worker_pid"` to remove from shell job table
+- Removed duplicate `declare -a WORKER_PIDS=()` that was previously inside Step 3
+
+### Patterns discovered
+- `disown PID` removes from job table but `wait PID` still works (process is still a child)
+- `${WORKER_PIDS[*]:-}` requires the array to be declared (set -u will fail otherwise) — solution: pre-declare before the function that references it
+- `disown -h` would keep job in table but prevent SIGHUP; plain `disown` removes from table entirely (AC required plain disown)
+
+### Gotchas
+- After `disown`, `jobs -p` returns empty — must use PID array for cleanup trap
+- Worker PID file path is `$WORKTREE_BASE/worker-${i}/worker.pid` — the directory exists at this point because worktree add already created it
