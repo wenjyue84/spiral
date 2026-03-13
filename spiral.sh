@@ -275,8 +275,42 @@ if [[ "$TIME_LIMIT_MINS" -gt 0 ]]; then
   SESSION_DEADLINE=$(( SESSION_START + TIME_LIMIT_MINS * 60 ))
 fi
 
-# ── Graceful cleanup trap — kill orphaned processes on exit/interrupt ───────
+# ── Signal trap state ─────────────────────────────────────────────────────────
 WATCHDOG_PID=""
+PHASE=""              # Current phase (R, T, M, G, I, V, C)
+CHILD_PIDS=()         # Track explicitly spawned child processes
+
+# Signal handler for graceful interrupt (SIGINT/SIGTERM)
+_spiral_cleanup() {
+  local sig="${1:-INT}"
+  echo ""
+  echo "  [SPIRAL] Interrupted (signal $sig) at iter $SPIRAL_ITER phase $PHASE"
+
+  # Kill tracked child processes (ralph, parallel workers, etc.)
+  for pid in "${CHILD_PIDS[@]:-}"; do
+    if kill -0 "$pid" 2>/dev/null; then
+      kill -TERM "$pid" 2>/dev/null || true
+    fi
+  done
+
+  # Write checkpoint atomically if we're mid-iteration
+  if [[ -n "$PHASE" && "$SPIRAL_ITER" -gt 0 ]]; then
+    local _ckpt_tmp
+    _ckpt_tmp=$(mktemp -p "$SCRATCH_DIR" 2>/dev/null || echo "$SCRATCH_DIR/.checkpoint.tmp")
+    printf '{"iter":%d,"phase":"%s","ts":"%s"}\n' \
+      "$SPIRAL_ITER" "$PHASE" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$_ckpt_tmp" 2>/dev/null || true
+    mv "$_ckpt_tmp" "$CHECKPOINT_FILE" 2>/dev/null || true
+    echo "  [SPIRAL] Checkpoint saved at iter=$SPIRAL_ITER phase=$PHASE"
+  fi
+
+  echo "  [SPIRAL] Interrupted at iter $SPIRAL_ITER phase $PHASE — run again to resume"
+
+  # Call the regular cleanup for worktrees, etc.
+  cleanup
+  exit 130  # Standard exit code for SIGINT
+}
+
+# Regular cleanup (EXIT)
 cleanup() {
   echo ""
   echo "  [cleanup] Shutting down child processes..."
@@ -304,7 +338,11 @@ cleanup() {
   rm -f "$SCRATCH_DIR"/_worker_pause_* 2>/dev/null || true
   echo "  [cleanup] Done."
 }
-trap cleanup EXIT INT TERM
+
+# Set trap handlers: EXIT calls cleanup; INT/TERM call _spiral_cleanup
+trap cleanup EXIT
+trap '_spiral_cleanup INT' INT
+trap '_spiral_cleanup TERM' TERM
 
 # ── Memory watchdog — background monitor (graduated pressure or kill-only) ────
 if [[ "${SPIRAL_MEMORY_WATCHDOG:-1}" -eq 1 ]] && command -v powershell.exe &>/dev/null; then
@@ -506,6 +544,7 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
   fi
 
   # ── Phase R: RESEARCH ──────────────────────────────────────────────────────
+  PHASE="R"
   echo ""
   echo "  [Phase R] RESEARCH — searching sources..."
   RESEARCH_OUTPUT="$SCRATCH_DIR/_research_output.json"
@@ -622,6 +661,7 @@ $INJECTED_PROMPT"
   fi
 
   # ── Phase T: TEST SYNTHESIS ─────────────────────────────────────────────────
+  PHASE="T"
   echo ""
   echo "  [Phase T] TEST SYNTHESIS — scanning test failures..."
   TEST_OUTPUT="$SCRATCH_DIR/_test_stories_output.json"
@@ -658,6 +698,7 @@ $INJECTED_PROMPT"
   fi
 
   # ── Phase M: MERGE ──────────────────────────────────────────────────────────
+  PHASE="M"
   echo ""
   echo "  [Phase M] MERGE — deduplicating and patching prd.json..."
 
@@ -712,6 +753,7 @@ $INJECTED_PROMPT"
   fi
 
   # ── Phase G: HUMAN GATE + Phase I: IMPLEMENT ───────────────────────────────
+  PHASE="G"
   if checkpoint_phase_done "I"; then
     echo "  [G+I] Skipping (checkpoint: gate and ralph already done this iter)"
   else
@@ -785,6 +827,7 @@ $INJECTED_PROMPT"
         }
 
         # ── Phase I: IMPLEMENT (Ralph) ──────────────────────────────────
+        PHASE="I"
         echo ""
 
         # Short-circuit if nothing to implement
@@ -1075,6 +1118,7 @@ $INJECTED_PROMPT"
   fi
 
   # ── Phase V: VALIDATE (test suite) ────────────────────────────────────────
+  PHASE="V"
   echo ""
   echo "  [Phase V] VALIDATE — running test suite..."
 
@@ -1176,6 +1220,7 @@ PYEOF
   fi
 
   # ── Phase C: CHECK DONE ─────────────────────────────────────────────────────
+  PHASE="C"
   echo ""
   echo "  [Phase C] CHECK DONE..."
 

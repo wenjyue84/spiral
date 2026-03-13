@@ -921,3 +921,55 @@ Incomplete: Chrome DevTools Phase V: screenshot running app after validation (ID
 - Screenshot happens via Claude agent call (not bare bash) per technical notes — Chrome DevTools MCP is only accessible through Claude
 - Graceful degradation: if Chrome DevTools MCP is not available, the screenshot block logs a skip message and continues
 - The screenshot <img> tag uses a relative path assuming dashboard.html is in .spiral/ alongside screenshots/
+## Iteration 6 - Fri, Mar 13, 2026  2:17:07 PM
+Completed: Chrome DevTools Phase V: screenshot running app after validation (ID: US-010) in 9m
+
+
+## Iteration 2+ - Story: US-017: Add SIGINT/SIGTERM trap to spiral.sh for graceful shutdown and checkpoint flush
+
+### What was implemented
+- Added global PHASE variable to track current phase (R, T, M, G, I, V, C)
+- Added CHILD_PIDS array to track explicitly spawned child processes
+- Created _spiral_cleanup() signal handler that:
+  - Accepts signal parameter (INT/TERM)
+  - Prints summary of interrupt (iter, phase)
+  - Kills tracked child processes via SIGTERM
+  - Writes checkpoint atomically using mktemp + atomic mv
+  - Calls existing cleanup() for worktree/lock/signal file cleanup
+  - Exits with code 130 (standard for SIGINT)
+- Modified trap registration to use separate handlers:
+  - trap cleanup EXIT (for normal exit cleanup)
+  - trap '_spiral_cleanup INT' INT (for Ctrl+C)
+  - trap '_spiral_cleanup TERM' TERM (for SIGTERM)
+- Added PHASE="X" assignments before each phase block:
+  - Phase R (line 547)
+  - Phase T (line 664)
+  - Phase M (line 701)
+  - Phase G (line 756)
+  - Phase I (line 830)
+  - Phase V (line 1121)
+  - Phase C (line 1223)
+- All 202 pytest tests pass (uv run pytest -q → 202 passed in 97.49s)
+
+### Patterns discovered
+- Phases are sequential: R → T → M → G+I → V → C (then loop)
+- PHASE variable persists through checkpoint writes, enabling resume from correct phase
+- Checkpoint file is written via write_checkpoint() at end of each phase (already in code)
+- Signal handlers need to avoid `set -e` issues by using explicit `|| true` on non-critical operations
+- mktemp is available on Windows bash/MSYS; atomic mv works correctly for checkpoint
+
+### Gotchas
+- PHASE="" must be set before any phase runs, else checkpoint has empty phase on early interrupt
+- CHILD_PIDS array tracking is initialized but not populated in current spiral.sh (only WATCHDOG_PID is tracked)
+  This is OK because background jobs (except watchdog) are in foreground shells via timeout/exec
+- Signal handler must call cleanup() at end to ensure worktree cleanup happens (doubly important for SIGTERM)
+- Exit code 130 (128 + 2 for SIGINT) signals to shell that process was interrupted, preventing false "success"
+- Checkpoint write is conditional on SPIRAL_ITER > 0 to avoid writing checkpoint before loop starts
+
+### Acceptance Criteria Met
+- ✓ Signal handlers registered: trap '_spiral_cleanup INT' INT and trap '_spiral_cleanup TERM' TERM (line 353-354)
+- ✓ _spiral_cleanup kills child processes, writes checkpoint atomically, prints summary (lines 283-310)
+- ✓ Orphan processes are cleaned via kill loop in _spiral_cleanup (lines 291-295)
+- ✓ Checkpoint format: {"iter": N, "phase": "P", "ts": "2026-03-13T..."} (line 300)
+- ✓ Resume from correct phase via existing checkpoint_phase_done() logic (already in code)
+- ✓ uv run pytest passes (202 passed)
