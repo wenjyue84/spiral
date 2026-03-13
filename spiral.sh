@@ -210,6 +210,7 @@ SPIRAL_PROGRESS_MAX_LINES="${SPIRAL_PROGRESS_MAX_LINES:-2000}"  # 0 = disabled; 
 SPIRAL_EVENT_LOG_MAX_LINES="${SPIRAL_EVENT_LOG_MAX_LINES:-10000}"  # 0 = disabled; rotate spiral_events.jsonl when over this limit
 SPIRAL_RESEARCH_CACHE_TTL_HOURS="${SPIRAL_RESEARCH_CACHE_TTL_HOURS:-24}"  # 0 = disabled; cache TTL for Phase R URL responses
 RESEARCH_CACHE_DIR=""  # set after SCRATCH_DIR is known
+SPIRAL_VALIDATE_TIMEOUT="${SPIRAL_VALIDATE_TIMEOUT:-300}"  # seconds; 0 = disabled (unlimited)
 
 # ── Config validation ─────────────────────────────────────────────────────────
 # Validates required keys are set and applies defaults for optional keys.
@@ -1331,8 +1332,21 @@ $INJECTED_PROMPT"
     echo "  [V] Skipping (ralph did not run — test results unchanged)"
     write_checkpoint "$SPIRAL_ITER" "V"
   else
-    # Run the project's validation command
-    (cd "$REPO_ROOT" && eval "$SPIRAL_VALIDATE_CMD" 2>&1) || true
+    # Run the project's validation command (with optional timeout)
+    _VALIDATE_EXIT=0
+    if [[ "${SPIRAL_VALIDATE_TIMEOUT:-300}" -gt 0 ]] && command -v timeout &>/dev/null; then
+      _VALIDATE_START=$(date +%s)
+      (cd "$REPO_ROOT" && timeout "${SPIRAL_VALIDATE_TIMEOUT}" bash -c "eval \"\$SPIRAL_VALIDATE_CMD\"" 2>&1) || _VALIDATE_EXIT=$?
+      _VALIDATE_ELAPSED=$(( $(date +%s) - _VALIDATE_START ))
+      if [[ "$_VALIDATE_EXIT" -eq 124 ]]; then
+        echo ""
+        echo "  [Phase V] WARNING: Phase V timed out after ${_VALIDATE_ELAPSED}s — treating as validation failure"
+        log_spiral_event "phase_timeout" "\"phase\":\"V\",\"iteration\":$SPIRAL_ITER,\"duration_ms\":$(( _VALIDATE_ELAPSED * 1000 )),\"timeout_s\":${SPIRAL_VALIDATE_TIMEOUT}"
+        _VALIDATE_EXIT=1
+      fi
+    else
+      (cd "$REPO_ROOT" && eval "$SPIRAL_VALIDATE_CMD" 2>&1) || _VALIDATE_EXIT=$?
+    fi
 
     # Print summary from the freshest report
     "$SPIRAL_PYTHON" - <<PYEOF

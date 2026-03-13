@@ -1427,3 +1427,26 @@ Incomplete: Add TLA+ ModelAssignmentConsistent invariant to SpiralWorkers.tla (I
 - On Windows/MSYS2, subprocess(['timeout']) hits Windows timeout.exe (returns rc=1 after a pause); use ['bash', '-c', 'timeout ...'] for GNU behavior
 - The `|| exit $?` inside the worker subshell is needed so the subshell propagates timeout's exit code 124 to the parent's `wait`
 - Stale .pyc files can cause old skipif conditions to persist — `find __pycache__ -name 'test_worker_timeout*' -delete` if needed
+## Iteration 1 - Fri, Mar 13, 2026  5:38:17 PM
+Completed: Add per-worker execution timeout using `timeout --kill-after` in run_parallel_ralph.sh (ID: US-095) in 13m
+
+
+## Iteration - Story: US-096: Add SPIRAL_VALIDATE_TIMEOUT to bound Phase V test-suite execution time
+
+### What was implemented
+- Added `SPIRAL_VALIDATE_TIMEOUT="${SPIRAL_VALIDATE_TIMEOUT:-300}"` default to spiral.sh defaults section (~line 213)
+- Modified Phase V else-branch to wrap validate command with `timeout ${SPIRAL_VALIDATE_TIMEOUT}` when timeout binary available and SPIRAL_VALIDATE_TIMEOUT > 0
+- Exit code 124 detection: logs phase_timeout event to spiral_events.jsonl with duration_ms and timeout_s fields
+- Prints warning: "Phase V timed out after Xs — treating as validation failure" then continues to Phase C
+- SPIRAL_VALIDATE_TIMEOUT=0 falls through to plain eval (unlimited, matching prior behavior)
+- Added SPIRAL_VALIDATE_TIMEOUT documentation to templates/spiral.config.example.sh with note about slow integration suites
+- 267 tests pass (unchanged)
+
+### Patterns discovered
+- timeout binary wrapped via `bash -c "eval \"$SPIRAL_VALIDATE_CMD\""` so the SPIRAL_VALIDATE_CMD variable is evaluated inside the timeout subprocess
+- `command -v timeout &>/dev/null` guards against environments without GNU timeout (e.g., older macOS, MinGW without coreutils)
+- _VALIDATE_EXIT captures non-zero codes; loop continues to Phase C regardless (matching "not a crash" spec)
+
+### Gotchas
+- Must use `bash -c "eval ..."` not `eval` directly inside timeout, otherwise timeout has no subprocess to kill
+- SPIRAL_VALIDATE_TIMEOUT=0 check must use integer comparison `[[ -gt 0 ]]` not string equality

@@ -44,6 +44,14 @@
 # SPIRAL_VALIDATE_CMD="npm test"
 # SPIRAL_VALIDATE_CMD="pytest --tb=short"
 
+# ── Phase V timeout (seconds) ────────────────────────────────────────────────
+# Wall-clock limit for Phase V test suite execution. When exceeded, SPIRAL
+# logs a phase_timeout event and treats the result as a test failure so the
+# loop can continue to Phase C. Set to 0 to disable (unlimited).
+# Slow integration test suites may need a higher value (e.g., 600 or 900).
+# Default: 300
+# SPIRAL_VALIDATE_TIMEOUT=300
+
 # ── Test reports directory ───────────────────────────────────────────────────
 # Where test reports are written (relative to project root).
 # Must contain timestamped subdirs with report.json inside.
