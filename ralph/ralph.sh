@@ -360,12 +360,12 @@ append_result() {
   local duration_sec=$((STORY_END - STORY_START))
   local model_col="${EFFECTIVE_MODEL:-${EFFECTIVE_TOOL:-unknown}}"
   if [[ ! -f "$RESULTS_FILE" ]]; then
-    printf 'timestamp\tspiral_iter\tralph_iter\tstory_id\tstory_title\tstatus\tduration_sec\tmodel\tretry_num\tcommit_sha\n' > "$RESULTS_FILE"
+    printf 'timestamp\tspiral_iter\tralph_iter\tstory_id\tstory_title\tstatus\tduration_sec\tmodel\tretry_num\tcommit_sha\trun_id\n' > "$RESULTS_FILE"
   fi
   local safe_title="${STORY_TITLE//$'\t'/ }"
-  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
     "$ts" "${SPIRAL_ITER:-0}" "$ITERATION" "$NEXT_STORY" "$safe_title" \
-    "$status" "$duration_sec" "$model_col" "$RETRY_NOW" "$commit_sha" \
+    "$status" "$duration_sec" "$model_col" "$RETRY_NOW" "$commit_sha" "${SPIRAL_RUN_ID:-}" \
     >> "$RESULTS_FILE"
 }
 
@@ -378,11 +378,11 @@ log_spiral_event() {
   local ts
   ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
   if [[ -n "$extra_json" ]]; then
-    printf '{"type":"%s","ts":"%s","story_id":"%s",%s}\n' \
-      "$event_type" "$ts" "${NEXT_STORY:-}" "$extra_json" >> "$events_file"
+    printf '{"type":"%s","ts":"%s","story_id":"%s","run_id":"%s",%s}\n' \
+      "$event_type" "$ts" "${NEXT_STORY:-}" "${SPIRAL_RUN_ID:-}" "$extra_json" >> "$events_file"
   else
-    printf '{"type":"%s","ts":"%s","story_id":"%s"}\n' \
-      "$event_type" "$ts" "${NEXT_STORY:-}" >> "$events_file"
+    printf '{"type":"%s","ts":"%s","story_id":"%s","run_id":"%s"}\n' \
+      "$event_type" "$ts" "${NEXT_STORY:-}" "${SPIRAL_RUN_ID:-}" >> "$events_file"
   fi
 }
 

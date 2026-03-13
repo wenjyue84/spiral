@@ -20,7 +20,7 @@ import sys
 
 HEADER = [
     "timestamp", "spiral_iter", "ralph_iter", "story_id", "story_title",
-    "status", "duration_sec", "model", "retry_num", "commit_sha",
+    "status", "duration_sec", "model", "retry_num", "commit_sha", "run_id",
 ]
 
 

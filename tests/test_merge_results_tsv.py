@@ -32,6 +32,7 @@ def _make_row(story_id: str, timestamp: str, status: str = "PASS",
         "model": "sonnet",
         "retry_num": "0",
         "commit_sha": "abc1234",
+        "run_id": "test-run-id",
     }
     row.update(overrides)
     return row

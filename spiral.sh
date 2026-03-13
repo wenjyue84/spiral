@@ -51,6 +51,10 @@ fi
 # ── Resolve SPIRAL_HOME (where this script + lib/ live) ─────────────────────
 SPIRAL_HOME="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# ── Generate a unique run ID for log correlation ──────────────────────────────
+SPIRAL_RUN_ID=$(uuidgen 2>/dev/null || printf '%x%x' "$(date +%s)" "$RANDOM")
+export SPIRAL_RUN_ID
+
 # ── Argument parsing ─────────────────────────────────────────────────────────
 MAX_SPIRAL_ITERS=20
 GATE_DEFAULT=""        # empty = interactive; "proceed"|"skip"|"quit" = auto
@@ -305,6 +309,12 @@ if [[ "$RESET_CHECKPOINT" -eq 1 ]] && [[ -f "$CHECKPOINT_FILE" ]]; then
   echo "[spiral] --reset: Removing checkpoint, starting fresh from iteration 1"
   rm -f "$CHECKPOINT_FILE"
 fi
+
+# ── Generate SPIRAL_RUN_ID for correlation across all logs ────────────────────
+# UUID for filtering entries from a single run when multiple SPIRAL runs share
+# the same spiral_events.jsonl or results.tsv file.
+SPIRAL_RUN_ID=$(uuidgen 2>/dev/null || printf '%x%x' "$(date +%s)" "$RANDOM")
+export SPIRAL_RUN_ID
 
 # ── Source memory pressure helper library ────────────────────────────────────
 export SPIRAL_SCRATCH_DIR="$SCRATCH_DIR"
@@ -595,8 +605,9 @@ with open(sys.argv[9], 'w') as f:
 # ── Helper: write checkpoint ────────────────────────────────────────────────
 write_checkpoint() {
   local iter="$1" phase="$2"
-  printf '{"iter":%d,"phase":"%s","ts":"%s","phaseDurations":{"R":%d,"T":%d,"M":%d,"I":%d,"V":%d,"C":%d}}\n' \
+  printf '{"iter":%d,"phase":"%s","ts":"%s","run_id":"%s","phaseDurations":{"R":%d,"T":%d,"M":%d,"I":%d,"V":%d,"C":%d}}\n' \
     "$iter" "$phase" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    "${SPIRAL_RUN_ID:-}" \
     "${_PHASE_DUR_R:-0}" "${_PHASE_DUR_T:-0}" "${_PHASE_DUR_M:-0}" \
     "${_PHASE_DUR_I:-0}" "${_PHASE_DUR_V:-0}" "${_PHASE_DUR_C:-0}" \
     > "$CHECKPOINT_FILE"
@@ -612,9 +623,9 @@ log_spiral_event() {
   ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   log_file="$SCRATCH_DIR/spiral_events.jsonl"
   if [[ -n "$extra" ]]; then
-    line="{\"ts\":\"$ts\",\"event\":\"$event\",$extra}"
+    line="{\"ts\":\"$ts\",\"event\":\"$event\",\"run_id\":\"${SPIRAL_RUN_ID:-}\",$extra}"
   else
-    line="{\"ts\":\"$ts\",\"event\":\"$event\"}"
+    line="{\"ts\":\"$ts\",\"event\":\"$event\",\"run_id\":\"${SPIRAL_RUN_ID:-}\"}"
   fi
   printf '%s\n' "$line" >> "$log_file" 2>/dev/null || true
   # Rotate if over max lines limit
@@ -874,6 +885,12 @@ if [[ -f "$CHECKPOINT_FILE" ]]; then
   CKPT_PHASE=$("$JQ" -r '.phase // ""' "$CHECKPOINT_FILE")
   echo "  [checkpoint] Resuming from iter=$CKPT_ITER phase=$CKPT_PHASE"
   SPIRAL_ITER=$((CKPT_ITER - 1))  # loop will increment to CKPT_ITER on first pass
+  # Restore run_id from checkpoint so all events share the same correlation ID
+  CKPT_RUN_ID=$("$JQ" -r '.run_id // ""' "$CHECKPOINT_FILE" 2>/dev/null || echo "")
+  if [[ -n "$CKPT_RUN_ID" ]]; then
+    SPIRAL_RUN_ID="$CKPT_RUN_ID"
+    export SPIRAL_RUN_ID
+  fi
 
   # ── Warn if checkpoint is older than 24 hours ────────────────────────────
   CKPT_TS=$("$JQ" -r '.ts // 0' "$CHECKPOINT_FILE" 2>/dev/null || echo 0)
