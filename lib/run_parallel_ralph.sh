@@ -439,8 +439,10 @@ echo ""
 
 # ── Step 4: Adaptive wait loop — monitor workers + manage pressure ────────────
 declare -a WORKER_FINISHED=()
+declare -a WORKER_EXIT_CODES=()
 for i in "${!WORKER_PIDS[@]}"; do
   WORKER_FINISHED+=("0")
+  WORKER_EXIT_CODES+=("0")
 done
 
 _ALL_DONE=0
@@ -459,6 +461,7 @@ while [[ "$_ALL_DONE" -eq 0 ]]; do
         WTREE="${WORKER_DIRS[$i]}"
         DONE_W=$("$JQ" '[.userStories[] | select(.passes == true)] | length' "$WTREE/prd.json" 2>/dev/null || echo "?")
         TOTAL_W=$("$JQ" '[.userStories | length] | .[0]' "$WTREE/prd.json" 2>/dev/null || echo "?")
+        WORKER_EXIT_CODES[$i]="$WORKER_EXIT"
         if [[ "$WORKER_EXIT" -eq 124 ]]; then
           echo "  [parallel] Worker $WORKER_NUM TIMED OUT after ${WORKER_TIMEOUT}s — $DONE_W/$TOTAL_W stories passed before timeout"
           # Log a 'timeout' failure row in results.tsv for each still-pending story
@@ -474,6 +477,8 @@ while [[ "$_ALL_DONE" -eq 0 ]]; do
           done
           # Timed-out stories remain passes=false in main prd.json — merge_worker_results.py
           # only promotes passes=true entries, so no retry_count increment occurs.
+        elif [[ "$WORKER_EXIT" -ne 0 ]]; then
+          echo "  [parallel] Worker $WORKER_NUM exited with status $WORKER_EXIT — continuing remaining workers"
         else
           echo "  [parallel] Worker $WORKER_NUM finished: $DONE_W/$TOTAL_W stories passed"
         fi
@@ -859,4 +864,19 @@ done
 rm -rf "$WORKTREE_BASE" 2>/dev/null || true
 
 echo "  [parallel] Cleanup complete."
+
+# ── Step 10: Exit non-zero if ALL workers failed ─────────────────────────────
+_ALL_WORKERS_FAILED=1
+for _ec in "${WORKER_EXIT_CODES[@]}"; do
+  if [[ "$_ec" -eq 0 ]]; then
+    _ALL_WORKERS_FAILED=0
+    break
+  fi
+done
+if [[ "$_ALL_WORKERS_FAILED" -eq 1 ]]; then
+  echo "  [parallel] ERROR: All $RALPH_WORKERS workers failed — exiting with non-zero status"
+  echo "  [parallel] ═══════════════════════════════════════════════════"
+  exit 1
+fi
+
 echo "  [parallel] ═══════════════════════════════════════════════════"

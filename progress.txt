@@ -2081,3 +2081,24 @@ Completed: Add shellcheck static analysis gate to CI for all bash scripts (ID: U
 ### Gotchas
 - Per-module overrides in pyproject.toml use bare module names (no `lib.` prefix) when lib/ is not a Python package
 - `set -o pipefail` is required in CI shell commands that use `|` to ensure mypy exit code propagates
+## Iteration 2 - Fri, Mar 13, 2026 11:25:46 PM
+Completed: Add mypy strict type checking enforcement to Python CI pipeline (ID: US-126) in 16m
+
+
+## Iteration 13 - Story: US-068 - Isolate parallel worker failures so one crash does not abort sibling workers
+
+### What was implemented
+- Added `WORKER_EXIT_CODES` array to track per-worker exit codes in `run_parallel_ralph.sh`
+- Added differentiated messaging: workers exiting non-zero now print `[parallel] Worker N exited with status S — continuing remaining workers` instead of generic "finished" message
+- Changed `merge_worker_results.py` to warn-and-skip on worker PRD validation failure instead of aborting the entire merge (line 56-60: `return 1` → `continue`)
+- Added Step 10 at end of `run_parallel_ralph.sh`: if ALL workers have non-zero exit codes, exit with status 1
+- Updated test `test_invalid_worker_returns_1_main_unchanged` → `test_invalid_worker_skipped_with_warning` to match new warn-and-skip behavior
+
+### Patterns discovered
+- The adaptive wait loop (Step 4) already handled per-PID waiting and timeout detection; only needed to add exit code tracking and the non-zero message branch
+- Worker worktree cleanup (Step 9) was already path-agnostic — handles failed and successful workers identically
+- `merge_worker_results.py` already handled missing worker files gracefully (line 50-51), but schema validation failure was fatal — now both cases are warn-and-skip
+
+### Gotchas
+- `set -euo pipefail` at top of script means `exit 1` in Step 10 will trigger the cleanup trap — this is fine since cleanup ops are all idempotent with `2>/dev/null || true`
+- The `WORKER_EXIT_CODES` array must be initialized alongside `WORKER_FINISHED` (both indexed by worker slot) and updated inside the wait loop before the if/elif/else message branch

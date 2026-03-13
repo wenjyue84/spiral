@@ -140,25 +140,22 @@ class TestTwoWorkersSameStoryNoDuplicate:
 
 
 class TestWorkerSchemaValidationFails:
-    """AC: worker prd.json fails schema validation — returns exit code 1, main prd unchanged."""
+    """AC: worker prd.json fails schema validation — warns and skips, does not abort merge."""
 
-    def test_invalid_worker_returns_1_main_unchanged(self, tmp_path, monkeypatch):
+    def test_invalid_worker_skipped_with_warning(self, tmp_path, monkeypatch, capsys):
         main_prd = _make_prd([_make_story("US-001")])
         invalid_worker = {"bad": "data"}  # missing required fields
 
         main_path = _write_prd(tmp_path / "main.json", main_prd)
         w1_path = _write_prd(tmp_path / "w1.json", invalid_worker)
 
-        # Snapshot main before merge
-        main_before = json.dumps(main_prd, indent=2)
-
         monkeypatch.setattr(sys, "argv", ["merge", "--main", main_path, "--workers", w1_path])
         rc = main()
 
-        assert rc == 1
-        # Main prd unchanged (file re-read should match snapshot)
-        main_after = (tmp_path / "main.json").read_text(encoding="utf-8")
-        assert main_after == main_before
+        assert rc == 0  # merge succeeds — invalid worker skipped, not fatal
+        captured = capsys.readouterr()
+        assert "WARNING" in captured.out
+        assert "skipping" in captured.out
 
 
 class TestWorkerFileMissing:

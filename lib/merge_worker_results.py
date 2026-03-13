@@ -54,10 +54,10 @@ def main() -> int:
             worker_prd = json.load(f)
         w_errors = validate_prd(worker_prd)
         if w_errors:
-            print(f"[schema] Worker PRD validation failed ({wpath}):", file=sys.stderr)
+            print(f"[merge_workers] WARNING: Worker PRD validation failed ({wpath}) — skipping")
             for e in w_errors:
-                print(f"  - {e}", file=sys.stderr)
-            return 1
+                print(f"  - {e}")
+            continue
         for s in worker_prd.get("userStories", []):
             if s.get("passes"):
                 passed_ids.add(s["id"])
