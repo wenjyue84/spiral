@@ -1405,3 +1405,25 @@ Incomplete: Add TLA+ ModelAssignmentConsistent invariant to SpiralWorkers.tla (I
 ## Iteration 7 - Fri, Mar 13, 2026  5:05:41 PM
 Incomplete: Add TLA+ ModelAssignmentConsistent invariant to SpiralWorkers.tla (ID: US-024) — attempt 2/3
 
+
+## Iteration - Story: US-095 Add per-worker execution timeout in run_parallel_ralph.sh
+
+### What was implemented
+- Added `WORKER_TIMEOUT="${SPIRAL_WORKER_TIMEOUT:-600}"` config variable to run_parallel_ralph.sh
+- Banner now displays timeout setting (or "disabled" when SPIRAL_WORKER_TIMEOUT=0)
+- Wrapped worker bash invocation with `timeout --kill-after=60 ${WORKER_TIMEOUT}` when WORKER_TIMEOUT>0 and timeout binary available; falls back to plain bash when disabled or binary absent
+- Step 4 wait loop: replaced `|| true` with `|| WORKER_EXIT=$?` to capture exit code
+- Exit 124 detection: logs "[parallel] Worker N TIMED OUT after Xs" and writes 'timeout' status rows to worker's results.tsv for each still-pending story
+- Pending stories naturally remain passes=false in main prd.json (merge only promotes passes=true)
+- Created tests/test_worker_timeout.py with 7 tests (all pass: 267 total)
+
+### Patterns discovered
+- subprocess.run(['timeout', ...]) on Windows picks up timeout.exe instead of GNU timeout — use bash -c "timeout ..." or shutil.which to get the correct binary
+- pytest.mark.skipif evaluation at module import time can be affected by stale .pyc cache — clear __pycache__ if behavior seems wrong
+- `wait $PID 2>/dev/null || WORKER_EXIT=$?` correctly captures non-zero exit codes without triggering set -e
+- timeout --kill-after=60 DURATION sends SIGTERM at DURATION seconds, then SIGKILL after 60 additional seconds
+
+### Gotchas
+- On Windows/MSYS2, subprocess(['timeout']) hits Windows timeout.exe (returns rc=1 after a pause); use ['bash', '-c', 'timeout ...'] for GNU behavior
+- The `|| exit $?` inside the worker subshell is needed so the subshell propagates timeout's exit code 124 to the parent's `wait`
+- Stale .pyc files can cause old skipif conditions to persist — `find __pycache__ -name 'test_worker_timeout*' -delete` if needed

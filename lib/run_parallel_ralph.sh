@@ -54,6 +54,7 @@ PATCH_DIRS="${SPIRAL_PATCH_DIRS:-}"
 DEPLOY_CMD="${SPIRAL_DEPLOY_CMD:-}"
 TERMINAL_EMU="${SPIRAL_TERMINAL:-}"
 GEMINI_ANNOTATE="${SPIRAL_GEMINI_ANNOTATE_PROMPT:-}"
+WORKER_TIMEOUT="${SPIRAL_WORKER_TIMEOUT:-600}"  # per-worker wall-clock limit (0 = unlimited)
 
 # ── Graceful cleanup trap — kill orphaned workers on exit/interrupt ─────────
 cleanup_parallel() {
@@ -122,6 +123,11 @@ echo "  [parallel] ════════════════════�
 echo "  [parallel]  PARALLEL RALPH — $RALPH_WORKERS workers"
 echo "  [parallel]  Iters/worker:  $ITER_PER_WORKER (total budget: $RALPH_MAX_ITERS)"
 echo "  [parallel]  Docker lock:   $LOCK_DIR"
+if [[ "$WORKER_TIMEOUT" -gt 0 ]]; then
+  echo "  [parallel]  Worker timeout: ${WORKER_TIMEOUT}s (SIGTERM + 60s SIGKILL)"
+else
+  echo "  [parallel]  Worker timeout: disabled (SPIRAL_WORKER_TIMEOUT=0)"
+fi
 [[ -n "${SPIRAL_FOCUS:-}" ]] && echo "  [parallel]  Focus:         $SPIRAL_FOCUS"
 [[ -n "$PATCH_DIRS" ]] && echo "  [parallel]  Patch dirs:    $PATCH_DIRS"
 [[ -n "$DEPLOY_CMD" ]] && echo "  [parallel]  Deploy cmd:    (configured)"
@@ -381,8 +387,14 @@ for i in $(seq 1 "$RALPH_WORKERS"); do
     # Put lock wrapper first in PATH so docker calls are intercepted
     export PATH="$WTREE/.spiral-bin:$PATH"
     export SPIRAL_WORKER_ID=$i
-    bash "$RALPH_SKILL" "$ITER_PER_WORKER" --prd prd.json $_WORKER_MODEL_FLAG \
-      > "$LOG" 2>&1
+    if [[ "$WORKER_TIMEOUT" -gt 0 ]] && command -v timeout &>/dev/null; then
+      timeout --kill-after=60 "${WORKER_TIMEOUT}" \
+        bash "$RALPH_SKILL" "$ITER_PER_WORKER" --prd prd.json $_WORKER_MODEL_FLAG \
+        > "$LOG" 2>&1 || exit $?
+    else
+      bash "$RALPH_SKILL" "$ITER_PER_WORKER" --prd prd.json $_WORKER_MODEL_FLAG \
+        > "$LOG" 2>&1
+    fi
   ) &
   WORKER_PIDS+=($!)
 
@@ -415,14 +427,32 @@ while [[ "$_ALL_DONE" -eq 0 ]]; do
   for i in "${!WORKER_PIDS[@]}"; do
     if [[ "${WORKER_FINISHED[$i]}" -eq 0 ]]; then
       if ! kill -0 "${WORKER_PIDS[$i]}" 2>/dev/null; then
-        # Worker finished
+        # Worker finished — capture exit code to distinguish timeout (124) from crash
         WORKER_FINISHED[$i]=1
         WORKER_NUM=$((i + 1))
-        wait "${WORKER_PIDS[$i]}" 2>/dev/null || true
+        WORKER_EXIT=0
+        wait "${WORKER_PIDS[$i]}" 2>/dev/null || WORKER_EXIT=$?
         WTREE="${WORKER_DIRS[$i]}"
         DONE_W=$("$JQ" '[.userStories[] | select(.passes == true)] | length' "$WTREE/prd.json" 2>/dev/null || echo "?")
         TOTAL_W=$("$JQ" '[.userStories | length] | .[0]' "$WTREE/prd.json" 2>/dev/null || echo "?")
-        echo "  [parallel] Worker $WORKER_NUM finished: $DONE_W/$TOTAL_W stories passed"
+        if [[ "$WORKER_EXIT" -eq 124 ]]; then
+          echo "  [parallel] Worker $WORKER_NUM TIMED OUT after ${WORKER_TIMEOUT}s — $DONE_W/$TOTAL_W stories passed before timeout"
+          # Log a 'timeout' failure row in results.tsv for each still-pending story
+          _TIMEOUT_TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          _PENDING_IDS=$("$JQ" -r '.userStories[] | select(.passes != true) | .id' \
+            "$WTREE/prd.json" 2>/dev/null | tr -d '\r' || true)
+          for _sid in $_PENDING_IDS; do
+            _title=$("$JQ" -r ".userStories[] | select(.id == \"$_sid\") | .title" \
+              "$WTREE/prd.json" 2>/dev/null | tr '\t\n' '  ' | tr -d '\r' || echo "unknown")
+            printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+              "$_TIMEOUT_TS" "-" "-" "$_sid" "$_title" "timeout" "-" "-" "-" "-" \
+              >> "$WTREE/results.tsv" 2>/dev/null || true
+          done
+          # Timed-out stories remain passes=false in main prd.json — merge_worker_results.py
+          # only promotes passes=true entries, so no retry_count increment occurs.
+        else
+          echo "  [parallel] Worker $WORKER_NUM finished: $DONE_W/$TOTAL_W stories passed"
+        fi
         # Remove pause file if it exists
         rm -f "${SPIRAL_SCRATCH_DIR}/_worker_pause_${WORKER_NUM}" 2>/dev/null || true
       else

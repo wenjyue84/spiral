@@ -2043,6 +2043,296 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false
+    },
+    {
+      "id": "US-095",
+      "title": "Add per-worker execution timeout using `timeout --kill-after` in run_parallel_ralph.sh",
+      "priority": "high",
+      "description": "Workers that hang indefinitely (e.g., waiting on a stalled Claude CLI subprocess) currently block the entire parallel batch with no recovery path. Wrapping each worker invocation with `timeout --kill-after=60s ${SPIRAL_WORKER_TIMEOUT:-600}s` provides a two-phase SIGTERM→SIGKILL sequence and returns exit code 124 on expiry, allowing the coordinator to distinguish a timeout from a crash and requeue the story.",
+      "acceptanceCriteria": [
+        "SPIRAL_WORKER_TIMEOUT env var (default 600s) controls per-worker wall-clock limit",
+        "Worker process tree receives SIGTERM first, then SIGKILL after 60s grace period",
+        "Exit code 124 from timeout is detected and logged as a distinct 'timeout' failure reason in results.tsv",
+        "Timed-out stories are reset to pending for the next iteration rather than counted as a retry",
+        "Integration test: a mock worker that sleeps 700s is killed within SPIRAL_WORKER_TIMEOUT+75s"
+      ],
+      "technicalNotes": [
+        "Use `timeout --kill-after=60s ${SPIRAL_WORKER_TIMEOUT:-600}s bash ralph.sh ...` in run_parallel_ralph.sh",
+        "Detect exit code 124 and write {\"_failureReason\": \"worker_timeout\"} to prd.json story entry",
+        "bash's built-in timeout may lack --kill-after on some MSYS2 builds; fall back to a background SIGKILL watchdog if GNU timeout is unavailable",
+        "Coordinate with SIGCHLD trap (pending story) to avoid double-reaping"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true
+    },
+    {
+      "id": "US-096",
+      "title": "Add SPIRAL_VALIDATE_TIMEOUT to bound Phase V test-suite execution time",
+      "priority": "high",
+      "description": "Phase V runs the full test suite via SPIRAL_VALIDATE_CMD with no deadline. If a test hangs (e.g., an integration test waiting on an unavailable network resource), the entire SPIRAL loop stalls indefinitely. Adding SPIRAL_VALIDATE_TIMEOUT (default 300s) wraps the validate command with a timeout and surfaces a clear failure message rather than a silent hang.",
+      "acceptanceCriteria": [
+        "SPIRAL_VALIDATE_TIMEOUT env var (default 300s) limits Phase V wall-clock time",
+        "When Phase V times out, spiral_events.jsonl receives a phase_timeout event with duration_ms",
+        "Phase V timeout is treated as a test failure (not a crash), allowing the loop to continue to Phase C",
+        "A warning message is printed: 'Phase V timed out after Xs — treating as validation failure'",
+        "SPIRAL_VALIDATE_TIMEOUT=0 disables the timeout (unlimited, matching current behaviour)"
+      ],
+      "technicalNotes": [
+        "Apply `timeout ${SPIRAL_VALIDATE_TIMEOUT:-300}s bash -c \"$SPIRAL_VALIDATE_CMD\"` in spiral.sh Phase V block",
+        "Exit code 124 maps to a synthetic test failure report so Phase C sees a failing state",
+        "Document in spiral.config.sh template with a note that slow integration test suites may need a higher value"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-097",
+      "title": "Detect git merge conflicts with `git merge-tree` before parallel worker integration",
+      "priority": "high",
+      "description": "When multiple workers implement stories that touch the same files, merging them back to main can produce conflicts that are only discovered after all workers have finished. Using `git merge-tree $(git merge-base HEAD main) HEAD main` as a non-destructive dry-run before each worker pushes allows early conflict detection and targeted requeuing of only the conflicting stories without discarding sibling workers' results.",
+      "acceptanceCriteria": [
+        "After each worker completes Phase I, run `git merge-tree` dry-run against the main branch before git push",
+        "If merge-tree reports conflicts, the worker marks its stories as pending (not failed) and logs the conflicting file paths",
+        "The coordinator in run_parallel_ralph.sh surfaces per-worker conflict status in spiral_events.jsonl",
+        "Non-conflicting workers continue to merge normally; only conflicting workers are requeued",
+        "bats integration test covers the conflict-detected requeue path with a fixture repo"
+      ],
+      "technicalNotes": [
+        "Command: `git merge-tree $(git merge-base HEAD \"$MAIN_BRANCH\") HEAD \"$MAIN_BRANCH\"` — exit code 0 = no conflicts, non-zero = conflicts",
+        "`git merge-tree` is available in Git 2.38+ with improved output; fall back to a test merge + reset for older Git versions",
+        "See github.com/clash-sh/clash for a reference implementation pattern in a parallel-agent context",
+        "Conflicts reset story state to 'pending' with _failureReason: 'merge_conflict' to distinguish from implementation failures"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-098",
+      "title": "Add `spiral.sh --replay STORY_ID` to re-run a single story without full loop",
+      "priority": "high",
+      "description": "Developers frequently need to re-run a single story without triggering the full 7-phase loop, resetting the story's pass state, and waiting through Phases R/T/M/G. A `spiral.sh --replay US-XXX` mode sets only the target story to pending, skips Phases R/T/M/G, runs Phase I for that story only in an isolated worktree, then validates and reports. This reduces the inner feedback loop from minutes to seconds.",
+      "acceptanceCriteria": [
+        "`spiral.sh --replay US-XXX` accepts a single story ID and runs only Phases I+V+C for that story",
+        "All other stories remain untouched in prd.json during replay",
+        "Replay creates an isolated git worktree `.spiral-replay-{STORY_ID}` so main branch is not polluted",
+        "Phase G (human gate) is automatically skipped in replay mode",
+        "Replay result (pass/fail + log path) is printed on exit and written to spiral_events.jsonl",
+        "Error with exit 1 if the story ID does not exist in prd.json"
+      ],
+      "technicalNotes": [
+        "Extract the single-story execution path already present in ralph.sh; replay mode sets STORY_IDS=US-XXX before Phase I",
+        "Replay worktree is cleaned up on successful pass; preserved on failure for inspection",
+        "`main.py` CLI (pending story) should expose `spiral replay` as a subcommand for symmetry"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-099",
+      "title": "Add UNIX /proc/meminfo memory pressure adapter for cross-platform watchdog parity",
+      "priority": "medium",
+      "description": "The current memory pressure watchdog (memory-watchdog.ps1) is PowerShell-only, leaving UNIX/Linux/WSL environments without adaptive memory signals. Adding a Bash adapter that reads MemAvailable from /proc/meminfo (Linux) or uses vm_stat on macOS provides the same JSON signal file that spiral.sh already consumes, giving cross-platform parity with no changes to the main loop.",
+      "acceptanceCriteria": [
+        "New script lib/memory-watchdog.sh detects platform (Linux vs macOS) and reads available memory",
+        "On Linux: reads MemAvailable from /proc/meminfo (not MemFree — MemAvailable accounts for reclaimable cache)",
+        "On macOS: reads Pages free from vm_stat, converts page size to MB",
+        "Outputs the same JSON signal format that memory-pressure-check.sh already expects",
+        "spiral.sh auto-selects the watchdog based on platform: .ps1 on Windows, .sh on UNIX",
+        "Unit test covers the platform-detection branch and mock /proc/meminfo parsing"
+      ],
+      "technicalNotes": [
+        "MemAvailable field (not MemFree) is the correct metric — Red Hat KB 406773 explains why MemFree underestimates available memory",
+        "Cross-platform pattern: `if [ -f /proc/meminfo ]; then awk '/MemAvailable/ {print int($2/1024)}' /proc/meminfo; else vm_stat | awk '/Pages free/ {print int($3*4096/1048576)}'; fi`",
+        "The JSON signal file path should be configurable (SPIRAL_MEMORY_SIGNAL_FILE) so both watchdogs write to the same location"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-100",
+      "title": "Add SPIRAL_NOTIFY_WEBHOOK for per-phase-transition HTTP POST notifications",
+      "priority": "medium",
+      "description": "The pending SPIRAL_ON_COMPLETE hook fires only at run completion. Teams operating SPIRAL in long-running unattended sessions need real-time phase-transition notifications (e.g., 'Phase G awaiting approval', 'Phase V failed') delivered to Slack, Teams, or a custom endpoint. Adding SPIRAL_NOTIFY_WEBHOOK sends a JSON POST at each phase start/end, enabling live monitoring without polling the log file.",
+      "acceptanceCriteria": [
+        "SPIRAL_NOTIFY_WEBHOOK env var accepts an HTTPS URL",
+        "A POST is sent at the start and end of each phase (R, T, M, G, I, V, C) with JSON body: {run_id, phase, event: start|end, status: ok|failed|skipped, timestamp_iso, iteration}",
+        "Webhook POST failures are non-fatal: log a warning and continue the loop",
+        "SPIRAL_NOTIFY_WEBHOOK_TIMEOUT (default 5s) bounds each POST so the loop is not blocked",
+        "Phase G approval-pending event body includes the gate report file path",
+        "curl is used for the POST to avoid additional Python dependencies"
+      ],
+      "technicalNotes": [
+        "Implement as a Bash function `notify_webhook()` called at each phase boundary in spiral.sh",
+        "JSON body constructed with jq for correct escaping of special characters",
+        "SPIRAL_NOTIFY_WEBHOOK_HEADERS optional env var allows Authorization: Bearer token header",
+        "Slack Incoming Webhooks accept this JSON format natively; Teams uses a similar shape"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-101",
+      "title": "Add max diff size guard in ralph.sh to warn on oversized story implementations",
+      "priority": "medium",
+      "description": "AI-generated implementations that produce very large diffs (>500 lines changed) are frequently low quality — the model has gone off-scope, added unnecessary boilerplate, or implemented far more than the story required. A configurable SPIRAL_MAX_DIFF_LINES guard in ralph.sh detects oversized diffs before committing and marks the story for review or automatic retry with a tighter prompt.",
+      "acceptanceCriteria": [
+        "SPIRAL_MAX_DIFF_LINES env var (default 500) sets the maximum allowed changed lines per story",
+        "After Phase I implementation, ralph.sh counts total changed lines via `git diff --stat HEAD`",
+        "If changed lines exceed SPIRAL_MAX_DIFF_LINES, the story is marked with _failureReason: 'oversized_diff' and the commit is not made",
+        "The oversized diff stat (files changed, insertions, deletions) is logged to spiral_events.jsonl",
+        "SPIRAL_MAX_DIFF_LINES=0 disables the guard (matches current behaviour)",
+        "Unit test verifies the line count extraction from `git diff --stat` output"
+      ],
+      "technicalNotes": [
+        "Use `git diff --stat | tail -1` to get total insertions+deletions summary line",
+        "Parse with awk: extract the numbers from '3 files changed, 450 insertions(+), 120 deletions(-)'",
+        "Consider a separate SPIRAL_MAX_DIFF_LINES_WARN threshold that emits a warning without failing",
+        "Oversized diffs should also trigger auto-decomposition if SPIRAL_DECOMPOSE_THRESHOLD is set (see related story)"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-102",
+      "title": "Add SPIRAL_GIT_AUTHOR env to tag AI-generated commits with a distinct git identity",
+      "priority": "medium",
+      "description": "Commits produced by SPIRAL inherit the machine's default git config identity, making it impossible to distinguish human commits from AI-generated ones in `git log`. Setting SPIRAL_GIT_AUTHOR and SPIRAL_GIT_EMAIL in spiral.config.sh (e.g., 'SPIRAL Agent <spiral@noreply.local>') enables clear attribution, facilitates audit, and allows git blame and tooling to surface which lines were AI-generated.",
+      "acceptanceCriteria": [
+        "SPIRAL_GIT_AUTHOR and SPIRAL_GIT_EMAIL env vars (optional) are read in ralph.sh before git commit",
+        "When set, commits use `git -c user.name=... -c user.email=... commit` to avoid modifying global git config",
+        "Commit message includes a 'Generated-By: SPIRAL' trailer when SPIRAL_GIT_AUTHOR is set",
+        "When unset, behaviour is unchanged (uses machine git config)",
+        "spiral.config.sh template includes commented-out examples for the new vars",
+        "Unit test verifies the git -c flags are passed correctly in ralph.sh"
+      ],
+      "technicalNotes": [
+        "Prefer `git -c user.name=... -c user.email=... commit` over GIT_AUTHOR_NAME env var to avoid polluting the child process environment",
+        "The 'Generated-By' trailer can be appended with: `git interpret-trailers --trailer 'Generated-By: SPIRAL'`",
+        "SPIRAL_VERSION var (pending story) can be included in the trailer: 'Generated-By: SPIRAL/v1.2.3'"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-103",
+      "title": "Add prd.json story count health check: warn when total exceeds SPIRAL_MAX_STORIES",
+      "priority": "medium",
+      "description": "As SPIRAL runs Phase M across many iterations, prd.json can accumulate hundreds of stories. Very large PRDs degrade AI context quality (Claude must process the full prd.json on each ralph.sh invocation), slow jq operations, and risk exceeding context window limits. A preflight check that warns when total story count exceeds SPIRAL_MAX_STORIES (default 200) prompts operators to archive passing stories before context quality degrades.",
+      "acceptanceCriteria": [
+        "SPIRAL_MAX_STORIES env var (default 200) sets the story count warning threshold",
+        "validate_preflight.sh checks total story count and emits a WARNING when count > SPIRAL_MAX_STORIES",
+        "SPIRAL_MAX_STORIES_ABORT env var (default 0/disabled) causes preflight to fail hard when count is exceeded",
+        "The warning message includes current count, threshold, and a suggestion to archive passing stories",
+        "spiral-doctor command (pending story) also reports story count in its health summary"
+      ],
+      "technicalNotes": [
+        "Count stories with: `jq '.stories | length' prd.json`",
+        "Consider a companion `spiral.sh --archive-passed` flag that moves stories with passes:true to prd.archive.json to reduce active PRD size",
+        "The 200 default is based on typical Claude context window capacity for structured JSON (~50K tokens for 200 medium-complexity stories at current model limits)"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-104",
+      "title": "Auto-trigger story decomposition when retry_count reaches SPIRAL_DECOMPOSE_THRESHOLD",
+      "priority": "medium",
+      "description": "Story decomposition currently requires manual intervention or is triggered only on specific failure patterns. Stories that repeatedly fail without triggering existing failure analysis are stuck in an infinite retry loop until MAX_RETRIES marks them _skipped. Adding automatic decomposition at SPIRAL_DECOMPOSE_THRESHOLD (default 2) breaks the loop earlier by splitting the story into subtasks before retries are exhausted.",
+      "acceptanceCriteria": [
+        "SPIRAL_DECOMPOSE_THRESHOLD env var (default 2) sets the retry count at which auto-decomposition triggers",
+        "In ralph.sh, after incrementing retry_count, check if retry_count >= SPIRAL_DECOMPOSE_THRESHOLD and invoke decompose_story.py",
+        "Auto-decomposition is logged to spiral_events.jsonl as an 'auto_decompose' event with parent story ID and generated child IDs",
+        "The parent story is marked _skipped: true with _failureReason: 'auto_decomposed' after successful decomposition",
+        "SPIRAL_DECOMPOSE_THRESHOLD=0 disables auto-decomposition (current behaviour)",
+        "Unit test verifies the threshold trigger path: story at threshold invokes decompose_story.py"
+      ],
+      "technicalNotes": [
+        "decompose_story.py already exists; this story wires ralph.sh to call it automatically at threshold",
+        "Decomposed child stories should inherit the parent's epicId (pending story) for report grouping",
+        "Distinguish from _skipped via MAX_RETRIES — auto-decomposed stories should not count against SPIRAL_COST_CEILING since work continues via children"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-105",
+      "title": "Add optional Semgrep/Bandit security scan gate after Phase I implementation",
+      "priority": "medium",
+      "description": "Research shows 30-40% of AI-generated code contains security vulnerabilities including SQL injection, path traversal, and weak authentication patterns. Adding an optional Phase S (Security) between Phase I and Phase V, triggered by SPIRAL_SECURITY_SCAN=true, runs Semgrep (or Bandit for Python-only projects) on newly changed files and fails the story on HIGH-severity findings before the test suite runs.",
+      "acceptanceCriteria": [
+        "SPIRAL_SECURITY_SCAN=true env var enables the optional Phase S gate",
+        "SPIRAL_SECURITY_SCAN_TOOL env var selects the scanner: 'semgrep' (default) or 'bandit'",
+        "Phase S scans only files touched by the current story's commit (not the full codebase)",
+        "HIGH-severity findings fail the story with _failureReason: 'security_scan_failure'; MEDIUM findings emit a warning only",
+        "Phase S results are written to .spiral/security_scan_{STORY_ID}.json",
+        "When the scanner binary is not found, Phase S is skipped with a logged warning (not a failure)",
+        "SPIRAL_SECURITY_SCAN_ARGS env var passes additional flags to the scanner"
+      ],
+      "technicalNotes": [
+        "Semgrep invocation: `semgrep --config=auto --json --output=scan.json $(git diff --name-only HEAD~1)`",
+        "Bandit invocation: `bandit -r $(git diff --name-only HEAD~1 | grep '.py$') -f json -o scan.json`",
+        "Parse .results[].extra.severity for Semgrep output; .results[].issue_severity for Bandit output",
+        "Reference: OpenSSF Security-Focused Guide for AI Code Assistant Instructions; AWS MCP Security Scanner pattern"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-106",
+      "title": "Add story dependency auto-inference from filesTouch overlap in partition_prd.py",
+      "priority": "medium",
+      "description": "Story dependencies in prd.json are set manually or left empty, causing the partitioner to assign file-conflicting stories to different workers that later conflict on merge. Scanning filesTouch hints populated by populate_hints.py and detecting pairs that share files allows SPIRAL to suggest (or automatically add) dependency edges, improving partition quality and reducing merge conflicts in parallel worker runs.",
+      "acceptanceCriteria": [
+        "New script lib/infer_dependencies.py reads prd.json and computes file-touch overlap between all pending story pairs",
+        "Story pairs sharing >= 50% of one story's filesTouch entries are flagged as strongly dependent",
+        "Strong dependencies are written to prd.json dependencies arrays when SPIRAL_AUTO_INFER_DEPS=true",
+        "Weak overlaps (> 0 but < 50%) are written to .spiral/_dependency_hints.json without modifying prd.json",
+        "infer_dependencies.py is called at the end of Phase M so new stories get hints before partitioning",
+        "Auto-inferred dependency edges pass check_dag.py cycle detection before being written",
+        "Unit tests cover: empty filesTouch, full overlap, partial overlap, and would-create-cycle scenarios"
+      ],
+      "technicalNotes": [
+        "Jaccard similarity: |A ∩ B| / |A ∪ B| — threshold 0.5 for strong dependency classification",
+        "Stories with no filesTouch history (brand new, no prior commits) cannot be inferred and are skipped",
+        "This directly addresses the 'new story areas added after baseline have zero hints' gap in partition_prd.py"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-107",
+      "title": "Propagate W3C traceparent context via env var to parallel worker subprocesses",
+      "priority": "low",
+      "description": "When SPIRAL_OTLP_ENDPOINT is configured (pending story), each worker subprocess starts its own disconnected trace with no parent context, producing unlinked spans that cannot be correlated to the root spiral.sh invocation. Exporting the active span's traceparent into an env var before spawning workers links all worker spans into a single distributed trace per iteration, enabling end-to-end visibility across the multi-phase pipeline.",
+      "acceptanceCriteria": [
+        "When SPIRAL_OTLP_ENDPOINT is set, spiral.sh generates a root traceparent at loop start",
+        "TRACEPARENT env var is exported to all worker subprocesses in run_parallel_ralph.sh",
+        "ralph.sh reads TRACEPARENT and uses it as parent context when creating story-level spans",
+        "Each story attempt span carries attributes: story_id, worker_id, iteration, model_used",
+        "Parallel workers use Span Links (not parent-child) to reflect their independent relationship to the root trace",
+        "When SPIRAL_OTLP_ENDPOINT is unset, no tracing overhead is introduced"
+      ],
+      "technicalNotes": [
+        "W3C TraceContext spec: traceparent format is 00-{32hex traceId}-{16hex spanId}-{2hex flags}",
+        "Use otel-cli (github.com/equinix-labs/otel-cli) for Bash-native span creation without a Python runtime dependency",
+        "Span Links are the correct OTel relationship for parallel fan-out per the OTel spec",
+        "Implement after 'Expose OpenTelemetry OTLP endpoint configuration' story is complete"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
     }
   ]
 }
