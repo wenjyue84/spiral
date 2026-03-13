@@ -1229,3 +1229,4 @@ Incomplete: Add --dry-run flag to spiral.sh to test loop control flow without AP
 ### Gotchas
 - Test story titles must share NO words to avoid false-positive dedup (overlap_ratio >= 0.6 triggers is_duplicate)
 - Unicode arrow → in print output can cause assertion mismatches across subprocess boundaries on Windows — use partial string matching
+

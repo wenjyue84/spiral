@@ -225,6 +225,21 @@ def compute_bottlenecks(results: list[dict], retries: dict, prd: dict) -> dict:
     return {"most_retried": most_retried, "longest_duration": longest}
 
 
+def compute_iteration_velocity(results: list[dict]) -> dict:
+    """Return {iter: count} dict — stories with status=='keep' per spiral_iter."""
+    by_iter: dict[int, int] = {}
+    for r in results:
+        it = r.get("spiral_iter", 0)
+        if not isinstance(it, int):
+            try:
+                it = int(it)
+            except (ValueError, TypeError):
+                it = 0
+        if r.get("status") == "keep":
+            by_iter[it] = by_iter.get(it, 0) + 1
+    return by_iter
+
+
 def compute_decomposition(prd: dict) -> dict:
     stories = prd.get("userStories", [])
     parents = [s for s in stories if s.get("_decomposed")]
