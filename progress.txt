@@ -1592,3 +1592,23 @@ Completed: Detect git merge conflicts with `git merge-tree` before parallel work
 ### Gotchas
 - Must use ${SPIRAL_ON_COMPLETE:-} (with default) to avoid set -u errors
 - eval is intentional per technical notes to preserve env var expansion
+
+
+
+## Iteration - Story: US-050 Add unit tests for synthesize_tests.py
+
+### What was implemented
+- Created tests/test_synthesize_tests.py with 38 unit tests covering:
+  - find_recent_reports: missing dir, empty dir, no report.json, single report, multi-report sorting, n limit
+  - normalize: empty string, simple words, punctuation, unicode, mixed case, numbers
+  - PRIORITY_MAP: all 8 known categories parametrized, unknown fallback, key completeness
+  - Deduplication: overlap_ratio (identical, none, partial, empty), is_duplicate bidirectional check, dedup against PRD titles
+  - aggregate_failures: empty list, single failure, dedup across reports, passing tests ignored, invalid JSON skipped
+  - result_to_story: basic structure, priority from category, unknown category fallback, error message in AC
+
+### Patterns discovered
+- synthesize_tests.py uses overlap_ratio bidirectionally in is_duplicate (checks both directions)
+- normalize() strips all non-[a-z0-9] characters including accented unicode characters
+
+### Gotchas
+- None encountered; straightforward test creation
