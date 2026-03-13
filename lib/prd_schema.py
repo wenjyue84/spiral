@@ -172,6 +172,9 @@ def validate_prd(prd: dict) -> list[str]:
         if "_decomposedInto" in story and not isinstance(story["_decomposedInto"], list):
             errors.append(f"{prefix}: _decomposedInto must be a list")
 
+        if "_failureReason" in story and not isinstance(story["_failureReason"], str):
+            errors.append(f"{prefix}: _failureReason must be string")
+
         if "_passedCommit" in story:
             pc = story["_passedCommit"]
             if not isinstance(pc, str):

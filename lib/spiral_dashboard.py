@@ -243,6 +243,20 @@ def compute_bottlenecks(results: list[dict], retries: dict, prd: dict) -> dict:
     return {"most_retried": most_retried, "longest_duration": longest}
 
 
+def compute_failure_reasons(prd: dict) -> list[dict]:
+    """Return list of stories that have a _failureReason set."""
+    stories = prd.get("userStories", [])
+    return [
+        {
+            "story_id": s["id"],
+            "title": s.get("title", ""),
+            "reason": s["_failureReason"],
+        }
+        for s in stories
+        if s.get("_failureReason")
+    ]
+
+
 def compute_iteration_velocity(results: list[dict]) -> dict:
     """Return {iter: count} dict — stories with status=='keep' per spiral_iter."""
     by_iter: dict[int, int] = {}
@@ -491,7 +505,8 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
                 screenshot_path: str | None = None,
                 iteration_velocity: dict | None = None,
                 epics: list[dict] | None = None,
-                activity_sections: list[str] | None = None) -> str:
+                activity_sections: list[str] | None = None,
+                failure_reasons: list[dict] | None = None) -> str:
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     max_vel = max((v["kept"] for v in velocity), default=1) or 1
 
@@ -581,6 +596,23 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
     if insights:
         for i in insights:
             insights_html += f'<div class="insight">{escape(i)}</div>\n'
+
+    # Failure reasons table
+    failure_reasons_html = ""
+    fr_list = failure_reasons or []
+    if fr_list:
+        fr_rows = ""
+        for fr in fr_list:
+            fr_rows += (
+                f'<tr><td>{escape(fr["story_id"])}</td>'
+                f'<td class="trunc">{escape(fr["title"][:50])}</td>'
+                f'<td title="{escape(fr["reason"])}">{escape(fr["reason"][:80])}</td></tr>\n'
+            )
+        failure_reasons_html = (
+            f'<section>\n<h2>Failure Reasons</h2>\n'
+            f'<table>\n<tr><th>ID</th><th>Title</th><th>Reason</th></tr>\n'
+            f'{fr_rows}</table>\n</section>\n'
+        )
 
     # Velocity by iteration SVG chart
     iter_vel_svg = _render_velocity_svg(iteration_velocity or {})
@@ -756,6 +788,7 @@ footer{{text-align:center;color:#444;font-size:10px;margin-top:16px;padding-top:
 </section>
 </div>
 
+{failure_reasons_html}
 <section>
 <h2>Velocity by Iteration</h2>
 {iter_vel_svg}
@@ -799,6 +832,7 @@ def main() -> int:
     insights = generate_insights(overview, model_perf, retry_analysis, bottle)
     iter_vel = compute_iteration_velocity(results)
     epics = compute_epics(prd)
+    failure_reasons = compute_failure_reasons(prd)
 
     # Find latest screenshot
     screenshot = find_latest_screenshot(args.scratch_dir)
@@ -808,7 +842,7 @@ def main() -> int:
         velocity = [{"iter": 0, "kept": 0, "total": 0, "duration_hours": 0.001, "velocity": 0}]
 
     # Render
-    html = render_html(overview, velocity, status, model_perf, retry_analysis, bottle, decomposition, insights, screenshot, iteration_velocity=iter_vel, epics=epics, activity_sections=activity)
+    html = render_html(overview, velocity, status, model_perf, retry_analysis, bottle, decomposition, insights, screenshot, iteration_velocity=iter_vel, epics=epics, activity_sections=activity, failure_reasons=failure_reasons)
 
     # Write
     output_path = os.path.abspath(args.output)

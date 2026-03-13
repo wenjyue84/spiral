@@ -44,6 +44,7 @@ def main() -> int:
     passed_ids: set[str] = set()
     decomposed_map: dict[str, list[str]] = {}  # parent_id → child_ids
     skipped_map: dict[str, str] = {}  # story_id → _skipReason
+    failure_reason_map: dict[str, str] = {}  # story_id → _failureReason
     new_substories: list[dict] = []
 
     for wpath in args.workers:
@@ -67,6 +68,9 @@ def main() -> int:
             # Collect skipped flags from workers
             if s.get("_skipped") and s["id"] in main_ids:
                 skipped_map[s["id"]] = s.get("_skipReason", "MAX_RETRIES exhausted")
+            # Collect failure reasons from workers
+            if s.get("_failureReason") and s["id"] in main_ids:
+                failure_reason_map[s["id"]] = s["_failureReason"]
             # Collect new sub-stories created by decomposition in workers
             if s.get("_decomposedFrom") and s["id"] not in main_ids:
                 new_substories.append(s)
@@ -88,6 +92,10 @@ def main() -> int:
             s["_skipped"] = True
             s["_skipReason"] = skipped_map[s["id"]]
             print(f"[merge_workers]   x {s['id']} skipped — {s['_skipReason']}")
+        # Apply failure reasons from workers
+        if s["id"] in failure_reason_map and not s.get("_failureReason"):
+            s["_failureReason"] = failure_reason_map[s["id"]]
+            print(f"[merge_workers]   ! {s['id']} failure reason: {s['_failureReason']}")
 
     # Append new sub-stories from worker decompositions
     if new_substories:

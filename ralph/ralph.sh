@@ -1046,6 +1046,10 @@ except Exception:
       echo "## Iteration $ITERATION - $(date)" >> "$PROGRESS_FILE"
       echo "TIME BUDGET EXCEEDED: $STORY_TITLE ($NEXT_STORY) — ${STORY_DURATION_SEC}s > ${STORY_TIME_BUDGET}s budget" >> "$PROGRESS_FILE"
       if [[ "$RETRY_NOW" -ge "$MAX_RETRIES" ]]; then
+        FAILURE_REASON="TIME_BUDGET_EXCEEDED (${STORY_DURATION_SEC}s > ${STORY_TIME_BUDGET}s limit)"
+        $JQ --arg reason "$FAILURE_REASON" \
+          '(.userStories[] | select(.id == "'"$NEXT_STORY"'") | ._failureReason) = $reason' \
+          "$PRD_FILE" > "${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE" || true
         if decompose_story "$NEXT_STORY" "${EFFECTIVE_MODEL:-sonnet}"; then
           echo "DECOMPOSED: $NEXT_STORY after $MAX_RETRIES failed attempts — sub-stories created" >> "$PROGRESS_FILE"
           echo "[decompose] $NEXT_STORY decomposed after $MAX_RETRIES attempts"
@@ -1107,6 +1111,10 @@ Co-Authored-By: Claude ${COAUTHOR_LABEL} 4.6 <noreply@anthropic.com>" || echo "[
       echo "## Iteration $ITERATION - $(date)" >> "$PROGRESS_FILE"
       echo "FAILED quality gates: $STORY_TITLE (ID: $NEXT_STORY) — attempt $RETRY_NOW/$MAX_RETRIES" >> "$PROGRESS_FILE"
       if [[ "$RETRY_NOW" -ge "$MAX_RETRIES" ]]; then
+        FAILURE_REASON="MAX_RETRIES exhausted (quality gate failed after $MAX_RETRIES attempts)"
+        $JQ --arg reason "$FAILURE_REASON" \
+          '(.userStories[] | select(.id == "'"$NEXT_STORY"'") | ._failureReason) = $reason' \
+          "$PRD_FILE" > "${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE" || true
         git checkout -- . 2>/dev/null || true
         if decompose_story "$NEXT_STORY" "${EFFECTIVE_MODEL:-sonnet}"; then
           echo "DECOMPOSED: $NEXT_STORY after $MAX_RETRIES failed attempts — sub-stories created" >> "$PROGRESS_FILE"
@@ -1131,6 +1139,10 @@ Co-Authored-By: Claude ${COAUTHOR_LABEL} 4.6 <noreply@anthropic.com>" || echo "[
     echo "## Iteration $ITERATION - $(date)" >> "$PROGRESS_FILE"
     echo "Incomplete: $STORY_TITLE (ID: $NEXT_STORY) — attempt $RETRY_NOW/$MAX_RETRIES" >> "$PROGRESS_FILE"
     if [[ "$RETRY_NOW" -ge "$MAX_RETRIES" ]]; then
+      FAILURE_REASON="MAX_RETRIES exhausted (story incomplete after $MAX_RETRIES attempts)"
+      $JQ --arg reason "$FAILURE_REASON" \
+        '(.userStories[] | select(.id == "'"$NEXT_STORY"'") | ._failureReason) = $reason' \
+        "$PRD_FILE" > "${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE" || true
       git checkout -- . 2>/dev/null || true
       if decompose_story "$NEXT_STORY" "${EFFECTIVE_MODEL:-sonnet}"; then
         echo "DECOMPOSED: $NEXT_STORY after $MAX_RETRIES failed attempts — sub-stories created" >> "$PROGRESS_FILE"

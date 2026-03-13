@@ -2102,3 +2102,24 @@ Completed: Add mypy strict type checking enforcement to Python CI pipeline (ID: 
 ### Gotchas
 - `set -euo pipefail` at top of script means `exit 1` in Step 10 will trigger the cleanup trap — this is fine since cleanup ops are all idempotent with `2>/dev/null || true`
 - The `WORKER_EXIT_CODES` array must be initialized alongside `WORKER_FINISHED` (both indexed by worker slot) and updated inside the wait loop before the if/elif/else message branch
+
+
+## Iteration - Story: US-070 Store _failureReason field in prd.json when story is skipped or decomposed
+
+### What was implemented
+- Added _failureReason jq writes in ralph.sh at all 3 MAX_RETRIES skip/decompose locations:
+  - Time budget exceeded: "TIME_BUDGET_EXCEEDED (Xs > Ys limit)"
+  - Quality gate failed: "MAX_RETRIES exhausted (quality gate failed after N attempts)"
+  - Story incomplete: "MAX_RETRIES exhausted (story incomplete after N attempts)"
+- Added _failureReason optional string validation in prd_schema.py
+- Added _failureReason collection and promotion in merge_worker_results.py (parallel to _skipReason flow)
+- Added compute_failure_reasons() function and Failure Reasons HTML section in spiral_dashboard.py
+
+### Patterns discovered
+- _failureReason was already partially implemented: cost ceiling (line 1004) and all_models_unavailable (line 814) already set it
+- prd.schema.json already had _failureReason defined — only prd_schema.py stdlib validator was missing it
+- merge_worker_results.py follows a map/promote pattern: collect into dict during worker scan, apply to main prd in second pass
+
+### Gotchas
+- The jq pattern uses --arg to safely escape the reason string into JSON
+- _failureReason is independent of _skipped — a story can have a failure reason without being marked skipped (e.g., cost ceiling)
