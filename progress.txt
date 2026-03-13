@@ -1,0 +1,52 @@
+## Codebase Patterns
+
+(Patterns will be added by Ralph iterations as they discover them)
+
+---
+
+# Ralph Progress Log - Fri, Mar 13, 2026  9:16:25 AM
+Started autonomous agent loop for PRD completion
+
+
+## Pre-analysis for US-001 (Gemini 2.5 Pro)
+### Technical Brief: US-001: Wire `validate_preflight.sh` into `spiral.sh`
+
+**Note:** The story context is shell scripting (`.sh`), not a Frappe/Python application. The following analysis is based on the provided JSON.
+
+**1. Python/Shell Files to Modify:**
+*   `spiral.sh`: The main entry point script is the only file that needs modification.
+*   `lib/validate_preflight.sh`: This file will be sourced (read) by `spiral.sh`, but not modified.
+
+**2. Frappe DocTypes / Hooks:**
+*   None. The task involves shell scripts and configuration files, not the Frappe framework. The key components are the `prd.json` file and shell environment variables.
+
+**3. Recommended Implementation Approach:**
+1.  Open `spiral.sh`.
+2.  After the line that sources `spiral.config.sh` (which defines `PRD_FILE` and `SCRATCH_DIR`), add `source "lib/validate_preflight.sh"`.
+3.  Locate the start of the main processing loop (e.g., a `while` or `for` loop).
+4.  Just before this loop begins, insert the function call: `spiral_preflight_check "$PRD_FILE" "$SCRATCH_DIR"`.
+5.  Ensure `set -e` is active or check the function's exit code to halt the script on failure.
+
+**4. Edge Cases & Gotchas:**
+*   **Error Handling:** The script *must* exit immediately if `spiral_preflight_check` fails. Relying on `set -e` is the standard approach.
+*   **Variable Scope:** The `PRD_FILE` and `SCRATCH_DIR` variables must be exported or available in the shell environment when the check function is called.
+*   **Dependencies:** The `validate_preflight.sh` script internally depends on `jq` for JSON parsing. Ensure `jq` is in the system's PATH.
+*   **Testing:** To meet acceptance criteria, test the failure case by temporarily corrupting `prd.json` and ensuring the script aborts with a clear error. Then, restore it and confirm the normal "happy path" proceeds without issue.
+
+
+## Iteration 1 - Story: US-001: Wire validate_preflight.sh into spiral.sh startup
+
+### What was implemented
+- validate_preflight.sh was already sourced and spiral_preflight_check already called (lines 229-233 of spiral.sh)
+- Implementation was present from prior commits; prd.json just needed to be updated
+- All 51 pytest tests pass (uv run pytest tests/ -q → 51 passed)
+
+### Patterns discovered
+- spiral.sh loads config at ~line 150, sets SCRATCH_DIR/PRD_FILE at ~line 193-194
+- Verification libs sourced at ~line 229 (after JQ is resolved, after SCRATCH_DIR is set)
+- validate_preflight.sh uses $SPIRAL_PYTHON, $JQ, $SPIRAL_HOME — all must be exported before source
+- Tests live in tests/ and run via: uv run pytest tests/ -q
+
+### Gotchas
+- US-001 was already implemented in code; only prd.json marker was missing
+- Always check if implementation exists before writing new code
