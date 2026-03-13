@@ -1476,3 +1476,26 @@ Completed: Add SPIRAL_VALIDATE_TIMEOUT to bound Phase V test-suite execution tim
 - Test fixture for conflicting branches: BOTH HEAD (main) AND branch must have changed the same line from the common ancestor — if only branch changes the file, it's a clean merge
 - prd.json restoration: use `git show HEAD:prd.json > prd.json` if file gets truncated by jq parse errors
 - CONFLICT_WORKERS array iteration in bash: use `"${CONFLICT_WORKERS[@]:-}"` to avoid "unbound variable" error when array is empty
+## Iteration 3 - Fri, Mar 13, 2026  6:01:51 PM
+Completed: Detect git merge conflicts with `git merge-tree` before parallel worker integration (ID: US-097) in 17m
+
+
+## Iteration - Story: US-098: Add `spiral.sh --replay STORY_ID` to re-run a single story without full loop
+
+### What was implemented
+- Added `REPLAY_STORY_ID=""` default variable at line ~70
+- Added `--replay STORY_ID` argument parsing in the while/case block
+- Added `--replay STORY_ID` entry to `--help` output
+- Added full replay execution block (~90 lines) right before the main `while` loop in spiral.sh (after all helpers are defined)
+- Replay block: validates story ID exists, creates `.spiral-replay-{STORY_ID}` worktree from HEAD, sets only target story to `passes: false` in worktree prd.json, runs ralph (Phase I), runs SPIRAL_VALIDATE_CMD (Phase V), logs `replay_complete` event to spiral_events.jsonl, exits 0 on pass (cleanup worktree), exits 1 on fail (worktree preserved)
+
+### Patterns discovered
+- Replay block placed AFTER all helper function definitions (log_spiral_event, write_checkpoint, etc.) but BEFORE the startup counters and main while loop — this is the correct "early exit" location for mode-specific handlers that need helper functions
+- `(cd "$WORKTREE" && eval "$SPIRAL_VALIDATE_CMD" 2>&1) | tee -a LOG || REPLAY_V_RC=$?` — subshell inherits variables without export; tee captures output for log; `||` prevents set -e from aborting
+- Worktree branch uses timestamp suffix `spiral-replay-{ID}-{YYYYMMDD-HHMMSS}` to avoid collision on re-runs
+- Existing replay worktree at same path is removed before creating new one (handles leftover from previous failed run)
+
+### Gotchas
+- `log_spiral_event` is defined at line ~437 — replay code must be AFTER that line
+- With `set -euo pipefail`, pipeline exit code via `|| RC=$?` works correctly; `$?` inside `||` captures the pipeline's overall exit code
+- Worktree cleanup removes both the worktree directory AND the branch (`git branch -D`); otherwise orphaned branches accumulate
