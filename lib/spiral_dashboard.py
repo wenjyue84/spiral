@@ -241,6 +241,20 @@ def compute_decomposition(prd: dict) -> dict:
     }
 
 
+# ── Screenshot Discovery ─────────────────────────────────────────────────────
+
+def find_latest_screenshot(scratch_dir: str) -> str | None:
+    """Return the path to the latest screenshot in scratch_dir/screenshots/, or None."""
+    screenshots_dir = os.path.join(scratch_dir, "screenshots")
+    if not os.path.isdir(screenshots_dir):
+        return None
+    pngs = sorted(
+        (f for f in os.listdir(screenshots_dir) if f.endswith(".png")),
+        reverse=True,
+    )
+    return os.path.join(screenshots_dir, pngs[0]) if pngs else None
+
+
 # ── Insight Generation ───────────────────────────────────────────────────────
 
 def generate_insights(overview: dict, model_perf: list[dict], retry_analysis: list[dict], bottlenecks: dict) -> list[str]:
@@ -281,9 +295,28 @@ def generate_insights(overview: dict, model_perf: list[dict], retry_analysis: li
 
 # ── HTML Renderer ────────────────────────────────────────────────────────────
 
+def _render_screenshot_section(screenshot_path: str | None) -> str:
+    """Return an HTML section with the latest screenshot, or empty string."""
+    if not screenshot_path or not os.path.isfile(screenshot_path):
+        return ""
+    fname = os.path.basename(screenshot_path)
+    # Use relative path from the dashboard output directory
+    return (
+        '<section>\n'
+        '<h2>Latest Screenshot</h2>\n'
+        f'<div style="text-align:center">'
+        f'<img src="screenshots/{escape(fname)}" alt="App screenshot" '
+        f'style="max-width:100%;border-radius:6px;border:1px solid #333">'
+        f'<div class="metric-label" style="margin-top:6px">{escape(fname)}</div>'
+        f'</div>\n'
+        '</section>\n'
+    )
+
+
 def render_html(overview: dict, velocity: list[dict], status: dict,
                 model_perf: list[dict], retry_analysis: list[dict],
-                bottlenecks: dict, decomposition: dict, insights: list[str]) -> str:
+                bottlenecks: dict, decomposition: dict, insights: list[str],
+                screenshot_path: str | None = None) -> str:
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     max_vel = max((v["kept"] for v in velocity), default=1) or 1
 
@@ -518,6 +551,7 @@ footer{{text-align:center;color:#444;font-size:10px;margin-top:16px;padding-top:
 </section>
 </div>
 
+{_render_screenshot_section(screenshot_path)}
 <footer>SPIRAL Metrics Dashboard &middot; {now}</footer>
 </body>
 </html>"""
@@ -532,6 +566,7 @@ def main() -> int:
     parser.add_argument("--retries", default="retry-counts.json", help="Path to retry-counts.json")
     parser.add_argument("--progress", default="progress.txt", help="Path to progress.txt")
     parser.add_argument("--reports-dir", default="test-reports", help="Path to test-reports dir")
+    parser.add_argument("--scratch-dir", default=".spiral", help="Path to .spiral scratch dir (for screenshots)")
     parser.add_argument("--output", default=".spiral/dashboard.html", help="Output HTML path")
     parser.add_argument("--open", action="store_true", help="Auto-open in browser after generating")
     args = parser.parse_args()
@@ -551,12 +586,15 @@ def main() -> int:
     decomposition = compute_decomposition(prd)
     insights = generate_insights(overview, model_perf, retry_analysis, bottle)
 
+    # Find latest screenshot
+    screenshot = find_latest_screenshot(args.scratch_dir)
+
     # Need at least one velocity entry for the template
     if not velocity:
         velocity = [{"iter": 0, "kept": 0, "total": 0, "duration_hours": 0.001, "velocity": 0}]
 
     # Render
-    html = render_html(overview, velocity, status, model_perf, retry_analysis, bottle, decomposition, insights)
+    html = render_html(overview, velocity, status, model_perf, retry_analysis, bottle, decomposition, insights, screenshot)
 
     # Write
     output_path = os.path.abspath(args.output)

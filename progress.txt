@@ -897,3 +897,27 @@ Incomplete: Chrome DevTools Phase V: screenshot running app after validation (ID
 ### Gotchas
 - shutil.which("gitnexus") needed for CLI detection instead of subprocess call
 - Max retries input needs int validation since questionary.text returns string
+
+
+
+## Iteration - Story: US-010 Chrome DevTools Phase V: screenshot running app after validation
+
+### What was implemented
+- Added SPIRAL_DEV_URL variable to spiral.config.sh (commented out by default)
+- Added SPIRAL_DEV_URL default to spiral.sh defaults block (empty = disabled)
+- Added screenshot logic in spiral.sh Phase V: if SPIRAL_DEV_URL is set, spawns a small Claude agent call using Chrome DevTools MCP to navigate + screenshot
+- Screenshots saved to $SCRATCH_DIR/screenshots/iter-N-TIMESTAMP.png
+- Updated spiral-init.md wizard Group 8 to ask for dev server URL and include SPIRAL_DEV_URL in config template
+- Added find_latest_screenshot() and _render_screenshot_section() to spiral_dashboard.py
+- Dashboard render_html now accepts screenshot_path and includes <img> section if screenshot exists
+- Added --scratch-dir CLI arg to spiral_dashboard.py for screenshot discovery
+
+### Patterns discovered
+- Phase V in spiral.sh has a clear pattern: optional features (Lighthouse, screenshot) go between validation output and write_checkpoint
+- Chrome DevTools MCP tools are detected in ralph.sh via claude --help grep or env var
+- Dashboard uses relative paths from the output directory for linked assets (screenshots/filename.png)
+
+### Gotchas
+- Screenshot happens via Claude agent call (not bare bash) per technical notes — Chrome DevTools MCP is only accessible through Claude
+- Graceful degradation: if Chrome DevTools MCP is not available, the screenshot block logs a skip message and continues
+- The screenshot <img> tag uses a relative path assuming dashboard.html is in .spiral/ alongside screenshots/

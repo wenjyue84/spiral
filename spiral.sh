@@ -191,6 +191,7 @@ SPIRAL_LOW_POWER_MODE="${SPIRAL_LOW_POWER_MODE:-1}"
 SPIRAL_PRESSURE_THRESHOLDS="${SPIRAL_PRESSURE_THRESHOLDS:-40,25,15,8}"
 SPIRAL_MEMORY_POLL_INTERVAL="${SPIRAL_MEMORY_POLL_INTERVAL:-15}"
 SPIRAL_PRESSURE_HYSTERESIS="${SPIRAL_PRESSURE_HYSTERESIS:-2}"
+SPIRAL_DEV_URL="${SPIRAL_DEV_URL:-}"  # empty = disabled; URL for Phase V screenshot
 
 # ── Config validation ─────────────────────────────────────────────────────────
 # Validates required keys are set and applies defaults for optional keys.
@@ -1132,6 +1133,33 @@ try:
 except Exception as e:
     print(f'  [V] Lighthouse parse error: {e}')
 PYEOF
+      fi
+    fi
+
+    # ── Optional: Chrome DevTools screenshot ───────────────────────────────
+    if [[ -n "${SPIRAL_DEV_URL:-}" ]]; then
+      _SCREENSHOT_DIR="$SCRATCH_DIR/screenshots"
+      mkdir -p "$_SCREENSHOT_DIR"
+      _SCREENSHOT_TS=$(date +%Y%m%d-%H%M%S)
+      _SCREENSHOT_PATH="$_SCREENSHOT_DIR/iter-${SPIRAL_ITER}-${_SCREENSHOT_TS}.png"
+      echo "  [V] Taking screenshot of $SPIRAL_DEV_URL..."
+
+      # Use Claude agent with Chrome DevTools MCP to navigate + screenshot
+      _SCREENSHOT_PROMPT="Navigate to $SPIRAL_DEV_URL using mcp__chrome-devtools__navigate_page, wait for it to load, then take a screenshot using mcp__chrome-devtools__take_screenshot and save the result. Output only the word DONE when finished."
+      if (unset CLAUDECODE; claude -p "$_SCREENSHOT_PROMPT" \
+            --allowedTools "Bash,mcp__chrome-devtools__navigate_page,mcp__chrome-devtools__take_screenshot,mcp__chrome-devtools__wait_for" \
+            --max-turns 5 \
+            --dangerously-skip-permissions \
+            2>/dev/null) | grep -qi "done"; then
+        # Chrome DevTools saves screenshots via its own mechanism;
+        # check if a screenshot was produced in the scratch dir
+        if ls "$_SCREENSHOT_DIR"/iter-${SPIRAL_ITER}-*.png 1>/dev/null 2>&1; then
+          echo "  [V] Screenshot saved to $_SCREENSHOT_DIR/"
+        else
+          echo "  [V] Screenshot command ran but no file was saved (Chrome DevTools MCP may not be available)"
+        fi
+      else
+        echo "  [V] Screenshot skipped (Chrome DevTools MCP not available or failed)"
       fi
     fi
 

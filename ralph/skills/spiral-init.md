@@ -231,6 +231,16 @@ ls ~/.claude/skills/agent-browser.md 2>/dev/null && echo "found" || echo "not fo
 > **agent-browser skill not found** (optional). Install it to enable autonomous browser interaction.
 > Skip for now — this is informational only.
 
+**Dev server URL for visual screenshots:**
+
+> **Dev server URL for visual screenshots?** (e.g. `http://localhost:3000`)
+>
+> When set, Phase V will take a screenshot of your running app after each validation pass.
+> Screenshots are saved to `.spiral/screenshots/` and shown in the metrics dashboard.
+> Leave blank to disable.
+
+If the user provides a URL, write `SPIRAL_DEV_URL="{url}"` to spiral.config.sh.
+
 If the user opts in to browser testing (either tool detected + confirmed, or user requests it manually), write `SPIRAL_BROWSER_TESTING=1` to spiral.config.sh.
 
 Do **not** block setup if tools are missing — this section is informational. The MCP config itself (claude settings.json) requires manual setup outside the wizard; show the snippet:
@@ -406,6 +416,11 @@ SPIRAL_MAX_PENDING={user choice, default: 50}
 # Chrome DevTools MCP + agent-browser: visual screenshot validation during Phase V
 # Set to 1 to enable (requires chrome-devtools-mcp installed: npm i -g chrome-devtools-mcp)
 # SPIRAL_BROWSER_TESTING=1
+
+# Dev server URL for visual screenshots (e.g. http://localhost:3000)
+# When set, Phase V captures a screenshot after validation via Chrome DevTools MCP
+# Screenshots saved to .spiral/screenshots/iter-N-TIMESTAMP.png
+# SPIRAL_DEV_URL=""
 
 # Focus theme (empty = all stories)
 # SPIRAL_FOCUS=""

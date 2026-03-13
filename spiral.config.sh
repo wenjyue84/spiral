@@ -45,3 +45,9 @@ SPIRAL_STORY_BATCH_SIZE=20
 # Path to a static prompt file used as fallback when Gemini is unavailable.
 # Leave empty unless you have a domain-specific specialist prompt.
 SPIRAL_RESEARCH_SPECIALIST_PROMPT=""
+
+# ── Dev server URL for visual screenshots (Phase V) ───────────────────────
+# When set, Phase V will attempt Chrome DevTools screenshot after validation.
+# Screenshots saved to $SCRATCH_DIR/screenshots/iter-N-TIMESTAMP.png
+# Leave empty to disable.
+# SPIRAL_DEV_URL=""
