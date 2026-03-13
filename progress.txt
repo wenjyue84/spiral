@@ -263,3 +263,49 @@ Here is the technical brief:
 - prd.json .model field overrides RALPH_MODEL (acceptance criteria 2) — order matters in resolve_model
 - Must use `tr -d '\r'` on jq output for Windows CRLF safety
 - Parallel workers call the same resolve_model() function (no separate code path needed)
+## Iteration 5 - Fri, Mar 13, 2026  9:48:53 AM
+Completed: ralph.sh: read per-story model field from prd.json at runtime (ID: US-011) in 5m
+
+
+## Pre-analysis for US-012 (Gemini 2.5 Pro)
+Here is a technical brief for implementing story US-012.
+
+**Objective:** Modify `ralph.sh` to append a telemetry row to a central `results.tsv` file after each story generation attempt.
+
+**Affected Files & Hooks:**
+*   **Primary Target:** `ralph/ralph.sh`. This script will be modified to contain the telemetry logging logic.
+*   **No Frappe/Python:** This is a shell scripting task. No DocTypes, Python controllers, or Frappe hooks are involved. `spiral_dashboard.py` is a consumer of the generated file, not the producer.
+
+**Implementation Approach:**
+1.  **Locate Target:** In `ralph.sh`, find the main loop where the AI model is called and the subsequent acceptance test is run.
+2.  **Time Capture:** Before the AI call, capture the start time: `STORY_START=$(date +%s)`.
+3.  **Status & Duration:** After the test run, determine the `status`. A zero exit code from the test runner should map to 'keep', non-zero to 'reject'. Then calculate `DURATION=$(( $(date +%s) - STORY_START ))`.
+4.  **File & Header:** Define the output file path, e.g., `RESULTS_TSV="$SPIRAL_HOME/results.tsv"`. Check if this file exists. If not, write the header row: `echo -e 'timestamp\t...' > "$RESULTS_TSV"`.
+5.  **Append Data:** Use `printf` to append the tab-separated values. All variables (`story_id`, `model`, `retry_num`, `spiral_iter`) should be available as environment variables within the script's scope.
+
+**Gotchas & Edge Cases:**
+*   **Concurrency:** Workers run in parallel. While `>>` appends are generally atomic, using `flock` around the write block is safer to prevent interleaved lines from multiple `ralph.sh` instances.
+*   **Pathing:** The path to `results.tsv` must resolve to the project root (`SPIRAL_HOME`), not the local worker directory.
+*   **Environment:** Verify that `spiral.sh` correctly exports `SPIRAL_ITER` so it's available to the `ralph.sh` process.
+
+
+## Iteration 6 - Story: US-012: Emit results.tsv telemetry row per story attempt in ralph.sh
+
+### What was implemented
+- append_result() function was ALREADY implemented (lines 267-282 of ralph.sh)
+- It was already being called at all the right places (time budget, quality fail, story fail, success)
+- Only gap: status values used "discard" instead of "reject" as required by acceptance criteria
+- Changed 3 `append_result "discard"` calls → `append_result "reject"` (lines 744, 795, 818)
+- "skip" status at line 509 kept as-is (pre-loop skips, not real attempts)
+- All 51 pytest tests pass
+
+### Patterns discovered
+- append_result() uses STORY_END and STORY_START globals (set before/after AI invocation)
+- RESULTS_FILE="results.tsv" (local to project root, relative path)
+- Header: timestamp, spiral_iter, ralph_iter, story_id, story_title, status, duration_sec, model, retry_num, commit_sha
+- spiral_dashboard.py uses csv.DictReader — column order doesn't matter, extra columns ignored
+- Dashboard only checks for status=="keep" vs anything else
+
+### Gotchas
+- US-012 was 95% already implemented; only the status string "discard" vs "reject" was wrong
+- Always check if implementation already exists before writing new code
