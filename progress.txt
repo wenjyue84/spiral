@@ -2036,3 +2036,19 @@ Incomplete: Emit per-iteration summary JSON to .spiral/_iteration_summary.json (
 
 ### Gotchas
 - prd.json requires explicit `encoding='utf-8'` when reading/writing with Python on Windows (cp1252 default fails on Unicode chars like —)
+
+## Iteration N - Story: US-125: Add shellcheck static analysis gate to CI for all bash scripts
+
+### What was implemented
+- Added `shellcheck` job to `.github/workflows/ci.yml` using `koalaman/shellcheck-action@v1` pinned at `v0.10.0`
+  - Runs `--severity=error --format=gcc` over all 10 `.sh` files in the repo
+- Created `.pre-commit-config.yaml` with `koalaman/shellcheck-precommit` at `v0.10.0`
+- Added shellcheck version check to `spiral_doctor()` in `lib/spiral_doctor.sh` (WARN if missing)
+
+### Patterns discovered
+- spiral_doctor uses [OK]/[WARN]/[ERROR] levels; shellcheck absence is a WARN not ERROR (dev convenience tool)
+- ci.yml shell scripts listed explicitly by path — no glob, keeps CI deterministic
+
+### Gotchas
+- prd.json must be read with `encoding='utf-8'` on Windows (cp1252 default fails on em-dash chars)
+- `koalaman/shellcheck-action@v1` takes `args:` as a multiline block-scalar for multiple file paths
