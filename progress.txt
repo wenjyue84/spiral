@@ -1042,3 +1042,19 @@ Incomplete: Implement main.py as a proper CLI with init, run, and status subcomm
 ## Iteration 10 - Fri, Mar 13, 2026  2:46:35 PM
 Incomplete: Implement main.py as a proper CLI with init, run, and status subcommands (ID: US-020) — attempt 1/3
 
+
+## Iteration N - Story: US-020: Implement main.py as a proper CLI with init, run, and status subcommands
+
+### What was implemented
+- main.py was already fully implemented with argparse, three subcommands (init, run, status)
+- pyproject.toml already has `spiral = "main:main"` in [project.scripts]
+- `uv run spiral --help` shows all three subcommands
+- `uv run spiral status` prints "32/94 stories complete (34%) -> 62 pending"
+- 207 pytest tests pass
+
+### Patterns discovered
+- main.py uses os.execvp for `run` subcommand (replaces process) vs subprocess.run for `init`
+- PRD_FILE and SPIRAL_SH are resolved relative to __file__ for portability
+
+### Gotchas
+- prd.json has unicode chars; must use encoding='utf-8' when reading/writing with Python
