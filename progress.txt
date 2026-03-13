@@ -1859,3 +1859,6 @@ Completed: Add per-story token cost accumulation and soft/hard budget enforcemen
 ### Gotchas
 - prd.schema.json previously had schemaVersion as type "string" — changed to "integer" per the AC
 - The schemaVersion warning goes to stderr (not errors list) so it doesn't block validation — just nudges migration
+## Iteration 6 - Fri, Mar 13, 2026  9:43:14 PM
+Incomplete: Add model fallback chain with per-model circuit breaker state (ID: US-112) — attempt 1/3
+
