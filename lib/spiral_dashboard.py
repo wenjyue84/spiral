@@ -14,6 +14,7 @@ import argparse
 import csv
 import json
 import os
+import re
 import subprocess
 import sys
 from collections import defaultdict
@@ -64,6 +65,23 @@ def load_retries(path: str) -> dict:
         return {}
     with open(path, encoding="utf-8", errors="replace") as f:
         return json.load(f)
+
+
+def load_progress(path: str, max_entries: int = 10) -> list[str]:
+    """Load progress.txt and return last *max_entries* iteration sections.
+
+    Splits on ``## Iteration`` headers.  Returns [] if file is absent or empty.
+    """
+    if not os.path.isfile(path):
+        return []
+    with open(path, encoding="utf-8", errors="replace") as f:
+        content = f.read()
+    if not content.strip():
+        return []
+    sections = re.split(r"(?=^## Iteration)", content, flags=re.MULTILINE)
+    # Keep only sections that actually start with the header
+    sections = [s.strip() for s in sections if s.strip().startswith("## Iteration")]
+    return sections[-max_entries:]
 
 
 # ── Metrics Computation ──────────────────────────────────────────────────────
@@ -441,12 +459,39 @@ def _render_screenshot_section(screenshot_path: str | None) -> str:
     )
 
 
+def _render_activity_feed(sections: list[str]) -> str:
+    """Return a collapsible Recent Activity section, or '' if no sections."""
+    if not sections:
+        return ""
+    n = len(sections)
+    entries = ""
+    for sec in sections:
+        lines = sec.split("\n", 1)
+        title = lines[0].lstrip("# ").strip()
+        body = lines[1].strip() if len(lines) > 1 else ""
+        entries += (
+            f'<div style="margin-bottom:12px">'
+            f'<b>{escape(title)}</b>'
+            f'<pre style="white-space:pre-wrap;font-size:11px;margin-top:4px;color:#aaa">{escape(body)}</pre>'
+            f'</div>\n'
+        )
+    return (
+        '<section>\n'
+        f'<details><summary style="cursor:pointer;color:#6c63ff;font-size:14px;text-transform:uppercase;letter-spacing:1px">'
+        f'Recent Activity (last {n} entries)</summary>\n'
+        f'<div style="margin-top:12px">{entries}</div>\n'
+        '</details>\n'
+        '</section>\n'
+    )
+
+
 def render_html(overview: dict, velocity: list[dict], status: dict,
                 model_perf: list[dict], retry_analysis: list[dict],
                 bottlenecks: dict, decomposition: dict, insights: list[str],
                 screenshot_path: str | None = None,
                 iteration_velocity: dict | None = None,
-                epics: list[dict] | None = None) -> str:
+                epics: list[dict] | None = None,
+                activity_sections: list[str] | None = None) -> str:
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     max_vel = max((v["kept"] for v in velocity), default=1) or 1
 
@@ -716,6 +761,7 @@ footer{{text-align:center;color:#444;font-size:10px;margin-top:16px;padding-top:
 {iter_vel_svg}
 </section>
 
+{_render_activity_feed(activity_sections or [])}
 {_render_screenshot_section(screenshot_path)}
 <footer>SPIRAL Metrics Dashboard &middot; {now}</footer>
 </body>
@@ -740,6 +786,7 @@ def main() -> int:
     prd = load_prd(args.prd)
     results = load_results(args.results)
     retries = load_retries(args.retries)
+    activity = load_progress(args.progress)
 
     # Compute metrics
     overview = compute_overview(prd, results)
@@ -761,7 +808,7 @@ def main() -> int:
         velocity = [{"iter": 0, "kept": 0, "total": 0, "duration_hours": 0.001, "velocity": 0}]
 
     # Render
-    html = render_html(overview, velocity, status, model_perf, retry_analysis, bottle, decomposition, insights, screenshot, iteration_velocity=iter_vel, epics=epics)
+    html = render_html(overview, velocity, status, model_perf, retry_analysis, bottle, decomposition, insights, screenshot, iteration_velocity=iter_vel, epics=epics, activity_sections=activity)
 
     # Write
     output_path = os.path.abspath(args.output)

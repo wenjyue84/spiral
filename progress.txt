@@ -1537,3 +1537,21 @@ Completed: Detect git merge conflicts with `git merge-tree` before parallel work
 - prd.json encoding must be utf-8 on Windows (cp1252 default causes UnicodeDecodeError in Python)
 - The `|| echo ''` fallback on git rev-parse ensures no error if running outside git repo
 
+
+
+## Iteration 9 - Story: US-025: Dashboard: add progress.txt activity feed section
+
+### What was implemented
+- Added `load_progress(path, max_entries=10)` function that parses progress.txt into sections split by `## Iteration` headers
+- Added `_render_activity_feed(sections)` that renders a collapsible `<details><summary>` HTML section
+- Updated `render_html` to accept `activity_sections` kwarg, rendered after bottleneck tables before footer
+- Wired up in `main()` using the existing `--progress` argument (was already in argparse but unused)
+- Added 13 new tests: TestLoadProgress (5), TestRenderActivityFeed (4), TestRenderHtmlActivitySection (4)
+
+### Patterns discovered
+- `--progress` argument was already defined in argparse but never consumed — just needed to wire it up
+- Test helper `_make_minimal_render_args()` makes it easy to test render_html with new kwargs
+
+### Gotchas
+- progress.txt has a preamble (## Codebase Patterns) before ## Iteration sections — regex split must filter for sections starting with "## Iteration"
+- HTML escaping needed on section content to prevent XSS from user-controlled progress.txt content

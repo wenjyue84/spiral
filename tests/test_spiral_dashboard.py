@@ -9,6 +9,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 from spiral_dashboard import (  # noqa: E402
     compute_iteration_velocity,
     _render_velocity_svg,
+    _render_activity_feed,
+    load_progress,
     render_html,
     compute_overview,
     compute_velocity,
@@ -160,3 +162,95 @@ class TestRenderHtmlVelocitySection:
         args = _make_minimal_render_args()
         html = render_html(*args)
         assert "Velocity by Iteration" in html
+
+
+# ── load_progress ────────────────────────────────────────────────────────────
+
+class TestLoadProgress:
+    def test_missing_file_returns_empty(self, tmp_path):
+        assert load_progress(str(tmp_path / "nonexistent.txt")) == []
+
+    def test_empty_file_returns_empty(self, tmp_path):
+        p = tmp_path / "progress.txt"
+        p.write_text("", encoding="utf-8")
+        assert load_progress(str(p)) == []
+
+    def test_no_iteration_headers_returns_empty(self, tmp_path):
+        p = tmp_path / "progress.txt"
+        p.write_text("## Codebase Patterns\n- some pattern\n", encoding="utf-8")
+        assert load_progress(str(p)) == []
+
+    def test_parses_iteration_sections(self, tmp_path):
+        p = tmp_path / "progress.txt"
+        p.write_text(
+            "## Codebase Patterns\n- foo\n\n"
+            "## Iteration 1 - Story: US-001\n\n### What\n- stuff\n\n"
+            "## Iteration 2 - Story: US-002\n\n### What\n- more stuff\n",
+            encoding="utf-8",
+        )
+        sections = load_progress(str(p))
+        assert len(sections) == 2
+        assert sections[0].startswith("## Iteration 1")
+        assert sections[1].startswith("## Iteration 2")
+
+    def test_respects_max_entries(self, tmp_path):
+        p = tmp_path / "progress.txt"
+        content = "\n".join(f"## Iteration {i} - Story: US-{i:03d}\nbody {i}\n" for i in range(1, 15))
+        p.write_text(content, encoding="utf-8")
+        sections = load_progress(str(p), max_entries=3)
+        assert len(sections) == 3
+        assert sections[0].startswith("## Iteration 12")
+
+
+# ── _render_activity_feed ────────────────────────────────────────────────────
+
+class TestRenderActivityFeed:
+    def test_empty_sections_returns_empty_string(self):
+        assert _render_activity_feed([]) == ""
+
+    def test_renders_details_element(self):
+        html = _render_activity_feed(["## Iteration 1 - Story: US-001\nsome body"])
+        assert "<details>" in html
+        assert "</details>" in html
+
+    def test_summary_shows_count(self):
+        html = _render_activity_feed([
+            "## Iteration 1 - Story: US-001\nbody1",
+            "## Iteration 2 - Story: US-002\nbody2",
+        ])
+        assert "last 2 entries" in html
+
+    def test_title_and_body_rendered(self):
+        html = _render_activity_feed(["## Iteration 5 - Story: US-042\nImportant details"])
+        assert "Iteration 5 - Story: US-042" in html
+        assert "Important details" in html
+
+    def test_html_escaping(self):
+        html = _render_activity_feed(["## Iteration 1 - <script>alert('xss')</script>\nbody"])
+        assert "<script>" not in html
+        assert "&lt;script&gt;" in html
+
+
+# ── render_html activity section ─────────────────────────────────────────────
+
+class TestRenderHtmlActivitySection:
+    def test_activity_section_present_when_sections_provided(self):
+        args = _make_minimal_render_args()
+        html = render_html(*args, activity_sections=["## Iteration 1 - Story: US-001\nbody"])
+        assert "Recent Activity" in html
+        assert "<details>" in html
+
+    def test_activity_section_absent_when_no_sections(self):
+        args = _make_minimal_render_args()
+        html = render_html(*args, activity_sections=[])
+        assert "Recent Activity" not in html
+
+    def test_activity_section_absent_when_none(self):
+        args = _make_minimal_render_args()
+        html = render_html(*args, activity_sections=None)
+        assert "Recent Activity" not in html
+
+    def test_activity_section_absent_when_omitted(self):
+        args = _make_minimal_render_args()
+        html = render_html(*args)
+        assert "Recent Activity" not in html
