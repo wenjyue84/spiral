@@ -189,6 +189,7 @@ SPIRAL_SPECKIT_CONSTITUTION="${SPIRAL_SPECKIT_CONSTITUTION:-}"
 SPIRAL_SPECKIT_SPECS_DIR="${SPIRAL_SPECKIT_SPECS_DIR:-}"
 SPIRAL_FOCUS="${SPIRAL_CLI_FOCUS:-${SPIRAL_FOCUS:-}}"
 SPIRAL_MAX_PENDING="${SPIRAL_MAX_PENDING:-0}"  # 0 = unlimited
+SPIRAL_MAX_RESEARCH_STORIES="${SPIRAL_MAX_RESEARCH_STORIES:-0}"  # 0 = unlimited; cap research candidates per iteration
 SPIRAL_STORY_BATCH_SIZE="${SPIRAL_STORY_BATCH_SIZE:-20}"  # 0 = disabled (show all)
 SPIRAL_COST_CEILING="${SPIRAL_COST_CEILING:-}"  # empty = disabled; USD amount to cap spend
 SPIRAL_LOW_POWER_MODE="${SPIRAL_LOW_POWER_MODE:-1}"
@@ -504,6 +505,7 @@ fi
   echo "  ║  Spec-Kit:    constitution loaded"
 [[ -n "$SPIRAL_FOCUS" ]] && echo "  ║  Focus:       $SPIRAL_FOCUS"
 [[ "$SPIRAL_MAX_PENDING" -gt 0 ]] && echo "  ║  Max pending: $SPIRAL_MAX_PENDING incomplete stories"
+[[ "$SPIRAL_MAX_RESEARCH_STORIES" -gt 0 ]] && echo "  ║  Max research: $SPIRAL_MAX_RESEARCH_STORIES stories per iteration"
 [[ "$SPIRAL_STORY_BATCH_SIZE" -gt 0 ]] && echo "  ║  Batch size:  $SPIRAL_STORY_BATCH_SIZE stories per iteration"
 [[ -n "$SPIRAL_COST_CEILING" ]] && echo "  ║  Cost cap:    \$${SPIRAL_COST_CEILING} USD"
 [[ "$SPIRAL_LOW_POWER_MODE" -eq 1 ]] && echo "  ║  Low power:   adaptive memory management enabled"
@@ -524,6 +526,7 @@ SPIRAL_ITER=0
 
 export SPIRAL_FOCUS
 export SPIRAL_ITER
+export SPIRAL_MAX_RESEARCH_STORIES
 
 if [[ -f "$CHECKPOINT_FILE" ]]; then
   CKPT_ITER=$("$JQ" -r '.iter // 0' "$CHECKPOINT_FILE")

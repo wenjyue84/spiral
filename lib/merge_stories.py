@@ -169,6 +169,12 @@ def main() -> int:
     research_candidates = load_candidates(args.research)
     overflow_candidates = load_candidates(args.overflow_in) if args.overflow_in else []
 
+    # ── Cap research candidates per iteration (before dedup) ─────────────────
+    max_research = int(os.environ.get("SPIRAL_MAX_RESEARCH_STORIES", "0"))
+    if max_research > 0 and len(research_candidates) > max_research:
+        print(f"[merge] Capping research output: {len(research_candidates)} → {max_research} stories")
+        research_candidates = research_candidates[:max_research]
+
     if overflow_candidates:
         print(f"[merge] Overflow (carried from previous iteration): {len(overflow_candidates)} candidates")
     print(f"[merge] Test candidates: {len(test_candidates)}, Research candidates: {len(research_candidates)}")

@@ -1,6 +1,7 @@
 """Property-based tests for merge_stories.py operations."""
 import json
 import os
+import subprocess
 import sys
 import re
 import pytest
@@ -108,3 +109,104 @@ class TestStoryToPrdEntry:
         story = prd["userStories"][0]
         entry = story_to_prd_entry(story, "US-999")
         assert entry["passes"] is False
+
+
+class TestMaxResearchStoriesCap:
+    """Integration tests for SPIRAL_MAX_RESEARCH_STORIES env var."""
+
+    # Each title uses only its own unique words (3 words each, no overlap)
+    _TITLES = [
+        "alpha bravo charlie", "delta echo foxtrot", "golf hotel india",
+        "juliet kilo lima", "mike november oscar", "papa quebec romeo",
+        "sierra tango uniform", "victor whiskey xray", "yankee zulu amber",
+        "bronze copper diamond", "emerald flint granite", "hickory ivory jade",
+        "kelp lemon maple", "nutmeg olive pecan", "quartz ruby sapphire",
+        "topaz umber violet", "walnut xenon yew", "zinc agate basalt",
+        "cedar dusk ember", "frost glow haze",
+    ]
+
+    def _make_research_file(self, path, count):
+        """Write a research output JSON with `count` non-overlapping stories."""
+        stories = [
+            {"title": self._TITLES[i], "priority": "medium",
+             "description": self._TITLES[i], "acceptanceCriteria": [f"criterion{i}"]}
+            for i in range(count)
+        ]
+        path.write_text(json.dumps({"stories": stories}, indent=2), encoding="utf-8")
+
+    def _make_prd(self, path):
+        """Write a minimal valid prd.json with a title that won't overlap test candidates."""
+        prd = {
+            "productName": "TestApp",
+            "branchName": "main",
+            "userStories": [
+                {"id": "US-001", "title": "xyzzy plugh plover", "passes": True,
+                 "priority": "medium", "description": "", "acceptanceCriteria": ["done"],
+                 "dependencies": []}
+            ]
+        }
+        path.write_text(json.dumps(prd, indent=2), encoding="utf-8")
+
+    def test_max_research_stories_cap(self, tmp_path, monkeypatch):
+        """When SPIRAL_MAX_RESEARCH_STORIES is set, research candidates are truncated before dedup."""
+        prd_path = tmp_path / "prd.json"
+        research_path = tmp_path / "research.json"
+        test_stories_path = tmp_path / "test_stories.json"
+
+        self._make_prd(prd_path)
+        self._make_research_file(research_path, 20)  # 20 research candidates
+        test_stories_path.write_text('{"stories": []}', encoding="utf-8")
+
+        monkeypatch.setenv("SPIRAL_MAX_RESEARCH_STORIES", "5")
+
+        # Run merge_stories.py as subprocess to test env var integration
+        merge_script = os.path.join(os.path.dirname(__file__), "..", "lib", "merge_stories.py")
+        result = subprocess.run(
+            [sys.executable, merge_script,
+             "--prd", str(prd_path),
+             "--research", str(research_path),
+             "--test-stories", str(test_stories_path)],
+            capture_output=True, text=True,
+            env={**os.environ, "SPIRAL_MAX_RESEARCH_STORIES": "5"},
+        )
+        assert result.returncode == 0, f"merge_stories.py failed:\n{result.stderr}"
+
+        # Verify cap message was printed (use partial match to avoid encoding issues with arrow)
+        assert "Capping research output: 20" in result.stdout
+        assert "5 stories" in result.stdout
+
+        # Verify only 5 new stories were added (+ 1 existing = 6 total)
+        with open(prd_path, encoding="utf-8") as f:
+            prd = json.load(f)
+        new_stories = [s for s in prd["userStories"] if not s.get("passes")]
+        assert len(new_stories) == 5
+
+    def test_max_research_stories_zero_is_unlimited(self, tmp_path, monkeypatch):
+        """When SPIRAL_MAX_RESEARCH_STORIES=0 (default), no truncation occurs."""
+        prd_path = tmp_path / "prd.json"
+        research_path = tmp_path / "research.json"
+        test_stories_path = tmp_path / "test_stories.json"
+
+        self._make_prd(prd_path)
+        self._make_research_file(research_path, 8)
+        test_stories_path.write_text('{"stories": []}', encoding="utf-8")
+
+        merge_script = os.path.join(os.path.dirname(__file__), "..", "lib", "merge_stories.py")
+        result = subprocess.run(
+            [sys.executable, merge_script,
+             "--prd", str(prd_path),
+             "--research", str(research_path),
+             "--test-stories", str(test_stories_path)],
+            capture_output=True, text=True,
+            env={**os.environ, "SPIRAL_MAX_RESEARCH_STORIES": "0"},
+        )
+        assert result.returncode == 0, f"merge_stories.py failed:\n{result.stderr}"
+
+        # No cap message should appear
+        assert "Capping research output" not in result.stdout
+
+        # All 8 research stories should be added
+        with open(prd_path, encoding="utf-8") as f:
+            prd = json.load(f)
+        new_stories = [s for s in prd["userStories"] if not s.get("passes")]
+        assert len(new_stories) == 8

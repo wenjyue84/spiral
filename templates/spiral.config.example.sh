@@ -99,6 +99,14 @@
 # Default: 0 (disabled — WebFetch used instead)
 # SPIRAL_FIRECRAWL_ENABLED=0
 
+# ── Max research stories per iteration ────────────────────────────────────
+# Caps how many NEW research candidates Phase R can inject per iteration.
+# Applied BEFORE deduplication in Phase M merge. Prevents a single research
+# pass from overwhelming the backlog even when SPIRAL_MAX_PENDING is set.
+# 0 = unlimited (no cap). Recommended: 5-10 for controlled growth.
+# Default: 0 (unlimited)
+# SPIRAL_MAX_RESEARCH_STORIES=10
+
 # ── Max pending stories ────────────────────────────────────────────────────
 # Hard cap on total incomplete (pending) stories in prd.json.
 # Phase M will stop adding new stories once pending count reaches this limit.

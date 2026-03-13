@@ -1209,3 +1209,23 @@ Incomplete: Add --dry-run flag to spiral.sh to test loop control flow without AP
 - `grep -qiE '429'` could theoretically match line numbers or IDs — accepted trade-off per AC spec
 - When 529 handler reaches max retries, `_RL_TMP` won't exist (file already deleted) — grep silently fails, outer loop breaks
 - Rate-limit loop re-runs the full "AI Output Start/End" block on retry, which is intentional (fresh invocation)
+## Iteration 7 - Fri, Mar 13, 2026  3:55:11 PM
+Incomplete: Add --dry-run flag to spiral.sh to test loop control flow without API calls (ID: US-022) — attempt 2/3
+
+
+## Iteration - Story: US-035 Add SPIRAL_MAX_RESEARCH_STORIES cap in Phase M merge
+
+### What was implemented
+- Added SPIRAL_MAX_RESEARCH_STORIES env var to merge_stories.py: truncates research candidates BEFORE dedup when set >0
+- Documented in templates/spiral.config.example.sh with usage guidance
+- Exported from spiral.sh (defaults block + export + status display line)
+- Added 2 integration tests in test_merge.py: cap truncation and zero=unlimited
+
+### Patterns discovered
+- merge_stories.py loads research_candidates from --research file, then builds research_pool = overflow + fresh research
+- The cap is applied to fresh research_candidates only (before combining with overflow), matching the story's intent
+- Dedup uses overlap_ratio with 0.6 threshold — test stories need completely non-overlapping word sets
+
+### Gotchas
+- Test story titles must share NO words to avoid false-positive dedup (overlap_ratio >= 0.6 triggers is_duplicate)
+- Unicode arrow → in print output can cause assertion mismatches across subprocess boundaries on Windows — use partial string matching
