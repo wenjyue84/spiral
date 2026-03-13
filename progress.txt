@@ -1940,3 +1940,21 @@ Completed: Add model fallback chain with per-model circuit breaker state (ID: US
 ### Gotchas
 - `(( expr ))` returns exit code 1 when result is 0, which kills script under `set -e` — must add `|| true`
 - The `if [[ ! -f "$RESEARCH_OUTPUT" ]]` block after the retry loop is now redundant (covered by the `_R_SUCCESS` check) but harmless to leave in
+## Iteration 2 - Fri, Mar 13, 2026 10:15:20 PM
+Incomplete: Emit per-iteration summary JSON to .spiral/_iteration_summary.json (ID: US-039) — attempt 2/3
+
+
+## Iteration 135 - Story: US-063 - Add unit tests for spiral_dashboard.py compute functions
+
+### What was implemented
+- Added 18 new test cases to tests/test_spiral_dashboard.py covering compute_overview, compute_velocity, compute_model_performance, compute_status_breakdown
+- Tests cover: empty inputs, partial inputs, correct counts/percentages, elapsed time formatting (hours+minutes, minutes-only, single timestamp), cost estimation, iteration max, velocity sorting, mixed model success rates, unknown model handling, story/attempt breakdown
+
+### Patterns discovered
+- Test file already existed with 33 tests from US-034 (velocity chart). Extended rather than replaced.
+- All compute_* functions are pure data transformations taking dicts/lists — easy to test with inline fixtures, no temp files needed.
+- compute_overview elapsed time requires 2+ timestamps to produce a result; single timestamp returns "N/A"
+
+### Gotchas
+- compute_overview completion_pct uses effective_total (total - decomposed) as denominator, not raw total
+- compute_model_performance sorts by success_rate descending — test assertions must account for sort order

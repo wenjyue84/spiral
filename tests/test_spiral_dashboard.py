@@ -254,3 +254,216 @@ class TestRenderHtmlActivitySection:
         args = _make_minimal_render_args()
         html = render_html(*args)
         assert "Recent Activity" not in html
+
+
+# ── compute_overview ─────────────────────────────────────────────────────────
+
+class TestComputeOverview:
+    def test_empty_inputs_produce_zero_counts(self):
+        """Empty prd and results → zeroed overview with no crash."""
+        overview = compute_overview({"userStories": []}, [])
+        assert overview["total"] == 0
+        assert overview["passed"] == 0
+        assert overview["pending"] == 0
+        assert overview["decomposed"] == 0
+        assert overview["skipped"] == 0
+        assert overview["completion_pct"] == 0
+        assert overview["total_attempts"] == 0
+        assert overview["elapsed"] == "N/A"
+        assert overview["iterations"] == 0
+        assert overview["est_cost"] == 0
+
+    def test_partial_inputs_correct_counts(self):
+        """Mix of passed, pending, decomposed, skipped stories."""
+        prd = {"userStories": [
+            {"id": "S-1", "passes": True},
+            {"id": "S-2", "passes": True},
+            {"id": "S-3", "passes": False},
+            {"id": "S-4", "passes": False, "_decomposed": True, "_decomposedInto": ["S-4a"]},
+            {"id": "S-4a", "passes": True, "_decomposedFrom": "S-4"},
+            {"id": "S-5", "passes": False, "_skipped": True},
+        ]}
+        results = [
+            {"spiral_iter": 1, "status": "keep", "duration_sec": 120, "model": "sonnet"},
+            {"spiral_iter": 1, "status": "fail", "duration_sec": 60, "model": "haiku"},
+        ]
+        overview = compute_overview(prd, results)
+        assert overview["total"] == 6
+        assert overview["passed"] == 3  # S-1, S-2, S-4a
+        assert overview["pending"] == 1  # S-3
+        assert overview["decomposed"] == 1  # S-4
+        assert overview["skipped"] == 1  # S-5
+        assert overview["sub_stories"] == 1  # S-4a
+        # effective_total = 6 - 1 decomposed = 5; completion = 3/5 = 60%
+        assert overview["completion_pct"] == pytest.approx(60.0)
+        assert overview["total_attempts"] == 2
+
+    def test_all_passed_gives_100_pct(self):
+        prd = {"userStories": [
+            {"id": "S-1", "passes": True},
+            {"id": "S-2", "passes": True},
+        ]}
+        overview = compute_overview(prd, [])
+        assert overview["completion_pct"] == pytest.approx(100.0)
+
+    def test_elapsed_with_valid_iso_timestamps(self):
+        """Valid ISO timestamps produce human-readable duration string."""
+        prd = {"userStories": []}
+        results = [
+            {"timestamp": "2026-03-13T10:00:00Z", "spiral_iter": 1, "duration_sec": 0},
+            {"timestamp": "2026-03-13T12:30:00Z", "spiral_iter": 1, "duration_sec": 0},
+        ]
+        overview = compute_overview(prd, results)
+        assert overview["elapsed"] == "2h 30m"
+
+    def test_elapsed_under_one_hour(self):
+        prd = {"userStories": []}
+        results = [
+            {"timestamp": "2026-03-13T10:00:00Z", "spiral_iter": 1, "duration_sec": 0},
+            {"timestamp": "2026-03-13T10:45:00Z", "spiral_iter": 1, "duration_sec": 0},
+        ]
+        overview = compute_overview(prd, results)
+        assert overview["elapsed"] == "45m"
+
+    def test_elapsed_single_timestamp(self):
+        """Only one timestamp → N/A (need at least two)."""
+        prd = {"userStories": []}
+        results = [{"timestamp": "2026-03-13T10:00:00Z", "spiral_iter": 1, "duration_sec": 0}]
+        overview = compute_overview(prd, results)
+        assert overview["elapsed"] == "N/A"
+
+    def test_est_cost_calculation(self):
+        prd = {"userStories": []}
+        results = [
+            {"spiral_iter": 1, "duration_sec": 3600, "model": "sonnet"},  # 1hr * $0.24
+            {"spiral_iter": 1, "duration_sec": 3600, "model": "haiku"},   # 1hr * $0.04
+        ]
+        overview = compute_overview(prd, results)
+        assert overview["est_cost"] == pytest.approx(0.28)
+
+    def test_iterations_picks_max(self):
+        prd = {"userStories": []}
+        results = [
+            {"spiral_iter": 1, "duration_sec": 0},
+            {"spiral_iter": 5, "duration_sec": 0},
+            {"spiral_iter": 3, "duration_sec": 0},
+        ]
+        overview = compute_overview(prd, results)
+        assert overview["iterations"] == 5
+
+
+# ── compute_velocity ─────────────────────────────────────────────────────────
+
+class TestComputeVelocity:
+    def test_empty_results_returns_empty(self):
+        assert compute_velocity([]) == []
+
+    def test_single_iteration(self):
+        results = [
+            {"spiral_iter": 1, "status": "keep", "duration_sec": 300},
+            {"spiral_iter": 1, "status": "fail", "duration_sec": 200},
+        ]
+        vel = compute_velocity(results)
+        assert len(vel) == 1
+        assert vel[0]["iter"] == 1
+        assert vel[0]["kept"] == 1
+        assert vel[0]["total"] == 2
+        assert vel[0]["duration_hours"] == pytest.approx(500 / 3600)
+
+    def test_multiple_iterations_correct_velocity(self):
+        results = [
+            {"spiral_iter": 1, "status": "keep", "duration_sec": 1800},
+            {"spiral_iter": 1, "status": "keep", "duration_sec": 1800},
+            {"spiral_iter": 2, "status": "keep", "duration_sec": 3600},
+            {"spiral_iter": 2, "status": "fail", "duration_sec": 600},
+        ]
+        vel = compute_velocity(results)
+        assert len(vel) == 2
+        # iter 1: 2 kept, 3600s total → 1hr → velocity = 2/hr
+        assert vel[0]["kept"] == 2
+        assert vel[0]["velocity"] == pytest.approx(2.0)
+        # iter 2: 1 kept, 4200s total → 1.167hr → velocity ≈ 0.857
+        assert vel[1]["kept"] == 1
+        assert vel[1]["velocity"] == pytest.approx(1 / (4200 / 3600), rel=1e-2)
+
+    def test_sorted_by_iteration_number(self):
+        results = [
+            {"spiral_iter": 3, "status": "keep", "duration_sec": 100},
+            {"spiral_iter": 1, "status": "keep", "duration_sec": 100},
+        ]
+        vel = compute_velocity(results)
+        assert [v["iter"] for v in vel] == [1, 3]
+
+
+# ── compute_model_performance ────────────────────────────────────────────────
+
+class TestComputeModelPerformance:
+    def test_empty_results_returns_empty(self):
+        assert compute_model_performance([]) == []
+
+    def test_mixed_models_correct_success_rates(self):
+        results = [
+            {"model": "sonnet", "status": "keep", "duration_sec": 120},
+            {"model": "sonnet", "status": "keep", "duration_sec": 180},
+            {"model": "sonnet", "status": "fail", "duration_sec": 60},
+            {"model": "haiku", "status": "keep", "duration_sec": 30},
+            {"model": "haiku", "status": "fail", "duration_sec": 20},
+            {"model": "haiku", "status": "fail", "duration_sec": 25},
+            {"model": "haiku", "status": "fail", "duration_sec": 15},
+        ]
+        perf = compute_model_performance(results)
+        # Sorted by success_rate descending
+        assert perf[0]["model"] == "sonnet"
+        assert perf[0]["success_rate"] == pytest.approx(200 / 3, rel=1e-2)  # ~66.7%
+        assert perf[0]["total"] == 3
+        assert perf[0]["kept"] == 2
+        assert perf[1]["model"] == "haiku"
+        assert perf[1]["success_rate"] == pytest.approx(25.0)  # 1/4
+        assert perf[1]["total"] == 4
+        assert perf[1]["kept"] == 1
+
+    def test_single_model_all_kept(self):
+        results = [
+            {"model": "opus", "status": "keep", "duration_sec": 300},
+            {"model": "opus", "status": "keep", "duration_sec": 600},
+        ]
+        perf = compute_model_performance(results)
+        assert len(perf) == 1
+        assert perf[0]["success_rate"] == pytest.approx(100.0)
+        assert perf[0]["avg_duration"] == pytest.approx(450.0)
+
+    def test_unknown_model_collected(self):
+        results = [{"status": "keep", "duration_sec": 100}]
+        perf = compute_model_performance(results)
+        assert perf[0]["model"] == "unknown"
+
+
+# ── compute_status_breakdown ─────────────────────────────────────────────────
+
+class TestComputeStatusBreakdown:
+    def test_empty_inputs(self):
+        bd = compute_status_breakdown({"userStories": []}, [])
+        assert bd["stories"] == {"passed": 0, "pending": 0, "decomposed": 0, "skipped": 0}
+        assert bd["attempts"] == {}
+
+    def test_correct_story_and_attempt_breakdown(self):
+        prd = {"userStories": [
+            {"id": "S-1", "passes": True},
+            {"id": "S-2", "passes": False},
+            {"id": "S-3", "passes": False, "_decomposed": True},
+            {"id": "S-4", "passes": False, "_skipped": True},
+        ]}
+        results = [
+            {"status": "keep"},
+            {"status": "keep"},
+            {"status": "fail"},
+            {"status": "retry"},
+        ]
+        bd = compute_status_breakdown(prd, results)
+        assert bd["stories"]["passed"] == 1
+        assert bd["stories"]["pending"] == 1
+        assert bd["stories"]["decomposed"] == 1
+        assert bd["stories"]["skipped"] == 1
+        assert bd["attempts"]["keep"] == 2
+        assert bd["attempts"]["fail"] == 1
+        assert bd["attempts"]["retry"] == 1
