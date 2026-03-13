@@ -1999,3 +1999,19 @@ Incomplete: Emit per-iteration summary JSON to .spiral/_iteration_summary.json (
 ### Gotchas
 - Must sort AFTER appending added_entries but BEFORE the atomic write (tmp_path/shutil.move)
 - The existing TestPriorityOrdering.test_priority_ordering_in_merge test still passes because the sort now covers all stories, not just new ones
+
+
+## Iteration N - Story: US-066: Add SPIRAL_WORKER_MEMORY_LIMIT for per-worker V8 heap cap
+
+### What was implemented
+- Added `export SPIRAL_MEMORY_LIMIT="${SPIRAL_WORKER_MEMORY_LIMIT:-$SPIRAL_MEMORY_LIMIT}"` inside the worker subshell in `lib/run_parallel_ralph.sh` (just after SPIRAL_WORKER_ID/HEARTBEAT_DIR exports)
+- Added `SPIRAL_WORKER_MEMORY_LIMIT=2048` documentation block to `templates/spiral.config.example.sh` immediately after the `SPIRAL_MEMORY_LIMIT` section
+- ralph.sh already uses `NODE_OPTIONS` from `SPIRAL_MEMORY_LIMIT` (lines 18-19), so workers automatically inherit the override via the env var
+
+### Patterns discovered
+- Worker subshell in run_parallel_ralph.sh (Step 3) is the correct place to override env vars per-worker; changes are isolated and don't affect orchestrator
+- ralph.sh sets NODE_OPTIONS at lines 18-19 from SPIRAL_MEMORY_LIMIT, so only the env var needs changing
+
+### Gotchas
+- The export must happen INSIDE the subshell `(...)` so it doesn't leak back to the orchestrator's environment
+- Default fallback chain: SPIRAL_WORKER_MEMORY_LIMIT → SPIRAL_MEMORY_LIMIT → 1024 (via ralph.sh)

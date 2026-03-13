@@ -404,6 +404,9 @@ for i in $(seq 1 "$RALPH_WORKERS"); do
     export PATH="$WTREE/.spiral-bin:$PATH"
     export SPIRAL_WORKER_ID=$i
     export HEARTBEAT_DIR="$HEARTBEAT_DIR"
+    # Override SPIRAL_MEMORY_LIMIT for this worker so ralph.sh uses the
+    # per-worker heap cap instead of the orchestrator's lighter limit.
+    export SPIRAL_MEMORY_LIMIT="${SPIRAL_WORKER_MEMORY_LIMIT:-$SPIRAL_MEMORY_LIMIT}"
     # Start heartbeat loop in background
     if type worker_heartbeat_start &>/dev/null; then
       worker_heartbeat_start "$i" 30 2>/dev/null || true

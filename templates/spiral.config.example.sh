@@ -256,6 +256,18 @@
 # Default: 1024
 # SPIRAL_MEMORY_LIMIT=1024
 
+# Per-worker V8 heap cap (MB). Workers run full Claude CLI sessions and often
+# need more memory than the lightweight orchestrator. Set this higher than
+# SPIRAL_MEMORY_LIMIT to give workers a larger heap without over-allocating
+# for the orchestrator or research phases.
+#
+# run_parallel_ralph.sh overrides SPIRAL_MEMORY_LIMIT with this value before
+# spawning each worker; ralph.sh then picks it up via NODE_OPTIONS.
+#
+# Default: ${SPIRAL_MEMORY_LIMIT:-1024}
+# Example: 2048 (2 GB per worker on a 16 GB+ machine)
+# SPIRAL_WORKER_MEMORY_LIMIT=2048
+
 # Memory watchdog: background PowerShell monitor that kills Node.js processes
 # exceeding the RSS threshold. Requires PowerShell on Windows.
 # 1 = enabled (default), 0 = disabled.
