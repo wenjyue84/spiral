@@ -100,9 +100,13 @@ check_stale_heartbeats() {
         story_id=$(printf '%s' "$hb_content" | grep -o '"storyId":"[^"]*"' | cut -d'"' -f4 || echo "unknown")
         local worker_num=$(basename "$hb_file" .heartbeat | sed 's/worker_//')
 
-        # Append to stale_workers array
-        stale_workers=$(printf '%s' "$stale_workers" | \
-          sed "s/\]/,{\"workerId\":$worker_num,\"storyId\":\"$story_id\",\"staledSinceSeconds\":$age}]/")
+        # Append to stale_workers JSON array (avoid leading comma on first element)
+        local entry="{\"workerId\":$worker_num,\"storyId\":\"$story_id\",\"staledSinceSeconds\":$age}"
+        if [[ "$stale_workers" == "[]" ]]; then
+          stale_workers="[$entry]"
+        else
+          stale_workers="${stale_workers%]},$entry]"
+        fi
       fi
     fi
   done
@@ -118,7 +122,8 @@ requeue_stale_stories() {
   local jq_cmd="${3:-jq}"
   local story_id
 
-  if [[ -z "$story_id" ]]; then
+  # If stale_info starts with '{', treat as JSON and extract storyId; otherwise it IS the ID
+  if [[ "$stale_info" == "{"* ]]; then
     story_id=$(printf '%s' "$stale_info" | $jq_cmd -r '.storyId // empty')
   else
     story_id="$stale_info"

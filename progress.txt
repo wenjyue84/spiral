@@ -1737,3 +1737,28 @@ Incomplete: Emit per-iteration summary JSON to .spiral/_iteration_summary.json (
 - `declare -f cb_check` guard pattern prevents errors when lib is not sourced (optional sourcing)
 - 529 overloaded_error is already handled separately in ralph.sh (separate while loop) — CB also counts it as transient
 - bats not installed on this system; tests/circuit_breaker.bats is a valid bats file but cannot be run natively yet
+## Iteration 1 - Fri, Mar 13, 2026  8:56:15 PM
+Completed: Add circuit breaker for LLM API calls with half-open recovery (ID: US-108) in 11m
+
+
+## Iteration N - Story: US-053: Implement worker heartbeat file for stale-worker detection and auto-requeue
+
+### What was implemented
+- lib/worker_heartbeat.sh existed but had two bugs:
+  1. check_stale_heartbeats: JSON construction produced invalid `[,{...}]` (leading comma) for first stale entry — fixed with explicit first-vs-rest check
+  2. requeue_stale_stories: `story_id` was always empty when declared, so the `else` branch treating stale_info as a plain ID was unreachable dead code — fixed by checking if stale_info starts with `{`
+- run_parallel_ralph.sh already sources worker_heartbeat.sh and calls all four functions correctly
+- Created tests/worker_heartbeat.bats with 17 bats tests covering:
+  - check_stale_heartbeats: empty dir, fresh file, stale detection, valid JSON output, multiple stale, mixed fresh+stale, staledSinceSeconds field, nonexistent dir
+  - requeue_stale_stories: plain story ID, JSON stale_info, unknown ID no-op, already-false story, missing file
+  - worker_heartbeat_start/stop: file created after interval, cleanup on stop, valid JSON fields
+  - Integration test: simulate crashed worker → story requeued, retryCount unchanged
+
+### Patterns discovered
+- check_stale_heartbeats uses stat-based mtime (not file content ts) for staleness detection
+- requeue_stale_stories accepts either plain story ID string OR JSON with .storyId field
+- HEARTBEAT_DIR defaults to .spiral/workers (same as WORKER_DIR in run_parallel_ralph.sh)
+
+### Gotchas
+- JSON array construction with sed s/\]/.../  gives [,{...}] bug for first element — always use conditional first-vs-append pattern
+- bats not installed natively; tests/worker_heartbeat.bats is a valid bats file but cannot be run without bats-core
