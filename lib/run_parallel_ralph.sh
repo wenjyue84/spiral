@@ -87,13 +87,15 @@ trap cleanup_parallel EXIT INT TERM
 REAL_DOCKER="$(command -v docker 2>/dev/null || echo docker)"
 
 # ── Pre-flight memory check — auto-reduce workers if RAM is low ────────────
+# Per-worker budget: ~1536MB (1024 heap + ~512 non-heap overhead for Zones, JIT, etc.)
+_PER_WORKER_MB=1536
 if command -v powershell.exe &>/dev/null; then
   FREE_MB=$(powershell.exe -Command \
     "[math]::Floor((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory / 1024)" 2>/dev/null | tr -d '\r')
   if [[ -n "$FREE_MB" && "$FREE_MB" =~ ^[0-9]+$ ]]; then
-    NEEDED_MB=$(( RALPH_WORKERS * 2560 + 512 ))
+    NEEDED_MB=$(( RALPH_WORKERS * _PER_WORKER_MB + 512 ))
     if [[ "$RALPH_WORKERS" -gt 1 && "$FREE_MB" -lt "$NEEDED_MB" ]]; then
-      MAX_SAFE=$(( (FREE_MB - 512) / 2560 ))
+      MAX_SAFE=$(( (FREE_MB - 512) / _PER_WORKER_MB ))
       [[ "$MAX_SAFE" -lt 1 ]] && MAX_SAFE=1
       if [[ "$MAX_SAFE" -lt "$RALPH_WORKERS" ]]; then
         echo "  [parallel] Memory: ${FREE_MB}MB free, need ${NEEDED_MB}MB for $RALPH_WORKERS workers"
@@ -158,12 +160,37 @@ else
 fi
 echo ""
 
+# ── Source assertion library (set SPIRAL_PYTHON for compatibility) ────────────
+SPIRAL_PYTHON="${SPIRAL_PYTHON:-$PYTHON}"
+export SPIRAL_PYTHON
+source "$SPIRAL_HOME/lib/spiral_assert.sh"
+
+# ── Resolve spiral-core binary (Rust hot-path) ────────────────────────────────
+_SC_BIN=""
+for _sc in "$SPIRAL_HOME/lib/spiral-core" "$SPIRAL_HOME/lib/spiral-core.exe"; do
+  [[ -x "$_sc" ]] && { _SC_BIN="$_sc"; break; }
+done
+
 # ── Step 1: Partition pending stories into worker prd files ───────────────────
 mkdir -p "$WORKER_DIR"
-"$PYTHON" "$SPIRAL_HOME/lib/partition_prd.py" \
-  --prd "$PRD_FILE" \
-  --workers "$RALPH_WORKERS" \
-  --outdir "$WORKER_DIR"
+if [[ -n "$_SC_BIN" ]]; then
+  "$_SC_BIN" partition \
+    --prd "$PRD_FILE" \
+    --workers "$RALPH_WORKERS" \
+    --outdir "$WORKER_DIR"
+else
+  "$PYTHON" "$SPIRAL_HOME/lib/partition_prd.py" \
+    --prd "$PRD_FILE" \
+    --workers "$RALPH_WORKERS" \
+    --outdir "$WORKER_DIR"
+fi
+
+# ── Step 1.5: Verify worker partitions have no overlapping pending stories ────
+WORKER_PRD_FILES=()
+for i in $(seq 1 "$RALPH_WORKERS"); do
+  WORKER_PRD_FILES+=("$WORKER_DIR/worker_${i}.json")
+done
+spiral_assert_worker_disjoint "$WORKER_DIR" "${WORKER_PRD_FILES[@]}"
 
 # ── Step 2: Create git worktrees + docker lock wrapper per worker ─────────────
 declare -a WORKER_DIRS=()
@@ -257,13 +284,53 @@ if [[ "$MONITOR_TERMINALS" -eq 1 ]]; then
   done
 fi
 
-# ── Step 3: Launch all workers in background ──────────────────────────────────
+# ── Memory gate helper — wait until enough RAM is free before spawning ────────
+# Prevents all workers launching simultaneously and collectively OOM'ing.
+wait_for_memory() {
+  local min_mb=${1:-2048}
+  if ! command -v powershell.exe &>/dev/null; then
+    return 0  # skip on non-Windows (no CIM)
+  fi
+  local attempts=0
+  while true; do
+    local free_mb
+    free_mb=$(powershell.exe -NoProfile -Command \
+      "[math]::Floor((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory / 1024)" \
+      2>/dev/null | tr -d '\r')
+    if [[ -z "$free_mb" || ! "$free_mb" =~ ^[0-9]+$ ]]; then
+      break  # can't read memory — don't block forever
+    fi
+    if [[ "$free_mb" -ge "$min_mb" ]]; then
+      break
+    fi
+    echo "  [memory-gate] Only ${free_mb}MB free, waiting for ${min_mb}MB before spawning..."
+    if type spiral_log_low_power &>/dev/null; then
+      spiral_log_low_power "memory-gate: ${free_mb}MB free < ${min_mb}MB required, waiting"
+    fi
+    attempts=$((attempts + 1))
+    if [[ "$attempts" -ge 30 ]]; then
+      echo "  [memory-gate] Waited 5 minutes — proceeding anyway"
+      break
+    fi
+    sleep 10
+  done
+}
+
+# ── Step 3: Launch all workers in background (staggered) ─────────────────────
+# Workers are staggered by 20 seconds to let each process complete its initial
+# V8 compilation (the most memory-intensive phase) before the next one starts.
 declare -a WORKER_PIDS=()
+STAGGER_DELAY=20  # seconds between worker launches
 
 for i in $(seq 1 "$RALPH_WORKERS"); do
   WTREE="${WORKER_DIRS[$((i-1))]}"
   LOG="$WORKER_DIR/worker_${i}.log"
   touch "$LOG"   # pre-create so tail -f attaches even if worker is slow to start
+
+  # Wait for sufficient free RAM before each worker spawn
+  _MIN_FREE_MB=$(( (RALPH_WORKERS - i + 1) * 1536 + 512 ))
+  [[ "$_MIN_FREE_MB" -lt 2048 ]] && _MIN_FREE_MB=2048
+  wait_for_memory "$_MIN_FREE_MB"
 
   echo "  [parallel] Launching worker $i → log: $LOG"
   # Build model flag for this worker
@@ -278,6 +345,12 @@ for i in $(seq 1 "$RALPH_WORKERS"); do
       > "$LOG" 2>&1
   ) &
   WORKER_PIDS+=($!)
+
+  # Stagger launches — let V8 init settle before spawning next worker
+  if [[ "$i" -lt "$RALPH_WORKERS" ]]; then
+    echo "  [parallel] Waiting ${STAGGER_DELAY}s before next worker (V8 init cooldown)..."
+    sleep "$STAGGER_DELAY"
+  fi
 done
 
 echo ""
@@ -399,9 +472,15 @@ for wtree in "${WORKER_DIRS[@]}"; do
   WORKER_PRDS+=("$wtree/prd.json")
 done
 
-"$PYTHON" "$SPIRAL_HOME/lib/merge_worker_results.py" \
-  --main "$PRD_FILE" \
-  --workers "${WORKER_PRDS[@]}"
+if [[ -n "$_SC_BIN" ]]; then
+  "$_SC_BIN" merge-workers \
+    --main "$PRD_FILE" \
+    --workers "${WORKER_PRDS[@]}"
+else
+  "$PYTHON" "$SPIRAL_HOME/lib/merge_worker_results.py" \
+    --main "$PRD_FILE" \
+    --workers "${WORKER_PRDS[@]}"
+fi
 
 # Re-encode main prd.json to clean UTF-8 after merge
 "$PYTHON" - "$PRD_FILE" << 'PYEOF'

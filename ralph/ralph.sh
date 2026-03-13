@@ -13,9 +13,10 @@
 set -e
 
 # ── Memory guard — cap V8 heap to prevent OOM ───────────────────────────────
-# --max-old-space-size caps old generation. --max-semi-space-size=8 tightens new space.
-SPIRAL_V8_FLAGS="--max-old-space-size=${SPIRAL_MEMORY_LIMIT:-2048} --max-semi-space-size=8"
-export NODE_OPTIONS="${NODE_OPTIONS:-$SPIRAL_V8_FLAGS}"
+# --max-old-space-size caps old generation. --max-semi-space-size=4 tightens new space
+# (smaller = more frequent but shorter GC, less total RSS per process).
+SPIRAL_V8_FLAGS="--max-old-space-size=${SPIRAL_MEMORY_LIMIT:-1024} --max-semi-space-size=4"
+export NODE_OPTIONS="$SPIRAL_V8_FLAGS"
 
 # Default values
 MAX_ITERATIONS=60
@@ -672,6 +673,21 @@ $(cat "$SPECKIT_CONST")
 
 This SPIRAL iteration is focused on **$RALPH_FOCUS**. Keep this theme in mind while implementing the assigned story. Prioritize approaches that align with this focus area."
       echo "  [focus] Focus context injected: \"$RALPH_FOCUS\""
+    fi
+    # Detect Chrome DevTools MCP availability
+    BROWSER_TOOLS_HINT=""
+    if claude --help 2>&1 | grep -q "chrome-devtools" 2>/dev/null || [[ -n "${CHROME_DEVTOOLS_MCP:-}" ]]; then
+      BROWSER_TOOLS_HINT="Chrome DevTools MCP is available. Use visual verification for UI stories."
+    fi
+    if [[ -n "$BROWSER_TOOLS_HINT" ]]; then
+      RALPH_PROMPT_CONTENT="$RALPH_PROMPT_CONTENT
+
+---
+
+## Browser Tools
+
+$BROWSER_TOOLS_HINT"
+      echo "  [browser] Chrome DevTools MCP detected — visual verification enabled"
     fi
     # Unset CLAUDECODE to allow nested Claude Code invocation from within an active session
     (unset CLAUDECODE; claude -p "$RALPH_PROMPT_CONTENT" \

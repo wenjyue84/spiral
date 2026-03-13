@@ -17,6 +17,9 @@ import subprocess
 import sys
 from typing import Any
 
+sys.path.insert(0, os.path.dirname(__file__))
+from prd_schema import validate_prd
+
 # Force UTF-8 stdout — prevents UnicodeEncodeError on Windows cp1252 terminals
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -24,33 +27,31 @@ if hasattr(sys.stdout, "reconfigure"):
 STORY_PREFIX = os.environ.get("SPIRAL_STORY_PREFIX", "US")
 
 DECOMPOSE_PROMPT = """\
-You are decomposing a user story that failed {retry_count} implementation attempts into smaller sub-stories.
+You are decomposing a failed user story into 2-{max_sub} smaller, independent sub-stories.
 
-## Parent Story
-```json
-{parent_json}
-```
+<parent_story>
+  <id>{parent_id}</id>
+  <title>{parent_title}</title>
+  <description>{parent_description}</description>
+  <acceptance_criteria>
+    {parent_ac}
+  </acceptance_criteria>
+</parent_story>
 
-## Failure Context
-These are the relevant failure notes from progress.txt:
-```
+<failure_context>
 {failure_context}
-```
-
-## Instructions
-Break this story into 2-{max_sub} smaller, independently implementable sub-stories.
+</failure_context>
 
 Rules:
-1. Each sub-story must be completable in a single AI agent iteration (~15 minutes)
-2. Together, the sub-stories must fully cover the parent's acceptance criteria
-3. Each sub-story gets a SUBSET of the parent's acceptance criteria (redistribute, don't duplicate)
-4. If order matters, set "ordered": true and I will chain dependencies
-5. Keep titles short and imperative
-6. estimatedComplexity must be "small" for all sub-stories
-7. Do NOT add scope beyond the parent story
+1. Sub-stories must be completable in one AI agent turn (~15 mins).
+2. Together, sub-stories must fully cover the parent's acceptance criteria.
+3. Redistribute parent's acceptance criteria among sub-stories.
+4. If order matters, set "ordered": true.
+5. Titles must be short and imperative.
+6. Complexity must be "small".
+7. Do NOT add scope.
 
-## Output Format
-Return ONLY a JSON object (no markdown, no explanation):
+Output ONLY a JSON object:
 {{
   "ordered": true,
   "stories": [
@@ -169,6 +170,13 @@ def main() -> int:
     with open(args.prd, encoding="utf-8") as f:
         prd = json.load(f)
 
+    errors = validate_prd(prd)
+    if errors:
+        print("[schema] PRD validation failed:", file=sys.stderr)
+        for e in errors:
+            print(f"  - {e}", file=sys.stderr)
+        return 1
+
     stories: list[dict[str, Any]] = prd.get("userStories", [])
 
     # Find the target story
@@ -196,10 +204,12 @@ def main() -> int:
     failure_context = extract_failure_context(args.progress, args.story_id)
 
     # Build prompt
-    parent_json = json.dumps(parent, indent=2, ensure_ascii=False)
+    parent_ac_string = "\n".join(f"    - {ac}" for ac in parent.get("acceptanceCriteria", []))
     prompt = DECOMPOSE_PROMPT.format(
-        retry_count=3,
-        parent_json=parent_json,
+        parent_id=parent.get("id"),
+        parent_title=parent.get("title"),
+        parent_description=parent.get("description", ""),
+        parent_ac=parent_ac_string,
         failure_context=failure_context,
         max_sub=args.max_substories,
     )

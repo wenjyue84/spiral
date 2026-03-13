@@ -112,19 +112,20 @@ function Get-Recommendations {
     switch ($Level) {
         0 {
             # Normal - no restrictions
-            $rec.recommended_workers = [math]::Max(1, [math]::Floor(($FreeMB - 512) / 2560))
+            # Per-worker budget: ~1536MB (1024 heap + ~512 non-heap overhead)
+            $rec.recommended_workers = [math]::Max(1, [math]::Floor(($FreeMB - 512) / 1536))
             $rec.recommended_model = ""
             $rec.skip_phases = @()
         }
         1 {
             # Elevated - brief delays only, no hard restrictions
-            $rec.recommended_workers = [math]::Max(1, [math]::Floor(($FreeMB - 512) / 2560))
+            $rec.recommended_workers = [math]::Max(1, [math]::Floor(($FreeMB - 512) / 1536))
             $rec.recommended_model = ""
             $rec.skip_phases = @()
         }
         2 {
             # High - reduce workers, cap model at sonnet, skip Phase R
-            $rec.recommended_workers = [math]::Max(1, [math]::Min(2, [math]::Floor(($FreeMB - 512) / 2560)))
+            $rec.recommended_workers = [math]::Max(1, [math]::Min(2, [math]::Floor(($FreeMB - 512) / 1536)))
             $rec.recommended_model = "sonnet"
             $rec.skip_phases = @("R")
         }

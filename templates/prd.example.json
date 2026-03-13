@@ -58,6 +58,26 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true
+    },
+    {
+      "id": "US-004",
+      "title": "Add responsive navigation bar",
+      "priority": "medium",
+      "description": "Add a responsive navigation bar with logo and menu items. Example of a UI story with visual acceptance criteria that benefit from Chrome DevTools MCP verification.",
+      "acceptanceCriteria": [
+        "Nav bar renders at top of page with logo and menu items",
+        "Mobile viewport (< 768px) shows hamburger menu",
+        "No console errors on page load",
+        "Lighthouse accessibility score >= 90"
+      ],
+      "technicalNotes": [
+        "Use semantic HTML (nav, ul, li) for accessibility",
+        "CSS media queries for responsive breakpoints",
+        "This story benefits from visual verification via Chrome DevTools MCP"
+      ],
+      "dependencies": ["US-001"],
+      "estimatedComplexity": "medium",
+      "passes": false
     }
   ]
 }

@@ -10,6 +10,9 @@ import os
 import shutil
 import sys
 
+sys.path.insert(0, os.path.dirname(__file__))
+from prd_schema import validate_prd
+
 # Force UTF-8 stdout — prevents UnicodeEncodeError on Windows cp1252 terminals
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -28,6 +31,13 @@ def main() -> int:
     with open(args.main, encoding="utf-8") as f:
         main_prd = json.load(f)
 
+    errors = validate_prd(main_prd)
+    if errors:
+        print("[schema] Main PRD validation failed:", file=sys.stderr)
+        for e in errors:
+            print(f"  - {e}", file=sys.stderr)
+        return 1
+
     main_ids = {s["id"] for s in main_prd.get("userStories", [])}
 
     # Collect passes, decomposition flags, and new sub-stories from workers
@@ -41,6 +51,12 @@ def main() -> int:
             continue
         with open(wpath, encoding="utf-8") as f:
             worker_prd = json.load(f)
+        w_errors = validate_prd(worker_prd)
+        if w_errors:
+            print(f"[schema] Worker PRD validation failed ({wpath}):", file=sys.stderr)
+            for e in w_errors:
+                print(f"  - {e}", file=sys.stderr)
+            return 1
         for s in worker_prd.get("userStories", []):
             if s.get("passes"):
                 passed_ids.add(s["id"])

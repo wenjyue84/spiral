@@ -177,10 +177,21 @@
 # SPIRAL_SPECKIT_SPECS_DIR="specs"
 
 # ── Memory management (OOM prevention) ───────────────────────────────────────
-# V8 heap cap per process (MB). Controls --max-heap-size for all spawned Claude
-# CLI instances. Lower on 8GB machines, raise on 32GB+.
-# Default: 2048
-# SPIRAL_MEMORY_LIMIT=2048
+# V8 heap cap per process (MB). Controls --max-old-space-size for all spawned
+# Claude CLI instances. Total process RSS ≈ 1.3-1.5x this value (non-heap
+# overhead from Zones, Buffers, JIT code, stacks).
+#
+# Memory budget formula for parallel workers:
+#   max_workers = floor((TotalRAM - OS - MainSession - Python) * 0.8 / per_worker_RSS)
+#   per_worker_RSS ≈ SPIRAL_MEMORY_LIMIT * 1.5
+#
+# Recommendations by system RAM:
+#   8 GB  → 512  (1 worker max)
+#   16 GB → 1024 (2-3 workers)
+#   32 GB → 2048 (4-5 workers)
+#
+# Default: 1024
+# SPIRAL_MEMORY_LIMIT=1024
 
 # Memory watchdog: background PowerShell monitor that kills Node.js processes
 # exceeding the RSS threshold. Requires PowerShell on Windows.
@@ -189,8 +200,9 @@
 
 # Watchdog kill threshold (MB RSS). When a Node.js process exceeds this,
 # the watchdog terminates it. Should be > SPIRAL_MEMORY_LIMIT to allow for
-# non-heap allocations. Default: 2560 (25% above V8 cap).
-# SPIRAL_MEMORY_THRESHOLD=2560
+# non-heap allocations (Zones, JIT, Buffers, stacks).
+# Default: 1536 (~50% above 1024 V8 cap, or ~25% above 1024+overhead).
+# SPIRAL_MEMORY_THRESHOLD=1536
 
 # ── Adaptive memory management ("Low Power Mode") ──────────────────────────
 # Graduated memory pressure system that throttles SPIRAL instead of killing.
@@ -224,3 +236,19 @@
 # Prevents oscillation when memory hovers near a threshold boundary.
 # Default: 2
 # SPIRAL_PRESSURE_HYSTERESIS=2
+
+# ── Lighthouse audit (Phase V — visual quality) ──────────────────────────
+# When enabled, runs a Lighthouse audit after the test suite in Phase V.
+# Checks performance, accessibility, and best-practices scores.
+# Requires: npx (Node.js) and a running dev server at SPIRAL_LIGHTHOUSE_URL.
+# Default: 0 (disabled)
+# SPIRAL_LIGHTHOUSE=1
+
+# URL to audit. Should point to the running dev server or preview build.
+# Default: http://localhost:5173
+# SPIRAL_LIGHTHOUSE_URL="http://localhost:5173"
+
+# Minimum score (0-100) for any Lighthouse category before a warning is printed.
+# Does not fail the build — informational only.
+# Default: 50
+# SPIRAL_LIGHTHOUSE_THRESHOLD=50

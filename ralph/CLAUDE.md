@@ -1,5 +1,10 @@
 # Ralph Autonomous Agent - Claude Code Instructions
 
+## Token Efficiency
+
+**Always use `rtk` prefix** for shell commands — it filters verbose output and saves 60-99% tokens.
+RTK is always safe: if no filter exists for a command, it passes through unchanged.
+
 You are running as part of Ralph, an autonomous agent loop. Your job is to implement **ONE SINGLE USER STORY** from the PRD, then exit.
 
 ## Critical Rules
@@ -16,19 +21,26 @@ You are running as part of Ralph, an autonomous agent loop. Your job is to imple
 10. **Focus awareness**: If the iteration has a focus theme (injected below), prioritize implementation approaches that align with it. Still implement the assigned story fully regardless.
 11. **Simplicity preference**: Prefer deleting code over adding complexity for marginal gains. When two approaches work equally well, choose the simpler one.
 12. **Sub-stories**: Stories with `_decomposedFrom` are sub-stories broken from a failed parent. Implement them like normal stories. The parent story (marked `_decomposed: true`) should NOT be touched.
+13. **Visual verification**: If Chrome DevTools MCP tools (`mcp__chrome-devtools__*`) are available AND the story involves UI/frontend changes (components, pages, styles, layouts), verify visually before marking `passes: true`:
+    - Start/confirm the dev server is running
+    - Navigate to the affected page
+    - Take a screenshot to verify the UI matches acceptance criteria
+    - Check for console errors (`mcp__chrome-devtools__list_console_messages`)
+    - If the story has visual acceptance criteria, verify each one
+    - If Chrome DevTools MCP tools are NOT available, skip this step entirely (static analysis only)
 
 ## Your Workflow
 
 ### 1. Read Context Files
 ```bash
 # Read Codebase Patterns section FIRST
-head -30 progress.txt
+rtk read progress.txt
 
 # Find next incomplete story
 cat prd.json | jq '.userStories[] | select(.passes == false) | {id, title, priority}' | head -20
 
 # Read full progress log for learnings
-cat progress.txt
+rtk read progress.txt
 ```
 
 ### 2. Pick Next Story
@@ -45,10 +57,13 @@ cat progress.txt
 Run whatever quality checks are appropriate for this project. At minimum:
 ```bash
 # TypeScript check
-npx tsc --noEmit
+rtk tsc --noEmit
 
 # Lint
-npm run lint
+rtk lint
+
+# Visual check (if Chrome DevTools MCP available and story touches UI)
+# Navigate to affected page, screenshot, check console for errors
 ```
 
 ### 5. Update prd.json
@@ -78,8 +93,8 @@ Append to `progress.txt`:
 
 ### 7. Commit Changes
 ```bash
-git add -A
-git commit -m "feat: [story title]
+rtk git add -A
+rtk git commit -m "feat: [story title]
 
 [Brief description of changes]
 

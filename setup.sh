@@ -332,6 +332,21 @@ if [[ "$REQUIRED_OK" == "false" ]]; then
   exit 1
 fi
 
+# ── Build spiral-core Rust binary (optional, requires cargo) ───────────────
+echo -e "  ${BOLD}Building spiral-core Rust binary (optional performance upgrade)...${RESET}"
+if command -v cargo &>/dev/null; then
+  if (cd "$SPIRAL_DIR/lib/spiral-core" && cargo build --release --quiet 2>/dev/null); then
+    _SC_SRC="$SPIRAL_DIR/lib/spiral-core/target/release/spiral-core"
+    [[ -f "${_SC_SRC}.exe" ]] && _SC_SRC="${_SC_SRC}.exe"
+    cp "$_SC_SRC" "$SPIRAL_DIR/lib/" 2>/dev/null || true
+    ok "spiral-core built and deployed to lib/"
+  else
+    warn "spiral-core build failed — Spiral will use Python scripts (fully functional)"
+  fi
+else
+  warn "cargo not found — skipping spiral-core build (install Rust from https://rustup.rs for faster iterations)"
+fi
+
 # ── Smoke test ─────────────────────────────────────────────────────────────
 echo -e "  ${BOLD}Smoke test...${RESET}"
 if bash "$SPIRAL_DIR/spiral.sh" --help >/dev/null 2>&1; then

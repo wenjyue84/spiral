@@ -24,6 +24,9 @@ import subprocess
 import sys
 from collections import defaultdict
 
+sys.path.insert(0, os.path.dirname(__file__))
+from prd_schema import validate_prd
+
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
@@ -271,6 +274,13 @@ def main() -> int:
 
     with open(args.prd, encoding="utf-8") as f:
         prd = json.load(f)
+
+    errors = validate_prd(prd)
+    if errors:
+        print("[schema] PRD validation failed:", file=sys.stderr)
+        for e in errors:
+            print(f"  - {e}", file=sys.stderr)
+        return 1
 
     updated = populate_hints(prd, args.repo_root)
 
