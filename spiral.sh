@@ -673,14 +673,16 @@ $INJECTED_PROMPT"
   else
     prd_stats
 
-    # ── Generate story review report for human gate ──────────────────────
+    # ── Generate story review report for human gate (skip in auto-proceed mode) ──
     GATE_REPORTS_DIR="$SCRATCH_DIR/gate-reports"
-    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/story_review_report.py" \
-      --prd "$PRD_FILE" \
-      --iter "$SPIRAL_ITER" \
-      --added "$ADDED" \
-      --output "$GATE_REPORTS_DIR" \
-      --open 2>/dev/null || true
+    if [[ "$GATE_DEFAULT" != "proceed" ]]; then
+      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/story_review_report.py" \
+        --prd "$PRD_FILE" \
+        --iter "$SPIRAL_ITER" \
+        --added "$ADDED" \
+        --output "$GATE_REPORTS_DIR" \
+        --open 2>/dev/null || true
+    fi
 
     echo ""
     echo "  ╔══════════════════════════════════════════════════════╗"

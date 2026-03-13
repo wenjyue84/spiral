@@ -503,3 +503,25 @@ Completed: Add unit tests for decompose_story.py (ID allocation + JSON extractio
 ### Gotchas
 - prd.json encoding is utf-8; must open with encoding='utf-8' on Windows
 - Backup is inside the `else` branch of checkpoint_phase_done "M" — so it's skipped on resume (same as merge), which is correct
+## Iteration 4 - Fri, Mar 13, 2026 10:53:15 AM
+Completed: Auto-create timestamped prd.json backup before Phase M merge (ID: US-028) in 5m
+
+
+
+## Iteration 13 - Story: US-004: Generate story review HTML report at Phase G (interactive gate)
+
+### What was implemented
+- Wrapped existing story_review_report.py call in Phase G with: if [[ "$GATE_DEFAULT" != "proceed" ]]
+- In interactive / skip / quit mode: report is generated and browser auto-opens (--open flag already present)
+- In --gate proceed mode: call is skipped entirely (no overhead)
+- Gate prompt still appears after report opens (unchanged)
+- All 87 pytest tests pass
+
+### Patterns discovered
+- GATE_DEFAULT is the variable set by --gate CLI flag (empty = interactive, "proceed"/"skip"/"quit" = auto)
+- story_review_report.py was already implemented correctly; only gating condition was missing
+- The call at lines 676-683 already included --open and --added flags
+
+### Gotchas
+- The report call was already present but unconditional — acceptance criteria required proceed-mode skip
+- story_review_report.py uses os.startfile on Windows for browser open (works without extra config)
