@@ -171,6 +171,23 @@
 # 0 = disabled (default). Recommended: 300 (5 min) for fast iteration.
 # SPIRAL_STORY_TIME_BUDGET=300
 
+# ── Per-story token cost limits ─────────────────────────────────────────────
+# SPIRAL_STORY_COST_WARN_USD: print a warning when a single story's cumulative
+# LLM cost exceeds this amount. Execution continues.
+# Default: $0.50
+# SPIRAL_STORY_COST_WARN_USD=0.50
+
+# SPIRAL_STORY_COST_HARD_USD: abandon the story (mark _failureReason:
+# story_cost_ceiling) when cumulative cost exceeds this amount. The story is
+# retried on the next iteration up to MAX_RETRIES times.
+# Default: $2.00
+# SPIRAL_STORY_COST_HARD_USD=2.00
+
+# Model pricing constants ($/1M tokens) — override when using non-sonnet models.
+# These are Anthropic 2025 Claude Sonnet defaults. Adjust for Haiku or Opus.
+# SPIRAL_MODEL_INPUT_PRICE_PER_M=3.00    # claude-sonnet: $3.00 / 1M input
+# SPIRAL_MODEL_OUTPUT_PRICE_PER_M=15.00  # claude-sonnet: $15.00 / 1M output
+
 # ── Research model (Phase R) ────────────────────────────────────────────────
 # Which Claude model to use for Phase R (web research agent).
 # Research benefits from good reasoning — sonnet is recommended.

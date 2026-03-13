@@ -1811,3 +1811,27 @@ Incomplete: Add per-phase timeout with two-phase kill to all LLM invocations (ID
 - Previous two attempts left no notes — the implementation is straightforward but touches 6 call sites across spiral.sh
 - prd.json must be opened with encoding='utf-8' in Python on Windows (cp1252 default fails on Unicode chars)
 - Phase R timeout wraps `claude` directly (not the subshell) so the pipe to stream-formatter still works
+## Iteration 4 - Fri, Mar 13, 2026  9:23:43 PM
+Completed: Add per-phase timeout with two-phase kill to all LLM invocations (ID: US-109) in 9m
+
+
+## Iteration N - Story: US-111: Add per-story token cost accumulation and soft/hard budget enforcement
+
+### What was implemented
+- Added SPIRAL_STORY_COST_WARN_USD (default: $0.50), SPIRAL_STORY_COST_HARD_USD (default: $2.00), SPIRAL_MODEL_INPUT_PRICE_PER_M (default: 3.00), SPIRAL_MODEL_OUTPUT_PRICE_PER_M (default: 15.00) env vars to ralph.sh defaults
+- Added `accumulate_story_cost()` shell function using inline Python heredoc for atomic story_costs.json writes (keyed by story_id, tracks tokens_input, tokens_output, estimated_usd)
+- Emits `cost_update` JSONL event via log_ralph_event after each accumulation
+- Token parsing inserted before `rm -f "$_RL_TMP"` in the successful-call path: greps for `"type":"result"` in Claude stream-json output to extract usage.input_tokens and usage.output_tokens
+- After the rate-limit loop: calls accumulate_story_cost, checks hard limit (abandons story with _failureReason: story_cost_ceiling), checks warn limit (prints warning, continues)
+- Added `--status` output in spiral.sh to show total run cost by summing estimated_usd across all story_costs.json entries
+- Documented all new env vars in templates/spiral.config.example.sh
+
+### Patterns discovered
+- Claude stream-json `result` event line contains `"type":"result"` and `.usage.input_tokens` / `.usage.output_tokens` - grep -m1 is sufficient
+- _RL_TMP is deleted just before `break` in the rate-limit loop — must parse before deletion
+- `accumulate_story_cost()` uses `<<PYEOF ... PYEOF` heredoc pattern to avoid bash JSON escaping issues (matches technical notes)
+- Token counts are null/absent for codex/qwen/amp tools — function handles gracefully by skipping accumulation
+
+### Gotchas
+- test_partition.py has a pre-existing flaky Hypothesis HealthCheck.too_slow failure unrelated to this story
+- _CALL_TOKENS_INPUT/_OUTPUT must validate with `=~ ^[0-9]+$` before using — jq can return "null" for missing fields

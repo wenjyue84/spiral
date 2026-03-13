@@ -24,6 +24,10 @@ AI_TOOL="claude"
 RALPH_MODEL=""
 RALPH_FOCUS="${SPIRAL_FOCUS:-}"
 STORY_TIME_BUDGET="${SPIRAL_STORY_TIME_BUDGET:-0}"  # 0 = disabled
+SPIRAL_STORY_COST_WARN_USD="${SPIRAL_STORY_COST_WARN_USD:-0.50}"   # warn when story exceeds this
+SPIRAL_STORY_COST_HARD_USD="${SPIRAL_STORY_COST_HARD_USD:-2.00}"   # abandon story when it exceeds this
+SPIRAL_MODEL_INPUT_PRICE_PER_M="${SPIRAL_MODEL_INPUT_PRICE_PER_M:-3.00}"   # $/1M input tokens (sonnet default)
+SPIRAL_MODEL_OUTPUT_PRICE_PER_M="${SPIRAL_MODEL_OUTPUT_PRICE_PER_M:-15.00}" # $/1M output tokens (sonnet default)
 PRD_FILE="prd.json"
 PROGRESS_FILE="progress.txt"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -93,6 +97,64 @@ log_ralph_event() {
     line="{\"ts\":\"$ts\",\"event\":\"$event\"}"
   fi
   printf '%s\n' "$line" >> "$log_file" 2>/dev/null || true
+}
+
+# ── Per-story token cost accumulation ────────────────────────────────────────
+# accumulate_story_cost <story_id> <tokens_input> <tokens_output>
+# Writes atomically to $SPIRAL_SCRATCH_DIR/story_costs.json.
+# Emits a cost_update event to spiral_events.jsonl.
+# Prints the new cumulative estimated_usd for the story on stdout.
+# Returns 0 always (errors are non-fatal).
+accumulate_story_cost() {
+  local story_id="$1" tokens_input="${2:-0}" tokens_output="${3:-0}"
+  local cost_file="$SPIRAL_SCRATCH_DIR/story_costs.json"
+  local input_price="$SPIRAL_MODEL_INPUT_PRICE_PER_M"
+  local output_price="$SPIRAL_MODEL_OUTPUT_PRICE_PER_M"
+
+  local cumulative_usd
+  cumulative_usd=$(python3 - <<PYEOF 2>/dev/null
+import json, os, sys
+
+story_id = '$story_id'
+tokens_input = int('$tokens_input') if '$tokens_input'.isdigit() else 0
+tokens_output = int('$tokens_output') if '$tokens_output'.isdigit() else 0
+input_price = float('$input_price')
+output_price = float('$output_price')
+cost_file = '$cost_file'
+
+try:
+    with open(cost_file, 'r', encoding='utf-8') as f:
+        costs = json.load(f)
+except (FileNotFoundError, json.JSONDecodeError, OSError):
+    costs = {}
+
+entry = costs.get(story_id, {'tokens_input': 0, 'tokens_output': 0, 'estimated_usd': 0.0})
+entry['tokens_input'] = entry.get('tokens_input', 0) + tokens_input
+entry['tokens_output'] = entry.get('tokens_output', 0) + tokens_output
+call_cost = (tokens_input / 1_000_000) * input_price + (tokens_output / 1_000_000) * output_price
+entry['estimated_usd'] = round(entry.get('estimated_usd', 0.0) + call_cost, 6)
+costs[story_id] = entry
+
+tmp = cost_file + '.tmp'
+try:
+    os.makedirs(os.path.dirname(cost_file) or '.', exist_ok=True)
+    with open(tmp, 'w', encoding='utf-8') as f:
+        json.dump(costs, f, indent=2)
+    os.replace(tmp, cost_file)
+except OSError as e:
+    sys.stderr.write(f'[cost] WARNING: could not write {cost_file}: {e}\n')
+
+print(entry['estimated_usd'])
+PYEOF
+  ) || true
+
+  cumulative_usd="${cumulative_usd:-0}"
+
+  # Emit cost_update event
+  log_ralph_event "cost_update" \
+    "\"story_id\":\"$story_id\",\"tokens_input\":$tokens_input,\"tokens_output\":$tokens_output,\"estimated_usd\":$cumulative_usd" || true
+
+  printf '%s' "$cumulative_usd"
 }
 
 # ── Source memory pressure helper (if available) ──────────────────────────────
@@ -840,13 +902,75 @@ $BROWSER_TOOLS_HINT"
   if declare -f cb_record_success > /dev/null 2>&1; then
     cb_record_success "$_CB_ENDPOINT"
   fi
+
+  # ── Parse token counts from LLM output (before cleanup) ─────────────────
+  _CALL_TOKENS_INPUT=0
+  _CALL_TOKENS_OUTPUT=0
+  if [[ "$EFFECTIVE_TOOL" == "claude" && -f "$_RL_TMP" ]]; then
+    _RESULT_LINE=$(grep -m1 '"type":"result"' "$_RL_TMP" 2>/dev/null || true)
+    if [[ -n "$_RESULT_LINE" ]]; then
+      _ti=$($JQ -r '.usage.input_tokens // 0' <<< "$_RESULT_LINE" 2>/dev/null || echo 0)
+      _to=$($JQ -r '.usage.output_tokens // 0' <<< "$_RESULT_LINE" 2>/dev/null || echo 0)
+      [[ "$_ti" =~ ^[0-9]+$ ]] && _CALL_TOKENS_INPUT=$_ti
+      [[ "$_to" =~ ^[0-9]+$ ]] && _CALL_TOKENS_OUTPUT=$_to
+    fi
+  fi
+
   rm -f "$_RL_TMP"
   break
   done  # end rate-limit retry loop
 
+  # ── Accumulate per-story token cost ───────────────────────────────────────
+  _STORY_CUMULATIVE_USD=0
+  if [[ "$_CALL_TOKENS_INPUT" -gt 0 || "$_CALL_TOKENS_OUTPUT" -gt 0 ]]; then
+    _STORY_CUMULATIVE_USD=$(accumulate_story_cost "$NEXT_STORY" "$_CALL_TOKENS_INPUT" "$_CALL_TOKENS_OUTPUT" 2>/dev/null || echo 0)
+    echo "  [cost] Story $NEXT_STORY: input=${_CALL_TOKENS_INPUT} output=${_CALL_TOKENS_OUTPUT} tokens | cumulative \$${_STORY_CUMULATIVE_USD}"
+  fi
+
+  # ── Per-story cost enforcement ───────────────────────────────────────────
+  _STORY_COST_ABANDON=0
+  if [[ -n "$_STORY_CUMULATIVE_USD" ]] && python3 -c "
+import sys
+try:
+    cur = float('${_STORY_CUMULATIVE_USD}')
+    hard = float('${SPIRAL_STORY_COST_HARD_USD}')
+    sys.exit(0 if cur >= hard else 1)
+except Exception:
+    sys.exit(1)
+" 2>/dev/null; then
+    echo "  [cost] WARNING: Story $NEXT_STORY cumulative cost \$${_STORY_CUMULATIVE_USD} exceeds hard limit \$${SPIRAL_STORY_COST_HARD_USD} — abandoning"
+    log_ralph_event "story_cost_ceiling" \
+      "\"story_id\":\"$NEXT_STORY\",\"cumulative_usd\":${_STORY_CUMULATIVE_USD},\"hard_limit\":${SPIRAL_STORY_COST_HARD_USD}"
+    $JQ "(.userStories[] | select(.id == \"$NEXT_STORY\") | ._failureReason) = \"story_cost_ceiling\"" "$PRD_FILE" > "${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE" || true
+    _STORY_COST_ABANDON=1
+  elif [[ -n "$_STORY_CUMULATIVE_USD" ]] && python3 -c "
+import sys
+try:
+    cur = float('${_STORY_CUMULATIVE_USD}')
+    warn = float('${SPIRAL_STORY_COST_WARN_USD}')
+    sys.exit(0 if cur >= warn else 1)
+except Exception:
+    sys.exit(1)
+" 2>/dev/null; then
+    echo "  [cost] WARNING: Story $NEXT_STORY cumulative cost \$${_STORY_CUMULATIVE_USD} exceeds warn threshold \$${SPIRAL_STORY_COST_WARN_USD} — continuing"
+  fi
+
   STORY_END=$(date +%s)
   STORY_DURATION=$(( (STORY_END - STORY_START) / 60 ))
   echo "  [time] Story took ${STORY_DURATION}m"
+
+  # ── Cost ceiling: abandon story if hard limit exceeded ────────────────────
+  if [[ "$_STORY_COST_ABANDON" -eq 1 ]]; then
+    $JQ "(.userStories[] | select(.id == \"$NEXT_STORY\") | .passes) = false" "$PRD_FILE" > "${PRD_FILE}.tmp"
+    mv "${PRD_FILE}.tmp" "$PRD_FILE"
+    increment_retry "$NEXT_STORY"
+    RETRY_NOW=$(get_retry_count "$NEXT_STORY")
+    append_result "reject"
+    echo "## Iteration $ITERATION - $(date)" >> "$PROGRESS_FILE"
+    echo "COST CEILING: $STORY_TITLE ($NEXT_STORY) — \$${_STORY_CUMULATIVE_USD} exceeded hard limit \$${SPIRAL_STORY_COST_HARD_USD}" >> "$PROGRESS_FILE"
+    echo "" >> "$PROGRESS_FILE"
+    continue
+  fi
 
   # ── Time budget enforcement ──────────────────────────────────
   if [[ "$STORY_TIME_BUDGET" -gt 0 ]]; then

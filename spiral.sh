@@ -301,6 +301,21 @@ if [[ "$STATUS_ONLY" -eq 1 ]]; then
     echo "[spiral] No active session (no checkpoint found)"
   fi
   echo "  Stories   : $TOTAL total / $PASSED passed / $PENDING pending"
+  # Show total run cost from story_costs.json if present
+  _STORY_COSTS_FILE="$SCRATCH_DIR/story_costs.json"
+  if [[ -f "$_STORY_COSTS_FILE" ]]; then
+    _TOTAL_COST=$("$SPIRAL_PYTHON" -c "
+import json, sys
+try:
+    with open('$_STORY_COSTS_FILE', encoding='utf-8') as f:
+        costs = json.load(f)
+    total = sum(v.get('estimated_usd', 0.0) for v in costs.values())
+    print(f'\${total:.4f}')
+except Exception:
+    print('?')
+" 2>/dev/null || echo "?")
+    echo "  Run cost  : ${_TOTAL_COST} USD (from story_costs.json)"
+  fi
   exit 0
 fi
 
