@@ -870,3 +870,30 @@ Completed: Dynamic worker count: auto-select 1-3 workers based on story independ
 ## Iteration 9 - Fri, Mar 13, 2026 12:34:20 PM
 Incomplete: Chrome DevTools Phase V: screenshot running app after validation (ID: US-010) — attempt 1/3
 
+
+## Iteration 4 - Fri, Mar 13, 2026  1:59:07 PM
+Incomplete: Chrome DevTools Phase V: screenshot running app after validation (ID: US-010) — attempt 2/3
+
+
+## Iteration - Story: US-008 Wizard: ask about advanced lifecycle tuning
+
+### What was implemented
+- Added "Group 9: Advanced Options (Optional)" section to ralph/skills/spiral-init.md
+  - Max retries per failing story (default: 3) with explanation of fail-fast vs persistent
+  - GitNexus repo name for semantic file hints with CLI detection check
+  - Post-merge deploy command for CI-style loop
+- Updated Step 5a config template in spiral-init.md with SPIRAL_MAX_RETRIES, SPIRAL_GITNEXUS_REPO, SPIRAL_DEPLOY_CMD
+- Refactored lib/setup.py:
+  - Extracted ask_advanced_options() function for the three new questions
+  - Extracted build_config() function for testable config generation
+  - GitNexus question only shown when gitnexus CLI is detected (shutil.which)
+  - Max retries validated as integer with fallback to default 3
+  - Optional values (gitnexus_repo, deploy_cmd) only written to config when non-empty
+
+### Patterns discovered
+- setup.py uses questionary library for interactive prompts
+- Config generation was inline f-string; refactored to build_config() for testability
+
+### Gotchas
+- shutil.which("gitnexus") needed for CLI detection instead of subprocess call
+- Max retries input needs int validation since questionary.text returns string

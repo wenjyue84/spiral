@@ -242,6 +242,31 @@ Do **not** block setup if tools are missing — this section is informational. T
 }
 ```
 
+### Group 9: Advanced Options (Optional)
+
+> **Advanced lifecycle tuning** — these settings are powerful but have sensible defaults. Skip any you're unsure about.
+>
+> **Max retries per failing story?** (default: `3`)
+>
+> After N consecutive failures, SPIRAL skips the story and marks it for decomposition
+> into smaller sub-stories. Lower values iterate faster (fail-fast); higher values give
+> the agent more chances to solve tricky stories.
+>
+> **GitNexus repo name for semantic file hints?** (default: empty — disabled)
+>
+> If GitNexus is installed, providing a repo name enables semantic file-level hints
+> that improve parallel worker partitioning for new stories. SPIRAL will query GitNexus
+> for file relevance when assigning work to workers.
+>
+> (Check if `gitnexus` CLI is available via `command -v gitnexus`. If not found, warn:
+> "GitNexus CLI not detected — install it first or leave blank to disable." Default: empty)
+>
+> **Post-merge deploy command?** (default: empty — disabled)
+>
+> A shell command that runs after each successful story merge, e.g. `npm run build` or
+> `make deploy-staging`. This turns SPIRAL into a CI-style loop: implement → validate → deploy → repeat.
+> Leave blank to skip post-merge deployment.
+
 ### Step 3b: Generate Constitution
 
 Based on the codebase scan results, **draft a constitution** and present it for the user to review. The constitution should be derived from what was actually detected — not generic boilerplate.
@@ -384,6 +409,20 @@ SPIRAL_MAX_PENDING={user choice, default: 50}
 
 # Focus theme (empty = all stories)
 # SPIRAL_FOCUS=""
+
+# --- Advanced Lifecycle Tuning ---
+
+# Max retries per failing story before skip + decomposition
+# Lower = faster iteration (fail-fast), higher = more persistent
+SPIRAL_MAX_RETRIES={user choice, default: 3}
+
+# GitNexus repo name for semantic file hints (improves worker partitioning)
+# Leave empty to disable
+# SPIRAL_GITNEXUS_REPO=""
+
+# Post-merge deploy command (runs after each successful story merge)
+# Enables CI-style loop: implement → validate → deploy → repeat
+# SPIRAL_DEPLOY_CMD=""
 ```
 
 Only include optional sections (Firecrawl, Spec-Kit, Gemini, etc.) if the user opted in.
