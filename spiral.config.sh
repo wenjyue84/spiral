@@ -60,6 +60,11 @@ SPIRAL_RESEARCH_SPECIALIST_PROMPT=""
 # Leave empty to disable.
 # SPIRAL_PINCHTAB_URL="http://localhost:9867"
 
+# ── Dashboard auto-refresh interval (seconds) ─────────────────────────────
+# The HTML dashboard includes a <meta http-equiv='refresh'> tag so the browser
+# reloads automatically during active runs. Set to 0 to disable (static mode).
+SPIRAL_DASHBOARD_REFRESH_SECS=30
+
 # ── Post-completion hook ───────────────────────────────────────────────────
 # Shell command to run when ALL stories pass (check_done exits 0).
 # Not run on iteration-limit exits, SIGINT, or errors.

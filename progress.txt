@@ -2235,3 +2235,23 @@ Incomplete: Add HTML dashboard auto-refresh meta tag with configurable interval 
 ### Gotchas
 - Must use `2>/dev/null || true` pattern to avoid failing on repos with no stale worktrees
 - The prune must happen AFTER the explicit `worktree remove --force` calls, not before
+
+
+## Iteration 42 - Story: US-056 - Add HTML dashboard auto-refresh meta tag with configurable interval
+
+### What was implemented
+- Added SPIRAL_DASHBOARD_REFRESH_SECS config variable to spiral.config.sh (default: 30)
+- Added --refresh-secs CLI arg to spiral_dashboard.py (reads env var as default)
+- Injected <meta http-equiv="refresh" content="N"> in <head> when interval > 0
+- Added "Auto-refreshing every Ns" text in dashboard footer when enabled
+- Setting refresh_secs=0 omits both the meta tag and footer text (static mode)
+- Added 6 tests covering positive interval, zero/disabled, default, footer text, and custom values
+
+### Patterns discovered
+- Dashboard config flows through env vars from spiral.config.sh → shell → Python os.environ
+- CLI args in spiral_dashboard.py use argparse with env var fallbacks via os.environ.get()
+- render_html() uses keyword arguments for optional features, keeping backward compatibility
+
+### Gotchas
+- render_html default for refresh_secs is 0 (static), but CLI default reads from env var (30)
+- This means direct Python callers get static mode by default; CLI users get auto-refresh by default

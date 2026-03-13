@@ -550,7 +550,8 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
                 epics: list[dict] | None = None,
                 activity_sections: list[str] | None = None,
                 failure_reasons: list[dict] | None = None,
-                story_attempts: dict | None = None) -> str:
+                story_attempts: dict | None = None,
+                refresh_secs: int = 0) -> str:
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     max_vel = max((v["kept"] for v in velocity), default=1) or 1
 
@@ -743,11 +744,14 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
             f'</section>\n'
         )
 
+    refresh_meta = f'<meta http-equiv="refresh" content="{refresh_secs}">\n' if refresh_secs > 0 else ""
+    refresh_footer = f" &middot; Auto-refreshing every {refresh_secs}s" if refresh_secs > 0 else ""
+
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>SPIRAL Dashboard</title>
+{refresh_meta}<title>SPIRAL Dashboard</title>
 <style>
 *{{margin:0;padding:0;box-sizing:border-box}}
 body{{background:#1a1a2e;color:#e0e0e0;font-family:'Cascadia Code','Fira Code',Consolas,monospace;font-size:13px;padding:20px;max-width:1100px;margin:0 auto}}
@@ -897,7 +901,7 @@ footer{{text-align:center;color:#444;font-size:10px;margin-top:16px;padding-top:
 
 {_render_activity_feed(activity_sections or [])}
 {_render_screenshot_section(screenshot_path)}
-<footer>SPIRAL Metrics Dashboard &middot; {now}</footer>
+<footer>SPIRAL Metrics Dashboard &middot; {now}{refresh_footer}</footer>
 </body>
 </html>"""
 
@@ -914,6 +918,9 @@ def main() -> int:
     parser.add_argument("--scratch-dir", default=".spiral", help="Path to .spiral scratch dir (for screenshots)")
     parser.add_argument("--output", default=".spiral/dashboard.html", help="Output HTML path")
     parser.add_argument("--open", action="store_true", help="Auto-open in browser after generating")
+    parser.add_argument("--refresh-secs", type=int,
+                        default=int(os.environ.get("SPIRAL_DASHBOARD_REFRESH_SECS", "30")),
+                        help="Auto-refresh interval in seconds (0 to disable)")
     args = parser.parse_args()
 
     # Load data
@@ -952,7 +959,7 @@ def main() -> int:
         velocity = [{"iter": 0, "kept": 0, "total": 0, "duration_hours": 0.001, "velocity": 0}]
 
     # Render
-    html = render_html(overview, velocity, status, model_perf, retry_analysis, bottle, decomposition, insights, screenshot, iteration_velocity=iter_vel, epics=epics, activity_sections=activity, failure_reasons=failure_reasons, story_attempts=story_attempts)
+    html = render_html(overview, velocity, status, model_perf, retry_analysis, bottle, decomposition, insights, screenshot, iteration_velocity=iter_vel, epics=epics, activity_sections=activity, failure_reasons=failure_reasons, story_attempts=story_attempts, refresh_secs=args.refresh_secs)
 
     # Write
     output_path = os.path.abspath(args.output)

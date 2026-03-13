@@ -467,3 +467,39 @@ class TestComputeStatusBreakdown:
         assert bd["attempts"]["keep"] == 2
         assert bd["attempts"]["fail"] == 1
         assert bd["attempts"]["retry"] == 1
+
+
+# ── Auto-refresh meta tag (US-056) ──────────────────────────────────────────
+
+class TestDashboardAutoRefresh:
+    def test_meta_refresh_present_when_refresh_secs_positive(self):
+        args = _make_minimal_render_args()
+        html = render_html(*args, refresh_secs=30)
+        assert '<meta http-equiv="refresh" content="30">' in html
+
+    def test_meta_refresh_absent_when_refresh_secs_zero(self):
+        args = _make_minimal_render_args()
+        html = render_html(*args, refresh_secs=0)
+        assert 'http-equiv="refresh"' not in html
+
+    def test_meta_refresh_absent_when_default(self):
+        """Default refresh_secs=0 → no meta tag."""
+        args = _make_minimal_render_args()
+        html = render_html(*args)
+        assert 'http-equiv="refresh"' not in html
+
+    def test_footer_shows_refresh_interval(self):
+        args = _make_minimal_render_args()
+        html = render_html(*args, refresh_secs=45)
+        assert "Auto-refreshing every 45s" in html
+
+    def test_footer_no_refresh_text_when_zero(self):
+        args = _make_minimal_render_args()
+        html = render_html(*args, refresh_secs=0)
+        assert "Auto-refreshing" not in html
+
+    def test_custom_refresh_interval(self):
+        args = _make_minimal_render_args()
+        html = render_html(*args, refresh_secs=10)
+        assert '<meta http-equiv="refresh" content="10">' in html
+        assert "Auto-refreshing every 10s" in html
