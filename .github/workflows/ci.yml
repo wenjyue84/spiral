@@ -7,6 +7,30 @@ on:
     branches: [main]
 
 jobs:
+  shellcheck:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run ShellCheck
+        uses: koalaman/shellcheck-action@v1
+        with:
+          version: v0.10.0
+          severity: error
+          format: gcc
+          args: >-
+            spiral.sh
+            setup.sh
+            spiral.config.sh
+            lib/circuit_breaker.sh
+            lib/memory-pressure-check.sh
+            lib/run_parallel_ralph.sh
+            lib/spiral_assert.sh
+            lib/spiral_doctor.sh
+            lib/validate_preflight.sh
+            lib/worker_heartbeat.sh
+
   test:
     runs-on: ubuntu-latest
 

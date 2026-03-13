@@ -106,6 +106,18 @@ spiral_doctor() {
     warn_count=$((warn_count + 1))
   fi
 
+  # ── Check shellcheck ────────────────────────────────────────────────────────
+  if command -v shellcheck >/dev/null 2>&1; then
+    local sc_version
+    sc_version=$(shellcheck --version | awk '/^version:/{print $2}')
+    echo "  [doctor] [OK] shellcheck found in PATH (version: ${sc_version})"
+  else
+    echo "  [doctor] [WARN] shellcheck not found in PATH"
+    echo "           → Fix: Install shellcheck (brew install shellcheck, apt-get install shellcheck, or choco install shellcheck)"
+    echo "           → Info: shellcheck is required for static analysis of bash scripts"
+    warn_count=$((warn_count + 1))
+  fi
+
   # ── Summary ────────────────────────────────────────────────────────────────
   echo ""
   if [[ "$error_count" -eq 0 ]]; then
