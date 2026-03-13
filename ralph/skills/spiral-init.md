@@ -122,6 +122,46 @@ Ask the user these questions **one group at a time** (not all at once). Use the 
 > If no test runner was detected, inform the user:
 > "No test runner detected. SPIRAL works best with a test suite. You can add one later or SPIRAL will skip the Test Synthesis phase."
 
+#### Validate Command Dry-Run
+
+After the user provides `SPIRAL_VALIDATE_CMD` (non-empty input), immediately perform a dry-run before writing it to config:
+
+```bash
+timeout 30 bash -c "$SPIRAL_VALIDATE_CMD"
+DRY_RUN_EXIT=$?
+```
+
+Handle each outcome:
+
+**Empty input:** Skip the dry-run entirely. Use the detected project default as-is.
+
+**Exit 0 (success):**
+```
+[wizard] Validate command verified ✓ writing to config
+```
+Proceed immediately to the next question.
+
+**Exit 127 (command not found):**
+```
+[wizard] Command not found: {cmd}
+         → Hint: install with {suggest package manager command based on detected stack, e.g. "npm install -D vitest" or "pip install pytest"}
+
+Command returned exit 127 → use anyway? (y/N)
+```
+Wait for user input:
+- `y` — accept the command as-is and continue
+- `N` or Enter (default) — re-prompt: "What command runs your test suite?"
+
+**Non-zero exit or timeout (any other failure):**
+```
+Command returned exit {N} → use anyway? (y/N)
+```
+Wait for user input:
+- `y` — accept the command as-is and continue
+- `N` or Enter (default) — re-prompt: "What command runs your test suite?"
+
+Keep re-prompting until the user either provides a command that exits 0, accepts a failing command with `y`, or enters blank (skip dry-run).
+
 ### Group 4: Model & Token Strategy
 
 > **Implementation model routing** — which Claude model strategy for implementing stories? (default: `auto`)
@@ -563,7 +603,7 @@ If the constitution was not enabled, omit the constitution line from the file li
 - **Never skip the scan** — always scan first, even if the user provides info upfront
 - **Pre-fill defaults** from scan results — don't make the user repeat what you already know
 - **Ask one group at a time** — don't overwhelm with all questions at once
-- **Validate test command** — if the user provides a test command, verify the script/binary exists
+- **Validate test command** — dry-run `SPIRAL_VALIDATE_CMD` via `timeout 30 bash -c "$cmd"` before writing to config; re-prompt on failure unless user explicitly accepts with `y`
 - **Don't overwrite** — if `prd.json` or `spiral.config.sh` already exist, warn the user and ask before overwriting
 - **Keep stories small** — starter stories should be achievable in one Ralph iteration
 - **Use the detected tech stack** — generated stories should reference actual files/frameworks found in the scan

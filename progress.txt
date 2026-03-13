@@ -2189,3 +2189,27 @@ Completed: Emit per-iteration summary JSON to .spiral/_iteration_summary.json (I
 - 425 tests passed, 2 skipped
 - Generated HTML dashboard with test data validates correctly
 - Attempt history displays in proper chronological order (newest first)
+## Iteration 2 - Sat, Mar 14, 2026 12:34:02 AM
+Incomplete: Add HTML dashboard auto-refresh meta tag with configurable interval (ID: US-056) — attempt 1/3
+
+
+
+## Iteration N - Story: US-071: Wizard: dry-run SPIRAL_VALIDATE_CMD before writing to spiral.config.sh
+
+### What was implemented
+- Added "Validate Command Dry-Run" subsection within Group 3 of ralph/skills/spiral-init.md
+- Added dry-run block: `timeout 30 bash -c "$SPIRAL_VALIDATE_CMD"` with `DRY_RUN_EXIT=$?`
+- Defined three outcome paths: exit 0 (verify & proceed), exit 127 (command not found + install hint + re-prompt), non-zero/timeout (re-prompt with y/N)
+- Empty input path: skip dry-run, use detected default
+- Re-prompt loop: keeps asking until success, user accepts with `y`, or user enters blank
+- Updated Important Rules bullet to reference dry-run approach
+
+### Patterns discovered
+- spiral-init.md is a markdown skill document (not shell code) — changes are instructions to Claude, not executable code
+- Quality checks (pytest) cover python lib/ files, not skill markdown — skill changes pass automatically if python tests pass
+- The skill is structured in numbered Groups for the wizard flow; dry-run fits as a sub-section (####) within Group 3
+
+### Gotchas
+- The dry-run is instructional (wizard guidance to the AI running the skill), not executable shell code in the skill file
+- Install hints should be contextual to detected stack (npm for JS, pip for Python, etc.)
+- Default for y/N prompt is N (re-prompt) — user must explicitly type y to accept a failing command
