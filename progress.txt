@@ -1555,3 +1555,20 @@ Completed: Detect git merge conflicts with `git merge-tree` before parallel work
 ### Gotchas
 - progress.txt has a preamble (## Codebase Patterns) before ## Iteration sections — regex split must filter for sections starting with "## Iteration"
 - HTML escaping needed on section content to prevent XSS from user-controlled progress.txt content
+
+
+## Iteration 9 - Story: US-048 - Add epicId grouping field to PRD schema and story review report
+
+### What was implemented
+- Story was already fully implemented in prior iterations as part of other work
+- prd_schema.py: validates epicId (non-empty string) on stories + top-level epics array
+- story_review_report.py: _group_by_epic() groups stories, _render_epic_progress_bar() shows per-epic progress
+- spiral_dashboard.py: compute_epics() computes per-epic stats, renders Epics table section
+- merge_stories.py: is_duplicate() uses lower threshold (0.45) within same epicId for stricter dedup
+
+### Patterns discovered
+- Feature was implemented incrementally across multiple files without a dedicated commit
+- All 58 tests (schema + merge + dashboard) pass without any new changes needed
+
+### Gotchas
+- The epicId feature was already complete but the story hadn't been marked as passed
