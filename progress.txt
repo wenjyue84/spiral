@@ -604,3 +604,24 @@ Incomplete: Add prd.json write lock to prevent parallel worker corruption (ID: U
 - Windows msvcrt.locking requires os.lseek(fd, 0, SEEK_SET) before LK_UNLCK
 - Thread-based concurrency testing uses threading.Barrier for synchronized start
 - Lock file is NOT cleaned up after release (intentional — avoids race between cleanup and next acquire)
+## Iteration 8 - Fri, Mar 13, 2026 11:15:36 AM
+Completed: Add prd.json write lock to prevent parallel worker corruption (ID: US-040) in 6m
+
+
+## Iteration - Story: US-041: Enforce dependency-order execution: skip story if deps not yet passed
+
+### What was implemented
+- Fixed check_deps_met() in ralph.sh to also accept _decomposed=true as satisfying a dependency
+- Added _decomposed=true stories exclusion from ALL_INCOMPLETE candidate pool (decomposed = handled by sub-stories, not directly)
+- Added per-story [skip-deps] log message during candidate iteration (not counted as retry)
+- Created tests/test_dep_order.py with 17 tests covering check_deps_met predicate and select_next_story selection logic
+- All 114 pytest tests pass
+
+### Patterns discovered
+- ralph.sh check_deps_met() uses jq to query passes field; _decomposed is an optional boolean field on stories
+- ALL_INCOMPLETE query now also filters out _decomposed=true stories (they are decomposed into sub-stories)
+- Integration tests for shell logic are best written as Python re-implementations of the same algorithm
+
+### Gotchas
+- ralph.sh lives in C:/Users/Jyue/.ai/Skills/ralph/ — outside the Spiral repo; changes there are not tracked by the Spiral git repo
+- The _decomposed flag also means the story itself should NOT be selected as a candidate (not just that it satisfies deps)
