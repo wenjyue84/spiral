@@ -68,6 +68,63 @@ class TestPhaseStateMachine:
             assert valid, "Monotonic sequence should be valid"
 
 
+class TestCheckpointPhaseDurations:
+    """Validate phaseDurations field in checkpoint (US-046)."""
+
+    def _base_checkpoint(self, **overrides):
+        ckpt = {"iter": 1, "phase": "R", "ts": "2026-03-13T00:00:00Z"}
+        ckpt.update(overrides)
+        return ckpt
+
+    def test_checkpoint_valid_without_phase_durations(self):
+        """phaseDurations is optional — checkpoint without it is still valid."""
+        sm = SpiralPhaseStateMachine()
+        errors = sm.validate_checkpoint(self._base_checkpoint())
+        assert errors == []
+
+    def test_checkpoint_valid_with_phase_durations(self):
+        sm = SpiralPhaseStateMachine()
+        durations = {"R": 10, "T": 5, "M": 3, "I": 120, "V": 30, "C": 2}
+        errors = sm.validate_checkpoint(self._base_checkpoint(phaseDurations=durations))
+        assert errors == []
+
+    def test_phase_durations_zero_values_valid(self):
+        sm = SpiralPhaseStateMachine()
+        durations = {"R": 0, "T": 0, "M": 0, "I": 0, "V": 0, "C": 0}
+        errors = sm.validate_checkpoint(self._base_checkpoint(phaseDurations=durations))
+        assert errors == []
+
+    def test_phase_durations_invalid_type(self):
+        sm = SpiralPhaseStateMachine()
+        errors = sm.validate_checkpoint(self._base_checkpoint(phaseDurations="not a dict"))
+        assert any("must be an object" in e for e in errors)
+
+    def test_phase_durations_invalid_phase_key(self):
+        sm = SpiralPhaseStateMachine()
+        durations = {"R": 10, "X": 5}
+        errors = sm.validate_checkpoint(self._base_checkpoint(phaseDurations=durations))
+        assert any("'X' is not a valid phase" in e for e in errors)
+
+    def test_phase_durations_negative_value(self):
+        sm = SpiralPhaseStateMachine()
+        durations = {"R": -1}
+        errors = sm.validate_checkpoint(self._base_checkpoint(phaseDurations=durations))
+        assert any("non-negative" in e for e in errors)
+
+    def test_phase_durations_non_numeric_value(self):
+        sm = SpiralPhaseStateMachine()
+        durations = {"R": "ten"}
+        errors = sm.validate_checkpoint(self._base_checkpoint(phaseDurations=durations))
+        assert any("must be a number" in e for e in errors)
+
+    def test_phase_durations_partial_phases_valid(self):
+        """Only some phases reported is fine (e.g., mid-iteration checkpoint)."""
+        sm = SpiralPhaseStateMachine()
+        durations = {"R": 10, "T": 5}
+        errors = sm.validate_checkpoint(self._base_checkpoint(phaseDurations=durations))
+        assert errors == []
+
+
 class TestStoryLifecycle:
     """Properties of the story state machine."""
 

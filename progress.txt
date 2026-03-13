@@ -1500,3 +1500,23 @@ Completed: Detect git merge conflicts with `git merge-tree` before parallel work
 - With `set -euo pipefail`, pipeline exit code via `|| RC=$?` works correctly; `$?` inside `||` captures the pipeline's overall exit code
 - Worktree cleanup removes both the worktree directory AND the branch (`git branch -D`); otherwise orphaned branches accumulate
 
+
+
+## Iteration - Story: US-046: Record phase start/end timestamps in .spiral/_checkpoint.json
+
+### What was implemented
+- Modified `write_checkpoint()` in spiral.sh to include `phaseDurations` field: `{"R":N,"T":N,"M":N,"I":N,"V":N,"C":N}` in integer seconds
+- Added `_PHASE_DUR_*` and `_PHASE_TS_*` variables initialized per iteration, tracked at each phase boundary
+- Each `phase_end` event now also includes `duration_s` in its JSONL payload
+- Updated `state_machine.py` `validate_checkpoint()` to accept and validate `phaseDurations` as optional dict with valid phase keys and non-negative numeric values
+- Added per-phase timing line to iteration summary dashboard: `Phases: R=Ns T=Ns M=Ns I=Ns V=Ns C=Ns`
+- Added 8 new tests in `TestCheckpointPhaseDurations` class covering valid, missing, invalid type, bad keys, negative values, non-numeric, and partial phases
+
+### Patterns discovered
+- Phase G (Gate) wraps Phase I (Implement) — timing starts at G start and duration is attributed to I since they're co-located
+- `_PHASE_TS_*` per-phase start timestamps avoid shared variable confusion when phases are nested
+- `log_spiral_event "phase_end"` already existed for all phases — just needed duration enrichment
+
+### Gotchas
+- Phase G+I share boundaries: G starts first, I ends first, then G ends — the combined duration is attributed to `_PHASE_DUR_I`
+- Must initialize `_PHASE_DUR_*` to 0 at iteration start; otherwise stale values from previous iteration carry over

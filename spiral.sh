@@ -430,8 +430,10 @@ prd_stats() {
 # ── Helper: write checkpoint ────────────────────────────────────────────────
 write_checkpoint() {
   local iter="$1" phase="$2"
-  printf '{"iter":%d,"phase":"%s","ts":"%s"}\n' \
+  printf '{"iter":%d,"phase":"%s","ts":"%s","phaseDurations":{"R":%d,"T":%d,"M":%d,"I":%d,"V":%d,"C":%d}}\n' \
     "$iter" "$phase" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    "${_PHASE_DUR_R:-0}" "${_PHASE_DUR_T:-0}" "${_PHASE_DUR_M:-0}" \
+    "${_PHASE_DUR_I:-0}" "${_PHASE_DUR_V:-0}" "${_PHASE_DUR_C:-0}" \
     > "$CHECKPOINT_FILE"
 }
 
@@ -741,6 +743,8 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
   ADDED=0           # new stories added this iter (set in Phase M; default 0 if skipped)
   RALPH_RAN=0       # set to 1 if ralph actually executed this iter (controls Phase V)
   RALPH_PROGRESS=0  # stories completed this iter; reset each iter for accurate velocity
+  # Phase duration tracking (US-046): reset per-iteration, updated at each phase_end
+  _PHASE_DUR_R=0; _PHASE_DUR_T=0; _PHASE_DUR_M=0; _PHASE_DUR_I=0; _PHASE_DUR_V=0; _PHASE_DUR_C=0
   echo ""
   echo "  ┌─────────────────────────────────────────────────────┐"
   echo "  │  SPIRAL Iteration $SPIRAL_ITER / $MAX_SPIRAL_ITERS"
@@ -776,6 +780,7 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
   echo ""
   echo "  [Phase R] RESEARCH — searching sources..."
   log_spiral_event "phase_start" "\"phase\":\"R\",\"iteration\":$SPIRAL_ITER"
+  _PHASE_TS_R=$(date +%s)
   RESEARCH_OUTPUT="$SCRATCH_DIR/_research_output.json"
 
   if checkpoint_phase_done "R"; then
@@ -929,13 +934,15 @@ $INJECTED_PROMPT"
 
     write_checkpoint "$SPIRAL_ITER" "R"
   fi
-  log_spiral_event "phase_end" "\"phase\":\"R\",\"iteration\":$SPIRAL_ITER"
+  _PHASE_DUR_R=$(( $(date +%s) - _PHASE_TS_R ))
+  log_spiral_event "phase_end" "\"phase\":\"R\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_R"
 
   # ── Phase T: TEST SYNTHESIS ─────────────────────────────────────────────────
   PHASE="T"
   echo ""
   echo "  [Phase T] TEST SYNTHESIS — scanning test failures..."
   log_spiral_event "phase_start" "\"phase\":\"T\",\"iteration\":$SPIRAL_ITER"
+  _PHASE_TS_T=$(date +%s)
   TEST_OUTPUT="$SCRATCH_DIR/_test_stories_output.json"
 
   if checkpoint_phase_done "T"; then
@@ -972,13 +979,15 @@ $INJECTED_PROMPT"
 
     write_checkpoint "$SPIRAL_ITER" "T"
   fi
-  log_spiral_event "phase_end" "\"phase\":\"T\",\"iteration\":$SPIRAL_ITER"
+  _PHASE_DUR_T=$(( $(date +%s) - _PHASE_TS_T ))
+  log_spiral_event "phase_end" "\"phase\":\"T\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_T"
 
   # ── Phase M: MERGE ──────────────────────────────────────────────────────────
   PHASE="M"
   echo ""
   echo "  [Phase M] MERGE — deduplicating and patching prd.json..."
   log_spiral_event "phase_start" "\"phase\":\"M\",\"iteration\":$SPIRAL_ITER"
+  _PHASE_TS_M=$(date +%s)
 
   if checkpoint_phase_done "M"; then
     echo "  [M] Skipping (checkpoint: already done this iter)"
@@ -1055,11 +1064,13 @@ $INJECTED_PROMPT"
     fi
   fi
 
-  log_spiral_event "phase_end" "\"phase\":\"M\",\"iteration\":$SPIRAL_ITER"
+  _PHASE_DUR_M=$(( $(date +%s) - _PHASE_TS_M ))
+  log_spiral_event "phase_end" "\"phase\":\"M\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_M"
 
   # ── Phase G: HUMAN GATE + Phase I: IMPLEMENT ───────────────────────────────
   PHASE="G"
   log_spiral_event "phase_start" "\"phase\":\"G\",\"iteration\":$SPIRAL_ITER"
+  _PHASE_TS_I=$(date +%s)
   if checkpoint_phase_done "I"; then
     echo "  [G+I] Skipping (checkpoint: gate and ralph already done this iter)"
   else
@@ -1427,14 +1438,16 @@ $INJECTED_PROMPT"
     spiral_assert_decomposition_integrity "$PRD_FILE"
     spiral_assert_dependency_completion_order "$PRD_FILE"
   fi
-  log_spiral_event "phase_end" "\"phase\":\"I\",\"iteration\":$SPIRAL_ITER"
-  log_spiral_event "phase_end" "\"phase\":\"G\",\"iteration\":$SPIRAL_ITER"
+  _PHASE_DUR_I=$(( $(date +%s) - _PHASE_TS_I ))
+  log_spiral_event "phase_end" "\"phase\":\"I\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_I"
+  log_spiral_event "phase_end" "\"phase\":\"G\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_I"
 
   # ── Phase V: VALIDATE (test suite) ────────────────────────────────────────
   PHASE="V"
   echo ""
   echo "  [Phase V] VALIDATE — running test suite..."
   log_spiral_event "phase_start" "\"phase\":\"V\",\"iteration\":$SPIRAL_ITER"
+  _PHASE_TS_V=$(date +%s)
 
   if checkpoint_phase_done "V"; then
     echo "  [V] Skipping (checkpoint: already done this iter)"
@@ -1540,7 +1553,8 @@ PYEOF
 
     write_checkpoint "$SPIRAL_ITER" "V"
   fi
-  log_spiral_event "phase_end" "\"phase\":\"V\",\"iteration\":$SPIRAL_ITER"
+  _PHASE_DUR_V=$(( $(date +%s) - _PHASE_TS_V ))
+  log_spiral_event "phase_end" "\"phase\":\"V\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_V"
 
   # ── Phase P: PUSH ──────────────────────────────────────────────────────────
   echo ""
@@ -1556,6 +1570,7 @@ PYEOF
   echo ""
   echo "  [Phase C] CHECK DONE..."
   log_spiral_event "phase_start" "\"phase\":\"C\",\"iteration\":$SPIRAL_ITER"
+  _PHASE_TS_C=$(date +%s)
 
   _CHECK_DONE_RC=0
   if [[ -n "$SPIRAL_CORE_BIN" ]]; then
@@ -1619,6 +1634,7 @@ PYEOF
   echo "  ┌─ Iteration $SPIRAL_ITER Summary ─────────────────┐"
   echo "  │  Stories:   +${RALPH_PROGRESS:-0} completed, $PENDING remaining"
   echo "  │  Duration:  ${ITER_MINUTES}m (${ITER_DURATION}s)"
+  echo "  │  Phases:    R=${_PHASE_DUR_R}s T=${_PHASE_DUR_T}s M=${_PHASE_DUR_M}s I=${_PHASE_DUR_I}s V=${_PHASE_DUR_V}s C=${_PHASE_DUR_C}s"
   if [[ "${RALPH_PROGRESS:-0}" -gt 0 && "$ITER_DURATION" -gt 0 ]]; then
     VEL=$(awk "BEGIN {printf \"%.1f\", ${RALPH_PROGRESS} / ($ITER_DURATION / 3600.0)}")
     echo "  │  Velocity:  ${VEL} stories/hour"
@@ -1679,7 +1695,8 @@ PYEOF
     fi
   fi
 
-  log_spiral_event "phase_end" "\"phase\":\"C\",\"iteration\":$SPIRAL_ITER"
+  _PHASE_DUR_C=$(( $(date +%s) - _PHASE_TS_C ))
+  log_spiral_event "phase_end" "\"phase\":\"C\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_C"
   echo "  [C] Looping back to Phase R"
   echo ""
 done

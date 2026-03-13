@@ -108,6 +108,28 @@ class SpiralPhaseStateMachine:
         if "ts" not in checkpoint:
             errors.append("Checkpoint missing 'ts' field")
 
+        # Validate optional phaseDurations field (US-046)
+        durations = checkpoint.get("phaseDurations")
+        if durations is not None:
+            if not isinstance(durations, dict):
+                errors.append(
+                    f"phaseDurations must be an object, got {type(durations).__name__}"
+                )
+            else:
+                for key, val in durations.items():
+                    if key not in PHASE_ORDER:
+                        errors.append(
+                            f"phaseDurations key '{key}' is not a valid phase"
+                        )
+                    if not isinstance(val, (int, float)):
+                        errors.append(
+                            f"phaseDurations['{key}'] must be a number, got {type(val).__name__}"
+                        )
+                    elif val < 0:
+                        errors.append(
+                            f"phaseDurations['{key}'] must be non-negative, got {val}"
+                        )
+
         return errors
 
 
