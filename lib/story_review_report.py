@@ -208,7 +208,13 @@ def generate_html(prd: dict, iteration: int, added_count: int = 0) -> str:
     # Completed stories summary (collapsed)
     completed_rows = ""
     for s in completed:
-        completed_rows += f'<tr><td>{escape(s.get("id",""))}</td><td>{escape(s.get("title",""))}</td><td><span class="badge" style="background:#22c55e">Done</span></td></tr>\n'
+        sha = s.get("_passedCommit", "")
+        if sha:
+            short_sha = escape(sha[:8])
+            commit_cell = f'<code title="{escape(sha)}">{short_sha}</code>'
+        else:
+            commit_cell = '<span style="color:var(--text-dim)">—</span>'
+        completed_rows += f'<tr><td>{escape(s.get("id",""))}</td><td>{escape(s.get("title",""))}</td><td>{commit_cell}</td><td><span class="badge" style="background:#22c55e">Done</span></td></tr>\n'
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -521,7 +527,7 @@ body {{
         </button>
         <div class="completed-body" id="completed-body">
             <table>
-                <tr><th>ID</th><th>Title</th><th>Status</th></tr>
+                <tr><th>ID</th><th>Title</th><th>Commit</th><th>Status</th></tr>
                 {completed_rows}
             </table>
         </div>

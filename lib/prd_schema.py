@@ -133,6 +133,13 @@ def validate_prd(prd: dict) -> list[str]:
         if "_decomposedInto" in story and not isinstance(story["_decomposedInto"], list):
             errors.append(f"{prefix}: _decomposedInto must be a list")
 
+        if "_passedCommit" in story:
+            pc = story["_passedCommit"]
+            if not isinstance(pc, str):
+                errors.append(f"{prefix}: _passedCommit must be string")
+            elif pc and not re.match(r'^[0-9a-f]{40}$', pc):
+                errors.append(f"{prefix}: _passedCommit must be a 40-char hex SHA or empty string")
+
         if "filesTouch" in story and not isinstance(story["filesTouch"], list):
             errors.append(f"{prefix}: filesTouch must be a list")
 

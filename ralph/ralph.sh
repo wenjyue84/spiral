@@ -863,7 +863,14 @@ Completed by Ralph iteration $ITERATION (${STORY_DURATION}m)
 
 Co-Authored-By: Claude ${COAUTHOR_LABEL} 4.6 <noreply@anthropic.com>" || echo "[warn] No changes to commit"
 
-      append_result "keep" "$(git rev-parse HEAD 2>/dev/null)"
+      # Record _passedCommit SHA in prd.json for traceability
+      COMMIT_SHA=$(git rev-parse HEAD 2>/dev/null || echo '')
+      if [[ -n "$COMMIT_SHA" ]]; then
+        $JQ "(.userStories[] | select(.id == \"$NEXT_STORY\"))._passedCommit = \"$COMMIT_SHA\"" "$PRD_FILE" > "${PRD_FILE}.tmp"
+        mv "${PRD_FILE}.tmp" "$PRD_FILE"
+      fi
+
+      append_result "keep" "$COMMIT_SHA"
       log_ralph_event "story_passed" "\"storyId\":\"$NEXT_STORY\",\"retryCount\":$(get_retry_count "$NEXT_STORY"),\"model\":\"${EFFECTIVE_MODEL:-sonnet}\""
 
       echo "## Iteration $ITERATION - $(date)" >> "$PROGRESS_FILE"

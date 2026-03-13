@@ -1520,3 +1520,19 @@ Completed: Detect git merge conflicts with `git merge-tree` before parallel work
 ### Gotchas
 - Phase G+I share boundaries: G starts first, I ends first, then G ends — the combined duration is attributed to `_PHASE_DUR_I`
 - Must initialize `_PHASE_DUR_*` to 0 at iteration start; otherwise stale values from previous iteration carry over
+
+
+## Iteration - Story: US-047 Record _passedCommit git SHA in prd.json when story passes
+
+### What was implemented
+- ralph.sh: After git commit succeeds, captures HEAD SHA via `git rev-parse HEAD` and writes `_passedCommit` field to the story in prd.json using jq
+- prd_schema.py: Added optional `_passedCommit` field validation — must be 40-char hex SHA or empty string
+- story_review_report.py: Added "Commit" column to completed stories table showing short SHA (8 chars) with full SHA in tooltip
+
+### Patterns discovered
+- ralph.sh already captures commit SHA in `append_result` — reused same pattern for prd.json injection
+- jq field assignment syntax: `(.userStories[] | select(.id == "X"))._passedCommit = "val"` works for adding new fields
+
+### Gotchas
+- prd.json encoding must be utf-8 on Windows (cp1252 default causes UnicodeDecodeError in Python)
+- The `|| echo ''` fallback on git rev-parse ensures no error if running outside git repo
