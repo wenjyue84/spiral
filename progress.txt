@@ -573,3 +573,34 @@ Completed: Implement real Claude API call in route_stories.py auto mode (ID: US-
 ### Gotchas
 - The MCP config (claude settings.json) requires manual setup outside the wizard — wizard only shows the snippet
 - Do not block setup if tools are missing — the section is purely informational
+## Iteration 7 - Fri, Mar 13, 2026 11:09:16 AM
+Incomplete: Add prd.json write lock to prevent parallel worker corruption (ID: US-040) — attempt 1/3
+
+
+## Iteration - Story: US-040: Add prd.json write lock to prevent parallel worker corruption
+
+### What was implemented
+- Created lib/prd_lock.py with cross-platform file-based exclusive lock (msvcrt on Windows, fcntl on POSIX)
+- prd_locked() context manager: acquires lock → reads prd.json → yields dict → atomic write on exit
+- PrdLockTimeout exception raised after configurable timeout (default 30s) instead of deadlocking
+- Lock file is <prd_path>.lock; poll interval 100ms
+- Exception inside with-block releases lock without writing back (safe rollback)
+- Created tests/test_prd_lock.py with 10 test cases covering:
+  - Basic read-modify-write cycle
+  - Lock file creation
+  - Exception safety (no write on error)
+  - Timeout with clear PrdLockTimeout error message
+  - 3 concurrent threads each marking different stories (core AC)
+  - 5 concurrent threads stress test
+  - FileNotFoundError for missing prd.json
+  - Lock release after normal exit and after exception
+
+### Patterns discovered
+- Existing codebase uses shutil.move for atomic writes (tmp → target) — prd_lock.py follows same pattern
+- All lib/*.py files use UTF-8 stdout reconfigure for Windows cp1252 compatibility
+- Tests use tmp_path fixture from pytest for isolation
+
+### Gotchas
+- Windows msvcrt.locking requires os.lseek(fd, 0, SEEK_SET) before LK_UNLCK
+- Thread-based concurrency testing uses threading.Barrier for synchronized start
+- Lock file is NOT cleaned up after release (intentional — avoids race between cleanup and next acquire)
