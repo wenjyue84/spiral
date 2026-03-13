@@ -1634,3 +1634,21 @@ Completed: Detect git merge conflicts with `git merge-tree` before parallel work
 ### Gotchas
 - prd.json requires utf-8 encoding on Windows (cp1252 default fails)
 - Tests that run merge_stories.py as subprocess need valid prd schema (productName, branchName, userStories with required fields)
+
+
+## Iteration - Story: US-024 - Add TLA+ ModelAssignmentConsistent invariant to SpiralWorkers.tla
+
+### What was implemented
+- Added `RouteStoriesAction` to the `Next` state relation (was defined but never wired in — critical bug)
+- Fixed missing `modelAssignments` in UNCHANGED clauses for `MergeResult`, `ResetUnfinished`, `MergeDone`
+- Added named `ModelAssignmentConsistent` invariant checking: (a) all assignments are valid ModelTypes, (b) once running, active stories have concrete models (not empty)
+- Added `ModelAssignmentConsistent` to SpiralWorkers.cfg INVARIANTS section
+
+### Patterns discovered
+- The TLA+ spec already had modelAssignments variable, RouteStoriesAction, and protocol comment block from a prior partial implementation
+- The key gap was operational: RouteStoriesAction wasn't in Next, and merge-phase UNCHANGED clauses were incomplete
+- TLC (Java) is not available on this system, so model checking cannot be run directly
+
+### Gotchas
+- prd.json must be read/written with explicit utf-8 encoding on Windows (cp1252 default fails on unicode chars)
+- RouteStoriesAction being defined but not in Next would cause deadlock: StartWorkers requires model assignments, but the action that writes them never fires

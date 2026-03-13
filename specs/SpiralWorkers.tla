@@ -155,7 +155,7 @@ MergeResult ==
         /\ stories[s] = "completed_in_worker"
         /\ stories' = [stories EXCEPT ![s] = "passed"]
         /\ mergedResults' = mergedResults \cup {s}
-        /\ UNCHANGED <<workerAssign, workerState, systemPhase, initialPassCount>>
+        /\ UNCHANGED <<workerAssign, workerState, systemPhase, initialPassCount, modelAssignments>>
 
 (* Reset unfinished stories back to pending *)
 ResetUnfinished ==
@@ -164,18 +164,19 @@ ResetUnfinished ==
         /\ stories[s] = "assigned"  \* worker did not complete this one
         /\ stories' = [stories EXCEPT ![s] = "pending"]
         /\ workerAssign' = [workerAssign EXCEPT ![s] = 0]
-        /\ UNCHANGED <<workerState, mergedResults, systemPhase, initialPassCount>>
+        /\ UNCHANGED <<workerState, mergedResults, systemPhase, initialPassCount, modelAssignments>>
 
 (* Merge complete when no more results to merge *)
 MergeDone ==
     /\ systemPhase = "merging"
     /\ \A s \in StoryIds : stories[s] \notin {"completed_in_worker", "assigned"}
     /\ systemPhase' = "done"
-    /\ UNCHANGED <<stories, workerAssign, workerState, mergedResults, initialPassCount>>
+    /\ UNCHANGED <<stories, workerAssign, workerState, mergedResults, initialPassCount, modelAssignments>>
 
 (* -- Next State Relation --------------------------------------------------- *)
 Next ==
     \/ AssignStory
+    \/ RouteStoriesAction
     \/ StartWorkers
     \/ WorkerImplement
     \/ WorkerComplete
@@ -212,6 +213,17 @@ PassesMonotonic ==
 NoStoryLost ==
     \A s \in StoryIds :
         stories[s] \in {"pending", "assigned", "implementing", "passed", "completed_in_worker", "already_passed"}
+
+\* Model assignment protocol invariant (route_stories.py):
+\* (a) Every model assignment is a valid ModelType
+\* (b) Once workers are running, every story that is being worked on
+\*     has a concrete model (haiku/sonnet/opus), not empty string
+ModelAssignmentConsistent ==
+    /\ \A s \in StoryIds : modelAssignments[s] \in ModelTypes
+    /\ (systemPhase \in {"running", "merging", "done"}) =>
+        \A s \in StoryIds :
+            stories[s] \in {"assigned", "implementing", "completed_in_worker", "passed"}
+            => modelAssignments[s] \in {"haiku", "sonnet", "opus"}
 
 \* After merge, completed stories are in merged set
 MergeComplete ==
