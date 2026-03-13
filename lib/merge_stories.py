@@ -79,6 +79,30 @@ def sort_key(story: dict[str, Any]) -> int:
     return PRIORITY_RANK.get(story.get("priority", "medium"), 2)
 
 
+def _is_done(story: dict[str, Any]) -> bool:
+    """Return True if story is completed, decomposed, or skipped."""
+    return bool(
+        story.get("passes")
+        or story.get("_decomposed")
+        or story.get("_skipped")
+    )
+
+
+def full_sort_key(story: dict[str, Any]) -> tuple[int, int, int]:
+    """Sort key for post-merge ordering.
+
+    Returns (done_rank, priority_rank, dep_count) so that:
+    - Active stories come before done/decomposed/skipped
+    - Higher priority (critical=0) comes first
+    - Fewer dependencies come first within same priority
+    Python's stable sort preserves relative order for equal keys.
+    """
+    done_rank = 1 if _is_done(story) else 0
+    priority_rank = PRIORITY_RANK.get(story.get("priority", "medium"), 2)
+    dep_count = len(story.get("dependencies", []))
+    return (done_rank, priority_rank, dep_count)
+
+
 def matches_focus(story: dict[str, Any], focus: str) -> bool:
     """Case-insensitive keyword match against title + description."""
     if not focus:
@@ -283,6 +307,10 @@ def main() -> int:
         print(f"[merge] Adding [{story_id}] ({entry['priority']}){flag} {entry['title'][:70]}")
 
     prd["userStories"] = existing_stories + added_entries
+
+    # ── Post-merge sort: priority order so ralph picks highest-priority first ──
+    prd["userStories"].sort(key=full_sort_key)
+
     tmp_path = args.prd + ".tmp"
     with open(tmp_path, "w", encoding="utf-8") as f:
         json.dump(prd, f, indent=2, ensure_ascii=False)

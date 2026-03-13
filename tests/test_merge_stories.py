@@ -7,7 +7,7 @@ import sys
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
-from merge_stories import overlap_ratio, is_duplicate, find_next_id, sort_key
+from merge_stories import overlap_ratio, is_duplicate, find_next_id, sort_key, full_sort_key
 
 
 # ── overlap_ratio ────────────────────────────────────────────────────────
@@ -421,3 +421,110 @@ class TestPriorityOrdering:
         new_stories = [s for s in merged["userStories"] if not s.get("passes")]
         priorities = [s["priority"] for s in new_stories]
         assert priorities == ["critical", "medium", "low"]
+
+
+# ── Post-merge sort order (US-065) ─────────────────────────────────────
+
+
+class TestPostMergeSortOrder:
+    """Tests that all userStories are sorted after merge: active before done,
+    priority order within active, fewer deps first within same priority."""
+
+    def test_full_sort_key_active_before_done(self):
+        active = {"passes": False, "priority": "low", "dependencies": []}
+        done = {"passes": True, "priority": "critical", "dependencies": []}
+        assert full_sort_key(active) < full_sort_key(done)
+
+    def test_full_sort_key_decomposed_is_done(self):
+        active = {"passes": False, "priority": "medium", "dependencies": []}
+        decomposed = {"_decomposed": True, "priority": "critical", "dependencies": []}
+        assert full_sort_key(active) < full_sort_key(decomposed)
+
+    def test_full_sort_key_skipped_is_done(self):
+        active = {"passes": False, "priority": "medium", "dependencies": []}
+        skipped = {"_skipped": True, "priority": "critical", "dependencies": []}
+        assert full_sort_key(active) < full_sort_key(skipped)
+
+    def test_full_sort_key_priority_tiebreak(self):
+        high = {"passes": False, "priority": "high", "dependencies": []}
+        low = {"passes": False, "priority": "low", "dependencies": []}
+        assert full_sort_key(high) < full_sort_key(low)
+
+    def test_full_sort_key_dep_count_tiebreak(self):
+        fewer = {"passes": False, "priority": "medium", "dependencies": []}
+        more = {"passes": False, "priority": "medium", "dependencies": ["US-001", "US-002"]}
+        assert full_sort_key(fewer) < full_sort_key(more)
+
+    def test_end_to_end_sort_after_merge(self, tmp_path):
+        """After merge, prd.json stories are sorted: active by priority/deps, done at end."""
+        prd_path = tmp_path / "prd.json"
+        research_path = tmp_path / "research.json"
+        test_stories_path = tmp_path / "test_stories.json"
+
+        # Existing stories: one done (high), two active (low, medium)
+        prd = {
+            "productName": "TestApp",
+            "branchName": "main",
+            "userStories": [
+                {"id": "US-001", "title": "done story omega phi psi", "passes": True,
+                 "priority": "high", "description": "", "acceptanceCriteria": ["done"],
+                 "dependencies": []},
+                {"id": "US-002", "title": "active low zephyr quasar nebula", "passes": False,
+                 "priority": "low", "description": "", "acceptanceCriteria": ["c"],
+                 "dependencies": []},
+                {"id": "US-003", "title": "active medium aurora borealis cosmic", "passes": False,
+                 "priority": "medium", "description": "", "acceptanceCriteria": ["c"],
+                 "dependencies": ["US-001", "US-002"]},
+            ],
+        }
+        prd_path.write_text(json.dumps(prd, indent=2), encoding="utf-8")
+
+        # Add one critical research story with no deps
+        stories = [
+            {"title": "critical story zenith apex summit pinnacle",
+             "priority": "critical", "description": "critical",
+             "acceptanceCriteria": ["c1"]},
+            {"title": "medium story gamma delta epsilon zeta",
+             "priority": "medium", "description": "medium",
+             "acceptanceCriteria": ["c2"], "dependencies": []},
+        ]
+        research_path.write_text(json.dumps({"stories": stories}, indent=2), encoding="utf-8")
+        test_stories_path.write_text('{"stories": []}', encoding="utf-8")
+
+        merge_script = os.path.join(os.path.dirname(__file__), "..", "lib", "merge_stories.py")
+        result = subprocess.run(
+            [sys.executable, merge_script,
+             "--prd", str(prd_path),
+             "--research", str(research_path),
+             "--test-stories", str(test_stories_path)],
+            capture_output=True, text=True,
+        )
+        assert result.returncode == 0, f"merge failed:\n{result.stderr}"
+
+        with open(prd_path, encoding="utf-8") as f:
+            merged = json.load(f)
+
+        all_stories = merged["userStories"]
+        # Active stories should come first, sorted by priority then dep count
+        # Expected order:
+        #   1. critical (active, 0 deps) — US-004
+        #   2. medium (active, 0 deps)  — US-005
+        #   3. medium (active, 2 deps)  — US-003
+        #   4. low (active, 0 deps)     — US-002
+        #   5. high (done)              — US-001
+        active = [s for s in all_stories if not s.get("passes")]
+        done = [s for s in all_stories if s.get("passes")]
+
+        # All active come before all done
+        active_indices = [i for i, s in enumerate(all_stories) if not s.get("passes")]
+        done_indices = [i for i, s in enumerate(all_stories) if s.get("passes")]
+        assert max(active_indices) < min(done_indices), "Active stories must come before done"
+
+        # Active priority order: critical, medium, medium, low
+        active_priorities = [s["priority"] for s in active]
+        assert active_priorities == ["critical", "medium", "medium", "low"]
+
+        # The two medium stories: fewer deps (0) before more deps (2)
+        medium_stories = [s for s in active if s["priority"] == "medium"]
+        medium_dep_counts = [len(s.get("dependencies", [])) for s in medium_stories]
+        assert medium_dep_counts == [0, 2]

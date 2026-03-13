@@ -1978,3 +1978,24 @@ Incomplete: Emit per-iteration summary JSON to .spiral/_iteration_summary.json (
 ### Gotchas
 - PRD_FILE is first set at line ~286 from REPO_ROOT, so the --prd override must come AFTER that assignment (not at argument parse time)
 - SPIRAL_SCRATCH_DIR export at line ~309 happens after the override, so it correctly picks up the updated SCRATCH_DIR
+## Iteration 4 - Fri, Mar 13, 2026 10:29:21 PM
+Incomplete: Emit per-iteration summary JSON to .spiral/_iteration_summary.json (ID: US-039) — attempt 2/3
+
+
+
+## Iteration - Story: US-065: Sort prd.json stories by priority and dependency level after Phase M merge
+
+### What was implemented
+- Added `_is_done()` helper to detect passes/decomposed/skipped stories
+- Added `full_sort_key()` returning (done_rank, priority_rank, dep_count) tuple
+- Added `prd["userStories"].sort(key=full_sort_key)` after merge, before atomic write in main()
+- Added 6 new tests in TestPostMergeSortOrder: unit tests for sort key + end-to-end merge sort verification
+
+### Patterns discovered
+- PRIORITY_RANK dict already existed in merge_stories.py (line 27), reused it
+- Python stable sort guarantees relative order preservation for equal keys (important for acceptance criteria)
+- sort_key() was already used for within-group sorting of candidates; full_sort_key() extends it for the final post-merge sort
+
+### Gotchas
+- Must sort AFTER appending added_entries but BEFORE the atomic write (tmp_path/shutil.move)
+- The existing TestPriorityOrdering.test_priority_ordering_in_merge test still passes because the sort now covers all stories, not just new ones
