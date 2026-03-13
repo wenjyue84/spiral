@@ -79,8 +79,23 @@ else
   exit 1
 fi
 
-# ── Source memory pressure helper (if available) ──────────────────────────────
+# ── Helper: append a JSONL event to spiral_events.jsonl ─────────────────────
 SPIRAL_SCRATCH_DIR="${SPIRAL_SCRATCH_DIR:-.spiral}"
+log_ralph_event() {
+  local event="$1"
+  local extra="${2:-}"
+  local ts log_file line
+  ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  log_file="$SPIRAL_SCRATCH_DIR/spiral_events.jsonl"
+  if [[ -n "$extra" ]]; then
+    line="{\"ts\":\"$ts\",\"event\":\"$event\",$extra}"
+  else
+    line="{\"ts\":\"$ts\",\"event\":\"$event\"}"
+  fi
+  printf '%s\n' "$line" >> "$log_file" 2>/dev/null || true
+}
+
+# ── Source memory pressure helper (if available) ──────────────────────────────
 _PRESSURE_HELPER="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd)/lib/memory-pressure-check.sh"
 if [[ -f "$_PRESSURE_HELPER" ]]; then
   source "$_PRESSURE_HELPER"
@@ -849,6 +864,7 @@ Completed by Ralph iteration $ITERATION (${STORY_DURATION}m)
 Co-Authored-By: Claude ${COAUTHOR_LABEL} 4.6 <noreply@anthropic.com>" || echo "[warn] No changes to commit"
 
       append_result "keep" "$(git rev-parse HEAD 2>/dev/null)"
+      log_ralph_event "story_passed" "\"storyId\":\"$NEXT_STORY\",\"retryCount\":$(get_retry_count "$NEXT_STORY"),\"model\":\"${EFFECTIVE_MODEL:-sonnet}\""
 
       echo "## Iteration $ITERATION - $(date)" >> "$PROGRESS_FILE"
       echo "Completed: $STORY_TITLE (ID: $NEXT_STORY) in ${STORY_DURATION}m" >> "$PROGRESS_FILE"
@@ -862,6 +878,7 @@ Co-Authored-By: Claude ${COAUTHOR_LABEL} 4.6 <noreply@anthropic.com>" || echo "[
       RETRY_NOW=$(get_retry_count "$NEXT_STORY")
       echo "[retry] $NEXT_STORY attempt $RETRY_NOW/$MAX_RETRIES"
       append_result "reject"
+      log_ralph_event "story_failed" "\"storyId\":\"$NEXT_STORY\",\"retryCount\":$RETRY_NOW,\"model\":\"${EFFECTIVE_MODEL:-sonnet}\""
 
       echo "## Iteration $ITERATION - $(date)" >> "$PROGRESS_FILE"
       echo "FAILED quality gates: $STORY_TITLE (ID: $NEXT_STORY) — attempt $RETRY_NOW/$MAX_RETRIES" >> "$PROGRESS_FILE"
@@ -885,6 +902,7 @@ Co-Authored-By: Claude ${COAUTHOR_LABEL} 4.6 <noreply@anthropic.com>" || echo "[
     RETRY_NOW=$(get_retry_count "$NEXT_STORY")
     echo "[retry] $NEXT_STORY attempt $RETRY_NOW/$MAX_RETRIES"
     append_result "reject"
+    log_ralph_event "story_failed" "\"storyId\":\"$NEXT_STORY\",\"retryCount\":$RETRY_NOW,\"model\":\"${EFFECTIVE_MODEL:-sonnet}\""
 
     echo "## Iteration $ITERATION - $(date)" >> "$PROGRESS_FILE"
     echo "Incomplete: $STORY_TITLE (ID: $NEXT_STORY) — attempt $RETRY_NOW/$MAX_RETRIES" >> "$PROGRESS_FILE"

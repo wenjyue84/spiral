@@ -207,6 +207,7 @@ SPIRAL_MEMORY_POLL_INTERVAL="${SPIRAL_MEMORY_POLL_INTERVAL:-15}"
 SPIRAL_PRESSURE_HYSTERESIS="${SPIRAL_PRESSURE_HYSTERESIS:-2}"
 SPIRAL_DEV_URL="${SPIRAL_DEV_URL:-}"  # empty = disabled; URL for Phase V screenshot
 SPIRAL_PROGRESS_MAX_LINES="${SPIRAL_PROGRESS_MAX_LINES:-2000}"  # 0 = disabled; rotate progress.txt when over this limit
+SPIRAL_EVENT_LOG_MAX_LINES="${SPIRAL_EVENT_LOG_MAX_LINES:-10000}"  # 0 = disabled; rotate spiral_events.jsonl when over this limit
 
 # ── Config validation ─────────────────────────────────────────────────────────
 # Validates required keys are set and applies defaults for optional keys.
@@ -327,6 +328,7 @@ _spiral_cleanup() {
   local sig="${1:-INT}"
   echo ""
   echo "  [SPIRAL] Interrupted (signal $sig) at iter $SPIRAL_ITER phase $PHASE"
+  log_spiral_event "error" "\"message\":\"Interrupted by signal $sig\",\"context\":\"iter=$SPIRAL_ITER phase=$PHASE\"" 2>/dev/null || true
 
   # Kill tracked child processes (ralph, parallel workers, etc.)
   for pid in "${CHILD_PIDS[@]:-}"; do
@@ -423,6 +425,31 @@ write_checkpoint() {
   printf '{"iter":%d,"phase":"%s","ts":"%s"}\n' \
     "$iter" "$phase" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     > "$CHECKPOINT_FILE"
+}
+
+# ── Helper: append a structured JSONL event to .spiral/spiral_events.jsonl ──
+# Usage: log_spiral_event EVENT [JSON_FIELDS]
+# JSON_FIELDS: additional key:value pairs (no surrounding braces), e.g. '"phase":"R","iteration":1'
+log_spiral_event() {
+  local event="$1"
+  local extra="${2:-}"
+  local ts log_file line
+  ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  log_file="$SCRATCH_DIR/spiral_events.jsonl"
+  if [[ -n "$extra" ]]; then
+    line="{\"ts\":\"$ts\",\"event\":\"$event\",$extra}"
+  else
+    line="{\"ts\":\"$ts\",\"event\":\"$event\"}"
+  fi
+  printf '%s\n' "$line" >> "$log_file" 2>/dev/null || true
+  # Rotate if over max lines limit
+  if [[ "${SPIRAL_EVENT_LOG_MAX_LINES:-10000}" -gt 0 ]]; then
+    local count
+    count=$(wc -l < "$log_file" 2>/dev/null || echo 0)
+    if [[ "$count" -gt "${SPIRAL_EVENT_LOG_MAX_LINES:-10000}" ]]; then
+      mv "$log_file" "${log_file%.jsonl}-$(date -u +%Y%m%d-%H%M%S).jsonl" 2>/dev/null || true
+    fi
+  fi
 }
 
 # ── Helper: returns 0 if current iter already completed this phase ───────────
@@ -629,6 +656,7 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
   PHASE="R"
   echo ""
   echo "  [Phase R] RESEARCH — searching sources..."
+  log_spiral_event "phase_start" "\"phase\":\"R\",\"iteration\":$SPIRAL_ITER"
   RESEARCH_OUTPUT="$SCRATCH_DIR/_research_output.json"
 
   if checkpoint_phase_done "R"; then
@@ -745,11 +773,13 @@ $INJECTED_PROMPT"
 
     write_checkpoint "$SPIRAL_ITER" "R"
   fi
+  log_spiral_event "phase_end" "\"phase\":\"R\",\"iteration\":$SPIRAL_ITER"
 
   # ── Phase T: TEST SYNTHESIS ─────────────────────────────────────────────────
   PHASE="T"
   echo ""
   echo "  [Phase T] TEST SYNTHESIS — scanning test failures..."
+  log_spiral_event "phase_start" "\"phase\":\"T\",\"iteration\":$SPIRAL_ITER"
   TEST_OUTPUT="$SCRATCH_DIR/_test_stories_output.json"
 
   if checkpoint_phase_done "T"; then
@@ -786,11 +816,13 @@ $INJECTED_PROMPT"
 
     write_checkpoint "$SPIRAL_ITER" "T"
   fi
+  log_spiral_event "phase_end" "\"phase\":\"T\",\"iteration\":$SPIRAL_ITER"
 
   # ── Phase M: MERGE ──────────────────────────────────────────────────────────
   PHASE="M"
   echo ""
   echo "  [Phase M] MERGE — deduplicating and patching prd.json..."
+  log_spiral_event "phase_start" "\"phase\":\"M\",\"iteration\":$SPIRAL_ITER"
 
   if checkpoint_phase_done "M"; then
     echo "  [M] Skipping (checkpoint: already done this iter)"
@@ -867,8 +899,11 @@ $INJECTED_PROMPT"
     fi
   fi
 
+  log_spiral_event "phase_end" "\"phase\":\"M\",\"iteration\":$SPIRAL_ITER"
+
   # ── Phase G: HUMAN GATE + Phase I: IMPLEMENT ───────────────────────────────
   PHASE="G"
+  log_spiral_event "phase_start" "\"phase\":\"G\",\"iteration\":$SPIRAL_ITER"
   if checkpoint_phase_done "I"; then
     echo "  [G+I] Skipping (checkpoint: gate and ralph already done this iter)"
   else
@@ -943,6 +978,7 @@ $INJECTED_PROMPT"
 
         # ── Phase I: IMPLEMENT (Ralph) ──────────────────────────────────
         PHASE="I"
+        log_spiral_event "phase_start" "\"phase\":\"I\",\"iteration\":$SPIRAL_ITER"
         echo ""
 
         # Short-circuit if nothing to implement
@@ -1235,11 +1271,14 @@ $INJECTED_PROMPT"
     spiral_assert_decomposition_integrity "$PRD_FILE"
     spiral_assert_dependency_completion_order "$PRD_FILE"
   fi
+  log_spiral_event "phase_end" "\"phase\":\"I\",\"iteration\":$SPIRAL_ITER"
+  log_spiral_event "phase_end" "\"phase\":\"G\",\"iteration\":$SPIRAL_ITER"
 
   # ── Phase V: VALIDATE (test suite) ────────────────────────────────────────
   PHASE="V"
   echo ""
   echo "  [Phase V] VALIDATE — running test suite..."
+  log_spiral_event "phase_start" "\"phase\":\"V\",\"iteration\":$SPIRAL_ITER"
 
   if checkpoint_phase_done "V"; then
     echo "  [V] Skipping (checkpoint: already done this iter)"
@@ -1332,6 +1371,7 @@ PYEOF
 
     write_checkpoint "$SPIRAL_ITER" "V"
   fi
+  log_spiral_event "phase_end" "\"phase\":\"V\",\"iteration\":$SPIRAL_ITER"
 
   # ── Phase P: PUSH ──────────────────────────────────────────────────────────
   echo ""
@@ -1346,6 +1386,7 @@ PYEOF
   PHASE="C"
   echo ""
   echo "  [Phase C] CHECK DONE..."
+  log_spiral_event "phase_start" "\"phase\":\"C\",\"iteration\":$SPIRAL_ITER"
 
   _CHECK_DONE_RC=0
   if [[ -n "$SPIRAL_CORE_BIN" ]]; then
@@ -1469,6 +1510,7 @@ PYEOF
     fi
   fi
 
+  log_spiral_event "phase_end" "\"phase\":\"C\",\"iteration\":$SPIRAL_ITER"
   echo "  [C] Looping back to Phase R"
   echo ""
 done

@@ -1353,3 +1353,29 @@ Incomplete: Auto-generate progress.txt skeleton with Codebase Patterns on first 
 - The trailing space in _STACK needs trimming with ${_STACK% } for clean output
 - 228 tests now pass (was 51 earlier — test suite has grown significantly)
 
+## Iteration 5 - Fri, Mar 13, 2026  4:41:11 PM
+Completed: Auto-generate progress.txt skeleton with Codebase Patterns on first run (ID: US-023) in 5m
+
+
+## Iteration N - Story: US-044: Write structured JSONL event log to .spiral/spiral_events.jsonl
+
+### What was implemented
+- Added SPIRAL_EVENT_LOG_MAX_LINES default (10000) to spiral.sh defaults section
+- Added log_spiral_event() helper function in spiral.sh (after write_checkpoint) that writes JSONL events
+- Added log_ralph_event() helper in ralph.sh that appends to same SPIRAL_SCRATCH_DIR/spiral_events.jsonl
+- Phase start/end events: logged at each PHASE="X" assignment and at phase block end for R,T,M,G,I,V,C
+- Story events: story_passed logged after commit in ralph.sh, story_failed in both quality-gate-fail and not-completed branches
+- Error event: logged in _spiral_cleanup when interrupted by signal
+- Log rotation: mv to timestamped filename when line count exceeds SPIRAL_EVENT_LOG_MAX_LINES
+- Log appends across restarts (uses >> not truncate)
+
+### Patterns discovered
+- log_spiral_event signature: log_spiral_event EVENT [JSON_FIELDS] where JSON_FIELDS is comma-delimited fields without braces
+- ralph.sh uses SPIRAL_SCRATCH_DIR env var (exported by spiral.sh) to find the .spiral directory
+- Phase G and I are nested (I inside G block) — both need separate phase_start/phase_end events
+- The "not completed by AI tool" branch in ralph.sh (else after PASSES check) also needs story_failed
+
+### Gotchas
+- log_spiral_event uses 2>/dev/null || true to avoid failing if .spiral dir doesn't exist yet
+- In _spiral_cleanup, log_spiral_event must also use || true since SCRATCH_DIR may not be set
+- Phase G has no dedicated block close — use the I-block end (same fi) for both phase_end events
