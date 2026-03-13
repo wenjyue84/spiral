@@ -122,20 +122,34 @@ Ask the user these questions **one group at a time** (not all at once). Use the 
 > If no test runner was detected, inform the user:
 > "No test runner detected. SPIRAL works best with a test suite. You can add one later or SPIRAL will skip the Test Synthesis phase."
 
-### Group 4: SPIRAL Preferences
+### Group 4: Model & Token Strategy
+
+> **Implementation model routing** — which Claude model strategy for implementing stories? (default: `auto`)
+>
+> - `auto` — smart routing: haiku→sonnet→opus by story complexity. Cheapest model that can handle each story; escalates on retry. Best for mixed workloads.
+> - `haiku` — always use haiku (fastest, cheapest, ~80% cost saving vs sonnet — use for well-scoped, low-ambiguity stories)
+> - `sonnet` — always use sonnet (balanced cost/quality — solid default for most projects)
+> - `opus` — always use opus (highest quality, most expensive — use when stories are complex or high-stakes)
+>
+> **Research model** — which model synthesizes Phase R research? (default: `sonnet`)
+>
+> - `sonnet` — recommended default: better synthesis depth, connects broader context
+> - `haiku` — faster and cheaper, but may miss nuanced connections in complex codebases
+>
+> **Enable `--tool auto`** — route simple stories to Qwen/Codex first before using Claude? (default: `no`)
+>
+> - `yes` — 60-80% cost saving on trivial stories (CRUD, boilerplate, simple refactors). SPIRAL tries the cheapest tool first and falls back to Claude on failure.
+> - `no` — use Claude for all stories. More reliable, less configuration.
+
+### Group 5: SPIRAL Preferences
 
 > **Story ID prefix** — short identifier for user stories (default: `US`)
 > Examples: `US` (user story), `BUG` (bug fixes), `FT` (features)
 >
-> **Model routing** — which Claude model strategy? (default: `auto`)
-> - `auto` — smart routing: haiku for trivial, sonnet for normal, opus for complex
-> - `sonnet` — always use sonnet (balanced cost/quality)
-> - `opus` — always use opus (highest quality, most expensive)
->
 > **Max pending stories** — cap on incomplete stories in backlog (default: `0` = unlimited)
 > Recommended: 5-15 for focused projects
 
-### Group 5: Optional Features (quick yes/no)
+### Group 6: Optional Features (quick yes/no)
 
 > **Enable Firecrawl MCP** for web scraping in research phase? (y/n, default: n)
 > **Enable project constitution** for governance/quality standards? (y/n, default: y)
@@ -146,6 +160,8 @@ Ask the user these questions **one group at a time** (not all at once). Use the 
 
 If the user says **yes** to the constitution (default), proceed to **Step 3b: Generate Constitution**.
 If the user says **no**, skip to Step 4.
+
+(Note: "Group 6" above refers to what was formerly "Group 5" — renumbered when Model & Token Strategy was added as Group 4.)
 
 ### Step 3b: Generate Constitution
 
@@ -251,8 +267,17 @@ SPIRAL_VALIDATE_CMD="{detected or user-specified test command}"
 # Story ID prefix
 SPIRAL_STORY_PREFIX="{user choice}"
 
-# Model routing
-SPIRAL_MODEL_ROUTING="{user choice}"
+# Model routing: auto routes haiku→sonnet→opus by story complexity
+# Options: auto | haiku | sonnet | opus
+SPIRAL_MODEL_ROUTING="{user choice, default: auto}"
+
+# Research model: used in Phase R to synthesize context
+# Options: sonnet | haiku  (sonnet recommended for better synthesis depth)
+SPIRAL_RESEARCH_MODEL="{user choice, default: sonnet}"
+
+# Tool auto: route trivial stories to Qwen/Codex first (60-80% cost saving)
+# Set to 1 to enable, omit or set to 0 to disable
+# SPIRAL_TOOL_AUTO=1
 
 # Max pending stories (0 = unlimited)
 SPIRAL_MAX_PENDING={user choice}
@@ -262,6 +287,8 @@ SPIRAL_MAX_PENDING={user choice}
 ```
 
 Only include optional sections (Firecrawl, Spec-Kit, Gemini, etc.) if the user opted in.
+
+If the user said **yes** to `--tool auto`, uncomment and set `SPIRAL_TOOL_AUTO=1`.
 
 If the user enabled the constitution, add:
 ```bash

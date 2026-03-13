@@ -99,3 +99,56 @@ This story requires modifying the main orchestrator script to prevent silent fai
 - Must capture both stdout and stderr (2>&1) from check_dag.py since it writes to stderr
 - Set -e is NOT globally active; || {} syntax used to catch non-zero exit without aborting
 - The `fi  # end PENDING > 0 block` at ~line 948 closes only the elif/else block, not the case
+## Iteration 2 - Fri, Mar 13, 2026  9:26:46 AM
+Completed: Run DAG cycle detection before Phase I implementation (ID: US-002) in 5m
+
+
+## Pre-analysis for US-005 (Gemini 2.5 Pro)
+This user story is for a shell-based command-line tool, not a Frappe/Python application. The context provided in the prompt is incorrect.
+
+Here is the technical brief based on the JSON data:
+
+**Project:** Spiral CLI Tool
+**Goal:** Enhance the `spiral-init` wizard to configure model selection strategy.
+
+**1. Files to Modify:**
+*   `ralph/skills/spiral-init.md`: This is the primary file. It's a "skill" that defines the wizard's prompts and structure. You will add a new section here.
+*   `spiral.config.sh`: This is the output file. The wizard's selections will be written to this configuration script.
+*   `ralph/ralph.sh` (Likely): This script probably interprets the `.md` skill file and handles the logic for writing to `spiral.config.sh`. You may need to inspect it to understand how to format the new questions in the markdown.
+
+**2. Frappe DocTypes/Hooks:**
+*   None. This is not a Frappe project.
+
+**3. Implementation Approach:**
+1.  Open `ralph/skills/spiral-init.md`.
+2.  Insert a new section titled `## Model & Token Strategy` after the test command question.
+3.  Add prompts for `SPIRAL_MODEL_ROUTING`, `SPIRAL_RESEARCH_MODEL`, and the `--tool auto` flag, including the specified explanations and defaults (`auto`, `sonnet`, `no`).
+4.  Ensure the underlying script (`ralph.sh`?) is capable of parsing these new prompts and writing the corresponding `KEY="value"` pairs with comments to `spiral.config.sh`.
+5.  Verify changes by running the test suite (`uv run pytest`).
+
+**4. Edge Cases & Gotchas:**
+*   The core logic is not in the markdown; it's in the shell script that processes it. You must mimic the pattern of existing wizard questions.
+*   Ensure the file-writing logic correctly handles an existing `spiral.config.sh` file, either by appending or updating the specific variables.
+*   The acceptance criteria are very specific about the wording of explanations and defaults. Adhere to them strictly.
+
+
+## Iteration 3 - Story: US-005: Wizard: ask about model routing strategy with cost/quality education
+
+### What was implemented
+- Added "### Group 4: Model & Token Strategy" section to ralph/skills/spiral-init.md
+- Three questions added:
+  1. Implementation model routing (auto/haiku/sonnet/opus) with full cost/quality explanations
+  2. Research model (sonnet/haiku) with synthesis depth explanation
+  3. Enable --tool auto (60-80% cost saving on trivial stories) with default: no
+- Renumbered existing Group 4 → Group 5, Group 5 → Group 6
+- Updated Step 5a config template to include SPIRAL_MODEL_ROUTING, SPIRAL_RESEARCH_MODEL, and SPIRAL_TOOL_AUTO
+- All 51 pytest tests pass
+
+### Patterns discovered
+- spiral-init.md is a pure markdown skill file — no shell parsing, pure wizard instructions for Claude
+- Test suite (tests/) tests Python lib files only; changes to .md skill files don't affect tests
+- Hypothesis-based tests (test_check_dag.py) are flaky by nature — a single failure with a specific seed can be reproduced but is not a real regression
+
+### Gotchas
+- The Hypothesis test_valid_prd_has_no_cycles can fail intermittently; run twice to confirm real failures
+- spiral-init.md wizard groups are purely instructional — the wizard agent reads them and acts; they are not parsed programmatically
