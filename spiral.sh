@@ -191,6 +191,29 @@ SPIRAL_PRESSURE_THRESHOLDS="${SPIRAL_PRESSURE_THRESHOLDS:-40,25,15,8}"
 SPIRAL_MEMORY_POLL_INTERVAL="${SPIRAL_MEMORY_POLL_INTERVAL:-15}"
 SPIRAL_PRESSURE_HYSTERESIS="${SPIRAL_PRESSURE_HYSTERESIS:-2}"
 
+# ── Config validation ─────────────────────────────────────────────────────────
+# Validates required keys are set and applies defaults for optional keys.
+# Called after defaults block to catch explicitly-emptied required values.
+validate_config() {
+  local _errors=0
+  for key in SPIRAL_PYTHON SPIRAL_VALIDATE_CMD; do
+    if [[ -z "${!key:-}" ]]; then
+      echo "[config] ERROR: $key must be set in spiral.config.sh"
+      _errors=1
+    fi
+  done
+  [[ "$_errors" -eq 1 ]] && exit 1
+
+  # Defaults for optional keys (defense-in-depth)
+  : "${SPIRAL_MODEL_ROUTING:=auto}"
+  : "${SPIRAL_RESEARCH_MODEL:=sonnet}"
+  : "${SPIRAL_MAX_PENDING:=50}"
+  : "${SPIRAL_MEMORY_LIMIT:=1024}"
+
+  echo "[config] OK — SPIRAL_PYTHON=$SPIRAL_PYTHON SPIRAL_VALIDATE_CMD=$SPIRAL_VALIDATE_CMD"
+}
+validate_config
+
 # Scratch directory in project root
 SCRATCH_DIR="$REPO_ROOT/.spiral"
 PRD_FILE="$REPO_ROOT/prd.json"

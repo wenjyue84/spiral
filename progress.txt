@@ -791,3 +791,26 @@ Completed: Add unit tests for merge_worker_results.py (parallel result promotion
 
 ### Gotchas
 - Acceptance criteria specified Python 3.12 but project requires >=3.13 — used 3.13 to avoid version incompatibility
+## Iteration 6 - Fri, Mar 13, 2026 12:12:51 PM
+Incomplete: Dynamic worker count: auto-select 1-3 workers based on story independence (ID: US-009) — attempt 1/3
+
+
+## Iteration - Story: US-018 - Validate required spiral.config.sh keys are set before loop startup
+
+### What was implemented
+- Added `validate_config()` function to spiral.sh (lines 194-215)
+- Function checks SPIRAL_PYTHON and SPIRAL_VALIDATE_CMD are non-empty, exits with clear error if missing
+- Sets defaults for optional keys (SPIRAL_MODEL_ROUTING=auto, SPIRAL_RESEARCH_MODEL=sonnet, SPIRAL_MAX_PENDING=50, SPIRAL_MEMORY_LIMIT=1024)
+- Prints `[config] OK — SPIRAL_PYTHON=... SPIRAL_VALIDATE_CMD=...` on success
+- Called immediately after the defaults block, before scratch directory setup
+
+### Patterns discovered
+- spiral.sh uses `${VAR:-default}` pattern for defaults (lines 158-192)
+- Config sourced at line 152, defaults applied immediately after
+- validate_config is defense-in-depth: catches explicitly-emptied required values that survive `:-` defaulting
+- 177 tests in suite (up from 51 noted in earlier stories)
+
+### Gotchas
+- SPIRAL_MAX_PENDING already defaults to 0 (unlimited) on line 186 before validate_config runs, so `:=50` in validate_config only applies if that line is removed
+- `${!key:-}` indirect expansion used to check variable by name in bash loop
+- `set -euo pipefail` means `[[ "$_errors" -eq 1 ]] && exit 1` must be the pattern (not bare `exit 1` after loop)
