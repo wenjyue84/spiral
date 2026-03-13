@@ -240,6 +240,45 @@ def compute_iteration_velocity(results: list[dict]) -> dict:
     return by_iter
 
 
+def compute_epics(prd: dict) -> list[dict]:
+    """Compute per-epic stats: name, total stories, % complete."""
+    stories = prd.get("userStories", [])
+    epics_meta = prd.get("epics", []) if isinstance(prd.get("epics"), list) else []
+    epic_title_map = {e["id"]: e.get("title", e["id"]) for e in epics_meta if isinstance(e, dict) and "id" in e}
+
+    groups: dict[str, list[dict]] = {}
+    for s in stories:
+        eid = s.get("epicId", "")
+        if not eid:
+            eid = "__ungrouped__"
+        groups.setdefault(eid, []).append(s)
+
+    result = []
+    for eid in sorted(k for k in groups if k != "__ungrouped__"):
+        g = groups[eid]
+        passed = sum(1 for s in g if s.get("passes"))
+        total = len(g)
+        result.append({
+            "id": eid,
+            "title": epic_title_map.get(eid, eid),
+            "total": total,
+            "passed": passed,
+            "pct": (passed / total * 100) if total > 0 else 0,
+        })
+    if "__ungrouped__" in groups:
+        g = groups["__ungrouped__"]
+        passed = sum(1 for s in g if s.get("passes"))
+        total = len(g)
+        result.append({
+            "id": "__ungrouped__",
+            "title": "Ungrouped",
+            "total": total,
+            "passed": passed,
+            "pct": (passed / total * 100) if total > 0 else 0,
+        })
+    return result
+
+
 def compute_decomposition(prd: dict) -> dict:
     stories = prd.get("userStories", [])
     parents = [s for s in stories if s.get("_decomposed")]
@@ -406,7 +445,8 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
                 model_perf: list[dict], retry_analysis: list[dict],
                 bottlenecks: dict, decomposition: dict, insights: list[str],
                 screenshot_path: str | None = None,
-                iteration_velocity: dict | None = None) -> str:
+                iteration_velocity: dict | None = None,
+                epics: list[dict] | None = None) -> str:
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     max_vel = max((v["kept"] for v in velocity), default=1) or 1
 
@@ -499,6 +539,27 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
 
     # Velocity by iteration SVG chart
     iter_vel_svg = _render_velocity_svg(iteration_velocity or {})
+
+    # Epics section
+    epics_html = ""
+    if epics and any(e["id"] != "__ungrouped__" for e in epics):
+        epic_rows = ""
+        for e in epics:
+            pct_class = "good" if e["pct"] >= 70 else "warn" if e["pct"] >= 40 else "bad"
+            epic_rows += (
+                f'<tr>'
+                f'<td>{escape(e["title"])}</td>'
+                f'<td>{e["total"]}</td>'
+                f'<td>{e["passed"]}</td>'
+                f'<td class="{pct_class}">{e["pct"]:.0f}%</td>'
+                f'<td><div class="bar-track" style="height:12px"><div class="bar-fill" style="width:{e["pct"]:.0f}%"></div></div></td>'
+                f'</tr>\n'
+            )
+        epics_html = (
+            f'<section>\n<h2>Epics</h2>\n'
+            f'<table>\n<tr><th>Epic</th><th>Total</th><th>Done</th><th>%</th><th>Progress</th></tr>\n'
+            f'{epic_rows}</table>\n</section>\n'
+        )
 
     # Completion ring SVG
     ring_pct = overview["completion_pct"]
@@ -600,6 +661,8 @@ footer{{text-align:center;color:#444;font-size:10px;margin-top:16px;padding-top:
 {vel_rows if vel_rows else '<div class="no-data">No results data yet</div>'}
 </section>
 
+{epics_html}
+
 <div class="two-col">
 <section>
 <h2>Story Status</h2>
@@ -688,6 +751,7 @@ def main() -> int:
     decomposition = compute_decomposition(prd)
     insights = generate_insights(overview, model_perf, retry_analysis, bottle)
     iter_vel = compute_iteration_velocity(results)
+    epics = compute_epics(prd)
 
     # Find latest screenshot
     screenshot = find_latest_screenshot(args.scratch_dir)
@@ -697,7 +761,7 @@ def main() -> int:
         velocity = [{"iter": 0, "kept": 0, "total": 0, "duration_hours": 0.001, "velocity": 0}]
 
     # Render
-    html = render_html(overview, velocity, status, model_perf, retry_analysis, bottle, decomposition, insights, screenshot, iteration_velocity=iter_vel)
+    html = render_html(overview, velocity, status, model_perf, retry_analysis, bottle, decomposition, insights, screenshot, iteration_velocity=iter_vel, epics=epics)
 
     # Write
     output_path = os.path.abspath(args.output)

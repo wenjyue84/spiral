@@ -42,11 +42,25 @@ def overlap_ratio(a: str, b: str) -> float:
     return len(wa & wb) / len(wa)
 
 
-def is_duplicate(candidate_title: str, existing_titles: list[str], threshold: float = 0.6) -> bool:
-    for existing in existing_titles:
-        if overlap_ratio(candidate_title, existing) >= threshold:
+def is_duplicate(candidate_title: str, existing_titles: list[str], threshold: float = 0.6,
+                 candidate_epic: str = "", existing_epics: list[str] | None = None) -> bool:
+    """Check if candidate is duplicate of any existing title.
+
+    When both candidate and existing share the same non-empty epicId, the
+    threshold is lowered (0.45) to catch near-duplicates within the same epic.
+    """
+    epic_threshold = 0.45  # stricter within same epic
+    for i, existing in enumerate(existing_titles):
+        same_epic = (
+            candidate_epic
+            and existing_epics is not None
+            and i < len(existing_epics)
+            and existing_epics[i] == candidate_epic
+        )
+        t = epic_threshold if same_epic else threshold
+        if overlap_ratio(candidate_title, existing) >= t:
             return True
-        if overlap_ratio(existing, candidate_title) >= threshold:
+        if overlap_ratio(existing, candidate_title) >= t:
             return True
     return False
 
@@ -150,6 +164,7 @@ def main() -> int:
 
     existing_stories: list[dict[str, Any]] = prd.get("userStories", [])
     existing_titles = [s.get("title", "") for s in existing_stories]
+    existing_epics = [s.get("epicId", "") for s in existing_stories]
 
     current_pending = sum(1 for s in existing_stories if not s.get("passes"))
     print(f"[merge] prd.json: {len(existing_stories)} existing stories ({current_pending} pending)")
@@ -189,6 +204,7 @@ def main() -> int:
 
     new_stories: list[dict[str, Any]] = []
     seen_titles: list[str] = list(existing_titles)
+    seen_epics: list[str] = list(existing_epics)
 
     # ── Group 1: Test-synthesis candidates (never overflow — regenerated each iteration) ──
     for story in test_candidates:
@@ -198,12 +214,14 @@ def main() -> int:
         title = story.get("title", "")
         if not title:
             continue
-        if is_duplicate(title, seen_titles):
+        cand_epic = story.get("epicId", "")
+        if is_duplicate(title, seen_titles, candidate_epic=cand_epic, existing_epics=seen_epics):
             print(f"[merge] Skip duplicate (test): {title[:80]}")
             continue
         story["_isTestFix"] = True
         new_stories.append(story)
         seen_titles.append(title)
+        seen_epics.append(cand_epic)
 
     # ── Group 2: Research pool = overflow (older, prioritised) + fresh research ──
     # Non-duplicate cap-blocked candidates are saved to the overflow file
@@ -217,7 +235,8 @@ def main() -> int:
         if args.focus and not matches_focus(story, args.focus):
             print(f"[merge] Skip (focus mismatch): {title[:80]}")
             continue
-        if is_duplicate(title, seen_titles):
+        cand_epic = story.get("epicId", "")
+        if is_duplicate(title, seen_titles, candidate_epic=cand_epic, existing_epics=seen_epics):
             print(f"[merge] Skip duplicate (research): {title[:80]}")
             continue
         if len(new_stories) >= effective_cap:
@@ -226,6 +245,7 @@ def main() -> int:
         else:
             new_stories.append(story)
             seen_titles.append(title)
+            seen_epics.append(cand_epic)
 
     # ── Write overflow file ────────────────────────────────────────────────────
     if args.overflow_out:

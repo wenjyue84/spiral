@@ -26,6 +26,7 @@ _desc_st = st.text(
 _ac_item_st = st.from_regex(r"[A-Za-z][A-Za-z0-9 ]{2,40}", fullmatch=True)
 _note_st = st.from_regex(r"[A-Za-z][A-Za-z0-9 ]{2,30}", fullmatch=True)
 _file_st = st.from_regex(r"[a-z][a-z0-9_/]{1,20}\.(py|js|ts|sh)", fullmatch=True)
+_epic_id_st = st.from_regex(r"[a-z][a-z0-9_-]{1,15}", fullmatch=True)
 
 
 @st.composite
@@ -68,6 +69,8 @@ def valid_prd(draw, min_stories=1, max_stories=10):
             story["technicalNotes"] = draw(st.lists(_note_st, max_size=2))
         if draw(st.booleans()):
             story["filesTouch"] = draw(st.lists(_file_st, max_size=3))
+        if draw(st.booleans()):
+            story["epicId"] = draw(_epic_id_st)
 
         stories.append(story)
 

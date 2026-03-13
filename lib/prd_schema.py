@@ -62,6 +62,22 @@ def validate_prd(prd: dict) -> list[str]:
         if not isinstance(prd["goals"], list):
             errors.append(f"goals must be a list, got {type(prd['goals']).__name__}")
 
+    if "epics" in prd:
+        if not isinstance(prd["epics"], list):
+            errors.append(f"epics must be a list, got {type(prd['epics']).__name__}")
+        else:
+            for j, epic in enumerate(prd["epics"]):
+                ep = f"epics[{j}]"
+                if not isinstance(epic, dict):
+                    errors.append(f"{ep}: must be an object")
+                    continue
+                if "id" not in epic or not isinstance(epic.get("id"), str) or not epic["id"].strip():
+                    errors.append(f"{ep}: missing or empty required field 'id'")
+                if "title" in epic and not isinstance(epic["title"], str):
+                    errors.append(f"{ep}: title must be string")
+                if "description" in epic and not isinstance(epic["description"], str):
+                    errors.append(f"{ep}: description must be string")
+
     # ── Per-story validation ─────────────────────────────────────────────────
     stories = prd["userStories"]
     seen_ids: dict[str, int] = {}  # id → index for duplicate detection
@@ -145,6 +161,10 @@ def validate_prd(prd: dict) -> list[str]:
 
         if "isTestFix" in story and not isinstance(story["isTestFix"], bool):
             errors.append(f"{prefix}: isTestFix must be boolean")
+
+        if "epicId" in story:
+            if not isinstance(story["epicId"], str) or not story["epicId"].strip():
+                errors.append(f"{prefix}: epicId must be a non-empty string")
 
     # ── Cross-story checks (only if IDs were valid) ──────────────────────────
     for i, story in enumerate(stories):

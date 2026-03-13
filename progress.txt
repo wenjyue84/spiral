@@ -1536,3 +1536,4 @@ Completed: Detect git merge conflicts with `git merge-tree` before parallel work
 ### Gotchas
 - prd.json encoding must be utf-8 on Windows (cp1252 default causes UnicodeDecodeError in Python)
 - The `|| echo ''` fallback on git rev-parse ensures no error if running outside git repo
+

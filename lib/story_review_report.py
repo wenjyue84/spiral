@@ -123,16 +123,61 @@ def explain_impact(story: dict) -> str:
 
 # ── HTML generation ──────────────────────────────────────────────────────────
 
+def _group_by_epic(stories: list[dict], epics_meta: list[dict]) -> list[tuple[str, str, list[dict]]]:
+    """Group stories by epicId. Returns list of (epic_id, epic_title, stories).
+
+    Stories without epicId go into 'Ungrouped'. Epic titles come from the
+    optional top-level epics array when available.
+    """
+    epic_title_map = {e["id"]: e.get("title", e["id"]) for e in epics_meta if isinstance(e, dict) and "id" in e}
+
+    groups: dict[str, list[dict]] = {}
+    for s in stories:
+        eid = s.get("epicId", "")
+        if not eid:
+            eid = "__ungrouped__"
+        groups.setdefault(eid, []).append(s)
+
+    # Named epics first (alphabetical), then ungrouped last
+    result = []
+    for eid in sorted(k for k in groups if k != "__ungrouped__"):
+        title = epic_title_map.get(eid, eid)
+        result.append((eid, title, groups[eid]))
+    if "__ungrouped__" in groups:
+        result.append(("__ungrouped__", "Ungrouped", groups["__ungrouped__"]))
+    return result
+
+
+def _render_epic_progress_bar(stories: list[dict]) -> str:
+    """Return HTML for a mini progress bar showing completed vs total within an epic."""
+    total = len(stories)
+    done = sum(1 for s in stories if s.get("passes"))
+    pct = (done / total * 100) if total > 0 else 0
+    return (
+        f'<div class="epic-progress">'
+        f'<div class="epic-progress-track">'
+        f'<div class="epic-progress-fill" style="width:{pct:.0f}%"></div>'
+        f'</div>'
+        f'<span class="epic-progress-label">{done}/{total} done ({pct:.0f}%)</span>'
+        f'</div>'
+    )
+
+
 def generate_html(prd: dict, iteration: int, added_count: int = 0) -> str:
     stories = prd.get("userStories", [])
     pending = [s for s in stories if not s.get("passes") and not s.get("_decomposed")]
     completed = [s for s in stories if s.get("passes")]
     product_name = prd.get("productName", "Project")
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
+    epics_meta = prd.get("epics", []) if isinstance(prd.get("epics"), list) else []
 
     # Group pending stories by priority
     priority_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
     pending.sort(key=lambda s: priority_order.get((s.get("priority") or "medium").lower(), 2))
+
+    # Group by epic for rendering
+    epic_groups = _group_by_epic(stories, epics_meta)
+    has_epics = any(s.get("epicId") for s in stories)
 
     # Build story cards
     story_cards = []
@@ -203,7 +248,31 @@ def generate_html(prd: dict, iteration: int, added_count: int = 0) -> str:
     n_done = len(completed)
     n_new = sum(1 for s in pending if s.get("_isNew"))
 
-    cards_html = "\n".join(story_cards) if story_cards else '<div class="no-stories">No pending stories to review.</div>'
+    # Build card lookup by story id for epic grouping
+    card_by_id = {}
+    for s, card in zip(pending, story_cards):
+        card_by_id[s.get("id", "")] = card
+
+    # If any stories have epicId, render grouped; otherwise flat
+    if has_epics:
+        grouped_html_parts = []
+        for eid, etitle, epic_stories in epic_groups:
+            epic_pending = [s for s in epic_stories if not s.get("passes") and not s.get("_decomposed")]
+            if not epic_pending:
+                continue
+            progress = _render_epic_progress_bar(epic_stories)
+            grouped_html_parts.append(
+                f'<div class="epic-group">'
+                f'<div class="epic-header"><h3 class="epic-title">{escape(etitle)}</h3>{progress}</div>'
+            )
+            for s in epic_pending:
+                sid = s.get("id", "")
+                if sid in card_by_id:
+                    grouped_html_parts.append(card_by_id[sid])
+            grouped_html_parts.append('</div>')
+        cards_html = "\n".join(grouped_html_parts) if grouped_html_parts else '<div class="no-stories">No pending stories to review.</div>'
+    else:
+        cards_html = "\n".join(story_cards) if story_cards else '<div class="no-stories">No pending stories to review.</div>'
 
     # Completed stories summary (collapsed)
     completed_rows = ""
@@ -441,6 +510,51 @@ body {{
 .completed-body table {{ width: 100%; border-collapse: collapse; font-size: 0.85rem; }}
 .completed-body th, .completed-body td {{ padding: 10px 16px; text-align: left; border-bottom: 1px solid var(--border); }}
 .completed-body th {{ color: var(--text-dim); font-weight: 600; background: var(--surface-2); }}
+
+/* Epic groups */
+.epic-group {{
+    margin-bottom: 24px;
+}}
+.epic-header {{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 18px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 10px;
+}}
+.epic-title {{
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--accent);
+}}
+.epic-progress {{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}}
+.epic-progress-track {{
+    width: 120px;
+    height: 8px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 4px;
+    overflow: hidden;
+}}
+.epic-progress-fill {{
+    height: 100%;
+    background: var(--green);
+    border-radius: 4px;
+    transition: width 0.3s;
+}}
+.epic-progress-label {{
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    white-space: nowrap;
+}}
 
 .no-stories {{
     text-align: center;
