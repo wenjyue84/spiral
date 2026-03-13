@@ -738,3 +738,35 @@ Incomplete: Add SPIRAL_COST_CEILING to abort when cumulative API spend exceeds b
 - || true swallows exit code entirely; must use `|| _RC=$?` pattern to capture non-zero exits
 - results.tsv may not exist on first iteration (no attempts yet) — guard with [[ -f ]] check
 
+## Iteration 4 - Fri, Mar 13, 2026 12:01:50 PM
+Completed: Add SPIRAL_COST_CEILING to abort when cumulative API spend exceeds budget (ID: US-043) in 7m
+
+
+## Iteration 15 - Story: US-060: Add unit tests for merge_worker_results.py (parallel result promotion)
+
+### What was implemented
+- Created tests/test_merge_worker_results.py with 10 test cases (requirement: at least 8)
+- 10 test classes covering all acceptance criteria:
+  1. TestSingleWorkerPassedStory: single worker passes US-001 → promoted in main
+  2. TestWorkerSkippedStory: worker _skipped flag propagated to main
+  3. TestWorkerDecomposedAndSubStories: _decomposed parent + new sub-stories both promoted
+  4. TestTwoWorkersSameStoryNoDuplicate: two workers pass same story → no duplicate
+  5. TestWorkerSchemaValidationFails: invalid worker prd → exit 1, main unchanged
+  6. TestWorkerFileMissing: missing worker skipped, other workers still processed
+  7. TestMainPrdNotFound: missing main prd → exit 1
+  8. TestMainPrdSchemaValidationFails: invalid main prd → exit 1
+  9. TestMultipleWorkersDifferentStories: each worker passes different story → all promoted
+  10. TestAlreadyPassedNotDoubleCounted: already-passed story not re-counted
+- All 177 pytest tests pass (167 existing + 10 new)
+
+### Patterns discovered
+- merge_worker_results.main() uses argparse; monkeypatch sys.argv for integration tests
+- validate_prd() from prd_schema.py validates both main and worker PRDs before any merging
+- passed_ids set collects from ALL workers before applying to main (dedup is implicit)
+- Sub-stories with _decomposedFrom not in main_ids are appended as new stories
+
+### Gotchas
+- Worker PRD schema validation failure returns exit 1 immediately (stops processing remaining workers)
+- Missing worker file prints WARNING to stdout (not stderr) — use capsys.readouterr().out to capture
+- _skipped flag only applied if main story doesn't already have _skipped=true (idempotent guard)
+
