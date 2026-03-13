@@ -741,7 +741,7 @@ $BROWSER_TOOLS_HINT"
       increment_retry "$NEXT_STORY"
       RETRY_NOW=$(get_retry_count "$NEXT_STORY")
       STORY_TITLE=$($JQ -r ".userStories[] | select(.id == \"$NEXT_STORY\") | .title" "$PRD_FILE" | tr -d '\r')
-      append_result "discard"
+      append_result "reject"
       echo "## Iteration $ITERATION - $(date)" >> "$PROGRESS_FILE"
       echo "TIME BUDGET EXCEEDED: $STORY_TITLE ($NEXT_STORY) — ${STORY_DURATION_SEC}s > ${STORY_TIME_BUDGET}s budget" >> "$PROGRESS_FILE"
       if [[ "$RETRY_NOW" -ge "$MAX_RETRIES" ]]; then
@@ -792,7 +792,7 @@ Co-Authored-By: Claude ${COAUTHOR_LABEL} 4.6 <noreply@anthropic.com>" || echo "[
       increment_retry "$NEXT_STORY"
       RETRY_NOW=$(get_retry_count "$NEXT_STORY")
       echo "[retry] $NEXT_STORY attempt $RETRY_NOW/$MAX_RETRIES"
-      append_result "discard"
+      append_result "reject"
 
       echo "## Iteration $ITERATION - $(date)" >> "$PROGRESS_FILE"
       echo "FAILED quality gates: $STORY_TITLE (ID: $NEXT_STORY) — attempt $RETRY_NOW/$MAX_RETRIES" >> "$PROGRESS_FILE"
@@ -815,7 +815,7 @@ Co-Authored-By: Claude ${COAUTHOR_LABEL} 4.6 <noreply@anthropic.com>" || echo "[
     increment_retry "$NEXT_STORY"
     RETRY_NOW=$(get_retry_count "$NEXT_STORY")
     echo "[retry] $NEXT_STORY attempt $RETRY_NOW/$MAX_RETRIES"
-    append_result "discard"
+    append_result "reject"
 
     echo "## Iteration $ITERATION - $(date)" >> "$PROGRESS_FILE"
     echo "Incomplete: $STORY_TITLE (ID: $NEXT_STORY) — attempt $RETRY_NOW/$MAX_RETRIES" >> "$PROGRESS_FILE"
