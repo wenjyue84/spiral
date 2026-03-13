@@ -2148,3 +2148,44 @@ Completed: Add mypy strict type checking enforcement to Python CI pipeline (ID: 
 - ITER_START is set at line 846 (top of main loop), but ITER_END is computed later at the iteration dashboard section — write_iter_summary computes its own _iter_end to be self-contained
 - _PHASE_TS_* variables are NOT initialized to 0; they're only set when phases execute — checking ${!_var:-0} -gt 0 handles this correctly
 - Previous attempts (1/3, 2/3) failed without notes — likely ran out of context window before completing
+## Iteration 1 - Sat, Mar 14, 2026 12:17:13 AM
+Completed: Emit per-iteration summary JSON to .spiral/_iteration_summary.json (ID: US-039) in 12m
+
+
+## Iteration 14 - Story: US-069: Dashboard - add per-story attempt history drilldown
+
+### What was implemented
+- Added `compute_story_attempts(prd, results)` function to group attempt rows by story_id
+- Each story now has a collapsible `<details>` element in the Stories section
+- Attempt history shows: timestamp, model, tool, status, duration_sec, retry_num, commit_sha
+- Stories with no attempts show "No attempts recorded" gracefully
+- Positioned Stories section after overview cards, before Velocity Trend
+- Zero JavaScript dependencies - pure HTML/CSS with <details> element
+- Handles missing results.tsv correctly (all stories show no attempts)
+
+### Patterns discovered
+- HTML5 <details><summary> elements provide native accordion without JS
+- story_attempts dict structure: {story_id: {story_id, title, status, attempts: [rows...]}}
+- Attempts sorted descending by timestamp (most recent first)
+- Status colors applied via CSS classes: good/bad/warn matching story state
+- Column headers styled with font-size:9px for compact display
+- overflow-y:auto on Stories section for long lists
+
+### Gotchas
+- Attempt rows were being sorted but needed reverse=True to show recent first
+- CSS for narrow columns (Secs, Retry) uses text-align:right and text-align:center
+- Story status derived from passes/decomposed/skipped flags in prd data
+- Monospace fonts for timestamp and commit SHA using font-family:monospace
+
+### Acceptance criteria met
+- ✅ Stories section with one row per story (id, title, status indicator)
+- ✅ <details> toggle for expandable attempt history
+- ✅ All 7 columns displayed in attempt table
+- ✅ "No attempts recorded" for stories with no history
+- ✅ Pure HTML/CSS, zero JavaScript
+- ✅ Dashboard generates correctly when results.tsv missing
+
+### Test results
+- 425 tests passed, 2 skipped
+- Generated HTML dashboard with test data validates correctly
+- Attempt history displays in proper chronological order (newest first)

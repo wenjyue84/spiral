@@ -1539,7 +1539,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-070",
@@ -2990,6 +2990,30 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false
+    },
+    {
+      "id": "US-138",
+      "title": "Pinchtab Phase V E2E browser assertions integration",
+      "priority": "medium",
+      "estimatedComplexity": "small",
+      "passes": false,
+      "dependencies": [],
+      "description": "Add SPIRAL_PINCHTAB_URL config var and pinchtab E2E block to Phase V of spiral.sh. When set, Phase V calls pinchtab CLI after pytest to navigate to SPIRAL_DEV_URL and extract page text as a lightweight browser assertion. Text mode costs ~800 tokens vs ~10,000 for a screenshot. A custom SPIRAL_PINCHTAB_E2E_CMD override supports login flows and multi-step assertions.",
+      "acceptanceCriteria": [
+        "SPIRAL_PINCHTAB_URL is documented in spiral.config.sh (commented out) and templates/spiral.config.example.sh",
+        "When SPIRAL_PINCHTAB_URL is unset, Phase V behaves exactly as before (no regression)",
+        "When SPIRAL_PINCHTAB_URL and SPIRAL_DEV_URL are set and pinchtab CLI is present, Phase V runs nav + text steps and prints first 20 lines of page text",
+        "When SPIRAL_PINCHTAB_E2E_CMD is set, Phase V runs that command instead of the default nav+text steps",
+        "A pinchtab failure prints a WARNING but does not change the Phase V validation result (VALIDATE_EXIT is unchanged)",
+        "uv run pytest passes"
+      ],
+      "technicalNotes": [
+        "Pinchtab block goes in spiral.sh after the Chrome DevTools screenshot block (before write_checkpoint V)",
+        "Use: pinchtab --server \"$SPIRAL_PINCHTAB_URL\" nav / text",
+        "Guard with: command -v pinchtab to print a helpful install hint if missing",
+        "ralph/CLAUDE.md already updated: clarifies Chrome DevTools MCP is for Phase I inline checks; pinchtab is Phase V only",
+        "Do NOT start/stop pinchtab server from spiral.sh — user manages the server lifecycle externally"
+      ]
     }
   ]
 }

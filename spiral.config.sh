@@ -52,6 +52,14 @@ SPIRAL_RESEARCH_SPECIALIST_PROMPT=""
 # Leave empty to disable.
 # SPIRAL_DEV_URL=""
 
+# ── Pinchtab URL for Phase V shell-driven E2E assertions ─────────────────
+# When set, Phase V runs pinchtab E2E steps (nav + text assertion) AFTER
+# pytest passes. Pinchtab is a persistent HTTP browser server — text mode
+# costs ~800 tokens vs ~10,000 for a screenshot.
+# Start pinchtab manually: pinchtab serve (default: http://localhost:9867)
+# Leave empty to disable.
+# SPIRAL_PINCHTAB_URL="http://localhost:9867"
+
 # ── Post-completion hook ───────────────────────────────────────────────────
 # Shell command to run when ALL stories pass (check_done exits 0).
 # Not run on iteration-limit exits, SIGINT, or errors.

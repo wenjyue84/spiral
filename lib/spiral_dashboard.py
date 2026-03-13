@@ -347,6 +347,38 @@ def compute_decomposition(prd: dict) -> dict:
     }
 
 
+def compute_story_attempts(prd: dict, results: list[dict]) -> dict:
+    """Group results by story_id and build per-story attempt history.
+
+    Returns {story_id: [attempt_rows...]} dict, one entry per story in prd.
+    """
+    stories = prd.get("userStories", [])
+    story_map = {s["id"]: s for s in stories}
+
+    # Group results by story_id
+    by_story: defaultdict[str, list[dict]] = defaultdict(list)
+    for r in results:
+        sid = r.get("story_id", "")
+        if sid:
+            by_story[sid].append(r)
+
+    # Build result: one entry per story in prd
+    result = {}
+    for story in stories:
+        sid = story["id"]
+        attempts = by_story.get(sid, [])
+        # Sort by timestamp descending (most recent first)
+        attempts.sort(key=lambda r: r.get("timestamp", ""), reverse=True)
+        result[sid] = {
+            "story_id": sid,
+            "title": story.get("title", ""),
+            "status": "pass" if story.get("passes") else ("decomposed" if story.get("_decomposed") else ("skipped" if story.get("_skipped") else "pending")),
+            "attempts": attempts,
+        }
+
+    return result
+
+
 # ── SVG Velocity Chart ───────────────────────────────────────────────────────
 
 def _render_velocity_svg(iteration_velocity: dict) -> str:
@@ -517,7 +549,8 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
                 iteration_velocity: dict | None = None,
                 epics: list[dict] | None = None,
                 activity_sections: list[str] | None = None,
-                failure_reasons: list[dict] | None = None) -> str:
+                failure_reasons: list[dict] | None = None,
+                story_attempts: dict | None = None) -> str:
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     max_vel = max((v["kept"] for v in velocity), default=1) or 1
 
@@ -655,6 +688,61 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
     offset = circumference * (1 - ring_pct / 100)
     ring_color = "#00d4aa" if ring_pct >= 70 else "#ffd93d" if ring_pct >= 40 else "#ff6b6b"
 
+    # Stories section with per-story attempt drilldown
+    stories_html = ""
+    if story_attempts:
+        stories_rows = ""
+        for story_id in sorted(story_attempts.keys()):
+            story = story_attempts[story_id]
+            status_color = "good" if story["status"] == "pass" else "bad" if story["status"] == "pending" else "warn"
+            attempts = story["attempts"]
+
+            # Build attempt table HTML
+            attempt_rows = ""
+            if attempts:
+                for att in attempts:
+                    timestamp = att.get("timestamp", "")[:19]  # ISO format, trim to YYYY-MM-DD HH:MM:SS
+                    model = escape(att.get("model", ""))
+                    tool = escape(att.get("tool", ""))
+                    att_status = escape(att.get("status", ""))
+                    duration = att.get("duration_sec", 0)
+                    retry_num = att.get("retry_num", 0)
+                    commit = att.get("commit_sha", "")[:8]
+                    attempt_rows += (
+                        f'<tr style="font-size:11px">'
+                        f'<td style="font-family:monospace;font-size:10px">{timestamp}</td>'
+                        f'<td>{model}</td>'
+                        f'<td>{tool}</td>'
+                        f'<td class="{att_status}">{att_status}</td>'
+                        f'<td style="text-align:right">{duration}s</td>'
+                        f'<td style="text-align:center">{retry_num}</td>'
+                        f'<td style="font-family:monospace;font-size:10px">{commit}</td>'
+                        f'</tr>\n'
+                    )
+            else:
+                attempt_rows = '<tr style="font-size:11px"><td colspan="7" class="no-data">No attempts recorded</td></tr>'
+
+            stories_rows += (
+                f'<details style="margin-bottom:8px;border:1px solid #333;border-radius:4px">'
+                f'<summary style="cursor:pointer;padding:8px;background:#0f3460;color:#fff;font-weight:bold;display:flex;justify-content:space-between;align-items:center">'
+                f'<span>{escape(story_id)}: {escape(story["title"][:50])}</span>'
+                f'<span class="{status_color}" style="font-size:11px;padding:2px 6px;border-radius:3px">{story["status"]}</span>'
+                f'</summary>'
+                f'<div style="padding:8px;overflow-x:auto">'
+                f'<table style="font-size:11px;width:100%">'
+                f'<tr><th style="font-size:9px">Timestamp</th><th>Model</th><th>Tool</th><th>Status</th><th style="text-align:right">Secs</th><th style="text-align:center">Retry</th><th>Commit</th></tr>'
+                f'{attempt_rows}'
+                f'</table>'
+                f'</div>'
+                f'</details>\n'
+            )
+
+        stories_html = (
+            f'<section>\n<h2>Stories</h2>\n'
+            f'<div style="max-height:600px;overflow-y:auto">{stories_rows}</div>\n'
+            f'</section>\n'
+        )
+
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -743,6 +831,8 @@ footer{{text-align:center;color:#444;font-size:10px;margin-top:16px;padding-top:
 </div>
 
 {f'<div>{insights_html}</div>' if insights_html else ''}
+
+{stories_html}
 
 <section>
 <h2>Velocity Trend</h2>
@@ -852,6 +942,7 @@ def main() -> int:
     iter_vel = compute_iteration_velocity(results)
     epics = compute_epics(prd)
     failure_reasons = compute_failure_reasons(prd)
+    story_attempts = compute_story_attempts(prd, results)
 
     # Find latest screenshot
     screenshot = find_latest_screenshot(args.scratch_dir)
@@ -861,7 +952,7 @@ def main() -> int:
         velocity = [{"iter": 0, "kept": 0, "total": 0, "duration_hours": 0.001, "velocity": 0}]
 
     # Render
-    html = render_html(overview, velocity, status, model_perf, retry_analysis, bottle, decomposition, insights, screenshot, iteration_velocity=iter_vel, epics=epics, activity_sections=activity, failure_reasons=failure_reasons)
+    html = render_html(overview, velocity, status, model_perf, retry_analysis, bottle, decomposition, insights, screenshot, iteration_velocity=iter_vel, epics=epics, activity_sections=activity, failure_reasons=failure_reasons, story_attempts=story_attempts)
 
     # Write
     output_path = os.path.abspath(args.output)

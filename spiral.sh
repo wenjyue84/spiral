@@ -1780,6 +1780,42 @@ PYEOF
       fi
     fi
 
+    # ── Optional: Pinchtab shell-driven E2E assertions ──────────────────────
+    # Runs AFTER pytest and after the optional Chrome DevTools screenshot.
+    # Pinchtab is a persistent HTTP browser server — called from shell, not
+    # from inside a Claude agent turn. Text mode is 5-13x cheaper in tokens.
+    if [[ -n "${SPIRAL_PINCHTAB_URL:-}" ]]; then
+      _PINCHTAB_EXIT=0
+      if [[ -n "${SPIRAL_PINCHTAB_E2E_CMD:-}" ]]; then
+        # User-supplied E2E script (login flows, multi-step assertions)
+        echo "  [V] Running pinchtab E2E: $SPIRAL_PINCHTAB_E2E_CMD"
+        (cd "$REPO_ROOT" && eval "$SPIRAL_PINCHTAB_E2E_CMD" 2>&1) || _PINCHTAB_EXIT=$?
+      elif [[ -n "${SPIRAL_DEV_URL:-}" ]] && command -v pinchtab &>/dev/null; then
+        # Default: nav to dev URL, extract text, print first 20 lines
+        echo "  [V] Pinchtab E2E: navigating to $SPIRAL_DEV_URL..."
+        pinchtab --server "$SPIRAL_PINCHTAB_URL" nav "$SPIRAL_DEV_URL" 2>/dev/null || _PINCHTAB_EXIT=$?
+        if [[ "$_PINCHTAB_EXIT" -eq 0 ]]; then
+          _PINCHTAB_TEXT=$(pinchtab --server "$SPIRAL_PINCHTAB_URL" text 2>/dev/null || true)
+          if [[ -n "$_PINCHTAB_TEXT" ]]; then
+            echo "  [V] Pinchtab page text (first 20 lines):"
+            echo "$_PINCHTAB_TEXT" | head -20 | sed 's/^/    /'
+          else
+            echo "  [V] Pinchtab: page loaded (no text content extracted)"
+          fi
+        else
+          echo "  [V] WARNING: pinchtab nav failed (exit $_PINCHTAB_EXIT) — E2E step skipped"
+        fi
+      elif ! command -v pinchtab &>/dev/null; then
+        echo "  [V] Pinchtab E2E skipped (pinchtab CLI not found — install with: npm install -g pinchtab)"
+      else
+        echo "  [V] Pinchtab E2E skipped (SPIRAL_DEV_URL not set — set it to enable nav+text assertions)"
+      fi
+
+      if [[ "$_PINCHTAB_EXIT" -ne 0 ]]; then
+        echo "  [V] WARNING: Pinchtab E2E step failed (exit $_PINCHTAB_EXIT) — does not affect validation result"
+      fi
+    fi
+
     write_checkpoint "$SPIRAL_ITER" "V"
   fi
   _PHASE_DUR_V=$(( $(date +%s) - _PHASE_TS_V ))

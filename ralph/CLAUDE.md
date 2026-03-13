@@ -28,6 +28,7 @@ You are running as part of Ralph, an autonomous agent loop. Your job is to imple
     - Check for console errors (`mcp__chrome-devtools__list_console_messages`)
     - If the story has visual acceptance criteria, verify each one
     - If Chrome DevTools MCP tools are NOT available, skip this step entirely (static analysis only)
+    - **Do NOT start a pinchtab server here** — pinchtab is a shell-driven tool for Phase V E2E assertions, not for inline agent checks. Chrome DevTools MCP is the right tool inside an agent turn.
 
 ## Your Workflow
 

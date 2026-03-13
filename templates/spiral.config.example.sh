@@ -312,6 +312,42 @@
 # Default: 2
 # SPIRAL_PRESSURE_HYSTERESIS=2
 
+# ── Pinchtab E2E browser assertions (Phase V) ────────────────────────────
+# When set, Phase V runs pinchtab shell-driven E2E steps after pytest passes.
+#
+# Pinchtab is a persistent HTTP browser server. Unlike Chrome DevTools MCP
+# (which lives inside a Claude agent turn), pinchtab is called from shell —
+# exactly like pytest or npm test.
+#
+# Decision guide:
+#   Chrome DevTools MCP — inline visual check DURING Phase I (ralph agent)
+#   pinchtab            — shell-driven E2E assertions AFTER pytest in Phase V
+#
+# Advantages over Chrome DevTools MCP for Phase V:
+#   - Token-efficient: `pinchtab text` ~800 tokens vs ~10,000 for screenshot
+#   - Persistent session: login once per Spiral run, reuse across iterations
+#   - Parallel-safe: each worker can request an isolated browser instance
+#   - Shell-assertable: pipe `pinchtab text` to grep for pass/fail logic
+#
+# Setup (one-time):
+#   1. Install pinchtab: npm install -g pinchtab (or your installer)
+#   2. Start the server: pinchtab serve --port 9867
+#   3. Set SPIRAL_PINCHTAB_URL below
+#   4. (Optional) Set SPIRAL_PINCHTAB_E2E_CMD to override the default steps
+#
+# Default E2E steps when SPIRAL_PINCHTAB_URL is set and SPIRAL_DEV_URL is set:
+#   1. pinchtab nav $SPIRAL_DEV_URL
+#   2. pinchtab text | grep -q "expected content" → pass/fail
+#
+# Override with a custom script for login flows or multi-step assertions:
+#   SPIRAL_PINCHTAB_E2E_CMD="bash $PWD/scripts/pinchtab-e2e.sh"
+#
+# Default: empty (disabled)
+# SPIRAL_PINCHTAB_URL="http://localhost:9867"
+#
+# Custom E2E command (optional — runs instead of the default nav+text steps)
+# SPIRAL_PINCHTAB_E2E_CMD=""
+
 # ── Lighthouse audit (Phase V — visual quality) ──────────────────────────
 # When enabled, runs a Lighthouse audit after the test suite in Phase V.
 # Checks performance, accessibility, and best-practices scores.
