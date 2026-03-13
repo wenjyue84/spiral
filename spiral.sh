@@ -68,6 +68,7 @@ TIME_LIMIT_MINS=0      # 0 = no limit; >0 = stop after N minutes (--time-limit o
 DRY_RUN=0              # 1 = dry-run mode: skip API calls (R, T, I, V) but run control flow
 DOCTOR_MODE=0          # 1 = run dependency check and exit (--doctor)
 REPLAY_STORY_ID=""     # "" = normal mode; "US-XXX" = replay that story only (--replay)
+RESET_CHECKPOINT=0     # 1 = remove _checkpoint.json and start fresh (--reset)
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -112,6 +113,8 @@ while [[ $# -gt 0 ]]; do
       DOCTOR_MODE=1; shift ;;
     --replay)
       REPLAY_STORY_ID="$2"; shift 2 ;;
+    --reset)
+      RESET_CHECKPOINT=1; shift ;;
     --status)
       STATUS_ONLY=1; shift ;;
     --help|-h)
@@ -135,6 +138,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --dry-run                  Test loop control flow without API calls"
       echo "  --doctor                   Check all runtime dependencies and exit"
       echo "  --replay STORY_ID          Re-run a single story in an isolated worktree (Phases I+V only)"
+      echo "  --reset                    Remove checkpoint and start fresh from iteration 1"
       echo "  --status                   Print session state and story counts, then exit"
       echo ""
       echo "Config: Place spiral.config.sh in project root (or use --config)."
@@ -244,6 +248,12 @@ SCRATCH_DIR="$REPO_ROOT/.spiral"
 PRD_FILE="$REPO_ROOT/prd.json"
 CHECKPOINT_FILE="$SCRATCH_DIR/_checkpoint.json"
 RESEARCH_CACHE_DIR="$SCRATCH_DIR/research_cache"
+
+# ── --reset: remove checkpoint and start fresh ───────────────────────────────
+if [[ "$RESET_CHECKPOINT" -eq 1 ]] && [[ -f "$CHECKPOINT_FILE" ]]; then
+  echo "[spiral] --reset: Removing checkpoint, starting fresh from iteration 1"
+  rm -f "$CHECKPOINT_FILE"
+fi
 
 # ── Source memory pressure helper library ────────────────────────────────────
 export SPIRAL_SCRATCH_DIR="$SCRATCH_DIR"
@@ -700,6 +710,15 @@ if [[ -f "$CHECKPOINT_FILE" ]]; then
   CKPT_PHASE=$("$JQ" -r '.phase // ""' "$CHECKPOINT_FILE")
   echo "  [checkpoint] Resuming from iter=$CKPT_ITER phase=$CKPT_PHASE"
   SPIRAL_ITER=$((CKPT_ITER - 1))  # loop will increment to CKPT_ITER on first pass
+
+  # ── Warn if checkpoint is older than 24 hours ────────────────────────────
+  CKPT_TS=$("$JQ" -r '.ts // 0' "$CHECKPOINT_FILE" 2>/dev/null || echo 0)
+  CKPT_AGE=$(( $(date +%s) - ${CKPT_TS%.*} ))
+  if [[ "$CKPT_AGE" -gt 86400 ]]; then
+    CKPT_AGE_HOURS=$(( CKPT_AGE / 3600 ))
+    echo "  [spiral] WARNING: Resuming from checkpoint written ${CKPT_AGE_HOURS}h ago. Pass --reset to start fresh." >&2
+  fi
+
   echo ""
 fi
 

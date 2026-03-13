@@ -1679,3 +1679,30 @@ Incomplete: Warn when resuming from a checkpoint older than 24 hours (ID: US-038
 - StoryLifecycle accepts initial_state param for testing terminal and non-default states directly
 - validate_story_states() is a module-level function, not a class method — must import separately
 - STORY_TRANSITIONS["failed_retry"] exists as a valid state reachable via StoryLifecycle("US-001", initial_state="failed_retry")
+## Iteration 8 - Fri, Mar 13, 2026  8:12:28 PM
+Incomplete: Warn when resuming from a checkpoint older than 24 hours (ID: US-038) — attempt 2/3
+
+
+## Iteration 9 - Story: US-038: Warn when resuming from a checkpoint older than 24 hours
+
+### What was implemented
+- Added RESET_CHECKPOINT=0 default variable and --reset flag to argument parser in spiral.sh
+- Added --reset handler after CHECKPOINT_FILE is defined: removes _checkpoint.json and prints message
+- Added checkpoint age warning in the main-loop checkpoint resume block (lines 714-720):
+  - Reads ts field from _checkpoint.json via jq
+  - Computes age: $(date +%s) - ${CKPT_TS%.*}
+  - If age > 86400 (24h): prints warning to stderr with age in hours
+  - Warning text: "[spiral] WARNING: Resuming from checkpoint written Nh ago. Pass --reset to start fresh."
+  - Does NOT abort — loop continues normally after warning
+- Added --reset to --help text
+- All 385 pytest tests pass
+
+### Patterns discovered
+- Checkpoint resume logic is in two places: --status early exit (line ~280) and main loop (line ~708)
+- The main loop checkpoint block is the right place for the age warning (runs only during actual execution)
+- CKPT_TS already used in --status block but needed to be read again in main loop block
+
+### Gotchas
+- prd.json has non-UTF-8 bytes (0x97 at position 118424) — cannot use Python json.load with utf-8 encoding
+- Must use binary read/write for prd.json modifications to preserve encoding
+- Previous attempts (1/3, 2/3) left no failure notes — likely hit the encoding issue when updating prd.json
