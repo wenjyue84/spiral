@@ -1,10 +1,18 @@
 #!/usr/bin/env python3
 """
-SPIRAL — PRD Schema Validator (stdlib-only)
+SPIRAL — PRD Schema Validator
 Validates prd.json structure, types, ID uniqueness, and dependency integrity.
 
+Uses formal JSON Schema (prd.schema.json) when the `jsonschema` package is
+available; falls back to built-in stdlib validation otherwise.
+
+Exit codes:
+  0 = valid
+  1 = file/JSON parse error
+  2 = schema validation errors
+
 Usage:
-  python lib/prd_schema.py prd.json           # exit 0 = valid, exit 1 = errors
+  python lib/prd_schema.py prd.json           # exit 0 = valid, exit 2 = errors
   python lib/prd_schema.py prd.json --quiet   # suppress success message
 
 As module:
@@ -197,6 +205,60 @@ def validate_prd(prd: dict) -> list[str]:
     return errors
 
 
+def validate_jsonschema(prd: dict, schema_path: str) -> list[str]:
+    """
+    Validate prd against a formal JSON Schema file using the jsonschema package.
+    Returns list of diff-style error strings (empty = valid).
+    Raises ImportError if jsonschema is not installed.
+    """
+    import jsonschema  # noqa: F811 — intentional late import
+
+    with open(schema_path, encoding="utf-8") as f:
+        schema = json.load(f)
+
+    validator = jsonschema.Draft202012Validator(schema)
+    errors: list[str] = []
+    for err in sorted(validator.iter_errors(prd), key=lambda e: list(e.absolute_path)):
+        path = ".".join(str(p) for p in err.absolute_path) if err.absolute_path else "(root)"
+        # Identify story id for contextual error messages
+        story_ctx = ""
+        parts = list(err.absolute_path)
+        if len(parts) >= 2 and parts[0] == "userStories":
+            idx = parts[1]
+            stories = prd.get("userStories", [])
+            if isinstance(idx, int) and 0 <= idx < len(stories):
+                sid = stories[idx].get("id", "?")
+                story_ctx = f" ({sid})"
+        errors.append(f"  - {path}{story_ctx}: {err.message}")
+    return errors
+
+
+def has_jsonschema() -> bool:
+    """Return True if the jsonschema package is importable."""
+    try:
+        import jsonschema  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
+def _find_schema_file(prd_path: str) -> str | None:
+    """Locate prd.schema.json relative to the PRD file or SPIRAL_HOME."""
+    candidates = []
+    # Next to the prd file
+    candidates.append(os.path.join(os.path.dirname(os.path.abspath(prd_path)), "prd.schema.json"))
+    # SPIRAL_HOME
+    spiral_home = os.environ.get("SPIRAL_HOME")
+    if spiral_home:
+        candidates.append(os.path.join(spiral_home, "prd.schema.json"))
+    # Relative to this script (lib/ → repo root)
+    candidates.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "prd.schema.json"))
+    for c in candidates:
+        if os.path.isfile(c):
+            return os.path.normpath(c)
+    return None
+
+
 def main() -> int:
     import argparse
 
@@ -216,16 +278,28 @@ def main() -> int:
         print(f"[schema] ERROR: Invalid JSON in {args.prd}: {e}", file=sys.stderr)
         return 1
 
+    # Try formal JSON Schema validation first
+    schema_file = _find_schema_file(args.prd)
+    if schema_file and has_jsonschema():
+        js_errors = validate_jsonschema(prd, schema_file)
+        if js_errors:
+            print(f"[schema] {args.prd} — JSON Schema validation failed ({len(js_errors)} error(s)):", file=sys.stderr)
+            for err in js_errors:
+                print(err, file=sys.stderr)
+            return 2
+
+    # Always run stdlib validation for cross-story checks (duplicates, dangling deps)
     errors = validate_prd(prd)
     if errors:
         print(f"[schema] {args.prd} — {len(errors)} error(s):", file=sys.stderr)
         for err in errors:
             print(f"  - {err}", file=sys.stderr)
-        return 1
+        return 2
 
     if not args.quiet:
         story_count = len(prd.get("userStories", []))
-        print(f"[schema] {args.prd} — valid ({story_count} stories)")
+        method = "JSON Schema + stdlib" if (schema_file and has_jsonschema()) else "stdlib"
+        print(f"[schema] {args.prd} — valid ({story_count} stories, {method})")
     return 0
 
 

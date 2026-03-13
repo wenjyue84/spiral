@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "prd.schema.json",
+  "title": "SPIRAL PRD",
+  "description": "Schema for SPIRAL Product Requirements Document (prd.json)",
+  "type": "object",
+  "required": ["productName", "branchName", "userStories"],
+  "properties": {
+    "productName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "branchName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "overview": {
+      "type": "string"
+    },
+    "goals": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "epics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "title": { "type": "string" },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
+    "userStories": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/userStory" }
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "userStory": {
+      "type": "object",
+      "required": ["id", "title", "priority", "acceptanceCriteria", "passes", "dependencies"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^(US|UT)-\\d{3,4}$",
+          "description": "Story identifier matching US-NNN or UT-NNN"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["critical", "high", "medium", "low"]
+        },
+        "description": {
+          "type": "string"
+        },
+        "acceptanceCriteria": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "passes": {
+          "type": "boolean"
+        },
+        "dependencies": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "estimatedComplexity": {
+          "type": "string",
+          "enum": ["small", "medium", "large"]
+        },
+        "technicalNotes": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "_passedCommit": {
+          "type": "string",
+          "pattern": "^([0-9a-f]{40})?$",
+          "description": "40-char hex git SHA or empty string"
+        },
+        "_decomposed": {
+          "type": "boolean"
+        },
+        "_decomposedFrom": {
+          "type": "string"
+        },
+        "_decomposedInto": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "_failureReason": {
+          "type": "string"
+        },
+        "filesTouch": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "isTestFix": {
+          "type": "boolean"
+        },
+        "epicId": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

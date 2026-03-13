@@ -9,9 +9,11 @@ spiral_preflight_check() {
   local exit_on_fail=1
 
   echo "  [preflight] Validating prd.json schema..."
-  if ! "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/prd_schema.py" "$prd_file" --quiet; then
-    echo "  [preflight] FATAL: prd.json schema validation failed — aborting"
-    exit 1
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/prd_schema.py" "$prd_file" --quiet
+  local schema_rc=$?
+  if [[ "$schema_rc" -ne 0 ]]; then
+    echo "  [preflight] FATAL: prd.json schema validation failed — aborting (exit $schema_rc)"
+    exit "$schema_rc"
   fi
   echo "  [preflight] prd.json schema: OK"
 

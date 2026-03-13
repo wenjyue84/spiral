@@ -77,6 +77,26 @@ spiral_doctor() {
     warn_count=$((warn_count + 1))
   fi
 
+  # ── Check python jsonschema package ─────────────────────────────────────────
+  if "$SPIRAL_PYTHON" -c "import jsonschema" >/dev/null 2>&1; then
+    echo "  [doctor] [OK] python jsonschema package is importable"
+  else
+    echo "  [doctor] [WARN] python jsonschema package not installed"
+    echo "           → Fix: uv add jsonschema (or pip install jsonschema)"
+    echo "           → Info: Formal JSON Schema validation (prd.schema.json) requires this package."
+    echo "                   Built-in stdlib validation still works without it."
+    warn_count=$((warn_count + 1))
+  fi
+
+  # ── Check prd.schema.json ──────────────────────────────────────────────────
+  if [[ -f "${SPIRAL_HOME:-$PWD}/prd.schema.json" ]]; then
+    echo "  [doctor] [OK] prd.schema.json found"
+  else
+    echo "  [doctor] [WARN] prd.schema.json not found"
+    echo "           → Info: Formal JSON Schema file for prd.json validation"
+    warn_count=$((warn_count + 1))
+  fi
+
   # ── Check spiral.config.sh ─────────────────────────────────────────────────
   if [[ -f "spiral.config.sh" ]]; then
     echo "  [doctor] [OK] spiral.config.sh found in current directory"
