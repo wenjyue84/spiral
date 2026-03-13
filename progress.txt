@@ -1275,3 +1275,36 @@ Incomplete: Add --dry-run flag to spiral.sh to test loop control flow without AP
 ### Gotchas
 - ralph.sh checks DRY_RUN == "true" (string), not integer; the --dry-run flag sets it correctly
 - Must add flag to ALL 4 ralph invocation sites (easy to miss the parallel wave branch)
+## Iteration 2 - Fri, Mar 13, 2026  4:24:07 PM
+Completed: Add --dry-run flag to spiral.sh to test loop control flow without API calls (ID: US-022) in 7m
+
+
+## Iteration - Story: US-036 Add spiral-doctor command to verify all runtime dependencies
+
+### What was implemented
+- Created lib/spiral_doctor.sh with spiral_doctor() function that checks:
+  - claude CLI in PATH (command -v check)
+  - jq in PATH (command -v check)
+  - python3 OR uv in PATH (both optional, at least one required)
+  - node in PATH (command -v check)
+  - prd.json valid JSON (via $JQ empty check)
+  - spiral.config.sh exists in current directory
+- Added --doctor flag to spiral.sh argument parsing (line ~111)
+- Added DOCTOR_MODE=0 variable to flag initialization (line ~68)
+- Sourced lib/spiral_doctor.sh at line ~287
+- Added doctor mode check after --status check (lines ~290-293)
+- Updated --help text to include --doctor option
+- Each check prints [OK] / [WARN] / [ERROR] with one-line fix hint
+- Returns exit 0 if no ERROR checks; exit 1 if any ERROR checks found
+
+### Patterns discovered
+- Library sourcing pattern: source "$SPIRAL_HOME/lib/validate_preflight.sh" (similar approach)
+- Flag handling pattern: early if checks for --status and --doctor modes to exit early
+- Error reporting pattern: numbered variable (error_count, warn_count) to track and summarize
+- PATH checking pattern: command -v tool >/dev/null 2>&1
+
+### Gotchas
+- JQ variable must be available before spiral_doctor is called; resolved at line ~245
+- spiral_doctor.sh needs access to $JQ variable exported from spiral.sh
+- Doctor check must run AFTER source statements but BEFORE main loop (after line ~288)
+- Warning cases (missing prd.json, missing config) don't fail—returns 0 unless ERROR checks found

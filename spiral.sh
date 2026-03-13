@@ -66,6 +66,7 @@ SPIRAL_CLI_MODEL=""    # explicit --model override (haiku|sonnet|opus)
 SPIRAL_CLI_FOCUS=""    # explicit --focus override
 TIME_LIMIT_MINS=0      # 0 = no limit; >0 = stop after N minutes (--time-limit or --until)
 DRY_RUN=0              # 1 = dry-run mode: skip API calls (R, T, I, V) but run control flow
+DOCTOR_MODE=0          # 1 = run dependency check and exit (--doctor)
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -106,6 +107,8 @@ while [[ $# -gt 0 ]]; do
       ;;
     --dry-run)
       DRY_RUN=1; shift ;;
+    --doctor)
+      DOCTOR_MODE=1; shift ;;
     --status)
       STATUS_ONLY=1; shift ;;
     --help|-h)
@@ -127,6 +130,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --time-limit N             Stop after N minutes (e.g., 60, 90, 120)"
       echo "  --until HH:MM              Stop at a wall-clock time (e.g., 14:30, 18:00)"
       echo "  --dry-run                  Test loop control flow without API calls"
+      echo "  --doctor                   Check all runtime dependencies and exit"
       echo "  --status                   Print session state and story counts, then exit"
       echo ""
       echo "Config: Place spiral.config.sh in project root (or use --config)."
@@ -278,13 +282,20 @@ if [[ "$STATUS_ONLY" -eq 1 ]]; then
   exit 0
 fi
 
+# ── Source verification libraries (before doctor check) ─────────────────────
+source "$SPIRAL_HOME/lib/validate_preflight.sh"
+source "$SPIRAL_HOME/lib/spiral_doctor.sh"
+source "$SPIRAL_HOME/lib/spiral_assert.sh"
+
+# ── --doctor: run dependency checks and exit ────────────────────────────────
+if [[ "$DOCTOR_MODE" -eq 1 ]]; then
+  spiral_doctor
+  exit $?
+fi
+
 # ── Tee all output to log file ──────────────────────────────────────────────
 mkdir -p "$SCRATCH_DIR"
 exec > >(tee "$SCRATCH_DIR/_last_run.log") 2>&1
-
-# ── Source verification libraries ──────────────────────────────────────────
-source "$SPIRAL_HOME/lib/validate_preflight.sh"
-source "$SPIRAL_HOME/lib/spiral_assert.sh"
 
 # ── Pre-flight validation ──────────────────────────────────────────────────
 spiral_preflight_check "$PRD_FILE" "$SCRATCH_DIR"
