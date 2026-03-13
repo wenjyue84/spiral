@@ -650,3 +650,25 @@ Completed: Enforce dependency-order execution: skip story if deps not yet passed
 ## Iteration 10 - Fri, Mar 13, 2026 11:31:37 AM
 Incomplete: Add SPIRAL_STORY_BATCH_SIZE to cap stories visible to ralph per iteration (ID: US-042) — attempt 1/3
 
+
+## Iteration 11 - Story: US-042: Add SPIRAL_STORY_BATCH_SIZE to cap stories visible to ralph per iteration
+
+### What was implemented
+- Added SPIRAL_STORY_BATCH_SIZE config variable to spiral.config.sh (default 20)
+- Created lib/slice_prd.py with slice_prd() and merge_batch_results() functions
+- Integrated batch slicing into spiral.sh Phase I: slices PRD before ralph, merges results back after
+- Added 16 unit tests in tests/test_slice_prd.py (10 for slicing, 6 for merge-back)
+- Batch size=0 disables the feature (current behavior preserved)
+- All 130 tests pass
+
+### Patterns discovered
+- prd.json has non-UTF-8 bytes (em-dash characters) — use errors="replace" when reading
+- spiral.sh config defaults follow pattern: SPIRAL_VAR="${SPIRAL_VAR:-default}"
+- Phase I in spiral.sh has both parallel (run_parallel_ralph.sh) and sequential modes
+- Slicing preserves original story order, sorts pending by priority for batch selection
+- Decomposed parents (_decomposed=True) are always included in slices
+
+### Gotchas
+- Ralph modifies the PRD file in-place — batch slicing must save full backup and merge results back
+- The slice replaces PRD_FILE in-place so ralph's git commits include the correct file
+- merge_batch_results must handle new sub-stories from decomposition (append to full PRD)

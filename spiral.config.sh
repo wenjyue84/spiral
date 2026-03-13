@@ -32,6 +32,11 @@ SPIRAL_STORY_PREFIX="US"
 # Prevents flooding prd.json during aggressive non-stop runs
 SPIRAL_MAX_PENDING=30
 
+# ── Batch size: cap stories visible to ralph per iteration ────────────────
+# Only the N highest-priority pending stories are included in the PRD slice
+# passed to ralph. 0 = disabled (all pending stories visible, current behavior).
+SPIRAL_STORY_BATCH_SIZE=20
+
 # ── Specialist prompt file (optional) ────────────────────────────────────────
 # Path to a static prompt file used as fallback when Gemini is unavailable.
 # Leave empty unless you have a domain-specific specialist prompt.

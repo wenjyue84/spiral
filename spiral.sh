@@ -184,6 +184,7 @@ SPIRAL_SPECKIT_CONSTITUTION="${SPIRAL_SPECKIT_CONSTITUTION:-}"
 SPIRAL_SPECKIT_SPECS_DIR="${SPIRAL_SPECKIT_SPECS_DIR:-}"
 SPIRAL_FOCUS="${SPIRAL_CLI_FOCUS:-${SPIRAL_FOCUS:-}}"
 SPIRAL_MAX_PENDING="${SPIRAL_MAX_PENDING:-0}"  # 0 = unlimited
+SPIRAL_STORY_BATCH_SIZE="${SPIRAL_STORY_BATCH_SIZE:-20}"  # 0 = disabled (show all)
 SPIRAL_LOW_POWER_MODE="${SPIRAL_LOW_POWER_MODE:-1}"
 SPIRAL_PRESSURE_THRESHOLDS="${SPIRAL_PRESSURE_THRESHOLDS:-40,25,15,8}"
 SPIRAL_MEMORY_POLL_INTERVAL="${SPIRAL_MEMORY_POLL_INTERVAL:-15}"
@@ -410,6 +411,7 @@ fi
   echo "  ║  Spec-Kit:    constitution loaded"
 [[ -n "$SPIRAL_FOCUS" ]] && echo "  ║  Focus:       $SPIRAL_FOCUS"
 [[ "$SPIRAL_MAX_PENDING" -gt 0 ]] && echo "  ║  Max pending: $SPIRAL_MAX_PENDING incomplete stories"
+[[ "$SPIRAL_STORY_BATCH_SIZE" -gt 0 ]] && echo "  ║  Batch size:  $SPIRAL_STORY_BATCH_SIZE stories per iteration"
 [[ "$SPIRAL_LOW_POWER_MODE" -eq 1 ]] && echo "  ║  Low power:   adaptive memory management enabled"
 if [[ "$TIME_LIMIT_MINS" -gt 0 ]]; then
   _DEADLINE_DISPLAY=$(date -d "@$SESSION_DEADLINE" +"%H:%M" 2>/dev/null \
@@ -773,6 +775,23 @@ $INJECTED_PROMPT"
         spiral_assert_passes_save_baseline "$PRD_FILE"
 
         echo "  [Phase I] IMPLEMENT — running ralph ($RALPH_MAX_ITERS inner iterations)..."
+
+        # ── Batch slicing: cap stories visible to ralph ──────────────────
+        _BATCH_ACTIVE=0
+        _FULL_PRD_BACKUP="$SCRATCH_DIR/_full_prd_backup.json"
+        if [[ "$SPIRAL_STORY_BATCH_SIZE" -gt 0 && "$PENDING" -gt "$SPIRAL_STORY_BATCH_SIZE" ]]; then
+          cp "$PRD_FILE" "$_FULL_PRD_BACKUP"
+          "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/slice_prd.py" slice \
+            "$PRD_FILE" "$SPIRAL_STORY_BATCH_SIZE" -o "$PRD_FILE" 2>/dev/null && {
+            _BATCH_ACTIVE=1
+            _SLICED_PENDING=$("$JQ" '[.userStories[] | select(.passes != true)] | length' "$PRD_FILE" 2>/dev/null || echo "?")
+            echo "  [I] Batch: $PENDING pending → sliced to $_SLICED_PENDING (batch_size=$SPIRAL_STORY_BATCH_SIZE)"
+          } || {
+            echo "  [I] Batch: slice failed — using full PRD"
+            cp "$_FULL_PRD_BACKUP" "$PRD_FILE"
+          }
+        fi
+
         echo "  [I] Pending stories ($PENDING):"
         "$JQ" -r '.userStories[] | select(.passes != true) | "    [\(.id)] \(.title)"' "$PRD_FILE" \
           2>/dev/null | head -20 || true
@@ -876,6 +895,17 @@ $INJECTED_PROMPT"
           else
             bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $RALPH_MODEL_FLAG || true
           fi
+        fi
+
+        # ── Batch merge: restore full PRD with ralph's updates ─────────
+        if [[ "$_BATCH_ACTIVE" -eq 1 && -f "$_FULL_PRD_BACKUP" ]]; then
+          "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/slice_prd.py" merge \
+            "$_FULL_PRD_BACKUP" "$PRD_FILE" -o "$PRD_FILE" 2>/dev/null && {
+            echo "  [I] Batch: merged results back into full PRD"
+          } || {
+            echo "  [I] Batch: merge failed — keeping ralph's PRD as-is"
+          }
+          rm -f "$_FULL_PRD_BACKUP"
         fi
 
         DONE_AFTER=$("$JQ" '[.userStories[] | select(.passes == true)] | length' "$PRD_FILE")

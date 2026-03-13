@@ -959,7 +959,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-043",
@@ -1277,7 +1277,7 @@
       "id": "US-058",
       "title": "Merge parallel worker results.tsv files into main results.tsv",
       "priority": "high",
-      "description": "In parallel mode, each worker writes telemetry rows to its own worktree's results.tsv. After merge_worker_results.py finishes, the worker results.tsv files are abandoned — only the main prd.json is updated. This means the main project's results.tsv is missing all telemetry from parallel runs, breaking spiral_dashboard.py accuracy and spiral_report.py analysis.",
+      "description": "In parallel mode, each worker writes telemetry rows to its own worktree's results.tsv. After merge_worker_results.py finishes, the worker results.tsv files are abandoned ï¿½ only the main prd.json is updated. This means the main project's results.tsv is missing all telemetry from parallel runs, breaking spiral_dashboard.py accuracy and spiral_report.py analysis.",
       "acceptanceCriteria": [
         "run_parallel_ralph.sh reads each worker's results.tsv after all workers complete",
         "Rows from all worker results.tsv files are appended to the main project results.tsv",
@@ -1286,7 +1286,7 @@
         "spiral_dashboard.py shows correct total attempt count when re-run after a parallel session"
       ],
       "technicalNotes": [
-        "Worker worktrees live at $WORKTREE_BASE/worker-N/ — each has its own results.tsv at that worktree root",
+        "Worker worktrees live at $WORKTREE_BASE/worker-N/ ï¿½ each has its own results.tsv at that worktree root",
         "run_parallel_ralph.sh already has a merge step for prd.json; add results.tsv merge immediately after",
         "Use awk/tail to skip the header of each worker file before appending to main",
         "Sort merged rows by timestamp column to maintain chronological order"
@@ -1310,7 +1310,7 @@
       "technicalNotes": [
         "Use: du -sk \"$REPO_ROOT\" to get repo size in KB",
         "Use: df -k \"$WORKTREE_BASE\" | awk 'NR==2 {print $4}' for available KB",
-        "Git worktrees share .git objects — actual disk use is ~working tree size, not full clone",
+        "Git worktrees share .git objects ï¿½ actual disk use is ~working tree size, not full clone",
         "Add the check near line 200 of run_parallel_ralph.sh before the worker creation loop"
       ],
       "dependencies": [],
@@ -1326,10 +1326,10 @@
         "tests/test_merge_worker_results.py created with at least 8 test cases",
         "Test: single worker with one passed story promotes it to main prd",
         "Test: worker with _skipped story propagates skipped flag to main prd",
-        "Test: worker with _decomposed parent and new sub-stories — both promoted correctly",
-        "Test: two workers both passing the same story — no duplicate in main",
-        "Test: worker prd.json fails schema validation — returns exit code 1, main prd unchanged",
-        "Test: worker file missing — warning printed, other workers still processed",
+        "Test: worker with _decomposed parent and new sub-stories ï¿½ both promoted correctly",
+        "Test: two workers both passing the same story ï¿½ no duplicate in main",
+        "Test: worker prd.json fails schema validation ï¿½ returns exit code 1, main prd unchanged",
+        "Test: worker file missing ï¿½ warning printed, other workers still processed",
         "All new tests pass: uv run pytest tests/test_merge_worker_results.py -v"
       ],
       "technicalNotes": [
@@ -1371,14 +1371,14 @@
         "SPIRAL_RESEARCH_RETRIES config variable defaults to 2 (read from spiral.config.sh or env)",
         "After Phase R Claude invocation, check if _research_output.json was written and is valid JSON",
         "If missing or invalid, retry the Claude invocation up to SPIRAL_RESEARCH_RETRIES times",
-        "Each retry prints: '[R] Research output missing or invalid — retrying (attempt N/TOTAL)'",
+        "Each retry prints: '[R] Research output missing or invalid ï¿½ retrying (attempt N/TOTAL)'",
         "After all retries exhausted, print a warning and continue with previous iteration output or empty",
         "Research succeeding on retry causes Phase T and M to proceed normally"
       ],
       "technicalNotes": [
         "Check _research_output.json validity after claude invocation: python3 -c \"import json; json.load(open('$RESEARCH_OUTPUT'))\"",
         "Add a retry loop in spiral.sh Phase R section wrapping the claude invocation command",
-        "Exponential backoff is not needed here — retries are cheap since Claude starts fresh"
+        "Exponential backoff is not needed here ï¿½ retries are cheap since Claude starts fresh"
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
@@ -1401,7 +1401,7 @@
       ],
       "technicalNotes": [
         "Import compute_* functions directly from lib.spiral_dashboard (add sys.path insert)",
-        "Build minimal prd/results/retries fixtures as Python dicts — no temp files needed",
+        "Build minimal prd/results/retries fixtures as Python dicts ï¿½ no temp files needed",
         "The module is stdlib-only so no extra test dependencies are required"
       ],
       "dependencies": [],
@@ -1477,11 +1477,11 @@
       "id": "US-067",
       "title": "Log Gemini Phase R failure reason (rate-limit vs error vs empty output)",
       "priority": "medium",
-      "description": "Phase R uses || true to swallow all Gemini CLI errors. When Gemini returns empty output, spiral.sh logs 'Gemini web research returned empty' but gives no reason — making it impossible to distinguish a 429 rate limit, API key error, network failure, or legitimate empty output. Capturing stderr enables targeted recovery messages.",
+      "description": "Phase R uses || true to swallow all Gemini CLI errors. When Gemini returns empty output, spiral.sh logs 'Gemini web research returned empty' but gives no reason ï¿½ making it impossible to distinguish a 429 rate limit, API key error, network failure, or legitimate empty output. Capturing stderr enables targeted recovery messages.",
       "acceptanceCriteria": [
         "Gemini invocation captures stderr to a temp file: gemini ... 2>\"$GEMINI_ERR_TMP\" || true",
-        "If GEMINI_RESEARCH is empty and stderr contains '429' or 'rate limit', print: '[R] Gemini rate-limited — Claude will browse URLs directly'",
-        "If stderr contains 'PERMISSION_DENIED' or 'API key', print: '[R] Gemini auth error — check GEMINI_API_KEY'",
+        "If GEMINI_RESEARCH is empty and stderr contains '429' or 'rate limit', print: '[R] Gemini rate-limited ï¿½ Claude will browse URLs directly'",
+        "If stderr contains 'PERMISSION_DENIED' or 'API key', print: '[R] Gemini auth error ï¿½ check GEMINI_API_KEY'",
         "If stderr is non-empty but unknown pattern, print the first line as diagnostic context",
         "If GEMINI_RESEARCH is non-empty, no stderr check is performed",
         "Temp file is cleaned up after the check in all code paths"
@@ -1503,15 +1503,15 @@
       "acceptanceCriteria": [
         "Each background worker PID is collected into an array after launch",
         "After all workers are spawned, iterate per-PID: wait $PID; worker_status=$?",
-        "If a worker exits non-zero, print: '[parallel] Worker N exited with status S — continuing remaining workers'",
+        "If a worker exits non-zero, print: '[parallel] Worker N exited with status S ï¿½ continuing remaining workers'",
         "Failed worker worktree is cleaned up on the same path as successful workers",
-        "merge_worker_results.py is still called with all worker prd paths — missing workers emit warnings but do not abort the merge",
+        "merge_worker_results.py is still called with all worker prd paths ï¿½ missing workers emit warnings but do not abort the merge",
         "If all workers fail, exit run_parallel_ralph.sh with a non-zero exit code"
       ],
       "technicalNotes": [
         "Replace any bulk 'wait' call with a per-PID wait loop: for pid in \"${WORKER_PIDS[@]}\"; do wait \"$pid\" || failed=$((failed+1)); done",
         "Track failed_count; if failed_count == RALPH_WORKERS, exit 1 after cleanup",
-        "The existing EXIT/INT/TERM trap handles cleanup — this change only affects normal worker exit code handling"
+        "The existing EXIT/INT/TERM trap handles cleanup ï¿½ this change only affects normal worker exit code handling"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
@@ -1532,7 +1532,7 @@
       ],
       "technicalNotes": [
         "Group results rows by story_id in a new compute_story_attempts() function before HTML generation",
-        "Use HTML5 <details><summary> accordion elements — zero JavaScript required",
+        "Use HTML5 <details><summary> accordion elements ï¿½ zero JavaScript required",
         "Insert Stories drilldown section after the overview cards and before the velocity chart"
       ],
       "dependencies": [],
@@ -1567,8 +1567,8 @@
       "description": "The /spiral-init wizard asks for SPIRAL_VALIDATE_CMD but never verifies the command works before writing it to config. If the user enters a wrong path or missing executable, every Phase V validation will fail and spiral will loop forever treating all tests as broken. A quick dry-run during setup catches this at the source.",
       "acceptanceCriteria": [
         "After user enters SPIRAL_VALIDATE_CMD, wizard runs: timeout 30 bash -c \"$SPIRAL_VALIDATE_CMD\" and checks exit code",
-        "If exit 0: print '[wizard] Validate command verified — writing to config'",
-        "If non-zero exit or timeout: print 'Command returned exit N — use anyway? (y/N)' and wait for input",
+        "If exit 0: print '[wizard] Validate command verified ï¿½ writing to config'",
+        "If non-zero exit or timeout: print 'Command returned exit N ï¿½ use anyway? (y/N)' and wait for input",
         "If exit 127 (command not found): print specific error '[wizard] Command not found: <cmd>' with install hint",
         "User pressing Enter (default N) re-prompts for the command; y accepts as-is",
         "Empty SPIRAL_VALIDATE_CMD input skips the dry-run and uses the detected project default"
@@ -1586,14 +1586,14 @@
       "id": "US-072",
       "title": "Add integration test for run_parallel_ralph.sh with mock worker scripts",
       "priority": "medium",
-      "description": "run_parallel_ralph.sh (622 lines) is the most complex orchestration script and has zero automated test coverage. It creates git worktrees, partitions prd.json, spawns background processes, merges results, and cleans up — many steps that can fail independently. A minimal integration test using mock worker scripts validates the orchestration without real Claude agents.",
+      "description": "run_parallel_ralph.sh (622 lines) is the most complex orchestration script and has zero automated test coverage. It creates git worktrees, partitions prd.json, spawns background processes, merges results, and cleans up ï¿½ many steps that can fail independently. A minimal integration test using mock worker scripts validates the orchestration without real Claude agents.",
       "acceptanceCriteria": [
         "tests/test_parallel_orchestration.py or tests/test_parallel_integration.sh created",
         "Test setup: creates a temp git repo with a minimal prd.json (3 stories) configured for 2 workers",
         "Mock SPIRAL_RALPH: a bash script that marks one story passes=true in its worker prd.json and exits 0",
         "After run_parallel_ralph.sh, main prd.json has the story marked passes=true",
         "After completion, worktrees are cleaned up from the filesystem",
-        "Second scenario: one mock worker exits 1, the other succeeds — successful worker's result is still merged",
+        "Second scenario: one mock worker exits 1, the other succeeds ï¿½ successful worker's result is still merged",
         "Test is runnable via: uv run pytest tests/test_parallel_orchestration.py -v"
       ],
       "technicalNotes": [
@@ -1663,7 +1663,7 @@
       ],
       "technicalNotes": [
         "Add SPIRAL_VERSION derivation near the top of spiral.sh after SPIRAL_HOME is set",
-        "The checkpoint read/write is in spiral.sh inline or lib/state_machine.py — update whichever writes the checkpoint dict",
+        "The checkpoint read/write is in spiral.sh inline or lib/state_machine.py ï¿½ update whichever writes the checkpoint dict",
         "Version comparison uses string equality; no semver parsing needed"
       ],
       "dependencies": [],
