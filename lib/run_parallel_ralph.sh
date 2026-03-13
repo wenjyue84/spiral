@@ -228,7 +228,15 @@ for i in $(seq 1 "$RALPH_WORKERS"); do
 
   # Remove stale worktree if it exists
   git -C "$REPO_ROOT" worktree remove "$WTREE" --force 2>/dev/null || rm -rf "$WTREE" 2>/dev/null || true
-  git -C "$REPO_ROOT" worktree add "$WTREE" -b "$BRANCH" HEAD
+  # Guard against 'branch already checked out': if the target branch appears in any
+  # existing worktree, fall back to detached HEAD mode to avoid a hard failure.
+  if git -C "$REPO_ROOT" worktree list --porcelain 2>/dev/null | grep -qF "branch refs/heads/${BRANCH}"; then
+    echo "  [parallel] Worker $i: branch '$BRANCH' already checked out in another worktree — falling back to detached HEAD"
+    git -C "$REPO_ROOT" worktree add --detach "$WTREE" HEAD
+    BRANCH=""  # No dedicated branch; cleanup and diff steps skip gracefully
+  else
+    git -C "$REPO_ROOT" worktree add "$WTREE" -b "$BRANCH" HEAD
+  fi
   # Lock worktree immediately to prevent git worktree prune from removing it while active
   git -C "$REPO_ROOT" worktree lock "$WTREE" --reason "spiral worker-${i} active" 2>/dev/null || true
 

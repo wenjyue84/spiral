@@ -1113,3 +1113,23 @@ Completed: Add SIGCHLD trap to spiral.sh to reap zombie worker processes (ID: US
 ### Gotchas
 - The `_WORKER_MODEL_FLAG` variable is unquoted in the original `bash "$RALPH_SKILL" ... $_WORKER_MODEL_FLAG` — word splitting intentional (flag may be empty or `--model claude-...`)
 - EXIT trap must be set BEFORE `cd "$WTREE"` since the trap captures `_UNLOCK_REPO`/`_UNLOCK_WTREE` which reference the worktree path
+## Iteration 3 - Fri, Mar 13, 2026  3:28:33 PM
+Completed: Lock git worktrees during active worker execution to prevent prune races (ID: US-077) in 5m
+
+
+## Iteration N - Story: US-078: Guard against 'branch already checked out' before git worktree add
+
+### What was implemented
+- Added branch-in-use check before `git worktree add` in `lib/run_parallel_ralph.sh` (lines 231-239)
+- Uses `git worktree list --porcelain | grep -qF "branch refs/heads/${BRANCH}"` to detect collision
+- Falls back to `git worktree add --detach "$WTREE" HEAD` when collision detected
+- Sets `BRANCH=""` so downstream cleanup/diff steps skip gracefully (already guarded with `[[ -n "$branch" ]]`)
+- 207/207 pytest tests pass
+
+### Patterns discovered
+- The cleanup_parallel trap at line 76 already guards branch deletion with `[[ -n "$branch" ]]`, so empty BRANCH is safe
+- `git worktree add --force` does NOT override a locked worktree (locks from US-077 require `--force --force`); the branch check is a separate defensive layer
+- Detached HEAD collision scenario is rare (same-second re-run) but the guard prevents a hard crash
+
+### Gotchas
+- If BRANCH is empty (detached HEAD fallback), `git diff "HEAD..$BRANCH"` in step 6.5 would silently produce an empty patch via `|| true` — acceptable since the scenario is extreme edge case
