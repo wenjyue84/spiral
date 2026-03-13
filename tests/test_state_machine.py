@@ -1,4 +1,4 @@
-"""Property-based tests for the SPIRAL state machine (Tier 4)."""
+"""Unit and property-based tests for the SPIRAL state machine."""
 import os
 import sys
 import pytest
@@ -6,7 +6,10 @@ from hypothesis import given, settings, assume
 from hypothesis import strategies as st
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
-from state_machine import SpiralPhaseStateMachine, StoryLifecycle, InvalidTransition
+from state_machine import (
+    SpiralPhaseStateMachine, StoryLifecycle, InvalidTransition,
+    validate_story_states,
+)
 
 PHASES = ["R", "T", "M", "G", "I", "V", "C"]
 
@@ -180,3 +183,125 @@ class TestStoryLifecycle:
         sl.start_implementing()
         sl.mark_passed()
         assert sl.state == "passed"
+
+    def test_failed_retry_to_implementing_to_passed(self):
+        """failed_retry initial state can transition implementing->passed."""
+        sl = StoryLifecycle("US-001", initial_state="failed_retry")
+        sl.start_implementing()
+        assert sl.state == "implementing"
+        sl.mark_passed()
+        assert sl.state == "passed"
+
+    def test_decompose_from_failed_retry(self):
+        """decompose() is valid from failed_retry state."""
+        sl = StoryLifecycle("US-001", initial_state="failed_retry")
+        sl.decompose(["US-010", "US-011"])
+        assert sl.state == "decomposed"
+        assert sl.children == ["US-010", "US-011"]
+
+    def test_decomposed_is_terminal(self):
+        """No further transitions are allowed once in decomposed state."""
+        sl = StoryLifecycle("US-001")
+        sl.decompose(["US-010"])
+        with pytest.raises(InvalidTransition):
+            sl.start_implementing()
+        with pytest.raises(InvalidTransition):
+            sl.mark_passed()
+        with pytest.raises(InvalidTransition):
+            sl.mark_failed()
+
+    def test_passed_cannot_transition_to_implementing(self):
+        """passed->implementing raises InvalidTransition."""
+        sl = StoryLifecycle("US-001")
+        sl.start_implementing()
+        sl.mark_passed()
+        with pytest.raises(InvalidTransition):
+            sl.start_implementing()
+
+    def test_passed_cannot_be_decomposed(self):
+        """passed->decomposed raises InvalidTransition."""
+        sl = StoryLifecycle("US-001")
+        sl.start_implementing()
+        sl.mark_passed()
+        with pytest.raises(InvalidTransition):
+            sl.decompose(["US-010"])
+
+    def test_implementing_cannot_decompose(self):
+        """decompose() from implementing state raises InvalidTransition."""
+        sl = StoryLifecycle("US-001")
+        sl.start_implementing()
+        with pytest.raises(InvalidTransition):
+            sl.decompose(["US-010"])
+
+
+class TestValidateCheckpoint:
+    """Tests for validate_checkpoint() covering valid, missing-ts, and invalid-phase inputs."""
+
+    def test_valid_checkpoint(self):
+        sm = SpiralPhaseStateMachine()
+        errors = sm.validate_checkpoint({"iter": 1, "phase": "R", "ts": "2026-03-13T00:00:00Z"})
+        assert errors == []
+
+    def test_missing_ts_reports_error(self):
+        sm = SpiralPhaseStateMachine()
+        errors = sm.validate_checkpoint({"iter": 1, "phase": "R"})
+        assert any("ts" in e for e in errors)
+
+    def test_invalid_phase_reports_error(self):
+        sm = SpiralPhaseStateMachine()
+        errors = sm.validate_checkpoint({"iter": 1, "phase": "Z", "ts": "2026-03-13T00:00:00Z"})
+        assert any("Z" in e for e in errors)
+
+    def test_invalid_iter_reports_error(self):
+        sm = SpiralPhaseStateMachine()
+        errors = sm.validate_checkpoint({"iter": 0, "phase": "R", "ts": "2026-03-13T00:00:00Z"})
+        assert any("iter" in e for e in errors)
+
+    def test_non_numeric_iter_reports_error(self):
+        sm = SpiralPhaseStateMachine()
+        errors = sm.validate_checkpoint({"iter": "one", "phase": "R", "ts": "2026-03-13T00:00:00Z"})
+        assert any("iter" in e for e in errors)
+
+
+class TestValidateStoryStates:
+    """Tests for validate_story_states() PRD-level consistency checks."""
+
+    def _prd(self, stories):
+        return {"userStories": stories}
+
+    def test_valid_prd_no_errors(self):
+        prd = self._prd([
+            {"id": "US-001", "passes": True, "dependencies": []},
+            {"id": "US-002", "passes": False, "dependencies": ["US-001"]},
+        ])
+        assert validate_story_states(prd) == []
+
+    def test_passed_story_with_unpassed_dependency_is_error(self):
+        prd = self._prd([
+            {"id": "US-001", "passes": False, "dependencies": []},
+            {"id": "US-002", "passes": True, "dependencies": ["US-001"]},
+        ])
+        errors = validate_story_states(prd)
+        assert any("US-002" in e and "US-001" in e for e in errors)
+
+    def test_decomposed_and_passes_both_true_is_error(self):
+        prd = self._prd([
+            {"id": "US-001", "passes": True, "_decomposed": True, "_decomposedInto": ["US-010"]},
+            {"id": "US-010", "passes": True, "dependencies": []},
+        ])
+        errors = validate_story_states(prd)
+        assert any("US-001" in e and ("_decomposed" in e or "passes=true" in e) for e in errors)
+
+    def test_decomposed_without_decomposed_into_is_error(self):
+        prd = self._prd([
+            {"id": "US-001", "_decomposed": True, "passes": False},
+        ])
+        errors = validate_story_states(prd)
+        assert any("US-001" in e and "_decomposedInto" in e for e in errors)
+
+    def test_decomposed_into_missing_child_is_error(self):
+        prd = self._prd([
+            {"id": "US-001", "_decomposed": True, "passes": False, "_decomposedInto": ["US-999"]},
+        ])
+        errors = validate_story_states(prd)
+        assert any("US-999" in e for e in errors)
