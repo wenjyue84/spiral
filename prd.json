@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 1,
   "productName": "Spiral",
   "branchName": "main",
   "overview": "SPIRAL is a self-iterating autonomous development loop (Research â†’ Implement â†’ Validate). This PRD drives Spiral to improve itself: integrating newly-written lib modules into the main loop, enhancing the setup wizard to educate users about every configurable option, and adding Chrome DevTools-powered visual validation.",
@@ -1211,7 +1212,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-055",

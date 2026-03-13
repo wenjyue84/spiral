@@ -77,6 +77,35 @@ class TestSchemaTypes:
         assert any("list" in e.lower() for e in errors)
 
 
+class TestSchemaVersion:
+    """Tests for schemaVersion validation."""
+
+    def test_valid_schema_version(self):
+        prd = {"productName": "X", "branchName": "main", "schemaVersion": 1,
+               "userStories": []}
+        errors = validate_prd(prd)
+        assert errors == []
+
+    def test_non_integer_schema_version(self):
+        prd = {"productName": "X", "branchName": "main", "schemaVersion": "1",
+               "userStories": []}
+        errors = validate_prd(prd)
+        assert any("schemaVersion" in e and "integer" in e for e in errors)
+
+    def test_negative_schema_version(self):
+        prd = {"productName": "X", "branchName": "main", "schemaVersion": 0,
+               "userStories": []}
+        errors = validate_prd(prd)
+        assert any("schemaVersion" in e for e in errors)
+
+    def test_missing_schema_version_warns_but_no_error(self, capsys):
+        prd = {"productName": "X", "branchName": "main", "userStories": []}
+        errors = validate_prd(prd)
+        assert errors == []
+        captured = capsys.readouterr()
+        assert "schemaVersion" in captured.err
+
+
 class TestSchemaIdempotency:
     """Property: validation is pure — same input always gives same output."""
 

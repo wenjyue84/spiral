@@ -34,7 +34,9 @@
       }
     },
     "schemaVersion": {
-      "type": "string"
+      "type": "integer",
+      "minimum": 1,
+      "description": "PRD schema version for migration support (current: 1)"
     },
     "userStories": {
       "type": "array",

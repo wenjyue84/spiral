@@ -34,6 +34,9 @@ VALID_PRIORITIES = {"critical", "high", "medium", "low"}
 VALID_COMPLEXITIES = {"small", "medium", "large"}
 STORY_ID_PATTERN = re.compile(r"^(US|UT)-\d{3,4}$")
 
+# Current PRD schema version — bump when schema changes
+CURRENT_SCHEMA_VERSION = 1
+
 
 def validate_prd(prd: dict) -> list[str]:
     """
@@ -61,6 +64,18 @@ def validate_prd(prd: dict) -> list[str]:
 
     if "userStories" not in prd:
         return errors
+
+    # ── schemaVersion validation ─────────────────────────────────────────────
+    if "schemaVersion" not in prd:
+        print(
+            "[schema] WARNING: prd.json has no schemaVersion field. "
+            "Run 'spiral.sh --migrate' or 'python lib/migrate_prd.py prd.json' to add it.",
+            file=sys.stderr,
+        )
+    elif not isinstance(prd["schemaVersion"], int):
+        errors.append(f"schemaVersion must be integer, got {type(prd['schemaVersion']).__name__}")
+    elif prd["schemaVersion"] < 1:
+        errors.append(f"schemaVersion must be >= 1, got {prd['schemaVersion']}")
 
     # ── Optional top-level keys ──────────────────────────────────────────────
     if "overview" in prd and not isinstance(prd["overview"], str):

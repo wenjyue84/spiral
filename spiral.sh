@@ -69,6 +69,7 @@ DRY_RUN=0              # 1 = dry-run mode: skip API calls (R, T, I, V) but run c
 DOCTOR_MODE=0          # 1 = run dependency check and exit (--doctor)
 REPLAY_STORY_ID=""     # "" = normal mode; "US-XXX" = replay that story only (--replay)
 RESET_CHECKPOINT=0     # 1 = remove _checkpoint.json and start fresh (--reset)
+MIGRATE_MODE=0         # 1 = run prd.json schema migration and exit (--migrate)
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -115,6 +116,8 @@ while [[ $# -gt 0 ]]; do
       REPLAY_STORY_ID="$2"; shift 2 ;;
     --reset)
       RESET_CHECKPOINT=1; shift ;;
+    --migrate)
+      MIGRATE_MODE=1; shift ;;
     --status)
       STATUS_ONLY=1; shift ;;
     --help|-h)
@@ -139,6 +142,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --doctor                   Check all runtime dependencies and exit"
       echo "  --replay STORY_ID          Re-run a single story in an isolated worktree (Phases I+V only)"
       echo "  --reset                    Remove checkpoint and start fresh from iteration 1"
+      echo "  --migrate                  Migrate prd.json to current schema version and exit"
       echo "  --status                   Print session state and story counts, then exit"
       echo ""
       echo "Config: Place spiral.config.sh in project root (or use --config)."
@@ -281,6 +285,20 @@ if [[ ! -f "$PRD_FILE" ]]; then
 fi
 if [[ ! -f "$SPIRAL_RALPH" ]]; then
   echo "[spiral] ERROR: ralph.sh not found at $SPIRAL_RALPH"
+  exit 1
+fi
+
+# ── --migrate: run prd.json schema migration and exit ────────────────────────
+if [[ "$MIGRATE_MODE" -eq 1 ]]; then
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/migrate_prd.py" "$PRD_FILE"
+  exit $?
+fi
+
+# ── Schema version check ────────────────────────────────────────────────────
+_PRD_SCHEMA_VER=$("$JQ" -r '.schemaVersion // empty' "$PRD_FILE" 2>/dev/null || echo "")
+if [[ -n "$_PRD_SCHEMA_VER" ]] && [[ "$_PRD_SCHEMA_VER" -gt 1 ]] 2>/dev/null; then
+  echo "[spiral] ERROR: prd.json schemaVersion $_PRD_SCHEMA_VER is newer than this SPIRAL version supports (max: 1)."
+  echo "         Please update SPIRAL or downgrade prd.json."
   exit 1
 fi
 

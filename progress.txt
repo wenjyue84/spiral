@@ -1835,3 +1835,27 @@ Completed: Add per-phase timeout with two-phase kill to all LLM invocations (ID:
 ### Gotchas
 - test_partition.py has a pre-existing flaky Hypothesis HealthCheck.too_slow failure unrelated to this story
 - _CALL_TOKENS_INPUT/_OUTPUT must validate with `=~ ^[0-9]+$` before using — jq can return "null" for missing fields
+## Iteration 5 - Fri, Mar 13, 2026  9:35:13 PM
+Completed: Add per-story token cost accumulation and soft/hard budget enforcement (ID: US-111) in 11m
+
+
+## Iteration - Story: US-054 - Add schemaVersion field to prd.json with auto-migration on load
+
+### What was implemented
+- Updated prd.schema.json: changed schemaVersion type from string to integer with minimum:1
+- Updated lib/prd_schema.py: added CURRENT_SCHEMA_VERSION constant, schemaVersion validation (integer type check, >=1 range), stderr warning when absent suggesting --migrate
+- Created lib/migrate_prd.py: idempotent migration script that upgrades unversioned prd.json to version 1 (adds schemaVersion, adds missing dependencies:[] to stories). CLI supports --check, --dry-run
+- Updated spiral.sh: added --migrate flag (runs migrate_prd.py and exits), added schema version check at startup that aborts if prd.json is on a future incompatible version
+- Updated templates/prd.example.json: added schemaVersion: 1
+- Updated project prd.json: added schemaVersion: 1
+- Added tests/test_migrate_prd.py: 12 tests (6 unit + 6 CLI integration)
+- Added TestSchemaVersion class to tests/test_prd_schema.py: 4 tests for schemaVersion validation
+
+### Patterns discovered
+- Migration scripts follow same pattern as other lib/ scripts: function(data) → tuple + main() with argparse
+- The spiral-init flow copies templates/prd.example.json directly, so updating the template is sufficient
+- spiral.sh uses $JQ variable for jq resolution, $SPIRAL_PYTHON for python
+
+### Gotchas
+- prd.schema.json previously had schemaVersion as type "string" — changed to "integer" per the AC
+- The schemaVersion warning goes to stderr (not errors list) so it doesn't block validation — just nudges migration
