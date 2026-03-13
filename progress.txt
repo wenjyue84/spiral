@@ -410,3 +410,22 @@ Here is the technical brief for implementing user story US-014.
 ## Iteration 8 - Fri, Mar 13, 2026 10:15:01 AM
 Completed: Mark stories _skipped: true when MAX_RETRIES is exhausted to stop infinite retries (ID: US-014) in 10m
 
+
+## Iteration 9 - Story: US-003: Validate checkpoint state machine coherence at startup
+
+### What was implemented
+- Added checkpoint validation block in spiral.sh after spiral_preflight_check(), before SESSION_START
+- Block only runs if CHECKPOINT_FILE exists (no-op when no checkpoint)
+- Calls: $SPIRAL_PYTHON $SPIRAL_HOME/lib/state_machine.py validate-phases --checkpoint $CHECKPOINT_FILE
+- On exit code 1: rm -f the checkpoint and print a warning, then loop starts fresh from iter 1
+- All 60 pytest tests pass
+
+### Patterns discovered
+- state_machine.py validate-phases returns 0 for valid or missing checkpoint, 1 for corrupt
+- CHECKPOINT_FILE is set at line ~195 ($SCRATCH_DIR/_checkpoint.json) before this block executes
+- SPIRAL_PYTHON and SPIRAL_HOME are exported before this point (set during dependency resolution)
+- The -f guard prevents the rm -f call on missing checkpoints (state_machine already handles that gracefully)
+
+### Gotchas
+- Must check [[ -f "$CHECKPOINT_FILE" ]] BEFORE calling state_machine.py, because the script exits 0
+  for missing files but prints a message — we don't want the "not found" log on clean starts

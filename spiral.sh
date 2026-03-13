@@ -231,6 +231,15 @@ source "$SPIRAL_HOME/lib/spiral_assert.sh"
 
 # ── Pre-flight validation ──────────────────────────────────────────────────
 spiral_preflight_check "$PRD_FILE" "$SCRATCH_DIR"
+
+# ── Checkpoint state machine coherence check ──────────────────────────────
+if [[ -f "$CHECKPOINT_FILE" ]]; then
+  if ! "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/state_machine.py" validate-phases --checkpoint "$CHECKPOINT_FILE"; then
+    echo "  [checkpoint] WARNING: Corrupt checkpoint detected — removing and starting fresh from iter 1"
+    rm -f "$CHECKPOINT_FILE"
+  fi
+fi
+
 SESSION_START=$(date +%s)
 
 # ── Time limit ────────────────────────────────────────────────────────────────

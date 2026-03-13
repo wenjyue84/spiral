@@ -74,7 +74,7 @@
         "US-001"
       ],
       "estimatedComplexity": "small",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-004",
@@ -1268,6 +1268,403 @@
         "Parse SPIRAL_SKIP_STORY_IDS as comma-separated in spiral.sh",
         "jq filter: select(.id as $id | ($SKIP_IDS | split(\",\") | any(. == $id)) | not)",
         "Manually-skipped stories appear in the HTML review report tagged as 'Skipped by user'"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-058",
+      "title": "Merge parallel worker results.tsv files into main results.tsv",
+      "priority": "high",
+      "description": "In parallel mode, each worker writes telemetry rows to its own worktree's results.tsv. After merge_worker_results.py finishes, the worker results.tsv files are abandoned — only the main prd.json is updated. This means the main project's results.tsv is missing all telemetry from parallel runs, breaking spiral_dashboard.py accuracy and spiral_report.py analysis.",
+      "acceptanceCriteria": [
+        "run_parallel_ralph.sh reads each worker's results.tsv after all workers complete",
+        "Rows from all worker results.tsv files are appended to the main project results.tsv",
+        "Header row is written only if main results.tsv does not already exist",
+        "Duplicate rows (same story_id + timestamp combination) are not inserted twice",
+        "spiral_dashboard.py shows correct total attempt count when re-run after a parallel session"
+      ],
+      "technicalNotes": [
+        "Worker worktrees live at $WORKTREE_BASE/worker-N/ — each has its own results.tsv at that worktree root",
+        "run_parallel_ralph.sh already has a merge step for prd.json; add results.tsv merge immediately after",
+        "Use awk/tail to skip the header of each worker file before appending to main",
+        "Sort merged rows by timestamp column to maintain chronological order"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-059",
+      "title": "Add disk space preflight check before creating N git worktrees",
+      "priority": "high",
+      "description": "run_parallel_ralph.sh creates N git worktrees, each a full copy of the repository working tree. On large repos or machines with limited disk, this can silently fail mid-execution when disk fills up, leaving the project in an inconsistent state. A preflight check that estimates required space and aborts early with a clear message prevents this.",
+      "acceptanceCriteria": [
+        "Before creating any worktree, compute estimated required bytes: repo_size_kb * RALPH_WORKERS",
+        "Check available disk space on the filesystem containing WORKTREE_BASE using df",
+        "If estimated_required > available_space * 0.9, abort with a clear error listing repo size, worker count, and free space",
+        "On Linux/macOS/Git-Bash the check uses POSIX df syntax; on systems where df fails it degrades gracefully",
+        "Check is skipped if SPIRAL_SKIP_DISK_CHECK=1 is set in environment"
+      ],
+      "technicalNotes": [
+        "Use: du -sk \"$REPO_ROOT\" to get repo size in KB",
+        "Use: df -k \"$WORKTREE_BASE\" | awk 'NR==2 {print $4}' for available KB",
+        "Git worktrees share .git objects — actual disk use is ~working tree size, not full clone",
+        "Add the check near line 200 of run_parallel_ralph.sh before the worker creation loop"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-060",
+      "title": "Add unit tests for merge_worker_results.py (parallel result promotion)",
+      "priority": "high",
+      "description": "merge_worker_results.py is a critical path module that promotes passes=true, _skipped, _decomposed flags, and new sub-stories from N worker prd.json files back into the main prd.json. It has no test file. Bugs here silently lose work completed by parallel workers.",
+      "acceptanceCriteria": [
+        "tests/test_merge_worker_results.py created with at least 8 test cases",
+        "Test: single worker with one passed story promotes it to main prd",
+        "Test: worker with _skipped story propagates skipped flag to main prd",
+        "Test: worker with _decomposed parent and new sub-stories — both promoted correctly",
+        "Test: two workers both passing the same story — no duplicate in main",
+        "Test: worker prd.json fails schema validation — returns exit code 1, main prd unchanged",
+        "Test: worker file missing — warning printed, other workers still processed",
+        "All new tests pass: uv run pytest tests/test_merge_worker_results.py -v"
+      ],
+      "technicalNotes": [
+        "Use tmp_path pytest fixture to create isolated prd.json files per test",
+        "Import merge_worker_results.main() directly or invoke via subprocess",
+        "Follow pattern of existing tests/test_merge.py for fixture setup style"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-061",
+      "title": "Validate spiral.sh integer CLI arguments before arithmetic",
+      "priority": "medium",
+      "description": "spiral.sh performs bash integer arithmetic on --ralph-workers, --ralph-iters, --capacity-limit, and the positional max_iters argument. If a user passes a non-integer value, bash arithmetic fails with a cryptic 'arithmetic syntax error' deep in the loop. Validating integer flags immediately after parsing prevents this with a clear usage error.",
+      "acceptanceCriteria": [
+        "After argument parsing, check MAX_SPIRAL_ITERS, RALPH_MAX_ITERS, RALPH_WORKERS, CAPACITY_LIMIT are valid integers",
+        "On invalid value, print: 'Error: --flag requires a positive integer, got: VALUE' and exit 1",
+        "TIME_LIMIT_MINS is also validated when --time-limit is used",
+        "Valid values pass through unchanged with no regression on normal usage",
+        "uv run pytest passes (all existing tests still green)"
+      ],
+      "technicalNotes": [
+        "Add validation block immediately after the while [[ $# -gt 0 ]] argument parsing loop in spiral.sh",
+        "Use bash regex: [[ \"$RALPH_WORKERS\" =~ ^[1-9][0-9]*$ ]] for positive integers",
+        "RALPH_WORKERS must be >= 1; MAX_SPIRAL_ITERS >= 1; CAPACITY_LIMIT >= 0"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-062",
+      "title": "Add SPIRAL_RESEARCH_RETRIES to retry Phase R on transient Claude crash",
+      "priority": "medium",
+      "description": "Phase R spawns a Claude agent that writes _research_output.json. If the Claude process crashes (OOM kill, network timeout, API error) before writing the file, spiral.sh continues to Phase T with a stale or missing research output. Adding SPIRAL_RESEARCH_RETRIES (default 2) retries the Claude invocation before falling back.",
+      "acceptanceCriteria": [
+        "SPIRAL_RESEARCH_RETRIES config variable defaults to 2 (read from spiral.config.sh or env)",
+        "After Phase R Claude invocation, check if _research_output.json was written and is valid JSON",
+        "If missing or invalid, retry the Claude invocation up to SPIRAL_RESEARCH_RETRIES times",
+        "Each retry prints: '[R] Research output missing or invalid — retrying (attempt N/TOTAL)'",
+        "After all retries exhausted, print a warning and continue with previous iteration output or empty",
+        "Research succeeding on retry causes Phase T and M to proceed normally"
+      ],
+      "technicalNotes": [
+        "Check _research_output.json validity after claude invocation: python3 -c \"import json; json.load(open('$RESEARCH_OUTPUT'))\"",
+        "Add a retry loop in spiral.sh Phase R section wrapping the claude invocation command",
+        "Exponential backoff is not needed here — retries are cheap since Claude starts fresh"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-063",
+      "title": "Add unit tests for spiral_dashboard.py compute functions",
+      "priority": "medium",
+      "description": "spiral_dashboard.py contains compute_overview, compute_velocity, compute_model_performance, compute_status_breakdown, and compute_bottlenecks as pure data transformation functions with no test coverage. Bugs in these functions produce silently incorrect dashboard metrics that operators rely on for decision making.",
+      "acceptanceCriteria": [
+        "tests/test_spiral_dashboard.py created with at least 10 test cases",
+        "Test compute_overview: empty inputs produce zero counts with no crash",
+        "Test compute_overview: partial inputs produce correct passed/pending/skipped counts",
+        "Test compute_velocity: rows from multiple iterations produce correct velocity per iteration",
+        "Test compute_model_performance: mixed model rows produce correct per-model success rates",
+        "Test elapsed time: valid ISO timestamps produce human-readable duration string",
+        "Test compute_status_breakdown: stories and attempts produce correct breakdown dict",
+        "All tests pass: uv run pytest tests/test_spiral_dashboard.py -v"
+      ],
+      "technicalNotes": [
+        "Import compute_* functions directly from lib.spiral_dashboard (add sys.path insert)",
+        "Build minimal prd/results/retries fixtures as Python dicts — no temp files needed",
+        "The module is stdlib-only so no extra test dependencies are required"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-064",
+      "title": "Add --prd flag to spiral.sh to specify alternate PRD file path",
+      "priority": "medium",
+      "description": "spiral.sh always uses prd.json in the current working directory. Users running spiral on monorepos with multiple prd files or non-standard locations must cd to specific directories or use symlinks. Adding a --prd flag matching ralph.sh's existing --prd flag would eliminate this friction and enable scripted multi-project automation.",
+      "acceptanceCriteria": [
+        "--prd PATH flag accepted in spiral.sh argument parsing block",
+        "When --prd is given, PRD_FILE is set to the provided path instead of prd.json",
+        "Relative paths are resolved to absolute at parse time using cd/pwd",
+        "If the provided path does not exist, spiral.sh exits with an error before any processing",
+        "bash spiral.sh --prd /other/project/prd.json --gate skip runs end-to-end correctly",
+        "When --prd is absent, behavior is identical to current (backward compatible)"
+      ],
+      "technicalNotes": [
+        "Add '--prd) PRD_FILE=\"$2\"; shift 2 ;;' to the argument parsing while loop in spiral.sh",
+        "Resolve absolute path after parsing: PRD_FILE=\"$(cd \"$(dirname \"$PRD_FILE\")\" && pwd)/$(basename \"$PRD_FILE\")\"",
+        "REPO_ROOT derivation uses dirname of PRD_FILE when --prd is supplied"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-065",
+      "title": "Sort prd.json stories by priority and dependency level after Phase M merge",
+      "priority": "medium",
+      "description": "After Phase M (merge_stories.py) inserts new research stories, they appear in insertion order, not priority order. Since ralph picks the first story where passes=false, low-priority new stories inserted ahead of high-priority pending stories get implemented first. Re-sorting after every merge ensures ralph always works highest-priority first.",
+      "acceptanceCriteria": [
+        "merge_stories.py sorts all userStories after merging: critical < high < medium < low",
+        "Within each priority tier, stories with fewer unmet dependencies come first",
+        "Stories with passes=true, _decomposed=true, or _skipped=true sort to the end",
+        "Sort is stable: stories with equal priority and dep count preserve relative insertion order",
+        "Existing unit tests for merge_stories.py still pass; one new test verifies sort order"
+      ],
+      "technicalNotes": [
+        "Add sort step at end of merge_stories.py main() before the atomic prd.json write",
+        "Priority rank: critical=0, high=1, medium=2, low=3",
+        "Dependency count tiebreaker: len(story.get('dependencies', []))",
+        "Python stable sort: stories.sort(key=lambda s: (done_rank(s), priority_rank(s), dep_count(s)))"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-066",
+      "title": "Add SPIRAL_WORKER_MEMORY_LIMIT for per-worker V8 heap cap",
+      "priority": "medium",
+      "description": "All processes (orchestrator, research, workers) share the same SPIRAL_MEMORY_LIMIT for V8 --max-old-space-size. The orchestrator runs lightly while workers run full Claude CLI sessions. Separate limits let operators give workers more memory without over-allocating for the orchestrator, reducing OOM risk on memory-constrained machines.",
+      "acceptanceCriteria": [
+        "SPIRAL_WORKER_MEMORY_LIMIT config variable added, defaulting to ${SPIRAL_MEMORY_LIMIT:-1024}",
+        "run_parallel_ralph.sh exports SPIRAL_MEMORY_LIMIT=$SPIRAL_WORKER_MEMORY_LIMIT before each worker launch",
+        "spiral.sh orchestrator continues using its own SPIRAL_MEMORY_LIMIT for research phase NODE_OPTIONS",
+        "Worker ralph.sh processes inherit the overridden SPIRAL_MEMORY_LIMIT via environment",
+        "templates/spiral.config.example.sh documents SPIRAL_WORKER_MEMORY_LIMIT with example value 2048"
+      ],
+      "technicalNotes": [
+        "In run_parallel_ralph.sh, before spawning each worker: export SPIRAL_MEMORY_LIMIT=\"${SPIRAL_WORKER_MEMORY_LIMIT:-$SPIRAL_MEMORY_LIMIT}\"",
+        "ralph.sh already sets NODE_OPTIONS from SPIRAL_MEMORY_LIMIT so only the env var needs to change",
+        "Add SPIRAL_WORKER_MEMORY_LIMIT=2048 with comment to spiral.config.example.sh"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-067",
+      "title": "Log Gemini Phase R failure reason (rate-limit vs error vs empty output)",
+      "priority": "medium",
+      "description": "Phase R uses || true to swallow all Gemini CLI errors. When Gemini returns empty output, spiral.sh logs 'Gemini web research returned empty' but gives no reason — making it impossible to distinguish a 429 rate limit, API key error, network failure, or legitimate empty output. Capturing stderr enables targeted recovery messages.",
+      "acceptanceCriteria": [
+        "Gemini invocation captures stderr to a temp file: gemini ... 2>\"$GEMINI_ERR_TMP\" || true",
+        "If GEMINI_RESEARCH is empty and stderr contains '429' or 'rate limit', print: '[R] Gemini rate-limited — Claude will browse URLs directly'",
+        "If stderr contains 'PERMISSION_DENIED' or 'API key', print: '[R] Gemini auth error — check GEMINI_API_KEY'",
+        "If stderr is non-empty but unknown pattern, print the first line as diagnostic context",
+        "If GEMINI_RESEARCH is non-empty, no stderr check is performed",
+        "Temp file is cleaned up after the check in all code paths"
+      ],
+      "technicalNotes": [
+        "Replace: GEMINI_RESEARCH=$(gemini ... 2>/dev/null || true) with stderr capture pattern",
+        "GEMINI_ERR_TMP=$(mktemp); then gemini ... 2>\"$GEMINI_ERR_TMP\" || true; then check file",
+        "Rate limit detection pattern: grep -qi '429\\|RESOURCE_EXHAUSTED\\|rate.limit\\|quota' \"$GEMINI_ERR_TMP\""
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-068",
+      "title": "Isolate parallel worker failures so one crash does not abort sibling workers",
+      "priority": "medium",
+      "description": "run_parallel_ralph.sh spawns N workers in background subshells. If a worker exits non-zero, bash set -e behavior in the outer script can propagate the error and abort remaining workers. Workers that fail due to git conflicts, OOM, or network errors should be reported individually while sibling workers continue to completion.",
+      "acceptanceCriteria": [
+        "Each background worker PID is collected into an array after launch",
+        "After all workers are spawned, iterate per-PID: wait $PID; worker_status=$?",
+        "If a worker exits non-zero, print: '[parallel] Worker N exited with status S — continuing remaining workers'",
+        "Failed worker worktree is cleaned up on the same path as successful workers",
+        "merge_worker_results.py is still called with all worker prd paths — missing workers emit warnings but do not abort the merge",
+        "If all workers fail, exit run_parallel_ralph.sh with a non-zero exit code"
+      ],
+      "technicalNotes": [
+        "Replace any bulk 'wait' call with a per-PID wait loop: for pid in \"${WORKER_PIDS[@]}\"; do wait \"$pid\" || failed=$((failed+1)); done",
+        "Track failed_count; if failed_count == RALPH_WORKERS, exit 1 after cleanup",
+        "The existing EXIT/INT/TERM trap handles cleanup — this change only affects normal worker exit code handling"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-069",
+      "title": "Dashboard: add per-story attempt history drilldown via HTML details element",
+      "priority": "medium",
+      "description": "spiral_dashboard.py shows aggregate metrics but not which specific attempts were made for a given story. When debugging a repeatedly-failing story, engineers must manually parse results.tsv. Adding an expandable drilldown per story (all attempt rows with model, status, duration, commit) makes failure analysis self-contained in the dashboard.",
+      "acceptanceCriteria": [
+        "HTML dashboard has a Stories section with one row per story showing id, title, status indicator",
+        "Each story row has a Details toggle (HTML <details> element) expanding to show attempt rows from results.tsv for that story_id",
+        "Attempt rows show: timestamp, model, tool, status, duration_sec, retry_num, commit_sha",
+        "Stories with no attempt history show 'No attempts recorded' in the expanded section",
+        "Feature uses only HTML/CSS with no JavaScript dependency",
+        "Dashboard still generates correctly when results.tsv is missing (Stories section shows prd data only)"
+      ],
+      "technicalNotes": [
+        "Group results rows by story_id in a new compute_story_attempts() function before HTML generation",
+        "Use HTML5 <details><summary> accordion elements — zero JavaScript required",
+        "Insert Stories drilldown section after the overview cards and before the velocity chart"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-070",
+      "title": "Store _failureReason field in prd.json when story is skipped or decomposed",
+      "priority": "medium",
+      "description": "When a story exceeds MAX_RETRIES and is skipped, the reason (time budget exceeded, quality gate, all retries exhausted) is written only to progress.txt as free text. After many iterations, identifying why a specific story was skipped requires grepping progress.txt. Storing a structured _failureReason in prd.json makes this queryable and visible in the dashboard.",
+      "acceptanceCriteria": [
+        "When ralph.sh skips a story after MAX_RETRIES, set _failureReason: 'MAX_RETRIES exhausted (quality gate failed)' or similar",
+        "When a story is skipped due to time budget exceeded, set _failureReason: 'TIME_BUDGET_EXCEEDED (Xs > Ys limit)'",
+        "_failureReason is preserved when merge_worker_results.py promotes skipped stories from workers to main prd",
+        "spiral_dashboard.py displays _failureReason in a tooltip or the story drilldown section",
+        "prd_schema.py validates _failureReason as an optional string field (no required update to existing stories)"
+      ],
+      "technicalNotes": [
+        "In ralph.sh, when writing _skipped=true via jq, pipe a second jq to set ._failureReason",
+        "Escape reason string for JSON: use jq --arg reason \"$REASON\" '.field = $arg'",
+        "Add optional _failureReason: { type: 'string' } to prd_schema.py STORY_SCHEMA"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-071",
+      "title": "Wizard: dry-run SPIRAL_VALIDATE_CMD before writing to spiral.config.sh",
+      "priority": "medium",
+      "description": "The /spiral-init wizard asks for SPIRAL_VALIDATE_CMD but never verifies the command works before writing it to config. If the user enters a wrong path or missing executable, every Phase V validation will fail and spiral will loop forever treating all tests as broken. A quick dry-run during setup catches this at the source.",
+      "acceptanceCriteria": [
+        "After user enters SPIRAL_VALIDATE_CMD, wizard runs: timeout 30 bash -c \"$SPIRAL_VALIDATE_CMD\" and checks exit code",
+        "If exit 0: print '[wizard] Validate command verified — writing to config'",
+        "If non-zero exit or timeout: print 'Command returned exit N — use anyway? (y/N)' and wait for input",
+        "If exit 127 (command not found): print specific error '[wizard] Command not found: <cmd>' with install hint",
+        "User pressing Enter (default N) re-prompts for the command; y accepts as-is",
+        "Empty SPIRAL_VALIDATE_CMD input skips the dry-run and uses the detected project default"
+      ],
+      "technicalNotes": [
+        "Add dry-run check in ralph/skills/spiral-init.md after the SPIRAL_VALIDATE_CMD input block",
+        "Use timeout to prevent hanging on infinite-loop test suites",
+        "Exit code 127 is the standard POSIX shell 'command not found' code"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-072",
+      "title": "Add integration test for run_parallel_ralph.sh with mock worker scripts",
+      "priority": "medium",
+      "description": "run_parallel_ralph.sh (622 lines) is the most complex orchestration script and has zero automated test coverage. It creates git worktrees, partitions prd.json, spawns background processes, merges results, and cleans up — many steps that can fail independently. A minimal integration test using mock worker scripts validates the orchestration without real Claude agents.",
+      "acceptanceCriteria": [
+        "tests/test_parallel_orchestration.py or tests/test_parallel_integration.sh created",
+        "Test setup: creates a temp git repo with a minimal prd.json (3 stories) configured for 2 workers",
+        "Mock SPIRAL_RALPH: a bash script that marks one story passes=true in its worker prd.json and exits 0",
+        "After run_parallel_ralph.sh, main prd.json has the story marked passes=true",
+        "After completion, worktrees are cleaned up from the filesystem",
+        "Second scenario: one mock worker exits 1, the other succeeds — successful worker's result is still merged",
+        "Test is runnable via: uv run pytest tests/test_parallel_orchestration.py -v"
+      ],
+      "technicalNotes": [
+        "Use pytest with subprocess.run to call run_parallel_ralph.sh with a custom SPIRAL_RALPH env pointing to a mock script",
+        "Mock ralph.sh script: reads its worker prd.json, finds first pending story, sets passes=true via jq, exits 0",
+        "Requires git to be available in the test environment (already a SPIRAL prerequisite)"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "large",
+      "passes": false
+    },
+    {
+      "id": "US-073",
+      "title": "Add --version flag to spiral.sh showing installed git version",
+      "priority": "low",
+      "description": "There is no way to query which version of SPIRAL is installed. Users updating their installation or reporting bugs cannot identify the exact version. Adding --version that prints the git describe output from SPIRAL_HOME makes version identification trivial and enables bug reports to include version context.",
+      "acceptanceCriteria": [
+        "--version flag added to spiral.sh argument parsing",
+        "When --version is given, print 'SPIRAL version <git-describe or commit SHA>' and exit 0",
+        "Version derived from: git -C \"$SPIRAL_HOME\" describe --tags --always 2>/dev/null",
+        "If SPIRAL_HOME is not a git repo (zip install), print: 'SPIRAL version unknown (not a git repository)'",
+        "--version is documented in --help output"
+      ],
+      "technicalNotes": [
+        "Add '--version) echo \"SPIRAL version $(git -C \"$SPIRAL_HOME\" describe --tags --always 2>/dev/null || echo unknown)\"; exit 0 ;;' early in argument parsing",
+        "Use --dirty=+ suffix to indicate uncommitted changes: git describe --tags --always --dirty=+",
+        "Expose as SPIRAL_VERSION env var for checkpoint.json recording"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-074",
+      "title": "Auto-detect SPIRAL_STORY_PREFIX from existing prd.json IDs at wizard init",
+      "priority": "low",
+      "description": "When /spiral-init runs on a project that already has a prd.json with custom story IDs (e.g., FEAT-001, TICKET-042), the wizard defaults to SPIRAL_STORY_PREFIX=US, causing new stories to get inconsistent IDs. Auto-detecting the prefix from existing IDs and pre-filling the wizard improves consistency without user effort.",
+      "acceptanceCriteria": [
+        "spiral-init wizard scans existing prd.json userStories[*].id before prompting for STORY_PREFIX",
+        "If existing IDs share a consistent prefix pattern ([A-Z]+-NNN), extract that prefix",
+        "Pre-fill the SPIRAL_STORY_PREFIX prompt with the detected prefix",
+        "If no existing stories or no consistent prefix found, default to 'US' as before",
+        "User can still override the pre-filled value",
+        "Detected prefix is written to spiral.config.sh as SPIRAL_STORY_PREFIX=<value>"
+      ],
+      "technicalNotes": [
+        "Detection step in spiral-init.md: DETECTED_PREFIX=$(cat prd.json | jq -r '.userStories[0].id // \"\" | split(\"-\")[0]' 2>/dev/null)",
+        "Validate detected prefix matches ^[A-Z]+$ before using it",
+        "Only use detected prefix if at least 2 existing stories share the same prefix"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-075",
+      "title": "Emit SPIRAL_VERSION to _checkpoint.json for version mismatch detection on resume",
+      "priority": "low",
+      "description": "When a SPIRAL session is interrupted and resumed later, the installed SPIRAL version may have changed (e.g., user git-pulled an update). If the new version changed checkpoint format or phase behavior, resuming from an old checkpoint can cause subtle bugs. Recording the version in _checkpoint.json enables detection and a warning on mismatch.",
+      "acceptanceCriteria": [
+        "spiral.sh derives SPIRAL_VERSION at startup: git -C \"$SPIRAL_HOME\" describe --tags --always 2>/dev/null || echo 'unknown'",
+        "When writing _checkpoint.json, include a spiralVersion field with the current SPIRAL_VERSION",
+        "When loading an existing checkpoint, compare its spiralVersion field with current SPIRAL_VERSION",
+        "If versions differ, print: '[checkpoint] WARNING: checkpoint written by SPIRAL <old>, current is <new>'",
+        "Warning is informational only and does not abort execution",
+        "uv run pytest passes with checkpoint tests updated to include the spiralVersion field"
+      ],
+      "technicalNotes": [
+        "Add SPIRAL_VERSION derivation near the top of spiral.sh after SPIRAL_HOME is set",
+        "The checkpoint read/write is in spiral.sh inline or lib/state_machine.py — update whichever writes the checkpoint dict",
+        "Version comparison uses string equality; no semver parsing needed"
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
