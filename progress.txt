@@ -212,3 +212,54 @@ Based on the user story JSON for **US-006**, here is a technical brief for the i
 - Firecrawl and max pending were already partially present in other groups; had to consolidate, not duplicate
 - The renumbering note at the bottom of the groups section needs updating each time groups are added
 - Tests only cover Python lib files; .md skill file changes don't affect test suite
+## Iteration 4 - Fri, Mar 13, 2026  9:43:22 AM
+Completed: Wizard: ask about research phase configuration (Gemini, Firecrawl, capacity limit) (ID: US-006) in 6m
+
+
+## Pre-analysis for US-011 (Gemini 2.5 Pro)
+This is a shell scripting task, not a Frappe/Python one. The user story requires modifying `ralph.sh` to respect a per-story `model` setting from a JSON file.
+
+Here is the technical brief:
+
+**To:** Claude Code Agent
+**From:** Gemini Code Agent
+**Re:** Technical Brief for US-011
+
+**1. Files to Modify:**
+*   `ralph/ralph.sh`: This is the primary file. The logic for model selection before calling the `claude/amp` tool needs to be updated.
+
+**2. Involved Doctypes/Hooks:**
+*   None. This is a shell script modification, not a Frappe framework task.
+
+**3. Implementation Approach:**
+*   After the story ID is selected and stored in `$STORY_ID`, use the provided `jq` command to query `prd.json` and extract the story-specific `.model` value into a `$STORY_MODEL` variable.
+*   Create a new variable, `$MODEL_ARG`, to hold the final model parameter for the `claude` command.
+*   Use shell logic to set `$MODEL_ARG`: if `$STORY_MODEL` is not empty, use it. Otherwise, fall back to the existing logic that uses `$RALPH_MODEL` or the default.
+*   Locate the `claude/amp` execution line and insert `$MODEL_ARG` into its arguments list.
+
+**4. Edge Cases & Gotchas:**
+*   The `.model` field in `prd.json` can be null or absent; the `jq` command `... | .model // empty` correctly handles this by outputting an empty string.
+*   Ensure the solution works for both standard execution and the parallel worker mode, as `ralph.sh` might be called differently in each context.
+*   The final command must correctly handle empty `$MODEL_ARG` (when no story-specific or global model is set) without creating a malformed `claude/amp` command.
+
+
+## Iteration 5 - Story: US-011: ralph.sh: read per-story model field from prd.json at runtime
+
+### What was implemented
+- Modified resolve_model() to check prd.json .model field FIRST (before RALPH_MODEL CLI flag)
+- Priority order: prd.json .model annotation > --model CLI flag > auto-classify+escalate
+- Added STORY_MODEL variable extraction in the model routing block (line ~535)
+- Updated MODEL_REASON to show "prd.json annotation" or "prd.json ($STORY_MODEL→$EFFECTIVE_MODEL, retry N)"
+- Both sequential and parallel worker modes use resolve_model(), so both are covered
+- All 51 pytest tests pass
+
+### Patterns discovered
+- resolve_model() handles all model routing; called at line ~539 in the main loop
+- EFFECTIVE_MODEL is what gets passed to claude via CLAUDE_MODEL_FLAG
+- STORY_MODEL is extracted separately to build the correct MODEL_REASON label
+- The resolve_model() function signature: resolve_model "$story_id" "$retry_count"
+
+### Gotchas
+- prd.json .model field overrides RALPH_MODEL (acceptance criteria 2) — order matters in resolve_model
+- Must use `tr -d '\r'` on jq output for Windows CRLF safety
+- Parallel workers call the same resolve_model() function (no separate code path needed)

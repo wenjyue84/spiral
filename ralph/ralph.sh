@@ -364,11 +364,19 @@ escalate_model() {
   fi
 }
 
-# Resolve the effective model: CLI override > config fixed > auto-classify+escalate
+# Resolve the effective model: prd.json annotation > CLI override > auto-classify+escalate
 resolve_model() {
   local story_id="$1" retry_count="$2"
 
-  # CLI --model always wins
+  # Per-story .model annotation in prd.json overrides everything (including --model flag)
+  local prd_model
+  prd_model=$($JQ -r ".userStories[] | select(.id == \"$story_id\") | .model // empty" "$PRD_FILE" 2>/dev/null | tr -d '\r' || echo '')
+  if [[ -n "$prd_model" ]]; then
+    escalate_model "$prd_model" "$retry_count"
+    return
+  fi
+
+  # CLI --model wins next
   if [[ -n "$RALPH_MODEL" ]]; then
     local escalated
     escalated=$(escalate_model "$RALPH_MODEL" "$retry_count")
@@ -528,9 +536,18 @@ while [[ $ITERATION -lt $MAX_ITERATIONS ]]; do
   # ── Model routing (only applies when effective tool is claude) ──
   EFFECTIVE_MODEL=""
   MODEL_REASON=""
+  STORY_MODEL=""
   if [[ "$EFFECTIVE_TOOL" == "claude" ]]; then
+    # Read per-story .model annotation from prd.json
+    STORY_MODEL=$($JQ -r ".userStories[] | select(.id == \"$NEXT_STORY\") | .model // empty" "$PRD_FILE" 2>/dev/null | tr -d '\r' || echo '')
     EFFECTIVE_MODEL=$(resolve_model "$NEXT_STORY" "$RETRY_NOW")
-    if [[ -n "$RALPH_MODEL" ]]; then
+    if [[ -n "$STORY_MODEL" ]]; then
+      if [[ "$RETRY_NOW" -gt 0 && "$EFFECTIVE_MODEL" != "$STORY_MODEL" ]]; then
+        MODEL_REASON="prd.json ($STORY_MODEL→$EFFECTIVE_MODEL, retry $RETRY_NOW)"
+      else
+        MODEL_REASON="prd.json annotation"
+      fi
+    elif [[ -n "$RALPH_MODEL" ]]; then
       if [[ "$RETRY_NOW" -gt 0 ]]; then
         MODEL_REASON="cli override + retry escalation"
       else
