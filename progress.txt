@@ -647,3 +647,6 @@ Completed: Enforce dependency-order execution: skip story if deps not yet passed
 ### Gotchas
 - WORKTREE_BASE may not exist yet, so df must be run against REPO_ROOT instead
 - du -sk on large repos can be slow; output must be validated as numeric before arithmetic
+## Iteration 10 - Fri, Mar 13, 2026 11:31:37 AM
+Incomplete: Add SPIRAL_STORY_BATCH_SIZE to cap stories visible to ralph per iteration (ID: US-042) — attempt 1/3
+
