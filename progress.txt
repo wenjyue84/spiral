@@ -2477,3 +2477,27 @@ Here is the technical brief for implementing the user story.
     *   Use the `--dirty=+` suffix with `git describe` to append a `+` if there are uncommitted changes, which provides critical context for bug reports.
     *   The `SPIRAL_VERSION` variable must be `export`ed to be accessible by child processes that might need to record it.
 
+
+## Iteration N - Story: US-083: Add SPIRAL_RUN_ID correlation field to all structured log entries
+
+### What was implemented
+- Added SPIRAL_RUN_ID generation at startup in spiral.sh (line 316): `uuidgen` with fallback to timestamp + random
+- SPIRAL_RUN_ID is exported so all child processes (ralph, validation scripts) have access
+- Updated log_spiral_event() in both spiral.sh and ralph.sh to include "run_id" field in JSON output
+- Updated append_result() in ralph.sh to include run_id column in results.tsv (line 366)
+- Updated HEADER in lib/merge_results_tsv.py to include "run_id" column (line 24)
+- write_checkpoint() in spiral.sh already includes run_id in _checkpoint.json (was already present)
+- All 440 pytest tests pass
+
+### Patterns discovered
+- The SPIRAL_RUN_ID feature was partially implemented (logging functions already had placeholders)
+- Only the ID generation and results.tsv integration were missing
+- UUID fallback pattern: use uuidgen, fall back to `printf '%x%x' "$(date +%s)" "$RANDOM"` for systems without uuidgen
+- Correlation fields follow OTel pattern: Resource.service.instance.id for run-level filtering
+
+### Gotchas
+- The log_spiral_event functions in spiral.sh and ralph.sh use slightly different JSON structures:
+  - spiral.sh: `{ts, event, run_id, ...extra}`
+  - ralph.sh: `{type, ts, story_id, run_id, ...extra}` (uses "type" instead of "event")
+- This difference is intentional: spiral.sh logs phase events, ralph.sh logs story implementation events
+- All 11 references to SPIRAL_RUN_ID now properly included in JSON/TSV output
