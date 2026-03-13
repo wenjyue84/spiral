@@ -429,3 +429,33 @@ Completed: Mark stories _skipped: true when MAX_RETRIES is exhausted to stop inf
 ### Gotchas
 - Must check [[ -f "$CHECKPOINT_FILE" ]] BEFORE calling state_machine.py, because the script exits 0
   for missing files but prints a message — we don't want the "not found" log on clean starts
+## Iteration 1 - Fri, Mar 13, 2026 10:37:55 AM
+Incomplete: Add unit tests for check_done.py (PRD gate + report logic) (ID: US-026) — attempt 1/3
+
+## Iteration 10 - Story: US-026: Add unit tests for check_done.py (PRD gate + report logic)
+
+### What was implemented
+- Created tests/test_check_done.py with 13 test cases (requirement: at least 8)
+- Tests organized into 8 test classes covering all acceptance criteria:
+  1. TestAllStoriesPassedCleanReport: exit 0 on all pass + clean report
+  2. TestPendingStoriesPresent: exit 1 on pending stories + _decomposed/_skipped exclusions
+  3. TestNoReportFile: exit 1 when reports dir missing or empty
+  4. TestStaleReportPrintsWarning: warning printed but exit code unchanged
+  5. TestFailedTestsExits1: exit 1 when summary.failed > 0
+  6. TestErroredTestsExits1: exit 1 when summary.errored > 0
+  7. TestPrdFileNotFound: exit 1 when prd.json missing
+  8. TestInvalidPrdSchema: exit 1 when prd.json fails validation
+- Bonus: TestFindLatestReport class (2 tests) for the helper function
+- Used tmp_path fixtures, monkeypatch for sys.argv and time module
+- All 72 non-flaky tests pass (1 pre-existing Hypothesis flake in test_partition.py)
+
+### Patterns discovered
+- check_done.main() uses argparse — monkeypatch sys.argv to control arguments
+- find_latest_report() picks lexicographically last subdir (reverse=True sort)
+- time.time() mocking: replace the entire `check_done.time` module reference
+- Report structure: subdirs inside reports_dir named like timestamps, each containing report.json
+
+### Gotchas
+- Staleness test needs module-level mock of check_done.time, not just time.time()
+- test_partition.py::TestAssignStories::test_bucket_count_matches_workers is a pre-existing flake (Hypothesis HealthCheck.too_slow)
+
