@@ -44,10 +44,22 @@
 # SPIRAL_VALIDATE_CMD="npm test"
 # SPIRAL_VALIDATE_CMD="pytest --tb=short"
 
-# ── Phase V timeout (seconds) ────────────────────────────────────────────────
-# Wall-clock limit for Phase V test suite execution. When exceeded, SPIRAL
-# logs a phase_timeout event and treats the result as a test failure so the
-# loop can continue to Phase C. Set to 0 to disable (unlimited).
+# ── Per-phase timeouts (seconds) ──────────────────────────────────────────────
+# Each LLM phase has a distinct configurable deadline. When exceeded, the call
+# receives SIGTERM (then SIGKILL after 30s), the result is treated as a phase
+# failure (increments retry count, does not hard-abort), and a phase_timeout
+# event is logged to spiral_events.jsonl.
+# Set any to 0 to disable (unlimited) for that phase.
+
+# Phase R (research): wall-clock limit for Claude research agent.
+# Default: 300
+# SPIRAL_RESEARCH_TIMEOUT=300
+
+# Phase I (implementation): wall-clock limit for ralph implementation agent.
+# Default: 600
+# SPIRAL_IMPL_TIMEOUT=600
+
+# Phase V (validation): wall-clock limit for test suite execution.
 # Slow integration test suites may need a higher value (e.g., 600 or 900).
 # Default: 300
 # SPIRAL_VALIDATE_TIMEOUT=300

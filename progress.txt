@@ -1787,3 +1787,27 @@ Incomplete: Add per-phase timeout with two-phase kill to all LLM invocations (ID
 - Title maxLength 80 was too strict for 12 existing stories; relaxed to 100
 - jsonschema package uses Draft202012Validator for the 2020-12 schema draft
 - _find_schema_file searches relative to PRD file, SPIRAL_HOME, and lib/../ for flexibility
+## Iteration 3 - Fri, Mar 13, 2026  9:13:45 PM
+Incomplete: Add per-phase timeout with two-phase kill to all LLM invocations (ID: US-109) — attempt 2/3
+
+## Iteration 4 - Story: US-109: Add per-phase timeout with two-phase kill to all LLM invocations
+
+### What was implemented
+- Added SPIRAL_RESEARCH_TIMEOUT (default: 300s) and SPIRAL_IMPL_TIMEOUT (default: 600s) env vars alongside existing SPIRAL_VALIDATE_TIMEOUT
+- Wrapped Phase R Claude research agent calls with `timeout --kill-after=30 $SPIRAL_RESEARCH_TIMEOUT`
+- Wrapped Phase I ralph calls (sequential, wave single-story, and replay modes) with `timeout --kill-after=30 $SPIRAL_IMPL_TIMEOUT`
+- Added `--kill-after=30` to existing Phase V validate timeout for consistency
+- All timeout events (exit code 124) log a phase_timeout event to spiral_events.jsonl with phase, story_id, iteration, duration_ms, timeout_s
+- Timeouts treated as failures (not hard aborts) — retry loop continues normally
+- Added per-phase timeout documentation to templates/spiral.config.example.sh
+
+### Patterns discovered
+- Phase R research call has two branches (stream-json with node formatter vs plain) — both need wrapping
+- Phase I has three call sites: sequential mode, wave single-story fallback, and replay mode
+- Existing RALPH_TIMEOUT=3600 was hardcoded — replaced with configurable SPIRAL_IMPL_TIMEOUT
+- `timeout --kill-after=30` sends SIGTERM at deadline, then SIGKILL after 30s grace period
+
+### Gotchas
+- Previous two attempts left no notes — the implementation is straightforward but touches 6 call sites across spiral.sh
+- prd.json must be opened with encoding='utf-8' in Python on Windows (cp1252 default fails on Unicode chars)
+- Phase R timeout wraps `claude` directly (not the subshell) so the pipe to stream-formatter still works

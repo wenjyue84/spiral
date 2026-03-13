@@ -218,6 +218,8 @@ SPIRAL_PROGRESS_MAX_LINES="${SPIRAL_PROGRESS_MAX_LINES:-2000}"  # 0 = disabled; 
 SPIRAL_EVENT_LOG_MAX_LINES="${SPIRAL_EVENT_LOG_MAX_LINES:-10000}"  # 0 = disabled; rotate spiral_events.jsonl when over this limit
 SPIRAL_RESEARCH_CACHE_TTL_HOURS="${SPIRAL_RESEARCH_CACHE_TTL_HOURS:-24}"  # 0 = disabled; cache TTL for Phase R URL responses
 RESEARCH_CACHE_DIR=""  # set after SCRATCH_DIR is known
+SPIRAL_RESEARCH_TIMEOUT="${SPIRAL_RESEARCH_TIMEOUT:-300}"  # seconds; 0 = disabled (unlimited); Phase R LLM call
+SPIRAL_IMPL_TIMEOUT="${SPIRAL_IMPL_TIMEOUT:-600}"          # seconds; 0 = disabled (unlimited); Phase I ralph call
 SPIRAL_VALIDATE_TIMEOUT="${SPIRAL_VALIDATE_TIMEOUT:-300}"  # seconds; 0 = disabled (unlimited)
 
 # ── Config validation ─────────────────────────────────────────────────────────
@@ -641,14 +643,20 @@ if [[ -n "$REPLAY_STORY_ID" ]]; then
   REPLAY_I_RC=0
   _REPLAY_DRY_RUN_FLAG=""
   [[ "${DRY_RUN:-0}" -eq 1 ]] && _REPLAY_DRY_RUN_FLAG="--dry-run"
-  if command -v timeout &>/dev/null; then
-    (cd "$REPLAY_WORKTREE" && timeout 3600 bash "$SPIRAL_RALPH" \
+  _REPLAY_I_START=$(date +%s)
+  if [[ "${SPIRAL_IMPL_TIMEOUT:-600}" -gt 0 ]] && command -v timeout &>/dev/null; then
+    (cd "$REPLAY_WORKTREE" && timeout --kill-after=30 "${SPIRAL_IMPL_TIMEOUT}" bash "$SPIRAL_RALPH" \
       "$RALPH_MAX_ITERS" --prd "$REPLAY_PRD" --tool claude $_REPLAY_DRY_RUN_FLAG \
       2>&1) | tee "$REPLAY_LOG" || REPLAY_I_RC=$?
   else
     (cd "$REPLAY_WORKTREE" && bash "$SPIRAL_RALPH" \
       "$RALPH_MAX_ITERS" --prd "$REPLAY_PRD" --tool claude $_REPLAY_DRY_RUN_FLAG \
       2>&1) | tee "$REPLAY_LOG" || REPLAY_I_RC=$?
+  fi
+  _REPLAY_I_ELAPSED=$(( $(date +%s) - _REPLAY_I_START ))
+  if [[ "$REPLAY_I_RC" -eq 124 ]]; then
+    echo "  [replay] WARNING: Ralph timed out after ${_REPLAY_I_ELAPSED}s (limit: ${SPIRAL_IMPL_TIMEOUT}s)"
+    log_spiral_event "phase_timeout" "\"phase\":\"I\",\"story_id\":\"$REPLAY_STORY_ID\",\"iteration\":0,\"duration_ms\":$(( _REPLAY_I_ELAPSED * 1000 )),\"timeout_s\":${SPIRAL_IMPL_TIMEOUT}"
   fi
 
   # Check story pass state from worktree prd.json
@@ -907,22 +915,52 @@ $INJECTED_PROMPT"
     echo "  [R] Spawning Claude research agent (max 30 turns, model: $RESEARCH_MODEL)..."
     echo "  ─────── Research Agent Start ─────────────────────────"
 
-    if command -v node &>/dev/null && [[ -f "$STREAM_FMT" ]]; then
-      (unset CLAUDECODE; claude -p "$INJECTED_PROMPT" \
-        --model "$RESEARCH_MODEL" \
-        --allowedTools "$RESEARCH_TOOLS" \
-        --max-turns 30 \
-        --verbose \
-        --output-format stream-json \
-        --dangerously-skip-permissions \
-        </dev/null 2>&1 | node "$STREAM_FMT") || true
+    _R_EXIT=0
+    _R_START=$(date +%s)
+    if [[ "${SPIRAL_RESEARCH_TIMEOUT:-300}" -gt 0 ]] && command -v timeout &>/dev/null; then
+      if command -v node &>/dev/null && [[ -f "$STREAM_FMT" ]]; then
+        (unset CLAUDECODE; timeout --kill-after=30 "${SPIRAL_RESEARCH_TIMEOUT}" \
+          claude -p "$INJECTED_PROMPT" \
+          --model "$RESEARCH_MODEL" \
+          --allowedTools "$RESEARCH_TOOLS" \
+          --max-turns 30 \
+          --verbose \
+          --output-format stream-json \
+          --dangerously-skip-permissions \
+          </dev/null 2>&1 | node "$STREAM_FMT") || _R_EXIT=$?
+      else
+        (unset CLAUDECODE; timeout --kill-after=30 "${SPIRAL_RESEARCH_TIMEOUT}" \
+          claude -p "$INJECTED_PROMPT" \
+          --model "$RESEARCH_MODEL" \
+          --allowedTools "$RESEARCH_TOOLS" \
+          --max-turns 30 \
+          --dangerously-skip-permissions \
+          </dev/null 2>&1) || _R_EXIT=$?
+      fi
     else
-      (unset CLAUDECODE; claude -p "$INJECTED_PROMPT" \
-        --model "$RESEARCH_MODEL" \
-        --allowedTools "$RESEARCH_TOOLS" \
-        --max-turns 30 \
-        --dangerously-skip-permissions \
-        </dev/null 2>&1) || true
+      if command -v node &>/dev/null && [[ -f "$STREAM_FMT" ]]; then
+        (unset CLAUDECODE; claude -p "$INJECTED_PROMPT" \
+          --model "$RESEARCH_MODEL" \
+          --allowedTools "$RESEARCH_TOOLS" \
+          --max-turns 30 \
+          --verbose \
+          --output-format stream-json \
+          --dangerously-skip-permissions \
+          </dev/null 2>&1 | node "$STREAM_FMT") || _R_EXIT=$?
+      else
+        (unset CLAUDECODE; claude -p "$INJECTED_PROMPT" \
+          --model "$RESEARCH_MODEL" \
+          --allowedTools "$RESEARCH_TOOLS" \
+          --max-turns 30 \
+          --dangerously-skip-permissions \
+          </dev/null 2>&1) || _R_EXIT=$?
+      fi
+    fi
+    _R_ELAPSED=$(( $(date +%s) - _R_START ))
+    if [[ "$_R_EXIT" -eq 124 ]]; then
+      echo ""
+      echo "  [Phase R] WARNING: Research agent timed out after ${_R_ELAPSED}s (limit: ${SPIRAL_RESEARCH_TIMEOUT}s)"
+      log_spiral_event "phase_timeout" "\"phase\":\"R\",\"story_id\":\"research\",\"iteration\":$SPIRAL_ITER,\"duration_ms\":$(( _R_ELAPSED * 1000 )),\"timeout_s\":${SPIRAL_RESEARCH_TIMEOUT}"
     fi
 
     echo "  ─────── Research Agent End ───────────────────────────"
@@ -1288,14 +1326,17 @@ $INJECTED_PROMPT"
               else
                 _RALPH_TOOL="claude"
               fi
-              RALPH_TIMEOUT=3600
-              if command -v timeout &>/dev/null; then
-                timeout "$RALPH_TIMEOUT" bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $_DRY_RUN_FLAG || {
-                  RC=$?
-                  [[ "$RC" -eq 124 ]] && echo "  [I] WARNING: Ralph timed out after ${RALPH_TIMEOUT}s"
-                }
+              _I_EXIT=0
+              _I_START=$(date +%s)
+              if [[ "${SPIRAL_IMPL_TIMEOUT:-600}" -gt 0 ]] && command -v timeout &>/dev/null; then
+                timeout --kill-after=30 "${SPIRAL_IMPL_TIMEOUT}" bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $_DRY_RUN_FLAG || _I_EXIT=$?
               else
-                bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $_DRY_RUN_FLAG || true
+                bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $_DRY_RUN_FLAG || _I_EXIT=$?
+              fi
+              _I_ELAPSED=$(( $(date +%s) - _I_START ))
+              if [[ "$_I_EXIT" -eq 124 ]]; then
+                echo "  [I] WARNING: Ralph timed out after ${_I_ELAPSED}s (limit: ${SPIRAL_IMPL_TIMEOUT}s)"
+                log_spiral_event "phase_timeout" "\"phase\":\"I\",\"story_id\":\"$_NEXT_SID\",\"iteration\":$SPIRAL_ITER,\"duration_ms\":$(( _I_ELAPSED * 1000 )),\"timeout_s\":${SPIRAL_IMPL_TIMEOUT}"
               fi
             else
               # Cap workers to story count so no worker sits idle
@@ -1323,16 +1364,17 @@ $INJECTED_PROMPT"
           else
             _RALPH_TOOL="claude"
           fi
-          RALPH_TIMEOUT=3600  # 1 hour
-          if command -v timeout &>/dev/null; then
-            timeout "$RALPH_TIMEOUT" bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $_DRY_RUN_FLAG || {
-              RC=$?
-              if [[ "$RC" -eq 124 ]]; then
-                echo "  [I] WARNING: Ralph timed out after ${RALPH_TIMEOUT}s — partial progress saved"
-              fi
-            }
+          _I_EXIT=0
+          _I_START=$(date +%s)
+          if [[ "${SPIRAL_IMPL_TIMEOUT:-600}" -gt 0 ]] && command -v timeout &>/dev/null; then
+            timeout --kill-after=30 "${SPIRAL_IMPL_TIMEOUT}" bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $_DRY_RUN_FLAG || _I_EXIT=$?
           else
-            bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $RALPH_MODEL_FLAG $_DRY_RUN_FLAG || true
+            bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $RALPH_MODEL_FLAG $_DRY_RUN_FLAG || _I_EXIT=$?
+          fi
+          _I_ELAPSED=$(( $(date +%s) - _I_START ))
+          if [[ "$_I_EXIT" -eq 124 ]]; then
+            echo "  [I] WARNING: Ralph timed out after ${_I_ELAPSED}s (limit: ${SPIRAL_IMPL_TIMEOUT}s) — partial progress saved"
+            log_spiral_event "phase_timeout" "\"phase\":\"I\",\"story_id\":\"$_NEXT_SID\",\"iteration\":$SPIRAL_ITER,\"duration_ms\":$(( _I_ELAPSED * 1000 )),\"timeout_s\":${SPIRAL_IMPL_TIMEOUT}"
           fi
         fi
 
@@ -1482,7 +1524,7 @@ $INJECTED_PROMPT"
     _VALIDATE_EXIT=0
     if [[ "${SPIRAL_VALIDATE_TIMEOUT:-300}" -gt 0 ]] && command -v timeout &>/dev/null; then
       _VALIDATE_START=$(date +%s)
-      (cd "$REPO_ROOT" && timeout "${SPIRAL_VALIDATE_TIMEOUT}" bash -c "eval \"\$SPIRAL_VALIDATE_CMD\"" 2>&1) || _VALIDATE_EXIT=$?
+      (cd "$REPO_ROOT" && timeout --kill-after=30 "${SPIRAL_VALIDATE_TIMEOUT}" bash -c "eval \"\$SPIRAL_VALIDATE_CMD\"" 2>&1) || _VALIDATE_EXIT=$?
       _VALIDATE_ELAPSED=$(( $(date +%s) - _VALIDATE_START ))
       if [[ "$_VALIDATE_EXIT" -eq 124 ]]; then
         echo ""
