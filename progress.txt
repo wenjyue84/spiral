@@ -459,3 +459,25 @@ Incomplete: Add unit tests for check_done.py (PRD gate + report logic) (ID: US-0
 - Staleness test needs module-level mock of check_done.time, not just time.time()
 - test_partition.py::TestAssignStories::test_bucket_count_matches_workers is a pre-existing flake (Hypothesis HealthCheck.too_slow)
 
+## Iteration 2 - Fri, Mar 13, 2026 10:43:15 AM
+Completed: Add unit tests for check_done.py (PRD gate + report logic) (ID: US-026) in 5m
+
+
+## Iteration 11 - Story: US-027: Add unit tests for decompose_story.py (ID allocation + JSON extraction)
+
+### What was implemented
+- Created tests/test_decompose_story.py with 14 test cases (>= 6 required)
+- TestFindNextId (5 tests): no gaps, with gaps, empty list, non-prefix IDs, single story
+- TestExtractJsonFromResponse (5 tests): plain text, ```json fence, plain fence, ValueError on no JSON, embedded in prose
+- TestMainDryRun (4 tests): dry-run exits 0 + no prd.json mutation, sub-story refused (exit 1), missing PRD (exit 1), story not found (exit 1)
+- All 87 pytest tests pass
+
+### Patterns discovered
+- find_next_id uses STORY_PREFIX env var (default "US") — tests use default
+- extract_json_from_response has 3-pattern fallback: direct parse → fenced → inline object with "stories" key
+- main() uses argparse; monkeypatch sys.argv to inject args in integration tests
+- _decomposedFrom guard returns exit code 1 (not 0) to signal refused decomposition
+
+### Gotchas
+- test_find_next_id_ignores_non_prefix: only non-US-prefix IDs are ignored by find_next_id — mix in a US-NNN to confirm it IS counted
+- The "stories" key pattern in extract_json_from_response requires the word "stories" in the JSON object
