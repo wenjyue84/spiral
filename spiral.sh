@@ -20,6 +20,7 @@
 #   bash spiral.sh 3 --gate proceed --ralph-iters 60
 #   bash spiral.sh 5 --gate proceed --skip-research          # impl-only (no web research)
 #   bash spiral.sh 5 --gate proceed --ralph-workers 3        # 3 parallel worktree workers
+#   bash spiral.sh 1 --gate proceed --dry-run                # test control flow, no API calls
 #
 # Crash recovery:
 #   If SPIRAL is interrupted mid-iteration, re-running resumes from the
@@ -64,6 +65,7 @@ SPIRAL_CONFIG_PATH=""  # explicit --config path
 SPIRAL_CLI_MODEL=""    # explicit --model override (haiku|sonnet|opus)
 SPIRAL_CLI_FOCUS=""    # explicit --focus override
 TIME_LIMIT_MINS=0      # 0 = no limit; >0 = stop after N minutes (--time-limit or --until)
+DRY_RUN=0              # 1 = dry-run mode: skip API calls (R, T, I, V) but run control flow
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -102,6 +104,8 @@ while [[ $# -gt 0 ]]; do
       [[ "$_TARGET_TOTAL" -le "$_NOW_TOTAL" ]] && _TARGET_TOTAL=$(( _TARGET_TOTAL + 1440 ))
       TIME_LIMIT_MINS=$(( _TARGET_TOTAL - _NOW_TOTAL ))
       ;;
+    --dry-run)
+      DRY_RUN=1; shift ;;
     --status)
       STATUS_ONLY=1; shift ;;
     --help|-h)
@@ -122,6 +126,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --config PATH              Path to spiral.config.sh (default: \$REPO_ROOT/spiral.config.sh)"
       echo "  --time-limit N             Stop after N minutes (e.g., 60, 90, 120)"
       echo "  --until HH:MM              Stop at a wall-clock time (e.g., 14:30, 18:00)"
+      echo "  --dry-run                  Test loop control flow without API calls"
       echo "  --status                   Print session state and story counts, then exit"
       echo ""
       echo "Config: Place spiral.config.sh in project root (or use --config)."
@@ -500,6 +505,7 @@ else
 fi
 [[ "$RALPH_WORKERS" -gt 1 ]] && echo "  ║  Workers:     $RALPH_WORKERS parallel (git worktrees)"
 [[ "$SKIP_RESEARCH" -eq 1 ]] && echo "  ║  Mode:        --skip-research (Phase R skipped)"
+[[ "$DRY_RUN" -eq 1 ]] && echo "  ║  Mode:        --dry-run (no API calls)"
 [[ "$MONITOR_TERMINALS" -eq 1 ]] && echo "  ║  Monitor:     terminal per worker (--monitor)"
 [[ -n "$SPIRAL_SPECKIT_CONSTITUTION" && -f "$REPO_ROOT/$SPIRAL_SPECKIT_CONSTITUTION" ]] && \
   echo "  ║  Spec-Kit:    constitution loaded"
@@ -527,6 +533,7 @@ SPIRAL_ITER=0
 export SPIRAL_FOCUS
 export SPIRAL_ITER
 export SPIRAL_MAX_RESEARCH_STORIES
+export DRY_RUN
 
 if [[ -f "$CHECKPOINT_FILE" ]]; then
   CKPT_ITER=$("$JQ" -r '.iter // 0' "$CHECKPOINT_FILE")
@@ -583,6 +590,10 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
 
   if checkpoint_phase_done "R"; then
     echo "  [R] Skipping (checkpoint: already done this iter)"
+  elif [[ "$DRY_RUN" -eq 1 ]]; then
+    echo "  [dry-run] skipping research agent — using empty output"
+    echo '{"stories":[]}' > "$RESEARCH_OUTPUT"
+    write_checkpoint "$SPIRAL_ITER" "R"
   elif [[ "$SKIP_RESEARCH" -eq 1 ]]; then
     echo "  [R] Skipping (--skip-research flag set)"
     echo '{"stories":[]}' > "$RESEARCH_OUTPUT"
@@ -700,6 +711,10 @@ $INJECTED_PROMPT"
 
   if checkpoint_phase_done "T"; then
     echo "  [T] Skipping (checkpoint: already done this iter)"
+  elif [[ "$DRY_RUN" -eq 1 ]]; then
+    echo "  [dry-run] skipping test synthesis"
+    echo '{"stories":[]}' > "$TEST_OUTPUT"
+    write_checkpoint "$SPIRAL_ITER" "T"
   elif [[ "$SPIRAL_LOW_POWER_MODE" -eq 1 ]] && spiral_should_skip_phase "T"; then
     _P_LVL=$(spiral_pressure_level)
     echo "  [T] Skipping (memory pressure: level $_P_LVL)"
@@ -945,6 +960,10 @@ $INJECTED_PROMPT"
 
         # Note: model is now assigned per-story by lib/route_stories.py
 
+        # Build --dry-run flag for ralph invocations
+        _DRY_RUN_FLAG=""
+        [[ "$DRY_RUN" -eq 1 ]] && _DRY_RUN_FLAG="--dry-run"
+
         RALPH_RAN=1
         PRE_RALPH_PRD_JSON=$(cat "$PRD_FILE")
         DONE_BEFORE=$("$JQ" '[.userStories[] | select(.passes == true)] | length' "$PRD_FILE")
@@ -995,12 +1014,12 @@ $INJECTED_PROMPT"
               fi
               RALPH_TIMEOUT=3600
               if command -v timeout &>/dev/null; then
-                timeout "$RALPH_TIMEOUT" bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" || {
+                timeout "$RALPH_TIMEOUT" bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $_DRY_RUN_FLAG || {
                   RC=$?
                   [[ "$RC" -eq 124 ]] && echo "  [I] WARNING: Ralph timed out after ${RALPH_TIMEOUT}s"
                 }
               else
-                bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" || true
+                bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $_DRY_RUN_FLAG || true
               fi
             else
               # Cap workers to story count so no worker sits idle
@@ -1030,14 +1049,14 @@ $INJECTED_PROMPT"
           fi
           RALPH_TIMEOUT=3600  # 1 hour
           if command -v timeout &>/dev/null; then
-            timeout "$RALPH_TIMEOUT" bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" || {
+            timeout "$RALPH_TIMEOUT" bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $_DRY_RUN_FLAG || {
               RC=$?
               if [[ "$RC" -eq 124 ]]; then
                 echo "  [I] WARNING: Ralph timed out after ${RALPH_TIMEOUT}s — partial progress saved"
               fi
             }
           else
-            bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $RALPH_MODEL_FLAG || true
+            bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $RALPH_MODEL_FLAG $_DRY_RUN_FLAG || true
           fi
         fi
 
@@ -1170,6 +1189,10 @@ $INJECTED_PROMPT"
 
   if checkpoint_phase_done "V"; then
     echo "  [V] Skipping (checkpoint: already done this iter)"
+  elif [[ "$DRY_RUN" -eq 1 ]]; then
+    echo "  [dry-run] skipping validate — assuming pass"
+    VALIDATE_EXIT=0
+    write_checkpoint "$SPIRAL_ITER" "V"
   elif [[ "$RALPH_RAN" -eq 0 ]]; then
     echo "  [V] Skipping (ralph did not run — test results unchanged)"
     write_checkpoint "$SPIRAL_ITER" "V"

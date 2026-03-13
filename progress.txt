@@ -1251,3 +1251,27 @@ Incomplete: Add --dry-run flag to spiral.sh to test loop control flow without AP
 ### Gotchas
 - SVG bar with count=0 renders a zero-height `<rect>` but should NOT emit a count label (guard: `if count > 0`)
 - `iteration_velocity=None` must be handled gracefully (passes `{}` to `_render_velocity_svg`)
+## Iteration 1 - Fri, Mar 13, 2026  4:16:38 PM
+Incomplete: Add --dry-run flag to spiral.sh to test loop control flow without API calls (ID: US-022) — attempt 1/3
+
+
+## Iteration - Story: US-022: Add --dry-run flag to spiral.sh
+
+### What was implemented
+- Added --dry-run CLI flag to spiral.sh (default: DRY_RUN=0)
+- Phase R: dry-run writes empty {"stories":[]} and prints skip message
+- Phase T: dry-run writes empty {"stories":[]} and prints skip message
+- Phase I: passes --dry-run to ralph.sh (which already had --dry-run support)
+- Phase V: dry-run sets VALIDATE_EXIT=0 and prints skip message
+- All other phases (G, M, C, preflight, DAG) run normally
+- DRY_RUN exported so subprocesses inherit it
+- Added to help text and usage examples
+
+### Patterns discovered
+- ralph.sh already had --dry-run parsing (lines 46-48) and a dry-run handler (lines 411-417)
+- spiral.sh has 4 ralph invocation sites: 2 in parallel/wave mode, 2 in sequential mode
+- Flag variables like _DRY_RUN_FLAG are used to conditionally append args (unquoted expansion)
+
+### Gotchas
+- ralph.sh checks DRY_RUN == "true" (string), not integer; the --dry-run flag sets it correctly
+- Must add flag to ALL 4 ralph invocation sites (easy to miss the parallel wave branch)
