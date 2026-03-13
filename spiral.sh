@@ -713,6 +713,19 @@ $INJECTED_PROMPT"
       ls -t "$SCRATCH_DIR/prd-backups"/ | tail -n +11 | xargs -I{} rm -f "$SCRATCH_DIR/prd-backups/{}"
     fi
 
+    # ── Phase M pre-check: validate _research_output.json schema ──────────
+    if [[ ! -f "$RESEARCH_OUTPUT" ]]; then
+      echo "  [M] WARNING: $RESEARCH_OUTPUT missing — skipping merge"
+      write_checkpoint "$SPIRAL_ITER" "M"
+    elif ! "$JQ" '.' "$RESEARCH_OUTPUT" > /dev/null 2>&1; then
+      echo "  [M] WARNING: $RESEARCH_OUTPUT is not valid JSON — skipping merge"
+      write_checkpoint "$SPIRAL_ITER" "M"
+    elif ! "$JQ" -e '.stories' "$RESEARCH_OUTPUT" > /dev/null 2>&1; then
+      echo "  [M] WARNING: $RESEARCH_OUTPUT missing 'stories' key — skipping merge"
+      write_checkpoint "$SPIRAL_ITER" "M"
+    else
+    # ── Phase M validated — proceed with merge ──────────────────────────────
+
     OVERFLOW_FILE="$SCRATCH_DIR/_research_overflow.json"
     BEFORE_TOTAL=$("$JQ" '[.userStories | length] | .[0]' "$PRD_FILE")
     if [[ -n "$SPIRAL_CORE_BIN" ]]; then
@@ -750,6 +763,7 @@ $INJECTED_PROMPT"
     spiral_assert_pending_bounded "$PRD_FILE"
     spiral_assert_decomposition_integrity "$PRD_FILE"
     spiral_assert_dependency_completion_order "$PRD_FILE"
+    fi  # end validation else
   fi
 
   # ── Phase G: HUMAN GATE + Phase I: IMPLEMENT ───────────────────────────────
