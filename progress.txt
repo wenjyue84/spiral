@@ -1612,3 +1612,25 @@ Completed: Detect git merge conflicts with `git merge-tree` before parallel work
 
 ### Gotchas
 - None encountered; straightforward test creation
+
+
+
+## Iteration - Story: US-051: Add unit tests for merge_stories.py (deduplication and atomic prd.json patch)
+
+### What was implemented
+- Created tests/test_merge_stories.py with 28 unit tests across 6 test classes:
+  - TestOverlapRatioUnit: identical, partial, disjoint, empty, subset, asymmetric cases
+  - TestIsDuplicateThreshold: boundary tests at 59%, 60%, 61% overlap thresholds, bidirectional check
+  - TestFindNextId: sequential IDs US-001..005→006, empty, gaps, non-matching IDs
+  - TestAtomicWrite: successful merge updates prd, blocked tmp file leaves original unchanged
+  - TestOverflow: cap hit sends excess to overflow file, under-cap overflow empty, --max-new 0/1 boundaries
+  - TestPriorityOrdering: critical<medium<low sort keys, merge integration test for priority sort
+
+### Patterns discovered
+- merge_stories.py uses shutil.move (not os.replace directly) for atomic write — creating a directory at the .tmp path blocks it
+- Existing test_merge.py uses Hypothesis property-based tests; new test_merge_stories.py uses deterministic unit tests as specified
+- prd_schema.validate_prd is called early in main() — test PRDs need valid schema fields
+
+### Gotchas
+- prd.json requires utf-8 encoding on Windows (cp1252 default fails)
+- Tests that run merge_stories.py as subprocess need valid prd schema (productName, branchName, userStories with required fields)
