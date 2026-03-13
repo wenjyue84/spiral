@@ -623,15 +623,17 @@ else
   echo "  [parallel] No deploy command configured — skipping container deploy"
 fi
 
-# ── Step 8.5: Merge worker results.tsv files ─────────────────────────────────
+# ── Step 8.5: Merge worker results.tsv files (dedup + sort) ──────────────────
+WORKER_RESULTS=()
 for wtree in "${WORKER_DIRS[@]}"; do
-  [[ -f "$wtree/results.tsv" ]] || continue
-  if [[ ! -f "$REPO_ROOT/results.tsv" ]]; then
-    cp "$wtree/results.tsv" "$REPO_ROOT/results.tsv"
-  else
-    tail -n +2 "$wtree/results.tsv" >> "$REPO_ROOT/results.tsv"
-  fi
+  [[ -f "$wtree/results.tsv" ]] && WORKER_RESULTS+=("$wtree/results.tsv")
 done
+if [[ ${#WORKER_RESULTS[@]} -gt 0 ]]; then
+  echo "  [parallel] Merging ${#WORKER_RESULTS[@]} worker results.tsv files..."
+  "$PYTHON" "$SPIRAL_HOME/lib/merge_results_tsv.py" \
+    --main "$REPO_ROOT/results.tsv" \
+    --workers "${WORKER_RESULTS[@]}"
+fi
 
 # ── Step 9: Cleanup worktrees, branches, and lock ────────────────────────────
 rm -rf "$LOCK_DIR" 2>/dev/null || true
