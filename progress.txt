@@ -2213,3 +2213,25 @@ Incomplete: Add HTML dashboard auto-refresh meta tag with configurable interval 
 - The dry-run is instructional (wizard guidance to the AI running the skill), not executable shell code in the skill file
 - Install hints should be contextual to detected stack (npm for JS, pip for Python, etc.)
 - Default for y/N prompt is N (re-prompt) — user must explicitly type y to accept a failing command
+## Iteration 3 - Sat, Mar 14, 2026 12:40:37 AM
+Incomplete: Add HTML dashboard auto-refresh meta tag with configurable interval (ID: US-056) — attempt 2/3
+
+
+## Iteration 13 - Story: US-080: Prune stale git worktree admin records on worker completion
+
+### What was implemented
+- Added `git worktree prune` call in 3 locations:
+  1. `spiral.sh` cleanup() trap — after worktree removal loop (line ~475)
+  2. `lib/run_parallel_ralph.sh` cleanup_parallel() trap — after worktree removal loop (line ~92)
+  3. `lib/run_parallel_ralph.sh` Step 9 normal cleanup — after worktree removal + branch deletion loop (line ~865)
+- This ensures stale `.git/worktrees/` admin records from crashed workers are cleaned up both on normal exit and abnormal termination
+- Existing worktree lock/unlock pattern (lock at worker launch, unlock on exit) ensures active worktrees are NOT pruned
+
+### Patterns discovered
+- Worktree lock is set at line ~255 of run_parallel_ralph.sh with `git worktree lock`
+- Worktree unlock fires on worker exit via trap at line ~391 of run_parallel_ralph.sh
+- `git worktree prune` is safe to run even while other locked worktrees exist — it only removes unlocked stale entries
+
+### Gotchas
+- Must use `2>/dev/null || true` pattern to avoid failing on repos with no stale worktrees
+- The prune must happen AFTER the explicit `worktree remove --force` calls, not before

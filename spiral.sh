@@ -472,6 +472,8 @@ cleanup() {
     done
     rm -rf "$REPO_ROOT/.spiral-workers" 2>/dev/null || true
   fi
+  # Prune stale worktree admin records left by crashed/interrupted workers (US-080)
+  git -C "$REPO_ROOT" worktree prune 2>/dev/null || true
   # Clean up docker lock dirs
   rm -rf /tmp/spiral-docker-lock-* 2>/dev/null || true
   # Clean up memory pressure signal files

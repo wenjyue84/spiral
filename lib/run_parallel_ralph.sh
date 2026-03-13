@@ -88,6 +88,8 @@ cleanup_parallel() {
     [[ -n "$branch" ]] && git -C "$REPO_ROOT" branch -D "$branch" 2>/dev/null || true
   done
   rm -rf "$WORKTREE_BASE" 2>/dev/null || true
+  # Prune stale worktree admin records (US-080)
+  git -C "$REPO_ROOT" worktree prune 2>/dev/null || true
   # Clean up heartbeat files
   rm -f "$HEARTBEAT_DIR"/worker_*.heartbeat 2>/dev/null || true
   echo "  [parallel] Cleanup done."
@@ -862,6 +864,9 @@ for i in $(seq 1 "$RALPH_WORKERS"); do
   git -C "$REPO_ROOT" branch -D "$BRANCH" 2>/dev/null || true
 done
 rm -rf "$WORKTREE_BASE" 2>/dev/null || true
+
+# Prune stale worktree admin records left by crashed/interrupted workers (US-080)
+git -C "$REPO_ROOT" worktree prune 2>/dev/null || true
 
 echo "  [parallel] Cleanup complete."
 
