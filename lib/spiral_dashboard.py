@@ -265,6 +265,71 @@ def compute_decomposition(prd: dict) -> dict:
     }
 
 
+# ── SVG Velocity Chart ───────────────────────────────────────────────────────
+
+def _render_velocity_svg(iteration_velocity: dict) -> str:
+    """Render an inline SVG bar chart of stories completed per SPIRAL iteration."""
+    if not iteration_velocity:
+        return '<div class="no-data">No iteration data yet</div>'
+
+    iters = sorted(iteration_velocity.keys())
+    counts = [iteration_velocity[it] for it in iters]
+    max_count = max(counts) if counts else 1
+    if max_count == 0:
+        max_count = 1
+
+    svg_w, svg_h = 500, 180
+    margin_left, margin_right = 40, 10
+    margin_top, margin_bottom = 10, 30
+    chart_w = svg_w - margin_left - margin_right
+    chart_h = svg_h - margin_top - margin_bottom
+
+    n = len(iters)
+    slot_w = chart_w // n if n > 0 else chart_w
+    bar_w = max(4, slot_w - 6)
+
+    elements = []
+    # Axes
+    elements.append(
+        f'<line x1="{margin_left}" y1="{margin_top}" '
+        f'x2="{margin_left}" y2="{margin_top + chart_h}" stroke="#444" stroke-width="1"/>'
+    )
+    elements.append(
+        f'<line x1="{margin_left}" y1="{margin_top + chart_h}" '
+        f'x2="{margin_left + chart_w}" y2="{margin_top + chart_h}" stroke="#444" stroke-width="1"/>'
+    )
+    elements.append(
+        f'<text x="{margin_left - 4}" y="{margin_top + 10}" '
+        f'text-anchor="end" fill="#888" font-size="9">{max_count}</text>'
+    )
+
+    for i, (it, count) in enumerate(zip(iters, counts)):
+        slot_x = margin_left + i * slot_w
+        x = slot_x + (slot_w - bar_w) // 2
+        bar_h = int(count / max_count * chart_h)
+        y = margin_top + chart_h - bar_h
+        elements.append(
+            f'<rect x="{x}" y="{y}" width="{bar_w}" height="{bar_h}" '
+            f'fill="#6c63ff" rx="3"/>'
+        )
+        if count > 0:
+            elements.append(
+                f'<text x="{x + bar_w // 2}" y="{y - 3}" '
+                f'text-anchor="middle" fill="#aaa" font-size="10">{count}</text>'
+            )
+        lx = x + bar_w // 2
+        elements.append(
+            f'<text x="{lx}" y="{svg_h - 6}" '
+            f'text-anchor="middle" fill="#888" font-size="9">i{it}</text>'
+        )
+
+    inner = "\n".join(elements)
+    return (
+        f'<svg viewBox="0 0 {svg_w} {svg_h}" width="100%" height="{svg_h}" '
+        f'xmlns="http://www.w3.org/2000/svg">\n{inner}\n</svg>'
+    )
+
+
 # ── Screenshot Discovery ─────────────────────────────────────────────────────
 
 def find_latest_screenshot(scratch_dir: str) -> str | None:
@@ -340,7 +405,8 @@ def _render_screenshot_section(screenshot_path: str | None) -> str:
 def render_html(overview: dict, velocity: list[dict], status: dict,
                 model_perf: list[dict], retry_analysis: list[dict],
                 bottlenecks: dict, decomposition: dict, insights: list[str],
-                screenshot_path: str | None = None) -> str:
+                screenshot_path: str | None = None,
+                iteration_velocity: dict | None = None) -> str:
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     max_vel = max((v["kept"] for v in velocity), default=1) or 1
 
@@ -430,6 +496,9 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
     if insights:
         for i in insights:
             insights_html += f'<div class="insight">{escape(i)}</div>\n'
+
+    # Velocity by iteration SVG chart
+    iter_vel_svg = _render_velocity_svg(iteration_velocity or {})
 
     # Completion ring SVG
     ring_pct = overview["completion_pct"]
@@ -579,6 +648,11 @@ footer{{text-align:center;color:#444;font-size:10px;margin-top:16px;padding-top:
 </section>
 </div>
 
+<section>
+<h2>Velocity by Iteration</h2>
+{iter_vel_svg}
+</section>
+
 {_render_screenshot_section(screenshot_path)}
 <footer>SPIRAL Metrics Dashboard &middot; {now}</footer>
 </body>
@@ -613,6 +687,7 @@ def main() -> int:
     bottle = compute_bottlenecks(results, retries, prd)
     decomposition = compute_decomposition(prd)
     insights = generate_insights(overview, model_perf, retry_analysis, bottle)
+    iter_vel = compute_iteration_velocity(results)
 
     # Find latest screenshot
     screenshot = find_latest_screenshot(args.scratch_dir)
@@ -622,7 +697,7 @@ def main() -> int:
         velocity = [{"iter": 0, "kept": 0, "total": 0, "duration_hours": 0.001, "velocity": 0}]
 
     # Render
-    html = render_html(overview, velocity, status, model_perf, retry_analysis, bottle, decomposition, insights, screenshot)
+    html = render_html(overview, velocity, status, model_perf, retry_analysis, bottle, decomposition, insights, screenshot, iteration_velocity=iter_vel)
 
     # Write
     output_path = os.path.abspath(args.output)

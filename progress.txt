@@ -1230,3 +1230,24 @@ Incomplete: Add --dry-run flag to spiral.sh to test loop control flow without AP
 - Test story titles must share NO words to avoid false-positive dedup (overlap_ratio >= 0.6 triggers is_duplicate)
 - Unicode arrow → in print output can cause assertion mismatches across subprocess boundaries on Windows — use partial string matching
 
+
+## Iteration - Story: US-034 Dashboard: add per-iteration story velocity bar chart
+
+### What was implemented
+- Added `_render_velocity_svg(iteration_velocity: dict) -> str` in lib/spiral_dashboard.py
+  - Renders inline SVG bar chart using `<rect>` elements, no external JS
+  - Shows iteration labels (i1, i2…) on X-axis, count labels above each bar
+  - Returns `<div class="no-data">` message when dict is empty
+- Updated `render_html()` to accept `iteration_velocity: dict | None = None` kwarg
+  - Calls `_render_velocity_svg` and injects a "Velocity by Iteration" `<section>` after bottleneck tables
+- Updated `main()` to call `compute_iteration_velocity(results)` and pass as `iteration_velocity=`
+- Added `tests/test_spiral_dashboard.py` with 17 tests covering compute, SVG render, and HTML integration
+
+### Patterns discovered
+- `compute_iteration_velocity` already existed (line 228); counts `status=='keep'` per `spiral_iter`
+- render_html uses f-string heredoc template — inject new section before the screenshot/footer block
+- Test file imports from `lib/` via `sys.path.insert` like all other test files
+
+### Gotchas
+- SVG bar with count=0 renders a zero-height `<rect>` but should NOT emit a count label (guard: `if count > 0`)
+- `iteration_velocity=None` must be handled gracefully (passes `{}` to `_render_velocity_svg`)
