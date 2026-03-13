@@ -1402,3 +1402,6 @@ Incomplete: Add TLA+ ModelAssignmentConsistent invariant to SpiralWorkers.tla (I
 ### Gotchas
 - spiral.sh uses `grep -oP` (Perl regex) which requires GNU grep; works on MSYS2/Git Bash
 - Cache store after research extracts source URLs from `_research_output.json` — stories without a `source` field are skipped
+## Iteration 7 - Fri, Mar 13, 2026  5:05:41 PM
+Incomplete: Add TLA+ ModelAssignmentConsistent invariant to SpiralWorkers.tla (ID: US-024) — attempt 2/3
+

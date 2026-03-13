@@ -12,6 +12,16 @@
   3. Merge Correctness -- merged result contains all completions
   4. No Story Loss -- stories are never dropped during merge
   5. Passes Monotonicity -- pass count never decreases
+  6. Model Assignment Consistency -- route_stories.py protocol invariants
+
+  Model Assignment Protocol (route_stories.py):
+  -----------------------------------------------
+  Before workers start, route_stories.py classifies each pending story
+  and writes a model assignment (haiku/sonnet/opus) to prd.json. This
+  happens atomically in the partitioning phase. Once workers begin,
+  model assignments are read-only -- no worker may modify them. This
+  ensures deterministic worker behaviour and prevents races where two
+  workers might try to re-classify the same story.
 *)
 
 EXTENDS Integers, Sequences, FiniteSets, TLC
@@ -26,12 +36,14 @@ VARIABLES
     workerState,     \* Function: worker_id -> "idle" | "running" | "done"
     mergedResults,   \* Set of story IDs that have been merged back as passed
     systemPhase,     \* "partitioning" | "running" | "merging" | "done"
-    initialPassCount \* Number of already-passing stories at start
+    initialPassCount,\* Number of already-passing stories at start
+    modelAssignments \* Function: story_id -> model string ("haiku"|"sonnet"|"opus"|"")
 
-vars == <<stories, workerAssign, workerState, mergedResults, systemPhase, initialPassCount>>
+vars == <<stories, workerAssign, workerState, mergedResults, systemPhase, initialPassCount, modelAssignments>>
 
 StoryIds == 1..NumStories
 WorkerIds == 1..NumWorkers
+ModelTypes == {"haiku", "sonnet", "opus", ""}
 
 (* -- Type Invariant -------------------------------------------------------- *)
 TypeOK ==
@@ -41,6 +53,7 @@ TypeOK ==
     /\ mergedResults \subseteq StoryIds
     /\ systemPhase \in {"partitioning", "running", "merging", "done"}
     /\ initialPassCount \in 0..NumStories
+    /\ \A s \in StoryIds : modelAssignments[s] \in ModelTypes
 
 (* -- Initial State --------------------------------------------------------- *)
 Init ==
@@ -53,6 +66,7 @@ Init ==
     /\ workerState = [w \in WorkerIds |-> "idle"]
     /\ mergedResults = {}
     /\ systemPhase = "partitioning"
+    /\ modelAssignments = [s \in StoryIds |-> ""]
 
 (* -- Partition Phase ------------------------------------------------------- *)
 (* Assign a pending story to a worker. Only pending stories get assigned. *)
@@ -63,15 +77,35 @@ AssignStory ==
         /\ workerAssign[s] = 0  \* not yet assigned
         /\ stories' = [stories EXCEPT ![s] = "assigned"]
         /\ workerAssign' = [workerAssign EXCEPT ![s] = w]
-        /\ UNCHANGED <<workerState, mergedResults, systemPhase, initialPassCount>>
+        /\ UNCHANGED <<workerState, mergedResults, systemPhase, initialPassCount, modelAssignments>>
 
-(* Transition from partitioning to running once all pending stories are assigned *)
+(* -- Route Stories Action -------------------------------------------------- *)
+(* Models route_stories.py: atomically assigns a model to every pending story
+   BEFORE workers start. This must happen during the partitioning phase after
+   stories are assigned but before StartWorkers transitions to running. *)
+RouteStoriesAction ==
+    /\ systemPhase = "partitioning"
+    \* All pending stories must already be assigned to workers
+    /\ \A s \in StoryIds : stories[s] # "pending"
+    \* Model assignments have not been written yet (still all empty for assigned stories)
+    /\ \E s \in StoryIds : stories[s] = "assigned" /\ modelAssignments[s] = ""
+    \* Atomically assign a model from ModelTypes to every assigned story
+    /\ modelAssignments' = [s \in StoryIds |->
+        IF stories[s] = "assigned"
+        THEN CHOOSE m \in {"haiku", "sonnet", "opus"} : TRUE
+        ELSE modelAssignments[s]]
+    /\ UNCHANGED <<stories, workerAssign, workerState, mergedResults, systemPhase, initialPassCount>>
+
+(* Transition from partitioning to running once all pending stories are assigned
+   and model assignments have been written *)
 StartWorkers ==
     /\ systemPhase = "partitioning"
     /\ \A s \in StoryIds : stories[s] # "pending"  \* all pending assigned
+    \* Model assignments must be written before workers start
+    /\ \A s \in StoryIds : stories[s] = "assigned" => modelAssignments[s] # ""
     /\ systemPhase' = "running"
     /\ workerState' = [w \in WorkerIds |-> "running"]
-    /\ UNCHANGED <<stories, workerAssign, mergedResults, initialPassCount>>
+    /\ UNCHANGED <<stories, workerAssign, mergedResults, initialPassCount, modelAssignments>>
 
 (* -- Worker Implementation Phase ------------------------------------------- *)
 (* A worker implements one of its assigned stories *)
@@ -82,7 +116,7 @@ WorkerImplement ==
         /\ workerState[w] = "running"
         /\ stories[s] = "assigned"
         /\ stories' = [stories EXCEPT ![s] = "implementing"]
-        /\ UNCHANGED <<workerAssign, workerState, mergedResults, systemPhase, initialPassCount>>
+        /\ UNCHANGED <<workerAssign, workerState, mergedResults, systemPhase, initialPassCount, modelAssignments>>
 
 (* A worker completes a story (pass or keep pending) *)
 WorkerComplete ==
@@ -93,7 +127,7 @@ WorkerComplete ==
         /\ stories[s] = "implementing"
         /\ \/ stories' = [stories EXCEPT ![s] = "completed_in_worker"]  \* passed
            \/ stories' = [stories EXCEPT ![s] = "assigned"]             \* failed, back to assigned
-        /\ UNCHANGED <<workerAssign, workerState, mergedResults, systemPhase, initialPassCount>>
+        /\ UNCHANGED <<workerAssign, workerState, mergedResults, systemPhase, initialPassCount, modelAssignments>>
 
 (* A worker finishes all its stories *)
 WorkerDone ==
@@ -104,14 +138,14 @@ WorkerDone ==
         /\ \A s \in StoryIds :
             workerAssign[s] = w => stories[s] \in {"completed_in_worker", "assigned", "already_passed"}
         /\ workerState' = [workerState EXCEPT ![w] = "done"]
-        /\ UNCHANGED <<stories, workerAssign, mergedResults, systemPhase, initialPassCount>>
+        /\ UNCHANGED <<stories, workerAssign, mergedResults, systemPhase, initialPassCount, modelAssignments>>
 
 (* All workers done -> transition to merging *)
 AllWorkersDone ==
     /\ systemPhase = "running"
     /\ \A w \in WorkerIds : workerState[w] = "done"
     /\ systemPhase' = "merging"
-    /\ UNCHANGED <<stories, workerAssign, workerState, mergedResults, initialPassCount>>
+    /\ UNCHANGED <<stories, workerAssign, workerState, mergedResults, initialPassCount, modelAssignments>>
 
 (* -- Merge Phase ----------------------------------------------------------- *)
 (* Merge one completed story result back into the main PRD *)
