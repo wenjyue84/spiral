@@ -1918,3 +1918,25 @@ Incomplete: Add model fallback chain with per-model circuit breaker state (ID: U
 
 ### Gotchas
 - The --until flag computes TIME_LIMIT_MINS from wall-clock time, so it's always a valid positive int if used — but still worth validating
+## Iteration 1 - Fri, Mar 13, 2026 10:09:29 PM
+Completed: Add model fallback chain with per-model circuit breaker state (ID: US-112) in 21m
+
+
+## Iteration N - Story: US-062: Add SPIRAL_RESEARCH_RETRIES to retry Phase R on transient Claude crash
+
+### What was implemented
+- Added `SPIRAL_RESEARCH_RETRIES` config var (default 2) at line ~253 of spiral.sh alongside other timeout configs
+- Wrapped the Claude Phase R invocation in a retry loop: up to `SPIRAL_RESEARCH_RETRIES + 1` total attempts
+- After each attempt, validates `_research_output.json` exists and is valid JSON using `python3 -c "import json; json.load(open(...))"` 
+- On validation success: break out of loop with `_R_SUCCESS=1`
+- On all retries exhausted: print warning and write empty `{"stories":[]}` fallback
+- Each retry prints: `[R] Research output missing or invalid — retrying (attempt N/TOTAL)`
+
+### Patterns discovered
+- `SPIRAL_RESEARCH_RETRIES` follows same naming convention as `SPIRAL_RESEARCH_TIMEOUT`, `SPIRAL_IMPL_TIMEOUT`
+- Bash `(( _R_ATTEMPT++ )) || true` is used to avoid `set -e` trapping on arithmetic zero result
+- `$SPIRAL_PYTHON` is the correct Python interpreter to use (not `python3` directly)
+
+### Gotchas
+- `(( expr ))` returns exit code 1 when result is 0, which kills script under `set -e` — must add `|| true`
+- The `if [[ ! -f "$RESEARCH_OUTPUT" ]]` block after the retry loop is now redundant (covered by the `_R_SUCCESS` check) but harmless to leave in

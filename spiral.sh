@@ -250,6 +250,7 @@ SPIRAL_EVENT_LOG_MAX_LINES="${SPIRAL_EVENT_LOG_MAX_LINES:-10000}"  # 0 = disable
 SPIRAL_RESEARCH_CACHE_TTL_HOURS="${SPIRAL_RESEARCH_CACHE_TTL_HOURS:-24}"  # 0 = disabled; cache TTL for Phase R URL responses
 RESEARCH_CACHE_DIR=""  # set after SCRATCH_DIR is known
 SPIRAL_RESEARCH_TIMEOUT="${SPIRAL_RESEARCH_TIMEOUT:-300}"  # seconds; 0 = disabled (unlimited); Phase R LLM call
+SPIRAL_RESEARCH_RETRIES="${SPIRAL_RESEARCH_RETRIES:-2}"    # retries when _research_output.json missing/invalid after Phase R
 SPIRAL_IMPL_TIMEOUT="${SPIRAL_IMPL_TIMEOUT:-600}"          # seconds; 0 = disabled (unlimited); Phase I ralph call
 SPIRAL_VALIDATE_TIMEOUT="${SPIRAL_VALIDATE_TIMEOUT:-300}"  # seconds; 0 = disabled (unlimited)
 
@@ -974,58 +975,82 @@ $INJECTED_PROMPT"
       RESEARCH_TOOLS="WebSearch,WebFetch,Write,Read"
     fi
 
-    echo "  [R] Spawning Claude research agent (max 30 turns, model: $RESEARCH_MODEL)..."
-    echo "  ─────── Research Agent Start ─────────────────────────"
+    # ── Retry loop for Phase R ─────────────────────────────────────────────
+    _R_ATTEMPT=0
+    _R_MAX_ATTEMPTS=$(( SPIRAL_RESEARCH_RETRIES + 1 ))
+    _R_SUCCESS=0
 
-    _R_EXIT=0
-    _R_START=$(date +%s)
-    if [[ "${SPIRAL_RESEARCH_TIMEOUT:-300}" -gt 0 ]] && command -v timeout &>/dev/null; then
-      if command -v node &>/dev/null && [[ -f "$STREAM_FMT" ]]; then
-        (unset CLAUDECODE; timeout --kill-after=30 "${SPIRAL_RESEARCH_TIMEOUT}" \
-          claude -p "$INJECTED_PROMPT" \
-          --model "$RESEARCH_MODEL" \
-          --allowedTools "$RESEARCH_TOOLS" \
-          --max-turns 30 \
-          --verbose \
-          --output-format stream-json \
-          --dangerously-skip-permissions \
-          </dev/null 2>&1 | node "$STREAM_FMT") || _R_EXIT=$?
-      else
-        (unset CLAUDECODE; timeout --kill-after=30 "${SPIRAL_RESEARCH_TIMEOUT}" \
-          claude -p "$INJECTED_PROMPT" \
-          --model "$RESEARCH_MODEL" \
-          --allowedTools "$RESEARCH_TOOLS" \
-          --max-turns 30 \
-          --dangerously-skip-permissions \
-          </dev/null 2>&1) || _R_EXIT=$?
+    while [[ "$_R_ATTEMPT" -lt "$_R_MAX_ATTEMPTS" ]]; do
+      if [[ "$_R_ATTEMPT" -gt 0 ]]; then
+        echo "  [R] Research output missing or invalid — retrying (attempt $_R_ATTEMPT/$SPIRAL_RESEARCH_RETRIES)"
       fi
-    else
-      if command -v node &>/dev/null && [[ -f "$STREAM_FMT" ]]; then
-        (unset CLAUDECODE; claude -p "$INJECTED_PROMPT" \
-          --model "$RESEARCH_MODEL" \
-          --allowedTools "$RESEARCH_TOOLS" \
-          --max-turns 30 \
-          --verbose \
-          --output-format stream-json \
-          --dangerously-skip-permissions \
-          </dev/null 2>&1 | node "$STREAM_FMT") || _R_EXIT=$?
-      else
-        (unset CLAUDECODE; claude -p "$INJECTED_PROMPT" \
-          --model "$RESEARCH_MODEL" \
-          --allowedTools "$RESEARCH_TOOLS" \
-          --max-turns 30 \
-          --dangerously-skip-permissions \
-          </dev/null 2>&1) || _R_EXIT=$?
-      fi
-    fi
-    _R_ELAPSED=$(( $(date +%s) - _R_START ))
-    if [[ "$_R_EXIT" -eq 124 ]]; then
-      echo ""
-      echo "  [Phase R] WARNING: Research agent timed out after ${_R_ELAPSED}s (limit: ${SPIRAL_RESEARCH_TIMEOUT}s)"
-      log_spiral_event "phase_timeout" "\"phase\":\"R\",\"story_id\":\"research\",\"iteration\":$SPIRAL_ITER,\"duration_ms\":$(( _R_ELAPSED * 1000 )),\"timeout_s\":${SPIRAL_RESEARCH_TIMEOUT}"
-    fi
 
-    echo "  ─────── Research Agent End ───────────────────────────"
+      echo "  [R] Spawning Claude research agent (max 30 turns, model: $RESEARCH_MODEL)..."
+      echo "  ─────── Research Agent Start ─────────────────────────"
+
+      _R_EXIT=0
+      _R_START=$(date +%s)
+      if [[ "${SPIRAL_RESEARCH_TIMEOUT:-300}" -gt 0 ]] && command -v timeout &>/dev/null; then
+        if command -v node &>/dev/null && [[ -f "$STREAM_FMT" ]]; then
+          (unset CLAUDECODE; timeout --kill-after=30 "${SPIRAL_RESEARCH_TIMEOUT}" \
+            claude -p "$INJECTED_PROMPT" \
+            --model "$RESEARCH_MODEL" \
+            --allowedTools "$RESEARCH_TOOLS" \
+            --max-turns 30 \
+            --verbose \
+            --output-format stream-json \
+            --dangerously-skip-permissions \
+            </dev/null 2>&1 | node "$STREAM_FMT") || _R_EXIT=$?
+        else
+          (unset CLAUDECODE; timeout --kill-after=30 "${SPIRAL_RESEARCH_TIMEOUT}" \
+            claude -p "$INJECTED_PROMPT" \
+            --model "$RESEARCH_MODEL" \
+            --allowedTools "$RESEARCH_TOOLS" \
+            --max-turns 30 \
+            --dangerously-skip-permissions \
+            </dev/null 2>&1) || _R_EXIT=$?
+        fi
+      else
+        if command -v node &>/dev/null && [[ -f "$STREAM_FMT" ]]; then
+          (unset CLAUDECODE; claude -p "$INJECTED_PROMPT" \
+            --model "$RESEARCH_MODEL" \
+            --allowedTools "$RESEARCH_TOOLS" \
+            --max-turns 30 \
+            --verbose \
+            --output-format stream-json \
+            --dangerously-skip-permissions \
+            </dev/null 2>&1 | node "$STREAM_FMT") || _R_EXIT=$?
+        else
+          (unset CLAUDECODE; claude -p "$INJECTED_PROMPT" \
+            --model "$RESEARCH_MODEL" \
+            --allowedTools "$RESEARCH_TOOLS" \
+            --max-turns 30 \
+            --dangerously-skip-permissions \
+            </dev/null 2>&1) || _R_EXIT=$?
+        fi
+      fi
+      _R_ELAPSED=$(( $(date +%s) - _R_START ))
+      if [[ "$_R_EXIT" -eq 124 ]]; then
+        echo ""
+        echo "  [Phase R] WARNING: Research agent timed out after ${_R_ELAPSED}s (limit: ${SPIRAL_RESEARCH_TIMEOUT}s)"
+        log_spiral_event "phase_timeout" "\"phase\":\"R\",\"story_id\":\"research\",\"iteration\":$SPIRAL_ITER,\"duration_ms\":$(( _R_ELAPSED * 1000 )),\"timeout_s\":${SPIRAL_RESEARCH_TIMEOUT}"
+      fi
+
+      echo "  ─────── Research Agent End ───────────────────────────"
+
+      # Validate output: file must exist and be valid JSON
+      if [[ -f "$RESEARCH_OUTPUT" ]] && "$SPIRAL_PYTHON" -c "import json; json.load(open('$RESEARCH_OUTPUT'))" 2>/dev/null; then
+        _R_SUCCESS=1
+        break
+      fi
+
+      (( _R_ATTEMPT++ )) || true
+    done
+
+    if [[ "$_R_SUCCESS" -eq 0 ]]; then
+      echo "  [R] WARNING: Research output missing or invalid after all retries — using empty"
+      echo '{"stories":[]}' > "$RESEARCH_OUTPUT"
+    fi
 
     if [[ ! -f "$RESEARCH_OUTPUT" ]]; then
       echo "  [R] WARNING: Research agent did not write $RESEARCH_OUTPUT — using empty"
