@@ -973,3 +973,23 @@ Completed: Chrome DevTools Phase V: screenshot running app after validation (ID:
 - ✓ Checkpoint format: {"iter": N, "phase": "P", "ts": "2026-03-13T..."} (line 300)
 - ✓ Resume from correct phase via existing checkpoint_phase_done() logic (already in code)
 - ✓ uv run pytest passes (202 passed)
+## Iteration 7 - Fri, Mar 13, 2026  2:27:41 PM
+Incomplete: Implement main.py as a proper CLI with init, run, and status subcommands (ID: US-020) — attempt 1/3
+
+
+## Iteration N - Story: US-019: Move retry-count increment responsibility from spiral.sh to ralph.sh
+
+### What was implemented
+- Implementation was already complete in ralph.sh prior to this iteration
+- `increment_retry` is called in ralph.sh at lines 741, 792, 815 (all failure paths)
+- `reset_retry` is called in ralph.sh at line 771 (success path after quality gates pass)
+- Both functions use atomic write pattern: jq to .tmp file then mv
+- spiral.sh only passes --retries path to dashboard scripts (read-only)
+- All 202 pytest tests pass
+
+### Patterns discovered
+- python3 on Windows requires encoding='utf-8' when reading/writing prd.json (cp1252 default fails)
+- ralph.sh increment/reset is already present from a prior iteration — story was ahead of prd.json tracking
+
+### Gotchas
+- When verifying pre-existing implementations, always check git log and grep for actual function calls
