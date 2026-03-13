@@ -2292,3 +2292,22 @@ Incomplete: Add HTML dashboard auto-refresh meta tag with configurable interval 
 
 ## Iteration 3 - Fri, Mar 14, 2026  01:20:00 AM
 Completed: Add integration test for run_parallel_ralph.sh with mock worker scripts (ID: US-072) in ~8m
+## Iteration 1 - Sat, Mar 14, 2026  1:19:17 AM
+Incomplete: Add SPIRAL_SKIP_STORY_IDS for permanent manual story exclusion (ID: US-057) — attempt 1/3
+
+
+## Iteration N - Story: US-081: Detect streaming Claude API overload errors returned with HTTP 200 status
+
+### What was implemented
+- Updated `ralph/ralph.sh` detection at line ~904: added first-line `"type":"error"` check in addition to existing `overloaded_error|"529"` grep
+- New logic: `_FIRST_LINE=$(head -1 "$_CLAUDE_TMP")` followed by `|| echo "$_FIRST_LINE" | grep -qF '"type":"error"'`
+- Created `tests/overload_detection.bats` with 8 tests covering: mock claude exits 0, overloaded_error detection, type:error first-line pattern, detect_overload function, clean output not flagged, 529 string, api_overloaded event logging
+
+### Patterns discovered
+- Existing `grep -qE 'overloaded_error|"529"'` already catches overloaded_error in streaming body; new check adds explicit first-line "type":"error" detection for broader coverage
+- Bats tests use PATH manipulation (MOCK_BIN dir prepended) to mock the `claude` binary
+- `export -f` required to export bash functions for use in bats `run` subshell
+
+### Gotchas
+- Shell escaping in bats: `echo '...\"..\"..'` in single-quotes produces literal backslashes; use `printf` to write files with literal `"529"` for grep pattern matching
+- `detect_overload` helper mirrors ralph.sh logic exactly and must be exported for `run` command

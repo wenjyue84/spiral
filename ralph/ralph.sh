@@ -901,7 +901,12 @@ $BROWSER_TOOLS_HINT"
         --dangerously-skip-permissions \
         2>&1 | tee "$_CLAUDE_TMP" | node "$SCRIPT_DIR/stream-formatter.mjs") || true
       # Detect HTTP 529 overloaded_error — separate handler from 429 rate-limit
-      if grep -qE 'overloaded_error|"529"' "$_CLAUDE_TMP" 2>/dev/null; then
+      # Also detect streaming errors returned with HTTP 200: Claude CLI may emit
+      # {"type":"error","error":{"type":"overloaded_error","message":"..."}} as the
+      # first NDJSON chunk while the HTTP status is 200, so exit code does not signal failure.
+      _FIRST_LINE=$(head -1 "$_CLAUDE_TMP" 2>/dev/null || true)
+      if grep -qE 'overloaded_error|"529"' "$_CLAUDE_TMP" 2>/dev/null || \
+         echo "$_FIRST_LINE" | grep -qF '"type":"error"' 2>/dev/null; then
         _529_ATTEMPT=$((_529_ATTEMPT + 1))
         rm -f "$_CLAUDE_TMP"
         if [[ "$_529_ATTEMPT" -gt "$_529_MAX" ]]; then
