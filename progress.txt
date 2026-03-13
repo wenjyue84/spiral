@@ -152,3 +152,63 @@ Here is the technical brief based on the JSON data:
 ### Gotchas
 - The Hypothesis test_valid_prd_has_no_cycles can fail intermittently; run twice to confirm real failures
 - spiral-init.md wizard groups are purely instructional — the wizard agent reads them and acts; they are not parsed programmatically
+## Iteration 3 - Fri, Mar 13, 2026  9:36:33 AM
+Completed: Wizard: ask about model routing strategy with cost/quality education (ID: US-005) in 9m
+
+
+## Pre-analysis for US-006 (Gemini 2.5 Pro)
+Based on the user story JSON for **US-006**, here is a technical brief for the implementation agent.
+
+***
+
+**Subject:** Technical Brief for US-006: Wizard Configuration for Research Phase
+
+**Caveat:** The request mentions a Frappe/Python app, but the story describes a shell script-based wizard for a command-line tool. This brief addresses the story's actual content.
+
+**1. Python/Shell Files to Modify:**
+*   `ralph/skills/spiral-init.md`: This is the primary file to edit. It's a "skill" or script that defines the setup wizard's flow. All new questions and logic will be added here.
+*   `spiral.config.sh` (Output): This file will be created or appended to by the wizard with the new configuration values.
+
+**2. Frappe DocTypes / Hooks Involved:**
+*   None. This is not a Frappe application. The core components are shell scripts executed by the "Ralph" agent framework.
+
+**3. Recommended Implementation Approach:**
+1.  In `ralph/skills/spiral-init.md`, add a new section for "Research Phase Configuration".
+2.  Use shell command blocks (`read`, `echo`, `if/then`) to implement the user-facing Q&A flow.
+3.  Check for the Gemini CLI using `command -v gemini` and prompt the user accordingly.
+4.  Conditionally `echo` `export VAR="VALUE"` lines into `spiral.config.sh` based on user responses, including explanatory comments as specified.
+5.  Ensure the default value for `SPIRAL_MAX_PENDING` is set to 50.
+
+**4. Edge Cases & Gotchas:**
+*   The wizard script must correctly handle both appending to an existing `spiral.config.sh` and creating a new one.
+*   The `gemini` CLI check should warn the user but not block execution if the CLI is not found.
+*   The "setup instructions" for Firecrawl are not defined; provide a placeholder or a link to external documentation.
+*   Ensure all final tests pass via `uv run pytest` as per the acceptance criteria.
+
+
+## Iteration 4 - Story: US-006: Wizard: ask about research phase configuration (Gemini, Firecrawl, capacity limit)
+
+### What was implemented
+- Added "Group 5: Research Phase Configuration" section to ralph/skills/spiral-init.md
+- Four questions added:
+  1. Use Gemini for web pre-research? (checks `command -v gemini`, default: yes if available)
+  2. Focus prompt for Gemini/Claude research? (writes to SPIRAL_GEMINI_PROMPT)
+  3. Use Firecrawl MCP for URL scraping? (writes SPIRAL_FIRECRAWL_ENABLED=1, default: no, includes setup link)
+  4. Skip research when pending stories exceed N? (writes SPIRAL_MAX_PENDING, default: 50)
+- Moved Firecrawl question from old Group 6 into new Group 5 (with enhanced explanation)
+- Moved max pending question from old Group 5 into new Group 5 (changed default from 0 to 50)
+- Renumbered: old Group 5 → Group 6 (story prefix only), old Group 6 → Group 7 (constitution only)
+- Updated Step 5a config template with Research Phase Configuration block:
+  SPIRAL_GEMINI_ENABLED, SPIRAL_GEMINI_PROMPT, SPIRAL_FIRECRAWL_ENABLED, SPIRAL_MAX_PENDING
+- Added conditional write instructions for Gemini and Firecrawl in Step 5a
+- All 51 pytest tests pass
+
+### Patterns discovered
+- Wizard groups are sequential question blocks — each group is asked one at a time
+- Config template uses commented-out lines for optional features (uncommented when user opts in)
+- The "--- Section ---" comment style in config template helps group related variables
+
+### Gotchas
+- Firecrawl and max pending were already partially present in other groups; had to consolidate, not duplicate
+- The renumbering note at the bottom of the groups section needs updating each time groups are added
+- Tests only cover Python lib files; .md skill file changes don't affect test suite

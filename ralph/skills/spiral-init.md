@@ -141,17 +141,52 @@ Ask the user these questions **one group at a time** (not all at once). Use the 
 > - `yes` — 60-80% cost saving on trivial stories (CRUD, boilerplate, simple refactors). SPIRAL tries the cheapest tool first and falls back to Claude on failure.
 > - `no` — use Claude for all stories. More reliable, less configuration.
 
-### Group 5: SPIRAL Preferences
+### Group 5: Research Phase Configuration
+
+> **Use Gemini for web pre-research?** (free, saves Claude tokens by pre-fetching search results)
+>
+> Gemini CLI performs web searches and summarizes results before Claude's research phase,
+> saving significant Claude tokens on context gathering.
+>
+> - `yes` — enable Gemini pre-research (recommended if Gemini CLI is installed)
+> - `no` — skip Gemini, Claude handles all research directly
+>
+> (Check if `gemini` CLI is available via `command -v gemini`. If not found, warn:
+> "Gemini CLI not detected — install it first or select 'no'." Default: `yes` if available, `no` otherwise)
+>
+> **Focus prompt for Gemini/Claude research?**
+>
+> An optional prompt that guides what the research phase looks for — e.g.,
+> "focus on authentication patterns" or "prioritize performance optimization techniques".
+> Leave blank for general research.
+>
+> (If provided, writes to `SPIRAL_GEMINI_PROMPT` in spiral.config.sh)
+>
+> **Use Firecrawl MCP for URL scraping?** (cleaner markdown, handles JS-rendered pages)
+>
+> Firecrawl converts web pages to clean markdown — much better than raw HTML scraping,
+> especially for JS-rendered pages (SPAs, docs sites). Useful when research phase fetches URLs.
+>
+> - `yes` — enable Firecrawl MCP. Writes `SPIRAL_FIRECRAWL_ENABLED=1` to config.
+>   Show setup instructions: "Run `npx firecrawl` or see https://docs.firecrawl.dev/mcp for MCP server setup."
+> - `no` — skip Firecrawl, use default URL fetching
+>
+> (Default: `no`)
+>
+> **Skip research when pending stories exceed N?** (avoids flooding prd.json)
+>
+> When too many stories are already pending, the research phase can be skipped to avoid
+> generating even more work. This keeps the backlog manageable.
+>
+> (Default: `50`. Set to `0` for unlimited.)
+
+### Group 6: SPIRAL Preferences
 
 > **Story ID prefix** — short identifier for user stories (default: `US`)
 > Examples: `US` (user story), `BUG` (bug fixes), `FT` (features)
->
-> **Max pending stories** — cap on incomplete stories in backlog (default: `0` = unlimited)
-> Recommended: 5-15 for focused projects
 
-### Group 6: Optional Features (quick yes/no)
+### Group 7: Optional Features (quick yes/no)
 
-> **Enable Firecrawl MCP** for web scraping in research phase? (y/n, default: n)
 > **Enable project constitution** for governance/quality standards? (y/n, default: y)
 >
 > A constitution defines the non-negotiable rules that every SPIRAL iteration must follow —
@@ -161,7 +196,7 @@ Ask the user these questions **one group at a time** (not all at once). Use the 
 If the user says **yes** to the constitution (default), proceed to **Step 3b: Generate Constitution**.
 If the user says **no**, skip to Step 4.
 
-(Note: "Group 6" above refers to what was formerly "Group 5" — renumbered when Model & Token Strategy was added as Group 4.)
+(Note: Groups renumbered — Research Phase Configuration added as Group 5, pushing Preferences to Group 6 and Optional Features to Group 7.)
 
 ### Step 3b: Generate Constitution
 
@@ -279,8 +314,23 @@ SPIRAL_RESEARCH_MODEL="{user choice, default: sonnet}"
 # Set to 1 to enable, omit or set to 0 to disable
 # SPIRAL_TOOL_AUTO=1
 
-# Max pending stories (0 = unlimited)
-SPIRAL_MAX_PENDING={user choice}
+# --- Research Phase Configuration ---
+
+# Gemini pre-research: free web search before Claude research phase
+# Set to 1 to enable (saves Claude tokens by pre-fetching search results)
+# SPIRAL_GEMINI_ENABLED=1
+
+# Focus prompt for Gemini/Claude research (empty = general research)
+# Guides what the research phase looks for, e.g. "authentication patterns"
+# SPIRAL_GEMINI_PROMPT=""
+
+# Firecrawl MCP: clean markdown scraping for JS-rendered pages
+# Set to 1 to enable (requires Firecrawl MCP server setup)
+# SPIRAL_FIRECRAWL_ENABLED=1
+
+# Max pending stories before skipping research (avoids flooding prd.json)
+# Set to 0 for unlimited
+SPIRAL_MAX_PENDING={user choice, default: 50}
 
 # Focus theme (empty = all stories)
 # SPIRAL_FOCUS=""
@@ -289,6 +339,10 @@ SPIRAL_MAX_PENDING={user choice}
 Only include optional sections (Firecrawl, Spec-Kit, Gemini, etc.) if the user opted in.
 
 If the user said **yes** to `--tool auto`, uncomment and set `SPIRAL_TOOL_AUTO=1`.
+
+If the user said **yes** to Gemini pre-research, uncomment and set `SPIRAL_GEMINI_ENABLED=1`. If they provided a focus prompt, uncomment and set `SPIRAL_GEMINI_PROMPT="{user's prompt}"`.
+
+If the user said **yes** to Firecrawl, uncomment and set `SPIRAL_FIRECRAWL_ENABLED=1`.
 
 If the user enabled the constitution, add:
 ```bash
