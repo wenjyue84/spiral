@@ -2689,3 +2689,7 @@ This user story pertains to the "Spiral" AI orchestrator project, not a Frappe/P
 - Windows CRLF from jq: multi-value jq output (`.[]` over arrays) gets \r\n separators on Windows. Only the last element has just \n; all others have \r\n. For-loop iteration leaves \r on all-but-last values.
 - validate_preflight.sh doesn't check PATH for jq/git — it delegates to prd_schema.py. Tests should mock SPIRAL_PYTHON to simulate tool failure.
 - memory-pressure-check.sh is a library (no main). Tests must source it and call functions directly.
+
+## Iteration 15 - Sat, Mar 14, 2026  3:27:59 AM
+Incomplete: Add gitleaks secret scanning gate before AI-generated code is committed (ID: US-140) — attempt 1/3
+
