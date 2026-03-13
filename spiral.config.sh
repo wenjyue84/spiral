@@ -51,3 +51,9 @@ SPIRAL_RESEARCH_SPECIALIST_PROMPT=""
 # Screenshots saved to $SCRATCH_DIR/screenshots/iter-N-TIMESTAMP.png
 # Leave empty to disable.
 # SPIRAL_DEV_URL=""
+
+# ── Post-completion hook ───────────────────────────────────────────────────
+# Shell command to run when ALL stories pass (check_done exits 0).
+# Not run on iteration-limit exits, SIGINT, or errors.
+# Example: SPIRAL_ON_COMPLETE='curl -s -X POST "$SLACK_WEBHOOK_URL" -d "{\"text\":\"Spiral done!\"}"'
+# SPIRAL_ON_COMPLETE=""

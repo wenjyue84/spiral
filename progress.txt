@@ -1572,3 +1572,23 @@ Completed: Detect git merge conflicts with `git merge-tree` before parallel work
 
 ### Gotchas
 - The epicId feature was already complete but the story hadn't been marked as passed
+
+
+## Iteration 9 - Story: US-049 - Add SPIRAL_ON_COMPLETE hook variable for post-completion automation
+
+### What was implemented
+- Added SPIRAL_ON_COMPLETE commented example to spiral.config.sh template
+- Added hook execution in spiral.sh after check_done exits 0, before exit 0
+- Hook uses eval "$SPIRAL_ON_COMPLETE" to preserve env vars
+- Logs first 80 chars of hook command for debuggability
+- If hook fails, prints warning but spiral.sh still exits 0
+- Hook is NOT run on iteration-limit exit, SIGINT, time-limit exit, or errors
+
+### Patterns discovered
+- Completion block is at lines ~1585-1618 in spiral.sh (check_done exits 0)
+- Other exit points (iteration limit ~1726, SIGINT ~362, time limit ~1691) are separate code paths
+- spiral.config.sh uses commented examples with # prefix for optional vars
+
+### Gotchas
+- Must use ${SPIRAL_ON_COMPLETE:-} (with default) to avoid set -u errors
+- eval is intentional per technical notes to preserve env var expansion

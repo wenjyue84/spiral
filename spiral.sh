@@ -1604,6 +1604,17 @@ PYEOF
     SESSION_MINUTES=$(( (SESSION_END - SESSION_START) / 60 ))
     echo "  Session: ${SESSION_MINUTES}m total, $SPIRAL_ITER iterations"
 
+    # ── Run SPIRAL_ON_COMPLETE hook (US-049) ──────────────────────────────
+    if [[ -n "${SPIRAL_ON_COMPLETE:-}" ]]; then
+      _HOOK_PREVIEW="${SPIRAL_ON_COMPLETE:0:80}"
+      echo "  [hook] Running SPIRAL_ON_COMPLETE: ${_HOOK_PREVIEW}..."
+      if eval "$SPIRAL_ON_COMPLETE"; then
+        echo "  [hook] SPIRAL_ON_COMPLETE succeeded"
+      else
+        echo "  [hook] WARNING: SPIRAL_ON_COMPLETE exited with code $? (ignored)"
+      fi
+    fi
+
     exit 0
   fi
 
