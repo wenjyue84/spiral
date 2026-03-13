@@ -770,3 +770,24 @@ Completed: Add SPIRAL_COST_CEILING to abort when cumulative API spend exceeds bu
 - Missing worker file prints WARNING to stdout (not stderr) — use capsys.readouterr().out to capture
 - _skipped flag only applied if main story doesn't already have _skipped=true (idempotent guard)
 
+## Iteration 5 - Fri, Mar 13, 2026 12:08:04 PM
+Completed: Add unit tests for merge_worker_results.py (parallel result promotion) (ID: US-060) in 6m
+
+
+## Iteration - Story: US-015: Add GitHub Actions CI workflow to run pytest on every push and PR
+
+### What was implemented
+- Created `.github/workflows/ci.yml` — triggers on push + pull_request to main
+- Uses ubuntu-latest, Python 3.13 (pyproject.toml requires >=3.13, not 3.12 as stated in story)
+- Steps: checkout → setup-uv (with enable-cache: true) → cache .hypothesis/ → uv sync → uv run pytest tests/ -v --tb=short
+- Hypothesis cache key: ${{ runner.os }}-hypothesis-${{ hashFiles('**/pyproject.toml') }}
+- Added CI status badge to README.md top section (line 3)
+- All 177 pytest tests pass
+
+### Patterns discovered
+- pyproject.toml requires-python = ">=3.13" — always use 3.13 in CI, not 3.12
+- astral-sh/setup-uv@v4 supports both enable-cache and python-version parameters directly
+- .hypothesis/ cache uses restore-keys prefix for partial cache hit on new lockfile
+
+### Gotchas
+- Acceptance criteria specified Python 3.12 but project requires >=3.13 — used 3.13 to avoid version incompatibility

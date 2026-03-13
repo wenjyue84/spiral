@@ -1,5 +1,7 @@
 # SPIRAL
 
+[![CI](https://github.com/wenjyue84/spiral/actions/workflows/ci.yml/badge.svg)](https://github.com/wenjyue84/spiral/actions/workflows/ci.yml)
+
 **Self-iterating PRD Research & Implementation Autonomous Loop**
 
 SPIRAL autonomously discovers requirements, generates user stories, and implements them. Given a `prd.json`, it loops through research, test synthesis, story merging, and implementation until all stories pass.
