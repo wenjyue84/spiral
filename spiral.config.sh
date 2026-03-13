@@ -31,3 +31,8 @@ SPIRAL_STORY_PREFIX="US"
 # ── Capacity limit: skip Phase R when pending stories exceed this ─────────────
 # Prevents flooding prd.json during aggressive non-stop runs
 SPIRAL_MAX_PENDING=30
+
+# ── Specialist prompt file (optional) ────────────────────────────────────────
+# Path to a static prompt file used as fallback when Gemini is unavailable.
+# Leave empty unless you have a domain-specific specialist prompt.
+SPIRAL_RESEARCH_SPECIALIST_PROMPT=""
