@@ -679,6 +679,12 @@ Story JSON: $STORY_JSON"
     fi
   fi
 
+  # ── Rate-limit retry loop (covers all AI tools) ────────────────────────────
+  _RL_ATTEMPT=0
+  _RL_MAX=5
+  _RL_TMP="${SPIRAL_SCRATCH_DIR}/_rate_limit_check_$$.tmp"
+
+  while true; do
   echo "  ─────── AI Output Start ($EFFECTIVE_TOOL) ───────"
   if [[ "$EFFECTIVE_TOOL" == "claude" ]]; then
     # Build model flag (empty if no model routing)
@@ -756,22 +762,40 @@ $BROWSER_TOOLS_HINT"
         log_spiral_event "api_overloaded" "\"retry_attempt\":${_529_ATTEMPT},\"sleep_sec\":${_sleep}"
         sleep "$_sleep"
       else
-        rm -f "$_CLAUDE_TMP"
+        mv "$_CLAUDE_TMP" "$_RL_TMP" 2>/dev/null || true
         break
       fi
     done
   elif [[ "$EFFECTIVE_TOOL" == "codex" ]]; then
     echo "  [ralph] Delegating to Codex (GPT-5)..."
     PROMPT_TEXT=$(cat "$PROMPT_FILE")
-    codex exec --full-auto -C "$(pwd)" "$PROMPT_TEXT" 2>&1 | tail -60
+    codex exec --full-auto -C "$(pwd)" "$PROMPT_TEXT" 2>&1 | tee "$_RL_TMP" | tail -60
   elif [[ "$EFFECTIVE_TOOL" == "qwen" ]]; then
     echo "  [ralph] Delegating to Qwen Code (free quota)..."
     PROMPT_TEXT=$(cat "$PROMPT_FILE")
-    qwen "$PROMPT_TEXT" --approval-mode yolo 2>&1 | tail -200
+    qwen "$PROMPT_TEXT" --approval-mode yolo 2>&1 | tee "$_RL_TMP" | tail -200
   else
-    amp --prompt-file "$PROMPT_FILE"
+    amp --prompt-file "$PROMPT_FILE" 2>&1 | tee "$_RL_TMP"
   fi
   echo "  ─────── AI Output End ($EFFECTIVE_TOOL) ─────────"
+
+  # ── Rate-limit detection (all AI tools) ────────────────────────────────────
+  if grep -qiE '429|rate_limit_error|Too Many Requests' "$_RL_TMP" 2>/dev/null; then
+    _RL_ATTEMPT=$((_RL_ATTEMPT + 1))
+    rm -f "$_RL_TMP"
+    if [[ "$_RL_ATTEMPT" -gt "$_RL_MAX" ]]; then
+      echo "  [ralph] Rate limit max retries ($_RL_MAX) reached — proceeding to story outcome check"
+      break
+    fi
+    echo "  [ralph] Rate limited — waiting 60s before retry (attempt $_RL_ATTEMPT/$_RL_MAX)"
+    log_spiral_event "rate_limited" "\"retry_attempt\":${_RL_ATTEMPT},\"sleep_sec\":60"
+    sleep 60
+    continue
+  fi
+  rm -f "$_RL_TMP"
+  break
+  done  # end rate-limit retry loop
+
   STORY_END=$(date +%s)
   STORY_DURATION=$(( (STORY_END - STORY_START) / 60 ))
   echo "  [time] Story took ${STORY_DURATION}m"

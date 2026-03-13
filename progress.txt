@@ -1185,3 +1185,27 @@ Completed: Handle HTTP 529 overloaded_error with separate backoff strategy from 
 ### Gotchas
 - JQ not resolved at SCRATCH_DIR/PRD_FILE/CHECKPOINT_FILE definition block — status must come later
 - config/memory-pressure-check.sh runs before JQ resolution; unavoidable since it's sourced earlier
+## Iteration 6 - Fri, Mar 13, 2026  3:48:29 PM
+Incomplete: Add --dry-run flag to spiral.sh to test loop control flow without API calls (ID: US-022) — attempt 1/3
+
+
+## Iteration - Story: US-033 - Detect API 429 rate-limit in ralph.sh and pause without burning a retry
+
+### What was implemented
+- Added rate-limit retry loop wrapping ALL AI tool invocations (claude, codex, qwen, amp)
+- Captures tool output to temp file `_RL_TMP` for post-invocation 429/rate_limit_error pattern detection
+- On rate-limit: sleeps 60s and retries same story WITHOUT incrementing story retry counter
+- Separate `_RL_ATTEMPT` counter (max 5) prevents infinite loops on persistent rate limits
+- For claude path: reuses existing `_CLAUDE_TMP` (moved to `_RL_TMP` after 529 handler exits)
+- For other tools: added `tee "$_RL_TMP"` to capture output alongside existing display pipes
+- Emits structured JSONL event `rate_limited` with retry_attempt and sleep_sec
+
+### Patterns discovered
+- The 529 overloaded_error handler (inner loop) and 429 rate-limit handler (outer loop) coexist cleanly
+- 529 handler catches overloaded_error first; if it's a 429, it falls through to the outer rate-limit loop
+- Using `mv` instead of `rm` for `_CLAUDE_TMP` preserves output for the outer 429 check without duplicate capture
+
+### Gotchas
+- `grep -qiE '429'` could theoretically match line numbers or IDs — accepted trade-off per AC spec
+- When 529 handler reaches max retries, `_RL_TMP` won't exist (file already deleted) — grep silently fails, outer loop breaks
+- Rate-limit loop re-runs the full "AI Output Start/End" block on retry, which is intentional (fresh invocation)
