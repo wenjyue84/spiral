@@ -407,3 +407,6 @@ Here is the technical brief for implementing user story US-014.
 ### Gotchas
 - The skip segment is only rendered when ss["skipped"] > 0 (same conditional pattern as decomposed segment)
 - merge_worker_results.py must propagate _skipped so parallel workers' exhaustions survive the merge back to main
+## Iteration 8 - Fri, Mar 13, 2026 10:15:01 AM
+Completed: Mark stories _skipped: true when MAX_RETRIES is exhausted to stop infinite retries (ID: US-014) in 10m
+
