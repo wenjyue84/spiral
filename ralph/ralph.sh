@@ -281,6 +281,23 @@ append_result() {
     >> "$RESULTS_FILE"
 }
 
+# ── Event logger (writes structured JSONL to .spiral/spiral_events.jsonl) ────
+log_spiral_event() {
+  local event_type="$1"
+  local extra_json="${2:-}"
+  local events_file="${SPIRAL_SCRATCH_DIR}/spiral_events.jsonl"
+  mkdir -p "${SPIRAL_SCRATCH_DIR}"
+  local ts
+  ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  if [[ -n "$extra_json" ]]; then
+    printf '{"type":"%s","ts":"%s","story_id":"%s",%s}\n' \
+      "$event_type" "$ts" "${NEXT_STORY:-}" "$extra_json" >> "$events_file"
+  else
+    printf '{"type":"%s","ts":"%s","story_id":"%s"}\n' \
+      "$event_type" "$ts" "${NEXT_STORY:-}" >> "$events_file"
+  fi
+}
+
 # Check if all dependencies of a story are complete (passes: true)
 check_deps_met() {
   local story_id="$1"
@@ -707,14 +724,42 @@ $BROWSER_TOOLS_HINT"
       echo "  [browser] Chrome DevTools MCP detected — visual verification enabled"
     fi
     # Unset CLAUDECODE to allow nested Claude Code invocation from within an active session
-    (unset CLAUDECODE; claude -p "$RALPH_PROMPT_CONTENT" \
-      $CLAUDE_MODEL_FLAG \
-      --allowedTools "Edit,Write,Read,Glob,Grep,Bash,Skill,Task" \
-      --max-turns 75 \
-      --verbose \
-      --output-format stream-json \
-      --dangerously-skip-permissions \
-      2>&1 | node "$SCRIPT_DIR/stream-formatter.mjs") || true
+    # Wrap with 529 overloaded_error retry loop (separate from 429 rate-limit handling)
+    _529_ATTEMPT=0
+    _529_MAX=5
+    _529_BASE=2
+    _529_CAP=30
+    while true; do
+      _CLAUDE_TMP="${SPIRAL_SCRATCH_DIR}/_claude_raw_$$.tmp"
+      mkdir -p "${SPIRAL_SCRATCH_DIR}"
+      (unset CLAUDECODE; claude -p "$RALPH_PROMPT_CONTENT" \
+        $CLAUDE_MODEL_FLAG \
+        --allowedTools "Edit,Write,Read,Glob,Grep,Bash,Skill,Task" \
+        --max-turns 75 \
+        --verbose \
+        --output-format stream-json \
+        --dangerously-skip-permissions \
+        2>&1 | tee "$_CLAUDE_TMP" | node "$SCRIPT_DIR/stream-formatter.mjs") || true
+      # Detect HTTP 529 overloaded_error — separate handler from 429 rate-limit
+      if grep -qE 'overloaded_error|"529"' "$_CLAUDE_TMP" 2>/dev/null; then
+        _529_ATTEMPT=$((_529_ATTEMPT + 1))
+        rm -f "$_CLAUDE_TMP"
+        if [[ "$_529_ATTEMPT" -gt "$_529_MAX" ]]; then
+          echo "  [529] Max overload retries ($_529_MAX) reached — proceeding to story outcome check"
+          break
+        fi
+        _delay=$(( _529_BASE * (2 ** (_529_ATTEMPT - 1)) ))
+        [[ "$_delay" -gt "$_529_CAP" ]] && _delay="$_529_CAP"
+        _jitter=$(( (_delay * 10) / 100 + 1 ))
+        _sleep=$(( _delay + RANDOM % _jitter ))
+        echo "  [529] API overloaded (attempt $_529_ATTEMPT/$_529_MAX) — retrying in ${_sleep}s..."
+        log_spiral_event "api_overloaded" "\"retry_attempt\":${_529_ATTEMPT},\"sleep_sec\":${_sleep}"
+        sleep "$_sleep"
+      else
+        rm -f "$_CLAUDE_TMP"
+        break
+      fi
+    done
   elif [[ "$EFFECTIVE_TOOL" == "codex" ]]; then
     echo "  [ralph] Delegating to Codex (GPT-5)..."
     PROMPT_TEXT=$(cat "$PROMPT_FILE")

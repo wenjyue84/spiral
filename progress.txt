@@ -1133,3 +1133,31 @@ Completed: Lock git worktrees during active worker execution to prevent prune ra
 
 ### Gotchas
 - If BRANCH is empty (detached HEAD fallback), `git diff "HEAD..$BRANCH"` in step 6.5 would silently produce an empty patch via `|| true` — acceptable since the scenario is extreme edge case
+## Iteration 4 - Fri, Mar 13, 2026  3:34:34 PM
+Completed: Guard against 'branch already checked out' before git worktree add (ID: US-078) in 5m
+
+
+## Iteration N - Story: US-079: Handle HTTP 529 overloaded_error with separate backoff strategy from 429
+
+### What was implemented
+- Added `log_spiral_event()` helper function in ralph/ralph.sh after `append_result` (line ~284)
+  - Writes structured JSONL to `.spiral/spiral_events.jsonl`
+  - Accepts event_type and optional extra_json fragment
+- Wrapped claude invocation with a 529-specific retry loop (lines ~727-762)
+  - Tees claude output to `$SPIRAL_SCRATCH_DIR/_claude_raw_$$.tmp` for analysis
+  - Detects `overloaded_error` or `"529"` in output via grep
+  - Exponential backoff: base=2s, cap=30s, 10% jitter
+  - Max 5 529 retries before proceeding to story outcome check
+  - Logs each retry to spiral_events.jsonl as `api_overloaded`
+  - 529 retries do NOT call `increment_retry` — story's _retryCount is unaffected
+
+### Patterns discovered
+- `SPIRAL_SCRATCH_DIR` is set to `.spiral` by default (line 83 of ralph.sh)
+- The claude command output is combined (2>&1) before piping; both stdout and stderr captured in temp file
+- PID-based temp file name (`$$`) ensures uniqueness when multiple workers run concurrently
+
+### Gotchas
+- `tee` is available on MINGW64; no compatibility issues
+- The temp file uses `$$` (shell PID) — safe for parallel workers since each has own PID
+- After retry loop, the original story outcome check (`PASSES=$($JQ ...)`) runs normally
+
