@@ -2,65 +2,13 @@
 import json
 import argparse
 import os
-import subprocess
 import tempfile
-
-def call_claude(prompt, model="haiku"):
-    """Call Claude CLI to classify a story's complexity. Returns 'simple' or 'complex'."""
-    cmd = [
-        "claude", "-p", prompt,
-        "--model", model,
-        "--max-turns", "1",
-        "--output-format", "text",
-        "--dangerously-skip-permissions",
-    ]
-    try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=60,
-            encoding="utf-8",
-            errors="replace",
-        )
-        if result.returncode != 0:
-            print(f"  [router] Claude CLI failed (exit {result.returncode}), defaulting to sonnet")
-            return "complex"
-        output = result.stdout.strip().lower()
-        if "simple" in output:
-            return "simple"
-        if "complex" in output:
-            return "complex"
-        print(f"  [router] Unexpected response '{output[:80]}', defaulting to complex")
-        return "complex"
-    except subprocess.TimeoutExpired:
-        print("  [router] Claude CLI timed out, defaulting to complex")
-        return "complex"
-    except FileNotFoundError:
-        print("  [router] Claude CLI not found, defaulting to complex")
-        return "complex"
-
-def get_router_prompt(story):
-    """
-    Creates a token-efficient prompt for the router model to classify a story's complexity.
-    """
-    # Exclude fields that might be very long and not relevant for complexity assessment
-    story_for_prompt = {k: v for k, v in story.items() if k not in ['acceptanceCriteria', 'technicalNotes']}
-    return f"""
-<task>Classify the complexity of the following user story.</task>
-<story_json>
-{json.dumps(story_for_prompt, indent=2)}
-</story_json>
-<rules>
-- Respond with only a single word: 'simple' or 'complex'.
-- 'simple': Can be solved by editing 1-2 files, has no major dependencies.
-- 'complex': Involves multiple files, architectural changes, or deep logic.
-</rules>
-Complexity:"""
+from .semantic_router import create_complexity_router
 
 def route_stories(prd_path, profile):
     """
-    Analyzes each pending story in the PRD file and annotates it with a recommended model.
+    Analyzes each pending story in the PRD file and annotates it with a recommended model
+    using a semantic router for complexity assessment.
     """
     if not os.path.exists(prd_path):
         raise FileNotFoundError(f"[router] ERROR: PRD file not found at {prd_path}")
@@ -72,17 +20,21 @@ def route_stories(prd_path, profile):
         print(f"[router] ERROR: Could not decode JSON from {prd_path}")
         return
 
+    router = create_complexity_router()
     stories_to_update = 0
+
     for story in prd.get("userStories", []):
         # Only route stories that are not yet done
         if story.get("passes") is not True:
             assigned_model = None
             if profile == "auto":
-                prompt = get_router_prompt(story)
-                complexity = call_claude(prompt, model="haiku").strip().lower()
+                story_title = story.get("title", "")
+                # Default to 'complex' if routing fails or is uncertain
+                complexity = router.route(story_title) or "complex"
+
                 if complexity == "complex":
                     assigned_model = "sonnet"
-                else:
+                else: # simple
                     assigned_model = "haiku"
                 print(f"  [router] Story '{story.get('id')}' -> complexity: {complexity} -> model: {assigned_model}")
             else:
@@ -101,14 +53,11 @@ def route_stories(prd_path, profile):
         try:
             with os.fdopen(temp_fd, 'w', encoding='utf-8') as tf:
                 json.dump(prd, tf, indent=2)
-            # Replace the original file with the new one
             os.replace(temp_path, prd_path)
         except Exception as e:
             print(f"[router] ERROR: Failed to write updated PRD file: {e}")
-            # Clean up temp file on error
             os.remove(temp_path)
         finally:
-            # Ensure temp file is removed if it still exists
             if os.path.exists(temp_path):
                 os.remove(temp_path)
     else:
@@ -126,3 +75,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

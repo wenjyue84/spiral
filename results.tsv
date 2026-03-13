@@ -1,0 +1,2 @@
+timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	retry_num	commit_sha
+2026-03-13T18:20:10Z	0	1	US-073	Add --version flag to spiral.sh showing installed git version	reject	1720	haiku	2	
