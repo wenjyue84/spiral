@@ -27,6 +27,9 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 
+# ── Cost Constants ───────────────────────────────────────────────────────────
+COST_PER_HOUR = {"haiku": 0.04, "sonnet": 0.24, "opus": 2.40}
+
 # ── Data Loaders ─────────────────────────────────────────────────────────────
 
 def load_prd(path: str) -> dict:
@@ -95,6 +98,11 @@ def compute_overview(prd: dict, results: list[dict]) -> dict:
 
     iters = max((r.get("spiral_iter", 0) for r in results), default=0) if results else 0
 
+    est_cost = sum(
+        r.get("duration_sec", 0) / 3600 * COST_PER_HOUR.get(r.get("model", ""), 0.24)
+        for r in results
+    )
+
     return {
         "total": total,
         "passed": passed,
@@ -106,6 +114,7 @@ def compute_overview(prd: dict, results: list[dict]) -> dict:
         "total_attempts": len(results),
         "elapsed": elapsed_str,
         "iterations": iters,
+        "est_cost": est_cost,
     }
 
 
@@ -424,7 +433,7 @@ body{{background:#1a1a2e;color:#e0e0e0;font-family:'Cascadia Code','Fira Code',C
 header{{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid #333}}
 header h1{{font-size:20px;color:#fff;letter-spacing:1px}}
 header .ts{{color:#888;font-size:11px}}
-.cards{{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}}
+.cards{{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}}
 .card{{background:#16213e;border:1px solid #0f3460;border-radius:8px;padding:16px;text-align:center}}
 .card .val{{font-size:24px;font-weight:bold;color:#fff}}
 .card .lbl{{font-size:11px;color:#888;margin-top:4px;text-transform:uppercase}}
@@ -493,6 +502,10 @@ footer{{text-align:center;color:#444;font-size:10px;margin-top:16px;padding-top:
 <div class="card">
 <div class="val">{overview["elapsed"]}</div>
 <div class="lbl">Elapsed &middot; {overview["iterations"]} iters</div>
+</div>
+<div class="card">
+<div class="val">${overview["est_cost"]:.2f}</div>
+<div class="lbl">Est. Cost &middot; estimate</div>
 </div>
 </div>
 

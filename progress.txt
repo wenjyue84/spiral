@@ -1058,3 +1058,19 @@ Incomplete: Implement main.py as a proper CLI with init, run, and status subcomm
 
 ### Gotchas
 - prd.json has unicode chars; must use encoding='utf-8' when reading/writing with Python
+
+## Iteration N+1 - Story: US-021: Add estimated token cost card to spiral_dashboard.py overview
+
+### What was implemented
+- Added COST_PER_HOUR = {'haiku': 0.04, 'sonnet': 0.24, 'opus': 2.40} constant after UTF-8 setup block
+- Added est_cost computation in compute_overview() using sum(duration_sec/3600 * rate)
+- Changed cards CSS grid from repeat(4,1fr) to repeat(5,1fr)
+- Added 5th card: Est. Cost displaying $X.XX with subtitle 'estimate'
+- Empty results produce $0.00
+
+### Patterns discovered
+- COST_PER_HOUR uses 'sonnet' as default fallback (0.24) for unknown models
+- Overview dict is used directly in f-string HTML template; new keys just work
+
+### Gotchas
+- None — straightforward computation and HTML addition
