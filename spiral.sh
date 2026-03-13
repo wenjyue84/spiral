@@ -344,6 +344,11 @@ trap cleanup EXIT
 trap '_spiral_cleanup INT' INT
 trap '_spiral_cleanup TERM' TERM
 
+# SIGCHLD trap: reap zombie worker processes as they exit (US-076)
+# Uses `wait -n` (bash 4.3+) in a loop to drain all available zombies per signal delivery.
+# The `true` at the end suppresses non-zero exit when no children remain.
+trap 'while wait -n 2>/dev/null; do :; done; true' SIGCHLD
+
 # ── Memory watchdog — background monitor (graduated pressure or kill-only) ────
 if [[ "${SPIRAL_MEMORY_WATCHDOG:-1}" -eq 1 ]] && command -v powershell.exe &>/dev/null; then
   _WATCHDOG_ARGS="-ThresholdMB ${SPIRAL_MEMORY_THRESHOLD:-1536} -ParentPID $$ -IntervalSec ${SPIRAL_MEMORY_POLL_INTERVAL}"

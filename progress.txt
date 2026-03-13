@@ -1074,3 +1074,23 @@ Incomplete: Implement main.py as a proper CLI with init, run, and status subcomm
 
 ### Gotchas
 - None — straightforward computation and HTML addition
+## Iteration 1 - Fri, Mar 13, 2026  3:18:19 PM
+Incomplete: Add SIGCHLD trap to spiral.sh to reap zombie worker processes (ID: US-076) — attempt 1/3
+
+
+## Iteration N - Story: US-076: Add SIGCHLD trap to spiral.sh to reap zombie worker processes
+
+### What was implemented
+- Added SIGCHLD trap at line 350 of spiral.sh, right after existing EXIT/INT/TERM traps
+- Trap uses `while wait -n 2>/dev/null; do :; done; true` to drain all available zombies per signal delivery
+- `wait -n` (bash 4.3+) waits for any one child; the while loop drains all queued exits
+- The `true` suppresses non-zero exit code when no children remain
+
+### Patterns discovered
+- Existing trap structure: EXIT→cleanup, INT→_spiral_cleanup, TERM→_spiral_cleanup (lines 343-345)
+- SIGCHLD is independent of other signal handlers; no interference with INT/TERM shutdown flow
+- Parallel workers spawned via run_parallel_ralph.sh at line 981; their zombies are now auto-reaped
+
+### Gotchas
+- `wait -n` requires bash 4.3+ (already a project requirement)
+- SIGCHLD trap fires for every child exit, including background watchdog — the while/wait pattern handles all
