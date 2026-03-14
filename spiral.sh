@@ -639,6 +639,19 @@ except Exception:
 " 2>/dev/null || echo "?")
     echo "  Run cost  : ${_TOTAL_COST} USD (from story_costs.json)"
   fi
+  # Report orphaned spiral-worker worktrees (US-176)
+  _WT_BASE="$REPO_ROOT/.spiral-workers"
+  if [[ -d "$_WT_BASE" ]]; then
+    _ORPHAN_COUNT=$(git -C "$REPO_ROOT" worktree list --porcelain 2>/dev/null \
+      | grep "^worktree " | grep -c "spiral-workers" 2>/dev/null || echo "0")
+    if [[ "$_ORPHAN_COUNT" -gt 0 ]]; then
+      echo "  Worktrees : $_ORPHAN_COUNT orphaned spiral-worker worktree(s) in $_WT_BASE"
+    else
+      echo "  Worktrees : clean (no orphaned spiral-worker worktrees)"
+    fi
+  else
+    echo "  Worktrees : clean (no orphaned spiral-worker worktrees)"
+  fi
   # Show manually-skipped stories
   if [[ -n "$SPIRAL_SKIP_STORY_IDS" ]]; then
     IFS=',' read -ra _SKIP_ARR <<<"$SPIRAL_SKIP_STORY_IDS"

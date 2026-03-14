@@ -577,6 +577,26 @@ while [[ "$_ALL_DONE" -eq 0 ]]; do
           done
           # Timed-out stories remain passes=false in main prd.json — merge_worker_results.py
           # only promotes passes=true entries, so no retry_count increment occurs.
+          # Force-remove orphaned worktree and branch immediately (US-176)
+          _TO_BRANCH="${WORKER_BRANCHES[$i]:-}"
+          _TO_WTREE="${WORKER_DIRS[$i]:-}"
+          echo "  [parallel] Worker $WORKER_NUM: removing orphaned worktree after timeout..."
+          if [[ -n "$_TO_WTREE" && -d "$_TO_WTREE" ]]; then
+            git -C "$REPO_ROOT" worktree unlock "$_TO_WTREE" 2>/dev/null || true
+            if git -C "$REPO_ROOT" worktree remove "$_TO_WTREE" --force 2>/dev/null; then
+              echo "  [parallel] Worker $WORKER_NUM: worktree removed"
+            else
+              echo "  [parallel] Worker $WORKER_NUM: WARNING — worktree removal failed, continuing"
+            fi
+          fi
+          if [[ -n "$_TO_BRANCH" ]]; then
+            if git -C "$REPO_ROOT" branch -D "$_TO_BRANCH" 2>/dev/null; then
+              echo "  [parallel] Worker $WORKER_NUM: branch '$_TO_BRANCH' deleted"
+            else
+              echo "  [parallel] Worker $WORKER_NUM: WARNING — branch deletion failed, continuing"
+            fi
+          fi
+          git -C "$REPO_ROOT" worktree prune 2>/dev/null || true
         elif [[ "$WORKER_EXIT" -ne 0 ]]; then
           echo "  [parallel] Worker $WORKER_NUM exited with status $WORKER_EXIT — continuing remaining workers"
         else
