@@ -256,6 +256,8 @@ SPIRAL_SPECKIT_CONSTITUTION="${SPIRAL_SPECKIT_CONSTITUTION:-}"
 SPIRAL_SPECKIT_SPECS_DIR="${SPIRAL_SPECKIT_SPECS_DIR:-}"
 SPIRAL_FOCUS="${SPIRAL_CLI_FOCUS:-${SPIRAL_FOCUS:-}}"
 SPIRAL_SKIP_STORY_IDS="${SPIRAL_SKIP_STORY_IDS:-}"  # comma-separated IDs to permanently skip without penalty
+SPIRAL_MAX_STORIES="${SPIRAL_MAX_STORIES:-200}"  # warn threshold for total story count in prd.json
+SPIRAL_MAX_STORIES_ABORT="${SPIRAL_MAX_STORIES_ABORT:-0}"  # 0 = warn only; non-zero = fail hard when exceeded
 SPIRAL_MAX_PENDING="${SPIRAL_MAX_PENDING:-0}"  # 0 = unlimited
 SPIRAL_MAX_RESEARCH_STORIES="${SPIRAL_MAX_RESEARCH_STORIES:-0}"  # 0 = unlimited; cap research candidates per iteration
 SPIRAL_STORY_BATCH_SIZE="${SPIRAL_STORY_BATCH_SIZE:-20}"  # 0 = disabled (show all)

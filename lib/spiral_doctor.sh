@@ -130,6 +130,21 @@ spiral_doctor() {
     warn_count=$((warn_count + 1))
   fi
 
+  # ── Story count health ───────────────────────────────────────────────────────
+  if [[ -f "prd.json" ]]; then
+    local story_count total_count passed_count
+    total_count=$("$JQ" '.userStories | length' prd.json 2>/dev/null || echo "0")
+    passed_count=$("$JQ" '[.userStories[] | select(.passes == true)] | length' prd.json 2>/dev/null || echo "0")
+    story_count=$total_count
+    local max_stories="${SPIRAL_MAX_STORIES:-200}"
+    if [[ "$story_count" -gt "$max_stories" ]]; then
+      echo "  [doctor] [WARN] prd.json has $story_count stories ($passed_count passed) — exceeds threshold $max_stories; consider archiving passed stories"
+      warn_count=$((warn_count + 1))
+    else
+      echo "  [doctor] [OK] prd.json story count: $story_count total ($passed_count passed), threshold: $max_stories"
+    fi
+  fi
+
   # ── Summary ────────────────────────────────────────────────────────────────
   echo ""
   if [[ "$error_count" -eq 0 ]]; then

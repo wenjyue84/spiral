@@ -60,6 +60,19 @@ spiral_preflight_check() {
     fi
   fi
 
+  # ── Story count health check ────────────────────────────────────────────────
+  local max_stories="${SPIRAL_MAX_STORIES:-200}"
+  local abort_on_excess="${SPIRAL_MAX_STORIES_ABORT:-0}"
+  local story_count
+  story_count=$("$JQ" '.userStories | length' "$prd_file" 2>/dev/null || echo "0")
+  if [[ "$story_count" -gt "$max_stories" ]]; then
+    echo "  [preflight] WARNING: prd.json has $story_count stories (threshold: $max_stories) — consider archiving passing stories to reduce context size"
+    if [[ "${abort_on_excess}" != "0" ]]; then
+      echo "  [preflight] FATAL: SPIRAL_MAX_STORIES_ABORT is set — aborting due to story count ($story_count > $max_stories)"
+      exit 1
+    fi
+  fi
+
   # ── ShellCheck (informational only) ────────────────────────────────────────
   if command -v shellcheck >/dev/null 2>&1; then
     local sc_errors=0

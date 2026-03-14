@@ -152,6 +152,14 @@
 # Default: 0 (unlimited)
 # SPIRAL_MAX_RESEARCH_STORIES=10
 
+# ── Story count health threshold ────────────────────────────────────────────
+# Warn when total story count in prd.json exceeds this value.
+# Large PRDs degrade AI context quality and slow jq operations.
+# Set SPIRAL_MAX_STORIES_ABORT=1 to fail hard (instead of warn) when exceeded.
+# Default: 200 (warn only)
+# SPIRAL_MAX_STORIES=200
+# SPIRAL_MAX_STORIES_ABORT=0
+
 # ── Max pending stories ────────────────────────────────────────────────────
 # Hard cap on total incomplete (pending) stories in prd.json.
 # Phase M will stop adding new stories once pending count reaches this limit.

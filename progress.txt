@@ -2911,3 +2911,24 @@ Incomplete: Emit JUnit XML from bats runs for GitHub Actions test summary (ID: U
 - The `do_git_commit` function must be defined before the main loop but after the JQ variable is set
 - SPIRAL_GIT_EMAIL defaults to `spiral@noreply.local` when SPIRAL_GIT_AUTHOR is set but email is empty
 
+## Iteration 12 - Sat, Mar 14, 2026  5:30:48 PM
+Incomplete: Emit JUnit XML from bats runs for GitHub Actions test summary (ID: US-089) — attempt 1/3
+
+
+## Iteration N - Story: US-103: Add prd.json story count health check
+
+### What was implemented
+- Added `SPIRAL_MAX_STORIES` (default 200) and `SPIRAL_MAX_STORIES_ABORT` (default 0) env var defaults to spiral.sh (lines ~259-260)
+- Added story count health check block to `lib/validate_preflight.sh`: counts `.userStories | length` via jq, emits WARNING when count > SPIRAL_MAX_STORIES, exits 1 when SPIRAL_MAX_STORIES_ABORT is non-zero
+- Added story count health report to `lib/spiral_doctor.sh`: reports total/passed counts and warns (with warn_count++) when count exceeds SPIRAL_MAX_STORIES
+- Added commented config examples to `templates/spiral.config.example.sh`
+- Created `tests/story_count_health.bats` with 8 tests: all pass
+
+### Patterns discovered
+- validate_preflight.sh uses `"$JQ"` (resolved binary path) for all jq calls — not bare `jq`
+- spiral_doctor.sh increments `warn_count` for issues, `error_count` for fatal errors
+- prd.json top-level key is `userStories` (not `stories`) — the technicalNotes had the wrong key
+
+### Gotchas
+- The technical note says `jq '.stories | length'` but the actual key is `.userStories` — must use `.userStories | length`
+- SPIRAL_MAX_STORIES_ABORT check uses `!= "0"` string comparison (not `-ne`) because the var could be empty string vs "0"
