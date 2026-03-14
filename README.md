@@ -190,6 +190,28 @@ bash spiral.sh 5 --gate proceed --ralph-workers 3
 bash spiral.sh 10 --gate proceed --config /path/to/my-config.sh
 ```
 
+## Exit Codes
+
+CI pipelines and the `SPIRAL_ON_COMPLETE` hook can branch on `$?` using these values:
+
+| Code | Constant | Meaning |
+|------|----------|---------|
+| 0 | *(success)* | All stories passed / operation completed OK |
+| 2 | `ERR_BAD_USAGE` | Wrong CLI arguments or unknown flag |
+| 3 | `ERR_CONFIG` | Missing or invalid `spiral.config.sh` value |
+| 4 | `ERR_MISSING_DEP` | Required tool not found (`jq`, `ralph.sh`, …) |
+| 5 | `ERR_PRD_NOT_FOUND` | `prd.json` file not found |
+| 6 | `ERR_PRD_CORRUPT` | `prd.json` corrupt and unrecoverable |
+| 7 | `ERR_SCHEMA_VERSION` | `prd.json` schemaVersion too new for SPIRAL |
+| 8 | `ERR_COST_CEILING` | Spend cap (`SPIRAL_COST_CEILING`) reached |
+| 9 | `ERR_ZERO_PROGRESS` | Zero-progress stall — all pending blocked |
+| 10 | `ERR_REPLAY_FAILED` | `--replay` mode: story implementation failed |
+| 11 | `ERR_STORY_NOT_FOUND` | Story ID passed to `--replay` not in `prd.json` |
+| 12 | `ERR_ROLLBACK_FAILED` | `--rollback` mode: git revert or guard failed |
+| 13 | `ERR_MAX_ITERS` | Max spiral iterations reached; stories remain |
+| 14 | `ERR_API_DOWN` | Claude API unreachable at startup probe |
+| 130 | *(signal)* | Interrupted by SIGINT (Ctrl-C) — shell standard |
+
 ## Configuration Reference
 
 Place `spiral.config.sh` in your project root. All variables have defaults — only set what you need to override.

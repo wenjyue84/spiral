@@ -4031,3 +4031,49 @@ This brief outlines the implementation for automated workspace cleanup logic wit
 ### Gotchas
 - Cache only works when SPIRAL_RUN_ID is non-empty; cache write is skipped if empty
 - Worker worktrees (.spiral-workers/) share the same $SCRATCH_DIR/.spiral via SPIRAL_SCRATCH_DIR export
+
+
+## Pre-analysis for US-136 (Gemini 2.5 Pro)
+**Subject: Technical Brief for US-136: Workspace Cleanup**
+
+**1. Files to Modify:**
+*   `spiral.sh`: To house the new `cleanup_workspace()` function and logic to invoke it.
+*   `lib/spiral_events.sh`: To add a function for logging the `workspace_cleanup` event.
+
+**2. Key Components & Hooks:**
+*   **Environment Variables:** `SPIRAL_WORKSPACE_CLEANUP` (controls execution), `SPIRAL_CACHE_TTL` (sets cache retention).
+*   **New Function:** A new bash function, `cleanup_workspace()`, will be implemented in `spiral.sh`.
+*   **Execution Hook:** The call to `cleanup_workspace` will be placed at the very end of the main processing loop in `spiral.sh`, conditional on the run's success.
+
+**3. Implementation Approach:**
+*   Define `cleanup_workspace()` inside `spiral.sh`.
+*   At the end of the main script logic, add a condition: `if [[ "${SPIRAL_WORKSPACE_CLEANUP}" == "true" ]]`.
+*   This condition should first verify that all stories in `results.tsv` are `passed` or `skipped`.
+*   The function will calculate the size of the `.spiral/` directory before and after cleanup using `du -sb`.
+*   Use `find` with `-mtime` to delete expired research cache and another `find` for zero-byte logs.
+*   Archive and remove old `_iteration_summary_*.json` files as per technical notes.
+*   Log the `bytes_freed` metric to `spiral_events.jsonl` via the event logging utility.
+
+**4. Edge Cases & Gotchas:**
+*   The success-check logic must be robust to prevent cleanup on failed or incomplete runs.
+*   The `tar` command for summaries should be handled carefully to prevent errors if no files match. The "remove" action implies an `rm` post-archiving.
+*   The AC mentions removing summaries "older than 5 iterations," but the technical note suggests globbing them all. This needs clarification; a simple `ls -t | tail -n +6 | xargs rm` might be needed.
+
+
+## Iteration N - Story: US-181: Replace bare exit numbers in spiral.sh with named exit code constants
+
+### What was implemented
+- Added `ERR_MAX_ITERS=13` and `ERR_API_DOWN=14` constants to spiral.sh (after existing ERR_ constants)
+- Updated header comment table to include the two new constants
+- Changed `exit 0` at the max-iterations path (line ~2934) to `exit $ERR_MAX_ITERS` — allows CI to distinguish "done" vs "ran out of iterations"
+- Added "Exit Codes:" section to `--help` output listing all 14 codes + signal 130
+- Added "Exit Codes" table to README.md (after CLI Options, before Configuration Reference)
+- Updated `tests/exit_codes.bats`: added static checks for ERR_ROLLBACK_FAILED=12, ERR_MAX_ITERS=13, ERR_API_DOWN=14; updated count assertion to ≥13; added `--help` listing test and max-iters-path test
+
+### Patterns discovered
+- exit_codes.bats already existed with 12 tests (US-121); US-181 extends it to 23 tests
+- test_route_stories.py has a pre-existing ImportError (relative import) — unrelated to this story; skip with --ignore
+
+### Gotchas
+- Changing max-iters exit from 0 to 13 is a breaking change for CI pipelines that tested `$? -eq 0` after a partial run; document clearly in README/help
+- ERR_API_DOWN=14 is a placeholder for US-179 — the constant exists, but no code uses it yet

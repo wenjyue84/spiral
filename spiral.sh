@@ -50,6 +50,8 @@ set -euo pipefail
 # │  10 │ ERR_REPLAY_FAILED   │ --replay mode: story implementation failed   │
 # │  11 │ ERR_STORY_NOT_FOUND │ Story ID passed to --replay not in prd.json  │
 # │  12 │ ERR_ROLLBACK_FAILED │ --rollback mode: git revert or guard failed  │
+# │  13 │ ERR_MAX_ITERS       │ Max spiral iterations reached; stories remain│
+# │  14 │ ERR_API_DOWN        │ Claude API unreachable at startup probe      │
 # │ 130 │ (signal)            │ Interrupted by SIGINT (Ctrl-C) — shell std   │
 # └─────┴─────────────────────┴──────────────────────────────────────────────┘
 readonly ERR_BAD_USAGE=2
@@ -63,6 +65,8 @@ readonly ERR_ZERO_PROGRESS=9
 readonly ERR_REPLAY_FAILED=10
 readonly ERR_STORY_NOT_FOUND=11
 readonly ERR_ROLLBACK_FAILED=12
+readonly ERR_MAX_ITERS=13
+readonly ERR_API_DOWN=14
 
 # ── Memory guard — cap V8 heap to prevent OOM on 16 GB machines ─────────────
 # Each Claude CLI (Node.js) can consume 4 GB+ uncapped; with multiple processes
@@ -280,6 +284,23 @@ while [[ $# -gt 0 ]]; do
       echo "  See templates/spiral.config.example.sh for all variables."
       echo ""
       echo "Phases per iteration: R(esearch) → T(est synth) → M(erge) → G(ate) → I(mplement) → V(alidate) → C(heck done)"
+      echo ""
+      echo "Exit Codes:"
+      echo "   0  Success — all stories passed or operation completed OK"
+      echo "   2  ERR_BAD_USAGE       — wrong CLI arguments or unknown flag"
+      echo "   3  ERR_CONFIG          — missing or invalid spiral.config.sh value"
+      echo "   4  ERR_MISSING_DEP     — required tool not found (jq, ralph.sh, …)"
+      echo "   5  ERR_PRD_NOT_FOUND   — prd.json file not found"
+      echo "   6  ERR_PRD_CORRUPT     — prd.json corrupt and unrecoverable"
+      echo "   7  ERR_SCHEMA_VERSION  — prd.json schemaVersion too new for SPIRAL"
+      echo "   8  ERR_COST_CEILING    — spend cap (SPIRAL_COST_CEILING) reached"
+      echo "   9  ERR_ZERO_PROGRESS   — zero-progress stall; all pending blocked"
+      echo "  10  ERR_REPLAY_FAILED   — --replay: story implementation failed"
+      echo "  11  ERR_STORY_NOT_FOUND — story ID passed to --replay not in prd.json"
+      echo "  12  ERR_ROLLBACK_FAILED — --rollback: git revert or guard failed"
+      echo "  13  ERR_MAX_ITERS       — max iterations reached; stories remain"
+      echo "  14  ERR_API_DOWN        — Claude API unreachable at startup probe"
+      echo " 130  (signal)            — interrupted by SIGINT (Ctrl-C)"
       exit 0
       ;;
     --*)
@@ -2927,4 +2948,4 @@ SESSION_END=$(date +%s)
 SESSION_MINUTES=$(((SESSION_END - SESSION_START) / 60))
 echo "  Session: ${SESSION_MINUTES}m total, $SPIRAL_ITER iterations"
 
-exit 0
+exit $ERR_MAX_ITERS

@@ -62,10 +62,22 @@ constant_value() {
   grep -qE 'readonly ERR_STORY_NOT_FOUND=11' "$SPIRAL_SH"
 }
 
-@test "at least 8 ERR_ constants are defined" {
+@test "ERR_ROLLBACK_FAILED is defined as 12" {
+  grep -qE 'readonly ERR_ROLLBACK_FAILED=12' "$SPIRAL_SH"
+}
+
+@test "ERR_MAX_ITERS is defined as 13" {
+  grep -qE 'readonly ERR_MAX_ITERS=13' "$SPIRAL_SH"
+}
+
+@test "ERR_API_DOWN is defined as 14" {
+  grep -qE 'readonly ERR_API_DOWN=14' "$SPIRAL_SH"
+}
+
+@test "at least 13 ERR_ constants are defined" {
   local count
   count=$(grep -cE '^\s*readonly ERR_[A-Z_]+=[0-9]+' "$SPIRAL_SH")
-  [ "$count" -ge 8 ]
+  [ "$count" -ge 13 ]
 }
 
 @test "no bare 'exit 1' remains in spiral.sh" {
@@ -82,6 +94,20 @@ constant_value() {
 @test "exit code table comment block is present in spiral.sh" {
   grep -q 'ERR_BAD_USAGE' "$SPIRAL_SH"
   grep -q 'ERR_SCHEMA_VERSION' "$SPIRAL_SH"
+}
+
+@test "--help lists exit codes section" {
+  run bash "$SPIRAL_SH" --help
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -q 'Exit Codes'
+  echo "$output" | grep -q 'ERR_MAX_ITERS'
+  echo "$output" | grep -q 'ERR_API_DOWN'
+}
+
+@test "max-iters path uses ERR_MAX_ITERS not bare exit 0" {
+  # The final exit in spiral.sh (after while loop) must use the constant name.
+  # grep for the pattern: the last exit statement should reference ERR_MAX_ITERS.
+  grep -q 'exit \$ERR_MAX_ITERS' "$SPIRAL_SH"
 }
 
 # ── Runtime: error-path exit codes ────────────────────────────────────────
