@@ -304,6 +304,82 @@ Generated-By: SPIRAL"
   fi
 }
 
+# ── Conventional Commit message builder ─────────────────────────
+# build_commit_msg: Generates a Conventional Commits v1.0 compliant message
+# from story metadata.
+#
+# Args:
+#   $1 - story_id       (e.g. "US-042")
+#   $2 - story_title    (e.g. "Add retry logic to worker")
+#   $3 - story_tags_csv (comma-separated list from prd.json .tags, or "")
+#   $4 - files_touch    (first filesTouch entry, or "")
+#   $5 - spiral_run_id  (value of $SPIRAL_RUN_ID, or "")
+#   $6 - iteration      (Ralph iteration number, for the body line)
+#   $7 - duration       (story duration in minutes)
+#
+# Output format:
+#   <type>(<scope>): <story_title>
+#
+#   Completed by Ralph iteration <N> (<Dm>)
+#
+#   Story: <STORY_ID>
+#   SPIRAL-Run: <SPIRAL_RUN_ID>
+#   Co-Authored-By: Claude ...
+build_commit_msg() {
+  local story_id="${1:-}"
+  local story_title="${2:-}"
+  local story_tags_csv="${3:-}"
+  local first_file="${4:-}"
+  local spiral_run_id="${5:-}"
+  local iteration="${6:-}"
+  local duration="${7:-}"
+
+  # Derive type from first recognised tag; default to "feat"
+  local commit_type="feat"
+  local tag
+  IFS=',' read -ra _tags <<< "$story_tags_csv"
+  for tag in "${_tags[@]}"; do
+    tag="${tag// /}"   # strip whitespace
+    case "$tag" in
+      feat|fix|chore|refactor|test|docs|perf|ci|build|style)
+        commit_type="$tag"
+        break
+        ;;
+    esac
+  done
+
+  # Derive scope from top-level directory of first filesTouch entry
+  local commit_scope=""
+  if [[ -n "$first_file" ]]; then
+    # Strip leading ./ if present, then take the first path component
+    first_file="${first_file#./}"
+    local top_dir="${first_file%%/*}"
+    # If the file is at root level (no slash), use the filename stem
+    if [[ "$top_dir" == "$first_file" ]]; then
+      top_dir="${first_file%.*}"
+    fi
+    commit_scope="$top_dir"
+  fi
+
+  # Build subject line
+  local subject
+  if [[ -n "$commit_scope" ]]; then
+    subject="${commit_type}(${commit_scope}): ${story_title}"
+  else
+    subject="${commit_type}: ${story_title}"
+  fi
+
+  # Build body + trailers
+  local body="Completed by Ralph iteration ${iteration} (${duration}m)"
+  local trailers="Story: ${story_id}"
+  if [[ -n "$spiral_run_id" ]]; then
+    trailers="${trailers}
+SPIRAL-Run: ${spiral_run_id}"
+  fi
+
+  printf '%s\n\n%s\n\n%s\n' "$subject" "$body" "$trailers"
+}
+
 # ── Diff size guard ─────────────────────────────────────────────
 # _parse_diff_lines: Extract total changed lines (insertions + deletions)
 # from a `git diff --stat` summary line such as:
@@ -946,6 +1022,8 @@ while [[ $ITERATION -lt $MAX_ITERATIONS ]]; do
   STORY_TITLE=$($JQ -r ".userStories[] | select(.id == \"$NEXT_STORY\") | .title" "$PRD_FILE" | tr -d '\r')
   STORY_PRIORITY=$($JQ -r ".userStories[] | select(.id == \"$NEXT_STORY\") | .priority" "$PRD_FILE" | tr -d '\r')
   STORY_DEPS=$($JQ -r ".userStories[] | select(.id == \"$NEXT_STORY\") | .dependencies // [] | join(\", \")" "$PRD_FILE" | tr -d '\r')
+  STORY_TAGS=$($JQ -r ".userStories[] | select(.id == \"$NEXT_STORY\") | .tags // [] | join(\",\")" "$PRD_FILE" | tr -d '\r')
+  STORY_FIRST_FILE=$($JQ -r ".userStories[] | select(.id == \"$NEXT_STORY\") | .filesTouch // [] | first // empty" "$PRD_FILE" | tr -d '\r')
   RETRY_NOW=$(get_retry_count "$NEXT_STORY")
 
   # ── Stamp last_attempted timestamp on the story (US-129: stale detection) ──
@@ -1560,11 +1638,13 @@ except Exception:
         echo "" >>"$PROGRESS_FILE"
         continue
       fi
-      do_git_commit "feat: $NEXT_STORY - $STORY_TITLE
-
-Completed by Ralph iteration $ITERATION (${STORY_DURATION}m)
-
-Co-Authored-By: Claude ${COAUTHOR_LABEL} 4.6 <noreply@anthropic.com>" || echo "[warn] No changes to commit"
+      _CONV_MSG=$(build_commit_msg \
+        "$NEXT_STORY" "$STORY_TITLE" "${STORY_TAGS:-}" \
+        "${STORY_FIRST_FILE:-}" "${SPIRAL_RUN_ID:-}" \
+        "$ITERATION" "${STORY_DURATION:-0}")
+      _CONV_MSG="${_CONV_MSG}
+Co-Authored-By: Claude ${COAUTHOR_LABEL} 4.6 <noreply@anthropic.com>"
+      do_git_commit "$_CONV_MSG" || echo "[warn] No changes to commit"
 
       # Record _passedCommit SHA in prd.json for traceability
       COMMIT_SHA=$(git rev-parse HEAD 2>/dev/null || echo '')
