@@ -3331,3 +3331,24 @@ Incomplete: Stream-process large prd.json with jq --stream to avoid full in-memo
 - json.dump with control chars in string values: Python's json module *does* escape control chars as \uXXXX sequences when writing — so the JSON file itself won't contain raw bytes, but the parsed Python string *will* contain the actual character. check_encoding reads back parsed data so it catches them correctly.
 - Test assertion: "Café\x00café" minus \x00 = "Cafécafé" not "Caféé" (initial test was wrong — caught before commit)
 - Full suite: 554 passed, 2 skipped — no regressions
+## Iteration 34 - Sat, Mar 14, 2026 11:06:00 PM
+Incomplete: Stream-process large prd.json with jq --stream to avoid full in-memory parse (ID: US-123) — attempt 1/3
+
+
+## Iteration N - Story: US-138: Pinchtab Phase V E2E browser assertions integration
+
+### What was implemented
+- Implementation was already complete in a prior batch commit (feat(spiral): complete N stories)
+- spiral.sh lines 2369-2403: pinchtab block gated on SPIRAL_PINCHTAB_URL, runs after Chrome DevTools screenshot
+- SPIRAL_PINCHTAB_URL documented in spiral.config.sh (line 61) and templates/spiral.config.example.sh (line 381)
+- SPIRAL_PINCHTAB_E2E_CMD override supported (custom login flows / multi-step assertions)
+- Pinchtab failure prints WARNING but VALIDATE_EXIT unchanged
+- prd.json updated to passes: true
+
+### Patterns discovered
+- Batch spiral commits (iter 11-14) bundled multiple stories without marking prd.json; always verify passes field matches code state
+- test_route_stories.py has a pre-existing relative import failure (from .semantic_router) introduced by US-029; excluded from normal test runs; does not affect story acceptance
+
+### Gotchas
+- pinchtab CLI guard: command -v pinchtab; if missing, prints install hint (npm install -g pinchtab)
+- eval "$SPIRAL_PINCHTAB_E2E_CMD" runs in subshell (cd "$REPO_ROOT" && eval ...) — exit code captured but does not affect VALIDATE_EXIT
