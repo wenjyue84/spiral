@@ -3071,3 +3071,21 @@ Incomplete: Upload SPIRAL output artifacts (prd.json, spiral_events.jsonl) in CI
 ### Gotchas
 - Python inline in bats: `python3 -c "..."` with `$SCRATCH_DIR` inside doesn't expand in single-quoted heredoc - use `python3 - "$path" <<'PYEOF'` instead
 - The test_route_stories.py has a pre-existing ImportError (relative import issue) - pre-existing, not caused by this story
+
+
+## Iteration N - Story: US-094: Upload SPIRAL output artifacts in CI workflow
+
+### What was implemented
+- Added `Upload SPIRAL artifacts` step to `.github/workflows/spiral.yml`
+- Step uses `actions/upload-artifact@v4` with `if: always()` so it runs on failure too
+- Artifact name: `spiral-outputs-${{ github.run_id }}`
+- Uploads: `prd.json`, `.spiral/_research_output.json`, `results.tsv`, `.spiral/spiral_events.jsonl`
+- `retention-days: 7` set as required
+
+### Patterns discovered
+- Workflow file is short (48 lines); step added cleanly after "Run SPIRAL" step
+- `path:` block scalar accepts multiple globs, one per line under the YAML key
+
+### Gotchas
+- `test_route_stories.py` has an ImportError (pre-existing, unrelated to this story)
+- 501 tests pass when excluding that file; all acceptance criteria met

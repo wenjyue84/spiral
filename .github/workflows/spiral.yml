@@ -45,3 +45,15 @@ jobs:
           else
             bash spiral.sh "${{ inputs.max_iterations }}" --gate "$GATE"
           fi
+
+      - name: Upload SPIRAL artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spiral-outputs-${{ github.run_id }}
+          retention-days: 7
+          path: |
+            prd.json
+            .spiral/_research_output.json
+            results.tsv
+            .spiral/spiral_events.jsonl
