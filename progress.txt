@@ -4696,3 +4696,57 @@ This brief outlines the implementation plan for generating Architecture Decision
 ### Gotchas
 - SAMPLE_DIFF in tests must contain text that matches the assertion — `"exponential backoff"` is in the story title, not the diff content; use actual diff tokens like `"RateLimitError"` instead
 - `test_route_stories.py` has a pre-existing relative import error (`from .semantic_router import ...`) — ignore with `--ignore` flag when running full suite
+## Iteration 65 - Sun, Mar 15, 2026  6:38:27 AM
+Completed: Auto-generate Architecture Decision Record (ADR) when story passes (ID: US-155) in 16m
+
+
+## Pre-analysis for US-156 (Gemini 2.5 Pro)
+### US-156: `spiral compact-prd` Technical Brief
+
+**Objective:** Implement a `spiral compact-prd` command to remove transient runtime data from `prd.json` for completed or skipped stories, reducing file size and improving readability.
+
+**Files to Modify:**
+*   `main.py`: To add the new `compact-prd` subcommand to the CLI.
+*   `lib/compact_prd.py` (New File): To house the core compaction logic.
+*   `tests/test_compact_prd.py` (New File): For unit testing the compaction logic.
+*   `lib/spiral_doctor.sh`: To add a warning for large `prd.json` file sizes.
+
+**Project Concepts Involved:**
+*   **`prd.json`:** The central "Product Requirement Document" file containing an array of user stories.
+*   **Transient Fields:** Runtime metadata fields to be stripped (e.g., `_lastAttempt`, `_workerPid`, `_researchOutput`).
+*   **Story Status:** The compaction targets stories with status `passed` or `skipped`.
+
+**Recommended Implementation:**
+1.  In `main.py`, add a new subcommand `compact-prd` which calls the main function in `lib/compact_prd.py`.
+2.  In `lib/compact_prd.py`, implement a function that:
+    a. Reads `prd.json`.
+    b. Creates a timestamped backup in `.spiral/prd_pre_compact_<timestamp>.json`.
+    c. Iterates through each story, deleting `_lastAttempt`, `_workerPid`, `_researchOutput`, `_routerScore`, and `_lastResearchAttempt` if `status` is `passed` or `skipped`.
+    d. Uses an atomic write (write to `prd.json.tmp`, then rename) to save the compacted data, referencing the pattern in `lib/merge_stories.py`.
+    e. Calculates and prints a summary of changes (stories compacted, fields removed, KB saved).
+
+**Edge Cases & Gotchas:**
+*   The write operation **must** be atomic to prevent `prd.json` corruption on interruption.
+*   Ensure the backup process handles file paths and permissions correctly.
+*   The unit test must assert that essential fields (`id`, `title`, `status`) are never removed, even on target stories.
+*   Handle the case where `prd.json` might not exist or is not valid JSON.
+
+
+## Iteration N - Story: US-156: Add `spiral compact-prd` command to strip transient runtime fields from prd.json
+
+### What was implemented
+- Created lib/compact_prd.py: strips TRANSIENT_FIELDS (_lastAttempt, _workerPid, _researchOutput, _routerScore, _lastResearchAttempt) from stories where passes=True or status in {passed, skipped}
+- Atomic write via .tmp + os.replace pattern (reused from merge_stories.py)
+- Backs up original to .spiral/prd_pre_compact_<timestamp>.json before any write
+- Prints "Compacted N stories, removed M fields, saved X KB"
+- Added cmd_compact_prd + compact-prd subparser to main.py (--dry-run flag)
+- Added prd.json size warning (>1MB) to lib/spiral_doctor.sh
+- 15 unit tests in tests/test_compact_prd.py, all passing; 691 total tests pass
+
+### Patterns discovered
+- REQUIRED_FIELDS safety guard: never remove id/title even if they appeared in TRANSIENT_FIELDS
+- _story_is_compactable checks passes=True (legacy) OR status in {passed, skipped} (new format)
+- dry_run=True returns counts but skips both backup creation and file write
+
+### Gotchas
+- test_route_stories.py has a pre-existing relative import error (not related to this story)

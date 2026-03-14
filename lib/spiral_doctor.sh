@@ -118,6 +118,18 @@ spiral_doctor() {
     warn_count=$((warn_count + 1))
   fi
 
+  # ── Check prd.json file size (US-156) ───────────────────────────────────────
+  if [[ -f "${PRD_FILE:-prd.json}" ]]; then
+    local _prd_size_bytes
+    _prd_size_bytes=$(wc -c < "${PRD_FILE:-prd.json}" 2>/dev/null || echo "0")
+    if [[ "$_prd_size_bytes" -gt 1048576 ]]; then
+      local _prd_size_kb=$(( _prd_size_bytes / 1024 ))
+      echo "  [doctor] [WARN] prd.json is ${_prd_size_kb} KB (>1 MB) — consider running 'spiral compact-prd'"
+      echo "           → Info: Transient runtime fields accumulate over many runs and inflate file size."
+      warn_count=$((warn_count + 1))
+    fi
+  fi
+
   # ── Check prd.json for duplicate story IDs (US-180) ─────────────────────────
   if [[ -f "${PRD_FILE:-prd.json}" ]]; then
     local _prd_for_dup="${PRD_FILE:-prd.json}"

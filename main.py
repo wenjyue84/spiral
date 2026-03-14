@@ -279,6 +279,41 @@ def cmd_search(args) -> None:
     _sys.exit(0)
 
 
+def cmd_compact_prd(args) -> None:
+    """Strip transient runtime fields from completed/skipped stories in prd.json."""
+    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    from compact_prd import compact_prd  # type: ignore[import-untyped]
+
+    prd_path = str(PRD_FILE)
+    if not PRD_FILE.exists():
+        print(f"Error: {prd_path} not found", file=sys.stderr)
+        sys.exit(1)
+
+    result = compact_prd(
+        prd_path,
+        backup_dir=str(SCRATCH_DIR),
+        dry_run=getattr(args, "dry_run", False),
+    )
+
+    n = result["stories_compacted"]
+    m = result["fields_removed"]
+    saved = result["bytes_saved"]
+    backup = result["backup_path"]
+
+    if getattr(args, "dry_run", False):
+        print(f"[dry-run] Would compact {n} stories, remove {m} fields")
+        return
+
+    if m == 0:
+        print("Nothing to compact — no transient fields found in eligible stories.")
+        return
+
+    kb_saved = saved / 1024
+    print(f"Compacted {n} stories, removed {m} fields, saved {kb_saved:.1f} KB")
+    if backup:
+        print(f"Backup: {backup}")
+
+
 def cmd_init(args):  # noqa: ARG001
     """Run the interactive setup wizard."""
     setup_py = Path(__file__).parent / "lib" / "setup.py"
@@ -410,6 +445,17 @@ def main():
         help="Force fuzzy matching (skip semantic search)",
     )
 
+    compact_parser = subparsers.add_parser(
+        "compact-prd",
+        help="Strip transient runtime fields from completed/skipped stories in prd.json",
+    )
+    compact_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        dest="dry_run",
+        help="Show what would be removed without writing changes",
+    )
+
     args = parser.parse_args()
 
     if args.command == "init":
@@ -422,6 +468,8 @@ def main():
         cmd_estimate(args)
     elif args.command == "search":
         cmd_search(args)
+    elif args.command == "compact-prd":
+        cmd_compact_prd(args)
     else:
         parser.print_help()
         sys.exit(0)
