@@ -71,8 +71,8 @@
 │  ● Optional: Lighthouse audit, Chrome DevTools screenshot       │
 │                          │                                      │
 │  Phase C: CHECK DONE                                            │
-│  ● All stories pass + tests green → EXIT 0                      │
-│  ● Remaining stories → loop back to Phase R                     │
+│  ● Always loops back to Phase R to discover more stories        │
+│  ● Loop exits only when the time limit set in Phase 0 is hit   │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -147,8 +147,8 @@
 | | |
 |---|---|
 | **File** | `lib/phases/phase_c_check_done.sh` |
-| **Config** | `SPIRAL_ON_COMPLETE` |
-| **Output** | Exit 0 (done) or loop to Phase R |
+| **Config** | `SPIRAL_ON_COMPLETE`, time limit set in Phase 0 |
+| **Output** | Always loops back to Phase R; exits only when the Phase 0 time limit is reached |
 
 ---
 

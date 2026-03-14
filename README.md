@@ -146,8 +146,8 @@ SPIRAL runs in two stages: a **one-time startup** to align on goals and stories,
   │     Run project test suite (full or incremental)                │
   │                            │                                    │
   │  C) CHECK DONE                                                  │
-  │     All stories pass? → EXIT 0                                  │
-  │     Otherwise → loop back to R                                  │
+  │     Always loops back to R to discover more stories             │
+  │     Loop exits only when the time limit set in Phase 0 is hit  │
   └─────────────────────────────────────────────────────────────────┘
 ```
 
