@@ -3355,3 +3355,36 @@ Incomplete: Stream-process large prd.json with jq --stream to avoid full in-memo
 ## Iteration 35 - Sat, Mar 14, 2026 11:20:34 PM
 Incomplete: Stream-process large prd.json with jq --stream to avoid full in-memory parse (ID: US-123) — attempt 2/3
 
+
+## Iteration N - Story: US-142: Add `spiral.sh --rollback STORY_ID` to revert a passed story's commit
+
+### What was implemented
+- Added `ERR_ROLLBACK_FAILED=12` error code constant to spiral.sh
+- Added `ROLLBACK_STORY_ID=""` default variable to argument parsing section
+- Added `--rollback STORY_ID` argument parsing case (alongside `--replay`)
+- Added `--rollback STORY_ID` to `--help` output
+- Added rollback implementation block in spiral.sh (after --replay block, before startup):
+  - Validates story exists in prd.json (exits ERR_STORY_NOT_FOUND=11 if not)
+  - Guards against dirty working tree using `git status --porcelain | grep -v '^??'` (tracked files only, excludes untracked)
+  - Reads `_passedCommit` SHA; exits ERR_ROLLBACK_FAILED=12 with actionable message if absent
+  - Runs `git revert --no-edit <sha>` to create a revert commit (preserves linear history)
+  - Clears `passes`, `_passedCommit`, `_passedAt`, `_adrPath` from story using jq `|=` with `del()`
+  - Logs `rollback_complete` event to spiral_events.jsonl
+- Added 4 bats tests in `tests/test_rollback.bats` covering:
+  - Successful rollback: git revert created, prd.json passes=false, _passedCommit absent
+  - Missing _passedCommit: exits 12 with "no _passedCommit" message
+  - Dirty working-tree guard (modified tracked file): exits 12 with "uncommitted changes" message
+  - Story not found: exits 11 with "not found" message
+
+### Patterns discovered
+- Untracked files (`??` in git status) should NOT trigger the dirty tree guard — filter with `grep -v '^??'`
+- On Windows MSYS2/Git Bash, `/tmp/...` paths from `mktemp` are MSYS2 paths that native Python cannot resolve; use `os.path.join(os.getcwd(), 'filename')` in bats test Python assertions instead
+- bats test assertions that run Python scripts must avoid MSYS2 path strings — use relative paths (os.getcwd()) since each test `cd "$TEST_REPO"` first
+- jq `|= (.passes = false | del(._passedCommit) | del(._passedAt) | del(._adrPath))` works correctly for multi-field update + deletion
+- ERR_ROLLBACK_FAILED=12 added to error code table in spiral.sh header comment
+
+### Gotchas
+- The dirty tree guard must use `grep -v '^??'` to exclude untracked files; otherwise test repos (with prd.json and spiral.config.sh as untracked files) would always fail the guard
+- `echo "$_RB_UPDATED" > "$PRD_FILE"` correctly writes jq output to prd.json even with `exec > >(tee ...)` active (explicit `>` redirect overrides the exec redirect for that command)
+- The rollback block must come AFTER `log_spiral_event` is defined (sourced from lib/spiral_events.sh at line 891) and AFTER `exec > >(tee ...)` at line 662
+- Pre-existing test flakiness: test_partition.py and test_check_dag.py have Hypothesis health check failures (slow input generation) that are unrelated to this story

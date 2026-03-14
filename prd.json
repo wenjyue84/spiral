@@ -2912,7 +2912,7 @@
         "Record _passedCommit git SHA in prd.json when story passes"
       ],
       "estimatedComplexity": "small",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-143",

@@ -49,6 +49,7 @@ set -euo pipefail
 # │   9 │ ERR_ZERO_PROGRESS   │ Zero-progress stall — all pending blocked    │
 # │  10 │ ERR_REPLAY_FAILED   │ --replay mode: story implementation failed   │
 # │  11 │ ERR_STORY_NOT_FOUND │ Story ID passed to --replay not in prd.json  │
+# │  12 │ ERR_ROLLBACK_FAILED │ --rollback mode: git revert or guard failed  │
 # │ 130 │ (signal)            │ Interrupted by SIGINT (Ctrl-C) — shell std   │
 # └─────┴─────────────────────┴──────────────────────────────────────────────┘
 readonly ERR_BAD_USAGE=2
@@ -61,6 +62,7 @@ readonly ERR_COST_CEILING=8
 readonly ERR_ZERO_PROGRESS=9
 readonly ERR_REPLAY_FAILED=10
 readonly ERR_STORY_NOT_FOUND=11
+readonly ERR_ROLLBACK_FAILED=12
 
 # ── Memory guard — cap V8 heap to prevent OOM on 16 GB machines ─────────────
 # Each Claude CLI (Node.js) can consume 4 GB+ uncapped; with multiple processes
@@ -108,6 +110,7 @@ TIME_LIMIT_MINS=0     # 0 = no limit; >0 = stop after N minutes (--time-limit or
 DRY_RUN=0             # 1 = dry-run mode: skip API calls (R, T, I, V) but run control flow
 DOCTOR_MODE=0         # 1 = run dependency check and exit (--doctor)
 REPLAY_STORY_ID=""    # "" = normal mode; "US-XXX" = replay that story only (--replay)
+ROLLBACK_STORY_ID=""  # "" = normal mode; "US-XXX" = rollback that story's commit (--rollback)
 RESET_CHECKPOINT=0    # 1 = remove _checkpoint.json and start fresh (--reset)
 MIGRATE_MODE=0        # 1 = run prd.json schema migration and exit (--migrate)
 ARCHIVE_MODE=0        # 1 = archive completed stories and exit (--archive-done)
@@ -199,6 +202,10 @@ while [[ $# -gt 0 ]]; do
       REPLAY_STORY_ID="$2"
       shift 2
       ;;
+    --rollback)
+      ROLLBACK_STORY_ID="$2"
+      shift 2
+      ;;
     --reset)
       RESET_CHECKPOINT=1
       shift
@@ -259,6 +266,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --dry-run                  Test loop control flow without API calls"
       echo "  --doctor                   Check all runtime dependencies and exit"
       echo "  --replay STORY_ID          Re-run a single story in an isolated worktree (Phases I+V only)"
+  echo "  --rollback STORY_ID        Revert a passed story's git commit and reset its prd.json status"
       echo "  --reset                    Remove checkpoint and start fresh from iteration 1"
       echo "  --migrate                  Migrate prd.json to current schema version and exit"
       echo "  --archive-done             Archive completed stories to prd-archive.json and exit"
@@ -1202,6 +1210,73 @@ if [[ -n "$REPLAY_STORY_ID" ]]; then
     echo "  [replay] Worktree preserved for inspection"
     exit $ERR_REPLAY_FAILED
   fi
+fi
+
+# ── --rollback: revert a passed story's commit and reset prd.json status ─────
+# Reads _passedCommit SHA from prd.json, runs `git revert --no-edit <sha>`,
+# then clears passes/_passedCommit/_passedAt/_adrPath on the story.
+# Rejected if working tree is dirty or _passedCommit is absent.
+if [[ -n "$ROLLBACK_STORY_ID" ]]; then
+  # Validate story ID exists in prd.json
+  _RB_EXISTS=$("$JQ" --arg id "$ROLLBACK_STORY_ID" \
+    '[.userStories[] | select(.id == $id)] | length' "$PRD_FILE" 2>/dev/null || echo "0")
+  if [[ "$_RB_EXISTS" -eq 0 ]]; then
+    echo "[rollback] ERROR: Story '$ROLLBACK_STORY_ID' not found in $PRD_FILE"
+    exit $ERR_STORY_NOT_FOUND
+  fi
+
+  # Guard: reject if working tree has uncommitted changes (tracked files only;
+  # untracked files are excluded since they cannot conflict with a revert)
+  _RB_DIRTY=$(git -C "$REPO_ROOT" status --porcelain 2>/dev/null | grep -v '^??' || true)
+  if [[ -n "$_RB_DIRTY" ]]; then
+    echo "[rollback] ERROR: Working tree has uncommitted changes. Commit or stash them first."
+    echo "[rollback]   Run: git -C '$REPO_ROOT' status"
+    exit $ERR_ROLLBACK_FAILED
+  fi
+
+  # Read _passedCommit from prd.json
+  _RB_SHA=$("$JQ" -r --arg id "$ROLLBACK_STORY_ID" \
+    '.userStories[] | select(.id == $id) | ._passedCommit // ""' "$PRD_FILE")
+  if [[ -z "$_RB_SHA" || "$_RB_SHA" == "null" ]]; then
+    echo "[rollback] ERROR: Story '$ROLLBACK_STORY_ID' has no _passedCommit SHA recorded."
+    echo "[rollback]   Only stories implemented by SPIRAL with a recorded _passedCommit can"
+    echo "[rollback]   be rolled back. Use 'git log' to find and revert commits manually."
+    exit $ERR_ROLLBACK_FAILED
+  fi
+
+  _RB_TITLE=$("$JQ" -r --arg id "$ROLLBACK_STORY_ID" \
+    '.userStories[] | select(.id == $id) | .title' "$PRD_FILE")
+
+  echo ""
+  echo "  ╔══════════════════════════════════════════════════════╗"
+  echo "  ║  [ROLLBACK] $ROLLBACK_STORY_ID"
+  echo "  ║  $_RB_TITLE"
+  echo "  ╠══════════════════════════════════════════════════════╣"
+  echo "  ║  Reverting commit: $_RB_SHA"
+  echo "  ╚══════════════════════════════════════════════════════╝"
+  echo ""
+
+  # Run git revert (creates a new revert commit, preserves linear history)
+  if ! git -C "$REPO_ROOT" revert --no-edit "$_RB_SHA"; then
+    echo "[rollback] ERROR: git revert failed for commit $_RB_SHA"
+    echo "[rollback]   Resolve conflicts manually, then update prd.json passes=false"
+    exit $ERR_ROLLBACK_FAILED
+  fi
+
+  # Reset story status in prd.json: clear passes, _passedCommit, _passedAt, _adrPath
+  _RB_UPDATED=$("$JQ" --arg id "$ROLLBACK_STORY_ID" \
+    '(.userStories[] | select(.id == $id)) |= (
+      .passes = false | del(._passedCommit) | del(._passedAt) | del(._adrPath)
+    )' "$PRD_FILE")
+  echo "$_RB_UPDATED" > "$PRD_FILE"
+
+  log_spiral_event "rollback_complete" \
+    "\"storyId\":\"$ROLLBACK_STORY_ID\",\"sha\":\"$_RB_SHA\""
+
+  echo "  [rollback] Story '$ROLLBACK_STORY_ID' reset to pending"
+  echo "  [rollback] Fields cleared: passes, _passedCommit, _passedAt, _adrPath"
+  echo "  [rollback] Done. Use --replay $ROLLBACK_STORY_ID to re-implement."
+  exit 0
 fi
 
 # ── Startup: initialize counters and resume from checkpoint if available ────
