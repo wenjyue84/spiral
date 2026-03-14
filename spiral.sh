@@ -250,8 +250,10 @@ SPIRAL_MAX_RESEARCH_STORIES="${SPIRAL_MAX_RESEARCH_STORIES:-0}"  # 0 = unlimited
 SPIRAL_STORY_BATCH_SIZE="${SPIRAL_STORY_BATCH_SIZE:-20}"  # 0 = disabled (show all)
 SPIRAL_COST_CEILING="${SPIRAL_COST_CEILING:-}"  # empty = disabled; USD amount to cap spend
 SPIRAL_LOW_POWER_MODE="${SPIRAL_LOW_POWER_MODE:-1}"
-SPIRAL_PRESSURE_THRESHOLDS="${SPIRAL_PRESSURE_THRESHOLDS:-40,25,15,8}"
+SPIRAL_PRESSURE_THRESHOLDS="${SPIRAL_PRESSURE_THRESHOLDS:-40,25,18,12}"
 SPIRAL_MEMORY_POLL_INTERVAL="${SPIRAL_MEMORY_POLL_INTERVAL:-15}"
+SPIRAL_MEMORY_WAIT_MAX_MINS="${SPIRAL_MEMORY_WAIT_MAX_MINS:-0}"  # 0 = unlimited while workers active
+export SPIRAL_MEMORY_WAIT_MAX_MINS
 SPIRAL_PRESSURE_HYSTERESIS="${SPIRAL_PRESSURE_HYSTERESIS:-2}"
 SPIRAL_DEV_URL="${SPIRAL_DEV_URL:-}"  # empty = disabled; URL for Phase V screenshot
 SPIRAL_PROGRESS_MAX_LINES="${SPIRAL_PROGRESS_MAX_LINES:-2000}"  # 0 = disabled; rotate progress.txt when over this limit
@@ -262,6 +264,8 @@ SPIRAL_RESEARCH_TIMEOUT="${SPIRAL_RESEARCH_TIMEOUT:-300}"  # seconds; 0 = disabl
 SPIRAL_RESEARCH_RETRIES="${SPIRAL_RESEARCH_RETRIES:-2}"    # retries when _research_output.json missing/invalid after Phase R
 SPIRAL_IMPL_TIMEOUT="${SPIRAL_IMPL_TIMEOUT:-600}"          # seconds; 0 = disabled (unlimited); Phase I ralph call
 SPIRAL_VALIDATE_TIMEOUT="${SPIRAL_VALIDATE_TIMEOUT:-300}"  # seconds; 0 = disabled (unlimited)
+SPIRAL_TEST_SYNTH_TIMEOUT="${SPIRAL_TEST_SYNTH_TIMEOUT:-60}"  # seconds; 0 = disabled (unlimited); Phase T synthesize_tests timeout
+SPIRAL_PREEMPTIVE_PRESSURE_MB="${SPIRAL_PREEMPTIVE_PRESSURE_MB:-0}"  # MB; 0 = disabled; free RAM below this triggers preemptive pressure level 1
 
 # ── Config validation ─────────────────────────────────────────────────────────
 # Validates required keys are set and applies defaults for optional keys.
@@ -516,9 +520,27 @@ trap 'while wait -n 2>/dev/null; do :; done; true' SIGCHLD
 
 # ── Memory watchdog — background monitor (graduated pressure or kill-only) ────
 if [[ "${SPIRAL_MEMORY_WATCHDOG:-1}" -eq 1 ]] && command -v powershell.exe &>/dev/null; then
+  # Detect the node.exe ancestor (Claude Code) to protect it from emergency kills
+  _CLAUDE_NODE_PID=""
+  _check_pid=$$
+  for _depth in 1 2 3 4 5; do
+    _ppid=$(powershell.exe -NoProfile -Command "try { (Get-Process -Id $_check_pid -ErrorAction Stop).Parent.Id } catch { '' }" 2>/dev/null | tr -d '\r\n')
+    if [[ -z "$_ppid" || "$_ppid" == "0" ]]; then break; fi
+    _pname=$(powershell.exe -NoProfile -Command "try { (Get-Process -Id $_ppid -ErrorAction Stop).Name } catch { '' }" 2>/dev/null | tr -d '\r\n ')
+    if [[ "$_pname" == "node" ]]; then
+      _CLAUDE_NODE_PID="$_ppid"
+      break
+    fi
+    _check_pid="$_ppid"
+  done
+
   _WATCHDOG_ARGS="-ThresholdMB ${SPIRAL_MEMORY_THRESHOLD:-1536} -ParentPID $$ -IntervalSec ${SPIRAL_MEMORY_POLL_INTERVAL}"
+  _WATCHDOG_ARGS="$_WATCHDOG_ARGS -WorkerPIDDir $SCRATCH_DIR"
+  if [[ -n "$_CLAUDE_NODE_PID" ]]; then
+    _WATCHDOG_ARGS="$_WATCHDOG_ARGS -ProtectPIDs $_CLAUDE_NODE_PID"
+  fi
   if [[ "$SPIRAL_LOW_POWER_MODE" -eq 1 ]]; then
-    _WATCHDOG_ARGS="$_WATCHDOG_ARGS -ScratchDir $SCRATCH_DIR -ThresholdPct $SPIRAL_PRESSURE_THRESHOLDS -Hysteresis $SPIRAL_PRESSURE_HYSTERESIS"
+    _WATCHDOG_ARGS="$_WATCHDOG_ARGS -ScratchDir $SCRATCH_DIR -ThresholdPct $SPIRAL_PRESSURE_THRESHOLDS -Hysteresis $SPIRAL_PRESSURE_HYSTERESIS -PreemptivePressureMB ${SPIRAL_PREEMPTIVE_PRESSURE_MB:-0}"
     _WATCHDOG_MODE="graduated"
   else
     _WATCHDOG_MODE="kill-only"
@@ -527,6 +549,7 @@ if [[ "${SPIRAL_MEMORY_WATCHDOG:-1}" -eq 1 ]] && command -v powershell.exe &>/de
     $_WATCHDOG_ARGS &
   WATCHDOG_PID=$!
   echo "  [memory] Watchdog started (PID: $WATCHDOG_PID, mode: $_WATCHDOG_MODE, threshold: ${SPIRAL_MEMORY_THRESHOLD:-1536}MB)"
+  [[ -n "$_CLAUDE_NODE_PID" ]] && echo "  [memory] Protected PIDs: $_CLAUDE_NODE_PID (Claude Code node.exe)"
 fi
 
 # ── Backup prd.json before any modifications ────────────────────────────────
@@ -939,6 +962,20 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
   SPIRAL_ITER=$((SPIRAL_ITER + 1))
   ITER_START=$(date +%s)
 
+  # Validate prd.json integrity before each iteration (Idea 3)
+  # If corrupted by a mid-write crash, restore from the most recent backup
+  if ! "$JQ" empty "$PRD_FILE" 2>/dev/null; then
+    echo "  [spiral] WARNING: prd.json is invalid JSON — attempting restore from backup"
+    _LATEST_BACKUP=$(ls -t "$SCRATCH_DIR/prd-backups/prd-iter"*.json 2>/dev/null | head -1 || true)
+    if [[ -n "$_LATEST_BACKUP" && -f "$_LATEST_BACKUP" ]]; then
+      cp "$_LATEST_BACKUP" "$PRD_FILE"
+      echo "  [spiral] Restored prd.json from: $(basename "$_LATEST_BACKUP")"
+    else
+      echo "  [spiral] ERROR: No backup available — cannot recover prd.json"
+      exit 1
+    fi
+  fi
+
   prd_stats
   ADDED=0           # new stories added this iter (set in Phase M; default 0 if skipped)
   RALPH_RAN=0       # set to 1 if ralph actually executed this iter (controls Phase V)
@@ -1224,20 +1261,50 @@ $INJECTED_PROMPT"
     echo '{"stories":[]}' > "$TEST_OUTPUT"
     write_checkpoint "$SPIRAL_ITER" "T"
   else
+    _T_EXIT=0
+    _T_START=$(date +%s)
     if [[ -n "$SPIRAL_CORE_BIN" ]]; then
-      "$SPIRAL_CORE_BIN" synthesize \
-        --prd "$PRD_FILE" \
-        --reports-dir "$REPO_ROOT/$SPIRAL_REPORTS_DIR" \
-        --output "$TEST_OUTPUT" \
-        --repo-root "$REPO_ROOT" \
-        ${SPIRAL_FOCUS:+--focus "$SPIRAL_FOCUS"} || true
+      if [[ "${SPIRAL_TEST_SYNTH_TIMEOUT:-60}" -gt 0 ]] && command -v timeout &>/dev/null; then
+        timeout --kill-after=30 "${SPIRAL_TEST_SYNTH_TIMEOUT}" \
+          "$SPIRAL_CORE_BIN" synthesize \
+            --prd "$PRD_FILE" \
+            --reports-dir "$REPO_ROOT/$SPIRAL_REPORTS_DIR" \
+            --output "$TEST_OUTPUT" \
+            --repo-root "$REPO_ROOT" \
+            ${SPIRAL_FOCUS:+--focus "$SPIRAL_FOCUS"} || _T_EXIT=$?
+      else
+        "$SPIRAL_CORE_BIN" synthesize \
+          --prd "$PRD_FILE" \
+          --reports-dir "$REPO_ROOT/$SPIRAL_REPORTS_DIR" \
+          --output "$TEST_OUTPUT" \
+          --repo-root "$REPO_ROOT" \
+          ${SPIRAL_FOCUS:+--focus "$SPIRAL_FOCUS"} || _T_EXIT=$?
+      fi
     else
-      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/synthesize_tests.py" \
-        --prd "$PRD_FILE" \
-        --reports-dir "$REPO_ROOT/$SPIRAL_REPORTS_DIR" \
-        --output "$TEST_OUTPUT" \
-        --repo-root "$REPO_ROOT" \
-        ${SPIRAL_FOCUS:+--focus "$SPIRAL_FOCUS"} || true
+      if [[ "${SPIRAL_TEST_SYNTH_TIMEOUT:-60}" -gt 0 ]] && command -v timeout &>/dev/null; then
+        timeout --kill-after=30 "${SPIRAL_TEST_SYNTH_TIMEOUT}" \
+          "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/synthesize_tests.py" \
+            --prd "$PRD_FILE" \
+            --reports-dir "$REPO_ROOT/$SPIRAL_REPORTS_DIR" \
+            --output "$TEST_OUTPUT" \
+            --repo-root "$REPO_ROOT" \
+            ${SPIRAL_FOCUS:+--focus "$SPIRAL_FOCUS"} || _T_EXIT=$?
+      else
+        "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/synthesize_tests.py" \
+          --prd "$PRD_FILE" \
+          --reports-dir "$REPO_ROOT/$SPIRAL_REPORTS_DIR" \
+          --output "$TEST_OUTPUT" \
+          --repo-root "$REPO_ROOT" \
+          ${SPIRAL_FOCUS:+--focus "$SPIRAL_FOCUS"} || _T_EXIT=$?
+      fi
+    fi
+    _T_ELAPSED=$(( $(date +%s) - _T_START ))
+    if [[ "$_T_EXIT" -eq 124 ]]; then
+      echo "  [Phase T] WARNING: Test synthesis timed out after ${_T_ELAPSED}s (limit: ${SPIRAL_TEST_SYNTH_TIMEOUT}s) — using empty output"
+      log_spiral_event "phase_timeout" "\"phase\":\"T\",\"iteration\":$SPIRAL_ITER,\"duration_ms\":$(( _T_ELAPSED * 1000 )),\"timeout_s\":${SPIRAL_TEST_SYNTH_TIMEOUT}"
+      echo '{"stories":[]}' > "$TEST_OUTPUT"
+    elif [[ "$_T_EXIT" -ne 0 ]]; then
+      echo "  [Phase T] WARNING: Test synthesis exited with status $_T_EXIT — continuing with partial/empty output"
     fi
 
     TEST_COUNT=$("$JQ" '.stories | length' "$TEST_OUTPUT" 2>/dev/null || echo "0")
@@ -1635,7 +1702,8 @@ $INJECTED_PROMPT"
               fi
             else
               # Restore prd.json to pre-ralph state; code changes remain as unstaged diffs
-              echo "$PRE_RALPH_PRD_JSON" > "$PRD_FILE"
+              # Use atomic temp+mv to avoid corruption if interrupted mid-write (Idea 3)
+              printf '%s\n' "$PRE_RALPH_PRD_JSON" > "${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE"
 
               # Stage all code changes except prd.json (goes into first story's commit)
               git -C "$REPO_ROOT" add -A 2>/dev/null || true
@@ -1652,7 +1720,8 @@ $INJECTED_PROMPT"
                   --slurpfile full "$POST_RALPH_PRD" \
                   '(.userStories[] | select(.id == $id)) |= ([$full[0].userStories[] | select(.id == $id)] | .[0] // .)' \
                   "$PRD_FILE" 2>/dev/null) || true
-                [[ -n "$UPDATED" ]] && echo "$UPDATED" > "$PRD_FILE"
+                # Use atomic temp+mv to avoid corruption if interrupted mid-write (Idea 3)
+                [[ -n "$UPDATED" ]] && { printf '%s\n' "$UPDATED" > "${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE"; } || true
 
                 git -C "$REPO_ROOT" add "$PRD_FILE" 2>/dev/null || true
                 if git -C "$REPO_ROOT" commit -m "feat: $STORY_ID - $STORY_TITLE" 2>/dev/null; then

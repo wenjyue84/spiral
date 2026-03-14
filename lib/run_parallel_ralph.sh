@@ -63,8 +63,10 @@ TERMINAL_EMU="${SPIRAL_TERMINAL:-}"
 GEMINI_ANNOTATE="${SPIRAL_GEMINI_ANNOTATE_PROMPT:-}"
 WORKER_TIMEOUT="${SPIRAL_WORKER_TIMEOUT:-600}"  # per-worker wall-clock limit (0 = unlimited)
 
-# Pre-declare worker PID array so cleanup_parallel can safely reference it (US-088)
+# Pre-declare worker tracking arrays so cleanup_parallel and _launch_worker_i can safely reference them
 declare -a WORKER_PIDS=()
+declare -a WORKER_FINISHED=()
+declare -a WORKER_EXIT_CODES=()
 
 # ── Graceful cleanup trap — kill orphaned workers on exit/interrupt ─────────
 cleanup_parallel() {
@@ -99,6 +101,13 @@ cleanup_parallel() {
   rm -rf "$WORKTREE_BASE" 2>/dev/null || true
   # Prune stale worktree admin records (US-080)
   git -C "$REPO_ROOT" worktree prune 2>/dev/null || true
+  # Clean up orphaned index.lock files from OOM-killed workers (Idea 2)
+  for i in $(seq 1 "$RALPH_WORKERS"); do
+    local _wt="${WORKER_DIRS[$((i-1))]:-}"
+    if [[ -n "$_wt" ]]; then
+      find "$_wt" -name "index.lock" -delete 2>/dev/null || true
+    fi
+  done
   # Clean up heartbeat files
   rm -f "$HEARTBEAT_DIR"/worker_*.heartbeat 2>/dev/null || true
   echo "  [parallel] Cleanup done."
@@ -107,9 +116,27 @@ trap cleanup_parallel EXIT INT TERM
 
 REAL_DOCKER="$(command -v docker 2>/dev/null || echo docker)"
 
-# ── Pre-flight memory check — auto-reduce workers if RAM is low ────────────
+# ── Cleanup: stale /tmp files and orphaned branches from previous runs ────────
+# /tmp cleanup (Idea 10): bench output files and docker lock dirs accumulate across runs
+rm -f /tmp/ralph-bench-output-worker-*.txt 2>/dev/null || true
+rm -rf /tmp/spiral-docker-lock-* 2>/dev/null || true
+# Stale branch cleanup (Idea 1): crashed runs leave orphaned spiral-worker-* branches
+# that git worktree prune cannot remove (only admin records are pruned, not branches).
+for _stale_branch in $(git -C "$REPO_ROOT" branch --format='%(refname:short)' 2>/dev/null | grep '^spiral-worker-' || true); do
+  # Only delete if NOT checked out in any live worktree
+  if ! git -C "$REPO_ROOT" worktree list --porcelain 2>/dev/null | grep -qF "branch refs/heads/${_stale_branch}"; then
+    git -C "$REPO_ROOT" branch -D "$_stale_branch" 2>/dev/null || true
+    echo "  [parallel] Pruned stale branch: $_stale_branch"
+  fi
+done
+git -C "$REPO_ROOT" worktree prune 2>/dev/null || true
+
+# ── Pre-flight memory check — compute initial launch count if RAM is low ──────
 # Per-worker budget: ~1536MB (1024 heap + ~512 non-heap overhead for Zones, JIT, etc.)
+# RALPH_WORKERS is never reduced — partitioning and worktree creation use the full N.
+# Only the number of workers launched immediately may be less than N; the rest are queued.
 _PER_WORKER_MB=1536
+_INITIAL_LAUNCH_COUNT="$RALPH_WORKERS"  # default: launch all workers immediately
 if command -v powershell.exe &>/dev/null; then
   FREE_MB=$(powershell.exe -Command \
     "[math]::Floor((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory / 1024)" 2>/dev/null | tr -d '\r')
@@ -119,10 +146,8 @@ if command -v powershell.exe &>/dev/null; then
       MAX_SAFE=$(( (FREE_MB - 512) / _PER_WORKER_MB ))
       [[ "$MAX_SAFE" -lt 1 ]] && MAX_SAFE=1
       if [[ "$MAX_SAFE" -lt "$RALPH_WORKERS" ]]; then
-        echo "  [parallel] Memory: ${FREE_MB}MB free, need ${NEEDED_MB}MB for $RALPH_WORKERS workers"
-        echo "  [parallel] Auto-reducing workers: $RALPH_WORKERS → $MAX_SAFE"
-        RALPH_WORKERS="$MAX_SAFE"
-        ITER_PER_WORKER=$(( (RALPH_MAX_ITERS + RALPH_WORKERS - 1) / RALPH_WORKERS ))
+        echo "  [parallel] Memory: ${FREE_MB}MB free — launching $MAX_SAFE/$RALPH_WORKERS workers now, queueing rest"
+        _INITIAL_LAUNCH_COUNT="$MAX_SAFE"
       fi
     fi
   fi
@@ -131,12 +156,22 @@ fi
 # ── Initial worker cap from pressure file ──────────────────────────────────────
 if type spiral_recommended_workers &>/dev/null && [[ "${SPIRAL_LOW_POWER_MODE:-1}" -eq 1 ]]; then
   _REC_W=$(spiral_recommended_workers)
-  if [[ -n "$_REC_W" && "$_REC_W" =~ ^[0-9]+$ && "$_REC_W" -lt "$RALPH_WORKERS" ]]; then
-    echo "  [parallel] Memory pressure: capping workers $RALPH_WORKERS -> $_REC_W"
-    spiral_log_low_power "run_parallel: initial worker cap $RALPH_WORKERS -> $_REC_W"
-    RALPH_WORKERS="$_REC_W"
-    ITER_PER_WORKER=$(( (RALPH_MAX_ITERS + RALPH_WORKERS - 1) / RALPH_WORKERS ))
+  if [[ -n "$_REC_W" && "$_REC_W" =~ ^[0-9]+$ && "$_REC_W" -lt "$_INITIAL_LAUNCH_COUNT" ]]; then
+    echo "  [parallel] Memory pressure: launching $_REC_W/$RALPH_WORKERS workers initially, queueing rest"
+    spiral_log_low_power "run_parallel: initial worker cap $_INITIAL_LAUNCH_COUNT -> $_REC_W (deferred queue)"
+    _INITIAL_LAUNCH_COUNT="$_REC_W"
   fi
+fi
+
+# ── Build deferred launch queue ────────────────────────────────────────────────
+# Workers beyond _INITIAL_LAUNCH_COUNT are queued; the adaptive wait loop drains
+# them as memory pressure eases (instead of discarding them entirely).
+declare -a _WORKER_LAUNCH_QUEUE=()
+if [[ "$_INITIAL_LAUNCH_COUNT" -lt "$RALPH_WORKERS" ]]; then
+  for _qi in $(seq $((_INITIAL_LAUNCH_COUNT + 1)) "$RALPH_WORKERS"); do
+    _WORKER_LAUNCH_QUEUE+=("$_qi")
+  done
+  echo "  [parallel] Launch queue: workers ${_WORKER_LAUNCH_QUEUE[*]} deferred until memory allows"
 fi
 
 echo "  [parallel] ═══════════════════════════════════════════════════"
@@ -254,6 +289,16 @@ for i in $(seq 1 "$RALPH_WORKERS"); do
 
   # Remove stale worktree if it exists
   git -C "$REPO_ROOT" worktree remove "$WTREE" --force 2>/dev/null || rm -rf "$WTREE" 2>/dev/null || true
+  # Clean up orphaned index.lock from OOM-killed previous worker (Idea 2)
+  # index.lock is always safe to remove when the process that created it is dead
+  if [[ -f "$WTREE/.git" ]]; then
+    _GIT_DIR=$(sed 's/^gitdir: //' "$WTREE/.git" 2>/dev/null || true)
+    [[ -n "$_GIT_DIR" && -f "$_GIT_DIR/index.lock" ]] && rm -f "$_GIT_DIR/index.lock" && \
+      echo "  [parallel] Removed stale index.lock for worker $i"
+  elif [[ -f "$WTREE/.git/index.lock" ]]; then
+    rm -f "$WTREE/.git/index.lock"
+    echo "  [parallel] Removed stale index.lock for worker $i"
+  fi
   # Guard against 'branch already checked out': if the target branch appears in any
   # existing worktree, fall back to detached HEAD mode to avoid a hard failure.
   if git -C "$REPO_ROOT" worktree list --porcelain 2>/dev/null | grep -qF "branch refs/heads/${BRANCH}"; then
@@ -348,12 +393,15 @@ fi
 
 # ── Memory gate helper — wait until enough RAM is free before spawning ────────
 # Prevents all workers launching simultaneously and collectively OOM'ing.
+# Waits indefinitely while active workers can free memory; gives up quickly
+# when no workers are running (nothing will free RAM).
 wait_for_memory() {
   local min_mb=${1:-2048}
   if ! command -v powershell.exe &>/dev/null; then
     return 0  # skip on non-Windows (no CIM)
   fi
   local attempts=0
+  local _max_mins="${SPIRAL_MEMORY_WAIT_MAX_MINS:-0}"
   while true; do
     local free_mb
     free_mb=$(powershell.exe -NoProfile -Command \
@@ -366,12 +414,21 @@ wait_for_memory() {
       break
     fi
     echo "  [memory-gate] Only ${free_mb}MB free, waiting for ${min_mb}MB before spawning..."
-    if type spiral_log_low_power &>/dev/null; then
+    type spiral_log_low_power &>/dev/null && \
       spiral_log_low_power "memory-gate: ${free_mb}MB free < ${min_mb}MB required, waiting"
-    fi
     attempts=$((attempts + 1))
-    if [[ "$attempts" -ge 30 ]]; then
-      echo "  [memory-gate] Waited 5 minutes — proceeding anyway"
+    # Hard timeout (if configured via SPIRAL_MEMORY_WAIT_MAX_MINS)
+    if [[ "$_max_mins" -gt 0 && "$attempts" -ge $(( _max_mins * 6 )) ]]; then
+      echo "  [memory-gate] Hard timeout reached (${_max_mins} min) — proceeding anyway"
+      break
+    fi
+    # No workers running = nothing will free memory; give up after brief grace period
+    local _active=0
+    for _pid in "${WORKER_PIDS[@]:-}"; do
+      kill -0 "$_pid" 2>/dev/null && _active=$((_active + 1))
+    done
+    if [[ "$_active" -eq 0 && "$attempts" -ge 3 ]]; then
+      echo "  [memory-gate] No active workers to free memory — proceeding"
       break
     fi
     sleep 10
@@ -381,67 +438,74 @@ wait_for_memory() {
 # ── Step 3: Launch all workers in background (staggered) ─────────────────────
 # Workers are staggered by 20 seconds to let each process complete its initial
 # V8 compilation (the most memory-intensive phase) before the next one starts.
+# Only _INITIAL_LAUNCH_COUNT workers launch immediately; the rest sit in
+# _WORKER_LAUNCH_QUEUE and are drained by the adaptive wait loop as RAM frees up.
 STAGGER_DELAY=20  # seconds between worker launches
 
-for i in $(seq 1 "$RALPH_WORKERS"); do
-  WTREE="${WORKER_DIRS[$((i-1))]}"
-  LOG="$WORKER_DIR/worker_${i}.log"
-  touch "$LOG"   # pre-create so tail -f attaches even if worker is slow to start
+# Detect setsid availability — used to isolate worker processes from terminal SIGINT
+_USE_SETSID=0
+if command -v setsid &>/dev/null; then
+  _USE_SETSID=1
+fi
 
-  # Wait for sufficient free RAM before each worker spawn
-  _MIN_FREE_MB=$(( (RALPH_WORKERS - i + 1) * 1536 + 512 ))
-  [[ "$_MIN_FREE_MB" -lt 2048 ]] && _MIN_FREE_MB=2048
-  wait_for_memory "$_MIN_FREE_MB"
-
-  echo "  [parallel] Launching worker $i → log: $LOG"
-  # Build model flag for this worker
-  _WORKER_MODEL_FLAG=""
+# ── Reusable worker launch function ──────────────────────────────────────────
+# Launches worker $1 in a background subshell, appends to WORKER_PIDS /
+# WORKER_FINISHED / WORKER_EXIT_CODES, writes PID file, and disowns.
+_launch_worker_i() {
+  local i="$1"
+  local WTREE="${WORKER_DIRS[$((i-1))]}"
+  local LOG="$WORKER_DIR/worker_${i}.log"
+  touch "$LOG"
+  local _WORKER_MODEL_FLAG=""
   [[ -n "$RALPH_MODEL" ]] && _WORKER_MODEL_FLAG="--model $RALPH_MODEL"
+  echo "  [parallel] Launching worker $i → log: $LOG"
   (
-    # Unlock the worktree on exit (fires even on crash) so git worktree prune can clean up later
-    _UNLOCK_REPO="$REPO_ROOT"
-    _UNLOCK_WTREE="$WTREE"
-    _WORKER_NUM=$i
+    _UNLOCK_REPO="$REPO_ROOT"; _UNLOCK_WTREE="$WTREE"; _WORKER_NUM=$i
     _HB_CLEANUP='
-      if type worker_heartbeat_stop &>/dev/null; then
-        worker_heartbeat_stop "$_WORKER_NUM" 2>/dev/null || true
-      fi
+      if type worker_heartbeat_stop &>/dev/null; then worker_heartbeat_stop "$_WORKER_NUM" 2>/dev/null || true; fi
       git -C "$_UNLOCK_REPO" worktree unlock "$_UNLOCK_WTREE" 2>/dev/null || true
     '
     trap "$_HB_CLEANUP" EXIT
     cd "$WTREE"
-    # Put lock wrapper first in PATH so docker calls are intercepted
     export PATH="$WTREE/.spiral-bin:$PATH"
-    export SPIRAL_WORKER_ID=$i
-    export HEARTBEAT_DIR="$HEARTBEAT_DIR"
-    # Override SPIRAL_MEMORY_LIMIT for this worker so ralph.sh uses the
-    # per-worker heap cap instead of the orchestrator's lighter limit.
+    export SPIRAL_WORKER_ID=$i HEARTBEAT_DIR="$HEARTBEAT_DIR"
     export SPIRAL_MEMORY_LIMIT="${SPIRAL_WORKER_MEMORY_LIMIT:-$SPIRAL_MEMORY_LIMIT}"
-    # Start heartbeat loop in background
-    if type worker_heartbeat_start &>/dev/null; then
-      worker_heartbeat_start "$i" 30 2>/dev/null || true
-    fi
+    if type worker_heartbeat_start &>/dev/null; then worker_heartbeat_start "$i" 30 2>/dev/null || true; fi
     if [[ "$WORKER_TIMEOUT" -gt 0 ]] && command -v timeout &>/dev/null; then
-      timeout --kill-after=60 "${WORKER_TIMEOUT}" \
-        bash "$RALPH_SKILL" "$ITER_PER_WORKER" --prd prd.json $_WORKER_MODEL_FLAG \
-        > "$LOG" 2>&1 || exit $?
+      if [[ "$_USE_SETSID" -eq 1 ]]; then
+        timeout --kill-after=60 "${WORKER_TIMEOUT}" setsid bash "$RALPH_SKILL" "$ITER_PER_WORKER" --prd prd.json $_WORKER_MODEL_FLAG > "$LOG" 2>&1 || exit $?
+      else
+        timeout --kill-after=60 "${WORKER_TIMEOUT}" bash "$RALPH_SKILL" "$ITER_PER_WORKER" --prd prd.json $_WORKER_MODEL_FLAG > "$LOG" 2>&1 || exit $?
+      fi
     else
-      bash "$RALPH_SKILL" "$ITER_PER_WORKER" --prd prd.json $_WORKER_MODEL_FLAG \
-        > "$LOG" 2>&1
+      if [[ "$_USE_SETSID" -eq 1 ]]; then
+        setsid bash "$RALPH_SKILL" "$ITER_PER_WORKER" --prd prd.json $_WORKER_MODEL_FLAG > "$LOG" 2>&1
+      else
+        bash "$RALPH_SKILL" "$ITER_PER_WORKER" --prd prd.json $_WORKER_MODEL_FLAG > "$LOG" 2>&1
+      fi
     fi
   ) &
-  worker_pid=$!
-  WORKER_PIDS+=("$worker_pid")
-  # Write PID file before disown so workers remain trackable (US-088)
-  echo "$worker_pid" > "$WORKTREE_BASE/worker-${i}/worker.pid"
-  disown "$worker_pid"
+  local _wpid=$!
+  WORKER_PIDS+=("$_wpid")
+  WORKER_FINISHED+=("0")
+  WORKER_EXIT_CODES+=("0")
+  echo "$_wpid" > "$WORKTREE_BASE/worker-${i}/worker.pid"
+  disown "$_wpid"
+}
 
-  # Stagger launches — let V8 init settle before spawning next worker
-  if [[ "$i" -lt "$RALPH_WORKERS" ]]; then
+for i in $(seq 1 "$_INITIAL_LAUNCH_COUNT"); do
+  _MIN_FREE_MB=$(( (RALPH_WORKERS - i + 1) * 1536 + 512 ))
+  [[ "$_MIN_FREE_MB" -lt 2048 ]] && _MIN_FREE_MB=2048
+  wait_for_memory "$_MIN_FREE_MB"
+  _launch_worker_i "$i"
+  if [[ "$i" -lt "$_INITIAL_LAUNCH_COUNT" ]]; then
     echo "  [parallel] Waiting ${STAGGER_DELAY}s before next worker (V8 init cooldown)..."
     sleep "$STAGGER_DELAY"
   fi
 done
+if [[ ${#_WORKER_LAUNCH_QUEUE[@]} -gt 0 ]]; then
+  echo "  [parallel] ${#_WORKER_LAUNCH_QUEUE[@]} worker(s) queued: will launch when memory allows"
+fi
 
 echo ""
 TAIL_LOGS=$(seq 1 "$RALPH_WORKERS" | while read -r n; do printf "%s " "$WORKER_DIR/worker_${n}.log"; done)
@@ -452,12 +516,7 @@ echo "  [parallel] Waiting for completion..."
 echo ""
 
 # ── Step 4: Adaptive wait loop — monitor workers + manage pressure ────────────
-declare -a WORKER_FINISHED=()
-declare -a WORKER_EXIT_CODES=()
-for i in "${!WORKER_PIDS[@]}"; do
-  WORKER_FINISHED+=("0")
-  WORKER_EXIT_CODES+=("0")
-done
+# WORKER_FINISHED and WORKER_EXIT_CODES are populated by _launch_worker_i() above.
 
 _ALL_DONE=0
 while [[ "$_ALL_DONE" -eq 0 ]]; do
@@ -505,7 +564,8 @@ while [[ "$_ALL_DONE" -eq 0 ]]; do
     fi
   done
 
-  [[ "$_ALL_DONE" -eq 1 ]] && break
+  # Exit only when all launched workers are done AND the deferred queue is empty
+  [[ "$_ALL_DONE" -eq 1 && ${#_WORKER_LAUNCH_QUEUE[@]} -eq 0 ]] && break
 
   # ── Stale heartbeat detection — re-queue stuck stories ──────────────────────
   if type check_stale_heartbeats &>/dev/null; then
@@ -527,6 +587,14 @@ while [[ "$_ALL_DONE" -eq 0 ]]; do
           if [[ -f "$WTREE/prd.json" ]]; then
             if type requeue_stale_stories &>/dev/null; then
               requeue_stale_stories "$WTREE/prd.json" "$_SID" "$JQ" 2>/dev/null || true
+              # Verify requeue actually worked — if not, force-reset (Idea 5)
+              _REQUEUE_STATUS=$("$JQ" -r ".userStories[] | select(.id == \"$_SID\") | .passes" \
+                "$WTREE/prd.json" 2>/dev/null || echo "unknown")
+              if [[ "$_REQUEUE_STATUS" != "false" && "$_REQUEUE_STATUS" != "null" ]]; then
+                echo "  [parallel] WARNING: requeue verification failed for story $_SID (status: $_REQUEUE_STATUS) — force-resetting"
+                "$JQ" --arg sid "$_SID" '(.userStories[] | select(.id == $sid) | .passes) = false' \
+                  "$WTREE/prd.json" > "$WTREE/prd.json.tmp" && mv "$WTREE/prd.json.tmp" "$WTREE/prd.json" || true
+              fi
             fi
           fi
         done
@@ -566,6 +634,39 @@ while [[ "$_ALL_DONE" -eq 0 ]]; do
             spiral_log_low_power "run_parallel: resumed worker $WORKER_NUM"
           fi
         done
+      fi
+    fi
+  fi
+
+  # ── Deferred queue — launch queued workers when pressure eases ──────────────
+  # Track how long the queue has been stalled (Idea 8)
+  if [[ ${#_WORKER_LAUNCH_QUEUE[@]} -eq 0 ]]; then
+    _QUEUE_STALL_SECS=0
+  fi
+  if [[ ${#_WORKER_LAUNCH_QUEUE[@]} -gt 0 && "$_ACTIVE_COUNT" -lt "$RALPH_WORKERS" ]]; then
+    _QUEUE_PRESSURE=$(spiral_pressure_level 2>/dev/null || echo "2")
+    _QUEUE_REC_W=$(spiral_recommended_workers 2>/dev/null || echo "$RALPH_WORKERS")
+    if [[ "$_QUEUE_PRESSURE" -le 1 && "$_ACTIVE_COUNT" -lt "${_QUEUE_REC_W:-$RALPH_WORKERS}" ]]; then
+      # Quick non-blocking memory check before launching
+      _QUEUE_FREE_MB=$(powershell.exe -NoProfile -Command \
+        "[math]::Floor((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory / 1024)" \
+        2>/dev/null | tr -d '\r')
+      if [[ -n "$_QUEUE_FREE_MB" && "$_QUEUE_FREE_MB" =~ ^[0-9]+$ && "$_QUEUE_FREE_MB" -ge 2048 ]]; then
+        _NEXT_WORKER="${_WORKER_LAUNCH_QUEUE[0]}"
+        _WORKER_LAUNCH_QUEUE=("${_WORKER_LAUNCH_QUEUE[@]:1}")
+        echo "  [parallel] Queue: launching deferred worker $_NEXT_WORKER (${#_WORKER_LAUNCH_QUEUE[@]} remaining)"
+        _launch_worker_i "$_NEXT_WORKER"
+        [[ ${#_WORKER_LAUNCH_QUEUE[@]} -gt 0 ]] && sleep "$STAGGER_DELAY"
+      else
+        echo "  [parallel] Queue: worker(s) waiting — RAM only ${_QUEUE_FREE_MB:-?}MB (need 2048MB)"
+      fi
+    else
+      _QUEUE_STALL_SECS=$(( ${_QUEUE_STALL_SECS:-0} + 10 ))
+      echo "  [parallel] Queue: ${#_WORKER_LAUNCH_QUEUE[@]} deferred (pressure level ${_QUEUE_PRESSURE:-?})"
+      if [[ "${_QUEUE_STALL_SECS}" -ge "${SPIRAL_QUEUE_STALL_WARN_SECS:-600}" ]]; then
+        echo "  [parallel] ⚠  Queue stalled for $(( _QUEUE_STALL_SECS / 60 )) min — workers may be holding RAM"
+        echo "  [parallel]    Consider: reduce RALPH_WORKERS or lower SPIRAL_WORKER_MEMORY_LIMIT"
+        _QUEUE_STALL_SECS=0  # reset to warn again after another interval
       fi
     fi
   fi
@@ -637,6 +738,30 @@ with open(path, 'w', encoding='utf-8') as f:
     json.dump(d, f, indent=2, ensure_ascii=False)
     f.write('\n')
 PYEOF
+
+# Merge per-worker retry-counts.json back into root (Idea 9)
+# Each worker has its own retry-counts.json; merge with max semantics so no count decreases.
+_WORKER_RETRY_FILES=()
+for wtree in "${WORKER_DIRS[@]}"; do
+  [[ -f "$wtree/retry-counts.json" ]] && _WORKER_RETRY_FILES+=("$wtree/retry-counts.json")
+done
+if [[ ${#_WORKER_RETRY_FILES[@]} -gt 0 ]]; then
+  "$PYTHON" - "$REPO_ROOT/retry-counts.json" "${_WORKER_RETRY_FILES[@]}" << 'PYEOF'
+import json, sys
+from pathlib import Path
+main_path = Path(sys.argv[1])
+counts = json.loads(main_path.read_text(encoding='utf-8')) if main_path.exists() else {}
+for p in sys.argv[2:]:
+    try:
+        w = json.loads(Path(p).read_text(encoding='utf-8'))
+        for k, v in w.items():
+            counts[k] = max(counts.get(k, 0), int(v))
+    except Exception:
+        pass
+main_path.write_text(json.dumps(counts, indent=2) + '\n', encoding='utf-8')
+PYEOF
+  echo "  [parallel] Merged retry-counts.json from ${#_WORKER_RETRY_FILES[@]} workers"
+fi
 
 # Commit the merged prd.json as a stable base before code patches
 git -C "$REPO_ROOT" add "$PRD_FILE" 2>/dev/null
@@ -822,6 +947,15 @@ for i in $SORTED_CLEAN; do
     # Unexpected failure (merge-tree said clean but apply failed) — fall back to --reject
     echo "  [parallel] WARNING: Worker $i unexpected conflict — applying with --reject"
     git -C "$REPO_ROOT" apply --reject "$PATCH_FILE" 2>/dev/null || true
+    # Detect .rej files created by partial patch application (Idea 6)
+    _REJ_FILES=$(find "$REPO_ROOT" -name "*.rej" 2>/dev/null | grep -v '\.spiral' | head -20 || true)
+    if [[ -n "$_REJ_FILES" ]]; then
+      echo "  [parallel] WARNING: Worker $i has unresolved .rej files:"
+      echo "$_REJ_FILES" | sed 's/^/    /'
+      echo "  [parallel] These indicate partial patch application — manual review needed"
+      printf '%s\n' "{\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"event\":\"patch_rejected\",\"workerId\":$i}" \
+        >> "$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || true
+    fi
     git -C "$REPO_ROOT" add -A 2>/dev/null
     git -C "$REPO_ROOT" commit \
       -m "feat(spiral): worker $i code (partial — .rej files need review)" \

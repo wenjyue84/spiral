@@ -22,8 +22,11 @@ param(
     [int]$ParentPID = 0,
     [int]$IntervalSec = 15,
     [string]$ScratchDir = "",
-    [string]$ThresholdPct = "40,25,15,8",
-    [int]$Hysteresis = 2
+    [string]$ThresholdPct = "40,25,18,12",
+    [int]$Hysteresis = 2,
+    [string]$WorkerPIDDir = "",
+    [string]$ProtectPIDs = "",
+    [int]$PreemptivePressureMB = 0
 )
 
 $ThresholdBytes = [int64]$ThresholdMB * 1024 * 1024
@@ -182,31 +185,72 @@ function Write-PressureFile {
     }
 }
 
-function Stop-LargestNodeProcess {
-    try {
-        $procs = Get-Process -Name "node" -ErrorAction SilentlyContinue
-        if ($null -eq $procs) { return }
-        if ($procs -isnot [array]) { $procs = @($procs) }
-        $largest = $procs | Sort-Object WorkingSet64 -Descending | Select-Object -First 1
-        if ($null -ne $largest) {
-            $rssMB = [math]::Floor($largest.WorkingSet64 / 1024 / 1024)
-            Write-Log "EMERGENCY KILL: node.exe PID=$($largest.Id) RSS=${rssMB}MB (level 4)"
-            try {
-                Stop-Process -Id $largest.Id -Force -ErrorAction Stop
-                Write-Log "KILLED: PID=$($largest.Id) successfully terminated"
-            } catch {
-                Write-Log "KILL FAILED: PID=$($largest.Id) - $($_.Exception.Message)"
-            }
+function Get-WorkerPIDs {
+    $pids = @()
+    if ($WorkerPIDDir -ne "" -and (Test-Path $WorkerPIDDir)) {
+        Get-ChildItem -Path $WorkerPIDDir -Recurse -Filter "worker.pid" -ErrorAction SilentlyContinue | ForEach-Object {
+            $pidStr = Get-Content $_.FullName -ErrorAction SilentlyContinue
+            if ($pidStr -match '^\d+$') { $pids += [int]$pidStr }
         }
-    } catch {
-        # Transient process enumeration failure — ignore
+    }
+    return $pids
+}
+
+function Get-ProtectedPIDs {
+    $protected = @()
+    if ($ProtectPIDs -ne "") {
+        $ProtectPIDs.Split(',') | ForEach-Object {
+            $p = $_.Trim()
+            if ($p -match '^\d+$') { $protected += [int]$p }
+        }
+    }
+    # Always protect the parent PID (spiral.sh orchestrator)
+    if ($ParentPID -gt 0) { $protected += $ParentPID }
+    return $protected
+}
+
+function Stop-TargetedNodeProcess {
+    $workerPIDs = Get-WorkerPIDs
+    $protectedPIDs = Get-ProtectedPIDs
+
+    if ($workerPIDs.Count -eq 0) {
+        Write-Log "EMERGENCY: No worker PIDs found in '$WorkerPIDDir' — skipping kill to protect Claude Code"
+        return
+    }
+
+    # Only kill processes that are known workers AND not protected
+    $candidate = $null
+    foreach ($wpid in $workerPIDs) {
+        if ($wpid -in $protectedPIDs) { continue }
+        try {
+            $proc = Get-Process -Id $wpid -ErrorAction SilentlyContinue
+            if ($null -ne $proc) {
+                if ($null -eq $candidate -or $proc.WorkingSet64 -gt $candidate.WorkingSet64) {
+                    $candidate = $proc
+                }
+            }
+        } catch { }
+    }
+
+    if ($null -ne $candidate) {
+        $rssMB = [math]::Floor($candidate.WorkingSet64 / 1024 / 1024)
+        Write-Log "EMERGENCY KILL (targeted): worker PID=$($candidate.Id) RSS=${rssMB}MB (level 4)"
+        try {
+            Stop-Process -Id $candidate.Id -Force -ErrorAction Stop
+            Write-Log "KILLED: PID=$($candidate.Id) successfully terminated"
+        } catch {
+            Write-Log "KILL FAILED: PID=$($candidate.Id) - $($_.Exception.Message)"
+        }
+    } else {
+        Write-Log "EMERGENCY: No killable worker processes found — memory critical but cannot safely kill"
     }
 }
 
 # ── Start ─────────────────────────────────────────────────────────────────────
 
 if ($GraduatedMode) {
-    Write-Log "Watchdog started (GRADUATED): ScratchDir=$ScratchDir, ThresholdPct=$ThresholdPct, Hysteresis=$Hysteresis, IntervalSec=$IntervalSec, ParentPID=$ParentPID"
+    $preemptiveMsg = if ($PreemptivePressureMB -gt 0) { ", PreemptivePressureMB=$PreemptivePressureMB" } else { "" }
+    Write-Log "Watchdog started (GRADUATED): ScratchDir=$ScratchDir, ThresholdPct=$ThresholdPct, Hysteresis=$Hysteresis, IntervalSec=$IntervalSec, ParentPID=$ParentPID$preemptiveMsg"
 } else {
     Write-Log "Watchdog started (KILL-ONLY): ThresholdMB=$ThresholdMB, ParentPID=$ParentPID, IntervalSec=$IntervalSec"
 }
@@ -252,8 +296,17 @@ while ($true) {
             $ConsecutiveLowerCount = 0
         }
 
-        $recommendations = Get-Recommendations -Level $ReportedLevel -FreeMB $mem.FreeMB -NodeProcs $nodeProcs
-        Write-PressureFile -Level $ReportedLevel -FreeMB $mem.FreeMB -NodeProcs $nodeProcs -Recommendations $recommendations
+        # Predictive preemptive pressure: if free RAM drops below PreemptivePressureMB
+        # and we're currently at level 0, pre-escalate to level 1 proactively (Idea 7).
+        # This gives the adaptive pause/resume system time to throttle before RAM is critical.
+        $EffectiveLevel = $ReportedLevel
+        if ($PreemptivePressureMB -gt 0 -and $EffectiveLevel -eq 0 -and $mem.FreeMB -lt $PreemptivePressureMB) {
+            $EffectiveLevel = 1
+            Write-Log "Predictive preemptive pressure: free=${mem.FreeMB}MB < threshold=${PreemptivePressureMB}MB — reporting level 1 (was 0)"
+        }
+
+        $recommendations = Get-Recommendations -Level $EffectiveLevel -FreeMB $mem.FreeMB -NodeProcs $nodeProcs
+        Write-PressureFile -Level $EffectiveLevel -FreeMB $mem.FreeMB -NodeProcs $nodeProcs -Recommendations $recommendations
 
         # Manage low-power flag file
         if ($ReportedLevel -ge 2) {
@@ -268,9 +321,9 @@ while ($true) {
             }
         }
 
-        # Level 4: emergency kill (largest node process)
+        # Level 4: emergency kill (targeted worker process only, never Claude Code)
         if ($ReportedLevel -ge 4) {
-            Stop-LargestNodeProcess
+            Stop-TargetedNodeProcess
         }
 
     } else {
