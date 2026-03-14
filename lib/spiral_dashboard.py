@@ -49,7 +49,8 @@ def load_results(path: str) -> list[dict]:
     with open(path, encoding="utf-8", errors="replace") as f:
         reader = csv.DictReader(f, delimiter="\t")
         for row in reader:
-            for key in ("duration_sec", "retry_num", "spiral_iter", "ralph_iter"):
+            for key in ("duration_sec", "retry_num", "spiral_iter", "ralph_iter",
+                        "input_tokens", "output_tokens"):
                 if key in row and row[key]:
                     try:
                         row[key] = int(row[key])
@@ -439,6 +440,83 @@ def compute_stale_stories(prd: dict, stale_days: int | None = None) -> dict[str,
     return stale
 
 
+def compute_token_forecast(results: list[dict], daily_limit: int | None = None) -> dict | None:
+    """Compute API token burn rate and forecast exhaustion time.
+
+    Uses a rolling 1-hour window of rows that have ``input_tokens``/``output_tokens``
+    data.  Returns ``None`` (widget hidden) when fewer than 3 such rows are found
+    in the window.
+
+    Returned dict keys:
+        burn_rate_per_hour  – tokens consumed in the last 3600 s (≈ tokens/hr)
+        hours_to_exhaustion – float hours until daily limit reached
+        time_str            – human-readable duration string  (e.g. "~2h 15m")
+        exhaustion_clock    – wall-clock time of exhaustion    (e.g. "14:32")
+        daily_limit         – integer budget ceiling used
+        amber_alert         – bool, True when exhaustion < 2 hours away
+    """
+    from datetime import timedelta, timezone
+
+    if daily_limit is None:
+        try:
+            daily_limit = int(os.environ.get("SPIRAL_DAILY_TOKEN_LIMIT", "1000000"))
+        except (ValueError, TypeError):
+            daily_limit = 1_000_000
+
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(seconds=3600)
+
+    recent_rows = []
+    for r in results:
+        ts_raw = r.get("timestamp", "")
+        if not ts_raw:
+            continue
+        try:
+            ts = datetime.fromisoformat(ts_raw.replace("Z", "+00:00"))
+        except (ValueError, TypeError):
+            continue
+        if ts < cutoff:
+            continue
+        input_tok = r.get("input_tokens", 0) or 0
+        output_tok = r.get("output_tokens", 0) or 0
+        try:
+            input_tok = int(input_tok)
+            output_tok = int(output_tok)
+        except (ValueError, TypeError):
+            input_tok = output_tok = 0
+        if input_tok > 0 or output_tok > 0:
+            recent_rows.append({"timestamp": ts, "tokens": input_tok + output_tok})
+
+    if len(recent_rows) < 3:
+        return None
+
+    # Tokens burned in the 1-hour window ≈ burn rate per hour
+    burn_rate_per_hour = sum(r["tokens"] for r in recent_rows)
+    if burn_rate_per_hour <= 0:
+        return None
+
+    hours_to_exhaustion = daily_limit / burn_rate_per_hour
+    exhaustion_time = now + timedelta(hours=hours_to_exhaustion)
+    exhaustion_clock = exhaustion_time.strftime("%H:%M")
+
+    if hours_to_exhaustion < 1:
+        mins = int(hours_to_exhaustion * 60)
+        time_str = f"~{mins}m"
+    else:
+        h = int(hours_to_exhaustion)
+        m = int((hours_to_exhaustion - h) * 60)
+        time_str = f"~{h}h {m}m"
+
+    return {
+        "burn_rate_per_hour": burn_rate_per_hour,
+        "hours_to_exhaustion": hours_to_exhaustion,
+        "time_str": time_str,
+        "exhaustion_clock": exhaustion_clock,
+        "daily_limit": daily_limit,
+        "amber_alert": hours_to_exhaustion < 2,
+    }
+
+
 def compute_story_attempts(prd: dict, results: list[dict]) -> dict:
     """Group results by story_id and build per-story attempt history.
 
@@ -661,7 +739,8 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
                 failure_reasons: list[dict] | None = None,
                 story_attempts: dict | None = None,
                 refresh_secs: int = 0,
-                orphaned_worktrees: list[dict] | None = None) -> str:
+                orphaned_worktrees: list[dict] | None = None,
+                token_forecast: dict | None = None) -> str:
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     max_vel = max((v["kept"] for v in velocity), default=1) or 1
 
@@ -891,6 +970,34 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
             f'{ow_rows}</table>\n</section>\n'
         )
 
+    # Token forecast widget
+    token_forecast_html = ""
+    if token_forecast is not None:
+        tf = token_forecast
+        amber = tf.get("amber_alert", False)
+        border_col = "#ffd93d" if amber else "#0f3460"
+        title_col = "#ffd93d" if amber else "#6c63ff"
+        alert_badge = ' <span style="font-size:10px;background:#ffd93d;color:#333;padding:1px 6px;border-radius:8px;vertical-align:middle">&#9888; LOW BUDGET</span>' if amber else ""
+        burn_rate_fmt = f"{tf['burn_rate_per_hour']:,}"
+        limit_fmt = f"{tf['daily_limit']:,}"
+        token_forecast_html = (
+            f'<section style="border-color:{border_col}">\n'
+            f'<h2 style="color:{title_col}">API Rate-Limit Forecast{alert_badge}</h2>\n'
+            f'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">\n'
+            f'<div style="text-align:center"><div style="font-size:22px;font-weight:bold;color:#fff">{burn_rate_fmt}</div>'
+            f'<div style="font-size:11px;color:#888;margin-top:4px;text-transform:uppercase">Tokens / Hour</div></div>\n'
+            f'<div style="text-align:center"><div style="font-size:22px;font-weight:bold;color:{"#ffd93d" if amber else "#fff"}">'
+            f'{tf["time_str"]} <span style="font-size:13px;color:#888">(at {tf["exhaustion_clock"]})</span></div>'
+            f'<div style="font-size:11px;color:#888;margin-top:4px;text-transform:uppercase">Daily Limit In</div></div>\n'
+            f'<div style="text-align:center"><div style="font-size:22px;font-weight:bold;color:#fff">{limit_fmt}</div>'
+            f'<div style="font-size:11px;color:#888;margin-top:4px;text-transform:uppercase">Daily Budget (SPIRAL_DAILY_TOKEN_LIMIT)</div></div>\n'
+            f'</div>\n'
+            f'<div style="font-size:11px;color:#555;margin-top:8px">'
+            f'At current pace, daily limit reached in {tf["time_str"]} (at {tf["exhaustion_clock"]}). '
+            f'Based on rolling 1-hour token window.</div>\n'
+            f'</section>\n'
+        )
+
     refresh_meta = f'<meta http-equiv="refresh" content="{refresh_secs}">\n' if refresh_secs > 0 else ""
     refresh_footer = f" &middot; Auto-refreshing every {refresh_secs}s" if refresh_secs > 0 else ""
 
@@ -984,7 +1091,7 @@ footer{{text-align:center;color:#444;font-size:10px;margin-top:16px;padding-top:
 </div>
 
 {orphaned_html}
-{f'<div>{insights_html}</div>' if insights_html else ''}
+{token_forecast_html}{f'<div>{insights_html}</div>' if insights_html else ''}
 
 {stories_html}
 
@@ -1103,6 +1210,7 @@ def main() -> int:
     epics = compute_epics(prd)
     failure_reasons = compute_failure_reasons(prd)
     story_attempts = compute_story_attempts(prd, results)
+    token_forecast = compute_token_forecast(results)
 
     # Find latest screenshot
     screenshot = find_latest_screenshot(args.scratch_dir)
@@ -1112,7 +1220,7 @@ def main() -> int:
         velocity = [{"iter": 0, "kept": 0, "total": 0, "duration_hours": 0.001, "velocity": 0}]
 
     # Render
-    html = render_html(overview, velocity, status, model_perf, retry_analysis, bottle, decomposition, insights, screenshot, iteration_velocity=iter_vel, epics=epics, activity_sections=activity, failure_reasons=failure_reasons, story_attempts=story_attempts, refresh_secs=args.refresh_secs, orphaned_worktrees=orphans)
+    html = render_html(overview, velocity, status, model_perf, retry_analysis, bottle, decomposition, insights, screenshot, iteration_velocity=iter_vel, epics=epics, activity_sections=activity, failure_reasons=failure_reasons, story_attempts=story_attempts, refresh_secs=args.refresh_secs, orphaned_worktrees=orphans, token_forecast=token_forecast)
 
     # Write
     output_path = os.path.abspath(args.output)

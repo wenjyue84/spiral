@@ -24,6 +24,7 @@ from spiral_dashboard import (  # noqa: E402
     detect_orphaned_worktrees,
     compute_stale_stories,
     compute_story_attempts,
+    compute_token_forecast,
 )
 
 
@@ -710,3 +711,198 @@ class TestComputeStoryAttemptsStale:
         html = render_html(*args, story_attempts=story_attempts)
         assert "stale-badge" in html
         assert "stale" in html
+
+
+# ── compute_token_forecast (US-151) ──────────────────────────────────────────
+
+def _recent_ts(seconds_ago: float = 0) -> str:
+    """Return ISO 8601 UTC timestamp that is *seconds_ago* seconds in the past."""
+    ts = datetime.now(timezone.utc) - timedelta(seconds=seconds_ago)
+    return ts.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _make_token_rows(n: int, tokens_each: int = 10000, seconds_ago: float = 60) -> list[dict]:
+    """Return *n* results rows with token data, all within the last hour."""
+    return [
+        {
+            "timestamp": _recent_ts(seconds_ago),
+            "input_tokens": tokens_each,
+            "output_tokens": 0,
+            "status": "keep",
+        }
+        for _ in range(n)
+    ]
+
+
+class TestComputeTokenForecast:
+    def test_empty_results_returns_none(self):
+        assert compute_token_forecast([]) is None
+
+    def test_fewer_than_three_rows_returns_none(self):
+        rows = _make_token_rows(2)
+        assert compute_token_forecast(rows) is None
+
+    def test_no_token_columns_returns_none(self):
+        rows = [{"timestamp": _recent_ts(60), "status": "keep"} for _ in range(5)]
+        assert compute_token_forecast(rows) is None
+
+    def test_rows_older_than_one_hour_excluded(self):
+        old_rows = _make_token_rows(5, tokens_each=5000, seconds_ago=3700)
+        assert compute_token_forecast(old_rows) is None
+
+    def test_three_or_more_recent_rows_returns_dict(self):
+        rows = _make_token_rows(3, tokens_each=100_000)
+        result = compute_token_forecast(rows, daily_limit=1_000_000)
+        assert result is not None
+
+    def test_burn_rate_is_sum_of_window_tokens(self):
+        rows = _make_token_rows(4, tokens_each=50_000)
+        result = compute_token_forecast(rows, daily_limit=1_000_000)
+        assert result is not None
+        assert result["burn_rate_per_hour"] == 4 * 50_000
+
+    def test_hours_to_exhaustion_calculation(self):
+        rows = _make_token_rows(4, tokens_each=250_000)  # 1,000,000 total
+        result = compute_token_forecast(rows, daily_limit=1_000_000)
+        assert result is not None
+        assert result["hours_to_exhaustion"] == pytest.approx(1.0)
+
+    def test_amber_alert_true_when_less_than_two_hours(self):
+        # 600,000 tokens/hr → limit of 1,000,000 → ~1.67 hrs → amber
+        rows = _make_token_rows(6, tokens_each=100_000)
+        result = compute_token_forecast(rows, daily_limit=1_000_000)
+        assert result is not None
+        assert result["amber_alert"] is True
+
+    def test_amber_alert_false_when_more_than_two_hours(self):
+        # 100,000 tokens/hr → limit of 1,000,000 → 10 hrs → no amber
+        rows = _make_token_rows(4, tokens_each=25_000)
+        result = compute_token_forecast(rows, daily_limit=1_000_000)
+        assert result is not None
+        assert result["amber_alert"] is False
+
+    def test_time_str_hours_and_minutes_format(self):
+        # 500,000 tokens/hr → 1,000,000 limit → 2h 0m
+        rows = _make_token_rows(5, tokens_each=100_000)
+        result = compute_token_forecast(rows, daily_limit=1_000_000)
+        assert result is not None
+        assert result["time_str"].startswith("~2h")
+
+    def test_time_str_minutes_only_when_under_one_hour(self):
+        # 4 rows * 300,000 = 1,200,000 tokens/hr → 1,000,000 limit → < 1 hr
+        rows = _make_token_rows(4, tokens_each=300_000)
+        result = compute_token_forecast(rows, daily_limit=1_000_000)
+        assert result is not None
+        assert result["hours_to_exhaustion"] < 1.0
+        assert result["time_str"].startswith("~")
+        assert "h" not in result["time_str"]
+        assert "m" in result["time_str"]
+
+    def test_exhaustion_clock_is_hhmm_format(self):
+        rows = _make_token_rows(3, tokens_each=10_000)
+        result = compute_token_forecast(rows, daily_limit=1_000_000)
+        assert result is not None
+        import re
+        assert re.match(r"^\d{2}:\d{2}$", result["exhaustion_clock"])
+
+    def test_daily_limit_key_present_in_result(self):
+        rows = _make_token_rows(3)
+        result = compute_token_forecast(rows, daily_limit=500_000)
+        assert result is not None
+        assert result["daily_limit"] == 500_000
+
+    def test_spiral_daily_token_limit_env_var(self, monkeypatch):
+        monkeypatch.setenv("SPIRAL_DAILY_TOKEN_LIMIT", "500000")
+        rows = _make_token_rows(3, tokens_each=100_000)
+        result = compute_token_forecast(rows)
+        assert result is not None
+        assert result["daily_limit"] == 500_000
+
+    def test_default_daily_limit_is_one_million(self, monkeypatch):
+        monkeypatch.delenv("SPIRAL_DAILY_TOKEN_LIMIT", raising=False)
+        rows = _make_token_rows(3, tokens_each=10_000)
+        result = compute_token_forecast(rows)
+        assert result is not None
+        assert result["daily_limit"] == 1_000_000
+
+    def test_rows_with_only_output_tokens_counted(self):
+        rows = [
+            {"timestamp": _recent_ts(60), "input_tokens": 0, "output_tokens": 10_000}
+            for _ in range(3)
+        ]
+        result = compute_token_forecast(rows, daily_limit=1_000_000)
+        assert result is not None
+        assert result["burn_rate_per_hour"] == 30_000
+
+    def test_mixed_old_and_new_only_new_counted(self):
+        old = _make_token_rows(5, tokens_each=100_000, seconds_ago=7200)  # 2 hrs ago
+        new = _make_token_rows(3, tokens_each=50_000, seconds_ago=30)
+        result = compute_token_forecast(old + new, daily_limit=1_000_000)
+        assert result is not None
+        assert result["burn_rate_per_hour"] == 3 * 50_000
+
+
+class TestRenderHtmlTokenForecast:
+    def test_widget_hidden_when_forecast_none(self):
+        args = _make_minimal_render_args()
+        html = render_html(*args, token_forecast=None)
+        assert "API Rate-Limit Forecast" not in html
+
+    def test_widget_hidden_when_omitted(self):
+        args = _make_minimal_render_args()
+        html = render_html(*args)
+        assert "API Rate-Limit Forecast" not in html
+
+    def test_widget_shown_when_forecast_provided(self):
+        args = _make_minimal_render_args()
+        forecast = {
+            "burn_rate_per_hour": 100_000,
+            "hours_to_exhaustion": 10.0,
+            "time_str": "~10h 0m",
+            "exhaustion_clock": "22:00",
+            "daily_limit": 1_000_000,
+            "amber_alert": False,
+        }
+        html = render_html(*args, token_forecast=forecast)
+        assert "API Rate-Limit Forecast" in html
+        assert "Tokens / Hour" in html
+        assert "Daily Limit In" in html
+
+    def test_widget_shows_burn_rate(self):
+        args = _make_minimal_render_args()
+        forecast = {
+            "burn_rate_per_hour": 250_000,
+            "hours_to_exhaustion": 4.0,
+            "time_str": "~4h 0m",
+            "exhaustion_clock": "18:00",
+            "daily_limit": 1_000_000,
+            "amber_alert": False,
+        }
+        html = render_html(*args, token_forecast=forecast)
+        assert "250,000" in html
+
+    def test_widget_amber_alert_present_when_flag_true(self):
+        args = _make_minimal_render_args()
+        forecast = {
+            "burn_rate_per_hour": 600_000,
+            "hours_to_exhaustion": 1.67,
+            "time_str": "~1h 40m",
+            "exhaustion_clock": "16:30",
+            "daily_limit": 1_000_000,
+            "amber_alert": True,
+        }
+        html = render_html(*args, token_forecast=forecast)
+        assert "LOW BUDGET" in html
+
+    def test_widget_no_amber_when_flag_false(self):
+        args = _make_minimal_render_args()
+        forecast = {
+            "burn_rate_per_hour": 50_000,
+            "hours_to_exhaustion": 20.0,
+            "time_str": "~20h 0m",
+            "exhaustion_clock": "08:00",
+            "daily_limit": 1_000_000,
+            "amber_alert": False,
+        }
+        html = render_html(*args, token_forecast=forecast)
+        assert "LOW BUDGET" not in html
