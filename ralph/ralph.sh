@@ -866,6 +866,35 @@ while [[ $ITERATION -lt $MAX_ITERATIONS ]]; do
 
   # ── Gemini pre-context (paid tier, deep reasoning, saves 20+ claude turns) ──
   STORY_JSON=$($JQ -c ".userStories[] | select(.id == \"$NEXT_STORY\")" "$PRD_FILE" 2>/dev/null || echo "{}")
+
+  # ── Context truncation gate (US-141) ─────────────────────────────────────
+  # Measure story token count before spawning AI; strip over-budget fields.
+  _TRUNCATE_PY="$(cd "$SCRIPT_DIR/.." 2>/dev/null && pwd)/lib/truncate_context.py"
+  if [[ -f "$_TRUNCATE_PY" ]] && command -v python3 &>/dev/null \
+     && [[ -n "$STORY_JSON" && "$STORY_JSON" != "{}" ]]; then
+    _TRUNC_WARN=$( echo "$STORY_JSON" \
+      | python3 "$_TRUNCATE_PY" --base-prompt-file "$PROMPT_FILE" \
+          --attempt "${RETRY_NOW:-0}" \
+          2>&1 1>/dev/null )
+    _TRUNC_JSON=$( echo "$STORY_JSON" \
+      | python3 "$_TRUNCATE_PY" --base-prompt-file "$PROMPT_FILE" \
+          --attempt "${RETRY_NOW:-0}" \
+          2>/dev/null )
+    if [[ -n "$_TRUNC_WARN" ]]; then
+      echo "  [context] WARNING: $( echo "$_TRUNC_WARN" | python3 -c \
+        "import sys,json; d=json.load(sys.stdin); \
+         print(f\"context truncated for {d.get('story_id','?')}: \
+{d.get('original_tokens','?')} → {d.get('truncated_tokens','?')} tokens \
+(dropped: {', '.join(d.get('dropped_fields',[]))})\") " 2>/dev/null || echo "$_TRUNC_WARN" )"
+      {
+        echo ""
+        echo "## Context Truncation Warning — $NEXT_STORY"
+        echo "$_TRUNC_WARN"
+        echo ""
+      } >> "$PROGRESS_FILE"
+    fi
+  fi
+
   if command -v gemini &>/dev/null && [[ -n "$STORY_JSON" && "$STORY_JSON" != "{}" ]]; then
     echo "  [precontext] Running Gemini 2.5 Pro pre-analysis..."
     GEMINI_PROMPT="You are preparing context for a Claude Code agent that will implement a Frappe/Python user story in the lhdn_payroll_integration app.

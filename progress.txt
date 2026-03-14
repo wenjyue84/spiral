@@ -2738,3 +2738,26 @@ Completed: Add gitleaks secret scanning gate before AI-generated code is committ
 ### Gotchas
 - Pre-existing Hypothesis flakiness in `test_partition.py::TestAssignStories::test_bucket_count_matches_workers` (HealthCheck.too_slow) — unrelated to this story
 - test_route_stories.py has a relative import error — also pre-existing
+## Iteration 2 - Sat, Mar 14, 2026  3:59:22 PM
+Incomplete: Truncate story context to fit Claude context window using token counting (ID: US-141) — attempt 1/3
+
+
+## Iteration N - Story: US-141: Truncate story context to fit Claude context window using token counting
+
+### What was implemented
+- Created `lib/truncate_context.py`: measures token count of assembled prompt (base system prompt + story JSON) using tiktoken (falls back to 4-char/token approximation if tiktoken unavailable)
+- Truncation priority order: `_researchOutput` → `hints` → `technicalHints` → `filesTouch`; CORE_FIELDS (id, title, description, acceptanceCriteria, etc.) never dropped
+- Emits structured JSON warning to stderr: `{"event":"context_truncated","story_id":"...","original_tokens":...,"truncated_tokens":...,"dropped_fields":[...]}`
+- `SPIRAL_CONTEXT_LIMIT` env var overrides default 180000 token threshold
+- Optional per-(story_id, attempt) caching via `SPIRAL_CONTEXT_CACHE_DIR` to avoid redundant calls on retries
+- Wired into `ralph/ralph.sh` after STORY_JSON extraction — truncation gate runs before every AI spawn
+- Created `tests/test_truncate_context.py` with 28 tests: truncation ordering, edge cases, caching, main() CLI
+
+### Patterns discovered
+- `python3` is the standard invocation in ralph.sh (not `uv run python`)
+- `SCRIPT_DIR` in ralph.sh = `ralph/`; lib/ is at `$SCRIPT_DIR/../lib/`
+- tiktoken is NOT in pyproject.toml dependencies; implementation uses graceful fallback (4 chars/token)
+
+### Gotchas
+- `args.story` can be an empty string (falsy) but `--story ""` should NOT fall through to stdin; use `is not None` check
+- test_route_stories.py has a pre-existing import error (relative import) — pre-dates this story; excluded from full suite run
