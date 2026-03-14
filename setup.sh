@@ -20,7 +20,7 @@ DIM='\033[2m'
 BOLD='\033[1m'
 RESET='\033[0m'
 
-ok()   { printf "  ${GREEN}[OK]${RESET} %s\n" "$*"; }
+ok() { printf "  ${GREEN}[OK]${RESET} %s\n" "$*"; }
 warn() { printf "  ${YELLOW}[!!]${RESET} %s\n" "$*"; }
 fail() { printf "  ${RED}[FAIL]${RESET} %s\n" "$*"; }
 info() { printf "  ${DIM}%s${RESET}\n" "$*"; }
@@ -28,7 +28,7 @@ info() { printf "  ${DIM}%s${RESET}\n" "$*"; }
 # ── Platform detection ─────────────────────────────────────────────────────
 detect_platform() {
   case "$(uname -s)" in
-    MINGW*|MSYS*|CYGWIN*|*_NT*)
+    MINGW* | MSYS* | CYGWIN* | *_NT*)
       PLATFORM="windows"
       PKG_MGR="choco"
       ;;
@@ -83,13 +83,13 @@ get_node_version() {
 install_pkg() {
   local pkg="$1"
   case "$PKG_MGR" in
-    choco)   choco install -y "$pkg" 2>/dev/null ;;
-    brew)    brew install "$pkg" 2>/dev/null ;;
-    apt)     sudo apt-get install -y "$pkg" 2>/dev/null ;;
-    dnf)     sudo dnf install -y "$pkg" 2>/dev/null ;;
-    yum)     sudo yum install -y "$pkg" 2>/dev/null ;;
-    pacman)  sudo pacman -S --noconfirm "$pkg" 2>/dev/null ;;
-    *)       return 1 ;;
+    choco) choco install -y "$pkg" 2>/dev/null ;;
+    brew) brew install "$pkg" 2>/dev/null ;;
+    apt) sudo apt-get install -y "$pkg" 2>/dev/null ;;
+    dnf) sudo dnf install -y "$pkg" 2>/dev/null ;;
+    yum) sudo yum install -y "$pkg" 2>/dev/null ;;
+    pacman) sudo pacman -S --noconfirm "$pkg" 2>/dev/null ;;
+    *) return 1 ;;
   esac
 }
 
@@ -149,11 +149,11 @@ if [[ -n "$PYTHON_CMD" ]]; then
 else
   info "Installing Python 3..."
   case "$PKG_MGR" in
-    choco)  install_pkg "python3" ;;
-    brew)   install_pkg "python3" ;;
-    apt)    install_pkg "python3" ;;
-    dnf)    install_pkg "python3" ;;
-    *)      ;;
+    choco) install_pkg "python3" ;;
+    brew) install_pkg "python3" ;;
+    apt) install_pkg "python3" ;;
+    dnf) install_pkg "python3" ;;
+    *) ;;
   esac
   # Re-check
   for cmd in python3 python; do
@@ -188,10 +188,10 @@ if command -v node &>/dev/null; then
 else
   info "Installing Node.js..."
   case "$PKG_MGR" in
-    choco)  install_pkg "nodejs" ;;
-    brew)   install_pkg "node" ;;
-    apt)    install_pkg "nodejs" && install_pkg "npm" ;;
-    *)      ;;
+    choco) install_pkg "nodejs" ;;
+    brew) install_pkg "node" ;;
+    apt) install_pkg "nodejs" && install_pkg "npm" ;;
+    *) ;;
   esac
   if command -v node &>/dev/null; then
     NODE_VER=$(get_node_version)
@@ -280,6 +280,19 @@ else
   fi
 fi
 
+# ── 8. shfmt (OPTIONAL — shell script formatter, enforced in CI) ──────────
+if command -v shfmt &>/dev/null; then
+  SHFMT_VER=$(shfmt --version 2>&1 | head -1)
+  ok "shfmt $SHFMT_VER"
+  track "shfmt" "ok" "$SHFMT_VER"
+else
+  warn "shfmt — not found (optional for local dev, required in CI)"
+  echo "       Install: go install mvdan.cc/sh/v3/cmd/shfmt@latest"
+  echo "                brew install shfmt (macOS)"
+  echo "                apt-get install shfmt (Ubuntu 20.04+)"
+  track "shfmt" "warn" "not found (optional)"
+fi
+
 # ── Clone spiral (if running via curl pipe) ────────────────────────────────
 echo ""
 SPIRAL_DIR="${SPIRAL_INSTALL_DIR:-$HOME/.ai/Skills/spiral}"
@@ -310,16 +323,17 @@ echo -e "  ${DIM}─────────────────────
 
 REQUIRED_OK=true
 for entry in "${RESULTS[@]}"; do
-  IFS='|' read -r name status detail <<< "$entry"
+  IFS='|' read -r name status detail <<<"$entry"
   case "$status" in
-    ok)   printf "  ${GREEN}[OK]${RESET}   %-12s %s\n" "$name" "$detail" ;;
+    ok) printf "  ${GREEN}[OK]${RESET}   %-12s %s\n" "$name" "$detail" ;;
     warn) printf "  ${YELLOW}[!!]${RESET}   %-12s %s\n" "$name" "$detail" ;;
-    fail) printf "  ${RED}[FAIL]${RESET} %-12s %s\n" "$name" "$detail"
-          # Check if required
-          if [[ "$name" == "git" || "$name" == "python" || "$name" == "claude" ]]; then
-            REQUIRED_OK=false
-          fi
-          ;;
+    fail)
+      printf "  ${RED}[FAIL]${RESET} %-12s %s\n" "$name" "$detail"
+      # Check if required
+      if [[ "$name" == "git" || "$name" == "python" || "$name" == "claude" ]]; then
+        REQUIRED_OK=false
+      fi
+      ;;
   esac
 done
 

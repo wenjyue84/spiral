@@ -49,9 +49,9 @@ spiral_api_retry() {
 
     # Calculate backoff with jitter
     # Formula: sleep_s = base_delay * attempt + (RANDOM % jitter_range)
-    local exponential_delay=$(( base_delay * attempt ))
-    local random_jitter=$(( RANDOM % jitter_range ))
-    local sleep_seconds=$(( exponential_delay + random_jitter ))
+    local exponential_delay=$((base_delay * attempt))
+    local random_jitter=$((RANDOM % jitter_range))
+    local sleep_seconds=$((exponential_delay + random_jitter))
 
     echo "  [retry] Attempt $attempt/$max_attempts failed (exit $exit_code) — retrying in ${sleep_seconds}s..." >&2
     sleep "$sleep_seconds"
@@ -89,9 +89,9 @@ spiral_api_retry_on_error() {
     fi
 
     # Calculate backoff with jitter
-    local exponential_delay=$(( base_delay * attempt ))
-    local random_jitter=$(( RANDOM % jitter_range ))
-    local sleep_seconds=$(( exponential_delay + random_jitter ))
+    local exponential_delay=$((base_delay * attempt))
+    local random_jitter=$((RANDOM % jitter_range))
+    local sleep_seconds=$((exponential_delay + random_jitter))
 
     echo "  [retry] Attempt $attempt/$max_attempts hit error $target_code — retrying in ${sleep_seconds}s..." >&2
     sleep "$sleep_seconds"

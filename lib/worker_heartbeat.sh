@@ -43,7 +43,7 @@ worker_heartbeat_start() {
       local ts=$(date +%s)
       local pid=$$
       # Write heartbeat JSON: {pid, storyId, ts}
-      printf '{"pid":%s,"storyId":"%s","ts":%s}\n' "$pid" "$current_story_id" "$ts" > "$hb_file" 2>/dev/null || true
+      printf '{"pid":%s,"storyId":"%s","ts":%s}\n' "$pid" "$current_story_id" "$ts" >"$hb_file" 2>/dev/null || true
     done
   ) &
   _HEARTBEAT_PID=$!
@@ -91,7 +91,7 @@ check_stale_heartbeats() {
   for hb_file in "$hb_dir"/worker_*.heartbeat; do
     if [[ -f "$hb_file" ]]; then
       local mtime=$(stat -c %Y "$hb_file" 2>/dev/null || stat -f %m "$hb_file" 2>/dev/null || echo "0")
-      local age=$(( now - mtime ))
+      local age=$((now - mtime))
 
       if [[ "$age" -gt "$threshold" ]]; then
         # File is stale — extract worker info
@@ -118,7 +118,7 @@ check_stale_heartbeats() {
 # Marks stale stories as passes=false WITHOUT incrementing retryCount
 requeue_stale_stories() {
   local prd_file="$1"
-  local stale_info="$2"  # JSON with storyId
+  local stale_info="$2" # JSON with storyId
   local jq_cmd="${3:-jq}"
   local story_id
 
@@ -140,7 +140,7 @@ requeue_stale_stories() {
   # Mark story as not passed, preserve retryCount
   "$jq_cmd" \
     "(.userStories[] | select(.id == \"$story_id\") | .passes) = false" \
-    "$prd_file" > "$prd_file.tmp" && mv "$prd_file.tmp" "$prd_file"
+    "$prd_file" >"$prd_file.tmp" && mv "$prd_file.tmp" "$prd_file"
 
   return $?
 }

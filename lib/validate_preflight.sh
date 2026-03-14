@@ -29,7 +29,7 @@ spiral_preflight_check() {
       local ckpt_phase
       ckpt_phase=$("$JQ" -r '.phase' "$ckpt")
       case "$ckpt_phase" in
-        R|T|M|G|I|V|C) ;;
+        R | T | M | G | I | V | C) ;;
         *)
           echo "  [preflight] WARNING: Invalid checkpoint phase '$ckpt_phase' — removing"
           rm -f "$ckpt"
@@ -41,7 +41,7 @@ spiral_preflight_check() {
   # ── Config validation (if spiral.config.sh vars are already sourced) ───────
   if [[ -n "${SPIRAL_MODEL_ROUTING:-}" ]]; then
     case "$SPIRAL_MODEL_ROUTING" in
-      auto|haiku|sonnet|opus) ;;
+      auto | haiku | sonnet | opus) ;;
       *)
         echo "  [preflight] WARNING: Unknown SPIRAL_MODEL_ROUTING='$SPIRAL_MODEL_ROUTING' (expected: auto|haiku|sonnet|opus)"
         ;;

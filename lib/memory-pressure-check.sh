@@ -30,9 +30,9 @@ _spiral_pressure_file_fresh() {
   # Check file age using file modification time (portable across GNU/macOS)
   local now_ts file_ts age
   now_ts=$(date +%s)
-  file_ts=$(stat -c %Y "$_SPIRAL_PRESSURE_FILE" 2>/dev/null || \
-            stat -f %m "$_SPIRAL_PRESSURE_FILE" 2>/dev/null || echo "0")
-  age=$(( now_ts - file_ts ))
+  file_ts=$(stat -c %Y "$_SPIRAL_PRESSURE_FILE" 2>/dev/null ||
+    stat -f %m "$_SPIRAL_PRESSURE_FILE" 2>/dev/null || echo "0")
+  age=$((now_ts - file_ts))
   [[ "$age" -le "$_SPIRAL_PRESSURE_MAX_AGE" ]]
 }
 
@@ -75,17 +75,17 @@ spiral_recommended_model() {
 spiral_should_skip_phase() {
   local phase="$1"
   if ! _spiral_pressure_file_fresh; then
-    return 1  # don't skip
+    return 1 # don't skip
   fi
   local skip_list
   skip_list=$("$_PRESSURE_JQ" -r '.skip_phases // [] | .[]' "$_SPIRAL_PRESSURE_FILE" 2>/dev/null | tr -d '\r')
   local p
   for p in $skip_list; do
     if [[ "$p" == "$phase" ]]; then
-      return 0  # yes, skip this phase
+      return 0 # yes, skip this phase
     fi
   done
-  return 1  # don't skip
+  return 1 # don't skip
 }
 
 # ── spiral_log_low_power — appends a timestamped entry to the low-power log ───
@@ -93,7 +93,7 @@ spiral_log_low_power() {
   local msg="$1"
   local ts
   ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-  echo "[$ts] $msg" >> "$_SPIRAL_LOW_POWER_LOG" 2>/dev/null || true
+  echo "[$ts] $msg" >>"$_SPIRAL_LOW_POWER_LOG" 2>/dev/null || true
 }
 
 # ── spiral_pressure_free_mb — returns free MB from signal file ────────────────

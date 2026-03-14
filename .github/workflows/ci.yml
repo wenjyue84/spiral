@@ -31,6 +31,33 @@ jobs:
             lib/validate_preflight.sh
             lib/worker_heartbeat.sh
 
+  shfmt-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install shfmt
+        run: go install mvdan.cc/sh/v3/cmd/shfmt@latest
+
+      - name: Check shell script formatting
+        run: |
+          export PATH="$PATH:$(go env GOPATH)/bin"
+          shfmt -d -i 2 -ci \
+            spiral.sh \
+            setup.sh \
+            spiral.config.sh \
+            ralph/ralph.sh \
+            lib/circuit_breaker.sh \
+            lib/memory-pressure-check.sh \
+            lib/memory-watchdog.sh \
+            lib/run_parallel_ralph.sh \
+            lib/spiral_assert.sh \
+            lib/spiral_doctor.sh \
+            lib/spiral_retry.sh \
+            lib/validate_preflight.sh \
+            lib/worker_heartbeat.sh
+
   mypy:
     runs-on: ubuntu-latest
 

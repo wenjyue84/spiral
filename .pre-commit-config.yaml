@@ -4,3 +4,9 @@ repos:
     hooks:
       - id: shellcheck
         args: [--severity=error, --format=gcc]
+
+  - repo: https://github.com/mvdan/sh
+    rev: v3.13.0
+    hooks:
+      - id: shfmt
+        args: [-i, "2", -ci, -w]

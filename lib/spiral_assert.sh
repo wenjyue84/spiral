@@ -15,7 +15,7 @@ _spiral_assert_fail() {
   local log_file="${SCRATCH_DIR:-/tmp}/_assert_violations.log"
 
   echo "[ASSERT FAIL] $check_name: $message"
-  echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | $check_name | $message" >> "$log_file"
+  echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | $check_name | $message" >>"$log_file"
 
   if [[ "$SPIRAL_ASSERT_MODE" == "strict" ]]; then
     echo "[ASSERT] Strict mode — aborting"
@@ -75,14 +75,14 @@ spiral_assert_passes_save_baseline() {
   local baseline_file="${SCRATCH_DIR:-/tmp}/_passes_baseline"
   local current
   current=$("$JQ" '[.userStories[] | select(.passes == true)] | length' "$prd")
-  echo "$current" > "$baseline_file"
+  echo "$current" >"$baseline_file"
 }
 
 spiral_assert_passes_monotonic() {
   local prd="${1:-$PRD_FILE}"
   local baseline_file="${SCRATCH_DIR:-/tmp}/_passes_baseline"
   if [[ ! -f "$baseline_file" ]]; then
-    return 0  # No baseline yet — skip
+    return 0 # No baseline yet — skip
   fi
   local baseline current
   baseline=$(cat "$baseline_file")
@@ -92,7 +92,7 @@ spiral_assert_passes_monotonic() {
     return 1
   fi
   # Update baseline to new value
-  echo "$current" > "$baseline_file"
+  echo "$current" >"$baseline_file"
   return 0
 }
 
@@ -115,7 +115,7 @@ spiral_assert_phase_order() {
     fi
   fi
 
-  echo "$current_phase" > "$last_phase_file"
+  echo "$current_phase" >"$last_phase_file"
   return 0
 }
 
@@ -146,7 +146,7 @@ spiral_assert_merge_no_story_loss() {
 spiral_assert_pending_bounded() {
   local prd="${1:-$PRD_FILE}"
   local max_pending="${SPIRAL_MAX_PENDING:-0}"
-  [[ "$max_pending" -eq 0 ]] && return 0  # unlimited
+  [[ "$max_pending" -eq 0 ]] && return 0 # unlimited
   local pending
   pending=$("$JQ" '[.userStories[] | select(.passes != true and ._decomposed != true)] | length' "$prd")
   if [[ "$pending" -gt "$max_pending" ]]; then
@@ -225,7 +225,7 @@ spiral_assert_worker_disjoint() {
   shift
   local worker_files=("$@")
   if [[ ${#worker_files[@]} -lt 2 ]]; then
-    return 0  # nothing to check with < 2 workers
+    return 0 # nothing to check with < 2 workers
   fi
   local result
   result=$("$SPIRAL_PYTHON" -c "
@@ -295,8 +295,11 @@ spiral_assert_checkpoint_coherent() {
     return 1
   fi
   case "$ckpt_phase" in
-    R|T|M|G|I|V|C) ;;
-    *) _spiral_assert_fail "checkpoint_coherent" "Invalid checkpoint phase: $ckpt_phase"; return 1 ;;
+    R | T | M | G | I | V | C) ;;
+    *)
+      _spiral_assert_fail "checkpoint_coherent" "Invalid checkpoint phase: $ckpt_phase"
+      return 1
+      ;;
   esac
   return 0
 }

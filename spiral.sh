@@ -57,80 +57,123 @@ export SPIRAL_RUN_ID
 
 # ── Argument parsing ─────────────────────────────────────────────────────────
 MAX_SPIRAL_ITERS=20
-GATE_DEFAULT=""        # empty = interactive; "proceed"|"skip"|"quit" = auto
-STATUS_ONLY=0          # 1 = print session state and exit (--status)
+GATE_DEFAULT="" # empty = interactive; "proceed"|"skip"|"quit" = auto
+STATUS_ONLY=0   # 1 = print session state and exit (--status)
 RALPH_MAX_ITERS=120
-SKIP_RESEARCH=0        # 1 = skip Phase R (Claude web research); T and M still run
-RALPH_WORKERS=1        # >1 = parallel mode (git worktrees + docker lock)
-WORKERS_EXPLICIT=0     # 1 = user passed --ralph-workers explicitly
-CAPACITY_LIMIT=50      # Phase R is skipped when PENDING exceeds this threshold
-MONITOR_TERMINALS=1    # 1 = open a terminal window per worker to tail logs
-SPIRAL_CONFIG_PATH=""  # explicit --config path
-SPIRAL_CLI_PRD=""      # explicit --prd path override
-SPIRAL_CLI_MODEL=""    # explicit --model override (haiku|sonnet|opus)
-SPIRAL_CLI_FOCUS=""    # explicit --focus override
-SPIRAL_FOCUS_TAGS=""   # comma-separated tags filter (--focus-tags)
-TIME_LIMIT_MINS=0      # 0 = no limit; >0 = stop after N minutes (--time-limit or --until)
-DRY_RUN=0              # 1 = dry-run mode: skip API calls (R, T, I, V) but run control flow
-DOCTOR_MODE=0          # 1 = run dependency check and exit (--doctor)
-REPLAY_STORY_ID=""     # "" = normal mode; "US-XXX" = replay that story only (--replay)
-RESET_CHECKPOINT=0     # 1 = remove _checkpoint.json and start fresh (--reset)
-MIGRATE_MODE=0         # 1 = run prd.json schema migration and exit (--migrate)
-ARCHIVE_MODE=0         # 1 = archive completed stories and exit (--archive-done)
+SKIP_RESEARCH=0       # 1 = skip Phase R (Claude web research); T and M still run
+RALPH_WORKERS=1       # >1 = parallel mode (git worktrees + docker lock)
+WORKERS_EXPLICIT=0    # 1 = user passed --ralph-workers explicitly
+CAPACITY_LIMIT=50     # Phase R is skipped when PENDING exceeds this threshold
+MONITOR_TERMINALS=1   # 1 = open a terminal window per worker to tail logs
+SPIRAL_CONFIG_PATH="" # explicit --config path
+SPIRAL_CLI_PRD=""     # explicit --prd path override
+SPIRAL_CLI_MODEL=""   # explicit --model override (haiku|sonnet|opus)
+SPIRAL_CLI_FOCUS=""   # explicit --focus override
+SPIRAL_FOCUS_TAGS=""  # comma-separated tags filter (--focus-tags)
+TIME_LIMIT_MINS=0     # 0 = no limit; >0 = stop after N minutes (--time-limit or --until)
+DRY_RUN=0             # 1 = dry-run mode: skip API calls (R, T, I, V) but run control flow
+DOCTOR_MODE=0         # 1 = run dependency check and exit (--doctor)
+REPLAY_STORY_ID=""    # "" = normal mode; "US-XXX" = replay that story only (--replay)
+RESET_CHECKPOINT=0    # 1 = remove _checkpoint.json and start fresh (--reset)
+MIGRATE_MODE=0        # 1 = run prd.json schema migration and exit (--migrate)
+ARCHIVE_MODE=0        # 1 = archive completed stories and exit (--archive-done)
 
 while [[ $# -gt 0 ]]; do
   case $1 in
     --gate)
-      GATE_DEFAULT="$2"; shift 2 ;;
+      GATE_DEFAULT="$2"
+      shift 2
+      ;;
     --ralph-iters)
-      RALPH_MAX_ITERS="$2"; shift 2 ;;
+      RALPH_MAX_ITERS="$2"
+      shift 2
+      ;;
     --skip-research)
-      SKIP_RESEARCH=1; shift ;;
+      SKIP_RESEARCH=1
+      shift
+      ;;
     --ralph-workers)
-      RALPH_WORKERS="$2"; WORKERS_EXPLICIT=1; shift 2 ;;
+      RALPH_WORKERS="$2"
+      WORKERS_EXPLICIT=1
+      shift 2
+      ;;
     --capacity-limit)
-      CAPACITY_LIMIT="$2"; shift 2 ;;
+      CAPACITY_LIMIT="$2"
+      shift 2
+      ;;
     --monitor)
-      MONITOR_TERMINALS=1; shift ;;
+      MONITOR_TERMINALS=1
+      shift
+      ;;
     --no-monitor)
-      MONITOR_TERMINALS=0; shift ;;
+      MONITOR_TERMINALS=0
+      shift
+      ;;
     --prd)
-      SPIRAL_CLI_PRD="$2"; shift 2 ;;
+      SPIRAL_CLI_PRD="$2"
+      shift 2
+      ;;
     --config)
-      SPIRAL_CONFIG_PATH="$2"; shift 2 ;;
+      SPIRAL_CONFIG_PATH="$2"
+      shift 2
+      ;;
     --model)
-      SPIRAL_CLI_MODEL="$2"; shift 2 ;;
+      SPIRAL_CLI_MODEL="$2"
+      shift 2
+      ;;
     --focus)
-      SPIRAL_CLI_FOCUS="$2"; shift 2 ;;
+      SPIRAL_CLI_FOCUS="$2"
+      shift 2
+      ;;
     --focus-tags)
-      SPIRAL_FOCUS_TAGS="$2"; shift 2 ;;
+      SPIRAL_FOCUS_TAGS="$2"
+      shift 2
+      ;;
     --time-limit)
-      TIME_LIMIT_MINS="$2"; shift 2 ;;
+      TIME_LIMIT_MINS="$2"
+      shift 2
+      ;;
     --until)
       # Parse HH:MM and compute minutes remaining from now
-      _TARGET="$2"; shift 2
+      _TARGET="$2"
+      shift 2
       _NOW_H=$(date +%-H 2>/dev/null || date +%H | sed 's/^0//')
       _NOW_M=$(date +%-M 2>/dev/null || date +%M | sed 's/^0//')
-      _NOW_H=${_NOW_H:-0}; _NOW_M=${_NOW_M:-0}
-      _TARGET_H=$(echo "$_TARGET" | cut -d: -f1 | sed 's/^0*//' ); _TARGET_H=${_TARGET_H:-0}
-      _TARGET_M=$(echo "$_TARGET" | cut -d: -f2 | sed 's/^0*//' ); _TARGET_M=${_TARGET_M:-0}
-      _NOW_TOTAL=$(( _NOW_H * 60 + _NOW_M ))
-      _TARGET_TOTAL=$(( _TARGET_H * 60 + _TARGET_M ))
-      [[ "$_TARGET_TOTAL" -le "$_NOW_TOTAL" ]] && _TARGET_TOTAL=$(( _TARGET_TOTAL + 1440 ))
-      TIME_LIMIT_MINS=$(( _TARGET_TOTAL - _NOW_TOTAL ))
+      _NOW_H=${_NOW_H:-0}
+      _NOW_M=${_NOW_M:-0}
+      _TARGET_H=$(echo "$_TARGET" | cut -d: -f1 | sed 's/^0*//')
+      _TARGET_H=${_TARGET_H:-0}
+      _TARGET_M=$(echo "$_TARGET" | cut -d: -f2 | sed 's/^0*//')
+      _TARGET_M=${_TARGET_M:-0}
+      _NOW_TOTAL=$((_NOW_H * 60 + _NOW_M))
+      _TARGET_TOTAL=$((_TARGET_H * 60 + _TARGET_M))
+      [[ "$_TARGET_TOTAL" -le "$_NOW_TOTAL" ]] && _TARGET_TOTAL=$((_TARGET_TOTAL + 1440))
+      TIME_LIMIT_MINS=$((_TARGET_TOTAL - _NOW_TOTAL))
       ;;
     --dry-run)
-      DRY_RUN=1; shift ;;
+      DRY_RUN=1
+      shift
+      ;;
     --doctor)
-      DOCTOR_MODE=1; shift ;;
+      DOCTOR_MODE=1
+      shift
+      ;;
     --replay)
-      REPLAY_STORY_ID="$2"; shift 2 ;;
+      REPLAY_STORY_ID="$2"
+      shift 2
+      ;;
     --reset)
-      RESET_CHECKPOINT=1; shift ;;
+      RESET_CHECKPOINT=1
+      shift
+      ;;
     --migrate)
-      MIGRATE_MODE=1; shift ;;
+      MIGRATE_MODE=1
+      shift
+      ;;
     --archive-done)
-      ARCHIVE_MODE=1; shift ;;
+      ARCHIVE_MODE=1
+      shift
+      ;;
     --version)
       _SPIRAL_VERSION_STR=$(git -C "$SPIRAL_HOME" describe --tags --always --dirty=+ 2>/dev/null || echo "")
       if [[ -z "$_SPIRAL_VERSION_STR" ]]; then
@@ -138,10 +181,13 @@ while [[ $# -gt 0 ]]; do
       else
         echo "SPIRAL version $_SPIRAL_VERSION_STR"
       fi
-      exit 0 ;;
+      exit 0
+      ;;
     --status)
-      STATUS_ONLY=1; shift ;;
-    --help|-h)
+      STATUS_ONLY=1
+      shift
+      ;;
+    --help | -h)
       echo "SPIRAL — Self-iterating PRD Research & Implementation Autonomous Loop"
       echo ""
       echo "Usage: bash spiral.sh [max_iters] [options]"
@@ -158,7 +204,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --focus TEXT               Focus iteration on a theme (e.g., 'performance', 'security')"
       echo "  --focus-tags TAG,TAG       Only implement stories matching at least one tag (e.g., 'frontend,auth')"
       echo "  --prd PATH                 Path to prd.json (default: prd.json in current directory)"
-  echo "  --config PATH              Path to spiral.config.sh (default: \$REPO_ROOT/spiral.config.sh)"
+      echo "  --config PATH              Path to spiral.config.sh (default: \$REPO_ROOT/spiral.config.sh)"
       echo "  --time-limit N             Stop after N minutes (e.g., 60, 90, 120)"
       echo "  --until HH:MM              Stop at a wall-clock time (e.g., 14:30, 18:00)"
       echo "  --dry-run                  Test loop control flow without API calls"
@@ -166,7 +212,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --replay STORY_ID          Re-run a single story in an isolated worktree (Phases I+V only)"
       echo "  --reset                    Remove checkpoint and start fresh from iteration 1"
       echo "  --migrate                  Migrate prd.json to current schema version and exit"
-  echo "  --archive-done             Archive completed stories to prd-archive.json and exit"
+      echo "  --archive-done             Archive completed stories to prd-archive.json and exit"
       echo "  --status                   Print session state and story counts, then exit"
       echo "  --version                  Print SPIRAL version (git describe) and exit"
       echo ""
@@ -177,9 +223,13 @@ while [[ $# -gt 0 ]]; do
       exit 0
       ;;
     --*)
-      echo "[spiral] Unknown flag: $1"; exit 1 ;;
+      echo "[spiral] Unknown flag: $1"
+      exit 1
+      ;;
     *)
-      MAX_SPIRAL_ITERS="$1"; shift ;;
+      MAX_SPIRAL_ITERS="$1"
+      shift
+      ;;
   esac
 done
 
@@ -259,34 +309,34 @@ SPIRAL_FIRECRAWL_ENABLED="${SPIRAL_FIRECRAWL_ENABLED:-0}"
 SPIRAL_SPECKIT_CONSTITUTION="${SPIRAL_SPECKIT_CONSTITUTION:-}"
 SPIRAL_SPECKIT_SPECS_DIR="${SPIRAL_SPECKIT_SPECS_DIR:-}"
 SPIRAL_FOCUS="${SPIRAL_CLI_FOCUS:-${SPIRAL_FOCUS:-}}"
-SPIRAL_SKIP_STORY_IDS="${SPIRAL_SKIP_STORY_IDS:-}"  # comma-separated IDs to permanently skip without penalty
-SPIRAL_MAX_STORIES="${SPIRAL_MAX_STORIES:-100}"  # warn threshold for total story count in prd.json
-SPIRAL_MAX_STORIES_ABORT="${SPIRAL_MAX_STORIES_ABORT:-0}"  # 0 = warn only; non-zero = fail hard when exceeded
-SPIRAL_AUTO_INFER_DEPS="${SPIRAL_AUTO_INFER_DEPS:-false}"  # true = write inferred dep edges to prd.json after Phase M merge
-SPIRAL_MAX_PENDING="${SPIRAL_MAX_PENDING:-0}"  # 0 = unlimited
-SPIRAL_MAX_RESEARCH_STORIES="${SPIRAL_MAX_RESEARCH_STORIES:-0}"  # 0 = unlimited; cap research candidates per iteration
-SPIRAL_STORY_BATCH_SIZE="${SPIRAL_STORY_BATCH_SIZE:-20}"  # 0 = disabled (show all)
-SPIRAL_COST_CEILING="${SPIRAL_COST_CEILING:-}"  # empty = disabled; USD amount to cap spend
+SPIRAL_SKIP_STORY_IDS="${SPIRAL_SKIP_STORY_IDS:-}"              # comma-separated IDs to permanently skip without penalty
+SPIRAL_MAX_STORIES="${SPIRAL_MAX_STORIES:-100}"                 # warn threshold for total story count in prd.json
+SPIRAL_MAX_STORIES_ABORT="${SPIRAL_MAX_STORIES_ABORT:-0}"       # 0 = warn only; non-zero = fail hard when exceeded
+SPIRAL_AUTO_INFER_DEPS="${SPIRAL_AUTO_INFER_DEPS:-false}"       # true = write inferred dep edges to prd.json after Phase M merge
+SPIRAL_MAX_PENDING="${SPIRAL_MAX_PENDING:-0}"                   # 0 = unlimited
+SPIRAL_MAX_RESEARCH_STORIES="${SPIRAL_MAX_RESEARCH_STORIES:-0}" # 0 = unlimited; cap research candidates per iteration
+SPIRAL_STORY_BATCH_SIZE="${SPIRAL_STORY_BATCH_SIZE:-20}"        # 0 = disabled (show all)
+SPIRAL_COST_CEILING="${SPIRAL_COST_CEILING:-}"                  # empty = disabled; USD amount to cap spend
 SPIRAL_LOW_POWER_MODE="${SPIRAL_LOW_POWER_MODE:-1}"
 SPIRAL_PRESSURE_THRESHOLDS="${SPIRAL_PRESSURE_THRESHOLDS:-40,25,18,12}"
 SPIRAL_MEMORY_POLL_INTERVAL="${SPIRAL_MEMORY_POLL_INTERVAL:-15}"
-SPIRAL_MEMORY_WAIT_MAX_MINS="${SPIRAL_MEMORY_WAIT_MAX_MINS:-0}"  # 0 = unlimited while workers active
+SPIRAL_MEMORY_WAIT_MAX_MINS="${SPIRAL_MEMORY_WAIT_MAX_MINS:-0}" # 0 = unlimited while workers active
 export SPIRAL_MEMORY_WAIT_MAX_MINS
 SPIRAL_PRESSURE_HYSTERESIS="${SPIRAL_PRESSURE_HYSTERESIS:-2}"
-SPIRAL_DEV_URL="${SPIRAL_DEV_URL:-}"  # empty = disabled; URL for Phase V screenshot
-SPIRAL_PROGRESS_MAX_LINES="${SPIRAL_PROGRESS_MAX_LINES:-2000}"  # 0 = disabled; rotate progress.txt when over this limit
-SPIRAL_EVENT_LOG_MAX_LINES="${SPIRAL_EVENT_LOG_MAX_LINES:-10000}"  # 0 = disabled; rotate spiral_events.jsonl when over this limit
-SPIRAL_RESEARCH_CACHE_TTL_HOURS="${SPIRAL_RESEARCH_CACHE_TTL_HOURS:-24}"  # 0 = disabled; cache TTL for Phase R URL responses
-RESEARCH_CACHE_DIR=""  # set after SCRATCH_DIR is known
-SPIRAL_RESEARCH_TIMEOUT="${SPIRAL_RESEARCH_TIMEOUT:-300}"  # seconds; 0 = disabled (unlimited); Phase R LLM call
-SPIRAL_RESEARCH_RETRIES="${SPIRAL_RESEARCH_RETRIES:-2}"    # retries when _research_output.json missing/invalid after Phase R
-SPIRAL_IMPL_TIMEOUT="${SPIRAL_IMPL_TIMEOUT:-600}"          # seconds; 0 = disabled (unlimited); Phase I ralph call
-SPIRAL_VALIDATE_TIMEOUT="${SPIRAL_VALIDATE_TIMEOUT:-300}"  # seconds; 0 = disabled (unlimited)
-SPIRAL_TEST_SYNTH_TIMEOUT="${SPIRAL_TEST_SYNTH_TIMEOUT:-60}"  # seconds; 0 = disabled (unlimited); Phase T synthesize_tests timeout
-SPIRAL_PREEMPTIVE_PRESSURE_MB="${SPIRAL_PREEMPTIVE_PRESSURE_MB:-0}"  # MB; 0 = disabled; free RAM below this triggers preemptive pressure level 1
-SPIRAL_NOTIFY_WEBHOOK="${SPIRAL_NOTIFY_WEBHOOK:-}"                    # HTTPS URL; empty = disabled; POST JSON at each phase start/end
-SPIRAL_NOTIFY_WEBHOOK_TIMEOUT="${SPIRAL_NOTIFY_WEBHOOK_TIMEOUT:-5}"  # seconds; max wait per POST (default 5)
-SPIRAL_NOTIFY_WEBHOOK_HEADERS="${SPIRAL_NOTIFY_WEBHOOK_HEADERS:-}"   # optional HTTP header, e.g. "Authorization: Bearer TOKEN"
+SPIRAL_DEV_URL="${SPIRAL_DEV_URL:-}"                                     # empty = disabled; URL for Phase V screenshot
+SPIRAL_PROGRESS_MAX_LINES="${SPIRAL_PROGRESS_MAX_LINES:-2000}"           # 0 = disabled; rotate progress.txt when over this limit
+SPIRAL_EVENT_LOG_MAX_LINES="${SPIRAL_EVENT_LOG_MAX_LINES:-10000}"        # 0 = disabled; rotate spiral_events.jsonl when over this limit
+SPIRAL_RESEARCH_CACHE_TTL_HOURS="${SPIRAL_RESEARCH_CACHE_TTL_HOURS:-24}" # 0 = disabled; cache TTL for Phase R URL responses
+RESEARCH_CACHE_DIR=""                                                    # set after SCRATCH_DIR is known
+SPIRAL_RESEARCH_TIMEOUT="${SPIRAL_RESEARCH_TIMEOUT:-300}"                # seconds; 0 = disabled (unlimited); Phase R LLM call
+SPIRAL_RESEARCH_RETRIES="${SPIRAL_RESEARCH_RETRIES:-2}"                  # retries when _research_output.json missing/invalid after Phase R
+SPIRAL_IMPL_TIMEOUT="${SPIRAL_IMPL_TIMEOUT:-600}"                        # seconds; 0 = disabled (unlimited); Phase I ralph call
+SPIRAL_VALIDATE_TIMEOUT="${SPIRAL_VALIDATE_TIMEOUT:-300}"                # seconds; 0 = disabled (unlimited)
+SPIRAL_TEST_SYNTH_TIMEOUT="${SPIRAL_TEST_SYNTH_TIMEOUT:-60}"             # seconds; 0 = disabled (unlimited); Phase T synthesize_tests timeout
+SPIRAL_PREEMPTIVE_PRESSURE_MB="${SPIRAL_PREEMPTIVE_PRESSURE_MB:-0}"      # MB; 0 = disabled; free RAM below this triggers preemptive pressure level 1
+SPIRAL_NOTIFY_WEBHOOK="${SPIRAL_NOTIFY_WEBHOOK:-}"                       # HTTPS URL; empty = disabled; POST JSON at each phase start/end
+SPIRAL_NOTIFY_WEBHOOK_TIMEOUT="${SPIRAL_NOTIFY_WEBHOOK_TIMEOUT:-5}"      # seconds; max wait per POST (default 5)
+SPIRAL_NOTIFY_WEBHOOK_HEADERS="${SPIRAL_NOTIFY_WEBHOOK_HEADERS:-}"       # optional HTTP header, e.g. "Authorization: Bearer TOKEN"
 
 # ── Config validation ─────────────────────────────────────────────────────────
 # Validates required keys are set and applies defaults for optional keys.
@@ -320,7 +370,8 @@ RESEARCH_CACHE_DIR="$SCRATCH_DIR/research_cache"
 # ── --prd override: resolve absolute path and update derived paths ────────────
 if [[ -n "$SPIRAL_CLI_PRD" ]]; then
   _PRD_DIR="$(cd "$(dirname "$SPIRAL_CLI_PRD")" 2>/dev/null && pwd)" || {
-    echo "[spiral] ERROR: --prd directory does not exist: $(dirname "$SPIRAL_CLI_PRD")"; exit 1
+    echo "[spiral] ERROR: --prd directory does not exist: $(dirname "$SPIRAL_CLI_PRD")"
+    exit 1
   }
   PRD_FILE="$_PRD_DIR/$(basename "$SPIRAL_CLI_PRD")"
   REPO_ROOT="$_PRD_DIR"
@@ -424,7 +475,7 @@ except Exception:
   fi
   # Show manually-skipped stories
   if [[ -n "$SPIRAL_SKIP_STORY_IDS" ]]; then
-    IFS=',' read -ra _SKIP_ARR <<< "$SPIRAL_SKIP_STORY_IDS"
+    IFS=',' read -ra _SKIP_ARR <<<"$SPIRAL_SKIP_STORY_IDS"
     for _SID in "${_SKIP_ARR[@]}"; do
       _SID=$(echo "$_SID" | tr -d ' ')
       [[ -z "$_SID" ]] && continue
@@ -467,13 +518,13 @@ SESSION_START=$(date +%s)
 # ── Time limit ────────────────────────────────────────────────────────────────
 SESSION_DEADLINE=0
 if [[ "$TIME_LIMIT_MINS" -gt 0 ]]; then
-  SESSION_DEADLINE=$(( SESSION_START + TIME_LIMIT_MINS * 60 ))
+  SESSION_DEADLINE=$((SESSION_START + TIME_LIMIT_MINS * 60))
 fi
 
 # ── Signal trap state ─────────────────────────────────────────────────────────
 WATCHDOG_PID=""
-PHASE=""              # Current phase (R, T, M, G, I, V, C)
-CHILD_PIDS=()         # Track explicitly spawned child processes
+PHASE=""      # Current phase (R, T, M, G, I, V, C)
+CHILD_PIDS=() # Track explicitly spawned child processes
 
 # Signal handler for graceful interrupt (SIGINT/SIGTERM)
 _spiral_cleanup() {
@@ -494,7 +545,7 @@ _spiral_cleanup() {
     local _ckpt_tmp
     _ckpt_tmp=$(mktemp -p "$SCRATCH_DIR" 2>/dev/null || echo "$SCRATCH_DIR/.checkpoint.tmp")
     printf '{"iter":%d,"phase":"%s","ts":"%s"}\n' \
-      "$SPIRAL_ITER" "$PHASE" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$_ckpt_tmp" 2>/dev/null || true
+      "$SPIRAL_ITER" "$PHASE" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$_ckpt_tmp" 2>/dev/null || true
     mv "$_ckpt_tmp" "$CHECKPOINT_FILE" 2>/dev/null || true
     echo "  [SPIRAL] Checkpoint saved at iter=$SPIRAL_ITER phase=$PHASE"
   fi
@@ -503,7 +554,7 @@ _spiral_cleanup() {
 
   # Call the regular cleanup for worktrees, etc.
   cleanup
-  exit 130  # Standard exit code for SIGINT
+  exit 130 # Standard exit code for SIGINT
 }
 
 # Regular cleanup (EXIT)
@@ -591,7 +642,7 @@ elif [[ "${SPIRAL_MEMORY_WATCHDOG:-1}" -eq 1 ]] && { [[ -f /proc/meminfo ]] || c
     _WATCHDOG_SH_ARGS="$_WATCHDOG_SH_ARGS --hysteresis $SPIRAL_PRESSURE_HYSTERESIS"
     _WATCHDOG_MODE="graduated"
   else
-    _WATCHDOG_MODE="graduated"  # bash watchdog always uses graduated mode
+    _WATCHDOG_MODE="graduated" # bash watchdog always uses graduated mode
   fi
   bash "$SPIRAL_HOME/lib/memory-watchdog.sh" $_WATCHDOG_SH_ARGS &
   WATCHDOG_PID=$!
@@ -624,7 +675,7 @@ prd_stats() {
 write_iter_summary() {
   local _iter_end _iter_dur _attempted _failed _phases_json _sep _p _var
   _iter_end=$(date +%s)
-  _iter_dur=$(( _iter_end - ITER_START ))
+  _iter_dur=$((_iter_end - ITER_START))
 
   # stories_passed = RALPH_PROGRESS (set in Phase I)
   # stories_attempted: count from results.tsv if available, else = stories_passed
@@ -632,10 +683,10 @@ write_iter_summary() {
   if [[ -f "$REPO_ROOT/results.tsv" ]]; then
     local _tsv_count
     _tsv_count=$(awk -F'\t' -v iter="$SPIRAL_ITER" 'NR>1 && $2==iter' "$REPO_ROOT/results.tsv" | wc -l)
-    _tsv_count=$(( _tsv_count + 0 ))  # trim whitespace
+    _tsv_count=$((_tsv_count + 0)) # trim whitespace
     [[ "$_tsv_count" -gt "$_attempted" ]] && _attempted=$_tsv_count
   fi
-  _failed=$(( _attempted - ${RALPH_PROGRESS:-0} ))
+  _failed=$((_attempted - ${RALPH_PROGRESS:-0}))
 
   # Build phases_completed from phase start timestamps
   _phases_json="["
@@ -680,7 +731,7 @@ write_checkpoint() {
     "${SPIRAL_VERSION:-unknown}" \
     "${_PHASE_DUR_R:-0}" "${_PHASE_DUR_T:-0}" "${_PHASE_DUR_M:-0}" \
     "${_PHASE_DUR_I:-0}" "${_PHASE_DUR_V:-0}" "${_PHASE_DUR_C:-0}" \
-    > "$CHECKPOINT_FILE"
+    >"$CHECKPOINT_FILE"
 }
 
 # ── Helper: append a structured JSONL event to .spiral/spiral_events.jsonl ──
@@ -697,11 +748,11 @@ log_spiral_event() {
   else
     line="{\"ts\":\"$ts\",\"event\":\"$event\",\"run_id\":\"${SPIRAL_RUN_ID:-}\"}"
   fi
-  printf '%s\n' "$line" >> "$log_file" 2>/dev/null || true
+  printf '%s\n' "$line" >>"$log_file" 2>/dev/null || true
   # Rotate if over max lines limit
   if [[ "${SPIRAL_EVENT_LOG_MAX_LINES:-10000}" -gt 0 ]]; then
     local count
-    count=$(wc -l < "$log_file" 2>/dev/null || echo 0)
+    count=$(wc -l <"$log_file" 2>/dev/null || echo 0)
     if [[ "$count" -gt "${SPIRAL_EVENT_LOG_MAX_LINES:-10000}" ]]; then
       mv "$log_file" "${log_file%.jsonl}-$(date -u +%Y%m%d-%H%M%S).jsonl" 2>/dev/null || true
     fi
@@ -722,23 +773,23 @@ notify_webhook() {
   ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   # Build JSON body using jq for correct escaping
   body="$("$JQ" -n \
-    --arg run_id    "${SPIRAL_RUN_ID:-}" \
-    --arg phase     "$phase" \
-    --arg event     "$event" \
-    --arg status    "$status" \
-    --arg ts        "$ts" \
-    --argjson iter  "${SPIRAL_ITER:-0}" \
+    --arg run_id "${SPIRAL_RUN_ID:-}" \
+    --arg phase "$phase" \
+    --arg event "$event" \
+    --arg status "$status" \
+    --arg ts "$ts" \
+    --argjson iter "${SPIRAL_ITER:-0}" \
     '{run_id: $run_id, phase: $phase, event: $event, status: $status, timestamp_iso: $ts, iteration: $iter}' 2>/dev/null)" || {
-      echo "  [webhook] WARNING: Failed to build JSON body (non-fatal)" >&2
-      return 0
+    echo "  [webhook] WARNING: Failed to build JSON body (non-fatal)" >&2
+    return 0
   }
   # Merge extra fields (e.g., gate_report_path) if provided
   if [[ -n "$extra_arg" ]]; then
-    body="$("$JQ" --argjson x "{$extra_arg}" '. + $x' <<< "$body" 2>/dev/null || echo "$body")"
+    body="$("$JQ" --argjson x "{$extra_arg}" '. + $x' <<<"$body" 2>/dev/null || echo "$body")"
   fi
   # Build curl args
   curl_args=(-s -o /dev/null --max-time "${SPIRAL_NOTIFY_WEBHOOK_TIMEOUT:-5}"
-             -X POST -H "Content-Type: application/json" -d "$body")
+    -X POST -H "Content-Type: application/json" -d "$body")
   if [[ -n "${SPIRAL_NOTIFY_WEBHOOK_HEADERS:-}" ]]; then
     curl_args+=(-H "$SPIRAL_NOTIFY_WEBHOOK_HEADERS")
   fi
@@ -788,7 +839,7 @@ build_research_prompt() {
   fi
 
   # Replace __EXISTING_TITLES__, __PENDING_TITLES__, and __SPIRAL_FOCUS_SECTION__ placeholders
-  printf '%s' "$prompt_content" | \
+  printf '%s' "$prompt_content" |
     awk -v existing="$existing_titles" -v pending="$pending_titles" -v focus="$focus_section" \
       '{gsub(/__EXISTING_TITLES__/, existing); gsub(/__PENDING_TITLES__/, pending); gsub(/__SPIRAL_FOCUS_SECTION__/, focus); print}'
 }
@@ -799,14 +850,14 @@ if command -v powershell.exe &>/dev/null; then
     "[math]::Floor((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory / 1024)" 2>/dev/null | tr -d '\r')
   if [[ -n "$FREE_MB" && "$FREE_MB" =~ ^[0-9]+$ ]]; then
     # Each Claude instance needs ~2.5GB; plus 512MB overhead
-    NEEDED_MB=$(( (RALPH_WORKERS + 1) * 2560 + 512 ))
+    NEEDED_MB=$(((RALPH_WORKERS + 1) * 2560 + 512))
     if [[ "$FREE_MB" -lt 3072 ]]; then
       echo "  [memory] WARNING: Only ${FREE_MB}MB free RAM — OOM risk is high"
       echo "  [memory] Consider closing applications or reducing --ralph-workers"
     fi
     if [[ "$RALPH_WORKERS" -gt 1 && "$FREE_MB" -lt "$NEEDED_MB" ]]; then
       # Auto-reduce workers to fit available memory
-      MAX_SAFE_WORKERS=$(( (FREE_MB - 512) / 2560 ))
+      MAX_SAFE_WORKERS=$(((FREE_MB - 512) / 2560))
       [[ "$MAX_SAFE_WORKERS" -lt 1 ]] && MAX_SAFE_WORKERS=1
       if [[ "$MAX_SAFE_WORKERS" -lt "$RALPH_WORKERS" ]]; then
         echo "  [memory] Auto-reducing workers: $RALPH_WORKERS → $MAX_SAFE_WORKERS (${FREE_MB}MB free, need ${NEEDED_MB}MB)"
@@ -842,7 +893,7 @@ fi
 [[ "$SKIP_RESEARCH" -eq 1 ]] && echo "  ║  Mode:        --skip-research (Phase R skipped)"
 [[ "$DRY_RUN" -eq 1 ]] && echo "  ║  Mode:        --dry-run (no API calls)"
 [[ "$MONITOR_TERMINALS" -eq 1 ]] && echo "  ║  Monitor:     terminal per worker (--monitor)"
-[[ -n "$SPIRAL_SPECKIT_CONSTITUTION" && -f "$REPO_ROOT/$SPIRAL_SPECKIT_CONSTITUTION" ]] && \
+[[ -n "$SPIRAL_SPECKIT_CONSTITUTION" && -f "$REPO_ROOT/$SPIRAL_SPECKIT_CONSTITUTION" ]] &&
   echo "  ║  Spec-Kit:    constitution loaded"
 [[ -n "$SPIRAL_FOCUS" ]] && echo "  ║  Focus:       $SPIRAL_FOCUS"
 [[ -n "$SPIRAL_FOCUS_TAGS" ]] && echo "  ║  Focus tags:  $SPIRAL_FOCUS_TAGS"
@@ -852,9 +903,9 @@ fi
 [[ -n "$SPIRAL_COST_CEILING" ]] && echo "  ║  Cost cap:    \$${SPIRAL_COST_CEILING} USD"
 [[ "$SPIRAL_LOW_POWER_MODE" -eq 1 ]] && echo "  ║  Low power:   adaptive memory management enabled"
 if [[ "$TIME_LIMIT_MINS" -gt 0 ]]; then
-  _DEADLINE_DISPLAY=$(date -d "@$SESSION_DEADLINE" +"%H:%M" 2>/dev/null \
-    || date -r "$SESSION_DEADLINE" +"%H:%M" 2>/dev/null \
-    || echo "~${TIME_LIMIT_MINS}m from now")
+  _DEADLINE_DISPLAY=$(date -d "@$SESSION_DEADLINE" +"%H:%M" 2>/dev/null ||
+    date -r "$SESSION_DEADLINE" +"%H:%M" 2>/dev/null ||
+    echo "~${TIME_LIMIT_MINS}m from now")
   echo "  ║  Time limit:  ${TIME_LIMIT_MINS}m (stops ~${_DEADLINE_DISPLAY})"
 fi
 [[ "$SPIRAL_RESEARCH_CACHE_TTL_HOURS" -gt 0 ]] && echo "  ║  Cache TTL:   ${SPIRAL_RESEARCH_CACHE_TTL_HOURS}h (research URL responses)"
@@ -908,8 +959,8 @@ if [[ -n "$REPLAY_STORY_ID" ]]; then
   REPLAY_PRD="$REPLAY_WORKTREE/prd.json"
   cp "$PRD_FILE" "$REPLAY_PRD"
   _UPDATED=$("$JQ" --arg id "$REPLAY_STORY_ID" \
-    '(.userStories[] | select(.id == $id) | .passes) = false' "$REPLAY_PRD") \
-    && echo "$_UPDATED" > "$REPLAY_PRD"
+    '(.userStories[] | select(.id == $id) | .passes) = false' "$REPLAY_PRD") &&
+    echo "$_UPDATED" >"$REPLAY_PRD"
   echo "  [replay] Story $REPLAY_STORY_ID set to pending; all others preserved"
 
   # Phase I: run ralph in the worktree
@@ -928,10 +979,10 @@ if [[ -n "$REPLAY_STORY_ID" ]]; then
       "$RALPH_MAX_ITERS" --prd "$REPLAY_PRD" --tool claude $_REPLAY_DRY_RUN_FLAG \
       2>&1) | tee "$REPLAY_LOG" || REPLAY_I_RC=$?
   fi
-  _REPLAY_I_ELAPSED=$(( $(date +%s) - _REPLAY_I_START ))
+  _REPLAY_I_ELAPSED=$(($(date +%s) - _REPLAY_I_START))
   if [[ "$REPLAY_I_RC" -eq 124 ]]; then
     echo "  [replay] WARNING: Ralph timed out after ${_REPLAY_I_ELAPSED}s (limit: ${SPIRAL_IMPL_TIMEOUT}s)"
-    log_spiral_event "phase_timeout" "\"phase\":\"I\",\"story_id\":\"$REPLAY_STORY_ID\",\"iteration\":0,\"duration_ms\":$(( _REPLAY_I_ELAPSED * 1000 )),\"timeout_s\":${SPIRAL_IMPL_TIMEOUT}"
+    log_spiral_event "phase_timeout" "\"phase\":\"I\",\"story_id\":\"$REPLAY_STORY_ID\",\"iteration\":0,\"duration_ms\":$((_REPLAY_I_ELAPSED * 1000)),\"timeout_s\":${SPIRAL_IMPL_TIMEOUT}"
   fi
 
   # Check story pass state from worktree prd.json
@@ -942,8 +993,8 @@ if [[ -n "$REPLAY_STORY_ID" ]]; then
   echo ""
   echo "  [replay] Phase V — running validation in worktree..."
   REPLAY_V_RC=0
-  (cd "$REPLAY_WORKTREE" && eval "$SPIRAL_VALIDATE_CMD" 2>&1) \
-    | tee -a "$REPLAY_LOG" || REPLAY_V_RC=$?
+  (cd "$REPLAY_WORKTREE" && eval "$SPIRAL_VALIDATE_CMD" 2>&1) |
+    tee -a "$REPLAY_LOG" || REPLAY_V_RC=$?
 
   # Determine overall result
   REPLAY_RESULT="fail"
@@ -952,7 +1003,7 @@ if [[ -n "$REPLAY_STORY_ID" ]]; then
   fi
 
   REPLAY_END_TS=$(date +%s)
-  REPLAY_DURATION=$(( REPLAY_END_TS - REPLAY_START_TS ))
+  REPLAY_DURATION=$((REPLAY_END_TS - REPLAY_START_TS))
 
   # Log event to spiral_events.jsonl
   log_spiral_event "replay_complete" \
@@ -994,7 +1045,7 @@ if [[ -f "$CHECKPOINT_FILE" ]]; then
   CKPT_ITER=$("$JQ" -r '.iter // 0' "$CHECKPOINT_FILE")
   CKPT_PHASE=$("$JQ" -r '.phase // ""' "$CHECKPOINT_FILE")
   echo "  [checkpoint] Resuming from iter=$CKPT_ITER phase=$CKPT_PHASE"
-  SPIRAL_ITER=$((CKPT_ITER - 1))  # loop will increment to CKPT_ITER on first pass
+  SPIRAL_ITER=$((CKPT_ITER - 1)) # loop will increment to CKPT_ITER on first pass
   # Restore run_id from checkpoint so all events share the same correlation ID
   CKPT_RUN_ID=$("$JQ" -r '.run_id // ""' "$CHECKPOINT_FILE" 2>/dev/null || echo "")
   if [[ -n "$CKPT_RUN_ID" ]]; then
@@ -1004,9 +1055,9 @@ if [[ -f "$CHECKPOINT_FILE" ]]; then
 
   # ── Warn if checkpoint is older than 24 hours ────────────────────────────
   CKPT_TS=$("$JQ" -r '.ts // 0' "$CHECKPOINT_FILE" 2>/dev/null || echo 0)
-  CKPT_AGE=$(( $(date +%s) - ${CKPT_TS%.*} ))
+  CKPT_AGE=$(($(date +%s) - ${CKPT_TS%.*}))
   if [[ "$CKPT_AGE" -gt 86400 ]]; then
-    CKPT_AGE_HOURS=$(( CKPT_AGE / 3600 ))
+    CKPT_AGE_HOURS=$((CKPT_AGE / 3600))
     echo "  [spiral] WARNING: Resuming from checkpoint written ${CKPT_AGE_HOURS}h ago. Pass --reset to start fresh." >&2
   fi
 
@@ -1023,13 +1074,13 @@ fi
 if [[ ! -f "$REPO_ROOT/progress.txt" ]]; then
   _OVERVIEW=$("$JQ" -r '.overview // "No overview provided"' "$PRD_FILE" 2>/dev/null || echo "No overview provided")
   _STACK=""
-  [[ -f "$REPO_ROOT/pyproject.toml" ]]  && _STACK="${_STACK}Python "
-  [[ -f "$REPO_ROOT/package.json" ]]    && _STACK="${_STACK}Node.js "
-  [[ -f "$REPO_ROOT/Cargo.toml" ]]      && _STACK="${_STACK}Rust "
-  [[ -f "$REPO_ROOT/go.mod" ]]          && _STACK="${_STACK}Go "
-  [[ -f "$REPO_ROOT/Gemfile" ]]         && _STACK="${_STACK}Ruby "
+  [[ -f "$REPO_ROOT/pyproject.toml" ]] && _STACK="${_STACK}Python "
+  [[ -f "$REPO_ROOT/package.json" ]] && _STACK="${_STACK}Node.js "
+  [[ -f "$REPO_ROOT/Cargo.toml" ]] && _STACK="${_STACK}Rust "
+  [[ -f "$REPO_ROOT/go.mod" ]] && _STACK="${_STACK}Go "
+  [[ -f "$REPO_ROOT/Gemfile" ]] && _STACK="${_STACK}Ruby "
   [[ -z "$_STACK" ]] && _STACK="Unknown"
-  cat > "$REPO_ROOT/progress.txt" <<PROGRESS_EOF
+  cat >"$REPO_ROOT/progress.txt" <<PROGRESS_EOF
 ## Codebase Patterns
 
 Project: $_OVERVIEW
@@ -1070,11 +1121,16 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
   fi
 
   prd_stats
-  ADDED=0           # new stories added this iter (set in Phase M; default 0 if skipped)
-  RALPH_RAN=0       # set to 1 if ralph actually executed this iter (controls Phase V)
-  RALPH_PROGRESS=0  # stories completed this iter; reset each iter for accurate velocity
+  ADDED=0          # new stories added this iter (set in Phase M; default 0 if skipped)
+  RALPH_RAN=0      # set to 1 if ralph actually executed this iter (controls Phase V)
+  RALPH_PROGRESS=0 # stories completed this iter; reset each iter for accurate velocity
   # Phase duration tracking (US-046): reset per-iteration, updated at each phase_end
-  _PHASE_DUR_R=0; _PHASE_DUR_T=0; _PHASE_DUR_M=0; _PHASE_DUR_I=0; _PHASE_DUR_V=0; _PHASE_DUR_C=0
+  _PHASE_DUR_R=0
+  _PHASE_DUR_T=0
+  _PHASE_DUR_M=0
+  _PHASE_DUR_I=0
+  _PHASE_DUR_V=0
+  _PHASE_DUR_C=0
   echo ""
   echo "  ┌─────────────────────────────────────────────────────┐"
   echo "  │  SPIRAL Iteration $SPIRAL_ITER / $MAX_SPIRAL_ITERS"
@@ -1118,21 +1174,21 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
     echo "  [R] Skipping (checkpoint: already done this iter)"
   elif [[ "$DRY_RUN" -eq 1 ]]; then
     echo "  [dry-run] skipping research agent — using empty output"
-    echo '{"stories":[]}' > "$RESEARCH_OUTPUT"
+    echo '{"stories":[]}' >"$RESEARCH_OUTPUT"
     write_checkpoint "$SPIRAL_ITER" "R"
   elif [[ "$SKIP_RESEARCH" -eq 1 ]]; then
     echo "  [R] Skipping (--skip-research flag set)"
-    echo '{"stories":[]}' > "$RESEARCH_OUTPUT"
+    echo '{"stories":[]}' >"$RESEARCH_OUTPUT"
     write_checkpoint "$SPIRAL_ITER" "R"
   elif [[ "$OVER_CAPACITY" -eq 1 ]]; then
     echo "  [R] Skipping (over-capacity: $PENDING pending > $CAPACITY_LIMIT)"
-    echo '{"stories":[]}' > "$RESEARCH_OUTPUT"
+    echo '{"stories":[]}' >"$RESEARCH_OUTPUT"
     write_checkpoint "$SPIRAL_ITER" "R"
   elif [[ "$SPIRAL_LOW_POWER_MODE" -eq 1 ]] && spiral_should_skip_phase "R"; then
     _P_LVL=$(spiral_pressure_level)
     echo "  [R] Skipping (memory pressure: level $_P_LVL)"
     spiral_log_low_power "Phase R skipped (pressure level $_P_LVL, iter $SPIRAL_ITER)"
-    echo '{"stories":[]}' > "$RESEARCH_OUTPUT"
+    echo '{"stories":[]}' >"$RESEARCH_OUTPUT"
     write_checkpoint "$SPIRAL_ITER" "R"
   else
     # ── Research cache: prune expired entries ──────────────────────────────
@@ -1230,7 +1286,7 @@ $INJECTED_PROMPT"
 
     # ── Retry loop for Phase R ─────────────────────────────────────────────
     _R_ATTEMPT=0
-    _R_MAX_ATTEMPTS=$(( SPIRAL_RESEARCH_RETRIES + 1 ))
+    _R_MAX_ATTEMPTS=$((SPIRAL_RESEARCH_RETRIES + 1))
     _R_SUCCESS=0
 
     while [[ "$_R_ATTEMPT" -lt "$_R_MAX_ATTEMPTS" ]]; do
@@ -1245,48 +1301,60 @@ $INJECTED_PROMPT"
       _R_START=$(date +%s)
       if [[ "${SPIRAL_RESEARCH_TIMEOUT:-300}" -gt 0 ]] && command -v timeout &>/dev/null; then
         if command -v node &>/dev/null && [[ -f "$STREAM_FMT" ]]; then
-          (unset CLAUDECODE; timeout --kill-after=30 "${SPIRAL_RESEARCH_TIMEOUT}" \
-            claude -p "$INJECTED_PROMPT" \
-            --model "$RESEARCH_MODEL" \
-            --allowedTools "$RESEARCH_TOOLS" \
-            --max-turns 30 \
-            --verbose \
-            --output-format stream-json \
-            --dangerously-skip-permissions \
-            </dev/null 2>&1 | node "$STREAM_FMT") || _R_EXIT=$?
+          (
+            unset CLAUDECODE
+            timeout --kill-after=30 "${SPIRAL_RESEARCH_TIMEOUT}" \
+              claude -p "$INJECTED_PROMPT" \
+              --model "$RESEARCH_MODEL" \
+              --allowedTools "$RESEARCH_TOOLS" \
+              --max-turns 30 \
+              --verbose \
+              --output-format stream-json \
+              --dangerously-skip-permissions \
+              </dev/null 2>&1 | node "$STREAM_FMT"
+          ) || _R_EXIT=$?
         else
-          (unset CLAUDECODE; timeout --kill-after=30 "${SPIRAL_RESEARCH_TIMEOUT}" \
-            claude -p "$INJECTED_PROMPT" \
-            --model "$RESEARCH_MODEL" \
-            --allowedTools "$RESEARCH_TOOLS" \
-            --max-turns 30 \
-            --dangerously-skip-permissions \
-            </dev/null 2>&1) || _R_EXIT=$?
+          (
+            unset CLAUDECODE
+            timeout --kill-after=30 "${SPIRAL_RESEARCH_TIMEOUT}" \
+              claude -p "$INJECTED_PROMPT" \
+              --model "$RESEARCH_MODEL" \
+              --allowedTools "$RESEARCH_TOOLS" \
+              --max-turns 30 \
+              --dangerously-skip-permissions \
+              </dev/null 2>&1
+          ) || _R_EXIT=$?
         fi
       else
         if command -v node &>/dev/null && [[ -f "$STREAM_FMT" ]]; then
-          (unset CLAUDECODE; claude -p "$INJECTED_PROMPT" \
-            --model "$RESEARCH_MODEL" \
-            --allowedTools "$RESEARCH_TOOLS" \
-            --max-turns 30 \
-            --verbose \
-            --output-format stream-json \
-            --dangerously-skip-permissions \
-            </dev/null 2>&1 | node "$STREAM_FMT") || _R_EXIT=$?
+          (
+            unset CLAUDECODE
+            claude -p "$INJECTED_PROMPT" \
+              --model "$RESEARCH_MODEL" \
+              --allowedTools "$RESEARCH_TOOLS" \
+              --max-turns 30 \
+              --verbose \
+              --output-format stream-json \
+              --dangerously-skip-permissions \
+              </dev/null 2>&1 | node "$STREAM_FMT"
+          ) || _R_EXIT=$?
         else
-          (unset CLAUDECODE; claude -p "$INJECTED_PROMPT" \
-            --model "$RESEARCH_MODEL" \
-            --allowedTools "$RESEARCH_TOOLS" \
-            --max-turns 30 \
-            --dangerously-skip-permissions \
-            </dev/null 2>&1) || _R_EXIT=$?
+          (
+            unset CLAUDECODE
+            claude -p "$INJECTED_PROMPT" \
+              --model "$RESEARCH_MODEL" \
+              --allowedTools "$RESEARCH_TOOLS" \
+              --max-turns 30 \
+              --dangerously-skip-permissions \
+              </dev/null 2>&1
+          ) || _R_EXIT=$?
         fi
       fi
-      _R_ELAPSED=$(( $(date +%s) - _R_START ))
+      _R_ELAPSED=$(($(date +%s) - _R_START))
       if [[ "$_R_EXIT" -eq 124 ]]; then
         echo ""
         echo "  [Phase R] WARNING: Research agent timed out after ${_R_ELAPSED}s (limit: ${SPIRAL_RESEARCH_TIMEOUT}s)"
-        log_spiral_event "phase_timeout" "\"phase\":\"R\",\"story_id\":\"research\",\"iteration\":$SPIRAL_ITER,\"duration_ms\":$(( _R_ELAPSED * 1000 )),\"timeout_s\":${SPIRAL_RESEARCH_TIMEOUT}"
+        log_spiral_event "phase_timeout" "\"phase\":\"R\",\"story_id\":\"research\",\"iteration\":$SPIRAL_ITER,\"duration_ms\":$((_R_ELAPSED * 1000)),\"timeout_s\":${SPIRAL_RESEARCH_TIMEOUT}"
       fi
 
       echo "  ─────── Research Agent End ───────────────────────────"
@@ -1297,17 +1365,17 @@ $INJECTED_PROMPT"
         break
       fi
 
-      (( _R_ATTEMPT++ )) || true
+      ((_R_ATTEMPT++)) || true
     done
 
     if [[ "$_R_SUCCESS" -eq 0 ]]; then
       echo "  [R] WARNING: Research output missing or invalid after all retries — using empty"
-      echo '{"stories":[]}' > "$RESEARCH_OUTPUT"
+      echo '{"stories":[]}' >"$RESEARCH_OUTPUT"
     fi
 
     if [[ ! -f "$RESEARCH_OUTPUT" ]]; then
       echo "  [R] WARNING: Research agent did not write $RESEARCH_OUTPUT — using empty"
-      echo '{"stories":[]}' > "$RESEARCH_OUTPUT"
+      echo '{"stories":[]}' >"$RESEARCH_OUTPUT"
     else
       RESEARCH_COUNT=$("$JQ" '.stories | length' "$RESEARCH_OUTPUT" 2>/dev/null || echo "?")
       echo "  [R] Research complete — $RESEARCH_COUNT story candidates found"
@@ -1331,7 +1399,7 @@ $INJECTED_PROMPT"
 
     write_checkpoint "$SPIRAL_ITER" "R"
   fi
-  _PHASE_DUR_R=$(( $(date +%s) - _PHASE_TS_R ))
+  _PHASE_DUR_R=$(($(date +%s) - _PHASE_TS_R))
   log_spiral_event "phase_end" "\"phase\":\"R\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_R"
   notify_webhook "R" "end"
 
@@ -1348,13 +1416,13 @@ $INJECTED_PROMPT"
     echo "  [T] Skipping (checkpoint: already done this iter)"
   elif [[ "$DRY_RUN" -eq 1 ]]; then
     echo "  [dry-run] skipping test synthesis"
-    echo '{"stories":[]}' > "$TEST_OUTPUT"
+    echo '{"stories":[]}' >"$TEST_OUTPUT"
     write_checkpoint "$SPIRAL_ITER" "T"
   elif [[ "$SPIRAL_LOW_POWER_MODE" -eq 1 ]] && spiral_should_skip_phase "T"; then
     _P_LVL=$(spiral_pressure_level)
     echo "  [T] Skipping (memory pressure: level $_P_LVL)"
     spiral_log_low_power "Phase T skipped (pressure level $_P_LVL, iter $SPIRAL_ITER)"
-    echo '{"stories":[]}' > "$TEST_OUTPUT"
+    echo '{"stories":[]}' >"$TEST_OUTPUT"
     write_checkpoint "$SPIRAL_ITER" "T"
   else
     _T_EXIT=0
@@ -1363,11 +1431,11 @@ $INJECTED_PROMPT"
       if [[ "${SPIRAL_TEST_SYNTH_TIMEOUT:-60}" -gt 0 ]] && command -v timeout &>/dev/null; then
         timeout --kill-after=30 "${SPIRAL_TEST_SYNTH_TIMEOUT}" \
           "$SPIRAL_CORE_BIN" synthesize \
-            --prd "$PRD_FILE" \
-            --reports-dir "$REPO_ROOT/$SPIRAL_REPORTS_DIR" \
-            --output "$TEST_OUTPUT" \
-            --repo-root "$REPO_ROOT" \
-            ${SPIRAL_FOCUS:+--focus "$SPIRAL_FOCUS"} || _T_EXIT=$?
+          --prd "$PRD_FILE" \
+          --reports-dir "$REPO_ROOT/$SPIRAL_REPORTS_DIR" \
+          --output "$TEST_OUTPUT" \
+          --repo-root "$REPO_ROOT" \
+          ${SPIRAL_FOCUS:+--focus "$SPIRAL_FOCUS"} || _T_EXIT=$?
       else
         "$SPIRAL_CORE_BIN" synthesize \
           --prd "$PRD_FILE" \
@@ -1380,11 +1448,11 @@ $INJECTED_PROMPT"
       if [[ "${SPIRAL_TEST_SYNTH_TIMEOUT:-60}" -gt 0 ]] && command -v timeout &>/dev/null; then
         timeout --kill-after=30 "${SPIRAL_TEST_SYNTH_TIMEOUT}" \
           "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/synthesize_tests.py" \
-            --prd "$PRD_FILE" \
-            --reports-dir "$REPO_ROOT/$SPIRAL_REPORTS_DIR" \
-            --output "$TEST_OUTPUT" \
-            --repo-root "$REPO_ROOT" \
-            ${SPIRAL_FOCUS:+--focus "$SPIRAL_FOCUS"} || _T_EXIT=$?
+          --prd "$PRD_FILE" \
+          --reports-dir "$REPO_ROOT/$SPIRAL_REPORTS_DIR" \
+          --output "$TEST_OUTPUT" \
+          --repo-root "$REPO_ROOT" \
+          ${SPIRAL_FOCUS:+--focus "$SPIRAL_FOCUS"} || _T_EXIT=$?
       else
         "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/synthesize_tests.py" \
           --prd "$PRD_FILE" \
@@ -1394,11 +1462,11 @@ $INJECTED_PROMPT"
           ${SPIRAL_FOCUS:+--focus "$SPIRAL_FOCUS"} || _T_EXIT=$?
       fi
     fi
-    _T_ELAPSED=$(( $(date +%s) - _T_START ))
+    _T_ELAPSED=$(($(date +%s) - _T_START))
     if [[ "$_T_EXIT" -eq 124 ]]; then
       echo "  [Phase T] WARNING: Test synthesis timed out after ${_T_ELAPSED}s (limit: ${SPIRAL_TEST_SYNTH_TIMEOUT}s) — using empty output"
-      log_spiral_event "phase_timeout" "\"phase\":\"T\",\"iteration\":$SPIRAL_ITER,\"duration_ms\":$(( _T_ELAPSED * 1000 )),\"timeout_s\":${SPIRAL_TEST_SYNTH_TIMEOUT}"
-      echo '{"stories":[]}' > "$TEST_OUTPUT"
+      log_spiral_event "phase_timeout" "\"phase\":\"T\",\"iteration\":$SPIRAL_ITER,\"duration_ms\":$((_T_ELAPSED * 1000)),\"timeout_s\":${SPIRAL_TEST_SYNTH_TIMEOUT}"
+      echo '{"stories":[]}' >"$TEST_OUTPUT"
     elif [[ "$_T_EXIT" -ne 0 ]]; then
       echo "  [Phase T] WARNING: Test synthesis exited with status $_T_EXIT — continuing with partial/empty output"
     fi
@@ -1408,7 +1476,7 @@ $INJECTED_PROMPT"
 
     write_checkpoint "$SPIRAL_ITER" "T"
   fi
-  _PHASE_DUR_T=$(( $(date +%s) - _PHASE_TS_T ))
+  _PHASE_DUR_T=$(($(date +%s) - _PHASE_TS_T))
   log_spiral_event "phase_end" "\"phase\":\"T\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_T"
   notify_webhook "T" "end"
 
@@ -1435,67 +1503,67 @@ $INJECTED_PROMPT"
     if [[ ! -f "$RESEARCH_OUTPUT" ]]; then
       echo "  [M] WARNING: $RESEARCH_OUTPUT missing — skipping merge"
       write_checkpoint "$SPIRAL_ITER" "M"
-    elif ! "$JQ" '.' "$RESEARCH_OUTPUT" > /dev/null 2>&1; then
+    elif ! "$JQ" '.' "$RESEARCH_OUTPUT" >/dev/null 2>&1; then
       echo "  [M] WARNING: $RESEARCH_OUTPUT is not valid JSON — skipping merge"
       write_checkpoint "$SPIRAL_ITER" "M"
-    elif ! "$JQ" -e '.stories' "$RESEARCH_OUTPUT" > /dev/null 2>&1; then
+    elif ! "$JQ" -e '.stories' "$RESEARCH_OUTPUT" >/dev/null 2>&1; then
       echo "  [M] WARNING: $RESEARCH_OUTPUT missing 'stories' key — skipping merge"
       write_checkpoint "$SPIRAL_ITER" "M"
     else
-    # ── Phase M validated — proceed with merge ──────────────────────────────
+      # ── Phase M validated — proceed with merge ──────────────────────────────
 
-    OVERFLOW_FILE="$SCRATCH_DIR/_research_overflow.json"
-    BEFORE_TOTAL=$("$JQ" '[.userStories | length] | .[0]' "$PRD_FILE")
-    if [[ -n "$SPIRAL_CORE_BIN" ]]; then
-      "$SPIRAL_CORE_BIN" merge \
-        --prd "$PRD_FILE" \
-        --research "$RESEARCH_OUTPUT" \
-        --test-stories "$TEST_OUTPUT" \
-        --overflow-in  "$OVERFLOW_FILE" \
-        --overflow-out "$OVERFLOW_FILE" \
-        --max-new 50 \
-        --max-pending "$SPIRAL_MAX_PENDING" \
-        ${SPIRAL_FOCUS:+--focus "$SPIRAL_FOCUS"} || true
-    else
-      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/merge_stories.py" \
-        --prd "$PRD_FILE" \
-        --research "$RESEARCH_OUTPUT" \
-        --test-stories "$TEST_OUTPUT" \
-        --overflow-in  "$OVERFLOW_FILE" \
-        --overflow-out "$OVERFLOW_FILE" \
-        --max-new 50 \
-        --max-pending "$SPIRAL_MAX_PENDING" \
-        ${SPIRAL_FOCUS:+--focus "$SPIRAL_FOCUS"} || true
-    fi
-    AFTER_TOTAL=$("$JQ" '[.userStories | length] | .[0]' "$PRD_FILE")
-    ADDED=$((AFTER_TOTAL - BEFORE_TOTAL))
-    echo "  [M] Merge complete — $ADDED new stories added (total: $AFTER_TOTAL)"
+      OVERFLOW_FILE="$SCRATCH_DIR/_research_overflow.json"
+      BEFORE_TOTAL=$("$JQ" '[.userStories | length] | .[0]' "$PRD_FILE")
+      if [[ -n "$SPIRAL_CORE_BIN" ]]; then
+        "$SPIRAL_CORE_BIN" merge \
+          --prd "$PRD_FILE" \
+          --research "$RESEARCH_OUTPUT" \
+          --test-stories "$TEST_OUTPUT" \
+          --overflow-in "$OVERFLOW_FILE" \
+          --overflow-out "$OVERFLOW_FILE" \
+          --max-new 50 \
+          --max-pending "$SPIRAL_MAX_PENDING" \
+          ${SPIRAL_FOCUS:+--focus "$SPIRAL_FOCUS"} || true
+      else
+        "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/merge_stories.py" \
+          --prd "$PRD_FILE" \
+          --research "$RESEARCH_OUTPUT" \
+          --test-stories "$TEST_OUTPUT" \
+          --overflow-in "$OVERFLOW_FILE" \
+          --overflow-out "$OVERFLOW_FILE" \
+          --max-new 50 \
+          --max-pending "$SPIRAL_MAX_PENDING" \
+          ${SPIRAL_FOCUS:+--focus "$SPIRAL_FOCUS"} || true
+      fi
+      AFTER_TOTAL=$("$JQ" '[.userStories | length] | .[0]' "$PRD_FILE")
+      ADDED=$((AFTER_TOTAL - BEFORE_TOTAL))
+      echo "  [M] Merge complete — $ADDED new stories added (total: $AFTER_TOTAL)"
 
-    write_checkpoint "$SPIRAL_ITER" "M"
+      write_checkpoint "$SPIRAL_ITER" "M"
 
-    # ── Tier 2: Post-merge assertions ──────────────────────────────────────
-    spiral_assert_ids_unique "$PRD_FILE"
-    spiral_assert_deps_dag "$PRD_FILE"
-    spiral_assert_story_count_bounded "$PRD_FILE"
-    spiral_assert_merge_no_story_loss "$BEFORE_TOTAL" "$AFTER_TOTAL"
-    spiral_assert_pending_bounded "$PRD_FILE"
-    spiral_assert_decomposition_integrity "$PRD_FILE"
-    spiral_assert_dependency_completion_order "$PRD_FILE"
+      # ── Tier 2: Post-merge assertions ──────────────────────────────────────
+      spiral_assert_ids_unique "$PRD_FILE"
+      spiral_assert_deps_dag "$PRD_FILE"
+      spiral_assert_story_count_bounded "$PRD_FILE"
+      spiral_assert_merge_no_story_loss "$BEFORE_TOTAL" "$AFTER_TOTAL"
+      spiral_assert_pending_bounded "$PRD_FILE"
+      spiral_assert_decomposition_integrity "$PRD_FILE"
+      spiral_assert_dependency_completion_order "$PRD_FILE"
 
-    # ── Phase M: Infer dependencies from filesTouch overlap ─────────────────
-    _HINTS_FILE="$SCRATCH_DIR/_dependency_hints.json"
-    echo "  [M] Inferring dependencies from filesTouch overlap..."
-    SPIRAL_AUTO_INFER_DEPS="$SPIRAL_AUTO_INFER_DEPS" \
-      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/infer_dependencies.py" \
+      # ── Phase M: Infer dependencies from filesTouch overlap ─────────────────
+      _HINTS_FILE="$SCRATCH_DIR/_dependency_hints.json"
+      echo "  [M] Inferring dependencies from filesTouch overlap..."
+      SPIRAL_AUTO_INFER_DEPS="$SPIRAL_AUTO_INFER_DEPS" \
+        "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/infer_dependencies.py" \
         --prd "$PRD_FILE" \
         --out-hints "$_HINTS_FILE" || true
 
-    fi  # end validation else
+    fi # end validation else
   fi
 
   # ── progress.txt rotation (before Phase I) ────────────────────────────────
   if [[ "$SPIRAL_PROGRESS_MAX_LINES" -gt 0 && -f "$REPO_ROOT/progress.txt" ]]; then
-    _PROGRESS_LINES=$(wc -l < "$REPO_ROOT/progress.txt" 2>/dev/null || echo 0)
+    _PROGRESS_LINES=$(wc -l <"$REPO_ROOT/progress.txt" 2>/dev/null || echo 0)
     if [[ "$_PROGRESS_LINES" -gt "$SPIRAL_PROGRESS_MAX_LINES" ]]; then
       _PROGRESS_ARCHIVE="$REPO_ROOT/progress-$(date +%Y%m%d-%H%M%S).txt"
       mv "$REPO_ROOT/progress.txt" "$_PROGRESS_ARCHIVE"
@@ -1504,7 +1572,7 @@ $INJECTED_PROMPT"
     fi
   fi
 
-  _PHASE_DUR_M=$(( $(date +%s) - _PHASE_TS_M ))
+  _PHASE_DUR_M=$(($(date +%s) - _PHASE_TS_M))
   log_spiral_event "phase_end" "\"phase\":\"M\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_M"
   notify_webhook "M" "end"
 
@@ -1537,8 +1605,8 @@ $INJECTED_PROMPT"
     echo "  ║  New stories added:  $ADDED"
     echo "  ║  Total pending:      $PENDING"
     echo "  ║  Total stories:      $TOTAL ($DONE complete)"
-    [[ -n "$SPIRAL_FOCUS" ]] && \
-    echo "  ║  Focus:              $SPIRAL_FOCUS"
+    [[ -n "$SPIRAL_FOCUS" ]] &&
+      echo "  ║  Focus:              $SPIRAL_FOCUS"
     echo "  ║  Review report:      $GATE_REPORTS_DIR/latest-review.html"
     echo "  ╠══════════════════════════════════════════════════════╣"
     echo "  ║  Options:"
@@ -1563,15 +1631,15 @@ $INJECTED_PROMPT"
     GATE_INPUT=$(echo "$GATE_INPUT" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')
 
     case "$GATE_INPUT" in
-      quit|q|exit)
+      quit | q | exit)
         echo "  [G] User quit — SPIRAL halted at iteration $SPIRAL_ITER"
         rm -f "$CHECKPOINT_FILE"
         exit 0
         ;;
-      skip|s)
+      skip | s)
         echo "  [G] Skipping ralph — advancing to check-done"
         ;;
-      proceed|p|"")
+      proceed | p | "")
         echo "  [G] Proceeding to implementation..."
 
         # NEW ROUTING STEP
@@ -1599,288 +1667,288 @@ $INJECTED_PROMPT"
         elif [[ "$DAG_SKIP_IMPL" -eq 1 ]]; then
           echo "  [Phase I] IMPLEMENT — skipping (dependency cycles detected — fix prd.json dependencies)"
         else
-        # ── Adaptive memory: reduce workers and override model under pressure ──
-        if [[ "$SPIRAL_LOW_POWER_MODE" -eq 1 ]]; then
-          _PRESSURE_LVL=$(spiral_pressure_level)
-          if [[ "$_PRESSURE_LVL" -ge 2 ]]; then
-            _REC_WORKERS=$(spiral_recommended_workers)
-            if [[ -n "$_REC_WORKERS" && "$_REC_WORKERS" -lt "$RALPH_WORKERS" ]]; then
-              spiral_log_low_power "Workers reduced: $RALPH_WORKERS -> $_REC_WORKERS (pressure level $_PRESSURE_LVL, iter $SPIRAL_ITER)"
-              echo "  [memory] Pressure level $_PRESSURE_LVL — reducing workers: $RALPH_WORKERS -> $_REC_WORKERS"
-              RALPH_WORKERS="$_REC_WORKERS"
-            fi
-            _REC_MODEL=$(spiral_recommended_model)
-            if [[ -n "$_REC_MODEL" && -z "$SPIRAL_CLI_MODEL" ]]; then
-              spiral_log_low_power "Model capped: $_REC_MODEL (pressure level $_PRESSURE_LVL, iter $SPIRAL_ITER)"
-              echo "  [memory] Pressure level $_PRESSURE_LVL — model cap: $_REC_MODEL"
-              SPIRAL_CLI_MODEL="$_REC_MODEL"
-            fi
-          fi
-        fi
-
-        # ── Dynamic worker recommendation (if not explicitly set) ─────────
-        if [[ "$WORKERS_EXPLICIT" -eq 0 ]]; then
-          _REC_OUTPUT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/recommend_workers.py" "$PRD_FILE" 2>/dev/null) || true
-          if [[ -n "$_REC_OUTPUT" ]]; then
-            # Log line is first, recommended count is last line
-            echo "  $_REC_OUTPUT" | head -1
-            _AUTO_WORKERS=$(echo "$_REC_OUTPUT" | tail -1)
-            if [[ "$_AUTO_WORKERS" =~ ^[1-3]$ ]]; then
-              RALPH_WORKERS="$_AUTO_WORKERS"
+          # ── Adaptive memory: reduce workers and override model under pressure ──
+          if [[ "$SPIRAL_LOW_POWER_MODE" -eq 1 ]]; then
+            _PRESSURE_LVL=$(spiral_pressure_level)
+            if [[ "$_PRESSURE_LVL" -ge 2 ]]; then
+              _REC_WORKERS=$(spiral_recommended_workers)
+              if [[ -n "$_REC_WORKERS" && "$_REC_WORKERS" -lt "$RALPH_WORKERS" ]]; then
+                spiral_log_low_power "Workers reduced: $RALPH_WORKERS -> $_REC_WORKERS (pressure level $_PRESSURE_LVL, iter $SPIRAL_ITER)"
+                echo "  [memory] Pressure level $_PRESSURE_LVL — reducing workers: $RALPH_WORKERS -> $_REC_WORKERS"
+                RALPH_WORKERS="$_REC_WORKERS"
+              fi
+              _REC_MODEL=$(spiral_recommended_model)
+              if [[ -n "$_REC_MODEL" && -z "$SPIRAL_CLI_MODEL" ]]; then
+                spiral_log_low_power "Model capped: $_REC_MODEL (pressure level $_PRESSURE_LVL, iter $SPIRAL_ITER)"
+                echo "  [memory] Pressure level $_PRESSURE_LVL — model cap: $_REC_MODEL"
+                SPIRAL_CLI_MODEL="$_REC_MODEL"
+              fi
             fi
           fi
-        fi
 
-        # ── Tier 2: Save passes baseline before implementation ────────────
-        spiral_assert_passes_save_baseline "$PRD_FILE"
-
-        echo "  [Phase I] IMPLEMENT — running ralph ($RALPH_MAX_ITERS inner iterations)..."
-
-        # ── Batch slicing: cap stories visible to ralph ──────────────────
-        _BATCH_ACTIVE=0
-        _FULL_PRD_BACKUP="$SCRATCH_DIR/_full_prd_backup.json"
-        if [[ "$SPIRAL_STORY_BATCH_SIZE" -gt 0 && "$PENDING" -gt "$SPIRAL_STORY_BATCH_SIZE" ]]; then
-          cp "$PRD_FILE" "$_FULL_PRD_BACKUP"
-          "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/slice_prd.py" slice \
-            "$PRD_FILE" "$SPIRAL_STORY_BATCH_SIZE" -o "$PRD_FILE" 2>/dev/null && {
-            _BATCH_ACTIVE=1
-            _SLICED_PENDING=$("$JQ" '[.userStories[] | select(.passes != true)] | length' "$PRD_FILE" 2>/dev/null || echo "?")
-            echo "  [I] Batch: $PENDING pending → sliced to $_SLICED_PENDING (batch_size=$SPIRAL_STORY_BATCH_SIZE)"
-          } || {
-            echo "  [I] Batch: slice failed — using full PRD"
-            cp "$_FULL_PRD_BACKUP" "$PRD_FILE"
-          }
-        fi
-
-        echo "  [I] Pending stories ($PENDING):"
-        if [[ -n "$SPIRAL_SKIP_STORY_IDS" ]]; then
-          "$JQ" -r --arg ids "$SPIRAL_SKIP_STORY_IDS" \
-            '.userStories[] | select(.passes != true) | select(.id as $sid | ($ids | split(",") | map(gsub("^\\s+|\\s+$";"")) | any(. == $sid)) | not) | "    [\(.id)] \(.title)"' \
-            "$PRD_FILE" 2>/dev/null | head -20 || true
-        else
-          "$JQ" -r '.userStories[] | select(.passes != true) | "    [\(.id)] \(.title)"' "$PRD_FILE" \
-            2>/dev/null | head -20 || true
-        fi
-        PENDING_SHOWN=$("$JQ" '[.userStories[] | select(.passes != true)] | length' "$PRD_FILE" 2>/dev/null || echo "$PENDING")
-        [[ "$PENDING_SHOWN" -gt 20 ]] && echo "    ... and $((PENDING_SHOWN - 20)) more"
-        echo ""
-
-        # Note: model is now assigned per-story by lib/route_stories.py
-
-        # Build --dry-run flag for ralph invocations
-        _DRY_RUN_FLAG=""
-        [[ "$DRY_RUN" -eq 1 ]] && _DRY_RUN_FLAG="--dry-run"
-
-        RALPH_RAN=1
-        PRE_RALPH_PRD_JSON=$(cat "$PRD_FILE")
-        DONE_BEFORE=$("$JQ" '[.userStories[] | select(.passes == true)] | length' "$PRD_FILE")
-
-        if [[ "$RALPH_WORKERS" -gt 1 ]]; then
-          # ── Parallel mode with wave dispatch ───────────────────────────────
-          # Pre-populate filesTouch hints from git history (best-effort)
-          "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/populate_hints.py" \
-            --prd "$PRD_FILE" --repo-root "$REPO_ROOT" 2>/dev/null || true
-
-          _PARTITION_CMD="${SPIRAL_CORE_BIN:+$SPIRAL_CORE_BIN partition}"
-          _PARTITION_CMD="${_PARTITION_CMD:-$SPIRAL_PYTHON $SPIRAL_HOME/lib/partition_prd.py}"
-          TOTAL_WAVES=$($_PARTITION_CMD \
-            --prd "$PRD_FILE" --list-waves 2>/dev/null || echo "1")
-          echo "  [I] Parallel mode: $RALPH_WORKERS workers, $TOTAL_WAVES wave(s)"
-
-          WAVE=0
-          while true; do
-            # Get story count for this wave level (recomputed from current prd.json)
-            WAVE_STORY_COUNT=$($_PARTITION_CMD \
-              --prd "$PRD_FILE" --wave-count "$WAVE" 2>/dev/null || echo "0")
-
-            # No stories at this level — check if higher levels exist
-            if [[ "$WAVE_STORY_COUNT" -eq 0 ]]; then
-              REMAINING=$($_PARTITION_CMD \
-                --prd "$PRD_FILE" --list-waves 2>/dev/null || echo "0")
-              if [[ "$WAVE" -ge "$REMAINING" ]]; then
-                echo "  [I] All waves processed — no more actionable stories"
-                break
+          # ── Dynamic worker recommendation (if not explicitly set) ─────────
+          if [[ "$WORKERS_EXPLICIT" -eq 0 ]]; then
+            _REC_OUTPUT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/recommend_workers.py" "$PRD_FILE" 2>/dev/null) || true
+            if [[ -n "$_REC_OUTPUT" ]]; then
+              # Log line is first, recommended count is last line
+              echo "  $_REC_OUTPUT" | head -1
+              _AUTO_WORKERS=$(echo "$_REC_OUTPUT" | tail -1)
+              if [[ "$_AUTO_WORKERS" =~ ^[1-3]$ ]]; then
+                RALPH_WORKERS="$_AUTO_WORKERS"
               fi
-              echo "  [I] Wave $((WAVE+1)): 0 stories — skipping"
-              WAVE=$((WAVE + 1))
-              continue
             fi
+          fi
 
-            echo "  [I] ── Wave $((WAVE+1)): $WAVE_STORY_COUNT stories ──"
+          # ── Tier 2: Save passes baseline before implementation ────────────
+          spiral_assert_passes_save_baseline "$PRD_FILE"
 
-            if [[ "$WAVE_STORY_COUNT" -eq 1 ]]; then
-              # Single story — sequential fallback, skip worktree overhead entirely
-              echo "  [I] Wave $((WAVE+1)): 1 story — sequential fallback (no worktrees)"
-              # Auto-detect tool: UT-* test stories → Codex; others → Claude
-              _NEXT_SID=$("$JQ" -r '[.userStories[] | select(.passes != true)] | sort_by(.priority) | first | .id // ""' "$PRD_FILE" 2>/dev/null || echo "")
-              if [[ "$_NEXT_SID" == UT-* ]]; then
-                _RALPH_TOOL="codex"
-                echo "  [I] Story $_NEXT_SID is a test story → routing to Codex"
-              else
-                _RALPH_TOOL="claude"
-              fi
-              _I_EXIT=0
-              _I_START=$(date +%s)
-              if [[ "${SPIRAL_IMPL_TIMEOUT:-600}" -gt 0 ]] && command -v timeout &>/dev/null; then
-                timeout --kill-after=30 "${SPIRAL_IMPL_TIMEOUT}" bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $_DRY_RUN_FLAG || _I_EXIT=$?
-              else
-                bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $_DRY_RUN_FLAG || _I_EXIT=$?
-              fi
-              _I_ELAPSED=$(( $(date +%s) - _I_START ))
-              if [[ "$_I_EXIT" -eq 124 ]]; then
-                echo "  [I] WARNING: Ralph timed out after ${_I_ELAPSED}s (limit: ${SPIRAL_IMPL_TIMEOUT}s)"
-                log_spiral_event "phase_timeout" "\"phase\":\"I\",\"story_id\":\"$_NEXT_SID\",\"iteration\":$SPIRAL_ITER,\"duration_ms\":$(( _I_ELAPSED * 1000 )),\"timeout_s\":${SPIRAL_IMPL_TIMEOUT}"
-              fi
-            else
-              # Cap workers to story count so no worker sits idle
-              WAVE_WORKERS="$RALPH_WORKERS"
-              if [[ "$WAVE_STORY_COUNT" -lt "$RALPH_WORKERS" ]]; then
-                WAVE_WORKERS="$WAVE_STORY_COUNT"
-                echo "  [I] Wave $((WAVE+1)): capping to $WAVE_WORKERS workers (only $WAVE_STORY_COUNT stories)"
-              fi
+          echo "  [Phase I] IMPLEMENT — running ralph ($RALPH_MAX_ITERS inner iterations)..."
 
-              bash "$SPIRAL_HOME/lib/run_parallel_ralph.sh" \
-                "$WAVE_WORKERS" "$RALPH_MAX_ITERS" "$REPO_ROOT" "$PRD_FILE" \
-                "$SCRATCH_DIR" "$SPIRAL_RALPH" "$JQ" "$SPIRAL_PYTHON" \
-                "$MONITOR_TERMINALS" "$SPIRAL_HOME" "" || true
-            fi
+          # ── Batch slicing: cap stories visible to ralph ──────────────────
+          _BATCH_ACTIVE=0
+          _FULL_PRD_BACKUP="$SCRATCH_DIR/_full_prd_backup.json"
+          if [[ "$SPIRAL_STORY_BATCH_SIZE" -gt 0 && "$PENDING" -gt "$SPIRAL_STORY_BATCH_SIZE" ]]; then
+            cp "$PRD_FILE" "$_FULL_PRD_BACKUP"
+            "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/slice_prd.py" slice \
+              "$PRD_FILE" "$SPIRAL_STORY_BATCH_SIZE" -o "$PRD_FILE" 2>/dev/null && {
+              _BATCH_ACTIVE=1
+              _SLICED_PENDING=$("$JQ" '[.userStories[] | select(.passes != true)] | length' "$PRD_FILE" 2>/dev/null || echo "?")
+              echo "  [I] Batch: $PENDING pending → sliced to $_SLICED_PENDING (batch_size=$SPIRAL_STORY_BATCH_SIZE)"
+            } || {
+              echo "  [I] Batch: slice failed — using full PRD"
+              cp "$_FULL_PRD_BACKUP" "$PRD_FILE"
+            }
+          fi
 
-            WAVE=$((WAVE + 1))
-          done
-        else
-          # ── Sequential mode (default) ────────────────────────────────────
-          # Auto-detect tool: UT-* test stories → Codex; others → Claude
-          _NEXT_SID=$("$JQ" -r '[.userStories[] | select(.passes != true)] | sort_by(.priority) | first | .id // ""' "$PRD_FILE" 2>/dev/null || echo "")
-          if [[ "$_NEXT_SID" == UT-* ]]; then
-            _RALPH_TOOL="codex"
-            echo "  [I] Story $_NEXT_SID is a test story → routing to Codex"
+          echo "  [I] Pending stories ($PENDING):"
+          if [[ -n "$SPIRAL_SKIP_STORY_IDS" ]]; then
+            "$JQ" -r --arg ids "$SPIRAL_SKIP_STORY_IDS" \
+              '.userStories[] | select(.passes != true) | select(.id as $sid | ($ids | split(",") | map(gsub("^\\s+|\\s+$";"")) | any(. == $sid)) | not) | "    [\(.id)] \(.title)"' \
+              "$PRD_FILE" 2>/dev/null | head -20 || true
           else
-            _RALPH_TOOL="claude"
+            "$JQ" -r '.userStories[] | select(.passes != true) | "    [\(.id)] \(.title)"' "$PRD_FILE" \
+              2>/dev/null | head -20 || true
           fi
-          _I_EXIT=0
-          _I_START=$(date +%s)
-          if [[ "${SPIRAL_IMPL_TIMEOUT:-600}" -gt 0 ]] && command -v timeout &>/dev/null; then
-            timeout --kill-after=30 "${SPIRAL_IMPL_TIMEOUT}" bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $_DRY_RUN_FLAG || _I_EXIT=$?
-          else
-            bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $RALPH_MODEL_FLAG $_DRY_RUN_FLAG || _I_EXIT=$?
-          fi
-          _I_ELAPSED=$(( $(date +%s) - _I_START ))
-          if [[ "$_I_EXIT" -eq 124 ]]; then
-            echo "  [I] WARNING: Ralph timed out after ${_I_ELAPSED}s (limit: ${SPIRAL_IMPL_TIMEOUT}s) — partial progress saved"
-            log_spiral_event "phase_timeout" "\"phase\":\"I\",\"story_id\":\"$_NEXT_SID\",\"iteration\":$SPIRAL_ITER,\"duration_ms\":$(( _I_ELAPSED * 1000 )),\"timeout_s\":${SPIRAL_IMPL_TIMEOUT}"
-          fi
-        fi
+          PENDING_SHOWN=$("$JQ" '[.userStories[] | select(.passes != true)] | length' "$PRD_FILE" 2>/dev/null || echo "$PENDING")
+          [[ "$PENDING_SHOWN" -gt 20 ]] && echo "    ... and $((PENDING_SHOWN - 20)) more"
+          echo ""
 
-        # ── Batch merge: restore full PRD with ralph's updates ─────────
-        if [[ "$_BATCH_ACTIVE" -eq 1 && -f "$_FULL_PRD_BACKUP" ]]; then
-          "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/slice_prd.py" merge \
-            "$_FULL_PRD_BACKUP" "$PRD_FILE" -o "$PRD_FILE" 2>/dev/null && {
-            echo "  [I] Batch: merged results back into full PRD"
-          } || {
-            echo "  [I] Batch: merge failed — keeping ralph's PRD as-is"
-          }
-          rm -f "$_FULL_PRD_BACKUP"
-        fi
+          # Note: model is now assigned per-story by lib/route_stories.py
 
-        DONE_AFTER=$("$JQ" '[.userStories[] | select(.passes == true)] | length' "$PRD_FILE")
-        RALPH_PROGRESS=$((DONE_AFTER - DONE_BEFORE))
+          # Build --dry-run flag for ralph invocations
+          _DRY_RUN_FLAG=""
+          [[ "$DRY_RUN" -eq 1 ]] && _DRY_RUN_FLAG="--dry-run"
 
-        if [[ "$RALPH_PROGRESS" -gt 0 ]]; then
+          RALPH_RAN=1
+          PRE_RALPH_PRD_JSON=$(cat "$PRD_FILE")
+          DONE_BEFORE=$("$JQ" '[.userStories[] | select(.passes == true)] | length' "$PRD_FILE")
+
           if [[ "$RALPH_WORKERS" -gt 1 ]]; then
-            # run_parallel_ralph.sh already committed prd.json + per-worker code patches
-            echo "  [I] Git: parallel mode — commits already applied by run_parallel_ralph.sh"
-          else
-            # Sequential mode: atomic commit per completed story
-            POST_RALPH_PRD="$SCRATCH_DIR/_prd_post_ralph.json"
-            cp "$PRD_FILE" "$POST_RALPH_PRD"
+            # ── Parallel mode with wave dispatch ───────────────────────────────
+            # Pre-populate filesTouch hints from git history (best-effort)
+            "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/populate_hints.py" \
+              --prd "$PRD_FILE" --repo-root "$REPO_ROOT" 2>/dev/null || true
 
-            # Identify newly completed stories vs pre-ralph baseline
-            mapfile -t NEW_STORY_RECORDS < <(
-              "$JQ" -r --argjson before "$PRE_RALPH_PRD_JSON" \
-                '[.userStories[] | . as $s |
+            _PARTITION_CMD="${SPIRAL_CORE_BIN:+$SPIRAL_CORE_BIN partition}"
+            _PARTITION_CMD="${_PARTITION_CMD:-$SPIRAL_PYTHON $SPIRAL_HOME/lib/partition_prd.py}"
+            TOTAL_WAVES=$($_PARTITION_CMD \
+              --prd "$PRD_FILE" --list-waves 2>/dev/null || echo "1")
+            echo "  [I] Parallel mode: $RALPH_WORKERS workers, $TOTAL_WAVES wave(s)"
+
+            WAVE=0
+            while true; do
+              # Get story count for this wave level (recomputed from current prd.json)
+              WAVE_STORY_COUNT=$($_PARTITION_CMD \
+                --prd "$PRD_FILE" --wave-count "$WAVE" 2>/dev/null || echo "0")
+
+              # No stories at this level — check if higher levels exist
+              if [[ "$WAVE_STORY_COUNT" -eq 0 ]]; then
+                REMAINING=$($_PARTITION_CMD \
+                  --prd "$PRD_FILE" --list-waves 2>/dev/null || echo "0")
+                if [[ "$WAVE" -ge "$REMAINING" ]]; then
+                  echo "  [I] All waves processed — no more actionable stories"
+                  break
+                fi
+                echo "  [I] Wave $((WAVE + 1)): 0 stories — skipping"
+                WAVE=$((WAVE + 1))
+                continue
+              fi
+
+              echo "  [I] ── Wave $((WAVE + 1)): $WAVE_STORY_COUNT stories ──"
+
+              if [[ "$WAVE_STORY_COUNT" -eq 1 ]]; then
+                # Single story — sequential fallback, skip worktree overhead entirely
+                echo "  [I] Wave $((WAVE + 1)): 1 story — sequential fallback (no worktrees)"
+                # Auto-detect tool: UT-* test stories → Codex; others → Claude
+                _NEXT_SID=$("$JQ" -r '[.userStories[] | select(.passes != true)] | sort_by(.priority) | first | .id // ""' "$PRD_FILE" 2>/dev/null || echo "")
+                if [[ "$_NEXT_SID" == UT-* ]]; then
+                  _RALPH_TOOL="codex"
+                  echo "  [I] Story $_NEXT_SID is a test story → routing to Codex"
+                else
+                  _RALPH_TOOL="claude"
+                fi
+                _I_EXIT=0
+                _I_START=$(date +%s)
+                if [[ "${SPIRAL_IMPL_TIMEOUT:-600}" -gt 0 ]] && command -v timeout &>/dev/null; then
+                  timeout --kill-after=30 "${SPIRAL_IMPL_TIMEOUT}" bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $_DRY_RUN_FLAG || _I_EXIT=$?
+                else
+                  bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $_DRY_RUN_FLAG || _I_EXIT=$?
+                fi
+                _I_ELAPSED=$(($(date +%s) - _I_START))
+                if [[ "$_I_EXIT" -eq 124 ]]; then
+                  echo "  [I] WARNING: Ralph timed out after ${_I_ELAPSED}s (limit: ${SPIRAL_IMPL_TIMEOUT}s)"
+                  log_spiral_event "phase_timeout" "\"phase\":\"I\",\"story_id\":\"$_NEXT_SID\",\"iteration\":$SPIRAL_ITER,\"duration_ms\":$((_I_ELAPSED * 1000)),\"timeout_s\":${SPIRAL_IMPL_TIMEOUT}"
+                fi
+              else
+                # Cap workers to story count so no worker sits idle
+                WAVE_WORKERS="$RALPH_WORKERS"
+                if [[ "$WAVE_STORY_COUNT" -lt "$RALPH_WORKERS" ]]; then
+                  WAVE_WORKERS="$WAVE_STORY_COUNT"
+                  echo "  [I] Wave $((WAVE + 1)): capping to $WAVE_WORKERS workers (only $WAVE_STORY_COUNT stories)"
+                fi
+
+                bash "$SPIRAL_HOME/lib/run_parallel_ralph.sh" \
+                  "$WAVE_WORKERS" "$RALPH_MAX_ITERS" "$REPO_ROOT" "$PRD_FILE" \
+                  "$SCRATCH_DIR" "$SPIRAL_RALPH" "$JQ" "$SPIRAL_PYTHON" \
+                  "$MONITOR_TERMINALS" "$SPIRAL_HOME" "" || true
+              fi
+
+              WAVE=$((WAVE + 1))
+            done
+          else
+            # ── Sequential mode (default) ────────────────────────────────────
+            # Auto-detect tool: UT-* test stories → Codex; others → Claude
+            _NEXT_SID=$("$JQ" -r '[.userStories[] | select(.passes != true)] | sort_by(.priority) | first | .id // ""' "$PRD_FILE" 2>/dev/null || echo "")
+            if [[ "$_NEXT_SID" == UT-* ]]; then
+              _RALPH_TOOL="codex"
+              echo "  [I] Story $_NEXT_SID is a test story → routing to Codex"
+            else
+              _RALPH_TOOL="claude"
+            fi
+            _I_EXIT=0
+            _I_START=$(date +%s)
+            if [[ "${SPIRAL_IMPL_TIMEOUT:-600}" -gt 0 ]] && command -v timeout &>/dev/null; then
+              timeout --kill-after=30 "${SPIRAL_IMPL_TIMEOUT}" bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $_DRY_RUN_FLAG || _I_EXIT=$?
+            else
+              bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $RALPH_MODEL_FLAG $_DRY_RUN_FLAG || _I_EXIT=$?
+            fi
+            _I_ELAPSED=$(($(date +%s) - _I_START))
+            if [[ "$_I_EXIT" -eq 124 ]]; then
+              echo "  [I] WARNING: Ralph timed out after ${_I_ELAPSED}s (limit: ${SPIRAL_IMPL_TIMEOUT}s) — partial progress saved"
+              log_spiral_event "phase_timeout" "\"phase\":\"I\",\"story_id\":\"$_NEXT_SID\",\"iteration\":$SPIRAL_ITER,\"duration_ms\":$((_I_ELAPSED * 1000)),\"timeout_s\":${SPIRAL_IMPL_TIMEOUT}"
+            fi
+          fi
+
+          # ── Batch merge: restore full PRD with ralph's updates ─────────
+          if [[ "$_BATCH_ACTIVE" -eq 1 && -f "$_FULL_PRD_BACKUP" ]]; then
+            "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/slice_prd.py" merge \
+              "$_FULL_PRD_BACKUP" "$PRD_FILE" -o "$PRD_FILE" 2>/dev/null && {
+              echo "  [I] Batch: merged results back into full PRD"
+            } || {
+              echo "  [I] Batch: merge failed — keeping ralph's PRD as-is"
+            }
+            rm -f "$_FULL_PRD_BACKUP"
+          fi
+
+          DONE_AFTER=$("$JQ" '[.userStories[] | select(.passes == true)] | length' "$PRD_FILE")
+          RALPH_PROGRESS=$((DONE_AFTER - DONE_BEFORE))
+
+          if [[ "$RALPH_PROGRESS" -gt 0 ]]; then
+            if [[ "$RALPH_WORKERS" -gt 1 ]]; then
+              # run_parallel_ralph.sh already committed prd.json + per-worker code patches
+              echo "  [I] Git: parallel mode — commits already applied by run_parallel_ralph.sh"
+            else
+              # Sequential mode: atomic commit per completed story
+              POST_RALPH_PRD="$SCRATCH_DIR/_prd_post_ralph.json"
+              cp "$PRD_FILE" "$POST_RALPH_PRD"
+
+              # Identify newly completed stories vs pre-ralph baseline
+              mapfile -t NEW_STORY_RECORDS < <(
+                "$JQ" -r --argjson before "$PRE_RALPH_PRD_JSON" \
+                  '[.userStories[] | . as $s |
                   select(.passes == true) |
                   select(($before.userStories | map(select(.id == $s.id and (.passes // false) == true)) | length) == 0)
                 ] | .[] | "\(.id)|\(.title)"' "$PRD_FILE" 2>/dev/null
-            ) || true
+              ) || true
 
-            if [[ ${#NEW_STORY_RECORDS[@]} -eq 0 ]]; then
-              # Fallback: no story breakdown available — single bulk commit
-              if git -C "$REPO_ROOT" add -A 2>/dev/null && \
-                 git -C "$REPO_ROOT" commit -m "feat(spiral): complete $RALPH_PROGRESS stories (iter $SPIRAL_ITER)" 2>/dev/null; then
-                echo "  [I] Git: committed $RALPH_PROGRESS stories (fallback single commit)"
-              else
-                echo "  [I] Git: commit skipped (nothing staged or git unavailable)"
-              fi
-            else
-              # Restore prd.json to pre-ralph state; code changes remain as unstaged diffs
-              # Use atomic temp+mv to avoid corruption if interrupted mid-write (Idea 3)
-              printf '%s\n' "$PRE_RALPH_PRD_JSON" > "${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE"
-
-              # Stage all code changes except prd.json (goes into first story's commit)
-              git -C "$REPO_ROOT" add -A 2>/dev/null || true
-              git -C "$REPO_ROOT" restore --staged "$PRD_FILE" 2>/dev/null || \
-                git -C "$REPO_ROOT" reset HEAD "$PRD_FILE" 2>/dev/null || true
-
-              ATOMIC_COUNT=0
-              for record in "${NEW_STORY_RECORDS[@]}"; do
-                STORY_ID="${record%%|*}"
-                STORY_TITLE="${record#*|}"
-
-                # Merge this story's final record from post-ralph into current prd.json
-                UPDATED=$("$JQ" --arg id "$STORY_ID" \
-                  --slurpfile full "$POST_RALPH_PRD" \
-                  '(.userStories[] | select(.id == $id)) |= ([$full[0].userStories[] | select(.id == $id)] | .[0] // .)' \
-                  "$PRD_FILE" 2>/dev/null) || true
-                # Use atomic temp+mv to avoid corruption if interrupted mid-write (Idea 3)
-                [[ -n "$UPDATED" ]] && { printf '%s\n' "$UPDATED" > "${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE"; } || true
-
-                git -C "$REPO_ROOT" add "$PRD_FILE" 2>/dev/null || true
-                if git -C "$REPO_ROOT" commit -m "feat: $STORY_ID - $STORY_TITLE" 2>/dev/null; then
-                  echo "  [I] Git: feat: $STORY_ID - $STORY_TITLE"
-                  ATOMIC_COUNT=$((ATOMIC_COUNT + 1))
+              if [[ ${#NEW_STORY_RECORDS[@]} -eq 0 ]]; then
+                # Fallback: no story breakdown available — single bulk commit
+                if git -C "$REPO_ROOT" add -A 2>/dev/null &&
+                  git -C "$REPO_ROOT" commit -m "feat(spiral): complete $RALPH_PROGRESS stories (iter $SPIRAL_ITER)" 2>/dev/null; then
+                  echo "  [I] Git: committed $RALPH_PROGRESS stories (fallback single commit)"
+                else
+                  echo "  [I] Git: commit skipped (nothing staged or git unavailable)"
                 fi
-              done
+              else
+                # Restore prd.json to pre-ralph state; code changes remain as unstaged diffs
+                # Use atomic temp+mv to avoid corruption if interrupted mid-write (Idea 3)
+                printf '%s\n' "$PRE_RALPH_PRD_JSON" >"${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE"
 
-              # Ensure prd.json is fully synced to post-ralph final state
-              cp "$POST_RALPH_PRD" "$PRD_FILE"
-              git -C "$REPO_ROOT" add "$PRD_FILE" 2>/dev/null || true
-              git -C "$REPO_ROOT" diff --cached --quiet 2>/dev/null || \
-                git -C "$REPO_ROOT" commit -m "chore: sync prd.json final state (spiral iter $SPIRAL_ITER)" 2>/dev/null || true
+                # Stage all code changes except prd.json (goes into first story's commit)
+                git -C "$REPO_ROOT" add -A 2>/dev/null || true
+                git -C "$REPO_ROOT" restore --staged "$PRD_FILE" 2>/dev/null ||
+                  git -C "$REPO_ROOT" reset HEAD "$PRD_FILE" 2>/dev/null || true
 
-              echo "  [I] Git: $ATOMIC_COUNT atomic commits created"
+                ATOMIC_COUNT=0
+                for record in "${NEW_STORY_RECORDS[@]}"; do
+                  STORY_ID="${record%%|*}"
+                  STORY_TITLE="${record#*|}"
+
+                  # Merge this story's final record from post-ralph into current prd.json
+                  UPDATED=$("$JQ" --arg id "$STORY_ID" \
+                    --slurpfile full "$POST_RALPH_PRD" \
+                    '(.userStories[] | select(.id == $id)) |= ([$full[0].userStories[] | select(.id == $id)] | .[0] // .)' \
+                    "$PRD_FILE" 2>/dev/null) || true
+                  # Use atomic temp+mv to avoid corruption if interrupted mid-write (Idea 3)
+                  [[ -n "$UPDATED" ]] && { printf '%s\n' "$UPDATED" >"${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE"; } || true
+
+                  git -C "$REPO_ROOT" add "$PRD_FILE" 2>/dev/null || true
+                  if git -C "$REPO_ROOT" commit -m "feat: $STORY_ID - $STORY_TITLE" 2>/dev/null; then
+                    echo "  [I] Git: feat: $STORY_ID - $STORY_TITLE"
+                    ATOMIC_COUNT=$((ATOMIC_COUNT + 1))
+                  fi
+                done
+
+                # Ensure prd.json is fully synced to post-ralph final state
+                cp "$POST_RALPH_PRD" "$PRD_FILE"
+                git -C "$REPO_ROOT" add "$PRD_FILE" 2>/dev/null || true
+                git -C "$REPO_ROOT" diff --cached --quiet 2>/dev/null ||
+                  git -C "$REPO_ROOT" commit -m "chore: sync prd.json final state (spiral iter $SPIRAL_ITER)" 2>/dev/null || true
+
+                echo "  [I] Git: $ATOMIC_COUNT atomic commits created"
+              fi
             fi
+            ZERO_PROGRESS_COUNT=0
+            echo "  [I] Ralph completed $RALPH_PROGRESS new stories"
+          else
+            ZERO_PROGRESS_COUNT=$((ZERO_PROGRESS_COUNT + 1))
+            echo "  [I] WARNING: Ralph made zero progress (streak: $ZERO_PROGRESS_COUNT)"
+            if [[ "$ZERO_PROGRESS_COUNT" -ge 2 ]]; then
+              echo ""
+              echo "  ╔══════════════════════════════════════════════════════╗"
+              echo "  ║  SPIRAL HALTED — 2 consecutive zero-progress iters  ║"
+              echo "  ║  Pending stories may be blocked or require manual   ║"
+              echo "  ║  intervention. Review prd.json and re-run.          ║"
+              echo "  ╚══════════════════════════════════════════════════════╝"
+              prd_stats
+              echo ""
+              "$JQ" -r '.userStories[] | select(.passes != true) | "  [PENDING] [\(.id)] \(.title)"' "$PRD_FILE" 2>/dev/null || true
+              rm -f "$CHECKPOINT_FILE"
+              exit 2
+            fi
+            echo "  [I] Continuing to check-done phase..."
           fi
-          ZERO_PROGRESS_COUNT=0
-          echo "  [I] Ralph completed $RALPH_PROGRESS new stories"
-        else
-          ZERO_PROGRESS_COUNT=$((ZERO_PROGRESS_COUNT + 1))
-          echo "  [I] WARNING: Ralph made zero progress (streak: $ZERO_PROGRESS_COUNT)"
-          if [[ "$ZERO_PROGRESS_COUNT" -ge 2 ]]; then
-            echo ""
-            echo "  ╔══════════════════════════════════════════════════════╗"
-            echo "  ║  SPIRAL HALTED — 2 consecutive zero-progress iters  ║"
-            echo "  ║  Pending stories may be blocked or require manual   ║"
-            echo "  ║  intervention. Review prd.json and re-run.          ║"
-            echo "  ╚══════════════════════════════════════════════════════╝"
-            prd_stats
-            echo ""
-            "$JQ" -r '.userStories[] | select(.passes != true) | "  [PENDING] [\(.id)] \(.title)"' "$PRD_FILE" 2>/dev/null || true
-            rm -f "$CHECKPOINT_FILE"
-            exit 2
+          # ── Adaptive ralph budget based on velocity ─────────────────────────────
+          if [[ "$RALPH_PROGRESS" -ge 5 ]]; then
+            RALPH_MAX_ITERS=$((RALPH_MAX_ITERS + 20))
+            echo "  [velocity] High ($RALPH_PROGRESS stories/iter) — ralph budget → $RALPH_MAX_ITERS"
+          elif [[ "$RALPH_PROGRESS" -eq 0 ]]; then
+            NEW_BUDGET=$((RALPH_MAX_ITERS / 2))
+            [[ "$NEW_BUDGET" -lt 30 ]] && NEW_BUDGET=30
+            RALPH_MAX_ITERS="$NEW_BUDGET"
+            echo "  [velocity] Zero — ralph budget → $RALPH_MAX_ITERS"
           fi
-          echo "  [I] Continuing to check-done phase..."
-        fi
-        # ── Adaptive ralph budget based on velocity ─────────────────────────────
-        if [[ "$RALPH_PROGRESS" -ge 5 ]]; then
-          RALPH_MAX_ITERS=$(( RALPH_MAX_ITERS + 20 ))
-          echo "  [velocity] High ($RALPH_PROGRESS stories/iter) — ralph budget → $RALPH_MAX_ITERS"
-        elif [[ "$RALPH_PROGRESS" -eq 0 ]]; then
-          NEW_BUDGET=$(( RALPH_MAX_ITERS / 2 ))
-          [[ "$NEW_BUDGET" -lt 30 ]] && NEW_BUDGET=30
-          RALPH_MAX_ITERS="$NEW_BUDGET"
-          echo "  [velocity] Zero — ralph budget → $RALPH_MAX_ITERS"
-        fi
-        fi  # end PENDING > 0 block
+        fi # end PENDING > 0 block
         ;;
       *)
         echo "  [G] Unrecognized input '$GATE_INPUT' — treating as skip"
@@ -1894,7 +1962,7 @@ $INJECTED_PROMPT"
     spiral_assert_decomposition_integrity "$PRD_FILE"
     spiral_assert_dependency_completion_order "$PRD_FILE"
   fi
-  _PHASE_DUR_I=$(( $(date +%s) - _PHASE_TS_I ))
+  _PHASE_DUR_I=$(($(date +%s) - _PHASE_TS_I))
   log_spiral_event "phase_end" "\"phase\":\"I\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_I"
   notify_webhook "I" "end"
   log_spiral_event "phase_end" "\"phase\":\"G\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_I"
@@ -1923,11 +1991,11 @@ $INJECTED_PROMPT"
     if [[ "${SPIRAL_VALIDATE_TIMEOUT:-300}" -gt 0 ]] && command -v timeout &>/dev/null; then
       _VALIDATE_START=$(date +%s)
       (cd "$REPO_ROOT" && timeout --kill-after=30 "${SPIRAL_VALIDATE_TIMEOUT}" bash -c "eval \"\$SPIRAL_VALIDATE_CMD\"" 2>&1) || _VALIDATE_EXIT=$?
-      _VALIDATE_ELAPSED=$(( $(date +%s) - _VALIDATE_START ))
+      _VALIDATE_ELAPSED=$(($(date +%s) - _VALIDATE_START))
       if [[ "$_VALIDATE_EXIT" -eq 124 ]]; then
         echo ""
         echo "  [Phase V] WARNING: Phase V timed out after ${_VALIDATE_ELAPSED}s — treating as validation failure"
-        log_spiral_event "phase_timeout" "\"phase\":\"V\",\"iteration\":$SPIRAL_ITER,\"duration_ms\":$(( _VALIDATE_ELAPSED * 1000 )),\"timeout_s\":${SPIRAL_VALIDATE_TIMEOUT}"
+        log_spiral_event "phase_timeout" "\"phase\":\"V\",\"iteration\":$SPIRAL_ITER,\"duration_ms\":$((_VALIDATE_ELAPSED * 1000)),\"timeout_s\":${SPIRAL_VALIDATE_TIMEOUT}"
         _VALIDATE_EXIT=1
       fi
     else
@@ -1993,11 +2061,14 @@ PYEOF
 
       # Use Claude agent with Chrome DevTools MCP to navigate + screenshot
       _SCREENSHOT_PROMPT="Navigate to $SPIRAL_DEV_URL using mcp__chrome-devtools__navigate_page, wait for it to load, then take a screenshot using mcp__chrome-devtools__take_screenshot and save the result. Output only the word DONE when finished."
-      if (unset CLAUDECODE; claude -p "$_SCREENSHOT_PROMPT" \
-            --allowedTools "Bash,mcp__chrome-devtools__navigate_page,mcp__chrome-devtools__take_screenshot,mcp__chrome-devtools__wait_for" \
-            --max-turns 5 \
-            --dangerously-skip-permissions \
-            2>/dev/null) | grep -qi "done"; then
+      if (
+        unset CLAUDECODE
+        claude -p "$_SCREENSHOT_PROMPT" \
+          --allowedTools "Bash,mcp__chrome-devtools__navigate_page,mcp__chrome-devtools__take_screenshot,mcp__chrome-devtools__wait_for" \
+          --max-turns 5 \
+          --dangerously-skip-permissions \
+          2>/dev/null
+      ) | grep -qi "done"; then
         # Chrome DevTools saves screenshots via its own mechanism;
         # check if a screenshot was produced in the scratch dir
         if ls "$_SCREENSHOT_DIR"/iter-${SPIRAL_ITER}-*.png 1>/dev/null 2>&1; then
@@ -2048,7 +2119,7 @@ PYEOF
 
     write_checkpoint "$SPIRAL_ITER" "V"
   fi
-  _PHASE_DUR_V=$(( $(date +%s) - _PHASE_TS_V ))
+  _PHASE_DUR_V=$(($(date +%s) - _PHASE_TS_V))
   log_spiral_event "phase_end" "\"phase\":\"V\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_V"
   notify_webhook "V" "end"
 
@@ -2099,7 +2170,7 @@ PYEOF
     fi
 
     SESSION_END=$(date +%s)
-    SESSION_MINUTES=$(( (SESSION_END - SESSION_START) / 60 ))
+    SESSION_MINUTES=$(((SESSION_END - SESSION_START) / 60))
     echo "  Session: ${SESSION_MINUTES}m total, $SPIRAL_ITER iterations"
 
     # ── Write iteration summary (US-039) ──────────────────────────────────
@@ -2124,7 +2195,7 @@ PYEOF
   prd_stats
   echo "  [C] Not done yet — $PENDING stories remaining"
   if [[ "${RALPH_PROGRESS:-0}" -gt 0 ]]; then
-    ITERS_LEFT=$(( (PENDING + RALPH_PROGRESS - 1) / RALPH_PROGRESS ))
+    ITERS_LEFT=$(((PENDING + RALPH_PROGRESS - 1) / RALPH_PROGRESS))
     echo "  [C] Velocity: ~${RALPH_PROGRESS} stories/iter | ~${ITERS_LEFT} more iters to completion"
   fi
 
@@ -2143,8 +2214,8 @@ PYEOF
 
   # ── Iteration dashboard ─────────────────────────────────────────────────
   ITER_END=$(date +%s)
-  ITER_DURATION=$(( ITER_END - ITER_START ))
-  ITER_MINUTES=$(( ITER_DURATION / 60 ))
+  ITER_DURATION=$((ITER_END - ITER_START))
+  ITER_MINUTES=$((ITER_DURATION / 60))
   echo ""
   echo "  ┌─ Iteration $SPIRAL_ITER Summary ─────────────────┐"
   echo "  │  Stories:   +${RALPH_PROGRESS:-0} completed, $PENDING remaining"
@@ -2173,7 +2244,7 @@ PYEOF
   if [[ "$SPIRAL_LOW_POWER_MODE" -eq 1 ]]; then
     _PRESSURE_LVL=$(spiral_pressure_level)
     if [[ "$_PRESSURE_LVL" -ge 2 ]]; then
-      _COOLDOWN=$(( _PRESSURE_LVL * 15 ))
+      _COOLDOWN=$((_PRESSURE_LVL * 15))
       echo "  [memory] Pressure cooldown: ${_COOLDOWN}s (level $_PRESSURE_LVL)"
       spiral_log_low_power "Inter-iteration cooldown: ${_COOLDOWN}s (level $_PRESSURE_LVL, iter $SPIRAL_ITER)"
       sleep "$_COOLDOWN"
@@ -2183,13 +2254,13 @@ PYEOF
   # ── Time limit check — stop cleanly after completing this iteration ────────
   if [[ "$SESSION_DEADLINE" -gt 0 ]]; then
     _NOW_TS=$(date +%s)
-    _REMAINING_SECS=$(( SESSION_DEADLINE - _NOW_TS ))
+    _REMAINING_SECS=$((SESSION_DEADLINE - _NOW_TS))
     if [[ "$_REMAINING_SECS" -le 0 ]]; then
       echo "  [time] Time limit of ${TIME_LIMIT_MINS}m reached — stopping after iteration $SPIRAL_ITER"
       echo ""
       prd_stats
       SESSION_END=$(date +%s)
-      SESSION_MINUTES=$(( (SESSION_END - SESSION_START) / 60 ))
+      SESSION_MINUTES=$(((SESSION_END - SESSION_START) / 60))
       echo ""
       echo "  ╔══════════════════════════════════════════════════════╗"
       echo "  ║  SPIRAL stopped: time limit reached (${TIME_LIMIT_MINS}m)         ║"
@@ -2205,12 +2276,12 @@ PYEOF
       fi
       exit 0
     else
-      _REM_MINS=$(( (_REMAINING_SECS + 59) / 60 ))
+      _REM_MINS=$(((_REMAINING_SECS + 59) / 60))
       echo "  [time] ~${_REM_MINS}m remaining"
     fi
   fi
 
-  _PHASE_DUR_C=$(( $(date +%s) - _PHASE_TS_C ))
+  _PHASE_DUR_C=$(($(date +%s) - _PHASE_TS_C))
   log_spiral_event "phase_end" "\"phase\":\"C\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_C"
   notify_webhook "C" "end"
   echo "  [C] Looping back to Phase R"
@@ -2236,7 +2307,7 @@ if [[ -f "$REPO_ROOT/results.tsv" ]]; then
 fi
 
 SESSION_END=$(date +%s)
-SESSION_MINUTES=$(( (SESSION_END - SESSION_START) / 60 ))
+SESSION_MINUTES=$(((SESSION_END - SESSION_START) / 60))
 echo "  Session: ${SESSION_MINUTES}m total, $SPIRAL_ITER iterations"
 
 exit 0

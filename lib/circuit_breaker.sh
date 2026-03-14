@@ -38,8 +38,8 @@ _cb_state_file() {
 _cb_is_transient() {
   local code="${1:-0}"
   case "$code" in
-    429|500|502|503|504|529) return 0 ;;  # transient — count it
-    *) return 1 ;;                         # permanent or unknown — skip
+    429 | 500 | 502 | 503 | 504 | 529) return 0 ;; # transient — count it
+    *) return 1 ;;                                 # permanent or unknown — skip
   esac
 }
 
@@ -47,9 +47,9 @@ _cb_is_transient() {
 _cb_log() {
   local event_type="$1"
   local extra="${2:-}"
-  if declare -f log_spiral_event > /dev/null 2>&1; then
+  if declare -f log_spiral_event >/dev/null 2>&1; then
     log_spiral_event "$event_type" "$extra"
-  elif declare -f log_ralph_event > /dev/null 2>&1; then
+  elif declare -f log_ralph_event >/dev/null 2>&1; then
     log_ralph_event "$event_type" "$extra"
   fi
 }
@@ -90,7 +90,7 @@ cb_write() {
   local tmp_file="${state_file}.tmp.$$"
   mkdir -p "$(dirname "$state_file")"
   printf '{"state":"%s","failure_count":%s,"last_failure_ts":%s,"cooldown_secs":%s}\n' \
-    "$state" "$failure_count" "$last_failure_ts" "$cooldown_secs" > "$tmp_file"
+    "$state" "$failure_count" "$last_failure_ts" "$cooldown_secs" >"$tmp_file"
   mv "$tmp_file" "$state_file"
 }
 
@@ -105,28 +105,28 @@ cb_check() {
 
   case "$CB_STATE" in
     CLOSED)
-      return 0  # Normal — allow
+      return 0 # Normal — allow
       ;;
     OPEN)
-      local elapsed=$(( now - CB_LAST_FAILURE_TS ))
+      local elapsed=$((now - CB_LAST_FAILURE_TS))
       if [[ "$elapsed" -ge "$CB_COOLDOWN" ]]; then
         # Cooldown expired → transition to HALF_OPEN for a probe call
         cb_write "$endpoint" "HALF_OPEN" "$CB_FAILURE_COUNT" "$CB_LAST_FAILURE_TS" "$CB_COOLDOWN"
         _cb_log "circuit_breaker_half_open" \
           "\"endpoint\":\"$endpoint\",\"elapsed_secs\":$elapsed,\"failure_count\":$CB_FAILURE_COUNT"
         echo "  [cb] Circuit breaker HALF_OPEN for $endpoint (cooldown ${CB_COOLDOWN}s elapsed)" >&2
-        return 0  # Allow the single probe call
+        return 0 # Allow the single probe call
       else
-        local remaining=$(( CB_COOLDOWN - elapsed ))
+        local remaining=$((CB_COOLDOWN - elapsed))
         echo "  [cb] Circuit breaker OPEN for $endpoint — ${remaining}s remaining in cooldown" >&2
-        return 1  # Block
+        return 1 # Block
       fi
       ;;
     HALF_OPEN)
-      return 0  # Allow the probe call (only one at a time in single-worker mode)
+      return 0 # Allow the probe call (only one at a time in single-worker mode)
       ;;
     *)
-      return 0  # Unknown state — allow (fail open)
+      return 0 # Unknown state — allow (fail open)
       ;;
   esac
 }
@@ -166,7 +166,7 @@ cb_record_failure() {
   cb_read "$endpoint"
   local now
   now=$(date +%s)
-  local new_count=$(( CB_FAILURE_COUNT + 1 ))
+  local new_count=$((CB_FAILURE_COUNT + 1))
 
   if [[ "$CB_STATE" == "HALF_OPEN" || "$new_count" -ge "$threshold" ]]; then
     # Trip (or re-trip) to OPEN

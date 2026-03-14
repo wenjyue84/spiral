@@ -118,6 +118,20 @@ spiral_doctor() {
     warn_count=$((warn_count + 1))
   fi
 
+  # ── Check shfmt ─────────────────────────────────────────────────────────────
+  if command -v shfmt >/dev/null 2>&1; then
+    local shfmt_version
+    shfmt_version=$(shfmt --version 2>/dev/null || echo "unknown")
+    echo "  [doctor] [OK] shfmt found in PATH (version: ${shfmt_version})"
+  else
+    echo "  [doctor] [WARN] shfmt not found in PATH"
+    echo "           → Fix: go install mvdan.cc/sh/v3/cmd/shfmt@latest"
+    echo "                  or: brew install shfmt (macOS)"
+    echo "                  or: apt-get install shfmt (Ubuntu 20.04+)"
+    echo "           → Info: shfmt enforces consistent formatting on all .sh files"
+    warn_count=$((warn_count + 1))
+  fi
+
   # ── Check gitleaks ──────────────────────────────────────────────────────────
   if command -v gitleaks >/dev/null 2>&1; then
     local gl_version

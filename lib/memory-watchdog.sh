@@ -30,13 +30,34 @@ HYSTERESIS=2
 # ── Argument parsing ──────────────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --threshold-mb)   THRESHOLD_MB="$2";   shift 2 ;;
-    --parent-pid)     PARENT_PID="$2";     shift 2 ;;
-    --interval-sec)   INTERVAL_SEC="$2";   shift 2 ;;
-    --scratch-dir)    SCRATCH_DIR="$2";    shift 2 ;;
-    --threshold-pct)  THRESHOLD_PCT="$2";  shift 2 ;;
-    --hysteresis)     HYSTERESIS="$2";     shift 2 ;;
-    *) echo "[memory-watchdog.sh] Unknown argument: $1" >&2; shift ;;
+    --threshold-mb)
+      THRESHOLD_MB="$2"
+      shift 2
+      ;;
+    --parent-pid)
+      PARENT_PID="$2"
+      shift 2
+      ;;
+    --interval-sec)
+      INTERVAL_SEC="$2"
+      shift 2
+      ;;
+    --scratch-dir)
+      SCRATCH_DIR="$2"
+      shift 2
+      ;;
+    --threshold-pct)
+      THRESHOLD_PCT="$2"
+      shift 2
+      ;;
+    --hysteresis)
+      HYSTERESIS="$2"
+      shift 2
+      ;;
+    *)
+      echo "[memory-watchdog.sh] Unknown argument: $1" >&2
+      shift
+      ;;
   esac
 done
 
@@ -48,7 +69,7 @@ LOG_FILE="${SCRATCH_DIR}/_memory_watchdog.log"
 mkdir -p "$SCRATCH_DIR" 2>/dev/null || true
 
 # ── Parse threshold percentages (descending: elevated, high, critical, emergency)
-IFS=',' read -r -a THRESHOLDS <<< "$THRESHOLD_PCT"
+IFS=',' read -r -a THRESHOLDS <<<"$THRESHOLD_PCT"
 # Pad to 4 values with defaults
 while [[ ${#THRESHOLDS[@]} -lt 4 ]]; do
   THRESHOLDS+=("8")
@@ -58,7 +79,7 @@ done
 log_watchdog() {
   local ts
   ts=$(date -u +"%Y-%m-%d %H:%M:%S" 2>/dev/null || echo "")
-  echo "[$ts] $*" >> "$LOG_FILE" 2>/dev/null || true
+  echo "[$ts] $*" >>"$LOG_FILE" 2>/dev/null || true
 }
 
 # ── Platform memory reader ────────────────────────────────────────────────────
@@ -75,8 +96,8 @@ get_memory_info() {
       avail_kb=$(awk '/^MemFree:/ {print $2; exit}' /proc/meminfo 2>/dev/null || echo "0")
     fi
     total_kb=$(awk '/^MemTotal:/ {print $2; exit}' /proc/meminfo 2>/dev/null || echo "0")
-    free_mb=$(( avail_kb / 1024 ))
-    total_mb=$(( total_kb / 1024 ))
+    free_mb=$((avail_kb / 1024))
+    total_mb=$((total_kb / 1024))
   else
     # macOS: use vm_stat
     local page_size free_pages inactive_pages speculative_pages
@@ -86,12 +107,12 @@ get_memory_info() {
     # Include inactive + speculative as they are reclaimable (like MemAvailable on Linux)
     inactive_pages=$(vm_stat 2>/dev/null | awk '/Pages inactive:/ {gsub(/\./, "", $3); print $3}' || echo "0")
     speculative_pages=$(vm_stat 2>/dev/null | awk '/Pages speculative:/ {gsub(/\./, "", $3); print $3}' || echo "0")
-    local avail_pages=$(( free_pages + inactive_pages + speculative_pages ))
-    free_mb=$(( avail_pages * page_size / 1048576 ))
+    local avail_pages=$((free_pages + inactive_pages + speculative_pages))
+    free_mb=$((avail_pages * page_size / 1048576))
     # Total physical memory
     local total_bytes
     total_bytes=$(sysctl -n hw.memsize 2>/dev/null || echo "0")
-    total_mb=$(( total_bytes / 1048576 ))
+    total_mb=$((total_bytes / 1048576))
   fi
 
   echo "$free_mb $total_mb"
@@ -101,11 +122,16 @@ get_memory_info() {
 # Returns 0-4
 get_pressure_level() {
   local free_pct="$1"
-  if   [[ "$free_pct" -lt "${THRESHOLDS[3]}" ]]; then echo "4"
-  elif [[ "$free_pct" -lt "${THRESHOLDS[2]}" ]]; then echo "3"
-  elif [[ "$free_pct" -lt "${THRESHOLDS[1]}" ]]; then echo "2"
-  elif [[ "$free_pct" -lt "${THRESHOLDS[0]}" ]]; then echo "1"
-  else echo "0"
+  if [[ "$free_pct" -lt "${THRESHOLDS[3]}" ]]; then
+    echo "4"
+  elif [[ "$free_pct" -lt "${THRESHOLDS[2]}" ]]; then
+    echo "3"
+  elif [[ "$free_pct" -lt "${THRESHOLDS[1]}" ]]; then
+    echo "2"
+  elif [[ "$free_pct" -lt "${THRESHOLDS[0]}" ]]; then
+    echo "1"
+  else
+    echo "0"
   fi
 }
 
@@ -117,19 +143,19 @@ get_recommendations() {
 
   case "$level" in
     0)
-      rec_workers=$(( (free_mb - 512) / 1536 ))
+      rec_workers=$(((free_mb - 512) / 1536))
       [[ "$rec_workers" -lt 1 ]] && rec_workers=1
       rec_model=""
       skip_phases_json="[]"
       ;;
     1)
-      rec_workers=$(( (free_mb - 512) / 1536 ))
+      rec_workers=$(((free_mb - 512) / 1536))
       [[ "$rec_workers" -lt 1 ]] && rec_workers=1
       rec_model=""
       skip_phases_json="[]"
       ;;
     2)
-      rec_workers=$(( (free_mb - 512) / 1536 ))
+      rec_workers=$(((free_mb - 512) / 1536))
       [[ "$rec_workers" -gt 2 ]] && rec_workers=2
       [[ "$rec_workers" -lt 1 ]] && rec_workers=1
       rec_model="sonnet"
@@ -163,7 +189,7 @@ write_pressure_file() {
   ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || echo "")
 
   local tmp_file="${PRESSURE_FILE}.tmp.$$"
-  cat > "$tmp_file" <<EOF
+  cat >"$tmp_file" <<EOF
 {
   "level": $level,
   "free_mb": $free_mb,
@@ -192,12 +218,12 @@ log_watchdog "UNIX memory watchdog started (parent PID: $PARENT_PID, interval: $
 
 while parent_alive; do
   # Read memory
-  read -r free_mb total_mb <<< "$(get_memory_info)"
+  read -r free_mb total_mb <<<"$(get_memory_info)"
 
   # Compute free percentage
   local_free_pct=0
   if [[ "$total_mb" -gt 0 ]]; then
-    local_free_pct=$(( free_mb * 100 / total_mb ))
+    local_free_pct=$((free_mb * 100 / total_mb))
   fi
 
   # Raw pressure level
@@ -205,7 +231,7 @@ while parent_alive; do
 
   # Apply hysteresis: only drop level after HYSTERESIS consecutive lower readings
   if [[ "$raw_level" -lt "$REPORTED_LEVEL" ]]; then
-    CONSECUTIVE_LOWER=$(( CONSECUTIVE_LOWER + 1 ))
+    CONSECUTIVE_LOWER=$((CONSECUTIVE_LOWER + 1))
     if [[ "$CONSECUTIVE_LOWER" -ge "$HYSTERESIS" ]]; then
       REPORTED_LEVEL="$raw_level"
       CONSECUTIVE_LOWER=0
@@ -220,7 +246,7 @@ while parent_alive; do
   fi
 
   # Get recommendations
-  read -r rec_workers rec_model skip_phases_json <<< "$(get_recommendations "$REPORTED_LEVEL" "$free_mb")"
+  read -r rec_workers rec_model skip_phases_json <<<"$(get_recommendations "$REPORTED_LEVEL" "$free_mb")"
 
   # Write signal file
   write_pressure_file "$REPORTED_LEVEL" "$free_mb" "$total_mb" \

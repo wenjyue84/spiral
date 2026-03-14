@@ -3001,3 +3001,52 @@ Incomplete: Emit JUnit XML from bats runs for GitHub Actions test summary (ID: U
 ### Gotchas
 - Story acceptance criteria says `test/` but actual directory is `tests/` — used actual path
 - `dorny/test-reporter@v1` requires `contents: read` and `checks: write` permissions on private repos; left as default since repo appears public
+## Iteration 16 - Sat, Mar 14, 2026  6:12:44 PM
+Completed: Emit JUnit XML from bats runs for GitHub Actions test summary (ID: US-089) in 3m
+
+
+## Iteration N - Story: US-106: Add story dependency auto-inference from filesTouch overlap
+
+### What was implemented
+- Created `lib/infer_dependencies.py`: Jaccard similarity scan of pending story filesTouch pairs
+  - Strong (>= 0.5): written to prd.json deps when SPIRAL_AUTO_INFER_DEPS=true
+  - Weak (> 0 but < 0.5): written to --out-hints JSON file
+  - Uses `find_cycles()` from check_dag.py before writing any edge (cycle prevention)
+- Wired call in spiral.sh Phase M after post-merge assertions (line ~1484)
+- Added `SPIRAL_AUTO_INFER_DEPS="${SPIRAL_AUTO_INFER_DEPS:-false}"` env var default
+- 26 unit tests in tests/test_infer_dependencies.py — all pass; full suite 501 passed
+
+### Patterns discovered
+- Jaccard: use `len(a & b) / len(a | b)` — same threshold as technical notes (0.5 strong, >0 weak)
+- apply_strong_deps early-exits if either direction already recorded (`b_id in deps_a or a_id in deps_b`)
+- `find_cycles()` checks the ENTIRE graph — so a pre-existing cycle blocks ALL new edge applications
+- Phase M call uses `|| true` guard so a non-zero exit doesn't abort the spiral
+
+### Gotchas
+- "Both directions create a cycle" only happens when the base graph already contains a cycle
+  (find_cycles is global, not per-edge). The test must set up a pre-existing cycle.
+- spiral.sh Phase M structure: the infer_dependencies call goes INSIDE the `else` block
+  (after `write_checkpoint`) but BEFORE the closing `fi` of "end validation else"
+## Iteration 17 - Sat, Mar 14, 2026  6:23:31 PM
+Incomplete: Upload SPIRAL output artifacts (prd.json, spiral_events.jsonl) in CI workflow (ID: US-094) — attempt 1/3
+
+
+## Iteration N - Story: US-113: Enforce shfmt formatting on all spiral bash scripts in CI
+
+### What was implemented
+- Installed shfmt v3.13.0 via `go install mvdan.cc/sh/v3/cmd/shfmt@latest`
+- Applied `shfmt -w -i 2 -ci` to all .sh files: spiral.sh, setup.sh, spiral.config.sh, ralph/ralph.sh, and all lib/*.sh
+- Added `shfmt-check` job to `.github/workflows/ci.yml` that installs shfmt and runs `shfmt -d -i 2 -ci` on all scripts
+- Added `mvdan/sh` shfmt hook to `.pre-commit-config.yaml`
+- Added shfmt check to `lib/spiral_doctor.sh` (between shellcheck and gitleaks checks)
+- Added shfmt check to `setup.sh` as step 8 (after codex CLI, before clone section)
+
+### Patterns discovered
+- setup.sh tool checks follow pattern: if command -v X / ok + track / else warn + echo install instructions
+- spiral_doctor.sh checks follow similar pattern with warn_count incrementing
+- All shell scripts were using 4-space or inconsistent indentation; shfmt normalized them to 2-space with case-indent
+
+### Gotchas
+- test_route_stories.py import error is PRE-EXISTING (not caused by this story) - 501 other tests pass
+- On Windows, Go's GOPATH/bin must be added to PATH for shfmt to be found: export PATH="$PATH:$(go env GOPATH)/bin"
+- shfmt is not available via choco on Windows; `go install` is the recommended path
