@@ -435,6 +435,8 @@ SPIRAL_PR_BASE_BRANCH="${SPIRAL_PR_BASE_BRANCH:-main}"                   # base 
 SPIRAL_PR_DRAFT="${SPIRAL_PR_DRAFT:-false}"                              # true = create draft PRs (prevents auto-merge triggers)
 export SPIRAL_CREATE_PRS SPIRAL_PR_BASE_BRANCH SPIRAL_PR_DRAFT
 SPIRAL_AUTO_STASH="${SPIRAL_AUTO_STASH:-false}"                          # true = auto-stash dirty working tree before Phase I and pop after (US-177)
+SPIRAL_CREATE_TAGS="${SPIRAL_CREATE_TAGS:-false}"                        # true = create annotated git tag on successful run completion (US-137)
+SPIRAL_AUTO_PUSH_TAGS="${SPIRAL_AUTO_PUSH_TAGS:-false}"                  # true = push run-complete tag to origin after creation (US-137)
 
 # ── Config validation ─────────────────────────────────────────────────────────
 # Validates required keys are set and applies defaults for optional keys.
@@ -903,6 +905,40 @@ prd_stats() {
     PENDING=$((TOTAL - DONE - _manual_skip_count))
   else
     PENDING=$((TOTAL - DONE))
+  fi
+}
+
+# ── Helper: create annotated git tag on successful run completion (US-137) ──
+# Creates tag spiral/run-{SPIRAL_RUN_ID}-complete with run metadata.
+# Controlled by SPIRAL_CREATE_TAGS=true (default: false).
+create_run_tag() {
+  [[ "${SPIRAL_CREATE_TAGS:-false}" != "true" ]] && return 0
+
+  local tag_name="spiral/run-${SPIRAL_RUN_ID}-complete"
+  local ts story_count commit_sha annotation
+  ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  story_count=$("$JQ" '[.userStories[] | select(.passes == true)] | length' "$PRD_FILE" 2>/dev/null || echo "0")
+  commit_sha=$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || echo "unknown")
+
+  annotation="$(printf 'SPIRAL run complete: %s stories in %s iterations\nRun ID: %s\nDuration: %sm\nFinal commit: %s\nCompleted: %s' \
+    "$story_count" "$SPIRAL_ITER" "$SPIRAL_RUN_ID" "${SESSION_MINUTES:-0}" "$commit_sha" "$ts")"
+
+  echo "  [tag] Creating annotated tag: $tag_name"
+  if git -C "$REPO_ROOT" tag -a "$tag_name" -m "$annotation" --force 2>/dev/null; then
+    echo "  [tag] Tag created: $tag_name"
+    log_spiral_event "run_complete_tagged" \
+      "\"tag\":\"$tag_name\",\"stories\":$story_count,\"iterations\":$SPIRAL_ITER,\"duration_min\":${SESSION_MINUTES:-0},\"commit\":\"$commit_sha\",\"pushed\":false"
+    if [[ "${SPIRAL_AUTO_PUSH_TAGS:-false}" == "true" ]]; then
+      if git -C "$REPO_ROOT" push origin "$tag_name" 2>/dev/null; then
+        echo "  [tag] Tag pushed to origin"
+        log_spiral_event "run_complete_tagged" \
+          "\"tag\":\"$tag_name\",\"stories\":$story_count,\"iterations\":$SPIRAL_ITER,\"duration_min\":${SESSION_MINUTES:-0},\"commit\":\"$commit_sha\",\"pushed\":true"
+      else
+        echo "  [tag] WARNING: Tag push to origin failed"
+      fi
+    fi
+  else
+    echo "  [tag] WARNING: Tag creation failed for $tag_name"
   fi
 }
 
@@ -2896,6 +2932,9 @@ PYEOF
 
     # ── Write iteration summary (US-039) ──────────────────────────────────
     write_iter_summary
+
+    # ── Create annotated run-complete git tag (US-137) ────────────────────
+    create_run_tag
 
     # ── Run SPIRAL_ON_COMPLETE hook (US-049) ──────────────────────────────
     if [[ -n "${SPIRAL_ON_COMPLETE:-}" ]]; then

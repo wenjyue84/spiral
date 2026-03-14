@@ -4407,3 +4407,114 @@ Here is the technical brief for user story US-136.
 - `shellcheck -f json` exits non-zero when findings exist; need `|| true` to avoid aborting the step
 - semgrep `--config=auto` fetches from registry (network required); fallback empty SARIF prevents schema validation failure on network issues
 - `security-events: write` permission is required for upload-sarif — without it the upload step fails silently or with 403
+## Iteration 60 - Sun, Mar 15, 2026  5:43:42 AM
+Incomplete: Add SPIRAL_WORKSPACE_CLEANUP to auto-prune transient artifacts on successful run completion (ID: US-136) — attempt 1/3
+
+
+## Pre-analysis for US-136 (Gemini 2.5 Pro)
+This user story concerns modifications to a shell-based workflow, not a Frappe/Python application. The technical brief should focus on shell scripting within the existing Spiral framework.
+
+### Technical Brief for US-136
+
+**1. Files to Modify:**
+*   **`spiral.sh`**: This is the main orchestrator script. The new cleanup logic will be added here as a shell function.
+*   **`spiral_events.sh`**: This script likely contains the function for logging events to `spiral_events.jsonl`. It will be called by the new cleanup function.
+*   **`lib/check_done.py`**: This script is the probable source for determining if a run is 100% complete, which is the trigger condition for the cleanup.
+
+**2. Frappe DocTypes / Hooks Involved:**
+*   None. This task is confined to the local filesystem and shell scripts. The references to Frappe in the prompt are not relevant to the provided user story.
+
+**3. Recommended Implementation Approach:**
+1.  In `spiral.sh`, create a new bash function `cleanup_workspace()`.
+2.  At the end of the main execution loop in `spiral.sh` (after a successful run is confirmed, likely via a call to `python lib/check_done.py`), add a conditional call: `if [[ "$SPIRAL_WORKSPACE_CLEANUP" == "true" ]]; then cleanup_workspace; fi`.
+3.  Inside `cleanup_workspace()`:
+    a. Capture the initial size of the `.spiral/` directory: `before_bytes=$(du -sb .spiral/ | cut -f1)`.
+    b. Implement the cleanup tasks as defined in the technical notes:
+       *   `find .spiral/research_cache -mtime +${SPIRAL_CACHE_TTL:-7} -type f -delete`
+       *   `find .spiral -name "_iteration_summary_*.json" # (for archiving)`
+       *   `find .spiral -type f -size 0 -delete`
+    c. Archive and then remove old iteration summaries.
+    d. Capture the final size: `after_bytes=$(du -sb .spiral/ | cut -f1)`.
+    e. Calculate the delta: `bytes_freed=$((before_bytes - after_bytes))`.
+    f. Call the event logging function from `spiral_events.sh` to emit the `workspace_cleanup` event with the `bytes_freed` metric.
+
+**4. Edge Cases & Gotchas:**
+*   The trigger condition is critical. The cleanup must only execute after 100% of stories are confirmed `passed` or `skipped`. Do not run on failed or incomplete runs.
+*   The `SPIRAL_CACHE_TTL` environment variable needs a safe default (e.g., 7 days) as shown in the `find` command.
+*   The script should handle cases where there are no files to delete or archive without error.
+*   File-locking on `spiral_events.jsonl` should be respected when logging the cleanup event to prevent race conditions.
+
+
+## Iteration N - Story: US-151: Add API rate-limit budget forecasting widget to spiral_dashboard.py
+
+### What was implemented
+- Added `compute_token_forecast(results, daily_limit=None)` to `lib/spiral_dashboard.py`
+- Uses rolling 1-hour window: filters rows with timestamps within last 3600s that have `input_tokens` or `output_tokens` > 0
+- Returns None (hidden) when fewer than 3 qualifying rows found
+- Returns dict: burn_rate_per_hour, hours_to_exhaustion, time_str, exhaustion_clock, daily_limit, amber_alert
+- `render_html()` gains `token_forecast` kwarg; renders widget section above insights
+- Amber border/text when `amber_alert=True` (exhaustion < 2 hours)
+- `load_results()` now coerces `input_tokens`/`output_tokens` to int
+- 21 new tests in `tests/test_spiral_dashboard.py`; 104 total dashboard tests pass
+
+### Patterns discovered
+- Token columns don't currently exist in results.tsv — widget gracefully hides (returns None)
+- `compute_token_forecast` is stdlib-only (uses `datetime.timedelta` from `datetime` import at top)
+- `render_html` kwarg list growing; new params go at end with default None
+
+### Gotchas
+- `test_route_stories.py` has a pre-existing relative import error — unrelated to this story
+- Time format: hours_to_exhaustion < 1 → "~Nm" only; ≥ 1 → "~Nh Mm"
+## Iteration 61 - Sun, Mar 15, 2026  5:53:05 AM
+Incomplete: Add SPIRAL_WORKSPACE_CLEANUP to auto-prune transient artifacts on successful run completion (ID: US-136) — attempt 2/3
+
+
+## Pre-analysis for US-136 (Gemini 2.5 Pro)
+Here is a technical brief for implementing the workspace cleanup feature.
+
+### Technical Brief: US-136 Workspace Cleanup
+
+**1. Python/Bash Files to Modify:**
+*   `spiral.sh`: This is the main entry point and orchestrator. The new `cleanup_workspace()` bash function should be defined here. The main process loop within this file will be modified to call this function upon successful run completion.
+*   `lib/spiral_events.sh`: This script likely contains the helper function for logging events to `spiral_events.jsonl`. It should be used to log the `workspace_cleanup` event and `bytes_freed` metric.
+*   `lib/check_done.py`: This script is the most probable candidate for determining if a run is 100% complete. The exit code from this script will be used in `spiral.sh` to trigger the cleanup.
+
+**2. Frappe DocTypes / Hooks Involved:**
+*   The user story does not pertain to the Frappe framework. It describes a shell-based command-line tool. The core components are shell scripts, environment variables (`SPIRAL_WORKSPACE_CLEANUP`, `SPIRAL_CACHE_TTL`), and the file system layout under the `.spiral/` directory.
+
+**3. Recommended Implementation Approach:**
+1.  In `spiral.sh`, create a new function `cleanup_workspace()`.
+2.  The function should first check if `SPIRAL_WORKSPACE_CLEANUP` is `true`; if not, it should return immediately.
+3.  Implement cleanup logic using `find` for cache files (`-mtime +${SPIRAL_CACHE_TTL:-7}`) and zero-byte logs (`-size 0`).
+4.  To handle iteration summaries, list `_iteration_summary_*.json` files, sort them, and use `head -n -5` to identify all but the most recent five for removal or archival.
+5.  Calculate the bytes freed by running `du -sb .spiral/` before and after the cleanup operations.
+6.  Use the logging function in `lib/spiral_events.sh` to emit the `workspace_cleanup` event with the calculated byte delta.
+7.  In the main loop of `spiral.sh`, call `cleanup_workspace()` after the script confirms successful completion (e.g., based on the exit code of `python lib/check_done.py`).
+
+**4. Edge Cases & Gotchas:**
+*   Ensure the script creates the archive directory (`mkdir -p .spiral/archive`) before attempting to use `tar`.
+*   The `find` and `tar` commands should handle cases gracefully where no files match the criteria to avoid errors in the script.
+*   Parsing the output of `du` is required to get a raw number for calculating the `bytes_freed` delta.
+*   Confirm that file paths containing iteration numbers are sorted numerically/naturally, not just lexicographically.
+
+
+## Iteration N - Story: US-137: Create annotated git tag on successful SPIRAL run completion with run metadata
+
+### What was implemented
+- Added `SPIRAL_CREATE_TAGS` (default: false) and `SPIRAL_AUTO_PUSH_TAGS` (default: false) env var defaults at line ~438
+- Added `create_run_tag()` function after `prd_stats()` in spiral.sh (~line 913)
+  - Guard: returns immediately when `SPIRAL_CREATE_TAGS != true`
+  - Creates annotated tag `spiral/run-${SPIRAL_RUN_ID}-complete` with `--force` for idempotency
+  - Annotation includes: story count, iteration count, run ID, duration (SESSION_MINUTES), final commit SHA, ISO 8601 timestamp
+  - Logs `run_complete_tagged` event to spiral_events.jsonl
+  - Pushes tag when `SPIRAL_AUTO_PUSH_TAGS=true`
+- Called `create_run_tag` in the success block after `write_iter_summary` and before `SPIRAL_ON_COMPLETE` hook
+
+### Patterns discovered
+- `SESSION_MINUTES` is set just before `write_iter_summary` in the success block — available to `create_run_tag`
+- `$JQ` is the resolved jq binary path (set earlier in spiral.sh)
+- `git -C "$REPO_ROOT"` pattern used throughout for git operations in the repo root
+
+### Gotchas
+- `test_route_stories.py` has a pre-existing relative import error — unrelated to this story; ignored with --ignore flag
+- 637 tests pass (ignoring pre-existing broken test file)
