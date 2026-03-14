@@ -2802,3 +2802,22 @@ Completed: Truncate story context to fit Claude context window using token count
 
 ### Gotchas
 - test_route_stories.py has a pre-existing import error (relative import issue); excluded from test run; 72/72 other tests pass
+## Iteration 6 - Sat, Mar 14, 2026  4:44:59 PM
+Completed: Add --version flag to spiral.sh showing installed git version (ID: US-073) in 10m
+
+
+## Iteration N - Story: US-074: Auto-detect SPIRAL_STORY_PREFIX from existing prd.json IDs at wizard init
+
+### What was implemented
+- Added prefix auto-detection block in Step 1b of `ralph/skills/spiral-init.md`
+- Detection uses Python one-liner: reads all userStories[*].id, regex-matches [A-Z]+-NNN, takes most common prefix if at least 2 stories share it
+- Updated Group 6 prompt to show detected prefix as default (falls back to 'US' when no consistent prefix found)
+- User can still override by typing a new value; pressing Enter accepts the pre-filled default
+
+### Patterns discovered
+- spiral-init.md is a skill/guide markdown file — changes are documentation edits, no separate Python module
+- Counter + most_common() is the standard pattern for prefix detection; threshold of >= 2 matches the AC
+
+### Gotchas
+- The python3 snippet uses -c inline code; on Windows this runs from system Python (not uv venv), but the detection logic uses only stdlib (json, re, collections) so no venv needed
+- prd.json must be read with encoding='utf-8' on Windows to avoid cp1252 decode errors

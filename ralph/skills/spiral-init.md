@@ -49,6 +49,32 @@ Use Glob to check for:
 - `drizzle.config.*` or `prisma/schema.prisma` (database ORM)
 - Existing `prd.json` or `spiral.config.sh` (already initialized)
 
+#### Auto-detect story prefix from existing prd.json
+
+If `prd.json` exists with stories, detect the dominant prefix:
+
+```bash
+# Extract all story ID prefixes from prd.json
+DETECTED_PREFIX=$(python3 -c "
+import json, re, sys
+from collections import Counter
+try:
+    with open('prd.json') as f:
+        stories = json.load(f).get('userStories', [])
+    prefixes = [re.match(r'^([A-Z]+)-\d+$', s.get('id','')) for s in stories]
+    prefixes = [m.group(1) for m in prefixes if m]
+    if len(prefixes) >= 2:
+        top = Counter(prefixes).most_common(1)[0]
+        if top[1] >= 2:
+            print(top[0])
+except Exception:
+    pass
+" 2>/dev/null)
+```
+
+- If `DETECTED_PREFIX` is non-empty, use it as the default for Group 6
+- If empty (no stories, no consistent prefix, or prd.json missing), default remains `US`
+
 ### 1c. Estimate Project Size
 
 Use Glob with common source patterns to estimate:
@@ -222,8 +248,15 @@ Keep re-prompting until the user either provides a command that exits 0, accepts
 
 ### Group 6: SPIRAL Preferences
 
-> **Story ID prefix** — short identifier for user stories (default: `US`)
+> **Story ID prefix** — short identifier for user stories
+> (default: `{DETECTED_PREFIX if non-empty, otherwise 'US'}` — auto-detected from existing story IDs)
 > Examples: `US` (user story), `BUG` (bug fixes), `FT` (features)
+>
+> If `DETECTED_PREFIX` was found, pre-fill the prompt with it:
+> `Story ID prefix [detected: {DETECTED_PREFIX}]:`
+> Otherwise show:
+> `Story ID prefix [default: US]:`
+> The user may accept the default by pressing Enter or type a new prefix.
 
 ### Group 7: Optional Features (quick yes/no)
 
