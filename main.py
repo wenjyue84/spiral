@@ -1,9 +1,10 @@
 """main.py — Spiral CLI entrypoint.
 
 Subcommands:
-  init    Run the interactive setup wizard (lib/setup.py)
-  run     Execute spiral.sh with forwarded arguments
-  status  Show PRD completion summary
+  init      Run the interactive setup wizard (lib/setup.py)
+  run       Execute spiral.sh with forwarded arguments
+  status    Show PRD completion summary
+  estimate  Show pre-flight API cost projection for pending stories
 """
 import argparse
 import csv
@@ -224,6 +225,34 @@ def _render_plain(
 # ── Commands ──────────────────────────────────────────────────────────────────
 
 
+def cmd_estimate(args):
+    """Show pre-flight API cost projection for pending stories."""
+    import sys as _sys
+    import importlib.util as _ilu
+
+    cost_project_path = Path(__file__).parent / "lib" / "cost_project.py"
+    spec = _ilu.spec_from_file_location("cost_project", cost_project_path)
+    if spec is None or spec.loader is None:
+        print("ERROR: lib/cost_project.py not found.")
+        _sys.exit(3)
+    mod = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(mod)  # type: ignore[union-attr]
+
+    argv = [
+        "--prd", str(PRD_FILE),
+        "--results", str(RESULTS_TSV),
+        "--threshold", str(getattr(args, "threshold", 5.00)),
+        "--default-tokens", str(getattr(args, "default_tokens", mod.DEFAULT_TOKENS_PER_STORY)),
+    ]
+    if getattr(args, "model", ""):
+        argv += ["--model", args.model]
+    if getattr(args, "yes", False):
+        argv.append("--yes")
+
+    rc = mod.main(argv)
+    _sys.exit(rc)
+
+
 def cmd_init(args):  # noqa: ARG001
     """Run the interactive setup wizard."""
     setup_py = Path(__file__).parent / "lib" / "setup.py"
@@ -301,6 +330,37 @@ def main():
         help="Output machine-readable JSON instead of a table",
     )
 
+    estimate_parser = subparsers.add_parser(
+        "estimate",
+        help="Show pre-flight API cost projection for pending stories",
+    )
+    estimate_parser.add_argument(
+        "--model",
+        default="",
+        metavar="MODEL",
+        help="Model tier to use for projection (haiku|sonnet|opus)",
+    )
+    estimate_parser.add_argument(
+        "--threshold",
+        type=float,
+        default=5.00,
+        metavar="USD",
+        help="Cost warning threshold in USD (default: 5.00; 0 = never prompt)",
+    )
+    estimate_parser.add_argument(
+        "--default-tokens",
+        type=int,
+        default=8000,
+        dest="default_tokens",
+        metavar="N",
+        help="Fallback tokens/story when history is unavailable (default: 8000)",
+    )
+    estimate_parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="Skip confirmation prompt (CI mode)",
+    )
+
     args = parser.parse_args()
 
     if args.command == "init":
@@ -309,6 +369,8 @@ def main():
         cmd_run(args)
     elif args.command == "status":
         cmd_status(args)
+    elif args.command == "estimate":
+        cmd_estimate(args)
     else:
         parser.print_help()
         sys.exit(0)

@@ -3022,7 +3022,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-148",
@@ -3265,6 +3265,133 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-169",
+      "title": "Cache Gemini pre-analysis results per story ID to skip redundant calls on retry",
+      "priority": "medium",
+      "description": "On story retry (attempt 2 or 3), ralph.sh re-runs the Gemini pre-analysis for the same story, burning quota and adding 10-30 seconds. Since the story definition has not changed, the output is identical. Cache the Gemini result in .spiral/gemini-cache/{story_id}.json keyed by SPIRAL_RUN_ID and reuse it on retry.",
+      "acceptanceCriteria": [
+        "ralph.sh writes Gemini output to .spiral/gemini-cache/{story_id}.json after a successful call",
+        "On retry for the same story_id within the same SPIRAL_RUN_ID, the cache is used",
+        "Cache miss triggers a fresh Gemini call",
+        "Cache hits are logged as '[precontext] Gemini cache hit for {story_id}'",
+        "Cache directory is cleaned up at the start of each new Spiral run"
+      ],
+      "technicalNotes": [
+        "Store cache as JSON: {run_id, story_id, timestamp, content}",
+        "Validate: jq -r .run_id cache.json == $SPIRAL_RUN_ID",
+        "Add .spiral/gemini-cache/ to .gitignore"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-170",
+      "title": "Add SPIRAL_RESEARCH_CACHE_TTL_HOURS to reuse Phase R output across iterations",
+      "priority": "medium",
+      "description": "Phase R runs a full web research pass every iteration even when the project has not changed. Add TTL-based caching: if _research_output.json is younger than SPIRAL_RESEARCH_CACHE_TTL_HOURS (default: 0 = disabled), skip Phase R and reuse the cached output. Useful for short-interval re-runs after manual story edits.",
+      "acceptanceCriteria": [
+        "spiral.sh checks _research_output.json mtime against SPIRAL_RESEARCH_CACHE_TTL_HOURS before Phase R",
+        "If file is newer than TTL: Phase R is skipped with '[Phase R] cache hit (Nh old)'",
+        "If SPIRAL_RESEARCH_CACHE_TTL_HOURS=0 (default): cache disabled, Phase R always runs",
+        "--skip-research flag still works as before",
+        "SPIRAL_RESEARCH_CACHE_TTL_HOURS documented in spiral.config.example.sh"
+      ],
+      "technicalNotes": [
+        "Use stat or python -c 'import os; print(os.path.getmtime(...))' for mtime",
+        "Compare: (now - mtime) / 3600 < SPIRAL_RESEARCH_CACHE_TTL_HOURS",
+        "Log cache age when reusing: '[Phase R] skipping -- research is 2h old (TTL: 6h)'"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-171",
+      "title": "Fast-path small stories: skip Gemini pre-analysis for estimatedComplexity=small",
+      "priority": "medium",
+      "description": "The Gemini pre-analysis adds 10-30 seconds to every story including trivially small ones. For stories with estimatedComplexity=small and at most 2 filesTouch entries, skip the Gemini call entirely and go straight to Claude implementation. Saves 10-30 seconds per small story with no quality loss.",
+      "acceptanceCriteria": [
+        "ralph.sh skips Gemini when story.estimatedComplexity == 'small' AND len(filesTouch) <= 2",
+        "Skip is logged: '[precontext] skipped -- small story with <= 2 file hints'",
+        "SPIRAL_GEMINI_SKIP_SMALL=false disables the fast-path (default: true)",
+        "Fast-path does not apply when SPIRAL_GEMINI_ANNOTATE_PROMPT is set",
+        "A bats test confirms the Gemini call is not made for qualifying stories"
+      ],
+      "technicalNotes": [
+        "Add the condition in ralph.sh before the Gemini invocation block",
+        "filesTouch length: jq '(.filesTouch // []) | length'"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-172",
+      "title": "Compress old .spiral/ iteration artifacts with gzip to reduce disk usage",
+      "priority": "low",
+      "description": "Each Spiral iteration writes several JSON files to .spiral/. On long runs these accumulate to tens of MB. Compress artifacts from iterations N-2 and older with gzip, keeping only the last 2 iterations uncompressed for easy inspection.",
+      "acceptanceCriteria": [
+        "At the start of each iteration, JSON files from iter N-2 and older are gzip-compressed",
+        "Compressed files are named <original>.gz and originals are removed",
+        "Checkpoint resume logic handles a mix of compressed and uncompressed artifacts",
+        "Total .spiral/ disk usage is logged when SPIRAL_LOG_LEVEL=debug",
+        "A bats test confirms compression happens and originals are removed"
+      ],
+      "technicalNotes": [
+        "Use gzip without --keep to replace in place, or gzip --keep then rm",
+        "Skip compression if gzip is unavailable (log warning, continue)",
+        "Do not compress _checkpoint.json or latest-review.html (needed at runtime)"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-173",
+      "title": "Implement Phase S (Story Validate) — auto-reject out-of-scope research stories",
+      "priority": "high",
+      "description": "The Phase S stub exists in lib/phases/phase_s_story_validate.sh but has no implementation. Wire it into spiral.sh between Phase T and Phase M. Phase S reads candidate stories, checks each against prd.json goals[] and the constitution (if set), drops stories with no clear goal connection, and writes accepted stories to _validated_stories.json for Phase M.",
+      "acceptanceCriteria": [
+        "spiral.sh calls run_phase_story_validate() between Phase T and Phase M",
+        "Phase S produces .spiral/_validated_stories.json with only accepted stories",
+        "Stories with no connection to any prd.json goal[] are dropped with reason logged",
+        "Stories violating the constitution are also dropped when SPIRAL_SPECKIT_CONSTITUTION is set",
+        "Phase M reads _validated_stories.json instead of raw research output",
+        "A bats test with known off-topic stories confirms they are rejected"
+      ],
+      "technicalNotes": [
+        "Use Claude haiku as the reviewer with a simple YES/NO prompt against each goal",
+        "Fallback to keyword overlap check if the Claude call fails",
+        "Log acceptance rate per iteration to spiral_events.jsonl"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-174",
+      "title": "Implement Phase 0 (Clarify) — interactive startup with time-limit and focus setting",
+      "priority": "high",
+      "description": "The Phase 0 stub exists in lib/phases/phase_0_clarify.sh but has no implementation. Wire it into spiral.sh as a one-time pre-loop step. Phase 0 confirms focus area, asks how many hours to run (sets TIME_LIMIT_MINS), and optionally accepts initial story seeds from the user. Fully skipped in --gate proceed/skip mode.",
+      "acceptanceCriteria": [
+        "spiral.sh calls run_phase_clarify() once before the main loop, not on resume",
+        "Phase 0 asks 'How many hours should Spiral run? (Enter for unlimited)' and sets TIME_LIMIT_MINS",
+        "Phase 0 asks 'Any focus area for this session?' and sets SPIRAL_FOCUS if answered",
+        "Phase 0 accepts initial story seeds (one per line) and adds them to prd.json",
+        "With --gate proceed or --gate skip: Phase 0 is skipped entirely",
+        "Checkpoint records phase_0_complete: true so resume skips it"
+      ],
+      "technicalNotes": [
+        "Use bash read -t 60 -p '...' to avoid hanging on no input",
+        "Story seeds: convert plain text lines to minimal story objects with priority:medium",
+        "Output written to .spiral/_clarify_output.json for auditability"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
       "passes": false
     }
   ]
