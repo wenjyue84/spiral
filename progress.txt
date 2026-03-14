@@ -4810,3 +4810,58 @@ This technical brief is based on the provided story JSON and file listing. Note 
 - GNU time -f '%e %U %S %M' outputs wall_sec user_cpu sys_cpu peak_rss all on ONE LINE separated by spaces — use bash `read a b c d < file`
 - On 529-retry loops, _RESOURCE_TMP is overwritten each attempt; last successful call's stats are captured
 - Results.tsv header mismatch: existing single-row file had 14 cols; now 18 — old files still load cleanly (missing cols just absent from dict)
+## Iteration 67 - Sun, Mar 15, 2026  7:05:47 AM
+Incomplete: Add SPIRAL_BRANCH_PREFIX for per-story feature branch creation and naming (ID: US-157) — attempt 1/3
+
+
+## Pre-analysis for US-157 (Gemini 2.5 Pro)
+Here is the technical brief for implementing story US-157.
+
+**Subject: Technical Brief: US-157 - Per-Story Git Branching**
+
+This story modifies the core Spiral execution wrapper, not a Frappe/Python application. The goal is to introduce a feature-branching workflow tied to story IDs.
+
+**1. Primary Files to Modify:**
+*   `ralph.sh`: This script likely orchestrates the per-story lifecycle. Branch creation/checkout logic should be added at the beginning of its execution.
+*   `spiral.sh`: The main driver script. It will need logic after a story passes (Phase V) to handle merging or pushing the feature branch.
+*   `spiral.config.sh`: Add the new configuration variables (`SPIRAL_BRANCH_PREFIX`, `SPIRAL_CREATE_PRS`, etc.) with comments and default values.
+
+**2. Involved Components:**
+*   This is a pure shell script and Git workflow task.
+*   No Frappe DocTypes or Python code are involved.
+*   Key components are `git` commands (checkout, merge, branch, push) and environment variables.
+
+**3. Recommended Implementation Approach:**
+*   In `ralph.sh`, before Phase I, check if `SPIRAL_BRANCH_PREFIX` is set.
+*   If so, construct the branch name: `STORY_BRANCH="${SPIRAL_BRANCH_PREFIX}/${STORY_ID}"`.
+*   Use `git checkout -B "$STORY_BRANCH"` to create and switch to the branch idempotently.
+*   In `spiral.sh`, after a successful run, if `SPIRAL_CREATE_PRS` is `true`, push the branch.
+*   Otherwise, checkout `SPIRAL_BASE_BRANCH`, merge the story branch with `--no-ff`, and push the base branch.
+*   Delete the local story branch unless `SPIRAL_KEEP_STORY_BRANCHES` is `true`.
+
+**4. Edge Cases and Gotchas:**
+*   Ensure the logic gracefully handles an empty or unset `SPIRAL_BRANCH_PREFIX`.
+*   The script must be robust against pre-existing local or remote branches for the same story ID.
+*   Anticipate and handle potential merge conflicts when merging back to the base branch; the script should abort and report the conflict rather than attempting to resolve it.
+*   The worktree environment for parallel workers means `git checkout` should be safe, but confirm it doesn't conflict with other worktrees. Use `git worktree list` for checks if necessary.
+
+
+## Iteration N - Story: US-172: Compress old .spiral/ iteration artifacts with gzip
+
+### What was implemented
+- Added `compress_old_artifacts()` helper function in spiral.sh (after cleanup_workspace)
+- Called at the start of each main loop iteration, right before prd.json integrity check
+- Compresses _phase_R_N.ckpt, _phase_T_N.ckpt, _phase_R_N.endtime, _phase_T_N.endtime, and prd-backups/prd-iterN.json for all iterations N-2 and older
+- Skips _checkpoint.json and gate-reports/latest-review.html (never compressed)
+- Logs disk usage line when SPIRAL_LOG_LEVEL=DEBUG
+- Skips silently if gzip is unavailable (warning emitted)
+- Created tests/artifact_compression.bats with 10 test cases
+
+### Patterns discovered
+- Per-iteration artifacts follow: _phase_{R,T}_<N>.{ckpt,endtime} and prd-backups/prd-iter<N>.json
+- bats tests inline the function under test in a subshell (same pattern as workspace_cleanup.bats)
+- SPIRAL_LOG_LEVEL is normalised to uppercase (compare with "DEBUG" not "debug")
+
+### Gotchas
+- test_route_stories.py has a pre-existing ImportError (not caused by this story)
+- 701 pytest tests pass with --ignore=tests/test_route_stories.py

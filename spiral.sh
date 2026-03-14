@@ -999,6 +999,57 @@ cleanup_workspace() {
     "\"bytes_freed\":${bytes_freed},\"cache_ttl_days\":${SPIRAL_CACHE_TTL:-7}"
 }
 
+# ── Helper: compress old iteration artifacts with gzip (US-172) ─────────────
+# At the start of iteration N, gzip-compresses per-iteration files from
+# iterations N-2 and older to reduce .spiral/ disk usage. Keeps the last
+# 2 iterations uncompressed for easy inspection and checkpoint resume.
+#
+# Compressed files are named <original>.gz; originals are removed.
+# Skips: _checkpoint.json, gate-reports/latest-review.html (needed at runtime).
+# Skips silently when gzip is unavailable (logs a warning and returns).
+compress_old_artifacts() {
+  local current_iter="${1:-$SPIRAL_ITER}"
+  # Need at least iteration 3 before there is anything to compress (N-2 >= 1)
+  [[ "$current_iter" -lt 3 ]] && return 0
+
+  # Skip if gzip is unavailable
+  if ! command -v gzip &>/dev/null; then
+    echo "  [compress] WARNING: gzip not available — skipping artifact compression"
+    return 0
+  fi
+
+  local threshold=$(( current_iter - 2 ))
+  local compressed=0
+
+  for iter_n in $(seq 1 "$threshold"); do
+    # Phase R/T checkpoint and endtime files
+    for f in \
+      "$SCRATCH_DIR/_phase_R_${iter_n}.ckpt" \
+      "$SCRATCH_DIR/_phase_T_${iter_n}.ckpt" \
+      "$SCRATCH_DIR/_phase_R_${iter_n}.endtime" \
+      "$SCRATCH_DIR/_phase_T_${iter_n}.endtime"; do
+      if [[ -f "$f" && ! -f "${f}.gz" ]]; then
+        gzip "$f" 2>/dev/null && compressed=$((compressed + 1)) || true
+      fi
+    done
+
+    # prd-backup JSON for this iteration
+    local backup="$SCRATCH_DIR/prd-backups/prd-iter${iter_n}.json"
+    if [[ -f "$backup" && ! -f "${backup}.gz" ]]; then
+      gzip "$backup" 2>/dev/null && compressed=$((compressed + 1)) || true
+    fi
+  done
+
+  # Log disk usage when SPIRAL_LOG_LEVEL=DEBUG
+  if [[ "${SPIRAL_LOG_LEVEL:-}" == "DEBUG" ]]; then
+    local total_kb=0
+    if command -v du &>/dev/null; then
+      total_kb=$(du -sk "$SCRATCH_DIR" 2>/dev/null | awk '{print $1}' || echo 0)
+    fi
+    echo "  [compress] Compressed ${compressed} artifact(s) from iters 1-${threshold}; .spiral/ total: ${total_kb}K"
+  fi
+}
+
 # ── Helper: write per-iteration summary JSON (US-039) ──────────────────────
 # Writes $SCRATCH_DIR/_iteration_summary.json with compact iteration stats.
 # Overwrites each iteration. Non-fatal on write failure.
@@ -1600,6 +1651,9 @@ fi
 while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
   SPIRAL_ITER=$((SPIRAL_ITER + 1))
   ITER_START=$(date +%s)
+
+  # Compress artifacts from iterations N-2 and older (US-172)
+  compress_old_artifacts "$SPIRAL_ITER"
 
   # Validate prd.json integrity before each iteration (Idea 3)
   # If corrupted by a mid-write crash, restore from the most recent backup
