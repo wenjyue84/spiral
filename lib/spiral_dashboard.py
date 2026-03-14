@@ -479,6 +479,7 @@ def compute_story_attempts(prd: dict, results: list[dict]) -> dict:
             "title": story.get("title", ""),
             "status": status,
             "attempts": attempts,
+            "scope_creep": bool(story.get("_scopeCreep")),
         }
         if sid in stale_map:
             entry["stale_days"] = stale_map[sid]
@@ -812,6 +813,11 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
                 f'<span class="stale-badge">&#9200; stale {stale_days_val}d</span>'
                 if stale_days_val is not None else ""
             )
+            scope_creep_flag = story.get("scope_creep", False)
+            scope_creep_badge = (
+                '<span class="scope-creep-badge">&#9888; scope-creep</span>'
+                if scope_creep_flag else ""
+            )
 
             # Build attempt table HTML
             attempt_rows = ""
@@ -838,10 +844,12 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
             else:
                 attempt_rows = '<tr style="font-size:11px"><td colspan="7" class="no-data">No attempts recorded</td></tr>'
 
+            _border_color = "#ffa040" if stale_days_val is not None else ("#ff9900" if scope_creep_flag else "#333")
+            _detail_class = "stale-story" if stale_days_val is not None else ("scope-creep-story" if scope_creep_flag else "")
             stories_rows += (
-                f'<details class="{"stale-story" if stale_days_val is not None else ""}" style="margin-bottom:8px;border:1px solid {"#ffa040" if stale_days_val is not None else "#333"};border-radius:4px">'
+                f'<details class="{_detail_class}" style="margin-bottom:8px;border:1px solid {_border_color};border-radius:4px">'
                 f'<summary style="cursor:pointer;padding:8px;background:#0f3460;color:#fff;font-weight:bold;display:flex;justify-content:space-between;align-items:center">'
-                f'<span>{escape(story_id)}: {escape(story["title"][:50])}{stale_badge}</span>'
+                f'<span>{escape(story_id)}: {escape(story["title"][:50])}{stale_badge}{scope_creep_badge}</span>'
                 f'<span class="{status_color}" style="font-size:11px;padding:2px 6px;border-radius:3px">{display_status}</span>'
                 f'</summary>'
                 f'<div style="padding:8px;overflow-x:auto">'
@@ -934,6 +942,7 @@ td.trunc{{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:now
 .chip.pass{{background:#0a3a2a;color:#00d4aa;border:1px solid #00d4aa}}
 .chip.fail{{background:#3a0a0a;color:#ff6b6b;border:1px solid #ff6b6b}}
 .stale-badge{{display:inline-block;padding:1px 6px;border-radius:8px;font-size:10px;background:#3a2000;color:#ffa040;border:1px solid #ffa040;margin-left:6px}}
+.scope-creep-badge{{display:inline-block;padding:1px 6px;border-radius:8px;font-size:10px;background:#3a2200;color:#ff9900;border:1px solid #ff9900;margin-left:6px}}
 footer{{text-align:center;color:#444;font-size:10px;margin-top:16px;padding-top:10px;border-top:1px solid #222}}
 </style>
 </head>

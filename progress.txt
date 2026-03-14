@@ -3417,3 +3417,29 @@ Incomplete: Stream-process large prd.json with jq --stream to avoid full in-memo
 - `rich.__version__` AttributeError on some installations — use `import rich` without version check
 - `_USE_COLOUR` is module-level global set at import time; tests that patch `os.environ["NO_COLOR"]` after import won't affect it — tests should use `_args()` helper and patch module paths instead
 - 1 pre-existing Hypothesis flake in `test_partition.py` (slow input gen) — unrelated to this story; 568 passed otherwise
+
+
+## Iteration N - Story: US-150: Guard against story scope creep: warn when implementation touches > N files
+
+### What was implemented
+- Added `SPIRAL_MAX_FILES_PER_STORY` (default 10) and `SPIRAL_SCOPE_CREEP_ACTION` (default "warn") config defaults to spiral.sh
+- Added scope-creep guard block in spiral.sh after Phase I velocity section:
+  - Counts files via `git diff --name-only HEAD~1`, excluding lock/generated files
+  - Emits `scope_creep` event to spiral_events.jsonl with file list, count, and action
+  - `SPIRAL_SCOPE_CREEP_ACTION=abort`: marks `_failureReason: "scope_creep: ..."` and `_scopeCreep: true` on story
+  - `SPIRAL_SCOPE_CREEP_ACTION=warn` (default): stamps `_scopeCreep: true` on story, continues to Phase V
+- Updated `lib/spiral_dashboard.py`:
+  - `compute_story_attempts` now propagates `_scopeCreep` prd field as `scope_creep` key
+  - Stories with scope_creep get an orange `⚠ scope-creep` badge in the story table
+  - Orange `#ff9900` border highlights scope-creep stories
+  - Added `.scope-creep-badge` CSS class
+
+### Patterns discovered
+- `grep -c '.' <<< ""` returns 0 exit code but empty input gives 0 — must guard with `[[ -z "$_SC_FILE_LIST" ]] && _SC_COUNT=0`
+- `_NEXT_SID` is already set earlier in Phase I (sequential and parallel wave single-story paths)
+- `jq -Rsc 'split("\n") | map(select(. != ""))'` is the cleanest way to convert a newline-separated shell list to a JSON array
+
+### Gotchas
+- Scope creep check only runs when `RALPH_PROGRESS > 0` (no-op on zero-progress iterations)
+- Only fires in sequential mode; parallel mode (run_parallel_ralph.sh) commits differently but `_NEXT_SID` may not be set — guarded with `[[ -n "${_NEXT_SID:-}" ]]`
+- test_route_stories.py has pre-existing relative import failure (excluded from test run); 569 passed otherwise

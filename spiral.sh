@@ -402,6 +402,8 @@ SPIRAL_NOTIFY_WEBHOOK_HEADERS="${SPIRAL_NOTIFY_WEBHOOK_HEADERS:-}"       # optio
 SPIRAL_PRE_PHASE_HOOK="${SPIRAL_PRE_PHASE_HOOK:-}"                       # path to executable; called before each phase; non-zero exit aborts story attempt
 SPIRAL_POST_PHASE_HOOK="${SPIRAL_POST_PHASE_HOOK:-}"                     # path to executable; called after each phase; non-zero exit is logged as warning (non-fatal)
 SPIRAL_HOOK_TIMEOUT="${SPIRAL_HOOK_TIMEOUT:-30}"                         # seconds; wall-clock limit per hook execution (default 30)
+SPIRAL_MAX_FILES_PER_STORY="${SPIRAL_MAX_FILES_PER_STORY:-10}"           # warn/abort when Phase I touches more files than this; 0 = disabled
+SPIRAL_SCOPE_CREEP_ACTION="${SPIRAL_SCOPE_CREEP_ACTION:-warn}"           # warn (default) = log only; abort = mark _failureReason and skip Phase V
 
 # ── Config validation ─────────────────────────────────────────────────────────
 # Validates required keys are set and applies defaults for optional keys.
@@ -2249,6 +2251,45 @@ $INJECTED_PROMPT"
             RALPH_MAX_ITERS="$NEW_BUDGET"
             echo "  [velocity] Zero — ralph budget → $RALPH_MAX_ITERS"
           fi
+
+          # ── Scope-creep guard (US-150) ──────────────────────────────────────
+          if [[ "$RALPH_PROGRESS" -gt 0 && "${SPIRAL_MAX_FILES_PER_STORY:-10}" -gt 0 ]]; then
+            # Count files changed in the last commit, excluding .spiralignore patterns
+            _SC_FILES_RAW=$(git -C "$REPO_ROOT" diff --name-only HEAD~1 2>/dev/null || echo "")
+            _SC_DEFAULT_EXCLUDES='\.lock$|_generated\.|\.pb\.go$'
+            _SC_FILE_LIST=$(echo "$_SC_FILES_RAW" | grep -Ev "$_SC_DEFAULT_EXCLUDES" || true)
+            _SC_COUNT=$(echo "$_SC_FILE_LIST" | grep -c '.' 2>/dev/null || echo "0")
+            # grep -c on empty string returns 0 lines but exits 1; guard with || true
+            [[ -z "$_SC_FILE_LIST" ]] && _SC_COUNT=0
+
+            if [[ "$_SC_COUNT" -gt "${SPIRAL_MAX_FILES_PER_STORY:-10}" ]]; then
+              _SC_FILE_JSON=$(echo "$_SC_FILE_LIST" | "$JQ" -Rsc 'split("\n") | map(select(. != ""))' 2>/dev/null || echo "[]")
+              echo ""
+              echo "  [scope-creep] WARNING: Phase I touched $_SC_COUNT files (limit: ${SPIRAL_MAX_FILES_PER_STORY:-10})"
+              echo "  [scope-creep] This story may be too large — consider decomposing it."
+              log_spiral_event "scope_creep" \
+                "\"story_id\":\"${_NEXT_SID:-unknown}\",\"files_touched\":$_SC_COUNT,\"limit\":${SPIRAL_MAX_FILES_PER_STORY:-10},\"files\":$_SC_FILE_JSON,\"action\":\"${SPIRAL_SCOPE_CREEP_ACTION:-warn}\""
+
+              if [[ "${SPIRAL_SCOPE_CREEP_ACTION:-warn}" == "abort" ]]; then
+                echo "  [scope-creep] SPIRAL_SCOPE_CREEP_ACTION=abort — marking story as failed and flagging for decomposition"
+                if [[ -n "${_NEXT_SID:-}" ]]; then
+                  _SC_UPDATED=$("$JQ" --arg id "$_NEXT_SID" \
+                    '(.userStories[] | select(.id == $id)) |= (. + {"passes": false, "_failureReason": "scope_creep: touched '"$_SC_COUNT"' files (limit '"${SPIRAL_MAX_FILES_PER_STORY:-10}"')", "_scopeCreep": true})' \
+                    "$PRD_FILE" 2>/dev/null) || true
+                  [[ -n "$_SC_UPDATED" ]] && { printf '%s\n' "$_SC_UPDATED" >"${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE"; }
+                fi
+              else
+                # warn mode: stamp _scopeCreep on the story without failing it
+                if [[ -n "${_NEXT_SID:-}" ]]; then
+                  _SC_UPDATED=$("$JQ" --arg id "$_NEXT_SID" \
+                    '(.userStories[] | select(.id == $id)) |= (. + {"_scopeCreep": true})' \
+                    "$PRD_FILE" 2>/dev/null) || true
+                  [[ -n "$_SC_UPDATED" ]] && { printf '%s\n' "$_SC_UPDATED" >"${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE"; }
+                fi
+              fi
+            fi
+          fi
+          # ── End scope-creep guard ────────────────────────────────────────────
         fi # end PENDING > 0 block
         ;;
       *)
