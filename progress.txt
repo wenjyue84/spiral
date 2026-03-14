@@ -2719,3 +2719,22 @@ Incomplete: Add gitleaks secret scanning gate before AI-generated code is commit
 ### Gotchas
 - prd.json must be read/written with encoding='utf-8' on Windows (cp1252 fails on some chars)
 - `git restore --staged .` needed to unstage after gitleaks failure before retry
+## Iteration 1 - Sat, Mar 14, 2026  3:48:15 PM
+Completed: Add gitleaks secret scanning gate before AI-generated code is committed (ID: US-140) in 9m
+
+
+## Iteration N - Story: US-086: Add workflow_dispatch inputs to SPIRAL GitHub Actions workflow
+
+### What was implemented
+- Created `.github/workflows/spiral.yml` with `workflow_dispatch` trigger
+- Inputs: `max_iterations` (string, default '5'), `gate` (choice: proceed/skip/quit, default proceed), `dry_run` (boolean, default false)
+- When `dry_run=true`, gate is forced to `skip` and `--dry-run` flag is added to spiral.sh invocation
+- Workflow step passes inputs to: `bash spiral.sh "${{ inputs.max_iterations }}" --gate "$GATE" [--dry-run]`
+
+### Patterns discovered
+- spiral.sh accepts `--dry-run` flag (not `--dry_run`) — use hyphens
+- The existing CI workflow is `ci.yml`; this story required a separate `spiral.yml`
+
+### Gotchas
+- Pre-existing Hypothesis flakiness in `test_partition.py::TestAssignStories::test_bucket_count_matches_workers` (HealthCheck.too_slow) — unrelated to this story
+- test_route_stories.py has a relative import error — also pre-existing

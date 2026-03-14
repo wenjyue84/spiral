@@ -1,0 +1,47 @@
+name: SPIRAL
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_iterations:
+        description: "Maximum number of SPIRAL iterations to run"
+        type: string
+        default: "5"
+      gate:
+        description: "Auto-answer gate prompts"
+        type: choice
+        options:
+          - proceed
+          - skip
+          - quit
+        default: proceed
+      dry_run:
+        description: "Dry run: test control flow without making API calls"
+        type: boolean
+        default: false
+
+jobs:
+  spiral:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Run SPIRAL
+        run: |
+          GATE="${{ inputs.gate }}"
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            GATE="skip"
+            bash spiral.sh "${{ inputs.max_iterations }}" --gate "$GATE" --dry-run
+          else
+            bash spiral.sh "${{ inputs.max_iterations }}" --gate "$GATE"
+          fi
