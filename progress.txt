@@ -3352,3 +3352,6 @@ Incomplete: Stream-process large prd.json with jq --stream to avoid full in-memo
 ### Gotchas
 - pinchtab CLI guard: command -v pinchtab; if missing, prints install hint (npm install -g pinchtab)
 - eval "$SPIRAL_PINCHTAB_E2E_CMD" runs in subshell (cd "$REPO_ROOT" && eval ...) — exit code captured but does not affect VALIDATE_EXIT
+## Iteration 35 - Sat, Mar 14, 2026 11:20:34 PM
+Incomplete: Stream-process large prd.json with jq --stream to avoid full in-memory parse (ID: US-123) — attempt 2/3
+

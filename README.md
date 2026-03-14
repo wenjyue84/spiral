@@ -36,6 +36,9 @@ bash ~/.ai/Skills/spiral/setup.sh
 | **Firecrawl MCP** | Optional | See [Firecrawl setup](#firecrawl-mcp-optional) below |
 | **Chrome DevTools MCP** | Optional | `npm i -g chrome-devtools-mcp` — see [Browser Testing](#browser-testing-optional) below |
 | **agent-browser skill** | Optional | See [Browser Testing](#browser-testing-optional) below |
+| **Pinchtab** | Optional | `npm i -g pinchtab` — shell-driven Phase V E2E assertions, see [Browser Testing](#browser-testing-optional) |
+| **Lightpanda** | Optional | [lightpanda.io](https://lightpanda.io) — fast headless browser (Zig-based), drop-in Chrome alternative |
+| **Peon Ping** | Optional | Claude Code skill — plays audio when Ralph finishes a story so you know when to check in |
 
 `setup.sh` auto-installs everything except git.
 
@@ -429,16 +432,20 @@ When `SPIRAL_GITNEXUS_REPO` is empty (default), the feature is completely disabl
 
 ## Browser Testing (Optional)
 
-Two complementary tools enable Claude to drive a real browser during Phase I implementation and Phase V validation — useful whenever stories involve web UI features, form behaviour, or end-to-end flows.
+Four complementary tools cover the full spectrum from in-agent visual verification to shell-driven Phase V E2E assertions — useful whenever stories involve web UI features, form behaviour, or end-to-end flows.
 
 | Tool | Role | When used |
 |------|------|-----------|
-| **Chrome DevTools MCP** | Gives Claude direct browser control via MCP tools (`navigate`, `click`, `fill`, `screenshot`, `evaluate_script`, …) | Inside Ralph's agent sessions — Claude can open the running app, interact with it, and visually verify results without leaving the implementation loop |
-| **agent-browser skill** | High-level CLI (`agent-browser open/snapshot/click/fill/close`) invoked from Bash — wraps browser automation as simple commands | In Claude Code sessions running SPIRAL itself, for manual or scripted validation steps |
+| **Chrome DevTools MCP** | Gives Claude direct browser control via MCP tools (`navigate`, `click`, `fill`, `screenshot`, `evaluate_script`, …) | Inside Ralph's agent sessions — Claude opens the running app, interacts with it, and visually verifies results before marking `passes: true` |
+| **agent-browser skill** | High-level CLI (`agent-browser open/snapshot/click/fill/close`) invoked from Bash — wraps browser automation as simple shell commands | In Claude Code sessions running SPIRAL itself, for manual or scripted validation steps |
+| **Pinchtab** | Persistent HTTP browser server — text-mode, token-efficient (~800 tokens vs ~10 k for a screenshot), parallel-safe with per-worker isolation | Phase V shell assertions: `pinchtab nav $URL && pinchtab text \| grep -q "expected"` after pytest passes |
+| **Lightpanda** | Ultra-fast Zig-based headless browser — drop-in Chrome replacement, ~10× lower memory than Chromium | Low-overhead browser back-end for Pinchtab or any `--browser lightpanda` automation; ideal on CI or memory-constrained workers |
 
-**Why both matter for SPIRAL:**
-- After Ralph implements a UI story, Chrome DevTools MCP lets Claude instantly screenshot and verify the page looks right before marking `passes: true`
-- agent-browser enables shell-level browser scripting in SPIRAL's validation hooks without needing Playwright/Selenium installed separately
+**Why they fit together:**
+- **Chrome DevTools MCP** is the best choice inside a Ralph agent turn — Claude gets full MCP tool access, can screenshot, click, and evaluate JS without leaving the implementation loop.
+- **agent-browser** handles shell-level automation in SPIRAL's own hooks and validation steps, no Playwright/Selenium install required.
+- **Pinchtab** is the right tool for Phase V shell assertions — it's fast, scriptable, produces grep-able text output, and each parallel Spiral worker can request an isolated browser tab.
+- **Lightpanda** pairs with Pinchtab (or any automation that accepts a `--browser` flag) as a lightweight back-end: boots in milliseconds, uses far less RAM than Chrome, and is fully headless by design.
 
 ### Setup
 
@@ -489,7 +496,65 @@ agent-browser screenshot
 agent-browser close
 ```
 
-Neither tool is required — SPIRAL works without them. They activate automatically when available (Chrome DevTools MCP via `mcp__chrome-devtools__*` tools; agent-browser via the skill).
+**3. Pinchtab** — shell-driven Phase V browser assertions:
+
+```bash
+npm i -g pinchtab
+
+# Start the server (keep running in background)
+pinchtab serve --port 9867
+
+# Then in spiral.config.sh:
+# SPIRAL_PINCHTAB_URL="http://localhost:9867"
+# SPIRAL_DEV_URL="http://localhost:3000"
+```
+
+Usage in Phase V shell assertions (or `SPIRAL_PINCHTAB_E2E_CMD`):
+
+```bash
+pinchtab nav http://localhost:3000
+pinchtab text | grep -q "Welcome"   # pass/fail assertion
+```
+
+Pinchtab is parallel-safe: each Spiral worker gets an isolated browser tab. Set `SPIRAL_PINCHTAB_URL` in `spiral.config.sh` to activate — Phase V runs these steps automatically after pytest/vitest.
+
+**4. Lightpanda** — fast headless browser back-end:
+
+Download from [lightpanda.io](https://lightpanda.io) or:
+
+```bash
+# macOS / Linux
+curl -fsSL https://install.lightpanda.io | sh
+
+# Or download the binary from GitHub releases:
+# https://github.com/lightpanda-io/browser/releases
+```
+
+Lightpanda exposes a Chrome DevTools Protocol (CDP) endpoint — any tool that works against Chrome headless also works against Lightpanda. To use it as Pinchtab's back-end:
+
+```bash
+# Start Lightpanda CDP server
+lightpanda serve --host 127.0.0.1 --port 9222
+
+# Then start Pinchtab pointed at it
+pinchtab serve --cdp-url ws://127.0.0.1:9222 --port 9867
+```
+
+On memory-constrained CI runners or when running many parallel Spiral workers, Lightpanda's ~10× lower RAM footprint versus Chromium makes a meaningful difference.
+
+None of these tools are required — SPIRAL works without them. They activate automatically when configured: Chrome DevTools MCP via `mcp__chrome-devtools__*` tools detected in the environment; Pinchtab via `SPIRAL_PINCHTAB_URL` in `spiral.config.sh`.
+
+## Notifications (Optional)
+
+**Peon Ping** is a Claude Code skill that plays an audio chime when Ralph finishes a story — useful for long Spiral runs where you want to step away and be alerted when something completes rather than watching the terminal.
+
+Install into Claude Code's skills directory:
+
+```bash
+ln -s /path/to/peon-ping ~/.claude/skills/peon-ping
+```
+
+Once installed, Peon Ping activates automatically at the end of each Ralph iteration. Configure volume, voice packs, and notification categories in your Claude Code settings. See the [peon-ping skill docs](https://github.com/wenjyue84/peon-ping) for full options.
 
 ## License
 

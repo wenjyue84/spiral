@@ -304,6 +304,18 @@ Generated-By: SPIRAL"
   fi
 }
 
+# do_story_reset: Hard-reset working tree to the pre-story baseline SHA.
+# Called on every failure path so each retry starts from a clean state.
+# This is the Karpathy ratchet: failed experiments leave zero traces in git.
+do_story_reset() {
+  local baseline="${1:-}"
+  if [[ -n "$baseline" ]]; then
+    git reset --hard "$baseline" 2>/dev/null || git checkout -- . 2>/dev/null || true
+  else
+    git checkout -- . 2>/dev/null || true
+  fi
+}
+
 # ── Conventional Commit message builder ─────────────────────────
 # build_commit_msg: Generates a Conventional Commits v1.0 compliant message
 # from story metadata.
@@ -553,6 +565,73 @@ capture_ts_baseline() {
   else
     echo "0"
   fi
+}
+
+capture_test_baseline() {
+  # Returns numeric count of currently passing tests.
+  # Returns -1 if test runner cannot be detected (gate will be skipped).
+  # Override with SPIRAL_TEST_BASELINE_CMD for project-specific runners.
+  if [[ -n "${SPIRAL_TEST_BASELINE_CMD:-}" ]]; then
+    local raw
+    raw=$(eval "$SPIRAL_TEST_BASELINE_CMD" 2>/dev/null) || true
+    # Try to parse a bare integer first, then "N passed" patterns
+    if echo "$raw" | grep -qP '^\d+$'; then
+      echo "$raw" | grep -oP '^\d+'
+    elif echo "$raw" | grep -qP '\d+ passed'; then
+      echo "$raw" | grep -oP '\d+(?= passed)' | head -1
+    else
+      echo "-1"
+    fi
+    return
+  fi
+  # Auto-detect: pytest
+  if command -v python3 &>/dev/null && [[ -f "pytest.ini" || -f "pyproject.toml" || -f "setup.cfg" || -d "tests" ]]; then
+    local out
+    out=$(python3 -m pytest --tb=no -q 2>/dev/null) || true
+    local n
+    n=$(echo "$out" | grep -oP '^\d+(?= passed)' | head -1)
+    echo "${n:-0}"
+    return
+  fi
+  # Auto-detect: vitest (package.json with vitest dependency)
+  if command -v npx &>/dev/null && [[ -f "package.json" ]] && grep -q '"vitest"' package.json 2>/dev/null; then
+    local out
+    out=$(npx vitest run --reporter=verbose 2>/dev/null) || true
+    local n
+    n=$(echo "$out" | grep -oP '(\d+) passed' | grep -oP '\d+' | head -1)
+    echo "${n:-0}"
+    return
+  fi
+  # Auto-detect: bats
+  if command -v bats &>/dev/null && ls tests/*.bats &>/dev/null 2>&1; then
+    local out
+    out=$(bats tests/ 2>/dev/null) || true
+    local n
+    n=$(echo "$out" | grep -oP '\d+(?= test)' | head -1)
+    echo "${n:-0}"
+    return
+  fi
+  echo "-1"  # -1 = unknown, gate will be skipped
+}
+
+check_test_ratchet() {
+  local baseline="${1:--1}"
+  if [[ "$baseline" == "-1" || "${SPIRAL_SKIP_TEST_RATCHET:-false}" == "true" ]]; then
+    echo "  [test-ratchet] SKIP (baseline unknown or SPIRAL_SKIP_TEST_RATCHET=true)"
+    return 0
+  fi
+  local after
+  after=$(capture_test_baseline)
+  if [[ "$after" == "-1" ]]; then
+    echo "  [test-ratchet] SKIP (could not measure post-story test count)"
+    return 0
+  fi
+  if [[ "$after" -lt "$baseline" ]]; then
+    echo "  [test-ratchet] FAIL: $after passing (was $baseline) — $((baseline - after)) test(s) broken"
+    return 1
+  fi
+  echo "  [test-ratchet] PASS: $after passing (was $baseline)"
+  return 0
 }
 
 # ── Retry tracking ───────────────────────────────────────────────
@@ -1106,6 +1185,18 @@ while [[ $ITERATION -lt $MAX_ITERATIONS ]]; do
   PRE_STORY_TS_ERRORS=$(capture_ts_baseline)
   echo "$PRE_STORY_TS_ERRORS errors"
 
+  # Capture test baseline BEFORE Claude makes any changes
+  echo -n "  [baseline] Counting pre-story passing tests... "
+  PRE_STORY_TESTS_PASSING=$(capture_test_baseline)
+  if [[ "$PRE_STORY_TESTS_PASSING" == "-1" ]]; then
+    echo "unknown (no test runner detected)"
+  else
+    echo "$PRE_STORY_TESTS_PASSING passing"
+  fi
+
+  # Capture git baseline SHA for Karpathy ratchet (reset on failure)
+  PRE_STORY_SHA=$(git rev-parse HEAD 2>/dev/null || echo "")
+
   # ── Memory pressure gate (cooperative) ────────────────────────────────────
   if type spiral_pressure_level &>/dev/null; then
     _P_LVL=$(spiral_pressure_level)
@@ -1591,7 +1682,7 @@ except Exception:
       git add -A
       if ! run_secret_scan; then
         echo "  [secret-scan] Unstaging changes and aborting story"
-        git restore --staged . 2>/dev/null || true
+        do_story_reset "$PRE_STORY_SHA"
         $JQ "(.userStories[] | select(.id == \"$NEXT_STORY\") | .passes) = false" "$PRD_FILE" >"${PRD_FILE}.tmp"
         mv "${PRD_FILE}.tmp" "$PRD_FILE"
         $JQ "(.userStories[] | select(.id == \"$NEXT_STORY\") | ._failureReason) = \"secret_detected\"" "$PRD_FILE" >"${PRD_FILE}.tmp"
@@ -1608,7 +1699,7 @@ except Exception:
       if ! check_diff_size; then
         echo "  [diff-guard] Staged diff exceeds SPIRAL_MAX_DIFF_LINES=${SPIRAL_MAX_DIFF_LINES} (${LAST_DIFF_LINES} lines changed) — aborting commit"
         log_ralph_event "oversized_diff" "\"storyId\":\"$NEXT_STORY\",\"diffLines\":${LAST_DIFF_LINES},\"maxLines\":${SPIRAL_MAX_DIFF_LINES},\"diffStat\":\"${LAST_DIFF_STAT}\""
-        git restore --staged . 2>/dev/null || true
+        do_story_reset "$PRE_STORY_SHA"
         $JQ "(.userStories[] | select(.id == \"$NEXT_STORY\") | .passes) = false" "$PRD_FILE" >"${PRD_FILE}.tmp"
         mv "${PRD_FILE}.tmp" "$PRD_FILE"
         $JQ "(.userStories[] | select(.id == \"$NEXT_STORY\") | ._failureReason) = \"oversized_diff\"" "$PRD_FILE" >"${PRD_FILE}.tmp"
@@ -1624,7 +1715,7 @@ except Exception:
       fi
       if ! run_security_scan; then
         echo "  [security-scan] Unstaging changes and aborting story"
-        git restore --staged . 2>/dev/null || true
+        do_story_reset "$PRE_STORY_SHA"
         $JQ "(.userStories[] | select(.id == \"$NEXT_STORY\") | .passes) = false" "$PRD_FILE" >"${PRD_FILE}.tmp"
         mv "${PRD_FILE}.tmp" "$PRD_FILE"
         $JQ "(.userStories[] | select(.id == \"$NEXT_STORY\") | ._failureReason) = \"security_scan_failure\"" "$PRD_FILE" >"${PRD_FILE}.tmp"
@@ -1635,6 +1726,22 @@ except Exception:
         append_result "reject"
         echo "## Iteration $ITERATION - $(date)" >>"$PROGRESS_FILE"
         echo "FAILED security scan: $STORY_TITLE (ID: $NEXT_STORY) — attempt $RETRY_NOW/$MAX_RETRIES" >>"$PROGRESS_FILE"
+        echo "" >>"$PROGRESS_FILE"
+        continue
+      fi
+      if ! check_test_ratchet "$PRE_STORY_TESTS_PASSING"; then
+        echo "  [test-ratchet] Reverting story — test count regressed"
+        do_story_reset "$PRE_STORY_SHA"
+        $JQ "(.userStories[] | select(.id == \"$NEXT_STORY\") | .passes) = false" "$PRD_FILE" >"${PRD_FILE}.tmp"
+        mv "${PRD_FILE}.tmp" "$PRD_FILE"
+        $JQ "(.userStories[] | select(.id == \"$NEXT_STORY\") | ._failureReason) = \"test_ratchet_regression\"" "$PRD_FILE" >"${PRD_FILE}.tmp"
+        mv "${PRD_FILE}.tmp" "$PRD_FILE"
+        increment_retry "$NEXT_STORY"
+        RETRY_NOW=$(get_retry_count "$NEXT_STORY")
+        echo "[retry] $NEXT_STORY attempt $RETRY_NOW/$MAX_RETRIES (test ratchet gate failed)"
+        append_result "reject"
+        echo "## Iteration $ITERATION - $(date)" >>"$PROGRESS_FILE"
+        echo "FAILED test-ratchet: $STORY_TITLE (ID: $NEXT_STORY) — tests regressed — attempt $RETRY_NOW/$MAX_RETRIES" >>"$PROGRESS_FILE"
         echo "" >>"$PROGRESS_FILE"
         continue
       fi
@@ -1681,7 +1788,7 @@ Co-Authored-By: Claude ${COAUTHOR_LABEL} 4.6 <noreply@anthropic.com>"
         $JQ --arg reason "$FAILURE_REASON" \
           '(.userStories[] | select(.id == "'"$NEXT_STORY"'") | ._failureReason) = $reason' \
           "$PRD_FILE" >"${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE" || true
-        git checkout -- . 2>/dev/null || true
+        do_story_reset "$PRE_STORY_SHA"
         if decompose_story "$NEXT_STORY" "${EFFECTIVE_MODEL:-sonnet}"; then
           echo "DECOMPOSED: $NEXT_STORY after $MAX_RETRIES failed attempts — sub-stories created" >>"$PROGRESS_FILE"
           echo "[decompose] $NEXT_STORY decomposed after $MAX_RETRIES attempts"
@@ -1708,12 +1815,14 @@ Co-Authored-By: Claude ${COAUTHOR_LABEL} 4.6 <noreply@anthropic.com>"
       echo "" >>"$PROGRESS_FILE"
       continue
     fi
+    # Ratchet: reset working tree before next retry so it starts clean
+    do_story_reset "$PRE_STORY_SHA"
     if [[ "$RETRY_NOW" -ge "$MAX_RETRIES" ]]; then
       FAILURE_REASON="MAX_RETRIES exhausted (story incomplete after $MAX_RETRIES attempts)"
       $JQ --arg reason "$FAILURE_REASON" \
         '(.userStories[] | select(.id == "'"$NEXT_STORY"'") | ._failureReason) = $reason' \
         "$PRD_FILE" >"${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE" || true
-      git checkout -- . 2>/dev/null || true
+      do_story_reset "$PRE_STORY_SHA"
       if decompose_story "$NEXT_STORY" "${EFFECTIVE_MODEL:-sonnet}"; then
         echo "DECOMPOSED: $NEXT_STORY after $MAX_RETRIES failed attempts — sub-stories created" >>"$PROGRESS_FILE"
         echo "[decompose] $NEXT_STORY decomposed after $MAX_RETRIES attempts"
