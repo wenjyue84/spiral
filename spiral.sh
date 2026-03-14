@@ -685,6 +685,12 @@ fi
 mkdir -p "$SCRATCH_DIR"
 exec > >(tee "$SCRATCH_DIR/_last_run.log") 2>&1
 
+# ── Gemini pre-analysis cache: clean up from previous runs ──────────────────
+_GEMINI_CACHE_DIR="$SCRATCH_DIR/gemini-cache"
+if [[ -d "$_GEMINI_CACHE_DIR" ]]; then
+  rm -rf "$_GEMINI_CACHE_DIR"
+fi
+
 # ── Pre-flight validation ──────────────────────────────────────────────────
 spiral_preflight_check "$PRD_FILE" "$SCRATCH_DIR"
 

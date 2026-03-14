@@ -1595,18 +1595,49 @@ while [[ $ITERATION -lt $MAX_ITERATIONS ]]; do
   fi
 
   if command -v gemini &>/dev/null && [[ -n "$STORY_JSON" && "$STORY_JSON" != "{}" ]]; then
-    echo "  [precontext] Running Gemini 2.5 Pro pre-analysis..."
-    GEMINI_PROMPT="You are preparing context for a Claude Code agent that will implement a Frappe/Python user story in the lhdn_payroll_integration app.
+    _GEMINI_CACHE_DIR="${SPIRAL_SCRATCH_DIR}/gemini-cache"
+    _GEMINI_CACHE_FILE="$_GEMINI_CACHE_DIR/${NEXT_STORY}.json"
+    PRECONTEXT=""
+    _CACHE_HIT=0
+
+    # ── Cache hit check ────────────────────────────────────────────────────
+    if [[ -f "$_GEMINI_CACHE_FILE" ]]; then
+      _CACHED_RUN_ID=$($JQ -r '.run_id // ""' "$_GEMINI_CACHE_FILE" 2>/dev/null || echo "")
+      if [[ -n "${SPIRAL_RUN_ID:-}" && "$_CACHED_RUN_ID" == "$SPIRAL_RUN_ID" ]]; then
+        PRECONTEXT=$($JQ -r '.content // ""' "$_GEMINI_CACHE_FILE" 2>/dev/null || true)
+        if [[ -n "$PRECONTEXT" ]]; then
+          echo "  [precontext] Gemini cache hit for $NEXT_STORY"
+          _CACHE_HIT=1
+        fi
+      fi
+    fi
+
+    # ── Cache miss: call Gemini and write cache ────────────────────────────
+    if [[ "$_CACHE_HIT" -eq 0 ]]; then
+      echo "  [precontext] Running Gemini 2.5 Pro pre-analysis..."
+      GEMINI_PROMPT="You are preparing context for a Claude Code agent that will implement a Frappe/Python user story in the lhdn_payroll_integration app.
 Analyze this story JSON and return a concise technical brief (15-20 lines) covering:
 1. Which Python files to modify (most likely candidates based on the story description)
 2. Which Frappe DocTypes or hooks are involved
 3. The recommended implementation approach
 4. Any edge cases or gotchas to watch for
 Story JSON: $STORY_JSON"
-    PRECONTEXT=$(gemini \
-      -m gemini-2.5-pro \
-      -p "$GEMINI_PROMPT" \
-      --output-format text 2>/dev/null || true)
+      PRECONTEXT=$(gemini \
+        -m gemini-2.5-pro \
+        -p "$GEMINI_PROMPT" \
+        --output-format text 2>/dev/null || true)
+      if [[ -n "$PRECONTEXT" && -n "${SPIRAL_RUN_ID:-}" ]]; then
+        mkdir -p "$_GEMINI_CACHE_DIR"
+        $JQ -n \
+          --arg run_id "$SPIRAL_RUN_ID" \
+          --arg story_id "$NEXT_STORY" \
+          --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+          --arg content "$PRECONTEXT" \
+          '{run_id: $run_id, story_id: $story_id, timestamp: $timestamp, content: $content}' \
+          >"$_GEMINI_CACHE_FILE"
+      fi
+    fi
+
     if [[ -n "$PRECONTEXT" ]]; then
       {
         echo ""

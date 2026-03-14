@@ -3978,3 +3978,56 @@ Completed: Parallelize Phase V test execution with pytest-xdist or parallel bats
 ### Gotchas
 - Do NOT call `_par_ver` as a function — assign it as a variable with command substitution first
 - prd.json must be written back with `ensure_ascii=False` to preserve em-dashes/arrows (see prior notes)
+## Iteration 52 - Sun, Mar 15, 2026  3:51:38 AM
+Incomplete: Add SPIRAL_WORKSPACE_CLEANUP to auto-prune transient artifacts on successful run completion (ID: US-136) — attempt 2/3
+
+
+## Pre-analysis for US-136 (Gemini 2.5 Pro)
+Based on the user story, this is a shell-based task for the SPIRAL project, not a Frappe/Python task. Here is the technical brief:
+
+**Technical Brief for US-136: Workspace Cleanup**
+
+This brief outlines the implementation for automated workspace cleanup logic within the existing shell-based SPIRAL workflow.
+
+**1. Files to Modify:**
+*   `spiral.sh`: The main entry point where the cleanup function and trigger logic will be added.
+*   `lib/check_done.py`: A Python script needs to be created or modified to verify if all stories have reached a terminal state (`passed` or `skipped`).
+*   `lib/spiral_events.sh`: This existing utility will likely be used to log the `workspace_cleanup` event.
+
+**2. Involved DocTypes/Hooks:**
+*   None. This implementation is purely file-system and shell-script based.
+
+**3. Recommended Implementation Approach:**
+*   In `spiral.sh`, create a new bash function named `cleanup_workspace()`.
+*   This function will:
+    a. Calculate the size of the `.spiral/` directory before cleanup (`du -sb`).
+    b. Use `find .spiral/research_cache -mtime +${SPIRAL_CACHE_TTL:-7} -delete` to prune old cache files.
+    c. Remove all but the 5 newest iteration summaries. Use `ls -t .spiral/_iteration_summary_*.json | tail -n +6 | xargs rm -f`.
+    d. Remove zero-byte log files using a command like `find .spiral -name "*.log" -size 0 -delete`.
+    e. Calculate the directory size again, compute the `bytes_freed`, and log the event and metric using `lib/spiral_events.sh`.
+*   At the end of the main processing loop in `spiral.sh`, add a conditional check for `[[ "$SPIRAL_WORKSPACE_CLEANUP" == "true" ]]`.
+*   Inside the conditional, call `python lib/check_done.py`. If it exits successfully (status 0), then execute the `cleanup_workspace` function.
+
+**4. Edge Cases & Gotchas:**
+*   The logic in `lib/check_done.py` must reliably parse `results.tsv` or `prd.json` to confirm 100% story completion before allowing cleanup.
+*   The `find` commands must be precise to avoid accidentally deleting preserved artifacts like `prd.json`, `results.tsv`, or `spiral_events.jsonl`.
+*   The technical note's suggestion to `tar` files is incorrect for the goal of pruning; the implementation should delete, not archive, old iteration summaries.
+*   Ensure the script correctly uses the environment variable `SPIRAL_CACHE_TTL` with a fallback default of 7 days.
+
+
+## Iteration N - Story: US-169: Cache Gemini pre-analysis results per story ID
+
+### What was implemented
+- Added `.spiral/gemini-cache/{story_id}.json` cache in `ralph/ralph.sh` (precontext section)
+- Cache is validated by SPIRAL_RUN_ID; on cache hit, logs "[precontext] Gemini cache hit for {story_id}"
+- Cache miss triggers fresh Gemini call and writes {run_id, story_id, timestamp, content} JSON
+- Added cache directory cleanup in `spiral.sh` after `mkdir -p "$SCRATCH_DIR"` — purged at each new run start
+
+### Patterns discovered
+- `SPIRAL_SCRATCH_DIR` defaults to `.spiral` in ralph.sh (line 104); always available
+- `$JQ` variable is resolved at startup and used for all JSON ops in ralph.sh
+- `.spiral/` already in .gitignore, so gemini-cache sub-dir is automatically excluded
+
+### Gotchas
+- Cache only works when SPIRAL_RUN_ID is non-empty; cache write is skipped if empty
+- Worker worktrees (.spiral-workers/) share the same $SCRATCH_DIR/.spiral via SPIRAL_SCRATCH_DIR export
