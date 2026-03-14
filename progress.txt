@@ -3759,3 +3759,59 @@ Based on the user story, the request is for a shell/Python-based automation tool
 ### Gotchas
 - git status returns exit 128 with "not a git repository: .../.git/worktrees/exciting-bell" — use git ls-files -m instead
 - The validate_stories.py uses set[str] type hint syntax which requires Python 3.9+
+## Iteration 48 - Sun, Mar 15, 2026  2:58:58 AM
+Completed: Implement Phase S (Story Validate) — auto-reject out-of-scope research stories (ID: US-173) in 38m
+
+
+## Pre-analysis for US-174 (Gemini 2.5 Pro)
+**Note:** The user story provided is for a shell-based application (`spiral.sh`), not a Frappe/Python project. The following brief is based on the JSON content.
+
+---
+
+**To:** Claude Code Agent
+**From:** Gemini CLI
+**Subject:** Technical Brief for US-174: Implement Phase 0 (Clarify)
+
+**1. Python/Shell Files to Modify:**
+*   `spiral.sh`: To invoke the new phase conditionally before the main loop.
+*   `lib/phases/phase_0_clarify.sh`: The stub to be implemented with the core logic.
+
+**2. Frappe DocTypes / Hooks Involved:**
+*   None. This is a pure shell-scripting task interacting with the filesystem, environment variables, and JSON files.
+
+**3. Recommended Implementation Approach:**
+*   In `spiral.sh`, add a function `run_phase_clarify()` that is called once, checking for `--gate` flags or a resume state (e.g., `phase_0_complete` in a state file) to ensure it's skipped on subsequent runs.
+*   In `lib/phases/phase_0_clarify.sh`, implement the interactive prompts using `read -t 60 -p '...'`.
+*   The script must `export` `TIME_LIMIT_MINS` and `SPIRAL_FOCUS` so the parent `spiral.sh` process can access them.
+*   For story seeding, loop on `read` to accept multiple lines.
+*   Use the available `jq` utility to read `prd.json`, append new story objects to the `.stories` array, and write the file back.
+*   Log all user inputs to `.spiral/_clarify_output.json` for auditing.
+
+**4. Edge Cases & Gotchas:**
+*   The `prd.json` file is shared state; use the existing `prd_lock.py` script to prevent race conditions during modification.
+*   Validate that the "hours" input is numeric; handle empty inputs gracefully (unlimited time, no focus).
+*   `spiral.sh` must `source` (dot-include) the phase script, not execute it in a subshell, to inherit the exported variables.
+
+
+## Iteration 49 - Story: US-174: Implement Phase 0 (Clarify) — interactive startup
+
+### What was implemented
+- lib/phases/phase_0_clarify.sh — full run_phase_clarify() implementation:
+  - Skips on --gate proceed|skip (GATE_DEFAULT check)
+  - Skips on resume via .spiral/_phase_0_done marker file
+  - Prompts for time limit (hours -> converts to TIME_LIMIT_MINS)
+  - Prompts for focus area (sets SPIRAL_FOCUS)
+  - Prompts for story seeds (one per line); appends to prd.json via Python
+  - Writes .spiral/_clarify_output.json audit log
+  - Writes .spiral/_phase_0_done marker for future resume skip
+- spiral.sh — sourced phase_0_clarify.sh; inserted run_phase_clarify() call before main loop with SESSION_DEADLINE recalc
+
+### Patterns discovered
+- Phase skip conditions: check GATE_DEFAULT first, then a marker file in SCRATCH_DIR
+- Use Python for prd.json manipulation (not jq on Windows) — pass paths via sys.argv
+- export vars (TIME_LIMIT_MINS, SPIRAL_FOCUS) so changes propagate to parent shell when sourced
+
+### Gotchas
+- read -r returns non-zero at EOF in non-interactive shells; must || break or || _var=empty
+- SESSION_DEADLINE must be recalculated if Phase 0 sets TIME_LIMIT_MINS after the initial setup block
+- Security hook blocks certain shell patterns in tests; use fixed temp path names without cleanup
