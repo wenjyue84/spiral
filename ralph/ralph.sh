@@ -37,6 +37,8 @@ SPIRAL_SECURITY_SCAN="${SPIRAL_SECURITY_SCAN:-false}"                       # tr
 SPIRAL_SECURITY_SCAN_TOOL="${SPIRAL_SECURITY_SCAN_TOOL:-semgrep}"           # 'semgrep' (default) or 'bandit'
 SPIRAL_SECURITY_SCAN_ARGS="${SPIRAL_SECURITY_SCAN_ARGS:-}"                  # extra flags passed to the scanner binary
 SPIRAL_PRD_STREAM_THRESHOLD_KB="${SPIRAL_PRD_STREAM_THRESHOLD_KB:-512}"     # switch to jq --stream when prd.json exceeds this size (KB); 0 = always stream
+SPIRAL_OLLAMA_FALLBACK_MODEL="${SPIRAL_OLLAMA_FALLBACK_MODEL:-}"        # Ollama model for Claude API fallback (e.g. qwen2.5-coder:32b); empty = disabled
+SPIRAL_OLLAMA_HOST="${SPIRAL_OLLAMA_HOST:-http://localhost:11434/v1}"   # Ollama OpenAI-compat base URL (default: local Ollama)
 PRD_FILE="prd.json"
 PROGRESS_FILE="progress.txt"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -891,6 +893,65 @@ ${ac_list}
   fi
 }
 
+# ── Ollama API fallback (US-144) ─────────────────────────────────────────────
+# call_ollama_fallback <system_prompt_file> <user_prompt_file>
+# Calls Ollama via OpenAI-compatible API at SPIRAL_OLLAMA_HOST.
+# Prints response text to stdout.
+# Returns 0 on success, 1 on connection error (curl exit 7/28) or other failure.
+call_ollama_fallback() {
+  local sys_file="$1"
+  local usr_file="$2"
+  local model="${SPIRAL_OLLAMA_FALLBACK_MODEL}"
+  local host="${SPIRAL_OLLAMA_HOST:-http://localhost:11434/v1}"
+
+  echo "  [ollama] Calling Ollama model: $model at $host"
+
+  # Build JSON payload using python3 for safe string escaping (avoids shell quoting issues)
+  local payload
+  payload=$(python3 -c "
+import json, sys
+system = open(sys.argv[1]).read()
+user = open(sys.argv[2]).read()
+model = sys.argv[3]
+print(json.dumps({'model': model, 'messages': [{'role': 'system', 'content': system}, {'role': 'user', 'content': user}], 'stream': False, 'temperature': 0.1}))
+" "$sys_file" "$usr_file" "$model" 2>/dev/null) || {
+    echo "  [ollama] ERROR: failed to build JSON payload"
+    return 1
+  }
+
+  # POST to Ollama OpenAI-compat endpoint; suppress curl progress, capture body only
+  local response
+  response=$(curl -sf \
+    -X POST "${host}/chat/completions" \
+    -H "Content-Type: application/json" \
+    -d "$payload" \
+    --connect-timeout 10 \
+    --max-time 300 \
+    2>/dev/null)
+  local curl_rc=$?
+
+  if [[ "$curl_rc" -eq 7 ]]; then
+    echo "  [ollama] ERROR: connection refused (curl exit 7) — is Ollama running at ${host}?"
+    return 1
+  elif [[ "$curl_rc" -eq 28 ]]; then
+    echo "  [ollama] ERROR: connection timed out (curl exit 28)"
+    return 1
+  elif [[ "$curl_rc" -ne 0 ]]; then
+    echo "  [ollama] ERROR: curl failed (exit $curl_rc)"
+    return 1
+  fi
+
+  # Extract message content from OpenAI-compatible response
+  local content
+  content=$(echo "$response" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+print(data['choices'][0]['message']['content'])
+" 2>/dev/null) || content="$response"
+
+  printf '%s\n' "$content"
+}
+
 # ── Event logger (writes structured JSONL to .spiral/spiral_events.jsonl) ────
 log_spiral_event() {
   local event_type="$1"
@@ -1132,6 +1193,8 @@ ITERATION=0
 STORIES_COMPLETED=$COMPLETE_STORIES
 STORIES_SKIPPED=0
 START_TIME=$(date +%s)
+# Ollama fallback: consecutive Claude API connection failure counter (US-144)
+_CLAUDE_API_FAIL_STREAK=0
 
 while [[ $ITERATION -lt $MAX_ITERATIONS ]]; do
   ITERATION=$((ITERATION + 1))
@@ -1362,6 +1425,7 @@ while [[ $ITERATION -lt $MAX_ITERATIONS ]]; do
 
   # Spawn fresh AI instance with real-time stream output
   STORY_START=$(date +%s)
+  _OLLAMA_USED=0  # reset per-story; set to 1 if Ollama fallback fires (US-144)
   echo ""
   echo "  [spawn] Fresh $EFFECTIVE_TOOL instance for $NEXT_STORY..."
 
@@ -1586,6 +1650,52 @@ $RALPH_USER_PROMPT"
             --dangerously-skip-permissions \
             2>&1 | tee "$_CLAUDE_TMP" | node "$SCRIPT_DIR/stream-formatter.mjs"
         ) || true
+        # ── Connection failure detection for Ollama fallback (US-144) ──────────────
+        # Detect curl exit 7 (ECONNREFUSED) / exit 28 (ETIMEDOUT) patterns in output.
+        # Empty output or connection-refused messages indicate Claude API is unreachable.
+        # After _CLAUDE_API_FAIL_STREAK >= 3, switch to Ollama for the current story.
+        if [[ -n "${SPIRAL_OLLAMA_FALLBACK_MODEL:-}" ]]; then
+          _TMP_SIZE=0
+          [[ -f "$_CLAUDE_TMP" ]] && _TMP_SIZE=$(wc -c < "$_CLAUDE_TMP" 2>/dev/null || echo 0)
+          _IS_CONN_FAIL=0
+          if [[ "${_TMP_SIZE:-0}" -eq 0 ]]; then
+            _IS_CONN_FAIL=1
+          elif grep -qiE 'ECONNREFUSED|ETIMEDOUT|connection refused|failed to connect|could not resolve host' \
+              "$_CLAUDE_TMP" 2>/dev/null; then
+            _IS_CONN_FAIL=1
+          fi
+          if [[ "$_IS_CONN_FAIL" -eq 1 ]]; then
+            _CLAUDE_API_FAIL_STREAK=$((_CLAUDE_API_FAIL_STREAK + 1))
+            rm -f "$_CLAUDE_TMP"
+            echo "  [ollama] Claude API unreachable (streak: $_CLAUDE_API_FAIL_STREAK/3)"
+            log_spiral_event "claude_api_unreachable" \
+              "\"story_id\":\"${NEXT_STORY:-}\",\"streak\":${_CLAUDE_API_FAIL_STREAK}"
+            if [[ "$_CLAUDE_API_FAIL_STREAK" -ge 3 ]]; then
+              echo "  [ollama] Streak >= 3 — switching to Ollama for ${NEXT_STORY:-}"
+              mkdir -p "${SPIRAL_SCRATCH_DIR}"
+              _OLLAMA_SYS_TMP="${SPIRAL_SCRATCH_DIR}/_ollama_sys_$$.tmp"
+              _OLLAMA_USR_TMP="${SPIRAL_SCRATCH_DIR}/_ollama_usr_$$.tmp"
+              printf '%s' "$RALPH_SYSTEM_PROMPT" > "$_OLLAMA_SYS_TMP"
+              printf '%s' "$RALPH_USER_PROMPT" > "$_OLLAMA_USR_TMP"
+              echo "  ─────── Ollama Output Start ───────"
+              if call_ollama_fallback "$_OLLAMA_SYS_TMP" "$_OLLAMA_USR_TMP" | tee "$_RL_TMP"; then
+                _OLLAMA_USED=1
+                _CLAUDE_API_FAIL_STREAK=0
+                echo "  [ollama] Ollama fallback succeeded"
+              else
+                _OLLAMA_USED=0
+                > "$_RL_TMP"
+                echo "  [ollama] Ollama fallback also failed — story will be retried later"
+              fi
+              echo "  ─────── Ollama Output End ─────────"
+              rm -f "$_OLLAMA_SYS_TMP" "$_OLLAMA_USR_TMP"
+            fi
+            break  # exit _529_ATTEMPT loop — no benefit retrying a connection failure
+          else
+            # Successful connection — reset fail streak
+            _CLAUDE_API_FAIL_STREAK=0
+          fi
+        fi
         # Detect HTTP 529 overloaded_error — separate handler from 429 rate-limit
         # Also detect streaming errors returned with HTTP 200: Claude CLI may emit
         # {"type":"error","error":{"type":"overloaded_error","message":"..."}} as the
@@ -1887,6 +1997,17 @@ Co-Authored-By: Claude ${COAUTHOR_LABEL} 4.6 <noreply@anthropic.com>"
       if [[ -n "$COMMIT_SHA" ]]; then
         $JQ "(.userStories[] | select(.id == \"$NEXT_STORY\"))._passedCommit = \"$COMMIT_SHA\"" "$PRD_FILE" >"${PRD_FILE}.tmp"
         mv "${PRD_FILE}.tmp" "$PRD_FILE"
+      fi
+
+      # Tag story with Ollama model when fallback was used (US-144)
+      if [[ "${_OLLAMA_USED:-0}" -eq 1 && -n "${SPIRAL_OLLAMA_FALLBACK_MODEL:-}" ]]; then
+        _OLLAMA_MODEL_TAG="ollama/${SPIRAL_OLLAMA_FALLBACK_MODEL}"
+        $JQ --arg m "$_OLLAMA_MODEL_TAG" \
+          '(.userStories[] | select(.id == "'"$NEXT_STORY"'"))._model = $m' \
+          "$PRD_FILE" >"${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE" || true
+        echo "  [ollama] Tagged story $NEXT_STORY with _model: $_OLLAMA_MODEL_TAG"
+        log_spiral_event "ollama_story_tagged" \
+          "\"story_id\":\"$NEXT_STORY\",\"model\":\"$_OLLAMA_MODEL_TAG\""
       fi
 
       # GitHub PR creation (US-143): push to feature branch + open PR when enabled

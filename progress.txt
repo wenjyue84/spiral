@@ -3498,3 +3498,29 @@ Incomplete: Stream-process large prd.json with jq --stream to avoid full in-memo
 - On Windows/MSYS2, jq outputs \r\n line endings — must call `tr -d '\r'` inside `get_pending_story_ids` (not just at the call site) so bats tests pass without extra stripping
 - `SPIRAL_PRD_STREAM_THRESHOLD_KB=0` forces the streaming path (useful for testing)
 - `test_route_stories.py` has a pre-existing relative import failure (excluded from test run); 569 passed otherwise
+## Iteration 40 - Sun, Mar 15, 2026 12:40:54 AM
+Completed: Stream-process large prd.json with jq --stream to avoid full in-memory parse (ID: US-123) in 15m
+
+
+## Iteration N - Story: US-144: Add Ollama local LLM fallback when Claude API is unreachable
+
+### What was implemented
+- Added `SPIRAL_OLLAMA_FALLBACK_MODEL` (default: empty/disabled) and `SPIRAL_OLLAMA_HOST` (default: `http://localhost:11434/v1`) config defaults to ralph.sh
+- Added `call_ollama_fallback(sys_file, usr_file)` function in ralph.sh — builds JSON payload via python3, POSTs to Ollama OpenAI-compat endpoint, extracts response content
+- Added `_CLAUDE_API_FAIL_STREAK=0` counter before main loop; resets to 0 on each story start
+- Added connection failure detection inside `_529_ATTEMPT` loop: empty `_CLAUDE_TMP` or ECONNREFUSED/ETIMEDOUT patterns → increment streak; at streak >= 3, call `call_ollama_fallback` and set `_OLLAMA_USED=1`
+- Added `_model: ollama/<model>` tagging in prd.json after story passes when `_OLLAMA_USED=1`
+- Added Ollama reachability check to `lib/spiral_doctor.sh` using `curl` against `<host>/api/tags`; emits [WARN] when SPIRAL_OLLAMA_FALLBACK_MODEL configured but Ollama unreachable
+- Written 8 bats tests in `tests/test_ollama_fallback.bats` covering: default vars, curl exit 7/28 detection, successful response extraction, custom host logging, doctor warn/ok
+
+### Patterns discovered
+- `call_ollama_fallback` uses temp files for system/user prompts (not env vars) to avoid arg-list-too-long for large prompts
+- `response=$(curl -sf ... 2>/dev/null)` captures body; `curl_rc=$?` captures exit code — cleaner than 2>&1
+- Bats tests cannot inspect `response=$(...)` capture — check the function's direct `echo` output instead
+- connection failure check fires BEFORE 529 detection (ordering matters; empty file ≠ overloaded)
+
+### Gotchas
+- Connection failure check only runs when `SPIRAL_OLLAMA_FALLBACK_MODEL` is non-empty (guard); no performance cost when disabled
+- `_OLLAMA_USED=0` reset must happen per-story (added right after `STORY_START=$(date +%s)`)
+- `${ollama_base%/v1}` strips `/v1` suffix to get base URL for Ollama's native `/api/tags` endpoint
+- 569 pytest passed, 8 new bats tests all pass

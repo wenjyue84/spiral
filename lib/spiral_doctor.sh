@@ -154,6 +154,19 @@ spiral_doctor() {
     warn_count=$((warn_count + 1))
   fi
 
+  # ── Check Ollama reachability (when SPIRAL_OLLAMA_FALLBACK_MODEL is set) ────
+  if [[ -n "${SPIRAL_OLLAMA_FALLBACK_MODEL:-}" ]]; then
+    local ollama_base="${SPIRAL_OLLAMA_HOST:-http://localhost:11434/v1}"
+    ollama_base="${ollama_base%/v1}"  # strip /v1 suffix to get base URL
+    if curl -sf --connect-timeout 3 --max-time 5 "${ollama_base}/api/tags" >/dev/null 2>&1; then
+      echo "  [doctor] [OK] Ollama reachable at $ollama_base (model: $SPIRAL_OLLAMA_FALLBACK_MODEL)"
+    else
+      echo "  [doctor] [WARN] Ollama not reachable at $ollama_base (SPIRAL_OLLAMA_FALLBACK_MODEL=$SPIRAL_OLLAMA_FALLBACK_MODEL)"
+      echo "           → Fix: Start Ollama with 'ollama serve' and pull: ollama pull $SPIRAL_OLLAMA_FALLBACK_MODEL"
+      warn_count=$((warn_count + 1))
+    fi
+  fi
+
   # ── Story count health ───────────────────────────────────────────────────────
   if [[ -f "prd.json" ]]; then
     local story_count total_count passed_count
