@@ -4297,3 +4297,59 @@ Based on the user story and project structure, here is a technical brief for imp
 - `claude --version` does NOT test API reachability; curl to api.anthropic.com is the right probe
 - Exit code table in spiral.sh already had ERR_API_DOWN=14; story's "code 5" was stale
 - `uv run pytest` goes background in this shell; use `uv run python -m pytest` or specific files
+## Iteration 58 - Sun, Mar 15, 2026  5:17:43 AM
+Incomplete: Add SPIRAL_WORKSPACE_CLEANUP to auto-prune transient artifacts on successful run completion (ID: US-136) — attempt 2/3
+
+
+## Pre-analysis for US-136 (Gemini 2.5 Pro)
+Based on the user story JSON, here is a technical brief.
+
+**Note:** The user story describes a shell-script-based feature for file system cleanup within the SPIRAL project, not a Frappe/Python implementation. The following brief is based on the actual story content.
+
+### Technical Brief: US-136 Workspace Cleanup
+
+1.  **Files to Modify:**
+    *   `spiral.sh`: This is the primary file. A new bash function, `cleanup_workspace()`, will be added here to contain the cleanup logic. This function will be called at the end of the main execution loop.
+    *   `lib/check_done.py`: This script will likely be used to determine if the acceptance condition (all stories are `passed` or `skipped`) is met before triggering the cleanup.
+    *   `lib/spiral_events.sh`: This utility will be called by `cleanup_workspace()` to log the `workspace_cleanup` event and `bytes_freed` metric to `spiral_events.jsonl`.
+
+2.  **Frappe DocTypes / Hooks Involved:**
+    *   None. This feature is confined to the shell environment and filesystem, with no interaction with the Frappe framework.
+
+3.  **Recommended Implementation Approach:**
+    *   In `spiral.sh`, check for `if [[ "$SPIRAL_WORKSPACE_CLEANUP" == "true" ]]` near the end of the main process.
+    *   Inside this block, call `python lib/check_done.py`. If it exits with `0`, proceed to call the new `cleanup_workspace` function.
+    *   The `cleanup_workspace` function should:
+        1.  Calculate initial size: `before_bytes=$(du -sb .spiral/ | cut -f1)`.
+        2.  Delete expired cache: `find .spiral/research_cache -mtime +${SPIRAL_CACHE_TTL:-7} -delete`.
+        3.  Delete old summaries: Identify summaries to remove (e.g., `ls -t .spiral/_iteration_summary_*.json | tail -n +6 | xargs rm -f`) rather than archiving. This is simpler and matches the "prune transient artifacts" goal.
+        4.  Delete zero-byte logs: `find .spiral -name "*.log" -size 0 -delete`.
+        5.  Calculate final size and delta: `after_bytes=$(du -sb .spiral/ | cut -f1)` and `bytes_freed=$((before_bytes - after_bytes))`.
+        6.  Log the event: `bash lib/spiral_events.sh "workspace_cleanup" "bytes_freed=$bytes_freed"`.
+
+4.  **Edge Cases & Gotchas:**
+    *   The logic to find "summaries older than 5 iterations" must be robust. Using `ls -t` to sort by time and `tail -n +6` to select all but the 5 newest is reliable.
+    *   The script should not fail if no files match a deletion criterion (e.g., no old cache files exist). Using `rm -f` and ensuring `find` commands don't error on no-results is important.
+    *   Ensure file paths containing `*` are correctly handled to prevent globbing issues in commands.
+
+
+## Iteration N - Story: US-178: Rotate ralph-run.log when size exceeds SPIRAL_LOG_MAX_MB
+
+### What was implemented
+- Added `SPIRAL_LOG_MAX_MB` (default 50) and `SPIRAL_LOG_KEEP_ROTATIONS` (default 3) config vars in spiral.sh defaults block (~line 410)
+- Added log rotation block in spiral.sh BEFORE `exec > >(tee "$_LOG_FILE") 2>&1`:
+  - Uses `python3 os.path.getsize()` for portable size check
+  - When size exceeds limit: deletes oldest rotation (.log.N), shifts .log.N-1→.log.N ... .log.1→.log.2, mv .log→.log.1
+  - Sets `_LOG_ROTATED=1` flag
+- After exec tee, prints rotation notice as first line if `_LOG_ROTATED=1`
+- Added documentation for both vars to `templates/spiral.config.example.sh` (before progress.txt rotation section)
+- The log file name is `.spiral/_last_run.log` (story called it "ralph-run.log" but actual name in codebase)
+
+### Patterns discovered
+- Log file is opened via `exec > >(tee "$SCRATCH_DIR/_last_run.log") 2>&1` at startup
+- Rotation must happen BEFORE the exec tee line; on Windows no fd is open yet so rename is safe
+- Use `_LOG_FILE` variable in exec line to avoid duplicate path string
+
+### Gotchas
+- First loop in rotation MUST only delete file at position `_KEEP` (not all rotations)
+- Shift loop goes from `_KEEP-1` down to 1 (not from _KEEP down) to avoid overwriting

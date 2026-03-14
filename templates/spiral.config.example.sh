@@ -430,6 +430,19 @@
 # Timeout in seconds for each hook invocation. Default: 30
 # SPIRAL_HOOK_TIMEOUT=30
 
+# ── _last_run.log rotation ────────────────────────────────────────────────
+# Rotate .spiral/_last_run.log when it exceeds this size in megabytes.
+# When exceeded, the current log is renamed to _last_run.log.1, previous .1
+# becomes .2, and so on. Files beyond SPIRAL_LOG_KEEP_ROTATIONS are deleted.
+# A rotation notice is written as the first line of the new log.
+# 0 = disabled (never rotate). Default: 50
+# SPIRAL_LOG_MAX_MB=50
+#
+# Number of rotated log files to keep alongside the active log.
+# Rotations are named _last_run.log.1 (newest) through _last_run.log.N.
+# Default: 3
+# SPIRAL_LOG_KEEP_ROTATIONS=3
+
 # ── progress.txt rotation ─────────────────────────────────────────────────
 # Maximum number of lines in progress.txt before it is archived and reset.
 # When exceeded, progress.txt is renamed to progress-YYYYMMDD-HHMMSS.txt and

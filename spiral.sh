@@ -407,6 +407,8 @@ SPIRAL_PRESSURE_HYSTERESIS="${SPIRAL_PRESSURE_HYSTERESIS:-2}"
 SPIRAL_DEV_URL="${SPIRAL_DEV_URL:-}"                                     # empty = disabled; URL for Phase V screenshot
 SPIRAL_PROGRESS_MAX_LINES="${SPIRAL_PROGRESS_MAX_LINES:-2000}"           # 0 = disabled; rotate progress.txt when over this limit
 SPIRAL_EVENT_LOG_MAX_LINES="${SPIRAL_EVENT_LOG_MAX_LINES:-10000}"        # 0 = disabled; rotate spiral_events.jsonl when over this limit
+SPIRAL_LOG_MAX_MB="${SPIRAL_LOG_MAX_MB:-50}"                             # 0 = disabled; rotate _last_run.log when size exceeds this value in MB
+SPIRAL_LOG_KEEP_ROTATIONS="${SPIRAL_LOG_KEEP_ROTATIONS:-3}"             # number of rotated _last_run.log files to keep (.log.1 ... .log.N)
 SPIRAL_RESEARCH_CACHE_TTL_HOURS="${SPIRAL_RESEARCH_CACHE_TTL_HOURS:-0}"  # 0 = disabled; cache TTL for Phase R URL responses AND Phase R output file reuse across iterations
 RESEARCH_CACHE_DIR=""                                                    # set after SCRATCH_DIR is known
 SPIRAL_RESEARCH_TIMEOUT="${SPIRAL_RESEARCH_TIMEOUT:-300}"                # seconds; 0 = disabled (unlimited); Phase R LLM call
@@ -705,7 +707,31 @@ fi
 
 # ── Tee all output to log file ──────────────────────────────────────────────
 mkdir -p "$SCRATCH_DIR"
-exec > >(tee "$SCRATCH_DIR/_last_run.log") 2>&1
+
+# ── Log rotation (before opening tee fd) ─────────────────────────────────────
+_LOG_FILE="$SCRATCH_DIR/_last_run.log"
+_LOG_ROTATED=0
+if [[ "${SPIRAL_LOG_MAX_MB:-50}" -gt 0 && -f "$_LOG_FILE" ]]; then
+  _LOG_SIZE_BYTES=$(python3 -c "import os; print(os.path.getsize('$_LOG_FILE'))" 2>/dev/null || echo 0)
+  _LOG_MAX_BYTES=$(( ${SPIRAL_LOG_MAX_MB:-50} * 1024 * 1024 ))
+  if [[ "$_LOG_SIZE_BYTES" -gt "$_LOG_MAX_BYTES" ]]; then
+    _KEEP="${SPIRAL_LOG_KEEP_ROTATIONS:-3}"
+    # Delete oldest rotation (makes room for the shift)
+    rm -f "${_LOG_FILE}.${_KEEP}"
+    # Shift existing rotations upward: .log.N-1 → .log.N ... .log.1 → .log.2
+    for (( _ri = _KEEP - 1; _ri >= 1; _ri-- )); do
+      [[ -f "${_LOG_FILE}.${_ri}" ]] && mv "${_LOG_FILE}.${_ri}" "${_LOG_FILE}.$(( _ri + 1 ))"
+    done
+    # Rotate current log to .log.1
+    mv "$_LOG_FILE" "${_LOG_FILE}.1"
+    _LOG_ROTATED=1
+  fi
+fi
+
+exec > >(tee "$_LOG_FILE") 2>&1
+if [[ "$_LOG_ROTATED" -eq 1 ]]; then
+  echo "# [spiral] Log rotated at $(date -u +%Y-%m-%dT%H:%M:%SZ) (previous log: $(basename "${_LOG_FILE}.1"))"
+fi
 
 # ── Gemini pre-analysis cache: clean up from previous runs ──────────────────
 _GEMINI_CACHE_DIR="$SCRATCH_DIR/gemini-cache"
