@@ -250,6 +250,9 @@ echo ""
 
 # ── Branch management ────────────────────────────────────────────
 CURRENT_BRANCH=$(git branch --show-current)
+# Capture base branch once at startup for per-story feature branching (US-157)
+SPIRAL_BASE_BRANCH="${SPIRAL_BASE_BRANCH:-$CURRENT_BRANCH}"
+STORY_BRANCH=""  # tracks current story feature branch; set by create_story_branch
 if [[ "$CURRENT_BRANCH" != "$BRANCH_NAME" && "$BRANCH_NAME" != "main" && "$BRANCH_NAME" != "master" ]]; then
   if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
     echo "[branch] Switching to existing branch: $BRANCH_NAME"
@@ -898,6 +901,99 @@ ${ac_list}
   else
     echo "  [pr] WARNING: PR created but URL not captured"
   fi
+}
+
+# ── Per-story feature branch management (US-157) ─────────────────────────────
+# create_story_branch <story_id>
+# Creates/reuses branch <SPIRAL_BRANCH_PREFIX>/<story_id> before Phase I.
+# No-op when SPIRAL_BRANCH_PREFIX is unset/empty.
+# Idempotent: `git checkout -B` resets branch to current HEAD when already exists.
+# Sets global STORY_BRANCH for use by finalize_story_branch.
+create_story_branch() {
+  local story_id="$1"
+  STORY_BRANCH=""
+
+  if [[ -z "${SPIRAL_BRANCH_PREFIX:-}" ]]; then
+    return 0
+  fi
+
+  local branch_name="${SPIRAL_BRANCH_PREFIX}/${story_id}"
+
+  # Guard: check if branch is already checked out in another worktree (parallel mode)
+  local worktree_branches
+  worktree_branches=$(git worktree list --porcelain 2>/dev/null \
+    | grep '^branch ' | sed 's|^branch refs/heads/||' || true)
+  if echo "$worktree_branches" | grep -qx "$branch_name" 2>/dev/null; then
+    echo "  [branch] WARNING: $branch_name already checked out in another worktree — skipping"
+    return 0
+  fi
+
+  echo "  [branch] Switching to story branch: $branch_name"
+  if git checkout -B "$branch_name" 2>&1; then
+    STORY_BRANCH="$branch_name"
+    log_ralph_event "story_branch_created" "\"storyId\":\"$story_id\",\"branch\":\"$branch_name\""
+    echo "  [branch] On branch: $branch_name"
+  else
+    echo "  [branch] WARNING: failed to create/switch to $branch_name — continuing on current branch"
+    STORY_BRANCH=""
+  fi
+}
+
+# finalize_story_branch <story_id> [commit_sha]
+# After story passes: merge story branch to SPIRAL_BASE_BRANCH with --no-ff,
+# OR push to remote and leave open when SPIRAL_CREATE_PRS=true.
+# Branch deleted after merge unless SPIRAL_KEEP_STORY_BRANCHES=true.
+# No-op when SPIRAL_BRANCH_PREFIX is unset or STORY_BRANCH was not set.
+finalize_story_branch() {
+  local story_id="$1"
+  local _commit_sha="${2:-}"
+
+  if [[ -z "${SPIRAL_BRANCH_PREFIX:-}" || -z "$STORY_BRANCH" ]]; then
+    return 0
+  fi
+
+  local branch_name="$STORY_BRANCH"
+  local base_branch="${SPIRAL_BASE_BRANCH:-main}"
+
+  if [[ "${SPIRAL_CREATE_PRS:-false}" == "true" ]]; then
+    # Push branch to remote; PR creation handled by create_github_pr
+    echo "  [branch] SPIRAL_CREATE_PRS=true — pushing $branch_name to remote"
+    if git push origin "$branch_name" 2>&1; then
+      echo "  [branch] Pushed: $branch_name (open for PR)"
+      log_ralph_event "story_branch_pushed" "\"storyId\":\"$story_id\",\"branch\":\"$branch_name\""
+    else
+      echo "  [branch] WARNING: failed to push $branch_name — branch kept locally"
+    fi
+    return 0
+  fi
+
+  # Merge story branch back to base branch with --no-ff
+  echo "  [branch] Merging $branch_name → $base_branch (--no-ff)"
+  if ! git checkout "$base_branch" 2>&1; then
+    echo "  [branch] WARNING: failed to checkout $base_branch — $branch_name kept"
+    return 0
+  fi
+
+  local merge_msg
+  merge_msg="Merge story branch ${branch_name} into ${base_branch}
+
+Story: ${story_id}"
+  if git merge --no-ff "$branch_name" -m "$merge_msg" 2>&1; then
+    echo "  [branch] Merged $branch_name into $base_branch"
+    log_ralph_event "story_branch_merged" "\"storyId\":\"$story_id\",\"branch\":\"$branch_name\",\"base\":\"$base_branch\""
+    if [[ "${SPIRAL_KEEP_STORY_BRANCHES:-false}" != "true" ]]; then
+      git branch -d "$branch_name" 2>/dev/null || true
+      echo "  [branch] Deleted: $branch_name"
+    else
+      echo "  [branch] Kept: $branch_name (SPIRAL_KEEP_STORY_BRANCHES=true)"
+    fi
+  else
+    echo "  [branch] WARNING: merge conflict — manual resolution required"
+    echo "  [branch] Aborting merge; $branch_name kept on $base_branch"
+    git merge --abort 2>/dev/null || true
+    log_ralph_event "story_branch_merge_conflict" "\"storyId\":\"$story_id\",\"branch\":\"$branch_name\",\"base\":\"$base_branch\""
+  fi
+  STORY_BRANCH=""
 }
 
 # ── Ollama API fallback (US-144) ─────────────────────────────────────────────
@@ -1566,6 +1662,10 @@ while [[ $ITERATION -lt $MAX_ITERATIONS ]]; do
   _OLLAMA_USED=0      # reset per-story; set to 1 if Ollama fallback fires (US-144)
   _REVIEW_TOKENS=0    # reset per-story; set by run_self_review Phase I.5 (US-145)
   _WALL_SEC=0; _USER_CPU_S=0; _SYS_CPU_S=0; _PEAK_RSS_KB=0  # reset per-story resource stats (US-158)
+
+  # ── Per-story feature branch (US-157): create branch before Phase I ──────────
+  create_story_branch "$NEXT_STORY"
+
   echo ""
   echo "  [spawn] Fresh $EFFECTIVE_TOOL instance for $NEXT_STORY..."
 
@@ -2301,6 +2401,9 @@ Co-Authored-By: Claude ${COAUTHOR_LABEL} 4.6 <noreply@anthropic.com>"
       if [[ "${SPIRAL_CREATE_PRS:-false}" == "true" && -n "$COMMIT_SHA" ]]; then
         create_github_pr "$NEXT_STORY" "$STORY_TITLE" "$COMMIT_SHA"
       fi
+
+      # Finalize story branch: merge to base or push for PR (US-157)
+      finalize_story_branch "$NEXT_STORY" "$COMMIT_SHA"
 
       append_result "keep" "$COMMIT_SHA"
       log_ralph_event "story_passed" "\"storyId\":\"$NEXT_STORY\",\"retryCount\":$(get_retry_count "$NEXT_STORY"),\"model\":\"${EFFECTIVE_MODEL:-sonnet}\""

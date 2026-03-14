@@ -487,6 +487,28 @@
 # SPIRAL_GIT_AUTHOR="SPIRAL Agent"
 # SPIRAL_GIT_EMAIL="spiral@noreply.local"
 
+# ── Per-story feature branching (US-157) ─────────────────────────────────────
+# When SPIRAL_BRANCH_PREFIX is set, Ralph creates a dedicated git branch for
+# each story before Phase I implementation, enabling clean PR-per-story workflows.
+# Branch name convention: <SPIRAL_BRANCH_PREFIX>/<STORY_ID> (e.g. spiral/US-042)
+#
+# After story passes Phase V:
+#   - SPIRAL_CREATE_PRS=false (default): branch merged to SPIRAL_BASE_BRANCH with
+#     --no-ff, then deleted (unless SPIRAL_KEEP_STORY_BRANCHES=true)
+#   - SPIRAL_CREATE_PRS=true: branch pushed to remote; left open for PR creation
+#
+# Branch creation is idempotent — `git checkout -B` resets the branch to the
+# current HEAD if it already exists, supporting story replays safely.
+#
+# Default: empty (no feature branching — all work on current branch)
+# SPIRAL_BRANCH_PREFIX="spiral"
+#
+# Base branch to merge story branches back into (default: branch at startup).
+# SPIRAL_BASE_BRANCH="main"
+#
+# Keep story branches after successful merge (default: false — delete after merge).
+# SPIRAL_KEEP_STORY_BRANCHES=false
+
 # ── Dirty working tree guard (US-177) ────────────────────────────────────────
 # If the working tree has uncommitted changes when Phase I is about to run,
 # SPIRAL_AUTO_STASH=true automatically stashes them, runs Phase I, then pops

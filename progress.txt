@@ -4865,3 +4865,56 @@ This story modifies the core Spiral execution wrapper, not a Frappe/Python appli
 ### Gotchas
 - test_route_stories.py has a pre-existing ImportError (not caused by this story)
 - 701 pytest tests pass with --ignore=tests/test_route_stories.py
+## Iteration 68 - Sun, Mar 15, 2026  7:18:24 AM
+Incomplete: Add SPIRAL_BRANCH_PREFIX for per-story feature branch creation and naming (ID: US-157) — attempt 2/3
+
+
+## Pre-analysis for US-157 (Gemini 2.5 Pro)
+**Objective:** Implement a per-story feature branching strategy controlled by the `SPIRAL_BRANCH_PREFIX` environment variable.
+
+**1. Files to Modify:**
+*   `spiral.sh`: The main orchestrator. This script will handle the post-completion logic: merging the feature branch back to `SPIRAL_BASE_BRANCH` or pushing it for a PR. It will also be responsible for cleanup (deleting the branch).
+*   `ralph.sh`: This script is called to execute a story. It's the ideal place to implement the initial branch creation/checkout logic that runs before Phase I.
+*   `spiral.config.sh`: To source and document the new configuration variables: `SPIRAL_BRANCH_PREFIX`, `SPIRAL_CREATE_PRS`, `SPIRAL_BASE_BRANCH`, and `SPIRAL_KEEP_STORY_BRANCHES`.
+
+**2. Frappe DocTypes/Hooks:**
+*   None. The story pertains to the Spiral repository's internal Git workflow, which is managed by shell scripts, not Frappe or Python code.
+
+**3. Implementation Approach:**
+1.  **Configuration (`spiral.config.sh`):** Add the new environment variables with default values (e.g., `SPIRAL_BRANCH_PREFIX=""`).
+2.  **Branch Creation (`ralph.sh`):**
+    *   At the beginning of the script, check if `$SPIRAL_BRANCH_PREFIX` is set and not empty.
+    *   If so, construct the branch name: `STORY_BRANCH="$SPIRAL_BRANCH_PREFIX/$STORY_ID"`.
+    *   Execute `git checkout -B "$STORY_BRANCH"` to create the new branch or reset an existing one. This handles idempotency for replayed stories.
+3.  **Merge/PR Logic (`spiral.sh`):**
+    *   After a story successfully completes, check if it was run with a `SPIRAL_BRANCH_PREFIX`.
+    *   If `SPIRAL_CREATE_PRS` is true, push the branch to the remote: `git push --force-with-lease origin "$STORY_BRANCH"`.
+    *   Otherwise, check out the base branch (`git checkout "$SPIRAL_BASE_BRANCH"`) and merge the story branch (`git merge --no-ff "$STORY_BRANCH"`).
+    *   If the merge is successful and `SPIRAL_KEEP_STORY_BRANCHES` is not true, delete the story branch (`git branch -d "$STORY_BRANCH"`).
+
+**4. Edge Cases & Gotchas:**
+*   **Merge Conflicts:** The `git merge` command can fail. The script must detect a non-zero exit code, report the conflict, and abort the merge, leaving the feature branch intact for manual resolution.
+*   **Dirty Worktree:** Branching operations will fail if the worktree is not clean. Ensure `git status` checks are in place before attempting to checkout or merge.
+*   **Worktree Isolation:** The technical notes mention `git worktree`. While a simple `git checkout -B` is sufficient for sequential execution, a parallel implementation would require creating new worktrees (`git worktree add ...`) to avoid branch conflicts between concurrent workers. This initial implementation should focus on the sequential case.
+*   **State Management:** Ensure the script reliably checks out the original `SPIRAL_BASE_BRANCH` upon completion or failure.
+
+
+## Iteration N - Story: US-157: Add SPIRAL_BRANCH_PREFIX for per-story feature branch creation and naming
+
+### What was implemented
+- ralph/ralph.sh: Added `create_story_branch()` function — creates `$SPIRAL_BRANCH_PREFIX/$STORY_ID` branch before Phase I using `git checkout -B` (idempotent; handles replay)
+- ralph/ralph.sh: Added `finalize_story_branch()` function — merges story branch to SPIRAL_BASE_BRANCH with --no-ff on success, or pushes to remote when SPIRAL_CREATE_PRS=true; deletes branch unless SPIRAL_KEEP_STORY_BRANCHES=true; aborts cleanly on merge conflict
+- ralph/ralph.sh: Captured `SPIRAL_BASE_BRANCH` at startup from current branch (before any story branching) so we always know the correct merge target
+- ralph/ralph.sh: `create_story_branch` called after per-story variable reset, before AI spawn (line ~1667)
+- ralph/ralph.sh: `finalize_story_branch` called after `create_github_pr` and before `append_result "keep"` in the success path (line ~2406)
+- templates/spiral.config.example.sh: Added documentation for SPIRAL_BRANCH_PREFIX, SPIRAL_BASE_BRANCH, SPIRAL_KEEP_STORY_BRANCHES
+
+### Patterns discovered
+- `git checkout -B <branch>` is idempotent: creates the branch if new, force-resets it if existing — handles replays without extra logic
+- Worktree guard: `git worktree list --porcelain | grep '^branch '` detects parallel workers using the same branch before checkout
+- SPIRAL_CREATE_PRS (existing var) is reused to decide push-vs-merge; no new PR-related env var needed
+
+### Gotchas
+- SPIRAL_BASE_BRANCH must be captured BEFORE any `create_story_branch` call (captured at line 254 from `$CURRENT_BRANCH`)
+- `finalize_story_branch` is a no-op when SPIRAL_BRANCH_PREFIX is empty (default) — no behavior change for users who don't opt in
+- When SPIRAL_CREATE_PRS=true, `create_github_pr` (US-143) and `finalize_story_branch` both run; they operate on different branch names (spiral/<id> vs <prefix>/<id>)
