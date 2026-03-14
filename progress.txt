@@ -3545,3 +3545,59 @@ Completed: Stream-process large prd.json with jq --stream to avoid full in-memor
 ### Gotchas
 - The existing `test_original_unchanged_when_tmp_write_blocked` test creates a directory at the .tmp path to block writes — this still works with `os.replace()` because `open(tmp_path, 'w')` raises PermissionError/IsADirectoryError when tmp_path is a directory
 - os.replace() on success renames the file, so .tmp is gone — the finally block's `os.path.exists` check handles this correctly
+## Iteration 44 - Sun, Mar 15, 2026  1:43:03 AM
+Incomplete: Implement Phase S (Story Validate) — auto-reject out-of-scope research stories (ID: US-173) — attempt 1/3
+
+
+## Pre-analysis for US-173 (Gemini 2.5 Pro)
+This brief outlines the implementation plan for story US-173 in the Spiral project. The context is a Shell and Python-based workflow, not a Frappe application.
+
+**1. Files to Modify:**
+*   `spiral.sh`: To integrate the new validation phase into the main pipeline.
+*   `lib/phases/phase_s_story_validate.sh`: Implement the logic for the validation phase, orchestrating the validation process.
+*   `lib/merge_stories.py` (or similar for Phase M): Update to consume the validated stories file instead of the raw research output.
+*   New Python script (e.g., `lib/story_validator.py`): To house the core validation logic, including the LLM call and keyword fallback.
+*   New BATS test (e.g., `tests/story_validation.bats`): To verify the feature's acceptance criteria.
+
+**2. Involved DocTypes/Hooks:**
+*   This is not a Frappe project. The primary data structures are JSON files:
+    *   `prd.json`: Source for project `goals`.
+    *   Input stories from the research phase.
+    *   `.spiral/_validated_stories.json`: The output artifact of this new phase.
+
+**3. Implementation Approach:**
+1.  In `spiral.sh`, insert a call to `run_phase_story_validate()` between Phase T (Research) and Phase M (Merge).
+2.  The `phase_s_story_validate.sh` script will invoke a new Python script.
+3.  The Python script will iterate through each candidate story, checking it against `prd.json` goals (and the constitution if `SPIRAL_SPECKIT_CONSTITUTION` is set) using a Claude Haiku API call with a direct YES/NO prompt.
+4.  If the API call fails, the script must fall back to a simple keyword overlap check.
+5.  Accepted stories are written to `.spiral/_validated_stories.json`. Phase M's input source must be updated to this file.
+6.  Rejected stories and the reason must be logged, and metrics written to `spiral_events.jsonl`.
+
+**4. Edge Cases & Gotchas:**
+*   The LLM prompt must be carefully engineered to force a reliable YES/NO output.
+*   The keyword fallback logic needs to be robust enough to handle API failures without causing false positives/negatives.
+*   Ensure logging is clear, providing auditable reasons for every story rejection.
+*   The new phase adds latency; performance should be considered, especially the external API call for each story.
+
+
+## Iteration N - Story: US-183: Skip Phase V test suite when Phase I produced zero new story passes
+
+### What was implemented
+- Added `SPIRAL_FORCE_VALIDATE` (default: "false") to spiral.sh config defaults — bypasses Phase V skip for CI
+- Added `_PASSES_BEFORE_I=-1`, `_PASSES_AFTER_I=-1`, `_PHASE_V_SKIPPED=0` to per-iteration variable init block
+- Set `_PASSES_BEFORE_I=$DONE_BEFORE` inside the PENDING > 0 block (right after DONE_BEFORE is set)
+- Added `_PASSES_AFTER_I=...` capture after Phase I ends (after notify_webhook "G" "end")
+- Added new `elif` branch in Phase V skip logic: fires when `_PASSES_AFTER_I <= _PASSES_BEFORE_I && _PASSES_BEFORE_I >= 0 && SPIRAL_FORCE_VALIDATE != true`
+- Skip emits `phase_v_skipped` event to spiral_events.jsonl with passes_before/after/iteration
+- Updated `write_iter_summary` to add `phase_v_skipped` boolean field (sys.argv[10])
+- 11 bats tests in `tests/phase_v_skip.bats` covering: skip on zero new passes, run on new passes, FORCE_VALIDATE bypass, sentinel guard, event emission
+
+### Patterns discovered
+- `_PASSES_BEFORE_I=-1` sentinel works because the skip condition includes `_PASSES_BEFORE_I -ge 0` guard — safe when ralph never ran
+- `write_iter_summary` passes args positionally via sys.argv; added sys.argv[10] for phase_v_skipped boolean
+- Bats unit tests with inline helper functions (`phase_v_decision`) are cleaner than running full spiral.sh for decision-logic tests
+
+### Gotchas
+- Must use `uv run python3` (not `python3`) on Windows to get UTF-8 encoding for prd.json
+- `_PASSES_AFTER_I` capture must be OUTSIDE the `if [[ "$RALPH_RAN" ]]` / case block — it lives after the Phase I log_spiral_event lines
+- The new elif must come AFTER the `RALPH_RAN -eq 0` check (ordering matters)

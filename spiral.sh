@@ -404,6 +404,7 @@ SPIRAL_POST_PHASE_HOOK="${SPIRAL_POST_PHASE_HOOK:-}"                     # path 
 SPIRAL_HOOK_TIMEOUT="${SPIRAL_HOOK_TIMEOUT:-30}"                         # seconds; wall-clock limit per hook execution (default 30)
 SPIRAL_MAX_FILES_PER_STORY="${SPIRAL_MAX_FILES_PER_STORY:-10}"           # warn/abort when Phase I touches more files than this; 0 = disabled
 SPIRAL_SCOPE_CREEP_ACTION="${SPIRAL_SCOPE_CREEP_ACTION:-warn}"           # warn (default) = log only; abort = mark _failureReason and skip Phase V
+SPIRAL_FORCE_VALIDATE="${SPIRAL_FORCE_VALIDATE:-false}"                  # true = always run Phase V even when Phase I produced no new passes (CI bypass)
 SPIRAL_CREATE_PRS="${SPIRAL_CREATE_PRS:-false}"                          # true = push story commit to spiral/<ID> branch and open GitHub PR via gh CLI
 SPIRAL_PR_BASE_BRANCH="${SPIRAL_PR_BASE_BRANCH:-main}"                   # base branch for PRs created by SPIRAL_CREATE_PRS (default: main)
 SPIRAL_PR_DRAFT="${SPIRAL_PR_DRAFT:-false}"                              # true = create draft PRs (prevents auto-merge triggers)
@@ -875,14 +876,15 @@ d = {
     'stories_attempted': int(sys.argv[5]),
     'stories_passed': int(sys.argv[6]),
     'stories_failed': int(sys.argv[7]),
-    'phases_completed': json.loads(sys.argv[8])
+    'phases_completed': json.loads(sys.argv[8]),
+    'phase_v_skipped': sys.argv[10] == '1',
 }
 with open(sys.argv[9], 'w') as f:
     json.dump(d, f, indent=2)
     f.write('\n')
 " "$SPIRAL_ITER" "$ITER_START" "$_iter_end" "$_iter_dur" \
     "$_attempted" "${RALPH_PROGRESS:-0}" "$_failed" \
-    "$_phases_json" "$SCRATCH_DIR/_iteration_summary.json" 2>/dev/null || {
+    "$_phases_json" "$SCRATCH_DIR/_iteration_summary.json" "${_PHASE_V_SKIPPED:-0}" 2>/dev/null || {
     echo "  [C] WARNING: Failed to write _iteration_summary.json (non-fatal)"
   }
 }
@@ -1438,6 +1440,9 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
   RALPH_RAN=0      # set to 1 if ralph actually executed this iter (controls Phase V)
   RALPH_PROGRESS=0 # stories completed this iter; reset each iter for accurate velocity
   PRE_RALPH_PRD_JSON=""  # snapshot of prd.json before Phase I; used by Phase V incremental (US-131)
+  _PASSES_BEFORE_I=-1   # passed-story count snapshot before Phase I (US-183)
+  _PASSES_AFTER_I=-1    # passed-story count snapshot after Phase I (US-183)
+  _PHASE_V_SKIPPED=0    # 1 when Phase V is skipped due to no new passes (US-183)
   # Phase duration tracking (US-046): reset per-iteration, updated at each phase_end
   _PHASE_DUR_R=0
   _PHASE_DUR_T=0
@@ -2062,6 +2067,7 @@ $INJECTED_PROMPT"
           RALPH_RAN=1
           PRE_RALPH_PRD_JSON=$(cat "$PRD_FILE")
           DONE_BEFORE=$("$JQ" '[.userStories[] | select(.passes == true)] | length' "$PRD_FILE")
+          _PASSES_BEFORE_I="$DONE_BEFORE"
 
           if [[ "$RALPH_WORKERS" -gt 1 ]]; then
             # ── Parallel mode with wave dispatch ───────────────────────────────
@@ -2329,6 +2335,9 @@ $INJECTED_PROMPT"
   log_spiral_event "phase_end" "\"phase\":\"G\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_I"
   notify_webhook "G" "end"
 
+  # ── Snapshot passes count after Phase I (US-183) ──────────────────────────
+  _PASSES_AFTER_I=$("$JQ" '[.userStories[] | select(.passes == true)] | length' "$PRD_FILE" 2>/dev/null || echo "${_PASSES_BEFORE_I}")
+
   # ── Phase V: VALIDATE (test suite) ────────────────────────────────────────
   PHASE="V"
   echo ""
@@ -2346,6 +2355,11 @@ $INJECTED_PROMPT"
     write_checkpoint "$SPIRAL_ITER" "V"
   elif [[ "$RALPH_RAN" -eq 0 ]]; then
     echo "  [V] Skipping (ralph did not run — test results unchanged)"
+    write_checkpoint "$SPIRAL_ITER" "V"
+  elif [[ "$_PASSES_AFTER_I" -le "$_PASSES_BEFORE_I" && "$_PASSES_BEFORE_I" -ge 0 && "${SPIRAL_FORCE_VALIDATE:-false}" != "true" ]]; then
+    echo "  [V] Skipping (Phase I produced no new story passes — set SPIRAL_FORCE_VALIDATE=true to override)"
+    _PHASE_V_SKIPPED=1
+    log_spiral_event "phase_v_skipped" "\"reason\":\"no_new_passes\",\"passes_before\":$_PASSES_BEFORE_I,\"passes_after\":$_PASSES_AFTER_I,\"iteration\":$SPIRAL_ITER"
     write_checkpoint "$SPIRAL_ITER" "V"
   else
     # ── Build effective validate command: incremental or full suite (US-131) ──
