@@ -39,6 +39,8 @@ SPIRAL_SECURITY_SCAN_ARGS="${SPIRAL_SECURITY_SCAN_ARGS:-}"                  # ex
 SPIRAL_PRD_STREAM_THRESHOLD_KB="${SPIRAL_PRD_STREAM_THRESHOLD_KB:-512}"     # switch to jq --stream when prd.json exceeds this size (KB); 0 = always stream
 SPIRAL_OLLAMA_FALLBACK_MODEL="${SPIRAL_OLLAMA_FALLBACK_MODEL:-}"        # Ollama model for Claude API fallback (e.g. qwen2.5-coder:32b); empty = disabled
 SPIRAL_OLLAMA_HOST="${SPIRAL_OLLAMA_HOST:-http://localhost:11434/v1}"   # Ollama OpenAI-compat base URL (default: local Ollama)
+SPIRAL_SKIP_SELF_REVIEW="${SPIRAL_SKIP_SELF_REVIEW:-false}"             # true = disable Phase I.5 LLM self-review gate (US-145)
+SPIRAL_SELF_REVIEW_MODEL="${SPIRAL_SELF_REVIEW_MODEL:-haiku}"           # Claude model for self-review; haiku to minimise cost (US-145)
 PRD_FILE="prd.json"
 PROGRESS_FILE="progress.txt"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -785,13 +787,13 @@ append_result() {
   local duration_sec=$((STORY_END - STORY_START))
   local model_col="${EFFECTIVE_MODEL:-${EFFECTIVE_TOOL:-unknown}}"
   if [[ ! -f "$RESULTS_FILE" ]]; then
-    printf 'timestamp\tspiral_iter\tralph_iter\tstory_id\tstory_title\tstatus\tduration_sec\tmodel\tretry_num\tcommit_sha\trun_id\tcache_hit\tcache_read_tokens\n' >"$RESULTS_FILE"
+    printf 'timestamp\tspiral_iter\tralph_iter\tstory_id\tstory_title\tstatus\tduration_sec\tmodel\tretry_num\tcommit_sha\trun_id\tcache_hit\tcache_read_tokens\treview_tokens\n' >"$RESULTS_FILE"
   fi
   local safe_title="${STORY_TITLE//$'\t'/ }"
-  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
     "$ts" "${SPIRAL_ITER:-0}" "$ITERATION" "$NEXT_STORY" "$safe_title" \
     "$status" "$duration_sec" "$model_col" "$RETRY_NOW" "$commit_sha" "${SPIRAL_RUN_ID:-}" \
-    "${_CACHE_HIT:-false}" "${_CACHE_READ_TOKENS:-0}" \
+    "${_CACHE_HIT:-false}" "${_CACHE_READ_TOKENS:-0}" "${_REVIEW_TOKENS:-0}" \
     >>"$RESULTS_FILE"
 }
 
@@ -950,6 +952,137 @@ print(data['choices'][0]['message']['content'])
 " 2>/dev/null) || content="$response"
 
   printf '%s\n' "$content"
+}
+
+# ── Phase I.5: LLM self-review gate (US-145) ────────────────────────────────
+# run_self_review <story_id>
+# Sends story spec + git diff (≤500 lines) to Claude haiku for structured review.
+# Sets _REVIEW_TOKENS (input+output) for results.tsv tracking.
+# Returns 0 if no critical issues found; returns 1 if any critical issue found.
+# On critical find, stores issues JSON in prd.json as _selfReviewIssues and sets
+# _failureReason so the retry context injection surfaces them to the next agent.
+_REVIEW_TOKENS=0
+run_self_review() {
+  local story_id="$1"
+  _REVIEW_TOKENS=0
+
+  # Collect git diff limited to 500 lines (working tree vs HEAD)
+  local _diff
+  _diff=$(git diff HEAD 2>/dev/null | head -500)
+  if [[ -z "$_diff" ]]; then
+    # Agent may have committed — try last commit diff
+    _diff=$(git diff HEAD~1 HEAD 2>/dev/null | head -500)
+  fi
+  if [[ -z "$_diff" ]]; then
+    echo "  [review] No diff to review — Phase I.5 skipped"
+    return 0
+  fi
+
+  # Collect story spec from prd.json
+  local _story_title _story_desc _story_ac
+  _story_title=$($JQ -r ".userStories[] | select(.id == \"$story_id\") | .title // \"\"" "$PRD_FILE" 2>/dev/null | tr -d '\r')
+  _story_desc=$($JQ -r ".userStories[] | select(.id == \"$story_id\") | .description // \"\"" "$PRD_FILE" 2>/dev/null | tr -d '\r')
+  _story_ac=$($JQ -r ".userStories[] | select(.id == \"$story_id\") | .acceptanceCriteria // [] | .[] | \"- \" + ." "$PRD_FILE" 2>/dev/null | tr -d '\r' | head -20)
+
+  # Cacheable system prompt (constant across stories — prompt-caching friendly)
+  local _review_system
+  _review_system='You are a senior code reviewer performing a pre-validation review. Given a story specification and a git diff, identify bugs, security issues, and spec deviations. Respond with ONLY a valid JSON object — no markdown, no explanation — matching exactly: {"issues":[{"severity":"critical|major|minor","location":"<file:line or description>","description":"<concise description of the issue>"}]}. Use severity "critical" only for bugs that will definitely cause test failures, security vulnerabilities, or hard spec violations. Use "major" for significant issues and "minor" for style/quality concerns. If there are no issues, respond with: {"issues":[]}'
+
+  local _review_user
+  _review_user="## Story Specification
+
+Title: ${_story_title}
+Description: ${_story_desc}
+
+Acceptance Criteria:
+${_story_ac:-  (none listed)}
+
+## Git Diff (truncated to 500 lines)
+
+\`\`\`diff
+${_diff}
+\`\`\`
+
+Review the diff against the story specification above. Output ONLY the JSON object."
+
+  # Call Claude haiku (single turn, stream-json to capture tokens + text)
+  local _review_model="${SPIRAL_SELF_REVIEW_MODEL:-haiku}"
+  local _review_tmp="${SPIRAL_SCRATCH_DIR:-/tmp}/_review_raw_$$.tmp"
+  mkdir -p "${SPIRAL_SCRATCH_DIR:-/tmp}"
+
+  echo "  [Phase I.5] Sending ${#_diff} chars of diff to ${_review_model} for self-review..."
+  (
+    unset CLAUDECODE
+    claude -p "$_review_user" \
+      --model "$_review_model" \
+      --append-system-prompt "$_review_system" \
+      --betas prompt-caching-2024-07-31 \
+      --max-turns 1 \
+      --output-format stream-json \
+      --dangerously-skip-permissions \
+      2>/dev/null
+  ) >"$_review_tmp" 2>/dev/null || true
+
+  # Extract token counts from stream-json result line
+  if [[ -f "$_review_tmp" ]]; then
+    local _rl
+    _rl=$(grep -m1 '"type":"result"' "$_review_tmp" 2>/dev/null || true)
+    if [[ -n "$_rl" ]]; then
+      local _ri _ro
+      _ri=$($JQ -r '.usage.input_tokens // 0' <<<"$_rl" 2>/dev/null || echo 0)
+      _ro=$($JQ -r '.usage.output_tokens // 0' <<<"$_rl" 2>/dev/null || echo 0)
+      [[ "$_ri" =~ ^[0-9]+$ ]] && [[ "$_ro" =~ ^[0-9]+$ ]] && _REVIEW_TOKENS=$((_ri + _ro)) || _REVIEW_TOKENS=0
+    fi
+  fi
+
+  # Extract assistant text: stream-json result line has a .result field with the text
+  local _review_text
+  _review_text=""
+  if [[ -f "$_review_tmp" ]]; then
+    local _rl2
+    _rl2=$(grep -m1 '"type":"result"' "$_review_tmp" 2>/dev/null || true)
+    if [[ -n "$_rl2" ]]; then
+      _review_text=$($JQ -r '.result // ""' <<<"$_rl2" 2>/dev/null | tr -d '\r' || true)
+    fi
+  fi
+  rm -f "$_review_tmp"
+
+  # Strip markdown code fences if present
+  _review_text=$(printf '%s' "$_review_text" | sed 's/^```json[[:space:]]*//' | sed 's/^```[[:space:]]*//' | sed 's/```[[:space:]]*$//' | tr -d '\r')
+
+  # Validate JSON and count issues
+  local _critical_count=0 _total_count=0
+  if [[ -n "$_review_text" ]] && echo "$_review_text" | $JQ empty 2>/dev/null; then
+    _critical_count=$(echo "$_review_text" | $JQ '[.issues[] | select(.severity == "critical")] | length' 2>/dev/null || echo 0)
+    _total_count=$(echo "$_review_text" | $JQ '.issues | length' 2>/dev/null || echo 0)
+    [[ "$_critical_count" =~ ^[0-9]+$ ]] || _critical_count=0
+    [[ "$_total_count" =~ ^[0-9]+$ ]] || _total_count=0
+  else
+    echo "  [Phase I.5] WARNING: review response was not valid JSON — treating as no issues"
+    echo "  [Phase I.5] Raw response (first 200 chars): ${_review_text:0:200}"
+    _REVIEW_TOKENS=0
+    return 0
+  fi
+
+  echo "  [Phase I.5] Review complete: ${_total_count} issue(s) (${_critical_count} critical) | tokens: ${_REVIEW_TOKENS}"
+  log_spiral_event "self_review" \
+    "\"story_id\":\"$story_id\",\"critical\":${_critical_count},\"total\":${_total_count},\"review_tokens\":${_REVIEW_TOKENS}"
+
+  if [[ "$_critical_count" -gt 0 ]]; then
+    echo "  [Phase I.5] Critical issues found — re-entering Phase I:"
+    echo "$_review_text" | $JQ -r '.issues[] | select(.severity == "critical") | "    - [\(.severity)] \(.location): \(.description)"' 2>/dev/null || true
+
+    # Store full issue list in prd.json as _selfReviewIssues
+    local _issues_json
+    _issues_json=$(echo "$_review_text" | $JQ -c '.issues // []' 2>/dev/null || echo '[]')
+    $JQ --argjson issues "$_issues_json" \
+      "(.userStories[] | select(.id == \"$story_id\") | ._selfReviewIssues) = \$issues" \
+      "$PRD_FILE" >"${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE" || true
+
+    return 1
+  fi
+
+  return 0
 }
 
 # ── Event logger (writes structured JSONL to .spiral/spiral_events.jsonl) ────
@@ -1425,7 +1558,8 @@ while [[ $ITERATION -lt $MAX_ITERATIONS ]]; do
 
   # Spawn fresh AI instance with real-time stream output
   STORY_START=$(date +%s)
-  _OLLAMA_USED=0  # reset per-story; set to 1 if Ollama fallback fires (US-144)
+  _OLLAMA_USED=0      # reset per-story; set to 1 if Ollama fallback fires (US-144)
+  _REVIEW_TOKENS=0    # reset per-story; set by run_self_review Phase I.5 (US-145)
   echo ""
   echo "  [spawn] Fresh $EFFECTIVE_TOOL instance for $NEXT_STORY..."
 
@@ -1911,6 +2045,44 @@ except Exception:
     STORIES_COMPLETED=$((STORIES_COMPLETED + 1))
     echo ""
     echo "  [done] Story completed: $STORY_TITLE"
+
+    # ── Phase I.5 (REVIEW): LLM self-review gate (US-145) ──────────────────
+    # Send story spec + git diff to Claude haiku for structured code review.
+    # Skip when SPIRAL_SKIP_SELF_REVIEW=true or when retries exceed MAX_RETRIES/2
+    # (to avoid burning tokens on stories already deep in retry chain).
+    if [[ "${SPIRAL_SKIP_SELF_REVIEW:-false}" != "true" ]]; then
+      _REVIEW_SKIP_THRESHOLD=$(( MAX_RETRIES / 2 ))
+      if [[ "$RETRY_NOW" -le "$_REVIEW_SKIP_THRESHOLD" ]]; then
+        if ! run_self_review "$NEXT_STORY"; then
+          # Critical issues found — re-queue for Phase I with issue list injected
+          $JQ "(.userStories[] | select(.id == \"$NEXT_STORY\") | .passes) = false" \
+            "$PRD_FILE" >"${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE" || true
+          # Build human-readable failure reason for retry context injection
+          _REVIEW_CRITICAL_TEXT=$($JQ -r \
+            ".userStories[] | select(.id == \"$NEXT_STORY\") | ._selfReviewIssues // [] | .[] | select(.severity == \"critical\") | \"  - [\" + .severity + \"] \" + .location + \": \" + .description" \
+            "$PRD_FILE" 2>/dev/null || echo "  (see Phase I.5 output above)")
+          _REVIEW_FAIL_REASON="SELF_REVIEW_CRITICAL: Phase I.5 found critical issue(s) that must be fixed:
+${_REVIEW_CRITICAL_TEXT}
+ACTION: Fix the critical issues listed above before marking passes=true."
+          $JQ --arg reason "$_REVIEW_FAIL_REASON" \
+            "(.userStories[] | select(.id == \"$NEXT_STORY\") | ._failureReason) = \$reason" \
+            "$PRD_FILE" >"${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE" || true
+          increment_retry "$NEXT_STORY"
+          RETRY_NOW=$(get_retry_count "$NEXT_STORY")
+          echo "  [Phase I.5] Re-entering Phase I (retry $RETRY_NOW/$MAX_RETRIES)"
+          log_ralph_event "self_review_rejected" \
+            "\"storyId\":\"$NEXT_STORY\",\"retryCount\":$RETRY_NOW,\"reviewTokens\":${_REVIEW_TOKENS}"
+          append_result "reject"
+          echo "## Iteration $ITERATION - $(date)" >>"$PROGRESS_FILE"
+          echo "FAILED Phase I.5 self-review: $STORY_TITLE (ID: $NEXT_STORY) — critical issues found — attempt $RETRY_NOW/$MAX_RETRIES" >>"$PROGRESS_FILE"
+          echo "" >>"$PROGRESS_FILE"
+          continue
+        fi
+      else
+        echo "  [Phase I.5] Skipped (retry $RETRY_NOW > threshold ${_REVIEW_SKIP_THRESHOLD})"
+      fi
+    fi
+    # ── End Phase I.5 ────────────────────────────────────────────────────────
 
     # Run quality checks
     if run_project_quality_checks "$PRE_STORY_TS_ERRORS"; then
