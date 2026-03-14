@@ -432,6 +432,7 @@ SPIRAL_CREATE_PRS="${SPIRAL_CREATE_PRS:-false}"                          # true 
 SPIRAL_PR_BASE_BRANCH="${SPIRAL_PR_BASE_BRANCH:-main}"                   # base branch for PRs created by SPIRAL_CREATE_PRS (default: main)
 SPIRAL_PR_DRAFT="${SPIRAL_PR_DRAFT:-false}"                              # true = create draft PRs (prevents auto-merge triggers)
 export SPIRAL_CREATE_PRS SPIRAL_PR_BASE_BRANCH SPIRAL_PR_DRAFT
+SPIRAL_AUTO_STASH="${SPIRAL_AUTO_STASH:-false}"                          # true = auto-stash dirty working tree before Phase I and pop after (US-177)
 
 # ── Config validation ─────────────────────────────────────────────────────────
 # Validates required keys are set and applies defaults for optional keys.
@@ -2250,6 +2251,41 @@ $INJECTED_PROMPT"
           _DRY_RUN_FLAG=""
           [[ "$DRY_RUN" -eq 1 ]] && _DRY_RUN_FLAG="--dry-run"
 
+          # ── US-177: Dirty working tree guard ─────────────────────────────
+          _AUTO_STASH_REF=""
+          _DIRTY_SKIP_RALPH=0
+          _DIRTY_FILES=$(git -C "$REPO_ROOT" status --porcelain 2>/dev/null || true)
+          if [[ -n "$_DIRTY_FILES" ]]; then
+            if [[ "$SPIRAL_AUTO_STASH" == "true" ]]; then
+              _STASH_MSG="spiral-auto-stash-iter-${SPIRAL_ITER}"
+              echo "  [Phase I] Dirty working tree detected — auto-stashing (iter ${SPIRAL_ITER})..."
+              if git -C "$REPO_ROOT" stash push --include-untracked -m "$_STASH_MSG" 2>/dev/null; then
+                _AUTO_STASH_REF=$(git -C "$REPO_ROOT" stash list --format="%gd %gs" 2>/dev/null \
+                  | grep "$_STASH_MSG" | head -1 | awk '{print $1}')
+                echo "  [Phase I] Stash created: ${_AUTO_STASH_REF:-stash@{0}}"
+              else
+                echo "  [Phase I] WARNING: Auto-stash failed — proceeding with dirty tree"
+              fi
+            else
+              echo ""
+              echo "  ╔══════════════════════════════════════════════════════════════╗"
+              echo "  ║  [Phase I] SKIPPED — uncommitted changes detected            ║"
+              echo "  ║                                                              ║"
+              echo "  ║  Phase I requires a clean working tree to avoid git errors. ║"
+              echo "  ║  Options:                                                    ║"
+              echo "  ║    1. Commit or stash your changes, then re-run              ║"
+              echo "  ║    2. Set SPIRAL_AUTO_STASH=true to stash automatically      ║"
+              echo "  ╚══════════════════════════════════════════════════════════════╝"
+              echo ""
+              echo "  Dirty files:"
+              echo "$_DIRTY_FILES" | head -10 | sed 's/^/    /'
+              log_spiral_event "phase_skip" "\"phase\":\"I\",\"iteration\":$SPIRAL_ITER,\"reason\":\"dirty_working_tree\""
+              _DIRTY_SKIP_RALPH=1
+            fi
+          fi
+          # ── End dirty working tree guard ─────────────────────────────────
+
+          if [[ "$_DIRTY_SKIP_RALPH" -eq 0 ]]; then
           RALPH_RAN=1
           PRE_RALPH_PRD_JSON=$(cat "$PRD_FILE")
           DONE_BEFORE=$("$JQ" '[.userStories[] | select(.passes == true)] | length' "$PRD_FILE")
@@ -2499,6 +2535,17 @@ $INJECTED_PROMPT"
             fi
           fi
           # ── End scope-creep guard ────────────────────────────────────────────
+          fi # end _DIRTY_SKIP_RALPH=0 guard (US-177)
+
+          # ── US-177: Pop auto-stash if one was created ─────────────────────
+          if [[ -n "$_AUTO_STASH_REF" ]]; then
+            echo "  [Phase I] Popping auto-stash ${_AUTO_STASH_REF}..."
+            if ! git -C "$REPO_ROOT" stash pop "${_AUTO_STASH_REF}" 2>/dev/null; then
+              echo "  [Phase I] WARNING: Auto-stash pop failed for ${_AUTO_STASH_REF} — stash preserved (recover manually)" >&2
+              log_spiral_event "stash_pop_failed" "\"iteration\":$SPIRAL_ITER,\"stash_ref\":\"${_AUTO_STASH_REF}\""
+            fi
+          fi
+          # ── End auto-stash pop ───────────────────────────────────────────
         fi # end PENDING > 0 block
         ;;
       *)

@@ -4185,3 +4185,57 @@ Based on the user story, the implementation is for the Spiral project's shell sc
 - `$()` command substitution creates a subshell; variables set inside don't propagate to outer shell
 - `run` in bats also creates a subshell — same issue
 - test_route_stories.py has a pre-existing ImportError (not caused by this change)
+
+
+## Pre-analysis for US-136 (Gemini 2.5 Pro)
+Based on the user story, this is a shell scripting task, not a Frappe/Python one. Here is the technical brief for implementing the workspace cleanup feature.
+
+**Subject: Technical Brief for US-136: Workspace Cleanup**
+
+**1. Files to Modify:**
+*   `spiral.sh`: This is the main file to modify. The new `cleanup_workspace()` shell function will be added here and called at the end of the main processing loop.
+*   `lib/check_done.py`: This Python script will likely be used to determine if the run is 100% complete, which is the main trigger for the cleanup process.
+*   `lib/spiral_events.sh`: This script should be used to log the `workspace_cleanup` event and the `bytes_freed` metric to the `spiral_events.jsonl` file.
+
+**2. Involved Frappe DocTypes/Hooks:**
+*   None. This implementation is confined to shell scripts and Python helpers within the existing Spiral framework.
+
+**3. Recommended Implementation Approach:**
+*   Create a `cleanup_workspace()` function in `spiral.sh`.
+*   Inside the function, first check if the `SPIRAL_WORKSPACE_CLEANUP` environment variable is set to `true`.
+*   Before cleaning, call `lib/check_done.py` to confirm all stories are in `passed` or `skipped` state.
+*   Use `du -sb .spiral/` to measure the directory size before and after cleanup to calculate `bytes_freed`.
+*   Implement deletion logic using `find` as specified in the technical notes for the research cache and zero-byte logs.
+*   Archive iteration summaries using the provided `tar` command.
+*   Call `lib/spiral_events.sh` to emit the final `workspace_cleanup` event with the calculated `bytes_freed`.
+
+**4. Edge Cases & Gotchas:**
+*   The logic to determine a "successful run" must be robust. Ensure `check_done.py` accurately reflects the "100% passed or skipped" condition.
+*   The cleanup function must explicitly avoid deleting the preserved files listed in the acceptance criteria.
+*   Use parameter expansion to provide a default value for `SPIRAL_CACHE_TTL` (e.g., `${SPIRAL_CACHE_TTL:-7}`).
+*   Ensure the `tar` and `find` commands fail gracefully if no files match the patterns to avoid script errors.
+
+
+## Iteration N - Story: US-177: Detect and stash dirty working tree before Phase I
+
+### What was implemented
+- Added `SPIRAL_AUTO_STASH="${SPIRAL_AUTO_STASH:-false}"` default to spiral.sh defaults section (~line 435)
+- Added dirty working tree guard in spiral.sh before Phase I `RALPH_RAN=1` (~line 2254):
+  - `git status --porcelain` detects uncommitted changes
+  - SPIRAL_AUTO_STASH=true: stash push with message `spiral-auto-stash-iter-N`, record `_AUTO_STASH_REF`
+  - SPIRAL_AUTO_STASH=false: set `_DIRTY_SKIP_RALPH=1` and print actionable error box
+- Wrapped entire ralph execution block in `if [[ "$_DIRTY_SKIP_RALPH" -eq 0 ]]; then ... fi`
+- Added stash pop after `fi # end PENDING > 0 block`: pops `_AUTO_STASH_REF` if set; warns on failure
+- Documented SPIRAL_AUTO_STASH in `templates/spiral.config.example.sh`
+- Created `tests/auto_stash.bats` with 8 tests (all passing)
+- All 614 pytest tests pass; bash syntax OK
+
+### Patterns discovered
+- Cannot use `continue` inside the `else` branch of `if PENDING>0` — it would skip to next spiral iteration
+- Solution: use `_DIRTY_SKIP_RALPH` flag + wrap ralph execution block in `if` guard
+- `git stash list --format="%gd %gs"` retrieves stash ref by message search
+- `_AUTO_STASH_REF` is set to empty string for clean trees, so the pop block is safely skipped
+
+### Gotchas
+- Stash pop line must be OUTSIDE the `_DIRTY_SKIP_RALPH=0` guard (but still inside the `else` PENDING block) so it always runs after Phase I completes
+- The pop block lives between `fi # end _DIRTY_SKIP_RALPH=0 guard` and `fi # end PENDING > 0 block`

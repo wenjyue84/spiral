@@ -473,3 +473,12 @@
 # Examples:
 # SPIRAL_GIT_AUTHOR="SPIRAL Agent"
 # SPIRAL_GIT_EMAIL="spiral@noreply.local"
+
+# ── Dirty working tree guard (US-177) ────────────────────────────────────────
+# If the working tree has uncommitted changes when Phase I is about to run,
+# SPIRAL_AUTO_STASH=true automatically stashes them, runs Phase I, then pops
+# the stash afterwards.  If false (default), Phase I is skipped with an
+# actionable message telling the user to commit or stash their changes first.
+#
+# SPIRAL_AUTO_STASH=false   # default: abort Phase I if tree is dirty
+# SPIRAL_AUTO_STASH=true    # auto-stash dirty changes around Phase I
