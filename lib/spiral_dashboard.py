@@ -330,6 +330,57 @@ def compute_epics(prd: dict) -> list[dict]:
     return result
 
 
+def detect_orphaned_worktrees(workers_dir: str = ".spiral-workers") -> list[dict]:
+    """Detect orphaned git worktrees by cross-referencing PID files with live processes.
+
+    Scans ``.spiral-workers/worker-N/worker.pid`` files.  For each, checks if the
+    PID is alive via ``os.kill(pid, 0)``.  ``ProcessLookupError`` means the process
+    is dead; ``PermissionError`` means it is alive but not owned by us.
+
+    Returns list of dicts: {worker_dir, path, pid, suggested_cmd}.
+    """
+    orphans = []
+    if not os.path.isdir(workers_dir):
+        return orphans
+
+    for entry in sorted(os.listdir(workers_dir)):
+        worker_path = os.path.join(workers_dir, entry)
+        if not os.path.isdir(worker_path):
+            continue
+        pid_file = os.path.join(worker_path, "worker.pid")
+        if not os.path.isfile(pid_file):
+            continue
+
+        try:
+            with open(pid_file, encoding="utf-8") as f:
+                pid = int(f.read().strip())
+        except (ValueError, OSError):
+            continue
+
+        is_dead = False
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            is_dead = True
+        except PermissionError:
+            # Process exists but is not owned by us — treat as alive.
+            is_dead = False
+        except OSError:
+            # Catch-all (e.g. ESRCH on Windows via errno).
+            is_dead = True
+
+        if is_dead:
+            abs_path = os.path.abspath(worker_path)
+            orphans.append({
+                "worker_dir": entry,
+                "path": abs_path,
+                "pid": pid,
+                "suggested_cmd": f"git worktree remove {abs_path}",
+            })
+
+    return orphans
+
+
 def compute_decomposition(prd: dict) -> dict:
     stories = prd.get("userStories", [])
     parents = [s for s in stories if s.get("_decomposed")]
@@ -570,7 +621,8 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
                 activity_sections: list[str] | None = None,
                 failure_reasons: list[dict] | None = None,
                 story_attempts: dict | None = None,
-                refresh_secs: int = 0) -> str:
+                refresh_secs: int = 0,
+                orphaned_worktrees: list[dict] | None = None) -> str:
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     max_vel = max((v["kept"] for v in velocity), default=1) or 1
 
@@ -764,6 +816,30 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
             f'</section>\n'
         )
 
+    # Orphaned worktrees section
+    orphaned_html = ""
+    ow_list = orphaned_worktrees or []
+    if ow_list:
+        ow_rows = ""
+        for ow in ow_list:
+            ow_rows += (
+                f'<tr>'
+                f'<td><span class="bad">ORPHANED</span></td>'
+                f'<td>{escape(ow["worker_dir"])}</td>'
+                f'<td class="trunc" title="{escape(ow["path"])}">{escape(ow["path"])}</td>'
+                f'<td>{ow["pid"]}</td>'
+                f'<td><code style="font-size:11px;color:#ffd93d">{escape(ow["suggested_cmd"])}</code></td>'
+                f'</tr>\n'
+            )
+        orphaned_html = (
+            f'<section style="border-color:#ff6b6b">\n'
+            f'<h2 style="color:#ff6b6b">&#9888; Orphaned Worktrees ({len(ow_list)})</h2>\n'
+            f'<p style="font-size:12px;color:#aaa;margin-bottom:10px">'
+            f'These worktrees have dead worker PIDs. Run the suggested command to clean up.</p>\n'
+            f'<table>\n<tr><th>Status</th><th>Worker</th><th>Path</th><th>Dead PID</th><th>Cleanup Command</th></tr>\n'
+            f'{ow_rows}</table>\n</section>\n'
+        )
+
     refresh_meta = f'<meta http-equiv="refresh" content="{refresh_secs}">\n' if refresh_secs > 0 else ""
     refresh_footer = f" &middot; Auto-refreshing every {refresh_secs}s" if refresh_secs > 0 else ""
 
@@ -854,6 +930,7 @@ footer{{text-align:center;color:#444;font-size:10px;margin-top:16px;padding-top:
 </div>
 </div>
 
+{orphaned_html}
 {f'<div>{insights_html}</div>' if insights_html else ''}
 
 {stories_html}
@@ -943,6 +1020,9 @@ def main() -> int:
                         help="Auto-refresh interval in seconds (0 to disable)")
     args = parser.parse_args()
 
+    # Orphan check runs at startup (US-087)
+    orphans = detect_orphaned_worktrees()
+
     # Load data
     prd = load_prd(args.prd)
     results = load_results(args.results)
@@ -979,7 +1059,7 @@ def main() -> int:
         velocity = [{"iter": 0, "kept": 0, "total": 0, "duration_hours": 0.001, "velocity": 0}]
 
     # Render
-    html = render_html(overview, velocity, status, model_perf, retry_analysis, bottle, decomposition, insights, screenshot, iteration_velocity=iter_vel, epics=epics, activity_sections=activity, failure_reasons=failure_reasons, story_attempts=story_attempts, refresh_secs=args.refresh_secs)
+    html = render_html(overview, velocity, status, model_perf, retry_analysis, bottle, decomposition, insights, screenshot, iteration_velocity=iter_vel, epics=epics, activity_sections=activity, failure_reasons=failure_reasons, story_attempts=story_attempts, refresh_secs=args.refresh_secs, orphaned_worktrees=orphans)
 
     # Write
     output_path = os.path.abspath(args.output)

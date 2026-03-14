@@ -2761,3 +2761,26 @@ Incomplete: Truncate story context to fit Claude context window using token coun
 ### Gotchas
 - `args.story` can be an empty string (falsy) but `--story ""` should NOT fall through to stdin; use `is not None` check
 - test_route_stories.py has a pre-existing import error (relative import) — pre-dates this story; excluded from full suite run
+## Iteration 3 - Sat, Mar 14, 2026  4:14:50 PM
+Completed: Truncate story context to fit Claude context window using token counting (ID: US-141) in 15m
+
+
+## Iteration N - Story: US-087: Dashboard: detect and report orphaned git worktrees vs live worker PIDs
+
+### What was implemented
+- Added `detect_orphaned_worktrees(workers_dir)` function to `lib/spiral_dashboard.py`
+- Scans `.spiral-workers/worker-N/worker.pid` files; checks liveness via `os.kill(pid, 0)`
+- `ProcessLookupError` → dead (orphan); `PermissionError` → alive (not owned); `OSError` → dead
+- Orphaned worktrees rendered as table rows with `ORPHANED` status badge and `git worktree remove <path>` suggested command
+- Section only appears when orphans exist (red border, warning icon)
+- `detect_orphaned_worktrees()` called at `main()` startup (not on timer)
+- Added `orphaned_worktrees` param to `render_html()` signature (default None)
+- 12 new tests in `TestDetectOrphanedWorktrees`; all pass
+
+### Patterns discovered
+- `os.kill(pid, 0)` works cross-platform; on Windows raises `OSError` (not `ProcessLookupError`) for dead PIDs
+- `PermissionError` means the process exists but we don't own it → treat as alive
+
+### Gotchas
+- "ORPHANED" must appear verbatim in the HTML (as a status chip) for the acceptance criteria; just using "Orphaned Worktrees" in the section header is not enough
+- Tests that call `render_html` need `_make_minimal_render_args()` from the same test file scope (no relative module import needed — function is already in scope)

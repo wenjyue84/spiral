@@ -20,6 +20,7 @@ from spiral_dashboard import (  # noqa: E402
     compute_bottlenecks,
     compute_decomposition,
     generate_insights,
+    detect_orphaned_worktrees,
 )
 
 
@@ -503,3 +504,112 @@ class TestDashboardAutoRefresh:
         html = render_html(*args, refresh_secs=10)
         assert '<meta http-equiv="refresh" content="10">' in html
         assert "Auto-refreshing every 10s" in html
+
+
+# ── detect_orphaned_worktrees ─────────────────────────────────────────────────
+
+import tempfile
+import unittest.mock as mock
+
+
+class TestDetectOrphanedWorktrees:
+    def test_missing_workers_dir_returns_empty(self, tmp_path):
+        result = detect_orphaned_worktrees(str(tmp_path / "no-such-dir"))
+        assert result == []
+
+    def test_empty_workers_dir_returns_empty(self, tmp_path):
+        result = detect_orphaned_worktrees(str(tmp_path))
+        assert result == []
+
+    def test_worker_without_pid_file_ignored(self, tmp_path):
+        (tmp_path / "worker-1").mkdir()
+        result = detect_orphaned_worktrees(str(tmp_path))
+        assert result == []
+
+    def test_worker_with_invalid_pid_file_ignored(self, tmp_path):
+        w = tmp_path / "worker-1"
+        w.mkdir()
+        (w / "worker.pid").write_text("not-a-number")
+        result = detect_orphaned_worktrees(str(tmp_path))
+        assert result == []
+
+    def test_dead_pid_returns_orphan(self, tmp_path):
+        w = tmp_path / "worker-1"
+        w.mkdir()
+        dead_pid = 99999999
+        (w / "worker.pid").write_text(str(dead_pid))
+        with mock.patch("os.kill", side_effect=ProcessLookupError):
+            result = detect_orphaned_worktrees(str(tmp_path))
+        assert len(result) == 1
+        orphan = result[0]
+        assert orphan["worker_dir"] == "worker-1"
+        assert orphan["pid"] == dead_pid
+        assert "git worktree remove" in orphan["suggested_cmd"]
+        assert "worker-1" in orphan["path"]
+
+    def test_alive_pid_not_returned(self, tmp_path):
+        w = tmp_path / "worker-1"
+        w.mkdir()
+        (w / "worker.pid").write_text("12345")
+        with mock.patch("os.kill", return_value=None):  # no exception = alive
+            result = detect_orphaned_worktrees(str(tmp_path))
+        assert result == []
+
+    def test_permission_error_treated_as_alive(self, tmp_path):
+        w = tmp_path / "worker-1"
+        w.mkdir()
+        (w / "worker.pid").write_text("12345")
+        with mock.patch("os.kill", side_effect=PermissionError):
+            result = detect_orphaned_worktrees(str(tmp_path))
+        assert result == []
+
+    def test_generic_oserror_treated_as_dead(self, tmp_path):
+        w = tmp_path / "worker-1"
+        w.mkdir()
+        (w / "worker.pid").write_text("12345")
+        with mock.patch("os.kill", side_effect=OSError("ESRCH")):
+            result = detect_orphaned_worktrees(str(tmp_path))
+        assert len(result) == 1
+
+    def test_multiple_workers_mixed_state(self, tmp_path):
+        for i in range(1, 4):
+            (tmp_path / f"worker-{i}").mkdir()
+            (tmp_path / f"worker-{i}" / "worker.pid").write_text(str(1000 + i))
+
+        def fake_kill(pid, sig):
+            if pid == 1001:
+                raise ProcessLookupError  # dead
+            if pid == 1002:
+                return None  # alive
+            raise PermissionError  # alive but not owned
+
+        with mock.patch("os.kill", side_effect=fake_kill):
+            result = detect_orphaned_worktrees(str(tmp_path))
+
+        assert len(result) == 1
+        assert result[0]["pid"] == 1001
+
+    def test_orphan_suggested_cmd_contains_absolute_path(self, tmp_path):
+        w = tmp_path / "worker-1"
+        w.mkdir()
+        (w / "worker.pid").write_text("99999")
+        with mock.patch("os.kill", side_effect=ProcessLookupError):
+            result = detect_orphaned_worktrees(str(tmp_path))
+        cmd = result[0]["suggested_cmd"]
+        assert cmd.startswith("git worktree remove ")
+        assert os.path.isabs(result[0]["path"])
+
+    def test_render_html_shows_orphaned_section(self):
+        """render_html includes ORPHANED section when orphaned_worktrees provided."""
+        args = _make_minimal_render_args()
+        orphans = [{"worker_dir": "worker-1", "path": "/some/path/worker-1", "pid": 9999, "suggested_cmd": "git worktree remove /some/path/worker-1"}]
+        html = render_html(*args, orphaned_worktrees=orphans)
+        assert "ORPHANED" in html
+        assert "worker-1" in html
+        assert "git worktree remove" in html
+        assert "9999" in html
+
+    def test_render_html_no_orphaned_section_when_empty(self):
+        args = _make_minimal_render_args()
+        html = render_html(*args, orphaned_worktrees=[])
+        assert "Orphaned Worktrees" not in html
