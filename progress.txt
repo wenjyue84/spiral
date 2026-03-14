@@ -4130,3 +4130,58 @@ This brief outlines the implementation plan for adding an automated workspace cl
 - prd.json must be opened with encoding='utf-8' on Windows (cp1252 default fails)
 - test_route_stories.py has a pre-existing import error (relative import issue) — ignore with --ignore flag
 - All 614 other tests pass
+## Iteration 55 - Sun, Mar 15, 2026  4:30:04 AM
+Incomplete: Add SPIRAL_WORKSPACE_CLEANUP to auto-prune transient artifacts on successful run completion (ID: US-136) — attempt 2/3
+
+
+## Pre-analysis for US-136 (Gemini 2.5 Pro)
+Based on the user story, the implementation is for the Spiral project's shell scripts, not a Frappe/Python app.
+
+### Technical Brief: US-136 Workspace Cleanup
+
+**1. Files to Modify:**
+*   `spiral.sh`: To add the main cleanup logic and the final call.
+*   `spiral_events.sh`: To add a function for logging the `workspace_cleanup` event.
+*   `spiral.config.sh`: To document the new `SPIRAL_WORKSPACE_CLEANUP` and `SPIRAL_CACHE_TTL` environment variables.
+
+**2. Involved Components:**
+*   **Hooks:** Not applicable. The cleanup function will be triggered conditionally at the end of the main execution loop in `spiral.sh`.
+*   **DocTypes:** Not applicable.
+
+**3. Implementation Approach:**
+*   In `spiral.sh`, create a `cleanup_workspace()` bash function.
+*   At the end of the script's main loop, add a condition to call this function only if `SPIRAL_WORKSPACE_CLEANUP` is "true" and the run was successful (all stories passed or skipped).
+*   Implement the function to:
+    *   Calculate initial disk usage: `pre_cleanup_bytes=$(du -sb .spiral/ | cut -f1)`.
+    *   Delete research cache entries older than `$SPIRAL_CACHE_TTL` (defaulting to 7 days) using `find`.
+    *   Archive old `_iteration_summary_*.json` files into a timestamped `.tar.gz` file in `.spiral/archive/`.
+    *   Remove any zero-byte log files within `.spiral/`.
+    *   Calculate final disk usage, compute the delta, and log it using the `spiral_events.sh` helper.
+
+**4. Edge Cases & Gotchas:**
+*   The script must create the `.spiral/archive/` directory if it doesn't exist (`mkdir -p`).
+*   The check for run completion status must be robust to prevent premature cleanup on failed runs.
+*   The `find ... -delete` command is destructive; paths must be precise to avoid accidentally removing preserved files like `prd.json`.
+*   Ensure default values are handled correctly, especially for `SPIRAL_CACHE_TTL`.
+
+
+## Iteration N - Story: US-171: Fast-path small stories: skip Gemini pre-analysis for estimatedComplexity=small
+
+### What was implemented
+- Added `SPIRAL_GEMINI_SKIP_SMALL="${SPIRAL_GEMINI_SKIP_SMALL:-true}"` to defaults in `ralph/ralph.sh` (line ~44)
+- Added fast-path block before the Gemini invocation in `ralph/ralph.sh` (before line 1614):
+  - Checks `SPIRAL_GEMINI_SKIP_SMALL != "false"` AND `SPIRAL_GEMINI_ANNOTATE_PROMPT` is unset
+  - Reads `estimatedComplexity` and `filesTouch` length from STORY_JSON using jq
+  - Sets `_GEMINI_FAST_SKIP=1` and logs `[precontext] skipped -- small story with <= 2 file hints`
+- Modified the Gemini if-condition to check `_GEMINI_FAST_SKIP -eq 0` first
+- Created `tests/gemini_skip_small.bats` with 12 tests (all passing)
+
+### Patterns discovered
+- STORY_JSON is available at the fast-path site (set a few lines earlier at line ~1567)
+- Bats tests that call a function directly can read variables set by it; calling via `run` or `$()` creates a subshell that blocks variable propagation
+- Use file redirection `> file.txt 2>&1` to capture stdout from direct function calls in bats
+
+### Gotchas
+- `$()` command substitution creates a subshell; variables set inside don't propagate to outer shell
+- `run` in bats also creates a subshell — same issue
+- test_route_stories.py has a pre-existing ImportError (not caused by this change)

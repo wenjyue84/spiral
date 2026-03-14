@@ -41,6 +41,7 @@ SPIRAL_OLLAMA_FALLBACK_MODEL="${SPIRAL_OLLAMA_FALLBACK_MODEL:-}"        # Ollama
 SPIRAL_OLLAMA_HOST="${SPIRAL_OLLAMA_HOST:-http://localhost:11434/v1}"   # Ollama OpenAI-compat base URL (default: local Ollama)
 SPIRAL_SKIP_SELF_REVIEW="${SPIRAL_SKIP_SELF_REVIEW:-false}"             # true = disable Phase I.5 LLM self-review gate (US-145)
 SPIRAL_SELF_REVIEW_MODEL="${SPIRAL_SELF_REVIEW_MODEL:-haiku}"           # Claude model for self-review; haiku to minimise cost (US-145)
+SPIRAL_GEMINI_SKIP_SMALL="${SPIRAL_GEMINI_SKIP_SMALL:-true}"           # true = skip Gemini pre-analysis for small stories with <=2 filesTouch (US-171)
 PRD_FILE="prd.json"
 PROGRESS_FILE="progress.txt"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -1594,7 +1595,23 @@ while [[ $ITERATION -lt $MAX_ITERATIONS ]]; do
     fi
   fi
 
-  if command -v gemini &>/dev/null && [[ -n "$STORY_JSON" && "$STORY_JSON" != "{}" ]]; then
+  # ── Fast-path: skip Gemini pre-analysis for small stories (US-171) ─────────
+  # Saves 10-30s per story with no quality loss for trivially small stories.
+  # Override: SPIRAL_GEMINI_SKIP_SMALL=false to disable; does not apply when
+  # SPIRAL_GEMINI_ANNOTATE_PROMPT is set (explicit annotation requested).
+  _GEMINI_FAST_SKIP=0
+  if [[ "${SPIRAL_GEMINI_SKIP_SMALL:-true}" != "false" && \
+        -z "${SPIRAL_GEMINI_ANNOTATE_PROMPT:-}" && \
+        -n "$STORY_JSON" && "$STORY_JSON" != "{}" ]]; then
+    _FP_COMPLEXITY=$($JQ -r '.estimatedComplexity // ""' <<<"$STORY_JSON" 2>/dev/null || echo "")
+    _FP_FILES_COUNT=$($JQ '(.filesTouch // []) | length' <<<"$STORY_JSON" 2>/dev/null || echo "99")
+    if [[ "$_FP_COMPLEXITY" == "small" && "$_FP_FILES_COUNT" -le 2 ]]; then
+      echo "  [precontext] skipped -- small story with <= 2 file hints"
+      _GEMINI_FAST_SKIP=1
+    fi
+  fi
+
+  if [[ "$_GEMINI_FAST_SKIP" -eq 0 ]] && command -v gemini &>/dev/null && [[ -n "$STORY_JSON" && "$STORY_JSON" != "{}" ]]; then
     _GEMINI_CACHE_DIR="${SPIRAL_SCRATCH_DIR}/gemini-cache"
     _GEMINI_CACHE_FILE="$_GEMINI_CACHE_DIR/${NEXT_STORY}.json"
     PRECONTEXT=""
