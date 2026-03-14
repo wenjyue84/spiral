@@ -4628,3 +4628,71 @@ This brief outlines the implementation plan for a new `spiral search` CLI comman
 ### Gotchas
 - Duplicate `else` clause in semantic search logic was a syntax error caught at import time — fixed before tests ran
 - rapidfuzz WRatio uses a 0-100 scale; normalise to 0-1 for consistency with cosine similarity scores
+## Iteration 64 - Sun, Mar 15, 2026  6:22:11 AM
+Completed: Add `spiral search QUERY` subcommand to find stories by natural language (ID: US-154) in 11m
+
+
+## Pre-analysis for US-155 (Gemini 2.5 Pro)
+**To:** Claude Code Agent
+**From:** Gemini-CLI
+**Subject:** Technical Brief for US-155: Auto-generate ADR
+
+This brief outlines the implementation plan for generating Architecture Decision Records (ADRs) automatically when a story passes validation in the Spiral project.
+
+**1. Files to Modify:**
+*   **`ralph/ralph.sh`**: The main orchestrator. Modify this script to invoke the ADR generation logic after a story passes validation but before the final git commit is made. This is also where the `SPIRAL_SKIP_ADR` environment variable will be checked.
+*   **`lib/generate_adr.py` (New File)**: This new Python script will contain the core logic for generating the ADR. It will be responsible for fetching story data, getting the code diff, calling the Claude API, and writing the resulting files.
+*   **`lib/prompts/adr_template.md` (New File)**: Create this file to hold the MADR prompt template.
+*   **`prd.json`**: This file will be updated by `lib/generate_adr.py` to include the `_adrPath` for the story.
+
+**2. Key Components & Hooks:**
+*   **Trigger**: The process is triggered by the "story pass" event within the `ralph.sh` workflow.
+*   **Data Source**: Story details will be read from the main `prd.json` file.
+*   **Core Logic**: The implementation will use Python for API interaction and file manipulation, leveraging the existing project structure.
+*   **State Management**: `prd.json` will be programmatically updated, likely using helper functions that should be investigated (e.g., using `lib/prd_lock.py`).
+
+**3. Recommended Implementation Approach:**
+1.  In `ralph.sh`, after the story validation step, add a call to the new Python script: `python lib/generate_adr.py $STORY_ID`.
+2.  The `generate_adr.py` script will:
+    a. Read the story details and `kebab-case` title from `prd.json`.
+    b. Get the relevant code changes for the story using a `git diff` command (likely `git diff --staged`).
+    c. Construct a prompt using `lib/prompts/adr_template.md`, the story data, and the diff.
+    d. Call the Claude (haiku) API to generate the ADR.
+    e. Write the response to `docs/decisions/<STORY_ID>-<kebab-title>.md`.
+    f. Update `prd.json` with the `_adrPath` field for that story, using the project's locking mechanism (`prd_lock.py`).
+3.  Back in `ralph.sh`, ensure the new ADR file and the modified `prd.json` are added to git staging before the final commit.
+
+**4. Edge Cases & Gotchas:**
+*   **Diff Content**: The method for capturing the `git diff` is crucial. The script must be called when changes are staged but not yet committed.
+*   **API Failure**: The Claude API call could fail. This should be handled gracefully with a warning log, and should not prevent the story from being committed.
+*   **Concurrency**: The `prd.json` file is a shared resource. Use `lib/prd_lock.py` to avoid race conditions during updates.
+*   **Filename Sanitization**: The story title must be sanitized to create a valid, URL-friendly filename for the ADR.
+
+
+## Iteration N - Story: US-155: Auto-generate ADR when story passes
+
+### What was implemented
+- Created `lib/prompts/adr_template.md` with MADR prompt template using `{story_id}`, `{story_title}`, `{story_description}`, `{acceptance_criteria}`, `{git_diff}` interpolation slots
+- Created `lib/generate_adr.py` with:
+  - `generate_adr(story_id, prd_path, output_dir, model, diff_override)` — public API used by tests
+  - `_kebab()` — title-to-filename slug (max 60 chars)
+  - `_get_staged_diff()` — tries `git diff --cached`, falls back to `git diff HEAD`
+  - `_call_claude()` — calls `claude` CLI with `--output-format text`, `unset CLAUDECODE`, 90s timeout
+  - `_update_prd_adr_path()` — updates `_adrPath` via `prd_lock.prd_locked` context manager
+- Added `docs/decisions/` directory with `.gitkeep`
+- Modified `ralph/ralph.sh`:
+  - Added `SPIRAL_SKIP_ADR="${SPIRAL_SKIP_ADR:-false}"` and `SPIRAL_ADR_MODEL="${SPIRAL_ADR_MODEL:-haiku}"` defaults (lines ~42-43)
+  - ADR generation block inserted between test-ratchet gate and `do_git_commit` call
+  - Captures output path via `tail -1`, stages file with `git add`, non-blocking on failure
+- Created `tests/test_generate_adr.py` with 21 tests (all pass); 676 total pytest pass
+
+### Patterns discovered
+- `unset CLAUDECODE` before calling `claude` CLI in subprocess — required to avoid tool-loop detection (same as run_self_review)
+- `_call_claude` uses `--output-format text` (not stream-json) for simpler text extraction; self-review uses stream-json to capture token counts
+- Python scripts from lib/ are resolved in ralph.sh via: `$(cd "$SCRIPT_DIR/.." && pwd)/lib/script.py`
+- ADR generation block outputs the file path on its last stdout line; ralph.sh captures with `tail -1`
+- `diff_override` parameter in `generate_adr()` enables test isolation without subprocess calls
+
+### Gotchas
+- SAMPLE_DIFF in tests must contain text that matches the assertion — `"exponential backoff"` is in the story title, not the diff content; use actual diff tokens like `"RateLimitError"` instead
+- `test_route_stories.py` has a pre-existing relative import error (`from .semantic_router import ...`) — ignore with `--ignore` flag when running full suite
