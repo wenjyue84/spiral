@@ -2980,3 +2980,24 @@ Incomplete: Emit JUnit XML from bats runs for GitHub Actions test summary (ID: U
 - bandit only processes Python files; non-Python staged files are silently skipped
 - `$staged_files` is unquoted in the scanner call (intentional: passes as separate args)
 - test_route_stories.py has pre-existing import error (not related to this story) — run pytest with --ignore
+## Iteration 15 - Sat, Mar 14, 2026  6:09:35 PM
+Incomplete: Emit JUnit XML from bats runs for GitHub Actions test summary (ID: US-089) — attempt 1/3
+
+
+## Iteration - Story: US-089: Emit JUnit XML from bats runs for GitHub Actions test summary
+
+### What was implemented
+- Added `bats` job to `.github/workflows/ci.yml` with:
+  - `tests/bats-core/bin/bats --formatter tap --report-formatter junit -o test-reports/ tests/*.bats tests/lib/*.bats`
+  - `actions/upload-artifact@v4` to upload `test-reports/*.xml`
+  - `dorny/test-reporter@v1` to render PR annotation panel (fail-on-error: false)
+- Added `test-reports/` to `.gitignore`
+
+### Patterns discovered
+- bats-core is bundled in `tests/bats-core/` — invoke via `tests/bats-core/bin/bats`, no external install needed
+- bats test files live in `tests/*.bats` and `tests/lib/*.bats` (not `test/` as story said)
+- checkout step needs `submodules: recursive` so bundled bats-core, bats-assert, bats-support are available
+
+### Gotchas
+- Story acceptance criteria says `test/` but actual directory is `tests/` — used actual path
+- `dorny/test-reporter@v1` requires `contents: read` and `checks: write` permissions on private repos; left as default since repo appears public

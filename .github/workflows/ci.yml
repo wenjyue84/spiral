@@ -80,3 +80,36 @@ jobs:
 
       - name: Run tests
         run: uv run pytest tests/ -v --tb=short
+
+  bats:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Run bats tests with JUnit output
+        run: |
+          mkdir -p test-reports
+          tests/bats-core/bin/bats \
+            --formatter tap \
+            --report-formatter junit \
+            -o test-reports/ \
+            tests/*.bats tests/lib/*.bats
+
+      - name: Upload bats JUnit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bats-junit-results
+          path: test-reports/*.xml
+
+      - name: Publish bats test results
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: Bats Tests
+          path: test-reports/*.xml
+          reporter: java-junit
+          fail-on-error: false
