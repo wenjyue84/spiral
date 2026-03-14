@@ -4750,3 +4750,63 @@ Completed: Auto-generate Architecture Decision Record (ADR) when story passes (I
 
 ### Gotchas
 - test_route_stories.py has a pre-existing relative import error (not related to this story)
+## Iteration 66 - Sun, Mar 15, 2026  6:48:55 AM
+Completed: Add `spiral compact-prd` command to strip transient runtime fields from prd.json (ID: US-156) in 10m
+
+
+## Pre-analysis for US-157 (Gemini 2.5 Pro)
+This technical brief is based on the provided story JSON and file listing. Note that the story describes modifications to a shell-based workflow, not a Frappe/Python application.
+
+**Project:** Spiral Git Workflow Enhancement
+**Story:** US-157 - Per-Story Feature Branching
+
+**1. Primary Files to Modify:**
+*   `ralph/ralph.sh`: This is the main orchestrator script where the new branching logic will be implemented. Changes will be needed at the start (before Phase I) and end (after Phase V) of the story lifecycle.
+*   `spiral.config.sh`: The new environment variables (`SPIRAL_BRANCH_PREFIX`, `SPIRAL_CREATE_PRS`, `SPIRAL_BASE_BRANCH`, `SPIRAL_KEEP_STORY_BRANCHES`) should be sourced from here.
+
+**2. Involved Frappe DocTypes/Hooks:**
+*   None. This story concerns the git repository and shell scripting, not Frappe.
+
+**3. Recommended Implementation Approach:**
+1.  **Branch Creation (Pre-Phase I in `ralph.sh`):**
+    *   Implement a function that runs before Phase I.
+    *   Check if the `$SPIRAL_BRANCH_PREFIX` variable is set and not empty.
+    *   If set, construct the branch name: `"$SPIRAL_BRANCH_PREFIX/$STORY_ID"`.
+    *   Use `git checkout -B "$branch_name"` to create the new branch or switch to it if it already exists, ensuring idempotency.
+
+2.  **Branch Merging/PR (Post-Phase V in `ralph.sh`):**
+    *   Implement a function that runs after a story passes all phases.
+    *   If `$SPIRAL_CREATE_PRS` is `true`, push the branch with `git push -u origin "$branch_name"` and leave it for the PR creation process.
+    *   Otherwise, switch back to the base branch (`$SPIRAL_BASE_BRANCH`) and merge the story branch using `git merge --no-ff "$branch_name"`.
+    *   If the merge is successful and `$SPIRAL_KEEP_STORY_BRANCHES` is not `true`, delete the local story branch with `git branch -d "$branch_name"`.
+
+**4. Edge Cases & Gotchas:**
+*   **Worktree Safety:** The technical notes mention `git worktree`. The script must avoid simple `git checkout` commands if it detects it's running in a parallel worktree environment to prevent errors. A check using `git worktree list` might be necessary.
+*   **State Management:** Ensure the script correctly handles failures. If any phase fails, the branch should not be merged or deleted.
+*   **Configuration:** The script must gracefully handle the case where `SPIRAL_BRANCH_PREFIX` is not set, performing no branching actions.
+*   **Cleanliness:** Ensure temporary state or failed merge artifacts are cleaned up.
+
+
+## Iteration N - Story: US-158: Add per-worker CPU and memory resource accounting columns to results.tsv
+
+### What was implemented
+- ralph/ralph.sh: Added SPIRAL_WORKER_MEMORY_LIMIT default (0=disabled, KB)
+- ralph/ralph.sh: Per-story reset of _WALL_SEC, _USER_CPU_S, _SYS_CPU_S, _PEAK_RSS_KB at STORY_START
+- ralph/ralph.sh: _GNU_TIME_CMD array set before rate-limit loop (Linux only via uname -s check)
+- ralph/ralph.sh: claude call wrapped with "${_GNU_TIME_CMD[@]+"${_GNU_TIME_CMD[@]}"}" prefix — zero overhead when array is empty (non-Linux)
+- ralph/ralph.sh: Resource file parsed after rate-limit loop; OOM check triggers log_spiral_event + spiral_log_low_power if peak_rss_kb > SPIRAL_WORKER_MEMORY_LIMIT
+- ralph/ralph.sh: append_result() header extended to 18 cols (added wall_seconds, user_cpu_s, sys_cpu_s, peak_rss_kb)
+- lib/spiral_dashboard.py: load_results() coerces the 4 new float columns; added compute_resource_usage() with median/p95 per model
+- lib/spiral_dashboard.py: render_html() accepts resource_usage param; adds "Resource Usage by Model" section with p50/p95 wall/RSS table
+- tests/test_resource_accounting.py: 10 unit tests covering header presence, float coercion, missing-col graceful load, compute_resource_usage logic
+
+### Patterns discovered
+- GNU time -f '%e %U %S %M' writes to -o file; does not pollute stdout pipeline — safe to inject before a piped command
+- "${arr[@]+"${arr[@]}"}" pattern safely expands an empty bash array to nothing (avoids set -u issues)
+- Platform guard: /usr/bin/time -f test on Windows MINGW64 will silently fail → _GNU_TIME_CMD stays empty → resource cols default to 0
+- float() coercion (not int()) needed for wall_seconds/user_cpu_s which can be decimals like 95.3
+
+### Gotchas
+- GNU time -f '%e %U %S %M' outputs wall_sec user_cpu sys_cpu peak_rss all on ONE LINE separated by spaces — use bash `read a b c d < file`
+- On 529-retry loops, _RESOURCE_TMP is overwritten each attempt; last successful call's stats are captured
+- Results.tsv header mismatch: existing single-row file had 14 cols; now 18 — old files still load cleanly (missing cols just absent from dict)

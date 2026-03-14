@@ -44,6 +44,7 @@ SPIRAL_SELF_REVIEW_MODEL="${SPIRAL_SELF_REVIEW_MODEL:-haiku}"           # Claude
 SPIRAL_GEMINI_SKIP_SMALL="${SPIRAL_GEMINI_SKIP_SMALL:-true}"           # true = skip Gemini pre-analysis for small stories with <=2 filesTouch (US-171)
 SPIRAL_SKIP_ADR="${SPIRAL_SKIP_ADR:-false}"                             # true = disable ADR generation after story passes (US-155)
 SPIRAL_ADR_MODEL="${SPIRAL_ADR_MODEL:-haiku}"                           # Claude model for ADR generation; haiku to minimise cost (US-155)
+SPIRAL_WORKER_MEMORY_LIMIT="${SPIRAL_WORKER_MEMORY_LIMIT:-0}"           # 0 = disabled; KB — peak RSS after story triggers OOM guard (US-158)
 PRD_FILE="prd.json"
 PROGRESS_FILE="progress.txt"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -790,13 +791,14 @@ append_result() {
   local duration_sec=$((STORY_END - STORY_START))
   local model_col="${EFFECTIVE_MODEL:-${EFFECTIVE_TOOL:-unknown}}"
   if [[ ! -f "$RESULTS_FILE" ]]; then
-    printf 'timestamp\tspiral_iter\tralph_iter\tstory_id\tstory_title\tstatus\tduration_sec\tmodel\tretry_num\tcommit_sha\trun_id\tcache_hit\tcache_read_tokens\treview_tokens\n' >"$RESULTS_FILE"
+    printf 'timestamp\tspiral_iter\tralph_iter\tstory_id\tstory_title\tstatus\tduration_sec\tmodel\tretry_num\tcommit_sha\trun_id\tcache_hit\tcache_read_tokens\treview_tokens\twall_seconds\tuser_cpu_s\tsys_cpu_s\tpeak_rss_kb\n' >"$RESULTS_FILE"
   fi
   local safe_title="${STORY_TITLE//$'\t'/ }"
-  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
     "$ts" "${SPIRAL_ITER:-0}" "$ITERATION" "$NEXT_STORY" "$safe_title" \
     "$status" "$duration_sec" "$model_col" "$RETRY_NOW" "$commit_sha" "${SPIRAL_RUN_ID:-}" \
     "${_CACHE_HIT:-false}" "${_CACHE_READ_TOKENS:-0}" "${_REVIEW_TOKENS:-0}" \
+    "${_WALL_SEC:-0}" "${_USER_CPU_S:-0}" "${_SYS_CPU_S:-0}" "${_PEAK_RSS_KB:-0}" \
     >>"$RESULTS_FILE"
 }
 
@@ -1563,6 +1565,7 @@ while [[ $ITERATION -lt $MAX_ITERATIONS ]]; do
   STORY_START=$(date +%s)
   _OLLAMA_USED=0      # reset per-story; set to 1 if Ollama fallback fires (US-144)
   _REVIEW_TOKENS=0    # reset per-story; set by run_self_review Phase I.5 (US-145)
+  _WALL_SEC=0; _USER_CPU_S=0; _SYS_CPU_S=0; _PEAK_RSS_KB=0  # reset per-story resource stats (US-158)
   echo ""
   echo "  [spawn] Fresh $EFFECTIVE_TOOL instance for $NEXT_STORY..."
 
@@ -1725,6 +1728,14 @@ Story JSON: $STORY_JSON"
     continue
   fi
 
+  # ── Resource accounting setup (US-158) ─────────────────────────────────────
+  # Use GNU time on Linux to capture wall/user/sys/RSS; else timing defaults to 0.
+  _RESOURCE_TMP="${SPIRAL_SCRATCH_DIR}/_res_$$.tmp"
+  _GNU_TIME_CMD=()
+  if [[ "$(uname -s 2>/dev/null)" == "Linux" ]] && /usr/bin/time -f '%e' -o /dev/null true 2>/dev/null; then
+    _GNU_TIME_CMD=(/usr/bin/time -f '%e %U %S %M' -o "$_RESOURCE_TMP")
+  fi
+
   # ── Rate-limit retry loop (covers all AI tools) ────────────────────────────
   _RL_ATTEMPT=0
   _RL_MAX=5
@@ -1823,7 +1834,7 @@ $RALPH_USER_PROMPT"
         mkdir -p "${SPIRAL_SCRATCH_DIR}"
         (
           unset CLAUDECODE
-          claude -p "$RALPH_USER_PROMPT" \
+          "${_GNU_TIME_CMD[@]+"${_GNU_TIME_CMD[@]}"}" claude -p "$RALPH_USER_PROMPT" \
             $CLAUDE_MODEL_FLAG \
             --append-system-prompt "$RALPH_SYSTEM_PROMPT" \
             --betas prompt-caching-2024-07-31 \
@@ -1978,6 +1989,26 @@ $RALPH_USER_PROMPT"
     rm -f "$_RL_TMP"
     break
   done # end rate-limit retry loop
+
+  # ── Parse resource accounting output (US-158) ──────────────────────────────
+  if [[ -s "$_RESOURCE_TMP" ]]; then
+    read _WALL_SEC _USER_CPU_S _SYS_CPU_S _PEAK_RSS_KB 2>/dev/null <"$_RESOURCE_TMP" || true
+    rm -f "$_RESOURCE_TMP"
+  fi
+  _WALL_SEC="${_WALL_SEC:-0}"; _USER_CPU_S="${_USER_CPU_S:-0}"
+  _SYS_CPU_S="${_SYS_CPU_S:-0}"; _PEAK_RSS_KB="${_PEAK_RSS_KB:-0}"
+
+  # ── Post-story OOM guard (US-158) ───────────────────────────────────────────
+  if [[ "${SPIRAL_WORKER_MEMORY_LIMIT:-0}" -gt 0 && \
+        "${_PEAK_RSS_KB:-0}" -gt 0 ]] 2>/dev/null; then
+    if [[ "${_PEAK_RSS_KB}" -gt "${SPIRAL_WORKER_MEMORY_LIMIT}" ]] 2>/dev/null; then
+      echo "  [memory] WARNING: Story $NEXT_STORY peak RSS ${_PEAK_RSS_KB} KB exceeded limit ${SPIRAL_WORKER_MEMORY_LIMIT} KB"
+      log_spiral_event "oom_threshold_exceeded" \
+        "\"story_id\":\"${NEXT_STORY}\",\"peak_rss_kb\":${_PEAK_RSS_KB},\"limit_kb\":${SPIRAL_WORKER_MEMORY_LIMIT}" 2>/dev/null || true
+      type spiral_log_low_power &>/dev/null && \
+        spiral_log_low_power "ralph: OOM threshold exceeded for $NEXT_STORY (${_PEAK_RSS_KB}KB > ${SPIRAL_WORKER_MEMORY_LIMIT}KB)"
+    fi
+  fi
 
   # ── Accumulate per-story token cost ───────────────────────────────────────
   _STORY_CUMULATIVE_USD=0

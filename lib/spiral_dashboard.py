@@ -50,12 +50,13 @@ def load_results(path: str) -> list[dict]:
         reader = csv.DictReader(f, delimiter="\t")
         for row in reader:
             for key in ("duration_sec", "retry_num", "spiral_iter", "ralph_iter",
-                        "input_tokens", "output_tokens"):
+                        "input_tokens", "output_tokens",
+                        "wall_seconds", "user_cpu_s", "sys_cpu_s", "peak_rss_kb"):
                 if key in row and row[key]:
                     try:
-                        row[key] = int(row[key])
+                        row[key] = float(row[key])
                     except (ValueError, TypeError):
-                        row[key] = 0
+                        row[key] = 0.0
             rows.append(row)
     return rows
 
@@ -216,6 +217,43 @@ def compute_model_performance(results: list[dict]) -> list[dict]:
         })
     perf.sort(key=lambda x: x["success_rate"], reverse=True)
     return perf
+
+
+def compute_resource_usage(results: list[dict]) -> list[dict]:
+    """Compute median and p95 resource usage per model tier (US-158).
+
+    Returns a list of dicts with keys: model, count, median_wall_s,
+    p95_wall_s, median_rss_kb, p95_rss_kb.  Rows with zero wall_seconds
+    are excluded from wall stats; rows with zero peak_rss_kb from RSS stats.
+    """
+    if not results:
+        return []
+    by_model: dict[str, list[dict]] = defaultdict(list)
+    for r in results:
+        by_model[r.get("model", "unknown")].append(r)
+
+    def _p95(vals: list[float]) -> float:
+        if not vals:
+            return 0.0
+        sorted_v = sorted(vals)
+        idx = max(0, int(len(sorted_v) * 0.95) - 1)
+        return sorted_v[idx]
+
+    usage = []
+    for model, rows in sorted(by_model.items()):
+        wall_vals = [float(r.get("wall_seconds", 0)) for r in rows
+                     if float(r.get("wall_seconds", 0)) > 0]
+        rss_vals = [float(r.get("peak_rss_kb", 0)) for r in rows
+                    if float(r.get("peak_rss_kb", 0)) > 0]
+        usage.append({
+            "model": model,
+            "count": len(rows),
+            "median_wall_s": median(wall_vals) if wall_vals else 0.0,
+            "p95_wall_s": _p95(wall_vals),
+            "median_rss_kb": median(rss_vals) if rss_vals else 0.0,
+            "p95_rss_kb": _p95(rss_vals),
+        })
+    return usage
 
 
 def compute_retry_analysis(results: list[dict]) -> list[dict]:
@@ -740,7 +778,8 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
                 story_attempts: dict | None = None,
                 refresh_secs: int = 0,
                 orphaned_worktrees: list[dict] | None = None,
-                token_forecast: dict | None = None) -> str:
+                token_forecast: dict | None = None,
+                resource_usage: list[dict] | None = None) -> str:
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     max_vel = max((v["kept"] for v in velocity), default=1) or 1
 
@@ -784,6 +823,21 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
             f'<td>{m["avg_duration"]:.0f}s</td>'
             f'</tr>\n'
         )
+
+    # Resource usage table (US-158)
+    resource_rows = ""
+    for ru in (resource_usage or []):
+        if ru["median_wall_s"] > 0 or ru["median_rss_kb"] > 0:
+            resource_rows += (
+                f'<tr>'
+                f'<td>{escape(ru["model"])}</td>'
+                f'<td>{ru["count"]}</td>'
+                f'<td>{ru["median_wall_s"]:.1f}s</td>'
+                f'<td>{ru["p95_wall_s"]:.1f}s</td>'
+                f'<td>{ru["median_rss_kb"]:.0f}</td>'
+                f'<td>{ru["p95_rss_kb"]:.0f}</td>'
+                f'</tr>\n'
+            )
 
     # Retry bars
     retry_rows = ""
@@ -1122,6 +1176,14 @@ footer{{text-align:center;color:#444;font-size:10px;margin-top:16px;padding-top:
 </section>
 </div>
 
+<section>
+<h2>Resource Usage by Model</h2>
+<table>
+<tr><th>Model</th><th>Runs</th><th>Wall p50</th><th>Wall p95</th><th>RSS p50 (KB)</th><th>RSS p95 (KB)</th></tr>
+{resource_rows if resource_rows else '<tr><td colspan="6" class="no-data">No resource data (GNU time not available on this platform)</td></tr>'}
+</table>
+</section>
+
 <div class="two-col">
 <section>
 <h2>Retry Analysis</h2>
@@ -1211,6 +1273,7 @@ def main() -> int:
     failure_reasons = compute_failure_reasons(prd)
     story_attempts = compute_story_attempts(prd, results)
     token_forecast = compute_token_forecast(results)
+    resource_usage = compute_resource_usage(results)
 
     # Find latest screenshot
     screenshot = find_latest_screenshot(args.scratch_dir)
@@ -1220,7 +1283,7 @@ def main() -> int:
         velocity = [{"iter": 0, "kept": 0, "total": 0, "duration_hours": 0.001, "velocity": 0}]
 
     # Render
-    html = render_html(overview, velocity, status, model_perf, retry_analysis, bottle, decomposition, insights, screenshot, iteration_velocity=iter_vel, epics=epics, activity_sections=activity, failure_reasons=failure_reasons, story_attempts=story_attempts, refresh_secs=args.refresh_secs, orphaned_worktrees=orphans, token_forecast=token_forecast)
+    html = render_html(overview, velocity, status, model_perf, retry_analysis, bottle, decomposition, insights, screenshot, iteration_velocity=iter_vel, epics=epics, activity_sections=activity, failure_reasons=failure_reasons, story_attempts=story_attempts, refresh_secs=args.refresh_secs, orphaned_worktrees=orphans, token_forecast=token_forecast, resource_usage=resource_usage)
 
     # Write
     output_path = os.path.abspath(args.output)
