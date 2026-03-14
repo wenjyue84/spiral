@@ -89,36 +89,33 @@ def classify_risk(story: dict) -> dict:
 
 def explain_story(story: dict) -> str:
     """Generate a plain-English explanation of what this story does."""
-    title = story.get("title", "Untitled")
     desc = story.get("description", "")
     ac = story.get("acceptanceCriteria", [])
     deps = story.get("dependencies", [])
 
     parts = []
-    parts.append(f"This task asks the AI agent to <strong>{escape(title.lower())}</strong>.")
 
     if desc:
-        parts.append(f"{escape(desc)}")
+        parts.append(f"<p>{escape(desc)}</p>")
 
     if ac:
-        parts.append("When finished, it should meet these requirements:")
         items = "".join(f"<li>{escape(c)}</li>" for c in ac)
-        parts.append(f"<ul>{items}</ul>")
+        parts.append(f'<p style="margin-top:10px;font-size:0.85rem;color:var(--text-dim)">Done when:</p><ul>{items}</ul>')
 
     if deps:
         dep_str = ", ".join(deps)
-        parts.append(f"<em>Note: This can only be done after {escape(dep_str)} is completed first.</em>")
+        parts.append(f"<p><em>⛓ Blocked until {escape(dep_str)} completes first.</em></p>")
 
-    return "\n".join(parts)
+    return "\n".join(parts) if parts else "<p style='color:var(--text-dim)'>No description provided.</p>"
 
 
 def explain_impact(story: dict) -> str:
-    """Explain in simple terms what parts of the project this will change."""
+    """Return implementation notes HTML, or empty string if nothing meaningful to show."""
     notes = story.get("technicalNotes", [])
     if not notes:
-        return "The AI will determine which files to modify based on the requirements."
+        return ""
     items = "".join(f"<li>{escape(n)}</li>" for n in notes)
-    return f"Technical approach:<ul>{items}</ul>"
+    return f"<ul>{items}</ul>"
 
 
 # ── HTML generation ──────────────────────────────────────────────────────────
@@ -197,10 +194,24 @@ def generate_html(prd: dict, iteration: int, added_count: int = 0) -> str:
         if s.get("_decomposedFrom"):
             sub_badge = f'<span class="badge badge-sub">Sub-story of {escape(s["_decomposedFrom"])}</span>'
 
-        risk_reasons = ""
-        if risk["reasons"]:
+        # Risk: only show body section for medium/high — low is already visible as a badge
+        risk_body = ""
+        if risk["level"] != "Low" and risk["reasons"]:
             risk_items = "".join(f"<li>{escape(r)}</li>" for r in risk["reasons"])
-            risk_reasons = f'<ul class="risk-reasons">{risk_items}</ul>'
+            risk_body = f'''
+                <div class="section risk-section">
+                    <h4>{risk['icon']} Risk: {risk['level']}</h4>
+                    <ul class="risk-reasons">{risk_items}</ul>
+                </div>'''
+
+        # Impact: only show section when there are actual technical notes
+        impact_section = ""
+        if impact:
+            impact_section = f'''
+                <div class="section">
+                    <h4>🔧 Implementation notes</h4>
+                    <div class="explanation">{impact}</div>
+                </div>'''
 
         card = f"""
         <div class="story-card" id="story-{sid}">
@@ -218,18 +229,10 @@ def generate_html(prd: dict, iteration: int, added_count: int = 0) -> str:
             </div>
             <div class="story-body">
                 <div class="section">
-                    <h4>📖 What does this do? (Plain English)</h4>
                     <div class="explanation">{explanation}</div>
                 </div>
-                <div class="section">
-                    <h4>🔧 What will be changed?</h4>
-                    <div class="explanation">{impact}</div>
-                </div>
-                <div class="section risk-section">
-                    <h4>{risk['icon']} Risk Assessment</h4>
-                    <p><strong>{risk['level']} risk</strong></p>
-                    {risk_reasons}
-                </div>
+                {impact_section}
+                {risk_body}
             </div>
             <div class="story-actions">
                 <span class="action-hint">Your decision:</span>
@@ -348,13 +351,12 @@ body {{
     background: #1e3a5f;
     border: 1px solid var(--accent);
     border-radius: 10px;
-    padding: 18px 22px;
+    padding: 12px 22px;
     margin-bottom: 28px;
-    font-size: 0.92rem;
-    line-height: 1.7;
+    font-size: 0.88rem;
+    line-height: 1.5;
+    color: var(--text-dim);
 }}
-.info-box h3 {{ color: var(--accent); margin-bottom: 8px; font-size: 1rem; }}
-.info-box ul {{ padding-left: 20px; }}
 
 /* Story cards */
 .story-card {{
@@ -614,14 +616,9 @@ body {{
     </div>
 
     <div class="info-box">
-        <h3>📋 How to use this report</h3>
-        <ul>
-            <li><strong>Review</strong> each story below — they're explained in plain English so you know exactly what the AI will do.</li>
-            <li><strong>Approve</strong> ✅ stories you're happy with — the AI will implement them as-is.</li>
-            <li><strong>Edit</strong> ✏️ stories that need changes — add notes on what to adjust, then edit prd.json before proceeding.</li>
-            <li><strong>Reject</strong> ❌ stories you don't want — remove them from prd.json before proceeding.</li>
-            <li>Click <strong>"Generate Summary"</strong> at the bottom to get a text summary of your decisions you can paste or reference.</li>
-        </ul>
+        <span>✅ <strong>Approve</strong> — implement as-is &nbsp;·&nbsp;
+        ✏️ <strong>Needs Edit</strong> — add notes + edit prd.json &nbsp;·&nbsp;
+        ❌ <strong>Reject</strong> — remove from prd.json before proceeding</span>
     </div>
 
     <h2 style="margin-bottom:16px; font-size:1.2rem;">📝 Stories Awaiting Your Approval</h2>
