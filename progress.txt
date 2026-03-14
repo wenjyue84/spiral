@@ -2842,3 +2842,27 @@ Completed: Auto-detect SPIRAL_STORY_PREFIX from existing prd.json IDs at wizard 
 ### Gotchas
 - `spiralVersion` field is optional (backwards compatible) — validate_checkpoint() in state_machine.py already ignores unknown fields so no changes needed there
 - Use `${CKPT_SPIRAL_VERSION%.*}` guard (non-empty check) to avoid false warning when resuming old checkpoints without the field
+## Iteration 8 - Sat, Mar 14, 2026  5:00:39 PM
+Completed: Emit SPIRAL_VERSION to _checkpoint.json for version mismatch detection on resume (ID: US-075) in 6m
+
+## Iteration 9 - Sat, Mar 14, 2026  5:01:54 PM
+Incomplete: Emit JUnit XML from bats runs for GitHub Actions test summary (ID: US-089) — attempt 1/3
+
+
+## Iteration N - Story: US-100: Add SPIRAL_NOTIFY_WEBHOOK for per-phase-transition HTTP POST notifications
+
+### What was implemented
+- Added `SPIRAL_NOTIFY_WEBHOOK`, `SPIRAL_NOTIFY_WEBHOOK_TIMEOUT` (default 5s), `SPIRAL_NOTIFY_WEBHOOK_HEADERS` env var defaults (lines ~282-284 of spiral.sh)
+- Added `notify_webhook()` bash function after `log_spiral_event()` — uses `jq` for correct JSON escaping, `curl` for HTTP POST, non-fatal on failure
+- Added `notify_webhook` calls at every phase start/end boundary: R, T, M, G (+ approval-pending with gate_report_path), I, V, C
+- Phase G approval-pending fires with `"gate_report_path"` field pointing to `latest-review.html`
+
+### Patterns discovered
+- `notify_webhook` inserted immediately after each `log_spiral_event "phase_start/end"` line — keeps notification co-located with event logging
+- `jq -n --arg ... --argjson ...` pattern used for JSON body construction (same as elsewhere in codebase)
+- Extra fields passed as raw JSON fragment string `"key":"value"` and merged with `jq '. + $x'`
+
+### Gotchas
+- Phase G has three notification events: start (fire before checkpoint check), pending (with gate report path, before user prompt), end (after I completes)
+- `$JQ` variable (resolved jq binary path) must be available — it is, since notify_webhook is called in the main loop after JQ is resolved
+- The test suite hits MemoryError in pytest's internal formatter when running all 188+ tests — tests still pass, it's a pytest OOM in output formatting only

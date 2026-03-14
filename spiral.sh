@@ -277,6 +277,9 @@ SPIRAL_IMPL_TIMEOUT="${SPIRAL_IMPL_TIMEOUT:-600}"          # seconds; 0 = disabl
 SPIRAL_VALIDATE_TIMEOUT="${SPIRAL_VALIDATE_TIMEOUT:-300}"  # seconds; 0 = disabled (unlimited)
 SPIRAL_TEST_SYNTH_TIMEOUT="${SPIRAL_TEST_SYNTH_TIMEOUT:-60}"  # seconds; 0 = disabled (unlimited); Phase T synthesize_tests timeout
 SPIRAL_PREEMPTIVE_PRESSURE_MB="${SPIRAL_PREEMPTIVE_PRESSURE_MB:-0}"  # MB; 0 = disabled; free RAM below this triggers preemptive pressure level 1
+SPIRAL_NOTIFY_WEBHOOK="${SPIRAL_NOTIFY_WEBHOOK:-}"                    # HTTPS URL; empty = disabled; POST JSON at each phase start/end
+SPIRAL_NOTIFY_WEBHOOK_TIMEOUT="${SPIRAL_NOTIFY_WEBHOOK_TIMEOUT:-5}"  # seconds; max wait per POST (default 5)
+SPIRAL_NOTIFY_WEBHOOK_HEADERS="${SPIRAL_NOTIFY_WEBHOOK_HEADERS:-}"   # optional HTTP header, e.g. "Authorization: Bearer TOKEN"
 
 # ── Config validation ─────────────────────────────────────────────────────────
 # Validates required keys are set and applies defaults for optional keys.
@@ -690,6 +693,46 @@ log_spiral_event() {
   fi
 }
 
+# ── Helper: POST a JSON notification to SPIRAL_NOTIFY_WEBHOOK (US-100) ──────
+# Usage: notify_webhook PHASE EVENT [STATUS] [EXTRA_FIELDS]
+#   PHASE:        R, T, M, G, I, V, C
+#   EVENT:        start | end
+#   STATUS:       ok | failed | skipped  (default: ok)
+#   EXTRA_FIELDS: additional jq-compatible key=value pairs (optional)
+# Non-fatal: logs a warning on failure and returns 0.
+notify_webhook() {
+  [[ -z "${SPIRAL_NOTIFY_WEBHOOK:-}" ]] && return 0
+  local phase="$1" event="$2" status="${3:-ok}" extra_arg="${4:-}"
+  local ts body curl_args=()
+  ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  # Build JSON body using jq for correct escaping
+  body="$("$JQ" -n \
+    --arg run_id    "${SPIRAL_RUN_ID:-}" \
+    --arg phase     "$phase" \
+    --arg event     "$event" \
+    --arg status    "$status" \
+    --arg ts        "$ts" \
+    --argjson iter  "${SPIRAL_ITER:-0}" \
+    '{run_id: $run_id, phase: $phase, event: $event, status: $status, timestamp_iso: $ts, iteration: $iter}' 2>/dev/null)" || {
+      echo "  [webhook] WARNING: Failed to build JSON body (non-fatal)" >&2
+      return 0
+  }
+  # Merge extra fields (e.g., gate_report_path) if provided
+  if [[ -n "$extra_arg" ]]; then
+    body="$("$JQ" --argjson x "{$extra_arg}" '. + $x' <<< "$body" 2>/dev/null || echo "$body")"
+  fi
+  # Build curl args
+  curl_args=(-s -o /dev/null --max-time "${SPIRAL_NOTIFY_WEBHOOK_TIMEOUT:-5}"
+             -X POST -H "Content-Type: application/json" -d "$body")
+  if [[ -n "${SPIRAL_NOTIFY_WEBHOOK_HEADERS:-}" ]]; then
+    curl_args+=(-H "$SPIRAL_NOTIFY_WEBHOOK_HEADERS")
+  fi
+  curl_args+=("$SPIRAL_NOTIFY_WEBHOOK")
+  if ! curl "${curl_args[@]}" 2>/dev/null; then
+    echo "  [webhook] WARNING: POST to SPIRAL_NOTIFY_WEBHOOK failed (non-fatal)" >&2
+  fi
+}
+
 # ── Helper: returns 0 if current iter already completed this phase ───────────
 checkpoint_phase_done() {
   local phase="$1"
@@ -1052,6 +1095,7 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
   echo ""
   echo "  [Phase R] RESEARCH — searching sources..."
   log_spiral_event "phase_start" "\"phase\":\"R\",\"iteration\":$SPIRAL_ITER"
+  notify_webhook "R" "start"
   _PHASE_TS_R=$(date +%s)
   RESEARCH_OUTPUT="$SCRATCH_DIR/_research_output.json"
 
@@ -1274,12 +1318,14 @@ $INJECTED_PROMPT"
   fi
   _PHASE_DUR_R=$(( $(date +%s) - _PHASE_TS_R ))
   log_spiral_event "phase_end" "\"phase\":\"R\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_R"
+  notify_webhook "R" "end"
 
   # ── Phase T: TEST SYNTHESIS ─────────────────────────────────────────────────
   PHASE="T"
   echo ""
   echo "  [Phase T] TEST SYNTHESIS — scanning test failures..."
   log_spiral_event "phase_start" "\"phase\":\"T\",\"iteration\":$SPIRAL_ITER"
+  notify_webhook "T" "start"
   _PHASE_TS_T=$(date +%s)
   TEST_OUTPUT="$SCRATCH_DIR/_test_stories_output.json"
 
@@ -1349,12 +1395,14 @@ $INJECTED_PROMPT"
   fi
   _PHASE_DUR_T=$(( $(date +%s) - _PHASE_TS_T ))
   log_spiral_event "phase_end" "\"phase\":\"T\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_T"
+  notify_webhook "T" "end"
 
   # ── Phase M: MERGE ──────────────────────────────────────────────────────────
   PHASE="M"
   echo ""
   echo "  [Phase M] MERGE — deduplicating and patching prd.json..."
   log_spiral_event "phase_start" "\"phase\":\"M\",\"iteration\":$SPIRAL_ITER"
+  notify_webhook "M" "start"
   _PHASE_TS_M=$(date +%s)
 
   if checkpoint_phase_done "M"; then
@@ -1434,10 +1482,12 @@ $INJECTED_PROMPT"
 
   _PHASE_DUR_M=$(( $(date +%s) - _PHASE_TS_M ))
   log_spiral_event "phase_end" "\"phase\":\"M\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_M"
+  notify_webhook "M" "end"
 
   # ── Phase G: HUMAN GATE + Phase I: IMPLEMENT ───────────────────────────────
   PHASE="G"
   log_spiral_event "phase_start" "\"phase\":\"G\",\"iteration\":$SPIRAL_ITER"
+  notify_webhook "G" "start"
   _PHASE_TS_I=$(date +%s)
   if checkpoint_phase_done "I"; then
     echo "  [G+I] Skipping (checkpoint: gate and ralph already done this iter)"
@@ -1455,6 +1505,7 @@ $INJECTED_PROMPT"
         --open 2>/dev/null || true
     fi
 
+    notify_webhook "G" "pending" "ok" "\"gate_report_path\":\"$GATE_REPORTS_DIR/latest-review.html\""
     echo ""
     echo "  ╔══════════════════════════════════════════════════════╗"
     echo "  ║  [Phase G] HUMAN GATE — Iteration $SPIRAL_ITER"
@@ -1514,6 +1565,7 @@ $INJECTED_PROMPT"
         # ── Phase I: IMPLEMENT (Ralph) ──────────────────────────────────
         PHASE="I"
         log_spiral_event "phase_start" "\"phase\":\"I\",\"iteration\":$SPIRAL_ITER"
+        notify_webhook "I" "start"
         echo ""
 
         # Short-circuit if nothing to implement
@@ -1820,13 +1872,16 @@ $INJECTED_PROMPT"
   fi
   _PHASE_DUR_I=$(( $(date +%s) - _PHASE_TS_I ))
   log_spiral_event "phase_end" "\"phase\":\"I\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_I"
+  notify_webhook "I" "end"
   log_spiral_event "phase_end" "\"phase\":\"G\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_I"
+  notify_webhook "G" "end"
 
   # ── Phase V: VALIDATE (test suite) ────────────────────────────────────────
   PHASE="V"
   echo ""
   echo "  [Phase V] VALIDATE — running test suite..."
   log_spiral_event "phase_start" "\"phase\":\"V\",\"iteration\":$SPIRAL_ITER"
+  notify_webhook "V" "start"
   _PHASE_TS_V=$(date +%s)
 
   if checkpoint_phase_done "V"; then
@@ -1971,6 +2026,7 @@ PYEOF
   fi
   _PHASE_DUR_V=$(( $(date +%s) - _PHASE_TS_V ))
   log_spiral_event "phase_end" "\"phase\":\"V\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_V"
+  notify_webhook "V" "end"
 
   # ── Phase P: PUSH ──────────────────────────────────────────────────────────
   echo ""
@@ -1986,6 +2042,7 @@ PYEOF
   echo ""
   echo "  [Phase C] CHECK DONE..."
   log_spiral_event "phase_start" "\"phase\":\"C\",\"iteration\":$SPIRAL_ITER"
+  notify_webhook "C" "start"
   _PHASE_TS_C=$(date +%s)
 
   _CHECK_DONE_RC=0
@@ -2131,6 +2188,7 @@ PYEOF
 
   _PHASE_DUR_C=$(( $(date +%s) - _PHASE_TS_C ))
   log_spiral_event "phase_end" "\"phase\":\"C\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_C"
+  notify_webhook "C" "end"
   echo "  [C] Looping back to Phase R"
   echo ""
 done
