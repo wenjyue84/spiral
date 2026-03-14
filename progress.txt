@@ -4353,3 +4353,57 @@ Based on the user story JSON, here is a technical brief.
 ### Gotchas
 - First loop in rotation MUST only delete file at position `_KEEP` (not all rotations)
 - Shift loop goes from `_KEEP-1` down to 1 (not from _KEEP down) to avoid overwriting
+
+
+## Pre-analysis for US-136 (Gemini 2.5 Pro)
+Here is the technical brief for user story US-136.
+
+**Project:** Spiral (Shell-based tool, not a Frappe/Python app)
+
+**Objective:** Implement an automated workspace cleanup feature triggered by an environment variable.
+
+**1. Files to Modify:**
+*   `spiral.sh`: This is the main script where the core logic will reside. A new `cleanup_workspace()` bash function should be added here.
+*   `lib/spiral_events.sh`: This utility will likely be used to log the `workspace_cleanup` event and its `bytes_freed` metric to `spiral_events.jsonl`.
+
+**2. Frappe DocTypes / Hooks:**
+*   None. The provided story and project structure indicate this is a shell-based command-line tool, not a Frappe application.
+
+**3. Recommended Approach:**
+1.  Define a `cleanup_workspace()` function in `spiral.sh`.
+2.  At the end of the main execution logic in `spiral.sh`, add a conditional block that only calls `cleanup_workspace` if `$SPIRAL_WORKSPACE_CLEANUP` is "true" and the run has completed successfully (all stories passed/skipped).
+3.  Inside the function, get the initial size of the `.spiral` directory via `du -sb`.
+4.  Implement the cleanup tasks as specified in the technical notes:
+    *   `find .spiral/research_cache -mtime +${SPIRAL_CACHE_TTL:-7} -delete`
+    *   `tar -czf .spiral/archive/iter_$(date +%s).tar.gz .spiral/_iteration_summary_*.json` followed by removal of the original JSONs.
+    *   `find .spiral -name "*.log" -size 0 -delete`
+5.  Get the final size, calculate the delta, and call `lib/spiral_events.sh` to log the event and `bytes_freed` metric.
+
+**4. Edge Cases & Gotchas:**
+*   The logic to determine a "successful run" is critical. It will likely involve parsing `results.tsv` to confirm all stories are `passed` or `skipped`.
+*   Ensure the `tar` command to archive iteration summaries is followed by a command to remove the source JSON files to prevent them from accumulating.
+*   The script must gracefully handle cases where `SPIRAL_CACHE_TTL` is unset by defaulting to 7 days, as shown in the `find` command.
+*   Permissions: The script will need write/delete permissions within the `.spiral/` directory.
+
+
+## Iteration N - Story: US-149: Emit SARIF 2.1.0 report from static analysis gates for GitHub Code Scanning
+
+### What was implemented
+- Added new `sarif` job to `.github/workflows/ci.yml` with `security-events: write` permission
+- Installs `shellcheck-sarif` via `cargo install` (with binary caching via `actions/cache`)
+- Runs shellcheck with `-f json` format, pipes output to `shellcheck-sarif` to produce `shellcheck.sarif`
+- Installs `semgrep` via pip and runs `semgrep --config=auto --sarif --output=semgrep.sarif`; falls back to minimal valid SARIF on failure
+- Validates both SARIF files against `https://json.schemastore.org/sarif-2.1.0.json` using `check-jsonschema`
+- Uploads both SARIF files to GitHub Code Scanning via `github/codeql-action/upload-sarif@v3` with `continue-on-error: true`
+- Uploads SARIF files as GitHub Actions artifacts (`sarif-reports`) with 7-day retention
+
+### Patterns discovered
+- New jobs requiring Code Scanning upload need `security-events: write` in permissions block
+- All other jobs in ci.yml only have `contents: read` — SARIF upload is the only one needing write
+- `actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830` (v4 SHA) is already used in `test` job; reused for cargo binary cache
+- The `github/codeql-action/upload-sarif@v3` tag should be pinned to a specific SHA for security hardening (TODO comment left in file)
+
+### Gotchas
+- `shellcheck -f json` exits non-zero when findings exist; need `|| true` to avoid aborting the step
+- semgrep `--config=auto` fetches from registry (network required); fallback empty SARIF prevents schema validation failure on network issues
+- `security-events: write` permission is required for upload-sarif — without it the upload step fails silently or with 403
