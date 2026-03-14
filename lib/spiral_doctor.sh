@@ -3,6 +3,37 @@
 # Source this file in spiral.sh, then call spiral_doctor to check all runtime dependencies.
 # Validates required tools (claude, jq, python3/uv, node) and configuration files.
 
+# ── check_claude_api — reachability probe (US-179) ──────────────────────────
+# Returns 0 (PASS) or 1 (FAIL).  Skipped when SPIRAL_SKIP_API_CHECK=true.
+# Does NOT count against SPIRAL_RESEARCH_RETRIES.
+check_claude_api() {
+  if [[ "${SPIRAL_SKIP_API_CHECK:-}" == "true" ]]; then
+    echo "  [doctor] [SKIP] Claude API check skipped (SPIRAL_SKIP_API_CHECK=true)"
+    return 0
+  fi
+
+  if [[ -z "${ANTHROPIC_API_KEY:-}" ]]; then
+    echo "  [doctor] [ERROR] ANTHROPIC_API_KEY is not set — Claude API unreachable"
+    echo "           → Fix: export ANTHROPIC_API_KEY=<your-key>"
+    return 1
+  fi
+
+  # Probe the Anthropic API with a 5-second timeout.
+  # Any HTTP response (even 401) means the network path is open.
+  if curl -sf --connect-timeout 5 --max-time 5 \
+      -H "x-api-key: ${ANTHROPIC_API_KEY}" \
+      -H "anthropic-version: 2023-06-01" \
+      "https://api.anthropic.com/v1/models" >/dev/null 2>&1; then
+    echo "  [doctor] [OK] Claude API reachable"
+    return 0
+  else
+    echo "  [doctor] [ERROR] Claude API not reachable (5-second probe failed)"
+    echo "           → Fix: Check network connectivity and ANTHROPIC_API_KEY"
+    echo "           → Skip: Set SPIRAL_SKIP_API_CHECK=true to bypass this check"
+    return 1
+  fi
+}
+
 spiral_doctor() {
   local error_count=0
   local warn_count=0
@@ -168,6 +199,13 @@ spiral_doctor() {
     echo "           → Fix: Install gitleaks (https://github.com/gitleaks/gitleaks#installing)"
     echo "           → Info: Secret scanning gate in ralph.sh requires gitleaks; set SPIRAL_SKIP_SECRET_SCAN=true to bypass"
     warn_count=$((warn_count + 1))
+  fi
+
+  # ── Claude API reachability (US-179) ────────────────────────────────────────
+  if check_claude_api; then
+    : # result already printed inside check_claude_api
+  else
+    error_count=$((error_count + 1))
   fi
 
   # ── Check Ollama reachability (when SPIRAL_OLLAMA_FALLBACK_MODEL is set) ────

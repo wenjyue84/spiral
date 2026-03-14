@@ -136,5 +136,31 @@ spiral_preflight_check() {
     fi
   fi
 
+  # ── Claude API reachability probe (US-179) ─────────────────────────────────
+  if [[ "${DRY_RUN:-0}" -eq 1 ]]; then
+    echo "  [preflight] Skipping Claude API check (--dry-run mode)"
+  elif [[ "${SPIRAL_SKIP_API_CHECK:-}" == "true" ]]; then
+    echo "  [preflight] Skipping Claude API check (SPIRAL_SKIP_API_CHECK=true)"
+  else
+    if [[ -z "${ANTHROPIC_API_KEY:-}" ]]; then
+      echo "  [preflight] FATAL: ANTHROPIC_API_KEY is not set — cannot reach Claude API"
+      exit "${ERR_API_DOWN:-14}"
+    fi
+    local _api_probe_ok=0
+    if curl -sf --connect-timeout 5 --max-time 5 \
+        -H "x-api-key: ${ANTHROPIC_API_KEY}" \
+        -H "anthropic-version: 2023-06-01" \
+        "https://api.anthropic.com/v1/models" >/dev/null 2>&1; then
+      _api_probe_ok=1
+    fi
+    if [[ "$_api_probe_ok" -eq 1 ]]; then
+      echo "  [preflight] Claude API reachable: OK"
+    else
+      echo "  [preflight] FATAL: Claude API not reachable (5-second probe failed)"
+      echo "  [preflight]   Set SPIRAL_SKIP_API_CHECK=true to skip this check"
+      exit "${ERR_API_DOWN:-14}"
+    fi
+  fi
+
   echo "  [preflight] All checks passed"
 }

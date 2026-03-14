@@ -4239,3 +4239,61 @@ Based on the user story, this is a shell scripting task, not a Frappe/Python one
 ### Gotchas
 - Stash pop line must be OUTSIDE the `_DIRTY_SKIP_RALPH=0` guard (but still inside the `else` PENDING block) so it always runs after Phase I completes
 - The pop block lives between `fi # end _DIRTY_SKIP_RALPH=0 guard` and `fi # end PENDING > 0 block`
+## Iteration 57 - Sun, Mar 15, 2026  5:03:11 AM
+Incomplete: Add SPIRAL_WORKSPACE_CLEANUP to auto-prune transient artifacts on successful run completion (ID: US-136) — attempt 1/3
+
+
+## Pre-analysis for US-136 (Gemini 2.5 Pro)
+Based on the user story and project structure, here is a technical brief for implementation. Note: This is a shell-based CLI tool, not a Frappe/Python application.
+
+**Subject: Technical Brief for US-136: Workspace Cleanup**
+
+**1. Files to Modify:**
+*   `spiral.sh`: The main entry point. A new `cleanup_workspace()` bash function should be added here, along with the logic to call it upon successful run completion.
+*   `lib/spiral_events.sh`: This existing utility will likely be used to log the `workspace_cleanup` event and the `bytes_freed` metric to `spiral_events.jsonl`.
+
+**2. Involved Frappe DocTypes/Hooks:**
+*   This is not a Frappe application. The core logic is shell-based.
+*   The primary trigger is the successful completion of a run, which must be determined by checking the final status of all stories (e.g., by parsing `results.tsv`).
+*   The feature is controlled by the `SPIRAL_WORKSPACE_CLEANUP` environment variable.
+
+**3. Implementation Approach:**
+*   In `spiral.sh`, add a `cleanup_workspace()` function.
+*   At the end of the main execution logic, check if `SPIRAL_WORKSPACE_CLEANUP` is true and run status is successful. If so, execute the function.
+*   Calculate pre-cleanup size: `before_size=$(du -sb .spiral/)`.
+*   Use `find` to delete expired research cache, old iteration summaries, and zero-byte logs as specified in the technical notes.
+*   Calculate `bytes_freed` by capturing the `du -sb` output again and reporting the delta.
+*   Call the event logging utility to record the `workspace_cleanup` event.
+
+**4. Edge Cases & Gotchas:**
+*   The logic to identify "iteration summaries older than 5 iterations" requires listing, sorting (e.g., `sort -V`), and selecting all but the last 5 files for deletion.
+*   Ensure the cleanup function explicitly avoids deleting protected files like `prd.json`, `results.tsv`, and `spiral_events.jsonl`.
+*   The script must reliably determine 100% successful completion before running. Hard-coding this logic might be brittle if completion states change.
+*   Default the `SPIRAL_CACHE_TTL` environment variable (e.g., `${SPIRAL_CACHE_TTL:-7}`) to prevent errors if it's not set.
+
+
+## Iteration N - Story: US-179: Add Claude API reachability probe to pre-flight check and spiral-doctor
+
+### What was implemented
+- Added `check_claude_api()` function to `lib/spiral_doctor.sh` (before `spiral_doctor()`)
+  - Skips when `SPIRAL_SKIP_API_CHECK=true`
+  - Returns ERROR if `ANTHROPIC_API_KEY` is unset
+  - Probes `https://api.anthropic.com/v1/models` with `curl --max-time 5 --connect-timeout 5`
+  - Returns 0 (OK) or 1 (FAIL) with clear diagnostic messages
+- Wired `check_claude_api()` into `spiral_doctor()` — contributes to `error_count`
+- Added Claude API probe block to `lib/validate_preflight.sh`
+  - Skipped when `DRY_RUN=1`
+  - Skipped when `SPIRAL_SKIP_API_CHECK=true`
+  - Exits `${ERR_API_DOWN:-14}` on failure
+- Created `tests/test_claude_api_probe.bats` with 10 tests covering all acceptance criteria
+
+### Patterns discovered
+- check_claude_api() is defined BEFORE spiral_doctor() in spiral_doctor.sh (same file)
+- validate_preflight.sh uses `${ERR_API_DOWN:-14}` (fallback literal) since exit code constants
+  may not always be defined when the file is sourced independently
+- Bats mock bin pattern: `mkdir -p "$MOCK_BIN" && export PATH="$MOCK_BIN:$PATH"` then write stubs
+
+### Gotchas
+- `claude --version` does NOT test API reachability; curl to api.anthropic.com is the right probe
+- Exit code table in spiral.sh already had ERR_API_DOWN=14; story's "code 5" was stale
+- `uv run pytest` goes background in this shell; use `uv run python -m pytest` or specific files
