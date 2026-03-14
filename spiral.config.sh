@@ -60,6 +60,16 @@ SPIRAL_RESEARCH_SPECIALIST_PROMPT=""
 # Leave empty to disable.
 # SPIRAL_PINCHTAB_URL="http://localhost:9867"
 
+# ── Incremental Phase V validation (US-131) ───────────────────────────────
+# When true, Phase V runs only the tests that cover files touched by the
+# current story (derived from prd.json filesTouch field), instead of the full
+# SPIRAL_VALIDATE_CMD suite. Falls back to full suite when no matching tests
+# are found, or when all stories are complete (final gate always runs full suite).
+# For pytest: test file derived as <SPIRAL_TEST_PREFIX><basename>.py
+# For vitest: appends --related <filesTouch entries> to SPIRAL_VALIDATE_CMD
+# SPIRAL_INCREMENTAL_VALIDATE=false
+# SPIRAL_TEST_PREFIX="tests/test_"
+
 # ── Manual story exclusion ─────────────────────────────────────────────────
 # Comma-separated story IDs to permanently skip without penalty (no retry
 # increment). Use for stories that are blocked externally or descoped mid-run.

@@ -3250,3 +3250,34 @@ Incomplete: Use pnpm global virtual store for node_modules deduplication across 
 ### Gotchas
 - pnpm install must use --ignore-scripts to avoid running postinstall hooks in worktrees
 - The bash guard `command -v pnpm` is the preferred detection method (works across PATH configurations)
+## Iteration 30 - Sat, Mar 14, 2026 10:10:51 PM
+Completed: Use pnpm global virtual store for node_modules deduplication across worktrees (ID: US-122) in 10m
+
+
+## Iteration N - Story: US-131: Run Phase V validation only on files touched by current story (incremental validation)
+
+### What was implemented
+- Added `SPIRAL_INCREMENTAL_VALIDATE` (default: false) and `SPIRAL_TEST_PREFIX` (default: `tests/test_`) env vars to spiral.sh defaults section (~line 386)
+- Added `PRE_RALPH_PRD_JSON=""` per-iteration reset alongside other per-iter vars
+- In Phase V `else` branch (before running validation), added incremental command builder:
+  - Computes newly-passed stories by comparing PRE_RALPH_PRD_JSON vs current prd.json using jq
+  - Collects filesTouch entries from newly-passed stories
+  - For vitest: appends `--related <files>` to SPIRAL_VALIDATE_CMD
+  - For pytest: maps filesTouch basenames to `${SPIRAL_TEST_PREFIX}${base}.py` test files (if they exist on disk), replaces `tests/` in SPIRAL_VALIDATE_CMD with specific test file list
+  - When all stories complete (PENDING=0): always runs full suite as final gate
+  - Falls back to full suite if no matching test files found
+  - Logs `phase_v_incremental` event with mode/files/stories count
+- Exported `_EFFECTIVE_VALIDATE_CMD` before subprocess call (needed for bash -c subshell)
+- Both timeout and non-timeout Phase V branches now use `_EFFECTIVE_VALIDATE_CMD`
+- Added documentation in spiral.config.sh and 22 pytest tests in `tests/test_incremental_validate.py`
+
+### Patterns discovered
+- `export VAR` needed before `bash -c "eval \"\$VAR\""` subshell pattern in spiral.sh timeout branch
+- bash string substitution `${CMD/tests\//${TARGETS_STR} }` replaces first occurrence — trailing space before remaining flags is harmless
+- SPIRAL_TEST_PREFIX defaults `tests/test_` matches existing test file naming convention in this project
+- PRE_RALPH_PRD_JSON is set inside the `PENDING > 0` block at line ~1914; initializing it to "" in per-iter resets makes Phase V guard safe
+
+### Gotchas
+- PRE_RALPH_PRD_JSON must be "" (not unset) in per-iteration resets so that `[[ -n "${PRE_RALPH_PRD_JSON:-}" ]]` correctly skips incremental when Phase I was bypassed (checkpoint/dry-run)
+- test_route_stories.py has a pre-existing ImportError; excluded from checks with --ignore
+- The SyntaxWarning in test_incremental_validate.py line 42 is a bash snippet in a Python comment string — harmless

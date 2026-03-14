@@ -384,6 +384,8 @@ SPIRAL_RESEARCH_TIMEOUT="${SPIRAL_RESEARCH_TIMEOUT:-300}"                # secon
 SPIRAL_RESEARCH_RETRIES="${SPIRAL_RESEARCH_RETRIES:-2}"                  # retries when _research_output.json missing/invalid after Phase R
 SPIRAL_IMPL_TIMEOUT="${SPIRAL_IMPL_TIMEOUT:-600}"                        # seconds; 0 = disabled (unlimited); Phase I ralph call
 SPIRAL_VALIDATE_TIMEOUT="${SPIRAL_VALIDATE_TIMEOUT:-300}"                # seconds; 0 = disabled (unlimited)
+SPIRAL_INCREMENTAL_VALIDATE="${SPIRAL_INCREMENTAL_VALIDATE:-false}"      # true = run only tests covering files touched by current story (Phase V)
+SPIRAL_TEST_PREFIX="${SPIRAL_TEST_PREFIX:-tests/test_}"                  # pytest: prefix for deriving test file from filesTouch entry basename
 SPIRAL_TEST_SYNTH_TIMEOUT="${SPIRAL_TEST_SYNTH_TIMEOUT:-60}"             # seconds; 0 = disabled (unlimited); Phase T synthesize_tests timeout
 SPIRAL_PREEMPTIVE_PRESSURE_MB="${SPIRAL_PREEMPTIVE_PRESSURE_MB:-0}"      # MB; 0 = disabled; free RAM below this triggers preemptive pressure level 1
 SPIRAL_NOTIFY_WEBHOOK="${SPIRAL_NOTIFY_WEBHOOK:-}"                       # HTTPS URL; empty = disabled; POST JSON at each phase start/end
@@ -1295,6 +1297,7 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
   ADDED=0          # new stories added this iter (set in Phase M; default 0 if skipped)
   RALPH_RAN=0      # set to 1 if ralph actually executed this iter (controls Phase V)
   RALPH_PROGRESS=0 # stories completed this iter; reset each iter for accurate velocity
+  PRE_RALPH_PRD_JSON=""  # snapshot of prd.json before Phase I; used by Phase V incremental (US-131)
   # Phase duration tracking (US-046): reset per-iteration, updated at each phase_end
   _PHASE_DUR_R=0
   _PHASE_DUR_T=0
@@ -2157,11 +2160,67 @@ $INJECTED_PROMPT"
     echo "  [V] Skipping (ralph did not run — test results unchanged)"
     write_checkpoint "$SPIRAL_ITER" "V"
   else
+    # ── Build effective validate command: incremental or full suite (US-131) ──
+    _EFFECTIVE_VALIDATE_CMD="$SPIRAL_VALIDATE_CMD"
+    if [[ "${SPIRAL_INCREMENTAL_VALIDATE:-false}" == "true" && -n "${PRE_RALPH_PRD_JSON:-}" ]]; then
+      # When all stories are done, always run full suite as final gate
+      _PENDING_NOW=$("$JQ" '[.userStories[] | select(.passes != true)] | length' "$PRD_FILE" 2>/dev/null || echo 1)
+      if [[ "$_PENDING_NOW" -eq 0 ]]; then
+        echo "  [V] All stories complete — running full test suite as final gate"
+      else
+        # Find newly passed stories vs pre-Phase-I baseline
+        _NEWLY_PASSED_IDS=()
+        mapfile -t _NEWLY_PASSED_IDS < <(
+          "$JQ" -r --argjson before "$PRE_RALPH_PRD_JSON" \
+            '[.userStories[] | . as $s |
+            select(.passes == true) |
+            select(($before.userStories | map(select(.id == $s.id and (.passes // false) == true)) | length) == 0)
+          ] | .[] | .id' "$PRD_FILE" 2>/dev/null
+        ) || true
+        if [[ ${#_NEWLY_PASSED_IDS[@]} -gt 0 ]]; then
+          # Collect filesTouch entries from newly passed stories
+          _FILES_TOUCHED=()
+          for _sid in "${_NEWLY_PASSED_IDS[@]}"; do
+            while IFS= read -r _ft_entry; do
+              [[ -n "$_ft_entry" ]] && _FILES_TOUCHED+=("$_ft_entry")
+            done < <("$JQ" -r --arg id "$_sid" \
+              '.userStories[] | select(.id == $id) | .filesTouch // [] | .[]' \
+              "$PRD_FILE" 2>/dev/null || true)
+          done
+          if [[ ${#_FILES_TOUCHED[@]} -gt 0 ]]; then
+            if echo "$SPIRAL_VALIDATE_CMD" | grep -q "vitest"; then
+              # vitest: use --related flag to target only changed files
+              _EFFECTIVE_VALIDATE_CMD="$SPIRAL_VALIDATE_CMD --related ${_FILES_TOUCHED[*]}"
+              echo "  [V] Incremental (vitest --related): ${_FILES_TOUCHED[*]}"
+              log_spiral_event "phase_v_incremental" \
+                "\"mode\":\"vitest\",\"files\":${#_FILES_TOUCHED[@]},\"stories\":${#_NEWLY_PASSED_IDS[@]},\"iteration\":$SPIRAL_ITER"
+            elif echo "$SPIRAL_VALIDATE_CMD" | grep -q "pytest"; then
+              # pytest: map filesTouch entries to test file paths via SPIRAL_TEST_PREFIX
+              _PYTEST_TARGETS=()
+              for _ft in "${_FILES_TOUCHED[@]}"; do
+                _base=$(basename "${_ft%.*}")
+                _test_candidate="${SPIRAL_TEST_PREFIX:-tests/test_}${_base}.py"
+                [[ -f "$REPO_ROOT/$_test_candidate" ]] && _PYTEST_TARGETS+=("$_test_candidate")
+              done
+              if [[ ${#_PYTEST_TARGETS[@]} -gt 0 && "$SPIRAL_VALIDATE_CMD" == *"tests/"* ]]; then
+                _PYTEST_TARGETS_STR="${_PYTEST_TARGETS[*]}"
+                _EFFECTIVE_VALIDATE_CMD="${SPIRAL_VALIDATE_CMD/tests\//${_PYTEST_TARGETS_STR} }"
+                echo "  [V] Incremental (pytest): ${_PYTEST_TARGETS[*]}"
+                log_spiral_event "phase_v_incremental" \
+                  "\"mode\":\"pytest\",\"files\":${#_PYTEST_TARGETS[@]},\"stories\":${#_NEWLY_PASSED_IDS[@]},\"iteration\":$SPIRAL_ITER"
+              fi
+            fi
+          fi
+        fi
+      fi
+    fi
+    export _EFFECTIVE_VALIDATE_CMD
+
     # Run the project's validation command (with optional timeout)
     _VALIDATE_EXIT=0
     if [[ "${SPIRAL_VALIDATE_TIMEOUT:-300}" -gt 0 ]] && command -v timeout &>/dev/null; then
       _VALIDATE_START=$(date +%s)
-      (cd "$REPO_ROOT" && timeout --kill-after=30 "${SPIRAL_VALIDATE_TIMEOUT}" bash -c "eval \"\$SPIRAL_VALIDATE_CMD\"" 2>&1) || _VALIDATE_EXIT=$?
+      (cd "$REPO_ROOT" && timeout --kill-after=30 "${SPIRAL_VALIDATE_TIMEOUT}" bash -c "eval \"\$_EFFECTIVE_VALIDATE_CMD\"" 2>&1) || _VALIDATE_EXIT=$?
       _VALIDATE_ELAPSED=$(($(date +%s) - _VALIDATE_START))
       if [[ "$_VALIDATE_EXIT" -eq 124 ]]; then
         echo ""
@@ -2170,7 +2229,7 @@ $INJECTED_PROMPT"
         _VALIDATE_EXIT=1
       fi
     else
-      (cd "$REPO_ROOT" && eval "$SPIRAL_VALIDATE_CMD" 2>&1) || _VALIDATE_EXIT=$?
+      (cd "$REPO_ROOT" && eval "$_EFFECTIVE_VALIDATE_CMD" 2>&1) || _VALIDATE_EXIT=$?
     fi
 
     # Print summary from the freshest report

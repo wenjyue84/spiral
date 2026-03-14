@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "productName": "Spiral",
   "branchName": "main",
-  "overview": "SPIRAL is a self-iterating autonomous development loop (Research \u00e2\u2020\u2019 Implement \u00e2\u2020\u2019 Validate). This PRD drives Spiral to improve itself: integrating newly-written lib modules into the main loop, enhancing the setup wizard to educate users about every configurable option, and adding Chrome DevTools-powered visual validation.",
+  "overview": "SPIRAL is a self-iterating autonomous development loop (Research â†’ Implement â†’ Validate). This PRD drives Spiral to improve itself: integrating newly-written lib modules into the main loop, enhancing the setup wizard to educate users about every configurable option, and adding Chrome DevTools-powered visual validation.",
   "goals": [
     "Wire the four new lib modules (preflight, DAG, state machine, story review) into the live spiral.sh loop",
     "Enhance /spiral-init wizard to ask about ALL configurable options, educating users about what exists",
@@ -57,7 +57,7 @@
     {
       "id": "US-163",
       "title": "Validate heartbeat requeue succeeded and force-reset on failure",
-      "description": "requeue_stale_stories() was called with || true \u2014 if it silently failed the story stayed stuck forever. After calling it, verify the story passes field is now false. If not, force-reset it via direct jq write with a warning log.",
+      "description": "requeue_stale_stories() was called with || true — if it silently failed the story stayed stuck forever. After calling it, verify the story passes field is now false. If not, force-reset it via direct jq write with a warning log.",
       "priority": "high",
       "passes": true,
       "retryCount": 0,
@@ -102,7 +102,7 @@
     {
       "id": "US-167",
       "title": "Merge per-worker retry-counts.json back into root after parallel run",
-      "description": "Per-worker retry-counts.json files were never merged back to root after parallel runs. After merge_worker_results.py, collect all worker retry-counts.json files and merge into the root file using max-value semantics \u2014 ensuring retry counts are never decremented across parallel runs.",
+      "description": "Per-worker retry-counts.json files were never merged back to root after parallel runs. After merge_worker_results.py, collect all worker retry-counts.json files and merge into the root file using max-value semantics — ensuring retry counts are never decremented across parallel runs.",
       "priority": "high",
       "passes": true,
       "retryCount": 0,
@@ -130,11 +130,11 @@
         "spiral.sh sources lib/validate_preflight.sh near the top (after sourcing spiral.config.sh)",
         "spiral_preflight_check is called once before the main iteration loop",
         "A bad prd.json (e.g. missing required fields) causes an abort with a clear error message",
-        "A valid prd.json proceeds normally \u00e2\u20ac\u201d no regression on happy path",
+        "A valid prd.json proceeds normally â€” no regression on happy path",
         "uv run pytest passes (51/51)"
       ],
       "technicalNotes": [
-        "Edit spiral.sh \u00e2\u20ac\u201d source lib/validate_preflight.sh after PRD_FILE and SCRATCH_DIR are set",
+        "Edit spiral.sh â€” source lib/validate_preflight.sh after PRD_FILE and SCRATCH_DIR are set",
         "Call: spiral_preflight_check \"$PRD_FILE\" \"$SCRATCH_DIR\"",
         "SPIRAL_PYTHON must be set before the source line (it already is)",
         "JQ must also be available (already resolved in spiral.sh)"
@@ -147,7 +147,7 @@
       "id": "US-002",
       "title": "Run DAG cycle detection before Phase I implementation",
       "priority": "high",
-      "description": "lib/check_dag.py detects dependency cycles in prd.json but is never invoked by spiral.sh. A dependency cycle causes Phase I to silently skip stories forever. Add a DAG check at the start of Phase I \u00e2\u20ac\u201d if cycles are found, log a warning with the cycle members and skip implementation for that iteration (do not abort).",
+      "description": "lib/check_dag.py detects dependency cycles in prd.json but is never invoked by spiral.sh. A dependency cycle causes Phase I to silently skip stories forever. Add a DAG check at the start of Phase I â€” if cycles are found, log a warning with the cycle members and skip implementation for that iteration (do not abort).",
       "acceptanceCriteria": [
         "spiral.sh calls: $SPIRAL_PYTHON $SPIRAL_HOME/lib/check_dag.py $PRD_FILE at the start of Phase I",
         "If cycles detected: print a warning listing the cycle members, set a skip flag for Phase I, continue to Phase V",
@@ -157,7 +157,7 @@
       "technicalNotes": [
         "Add DAG check near the top of the Phase I block in spiral.sh",
         "Use exit code: 0 = clean, 1 = cycle detected",
-        "On cycle: echo warning, skip ralph invocation, continue loop \u00e2\u20ac\u201d do NOT abort"
+        "On cycle: echo warning, skip ralph invocation, continue loop â€” do NOT abort"
       ],
       "dependencies": [
         "US-001"
@@ -219,7 +219,7 @@
       "description": "The /spiral-init wizard never asks about SPIRAL_MODEL_ROUTING or SPIRAL_RESEARCH_MODEL. Add a dedicated 'Model & Token Strategy' section to the wizard that explains the cost/quality tradeoff for each option and asks the user to choose. This educates users that these options exist, not just that they can pick one.",
       "acceptanceCriteria": [
         "Wizard section titled 'Model & Token Strategy' is added to spiral-init.md skill",
-        "Asks: Implementation model routing? Explains auto (haiku\u00e2\u2020\u2019sonnet\u00e2\u2020\u2019opus by complexity), haiku (fastest/cheapest), sonnet (balanced), opus (highest quality). Default: auto",
+        "Asks: Implementation model routing? Explains auto (haikuâ†’sonnetâ†’opus by complexity), haiku (fastest/cheapest), sonnet (balanced), opus (highest quality). Default: auto",
         "Asks: Research model? Explains sonnet (default), haiku (fast but less synthesis depth). Default: sonnet",
         "Asks: Enable --tool auto (route simple stories to Qwen/Codex first)? Explains 60-80% cost saving on trivial stories. Default: no",
         "Selected values are written to spiral.config.sh as SPIRAL_MODEL_ROUTING and SPIRAL_RESEARCH_MODEL",
@@ -242,10 +242,10 @@
       "description": "Users don't know that Phase R has three major optional enhancements: Gemini pre-research (free token saver), Firecrawl MCP (clean HTML scraping), and capacity limit (skip research when too many stories pending). Add a 'Research Phase' section to the wizard that asks about all three and explains what each does.",
       "acceptanceCriteria": [
         "Wizard section 'Research Phase Configuration' added to spiral-init.md",
-        "Asks: 'Use Gemini for web pre-research? (free, saves Claude tokens by pre-fetching search results)' \u00e2\u20ac\u201d checks if gemini CLI is available, warns if not. Default: yes if available",
-        "Asks: 'Focus prompt for Gemini/Claude research?' \u00e2\u20ac\u201d writes to SPIRAL_GEMINI_PROMPT if provided",
-        "Asks: 'Use Firecrawl MCP for URL scraping? (cleaner markdown, handles JS-rendered pages)' \u00e2\u20ac\u201d explains benefit. Default: no. If yes, writes SPIRAL_FIRECRAWL_ENABLED=1 and shows setup instructions",
-        "Asks: 'Skip research when pending stories exceed N? (avoids flooding prd.json)' \u00e2\u20ac\u201d writes to SPIRAL_MAX_PENDING. Default: 50",
+        "Asks: 'Use Gemini for web pre-research? (free, saves Claude tokens by pre-fetching search results)' â€” checks if gemini CLI is available, warns if not. Default: yes if available",
+        "Asks: 'Focus prompt for Gemini/Claude research?' â€” writes to SPIRAL_GEMINI_PROMPT if provided",
+        "Asks: 'Use Firecrawl MCP for URL scraping? (cleaner markdown, handles JS-rendered pages)' â€” explains benefit. Default: no. If yes, writes SPIRAL_FIRECRAWL_ENABLED=1 and shows setup instructions",
+        "Asks: 'Skip research when pending stories exceed N? (avoids flooding prd.json)' â€” writes to SPIRAL_MAX_PENDING. Default: 50",
         "All values written to spiral.config.sh with explanatory comments",
         "uv run pytest passes (51/51)"
       ],
@@ -269,7 +269,7 @@
       "acceptanceCriteria": [
         "Wizard section 'Browser Testing (Optional)' added to spiral-init.md",
         "Detects Chrome DevTools MCP: checks if chrome-devtools-mcp is installed globally (npm list -g chrome-devtools-mcp)",
-        "If detected: explains 'Chrome DevTools MCP is installed \u00e2\u20ac\u201d Claude can take screenshots and interact with your running app during Phase V validation' and asks if they want it enabled in the config",
+        "If detected: explains 'Chrome DevTools MCP is installed â€” Claude can take screenshots and interact with your running app during Phase V validation' and asks if they want it enabled in the config",
         "If not detected: shows one-line install command (npm i -g chrome-devtools-mcp) and explains the benefit without blocking",
         "Detects agent-browser skill similarly",
         "Writes SPIRAL_BROWSER_TESTING=1 (or a comment block) to spiral.config.sh if user opts in",
@@ -278,8 +278,8 @@
       "technicalNotes": [
         "Edit ralph/skills/spiral-init.md",
         "Detection: npm list -g chrome-devtools-mcp 2>/dev/null | grep -q chrome-devtools-mcp",
-        "Do not block setup if tools are missing \u00e2\u20ac\u201d this is informational",
-        "The actual MCP config (claude settings.json) requires manual setup \u00e2\u20ac\u201d wizard just shows the snippet"
+        "Do not block setup if tools are missing â€” this is informational",
+        "The actual MCP config (claude settings.json) requires manual setup â€” wizard just shows the snippet"
       ],
       "dependencies": [
         "US-005"
@@ -294,9 +294,9 @@
       "description": "Three powerful but hidden options are never surfaced in the wizard: MAX_RETRIES (how many times to retry a failing story before skipping), SPIRAL_GITNEXUS_REPO (semantic file hints for parallel workers), and SPIRAL_DEPLOY_CMD (post-merge deploy automation). Add an 'Advanced Options' section that asks about these and explains each one clearly.",
       "acceptanceCriteria": [
         "Wizard section 'Advanced Options (Optional)' added to spiral-init.md",
-        "Asks: 'Max retries per failing story? (after N failures, story is skipped and marked for decomposition)' \u00e2\u20ac\u201d explains why lower is faster, higher is more persistent. Default: 3",
-        "Asks: 'GitNexus repo name for semantic file hints? (improves parallel worker partitioning for new stories)' \u00e2\u20ac\u201d explains benefit, checks gitnexus is installed. Default: empty (disabled)",
-        "Asks: 'Post-merge deploy command? (runs after each successful merge, e.g. npm run build)' \u00e2\u20ac\u201d explains it enables CI-style loop. Default: empty",
+        "Asks: 'Max retries per failing story? (after N failures, story is skipped and marked for decomposition)' â€” explains why lower is faster, higher is more persistent. Default: 3",
+        "Asks: 'GitNexus repo name for semantic file hints? (improves parallel worker partitioning for new stories)' â€” explains benefit, checks gitnexus is installed. Default: empty (disabled)",
+        "Asks: 'Post-merge deploy command? (runs after each successful merge, e.g. npm run build)' â€” explains it enables CI-style loop. Default: empty",
         "All values written to spiral.config.sh with explanatory comments",
         "uv run pytest passes (51/51)"
       ],
@@ -320,14 +320,14 @@
       "acceptanceCriteria": [
         "New lib/recommend_workers.py reads prd.json, computes independence ratio of pending stories, outputs recommended worker count 1-3",
         "spiral.sh calls recommend_workers.py before Phase I if RALPH_WORKERS was not explicitly set via --ralph-workers flag",
-        "Logs: '[workers] N of M pending stories are independent \u00e2\u20ac\u201d recommending K workers'",
+        "Logs: '[workers] N of M pending stories are independent â€” recommending K workers'",
         "If --ralph-workers was explicitly passed: skip analysis, use user value",
-        "uv run pytest passes (51/51) \u00e2\u20ac\u201d add at least 3 unit tests for recommend_workers.py"
+        "uv run pytest passes (51/51) â€” add at least 3 unit tests for recommend_workers.py"
       ],
       "technicalNotes": [
         "Create lib/recommend_workers.py",
         "Independence = story has 0 pending dependencies (all deps passed or no deps)",
-        "Thresholds: independence_ratio >= 0.6 \u00e2\u2020\u2019 3 workers, >= 0.3 \u00e2\u2020\u2019 2, else 1",
+        "Thresholds: independence_ratio >= 0.6 â†’ 3 workers, >= 0.3 â†’ 2, else 1",
         "Add tests/test_recommend_workers.py with edge cases: all independent, all dependent, mixed",
         "spiral.sh: add a flag WORKERS_EXPLICIT=0, set to 1 when --ralph-workers is parsed"
       ],
@@ -343,8 +343,8 @@
       "priority": "low",
       "description": "When Chrome DevTools MCP is available and a dev server URL is configured, use mcp__chrome-devtools__take_screenshot after Phase V to capture the current state of the running app. Embed the screenshot path in the metrics dashboard HTML. This gives a visual audit trail of what the app looked like after each iteration.",
       "acceptanceCriteria": [
-        "spiral.config.sh supports new variable SPIRAL_DEV_URL (e.g. http://localhost:3000) \u00e2\u20ac\u201d empty by default",
-        "spiral-init.md wizard asks: 'Dev server URL for visual screenshots? (e.g. http://localhost:3000)' \u00e2\u20ac\u201d writes to SPIRAL_DEV_URL",
+        "spiral.config.sh supports new variable SPIRAL_DEV_URL (e.g. http://localhost:3000) â€” empty by default",
+        "spiral-init.md wizard asks: 'Dev server URL for visual screenshots? (e.g. http://localhost:3000)' â€” writes to SPIRAL_DEV_URL",
         "In Phase V of spiral.sh (or in a post-validate hook): if SPIRAL_DEV_URL is set, the research Claude agent attempts to use mcp__chrome-devtools__navigate_page + mcp__chrome-devtools__take_screenshot",
         "Screenshot is saved to .spiral/screenshots/iter-N-TIMESTAMP.png",
         "The metrics dashboard (spiral_dashboard.py) includes an <img> tag for the latest screenshot if one exists",
@@ -368,7 +368,7 @@
       "id": "US-011",
       "title": "ralph.sh: read per-story model field from prd.json at runtime",
       "priority": "high",
-      "description": "route_stories.py annotates each pending story with a .model field (haiku/sonnet/opus) in prd.json, but ralph.sh never reads it \u00e2\u20ac\u201d it still relies on the --model CLI flag or RALPH_MODEL env var. This means the entire per-story routing system from recommendations.md section C is silently ignored. Wire ralph.sh to extract and use the .model field for each story before invoking the claude/amp tool.",
+      "description": "route_stories.py annotates each pending story with a .model field (haiku/sonnet/opus) in prd.json, but ralph.sh never reads it â€” it still relies on the --model CLI flag or RALPH_MODEL env var. This means the entire per-story routing system from recommendations.md section C is silently ignored. Wire ralph.sh to extract and use the .model field for each story before invoking the claude/amp tool.",
       "acceptanceCriteria": [
         "ralph.sh reads the .model field for the selected story from prd.json using jq after story selection",
         "If .model is set and non-empty, ralph.sh uses that model for the claude/amp invocation (overrides RALPH_MODEL)",
@@ -381,7 +381,7 @@
         "After story ID selection: STORY_MODEL=$(jq -r --arg id \"$STORY_ID\" '.userStories[] | select(.id==$id) | .model // empty' \"$PRD_FILE\" 2>/dev/null || echo '')",
         "Build model arg: MODEL_ARG=$([ -n \"$STORY_MODEL\" ] && echo \"--model $STORY_MODEL\" || echo \"${RALPH_MODEL:+--model $RALPH_MODEL}\")",
         "Pass $MODEL_ARG to the claude/amp command line",
-        "Read ralph/ralph.sh fully before editing \u00e2\u20ac\u201d pay attention to the claude invocation block"
+        "Read ralph/ralph.sh fully before editing â€” pay attention to the claude invocation block"
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
@@ -391,7 +391,7 @@
       "id": "US-012",
       "title": "Emit results.tsv telemetry row per story attempt in ralph.sh",
       "priority": "high",
-      "description": "spiral_dashboard.py reads results.tsv for velocity trend, model performance, and retry analysis \u00e2\u20ac\u201d but nothing in the codebase actually writes this file during a run. The dashboard shows empty charts for all sessions. ralph.sh must append one TSV row after each story attempt (pass or fail) containing story ID, status, model, duration, retry number, and spiral iteration.",
+      "description": "spiral_dashboard.py reads results.tsv for velocity trend, model performance, and retry analysis â€” but nothing in the codebase actually writes this file during a run. The dashboard shows empty charts for all sessions. ralph.sh must append one TSV row after each story attempt (pass or fail) containing story ID, status, model, duration, retry number, and spiral iteration.",
       "acceptanceCriteria": [
         "ralph.sh appends a tab-separated row to results.tsv (in SPIRAL_HOME or project root) after each story attempt",
         "Row includes: timestamp (ISO8601), story_id, story_title, status (keep|reject), model, duration_sec (integer), retry_num, spiral_iter, ralph_iter",
@@ -421,12 +421,12 @@
         "Tests cover: profile='haiku' assigns haiku to all pending stories, profile='opus' assigns opus to all, passed stories are not re-annotated, a story with existing .model field is overwritten on re-route, atomic write produces valid JSON, missing prd.json raises FileNotFoundError or SystemExit",
         "call_claude is mocked to avoid real API calls (monkeypatch or unittest.mock.patch)",
         "uv run pytest tests/test_route_stories.py passes",
-        "Total test count increases from 51 to \u00e2\u2030\u00a557"
+        "Total test count increases from 51 to â‰¥57"
       ],
       "technicalNotes": [
         "Use tmp_path pytest fixture for file I/O tests",
         "Mock target: lib.route_stories.call_claude or subprocess.run depending on implementation",
-        "Profile='auto' test: mock returns 'complex' \u00e2\u2020\u2019 assert story.model == 'sonnet'",
+        "Profile='auto' test: mock returns 'complex' â†’ assert story.model == 'sonnet'",
         "Verify atomic write: confirm prd.json.tmp is cleaned up after successful write"
       ],
       "dependencies": [],
@@ -464,7 +464,7 @@
       "acceptanceCriteria": [
         ".github/workflows/ci.yml exists and triggers on push and pull_request to the main branch",
         "Workflow uses ubuntu-latest, Python 3.12, astral-sh/setup-uv@v4 with enable-cache: true",
-        "Steps: checkout \u00e2\u2020\u2019 setup-uv \u00e2\u2020\u2019 uv sync \u00e2\u2020\u2019 uv run pytest tests/ -v --tb=short",
+        "Steps: checkout â†’ setup-uv â†’ uv sync â†’ uv run pytest tests/ -v --tb=short",
         "A failing test causes the workflow check to fail (non-zero exit, red status on PR)",
         ".hypothesis/ directory is cached between runs using actions/cache to speed up Hypothesis replay",
         "A CI status badge is added to the README.md top section"
@@ -472,7 +472,7 @@
       "technicalNotes": [
         "Use: actions/checkout@v4, astral-sh/setup-uv@v4",
         "Cache key: ${{ runner.os }}-uv-${{ hashFiles('**/pyproject.toml') }}",
-        "No secrets needed \u00e2\u20ac\u201d tests use only local fixtures and tmp_path",
+        "No secrets needed â€” tests use only local fixtures and tmp_path",
         "Reference: https://docs.astral.sh/uv/guides/integration/github/"
       ],
       "dependencies": [],
@@ -489,7 +489,7 @@
         "Tests cover: stop words are excluded from extracted keywords, title keywords match commit paths correctly, stories with passes=true are skipped, stories already having filesTouch are not overwritten, an empty git log list produces no hints and no crash",
         "git subprocess is mocked with a predefined list of commit lines",
         "uv run pytest tests/test_populate_hints.py passes",
-        "Total test count increases from 51 to \u00e2\u2030\u00a556"
+        "Total test count increases from 51 to â‰¥56"
       ],
       "technicalNotes": [
         "Import the keyword extraction function directly for unit-level testing",
@@ -508,7 +508,7 @@
       "description": "spiral.sh uses set -euo pipefail but has no signal trap. A Ctrl+C mid-iteration leaves background ralph workers running as orphan processes, may leave prd.json partially written by jq, and does not write a clean checkpoint. Adding a trap handler that kills child processes, flushes the current phase to checkpoint, and prints a summary message before exit allows the user to resume cleanly.",
       "acceptanceCriteria": [
         "spiral.sh registers signal handlers: trap '_spiral_cleanup INT' INT and trap '_spiral_cleanup TERM' TERM near the top after variable initialization",
-        "_spiral_cleanup kills the current background child process group, writes {\"iter\": N, \"phase\": P} to _checkpoint.json atomically, and prints '[SPIRAL] Interrupted at iter N phase P \u00e2\u20ac\u201d run again to resume'",
+        "_spiral_cleanup kills the current background child process group, writes {\"iter\": N, \"phase\": P} to _checkpoint.json atomically, and prints '[SPIRAL] Interrupted at iter N phase P â€” run again to resume'",
         "After Ctrl+C mid-Phase-I: no orphan ralph.sh or claude CLI processes remain (verified with ps aux | grep ralph)",
         "Rerunning spiral.sh after interrupt resumes from the correct phase per checkpoint",
         "uv run pytest passes (51/51)"
@@ -517,7 +517,7 @@
         "Track child PIDs: CHILD_PIDS=(); add each background PID via CHILD_PIDS+=($!)",
         "Cleanup: for pid in \"${CHILD_PIDS[@]:-}\"; do kill -TERM \"$pid\" 2>/dev/null || true; done",
         "Checkpoint flush inside handler: echo \"{\\\"iter\\\": $ITER, \\\"phase\\\": $PHASE}\" > $_checkpoint_tmp && mv $_checkpoint_tmp _checkpoint.json",
-        "Note: set -e in cleanup handlers can cause issues \u00e2\u20ac\u201d use explicit || true"
+        "Note: set -e in cleanup handlers can cause issues â€” use explicit || true"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
@@ -530,16 +530,16 @@
       "description": "validate_preflight.sh checks prd.json but never validates spiral.config.sh content. Users who hand-edit the config may accidentally unset SPIRAL_PYTHON or SPIRAL_VALIDATE_CMD, causing cryptic mid-loop failures. A startup validation that checks required keys and sets sensible defaults for optional ones fast-fails with a clear error listing exactly what is missing, before any agent is spawned.",
       "acceptanceCriteria": [
         "spiral.sh defines a validate_config() function called immediately after sourcing spiral.config.sh",
-        "Required keys SPIRAL_PYTHON and SPIRAL_VALIDATE_CMD are checked \u00e2\u20ac\u201d if either is empty, print '[config] ERROR: SPIRAL_PYTHON must be set in spiral.config.sh' and exit 1",
+        "Required keys SPIRAL_PYTHON and SPIRAL_VALIDATE_CMD are checked â€” if either is empty, print '[config] ERROR: SPIRAL_PYTHON must be set in spiral.config.sh' and exit 1",
         "Optional keys (SPIRAL_MODEL_ROUTING, SPIRAL_RESEARCH_MODEL, SPIRAL_MAX_PENDING, SPIRAL_MEMORY_LIMIT) receive default values if unset: auto, sonnet, 50, 1024",
-        "validate_config() prints '[config] OK \u00e2\u20ac\u201d SPIRAL_PYTHON=... SPIRAL_VALIDATE_CMD=...' on success",
+        "validate_config() prints '[config] OK â€” SPIRAL_PYTHON=... SPIRAL_VALIDATE_CMD=...' on success",
         "uv run pytest passes (51/51)"
       ],
       "technicalNotes": [
         "validate_config() { for key in SPIRAL_PYTHON SPIRAL_VALIDATE_CMD; do [[ -n \"${!key:-}\" ]] || { echo \"[config] ERROR: $key not set\"; exit 1; }; done; }",
         "Defaults: : \"${SPIRAL_MODEL_ROUTING:=auto}\"; : \"${SPIRAL_RESEARCH_MODEL:=sonnet}\"; etc.",
         "Call validate_config after 'source spiral.config.sh' and before the preflight check",
-        "Separate from validate_preflight.sh (which validates prd.json) \u00e2\u20ac\u201d this validates the shell config"
+        "Separate from validate_preflight.sh (which validates prd.json) â€” this validates the shell config"
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
@@ -554,7 +554,7 @@
         "ralph.sh increments retry-counts.json for the current story ID at the end of any failed attempt (passes=false after the story), using an atomic jq-based read-modify-write",
         "On a successful attempt (passes=true), ralph.sh resets the retry count to 0 for that story",
         "spiral.sh no longer writes to retry-counts.json (reads only, for decomposition decisions)",
-        "Increment is atomic: uses jq write to tmp file then mv \u00e2\u20ac\u201d no partial writes",
+        "Increment is atomic: uses jq write to tmp file then mv â€” no partial writes",
         "uv run pytest passes (51/51)"
       ],
       "technicalNotes": [
@@ -577,14 +577,14 @@
         "uv run spiral --help prints subcommand descriptions",
         "uv run spiral init invokes lib/setup.py wizard (subprocess.run)",
         "uv run spiral run [args...] executes spiral.sh with forwarded arguments (subprocess.execvp)",
-        "uv run spiral status reads prd.json and prints: 'X/Y stories complete (Z%) \u00e2\u20ac\u201d N pending'",
+        "uv run spiral status reads prd.json and prints: 'X/Y stories complete (Z%) â€” N pending'",
         "pyproject.toml [project.scripts] entry: spiral = 'main:main' exists and is registered"
       ],
       "technicalNotes": [
         "Use argparse.ArgumentParser with add_subparsers(dest='command')",
         "run subcommand uses parse_known_args() to forward unknown flags to spiral.sh",
         "Locate spiral.sh relative to main.py: SPIRAL_SH = Path(__file__).parent / 'spiral.sh'",
-        "status: load prd.json, compute passed/total/pending, print summary \u00e2\u20ac\u201d no external deps",
+        "status: load prd.json, compute passed/total/pending, print summary â€” no external deps",
         "Add tests/test_main.py with at least 2 tests: status output format, init calls setup.py"
       ],
       "dependencies": [],
@@ -606,7 +606,7 @@
       ],
       "technicalNotes": [
         "CSS grid update: grid-template-columns: repeat(5, 1fr)",
-        "Model names in results.tsv may be full IDs (claude-haiku-4-5) \u00e2\u20ac\u201d normalize with: model_key = 'haiku' if 'haiku' in model else 'sonnet' if 'sonnet' in model else 'opus'",
+        "Model names in results.tsv may be full IDs (claude-haiku-4-5) â€” normalize with: model_key = 'haiku' if 'haiku' in model else 'sonnet' if 'sonnet' in model else 'opus'",
         "Cost display: f'${total_cost:.2f}'",
         "Keep COST_PER_HOUR overridable via env: SPIRAL_COST_JSON env var parsed with json.loads"
       ],
@@ -621,10 +621,10 @@
       "description": "ralph.sh supports --dry-run but spiral.sh has no equivalent. Testing spiral.sh loop logic (checkpoint, gate, phase ordering, DAG checks, config validation) requires a live Claude API call, making iteration on the control flow expensive. A spiral-level --dry-run that skips Phase R, Phase T, and Phase I API calls while running all other logic (preflight, gate, DAG, checkpoint, merge) enables fast local testing.",
       "acceptanceCriteria": [
         "spiral.sh parses --dry-run flag and exports DRY_RUN=true",
-        "Phase R: '[dry-run] skipping research agent \u00e2\u20ac\u201d using empty output' and writes {\"stories\":[]} to _research_output.json",
+        "Phase R: '[dry-run] skipping research agent â€” using empty output' and writes {\"stories\":[]} to _research_output.json",
         "Phase T: '[dry-run] skipping test synthesis'",
         "Phase I: passes --dry-run to ralph.sh; ralph prints dry-run summary without calling Claude",
-        "Phase V: '[dry-run] skipping validate \u00e2\u20ac\u201d assuming pass' with VALIDATE_EXIT=0",
+        "Phase V: '[dry-run] skipping validate â€” assuming pass' with VALIDATE_EXIT=0",
         "All other phases (G gate, M merge, C check-done, DAG check, preflight) run normally",
         "bash spiral.sh 1 --gate proceed --dry-run completes in under 10 seconds"
       ],
@@ -632,7 +632,7 @@
         "Parse near top: --dry-run) DRY_RUN=true; shift ;;",
         "Phase guards: [[ \"${DRY_RUN:-false}\" == true ]] && { echo '[dry-run] ...'; ... } || { real logic }",
         "Export DRY_RUN so ralph.sh inherits it",
-        "Useful for CI testing of spiral.sh itself \u00e2\u20ac\u201d add to GitHub Actions workflow as smoke test"
+        "Useful for CI testing of spiral.sh itself â€” add to GitHub Actions workflow as smoke test"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
@@ -654,7 +654,7 @@
         "OVERVIEW=$(jq -r '.overview // \"No overview provided\"' \"$PRD_FILE\")",
         "Tech stack: STACK=''; [[ -f pyproject.toml ]] && STACK+='Python '; [[ -f package.json ]] && STACK+='Node.js '; etc.",
         "Write using bash heredoc: cat > progress.txt << EOF only if [[ ! -f progress.txt ]]",
-        "Keep file compact \u00e2\u20ac\u201d ralph agents have limited context and should not read a 200-line file"
+        "Keep file compact â€” ralph agents have limited context and should not read a 200-line file"
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
@@ -666,7 +666,7 @@
       "priority": "low",
       "description": "specs/SpiralWorkers.tla models multi-worker concurrency but does not account for the model assignment protocol introduced by route_stories.py. The new protocol requires that model fields are written to prd.json before workers read story assignments, and that no two workers race to re-annotate the same story. Adding a ModelAssignmentConsistent invariant to the TLA+ spec verifies these properties with TLC before deployment.",
       "acceptanceCriteria": [
-        "SpiralWorkers.tla adds VARIABLE modelAssignments (story_id \u00e2\u2020\u2019 model string) to the state",
+        "SpiralWorkers.tla adds VARIABLE modelAssignments (story_id â†’ model string) to the state",
         "ModelAssignmentConsistent invariant: all assigned models are in ModelTypes == {\"haiku\", \"sonnet\", \"opus\", \"\"}",
         "RouteStoriesAction models route_stories.py writing all model assignments atomically before workers start",
         "No worker action can modify modelAssignments (read-only for workers)",
@@ -699,7 +699,7 @@
       "technicalNotes": [
         "Parse: sections = re.split(r'(?=^## Iteration)', content, flags=re.MULTILINE)[-10:]",
         "Render each section in <pre style='white-space:pre-wrap; font-size:11px'>",
-        "Use HTML <details> element for collapse \u00e2\u20ac\u201d no JS needed",
+        "Use HTML <details> element for collapse â€” no JS needed",
         "Section is added after the bottleneck tables, before the footer"
       ],
       "dependencies": [],
@@ -710,7 +710,7 @@
       "id": "US-026",
       "title": "Add unit tests for check_done.py (PRD gate + report logic)",
       "priority": "high",
-      "description": "check_done.py is SPIRAL's primary exit gate \u00e2\u20ac\u201d it decides whether the loop terminates. It has no test coverage despite running every iteration. Tests should cover the pending-stories path, the test-report-age staleness warning, the report.json parse, and the COMPLETE vs INCOMPLETE exit codes.",
+      "description": "check_done.py is SPIRAL's primary exit gate â€” it decides whether the loop terminates. It has no test coverage despite running every iteration. Tests should cover the pending-stories path, the test-report-age staleness warning, the report.json parse, and the COMPLETE vs INCOMPLETE exit codes.",
       "acceptanceCriteria": [
         "tests/test_check_done.py exists with at least 8 test cases",
         "test_all_stories_passed_clean_report exits 0",
@@ -735,7 +735,7 @@
       "id": "US-027",
       "title": "Add unit tests for decompose_story.py (ID allocation + JSON extraction)",
       "priority": "high",
-      "description": "decompose_story.py handles automatic story splitting when retries are exhausted \u00e2\u20ac\u201d a critical resilience path with no test coverage. The ID allocation algorithm (find_next_id) and the Claude response parser (extract_json_from_response) are pure functions that can be tested without any API calls.",
+      "description": "decompose_story.py handles automatic story splitting when retries are exhausted â€” a critical resilience path with no test coverage. The ID allocation algorithm (find_next_id) and the Claude response parser (extract_json_from_response) are pure functions that can be tested without any API calls.",
       "acceptanceCriteria": [
         "tests/test_decompose_story.py exists with at least 6 test cases",
         "test_find_next_id_no_gaps returns max+1",
@@ -747,7 +747,7 @@
         "uv run pytest passes (all tests)"
       ],
       "technicalNotes": [
-        "find_next_id and extract_json_from_response are importable pure functions \u00e2\u20ac\u201d no mocking needed",
+        "find_next_id and extract_json_from_response are importable pure functions â€” no mocking needed",
         "Use --dry-run flag in integration test to avoid needing Claude CLI",
         "Use tmp_path to create synthetic prd.json for dry-run test",
         "Guard: test that a story with _decomposedFrom is refused (returns exit code 1)"
@@ -792,7 +792,7 @@
       "technicalNotes": [
         "Replace call_claude() stub body with subprocess.run(['claude', '-p', prompt, '--model', 'haiku', '--max-turns', '1', '--output-format', 'text', '--dangerously-skip-permissions'], capture_output=True, text=True, timeout=60)",
         "Strip and lowercase the output; match 'complex' or 'simple'; default to 'sonnet' on anything else",
-        "The call_claude function signature is already the right shape \u00e2\u20ac\u201d just replace the body"
+        "The call_claude function signature is already the right shape â€” just replace the body"
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
@@ -872,7 +872,7 @@
         "On rate-limit detection: sleep 60 seconds and retry the SAME story without incrementing the retry counter",
         "A separate RATE_LIMIT_RETRIES counter (max 5) prevents infinite loops on persistent rate limits",
         "Rate-limit detection applies to all AI tools (claude, qwen, amp paths in ralph.sh)",
-        "Logs: '[ralph] Rate limited \u00e2\u20ac\u201d waiting 60s before retry (attempt N/5)'"
+        "Logs: '[ralph] Rate limited â€” waiting 60s before retry (attempt N/5)'"
       ],
       "technicalNotes": [
         "Capture claude stderr to a temp file: claude ... 2>\"$RALPH_STDERR_TMP\"",
@@ -892,7 +892,7 @@
       "acceptanceCriteria": [
         "Dashboard HTML includes a 'Velocity by Iteration' section with a bar chart",
         "X-axis: SPIRAL iteration number; Y-axis: stories completed (outcome=passed) in that iteration",
-        "Chart renders using inline SVG (no external JS library \u00e2\u20ac\u201d stdlib-only requirement)",
+        "Chart renders using inline SVG (no external JS library â€” stdlib-only requirement)",
         "Section renders correctly when results.tsv is empty or missing (shows empty state message)",
         "uv run pytest passes (all tests)"
       ],
@@ -900,7 +900,7 @@
         "Group results rows by spiral_iter, count outcome=='passed' per group",
         "Add compute_velocity(results) helper that returns {iter: count} dict",
         "Render as SVG using raw <rect> elements for bars (same approach as other dashboard charts)",
-        "spiral_dashboard.py is stdlib-only \u00e2\u20ac\u201d no chart libraries"
+        "spiral_dashboard.py is stdlib-only â€” no chart libraries"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
@@ -914,7 +914,7 @@
       "acceptanceCriteria": [
         "spiral.config.example.sh documents SPIRAL_MAX_RESEARCH_STORIES (default: 0 = unlimited)",
         "merge_stories.py respects SPIRAL_MAX_RESEARCH_STORIES env var: truncates research candidates to the cap before deduplication",
-        "When truncation occurs: prints '[merge] Capping research output: N \u00e2\u2020\u2019 MAX stories'",
+        "When truncation occurs: prints '[merge] Capping research output: N â†’ MAX stories'",
         "SPIRAL_MAX_RESEARCH_STORIES=0 or unset: unlimited (no behavior change)",
         "test_merge.py adds test_max_research_stories_cap that verifies truncation"
       ],
@@ -959,13 +959,13 @@
         "Archive is named progress-YYYYMMDD-HHMMSS.txt in the project root",
         "After rotation: a new empty progress.txt is created",
         "SPIRAL_PROGRESS_MAX_LINES documented in spiral.config.example.sh (default: 2000, 0=disabled)",
-        "Print: '[spiral] progress.txt rotated (N lines \u00e2\u2020\u2019 archive)' when rotation occurs"
+        "Print: '[spiral] progress.txt rotated (N lines â†’ archive)' when rotation occurs"
       ],
       "technicalNotes": [
         "Line count: LINE_COUNT=$(wc -l < \"$PROGRESS_FILE\" 2>/dev/null || echo 0)",
         "Archive: cp \"$PROGRESS_FILE\" \"progress-$(date +%Y%m%d-%H%M%S).txt\" && > \"$PROGRESS_FILE\"",
         "Insert check after Phase M merge and before Phase I so context is clean for ralph",
-        "SPIRAL_PROGRESS_MAX_LINES=0 means disabled \u00e2\u20ac\u201d skip the check entirely"
+        "SPIRAL_PROGRESS_MAX_LINES=0 means disabled â€” skip the check entirely"
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
@@ -980,7 +980,7 @@
         "After loading _checkpoint.json, spiral.sh computes checkpoint age from the 'ts' field",
         "If age > 86400 seconds (24 hours): print a stderr warning with the age in hours",
         "Warning text: '[spiral] WARNING: Resuming from checkpoint written Nh ago. Pass --reset to start fresh.'",
-        "Does NOT abort \u00e2\u20ac\u201d warning only, loop continues normally",
+        "Does NOT abort â€” warning only, loop continues normally",
         "--reset flag: removes _checkpoint.json and starts from iteration 1"
       ],
       "technicalNotes": [
@@ -1007,7 +1007,7 @@
       "technicalNotes": [
         "Track ITER_START=$(date +%s) at the beginning of each iteration loop",
         "At Phase C: compute story stats with jq from prd.json, then use python3 to write JSON (avoids bash JSON escaping issues)",
-        "spiral_dashboard.py already has load_prd and load_results \u00e2\u20ac\u201d add load_iter_summary(path) that returns {} if missing",
+        "spiral_dashboard.py already has load_prd and load_results â€” add load_iter_summary(path) that returns {} if missing",
         "phases_completed is the list of phases actually executed (may skip R if --skip-research)"
       ],
       "dependencies": [],
@@ -1042,7 +1042,7 @@
         "Before ralph starts a story, spiral.sh or ralph.sh checks that every dependency story ID has passes=true or _decomposed=true",
         "If a dependency is not satisfied, the story is skipped for this iteration (not counted as a retry), and a clear log message is emitted",
         "A story with all dependencies satisfied is not skipped",
-        "Integration test: prd.json with US-002 depending on US-001 (not passed) \u00e2\u20ac\u201d ralph correctly skips US-002 and works on US-001 instead"
+        "Integration test: prd.json with US-002 depending on US-001 (not passed) â€” ralph correctly skips US-002 and works on US-001 instead"
       ],
       "technicalNotes": [
         "Add dependency readiness check in ralph.sh immediately after story selection",
@@ -1061,7 +1061,7 @@
       "acceptanceCriteria": [
         "spiral.config.sh template includes SPIRAL_STORY_BATCH_SIZE with default 20",
         "When SPIRAL_STORY_BATCH_SIZE=5, ralph receives a prd.json slice containing only the 5 highest-priority non-passed stories",
-        "Stories outside the batch window are not skipped \u00e2\u20ac\u201d they appear in the next batch after higher-priority ones complete",
+        "Stories outside the batch window are not skipped â€” they appear in the next batch after higher-priority ones complete",
         "When SPIRAL_STORY_BATCH_SIZE=0, the feature is disabled and all pending stories are shown (current behavior)"
       ],
       "technicalNotes": [
@@ -1104,7 +1104,7 @@
         "Every story completion in ralph.sh (pass or fail) appends: {ts, event:'story_passed'|'story_failed', storyId, retryCount, model}",
         "Every fatal error appends: {ts, event:'error', message, context}",
         ".spiral/spiral_events.jsonl is valid JSONL (one JSON object per line) after a full run",
-        "Log appends across restarts \u00e2\u20ac\u201d it is not truncated on resume"
+        "Log appends across restarts â€” it is not truncated on resume"
       ],
       "technicalNotes": [
         "Implement log_event() helper in spiral.sh using printf + jq for JSON escaping",
@@ -1171,7 +1171,7 @@
       "technicalNotes": [
         "In ralph.sh: COMMIT_SHA=$(git rev-parse HEAD 2>/dev/null || echo '')",
         "Use jq to inject: jq '(.userStories[] | select(.id == \"$STORY_ID\")) += {_passedCommit: \"$COMMIT_SHA\"}' prd.json",
-        "prd_schema.py: optional validation \u00e2\u20ac\u201d _passedCommit must match /^[0-9a-f]{40}$/ or be empty string"
+        "prd_schema.py: optional validation â€” _passedCommit must match /^[0-9a-f]{40}$/ or be empty string"
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
@@ -1390,7 +1390,7 @@
       "id": "US-058",
       "title": "Merge parallel worker results.tsv files into main results.tsv",
       "priority": "high",
-      "description": "In parallel mode, each worker writes telemetry rows to its own worktree's results.tsv. After merge_worker_results.py finishes, the worker results.tsv files are abandoned \u00ef\u00bf\u00bd only the main prd.json is updated. This means the main project's results.tsv is missing all telemetry from parallel runs, breaking spiral_dashboard.py accuracy and spiral_report.py analysis.",
+      "description": "In parallel mode, each worker writes telemetry rows to its own worktree's results.tsv. After merge_worker_results.py finishes, the worker results.tsv files are abandoned ï¿½ only the main prd.json is updated. This means the main project's results.tsv is missing all telemetry from parallel runs, breaking spiral_dashboard.py accuracy and spiral_report.py analysis.",
       "acceptanceCriteria": [
         "run_parallel_ralph.sh reads each worker's results.tsv after all workers complete",
         "Rows from all worker results.tsv files are appended to the main project results.tsv",
@@ -1399,7 +1399,7 @@
         "spiral_dashboard.py shows correct total attempt count when re-run after a parallel session"
       ],
       "technicalNotes": [
-        "Worker worktrees live at $WORKTREE_BASE/worker-N/ \u00ef\u00bf\u00bd each has its own results.tsv at that worktree root",
+        "Worker worktrees live at $WORKTREE_BASE/worker-N/ ï¿½ each has its own results.tsv at that worktree root",
         "run_parallel_ralph.sh already has a merge step for prd.json; add results.tsv merge immediately after",
         "Use awk/tail to skip the header of each worker file before appending to main",
         "Sort merged rows by timestamp column to maintain chronological order"
@@ -1423,7 +1423,7 @@
       "technicalNotes": [
         "Use: du -sk \"$REPO_ROOT\" to get repo size in KB",
         "Use: df -k \"$WORKTREE_BASE\" | awk 'NR==2 {print $4}' for available KB",
-        "Git worktrees share .git objects \u00ef\u00bf\u00bd actual disk use is ~working tree size, not full clone",
+        "Git worktrees share .git objects ï¿½ actual disk use is ~working tree size, not full clone",
         "Add the check near line 200 of run_parallel_ralph.sh before the worker creation loop"
       ],
       "dependencies": [],
@@ -1439,10 +1439,10 @@
         "tests/test_merge_worker_results.py created with at least 8 test cases",
         "Test: single worker with one passed story promotes it to main prd",
         "Test: worker with _skipped story propagates skipped flag to main prd",
-        "Test: worker with _decomposed parent and new sub-stories \u00ef\u00bf\u00bd both promoted correctly",
-        "Test: two workers both passing the same story \u00ef\u00bf\u00bd no duplicate in main",
-        "Test: worker prd.json fails schema validation \u00ef\u00bf\u00bd returns exit code 1, main prd unchanged",
-        "Test: worker file missing \u00ef\u00bf\u00bd warning printed, other workers still processed",
+        "Test: worker with _decomposed parent and new sub-stories ï¿½ both promoted correctly",
+        "Test: two workers both passing the same story ï¿½ no duplicate in main",
+        "Test: worker prd.json fails schema validation ï¿½ returns exit code 1, main prd unchanged",
+        "Test: worker file missing ï¿½ warning printed, other workers still processed",
         "All new tests pass: uv run pytest tests/test_merge_worker_results.py -v"
       ],
       "technicalNotes": [
@@ -1484,14 +1484,14 @@
         "SPIRAL_RESEARCH_RETRIES config variable defaults to 2 (read from spiral.config.sh or env)",
         "After Phase R Claude invocation, check if _research_output.json was written and is valid JSON",
         "If missing or invalid, retry the Claude invocation up to SPIRAL_RESEARCH_RETRIES times",
-        "Each retry prints: '[R] Research output missing or invalid \u00ef\u00bf\u00bd retrying (attempt N/TOTAL)'",
+        "Each retry prints: '[R] Research output missing or invalid ï¿½ retrying (attempt N/TOTAL)'",
         "After all retries exhausted, print a warning and continue with previous iteration output or empty",
         "Research succeeding on retry causes Phase T and M to proceed normally"
       ],
       "technicalNotes": [
         "Check _research_output.json validity after claude invocation: python3 -c \"import json; json.load(open('$RESEARCH_OUTPUT'))\"",
         "Add a retry loop in spiral.sh Phase R section wrapping the claude invocation command",
-        "Exponential backoff is not needed here \u00ef\u00bf\u00bd retries are cheap since Claude starts fresh"
+        "Exponential backoff is not needed here ï¿½ retries are cheap since Claude starts fresh"
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
@@ -1514,7 +1514,7 @@
       ],
       "technicalNotes": [
         "Import compute_* functions directly from lib.spiral_dashboard (add sys.path insert)",
-        "Build minimal prd/results/retries fixtures as Python dicts \u00ef\u00bf\u00bd no temp files needed",
+        "Build minimal prd/results/retries fixtures as Python dicts ï¿½ no temp files needed",
         "The module is stdlib-only so no extra test dependencies are required"
       ],
       "dependencies": [],
@@ -1590,11 +1590,11 @@
       "id": "US-067",
       "title": "Log Gemini Phase R failure reason (rate-limit vs error vs empty output)",
       "priority": "medium",
-      "description": "Phase R uses || true to swallow all Gemini CLI errors. When Gemini returns empty output, spiral.sh logs 'Gemini web research returned empty' but gives no reason \u00ef\u00bf\u00bd making it impossible to distinguish a 429 rate limit, API key error, network failure, or legitimate empty output. Capturing stderr enables targeted recovery messages.",
+      "description": "Phase R uses || true to swallow all Gemini CLI errors. When Gemini returns empty output, spiral.sh logs 'Gemini web research returned empty' but gives no reason ï¿½ making it impossible to distinguish a 429 rate limit, API key error, network failure, or legitimate empty output. Capturing stderr enables targeted recovery messages.",
       "acceptanceCriteria": [
         "Gemini invocation captures stderr to a temp file: gemini ... 2>\"$GEMINI_ERR_TMP\" || true",
-        "If GEMINI_RESEARCH is empty and stderr contains '429' or 'rate limit', print: '[R] Gemini rate-limited \u00ef\u00bf\u00bd Claude will browse URLs directly'",
-        "If stderr contains 'PERMISSION_DENIED' or 'API key', print: '[R] Gemini auth error \u00ef\u00bf\u00bd check GEMINI_API_KEY'",
+        "If GEMINI_RESEARCH is empty and stderr contains '429' or 'rate limit', print: '[R] Gemini rate-limited ï¿½ Claude will browse URLs directly'",
+        "If stderr contains 'PERMISSION_DENIED' or 'API key', print: '[R] Gemini auth error ï¿½ check GEMINI_API_KEY'",
         "If stderr is non-empty but unknown pattern, print the first line as diagnostic context",
         "If GEMINI_RESEARCH is non-empty, no stderr check is performed",
         "Temp file is cleaned up after the check in all code paths"
@@ -1616,15 +1616,15 @@
       "acceptanceCriteria": [
         "Each background worker PID is collected into an array after launch",
         "After all workers are spawned, iterate per-PID: wait $PID; worker_status=$?",
-        "If a worker exits non-zero, print: '[parallel] Worker N exited with status S \u00ef\u00bf\u00bd continuing remaining workers'",
+        "If a worker exits non-zero, print: '[parallel] Worker N exited with status S ï¿½ continuing remaining workers'",
         "Failed worker worktree is cleaned up on the same path as successful workers",
-        "merge_worker_results.py is still called with all worker prd paths \u00ef\u00bf\u00bd missing workers emit warnings but do not abort the merge",
+        "merge_worker_results.py is still called with all worker prd paths ï¿½ missing workers emit warnings but do not abort the merge",
         "If all workers fail, exit run_parallel_ralph.sh with a non-zero exit code"
       ],
       "technicalNotes": [
         "Replace any bulk 'wait' call with a per-PID wait loop: for pid in \"${WORKER_PIDS[@]}\"; do wait \"$pid\" || failed=$((failed+1)); done",
         "Track failed_count; if failed_count == RALPH_WORKERS, exit 1 after cleanup",
-        "The existing EXIT/INT/TERM trap handles cleanup \u00ef\u00bf\u00bd this change only affects normal worker exit code handling"
+        "The existing EXIT/INT/TERM trap handles cleanup ï¿½ this change only affects normal worker exit code handling"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
@@ -1645,7 +1645,7 @@
       ],
       "technicalNotes": [
         "Group results rows by story_id in a new compute_story_attempts() function before HTML generation",
-        "Use HTML5 <details><summary> accordion elements \u00ef\u00bf\u00bd zero JavaScript required",
+        "Use HTML5 <details><summary> accordion elements ï¿½ zero JavaScript required",
         "Insert Stories drilldown section after the overview cards and before the velocity chart"
       ],
       "dependencies": [],
@@ -1680,8 +1680,8 @@
       "description": "The /spiral-init wizard asks for SPIRAL_VALIDATE_CMD but never verifies the command works before writing it to config. If the user enters a wrong path or missing executable, every Phase V validation will fail and spiral will loop forever treating all tests as broken. A quick dry-run during setup catches this at the source.",
       "acceptanceCriteria": [
         "After user enters SPIRAL_VALIDATE_CMD, wizard runs: timeout 30 bash -c \"$SPIRAL_VALIDATE_CMD\" and checks exit code",
-        "If exit 0: print '[wizard] Validate command verified \u00ef\u00bf\u00bd writing to config'",
-        "If non-zero exit or timeout: print 'Command returned exit N \u00ef\u00bf\u00bd use anyway? (y/N)' and wait for input",
+        "If exit 0: print '[wizard] Validate command verified ï¿½ writing to config'",
+        "If non-zero exit or timeout: print 'Command returned exit N ï¿½ use anyway? (y/N)' and wait for input",
         "If exit 127 (command not found): print specific error '[wizard] Command not found: <cmd>' with install hint",
         "User pressing Enter (default N) re-prompts for the command; y accepts as-is",
         "Empty SPIRAL_VALIDATE_CMD input skips the dry-run and uses the detected project default"
@@ -1699,14 +1699,14 @@
       "id": "US-072",
       "title": "Add integration test for run_parallel_ralph.sh with mock worker scripts",
       "priority": "medium",
-      "description": "run_parallel_ralph.sh (622 lines) is the most complex orchestration script and has zero automated test coverage. It creates git worktrees, partitions prd.json, spawns background processes, merges results, and cleans up \u00ef\u00bf\u00bd many steps that can fail independently. A minimal integration test using mock worker scripts validates the orchestration without real Claude agents.",
+      "description": "run_parallel_ralph.sh (622 lines) is the most complex orchestration script and has zero automated test coverage. It creates git worktrees, partitions prd.json, spawns background processes, merges results, and cleans up ï¿½ many steps that can fail independently. A minimal integration test using mock worker scripts validates the orchestration without real Claude agents.",
       "acceptanceCriteria": [
         "tests/test_parallel_orchestration.py or tests/test_parallel_integration.sh created",
         "Test setup: creates a temp git repo with a minimal prd.json (3 stories) configured for 2 workers",
         "Mock SPIRAL_RALPH: a bash script that marks one story passes=true in its worker prd.json and exits 0",
         "After run_parallel_ralph.sh, main prd.json has the story marked passes=true",
         "After completion, worktrees are cleaned up from the filesystem",
-        "Second scenario: one mock worker exits 1, the other succeeds \u00ef\u00bf\u00bd successful worker's result is still merged",
+        "Second scenario: one mock worker exits 1, the other succeeds ï¿½ successful worker's result is still merged",
         "Test is runnable via: uv run pytest tests/test_parallel_orchestration.py -v"
       ],
       "technicalNotes": [
@@ -1776,7 +1776,7 @@
       ],
       "technicalNotes": [
         "Add SPIRAL_VERSION derivation near the top of spiral.sh after SPIRAL_HOME is set",
-        "The checkpoint read/write is in spiral.sh inline or lib/state_machine.py \u00ef\u00bf\u00bd update whichever writes the checkpoint dict",
+        "The checkpoint read/write is in spiral.sh inline or lib/state_machine.py ï¿½ update whichever writes the checkpoint dict",
         "Version comparison uses string equality; no semver parsing needed"
       ],
       "dependencies": [],
@@ -1813,7 +1813,7 @@
         "Running `git worktree prune` while a worker is active does NOT remove the locked worktree"
       ],
       "technicalNotes": [
-        "`git worktree lock [--reason <string>] <path>` \u2014 officially supported since Git 2.7",
+        "`git worktree lock [--reason <string>] <path>` — officially supported since Git 2.7",
         "Place unlock in the EXIT trap alongside the existing SIGINT/SIGTERM handlers",
         "Source: https://git-scm.com/docs/git-worktree#Documentation/git-worktree.txt-lock"
       ],
@@ -1844,7 +1844,7 @@
       "id": "US-079",
       "title": "Handle HTTP 529 overloaded_error with separate backoff strategy from 429",
       "priority": "high",
-      "description": "The Anthropic API returns 529 (overloaded_error) when its servers are under load \u2014 distinct from 429 (rate_limit_error). The existing 429 handler uses the `retry-after` header, which is absent on 529 responses. A separate handler with exponential backoff and jitter (2s base, 30s cap, 10% jitter) should be applied for 529 errors to avoid immediate re-hammering.",
+      "description": "The Anthropic API returns 529 (overloaded_error) when its servers are under load — distinct from 429 (rate_limit_error). The existing 429 handler uses the `retry-after` header, which is absent on 529 responses. A separate handler with exponential backoff and jitter (2s base, 30s cap, 10% jitter) should be applied for 529 errors to avoid immediate re-hammering.",
       "acceptanceCriteria": [
         "ralph.sh detects HTTP 529 or `error.type == overloaded_error` in Claude CLI output separately from 429 detection",
         "On 529, ralph.sh applies exponential backoff: `sleep $((base * 2**attempt + RANDOM % jitter_range))` up to 30s cap",
@@ -1930,7 +1930,7 @@
         "SPIRAL_RUN_ID is written to `_checkpoint.json` so it persists across crash-resume cycles"
       ],
       "technicalNotes": [
-        "Equivalent to OTel's `Resource.service.instance.id` \u2014 enables filtering all events from one run",
+        "Equivalent to OTel's `Resource.service.instance.id` — enables filtering all events from one run",
         "Write to checkpoint: `jq '. + {run_id: env.SPIRAL_RUN_ID}' _checkpoint.json > _checkpoint.json.tmp && mv _checkpoint.json.tmp _checkpoint.json`",
         "Source: https://opentelemetry.io/docs/specs/otel/logs/data-model/ (log correlation IDs)"
       ],
@@ -1942,7 +1942,7 @@
       "id": "US-084",
       "title": "Add bats test scaffold for spiral.sh phase transitions",
       "priority": "medium",
-      "description": "spiral.sh has no shell-level tests \u2014 only Python unit tests for the lib/ utilities. A bats-core test suite validates that each phase flag (--gate skip, --gate proceed, --skip-research) produces the expected exit codes and output files without requiring a live Claude API, providing test coverage for the orchestration layer.",
+      "description": "spiral.sh has no shell-level tests — only Python unit tests for the lib/ utilities. A bats-core test suite validates that each phase flag (--gate skip, --gate proceed, --skip-research) produces the expected exit codes and output files without requiring a live Claude API, providing test coverage for the orchestration layer.",
       "acceptanceCriteria": [
         "test/spiral_phases.bats exists with bats-core, bats-assert, and bats-mock as git submodules in test/",
         "`setup_file()` creates a temp REPO_ROOT with a minimal prd.json and a mocked `claude` binary on PATH",
@@ -1983,7 +1983,7 @@
       "id": "US-086",
       "title": "Add workflow_dispatch inputs to SPIRAL GitHub Actions workflow for manual reruns",
       "priority": "medium",
-      "description": "The existing GitHub Actions CI workflow runs SPIRAL only on push/PR events. Adding `workflow_dispatch` with inputs (`max_iterations`, `gate`, `dry_run`) lets operators manually trigger a SPIRAL run from the GitHub UI \u2014 useful for a research-only pass or re-running after a transient API failure without pushing a commit.",
+      "description": "The existing GitHub Actions CI workflow runs SPIRAL only on push/PR events. Adding `workflow_dispatch` with inputs (`max_iterations`, `gate`, `dry_run`) lets operators manually trigger a SPIRAL run from the GitHub UI — useful for a research-only pass or re-running after a transient API failure without pushing a commit.",
       "acceptanceCriteria": [
         "`.github/workflows/spiral.yml` adds a `workflow_dispatch:` trigger with inputs: `max_iterations` (string, default '5'), `gate` (choice: proceed/skip/quit, default proceed), `dry_run` (boolean, default false)",
         "The workflow step passes inputs to spiral.sh: `bash spiral.sh ${{ inputs.max_iterations }} --gate ${{ inputs.gate }}`",
@@ -2006,7 +2006,7 @@
       "description": "After a crash or hard kill, `.spiral-workers/worker-N` directories may remain as orphaned worktrees whose worker processes are dead. spiral_dashboard.py should cross-reference `git worktree list` against live worker PID files (via `os.kill(pid, 0)`) and surface any orphaned worktrees with a suggested prune command.",
       "acceptanceCriteria": [
         "spiral_dashboard.py reads active worker PID files from `.spiral-workers/worker-N/worker.pid`",
-        "For each PID file, it checks liveness with `os.kill(pid, 0)` \u2014 `ProcessLookupError` means dead PID",
+        "For each PID file, it checks liveness with `os.kill(pid, 0)` — `ProcessLookupError` means dead PID",
         "For each dead-PID worktree, the dashboard displays an 'ORPHANED' status with the worktree path and `git worktree remove <path>` suggested command",
         "The orphan check runs at dashboard startup (not on a background timer)"
       ],
@@ -2083,7 +2083,7 @@
       "id": "US-095",
       "title": "Add per-worker execution timeout using `timeout --kill-after` in run_parallel_ralph.sh",
       "priority": "high",
-      "description": "Workers that hang indefinitely (e.g., waiting on a stalled Claude CLI subprocess) currently block the entire parallel batch with no recovery path. Wrapping each worker invocation with `timeout --kill-after=60s ${SPIRAL_WORKER_TIMEOUT:-600}s` provides a two-phase SIGTERM\u2192SIGKILL sequence and returns exit code 124 on expiry, allowing the coordinator to distinguish a timeout from a crash and requeue the story.",
+      "description": "Workers that hang indefinitely (e.g., waiting on a stalled Claude CLI subprocess) currently block the entire parallel batch with no recovery path. Wrapping each worker invocation with `timeout --kill-after=60s ${SPIRAL_WORKER_TIMEOUT:-600}s` provides a two-phase SIGTERM→SIGKILL sequence and returns exit code 124 on expiry, allowing the coordinator to distinguish a timeout from a crash and requeue the story.",
       "acceptanceCriteria": [
         "SPIRAL_WORKER_TIMEOUT env var (default 600s) controls per-worker wall-clock limit",
         "Worker process tree receives SIGTERM first, then SIGKILL after 60s grace period",
@@ -2110,7 +2110,7 @@
         "SPIRAL_VALIDATE_TIMEOUT env var (default 300s) limits Phase V wall-clock time",
         "When Phase V times out, spiral_events.jsonl receives a phase_timeout event with duration_ms",
         "Phase V timeout is treated as a test failure (not a crash), allowing the loop to continue to Phase C",
-        "A warning message is printed: 'Phase V timed out after Xs \u2014 treating as validation failure'",
+        "A warning message is printed: 'Phase V timed out after Xs — treating as validation failure'",
         "SPIRAL_VALIDATE_TIMEOUT=0 disables the timeout (unlimited, matching current behaviour)"
       ],
       "technicalNotes": [
@@ -2135,7 +2135,7 @@
         "bats integration test covers the conflict-detected requeue path with a fixture repo"
       ],
       "technicalNotes": [
-        "Command: `git merge-tree $(git merge-base HEAD \"$MAIN_BRANCH\") HEAD \"$MAIN_BRANCH\"` \u2014 exit code 0 = no conflicts, non-zero = conflicts",
+        "Command: `git merge-tree $(git merge-base HEAD \"$MAIN_BRANCH\") HEAD \"$MAIN_BRANCH\"` — exit code 0 = no conflicts, non-zero = conflicts",
         "`git merge-tree` is available in Git 2.38+ with improved output; fall back to a test merge + reset for older Git versions",
         "See github.com/clash-sh/clash for a reference implementation pattern in a parallel-agent context",
         "Conflicts reset story state to 'pending' with _failureReason: 'merge_conflict' to distinguish from implementation failures"
@@ -2173,14 +2173,14 @@
       "description": "The current memory pressure watchdog (memory-watchdog.ps1) is PowerShell-only, leaving UNIX/Linux/WSL environments without adaptive memory signals. Adding a Bash adapter that reads MemAvailable from /proc/meminfo (Linux) or uses vm_stat on macOS provides the same JSON signal file that spiral.sh already consumes, giving cross-platform parity with no changes to the main loop.",
       "acceptanceCriteria": [
         "New script lib/memory-watchdog.sh detects platform (Linux vs macOS) and reads available memory",
-        "On Linux: reads MemAvailable from /proc/meminfo (not MemFree \u2014 MemAvailable accounts for reclaimable cache)",
+        "On Linux: reads MemAvailable from /proc/meminfo (not MemFree — MemAvailable accounts for reclaimable cache)",
         "On macOS: reads Pages free from vm_stat, converts page size to MB",
         "Outputs the same JSON signal format that memory-pressure-check.sh already expects",
         "spiral.sh auto-selects the watchdog based on platform: .ps1 on Windows, .sh on UNIX",
         "Unit test covers the platform-detection branch and mock /proc/meminfo parsing"
       ],
       "technicalNotes": [
-        "MemAvailable field (not MemFree) is the correct metric \u2014 Red Hat KB 406773 explains why MemFree underestimates available memory",
+        "MemAvailable field (not MemFree) is the correct metric — Red Hat KB 406773 explains why MemFree underestimates available memory",
         "Cross-platform pattern: `if [ -f /proc/meminfo ]; then awk '/MemAvailable/ {print int($2/1024)}' /proc/meminfo; else vm_stat | awk '/Pages free/ {print int($3*4096/1048576)}'; fi`",
         "The JSON signal file path should be configurable (SPIRAL_MEMORY_SIGNAL_FILE) so both watchdogs write to the same location"
       ],
@@ -2215,7 +2215,7 @@
       "id": "US-101",
       "title": "Add max diff size guard in ralph.sh to warn on oversized story implementations",
       "priority": "medium",
-      "description": "AI-generated implementations that produce very large diffs (>500 lines changed) are frequently low quality \u2014 the model has gone off-scope, added unnecessary boilerplate, or implemented far more than the story required. A configurable SPIRAL_MAX_DIFF_LINES guard in ralph.sh detects oversized diffs before committing and marks the story for review or automatic retry with a tighter prompt.",
+      "description": "AI-generated implementations that produce very large diffs (>500 lines changed) are frequently low quality — the model has gone off-scope, added unnecessary boilerplate, or implemented far more than the story required. A configurable SPIRAL_MAX_DIFF_LINES guard in ralph.sh detects oversized diffs before committing and marks the story for review or automatic retry with a tighter prompt.",
       "acceptanceCriteria": [
         "SPIRAL_MAX_DIFF_LINES env var (default 500) sets the maximum allowed changed lines per story",
         "After Phase I implementation, ralph.sh counts total changed lines via `git diff --stat HEAD`",
@@ -2293,7 +2293,7 @@
       "technicalNotes": [
         "decompose_story.py already exists; this story wires ralph.sh to call it automatically at threshold",
         "Decomposed child stories should inherit the parent's epicId (pending story) for report grouping",
-        "Distinguish from _skipped via MAX_RETRIES \u2014 auto-decomposed stories should not count against SPIRAL_COST_CEILING since work continues via children"
+        "Distinguish from _skipped via MAX_RETRIES — auto-decomposed stories should not count against SPIRAL_COST_CEILING since work continues via children"
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
@@ -2338,7 +2338,7 @@
         "Unit tests cover: empty filesTouch, full overlap, partial overlap, and would-create-cycle scenarios"
       ],
       "technicalNotes": [
-        "Jaccard similarity: |A \u2229 B| / |A \u222a B| \u2014 threshold 0.5 for strong dependency classification",
+        "Jaccard similarity: |A ∩ B| / |A ∪ B| — threshold 0.5 for strong dependency classification",
         "Stories with no filesTouch history (brand new, no prior commits) cannot be inferred and are skipped",
         "This directly addresses the 'new story areas added after baseline have zero hints' gap in partition_prd.py"
       ],
@@ -2361,7 +2361,7 @@
       "technicalNotes": [
         "State file must be written atomically (write-to-tmp then mv) to avoid corruption during concurrent worker reads",
         "Circuit breaker is per-model-endpoint, not global, to allow fallback routing",
-        "Distinguish transient errors (5xx, 429) from permanent errors (400, 401) \u2014 only transient errors increment failure count",
+        "Distinguish transient errors (5xx, 429) from permanent errors (400, 401) — only transient errors increment failure count",
         "Log all state transitions as circuit_breaker_open / circuit_breaker_closed events to spiral_events.jsonl"
       ],
       "dependencies": [],
@@ -2383,7 +2383,7 @@
       "technicalNotes": [
         "Use `timeout --kill-after=30` (SIGTERM first, then SIGKILL after 30s) to allow graceful LLM CLI shutdown",
         "Test on macOS with `gtimeout` (from coreutils) and Linux `timeout`; auto-detect in setup/doctor",
-        "Per-phase timeouts must survive the existing retry loop \u2014 a timeout retry still respects the backoff delay",
+        "Per-phase timeouts must survive the existing retry loop — a timeout retry still respects the backoff delay",
         "Log timeout events with phase, story_id, timeout_secs for post-run analysis"
       ],
       "dependencies": [],
@@ -2450,7 +2450,7 @@
         "Depends on the circuit breaker implementation (story: Add circuit breaker for LLM API calls with half-open recovery)",
         "Model IDs must map to the correct --model flag for each CLI tool (claude: claude-sonnet-4-5, amp: same, codex: gpt-4o)",
         "Cost tracking must account for per-model pricing when a fallback is used",
-        "The fallback chain applies at the story-attempt level \u2014 a story started on sonnet completes on sonnet even if haiku is cheaper"
+        "The fallback chain applies at the story-attempt level — a story started on sonnet completes on sonnet even if haiku is cheaper"
       ],
       "dependencies": [],
       "estimatedComplexity": "large",
@@ -2512,7 +2512,7 @@
         "A comment documents that `egress-policy: block` should be enabled after an audit period"
       ],
       "technicalNotes": [
-        "SHA-pinning prevents a compromised upstream action from injecting malicious code \u2014 use Dependabot to keep SHAs current",
+        "SHA-pinning prevents a compromised upstream action from injecting malicious code — use Dependabot to keep SHAs current",
         "Recommend ephemeral self-hosted runners (--ephemeral flag) over persistent runners in .github/SECURITY.md",
         "OIDC-based credentials (role-to-assume) eliminate the need for stored long-lived secrets",
         "Document in .github/SECURITY.md that self-hosted runners should only be used for private repos"
@@ -2557,7 +2557,7 @@
       "technicalNotes": [
         "pnpm's global virtual store location is `pnpm store path`; symlinks from node_modules/.pnpm point into this store",
         "Only activate this for worktrees created during parallel runs; single-worker runs are unaffected",
-        "This does NOT require sparse-checkout \u2014 it only changes how node_modules are populated"
+        "This does NOT require sparse-checkout — it only changes how node_modules are populated"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
@@ -2578,7 +2578,7 @@
       "technicalNotes": [
         "jq --stream emits [path, value] pairs; use `tostream` / `fromstream` patterns to reconstruct objects",
         "Streaming is only needed for the story selection query, not for the passes=true update (which uses atomic write-and-replace already)",
-        "jq 1.6+ is required for --stream support \u2014 document minimum jq version in spiral_doctor.sh"
+        "jq 1.6+ is required for --stream support — document minimum jq version in spiral_doctor.sh"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
@@ -2588,7 +2588,7 @@
       "id": "US-125",
       "title": "Add shellcheck static analysis gate to CI for all bash scripts",
       "priority": "high",
-      "description": "ShellCheck detects semantic errors in bash scripts (unquoted variables, incorrect conditionals, subshell bugs) that shfmt cannot \u2014 shfmt only enforces formatting. Without ShellCheck, subtle runtime bugs in spiral.sh, ralph.sh, and lib/ scripts slip through. CI must enforce zero ShellCheck violations at severity=error.",
+      "description": "ShellCheck detects semantic errors in bash scripts (unquoted variables, incorrect conditionals, subshell bugs) that shfmt cannot — shfmt only enforces formatting. Without ShellCheck, subtle runtime bugs in spiral.sh, ralph.sh, and lib/ scripts slip through. CI must enforce zero ShellCheck violations at severity=error.",
       "acceptanceCriteria": [
         "CI runs `shellcheck --severity=error` over all `.sh` files in the repo and fails on any violation",
         "ShellCheck version is pinned in a requirements/CI config file to prevent surprise failures from upstream changes",
@@ -2596,7 +2596,7 @@
         "`spiral-doctor` verifies shellcheck is installed and reports its version"
       ],
       "technicalNotes": [
-        "ShellCheck is distinct from shfmt \u2014 shfmt is style/formatting, shellcheck is semantic correctness",
+        "ShellCheck is distinct from shfmt — shfmt is style/formatting, shellcheck is semantic correctness",
         "Use `koalaman/shellcheck-action` GitHub Action with explicit `version:` pin (e.g., v0.10.0)",
         "Output format: `--format=gcc` for GitHub Actions annotation integration",
         "Pair with pre-commit hook using `repo: https://github.com/koalaman/shellcheck-precommit`"
@@ -2734,13 +2734,13 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-132",
       "title": "Add SPIRAL_PRE_PHASE_HOOK and SPIRAL_POST_PHASE_HOOK for user-defined phase scripts",
       "priority": "medium",
-      "description": "Different projects need custom actions at specific SPIRAL phases \u2014 e.g., seeding a test database before Phase V, or posting a Slack notification after Phase I. Generic pre/post phase hooks (env vars pointing to executable scripts) enable this without modifying spiral.sh itself, following the Unix composability philosophy.",
+      "description": "Different projects need custom actions at specific SPIRAL phases — e.g., seeding a test database before Phase V, or posting a Slack notification after Phase I. Generic pre/post phase hooks (env vars pointing to executable scripts) enable this without modifying spiral.sh itself, following the Unix composability philosophy.",
       "acceptanceCriteria": [
         "SPIRAL_PRE_PHASE_HOOK and SPIRAL_POST_PHASE_HOOK accept a path to an executable script",
         "The hook script receives SPIRAL_CURRENT_PHASE (I/R/M/V/G) and SPIRAL_CURRENT_STORY_ID as env vars",
@@ -2823,7 +2823,7 @@
         "Use: pinchtab --server \"$SPIRAL_PINCHTAB_URL\" nav / text",
         "Guard with: command -v pinchtab to print a helpful install hint if missing",
         "ralph/CLAUDE.md already updated: clarifies Chrome DevTools MCP is for Phase I inline checks; pinchtab is Phase V only",
-        "Do NOT start/stop pinchtab server from spiral.sh \u2014 user manages the server lifecycle externally"
+        "Do NOT start/stop pinchtab server from spiral.sh — user manages the server lifecycle externally"
       ]
     },
     {
@@ -3010,7 +3010,7 @@
       "acceptanceCriteria": [
         "spiral.sh prints a cost projection table (model tier, story count, estimated tokens, estimated USD) before entering the main loop",
         "Projection uses mean tokens-per-story from recent results.tsv rows; falls back to SPIRAL_DEFAULT_TOKENS_PER_STORY (default: 8000) when insufficient history",
-        "When projected cost > SPIRAL_COST_WARN_THRESHOLD (default: $5.00), prompts `Estimated cost: $X.XX \u2014 Continue? [y/N]`",
+        "When projected cost > SPIRAL_COST_WARN_THRESHOLD (default: $5.00), prompts `Estimated cost: $X.XX — Continue? [y/N]`",
         "--yes flag skips the confirmation prompt for non-interactive CI environments",
         "Projection is skipped when results.tsv has fewer than 5 data rows"
       ],
@@ -3018,7 +3018,7 @@
         "Claude model pricing page: https://www.anthropic.com/pricing",
         "haiku-4-5: ~$0.80/MTok input; sonnet-4-6: ~$3.00/MTok input; opus-4-6: ~$15.00/MTok input",
         "Implement projection in lib/cost_project.py; expose via main.py estimate subcommand",
-        "Show confidence range: projection \u00b1 1 std deviation from results.tsv sample"
+        "Show confidence range: projection ± 1 std deviation from results.tsv sample"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
@@ -3149,7 +3149,7 @@
       ],
       "technicalNotes": [
         "Use rich library for table rendering: https://github.com/Textualize/rich",
-        "NO_COLOR standard: https://no-color.org/ \u2014 check `os.environ.get('NO_COLOR')` before applying ANSI",
+        "NO_COLOR standard: https://no-color.org/ — check `os.environ.get('NO_COLOR')` before applying ANSI",
         "Falls back to plain aligned text when rich is not installed",
         "Distinct from existing --status flag: this is a full subcommand with richer output and --json mode"
       ],
