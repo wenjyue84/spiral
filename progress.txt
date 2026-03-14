@@ -3524,3 +3524,24 @@ Completed: Stream-process large prd.json with jq --stream to avoid full in-memor
 - `_OLLAMA_USED=0` reset must happen per-story (added right after `STORY_START=$(date +%s)`)
 - `${ollama_base%/v1}` strips `/v1` suffix to get base URL for Ollama's native `/api/tags` endpoint
 - 569 pytest passed, 8 new bats tests all pass
+
+
+## Iteration N - Story: US-175: Atomic prd.json write in merge_stories.py
+
+### What was implemented
+- Removed `import shutil` from merge_stories.py
+- Added `_atomic_write_json(data, dest_path)` helper: writes to `.tmp`, then `os.replace()`, with try/finally cleanup of .tmp on both success and failure
+- Replaced the main prd.json write (previously `shutil.move`) with `_atomic_write_json`
+- Replaced the overflow file write with `_atomic_write_json`
+- Added `TestAtomicWriteUnit` test class with two tests:
+  - `test_os_replace_raises_leaves_original_unchanged`: monkeypatches `os.replace` to raise, verifies original unchanged and .tmp cleaned up
+  - `test_successful_write_creates_dest_and_removes_tmp`: happy path verification
+
+### Patterns discovered
+- test_route_stories.py has a pre-existing ImportError (relative import), skip it when running full suite
+- conftest.py requires `hypothesis` module; run specific test files rather than `tests/` dir to avoid conftest loading
+- Use `uv run python -m pytest <specific_files>` for reliable test execution
+
+### Gotchas
+- The existing `test_original_unchanged_when_tmp_write_blocked` test creates a directory at the .tmp path to block writes — this still works with `os.replace()` because `open(tmp_path, 'w')` raises PermissionError/IsADirectoryError when tmp_path is a directory
+- os.replace() on success renames the file, so .tmp is gone — the finally block's `os.path.exists` check handles this correctly

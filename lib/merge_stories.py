@@ -13,7 +13,6 @@ import argparse
 import json
 import os
 import re
-import shutil
 import sys
 from typing import Any
 
@@ -28,6 +27,28 @@ PRIORITY_RANK = {"critical": 0, "high": 1, "medium": 2, "low": 3}
 
 # Story ID prefix from env
 STORY_PREFIX = os.environ.get("SPIRAL_STORY_PREFIX", "US")
+
+
+def _atomic_write_json(data: dict[str, Any], dest_path: str) -> None:
+    """Write *data* as pretty-printed JSON to *dest_path* atomically.
+
+    Writes to ``dest_path + '.tmp'``, then renames with ``os.replace()``.
+    The temporary file is always removed in a ``finally`` block — on success
+    it has already been renamed away so the unlink is a no-op; on failure it
+    cleans up the partial file so *dest_path* is never left half-written.
+    """
+    tmp_path = dest_path + ".tmp"
+    try:
+        with open(tmp_path, "w", encoding="utf-8") as fh:
+            json.dump(data, fh, indent=2, ensure_ascii=False)
+            fh.write("\n")
+        os.replace(tmp_path, dest_path)
+    finally:
+        if os.path.exists(tmp_path):
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
 
 
 def normalize(text: str) -> set[str]:
@@ -279,10 +300,7 @@ def main() -> int:
 
     # ── Write overflow file ────────────────────────────────────────────────────
     if args.overflow_out:
-        tmp_overflow = args.overflow_out + ".tmp"
-        with open(tmp_overflow, "w", encoding="utf-8") as f:
-            json.dump({"stories": leftover_research}, f, indent=2, ensure_ascii=False)
-        shutil.move(tmp_overflow, args.overflow_out)
+        _atomic_write_json({"stories": leftover_research}, args.overflow_out)
         if leftover_research:
             print(
                 f"[merge] Overflow: {len(leftover_research)} unused research candidates "
@@ -311,11 +329,7 @@ def main() -> int:
     # ── Post-merge sort: priority order so ralph picks highest-priority first ──
     prd["userStories"].sort(key=full_sort_key)
 
-    tmp_path = args.prd + ".tmp"
-    with open(tmp_path, "w", encoding="utf-8") as f:
-        json.dump(prd, f, indent=2, ensure_ascii=False)
-        f.write("\n")
-    shutil.move(tmp_path, args.prd)
+    _atomic_write_json(prd, args.prd)
 
     total_after = len(prd["userStories"])
     pending_after = sum(1 for s in prd["userStories"] if not s.get("passes"))

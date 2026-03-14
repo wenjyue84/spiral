@@ -7,7 +7,7 @@ import sys
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
-from merge_stories import overlap_ratio, is_duplicate, find_next_id, sort_key, full_sort_key
+from merge_stories import overlap_ratio, is_duplicate, find_next_id, sort_key, full_sort_key, _atomic_write_json
 
 
 # ── overlap_ratio ────────────────────────────────────────────────────────
@@ -205,6 +205,45 @@ class TestAtomicWrite:
 
         # Original prd.json must be unchanged
         assert prd_path.read_text(encoding="utf-8") == original_content
+
+
+# ── Atomic write unit — monkeypatch os.replace ───────────────────────────
+
+
+class TestAtomicWriteUnit:
+    """Unit tests for _atomic_write_json using monkeypatch on os.replace."""
+
+    def test_os_replace_raises_leaves_original_unchanged(self, tmp_path, monkeypatch):
+        """If os.replace raises, dest file is unchanged and .tmp is cleaned up."""
+        import merge_stories as ms
+
+        dest = tmp_path / "prd.json"
+        original = {"productName": "Test", "branchName": "main", "userStories": []}
+        dest.write_text(json.dumps(original, indent=2), encoding="utf-8")
+        original_content = dest.read_text(encoding="utf-8")
+
+        def _fail_replace(src, dst):
+            raise OSError("simulated replace failure")
+
+        monkeypatch.setattr(ms.os, "replace", _fail_replace)
+
+        with pytest.raises(OSError, match="simulated replace failure"):
+            ms._atomic_write_json({"productName": "Changed", "userStories": []}, str(dest))
+
+        # Original file must be unchanged
+        assert dest.read_text(encoding="utf-8") == original_content
+        # Tmp file must be cleaned up
+        assert not (tmp_path / "prd.json.tmp").exists()
+
+    def test_successful_write_creates_dest_and_removes_tmp(self, tmp_path):
+        """Successful write produces correct dest file; no .tmp left behind."""
+        dest = tmp_path / "out.json"
+        data = {"key": "value", "items": [1, 2, 3]}
+        _atomic_write_json(data, str(dest))
+
+        assert dest.exists()
+        assert not (tmp_path / "out.json.tmp").exists()
+        assert json.loads(dest.read_text(encoding="utf-8")) == data
 
 
 # ── Overflow behaviour ───────────────────────────────────────────────────
