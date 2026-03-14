@@ -262,6 +262,7 @@ SPIRAL_FOCUS="${SPIRAL_CLI_FOCUS:-${SPIRAL_FOCUS:-}}"
 SPIRAL_SKIP_STORY_IDS="${SPIRAL_SKIP_STORY_IDS:-}"  # comma-separated IDs to permanently skip without penalty
 SPIRAL_MAX_STORIES="${SPIRAL_MAX_STORIES:-100}"  # warn threshold for total story count in prd.json
 SPIRAL_MAX_STORIES_ABORT="${SPIRAL_MAX_STORIES_ABORT:-0}"  # 0 = warn only; non-zero = fail hard when exceeded
+SPIRAL_AUTO_INFER_DEPS="${SPIRAL_AUTO_INFER_DEPS:-false}"  # true = write inferred dep edges to prd.json after Phase M merge
 SPIRAL_MAX_PENDING="${SPIRAL_MAX_PENDING:-0}"  # 0 = unlimited
 SPIRAL_MAX_RESEARCH_STORIES="${SPIRAL_MAX_RESEARCH_STORIES:-0}"  # 0 = unlimited; cap research candidates per iteration
 SPIRAL_STORY_BATCH_SIZE="${SPIRAL_STORY_BATCH_SIZE:-20}"  # 0 = disabled (show all)
@@ -1480,6 +1481,15 @@ $INJECTED_PROMPT"
     spiral_assert_pending_bounded "$PRD_FILE"
     spiral_assert_decomposition_integrity "$PRD_FILE"
     spiral_assert_dependency_completion_order "$PRD_FILE"
+
+    # ── Phase M: Infer dependencies from filesTouch overlap ─────────────────
+    _HINTS_FILE="$SCRATCH_DIR/_dependency_hints.json"
+    echo "  [M] Inferring dependencies from filesTouch overlap..."
+    SPIRAL_AUTO_INFER_DEPS="$SPIRAL_AUTO_INFER_DEPS" \
+      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/infer_dependencies.py" \
+        --prd "$PRD_FILE" \
+        --out-hints "$_HINTS_FILE" || true
+
     fi  # end validation else
   fi
 
