@@ -17,6 +17,22 @@ spiral_preflight_check() {
   fi
   echo "  [preflight] prd.json schema: OK"
 
+  # ── UTF-8 / control-character encoding check ────────────────────────────────
+  local sanitize_flag=""
+  if [[ "${SPIRAL_SANITIZE_PRD:-}" == "true" ]]; then
+    sanitize_flag="--sanitize"
+  fi
+  local enc_out enc_rc
+  enc_out=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/check_prd_encoding.py" "$prd_file" --quiet ${sanitize_flag} 2>&1)
+  enc_rc=$?
+  if [[ -n "$enc_out" ]]; then
+    echo "$enc_out"
+  fi
+  if [[ "$enc_rc" -ne 0 ]]; then
+    echo "  [preflight] FATAL: prd.json encoding check failed — aborting (exit $enc_rc)"
+    exit "$enc_rc"
+  fi
+
   # ── Checkpoint validation ──────────────────────────────────────────────────
   local ckpt="$scratch_dir/_checkpoint.json"
   if [[ -f "$ckpt" ]]; then

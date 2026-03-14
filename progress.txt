@@ -3309,3 +3309,25 @@ Incomplete: Stream-process large prd.json with jq --stream to avoid full in-memo
 ### Gotchas
 - Phase G and Phase I share `_PHASE_TS_I` timestamp and `phase_end` events; POST hooks for both fire before their respective `phase_end` events
 - The pre-hook for Phase I fires inside a deeply nested block (4 levels) but `continue` still correctly reaches the outer while loop
+
+
+## Iteration N - Story: US-152: Validate prd.json for non-UTF-8 bytes and control characters at startup
+
+### What was implemented
+- Created `lib/check_prd_encoding.py` with `check_encoding(path)` and `sanitize_prd(path)` functions
+- `check_encoding()` validates UTF-8 validity, JSON parsability, and scans all string values for control chars (0x00-0x08, 0x0B-0x0C, 0x0E-0x1F); allows tab (0x09), newline (0x0A)
+- Returns list of `{path, char, pos}` dicts for each offending character
+- `sanitize_prd()` strips control characters in-place and rewrites file; returns True if changed
+- CLI supports `--sanitize` flag and `--quiet` flag; exit codes: 0=clean, 1=IO/parse error, 2=issues found
+- Added encoding check block to `validate_preflight.sh` after schema check; reads `SPIRAL_SANITIZE_PRD` env var to pass `--sanitize` flag; aborts on enc_rc != 0
+- Written 16 tests in `tests/test_prd_encoding.py` covering: clean files pass, unicode allowed, tab/newline allowed, null byte detected, various control chars, path in issue dict, non-UTF-8 raises, missing file raises, invalid JSON raises, sanitize strips, no-change on clean, valid unicode preserved, rewritten JSON parseable, post-sanitize check_encoding passes
+
+### Patterns discovered
+- `_CTRL_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")` is the correct control-char pattern excluding tab/newline/CR
+- `${sanitize_flag}` (no quotes) in bash safely expands to empty string when unset — correct for optional flags
+- Redirect both stdout and stderr of encoding check into enc_out via `2>&1` then echo on non-empty; this unifies error messages through the preflight echo format
+
+### Gotchas
+- json.dump with control chars in string values: Python's json module *does* escape control chars as \uXXXX sequences when writing — so the JSON file itself won't contain raw bytes, but the parsed Python string *will* contain the actual character. check_encoding reads back parsed data so it catches them correctly.
+- Test assertion: "Café\x00café" minus \x00 = "Cafécafé" not "Caféé" (initial test was wrong — caught before commit)
+- Full suite: 554 passed, 2 skipped — no regressions
