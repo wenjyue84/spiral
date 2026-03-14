@@ -8,6 +8,8 @@ Research relevant sources for **new requirements** and produce a JSON file of st
 
 __SPIRAL_FOCUS_SECTION__
 
+__SPIRAL_GOALS_SECTION__
+
 ## Sources to Search
 
 Search for:

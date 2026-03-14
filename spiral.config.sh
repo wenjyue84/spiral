@@ -88,6 +88,13 @@ SPIRAL_DASHBOARD_REFRESH_SECS=30
 # testing). Requires jq 1.6+ for --stream support.
 # SPIRAL_PRD_STREAM_THRESHOLD_KB=512
 
+# ── Spec-Kit constitution file ────────────────────────────────────────────
+# Path (relative to repo root) to a constitution.md file that defines what
+# this project IS, what it must never sacrifice, and what stories are out of
+# scope. When set, Phase R reads it before generating stories and Ralph reads
+# it before implementing each story. Acts as the "architect's veto".
+SPIRAL_SPECKIT_CONSTITUTION=".specify/memory/constitution.md"
+
 # ── Post-completion hook ───────────────────────────────────────────────────
 # Shell command to run when ALL stories pass (check_done exits 0).
 # Not run on iteration-limit exits, SIGINT, or errors.

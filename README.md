@@ -4,7 +4,7 @@
 
 **Self-iterating PRD Research & Implementation Autonomous Loop**
 
-SPIRAL autonomously discovers requirements, generates user stories, and implements them. Given a `prd.json`, it loops through research, test synthesis, story merging, and implementation until all stories pass.
+SPIRAL autonomously discovers requirements, validates and merges user stories, then implements them. A one-time startup clarification aligns goals before the loop begins; the loop then runs Research → Test Synthesis → Story Validate → Merge → Implement → Validate → Check Done until all stories pass.
 
 It ships with **Ralph** (the implementation engine) and **two skills** (`/ralph` and `/prd`) bundled — one `git clone` gives you everything.
 
@@ -104,54 +104,54 @@ bash ~/.ai/Skills/spiral/spiral.sh 5 --gate proceed --ralph-workers 3
 
 ## How It Works
 
-Each SPIRAL iteration runs 7 phases:
+SPIRAL runs in two stages: a **one-time startup** to align on goals and stories, then a **repeating loop** that researches, validates, merges, implements, and checks until all stories pass.
 
 ```
-                    ┌──────────────────────────────────┐
-                    │        SPIRAL Iteration N         │
-                    └──────────────────────────────────┘
-                                    │
-                    ┌───────────────▼───────────────────┐
-                    │  R) RESEARCH                       │
-                    │  Gemini web search → Claude agent   │
-                    │  → story candidates JSON            │
-                    └───────────────┬───────────────────┘
-                                    │
-                    ┌───────────────▼───────────────────┐
-                    │  T) TEST SYNTHESIS                  │
-                    │  Scan test report failures           │
-                    │  → regression story candidates       │
-                    └───────────────┬───────────────────┘
-                                    │
-                    ┌───────────────▼───────────────────┐
-                    │  M) MERGE                           │
-                    │  Deduplicate + patch prd.json        │
-                    │  (overflow → next iteration)         │
-                    └───────────────┬───────────────────┘
-                                    │
-                    ┌───────────────▼───────────────────┐
-                    │  G) GATE                            │
-                    │  Human checkpoint (or --gate auto)   │
-                    │  proceed / skip / quit               │
-                    └───────────────┬───────────────────┘
-                                    │
-                    ┌───────────────▼───────────────────┐
-                    │  I) IMPLEMENT                       │
-                    │  Ralph loop (sequential or parallel) │
-                    │  Fresh Claude per story              │
-                    └───────────────┬───────────────────┘
-                                    │
-                    ┌───────────────▼───────────────────┐
-                    │  V) VALIDATE                        │
-                    │  Run project test suite              │
-                    └───────────────┬───────────────────┘
-                                    │
-                    ┌───────────────▼───────────────────┐
-                    │  C) CHECK DONE                      │
-                    │  All stories pass? → EXIT            │
-                    │  Otherwise → loop back to R          │
-                    └──────────────────────────────────┘
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  STARTUP  (runs once before the loop)                           │
+  │                                                                 │
+  │  0) CLARIFY                                                     │
+  │     Set focus → clarifying questions → elaborate initial stories│
+  │     Skipped in --gate proceed / --gate skip mode                │
+  └──────────────────────────────┬──────────────────────────────────┘
+                                 │
+  ┌──────────────────────────────▼──────────────────────────────────┐
+  │  STORY PREPARATION  (per iteration — builds the backlog)        │
+  │                                                                 │
+  │  R) RESEARCH                                                    │
+  │     Gemini web pre-fetch → Claude agent → story candidates      │
+  │                            │                                    │
+  │  T) TEST SYNTHESIS                                              │
+  │     Scan test-reports/ failures → regression story candidates   │
+  │                            │                                    │
+  │  S) STORY VALIDATE  ← new                                       │
+  │     Constitution · goal alignment · quality · dedup checks      │
+  │     Rejects out-of-scope or vague stories before merge          │
+  │                            │                                    │
+  │  M) MERGE                                                       │
+  │     Patch prd.json with validated stories                       │
+  │     Overflow → _research_overflow.json (next iteration)         │
+  └──────────────────────────────┬──────────────────────────────────┘
+                                 │
+  ┌──────────────────────────────▼──────────────────────────────────┐
+  │  IMPLEMENTATION  (per iteration — turns stories into code)      │
+  │                                                                 │
+  │  I) IMPLEMENT                                                   │
+  │   ├─ Decompose  — split oversized stories into sub-stories      │
+  │   ├─ Execute    — Ralph workers (sequential or parallel)         │
+  │   ├─ Retry      — failure → escalate model → skip at attempt 3  │
+  │   └─ Commit/Revert — merge on pass · drop branch on fail        │
+  │                            │                                    │
+  │  V) VALIDATE                                                    │
+  │     Run project test suite (full or incremental)                │
+  │                            │                                    │
+  │  C) CHECK DONE                                                  │
+  │     All stories pass? → EXIT 0                                  │
+  │     Otherwise → loop back to R                                  │
+  └─────────────────────────────────────────────────────────────────┘
 ```
+
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for full phase reference and the modular file structure.
 
 ## CLI Options
 
@@ -334,14 +334,32 @@ spiral/
 │       ├── spiral-init.md           # /spiral-init setup wizard
 │       ├── ralph.md                 # /ralph skill
 │       └── prd.md                   # /prd skill
-├── lib/                             # Python + bash helpers
-│   ├── check_done.py                # Phase C: completion check
-│   ├── merge_stories.py             # Phase M: deduplicate + patch
+├── lib/
+│   ├── phases/                      # One shell module per phase
+│   │   ├── phase_0_clarify.sh       # Phase 0: startup clarification (NEW)
+│   │   ├── phase_r_research.sh      # Phase R: web research
+│   │   ├── phase_t_test_synth.sh    # Phase T: test failure synthesis
+│   │   ├── phase_s_story_validate.sh# Phase S: story validation (NEW)
+│   │   ├── phase_m_merge.sh         # Phase M: merge into prd.json
+│   │   ├── phase_i_implement.sh     # Phase I: implementation orchestrator
+│   │   ├── phase_v_validate.sh      # Phase V: code validation
+│   │   └── phase_c_check_done.sh    # Phase C: completion check
+│   ├── impl/                        # Phase I sub-stage modules
+│   │   ├── decompose.sh             # Split oversized stories
+│   │   ├── retry.sh                 # Retry counter + model escalation
+│   │   └── commit_revert.sh         # Merge on pass, drop branch on fail
+│   ├── check_done.py                # Phase C: completion evaluator
+│   ├── merge_stories.py             # Phase M: dedup + prd.json patcher
+│   ├── decompose_story.py           # Phase I/decompose: story splitter
+│   ├── route_stories.py             # Phase I: model routing per story
+│   ├── check_dag.py                 # Phase I: dependency cycle detector
+│   ├── synthesize_tests.py          # Phase T: test failure → stories
 │   ├── merge_worker_results.py      # Parallel: merge worker outputs
 │   ├── partition_prd.py             # Parallel: wave-based partitioning
 │   ├── populate_hints.py            # Parallel: filesTouch from git history
-│   ├── run_parallel_ralph.sh        # Parallel: multi-worker orchestrator
-│   └── synthesize_tests.py          # Phase T: test failure → stories
+│   └── run_parallel_ralph.sh        # Parallel: multi-worker orchestrator
+├── docs/
+│   └── ARCHITECTURE.md              # Full phase reference + module map
 ├── templates/
 │   ├── spiral.config.example.sh     # Config template (all variables documented)
 │   ├── research_prompt.example.md   # Generic research prompt

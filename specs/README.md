@@ -4,10 +4,30 @@ Formal models for verifying SPIRAL's phase transitions and parallel worker proto
 
 ## Specifications
 
-| File | What it models | Key properties |
-|------|---------------|----------------|
-| `SpiralPhases.tla` | Phase ordering within iterations | Monotonicity, crash recovery, no backward transitions |
-| `SpiralWorkers.tla` | Parallel worker protocol | Partition disjointness, merge correctness, no story loss |
+| File | What it models | Key properties | Status |
+|------|---------------|----------------|--------|
+| `SpiralPhases.tla` | Phase ordering within iterations | Monotonicity, crash recovery, no backward transitions | ⚠️ Needs update for Phase 0 (Clarify) and Phase S (Story Validate) |
+| `SpiralWorkers.tla` | Parallel worker protocol | Partition disjointness, merge correctness, no story loss | ✅ Current |
+
+## Phase Numeric Order (updated)
+
+The current phase sequence and numeric assignments:
+
+| Phase | Label | Number | Notes |
+|-------|-------|--------|-------|
+| Clarify | 0 | 0 | One-time startup; not part of the loop |
+| Research | R | 1 | |
+| Test Synthesis | T | 2 | |
+| Story Validate | S | 3 | NEW — replaces human Gate review |
+| Merge | M | 4 | |
+| Implement | I | 5 | |
+| Validate | V | 6 | |
+| Check Done | C | 7 | |
+
+`SpiralPhases.tla` must be updated to:
+- Add Phase 0 (Clarify) as a pre-loop setup state
+- Add Phase S (Story Validate) between T and M
+- Remove Phase G (Gate) from the loop sequence (it is now Phase 0)
 
 ## Requirements
 

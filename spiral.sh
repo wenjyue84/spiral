@@ -1026,10 +1026,23 @@ build_research_prompt() {
     focus_section="## FOCUS DIRECTIVE\n\n**This iteration is scoped to: \"$SPIRAL_FOCUS\"**\n\nYou MUST only discover stories directly related to this theme. Skip any story that does not clearly improve or relate to \"$SPIRAL_FOCUS\". When in doubt, omit rather than include."
   fi
 
-  # Replace __EXISTING_TITLES__, __PENDING_TITLES__, and __SPIRAL_FOCUS_SECTION__ placeholders
+  # Extract goals + overview from prd.json (if present)
+  local goals_section=""
+  local goals_json
+  goals_json=$("$JQ" -r '
+    if ((.goals // []) | length) > 0 then
+      "Overview: " + (.overview // "N/A") + "\n\nGoals:\n" +
+      ([.goals[] | "- " + .] | join("\n"))
+    else "" end
+  ' "$PRD_FILE" 2>/dev/null || echo "")
+  if [[ -n "$goals_json" ]]; then
+    goals_section="## Project Goals (from prd.json)\n\nEvery story you propose MUST serve at least one of these goals.\n\n${goals_json}"
+  fi
+
+  # Replace __EXISTING_TITLES__, __PENDING_TITLES__, __SPIRAL_FOCUS_SECTION__, and __SPIRAL_GOALS_SECTION__ placeholders
   printf '%s' "$prompt_content" |
-    awk -v existing="$existing_titles" -v pending="$pending_titles" -v focus="$focus_section" \
-      '{gsub(/__EXISTING_TITLES__/, existing); gsub(/__PENDING_TITLES__/, pending); gsub(/__SPIRAL_FOCUS_SECTION__/, focus); print}'
+    awk -v existing="$existing_titles" -v pending="$pending_titles" -v focus="$focus_section" -v goals="$goals_section" \
+      '{gsub(/__EXISTING_TITLES__/, existing); gsub(/__PENDING_TITLES__/, pending); gsub(/__SPIRAL_FOCUS_SECTION__/, focus); gsub(/__SPIRAL_GOALS_SECTION__/, goals); print}'
 }
 
 # ── Pre-flight memory check — auto-adjust workers if RAM is low ────────────
