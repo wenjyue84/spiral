@@ -3815,3 +3815,62 @@ Completed: Implement Phase S (Story Validate) — auto-reject out-of-scope resea
 - read -r returns non-zero at EOF in non-interactive shells; must || break or || _var=empty
 - SESSION_DEADLINE must be recalculated if Phase 0 sets TIME_LIMIT_MINS after the initial setup block
 - Security hook blocks certain shell patterns in tests; use fixed temp path names without cleanup
+## Iteration 49 - Sun, Mar 15, 2026  3:07:29 AM
+Completed: Implement Phase 0 (Clarify) — interactive startup with time-limit and focus setting (ID: US-174) in 8m
+
+
+## Pre-analysis for US-182 (Gemini 2.5 Pro)
+Based on my analysis of the user story and the project structure, here is a technical brief for the implementing agent.
+
+**Project:** Spiral (Workflow Orchestrator)
+**User Story:** US-182: Parallelize Phase R and Phase T
+
+### 1. Core Implementation Files
+*   **`spiral.sh`**: This is the main orchestration script where the sequential calls to Phase R and Phase T likely reside. The core logic for backgrounding jobs, capturing PIDs, and waiting will be implemented here.
+*   **`lib/state_machine.py` / `prd.json`**: The state machine handles phase transitions and checkpointing. It will need to be modified to recognize and record the new, separate completion flags (`phase_r_done`, `phase_t_done`) in the `prd.json` state file.
+*   **`tests/spiral_phases.bats`**: A new or existing BATS test file should be used to create a test case with mock Phase R and Phase T scripts to verify parallel execution and correct failure handling.
+
+### 2. Involved Components
+*   **Shell Functions (in `spiral.sh`):** `run_phase_r` and `run_phase_t` (or similarly named functions/script calls).
+*   **State Management:** The `prd.json` file serves as the checkpointing database. The schema and the Python code that writes to it will need updating.
+
+### 3. Recommended Implementation Approach
+1.  In `spiral.sh`, locate the sequential execution block for phases R and T.
+2.  Modify the block to launch each phase as a background process using `&`, capturing their respective `PID`s. Example: `run_phase_r > "$LOG_DIR/phase_r.log" 2>&1 & PID_R=$!`.
+3.  Use `wait $PID_R` and `wait $PID_T` to await the completion of both processes before proceeding to Phase M. Capture the exit code (`$?`) immediately after each `wait`.
+4.  Update `lib/state_machine.py` to check for and write `phase_r_done` and `phase_t_done` Booleans to `prd.json`, allowing the system to correctly resume if interrupted.
+5.  In the logging/banner logic, calculate the wall time using the start time before parallel execution and the end time after the final `wait`.
+
+### 4. Edge Cases & Gotchas
+*   **Failure Handling:** The script must not exit if one of the parallel phases fails. It should capture the non-zero exit code, mark that specific phase as incomplete in the state file, and allow the workflow to proceed to the reporting/failure-handling stage.
+*   **Resource Contention:** Running both phases at once may strain CPU or memory. This could lead to swapping or context-switching overhead, potentially negating the time savings on resource-constrained systems.
+*   **Log Management:** Ensure both `stdout` and `stderr` for each phase are redirected to separate log files (e.g., `phase_r.log`, `phase_t.log`) to prevent interleaved and unreadable output.
+*   **Atomic State:** The checkpointing update should be as atomic as possible to prevent a race condition where the script is terminated after one phase finishes but before the state file is updated.
+
+
+## Iteration 50 - Story: US-182: Run Phase R and Phase T in parallel to halve story-preparation wall time
+
+### What was implemented
+- `spiral.sh` — Replaced sequential Phase R + Phase T blocks with parallel execution:
+  - Both phases are launched as background jobs (`& PID_R=$!`, `& PID_T=$!`) after skip checks
+  - All output is buffered to `_phase_r_bg.log` / `_phase_t_bg.log` and printed in order after both complete
+  - Each job writes an independent checkpoint marker file (`_phase_R_N.ckpt`, `_phase_T_N.ckpt`)
+  - Each job records end timestamp to `_phase_R_N.endtime` / `_phase_T_N.endtime` for accurate individual durations
+  - `wait $PID_R; RC_R=$?` + `wait $PID_T; RC_T=$?` collect exit codes; failures produce empty output (not fatal)
+  - `write_checkpoint "$SPIRAL_ITER" "T"` written once after both jobs complete
+  - `_PHASE_DUR_RT_WALL` = actual wall time (≈ max(R,T)); banner shows `[R+T wall=Ns]`
+  - PRE hook for Phase R remains synchronous (|| continue still aborts iteration if hook fails)
+  - POST hook for Phase R runs after both phases complete
+- `checkpoint_phase_done()` — Updated to check `_phase_R_N.ckpt` / `_phase_T_N.ckpt` marker files before falling back to main checkpoint, enabling independent resume
+- `tests/phase_parallel_rt.bats` — New bats test: mock Claude (2s sleep) + mock synthesize (1s sleep), verifies T starts before R finishes (|t_start - r_start| < 2s)
+
+### Patterns discovered
+- Background job subshells inherit ALL parent shell variables and functions at fork time — no need to re-export
+- Use separate temp log files per background job to prevent output interleaving; cat them in order after wait
+- Record end timestamps to files so parent can compute individual durations after both jobs complete
+- `write_checkpoint` must be called from parent (not subshell) to avoid race condition on checkpoint file
+
+### Gotchas
+- `|| continue` in PRE hook MUST remain in parent shell (not inside subshell) — subshell continue aborts only the subshell, not the outer while loop
+- `wait $PID_R; RC_R=$?` must use braces: `{ wait "$PID_R"; RC_R=$?; }` to capture correct exit code
+- `_patch_parallel_rt.py` is a one-off helper script — added to .gitignore or delete after use
