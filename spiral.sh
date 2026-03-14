@@ -670,6 +670,7 @@ source "$SPIRAL_HOME/lib/validate_preflight.sh"
 source "$SPIRAL_HOME/lib/spiral_doctor.sh"
 source "$SPIRAL_HOME/lib/spiral_assert.sh"
 source "$SPIRAL_HOME/lib/spiral_retry.sh"
+source "$SPIRAL_HOME/lib/phases/phase_s_story_validate.sh"
 
 # ── --doctor: run dependency checks and exit ────────────────────────────────
 if [[ "$DOCTOR_MODE" -eq 1 ]]; then
@@ -1010,8 +1011,8 @@ checkpoint_phase_done() {
   ckpt_iter=$("$JQ" -r '.iter // 0' "$CHECKPOINT_FILE")
   ckpt_phase=$("$JQ" -r '.phase // ""' "$CHECKPOINT_FILE")
   [[ "$ckpt_iter" -eq "$SPIRAL_ITER" ]] || return 1
-  # Phase order: R T M G I V C
-  local -A PHASE_ORDER=([R]=1 [T]=2 [M]=3 [G]=4 [I]=5 [V]=6 [C]=7)
+  # Phase order: R T S M G I V C
+  local -A PHASE_ORDER=([R]=1 [T]=2 [S]=3 [M]=4 [G]=5 [I]=6 [V]=7 [C]=8)
   [[ "${PHASE_ORDER[$ckpt_phase]:-0}" -ge "${PHASE_ORDER[$phase]:-0}" ]]
 }
 
@@ -1814,6 +1815,43 @@ $INJECTED_PROMPT"
   log_spiral_event "phase_end" "\"phase\":\"T\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_T"
   notify_webhook "T" "end"
 
+  # ── Phase S: STORY VALIDATE ──────────────────────────────────────────────────
+  PHASE="S"
+  echo ""
+  echo "  [Phase S] STORY VALIDATE — filtering candidates against project goals..."
+  log_spiral_event "phase_start" "\"phase\":\"S\",\"iteration\":$SPIRAL_ITER"
+  notify_webhook "S" "start"
+  _PHASE_TS_S=$(date +%s)
+  run_phase_hook PRE "S" || continue
+
+  VALIDATED_OUTPUT="$SCRATCH_DIR/_validated_stories.json"
+
+  if checkpoint_phase_done "S"; then
+    echo "  [S] Skipping (checkpoint: already done this iter)"
+  elif [[ "$DRY_RUN" -eq 1 ]]; then
+    echo "  [dry-run] skipping story validation"
+    echo '{"stories":[]}' >"$VALIDATED_OUTPUT"
+    write_checkpoint "$SPIRAL_ITER" "S"
+  else
+    run_phase_story_validate "$SPIRAL_ITER" \
+      "$RESEARCH_OUTPUT" "$TEST_OUTPUT" \
+      "$PRD_FILE" "$SCRATCH_DIR" \
+      "$SPIRAL_PYTHON" "$SPIRAL_HOME"
+
+    # Log acceptance rate to spiral_events.jsonl
+    _S_ACCEPTED=$("$JQ" '.stories | length' "$VALIDATED_OUTPUT" 2>/dev/null || echo "0")
+    _S_REJECTED=$("$JQ" '.stories | length' "$SCRATCH_DIR/_story_rejected.json" 2>/dev/null || echo "0")
+    _S_TOTAL=$((_S_ACCEPTED + _S_REJECTED))
+    log_spiral_event "phase_s_result" "\"iteration\":$SPIRAL_ITER,\"accepted\":$_S_ACCEPTED,\"rejected\":$_S_REJECTED,\"total\":$_S_TOTAL"
+
+    write_checkpoint "$SPIRAL_ITER" "S"
+  fi
+
+  run_phase_hook POST "S" || true
+  _PHASE_DUR_S=$(($(date +%s) - _PHASE_TS_S))
+  log_spiral_event "phase_end" "\"phase\":\"S\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_S"
+  notify_webhook "S" "end"
+
   # ── Phase M: MERGE ──────────────────────────────────────────────────────────
   PHASE="M"
   echo ""
@@ -1834,15 +1872,22 @@ $INJECTED_PROMPT"
       ls -t "$SCRATCH_DIR/prd-backups"/ | tail -n +11 | xargs -I{} rm -f "$SCRATCH_DIR/prd-backups/{}"
     fi
 
-    # ── Phase M pre-check: validate _research_output.json schema ──────────
-    if [[ ! -f "$RESEARCH_OUTPUT" ]]; then
-      echo "  [M] WARNING: $RESEARCH_OUTPUT missing — skipping merge"
+    # ── Phase M: use _validated_stories.json from Phase S if available ────────
+    _M_RESEARCH_INPUT="$RESEARCH_OUTPUT"
+    if [[ -f "$VALIDATED_OUTPUT" ]] && "$JQ" -e '.stories' "$VALIDATED_OUTPUT" >/dev/null 2>&1; then
+      _M_RESEARCH_INPUT="$VALIDATED_OUTPUT"
+      echo "  [M] Using Phase S validated stories: $VALIDATED_OUTPUT"
+    fi
+
+    # ── Phase M pre-check: validate research input schema ─────────────────
+    if [[ ! -f "$_M_RESEARCH_INPUT" ]]; then
+      echo "  [M] WARNING: $_M_RESEARCH_INPUT missing — skipping merge"
       write_checkpoint "$SPIRAL_ITER" "M"
-    elif ! "$JQ" '.' "$RESEARCH_OUTPUT" >/dev/null 2>&1; then
-      echo "  [M] WARNING: $RESEARCH_OUTPUT is not valid JSON — skipping merge"
+    elif ! "$JQ" '.' "$_M_RESEARCH_INPUT" >/dev/null 2>&1; then
+      echo "  [M] WARNING: $_M_RESEARCH_INPUT is not valid JSON — skipping merge"
       write_checkpoint "$SPIRAL_ITER" "M"
-    elif ! "$JQ" -e '.stories' "$RESEARCH_OUTPUT" >/dev/null 2>&1; then
-      echo "  [M] WARNING: $RESEARCH_OUTPUT missing 'stories' key — skipping merge"
+    elif ! "$JQ" -e '.stories' "$_M_RESEARCH_INPUT" >/dev/null 2>&1; then
+      echo "  [M] WARNING: $_M_RESEARCH_INPUT missing 'stories' key — skipping merge"
       write_checkpoint "$SPIRAL_ITER" "M"
     else
       # ── Phase M validated — proceed with merge ──────────────────────────────
@@ -1852,7 +1897,7 @@ $INJECTED_PROMPT"
       if [[ -n "$SPIRAL_CORE_BIN" ]]; then
         "$SPIRAL_CORE_BIN" merge \
           --prd "$PRD_FILE" \
-          --research "$RESEARCH_OUTPUT" \
+          --research "$_M_RESEARCH_INPUT" \
           --test-stories "$TEST_OUTPUT" \
           --overflow-in "$OVERFLOW_FILE" \
           --overflow-out "$OVERFLOW_FILE" \
@@ -1862,7 +1907,7 @@ $INJECTED_PROMPT"
       else
         "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/merge_stories.py" \
           --prd "$PRD_FILE" \
-          --research "$RESEARCH_OUTPUT" \
+          --research "$_M_RESEARCH_INPUT" \
           --test-stories "$TEST_OUTPUT" \
           --overflow-in "$OVERFLOW_FILE" \
           --overflow-out "$OVERFLOW_FILE" \

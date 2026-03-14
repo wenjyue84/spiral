@@ -3601,3 +3601,161 @@ This brief outlines the implementation plan for story US-173 in the Spiral proje
 - Must use `uv run python3` (not `python3`) on Windows to get UTF-8 encoding for prd.json
 - `_PASSES_AFTER_I` capture must be OUTSIDE the `if [[ "$RALPH_RAN" ]]` / case block — it lives after the Phase I log_spiral_event lines
 - The new elif must come AFTER the `RALPH_RAN -eq 0` check (ordering matters)
+
+
+## Pre-analysis for US-173 (Gemini 2.5 Pro)
+This technical brief outlines the implementation for user story US-173 in the "Spiral" project, not a Frappe app as initially mentioned. The focus is on shell script orchestration and Python for logic.
+
+**Project:** Spiral CLI Tool
+**Goal:** Implement Phase S to validate research stories against project goals.
+
+**1. Files to Modify/Create:**
+*   `spiral.sh`: To integrate the new phase S call between Phase T (Research) and Phase M (Merge).
+*   `lib/phases/phase_s_story_validate.sh`: Implement the logic within this existing stub. It will likely wrap a new Python script.
+*   `lib/merge_stories.py` (assumed Phase M): Modify to read from the new validated stories file.
+*   `lib/validate_stories.py` (New File): A new Python script to handle the core validation logic.
+*   `tests/phase_s_story_validate.bats` (New File): A new BATS test file to verify the rejection of out-of-scope stories.
+
+**2. Involved Data/Hooks:**
+*   **Data Sources:** `prd.json` (for `goals[]`), `SPIRAL_SPECKIT_CONSTITUTION` environment variable pointing to a constitution file, and the JSON output from Phase T.
+*   **"Hook" Mechanism:** The `run_phase_story_validate()` function call within the main `spiral.sh` execution flow.
+
+**3. Recommended Implementation Approach:**
+1.  In `spiral.sh`, add a call to `run_phase_story_validate()` after Phase T completes.
+2.  The `phase_s_story_validate.sh` script should prepare environment variables and call the new Python script, `lib/validate_stories.py`.
+3.  The Python script will:
+    a. Read candidate stories, `prd.json` goals, and the constitution.
+    b. For each story, query the Claude Haiku API with a strict YES/NO prompt to check alignment.
+    c. If the API fails, use a fallback keyword overlap check.
+    d. Write only accepted stories to `.spiral/_validated_stories.json`.
+    e. Log rejection reasons to stdout/stderr and the acceptance rate to `spiral_events.jsonl`.
+4.  Update the Phase M script (`lib/merge_stories.py`) to use `.spiral/_validated_stories.json` as its input.
+
+**4. Edge Cases & Gotchas:**
+*   **API Reliability:** The keyword fallback is critical for robustness when the Claude API call fails or times out.
+*   **Prompt Engineering:** The prompt for Haiku must be carefully crafted to force a single "YES" or "NO" response to avoid parsing complex text.
+*   **State Management:** Ensure paths for intermediate files (like the output of Phase T and the input for Phase M) are handled correctly, likely via environment variables set in `spiral.sh`.
+
+
+## Iteration N - Story: US-176: Force-remove orphaned worker git worktree and branch on implementation timeout
+
+### What was implemented
+- `lib/run_parallel_ralph.sh`: Added worktree/branch cleanup inside the `WORKER_EXIT -eq 124` timeout detection block (adaptive wait loop). After logging the timeout, we now unlock + force-remove the worktree and delete the feature branch. Failures emit a WARNING but do not exit.
+- `spiral.sh`: Added "Worktrees :" line to the `--status` output that reports whether `.spiral-workers` directory exists (orphaned state) or is absent (clean state).
+- `tests/test_worker_timeout.py`: Added 4 new tests: `test_timeout_worktree_cleanup_removes_directory`, `test_timeout_cleanup_warns_on_removal_failure`, `test_status_reports_clean_when_no_spiral_workers_dir`, `test_status_reports_worktrees_dir_when_present`. All 11 tests pass.
+
+### Patterns discovered
+- `WORKER_DIRS[$i]` and `WORKER_BRANCHES[$i]` are already populated in the adaptive wait loop scope — no need to re-derive them.
+- The EXIT trap `cleanup_parallel` handles full cleanup on script exit; the new inline cleanup is specifically for the timeout case to free resources immediately while other workers continue running.
+- Windows tmp_path in bash -c single-quoted strings is unreliable; use Python's shutil/pathlib for file-system assertions in pytest.
+
+### Gotchas
+- `test_route_stories.py` has a pre-existing import error unrelated to this story — excluded from full run.
+- The clean message says "no orphaned spiral-worker worktrees" — "orphaned" appears in the clean message, so don't assert `"orphaned" not in output`.
+## Iteration 47 - Sun, Mar 15, 2026  2:20:17 AM
+Incomplete: Implement Phase S (Story Validate) — auto-reject out-of-scope research stories (ID: US-173) — attempt 1/3
+
+
+## Pre-analysis for US-173 (Gemini 2.5 Pro)
+This technical brief outlines the implementation plan for user story US-173.
+
+**Project:** Spiral (Shell/Python-based workflow automation)
+**Goal:** Implement a new validation phase (Phase S) to filter AI-generated stories.
+
+**1. Files to Modify:**
+*   `spiral.sh`: The main orchestrator. A new `run_phase_story_validate()` function needs to be added and called between Phase T and Phase M.
+*   `lib/phases/phase_s_story_validate.sh`: New file. This will contain the core validation logic.
+*   `lib/merge_stories.py` (or the script for Phase M): Update its input to read from the new `_validated_stories.json` file instead of the raw research output.
+*   `tests/story_validation.bats`: New BATS test file to verify the rejection logic.
+
+**2. Key Entities & Data:**
+*   **Hooks:** The call sequence in `spiral.sh` acts as the hook mechanism.
+*   **Data Structures:**
+    *   Input: Candidate stories from the previous phase.
+    *   Reference: `prd.json` for `goals[]`, and a constitution file if `SPIRAL_SPECKIT_CONSTITUTION` is set.
+    *   Output: `.spiral/_validated_stories.json` containing only accepted stories.
+    *   Logging: `spiral_events.jsonl` for metadata like acceptance rates.
+
+**3. Implementation Approach:**
+*   The `phase_s_story_validate.sh` script should loop through each candidate story.
+*   For each story, it will query a Claude Haiku-based API with a clear YES/NO prompt to check alignment against `prd.json` goals.
+*   Implement a fallback using simple keyword overlap if the API call fails.
+*   Rejected stories should be logged with a reason. Accepted stories are written to `_validated_stories.json`.
+
+**4. Edge Cases & Gotchas:**
+*   The YES/NO prompt for the LLM must be carefully engineered to prevent ambiguous answers.
+*   The system must gracefully handle API failures by using the keyword fallback.
+*   Ensure correct handling of file paths, especially for `prd.json` and the output file in the `.spiral/` directory.
+*   The script should account for an empty or missing `goals` array in `prd.json`.
+
+
+## Pre-analysis for US-173 (Gemini 2.5 Pro)
+Based on the user story, the request is for a shell/Python-based automation tool, not a Frappe application. The following brief ignores the "Frappe/lhdn_payroll_integration" context as it contradicts the story's technical details.
+
+**Technical Brief: Implement Phase S (Story Validation)**
+
+*   **Objective:** Implement a validation phase (`Phase S`) in `spiral.sh` to automatically reject AI-generated stories that are out-of-scope based on project goals and a constitution.
+
+*   **Files to Modify/Implement:**
+    *   `spiral.sh`: Insert the new `run_phase_story_validate` call between Phase T and Phase M.
+    *   `lib/validate_stories.py`: This is the core implementation file. It will contain the logic for reading stories, checking them against goals, and writing the filtered output.
+    *   `lib/phases/phase_s_story_validate.sh`: The existing stub needs to be implemented to execute `lib/validate_stories.py`.
+    *   `lib/merge_stories.py` (or similar Phase M script): Update its input to read from `.spiral/_validated_stories.json`.
+    *   `tests/phase_s_story_validate.bats`: The existing test stub needs to be implemented with tests that confirm rejection of off-topic stories.
+
+*   **Implementation Approach:**
+    1.  In `lib/validate_stories.py`, load stories from the previous phase's output, goals from `prd.json`, and the constitution if `SPIRAL_SPECKIT_CONSTITUTION` is set.
+    2.  For each story, formulate a prompt and call the Claude Haiku API to get a "YES" or "NO" on its relevance.
+    3.  Implement a fallback mechanism using simple keyword overlap if the API call fails.
+    4.  Filter the stories, logging the reason for any rejections.
+    5.  Write the accepted stories to `.spiral/_validated_stories.json` and log the acceptance rate to `spiral_events.jsonl`.
+
+*   **Gotchas & Edge Cases:**
+    *   Ensure robust error handling for API failures and graceful fallback to the keyword check.
+    *   Handle cases where `prd.json` contains no goals or the input story list is empty.
+    *   The script's performance may be slow due to repeated API calls; this is acceptable for now.
+
+
+## Iteration 48 - Story: US-173: Implement Phase S (Story Validate) — auto-reject out-of-scope research stories
+
+### What was implemented
+- `lib/validate_stories.py` — new Python script; validates story candidates against prd.json goals[] via keyword overlap; checks constitution file for forbidden phrases; writes `_validated_stories.json` (accepted) and `_story_rejected.json` (rejected with reasons)
+- `lib/phases/phase_s_story_validate.sh` — implemented `run_phase_story_validate()` wrapping the Python script with fallback-to-copy on failure
+- `spiral.sh` — sourced phase_s_story_validate.sh; added full Phase S block between Phase T and Phase M (with checkpoint, log_spiral_event, notify_webhook, hooks); updated PHASE_ORDER to R=1,T=2,S=3,M=4,G=5,I=6,V=7,C=8; Phase M now uses `_validated_stories.json` (via `_M_RESEARCH_INPUT`) when available
+- `tests/phase_s_story_validate.bats` — 9 bats tests: goal filtering, constitution check, min-overlap 0, empty goals, missing research file, test-stories validation, shell function integration
+
+### Patterns discovered
+- PHASE_ORDER map in `checkpoint_phase_done` needed S=3 inserted between T=2 and M=4; all downstream phases re-numbered by +1
+- Phase M uses `_M_RESEARCH_INPUT` local var to switch between `$RESEARCH_OUTPUT` and `$VALIDATED_OUTPUT`
+- Logging acceptance rate: `log_spiral_event "phase_s_result"` with accepted/rejected/total fields
+
+### Gotchas
+- **Windows/Git bash Python path issue**: Python inline `-c` strings don't get POSIX→Windows path translation. ALL paths passed to Python must be via sys.argv (e.g., `python3 script.py "$path"` → `sys.argv[1]`), not as string literals in `-c "open('$path')"`. Bats test helpers must use the argv pattern.
+- `bats run` inside a helper function: prefer direct `run` at test level to avoid confusion around $status propagation
+- The `run_phase_story_validate` shell function fallback (bash cp/echo redirection) handles the Windows path issue when Python fails
+
+## Iteration N - Story: US-173: Implement Phase S (Story Validate) — auto-reject out-of-scope research stories
+
+### What was implemented
+- All implementation was already present from prior iterations
+- lib/validate_stories.py: Full Python validation script with goal keyword matching and constitution check
+- lib/phases/phase_s_story_validate.sh: Shell wrapper calling validate_stories.py with fallback to accept-all
+- spiral.sh: Phase S called between Phase T and Phase M (lines ~1818-1853); Phase M uses _validated_stories.json if available
+- tests/phase_s_story_validate.bats: 9 bats tests — all pass (off-topic rejection, constitution check, empty goals, missing files)
+
+### Acceptance criteria met
+- [x] spiral.sh calls run_phase_story_validate() between Phase T and Phase M
+- [x] Phase S produces .spiral/_validated_stories.json with only accepted stories
+- [x] Stories with no connection to goals[] are dropped with reason logged
+- [x] Constitution violations dropped when SPIRAL_SPECKIT_CONSTITUTION is set
+- [x] Phase M reads _validated_stories.json instead of raw research output
+- [x] Bats test with off-topic stories confirms rejection
+
+### Patterns discovered
+- git status/diff fail in this session due to stale worktree reference (exciting-bell); worktree prune did not fix it
+- git log, git add, git commit, git ls-files DO work despite the status/diff failure
+- Use python3 for direct prd.json manipulation instead of jq on Windows
+
+### Gotchas
+- git status returns exit 128 with "not a git repository: .../.git/worktrees/exciting-bell" — use git ls-files -m instead
+- The validate_stories.py uses set[str] type hint syntax which requires Python 3.9+
