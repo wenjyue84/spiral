@@ -20,12 +20,22 @@ spiral_doctor() {
     error_count=$((error_count + 1))
   fi
 
-  # ── Check jq ───────────────────────────────────────────────────────────────
+  # ── Check jq (minimum 1.6 for --stream support) ────────────────────────────
   if command -v jq >/dev/null 2>&1; then
-    echo "  [doctor] [OK] jq found in PATH"
+    local jq_version
+    jq_version=$(jq --version 2>/dev/null | sed 's/jq-//')
+    local jq_major jq_minor
+    jq_major=$(echo "$jq_version" | cut -d. -f1)
+    jq_minor=$(echo "$jq_version" | cut -d. -f2 | grep -o '^[0-9]*')
+    if [[ "$jq_major" -gt 1 || ( "$jq_major" -eq 1 && "${jq_minor:-0}" -ge 6 ) ]]; then
+      echo "  [doctor] [OK] jq found in PATH (version: ${jq_version}, --stream supported)"
+    else
+      echo "  [doctor] [WARN] jq ${jq_version} found but 1.6+ is required for SPIRAL_PRD_STREAM_THRESHOLD_KB (--stream support)"
+      echo "           → Fix: Upgrade jq to 1.6+ (brew upgrade jq, apt-get install jq, or choco upgrade jq)"
+    fi
   else
     echo "  [doctor] [ERROR] jq not found in PATH"
-    echo "           → Fix: Install jq (brew install jq, apt-get install jq, or choco install jq)"
+    echo "           → Fix: Install jq 1.6+ (brew install jq, apt-get install jq, or choco install jq)"
     error_count=$((error_count + 1))
   fi
 

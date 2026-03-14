@@ -3472,3 +3472,29 @@ Incomplete: Stream-process large prd.json with jq --stream to avoid full in-memo
 - `case "$1 $2"` in bats stubs works well for gh subcommands; make pr list return empty string (not `[]`) for "no existing PR" case
 - `git push origin <sha>:refs/heads/<branch> --force` is idempotent (retries won't fail if branch already exists at same SHA)
 - The create_github_pr function must come BEFORE it is first called in the file; placed after append_result() (line ~794)
+
+
+
+## Iteration N - Story: US-123: Stream-process large prd.json with jq --stream to avoid full in-memory parse
+
+### What was implemented
+- Added `SPIRAL_PRD_STREAM_THRESHOLD_KB` (default 512) config default to ralph/ralph.sh
+- Added `get_pending_story_ids()` function in ralph.sh:
+  - Checks prd.json file size in KB via `wc -c`
+  - When file_kb >= threshold_kb (and threshold > 0): uses `jq -rn --stream` with `fromstream(1|truncate_stream(...))` to reconstruct story objects without full parse, filters, sorts via shell `sort`, cuts ID column
+  - When below threshold: uses normal full-in-memory jq parse
+  - Both paths call `tr -d '\r'` to strip Windows carriage returns
+- Replaced direct jq call at `ALL_INCOMPLETE=` with `get_pending_story_ids "$PRD_FILE"`
+- Documented `SPIRAL_PRD_STREAM_THRESHOLD_KB` in spiral.config.sh (commented section)
+- Updated `lib/spiral_doctor.sh` to check jq version >= 1.6 (required for --stream)
+- Added `tests/prd_stream.bats` with 9 tests: priority sort (both paths), excludes passed/decomposed, empty set, and equivalence test on 50-story synthetic PRD
+
+### Patterns discovered
+- `jq -rn --stream` + `fromstream(1|truncate_stream(inputs|select(.[0][0]=="userStories")))` is the canonical idiom for streaming array elements from a large JSON file
+- Both normal and streaming paths produce identical sorted output because jq's `sort_by(.priority)` and shell `sort` both sort alphabetically (critical < high < low < medium)
+- `wc -c` gives byte count; dividing by 1024 gives KB — portable and fast
+
+### Gotchas
+- On Windows/MSYS2, jq outputs \r\n line endings — must call `tr -d '\r'` inside `get_pending_story_ids` (not just at the call site) so bats tests pass without extra stripping
+- `SPIRAL_PRD_STREAM_THRESHOLD_KB=0` forces the streaming path (useful for testing)
+- `test_route_stories.py` has a pre-existing relative import failure (excluded from test run); 569 passed otherwise

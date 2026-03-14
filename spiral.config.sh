@@ -81,6 +81,13 @@ SPIRAL_RESEARCH_SPECIALIST_PROMPT=""
 # reloads automatically during active runs. Set to 0 to disable (static mode).
 SPIRAL_DASHBOARD_REFRESH_SECS=30
 
+# ── Large PRD streaming threshold (US-123) ────────────────────────────────
+# When prd.json exceeds this size (in KB), ralph.sh switches to jq --stream
+# to avoid loading the entire document into memory. Default 512 KB covers
+# ~1000-story PRDs comfortably. Set to 0 to always use streaming (useful for
+# testing). Requires jq 1.6+ for --stream support.
+# SPIRAL_PRD_STREAM_THRESHOLD_KB=512
+
 # ── Post-completion hook ───────────────────────────────────────────────────
 # Shell command to run when ALL stories pass (check_done exits 0).
 # Not run on iteration-limit exits, SIGINT, or errors.

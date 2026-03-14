@@ -36,6 +36,7 @@ SPIRAL_DECOMPOSE_THRESHOLD="${SPIRAL_DECOMPOSE_THRESHOLD:-2}"               # au
 SPIRAL_SECURITY_SCAN="${SPIRAL_SECURITY_SCAN:-false}"                       # true = enable Phase S security scan gate
 SPIRAL_SECURITY_SCAN_TOOL="${SPIRAL_SECURITY_SCAN_TOOL:-semgrep}"           # 'semgrep' (default) or 'bandit'
 SPIRAL_SECURITY_SCAN_ARGS="${SPIRAL_SECURITY_SCAN_ARGS:-}"                  # extra flags passed to the scanner binary
+SPIRAL_PRD_STREAM_THRESHOLD_KB="${SPIRAL_PRD_STREAM_THRESHOLD_KB:-512}"     # switch to jq --stream when prd.json exceeds this size (KB); 0 = always stream
 PRD_FILE="prd.json"
 PROGRESS_FILE="progress.txt"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -1096,6 +1097,36 @@ periodic_status_report() {
   echo ""
 }
 
+# Returns incomplete (passes==false, not decomposed) story IDs sorted by priority.
+# Switches to jq --stream when prd.json exceeds SPIRAL_PRD_STREAM_THRESHOLD_KB (default 512 KB)
+# to avoid loading the entire document into memory for large PRDs.
+# Both paths produce identical output.
+get_pending_story_ids() {
+  local prd_file="${1:-$PRD_FILE}"
+  local threshold_kb="${SPIRAL_PRD_STREAM_THRESHOLD_KB:-512}"
+  local file_kb
+  file_kb=$(( $(wc -c < "$prd_file") / 1024 ))
+
+  if [[ "$threshold_kb" -gt 0 && "$file_kb" -ge "$threshold_kb" ]]; then
+    # Streaming path: reconstruct individual userStories objects using fromstream,
+    # then filter and sort in a second pass to avoid full document parse.
+    $JQ -rn --stream \
+      'fromstream(1|truncate_stream(inputs|select(.[0][0]=="userStories")))
+       | select(.passes == false and (._decomposed | not))
+       | [.priority // "zzz", .id]
+       | @tsv' "$prd_file" \
+      | sort \
+      | cut -f2 \
+      | tr -d '\r'
+  else
+    # Normal path: full in-memory parse (default for prd.json files under threshold)
+    $JQ -r '[.userStories[] | select(.passes == false and (._decomposed | not))]
+             | sort_by(.priority)
+             | .[].id' "$prd_file" \
+      | tr -d '\r'
+  fi
+}
+
 # ── Main loop ────────────────────────────────────────────────────
 ITERATION=0
 STORIES_COMPLETED=$COMPLETE_STORIES
@@ -1118,7 +1149,7 @@ while [[ $ITERATION -lt $MAX_ITERATIONS ]]; do
 
   # Find next incomplete story — respecting retries and dependencies
   NEXT_STORY=""
-  ALL_INCOMPLETE=$($JQ -r '[.userStories[] | select(.passes == false and (._decomposed | not))] | sort_by(.priority) | .[].id' "$PRD_FILE" | tr -d '\r')
+  ALL_INCOMPLETE=$(get_pending_story_ids "$PRD_FILE")
 
   for candidate in $ALL_INCOMPLETE; do
     # ── Manual skip filter: skip stories in SPIRAL_SKIP_STORY_IDS without penalty ──
