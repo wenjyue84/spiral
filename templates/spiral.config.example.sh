@@ -155,9 +155,10 @@
 # ── Story count health threshold ────────────────────────────────────────────
 # Warn when total story count in prd.json exceeds this value.
 # Large PRDs degrade AI context quality and slow jq operations.
+# When exceeded, spiral.sh prints an actionable message to run --archive-done.
 # Set SPIRAL_MAX_STORIES_ABORT=1 to fail hard (instead of warn) when exceeded.
-# Default: 200 (warn only)
-# SPIRAL_MAX_STORIES=200
+# Default: 100 (warn only)
+# SPIRAL_MAX_STORIES=100
 # SPIRAL_MAX_STORIES_ABORT=0
 
 # ── Max pending stories ────────────────────────────────────────────────────

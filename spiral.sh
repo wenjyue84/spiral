@@ -76,6 +76,7 @@ DOCTOR_MODE=0          # 1 = run dependency check and exit (--doctor)
 REPLAY_STORY_ID=""     # "" = normal mode; "US-XXX" = replay that story only (--replay)
 RESET_CHECKPOINT=0     # 1 = remove _checkpoint.json and start fresh (--reset)
 MIGRATE_MODE=0         # 1 = run prd.json schema migration and exit (--migrate)
+ARCHIVE_MODE=0         # 1 = archive completed stories and exit (--archive-done)
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -128,6 +129,8 @@ while [[ $# -gt 0 ]]; do
       RESET_CHECKPOINT=1; shift ;;
     --migrate)
       MIGRATE_MODE=1; shift ;;
+    --archive-done)
+      ARCHIVE_MODE=1; shift ;;
     --version)
       _SPIRAL_VERSION_STR=$(git -C "$SPIRAL_HOME" describe --tags --always --dirty=+ 2>/dev/null || echo "")
       if [[ -z "$_SPIRAL_VERSION_STR" ]]; then
@@ -163,6 +166,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --replay STORY_ID          Re-run a single story in an isolated worktree (Phases I+V only)"
       echo "  --reset                    Remove checkpoint and start fresh from iteration 1"
       echo "  --migrate                  Migrate prd.json to current schema version and exit"
+  echo "  --archive-done             Archive completed stories to prd-archive.json and exit"
       echo "  --status                   Print session state and story counts, then exit"
       echo "  --version                  Print SPIRAL version (git describe) and exit"
       echo ""
@@ -256,7 +260,7 @@ SPIRAL_SPECKIT_CONSTITUTION="${SPIRAL_SPECKIT_CONSTITUTION:-}"
 SPIRAL_SPECKIT_SPECS_DIR="${SPIRAL_SPECKIT_SPECS_DIR:-}"
 SPIRAL_FOCUS="${SPIRAL_CLI_FOCUS:-${SPIRAL_FOCUS:-}}"
 SPIRAL_SKIP_STORY_IDS="${SPIRAL_SKIP_STORY_IDS:-}"  # comma-separated IDs to permanently skip without penalty
-SPIRAL_MAX_STORIES="${SPIRAL_MAX_STORIES:-200}"  # warn threshold for total story count in prd.json
+SPIRAL_MAX_STORIES="${SPIRAL_MAX_STORIES:-100}"  # warn threshold for total story count in prd.json
 SPIRAL_MAX_STORIES_ABORT="${SPIRAL_MAX_STORIES_ABORT:-0}"  # 0 = warn only; non-zero = fail hard when exceeded
 SPIRAL_MAX_PENDING="${SPIRAL_MAX_PENDING:-0}"  # 0 = unlimited
 SPIRAL_MAX_RESEARCH_STORIES="${SPIRAL_MAX_RESEARCH_STORIES:-0}"  # 0 = unlimited; cap research candidates per iteration
@@ -366,6 +370,14 @@ fi
 # ── --migrate: run prd.json schema migration and exit ────────────────────────
 if [[ "$MIGRATE_MODE" -eq 1 ]]; then
   "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/migrate_prd.py" "$PRD_FILE"
+  exit $?
+fi
+
+# ── --archive-done: archive completed stories and exit ───────────────────────
+if [[ "$ARCHIVE_MODE" -eq 1 ]]; then
+  _ARCHIVE_ARGS=("--prd" "$PRD_FILE")
+  [[ "$DRY_RUN" -eq 1 ]] && _ARCHIVE_ARGS+=("--dry-run")
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/archive_prd.py" "${_ARCHIVE_ARGS[@]}"
   exit $?
 fi
 
