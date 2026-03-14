@@ -2932,3 +2932,23 @@ Incomplete: Emit JUnit XML from bats runs for GitHub Actions test summary (ID: U
 ### Gotchas
 - The technical note says `jq '.stories | length'` but the actual key is `.userStories` — must use `.userStories | length`
 - SPIRAL_MAX_STORIES_ABORT check uses `!= "0"` string comparison (not `-ne`) because the var could be empty string vs "0"
+## Iteration 13 - Sat, Mar 14, 2026  5:46:08 PM
+Incomplete: Emit JUnit XML from bats runs for GitHub Actions test summary (ID: US-089) — attempt 2/3
+
+
+## Iteration - Story: US-104: Auto-trigger story decomposition when retry_count reaches SPIRAL_DECOMPOSE_THRESHOLD
+
+### What was implemented
+- Added `SPIRAL_DECOMPOSE_THRESHOLD` env var (default 2) to ralph/ralph.sh defaults
+- Added `maybe_auto_decompose()` function in ralph/ralph.sh (after reset_escalation, before decompose_story)
+- Wired `maybe_auto_decompose` into both failure paths: quality-gate failure and story-incomplete
+- Created `tests/auto_decompose_threshold.bats` with 9 tests covering threshold=0 (disabled), below-threshold, at-threshold, at-MAX_RETRIES, _skipped=true, _failureReason=auto_decomposed, event logging
+
+### Patterns discovered
+- maybe_auto_decompose() returns 0 (triggered) or 1 (not triggered) — caller uses `if...; then continue; fi` pattern
+- `SPIRAL_DECOMPOSE_THRESHOLD=0` disables; threshold fires at `retry_now >= threshold && retry_now < MAX_RETRIES`
+- sed `/^FN()/,/^}/p` extraction pattern works for bats sourcing, requires closing `}` at column 0
+
+### Gotchas
+- MAX_RETRIES path already has its own decompose — auto-decompose only fires for threshold < MAX_RETRIES
+- bats tests export functions with `export -f` for stubs to survive subshell (used `run` builtin)

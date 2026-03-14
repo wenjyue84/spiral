@@ -32,6 +32,7 @@ SPIRAL_MODEL_FALLBACK_CHAIN="${SPIRAL_MODEL_FALLBACK_CHAIN:-}"  # colon-separate
 SPIRAL_MAX_DIFF_LINES="${SPIRAL_MAX_DIFF_LINES:-500}"  # 0 = disabled; abort commit if staged diff exceeds this many changed lines
 SPIRAL_GIT_AUTHOR="${SPIRAL_GIT_AUTHOR:-}"   # optional: AI commit author name (e.g. "SPIRAL Agent")
 SPIRAL_GIT_EMAIL="${SPIRAL_GIT_EMAIL:-}"     # optional: AI commit author email (e.g. "spiral@noreply.local")
+SPIRAL_DECOMPOSE_THRESHOLD="${SPIRAL_DECOMPOSE_THRESHOLD:-2}"  # auto-decompose story at this retry count; 0 = disabled
 PRD_FILE="prd.json"
 PROGRESS_FILE="progress.txt"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -448,6 +449,50 @@ reset_escalation() {
   local story_id="$1"
   $JQ "del(.\"$story_id\")" "$ESCALATION_FILE" > "${ESCALATION_FILE}.tmp"
   mv "${ESCALATION_FILE}.tmp" "$ESCALATION_FILE"
+}
+
+# ── Auto-decompose at retry threshold ────────────────────────────
+# Called after increment_retry. Triggers early decomposition when retry_count
+# reaches SPIRAL_DECOMPOSE_THRESHOLD (default 2) — before MAX_RETRIES is hit.
+# Returns 0 if auto-decomposition was triggered (caller should `continue`),
+# Returns 1 if threshold not met, disabled, or decomposition failed.
+maybe_auto_decompose() {
+  local story_id="$1" retry_now="$2" model="${3:-sonnet}"
+  local threshold="${SPIRAL_DECOMPOSE_THRESHOLD:-2}"
+
+  # Disabled when threshold is 0
+  if [[ "$threshold" -eq 0 ]]; then
+    return 1
+  fi
+
+  # Only trigger at threshold but before MAX_RETRIES (MAX_RETRIES has its own decompose path)
+  if [[ "$retry_now" -lt "$threshold" || "$retry_now" -ge "$MAX_RETRIES" ]]; then
+    return 1
+  fi
+
+  echo "  [auto-decompose] $story_id reached threshold $threshold after $retry_now attempt(s) — decomposing early"
+
+  if decompose_story "$story_id" "$model"; then
+    # Mark parent as auto-decomposed (not just timed out or quality-gate failed)
+    $JQ "(.userStories[] | select(.id == \"$story_id\") | ._failureReason) = \"auto_decomposed\"" \
+      "$PRD_FILE" > "${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE" || true
+    $JQ "(.userStories[] | select(.id == \"$story_id\") | ._skipped) = true" \
+      "$PRD_FILE" > "${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE" || true
+
+    # Read child IDs written by decompose_story and emit structured event
+    local child_ids
+    child_ids=$($JQ -r ".userStories[] | select(.id == \"$story_id\") | ._decomposedInto // [] | join(\",\")" \
+      "$PRD_FILE" 2>/dev/null | tr -d '\r' || echo "")
+    log_ralph_event "auto_decompose" \
+      "\"storyId\":\"$story_id\",\"retryCount\":$retry_now,\"threshold\":$threshold,\"childIds\":\"$child_ids\""
+
+    echo "AUTO-DECOMPOSED: $story_id at retry $retry_now (threshold $threshold) → $child_ids" >> "$PROGRESS_FILE"
+    reset_retry "$story_id"
+    return 0
+  else
+    echo "  [auto-decompose] decomposition failed for $story_id — continuing with normal retry"
+    return 1
+  fi
 }
 
 # ── Story decomposition ──────────────────────────────────────────
@@ -1102,6 +1147,38 @@ $BROWSER_TOOLS_HINT"
     fi
     # Minimal user prompt — the system prompt has all instructions
     RALPH_USER_PROMPT="Implement the next incomplete story from prd.json now. Read prd.json and progress.txt, pick the highest priority story where passes is false, and implement it."
+
+    # ── Retry context injection ───────────────────────────────────────────────
+    # On attempt 2+, prepend a concise brief so the agent doesn't need to hunt
+    # through progress.txt to find what the previous attempt learned.
+    if [[ "${RETRY_NOW:-0}" -ge 1 ]]; then
+      _PREV_ATTEMPT=$((RETRY_NOW))
+      _FAIL_REASON=$($JQ -r ".userStories[] | select(.id == \"$NEXT_STORY\") | ._failureReason // \"(not recorded)\"" "$PRD_FILE" 2>/dev/null | tr -d '\r' || echo "(not recorded)")
+      # Extract the last progress.txt section(s) mentioning this story
+      _RETRY_NOTES=""
+      if [[ -f "$PROGRESS_FILE" ]]; then
+        # Grab up to 40 lines from the end of progress.txt that mention the story
+        _RETRY_NOTES=$(grep -A 8 -B 2 "$NEXT_STORY" "$PROGRESS_FILE" 2>/dev/null | tail -40 || true)
+      fi
+      _RETRY_BRIEF="RETRY CONTEXT — ATTEMPT $((RETRY_NOW + 1)) of $MAX_RETRIES
+
+Story $NEXT_STORY (\"$STORY_TITLE\") was attempted $RETRY_NOW time(s) and did NOT pass.
+Failure reason: $_FAIL_REASON
+
+Notes from the previous attempt (from progress.txt):
+${_RETRY_NOTES:-  (none found — check progress.txt manually)}
+
+ACTION: Do NOT repeat the same approach that failed. Read progress.txt carefully for what
+was tried, then implement the story differently. You are using a more powerful model this
+attempt ($EFFECTIVE_MODEL) — use it."
+      RALPH_USER_PROMPT="$_RETRY_BRIEF
+
+---
+
+$RALPH_USER_PROMPT"
+      echo "  [retry] Attempt $((RETRY_NOW + 1))/$MAX_RETRIES — injected failure context ($RETRY_NOW prior attempt(s), reason: ${_FAIL_REASON:0:60})"
+    fi
+
     echo "  [cache] System prompt: $(echo "$RALPH_SYSTEM_PROMPT" | wc -c) bytes (cacheable via prompt-caching beta)"
     # Unset CLAUDECODE to allow nested Claude Code invocation from within an active session
     # Wrap with 529 overloaded_error retry loop (separate from 429 rate-limit handling)
@@ -1410,6 +1487,10 @@ Co-Authored-By: Claude ${COAUTHOR_LABEL} 4.6 <noreply@anthropic.com>" || echo "[
 
       echo "## Iteration $ITERATION - $(date)" >> "$PROGRESS_FILE"
       echo "FAILED quality gates: $STORY_TITLE (ID: $NEXT_STORY) — attempt $RETRY_NOW/$MAX_RETRIES" >> "$PROGRESS_FILE"
+      if maybe_auto_decompose "$NEXT_STORY" "$RETRY_NOW" "${EFFECTIVE_MODEL:-sonnet}"; then
+        echo "" >> "$PROGRESS_FILE"
+        continue
+      fi
       if [[ "$RETRY_NOW" -ge "$MAX_RETRIES" ]]; then
         FAILURE_REASON="MAX_RETRIES exhausted (quality gate failed after $MAX_RETRIES attempts)"
         $JQ --arg reason "$FAILURE_REASON" \
@@ -1438,6 +1519,10 @@ Co-Authored-By: Claude ${COAUTHOR_LABEL} 4.6 <noreply@anthropic.com>" || echo "[
 
     echo "## Iteration $ITERATION - $(date)" >> "$PROGRESS_FILE"
     echo "Incomplete: $STORY_TITLE (ID: $NEXT_STORY) — attempt $RETRY_NOW/$MAX_RETRIES" >> "$PROGRESS_FILE"
+    if maybe_auto_decompose "$NEXT_STORY" "$RETRY_NOW" "${EFFECTIVE_MODEL:-sonnet}"; then
+      echo "" >> "$PROGRESS_FILE"
+      continue
+    fi
     if [[ "$RETRY_NOW" -ge "$MAX_RETRIES" ]]; then
       FAILURE_REASON="MAX_RETRIES exhausted (story incomplete after $MAX_RETRIES attempts)"
       $JQ --arg reason "$FAILURE_REASON" \
