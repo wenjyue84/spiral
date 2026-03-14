@@ -42,6 +42,8 @@ SPIRAL_OLLAMA_HOST="${SPIRAL_OLLAMA_HOST:-http://localhost:11434/v1}"   # Ollama
 SPIRAL_SKIP_SELF_REVIEW="${SPIRAL_SKIP_SELF_REVIEW:-false}"             # true = disable Phase I.5 LLM self-review gate (US-145)
 SPIRAL_SELF_REVIEW_MODEL="${SPIRAL_SELF_REVIEW_MODEL:-haiku}"           # Claude model for self-review; haiku to minimise cost (US-145)
 SPIRAL_GEMINI_SKIP_SMALL="${SPIRAL_GEMINI_SKIP_SMALL:-true}"           # true = skip Gemini pre-analysis for small stories with <=2 filesTouch (US-171)
+SPIRAL_SKIP_ADR="${SPIRAL_SKIP_ADR:-false}"                             # true = disable ADR generation after story passes (US-155)
+SPIRAL_ADR_MODEL="${SPIRAL_ADR_MODEL:-haiku}"                           # Claude model for ADR generation; haiku to minimise cost (US-155)
 PRD_FILE="prd.json"
 PROGRESS_FILE="progress.txt"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -2204,6 +2206,40 @@ ACTION: Fix the critical issues listed above before marking passes=true."
         echo "" >>"$PROGRESS_FILE"
         continue
       fi
+      # ── ADR Generation (US-155) ────────────────────────────────────────────
+      # Generate a MADR-format Architecture Decision Record and stage it
+      # so it is included in the story commit.  Non-blocking: a failure only
+      # logs a warning and does not prevent the commit from proceeding.
+      if [[ "${SPIRAL_SKIP_ADR:-false}" != "true" ]]; then
+        local _adr_script
+        _adr_script="$(cd "$SCRIPT_DIR/.." 2>/dev/null && pwd)/lib/generate_adr.py"
+        local _python_cmd="${SPIRAL_PYTHON:-python3}"
+        if [[ -f "$_adr_script" ]] && command -v "$_python_cmd" &>/dev/null; then
+          echo "  [adr] Generating ADR for $NEXT_STORY..."
+          local _adr_out
+          _adr_out=$("$_python_cmd" "$_adr_script" \
+            --story-id "$NEXT_STORY" \
+            --prd "$PRD_FILE" \
+            --output-dir "docs/decisions" \
+            --model "${SPIRAL_ADR_MODEL:-haiku}" \
+            2>&1) || true
+          # _adr_out last line is the file path when exit 0; warn on empty
+          local _adr_path
+          _adr_path=$(echo "$_adr_out" | tail -1 | tr -d '\r\n' || true)
+          if [[ -n "$_adr_path" && -f "$_adr_path" ]]; then
+            git add "$_adr_path" 2>/dev/null || true
+            echo "  [adr] ADR written and staged: $_adr_path"
+          else
+            echo "  [adr] WARNING: ADR generation failed — continuing without ADR"
+            echo "  [adr] Output: ${_adr_out:-<empty>}"
+          fi
+        else
+          echo "  [adr] SKIP: generate_adr.py or python3 not found"
+        fi
+      else
+        echo "  [adr] SKIPPED (SPIRAL_SKIP_ADR=true)"
+      fi
+
       _CONV_MSG=$(build_commit_msg \
         "$NEXT_STORY" "$STORY_TITLE" "${STORY_TAGS:-}" \
         "${STORY_FIRST_FILE:-}" "${SPIRAL_RUN_ID:-}" \
