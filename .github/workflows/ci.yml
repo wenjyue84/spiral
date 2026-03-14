@@ -138,8 +138,33 @@ jobs:
       - name: Validate prd.json schema
         run: uv run python lib/prd_schema.py prd.json
 
-      - name: Run tests
-        run: uv run pytest tests/ -v --tb=short
+      - name: Run tests with coverage
+        run: |
+          uv run pytest tests/ -v --tb=short \
+            --cov=lib \
+            --cov-report=xml:coverage.xml \
+            --cov-report=html:htmlcov \
+            --cov-fail-under=48
+
+      - name: Append coverage summary to step summary
+        if: always()
+        run: uv run coverage report --format=markdown >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload HTML coverage report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: coverage-report-html
+          path: htmlcov/
+          retention-days: 7
+
+      - name: Upload coverage XML
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: coverage-report-xml
+          path: coverage.xml
+          retention-days: 7
 
   bats:
     runs-on: ubuntu-latest

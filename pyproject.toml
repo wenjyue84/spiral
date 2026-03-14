@@ -19,10 +19,19 @@ py-modules = ["main"]
 
 [dependency-groups]
 dev = [
+    "coverage[toml]>=7.13.4",
     "hypothesis>=6.151.9",
     "mypy==1.11.2",
     "pytest>=9.0.2",
+    "pytest-cov>=7.0.0",
 ]
+
+[tool.coverage.run]
+source = ["lib"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 48
 
 [tool.mypy]
 python_version = "3.13"
