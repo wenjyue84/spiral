@@ -3393,6 +3393,194 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": false
+    },
+    {
+      "id": "US-175",
+      "title": "Atomic prd.json write in merge_stories.py using temp-file rename",
+      "priority": "high",
+      "description": "merge_stories.py writes directly to prd.json in-place. A crash or SIGKILL mid-write produces a truncated or corrupt prd.json. Rewrite the write path to write to prd.json.tmp first, then atomically rename via os.replace(). This prevents the file from ever being caught in a half-written state.",
+      "acceptanceCriteria": [
+        "merge_stories.py writes output to prd.json.tmp then os.replace() to prd.json",
+        "prd.json.tmp is removed on both success and exception via try/finally",
+        "Simulating a kill mid-write leaves prd.json intact from before the merge",
+        "A unit test mocks os.replace to raise and confirms prd.json is unchanged",
+        "Existing merge_stories.py unit tests continue to pass"
+      ],
+      "technicalNotes": [
+        "os.replace() is atomic on POSIX; on Windows it is safer than direct overwrite",
+        "Apply the same pattern to every other location that writes prd.json directly"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-176",
+      "title": "Force-remove orphaned worker git worktree and branch on implementation timeout",
+      "priority": "high",
+      "description": "When a parallel worker hits SPIRAL_IMPL_TIMEOUT, run_parallel_ralph.sh kills the process but leaves the git worktree and branch in place. These ghost worktrees consume disk, cause branch-already-checked-out errors on the next run, and bloat git internals. Add a post-kill cleanup step that force-removes the worktree and deletes the branch.",
+      "acceptanceCriteria": [
+        "When a worker is killed by timeout, its worktree is removed within 10 seconds",
+        "The worker feature branch is deleted after worktree removal",
+        "If removal fails, a warning is logged but the run continues",
+        "spiral.sh --status reports no orphaned worktrees after a timeout scenario",
+        "Integration test with a mock hanging worker confirms cleanup fires"
+      ],
+      "technicalNotes": [
+        "Add cleanup_worker() called from the timeout handler in run_parallel_ralph.sh",
+        "Use: git worktree remove --force <path> && git branch -D <branch>",
+        "On Windows add a short sleep before removal to allow file handle release"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-177",
+      "title": "Detect and stash dirty working tree before Phase I to prevent git errors",
+      "priority": "medium",
+      "description": "If a user edits files while Spiral is paused at Phase 0 or Gate, the working tree becomes dirty. Phase I then fails with confusing git errors when creating worktrees. Add a pre-Phase-I check: detect uncommitted changes and auto-stash them (SPIRAL_AUTO_STASH=true) or abort with a clear actionable message.",
+      "acceptanceCriteria": [
+        "spiral.sh detects uncommitted changes before Phase I using git status --porcelain",
+        "With SPIRAL_AUTO_STASH=true: changes are stashed, Phase I runs, stash is popped after",
+        "With SPIRAL_AUTO_STASH=false (default): Phase I is skipped with an actionable message",
+        "Stash pop failure is logged as a warning and does not crash the run",
+        "A bats test exercises both the stash and abort paths"
+      ],
+      "technicalNotes": [
+        "git stash push --include-untracked -m spiral-auto-stash-iter-N",
+        "Pop in a trap so it runs even on interrupt",
+        "SPIRAL_AUTO_STASH documented in spiral.config.example.sh"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-178",
+      "title": "Rotate ralph-run.log when size exceeds SPIRAL_LOG_MAX_MB",
+      "priority": "medium",
+      "description": "ralph-run.log grows unbounded across runs. Long projects accumulate hundreds of MB. Add automatic rotation: when the log exceeds SPIRAL_LOG_MAX_MB (default 50 MB), rename to .log.1 and start fresh. Keep at most SPIRAL_LOG_KEEP_ROTATIONS (default 3) old files.",
+      "acceptanceCriteria": [
+        "spiral.sh checks log file size before each iteration",
+        "When size exceeds limit: rename .log to .log.1, .log.1 to .log.2, etc.",
+        "Files beyond SPIRAL_LOG_KEEP_ROTATIONS are deleted",
+        "A rotation notice is written as the first line of the new log",
+        "Both config vars documented in spiral.config.example.sh"
+      ],
+      "technicalNotes": [
+        "Portable size check via python3 os.path.getsize()",
+        "Rotate at iteration start before appending",
+        "On Windows, close and reopen the fd around the rename"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-179",
+      "title": "Add Claude API reachability probe to pre-flight check and spiral-doctor",
+      "priority": "medium",
+      "description": "Spiral discovers Claude is unreachable only after a full phase timeout, wasting minutes. Add a fast 5-second connectivity probe to startup pre-flight and spiral-doctor. Fail immediately with exit code 5 and a clear message if the API does not respond.",
+      "acceptanceCriteria": [
+        "spiral-doctor reports PASS/FAIL for Claude API reachable check",
+        "spiral.sh pre-flight includes the same probe (skippable with SPIRAL_SKIP_API_CHECK=true)",
+        "The probe uses a 5-second timeout and does not count against SPIRAL_RESEARCH_RETRIES",
+        "Failure exits with code 5 and a clear message",
+        "Probe is skipped in --dry-run mode"
+      ],
+      "technicalNotes": [
+        "Use timeout 5 claude --version or a minimal 1-token completion",
+        "Add check_claude_api() to lib/spiral_doctor.sh",
+        "Also verify ANTHROPIC_API_KEY is non-empty before any network call"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-180",
+      "title": "Scan for duplicate story IDs in prd.json at startup and abort or deduplicate",
+      "priority": "medium",
+      "description": "Parallel merges or manual edits can produce duplicate story IDs. When jq processes duplicates, one silently overwrites the other causing data loss. Add a startup scan: strict mode (default) exits with a conflict list; lenient mode (SPIRAL_DEDUP_IDS=lenient) keeps the passes:true entry and drops the duplicate.",
+      "acceptanceCriteria": [
+        "spiral.sh scans prd.json for duplicate IDs at startup",
+        "Strict mode (default): duplicate IDs cause exit 1 with a printed conflict list",
+        "Lenient mode: keep passes:true entry, drop duplicate, log warning",
+        "Result is written back atomically",
+        "A bats test covers both modes with a pre-seeded duplicate prd.json"
+      ],
+      "technicalNotes": [
+        "Use jq group_by to detect duplicates",
+        "Run after config load, before prd_stats()",
+        "Write events to spiral_events.jsonl"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-181",
+      "title": "Replace bare exit numbers in spiral.sh with named exit code constants",
+      "priority": "medium",
+      "description": "Spiral exits with 0 or generic 1 from most paths. CI pipelines cannot distinguish all-done from API-crashed from cost-ceiling-hit. Define named readonly constants (EXIT_DONE=0, EXIT_MAX_ITERS=2, EXIT_COST_CEILING=3, EXIT_CYCLE=4, EXIT_API_DOWN=5, EXIT_PRD_CORRUPT=6) and use them everywhere. Document in --help and README.",
+      "acceptanceCriteria": [
+        "Named constants defined near top of spiral.sh with readonly",
+        "All exit points use constants not bare numbers",
+        "spiral.sh --help lists exit codes with descriptions",
+        "README.md has an exit codes table",
+        "A bats test triggers each path and asserts the correct code"
+      ],
+      "technicalNotes": [
+        "Use values 2-9 to stay in the conventional range",
+        "Audit all existing exit 1 calls and remap each",
+        "Keep EXIT_DONE=0 and EXIT_ERR=1 to match POSIX convention"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-182",
+      "title": "Run Phase R and Phase T in parallel to halve story-preparation wall time",
+      "priority": "high",
+      "description": "Phase R (60-300s) and Phase T (30-60s) are completely independent but run sequentially. Launching them as background bash jobs and awaiting both halves story-preparation latency every iteration with no quality tradeoff.",
+      "acceptanceCriteria": [
+        "Phase R and Phase T run as background jobs awaited before Phase M",
+        "If either fails, the other continues and its output is treated as empty",
+        "The banner shows combined wall time as max(R,T) rather than R+T",
+        "Checkpoint records R and T independently so resume skips only what finished",
+        "A bats test with mock scripts confirms they run simultaneously"
+      ],
+      "technicalNotes": [
+        "run_phase_r & PID_R=$!; run_phase_t & PID_T=$!; wait $PID_R; RC_R=$?; wait $PID_T; RC_T=$?",
+        "Redirect each phase stdout to a dedicated section to avoid log interleaving",
+        "Checkpoint needs phase_r_done and phase_t_done as separate fields"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-183",
+      "title": "Skip Phase V test suite when Phase I produced zero new story passes",
+      "priority": "high",
+      "description": "Phase V runs the full test suite after every Phase I even when all stories were retried or skipped and nothing changed. Snapshot the passed-story count before Phase I; if it has not increased after, skip Phase V and go directly to Phase C.",
+      "acceptanceCriteria": [
+        "spiral.sh counts passed stories before and after Phase I",
+        "If the count did not increase: Phase V is skipped with a logged message",
+        "If the count increased: Phase V runs normally",
+        "SPIRAL_FORCE_VALIDATE=true bypasses the skip for CI",
+        "Skip is recorded in _checkpoint.json and _iteration_summary.json",
+        "A bats test confirms Phase V is skipped when Phase I produces no passes"
+      ],
+      "technicalNotes": [
+        "PASSES_BEFORE=$(jq count) before Phase I; PASSES_AFTER=$(same) after",
+        "Works in parallel-worker mode because prd.json is the shared source of truth"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
     }
   ]
 }
