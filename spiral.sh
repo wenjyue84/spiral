@@ -735,29 +735,8 @@ write_checkpoint() {
 }
 
 # ── Helper: append a structured JSONL event to .spiral/spiral_events.jsonl ──
-# Usage: log_spiral_event EVENT [JSON_FIELDS]
-# JSON_FIELDS: additional key:value pairs (no surrounding braces), e.g. '"phase":"R","iteration":1'
-log_spiral_event() {
-  local event="$1"
-  local extra="${2:-}"
-  local ts log_file line
-  ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  log_file="$SCRATCH_DIR/spiral_events.jsonl"
-  if [[ -n "$extra" ]]; then
-    line="{\"ts\":\"$ts\",\"event\":\"$event\",\"run_id\":\"${SPIRAL_RUN_ID:-}\",$extra}"
-  else
-    line="{\"ts\":\"$ts\",\"event\":\"$event\",\"run_id\":\"${SPIRAL_RUN_ID:-}\"}"
-  fi
-  printf '%s\n' "$line" >>"$log_file" 2>/dev/null || true
-  # Rotate if over max lines limit
-  if [[ "${SPIRAL_EVENT_LOG_MAX_LINES:-10000}" -gt 0 ]]; then
-    local count
-    count=$(wc -l <"$log_file" 2>/dev/null || echo 0)
-    if [[ "$count" -gt "${SPIRAL_EVENT_LOG_MAX_LINES:-10000}" ]]; then
-      mv "$log_file" "${log_file%.jsonl}-$(date -u +%Y%m%d-%H%M%S).jsonl" 2>/dev/null || true
-    fi
-  fi
-}
+# Provided by lib/spiral_events.sh (sourced below). See that file for details.
+source "$SPIRAL_HOME/lib/spiral_events.sh"
 
 # ── Helper: POST a JSON notification to SPIRAL_NOTIFY_WEBHOOK (US-100) ──────
 # Usage: notify_webhook PHASE EVENT [STATUS] [EXTRA_FIELDS]

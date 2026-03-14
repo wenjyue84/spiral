@@ -3050,3 +3050,24 @@ Incomplete: Upload SPIRAL output artifacts (prd.json, spiral_events.jsonl) in CI
 - test_route_stories.py import error is PRE-EXISTING (not caused by this story) - 501 other tests pass
 - On Windows, Go's GOPATH/bin must be added to PATH for shfmt to be found: export PATH="$PATH:$(go env GOPATH)/bin"
 - shfmt is not available via choco on Windows; `go install` is the recommended path
+## Iteration 18 - Sat, Mar 14, 2026  6:32:10 PM
+Incomplete: Upload SPIRAL output artifacts (prd.json, spiral_events.jsonl) in CI workflow (ID: US-094) — attempt 2/3
+
+
+## Iteration N - Story: US-117: Inject trace_id and span_id into every spiral_events.jsonl entry
+
+### What was implemented
+- Created lib/spiral_events.sh to house log_spiral_event() (extracted from spiral.sh)
+- Added W3C traceparent parsing: trace_id=${TRACEPARENT:3:32}, span_id=${TRACEPARENT:36:16}
+- trace_id/span_id injected into JSONL when TRACEPARENT env var is set; omitted when not set
+- Updated spiral.sh to source lib/spiral_events.sh (replaced 33-line inline function)
+- Created tests/spiral_events.bats with 7 tests covering all acceptance criteria
+
+### Patterns discovered
+- log_spiral_event was inline in spiral.sh; moved to lib/ to enable bats unit testing
+- lib/spiral_events.sh uses SCRATCH_DIR fallback to /tmp for test compatibility
+- bats inline Python heredoc: use `python3 - "$arg" <<'PYEOF'` pattern for variable path args (single-quoted PYEOF prevents expansion in heredoc body while $arg is still expanded by bats)
+
+### Gotchas
+- Python inline in bats: `python3 -c "..."` with `$SCRATCH_DIR` inside doesn't expand in single-quoted heredoc - use `python3 - "$path" <<'PYEOF'` instead
+- The test_route_stories.py has a pre-existing ImportError (relative import issue) - pre-existing, not caused by this story
