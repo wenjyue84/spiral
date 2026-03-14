@@ -520,6 +520,7 @@ trap 'while wait -n 2>/dev/null; do :; done; true' SIGCHLD
 
 # ── Memory watchdog — background monitor (graduated pressure or kill-only) ────
 if [[ "${SPIRAL_MEMORY_WATCHDOG:-1}" -eq 1 ]] && command -v powershell.exe &>/dev/null; then
+  # Windows: use PowerShell watchdog
   # Detect the node.exe ancestor (Claude Code) to protect it from emergency kills
   _CLAUDE_NODE_PID=""
   _check_pid=$$
@@ -550,6 +551,22 @@ if [[ "${SPIRAL_MEMORY_WATCHDOG:-1}" -eq 1 ]] && command -v powershell.exe &>/de
   WATCHDOG_PID=$!
   echo "  [memory] Watchdog started (PID: $WATCHDOG_PID, mode: $_WATCHDOG_MODE, threshold: ${SPIRAL_MEMORY_THRESHOLD:-1536}MB)"
   [[ -n "$_CLAUDE_NODE_PID" ]] && echo "  [memory] Protected PIDs: $_CLAUDE_NODE_PID (Claude Code node.exe)"
+elif [[ "${SPIRAL_MEMORY_WATCHDOG:-1}" -eq 1 ]] && { [[ -f /proc/meminfo ]] || command -v vm_stat &>/dev/null; }; then
+  # UNIX (Linux / macOS): use bash watchdog
+  _WATCHDOG_SH_ARGS="--threshold-mb ${SPIRAL_MEMORY_THRESHOLD:-1536}"
+  _WATCHDOG_SH_ARGS="$_WATCHDOG_SH_ARGS --parent-pid $$"
+  _WATCHDOG_SH_ARGS="$_WATCHDOG_SH_ARGS --interval-sec ${SPIRAL_MEMORY_POLL_INTERVAL}"
+  _WATCHDOG_SH_ARGS="$_WATCHDOG_SH_ARGS --scratch-dir $SCRATCH_DIR"
+  if [[ "$SPIRAL_LOW_POWER_MODE" -eq 1 ]]; then
+    _WATCHDOG_SH_ARGS="$_WATCHDOG_SH_ARGS --threshold-pct $SPIRAL_PRESSURE_THRESHOLDS"
+    _WATCHDOG_SH_ARGS="$_WATCHDOG_SH_ARGS --hysteresis $SPIRAL_PRESSURE_HYSTERESIS"
+    _WATCHDOG_MODE="graduated"
+  else
+    _WATCHDOG_MODE="graduated"  # bash watchdog always uses graduated mode
+  fi
+  bash "$SPIRAL_HOME/lib/memory-watchdog.sh" $_WATCHDOG_SH_ARGS &
+  WATCHDOG_PID=$!
+  echo "  [memory] Watchdog started (PID: $WATCHDOG_PID, mode: $_WATCHDOG_MODE [UNIX], threshold: ${SPIRAL_MEMORY_THRESHOLD:-1536}MB)"
 fi
 
 # ── Backup prd.json before any modifications ────────────────────────────────
