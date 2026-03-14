@@ -420,3 +420,16 @@
 
 # Cooldown period in seconds when the circuit is OPEN. Default: 60
 # SPIRAL_CB_COOLDOWN_SECS=60
+
+# ── AI commit identity (optional) ────────────────────────────────────────────
+# When set, Ralph uses `git -c user.name=... -c user.email=... commit` to tag
+# AI-generated commits with a distinct identity — without touching the global
+# git config.  A `Generated-By: SPIRAL` trailer is also appended to the commit
+# message, making it easy to filter AI commits with `git log --grep`.
+#
+# Enables audit workflows and `git blame` tooling to surface AI-generated lines.
+# When unset, commits inherit the machine's default git identity (no change).
+#
+# Examples:
+# SPIRAL_GIT_AUTHOR="SPIRAL Agent"
+# SPIRAL_GIT_EMAIL="spiral@noreply.local"

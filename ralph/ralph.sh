@@ -30,6 +30,8 @@ SPIRAL_MODEL_INPUT_PRICE_PER_M="${SPIRAL_MODEL_INPUT_PRICE_PER_M:-3.00}"   # $/1
 SPIRAL_MODEL_OUTPUT_PRICE_PER_M="${SPIRAL_MODEL_OUTPUT_PRICE_PER_M:-15.00}" # $/1M output tokens (sonnet default)
 SPIRAL_MODEL_FALLBACK_CHAIN="${SPIRAL_MODEL_FALLBACK_CHAIN:-}"  # colon-separated fallback models (e.g. sonnet:haiku:gemini-2.0-flash)
 SPIRAL_MAX_DIFF_LINES="${SPIRAL_MAX_DIFF_LINES:-500}"  # 0 = disabled; abort commit if staged diff exceeds this many changed lines
+SPIRAL_GIT_AUTHOR="${SPIRAL_GIT_AUTHOR:-}"   # optional: AI commit author name (e.g. "SPIRAL Agent")
+SPIRAL_GIT_EMAIL="${SPIRAL_GIT_EMAIL:-}"     # optional: AI commit author email (e.g. "spiral@noreply.local")
 PRD_FILE="prd.json"
 PROGRESS_FILE="progress.txt"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -280,6 +282,23 @@ run_secret_scan() {
   fi
 }
 
+# ── Git identity helper ─────────────────────────────────────────
+# do_git_commit: Wraps `git commit` with optional identity overrides.
+# When SPIRAL_GIT_AUTHOR is set, passes -c user.name / user.email to avoid
+# modifying the global git config and appends a Generated-By trailer.
+# When unset, behaviour is identical to a plain `git commit -m <msg>`.
+do_git_commit() {
+  local msg="$1"
+  if [[ -n "${SPIRAL_GIT_AUTHOR:-}" ]]; then
+    local email="${SPIRAL_GIT_EMAIL:-spiral@noreply.local}"
+    msg="${msg}
+Generated-By: SPIRAL"
+    git -c "user.name=${SPIRAL_GIT_AUTHOR}" -c "user.email=${email}" commit -m "$msg"
+  else
+    git commit -m "$msg"
+  fi
+}
+
 # ── Diff size guard ─────────────────────────────────────────────
 # _parse_diff_lines: Extract total changed lines (insertions + deletions)
 # from a `git diff --stat` summary line such as:
@@ -453,17 +472,25 @@ decompose_story() {
     return 1
   fi
 
-  echo "  [decompose] Decomposing $story_id into sub-stories..."
+  # Pass failure reason + git root so decomposer can enrich sub-story technicalNotes
+  local _fail_reason
+  _fail_reason=$($JQ -r ".userStories[] | select(.id == \"$story_id\") | ._failureReason // \"\"" "$PRD_FILE" 2>/dev/null | tr -d '\r' || true)
+  local _git_root
+  _git_root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+
+  echo "  [decompose] Decomposing $story_id (failure: ${_fail_reason:-unknown})..."
   if "$python_cmd" "$decompose_script" \
     --prd "$PRD_FILE" \
     --story-id "$story_id" \
     --progress "$PROGRESS_FILE" \
+    --git-root "$_git_root" \
+    --failure-reason "${_fail_reason:-}" \
     --model "$model"; then
     echo "  [decompose] $story_id decomposed successfully"
     TOTAL_STORIES=$($JQ '[.userStories | length] | .[0]' "$PRD_FILE")
     return 0
   else
-    echo "  [decompose] Failed to decompose $story_id — will skip instead"
+    echo "  [decompose] Failed to decompose $story_id -- will skip instead"
     return 1
   fi
 }
@@ -1351,7 +1378,7 @@ except Exception:
         echo "" >> "$PROGRESS_FILE"
         continue
       fi
-      git commit -m "feat: $NEXT_STORY - $STORY_TITLE
+      do_git_commit "feat: $NEXT_STORY - $STORY_TITLE
 
 Completed by Ralph iteration $ITERATION (${STORY_DURATION}m)
 

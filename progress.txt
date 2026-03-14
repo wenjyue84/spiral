@@ -2890,3 +2890,24 @@ Incomplete: Emit JUnit XML from bats runs for GitHub Actions test summary (ID: U
 ### Gotchas
 - awk `match()` with capture groups requires gawk (not POSIX awk); works on this system but may need fallback for environments with only POSIX awk
 - `LAST_DIFF_STAT` and `LAST_DIFF_LINES` are globals set by `check_diff_size()` for use in the error message/log immediately after
+
+
+## Iteration N - Story: US-102: Add SPIRAL_GIT_AUTHOR env to tag AI-generated commits
+
+### What was implemented
+- Added `SPIRAL_GIT_AUTHOR` and `SPIRAL_GIT_EMAIL` env var defaults in ralph/ralph.sh
+- Added `do_git_commit()` helper function that wraps `git commit` with optional `-c user.name=... -c user.email=...` overrides when SPIRAL_GIT_AUTHOR is set
+- Appends `Generated-By: SPIRAL` trailer to commit message when SPIRAL_GIT_AUTHOR is set
+- Replaced `git commit -m ...` call at story completion with `do_git_commit`
+- Added commented-out examples for both vars to templates/spiral.config.example.sh
+- Created tests/git_author.bats with 7 unit tests (all pass)
+
+### Patterns discovered
+- bats tests source functions directly from ralph.sh using `source <(sed -n '/^fn_name()/,/^}/p' ralph/ralph.sh)`
+- Git stub pattern: override `git()` function in setup(), export with `export -f git`
+- All 475 pytest tests still pass; test_route_stories.py has a pre-existing import error unrelated to this story
+
+### Gotchas
+- The `do_git_commit` function must be defined before the main loop but after the JQ variable is set
+- SPIRAL_GIT_EMAIL defaults to `spiral@noreply.local` when SPIRAL_GIT_AUTHOR is set but email is empty
+
