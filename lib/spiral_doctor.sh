@@ -87,6 +87,22 @@ spiral_doctor() {
     warn_count=$((warn_count + 1))
   fi
 
+  # ── Check prd.json for duplicate story IDs (US-180) ─────────────────────────
+  if [[ -f "${PRD_FILE:-prd.json}" ]]; then
+    local _prd_for_dup="${PRD_FILE:-prd.json}"
+    local _dup_count
+    _dup_count=$("$JQ" '[.userStories | group_by(.id)[] | select(length > 1)] | length' "$_prd_for_dup" 2>/dev/null || echo "0")
+    if [[ "$_dup_count" -eq 0 ]]; then
+      echo "  [doctor] [OK] prd.json: no duplicate story IDs"
+    else
+      local _dup_list
+      _dup_list=$("$JQ" -r '[.userStories | group_by(.id)[] | select(length > 1) | .[0].id] | join(", ")' "$_prd_for_dup" 2>/dev/null || echo "?")
+      echo "  [doctor] [ERROR] prd.json has $_dup_count duplicate ID group(s): $_dup_list"
+      echo "           → Fix: Run with SPIRAL_DEDUP_IDS=lenient to auto-resolve at startup"
+      error_count=$((error_count + 1))
+    fi
+  fi
+
   # ── Check python jsonschema package ─────────────────────────────────────────
   if "$SPIRAL_PYTHON" -c "import jsonschema" >/dev/null 2>&1; then
     echo "  [doctor] [OK] python jsonschema package is importable"

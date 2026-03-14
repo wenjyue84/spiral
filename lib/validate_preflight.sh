@@ -91,6 +91,33 @@ spiral_preflight_check() {
     fi
   fi
 
+  # ── Duplicate story ID check (US-180) ──────────────────────────────────────
+  local dedup_mode="${SPIRAL_DEDUP_IDS:-strict}"
+  local dup_ids
+  dup_ids=$("$JQ" -r '[.userStories | group_by(.id)[] | select(length > 1) | .[0].id] | join(" ")' "$prd_file" 2>/dev/null || echo "")
+  if [[ -n "$dup_ids" ]]; then
+    if [[ "$dedup_mode" == "lenient" ]]; then
+      echo "  [preflight] WARNING: Duplicate story IDs found: $dup_ids"
+      echo "  [preflight]   Lenient mode: keeping passes:true entry, dropping duplicates..."
+      local _dup_tmp
+      _dup_tmp=$(mktemp)
+      "$JQ" '.userStories |= (group_by(.id) | map((map(select(.passes == true)) | first) // first))' \
+        "$prd_file" > "$_dup_tmp" && mv "$_dup_tmp" "$prd_file"
+      printf '{"ts":"%s","event":"duplicate_ids_deduped","ids":"%s","mode":"lenient"}\n' \
+        "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$dup_ids" \
+        >> "${scratch_dir}/spiral_events.jsonl" 2>/dev/null || true
+      echo "  [preflight] Duplicate IDs resolved (lenient)."
+    else
+      echo "  [preflight] FATAL: Duplicate story IDs detected — aborting."
+      echo "  [preflight]   Duplicates: $dup_ids"
+      echo "  [preflight]   Run with SPIRAL_DEDUP_IDS=lenient to auto-deduplicate."
+      printf '{"ts":"%s","event":"duplicate_ids_fatal","ids":"%s","mode":"strict"}\n' \
+        "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$dup_ids" \
+        >> "${scratch_dir}/spiral_events.jsonl" 2>/dev/null || true
+      exit 1
+    fi
+  fi
+
   # ── ShellCheck (informational only) ────────────────────────────────────────
   if command -v shellcheck >/dev/null 2>&1; then
     local sc_errors=0
