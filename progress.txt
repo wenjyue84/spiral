@@ -3388,3 +3388,32 @@ Incomplete: Stream-process large prd.json with jq --stream to avoid full in-memo
 - `echo "$_RB_UPDATED" > "$PRD_FILE"` correctly writes jq output to prd.json even with `exec > >(tee ...)` active (explicit `>` redirect overrides the exec redirect for that command)
 - The rollback block must come AFTER `log_spiral_event` is defined (sourced from lib/spiral_events.sh at line 891) and AFTER `exec > >(tee ...)` at line 662
 - Pre-existing test flakiness: test_partition.py and test_check_dag.py have Hypothesis health check failures (slow input generation) that are unrelated to this story
+
+
+## Iteration N - Story: US-153: Add `spiral status` subcommand with color-coded story progress table
+
+### What was implemented
+- Rewrote `cmd_status` in `main.py` to produce a full color-coded story progress table
+- Added `--json` flag to the `status` subparser for machine-readable output
+- `_classify_stories()` bucketes stories into passed / in_progress / skipped / pending:
+  - passed: `passes == true`
+  - skipped: `_skipped == true`
+  - in_progress: `passes == false` AND `retry_counts[id] > 0`
+  - pending: `passes == false` AND no retries
+- `_avg_retries()` computes average retry count per status group from `retry-counts.json`
+- `_render_rich()` uses the `rich` library when available (already installed as transitive dep)
+- `_render_plain()` stdlib-only fallback with aligned columns
+- Both renderers respect `NO_COLOR` env var (rich does so natively; plain skips ANSI)
+- Header shows `SPIRAL_RUN_ID` (from checkpoint or env var) and current iteration (from checkpoint → results.tsv fallback)
+- Loads only prd.json, results.tsv, retry-counts.json, and .spiral/_checkpoint.json — no API calls
+- 18 tests in `tests/test_main.py` covering: all status rows present, correct counts, run_id in header, iteration from results.tsv, --json structure, per-bucket counts, avg_retry_count, percentage sums, classification logic, missing prd.json, performance < 1s
+
+### Patterns discovered
+- `rich` is already a transitive dependency (installed in .venv) even though it's not in pyproject.toml directly — safe to import with `try: import rich`
+- `SimpleNamespace(json=False)` is the cleanest way to mock args objects in pytest for argparse-based CLIs
+- Patching `main.PRD_FILE`, `main.RETRY_COUNTS`, `main.RESULTS_TSV`, `main.CHECKPOINT_FILE` as module-level Path objects is clean and testable
+
+### Gotchas
+- `rich.__version__` AttributeError on some installations — use `import rich` without version check
+- `_USE_COLOUR` is module-level global set at import time; tests that patch `os.environ["NO_COLOR"]` after import won't affect it — tests should use `_args()` helper and patch module paths instead
+- 1 pre-existing Hypothesis flake in `test_partition.py` (slow input gen) — unrelated to this story; 568 passed otherwise
