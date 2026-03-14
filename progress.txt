@@ -4077,3 +4077,56 @@ This brief outlines the implementation for automated workspace cleanup logic wit
 ### Gotchas
 - Changing max-iters exit from 0 to 13 is a breaking change for CI pipelines that tested `$? -eq 0` after a partial run; document clearly in README/help
 - ERR_API_DOWN=14 is a placeholder for US-179 — the constant exists, but no code uses it yet
+## Iteration 54 - Sun, Mar 15, 2026  4:21:14 AM
+Incomplete: Add SPIRAL_WORKSPACE_CLEANUP to auto-prune transient artifacts on successful run completion (ID: US-136) — attempt 1/3
+
+
+## Pre-analysis for US-136 (Gemini 2.5 Pro)
+**Subject: Technical Brief for Story US-136: Workspace Cleanup**
+
+This brief outlines the implementation plan for adding an automated workspace cleanup feature to the SPIRAL tool, triggered by a successful run completion.
+
+**1. Primary Files to Modify:**
+*   `spiral.sh`: The main script where the core cleanup logic will be added as a new bash function.
+*   `lib/check_done.py`: This script will likely need to be invoked from `spiral.sh` to confirm 100% of stories are `passed` or `skipped` before cleanup can proceed.
+*   `lib/spiral_events.sh`: This utility should be used to log the `workspace_cleanup` event and the `bytes_freed` metric to `spiral_events.jsonl`.
+
+**2. Involved Frappe Components:**
+*   Based on the story's technical notes, this is a shell-script-based implementation. No Frappe DocTypes or Python hooks are involved. The work is confined to the shell and Python scripts in the repository.
+
+**3. Recommended Implementation Approach:**
+1.  In `spiral.sh`, create a `cleanup_workspace()` function.
+2.  This function will be called at the end of the main execution loop, guarded by a conditional that first runs `python lib/check_done.py` to ensure the run is complete.
+3.  Inside `cleanup_workspace()`, check if `SPIRAL_WORKSPACE_CLEANUP` is "true".
+4.  Use `du -sb` to capture the size of the `.spiral/` directory before cleanup.
+5.  Use `find .spiral/research_cache -mtime +${SPIRAL_CACHE_TTL:-7} -delete` to prune the cache.
+6.  Use `find` to remove any zero-byte log files.
+7.  Archive old `_iteration_summary_*.json` files into `.spiral/archive/`.
+8.  Recalculate the directory size with `du -sb`, compute the delta, and use `spiral_events.sh` to log the cleanup event and bytes freed.
+
+**4. Edge Cases & Gotchas:**
+*   The script must handle cases where no files match the cleanup criteria (e.g., no old cache files or iteration summaries exist) without erroring.
+*   Ensure the `tar` command for archiving doesn't fail if the glob for iteration summaries finds no files.
+*   The `SPIRAL_CACHE_TTL` environment variable should be handled with a safe default (e.g., 7 days) if not explicitly set.
+*   Cleanup logic must not delete critical files required for reporting: `prd.json`, `spiral_events.jsonl`, `results.tsv`, and `_checkpoint.json`.
+
+
+## Iteration N - Story: US-170: Add SPIRAL_RESEARCH_CACHE_TTL_HOURS to reuse Phase R output across iterations
+
+### What was implemented
+- Changed SPIRAL_RESEARCH_CACHE_TTL_HOURS default from 24 to 0 (disabled by default as story requires)
+- Added Phase R output cache check in the _R_SKIP conditions block (after memory pressure check)
+- If TTL > 0 and _research_output.json exists and is younger than TTL hours, Phase R is skipped with '[Phase R] cache hit — research is Nh old (TTL: Xh), skipping Phase R'
+- Updated config display banner to show "research URL responses + Phase R output reuse"
+- Documented SPIRAL_RESEARCH_CACHE_TTL_HOURS in spiral.config.sh with usage example
+
+### Patterns discovered
+- Phase R skip conditions block is at ~line 1563-1603 in spiral.sh (elif chain)
+- SPIRAL_PYTHON variable (not python3 directly) is the right interpreter to use for inline mtime calculations
+- os.path.getmtime() returns float seconds; divide by 3600 for hours
+- Use exit code capture pattern: $("$SPIRAL_PYTHON" -c "exit(0 if ... else 1)" 2>/dev/null; echo $?) to get bool result
+
+### Gotchas
+- prd.json must be opened with encoding='utf-8' on Windows (cp1252 default fails)
+- test_route_stories.py has a pre-existing import error (relative import issue) — ignore with --ignore flag
+- All 614 other tests pass

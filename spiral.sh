@@ -407,7 +407,7 @@ SPIRAL_PRESSURE_HYSTERESIS="${SPIRAL_PRESSURE_HYSTERESIS:-2}"
 SPIRAL_DEV_URL="${SPIRAL_DEV_URL:-}"                                     # empty = disabled; URL for Phase V screenshot
 SPIRAL_PROGRESS_MAX_LINES="${SPIRAL_PROGRESS_MAX_LINES:-2000}"           # 0 = disabled; rotate progress.txt when over this limit
 SPIRAL_EVENT_LOG_MAX_LINES="${SPIRAL_EVENT_LOG_MAX_LINES:-10000}"        # 0 = disabled; rotate spiral_events.jsonl when over this limit
-SPIRAL_RESEARCH_CACHE_TTL_HOURS="${SPIRAL_RESEARCH_CACHE_TTL_HOURS:-24}" # 0 = disabled; cache TTL for Phase R URL responses
+SPIRAL_RESEARCH_CACHE_TTL_HOURS="${SPIRAL_RESEARCH_CACHE_TTL_HOURS:-0}"  # 0 = disabled; cache TTL for Phase R URL responses AND Phase R output file reuse across iterations
 RESEARCH_CACHE_DIR=""                                                    # set after SCRATCH_DIR is known
 SPIRAL_RESEARCH_TIMEOUT="${SPIRAL_RESEARCH_TIMEOUT:-300}"                # seconds; 0 = disabled (unlimited); Phase R LLM call
 SPIRAL_RESEARCH_RETRIES="${SPIRAL_RESEARCH_RETRIES:-2}"                  # retries when _research_output.json missing/invalid after Phase R
@@ -1162,7 +1162,7 @@ if [[ "$TIME_LIMIT_MINS" -gt 0 ]]; then
     echo "~${TIME_LIMIT_MINS}m from now")
   echo "  ║  Time limit:  ${TIME_LIMIT_MINS}m (stops ~${_DEADLINE_DISPLAY})"
 fi
-[[ "$SPIRAL_RESEARCH_CACHE_TTL_HOURS" -gt 0 ]] && echo "  ║  Cache TTL:   ${SPIRAL_RESEARCH_CACHE_TTL_HOURS}h (research URL responses)"
+[[ "$SPIRAL_RESEARCH_CACHE_TTL_HOURS" -gt 0 ]] && echo "  ║  Cache TTL:   ${SPIRAL_RESEARCH_CACHE_TTL_HOURS}h (research URL responses + Phase R output reuse)"
 echo "  ║  Capacity:    Phase R skipped when pending > $CAPACITY_LIMIT"
 echo "  ║  Scratch:     $SCRATCH_DIR"
 echo "  ╚══════════════════════════════════════════════╝"
@@ -1591,6 +1591,16 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
     echo '{"stories":[]}' >"$RESEARCH_OUTPUT"
     touch "$_phase_r_ckpt"
     _R_SKIP=1
+  elif [[ "$SPIRAL_RESEARCH_CACHE_TTL_HOURS" -gt 0 ]] && [[ -f "$RESEARCH_OUTPUT" ]]; then
+    _R_CACHE_AGE_H=$("$SPIRAL_PYTHON" -c "import os,time; m=os.path.getmtime('$RESEARCH_OUTPUT'); print((time.time()-m)/3600)" 2>/dev/null || echo "9999")
+    _R_CACHE_HIT=$("$SPIRAL_PYTHON" -c "exit(0 if float('$_R_CACHE_AGE_H') < $SPIRAL_RESEARCH_CACHE_TTL_HOURS else 1)" 2>/dev/null; echo $?)
+    if [[ "$_R_CACHE_HIT" -eq 0 ]]; then
+      _R_CACHE_AGE_DISPLAY=$("$SPIRAL_PYTHON" -c "h=float('$_R_CACHE_AGE_H'); print(f'{h:.1f}h')" 2>/dev/null || echo "${_R_CACHE_AGE_H}h")
+      echo ""
+      echo "  [Phase R] cache hit — research is ${_R_CACHE_AGE_DISPLAY} old (TTL: ${SPIRAL_RESEARCH_CACHE_TTL_HOURS}h), skipping Phase R"
+      touch "$_phase_r_ckpt"
+      _R_SKIP=1
+    fi
   fi
 
   if checkpoint_phase_done "T"; then

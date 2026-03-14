@@ -88,6 +88,14 @@ SPIRAL_DASHBOARD_REFRESH_SECS=30
 # testing). Requires jq 1.6+ for --stream support.
 # SPIRAL_PRD_STREAM_THRESHOLD_KB=512
 
+# ── Research output cache TTL (US-170) ───────────────────────────────────
+# When set to a positive integer, Phase R is skipped entirely if
+# _research_output.json already exists and is younger than this many hours.
+# Also controls URL-level cache expiry in lib/research_cache.py.
+# 0 = disabled (Phase R always runs). Default: 0.
+# Example: SPIRAL_RESEARCH_CACHE_TTL_HOURS=6  # reuse research for up to 6h
+# SPIRAL_RESEARCH_CACHE_TTL_HOURS=0
+
 # ── Spec-Kit constitution file ────────────────────────────────────────────
 # Path (relative to repo root) to a constitution.md file that defines what
 # this project IS, what it must never sacrifice, and what stories are out of
