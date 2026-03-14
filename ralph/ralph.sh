@@ -243,6 +243,42 @@ if [[ "$CURRENT_BRANCH" != "$BRANCH_NAME" && "$BRANCH_NAME" != "main" && "$BRANC
   fi
 fi
 
+# ── Secret scanning gate ─────────────────────────────────────────
+# run_secret_scan: Runs gitleaks on staged files before git commit.
+# Returns 0 (ok to commit) or 1 (secrets detected, abort commit).
+# Honors SPIRAL_SKIP_SECRET_SCAN=true to bypass for development use.
+run_secret_scan() {
+  if [[ "${SPIRAL_SKIP_SECRET_SCAN:-false}" == "true" ]]; then
+    log_ralph_event "secret_scan_skipped" "\"storyId\":\"$NEXT_STORY\",\"reason\":\"SPIRAL_SKIP_SECRET_SCAN=true\""
+    echo "  [secret-scan] SKIPPED (SPIRAL_SKIP_SECRET_SCAN=true)"
+    return 0
+  fi
+
+  if ! command -v gitleaks >/dev/null 2>&1; then
+    echo "  [secret-scan] gitleaks not found in PATH — skipping (install gitleaks to enable secret scanning)"
+    return 0
+  fi
+
+  local report_path="${SPIRAL_SCRATCH_DIR}/gitleaks-report.json"
+  mkdir -p "${SPIRAL_SCRATCH_DIR}"
+
+  if gitleaks detect --staged --report-format json --report-path "$report_path" >/dev/null 2>&1; then
+    echo "  [secret-scan] No secrets detected"
+    return 0
+  else
+    local findings=0
+    if [[ -f "$report_path" ]]; then
+      findings=$($JQ 'length' "$report_path" 2>/dev/null || echo "1")
+    else
+      findings=1
+    fi
+    log_ralph_event "secret_detected" "\"storyId\":\"$NEXT_STORY\",\"findings\":$findings,\"reportPath\":\"$report_path\""
+    echo "  [secret-scan] SECRETS DETECTED ($findings finding(s)) — commit aborted"
+    echo "  [secret-scan] Report: $report_path"
+    return 1
+  fi
+}
+
 # ── Quality gate functions ───────────────────────────────────────
 
 # Default generic quality gates (can be overridden by ralph-config.sh)
@@ -1182,6 +1218,22 @@ except Exception:
       COAUTHOR_MODEL="${EFFECTIVE_MODEL:-sonnet}"
       COAUTHOR_LABEL="${COAUTHOR_MODEL^}"
       git add -A
+      if ! run_secret_scan; then
+        echo "  [secret-scan] Unstaging changes and aborting story"
+        git restore --staged . 2>/dev/null || true
+        $JQ "(.userStories[] | select(.id == \"$NEXT_STORY\") | .passes) = false" "$PRD_FILE" > "${PRD_FILE}.tmp"
+        mv "${PRD_FILE}.tmp" "$PRD_FILE"
+        $JQ "(.userStories[] | select(.id == \"$NEXT_STORY\") | ._failureReason) = \"secret_detected\"" "$PRD_FILE" > "${PRD_FILE}.tmp"
+        mv "${PRD_FILE}.tmp" "$PRD_FILE"
+        increment_retry "$NEXT_STORY"
+        RETRY_NOW=$(get_retry_count "$NEXT_STORY")
+        echo "[retry] $NEXT_STORY attempt $RETRY_NOW/$MAX_RETRIES (secret scan gate failed)"
+        append_result "reject"
+        echo "## Iteration $ITERATION - $(date)" >> "$PROGRESS_FILE"
+        echo "FAILED secret scan: $STORY_TITLE (ID: $NEXT_STORY) — attempt $RETRY_NOW/$MAX_RETRIES" >> "$PROGRESS_FILE"
+        echo "" >> "$PROGRESS_FILE"
+        continue
+      fi
       git commit -m "feat: $NEXT_STORY - $STORY_TITLE
 
 Completed by Ralph iteration $ITERATION (${STORY_DURATION}m)

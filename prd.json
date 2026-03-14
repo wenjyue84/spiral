@@ -11,6 +11,117 @@
   ],
   "userStories": [
     {
+      "id": "US-159",
+      "title": "Auto-cleanup stale spiral-worker-* branches on startup",
+      "description": "Crashed runs leave behind orphaned spiral-worker-* branches. At startup of run_parallel_ralph.sh, scan for and delete any spiral-worker-* branches not checked out in any live worktree, then run worktree prune. Prevents branch accumulation that degrades git performance.",
+      "priority": "high",
+      "passes": true,
+      "retryCount": 0,
+      "filesTouch": [
+        "lib/run_parallel_ralph.sh"
+      ]
+    },
+    {
+      "id": "US-160",
+      "title": "Remove orphaned index.lock files before worktree creation and in cleanup",
+      "description": "OOM-killed workers leave .git/index.lock behind, causing all subsequent git operations to silently fail. In the Step 2 worktree creation loop and in cleanup_parallel(), detect and remove index.lock files from previously crashed workers before attempting new git operations.",
+      "priority": "high",
+      "passes": true,
+      "retryCount": 0,
+      "filesTouch": [
+        "lib/run_parallel_ralph.sh"
+      ]
+    },
+    {
+      "id": "US-161",
+      "title": "Auto-restore prd.json from backup when corruption detected at iteration start",
+      "description": "Validate prd.json with `jq empty` at the start of each iteration. If corrupted by a mid-write crash, restore from the most recent prd-backups/prd-iter*.json snapshot. Also fix the two non-atomic direct writes to prd.json in sequential mode to use temp+mv.",
+      "priority": "high",
+      "passes": true,
+      "retryCount": 0,
+      "filesTouch": [
+        "spiral.sh"
+      ]
+    },
+    {
+      "id": "US-162",
+      "title": "Add configurable timeout for Phase T (synthesize_tests.py) with SPIRAL_TEST_SYNTH_TIMEOUT",
+      "description": "Phase T had no timeout and could hang indefinitely blocking the iteration. Wrap synthesize_tests.py and spiral-core synthesize in timeout --kill-after=30. Exit code 124 (timeout) produces a warning event and safe empty output. Adds SPIRAL_TEST_SYNTH_TIMEOUT env var (default 60s).",
+      "priority": "high",
+      "passes": true,
+      "retryCount": 0,
+      "filesTouch": [
+        "spiral.sh"
+      ]
+    },
+    {
+      "id": "US-163",
+      "title": "Validate heartbeat requeue succeeded and force-reset on failure",
+      "description": "requeue_stale_stories() was called with || true \u2014 if it silently failed the story stayed stuck forever. After calling it, verify the story passes field is now false. If not, force-reset it via direct jq write with a warning log.",
+      "priority": "high",
+      "passes": true,
+      "retryCount": 0,
+      "filesTouch": [
+        "lib/run_parallel_ralph.sh"
+      ]
+    },
+    {
+      "id": "US-164",
+      "title": "Detect and log .rej files after git apply --reject fallback",
+      "description": "When git apply --3way unexpectedly fails and falls back to --reject, .rej files silently mark broken state. After the --reject apply, scan for new *.rej files, log them with a manual-review warning, and emit a patch_rejected event to spiral_events.jsonl.",
+      "priority": "high",
+      "passes": true,
+      "retryCount": 0,
+      "filesTouch": [
+        "lib/run_parallel_ralph.sh"
+      ]
+    },
+    {
+      "id": "US-165",
+      "title": "Add predictive preemptive memory pressure trigger in memory-watchdog.ps1",
+      "description": "The watchdog was purely reactive. Add -PreemptivePressureMB parameter: when free RAM drops below threshold at level 0, pre-escalate to level 1 proactively before hitting hard thresholds. Controlled by SPIRAL_PREEMPTIVE_PRESSURE_MB (default 0 = disabled). Passed through from spiral.sh watchdog invocation.",
+      "priority": "high",
+      "passes": true,
+      "retryCount": 0,
+      "filesTouch": [
+        "lib/memory-watchdog.ps1",
+        "spiral.sh"
+      ]
+    },
+    {
+      "id": "US-166",
+      "title": "Detect and alert when deferred worker launch queue is stalled",
+      "description": "When all queued workers wait indefinitely due to sustained memory pressure, only the periodic Queue: N deferred message was emitted with no escalation. Track _QUEUE_STALL_SECS across loop cycles. After SPIRAL_QUEUE_STALL_WARN_SECS (default 600s), emit a prominent warning suggesting reduce RALPH_WORKERS or lower SPIRAL_WORKER_MEMORY_LIMIT.",
+      "priority": "high",
+      "passes": true,
+      "retryCount": 0,
+      "filesTouch": [
+        "lib/run_parallel_ralph.sh"
+      ]
+    },
+    {
+      "id": "US-167",
+      "title": "Merge per-worker retry-counts.json back into root after parallel run",
+      "description": "Per-worker retry-counts.json files were never merged back to root after parallel runs. After merge_worker_results.py, collect all worker retry-counts.json files and merge into the root file using max-value semantics \u2014 ensuring retry counts are never decremented across parallel runs.",
+      "priority": "high",
+      "passes": true,
+      "retryCount": 0,
+      "filesTouch": [
+        "lib/run_parallel_ralph.sh"
+      ]
+    },
+    {
+      "id": "US-168",
+      "title": "Clean up stale /tmp spiral files from previous crashed runs on startup",
+      "description": "ralph-bench-output-worker-*.txt files and spiral-docker-lock-* dirs accumulate in /tmp across runs and are never cleaned. At startup of run_parallel_ralph.sh, remove all Spiral-specific /tmp files from previous invocations (safe: patterns are SPIRAL-specific and never needed across runs).",
+      "priority": "high",
+      "passes": true,
+      "retryCount": 0,
+      "filesTouch": [
+        "lib/run_parallel_ralph.sh"
+      ]
+    },
+    {
       "id": "US-001",
       "title": "Wire validate_preflight.sh into spiral.sh startup",
       "priority": "high",
@@ -1949,84 +2060,6 @@
       "passes": false
     },
     {
-      "id": "US-090",
-      "title": "Expose OpenTelemetry OTLP endpoint configuration in spiral.config.sh",
-      "priority": "low",
-      "description": "SPIRAL emits structured events to spiral_events.jsonl but has no path to a live tracing backend. Adding SPIRAL_OTLP_ENDPOINT and SPIRAL_OTEL_SERVICE_NAME variables to spiral.config.sh (and the example template) enables users to route traces to Jaeger, Honeycomb, or Grafana Tempo. When the endpoint is empty, otel-cli no-ops with zero overhead.",
-      "acceptanceCriteria": [
-        "`SPIRAL_OTLP_ENDPOINT=\"\"` and `SPIRAL_OTEL_SERVICE_NAME=\"spiral\"` are added to templates/spiral.config.example.sh with documentation comments",
-        "spiral.sh exports `OTEL_EXPORTER_OTLP_ENDPOINT=$SPIRAL_OTLP_ENDPOINT` and `OTEL_SERVICE_NAME=$SPIRAL_OTEL_SERVICE_NAME` after sourcing config",
-        "When `SPIRAL_OTLP_ENDPOINT` is empty, no otel-cli calls are attempted (guarded by `[[ -n $SPIRAL_OTLP_ENDPOINT ]]`)",
-        "setup.py wizard asks whether the user wants to configure an OTLP endpoint and writes it to spiral.config.sh"
-      ],
-      "technicalNotes": [
-        "otel-cli wraps any command as an OTel span: `otel-cli exec --name spiral.phase.R -- bash ...`",
-        "When OTEL_EXPORTER_OTLP_ENDPOINT is unset, otel-cli no-ops silently \u2014 safe default for new installs",
-        "Source: https://github.com/equinix-labs/otel-cli"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false
-    },
-    {
-      "id": "US-091",
-      "title": "Add $schema URI to prd.json for IDE JSON Schema validation",
-      "priority": "low",
-      "description": "VSCode, PyCharm, and other editors perform inline validation and autocompletion when a JSON file contains a `$schema` key pointing to a Draft-07 schema. lib/prd_schema.py should write `\"$schema\"` as the first key in prd.json so editors validate story fields (required id, title, priority, passes) without any plugin setup.",
-      "acceptanceCriteria": [
-        "lib/prd_schema.py writes `\"$schema\": \"./prd.schema.json\"` as the first key when creating or rewriting prd.json",
-        "A `prd.schema.json` file is shipped in the SPIRAL repo with Draft-07 schema covering all prd.json fields (id, title, priority, passes, _retryCount, _skipped, _failureReason, epicId, tags, model, dependencies)",
-        "VSCode shows inline errors when a story is missing a required field like `id` or `title`",
-        "prd.schema.json round-trips through `python -m jsonschema` validation against a known-good prd.json"
-      ],
-      "technicalNotes": [
-        "Draft-07 schema: `{ \"$schema\": \"http://json-schema.org/draft-07/schema#\", \"type\": \"object\", \"required\": [\"userStories\"], ... }`",
-        "VSCode picks up `$schema` in JSON files automatically via its built-in JSON language server",
-        "Source: https://json-schema.org/draft-07/json-schema-release-notes and https://python-jsonschema.readthedocs.io/"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false
-    },
-    {
-      "id": "US-092",
-      "title": "Write Prometheus text-format metrics file after each story run",
-      "priority": "low",
-      "description": "SPIRAL tracks story outcomes in results.tsv and spiral_events.jsonl but has no Prometheus-compatible metrics output. Writing `spiral_story_runs_total`, `spiral_story_duration_seconds`, and `spiral_story_retries_total` in Prometheus text exposition format to `.spiral/metrics/spiral.prom` makes SPIRAL observable by any Prometheus-compatible stack without a running server.",
-      "acceptanceCriteria": [
-        "After each story run in ralph.sh, `.spiral/metrics/spiral.prom` is appended with `# HELP`, `# TYPE`, and metric lines for `spiral_story_runs_total{story_id, status, model}` and `spiral_story_duration_seconds{story_id}`",
-        "The file is re-created (not appended) at SPIRAL session start to avoid cross-session metric accumulation",
-        "`curl http://localhost:9091/metrics/job/spiral` works when Prometheus Pushgateway is running locally and fed this file"
-      ],
-      "technicalNotes": [
-        "Prometheus text format: `# HELP spiral_story_runs_total ...\\n# TYPE spiral_story_runs_total counter\\nspiral_story_runs_total{story_id=\"US-001\",status=\"success\"} 1`",
-        "Lines must end with `\\n`; no trailing spaces; labels in `{key=\"value\"}` format",
-        "Source: https://prometheus.io/docs/instrumenting/exposition_formats/#text-based-format"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false
-    },
-    {
-      "id": "US-093",
-      "title": "Push Prometheus metrics to Pushgateway when SPIRAL_PUSHGATEWAY_URL is set",
-      "priority": "low",
-      "description": "When a Prometheus Pushgateway URL is configured, SPIRAL can push the metrics file after each iteration so a live Prometheus/Grafana stack can track progress in real time. The push is non-fatal: if curl fails, SPIRAL logs a warning but continues. This is the standard Pushgateway pattern for batch jobs.",
-      "acceptanceCriteria": [
-        "`SPIRAL_PUSHGATEWAY_URL=\"\"` is added to templates/spiral.config.example.sh",
-        "After each iteration's Phase V, if `SPIRAL_PUSHGATEWAY_URL` is non-empty, spiral.sh runs: `cat .spiral/metrics/spiral.prom | curl --silent --data-binary @- \"$SPIRAL_PUSHGATEWAY_URL/metrics/job/spiral/instance/$HOSTNAME\" || echo '[spiral] pushgateway push failed (non-fatal)'`",
-        "The push step exits 0 regardless of curl exit code"
-      ],
-      "technicalNotes": [
-        "Pushgateway standard URL: `http://<host>:9091/metrics/job/<job>/instance/<instance>`",
-        "Use `--data-binary @-` (not `--data`) to preserve newlines in the Prometheus text format",
-        "Source: https://prometheus.io/docs/instrumenting/pushing/ and https://github.com/prometheus/pushgateway"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false
-    },
-    {
       "id": "US-094",
       "title": "Upload SPIRAL output artifacts (prd.json, spiral_events.jsonl) in CI workflow",
       "priority": "low",
@@ -2314,29 +2347,6 @@
       "passes": false
     },
     {
-      "id": "US-107",
-      "title": "Propagate W3C traceparent context via env var to parallel worker subprocesses",
-      "priority": "low",
-      "description": "When SPIRAL_OTLP_ENDPOINT is configured (pending story), each worker subprocess starts its own disconnected trace with no parent context, producing unlinked spans that cannot be correlated to the root spiral.sh invocation. Exporting the active span's traceparent into an env var before spawning workers links all worker spans into a single distributed trace per iteration, enabling end-to-end visibility across the multi-phase pipeline.",
-      "acceptanceCriteria": [
-        "When SPIRAL_OTLP_ENDPOINT is set, spiral.sh generates a root traceparent at loop start",
-        "TRACEPARENT env var is exported to all worker subprocesses in run_parallel_ralph.sh",
-        "ralph.sh reads TRACEPARENT and uses it as parent context when creating story-level spans",
-        "Each story attempt span carries attributes: story_id, worker_id, iteration, model_used",
-        "Parallel workers use Span Links (not parent-child) to reflect their independent relationship to the root trace",
-        "When SPIRAL_OTLP_ENDPOINT is unset, no tracing overhead is introduced"
-      ],
-      "technicalNotes": [
-        "W3C TraceContext spec: traceparent format is 00-{32hex traceId}-{16hex spanId}-{2hex flags}",
-        "Use otel-cli (github.com/equinix-labs/otel-cli) for Bash-native span creation without a Python runtime dependency",
-        "Span Links are the correct OTel relationship for parallel fan-out per the OTel spec",
-        "Implement after 'Expose OpenTelemetry OTLP endpoint configuration' story is complete"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false
-    },
-    {
       "id": "US-108",
       "title": "Add circuit breaker for LLM API calls with half-open recovery",
       "priority": "high",
@@ -2550,27 +2560,6 @@
         "Parse traceparent with bash parameter expansion: trace_id=${TRACEPARENT:3:32}, span_id=${TRACEPARENT:36:16}",
         "This extends the existing W3C traceparent propagation story by ensuring the IDs flow into JSONL lines, not just outbound env vars",
         "The correlation enables `jq 'select(.trace_id==\"<id>\")' spiral_events.jsonl` to reconstruct a full story timeline from logs"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false
-    },
-    {
-      "id": "US-118",
-      "title": "Add git worktree repair step to orphaned worktree recovery flow",
-      "priority": "medium",
-      "description": "When SPIRAL detects a worktree directory exists but its .git/worktrees entry is stale or missing, run `git worktree repair` before falling back to force-remove. This recovers from scenarios where worktrees were moved manually or the .git/worktrees directory was partially corrupted.",
-      "acceptanceCriteria": [
-        "In run_parallel_ralph.sh, before creating a new worktree, SPIRAL checks if .spiral-workers/worker-N exists but is absent from `git worktree list`",
-        "If such an orphan is found, `git worktree repair .spiral-workers/worker-N` is attempted first and its exit code is checked",
-        "If repair fails, `git worktree remove --force .spiral-workers/worker-N` followed by `git worktree prune` is executed",
-        "The repair attempt and its outcome are logged as worktree_repair_attempt and worktree_repair_result events in spiral_events.jsonl",
-        "A bats test simulates a moved worktree by manually editing .git/worktrees/<name>/gitdir and verifies the repair path is taken"
-      ],
-      "technicalNotes": [
-        "`git worktree repair` was introduced in git 2.30 \u2014 add a version check in spiral_doctor.sh",
-        "The gitdir file inside .git/worktrees/<name>/ stores the absolute path to the worktree's .git file; repair updates this when the worktree is moved",
-        "This is distinct from `git worktree prune` (removes stale entries) \u2014 repair is for reachable but mislocated worktrees"
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
@@ -2902,52 +2891,6 @@
       "passes": false
     },
     {
-      "id": "US-134",
-      "title": "Add Grafana dashboard provisioning JSON for SPIRAL Prometheus metrics",
-      "priority": "low",
-      "description": "SPIRAL already writes Prometheus text-format metrics. Without a pre-built Grafana dashboard, operators must manually build panels every time they set up monitoring. Shipping version-controlled Grafana provisioning JSON files (dashboards + datasource) enables one-command observability setup via docker-compose.",
-      "acceptanceCriteria": [
-        "A `monitoring/grafana/dashboards/spiral.json` dashboard file exists with panels for: story throughput, worker utilization, error rate, API cost, and phase duration histograms",
-        "A `monitoring/grafana/provisioning/datasources/prometheus.yaml` auto-configures the Prometheus datasource",
-        "A `docker-compose.monitoring.yml` starts Prometheus + Grafana with provisioning volume mounts",
-        "The dashboard JSON uses Grafana provisioning format so the datasource variable is injectable at import time",
-        "README documents the one-command startup: `docker compose -f docker-compose.monitoring.yml up`"
-      ],
-      "technicalNotes": [
-        "Grafana provisioning path: `grafana/provisioning/dashboards/` for dashboard JSON and `grafana/provisioning/datasources/` for YAML",
-        "Dashboard JSON must include `__inputs` array with `{ type: datasource, pluginId: prometheus }` for datasource injection",
-        "Prometheus scrape config: `scrape_configs: [{job_name: spiral, static_configs: [{targets: [localhost:9091]}]}]`",
-        "Base dashboard on Grafana template ID 3662 extended with SPIRAL-specific panels",
-        "Reference: https://grafana.com/grafana/dashboards/3662-prometheus-2-0-overview/"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false
-    },
-    {
-      "id": "US-135",
-      "title": "Generate story dependency graph as SVG artifact in dashboard",
-      "priority": "low",
-      "description": "As prd.json grows to 100+ stories, understanding dependency relationships becomes cognitively expensive when reading raw JSON. Generating a visual dependency graph (SVG via graphviz or mermaid) and embedding it in the HTML dashboard or saving as a standalone artifact lets operators instantly see blocked stories and critical paths.",
-      "acceptanceCriteria": [
-        "spiral_dashboard.py generates a DOT-format dependency graph from prd.json `dependencies` fields",
-        "The graph is rendered to SVG using `graphviz` (if installed) or emitted as a Mermaid graph block in the HTML report",
-        "Story nodes are color-coded by status: green (passed), red (failed/skipped), yellow (in_progress), gray (todo)",
-        "The SVG is embedded in the HTML dashboard under a Dependency Graph section",
-        "If graphviz is not installed the dashboard falls back to a Mermaid JS rendering in the browser"
-      ],
-      "technicalNotes": [
-        "Python graphviz package: `uv add graphviz` \u2014 uses the `Digraph` class to build and render DOT graphs",
-        "Mermaid fallback: emit `<div class=\"mermaid\">graph TD; ...</div>` with mermaid.js CDN script tag",
-        "Node labels: `{story_id}\\n{title[:30]}` for readability",
-        "Critical path detection: longest dependency chain highlighted with red edges",
-        "Reference: https://graphviz.org/documentation/ for DOT language and Python API"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false
-    },
-    {
       "id": "US-136",
       "title": "Add SPIRAL_WORKSPACE_CLEANUP to auto-prune transient artifacts on successful run completion",
       "priority": "low",
@@ -3055,7 +2998,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-141",

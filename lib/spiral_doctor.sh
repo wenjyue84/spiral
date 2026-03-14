@@ -118,6 +118,18 @@ spiral_doctor() {
     warn_count=$((warn_count + 1))
   fi
 
+  # ── Check gitleaks ──────────────────────────────────────────────────────────
+  if command -v gitleaks >/dev/null 2>&1; then
+    local gl_version
+    gl_version=$(gitleaks version 2>/dev/null || echo "unknown")
+    echo "  [doctor] [OK] gitleaks found in PATH (version: ${gl_version})"
+  else
+    echo "  [doctor] [WARN] gitleaks not found in PATH"
+    echo "           → Fix: Install gitleaks (https://github.com/gitleaks/gitleaks#installing)"
+    echo "           → Info: Secret scanning gate in ralph.sh requires gitleaks; set SPIRAL_SKIP_SECRET_SCAN=true to bypass"
+    warn_count=$((warn_count + 1))
+  fi
+
   # ── Summary ────────────────────────────────────────────────────────────────
   echo ""
   if [[ "$error_count" -eq 0 ]]; then

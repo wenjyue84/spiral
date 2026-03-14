@@ -1,0 +1,34 @@
+# .gitleaks.toml — SPIRAL secret scanning configuration
+# Allow-lists for variables that appear secret-like but are safe in this repo.
+# See: https://github.com/gitleaks/gitleaks#configuration
+
+title = "SPIRAL gitleaks config"
+
+[extend]
+# Extend the default gitleaks config
+useDefault = true
+
+[[allowlists]]
+description = "Spiral config variable names (not real secrets)"
+regexes = [
+  # spiral.config.sh placeholder values
+  '''SPIRAL_ANTHROPIC_API_KEY\s*=\s*["']?your[_-]''',
+  '''SPIRAL_OPENAI_API_KEY\s*=\s*["']?your[_-]''',
+  # Example/template values that contain the word "key" but are placeholders
+  '''=\s*["']?<your[_-]''',
+  '''=\s*["']?YOUR_''',
+  '''=\s*["']?CHANGE_ME''',
+]
+paths = [
+  "spiral.config.sh",
+  "spiral.config.example.sh",
+  "templates/",
+  ".github/",
+]
+
+[[allowlists]]
+description = "Test fixture files containing fake keys for testing"
+paths = [
+  "tests/",
+  "fixtures/",
+]
