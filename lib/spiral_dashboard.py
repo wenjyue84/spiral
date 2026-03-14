@@ -406,13 +406,48 @@ def compute_decomposition(prd: dict) -> dict:
     }
 
 
+def compute_stale_stories(prd: dict, stale_days: int | None = None) -> dict[str, int]:
+    """Return a mapping of story_id → age_in_days for stale pending stories.
+
+    A story is stale when it is pending (not passed/decomposed/skipped) and its
+    ``last_attempted`` timestamp is older than *stale_days* days (default: the
+    ``SPIRAL_STALE_DAYS`` env var, or 7 if unset).
+    """
+    from datetime import timedelta, timezone
+    if stale_days is None:
+        try:
+            stale_days = int(os.environ.get("SPIRAL_STALE_DAYS", "7"))
+        except (ValueError, TypeError):
+            stale_days = 7
+
+    now = datetime.now(timezone.utc)
+    threshold_delta = timedelta(days=stale_days)
+    stale: dict[str, int] = {}
+    for story in prd.get("userStories", []):
+        if story.get("passes") or story.get("_decomposed") or story.get("_skipped"):
+            continue
+        ts_raw = story.get("last_attempted", "")
+        if not ts_raw:
+            continue
+        try:
+            ts = datetime.fromisoformat(ts_raw.replace("Z", "+00:00"))
+            age = now - ts
+            if age > threshold_delta:
+                stale[story["id"]] = age.days
+        except (ValueError, TypeError):
+            pass
+    return stale
+
+
 def compute_story_attempts(prd: dict, results: list[dict]) -> dict:
     """Group results by story_id and build per-story attempt history.
 
     Returns {story_id: [attempt_rows...]} dict, one entry per story in prd.
+    Also includes a ``stale_days`` key (int) when the story is stale.
     """
     stories = prd.get("userStories", [])
-    story_map = {s["id"]: s for s in stories}
+
+    stale_map = compute_stale_stories(prd)
 
     # Group results by story_id
     by_story: defaultdict[str, list[dict]] = defaultdict(list)
@@ -439,12 +474,15 @@ def compute_story_attempts(prd: dict, results: list[dict]) -> dict:
             status = "manual_skip"
         else:
             status = "pending"
-        result[sid] = {
+        entry: dict = {
             "story_id": sid,
             "title": story.get("title", ""),
             "status": status,
             "attempts": attempts,
         }
+        if sid in stale_map:
+            entry["stale_days"] = stale_map[sid]
+        result[sid] = entry
 
     return result
 
@@ -769,6 +807,11 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
             status_color = "good" if story["status"] == "pass" else "bad" if story["status"] == "pending" else "warn"
             display_status = "Skipped by user" if story["status"] == "manual_skip" else story["status"]
             attempts = story["attempts"]
+            stale_days_val = story.get("stale_days")
+            stale_badge = (
+                f'<span class="stale-badge">&#9200; stale {stale_days_val}d</span>'
+                if stale_days_val is not None else ""
+            )
 
             # Build attempt table HTML
             attempt_rows = ""
@@ -796,9 +839,9 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
                 attempt_rows = '<tr style="font-size:11px"><td colspan="7" class="no-data">No attempts recorded</td></tr>'
 
             stories_rows += (
-                f'<details style="margin-bottom:8px;border:1px solid #333;border-radius:4px">'
+                f'<details class="{"stale-story" if stale_days_val is not None else ""}" style="margin-bottom:8px;border:1px solid {"#ffa040" if stale_days_val is not None else "#333"};border-radius:4px">'
                 f'<summary style="cursor:pointer;padding:8px;background:#0f3460;color:#fff;font-weight:bold;display:flex;justify-content:space-between;align-items:center">'
-                f'<span>{escape(story_id)}: {escape(story["title"][:50])}</span>'
+                f'<span>{escape(story_id)}: {escape(story["title"][:50])}{stale_badge}</span>'
                 f'<span class="{status_color}" style="font-size:11px;padding:2px 6px;border-radius:3px">{display_status}</span>'
                 f'</summary>'
                 f'<div style="padding:8px;overflow-x:auto">'
@@ -890,6 +933,7 @@ td.trunc{{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:now
 .chip{{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;margin:2px}}
 .chip.pass{{background:#0a3a2a;color:#00d4aa;border:1px solid #00d4aa}}
 .chip.fail{{background:#3a0a0a;color:#ff6b6b;border:1px solid #ff6b6b}}
+.stale-badge{{display:inline-block;padding:1px 6px;border-radius:8px;font-size:10px;background:#3a2000;color:#ffa040;border:1px solid #ffa040;margin-left:6px}}
 footer{{text-align:center;color:#444;font-size:10px;margin-top:16px;padding-top:10px;border-top:1px solid #222}}
 </style>
 </head>

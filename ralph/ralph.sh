@@ -948,6 +948,11 @@ while [[ $ITERATION -lt $MAX_ITERATIONS ]]; do
   STORY_DEPS=$($JQ -r ".userStories[] | select(.id == \"$NEXT_STORY\") | .dependencies // [] | join(\", \")" "$PRD_FILE" | tr -d '\r')
   RETRY_NOW=$(get_retry_count "$NEXT_STORY")
 
+  # ── Stamp last_attempted timestamp on the story (US-129: stale detection) ──
+  _NOW_ISO=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  $JQ "(.userStories[] | select(.id == \"$NEXT_STORY\") | .last_attempted) = \"$_NOW_ISO\"" \
+    "$PRD_FILE" >"${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE" || true
+
   # ── Tool selection: explicit tool, or auto-route per story type + retry count ──
   if [[ "$AI_TOOL" == "auto" ]]; then
     if [[ "$NEXT_STORY" == UT-* ]]; then

@@ -3181,3 +3181,26 @@ Incomplete: Use pnpm global virtual store for node_modules deduplication across 
 - Acceptance criteria said `fail_under=80` but actual coverage is ~50%; threshold was set to 48 (below current ~50%) to avoid immediately breaking CI
 - The `--cov-fail-under=48` command-line flag overrides the pyproject.toml value; both are kept in sync at 48
 - test_route_stories.py has a pre-existing ImportError (relative import); coverage correctly skips it
+
+## Iteration 27 - Sat, Mar 14, 2026  8:37:03 PM
+Incomplete: Use pnpm global virtual store for node_modules deduplication across worktrees (ID: US-122) — attempt 1/3
+
+
+## Iteration N - Story: US-129: Add stale story detection flagging stories inactive beyond SPIRAL_STALE_DAYS
+
+### What was implemented
+- `ralph/ralph.sh`: Stamps `last_attempted` ISO 8601 UTC timestamp on prd.json story when ralph selects it for implementation (after NEXT_STORY is chosen, line ~949)
+- `spiral.sh`: Added `STALE_REPORT_MODE=0` variable, `--stale-report` flag (arg parser + help text + implementation block), and at-startup stale detection (before main while loop) that logs warnings and emits `story_stale_detected` events to spiral_events.jsonl for each stale pending story
+- `lib/spiral_dashboard.py`: Added `compute_stale_stories()` function that returns {story_id → age_days} for stale pending stories, integrated into `compute_story_attempts()` (adds `stale_days` key), and dashboard story table shows orange `stale-badge` with clock emoji + age for stale stories with orange border on `<details>` element
+- `tests/test_spiral_dashboard.py`: Added 12 new tests for `compute_stale_stories` and `compute_story_attempts` stale badge behaviour
+
+### Patterns discovered
+- `--stale-report` follows the "do-something-and-exit" flag pattern: STALE_REPORT_MODE=0 variable at line ~114, `--stale-report` case in arg parser, help text entry, implementation block after `--changelog` using inline Python heredoc
+- Stale detection uses inline Python `-c` with heredoc for the startup check (avoids creating a separate lib file)
+- `compute_stale_stories()` uses `from datetime import timedelta, timezone` as local import to avoid polluting module-level imports
+- CSS class `stale-badge` with orange colour (#ffa040) distinguishes from existing `.warn` (#ffd93d) and `.bad` (#ff6b6b) classes
+
+### Gotchas
+- `date -u +%Y-%m-%dT%H:%M:%SZ` on Windows/MINGW gives correct UTC ISO 8601 format
+- Python `datetime.fromisoformat()` requires `.replace("Z", "+00:00")` for timezone-aware comparison
+- log_spiral_event is available at the stale-detection block because spiral_events.sh is sourced at line ~796 (before the main loop block at ~1191)

@@ -1,6 +1,7 @@
 """Tests for spiral_dashboard.py — velocity chart (US-034)."""
 import os
 import sys
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -21,6 +22,8 @@ from spiral_dashboard import (  # noqa: E402
     compute_decomposition,
     generate_insights,
     detect_orphaned_worktrees,
+    compute_stale_stories,
+    compute_story_attempts,
 )
 
 
@@ -613,3 +616,97 @@ class TestDetectOrphanedWorktrees:
         args = _make_minimal_render_args()
         html = render_html(*args, orphaned_worktrees=[])
         assert "Orphaned Worktrees" not in html
+
+
+# ── compute_stale_stories (US-129) ───────────────────────────────────────────
+
+def _make_ts(days_ago: float) -> str:
+    """Return ISO 8601 UTC timestamp that is *days_ago* days in the past."""
+    ts = datetime.now(timezone.utc) - timedelta(days=days_ago)
+    return ts.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+class TestComputeStaleStories:
+    def test_empty_prd_returns_empty(self):
+        assert compute_stale_stories({"userStories": []}, stale_days=7) == {}
+
+    def test_story_without_last_attempted_not_stale(self):
+        prd = {"userStories": [{"id": "US-001", "title": "T", "passes": False}]}
+        assert compute_stale_stories(prd, stale_days=7) == {}
+
+    def test_fresh_story_not_stale(self):
+        prd = {"userStories": [
+            {"id": "US-001", "title": "T", "passes": False, "last_attempted": _make_ts(1)}
+        ]}
+        assert compute_stale_stories(prd, stale_days=7) == {}
+
+    def test_old_story_is_stale(self):
+        prd = {"userStories": [
+            {"id": "US-001", "title": "T", "passes": False, "last_attempted": _make_ts(10)}
+        ]}
+        result = compute_stale_stories(prd, stale_days=7)
+        assert "US-001" in result
+        assert result["US-001"] >= 9  # at least 9 days old
+
+    def test_passed_story_never_stale(self):
+        prd = {"userStories": [
+            {"id": "US-001", "title": "T", "passes": True, "last_attempted": _make_ts(20)}
+        ]}
+        assert compute_stale_stories(prd, stale_days=7) == {}
+
+    def test_decomposed_story_never_stale(self):
+        prd = {"userStories": [
+            {"id": "US-001", "title": "T", "passes": False, "_decomposed": True, "last_attempted": _make_ts(20)}
+        ]}
+        assert compute_stale_stories(prd, stale_days=7) == {}
+
+    def test_skipped_story_never_stale(self):
+        prd = {"userStories": [
+            {"id": "US-001", "title": "T", "passes": False, "_skipped": True, "last_attempted": _make_ts(20)}
+        ]}
+        assert compute_stale_stories(prd, stale_days=7) == {}
+
+    def test_multiple_stories_only_old_ones_flagged(self):
+        prd = {"userStories": [
+            {"id": "US-001", "passes": False, "last_attempted": _make_ts(2)},
+            {"id": "US-002", "passes": False, "last_attempted": _make_ts(10)},
+            {"id": "US-003", "passes": False, "last_attempted": _make_ts(15)},
+        ]}
+        result = compute_stale_stories(prd, stale_days=7)
+        assert "US-001" not in result
+        assert "US-002" in result
+        assert "US-003" in result
+
+    def test_invalid_timestamp_skipped(self):
+        prd = {"userStories": [
+            {"id": "US-001", "passes": False, "last_attempted": "not-a-date"}
+        ]}
+        assert compute_stale_stories(prd, stale_days=7) == {}
+
+
+class TestComputeStoryAttemptsStale:
+    def test_stale_days_present_in_stale_story(self):
+        prd = {"userStories": [
+            {"id": "US-001", "title": "T", "passes": False, "last_attempted": _make_ts(10)}
+        ]}
+        result = compute_story_attempts(prd, [], )
+        assert "stale_days" in result["US-001"]
+        assert result["US-001"]["stale_days"] >= 9
+
+    def test_stale_days_absent_for_fresh_story(self):
+        prd = {"userStories": [
+            {"id": "US-001", "title": "T", "passes": False, "last_attempted": _make_ts(1)}
+        ]}
+        result = compute_story_attempts(prd, [])
+        assert "stale_days" not in result["US-001"]
+
+    def test_stale_badge_in_render_html(self):
+        """render_html shows stale badge for a stale pending story."""
+        prd = {"userStories": [
+            {"id": "US-001", "title": "Old story", "passes": False, "last_attempted": _make_ts(10)}
+        ]}
+        story_attempts = compute_story_attempts(prd, [])
+        args = _make_minimal_render_args()
+        html = render_html(*args, story_attempts=story_attempts)
+        assert "stale-badge" in html
+        assert "stale" in html

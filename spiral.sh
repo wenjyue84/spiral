@@ -112,6 +112,7 @@ RESET_CHECKPOINT=0    # 1 = remove _checkpoint.json and start fresh (--reset)
 MIGRATE_MODE=0        # 1 = run prd.json schema migration and exit (--migrate)
 ARCHIVE_MODE=0        # 1 = archive completed stories and exit (--archive-done)
 CHANGELOG_MODE=0      # 1 = generate CHANGELOG.md via git-cliff and exit (--changelog)
+STALE_REPORT_MODE=0   # 1 = print stale stories and exit (--stale-report)
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -213,6 +214,10 @@ while [[ $# -gt 0 ]]; do
       CHANGELOG_MODE=1
       shift
       ;;
+    --stale-report)
+      STALE_REPORT_MODE=1
+      shift
+      ;;
     --version)
       _SPIRAL_VERSION_STR=$(git -C "$SPIRAL_HOME" describe --tags --always --dirty=+ 2>/dev/null || echo "")
       if [[ -z "$_SPIRAL_VERSION_STR" ]]; then
@@ -253,6 +258,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --migrate                  Migrate prd.json to current schema version and exit"
       echo "  --archive-done             Archive completed stories to prd-archive.json and exit"
       echo "  --changelog                Generate CHANGELOG.md via git-cliff and exit"
+      echo "  --stale-report             Print stories inactive beyond SPIRAL_STALE_DAYS (default: 7) and exit"
       echo "  --status                   Print session state and story counts, then exit"
       echo "  --version                  Print SPIRAL version (git describe) and exit"
       echo ""
@@ -487,6 +493,51 @@ if [[ "$CHANGELOG_MODE" -eq 1 ]]; then
   echo "[spiral] Generating CHANGELOG.md via git-cliff..."
   git-cliff --config "$_CLIFF_CONFIG" --output "$SPIRAL_HOME/CHANGELOG.md"
   echo "[spiral] CHANGELOG.md updated at $SPIRAL_HOME/CHANGELOG.md"
+  exit 0
+fi
+
+# ── --stale-report: print stories inactive beyond SPIRAL_STALE_DAYS and exit ─
+if [[ "$STALE_REPORT_MODE" -eq 1 ]]; then
+  _STALE_DAYS="${SPIRAL_STALE_DAYS:-7}"
+  echo "[spiral] Stale story report (threshold: ${_STALE_DAYS} days)"
+  echo ""
+  "$SPIRAL_PYTHON" - "$PRD_FILE" "$_STALE_DAYS" <<'STALE_REPORT_PY'
+import json, sys
+from datetime import datetime, timedelta, timezone
+
+prd_file = sys.argv[1]
+stale_days = int(sys.argv[2])
+now = datetime.now(timezone.utc)
+threshold = now - timedelta(days=stale_days)
+
+with open(prd_file, encoding="utf-8") as f:
+    prd = json.load(f)
+
+stale = []
+for s in prd.get("userStories", []):
+    if s.get("passes") or s.get("_decomposed") or s.get("_skipped"):
+        continue
+    ts_raw = s.get("last_attempted", "")
+    if not ts_raw:
+        continue
+    try:
+        ts = datetime.fromisoformat(ts_raw.replace("Z", "+00:00"))
+        age = now - ts
+        if age > timedelta(days=stale_days):
+            stale.append((s["id"], s.get("title", ""), age, ts_raw))
+    except (ValueError, TypeError):
+        pass
+
+if not stale:
+    print("  No stale stories found.")
+else:
+    print(f"  {'ID':<12} {'Age':>8}  {'Last Attempted':<24}  Title")
+    print(f"  {'-'*12} {'-'*8}  {'-'*24}  {'-'*40}")
+    for sid, title, age, ts_raw in sorted(stale, key=lambda x: -x[2].total_seconds()):
+        age_days = age.days
+        print(f"  {sid:<12} {age_days:>7}d  {ts_raw[:19]:<24}  {title[:60]}")
+    print(f"\n  Total stale: {len(stale)}")
+STALE_REPORT_PY
   exit 0
 fi
 
@@ -1135,6 +1186,51 @@ Tech Stack: ${_STACK% }
 
 PROGRESS_EOF
   echo "  [spiral] Generated progress.txt skeleton (tech stack: ${_STACK% })"
+fi
+
+# ── Stale story detection at loop startup (US-129) ───────────────────────────
+# Warn for any pending story with last_attempted older than SPIRAL_STALE_DAYS
+_STALE_DAYS_CHECK="${SPIRAL_STALE_DAYS:-7}"
+_STALE_STORIES=$("$SPIRAL_PYTHON" - "$PRD_FILE" "$_STALE_DAYS_CHECK" 2>/dev/null <<'_STALE_PY'
+import json, sys
+from datetime import datetime, timedelta, timezone
+
+prd_file = sys.argv[1]
+stale_days = int(sys.argv[2])
+now = datetime.now(timezone.utc)
+threshold = now - timedelta(days=stale_days)
+
+with open(prd_file, encoding="utf-8") as f:
+    prd = json.load(f)
+
+stale = []
+for s in prd.get("userStories", []):
+    if s.get("passes") or s.get("_decomposed") or s.get("_skipped"):
+        continue
+    ts_raw = s.get("last_attempted", "")
+    if not ts_raw:
+        continue
+    try:
+        ts = datetime.fromisoformat(ts_raw.replace("Z", "+00:00"))
+        age = now - ts
+        if age > timedelta(days=stale_days):
+            age_days = age.days
+            print(f"{s['id']}|{age_days}|{ts_raw[:19]}|{s.get('title', '')[:60]}")
+    except (ValueError, TypeError):
+        pass
+_STALE_PY
+) || true
+
+if [[ -n "$_STALE_STORIES" ]]; then
+  echo ""
+  echo "  [spiral] WARNING: Stale stories detected (inactive > ${_STALE_DAYS_CHECK} days):"
+  while IFS='|' read -r _sid _age_days _ts _title; do
+    [[ -z "$_sid" ]] && continue
+    echo "    [$_sid] ${_age_days}d inactive (last: $_ts) — $_title"
+    log_spiral_event "story_stale_detected" \
+      "\"storyId\":\"$_sid\",\"stale_days\":$_age_days,\"last_attempted\":\"$_ts\",\"threshold_days\":$_STALE_DAYS_CHECK" 2>/dev/null || true
+  done <<<"$_STALE_STORIES"
+  echo ""
 fi
 
 # ── Main SPIRAL loop ────────────────────────────────────────────────────────
