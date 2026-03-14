@@ -3116,3 +3116,47 @@ Completed: Upload SPIRAL output artifacts (prd.json, spiral_events.jsonl) in CI 
 - ubuntu-latest (ubuntu-24.04) has shellcheck pre-installed, so a direct `run` step is the right fix
 - `dorny/test-reporter` requires `checks: write` permission to publish test results
 - `test_route_stories.py` has a pre-existing import error (relative import); unrelated to this story
+## Iteration 21 - Sat, Mar 14, 2026  7:10:20 PM
+Incomplete: Use pnpm global virtual store for node_modules deduplication across worktrees (ID: US-122) — attempt 1/3
+
+
+## Iteration N - Story: US-121: Add named exit code constants to spiral.sh
+
+### What was implemented
+- Added 10 readonly ERR_* constants (ERR_BAD_USAGE=2 through ERR_STORY_NOT_FOUND=11) at top of spiral.sh after `set -euo pipefail`
+- Added 14-row reference table comment block adjacent to constants
+- Replaced all 14 bare `exit 1`/`exit 2` calls with named constants
+- Added exit code table output to spiral_doctor.sh (appended before summary section)
+- Created tests/exit_codes.bats with 18 tests (10 static grep-based + 8 runtime)
+
+### Patterns discovered
+- The `grep -cE '...\d+...'` pattern fails on this system; use `[0-9]+` instead for POSIX portability in bats
+- Constants need to be defined before argument parsing (they're in shell scope for all functions)
+- Two `exit 2` calls existed (cost ceiling L1130, zero-progress L1916) — both got distinct named codes
+
+### Gotchas
+- `\d` in grep ERE is not POSIX; use `[0-9]` in bats tests
+- `spiral.sh --prd /nonexistent/dir/file.json` returns ERR_PRD_NOT_FOUND before reaching prd.json-not-found check
+- Config loading happens before prerequisite checks; bats runtime tests that go past arg parsing need a spiral.config.sh
+## Iteration 22 - Sat, Mar 14, 2026  7:21:55 PM
+Incomplete: Use pnpm global virtual store for node_modules deduplication across worktrees (ID: US-122) — attempt 2/3
+
+
+## Iteration N - Story: US-127: Generate CHANGELOG.md automatically using git-cliff on tagged releases
+
+### What was implemented
+- Created `cliff.toml` at repo root with conventional commit parsing; groups: Features, Bug Fixes, Performance, Refactoring, Documentation, Testing, CI/CD, Reverts
+- Generated initial `CHANGELOG.md` via `git-cliff --output CHANGELOG.md`
+- Added `--changelog` flag to `spiral.sh` (same "do-something-and-exit" pattern as `--migrate`/`--archive-done`)
+- Added `CHANGELOG_MODE=0` variable at line ~114, `--changelog` case in arg parser, help text entry, and implementation block after `--archive-done`
+- Created `.github/workflows/release.yml` workflow: triggers on `push: tags: v[0-9]*`, installs git-cliff via cargo, generates CHANGELOG, validates unreleased commits, commits CHANGELOG.md back
+
+### Patterns discovered
+- git-cliff installed via `winget install orhun.git-cliff` on Windows; available globally after install
+- CI install: `cargo install git-cliff --locked` (ubuntu-latest has rust/cargo pre-installed)
+- The pre-existing `test_route_stories.py` ImportError is unrelated to this story (existed before changes)
+
+### Gotchas
+- CHANGELOG sections (perf, refactor, test, ci) only appear when commits of those types exist in history; current history only generates Bug Fixes, Documentation, Features
+- release.yml uses `permissions: contents: write` to commit CHANGELOG.md back to main
+- SHA-pinned actions reused from ci.yml: harden-runner and actions/checkout same SHAs

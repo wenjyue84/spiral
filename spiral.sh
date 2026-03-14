@@ -111,6 +111,7 @@ REPLAY_STORY_ID=""    # "" = normal mode; "US-XXX" = replay that story only (--r
 RESET_CHECKPOINT=0    # 1 = remove _checkpoint.json and start fresh (--reset)
 MIGRATE_MODE=0        # 1 = run prd.json schema migration and exit (--migrate)
 ARCHIVE_MODE=0        # 1 = archive completed stories and exit (--archive-done)
+CHANGELOG_MODE=0      # 1 = generate CHANGELOG.md via git-cliff and exit (--changelog)
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -208,6 +209,10 @@ while [[ $# -gt 0 ]]; do
       ARCHIVE_MODE=1
       shift
       ;;
+    --changelog)
+      CHANGELOG_MODE=1
+      shift
+      ;;
     --version)
       _SPIRAL_VERSION_STR=$(git -C "$SPIRAL_HOME" describe --tags --always --dirty=+ 2>/dev/null || echo "")
       if [[ -z "$_SPIRAL_VERSION_STR" ]]; then
@@ -247,6 +252,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --reset                    Remove checkpoint and start fresh from iteration 1"
       echo "  --migrate                  Migrate prd.json to current schema version and exit"
       echo "  --archive-done             Archive completed stories to prd-archive.json and exit"
+      echo "  --changelog                Generate CHANGELOG.md via git-cliff and exit"
       echo "  --status                   Print session state and story counts, then exit"
       echo "  --version                  Print SPIRAL version (git describe) and exit"
       echo ""
@@ -465,6 +471,23 @@ if [[ "$ARCHIVE_MODE" -eq 1 ]]; then
   [[ "$DRY_RUN" -eq 1 ]] && _ARCHIVE_ARGS+=("--dry-run")
   "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/archive_prd.py" "${_ARCHIVE_ARGS[@]}"
   exit $?
+fi
+
+# ── --changelog: generate CHANGELOG.md via git-cliff and exit ───────────────
+if [[ "$CHANGELOG_MODE" -eq 1 ]]; then
+  if ! command -v git-cliff &>/dev/null; then
+    echo "[spiral] ERROR: git-cliff not found. Install with: cargo install git-cliff" >&2
+    exit $ERR_MISSING_DEP
+  fi
+  _CLIFF_CONFIG="$SPIRAL_HOME/cliff.toml"
+  if [[ ! -f "$_CLIFF_CONFIG" ]]; then
+    echo "[spiral] ERROR: cliff.toml not found at $_CLIFF_CONFIG" >&2
+    exit $ERR_CONFIG
+  fi
+  echo "[spiral] Generating CHANGELOG.md via git-cliff..."
+  git-cliff --config "$_CLIFF_CONFIG" --output "$SPIRAL_HOME/CHANGELOG.md"
+  echo "[spiral] CHANGELOG.md updated at $SPIRAL_HOME/CHANGELOG.md"
+  exit 0
 fi
 
 # ── Schema version check ────────────────────────────────────────────────────

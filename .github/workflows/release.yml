@@ -1,0 +1,55 @@
+name: Release
+
+# Triggered when a semver tag is pushed (e.g., v1.0.0)
+# Generates CHANGELOG.md and validates it is up-to-date for the release.
+
+on:
+  push:
+    tags:
+      - 'v[0-9]*'
+
+jobs:
+  changelog:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # needed to commit updated CHANGELOG.md back to the tag
+
+    steps:
+      - name: Harden runner
+        # TODO: Change egress-policy to block after completing an audit period
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+        with:
+          fetch-depth: 0  # full history required for git-cliff to see all commits
+
+      - name: Install git-cliff
+        run: cargo install git-cliff --locked
+
+      - name: Generate CHANGELOG.md for this release
+        run: git-cliff --config cliff.toml --output CHANGELOG.md
+
+      - name: Validate no unreleased commits remain unlogged
+        # git-cliff --unreleased exits non-zero if there are commits beyond the
+        # latest tag that are not yet captured in a release section.
+        # On a tag push the current tag IS the release, so this should be empty.
+        run: |
+          UNRELEASED=$(git-cliff --config cliff.toml --unreleased 2>/dev/null || true)
+          if [[ -n "$UNRELEASED" ]]; then
+            echo "::warning::git-cliff --unreleased found commits not yet in a release section:"
+            echo "$UNRELEASED"
+          fi
+
+      - name: Commit updated CHANGELOG.md
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          if git diff --cached --quiet; then
+            echo "CHANGELOG.md already up-to-date; nothing to commit"
+          else
+            git commit -m "chore(release): update CHANGELOG.md for ${GITHUB_REF_NAME}"
+            git push origin HEAD:refs/heads/main
+          fi
