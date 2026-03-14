@@ -437,6 +437,8 @@ export SPIRAL_CREATE_PRS SPIRAL_PR_BASE_BRANCH SPIRAL_PR_DRAFT
 SPIRAL_AUTO_STASH="${SPIRAL_AUTO_STASH:-false}"                          # true = auto-stash dirty working tree before Phase I and pop after (US-177)
 SPIRAL_CREATE_TAGS="${SPIRAL_CREATE_TAGS:-false}"                        # true = create annotated git tag on successful run completion (US-137)
 SPIRAL_AUTO_PUSH_TAGS="${SPIRAL_AUTO_PUSH_TAGS:-false}"                  # true = push run-complete tag to origin after creation (US-137)
+SPIRAL_WORKSPACE_CLEANUP="${SPIRAL_WORKSPACE_CLEANUP:-false}"            # true = prune transient artifacts after 100% completion (US-136)
+SPIRAL_CACHE_TTL="${SPIRAL_CACHE_TTL:-7}"                                # days; research_cache entries older than this are pruned (US-136)
 
 # ── Config validation ─────────────────────────────────────────────────────────
 # Validates required keys are set and applies defaults for optional keys.
@@ -940,6 +942,61 @@ create_run_tag() {
   else
     echo "  [tag] WARNING: Tag creation failed for $tag_name"
   fi
+}
+
+# ── Helper: cleanup workspace artifacts after successful run (US-136) ───────
+# Prunes transient .spiral/ artifacts: expired research cache, old iteration
+# summaries (keeps 5 most-recent), and zero-byte log files.
+# Controlled by SPIRAL_WORKSPACE_CLEANUP=true (default: false).
+cleanup_workspace() {
+  [[ "${SPIRAL_WORKSPACE_CLEANUP:-false}" != "true" ]] && return 0
+
+  local spiral_dir="$SCRATCH_DIR"
+  echo "  [cleanup] Running workspace cleanup..."
+
+  # Measure size before
+  local bytes_before=0
+  if command -v du &>/dev/null; then
+    bytes_before=$(du -sb "$spiral_dir" 2>/dev/null | awk '{print $1}' || echo 0)
+  fi
+
+  # 1. Remove research_cache entries older than SPIRAL_CACHE_TTL days
+  local cache_dir="$spiral_dir/research_cache"
+  if [[ -d "$cache_dir" ]]; then
+    find "$cache_dir" -maxdepth 1 -type f -mtime +"${SPIRAL_CACHE_TTL:-7}" -delete 2>/dev/null || true
+    echo "  [cleanup] Pruned research_cache entries older than ${SPIRAL_CACHE_TTL:-7} days"
+  fi
+
+  # 2. Archive iteration summary JSONs, keeping the 5 most recent
+  local summary_files
+  summary_files=$(ls -t "$spiral_dir"/_iteration_summary_*.json 2>/dev/null || true)
+  if [[ -n "$summary_files" ]]; then
+    local old_summaries
+    old_summaries=$(echo "$summary_files" | tail -n +6)
+    if [[ -n "$old_summaries" ]]; then
+      mkdir -p "$spiral_dir/archive"
+      local archive_name="$spiral_dir/archive/iter_summaries_$(date +%Y%m%d_%H%M%S).tar.gz"
+      echo "$old_summaries" | tr '\n' '\0' | xargs -0 tar -czf "$archive_name" 2>/dev/null || true
+      echo "$old_summaries" | tr '\n' '\0' | xargs -0 rm -f 2>/dev/null || true
+      echo "  [cleanup] Archived old iteration summaries to $(basename "$archive_name")"
+    fi
+  fi
+
+  # 3. Remove zero-byte log files
+  find "$spiral_dir" -maxdepth 1 -name "*.log" -size 0 -delete 2>/dev/null || true
+  echo "  [cleanup] Removed zero-byte log files"
+
+  # Measure size after and compute bytes freed
+  local bytes_after=0
+  if command -v du &>/dev/null; then
+    bytes_after=$(du -sb "$spiral_dir" 2>/dev/null | awk '{print $1}' || echo 0)
+  fi
+  local bytes_freed=$(( bytes_before - bytes_after ))
+  [[ $bytes_freed -lt 0 ]] && bytes_freed=0
+
+  echo "  [cleanup] Workspace cleanup complete. Freed: ${bytes_freed} bytes"
+  log_spiral_event "workspace_cleanup" \
+    "\"bytes_freed\":${bytes_freed},\"cache_ttl_days\":${SPIRAL_CACHE_TTL:-7}"
 }
 
 # ── Helper: write per-iteration summary JSON (US-039) ──────────────────────
@@ -2935,6 +2992,9 @@ PYEOF
 
     # ── Create annotated run-complete git tag (US-137) ────────────────────
     create_run_tag
+
+    # ── Cleanup transient workspace artifacts (US-136) ────────────────────
+    cleanup_workspace
 
     # ── Run SPIRAL_ON_COMPLETE hook (US-049) ──────────────────────────────
     if [[ -n "${SPIRAL_ON_COMPLETE:-}" ]]; then

@@ -4518,3 +4518,56 @@ Here is a technical brief for implementing the workspace cleanup feature.
 ### Gotchas
 - `test_route_stories.py` has a pre-existing relative import error — unrelated to this story; ignored with --ignore flag
 - 637 tests pass (ignoring pre-existing broken test file)
+
+
+## Pre-analysis for US-136 (Gemini 2.5 Pro)
+This is not a Frappe/Python project. The user story pertains to the Spiral project, and implementation should be done in shell script (`bash`) and Python.
+
+**Technical Brief for US-136: Workspace Cleanup**
+
+1.  **Files to Modify:**
+    *   `spiral.sh`: Primary file. Add the new `cleanup_workspace()` bash function here and call it from the main processing loop.
+    *   `lib/check_done.py`: This script likely determines if all stories are complete. It will need to be called from `spiral.sh` to trigger the cleanup.
+    *   `spiral_events.sh` (or direct logging in `spiral.sh`): To log the `workspace_cleanup` event.
+
+2.  **Frappe DocTypes/Hooks:**
+    *   Not applicable. The trigger is a condition at the end of the `spiral.sh` execution loop.
+    *   The process is enabled/disabled via the `SPIRAL_WORKSPACE_CLEANUP` environment variable.
+
+3.  **Implementation Approach:**
+    *   In `spiral.sh`, create a `cleanup_workspace()` function.
+    *   Before cleanup, calculate the initial size of the `.spiral/` directory (`du -sb`).
+    *   In the function, use `find` to delete cache files older than `$SPIRAL_CACHE_TTL` (default to 7 days).
+    *   To handle iteration summaries, list `_iteration_summary_*.json` files, sort by time, and remove all but the 5 most recent.
+    *   Use `find .spiral -name "*.log" -size 0 -delete` to remove empty log files.
+    *   Calculate the final size, compute the `bytes_freed` delta, and log it to `spiral_events.jsonl`.
+    *   Call this function conditionally at the end of the main loop: `if [ "$CLEANUP_ENABLED" = "true" ] && [ "$(python lib/check_done.py)" = "true" ]; then cleanup_workspace; fi`.
+
+4.  **Edge Cases & Gotchas:**
+    *   Ensure `check_done.py` returns a simple, easily parsable string (e.g., "true").
+    *   The `find` commands should be precise to avoid accidentally deleting preserved files like `prd.json`.
+    *   The logic for finding "iteration summaries older than 5 iterations" requires careful scripting (e.g., `ls -t | tail -n +6 | xargs rm`) and differs from the dated `tar` command in the notes.
+    *   The script should handle cases where directories to be cleaned (e.g., `research_cache`) might not exist.
+
+
+## Iteration N - Story: US-136: Add SPIRAL_WORKSPACE_CLEANUP to auto-prune transient artifacts on successful run completion
+
+### What was implemented
+- Added `SPIRAL_WORKSPACE_CLEANUP` (default: false) and `SPIRAL_CACHE_TTL` (default: 7) env var defaults at line ~440 in spiral.sh
+- Added `cleanup_workspace()` bash function after `create_run_tag()` in spiral.sh (~line 948):
+  - Guard: returns immediately when `SPIRAL_WORKSPACE_CLEANUP != true`
+  - Prunes research_cache entries older than `$SPIRAL_CACHE_TTL` days via `find -mtime +N -delete`
+  - Archives iteration summary JSONs keeping 5 most recent (tar.gz to `.spiral/archive/`)
+  - Removes zero-byte log files via `find -size 0 -delete`
+  - Measures bytes freed with `du -sb` before/after and emits `workspace_cleanup` event to spiral_events.jsonl
+- Called `cleanup_workspace` in the success block after `create_run_tag` and before `SPIRAL_ON_COMPLETE` hook
+- Created `tests/workspace_cleanup.bats` with 6 bats tests; all pass
+- 637 pytest tests pass (ignoring pre-existing broken test_route_stories.py)
+
+### Patterns discovered
+- `cleanup_workspace` guard pattern matches `create_run_tag` style: early return when disabled
+- `find ... -mtime +N` counts full 24-hour periods elapsed; files must be at least N days old to match
+
+### Gotchas
+- `bash -c` in bats tests requires all function code to be inlined (cannot source spiral.sh as it runs the full script)
+- `ls -t` ordering in macOS vs Linux may differ; tests use `tail -n +6` on ls output which works on both
