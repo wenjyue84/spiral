@@ -391,6 +391,9 @@ SPIRAL_PREEMPTIVE_PRESSURE_MB="${SPIRAL_PREEMPTIVE_PRESSURE_MB:-0}"      # MB; 0
 SPIRAL_NOTIFY_WEBHOOK="${SPIRAL_NOTIFY_WEBHOOK:-}"                       # HTTPS URL; empty = disabled; POST JSON at each phase start/end
 SPIRAL_NOTIFY_WEBHOOK_TIMEOUT="${SPIRAL_NOTIFY_WEBHOOK_TIMEOUT:-5}"      # seconds; max wait per POST (default 5)
 SPIRAL_NOTIFY_WEBHOOK_HEADERS="${SPIRAL_NOTIFY_WEBHOOK_HEADERS:-}"       # optional HTTP header, e.g. "Authorization: Bearer TOKEN"
+SPIRAL_PRE_PHASE_HOOK="${SPIRAL_PRE_PHASE_HOOK:-}"                       # path to executable; called before each phase; non-zero exit aborts story attempt
+SPIRAL_POST_PHASE_HOOK="${SPIRAL_POST_PHASE_HOOK:-}"                     # path to executable; called after each phase; non-zero exit is logged as warning (non-fatal)
+SPIRAL_HOOK_TIMEOUT="${SPIRAL_HOOK_TIMEOUT:-30}"                         # seconds; wall-clock limit per hook execution (default 30)
 
 # ── Config validation ─────────────────────────────────────────────────────────
 # Validates required keys are set and applies defaults for optional keys.
@@ -927,6 +930,49 @@ notify_webhook() {
   fi
 }
 
+# ── Phase hook runner (US-132) ─────────────────────────────────────────────────
+# Usage: run_phase_hook PRE|POST PHASE
+# Executes SPIRAL_PRE_PHASE_HOOK (PRE) or SPIRAL_POST_PHASE_HOOK (POST).
+# Exports SPIRAL_CURRENT_PHASE, SPIRAL_CURRENT_STORY_ID, SPIRAL_RUN_ID, SPIRAL_ITERATION.
+# PRE hooks: non-zero exit = caller should abort current story attempt (continue).
+# POST hooks: non-zero exit = warning logged; execution continues.
+# Returns the hook's exit code (0 if hook is unset or not executable).
+run_phase_hook() {
+  local hook_type="$1"  # PRE or POST
+  local phase="$2"
+  local hook_path event_type
+  if [[ "$hook_type" == "PRE" ]]; then
+    hook_path="${SPIRAL_PRE_PHASE_HOOK:-}"
+    event_type="phase_hook_pre"
+  else
+    hook_path="${SPIRAL_POST_PHASE_HOOK:-}"
+    event_type="phase_hook_post"
+  fi
+  [[ -z "$hook_path" ]] && return 0
+  if [[ ! -x "$hook_path" ]]; then
+    echo "  [hook] WARNING: $event_type '$hook_path' is not executable — skipping" >&2
+    return 0
+  fi
+  # Export context for the hook script
+  export SPIRAL_CURRENT_PHASE="$phase"
+  export SPIRAL_CURRENT_STORY_ID="${_NEXT_SID:-}"
+  export SPIRAL_ITERATION="${SPIRAL_ITER:-0}"
+  local _hook_ts _hook_rc=0
+  _hook_ts=$(date +%s)
+  timeout "${SPIRAL_HOOK_TIMEOUT:-30}" "$hook_path" || _hook_rc=$?
+  local _hook_dur=$(( $(date +%s) - _hook_ts ))
+  log_spiral_event "$event_type" \
+    "\"phase\":\"$phase\",\"hook\":\"$hook_path\",\"exit_code\":$_hook_rc,\"duration_s\":$_hook_dur,\"iteration\":${SPIRAL_ITER:-0}"
+  if [[ "$_hook_rc" -ne 0 ]]; then
+    if [[ "$hook_type" == "PRE" ]]; then
+      echo "  [hook] pre-phase $phase hook exited $_hook_rc — aborting story attempt" >&2
+    else
+      echo "  [hook] post-phase $phase hook exited $_hook_rc (non-fatal)" >&2
+    fi
+  fi
+  return $_hook_rc
+}
+
 # ── Helper: returns 0 if current iter already completed this phase ───────────
 checkpoint_phase_done() {
   local phase="$1"
@@ -1343,6 +1389,7 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
   notify_webhook "R" "start"
   _PHASE_TS_R=$(date +%s)
   RESEARCH_OUTPUT="$SCRATCH_DIR/_research_output.json"
+  run_phase_hook PRE "R" || continue
 
   if checkpoint_phase_done "R"; then
     echo "  [R] Skipping (checkpoint: already done this iter)"
@@ -1573,6 +1620,7 @@ $INJECTED_PROMPT"
 
     write_checkpoint "$SPIRAL_ITER" "R"
   fi
+  run_phase_hook POST "R" || true
   _PHASE_DUR_R=$(($(date +%s) - _PHASE_TS_R))
   log_spiral_event "phase_end" "\"phase\":\"R\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_R"
   notify_webhook "R" "end"
@@ -1661,6 +1709,7 @@ $INJECTED_PROMPT"
   log_spiral_event "phase_start" "\"phase\":\"M\",\"iteration\":$SPIRAL_ITER"
   notify_webhook "M" "start"
   _PHASE_TS_M=$(date +%s)
+  run_phase_hook PRE "M" || continue
 
   if checkpoint_phase_done "M"; then
     echo "  [M] Skipping (checkpoint: already done this iter)"
@@ -1746,6 +1795,7 @@ $INJECTED_PROMPT"
     fi
   fi
 
+  run_phase_hook POST "M" || true
   _PHASE_DUR_M=$(($(date +%s) - _PHASE_TS_M))
   log_spiral_event "phase_end" "\"phase\":\"M\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_M"
   notify_webhook "M" "end"
@@ -1755,6 +1805,7 @@ $INJECTED_PROMPT"
   log_spiral_event "phase_start" "\"phase\":\"G\",\"iteration\":$SPIRAL_ITER"
   notify_webhook "G" "start"
   _PHASE_TS_I=$(date +%s)
+  run_phase_hook PRE "G" || continue
   if checkpoint_phase_done "I"; then
     echo "  [G+I] Skipping (checkpoint: gate and ralph already done this iter)"
   else
@@ -1833,6 +1884,7 @@ $INJECTED_PROMPT"
         log_spiral_event "phase_start" "\"phase\":\"I\",\"iteration\":$SPIRAL_ITER"
         notify_webhook "I" "start"
         echo ""
+        run_phase_hook PRE "I" || continue
 
         # Short-circuit if nothing to implement
         prd_stats
@@ -2136,6 +2188,8 @@ $INJECTED_PROMPT"
     spiral_assert_decomposition_integrity "$PRD_FILE"
     spiral_assert_dependency_completion_order "$PRD_FILE"
   fi
+  run_phase_hook POST "I" || true
+  run_phase_hook POST "G" || true
   _PHASE_DUR_I=$(($(date +%s) - _PHASE_TS_I))
   log_spiral_event "phase_end" "\"phase\":\"I\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_I"
   notify_webhook "I" "end"
@@ -2149,6 +2203,7 @@ $INJECTED_PROMPT"
   log_spiral_event "phase_start" "\"phase\":\"V\",\"iteration\":$SPIRAL_ITER"
   notify_webhook "V" "start"
   _PHASE_TS_V=$(date +%s)
+  run_phase_hook PRE "V" || continue
 
   if checkpoint_phase_done "V"; then
     echo "  [V] Skipping (checkpoint: already done this iter)"
@@ -2349,6 +2404,7 @@ PYEOF
 
     write_checkpoint "$SPIRAL_ITER" "V"
   fi
+  run_phase_hook POST "V" || true
   _PHASE_DUR_V=$(($(date +%s) - _PHASE_TS_V))
   log_spiral_event "phase_end" "\"phase\":\"V\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_V"
   notify_webhook "V" "end"

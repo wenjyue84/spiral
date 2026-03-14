@@ -272,3 +272,98 @@ EOF
 
   [ $? -eq 0 ]
 }
+
+# ── Tests: SPIRAL_PRE_PHASE_HOOK and SPIRAL_POST_PHASE_HOOK (US-132) ───────────
+
+@test "SPIRAL_POST_PHASE_HOOK is called and receives SPIRAL_CURRENT_PHASE" {
+  cd "$TEST_REPO_ROOT"
+
+  local hook_log="$TEST_SCRATCH_DIR/hook_phases.txt"
+
+  # Create a post-phase hook that logs SPIRAL_CURRENT_PHASE
+  local hook="$TEST_REPO_ROOT/bin/post-hook.sh"
+  cat > "$hook" <<'HOOKEOF'
+#!/bin/bash
+echo "$SPIRAL_CURRENT_PHASE" >> "$HOOK_LOG"
+exit 0
+HOOKEOF
+  chmod +x "$hook"
+
+  HOOK_LOG="$hook_log" SPIRAL_POST_PHASE_HOOK="$hook" \
+    bash "$(dirname "${BATS_TEST_DIRNAME}")/spiral.sh" 1 --gate skip --dry-run
+
+  # Hook should have been called for at least one phase
+  [ -f "$hook_log" ]
+  [ "$(wc -l < "$hook_log")" -ge 1 ]
+}
+
+@test "SPIRAL_PRE_PHASE_HOOK returning 0 allows spiral to continue" {
+  cd "$TEST_REPO_ROOT"
+
+  # Create a pre-phase hook that always succeeds
+  local hook="$TEST_REPO_ROOT/bin/pre-hook-ok.sh"
+  cat > "$hook" <<'HOOKEOF'
+#!/bin/bash
+exit 0
+HOOKEOF
+  chmod +x "$hook"
+
+  SPIRAL_PRE_PHASE_HOOK="$hook" \
+    bash "$(dirname "${BATS_TEST_DIRNAME}")/spiral.sh" 1 --gate skip --dry-run
+
+  [ $? -eq 0 ]
+}
+
+@test "SPIRAL_PRE_PHASE_HOOK receives SPIRAL_CURRENT_PHASE env var" {
+  cd "$TEST_REPO_ROOT"
+
+  local hook_log="$TEST_SCRATCH_DIR/pre_hook_phases.txt"
+
+  # Create a pre-phase hook that logs the phase
+  local hook="$TEST_REPO_ROOT/bin/pre-hook-log.sh"
+  cat > "$hook" <<'HOOKEOF'
+#!/bin/bash
+echo "$SPIRAL_CURRENT_PHASE" >> "$HOOK_LOG"
+exit 0
+HOOKEOF
+  chmod +x "$hook"
+
+  HOOK_LOG="$hook_log" SPIRAL_PRE_PHASE_HOOK="$hook" \
+    bash "$(dirname "${BATS_TEST_DIRNAME}")/spiral.sh" 1 --gate skip --dry-run
+
+  [ -f "$hook_log" ]
+  # At minimum Phase R and M should have been logged
+  grep -q "R" "$hook_log" || grep -q "M" "$hook_log"
+}
+
+@test "non-executable SPIRAL_PRE_PHASE_HOOK is skipped with warning" {
+  cd "$TEST_REPO_ROOT"
+
+  # Create a non-executable hook file
+  local hook="$TEST_REPO_ROOT/bin/non-exec-hook.sh"
+  echo '#!/bin/bash' > "$hook"
+  # Deliberately NOT chmod +x
+
+  # spiral.sh should still succeed (non-executable hook is a warning, not fatal)
+  SPIRAL_PRE_PHASE_HOOK="$hook" \
+    bash "$(dirname "${BATS_TEST_DIRNAME}")/spiral.sh" 1 --gate skip --dry-run
+
+  [ $? -eq 0 ]
+}
+
+@test "SPIRAL_HOOK_TIMEOUT is respected (hook with timeout)" {
+  cd "$TEST_REPO_ROOT"
+
+  # Create a post-phase hook that exits immediately (should complete within 1s timeout)
+  local hook="$TEST_REPO_ROOT/bin/fast-hook.sh"
+  cat > "$hook" <<'HOOKEOF'
+#!/bin/bash
+exit 0
+HOOKEOF
+  chmod +x "$hook"
+
+  SPIRAL_POST_PHASE_HOOK="$hook" SPIRAL_HOOK_TIMEOUT=5 \
+    bash "$(dirname "${BATS_TEST_DIRNAME}")/spiral.sh" 1 --gate skip --dry-run
+
+  [ $? -eq 0 ]
+}

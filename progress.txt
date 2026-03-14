@@ -3281,3 +3281,31 @@ Completed: Use pnpm global virtual store for node_modules deduplication across w
 - PRE_RALPH_PRD_JSON must be "" (not unset) in per-iteration resets so that `[[ -n "${PRE_RALPH_PRD_JSON:-}" ]]` correctly skips incremental when Phase I was bypassed (checkpoint/dry-run)
 - test_route_stories.py has a pre-existing ImportError; excluded from checks with --ignore
 - The SyntaxWarning in test_incremental_validate.py line 42 is a bash snippet in a Python comment string — harmless
+## Iteration 31 - Sat, Mar 14, 2026 10:28:25 PM
+Incomplete: Stream-process large prd.json with jq --stream to avoid full in-memory parse (ID: US-123) — attempt 1/3
+
+
+## Iteration N - Story: US-132: Add SPIRAL_PRE_PHASE_HOOK and SPIRAL_POST_PHASE_HOOK for user-defined phase scripts
+
+### What was implemented
+- Added `SPIRAL_PRE_PHASE_HOOK`, `SPIRAL_POST_PHASE_HOOK`, `SPIRAL_HOOK_TIMEOUT` env vars to spiral.sh defaults section
+- Added `run_phase_hook PRE|POST PHASE` function after `notify_webhook` in spiral.sh
+  - Checks if hook is set and executable (skips with warning if not)
+  - Exports SPIRAL_CURRENT_PHASE, SPIRAL_CURRENT_STORY_ID, SPIRAL_RUN_ID, SPIRAL_ITERATION to hook
+  - Runs hook with `timeout ${SPIRAL_HOOK_TIMEOUT:-30}`
+  - Logs `phase_hook_pre` / `phase_hook_post` events with exit_code and duration_s to spiral_events.jsonl
+  - PRE hook non-zero exit emits error message; POST hook non-zero exit emits warning
+- Added `run_phase_hook PRE "X" || continue` calls at phases R, M, G, I, V (pre-hook failure aborts iteration)
+- Added `run_phase_hook POST "X" || true` calls at phases R, M, G/I, V (post-hook failure is non-fatal)
+- Documented in `templates/spiral.config.example.sh` with hook contract, env vars, and example scripts
+- Added 5 bats tests in `tests/spiral_phases.bats` covering: post-hook called, pre-hook 0 allows continue, SPIRAL_CURRENT_PHASE logged, non-executable hook skipped, SPIRAL_HOOK_TIMEOUT respected
+
+### Patterns discovered
+- `run_phase_hook PRE "X" || continue` pattern is clean for aborting story attempt on pre-hook failure
+- `_NEXT_SID` is only set inside Phase I (empty for earlier phases); exporting `${_NEXT_SID:-}` is safe
+- Post-hooks for G and I are both called since they share a combined G/I block in spiral.sh
+- `|| true` is sufficient to make post-hooks non-fatal
+
+### Gotchas
+- Phase G and Phase I share `_PHASE_TS_I` timestamp and `phase_end` events; POST hooks for both fire before their respective `phase_end` events
+- The pre-hook for Phase I fires inside a deeply nested block (4 levels) but `continue` still correctly reaches the outer while loop

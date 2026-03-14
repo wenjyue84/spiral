@@ -399,6 +399,37 @@
 # Default: 50
 # SPIRAL_LIGHTHOUSE_THRESHOLD=50
 
+# ── Phase hooks (pre/post phase callbacks) ──────────────────────────────────
+# User-defined executable scripts called before and after each SPIRAL phase
+# (R, M, G, I, V). Use for custom actions like seeding a database before
+# Phase V, or posting a Slack notification after Phase I.
+#
+# Hook contract:
+#   - The hook receives these env vars: SPIRAL_CURRENT_PHASE (I/R/M/V/G),
+#     SPIRAL_CURRENT_STORY_ID (empty for pre-R/M/G/V hooks), SPIRAL_RUN_ID,
+#     SPIRAL_ITERATION.
+#   - A non-zero exit code from a PRE hook aborts the current story attempt
+#     (SPIRAL skips to the next iteration and records the failure).
+#   - A non-zero exit code from a POST hook is logged as a warning; execution
+#     continues.
+#   - Hooks are executed with `timeout SPIRAL_HOOK_TIMEOUT` to prevent stalls.
+#
+# Example pre-hook (seed DB before Phase V):
+#   #!/bin/bash
+#   [ "$SPIRAL_CURRENT_PHASE" = "V" ] && psql -c "TRUNCATE test_data" || true
+#
+# Example post-hook (Slack notification after Phase I):
+#   #!/bin/bash
+#   [ "$SPIRAL_CURRENT_PHASE" = "I" ] && \
+#     curl -s -X POST "$SLACK_WEBHOOK" -d "{\"text\":\"Story $SPIRAL_CURRENT_STORY_ID done\"}"
+#
+# Default: empty (disabled)
+# SPIRAL_PRE_PHASE_HOOK="$PWD/scripts/spiral-pre-hook.sh"
+# SPIRAL_POST_PHASE_HOOK="$PWD/scripts/spiral-post-hook.sh"
+#
+# Timeout in seconds for each hook invocation. Default: 30
+# SPIRAL_HOOK_TIMEOUT=30
+
 # ── progress.txt rotation ─────────────────────────────────────────────────
 # Maximum number of lines in progress.txt before it is archived and reset.
 # When exceeded, progress.txt is renamed to progress-YYYYMMDD-HHMMSS.txt and
