@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# tests/spiral_events.bats — Unit tests for lib/spiral_events.sh (US-117)
+# tests/spiral_events.bats — Unit tests for lib/spiral_events.sh (US-117, US-130)
 #
 # Run with: bats tests/spiral_events.bats
 # Install bats: https://github.com/bats-core/bats-core
@@ -11,6 +11,8 @@
 #   - trace_id and span_id are omitted when TRACEPARENT is not set
 #   - Extra JSON fields are preserved alongside trace fields
 #   - Correct extraction from standard W3C traceparent format
+#   - level field matches SPIRAL_LOG_LEVEL (US-130)
+#   - level field defaults to INFO when SPIRAL_LOG_LEVEL is unset (US-130)
 
 # ── Test setup ────────────────────────────────────────────────────────────────
 
@@ -22,6 +24,8 @@ setup() {
 
   # Unset TRACEPARENT so each test starts clean
   unset TRACEPARENT
+  # Reset SPIRAL_LOG_LEVEL so each test starts with the default
+  unset SPIRAL_LOG_LEVEL
 
   source "lib/spiral_events.sh"
 }
@@ -123,4 +127,72 @@ print(count)
 PYEOF
 )
   [[ "$count" -eq 3 ]]
+}
+
+# ── US-130: level field in spiral_events.jsonl ───────────────────────────────
+
+@test "level field defaults to INFO when SPIRAL_LOG_LEVEL is unset" {
+  unset SPIRAL_LOG_LEVEL
+  log_spiral_event "log_level.default"
+  local line level
+  line="$(last_log_line)"
+  level="$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin)['level'])")"
+  [[ "$level" == "INFO" ]]
+}
+
+@test "level field reflects SPIRAL_LOG_LEVEL=DEBUG" {
+  export SPIRAL_LOG_LEVEL="DEBUG"
+  log_spiral_event "log_level.debug"
+  local line level
+  line="$(last_log_line)"
+  level="$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin)['level'])")"
+  [[ "$level" == "DEBUG" ]]
+}
+
+@test "level field reflects SPIRAL_LOG_LEVEL=WARN" {
+  export SPIRAL_LOG_LEVEL="WARN"
+  log_spiral_event "log_level.warn"
+  local line level
+  line="$(last_log_line)"
+  level="$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin)['level'])")"
+  [[ "$level" == "WARN" ]]
+}
+
+@test "level field reflects SPIRAL_LOG_LEVEL=ERROR" {
+  export SPIRAL_LOG_LEVEL="ERROR"
+  log_spiral_event "log_level.error"
+  local line level
+  line="$(last_log_line)"
+  level="$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin)['level'])")"
+  [[ "$level" == "ERROR" ]]
+}
+
+@test "level field is present alongside extra JSON fields" {
+  export SPIRAL_LOG_LEVEL="INFO"
+  log_spiral_event "log_level.extra" '"phase":"R","iteration":1'
+  local line
+  line="$(last_log_line)"
+  echo "$line" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+assert 'level' in d, 'level field missing'
+assert d['level'] == 'INFO', f\"expected INFO, got {d['level']}\"
+assert d['phase'] == 'R', 'extra phase field missing'
+assert d['iteration'] == 1, 'extra iteration field missing'
+"
+}
+
+@test "level field is present when TRACEPARENT is also set" {
+  export TRACEPARENT="00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+  export SPIRAL_LOG_LEVEL="INFO"
+  log_spiral_event "log_level.trace"
+  local line
+  line="$(last_log_line)"
+  echo "$line" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+assert 'level' in d, 'level field missing with TRACEPARENT'
+assert 'trace_id' in d, 'trace_id missing'
+assert d['level'] == 'INFO'
+"
 }

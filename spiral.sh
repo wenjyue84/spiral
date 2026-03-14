@@ -113,6 +113,7 @@ MIGRATE_MODE=0        # 1 = run prd.json schema migration and exit (--migrate)
 ARCHIVE_MODE=0        # 1 = archive completed stories and exit (--archive-done)
 CHANGELOG_MODE=0      # 1 = generate CHANGELOG.md via git-cliff and exit (--changelog)
 STALE_REPORT_MODE=0   # 1 = print stale stories and exit (--stale-report)
+SPIRAL_LOG_LEVEL="${SPIRAL_LOG_LEVEL:-INFO}" # DEBUG|INFO|WARN|ERROR (case-insensitive)
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -218,6 +219,10 @@ while [[ $# -gt 0 ]]; do
       STALE_REPORT_MODE=1
       shift
       ;;
+    --log-level)
+      SPIRAL_LOG_LEVEL="${2^^}" # normalise to upper-case
+      shift 2
+      ;;
     --version)
       _SPIRAL_VERSION_STR=$(git -C "$SPIRAL_HOME" describe --tags --always --dirty=+ 2>/dev/null || echo "")
       if [[ -z "$_SPIRAL_VERSION_STR" ]]; then
@@ -259,6 +264,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --archive-done             Archive completed stories to prd-archive.json and exit"
       echo "  --changelog                Generate CHANGELOG.md via git-cliff and exit"
       echo "  --stale-report             Print stories inactive beyond SPIRAL_STALE_DAYS (default: 7) and exit"
+      echo "  --log-level DEBUG|INFO|WARN|ERROR  Output verbosity (default: INFO; can also set SPIRAL_LOG_LEVEL env var)"
       echo "  --status                   Print session state and story counts, then exit"
       echo "  --version                  Print SPIRAL version (git describe) and exit"
       echo ""
@@ -406,6 +412,38 @@ validate_config() {
   echo "[config] OK — SPIRAL_PYTHON=$SPIRAL_PYTHON SPIRAL_VALIDATE_CMD=$SPIRAL_VALIDATE_CMD"
 }
 validate_config
+
+# ── Structured logging: SPIRAL_LOG_LEVEL filtering (US-130) ──────────────────
+# Accepts DEBUG / INFO / WARN / ERROR (case-insensitive; normalised to upper on read).
+# Requires bash 4.0+ for associative arrays (already required by spiral.sh).
+declare -A LOG_LEVELS=([DEBUG]=0 [INFO]=1 [WARN]=2 [ERROR]=3)
+
+# Normalise SPIRAL_LOG_LEVEL to upper-case and validate.
+SPIRAL_LOG_LEVEL="${SPIRAL_LOG_LEVEL^^}"
+if [[ -z "${LOG_LEVELS[$SPIRAL_LOG_LEVEL]+x}" ]]; then
+  echo "[spiral] WARNING: Unknown SPIRAL_LOG_LEVEL='$SPIRAL_LOG_LEVEL', defaulting to INFO" >&2
+  SPIRAL_LOG_LEVEL="INFO"
+fi
+export SPIRAL_LOG_LEVEL
+
+# log_msg LEVEL MESSAGE...
+# Emits the message to stderr only when LEVEL >= SPIRAL_LOG_LEVEL.
+# DEBUG messages include caller context (file:line) for traceability.
+log_msg() {
+  local lvl="${1^^}"
+  shift
+  # Default to INFO if level is unrecognised
+  local lvl_num="${LOG_LEVELS[$lvl]:-1}"
+  local threshold="${LOG_LEVELS[$SPIRAL_LOG_LEVEL]:-1}"
+  if [[ "$lvl_num" -ge "$threshold" ]]; then
+    if [[ "$lvl" == "DEBUG" ]]; then
+      local caller_ctx="${BASH_SOURCE[1]:-spiral.sh}:${BASH_LINENO[0]:-0}"
+      echo "[DEBUG] ($caller_ctx) $*" >&2
+    else
+      echo "[$lvl] $*" >&2
+    fi
+  fi
+}
 
 # Scratch directory in project root
 SCRATCH_DIR="$REPO_ROOT/.spiral"
@@ -833,10 +871,11 @@ with open(sys.argv[9], 'w') as f:
 # ── Helper: write checkpoint ────────────────────────────────────────────────
 write_checkpoint() {
   local iter="$1" phase="$2"
-  printf '{"iter":%d,"phase":"%s","ts":"%s","run_id":"%s","spiralVersion":"%s","phaseDurations":{"R":%d,"T":%d,"M":%d,"I":%d,"V":%d,"C":%d}}\n' \
+  printf '{"iter":%d,"phase":"%s","ts":"%s","run_id":"%s","spiralVersion":"%s","log_level":"%s","phaseDurations":{"R":%d,"T":%d,"M":%d,"I":%d,"V":%d,"C":%d}}\n' \
     "$iter" "$phase" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     "${SPIRAL_RUN_ID:-}" \
     "${SPIRAL_VERSION:-unknown}" \
+    "${SPIRAL_LOG_LEVEL:-INFO}" \
     "${_PHASE_DUR_R:-0}" "${_PHASE_DUR_T:-0}" "${_PHASE_DUR_M:-0}" \
     "${_PHASE_DUR_I:-0}" "${_PHASE_DUR_V:-0}" "${_PHASE_DUR_C:-0}" \
     >"$CHECKPOINT_FILE"

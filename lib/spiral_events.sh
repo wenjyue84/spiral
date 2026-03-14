@@ -16,6 +16,9 @@
 # TRACEPARENT format (W3C): 00-<trace_id:32hex>-<span_id:16hex>-<flags>
 #   trace_id = chars 3..34  (${TRACEPARENT:3:32})
 #   span_id  = chars 36..51 (${TRACEPARENT:36:16})
+#
+# SPIRAL_LOG_LEVEL (US-130): Every emitted entry includes a "level" field
+# matching the current SPIRAL_LOG_LEVEL (DEBUG/INFO/WARN/ERROR).
 
 # ── Helper: append a structured JSONL event to .spiral/spiral_events.jsonl ──
 # Usage: log_spiral_event EVENT [JSON_FIELDS]
@@ -26,6 +29,8 @@ log_spiral_event() {
   local ts log_file line
   ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   log_file="${SCRATCH_DIR:-/tmp}/spiral_events.jsonl"
+  # Include current SPIRAL_LOG_LEVEL in every entry for debugging reproducibility (US-130)
+  local level_field="\"level\":\"${SPIRAL_LOG_LEVEL:-INFO}\""
   # Inject W3C traceparent fields when TRACEPARENT is set (US-117)
   # Format: 00-<trace_id:32hex>-<span_id:16hex>-<flags>
   local trace_fields=""
@@ -36,9 +41,9 @@ log_spiral_event() {
     trace_fields=",\"trace_id\":\"$trace_id\",\"span_id\":\"$span_id\""
   fi
   if [[ -n "$extra" ]]; then
-    line="{\"ts\":\"$ts\",\"event\":\"$event\",\"run_id\":\"${SPIRAL_RUN_ID:-}\",$extra$trace_fields}"
+    line="{\"ts\":\"$ts\",\"event\":\"$event\",\"run_id\":\"${SPIRAL_RUN_ID:-}\",$level_field,$extra$trace_fields}"
   else
-    line="{\"ts\":\"$ts\",\"event\":\"$event\",\"run_id\":\"${SPIRAL_RUN_ID:-}\"$trace_fields}"
+    line="{\"ts\":\"$ts\",\"event\":\"$event\",\"run_id\":\"${SPIRAL_RUN_ID:-}\",$level_field$trace_fields}"
   fi
   printf '%s\n' "$line" >>"$log_file" 2>/dev/null || true
   # Rotate if over max lines limit

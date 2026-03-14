@@ -3204,3 +3204,29 @@ Incomplete: Use pnpm global virtual store for node_modules deduplication across 
 - `date -u +%Y-%m-%dT%H:%M:%SZ` on Windows/MINGW gives correct UTC ISO 8601 format
 - Python `datetime.fromisoformat()` requires `.replace("Z", "+00:00")` for timezone-aware comparison
 - log_spiral_event is available at the stale-detection block because spiral_events.sh is sourced at line ~796 (before the main loop block at ~1191)
+## Iteration 28 - Sat, Mar 14, 2026  9:48:40 PM
+Incomplete: Use pnpm global virtual store for node_modules deduplication across worktrees (ID: US-122) — attempt 2/3
+
+
+## Iteration N - Story: US-130: Add SPIRAL_LOG_LEVEL env var for configurable output verbosity
+
+### What was implemented
+- Added `SPIRAL_LOG_LEVEL` variable (default INFO) at arg-defaults section in spiral.sh (~line 117)
+- Added `--log-level DEBUG|INFO|WARN|ERROR` CLI flag to arg parser (normalises to upper-case via `${2^^}`)
+- Added help text entry for `--log-level`
+- Added `declare -A LOG_LEVELS=([DEBUG]=0 [INFO]=1 [WARN]=2 [ERROR]=3)` assoc array after `validate_config`
+- Added `log_msg LEVEL MESSAGE` function with filtering logic and BASH_SOURCE/BASH_LINENO context for DEBUG
+- Updated `write_checkpoint()` to include `"log_level":"$SPIRAL_LOG_LEVEL"` field for debugging reproducibility
+- Updated `lib/spiral_events.sh` `log_spiral_event()` to include `"level":"$SPIRAL_LOG_LEVEL"` in every JSONL entry
+- Added 6 new BATS tests in `tests/spiral_events.bats` covering: default INFO, DEBUG/WARN/ERROR reflection, extra fields coexistence, TRACEPARENT coexistence
+
+### Patterns discovered
+- `${VAR^^}` for upper-case in bash 4.0+ (already required by spiral.sh)
+- `declare -A` must be placed AFTER `validate_config` because the function is defined before validation runs; putting it before causes issues with readonly checks in bash 3 (not applicable but good to document)
+- `log_msg()` emits to stderr (>&2) to keep stdout clean for machine-readable output; existing echo calls use stdout so they remain unaffected by log_msg introduction
+- The `level_field` local in `log_spiral_event()` is placed before trace_fields so it appears near the top of each JSON entry
+
+### Gotchas
+- Existing 411 echo/printf calls in spiral.sh were NOT converted — log_msg is available for new code; full migration would be a separate story
+- `test_route_stories.py` pre-existing ImportError unrelated to this story (exists since before this iteration)
+- pytest runs are slow (~15s for 100 tests); use targeted test selection for fast feedback
