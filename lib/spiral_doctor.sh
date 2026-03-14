@@ -159,6 +159,26 @@ spiral_doctor() {
     fi
   fi
 
+  # ── Exit code reference table ────────────────────────────────────────────
+  echo ""
+  echo "  [doctor] Exit code reference:"
+  echo "  ┌─────┬─────────────────────┬──────────────────────────────────────────────┐"
+  echo "  │ Code│ Constant            │ Meaning                                      │"
+  echo "  ├─────┼─────────────────────┼──────────────────────────────────────────────┤"
+  echo "  │   0 │ (success)           │ All stories passed / operation completed OK  │"
+  echo "  │   2 │ ERR_BAD_USAGE       │ Wrong CLI arguments or unknown flag          │"
+  echo "  │   3 │ ERR_CONFIG          │ Missing or invalid spiral.config.sh value    │"
+  echo "  │   4 │ ERR_MISSING_DEP     │ Required tool not found (jq, ralph.sh, …)   │"
+  echo "  │   5 │ ERR_PRD_NOT_FOUND   │ prd.json file not found                      │"
+  echo "  │   6 │ ERR_PRD_CORRUPT     │ prd.json corrupt and unrecoverable           │"
+  echo "  │   7 │ ERR_SCHEMA_VERSION  │ prd.json schemaVersion too new for SPIRAL    │"
+  echo "  │   8 │ ERR_COST_CEILING    │ Spend cap (SPIRAL_COST_CEILING) reached      │"
+  echo "  │   9 │ ERR_ZERO_PROGRESS   │ Zero-progress stall — all pending blocked    │"
+  echo "  │  10 │ ERR_REPLAY_FAILED   │ --replay mode: story implementation failed   │"
+  echo "  │  11 │ ERR_STORY_NOT_FOUND │ Story ID passed to --replay not in prd.json  │"
+  echo "  │ 130 │ (signal)            │ Interrupted by SIGINT (Ctrl-C) — shell std   │"
+  echo "  └─────┴─────────────────────┴──────────────────────────────────────────────┘"
+
   # ── Summary ────────────────────────────────────────────────────────────────
   echo ""
   if [[ "$error_count" -eq 0 ]]; then

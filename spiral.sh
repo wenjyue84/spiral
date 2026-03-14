@@ -28,6 +28,40 @@
 
 set -euo pipefail
 
+# ── Exit code constants ───────────────────────────────────────────────────────
+# Exit code 0  = full success.
+# Exit code 1  = NEVER intentionally used (unclassified/unexpected shell error).
+# Exit codes 2-125 are safe for scripts; 126/127 are reserved by the shell;
+# 128+ indicate signal deaths (e.g. 130 = SIGINT, kept as shell standard).
+# CI pipelines and the SPIRAL_ON_COMPLETE hook can branch on $? using these names.
+#
+# ┌─────┬─────────────────────┬──────────────────────────────────────────────┐
+# │ Code│ Constant            │ Meaning                                      │
+# ├─────┼─────────────────────┼──────────────────────────────────────────────┤
+# │   0 │ (success)           │ All stories passed / operation completed OK  │
+# │   2 │ ERR_BAD_USAGE       │ Wrong CLI arguments or unknown flag          │
+# │   3 │ ERR_CONFIG          │ Missing or invalid spiral.config.sh value    │
+# │   4 │ ERR_MISSING_DEP     │ Required tool not found (jq, ralph.sh, …)   │
+# │   5 │ ERR_PRD_NOT_FOUND   │ prd.json file not found                      │
+# │   6 │ ERR_PRD_CORRUPT     │ prd.json corrupt and unrecoverable           │
+# │   7 │ ERR_SCHEMA_VERSION  │ prd.json schemaVersion too new for SPIRAL    │
+# │   8 │ ERR_COST_CEILING    │ Spend cap (SPIRAL_COST_CEILING) reached      │
+# │   9 │ ERR_ZERO_PROGRESS   │ Zero-progress stall — all pending blocked    │
+# │  10 │ ERR_REPLAY_FAILED   │ --replay mode: story implementation failed   │
+# │  11 │ ERR_STORY_NOT_FOUND │ Story ID passed to --replay not in prd.json  │
+# │ 130 │ (signal)            │ Interrupted by SIGINT (Ctrl-C) — shell std   │
+# └─────┴─────────────────────┴──────────────────────────────────────────────┘
+readonly ERR_BAD_USAGE=2
+readonly ERR_CONFIG=3
+readonly ERR_MISSING_DEP=4
+readonly ERR_PRD_NOT_FOUND=5
+readonly ERR_PRD_CORRUPT=6
+readonly ERR_SCHEMA_VERSION=7
+readonly ERR_COST_CEILING=8
+readonly ERR_ZERO_PROGRESS=9
+readonly ERR_REPLAY_FAILED=10
+readonly ERR_STORY_NOT_FOUND=11
+
 # ── Memory guard — cap V8 heap to prevent OOM on 16 GB machines ─────────────
 # Each Claude CLI (Node.js) can consume 4 GB+ uncapped; with multiple processes
 # running (research + ralph + main session), this exceeds available RAM.
@@ -224,7 +258,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     --*)
       echo "[spiral] Unknown flag: $1"
-      exit 1
+      exit $ERR_BAD_USAGE
       ;;
     *)
       MAX_SPIRAL_ITERS="$1"
@@ -238,14 +272,14 @@ _validate_pos_int() {
   local name="$1" value="$2"
   if [[ ! "$value" =~ ^[1-9][0-9]*$ ]]; then
     echo "Error: $name requires a positive integer, got: '$value'"
-    exit 1
+    exit $ERR_BAD_USAGE
   fi
 }
 _validate_non_neg_int() {
   local name="$1" value="$2"
   if [[ ! "$value" =~ ^[0-9]+$ ]]; then
     echo "Error: $name requires a non-negative integer, got: '$value'"
-    exit 1
+    exit $ERR_BAD_USAGE
   fi
 }
 _validate_pos_int "max_iters (positional)" "$MAX_SPIRAL_ITERS"
@@ -349,7 +383,7 @@ validate_config() {
       _errors=1
     fi
   done
-  [[ "$_errors" -eq 1 ]] && exit 1
+  [[ "$_errors" -eq 1 ]] && exit $ERR_CONFIG
 
   # Defaults for optional keys (defense-in-depth)
   : "${SPIRAL_MODEL_ROUTING:=auto}"
@@ -371,7 +405,7 @@ RESEARCH_CACHE_DIR="$SCRATCH_DIR/research_cache"
 if [[ -n "$SPIRAL_CLI_PRD" ]]; then
   _PRD_DIR="$(cd "$(dirname "$SPIRAL_CLI_PRD")" 2>/dev/null && pwd)" || {
     echo "[spiral] ERROR: --prd directory does not exist: $(dirname "$SPIRAL_CLI_PRD")"
-    exit 1
+    exit $ERR_PRD_NOT_FOUND
   }
   PRD_FILE="$_PRD_DIR/$(basename "$SPIRAL_CLI_PRD")"
   REPO_ROOT="$_PRD_DIR"
@@ -406,17 +440,17 @@ elif [[ -f "$REPO_ROOT/scripts/ralph/jq.exe" ]]; then
   JQ="$REPO_ROOT/scripts/ralph/jq.exe"
 else
   echo "[spiral] ERROR: jq not found. Install with: choco install jq"
-  exit 1
+  exit $ERR_MISSING_DEP
 fi
 
 # ── Prerequisite checks ───────────────────────────────────────────────────────
 if [[ ! -f "$PRD_FILE" ]]; then
   echo "[spiral] ERROR: prd.json not found at $PRD_FILE"
-  exit 1
+  exit $ERR_PRD_NOT_FOUND
 fi
 if [[ ! -f "$SPIRAL_RALPH" ]]; then
   echo "[spiral] ERROR: ralph.sh not found at $SPIRAL_RALPH"
-  exit 1
+  exit $ERR_MISSING_DEP
 fi
 
 # ── --migrate: run prd.json schema migration and exit ────────────────────────
@@ -438,7 +472,7 @@ _PRD_SCHEMA_VER=$("$JQ" -r '.schemaVersion // empty' "$PRD_FILE" 2>/dev/null || 
 if [[ -n "$_PRD_SCHEMA_VER" ]] && [[ "$_PRD_SCHEMA_VER" -gt 1 ]] 2>/dev/null; then
   echo "[spiral] ERROR: prd.json schemaVersion $_PRD_SCHEMA_VER is newer than this SPIRAL version supports (max: 1)."
   echo "         Please update SPIRAL or downgrade prd.json."
-  exit 1
+  exit $ERR_SCHEMA_VERSION
 fi
 
 # ── --status: print session state and exit ───────────────────────────────────
@@ -903,7 +937,7 @@ if [[ -n "$REPLAY_STORY_ID" ]]; then
     '[.userStories[] | select(.id == $id)] | length' "$PRD_FILE" 2>/dev/null || echo "0")
   if [[ "$_REPLAY_EXISTS" -eq 0 ]]; then
     echo "[replay] ERROR: Story '$REPLAY_STORY_ID' not found in $PRD_FILE"
-    exit 1
+    exit $ERR_STORY_NOT_FOUND
   fi
 
   _REPLAY_TITLE=$("$JQ" -r --arg id "$REPLAY_STORY_ID" \
@@ -1005,7 +1039,7 @@ if [[ -n "$REPLAY_STORY_ID" ]]; then
     echo "  ║  Worktree: $REPLAY_WORKTREE (preserved for inspection)"
     echo "  ╚══════════════════════════════════════════════════════╝"
     echo "  [replay] Worktree preserved for inspection"
-    exit 1
+    exit $ERR_REPLAY_FAILED
   fi
 fi
 
@@ -1095,7 +1129,7 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
       echo "  [spiral] Restored prd.json from: $(basename "$_LATEST_BACKUP")"
     else
       echo "  [spiral] ERROR: No backup available — cannot recover prd.json"
-      exit 1
+      exit $ERR_PRD_CORRUPT
     fi
   fi
 
@@ -1127,7 +1161,7 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
       echo "  ╔══════════════════════════════════════════════════════╗"
       echo "  ║  SPIRAL stopped: cost ceiling reached (\$${SPIRAL_COST_CEILING})  ║"
       echo "  ╚══════════════════════════════════════════════════════╝"
-      exit 2
+      exit $ERR_COST_CEILING
     fi
   fi
 
@@ -1913,7 +1947,7 @@ $INJECTED_PROMPT"
               echo ""
               "$JQ" -r '.userStories[] | select(.passes != true) | "  [PENDING] [\(.id)] \(.title)"' "$PRD_FILE" 2>/dev/null || true
               rm -f "$CHECKPOINT_FILE"
-              exit 2
+              exit $ERR_ZERO_PROGRESS
             fi
             echo "  [I] Continuing to check-done phase..."
           fi
