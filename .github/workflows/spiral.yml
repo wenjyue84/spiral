@@ -1,5 +1,10 @@
 name: SPIRAL
 
+# SECURITY: pull_request_target with untrusted code checkout is FORBIDDEN.
+# Never use pull_request_target alongside a checkout of the PR branch, as it
+# grants write permissions to untrusted code. See:
+# https://securitylab.github.com/research/github-actions-preventing-pwn-requests/
+
 on:
   workflow_dispatch:
     inputs:
@@ -23,12 +28,20 @@ on:
 jobs:
   spiral:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Harden runner
+        # TODO: Change egress-policy to block after completing an audit period
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a  # v4
         with:
           enable-cache: true
           python-version: "3.13"
@@ -48,7 +61,7 @@ jobs:
 
       - name: Upload SPIRAL artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: spiral-outputs-${{ github.run_id }}
           retention-days: 7

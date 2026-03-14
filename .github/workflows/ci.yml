@@ -1,5 +1,10 @@
 name: CI
 
+# SECURITY: pull_request_target with untrusted code checkout is FORBIDDEN.
+# Never use pull_request_target alongside a checkout of the PR branch, as it
+# grants write permissions to untrusted code. See:
+# https://securitylab.github.com/research/github-actions-preventing-pwn-requests/
+
 on:
   push:
     branches: [main]
@@ -9,33 +14,45 @@ on:
 jobs:
   shellcheck:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Harden runner
+        # TODO: Change egress-policy to block after completing an audit period
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
       - name: Run ShellCheck
-        uses: koalaman/shellcheck-action@v1
-        with:
-          version: v0.10.0
-          severity: error
-          format: gcc
-          args: >-
-            spiral.sh
-            setup.sh
-            spiral.config.sh
-            lib/circuit_breaker.sh
-            lib/memory-pressure-check.sh
-            lib/run_parallel_ralph.sh
-            lib/spiral_assert.sh
-            lib/spiral_doctor.sh
-            lib/validate_preflight.sh
+        run: |
+          shellcheck --severity=error --format=gcc \
+            spiral.sh \
+            setup.sh \
+            spiral.config.sh \
+            lib/circuit_breaker.sh \
+            lib/memory-pressure-check.sh \
+            lib/run_parallel_ralph.sh \
+            lib/spiral_assert.sh \
+            lib/spiral_doctor.sh \
+            lib/validate_preflight.sh \
             lib/worker_heartbeat.sh
 
   shfmt-check:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Harden runner
+        # TODO: Change egress-policy to block after completing an audit period
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
       - name: Install shfmt
         run: go install mvdan.cc/sh/v3/cmd/shfmt@latest
@@ -60,12 +77,20 @@ jobs:
 
   mypy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Harden runner
+        # TODO: Change egress-policy to block after completing an audit period
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a  # v4
         with:
           enable-cache: true
           python-version: "3.13"
@@ -81,18 +106,26 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Harden runner
+        # TODO: Change egress-policy to block after completing an audit period
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a  # v4
         with:
           enable-cache: true
           python-version: "3.13"
 
       - name: Restore Hypothesis database
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
         with:
           path: .hypothesis
           key: ${{ runner.os }}-hypothesis-${{ hashFiles('**/pyproject.toml') }}
@@ -110,9 +143,18 @@ jobs:
 
   bats:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Harden runner
+        # TODO: Change egress-policy to block after completing an audit period
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
         with:
           submodules: recursive
 
@@ -127,14 +169,14 @@ jobs:
 
       - name: Upload bats JUnit results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: bats-junit-results
           path: test-reports/*.xml
 
       - name: Publish bats test results
         if: always()
-        uses: dorny/test-reporter@v1
+        uses: dorny/test-reporter@d61b558e8df85cb60d09ca3e5b09653b4477cea7  # v1
         with:
           name: Bats Tests
           path: test-reports/*.xml

@@ -3089,3 +3089,30 @@ Incomplete: Upload SPIRAL output artifacts (prd.json, spiral_events.jsonl) in CI
 ### Gotchas
 - `test_route_stories.py` has an ImportError (pre-existing, unrelated to this story)
 - 501 tests pass when excluding that file; all acceptance criteria met
+## Iteration 20 - Sat, Mar 14, 2026  6:53:27 PM
+Completed: Upload SPIRAL output artifacts (prd.json, spiral_events.jsonl) in CI workflow (ID: US-094) in 9m
+
+
+## Iteration N - Story: US-120: Harden GitHub Actions workflow with SHA-pinned actions and least-privilege permissions
+
+### What was implemented
+- Pinned all external actions to full SHA digests in both ci.yml and spiral.yml
+- Replaced non-existent `koalaman/shellcheck-action@v1` (was causing CI failures: "Unable to resolve action") with a direct `shellcheck` run step using the pre-installed shellcheck on ubuntu-latest
+- Added `step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc` (v2.15.1) as first step in all jobs with `egress-policy: audit`
+- Added `permissions: contents: read` to all jobs; added `checks: write` to bats job for dorny/test-reporter
+- Added top-level security comments in both workflows documenting that `pull_request_target` with untrusted checkout is FORBIDDEN
+- Added TODO comment to upgrade `egress-policy` from `audit` to `block` after audit period
+
+### SHA Digests used
+- actions/checkout@v4: 34e114876b0b11c390a56381ad16ebd13914f8d5 (confirmed from CI runner logs)
+- astral-sh/setup-uv@v4: 38f3f104447c67c051c4a08e39b64a148898af3a (confirmed from CI runner logs)
+- actions/cache@v4: 0057852bfaa89a56745cba8c7296529d2fc39830 (confirmed from CI runner logs)
+- actions/upload-artifact@v4: ea165f8d65b6e75b540449e92b4886f43607fa02
+- step-security/harden-runner@v2.15.1: 58077d3c7e43986b6b15fba718e8ea69e387dfcc
+- dorny/test-reporter@v1: d61b558e8df85cb60d09ca3e5b09653b4477cea7
+
+### Gotchas
+- `koalaman/shellcheck-action@v1` does NOT exist on GitHub (returns 404); CI was failing on the shellcheck job because of this
+- ubuntu-latest (ubuntu-24.04) has shellcheck pre-installed, so a direct `run` step is the right fix
+- `dorny/test-reporter` requires `checks: write` permission to publish test results
+- `test_route_stories.py` has a pre-existing import error (relative import); unrelated to this story
