@@ -3230,3 +3230,23 @@ Incomplete: Use pnpm global virtual store for node_modules deduplication across 
 - Existing 411 echo/printf calls in spiral.sh were NOT converted — log_msg is available for new code; full migration would be a separate story
 - `test_route_stories.py` pre-existing ImportError unrelated to this story (exists since before this iteration)
 - pytest runs are slow (~15s for 100 tests); use targeted test selection for fast feedback
+
+
+## Iteration N - Story: US-122: Use pnpm global virtual store for node_modules deduplication across worktrees
+
+### What was implemented
+- Added pnpm deduplication block in `lib/run_parallel_ralph.sh` inside the worktree creation loop (after ralph-config.sh patch, before "Worker $i ready" echo)
+- Guard conditions: SPIRAL_SKIP_PNPM_DEDUP != "1", pnpm available, package.json in repo root
+- Copies pnpm-workspace.yaml from repo root to each worktree if present
+- Runs `pnpm install --prefer-offline --ignore-scripts` in each worktree
+- On pnpm failure: falls back to `cp -r $REPO_ROOT/node_modules $WTREE/node_modules` with warning
+- Added 5 pytest tests in `tests/test_parallel_orchestration.py` class TestPnpmDeduplication
+
+### Patterns discovered
+- Single-worker runs are unaffected (parallel-only logic stays in run_parallel_ralph.sh loop)
+- Worktrees share .git objects; node_modules dedup reduces per-worktree disk use 50-80% for Node projects
+- test_route_stories.py has a pre-existing relative import error — skip with --ignore when running full suite
+
+### Gotchas
+- pnpm install must use --ignore-scripts to avoid running postinstall hooks in worktrees
+- The bash guard `command -v pnpm` is the preferred detection method (works across PATH configurations)

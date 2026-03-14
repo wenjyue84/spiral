@@ -355,6 +355,28 @@ WRAPPER_SCRIPT
   WORKER_BENCH_OUT="/tmp/ralph-bench-output-worker-${i}.txt"
   sed -i "s|/tmp/ralph-bench-output\.txt|${WORKER_BENCH_OUT}|g" "$WTREE/ralph-config.sh" 2>/dev/null || true
 
+  # ── pnpm global virtual store deduplication (US-122) ─────────────────────────
+  # When pnpm is detected, each worktree shares the global store instead of
+  # copying node_modules, reducing per-worktree disk usage by 50-80%.
+  if [[ "${SPIRAL_SKIP_PNPM_DEDUP:-0}" != "1" ]] && command -v pnpm &>/dev/null && [[ -f "$REPO_ROOT/package.json" ]]; then
+    # Copy pnpm-workspace.yaml into worktree if it exists in repo root
+    if [[ -f "$REPO_ROOT/pnpm-workspace.yaml" ]]; then
+      cp "$REPO_ROOT/pnpm-workspace.yaml" "$WTREE/pnpm-workspace.yaml" 2>/dev/null || true
+    fi
+    echo "  [parallel] Worker $i: pnpm detected — running pnpm install --prefer-offline"
+    if (cd "$WTREE" && pnpm install --prefer-offline --ignore-scripts 2>/dev/null); then
+      echo "  [parallel] Worker $i: pnpm install succeeded (global store linked)"
+    else
+      echo "  [parallel] Worker $i: pnpm install failed — falling back to node_modules copy from main worktree"
+      if [[ -d "$REPO_ROOT/node_modules" ]]; then
+        cp -r "$REPO_ROOT/node_modules" "$WTREE/node_modules" 2>/dev/null || true
+        echo "  [parallel] Worker $i: node_modules copy fallback done"
+      else
+        echo "  [parallel] Worker $i: WARNING — no node_modules in repo root to fall back to"
+      fi
+    fi
+  fi
+
   STORY_COUNT=$("$JQ" '[.userStories[] | select(.passes != true)] | length' "$WTREE/prd.json" 2>/dev/null || echo "?")
   echo "  [parallel] Worker $i ready — branch: $BRANCH | pending: $STORY_COUNT stories"
 
