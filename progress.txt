@@ -2821,3 +2821,24 @@ Completed: Add --version flag to spiral.sh showing installed git version (ID: US
 ### Gotchas
 - The python3 snippet uses -c inline code; on Windows this runs from system Python (not uv venv), but the detection logic uses only stdlib (json, re, collections) so no venv needed
 - prd.json must be read with encoding='utf-8' on Windows to avoid cp1252 decode errors
+## Iteration 7 - Sat, Mar 14, 2026  4:53:49 PM
+Completed: Auto-detect SPIRAL_STORY_PREFIX from existing prd.json IDs at wizard init (ID: US-074) in 8m
+
+## Iteration N - Story: US-075: Emit SPIRAL_VERSION to _checkpoint.json for version mismatch detection on resume
+
+### What was implemented
+- `write_checkpoint()` in spiral.sh updated to include `"spiralVersion":"%s"` field using `${SPIRAL_VERSION:-unknown}`
+- Checkpoint resume block now reads `.spiralVersion` from checkpoint and compares to current `SPIRAL_VERSION`; prints `[checkpoint] WARNING: checkpoint written by SPIRAL <old>, current is <new>` if mismatched (non-fatal, stderr only)
+- `SPIRAL_VERSION` was already exported at line 249 (git describe --tags --always --dirty=+)
+- Updated `_base_checkpoint()` in `TestCheckpointPhaseDurations` to include `spiralVersion: "v1.0.0"`
+- Added `TestCheckpointSpiralVersion` class with 4 tests: with version, without (backwards compat), unknown, git-describe format
+- Updated `test_valid_checkpoint` to include `spiralVersion` field
+- 41 state_machine tests pass; 182 across key test files pass
+
+### Patterns discovered
+- SPIRAL_VERSION already set at line 249 before write_checkpoint() is defined at line 657 — safe to reference
+- The checkpoint resume block is at line ~935; version comparison goes after run_id restore, alongside the age warning
+
+### Gotchas
+- `spiralVersion` field is optional (backwards compatible) — validate_checkpoint() in state_machine.py already ignores unknown fields so no changes needed there
+- Use `${CKPT_SPIRAL_VERSION%.*}` guard (non-empty check) to avoid false warning when resuming old checkpoints without the field

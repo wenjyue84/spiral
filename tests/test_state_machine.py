@@ -75,7 +75,7 @@ class TestCheckpointPhaseDurations:
     """Validate phaseDurations field in checkpoint (US-046)."""
 
     def _base_checkpoint(self, **overrides):
-        ckpt = {"iter": 1, "phase": "R", "ts": "2026-03-13T00:00:00Z"}
+        ckpt = {"iter": 1, "phase": "R", "ts": "2026-03-13T00:00:00Z", "spiralVersion": "v1.0.0"}
         ckpt.update(overrides)
         return ckpt
 
@@ -234,12 +234,43 @@ class TestStoryLifecycle:
             sl.decompose(["US-010"])
 
 
+class TestCheckpointSpiralVersion:
+    """Tests for spiralVersion field in checkpoint (US-075)."""
+
+    def _base_checkpoint(self, **overrides):
+        ckpt = {"iter": 1, "phase": "R", "ts": "2026-03-13T00:00:00Z"}
+        ckpt.update(overrides)
+        return ckpt
+
+    def test_checkpoint_valid_with_spiral_version(self):
+        sm = SpiralPhaseStateMachine()
+        errors = sm.validate_checkpoint(self._base_checkpoint(spiralVersion="v1.2.3"))
+        assert errors == []
+
+    def test_checkpoint_valid_without_spiral_version(self):
+        """spiralVersion is optional for backwards compatibility."""
+        sm = SpiralPhaseStateMachine()
+        errors = sm.validate_checkpoint(self._base_checkpoint())
+        assert errors == []
+
+    def test_checkpoint_valid_with_unknown_version(self):
+        sm = SpiralPhaseStateMachine()
+        errors = sm.validate_checkpoint(self._base_checkpoint(spiralVersion="unknown"))
+        assert errors == []
+
+    def test_checkpoint_with_git_describe_version(self):
+        """Accept git describe output format like 'v1.0.0-3-gabcdef1'."""
+        sm = SpiralPhaseStateMachine()
+        errors = sm.validate_checkpoint(self._base_checkpoint(spiralVersion="v1.0.0-3-gabcdef1"))
+        assert errors == []
+
+
 class TestValidateCheckpoint:
     """Tests for validate_checkpoint() covering valid, missing-ts, and invalid-phase inputs."""
 
     def test_valid_checkpoint(self):
         sm = SpiralPhaseStateMachine()
-        errors = sm.validate_checkpoint({"iter": 1, "phase": "R", "ts": "2026-03-13T00:00:00Z"})
+        errors = sm.validate_checkpoint({"iter": 1, "phase": "R", "ts": "2026-03-13T00:00:00Z", "spiralVersion": "v1.0.0"})
         assert errors == []
 
     def test_missing_ts_reports_error(self):

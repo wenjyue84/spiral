@@ -656,9 +656,10 @@ with open(sys.argv[9], 'w') as f:
 # ── Helper: write checkpoint ────────────────────────────────────────────────
 write_checkpoint() {
   local iter="$1" phase="$2"
-  printf '{"iter":%d,"phase":"%s","ts":"%s","run_id":"%s","phaseDurations":{"R":%d,"T":%d,"M":%d,"I":%d,"V":%d,"C":%d}}\n' \
+  printf '{"iter":%d,"phase":"%s","ts":"%s","run_id":"%s","spiralVersion":"%s","phaseDurations":{"R":%d,"T":%d,"M":%d,"I":%d,"V":%d,"C":%d}}\n' \
     "$iter" "$phase" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     "${SPIRAL_RUN_ID:-}" \
+    "${SPIRAL_VERSION:-unknown}" \
     "${_PHASE_DUR_R:-0}" "${_PHASE_DUR_T:-0}" "${_PHASE_DUR_M:-0}" \
     "${_PHASE_DUR_I:-0}" "${_PHASE_DUR_V:-0}" "${_PHASE_DUR_C:-0}" \
     > "$CHECKPOINT_FILE"
@@ -949,6 +950,12 @@ if [[ -f "$CHECKPOINT_FILE" ]]; then
   if [[ "$CKPT_AGE" -gt 86400 ]]; then
     CKPT_AGE_HOURS=$(( CKPT_AGE / 3600 ))
     echo "  [spiral] WARNING: Resuming from checkpoint written ${CKPT_AGE_HOURS}h ago. Pass --reset to start fresh." >&2
+  fi
+
+  # ── Warn if SPIRAL version changed since checkpoint was written ───────────
+  CKPT_SPIRAL_VERSION=$("$JQ" -r '.spiralVersion // ""' "$CHECKPOINT_FILE" 2>/dev/null || echo "")
+  if [[ -n "$CKPT_SPIRAL_VERSION" && "$CKPT_SPIRAL_VERSION" != "${SPIRAL_VERSION:-unknown}" ]]; then
+    echo "  [checkpoint] WARNING: checkpoint written by SPIRAL $CKPT_SPIRAL_VERSION, current is ${SPIRAL_VERSION:-unknown}" >&2
   fi
 
   echo ""
