@@ -2784,3 +2784,21 @@ Completed: Truncate story context to fit Claude context window using token count
 ### Gotchas
 - "ORPHANED" must appear verbatim in the HTML (as a status chip) for the acceptance criteria; just using "Orphaned Worktrees" in the section header is not enough
 - Tests that call `render_html` need `_make_minimal_render_args()` from the same test file scope (no relative module import needed — function is already in scope)
+
+
+## Iteration N - Story: US-073: Add --version flag to spiral.sh showing installed git version
+
+### What was implemented
+- Added `--version` case to the argument parsing block in spiral.sh (after `--migrate`, before `--status`)
+- When `--version` is given, runs `git -C "$SPIRAL_HOME" describe --tags --always --dirty=+` and prints "SPIRAL version <result>" then exits 0
+- Falls back to "SPIRAL version unknown (not a git repository)" if git describe fails
+- Added `SPIRAL_VERSION` env var export after config section (line ~249) using same git describe command
+- Added `--version` entry to `--help` output
+
+### Patterns discovered
+- SPIRAL_HOME is set at line 52 before argument parsing begins (safe to use in --version handler)
+- Argument parsing case block at lines 81-171; new flags go before `--*)` catch-all
+- Help text indented with spaces (not tabs), other options use 2-space + echo pattern
+
+### Gotchas
+- test_route_stories.py has a pre-existing import error (relative import issue); excluded from test run; 72/72 other tests pass

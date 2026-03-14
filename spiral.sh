@@ -128,6 +128,14 @@ while [[ $# -gt 0 ]]; do
       RESET_CHECKPOINT=1; shift ;;
     --migrate)
       MIGRATE_MODE=1; shift ;;
+    --version)
+      _SPIRAL_VERSION_STR=$(git -C "$SPIRAL_HOME" describe --tags --always --dirty=+ 2>/dev/null || echo "")
+      if [[ -z "$_SPIRAL_VERSION_STR" ]]; then
+        echo "SPIRAL version unknown (not a git repository)"
+      else
+        echo "SPIRAL version $_SPIRAL_VERSION_STR"
+      fi
+      exit 0 ;;
     --status)
       STATUS_ONLY=1; shift ;;
     --help|-h)
@@ -156,6 +164,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --reset                    Remove checkpoint and start fresh from iteration 1"
       echo "  --migrate                  Migrate prd.json to current schema version and exit"
       echo "  --status                   Print session state and story counts, then exit"
+      echo "  --version                  Print SPIRAL version (git describe) and exit"
       echo ""
       echo "Config: Place spiral.config.sh in project root (or use --config)."
       echo "  See templates/spiral.config.example.sh for all variables."
@@ -237,6 +246,8 @@ SPIRAL_GEMINI_PROMPT="${SPIRAL_GEMINI_PROMPT:-}"
 SPIRAL_VALIDATE_CMD="${SPIRAL_VALIDATE_CMD:-$SPIRAL_PYTHON tests/run_tests.py --report-dir test-reports}"
 SPIRAL_REPORTS_DIR="${SPIRAL_REPORTS_DIR:-test-reports}"
 SPIRAL_STORY_PREFIX="${SPIRAL_STORY_PREFIX:-US}"
+SPIRAL_VERSION="${SPIRAL_VERSION:-$(git -C "$SPIRAL_HOME" describe --tags --always --dirty=+ 2>/dev/null || echo "unknown")}"
+export SPIRAL_VERSION
 STREAM_FMT="${SPIRAL_STREAM_FMT:-$SPIRAL_HOME/ralph/stream-formatter.mjs}"
 SPIRAL_MODEL_ROUTING="${SPIRAL_MODEL_ROUTING:-auto}"
 SPIRAL_RESEARCH_MODEL="${SPIRAL_RESEARCH_MODEL:-sonnet}"
