@@ -3443,3 +3443,32 @@ Incomplete: Stream-process large prd.json with jq --stream to avoid full in-memo
 - Scope creep check only runs when `RALPH_PROGRESS > 0` (no-op on zero-progress iterations)
 - Only fires in sequential mode; parallel mode (run_parallel_ralph.sh) commits differently but `_NEXT_SID` may not be set — guarded with `[[ -n "${_NEXT_SID:-}" ]]`
 - test_route_stories.py has pre-existing relative import failure (excluded from test run); 569 passed otherwise
+
+
+## Iteration N - Story: US-143: Create GitHub PR per passed story when SPIRAL_CREATE_PRS=true
+
+### What was implemented
+- Added `create_github_pr()` function to ralph/ralph.sh (after `append_result` function)
+- Function guards: gh CLI not in PATH → SKIP with actionable message; gh not authenticated → SKIP with actionable message
+- Pushes story commit to `spiral/<STORY_ID>` branch via `git push origin <sha>:refs/heads/<branch> --force`
+- Auto-creates `spiral-ai` label if missing (best-effort, non-fatal)
+- Checks for existing PR via `gh pr list --head <branch>` to be idempotent on retries
+- Creates PR with: title from story title, body includes description + acceptance criteria + SPIRAL_RUN_ID + commit SHA
+- Stores PR URL in prd.json as `_prUrl` field using jq
+- `SPIRAL_PR_DRAFT=true` passes `--draft` flag to gh pr create
+- `SPIRAL_PR_BASE_BRANCH` (default: main) sets PR target base branch
+- Invocation guard in ralph.sh: `if [[ "${SPIRAL_CREATE_PRS:-false}" == "true" && -n "$COMMIT_SHA" ]]`
+- Config defaults added to spiral.sh: SPIRAL_CREATE_PRS, SPIRAL_PR_BASE_BRANCH, SPIRAL_PR_DRAFT (all exported)
+- Rollback (spiral.sh --rollback): also clears `_prUrl` from prd.json alongside other fields
+- 8 bats tests in tests/test_github_pr.bats covering all acceptance criteria
+
+### Patterns discovered
+- `eval "$(sed -n '/^function_name()/,/^}/p' script.sh)"` is the reliable way to source a single function from a .sh file in bats tests
+- Use `"$FAKE_BIN_DIR:$PATH"` in `env PATH=...` to inject mock binaries
+- gh pr list with `--json url --jq '.[0].url'` returns empty when no PR exists; filter output with `grep -E '^https?://'` for robustness
+- prd.json schema validation runs during preflight (before rollback executes); test prd.json must include all required fields (acceptanceCriteria, dependencies)
+
+### Gotchas
+- `case "$1 $2"` in bats stubs works well for gh subcommands; make pr list return empty string (not `[]`) for "no existing PR" case
+- `git push origin <sha>:refs/heads/<branch> --force` is idempotent (retries won't fail if branch already exists at same SHA)
+- The create_github_pr function must come BEFORE it is first called in the file; placed after append_result() (line ~794)

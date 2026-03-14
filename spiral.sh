@@ -404,6 +404,10 @@ SPIRAL_POST_PHASE_HOOK="${SPIRAL_POST_PHASE_HOOK:-}"                     # path 
 SPIRAL_HOOK_TIMEOUT="${SPIRAL_HOOK_TIMEOUT:-30}"                         # seconds; wall-clock limit per hook execution (default 30)
 SPIRAL_MAX_FILES_PER_STORY="${SPIRAL_MAX_FILES_PER_STORY:-10}"           # warn/abort when Phase I touches more files than this; 0 = disabled
 SPIRAL_SCOPE_CREEP_ACTION="${SPIRAL_SCOPE_CREEP_ACTION:-warn}"           # warn (default) = log only; abort = mark _failureReason and skip Phase V
+SPIRAL_CREATE_PRS="${SPIRAL_CREATE_PRS:-false}"                          # true = push story commit to spiral/<ID> branch and open GitHub PR via gh CLI
+SPIRAL_PR_BASE_BRANCH="${SPIRAL_PR_BASE_BRANCH:-main}"                   # base branch for PRs created by SPIRAL_CREATE_PRS (default: main)
+SPIRAL_PR_DRAFT="${SPIRAL_PR_DRAFT:-false}"                              # true = create draft PRs (prevents auto-merge triggers)
+export SPIRAL_CREATE_PRS SPIRAL_PR_BASE_BRANCH SPIRAL_PR_DRAFT
 
 # ── Config validation ─────────────────────────────────────────────────────────
 # Validates required keys are set and applies defaults for optional keys.
@@ -1265,10 +1269,10 @@ if [[ -n "$ROLLBACK_STORY_ID" ]]; then
     exit $ERR_ROLLBACK_FAILED
   fi
 
-  # Reset story status in prd.json: clear passes, _passedCommit, _passedAt, _adrPath
+  # Reset story status in prd.json: clear passes, _passedCommit, _passedAt, _adrPath, _prUrl
   _RB_UPDATED=$("$JQ" --arg id "$ROLLBACK_STORY_ID" \
     '(.userStories[] | select(.id == $id)) |= (
-      .passes = false | del(._passedCommit) | del(._passedAt) | del(._adrPath)
+      .passes = false | del(._passedCommit) | del(._passedAt) | del(._adrPath) | del(._prUrl)
     )' "$PRD_FILE")
   echo "$_RB_UPDATED" > "$PRD_FILE"
 
@@ -1276,7 +1280,7 @@ if [[ -n "$ROLLBACK_STORY_ID" ]]; then
     "\"storyId\":\"$ROLLBACK_STORY_ID\",\"sha\":\"$_RB_SHA\""
 
   echo "  [rollback] Story '$ROLLBACK_STORY_ID' reset to pending"
-  echo "  [rollback] Fields cleared: passes, _passedCommit, _passedAt, _adrPath"
+  echo "  [rollback] Fields cleared: passes, _passedCommit, _passedAt, _adrPath, _prUrl"
   echo "  [rollback] Done. Use --replay $ROLLBACK_STORY_ID to re-implement."
   exit 0
 fi
