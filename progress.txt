@@ -2866,3 +2866,27 @@ Incomplete: Emit JUnit XML from bats runs for GitHub Actions test summary (ID: U
 - Phase G has three notification events: start (fire before checkpoint check), pending (with gate report path, before user prompt), end (after I completes)
 - `$JQ` variable (resolved jq binary path) must be available — it is, since notify_webhook is called in the main loop after JQ is resolved
 - The test suite hits MemoryError in pytest's internal formatter when running all 188+ tests — tests still pass, it's a pytest OOM in output formatting only
+## Iteration 10 - Sat, Mar 14, 2026  5:14:56 PM
+Incomplete: Emit JUnit XML from bats runs for GitHub Actions test summary (ID: US-089) — attempt 2/3
+
+
+## Iteration N - Story: US-101: Add max diff size guard in ralph.sh to warn on oversized story implementations
+
+### What was implemented
+- Added `SPIRAL_MAX_DIFF_LINES="${SPIRAL_MAX_DIFF_LINES:-500}"` to ralph.sh defaults (line ~32)
+- Added `_parse_diff_lines()` bash function: extracts insertions+deletions total from `git diff --stat` summary line via awk
+- Added `check_diff_size()` bash function: runs `git diff --cached --stat | tail -1`, calls `_parse_diff_lines`, returns 1 if over limit (sets `LAST_DIFF_STAT` and `LAST_DIFF_LINES` globals)
+- Inserted diff guard block after `run_secret_scan` success and before `git commit` in the main story loop
+- On oversized diff: logs `oversized_diff` event to spiral_events.jsonl, unstages changes, marks `_failureReason: "oversized_diff"`, increments retry count
+- `SPIRAL_MAX_DIFF_LINES=0` disables the guard (existing behaviour preserved)
+- Created `tests/diff_size_guard.bats` with 8 tests: all pass via `bats tests/bats-core/bin/bats`
+- 475 Python tests pass
+
+### Patterns discovered
+- `_parse_diff_lines()` uses awk with `match($0, /([0-9]+) insertion/, a)` — gawk capture group syntax (bash's awk on this system is gawk-compatible)
+- `git diff --cached --stat` (not `--stat HEAD`) gives staged-only diff after `git add -A`
+- Guard inserted between `run_secret_scan` success block and `git commit` at ~line 1311
+
+### Gotchas
+- awk `match()` with capture groups requires gawk (not POSIX awk); works on this system but may need fallback for environments with only POSIX awk
+- `LAST_DIFF_STAT` and `LAST_DIFF_LINES` are globals set by `check_diff_size()` for use in the error message/log immediately after

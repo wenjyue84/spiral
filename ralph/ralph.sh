@@ -29,6 +29,7 @@ SPIRAL_STORY_COST_HARD_USD="${SPIRAL_STORY_COST_HARD_USD:-2.00}"   # abandon sto
 SPIRAL_MODEL_INPUT_PRICE_PER_M="${SPIRAL_MODEL_INPUT_PRICE_PER_M:-3.00}"   # $/1M input tokens (sonnet default)
 SPIRAL_MODEL_OUTPUT_PRICE_PER_M="${SPIRAL_MODEL_OUTPUT_PRICE_PER_M:-15.00}" # $/1M output tokens (sonnet default)
 SPIRAL_MODEL_FALLBACK_CHAIN="${SPIRAL_MODEL_FALLBACK_CHAIN:-}"  # colon-separated fallback models (e.g. sonnet:haiku:gemini-2.0-flash)
+SPIRAL_MAX_DIFF_LINES="${SPIRAL_MAX_DIFF_LINES:-500}"  # 0 = disabled; abort commit if staged diff exceeds this many changed lines
 PRD_FILE="prd.json"
 PROGRESS_FILE="progress.txt"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -277,6 +278,50 @@ run_secret_scan() {
     echo "  [secret-scan] Report: $report_path"
     return 1
   fi
+}
+
+# ── Diff size guard ─────────────────────────────────────────────
+# _parse_diff_lines: Extract total changed lines (insertions + deletions)
+# from a `git diff --stat` summary line such as:
+#   "3 files changed, 450 insertions(+), 120 deletions(-)"
+# Returns the numeric total on stdout; returns 0 on empty/unrecognised input.
+_parse_diff_lines() {
+  local stat_line="$1"
+  echo "$stat_line" | awk '
+    {
+      ins=0; del=0
+      if (match($0, /([0-9]+) insertion/, a)) {
+        ins = a[1]
+      }
+      if (match($0, /([0-9]+) deletion/, a)) {
+        del = a[1]
+      }
+      print ins + del
+    }'
+}
+
+# check_diff_size: Returns 0 (ok) or 1 (oversized) based on staged diff size.
+# Honors SPIRAL_MAX_DIFF_LINES=0 to disable the guard.
+check_diff_size() {
+  if [[ "${SPIRAL_MAX_DIFF_LINES:-500}" -eq 0 ]]; then
+    return 0
+  fi
+
+  local stat_summary
+  stat_summary=$(git diff --cached --stat 2>/dev/null | tail -1 | tr -d '\r')
+  if [[ -z "$stat_summary" ]]; then
+    return 0  # No staged changes — nothing to guard
+  fi
+
+  local total_lines
+  total_lines=$(_parse_diff_lines "$stat_summary")
+  LAST_DIFF_STAT="$stat_summary"
+  LAST_DIFF_LINES="${total_lines:-0}"
+
+  if [[ "${total_lines:-0}" -gt "${SPIRAL_MAX_DIFF_LINES:-500}" ]]; then
+    return 1
+  fi
+  return 0
 }
 
 # ── Quality gate functions ───────────────────────────────────────
@@ -1202,10 +1247,16 @@ except Exception:
   fi
 
   # ── Time budget enforcement ──────────────────────────────────
+  # If a story exceeds its time budget it is treated as "too large" and decomposed
+  # immediately on the FIRST timeout rather than wasting 3 × budget retrying it.
+  # Override behaviour: set SPIRAL_DECOMPOSE_ON_TIMEOUT=0 to use old retry-first logic.
+  SPIRAL_DECOMPOSE_ON_TIMEOUT="${SPIRAL_DECOMPOSE_ON_TIMEOUT:-1}"
   if [[ "$STORY_TIME_BUDGET" -gt 0 ]]; then
     STORY_DURATION_SEC=$((STORY_END - STORY_START))
     if [[ "$STORY_DURATION_SEC" -gt "$STORY_TIME_BUDGET" ]]; then
-      echo "  [time] Story exceeded budget (${STORY_DURATION_SEC}s > ${STORY_TIME_BUDGET}s) — discarding"
+      BUDGET_MIN=$(( STORY_TIME_BUDGET / 60 ))
+      DURATION_MIN=$(( STORY_DURATION_SEC / 60 ))
+      echo "  [time] Story exceeded ${BUDGET_MIN}min budget (took ${DURATION_MIN}min) — story is too large"
       $JQ "(.userStories[] | select(.id == \"$NEXT_STORY\") | .passes) = false" "$PRD_FILE" > "${PRD_FILE}.tmp"
       mv "${PRD_FILE}.tmp" "$PRD_FILE"
       increment_retry "$NEXT_STORY"
@@ -1214,17 +1265,37 @@ except Exception:
       append_result "reject"
       echo "## Iteration $ITERATION - $(date)" >> "$PROGRESS_FILE"
       echo "TIME BUDGET EXCEEDED: $STORY_TITLE ($NEXT_STORY) — ${STORY_DURATION_SEC}s > ${STORY_TIME_BUDGET}s budget" >> "$PROGRESS_FILE"
-      if [[ "$RETRY_NOW" -ge "$MAX_RETRIES" ]]; then
-        FAILURE_REASON="TIME_BUDGET_EXCEEDED (${STORY_DURATION_SEC}s > ${STORY_TIME_BUDGET}s limit)"
-        $JQ --arg reason "$FAILURE_REASON" \
-          '(.userStories[] | select(.id == "'"$NEXT_STORY"'") | ._failureReason) = $reason' \
-          "$PRD_FILE" > "${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE" || true
+      FAILURE_REASON="TIME_BUDGET_EXCEEDED (${STORY_DURATION_SEC}s > ${STORY_TIME_BUDGET}s limit)"
+      $JQ --arg reason "$FAILURE_REASON" \
+        '(.userStories[] | select(.id == "'"$NEXT_STORY"'") | ._failureReason) = $reason' \
+        "$PRD_FILE" > "${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE" || true
+      # Decompose on first timeout (SPIRAL_DECOMPOSE_ON_TIMEOUT=1, the default):
+      # A story that blows the time budget once is a signal it is too large — trying
+      # it 3 more times just wastes 3× budget.  Decompose immediately; only fall
+      # back to retrying if decomposition itself fails.
+      if [[ "$SPIRAL_DECOMPOSE_ON_TIMEOUT" != "0" ]]; then
         if decompose_story "$NEXT_STORY" "${EFFECTIVE_MODEL:-sonnet}"; then
-          echo "DECOMPOSED: $NEXT_STORY after $MAX_RETRIES failed attempts — sub-stories created" >> "$PROGRESS_FILE"
-          echo "[decompose] $NEXT_STORY decomposed after $MAX_RETRIES attempts"
+          echo "DECOMPOSED: $NEXT_STORY (exceeded ${BUDGET_MIN}min budget) — sub-stories created" >> "$PROGRESS_FILE"
+          echo "  [decompose] $NEXT_STORY decomposed on first timeout (${DURATION_MIN}min > ${BUDGET_MIN}min)"
+          reset_retry "$NEXT_STORY"
         else
-          echo "SKIPPED: $NEXT_STORY after $MAX_RETRIES failed attempts" >> "$PROGRESS_FILE"
-          echo "[skip] $NEXT_STORY skipped after $MAX_RETRIES attempts — moving on"
+          # Decomposition failed — keep retrying until MAX_RETRIES then skip
+          if [[ "$RETRY_NOW" -ge "$MAX_RETRIES" ]]; then
+            echo "SKIPPED: $NEXT_STORY — decomposition failed and exhausted $MAX_RETRIES retries" >> "$PROGRESS_FILE"
+            echo "  [skip] $NEXT_STORY skipped after $MAX_RETRIES attempts (decompose unavailable)"
+          else
+            echo "  [decompose] decompose_story unavailable — will retry ($RETRY_NOW/$MAX_RETRIES)"
+          fi
+        fi
+      else
+        # Old behaviour: decompose only after MAX_RETRIES failures
+        if [[ "$RETRY_NOW" -ge "$MAX_RETRIES" ]]; then
+          if decompose_story "$NEXT_STORY" "${EFFECTIVE_MODEL:-sonnet}"; then
+            echo "DECOMPOSED: $NEXT_STORY after $MAX_RETRIES failed attempts — sub-stories created" >> "$PROGRESS_FILE"
+          else
+            echo "SKIPPED: $NEXT_STORY after $MAX_RETRIES failed attempts" >> "$PROGRESS_FILE"
+            echo "  [skip] $NEXT_STORY skipped after $MAX_RETRIES attempts — moving on"
+          fi
         fi
       fi
       echo "" >> "$PROGRESS_FILE"
@@ -1260,6 +1331,23 @@ except Exception:
         append_result "reject"
         echo "## Iteration $ITERATION - $(date)" >> "$PROGRESS_FILE"
         echo "FAILED secret scan: $STORY_TITLE (ID: $NEXT_STORY) — attempt $RETRY_NOW/$MAX_RETRIES" >> "$PROGRESS_FILE"
+        echo "" >> "$PROGRESS_FILE"
+        continue
+      fi
+      if ! check_diff_size; then
+        echo "  [diff-guard] Staged diff exceeds SPIRAL_MAX_DIFF_LINES=${SPIRAL_MAX_DIFF_LINES} (${LAST_DIFF_LINES} lines changed) — aborting commit"
+        log_ralph_event "oversized_diff" "\"storyId\":\"$NEXT_STORY\",\"diffLines\":${LAST_DIFF_LINES},\"maxLines\":${SPIRAL_MAX_DIFF_LINES},\"diffStat\":\"${LAST_DIFF_STAT}\""
+        git restore --staged . 2>/dev/null || true
+        $JQ "(.userStories[] | select(.id == \"$NEXT_STORY\") | .passes) = false" "$PRD_FILE" > "${PRD_FILE}.tmp"
+        mv "${PRD_FILE}.tmp" "$PRD_FILE"
+        $JQ "(.userStories[] | select(.id == \"$NEXT_STORY\") | ._failureReason) = \"oversized_diff\"" "$PRD_FILE" > "${PRD_FILE}.tmp"
+        mv "${PRD_FILE}.tmp" "$PRD_FILE"
+        increment_retry "$NEXT_STORY"
+        RETRY_NOW=$(get_retry_count "$NEXT_STORY")
+        echo "[retry] $NEXT_STORY attempt $RETRY_NOW/$MAX_RETRIES (diff size gate failed: ${LAST_DIFF_LINES} lines)"
+        append_result "reject"
+        echo "## Iteration $ITERATION - $(date)" >> "$PROGRESS_FILE"
+        echo "FAILED diff-guard: $STORY_TITLE (ID: $NEXT_STORY) — ${LAST_DIFF_LINES} lines > ${SPIRAL_MAX_DIFF_LINES} limit — attempt $RETRY_NOW/$MAX_RETRIES" >> "$PROGRESS_FILE"
         echo "" >> "$PROGRESS_FILE"
         continue
       fi
