@@ -4571,3 +4571,60 @@ This is not a Frappe/Python project. The user story pertains to the Spiral proje
 ### Gotchas
 - `bash -c` in bats tests requires all function code to be inlined (cannot source spiral.sh as it runs the full script)
 - `ls -t` ordering in macOS vs Linux may differ; tests use `tail -n +6` on ls output which works on both
+## Iteration 63 - Sun, Mar 15, 2026  6:11:00 AM
+Completed: Add SPIRAL_WORKSPACE_CLEANUP to auto-prune transient artifacts on successful run completion (ID: US-136) in 10m
+
+
+## Pre-analysis for US-154 (Gemini 2.5 Pro)
+**Technical Brief: US-154 `spiral search` Subcommand**
+
+This brief outlines the implementation plan for a new `spiral search` CLI command. Note: The user story is for a local CLI tool, not a Frappe application.
+
+**1. Files to Modify:**
+*   `lib/search_stories.py`: Create this new file for the core search logic.
+*   `main.py`: Add a new `search` subcommand to the main CLI parser (likely `argparse` or `click`).
+*   `pyproject.toml`: Add `rapidfuzz` and `sentence-transformers` as optional dependencies.
+*   `.gitignore`: Add `.spiral/story_embeddings.pkl` to prevent caching of embeddings.
+
+**2. Involved DocTypes / Hooks:**
+*   None. This is a command-line tool, not a Frappe module. It interacts directly with `prd.json` on the local filesystem.
+
+**3. Recommended Implementation Approach:**
+*   In `main.py`, define the `search` command which takes a `QUERY` string and an optional `--json` flag. This command will call the primary function in `lib/search_stories.py`.
+*   In `lib/search_stories.py`, implement a function that:
+    1.  Loads and parses the `prd.json` file.
+    2.  Uses a `try-except ImportError` block to check for `sentence-transformers`.
+    3.  **If available (Semantic Search):** Load embeddings from `.spiral/story_embeddings.pkl`. If the cache doesn't exist or is stale, generate embeddings for all stories (title + description + ACs) and save them. Compute cosine similarity against the query embedding.
+    4.  **If unavailable (Fuzzy Fallback):** Use `rapidfuzz.process.extract` to find the top matching stories based on the query.
+    5.  Format and print the top 5 results (ID, title, status, score) as a table or JSON.
+
+**4. Edge Cases & Gotchas:**
+*   **Missing Dependencies:** The tool must run smoothly when `sentence-transformers` is not installed, falling back to `rapidfuzz`.
+*   **Cache Invalidation:** The embedding cache must be invalidated and regenerated if `prd.json` is modified. A simple timestamp check against the two files is sufficient.
+*   **Empty/Malformed PRD:** Handle cases where `prd.json` is missing, empty, or cannot be parsed.
+*   **No Results:** The command must exit with code 0 and print a "No matching stories found" message if the query returns no results, as per the acceptance criteria.
+
+
+## Iteration N - Story: US-154: Add `spiral search QUERY` subcommand
+
+### What was implemented
+- Created `lib/search_stories.py` with:
+  - `search_stories(prd_path, query, top_k, scratch_dir, force_fuzzy)` — public API
+  - `_fuzzy_search()` using rapidfuzz WRatio scorer (always available)
+  - `_semantic_search()` using sentence-transformers all-MiniLM-L6-v2 with embedding cache at `.spiral/story_embeddings.pkl`
+  - Cache invalidation keyed on prd.json mtime
+  - `format_table()` — compact fixed-width table renderer
+  - `_story_text()` — concatenates title + description + acceptanceCriteria for search corpus
+- Added `cmd_search()` to `main.py` dispatching to `search_stories`; --json flag emits machine-readable list
+- Added `search` argparse subparser with --top, --json, --fuzzy flags
+- Added `rapidfuzz` to pyproject.toml dependencies via `uv add rapidfuzz`
+- Created `tests/test_search_stories.py` with 18 tests (all pass); 655 total pytest pass
+
+### Patterns discovered
+- `rapidfuzz.process.extract` returns `(matched_text, score, index)` tuples; score is 0-100 (divide by 100 for 0-1)
+- `stories or SAMPLE_STORIES` pattern in test fixtures is dangerous with empty lists — use `if stories is not None else`
+- sentence-transformers already in pyproject.toml (added for semantic router earlier)
+
+### Gotchas
+- Duplicate `else` clause in semantic search logic was a syntax error caught at import time — fixed before tests ran
+- rapidfuzz WRatio uses a 0-100 scale; normalise to 0-1 for consistency with cosine similarity scores

@@ -253,6 +253,32 @@ def cmd_estimate(args):
     _sys.exit(rc)
 
 
+def cmd_search(args) -> None:
+    """Search prd.json stories by natural language query."""
+    import sys as _sys
+
+    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    from search_stories import search_stories, format_table  # type: ignore[import-untyped]
+
+    results = search_stories(
+        PRD_FILE,
+        args.query,
+        top_k=args.top,
+        scratch_dir=SCRATCH_DIR,
+        force_fuzzy=getattr(args, "fuzzy", False),
+    )
+
+    if not results:
+        print("No matching stories found.")
+        _sys.exit(0)
+
+    if getattr(args, "json", False):
+        print(json.dumps(results, indent=2))
+    else:
+        print(format_table(results))
+    _sys.exit(0)
+
+
 def cmd_init(args):  # noqa: ARG001
     """Run the interactive setup wizard."""
     setup_py = Path(__file__).parent / "lib" / "setup.py"
@@ -361,6 +387,29 @@ def main():
         help="Skip confirmation prompt (CI mode)",
     )
 
+    search_parser = subparsers.add_parser(
+        "search",
+        help="Find stories by natural language query",
+    )
+    search_parser.add_argument("query", help="Natural language search query")
+    search_parser.add_argument(
+        "--top",
+        type=int,
+        default=5,
+        metavar="N",
+        help="Max results to show (default: 5)",
+    )
+    search_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output machine-readable JSON",
+    )
+    search_parser.add_argument(
+        "--fuzzy",
+        action="store_true",
+        help="Force fuzzy matching (skip semantic search)",
+    )
+
     args = parser.parse_args()
 
     if args.command == "init":
@@ -371,6 +420,8 @@ def main():
         cmd_status(args)
     elif args.command == "estimate":
         cmd_estimate(args)
+    elif args.command == "search":
+        cmd_search(args)
     else:
         parser.print_help()
         sys.exit(0)
