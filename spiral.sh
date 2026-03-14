@@ -393,6 +393,8 @@ SPIRAL_RESEARCH_RETRIES="${SPIRAL_RESEARCH_RETRIES:-2}"                  # retri
 SPIRAL_IMPL_TIMEOUT="${SPIRAL_IMPL_TIMEOUT:-600}"                        # seconds; 0 = disabled (unlimited); Phase I ralph call
 SPIRAL_VALIDATE_TIMEOUT="${SPIRAL_VALIDATE_TIMEOUT:-300}"                # seconds; 0 = disabled (unlimited)
 SPIRAL_INCREMENTAL_VALIDATE="${SPIRAL_INCREMENTAL_VALIDATE:-false}"      # true = run only tests covering files touched by current story (Phase V)
+SPIRAL_PARALLEL_TESTS="${SPIRAL_PARALLEL_TESTS:-false}"                  # true = run Phase V tests in parallel (pytest-xdist or bats --jobs)
+SPIRAL_TEST_WORKERS="${SPIRAL_TEST_WORKERS:-}"                           # parallelism level; empty = nproc/2 (minimum 1)
 SPIRAL_TEST_PREFIX="${SPIRAL_TEST_PREFIX:-tests/test_}"                  # pytest: prefix for deriving test file from filesTouch entry basename
 SPIRAL_TEST_SYNTH_TIMEOUT="${SPIRAL_TEST_SYNTH_TIMEOUT:-60}"             # seconds; 0 = disabled (unlimited); Phase T synthesize_tests timeout
 SPIRAL_PREEMPTIVE_PRESSURE_MB="${SPIRAL_PREEMPTIVE_PRESSURE_MB:-0}"      # MB; 0 = disabled; free RAM below this triggers preemptive pressure level 1
@@ -2560,6 +2562,35 @@ $INJECTED_PROMPT"
               fi
             fi
           fi
+        fi
+      fi
+    fi
+    # ── Parallel test execution (US-148) ────────────────────────────────────
+    if [[ "${SPIRAL_PARALLEL_TESTS:-false}" == "true" ]]; then
+      # Resolve worker count: explicit > nproc/2 (minimum 1)
+      local _NPROC _TEST_WORKERS
+      if [[ -n "${SPIRAL_TEST_WORKERS:-}" ]]; then
+        _TEST_WORKERS="$SPIRAL_TEST_WORKERS"
+      else
+        _NPROC=$(nproc 2>/dev/null || echo 2)
+        _TEST_WORKERS=$(( _NPROC / 2 ))
+        [[ "$_TEST_WORKERS" -lt 1 ]] && _TEST_WORKERS=1
+      fi
+      if echo "$_EFFECTIVE_VALIDATE_CMD" | grep -q "pytest"; then
+        if "$SPIRAL_PYTHON" -c "import xdist" 2>/dev/null; then
+          _EFFECTIVE_VALIDATE_CMD="$_EFFECTIVE_VALIDATE_CMD -n $_TEST_WORKERS"
+          echo "  [V] Parallel pytest: -n $_TEST_WORKERS (pytest-xdist)"
+          log_spiral_event "phase_v_parallel" "\"mode\":\"pytest-xdist\",\"workers\":$_TEST_WORKERS,\"iteration\":$SPIRAL_ITER"
+        else
+          echo "  [V] WARN: SPIRAL_PARALLEL_TESTS=true but pytest-xdist not installed — running serial"
+        fi
+      elif echo "$_EFFECTIVE_VALIDATE_CMD" | grep -qE "(^| )bats( |$)"; then
+        if command -v parallel &>/dev/null; then
+          _EFFECTIVE_VALIDATE_CMD="$_EFFECTIVE_VALIDATE_CMD --jobs $_TEST_WORKERS"
+          echo "  [V] Parallel bats: --jobs $_TEST_WORKERS (GNU parallel)"
+          log_spiral_event "phase_v_parallel" "\"mode\":\"bats\",\"workers\":$_TEST_WORKERS,\"iteration\":$SPIRAL_ITER"
+        else
+          echo "  [V] WARN: SPIRAL_PARALLEL_TESTS=true but GNU parallel not installed — running serial"
         fi
       fi
     fi

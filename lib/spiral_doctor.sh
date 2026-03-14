@@ -183,6 +183,42 @@ spiral_doctor() {
     fi
   fi
 
+  # ── Parallel test execution dependencies (US-148) ────────────────────────────
+  local _xdist_ver
+  if "$SPIRAL_PYTHON" -c "import xdist; print(xdist.__version__)" >/dev/null 2>&1; then
+    _xdist_ver=$("$SPIRAL_PYTHON" -c "import xdist; print(xdist.__version__)" 2>/dev/null || echo "?")
+    if [[ "${SPIRAL_PARALLEL_TESTS:-false}" == "true" ]]; then
+      echo "  [doctor] [OK] pytest-xdist $_xdist_ver — parallel pytest active (SPIRAL_PARALLEL_TESTS=true)"
+    else
+      echo "  [doctor] [OK] pytest-xdist $_xdist_ver (inactive — set SPIRAL_PARALLEL_TESTS=true to enable)"
+    fi
+  else
+    if [[ "${SPIRAL_PARALLEL_TESTS:-false}" == "true" ]]; then
+      echo "  [doctor] [WARN] SPIRAL_PARALLEL_TESTS=true but pytest-xdist not installed — pytest will run serial"
+      echo "           → Fix: uv add pytest-xdist  OR  pip install pytest-xdist"
+      warn_count=$((warn_count + 1))
+    else
+      echo "  [doctor] [INFO] pytest-xdist not installed (optional — set SPIRAL_PARALLEL_TESTS=true to enable)"
+    fi
+  fi
+  if command -v parallel &>/dev/null; then
+    local _par_ver
+    _par_ver=$(parallel --version 2>/dev/null | head -1 || echo "unknown version")
+    if [[ "${SPIRAL_PARALLEL_TESTS:-false}" == "true" ]]; then
+      echo "  [doctor] [OK] GNU parallel ($_par_ver) — parallel bats active (SPIRAL_PARALLEL_TESTS=true)"
+    else
+      echo "  [doctor] [OK] GNU parallel found (inactive — set SPIRAL_PARALLEL_TESTS=true to enable)"
+    fi
+  else
+    if [[ "${SPIRAL_PARALLEL_TESTS:-false}" == "true" ]]; then
+      echo "  [doctor] [WARN] SPIRAL_PARALLEL_TESTS=true but GNU parallel not found — bats will run serial"
+      echo "           → Fix: choco install parallel  OR  brew install parallel"
+      warn_count=$((warn_count + 1))
+    else
+      echo "  [doctor] [INFO] GNU parallel not found (optional — set SPIRAL_PARALLEL_TESTS=true to enable parallel bats)"
+    fi
+  fi
+
   # ── Story count health ───────────────────────────────────────────────────────
   if [[ -f "prd.json" ]]; then
     local story_count total_count passed_count

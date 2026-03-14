@@ -3874,3 +3874,107 @@ Based on my analysis of the user story and the project structure, here is a tech
 - `|| continue` in PRE hook MUST remain in parent shell (not inside subshell) — subshell continue aborts only the subshell, not the outer while loop
 - `wait $PID_R; RC_R=$?` must use braces: `{ wait "$PID_R"; RC_R=$?; }` to capture correct exit code
 - `_patch_parallel_rt.py` is a one-off helper script — added to .gitignore or delete after use
+## Iteration 50 - Sun, Mar 15, 2026  3:30:30 AM
+Completed: Run Phase R and Phase T in parallel to halve story-preparation wall time (ID: US-182) in 22m
+
+
+## Pre-analysis for US-136 (Gemini 2.5 Pro)
+### Technical Brief: US-136 Workspace Cleanup
+
+This story is a shell-script-based task, not a Frappe/Python one. All modifications will be within the existing `spiral` shell scripting framework.
+
+**1. Files to Modify:**
+*   `spiral.sh`: This is the main entry point. The new `cleanup_workspace()` function and its invocation will be added here.
+*   `spiral_events.sh` (optional): May be used to abstract the event logging, but direct logging from `spiral.sh` is also acceptable per technical notes.
+
+**2. Frappe DocTypes / Hooks:**
+*   None. This task does not involve the Frappe framework.
+
+**3. Recommended Implementation Approach:**
+1.  In `spiral.sh`, create a new bash function `cleanup_workspace()`.
+2.  At the end of the main execution loop, after run completion is determined, add a condition to call this function if `[[ "$SPIRAL_WORKSPACE_CLEANUP" == "true" ]]`.
+3.  Inside `cleanup_workspace()`:
+    *   First, confirm 100% of stories in `results.tsv` are `passed` or `skipped`.
+    *   Get pre-cleanup size: `before_size=$(du -sb .spiral/ | cut -f1)`.
+    *   Use `find .spiral/research_cache -mtime +${SPIRAL_CACHE_TTL:-7} -delete` for cache pruning.
+    *   Use `find .spiral -name "*.log" -size 0 -delete` for empty logs.
+    *   Ensure `.spiral/archive` exists (`mkdir -p`), then archive old summaries via `tar`.
+    *   Get post-cleanup size: `after_size=$(du -sb .spiral/ | cut -f1)`.
+    *   Calculate `bytes_freed=$((before_size - after_size))`.
+    *   Log the event: `echo '{"event":"workspace_cleanup", "bytes_freed":'${bytes_freed}'}' >> .spiral/spiral_events.jsonl`.
+
+**4. Edge Cases & Gotchas:**
+*   The completion check must be robust; ensure it correctly parses `results.tsv` and doesn't trigger on in-progress runs.
+*   The `tar` command will fail if the `.spiral/archive/` directory doesn't exist. Use `mkdir -p`.
+*   The `find` commands must be carefully scoped to the `.spiral/` directory to avoid accidentally deleting files from other parts of the workspace.
+*   Ensure the script gracefully handles cases where there are no files to delete or archive.
+
+
+## Iteration N - Story: US-180: Scan for duplicate story IDs in prd.json at startup
+
+### What was implemented
+- `lib/validate_preflight.sh`: Added `# ── Duplicate story ID check (US-180) ──` block after the story count section
+  - Uses `jq group_by(.id)` to detect duplicate IDs
+  - Strict mode (default): prints conflict list and exits 1
+  - Lenient mode (SPIRAL_DEDUP_IDS=lenient): keeps passes:true entry, drops duplicate, writes back atomically via mktemp+mv, logs event to spiral_events.jsonl
+- `lib/spiral_doctor.sh`: Added PASS/FAIL check for duplicate story IDs after prd.json validity check
+- `tests/duplicate_story_ids.bats`: 9 bats tests covering strict mode, lenient mode, event logging, atomic write, multi-duplicate detection
+
+### Patterns discovered
+- `spiral_events.sh` is sourced at line 922, AFTER `spiral_preflight_check` is called at line 687 — cannot call `log_spiral_event` from validate_preflight.sh; use direct `printf >> spiral_events.jsonl` instead
+- Use `jq group_by(.id)[] | select(length > 1)` pattern to detect duplicate IDs
+
+### Gotchas
+- Do NOT re-serialize prd.json with Python `json.dumps()` — it converts non-ASCII chars (em-dashes, arrows) to unicode escapes, garbling the file; use `jq` for prd.json mutations
+## Iteration 51 - Sun, Mar 15, 2026  3:40:23 AM
+Incomplete: Add SPIRAL_WORKSPACE_CLEANUP to auto-prune transient artifacts on successful run completion (ID: US-136) — attempt 1/3
+
+
+## Pre-analysis for US-136 (Gemini 2.5 Pro)
+Based on the user story, the request for a Frappe/Python implementation appears to be incorrect. The story describes a feature for a shell-based tool. Here is the technical brief based on the provided JSON data:
+
+**Technical Brief for US-136: Workspace Cleanup**
+
+1.  **Files to Modify:**
+    *   `spiral.sh`: Implement the main `cleanup_workspace()` bash function here. The main execution loop will need to be modified to call this new function upon successful completion of a run.
+    *   `spiral_events.sh`: Add a new function to log the `workspace_cleanup` event and its `bytes_freed` metric to the `spiral_events.jsonl` file.
+
+2.  **Frappe DocTypes/Hooks:**
+    *   None. This implementation is purely in shell script and does not involve the Frappe framework.
+
+3.  **Implementation Approach:**
+    *   In `spiral.sh`, create a `cleanup_workspace()` function that runs if `$SPIRAL_WORKSPACE_CLEANUP` is "true".
+    *   This function should be called at the end of the main process, after a check confirms all stories are `passed` or `skipped` (possibly using `lib/check_done.py`).
+    *   Inside the function, calculate the disk usage of the `.spiral/` directory before and after cleanup using `du -sb`.
+    *   Implement cleanup using `find` commands for cache files (`-mtime +${SPIRAL_CACHE_TTL:-7}`), and zero-byte logs.
+    *   For iteration summaries, list `_iteration_summary_*.json` files, exclude the most recent 5, and remove the rest.
+    *   Use the new function in `spiral_events.sh` to log the bytes freed.
+
+4.  **Edge Cases & Gotchas:**
+    *   The run completion check must be robust to prevent premature cleanup.
+    *   Ensure the `find` and `rm` commands are scoped correctly to avoid accidentally deleting preserved files like `prd.json` or `results.tsv`.
+    *   The `SPIRAL_CACHE_TTL` environment variable needs a safe default (e.g., 7 days), as suggested in the technical notes.
+    *   Cleanup actions should log errors but not cause the main `spiral.sh` script to fail.
+
+
+## Iteration 52 - Sun, Mar 15, 2026  (US-148)
+Completed: Parallelize Phase V test execution with pytest-xdist or parallel bats (ID: US-148)
+
+### What was implemented
+- `spiral.sh`: Added `SPIRAL_PARALLEL_TESTS` (default: false) and `SPIRAL_TEST_WORKERS` (default: empty = nproc/2) env var defaults in the config block (~line 395)
+- `spiral.sh`: Added parallel injection block just before `export _EFFECTIVE_VALIDATE_CMD` in Phase V:
+  - pytest commands: appends `-n $SPIRAL_TEST_WORKERS` when xdist is importable
+  - bats commands: appends `--jobs $SPIRAL_TEST_WORKERS` when GNU parallel is in PATH
+  - Warns (non-fatal) when SPIRAL_PARALLEL_TESTS=true but required tool missing
+  - Logs `phase_v_parallel` event to spiral_events.jsonl
+- `lib/spiral_doctor.sh`: Added checks reporting pytest-xdist version and GNU parallel availability, with WARN when SPIRAL_PARALLEL_TESTS=true but tool missing
+- `tests/phase_v_parallel.bats`: 11 bats tests covering all branches (11/11 pass)
+
+### Patterns discovered
+- Doctor checks use `$SPIRAL_PYTHON` (inherited from spiral.sh scope) — already available in doctor context
+- Use `grep -qE "(^| )bats( |$)"` to avoid matching "bats" as substring of other tool names
+- nproc may not exist on Windows; fall back `|| echo 2` avoids errors
+
+### Gotchas
+- Do NOT call `_par_ver` as a function — assign it as a variable with command substitution first
+- prd.json must be written back with `ensure_ascii=False` to preserve em-dashes/arrows (see prior notes)
