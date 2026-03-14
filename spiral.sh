@@ -671,6 +671,7 @@ source "$SPIRAL_HOME/lib/spiral_doctor.sh"
 source "$SPIRAL_HOME/lib/spiral_assert.sh"
 source "$SPIRAL_HOME/lib/spiral_retry.sh"
 source "$SPIRAL_HOME/lib/phases/phase_s_story_validate.sh"
+source "$SPIRAL_HOME/lib/phases/phase_0_clarify.sh"
 
 # ── --doctor: run dependency checks and exit ────────────────────────────────
 if [[ "$DOCTOR_MODE" -eq 1 ]]; then
@@ -1428,6 +1429,15 @@ if [[ -n "$_STALE_STORIES" ]]; then
       "\"storyId\":\"$_sid\",\"stale_days\":$_age_days,\"last_attempted\":\"$_ts\",\"threshold_days\":$_STALE_DAYS_CHECK" 2>/dev/null || true
   done <<<"$_STALE_STORIES"
   echo ""
+fi
+
+# ── Phase 0: CLARIFY — one-time interactive session before the loop ──────────
+# Skipped when --gate proceed|skip is passed, or when resuming from checkpoint.
+run_phase_clarify
+
+# Recalculate session deadline in case TIME_LIMIT_MINS was set by Phase 0
+if [[ "${TIME_LIMIT_MINS:-0}" -gt 0 && "$SESSION_DEADLINE" -eq 0 ]]; then
+  SESSION_DEADLINE=$((SESSION_START + TIME_LIMIT_MINS * 60))
 fi
 
 # ── Main SPIRAL loop ────────────────────────────────────────────────────────
