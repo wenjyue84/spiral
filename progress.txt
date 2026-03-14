@@ -2952,3 +2952,31 @@ Incomplete: Emit JUnit XML from bats runs for GitHub Actions test summary (ID: U
 ### Gotchas
 - MAX_RETRIES path already has its own decompose — auto-decompose only fires for threshold < MAX_RETRIES
 - bats tests export functions with `export -f` for stubs to survive subshell (used `run` builtin)
+
+
+## Iteration N - Story: US-105: Add optional Semgrep/Bandit security scan gate after Phase I implementation
+
+### What was implemented
+- Added `SPIRAL_SECURITY_SCAN`, `SPIRAL_SECURITY_SCAN_TOOL`, `SPIRAL_SECURITY_SCAN_ARGS` env var defaults to ralph/ralph.sh (after SPIRAL_DECOMPOSE_THRESHOLD, line ~35)
+- Added `run_security_scan()` function in ralph/ralph.sh after `check_diff_size()`: Phase S gate between quality checks and commit
+  - SPIRAL_SECURITY_SCAN=false → immediate return 0 (no-op)
+  - Scanner binary not found → skip with warning, return 0 (not a failure)
+  - No staged files → skip, return 0
+  - Runs `semgrep --config=auto --json --output=<path> <staged_files>` or `bandit -r <py_files> -f json -o <path>`
+  - HIGH findings (semgrep: ERROR severity; bandit: HIGH issue_severity) → return 1 (fail)
+  - MEDIUM findings (semgrep: WARNING; bandit: MEDIUM) → emit warning, return 0
+  - Results written to `.spiral/security_scan_{STORY_ID}.json`
+- Inserted `run_security_scan` gate in main loop after `check_diff_size` and before `do_git_commit`, with same unstage/retry/prd.json pattern as other gates
+- Created `tests/security_scan.bats` with 10 tests: all pass
+
+### Patterns discovered
+- `run_security_scan` uses `git diff --cached --name-only` (staged files, BEFORE commit) not `git diff --name-only HEAD~1`
+- semgrep HIGH severity maps to `.extra.severity == "ERROR"` in JSON output; bandit HIGH maps to `.issue_severity == "HIGH"`
+- SPIRAL_SCRATCH_DIR already created by the time the gate runs (created by run_secret_scan earlier)
+- bats stub for `command -v <tool>`: override `command()` function to return 0/1 based on args
+
+### Gotchas
+- semgrep maps HIGH→"ERROR", MEDIUM→"WARNING" (not "HIGH"/"MEDIUM") in its JSON output `.extra.severity`
+- bandit only processes Python files; non-Python staged files are silently skipped
+- `$staged_files` is unquoted in the scanner call (intentional: passes as separate args)
+- test_route_stories.py has pre-existing import error (not related to this story) — run pytest with --ignore

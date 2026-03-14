@@ -33,6 +33,9 @@ SPIRAL_MAX_DIFF_LINES="${SPIRAL_MAX_DIFF_LINES:-500}"  # 0 = disabled; abort com
 SPIRAL_GIT_AUTHOR="${SPIRAL_GIT_AUTHOR:-}"   # optional: AI commit author name (e.g. "SPIRAL Agent")
 SPIRAL_GIT_EMAIL="${SPIRAL_GIT_EMAIL:-}"     # optional: AI commit author email (e.g. "spiral@noreply.local")
 SPIRAL_DECOMPOSE_THRESHOLD="${SPIRAL_DECOMPOSE_THRESHOLD:-2}"  # auto-decompose story at this retry count; 0 = disabled
+SPIRAL_SECURITY_SCAN="${SPIRAL_SECURITY_SCAN:-false}"         # true = enable Phase S security scan gate
+SPIRAL_SECURITY_SCAN_TOOL="${SPIRAL_SECURITY_SCAN_TOOL:-semgrep}"  # 'semgrep' (default) or 'bandit'
+SPIRAL_SECURITY_SCAN_ARGS="${SPIRAL_SECURITY_SCAN_ARGS:-}"    # extra flags passed to the scanner binary
 PRD_FILE="prd.json"
 PROGRESS_FILE="progress.txt"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -341,6 +344,81 @@ check_diff_size() {
   if [[ "${total_lines:-0}" -gt "${SPIRAL_MAX_DIFF_LINES:-500}" ]]; then
     return 1
   fi
+  return 0
+}
+
+# ── Security scan gate (Phase S) ────────────────────────────────
+# run_security_scan: Optional Phase S gate between quality checks and git commit.
+# Enabled by SPIRAL_SECURITY_SCAN=true.  Scans only staged files.
+# HIGH-severity findings → returns 1 (abort commit).
+# MEDIUM findings → warning only, returns 0.
+# Scanner binary not found → skips with warning, returns 0.
+run_security_scan() {
+  if [[ "${SPIRAL_SECURITY_SCAN:-false}" != "true" ]]; then
+    return 0
+  fi
+
+  local tool="${SPIRAL_SECURITY_SCAN_TOOL:-semgrep}"
+  local extra_args="${SPIRAL_SECURITY_SCAN_ARGS:-}"
+  local report_path="${SPIRAL_SCRATCH_DIR}/security_scan_${NEXT_STORY}.json"
+  mkdir -p "${SPIRAL_SCRATCH_DIR}"
+
+  # Collect staged files
+  local staged_files
+  staged_files=$(git diff --cached --name-only 2>/dev/null)
+  if [[ -z "$staged_files" ]]; then
+    echo "  [security-scan] No staged files — skipping"
+    return 0
+  fi
+
+  if [[ "$tool" == "bandit" ]]; then
+    if ! command -v bandit >/dev/null 2>&1; then
+      echo "  [security-scan] bandit not found in PATH — skipping (install bandit to enable)"
+      log_ralph_event "security_scan_skipped" "\"storyId\":\"$NEXT_STORY\",\"reason\":\"bandit_not_found\""
+      return 0
+    fi
+    # bandit only handles Python files
+    local py_files
+    py_files=$(echo "$staged_files" | grep '\.py$' || true)
+    if [[ -z "$py_files" ]]; then
+      echo "  [security-scan] No Python files staged — bandit scan skipped"
+      return 0
+    fi
+    # shellcheck disable=SC2086
+    bandit -r $py_files ${extra_args:+$extra_args} -f json -o "$report_path" >/dev/null 2>&1 || true
+
+    local high_count medium_count
+    high_count=$($JQ '[.results[] | select(.issue_severity == "HIGH")] | length' "$report_path" 2>/dev/null || echo "0")
+    medium_count=$($JQ '[.results[] | select(.issue_severity == "MEDIUM")] | length' "$report_path" 2>/dev/null || echo "0")
+
+  else
+    # Default: semgrep
+    if ! command -v semgrep >/dev/null 2>&1; then
+      echo "  [security-scan] semgrep not found in PATH — skipping (install semgrep to enable)"
+      log_ralph_event "security_scan_skipped" "\"storyId\":\"$NEXT_STORY\",\"reason\":\"semgrep_not_found\""
+      return 0
+    fi
+    # shellcheck disable=SC2086
+    semgrep --config=auto --json --output="$report_path" ${extra_args:+$extra_args} $staged_files >/dev/null 2>&1 || true
+
+    local high_count medium_count
+    high_count=$($JQ '[.results[] | select(.extra.severity == "ERROR")] | length' "$report_path" 2>/dev/null || echo "0")
+    medium_count=$($JQ '[.results[] | select(.extra.severity == "WARNING")] | length' "$report_path" 2>/dev/null || echo "0")
+  fi
+
+  if [[ "${medium_count:-0}" -gt 0 ]]; then
+    echo "  [security-scan] WARNING: $medium_count MEDIUM-severity finding(s) — see $report_path"
+  fi
+
+  if [[ "${high_count:-0}" -gt 0 ]]; then
+    log_ralph_event "security_scan_failure" "\"storyId\":\"$NEXT_STORY\",\"tool\":\"$tool\",\"highCount\":$high_count,\"mediumCount\":${medium_count:-0},\"reportPath\":\"$report_path\""
+    echo "  [security-scan] FAILED: $high_count HIGH-severity finding(s) detected — commit aborted"
+    echo "  [security-scan] Report: $report_path"
+    return 1
+  fi
+
+  log_ralph_event "security_scan_passed" "\"storyId\":\"$NEXT_STORY\",\"tool\":\"$tool\",\"mediumCount\":${medium_count:-0},\"reportPath\":\"$report_path\""
+  echo "  [security-scan] Passed ($tool: 0 HIGH findings)"
   return 0
 }
 
@@ -1452,6 +1530,22 @@ except Exception:
         append_result "reject"
         echo "## Iteration $ITERATION - $(date)" >> "$PROGRESS_FILE"
         echo "FAILED diff-guard: $STORY_TITLE (ID: $NEXT_STORY) — ${LAST_DIFF_LINES} lines > ${SPIRAL_MAX_DIFF_LINES} limit — attempt $RETRY_NOW/$MAX_RETRIES" >> "$PROGRESS_FILE"
+        echo "" >> "$PROGRESS_FILE"
+        continue
+      fi
+      if ! run_security_scan; then
+        echo "  [security-scan] Unstaging changes and aborting story"
+        git restore --staged . 2>/dev/null || true
+        $JQ "(.userStories[] | select(.id == \"$NEXT_STORY\") | .passes) = false" "$PRD_FILE" > "${PRD_FILE}.tmp"
+        mv "${PRD_FILE}.tmp" "$PRD_FILE"
+        $JQ "(.userStories[] | select(.id == \"$NEXT_STORY\") | ._failureReason) = \"security_scan_failure\"" "$PRD_FILE" > "${PRD_FILE}.tmp"
+        mv "${PRD_FILE}.tmp" "$PRD_FILE"
+        increment_retry "$NEXT_STORY"
+        RETRY_NOW=$(get_retry_count "$NEXT_STORY")
+        echo "[retry] $NEXT_STORY attempt $RETRY_NOW/$MAX_RETRIES (security scan gate failed)"
+        append_result "reject"
+        echo "## Iteration $ITERATION - $(date)" >> "$PROGRESS_FILE"
+        echo "FAILED security scan: $STORY_TITLE (ID: $NEXT_STORY) — attempt $RETRY_NOW/$MAX_RETRIES" >> "$PROGRESS_FILE"
         echo "" >> "$PROGRESS_FILE"
         continue
       fi
