@@ -110,8 +110,12 @@ SPIRAL runs in two stages: a **one-time startup** to align on goals and stories,
   ┌─────────────────────────────────────────────────────────────────┐
   │  STARTUP  (runs once before the loop)                           │
   │                                                                 │
-  │  0) CLARIFY                                                     │
-  │     Set focus → clarifying questions → elaborate initial stories│
+  │  0) CLARIFY  (5 sub-phases)                                     │
+  │     0-A Constitution — create/review non-negotiable rules       │
+  │     0-B Focus        — set this session's theme                 │
+  │     0-C Clarify      — 3 questions to lock scope & prevent drift│
+  │     0-D Stories      — seeds + AI-suggested examples            │
+  │     0-E Options      — time limit & session knobs               │
   │     Skipped in --gate proceed / --gate skip mode                │
   └──────────────────────────────┬──────────────────────────────────┘
                                  │

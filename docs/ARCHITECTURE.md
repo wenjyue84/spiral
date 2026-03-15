@@ -16,11 +16,12 @@
 ┌─────────────────────────────────────────────────────────────────┐
 │  STARTUP  (one-time, before the loop)                           │
 │                                                                 │
-│  Phase 0: CLARIFY                                               │
-│  ● Set / confirm focus area                                     │
-│  ● Clarifying questions → refine goals & constraints            │
-│  ● User elaborates initial stories → added to prd.json          │
-│  ● Constitution check on elaborated stories                     │
+│  Phase 0: CLARIFY  (5 sub-phases)                               │
+│  ● 0-A Constitution — create/review non-negotiable rules        │
+│  ● 0-B Focus        — set this session's theme                  │
+│  ● 0-C Clarify      — 3 questions to lock scope, prevent drift  │
+│  ● 0-D Stories      — initial seeds + AI-suggested examples     │
+│  ● 0-E Options      — time limit & session knobs                │
 └──────────────────────────┬──────────────────────────────────────┘
                            │
                            ▼
@@ -81,14 +82,26 @@
 ## Phase Reference
 
 ### Phase 0 — CLARIFY (startup only)
+
+See [`docs/phase-0-clarify.md`](phase-0-clarify.md) for the full guide.
+
 | | |
 |---|---|
 | **File** | `lib/phases/phase_0_clarify.sh` |
 | **When** | Once at launch, before the loop |
 | **Skipped when** | `--gate proceed` or `--gate skip` (non-interactive mode) |
-| **Replaces** | Old Phase G (Gate) interactive checkpoint |
-| **New capability** | Clarifying questions + user story elaboration (not in old Gate) |
+| **Resume** | Skipped if `.spiral/_phase_0_done` marker exists |
 | **Output** | `.spiral/_clarify_output.json`, initial stories added to `prd.json` |
+
+#### Sub-phases
+
+| Sub-phase | Purpose | Key output |
+|-----------|---------|------------|
+| **0-A Constitution** | Create/review/edit the project's non-negotiable rules | `SPIRAL_SPECKIT_CONSTITUTION` file |
+| **0-B Focus** | Set the theme for this session | `$SPIRAL_FOCUS` env var |
+| **0-C Clarify** | 3 questions: primary outcome, forbidden zones, hard constraints | Appended to `$SPIRAL_FOCUS` |
+| **0-D Stories** | Enter story seeds; AI suggests examples from prd.json goals | Stories added to `prd.json` |
+| **0-E Options** | Time limit and session knobs | `$TIME_LIMIT_MINS` env var |
 
 ### Phase R — RESEARCH
 | | |
