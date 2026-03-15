@@ -7286,3 +7286,31 @@ This technical brief is based on the provided JSON for story US-294, which perta
 ### Gotchas
 - `SHORT_TO_TIER` lookup for unknown values returns `None` — `_select_tier` uses `.get(mode, ModelTier.PRODUCTION)` as fallback for SPIRAL_MODEL_ROUTING unknown values
 - On Windows, `os.environ.pop(k, None)` in test setup/teardown is critical — env vars persist across tests otherwise
+
+---
+
+## Iteration [13] - Story: US-302: Invalidate research cache automatically when constitution.md content changes
+
+### What was implemented
+- `SPIRAL_INVALIDATE_CACHE_ON_CONSTITUTION_CHANGE` env var added (default: `true`) at line 517 of `spiral.sh`
+- Constitution hash check block inserted at startup (lines 1712-1752), AFTER `log_spiral_event` is sourced (line 1336) and BEFORE the SPIRAL banner
+- SHA-256 of constitution.md compared to `.spiral/_constitution_hash` at each startup
+- On hash change: `.spiral/research_cache/` files cleared via `find -delete`, new hash written
+- On first run (no stored hash): records hash and prints "first run" message; no event emitted
+- `research_cache_invalidated` event emitted to `spiral_events.jsonl` with `old_hash`, `new_hash`, `cleared_count`, `constitution` fields
+- Banner updated to show when feature is disabled (`SPIRAL_INVALIDATE_CACHE_ON_CONSTITUTION_CHANGE=false`)
+- `templates/spiral.config.example.sh` updated with feature documentation
+- 8 bats tests in `tests/constitution_cache_invalidate.bats` — all pass
+
+### Patterns discovered
+- `log_spiral_event` is available from line 1336 onwards (sourced at top-level via `source lib/spiral_events.sh`)
+- The startup execution section spans lines 852-~2230; function definitions are interspersed but key startup code runs sequentially
+- `RESEARCH_CACHE_DIR="$SCRATCH_DIR/research_cache"` is already set at line 599-611
+- `SPIRAL_SPECKIT_CONSTITUTION` takes precedence; fallback is `$REPO_ROOT/constitution.md`
+- `sha256sum` (GNU coreutils) is available in Git Bash on Windows; Python fallback provided for portability
+- `wc -l | tr -d '[:space:]'` needed on Windows to strip leading/trailing whitespace from count
+
+### Gotchas
+- On first run (no `_constitution_hash` file), `_OLD_CONST_HASH=""` vs non-empty `_NEW_CONST_HASH` → hashes differ → cache IS cleared; only "first run" message printed (not "changed"), no event emitted
+- Bats test for "first run" should NOT assert cache files are preserved (they ARE cleared on first run due to empty-vs-hash mismatch)
+- The clearing block is inside `if [[ "$_OLD_CONST_HASH" != "$_NEW_CONST_HASH" ]]` which triggers on both first run AND subsequent changes

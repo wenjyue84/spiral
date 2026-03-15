@@ -514,6 +514,7 @@ SPIRAL_CREATE_TAGS="${SPIRAL_CREATE_TAGS:-false}"                        # true 
 SPIRAL_AUTO_PUSH_TAGS="${SPIRAL_AUTO_PUSH_TAGS:-false}"                  # true = push run-complete tag to origin after creation (US-137)
 SPIRAL_WORKSPACE_CLEANUP="${SPIRAL_WORKSPACE_CLEANUP:-false}"            # true = prune transient artifacts after 100% completion (US-136)
 SPIRAL_CACHE_TTL="${SPIRAL_CACHE_TTL:-7}"                                # days; research_cache entries older than this are pruned (US-136)
+SPIRAL_INVALIDATE_CACHE_ON_CONSTITUTION_CHANGE="${SPIRAL_INVALIDATE_CACHE_ON_CONSTITUTION_CHANGE:-true}"  # US-302: clear research_cache when constitution.md SHA-256 changes
 SPIRAL_AUTO_RELEASE="${SPIRAL_AUTO_RELEASE:-false}"                      # true = auto SemVer bump from conventional commits on run completion (US-190)
 SPIRAL_GIT_PUSH="${SPIRAL_GIT_PUSH:-false}"                              # true = push vX.Y.Z tag to origin after auto-release (US-190)
 SPIRAL_GIT_AUTHOR="${SPIRAL_GIT_AUTHOR:-}"                               # fallback git identity "Name <email>" when git config user.name/email is missing (US-211)
@@ -1708,6 +1709,48 @@ if [[ -d "$REPO_ROOT/.spiral-workers" ]]; then
   fi
 fi
 
+# ── US-302: Research cache invalidation on constitution.md change ──────────
+# When constitution.md changes between runs, cached research may be misaligned
+# with updated project goals. Detect hash change and clear the cache if needed.
+# Controlled by SPIRAL_INVALIDATE_CACHE_ON_CONSTITUTION_CHANGE (default: true).
+if [[ "${SPIRAL_INVALIDATE_CACHE_ON_CONSTITUTION_CHANGE:-true}" != "false" ]]; then
+  _CONSTITUTION_HASH_FILE="$SCRATCH_DIR/_constitution_hash"
+  # Resolve constitution file: prefer SPIRAL_SPECKIT_CONSTITUTION, fallback to constitution.md
+  _CONSTITUTION_FILE=""
+  if [[ -n "$SPIRAL_SPECKIT_CONSTITUTION" && -f "$REPO_ROOT/$SPIRAL_SPECKIT_CONSTITUTION" ]]; then
+    _CONSTITUTION_FILE="$REPO_ROOT/$SPIRAL_SPECKIT_CONSTITUTION"
+  elif [[ -f "$REPO_ROOT/constitution.md" ]]; then
+    _CONSTITUTION_FILE="$REPO_ROOT/constitution.md"
+  fi
+  if [[ -n "$_CONSTITUTION_FILE" ]]; then
+    # Compute SHA-256; prefer sha256sum (coreutils), fall back to Python
+    _NEW_CONST_HASH=$(sha256sum "$_CONSTITUTION_FILE" 2>/dev/null | cut -d' ' -f1 || \
+      "$SPIRAL_PYTHON" -c "import hashlib,sys; print(hashlib.sha256(open(sys.argv[1],'rb').read()).hexdigest())" \
+        "$_CONSTITUTION_FILE" 2>/dev/null || echo "")
+    if [[ -n "$_NEW_CONST_HASH" ]]; then
+      _OLD_CONST_HASH=""
+      [[ -f "$_CONSTITUTION_HASH_FILE" ]] && _OLD_CONST_HASH=$(tr -d '[:space:]' <"$_CONSTITUTION_HASH_FILE" 2>/dev/null || echo "")
+      if [[ "$_OLD_CONST_HASH" != "$_NEW_CONST_HASH" ]]; then
+        _CONST_CLEARED_COUNT=0
+        if [[ -d "$RESEARCH_CACHE_DIR" ]]; then
+          _CONST_CLEARED_COUNT=$(find "$RESEARCH_CACHE_DIR" -maxdepth 1 -type f 2>/dev/null | wc -l | tr -d '[:space:]')
+          find "$RESEARCH_CACHE_DIR" -maxdepth 1 -type f -delete 2>/dev/null || true
+        fi
+        # Persist new hash
+        printf '%s\n' "$_NEW_CONST_HASH" >"$_CONSTITUTION_HASH_FILE"
+        if [[ -n "$_OLD_CONST_HASH" ]]; then
+          echo "  [startup] constitution.md changed — cleared ${_CONST_CLEARED_COUNT} research cache entries"
+          echo "  [startup] Old: ${_OLD_CONST_HASH:0:16}… → New: ${_NEW_CONST_HASH:0:16}…"
+          log_spiral_event "research_cache_invalidated" \
+            "\"old_hash\":\"$_OLD_CONST_HASH\",\"new_hash\":\"$_NEW_CONST_HASH\",\"cleared_count\":${_CONST_CLEARED_COUNT},\"constitution\":\"$(basename "$_CONSTITUTION_FILE")\""
+        else
+          echo "  [startup] constitution.md hash recorded (first run)"
+        fi
+      fi
+    fi
+  fi
+fi
+
 # ── SPIRAL banner ───────────────────────────────────────────────────────────
 prd_stats
 echo ""
@@ -1736,6 +1779,8 @@ fi
 [[ "$MONITOR_TERMINALS" -eq 1 ]] && echo "  ║  Monitor:     terminal per worker (--monitor)"
 [[ -n "$SPIRAL_SPECKIT_CONSTITUTION" && -f "$REPO_ROOT/$SPIRAL_SPECKIT_CONSTITUTION" ]] &&
   echo "  ║  Spec-Kit:    constitution loaded"
+[[ "${SPIRAL_INVALIDATE_CACHE_ON_CONSTITUTION_CHANGE:-true}" == "false" ]] &&
+  echo "  ║  Cache inv.:  disabled (SPIRAL_INVALIDATE_CACHE_ON_CONSTITUTION_CHANGE=false)"
 [[ -n "$SPIRAL_FOCUS" ]] && echo "  ║  Focus:       $SPIRAL_FOCUS"
 [[ -n "$SPIRAL_FOCUS_TAGS" ]] && echo "  ║  Focus tags:  $SPIRAL_FOCUS_TAGS"
 [[ "$SPIRAL_MAX_PENDING" -gt 0 ]] && echo "  ║  Max pending: $SPIRAL_MAX_PENDING incomplete stories"
@@ -3937,6 +3982,9 @@ PYEOF
   log_spiral_event "phase_start" "\"phase\":\"C\",\"iteration\":$SPIRAL_ITER"
   notify_webhook "C" "start"
   _PHASE_TS_C=$(date +%s)
+
+  # ── US-227: Promote exhausted stories to DLQ state ────────────────────────
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/main.py" dlq promote 2>/dev/null || true
 
   _CHECK_DONE_RC=0
   if [[ -n "$SPIRAL_CORE_BIN" ]]; then

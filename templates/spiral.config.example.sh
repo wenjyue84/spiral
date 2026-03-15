@@ -184,6 +184,14 @@
 # 0 = disabled (no caching). Default: 24 (hours)
 # SPIRAL_RESEARCH_CACHE_TTL_HOURS=24
 
+# ── Research cache invalidation on constitution change (US-302) ──────────
+# When constitution.md is modified, cached research may be misaligned with
+# updated project goals. SPIRAL computes a SHA-256 of constitution.md at startup
+# and clears .spiral/research_cache/ if the hash differs from the stored value
+# in .spiral/_constitution_hash. Set to false to disable this behavior.
+# Default: true
+# SPIRAL_INVALIDATE_CACHE_ON_CONSTITUTION_CHANGE=false
+
 # ── Max research stories per iteration ────────────────────────────────────
 # Caps how many NEW research candidates Phase R can inject per iteration.
 # Applied BEFORE deduplication in Phase M merge. Prevents a single research
