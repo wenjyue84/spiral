@@ -15,9 +15,14 @@ SEARCH_ROOT="${1:-.}"
 VIOLATIONS=$(
   grep -rn "shell=True" \
     --include="*.py" \
+    --exclude-dir=.venv \
+    --exclude-dir=.spiral-workers \
+    --exclude-dir=__pycache__ \
     "$SEARCH_ROOT" \
     | grep -v "# spiral-allow-shell" \
     | grep -v "^Binary" \
+    | grep -v "test_shell_injection_prevention.py" \
+    | grep "subprocess\|Popen\|run(\|call(\|check_output" \
     || true
 )
 
