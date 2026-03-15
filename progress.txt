@@ -5938,3 +5938,37 @@ Incomplete: Generate per-story ADR stub when architectural decision is detected 
 ## Iteration 6 - Sun, Mar 15, 2026  9:51:14 PM
 Incomplete: Generate per-story ADR stub when architectural decision is detected in Phase I output (ID: US-201) — attempt /3
 
+
+---
+
+## Iteration [N] - Story: US-194: Add Slack notification plugin for story lifecycle events
+
+### What was implemented
+- Modified `lib/plugin_system.sh`:
+  - Extended `build_hook_context` to accept optional `extra_fields` parameter (comma-separated JSON field string)
+  - Extended `run_plugin_hooks` to accept optional 4th parameter `extra_context` passed to `build_hook_context`
+- Added `post-story` plugin hook calls in `spiral.sh` (both sequential and parallel fallback paths):
+  - After calibration recording block, fires `run_plugin_hooks "post-story" "POST" "$_NEXT_SID" "..."`
+  - Passes story_title, story_passes (bool), retry_count as extra context
+- Fixed `run-completion` hook call in Phase C:
+  - Replaced env var export approach with proper extra JSON context (total_stories, passed_stories, failed_stories, skipped_stories, duration_seconds)
+  - Fixed RETRY_FILE reference to use `$REPO_ROOT/retry-counts.json` directly
+  - Fixed MAX_RETRIES reference to use `${SPIRAL_MAX_RETRIES:-3}`
+- Plugin hook scripts (post-story, run-completion) already existed from prior iteration
+
+### Patterns discovered
+- Plugin context extension: use `extra_context` 4th param to `run_plugin_hooks` for hook-specific data
+- Hook scripts read context via `cat` from stdin; env vars alone are insufficient
+- RETRY_FILE/MAX_RETRIES were undefined in the run-completion block; use direct paths
+
+### Gotchas
+- Both sequential (RALPH_WORKERS==1) and parallel fallback (RALPH_WORKERS>1 but no workers launched) paths needed post-story hooks
+- String interpolation of story titles with quotes requires `${_PS_TITLE//\"/\\\"}` escaping
+- run-completion hook checks `allowed_events` for "completed" substring; default is "passed,failed,completed"
+
+### Testing notes
+- bash -n syntax checks pass for both spiral.sh and plugin_system.sh
+- build_hook_context with extra_fields produces valid JSON (verified with python -m json.tool)
+- post-story hook exits 0 silently when SPIRAL_SLACK_WEBHOOK_URL is unset
+- run-completion hook exits 0 silently when SPIRAL_SLACK_WEBHOOK_URL is unset
+- All 6 acceptance criteria met
