@@ -6078,3 +6078,27 @@ Incomplete: Enforce cgroups v2 memory and CPU limits on worker subprocesses (ID:
 ## Iteration 3 - Sun, Mar 15, 2026 10:34:54 PM
 Incomplete: Enforce cgroups v2 memory and CPU limits on worker subprocesses (ID: US-259) — attempt /3
 
+## Iteration 3 - Sun, Mar 15, 2026 10:48:48 PM
+Incomplete: Enforce cgroups v2 memory and CPU limits on worker subprocesses (ID: US-259) — attempt /3
+
+
+---
+
+## Iteration [N+1] - Story: US-264: Add env var schema validation at SPIRAL startup
+
+### What was implemented
+- `lib/validate_env.py` — Python validator that reads env_schema.json, validates env vars, prints colour-coded output, exits 1 on missing required vars or type errors
+- `env_schema.json` — Machine-readable schema with 24 env vars (1 required: ANTHROPIC_API_KEY; 23 optional) covering types string/int/url/bool, defaults, descriptions, and fix_hints
+- `spiral.sh` — Added `validate_env()` function called immediately after `validate_config()` (before any worker launch); gracefully skips if env_schema.json missing
+- `tests/env_validation.bats` — 11 bats tests covering schema existence, required var detection, MISSING/INVALID output format, URL/int type validation, optional var handling
+
+### Patterns discovered
+- The validate_env() placement in spiral.sh follows after `validate_config` (line ~535-555) — startup validation functions group together in this section
+- bats tests source no spiral.sh directly; they invoke lib/validate_env.py via SPIRAL_PYTHON (resolved in setup())
+
+### Gotchas
+- All 11 bats tests passed on first run — implementation was already complete but US-264 was left as passes=false in prd.json
+- prd.json only needed passes=true update
+
+### Testing notes
+- bats: tests/bats-core/bin/bats tests/env_validation.bats → 11/11 pass

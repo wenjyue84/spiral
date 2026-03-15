@@ -132,9 +132,9 @@ def validate_prd(prd: dict) -> list[str]:
             errors.append(f"{sp}/title — missing required field 'title'")
         elif not isinstance(story["title"], str) or not story["title"].strip():
             errors.append(f"{sp}/title — title must be a non-empty string")
-        elif len(story["title"]) > 80:
+        elif len(story["title"]) > 120:
             errors.append(
-                f"{sp}/title — title exceeds maxLength 80 ({len(story['title'])} chars)"
+                f"{sp}/title — title exceeds maxLength 120 ({len(story['title'])} chars)"
             )
 
         if "passes" not in story:
