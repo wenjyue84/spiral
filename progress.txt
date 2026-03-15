@@ -5303,3 +5303,32 @@ Completed: Emit OTel agentic-system spans for tasks, actions, teams, and artifac
 ### Gotchas
 - Avoid using `str(tmp_path)` in test commands on Windows — backslashes become shlex escape sequences
 - The CI check must exclude `.spiral-workers/` from its search path to avoid false positives from stale worker copies
+
+## Iteration N - Story: US-189: Record per-phase LLM token metrics as OTel GenAI metrics
+
+### What was implemented
+- Created lib/otel_metrics.py with two CLI commands:
+  - `record-tokens`: appends JSONL record to $SCRATCH_DIR/token_metrics.jsonl + OTLP export if endpoint configured
+    - Emits gen_ai.client.token.usage counter (input/output tokens with token_type attribute)
+    - Emits gen_ai.client.operation.duration histogram (wall-clock ms)
+  - `serve-prometheus`: starts HTTP server on SPIRAL_PROM_PORT serving /metrics in Prometheus text format
+- Wired record-tokens into spiral.sh at both Phase I completion sites (wave=1 fallback + main sequential)
+  - Reads token counts from story_costs.json (keyed by story ID) after Ralph completes
+- Added Prometheus server startup in spiral.sh when SPIRAL_PROM_PORT env var is set (background disown)
+- Updated spiral-ui/vite.config.ts /api/project-live to read token_metrics.jsonl and return tokenBurn[]
+- Added TokenBurnSparkline component to ProjectDashboard.tsx in the Progress tab
+  - Shows per-story token burn table with input/output/total columns and a bar chart
+- 14 new tests in tests/test_otel_metrics.py (all pass)
+
+### Patterns discovered
+- story_costs.json is written by ralph.sh accumulate_story_cost() — keyed by story_id with tokens_input/tokens_output
+- jq query for story tokens: jq -r --arg id "$_NEXT_SID" '.[$id].tokens_input // 0' story_costs.json
+- OTel SDK metrics: use PeriodicExportingMetricReader(export_interval_millis=100) + force_flush() for one-shot export
+- Prometheus HTTP server: http.server.HTTPServer with BaseHTTPRequestHandler — simplest approach, no deps needed
+- TokenBurnEntry type added to ProjectData in ProjectDashboard.tsx; tokenBurn field is optional (backward compat)
+
+### Gotchas
+- story_costs.json tracks CUMULATIVE tokens per story (all ralph iterations), not per LLM call
+- OTLP metric export uses delta semantics via counter.add() — each process exit emits one data point
+- Port collision in tests: each TestServePrometheus test must use a unique port (used 19876, 19877)
+- vite.config.ts backend runs in Node.js — uses readJsonl() helper already present in the file
