@@ -5423,3 +5423,26 @@ Completed: Replace GitHub Actions long-lived secrets with OIDC short-lived token
 ## Iteration 3 - Sun, Mar 15, 2026  7:16:53 PM
 Completed: Replace GitHub Actions long-lived secrets with OIDC short-lived tokens (ID: US-221) in 15m
 
+
+## Iteration N - Story: US-211: Validate git user.name and user.email config before any AI commit
+
+### What was implemented
+- Added `check_git_author()` function to `lib/spiral_doctor.sh`
+  - Checks `git config user.name` and `git config user.email`
+  - When `SPIRAL_GIT_AUTHOR="Name <email>"` is set, auto-configures git identity
+  - Returns 1 (error) if either field is missing, with exact fix commands
+- Wired `check_git_author()` into `spiral_doctor()` in `lib/spiral_doctor.sh` (criterion #3)
+- Added git author check block to `spiral_preflight_check()` in `lib/validate_preflight.sh`
+  - SPIRAL_GIT_AUTHOR fallback handled first
+  - Hard abort (exit ERR_CONFIG=3) if identity missing
+  - Emits `preflight_git_author_missing` event to `spiral_events.jsonl`
+- Added `SPIRAL_GIT_AUTHOR` env var default (empty) to `spiral.sh` line ~471
+
+### Patterns discovered
+- `validate_preflight.sh` uses `$scratch_dir` local var for `spiral_events.jsonl` path
+- `ERR_CONFIG` exit code is 3 (defined in spiral.sh, referenced as `${ERR_CONFIG:-3}`)
+- `spiral_doctor.sh` exports helper functions before `spiral_doctor()` — follow same pattern
+
+### Gotchas
+- `test_route_stories.py` has a pre-existing ImportError (relative import issue) — always ignore it
+- Tests take ~3 minutes to run (957 tests); use `--ignore=tests/test_route_stories.py` 
