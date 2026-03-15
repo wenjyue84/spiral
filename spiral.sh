@@ -113,6 +113,7 @@ SPIRAL_FOCUS_TAGS=""  # comma-separated tags filter (--focus-tags)
 TIME_LIMIT_MINS=0     # 0 = no limit; >0 = stop after N minutes (--time-limit or --until)
 DRY_RUN=0             # 1 = dry-run mode: skip API calls (R, T, I, V) but run control flow
 SKIP_CONFLICT_PREFLIGHT=0 # 1 = bypass pre-flight cross-story conflict detection (--skip-conflict-preflight)
+ALLOW_UNSAFE_STORIES=0    # 1 = log injection warnings but do not block stories (--allow-unsafe-stories)
 DOCTOR_MODE=0         # 1 = run dependency check and exit (--doctor)
 REPLAY_STORY_ID=""    # "" = normal mode; "US-XXX" = replay that story only (--replay)
 ROLLBACK_STORY_ID=""  # "" = normal mode; "US-XXX" = rollback that story's commit (--rollback)
@@ -203,6 +204,10 @@ while [[ $# -gt 0 ]]; do
       SKIP_CONFLICT_PREFLIGHT=1
       shift
       ;;
+    --allow-unsafe-stories)
+      ALLOW_UNSAFE_STORIES=1
+      shift
+      ;;
     --doctor)
       DOCTOR_MODE=1
       shift
@@ -274,6 +279,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --until HH:MM              Stop at a wall-clock time (e.g., 14:30, 18:00)"
       echo "  --dry-run                  Test loop control flow without API calls"
       echo "  --skip-conflict-preflight  Bypass pre-flight cross-story conflict detection (parallel mode)"
+      echo "  --allow-unsafe-stories     Warn but do NOT block stories with prompt injection patterns (use with caution)"
       echo "  --doctor                   Check all runtime dependencies and exit"
       echo "  --replay STORY_ID          Re-run a single story in an isolated worktree (Phases I+V only)"
   echo "  --rollback STORY_ID        Revert a passed story's git commit and reset its prd.json status"
@@ -761,6 +767,19 @@ fi
 
 # ── Pre-flight validation ──────────────────────────────────────────────────
 spiral_preflight_check "$PRD_FILE" "$SCRATCH_DIR"
+
+# ── Prompt injection scan ──────────────────────────────────────────────────
+echo "  [preflight] Scanning story fields for prompt injection patterns..."
+_INJECTION_FLAGS=("--prd" "$PRD_FILE" "--audit-log" "$SCRATCH_DIR/security-audit.jsonl" "--update-prd")
+[[ "${ALLOW_UNSAFE_STORIES:-0}" -eq 1 ]] && _INJECTION_FLAGS+=("--allow-unsafe")
+_INJECT_RC=0
+"$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/injection_detector.py" "${_INJECTION_FLAGS[@]}" 2>&1 || _INJECT_RC=$?
+if [[ "$_INJECT_RC" -eq 2 ]]; then
+  echo "  [preflight] FATAL: Prompt injection patterns detected in story fields — aborting."
+  echo "  [preflight] Use --allow-unsafe-stories to warn-only and continue (not recommended)."
+  exit "$_INJECT_RC"
+fi
+echo "  [preflight] Injection scan: OK"
 
 # ── Checkpoint state machine coherence check ──────────────────────────────
 if [[ -f "$CHECKPOINT_FILE" ]]; then
@@ -1575,6 +1594,7 @@ export SPIRAL_ITER
 export SPIRAL_MAX_RESEARCH_STORIES
 export SPIRAL_SKIP_STORY_IDS
 export DRY_RUN
+export ALLOW_UNSAFE_STORIES
 
 if [[ -f "$CHECKPOINT_FILE" ]]; then
   CKPT_ITER=$("$JQ" -r '.iter // 0' "$CHECKPOINT_FILE")

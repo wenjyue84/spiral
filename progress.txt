@@ -5006,3 +5006,6 @@ Completed: Import user stories from GitHub Issues via GraphQL API (ID: US-185) i
 - Wave story IDs extracted with jq array slice [0:WAVE_STORY_COUNT] to match partition ordering
 - After deferral, must re-query WAVE_STORY_COUNT from partition_prd.py (not subtract manually) to account for partition changes
 - test_route_stories.py has a pre-existing collection error (unrelated to this story)
+## Iteration 3 - Sun, Mar 15, 2026  4:09:50 PM
+Completed: Pre-flight cross-story file conflict detection using git merge-tree (ID: US-186) in 13m
+
