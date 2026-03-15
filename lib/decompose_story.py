@@ -17,7 +17,10 @@ import subprocess
 import sys
 from typing import Any
 
+from pydantic import ValidationError
+
 sys.path.insert(0, os.path.dirname(__file__))
+from llm_models import DecompositionResult, log_validation_error, validate_llm_json
 from prd_schema import validate_prd
 
 # Force UTF-8 stdout — prevents UnicodeEncodeError on Windows cp1252 terminals
@@ -236,8 +239,15 @@ def main() -> int:
         print(f"[decompose] ERROR: {e}", file=sys.stderr)
         return 1
 
-    sub_stories_raw = data.get("stories", [])
-    ordered = data.get("ordered", False)
+    # Validate LLM output with Pydantic model (US-203)
+    try:
+        validated = validate_llm_json(DecompositionResult, data, "decompose_story")
+    except ValidationError as exc:
+        print(f"[decompose] ERROR: LLM output validation failed: {exc}", file=sys.stderr)
+        return 1
+
+    sub_stories_raw = [s.model_dump() for s in validated.stories]
+    ordered = validated.ordered
 
     # Validate count
     if len(sub_stories_raw) < 2:

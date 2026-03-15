@@ -16,6 +16,8 @@ import os
 import re
 import sys
 
+from pydantic import ValidationError
+
 # Force UTF-8 stdout
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -61,7 +63,16 @@ def _load_candidates(path: str) -> list[dict]:
     try:
         with open(path, encoding="utf-8") as fh:
             data = json.load(fh)
-        return data.get("stories", [])
+        # Validate with Pydantic model (US-203)
+        from llm_models import ResearchOutput, log_validation_error
+
+        try:
+            validated = ResearchOutput.model_validate(data)
+            return [s.model_dump() for s in validated.stories]
+        except ValidationError as exc:
+            log_validation_error(exc, data, f"validate_stories:_load_candidates({path})")
+            print(f"  [S] WARNING: validation failed for {path}: {exc}")
+            return data.get("stories", [])
     except (json.JSONDecodeError, OSError):
         return []
 

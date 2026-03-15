@@ -12,6 +12,7 @@ dependencies = [
     "rapidfuzz>=3.14.3",
     "opentelemetry-sdk>=1.30.0",
     "opentelemetry-exporter-otlp-proto-http>=1.30.0",
+    "pydantic>=2.0",
 ]
 
 [project.scripts]
@@ -47,6 +48,7 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = [
     "check_dag",
+    "llm_models",
     "cost_check",
     "decompose_story",
     "merge_results_tsv",

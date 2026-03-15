@@ -16,7 +16,10 @@ import re
 import sys
 from typing import Any
 
+from pydantic import ValidationError
+
 sys.path.insert(0, os.path.dirname(__file__))
+from llm_models import ResearchOutput, log_validation_error
 from prd_schema import validate_prd
 
 # Force UTF-8 stdout — prevents UnicodeEncodeError on Windows cp1252 terminals
@@ -139,7 +142,15 @@ def load_candidates(path: str) -> list[dict[str, Any]]:
         return []
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
-    return data.get("stories", [])
+    # Validate with Pydantic model (US-203)
+    try:
+        validated = ResearchOutput.model_validate(data)
+        return [s.model_dump() for s in validated.stories]
+    except ValidationError as exc:
+        log_validation_error(exc, data, f"merge_stories:load_candidates({path})")
+        print(f"[merge] WARNING: validation failed for {path}: {exc}")
+        # Graceful fallback: return raw stories to avoid blocking the pipeline
+        return data.get("stories", [])
 
 
 def story_to_prd_entry(story: dict[str, Any], story_id: str) -> dict[str, Any]:

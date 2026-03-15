@@ -5123,3 +5123,36 @@ Completed: Add pip-audit and npm audit dependency vulnerability scan gate in CI 
 - test_route_stories.py has a pre-existing import error (relative import in lib/route_stories.py) — unrelated to this story, pre-dates it
 - JavaScript job has conditional `if:` to run on schedule + any push/PR (path filter already handles changed-files scoping)
 - SHA `4fa2a7953630fd2f3aab3b2c1b7c6eb76a5a5beb` corresponds to codeql-action v3.26.6; Dependabot will keep this updated
+## Iteration 3 - Sun, Mar 15, 2026  5:00:58 PM
+Incomplete: Validate LLM JSON outputs with Pydantic models before downstream processing (ID: US-203) — attempt 1/3
+
+
+## Iteration N - Story: US-203: Validate LLM JSON outputs with Pydantic models before downstream processing
+
+### What was implemented
+- Created lib/llm_models.py with Pydantic v2 models for all 4 LLM output shapes:
+  - DecompositionResult (decompose_story.py) — {"ordered": bool, "stories": [SubStory]}
+  - ResearchOutput (Phase R) — {"stories": [StoryCandidate]}
+  - RouteStoriesResult (route_stories) — {"userStories": [RoutedStory]}
+  - TestSynthesisReport (Phase T) — {"stories": [FailingTestStory]}
+- Added log_validation_error() helper that writes structured errors to spiral_events.jsonl
+  - Includes field_path, message, received_value, and truncated raw output
+- Added validate_llm_json() convenience wrapper (validate + log + re-raise)
+- Wired model_validate() into 3 downstream parse sites:
+  - decompose_story.py: validates after extract_json_from_response()
+  - merge_stories.py: validates in load_candidates() with graceful fallback
+  - validate_stories.py: validates in _load_candidates() with graceful fallback
+- Added pydantic>=2.0 to pyproject.toml dependencies
+- Created tests/test_llm_models.py with 21 tests covering all models, error logging, and roundtrip
+- Used ConfigDict(extra="allow") (Pydantic v2 style) instead of deprecated class Config
+
+### Patterns discovered
+- StoryCandidate needs extra="allow" because LLM/research adds _source, epicId, _isTestFix etc.
+- merge_stories.py and validate_stories.py use graceful fallback (log + return raw) to avoid blocking pipeline
+- decompose_story.py uses strict validation (raises on failure) since it's a direct LLM call that can be retried
+- Renamed TestFailureStory → FailingTestStory to avoid pytest collection warnings
+
+### Gotchas
+- test_route_stories.py has a pre-existing import error (relative import in lib/route_stories.py) — unrelated
+- class Config is deprecated in Pydantic v2; must use model_config = ConfigDict(...) instead
+- model_dump() with extra="allow" preserves extra fields, so downstream code still sees _source etc.
