@@ -581,7 +581,39 @@ run_phase_clarify() {
   echo "  ╚══════════════════════════════════════════════════════════════════╝"
   echo ""
 
-  # Tracking vars (globals so sub-functions can write to them)
+  # ── Tech stack auto-detection ──────────────────────────────────────────────
+  # Detect the project's language / test command before any prompts.
+  # Results are cached in .spiral/detected_stack.json.
+  echo "  ┌─ 0-0: Tech Stack Detection ─────────────────────────────────────────"
+  local _detect_root="${SPIRAL_PROJECT_ROOT:-.}"
+  local _detect_cache="${scratch}"
+  local _detect_out
+  _detect_out=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/detect_stack.py" \
+    --root "$_detect_root" \
+    --cache-dir "$_detect_cache" \
+    2>/dev/null) || _detect_out=""
+
+  # Parse shell-eval lines emitted by detect_stack.py (lines starting with __)
+  local _detected_lang="" _detected_validate_cmd="" _detected_pkg_mgr=""
+  while IFS= read -r _line; do
+    case "$_line" in
+      __DETECTED_LANG=*)       _detected_lang="${_line#__DETECTED_LANG=}" ;;
+      __DETECTED_VALIDATE_CMD=*) _detected_validate_cmd="${_line#__DETECTED_VALIDATE_CMD=}" ;;
+      __DETECTED_PKG_MGR=*)    _detected_pkg_mgr="${_line#__DETECTED_PKG_MGR=}" ;;
+    esac
+  done <<< "$_detect_out"
+
+  # Print the human-readable summary lines (those without __)
+  echo "$_detect_out" | grep -v "^__" | sed 's/^//' || true
+  echo "  └─────────────────────────────────────────────────────────────────────"
+  echo ""
+
+  # Export detected defaults so downstream prompts and sub-phases can use them
+  export SPIRAL_DETECTED_LANG="${_detected_lang:-Unknown}"
+  export SPIRAL_DETECTED_VALIDATE_CMD="${_detected_validate_cmd:-}"
+  export SPIRAL_DETECTED_PKG_MGR="${_detected_pkg_mgr:-}"
+
+  # ── Tracking vars (globals so sub-functions can write to them) ─────────────
   _PHASE0_CONSTITUTION_PATH=""
   _PHASE0_CONSTITUTION_CREATED=0
   _PHASE0_SEEDS_ADDED=0
