@@ -104,6 +104,9 @@ fi
 SPIRAL_HOME="${SPIRAL_HOME:-.}"
 [[ -f "$SPIRAL_HOME/lib/spiral_retry.sh" ]] && source "$SPIRAL_HOME/lib/spiral_retry.sh"
 
+# ── Source spiral_undo library for per-story undo stack (US-239) ─────────────
+[[ -f "$SPIRAL_HOME/lib/spiral_undo.sh" ]] && source "$SPIRAL_HOME/lib/spiral_undo.sh"
+
 # ── Helper: append a JSONL event to spiral_events.jsonl ─────────────────────
 SPIRAL_SCRATCH_DIR="${SPIRAL_SCRATCH_DIR:-.spiral}"
 log_ralph_event() {
@@ -933,6 +936,13 @@ create_story_branch() {
     STORY_BRANCH="$branch_name"
     log_ralph_event "story_branch_created" "\"storyId\":\"$story_id\",\"branch\":\"$branch_name\""
     echo "  [branch] On branch: $branch_name"
+    # Record branch creation in undo log so it can be reversed on failure (US-239)
+    if type undo_log_record &>/dev/null; then
+      local _prev_branch
+      _prev_branch=$(git rev-parse --abbrev-ref HEAD@{1} 2>/dev/null || echo "${SPIRAL_BASE_BRANCH:-main}")
+      undo_log_record "$story_id" "branch_create" "$branch_name" \
+        "git checkout ${_prev_branch} 2>/dev/null || git checkout -; git branch -D $branch_name 2>/dev/null || true"
+    fi
   else
     echo "  [branch] WARNING: failed to create/switch to $branch_name — continuing on current branch"
     STORY_BRANCH=""
@@ -987,6 +997,8 @@ Story: ${story_id}"
     else
       echo "  [branch] Kept: $branch_name (SPIRAL_KEEP_STORY_BRANCHES=true)"
     fi
+    # Clean up undo log — story is committed and merged, no rollback needed (US-239)
+    type undo_log_cleanup &>/dev/null && undo_log_cleanup "$story_id"
   else
     echo "  [branch] WARNING: merge conflict — manual resolution required"
     echo "  [branch] Aborting merge; $branch_name kept on $base_branch"
@@ -1622,6 +1634,19 @@ while [[ $ITERATION -lt $MAX_ITERATIONS ]]; do
 
   # Capture git baseline SHA for Karpathy ratchet (reset on failure)
   PRE_STORY_SHA=$(git rev-parse HEAD 2>/dev/null || echo "")
+
+  # ── Undo log: detect stale log from a prior failed attempt (US-239) ──────
+  if type undo_log_exists &>/dev/null && undo_log_exists "$NEXT_STORY"; then
+    echo "  [undo] Prior undo log detected for $NEXT_STORY — previous attempt left partial state"
+    echo "  [undo] Worktree reset to $PRE_STORY_SHA (idempotent retry)"
+    log_ralph_event "undo_log_stale_detected" "\"storyId\":\"$NEXT_STORY\",\"sha\":\"$PRE_STORY_SHA\""
+  fi
+
+  # Record checkpoint: enables clean rollback to pre-story HEAD on failure
+  if type undo_log_record &>/dev/null && [[ -n "$PRE_STORY_SHA" ]]; then
+    undo_log_record "$NEXT_STORY" "checkpoint" "HEAD:$PRE_STORY_SHA" \
+      "git reset --hard $PRE_STORY_SHA"
+  fi
 
   # ── Memory pressure gate (cooperative) ────────────────────────────────────
   if type spiral_pressure_level &>/dev/null; then
@@ -2377,6 +2402,12 @@ ACTION: Fix the critical issues listed above before marking passes=true."
         "$ITERATION" "${STORY_DURATION:-0}")
       _CONV_MSG="${_CONV_MSG}
 Co-Authored-By: Claude ${COAUTHOR_LABEL} 4.6 <noreply@anthropic.com>"
+      # Record pre-commit SHA in undo log before committing (US-239)
+      if type undo_log_record &>/dev/null; then
+        _PRE_COMMIT_SHA=$(git rev-parse HEAD 2>/dev/null || echo "")
+        [[ -n "$_PRE_COMMIT_SHA" ]] && undo_log_record "$NEXT_STORY" "git_commit" \
+          "pre-commit:$_PRE_COMMIT_SHA" "git reset --hard $_PRE_COMMIT_SHA"
+      fi
       do_git_commit "$_CONV_MSG" || echo "[warn] No changes to commit"
 
       # Record _passedCommit SHA in prd.json for traceability
@@ -2404,6 +2435,12 @@ Co-Authored-By: Claude ${COAUTHOR_LABEL} 4.6 <noreply@anthropic.com>"
 
       # Finalize story branch: merge to base or push for PR (US-157)
       finalize_story_branch "$NEXT_STORY" "$COMMIT_SHA"
+
+      # When no branch prefix is configured, finalize_story_branch is a no-op,
+      # so clean up the undo log here instead (US-239)
+      if [[ -z "${SPIRAL_BRANCH_PREFIX:-}" ]]; then
+        type undo_log_cleanup &>/dev/null && undo_log_cleanup "$NEXT_STORY"
+      fi
 
       append_result "keep" "$COMMIT_SHA"
       log_ralph_event "story_passed" "\"storyId\":\"$NEXT_STORY\",\"retryCount\":$(get_retry_count "$NEXT_STORY"),\"model\":\"${EFFECTIVE_MODEL:-sonnet}\""

@@ -119,6 +119,7 @@ NO_CASCADE_SKIP=0     # 1 = disable dependency cascade skip (--no-cascade-skip)
 DOCTOR_MODE=0         # 1 = run dependency check and exit (--doctor)
 REPLAY_STORY_ID=""    # "" = normal mode; "US-XXX" = replay that story only (--replay)
 ROLLBACK_STORY_ID=""  # "" = normal mode; "US-XXX" = rollback that story's commit (--rollback)
+UNDO_STORY_ID=""      # "" = normal mode; "US-XXX" = replay undo log for that story (--undo)
 RESET_CHECKPOINT=0    # 1 = remove _checkpoint.json and start fresh (--reset)
 MIGRATE_MODE=0        # 1 = run prd.json schema migration and exit (--migrate)
 ARCHIVE_MODE=0        # 1 = archive completed stories and exit (--archive-done)
@@ -230,6 +231,10 @@ while [[ $# -gt 0 ]]; do
       ROLLBACK_STORY_ID="$2"
       shift 2
       ;;
+    --undo)
+      UNDO_STORY_ID="$2"
+      shift 2
+      ;;
     --reset)
       RESET_CHECKPOINT=1
       shift
@@ -294,7 +299,8 @@ while [[ $# -gt 0 ]]; do
       echo "  --allow-exec-writes        Allow LLM to write executable files outside src/ and tests/ (sets SPIRAL_ALLOW_EXEC_WRITES=1)"
       echo "  --doctor                   Check all runtime dependencies and exit"
       echo "  --replay STORY_ID          Re-run a single story in an isolated worktree (Phases I+V only)"
-  echo "  --rollback STORY_ID        Revert a passed story's git commit and reset its prd.json status"
+      echo "  --rollback STORY_ID        Revert a passed story's git commit and reset its prd.json status"
+      echo "  --undo STORY_ID            Replay undo log in reverse, restoring worktree to pre-attempt state"
       echo "  --reset                    Remove checkpoint and start fresh from iteration 1"
       echo "  --migrate                  Migrate prd.json to current schema version and exit"
       echo "  --archive-done             Archive completed stories to prd-archive.json and exit"
@@ -1661,6 +1667,44 @@ if [[ -n "$ROLLBACK_STORY_ID" ]]; then
   exit 0
 fi
 
+# ── --undo: replay undo log in reverse to restore pre-attempt worktree state ─
+# Reads .spiral/undo/STORY_ID.jsonl (written by ralph.sh during Phase I) and
+# executes each inverse_command in reverse order (LIFO), then deletes the log.
+# Use after a partial story failure leaves the worktree in a mixed state.
+if [[ -n "${UNDO_STORY_ID:-}" ]]; then
+  _UNDO_LIB="$SPIRAL_HOME/lib/spiral_undo.sh"
+  if [[ ! -f "$_UNDO_LIB" ]]; then
+    echo "[undo] ERROR: lib/spiral_undo.sh not found (SPIRAL_HOME=$SPIRAL_HOME)"
+    exit $ERR_MISSING_DEP
+  fi
+  source "$_UNDO_LIB"
+
+  _UNDO_LOG_PATH="${SPIRAL_SCRATCH_DIR:-.spiral}/undo/${UNDO_STORY_ID}.jsonl"
+
+  echo ""
+  echo "  ╔══════════════════════════════════════════════════════╗"
+  echo "  ║  [UNDO] $UNDO_STORY_ID"
+  echo "  ║  Replaying undo log: $_UNDO_LOG_PATH"
+  echo "  ╚══════════════════════════════════════════════════════╝"
+  echo ""
+
+  if ! undo_log_exists "$UNDO_STORY_ID"; then
+    echo "[undo] No undo log found for '$UNDO_STORY_ID' at $_UNDO_LOG_PATH"
+    echo "[undo] Nothing to undo — worktree is already clean, or use --rollback for committed stories."
+    exit 0
+  fi
+
+  if undo_log_replay "$UNDO_STORY_ID"; then
+    undo_log_cleanup "$UNDO_STORY_ID"
+    echo "  [undo] Done. Story '$UNDO_STORY_ID' worktree restored."
+    exit 0
+  else
+    echo "  [undo] Replay finished with errors."
+    echo "  [undo] Manual inspection of the worktree is recommended."
+    exit $ERR_ROLLBACK_FAILED
+  fi
+fi
+
 # ── Startup: initialize counters and resume from checkpoint if available ────
 ZERO_PROGRESS_COUNT=0
 SPIRAL_ITER=0
@@ -2106,6 +2150,7 @@ $INJECTED_PROMPT"
       _R_ATTEMPT=0
       _R_MAX_ATTEMPTS=$((SPIRAL_RESEARCH_RETRIES + 1))
       _R_SUCCESS=0
+      _R_RESULT_TMP="${SCRATCH_DIR}/_r_result_$$.tmp"
 
       while [[ "$_R_ATTEMPT" -lt "$_R_MAX_ATTEMPTS" ]]; do
         if [[ "$_R_ATTEMPT" -gt 0 ]]; then
@@ -2117,6 +2162,7 @@ $INJECTED_PROMPT"
 
         _R_EXIT=0
         _R_START=$(date +%s)
+        rm -f "$_R_RESULT_TMP"
         if [[ "${SPIRAL_RESEARCH_TIMEOUT:-300}" -gt 0 ]] && command -v timeout &>/dev/null; then
           if command -v node &>/dev/null && [[ -f "$STREAM_FMT" ]]; then
             (
@@ -2128,8 +2174,9 @@ $INJECTED_PROMPT"
                 --max-turns 30 \
                 --verbose \
                 --output-format stream-json \
+                --betas prompt-caching-2024-07-31 \
                 --dangerously-skip-permissions \
-                </dev/null 2>&1 | node "$STREAM_FMT"
+                </dev/null 2>&1 | tee "$_R_RESULT_TMP" | node "$STREAM_FMT"
             ) || _R_EXIT=$?
           else
             (
@@ -2139,6 +2186,7 @@ $INJECTED_PROMPT"
                 --model "$RESEARCH_MODEL" \
                 --allowedTools "$RESEARCH_TOOLS" \
                 --max-turns 30 \
+                --betas prompt-caching-2024-07-31 \
                 --dangerously-skip-permissions \
                 </dev/null 2>&1
             ) || _R_EXIT=$?
@@ -2153,8 +2201,9 @@ $INJECTED_PROMPT"
                 --max-turns 30 \
                 --verbose \
                 --output-format stream-json \
+                --betas prompt-caching-2024-07-31 \
                 --dangerously-skip-permissions \
-                </dev/null 2>&1 | node "$STREAM_FMT"
+                </dev/null 2>&1 | tee "$_R_RESULT_TMP" | node "$STREAM_FMT"
             ) || _R_EXIT=$?
           else
             (
@@ -2163,10 +2212,27 @@ $INJECTED_PROMPT"
                 --model "$RESEARCH_MODEL" \
                 --allowedTools "$RESEARCH_TOOLS" \
                 --max-turns 30 \
+                --betas prompt-caching-2024-07-31 \
                 --dangerously-skip-permissions \
                 </dev/null 2>&1
             ) || _R_EXIT=$?
           fi
+        fi
+        # ── Parse Phase R cache tokens (stream-json variants only) ────────────
+        if [[ -f "$_R_RESULT_TMP" ]]; then
+          _R_RESULT_LINE=$(grep -m1 '"type":"result"' "$_R_RESULT_TMP" 2>/dev/null || true)
+          if [[ -n "$_R_RESULT_LINE" && -n "$JQ" ]]; then
+            _R_CC=$("$JQ" -r '.usage.cache_creation_input_tokens // 0' <<<"$_R_RESULT_LINE" 2>/dev/null || echo 0)
+            _R_CR=$("$JQ" -r '.usage.cache_read_input_tokens // 0' <<<"$_R_RESULT_LINE" 2>/dev/null || echo 0)
+            [[ "$_R_CC" =~ ^[0-9]+$ ]] || _R_CC=0
+            [[ "$_R_CR" =~ ^[0-9]+$ ]] || _R_CR=0
+            if [[ "$_R_CC" -gt 0 || "$_R_CR" -gt 0 ]]; then
+              echo "  [cache] Phase R — creation=${_R_CC} read=${_R_CR}"
+              log_spiral_event "phase_cache_hit" \
+                "\"phase\":\"R\",\"cache_creation_tokens\":${_R_CC},\"cache_read_tokens\":${_R_CR},\"cache_hit\":$([ "$_R_CR" -gt 0 ] && echo true || echo false)"
+            fi
+          fi
+          rm -f "$_R_RESULT_TMP"
         fi
         _R_ELAPSED=$(($(date +%s) - _R_START))
         if [[ "$_R_EXIT" -eq 124 ]]; then
