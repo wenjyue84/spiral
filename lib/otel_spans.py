@@ -556,8 +556,8 @@ def main() -> None:
         elif args.command == "emit-action":
             cmd_emit_action(args)
     except Exception:  # pylint: disable=broad-except
-        # Never crash spiral.sh due to OTel errors
-        pass
+        import traceback
+        print("[otel_spans] ERROR:", traceback.format_exc(), file=sys.stderr)
 
 
 if __name__ == "__main__":

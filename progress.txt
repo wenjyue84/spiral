@@ -6051,3 +6051,30 @@ Incomplete: Enforce cgroups v2 memory and CPU limits on worker subprocesses (ID:
 - retry-counts.json is 0 bytes on this repo — `_load_retry_counts` had no guard; fixed with try/except
 - results.tsv has no `cost_usd` column so total_cost stays 0.0 (graceful fallback)
 - test_check_dag and test_conflict_preflight were already failing before this iteration (pre-existing)
+## Iteration 2 - Sun, Mar 15, 2026 10:21:18 PM
+Incomplete: Enforce cgroups v2 memory and CPU limits on worker subprocesses (ID: US-259) — attempt /3
+
+
+---
+
+## Iteration [N] - Story: US-263: Add prd.json schema validation using JSON Schema draft 2020-12
+
+### What was implemented
+- Updated `prd.schema.json`: added `status` enum field (pending/in-progress/done/blocked/blocked-by-sast/skipped), kept title.maxLength=100 for backward compat
+- Updated `lib/prd_schema.py`: errors now use JSON Pointer format `SCHEMA ERROR: /userStories/0/priority — message`, added `--validate-write NEW_FILE` mode with prd.json.bak backup/restore via `write_prd_validated()`, stdlib errors also prefixed with `SCHEMA ERROR: / —`
+- Created `.git/hooks/pre-commit`: validates staged prd.json; aborts commit on validation failure
+- Created `tests/prd_schema_validation.bats`: 9 tests all passing — invalid priority with JSON Pointer path, validate-write backup/restore pattern, maxLength enforcement, minItems check
+- Fixed 29 pre-existing prd.json validation issues: 11 stories missing acceptanceCriteria (added placeholder), 7 stories with title-string dependencies (replaced with correct US-NNN IDs)
+
+### Patterns discovered
+- bats tests on Windows/Git Bash: use `SPIRAL_PYTHON=".venv/Scripts/python.exe"` to get the uv venv Python (which has jsonschema); system `python3` lacks jsonschema
+- Inline Python `open('$prd', ...)` in bats fails on Windows: POSIX path `/tmp/...` not resolved by Python. Use `python3 -c "..." "$prd"` with `sys.argv[1]` instead
+- `additionalProperties: false` in userStory schema means all new fields must be added to schema before use
+
+### Gotchas
+- Changing title.maxLength to 80 would break 30 existing stories — kept at 100 for backward compat
+- pre-commit hook uses the Python from SPIRAL_PYTHON env var (falls back to python3); needs venv Python for full JSON Schema enforcement
+- Empty acceptanceCriteria=[] violates minItems:1 — should never add empty arrays for this field
+## Iteration 3 - Sun, Mar 15, 2026 10:34:54 PM
+Incomplete: Enforce cgroups v2 memory and CPU limits on worker subprocesses (ID: US-259) — attempt /3
+

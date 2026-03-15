@@ -83,8 +83,8 @@ def cmd_record_tokens(args: argparse.Namespace) -> None:
     try:
         with open(_token_metrics_path(scratch_dir), "a", encoding="utf-8") as f:
             f.write(json.dumps(record) + "\n")
-    except OSError:
-        pass  # Non-fatal
+    except OSError as e:
+        print(f"[otel_metrics] WARNING: failed to write metrics: {e}", file=sys.stderr)
 
     # ── 2. OTLP metrics export ────────────────────────────────────────────────
     endpoint = _otlp_endpoint()
@@ -134,7 +134,8 @@ def cmd_record_tokens(args: argparse.Namespace) -> None:
         # Force flush so the exporter actually sends before process exits
         provider.force_flush(timeout_millis=5000)
     except Exception:  # pylint: disable=broad-except
-        pass  # Never crash spiral.sh due to OTel errors
+        import traceback
+        print("[otel_metrics] ERROR:", traceback.format_exc(), file=sys.stderr)
 
 
 def _build_prometheus_text(scratch_dir: str) -> str:
@@ -269,8 +270,8 @@ def main() -> None:
         elif args.command == "serve-prometheus":
             cmd_serve_prometheus(args)
     except Exception:  # pylint: disable=broad-except
-        # Never crash spiral.sh due to metrics errors
-        pass
+        import traceback
+        print("[otel_metrics] ERROR:", traceback.format_exc(), file=sys.stderr)
 
 
 if __name__ == "__main__":

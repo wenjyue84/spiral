@@ -535,6 +535,24 @@ validate_config() {
 }
 validate_config
 
+# ── US-264: Startup env var schema validation ─────────────────────────────────
+# Reads env_schema.json, validates all SPIRAL env vars, prints colour-coded
+# table, and exits with code 1 if any required var is missing or invalid.
+validate_env() {
+  local _schema="$SPIRAL_HOME/env_schema.json"
+  if [[ ! -f "$_schema" ]]; then
+    echo "[validate_env] WARNING: env_schema.json not found at $_schema — skipping validation" >&2
+    return 0
+  fi
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/validate_env.py" --schema "$_schema"
+  local _rc=$?
+  if [[ "$_rc" -ne 0 ]]; then
+    exit "$_rc"
+  fi
+}
+validate_env
+
+
 # ── Structured logging: SPIRAL_LOG_LEVEL filtering (US-130) ──────────────────
 # Accepts DEBUG / INFO / WARN / ERROR (case-insensitive; normalised to upper on read).
 # Requires bash 4.0+ for associative arrays (already required by spiral.sh).

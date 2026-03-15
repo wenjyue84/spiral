@@ -1,0 +1,198 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "SPIRAL environment variable schema — living documentation of all configuration surface",
+  "vars": [
+    {
+      "name": "ANTHROPIC_API_KEY",
+      "required": true,
+      "type": "string",
+      "default": "",
+      "description": "Anthropic API key used by Claude CLI workers to make LLM calls",
+      "fix_hint": "export ANTHROPIC_API_KEY=sk-ant-..."
+    },
+    {
+      "name": "SPIRAL_PYTHON",
+      "required": false,
+      "type": "string",
+      "default": "python3",
+      "description": "Python interpreter to use for all SPIRAL Python scripts",
+      "fix_hint": "export SPIRAL_PYTHON=python3"
+    },
+    {
+      "name": "SPIRAL_VALIDATE_CMD",
+      "required": false,
+      "type": "string",
+      "default": "python3 tests/run_tests.py --report-dir test-reports",
+      "description": "Command run in Phase V to validate story implementations",
+      "fix_hint": "export SPIRAL_VALIDATE_CMD='uv run pytest tests/ -v'"
+    },
+    {
+      "name": "SPIRAL_MODEL_ROUTING",
+      "required": false,
+      "type": "string",
+      "default": "auto",
+      "description": "Model escalation policy: auto (haiku→sonnet→opus), fixed:<model>, or off",
+      "fix_hint": "export SPIRAL_MODEL_ROUTING=auto"
+    },
+    {
+      "name": "SPIRAL_RESEARCH_MODEL",
+      "required": false,
+      "type": "string",
+      "default": "sonnet",
+      "description": "Claude model used in Phase R research synthesis",
+      "fix_hint": "export SPIRAL_RESEARCH_MODEL=sonnet"
+    },
+    {
+      "name": "SPIRAL_MAX_PENDING",
+      "required": false,
+      "type": "int",
+      "default": "0",
+      "description": "Max pending stories allowed in prd.json (0 = unlimited)",
+      "fix_hint": "export SPIRAL_MAX_PENDING=50"
+    },
+    {
+      "name": "SPIRAL_STORY_BATCH_SIZE",
+      "required": false,
+      "type": "int",
+      "default": "20",
+      "description": "Max stories shown in status output (0 = show all)",
+      "fix_hint": "export SPIRAL_STORY_BATCH_SIZE=20"
+    },
+    {
+      "name": "SPIRAL_COST_CEILING",
+      "required": false,
+      "type": "string",
+      "default": "",
+      "description": "USD spend cap per run (empty = disabled). Example: 10.00",
+      "fix_hint": "export SPIRAL_COST_CEILING=10.00"
+    },
+    {
+      "name": "SPIRAL_IMPL_TIMEOUT",
+      "required": false,
+      "type": "int",
+      "default": "600",
+      "description": "Seconds before a Phase I ralph worker is killed (0 = unlimited)",
+      "fix_hint": "export SPIRAL_IMPL_TIMEOUT=600"
+    },
+    {
+      "name": "SPIRAL_VALIDATE_TIMEOUT",
+      "required": false,
+      "type": "int",
+      "default": "300",
+      "description": "Seconds before Phase V validation is killed (0 = unlimited)",
+      "fix_hint": "export SPIRAL_VALIDATE_TIMEOUT=300"
+    },
+    {
+      "name": "SPIRAL_RESEARCH_TIMEOUT",
+      "required": false,
+      "type": "int",
+      "default": "300",
+      "description": "Seconds before Phase R LLM call is killed (0 = unlimited)",
+      "fix_hint": "export SPIRAL_RESEARCH_TIMEOUT=300"
+    },
+    {
+      "name": "SPIRAL_MEMORY_LIMIT",
+      "required": false,
+      "type": "int",
+      "default": "1024",
+      "description": "V8 heap size in MB for Claude CLI workers",
+      "fix_hint": "export SPIRAL_MEMORY_LIMIT=1024"
+    },
+    {
+      "name": "SPIRAL_LOW_POWER_MODE",
+      "required": false,
+      "type": "bool",
+      "default": "1",
+      "description": "Enable memory-pressure-aware worker throttling (0=off, 1=on)",
+      "fix_hint": "export SPIRAL_LOW_POWER_MODE=1"
+    },
+    {
+      "name": "SPIRAL_LOG_LEVEL",
+      "required": false,
+      "type": "string",
+      "default": "INFO",
+      "description": "Log verbosity: DEBUG, INFO, WARN, or ERROR",
+      "fix_hint": "export SPIRAL_LOG_LEVEL=INFO"
+    },
+    {
+      "name": "SPIRAL_NOTIFY_WEBHOOK",
+      "required": false,
+      "type": "url",
+      "default": "",
+      "description": "HTTPS URL to POST phase lifecycle events (empty = disabled)",
+      "fix_hint": "export SPIRAL_NOTIFY_WEBHOOK=https://hooks.example.com/spiral"
+    },
+    {
+      "name": "OTEL_EXPORTER_OTLP_ENDPOINT",
+      "required": false,
+      "type": "url",
+      "default": "",
+      "description": "OpenTelemetry OTLP collector endpoint (empty = OTel disabled)",
+      "fix_hint": "export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317"
+    },
+    {
+      "name": "FIRECRAWL_API_KEY",
+      "required": false,
+      "type": "string",
+      "default": "",
+      "description": "Firecrawl API key (required only when SPIRAL_FIRECRAWL_ENABLED=1)",
+      "fix_hint": "export FIRECRAWL_API_KEY=fc-..."
+    },
+    {
+      "name": "SPIRAL_FIRECRAWL_ENABLED",
+      "required": false,
+      "type": "bool",
+      "default": "0",
+      "description": "Enable Firecrawl for Phase R web crawling (0=off, 1=on)",
+      "fix_hint": "export SPIRAL_FIRECRAWL_ENABLED=0"
+    },
+    {
+      "name": "SPIRAL_CREATE_PRS",
+      "required": false,
+      "type": "bool",
+      "default": "false",
+      "description": "Push story commits and open GitHub PRs after each story pass",
+      "fix_hint": "export SPIRAL_CREATE_PRS=false"
+    },
+    {
+      "name": "SPIRAL_AUTO_INFER_DEPS",
+      "required": false,
+      "type": "bool",
+      "default": "false",
+      "description": "Auto-infer story dependency edges and write to prd.json after Phase M",
+      "fix_hint": "export SPIRAL_AUTO_INFER_DEPS=false"
+    },
+    {
+      "name": "SPIRAL_DEV_URL",
+      "required": false,
+      "type": "url",
+      "default": "",
+      "description": "Dev server URL for Phase V screenshots (empty = screenshots disabled)",
+      "fix_hint": "export SPIRAL_DEV_URL=http://localhost:5173"
+    },
+    {
+      "name": "SPIRAL_GIT_AUTHOR",
+      "required": false,
+      "type": "string",
+      "default": "",
+      "description": "Fallback git identity when git config user.name/email is absent (format: Name <email>)",
+      "fix_hint": "export SPIRAL_GIT_AUTHOR='SPIRAL Bot <spiral@example.com>'"
+    },
+    {
+      "name": "SPIRAL_SKIP_STORY_IDS",
+      "required": false,
+      "type": "string",
+      "default": "",
+      "description": "Comma-separated story IDs to permanently skip (e.g. US-001,US-002)",
+      "fix_hint": "export SPIRAL_SKIP_STORY_IDS=US-001,US-002"
+    },
+    {
+      "name": "SPIRAL_PROM_PORT",
+      "required": false,
+      "type": "int",
+      "default": "",
+      "description": "Port for Prometheus metrics scrape endpoint (empty = disabled)",
+      "fix_hint": "export SPIRAL_PROM_PORT=9091"
+    }
+  ]
+}

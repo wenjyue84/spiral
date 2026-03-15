@@ -107,129 +107,143 @@ def validate_prd(prd: dict) -> list[str]:
     all_ids: set[str] = set()
 
     for i, story in enumerate(stories):
-        prefix = f"userStories[{i}]"
+        # JSON Pointer base for this story: /userStories/{i}
+        sp = f"/userStories/{i}"
 
         if not isinstance(story, dict):
-            errors.append(f"{prefix}: must be an object, got {type(story).__name__}")
+            errors.append(f"{sp} — must be an object, got {type(story).__name__}")
             continue
 
         # Required fields
         sid = story.get("id")
         if sid is None:
-            errors.append(f"{prefix}: missing required field 'id'")
+            errors.append(f"{sp}/id — missing required field 'id'")
         elif not isinstance(sid, str):
-            errors.append(f"{prefix}: id must be string, got {type(sid).__name__}")
+            errors.append(f"{sp}/id — id must be string, got {type(sid).__name__}")
         else:
             if not STORY_ID_PATTERN.match(sid):
-                errors.append(f"{prefix}: id '{sid}' does not match pattern (US|UT)-NNN")
+                errors.append(f"{sp}/id — id '{sid}' does not match pattern (US|UT)-NNN")
             if sid in seen_ids:
-                errors.append(f"{prefix}: duplicate story ID '{sid}' (first at index {seen_ids[sid]})")
+                errors.append(f"{sp}/id — duplicate story ID '{sid}' (first at index {seen_ids[sid]})")
             seen_ids[sid] = i
             all_ids.add(sid)
 
         if "title" not in story:
-            errors.append(f"{prefix}: missing required field 'title'")
+            errors.append(f"{sp}/title — missing required field 'title'")
         elif not isinstance(story["title"], str) or not story["title"].strip():
-            errors.append(f"{prefix}: title must be a non-empty string")
+            errors.append(f"{sp}/title — title must be a non-empty string")
+        elif len(story["title"]) > 80:
+            errors.append(
+                f"{sp}/title — title exceeds maxLength 80 ({len(story['title'])} chars)"
+            )
 
         if "passes" not in story:
-            errors.append(f"{prefix}: missing required field 'passes'")
+            errors.append(f"{sp}/passes — missing required field 'passes'")
         elif not isinstance(story["passes"], bool):
-            errors.append(f"{prefix}: passes must be boolean, got {type(story['passes']).__name__}")
+            errors.append(f"{sp}/passes — passes must be boolean, got {type(story['passes']).__name__}")
 
         if "priority" not in story:
-            errors.append(f"{prefix}: missing required field 'priority'")
+            errors.append(f"{sp}/priority — missing required field 'priority'")
         elif story["priority"] not in VALID_PRIORITIES:
-            errors.append(f"{prefix}: invalid priority '{story['priority']}' (valid: {', '.join(sorted(VALID_PRIORITIES))})")
+            errors.append(
+                f"{sp}/priority — invalid priority '{story['priority']}'"
+                f" (valid: {', '.join(sorted(VALID_PRIORITIES))})"
+            )
 
         if "description" in story and not isinstance(story["description"], str):
-            errors.append(f"{prefix}: description must be string")
+            errors.append(f"{sp}/description — description must be string")
 
         if "acceptanceCriteria" not in story:
-            errors.append(f"{prefix}: missing required field 'acceptanceCriteria'")
+            errors.append(f"{sp}/acceptanceCriteria — missing required field 'acceptanceCriteria'")
         elif not isinstance(story["acceptanceCriteria"], list):
-            errors.append(f"{prefix}: acceptanceCriteria must be a list")
+            errors.append(f"{sp}/acceptanceCriteria — acceptanceCriteria must be a list")
+        elif len(story["acceptanceCriteria"]) < 1:
+            errors.append(f"{sp}/acceptanceCriteria — must have at least 1 item (minItems: 1)")
 
         if "dependencies" not in story:
-            errors.append(f"{prefix}: missing required field 'dependencies'")
+            errors.append(f"{sp}/dependencies — missing required field 'dependencies'")
         elif not isinstance(story["dependencies"], list):
-            errors.append(f"{prefix}: dependencies must be a list")
+            errors.append(f"{sp}/dependencies — dependencies must be a list")
 
         # Optional fields (validate type when present)
         if "estimatedComplexity" in story:
             if story["estimatedComplexity"] not in VALID_COMPLEXITIES:
-                errors.append(f"{prefix}: invalid estimatedComplexity '{story['estimatedComplexity']}' (valid: {', '.join(sorted(VALID_COMPLEXITIES))})")
+                errors.append(
+                    f"{sp}/estimatedComplexity — invalid estimatedComplexity"
+                    f" '{story['estimatedComplexity']}'"
+                    f" (valid: {', '.join(sorted(VALID_COMPLEXITIES))})"
+                )
 
         if "technicalNotes" in story and not isinstance(story.get("technicalNotes"), list):
-            errors.append(f"{prefix}: technicalNotes must be a list")
+            errors.append(f"{sp}/technicalNotes — technicalNotes must be a list")
 
         if "_decomposed" in story and not isinstance(story["_decomposed"], bool):
-            errors.append(f"{prefix}: _decomposed must be boolean")
+            errors.append(f"{sp}/_decomposed — _decomposed must be boolean")
 
         if "_decomposedFrom" in story and not isinstance(story["_decomposedFrom"], str):
-            errors.append(f"{prefix}: _decomposedFrom must be string")
+            errors.append(f"{sp}/_decomposedFrom — _decomposedFrom must be string")
 
         if "_decomposedInto" in story and not isinstance(story["_decomposedInto"], list):
-            errors.append(f"{prefix}: _decomposedInto must be a list")
+            errors.append(f"{sp}/_decomposedInto — _decomposedInto must be a list")
 
         if "_failureReason" in story and not isinstance(story["_failureReason"], str):
-            errors.append(f"{prefix}: _failureReason must be string")
+            errors.append(f"{sp}/_failureReason — _failureReason must be string")
 
         if "_passedCommit" in story:
             pc = story["_passedCommit"]
             if not isinstance(pc, str):
-                errors.append(f"{prefix}: _passedCommit must be string")
+                errors.append(f"{sp}/_passedCommit — _passedCommit must be string")
             elif pc and not re.match(r'^[0-9a-f]{40}$', pc):
-                errors.append(f"{prefix}: _passedCommit must be a 40-char hex SHA or empty string")
+                errors.append(f"{sp}/_passedCommit — _passedCommit must be a 40-char hex SHA or empty string")
 
         if "filesTouch" in story and not isinstance(story["filesTouch"], list):
-            errors.append(f"{prefix}: filesTouch must be a list")
+            errors.append(f"{sp}/filesTouch — filesTouch must be a list")
 
         if "isTestFix" in story and not isinstance(story["isTestFix"], bool):
-            errors.append(f"{prefix}: isTestFix must be boolean")
+            errors.append(f"{sp}/isTestFix — isTestFix must be boolean")
 
         if "tags" in story:
             if not isinstance(story["tags"], list):
-                errors.append(f"{prefix}: tags must be a list")
+                errors.append(f"{sp}/tags — tags must be a list")
             else:
                 tag_pattern = re.compile(r"^[a-z0-9_-]+$")
                 for ti, tag in enumerate(story["tags"]):
                     if not isinstance(tag, str) or not tag:
-                        errors.append(f"{prefix}: tags[{ti}] must be a non-empty string")
+                        errors.append(f"{sp}/tags/{ti} — must be a non-empty string")
                     elif not tag_pattern.match(tag):
-                        errors.append(f"{prefix}: tags[{ti}] '{tag}' must match /^[a-z0-9_-]+$/")
+                        errors.append(f"{sp}/tags/{ti} — '{tag}' must match /^[a-z0-9_-]+$/")
 
         if "epicId" in story:
             if not isinstance(story["epicId"], str) or not story["epicId"].strip():
-                errors.append(f"{prefix}: epicId must be a non-empty string")
+                errors.append(f"{sp}/epicId — epicId must be a non-empty string")
 
     # ── Cross-story checks (only if IDs were valid) ──────────────────────────
     for i, story in enumerate(stories):
         if not isinstance(story, dict):
             continue
         sid = story.get("id", "")
-        prefix = f"userStories[{i}] ({sid})"
+        sp = f"/userStories/{i}"
 
         # Dependency references
         deps = story.get("dependencies", [])
         if isinstance(deps, list):
             for dep in deps:
                 if dep == sid:
-                    errors.append(f"{prefix}: self-referencing dependency '{dep}'")
+                    errors.append(f"{sp}/dependencies — self-referencing dependency '{dep}'")
                 elif dep not in all_ids:
-                    errors.append(f"{prefix}: dependency '{dep}' not found in userStories")
+                    errors.append(f"{sp}/dependencies — dependency '{dep}' not found in userStories")
 
         # _decomposedFrom reference
         parent = story.get("_decomposedFrom")
         if isinstance(parent, str) and parent not in all_ids:
-            errors.append(f"{prefix}: _decomposedFrom '{parent}' not found in userStories")
+            errors.append(f"{sp}/_decomposedFrom — '{parent}' not found in userStories")
 
         # _decomposedInto references
         children = story.get("_decomposedInto")
         if isinstance(children, list):
             for child_id in children:
                 if child_id not in all_ids:
-                    errors.append(f"{prefix}: _decomposedInto '{child_id}' not found in userStories")
+                    errors.append(f"{sp}/_decomposedInto — '{child_id}' not found in userStories")
 
     return errors
 
@@ -312,10 +326,10 @@ def write_prd_validated(prd_path: str, new_content_path: str) -> int:
     schema_file = _find_schema_file(prd_path)
     if schema_file and has_jsonschema():
         all_errors = validate_jsonschema(new_prd, schema_file)
-    # Always run stdlib cross-story checks (add as SCHEMA ERROR: / — ... if not already formatted)
+    # Always run stdlib cross-story checks; errors are already in /pointer — message format
     stdlib_errors = validate_prd(new_prd)
     for e in stdlib_errors:
-        all_errors.append(f"SCHEMA ERROR: / \u2014 {e}")
+        all_errors.append(f"SCHEMA ERROR: {e}")
 
     if all_errors:
         print(f"[schema] {new_content_path} \u2014 {len(all_errors)} validation error(s):", file=sys.stderr)
@@ -385,7 +399,7 @@ def main() -> int:
     if errors:
         print(f"[schema] {args.prd} \u2014 {len(errors)} error(s):", file=sys.stderr)
         for err in errors:
-            print(f"SCHEMA ERROR: / \u2014 {err}", file=sys.stderr)
+            print(f"SCHEMA ERROR: {err}", file=sys.stderr)
         return 2
 
     if not args.quiet:
