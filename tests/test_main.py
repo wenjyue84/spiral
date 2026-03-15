@@ -431,3 +431,102 @@ class TestCmdConfigExportEnv:
             main.cmd_config_export_env(self._args(output=str(out_file)))
         content = out_file.read_text(encoding="utf-8")
         assert not any(line.startswith("export") for line in content.splitlines())
+
+
+# ── US-216: status --tree ───────────────────────────────────────────────────
+
+def _tree_args(quiet=False):
+    return SimpleNamespace(
+        json=False, drift=False, sast=False, tree=True, quiet=quiet
+    )
+
+
+class TestCmdStatusTree:
+    """Tests for `spiral status --tree` dependency tree rendering (US-216)."""
+
+    def _run(self, tmp_path, stories, capsys, quiet=False, retry_counts=None):
+        prd_path = _make_prd(tmp_path, stories)
+        patches = _patch_paths(tmp_path, prd_path)
+        if retry_counts is not None:
+            rc_path = _make_retry_counts(tmp_path, retry_counts)
+            patches = _patch_paths(tmp_path, prd_path, retry_path=rc_path)
+        with patches[0]:
+            for p in patches[1:]:
+                p.start()
+            try:
+                main.cmd_status(_tree_args(quiet=quiet))
+            finally:
+                for p in patches[1:]:
+                    p.stop()
+        return capsys.readouterr().out
+
+    def test_root_nodes_shown(self, tmp_path, capsys):
+        """Roots (no deps) appear at the top level."""
+        stories = [
+            {"id": "US-001", "title": "Root story", "passes": True, "dependencies": []},
+        ]
+        out = self._run(tmp_path, stories, capsys)
+        assert "US-001" in out
+
+    def test_title_truncated_to_50(self, tmp_path, capsys):
+        """Story title is truncated at 50 characters in normal mode."""
+        long_title = "A" * 60
+        stories = [{"id": "US-001", "title": long_title, "passes": False, "dependencies": []}]
+        out = self._run(tmp_path, stories, capsys)
+        assert "A" * 50 in out
+        assert "A" * 51 not in out
+
+    def test_child_indented_under_parent(self, tmp_path, capsys):
+        """Dependent story appears indented below its dependency."""
+        stories = [
+            {"id": "US-001", "title": "Parent", "passes": True, "dependencies": []},
+            {"id": "US-002", "title": "Child", "passes": False, "dependencies": ["US-001"]},
+        ]
+        out = self._run(tmp_path, stories, capsys)
+        lines = [ln for ln in out.splitlines() if ln.strip()]
+        parent_idx = next(i for i, l in enumerate(lines) if "US-001" in l)
+        child_idx  = next(i for i, l in enumerate(lines) if "US-002" in l)
+        assert child_idx > parent_idx, "child must appear after parent"
+        parent_indent = len(lines[parent_idx]) - len(lines[parent_idx].lstrip("+`|-\u251c\u2514\u2502 "))
+        child_indent  = len(lines[child_idx])  - len(lines[child_idx].lstrip("+`|-\u251c\u2514\u2502 "))
+        assert child_indent > parent_indent, "child line must have more leading chars than parent"
+
+    def test_cycle_marker_shown(self, tmp_path, capsys):
+        """Cyclic dependency shows [CYCLE] marker instead of infinite recursion."""
+        # US-001 depends on US-002, US-002 depends on US-001
+        stories = [
+            {"id": "US-001", "title": "Story A", "passes": False, "dependencies": ["US-002"]},
+            {"id": "US-002", "title": "Story B", "passes": False, "dependencies": ["US-001"]},
+        ]
+        out = self._run(tmp_path, stories, capsys)
+        assert "[CYCLE]" in out
+
+    def test_quiet_shows_only_ids(self, tmp_path, capsys):
+        """--quiet shows story IDs without titles or status icons."""
+        stories = [
+            {"id": "US-001", "title": "A Story Title", "passes": True, "dependencies": []},
+        ]
+        out = self._run(tmp_path, stories, capsys, quiet=True)
+        assert "US-001" in out
+        assert "A Story Title" not in out
+
+    def test_status_icon_passed(self, tmp_path, capsys):
+        """Passed story shows pass icon (v or checkmark)."""
+        stories = [{"id": "US-001", "title": "Done", "passes": True, "dependencies": []}]
+        out = self._run(tmp_path, stories, capsys)
+        # Accept both unicode checkmark and ASCII 'v'
+        assert any(icon in out for icon in ["\u2713", "v"])
+
+    def test_status_icon_pending(self, tmp_path, capsys):
+        """Pending story shows pending icon (o or circle)."""
+        stories = [{"id": "US-001", "title": "Todo", "passes": False, "dependencies": []}]
+        out = self._run(tmp_path, stories, capsys)
+        assert any(icon in out for icon in ["\u25cb", "o"])
+
+    def test_no_prd_exits_1(self, tmp_path):
+        """Tree mode exits with code 1 when prd.json is missing."""
+        missing = tmp_path / "prd.json"
+        with patch.object(main, "PRD_FILE", missing):
+            with pytest.raises(SystemExit) as exc:
+                main.cmd_status(_tree_args())
+        assert exc.value.code == 1

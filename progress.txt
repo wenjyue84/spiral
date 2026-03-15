@@ -6957,3 +6957,86 @@ Incomplete: Stream ralph.sh worker stdout to spiral_dashboard via Server-Sent Ev
 - Pre-existing test failures: test_infer_dependencies (4 tests), test_partition (2 tests) — not related to US-278
 - 1196 tests pass; 6 pre-existing failures unchanged
 - This is a Linux-only feature by design; Windows/macOS users get a graceful skip with a warning
+## Iteration 1 - Mon, Mar 16, 2026  2:27:01 AM
+Incomplete: Stream ralph.sh worker stdout to spiral_dashboard via Server-Sent Events (ID: US-277) — attempt /3
+
+
+## Pre-analysis for US-277 (Gemini 2.5 Pro)
+This is a technical brief for implementing the SSE worker stream.
+
+**1. Target Files for Modification:**
+*   `lib/spiral_dashboard.py`: Most likely candidate to host the new `GET /api/worker-stream/{worker_id}` web endpoint. It's the main dashboard application.
+*   `lib/run_parallel_ralph.sh`: The script to be executed by the new endpoint via a subprocess.
+*   `main.py`: May require modification to register the new API route from `spiral_dashboard.py` if not handled automatically.
+
+**2. Frappe DocTypes & Hooks:**
+*   None. This is a standard Python application, not a Frappe project. The core concepts are "stories" and "workers," managed by existing application logic.
+
+**3. Recommended Implementation Approach:**
+*   In `spiral_dashboard.py`, define a new asynchronous API endpoint for `GET /api/worker-stream/{worker_id}` using a framework like FastAPI or aiohttp.
+*   The endpoint handler should return an `asyncio`-powered streaming response with `Content-Type: text/event-stream`.
+*   Use `asyncio.create_subprocess_exec` to run the `ralph.sh` script with `stdout=PIPE` and `stderr=PIPE`.
+*   To prevent deadlock, create two concurrent `asyncio.Task`s to read `stdout` and `stderr` line-by-line using `StreamReader.readline()`.
+*   For each line read, format a JSON payload and yield it as a Server-Sent Event: `data: {...}\n\n`.
+*   After the subprocess terminates, check the exit code and yield a final event: `data: {"type": "done", "status": "passed" | "failed"}\n\n`.
+
+**4. Edge Cases & Gotchas:**
+*   **Deadlock:** Reading `stdout` and `stderr` sequentially will cause a deadlock if one buffer fills up. Concurrent reading via `asyncio.create_task` is essential.
+*   **Client Disconnect:** The server must gracefully handle client disconnects by terminating the `ralph.sh` subprocess to prevent orphaned processes.
+*   **Worker State:** The endpoint must return an HTTP 404 if the requested `worker_id` does not correspond to an active or queued task. This requires querying the application's central work queue or state manager.
+*   **SSE Formatting:** Strict adherence to the `data: ...\n\n` format is required for browsers to correctly interpret the event stream.
+
+## Iteration 3 - Mon, Mar 16, 2026  2:34:51 AM
+Incomplete: Stream ralph.sh worker stdout to spiral_dashboard via Server-Sent Events (ID: US-277) — attempt /3
+
+
+## Pre-analysis for US-277 (Gemini 2.5 Pro)
+This brief outlines the implementation plan for streaming `ralph.sh` worker output via Server-Sent Events (SSE).
+
+**1. Files to Modify:**
+*   `lib/spiral_dashboard.py`: Primary candidate. This file likely houses the web server (FastAPI/Starlette) and is the logical place to add the new `/api/worker-stream/{worker_id}` endpoint.
+*   `lib/run_parallel_ralph.sh`: May need to be modified or referenced to understand how worker processes are started and identified, as the dashboard will need to hook into this process lifecycle.
+
+**2. Frameworks & Hooks:**
+*   This is a Python `asyncio` web application, likely using **FastAPI** or **Starlette**, not Frappe.
+*   The core component is a new API route: `GET /api/worker-stream/{worker_id}`.
+*   No Frappe DocTypes or hooks are involved.
+
+**3. Implementation Approach:**
+*   In `spiral_dashboard.py`, define an async route handler for `/api/worker-stream/{worker_id}` that returns a `StreamingResponse` with `media_type="text/event-stream"`.
+*   The handler should be an `async def` generator that locates the target worker's subprocess, likely managed by a central process registry (e.g., a simple `dict`).
+*   Use `asyncio.create_subprocess_exec` with `stdout=PIPE` and `stderr=PIPE` to run `ralph.sh`.
+*   Concurrently read `stdout` and `stderr` using two `asyncio.Task` instances wrapping `stream.readline()` loops to prevent deadlocks.
+*   For each line read, `yield` an SSE-formatted string: `f"data: {json.dumps(payload)}\\n\\n"`.
+*   After the process exits, `yield` a final "done" event and terminate the stream.
+
+**4. Edge Cases & Gotchas:**
+*   **Deadlock:** Do NOT use `process.communicate()`. You must read `stdout` and `stderr` concurrently to prevent the OS pipe buffers from filling up and stalling the subprocess.
+*   **Process Management:** The app needs a robust way to map `worker_id` to live `asyncio.subprocess.Process` objects. Return a 404 immediately if no process matches the ID.
+*   **Client Disconnect:** The server must detect when the client disconnects to gracefully terminate the streaming tasks and potentially the subprocess itself to prevent orphaned workers.
+*   **Error Handling:** Ensure both `stdout` and `stderr` are captured and streamed to give the operator full visibility into worker status and potential errors.
+
+
+---
+
+## Iteration [13] - Story: US-216: Add ASCII dependency tree view to `spiral status` subcommand output
+
+### What was implemented
+- `_story_status_icon()` helper in `main.py` — returns ASCII or Unicode icon (v/o/x/~) based on story state and stdout encoding
+- `_render_dep_tree()` in `main.py` — DFS tree renderer with Unicode box-drawing (├── └──) or ASCII (+-- `--) fallback
+  - Builds children map from `dependencies` fields; identifies root nodes (no parents)
+  - Detects cycles via `visited` set; prints `[CYCLE]` marker on revisit
+  - Respects `quiet` mode — shows only story IDs without titles or icons
+  - Falls back to ASCII when `sys.stdout.encoding` is not UTF-* (e.g. cp1252 on Windows)
+- `--tree` and `--quiet` flags added to `status_parser` argparse
+- `cmd_status()` handles `--tree` flag first (before --drift/--sast checks); reads `SPIRAL_LOG_LEVEL=quiet` env var
+- 8 tests in `tests/test_main.py` under `TestCmdStatusTree` — all pass
+
+### Patterns discovered
+- Windows Git Bash stdout encoding is `cp1252` (not UTF-8), so Unicode box chars raise `UnicodeEncodeError` — must detect and fall back to ASCII
+- `_patch_paths()` uses a list-of-context-managers pattern; existing tests use `with patches[0]: for p in patches[1:]: p.start()` pattern
+
+### Gotchas
+- The `visited.discard(sid)` at end of `_print_node` allows the same node to appear in multiple separate branches (not a cycle); only re-visits within the current recursion stack are flagged as cycles
+- `SPIRAL_LOG_LEVEL=quiet` env var is honored in addition to `--quiet` flag
+

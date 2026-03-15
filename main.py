@@ -10,6 +10,10 @@ Subcommands:
     export-env  Export spiral.config.sh SPIRAL_* variables as a .env file
   worktree      Git worktree management utilities
     audit       Audit all spiral worker worktrees for health anomalies
+  dlq           Dead-letter queue management (US-227)
+    promote     Move exhausted stories (retry >= SPIRAL_MAX_RETRIES) to DLQ state
+    list        Show all dead-lettered stories with failure reason and timestamp
+    replay      Re-enqueue a DLQ story after human review
 """
 import argparse
 import csv
@@ -17,6 +21,7 @@ import json
 import os
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 SPIRAL_SH = Path(__file__).parent / "spiral.sh"
@@ -26,6 +31,7 @@ RETRY_COUNTS = Path(__file__).parent / "retry-counts.json"
 SCRATCH_DIR = Path(__file__).parent / ".spiral"
 CHECKPOINT_FILE = SCRATCH_DIR / "_checkpoint.json"
 CALIBRATION_FILE = Path(__file__).parent / "calibration.jsonl"
+DLQ_AUDIT_LOG = SCRATCH_DIR / "audit.log"
 
 # ── ANSI colour helpers ───────────────────────────────────────────────────────
 _USE_COLOUR = not os.environ.get("NO_COLOR") and sys.stdout.isatty()
@@ -118,23 +124,42 @@ def _load_drift_reports(scratch_dir: Path) -> dict[str, dict]:
     return reports
 
 
+# ── Audit log ────────────────────────────────────────────────────────────────
+
+def _write_audit_log(event: str, payload: dict, audit_path: "Path | None" = None) -> None:
+    """Append a JSONL audit entry to .spiral/audit.log."""
+    if audit_path is None:
+        audit_path = DLQ_AUDIT_LOG
+    audit_path.parent.mkdir(parents=True, exist_ok=True)
+    entry = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "event": event,
+        **payload,
+    }
+    with open(audit_path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(entry) + "\n")
+
+
 # ── Status classification ─────────────────────────────────────────────────────
 
 def _classify_stories(
     stories: list[dict],
     retry_counts: dict[str, int],
 ) -> dict[str, list[dict]]:
-    """Split stories into passed / in_progress / skipped / pending buckets."""
+    """Split stories into passed / in_progress / skipped / dlq / pending buckets."""
     buckets: dict[str, list[dict]] = {
         "passed": [],
         "in_progress": [],
         "skipped": [],
+        "dlq": [],
         "pending": [],
     }
     for s in stories:
         sid = s.get("id", "")
         if s.get("passes"):
             buckets["passed"].append(s)
+        elif s.get("_dlq"):
+            buckets["dlq"].append(s)
         elif s.get("_skipped"):
             buckets["skipped"].append(s)
         elif retry_counts.get(sid, 0) > 0:
@@ -222,6 +247,7 @@ _STATUS_COLOUR = {
     "passed": "green",
     "in_progress": "yellow",
     "skipped": "red",
+    "dlq": "grey",
     "pending": "grey",
 }
 
@@ -229,6 +255,7 @@ _STATUS_LABEL = {
     "passed": "passed",
     "in_progress": "in_progress",
     "skipped": "skipped",
+    "dlq": "dlq",
     "pending": "pending",
 }
 
@@ -259,9 +286,10 @@ def _render_rich(
         "passed": "green",
         "in_progress": "yellow",
         "skipped": "red",
+        "dlq": "magenta",
         "pending": "grey50",
     }
-    for status in ("passed", "in_progress", "skipped", "pending"):
+    for status in ("passed", "in_progress", "skipped", "dlq", "pending"):
         group = buckets[status]
         count = len(group)
         pct = f"{count / total * 100:.1f}%" if total else "0.0%"
@@ -275,6 +303,9 @@ def _render_rich(
         )
 
     console.print(table)
+    dlq_count = len(buckets.get("dlq", []))
+    if dlq_count:
+        console.print(f"[magenta bold]⚠ DLQ: {dlq_count} story/stories dead-lettered — run 'spiral dlq list' to review[/magenta bold]")
     console.print(f"[dim]Total: {total} stories[/dim]\n")
 
 
@@ -300,7 +331,7 @@ def _render_plain(
     print(f"  {'  '.join(header_row)}")
     print(f"  {sep}")
 
-    for status in ("passed", "in_progress", "skipped", "pending"):
+    for status in ("passed", "in_progress", "skipped", "dlq", "pending"):
         group = buckets[status]
         count = len(group)
         pct = f"{count / total * 100:.1f}%" if total else "0.0%"
@@ -314,6 +345,9 @@ def _render_plain(
             f"{avg.rjust(col_widths[3])}"
         )
 
+    dlq_count = len(buckets.get("dlq", []))
+    if dlq_count:
+        print(f"\n  {_c(f'WARNING: {dlq_count} story/stories dead-lettered — run spiral dlq list', 'red')}")
     print(f"\n  Total: {total} stories\n")
 
 
@@ -946,6 +980,169 @@ def cmd_compact_prd(args) -> None:
         print(f"Backup: {backup}")
 
 
+# ── DLQ commands (US-227) ─────────────────────────────────────────────────────
+
+def cmd_dlq_promote(args) -> None:  # noqa: ARG001
+    """Move stories that exhausted retries into DLQ state in prd.json.
+
+    A story is promoted when its retry count in retry-counts.json is >=
+    SPIRAL_MAX_RETRIES (default 3) and it has not already passed or been DLQ'd.
+    """
+    max_retries = int(os.environ.get("SPIRAL_MAX_RETRIES", "3"))
+    dry_run = getattr(args, "dry_run", False)
+
+    if not PRD_FILE.exists():
+        print("No prd.json found.", file=sys.stderr)
+        sys.exit(1)
+
+    with open(PRD_FILE, encoding="utf-8") as f:
+        prd = json.load(f)
+
+    retry_counts = _load_retry_counts(RETRY_COUNTS)
+    stories = prd.get("userStories", [])
+    promoted: list[str] = []
+
+    for s in stories:
+        sid = s.get("id", "")
+        if s.get("passes") or s.get("_dlq") or s.get("_skipped") or s.get("_decomposed"):
+            continue
+        count = retry_counts.get(sid, 0)
+        if count >= max_retries:
+            if not dry_run:
+                s["_dlq"] = True
+                s["_dlqMetadata"] = {
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "retryCount": count,
+                    "reason": f"Exhausted {count} retries (SPIRAL_MAX_RETRIES={max_retries})",
+                }
+                _write_audit_log(
+                    "dlq_promote",
+                    {"story_id": sid, "retry_count": count, "max_retries": max_retries},
+                )
+            promoted.append(sid)
+
+    if promoted:
+        if not dry_run:
+            with open(PRD_FILE, "w", encoding="utf-8") as f:
+                json.dump(prd, f, indent=2, ensure_ascii=False)
+                f.write("\n")
+            print(f"[dlq] Promoted {len(promoted)} story/stories to DLQ: {', '.join(promoted)}")
+        else:
+            print(f"[dlq] dry-run: would promote {len(promoted)} story/stories: {', '.join(promoted)}")
+    else:
+        print("[dlq] No stories eligible for DLQ promotion.")
+
+
+def cmd_dlq_list(args) -> None:
+    """List all stories currently in DLQ state."""
+    json_out = getattr(args, "json_output", False)
+
+    if not PRD_FILE.exists():
+        if json_out:
+            print("[]")
+        else:
+            print("No prd.json found.", file=sys.stderr)
+        return
+
+    stories = _load_prd(PRD_FILE)
+    dlq_stories = [s for s in stories if s.get("_dlq")]
+
+    if json_out:
+        output = [
+            {
+                "id": s.get("id", ""),
+                "title": s.get("title", ""),
+                "dlqMetadata": s.get("_dlqMetadata", {}),
+            }
+            for s in dlq_stories
+        ]
+        print(json.dumps(output, indent=2))
+        return
+
+    if not dlq_stories:
+        print("[dlq] No stories in dead-letter queue.")
+        return
+
+    print(f"\n{_c('Dead-Letter Queue', 'bold')} — {len(dlq_stories)} story/stories\n")
+    col_id = 10
+    col_title = 45
+    col_ts = 26
+    col_retries = 7
+    header = (
+        _c("ID".ljust(col_id), "bold") + "  "
+        + _c("Title".ljust(col_title), "bold") + "  "
+        + _c("DLQ Timestamp".ljust(col_ts), "bold") + "  "
+        + _c("Retries".rjust(col_retries), "bold")
+    )
+    sep = "-" * (col_id + col_title + col_ts + col_retries + 6)
+    print(f"  {header}")
+    print(f"  {sep}")
+    for s in dlq_stories:
+        meta = s.get("_dlqMetadata", {})
+        ts = meta.get("timestamp", "unknown")[:19].replace("T", " ")
+        retries = str(meta.get("retryCount", "?"))
+        title = s.get("title", "")[:col_title]
+        print(
+            f"  {s.get('id', '').ljust(col_id)}  "
+            f"{title.ljust(col_title)}  "
+            f"{ts.ljust(col_ts)}  "
+            f"{retries.rjust(col_retries)}"
+        )
+    print()
+
+
+def cmd_dlq_replay(args) -> None:
+    """Re-enqueue a DLQ story after human review.
+
+    Validates the story is in DLQ state, resets its retry count to 0,
+    clears the _dlq flag, and writes an audit log entry.
+    """
+    story_id: str = args.story
+    dry_run = getattr(args, "dry_run", False)
+
+    if not PRD_FILE.exists():
+        print("No prd.json found.", file=sys.stderr)
+        sys.exit(1)
+
+    with open(PRD_FILE, encoding="utf-8") as f:
+        prd = json.load(f)
+
+    stories = prd.get("userStories", [])
+    target = next((s for s in stories if s.get("id") == story_id), None)
+
+    if target is None:
+        print(f"[dlq] Story '{story_id}' not found in prd.json.", file=sys.stderr)
+        sys.exit(1)
+
+    if not target.get("_dlq"):
+        print(f"[dlq] Story '{story_id}' is not in DLQ state (current: passes={target.get('passes')}, _skipped={target.get('_skipped')}).", file=sys.stderr)
+        sys.exit(1)
+
+    if dry_run:
+        print(f"[dlq] dry-run: would replay '{story_id}' (reset retry count, clear _dlq flag)")
+        return
+
+    # Clear DLQ fields
+    target.pop("_dlq", None)
+    target.pop("_dlqMetadata", None)
+
+    # Reset retry count in retry-counts.json
+    retry_counts = _load_retry_counts(RETRY_COUNTS)
+    retry_counts[story_id] = 0
+    RETRY_COUNTS.parent.mkdir(parents=True, exist_ok=True)
+    with open(RETRY_COUNTS, "w", encoding="utf-8") as f:
+        json.dump(retry_counts, f, indent=2)
+        f.write("\n")
+
+    # Write updated prd.json
+    with open(PRD_FILE, "w", encoding="utf-8") as f:
+        json.dump(prd, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+
+    _write_audit_log("dlq_replay", {"story_id": story_id})
+    print(f"[dlq] Story '{story_id}' re-enqueued: retry count reset to 0, _dlq cleared.")
+
+
 def cmd_init(args):  # noqa: ARG001
     """Run the interactive setup wizard."""
     setup_py = Path(__file__).parent / "lib" / "setup.py"
@@ -957,6 +1154,98 @@ def cmd_run(args):
     """Forward to spiral.sh with any extra arguments."""
     extra = args.spiral_args or []
     os.execvp("bash", ["bash", str(SPIRAL_SH)] + extra)
+
+
+def _story_status_icon(story: dict, retry_counts: dict[str, int], unicode_ok: bool = True) -> str:
+    """Return a status icon for a story node in the dependency tree."""
+    sid = story.get("id", "")
+    if story.get("passes"):
+        return "\u2713" if unicode_ok else "v"
+    if story.get("_dlq") or story.get("_skipped"):
+        return "\u2298" if unicode_ok else "x"
+    if retry_counts.get(sid, 0) > 0:
+        return "~"
+    return "\u25cb" if unicode_ok else "o"
+
+
+def _render_dep_tree(
+    stories: list[dict],
+    retry_counts: dict[str, int],
+    quiet: bool = False,
+) -> None:
+    """Render an ASCII dependency tree of stories to stdout.
+
+    Root nodes (no dependencies) are shown at the top level.
+    Children are indented using Unicode box-drawing characters.
+    Cycles are detected and displayed with a [CYCLE] marker.
+    """
+    # Determine Unicode vs ASCII based on stdout encoding
+    try:
+        enc = (sys.stdout.encoding or "ascii").lower()
+        unicode_ok = enc.startswith(("utf", "unicode"))
+    except Exception:
+        unicode_ok = False
+
+    if unicode_ok:
+        branch = "\u251c\u2500\u2500 "   # ├──
+        last   = "\u2514\u2500\u2500 "   # └──
+        vert   = "\u2502   "              # │
+        blank  = "    "
+    else:
+        branch = "+-- "
+        last   = "`-- "
+        vert   = "|   "
+        blank  = "    "
+
+    # Index stories by id
+    by_id: dict[str, dict] = {s.get("id", ""): s for s in stories if s.get("id")}
+
+    # Build children map: parent_id → [child_id, ...]
+    children: dict[str, list[str]] = {sid: [] for sid in by_id}
+    has_parent: set[str] = set()
+    for s in stories:
+        for dep in s.get("dependencies", []):
+            if dep in children:
+                children[dep].append(s.get("id", ""))
+                has_parent.add(s.get("id", ""))
+
+    roots = [sid for sid in by_id if sid not in has_parent]
+    roots.sort()
+
+    def _node_label(story: dict) -> str:
+        sid = story.get("id", "")
+        if quiet:
+            return sid
+        icon = _story_status_icon(story, retry_counts, unicode_ok=unicode_ok)
+        title = story.get("title", "")[:50]
+        return f"{icon} {sid}  {title}"
+
+    visited: set[str] = set()
+
+    def _print_node(sid: str, prefix: str, is_last: bool) -> None:
+        connector = last if is_last else branch
+        story = by_id.get(sid, {"id": sid, "title": "(unknown)"})
+        if sid in visited:
+            label = sid if quiet else f"[CYCLE] {sid}"
+            print(prefix + connector + label)
+            return
+        visited.add(sid)
+        print(prefix + connector + _node_label(story))
+        kids = children.get(sid, [])
+        kids_sorted = sorted(kids)
+        child_prefix = prefix + (blank if is_last else vert)
+        for i, kid in enumerate(kids_sorted):
+            _print_node(kid, child_prefix, i == len(kids_sorted) - 1)
+        visited.discard(sid)  # allow same node in different branches (non-cycle)
+
+    if not roots:
+        # All stories have parents — likely all have cycles; just list all
+        roots = sorted(by_id.keys())
+
+    print()
+    for i, root in enumerate(roots):
+        _print_node(root, "", i == len(roots) - 1)
+    print()
 
 
 def cmd_status(args):
@@ -977,6 +1266,12 @@ def cmd_status(args):
     # Determine run ID and current iteration
     run_id: str = checkpoint.get("run_id", "") or os.environ.get("SPIRAL_RUN_ID", "")
     iteration: int = checkpoint.get("iter", 0) or _latest_spiral_iter(results)
+
+    # ── US-216: --tree flag → ASCII dependency tree ────────────────────────
+    if getattr(args, "tree", False):
+        quiet = getattr(args, "quiet", False) or os.environ.get("SPIRAL_LOG_LEVEL", "") == "quiet"
+        _render_dep_tree(stories, retry_counts, quiet=quiet)
+        return
 
     # ── US-260: --drift flag → per-story drift indicator table ────────────
     if getattr(args, "drift", False):
@@ -1162,158 +1457,207 @@ def cmd_worktree_audit(args) -> None:
 
     anomalies: list[dict] = []
 
-    # ── 1. Parse `git worktree list --porcelain` ─────────────────────────────
+    # ── 1. Count prunable admin records via git porcelain ────────────────────
+    # On Windows/MSYS the path field in prunable entries is unreliable (git
+    # reports the main repo path instead of the original worker path).  We
+    # count prunable records and report a single aggregate anomaly rather than
+    # one per record.
     result = subprocess.run(
         ["git", "-C", str(repo_root), "worktree", "list", "--porcelain"],
         capture_output=True,
         text=True,
     )
-    raw = result.stdout
+    prunable_count = result.stdout.count("prunable ")
 
-    # Parse porcelain blocks (blank-line-separated)
-    worktrees: list[dict] = []
-    block: dict = {}
-    for line in raw.splitlines():
-        line = line.strip()
-        if not line:
-            if block:
-                worktrees.append(block)
-                block = {}
+    if prunable_count > 0:
+        anomalies.append({
+            "type": "prunable_records",
+            "count": prunable_count,
+            "safe_to_fix": True,
+            "remediation": "Run `git worktree prune` to remove stale admin records.",
+            "detail": (
+                f"{prunable_count} git worktree admin record(s) are prunable "
+                "(gitdir pointer(s) reference non-existent locations)."
+            ),
+        })
+
+    # ── 2. Scan physical .spiral-workers/ dirs ────────────────────────────────
+    # These are the actual worker worktrees on disk.  Use git directly on each
+    # worker dir to get HEAD / branch state — avoids MSYS path issues.
+    physical_workers: list[Path] = []
+    if worktree_base.is_dir():
+        physical_workers = sorted(
+            p for p in worktree_base.iterdir() if p.is_dir()
+        )
+
+    def _msys_to_win(raw: str) -> Path:
+        """Convert MSYS-style /c/foo paths to Windows C:/foo on win32."""
+        import re
+        m = re.match(r"^/([a-zA-Z])/(.*)", raw.replace("\\", "/"))
+        if m:
+            drive, rest = m.group(1).upper(), m.group(2)
+            return Path(f"{drive}:/{rest}")
+        return Path(raw)
+
+    # ── 3. Anomaly: worktree directory missing from disk ─────────────────────
+    # We derive expected worker paths from `.git/worktrees/` admin dirs.
+    git_worktrees_dir = repo_root / ".git" / "worktrees"
+    if git_worktrees_dir.is_dir():
+        for wt_admin in git_worktrees_dir.iterdir():
+            if not wt_admin.is_dir():
+                continue
+            gitdir_file = wt_admin / "gitdir"
+            if not gitdir_file.exists():
+                continue
+            # gitdir contains path like <worktree>/.git — strip last component
+            gitdir_content = gitdir_file.read_text(encoding="utf-8", errors="replace").strip()
+            # Handle MSYS-style /c/... paths on Windows
+            gitdir_path = _msys_to_win(gitdir_content)
+            if not gitdir_path.is_absolute():
+                gitdir_path = wt_admin / gitdir_path
+            wt_dir = gitdir_path.parent
+            try:
+                exists = wt_dir.exists()
+            except (OSError, ValueError):
+                exists = False
+            if not exists:
+                anomalies.append({
+                    "type": "missing_directory",
+                    "path": str(wt_dir),
+                    "admin_name": wt_admin.name,
+                    "safe_to_fix": True,
+                    "remediation": "Run `git worktree prune` to remove the stale admin record.",
+                    "detail": (
+                        f"Worktree admin record '{wt_admin.name}' exists but its "
+                        f"directory '{wt_dir}' is missing from disk."
+                    ),
+                })
+
+    # ── 4. Per-worker checks: detached HEAD, missing branch ──────────────────
+    branch_to_workers: dict[str, list[str]] = {}
+    for worker_dir in physical_workers:
+        # Detached HEAD check
+        head_check = subprocess.run(
+            ["git", "-C", str(worker_dir), "symbolic-ref", "--short", "HEAD"],
+            capture_output=True,
+            text=True,
+        )
+        if head_check.returncode != 0:
+            # Distinguish: true detached HEAD vs orphaned directory (admin record pruned)
+            sha_check = subprocess.run(
+                ["git", "-C", str(worker_dir), "rev-parse", "--short", "HEAD"],
+                capture_output=True,
+                text=True,
+            )
+            if sha_check.returncode != 0:
+                # git can't resolve HEAD at all → orphaned worktree directory
+                anomalies.append({
+                    "type": "orphaned_directory",
+                    "path": str(worker_dir),
+                    "safe_to_fix": True,
+                    "remediation": (
+                        f"Remove the orphaned directory: `rm -rf '{worker_dir}'` "
+                        "or re-add it as a worktree with `git worktree add`."
+                    ),
+                    "detail": (
+                        "Directory exists in .spiral-workers/ but is no longer a valid "
+                        "git worktree (admin record likely pruned)."
+                    ),
+                })
+            else:
+                sha = sha_check.stdout.strip() or "unknown"
+                anomalies.append({
+                    "type": "detached_head",
+                    "path": str(worker_dir),
+                    "safe_to_fix": False,
+                    "remediation": (
+                        f"Checkout a branch: `git -C '{worker_dir}' checkout -b <branch-name>`."
+                    ),
+                    "detail": f"Worktree HEAD is detached at {sha}.",
+                })
             continue
-        if line.startswith("worktree "):
-            block["path"] = line[len("worktree "):].strip()
-        elif line.startswith("HEAD "):
-            block["head"] = line[len("HEAD "):].strip()
-        elif line.startswith("branch "):
-            block["branch"] = line[len("branch "):].strip()
-        elif line == "detached":
-            block["detached"] = True
-        elif line.startswith("prunable"):
-            block["prunable"] = True
-        elif line.startswith("locked"):
-            block["locked"] = True
-    if block:
-        worktrees.append(block)
 
-    # Skip the main worktree (first entry)
-    worker_worktrees = worktrees[1:] if len(worktrees) > 1 else []
+        branch_name = head_check.stdout.strip()
 
-    # ── 2. Anomaly: worktree directory missing from disk ─────────────────────
-    for wt in worker_worktrees:
-        wt_path = Path(wt.get("path", ""))
-        if not wt_path.exists():
-            anomalies.append({
-                "type": "missing_directory",
-                "path": str(wt_path),
-                "safe_to_fix": True,
-                "remediation": "Run `git worktree prune` to remove the stale admin record.",
-                "detail": "Git admin record exists but the worktree directory is missing from disk.",
-            })
-
-    # ── 3. Anomaly: prunable admin records ───────────────────────────────────
-    for wt in worker_worktrees:
-        if wt.get("prunable"):
-            wt_path = wt.get("path", "<unknown>")
-            anomalies.append({
-                "type": "prunable_record",
-                "path": str(wt_path),
-                "safe_to_fix": True,
-                "remediation": "Run `git worktree prune` to clean up this stale record.",
-                "detail": "Git reports this worktree as prunable (gitdir points to non-existent location).",
-            })
-
-    # ── 4. Anomaly: detached HEAD ─────────────────────────────────────────────
-    for wt in worker_worktrees:
-        if wt.get("detached"):
-            wt_path = wt.get("path", "<unknown>")
-            anomalies.append({
-                "type": "detached_head",
-                "path": str(wt_path),
-                "safe_to_fix": False,
-                "remediation": f"Manually checkout a branch: `git -C '{wt_path}' checkout -b <branch-name>`.",
-                "detail": f"Worktree HEAD is detached at {wt.get('head', 'unknown')}.",
-            })
-
-    # ── 5. Anomaly: missing branch ────────────────────────────────────────────
-    for wt in worker_worktrees:
-        branch_ref = wt.get("branch", "")
-        if not branch_ref or wt.get("detached"):
-            continue
-        branch_name = branch_ref.replace("refs/heads/", "")
-        check = subprocess.run(
+        # Missing branch check (branch ref must exist in main repo)
+        branch_ref = f"refs/heads/{branch_name}"
+        ref_check = subprocess.run(
             ["git", "-C", str(repo_root), "rev-parse", "--verify", branch_ref],
             capture_output=True,
             text=True,
         )
-        if check.returncode != 0:
-            wt_path = wt.get("path", "<unknown>")
+        if ref_check.returncode != 0:
             anomalies.append({
                 "type": "missing_branch",
-                "path": str(wt_path),
+                "path": str(worker_dir),
                 "branch": branch_name,
                 "safe_to_fix": False,
-                "remediation": f"Recreate the branch: `git -C '{wt_path}' checkout -b {branch_name}`.",
-                "detail": f"Branch '{branch_name}' referenced by worktree no longer exists.",
+                "remediation": (
+                    f"Recreate the branch: `git -C '{worker_dir}' checkout -b {branch_name}`."
+                ),
+                "detail": (
+                    f"Branch '{branch_name}' referenced by worktree no longer exists in the main repo."
+                ),
             })
-
-    # ── 6. Anomaly: duplicate branch checkout ────────────────────────────────
-    branch_to_paths: dict[str, list[str]] = {}
-    for wt in worker_worktrees:
-        branch_ref = wt.get("branch", "")
-        if not branch_ref or wt.get("detached"):
             continue
-        branch_name = branch_ref.replace("refs/heads/", "")
-        branch_to_paths.setdefault(branch_name, []).append(wt.get("path", "<unknown>"))
 
-    for branch, paths in branch_to_paths.items():
+        branch_to_workers.setdefault(branch_name, []).append(str(worker_dir))
+
+    # ── 5. Anomaly: duplicate branch checkout ────────────────────────────────
+    for branch, paths in branch_to_workers.items():
         if len(paths) > 1:
             anomalies.append({
                 "type": "duplicate_branch_checkout",
                 "branch": branch,
                 "paths": paths,
                 "safe_to_fix": False,
-                "remediation": f"Remove duplicate worktree: `git worktree remove --force <path>`.",
-                "detail": f"Branch '{branch}' is checked out in {len(paths)} worktrees simultaneously.",
+                "remediation": "Remove a duplicate: `git worktree remove --force <path>`.",
+                "detail": (
+                    f"Branch '{branch}' is checked out in {len(paths)} worktrees simultaneously."
+                ),
             })
 
-    # ── 7. Anomaly: stale locks ───────────────────────────────────────────────
-    if worktree_base.is_dir():
-        for worker_dir in worktree_base.iterdir():
-            if not worker_dir.is_dir():
-                continue
-            # Resolve .git pointer to find actual git dir
-            git_ptr = worker_dir / ".git"
-            if git_ptr.is_file():
-                git_dir_line = git_ptr.read_text(encoding="utf-8", errors="replace").strip()
-                if git_dir_line.startswith("gitdir:"):
-                    git_dir = Path(git_dir_line[len("gitdir:"):].strip())
-                else:
-                    git_dir = worker_dir / ".git"
+    # ── 6. Anomaly: stale locks ───────────────────────────────────────────────
+    now = time.time()
+    for worker_dir in physical_workers:
+        git_ptr = worker_dir / ".git"
+        if git_ptr.is_file():
+            git_dir_line = git_ptr.read_text(encoding="utf-8", errors="replace").strip()
+            if git_dir_line.startswith("gitdir:"):
+                raw_path = git_dir_line[len("gitdir:"):].strip()
+                # On MSYS, paths may be Windows-style; resolve relative to worker_dir
+                git_dir = Path(raw_path)
+                if not git_dir.is_absolute():
+                    git_dir = worker_dir / git_dir
             else:
                 git_dir = worker_dir / ".git"
+        else:
+            git_dir = worker_dir / ".git"
 
-            if not git_dir.is_dir():
-                continue
+        if not git_dir.is_dir():
+            continue
 
-            now = time.time()
-            for lock_file in git_dir.glob("*.lock"):
-                try:
-                    age_secs = now - lock_file.stat().st_mtime
-                    age_mins = age_secs / 60
-                except OSError:
-                    age_mins = 0.0
+        for lock_file in git_dir.glob("*.lock"):
+            try:
+                age_secs = now - lock_file.stat().st_mtime
+                age_mins = age_secs / 60
+            except OSError:
+                age_mins = 0.0
 
-                if age_mins >= lock_age_limit:
-                    anomalies.append({
-                        "type": "stale_lock",
-                        "path": str(lock_file),
-                        "age_minutes": round(age_mins, 1),
-                        "safe_to_fix": True,
-                        "remediation": f"Remove the stale lock: `rm '{lock_file}'`.",
-                        "detail": f"Lock file is {round(age_mins, 1)} minutes old (threshold: {lock_age_limit} min).",
-                    })
+            if age_mins >= lock_age_limit:
+                anomalies.append({
+                    "type": "stale_lock",
+                    "path": str(lock_file),
+                    "age_minutes": round(age_mins, 1),
+                    "safe_to_fix": True,
+                    "remediation": f"Remove the stale lock: `rm '{lock_file}'`.",
+                    "detail": (
+                        f"Lock file is {round(age_mins, 1)} minutes old "
+                        f"(threshold: {lock_age_limit} min)."
+                    ),
+                })
 
-    # ── 8. Apply --fix for safe anomalies ────────────────────────────────────
+    # ── 7. Apply --fix for safe anomalies ────────────────────────────────────
     fixed: list[dict] = []
     skipped_unsafe: list[dict] = []
     if fix_mode:
@@ -1322,7 +1666,7 @@ def cmd_worktree_audit(args) -> None:
             if not a["safe_to_fix"]:
                 skipped_unsafe.append(a)
                 continue
-            if a["type"] in ("missing_directory", "prunable_record"):
+            if a["type"] in ("prunable_records", "missing_directory"):
                 run_prune = True
                 fixed.append(a)
             elif a["type"] == "stale_lock":
@@ -1340,8 +1684,8 @@ def cmd_worktree_audit(args) -> None:
                 capture_output=True,
             )
 
-    # ── 9. Output ─────────────────────────────────────────────────────────────
-    report = {
+    # ── 8. Output ─────────────────────────────────────────────────────────────
+    report: dict = {
         "anomalies": anomalies,
         "total": len(anomalies),
         "clean": len(anomalies) == 0,
@@ -1354,18 +1698,21 @@ def cmd_worktree_audit(args) -> None:
         print(json.dumps(report, indent=2))
     else:
         if report["clean"]:
-            print(_c("✓ All worktrees are healthy (no anomalies detected).", "green"))
+            print(_c("OK All worktrees are healthy (no anomalies detected).", "green"))
         else:
-            print(_c(f"✗ {len(anomalies)} anomaly(ies) found:", "red"))
+            print(_c(f"FAIL {len(anomalies)} anomaly(ies) found:", "red"))
             for a in anomalies:
                 atype = _c(a["type"], "yellow")
                 print(f"\n  [{atype}]")
                 print(f"    Detail:      {a.get('detail', '')}")
-                path_key = "path" if "path" in a else ("paths" if "paths" in a else None)
-                if path_key:
-                    print(f"    Path:        {a[path_key]}")
+                if "path" in a:
+                    print(f"    Path:        {a['path']}")
+                if "paths" in a:
+                    print(f"    Paths:       {a['paths']}")
                 if "branch" in a:
                     print(f"    Branch:      {a['branch']}")
+                if "count" in a:
+                    print(f"    Count:       {a['count']}")
                 if "age_minutes" in a:
                     print(f"    Age:         {a['age_minutes']} min")
                 safe = _c("yes", "green") if a["safe_to_fix"] else _c("no (manual action needed)", "red")
@@ -1505,6 +1852,16 @@ def main():
         "--sast",
         action="store_true",
         help="Show per-story SAST column (pass/warn/fail) from Phase G Semgrep scan",
+    )
+    status_parser.add_argument(
+        "--tree",
+        action="store_true",
+        help="Render a Unicode/ASCII dependency tree of stories instead of the status table",
+    )
+    status_parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="With --tree: show only story IDs (no titles or status icons)",
     )
 
     estimate_parser = subparsers.add_parser(
@@ -1716,6 +2073,52 @@ def main():
         help="Output machine-parseable JSON instead of human-readable text",
     )
 
+    # ── dlq subcommand (US-227) ───────────────────────────────────────────────
+    dlq_parser = subparsers.add_parser(
+        "dlq",
+        help="Dead-letter queue management for permanently failed stories",
+    )
+    dlq_subs = dlq_parser.add_subparsers(dest="dlq_command", metavar="COMMAND")
+
+    dlq_promote_parser = dlq_subs.add_parser(
+        "promote",
+        help="Move exhausted stories (retry >= SPIRAL_MAX_RETRIES) to DLQ state",
+    )
+    dlq_promote_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        dest="dry_run",
+        help="Show what would be promoted without modifying prd.json",
+    )
+
+    dlq_list_parser = dlq_subs.add_parser(
+        "list",
+        help="Show all dead-lettered stories with failure reason and timestamp",
+    )
+    dlq_list_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="json_output",
+        help="Output machine-parseable JSON",
+    )
+
+    dlq_replay_parser = dlq_subs.add_parser(
+        "replay",
+        help="Re-enqueue a DLQ story after human review (resets retry count)",
+    )
+    dlq_replay_parser.add_argument(
+        "--story",
+        required=True,
+        metavar="STORY_ID",
+        help="Story ID to replay (e.g. US-123)",
+    )
+    dlq_replay_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        dest="dry_run",
+        help="Show what would change without modifying any files",
+    )
+
     args = parser.parse_args()
 
     if args.command == "init":
@@ -1753,6 +2156,17 @@ def main():
             cmd_worktree_audit(args)
         else:
             worktree_parser.print_help()
+            sys.exit(0)
+    elif args.command == "dlq":
+        dlq_command = getattr(args, "dlq_command", None)
+        if dlq_command == "promote":
+            cmd_dlq_promote(args)
+        elif dlq_command == "list":
+            cmd_dlq_list(args)
+        elif dlq_command == "replay":
+            cmd_dlq_replay(args)
+        else:
+            dlq_parser.print_help()
             sys.exit(0)
     else:
         parser.print_help()
