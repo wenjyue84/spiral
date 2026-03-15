@@ -635,6 +635,150 @@ function spiralApiPlugin() {
           res.end(JSON.stringify({ error: String(e) }));
         }
       });
+
+      // ── GET /api/workers?name=X — list worker log files for a project ──────
+      server.middlewares.use('/api/workers', (req, res, next) => {
+        if (req.method !== 'GET') { next(); return; }
+        const url = new URL(req.url ?? '', 'http://localhost');
+        const name = url.searchParams.get('name') ?? '';
+
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Content-Type', 'application/json');
+
+        const reg = readRegistry();
+        const root = name ? (reg[name] ?? null) : PROJECT_ROOT;
+        if (!root) {
+          res.statusCode = 404;
+          res.end(JSON.stringify({ error: `Project "${name}" not found` }));
+          return;
+        }
+
+        const workersDir = path.join(root, '.spiral', 'workers');
+        const workers: { id: number; hasLog: boolean; hasHeartbeat: boolean }[] = [];
+        try {
+          if (fs.existsSync(workersDir)) {
+            for (const f of fs.readdirSync(workersDir)) {
+              const m = f.match(/^worker_(\d+)\.log$/);
+              if (!m) continue;
+              const id = parseInt(m[1]);
+              workers.push({
+                id,
+                hasLog: true,
+                hasHeartbeat: fs.existsSync(path.join(workersDir, `worker_${id}.heartbeat`)),
+              });
+            }
+          }
+        } catch { /* ignore */ }
+
+        workers.sort((a, b) => a.id - b.id);
+        res.end(JSON.stringify({ workers }));
+      });
+
+      // ── GET /api/worker-stream/<id> — SSE stream of a worker's log file ───
+      // Connect strips the '/api/worker-stream' prefix, so req.url = '/<id>'
+      server.middlewares.use('/api/worker-stream', (req, res, next) => {
+        if (req.method !== 'GET') { next(); return; }
+
+        // Parse worker_id from URL (handles stripped or un-stripped prefix)
+        const idMatch = (req.url ?? '').match(/\/(\d+)(?:\?|$)/);
+        if (!idMatch) { next(); return; }
+        const workerId = parseInt(idMatch[1]);
+
+        // Resolve project root via optional ?name= query param
+        const urlParsed = new URL(req.url ?? '', 'http://localhost');
+        const name = urlParsed.searchParams.get('name') ?? '';
+        const reg = readRegistry();
+        const root = name ? (reg[name] ?? PROJECT_ROOT) : PROJECT_ROOT;
+
+        const logFile = path.join(root, '.spiral', 'workers', `worker_${workerId}.log`);
+        if (!fs.existsSync(logFile)) {
+          res.statusCode = 404;
+          res.setHeader('Content-Type', 'application/json');
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          res.end(JSON.stringify({ error: `Worker ${workerId} log not found` }));
+          return;
+        }
+
+        // SSE headers
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+
+        const sendEvent = (data: object) => {
+          try { res.write(`data: ${JSON.stringify(data)}\n\n`); } catch { /* closed */ }
+        };
+
+        let offset = 0;
+        let lastSizeChange = Date.now();
+        let isDone = false;
+
+        const finish = (status: string) => {
+          if (isDone) return;
+          isDone = true;
+          sendEvent({ type: 'done', worker_id: workerId, status });
+          fs.unwatchFile(logFile, watcher);
+          clearInterval(staleTimer);
+          try { res.end(); } catch { /* already closed */ }
+        };
+
+        const readNewContent = () => {
+          if (isDone) return;
+          try {
+            const stat = fs.statSync(logFile);
+            if (stat.size > offset) {
+              const buf = Buffer.alloc(stat.size - offset);
+              const fd = fs.openSync(logFile, 'r');
+              fs.readSync(fd, buf, 0, buf.length, offset);
+              fs.closeSync(fd);
+              offset = stat.size;
+              lastSizeChange = Date.now();
+
+              const lines = buf.toString('utf8').split('\n');
+              for (const line of lines) {
+                if (!line.trim()) continue;
+                sendEvent({ type: 'line', worker_id: workerId, data: line });
+                // Detect Ralph session summary footer → worker finished
+                if (line.includes('\u255a')) {
+                  const tail = tailFile(logFile, 15);
+                  const status = /Status:\s+ALL COMPLETE/.test(tail) ? 'passed'
+                    : /Status:\s+\d+ stories remaining/.test(tail) ? 'failed'
+                    : 'unknown';
+                  setTimeout(() => finish(status), 100);
+                  return;
+                }
+              }
+            }
+          } catch { /* file locked or deleted */ }
+        };
+
+        // Stale-detection fallback: if no content change for 30s, close stream
+        const staleTimer = setInterval(() => {
+          if (isDone) return;
+          const heartbeatFile = path.join(root, '.spiral', 'workers', `worker_${workerId}.heartbeat`);
+          if (Date.now() - lastSizeChange > 30_000 && !fs.existsSync(heartbeatFile)) {
+            const tail = tailFile(logFile, 15);
+            const status = /Status:\s+ALL COMPLETE/.test(tail) ? 'passed'
+              : /Status:\s+\d+ stories remaining/.test(tail) ? 'failed'
+              : 'unknown';
+            finish(status);
+          }
+        }, 5_000);
+
+        // Watch file for changes (500ms poll)
+        const watcher = () => readNewContent();
+        fs.watchFile(logFile, { interval: 500, persistent: false }, watcher);
+
+        // Send existing content immediately
+        readNewContent();
+
+        // Clean up on client disconnect
+        req.on('close', () => {
+          isDone = true;
+          fs.unwatchFile(logFile, watcher);
+          clearInterval(staleTimer);
+        });
+      });
     },
   };
 }

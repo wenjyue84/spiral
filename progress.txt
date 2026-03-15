@@ -7040,3 +7040,90 @@ This brief outlines the implementation plan for streaming `ralph.sh` worker outp
 - The `visited.discard(sid)` at end of `_print_node` allows the same node to appear in multiple separate branches (not a cycle); only re-visits within the current recursion stack are flagged as cycles
 - `SPIRAL_LOG_LEVEL=quiet` env var is honored in addition to `--quiet` flag
 
+## Iteration 2 - Mon, Mar 16, 2026  2:49:57 AM
+Incomplete: Stream ralph.sh worker stdout to spiral_dashboard via Server-Sent Events (ID: US-277) — attempt /3
+
+
+## Pre-analysis for US-277 (Gemini 2.5 Pro)
+This technical brief is for a Python/asyncio implementation within the Spiral project, not a Frappe application.
+
+**Files to Modify:**
+*   `lib/spiral_dashboard.py`: To add the new `/api/worker-stream/{worker_id}` SSE endpoint.
+*   The Python module responsible for launching `ralph.sh` workers must be located and modified. This is likely a central orchestration script like `main.py` or a dedicated worker management module.
+
+**Involved Frappe DocTypes/Hooks:**
+*   None. This is a custom Python application using an async web framework (likely FastAPI or Starlette), not Frappe.
+
+**Recommended Implementation Approach:**
+1.  Refactor the worker creation logic to use `asyncio.create_subprocess_exec` to run `ralph.sh`, setting `stdout` and `stderr` to `asyncio.subprocess.PIPE`.
+2.  Store the returned `asyncio.subprocess.Process` objects in a shared, in-memory dictionary, keyed by `worker_id`.
+3.  In `spiral_dashboard.py`, create the `GET /api/worker-stream/{worker_id}` endpoint.
+4.  This endpoint should return a `StreamingResponse` with `Content-Type: text/event-stream`.
+5.  Inside, an async generator will look up the worker's `stdout` and `stderr` streams from the shared dictionary.
+6.  Use `asyncio.gather` on two tasks, each reading lines from `stdout` and `stderr` respectively, to prevent pipe deadlocks.
+7.  For each line, `yield` an SSE `data:` event containing a JSON payload: `{"story_id": "...", "worker_id": "...", "line": "..."}`.
+8.  After the process exits, send a final event: `data: {"type": "done", "status": "..."}`.
+
+**Edge Cases & Gotchas:**
+*   **State Management**: Safely sharing the dictionary of active worker processes between the spawner and the web server is critical.
+*   **Deadlock**: Do not use `process.communicate()`. Reading `stdout` and `stderr` concurrently is essential.
+*   **Resource Leaks**: The endpoint must detect client disconnects to stop the streaming tasks and clean up resources.
+*   **404 Errors**: If a `worker_id` is not found in the shared dictionary, the endpoint must return an HTTP 404 immediately.
+
+
+## Pre-analysis for US-277 (Gemini 2.5 Pro)
+### Technical Brief: US-277 SSE Worker Stream
+
+**Objective:** Implement a Server-Sent Events (SSE) endpoint to stream `stdout`/`stderr` from `ralph.sh` worker subprocesses to the `spiral_dashboard`.
+
+**1. Files to Modify:**
+*   `lib/spiral_dashboard.py`: This is the most probable location for the new API endpoint. Add a new route handler for the SSE stream.
+*   `lib/run_parallel_ralph.sh`: This script likely orchestrates `ralph.sh` workers. It may need to be modified or bypassed to allow `spiral_dashboard.py` to spawn and monitor the subprocesses directly.
+
+**2. Involved Components:**
+*   **DocTypes/Hooks:** N/A. This is a standard Python/shell script task, not a Frappe framework task.
+*   **Core Logic:** Involves Python's `asyncio` library, specifically `asyncio.create_subprocess_exec` to run `ralph.sh`.
+
+**3. Implementation Approach:**
+1.  In `spiral_dashboard.py`, define a new `async` API endpoint: `GET /api/worker-stream/{worker_id}`.
+2.  The endpoint should return a streaming response with `Content-Type: text/event-stream`.
+3.  Use `asyncio.create_subprocess_exec` to run `ralph.sh`, capturing `stdout` and `stderr` as `asyncio.subprocess.PIPE`.
+4.  Create two concurrent `asyncio.Task`s to read `process.stdout` and `process.stderr` line-by-line using `StreamReader.readline()`. This avoids deadlocks.
+5.  Each line read should be formatted as a JSON payload and sent as an SSE `data:` event.
+6.  Once the subprocess completes, send a final event like `data: {"type": "done", "status": "passed"}` and close the stream.
+
+**4. Edge Cases & Gotchas:**
+*   **Deadlock:** Failing to read both stdout and stderr concurrently will block the subprocess. `asyncio.create_task` for each stream is mandatory.
+*   **Process Exit:** Ensure the subprocess is properly awaited and the final "done" event is always sent, capturing the exit code to determine status.
+*   **Client Disconnect:** The server must gracefully handle client disconnects, cancelling the `asyncio` tasks and terminating the `ralph.sh` subprocess to prevent orphaned processes.
+*   **Error Handling:** Return an HTTP 404 if the `worker_id` does not correspond to an active or valid worker. Handle subprocess creation failures with a 500 error.
+
+
+---
+
+## Iteration [13] - Story: US-277: Stream ralph.sh worker stdout to spiral_dashboard via Server-Sent Events
+
+### What was implemented
+- `GET /api/workers?name=X` endpoint in `spiral-ui/vite.config.ts` — lists worker log files from `.spiral/workers/worker_*.log`; returns `{ workers: [{ id, hasLog, hasHeartbeat }] }`
+- `GET /api/worker-stream/<id>` endpoint in `spiral-ui/vite.config.ts` — SSE stream (`text/event-stream`) of a worker's log file
+  - Reads existing log content immediately on connect, then polls for new content every 500ms via `fs.watchFile`
+  - Sends `{ type: 'line', worker_id, data: line }` events for each log line
+  - Sends `{ type: 'done', worker_id, status: 'passed'|'failed'|'unknown' }` when worker finishes (detected by Ralph's `╚══════════════════════════════════════╝` footer or 30s stale timeout + no heartbeat)
+  - Returns HTTP 404 if `worker_<id>.log` doesn't exist
+  - Cleans up `fs.watchFile` and stale-detection interval on client disconnect
+- `WorkerConsole` React component in `ProjectDashboard.tsx` — connects to SSE stream via `EventSource`; shows worker log in terminal-style scrollable panel; auto-scrolls to latest line; shows status badge (Running/Passed/Failed)
+- `WorkersTab` React component — fetches worker list from `/api/workers`; renders one `WorkerConsole` per worker in a 2-column grid; shows helpful empty state when no workers are active
+- Added `'workers'` to `DashTab` union type and `DASH_TABS` array (icon: 👷)
+- Tab render wired in main `ProjectDashboard` component
+
+### Patterns discovered
+- Connect middleware used by Vite DOES strip the path prefix: `server.middlewares.use('/api/worker-stream', fn)` means `req.url` inside = `/<id>` (not the full path)
+- `fs.watchFile` callback type in TS: can use `() => void` (no params) — TypeScript allows fewer params in callbacks
+- Ralph worker logs are at `.spiral/workers/worker_N.log`, heartbeat files at `.spiral/workers/worker_N.heartbeat`
+- Ralph session summary ends with `╚══════════════════════════════════════╝` — reliable completion detector
+- Lines with `Status: ALL COMPLETE` → passed; `Status: N stories remaining` → failed
+
+### Gotchas
+- `fs.watchFile` expects `(curr: Stats, prev: Stats) => void` but TypeScript allows `() => void` — avoids `@typescript-eslint/no-unused-vars` lint errors
+- Pre-existing lint error in `SettingsPanel.tsx` (react-refresh/only-export-components) — not related to this story
+- Worker log line capped at 500 lines in UI (`.slice(-500)`) to prevent memory growth on long runs

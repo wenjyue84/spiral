@@ -450,6 +450,114 @@ function toMYT(line: string): string {
   });
 }
 
+// ── Workers tab (SSE live console) ────────────────────────────────────────────
+
+interface WorkerInfo {
+  id: number;
+  hasLog: boolean;
+  hasHeartbeat: boolean;
+}
+
+type WorkerStatus = 'running' | 'passed' | 'failed' | 'unknown' | 'error';
+
+function WorkerConsole({ workerId, projectName }: { workerId: number; projectName: string }) {
+  const [lines, setLines] = useState<string[]>([]);
+  const [status, setStatus] = useState<WorkerStatus>('running');
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const nameParam = projectName ? `&name=${encodeURIComponent(projectName)}` : '';
+    const es = new EventSource(`/api/worker-stream/${workerId}?_=${nameParam}`);
+
+    es.onmessage = (e: MessageEvent) => {
+      try {
+        const msg = JSON.parse(e.data as string) as { type: string; worker_id: number; data?: string; status?: string };
+        if (msg.type === 'line' && msg.data) {
+          setLines(prev => [...prev.slice(-500), msg.data!]); // cap at 500 lines
+        } else if (msg.type === 'done') {
+          const s = msg.status;
+          setStatus(s === 'passed' ? 'passed' : s === 'failed' ? 'failed' : 'unknown');
+          es.close();
+        }
+      } catch { /* ignore */ }
+    };
+
+    es.onerror = () => { setStatus('error'); es.close(); };
+
+    return () => es.close();
+  }, [workerId, projectName]);
+
+  // Auto-scroll to bottom on new lines
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [lines]);
+
+  const statusMeta: Record<WorkerStatus, { label: string; cls: string }> = {
+    running: { label: '● Running', cls: 'text-emerald-400' },
+    passed:  { label: '✓ Passed',  cls: 'text-emerald-400' },
+    failed:  { label: '✗ Failed',  cls: 'text-red-400' },
+    unknown: { label: '○ Done',    cls: 'text-slate-400' },
+    error:   { label: '! Error',   cls: 'text-red-400' },
+  };
+  const { label, cls } = statusMeta[status];
+
+  return (
+    <div className="flex flex-col border border-slate-700 rounded-lg overflow-hidden">
+      <div className="flex items-center justify-between px-3 py-1.5 bg-slate-800 border-b border-slate-700">
+        <span className="text-xs font-mono font-semibold text-slate-200">Worker {workerId}</span>
+        <span className={`text-xs font-mono ${cls}`}>{label}</span>
+      </div>
+      <div className="h-72 overflow-y-auto bg-slate-950 p-2">
+        {lines.length === 0 ? (
+          <span className="text-xs font-mono text-slate-600">Waiting for output…</span>
+        ) : (
+          lines.map((line, i) => (
+            <div key={i} className="text-[11px] font-mono leading-snug text-slate-300 whitespace-pre-wrap break-all">{line}</div>
+          ))
+        )}
+        <div ref={bottomRef} />
+      </div>
+    </div>
+  );
+}
+
+function WorkersTab({ projectName }: { projectName: string }) {
+  const [workers, setWorkers] = useState<WorkerInfo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const nameParam = projectName ? `?name=${encodeURIComponent(projectName)}` : '';
+    fetch(`/api/workers${nameParam}`)
+      .then(r => r.json() as Promise<{ workers?: WorkerInfo[]; error?: string }>)
+      .then(d => { if (d.error) setFetchError(d.error); else setWorkers(d.workers ?? []); })
+      .catch(e => setFetchError(String(e)))
+      .finally(() => setLoading(false));
+  }, [projectName]);
+
+  if (loading) return <div className="p-6 text-sm text-slate-500">Loading workers…</div>;
+  if (fetchError) return <div className="p-6 text-sm text-red-500">Error: {fetchError}</div>;
+  if (workers.length === 0) {
+    return (
+      <div className="p-6 text-center text-slate-500">
+        <div className="text-2xl mb-2">👷</div>
+        <div className="text-sm font-medium">No active workers</div>
+        <div className="text-xs mt-1 text-slate-400">
+          Run <code className="bg-slate-100 px-1 rounded">bash spiral.sh 5 --ralph-workers 2</code> to see live worker output here.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-4 grid grid-cols-1 xl:grid-cols-2 gap-4">
+      {workers.map(w => (
+        <WorkerConsole key={w.id} workerId={w.id} projectName={projectName} />
+      ))}
+    </div>
+  );
+}
+
 function ActivityTab({ log }: { log: string }) {
   if (!log) {
     return <div className="p-6 text-slate-500">No activity log yet. Start SPIRAL to see live output here.</div>;
@@ -861,11 +969,12 @@ function PhaseTraceTab({ projectName }: { projectName: string }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-type DashTab = 'progress' | 'settings' | 'constitution' | 'activity' | 'graph' | 'phase-trace';
+type DashTab = 'progress' | 'settings' | 'constitution' | 'activity' | 'graph' | 'phase-trace' | 'workers';
 
 const DASH_TABS: { id: DashTab; slug: string; label: string; icon: string }[] = [
   { id: 'progress',     slug: 'progress',     label: 'Progress',     icon: '📊' },
   { id: 'phase-trace',  slug: 'phase-trace',  label: 'Phase Trace',  icon: '🔬' },
+  { id: 'workers',      slug: 'workers',      label: 'Workers',      icon: '👷' },
   { id: 'graph',        slug: 'graph',        label: 'Graph',        icon: '🔗' },
   { id: 'settings',     slug: 'settings',     label: 'Settings',     icon: '⚙️' },
   { id: 'constitution', slug: 'constitution', label: 'Constitution', icon: '📜' },
@@ -1027,6 +1136,7 @@ export default function ProjectDashboard() {
       <main className="flex-1 overflow-hidden">
         {activeTab === 'progress'     && <div className="h-full overflow-y-auto"><ProgressTab data={data} /></div>}
         {activeTab === 'phase-trace'  && <div className="h-full overflow-y-auto"><PhaseTraceTab projectName={projectName ?? ''} /></div>}
+        {activeTab === 'workers'      && <div className="h-full overflow-y-auto"><WorkersTab projectName={projectName ?? ''} /></div>}
         {activeTab === 'graph'        && (
           <div className="h-full overflow-hidden">
             <DependencyGraph stories={data.progress?.stories ?? []} />
