@@ -6026,3 +6026,28 @@ Incomplete: Enforce cgroups v2 memory and CPU limits on worker subprocesses (ID:
 - `grep -E` does NOT support negative lookaheads (`(?!...)`); must use `grep -P` (Perl regex) for that pattern — or use the two-step pipe approach (find uses: lines, then filter out valid SHAs)
 - CODEOWNERS team names (`@spiral-security-team`, `@spiral-team`) must exist in the GitHub org/repo for the CODEOWNERS rules to enforce properly — they are placeholders here
 - Dependabot `reviewers` field also requires team/user names to exist in the repo
+## Iteration 2 - Sun, Mar 15, 2026 10:12:13 PM
+Incomplete: Enforce cgroups v2 memory and CPU limits on worker subprocesses (ID: US-259) — attempt /3
+
+
+---
+
+## Iteration [N+1] - Story: US-210: Add `spiral export-report` command
+
+### What was implemented
+- Added `cmd_export_report()` function to main.py
+- Supports `--output FILE` and `--format {markdown,json}` flags
+- Markdown report: Summary table + Passed/Failed/Pending story tables with ID, title, retries, commit SHA, failure reason
+- JSON report: machine-readable for CI artifact ingestion
+- Default filename: `SPIRAL_REPORT_<timestamp>.md` in current directory
+- Fixed pre-existing bug in `_load_retry_counts`: empty file caused JSONDecodeError crash (also affected `status` command)
+
+### Patterns discovered
+- All commands follow: add `cmd_<name>(args)` function → add subparser in `main()` → add elif dispatch
+- `_classify_stories()` and `_load_prd()` are reusable helpers for any report-style command
+- retry-counts.json can be empty (0 bytes) on fresh runs — guard with try/except
+
+### Gotchas
+- retry-counts.json is 0 bytes on this repo — `_load_retry_counts` had no guard; fixed with try/except
+- results.tsv has no `cost_usd` column so total_cost stays 0.0 (graceful fallback)
+- test_check_dag and test_conflict_preflight were already failing before this iteration (pre-existing)

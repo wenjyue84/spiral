@@ -55,9 +55,12 @@ def _load_prd(path: Path) -> list[dict]:
 def _load_retry_counts(path: Path) -> dict[str, int]:
     if not path.exists():
         return {}
-    with open(path, encoding="utf-8") as f:
-        raw = json.load(f)
-    return {k: int(v) for k, v in raw.items()}
+    try:
+        with open(path, encoding="utf-8") as f:
+            raw = json.load(f)
+        return {k: int(v) for k, v in raw.items()}
+    except (json.JSONDecodeError, ValueError):
+        return {}
 
 
 def _load_results(path: Path) -> list[dict]:
@@ -409,6 +412,151 @@ def cmd_graph(args) -> None:
     sys.exit(rc)
 
 
+def cmd_export_report(args) -> None:
+    """Generate a Markdown (or JSON) story status report from prd.json."""
+    import time
+
+    if not PRD_FILE.exists():
+        print(f"Error: {PRD_FILE} not found", file=sys.stderr)
+        sys.exit(1)
+
+    stories = _load_prd(PRD_FILE)
+    retry_counts = _load_retry_counts(RETRY_COUNTS)
+    results = _load_results(RESULTS_TSV)
+
+    total = len(stories)
+    buckets = _classify_stories(stories, retry_counts)
+    passed_count = len(buckets["passed"])
+    pass_rate = round(passed_count / total * 100, 1) if total else 0.0
+
+    # Compute total API cost from results.tsv (best-effort)
+    total_cost: float = 0.0
+    for row in results:
+        try:
+            total_cost += float(row.get("cost_usd", 0) or 0)
+        except (ValueError, TypeError):
+            pass
+
+    # Determine output path
+    timestamp_str = time.strftime("%Y%m%d_%H%M%S")
+    if args.output:
+        out_path = Path(args.output)
+    else:
+        out_path = Path(f"SPIRAL_REPORT_{timestamp_str}.md")
+
+    fmt = getattr(args, "format", "markdown")
+
+    # ── JSON format ─────────────────────────────────────────────────────────
+    if fmt == "json":
+        def _story_to_dict(s: dict) -> dict:
+            sid = s.get("id", "")
+            return {
+                "id": sid,
+                "title": s.get("title", ""),
+                "status": (
+                    "passed" if s.get("passes")
+                    else "skipped" if s.get("_skipped")
+                    else "pending"
+                ),
+                "passedCommit": s.get("_passedCommit"),
+                "failureReason": s.get("_failureReason"),
+                "retryCount": retry_counts.get(sid, 0),
+            }
+
+        output = {
+            "generated": timestamp_str,
+            "summary": {
+                "total": total,
+                "passed": passed_count,
+                "passRate": pass_rate,
+                "totalCostUsd": round(total_cost, 4) if total_cost else None,
+            },
+            "stories": {
+                "passed": [_story_to_dict(s) for s in buckets["passed"]],
+                "skipped": [_story_to_dict(s) for s in buckets["skipped"]],
+                "pending": [_story_to_dict(s) for s in buckets["pending"]],
+            },
+        }
+        content = json.dumps(output, indent=2)
+        out_path.write_text(content, encoding="utf-8")
+        print(f"Report written to {out_path}")
+        return
+
+    # ── Markdown format ──────────────────────────────────────────────────────
+    lines: list[str] = []
+
+    lines.append("# SPIRAL Story Status Report")
+    lines.append("")
+    lines.append(f"Generated: {time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime())}")
+    lines.append("")
+
+    # Summary section
+    lines.append("## Summary")
+    lines.append("")
+    lines.append("| Metric | Value |")
+    lines.append("|--------|-------|")
+    lines.append(f"| Total Stories | {total} |")
+    lines.append(f"| Passed | {passed_count} |")
+    lines.append(f"| Failed / Skipped | {len(buckets['skipped'])} |")
+    lines.append(f"| Pending | {len(buckets['pending']) + len(buckets['in_progress'])} |")
+    lines.append(f"| Pass Rate | {pass_rate}% |")
+    if total_cost:
+        lines.append(f"| Total API Cost | ${total_cost:.4f} |")
+    lines.append("")
+
+    def _story_row(s: dict) -> str:
+        sid = s.get("id", "")
+        title = s.get("title", "")
+        retries = retry_counts.get(sid, 0)
+        passed_commit = s.get("_passedCommit", "")
+        failure_reason = s.get("_failureReason", "")
+        commit_cell = f"`{passed_commit[:8]}`" if passed_commit else "—"
+        reason_cell = failure_reason if failure_reason else "—"
+        return f"| {sid} | {title} | {retries} | {commit_cell} | {reason_cell} |"
+
+    # Passed Stories
+    lines.append(f"## Passed Stories ({len(buckets['passed'])})")
+    lines.append("")
+    if buckets["passed"]:
+        lines.append("| ID | Title | Retries | Commit | Notes |")
+        lines.append("|----|-------|---------|--------|-------|")
+        for s in buckets["passed"]:
+            lines.append(_story_row(s))
+    else:
+        lines.append("_No stories have passed yet._")
+    lines.append("")
+
+    # Failed / Skipped Stories
+    skipped_list = buckets["skipped"]
+    lines.append(f"## Failed / Skipped Stories ({len(skipped_list)})")
+    lines.append("")
+    if skipped_list:
+        lines.append("| ID | Title | Retries | Commit | Failure Reason |")
+        lines.append("|----|-------|---------|--------|----------------|")
+        for s in skipped_list:
+            lines.append(_story_row(s))
+    else:
+        lines.append("_No stories skipped._")
+    lines.append("")
+
+    # Pending Stories (includes in_progress)
+    pending_all = buckets["pending"] + buckets["in_progress"]
+    lines.append(f"## Pending Stories ({len(pending_all)})")
+    lines.append("")
+    if pending_all:
+        lines.append("| ID | Title | Retries | Commit | Notes |")
+        lines.append("|----|-------|---------|--------|-------|")
+        for s in pending_all:
+            lines.append(_story_row(s))
+    else:
+        lines.append("_No pending stories — all done!_")
+    lines.append("")
+
+    content = "\n".join(lines)
+    out_path.write_text(content, encoding="utf-8")
+    print(f"Report written to {out_path}")
+
+
 def cmd_compact_prd(args) -> None:
     """Strip transient runtime fields from completed/skipped stories in prd.json."""
     sys.path.insert(0, str(Path(__file__).parent / "lib"))
@@ -716,6 +864,23 @@ def main():
         help="Write graph to FILE (e.g. docs/dependency-graph.md); default: stdout",
     )
 
+    report_parser = subparsers.add_parser(
+        "export-report",
+        help="Generate a Markdown story status report from prd.json",
+    )
+    report_parser.add_argument(
+        "--output",
+        metavar="FILE",
+        default=None,
+        help="Write report to FILE; default: SPIRAL_REPORT_<timestamp>.md in current directory",
+    )
+    report_parser.add_argument(
+        "--format",
+        choices=["markdown", "json"],
+        default="markdown",
+        help="Output format: markdown (default) or json for CI artifact ingestion",
+    )
+
     args = parser.parse_args()
 
     if args.command == "init":
@@ -734,6 +899,8 @@ def main():
         cmd_import_github(args)
     elif args.command == "graph":
         cmd_graph(args)
+    elif args.command == "export-report":
+        cmd_export_report(args)
     else:
         parser.print_help()
         sys.exit(0)
