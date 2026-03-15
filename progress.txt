@@ -7410,3 +7410,89 @@ This brief outlines the implementation plan for automatically upgrading the LLM 
 - After `TimeoutError`, must `proc.kill()` then `await proc.communicate()` to drain pipes and avoid zombie processes
 - Setting `_SUBPROCESS_TIMEOUT = 0` disables the timeout (guard with `timeout = ... if ... > 0 else None`)
 - The `asyncio.wait_for` timeout fires on the outer coroutine, cancelling the gather tasks; those tasks clean up automatically
+## Iteration 1 - Mon, Mar 16, 2026  4:06:00 AM
+Incomplete: Context-window-aware model upgrade when story prompt exceeds safe token limit (ID: US-295) — attempt /3
+
+## Iteration 2 - Mon, Mar 16, 2026  4:06:37 AM
+Incomplete: Context-window-aware model upgrade when story prompt exceeds safe token limit (ID: US-295) — attempt /3
+
+
+---
+
+## Iteration [13] - Story: US-301: Phase 0 tech stack auto-detection to pre-fill wizard configuration defaults
+
+### What was implemented
+- `lib/detect_stack.py` — new module with:
+  - `detect_stack(root)`: scans for indicator files in priority order (pyproject.toml > setup.py > package.json > Cargo.toml > go.mod > Makefile)
+  - `load_or_detect(root, cache_dir)`: cache layer at `.spiral/detected_stack.json`, invalidated when project_root changes
+  - `format_summary(result)`: human-readable display line for wizard
+  - CLI entry point (`__main__`) emitting `__DETECTED_*=` shell-eval lines for bash sourcing
+- `lib/setup.py` — imports detect_stack, shows stack summary before profile selection, uses detected `validate_cmd` as default for both Quick Start and Advanced modes
+- `lib/phases/phase_0_clarify.sh` — added sub-step 0-0 before all wizard prompts: calls detect_stack.py, parses `__DETECTED_*` lines, exports `SPIRAL_DETECTED_LANG/VALIDATE_CMD/PKG_MGR`
+- 15 tests in `tests/test_detect_stack.py` — all pass
+
+### Patterns discovered
+- `lib/detect_stack.py` follows same module pattern as other lib/*.py: `from __future__ import annotations`, `sys.path.insert(0, ...)` not needed (caller handles path)
+- Phase 0 sub-steps display using `echo "  ┌─ ...` / `  └─...` border pattern
+- bash sourcing of Python output: emit `KEY=VALUE` lines without `export` and parse with `case "$_line" in KEY=*)`
+- `lib/setup.py` uses `questionary` for interactive prompts — needs to be imported early
+
+### Gotchas
+- `format_summary` uses `│` prefix style matching phase_0 display; strip it for setup.py context
+- Cache invalidation is keyed on `project_root` string match — always use `.resolve()` for consistent absolute paths
+- `test_route_stories.py` has a pre-existing relative import error (from US-291 era) — exclude from full runs with `--ignore`
+## Iteration 1 - Mon, Mar 16, 2026  4:08:20 AM
+Incomplete: Context-window-aware model upgrade when story prompt exceeds safe token limit (ID: US-295) — attempt /3
+
+
+## Pre-analysis for US-295 (Gemini 2.5 Pro)
+This is a Python/shell-based command-line tool, not a Frappe application. The implementation will involve modifying shell scripts and Python modules.
+
+**1. Files to Modify:**
+
+*   **`lib/llm_router.py`**: This is the most likely candidate for implementing the model selection and upgrade logic. It's explicitly mentioned in the technical notes for holding context limit constants and its name implies it handles model routing.
+*   **`ralph/ralph.sh` or a calling script**: The script that orchestrates the call to `ralph.sh` will need to be modified to first gather all context (prompts, files) and then invoke the Python token estimation logic. The estimation result will be passed to the `llm_router`.
+*   **`lib/spiral_events.sh` / `lib/spiral_io.py`**: One of these will likely be used to append the structured log event to `spiral_events.jsonl`.
+
+**2. Frappe DocTypes / Hooks:**
+
+*   None. This project is not a Frappe or ERPNext application. It appears to be a standalone CLI tool for AI-driven software development.
+
+**3. Recommended Implementation Approach:**
+
+1.  In the script that calls `ralph.sh`, gather all text components that form the final prompt (system prompt, PRD, story, file contents).
+2.  Create a new Python function, likely in a utility module or `llm_router.py`, to estimate token count. This function should:
+    *   Attempt to import `tiktoken`. If available, use `cl100k_base` encoding for an accurate count.
+    *   If `tiktoken` is not found, fall back to a character-based approximation (`total_length // 4`).
+3.  In `lib/llm_router.py`, enhance the model selection logic to:
+    *   Accept the estimated token count as an argument.
+    *   Read the `SPIRAL_CONTEXT_WINDOW_MARGIN` environment variable (defaulting to 0.85).
+    *   Compare the token count against the target model's `(context_limit * margin)`.
+    *   If it exceeds the limit, upgrade the model to the next tier (e.g., Haiku -> Sonnet, Sonnet -> Opus). Log this decision.
+
+**4. Edge Cases & Gotchas:**
+
+*   **`tiktoken` Dependency**: Ensure the code is robust against `tiktoken` not being installed. Consider adding it as an optional dependency in `pyproject.toml`.
+*   **Model Upgrade Ceiling**: The logic must handle the case where the highest-tier model (Opus) is selected and its context limit is still exceeded. It should log a warning but not attempt a non-existent upgrade.
+*   **Context Aggregation**: It's critical to ensure the token estimation function receives the *exact* and complete content that will be sent to the model to avoid inaccurate estimates.
+*   **Logging Format**: The structured log written to `spiral_events.jsonl` must strictly adhere to the specified JSON format: `{event: "context_window_upgrade", from_model, to_model, estimated_tokens}`.
+
+
+## Iteration [13] - Story: US-296: Make model escalation retry thresholds configurable via SPIRAL_ESCALATION_RETRY_*
+
+### What was implemented
+- Added `SPIRAL_ESCALATION_RETRY_SONNET` (default: 1) and `SPIRAL_ESCALATION_RETRY_OPUS` (default: 2) env vars to `ralph/ralph.sh` default block
+- Updated `escalate_model_by_retry()` to use these vars instead of hardcoded values (retry_count -lt sonnet_threshold → keep base; -lt opus_threshold → +1 tier; else → opus)
+- Added startup validation (before sourcing spiral_retry.sh) that exits with actionable error if OPUS < SONNET
+- Documented both vars with defaults in `templates/spiral.config.example.sh` under new "Model escalation retry thresholds" section
+
+### Patterns discovered
+- ralph.sh default vars block is at lines 21-61 — add new env vars there with `${VAR:-default}` syntax
+- Startup validation runs at lines ~149-156 before library sourcing — good place for config guard checks
+- `escalate_model_by_retry()` is at line ~1560; `resolve_model()` calls it for all three paths (prd.json annotation, CLI --model, auto-classify)
+- The `escalate_model_by_quality_failure()` function handles separate quality-gate escalation (not retry-based); left unchanged
+
+### Gotchas
+- `SPIRAL_ESCALATION_RETRY_SONNET=0` means escalation starts immediately at retry 0 — this forces sonnet as the starting model (since `0 < 0` is false, the condition `retry_count -lt sonnet_threshold` is never true for retry 0)
+- The threshold comparison uses `-lt` not `-le` so the threshold value is the FIRST retry that triggers escalation
+- test_route_stories.py has a pre-existing import error (relative import); not related to this story

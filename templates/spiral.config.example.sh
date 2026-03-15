@@ -247,6 +247,16 @@
 # Default: auto
 # SPIRAL_MODEL_ROUTING="auto"
 
+# ── Model escalation retry thresholds (US-296) ──────────────────────────────
+# Controls when failed story retries escalate to a more capable model.
+# SPIRAL_ESCALATION_RETRY_SONNET: retry count at which haiku escalates to sonnet.
+#   Set to 0 to force sonnet as the starting model for all stories.
+# SPIRAL_ESCALATION_RETRY_OPUS: retry count at which sonnet escalates to opus.
+#   Must be >= SPIRAL_ESCALATION_RETRY_SONNET (startup validation enforces this).
+# Defaults match the original hardcoded behaviour: sonnet at retry 1, opus at retry 2.
+# SPIRAL_ESCALATION_RETRY_SONNET=1
+# SPIRAL_ESCALATION_RETRY_OPUS=2
+
 # ── Story time budget (per-story wall-clock limit) ──────────────────────────
 # Maximum wall-clock seconds per story attempt in Ralph.
 # Stories exceeding this budget are discarded and retried.

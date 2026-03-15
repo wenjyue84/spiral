@@ -35,6 +35,8 @@ SPIRAL_DIFF_DEPTH="${SPIRAL_DIFF_DEPTH:-3}"                                 # US
 SPIRAL_GIT_AUTHOR="${SPIRAL_GIT_AUTHOR:-}"                                  # optional: AI commit author name (e.g. "SPIRAL Agent")
 SPIRAL_GIT_EMAIL="${SPIRAL_GIT_EMAIL:-}"                                    # optional: AI commit author email (e.g. "spiral@noreply.local")
 SPIRAL_DECOMPOSE_THRESHOLD="${SPIRAL_DECOMPOSE_THRESHOLD:-2}"               # auto-decompose story at this retry count; 0 = disabled
+SPIRAL_ESCALATION_RETRY_SONNET="${SPIRAL_ESCALATION_RETRY_SONNET:-1}"      # retry count at which haiku escalates to sonnet (US-296)
+SPIRAL_ESCALATION_RETRY_OPUS="${SPIRAL_ESCALATION_RETRY_OPUS:-2}"          # retry count at which sonnet escalates to opus (US-296)
 SPIRAL_SECURITY_SCAN="${SPIRAL_SECURITY_SCAN:-false}"                       # true = enable Phase S security scan gate
 SPIRAL_SECURITY_SCAN_TOOL="${SPIRAL_SECURITY_SCAN_TOOL:-semgrep}"           # 'semgrep' (default) or 'bandit'
 SPIRAL_SECURITY_SCAN_ARGS="${SPIRAL_SECURITY_SCAN_ARGS:-}"                  # extra flags passed to the scanner binary
@@ -141,6 +143,13 @@ elif [[ -f "$SCRIPT_DIR/jq" ]]; then
 else
   echo "Error: jq is not installed. Install it with: choco install jq"
   echo "  Or place jq.exe in $SCRIPT_DIR/"
+  exit 1
+fi
+
+# ── Validate SPIRAL_ESCALATION_RETRY_* config (US-296) ─────────────────────
+if [[ "${SPIRAL_ESCALATION_RETRY_OPUS:-2}" -lt "${SPIRAL_ESCALATION_RETRY_SONNET:-1}" ]]; then
+  echo "ERROR: SPIRAL_ESCALATION_RETRY_OPUS (${SPIRAL_ESCALATION_RETRY_OPUS}) must be >= SPIRAL_ESCALATION_RETRY_SONNET (${SPIRAL_ESCALATION_RETRY_SONNET})."
+  echo "Fix: set SPIRAL_ESCALATION_RETRY_OPUS to a value >= SPIRAL_ESCALATION_RETRY_SONNET in spiral.config.sh."
   exit 1
 fi
 
@@ -560,23 +569,34 @@ build_filestouch_context() {
   _diff_out=$(git diff --unified=5 "HEAD~${_depth}" -- "${_ft_files[@]}" 2>/dev/null || true)
 
   if [[ -z "$_diff_out" ]]; then
-    # Diff is empty — inject full file contents as fallback (new/untracked files)
-    local _full_content=""
+    # Diff is empty — inject semantically relevant chunks as fallback.
+    local _semantic_content=""
     local _ff
+    local _story_desc
+    _story_desc=$("$_jq_bin" -r '.title + ": " + .description' <<<"$story_json" 2>/dev/null)
+    local _chunker_py
+    _chunker_py="$(cd "$SCRIPT_DIR/.." 2>/dev/null && pwd)/lib/semantic_chunker.py"
+
+    echo "  [context] filesTouch: diff empty — using semantic chunker for ${#_ft_files[@]} file(s)" >&2
+
     for _ff in "${_ft_files[@]}"; do
       if [[ -f "$_ff" ]]; then
-        _full_content="${_full_content}
-### File: ${_ff}
+        local _chunks
+        _chunks=$(python3 "$_chunker_py" --file "$_ff" --task "$_story_desc" 2>/dev/null)
+        if [[ -n "$_chunks" ]]; then
+          _semantic_content="${_semantic_content}
+### File: ${_ff} (semantically relevant chunks)
 \`\`\`
-$(cat "$_ff")
+${_chunks}
 \`\`\`
 "
+        fi
       fi
     done
-    if [[ -n "$_full_content" ]]; then
-      echo "## filesTouch File Contents (new/unmodified — no diff available)"
-      echo "${_full_content}"
-      echo "  [context] filesTouch: diff empty — injected full contents (${#_ft_files[@]} file(s))" >&2
+
+    if [[ -n "$_semantic_content" ]]; then
+      echo "## filesTouch File Contents (Semantically Relevant Chunks)"
+      echo "${_semantic_content}"
     fi
     return 0
   fi
@@ -1537,13 +1557,16 @@ classify_model() {
 }
 
 # Escalate model tier based on retry count for incomplete stories.
-# retry 0: keep base; retry 1: +1 tier; retry 2+: opus
+# Thresholds are configurable via SPIRAL_ESCALATION_RETRY_SONNET and SPIRAL_ESCALATION_RETRY_OPUS.
+# Default: retry 0 = keep base; retry 1 = +1 tier (haiku→sonnet); retry 2+ = opus
 escalate_model_by_retry() {
   local base_model="$1" retry_count="$2"
+  local sonnet_threshold="${SPIRAL_ESCALATION_RETRY_SONNET:-1}"
+  local opus_threshold="${SPIRAL_ESCALATION_RETRY_OPUS:-2}"
 
-  if [[ "$retry_count" -le 0 ]]; then
+  if [[ "$retry_count" -lt "$sonnet_threshold" ]]; then
     echo "$base_model"
-  elif [[ "$retry_count" -eq 1 ]]; then
+  elif [[ "$retry_count" -lt "$opus_threshold" ]]; then
     case "$base_model" in
       haiku) echo "sonnet" ;;
       sonnet) echo "opus" ;;
