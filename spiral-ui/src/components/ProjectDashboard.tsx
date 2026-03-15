@@ -136,7 +136,7 @@ function ProgressTab({ data }: { data: ProjectData }) {
                   : `${data.lastCompletedStory.duration}s`}
               </span>
             )}
-            <span className="text-xs font-medium text-emerald-600" title={new Date(data.lastCompletedStory.timestamp).toLocaleString()}>
+            <span className="text-xs font-medium text-emerald-600" title={formatMYT(data.lastCompletedStory.timestamp)}>
               {timeAgo(data.lastCompletedStory.timestamp)}
             </span>
           </div>
@@ -587,7 +587,10 @@ function PhaseTraceTab({ projectName }: { projectName: string }) {
 
   const currentIter = traceData.iterations.find(i => i.iter === selectedIter) ?? traceData.iterations[traceData.iterations.length - 1];
 
-  // Find phase_end events for duration display
+  // Find phase_start and phase_end events for duration/timing display
+  const phaseStartEvents = traceData.phaseEvents.filter(
+    e => (e.event === 'phase_start' || e.type === 'phase_start') && e.iteration === currentIter.iter
+  );
   const phaseEndEvents = traceData.phaseEvents.filter(
     e => (e.event === 'phase_end' || e.type === 'phase_end') && e.iteration === currentIter.iter
   );
@@ -596,6 +599,41 @@ function PhaseTraceTab({ projectName }: { projectName: string }) {
     const ev = phaseEndEvents.find(e => e.phase === phase);
     return ev?.duration_s ?? null;
   };
+
+  const getStartTs = (phase: string): string | null => {
+    const ev = phaseStartEvents.find(e => e.phase === phase);
+    return ev?.ts ?? null;
+  };
+
+  const getEndTs = (phase: string): string | null => {
+    const ev = phaseEndEvents.find(e => e.phase === phase);
+    return ev?.ts ?? null;
+  };
+
+  /** Format duration as human-readable string */
+  const fmtDuration = (s: number): string => {
+    if (s >= 3600) return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m ${s % 60}s`;
+    if (s >= 60) return `${Math.floor(s / 60)}m ${s % 60}s`;
+    return `${s}s`;
+  };
+
+  /** Format time as MYT HH:MM:SS */
+  const fmtTime = (ts: string): string => {
+    try {
+      return new Date(ts).toLocaleString('en-MY', { timeZone: 'Asia/Kuala_Lumpur', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    } catch { return ts; }
+  };
+
+  // Compute iteration total duration from earliest start to latest end
+  const iterStartTs = phaseStartEvents.length > 0
+    ? phaseStartEvents.reduce((earliest, e) => (!earliest || (e.ts && e.ts < earliest) ? e.ts! : earliest), '')
+    : null;
+  const iterEndTs = phaseEndEvents.length > 0
+    ? phaseEndEvents.reduce((latest, e) => (!latest || (e.ts && e.ts > latest) ? e.ts! : latest), '')
+    : null;
+  const iterTotalDuration = iterStartTs && iterEndTs
+    ? Math.round((new Date(iterEndTs).getTime() - new Date(iterStartTs).getTime()) / 1000)
+    : null;
 
   // Phase output file summary
   const outputSummary = (phase: string): string | null => {
@@ -620,13 +658,17 @@ function PhaseTraceTab({ projectName }: { projectName: string }) {
 
   return (
     <div className="p-6 space-y-4">
-      {/* Checkpoint status */}
+      {/* Timestamp indicator + Checkpoint status */}
+      <div className="flex items-center justify-between">
+        <div className="text-[10px] text-slate-400">Timestamps shown in Malaysia Time (MYT, UTC+8)</div>
+        <div className="text-[10px] text-slate-400">Now: {new Date().toLocaleString('en-MY', { timeZone: 'Asia/Kuala_Lumpur', hour12: false })}</div>
+      </div>
       {traceData.phaseOutputs.checkpoint && (
         <div className="flex items-center gap-2 text-xs text-slate-500">
           <span className="font-medium">Checkpoint:</span>
           <span>Iteration {traceData.phaseOutputs.checkpoint.iter}, Phase {traceData.phaseOutputs.checkpoint.phase}</span>
           {traceData.phaseOutputs.checkpoint.ts && (
-            <span className="text-slate-400">({timeAgo(traceData.phaseOutputs.checkpoint.ts)})</span>
+            <span className="text-slate-400">({formatMYT(traceData.phaseOutputs.checkpoint.ts)} · {timeAgo(traceData.phaseOutputs.checkpoint.ts)})</span>
           )}
         </div>
       )}
@@ -650,7 +692,21 @@ function PhaseTraceTab({ projectName }: { projectName: string }) {
           ))}
         </div>
         <span className="text-xs text-slate-400 ml-2">{currentIter.phases.filter(p => p.phase !== 'G').length} phases</span>
+        {iterTotalDuration !== null && (
+          <span className="text-xs text-slate-500 ml-2 font-mono bg-slate-100 px-2 py-0.5 rounded-full">
+            Total: {fmtDuration(iterTotalDuration)}
+          </span>
+        )}
       </div>
+
+      {/* Iteration timing summary */}
+      {(iterStartTs || iterEndTs) && (
+        <div className="flex items-center gap-4 text-[11px] text-slate-500 bg-white/60 rounded-lg border border-slate-200 px-3 py-2">
+          {iterStartTs && <span>Started: <span className="font-mono font-medium text-slate-700">{formatMYT(iterStartTs)}</span></span>}
+          {iterEndTs && <span>Finished: <span className="font-mono font-medium text-slate-700">{formatMYT(iterEndTs)}</span></span>}
+          {iterTotalDuration !== null && <span>Duration: <span className="font-mono font-semibold text-blue-700">{fmtDuration(iterTotalDuration)}</span></span>}
+        </div>
+      )}
 
       {/* Phase timeline */}
       <div className="space-y-2">
@@ -661,6 +717,8 @@ function PhaseTraceTab({ projectName }: { projectName: string }) {
           const colors = PHASE_COLORS[phase.phase] ?? { bg: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-700', dot: 'bg-slate-500' };
           const phaseName = PHASE_NAMES[phase.phase] ?? `Phase ${phase.phase}`;
           const duration = getDuration(phase.phase);
+          const startTs = getStartTs(phase.phase);
+          const endTs = getEndTs(phase.phase);
           const summary = outputSummary(phase.phase);
           const key = `${currentIter.iter}-${phase.phase}-${idx}`;
           const isExpanded = expandedPhases.has(key);
@@ -689,8 +747,13 @@ function PhaseTraceTab({ projectName }: { projectName: string }) {
                   {!isSkipped && summary && <span className="text-[10px] text-slate-500 bg-white/60 px-2 py-0.5 rounded-full">{summary}</span>}
                   {!isSkipped && hasSubsteps && <span className="text-[10px] text-slate-500 bg-white/60 px-2 py-0.5 rounded-full">{substeps.length} steps</span>}
                   {!isSkipped && duration !== null && (
-                    <span className="text-[10px] font-mono text-slate-500 bg-white/60 px-2 py-0.5 rounded-full">
-                      {duration >= 60 ? `${Math.floor(duration / 60)}m ${duration % 60}s` : `${duration}s`}
+                    <span className="text-[10px] font-mono font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">
+                      {fmtDuration(duration)}
+                    </span>
+                  )}
+                  {!isSkipped && endTs && (
+                    <span className="text-[10px] font-mono text-slate-500 bg-white/60 px-2 py-0.5 rounded-full" title={`Completed: ${formatMYT(endTs)}`}>
+                      {fmtTime(endTs)}
                     </span>
                   )}
                   {!isSkipped && <span className="text-[10px] text-slate-400">{lineCount} lines</span>}
@@ -701,6 +764,14 @@ function PhaseTraceTab({ projectName }: { projectName: string }) {
               {/* Phase detail (expanded) */}
               {isExpanded && (
                 <div className="border-t border-slate-200/50">
+                  {/* Timing detail */}
+                  {(startTs || endTs || duration !== null) && (
+                    <div className="flex items-center gap-4 px-4 py-2 text-[11px] text-slate-500 bg-white/50 border-b border-slate-200/50">
+                      {startTs && <span>Start: <span className="font-mono font-medium text-slate-700">{formatMYT(startTs)}</span></span>}
+                      {endTs && <span>End: <span className="font-mono font-medium text-slate-700">{formatMYT(endTs)}</span></span>}
+                      {duration !== null && <span>Duration: <span className="font-mono font-semibold text-blue-700">{fmtDuration(duration)}</span></span>}
+                    </div>
+                  )}
                   {/* Sub-steps list */}
                   {hasSubsteps && (
                     <div className="px-4 py-3 space-y-1.5 border-b border-slate-200/50 bg-white/40">
@@ -727,7 +798,7 @@ function PhaseTraceTab({ projectName }: { projectName: string }) {
                             {subExpanded && (
                               <div className="border-t border-slate-100 bg-slate-950 overflow-auto max-h-[250px]">
                                 <pre className="p-2.5 text-[10px] text-slate-300 font-mono leading-relaxed whitespace-pre-wrap">
-                                  {sub.lines.join('\n')}
+                                  {sub.lines.map(toMYT).join('\n')}
                                 </pre>
                               </div>
                             )}
@@ -740,7 +811,7 @@ function PhaseTraceTab({ projectName }: { projectName: string }) {
                   {/* Full phase log output */}
                   <div className="bg-slate-950 overflow-auto max-h-[400px]">
                     <pre className="p-3 text-[11px] text-slate-300 font-mono leading-relaxed whitespace-pre-wrap">
-                      {phase.lines.join('\n')}
+                      {phase.lines.map(toMYT).join('\n')}
                     </pre>
                   </div>
                 </div>
