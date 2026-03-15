@@ -7314,3 +7314,99 @@ This technical brief is based on the provided JSON for story US-294, which perta
 - On first run (no `_constitution_hash` file), `_OLD_CONST_HASH=""` vs non-empty `_NEW_CONST_HASH` → hashes differ → cache IS cleared; only "first run" message printed (not "changed"), no event emitted
 - Bats test for "first run" should NOT assert cache files are preserved (they ARE cleared on first run due to empty-vs-hash mismatch)
 - The clearing block is inside `if [[ "$_OLD_CONST_HASH" != "$_NEW_CONST_HASH" ]]` which triggers on both first run AND subsequent changes
+
+## Pre-analysis for US-295 (Gemini 2.5 Pro)
+Here is the technical brief for implementing the context-aware model upgrade story.
+
+### Technical Implementation Brief: US-295
+
+**1. Primary Files to Modify:**
+*   `lib/llm_router.py`: This is the central location for the new model selection logic. It already contains model constants and should house the token estimation and upgrade functions.
+*   `lib/phases/phase_1_implement.py` (Assumed): The script that orchestrates Phase 1 and invokes `ralph.sh`. This script will need to be modified to call the new model selection logic before dispatching the job.
+*   `lib/spiral_io.py`: This file likely contains helpers for logging structured data and should be used to append the upgrade event to `spiral_events.jsonl`.
+
+**2. Frappe DocTypes & Hooks:**
+*   The user story pertains to the internal mechanics of the Spiral tool itself, not a Frappe application. No Frappe DocTypes or hooks are involved. The core logic is in command-line Python scripts.
+
+**3. Recommended Implementation Approach:**
+1.  In `lib/llm_router.py`, create a new function `estimate_prompt_tokens(text_inputs: list[str]) -> int`. This function should try to import `tiktoken`, and if successful, use `cl100k_base` for estimation. If `tiktoken` is not available, it should fall back to a `sum(len(text) for text in text_inputs) // 4` approximation.
+2.  In `lib/llm_router.py`, create a primary function `select_upgraded_model(current_model: str, prompt_components: list[str]) -> str`.
+3.  This function will call `estimate_prompt_tokens` on the prompt content, read the `SPIRAL_CONTEXT_WINDOW_MARGIN` env var (defaulting to `0.85`), and fetch the context limit for the `current_model`.
+4.  If the estimated tokens exceed the calculated safety margin, it should return the next highest model tier (e.g., Haiku -> Sonnet, Sonnet -> Opus). It should also log the upgrade event using a helper in `spiral_io.py`.
+5.  Modify the script that calls `ralph.sh` to gather all prompt components (system prompt, PRD, story, file contents) and call `select_upgraded_model` to get the final model name before execution.
+
+**4. Edge Cases & Gotchas:**
+*   **`tiktoken` Unavailability:** The implementation must gracefully handle the `ImportError` for the `tiktoken` library and correctly use the fallback calculation.
+*   **Maximum Model Tier:** If the estimated prompt size exceeds the context window of the highest available model (Opus), the system should not fail. It should proceed with Opus and log a warning that the context may still be too large.
+*   **Logging Atomicity:** Ensure that writing the event to `spiral_events.jsonl` is an atomic append operation to prevent race conditions if stories are processed in parallel.
+*   **Configuration:** The model hierarchy (e.g., `haiku` -> `sonnet` -> `opus`) should be explicitly defined in `lib/llm_router.py` to avoid ambiguity.
+
+
+## Pre-analysis for US-295 (Gemini 2.5 Pro)
+This user story does not relate to a Frappe/Python application. The provided codebase is for "Spiral," a command-line developer agent written in Python and Bash. The analysis and recommendations below are for that codebase.
+
+***
+
+### **Technical Brief for US-295: Context-Aware Model Upgrade**
+
+This brief outlines the implementation plan for automatically upgrading the LLM when the estimated prompt size exceeds the model's context window.
+
+**1. Files to Modify**
+
+*   **`lib/llm_router.py` (Primary Logic):** This existing Python script is the ideal place for the new token counting and model upgrade logic. It already handles model selection.
+*   **`ralph/ralph.sh` (Supporting Role):** This shell script orchestrates the AI call. It will be modified to gather the full prompt content and pass it to the Python router.
+
+**2. Involved Components (No Frappe DocTypes)**
+
+*   **`LlmRouter` class:** The core Python class to be enhanced.
+*   **`TaskContext` dataclass:** Will be used to pass the `token_estimate` to the routing logic.
+*   **`spiral_events.jsonl`:** The file for logging the upgrade event.
+
+**3. Recommended Implementation Approach**
+
+1.  **In `lib/llm_router.py`:**
+    *   Add model context window size constants (e.g., `MODEL_CONTEXT_LIMITS = {"haiku": 200000, ...}`).
+    *   Create a token estimation function (`estimate_tokens`) that attempts to use the `tiktoken` library (`cl100k_base`) and falls back to a `len(text) // 4` approximation if it's not installed.
+    *   Modify the `LlmRouter._select_tier` method. After determining the base model, it should:
+        *   Check if a `token_estimate` is available in the `TaskContext`.
+        *   Read the `SPIRAL_CONTEXT_WINDOW_MARGIN` environment variable (defaulting to `0.85`).
+        *   If `token_estimate` exceeds the model's limit multiplied by the margin, upgrade the model using the existing `_ESCALATION` ladder.
+    *   Update the script's `main` function to accept the full prompt text via `stdin`, calculate the token estimate, and pass it into the routing logic.
+    *   Add logic to log a structured JSON event to `spiral_events.jsonl` whenever a model upgrade occurs.
+
+2.  **In `ralph/ralph.sh`:**
+    *   Before the call to `lib/llm_router.py`, collect all parts of the prompt (system prompt, story data, contents of `filesTouch`, etc.) into a single string variable.
+    *   Pipe this string variable into the `stdin` of the `lib/llm_router.py` script during the model selection call.
+
+**4. Edge Cases & Gotchas**
+
+*   **`tiktoken` Dependency:** `tiktoken` should be added as an optional dependency to `pyproject.toml` to avoid making it a hard requirement. The fallback is crucial.
+*   **Prompt Accuracy:** The prompt content gathered in `ralph.sh` must precisely match what is sent to the LLM to ensure the token estimate is accurate.
+*   **Shell Quoting:** Care must be taken in `ralph.sh` to correctly handle newlines and special characters when piping the prompt content to the Python script.
+*   **Circular Upgrades:** The logic should prevent a scenario where a model is upgraded to another model with the same or smaller context window, leading to a useless upgrade.
+
+
+---
+
+## Iteration [13] - Story: US-230: Add asyncio timeout and communicate() deadlock prevention
+
+### What was implemented
+- `SPIRAL_SUBPROCESS_TIMEOUT` module-level constant in `lib/spiral_live_server.py` (default 300s, via env var)
+- `_run_worker()` now wraps the `asyncio.gather(stdout_task, stderr_task)` + `proc.wait()` call in `asyncio.wait_for(..., timeout=_SUBPROCESS_TIMEOUT)`
+- `asyncio.TimeoutError` caught separately: kills the process via `proc.kill()` + `proc.communicate()`, sets `worker.status = "timeout"` (distinct from "failed"), broadcasts a TIMEOUT log line to all SSE subscribers
+- `WorkerState.status` docstring updated to include "timeout" as a valid state
+- `logging.warning()` emitted on timeout with worker_id, timeout seconds, and cmd prefix
+- `_subscriber_queues` field given `# type: ignore[type-arg]` to match rest of file (fixes mypy strict)
+- 2 new tests in `tests/test_spiral_live_server.py`:
+  - `test_run_worker_no_deadlock_with_large_stdout` — 10 MB stdout, passes in <30s
+  - `test_run_worker_timeout_sets_timeout_status` — monkey-patches `_SUBPROCESS_TIMEOUT=1.0`, verifies status="timeout" and TIMEOUT broadcast line
+
+### Patterns discovered
+- `spiral_live_server.py` uses streaming gather pattern (not `proc.communicate()`) so we wrap the whole gather+wait in `asyncio.wait_for()` rather than using `wait_for(proc.communicate())`
+- Module-level `_SUBPROCESS_TIMEOUT` float allows tests to monkey-patch via `_live_mod._SUBPROCESS_TIMEOUT = 1.0` without env var manipulation
+- `_subscriber_queues: List[Queue]` had pre-existing missing `# type: ignore[type-arg]` vs rest of file
+
+### Gotchas
+- After `TimeoutError`, must `proc.kill()` then `await proc.communicate()` to drain pipes and avoid zombie processes
+- Setting `_SUBPROCESS_TIMEOUT = 0` disables the timeout (guard with `timeout = ... if ... > 0 else None`)
+- The `asyncio.wait_for` timeout fires on the outer coroutine, cancelling the gather tasks; those tasks clean up automatically
