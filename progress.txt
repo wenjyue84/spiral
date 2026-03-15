@@ -6755,3 +6755,63 @@ Incomplete: Stream ralph.sh worker stdout to spiral_dashboard via Server-Sent Ev
 ### Gotchas
 - `derive_module_tags` requires `len(parts) >= 2` check — a bare filename like `spiral.sh` splits to a single element and must not produce a tag
 - `auto_tag_modules` must run over ALL stories (not just newly-hinted ones) to cover stories with pre-existing filesTouch
+## Iteration 1 - Mon, Mar 16, 2026  1:57:17 AM
+Incomplete: Stream ralph.sh worker stdout to spiral_dashboard via Server-Sent Events (ID: US-277) — attempt /3
+
+
+## Pre-analysis for US-277 (Gemini 2.5 Pro)
+Based on the user story and project structure, this is not a Frappe/ERPNext task. The context is the `Spiral` project, which uses Python with `asyncio` to orchestrate shell scripts.
+
+Here is the technical brief for the AI agent:
+
+**Technical Brief: US-277 SSE Worker Stream**
+
+This brief outlines the implementation of a Server-Sent Events (SSE) stream for real-time worker log monitoring within the Spiral project.
+
+**1. Python Files to Modify:**
+*   `lib/spiral_dashboard.py`: This is the primary file. Add a new FastAPI API endpoint here to handle the streaming.
+*   `lib/worker_manager.py` (or similar): A mechanism for tracking active workers and their subprocesses will be needed. If one doesn't exist, it should be created to map a `worker_id` to a running `asyncio.subprocess.Process` object.
+
+**2. Key API / Framework Components:**
+*   **FastAPI Endpoint:** Create a new route `GET /api/worker-stream/{worker_id}`.
+*   **StreamingResponse:** The endpoint must return a `StreamingResponse` with a `Content-Type` of `text/event-stream`.
+*   **Async Generator:** The response body will be an `async def` generator function that yields the SSE data.
+
+**3. Recommended Implementation Approach:**
+1.  In the endpoint, look up the active worker process using the `worker_id`. Return HTTP 404 if not found.
+2.  Use `asyncio.create_subprocess_exec` to run `ralph.sh`, capturing `stdout` and `stderr` as `asyncio.streams.PIPE`.
+3.  Implement two concurrent reader tasks using `asyncio.create_task`, one for `stdout` and one for `stderr`, to read lines asynchronously. This prevents pipe buffer deadlock.
+4.  Each reader task will `yield` SSE-formatted JSON strings (`f"data: {json_payload}\\n\\n"`) from the generator.
+5.  After the subprocess completes, `yield` a final event like `data: {"type": "done", "status": "passed"}\n\n`.
+
+**4. Edge Cases & Gotchas:**
+*   **Deadlock:** Reading `stdout` and `stderr` sequentially will cause a deadlock. They **must** be read concurrently.
+*   **Process Mapping:** The core challenge is associating the `worker_id` from the API call with the correct running `ralph.sh` subprocess instance. The implementation must solve this lookup.
+*   **Client Disconnect:** FastAPI's `StreamingResponse` handles this, but be aware the generator will receive an exception on disconnect.
+*   **Output Encoding:** Ensure all output from the subprocess is decoded as UTF-8.
+
+
+---
+
+## Iteration [N] - Story: US-280: Inject unified diff of filesTouch files as context into ralph.sh
+
+### What was implemented
+- Created `lib/context_injection.sh` with `build_files_context()` function:
+  - `SPIRAL_CONTEXT_MODE=diff` (default): runs `git diff --unified=5 HEAD~N -- <files>`
+  - `SPIRAL_CONTEXT_MODE=full`: injects full file contents
+  - Empty diff fallback: when diff is empty (new/unchanged file), falls back to full content via `cat`
+  - Truncation: respects `SPIRAL_MAX_DIFF_LINES` limit with `[... truncated ...]` notice
+- Added `SPIRAL_CONTEXT_MODE` and `SPIRAL_DIFF_DEPTH` env vars to ralph.sh defaults (line ~32)
+- Source `lib/context_injection.sh` in ralph.sh after other lib sources (~line 124)
+- Inject context into `RALPH_USER_PROMPT` immediately after its base assignment, before retry context block
+- Added template config entries in `templates/spiral.config.example.sh`
+- Created `tests/context_injection.bats` with 10 tests — all pass
+
+### Patterns discovered
+- `build_files_context` uses `VAR=value run func` pattern which does NOT propagate vars into bats `run` for shell functions — must set vars explicitly before calling `run`
+- For the diff-smaller-than-full test to work, the file must be large enough (200+ lines) that diff header overhead is amortized; small files (60 lines) can have diff output larger than full
+- `git config core.autocrlf false` required in test repos to prevent CRLF conversion inflating diff size
+
+### Gotchas
+- SPIRAL_MAX_DIFF_LINES is already used for commit diff-guard; the same variable is reused for context injection truncation (both represent max diff lines)
+- test_check_dag.py and test_infer_dependencies.py have pre-existing failures (not related to US-280)

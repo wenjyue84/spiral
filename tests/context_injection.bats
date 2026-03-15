@@ -24,14 +24,16 @@ setup() {
   git init -q
   git config user.email "test@example.com"
   git config user.name "Test"
+  git config core.autocrlf false   # prevent CRLF conversion on Windows
 
-  # Commit 1: create a file with 50 lines
-  seq 1 50 > bigfile.txt
+  # Commit 1: create a large file (200 lines) to ensure diff < full
+  seq 1 200 > bigfile.txt
   git add bigfile.txt
   git commit -q -m "init"
 
-  # Commit 2: modify the file (append 10 lines)
-  seq 51 60 >> bigfile.txt
+  # Commit 2: small modification — change only last 3 lines
+  # The unified diff (~25 lines with context) will be much smaller than the full 200-line file
+  printf '198_modified\n199_modified\n200_modified\n' >> bigfile.txt
   git add bigfile.txt
   git commit -q -m "update bigfile"
 
@@ -48,25 +50,20 @@ setup() {
     skip "jq not available"
   fi
 
-  # Source build_files_context from ralph.sh by extracting the function
-  # We isolate it by sourcing only the function definition.
   export SPIRAL_SCRATCH_DIR="$TMPDIR/scratch"
   mkdir -p "$SPIRAL_SCRATCH_DIR"
-
-  # Extract the build_files_context function + its env var defaults from ralph.sh
-  # This avoids executing the full ralph.sh startup code.
-  _RALPH_SH="$(cd "$BATS_TEST_DIRNAME/.." && pwd)/ralph/ralph.sh"
-  if [[ ! -f "$_RALPH_SH" ]]; then
-    skip "ralph/ralph.sh not found"
-  fi
 
   # Source env defaults that build_files_context depends on
   export SPIRAL_CONTEXT_MODE="${SPIRAL_CONTEXT_MODE:-diff}"
   export SPIRAL_DIFF_DEPTH="${SPIRAL_DIFF_DEPTH:-3}"
   export SPIRAL_MAX_DIFF_LINES="${SPIRAL_MAX_DIFF_LINES:-500}"
 
-  # Extract and eval the build_files_context function body
-  eval "$(sed -n '/^build_files_context()/,/^}/p' "$_RALPH_SH")"
+  # Source the context injection library directly (US-280: lib/context_injection.sh)
+  _LIB="$(cd "$BATS_TEST_DIRNAME/.." && pwd)/lib/context_injection.sh"
+  if [[ ! -f "$_LIB" ]]; then
+    skip "lib/context_injection.sh not found"
+  fi
+  source "$_LIB"
 }
 
 teardown() {
@@ -107,17 +104,25 @@ make_story_json() {
   local story_json
   story_json=$(make_story_json '["bigfile.txt"]')
 
-  # Use depth=1 so HEAD~1 exists (HEAD~3 would be before the initial commit)
-  SPIRAL_CONTEXT_MODE="diff" SPIRAL_DIFF_DEPTH=1 run build_files_context "$story_json"
+  # bigfile.txt has 200 lines; only 3 lines were added in commit 2 (HEAD~1).
+  # git diff HEAD~2 -- bigfile.txt shows +3 lines + context (~20 lines total),
+  # which is much smaller than the full 203-line file.
+  # Note: VAR=value prefix does not propagate into bats run for shell functions;
+  # set variables explicitly before each run call.
+  SPIRAL_CONTEXT_MODE="diff"
+  SPIRAL_DIFF_DEPTH=2
+  run build_files_context "$story_json"
   local diff_output="$output"
 
-  SPIRAL_CONTEXT_MODE="full" SPIRAL_DIFF_DEPTH=1 run build_files_context "$story_json"
+  SPIRAL_CONTEXT_MODE="full"
+  SPIRAL_DIFF_DEPTH=2
+  run build_files_context "$story_json"
   local full_output="$output"
 
   local diff_len=${#diff_output}
   local full_len=${#full_output}
 
-  # Diff context (10 changed lines + context) must be smaller than full 60-line file
+  # Diff context (~20 lines with headers) must be smaller than full 203-line file
   [ "$diff_len" -lt "$full_len" ]
 }
 
@@ -128,8 +133,8 @@ make_story_json() {
   story_json=$(make_story_json '["bigfile.txt"]')
   run build_files_context "$story_json"
   [ "$status" -eq 0 ]
-  # Full file has 60 lines (seq 1..60); output should contain them
-  [[ "$output" == *"60"* ]]
+  # Full file has 200+ lines; output should contain line 200
+  [[ "$output" == *"200"* ]]
   [[ "$output" == *"### File:"* ]]
 }
 
