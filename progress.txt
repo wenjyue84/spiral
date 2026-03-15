@@ -4972,3 +4972,37 @@ Completed: Emit OTel GenAI agent spans per story phase using semconv (ID: US-184
 ### Gotchas
 - test_partition.py has 2 pre-existing Hypothesis health-check flakes (not caused by this story); 740 pytest tests pass otherwise
 - GITHUB_TOKEN check must happen before prd.json check for correct error ordering
+## Iteration 2 - Sun, Mar 15, 2026  3:56:46 PM
+Completed: Import user stories from GitHub Issues via GraphQL API (ID: US-185) in 12m
+
+
+## Iteration N - Story: US-186: Pre-flight cross-story file conflict detection using git merge-tree
+
+### What was implemented
+- Created lib/conflict_preflight.py: pre-flight conflict detection before parallel worker launch
+  - `get_files_to_touch(story)`: extracts filesTouch from top-level or technicalHints
+  - `check_pair(sa, sb, repo_root, worker_branches)`: checks two stories for conflict
+    - Fast path: filesTouch overlap check (O(1) per pair)
+    - Precise path: git merge-tree --write-tree when both branches exist; falls back to old-style 3-way merge-tree as fallback
+  - `run_preflight(prd_file, story_ids, ...)`: checks all N*(N-1)/2 pairs; defers lower-priority conflicting stories; appends to conflict-log.jsonl
+  - `update_prd_defer_stories(prd_file, story_ids)`: atomic temp-file write; sets passes=false, _conflictDeferred=true, removes _failureReason
+  - CLI: --prd, --story-ids, --repo-root, --conflict-log, --batch-number, --update-prd
+- spiral.sh: added SKIP_CONFLICT_PREFLIGHT=0 default (line ~115)
+- spiral.sh: added --skip-conflict-preflight flag parsing and --help text
+- spiral.sh: inserted pre-flight block before run_parallel_ralph.sh call in the else branch (Wave >1 stories)
+  - Queries wave story IDs with jq, passes to conflict_preflight.py --update-prd
+  - Logs deferred count + IDs to spiral_events.jsonl
+  - Recomputes WAVE_STORY_COUNT and WAVE_WORKERS after deferral
+  - If post-deferral count <= 1, continues to sequential fallback
+- Created tests/test_conflict_preflight.py: 36 tests covering all code paths
+
+### Patterns discovered
+- filesTouch fallback (no branches) is sorted() before return — ensures deterministic output and test assertions
+- git merge-tree --write-tree: non-zero exit = conflicts; "Merge conflict in <path>" in stdout identifies files
+- Old-style merge-tree: "changed in both" section followed by "  base   ... \tfile" lines
+- SKIP_CONFLICT_PREFLIGHT flag follows same pattern as DRY_RUN and SKIP_RESEARCH (0/1 integer)
+
+### Gotchas
+- Wave story IDs extracted with jq array slice [0:WAVE_STORY_COUNT] to match partition ordering
+- After deferral, must re-query WAVE_STORY_COUNT from partition_prd.py (not subtract manually) to account for partition changes
+- test_route_stories.py has a pre-existing collection error (unrelated to this story)

@@ -112,6 +112,7 @@ SPIRAL_CLI_FOCUS=""   # explicit --focus override
 SPIRAL_FOCUS_TAGS=""  # comma-separated tags filter (--focus-tags)
 TIME_LIMIT_MINS=0     # 0 = no limit; >0 = stop after N minutes (--time-limit or --until)
 DRY_RUN=0             # 1 = dry-run mode: skip API calls (R, T, I, V) but run control flow
+SKIP_CONFLICT_PREFLIGHT=0 # 1 = bypass pre-flight cross-story conflict detection (--skip-conflict-preflight)
 DOCTOR_MODE=0         # 1 = run dependency check and exit (--doctor)
 REPLAY_STORY_ID=""    # "" = normal mode; "US-XXX" = replay that story only (--replay)
 ROLLBACK_STORY_ID=""  # "" = normal mode; "US-XXX" = rollback that story's commit (--rollback)
@@ -198,6 +199,10 @@ while [[ $# -gt 0 ]]; do
       DRY_RUN=1
       shift
       ;;
+    --skip-conflict-preflight)
+      SKIP_CONFLICT_PREFLIGHT=1
+      shift
+      ;;
     --doctor)
       DOCTOR_MODE=1
       shift
@@ -268,6 +273,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --time-limit N             Stop after N minutes (e.g., 60, 90, 120)"
       echo "  --until HH:MM              Stop at a wall-clock time (e.g., 14:30, 18:00)"
       echo "  --dry-run                  Test loop control flow without API calls"
+      echo "  --skip-conflict-preflight  Bypass pre-flight cross-story conflict detection (parallel mode)"
       echo "  --doctor                   Check all runtime dependencies and exit"
       echo "  --replay STORY_ID          Re-run a single story in an isolated worktree (Phases I+V only)"
   echo "  --rollback STORY_ID        Revert a passed story's git commit and reset its prd.json status"
@@ -2602,6 +2608,43 @@ $INJECTED_PROMPT"
                 if [[ "$WAVE_STORY_COUNT" -lt "$RALPH_WORKERS" ]]; then
                   WAVE_WORKERS="$WAVE_STORY_COUNT"
                   echo "  [I] Wave $((WAVE + 1)): capping to $WAVE_WORKERS workers (only $WAVE_STORY_COUNT stories)"
+                fi
+
+                # ── Pre-flight: cross-story conflict detection (US-186) ─────────
+                # Before launching workers, detect stories that would produce merge
+                # conflicts and defer lower-priority ones to the next batch.
+                if [[ "${SKIP_CONFLICT_PREFLIGHT:-0}" -ne 1 ]]; then
+                  _WAVE_STORY_IDS=($("$JQ" -r \
+                    '[.userStories[] | select(.passes != true and ._skipped != true and ._decomposed != true)] | .[0:'"$WAVE_STORY_COUNT"'] | .[].id' \
+                    "$PRD_FILE" 2>/dev/null || true))
+                  if [[ ${#_WAVE_STORY_IDS[@]} -ge 2 ]]; then
+                    _CF_LOG="$SCRATCH_DIR/conflict-log.jsonl"
+                    _CF_RESULT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/conflict_preflight.py" \
+                      --prd "$PRD_FILE" \
+                      --story-ids "${_WAVE_STORY_IDS[@]}" \
+                      --repo-root "$REPO_ROOT" \
+                      --conflict-log "$_CF_LOG" \
+                      --batch-number "$((WAVE + 1))" \
+                      --update-prd 2>&1) || true
+                    _CF_DEFERRED=$(echo "$_CF_RESULT" | "$JQ" -r '.deferred | length' 2>/dev/null || echo "0")
+                    if [[ "$_CF_DEFERRED" -gt 0 ]]; then
+                      _CF_IDS=$(echo "$_CF_RESULT" | "$JQ" -r '.deferred | join(", ")' 2>/dev/null || echo "")
+                      echo "  [conflict-preflight] Deferred $_CF_DEFERRED story/stories to next batch: $_CF_IDS"
+                      log_spiral_event "conflict_preflight_deferred" "\"batch\":$((WAVE + 1)),\"deferred\":$_CF_DEFERRED,\"ids\":\"${_CF_IDS}\""
+                      # Recompute wave story count after deferral
+                      WAVE_STORY_COUNT=$($_PARTITION_CMD \
+                        --prd "$PRD_FILE" --wave-count "$WAVE" 2>/dev/null || echo "0")
+                      if [[ "$WAVE_STORY_COUNT" -le 1 ]]; then
+                        echo "  [I] Wave $((WAVE + 1)): only $WAVE_STORY_COUNT story after deferral — sequential fallback"
+                        WAVE=$((WAVE + 1))
+                        continue
+                      fi
+                      # Recompute WAVE_WORKERS after deferral
+                      if [[ "$WAVE_STORY_COUNT" -lt "$WAVE_WORKERS" ]]; then
+                        WAVE_WORKERS="$WAVE_STORY_COUNT"
+                      fi
+                    fi
+                  fi
                 fi
 
                 bash "$SPIRAL_HOME/lib/run_parallel_ralph.sh" \
