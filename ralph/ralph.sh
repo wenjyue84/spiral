@@ -869,6 +869,27 @@ reset_escalation() {
   mv "${ESCALATION_FILE}.tmp" "$ESCALATION_FILE"
 }
 
+# ── Story completeness check (US-250) ────────────────────────────────
+# Verifies that story context has all required fields before Phase I.
+# Returns 0 if complete, 1 if incomplete. Logs details to progress.txt.
+check_story_completeness() {
+  local story_id="$1"
+  local prd_file="$2"
+
+  # Check that title, description, and acceptanceCriteria are all present and non-empty
+  local title description ac_count
+  title=$($JQ -r ".userStories[] | select(.id == \"$story_id\") | .title // empty" "$prd_file" | tr -d '\r')
+  description=$($JQ -r ".userStories[] | select(.id == \"$story_id\") | .description // empty" "$prd_file" | tr -d '\r')
+  ac_count=$($JQ -r ".userStories[] | select(.id == \"$story_id\") | .acceptanceCriteria // [] | length" "$prd_file" | tr -d '\r')
+
+  if [[ -z "$title" || -z "$description" || "$ac_count" -eq 0 ]]; then
+    echo "  [completeness] INCOMPLETE: title=$([[ -n "$title" ]] && echo "✓" || echo "✗"), description=$([[ -n "$description" ]] && echo "✓" || echo "✗"), acceptanceCriteria=$([[ "$ac_count" -gt 0 ]] && echo "✓" || echo "✗")"
+    return 1
+  fi
+
+  return 0
+}
+
 # ── Auto-decompose at retry threshold ────────────────────────────
 # Called after increment_retry. Triggers early decomposition when retry_count
 # reaches SPIRAL_DECOMPOSE_THRESHOLD (default 2) — before MAX_RETRIES is hit.
@@ -1821,6 +1842,28 @@ while [[ $ITERATION -lt $MAX_ITERATIONS ]]; do
   STORY_TAGS=$($JQ -r ".userStories[] | select(.id == \"$NEXT_STORY\") | .tags // [] | join(\",\")" "$PRD_FILE" | tr -d '\r')
   STORY_FIRST_FILE=$($JQ -r ".userStories[] | select(.id == \"$NEXT_STORY\") | .filesTouch // [] | first // empty" "$PRD_FILE" | tr -d '\r')
   RETRY_NOW=$(get_retry_count "$NEXT_STORY")
+
+  # ── Retrieval completeness check (US-250) ────────────────────────
+  # Verify story context is complete before Phase I. Retry up to 3 times.
+  _completeness_attempts=0
+  while [[ $_completeness_attempts -lt 3 ]]; do
+    _completeness_attempts=$((_completeness_attempts + 1))
+    if check_story_completeness "$NEXT_STORY" "$PRD_FILE"; then
+      echo "  [completeness] ✓ Story context complete"
+      break
+    else
+      if [[ $_completeness_attempts -lt 3 ]]; then
+        echo "  [completeness] Retry $_completeness_attempts/3: Re-reading prd.json..."
+        sleep 1
+      else
+        echo "  [completeness] BLOCKED after 3 failed checks"
+        $JQ "(.userStories[] | select(.id == \"$NEXT_STORY\") | ._failureReason) = \"incomplete_context\"" "$PRD_FILE" >"${PRD_FILE}.tmp"
+        mv "${PRD_FILE}.tmp" "$PRD_FILE"
+        echo "BLOCKED incomplete_context: $NEXT_STORY (ID: $NEXT_STORY) — context incomplete after 3 checks" >>"$PROGRESS_FILE"
+        continue 2  # Skip to next story in outer loop
+      fi
+    fi
+  done
 
   # ── Stamp last_attempted timestamp on the story (US-129: stale detection) ──
   _NOW_ISO=$(date -u +%Y-%m-%dT%H:%M:%SZ)

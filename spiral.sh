@@ -913,10 +913,32 @@ if [[ "$_INJECT_RC" -eq 2 ]]; then
 fi
 echo "  [preflight] Injection scan: OK"
 
+# ── Checkpoint completeness check (US-250) ────────────────────────────────
+# Helper function: verify checkpoint has all required state fields
+check_checkpoint_completeness() {
+  local ckpt_file="$1"
+  local phase story_id retry_count
+
+  # Check that phase, storyId, retryCount are all present and non-empty
+  phase=$("$JQ" -r '.phase // empty' "$ckpt_file" 2>/dev/null || true)
+  story_id=$("$JQ" -r '.storyId // empty' "$ckpt_file" 2>/dev/null || true)
+  retry_count=$("$JQ" -r '.retryCount // empty' "$ckpt_file" 2>/dev/null || true)
+
+  if [[ -z "$phase" || -z "$story_id" || -z "$retry_count" ]]; then
+    echo "  [checkpoint-completeness] INCOMPLETE: phase=$([[ -n "$phase" ]] && echo "✓" || echo "✗"), storyId=$([[ -n "$story_id" ]] && echo "✓" || echo "✗"), retryCount=$([[ -n "$retry_count" ]] && echo "✓" || echo "✗")"
+    return 1
+  fi
+
+  return 0
+}
+
 # ── Checkpoint state machine coherence check ──────────────────────────────
 if [[ -f "$CHECKPOINT_FILE" ]]; then
   if ! "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/state_machine.py" validate-phases --checkpoint "$CHECKPOINT_FILE"; then
     echo "  [checkpoint] WARNING: Corrupt checkpoint detected — removing and starting fresh from iter 1"
+    rm -f "$CHECKPOINT_FILE"
+  elif ! check_checkpoint_completeness "$CHECKPOINT_FILE"; then
+    echo "  [checkpoint] WARNING: Incomplete checkpoint detected — removing and starting fresh from iter 1"
     rm -f "$CHECKPOINT_FILE"
   fi
 fi

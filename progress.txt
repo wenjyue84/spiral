@@ -1,3 +1,48 @@
+## Iteration [13] - Story: US-250: Implement retrieval completeness check for story context and checkpoints
+
+### What was implemented
+- `check_story_completeness()` in `ralph/ralph.sh` — verifies story has title, description, and non-empty acceptanceCriteria before Phase I
+- `check_checkpoint_completeness()` in `spiral.sh` — verifies checkpoint has phase, storyId, and retryCount before resuming
+- Integrated story completeness check in ralph.sh main loop (lines ~1850-1873) with 3-attempt retry logic:
+  - Attempts completeness check before Phase I begins
+  - Re-reads prd.json on incomplete retrieval (up to 3 attempts)
+  - Blocks story as 'incomplete_context' after 3 failed checks
+  - Logs completion status to progress.txt
+- Integrated checkpoint completeness check in spiral.sh (lines ~916-933):
+  - Added helper function after preflight injection scan
+  - Validates checkpoint during startup before resuming iteration
+  - Removes incomplete/truncated checkpoints and starts fresh
+- Added 8 bats tests in `tests/checkpoint_completeness.bats`:
+  - Complete checkpoint detection
+  - Missing phase/storyId/retryCount detection
+  - Empty checkpoint detection
+  - Truncated checkpoint handling (simulates incomplete JSON)
+  - Null values handling
+  - Extra fields tolerance
+- Added 7 bats tests in `tests/story_completeness.bats`:
+  - Complete story detection
+  - Missing title/description/acceptanceCriteria detection
+  - Empty acceptanceCriteria array handling
+  - Nonexistent story handling
+  - Multiple acceptance criteria support
+- All tests passing: 8/8 checkpoint tests, 7/7 story tests
+
+### Patterns discovered
+- Completeness checks follow the pattern: extract fields via jq → validate each field non-empty → return status code
+- Checkpoint fields (phase, storyId, retryCount) are required for resuming from checkpoint
+- Story fields (title, description, acceptanceCriteria) must be present before LLM invocation in Phase I
+- Bats tests for shell functions use `source <(sed -n '/^function_name()/,/^}/p' script.sh)` to extract and test individual functions
+- Truncated JSON can be simulated in tests by writing incomplete JSON to file
+
+### Gotchas
+- Story completeness check must happen AFTER story is loaded from prd.json but BEFORE Phase I (LLM invocation)
+- Checkpoint completeness check must happen at startup validation time, not during iteration
+- The 3-attempt retry logic uses `continue 2` to skip to the next story in the outer loop (not just inner retry loop)
+- Closing brace syntax in bats function extraction requires proper sed patterns to work across newlines
+- jq's `//` operator (default) is useful for handling missing fields, but `empty` must be used to distinguish between null and missing
+
+---
+
 ## Iteration [12] - Story: US-231: Add worktree health audit command
 
 ### What was implemented
@@ -7740,4 +7785,37 @@ Here is a technical brief for implementing story US-199.
 - Integrate into Phase R: modify research agent to run prompt twice and pass both outputs
 - Add cost accounting in results.tsv for consistency check runs
 - Add UI dashboard widget showing stories flagged for human review
+
+## Iteration 2 - Mon, Mar 16, 2026  4:52:54 AM
+Incomplete: Export dependency graph as Graphviz DOT file for advanced rendering (ID: US-199) — attempt /3
+
+
+## Pre-analysis for US-199 (Gemini 2.5 Pro)
+Here is the technical brief for implementing the Graphviz export feature.
+
+**Subject: Technical Brief for US-199: Graphviz DOT Export**
+
+This brief outlines the implementation plan for adding Graphviz DOT file export to the `spiral graph` command.
+
+*   **Python Files to Modify:**
+    *   `lib/dependency_graph.py`: This file likely contains the core logic for building the story dependency graph. The main changes will be here.
+    *   `main.py`: The entrypoint for the CLI. This will need modification to add the `--format dot` command-line argument.
+    *   `pyproject.toml`: Add `graphviz` to the project's dependencies.
+
+*   **Frappe Context:**
+    *   This task relates to the `spiral` command-line tool, not a Frappe application. No Frappe DocTypes or hooks are involved.
+
+*   **Implementation Approach:**
+    1.  In `main.py`, update the `argparse` or `click` parser for the `graph` command to include a `--format` option, which accepts `mermaid` or `dot`.
+    2.  In `lib/dependency_graph.py`, create a new function `render_dot(stories, dependencies)` that uses the `graphviz` Python library.
+    3.  Inside this function, initialize a `graphviz.Digraph`.
+    4.  Iterate through priorities (`critical`, `high`, `medium`, `low`) and create a `subgraph` for each, naming them `cluster_critical`, etc.
+    5.  Within each subgraph, add nodes for each story, setting the `fillcolor` based on its status and `style=filled`.
+    6.  Add edges to the main graph based on the story dependencies.
+    7.  The main function will call the appropriate renderer based on the `--format` flag.
+
+*   **Gotchas to Watch For:**
+    *   The `graphviz` Python package is a wrapper; the actual Graphviz system command (`dot`) must be installed on the user's machine to render the output SVG/PNG.
+    *   Handle cases where stories have missing or unexpected `priority` or `status` values.
+    *   The `graphviz` library should handle escaping special characters in node labels, but this should be verified.
 
