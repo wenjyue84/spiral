@@ -42,10 +42,14 @@ function buildLaunchCommand(values: ConfigValues): string {
   const gateMode = String(values['SPIRAL_GATE_MODE'] ?? 'interactive');
   const workers = Number(values['SPIRAL_RALPH_WORKERS'] ?? 1);
   const model = String(values['SPIRAL_MODEL_ROUTING'] ?? 'auto');
+  const timeLimit = Number(values['TIME_LIMIT_MINS'] ?? 720);
 
   const parts: string[] = [
     `bash "${SPIRAL_HOME}/spiral.sh" ${maxIters}`,
   ];
+
+  // time limit (always emit unless 0 = unlimited)
+  if (timeLimit > 0) parts.push(`--time-limit ${timeLimit}`);
 
   // gate
   if (gateMode === 'proceed') parts.push('--gate proceed');

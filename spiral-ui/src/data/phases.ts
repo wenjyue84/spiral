@@ -119,6 +119,14 @@ export const PHASES: Phase[] = [
     outputs: [],
     x: 400, y: 860,
   },
+  {
+    id: 'D', label: 'Phase D', subtitle: 'AI Suggestions — always loops back to Phase A',
+    zone: 'decision',
+    inputs: ['prd.json (after iter)'],
+    outputs: [],
+    skipCondition: 'Never exits here — SPIRAL only ends via max iters / time limit / cost ceiling',
+    x: 400, y: 960,
+  },
 ];
 
 export const ZONE_COLORS: Record<PhaseZone, { bg: string; border: string; text: string; badge: string }> = {

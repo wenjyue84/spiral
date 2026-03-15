@@ -28,6 +28,11 @@ interface WorkflowDiagramProps {
 // ── Node Definitions ───────────────────────────────────────────────────────────
 
 const initialNodes: Node[] = [
+  // ── STAGE GROUP BACKGROUNDS (rendered first = behind all other nodes) ─────────
+  { id: 'grp-startup',  position: { x: 45,  y: 10  }, data: { label: '① Startup — Session Setup',       color: '#16a34a', width: 250, height: 540 }, type: 'group', draggable: false, selectable: false, focusable: false, zIndex: -1 },
+  { id: 'grp-pipeline', position: { x: 300, y: 55  }, data: { label: '② Pipeline — Preparing Stories',  color: '#2563eb', width: 560, height: 535 }, type: 'group', draggable: false, selectable: false, focusable: false, zIndex: -1 },
+  { id: 'grp-impl',     position: { x: 425, y: 555 }, data: { label: '③ Implement & Validate',          color: '#ea580c', width: 760, height: 665 }, type: 'group', draggable: false, selectable: false, focusable: false, zIndex: -1 },
+
   // ── STARTUP ──────────────────────────────────────────────────────────────────
   { id: '0a', position: { x: 80,  y: 40  }, data: { label: '0-A Constitution', sub: 'Create / review rules', zone: 'startup' }, type: 'phase' },
   { id: '0b', position: { x: 80,  y: 140 }, data: { label: '0-B Focus', sub: 'Set session theme → SPIRAL_FOCUS', zone: 'startup' }, type: 'phase' },
@@ -54,8 +59,11 @@ const initialNodes: Node[] = [
   { id: 'R5', position: { x: 1000, y: 920 }, data: { label: 'Commit', sub: 'passes: true', zone: 'validate' }, type: 'ralph' },
   { id: 'R6', position: { x: 720, y: 920 }, data: { label: 'Revert + escalate', sub: 'haiku→sonnet→opus', zone: 'decision' }, type: 'ralph' },
 
+  // ── DISCOVERY CHECK (always loops back — no exit here) ───────────────────────
+  { id: 'D',  position: { x: 460, y: 1050 }, data: { label: 'D  AI Suggestions', sub: 'Phase A always finds improvements', zone: 'decision' }, type: 'decision' },
+
   // ── TERMINAL NODES ───────────────────────────────────────────────────────────
-  { id: 'DONE', position: { x: 600, y: 1040 }, data: { label: '🎉 SPIRAL COMPLETE', sub: '', zone: 'terminal' }, type: 'terminal' },
+  { id: 'DONE', position: { x: 460, y: 1180 }, data: { label: '🏁 SPIRAL ENDS', sub: 'max iters / time limit / cost ceiling', zone: 'terminal' }, type: 'terminal' },
   { id: 'EXIT', position: { x: 320, y: 640 }, data: { label: '❌ Exit', sub: 'user quit', zone: 'terminal' }, type: 'terminal' },
 ];
 
@@ -63,14 +71,17 @@ const initialNodes: Node[] = [
 
 type PhaseData = { label: string; sub?: string; zone: string; skip?: string; sources?: string[] };
 
-const hStyle = { opacity: 0, width: 6, height: 6, minWidth: 6, minHeight: 6 };
+const hStyle  = { opacity: 0, width: 6, height: 6, minWidth: 6, minHeight: 6 };
+const hStyleL = { opacity: 0, width: 8, height: 8, minWidth: 8, minHeight: 8 }; // named left handles for loop edges
 
-function PhaseNode({ data, selected }: NodeProps & { data: PhaseData }) {
+function PhaseNode({ data, selected, id }: NodeProps & { data: PhaseData }) {
   const colors = ZONE_COLORS[data.zone as keyof typeof ZONE_COLORS] ?? ZONE_COLORS.pipeline;
+  // Node A gets a named left handle so the discovery loop-back can anchor to it
+  const isLoopTarget = id === 'A';
   return (
     <>
       <Handle type="target" position={Position.Top}    style={hStyle} isConnectable={false} />
-      <Handle type="target" position={Position.Left}   style={hStyle} isConnectable={false} />
+      <Handle type="target" position={Position.Left}   style={isLoopTarget ? hStyleL : hStyle} id={isLoopTarget ? 'loop-in' : undefined} isConnectable={false} />
       <div
         className="rounded-lg px-3 py-2 text-xs shadow-md min-w-[160px] max-w-[200px] border-2 cursor-pointer transition-all"
         style={{
@@ -107,8 +118,9 @@ function PhaseNode({ data, selected }: NodeProps & { data: PhaseData }) {
 
 type SimpleData = { label: string; sub?: string; zone: string };
 
-function DecisionNode({ data, selected }: NodeProps & { data: SimpleData }) {
+function DecisionNode({ data, selected, id }: NodeProps & { data: SimpleData }) {
   const colors = ZONE_COLORS['decision'];
+  const isLoopSource = id === 'D' || id === 'C';
   return (
     <>
       <Handle type="target" position={Position.Top}    style={hStyle} isConnectable={false} />
@@ -129,6 +141,9 @@ function DecisionNode({ data, selected }: NodeProps & { data: SimpleData }) {
       </div>
       <Handle type="source" position={Position.Bottom} style={hStyle} isConnectable={false} />
       <Handle type="source" position={Position.Right}  style={hStyle} isConnectable={false} />
+      {isLoopSource && (
+        <Handle type="source" position={Position.Left} style={hStyleL} id="loop-out" isConnectable={false} />
+      )}
     </>
   );
 }
@@ -174,11 +189,47 @@ function TerminalNode({ data, selected }: NodeProps & { data: { label: string; s
   );
 }
 
+type GroupData = { label: string; color: string; width: number; height: number };
+
+function GroupNode({ data }: NodeProps & { data: GroupData }) {
+  return (
+    <div style={{
+      width: data.width,
+      height: data.height,
+      border: `2px dashed ${data.color}`,
+      borderRadius: 14,
+      background: `${data.color}12`,
+      pointerEvents: 'none',
+      position: 'relative',
+      overflow: 'visible',
+    }}>
+      <div style={{
+        position: 'absolute',
+        top: -15,
+        left: 14,
+        background: data.color,
+        color: '#fff',
+        fontSize: 10,
+        fontWeight: 700,
+        padding: '2px 10px',
+        borderRadius: 6,
+        letterSpacing: '0.08em',
+        textTransform: 'uppercase',
+        whiteSpace: 'nowrap',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.18)',
+      }}>
+        {data.label}
+      </div>
+    </div>
+  );
+}
+
 const nodeTypes = {
   phase: PhaseNode,
   decision: DecisionNode,
   ralph: RalphNode,
   terminal: TerminalNode,
+  group: GroupNode,
 };
 
 // ── Edge Definitions ───────────────────────────────────────────────────────────
@@ -227,12 +278,34 @@ const initialEdges: Edge[] = [
   { id: 'eI-V', source: 'I', target: 'V', ...edgeDefaults, style: { strokeWidth: 2 } },
   { id: 'eV-C', source: 'V', target: 'C', ...edgeDefaults, style: { strokeWidth: 2 } },
 
-  // C branches
-  { id: 'eC-done', source: 'C', target: 'DONE', label: '✅ all done', ...edgeDefaults, style: { stroke: '#059669', strokeWidth: 2.5 } },
-  { id: 'eC-A', source: 'C', target: 'A', label: '⏳ pending', ...edgeDefaults,
-    style: { stroke: '#2563eb', strokeDasharray: '6,3', strokeWidth: 2 },
+  // C branches — pending stories loop immediately; all-done goes to Discovery Check
+  { id: 'eC-A',  source: 'C', target: 'A', label: '⏳ pending stories',
+    ...edgeDefaults,
+    style: { stroke: '#2563eb', strokeDasharray: '6,3', strokeWidth: 2.5 },
     markerEnd: { ...arrow, color: '#2563eb' },
-    type: 'straight' as const },
+    labelStyle: { fontSize: 9, fontWeight: 600 },
+    sourceHandle: 'loop-out',
+    targetHandle: 'loop-in' },
+  { id: 'eC-D',  source: 'C', target: 'D', label: '✅ all complete', ...edgeDefaults,
+    style: { stroke: '#059669', strokeWidth: 2.5 } },
+
+  // D → A: ALWAYS loops — Phase A can always suggest improvements, no exit here
+  { id: 'eD-A',  source: 'D', target: 'A',
+    label: '♻️ always loops — no perfect system',
+    ...edgeDefaults,
+    style: { stroke: '#16a34a', strokeWidth: 3.5, strokeDasharray: '10,5' },
+    markerEnd: { ...arrow, color: '#16a34a', width: 24, height: 24 },
+    labelStyle: { fontSize: 10, fontWeight: 700, fill: '#15803d' },
+    type: 'smoothstep' as const,
+    sourceHandle: 'loop-out',
+    targetHandle: 'loop-in',
+  },
+  // DONE is only reached when max iters / time limit / cost ceiling is hit (outer loop exits)
+  { id: 'eD-done', source: 'D', target: 'DONE',
+    label: 'max iters / time limit',
+    ...edgeDefaults,
+    style: { stroke: '#94a3b8', strokeWidth: 1.5, strokeDasharray: '4,4' },
+    labelStyle: { fontSize: 9, fill: '#64748b' } },
 
   // Ralph inner loop
   { id: 'eI-R1', source: 'I', target: 'R1', label: 'orchestrates', ...edgeDefaults,

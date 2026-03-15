@@ -10,6 +10,8 @@ dependencies = [
     "sentence-transformers>=3.0.1",
     "scikit-learn>=1.5.1",
     "rapidfuzz>=3.14.3",
+    "opentelemetry-sdk>=1.30.0",
+    "opentelemetry-exporter-otlp-proto-http>=1.30.0",
 ]
 
 [project.scripts]

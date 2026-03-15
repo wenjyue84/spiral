@@ -528,6 +528,14 @@ fi
 SPIRAL_RUN_ID=$(uuidgen 2>/dev/null || printf '%x%x' "$(date +%s)" "$RANDOM")
 export SPIRAL_RUN_ID
 
+# ── OTel GenAI trace context (US-184) ────────────────────────────────────────
+# Emit root invoke_agent span and set TRACEPARENT for child phase spans.
+# Silently skipped if otel_spans.py is missing or Python unavailable.
+_OTEL_TP=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" begin-run \
+  --run-id "$SPIRAL_RUN_ID" --scratch-dir "$SCRATCH_DIR" 2>/dev/null || true)
+[[ -n "$_OTEL_TP" ]] && export TRACEPARENT="$_OTEL_TP"
+unset _OTEL_TP
+
 # ── Source memory pressure helper library ────────────────────────────────────
 export SPIRAL_SCRATCH_DIR="$SCRATCH_DIR"
 source "$SPIRAL_HOME/lib/memory-pressure-check.sh"
@@ -1341,6 +1349,33 @@ echo "  ║  Scratch:     $SCRATCH_DIR"
 echo "  ╚══════════════════════════════════════════════╝"
 echo ""
 
+# ── Register with SPIRAL UI and open dashboard ────────────────────────────────
+_SPIRAL_UI_PORT="${SPIRAL_UI_PORT:-5299}"
+_UI_PROJECT_NAME=$("$JQ" -r '.productName // empty' "$PRD_FILE" 2>/dev/null || true)
+if [[ -z "$_UI_PROJECT_NAME" ]]; then
+  _UI_PROJECT_NAME=$(basename "$REPO_ROOT" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
+fi
+_UI_BASE="http://localhost:${_SPIRAL_UI_PORT}"
+_UI_DASH="${_UI_BASE}/${_UI_PROJECT_NAME}"
+
+# Register project with UI server (non-blocking; UI may not be running — ignore errors)
+if command -v curl &>/dev/null; then
+  curl -sf -X POST "${_UI_BASE}/api/register-project" \
+    -H "Content-Type: application/json" \
+    -d "{\"name\":\"${_UI_PROJECT_NAME}\",\"root\":\"${REPO_ROOT}\"}" \
+    >/dev/null 2>&1 || true
+fi
+
+# Open browser to project dashboard
+echo "  [UI] Dashboard: ${_UI_DASH}"
+if command -v cmd.exe &>/dev/null; then
+  cmd.exe /c start "" "${_UI_DASH}" 2>/dev/null || true
+elif command -v xdg-open &>/dev/null; then
+  xdg-open "${_UI_DASH}" 2>/dev/null &
+elif command -v open &>/dev/null; then
+  open "${_UI_DASH}" 2>/dev/null || true
+fi
+
 # ── --replay: re-run a single story in an isolated worktree ──────────────────
 # Runs only Phases I+V+C for the specified story ID; skips R/T/M/G entirely.
 # Phase G (human gate) is automatically skipped.
@@ -2133,6 +2168,8 @@ $INJECTED_PROMPT"
 
   log_spiral_event "phase_end" "\"phase\":\"R\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_R"
   log_spiral_event "phase_end" "\"phase\":\"T\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_T"
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" end-phase --phase R --duration-s "$_PHASE_DUR_R" --iteration "$SPIRAL_ITER" 2>/dev/null || true
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" end-phase --phase T --duration-s "$_PHASE_DUR_T" --iteration "$SPIRAL_ITER" 2>/dev/null || true
   notify_webhook "R" "end"
   notify_webhook "T" "end"
   PHASE="T"
@@ -2176,6 +2213,7 @@ $INJECTED_PROMPT"
   run_phase_hook POST "S" || true
   _PHASE_DUR_S=$(($(date +%s) - _PHASE_TS_S))
   log_spiral_event "phase_end" "\"phase\":\"S\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_S"
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" end-phase --phase S --duration-s "$_PHASE_DUR_S" --iteration "$SPIRAL_ITER" 2>/dev/null || true
   notify_webhook "S" "end"
 
   # ── Phase M: MERGE ──────────────────────────────────────────────────────────
@@ -2256,6 +2294,16 @@ $INJECTED_PROMPT"
       spiral_assert_decomposition_integrity "$PRD_FILE"
       spiral_assert_dependency_completion_order "$PRD_FILE"
 
+      # ── Phase M: Enforce pending story cap (evict to candidate_us.json) ──────
+      _CANDIDATE_US="$SCRATCH_DIR/candidate_us.json"
+      if [[ "${SPIRAL_PRD_PENDING_CAP:-50}" -gt 0 ]]; then
+        "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/rebalance_pending.py" \
+          --prd "$PRD_FILE" \
+          --candidate-out "$_CANDIDATE_US" \
+          --overflow-out "$OVERFLOW_FILE" \
+          --max-pending "${SPIRAL_PRD_PENDING_CAP:-50}" || true
+      fi
+
       # ── Phase M: Infer dependencies from filesTouch overlap ─────────────────
       _HINTS_FILE="$SCRATCH_DIR/_dependency_hints.json"
       echo "  [M] Inferring dependencies from filesTouch overlap..."
@@ -2281,6 +2329,7 @@ $INJECTED_PROMPT"
   run_phase_hook POST "M" || true
   _PHASE_DUR_M=$(($(date +%s) - _PHASE_TS_M))
   log_spiral_event "phase_end" "\"phase\":\"M\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_M"
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" end-phase --phase M --duration-s "$_PHASE_DUR_M" --iteration "$SPIRAL_ITER" 2>/dev/null || true
   notify_webhook "M" "end"
 
   # ── Phase G: HUMAN GATE + Phase I: IMPLEMENT ───────────────────────────────
@@ -2764,8 +2813,10 @@ $INJECTED_PROMPT"
   run_phase_hook POST "G" || true
   _PHASE_DUR_I=$(($(date +%s) - _PHASE_TS_I))
   log_spiral_event "phase_end" "\"phase\":\"I\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_I"
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" end-phase --phase I --duration-s "$_PHASE_DUR_I" --iteration "$SPIRAL_ITER" 2>/dev/null || true
   notify_webhook "I" "end"
   log_spiral_event "phase_end" "\"phase\":\"G\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_I"
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" end-phase --phase G --duration-s "$_PHASE_DUR_I" --iteration "$SPIRAL_ITER" 2>/dev/null || true
   notify_webhook "G" "end"
 
   # ── Snapshot passes count after Phase I (US-183) ──────────────────────────
@@ -3038,6 +3089,7 @@ PYEOF
   run_phase_hook POST "V" || true
   _PHASE_DUR_V=$(($(date +%s) - _PHASE_TS_V))
   log_spiral_event "phase_end" "\"phase\":\"V\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_V"
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" end-phase --phase V --duration-s "$_PHASE_DUR_V" --iteration "$SPIRAL_ITER" 2>/dev/null || true
   notify_webhook "V" "end"
 
   # ── Phase P: PUSH ──────────────────────────────────────────────────────────
@@ -3110,6 +3162,10 @@ PYEOF
       fi
     fi
 
+    # ── Emit OTel root span for completed run (US-184) ─────────────────────
+    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" end-run \
+      --passes "$DONE" --story-count "$TOTAL" 2>/dev/null || true
+
     exit 0
   fi
 
@@ -3134,6 +3190,53 @@ PYEOF
 
   # ── Write iteration summary (US-039) ──────────────────────────────────
   write_iter_summary
+
+  # ── Write UI progress snapshot ────────────────────────────────────────
+  _SNAP_TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  _SNAP_DONE=$("$JQ" '[.userStories[] | select(.passes == true)] | length' "$PRD_FILE" 2>/dev/null || echo "$DONE")
+  _SNAP_PENDING=$("$JQ" '[.userStories[] | select(.passes != true)] | length' "$PRD_FILE" 2>/dev/null || echo "$PENDING")
+  _SNAP_TOTAL=$("$JQ" '.userStories | length' "$PRD_FILE" 2>/dev/null || echo "$TOTAL")
+  printf '{"ts":"%s","iter":%d,"done":%s,"pending":%s,"total":%s,"added":%d}\n' \
+    "$_SNAP_TS" "$SPIRAL_ITER" "$_SNAP_DONE" "$_SNAP_PENDING" "$_SNAP_TOTAL" "${ADDED:-0}" \
+    >> "$SCRATCH_DIR/ui-progress-history.jsonl" 2>/dev/null || true
+
+  # Also re-register with UI (keeps lastSeen fresh and handles UI restart)
+  if command -v curl &>/dev/null && [[ -n "${_UI_PROJECT_NAME:-}" ]]; then
+    curl -sf -X POST "${_UI_BASE:-http://localhost:5299}/api/register-project" \
+      -H "Content-Type: application/json" \
+      -d "{\"name\":\"${_UI_PROJECT_NAME}\",\"root\":\"${REPO_ROOT}\"}" \
+      >/dev/null 2>&1 || true
+  fi
+
+  # ── Self-versioning: bump SKILL.md patch version after each iteration ──────
+  # Activates only when SPIRAL is running on its own project directory.
+  if [[ "$REPO_ROOT" == "$SPIRAL_HOME" || "$SPIRAL_HOME" == "$REPO_ROOT" ]]; then
+    _SKILL_MD="$SPIRAL_HOME/SKILL.md"
+    if [[ -f "$_SKILL_MD" ]]; then
+      _PREV_VER=$(grep '^version:' "$_SKILL_MD" | head -1 | awk '{print $2}')
+      "$SPIRAL_PYTHON" -c "
+import re, sys
+path = sys.argv[1]
+text = open(path, encoding='utf-8').read()
+def bump(m):
+    v = m.group(1).split('.')
+    v[-1] = str(int(v[-1]) + 1)
+    return 'version: ' + '.'.join(v)
+text = re.sub(r'^version: (\S+)', bump, text, flags=re.MULTILINE)
+open(path, 'w', encoding='utf-8').write(text)
+" "$_SKILL_MD" 2>/dev/null || true
+      _NEW_VER=$(grep '^version:' "$_SKILL_MD" | head -1 | awk '{print $2}')
+      if [[ -n "$_NEW_VER" && "$_NEW_VER" != "$_PREV_VER" ]]; then
+        echo "  [skill] SPIRAL skill version bumped: ${_PREV_VER} → ${_NEW_VER}"
+        # Sync to .claude/skills/ copy
+        _CLAUDE_SKILL="$HOME/.claude/skills/spiral/SKILL.md"
+        if [[ -f "$_CLAUDE_SKILL" ]]; then
+          cp "$_SKILL_MD" "$_CLAUDE_SKILL"
+          echo "  [skill] Synced to $(basename "$(dirname "$_CLAUDE_SKILL")")/SKILL.md"
+        fi
+      fi
+    fi
+  fi
 
   # ── Iteration dashboard ─────────────────────────────────────────────────
   ITER_END=$(date +%s)
@@ -3206,6 +3309,7 @@ PYEOF
 
   _PHASE_DUR_C=$(($(date +%s) - _PHASE_TS_C))
   log_spiral_event "phase_end" "\"phase\":\"C\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_C"
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" end-phase --phase C --duration-s "$_PHASE_DUR_C" --iteration "$SPIRAL_ITER" 2>/dev/null || true
   notify_webhook "C" "end"
   echo "  [C] Looping back to Phase R"
   echo ""
@@ -3232,5 +3336,9 @@ fi
 SESSION_END=$(date +%s)
 SESSION_MINUTES=$(((SESSION_END - SESSION_START) / 60))
 echo "  Session: ${SESSION_MINUTES}m total, $SPIRAL_ITER iterations"
+
+# ── Emit OTel root span on max-iters exit (US-184) ───────────────────────────
+"$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" end-run \
+  --passes "${DONE:-0}" --story-count "${TOTAL:-0}" 2>/dev/null || true
 
 exit $ERR_MAX_ITERS

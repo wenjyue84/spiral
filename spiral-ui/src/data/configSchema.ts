@@ -22,9 +22,9 @@ export const CONFIG_FIELDS: ConfigField[] = [
   {
     key: 'TIME_LIMIT_MINS',
     label: 'Time Limit (minutes)',
-    description: 'Stop the SPIRAL loop after this many minutes. 0 = unlimited.',
-    type: 'number', defaultValue: 0, category: 'Session',
-    placeholder: '0 (unlimited)',
+    description: 'Stop the SPIRAL loop after this many minutes. Default: 720 (12 hours). 0 = unlimited.',
+    type: 'number', defaultValue: 720, category: 'Session',
+    placeholder: '720 (12 hours)',
   },
   {
     key: 'SPIRAL_GATE_MODE',
@@ -48,10 +48,17 @@ export const CONFIG_FIELDS: ConfigField[] = [
   // ── Story Pipeline ───────────────────────────────────────────────────────────
   {
     key: 'SPIRAL_MAX_PENDING',
-    label: 'Max Pending Stories',
-    description: 'Phase M stops adding new stories once this many are pending. 0 = unlimited.',
-    type: 'number', defaultValue: 0, category: 'Story Pipeline', phase: 'M',
-    placeholder: '0 (unlimited)',
+    label: 'Max Pending Stories (Pipeline Pause)',
+    description: 'Phases R→T→S→M pause when pending (undone) stories reach this count. Resumes once stories drop below this limit. Default: 30. 0 = unlimited.',
+    type: 'number', defaultValue: 30, category: 'Story Pipeline', phase: 'M',
+    placeholder: '30',
+  },
+  {
+    key: 'SPIRAL_PRD_PENDING_CAP',
+    label: 'PRD Pending Story Cap (Eviction)',
+    description: 'Hard cap on pending stories stored in prd.json. When exceeded after Phase M, lower-priority stories are evicted to candidate_us.json and re-compete next iteration. Default: 50. 0 = unlimited.',
+    type: 'number', defaultValue: 50, category: 'Story Pipeline', phase: 'M',
+    placeholder: '50',
   },
   {
     key: 'SPIRAL_MAX_RESEARCH_STORIES',

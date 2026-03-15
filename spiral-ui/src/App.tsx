@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { Routes, Route } from 'react-router-dom';
 import WorkflowDiagram from './components/WorkflowDiagram';
 import SettingsPanel, { defaultValues, type ConfigValues } from './components/SettingsPanel';
 import ConfigGenerator from './components/ConfigGenerator';
 import NodePanel from './components/NodePanel';
+import ProjectDashboard from './components/ProjectDashboard';
 
 type Tab = 'workflow' | 'settings' | 'config';
 
@@ -19,7 +21,7 @@ interface SelectedNode {
   zone: string;
 }
 
-export default function App() {
+function SpiralHome() {
   const [activeTab, setActiveTab] = useState<Tab>('workflow');
   const [values, setValues] = useState<ConfigValues>(defaultValues());
   const [selectedNode, setSelectedNode] = useState<SelectedNode | null>(null);
@@ -161,5 +163,14 @@ export default function App() {
         }
       `}</style>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<SpiralHome />} />
+      <Route path="/:projectName" element={<ProjectDashboard />} />
+    </Routes>
   );
 }
