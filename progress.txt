@@ -6567,3 +6567,21 @@ Completed: Run Semgrep SAST scan on AI-generated code as a mandatory Gate phase 
 ## Iteration 3 - Mon, Mar 16, 2026  1:00:08 AM
 Completed: Run Semgrep SAST scan on AI-generated code as a mandatory Gate phase check (ID: US-262) in 22m
 
+
+---
+
+## Iteration [11] - Story: US-229: Enforce least-privilege permissions block on all GitHub Actions workflow jobs
+
+### What was implemented
+- Added top-level `permissions: read-all` to all 4 workflow files: ci.yml, codeql.yml, release.yml, spiral.yml
+- Added new `actionlint` job to ci.yml that installs actionlint via `go install` and runs it against all workflow files
+- All jobs retain their existing job-level permissions overrides (e.g., `sarif` job keeps `security-events: write`, `bats` keeps `checks: write`, `release` changelog job keeps `contents: write`)
+
+### Patterns discovered
+- Workflow files all had per-job permissions blocks already; only missing the top-level deny-by-default block
+- `go install` pattern already used in ci.yml (shfmt); reused same approach for actionlint binary installation
+- actionlint detects missing permissions blocks as part of its default lint checks
+
+### Gotchas
+- prd.json must be opened with `encoding='utf-8'` on Windows (cp1252 default fails on special chars in story text)
+- Top-level `permissions: read-all` placement must be between `on:` block and `jobs:` block in YAML

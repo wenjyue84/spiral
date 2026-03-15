@@ -26,6 +26,9 @@ on:
     # Weekly full scan on Sunday at 03:00 UTC (catches new CVEs without a push)
     - cron: "0 3 * * 0"
 
+# Deny all permissions by default; each job grants only what it needs.
+permissions: read-all
+
 jobs:
   analyze-python:
     name: CodeQL — Python

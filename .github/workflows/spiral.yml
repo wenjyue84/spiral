@@ -25,6 +25,9 @@ on:
         type: boolean
         default: false
 
+# Deny all permissions by default; each job grants only what it needs.
+permissions: read-all
+
 jobs:
   spiral:
     runs-on: ubuntu-latest
