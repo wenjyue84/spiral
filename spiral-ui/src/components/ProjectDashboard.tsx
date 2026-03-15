@@ -106,8 +106,10 @@ function ProgressTab({ data }: { data: ProjectData }) {
   const p = data.progress;
   if (!p) return <div className="p-6 text-slate-500">No prd.json found in project root.</div>;
 
+  const PRIORITY_RANK: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
   const done = p.stories.filter(s => s.passes);
-  const pending = p.stories.filter(s => !s.passes);
+  const pending = [...p.stories.filter(s => !s.passes)]
+    .sort((a, b) => (PRIORITY_RANK[a.priority ?? 'low'] ?? 99) - (PRIORITY_RANK[b.priority ?? 'low'] ?? 99));
   const donePct = pct(p.done, p.total);
 
   return (
@@ -229,7 +231,14 @@ function ProgressTab({ data }: { data: ProjectData }) {
                   <span className="text-xs font-mono text-amber-700">{s.id}</span>
                   <span className="ml-2 text-xs text-slate-700">{s.title}</span>
                 </div>
-                {s.priority && <span className="text-[10px] text-slate-400">{s.priority}</span>}
+                {s.priority && (
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                    s.priority === 'critical' ? 'bg-red-100 text-red-700' :
+                    s.priority === 'high' ? 'bg-orange-100 text-orange-700' :
+                    s.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                    'bg-slate-100 text-slate-500'
+                  }`}>{s.priority}</span>
+                )}
               </div>
             ))}
           </div>
