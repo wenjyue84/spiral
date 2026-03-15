@@ -1,3 +1,27 @@
+## Iteration [10] - Story: US-279: Capture worker crash tracebacks and persist to .spiral/crashes/ directory
+
+### What was implemented
+- Created `lib/crash_capture.sh` with functions: `capture_crash`, `_update_crash_index`, `prune_old_crashes`, `report_recent_crashes`
+- Hooked crash capture into sequential mode (spiral.sh): stderr redirected to temp file, captured on non-zero exit
+- Hooked crash capture into parallel mode (run_parallel_ralph.sh): both timeout (exit 124) and crash paths capture from worker log
+- Added crash pruning on startup in spiral.sh (after mkdir -p $SCRATCH_DIR)
+- Added recent crash reporting to spiral_doctor (shows last 5 crashes)
+- Crash files written to `.spiral/crashes/{story_id}_{timestamp}.txt` with header metadata
+- `index.json` updated atomically via temp-file + mv pattern
+- `.spiral/crashes/` already covered by `.spiral/` in .gitignore
+
+### Patterns discovered
+- lib/*.sh files are sourced in spiral.sh and run_parallel_ralph.sh — each independently sources what it needs
+- Parallel workers redirect both stdout+stderr to single log file (2>&1), so crash capture uses worker log tail
+- Sequential mode has stdout/stderr still separated — easier to capture stderr directly
+- spiral_doctor.sh uses error_count/warn_count pattern for summary
+
+### Gotchas
+- Pre-existing test failures in test_check_dag, test_infer_dependencies, test_partition (not related to US-279)
+- run_parallel_ralph.sh has its own source block separate from spiral.sh — must source crash_capture.sh in both
+
+---
+
 ## Codebase Patterns
 
 - lib/ Python scripts follow pattern: function(stories) → tuple/value + main() CLI with argparse

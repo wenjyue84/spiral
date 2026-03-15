@@ -841,6 +841,7 @@ source "$SPIRAL_HOME/lib/spiral_retry.sh"
 source "$SPIRAL_HOME/lib/phases/phase_s_story_validate.sh"
 source "$SPIRAL_HOME/lib/phases/phase_0_clarify.sh"
 source "$SPIRAL_HOME/lib/plugin_system.sh"
+source "$SPIRAL_HOME/lib/crash_capture.sh"
 
 # ── --doctor: run dependency checks and exit ────────────────────────────────
 if [[ "$DOCTOR_MODE" -eq 1 ]]; then
@@ -850,6 +851,9 @@ fi
 
 # ── Tee all output to log file ──────────────────────────────────────────────
 mkdir -p "$SCRATCH_DIR"
+
+# ── US-279: Prune old crash files on startup ─────────────────────────────────
+prune_old_crashes
 
 # ── Log rotation (before opening tee fd) ─────────────────────────────────────
 _LOG_FILE="$SCRATCH_DIR/_last_run.log"
@@ -1447,6 +1451,94 @@ checkpoint_phase_done() {
   # Phase order: R T S M G I V C
   local -A PHASE_ORDER=([R]=1 [T]=2 [S]=3 [M]=4 [G]=5 [I]=6 [V]=7 [C]=8)
   [[ "${PHASE_ORDER[$ckpt_phase]:-0}" -ge "${PHASE_ORDER[$phase]:-0}" ]]
+}
+
+# ── US-262: SAST gate check — run Semgrep on story-branch diff ───────────────
+# Scans files changed vs origin/main for each pending story.
+# HIGH/CRITICAL → story blocked; MEDIUM → warning in _sast_warnings.
+# Results written to $SCRATCH_DIR/gate-reports/<story-id>_sast.json.
+# Returns: 0 = all pass/warn, 1 = at least one story blocked.
+run_sast_gate_check() {
+  if [[ "${SPIRAL_SAST_ENABLED:-true}" == "false" ]]; then
+    echo "  [SAST] Disabled (SPIRAL_SAST_ENABLED=false) — skipping"
+    return 0
+  fi
+
+  if ! command -v semgrep >/dev/null 2>&1; then
+    echo "  [SAST] semgrep not found in PATH — skipping (install semgrep to enable)"
+    return 0
+  fi
+
+  local gate_reports_dir="$SCRATCH_DIR/gate-reports"
+  mkdir -p "$gate_reports_dir"
+
+  # Get list of changed files vs origin/main
+  local changed_files
+  changed_files=$(git diff --name-only origin/main 2>/dev/null || true)
+  if [[ -z "$changed_files" ]]; then
+    echo "  [SAST] No changed files vs origin/main — skipping"
+    return 0
+  fi
+
+  # Get pending story IDs
+  local pending_ids
+  pending_ids=$("$JQ" -r '.userStories[] | select(.passes != true) | .id' "$PRD_FILE" 2>/dev/null)
+  if [[ -z "$pending_ids" ]]; then
+    echo "  [SAST] No pending stories — skipping"
+    return 0
+  fi
+
+  local any_blocked=0
+
+  echo "  [SAST] Scanning $(echo "$changed_files" | wc -l | tr -d ' ') changed files with Semgrep..."
+
+  # Run a single scan over all changed files, then attribute per-story
+  local scan_report="$gate_reports_dir/_sast_scan.json"
+  # shellcheck disable=SC2086
+  semgrep scan --config auto --json --output="$scan_report" $changed_files >/dev/null 2>&1 || true
+
+  if [[ ! -f "$scan_report" ]]; then
+    echo "  [SAST] Semgrep produced no output — skipping"
+    return 0
+  fi
+
+  local high_count medium_count
+  high_count=$("$JQ" '[.results[] | select(.extra.severity == "ERROR" or .extra.severity == "CRITICAL")] | length' "$scan_report" 2>/dev/null || echo "0")
+  medium_count=$("$JQ" '[.results[] | select(.extra.severity == "WARNING")] | length' "$scan_report" 2>/dev/null || echo "0")
+
+  # Write per-story report (copy the full scan — all findings are from story branch)
+  while IFS= read -r sid; do
+    [[ -z "$sid" ]] && continue
+    local story_report="$gate_reports_dir/${sid}_sast.json"
+    cp "$scan_report" "$story_report"
+
+    if [[ "${high_count:-0}" -gt 0 ]]; then
+      echo "  [SAST] FAIL: $high_count HIGH/CRITICAL finding(s) — blocking story $sid"
+      # Set story status to blocked-by-sast
+      "$JQ" --arg sid "$sid" \
+        '(.userStories[] | select(.id == $sid)) |= . + {"_sast_status": "blocked-by-sast"}' \
+        "$PRD_FILE" > "${PRD_FILE}.sast.tmp" && mv "${PRD_FILE}.sast.tmp" "$PRD_FILE"
+      any_blocked=1
+    elif [[ "${medium_count:-0}" -gt 0 ]]; then
+      echo "  [SAST] WARN: $medium_count MEDIUM finding(s) for story $sid (non-blocking)"
+      # Add _sast_warnings to story
+      local warnings
+      warnings=$("$JQ" '[.results[] | select(.extra.severity == "WARNING") | {rule: .check_id, file: .path, line: .start.line, message: .extra.message}]' "$scan_report" 2>/dev/null || echo "[]")
+      "$JQ" --arg sid "$sid" --argjson warnings "$warnings" \
+        '(.userStories[] | select(.id == $sid)) |= . + {"_sast_warnings": $warnings, "_sast_status": "warn"}' \
+        "$PRD_FILE" > "${PRD_FILE}.sast.tmp" && mv "${PRD_FILE}.sast.tmp" "$PRD_FILE"
+    else
+      echo "  [SAST] PASS: No findings for story $sid"
+      "$JQ" --arg sid "$sid" \
+        '(.userStories[] | select(.id == $sid)) |= . + {"_sast_status": "pass"}' \
+        "$PRD_FILE" > "${PRD_FILE}.sast.tmp" && mv "${PRD_FILE}.sast.tmp" "$PRD_FILE"
+    fi
+  done <<< "$pending_ids"
+
+  log_spiral_event "sast_gate_check" "\"iteration\":$SPIRAL_ITER,\"high\":${high_count:-0},\"medium\":${medium_count:-0},\"blocked\":$any_blocked"
+
+  rm -f "$scan_report"
+  return "$any_blocked"
 }
 
 # ── Helper: scan text for prompt injection via LLM Guard (US-198) ────────────
@@ -2915,6 +3007,14 @@ $INJECTED_PROMPT"
         --open 2>/dev/null || true
     fi
 
+    # ── US-262: SAST gate check (Semgrep scan on changed files) ──────────────
+    _SAST_BLOCKED=0
+    run_sast_gate_check || _SAST_BLOCKED=1
+    if [[ "$_SAST_BLOCKED" -eq 1 ]]; then
+      echo "  [SAST] Gate blocked — HIGH/CRITICAL findings detected. Review: $GATE_REPORTS_DIR/*_sast.json"
+      log_spiral_event "sast_gate_blocked" "\"iteration\":$SPIRAL_ITER"
+    fi
+
     notify_webhook "G" "pending" "ok" "\"gate_report_path\":\"$GATE_REPORTS_DIR/latest-review.html\""
     echo ""
     echo "  ╔══════════════════════════════════════════════════════╗"
@@ -3276,16 +3376,23 @@ $INJECTED_PROMPT"
               --story-id "$_NEXT_SID" --scratch-dir "$SCRATCH_DIR" 2>/dev/null || true)
             _I_EXIT=0
             _I_START=$(date +%s)
+            # US-279: capture stderr to temp file for crash persistence
+            _STDERR_CAPTURE=$(mktemp -p "$SCRATCH_DIR" _ralph_stderr_XXXXXX.txt 2>/dev/null || echo "$SCRATCH_DIR/_ralph_stderr_$$.txt")
             if [[ "${SPIRAL_IMPL_TIMEOUT:-600}" -gt 0 ]] && command -v timeout &>/dev/null; then
-              timeout --kill-after=30 "${SPIRAL_IMPL_TIMEOUT}" bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $_DRY_RUN_FLAG || _I_EXIT=$?
+              timeout --kill-after=30 "${SPIRAL_IMPL_TIMEOUT}" bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $_DRY_RUN_FLAG 2>"$_STDERR_CAPTURE" || _I_EXIT=$?
             else
-              bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $RALPH_MODEL_FLAG $_DRY_RUN_FLAG || _I_EXIT=$?
+              bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $RALPH_MODEL_FLAG $_DRY_RUN_FLAG 2>"$_STDERR_CAPTURE" || _I_EXIT=$?
             fi
             _I_ELAPSED=$(($(date +%s) - _I_START))
             if [[ "$_I_EXIT" -eq 124 ]]; then
               echo "  [I] WARNING: Ralph timed out after ${_I_ELAPSED}s (limit: ${SPIRAL_IMPL_TIMEOUT}s) — partial progress saved"
               log_spiral_event "phase_timeout" "\"phase\":\"I\",\"story_id\":\"$_NEXT_SID\",\"iteration\":$SPIRAL_ITER,\"duration_ms\":$((_I_ELAPSED * 1000)),\"timeout_s\":${SPIRAL_IMPL_TIMEOUT}"
             fi
+            # US-279: capture crash traceback on non-zero exit
+            if [[ "$_I_EXIT" -ne 0 ]]; then
+              capture_crash "$_NEXT_SID" "$_I_EXIT" "sequential" "$_STDERR_CAPTURE"
+            fi
+            rm -f "$_STDERR_CAPTURE" 2>/dev/null || true
             # US-219: emit action span for the LLM implementation call
             STORY_TRACEPARENT="$_STORY_TP" "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" emit-action \
               --type llm_query --duration-s "$_I_ELAPSED" --story-id "$_NEXT_SID" 2>/dev/null || true

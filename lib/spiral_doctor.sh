@@ -351,6 +351,14 @@ spiral_doctor() {
     fi
   fi
 
+  # ── US-279: Recent crash history ──────────────────────────────────────────
+  if type report_recent_crashes &>/dev/null; then
+    report_recent_crashes 5
+    local _crash_total
+    _crash_total=$("$JQ" 'length' "${SCRATCH_DIR:-.spiral}/crashes/index.json" 2>/dev/null || echo "0")
+    [[ "$_crash_total" -gt 0 ]] && warn_count=$((warn_count + 1))
+  fi
+
   # ── Exit code reference table ────────────────────────────────────────────
   echo ""
   echo "  [doctor] Exit code reference:"

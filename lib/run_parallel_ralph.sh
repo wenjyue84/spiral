@@ -324,6 +324,7 @@ echo ""
 SPIRAL_PYTHON="${SPIRAL_PYTHON:-$PYTHON}"
 export SPIRAL_PYTHON
 source "$SPIRAL_HOME/lib/spiral_assert.sh"
+source "$SPIRAL_HOME/lib/crash_capture.sh"
 
 # ── Resolve spiral-core binary (Rust hot-path) ────────────────────────────────
 _SC_BIN=""
@@ -760,6 +761,11 @@ while [[ "$_ALL_DONE" -eq 0 ]]; do
           done
           # Timed-out stories remain passes=false in main prd.json — merge_worker_results.py
           # only promotes passes=true entries, so no retry_count increment occurs.
+          # US-279: capture timeout crash from worker log
+          _TO_LOG="$WORKER_DIR/worker_${WORKER_NUM}.log"
+          _TO_SID=$("$JQ" -r '[.userStories[] | select(.passes != true)] | first | .id // "unknown"' \
+            "$WTREE/prd.json" 2>/dev/null || echo "unknown")
+          capture_crash "$_TO_SID" "124" "worker-${WORKER_NUM}" "$_TO_LOG"
           # Force-remove orphaned worktree and branch immediately (US-176)
           _TO_BRANCH="${WORKER_BRANCHES[$i]:-}"
           _TO_WTREE="${WORKER_DIRS[$i]:-}"
@@ -796,6 +802,11 @@ while [[ "$_ALL_DONE" -eq 0 ]]; do
           # US-245: log crash to progress.txt
           echo "## Worker $WORKER_NUM crashed (exit $WORKER_EXIT) — $(date '+%Y-%m-%d %H:%M:%S')" \
             >>"$SCRATCH_DIR/../progress.txt" 2>/dev/null || true
+          # US-279: capture crash traceback from worker log
+          _CRASH_LOG="$WORKER_DIR/worker_${WORKER_NUM}.log"
+          _CRASH_SID=$("$JQ" -r '[.userStories[] | select(.passes != true)] | first | .id // "unknown"' \
+            "${WORKER_DIRS[$i]}/prd.json" 2>/dev/null || echo "unknown")
+          capture_crash "$_CRASH_SID" "$WORKER_EXIT" "worker-${WORKER_NUM}" "$_CRASH_LOG"
         else
           echo "  [parallel] Worker $WORKER_NUM finished: $DONE_W/$TOTAL_W stories passed"
         fi
