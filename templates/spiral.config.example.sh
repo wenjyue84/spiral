@@ -470,6 +470,24 @@
 # Timeout in seconds for each hook invocation. Default: 30
 # SPIRAL_HOOK_TIMEOUT=30
 
+# ── Outbound webhook (phase-level notifications) ──────────────────────────
+# Post a JSON payload to this HTTPS URL at the start and end of each SPIRAL
+# phase (R, T, M, G, I, V, C).  Empty = disabled.
+# SPIRAL_NOTIFY_WEBHOOK="https://example.com/hooks/spiral"
+#
+# Maximum seconds to wait for the webhook HTTP response. Default: 5
+# SPIRAL_NOTIFY_WEBHOOK_TIMEOUT=5
+#
+# Optional extra HTTP header appended to every request (e.g. auth token).
+# SPIRAL_NOTIFY_WEBHOOK_HEADERS="Authorization: Bearer TOKEN"
+#
+# HMAC-SHA256 signing secret (US-207).  When set, every POST includes an
+# X-Spiral-Signature-256: sha256=<hex> header so receivers can verify payload
+# authenticity (follows GitHub webhook signing convention).
+# Leave unset to omit the header (backward-compatible).
+# spiral-doctor warns when SPIRAL_NOTIFY_WEBHOOK is set but this is not.
+# SPIRAL_NOTIFY_WEBHOOK_SECRET="your-signing-secret"
+
 # ── _last_run.log rotation ────────────────────────────────────────────────
 # Rotate .spiral/_last_run.log when it exceeds this size in megabytes.
 # When exceeded, the current log is renamed to _last_run.log.1, previous .1

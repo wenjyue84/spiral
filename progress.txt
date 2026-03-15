@@ -6306,3 +6306,22 @@ Incomplete: Enforce cgroups v2 memory and CPU limits on worker subprocesses (ID:
 ## Iteration 3 - Sun, Mar 15, 2026 11:37:41 PM
 Incomplete: Enforce cgroups v2 memory and CPU limits on worker subprocesses (ID: US-259) — attempt /3
 
+
+---
+
+## Iteration - Story: US-207: HMAC-SHA256 signing for SPIRAL_NOTIFY_WEBHOOK outbound payloads
+
+### What was implemented
+- Added `SPIRAL_NOTIFY_WEBHOOK_SECRET` env var definition in spiral.sh (line ~496) alongside existing NOTIFY_WEBHOOK vars
+- Modified `notify_webhook` function to compute HMAC-SHA256 signature using Python when secret is set, then attach `X-Spiral-Signature-256: sha256=<hex>` header to curl args
+- Added warning in `spiral_doctor` (lib/spiral_doctor.sh) when SPIRAL_NOTIFY_WEBHOOK is set but SPIRAL_NOTIFY_WEBHOOK_SECRET is not
+- Added full webhook+secret documentation block in templates/spiral.config.example.sh
+
+### Patterns discovered
+- HMAC signing uses `"$SPIRAL_PYTHON" -c "..."` inline Python (same pattern as other inline Python calls in spiral.sh)
+- spiral_doctor warnings use `warn_count=$((warn_count + 1))` pattern with 3-line echo block
+- New env vars are defined as `SPIRAL_VAR="${SPIRAL_VAR:-}"` with inline comment on same line
+
+### Gotchas
+- prd.json must be opened with encoding='utf-8' on Windows (cp1252 default fails on special chars)
+- test_route_stories.py has pre-existing import error (relative import) — not caused by this change
