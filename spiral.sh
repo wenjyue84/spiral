@@ -125,6 +125,7 @@ MIGRATE_MODE=0        # 1 = run prd.json schema migration and exit (--migrate)
 ARCHIVE_MODE=0        # 1 = archive completed stories and exit (--archive-done)
 CHANGELOG_MODE=0      # 1 = generate CHANGELOG.md via git-cliff and exit (--changelog)
 STALE_REPORT_MODE=0   # 1 = print stale stories and exit (--stale-report)
+FLAKY_REPORT_MODE=0   # 1 = print flaky test quarantine report and exit (--flaky-tests report)
 SPIRAL_LOG_LEVEL="${SPIRAL_LOG_LEVEL:-INFO}" # DEBUG|INFO|WARN|ERROR (case-insensitive)
 
 while [[ $# -gt 0 ]]; do
@@ -255,6 +256,16 @@ while [[ $# -gt 0 ]]; do
       STALE_REPORT_MODE=1
       shift
       ;;
+    --flaky-tests)
+      # Accept: --flaky-tests report
+      if [[ "${2:-}" == "report" ]]; then
+        FLAKY_REPORT_MODE=1
+        shift 2
+      else
+        echo "[spiral] ERROR: --flaky-tests requires a subcommand (e.g. 'report')" >&2
+        exit 1
+      fi
+      ;;
     --log-level)
       SPIRAL_LOG_LEVEL="${2^^}" # normalise to upper-case
       shift 2
@@ -306,6 +317,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --archive-done             Archive completed stories to prd-archive.json and exit"
       echo "  --changelog                Generate CHANGELOG.md via git-cliff and exit"
       echo "  --stale-report             Print stories inactive beyond SPIRAL_STALE_DAYS (default: 7) and exit"
+      echo "  --flaky-tests report       Print quarantined flaky test registry and exit"
       echo "  --log-level DEBUG|INFO|WARN|ERROR  Output verbosity (default: INFO; can also set SPIRAL_LOG_LEVEL env var)"
       echo "  --status                   Print session state and story counts, then exit"
       echo "  --version                  Print SPIRAL version (git describe) and exit"
@@ -678,6 +690,18 @@ else:
         print(f"  {sid:<12} {age_days:>7}d  {ts_raw[:19]:<24}  {title[:60]}")
     print(f"\n  Total stale: {len(stale)}")
 STALE_REPORT_PY
+  exit 0
+fi
+
+# ── --flaky-tests report: print quarantined test registry and exit ─────────
+if [[ "$FLAKY_REPORT_MODE" -eq 1 ]]; then
+  _FLAKY_LIB="$SPIRAL_HOME/lib/flaky_tests.sh"
+  if [[ ! -f "$_FLAKY_LIB" ]]; then
+    echo "[spiral] ERROR: lib/flaky_tests.sh not found (SPIRAL_HOME=$SPIRAL_HOME)" >&2
+    exit "$ERR_MISSING_DEP"
+  fi
+  source "$_FLAKY_LIB"
+  flaky_report
   exit 0
 fi
 

@@ -5571,3 +5571,32 @@ Completed: Implement explicit prompt cache breakpoints for system prompts and PR
 - awk pattern for extracting block: `/## Planned Changes/{p=1} p && /^##/ && !/## Planned Changes/{exit}` — stops at the next `##` header after Planned Changes to avoid capturing everything that follows
 - `grep -qiE "## Problem( Identified)?$|## Problem Identified"` handles both `## Problem` and `## Problem Identified` as valid header variants
 - The Python heredoc uses `DIAG_EXTRACTOR_EOF` to avoid conflicts with any `EOF` already in ralph.sh
+## Iteration 1 - Sun, Mar 15, 2026  8:13:43 PM
+Incomplete: Add flaky bats test detection and quarantine registry (ID: US-240) — attempt /3
+
+
+## Iteration N - Story: US-240: Add flaky bats test detection and quarantine registry
+
+### What was implemented
+- Created `lib/flaky_tests.sh` with 5 exported functions:
+  - `flaky_record_result(test_name, pass|fail)` — records to `.spiral/flaky-tests.json`
+  - `flaky_is_quarantined(test_name)` — returns 0 if quarantined
+  - `flaky_gate_exit_code(test_name, exit_code)` — returns 0 for quarantined test failures
+  - `flaky_report()` — human-readable quarantine report
+  - `flaky_list_quarantined()` — machine-readable quarantined test names
+- Registry keyed by test name with `{passes, failures, quarantined, lastSeen, history, consecutivePasses}`
+- Configurable via `SPIRAL_FLAKY_THRESHOLD` (default 0.3), `SPIRAL_FLAKY_WINDOW` (default 20), `SPIRAL_FLAKY_CONSEC` (default 10)
+- Python helper extracted to a temp file via `_flaky_ensure_py_helper()` — avoids heredoc variable expansion issues
+- `spiral.sh`: added `--flaky-tests report` subcommand (parses flag, sources lib, calls flaky_report, exits)
+- `tests/flaky_tests.bats`: 22 bats tests — all pass
+
+### Patterns discovered
+- Windows/MINGW64: Git Bash translates POSIX paths in CLI arguments (e.g. `/tmp/xxx` → `C:\Users\...\Temp\xxx`) but NOT when embedded inside `-c` strings passed to python3. Use jq or pass paths as CLI args.
+- Windows Python stdout defaults to cp1252 encoding — Unicode box-drawing chars (╔ ═ ╝ ✗) cause UnicodeEncodeError. Use ASCII alternatives or `sys.stdout.reconfigure(encoding='utf-8')`.
+- Quarantine lift logic: when `consec >= consec_target`, reset history to `[1]*consec` to avoid immediate re-quarantine (since old failure ratio may still exceed threshold).
+- Tests need at least 5 samples before quarantine is applied (avoids false positives on new tests).
+
+### Gotchas
+- `test_route_stories.py` has a pre-existing relative import error — always `--ignore` it in pytest count (983 pass, 2 skip)
+- `flaky_record_result` quarantine-lift resets history, so the failure ratio recomputes from a clean window of consecutive passes
+- `_FLAKY_PY_HELPER` is a non-exported shell variable — each bats `run` subshell re-creates the helper via lazy init
