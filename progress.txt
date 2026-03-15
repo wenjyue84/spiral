@@ -5186,3 +5186,23 @@ Incomplete: Detect and reset dirty worker worktrees at startup to recover from a
 - Untracked file cleanup needed in addition to checkout to handle files from interrupted writes
 - The spiral.sh detection runs once at startup; run_parallel_ralph.sh detection runs per-worker before recreation
 
+## Iteration 2 - Sun, Mar 15, 2026  5:58:35 PM
+Completed: Detect and reset dirty worker worktrees at startup to recover from abrupt session termination (ID: US-218) in 11m
+
+## Iteration - Story: US-218 — Detect and reset dirty worker worktrees at startup
+
+### What was implemented
+- Implementation was already present in spiral.sh (lines 1342-1374) and lib/run_parallel_ralph.sh (lines 293-304)
+- Added comprehensive bats test suite: tests/dirty_worktree_reset.bats (8 tests)
+- Tests cover: no worktree dir, clean worktrees, staged changes, unstaged mods, untracked files, event emission, multiple dirty worktrees, mixed clean/dirty
+
+### Patterns discovered
+- US-218 block runs BEFORE the SPIRAL banner (line 1376) — cleanup happens before any work starts
+- Both spiral.sh (startup) and run_parallel_ralph.sh (per-worker pre-creation) handle dirty worktree reset
+- The implementation also handles stale index.lock files from OOM-killed processes
+- git clean with force-directories flag removes untracked files left by interrupted writes
+
+### Gotchas
+- bats-core bundled in tests/ has Windows line ending issues; use system bats from npm instead
+- Worktree tests need careful teardown: must git worktree remove --force before deleting temp dir to avoid git admin state corruption
+
