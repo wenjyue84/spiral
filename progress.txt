@@ -5544,3 +5544,30 @@ Incomplete: Implement explicit prompt cache breakpoints for system prompts and P
 - Phase R does NOT use `--append-system-prompt` (entire prompt is dynamic user message), so caching benefit is limited; `--betas` flag is added for completeness and to capture any internal multi-turn caching
 - spiral.sh Phase R subshell with `tee` uses a file path var defined in outer shell — works because tmp file path is just a string
 - 983 pytest tests pass (2 pre-existing skips in test_partition.py)
+## Iteration 2 - Sun, Mar 15, 2026  7:53:16 PM
+Completed: Implement explicit prompt cache breakpoints for system prompts and PRD context (ID: US-223) in 16m
+
+
+## Iteration N - Story: US-244: Enforce diagnosis-before-action block in Phase I before code modification
+
+### What was implemented
+- `ralph/CLAUDE.md`: Added "Diagnosis Block (Required Before File Edits)" section requiring workers to output `## Current State`, `## Problem Identified`, `## Planned Changes` before any file edits
+- `ralph/ralph.sh`:
+  - Initialized `_PHASE_I_DIAGNOSIS_BLOCK=""` before the rate-limit retry loop
+  - Added stream-json text extractor (Python heredoc) before `rm -f "$_RL_TMP"` — parses `{"type":"assistant"}` lines and extracts text blocks
+  - Checks for all 3 required headers; captures block into `_PHASE_I_DIAGNOSIS_BLOCK` (up to 80 lines via awk)
+  - After rate-limit loop: stores block in `prd.json` under `_phaseI.diagnosisBlock` via jq
+  - Inside `if [[ "$PASSES" == "true" ]]; then` (before Phase I.5): diagnosis block gate — if block absent, marks `passes=false`, writes `DIAGNOSIS_BLOCK_MISSING` failure reason, increments retry, logs event, continues story loop
+  - `SPIRAL_SKIP_DIAGNOSIS_CHECK=true` env var bypasses the gate
+- `tests/diagnosis_block.bats`: 12 bats tests covering extraction (full/partial/empty/missing file), storage in prd.json, and gate behaviour (block missing → passes=false, SKIP env var → bypass, block present → no change, retry count increments, results log appended)
+
+### Patterns discovered
+- Stream-json extraction: `{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"..."}]}}` format; Python heredoc in bash works cleanly
+- The diagnosis block variable must be initialized before the `while true` rate-limit loop so it persists after `done`
+- Gate placement: inside `if [[ "$PASSES" == "true" ]]; then`, before Phase I.5, mirrors the self-review gate pattern
+- `STORIES_COMPLETED=$((STORIES_COMPLETED - 1))` needed when rejecting inside the passes=true block to undo the increment at block entry
+
+### Gotchas
+- awk pattern for extracting block: `/## Planned Changes/{p=1} p && /^##/ && !/## Planned Changes/{exit}` — stops at the next `##` header after Planned Changes to avoid capturing everything that follows
+- `grep -qiE "## Problem( Identified)?$|## Problem Identified"` handles both `## Problem` and `## Problem Identified` as valid header variants
+- The Python heredoc uses `DIAG_EXTRACTOR_EOF` to avoid conflicts with any `EOF` already in ralph.sh

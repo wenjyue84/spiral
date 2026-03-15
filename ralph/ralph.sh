@@ -1865,6 +1865,7 @@ Story JSON: $STORY_JSON"
   _RL_ATTEMPT=0
   _RL_MAX=5
   _RL_TMP="${SPIRAL_SCRATCH_DIR}/_rate_limit_check_$$.tmp"
+  _PHASE_I_DIAGNOSIS_BLOCK=""  # US-244: populated if worker outputs a diagnosis block
 
   while true; do
     echo "  ─────── AI Output Start ($EFFECTIVE_TOOL) ───────"
@@ -2111,9 +2112,57 @@ $RALPH_USER_PROMPT"
       fi
     fi
 
+    # ── Extract Phase I diagnosis block (US-244) ─────────────────────────────
+    # Parse assistant text messages from stream-json; look for the required
+    # ## Current State / ## Problem Identified / ## Planned Changes headers.
+    if [[ "$EFFECTIVE_TOOL" == "claude" && -f "$_RL_TMP" ]]; then
+      _DIAG_TEXT=$(python3 - "$_RL_TMP" <<'DIAG_EXTRACTOR_EOF'
+import sys, json
+parts = []
+try:
+    with open(sys.argv[1], encoding='utf-8', errors='replace') as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                obj = json.loads(line)
+                if obj.get('type') == 'assistant':
+                    msg = obj.get('message', obj)
+                    for block in msg.get('content', []):
+                        if block.get('type') == 'text':
+                            parts.append(block.get('text', ''))
+            except Exception:
+                pass
+except Exception:
+    pass
+print('\n'.join(parts))
+DIAG_EXTRACTOR_EOF
+      2>/dev/null || true)
+      if echo "$_DIAG_TEXT" | grep -q "## Current State" && \
+         echo "$_DIAG_TEXT" | grep -qiE "## Problem( Identified)?$|## Problem Identified" && \
+         echo "$_DIAG_TEXT" | grep -q "## Planned Changes"; then
+        # Capture the diagnosis block (from ## Current State through ## Planned Changes section)
+        _PHASE_I_DIAGNOSIS_BLOCK=$(echo "$_DIAG_TEXT" | \
+          awk '/## Current State/{found=1} found{print} /## Planned Changes/{p=1} p && /^##/ && !/## Planned Changes/{exit}' | \
+          head -80)
+        echo "  [diagnosis] Diagnosis block found ($(echo "$_PHASE_I_DIAGNOSIS_BLOCK" | wc -l) lines)"
+      else
+        echo "  [diagnosis] No diagnosis block in Phase I output"
+      fi
+    fi
+
     rm -f "$_RL_TMP"
     break
   done # end rate-limit retry loop
+
+  # ── Store diagnosis block in prd.json (US-244) ──────────────────────────────
+  if [[ -n "$_PHASE_I_DIAGNOSIS_BLOCK" ]]; then
+    $JQ --arg block "$_PHASE_I_DIAGNOSIS_BLOCK" \
+      '(.userStories[] | select(.id == "'"$NEXT_STORY"'") | ._phaseI.diagnosisBlock) = $block' \
+      "$PRD_FILE" >"${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE" || true
+    echo "  [diagnosis] Block stored in checkpoint for $NEXT_STORY"
+  fi
 
   # ── Parse resource accounting output (US-158) ──────────────────────────────
   if [[ -s "$_RESOURCE_TMP" ]]; then
@@ -2251,6 +2300,43 @@ except Exception:
     STORIES_COMPLETED=$((STORIES_COMPLETED + 1))
     echo ""
     echo "  [done] Story completed: $STORY_TITLE"
+
+    # ── Diagnosis block gate (US-244) ─────────────────────────────────────────
+    # Require workers to output ## Current State / ## Problem Identified /
+    # ## Planned Changes before making file edits.  Skip when env var is set
+    # (useful for pure-research stories that produce no file changes).
+    if [[ -z "$_PHASE_I_DIAGNOSIS_BLOCK" && "${SPIRAL_SKIP_DIAGNOSIS_CHECK:-false}" != "true" ]]; then
+      echo "  [diagnosis] WARNING: Story passed but no diagnosis block found — re-prompting"
+      $JQ "(.userStories[] | select(.id == \"$NEXT_STORY\") | .passes) = false" \
+        "$PRD_FILE" >"${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE" || true
+      $JQ --arg reason 'DIAGNOSIS_BLOCK_MISSING: Diagnosis block required before making changes. Please output your diagnosis first.
+
+Before making ANY file edits, output a diagnosis block with these exact headers:
+
+## Current State
+[describe the relevant current state of the code]
+
+## Problem Identified
+[what you are solving for this story]
+
+## Planned Changes
+[bullet list of specific files and changes you will make]
+
+Output this block as plain text BEFORE calling Edit, Write, or any Bash command that modifies files.' \
+        '(.userStories[] | select(.id == "'"$NEXT_STORY"'") | ._failureReason) = $reason' \
+        "$PRD_FILE" >"${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE" || true
+      increment_retry "$NEXT_STORY"
+      RETRY_NOW=$(get_retry_count "$NEXT_STORY")
+      log_ralph_event "diagnosis_block_missing" \
+        "\"storyId\":\"$NEXT_STORY\",\"retryCount\":$RETRY_NOW"
+      append_result "reject"
+      echo "## Iteration $ITERATION - $(date)" >>"$PROGRESS_FILE"
+      echo "FAILED diagnosis-block gate: $STORY_TITLE (ID: $NEXT_STORY) — no diagnosis block found — attempt $RETRY_NOW/$MAX_RETRIES" >>"$PROGRESS_FILE"
+      echo "" >>"$PROGRESS_FILE"
+      STORIES_COMPLETED=$((STORIES_COMPLETED - 1))  # undo the increment above
+      continue
+    fi
+    # ── End diagnosis block gate ───────────────────────────────────────────────
 
     # ── Phase I.5 (REVIEW): LLM self-review gate (US-145) ──────────────────
     # Send story spec + git diff to Claude haiku for structured code review.

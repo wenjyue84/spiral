@@ -30,6 +30,23 @@ You are running as part of Ralph, an autonomous agent loop. Your job is to imple
     - If Chrome DevTools MCP tools are NOT available, skip this step entirely (static analysis only)
     - **Do NOT start a pinchtab server here** — pinchtab is a shell-driven tool for Phase V E2E assertions, not for inline agent checks. Chrome DevTools MCP is the right tool inside an agent turn.
 
+## Diagnosis Block (Required Before File Edits)
+
+Before making ANY file edits (Edit, Write, or Bash commands that modify files), you MUST output a diagnosis block with these exact section headers:
+
+```
+## Current State
+[Describe the relevant current state of the code/system]
+
+## Problem Identified
+[What specific problem are you solving for this story]
+
+## Planned Changes
+[Bullet list of the specific files and changes you will make]
+```
+
+**This is MANDATORY.** ralph.sh validates this block in your output and will re-prompt if it is missing. Output the diagnosis block as plain text BEFORE calling any editing tools.
+
 ## Your Workflow
 
 ### 1. Read Context Files
