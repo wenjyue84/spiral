@@ -34,6 +34,8 @@ run_phase_story_validate() {
   local scratch_dir="${5:-$SCRATCH_DIR}"
   local spiral_python="${6:-$SPIRAL_PYTHON}"
   local spiral_home="${7:-$SPIRAL_HOME}"
+  local ai_suggest_output="${8:-}"          # Phase A: Source 2 (ai-example) candidates
+  local test_story_candidates="${9:-}"      # Source 5 (test-story) candidates
 
   local validated_out="$scratch_dir/_validated_stories.json"
   local rejected_out="$scratch_dir/_story_rejected.json"
@@ -42,6 +44,16 @@ run_phase_story_validate() {
   local constitution_arg=()
   if [[ -n "${SPIRAL_SPECKIT_CONSTITUTION:-}" && -f "${SPIRAL_SPECKIT_CONSTITUTION}" ]]; then
     constitution_arg=("--constitution" "$SPIRAL_SPECKIT_CONSTITUTION")
+  fi
+
+  # Build optional Phase A and Source 5 args
+  local ai_suggest_arg=()
+  if [[ -n "$ai_suggest_output" && -f "$ai_suggest_output" ]]; then
+    ai_suggest_arg=("--ai-suggest" "$ai_suggest_output")
+  fi
+  local test_story_arg=()
+  if [[ -n "$test_story_candidates" && -f "$test_story_candidates" ]]; then
+    test_story_arg=("--test-story-candidates" "$test_story_candidates")
   fi
 
   local min_overlap="${SPIRAL_STORY_VALIDATE_MIN_OVERLAP:-1}"
@@ -54,6 +66,8 @@ run_phase_story_validate() {
     --validated-out "$validated_out" \
     --rejected-out "$rejected_out" \
     "${constitution_arg[@]}" \
+    "${ai_suggest_arg[@]}" \
+    "${test_story_arg[@]}" \
     --min-overlap "$min_overlap"; then
     : # success
   else

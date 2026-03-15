@@ -279,6 +279,36 @@ def main() -> int:
         seen_titles.append(title)
         seen_epics.append(cand_epic)
 
+    # ── Promote test-story/test-fix from research pool to Group 1 ───────────────
+    # _validated_stories.json may contain mixed sources; extract high-priority ones.
+    _promoted: list[dict[str, Any]] = []
+    _remaining_research: list[dict[str, Any]] = []
+    for _s in research_candidates:
+        if _s.get("_source") in ("test-fix", "test-story"):
+            _promoted.append(_s)
+        else:
+            _remaining_research.append(_s)
+    if _promoted:
+        for _s in _promoted:
+            if "_source" not in _s:
+                _s["_source"] = "test-fix"
+        # Process promoted stories through Group 1 pipeline
+        for story in sorted(_promoted, key=sort_key):
+            if len(new_stories) >= effective_cap:
+                break
+            title = story.get("title", "")
+            if not title:
+                continue
+            cand_epic = story.get("epicId", "")
+            if is_duplicate(title, seen_titles, candidate_epic=cand_epic, existing_epics=seen_epics):
+                print(f"[merge] Skip duplicate (promoted): {title[:80]}")
+                continue
+            story["_isTestFix"] = True
+            new_stories.append(story)
+            seen_titles.append(title)
+            seen_epics.append(cand_epic)
+        research_candidates = _remaining_research
+
     # ── Group 2: Research pool = overflow (older, prioritised) + fresh research ──
     # Non-duplicate cap-blocked candidates are saved to the overflow file
     research_pool = list(overflow_candidates) + list(research_candidates)

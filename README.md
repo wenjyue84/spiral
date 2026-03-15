@@ -104,7 +104,7 @@ bash ~/.ai/Skills/spiral/spiral.sh 5 --gate proceed --ralph-workers 3
 
 ## How It Works
 
-SPIRAL runs in two stages: a **one-time startup** to align on goals and stories, then a **repeating loop** that researches, validates, merges, implements, and checks until all stories pass. Every story carries a `_source` field that traces where it came from — seed, ai-example, research, or test-fix — and three test layers gate quality at different granularities.
+SPIRAL runs in two stages: a **one-time startup** to align on goals and stories, then a **repeating loop** that researches, validates, merges, implements, and checks until all stories pass. Every story carries a `_source` field tracing its origin. Phase V builds a persistent test suite that grows more comprehensive each iteration.
 
 ```
   ┌─────────────────────────────────────────────────────────────────┐
@@ -115,32 +115,38 @@ SPIRAL runs in two stages: a **one-time startup** to align on goals and stories,
   │     0-B Focus        — set this session's theme                 │
   │     0-C Clarify      — 3 questions to lock scope & prevent drift│
   │     0-D Story Preparation                                       │
-  │         Type a story → _source = "seed"        (Source 1)      │
+  │         Type a story → _source = "seed" (Source 1)             │
+  │           ↳ written directly to prd.json (user-approved)        │
   │         Pick a number → _source = "ai-example" (Source 2)      │
-  │         ↳ written directly to prd.json; bypass S and M         │
+  │           ↳ queued to _ai_example_queue.json → Phase A          │
   │     0-E Options      — time limit & session knobs               │
   │     Skipped in --gate proceed / --gate skip mode                │
   └──────────────────────────────┬──────────────────────────────────┘
                                  │
   ┌──────────────────────────────▼──────────────────────────────────┐
-  │  STORY PIPELINE  (per iteration — Sources 3 & 4 only)           │
+  │  STORY PIPELINE  (per iteration — all 5 sources)                │
   │                                                                 │
-  │  R) RESEARCH                               _source = "research" │
-  │     Gemini web pre-fetch → Claude agent → story candidates      │
+  │  A) AI SUGGESTIONS  (Sources 2 & 5)                             │
+  │     Source 2: consume Phase 0-D queue + PRD gap analysis        │
+  │               _source = "ai-example"                            │
+  │     Source 5: generate test stories from passed stories         │
+  │               _source = "test-story" (Ralph writes the tests)  │
   │                            │                                    │
-  │  T) TEST SYNTHESIS                        _source = "test-fix"  │
+  │  R) RESEARCH           (Source 3) _source = "research"          │
+  │     Gemini web pre-fetch → Claude agent → story candidates      │
+  │                            │ (parallel with T)                  │
+  │  T) TEST SYNTHESIS     (Source 4) _source = "test-fix"          │
   │     Scan test-reports/ failures → regression story candidates   │
   │                            │                                    │
-  │  S) STORY VALIDATE  (Sources 3 & 4 only — seed/ai-example       │
-  │                       already in prd.json, not re-validated)    │
-  │     • Constitution check          — applies to all              │
-  │     • Goal-alignment check        — skipped for test-fix        │
-  │       (test-fix auto-approved; constitution still enforced)     │
-  │     • Source breakdown printed: research=N/M | test-fix=N/M     │
-  │     Rejects out-of-scope or vague stories before merge          │
+  │  S) STORY VALIDATE  (all sources except Source 1 seed)          │
+  │     • Constitution check    — applies to all sources            │
+  │     • Goal-alignment check  — skipped for test-fix & test-story │
+  │       (auto-approved; constitution still enforced)              │
+  │     • Source breakdown: research=N/M | test-fix=N/M | ...       │
   │                            │                                    │
   │  M) MERGE                                                       │
-  │     Patch prd.json · priority: test-fix > seed > research       │
+  │     Patch prd.json                                              │
+  │     Priority: test-fix/test-story > research > ai-example       │
   │     Source summary: [merge] Added by source: test-fix=N, ...   │
   │     Overflow → _research_overflow.json (next iteration)         │
   └──────────────────────────────┬──────────────────────────────────┘
@@ -151,44 +157,39 @@ SPIRAL runs in two stages: a **one-time startup** to align on goals and stories,
   │  I) IMPLEMENT                                                   │
   │   ├─ Decompose  — split oversized stories into sub-stories      │
   │   ├─ Execute    — Ralph workers (sequential or parallel)         │
-  │   │   Layer 1: SPIRAL_UNIT_TEST_CMD (per-story, inside Ralph)   │
-  │   │   Fast unit tests gate each story before integration runs   │
+  │   │   Test baseline: SPIRAL_VALIDATE_CMD (per story attempt)    │
   │   ├─ Retry      — failure → escalate model → skip at attempt 3  │
   │   └─ Commit/Revert — merge on pass · drop branch on fail        │
   │                            │                                    │
-  │  V) VALIDATE  (3 layers)                                        │
-  │   ├─ Layer 2: SPIRAL_VALIDATE_CMD — full integration suite      │
+  │  V) VALIDATE  (persistent test suites)                          │
+  │   ├─ SPIRAL_VALIDATE_CMD — full integration suite               │
   │   │   (incremental or full; parallel with pytest-xdist/bats)    │
-  │   └─ Layer 3: SPIRAL_E2E_TEST_CMD — Playwright / Cypress / etc  │
-  │       trigger: "final" (default) | "batch" | "always"           │
-  │       E2E failure on "final" blocks completion; loop continues  │
+  │   └─ Persistent suites (smoke, regression, security, perf)      │
+  │       Suites grow each iteration as stories pass                │
+  │       Results saved to .spiral/test-suites/<type>/results/      │
+  │       Source 5 test stories populate suite commands when done   │
   │                            │                                    │
   │  C) CHECK DONE                                                  │
-  │     Always loops back to R to discover more stories             │
+  │     Always loops back to A to discover more stories             │
   │     Loop exits only when the time limit set in Phase 0 is hit  │
   └─────────────────────────────────────────────────────────────────┘
 ```
 
 ### Story Source Model
 
-Every story in `prd.json` carries a `_source` field that tracks its origin through the entire pipeline:
+Every story in `prd.json` carries a `_source` field tracking its origin:
 
 | # | Source | Origin | Pipeline path | Validation |
 |---|--------|---------|---------------|------------|
-| 1 | `seed` | User typed in Phase 0-D | **Startup only** — written directly to `prd.json`; bypasses S & M | None (user-approved) |
-| 2 | `ai-example` | User picked a numbered suggestion in Phase 0-D | **Startup only** — written directly to `prd.json`; bypasses S & M | None (user-approved) |
-| 3 | `research` | Phase R (Claude research agent) | **Loop** — R → S → M → `prd.json` | Full: constitution + goal alignment |
-| 4 | `test-fix` | Phase T (failing test synthesis) | **Loop** — T → S → M → `prd.json` | Constitution only (auto-approved) |
+| 1 | `seed` | User typed in Phase 0-D | **Startup** → written directly to `prd.json` | None (user-approved) |
+| 2 | `ai-example` | User picked a numbered suggestion in Phase 0-D | **Per-iteration** — queued → Phase A → S → M → `prd.json` | Constitution + goal alignment |
+| 3 | `research` | Phase R (Claude research agent) | **Per-iteration** — R → S → M → `prd.json` | Constitution + goal alignment |
+| 4 | `test-fix` | Phase T (failing test synthesis) | **Per-iteration** — T → S → M → `prd.json` | Constitution only (auto-approved) |
+| 5 | `test-story` | Phase A (generated from passed stories) | **Per-iteration** — A → S → M → `prd.json` | Constitution only (auto-approved) |
 
-**Phase M priority:** `test-fix` > `seed` > `research` > `ai-example`
+**Source 5 test types:** `integration`, `e2e`, `security`, `performance`, `regression` — Ralph implements these by writing actual test code. The test suite in Phase V runs them each iteration and they grow more complete over time.
 
-### Test Layers
-
-| Layer | Config Variable | When | Failure Action |
-|-------|----------------|------|----------------|
-| **1 — Unit** | `SPIRAL_UNIT_TEST_CMD` | Per story, inside Ralph | Story fails attempt; retried |
-| **2 — Integration** | `SPIRAL_VALIDATE_CMD` | After Phase I batch | Rolled back; loop continues |
-| **3 — E2E** | `SPIRAL_E2E_TEST_CMD` | Phase V, per trigger | Warn; blocks on `trigger=final` |
+**Phase M priority:** `test-fix` / `test-story` > `research` > `ai-example`
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for full phase reference and the modular file structure.
 

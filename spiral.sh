@@ -379,10 +379,8 @@ SPIRAL_RALPH="${SPIRAL_RALPH:-$SPIRAL_HOME/ralph/ralph.sh}"
 SPIRAL_RESEARCH_PROMPT="${SPIRAL_RESEARCH_PROMPT:-$SPIRAL_HOME/templates/research_prompt.example.md}"
 SPIRAL_GEMINI_PROMPT="${SPIRAL_GEMINI_PROMPT:-}"
 SPIRAL_VALIDATE_CMD="${SPIRAL_VALIDATE_CMD:-$SPIRAL_PYTHON tests/run_tests.py --report-dir test-reports}"
-SPIRAL_UNIT_TEST_CMD="${SPIRAL_UNIT_TEST_CMD:-}"                          # Layer 1: per-story unit test command for ralph; empty = use SPIRAL_VALIDATE_CMD
-SPIRAL_E2E_TEST_CMD="${SPIRAL_E2E_TEST_CMD:-}"                            # Layer 3: E2E test command run in Phase V after integration tests pass; empty = disabled
-SPIRAL_E2E_TRIGGER="${SPIRAL_E2E_TRIGGER:-final}"                         # When to run E2E: "final" (default), "batch", or "always"
-SPIRAL_E2E_TIMEOUT="${SPIRAL_E2E_TIMEOUT:-600}"                           # seconds; wall-clock limit for E2E test run
+SPIRAL_MAX_AI_SUGGEST="${SPIRAL_MAX_AI_SUGGEST:-5}"                       # Phase A: max AI-generated story suggestions per iteration (gap analysis)
+SPIRAL_TEST_STORY_MIN_COMPLEXITY="${SPIRAL_TEST_STORY_MIN_COMPLEXITY:-medium}"  # Source 5: min story complexity to generate test stories
 SPIRAL_REPORTS_DIR="${SPIRAL_REPORTS_DIR:-test-reports}"
 SPIRAL_STORY_PREFIX="${SPIRAL_STORY_PREFIX:-US}"
 SPIRAL_VERSION="${SPIRAL_VERSION:-$(git -C "$SPIRAL_HOME" describe --tags --always --dirty=+ 2>/dev/null || echo "unknown")}"
@@ -1719,6 +1717,27 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
     echo "  [CAPACITY] Skipping Phase R only (no web research for new stories) — T/M still run to catch regressions."
   fi
 
+  # ── Phase A: AI STORY SUGGESTIONS ──────────────────────────────────────────
+  # Runs once per iteration before Phase R.
+  # Source 2: consumes Phase 0-D ai-example queue + PRD gap analysis → _ai_suggest_output.json
+  # Source 5: analyzes passed stories → _test_story_candidates.json (test stories for Ralph to implement)
+  AI_SUGGEST_OUTPUT="$SCRATCH_DIR/_ai_suggest_output.json"
+  TEST_STORY_CANDIDATES="$SCRATCH_DIR/_test_story_candidates.json"
+  AI_QUEUE_FILE="$SCRATCH_DIR/_ai_example_queue.json"
+  echo ""
+  echo "  [Phase A] AI SUGGESTIONS — generating per-iteration story candidates..."
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/ai_suggest.py" \
+    --prd "$PRD_FILE" \
+    --queue "$AI_QUEUE_FILE" \
+    --out "$AI_SUGGEST_OUTPUT" \
+    --focus "${SPIRAL_FOCUS:-}" \
+    --max-suggest "$SPIRAL_MAX_AI_SUGGEST" \
+    --clear-queue || true
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/generate_test_stories.py" \
+    --prd "$PRD_FILE" \
+    --out "$TEST_STORY_CANDIDATES" \
+    --min-complexity "$SPIRAL_TEST_STORY_MIN_COMPLEXITY" || true
+
   # ── Phase R + T: RESEARCH and TEST SYNTHESIS (parallel) ──────────────────
   # US-182: R and T are independent — launch as background jobs and await both.
   PHASE="R"
@@ -2142,7 +2161,8 @@ $INJECTED_PROMPT"
     run_phase_story_validate "$SPIRAL_ITER" \
       "$RESEARCH_OUTPUT" "$TEST_OUTPUT" \
       "$PRD_FILE" "$SCRATCH_DIR" \
-      "$SPIRAL_PYTHON" "$SPIRAL_HOME"
+      "$SPIRAL_PYTHON" "$SPIRAL_HOME" \
+      "$AI_SUGGEST_OUTPUT" "$TEST_STORY_CANDIDATES"
 
     # Log acceptance rate to spiral_events.jsonl
     _S_ACCEPTED=$("$JQ" '.stories | length' "$VALIDATED_OUTPUT" 2>/dev/null || echo "0")
@@ -2391,13 +2411,8 @@ $INJECTED_PROMPT"
           # ── Tier 2: Save passes baseline before implementation ────────────
           spiral_assert_passes_save_baseline "$PRD_FILE"
 
-          # ── Determine per-story test command for ralph (Unit Test Layer 1) ────
-          if [[ -n "${SPIRAL_UNIT_TEST_CMD:-}" ]]; then
-            RALPH_TEST_CMD="$SPIRAL_UNIT_TEST_CMD"
-          else
-            RALPH_TEST_CMD="${SPIRAL_VALIDATE_CMD:-}"
-          fi
-          export SPIRAL_TEST_BASELINE_CMD="$RALPH_TEST_CMD"
+          # ── Export per-story test baseline command for ralph ─────────────────
+          export SPIRAL_TEST_BASELINE_CMD="${SPIRAL_VALIDATE_CMD:-}"
 
           echo "  [Phase I] IMPLEMENT — running ralph ($RALPH_MAX_ITERS inner iterations)..."
 
@@ -2996,43 +3011,27 @@ PYEOF
       fi
     fi
 
-    # ── Layer 3: E2E Tests ────────────────────────────────────────────────────
-    if [[ -n "${SPIRAL_E2E_TEST_CMD:-}" ]]; then
-      _pending_for_e2e=$("$JQ" '[.userStories[] | select(.passes != true)] | length' "$PRD_FILE" 2>/dev/null || echo 1)
-      [[ "$_pending_for_e2e" -eq 0 ]] && _all_done="true" || _all_done="false"
-      _trigger="${SPIRAL_E2E_TRIGGER:-final}"
+    # ── Persistent Test Suites ────────────────────────────────────────────────
+    # Accumulate passing stories into suites, then run active suite tests.
+    # Tests grow over time; results saved per-iteration in .spiral/test-suites/.
+    _SUITE_ROOT="$SCRATCH_DIR/test-suites"
+    echo "  [V] Updating persistent test suites from passed stories..."
+    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/test_suite_manager.py" add-from-prd \
+      --prd "$PRD_FILE" \
+      --suite-root "$_SUITE_ROOT" \
+      --suite-types "smoke,regression,security,performance" || true
 
-      _run_e2e=0
-      [[ "$_trigger" == "batch" || "$_trigger" == "always" ]] && _run_e2e=1
-      [[ "$_trigger" == "final" && "$_all_done" == "true" ]] && _run_e2e=1
+    for _suite_type in smoke regression security performance; do
+      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/test_suite_manager.py" run "$_suite_type" \
+        --suite-root "$_SUITE_ROOT" \
+        --iteration "$SPIRAL_ITER" \
+        --repo-root "$REPO_ROOT" \
+        --timeout 120 || true
+    done
 
-      if [[ "$_run_e2e" -eq 1 ]]; then
-        echo "  [V] Layer 3: E2E Tests (trigger=$_trigger)"
-        _e2e_timeout="${SPIRAL_E2E_TIMEOUT:-600}"
-        _e2e_exit=0
-        if command -v timeout &>/dev/null; then
-          timeout --kill-after=30 "$_e2e_timeout" bash -c "$SPIRAL_E2E_TEST_CMD" || _e2e_exit=$?
-        else
-          (cd "$REPO_ROOT" && eval "$SPIRAL_E2E_TEST_CMD") || _e2e_exit=$?
-        fi
-        if [[ "$_e2e_exit" -eq 0 ]]; then
-          echo "  [V] E2E: PASS"
-          log_spiral_event "e2e_pass" "\"trigger\":\"$_trigger\",\"iteration\":$SPIRAL_ITER"
-        else
-          echo "  [V] E2E: FAIL — see output above"
-          log_spiral_event "e2e_fail" "\"trigger\":\"$_trigger\",\"iteration\":$SPIRAL_ITER"
-          if [[ "$_all_done" == "true" ]]; then
-            echo "  [V] E2E failure blocks final completion — continuing loop"
-            write_checkpoint "$SPIRAL_ITER" "V"
-            run_phase_hook POST "V" || true
-            _PHASE_DUR_V=$(($(date +%s) - _PHASE_TS_V))
-            log_spiral_event "phase_end" "\"phase\":\"V\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_V"
-            notify_webhook "V" "end"
-            continue
-          fi
-        fi
-      fi
-    fi
+    # Print suite status summary
+    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/test_suite_manager.py" status \
+      --suite-root "$_SUITE_ROOT" || true
 
     write_checkpoint "$SPIRAL_ITER" "V"
   fi

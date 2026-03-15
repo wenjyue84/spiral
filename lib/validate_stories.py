@@ -114,6 +114,8 @@ def validate_stories(
     rejected_out: str,
     constitution_path: str = "",
     min_overlap: int = 1,
+    ai_suggest_path: str = "",
+    test_story_candidates_path: str = "",
 ) -> tuple[list[dict], list[dict]]:
     """Core validation logic. Returns (accepted, rejected) lists."""
 
@@ -131,9 +133,11 @@ def validate_stories(
     # Load optional constitution forbidden phrases
     forbidden_phrases = _load_constitution_forbidden(constitution_path)
 
-    # Combine candidates from Phase R and Phase T (dedup by lower-cased title)
+    # Combine candidates from all sources (dedup by lower-cased title)
     research_stories = _load_candidates(research_path)
     test_stories = _load_candidates(test_stories_path)
+    ai_suggest_stories = _load_candidates(ai_suggest_path) if ai_suggest_path else []
+    test_story_candidates = _load_candidates(test_story_candidates_path) if test_story_candidates_path else []
 
     # Tag source if not already set
     for story in research_stories:
@@ -142,10 +146,17 @@ def validate_stories(
     for story in test_stories:
         if "_source" not in story:
             story["_source"] = "test-fix"
+    for story in ai_suggest_stories:
+        if "_source" not in story:
+            story["_source"] = "ai-example"
+    for story in test_story_candidates:
+        if "_source" not in story:
+            story["_source"] = "test-story"
 
     seen_titles: set[str] = set()
     all_candidates: list[dict] = []
-    for story in research_stories + test_stories:
+    # Order: research, test-fix, ai-example, test-story
+    for story in research_stories + test_stories + ai_suggest_stories + test_story_candidates:
         t = story.get("title", "").strip().lower()
         if t and t not in seen_titles:
             seen_titles.add(t)
@@ -169,9 +180,15 @@ def validate_stories(
                     rejection_reason = f'Violates constitution: "{phrase}"'
                     break
 
-        # 2. Goal alignment check (skip for test-fix; only when goals defined and min_overlap > 0)
-        _is_test_fix = story.get("_isTestFix") or story.get("_source") == "test-fix"
-        if rejection_reason is None and gkw and min_overlap > 0 and not _is_test_fix:
+        # 2. Goal alignment check
+        # Skipped for: test-fix, test-story (auto-approved; constitution still runs)
+        # Applied for: research, ai-example (must connect to project goals)
+        _src = story.get("_source", "research")
+        _skip_alignment = (
+            story.get("_isTestFix")
+            or _src in ("test-fix", "test-story")
+        )
+        if rejection_reason is None and gkw and min_overlap > 0 and not _skip_alignment:
             skw = _story_keywords(story)
             overlap = len(gkw & skw)
             if overlap < min_overlap:
@@ -221,6 +238,16 @@ def main() -> int:
         default=1,
         help="Min goal-keyword overlap to accept a story (0 = accept all)",
     )
+    parser.add_argument(
+        "--ai-suggest",
+        default="",
+        help="Path to Phase A ai-suggest output (_ai_suggest_output.json)",
+    )
+    parser.add_argument(
+        "--test-story-candidates",
+        default="",
+        help="Path to Source 5 test story candidates (_test_story_candidates.json)",
+    )
     args = parser.parse_args()
 
     accepted, rejected = validate_stories(
@@ -231,6 +258,8 @@ def main() -> int:
         rejected_out=args.rejected_out,
         constitution_path=args.constitution,
         min_overlap=args.min_overlap,
+        ai_suggest_path=args.ai_suggest,
+        test_story_candidates_path=args.test_story_candidates,
     )
 
     total = len(accepted) + len(rejected)

@@ -125,8 +125,17 @@
         },
         "_source": {
           "type": "string",
-          "enum": ["seed", "ai-example", "research", "test-fix"],
+          "enum": ["seed", "ai-example", "research", "test-fix", "test-story"],
           "description": "Where this story originated"
+        },
+        "_testType": {
+          "type": "string",
+          "enum": ["integration", "e2e", "security", "performance", "regression"],
+          "description": "Type of test story (Source 5 only)"
+        },
+        "_forStoryId": {
+          "type": "string",
+          "description": "Implementation story ID this test story was generated from (Source 5 only)"
         },
         "retryCount": {
           "type": "integer",

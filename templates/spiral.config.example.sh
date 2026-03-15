@@ -44,32 +44,45 @@
 # SPIRAL_VALIDATE_CMD="npm test"
 # SPIRAL_VALIDATE_CMD="pytest --tb=short"
 
-# ── Testing Layers ────────────────────────────────────────────────────────────
-# SPIRAL supports three test layers: unit (per-story), integration (per-batch),
-# and E2E (final gate). Layer 2 is the existing SPIRAL_VALIDATE_CMD.
+# ── Phase A: AI Story Suggestions ────────────────────────────────────────────
+# Phase A runs once per iteration before Phase R. It generates story candidates
+# from two sub-sources, which both route through Phase S → M for validation
+# and deduplication before entering prd.json:
+#
+#   Source 2 (ai-example): Phase 0-D numbered picks queued for next iteration +
+#                           PRD gap analysis (empty epics, low-coverage goals).
+#   Source 5 (test-story):  Auto-generated test implementation stories for each
+#                           passing story (integration, e2e, security, performance,
+#                           regression). Ralph writes the actual test code.
+#
+# Max AI-generated gap suggestions per iteration (gap analysis only, not queue).
+# 0 = no gap analysis (queue picks from Phase 0-D still consumed).
+# Default: 5
+# SPIRAL_MAX_AI_SUGGEST=5
 
-# Layer 1 — Unit Tests (run INSIDE ralph, per story attempt)
-# If set, ralph uses this command as its per-story test baseline. Runs only for
-# the files the current story touches. Fails fast before integration layer runs.
-# If unset, ralph skips to integration-only (existing behavior).
-# Example: "pytest tests/unit/ -x -q" or "vitest run tests/unit"
-# SPIRAL_UNIT_TEST_CMD=""
+# Minimum story complexity to trigger Source 5 test story generation.
+# Stories below this complexity get no auto-generated test stories.
+# Choices: small, medium, large. Default: medium
+# SPIRAL_TEST_STORY_MIN_COMPLEXITY=medium
 
-# Layer 3 — E2E Tests (run in Phase V after integration tests pass)
-# Full application user-flow tests (Playwright, Cypress, pinchtab, etc.).
-# Only runs when SPIRAL_E2E_TRIGGER condition is met (see below).
-# Example: "npx playwright test" or "bash scripts/e2e.sh"
-# SPIRAL_E2E_TEST_CMD=""
-
-# When to run E2E tests:
-#   "final"  — only when ALL stories are done (final completion gate, default)
-#   "batch"  — after every successful integration test run
-#   "always" — alias for "batch"
-# Default: final
-# SPIRAL_E2E_TRIGGER="final"
-
-# Timeout in seconds for E2E test run. Default: 600 (10 min)
-# SPIRAL_E2E_TIMEOUT=600
+# ── Phase V: Persistent Test Suites ───────────────────────────────────────────
+# After each Phase I batch, passing stories are added to persistent test suites
+# stored in .spiral/test-suites/. Suites accumulate across iterations and grow
+# more complete over time. Results are saved per-iteration for trend analysis.
+#
+# Suite types run automatically in Phase V (if test entries exist):
+#   smoke       — basic create/read/update/delete flows (every feature)
+#   regression  — bug-fix and patch stories
+#   security    — auth, tokens, permissions
+#   performance — latency, cache, bulk operations
+#
+# Test entry "command" fields are populated by Ralph when implementing
+# Source 5 (test-story) stories. Until Ralph writes the command, entries
+# are tracked but skipped (marked "pending" in results).
+#
+# No additional config required — suites are auto-managed. To customize
+# which suite types are populated, set this (comma-separated):
+# SPIRAL_TEST_SUITE_TYPES="smoke,regression,security,performance"
 
 # ── Per-phase timeouts (seconds) ──────────────────────────────────────────────
 # Each LLM phase has a distinct configurable deadline. When exceeded, the call

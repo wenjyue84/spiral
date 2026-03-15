@@ -395,12 +395,23 @@ _PY
   done
 
   local _seeds_added=0
+  local _queued_added=0
   if [[ ${#_seeds[@]} -gt 0 ]]; then
     echo "  │"
-    echo "  │  [0-D] Adding ${#_seeds[@]} story seed(s) to prd.json..."
+    # Separate seeds by source
+    local _has_seeds=0
+    local _has_ai_examples=0
+    for _sidx in "${!_srcs[@]}"; do
+      [[ "${_srcs[$_sidx]}" == "seed" ]] && _has_seeds=1
+      [[ "${_srcs[$_sidx]}" == "ai-example" ]] && _has_ai_examples=1
+    done
 
-    local _max_id
-    _max_id=$("$SPIRAL_PYTHON" - "$prd_file" 2>/dev/null <<'_PY'
+    # ── Source 1 (seed): add directly to prd.json ──────────────────────────────
+    if [[ "$_has_seeds" -eq 1 ]]; then
+      echo "  │  [0-D] Adding seed stories (Source 1) to prd.json..."
+
+      local _max_id
+      _max_id=$("$SPIRAL_PYTHON" - "$prd_file" 2>/dev/null <<'_PY'
 import json, sys, re
 with open(sys.argv[1], encoding="utf-8") as f:
     prd = json.load(f)
@@ -414,25 +425,25 @@ print(max_n)
 _PY
 ) || _max_id=0
 
-    local _next_id=$(( _max_id + 1 ))
-    local _story_prefix
-    _story_prefix=$("$SPIRAL_PYTHON" -c "
+      local _next_id=$(( _max_id + 1 ))
+      local _story_prefix
+      _story_prefix=$("$SPIRAL_PYTHON" -c "
 import json, sys
 with open(sys.argv[1], encoding='utf-8') as f:
     prd = json.load(f)
 print(prd.get('storyIdPrefix', 'US'))
 " "$prd_file" 2>/dev/null) || _story_prefix="US"
 
-    for _sidx in "${!_seeds[@]}"; do
-      local _seed="${_seeds[$_sidx]}"
-      local _src="${_srcs[$_sidx]}"
-      local _story_id="${_story_prefix}-${_next_id}"
-      local _ts
-      _ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-      "$SPIRAL_PYTHON" - "$prd_file" "$_story_id" "$_seed" "$_ts" "$_src" 2>/dev/null <<'_PY' \
-        || { echo "  │  WARNING: Failed to add '$_seed'" >&2; continue; }
+      for _sidx in "${!_seeds[@]}"; do
+        [[ "${_srcs[$_sidx]}" != "seed" ]] && continue
+        local _seed="${_seeds[$_sidx]}"
+        local _story_id="${_story_prefix}-${_next_id}"
+        local _ts
+        _ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+        "$SPIRAL_PYTHON" - "$prd_file" "$_story_id" "$_seed" "$_ts" 2>/dev/null <<'_PY' \
+          || { echo "  │  WARNING: Failed to add '$_seed'" >&2; continue; }
 import json, sys
-prd_file, story_id, title, ts, src = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5]
+prd_file, story_id, title, ts = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
 with open(prd_file, encoding="utf-8") as f:
     prd = json.load(f)
 new_story = {
@@ -443,7 +454,7 @@ new_story = {
     "description": title,
     "acceptanceCriteria": [],
     "dependencies": [],
-    "_source": src,
+    "_source": "seed",
     "added_by": "phase_0_clarify",
     "added_ts": ts,
 }
@@ -451,15 +462,58 @@ prd["userStories"].append(new_story)
 with open(prd_file, "w", encoding="utf-8") as f:
     json.dump(prd, f, indent=2, ensure_ascii=False)
 _PY
-      echo "  │  [0-D]   Added [$_story_id] [$_src] $_seed"
-      _next_id=$(( _next_id + 1 ))
-      _seeds_added=$(( _seeds_added + 1 ))
-    done
+        echo "  │  [0-D]   Added [$_story_id] [seed] $_seed"
+        _next_id=$(( _next_id + 1 ))
+        _seeds_added=$(( _seeds_added + 1 ))
+      done
+    fi
+
+    # ── Source 2 (ai-example): queue for Phase A per-iteration pipeline ─────────
+    if [[ "$_has_ai_examples" -eq 1 ]]; then
+      local _queue_file="${SCRATCH_DIR:-.spiral}/_ai_example_queue.json"
+      echo "  │  [0-D] Queuing ai-example picks (Source 2) → Phase A per-iteration pipeline..."
+      for _sidx in "${!_seeds[@]}"; do
+        [[ "${_srcs[$_sidx]}" != "ai-example" ]] && continue
+        local _seed="${_seeds[$_sidx]}"
+        local _ts
+        _ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+        "$SPIRAL_PYTHON" - "$_queue_file" "$_seed" "$_ts" 2>/dev/null <<'_PY' \
+          || { echo "  │  WARNING: Failed to queue '$_seed'" >&2; continue; }
+import json, sys, os
+queue_file, title, ts = sys.argv[1], sys.argv[2], sys.argv[3]
+if os.path.exists(queue_file):
+    try:
+        with open(queue_file, encoding="utf-8") as f:
+            queue = json.load(f)
+    except Exception:
+        queue = {"stories": []}
+else:
+    os.makedirs(os.path.dirname(queue_file) or ".", exist_ok=True)
+    queue = {"stories": []}
+queue["stories"].append({
+    "title": title,
+    "priority": "medium",
+    "description": title,
+    "acceptanceCriteria": [],
+    "dependencies": [],
+    "_source": "ai-example",
+    "added_ts": ts,
+})
+tmp = queue_file + ".tmp"
+with open(tmp, "w", encoding="utf-8") as f:
+    json.dump(queue, f, indent=2, ensure_ascii=False)
+os.replace(tmp, queue_file)
+_PY
+        echo "  │  [0-D]   Queued [ai-example] $_seed → will enter pipeline in Phase A"
+        _queued_added=$(( _queued_added + 1 ))
+      done
+    fi
   else
     echo "  │  [0-D] No seeds added — Phase R will discover stories autonomously."
   fi
 
   _PHASE0_SEEDS_ADDED=$_seeds_added
+  _PHASE0_AI_QUEUED=$_queued_added
 
   echo "  └─────────────────────────────────────────────────────────────────────"
   echo ""
