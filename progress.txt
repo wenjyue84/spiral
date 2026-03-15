@@ -6619,3 +6619,28 @@ Incomplete: Enforce shell=False and per-phase command allowlist in all worker su
 ### Gotchas
 - The existing lib/command_allowlist.sh handles the bash-level allowlist (US-243); subprocess_policy.py is the Python-level enforcement layer
 - All existing lib/*.py subprocess calls already use list form (no shell=True present before this story)
+
+---
+
+## Iteration [11] - Story: US-265: Enforce shell=False and per-phase command allowlist in all worker subprocess calls
+
+### What was implemented
+- `lib/subprocess_policy.py` already existed with full implementation:
+  - `PHASE_COMMAND_ALLOWLIST` dict mapping phases to frozensets (R, I, V, M, C, global)
+  - Phase I allows git/python/node/npm; blocks curl/wget/bash/sh
+  - `SubprocessPolicyViolation` exception with .executable, .phase, .cmd attributes
+  - `_log_violation()` appends JSON entries to `$SPIRAL_SCRATCH_DIR/security-audit.jsonl`
+  - `check_command(cmd, phase)` validates and raises on block
+  - `safe_run(cmd, phase, **kwargs)` enforces shell=False always (overrides caller)
+- `tests/test_subprocess_policy.py` already had 31 passing tests
+- `tests/subprocess_injection.bats` had 11/12 bats tests passing
+- Fixed test 12: heredoc `||` pattern in bats causes spurious failure; replaced with temp-file + `run python3 tmpfile.py` pattern so `$status` is populated correctly
+
+### Patterns discovered
+- Bats `set -e` semantics: `cmd <<'EOF' || var=$?` pattern can fail to capture exit code correctly in bats; safer pattern is `cat > tmpfile <<'EOF' ... EOF; run python3 tmpfile`
+- `# spiral-allow-shell` annotation pattern exempts lines from the no-shell=True audit
+
+### Gotchas
+- Pre-existing import error in tests/test_route_stories.py (relative import in route_stories.py) — unrelated to US-265
+- The bats test failure on test 12 was in the test scaffolding, not the implementation
+
