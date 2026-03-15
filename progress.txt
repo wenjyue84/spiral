@@ -5226,3 +5226,30 @@ Completed: Detect and reset dirty worker worktrees at startup to recover from ab
 ### Gotchas
 - Idempotent: re-running does NOT re-cascade already-skipped stories (queue.popleft() checks _skipped guard)
 - NO_CASCADE_SKIP defaults to 0; must be exported before Phase I section (line 1647)
+## Iteration 2 - Sun, Mar 15, 2026  6:11:32 PM
+Completed: Cascade skip status through dependency chain when a dependency is _skipped (ID: US-204) in 8m
+
+
+## Iteration N - Story: US-206: Graceful degradation: fall back to Claude for Phase R when Gemini returns 503
+
+### What was implemented
+- Implementation was already present in spiral.sh (lines ~1966-2001) for retry + Claude fallback
+- SPIRAL_GEMINI_FALLBACK_MODEL env var (default: claude-haiku-4-5-20251001) was already set at line 442
+- log_spiral_event("gemini_fallback") with event_type was already emitted
+- spiral_doctor already reported SPIRAL_GEMINI_FALLBACK_MODEL (lib/spiral_doctor.sh line 231)
+- Added missing piece: `_PHASE_R_PRE_MODEL` variable tracking which model served Phase R pre-research
+  - Set to "gemini-2.5-pro" when Gemini succeeds (first attempt or retry)
+  - Set to SPIRAL_GEMINI_FALLBACK_MODEL when Claude fallback succeeds
+  - Remains "none" when both fail or Gemini not configured
+- Added `phase_r_pre_model` field to _iteration_summary.json in write_iter_summary()
+  - Only written when not "none" (omitted from JSON when no pre-research ran)
+  - Passed as argv[11] to Python write block
+
+### Patterns discovered
+- write_iter_summary() writes _iteration_summary.json via Python subprocess using positional argv
+- To add fields: extend the Python -c snippet + add argv at the bash call site
+- _PHASE_R_PRE_MODEL is set inside the Gemini research block (scoped to Phase R)
+
+### Gotchas
+- test_partition.py::test_all_pending_stories_assigned is a flaky hypothesis test (unrelated); passes on rerun
+- test_route_stories.py has a pre-existing import error (relative import) — always exclude from runs

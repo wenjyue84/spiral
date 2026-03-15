@@ -1141,13 +1141,17 @@ d = {
     'stories_failed': int(sys.argv[7]),
     'phases_completed': json.loads(sys.argv[8]),
     'phase_v_skipped': sys.argv[10] == '1',
+    'phase_r_pre_model': sys.argv[11] if sys.argv[11] != 'none' else None,
 }
+# Remove None values to keep JSON clean
+d = {k: v for k, v in d.items() if v is not None}
 with open(sys.argv[9], 'w') as f:
     json.dump(d, f, indent=2)
     f.write('\n')
 " "$SPIRAL_ITER" "$ITER_START" "$_iter_end" "$_iter_dur" \
     "$_attempted" "${RALPH_PROGRESS:-0}" "$_failed" \
-    "$_phases_json" "$SCRATCH_DIR/_iteration_summary.json" "${_PHASE_V_SKIPPED:-0}" 2>/dev/null || {
+    "$_phases_json" "$SCRATCH_DIR/_iteration_summary.json" "${_PHASE_V_SKIPPED:-0}" \
+    "${_PHASE_R_PRE_MODEL:-none}" 2>/dev/null || {
     echo "  [C] WARNING: Failed to write _iteration_summary.json (non-fatal)"
   }
 }
@@ -1952,6 +1956,7 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
 
       # ── Gemini web research (optional, configured via SPIRAL_GEMINI_PROMPT) ──
       GEMINI_RESEARCH=""
+      _PHASE_R_PRE_MODEL="none"  # US-206: track which model served Phase R pre-research
       if command -v gemini &>/dev/null && [[ -n "$SPIRAL_GEMINI_PROMPT" ]]; then
         echo "  [R] Running Gemini 2.5 Pro web research (-y web search enabled)..."
         GEMINI_ERR_TMP=$(mktemp)
@@ -1961,6 +1966,7 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
           -y --output-format text 2>"$GEMINI_ERR_TMP" || true)
         if [[ -n "$GEMINI_RESEARCH" ]]; then
           echo "  [R] Gemini web research complete ($(echo "$GEMINI_RESEARCH" | wc -l) lines)"
+          _PHASE_R_PRE_MODEL="gemini-2.5-pro"
         else
           # Diagnose failure reason from stderr
           if grep -qi '503\|Service Unavailable\|UNAVAILABLE' "$GEMINI_ERR_TMP" 2>/dev/null; then
@@ -1974,6 +1980,7 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
               -y --output-format text 2>"$GEMINI_ERR_TMP" || true)
             if [[ -n "$GEMINI_RESEARCH" ]]; then
               echo "  [R] Gemini web research complete after retry ($(echo "$GEMINI_RESEARCH" | wc -l) lines)"
+              _PHASE_R_PRE_MODEL="gemini-2.5-pro"
             else
               # Still failing — fall back to Claude simplified research
               echo "  [R] Gemini still unavailable after retry — falling back to Claude (${SPIRAL_GEMINI_FALLBACK_MODEL})"
@@ -1992,6 +1999,7 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
               )
               if [[ -n "$GEMINI_RESEARCH" ]]; then
                 echo "  [R] Claude fallback research complete (${SPIRAL_GEMINI_FALLBACK_MODEL}, $(echo "$GEMINI_RESEARCH" | wc -l) lines)"
+                _PHASE_R_PRE_MODEL="${SPIRAL_GEMINI_FALLBACK_MODEL}"
               else
                 _GEMINI_FB_ERR_MSG=$(head -1 "$_GEMINI_FB_ERR" 2>/dev/null || echo "unknown error")
                 echo "  [R] Gemini and Claude fallback both failed — $_GEMINI_FB_ERR_MSG — Phase R will proceed without pre-research"
