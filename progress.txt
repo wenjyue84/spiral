@@ -5492,3 +5492,35 @@ Incomplete: Implement explicit prompt cache breakpoints for system prompts and P
 ### Gotchas
 - test_route_stories.py has a pre-existing import error (relative import) — not related to this story
 - Use utf-8 encoding when reading/writing prd.json (has non-ASCII chars)
+## Iteration 4 - Sun, Mar 15, 2026  7:39:17 PM
+Incomplete: Implement explicit prompt cache breakpoints for system prompts and PRD context (ID: US-223) — attempt /3
+
+
+## Iteration N - Story: US-239: Implement idempotent tool execution with per-story undo stack
+
+### What was implemented
+- Created `lib/spiral_undo.sh` with 4 exported functions:
+  - `undo_log_record(story_id, operation, target, inverse_command)` appends JSONL entry
+  - `undo_log_replay(story_id)` reads entries in reverse (LIFO), executes each inverse_command
+  - `undo_log_cleanup(story_id)` deletes log on successful merge
+  - `undo_log_exists(story_id)` idempotency check at story start
+- Undo log stored at `${SPIRAL_SCRATCH_DIR:-.spiral}/undo/STORY_ID.jsonl`
+- `ralph/ralph.sh`: sources `lib/spiral_undo.sh`; records 3 event types:
+  - `checkpoint`: pre-story HEAD SHA
+  - `branch_create`: after `git checkout -B` succeeds
+  - `git_commit`: pre-commit SHA before `do_git_commit`
+- Stale log detection at story start logs a warning (idempotent retry path)
+- `undo_log_cleanup` called in `finalize_story_branch` on success AND when SPIRAL_BRANCH_PREFIX is unset
+- `spiral.sh`: added `--undo STORY_ID` subcommand
+- `tests/undo_stack.bats`: 15 bats tests — all pass
+
+### Patterns discovered
+- Bats tests: `source lib/spiral_undo.sh` directly works fine — no need to sed-extract individual functions
+- Empty JSONL file: `touch` requires the directory to exist first (mkdir -p before touch in tests)
+- `undo_log_cleanup` must be called in two places: finalize_story_branch (branch mode) AND story pass block (no-branch mode)
+
+### Gotchas
+- The hook security scanner flags heredocs containing "git reset --hard" as text — use Edit/Write tools for progress.txt updates
+- `eval "$inv_cmd"` in undo_log_replay requires inverse_command to be properly escaped when recorded
+- The `--undo` block in spiral.sh needs SPIRAL_SCRATCH_DIR set, but uses `:-.spiral` fallback safely
+
