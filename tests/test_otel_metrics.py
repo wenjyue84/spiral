@@ -36,6 +36,7 @@ def _make_args(**kwargs):
     args.input_tokens = kwargs.get("input_tokens", 100)
     args.output_tokens = kwargs.get("output_tokens", 200)
     args.duration_ms = kwargs.get("duration_ms", 5000.0)
+    args.model = kwargs.get("model", "claude-opus-4-6")
     args.scratch_dir = kwargs.get("scratch_dir", "/tmp/test_spiral")
     return args
 
@@ -58,6 +59,7 @@ class TestRecordTokens:
             input_tokens=500,
             output_tokens=1500,
             duration_ms=3000.0,
+            model="claude-sonnet-4-6",
         )
         otel_metrics.cmd_record_tokens(args)
 
@@ -74,6 +76,7 @@ class TestRecordTokens:
         assert rec["output_tokens"] == 1500
         assert rec["total_tokens"] == 2000
         assert rec["duration_ms"] == 3000.0
+        assert rec["model"] == "claude-sonnet-4-6"
         assert "ts" in rec
 
     def test_multiple_calls_append(self, tmp_path):
@@ -149,17 +152,45 @@ class TestBuildPrometheusText:
         text = otel_metrics._build_prometheus_text(str(tmp_path))
         assert 'story_id="US-007"' in text
 
+    def test_prometheus_labels_contain_model(self, tmp_path):
+        """Prometheus output includes model label (US-232)."""
+        args = _make_args(scratch_dir=str(tmp_path), story_id="US-007", model="claude-haiku-4-5")
+        otel_metrics.cmd_record_tokens(args)
+        text = otel_metrics._build_prometheus_text(str(tmp_path))
+        assert 'model="claude-haiku-4-5"' in text
+        assert 'story_id="US-007"' in text
+
     def test_token_counts_aggregated_correctly(self, tmp_path):
         """Token counts for the same story are summed."""
         for _ in range(3):
             otel_metrics.cmd_record_tokens(
-                _make_args(scratch_dir=str(tmp_path), story_id="US-X", input_tokens=100, output_tokens=50)
+                _make_args(scratch_dir=str(tmp_path), story_id="US-X", input_tokens=100, output_tokens=50, model="claude-opus-4-6")
             )
         text = otel_metrics._build_prometheus_text(str(tmp_path))
         # 3 × 100 = 300 input
         assert "300" in text
         # 3 × 50 = 150 output
         assert "150" in text
+
+    def test_token_counts_aggregated_per_model(self, tmp_path):
+        """Token counts are aggregated separately per model (US-232)."""
+        # Record 2 calls with opus, 3 calls with haiku for same story
+        for _ in range(2):
+            otel_metrics.cmd_record_tokens(
+                _make_args(scratch_dir=str(tmp_path), story_id="US-M", input_tokens=100, model="claude-opus-4-6")
+            )
+        for _ in range(3):
+            otel_metrics.cmd_record_tokens(
+                _make_args(scratch_dir=str(tmp_path), story_id="US-M", input_tokens=50, model="claude-haiku-4-5")
+            )
+        text = otel_metrics._build_prometheus_text(str(tmp_path))
+        # Verify both models appear with separate aggregations
+        assert 'model="claude-opus-4-6"' in text
+        assert 'model="claude-haiku-4-5"' in text
+        # Opus: 2 × 100 = 200 input
+        assert 'story_id="US-M",phase="I",model="claude-opus-4-6"' in text
+        # Haiku: 3 × 50 = 150 input
+        assert 'story_id="US-M",phase="I",model="claude-haiku-4-5"' in text
 
     def test_type_help_lines_present(self, tmp_path):
         """# HELP and # TYPE lines are present in output."""

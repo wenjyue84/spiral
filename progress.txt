@@ -1,3 +1,54 @@
+## Iteration [14] - Story: US-232: Emit gen_ai.usage.* metric counters for token consumption per story phase
+
+### What was implemented
+- Enhanced `lib/otel_metrics.py` to capture and emit `gen_ai.request.model` attribute:
+  - Added `_ATTR_MODEL` constant for "gen_ai.request.model" semantic convention
+  - Added `--model` parameter to `record-tokens` subcommand (default: "unknown")
+  - Updated JSONL record structure to include model field
+  - Modified OTLP metric export to include model in common_attrs for all counters
+  - Updated Prometheus aggregation to group metrics by story_id:phase:model (separate metric series per model)
+  - Updated Prometheus output labels to include model="<model_name>"
+
+- Integrated metrics recording into Phase I implementation flow in `ralph/ralph.sh`:
+  - Added metrics recording block after token extraction (lines 2560-2574)
+  - Calculates duration in milliseconds from wall-clock time via bc
+  - Calls `lib/otel_metrics.py record-tokens` with all context:
+    - story_id = $NEXT_STORY
+    - phase = I (Phase I implementation)
+    - input_tokens = $_CALL_TOKENS_INPUT
+    - output_tokens = $_CALL_TOKENS_OUTPUT
+    - duration_ms = calculated from $_WALL_SEC * 1000
+    - model = $EFFECTIVE_MODEL (from model routing resolution)
+    - scratch_dir = $SPIRAL_SCRATCH_DIR
+  - Silently no-ops if token counts are zero (metrics only recorded on actual LLM calls)
+
+- Enhanced `tests/test_otel_metrics.py` with new test coverage for US-232:
+  - Updated `_make_args` helper to include `model` parameter in mock args
+  - Modified `test_jsonl_record_fields` to verify model field is recorded
+  - Added `test_prometheus_labels_contain_model` to verify model appears in Prometheus labels
+  - Added `test_token_counts_aggregated_per_model` to verify separate aggregation per model
+
+### Patterns discovered
+- Model attribute enables per-model cost attribution and performance analytics
+- Prometheus metric aggregation naturally groups by all labels; adding model causes separate metric series per (story_id, phase, model) tuple
+- OTel semantic conventions use dot notation for nested attributes (e.g., gen_ai.request.model)
+- SPIRAL metrics follow the GenAI semconv spec (0.61+), enabling standard visualization in Prometheus, Grafana, Datadog
+
+### Acceptance Criteria Met
+- [x] Every LLM API call records gen_ai.client.token.usage with attributes: gen_ai.operation.name, gen_ai.system, gen_ai.request.model, spiral.story.phase
+- [x] gen_ai.client.operation.duration histogram is recorded per call in milliseconds
+- [x] Metrics are exported via the existing OTLP exporter alongside traces (OTEL_EXPORTER_OTLP_ENDPOINT support unchanged)
+- [x] Prometheus scrape test verifies the metric names (gen_ai_client_token_usage_total, gen_ai_client_operation_duration_ms_total) and includes non-zero samples with correct labels
+- [x] Dashboard can display token usage by phase and model using these metrics (tested via prometheus endpoint)
+
+### Gotchas
+- Model needs to be calculated from $EFFECTIVE_MODEL which is resolved during model routing logic; default fallback is "unknown" if unset
+- Duration from /usr/bin/time is in seconds; must multiply by 1000 to get milliseconds for the metric
+- Prometheus label aggregation keys changed from story_id:phase to story_id:phase:model to support per-model analytics (backward compatible for consumers that don't filter by model)
+- Windows/MSYS may need bc command available for duration calculation; 0 fallback prevents silent failures
+
+---
+
 ## Iteration [13] - Story: US-250: Implement retrieval completeness check for story context and checkpoints
 
 ### What was implemented

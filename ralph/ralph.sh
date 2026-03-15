@@ -2557,6 +2557,22 @@ ${_FT_CONTEXT_BODY}"
       fi
     fi
 
+    # ── Record OTel metrics for token usage (US-232) ──────────────────────────
+    # Record gen_ai.client.token.usage and gen_ai.client.operation.duration metrics
+    # Includes model as an attribute for per-model analytics
+    if [[ "$EFFECTIVE_TOOL" == "claude" && ("$_CALL_TOKENS_INPUT" -gt 0 || "$_CALL_TOKENS_OUTPUT" -gt 0) ]]; then
+      _DURATION_MS=$(printf "%.0f" "$(echo "$_WALL_SEC * 1000" | bc 2>/dev/null || echo 0)")
+      _OTEL_MODEL="${EFFECTIVE_MODEL:-unknown}"
+      "$SPIRAL_PYTHON" lib/otel_metrics.py record-tokens \
+        --story-id "$NEXT_STORY" \
+        --phase I \
+        --input-tokens "$_CALL_TOKENS_INPUT" \
+        --output-tokens "$_CALL_TOKENS_OUTPUT" \
+        --duration-ms "$_DURATION_MS" \
+        --model "$_OTEL_MODEL" \
+        --scratch-dir "$SPIRAL_SCRATCH_DIR" 2>/dev/null || true
+    fi
+
     # ── Extract Phase I diagnosis block (US-244) ─────────────────────────────
     # Parse assistant text messages from stream-json; look for the required
     # ## Current State / ## Problem Identified / ## Planned Changes headers.

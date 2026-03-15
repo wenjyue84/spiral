@@ -40,6 +40,7 @@ _METRIC_OPERATION_DURATION = "gen_ai.client.operation.duration"
 # ── Attribute names ───────────────────────────────────────────────────────────
 _ATTR_SYSTEM = "gen_ai.system"
 _ATTR_OPERATION = "gen_ai.operation.name"
+_ATTR_MODEL = "gen_ai.request.model"
 _ATTR_TOKEN_TYPE = "gen_ai.token.type"
 _ATTR_STORY_ID = "spiral.story_id"
 _ATTR_PHASE = "spiral.phase"
@@ -67,6 +68,7 @@ def cmd_record_tokens(args: argparse.Namespace) -> None:
     input_tokens: int = max(0, int(args.input_tokens or 0))
     output_tokens: int = max(0, int(args.output_tokens or 0))
     duration_ms: float = max(0.0, float(args.duration_ms or 0))
+    model: str = args.model or "unknown"
     scratch_dir: str = args.scratch_dir
 
     # ── 1. Append to local JSONL ──────────────────────────────────────────────
@@ -75,6 +77,7 @@ def cmd_record_tokens(args: argparse.Namespace) -> None:
         "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "story_id": story_id,
         "phase": phase,
+        "model": model,
         "input_tokens": input_tokens,
         "output_tokens": output_tokens,
         "total_tokens": input_tokens + output_tokens,
@@ -107,6 +110,7 @@ def cmd_record_tokens(args: argparse.Namespace) -> None:
         common_attrs = {
             _ATTR_SYSTEM: "anthropic",
             _ATTR_OPERATION: "execute_task",
+            _ATTR_MODEL: model,
             _ATTR_STORY_ID: story_id,
             _ATTR_PHASE: phase,
         }
@@ -147,7 +151,7 @@ def _build_prometheus_text(scratch_dir: str) -> str:
     if not metrics_file.exists():
         return "# No token metrics recorded yet.\n"
 
-    # Aggregate: story_id -> {input, output, duration_ms_list}
+    # Aggregate: story_id:phase:model -> {input, output, duration_ms_list}
     totals: dict[str, dict[str, object]] = {}
 
     try:
@@ -161,9 +165,10 @@ def _build_prometheus_text(scratch_dir: str) -> str:
                 continue
             sid = rec.get("story_id", "unknown")
             phase = rec.get("phase", "I")
-            key = f"{sid}:{phase}"
+            model = rec.get("model", "unknown")
+            key = f"{sid}:{phase}:{model}"
             if key not in totals:
-                totals[key] = {"story_id": sid, "phase": phase, "input": 0, "output": 0, "calls": 0, "duration_ms": 0.0}
+                totals[key] = {"story_id": sid, "phase": phase, "model": model, "input": 0, "output": 0, "calls": 0, "duration_ms": 0.0}
             totals[key]["input"] = totals[key]["input"] + rec.get("input_tokens", 0)  # type: ignore[operator]
             totals[key]["output"] = totals[key]["output"] + rec.get("output_tokens", 0)  # type: ignore[operator]
             totals[key]["calls"] = totals[key]["calls"] + 1  # type: ignore[operator]
@@ -178,7 +183,8 @@ def _build_prometheus_text(scratch_dir: str) -> str:
     for entry in totals.values():
         sid = str(entry["story_id"]).replace('"', '\\"')
         phase = str(entry["phase"])
-        labels = f'story_id="{sid}",phase="{phase}"'
+        model = str(entry["model"]).replace('"', '\\"')
+        labels = f'story_id="{sid}",phase="{phase}",model="{model}"'
         lines.append(f'gen_ai_client_token_usage_total{{token_type="input",{labels}}} {entry["input"]}')
         lines.append(f'gen_ai_client_token_usage_total{{token_type="output",{labels}}} {entry["output"]}')
 
@@ -190,7 +196,8 @@ def _build_prometheus_text(scratch_dir: str) -> str:
     for entry in totals.values():
         sid = str(entry["story_id"]).replace('"', '\\"')
         phase = str(entry["phase"])
-        labels = f'story_id="{sid}",phase="{phase}"'
+        model = str(entry["model"]).replace('"', '\\"')
+        labels = f'story_id="{sid}",phase="{phase}",model="{model}"'
         lines.append(f'gen_ai_client_operation_duration_ms_total{{{labels}}} {entry["duration_ms"]:.3f}')
 
     lines += [
@@ -201,7 +208,8 @@ def _build_prometheus_text(scratch_dir: str) -> str:
     for entry in totals.values():
         sid = str(entry["story_id"]).replace('"', '\\"')
         phase = str(entry["phase"])
-        labels = f'story_id="{sid}",phase="{phase}"'
+        model = str(entry["model"]).replace('"', '\\"')
+        labels = f'story_id="{sid}",phase="{phase}",model="{model}"'
         lines.append(f'gen_ai_client_llm_calls_total{{{labels}}} {entry["calls"]}')
 
     lines.append("")
@@ -255,6 +263,7 @@ def main() -> None:
     p_rec.add_argument("--input-tokens", type=int, default=0, help="Prompt token count")
     p_rec.add_argument("--output-tokens", type=int, default=0, help="Completion token count")
     p_rec.add_argument("--duration-ms", type=float, default=0.0, help="LLM call wall-clock ms")
+    p_rec.add_argument("--model", default="unknown", help="Model name (e.g. claude-opus-4-6, haiku, sonnet)")
     p_rec.add_argument("--scratch-dir", required=True, help="Path to .spiral/ scratch dir")
 
     # serve-prometheus
