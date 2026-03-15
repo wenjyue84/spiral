@@ -45,6 +45,7 @@ SPIRAL_GEMINI_SKIP_SMALL="${SPIRAL_GEMINI_SKIP_SMALL:-true}"           # true = 
 SPIRAL_SKIP_ADR="${SPIRAL_SKIP_ADR:-false}"                             # true = disable ADR generation after story passes (US-155)
 SPIRAL_ADR_MODEL="${SPIRAL_ADR_MODEL:-haiku}"                           # Claude model for ADR generation; haiku to minimise cost (US-155)
 SPIRAL_WORKER_MEMORY_LIMIT="${SPIRAL_WORKER_MEMORY_LIMIT:-0}"           # 0 = disabled; KB — peak RSS after story triggers OOM guard (US-158)
+SPIRAL_CONTEXT_WINDOW="${SPIRAL_CONTEXT_WINDOW:-10}"                    # rolling window depth for observation masking (US-241)
 PRD_FILE="prd.json"
 PROGRESS_FILE="progress.txt"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -1866,6 +1867,9 @@ Story JSON: $STORY_JSON"
   _RL_MAX=5
   _RL_TMP="${SPIRAL_SCRATCH_DIR}/_rate_limit_check_$$.tmp"
   _PHASE_I_DIAGNOSIS_BLOCK=""  # US-244: populated if worker outputs a diagnosis block
+  _OBS_HISTORY=()              # US-241: rolling observation buffer (one entry per retry attempt)
+  _OBS_TOKENS_BEFORE=0         # US-241: cumulative raw context chars/4 estimate (all retries)
+  _OBS_TOKENS_AFTER=0          # US-241: cumulative masked context chars/4 estimate (all retries)
 
   while true; do
     echo "  ─────── AI Output Start ($EFFECTIVE_TOOL) ───────"
@@ -1917,9 +1921,11 @@ $BROWSER_TOOLS_HINT"
       # Minimal user prompt — the system prompt has all instructions
       RALPH_USER_PROMPT="Implement the next incomplete story from prd.json now. Read prd.json and progress.txt, pick the highest priority story where passes is false, and implement it."
 
-      # ── Retry context injection ───────────────────────────────────────────────
+      # ── Retry context injection with observation masking (US-241) ────────────
       # On attempt 2+, prepend a concise brief so the agent doesn't need to hunt
       # through progress.txt to find what the previous attempt learned.
+      # Observation masking: keep only the last SPIRAL_CONTEXT_WINDOW attempts in
+      # full; replace older ones with one-line placeholders to reduce token cost.
       if [[ "${RETRY_NOW:-0}" -ge 1 ]]; then
         _PREV_ATTEMPT=$((RETRY_NOW))
         _FAIL_REASON=$($JQ -r ".userStories[] | select(.id == \"$NEXT_STORY\") | ._failureReason // \"(not recorded)\"" "$PRD_FILE" 2>/dev/null | tr -d '\r' || echo "(not recorded)")
@@ -1929,14 +1935,70 @@ $BROWSER_TOOLS_HINT"
           # Grab up to 40 lines from the end of progress.txt that mention the story
           _RETRY_NOTES=$(grep -A 8 -B 2 "$NEXT_STORY" "$PROGRESS_FILE" 2>/dev/null | tail -40 || true)
         fi
+
+        # US-241: Record this attempt as an observation in the rolling buffer
+        _CUR_OBS="=== Attempt ${RETRY_NOW} ===
+Failure reason: ${_FAIL_REASON}
+Notes:
+${_RETRY_NOTES:-  (none found)}"
+        _OBS_HISTORY+=("$_CUR_OBS")
+
+        # Apply rolling window: mask observations older than SPIRAL_CONTEXT_WINDOW
+        _WINDOW=${SPIRAL_CONTEXT_WINDOW:-10}
+        _OBS_COUNT=${#_OBS_HISTORY[@]}
+        _MASK_COUNT=$(( _OBS_COUNT > _WINDOW ? _OBS_COUNT - _WINDOW : 0 ))
+
+        # Build the (possibly masked) context string
+        _MASKED_CONTEXT=""
+        for (( _oi=0; _oi < _OBS_COUNT; _oi++ )); do
+          if (( _oi < _MASK_COUNT )); then
+            # Replace with one-line placeholder — extract just the failure reason
+            _SHORT_REASON=$(printf '%s' "${_OBS_HISTORY[$_oi]}" | grep "^Failure reason:" | head -1 | cut -c 1-100)
+            _MASKED_CONTEXT="${_MASKED_CONTEXT}[Attempt $((_oi+1)): omitted for brevity — ${_SHORT_REASON:-reason not recorded}]
+"
+          else
+            _MASKED_CONTEXT="${_MASKED_CONTEXT}${_OBS_HISTORY[$_oi]}
+"
+          fi
+        done
+
+        # Estimate tokens (chars ÷ 4) and accumulate stats
+        _FULL_CHARS=$(printf '%s' "${_OBS_HISTORY[*]}" | wc -c 2>/dev/null || echo 0)
+        _MASKED_CHARS=${#_MASKED_CONTEXT}
+        _FULL_TOKENS=$(( (_FULL_CHARS + 3) / 4 ))
+        _MASKED_TOKENS=$(( (_MASKED_CHARS + 3) / 4 ))
+        _OBS_TOKENS_BEFORE=$(( _OBS_TOKENS_BEFORE + _FULL_TOKENS ))
+        _OBS_TOKENS_AFTER=$(( _OBS_TOKENS_AFTER + _MASKED_TOKENS ))
+
+        # Add masking note to system prompt when observations were truncated
+        _MASKING_NOTE=""
+        if (( _MASK_COUNT > 0 )); then
+          _REDUCTION_PCT=$(( (_FULL_TOKENS - _MASKED_TOKENS) * 100 / (_FULL_TOKENS + 1) ))
+          _MASKING_NOTE="NOTE: ${_MASK_COUNT} earlier phase output(s) omitted for brevity (kept last ${_WINDOW} of ${_OBS_COUNT}).
+"
+          RALPH_SYSTEM_PROMPT="${RALPH_SYSTEM_PROMPT}
+
+---
+
+## Context Management
+
+Earlier phase outputs omitted for brevity (${_MASK_COUNT} of ${_OBS_COUNT} attempt(s) masked; ${_REDUCTION_PCT}% token reduction)."
+          echo "  [context] Observation masking: ${_MASK_COUNT}/${_OBS_COUNT} attempts masked (${_REDUCTION_PCT}% reduction, ${_FULL_TOKENS}→${_MASKED_TOKENS} tokens)"
+          log_ralph_event "context_mask" \
+            "\"story_id\":\"$NEXT_STORY\",\"attempts\":$_OBS_COUNT,\"masked\":$_MASK_COUNT,\"tokens_before\":$_FULL_TOKENS,\"tokens_after\":$_MASKED_TOKENS,\"reduction_pct\":$_REDUCTION_PCT"
+          # Write _contextStats file for spiral.sh write_iter_summary to merge (US-241)
+          _CTX_STATS_FILE="${SPIRAL_SCRATCH_DIR}/_context_stats.json"
+          _CTX_STATS_TMP="${_CTX_STATS_FILE}.tmp.$$"
+          printf '{"tokens_before":%d,"tokens_after":%d,"reduction_pct":%d,"stories_masked":%d}\n' \
+            "$_OBS_TOKENS_BEFORE" "$_OBS_TOKENS_AFTER" "$_REDUCTION_PCT" "$(( _MASK_COUNT > 0 ? 1 : 0 ))" \
+            > "$_CTX_STATS_TMP" && mv "$_CTX_STATS_TMP" "$_CTX_STATS_FILE" 2>/dev/null || true
+        fi
+
         _RETRY_BRIEF="RETRY CONTEXT — ATTEMPT $((RETRY_NOW + 1)) of $MAX_RETRIES
 
 Story $NEXT_STORY (\"$STORY_TITLE\") was attempted $RETRY_NOW time(s) and did NOT pass.
-Failure reason: $_FAIL_REASON
-
-Notes from the previous attempt (from progress.txt):
-${_RETRY_NOTES:-  (none found — check progress.txt manually)}
-
+${_MASKING_NOTE}Previous attempt observations:
+${_MASKED_CONTEXT}
 ACTION: Do NOT repeat the same approach that failed. Read progress.txt carefully for what
 was tried, then implement the story differently. You are using a more powerful model this
 attempt ($EFFECTIVE_MODEL) — use it."
@@ -2162,6 +2224,18 @@ DIAG_EXTRACTOR_EOF
       '(.userStories[] | select(.id == "'"$NEXT_STORY"'") | ._phaseI.diagnosisBlock) = $block' \
       "$PRD_FILE" >"${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE" || true
     echo "  [diagnosis] Block stored in checkpoint for $NEXT_STORY"
+  fi
+
+  # ── Store context masking stats in prd.json (US-241) ─────────────────────
+  # _OBS_TOKENS_BEFORE/AFTER are cumulative token estimates across all retries.
+  # Only write when masking was active (i.e., at least one retry occurred).
+  if [[ "${_OBS_TOKENS_BEFORE:-0}" -gt 0 ]]; then
+    _ctx_reduction_pct=$(( (_OBS_TOKENS_BEFORE - _OBS_TOKENS_AFTER) * 100 / (_OBS_TOKENS_BEFORE + 1) ))
+    $JQ --argjson ctxstats \
+      "{\"tokensBeforeMasking\":${_OBS_TOKENS_BEFORE},\"tokensAfterMasking\":${_OBS_TOKENS_AFTER},\"reductionPct\":${_ctx_reduction_pct},\"contextWindow\":${SPIRAL_CONTEXT_WINDOW:-10}}" \
+      '(.userStories[] | select(.id == "'"$NEXT_STORY"'") | ._contextStats) = $ctxstats' \
+      "$PRD_FILE" >"${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE" || true
+    echo "  [context] Stats stored: before=${_OBS_TOKENS_BEFORE}T after=${_OBS_TOKENS_AFTER}T (${_ctx_reduction_pct}% saved)"
   fi
 
   # ── Parse resource accounting output (US-158) ──────────────────────────────

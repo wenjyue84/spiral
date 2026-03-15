@@ -5626,3 +5626,29 @@ Completed: Add flaky bats test detection and quarantine registry (ID: US-240) in
 ### Gotchas
 - Both lib/flaky_tests.sh and tests/flaky_tests.bats were fully implemented but untracked — always check `git status` for untracked files before implementing
 - SPIRAL_FLAKY_THRESHOLD uses strict greater-than (ratio > threshold), not >=, so 0.3 threshold means exactly 30% failure rate is NOT quarantined
+
+## Iteration N - Story: US-241: Implement observation masking for ralph.sh context window management
+
+### What was implemented
+- `ralph/ralph.sh` defaults: added `SPIRAL_CONTEXT_WINDOW="${SPIRAL_CONTEXT_WINDOW:-10}"` configurable rolling window
+- `ralph/ralph.sh` rate-limit retry init: added `_OBS_HISTORY=()`, `_OBS_TOKENS_BEFORE=0`, `_OBS_TOKENS_AFTER=0` per-story
+- `ralph/ralph.sh` retry context injection: replaced static `_RETRY_NOTES` with rolling observation masking:
+  - Each retry attempt's failure reason + notes stored in `_OBS_HISTORY` array
+  - Observations older than `SPIRAL_CONTEXT_WINDOW` replaced with one-line placeholder `[Attempt N: omitted for brevity — Failure reason: ...]`
+  - Token counts estimated (chars/4) and accumulated in `_OBS_TOKENS_BEFORE`/`_OBS_TOKENS_AFTER`
+  - When masking occurs: adds system prompt note "Earlier phase outputs omitted for brevity", logs `context_mask` ralph event
+  - Writes `_context_stats.json` to `SPIRAL_SCRATCH_DIR` for iteration summary merging
+- `spiral.sh` `write_iter_summary()`: reads `_context_stats.json` from scratch dir and includes as `_contextStats` in `_iteration_summary.json`
+- `tests/observation_masking.bats`: 14 bats tests — all pass
+
+### Patterns discovered
+- Bash arrays work well for the rolling observation buffer (`_OBS_HISTORY+=("$obs")`)
+- Token estimation uses chars/4 — fast, good enough for relative comparisons
+- The 40% token reduction threshold is easily achieved with window=1 and 6 observations (62%+ reduction) but not with window=2 and 6 short observations (~34%)
+- System prompt addition for masking note: appended to `RALPH_SYSTEM_PROMPT` after it's built but before the claude call
+
+### Gotchas
+- `_OBS_HISTORY` must be initialized BEFORE the rate-limit retry loop (not inside it) — the array persists across loop iterations for the same story
+- The `_FULL_CHARS` computation: `printf '%s' "${_OBS_HISTORY[*]}" | wc -c` joins all elements with spaces — close enough for token estimation
+- `_context_stats.json` is per-iteration, not per-story — only the most recent masking event's stats survive (overwritten each time masking occurs)
+- spiral.sh `write_iter_summary` passes `_context_stats.json` path as argv[12] — must update both the Python block and the `" "$SPIRAL_ITER"...` arg line together

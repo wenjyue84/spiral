@@ -1181,7 +1181,7 @@ write_iter_summary() {
   _phases_json="${_phases_json}]"
 
   "$SPIRAL_PYTHON" -c "
-import json, sys
+import json, sys, os
 d = {
     'iter': int(sys.argv[1]),
     'ts_start': int(sys.argv[2]),
@@ -1194,6 +1194,15 @@ d = {
     'phase_v_skipped': sys.argv[10] == '1',
     'phase_r_pre_model': sys.argv[11] if sys.argv[11] != 'none' else None,
 }
+# US-241: merge _contextStats from ralph.sh observation masking if available
+_ctx_stats_file = sys.argv[12] if len(sys.argv) > 12 else ''
+if _ctx_stats_file and os.path.isfile(_ctx_stats_file):
+    try:
+        with open(_ctx_stats_file, encoding='utf-8') as _cf:
+            _ctx = json.load(_cf)
+        d['_contextStats'] = _ctx
+    except Exception:
+        pass
 # Remove None values to keep JSON clean
 d = {k: v for k, v in d.items() if v is not None}
 with open(sys.argv[9], 'w') as f:
@@ -1202,7 +1211,7 @@ with open(sys.argv[9], 'w') as f:
 " "$SPIRAL_ITER" "$ITER_START" "$_iter_end" "$_iter_dur" \
     "$_attempted" "${RALPH_PROGRESS:-0}" "$_failed" \
     "$_phases_json" "$SCRATCH_DIR/_iteration_summary.json" "${_PHASE_V_SKIPPED:-0}" \
-    "${_PHASE_R_PRE_MODEL:-none}" 2>/dev/null || {
+    "${_PHASE_R_PRE_MODEL:-none}" "${SCRATCH_DIR}/_context_stats.json" 2>/dev/null || {
     echo "  [C] WARNING: Failed to write _iteration_summary.json (non-fatal)"
   }
 }
