@@ -439,6 +439,7 @@ SPIRAL_RESEARCH_CACHE_TTL_HOURS="${SPIRAL_RESEARCH_CACHE_TTL_HOURS:-0}"  # 0 = d
 RESEARCH_CACHE_DIR=""                                                    # set after SCRATCH_DIR is known
 SPIRAL_RESEARCH_TIMEOUT="${SPIRAL_RESEARCH_TIMEOUT:-300}"                # seconds; 0 = disabled (unlimited); Phase R LLM call
 SPIRAL_RESEARCH_RETRIES="${SPIRAL_RESEARCH_RETRIES:-2}"                  # retries when _research_output.json missing/invalid after Phase R
+SPIRAL_GEMINI_FALLBACK_MODEL="${SPIRAL_GEMINI_FALLBACK_MODEL:-claude-haiku-4-5-20251001}"  # Claude model for Gemini 503 fallback (US-206)
 SPIRAL_IMPL_TIMEOUT="${SPIRAL_IMPL_TIMEOUT:-600}"                        # seconds; 0 = disabled (unlimited); Phase I ralph call
 SPIRAL_VALIDATE_TIMEOUT="${SPIRAL_VALIDATE_TIMEOUT:-300}"                # seconds; 0 = disabled (unlimited)
 SPIRAL_INCREMENTAL_VALIDATE="${SPIRAL_INCREMENTAL_VALIDATE:-false}"      # true = run only tests covering files touched by current story (Phase V)
@@ -1962,7 +1963,44 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
           echo "  [R] Gemini web research complete ($(echo "$GEMINI_RESEARCH" | wc -l) lines)"
         else
           # Diagnose failure reason from stderr
-          if grep -qi '429\|RESOURCE_EXHAUSTED\|rate.limit\|quota' "$GEMINI_ERR_TMP" 2>/dev/null; then
+          if grep -qi '503\|Service Unavailable\|UNAVAILABLE' "$GEMINI_ERR_TMP" 2>/dev/null; then
+            # ── US-206: Gemini 503 — retry once after backoff, then fall back to Claude ──
+            echo "  [R] Gemini returned 503 — retrying once after 10s backoff..."
+            sleep 10
+            rm -f "$GEMINI_ERR_TMP"; GEMINI_ERR_TMP=$(mktemp)
+            GEMINI_RESEARCH=$(gemini \
+              -m gemini-2.5-pro \
+              -p "$SPIRAL_GEMINI_PROMPT" \
+              -y --output-format text 2>"$GEMINI_ERR_TMP" || true)
+            if [[ -n "$GEMINI_RESEARCH" ]]; then
+              echo "  [R] Gemini web research complete after retry ($(echo "$GEMINI_RESEARCH" | wc -l) lines)"
+            else
+              # Still failing — fall back to Claude simplified research
+              echo "  [R] Gemini still unavailable after retry — falling back to Claude (${SPIRAL_GEMINI_FALLBACK_MODEL})"
+              log_spiral_event "gemini_fallback" \
+                "\"event_type\":\"gemini_fallback\",\"fallback_model\":\"${SPIRAL_GEMINI_FALLBACK_MODEL}\",\"reason\":\"503\",\"iteration\":$SPIRAL_ITER"
+              _GEMINI_FB_ERR=$(mktemp)
+              _GEMINI_FB_PROMPT="You are a research assistant. Based on the following prompt, provide a concise research summary in plain text (no JSON needed): ${SPIRAL_GEMINI_PROMPT}"
+              GEMINI_RESEARCH=$(
+                unset CLAUDECODE
+                claude -p "$_GEMINI_FB_PROMPT" \
+                  --model "${SPIRAL_GEMINI_FALLBACK_MODEL}" \
+                  --allowedTools "WebSearch,WebFetch" \
+                  --max-turns 5 \
+                  --dangerously-skip-permissions \
+                  </dev/null 2>"$_GEMINI_FB_ERR" || true
+              )
+              if [[ -n "$GEMINI_RESEARCH" ]]; then
+                echo "  [R] Claude fallback research complete (${SPIRAL_GEMINI_FALLBACK_MODEL}, $(echo "$GEMINI_RESEARCH" | wc -l) lines)"
+              else
+                _GEMINI_FB_ERR_MSG=$(head -1 "$_GEMINI_FB_ERR" 2>/dev/null || echo "unknown error")
+                echo "  [R] Gemini and Claude fallback both failed — $_GEMINI_FB_ERR_MSG — Phase R will proceed without pre-research"
+                log_spiral_event "gemini_fallback_failed" \
+                  "\"reason\":\"both_failed\",\"gemini_error\":\"503\",\"claude_error\":\"${_GEMINI_FB_ERR_MSG}\",\"iteration\":$SPIRAL_ITER"
+              fi
+              rm -f "$_GEMINI_FB_ERR"
+            fi
+          elif grep -qi '429\|RESOURCE_EXHAUSTED\|rate.limit\|quota' "$GEMINI_ERR_TMP" 2>/dev/null; then
             echo "  [R] Gemini rate-limited — Claude will browse URLs directly"
           elif grep -qi 'PERMISSION_DENIED\|API.key\|api_key\|UNAUTHENTICATED' "$GEMINI_ERR_TMP" 2>/dev/null; then
             echo "  [R] Gemini auth error — check GEMINI_API_KEY"
@@ -3028,7 +3066,6 @@ $INJECTED_PROMPT"
     # ── Parallel test execution (US-148) ────────────────────────────────────
     if [[ "${SPIRAL_PARALLEL_TESTS:-false}" == "true" ]]; then
       # Resolve worker count: explicit > nproc/2 (minimum 1)
-      local _NPROC _TEST_WORKERS
       if [[ -n "${SPIRAL_TEST_WORKERS:-}" ]]; then
         _TEST_WORKERS="$SPIRAL_TEST_WORKERS"
       else

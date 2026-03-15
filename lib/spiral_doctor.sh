@@ -227,6 +227,10 @@ spiral_doctor() {
     error_count=$((error_count + 1))
   fi
 
+  # ── Report SPIRAL_GEMINI_FALLBACK_MODEL (US-206) ─────────────────────────────
+  local _gemini_fb_model="${SPIRAL_GEMINI_FALLBACK_MODEL:-claude-haiku-4-5-20251001}"
+  echo "  [doctor] [OK] SPIRAL_GEMINI_FALLBACK_MODEL=${_gemini_fb_model} (Claude fallback when Gemini returns 503)"
+
   # ── Check Ollama reachability (when SPIRAL_OLLAMA_FALLBACK_MODEL is set) ────
   if [[ -n "${SPIRAL_OLLAMA_FALLBACK_MODEL:-}" ]]; then
     local ollama_base="${SPIRAL_OLLAMA_HOST:-http://localhost:11434/v1}"
