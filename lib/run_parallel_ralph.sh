@@ -63,6 +63,81 @@ TERMINAL_EMU="${SPIRAL_TERMINAL:-}"
 GEMINI_ANNOTATE="${SPIRAL_GEMINI_ANNOTATE_PROMPT:-}"
 WORKER_TIMEOUT="${SPIRAL_WORKER_TIMEOUT:-600}" # per-worker wall-clock limit (0 = unlimited)
 
+# ── cgroups v2 worker isolation (US-259) ─────────────────────────────────────
+# Per-worker memory and CPU hard limits enforced by the kernel.
+# Falls back gracefully when cgroups v2 is unavailable (Windows, macOS, older kernels).
+SPIRAL_WORKER_MEM_LIMIT_MB="${SPIRAL_WORKER_MEM_LIMIT_MB:-2048}"
+SPIRAL_WORKER_CPU_QUOTA="${SPIRAL_WORKER_CPU_QUOTA:-80}"  # percentage of one CPU (1–100)
+_CGROUP_BASE="/sys/fs/cgroup/spiral"
+_CGROUPS_V2_AVAILABLE=0
+if [[ -f /sys/fs/cgroup/cgroup.controllers ]] && grep -q memory /sys/fs/cgroup/cgroup.controllers 2>/dev/null; then
+  _CGROUPS_V2_AVAILABLE=1
+fi
+# Track created cgroup paths for cleanup
+declare -a _WORKER_CGROUP_PATHS=()
+
+# Create a cgroup slice for worker $1 and write limits.
+# Sets _WORKER_CGROUP_PATHS[i-1] on success.
+# Returns 0 on success, 1 if cgroups v2 unavailable (non-fatal).
+_cgroup_setup() {
+  local worker_num="$1"
+  if [[ "$_CGROUPS_V2_AVAILABLE" -eq 0 ]]; then
+    echo "  [cgroup] cgroups v2 unavailable — worker $worker_num runs unconstrained" >&2
+    return 1
+  fi
+  local cg_path="${_CGROUP_BASE}/worker-${worker_num}"
+  # Create the cgroup directory
+  if ! mkdir -p "$cg_path" 2>/dev/null; then
+    echo "  [cgroup] WARNING: cannot create $cg_path (permission denied?) — worker $worker_num runs unconstrained" >&2
+    return 1
+  fi
+  # Ensure subtree_control enables memory and cpu for children
+  echo "+memory +cpu" > "${_CGROUP_BASE}/cgroup.subtree_control" 2>/dev/null || true
+  # memory.max: convert MB → bytes
+  local mem_bytes=$(( SPIRAL_WORKER_MEM_LIMIT_MB * 1024 * 1024 ))
+  echo "$mem_bytes" > "$cg_path/memory.max" 2>/dev/null || {
+    echo "  [cgroup] WARNING: failed to set memory.max for worker $worker_num" >&2
+  }
+  # memory.high (soft reclaim at 80% of hard limit)
+  local mem_high=$(( mem_bytes * 4 / 5 ))
+  echo "$mem_high" > "$cg_path/memory.high" 2>/dev/null || true
+  # cpu.max: quota period; 80% = "80000 100000"
+  local cpu_quota=$(( SPIRAL_WORKER_CPU_QUOTA * 1000 ))
+  echo "${cpu_quota} 100000" > "$cg_path/cpu.max" 2>/dev/null || {
+    echo "  [cgroup] WARNING: failed to set cpu.max for worker $worker_num" >&2
+  }
+  _WORKER_CGROUP_PATHS[$((worker_num - 1))]="$cg_path"
+  echo "  [cgroup] Worker $worker_num: memory.max=${SPIRAL_WORKER_MEM_LIMIT_MB}MB cpu.max=${SPIRAL_WORKER_CPU_QUOTA}%"
+  return 0
+}
+
+# Move PID $2 into the cgroup for worker $1 (no-op if cgroup not set up).
+_cgroup_assign() {
+  local worker_num="$1"
+  local pid="$2"
+  local cg_path="${_WORKER_CGROUP_PATHS[$((worker_num - 1))]:-}"
+  [[ -z "$cg_path" || ! -d "$cg_path" ]] && return 0
+  echo "$pid" > "$cg_path/cgroup.procs" 2>/dev/null || {
+    echo "  [cgroup] WARNING: failed to assign PID $pid to cgroup for worker $worker_num" >&2
+  }
+}
+
+# Remove the cgroup slice for worker $1 (no-op if not created).
+_cgroup_cleanup() {
+  local worker_num="$1"
+  local cg_path="${_WORKER_CGROUP_PATHS[$((worker_num - 1))]:-}"
+  [[ -z "$cg_path" || ! -d "$cg_path" ]] && return 0
+  # Kill any remaining processes in the cgroup before removing it
+  if [[ -f "$cg_path/cgroup.procs" ]]; then
+    while read -r _pid; do
+      [[ -n "$_pid" ]] && kill "$_pid" 2>/dev/null || true
+    done < "$cg_path/cgroup.procs"
+    sleep 0.2
+  fi
+  rmdir "$cg_path" 2>/dev/null || true
+  _WORKER_CGROUP_PATHS[$((worker_num - 1))]=''
+}
+
 # Pre-declare worker tracking arrays so cleanup_parallel and _launch_worker_i can safely reference them
 declare -a WORKER_PIDS=()
 declare -a WORKER_FINISHED=()
@@ -127,6 +202,12 @@ cleanup_parallel() {
   done
   # Clean up heartbeat files
   rm -f "$HEARTBEAT_DIR"/worker_*.heartbeat 2>/dev/null || true
+  # Clean up cgroup slices (US-259)
+  for _cg_i in $(seq 1 "$RALPH_WORKERS"); do
+    _cgroup_cleanup "$_cg_i" 2>/dev/null || true
+  done
+  # Remove spiral cgroup parent dir if empty
+  rmdir "${_CGROUP_BASE}" 2>/dev/null || true
   echo "  [parallel] Cleanup done."
 }
 trap cleanup_parallel EXIT INT TERM
@@ -561,6 +642,8 @@ _launch_worker_i() {
   # US-245: PGID file — the setsid'd bash writes its own PID (= its PGID) here on startup
   local _PGID_FILE="$WORKTREE_BASE/worker-${i}/worker.pgid"
   : >"$_PGID_FILE"  # initialise empty
+  # US-259: Create cgroup slice before spawning (no-op + warning if unavailable)
+  _cgroup_setup "$i" || true
   (
     _UNLOCK_REPO="$REPO_ROOT"
     _UNLOCK_WTREE="$WTREE"
@@ -569,6 +652,7 @@ _launch_worker_i() {
     _HB_CLEANUP='
       if type worker_heartbeat_stop &>/dev/null; then worker_heartbeat_stop "$_WORKER_NUM" 2>/dev/null || true; fi
       git -C "$_UNLOCK_REPO" worktree unlock "$_UNLOCK_WTREE" 2>/dev/null || true
+      _cgroup_cleanup "$_WORKER_NUM" 2>/dev/null || true
     '
     trap "$_HB_CLEANUP" EXIT
     cd "$WTREE"
@@ -598,6 +682,8 @@ _launch_worker_i() {
     exit "$_RC"
   ) &
   local _wpid=$!
+  # US-259: Assign worker process to its cgroup (no-op if cgroups v2 unavailable)
+  _cgroup_assign "$i" "$_wpid" || true
   WORKER_PIDS+=("$_wpid")
   WORKER_FINISHED+=("0")
   WORKER_EXIT_CODES+=("0")

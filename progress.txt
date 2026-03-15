@@ -6325,3 +6325,34 @@ Incomplete: Enforce cgroups v2 memory and CPU limits on worker subprocesses (ID:
 ### Gotchas
 - prd.json must be opened with encoding='utf-8' on Windows (cp1252 default fails on special chars)
 - test_route_stories.py has pre-existing import error (relative import) — not caused by this change
+## Iteration 4 - Sun, Mar 15, 2026 11:50:09 PM
+Incomplete: Enforce cgroups v2 memory and CPU limits on worker subprocesses (ID: US-259) — attempt /3
+
+
+---
+
+## Iteration [N] - Story: US-259: Enforce cgroups v2 memory and CPU limits on worker subprocesses
+
+### What was implemented
+- Added `SPIRAL_WORKER_MEM_LIMIT_MB` (default: 2048) and `SPIRAL_WORKER_CPU_QUOTA` (default: 80) env vars in `run_parallel_ralph.sh`
+- Added `_CGROUPS_V2_AVAILABLE` detection: checks for `/sys/fs/cgroup/cgroup.controllers` with `memory` listed
+- Added `_cgroup_setup(worker_num)` function: creates `/sys/fs/cgroup/spiral/worker-N/`, writes `memory.max` (bytes), `memory.high` (80% of max), `cpu.max` (quota/period); warns + returns 1 if unavailable
+- Added `_cgroup_assign(worker_num, pid)` function: writes PID to `cgroup.procs` after worker subprocess spawns
+- Added `_cgroup_cleanup(worker_num)` function: kills remaining cgroup procs, calls `rmdir`; used in both EXIT trap and global `cleanup_parallel()`
+- Modified `_launch_worker_i()`: calls `_cgroup_setup` before subshell spawn, `_cgroup_assign` after `&`, adds `_cgroup_cleanup` to `_HB_CLEANUP` trap inside subshell
+- Added cgroup cleanup loop to `cleanup_parallel()` (all workers), plus `rmdir` of spiral parent cgroup
+- Documented `SPIRAL_WORKER_MEM_LIMIT_MB` and `SPIRAL_WORKER_CPU_QUOTA` in `templates/spiral.config.example.sh`
+- Created `.env.example` documenting all new and key existing env vars
+
+### Patterns discovered
+- cgroups v2 unified hierarchy: set `memory.max`, `memory.high`, `cpu.max` by writing files under `/sys/fs/cgroup/<path>/`
+- Must enable subtree_control before children can use controllers: `echo "+memory +cpu" > /sys/fs/cgroup/spiral/cgroup.subtree_control`
+- `cgroup.procs` accepts the PID of the worker (the bash subshell's PID written after `&`)
+- `_WORKER_CGROUP_PATHS` array mirrors `WORKER_PIDS` — index is `worker_num - 1`
+- Fallback pattern: check availability at startup, store flag, guard every cgroup function with the flag
+
+### Gotchas
+- cgroups v2 requires the kernel to have the unified hierarchy mounted (Linux only); Windows/macOS get graceful fallback
+- `rmdir` on a cgroup with live processes will fail — must drain `cgroup.procs` first with SIGTERM + brief sleep
+- cpu.max format: `quota_usec period_usec` (e.g., `80000 100000` = 80% of one core per 100ms period)
+- The inner `_HB_CLEANUP` trap string uses single-quoted heredoc so `$_WORKER_NUM` is evaluated at trap-fire time (correct, it's a local in the subshell)

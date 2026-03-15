@@ -343,6 +343,20 @@
 # Example: 2048 (2 GB per worker on a 16 GB+ machine)
 # SPIRAL_WORKER_MEMORY_LIMIT=2048
 
+# ── cgroups v2 per-worker isolation (Linux only, US-259) ────────────────────
+# Kernel-enforced hard memory and CPU limits for each Ralph worker subprocess.
+# Automatically skipped with a warning on macOS, Windows, or kernels without
+# cgroups v2 unified hierarchy.
+#
+# SPIRAL_WORKER_MEM_LIMIT_MB — memory.max per worker (bytes = value × 1048576).
+# Default: 2048 (2 GB). Set to 0 to disable the memory limit.
+# SPIRAL_WORKER_MEM_LIMIT_MB=2048
+#
+# SPIRAL_WORKER_CPU_QUOTA — cpu.max quota as a percentage of one CPU (1–100).
+# 80 means the worker may use at most 80% of a single CPU core.
+# Default: 80.
+# SPIRAL_WORKER_CPU_QUOTA=80
+
 # Memory watchdog: background PowerShell monitor that kills Node.js processes
 # exceeding the RSS threshold. Requires PowerShell on Windows.
 # 1 = enabled (default), 0 = disabled.
