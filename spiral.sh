@@ -3066,6 +3066,13 @@ $INJECTED_PROMPT"
                     --passed true \
                     --output calibration.jsonl 2>/dev/null || true
                 fi
+                # US-194: post-story plugin hooks (e.g. Slack notifications)
+                if [[ -n "${PLUGIN_HOOKS[post-story]:-}" ]]; then
+                  _PS_TITLE=$("$JQ" -r --arg id "$_NEXT_SID" '.userStories[] | select(.id == $id) | .title // ""' "$PRD_FILE" 2>/dev/null || echo "")
+                  _PS_RETRY=$("$JQ" -r --arg id "$_NEXT_SID" '.[$id] // 0' "$REPO_ROOT/retry-counts.json" 2>/dev/null || echo "0")
+                  run_plugin_hooks "post-story" "POST" "$_NEXT_SID" \
+                    "\"story_title\":\"${_PS_TITLE//\"/\\\"}\",\"story_passes\":$_STORY_PASSES,\"retry_count\":${_PS_RETRY:-0}" 2>/dev/null || true
+                fi
               else
                 # Cap workers to story count so no worker sits idle
                 WAVE_WORKERS="$RALPH_WORKERS"
@@ -3171,6 +3178,13 @@ $INJECTED_PROMPT"
                 --phase-retries 0 \
                 --passed true \
                 --output calibration.jsonl 2>/dev/null || true
+            fi
+            # US-194: post-story plugin hooks (e.g. Slack notifications)
+            if [[ -n "${PLUGIN_HOOKS[post-story]:-}" ]]; then
+              _PS_TITLE=$("$JQ" -r --arg id "$_NEXT_SID" '.userStories[] | select(.id == $id) | .title // ""' "$PRD_FILE" 2>/dev/null || echo "")
+              _PS_RETRY=$("$JQ" -r --arg id "$_NEXT_SID" '.[$id] // 0' "$REPO_ROOT/retry-counts.json" 2>/dev/null || echo "0")
+              run_plugin_hooks "post-story" "POST" "$_NEXT_SID" \
+                "\"story_title\":\"${_PS_TITLE//\"/\\\"}\",\"story_passes\":$_STORY_PASSES,\"retry_count\":${_PS_RETRY:-0}" 2>/dev/null || true
             fi
           fi
 
@@ -3743,17 +3757,13 @@ PYEOF
     if [[ -n "${PLUGIN_HOOKS[run-completion]:-}" ]]; then
       _FAILED=$((TOTAL - DONE))
       _SKIPPED=0
-      if [[ -f "$RETRY_FILE" ]]; then
-        _SKIPPED=$("$JQ" "[to_entries[] | select(.value >= $MAX_RETRIES)] | length" "$RETRY_FILE" 2>/dev/null || echo "0")
+      if [[ -f "$REPO_ROOT/retry-counts.json" ]]; then
+        _SKIPPED=$("$JQ" "[to_entries[] | select(.value >= ${SPIRAL_MAX_RETRIES:-3})] | length" "$REPO_ROOT/retry-counts.json" 2>/dev/null || echo "0")
       fi
-      # Export context as environment variables for run-completion hook
-      export SPIRAL_TOTAL_STORIES="$TOTAL"
-      export SPIRAL_PASSED_STORIES="$DONE"
-      export SPIRAL_FAILED_STORIES="$_FAILED"
-      export SPIRAL_SKIPPED_STORIES="$_SKIPPED"
-      export SPIRAL_DURATION_SECONDS="$((SESSION_END - SESSION_START))"
-      # Call the run-completion hook with empty story_id
-      run_plugin_hooks "run-completion" "POST" "" 2>/dev/null || true
+      _RUN_DURATION=$((SESSION_END - SESSION_START))
+      # Pass run stats as extra JSON context so hook scripts can read from stdin
+      run_plugin_hooks "run-completion" "POST" "" \
+        "\"total_stories\":$TOTAL,\"passed_stories\":$DONE,\"failed_stories\":$_FAILED,\"skipped_stories\":${_SKIPPED:-0},\"duration_seconds\":$_RUN_DURATION" 2>/dev/null || true
     fi
 
     exit 0

@@ -150,39 +150,41 @@ list_plugins() {
 }
 
 # ── Build context JSON for hook scripts ────────────────────────────────────────
-# Usage: build_hook_context STORY_ID
+# Usage: build_hook_context STORY_ID [EXTRA_FIELDS]
+# EXTRA_FIELDS: optional comma-separated JSON field string, e.g. '"key":"val","n":42'
 build_hook_context() {
   local story_id="${1:-}"
+  local extra_fields="${2:-}"  # optional: extra JSON fields to append
 
-  # Build minimal JSON with current context
-  # jq is a dependency, so we can use it here
-  local context
-  context="$(cat <<EOF
+  local extra_part=""
+  [[ -n "$extra_fields" ]] && extra_part=", $extra_fields"
+
+  cat <<EOF
 {
   "iteration": ${SPIRAL_ITER:-0},
   "spiral_run_id": "${SPIRAL_RUN_ID:-}",
   "phase": "${SPIRAL_CURRENT_PHASE:-}",
   "story_id": "$story_id",
-  "timestamp_iso": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  "timestamp_iso": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"${extra_part}
 }
 EOF
-)"
-  echo "$context"
 }
 
 # ── Invoke plugin hooks for a specific hook point ────────────────────────────────
-# Usage: run_plugin_hooks HOOK_POINT HOOK_TYPE STORY_ID
+# Usage: run_plugin_hooks HOOK_POINT HOOK_TYPE STORY_ID [EXTRA_CONTEXT]
 # HOOK_TYPE: PRE (abort on failure) or POST (warn on failure)
+# EXTRA_CONTEXT: optional extra JSON field string, e.g. '"key":"val","n":42'
 run_plugin_hooks() {
   local hook_point="$1"  # pre-phase, post-phase, post-story, etc.
   local hook_type="$2"   # PRE or POST
   local story_id="${3:-}"
+  local extra_context="${4:-}"  # optional: extra JSON fields merged into hook context
 
   local plugins_for_hook="${PLUGIN_HOOKS[$hook_point]:-}"
   [[ -z "$plugins_for_hook" ]] && return 0
 
   local context
-  context=$(build_hook_context "$story_id")
+  context=$(build_hook_context "$story_id" "$extra_context")
 
   local rc=0
   for plugin_name in $plugins_for_hook; do

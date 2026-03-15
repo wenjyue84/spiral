@@ -5935,3 +5935,6 @@ Incomplete: Generate per-story ADR stub when architectural decision is detected 
 - [x] Non-fatal notification failures
 - [x] Story title and retry count fields in hook context (ready for post-story calls)
 
+## Iteration 6 - Sun, Mar 15, 2026  9:51:14 PM
+Incomplete: Generate per-story ADR stub when architectural decision is detected in Phase I output (ID: US-201) — attempt /3
+
