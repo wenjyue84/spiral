@@ -5706,3 +5706,30 @@ Completed: Implement observation masking for ralph.sh context window management 
 - `violations=$(python3 ...)` with `sys.exit(N)` inside: when N>0, bash sees non-zero exit code from the assignment and aborts under `set -e`. Use `|| true` or always exit 0 from python
 - The allow-list scan is post-hoc (after LLM run) — it can't block commands the LLM already executed via tool_use. It's an audit mechanism, not a real-time interceptor
 - `safe_run()` wraps ralph.sh's OWN bash executions, not the AI's tool calls
+## Iteration 1 - Sun, Mar 15, 2026  9:12:15 PM
+Completed: Add policy adherence validation gate before high-risk phase actions (ID: US-242) in 18m
+
+
+## Iteration N - Story: US-245: Launch workers in dedicated process groups for targeted crash cleanup
+
+### What was implemented
+- `lib/run_parallel_ralph.sh` already had full US-245 implementation:
+  - `WORKER_PGID_FILES` array declared at line 70
+  - `_inspect_crashed_worktree()` function at lines 515-540: removes stale .git/*.lock files and prd.json.tmp
+  - `_USE_SETSID` flag detection (`setsid` availability) at lines 508-511
+  - `_launch_worker_i()`: `setsid bash -c 'echo "$$" > _PGID_FILE; exec bash ralph.sh'` pattern writes worker PGID before exec
+  - Adaptive wait loop: crash detection at lines 690-705 reads PGID file, kills process group via `kill -- -PGID`
+  - Crash logged to progress.txt at line 704
+  - Worktree inspected via `_inspect_crashed_worktree` after crash at line 702
+  - `sleep 5  # US-245` at line 824 ensures 5s poll interval for crash detection
+- `tests/worker_crash_cleanup.bats`: 12 tests, all pass (3 skip on Windows/no setsid)
+
+### Patterns discovered
+- On Windows/MINGW64 setsid is not available — bats tests use `skip "setsid not available on this platform"` pattern
+- PGID = PID of the setsid'd bash leader (via `echo "$$"` after setsid)
+- `kill -- -PGID` kills the process group leader and all descendants
+- The 5s sleep interval guarantees crash detected within one poll cycle (5s bound)
+
+### Gotchas
+- `CRASH_PGID` vs `_CRASH_PGID` variable name mismatch in echo message at line 698 (cosmetic only — uses `$CRASH_PGID` but should be `$_CRASH_PGID`); non-blocking
+- All tests passed including sibling isolation test (test 9) which SIGKILLs one sleep process and verifies sibling still alive
