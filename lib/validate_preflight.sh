@@ -141,9 +141,15 @@ spiral_preflight_check() {
     echo "  [preflight] Skipping Claude API check (--dry-run mode)"
   elif [[ "${SPIRAL_SKIP_API_CHECK:-}" == "true" ]]; then
     echo "  [preflight] Skipping Claude API check (SPIRAL_SKIP_API_CHECK=true)"
+  elif [[ -z "${ANTHROPIC_API_KEY:-}" ]] && command -v claude &>/dev/null; then
+    # Claude Code users: the claude CLI handles auth — no API key needed
+    echo "  [preflight] Claude API check: using claude CLI auth (Claude Code mode)"
   else
     if [[ -z "${ANTHROPIC_API_KEY:-}" ]]; then
-      echo "  [preflight] FATAL: ANTHROPIC_API_KEY is not set — cannot reach Claude API"
+      echo "  [preflight] FATAL: ANTHROPIC_API_KEY is not set and claude CLI not found"
+      echo "  [preflight]   → If using Claude Code: install claude CLI and log in"
+      echo "  [preflight]   → If using API directly: export ANTHROPIC_API_KEY=<your-key>"
+      echo "  [preflight]   → Skip this check: export SPIRAL_SKIP_API_CHECK=true"
       exit "${ERR_API_DOWN:-14}"
     fi
     local _api_probe_ok=0

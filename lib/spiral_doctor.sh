@@ -12,9 +12,16 @@ check_claude_api() {
     return 0
   fi
 
+  if [[ -z "${ANTHROPIC_API_KEY:-}" ]] && command -v claude &>/dev/null; then
+    # Claude Code users: the claude CLI handles auth — no API key needed
+    echo "  [doctor] [OK] Claude CLI detected — using Claude Code auth (no API key needed)"
+    return 0
+  fi
+
   if [[ -z "${ANTHROPIC_API_KEY:-}" ]]; then
-    echo "  [doctor] [ERROR] ANTHROPIC_API_KEY is not set — Claude API unreachable"
-    echo "           → Fix: export ANTHROPIC_API_KEY=<your-key>"
+    echo "  [doctor] [ERROR] ANTHROPIC_API_KEY is not set and claude CLI not found"
+    echo "           → If using Claude Code: install claude CLI (https://claude.ai/code) and log in"
+    echo "           → If using API directly: export ANTHROPIC_API_KEY=<your-key>"
     return 1
   fi
 
