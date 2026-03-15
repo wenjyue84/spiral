@@ -120,6 +120,8 @@ DOCTOR_MODE=0         # 1 = run dependency check and exit (--doctor)
 REPLAY_STORY_ID=""    # "" = normal mode; "US-XXX" = replay that story only (--replay)
 ROLLBACK_STORY_ID=""  # "" = normal mode; "US-XXX" = rollback that story's commit (--rollback)
 UNDO_STORY_ID=""      # "" = normal mode; "US-XXX" = replay undo log for that story (--undo)
+BENCHMARK_STORY_ID="" # "" = normal mode; "US-XXX" = benchmark that story (--benchmark)
+BENCHMARK_MODELS=""   # comma-separated model names for --models (e.g., "claude-opus-4-6,claude-sonnet-4-6")
 RESET_CHECKPOINT=0    # 1 = remove _checkpoint.json and start fresh (--reset)
 MIGRATE_MODE=0        # 1 = run prd.json schema migration and exit (--migrate)
 ARCHIVE_MODE=0        # 1 = archive completed stories and exit (--archive-done)
@@ -234,6 +236,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --undo)
       UNDO_STORY_ID="$2"
+      shift 2
+      ;;
+    --benchmark)
+      BENCHMARK_STORY_ID="$2"
+      shift 2
+      ;;
+    --models)
+      BENCHMARK_MODELS="$2"
       shift 2
       ;;
     --reset)
@@ -1631,6 +1641,155 @@ if [[ -n "$REPLAY_STORY_ID" ]]; then
     echo "  [replay] Worktree preserved for inspection"
     exit $ERR_REPLAY_FAILED
   fi
+fi
+
+# ── --benchmark: run the same story through multiple models and score outputs ──
+# Usage: spiral.sh --benchmark US-001 --models claude-opus-4-6,claude-sonnet-4-6
+# Creates separate worktrees per model, runs ralph in each, scores with LLM judge,
+# writes results to benchmark-results.jsonl
+if [[ -n "$BENCHMARK_STORY_ID" ]]; then
+  if [[ -z "$BENCHMARK_MODELS" ]]; then
+    echo "[benchmark] ERROR: --models must be specified when using --benchmark"
+    exit $ERR_BAD_USAGE
+  fi
+
+  # Validate story ID exists in prd.json
+  _BM_EXISTS=$("$JQ" --arg id "$BENCHMARK_STORY_ID" \
+    '[.userStories[] | select(.id == $id)] | length' "$PRD_FILE" 2>/dev/null || echo "0")
+  if [[ "$_BM_EXISTS" -eq 0 ]]; then
+    echo "[benchmark] ERROR: Story '$BENCHMARK_STORY_ID' not found in $PRD_FILE"
+    exit $ERR_STORY_NOT_FOUND
+  fi
+
+  _BM_TITLE=$("$JQ" -r --arg id "$BENCHMARK_STORY_ID" \
+    '.userStories[] | select(.id == $id) | .title' "$PRD_FILE")
+
+  BENCHMARK_RESULTS_FILE="$SCRATCH_DIR/benchmark-results.jsonl"
+  BENCHMARK_DIR="$REPO_ROOT/.spiral-benchmark-${BENCHMARK_STORY_ID}"
+  BENCHMARK_START_TS=$(date +%s)
+
+  echo ""
+  echo "  ╔══════════════════════════════════════════════════════╗"
+  echo "  ║  [BENCHMARK] $BENCHMARK_STORY_ID"
+  echo "  ║  $_BM_TITLE"
+  echo "  ║  Models: $BENCHMARK_MODELS"
+  echo "  ╠══════════════════════════════════════════════════════╣"
+  echo "  ║  Results: $BENCHMARK_RESULTS_FILE"
+  echo "  ╚══════════════════════════════════════════════════════╝"
+  echo ""
+
+  # Create benchmark directory
+  mkdir -p "$BENCHMARK_DIR"
+
+  # Convert model list to array
+  IFS=',' read -ra MODELS_ARRAY <<<"$BENCHMARK_MODELS"
+
+  # Track results for each model
+  declare -A BM_RESULTS
+  declare -A BM_DURATIONS
+
+  for MODEL in "${MODELS_ARRAY[@]}"; do
+    MODEL=$(echo "$MODEL" | xargs) # trim whitespace
+    BM_WORKTREE="$BENCHMARK_DIR/worktree-$MODEL"
+    BM_BRANCH="spiral-benchmark-${BENCHMARK_STORY_ID}-${MODEL}-$(date +%Y%m%d-%H%M%S)"
+    BM_LOG="$BENCHMARK_DIR/log-${MODEL}.txt"
+    BM_PRD="$BM_WORKTREE/prd.json"
+
+    echo "  [benchmark] [$MODEL] Creating worktree..."
+
+    # Remove existing worktree if present
+    if [[ -d "$BM_WORKTREE" ]]; then
+      git -C "$REPO_ROOT" worktree remove "$BM_WORKTREE" --force 2>/dev/null || rm -rf "$BM_WORKTREE"
+    fi
+
+    # Create isolated git worktree from current HEAD
+    git -C "$REPO_ROOT" worktree add -b "$BM_BRANCH" "$BM_WORKTREE" HEAD 2>&1 | grep -v "Preparing worktree" || true
+
+    # Copy prd.json and set only the target story to pending
+    cp "$PRD_FILE" "$BM_PRD"
+    _BM_UPDATED=$("$JQ" --arg id "$BENCHMARK_STORY_ID" \
+      '(.userStories[] | select(.id == $id) | .passes) = false' "$BM_PRD") &&
+      echo "$_BM_UPDATED" >"$BM_PRD"
+    echo "  [benchmark] [$MODEL] Story set to pending"
+
+    # Phase I: run ralph in the worktree with specified model
+    echo "  [benchmark] [$MODEL] Phase I — running ralph..."
+    BM_I_RC=0
+    _BM_DRY_RUN_FLAG=""
+    [[ "${DRY_RUN:-0}" -eq 1 ]] && _BM_DRY_RUN_FLAG="--dry-run"
+    _BM_I_START=$(date +%s)
+
+    # Run ralph with model override
+    (cd "$BM_WORKTREE" && bash "$SPIRAL_RALPH" \
+      "$RALPH_MAX_ITERS" --prd "$BM_PRD" --tool claude --model "$MODEL" $_BM_DRY_RUN_FLAG \
+      2>&1) | tee "$BM_LOG" || BM_I_RC=$?
+
+    _BM_I_ELAPSED=$(($(date +%s) - _BM_I_START))
+    BM_DURATIONS[$MODEL]=$_BM_I_ELAPSED
+
+    # Check story pass state from worktree prd.json
+    _BM_STORY_PASSES=$("$JQ" -r --arg id "$BENCHMARK_STORY_ID" \
+      '.userStories[] | select(.id == $id) | .passes' "$BM_PRD" 2>/dev/null || echo "false")
+
+    BM_RESULTS[$MODEL]="$_BM_STORY_PASSES"
+    echo "  [benchmark] [$MODEL] Result: $_BM_STORY_PASSES (${_BM_I_ELAPSED}s)"
+  done
+
+  # Phase J: Score with LLM judge and write results
+  echo ""
+  echo "  [benchmark] Phase J — scoring with LLM judge..."
+
+  # Call benchmark judge script
+  _BJ_RC=0
+  if [[ -f "$SPIRAL_HOME/lib/benchmark_judge.py" ]]; then
+    # Build model results JSON
+    _MODEL_RESULTS_JSON='{'
+    _FIRST=1
+    for MODEL in "${MODELS_ARRAY[@]}"; do
+      MODEL=$(echo "$MODEL" | xargs)
+      if [[ $_FIRST -eq 0 ]]; then
+        _MODEL_RESULTS_JSON+=','
+      fi
+      _FIRST=0
+      _PASSES="${BM_RESULTS[$MODEL]}"
+      _DURATION="${BM_DURATIONS[$MODEL]}"
+      _MODEL_RESULTS_JSON+="\"$MODEL\":{\"passes\":${_PASSES},\"duration_s\":${_DURATION}}"
+    done
+    _MODEL_RESULTS_JSON+='}'
+
+    # Call judge with results
+    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/benchmark_judge.py" \
+      --story-id "$BENCHMARK_STORY_ID" \
+      --prd "$PRD_FILE" \
+      --benchmark-dir "$BENCHMARK_DIR" \
+      --results "$_MODEL_RESULTS_JSON" \
+      --output "$BENCHMARK_RESULTS_FILE" 2>&1 || _BJ_RC=$?
+  else
+    echo "  [benchmark] WARNING: benchmark_judge.py not found; skipping scoring"
+  fi
+
+  # Write basic results if judge didn't
+  if [[ ! -f "$BENCHMARK_RESULTS_FILE" ]]; then
+    _BM_DURATION=$(($(date +%s) - BENCHMARK_START_TS))
+    _RESULTS_LINE="{\"storyId\":\"$BENCHMARK_STORY_ID\",\"timestamp\":$(date +%s),\"models\":["
+    _FIRST=1
+    for MODEL in "${MODELS_ARRAY[@]}"; do
+      MODEL=$(echo "$MODEL" | xargs)
+      if [[ $_FIRST -eq 0 ]]; then
+        _RESULTS_LINE+=','
+      fi
+      _FIRST=0
+      _PASSES="${BM_RESULTS[$MODEL]}"
+      _DURATION="${BM_DURATIONS[$MODEL]}"
+      _RESULTS_LINE+="{\"name\":\"$MODEL\",\"passes\":${_PASSES},\"duration_s\":${_DURATION}}"
+    done
+    _RESULTS_LINE+="]}"
+    echo "$_RESULTS_LINE" >>"$BENCHMARK_RESULTS_FILE"
+  fi
+
+  echo "  [benchmark] Results written to: $BENCHMARK_RESULTS_FILE"
+  echo "  [benchmark] Benchmark complete"
+  exit 0
 fi
 
 # ── --rollback: revert a passed story's commit and reset prd.json status ─────

@@ -8,6 +8,41 @@
 
 ---
 
+## Iteration [N] - Story: US-191: Implement model benchmark harness to compare worker model outputs
+
+### What was implemented
+- Added CLI flags to spiral.sh: `--benchmark <story-id>` and `--models modelA,modelB`
+- Implemented benchmark mode in spiral.sh that:
+  - Validates story exists in prd.json
+  - Creates separate worktrees for each model (isolated git branches)
+  - Runs ralph.sh in each worktree with the specified model
+  - Collects pass/fail status and duration for each model
+  - Calls lib/benchmark_judge.py for LLM-based scoring
+  - Writes results to benchmark-results.jsonl
+- Created lib/benchmark_judge.py that:
+  - Uses Claude CLI for LLM-as-judge evaluation
+  - Scores implementations on 1-5 rubric (correctness, test pass rate, code style)
+  - Falls back to heuristic scoring if LLM judge unavailable
+  - Writes JSON results with per-model scores to benchmark-results.jsonl
+- All syntax checks pass; spiral.sh bash -n and benchmark_judge.py compile successfully
+
+### Patterns discovered
+- Special modes (--replay, --rollback, --benchmark) follow same pattern: parse args early, handle in main section after preflight/checkpoint
+- Each mode gets its own block with worktree creation, isolated execution, and results collection
+- Claude CLI is called via subprocess with --dangerously-skip-permissions (established pattern in decompose_story.py)
+
+### Gotchas
+- PRD validation has pre-existing issues (some stories missing acceptanceCriteria/dependencies); not blocking US-191
+- UI visualization (spiral-ui benchmark tab) is out of scope for this iteration (acceptance criterion #5)
+- LLM judge scoring falls back gracefully to heuristic if claude CLI unavailable
+
+### Testing notes
+- CLI argument parsing works (--benchmark, --models flags accepted)
+- Benchmark_judge.py can handle missing log files and unavailable judge gracefully
+- Results written to benchmark-results.jsonl in JSONL format (one JSON object per line)
+
+---
+
 # Ralph Progress Log - Fri, Mar 13, 2026  9:16:25 AM
 Started autonomous agent loop for PRD completion
 
@@ -5762,3 +5797,6 @@ Completed: Launch workers in dedicated process groups for targeted crash cleanup
 - Security hook in CLAUDE blocks heredoc content containing deny-list patterns — need approval
 - Phase deny checked before global deny — phase-specific takes precedence
 - Denial uses prefix matching: `git push --force origin main` matches deny pattern `git push --force`
+## Iteration 2 - Sun, Mar 15, 2026  9:20:46 PM
+Completed: Add permission-scoped command allow-list for worker terminal commands (ID: US-243) in 18m
+
