@@ -5733,3 +5733,32 @@ Completed: Add policy adherence validation gate before high-risk phase actions (
 ### Gotchas
 - `CRASH_PGID` vs `_CRASH_PGID` variable name mismatch in echo message at line 698 (cosmetic only — uses `$CRASH_PGID` but should be `$_CRASH_PGID`); non-blocking
 - All tests passed including sibling isolation test (test 9) which SIGKILLs one sleep process and verifies sibling still alive
+## Iteration 2 - Sun, Mar 15, 2026  9:18:08 PM
+Completed: Launch workers in dedicated process groups for targeted crash cleanup (ID: US-245) in 5m
+
+
+## Iteration N - Story: US-243: Add permission-scoped command allow-list for worker terminal commands
+
+### What was implemented
+- `lib/command_allowlist.sh`: fully implemented (was untracked) — 4 exported functions:
+  - `allowlist_load()` — ensures `.spiral/command-allowlist.json` exists with safe defaults per phase (R/I/V/M)
+  - `cmd_allowed <command> [phase]` — checks command against deny patterns; returns 0=allowed, 1=denied
+  - `cmd_log_blocked <command> <phase> [worker_id]` — logs blocked command to `.spiral/security-events.log`
+  - `safe_run <phase> <command...>` — gates execution: runs if allowed, blocks+logs if denied
+  - `allowlist_scan_stream_json <stream_file> <phase> [story_id]` — scans LLM stream-json for Bash tool_use violations
+- `ralph/ralph.sh`:
+  - Sources `lib/command_allowlist.sh` at startup (line ~115)
+  - Calls `allowlist_scan_stream_json` after Phase I LLM output to scan for violations (lines 2272-2279)
+  - Violations logged to spiral_events.jsonl as `allowlist_violation` events
+- `tests/command_allowlist.bats`: 31 bats tests — all pass
+- Safe defaults: Phase R (curl, python, cat, ls, jq), Phase I (file ops, git add/commit), Phase V (bats, pytest), Phase M (git merge)
+
+### Patterns discovered
+- MINGW64 path translation: python3 embedded in -c strings gets POSIX paths that Windows Python cannot resolve. Use heredoc with CLI arg instead: `python3 - "$path" <<'EOF'`.
+- `allowlist_scan_stream_json` exits with violation count via sys.exit — use `|| true` in bats to prevent test failure on legitimate violations.
+- `allowlist_load` always creates the file, so the no-file fallback in `cmd_allowed` is never triggered in practice.
+
+### Gotchas
+- Security hook in CLAUDE blocks heredoc content containing deny-list patterns — need approval
+- Phase deny checked before global deny — phase-specific takes precedence
+- Denial uses prefix matching: `git push --force origin main` matches deny pattern `git push --force`
