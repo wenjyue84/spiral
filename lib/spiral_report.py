@@ -170,6 +170,78 @@ def section_retries(rows):
     return {"text": "\n".join(lines), "by_attempt": {k: dict(v) for k, v in retry_stats.items()}}
 
 
+def section_cache_savings(rows):
+    """6. Prompt Cache Savings — cache hit rate and estimated cost reduction."""
+    # Anthropic sonnet pricing: $3/M input. Cache reads cost 10% → 90% savings per cached token.
+    PRICING = {
+        "haiku": 0.80,
+        "sonnet": 3.00,
+        "opus": 15.00,
+    }
+    DEFAULT_INPUT_PRICE = 3.00
+
+    total_cache_hits = 0
+    total_attempts = 0
+    total_cache_read_tokens = 0
+    total_savings_usd = 0.0
+    per_model: defaultdict[str, dict] = defaultdict(lambda: {"hits": 0, "total": 0, "cache_read": 0, "savings": 0.0})
+
+    for r in rows:
+        model_raw = r.get("model", "")
+        cache_hit = str(r.get("cache_hit", "false")).lower() == "true"
+        try:
+            cache_read_tokens = int(r.get("cache_read_tokens", 0) or 0)
+        except (ValueError, TypeError):
+            cache_read_tokens = 0
+
+        model_key = "sonnet"
+        for k in PRICING:
+            if k in model_raw.lower():
+                model_key = k
+                break
+        input_price = PRICING.get(model_key, DEFAULT_INPUT_PRICE)
+
+        # Savings = cache_read_tokens * input_price * 0.90 / 1M (paid 10%, saved 90%)
+        savings = (cache_read_tokens / 1_000_000) * input_price * 0.90
+
+        total_attempts += 1
+        if cache_hit:
+            total_cache_hits += 1
+        total_cache_read_tokens += cache_read_tokens
+        total_savings_usd += savings
+
+        per_model[model_key]["total"] += 1
+        if cache_hit:
+            per_model[model_key]["hits"] += 1
+        per_model[model_key]["cache_read"] += cache_read_tokens
+        per_model[model_key]["savings"] += savings
+
+    if total_attempts == 0:
+        return {"text": "  6. PROMPT CACHE SAVINGS\n     (no data)"}
+
+    hit_rate = total_cache_hits * 100.0 / total_attempts if total_attempts else 0
+    lines = [
+        "  6. PROMPT CACHE SAVINGS",
+        f"     Cache hit rate:   {total_cache_hits}/{total_attempts} stories ({hit_rate:.1f}%)",
+        f"     Cache read tokens: {total_cache_read_tokens:,}",
+        f"     Estimated savings: ${total_savings_usd:.4f} USD (90% discount on cached reads)",
+    ]
+    if len(per_model) > 1:
+        lines.append("     Per-model breakdown:")
+        for model in sorted(per_model.keys()):
+            d = per_model[model]
+            r = d["hits"] * 100.0 / d["total"] if d["total"] else 0
+            lines.append(f"       {model:8s}  {d['hits']:3d}/{d['total']:3d} hits ({r:.0f}%)  "
+                         f"{d['cache_read']:,} cache tokens  ${d['savings']:.4f} saved")
+
+    return {
+        "text": "\n".join(lines),
+        "cache_hit_rate": hit_rate,
+        "total_cache_read_tokens": total_cache_read_tokens,
+        "estimated_savings_usd": round(total_savings_usd, 6),
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description="SPIRAL experiment report")
     parser.add_argument("--results", default="results.tsv", help="Path to results.tsv")
@@ -193,6 +265,7 @@ def main():
         section_duration(rows),
         section_models(rows),
         section_retries(rows),
+        section_cache_savings(rows),
     ]
 
     if args.json:

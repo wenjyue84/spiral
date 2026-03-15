@@ -236,6 +236,29 @@ function spiralApiPlugin() {
           }
           const tokenBurn = Object.values(tokenBurnMap);
 
+          // US-223: Cache hit rate from spiral_events.jsonl (prompt_cache + phase_cache_hit events)
+          const rawEvents = readJsonl(path.join(root, '.spiral', 'spiral_events.jsonl'));
+          type CachePhaseStats = { hits: number; total: number; creation_tokens: number; read_tokens: number };
+          const cacheByPhase: Record<string, CachePhaseStats> = {};
+          for (const ev of rawEvents) {
+            const e = ev as { event?: string; phase?: string; cache_hit?: boolean; cache_creation_tokens?: number; cache_read_tokens?: number };
+            if (e.event !== 'prompt_cache' && e.event !== 'phase_cache_hit') continue;
+            const phase = e.phase ?? 'I';
+            if (!cacheByPhase[phase]) cacheByPhase[phase] = { hits: 0, total: 0, creation_tokens: 0, read_tokens: 0 };
+            cacheByPhase[phase].total += 1;
+            if (e.cache_hit) cacheByPhase[phase].hits += 1;
+            cacheByPhase[phase].creation_tokens += e.cache_creation_tokens ?? 0;
+            cacheByPhase[phase].read_tokens += e.cache_read_tokens ?? 0;
+          }
+          const cacheStats = Object.entries(cacheByPhase).map(([phase, s]) => ({
+            phase,
+            hit_rate: s.total > 0 ? s.hits / s.total : 0,
+            hits: s.hits,
+            total: s.total,
+            creation_tokens: s.creation_tokens,
+            read_tokens: s.read_tokens,
+          }));
+
           // Last-seen from registry metadata (we just use now since we read files live)
           const lastSeen = new Date().toISOString();
 
@@ -249,6 +272,7 @@ function spiralApiPlugin() {
             activity,
             progressHistory,
             tokenBurn,
+            cacheStats,
           }));
         } catch (e) {
           res.statusCode = 500;

@@ -5524,3 +5524,23 @@ Incomplete: Implement explicit prompt cache breakpoints for system prompts and P
 - `eval "$inv_cmd"` in undo_log_replay requires inverse_command to be properly escaped when recorded
 - The `--undo` block in spiral.sh needs SPIRAL_SCRATCH_DIR set, but uses `:-.spiral` fallback safely
 
+
+## Iteration N - Story: US-223: Implement explicit prompt cache breakpoints for system prompts and PRD context
+
+### What was implemented
+- `spiral.sh` Phase R retry loop: added `--betas prompt-caching-2024-07-31` to all 4 Phase R claude calls; added `tee "$_R_RESULT_TMP"` to stream-json variants to capture result JSON; after each attempt, parse cache_creation/read tokens and emit `phase_cache_hit` event to spiral_events.jsonl with `phase:R`
+- `lib/spiral_report.py`: added `section_cache_savings(rows)` — reads `cache_hit` and `cache_read_tokens` columns from results.tsv, computes 90%-savings estimate per model, surfaces as section 6 in the report
+- `tests/test_prompt_cache_integration.py`: 13 new integration tests covering: cache token JSON parsing (AC4 — verifies cache_read_input_tokens > 0 on second call), cache pricing (10% for reads, 125% for creation), section_cache_savings output, Phase R/I event structure distinction
+- `spiral-ui/vite.config.ts`: reads `spiral_events.jsonl` for `prompt_cache` + `phase_cache_hit` events, aggregates cache hit rate per phase (R/I), returns as `cacheStats` in API response
+- `spiral-ui/src/components/ProjectDashboard.tsx`: added `CachePhaseEntry` type, `CacheStatsTable` component, and section in Progress tab showing cache hit rate + read tokens per phase as a table with bar chart
+
+### Patterns discovered
+- Phase R uses `tee` before `| node "$STREAM_FMT"` to duplicate stream output to tmp file for token parsing
+- `prompt_cache` events (Phase I, ralph.sh) vs `phase_cache_hit` events (Phase R, spiral.sh) — both land in spiral_events.jsonl with `phase` field for dashboard aggregation
+- results.tsv already has `cache_hit` and `cache_read_tokens` columns (since US-139) — spiral_report.py can use these directly
+
+### Gotchas
+- The `_R_RESULT_TMP` file is cleared with `rm -f` before each retry attempt to avoid parsing stale results
+- Phase R does NOT use `--append-system-prompt` (entire prompt is dynamic user message), so caching benefit is limited; `--betas` flag is added for completeness and to capture any internal multi-turn caching
+- spiral.sh Phase R subshell with `tee` uses a file path var defined in outer shell — works because tmp file path is just a string
+- 983 pytest tests pass (2 pre-existing skips in test_partition.py)

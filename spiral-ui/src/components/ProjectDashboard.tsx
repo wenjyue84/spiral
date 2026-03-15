@@ -38,6 +38,15 @@ interface TokenBurnEntry {
   calls: number;
 }
 
+interface CachePhaseEntry {
+  phase: string;
+  hit_rate: number;
+  hits: number;
+  total: number;
+  creation_tokens: number;
+  read_tokens: number;
+}
+
 interface ProjectData {
   name: string;
   root: string;
@@ -48,6 +57,7 @@ interface ProjectData {
   activity: string;
   progressHistory: ProgressSnapshot[];
   tokenBurn?: TokenBurnEntry[];
+  cacheStats?: CachePhaseEntry[];
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -143,6 +153,14 @@ function ProgressTab({ data }: { data: ProjectData }) {
         </div>
       )}
 
+      {/* Prompt cache hit rate by phase (US-223) */}
+      {data.cacheStats && data.cacheStats.length > 0 && (
+        <div>
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Prompt Cache Hit Rate by Phase</div>
+          <CacheStatsTable entries={data.cacheStats} />
+        </div>
+      )}
+
       {/* Story lists */}
       {pending.length > 0 && (
         <div>
@@ -229,6 +247,54 @@ function TokenBurnSparkline({ entries }: { entries: TokenBurnEntry[] }) {
                       />
                     </div>
                     <span className="text-[10px] text-slate-400 w-8 text-right">{barPct}%</span>
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function CacheStatsTable({ entries }: { entries: CachePhaseEntry[] }) {
+  function fmtK(n: number) {
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+    if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+    return String(n);
+  }
+  const sorted = [...entries].sort((a, b) => a.phase.localeCompare(b.phase));
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+      <table className="w-full text-xs">
+        <thead className="bg-slate-50 text-slate-500">
+          <tr>
+            <th className="px-3 py-2 text-left">Phase</th>
+            <th className="px-3 py-2 text-right">Hits / Calls</th>
+            <th className="px-3 py-2 text-right">Hit Rate</th>
+            <th className="px-3 py-2 text-right">Cache Read Tokens</th>
+            <th className="px-3 py-2 w-28">Rate</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map(e => {
+            const pct = Math.round(e.hit_rate * 100);
+            return (
+              <tr key={e.phase} className="border-t border-slate-100 hover:bg-slate-50">
+                <td className="px-3 py-1.5 font-mono font-semibold text-blue-700">{e.phase}</td>
+                <td className="px-3 py-1.5 text-right text-slate-500">{e.hits}/{e.total}</td>
+                <td className="px-3 py-1.5 text-right font-medium text-slate-700">{pct}%</td>
+                <td className="px-3 py-1.5 text-right text-emerald-700">{fmtK(e.read_tokens)}</td>
+                <td className="px-3 py-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-emerald-500"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <span className="text-[10px] text-slate-400 w-8 text-right">{pct}%</span>
                   </div>
                 </td>
               </tr>
