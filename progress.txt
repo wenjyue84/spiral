@@ -7613,3 +7613,131 @@ This brief outlines the implementation plan for adding a Graphviz DOT file expor
 ### Gotchas
 - `test_route_stories.py` has a pre-existing relative import error — excluded from test runs (noted in iteration 11)
 - Both timeout and non-timeout ralph.sh invocations now use `$RALPH_MODEL_FLAG` (previously only the non-timeout branch referenced it, but it was uninitialized)
+
+## Pre-analysis for US-199 (Gemini 2.5 Pro)
+Based on the user story and project files, here is a technical brief for implementing the Graphviz export feature.
+
+*Note: The user story context mentions Frappe, but the project structure and story details clearly pertain to the `spiral` command-line tool. This brief focuses on the `spiral` tool.*
+
+---
+
+**Technical Brief: US-199 Graphviz DOT Export**
+
+**1. Files to Modify:**
+*   `lib/dependency_graph.py`: Primary target. This file likely contains the current graph generation logic (for Mermaid). The new DOT format implementation should be added here.
+*   `main.py`: Likely responsible for command-line argument parsing. It needs to be updated to add the `--format dot` flag to the `graph` subcommand.
+
+**2. Involved DocTypes / Hooks:**
+*   None. This is a Python CLI application, not a Frappe application. The core data structures are stories parsed from the PRD (Product Requirements Document) file.
+
+**3. Recommended Implementation Approach:**
+1.  In `main.py`, update the `graph` command's argument parser (e.g., `argparse`) to accept a `--format` option with choices `mermaid` and `dot`, defaulting to `mermaid`.
+2.  In `lib/dependency_graph.py`, import the `graphviz` library. Add `graphviz` to the project's `pyproject.toml` dependencies.
+3.  Create a new function, `_generate_dot_output(stories)`, that uses the `graphviz` package to build the graph programmatically.
+4.  Instantiate a `graphviz.Digraph`.
+5.  Group stories by priority and create a `subgraph` for each (e.g., `with dot.subgraph(name='cluster_critical') as c:`).
+6.  Define a dictionary mapping story status (`pending`, `passed`, etc.) to fill colors (`white`, `green`, etc.).
+7.  Iterate through stories, adding nodes to the appropriate priority subgraph with the correct color based on their status.
+8.  After defining all nodes, add the dependency edges using `dot.edge()`.
+9.  Return the DOT source string from `dot.source`.
+
+**4. Edge Cases & Gotchas:**
+*   The `graphviz` Python library requires the Graphviz system package (`dot` command) to be installed for rendering.
+*   Ensure node IDs are sanitized or quoted to prevent DOT syntax errors. The library usually handles this.
+*   The code should gracefully handle stories with missing or null priority/status fields.
+*   Verify that the generated DOT output is clean and does not produce warnings when rendered via `dot -Tsvg`.
+
+## Iteration 1 - Mon, Mar 16, 2026  4:41:28 AM
+Incomplete: Export dependency graph as Graphviz DOT file for advanced rendering (ID: US-199) — attempt /3
+
+
+## Pre-analysis for US-199 (Gemini 2.5 Pro)
+Here is a technical brief for implementing story US-199.
+
+**Python Files to Modify:**
+*   `lib/dependency_graph.py`: This is the primary location for the new DOT file generation logic. A new function, say `to_graphviz_dot`, should be added here.
+*   `main.py`: This file likely contains the CLI argument parsing. It needs to be updated to add the `--format dot` flag to the `spiral graph` command.
+
+**Frappe DocTypes/Hooks:**
+*   This user story does not involve any Frappe DocTypes or hooks. The implementation is for the "Spiral" Python CLI application.
+
+**Recommended Implementation Approach:**
+1.  Add the `graphviz` library to the project's dependencies in `pyproject.toml`.
+2.  In `main.py`, modify the `graph` command's argument parser to accept `--format` with choices `'mermaid'` (default) and `'dot'`.
+3.  In `lib/dependency_graph.py`, implement the `to_graphviz_dot` function that takes the list of stories as input.
+4.  Inside this function, create a main `graphviz.Digraph`.
+5.  Create four `graphviz.Digraph` objects with names like `cluster_critical`, `cluster_high`, etc., to represent priority-based subgraphs.
+6.  Iterate through each story, adding it as a node to the appropriate priority subgraph. Set the node's `fillcolor` based on its status and `style='filled'`.
+7.  Iterate through the stories again to add all dependency edges to the main graph.
+8.  Return the DOT source string from the main graph object.
+
+**Edge Cases & Gotchas:**
+*   The `graphviz` Python library requires the Graphviz system package to be installed for rendering, which should be documented.
+*   The code must gracefully handle stories with no defined priority. These could be placed at the root of the graph, outside any cluster.
+*   Ensure node labels (story titles) are properly escaped, a task the `graphviz` library should handle automatically.
+*   The status-to-color mapping should have a default for any unexpected status values to prevent errors.
+
+
+---
+
+## Iteration [13] - Story: US-228: Add self-consistency hallucination check for LLM-generated acceptance criteria
+
+### What was implemented
+- Created `lib/consistency_check.py` (~330 lines) with ConsistencyChecker class
+  - `compare_stories(v1, v2)`: field-by-field comparison using Jaccard similarity for lists
+  - `_field_similarity()`: computes 0.0-1.0 similarity for strings/lists/dicts
+  - Flags fields with similarity < threshold (default 0.8) as low_confidence
+  - Returns report with divergence_report, requires_human_review (if >20% diverge), confidence %
+- Added `flag_stories_in_prd()` function to integrate checks into prd.json
+  - Updates stories with _low_confidence_fields, _consistency_check_confidence, _requires_human_review
+  - Atomically writes back to prd.json
+  - Respects --skip-consistency-check for dry-run mode
+- Created `tests/test_consistency_check.py` with 13 comprehensive test cases
+  - Test identical stories (0% divergence)
+  - Test divergent criteria detection
+  - Test Jaccard similarity for lists (partial overlap)
+  - Test threshold configuration
+  - Test human-review triggering on >20% divergence
+  - Test field similarity for strings/lists/dicts
+  - Test PRD integration and skip flag
+  - All manual tests pass
+- Added SPIRAL_SKIP_CONSISTENCY_CHECK flag to spiral.config.sh (default: commented/disabled)
+- Updated prd.schema.json with new story fields:
+  - _low_confidence_fields: array
+  - _consistency_check_confidence: 0-100 percentage
+  - _requires_human_review: boolean
+  - _human_review_reason: string
+  - _consistency_check_cost: number (for future cost tracking)
+
+### Patterns discovered
+- ConsistencyChecker pattern: class with configurable threshold, method returns structured report dict
+- Flag integration: load PRD, update stories, atomic_write_json back to file
+- Field similarity for structured data: Jaccard for lists (set overlap), recursion for dicts, exact match for strings
+- prd.schema.json additionalProperties=false requires all fields be predefined; use _prefix for internal fields
+
+### Gotchas
+- spiral_io doesn't have log_debug (removed from import to avoid ImportError)
+- Threshold 0.8 default means Jaccard of 0.5 (50% overlap) gets flagged as low_confidence (practical for hallucination detection)
+- Two-run generation (prompt temp 0.0 vs 0.7) requires Phase R/T refactor; deferred to next iteration
+  - Currently just provides comparison logic; someone must generate the two versions for comparison
+
+### Testing notes
+- Manual Python tests pass all scenarios (identical, divergent, partial overlap, >20% threshold)
+- test_consistency_check.py uses pytest fixture pattern for ConsistencyChecker
+- Tests use tempfile for safe PRD modification during flag integration tests
+- Module CLI working: python lib/consistency_check.py --help shows both "compare" and "flag" modes
+
+### Acceptance criteria status
+- [x] Field-by-field comparison of JSON outputs
+- [x] Low-confidence flagging for divergent fields
+- [x] Human-review flag when >20% of acceptance criteria diverge
+- [x] Configurable --skip-consistency-check flag
+- [ ] Phase D/R running prompt twice (deferred - needs phase refactor)
+- [ ] Cost tracking separate from implementation (flag added to schema, tracking logic deferred)
+
+### Future integration points
+- Integrate into Phase M merge: call consistency_check.py flag mode after stories are synthesized
+- Integrate into Phase R: modify research agent to run prompt twice and pass both outputs
+- Add cost accounting in results.tsv for consistency check runs
+- Add UI dashboard widget showing stories flagged for human review
+
