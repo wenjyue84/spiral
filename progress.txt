@@ -6673,3 +6673,27 @@ Completed: Enforce shell=False and per-phase command allowlist in all worker sub
 ## Iteration 3 - Mon, Mar 16, 2026  1:23:07 AM
 Completed: Enforce shell=False and per-phase command allowlist in all worker subprocess calls (ID: US-265) in 14m
 
+## Iteration 2 - Mon, Mar 16, 2026  1:31:45 AM
+Incomplete: Stream ralph.sh worker stdout to spiral_dashboard via Server-Sent Events (ID: US-277) — attempt /3
+
+---
+
+## Iteration [N] - Story: US-247: Add git diff-index fast-path before full worktree status checks
+
+### What was implemented
+- Modified dirty-worktree detection block in `spiral.sh` (US-218 + US-247 merged block):
+  - Added `git diff-index --quiet HEAD` as fast pre-check (~15ms) before full `git status --porcelain` (~80ms)
+  - Clean worktrees skip full status; counters track skipped/total
+  - Logs: "Skipped full status on N/M worktrees (clean)"
+- Applied same fast-path optimization to `lib/run_parallel_ralph.sh` worker reset check
+- Created `tests/git_diff_fast_path.bats` with 7 tests (all passing)
+
+### Patterns discovered
+- `git diff-index --quiet HEAD --` exits 0 for clean, non-zero for dirty (tracked files only)
+- Untracked files are NOT caught by diff-index alone; full `git status` still runs for confirmed-dirty worktrees
+- Tests use standalone bash -c subshell pattern to extract and test a spiral.sh block in isolation
+
+### Gotchas
+- diff-index only checks tracked files; untracked files not detected until full status runs
+- Pass `--` to diff-index to avoid pathspec ambiguity
+

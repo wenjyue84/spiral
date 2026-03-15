@@ -1660,15 +1660,26 @@ if command -v powershell.exe &>/dev/null; then
   fi
 fi
 
-# ── Detect and reset dirty worker worktrees (US-218) ─────────────────────────
+# ── Detect and reset dirty worker worktrees (US-218, US-247) ──────────────────
 # When a previous session was interrupted (OOM, Ctrl-C, network drop), worker
 # worktrees may be left with staged/unstaged changes. Detect each dirty worktree
 # and reset it to a clean state so the next run starts consistently.
+# US-247: Use git diff-index --quiet HEAD as a fast pre-check (~15ms) before
+# falling back to full git status --porcelain (~80ms) for confirmed dirty worktrees.
 if [[ -d "$REPO_ROOT/.spiral-workers" ]]; then
   _DIRTY_WORKERS_CLEANED=()
+  _DIFFIDX_SKIPPED=0
+  _DIFFIDX_TOTAL=0
   for _wt_dir in "$REPO_ROOT/.spiral-workers"/worker-*; do
     [[ -d "$_wt_dir" ]] || continue
-    # Check if the worktree has any staged or unstaged changes
+    _DIFFIDX_TOTAL=$((_DIFFIDX_TOTAL + 1))
+    # Fast pre-check: diff-index exits 0 for clean, non-zero for dirty (~15ms vs ~80ms)
+    if git -C "$_wt_dir" diff-index --quiet HEAD -- 2>/dev/null; then
+      # Worktree is clean — skip expensive full status
+      _DIFFIDX_SKIPPED=$((_DIFFIDX_SKIPPED + 1))
+      continue
+    fi
+    # Worktree reported dirty by diff-index; confirm with full status for accuracy
     _wt_status=$(git -C "$_wt_dir" status --porcelain 2>/dev/null) || continue
     if [[ -n "$_wt_status" ]]; then
       _wt_name=$(basename "$_wt_dir")
@@ -1686,6 +1697,9 @@ if [[ -d "$REPO_ROOT/.spiral-workers" ]]; then
       _DIRTY_WORKERS_CLEANED+=("$_wt_name")
     fi
   done
+  if [[ "$_DIFFIDX_TOTAL" -gt 0 ]]; then
+    echo "  [startup] Worktree status: Skipped full status on ${_DIFFIDX_SKIPPED}/${_DIFFIDX_TOTAL} worktrees (clean)"
+  fi
   if [[ ${#_DIRTY_WORKERS_CLEANED[@]} -gt 0 ]]; then
     _cleaned_list=$(IFS=,; echo "${_DIRTY_WORKERS_CLEANED[*]}")
     echo "  [startup] Reset ${#_DIRTY_WORKERS_CLEANED[@]} dirty worktree(s): $_cleaned_list"

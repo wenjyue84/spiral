@@ -391,9 +391,15 @@ for i in $(seq 1 "$RALPH_WORKERS"); do
   WTREE="$WORKTREE_BASE/worker-${i}"
 
   # Reset dirty worktree before removal to recover from abrupt termination (US-218)
+  # US-247: fast diff-index pre-check before expensive full status
   if [[ -d "$WTREE" ]]; then
-    _wt_dirty=$(git -C "$WTREE" status --porcelain 2>/dev/null) || true
-    if [[ -n "$_wt_dirty" ]]; then
+    _wt_is_dirty=false
+    if ! git -C "$WTREE" diff-index --quiet HEAD -- 2>/dev/null; then
+      # diff-index reports dirty — confirm with full status
+      _wt_dirty=$(git -C "$WTREE" status --porcelain 2>/dev/null) || true
+      [[ -n "$_wt_dirty" ]] && _wt_is_dirty=true
+    fi
+    if [[ "$_wt_is_dirty" == true ]]; then
       echo "  [parallel] Worker $i: dirty worktree detected — resetting before recreation"
       git -C "$WTREE" reset HEAD 2>/dev/null || true
       git -C "$WTREE" checkout -- . 2>/dev/null || true
