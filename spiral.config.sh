@@ -32,6 +32,11 @@ SPIRAL_STORY_PREFIX="US"
 # Prevents flooding prd.json during aggressive non-stop runs
 SPIRAL_MAX_PENDING=30
 
+# ── Stale git lock-file cleanup (US-225) ─────────────────────────────────────
+# Lock files in worktrees older than this many minutes are removed (if no live
+# git process is found). 0 = disable automatic cleanup.
+SPIRAL_LOCK_TIMEOUT_MINUTES=5
+
 # ── Batch size: cap stories visible to ralph per iteration ────────────────
 # Only the N highest-priority pending stories are included in the PRD slice
 # passed to ralph. 0 = disabled (all pending stories visible, current behavior).
@@ -102,6 +107,11 @@ SPIRAL_DASHBOARD_REFRESH_SECS=30
 # scope. When set, Phase R reads it before generating stories and Ralph reads
 # it before implementing each story. Acts as the "architect's veto".
 SPIRAL_SPECKIT_CONSTITUTION=".specify/memory/constitution.md"
+
+# ── Work stealing: idle worker prevention (Phase 3 safety) ─────────────────
+# When true, finished workers claim uncompleted stories from a shared queue
+# instead of sitting idle. Default: false (opt-in).
+SPIRAL_WORK_STEALING="${SPIRAL_WORK_STEALING:-false}"
 
 # ── Post-completion hook ───────────────────────────────────────────────────
 # Shell command to run when ALL stories pass (check_done exits 0).

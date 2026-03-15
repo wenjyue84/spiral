@@ -154,6 +154,154 @@ function spiralApiPlugin() {
         });
       });
 
+      // ── GET /api/phase-trace?name=X — phase trace data for Phase Trace tab ──
+      server.middlewares.use('/api/phase-trace', (req, res, next) => {
+        if (req.method !== 'GET') { next(); return; }
+        const url = new URL(req.url ?? '', 'http://localhost');
+        const name = url.searchParams.get('name') ?? '';
+
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Content-Type', 'application/json');
+
+        if (!name) { res.statusCode = 400; res.end(JSON.stringify({ error: 'name required' })); return; }
+
+        const reg = readRegistry();
+        const root = reg[name];
+        if (!root) { res.statusCode = 404; res.end(JSON.stringify({ error: 'Project not found' })); return; }
+
+        try {
+          // Parse _last_run.log into iterations and phases
+          const logPath = path.join(root, '.spiral', '_last_run.log');
+          const logText = fs.existsSync(logPath)
+            ? fs.readFileSync(logPath, 'utf8').replace(/\0/g, '')
+            : '';
+
+          // Parse phase output files
+          const readJsonSafe = (p: string) => {
+            try { return fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf8')) : null; } catch { return null; }
+          };
+
+          const phaseOutputs: Record<string, unknown> = {
+            research: readJsonSafe(path.join(root, '.spiral', '_research_output.json')),
+            testStories: readJsonSafe(path.join(root, '.spiral', '_test_stories_output.json')),
+            validated: readJsonSafe(path.join(root, '.spiral', '_validated_stories.json')),
+            overflow: readJsonSafe(path.join(root, '.spiral', '_research_overflow.json')),
+            checkpoint: readJsonSafe(path.join(root, '.spiral', '_checkpoint.json')),
+          };
+
+          // Parse spiral_events.jsonl for phase_start/phase_end events
+          const eventsPath = path.join(root, '.spiral', 'spiral_events.jsonl');
+          const rawEvents = readJsonl(eventsPath);
+
+          type PhaseEvent = { event?: string; type?: string; phase?: string; iteration?: number; duration_s?: number; ts?: string; [k: string]: unknown };
+          const phaseEvents = (rawEvents as PhaseEvent[]).filter(
+            e => e.event === 'phase_start' || e.event === 'phase_end' ||
+                 e.type === 'phase_start' || e.type === 'phase_end'
+          );
+
+          // Parse iterations from the log
+          type IterPhase = { phase: string; label: string; lines: string[]; lineStart: number; lineEnd: number };
+          type Iteration = { iter: number; phases: IterPhase[]; lineStart: number; lineEnd: number };
+
+          const iterations: Iteration[] = [];
+          const lines = logText.split('\n');
+
+          // Pattern: "SPIRAL Iteration N / M"
+          const iterRe = /SPIRAL Iteration (\d+)\s*\/\s*(\d+)/;
+          // Pattern: "[Phase X] LABEL" or "[X] LABEL"
+          const phaseRe = /\[Phase ([A-Z])\]\s*(.*?)(?:\s*[—–-]\s*(.*))?$/;
+          const phaseShortRe = /\[([A-Z])\]\s+(Looping back|All current)/;
+
+          let currentIter: Iteration | null = null;
+          let currentPhase: IterPhase | null = null;
+
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+
+            // New iteration
+            const iterMatch = line.match(iterRe);
+            if (iterMatch) {
+              // Close current phase and iteration
+              if (currentPhase && currentIter) {
+                currentPhase.lineEnd = i - 1;
+                currentIter.phases.push(currentPhase);
+                currentPhase = null;
+              }
+              if (currentIter) {
+                currentIter.lineEnd = i - 1;
+                iterations.push(currentIter);
+              }
+              currentIter = { iter: parseInt(iterMatch[1]), phases: [], lineStart: i, lineEnd: i };
+              continue;
+            }
+
+            if (!currentIter) continue;
+
+            // Phase marker
+            const phaseMatch = line.match(phaseRe);
+            const shortMatch = line.match(phaseShortRe);
+            if (phaseMatch) {
+              if (currentPhase) {
+                currentPhase.lineEnd = i - 1;
+                currentIter.phases.push(currentPhase);
+              }
+              currentPhase = {
+                phase: phaseMatch[1],
+                label: (phaseMatch[2] + (phaseMatch[3] ? ' — ' + phaseMatch[3] : '')).trim(),
+                lines: [],
+                lineStart: i,
+                lineEnd: i,
+              };
+            } else if (shortMatch) {
+              if (currentPhase) {
+                currentPhase.lineEnd = i - 1;
+                currentIter.phases.push(currentPhase);
+              }
+              currentPhase = {
+                phase: shortMatch[1],
+                label: shortMatch[2],
+                lines: [],
+                lineStart: i,
+                lineEnd: i,
+              };
+            }
+
+            // Accumulate lines for current phase
+            if (currentPhase) {
+              currentPhase.lines.push(line);
+            }
+          }
+
+          // Close final phase and iteration
+          if (currentPhase && currentIter) {
+            currentPhase.lineEnd = lines.length - 1;
+            currentIter.phases.push(currentPhase);
+          }
+          if (currentIter) {
+            currentIter.lineEnd = lines.length - 1;
+            iterations.push(currentIter);
+          }
+
+          // Cap lines per phase to last 100 to avoid huge payloads
+          for (const iter of iterations) {
+            for (const p of iter.phases) {
+              if (p.lines.length > 100) {
+                p.lines = ['... (' + (p.lines.length - 100) + ' lines truncated)', ...p.lines.slice(-100)];
+              }
+            }
+          }
+
+          res.end(JSON.stringify({
+            iterations: iterations.slice(-10), // last 10 iterations
+            phaseOutputs,
+            phaseEvents,
+          }));
+        } catch (e) {
+          res.statusCode = 500;
+          res.end(JSON.stringify({ error: String(e) }));
+        }
+      });
+
       // ── GET /api/project-live?name=X — full live data for dashboard ───────
       server.middlewares.use('/api/project-live', (req, res, next) => {
         if (req.method !== 'GET') { next(); return; }

@@ -39,11 +39,23 @@ worker_heartbeat_start() {
       sleep "$interval"
       # Get current story ID if available (from _current_story_id file in worker root)
       local current_story_id="${SPIRAL_CURRENT_STORY:-unknown}"
+      local completed="${SPIRAL_STORIES_COMPLETED:-0}"
+      local phase="${SPIRAL_WORKER_PHASE:-unknown}"
       local hb_file="$HEARTBEAT_DIR/worker_${worker_id}.heartbeat"
       local ts=$(date +%s)
       local pid=$$
-      # Write heartbeat JSON: {pid, storyId, ts}
-      printf '{"pid":%s,"storyId":"%s","ts":%s}\n' "$pid" "$current_story_id" "$ts" >"$hb_file" 2>/dev/null || true
+      # Get memory usage in MB (cross-platform)
+      local mem_mb=0
+      if command -v powershell.exe &>/dev/null; then
+        mem_mb=$(powershell.exe -Command "[math]::Floor((Get-Process -Id $pid -ErrorAction SilentlyContinue).WorkingSet64 / 1MB)" 2>/dev/null | tr -d '\r') || mem_mb=0
+      elif [[ -f "/proc/$pid/status" ]]; then
+        mem_mb=$(awk '/VmRSS/{printf "%d", $2/1024}' "/proc/$pid/status" 2>/dev/null) || mem_mb=0
+      fi
+      # Write heartbeat JSON atomically (temp + mv prevents partial reads by monitor)
+      local hb_tmp="${hb_file}.tmp"
+      printf '{"pid":%s,"storyId":"%s","ts":%s,"completed":%s,"phase":"%s","memMb":%s}\n' \
+        "$pid" "$current_story_id" "$ts" "$completed" "$phase" "${mem_mb:-0}" >"$hb_tmp" 2>/dev/null \
+        && mv "$hb_tmp" "$hb_file" 2>/dev/null || true
     done
   ) &
   _HEARTBEAT_PID=$!
@@ -139,7 +151,8 @@ requeue_stale_stories() {
 
   # Mark story as not passed, preserve retryCount
   "$jq_cmd" \
-    "(.userStories[] | select(.id == \"$story_id\") | .passes) = false" \
+    --arg sid "$story_id" \
+    '(.userStories[] | select(.id == $sid) | .passes) = false' \
     "$prd_file" >"$prd_file.tmp" && mv "$prd_file.tmp" "$prd_file"
 
   return $?

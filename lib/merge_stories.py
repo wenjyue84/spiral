@@ -23,6 +23,7 @@ from constants import PRIORITY_RANK
 from llm_models import ResearchOutput, log_validation_error
 from prd_schema import validate_prd
 from spiral_io import atomic_write_json, configure_utf8_stdout
+from txn_journal import TxnJournal
 
 configure_utf8_stdout()
 
@@ -320,20 +321,14 @@ def main() -> int:
             seen_titles.append(title)
             seen_epics.append(cand_epic)
 
-    # ── Write overflow file ────────────────────────────────────────────────────
-    if args.overflow_out:
-        atomic_write_json(args.overflow_out, {"stories": leftover_research})
-        if leftover_research:
-            print(
-                f"[merge] Overflow: {len(leftover_research)} unused research candidates "
-                f"→ {args.overflow_out}"
-            )
-        else:
+    if not new_stories and not (args.overflow_out and leftover_research):
+        # No overflow to write and no new stories
+        if args.overflow_out:
+            atomic_write_json(args.overflow_out, {"stories": leftover_research})
             print(f"[merge] Overflow: cleared (all candidates consumed or cap not reached)")
-
-    if not new_stories:
-        print("[merge] No new stories to add — prd.json unchanged")
-        return 0
+        if not new_stories:
+            print("[merge] No new stories to add — prd.json unchanged")
+            return 0
 
     # ── Assign IDs and patch prd.json atomically ──────────────────────────────
     next_num = find_next_id(existing_stories)
@@ -351,7 +346,20 @@ def main() -> int:
     # ── Post-merge sort: priority order so ralph picks highest-priority first ──
     prd["userStories"].sort(key=full_sort_key)
 
-    atomic_write_json(args.prd, prd)
+    # ── Transaction-safe write: journal both files for crash recovery ─────────
+    scratch_dir = os.environ.get("SPIRAL_SCRATCH_DIR", ".spiral")
+    journal = TxnJournal(os.path.join(scratch_dir, "_txn_journal.jsonl"))
+    with journal.transaction("phase_m_merge") as txn:
+        if args.overflow_out:
+            txn.write_json(args.overflow_out, {"stories": leftover_research})
+            if leftover_research:
+                print(
+                    f"[merge] Overflow: {len(leftover_research)} unused research candidates "
+                    f"→ {args.overflow_out}"
+                )
+            else:
+                print(f"[merge] Overflow: cleared (all candidates consumed or cap not reached)")
+        txn.write_json(args.prd, prd)
 
     # Source breakdown
     src_counts: dict[str, int] = {}

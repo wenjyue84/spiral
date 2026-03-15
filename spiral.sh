@@ -493,6 +493,7 @@ SPIRAL_PREEMPTIVE_PRESSURE_MB="${SPIRAL_PREEMPTIVE_PRESSURE_MB:-0}"      # MB; 0
 SPIRAL_NOTIFY_WEBHOOK="${SPIRAL_NOTIFY_WEBHOOK:-}"                       # HTTPS URL; empty = disabled; POST JSON at each phase start/end
 SPIRAL_NOTIFY_WEBHOOK_TIMEOUT="${SPIRAL_NOTIFY_WEBHOOK_TIMEOUT:-5}"      # seconds; max wait per POST (default 5)
 SPIRAL_NOTIFY_WEBHOOK_HEADERS="${SPIRAL_NOTIFY_WEBHOOK_HEADERS:-}"       # optional HTTP header, e.g. "Authorization: Bearer TOKEN"
+SPIRAL_NOTIFY_WEBHOOK_SECRET="${SPIRAL_NOTIFY_WEBHOOK_SECRET:-}"         # HMAC-SHA256 signing key; adds X-Spiral-Signature-256 header when set (US-207)
 SPIRAL_PRE_PHASE_HOOK="${SPIRAL_PRE_PHASE_HOOK:-}"                       # path to executable; called before each phase; non-zero exit aborts story attempt
 SPIRAL_POST_PHASE_HOOK="${SPIRAL_POST_PHASE_HOOK:-}"                     # path to executable; called after each phase; non-zero exit is logged as warning (non-fatal)
 SPIRAL_HOOK_TIMEOUT="${SPIRAL_HOOK_TIMEOUT:-30}"                         # seconds; wall-clock limit per hook execution (default 30)
@@ -1361,6 +1362,19 @@ notify_webhook() {
     -X POST -H "Content-Type: application/json" -d "$body")
   if [[ -n "${SPIRAL_NOTIFY_WEBHOOK_HEADERS:-}" ]]; then
     curl_args+=(-H "$SPIRAL_NOTIFY_WEBHOOK_HEADERS")
+  fi
+  # HMAC-SHA256 signing (US-207): add X-Spiral-Signature-256 header when secret is set
+  if [[ -n "${SPIRAL_NOTIFY_WEBHOOK_SECRET:-}" ]]; then
+    local _sig
+    _sig="$("$SPIRAL_PYTHON" -c "
+import hmac, hashlib, sys
+key = sys.argv[1].encode()
+body = sys.argv[2].encode()
+print('sha256=' + hmac.new(key, body, hashlib.sha256).hexdigest())
+" "$SPIRAL_NOTIFY_WEBHOOK_SECRET" "$body" 2>/dev/null)" || _sig=""
+    if [[ -n "$_sig" ]]; then
+      curl_args+=(-H "X-Spiral-Signature-256: $_sig")
+    fi
   fi
   curl_args+=("$SPIRAL_NOTIFY_WEBHOOK")
   if ! curl "${curl_args[@]}" 2>/dev/null; then

@@ -98,6 +98,11 @@ cleanup_parallel() {
     _pg=$(cat "$_pgid_f" 2>/dev/null | tr -d '[:space:]')
     [[ -n "$_pg" && "$_pg" =~ ^[0-9]+$ ]] && kill -- -"$_pg" 2>/dev/null || true
   done
+  # Clean up prd.json lock files (stale lock prevention)
+  rm -f "$REPO_ROOT/prd.json.lock" 2>/dev/null || true
+  for wtree in "${WORKER_DIRS[@]:-}"; do
+    [[ -n "$wtree" ]] && rm -f "$wtree/prd.json.lock" 2>/dev/null || true
+  done
   # Clean up lock dir and pause files
   rm -rf "$LOCK_DIR" 2>/dev/null || true
   for n in $(seq 1 "$RALPH_WORKERS"); do
@@ -733,7 +738,13 @@ while [[ "$_ALL_DONE" -eq 0 ]]; do
           _WID=$("$JQ" -r ".[$idx].workerId" <<<"$_STALE_JSON")
           _SID=$("$JQ" -r ".[$idx].storyId" <<<"$_STALE_JSON")
           _AGED=$("$JQ" -r ".[$idx].staledSinceSeconds" <<<"$_STALE_JSON")
-          echo "    [parallel] Worker $_WID: story $_SID stale for ${_AGED}s"
+          # Read completed count from heartbeat file if available
+          _HB_FILE="$HEARTBEAT_DIR/worker_${_WID}.heartbeat"
+          _COMPLETED=0
+          if [[ -f "$_HB_FILE" ]]; then
+            _COMPLETED=$("$JQ" -r '.completed // 0' "$_HB_FILE" 2>/dev/null || echo "0")
+          fi
+          echo "    [parallel] Worker $_WID stale ${_AGED}s on $_SID (completed: $_COMPLETED)"
           # Re-queue the story in the worker's prd.json
           WTREE="${WORKER_DIRS[$((${_WID:-0} - 1))]}"
           if [[ -f "$WTREE/prd.json" ]]; then

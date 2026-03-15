@@ -372,12 +372,255 @@ function ActivityTab({ log }: { log: string }) {
   );
 }
 
+// ── Phase Trace types ────────────────────────────────────────────────────────
+
+interface IterPhase {
+  phase: string;
+  label: string;
+  lines: string[];
+  lineStart: number;
+  lineEnd: number;
+}
+
+interface Iteration {
+  iter: number;
+  phases: IterPhase[];
+  lineStart: number;
+  lineEnd: number;
+}
+
+interface PhaseOutputs {
+  research: { stories?: unknown[] } | null;
+  testStories: { stories?: unknown[] } | null;
+  validated: { stories?: unknown[] } | null;
+  overflow: { stories?: unknown[] } | null;
+  checkpoint: { iter?: number; phase?: string; ts?: string } | null;
+}
+
+interface PhaseTraceData {
+  iterations: Iteration[];
+  phaseOutputs: PhaseOutputs;
+  phaseEvents: Array<{ event?: string; type?: string; phase?: string; iteration?: number; duration_s?: number; ts?: string }>;
+}
+
+const PHASE_COLORS: Record<string, { bg: string; border: string; text: string; dot: string }> = {
+  R: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700', dot: 'bg-blue-500' },
+  T: { bg: 'bg-violet-50', border: 'border-violet-200', text: 'text-violet-700', dot: 'bg-violet-500' },
+  S: { bg: 'bg-cyan-50', border: 'border-cyan-200', text: 'text-cyan-700', dot: 'bg-cyan-500' },
+  M: { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700', dot: 'bg-amber-500' },
+  G: { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-700', dot: 'bg-orange-500' },
+  I: { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700', dot: 'bg-emerald-500' },
+  V: { bg: 'bg-teal-50', border: 'border-teal-200', text: 'text-teal-700', dot: 'bg-teal-500' },
+  P: { bg: 'bg-indigo-50', border: 'border-indigo-200', text: 'text-indigo-700', dot: 'bg-indigo-500' },
+  C: { bg: 'bg-rose-50', border: 'border-rose-200', text: 'text-rose-700', dot: 'bg-rose-500' },
+};
+
+const PHASE_NAMES: Record<string, string> = {
+  R: 'Research', T: 'Test Synthesis', S: 'Story Validate', M: 'Merge',
+  G: 'Gate', I: 'Implement', V: 'Validate', P: 'Push', C: 'Check Done',
+};
+
+function PhaseTraceTab({ projectName }: { projectName: string }) {
+  const [traceData, setTraceData] = useState<PhaseTraceData | null>(null);
+  const [selectedIter, setSelectedIter] = useState<number | null>(null);
+  const [expandedPhases, setExpandedPhases] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch(`/api/phase-trace?name=${encodeURIComponent(projectName)}`);
+        if (res.ok) {
+          const data = await res.json() as PhaseTraceData;
+          setTraceData(data);
+          // Auto-select latest iteration
+          if (data.iterations.length > 0 && selectedIter === null) {
+            setSelectedIter(data.iterations[data.iterations.length - 1].iter);
+          }
+        }
+      } catch { /* ignore */ }
+      setLoading(false);
+    };
+    load();
+    const interval = setInterval(load, 15_000);
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectName]);
+
+  if (loading) return <div className="p-6 text-slate-500">Loading phase trace data...</div>;
+  if (!traceData || traceData.iterations.length === 0) {
+    return (
+      <div className="p-6 text-slate-500">
+        No phase trace data yet. Start SPIRAL to see phase-by-phase output here.
+        <div className="mt-2 text-xs text-slate-400">
+          Phase traces are parsed from <code className="bg-slate-100 px-1 rounded">.spiral/_last_run.log</code>
+        </div>
+      </div>
+    );
+  }
+
+  const togglePhase = (key: string) => {
+    setExpandedPhases(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+
+  const currentIter = traceData.iterations.find(i => i.iter === selectedIter) ?? traceData.iterations[traceData.iterations.length - 1];
+
+  // Find phase_end events for duration display
+  const phaseEndEvents = traceData.phaseEvents.filter(
+    e => (e.event === 'phase_end' || e.type === 'phase_end') && e.iteration === currentIter.iter
+  );
+
+  const getDuration = (phase: string): number | null => {
+    const ev = phaseEndEvents.find(e => e.phase === phase);
+    return ev?.duration_s ?? null;
+  };
+
+  // Phase output file summary
+  const outputSummary = (phase: string): string | null => {
+    if (phase === 'R' && traceData.phaseOutputs.research) {
+      const count = traceData.phaseOutputs.research.stories?.length ?? 0;
+      return count > 0 ? `${count} research stories` : 'No stories found';
+    }
+    if (phase === 'T' && traceData.phaseOutputs.testStories) {
+      const count = traceData.phaseOutputs.testStories.stories?.length ?? 0;
+      return count > 0 ? `${count} test-fix stories` : 'No test failures';
+    }
+    if (phase === 'S' && traceData.phaseOutputs.validated) {
+      const count = traceData.phaseOutputs.validated.stories?.length ?? 0;
+      return count > 0 ? `${count} validated stories` : 'No stories validated';
+    }
+    return null;
+  };
+
+  return (
+    <div className="p-6 space-y-4">
+      {/* Checkpoint status */}
+      {traceData.phaseOutputs.checkpoint && (
+        <div className="flex items-center gap-2 text-xs text-slate-500">
+          <span className="font-medium">Checkpoint:</span>
+          <span>Iteration {traceData.phaseOutputs.checkpoint.iter}, Phase {traceData.phaseOutputs.checkpoint.phase}</span>
+          {traceData.phaseOutputs.checkpoint.ts && (
+            <span className="text-slate-400">({timeAgo(traceData.phaseOutputs.checkpoint.ts)})</span>
+          )}
+        </div>
+      )}
+
+      {/* Iteration selector */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Iteration:</span>
+        <div className="flex gap-1 flex-wrap">
+          {traceData.iterations.map(iter => (
+            <button
+              key={iter.iter}
+              onClick={() => { setSelectedIter(iter.iter); setExpandedPhases(new Set()); }}
+              className={`px-2.5 py-1 text-xs font-mono rounded-lg border transition-colors ${
+                iter.iter === currentIter.iter
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300 hover:bg-blue-50'
+              }`}
+            >
+              #{iter.iter}
+            </button>
+          ))}
+        </div>
+        <span className="text-xs text-slate-400 ml-2">{currentIter.phases.length} phases</span>
+      </div>
+
+      {/* Phase timeline */}
+      <div className="space-y-2">
+        {currentIter.phases.map((phase, idx) => {
+          const colors = PHASE_COLORS[phase.phase] ?? { bg: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-700', dot: 'bg-slate-500' };
+          const phaseName = PHASE_NAMES[phase.phase] ?? phase.phase;
+          const duration = getDuration(phase.phase);
+          const summary = outputSummary(phase.phase);
+          const key = `${currentIter.iter}-${phase.phase}-${idx}`;
+          const isExpanded = expandedPhases.has(key);
+          const lineCount = phase.lines.length;
+
+          return (
+            <div key={key} className={`rounded-xl border ${colors.border} ${colors.bg} overflow-hidden`}>
+              {/* Phase header */}
+              <button
+                onClick={() => togglePhase(key)}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:opacity-90 transition-opacity"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className={`w-2.5 h-2.5 rounded-full ${colors.dot} flex-shrink-0`} />
+                  <span className={`text-xs font-bold ${colors.text} font-mono`}>Phase {phase.phase}</span>
+                  <span className={`text-xs font-semibold ${colors.text}`}>{phaseName}</span>
+                </div>
+                {phase.label && phase.label !== phaseName && (
+                  <span className="text-xs text-slate-500 truncate">{phase.label}</span>
+                )}
+                <div className="ml-auto flex items-center gap-3 flex-shrink-0">
+                  {summary && <span className="text-[10px] text-slate-500 bg-white/60 px-2 py-0.5 rounded-full">{summary}</span>}
+                  {duration !== null && (
+                    <span className="text-[10px] font-mono text-slate-500 bg-white/60 px-2 py-0.5 rounded-full">
+                      {duration >= 60 ? `${Math.floor(duration / 60)}m ${duration % 60}s` : `${duration}s`}
+                    </span>
+                  )}
+                  <span className="text-[10px] text-slate-400">{lineCount} lines</span>
+                  <span className={`text-xs text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}>▼</span>
+                </div>
+              </button>
+
+              {/* Phase output (expanded) */}
+              {isExpanded && (
+                <div className="border-t border-slate-200/50">
+                  <div className="bg-slate-950 overflow-auto max-h-[400px]">
+                    <pre className="p-3 text-[11px] text-slate-300 font-mono leading-relaxed whitespace-pre-wrap">
+                      {phase.lines.join('\n')}
+                    </pre>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Phase output files summary */}
+      <div>
+        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Phase Output Files (Current)</div>
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { label: 'Research Output', key: 'research' as const, phase: 'R' },
+            { label: 'Test Stories', key: 'testStories' as const, phase: 'T' },
+            { label: 'Validated Stories', key: 'validated' as const, phase: 'S' },
+            { label: 'Overflow Queue', key: 'overflow' as const, phase: 'M' },
+          ].map(item => {
+            const data = traceData.phaseOutputs[item.key];
+            const count = (data as { stories?: unknown[] } | null)?.stories?.length ?? 0;
+            const colors = PHASE_COLORS[item.phase] ?? { bg: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-700', dot: 'bg-slate-400' };
+            return (
+              <div key={item.key} className={`rounded-lg border ${colors.border} ${colors.bg} px-3 py-2 flex items-center justify-between`}>
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${colors.dot}`} />
+                  <span className={`text-xs font-medium ${colors.text}`}>{item.label}</span>
+                </div>
+                <span className={`text-xs font-mono ${count > 0 ? colors.text : 'text-slate-400'}`}>
+                  {data ? `${count} stories` : 'N/A'}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
-type DashTab = 'progress' | 'settings' | 'constitution' | 'activity' | 'graph';
+type DashTab = 'progress' | 'settings' | 'constitution' | 'activity' | 'graph' | 'phases';
 
 const DASH_TABS: { id: DashTab; label: string; icon: string }[] = [
   { id: 'progress',     label: 'Progress',     icon: '📊' },
+  { id: 'phases',       label: 'Phase Trace',  icon: '🔬' },
   { id: 'graph',        label: 'Graph',        icon: '🔗' },
   { id: 'settings',     label: 'Settings',     icon: '⚙️' },
   { id: 'constitution', label: 'Constitution', icon: '📜' },
@@ -509,6 +752,7 @@ export default function ProjectDashboard() {
       {/* Tab content */}
       <main className="flex-1 overflow-hidden">
         {activeTab === 'progress'     && <div className="h-full overflow-y-auto"><ProgressTab data={data} /></div>}
+        {activeTab === 'phases'       && <div className="h-full overflow-y-auto"><PhaseTraceTab projectName={projectName ?? ''} /></div>}
         {activeTab === 'graph'        && (
           <div className="h-full overflow-hidden">
             <DependencyGraph stories={data.progress?.stories ?? []} />

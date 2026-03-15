@@ -6303,3 +6303,6 @@ Incomplete: Enforce cgroups v2 memory and CPU limits on worker subprocesses (ID:
 - mypy strict: `json.loads()` returns `Any`, must assign to typed variable before returning as `dict[str, Any] | None`
 - Drift check is OPT-IN via `SPIRAL_DRIFT_CHECK=true` (default false) to avoid LLM calls on every story
 - Drift check is non-fatal (uses `|| true`) — a failed drift judge never blocks Phase I completion
+## Iteration 3 - Sun, Mar 15, 2026 11:37:41 PM
+Incomplete: Enforce cgroups v2 memory and CPU limits on worker subprocesses (ID: US-259) — attempt /3
+

@@ -215,5 +215,84 @@ spiral_preflight_check() {
 
   echo "  [preflight] git identity: OK ($_git_name <$_git_email>)"
 
+  # ── Stale git lock-file cleanup (US-225) ──────────────────────────────────
+  local lock_timeout="${SPIRAL_LOCK_TIMEOUT_MINUTES:-5}"
+  if [[ "$lock_timeout" -gt 0 ]] && [[ -d "${REPO_ROOT:-}/.spiral-workers" ]]; then
+    _check_stale_worktree_locks "${REPO_ROOT}/.spiral-workers" "${scratch_dir}" "$lock_timeout"
+  fi
+
   echo "  [preflight] All checks passed"
+}
+
+# _check_stale_worktree_locks WORKTREE_BASE SCRATCH_DIR LOCK_TIMEOUT_MINUTES
+# Scans active worktrees for .git/*.lock files older than LOCK_TIMEOUT_MINUTES.
+# Removes stale locks only when no live git process is detected. Emits audit
+# events for each removal.
+_check_stale_worktree_locks() {
+  local worktree_base="${1}"
+  local scratch_dir="${2}"
+  local lock_timeout="${3:-5}"
+  local _locks_removed=0
+
+  [[ -d "$worktree_base" ]] || return 0
+
+  for wt in "$worktree_base"/worker-*; do
+    [[ -d "$wt" ]] || continue
+    local wt_git_dir="$wt/.git"
+
+    # .git may be a gitdir pointer file (worktree mode)
+    if [[ -f "$wt/.git" ]]; then
+      wt_git_dir=$(sed 's/^gitdir: //' "$wt/.git" 2>/dev/null || true)
+      [[ -n "$wt_git_dir" ]] || continue
+    fi
+
+    [[ -d "$wt_git_dir" ]] || continue
+
+    while IFS= read -r -d '' lock_file; do
+      # Get lock file age in minutes via Python (portable across platforms)
+      local age_mins
+      age_mins=$(python3 -c "
+import os, time
+try:
+    s = os.stat('$lock_file')
+    print(int((time.time() - s.st_mtime) / 60))
+except Exception:
+    print(-1)
+" 2>/dev/null || echo "-1")
+
+      if [[ "$age_mins" -lt 0 ]]; then
+        continue  # stat failed; skip
+      fi
+
+      if [[ "$age_mins" -lt "$lock_timeout" ]]; then
+        # Lock is fresh — could belong to an active git operation; leave it
+        continue
+      fi
+
+      # Check for any live git process as a safety guard before removal.
+      # This is a coarse check: if any git process is running on this host,
+      # we skip removal to avoid interfering with it. On a single-host CI
+      # runner this is equivalent to lsof-based ownership verification.
+      local live_git_count
+      live_git_count=$(ps aux 2>/dev/null | grep -i "[g]it" | grep -cv "grep" || echo "0")
+
+      if [[ "$live_git_count" -gt 0 ]]; then
+        echo "  [preflight] Stale lock detected (${age_mins}m old) but live git process found — skipping: $lock_file"
+        continue
+      fi
+
+      # Safe to remove: lock is stale and no git process is running
+      if rm -f "$lock_file" 2>/dev/null; then
+        echo "  [preflight] Removed stale git lock (${age_mins}m old): $lock_file"
+        printf '{"ts":"%s","event":"stale_lock_removed","file":"%s","age_minutes":%d}\n' \
+          "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$lock_file" "$age_mins" \
+          >> "${scratch_dir}/spiral_events.jsonl" 2>/dev/null || true
+        _locks_removed=$((_locks_removed + 1))
+      fi
+    done < <(find "$wt_git_dir" -maxdepth 2 -name "*.lock" -print0 2>/dev/null)
+  done
+
+  if [[ "$_locks_removed" -gt 0 ]]; then
+    echo "  [preflight] Stale lock cleanup: removed $_locks_removed lock file(s)"
+  fi
 }

@@ -328,6 +328,14 @@ spiral_doctor() {
     fi
   fi
 
+  # ── NOTIFY_WEBHOOK without signing secret (US-207) ──────────────────────────
+  if [[ -n "${SPIRAL_NOTIFY_WEBHOOK:-}" && -z "${SPIRAL_NOTIFY_WEBHOOK_SECRET:-}" ]]; then
+    echo "  [doctor] [WARN] SPIRAL_NOTIFY_WEBHOOK is set but SPIRAL_NOTIFY_WEBHOOK_SECRET is not"
+    echo "           → Info: Without a signing secret, webhook receivers cannot verify payload authenticity"
+    echo "           → Fix: Set SPIRAL_NOTIFY_WEBHOOK_SECRET=<secret> to enable HMAC-SHA256 signing"
+    warn_count=$((warn_count + 1))
+  fi
+
   # ── Story count health ───────────────────────────────────────────────────────
   if [[ -f "prd.json" ]]; then
     local story_count total_count passed_count
