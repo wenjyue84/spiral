@@ -6700,3 +6700,58 @@ Incomplete: Stream ralph.sh worker stdout to spiral_dashboard via Server-Sent Ev
 ## Iteration 4 - Mon, Mar 16, 2026  1:34:00 AM
 Incomplete: Stream ralph.sh worker stdout to spiral_dashboard via Server-Sent Events (ID: US-277) — attempt /3
 
+
+## Pre-analysis for US-277 (Gemini 2.5 Pro)
+### Technical Brief for Claude: US-277
+
+**Objective:** Implement a Server-Sent Events (SSE) stream to pipe real-time stdout/stderr from `ralph.sh` worker subprocesses to the `spiral_dashboard`.
+
+**1. Primary Files to Modify:**
+*   **`lib/spiral_dashboard.py`**: This is the most likely candidate for the web server logic. You will add a new FastAPI endpoint here for the SSE stream.
+*   **`main.py` / `lib/work_queue.py`**: Find the code that executes the `ralph.sh` script (likely using `subprocess.run` or similar). This invocation must be modified to use `asyncio.create_subprocess_exec` and store the resulting process handles.
+
+**2. Frameworks & APIs Involved:**
+*   **Framework**: FastAPI (assumed, for creating the web endpoint)
+*   **Python Libs**: `asyncio` for concurrency and subprocess management (`create_subprocess_exec`, `StreamReader`).
+*   **API Endpoint**: You will create `GET /api/worker-stream/{worker_id}`.
+
+**3. Recommended Implementation Approach:**
+1.  **Process State Management**: Introduce a shared dictionary or a simple manager class (e.g., in `main.py` or a new module) to hold the `asyncio.Process` objects keyed by `worker_id`.
+2.  **Modify Subprocess Execution**: In the script that currently calls `ralph.sh`, replace the existing `subprocess` call with `asyncio.create_subprocess_exec`, ensuring `stdout` and `stderr` are set to `asyncio.subprocess.PIPE`. Store the returned `Process` object in the shared state from step 1.
+3.  **Create SSE Endpoint**: In `lib/spiral_dashboard.py`, define an `async` endpoint that accepts a `worker_id`. It should return a FastAPI `StreamingResponse` with `media_type="text/event-stream"`.
+4.  **Streaming Generator**: The `StreamingResponse` will be powered by an async generator function. This function reads from the `process.stdout` and `process.stderr` streams concurrently using `asyncio.create_task` and `stream.readline()`.
+5.  **Event Formatting**: For each line read, format it as a JSON object (`{"story_id": ..., "worker_index": ..., "line": ...}`) and `yield` it in the SSE `data: {json}\n\n` format.
+6.  **Termination**: When the subprocess exits, `yield` a final event (`data: {"type": "done", "status": "..."}\n\n`) before closing the stream.
+
+**4. Edge Cases & Gotchas:**
+*   **Deadlock Prevention**: You *must* read from both `stdout` and `stderr` concurrently using separate asyncio tasks to prevent the OS pipe buffer from filling up and deadlocking the subprocess.
+*   **Process Not Found**: If a request comes for a `worker_id` not in your process dictionary, return an HTTP 404 immediately.
+*   **Error Handling**: If the `ralph.sh` script fails to start, ensure the error is logged and handled.
+*   **Client Disconnect**: FastAPI's `StreamingResponse` handles client disconnects gracefully, but ensure your generator logic is robust and exits cleanly.
+
+
+---
+
+## Iteration [12] - Story: US-286: Auto-tag prd.json stories with affected module names derived from filesTouch field
+
+### What was implemented
+- Added `derive_module_tags(files_touch: list[str]) -> list[str]` to `lib/populate_hints.py`
+  - Extracts depth-1 directory prefix from each file path (e.g. 'lib/' from 'lib/phases/phase_r.sh')
+  - Prefixes with 'module:' (e.g. 'module:lib')
+  - Returns sorted, deduplicated list; root-level files (no dir component) produce no tag
+- Added `auto_tag_modules(stories: list[dict]) -> int` to `lib/populate_hints.py`
+  - Iterates all stories; skips those without filesTouch
+  - Appends new module tags to story's 'tags' array without duplicating existing tags
+  - Returns count of stories modified
+- Called `auto_tag_modules(stories)` at end of `populate_hints()` to cover pre-existing filesTouch entries
+- Added 12 tests across `TestDeriveModuleTags` and `TestAutoTagModules` in `tests/test_populate_hints.py`
+  - All 25 tests in the file pass
+
+### Patterns discovered
+- populate_hints.py is the natural place for filesTouch-derived metadata since it already owns that field
+- Stories can have a top-level `tags` list (currently absent from most stories — initialized lazily)
+- Root-level files (no `/`) have no directory prefix and should be excluded from module tagging
+
+### Gotchas
+- `derive_module_tags` requires `len(parts) >= 2` check — a bare filename like `spiral.sh` splits to a single element and must not produce a tag
+- `auto_tag_modules` must run over ALL stories (not just newly-hinted ones) to cover stories with pre-existing filesTouch

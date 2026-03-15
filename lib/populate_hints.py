@@ -195,6 +195,54 @@ def query_gitnexus_files(title: str, repo_root: str) -> list[str]:
         return []
 
 
+def derive_module_tags(files_touch: list[str]) -> list[str]:
+    """
+    Derive 'module:<dir>' tags from a list of file paths.
+
+    Extracts the top-level directory prefix (depth 1) from each path and
+    returns a sorted, deduplicated list of 'module:<name>' tags.
+
+    Examples:
+        ['lib/phases/phase_r.sh', 'lib/merge_stories.py'] -> ['module:lib']
+        ['ralph/ralph.sh', 'lib/run_parallel_ralph.sh']   -> ['module:lib', 'module:ralph']
+    """
+    tags: set[str] = set()
+    for f in files_touch:
+        # Normalise to forward slashes
+        parts = f.replace("\\", "/").split("/")
+        # Require at least two parts (dir/file) so root-level files are excluded
+        if len(parts) >= 2 and parts[0]:
+            tags.add(f"module:{parts[0]}")
+    return sorted(tags)
+
+
+def auto_tag_modules(stories: list[dict]) -> int:
+    """
+    Append 'module:*' tags to all stories that have a filesTouch field set.
+
+    Tags are derived via derive_module_tags() and appended to the story's
+    'tags' array only if not already present.  Stories without a filesTouch
+    field are left unchanged.
+
+    Returns the number of stories modified.
+    """
+    updated = 0
+    for story in stories:
+        files_touch = story.get("filesTouch", [])
+        if not files_touch:
+            continue
+
+        new_module_tags = derive_module_tags(files_touch)
+        existing_tags: list[str] = story.get("tags", [])
+
+        to_add = [t for t in new_module_tags if t not in existing_tags]
+        if to_add:
+            story["tags"] = existing_tags + to_add
+            updated += 1
+
+    return updated
+
+
 def populate_hints(prd: dict, repo_root: str) -> int:
     """
     Pre-populate filesTouch on pending stories using keyword matching.
@@ -255,6 +303,10 @@ def populate_hints(prd: dict, repo_root: str) -> int:
 
     if gitnexus_count:
         print(f"[hints] gitnexus filled {gitnexus_count} stories (keyword matching missed them)")
+
+    # Auto-tag all stories that have filesTouch (including pre-existing ones)
+    auto_tag_modules(stories)
+
     return updated
 
 

@@ -164,6 +164,103 @@ class TestPopulateHints:
         assert updated == 0
 
 
+class TestDeriveModuleTags:
+    """Tests for derive_module_tags pure function."""
+
+    def test_single_file_in_lib(self):
+        """A file directly in lib/ produces module:lib."""
+        tags = populate_hints.derive_module_tags(["lib/merge_stories.py"])
+        assert tags == ["module:lib"]
+
+    def test_nested_file_uses_depth1_prefix(self):
+        """A deeply nested file still uses only the top-level directory."""
+        tags = populate_hints.derive_module_tags(["lib/phases/phase_r.sh"])
+        assert tags == ["module:lib"]
+
+    def test_multiple_files_same_dir_deduplicated(self):
+        """Files from the same directory produce a single module tag."""
+        tags = populate_hints.derive_module_tags([
+            "lib/phases/phase_r.sh",
+            "lib/merge_stories.py",
+        ])
+        assert tags == ["module:lib"]
+
+    def test_multiple_dirs_produce_multiple_tags(self):
+        """Files from different top-level dirs produce one tag each."""
+        tags = populate_hints.derive_module_tags([
+            "lib/merge_stories.py",
+            "ralph/ralph.sh",
+        ])
+        assert tags == ["module:lib", "module:ralph"]
+
+    def test_root_level_file_excluded(self):
+        """A file with no directory component (e.g. 'spiral.sh') produces no tag."""
+        tags = populate_hints.derive_module_tags(["spiral.sh"])
+        assert tags == []
+
+    def test_empty_list(self):
+        """Empty filesTouch returns empty list."""
+        tags = populate_hints.derive_module_tags([])
+        assert tags == []
+
+    def test_acceptance_criteria_example(self):
+        """Exact example from US-286 AC: lib/phases/phase_r.sh + lib/merge_stories.py -> module:lib."""
+        tags = populate_hints.derive_module_tags([
+            "lib/phases/phase_r.sh",
+            "lib/merge_stories.py",
+        ])
+        assert tags == ["module:lib"]
+
+
+class TestAutoTagModules:
+    """Tests for auto_tag_modules function."""
+
+    def test_story_with_files_touch_gets_tags(self):
+        """Stories with filesTouch get module tags appended."""
+        stories = [
+            _make_story("US-001", filesTouch=["lib/foo.py", "ralph/ralph.sh"]),
+        ]
+        updated = populate_hints.auto_tag_modules(stories)
+        assert updated == 1
+        assert "module:lib" in stories[0]["tags"]
+        assert "module:ralph" in stories[0]["tags"]
+
+    def test_story_without_files_touch_unchanged(self):
+        """Stories without filesTouch are not modified at all."""
+        stories = [_make_story("US-001")]
+        updated = populate_hints.auto_tag_modules(stories)
+        assert updated == 0
+        assert "tags" not in stories[0]
+
+    def test_existing_tags_preserved(self):
+        """Manually-set tags are retained alongside auto-derived module tags."""
+        stories = [
+            _make_story("US-001", filesTouch=["lib/foo.py"], tags=["feature", "backend"]),
+        ]
+        populate_hints.auto_tag_modules(stories)
+        assert "feature" in stories[0]["tags"]
+        assert "backend" in stories[0]["tags"]
+        assert "module:lib" in stories[0]["tags"]
+
+    def test_no_duplicate_module_tags(self):
+        """If module tag already exists, it is not added again."""
+        stories = [
+            _make_story("US-001", filesTouch=["lib/foo.py"], tags=["module:lib"]),
+        ]
+        populate_hints.auto_tag_modules(stories)
+        assert stories[0]["tags"].count("module:lib") == 1
+
+    def test_returns_count_of_updated_stories(self):
+        """Return value equals number of stories that received new tags."""
+        stories = [
+            _make_story("US-001", filesTouch=["lib/foo.py"]),
+            _make_story("US-002"),  # no filesTouch
+            _make_story("US-003", filesTouch=["ralph/ralph.sh"]),
+        ]
+        updated = populate_hints.auto_tag_modules(stories)
+        assert updated == 2
+
+
 class TestGetCompletedStoryFiles:
     """Tests for get_completed_story_files with mocked subprocess."""
 
