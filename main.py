@@ -315,6 +315,125 @@ def _render_plain(
     print(f"\n  Total: {total} stories\n")
 
 
+# ── SAST indicator rendering (US-262) ─────────────────────────────────────────
+
+_SAST_COLOUR = {"pass": "green", "warn": "yellow", "fail": "red", "blocked-by-sast": "red"}
+_SAST_ICON = {"pass": "●", "warn": "◐", "fail": "✗", "blocked-by-sast": "✗"}
+
+
+def _get_sast_status(story: dict) -> str:  # type: ignore[type-arg]
+    """Return SAST status for a story from _sast_status field or gate-report files."""
+    return story.get("_sast_status", "")  # type: ignore[no-any-return]
+
+
+def _load_sast_reports(scratch_dir: Path) -> dict[str, dict]:  # type: ignore[type-arg]
+    """Load per-story SAST reports from .spiral/gate-reports/<story-id>_sast.json.
+
+    Returns a mapping of story_id → report dict.
+    """
+    reports: dict[str, dict] = {}  # type: ignore[type-arg]
+    gate_dir = scratch_dir / "gate-reports"
+    if not gate_dir.is_dir():
+        return reports
+    for report_file in gate_dir.glob("*_sast.json"):
+        # Extract story ID: filename pattern is <story-id>_sast.json
+        story_id = report_file.stem.replace("_sast", "")
+        if story_id.startswith("_"):
+            continue  # skip _sast_scan.json temporary file
+        try:
+            with open(report_file, encoding="utf-8") as f:
+                data = json.load(f)
+            reports[story_id] = data
+        except (json.JSONDecodeError, OSError):
+            pass
+    return reports
+
+
+def _render_sast_rich(stories: list[dict], sast_reports: dict[str, dict]) -> None:  # type: ignore[type-arg]
+    """Render per-story SAST indicator table using Rich."""
+    from rich.console import Console
+    from rich.table import Table
+
+    console = Console()
+    console.print("\n[bold]SPIRAL SAST Report[/bold]\n")
+
+    table = Table(show_header=True, header_style="bold")
+    table.add_column("Story ID", style="cyan", no_wrap=True)
+    table.add_column("Title")
+    table.add_column("Status", justify="center")
+    table.add_column("SAST", justify="center")
+
+    for story in stories:
+        sid = story.get("id", "")
+        title = (story.get("title") or "")[:55]
+        passes = story.get("passes", False)
+        skipped = story.get("_skipped", False)
+
+        if passes:
+            status_cell = "[green]passed[/green]"
+        elif skipped:
+            status_cell = "[red]skipped[/red]"
+        else:
+            status_cell = "[grey50]pending[/grey50]"
+
+        sast_status = _get_sast_status(story)
+        if sast_status:
+            col = _SAST_COLOUR.get(sast_status, "grey50")
+            icon = _SAST_ICON.get(sast_status, "?")
+            sast_cell = f"[{col}]{icon} {sast_status}[/{col}]"
+        elif sid in sast_reports:
+            sast_cell = "[green]● pass[/green]"
+        else:
+            sast_cell = "[grey50]—[/grey50]"
+
+        table.add_row(sid, title, status_cell, sast_cell)
+
+    console.print(table)
+    checked = sum(1 for s in stories if _get_sast_status(s) or s.get("id", "") in sast_reports)
+    console.print(f"[dim]SAST data available for {checked}/{len(stories)} stories.[/dim]\n")
+
+
+def _render_sast_plain(stories: list[dict], sast_reports: dict[str, dict]) -> None:  # type: ignore[type-arg]
+    """Render per-story SAST indicator table (stdlib fallback)."""
+    print(f"\n{_c('SPIRAL SAST Report', 'bold')}\n")
+    header = (
+        _c("Story ID".ljust(10), "bold"),
+        _c("Status".ljust(10), "bold"),
+        _c("SAST".ljust(16), "bold"),
+        _c("Title", "bold"),
+    )
+    sep = "-" * 75
+    print(f"  {'  '.join(header)}")
+    print(f"  {sep}")
+
+    for story in stories:
+        sid = story.get("id", "")
+        title = (story.get("title") or "")[:45]
+        passes = story.get("passes", False)
+        skipped = story.get("_skipped", False)
+
+        if passes:
+            status_str = _c("passed".ljust(10), "green")
+        elif skipped:
+            status_str = _c("skipped".ljust(10), "red")
+        else:
+            status_str = _c("pending".ljust(10), "grey")
+
+        sast_status = _get_sast_status(story)
+        if sast_status:
+            col = _SAST_COLOUR.get(sast_status, "grey")
+            sast_str = _c(sast_status.ljust(16), col)
+        elif sid in sast_reports:
+            sast_str = _c("pass".ljust(16), "green")
+        else:
+            sast_str = "—".ljust(16)
+
+        print(f"  {sid.ljust(10)}  {status_str}  {sast_str}  {title}")
+
+    checked = sum(1 for s in stories if _get_sast_status(s) or s.get("id", "") in sast_reports)
+    print(f"\n  SAST data available for {checked}/{len(stories)} stories.\n")
+
+
 # ── Drift indicator rendering (US-260) ────────────────────────────────────────
 
 _DRIFT_COLOUR = {"pass": "green", "warn": "yellow", "fail": "red"}
@@ -879,6 +998,29 @@ def cmd_status(args):
             _render_drift_plain(stories, drift_reports)
         return
 
+    # ── US-262: --sast flag → per-story SAST indicator table ──────────────
+    if getattr(args, "sast", False):
+        sast_reports = _load_sast_reports(SCRATCH_DIR)
+        if getattr(args, "json", False):
+            output = [
+                {
+                    "id": s.get("id", ""),
+                    "title": s.get("title", ""),
+                    "passes": s.get("passes", False),
+                    "sast": _get_sast_status(s) or ("pass" if s.get("id", "") in sast_reports else None),
+                    "_sast_warnings": s.get("_sast_warnings"),
+                }
+                for s in stories
+            ]
+            print(json.dumps(output, indent=2))
+            return
+        try:
+            import rich  # noqa: F401
+            _render_sast_rich(stories, sast_reports)
+        except ImportError:
+            _render_sast_plain(stories, sast_reports)
+        return
+
     if getattr(args, "json", False):
         output = {
             "run_id": run_id,
@@ -1123,6 +1265,11 @@ def main():
         "--drift",
         action="store_true",
         help="Show per-story drift indicator column (green/yellow/red) from Phase I drift check",
+    )
+    status_parser.add_argument(
+        "--sast",
+        action="store_true",
+        help="Show per-story SAST column (pass/warn/fail) from Phase G Semgrep scan",
     )
 
     estimate_parser = subparsers.add_parser(

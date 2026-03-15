@@ -6528,3 +6528,36 @@ Incomplete: Implement local Ollama model fallback with cold-start pre-warm and e
 ## Iteration 2 - Mon, Mar 16, 2026 12:37:39 AM
 Completed: Implement local Ollama model fallback with cold-start pre-warm and explicit policy flags (ID: US-261) in 25m
 
+
+## Iteration [N] - Story: US-262: Run Semgrep SAST scan on AI-generated code as a mandatory Gate phase check
+
+### What was implemented
+- Added `run_sast_gate_check()` function to spiral.sh (~80 lines) that:
+  - Runs `semgrep scan --config auto --json` scoped to files changed vs origin/main
+  - HIGH/CRITICAL findings → block story (set `_sast_status: "blocked-by-sast"` in prd.json)
+  - MEDIUM findings → warning only (stored in `_sast_warnings` array in prd.json)
+  - Reports written to `.spiral/gate-reports/<story-id>_sast.json`
+  - Disabled via `SPIRAL_SAST_ENABLED=false` env var
+- Added `SPIRAL_SAST_ENABLED` config variable to spiral.sh defaults (default: true)
+- Hooked `run_sast_gate_check` into Phase G, runs before the human gate prompt
+- Added `--sast` flag to `python main.py status` command with:
+  - `_load_sast_reports()` helper to load per-story SAST JSON reports
+  - `_get_sast_status()` helper to read `_sast_status` field from stories
+  - Rich and plain text renderers showing SAST column (pass/warn/fail)
+  - JSON output mode support
+- Added bats test `tests/sast_gate.bats` covering:
+  - SPIRAL_SAST_ENABLED=false skip
+  - semgrep not in PATH skip
+  - No changed files skip
+  - Planted SQL injection detection (requires semgrep)
+  - Report file creation verification
+
+### Patterns discovered
+- Phase G in spiral.sh already has GATE_REPORTS_DIR set up for review reports
+- ralph/ralph.sh already had per-story semgrep scans (run_security_scan), but at commit-level not gate-level
+- main.py --drift flag pattern (US-260) is the template for adding per-story indicator columns
+
+### Gotchas
+- semgrep may not be in PATH in all environments; function gracefully skips when missing
+- The SAST scan runs once over all changed files, then attributes findings to all pending stories (since files aren't per-story at gate level)
+- mypy strict mode requires type: ignore comments on dict params (same pattern as existing code)
