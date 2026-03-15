@@ -379,6 +379,10 @@ SPIRAL_RALPH="${SPIRAL_RALPH:-$SPIRAL_HOME/ralph/ralph.sh}"
 SPIRAL_RESEARCH_PROMPT="${SPIRAL_RESEARCH_PROMPT:-$SPIRAL_HOME/templates/research_prompt.example.md}"
 SPIRAL_GEMINI_PROMPT="${SPIRAL_GEMINI_PROMPT:-}"
 SPIRAL_VALIDATE_CMD="${SPIRAL_VALIDATE_CMD:-$SPIRAL_PYTHON tests/run_tests.py --report-dir test-reports}"
+SPIRAL_UNIT_TEST_CMD="${SPIRAL_UNIT_TEST_CMD:-}"                          # Layer 1: per-story unit test command for ralph; empty = use SPIRAL_VALIDATE_CMD
+SPIRAL_E2E_TEST_CMD="${SPIRAL_E2E_TEST_CMD:-}"                            # Layer 3: E2E test command run in Phase V after integration tests pass; empty = disabled
+SPIRAL_E2E_TRIGGER="${SPIRAL_E2E_TRIGGER:-final}"                         # When to run E2E: "final" (default), "batch", or "always"
+SPIRAL_E2E_TIMEOUT="${SPIRAL_E2E_TIMEOUT:-600}"                           # seconds; wall-clock limit for E2E test run
 SPIRAL_REPORTS_DIR="${SPIRAL_REPORTS_DIR:-test-reports}"
 SPIRAL_STORY_PREFIX="${SPIRAL_STORY_PREFIX:-US}"
 SPIRAL_VERSION="${SPIRAL_VERSION:-$(git -C "$SPIRAL_HOME" describe --tags --always --dirty=+ 2>/dev/null || echo "unknown")}"
@@ -2387,6 +2391,14 @@ $INJECTED_PROMPT"
           # ── Tier 2: Save passes baseline before implementation ────────────
           spiral_assert_passes_save_baseline "$PRD_FILE"
 
+          # ── Determine per-story test command for ralph (Unit Test Layer 1) ────
+          if [[ -n "${SPIRAL_UNIT_TEST_CMD:-}" ]]; then
+            RALPH_TEST_CMD="$SPIRAL_UNIT_TEST_CMD"
+          else
+            RALPH_TEST_CMD="${SPIRAL_VALIDATE_CMD:-}"
+          fi
+          export SPIRAL_TEST_BASELINE_CMD="$RALPH_TEST_CMD"
+
           echo "  [Phase I] IMPLEMENT — running ralph ($RALPH_MAX_ITERS inner iterations)..."
 
           # ── Batch slicing: cap stories visible to ralph ──────────────────
@@ -2981,6 +2993,44 @@ PYEOF
 
       if [[ "$_PINCHTAB_EXIT" -ne 0 ]]; then
         echo "  [V] WARNING: Pinchtab E2E step failed (exit $_PINCHTAB_EXIT) — does not affect validation result"
+      fi
+    fi
+
+    # ── Layer 3: E2E Tests ────────────────────────────────────────────────────
+    if [[ -n "${SPIRAL_E2E_TEST_CMD:-}" ]]; then
+      _pending_for_e2e=$("$JQ" '[.userStories[] | select(.passes != true)] | length' "$PRD_FILE" 2>/dev/null || echo 1)
+      [[ "$_pending_for_e2e" -eq 0 ]] && _all_done="true" || _all_done="false"
+      _trigger="${SPIRAL_E2E_TRIGGER:-final}"
+
+      _run_e2e=0
+      [[ "$_trigger" == "batch" || "$_trigger" == "always" ]] && _run_e2e=1
+      [[ "$_trigger" == "final" && "$_all_done" == "true" ]] && _run_e2e=1
+
+      if [[ "$_run_e2e" -eq 1 ]]; then
+        echo "  [V] Layer 3: E2E Tests (trigger=$_trigger)"
+        _e2e_timeout="${SPIRAL_E2E_TIMEOUT:-600}"
+        _e2e_exit=0
+        if command -v timeout &>/dev/null; then
+          timeout --kill-after=30 "$_e2e_timeout" bash -c "$SPIRAL_E2E_TEST_CMD" || _e2e_exit=$?
+        else
+          (cd "$REPO_ROOT" && eval "$SPIRAL_E2E_TEST_CMD") || _e2e_exit=$?
+        fi
+        if [[ "$_e2e_exit" -eq 0 ]]; then
+          echo "  [V] E2E: PASS"
+          log_spiral_event "e2e_pass" "\"trigger\":\"$_trigger\",\"iteration\":$SPIRAL_ITER"
+        else
+          echo "  [V] E2E: FAIL — see output above"
+          log_spiral_event "e2e_fail" "\"trigger\":\"$_trigger\",\"iteration\":$SPIRAL_ITER"
+          if [[ "$_all_done" == "true" ]]; then
+            echo "  [V] E2E failure blocks final completion — continuing loop"
+            write_checkpoint "$SPIRAL_ITER" "V"
+            run_phase_hook POST "V" || true
+            _PHASE_DUR_V=$(($(date +%s) - _PHASE_TS_V))
+            log_spiral_event "phase_end" "\"phase\":\"V\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_V"
+            notify_webhook "V" "end"
+            continue
+          fi
+        fi
       fi
     fi
 

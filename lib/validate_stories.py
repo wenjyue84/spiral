@@ -135,6 +135,14 @@ def validate_stories(
     research_stories = _load_candidates(research_path)
     test_stories = _load_candidates(test_stories_path)
 
+    # Tag source if not already set
+    for story in research_stories:
+        if "_source" not in story:
+            story["_source"] = "research"
+    for story in test_stories:
+        if "_source" not in story:
+            story["_source"] = "test-fix"
+
     seen_titles: set[str] = set()
     all_candidates: list[dict] = []
     for story in research_stories + test_stories:
@@ -161,8 +169,9 @@ def validate_stories(
                     rejection_reason = f'Violates constitution: "{phrase}"'
                     break
 
-        # 2. Goal alignment check (only when goals are defined and min_overlap > 0)
-        if rejection_reason is None and gkw and min_overlap > 0:
+        # 2. Goal alignment check (skip for test-fix; only when goals defined and min_overlap > 0)
+        _is_test_fix = story.get("_isTestFix") or story.get("_source") == "test-fix"
+        if rejection_reason is None and gkw and min_overlap > 0 and not _is_test_fix:
             skw = _story_keywords(story)
             overlap = len(gkw & skw)
             if overlap < min_overlap:
@@ -230,6 +239,25 @@ def main() -> int:
         f"  [S] Validated {total} stories: "
         f"{len(accepted)} accepted ({rate:.0f}%), {len(rejected)} rejected"
     )
+
+    # Source breakdown
+    src_stats: dict[str, list[int]] = {}  # source -> [accepted_count, total_count]
+    for story in accepted:
+        src = story.get("_source", "research")
+        src_stats.setdefault(src, [0, 0])
+        src_stats[src][0] += 1
+        src_stats[src][1] += 1
+    for story in rejected:
+        src = story.get("_source", "research")
+        src_stats.setdefault(src, [0, 0])
+        src_stats[src][1] += 1
+    if src_stats:
+        parts = " | ".join(
+            f"{src}={counts[0]} accepted/{counts[1]}"
+            for src, counts in src_stats.items()
+        )
+        print(f"  [S] Source breakdown: {parts}")
+
     return 0
 
 

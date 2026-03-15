@@ -257,6 +257,11 @@ def main() -> int:
     seen_titles: list[str] = list(existing_titles)
     seen_epics: list[str] = list(existing_epics)
 
+    # ── Tag test candidates with source if not already set ────────────────────
+    for story in test_candidates:
+        if "_source" not in story:
+            story["_source"] = "test-fix"
+
     # ── Group 1: Test-synthesis candidates (never overflow — regenerated each iteration) ──
     for story in test_candidates:
         if len(new_stories) >= effective_cap:
@@ -330,6 +335,15 @@ def main() -> int:
     prd["userStories"].sort(key=full_sort_key)
 
     _atomic_write_json(prd, args.prd)
+
+    # Source breakdown
+    src_counts: dict[str, int] = {}
+    for entry in added_entries:
+        src = entry.get("_source", "research")
+        src_counts[src] = src_counts.get(src, 0) + 1
+    if src_counts:
+        parts = ", ".join(f"{k}={v}" for k, v in src_counts.items())
+        print(f"[merge] Added by source: {parts}")
 
     total_after = len(prd["userStories"])
     pending_after = sum(1 for s in prd["userStories"] if not s.get("passes"))

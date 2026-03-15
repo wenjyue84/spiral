@@ -122,6 +122,24 @@
             "pattern": "^[a-z0-9_-]+$",
             "minLength": 1
           }
+        },
+        "_source": {
+          "type": "string",
+          "enum": ["seed", "ai-example", "research", "test-fix"],
+          "description": "Where this story originated"
+        },
+        "retryCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "_skipped": {
+          "type": "boolean"
+        },
+        "added_by": {
+          "type": "string"
+        },
+        "added_ts": {
+          "type": "string"
         }
       },
       "additionalProperties": false

@@ -307,7 +307,8 @@ _phase_0c_questions() {
 _phase_0d_stories() {
   local prd_file="${PRD_FILE:-prd.json}"
 
-  echo "  ┌─ 0-D: Initial Stories ──────────────────────────────────────────────"
+  echo "  ┌─ 0-D: Story Preparation ───────────────────────────────────────────"
+  echo "  │  Seeds you type are Source 1 (seed). AI suggestions you pick are Source 2 (ai-example)."
 
   # Generate story suggestions based on prd.json + focus
   local _suggestions
@@ -373,20 +374,24 @@ _PY
   fi
 
   local _seeds=()
+  local _srcs=()
   local _seed_line=""
   while true; do
     printf "  │  > "
     read -r _seed_line 2>/dev/null || break
     [[ -z "$_seed_line" ]] && break
-    # Numeric pick
+    # Numeric pick → Source 2 (ai-example); free text → Source 1 (seed)
+    local _src="seed"
     if [[ "$_seed_line" =~ ^[0-9]+$ ]] && \
        [[ "$_seed_line" -ge 1 ]] && \
        [[ "$_seed_line" -le "${#_sug_arr[@]}" ]]; then
       local _idx=$(( _seed_line - 1 ))
       _seed_line="${_sug_arr[$_idx]}"
+      _src="ai-example"
       echo "  │    → $_seed_line"
     fi
     _seeds+=("$_seed_line")
+    _srcs+=("$_src")
   done
 
   local _seeds_added=0
@@ -418,14 +423,16 @@ with open(sys.argv[1], encoding='utf-8') as f:
 print(prd.get('storyIdPrefix', 'US'))
 " "$prd_file" 2>/dev/null) || _story_prefix="US"
 
-    for _seed in "${_seeds[@]}"; do
+    for _sidx in "${!_seeds[@]}"; do
+      local _seed="${_seeds[$_sidx]}"
+      local _src="${_srcs[$_sidx]}"
       local _story_id="${_story_prefix}-${_next_id}"
       local _ts
       _ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-      "$SPIRAL_PYTHON" - "$prd_file" "$_story_id" "$_seed" "$_ts" 2>/dev/null <<'_PY' \
+      "$SPIRAL_PYTHON" - "$prd_file" "$_story_id" "$_seed" "$_ts" "$_src" 2>/dev/null <<'_PY' \
         || { echo "  │  WARNING: Failed to add '$_seed'" >&2; continue; }
 import json, sys
-prd_file, story_id, title, ts = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+prd_file, story_id, title, ts, src = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5]
 with open(prd_file, encoding="utf-8") as f:
     prd = json.load(f)
 new_story = {
@@ -435,7 +442,8 @@ new_story = {
     "passes": False,
     "description": title,
     "acceptanceCriteria": [],
-    "seed": True,
+    "dependencies": [],
+    "_source": src,
     "added_by": "phase_0_clarify",
     "added_ts": ts,
 }
@@ -443,7 +451,7 @@ prd["userStories"].append(new_story)
 with open(prd_file, "w", encoding="utf-8") as f:
     json.dump(prd, f, indent=2, ensure_ascii=False)
 _PY
-      echo "  │  [0-D]   Added [$_story_id] $_seed"
+      echo "  │  [0-D]   Added [$_story_id] [$_src] $_seed"
       _next_id=$(( _next_id + 1 ))
       _seeds_added=$(( _seeds_added + 1 ))
     done

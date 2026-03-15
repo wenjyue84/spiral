@@ -44,6 +44,33 @@
 # SPIRAL_VALIDATE_CMD="npm test"
 # SPIRAL_VALIDATE_CMD="pytest --tb=short"
 
+# ── Testing Layers ────────────────────────────────────────────────────────────
+# SPIRAL supports three test layers: unit (per-story), integration (per-batch),
+# and E2E (final gate). Layer 2 is the existing SPIRAL_VALIDATE_CMD.
+
+# Layer 1 — Unit Tests (run INSIDE ralph, per story attempt)
+# If set, ralph uses this command as its per-story test baseline. Runs only for
+# the files the current story touches. Fails fast before integration layer runs.
+# If unset, ralph skips to integration-only (existing behavior).
+# Example: "pytest tests/unit/ -x -q" or "vitest run tests/unit"
+# SPIRAL_UNIT_TEST_CMD=""
+
+# Layer 3 — E2E Tests (run in Phase V after integration tests pass)
+# Full application user-flow tests (Playwright, Cypress, pinchtab, etc.).
+# Only runs when SPIRAL_E2E_TRIGGER condition is met (see below).
+# Example: "npx playwright test" or "bash scripts/e2e.sh"
+# SPIRAL_E2E_TEST_CMD=""
+
+# When to run E2E tests:
+#   "final"  — only when ALL stories are done (final completion gate, default)
+#   "batch"  — after every successful integration test run
+#   "always" — alias for "batch"
+# Default: final
+# SPIRAL_E2E_TRIGGER="final"
+
+# Timeout in seconds for E2E test run. Default: 600 (10 min)
+# SPIRAL_E2E_TIMEOUT=600
+
 # ── Per-phase timeouts (seconds) ──────────────────────────────────────────────
 # Each LLM phase has a distinct configurable deadline. When exceeded, the call
 # receives SIGTERM (then SIGKILL after 30s), the result is treated as a phase
