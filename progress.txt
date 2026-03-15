@@ -1,3 +1,26 @@
+## Iteration [11] - Story: US-291: Add `spiral config export-env` command
+
+### What was implemented
+- `cmd_config_export_env` function in `main.py` (lines ~1145-1242) — already fully implemented
+- Reads spiral.config.sh, extracts `SPIRAL_*` variable assignments via regex
+- Strips surrounding quotes, warns on dynamic bash expressions (`$()`, `${}`, backticks)
+- Writes KEY=VALUE .env to `.spiral/.env` by default, or `--output FILE`
+- Sensitive keys (TOKEN, KEY, SECRET in name) are masked with `***` in stdout preview only
+- Written to file in full (unmasked) — compatible with `docker run --env-file` and GitHub Actions
+- 10 tests in `tests/test_main.py` under `TestCmdConfigExportEnv` class — all pass
+
+### Patterns discovered
+- `main.py` uses nested argparse subcommands: `config_parser` → `config_subs` → `export_env_parser`
+- Dispatch in `main()` uses `args.config_command` to route config sub-subcommands
+- `SCRATCH_DIR = Path(__file__).parent / ".spiral"` — default output dir is `.spiral/.env`
+- The `test_route_stories.py` file has a pre-existing import error (relative import issue) — not related to US-291
+
+### Gotchas
+- Story was already fully implemented in `main.py` with complete tests; only needed verification + marking passes
+- `test_route_stories.py` causes collection error in full test suite — use `--ignore` flag to work around
+
+---
+
 ## Iteration [10] - Story: US-279: Capture worker crash tracebacks and persist to .spiral/crashes/ directory
 
 ### What was implemented
@@ -6645,5 +6668,8 @@ Incomplete: Enforce shell=False and per-phase command allowlist in all worker su
 - The bats test failure on test 12 was in the test scaffolding, not the implementation
 
 ## Iteration 1 - Mon, Mar 16, 2026  1:21:01 AM
+Completed: Enforce shell=False and per-phase command allowlist in all worker subprocess calls (ID: US-265) in 14m
+
+## Iteration 3 - Mon, Mar 16, 2026  1:23:07 AM
 Completed: Enforce shell=False and per-phase command allowlist in all worker subprocess calls (ID: US-265) in 14m
 
