@@ -6102,3 +6102,52 @@ Incomplete: Enforce cgroups v2 memory and CPU limits on worker subprocesses (ID:
 
 ### Testing notes
 - bats: tests/bats-core/bin/bats tests/env_validation.bats → 11/11 pass
+## Iteration 1 - Sun, Mar 15, 2026 11:00:25 PM
+Incomplete: Enforce cgroups v2 memory and CPU limits on worker subprocesses (ID: US-259) — attempt /3
+
+
+---
+
+## Iteration [N] - Story: US-196: Add `spiral import-jira` command using Jira REST API v3
+
+### What was implemented
+- `lib/import_jira.py` — full Jira REST API v3 importer using stdlib urllib (no requests dependency)
+  - `fetch_issues()` — paginated JQL search using maxResults/startAt cursor
+  - `map_issue_to_story()` — maps Jira fields to SPIRAL story format with `_jiraKey` metadata
+  - `_build_auth_header()` — Basic auth via base64(email:api_token)
+  - `_adf_to_text()` — recursively extracts plain text from Atlassian Document Format
+  - Priority mapping: Highest→critical, High→high, Medium→medium, Low/Lowest→low
+  - `import_jira_issues()` — orchestrates fetch, dedup, prd.json update via atomic_write_json
+  - CLI: `--host`, `--project`, `--jql`, `--prd`, `--dry-run`; reads JIRA_USER_EMAIL + JIRA_API_TOKEN from env
+- `tests/test_import_jira.py` — 42 tests covering priority mapping, ADF extraction, issue mapping, integration, and CLI
+- `main.py` — `cmd_import_jira()` and `import-jira` subparser already integrated
+
+### Patterns discovered
+- Implementation was pre-existing as untracked files; just needed tests to confirm and prd.json update
+- All 42 tests pass on first run
+
+### Testing notes
+- uv run pytest tests/test_import_jira.py → 42/42 pass
+
+---
+
+## Iteration [N] - Story: US-196: Add `spiral import-jira` command using Jira REST API v3
+
+### What was implemented
+- Created `lib/import_jira.py` following the exact same pattern as `lib/import_github.py`
+- Jira REST API v3 search endpoint with Basic auth (JIRA_USER_EMAIL + JIRA_API_TOKEN base64)
+- Priority mapping: Highest→critical, High→high, Medium→medium, Low/Lowest→low
+- `_jiraKey` field stored in story metadata (e.g. "ENG-42")
+- Pagination via `maxResults`/`startAt` cursor mechanism (50 per page)
+- ADF (Atlassian Document Format) description extraction with recursive tree walker
+- `import_jira_issues()` public API + `main()` CLI entry point
+- Registered `import-jira` subcommand in `main.py` with `cmd_import_jira()` handler
+- Created `tests/test_import_jira.py` — 42 tests, all passing
+
+### Patterns discovered
+- Jira v3 returns description as ADF (nested dict); requires recursive text extraction
+- `_source: "jira-import"` follows same _source convention as "github-import"
+- `import-jira` command requires both `--host` and either `--project` or `--jql`
+
+### Gotchas
+- `test_route_stories.py` has a pre-existing ImportError (relative import in route_stories.py) — not related to this story
