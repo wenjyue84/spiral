@@ -5652,3 +5652,6 @@ Completed: Add flaky bats test detection and quarantine registry (ID: US-240) in
 - The `_FULL_CHARS` computation: `printf '%s' "${_OBS_HISTORY[*]}" | wc -c` joins all elements with spaces — close enough for token estimation
 - `_context_stats.json` is per-iteration, not per-story — only the most recent masking event's stats survive (overwritten each time masking occurs)
 - spiral.sh `write_iter_summary` passes `_context_stats.json` path as argv[12] — must update both the Python block and the `" "$SPIRAL_ITER"...` arg line together
+## Iteration 2 - Sun, Mar 15, 2026  8:42:33 PM
+Completed: Add flaky bats test detection and quarantine registry (ID: US-240) in 28m
+

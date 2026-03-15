@@ -108,6 +108,9 @@ SPIRAL_HOME="${SPIRAL_HOME:-.}"
 # ── Source spiral_undo library for per-story undo stack (US-239) ─────────────
 [[ -f "$SPIRAL_HOME/lib/spiral_undo.sh" ]] && source "$SPIRAL_HOME/lib/spiral_undo.sh"
 
+# ── Source policy_check library for pre-action policy gate (US-242) ──────────
+[[ -f "$SPIRAL_HOME/lib/policy_check.sh" ]] && source "$SPIRAL_HOME/lib/policy_check.sh"
+
 # ── Helper: append a JSONL event to spiral_events.jsonl ─────────────────────
 SPIRAL_SCRATCH_DIR="${SPIRAL_SCRATCH_DIR:-.spiral}"
 log_ralph_event() {
@@ -310,6 +313,15 @@ run_secret_scan() {
 # When unset, behaviour is identical to a plain `git commit -m <msg>`.
 do_git_commit() {
   local msg="$1"
+  # ── Policy gate (US-242): check git_commit ───────────────────────────────
+  if declare -f policy_check >/dev/null 2>&1 && ! policy_check "git_commit" "I"; then
+    echo "  [policy] BLOCKED: git_commit denied by .spiral/policy.json"
+    declare -f policy_log_violation >/dev/null 2>&1 && \
+      policy_log_violation "$PRD_FILE" "${NEXT_STORY:-}" "git_commit" "I" "${JQ:-jq}"
+    log_ralph_event "policy_violation" \
+      "\"story_id\":\"${NEXT_STORY:-}\",\"operation\":\"git_commit\",\"phase\":\"I\"" 2>/dev/null || true
+    return 1
+  fi
   if [[ -n "${SPIRAL_GIT_AUTHOR:-}" ]]; then
     local email="${SPIRAL_GIT_EMAIL:-spiral@noreply.local}"
     msg="${msg}
@@ -325,6 +337,17 @@ Generated-By: SPIRAL"
 # This is the Karpathy ratchet: failed experiments leave zero traces in git.
 do_story_reset() {
   local baseline="${1:-}"
+  # ── Policy gate (US-242): check before executing story_reset ───────────────
+  if declare -f policy_check >/dev/null 2>&1; then
+    if ! policy_check "story_reset" "I"; then
+      echo "  [policy] BLOCKED: story_reset denied by .spiral/policy.json"
+      declare -f policy_log_violation >/dev/null 2>&1 && \
+        policy_log_violation "$PRD_FILE" "${NEXT_STORY:-}" "story_reset" "I" "${JQ:-jq}"
+      log_ralph_event "policy_violation" \
+        "\"story_id\":\"${NEXT_STORY:-}\",\"operation\":\"story_reset\",\"phase\":\"I\"" 2>/dev/null || true
+      return 0
+    fi
+  fi
   if [[ -n "$baseline" ]]; then
     git reset --hard "$baseline" 2>/dev/null || git checkout -- . 2>/dev/null || true
   else
@@ -968,6 +991,15 @@ finalize_story_branch() {
 
   if [[ "${SPIRAL_CREATE_PRS:-false}" == "true" ]]; then
     # Push branch to remote; PR creation handled by create_github_pr
+    # ── Policy gate (US-242): check git_push ─────────────────────────────────
+    if declare -f policy_check >/dev/null 2>&1 && ! policy_check "git_push" "M"; then
+      echo "  [policy] BLOCKED: git_push denied by .spiral/policy.json — branch kept locally"
+      declare -f policy_log_violation >/dev/null 2>&1 && \
+        policy_log_violation "$PRD_FILE" "$story_id" "git_push" "M" "${JQ:-jq}"
+      log_ralph_event "policy_violation" \
+        "\"story_id\":\"$story_id\",\"operation\":\"git_push\",\"phase\":\"M\"" 2>/dev/null || true
+      return 0
+    fi
     echo "  [branch] SPIRAL_CREATE_PRS=true — pushing $branch_name to remote"
     if git push origin "$branch_name" 2>&1; then
       echo "  [branch] Pushed: $branch_name (open for PR)"
@@ -975,6 +1007,17 @@ finalize_story_branch() {
     else
       echo "  [branch] WARNING: failed to push $branch_name — branch kept locally"
     fi
+    return 0
+  fi
+
+  # ── Policy gate (US-242): check git_merge ────────────────────────────────
+  if declare -f policy_check >/dev/null 2>&1 && ! policy_check "git_merge" "M"; then
+    echo "  [policy] BLOCKED: git_merge denied by .spiral/policy.json — branch kept locally"
+    declare -f policy_log_violation >/dev/null 2>&1 && \
+      policy_log_violation "$PRD_FILE" "$story_id" "git_merge" "M" "${JQ:-jq}"
+    log_ralph_event "policy_violation" \
+      "\"story_id\":\"$story_id\",\"operation\":\"git_merge\",\"phase\":\"M\"" 2>/dev/null || true
+    STORY_BRANCH=""
     return 0
   fi
 

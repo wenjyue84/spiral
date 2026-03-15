@@ -67,6 +67,7 @@ WORKER_TIMEOUT="${SPIRAL_WORKER_TIMEOUT:-600}" # per-worker wall-clock limit (0 
 declare -a WORKER_PIDS=()
 declare -a WORKER_FINISHED=()
 declare -a WORKER_EXIT_CODES=()
+declare -a WORKER_PGID_FILES=()  # US-245: path to per-worker PGID file
 
 # ── Graceful cleanup trap — kill orphaned workers on exit/interrupt ─────────
 _CLEANUP_RUNNING=0
@@ -90,6 +91,13 @@ cleanup_parallel() {
     # shellcheck disable=SC2086
     echo "$child_pids" | xargs kill -9 2>/dev/null || true
   fi
+  # US-245: Also kill any remaining process groups tracked via PGID files
+  for _pgid_f in "${WORKER_PGID_FILES[@]:-}"; do
+    [[ -z "$_pgid_f" || ! -f "$_pgid_f" ]] && continue
+    local _pg
+    _pg=$(cat "$_pgid_f" 2>/dev/null | tr -d '[:space:]')
+    [[ -n "$_pg" && "$_pg" =~ ^[0-9]+$ ]] && kill -- -"$_pg" 2>/dev/null || true
+  done
   # Clean up lock dir and pause files
   rm -rf "$LOCK_DIR" 2>/dev/null || true
   for n in $(seq 1 "$RALPH_WORKERS"); do
@@ -502,6 +510,35 @@ if command -v setsid &>/dev/null; then
   _USE_SETSID=1
 fi
 
+# ── US-245: Inspect a crashed worker's worktree for corrupted shared resources ─
+# Removes stale git lock files and incomplete atomic writes before the next retry.
+_inspect_crashed_worktree() {
+  local wtree="$1"
+  local worker_num="$2"
+  local _cleaned=0
+  [[ -d "$wtree" ]] || return 0
+  # Remove stale git lock files (left behind when ralph was killed mid-operation)
+  while IFS= read -r -d '' _lf; do
+    rm -f "$_lf" 2>/dev/null && _cleaned=1 && \
+      echo "  [parallel] Worker $worker_num crash-clean: removed stale lock $_lf"
+  done < <(find "$wtree/.git" -name "*.lock" -print0 2>/dev/null)
+  # Remove incomplete atomic prd.json write
+  if [[ -f "$wtree/prd.json.tmp" ]]; then
+    rm -f "$wtree/prd.json.tmp" 2>/dev/null
+    echo "  [parallel] Worker $worker_num crash-clean: removed prd.json.tmp"
+    _cleaned=1
+  fi
+  # Remove incomplete context stats file
+  if [[ -f "$wtree/.spiral/_context_stats.json.tmp" ]]; then
+    rm -f "$wtree/.spiral/_context_stats.json.tmp" 2>/dev/null
+    _cleaned=1
+  fi
+  if [[ "$_cleaned" -eq 0 ]]; then
+    echo "  [parallel] Worker $worker_num crash-clean: worktree appears clean"
+  fi
+  return 0
+}
+
 # ── Reusable worker launch function ──────────────────────────────────────────
 # Launches worker $1 in a background subshell, appends to WORKER_PIDS /
 # WORKER_FINISHED / WORKER_EXIT_CODES, writes PID file, and disowns.
@@ -514,6 +551,9 @@ _launch_worker_i() {
   [[ -n "$RALPH_MODEL" ]] && _WORKER_MODEL_FLAG="--model $RALPH_MODEL"
   echo "  [parallel] Launching worker $i → log: $LOG"
   local _EXIT_CODE_FILE="$WORKTREE_BASE/worker-${i}/exit_code"
+  # US-245: PGID file — the setsid'd bash writes its own PID (= its PGID) here on startup
+  local _PGID_FILE="$WORKTREE_BASE/worker-${i}/worker.pgid"
+  : >"$_PGID_FILE"  # initialise empty
   (
     _UNLOCK_REPO="$REPO_ROOT"
     _UNLOCK_WTREE="$WTREE"
@@ -532,13 +572,16 @@ _launch_worker_i() {
     _RC=0
     if [[ "$WORKER_TIMEOUT" -gt 0 ]] && command -v timeout &>/dev/null; then
       if [[ "$_USE_SETSID" -eq 1 ]]; then
-        timeout --kill-after=60 "${WORKER_TIMEOUT}" setsid bash "$RALPH_SKILL" "$ITER_PER_WORKER" --prd prd.json $_WORKER_MODEL_FLAG >"$LOG" 2>&1 || _RC=$?
+        # US-245: wrapper writes PGID (= $$ after setsid) before exec'ing ralph
+        timeout --kill-after=60 "${WORKER_TIMEOUT}" \
+          setsid bash -c 'echo "$$" > "'"$_PGID_FILE"'"; exec bash "'"$RALPH_SKILL"'" "'"$ITER_PER_WORKER"'" --prd prd.json '"$_WORKER_MODEL_FLAG" >"$LOG" 2>&1 || _RC=$?
       else
         timeout --kill-after=60 "${WORKER_TIMEOUT}" bash "$RALPH_SKILL" "$ITER_PER_WORKER" --prd prd.json $_WORKER_MODEL_FLAG >"$LOG" 2>&1 || _RC=$?
       fi
     else
       if [[ "$_USE_SETSID" -eq 1 ]]; then
-        setsid bash "$RALPH_SKILL" "$ITER_PER_WORKER" --prd prd.json $_WORKER_MODEL_FLAG >"$LOG" 2>&1 || _RC=$?
+        # US-245: wrapper writes PGID (= $$ after setsid) before exec'ing ralph
+        setsid bash -c 'echo "$$" > "'"$_PGID_FILE"'"; exec bash "'"$RALPH_SKILL"'" "'"$ITER_PER_WORKER"'" --prd prd.json '"$_WORKER_MODEL_FLAG" >"$LOG" 2>&1 || _RC=$?
       else
         bash "$RALPH_SKILL" "$ITER_PER_WORKER" --prd prd.json $_WORKER_MODEL_FLAG >"$LOG" 2>&1 || _RC=$?
       fi
@@ -551,6 +594,7 @@ _launch_worker_i() {
   WORKER_PIDS+=("$_wpid")
   WORKER_FINISHED+=("0")
   WORKER_EXIT_CODES+=("0")
+  WORKER_PGID_FILES+=("$_PGID_FILE")  # US-245: track PGID file for crash cleanup
   echo "$_wpid" >"$WORKTREE_BASE/worker-${i}/worker.pid"
   disown "$_wpid"
 }
@@ -645,6 +689,20 @@ while [[ "$_ALL_DONE" -eq 0 ]]; do
           git -C "$REPO_ROOT" worktree prune 2>/dev/null || true
         elif [[ "$WORKER_EXIT" -ne 0 ]]; then
           echo "  [parallel] Worker $WORKER_NUM exited with status $WORKER_EXIT — continuing remaining workers"
+          # US-245: kill process group to clean up any orphaned children of the crashed worker
+          _CRASH_PGID_FILE="${WORKER_PGID_FILES[$i]:-}"
+          if [[ -n "$_CRASH_PGID_FILE" && -f "$_CRASH_PGID_FILE" ]]; then
+            _CRASH_PGID=$(cat "$_CRASH_PGID_FILE" 2>/dev/null | tr -d '[:space:]')
+            if [[ -n "$_CRASH_PGID" && "$_CRASH_PGID" =~ ^[0-9]+$ ]]; then
+              kill -- -"$_CRASH_PGID" 2>/dev/null && \
+                echo "  [parallel] Worker $WORKER_NUM: killed process group $CRASH_PGID (crash cleanup)" || true
+            fi
+          fi
+          # US-245: inspect worktree for corruption before potential retry
+          _inspect_crashed_worktree "${WORKER_DIRS[$i]}" "$WORKER_NUM"
+          # US-245: log crash to progress.txt
+          echo "## Worker $WORKER_NUM crashed (exit $WORKER_EXIT) — $(date '+%Y-%m-%d %H:%M:%S')" \
+            >>"$SCRATCH_DIR/../progress.txt" 2>/dev/null || true
         else
           echo "  [parallel] Worker $WORKER_NUM finished: $DONE_W/$TOTAL_W stories passed"
         fi
@@ -753,7 +811,7 @@ while [[ "$_ALL_DONE" -eq 0 ]]; do
         echo "  [parallel] Queue: worker(s) waiting — RAM only ${_QUEUE_FREE_MB:-?}MB (need 2048MB)"
       fi
     else
-      _QUEUE_STALL_SECS=$((${_QUEUE_STALL_SECS:-0} + 10))
+      _QUEUE_STALL_SECS=$((${_QUEUE_STALL_SECS:-0} + 5))
       echo "  [parallel] Queue: ${#_WORKER_LAUNCH_QUEUE[@]} deferred (pressure level ${_QUEUE_PRESSURE:-?})"
       if [[ "${_QUEUE_STALL_SECS}" -ge "${SPIRAL_QUEUE_STALL_WARN_SECS:-600}" ]]; then
         echo "  [parallel] ⚠  Queue stalled for $((_QUEUE_STALL_SECS / 60)) min — workers may be holding RAM"
@@ -763,7 +821,7 @@ while [[ "$_ALL_DONE" -eq 0 ]]; do
     fi
   fi
 
-  sleep 10
+  sleep 5  # US-245: 5s poll interval ensures crash detection within 5 seconds
 done
 
 # Resume all paused workers before returning (safety net)
