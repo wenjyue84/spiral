@@ -2709,6 +2709,9 @@ $INJECTED_PROMPT"
                 else
                   _RALPH_TOOL="claude"
                 fi
+                # US-219: begin story task span; prints story-scoped TRACEPARENT for child action spans
+                _STORY_TP=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" begin-story \
+                  --story-id "$_NEXT_SID" --scratch-dir "$SCRATCH_DIR" 2>/dev/null || true)
                 _I_EXIT=0
                 _I_START=$(date +%s)
                 if [[ "${SPIRAL_IMPL_TIMEOUT:-600}" -gt 0 ]] && command -v timeout &>/dev/null; then
@@ -2721,6 +2724,15 @@ $INJECTED_PROMPT"
                   echo "  [I] WARNING: Ralph timed out after ${_I_ELAPSED}s (limit: ${SPIRAL_IMPL_TIMEOUT}s)"
                   log_spiral_event "phase_timeout" "\"phase\":\"I\",\"story_id\":\"$_NEXT_SID\",\"iteration\":$SPIRAL_ITER,\"duration_ms\":$((_I_ELAPSED * 1000)),\"timeout_s\":${SPIRAL_IMPL_TIMEOUT}"
                 fi
+                # US-219: emit action span for the LLM implementation call
+                STORY_TRACEPARENT="$_STORY_TP" "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" emit-action \
+                  --type llm_query --duration-s "$_I_ELAPSED" --story-id "$_NEXT_SID" 2>/dev/null || true
+                # US-219: close story task span with pass/fail
+                _STORY_PASSES=$("$JQ" -r --arg id "$_NEXT_SID" \
+                  '.userStories[] | select(.id == $id) | .passes // false' "$PRD_FILE" 2>/dev/null || echo "false")
+                _STORY_STATUS="failed"; [[ "$_STORY_PASSES" == "true" ]] && _STORY_STATUS="passed"
+                "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" end-story \
+                  --story-id "$_NEXT_SID" --status "$_STORY_STATUS" --scratch-dir "$SCRATCH_DIR" 2>/dev/null || true
               else
                 # Cap workers to story count so no worker sits idle
                 WAVE_WORKERS="$RALPH_WORKERS"
@@ -2784,6 +2796,9 @@ $INJECTED_PROMPT"
             else
               _RALPH_TOOL="claude"
             fi
+            # US-219: begin story task span; prints story-scoped TRACEPARENT for child action spans
+            _STORY_TP=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" begin-story \
+              --story-id "$_NEXT_SID" --scratch-dir "$SCRATCH_DIR" 2>/dev/null || true)
             _I_EXIT=0
             _I_START=$(date +%s)
             if [[ "${SPIRAL_IMPL_TIMEOUT:-600}" -gt 0 ]] && command -v timeout &>/dev/null; then
@@ -2796,6 +2811,15 @@ $INJECTED_PROMPT"
               echo "  [I] WARNING: Ralph timed out after ${_I_ELAPSED}s (limit: ${SPIRAL_IMPL_TIMEOUT}s) — partial progress saved"
               log_spiral_event "phase_timeout" "\"phase\":\"I\",\"story_id\":\"$_NEXT_SID\",\"iteration\":$SPIRAL_ITER,\"duration_ms\":$((_I_ELAPSED * 1000)),\"timeout_s\":${SPIRAL_IMPL_TIMEOUT}"
             fi
+            # US-219: emit action span for the LLM implementation call
+            STORY_TRACEPARENT="$_STORY_TP" "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" emit-action \
+              --type llm_query --duration-s "$_I_ELAPSED" --story-id "$_NEXT_SID" 2>/dev/null || true
+            # US-219: close story task span with pass/fail
+            _STORY_PASSES=$("$JQ" -r --arg id "$_NEXT_SID" \
+              '.userStories[] | select(.id == $id) | .passes // false' "$PRD_FILE" 2>/dev/null || echo "false")
+            _STORY_STATUS="failed"; [[ "$_STORY_PASSES" == "true" ]] && _STORY_STATUS="passed"
+            "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" end-story \
+              --story-id "$_NEXT_SID" --status "$_STORY_STATUS" --scratch-dir "$SCRATCH_DIR" 2>/dev/null || true
           fi
 
           # ── Batch merge: restore full PRD with ralph's updates ─────────

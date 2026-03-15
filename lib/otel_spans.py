@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-lib/otel_spans.py — OTel GenAI agent spans for SPIRAL (US-184)
+lib/otel_spans.py — OTel GenAI agent spans for SPIRAL (US-184, US-219)
 
 Emits OpenTelemetry spans conforming to the GenAI agent semantic conventions
 (https://opentelemetry.io/docs/specs/semconv/gen-ai/gen-ai-agent-spans/).
@@ -9,6 +9,19 @@ Shell integration:
   # At run start — outputs W3C TRACEPARENT; saves state to <scratch-dir>/otel_run_context.json
   export TRACEPARENT=$("$SPIRAL_PYTHON" lib/otel_spans.py begin-run \
       --run-id "$SPIRAL_RUN_ID" --scratch-dir "$SCRATCH_DIR" 2>/dev/null)
+
+  # At story start — outputs story-scoped W3C TRACEPARENT for child action spans
+  export STORY_TRACEPARENT=$("$SPIRAL_PYTHON" lib/otel_spans.py begin-story \
+      --story-id "$_NEXT_SID" --scratch-dir "$SCRATCH_DIR" 2>/dev/null)
+
+  # Emit action span (llm_query or tool_call) as child of story task span
+  STORY_TRACEPARENT="$STORY_TRACEPARENT" "$SPIRAL_PYTHON" lib/otel_spans.py emit-action \
+      --type llm_query --duration-s "$_I_ELAPSED" [--story-id "$_NEXT_SID"] 2>/dev/null || true
+
+  # At story end — emit task span with pass/fail status
+  "$SPIRAL_PYTHON" lib/otel_spans.py end-story \
+      --story-id "$_NEXT_SID" --status passed|failed|skipped \
+      --scratch-dir "$SCRATCH_DIR" 2>/dev/null || true
 
   # After each phase ends
   "$SPIRAL_PYTHON" lib/otel_spans.py end-phase \
@@ -21,7 +34,7 @@ Shell integration:
       [--passes N] [--story-count N] 2>/dev/null || true
 
 Silently no-ops when OTEL_EXPORTER_OTLP_ENDPOINT is not set (except begin-run
-which always outputs TRACEPARENT).
+and begin-story which always output TRACEPARENT).
 """
 
 from __future__ import annotations
@@ -42,6 +55,11 @@ _GEN_AI_OPERATION_NAME = "gen_ai.operation.name"
 _GEN_AI_SYSTEM = "gen_ai.system"
 _GEN_AI_INPUT_TOKENS = "gen_ai.usage.input_tokens"
 _GEN_AI_OUTPUT_TOKENS = "gen_ai.usage.output_tokens"
+
+# ── Agentic-system span attributes (US-219, OTel gen-ai-agent-spans proposal) ─
+_GEN_AI_TASK_ID = "gen_ai.task.id"
+_GEN_AI_TASK_STATUS = "gen_ai.task.status"
+_GEN_AI_ACTION_TYPE = "gen_ai.action.type"
 
 # ── Phase → operation name mapping ────────────────────────────────────────────
 _PHASE_OPERATION: dict[str, str] = {
@@ -326,6 +344,145 @@ def cmd_end_run(args: argparse.Namespace) -> None:
     )
 
 
+def cmd_begin_story(args: argparse.Namespace) -> None:
+    """
+    Start a task span for one story. Saves context to scratch dir.
+    Prints W3C TRACEPARENT that child action spans should use as parent.
+
+    The task span is parented to the run root span (TRACEPARENT env var).
+    """
+    scratch = Path(args.scratch_dir)
+    scratch.mkdir(parents=True, exist_ok=True)
+
+    # Parent context from run root (may be unset if begin-run was skipped)
+    run_tp = os.environ.get("TRACEPARENT", "")
+    if run_tp:
+        try:
+            trace_id, parent_span_id = _parse_traceparent(run_tp)
+        except ValueError:
+            trace_id = secrets.token_hex(16)
+            parent_span_id = None
+    else:
+        trace_id = secrets.token_hex(16)
+        parent_span_id = None
+
+    task_span_id = secrets.token_hex(8)
+    task_tp = _build_traceparent(trace_id, task_span_id)
+
+    state = {
+        "story_id": args.story_id,
+        "trace_id": trace_id,
+        "parent_span_id": parent_span_id,
+        "task_span_id": task_span_id,
+        "start_time_ns": _now_ns(),
+    }
+    # Safe filename: replace non-alphanumeric chars with underscore
+    safe_id = "".join(c if c.isalnum() else "_" for c in args.story_id)
+    (scratch / f"otel_story_{safe_id}.json").write_text(json.dumps(state))
+
+    # Print task-scoped TRACEPARENT for child action spans
+    print(task_tp)
+
+
+def cmd_end_story(args: argparse.Namespace) -> None:
+    """
+    Emit the completed task span for a story.
+    No-ops silently if OTEL_EXPORTER_OTLP_ENDPOINT is not set.
+    """
+    if not _otlp_endpoint():
+        return
+
+    scratch = Path(args.scratch_dir)
+    safe_id = "".join(c if c.isalnum() else "_" for c in args.story_id)
+    ctx_file = scratch / f"otel_story_{safe_id}.json"
+    if not ctx_file.exists():
+        return
+
+    try:
+        state = json.loads(ctx_file.read_text())
+    except (OSError, json.JSONDecodeError):
+        return
+
+    trace_id = state.get("trace_id", "")
+    task_span_id = state.get("task_span_id", "")
+    parent_span_id = state.get("parent_span_id")
+    start_ns = int(state.get("start_time_ns", _now_ns()))
+    story_id = state.get("story_id", args.story_id)
+
+    if not trace_id or not task_span_id:
+        return
+
+    end_ns = _now_ns()
+    attributes: dict[str, object] = {
+        _GEN_AI_AGENT_NAME: "spiral",
+        _GEN_AI_OPERATION_NAME: "execute_task",
+        _GEN_AI_SYSTEM: "anthropic",
+        _GEN_AI_TASK_ID: story_id,
+        _GEN_AI_TASK_STATUS: args.status,
+        "spiral.story_id": story_id,
+    }
+
+    _emit_completed_span(
+        name=f"execute_task {story_id}",
+        trace_id_hex=trace_id,
+        parent_span_id_hex=parent_span_id,
+        span_id_hex=task_span_id,
+        start_time_ns=start_ns,
+        end_time_ns=end_ns,
+        attributes=attributes,
+    )
+
+
+def cmd_emit_action(args: argparse.Namespace) -> None:
+    """
+    Emit a single action span (llm_query or tool_call) as a child of the
+    current story task span. Parent context is read from STORY_TRACEPARENT
+    env var (set by begin-story); falls back to TRACEPARENT.
+    No-ops silently if OTEL_EXPORTER_OTLP_ENDPOINT is not set.
+    """
+    if not _otlp_endpoint():
+        return
+
+    # Prefer story-scoped TRACEPARENT for correct parent linkage
+    traceparent = (
+        os.environ.get("STORY_TRACEPARENT", "")
+        or os.environ.get("TRACEPARENT", "")
+    )
+    if not traceparent:
+        return
+
+    try:
+        trace_id, parent_span_id = _parse_traceparent(traceparent)
+    except ValueError:
+        return
+
+    action_type = args.type  # llm_query | tool_call
+    duration_s = float(args.duration_s or 0)
+    end_ns = _now_ns()
+    start_ns = end_ns - int(duration_s * 1_000_000_000)
+    span_id = secrets.token_hex(8)
+
+    attributes: dict[str, object] = {
+        _GEN_AI_AGENT_NAME: "spiral",
+        _GEN_AI_OPERATION_NAME: "invoke_agent",
+        _GEN_AI_SYSTEM: "anthropic",
+        _GEN_AI_ACTION_TYPE: action_type,
+        "spiral.action.duration_s": duration_s,
+    }
+    if args.story_id:
+        attributes["spiral.story_id"] = args.story_id
+
+    _emit_completed_span(
+        name=f"action {action_type}",
+        trace_id_hex=trace_id,
+        parent_span_id_hex=parent_span_id,
+        span_id_hex=span_id,
+        start_time_ns=start_ns,
+        end_time_ns=end_ns,
+        attributes=attributes,
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="SPIRAL OTel GenAI span emitter (US-184)",
@@ -361,6 +518,28 @@ def main() -> None:
     p_end.add_argument("--story-count", type=int, default=None,
                        help="Total number of stories")
 
+    # begin-story (US-219 — task span)
+    p_begin_story = sub.add_parser("begin-story", help="Start a task span for a story")
+    p_begin_story.add_argument("--story-id", required=True, help="Story ID (e.g. US-042)")
+    p_begin_story.add_argument("--scratch-dir", required=True, help="Path to .spiral/ scratch dir")
+
+    # end-story (US-219 — task span)
+    p_end_story = sub.add_parser("end-story", help="Emit completed task span for a story")
+    p_end_story.add_argument("--story-id", required=True, help="Story ID (e.g. US-042)")
+    p_end_story.add_argument("--status", required=True,
+                             choices=["passed", "failed", "skipped"],
+                             help="Story outcome")
+    p_end_story.add_argument("--scratch-dir", required=True, help="Path to .spiral/ scratch dir")
+
+    # emit-action (US-219 — action span)
+    p_action = sub.add_parser("emit-action", help="Emit an action span (llm_query or tool_call)")
+    p_action.add_argument("--type", required=True,
+                          choices=["llm_query", "tool_call"],
+                          help="Action type")
+    p_action.add_argument("--duration-s", type=float, default=0,
+                          help="Action wall-clock duration in seconds")
+    p_action.add_argument("--story-id", default=None, help="Story ID (optional label)")
+
     args = parser.parse_args()
 
     try:
@@ -370,6 +549,12 @@ def main() -> None:
             cmd_end_phase(args)
         elif args.command == "end-run":
             cmd_end_run(args)
+        elif args.command == "begin-story":
+            cmd_begin_story(args)
+        elif args.command == "end-story":
+            cmd_end_story(args)
+        elif args.command == "emit-action":
+            cmd_emit_action(args)
     except Exception:  # pylint: disable=broad-except
         # Never crash spiral.sh due to OTel errors
         pass

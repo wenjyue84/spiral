@@ -4342,7 +4342,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-220",
@@ -4735,6 +4735,428 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-239",
+      "title": "Implement idempotent tool execution with per-story undo stack",
+      "priority": "high",
+      "description": "Each phase action in ralph.sh should be idempotent so re-running after a partial failure produces the same result. An undo stack records reversible operations (file writes, git commits) before executing them, so a failed story can cleanly roll back to a known-good state instead of leaving partially applied changes.",
+      "acceptanceCriteria": [
+        "ralph.sh records each destructive operation (file write, git commit, branch create) to a per-story undo log before executing it",
+        "A 'spiral undo STORY_ID' command replays the undo log in reverse, restoring the worktree to pre-attempt state",
+        "Re-running a previously failed story does not double-apply file changes or create duplicate commits",
+        "Undo log is stored in the worktree at .spiral/undo/STORY_ID.jsonl and cleaned up on successful merge",
+        "A bats test verifies that a simulated mid-story failure leaves the worktree cleanly restorable via the undo log"
+      ],
+      "technicalNotes": [
+        "Pattern: 'agent undo stacks and transaction components that encapsulate complex logic into atomic, reversible units' (InsightFinder, 2025)",
+        "Use git stash or patch files as the undo payload for file-level changes; record git SHA before commit for git-level undo",
+        "Undo log format: JSONL with {operation, target, inverse_command, timestamp}"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "large",
+      "passes": false
+    },
+    {
+      "id": "US-240",
+      "title": "Add flaky bats test detection and quarantine registry",
+      "priority": "high",
+      "description": "Bats tests that fail intermittently block the Gate phase without distinction from real regressions. A quarantine registry tracks per-test pass/fail history across runs; tests exceeding a flakiness threshold are automatically quarantined so they no longer block the gate while remaining visible for monitoring and eventual fix.",
+      "acceptanceCriteria": [
+        "A JSON registry (.spiral/flaky-tests.json) records per-test pass/fail counts across the last N gate runs (default N=20)",
+        "Tests with a flakiness ratio above SPIRAL_FLAKY_THRESHOLD (default 0.3) are marked quarantined",
+        "Quarantined tests still execute but their failure does not cause the Gate phase to fail",
+        "A 'spiral flaky-tests report' command prints all quarantined tests with their current failure rates",
+        "Quarantine is automatically lifted when a test achieves 10 consecutive passes"
+      ],
+      "technicalNotes": [
+        "Detection approach: retry-based (re-run failing test in same invocation) combined with historical scoring across runs (Atlassian Flakinator pattern, 2025)",
+        "Storage: .spiral/flaky-tests.json keyed by test name with {passes, failures, quarantined, lastSeen} fields",
+        "Threshold and window size configurable via SPIRAL_FLAKY_THRESHOLD and SPIRAL_FLAKY_WINDOW env vars"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-241",
+      "title": "Implement observation masking for ralph.sh context window management",
+      "priority": "high",
+      "description": "As worker loops accumulate large conversation histories, LLM context costs escalate and performance degrades. Observation masking replaces older phase outputs with compact placeholders while retaining the most recent N turns in full, reducing token usage by up to 52% without sacrificing task performance.",
+      "acceptanceCriteria": [
+        "ralph.sh tracks a rolling window of the last 10 phase outputs passed to the LLM (configurable via SPIRAL_CONTEXT_WINDOW)",
+        "Phase outputs older than the window are replaced with a one-line summary placeholder before being sent to the LLM",
+        "The LLM is informed of masking via a system prompt note: 'earlier phase outputs omitted for brevity'",
+        "Token count before and after masking is logged to the iteration summary under _contextStats",
+        "Masking achieves at least 40% token reduction on stories with more than 5 completed phases"
+      ],
+      "technicalNotes": [
+        "JetBrains Research (2025): keeping latest 10 turns gave best balance; masking achieved 52% cost reduction vs full history",
+        "Do NOT summarize old turns (adds 7% cost overhead and 13-15% longer runs per JetBrains study); replace with single-line placeholder",
+        "Implement in ralph.sh as a bash function that truncates the context array before each LLM call"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-242",
+      "title": "Add policy adherence validation gate before high-risk phase actions",
+      "priority": "high",
+      "description": "Research shows agents can achieve perfect tool sequencing while violating safety policies. Before ralph.sh executes high-risk actions (git push, merge, file deletion), a lightweight policy-lookup step checks the action against a configurable allow-list and logs a policy verdict, creating an explicit safety layer separate from LLM instruction following.",
+      "acceptanceCriteria": [
+        "A .spiral/policy.json file defines allowed and forbidden operations per phase (R, I, V, M)",
+        "ralph.sh checks the policy file before executing any destructive operation; forbidden operations are logged and skipped",
+        "Policy violations are reported in the checkpoint with a dedicated _policyViolations array field",
+        "A bats test verifies that a worker attempting a forbidden operation has it blocked and recorded",
+        "Policy file ships with safe defaults that can be overridden per project"
+      ],
+      "technicalNotes": [
+        "Four-pillar framework finding: 'policy non-compliance before executing actions' is a distinct and common agent failure mode (arxiv 2512.12791, 2025)",
+        "Keep policy checks in bash (not LLM) to make enforcement deterministic and auditable",
+        "Policy file format: {phase: {allow: [patterns], deny: [patterns]}}"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-243",
+      "title": "Add permission-scoped command allow-list for worker terminal commands",
+      "priority": "high",
+      "description": "Workers currently have unrestricted shell access within their worktree, allowing accidental or LLM-hallucinated destructive commands. A configurable allow-list of permitted commands per phase prevents unauthorized operations without requiring human approval for routine work.",
+      "acceptanceCriteria": [
+        "A .spiral/command-allowlist.json file maps each phase (R, I, V, M) to a list of permitted command prefixes",
+        "ralph.sh intercepts shell commands extracted from LLM output and checks them against the phase allow-list before execution",
+        "Commands not on the allow-list are logged as blocked and the LLM is informed with a structured error message",
+        "The allow-list ships with safe defaults: Phase R (curl, python, cat, ls, jq), Phase I (file ops, git add/commit), Phase V (bats, pytest), Phase M (git merge)",
+        "A bats test verifies a blocked command is not executed and is logged to .spiral/security-events.log"
+      ],
+      "technicalNotes": [
+        "From martinfowler.com: 'a carefully curated allow-list of terminal commands' is a concrete safety pattern for autonomous code generation agents",
+        "Block dangerous patterns by default: 'git push --force', 'rm -rf /', 'git reset --hard' unless explicitly allow-listed",
+        "Log blocked commands to .spiral/security-events.log with timestamp, workerId, and full command attempted"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-244",
+      "title": "Enforce diagnosis-before-action block in Phase I before code modification",
+      "priority": "high",
+      "description": "A key finding from agentic reliability research is that agents skip diagnostic steps before remediation, leading to incorrect fixes. Phase I workers should be required to output a structured diagnosis block before any code modification, making reasoning explicit and verifiable.",
+      "acceptanceCriteria": [
+        "The Phase I system prompt requires workers to output a diagnosis block before any file edits: {currentState, problemIdentified, plannedChanges}",
+        "ralph.sh validates the presence of a diagnosis block in Phase I output before proceeding to execute changes",
+        "Missing diagnosis block causes Phase I to re-prompt: 'Diagnosis block required before making changes. Please output your diagnosis first.'",
+        "Diagnosis blocks are stored in the checkpoint under _phaseI.diagnosisBlock",
+        "A bats test verifies that Phase I output without a diagnosis block triggers re-prompt and does not execute changes"
+      ],
+      "technicalNotes": [
+        "Tools pillar finding: 'skipped diagnostic steps before remediation' is the highest-frequency tool failure pattern in complex agent scenarios (arxiv 2512.12791)",
+        "Pattern: 'enforce diagnostic-before-action patterns; implement DAG-based task dependencies'",
+        "Diagnosis block format: require specific section headers (## Current State, ## Problem, ## Planned Changes) for reliable parsing"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-245",
+      "title": "Launch workers in dedicated process groups for targeted crash cleanup",
+      "priority": "high",
+      "description": "When a worker crashes, spiral.sh currently risks killing sibling workers by targeting all background jobs. Launching each worker with setsid to create its own process group enables surgical kill-by-PGID, ensuring only the crashed worker and its descendants are cleaned up.",
+      "acceptanceCriteria": [
+        "Each worker is launched with setsid so it leads its own process group",
+        "On worker crash detection, spiral.sh kills only the crashed worker's process group: kill -- -PGID",
+        "A worker crash is detected within 5 seconds and logged to progress.txt without interrupting running sibling workers",
+        "After a worker crash, its worktree is inspected for corrupted shared resources and cleaned before the next retry",
+        "A bats test simulates a worker crash (SIGKILL to a worker PID) and verifies sibling workers continue and crash is logged"
+      ],
+      "technicalNotes": [
+        "Vellum 2025: 'faults in one agent don't cascade to others; specialized agents with limited scope reduce complexity'",
+        "QCon SF 2025: 'timeouts and circuit breakers for each parallel branch prevent one slow/failing agent from blocking the entire process'",
+        "Use setsid (POSIX) rather than cgroups for portability across Linux and macOS environments"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-246",
+      "title": "Implement shared-fetch optimization for parallel worker git worktrees",
+      "priority": "medium",
+      "description": "Each worker currently fetches from origin independently, creating redundant network transfers proportional to the number of parallel workers. Since all worktrees share one object database, a single coordinated fetch in the main repo satisfies all workers simultaneously, reducing total fetch time from O(N*12s) to O(1.3s) for 10 workers.",
+      "acceptanceCriteria": [
+        "spiral.sh performs a single 'git fetch origin' in the main repo before launching workers",
+        "Workers do not independently fetch; they use 'git reset --hard origin/main' against already-fetched objects",
+        "A timing log entry records pre-launch fetch duration vs. estimated per-worker fetch total",
+        "With 5+ parallel workers, total fetch time is reduced by at least 50% compared to per-worker fetches",
+        "A bats test verifies that only one network fetch event occurs in the git trace log when multiple workers start"
+      ],
+      "technicalNotes": [
+        "Shared object database: 'a single fetch operation in any worktree synchronizes objects for all worktrees, eliminating redundant network transfers' (gitcheatsheet.dev)",
+        "Benchmark reported: 12s sequential per-worktree fetch \u2192 1.3s shared fetch across 10 worktrees",
+        "CPU-bound git ops can be parallelized; network ops should be limited to a single shared fetch"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-247",
+      "title": "Add git diff-index fast-path before full worktree status checks",
+      "priority": "medium",
+      "description": "spiral.sh runs full git status on all worktrees at startup and during gate checks, costing ~80ms per worktree. Replacing this with a lightweight git diff-index --quiet HEAD check (~15ms) as a pre-screen reduces total status check time by up to 81% when most worktrees are clean.",
+      "acceptanceCriteria": [
+        "The worktree status check function uses 'git diff-index --quiet HEAD' as a fast pre-check before running full 'git status'",
+        "Full status is only run on worktrees where diff-index reports uncommitted changes",
+        "The optimization is logged: 'Skipped full status on N/M worktrees (clean)'",
+        "With 10 worktrees and 2 dirty, total check time is under 200ms (benchmark baseline: ~800ms)",
+        "A bats test verifies the fast path is taken for clean worktrees and full status for dirty ones"
+      ],
+      "technicalNotes": [
+        "From gitcheatsheet.dev: selective approach reduces total time from ~800ms to ~150ms for 10 worktrees when only 2 contain changes (81% reduction)",
+        "diff-index ~15ms vs. full status ~80ms per worktree",
+        "Apply same fast-path pattern to the dirty-worktree detection logic at startup"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-248",
+      "title": "Implement LLM-as-Judge continuous quality evaluation for phase outputs",
+      "priority": "medium",
+      "description": "Beyond pass/fail metrics, phase outputs should be evaluated for semantic quality. After each Phase R and Phase I completion, a cheap LLM-as-Judge call scores the output for completeness, accuracy, and relevance, storing scores in the checkpoint for trend analysis and early detection of model degradation.",
+      "acceptanceCriteria": [
+        "After Phase R completes, ralph.sh invokes an LLM-as-Judge prompt scoring the research output on a 1-5 scale for relevance and completeness",
+        "After Phase I completes, the judge scores implementation quality: follows acceptance criteria, no obvious errors",
+        "Scores are stored in the checkpoint under _qualityScores.{phase}: {score, rationale, timestamp}",
+        "The dashboard displays average quality scores per phase across the current iteration",
+        "Low scores (below SPIRAL_QUALITY_THRESHOLD) emit a warning but do not block progression"
+      ],
+      "technicalNotes": [
+        "LLM-as-Judge: 'minimal overhead ($0.06, 14.7s)' vs Agent-as-Judge '$0.96, 913s'; use LLM-Judge for continuous monitoring (arxiv 2512.12791)",
+        "Use a fast/cheap model (haiku or flash) for judging to minimize cost",
+        "Quality scores feed into the production failure telemetry feedback loop"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-249",
+      "title": "Add tool parameter semantic validation before LLM-directed tool calls",
+      "priority": "medium",
+      "description": "Agent tool failures are the most common failure mode in complex scenarios, often caused by incorrect parameter mapping. Before executing tool calls in ralph.sh, a validation layer checks parameter types and semantics against a tool schema registry, surfacing parameter errors before they cause hard-to-debug downstream failures.",
+      "acceptanceCriteria": [
+        "A .spiral/tool-schema.json file defines expected parameter types for the top 10 tools invoked by workers (git, python, bats, jq, curl)",
+        "ralph.sh validates extracted tool call parameters against the schema before execution",
+        "Invalid parameters produce a structured error logged to checkpoint under _toolErrors: {tool, parameter, expected, received, timestamp}",
+        "A bats test verifies that a malformed tool call is caught at the validation layer and not executed",
+        "Schema validation adds no more than 50ms overhead per tool call"
+      ],
+      "technicalNotes": [
+        "Tools pillar finding: 'incorrect parameter mapping (region name vs. instance ID)' is the most common tool failure mode (arxiv 2512.12791)",
+        "Keep validation in bash/python (deterministic) not LLM to avoid recursive validation cost",
+        "Start with top 5 tools: git subcommand validation, python module paths, bats test file existence checks"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-250",
+      "title": "Implement retrieval completeness check before memory-dependent decisions",
+      "priority": "medium",
+      "description": "When workers query prd.json or checkpoint state to make decisions, incomplete retrieval can cause the agent to act on stale or partial information. A completeness check verifies retrieved context satisfies minimum coverage requirements before the LLM proceeds, catching truncated reads and missing fields early.",
+      "acceptanceCriteria": [
+        "Before Phase I begins, ralph.sh verifies the research output contains content for all acceptanceCriteria fields of the story",
+        "Before resuming from checkpoint, spiral.sh verifies the checkpoint contains all required state fields (phase, storyId, retryCount)",
+        "Incomplete retrieval triggers a re-fetch/re-read with an error logged to progress.txt",
+        "After 3 failed completeness checks for the same context, the story is marked blocked with reason 'incomplete_context'",
+        "A bats test verifies a truncated checkpoint triggers re-read before resuming"
+      ],
+      "technicalNotes": [
+        "Memory pillar failure: 'low recall despite high precision (13.1% recall, 30% precision)' \u2014 agents act on incomplete context (arxiv 2512.12791)",
+        "Mitigation: 'add retrieval coverage checks before decisions'",
+        "Coverage check: for prd.json story fields, verify title + description + acceptanceCriteria all non-empty and non-null"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-251",
+      "title": "Extend spiral.sh --replay with --from-phase and --hint for targeted recovery",
+      "priority": "medium",
+      "description": "The existing --replay flag re-runs a story from scratch. Adding --from-phase and --hint parameters enables targeted recovery: re-execute only from a specific phase using additional operator-supplied context, reusing prior checkpoint state to skip already-completed phases and avoid redundant LLM API calls.",
+      "acceptanceCriteria": [
+        "spiral.sh --replay STORY_ID --from-phase PHASE_LETTER re-executes a story starting from the specified phase",
+        "The replay reuses the existing worktree and checkpoint state, skipping phases already marked complete before PHASE_LETTER",
+        "An optional --hint 'text' flag injects extra context into the Phase I system prompt for the replay run",
+        "Replay attempts are tracked in the checkpoint under _replayHistory: [{timestamp, fromPhase, hint}]",
+        "A bats test verifies replay starts from the correct phase and does not re-execute completed phases"
+      ],
+      "technicalNotes": [
+        "From Vellum guide: 'track and replay tasks with new instructions to understand and improve agent behavior'",
+        "Phase letter validation: reject invalid letters and print usage before attempting replay",
+        "Hint injection: prepend hint as a system prompt addendum, not user turn, to avoid prompt injection risk"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-252",
+      "title": "Add production failure telemetry feedback loop for prompt improvement",
+      "priority": "medium",
+      "description": "Failed stories and low-quality phase outputs contain signal for improving system prompts and hints. After each iteration, a script extracts failure patterns from checkpoint data and appends structured feedback to a prompt-improvements log, creating a closed-loop system where production failures drive prompt iteration.",
+      "acceptanceCriteria": [
+        "After each iteration completes, analyze_failures.py scans checkpoints of failed stories and extracts common failure patterns (tool errors, policy violations, low quality scores, context incomplete)",
+        "Patterns are written to .spiral/prompt-improvements.jsonl: {storyId, phase, failureCategory, suggestedHint, timestamp}",
+        "The dashboard displays a 'Top failure patterns this iteration' section sourced from this log",
+        "At least 4 distinct failure categories are recognized: tool_error, policy_violation, context_incomplete, quality_low",
+        "A bats test verifies analyze_failures.py correctly categorizes a set of fixture checkpoint files"
+      ],
+      "technicalNotes": [
+        "InsightFinder pattern: 'production telemetry as the richest input stream for improvement, converting production evidence into training data'",
+        "analyze_failures.py is read-only \u2014 it must not modify prd.json or checkpoint files",
+        "Run analyze_failures.py automatically at the end of each iteration, after Gate phase completes"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-253",
+      "title": "Emit structured agent telemetry for worker phase transitions",
+      "priority": "medium",
+      "description": "Worker checkpoint files are currently opaque blobs read only on failure. Exposing phase transitions as structured telemetry enables real-time observability of worker health and lets the dashboard surface agent decision points, not just final pass/fail outcomes.",
+      "acceptanceCriteria": [
+        "ralph.sh emits a structured telemetry event to .spiral/agent-telemetry.jsonl after each phase transition: {workerId, storyId, fromPhase, toPhase, durationMs, qualityScore, retryCount, timestamp}",
+        "spiral_dashboard.py reads agent-telemetry.jsonl and displays a per-worker phase timeline view",
+        "The telemetry log is append-only and rotated at 10MB",
+        "A bats test verifies that completing Phase R emits a correctly structured telemetry event",
+        "Telemetry is queryable by storyId to reconstruct the full execution timeline for any story"
+      ],
+      "technicalNotes": [
+        "OTel blog 2025: 'agent memory and state must become first-class citizens; without observing state, you cannot understand decisions'",
+        "Distinct from the existing spiral_events.jsonl (generic events): agent-telemetry.jsonl focuses on phase-transition state with durationMs and qualityScore",
+        "Wide Events pattern: semi-structured, high-dimensional telemetry reflecting agent semantic state per transition"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-254",
+      "title": "Implement hierarchical summarization for oversized Phase R research outputs",
+      "priority": "medium",
+      "description": "Phase R research outputs from Gemini can be very long (10,000+ tokens), consuming large portions of the Phase I context window. When research output exceeds a configurable token threshold, a hierarchical summarization step compresses it while preserving all acceptance criteria, technical notes, and source references.",
+      "acceptanceCriteria": [
+        "After Phase R, if research output exceeds SPIRAL_RESEARCH_SUMMARY_THRESHOLD tokens (default 4000), a summarization pass is triggered",
+        "The summarizer preserves all distinct technical requirements, source URLs, and acceptance criteria from the original",
+        "The summarized output is stored in checkpoint under _phaseR.summary; the full output under _phaseR.full",
+        "Phase I receives the summary by default; full output is available via SPIRAL_USE_FULL_RESEARCH=1",
+        "A bats test verifies a fixture research output over threshold is summarized and all acceptance criteria appear in the summary"
+      ],
+      "technicalNotes": [
+        "JetBrains Research 2025: 'hierarchical summarization compresses older conversation segments while preserving essential information'",
+        "Target: maintain 95%+ information retention while achieving 3x+ token reduction (LLMLingua-2 benchmark target)",
+        "Use a cheap/fast model for summarization (not the main implementation model) to keep cost negligible"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-255",
+      "title": "Implement human-in-the-loop approval gate for stories marked sensitive",
+      "priority": "low",
+      "description": "Some stories touch sensitive areas (database migrations, auth, public APIs) where autonomous execution without human review is unacceptable. A 'requiresApproval' flag pauses the worker after Phase I and signals for human approval before Phase V begins, enabling selective oversight without blocking all stories.",
+      "acceptanceCriteria": [
+        "prd.json stories support a boolean 'requiresApproval' field",
+        "When a story with requiresApproval:true completes Phase I, the worker writes .spiral/pending-approvals/STORY_ID.json and pauses",
+        "A 'spiral approve STORY_ID' command creates .spiral/approvals/STORY_ID.approved to unblock the worker",
+        "Pending approvals appear prominently in the dashboard with elapsed wait time",
+        "If no approval is received within SPIRAL_APPROVAL_TIMEOUT (default 24h), the story is marked timed_out_awaiting_approval"
+      ],
+      "technicalNotes": [
+        "Vellum 2025: 'set checkpoints to wait for human approval before continuing' \u2014 approval gates for critical workflow junctures",
+        "martinfowler.com: 'human in the loop to supervise generation remains essential' for production code changes in sensitive areas",
+        "File-based signaling avoids requiring a running web server; poll interval configurable via SPIRAL_APPROVAL_POLL_INTERVAL"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-256",
+      "title": "Add living PRD changelog tracking story field mutations with author and reason",
+      "priority": "low",
+      "description": "prd.json is modified by multiple scripts with no audit trail. A changelog section tracks every mutation (status change, field edit, new story added) with timestamp, author script, and reason, enabling teams to understand how the backlog evolved and debug unexpected state transitions.",
+      "acceptanceCriteria": [
+        "prd.json gains a top-level '_changelog' array where each entry has {timestamp, storyId, field, oldValue, newValue, author, reason}",
+        "All Python scripts that write to prd.json append a changelog entry for every field they modify",
+        "The changelog is append-only; only 'spiral changelog clear' may truncate it",
+        "A 'spiral changelog STORY_ID' command prints the full mutation history for a specific story",
+        "A bats test verifies that a status change from 'pending' to 'in_progress' generates a correctly structured changelog entry"
+      ],
+      "technicalNotes": [
+        "Modern PRD best practice 2025: 'utilize a robust system to manage document versions and track changes; avoid silent revisions that create confusion' (Atlassian/Aha.io)",
+        "Changelog differs from prd.json backup (already covered): it tracks field-level diffs, not file snapshots",
+        "Keep changelog entries compact: max 500 chars for reason field; truncate oldValue/newValue for array fields"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-257",
+      "title": "Tune parallel worker concurrency by operation type (CPU vs network vs disk)",
+      "priority": "low",
+      "description": "SPIRAL launches all workers with the same parallelism setting regardless of operation type, causing I/O thrashing on disk-intensive phases. Tuning concurrency by operation type prevents saturation and improves overall throughput by matching parallelism to the bottleneck resource.",
+      "acceptanceCriteria": [
+        "Three separate env vars replace a single SPIRAL_WORKER_COUNT: SPIRAL_CPU_WORKERS (default: nproc), SPIRAL_NET_WORKERS (default: 4), SPIRAL_DISK_WORKERS (default: 2)",
+        "spiral.sh selects the appropriate limit by phase: Phase R (network, SPIRAL_NET_WORKERS), Phase I/V (CPU, SPIRAL_CPU_WORKERS), Phase M (disk, SPIRAL_DISK_WORKERS)",
+        "The active concurrency limit is logged at phase start: 'Launching N workers (network phase cap)'",
+        "A bats test verifies no more than SPIRAL_NET_WORKERS workers run concurrently during Phase R",
+        "Backward compatibility: setting SPIRAL_WORKER_COUNT still applies as a cap across all three limits"
+      ],
+      "technicalNotes": [
+        "gitcheatsheet.dev: 'CPU-bound: match parallelism to core count; Network: limit to 2-4 workers regardless of cores; Disk-bound: restrict to 1-2 workers to prevent I/O thrashing'",
+        "Benchmark: four parallel workers reduced test execution from 12 minutes to 5 minutes (58% reduction)",
+        "Phase classification: R=network, I=CPU+disk, V=CPU, M=disk"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-258",
+      "title": "Add dashboard story changelog drilldown view from prd.json _changelog",
+      "priority": "low",
+      "description": "Reconstruct the full lifecycle of any story in the dashboard from _changelog entries, showing every status change, field edit, and retry with timestamps and the responsible script. This enables operators to audit why a story ended up in its current state without digging through raw JSON.",
+      "acceptanceCriteria": [
+        "The dashboard's per-story drilldown page includes a 'Story Changelog' tab sourced from prd.json._changelog filtered to that storyId",
+        "Each changelog entry is rendered as a timeline row: timestamp, changed field, old\u2192new value, author script",
+        "The timeline is sorted chronologically and supports filtering by field name",
+        "A 'copy as markdown' button exports the story changelog as a markdown table",
+        "The changelog tab loads within 500ms even for stories with 100+ changelog entries"
+      ],
+      "technicalNotes": [
+        "Depends on the 'Add living PRD changelog tracking story field mutations' story for the _changelog field",
+        "Render using the existing HTML details element pattern already in the dashboard codebase",
+        "Filter implementation: client-side JavaScript, no additional server endpoints required"
+      ],
+      "dependencies": [
+        "Add living PRD changelog tracking story field mutations with author and reason"
+      ],
+      "estimatedComplexity": "small",
       "passes": false
     }
   ]

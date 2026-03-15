@@ -5253,3 +5253,33 @@ Completed: Cascade skip status through dependency chain when a dependency is _sk
 ### Gotchas
 - test_partition.py::test_all_pending_stories_assigned is a flaky hypothesis test (unrelated); passes on rerun
 - test_route_stories.py has a pre-existing import error (relative import) — always exclude from runs
+## Iteration 3 - Sun, Mar 15, 2026  6:27:03 PM
+Completed: Graceful degradation: fall back to Claude for Phase R when Gemini returns 503 (ID: US-206) in 15m
+
+
+## Iteration N - Story: US-219: Emit OTel agentic-system spans for tasks, actions, teams, and artifacts
+
+### What was implemented
+- Added 3 new attribute constants to lib/otel_spans.py: gen_ai.task.id, gen_ai.task.status, gen_ai.action.type
+- Added cmd_begin_story(): creates story task span context (otel_story_<id>.json), prints story-scoped W3C TRACEPARENT
+  - Inherits trace_id from TRACEPARENT env (run root) for distributed trace stitching
+  - Falls back to fresh trace_id if no run context available
+- Added cmd_end_story(): emits completed task span with gen_ai.task.id + gen_ai.task.status on OTLP
+- Added cmd_emit_action(): emits action spans (llm_query|tool_call) parented to STORY_TRACEPARENT env, falls back to TRACEPARENT
+- Registered all 3 new CLI subcommands in main(): begin-story, end-story, emit-action
+- Wired into spiral.sh at both sequential story execution sites (wave=1 single story + parallel fallback):
+  - begin-story before ralph call
+  - emit-action (llm_query) after ralph call completes
+  - end-story with prd.json pass/fail status after ralph call
+- Added 13 new tests in tests/test_otel_spans.py covering all new commands + smoke test
+
+### Patterns discovered
+- Story state files named otel_story_<safe_id>.json (non-alphanumeric → underscore) in SCRATCH_DIR
+- STORY_TRACEPARENT env var carries the story-task-scoped parent for child action spans
+- cmd_emit_action checks STORY_TRACEPARENT first, falls back to TRACEPARENT (run root)
+- All new commands silently no-op when OTEL_EXPORTER_OTLP_ENDPOINT is not set
+
+### Gotchas
+- Story state file uses safe_id (US_042 not US-042) for filesystem compatibility
+- begin-story always prints TRACEPARENT even when OTLP is not configured (needed by shell for scoping)
+- end-story no-ops without OTLP endpoint (consistent with end-phase/end-run pattern)
