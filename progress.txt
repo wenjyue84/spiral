@@ -5446,3 +5446,49 @@ Completed: Replace GitHub Actions long-lived secrets with OIDC short-lived token
 ### Gotchas
 - `test_route_stories.py` has a pre-existing ImportError (relative import issue) — always ignore it
 - Tests take ~3 minutes to run (957 tests); use `--ignore=tests/test_route_stories.py` 
+## Iteration 3 - Sun, Mar 15, 2026  7:32:07 PM
+Incomplete: Implement explicit prompt cache breakpoints for system prompts and PRD context (ID: US-223) — attempt /3
+
+
+## Iteration N - Story: US-209: Lint prd.json at startup: warn on stories missing acceptanceCriteria
+
+### What was implemented
+- Created `lib/prd_lint.py`:
+  - `prd_lint(prd)` → list of violation dicts ({id, title}) for stories missing acceptanceCriteria
+  - Stories with `_skipped: true` excluded
+  - `main()` CLI: prints `WARN [prd-lint] Story <ID> '<title>' has no acceptanceCriteria`
+  - Violations appended to spiral_events.jsonl with event_type: prd_lint_warning
+  - `SPIRAL_STRICT_AC=true` → exit code 1 (hard abort)
+- Wired into `lib/validate_preflight.sh` after duplicate-ID check
+- Created `tests/test_prd_lint.py` with 15 tests (8 unit, 7 integration)
+- All 969 pytest tests pass (3 pre-existing failures in test_partition.py are unrelated)
+
+### Patterns discovered
+- New lib/*.py modules follow: function(data) → value + main() CLI with argparse + sys.path pattern
+- validate_preflight.sh wires Python tools via `"$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/xxx.py"` pattern
+- Events file path is `${scratch_dir}/spiral_events.jsonl` in shell, passed as --events-file arg to Python
+
+### Gotchas
+- `prd_lint.py` must handle `ac = None` (json null) separately from missing key and empty list `[]`
+- test_partition.py has 3 pre-existing failures — always ignore them in count
+## Iteration 1 - Sun, Mar 15, 2026  7:36:35 PM
+Incomplete: Implement explicit prompt cache breakpoints for system prompts and PRD context (ID: US-223) — attempt /3
+
+
+## Iteration N - Story: US-209: Lint prd.json at startup: warn on stories missing acceptanceCriteria
+
+### What was implemented
+- lib/prd_lint.py: already existed (untracked) — scans prd.json for stories missing acceptanceCriteria
+- tests/test_prd_lint.py: already existed (untracked) — 15 tests, all passing
+- spiral.sh: wired prd_lint.py into startup after spiral_preflight_check (line ~793)
+  - Calls: `$SPIRAL_PYTHON lib/prd_lint.py "$PRD_FILE" --events-file "$SCRATCH_DIR/spiral_events.jsonl"`
+  - Exits with non-zero if SPIRAL_STRICT_AC=true and violations found
+
+### Patterns discovered
+- prd_lint.py and test_prd_lint.py were untracked (in git status as ??) but fully implemented
+- Events file path: ${SCRATCH_DIR}/spiral_events.jsonl
+- SCRATCH_DIR is set at line ~529 after config load
+
+### Gotchas
+- test_route_stories.py has a pre-existing import error (relative import) — not related to this story
+- Use utf-8 encoding when reading/writing prd.json (has non-ASCII chars)

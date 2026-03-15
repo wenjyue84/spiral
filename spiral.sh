@@ -792,6 +792,16 @@ fi
 # ── Pre-flight validation ──────────────────────────────────────────────────
 spiral_preflight_check "$PRD_FILE" "$SCRATCH_DIR"
 
+# ── PRD acceptance-criteria lint (US-209) ─────────────────────────────────
+echo "  [preflight] Linting prd.json for missing acceptanceCriteria..."
+_PRD_LINT_RC=0
+"$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/prd_lint.py" "$PRD_FILE" \
+  --events-file "${SCRATCH_DIR}/spiral_events.jsonl" 2>&1 || _PRD_LINT_RC=$?
+if [[ "$_PRD_LINT_RC" -ne 0 ]]; then
+  echo "  [prd-lint] FATAL: Stories missing acceptanceCriteria (SPIRAL_STRICT_AC=true) — aborting."
+  exit "$_PRD_LINT_RC"
+fi
+
 # ── Prompt injection scan ──────────────────────────────────────────────────
 echo "  [preflight] Scanning story fields for prompt injection patterns..."
 _INJECTION_FLAGS=("--prd" "$PRD_FILE" "--audit-log" "$SCRATCH_DIR/security-audit.jsonl" "--update-prd")
