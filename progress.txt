@@ -5680,3 +5680,29 @@ Completed: Add flaky bats test detection and quarantine registry (ID: US-240) in
 - Default policy is allow-all (empty deny list) to preserve existing behavior; users must opt-in to restrictions
 - `do_git_commit` returns 1 on policy block (caller should `|| echo "no changes"` to handle gracefully)
 - `do_story_reset` returns 0 on block (non-fatal; story continues without reset)
+## Iteration 1 - Sun, Mar 15, 2026  9:01:48 PM
+Completed: Implement observation masking for ralph.sh context window management (ID: US-241) in 33m
+
+
+## Iteration N - Story: US-243: Add permission-scoped command allow-list for worker terminal commands
+
+### What was implemented
+- `lib/command_allowlist.sh`: 5 exported functions:
+  - `allowlist_load()` — creates `.spiral/command-allowlist.json` with safe defaults if missing
+  - `cmd_allowed(command, phase)` — checks command prefix against deny list; returns 0 (allowed) or 1 (denied)
+  - `cmd_log_blocked(command, phase, worker_id)` — logs to `.spiral/security-events.log`
+  - `safe_run(phase, command...)` — wrapper: checks then executes, or blocks and logs
+  - `allowlist_scan_stream_json(file, phase, story_id)` — post-scans LLM stream-json for Bash tool_use deny violations
+- Default policy: phase R (curl/python/cat/ls/jq), I (file ops/git add-commit), V (bats/pytest), M (git merge)
+- `ralph/ralph.sh`: sources `lib/command_allowlist.sh` after policy_check; adds post-LLM stream-json scan in phase I
+- `tests/command_allowlist.bats`: 31 bats tests — all pass
+
+### Patterns discovered
+- `allowlist_scan_stream_json` must NOT use `sys.exit(count)` to return violation count — non-zero sys.exit triggers `set -e` in bash even in command substitution `$(...)` when NOT using `local var=$(...)` on same line. Fix: always exit 0, print blocked commands one-per-line, count in bash
+- Windows/MINGW64: pass file paths as CLI args to python3, not embedded in `-c` strings; use `python3 - "$FILE" <<'PYEOF' ... PYEOF` pattern in bats (Git Bash translates CLI args but not string contents)
+- `cmd_allowed` always calls `allowlist_load` which creates the file — can't test "no file" scenario through the public API; test instead uses default policy with a non-deny command
+
+### Gotchas
+- `violations=$(python3 ...)` with `sys.exit(N)` inside: when N>0, bash sees non-zero exit code from the assignment and aborts under `set -e`. Use `|| true` or always exit 0 from python
+- The allow-list scan is post-hoc (after LLM run) — it can't block commands the LLM already executed via tool_use. It's an audit mechanism, not a real-time interceptor
+- `safe_run()` wraps ralph.sh's OWN bash executions, not the AI's tool calls
