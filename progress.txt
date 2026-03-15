@@ -6697,3 +6697,6 @@ Incomplete: Stream ralph.sh worker stdout to spiral_dashboard via Server-Sent Ev
 - diff-index only checks tracked files; untracked files not detected until full status runs
 - Pass `--` to diff-index to avoid pathspec ambiguity
 
+## Iteration 4 - Mon, Mar 16, 2026  1:34:00 AM
+Incomplete: Stream ralph.sh worker stdout to spiral_dashboard via Server-Sent Events (ID: US-277) — attempt /3
+

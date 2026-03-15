@@ -4,6 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 import fs from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'
+import { spawnSync } from 'node:child_process'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
 // ── Spiral API plugin ──────────────────────────────────────────────────────────
@@ -57,6 +58,29 @@ function readConstitution(projectRoot: string, config: Record<string, string>): 
     }
   }
   return '';
+}
+
+/** Query git log for the latest commit timestamp per story ID. Returns a map of storyId → ISO timestamp. */
+function getStoryCompletionTimes(projectRoot: string): Record<string, string> {
+  const result: Record<string, string> = {};
+  try {
+    const proc = spawnSync('git', ['log', '--all', '--format=%aI|%s', '--no-merges'], {
+      cwd: projectRoot, encoding: 'utf8', timeout: 10_000, stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    if (proc.status !== 0 || !proc.stdout) return result;
+    for (const line of proc.stdout.split('\n')) {
+      const sep = line.indexOf('|');
+      if (sep < 0) continue;
+      const ts = line.substring(0, sep).trim();
+      const subject = line.substring(sep + 1);
+      const m = subject.match(/US-\d+|UT-\d+/);
+      if (m && !result[m[0]]) {
+        // git log is newest-first, so first match = latest commit for that story
+        result[m[0]] = ts;
+      }
+    }
+  } catch { /* git not available or not a repo */ }
+  return result;
 }
 
 /** Read last N lines of a text file. */
@@ -458,6 +482,9 @@ function spiralApiPlugin() {
           // Config
           const config = parseConfigSh(path.join(root, 'spiral.config.sh'));
 
+          // Story completion times from git history
+          const completionTimes = getStoryCompletionTimes(root);
+
           // prd.json
           let progress = null;
           const prdPath = path.join(root, 'prd.json');
@@ -477,6 +504,7 @@ function spiralApiPlugin() {
                 failureReason: s._failureReason,
                 dependencies: s.dependencies,
                 status: s._status,
+                completedAt: s.passes ? completionTimes[s.id] ?? null : null,
               }));
               const done = stories.filter(s => s.passes).length;
               const pending = stories.filter(s => !s.passes).length;

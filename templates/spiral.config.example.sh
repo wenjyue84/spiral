@@ -610,3 +610,19 @@
 # Ollama cold-start for large models can take ~13s; pre-warm mitigates this.
 # Default: llama3.2
 # SPIRAL_OLLAMA_MODEL="llama3.2"
+
+# ── File context injection mode (US-280) ─────────────────────────────────────
+# Controls how filesTouch file contents are injected into the story prompt.
+#
+# SPIRAL_CONTEXT_MODE values:
+#   diff  — inject 'git diff HEAD~N -- <files>' (default; 60-80% smaller than full)
+#   full  — inject complete file contents
+#
+# When diff is empty (new files), full content is always injected as fallback.
+# Default: diff
+# SPIRAL_CONTEXT_MODE="diff"
+
+# Number of commits to diff against when SPIRAL_CONTEXT_MODE=diff.
+# Larger values show more history; smaller values focus on recent changes.
+# Default: 3
+# SPIRAL_DIFF_DEPTH="3"

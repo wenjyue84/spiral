@@ -30,6 +30,8 @@ SPIRAL_MODEL_INPUT_PRICE_PER_M="${SPIRAL_MODEL_INPUT_PRICE_PER_M:-3.00}"    # $/
 SPIRAL_MODEL_OUTPUT_PRICE_PER_M="${SPIRAL_MODEL_OUTPUT_PRICE_PER_M:-15.00}" # $/1M output tokens (sonnet default)
 SPIRAL_MODEL_FALLBACK_CHAIN="${SPIRAL_MODEL_FALLBACK_CHAIN:-}"              # colon-separated fallback models (e.g. sonnet:haiku:gemini-2.0-flash)
 SPIRAL_MAX_DIFF_LINES="${SPIRAL_MAX_DIFF_LINES:-500}"                       # 0 = disabled; abort commit if staged diff exceeds this many changed lines
+SPIRAL_CONTEXT_MODE="${SPIRAL_CONTEXT_MODE:-diff}"                          # US-280: diff|full — inject git diff (default) or full file contents as story context
+SPIRAL_DIFF_DEPTH="${SPIRAL_DIFF_DEPTH:-3}"                                 # US-280: number of commits to diff against (git diff HEAD~N)
 SPIRAL_GIT_AUTHOR="${SPIRAL_GIT_AUTHOR:-}"                                  # optional: AI commit author name (e.g. "SPIRAL Agent")
 SPIRAL_GIT_EMAIL="${SPIRAL_GIT_EMAIL:-}"                                    # optional: AI commit author email (e.g. "spiral@noreply.local")
 SPIRAL_DECOMPOSE_THRESHOLD="${SPIRAL_DECOMPOSE_THRESHOLD:-2}"               # auto-decompose story at this retry count; 0 = disabled
@@ -49,6 +51,8 @@ SPIRAL_SKIP_ADR="${SPIRAL_SKIP_ADR:-false}"                             # true =
 SPIRAL_ADR_MODEL="${SPIRAL_ADR_MODEL:-haiku}"                           # Claude model for ADR generation; haiku to minimise cost (US-155)
 SPIRAL_WORKER_MEMORY_LIMIT="${SPIRAL_WORKER_MEMORY_LIMIT:-0}"           # 0 = disabled; KB — peak RSS after story triggers OOM guard (US-158)
 SPIRAL_CONTEXT_WINDOW="${SPIRAL_CONTEXT_WINDOW:-10}"                    # rolling window depth for observation masking (US-241)
+SPIRAL_CONTEXT_MODE="${SPIRAL_CONTEXT_MODE:-diff}"                     # diff|full — context injection mode for filesTouch files (US-280)
+SPIRAL_DIFF_DEPTH="${SPIRAL_DIFF_DEPTH:-3}"                            # number of commits to look back for git diff context injection (US-280)
 PRD_FILE="prd.json"
 PROGRESS_FILE="progress.txt"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -482,6 +486,79 @@ check_diff_size() {
     return 1
   fi
   return 0
+}
+
+# ── filesTouch diff context injection (US-280) ──────────────────────────────
+# build_filestouch_context <story_json>
+# Computes a unified git diff of the filesTouch paths (last SPIRAL_DIFF_DEPTH commits)
+# and returns the context block via stdout.  Falls back to full file contents when:
+#   - diff is empty (new/untracked files)
+#   - filesTouch is absent or empty
+# Diff is truncated at SPIRAL_MAX_DIFF_LINES (default: 500) with a notice.
+# Returns 0 always; outputs empty string when SPIRAL_CONTEXT_MODE=full or no filesTouch.
+build_filestouch_context() {
+  local story_json="${1:-}"
+  if [[ "${SPIRAL_CONTEXT_MODE:-diff}" != "diff" ]]; then
+    return 0
+  fi
+  if [[ -z "$story_json" || "$story_json" == "{}" ]]; then
+    return 0
+  fi
+
+  local _jq_bin="${JQ:-jq}"
+  local _ft_files=()
+  while IFS= read -r _f; do
+    [[ -n "$_f" ]] && _ft_files+=("$_f")
+  done < <("$_jq_bin" -r '.filesTouch // [] | .[]' <<<"$story_json" 2>/dev/null)
+
+  if [[ "${#_ft_files[@]}" -eq 0 ]]; then
+    return 0
+  fi
+
+  local _depth="${SPIRAL_DIFF_DEPTH:-3}"
+  local _max_lines="${SPIRAL_MAX_DIFF_LINES:-500}"
+  local _diff_out
+  _diff_out=$(git diff --unified=5 "HEAD~${_depth}" -- "${_ft_files[@]}" 2>/dev/null || true)
+
+  if [[ -z "$_diff_out" ]]; then
+    # Diff is empty — inject full file contents as fallback (new/untracked files)
+    local _full_content=""
+    local _ff
+    for _ff in "${_ft_files[@]}"; do
+      if [[ -f "$_ff" ]]; then
+        _full_content="${_full_content}
+### File: ${_ff}
+\`\`\`
+$(cat "$_ff")
+\`\`\`
+"
+      fi
+    done
+    if [[ -n "$_full_content" ]]; then
+      echo "## filesTouch File Contents (new/unmodified — no diff available)"
+      echo "${_full_content}"
+      echo "  [context] filesTouch: diff empty — injected full contents (${#_ft_files[@]} file(s))" >&2
+    fi
+    return 0
+  fi
+
+  # Truncate diff if it exceeds SPIRAL_MAX_DIFF_LINES
+  local _diff_lines
+  _diff_lines=$(echo "$_diff_out" | wc -l | tr -d ' \r')
+  local _truncated=0
+  if [[ "${_max_lines:-500}" -gt 0 && "${_diff_lines:-0}" -gt "${_max_lines:-500}" ]]; then
+    _diff_out=$(echo "$_diff_out" | head -"${_max_lines}")
+    _truncated=1
+  fi
+
+  echo "## filesTouch Unified Diff (HEAD~${_depth} → HEAD)"
+  echo "\`\`\`diff"
+  echo "${_diff_out}"
+  if [[ "$_truncated" -eq 1 ]]; then
+    echo "[Diff truncated at ${_max_lines} lines — ${_diff_lines} total lines]"
+  fi
+  echo "\`\`\`"
+  echo "  [context] filesTouch: injected unified diff (${_diff_lines} lines${_truncated:+, truncated at ${_max_lines}})" >&2
 }
 
 # ── Security scan gate (Phase S) ────────────────────────────────
@@ -1574,6 +1651,102 @@ get_pending_story_ids() {
   fi
 }
 
+# ── US-280: Build file context block (diff or full) for story prompt injection ──
+# Reads filesTouch from STORY_JSON; returns context text on stdout.
+# SPIRAL_CONTEXT_MODE=diff  → git diff HEAD~N -- files (default)
+# SPIRAL_CONTEXT_MODE=full  → cat each file
+# Falls back to full content when diff is empty (new file).
+# Truncates at SPIRAL_MAX_DIFF_LINES with a notice.
+build_files_context() {
+  local story_json="$1"
+  local context_mode="${SPIRAL_CONTEXT_MODE:-diff}"
+  local diff_depth="${SPIRAL_DIFF_DEPTH:-3}"
+  local max_lines="${SPIRAL_MAX_DIFF_LINES:-500}"
+
+  # Extract filesTouch array as newline-separated list
+  local files_list
+  files_list=$(printf '%s' "$story_json" | $JQ -r '(.filesTouch // []) | .[]' 2>/dev/null | tr -d '\r' || true)
+  if [[ -z "$files_list" ]]; then
+    return 0  # nothing to inject
+  fi
+
+  local output=""
+  local total_lines=0
+  local truncated=0
+
+  while IFS= read -r fpath; do
+    [[ -z "$fpath" ]] && continue
+    local file_section=""
+
+    if [[ "$context_mode" == "diff" ]]; then
+      # Compute diff against HEAD~N for this file
+      local diff_out
+      diff_out=$(git diff --unified=5 "HEAD~${diff_depth}" -- "$fpath" 2>/dev/null || true)
+      if [[ -z "$diff_out" ]]; then
+        # Empty diff: could be a new file or unchanged; fall back to full content
+        if [[ -f "$fpath" ]]; then
+          local full_out
+          full_out=$(cat "$fpath" 2>/dev/null || true)
+          if [[ -n "$full_out" ]]; then
+            file_section="### File (new/unchanged): $fpath
+\`\`\`
+${full_out}
+\`\`\`"
+          fi
+        fi
+      else
+        file_section="### Diff (last ${diff_depth} commits): $fpath
+\`\`\`diff
+${diff_out}
+\`\`\`"
+      fi
+    else
+      # Full mode: read entire file
+      if [[ -f "$fpath" ]]; then
+        local full_out
+        full_out=$(cat "$fpath" 2>/dev/null || true)
+        if [[ -n "$full_out" ]]; then
+          file_section="### File: $fpath
+\`\`\`
+${full_out}
+\`\`\`"
+        fi
+      fi
+    fi
+
+    if [[ -z "$file_section" ]]; then
+      continue
+    fi
+
+    # Count lines in this section
+    local section_lines
+    section_lines=$(printf '%s\n' "$file_section" | wc -l)
+
+    if [[ "$max_lines" -gt 0 && $(( total_lines + section_lines )) -gt "$max_lines" ]]; then
+      # Truncate: take only the remaining budget
+      local remaining=$(( max_lines - total_lines ))
+      if [[ "$remaining" -gt 0 ]]; then
+        file_section=$(printf '%s\n' "$file_section" | head -n "$remaining")
+        file_section="${file_section}
+[... truncated at SPIRAL_MAX_DIFF_LINES=${max_lines} ...]"
+      else
+        file_section="[... $fpath omitted — SPIRAL_MAX_DIFF_LINES=${max_lines} reached ...]"
+      fi
+      truncated=1
+    fi
+
+    output="${output}${file_section}
+
+"
+    total_lines=$(( total_lines + section_lines ))
+    [[ "$truncated" -eq 1 ]] && break
+  done <<<"$files_list"
+
+  if [[ -n "$output" ]]; then
+    printf '## File Context (SPIRAL_CONTEXT_MODE=%s)\n\n%s' "$context_mode" "$output"
+  fi
+}
+
 # ── Main loop ────────────────────────────────────────────────────
 ITERATION=0
 STORIES_COMPLETED=$COMPLETE_STORIES
@@ -2060,6 +2233,20 @@ $BROWSER_TOOLS_HINT"
       # Minimal user prompt — the system prompt has all instructions
       RALPH_USER_PROMPT="Implement the next incomplete story from prd.json now. Read prd.json and progress.txt, pick the highest priority story where passes is false, and implement it."
 
+      # ── US-280: File context injection (diff or full) ────────────────────────
+      if [[ -n "${STORY_JSON:-}" && "${STORY_JSON:-}" != "{}" ]]; then
+        _FILE_CTX=$(build_files_context "$STORY_JSON" 2>/dev/null || true)
+        if [[ -n "$_FILE_CTX" ]]; then
+          _FC_LINES=$(printf '%s\n' "$_FILE_CTX" | wc -l)
+          echo "  [context] File context injected (${SPIRAL_CONTEXT_MODE:-diff} mode, ${_FC_LINES} lines)"
+          RALPH_USER_PROMPT="$RALPH_USER_PROMPT
+
+---
+
+$_FILE_CTX"
+        fi
+      fi
+
       # ── Retry context injection with observation masking (US-241) ────────────
       # On attempt 2+, prepend a concise brief so the agent doesn't need to hunt
       # through progress.txt to find what the previous attempt learned.
@@ -2154,6 +2341,22 @@ attempt ($EFFECTIVE_MODEL) — use it."
 
 $RALPH_USER_PROMPT"
         echo "  [retry] Attempt $((RETRY_NOW + 1))/$MAX_RETRIES — injected failure context ($RETRY_NOW prior attempt(s), reason: ${_FAIL_REASON:0:60})"
+      fi
+
+      # ── filesTouch diff context injection (US-280) ────────────────────────────
+      # Inject a unified diff of the story's filesTouch paths so the agent has
+      # precise delta context without reading full files from disk.
+      _FT_BODY_TMP="${SPIRAL_SCRATCH_DIR}/_ft_ctx_$$.tmp"
+      _FT_STATUS=$(build_filestouch_context "$STORY_JSON" 2>&1 1>"$_FT_BODY_TMP" || true)
+      _FT_CONTEXT_BODY=$(cat "$_FT_BODY_TMP" 2>/dev/null || true)
+      rm -f "$_FT_BODY_TMP"
+      if [[ -n "$_FT_CONTEXT_BODY" ]]; then
+        RALPH_USER_PROMPT="${RALPH_USER_PROMPT}
+
+---
+
+${_FT_CONTEXT_BODY}"
+        [[ -n "$_FT_STATUS" ]] && echo "$_FT_STATUS"
       fi
 
       echo "  [cache] System prompt: $(echo "$RALPH_SYSTEM_PROMPT" | wc -c) bytes (cacheable via prompt-caching beta)"

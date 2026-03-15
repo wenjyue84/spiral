@@ -19,6 +19,7 @@ interface Story {
   failureReason?: string;
   dependencies?: string[];
   status?: string;
+  completedAt?: string | null;
 }
 
 interface ProgressData {
@@ -253,7 +254,12 @@ function ProgressTab({ data }: { data: ProjectData }) {
               <div key={s.id} className="flex items-start gap-2 rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2">
                 <span className="text-emerald-500 mt-0.5">✓</span>
                 <span className="text-xs font-mono text-emerald-700">{s.id}</span>
-                <span className="ml-1 text-xs text-slate-600">{s.title}</span>
+                <span className="ml-1 text-xs text-slate-600 flex-1 min-w-0">{s.title}</span>
+                {s.completedAt && (
+                  <span className="text-[10px] text-slate-400 flex-shrink-0 whitespace-nowrap" title={formatMYT(s.completedAt)}>
+                    {formatMYT(s.completedAt)}
+                  </span>
+                )}
               </div>
             ))}
           </div>
