@@ -249,6 +249,70 @@ jobs:
             semgrep.sarif
           retention-days: 7
 
+  dep-audit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a  # v4
+        with:
+          enable-cache: true
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Install pip-audit
+        run: uv pip install "pip-audit==2.7.3"
+
+      - name: Build pip-audit ignore flags from .pip-audit.toml
+        id: audit-ignore
+        run: |
+          # Parse ignore-vulns from .pip-audit.toml and build --ignore-vuln flags
+          python3 - <<'PYEOF'
+          import tomllib, pathlib, os
+          p = pathlib.Path(".pip-audit.toml")
+          flags = ""
+          if p.exists():
+              data = tomllib.loads(p.read_text())
+              for vid in data.get("ignore-vulns", []):
+                  flags += f" --ignore-vuln {vid}"
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"flags={flags}\n")
+          PYEOF
+
+      - name: Run pip-audit (Python dependency CVE scan)
+        run: |
+          uv run pip-audit \
+            -f json \
+            -o pip-audit-results.json \
+            ${{ steps.audit-ignore.outputs.flags }} \
+            || { echo "::error::pip-audit found vulnerabilities — see pip-audit-results.json artifact"; exit 1; }
+
+      - name: Run npm audit (Node dependency CVE scan)
+        if: hashFiles('spiral-ui/package.json') != ''
+        working-directory: spiral-ui
+        run: npm audit --audit-level=high --json > ../npm-audit-results.json || { echo "::error::npm audit found HIGH or CRITICAL vulnerabilities — see npm-audit-results.json artifact"; exit 1; }
+
+      - name: Upload audit results as artifacts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: dep-audit-results
+          path: |
+            pip-audit-results.json
+            npm-audit-results.json
+          retention-days: 7
+
   bats:
     runs-on: ubuntu-latest
     permissions:

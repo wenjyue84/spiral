@@ -5063,3 +5063,30 @@ Completed: Pre-flight cross-story file conflict detection using git merge-tree (
 - sanitize_content must return content unchanged (not empty) for falsy but non-empty inputs: guard with `if not content: return content`
 - OSC sequences (\x1b]...BEL) need special pattern to avoid greedy match consuming all remaining text
 - Atomic write: use .with_suffix(resolved.suffix + ".tmp") to preserve original extension (e.g. foo.py.tmp not foo.tmp)
+## Iteration 1 - Sun, Mar 15, 2026  4:39:14 PM
+Completed: Sanitize LLM output before writing to disk to block indirect injection (ID: US-188) in 8m
+
+
+## Iteration N - Story: US-202: Add pip-audit and npm audit dependency vulnerability scan gate in CI
+
+### What was implemented
+- Added `dep-audit` job to `.github/workflows/ci.yml` with:
+  - pip-audit 2.7.3 (pinned) runs on Python dependencies; exits non-zero on any CVE found
+  - Build step reads `.pip-audit.toml` ignore-vulns list and converts to `--ignore-vuln` flags
+  - npm audit `--audit-level=high` runs when `spiral-ui/package.json` exists
+  - Both results uploaded as `dep-audit-results` CI artifact (JSON format, 7-day retention)
+- Created `.pip-audit.toml` suppress list with TOML format (empty by default, commented example)
+- Used correct pip-audit flags: `-f json` and `-o FILE` (no `--config` or `--severity` — these don't exist in 2.7.x)
+
+### Patterns discovered
+- pip-audit 2.7.3 flags: `-f FORMAT`, `-o FILE`, `--ignore-vuln ID` (no --severity, no --config)
+- pip-audit exits 1 if any vulnerability found (not severity-filtered natively); severity filtering requires post-processing
+- TOML parsed with Python's stdlib `tomllib` (Python 3.11+); reads `.pip-audit.toml` for ignore-vulns list
+- npm audit `--audit-level=high` built-in filtering (only fails on HIGH/CRITICAL)
+- GitHub Actions `${{ hashFiles('spiral-ui/package.json') }}` used to conditionally run npm audit step
+
+### Gotchas
+- pip-audit must be installed separately with `uv pip install pip-audit==2.7.3` (not in pyproject.toml dev deps)
+- `uv run pip-audit` works after install into the venv
+- The heredoc `<<'PYEOF'` syntax works in GitHub Actions `run:` steps for inline Python
+- test_route_stories.py has a pre-existing import error (relative import issue in lib/route_stories.py) — not related to this story
