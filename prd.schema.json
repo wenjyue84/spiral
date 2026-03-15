@@ -154,6 +154,30 @@
         },
         "added_ts": {
           "type": "string"
+        },
+        "_low_confidence_fields": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Fields flagged as low-confidence by consistency check (US-228)"
+        },
+        "_consistency_check_confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Consistency check confidence percentage (100 - low_confidence_percentage)"
+        },
+        "_requires_human_review": {
+          "type": "boolean",
+          "description": "True if >20% of acceptance criteria fields diverged between consistency runs"
+        },
+        "_human_review_reason": {
+          "type": "string",
+          "description": "Explanation of why human review is required"
+        },
+        "_consistency_check_cost": {
+          "type": "number",
+          "minimum": 0,
+          "description": "API cost of running consistency checks (separate from implementation cost)"
         }
       },
       "additionalProperties": false

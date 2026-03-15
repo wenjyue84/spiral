@@ -79,6 +79,11 @@ SPIRAL_RESEARCH_SPECIALIST_PROMPT=""
 # SPIRAL_INCREMENTAL_VALIDATE=false
 # SPIRAL_TEST_PREFIX="tests/test_"
 
+# ── Self-consistency hallucination check (US-228) ──────────────────────────
+# When true, skips consistency checks on story acceptance criteria (fast path).
+# Default false = consistency checks enabled (run prompts twice, flag divergent fields).
+# SPIRAL_SKIP_CONSISTENCY_CHECK=false
+
 # ── Manual story exclusion ─────────────────────────────────────────────────
 # Comma-separated story IDs to permanently skip without penalty (no retry
 # increment). Use for stories that are blocked externally or descoped mid-run.
