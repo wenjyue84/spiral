@@ -471,6 +471,47 @@ def cmd_import_jira(args) -> None:
         print("No new stories to add.")
 
 
+def cmd_import_csv(args) -> None:
+    """Bulk-import user stories from a CSV file into prd.json."""
+    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    from import_csv import import_csv_stories  # type: ignore[import-untyped]
+
+    delimiter = args.delimiter.encode("raw_unicode_escape").decode("unicode_escape")
+
+    try:
+        added, skipped, errors = import_csv_stories(
+            csv_path=args.csv_file,
+            prd_path=str(PRD_FILE),
+            delimiter=delimiter,
+            dry_run=getattr(args, "dry_run", False),
+        )
+    except (RuntimeError, ValueError, FileNotFoundError) as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    for msg in errors:
+        print(f"[warn] {msg}")
+
+    for title in skipped:
+        print(f"[skip] Duplicate: {title!r}")
+
+    if getattr(args, "dry_run", False):
+        if added:
+            print(f"\n[dry-run] Would add {len(added)} story/stories:")
+            for story in added:
+                print(f"  {story['id']} ({story['priority']}) — {story['title']}")
+        else:
+            print("[dry-run] No new stories to add.")
+        return
+
+    if added:
+        print(f"Added {len(added)} story/stories to prd.json:")
+        for story in added:
+            print(f"  {story['id']} ({story['priority']}) — {story['title']}")
+    else:
+        print("No new stories to add.")
+
+
 def cmd_graph(args) -> None:
     """Generate Mermaid dependency graph from prd.json."""
     sys.path.insert(0, str(Path(__file__).parent / "lib"))
@@ -953,6 +994,28 @@ def main():
         help="Print stories that would be added without modifying prd.json",
     )
 
+    import_csv_parser = subparsers.add_parser(
+        "import-csv",
+        help="Bulk-import user stories from a CSV spreadsheet into prd.json",
+    )
+    import_csv_parser.add_argument(
+        "csv_file",
+        metavar="CSV_FILE",
+        help="Path to the CSV file containing stories",
+    )
+    import_csv_parser.add_argument(
+        "--delimiter",
+        default=",",
+        metavar="CHAR",
+        help="CSV field delimiter (default: comma). Use '\\t' for TSV files.",
+    )
+    import_csv_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        dest="dry_run",
+        help="Print stories that would be added without modifying prd.json",
+    )
+
     graph_parser = subparsers.add_parser(
         "graph",
         help="Generate Mermaid dependency graph from prd.json",
@@ -999,6 +1062,8 @@ def main():
         cmd_import_github(args)
     elif args.command == "import-jira":
         cmd_import_jira(args)
+    elif args.command == "import-csv":
+        cmd_import_csv(args)
     elif args.command == "graph":
         cmd_graph(args)
     elif args.command == "export-report":
