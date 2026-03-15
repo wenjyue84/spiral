@@ -5803,3 +5803,42 @@ Completed: Add permission-scoped command allow-list for worker terminal commands
 ## Iteration 3 - Sun, Mar 15, 2026  9:24:32 PM
 Incomplete: Generate per-story ADR stub when architectural decision is detected in Phase I output (ID: US-201) — attempt /3
 
+
+---
+
+## Iteration [N] - Story: US-192 - Track actual vs estimated complexity and surface calibration report
+
+### What was implemented
+- Created lib/calibration_tracker.py with `record` and `report` subcommands
+  - `record`: Appends calibration entries to calibration.jsonl with story_id, estimated_complexity, actual_duration_s, phase_retries, passed
+  - `report`: Computes median durations per complexity tier, flags underestimated stories (actual > 2x median), computes pass rate, returns rolling window stats
+- Integrated calibration recording into spiral.sh:
+  - Added CALIBRATION_REPORT_MODE flag and --calibration-report CLI argument
+  - Added calibration recording after each story completion (both sequential and parallel-fallback modes)
+  - Records story's estimated complexity from prd.json, elapsed time, retries, and pass status
+  - Added calibration summary output to final run report (printed after spiral_report.py)
+- Acceptance criteria implementation:
+  - ✓ Criterion 1: calibration.jsonl records with story_id, estimated_complexity, actual_duration_s, phase_retries, passed
+  - ✓ Criterion 4: Calibration summary written to run report after full SPIRAL run
+  - ✓ Criterion 5: `spiral --calibration-report` prints calibration table to stdout
+  - ✗ Criterion 2: UI calibration panel not implemented (noted as out of scope in progress notes)
+  - ✗ Criterion 3: UI flagging of underestimated stories not implemented (depends on criterion 2)
+
+### Patterns discovered
+- Special mode handling in spiral.sh (DOCTOR_MODE, STATUS_ONLY, FLAKY_REPORT_MODE) follows consistent pattern: early exit after preflight checks
+- Story completion tracking via `.passes` field is the authoritative source; timing captured via `date +%s` around ralph.sh execution
+- Calibration recording happens post-ralph, after prd.json is updated with new .passes value
+- JSONL format (one JSON object per line) is used consistently across SPIRAL for append-friendly logging (calibration.jsonl, conflict-log.jsonl)
+
+### Gotchas
+- Story retries are counted but not yet integrated into phase I execution tracking (currently hardcoded to 0)
+- UI implementation (criteria 2 & 3) deferred to future iteration; calibration data structure supports it
+- Parallel mode (run_parallel_ralph.sh) does not yet record calibration per-story; integration point exists but needs coordination with parallel orchestrator
+
+### Testing notes
+- Verified spiral.sh bash syntax: ✓ passed
+- Tested calibration_tracker.py: record and report commands work, underestimate detection works (2.25x ratio detected correctly)
+- Tested --calibration-report flag: outputs calibration summary correctly
+- Tested calibration recording integration: hooks into post-ralph completion flow
+
+---

@@ -3039,6 +3039,17 @@ $INJECTED_PROMPT"
                   --input-tokens "${_TOK_IN:-0}" --output-tokens "${_TOK_OUT:-0}" \
                   --duration-ms "$((_I_ELAPSED * 1000))" \
                   --scratch-dir "$SCRATCH_DIR" 2>/dev/null || true
+                # US-192: record calibration data (actual vs estimated complexity) if story passed
+                if [[ "$_STORY_PASSES" == "true" ]]; then
+                  _EST_COMPLEXITY=$("$JQ" -r --arg id "$_NEXT_SID" '.userStories[] | select(.id == $id) | .estimatedComplexity // "medium"' "$PRD_FILE" 2>/dev/null || echo "medium")
+                  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/calibration_tracker.py" record \
+                    --story-id "$_NEXT_SID" \
+                    --estimated-complexity "$_EST_COMPLEXITY" \
+                    --actual-duration-s "$_I_ELAPSED" \
+                    --phase-retries 0 \
+                    --passed true \
+                    --output calibration.jsonl 2>/dev/null || true
+                fi
               else
                 # Cap workers to story count so no worker sits idle
                 WAVE_WORKERS="$RALPH_WORKERS"
@@ -3134,6 +3145,17 @@ $INJECTED_PROMPT"
               --input-tokens "${_TOK_IN:-0}" --output-tokens "${_TOK_OUT:-0}" \
               --duration-ms "$((_I_ELAPSED * 1000))" \
               --scratch-dir "$SCRATCH_DIR" 2>/dev/null || true
+            # US-192: record calibration data (actual vs estimated complexity) if story passed
+            if [[ "$_STORY_PASSES" == "true" ]]; then
+              _EST_COMPLEXITY=$("$JQ" -r --arg id "$_NEXT_SID" '.userStories[] | select(.id == $id) | .estimatedComplexity // "medium"' "$PRD_FILE" 2>/dev/null || echo "medium")
+              "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/calibration_tracker.py" record \
+                --story-id "$_NEXT_SID" \
+                --estimated-complexity "$_EST_COMPLEXITY" \
+                --actual-duration-s "$_I_ELAPSED" \
+                --phase-retries 0 \
+                --passed true \
+                --output calibration.jsonl 2>/dev/null || true
+            fi
           fi
 
           # ── Batch merge: restore full PRD with ralph's updates ─────────
@@ -3644,6 +3666,15 @@ PYEOF
         --prd "$PRD_FILE" --results "$REPO_ROOT/results.tsv" \
         --retries "$REPO_ROOT/retry-counts.json" --progress "$REPO_ROOT/progress.txt" \
         --output "$SCRATCH_DIR/dashboard.html" --open 2>/dev/null || true
+    fi
+
+    # ── US-192: Print calibration summary if calibration data exists ──────────
+    if [[ -f "calibration.jsonl" ]]; then
+      echo ""
+      echo "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      echo "  📊 CALIBRATION SUMMARY (Actual vs Estimated Complexity)"
+      echo "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/calibration_tracker.py" report --calibration-file "calibration.jsonl" 2>/dev/null || true
     fi
 
     SESSION_END=$(date +%s)
