@@ -53,9 +53,13 @@ SPIRAL_WORKER_MEMORY_LIMIT="${SPIRAL_WORKER_MEMORY_LIMIT:-0}"           # 0 = di
 SPIRAL_CONTEXT_WINDOW="${SPIRAL_CONTEXT_WINDOW:-10}"                    # rolling window depth for observation masking (US-241)
 SPIRAL_CONTEXT_MODE="${SPIRAL_CONTEXT_MODE:-diff}"                     # diff|full — context injection mode for filesTouch files (US-280)
 SPIRAL_DIFF_DEPTH="${SPIRAL_DIFF_DEPTH:-3}"                            # number of commits to look back for git diff context injection (US-280)
+SPIRAL_WORKER_NETWORK_ISOLATION="${SPIRAL_WORKER_NETWORK_ISOLATION:-false}" # true = wrap worker in Linux network namespace via unshare --net (US-278)
 PRD_FILE="prd.json"
 PROGRESS_FILE="progress.txt"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Save original args before parsing (needed for re-exec under unshare)
+_RALPH_ORIG_ARGS=("$@")
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -87,6 +91,38 @@ done
 if [[ "$AI_TOOL" != "amp" && "$AI_TOOL" != "claude" && "$AI_TOOL" != "codex" && "$AI_TOOL" != "qwen" && "$AI_TOOL" != "auto" ]]; then
   echo "Error: Invalid tool: $AI_TOOL (use 'amp', 'claude', 'codex', 'qwen', or 'auto')"
   exit 1
+fi
+
+# ── Network namespace isolation (US-278) ──────────────────────────────────────
+# When SPIRAL_WORKER_NETWORK_ISOLATION=true, re-exec this script under
+# 'unshare --net' on Linux to block all outbound connections.
+# On Windows/macOS the flag is silently accepted but isolation is skipped with
+# a structured warning written to spiral_events.jsonl.
+if [[ "${SPIRAL_WORKER_NETWORK_ISOLATION:-false}" == "true" && -z "${SPIRAL_NETWORK_ISOLATION_APPLIED:-}" ]]; then
+  _OS_TYPE=$(uname -s 2>/dev/null || echo "Unknown")
+  # Normalise MSYS/Cygwin/MinGW identifiers to "Windows"
+  case "$_OS_TYPE" in
+    CYGWIN* | MINGW* | MSYS*) _OS_TYPE="Windows" ;;
+  esac
+  if [[ "$_OS_TYPE" == "Linux" ]]; then
+    if command -v unshare &>/dev/null; then
+      echo "  [network-isolation] Entering network namespace via unshare --net"
+      export SPIRAL_NETWORK_ISOLATION_APPLIED=1
+      exec unshare --net -- bash "$0" "${_RALPH_ORIG_ARGS[@]}"
+    else
+      echo "  [network-isolation] WARNING: unshare not found — network isolation skipped"
+      _ni_ts="$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo '1970-01-01T00:00:00Z')"
+      _ni_log="${SPIRAL_SCRATCH_DIR:-.spiral}/spiral_events.jsonl"
+      printf '{"ts":"%s","event":"network_isolation_skipped","reason":"unshare_not_found","os":"%s"}\n' \
+        "$_ni_ts" "$_OS_TYPE" >>"$_ni_log" 2>/dev/null || true
+    fi
+  else
+    echo "  [network-isolation] WARN: SPIRAL_WORKER_NETWORK_ISOLATION=true but OS is '$_OS_TYPE' — isolation skipped"
+    _ni_ts="$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo '1970-01-01T00:00:00Z')"
+    _ni_log="${SPIRAL_SCRATCH_DIR:-.spiral}/spiral_events.jsonl"
+    printf '{"ts":"%s","event":"network_isolation_skipped","reason":"unsupported_os","os":"%s"}\n' \
+      "$_ni_ts" "$_OS_TYPE" >>"$_ni_log" 2>/dev/null || true
+  fi
 fi
 
 # Check prerequisites

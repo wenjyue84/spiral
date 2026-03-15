@@ -1,3 +1,35 @@
+## Iteration [12] - Story: US-231: Add worktree health audit command
+
+### What was implemented
+- `cmd_worktree_audit()` in `main.py` (~280 lines) — detects 6 anomaly types
+- Anomaly types detected:
+  - `prunable_records` — stale git admin records (via `git worktree list --porcelain` prunable count)
+  - `missing_directory` — admin record exists but worktree dir is gone (reads `.git/worktrees/*/gitdir` files)
+  - `detached_head` — `git symbolic-ref HEAD` fails but `rev-parse HEAD` succeeds
+  - `orphaned_directory` — `.spiral-workers/` dir that's no longer a valid git worktree (both ref checks fail)
+  - `missing_branch` — worktree's branch no longer exists in main repo
+  - `stale_lock` — `.lock` files in worker git dirs older than 5 minutes
+  - `duplicate_branch_checkout` — same branch checked out in 2+ workers simultaneously
+- `--fix` flag: removes stale locks + runs `git worktree prune` for safe anomalies; skips unsafe ones
+- `--json` flag: machine-parseable JSON with `anomalies`, `total`, `clean`, `fixed`, `skipped_unsafe`
+- Exit code: 0=clean, 1=anomalies found
+- Added `worktree` subcommand with `audit` sub-subcommand to main.py argparse
+- 11 tests in `tests/test_worktree_audit.py` — all pass (7 CLI + 4 isolated)
+
+### Patterns discovered
+- `main.py` uses `subparsers.add_parser(...)` + `subs.add_subparsers(...)` for nested subcommands (see config/worktree pattern)
+- On Windows/MSYS: `git worktree list --porcelain` reports prunable entries with MSYS-style paths (`/c/...`) which Python's `Path()` treats as `C:\c\...` (wrong). Use regex `^/([a-zA-Z])/(...)` to convert to `X:/...`
+- The `.git/worktrees/<name>/gitdir` file points back to the worktree's `.git` file; parent = worktree dir
+- Worker dirs that had their git admin records pruned appear as "not a git repository" (both symbolic-ref and rev-parse fail) — distinguish from true detached HEAD
+
+### Gotchas
+- `git worktree prune` removes admin records but not the physical `.spiral-workers/` directories
+  — physical dirs without admin records become "orphaned_directory" anomalies
+- `git worktree list --porcelain` on Windows reports ALL stale entries with same path (main repo) due to MSYS path resolution; count-based detection avoids path parsing for prunable records
+- `shutil.copy(MAIN_PY, tmp_path)` pattern needed in isolated tests since `cmd_worktree_audit` uses `Path(__file__).parent` for repo root
+
+---
+
 ## Iteration [11] - Story: US-291: Add `spiral config export-env` command
 
 ### What was implemented
@@ -6848,3 +6880,80 @@ This brief outlines the implementation plan for streaming `ralph.sh` worker outp
 *   **Client Disconnects**: The server must gracefully handle clients disconnecting without terminating the underlying `ralph.sh` worker process.
 *   **Process Cleanup**: Ensure `await process.wait()` is called after the stream is consumed to prevent zombie processes.
 
+
+## Pre-analysis for US-277 (Gemini 2.5 Pro)
+Here is the technical brief for the Claude agent:
+
+**Objective:** Implement a Server-Sent Events (SSE) endpoint in `spiral_dashboard.py` to stream the live `stdout` and `stderr` from a `ralph.sh` worker process.
+
+**1. Files to Modify:**
+*   `lib/spiral_dashboard.py`: This is the primary file. Add the new FastAPI/Flask API endpoint here.
+*   `ralph/ralph.sh`: This script will be executed by the new endpoint; no modifications are needed, but its output format is key.
+
+**2. Frappe DocTypes / Hooks:**
+*   None. This is a standard Python web application using `asyncio` for concurrency, not the Frappe framework.
+
+**3. Implementation Approach:**
+*   In `spiral_dashboard.py`, create an `async` endpoint for `GET /api/worker-stream/{worker_id}` that returns a `StreamingResponse` with `Content-Type: text/event-stream`.
+*   Inside the endpoint, use `asyncio.create_subprocess_exec` to run `ralph.sh`, capturing `stdout` and `stderr` with `asyncio.subprocess.PIPE`.
+*   To prevent deadlocks, create two `asyncio.Task`s to read from the `stdout` and `stderr` streams concurrently.
+*   As each line is read, format it into a JSON string (`{"story_id": ..., "worker_index": ..., "line": ...}`) and yield it in the SSE `data:` format.
+*   After the subprocess exits, `await process.wait()` and yield a final event: `data: {"type": "done", "status": "passed|failed"}`.
+
+**4. Edge Cases & Gotchas:**
+*   **Deadlock:** You MUST read both `stdout` and `stderr` concurrently to prevent the subprocess from blocking and hanging indefinitely. Do not use `process.communicate()`.
+*   **404 Not Found:** Before starting the process, check for a file or state indicating the worker is valid. If not, return an immediate HTTP 404.
+*   **Graceful Shutdown:** Ensure the `ralph.sh` subprocess is terminated if the client disconnects from the SSE stream.
+
+## Iteration 2 - Mon, Mar 16, 2026  2:18:22 AM
+Incomplete: Stream ralph.sh worker stdout to spiral_dashboard via Server-Sent Events (ID: US-277) — attempt /3
+
+
+## Pre-analysis for US-277 (Gemini 2.5 Pro)
+### Technical Brief: US-277 Server-Sent Events for Worker Logs
+
+**1. Python Files to Modify:**
+*   `lib/spiral_dashboard.py`: Add the new `asyncio`-based SSE endpoint here. This file likely contains the web server logic for the dashboard.
+*   `lib/run_parallel_ralph.sh`: This script likely orchestrates the `ralph.sh` workers. It may need changes to how subprocesses are launched or how their state is tracked so the web server can find them.
+*   `lib/work_queue.py` or `lib/state_machine.py`: A process registry might be needed here to track active workers, their PIDs, and associated story IDs, making them discoverable by the API endpoint.
+
+**2. Framework Components Involved:**
+*   **API Endpoint:** A new route `GET /api/worker-stream/{worker_id}` must be created.
+*   **Web Framework:** The implementation will require an `asyncio`-compatible web framework (like Starlette/FastAPI, though the specific one isn't clear) capable of handling streaming responses (`Content-Type: text/event-stream`).
+*   **Subprocess Management:** `asyncio.create_subprocess_exec` is the core technology for running `ralph.sh` non-blockingly.
+
+**3. Recommended Implementation:**
+*   In `spiral_dashboard.py`, define an `async` endpoint that returns a `StreamingResponse`.
+*   The endpoint will look up the requested `worker_id` in a central process/worker registry. Return HTTP 404 if not found.
+*   The core of the streaming logic will involve reading from the worker's `stdout` and `stderr` pipes concurrently using two separate tasks created with `asyncio.create_task`.
+*   Each line read from the subprocess pipes should be formatted as a JSON payload and sent as an SSE `data:` event.
+*   Upon process termination, send a final event with `{type: 'done', status: '...'}`.
+
+**4. Edge Cases & Gotchas:**
+*   **Process Handle Sharing:** The web server process needs access to the subprocess handles (`stdout`/`stderr` streams) of workers, which may be launched by a different script. Consider moving process creation into a shared Python module accessible by both the launcher and the web server.
+*   **Pipe Deadlock:** Crucially, `stdout` and `stderr` must be read concurrently. Reading them serially or using `process.communicate()` will lead to deadlocks if one buffer fills up.
+*   **Client Disconnect:** The server must gracefully handle client disconnects to avoid orphaned streaming tasks.
+*   **UI Rendering:** The frontend (`spiral-ui`) will need to implement an `EventSource` client and a component that can efficiently render a high volume of log lines without performance degradation.
+
+
+---
+
+## Iteration [12] - Story: US-278: Block worker outbound network access during Phase I using network namespace isolation
+
+### What was implemented
+- `ralph/ralph.sh`: added `SPIRAL_WORKER_NETWORK_ISOLATION` env var default (false)
+- Saved `_RALPH_ORIG_ARGS=("$@")` before argument parsing loop to enable safe re-exec
+- Added re-exec block after argument parsing: on Linux + `unshare` present, sets `SPIRAL_NETWORK_ISOLATION_APPLIED=1` and `exec unshare --net -- bash "$0" "${_RALPH_ORIG_ARGS[@]}"` to enter new network namespace
+- On Windows/macOS (including MINGW/CYGWIN/MSYS), logs warning JSON to `spiral_events.jsonl` and continues without isolation
+- `lib/spiral_doctor.sh`: added unshare capability check — OK/WARN/INFO depending on availability and whether isolation is requested
+
+### Patterns discovered
+- `_RALPH_ORIG_ARGS=("$@")` must be saved BEFORE the `while [[ $# -gt 0 ]]` parsing loop since args are consumed
+- `SPIRAL_NETWORK_ISOLATION_APPLIED=1` env var guards against infinite re-exec loop (exported before exec)
+- MSYS/MINGW/CYGWIN uname returns non-"Linux" string — case statement normalises to "Windows" for clarity
+- Log writes use inline `printf` rather than `log_ralph_event()` since the function isn't defined yet at that point in script execution
+
+### Gotchas
+- Pre-existing test failures: test_infer_dependencies (4 tests), test_partition (2 tests) — not related to US-278
+- 1196 tests pass; 6 pre-existing failures unchanged
+- This is a Linux-only feature by design; Windows/macOS users get a graceful skip with a warning

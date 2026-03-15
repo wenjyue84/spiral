@@ -351,6 +351,28 @@ spiral_doctor() {
     fi
   fi
 
+  # ── unshare — network namespace isolation capability (US-278) ───────────────
+  local _os_type
+  _os_type=$(uname -s 2>/dev/null || echo "Unknown")
+  case "$_os_type" in
+    CYGWIN* | MINGW* | MSYS*) _os_type="Windows" ;;
+  esac
+  if [[ "$_os_type" == "Linux" ]]; then
+    if command -v unshare &>/dev/null; then
+      echo "  [doctor] [OK] unshare found in PATH — SPIRAL_WORKER_NETWORK_ISOLATION=true is supported"
+    else
+      if [[ "${SPIRAL_WORKER_NETWORK_ISOLATION:-false}" == "true" ]]; then
+        echo "  [doctor] [WARN] SPIRAL_WORKER_NETWORK_ISOLATION=true but unshare not found in PATH"
+        echo "           → Fix: Install util-linux (apt-get install util-linux) to enable network isolation"
+        warn_count=$((warn_count + 1))
+      else
+        echo "  [doctor] [INFO] unshare not found — set SPIRAL_WORKER_NETWORK_ISOLATION=true to enable worker network isolation (requires util-linux)"
+      fi
+    fi
+  else
+    echo "  [doctor] [INFO] unshare: OS is '$_os_type' — worker network isolation (US-278) requires Linux"
+  fi
+
   # ── US-279: Recent crash history ──────────────────────────────────────────
   if type report_recent_crashes &>/dev/null; then
     report_recent_crashes 5
