@@ -517,6 +517,7 @@ SPIRAL_CACHE_TTL="${SPIRAL_CACHE_TTL:-7}"                                # days;
 SPIRAL_AUTO_RELEASE="${SPIRAL_AUTO_RELEASE:-false}"                      # true = auto SemVer bump from conventional commits on run completion (US-190)
 SPIRAL_GIT_PUSH="${SPIRAL_GIT_PUSH:-false}"                              # true = push vX.Y.Z tag to origin after auto-release (US-190)
 SPIRAL_GIT_AUTHOR="${SPIRAL_GIT_AUTHOR:-}"                               # fallback git identity "Name <email>" when git config user.name/email is missing (US-211)
+SPIRAL_SAST_ENABLED="${SPIRAL_SAST_ENABLED:-true}"                        # US-262: run Semgrep SAST scan in Phase G; false = disabled
 
 # ── Config validation ─────────────────────────────────────────────────────────
 # Validates required keys are set and applies defaults for optional keys.

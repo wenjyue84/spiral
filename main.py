@@ -1000,6 +1000,106 @@ def cmd_calibration_report(args):
                 print(f"  {complexity:8} | median: {median:6}s | count: {count:4} | ✓ {passed:3} ✗ {failed:3}")
 
 
+def cmd_config_export_env(args) -> None:
+    """Export spiral.config.sh SPIRAL_* variables to a .env file.
+
+    Parses variable assignments from spiral.config.sh, writes KEY=VALUE
+    lines to a .env file compatible with 'docker run --env-file' and
+    GitHub Actions env-file syntax.  Sensitive variable names (containing
+    TOKEN, KEY, or SECRET) are masked in the stdout preview but written
+    in full to the output file.
+    """
+    import re
+
+    # ── Locate spiral.config.sh ───────────────────────────────────────────
+    config_env = os.environ.get("SPIRAL_CONFIG_PATH", "").strip()
+    if config_env:
+        config_file = Path(config_env)
+    else:
+        # Try cwd first (how spiral.sh resolves it), then next to main.py
+        cwd_config = Path.cwd() / "spiral.config.sh"
+        config_file = cwd_config if cwd_config.exists() else Path(__file__).parent / "spiral.config.sh"
+
+    if not config_file.exists():
+        print(
+            f"ERROR: spiral.config.sh not found at {config_file}\n"
+            "Set SPIRAL_CONFIG_PATH or run from your project root.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    # ── Determine output path ─────────────────────────────────────────────
+    output_arg = getattr(args, "output", None)
+    output_path = Path(output_arg) if output_arg else SCRATCH_DIR / ".env"
+
+    # ── Parse the config file ─────────────────────────────────────────────
+    # Match both  `export SPIRAL_VAR=value`  and  `SPIRAL_VAR=value`
+    assign_re = re.compile(r"^\s*(?:export\s+)?(SPIRAL_[A-Z0-9_]+)=(.*?)(?:\s*#.*)?$")
+    # Detect dynamic bash expressions: $VAR, ${VAR}, $(cmd), backticks
+    dynamic_re = re.compile(r"(\$\(|`|\$\{[^}]*\}|\$[A-Za-z_][A-Za-z0-9_]*)")
+    # Sensitive variable names
+    sensitive_re = re.compile(r"(TOKEN|KEY|SECRET)", re.IGNORECASE)
+
+    entries: list[tuple[str, str]] = []   # (key, cleaned_value)
+    dynamic_warnings: list[str] = []
+
+    with open(config_file, encoding="utf-8") as fh:
+        for lineno, line in enumerate(fh, 1):
+            m = assign_re.match(line)
+            if not m:
+                continue
+
+            key = m.group(1)
+            raw_val = m.group(2).strip()
+
+            # Strip surrounding single or double quotes
+            if len(raw_val) >= 2 and raw_val[0] == raw_val[-1] and raw_val[0] in ('"', "'"):
+                raw_val = raw_val[1:-1]
+
+            # Warn about dynamic expressions
+            if dynamic_re.search(raw_val):
+                dynamic_warnings.append(
+                    f"  line {lineno}: {key} contains a dynamic expression "
+                    f"(value may be incorrect): {raw_val[:60]!r}"
+                )
+
+            entries.append((key, raw_val))
+
+    if not entries:
+        print(f"No SPIRAL_* variables found in {config_file}.")
+        sys.exit(0)
+
+    # ── Write .env file ───────────────────────────────────────────────────
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    env_lines = [f"{key}={val}" for key, val in entries]
+    output_path.write_text("\n".join(env_lines) + "\n", encoding="utf-8")
+
+    # ── Stdout preview ────────────────────────────────────────────────────
+    print(f"Exported {len(entries)} variable(s) to {output_path}\n")
+    print("Preview (sensitive values masked with ***):")
+    for key, val in entries:
+        if sensitive_re.search(key):
+            display = "***"
+        elif len(val) > 60:
+            display = val[:57] + "..."
+        else:
+            display = val
+        print(f"  {key}={display}")
+
+    if dynamic_warnings:
+        print(
+            f"\n[warn] {len(dynamic_warnings)} dynamic bash expression(s) detected — "
+            "static extraction may be incomplete or incorrect:"
+        )
+        for w in dynamic_warnings:
+            print(w)
+
+    print(
+        "\n[ok] .env is compatible with 'docker run --env-file' "
+        "and GitHub Actions env-file syntax."
+    )
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="spiral",
@@ -1192,6 +1292,25 @@ def main():
         help="Output format: markdown (default) or json for CI artifact ingestion",
     )
 
+    config_parser = subparsers.add_parser(
+        "config",
+        help="Configuration utilities",
+    )
+    config_subs = config_parser.add_subparsers(dest="config_command", metavar="COMMAND")
+    export_env_parser = config_subs.add_parser(
+        "export-env",
+        help="Export spiral.config.sh SPIRAL_* variables as a .env file",
+    )
+    export_env_parser.add_argument(
+        "--output",
+        metavar="FILE",
+        default=None,
+        help=(
+            "Write .env to FILE (default: .spiral/.env). "
+            "Compatible with 'docker run --env-file' and GitHub Actions env-file syntax."
+        ),
+    )
+
     args = parser.parse_args()
 
     if args.command == "init":
@@ -1216,6 +1335,13 @@ def main():
         cmd_graph(args)
     elif args.command == "export-report":
         cmd_export_report(args)
+    elif args.command == "config":
+        config_command = getattr(args, "config_command", None)
+        if config_command == "export-env":
+            cmd_config_export_env(args)
+        else:
+            config_parser.print_help()
+            sys.exit(0)
     else:
         parser.print_help()
         sys.exit(0)

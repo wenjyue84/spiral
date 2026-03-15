@@ -333,3 +333,101 @@ class TestCmdInit:
             with pytest.raises(SystemExit) as exc:
                 main.cmd_init(None)
         assert exc.value.code == 42
+
+
+# ── config export-env ─────────────────────────────────────────────────────────
+
+class TestCmdConfigExportEnv:
+    """Tests for cmd_config_export_env (US-291)."""
+
+    def _make_config(self, tmp_path: Path, content: str) -> Path:
+        p = tmp_path / "spiral.config.sh"
+        p.write_text(content, encoding="utf-8")
+        return p
+
+    def _args(self, output: str | None = None) -> SimpleNamespace:
+        return SimpleNamespace(output=output)
+
+    def test_writes_key_value_lines(self, tmp_path, capsys):
+        cfg = self._make_config(tmp_path, 'SPIRAL_MODEL_ROUTING="auto"\nSPIRAL_MAX_PENDING=30\n')
+        out_file = tmp_path / "out.env"
+        with patch.dict(os.environ, {"SPIRAL_CONFIG_PATH": str(cfg)}):
+            main.cmd_config_export_env(self._args(output=str(out_file)))
+        lines = out_file.read_text(encoding="utf-8").splitlines()
+        assert "SPIRAL_MODEL_ROUTING=auto" in lines
+        assert "SPIRAL_MAX_PENDING=30" in lines
+
+    def test_strips_double_quotes(self, tmp_path, capsys):
+        cfg = self._make_config(tmp_path, 'SPIRAL_PYTHON="/usr/bin/python3"\n')
+        out_file = tmp_path / "out.env"
+        with patch.dict(os.environ, {"SPIRAL_CONFIG_PATH": str(cfg)}):
+            main.cmd_config_export_env(self._args(output=str(out_file)))
+        content = out_file.read_text(encoding="utf-8")
+        assert "SPIRAL_PYTHON=/usr/bin/python3" in content
+        assert '"' not in content
+
+    def test_strips_single_quotes(self, tmp_path, capsys):
+        cfg = self._make_config(tmp_path, "SPIRAL_STORY_PREFIX='US'\n")
+        out_file = tmp_path / "out.env"
+        with patch.dict(os.environ, {"SPIRAL_CONFIG_PATH": str(cfg)}):
+            main.cmd_config_export_env(self._args(output=str(out_file)))
+        content = out_file.read_text(encoding="utf-8")
+        assert "SPIRAL_STORY_PREFIX=US" in content
+
+    def test_handles_export_prefix(self, tmp_path, capsys):
+        cfg = self._make_config(tmp_path, 'export SPIRAL_VALIDATE_CMD="uv run pytest"\n')
+        out_file = tmp_path / "out.env"
+        with patch.dict(os.environ, {"SPIRAL_CONFIG_PATH": str(cfg)}):
+            main.cmd_config_export_env(self._args(output=str(out_file)))
+        content = out_file.read_text(encoding="utf-8")
+        assert "SPIRAL_VALIDATE_CMD=uv run pytest" in content
+        assert "export" not in content
+
+    def test_masks_sensitive_in_preview(self, tmp_path, capsys):
+        cfg = self._make_config(tmp_path, 'SPIRAL_API_KEY="super_secret"\nSPIRAL_MODEL="sonnet"\n')
+        out_file = tmp_path / "out.env"
+        with patch.dict(os.environ, {"SPIRAL_CONFIG_PATH": str(cfg)}):
+            main.cmd_config_export_env(self._args(output=str(out_file)))
+        captured = capsys.readouterr()
+        assert "***" in captured.out
+        assert "super_secret" not in captured.out
+
+    def test_sensitive_value_written_in_full_to_file(self, tmp_path, capsys):
+        cfg = self._make_config(tmp_path, 'SPIRAL_API_KEY="super_secret"\n')
+        out_file = tmp_path / "out.env"
+        with patch.dict(os.environ, {"SPIRAL_CONFIG_PATH": str(cfg)}):
+            main.cmd_config_export_env(self._args(output=str(out_file)))
+        content = out_file.read_text(encoding="utf-8")
+        assert "super_secret" in content
+
+    def test_warns_on_dynamic_expression(self, tmp_path, capsys):
+        cfg = self._make_config(tmp_path, 'SPIRAL_WORK_STEALING="${SPIRAL_WORK_STEALING:-false}"\n')
+        out_file = tmp_path / "out.env"
+        with patch.dict(os.environ, {"SPIRAL_CONFIG_PATH": str(cfg)}):
+            main.cmd_config_export_env(self._args(output=str(out_file)))
+        captured = capsys.readouterr()
+        assert "[warn]" in captured.out
+        assert "dynamic" in captured.out
+
+    def test_default_output_in_spiral_dir(self, tmp_path, capsys, monkeypatch):
+        cfg = self._make_config(tmp_path, 'SPIRAL_MODEL_ROUTING="auto"\n')
+        scratch = tmp_path / ".spiral"
+        monkeypatch.setattr(main, "SCRATCH_DIR", scratch)
+        with patch.dict(os.environ, {"SPIRAL_CONFIG_PATH": str(cfg)}):
+            main.cmd_config_export_env(self._args(output=None))
+        assert (scratch / ".env").exists()
+
+    def test_exits_1_if_config_missing(self, tmp_path):
+        missing = str(tmp_path / "nonexistent.sh")
+        with patch.dict(os.environ, {"SPIRAL_CONFIG_PATH": missing}):
+            with pytest.raises(SystemExit) as exc:
+                main.cmd_config_export_env(self._args())
+        assert exc.value.code == 1
+
+    def test_no_export_keyword_in_env_file(self, tmp_path, capsys):
+        cfg = self._make_config(tmp_path, 'export SPIRAL_A="1"\nSPIRAL_B="2"\n')
+        out_file = tmp_path / "out.env"
+        with patch.dict(os.environ, {"SPIRAL_CONFIG_PATH": str(cfg)}):
+            main.cmd_config_export_env(self._args(output=str(out_file)))
+        content = out_file.read_text(encoding="utf-8")
+        assert not any(line.startswith("export") for line in content.splitlines())

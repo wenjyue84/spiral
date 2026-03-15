@@ -6501,3 +6501,6 @@ Incomplete: Implement local Ollama model fallback with cold-start pre-warm and e
 - For 'deny' policy: `exit 2` inside apply_local_fallback_policy exits the entire worker process (intended); in bats tests, `run` captures this via subshell so $status=2 works correctly
 - ollama_prewarm must be defined BEFORE it is called at startup — functions are defined after the variable defaults block but before the startup code
 - tests/test_route_stories.py has a pre-existing relative import error (not caused by this story)
+## Iteration 2 - Mon, Mar 16, 2026 12:37:39 AM
+Completed: Implement local Ollama model fallback with cold-start pre-warm and explicit policy flags (ID: US-261) in 25m
+
