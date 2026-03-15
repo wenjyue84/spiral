@@ -5800,3 +5800,6 @@ Completed: Launch workers in dedicated process groups for targeted crash cleanup
 ## Iteration 2 - Sun, Mar 15, 2026  9:20:46 PM
 Completed: Add permission-scoped command allow-list for worker terminal commands (ID: US-243) in 18m
 
+## Iteration 3 - Sun, Mar 15, 2026  9:24:32 PM
+Incomplete: Generate per-story ADR stub when architectural decision is detected in Phase I output (ID: US-201) — attempt /3
+

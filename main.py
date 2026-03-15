@@ -20,6 +20,7 @@ RESULTS_TSV = Path(__file__).parent / "results.tsv"
 RETRY_COUNTS = Path(__file__).parent / "retry-counts.json"
 SCRATCH_DIR = Path(__file__).parent / ".spiral"
 CHECKPOINT_FILE = SCRATCH_DIR / "_checkpoint.json"
+CALIBRATION_FILE = Path(__file__).parent / "calibration.jsonl"
 
 # ── ANSI colour helpers ───────────────────────────────────────────────────────
 _USE_COLOUR = not os.environ.get("NO_COLOR") and sys.stdout.isatty()
@@ -119,6 +120,70 @@ def _avg_retries(stories: list[dict], retry_counts: dict[str, int]) -> float:
         return 0.0
     total = sum(retry_counts.get(s.get("id", ""), 0) for s in stories)
     return total / len(stories)
+
+
+def _load_calibration(path: Path) -> list[dict]:
+    """Load calibration.jsonl records."""
+    if not path.exists():
+        return []
+    records = []
+    try:
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                if line.strip():
+                    try:
+                        records.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        pass
+    except OSError:
+        pass
+    return records
+
+
+def _compute_calibration_stats(records: list[dict]) -> dict:
+    """Compute calibration statistics grouped by complexity tier.
+
+    Returns:
+        {
+            'small': {'median_duration': N, 'count': N, 'stories': [...]},
+            'medium': {...},
+            'large': {...},
+        }
+    """
+    by_complexity: dict[str, list[dict]] = {"small": [], "medium": [], "large": []}
+
+    for record in records:
+        complexity = record.get("estimated_complexity", "unknown")
+        if complexity in by_complexity:
+            by_complexity[complexity].append(record)
+
+    stats = {}
+    for complexity, group in by_complexity.items():
+        if not group:
+            stats[complexity] = {
+                "median_duration": 0,
+                "count": 0,
+                "stories": [],
+                "passed": 0,
+                "failed": 0,
+            }
+            continue
+
+        durations = sorted([r.get("actual_duration_s", 0) for r in group])
+        median = durations[len(durations) // 2] if durations else 0
+
+        passed = sum(1 for r in group if r.get("passed"))
+        failed = len(group) - passed
+
+        stats[complexity] = {
+            "median_duration": median,
+            "count": len(group),
+            "stories": group,
+            "passed": passed,
+            "failed": failed,
+        }
+
+    return stats
 
 
 # ── Rendering ─────────────────────────────────────────────────────────────────
@@ -421,6 +486,102 @@ def cmd_status(args):
         _render_rich(buckets, retry_counts, total, run_id, iteration)
     except ImportError:
         _render_plain(buckets, retry_counts, total, run_id, iteration)
+
+
+def cmd_calibration_report(args):
+    """Print calibration analysis: estimated vs actual complexity tracking."""
+    if not CALIBRATION_FILE.exists():
+        print(f"No calibration data found ({CALIBRATION_FILE.name}). Run SPIRAL to record data.")
+        return
+
+    records = _load_calibration(CALIBRATION_FILE)
+    if not records:
+        print("No calibration records found.")
+        return
+
+    stats = _compute_calibration_stats(records)
+
+    if getattr(args, "json", False):
+        # JSON output
+        output = {}
+        for complexity, data in stats.items():
+            output[complexity] = {
+                "median_duration_s": data["median_duration"],
+                "count": data["count"],
+                "passed": data["passed"],
+                "failed": data["failed"],
+            }
+        print(json.dumps(output, indent=2))
+        return
+
+    # Plain table output
+    print(f"\n{_c('SPIRAL Complexity Calibration Report', 'bold')}\n")
+    print(f"Total records: {len(records)}\n")
+
+    try:
+        from rich.console import Console
+        from rich.table import Table
+
+        console = Console()
+        table = Table(show_header=True, header_style="bold")
+        table.add_column("Complexity", style="cyan")
+        table.add_column("Count", justify="right")
+        table.add_column("Median Duration (s)", justify="right")
+        table.add_column("Passed", justify="right", style="green")
+        table.add_column("Failed", justify="right", style="red")
+
+        for complexity in ("small", "medium", "large"):
+            data = stats[complexity]
+            table.add_row(
+                complexity,
+                str(data["count"]),
+                str(data["median_duration"]),
+                str(data["passed"]),
+                str(data["failed"]),
+            )
+
+        console.print(table)
+
+        # Flag underestimated stories (>2x median)
+        underestimated = []
+        for complexity in ("small", "medium", "large"):
+            data = stats[complexity]
+            median = data["median_duration"]
+            for story in data["stories"]:
+                if story.get("actual_duration_s", 0) > median * 2 and story.get("actual_duration_s", 0) > 0:
+                    underestimated.append(story)
+
+        if underestimated:
+            console.print(f"\n{_c('Underestimated Stories (>2x median for their tier):', 'yellow')}\n")
+            underest_table = Table(show_header=True, header_style="bold")
+            underest_table.add_column("Story ID", style="cyan")
+            underest_table.add_column("Title")
+            underest_table.add_column("Est.", justify="right")
+            underest_table.add_column("Actual (s)", justify="right")
+            underest_table.add_column("Ratio", justify="right")
+
+            for story in underestimated[:10]:  # Show top 10
+                story_id = story.get("story_id", "")
+                title = story.get("story_title", "")[:40]
+                estimated = story.get("estimated_complexity", "?")
+                actual = story.get("actual_duration_s", 0)
+                complexity = story.get("estimated_complexity", "small")
+                median = stats[complexity]["median_duration"]
+                ratio = actual / median if median > 0 else 0
+                underest_table.add_row(story_id, title, estimated, str(actual), f"{ratio:.1f}x")
+
+            console.print(underest_table)
+
+    except ImportError:
+        # Fallback plain text
+        for complexity in ("small", "medium", "large"):
+            data = stats[complexity]
+            median = data["median_duration"]
+            count = data["count"]
+            passed = data["passed"]
+            failed = data["failed"]
+            if count > 0:
+                print(f"  {complexity:8} | median: {median:6}s | count: {count:4} | ✓ {passed:3} ✗ {failed:3}")
 
 
 def main():

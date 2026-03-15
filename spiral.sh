@@ -128,6 +128,7 @@ ARCHIVE_MODE=0        # 1 = archive completed stories and exit (--archive-done)
 CHANGELOG_MODE=0      # 1 = generate CHANGELOG.md via git-cliff and exit (--changelog)
 STALE_REPORT_MODE=0   # 1 = print stale stories and exit (--stale-report)
 FLAKY_REPORT_MODE=0   # 1 = print flaky test quarantine report and exit (--flaky-tests report)
+CALIBRATION_REPORT_MODE=0 # 1 = print calibration report and exit (--calibration-report)
 SPIRAL_LOG_LEVEL="${SPIRAL_LOG_LEVEL:-INFO}" # DEBUG|INFO|WARN|ERROR (case-insensitive)
 
 while [[ $# -gt 0 ]]; do
@@ -276,6 +277,10 @@ while [[ $# -gt 0 ]]; do
         exit 1
       fi
       ;;
+    --calibration-report)
+      CALIBRATION_REPORT_MODE=1
+      shift
+      ;;
     --log-level)
       SPIRAL_LOG_LEVEL="${2^^}" # normalise to upper-case
       shift 2
@@ -328,6 +333,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --changelog                Generate CHANGELOG.md via git-cliff and exit"
       echo "  --stale-report             Print stories inactive beyond SPIRAL_STALE_DAYS (default: 7) and exit"
       echo "  --flaky-tests report       Print quarantined flaky test registry and exit"
+      echo "  --calibration-report       Print actual vs estimated complexity calibration data and exit"
       echo "  --log-level DEBUG|INFO|WARN|ERROR  Output verbosity (default: INFO; can also set SPIRAL_LOG_LEVEL env var)"
       echo "  --status                   Print session state and story counts, then exit"
       echo "  --version                  Print SPIRAL version (git describe) and exit"
@@ -712,6 +718,19 @@ if [[ "$FLAKY_REPORT_MODE" -eq 1 ]]; then
   fi
   source "$_FLAKY_LIB"
   flaky_report
+  exit 0
+fi
+
+# ── --calibration-report: print calibration report and exit ────────────────
+if [[ "$CALIBRATION_REPORT_MODE" -eq 1 ]]; then
+  _CALIB_FILE="calibration.jsonl"
+  if [[ ! -f "$_CALIB_FILE" ]]; then
+    echo "[spiral] ERROR: calibration.jsonl not found. Run SPIRAL first to generate calibration data." >&2
+    exit 1
+  fi
+  echo "📊 CALIBRATION REPORT — Actual vs Estimated Complexity"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/calibration_tracker.py" report --calibration-file "$_CALIB_FILE"
   exit 0
 fi
 
