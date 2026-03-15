@@ -5,6 +5,7 @@ Subcommands:
   run       Execute spiral.sh with forwarded arguments
   status    Show PRD completion summary
   estimate  Show pre-flight API cost projection for pending stories
+  graph     Generate Mermaid dependency graph from prd.json
 """
 import argparse
 import csv
@@ -396,6 +397,18 @@ def cmd_import_github(args) -> None:
         print("No new stories to add.")
 
 
+def cmd_graph(args) -> None:
+    """Generate Mermaid dependency graph from prd.json."""
+    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    from dependency_graph import cmd_graph as _graph  # type: ignore[import-untyped]
+
+    from pathlib import Path as _Path
+
+    output = _Path(args.output) if args.output else None
+    rc = _graph(PRD_FILE, output)
+    sys.exit(rc)
+
+
 def cmd_compact_prd(args) -> None:
     """Strip transient runtime fields from completed/skipped stories in prd.json."""
     sys.path.insert(0, str(Path(__file__).parent / "lib"))
@@ -692,6 +705,17 @@ def main():
         help="Print stories that would be added without modifying prd.json",
     )
 
+    graph_parser = subparsers.add_parser(
+        "graph",
+        help="Generate Mermaid dependency graph from prd.json",
+    )
+    graph_parser.add_argument(
+        "--output",
+        metavar="FILE",
+        default=None,
+        help="Write graph to FILE (e.g. docs/dependency-graph.md); default: stdout",
+    )
+
     args = parser.parse_args()
 
     if args.command == "init":
@@ -708,6 +732,8 @@ def main():
         cmd_compact_prd(args)
     elif args.command == "import-github":
         cmd_import_github(args)
+    elif args.command == "graph":
+        cmd_graph(args)
     else:
         parser.print_help()
         sys.exit(0)

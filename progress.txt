@@ -5972,3 +5972,33 @@ Incomplete: Generate per-story ADR stub when architectural decision is detected 
 - post-story hook exits 0 silently when SPIRAL_SLACK_WEBHOOK_URL is unset
 - run-completion hook exits 0 silently when SPIRAL_SLACK_WEBHOOK_URL is unset
 - All 6 acceptance criteria met
+## Iteration 1 - Sun, Mar 15, 2026  9:54:52 PM
+Incomplete: Enforce cgroups v2 memory and CPU limits on worker subprocesses (ID: US-259) — attempt /3
+
+
+---
+
+## Iteration - Story: US-195: Generate Mermaid dependency graph of prd.json stories on demand
+
+### What was implemented
+- Created `lib/dependency_graph.py` with:
+  - `generate_graph(stories)` → Mermaid flowchart LR string + cycle_ids list
+  - `find_cycles(stories)` → list of story IDs in cycles (Kahn's algorithm)
+  - Stadium shape `([...])` for root/independent nodes (no incoming deps); rectangle `[...]` for nodes with dependencies
+  - Cycle nodes highlighted in red via Mermaid `style` directive
+  - `--output FILE` flag to write to file with auto-created parent dirs
+  - Title truncation at 40 chars with ellipsis
+  - Mermaid-safe escaping of `"`, `(`, `)` characters
+- Added `cmd_graph` function and `graph` subparser to `main.py`
+- Added `dependency_graph` to mypy overrides in `pyproject.toml`
+- `docs/dependency-graph.md` generated as example output
+
+### Patterns discovered
+- New commands follow: `cmd_<name>(args)` function + `subparsers.add_parser(...)` block + dispatch in `if args.command ==` chain
+- New lib modules need to be added to `[[tool.mypy.overrides]]` in pyproject.toml when using `list[dict[str, Any]]` patterns
+- Stadium shape in Mermaid: `nodeid([label])` — renders as pill/rounded rectangle, distinct from regular `[...]`
+
+### Gotchas
+- `list[dict[str, object]]` causes many attr-defined mypy errors; use `list[dict[str, Any]]` instead and add to overrides
+- Mermaid node IDs can't contain hyphens — must replace `US-195` → `US_195`
+- `--ignore-missing-imports` on CLI doesn't load pyproject.toml overrides; run `uv run mypy lib/` without extra flags to use project config

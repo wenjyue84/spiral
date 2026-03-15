@@ -48,6 +48,7 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = [
     "check_dag",
+    "dependency_graph",
     "llm_models",
     "cost_check",
     "decompose_story",
