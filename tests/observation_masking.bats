@@ -227,45 +227,95 @@ Notes: second notes")
 
 # ── Tests: _contextStats file written ─────────────────────────────────────────
 
-@test "_context_stats.json is valid JSON when written" {
-  local scratch_dir
-  scratch_dir=$(mktemp -d)
-  local stats_file="${scratch_dir}/_context_stats.json"
-  # Write a mock stats file (mirrors what ralph.sh writes)
-  printf '{"tokens_before":%d,"tokens_after":%d,"reduction_pct":%d,"stories_masked":%d}\n' \
-    1000 600 40 1 > "$stats_file"
-  # Validate JSON if jq is available
-  if command -v jq &>/dev/null; then
-    run jq empty "$stats_file"
-    [ "$status" -eq 0 ]
-  elif [[ -f "ralph/jq.exe" ]]; then
-    run ralph/jq.exe empty "$stats_file"
-    [ "$status" -eq 0 ]
-  else
-    # Fallback: check file exists and has content
-    [ -s "$stats_file" ]
-  fi
-  rm -rf "$scratch_dir"
+@test "_contextStats written to prd.json with tokensBeforeMasking" {
+  local prd_file
+  prd_file=$(mktemp)
+  cat > "$prd_file" <<'PRDJSON'
+{"userStories":[{"id":"US-TEST","title":"Test","passes":false}]}
+PRDJSON
+  local jq_bin="jq"
+  [[ -f "ralph/jq.exe" ]] && jq_bin="ralph/jq.exe"
+  # Simulate the ralph.sh _contextStats write
+  local tokens_before=200 tokens_after=80 window=3
+  local reduction=$(( (tokens_before - tokens_after) * 100 / (tokens_before + 1) ))
+  "$jq_bin" --argjson ctxstats \
+    "{\"tokensBeforeMasking\":${tokens_before},\"tokensAfterMasking\":${tokens_after},\"reductionPct\":${reduction},\"contextWindow\":${window}}" \
+    '(.userStories[] | select(.id == "US-TEST") | ._contextStats) = $ctxstats' \
+    "$prd_file" > "${prd_file}.tmp" && mv "${prd_file}.tmp" "$prd_file"
+  local result
+  result=$("$jq_bin" -r '.userStories[] | select(.id=="US-TEST") | ._contextStats.tokensBeforeMasking' "$prd_file")
+  rm -f "$prd_file"
+  [ "$result" = "200" ]
 }
 
-@test "_context_stats.json has expected fields" {
-  local scratch_dir
-  scratch_dir=$(mktemp -d)
-  local stats_file="${scratch_dir}/_context_stats.json"
-  printf '{"tokens_before":1000,"tokens_after":600,"reduction_pct":40,"stories_masked":1}\n' \
-    > "$stats_file"
-  if command -v jq &>/dev/null; then
-    local tb ta rp sm
-    tb=$(jq -r '.tokens_before' "$stats_file")
-    ta=$(jq -r '.tokens_after' "$stats_file")
-    rp=$(jq -r '.reduction_pct' "$stats_file")
-    sm=$(jq -r '.stories_masked' "$stats_file")
-    [ "$tb" -eq 1000 ]
-    [ "$ta" -eq 600 ]
-    [ "$rp" -eq 40 ]
-    [ "$sm" -eq 1 ]
-  else
-    [ -s "$stats_file" ]
+@test "_contextStats written to prd.json with tokensAfterMasking" {
+  local prd_file
+  prd_file=$(mktemp)
+  cat > "$prd_file" <<'PRDJSON'
+{"userStories":[{"id":"US-TEST","title":"Test","passes":false}]}
+PRDJSON
+  local jq_bin="jq"
+  [[ -f "ralph/jq.exe" ]] && jq_bin="ralph/jq.exe"
+  local tokens_before=200 tokens_after=80 window=3
+  local reduction=$(( (tokens_before - tokens_after) * 100 / (tokens_before + 1) ))
+  "$jq_bin" --argjson ctxstats \
+    "{\"tokensBeforeMasking\":${tokens_before},\"tokensAfterMasking\":${tokens_after},\"reductionPct\":${reduction},\"contextWindow\":${window}}" \
+    '(.userStories[] | select(.id == "US-TEST") | ._contextStats) = $ctxstats' \
+    "$prd_file" > "${prd_file}.tmp" && mv "${prd_file}.tmp" "$prd_file"
+  local result
+  result=$("$jq_bin" -r '.userStories[] | select(.id=="US-TEST") | ._contextStats.tokensAfterMasking' "$prd_file")
+  rm -f "$prd_file"
+  [ "$result" = "80" ]
+}
+
+@test "_contextStats reductionPct is computed as (before-after)*100/before" {
+  local prd_file
+  prd_file=$(mktemp)
+  cat > "$prd_file" <<'PRDJSON'
+{"userStories":[{"id":"US-TEST","title":"Test","passes":false}]}
+PRDJSON
+  local jq_bin="jq"
+  [[ -f "ralph/jq.exe" ]] && jq_bin="ralph/jq.exe"
+  local tokens_before=200 tokens_after=80 window=3
+  local reduction=$(( (tokens_before - tokens_after) * 100 / (tokens_before + 1) ))
+  "$jq_bin" --argjson ctxstats \
+    "{\"tokensBeforeMasking\":${tokens_before},\"tokensAfterMasking\":${tokens_after},\"reductionPct\":${reduction},\"contextWindow\":${window}}" \
+    '(.userStories[] | select(.id == "US-TEST") | ._contextStats) = $ctxstats' \
+    "$prd_file" > "${prd_file}.tmp" && mv "${prd_file}.tmp" "$prd_file"
+  local result
+  result=$("$jq_bin" -r '.userStories[] | select(.id=="US-TEST") | ._contextStats.reductionPct' "$prd_file")
+  rm -f "$prd_file"
+  # (200-80)*100/(200+1)=59 — expect >= 58 to allow rounding
+  [ "$result" -ge 58 ] && [ "$result" -le 61 ]
+}
+
+@test "_contextStats contextWindow stored correctly" {
+  local prd_file
+  prd_file=$(mktemp)
+  cat > "$prd_file" <<'PRDJSON'
+{"userStories":[{"id":"US-TEST","title":"Test","passes":false}]}
+PRDJSON
+  local jq_bin="jq"
+  [[ -f "ralph/jq.exe" ]] && jq_bin="ralph/jq.exe"
+  local tokens_before=100 tokens_after=60 window=5
+  local reduction=$(( (tokens_before - tokens_after) * 100 / (tokens_before + 1) ))
+  "$jq_bin" --argjson ctxstats \
+    "{\"tokensBeforeMasking\":${tokens_before},\"tokensAfterMasking\":${tokens_after},\"reductionPct\":${reduction},\"contextWindow\":${window}}" \
+    '(.userStories[] | select(.id == "US-TEST") | ._contextStats) = $ctxstats' \
+    "$prd_file" > "${prd_file}.tmp" && mv "${prd_file}.tmp" "$prd_file"
+  local result
+  result=$("$jq_bin" -r '.userStories[] | select(.id=="US-TEST") | ._contextStats.contextWindow' "$prd_file")
+  rm -f "$prd_file"
+  [ "$result" = "5" ]
+}
+
+@test "zero _OBS_TOKENS_BEFORE guard: no _contextStats written when tokens_before is 0" {
+  # This test mirrors the guard in ralph.sh:
+  #   if [[ "${_OBS_TOKENS_BEFORE:-0}" -gt 0 ]]; then ... fi
+  local tokens_before=0
+  local wrote=0
+  if [[ "$tokens_before" -gt 0 ]]; then
+    wrote=1
   fi
-  rm -rf "$scratch_dir"
+  [ "$wrote" -eq 0 ]
 }

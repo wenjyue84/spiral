@@ -1986,11 +1986,18 @@ Earlier phase outputs omitted for brevity (${_MASK_COUNT} of ${_OBS_COUNT} attem
           echo "  [context] Observation masking: ${_MASK_COUNT}/${_OBS_COUNT} attempts masked (${_REDUCTION_PCT}% reduction, ${_FULL_TOKENS}→${_MASKED_TOKENS} tokens)"
           log_ralph_event "context_mask" \
             "\"story_id\":\"$NEXT_STORY\",\"attempts\":$_OBS_COUNT,\"masked\":$_MASK_COUNT,\"tokens_before\":$_FULL_TOKENS,\"tokens_after\":$_MASKED_TOKENS,\"reduction_pct\":$_REDUCTION_PCT"
-          # Write _contextStats file for spiral.sh write_iter_summary to merge (US-241)
+          # Write _contextStats to prd.json per story (US-241)
+          if [[ "${_OBS_TOKENS_BEFORE:-0}" -gt 0 ]]; then
+            $JQ --argjson ctxstats \
+              "{\"tokensBeforeMasking\":${_OBS_TOKENS_BEFORE},\"tokensAfterMasking\":${_OBS_TOKENS_AFTER},\"reductionPct\":${_REDUCTION_PCT},\"contextWindow\":${_WINDOW}}" \
+              '(.userStories[] | select(.id == "'"$NEXT_STORY"'") | ._contextStats) = $ctxstats' \
+              "$PRD_FILE" >"${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE" || true
+          fi
+          # Write _context_stats.json for spiral.sh write_iter_summary to merge
           _CTX_STATS_FILE="${SPIRAL_SCRATCH_DIR}/_context_stats.json"
           _CTX_STATS_TMP="${_CTX_STATS_FILE}.tmp.$$"
-          printf '{"tokens_before":%d,"tokens_after":%d,"reduction_pct":%d,"stories_masked":%d}\n' \
-            "$_OBS_TOKENS_BEFORE" "$_OBS_TOKENS_AFTER" "$_REDUCTION_PCT" "$(( _MASK_COUNT > 0 ? 1 : 0 ))" \
+          printf '{"tokensBeforeMasking":%d,"tokensAfterMasking":%d,"reductionPct":%d,"contextWindow":%d}\n' \
+            "$_OBS_TOKENS_BEFORE" "$_OBS_TOKENS_AFTER" "$_REDUCTION_PCT" "$_WINDOW" \
             > "$_CTX_STATS_TMP" && mv "$_CTX_STATS_TMP" "$_CTX_STATS_FILE" 2>/dev/null || true
         fi
 
