@@ -400,6 +400,77 @@ def cmd_import_github(args) -> None:
         print("No new stories to add.")
 
 
+def cmd_import_jira(args) -> None:
+    """Import Jira issues as SPIRAL user stories into prd.json."""
+    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    from import_jira import import_jira_issues  # type: ignore[import-untyped]
+
+    email = os.environ.get("JIRA_USER_EMAIL", "").strip()
+    api_token = os.environ.get("JIRA_API_TOKEN", "").strip()
+
+    if not email or not api_token:
+        missing = []
+        if not email:
+            missing.append("JIRA_USER_EMAIL")
+        if not api_token:
+            missing.append("JIRA_API_TOKEN")
+        print(
+            f"ERROR: Missing environment variable(s): {', '.join(missing)}\n"
+            "Set JIRA_USER_EMAIL and JIRA_API_TOKEN before running this command.\n"
+            "Generate an API token at https://id.atlassian.com/manage-profile/security/api-tokens",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    prd_path = str(PRD_FILE)
+    if not PRD_FILE.exists():
+        print(f"Error: {prd_path} not found", file=sys.stderr)
+        sys.exit(1)
+
+    jql = getattr(args, "jql", None)
+    project = getattr(args, "project", None)
+    if not jql and not project:
+        print("ERROR: Provide either --project PROJECT or --jql 'JQL query'", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        added, skipped = import_jira_issues(
+            host=args.host,
+            project=project,
+            jql=jql,
+            prd_path=prd_path,
+            email=email,
+            api_token=api_token,
+            dry_run=getattr(args, "dry_run", False),
+        )
+    except (RuntimeError, ValueError, FileNotFoundError) as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    for title in skipped:
+        print(f"[skip] Duplicate: {title!r}")
+
+    if getattr(args, "dry_run", False):
+        if added:
+            print(f"\n[dry-run] Would add {len(added)} story/stories:")
+            for story in added:
+                key = story.get("_jiraKey", "")
+                key_str = f" [{key}]" if key else ""
+                print(f"  {story['id']} ({story['priority']}){key_str} — {story['title']}")
+        else:
+            print("[dry-run] No new stories to add.")
+        return
+
+    if added:
+        print(f"Added {len(added)} story/stories to prd.json:")
+        for story in added:
+            key = story.get("_jiraKey", "")
+            key_str = f" [{key}]" if key else ""
+            print(f"  {story['id']} ({story['priority']}){key_str} — {story['title']}")
+    else:
+        print("No new stories to add.")
+
+
 def cmd_graph(args) -> None:
     """Generate Mermaid dependency graph from prd.json."""
     sys.path.insert(0, str(Path(__file__).parent / "lib"))
@@ -853,6 +924,35 @@ def main():
         help="Print stories that would be added without modifying prd.json",
     )
 
+    import_jira_parser = subparsers.add_parser(
+        "import-jira",
+        help="Import Jira issues as SPIRAL user stories into prd.json",
+    )
+    import_jira_parser.add_argument(
+        "--host",
+        required=True,
+        metavar="HOST",
+        help="Jira Cloud hostname (e.g. mycompany.atlassian.net)",
+    )
+    import_jira_parser.add_argument(
+        "--project",
+        default=None,
+        metavar="PROJECT",
+        help="Jira project key used to build a default JQL filter (e.g. ENG)",
+    )
+    import_jira_parser.add_argument(
+        "--jql",
+        default=None,
+        metavar="JQL",
+        help="Raw JQL query to select issues (overrides --project filter)",
+    )
+    import_jira_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        dest="dry_run",
+        help="Print stories that would be added without modifying prd.json",
+    )
+
     graph_parser = subparsers.add_parser(
         "graph",
         help="Generate Mermaid dependency graph from prd.json",
@@ -897,6 +997,8 @@ def main():
         cmd_compact_prd(args)
     elif args.command == "import-github":
         cmd_import_github(args)
+    elif args.command == "import-jira":
+        cmd_import_jira(args)
     elif args.command == "graph":
         cmd_graph(args)
     elif args.command == "export-report":
