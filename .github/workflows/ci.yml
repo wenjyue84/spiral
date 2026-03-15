@@ -227,14 +227,14 @@ jobs:
 
       - name: Upload shellcheck SARIF to GitHub Code Scanning
         continue-on-error: true
-        uses: github/codeql-action/upload-sarif@v3  # TODO: pin to SHA
+        uses: github/codeql-action/upload-sarif@4fa2a7953630fd2f3aab3b2c1b7c6eb76a5a5beb  # v3.26.6
         with:
           sarif_file: shellcheck.sarif
           category: shellcheck
 
       - name: Upload semgrep SARIF to GitHub Code Scanning
         continue-on-error: true
-        uses: github/codeql-action/upload-sarif@v3  # TODO: pin to SHA
+        uses: github/codeql-action/upload-sarif@4fa2a7953630fd2f3aab3b2c1b7c6eb76a5a5beb  # v3.26.6
         with:
           sarif_file: semgrep.sarif
           category: semgrep
@@ -354,3 +354,31 @@ jobs:
           path: test-reports/*.xml
           reporter: java-junit
           fail-on-error: false
+
+  pinned-actions-check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
+      - name: Check all actions are pinned to full commit SHA
+        run: |
+          # Fail if any action ref uses a mutable tag (e.g. @v3) or branch (@main, @master).
+          # Grep output format: filename:lineno:content — filter out shell comment lines
+          # (content starting with optional whitespace then #) to avoid false positives
+          # inside run: script blocks.
+          violations=$(grep -rEn 'uses:[[:space:]]+\S+@(v[0-9]|main|master)([[:space:]]|$)' .github/workflows/*.yml \
+            | grep -Ev '^[^:]+:[0-9]+:[[:space:]]*#' || true)
+          if [ -n "$violations" ]; then
+            echo "$violations"
+            echo "::error::Unpinned action refs found above. Pin all actions to a full 40-character commit SHA with a version comment (e.g., @abc123...  # v1.2.3). See README for update process."
+            exit 1
+          fi
+          echo "All action refs are SHA-pinned."

@@ -636,6 +636,31 @@ ln -s /path/to/peon-ping ~/.claude/skills/peon-ping
 
 Once installed, Peon Ping activates automatically at the end of each Ralph iteration. Configure volume, voice packs, and notification categories in your Claude Code settings. See the [peon-ping skill docs](https://github.com/wenjyue84/peon-ping) for full options.
 
+## GitHub Actions Security
+
+All third-party actions in `.github/workflows/` are pinned to their full 40-character commit SHA rather than mutable tags (e.g., `@v4`). This prevents supply-chain attacks where a compromised tag could inject malicious code into CI.
+
+The `pinned-actions-check` CI job enforces this policy by failing if any `uses:` line references a mutable tag (`@v[0-9]`, `@main`, `@master`).
+
+### Updating a pinned action to a new release
+
+1. Find the new release commit SHA on the action's GitHub releases page (e.g., `https://github.com/actions/checkout/releases`).
+2. Click the release tag → copy the full 40-character commit SHA from the tag's commit URL.
+3. Update the workflow file:
+   ```yaml
+   # Before
+   uses: actions/checkout@<old-sha>  # v4.1.0
+   # After
+   uses: actions/checkout@<new-sha>  # v4.2.0
+   ```
+4. Update **all** occurrences of that action across all workflow files.
+5. Open a PR — the `pinned-actions-check` job will confirm all refs remain properly pinned.
+
+Alternatively, use the [`pin-github-action`](https://github.com/mheap/pin-github-action) CLI to automate bulk pinning:
+```bash
+npx pin-github-action .github/workflows/*.yml
+```
+
 ## License
 
 MIT
