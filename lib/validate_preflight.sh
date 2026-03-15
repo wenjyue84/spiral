@@ -118,6 +118,16 @@ spiral_preflight_check() {
     fi
   fi
 
+  # ── Acceptance-criteria lint (US-209) ──────────────────────────────────────
+  local _lint_rc
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/prd_lint.py" "$prd_file" \
+    --events-file "${scratch_dir}/spiral_events.jsonl"
+  _lint_rc=$?
+  if [[ "$_lint_rc" -ne 0 ]]; then
+    echo "  [preflight] FATAL: prd-lint failed (SPIRAL_STRICT_AC=true) — aborting"
+    exit 1
+  fi
+
   # ── ShellCheck (informational only) ────────────────────────────────────────
   if command -v shellcheck >/dev/null 2>&1; then
     local sc_errors=0
