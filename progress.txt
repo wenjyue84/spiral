@@ -5417,3 +5417,6 @@ Completed: Pin all GitHub Actions to full commit SHA and enforce via policy (ID:
 ### Gotchas
 - `git log --format` with NUL/0x1f separator is more reliable than `%n` for multi-line body capture
 - `_RELEASE_FLAGS` must be unquoted in `${_RELEASE_FLAGS}` expansion to handle empty string gracefully
+## Iteration 2 - Sun, Mar 15, 2026  7:16:30 PM
+Completed: Replace GitHub Actions long-lived secrets with OIDC short-lived tokens (ID: US-221) in 13m
+
