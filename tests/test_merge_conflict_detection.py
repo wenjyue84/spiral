@@ -21,7 +21,7 @@ import pytest
 def run(cmd, cwd=None, check=True):
     """Run a shell command and return CompletedProcess."""
     return subprocess.run(
-        cmd, shell=True, cwd=str(cwd) if cwd else None,
+        cmd, shell=True, cwd=str(cwd) if cwd else None,  # spiral-allow-shell
         capture_output=True, text=True, check=check,
     )
 

@@ -37,6 +37,7 @@ import argparse
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -174,8 +175,8 @@ class TestSuiteManager:
 
             try:
                 proc = subprocess.run(
-                    cmd,
-                    shell=True,
+                    shlex.split(cmd),
+                    shell=False,
                     cwd=repo_root,
                     capture_output=True,
                     text=True,
