@@ -561,6 +561,14 @@ _OTEL_TP=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" begin-run \
 [[ -n "$_OTEL_TP" ]] && export TRACEPARENT="$_OTEL_TP"
 unset _OTEL_TP
 
+# ── US-189: Start Prometheus metrics scrape endpoint if SPIRAL_PROM_PORT set ──
+if [[ -n "${SPIRAL_PROM_PORT:-}" ]] && [[ "${SPIRAL_PROM_PORT}" =~ ^[0-9]+$ ]]; then
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_metrics.py" serve-prometheus \
+    --port "$SPIRAL_PROM_PORT" --scratch-dir "$SCRATCH_DIR" &>/dev/null &
+  _PROM_PID=$!
+  disown "$_PROM_PID" 2>/dev/null || true
+fi
+
 # ── Source memory pressure helper library ────────────────────────────────────
 export SPIRAL_SCRATCH_DIR="$SCRATCH_DIR"
 source "$SPIRAL_HOME/lib/memory-pressure-check.sh"
@@ -2733,6 +2741,14 @@ $INJECTED_PROMPT"
                 _STORY_STATUS="failed"; [[ "$_STORY_PASSES" == "true" ]] && _STORY_STATUS="passed"
                 "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" end-story \
                   --story-id "$_NEXT_SID" --status "$_STORY_STATUS" --scratch-dir "$SCRATCH_DIR" 2>/dev/null || true
+                # US-189: record per-story token metrics after Phase I
+                _TOK_IN=$("$JQ" -r --arg id "$_NEXT_SID" '.[$id].tokens_input // 0' "$SCRATCH_DIR/story_costs.json" 2>/dev/null || echo 0)
+                _TOK_OUT=$("$JQ" -r --arg id "$_NEXT_SID" '.[$id].tokens_output // 0' "$SCRATCH_DIR/story_costs.json" 2>/dev/null || echo 0)
+                "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_metrics.py" record-tokens \
+                  --story-id "$_NEXT_SID" --phase I \
+                  --input-tokens "${_TOK_IN:-0}" --output-tokens "${_TOK_OUT:-0}" \
+                  --duration-ms "$((_I_ELAPSED * 1000))" \
+                  --scratch-dir "$SCRATCH_DIR" 2>/dev/null || true
               else
                 # Cap workers to story count so no worker sits idle
                 WAVE_WORKERS="$RALPH_WORKERS"
@@ -2820,6 +2836,14 @@ $INJECTED_PROMPT"
             _STORY_STATUS="failed"; [[ "$_STORY_PASSES" == "true" ]] && _STORY_STATUS="passed"
             "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" end-story \
               --story-id "$_NEXT_SID" --status "$_STORY_STATUS" --scratch-dir "$SCRATCH_DIR" 2>/dev/null || true
+            # US-189: record per-story token metrics after Phase I
+            _TOK_IN=$("$JQ" -r --arg id "$_NEXT_SID" '.[$id].tokens_input // 0' "$SCRATCH_DIR/story_costs.json" 2>/dev/null || echo 0)
+            _TOK_OUT=$("$JQ" -r --arg id "$_NEXT_SID" '.[$id].tokens_output // 0' "$SCRATCH_DIR/story_costs.json" 2>/dev/null || echo 0)
+            "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_metrics.py" record-tokens \
+              --story-id "$_NEXT_SID" --phase I \
+              --input-tokens "${_TOK_IN:-0}" --output-tokens "${_TOK_OUT:-0}" \
+              --duration-ms "$((_I_ELAPSED * 1000))" \
+              --scratch-dir "$SCRATCH_DIR" 2>/dev/null || true
           fi
 
           # ── Batch merge: restore full PRD with ralph's updates ─────────

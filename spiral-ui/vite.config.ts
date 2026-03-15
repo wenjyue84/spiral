@@ -221,6 +221,21 @@ function spiralApiPlugin() {
           // Progress history
           const progressHistory = readJsonl(path.join(root, '.spiral', 'ui-progress-history.jsonl'));
 
+          // US-189: Token burn data from token_metrics.jsonl
+          const rawTokenMetrics = readJsonl(path.join(root, '.spiral', 'token_metrics.jsonl'));
+          // Aggregate per story_id: { story_id, input, output, total, calls }
+          const tokenBurnMap: Record<string, { story_id: string; input: number; output: number; total: number; calls: number }> = {};
+          for (const rec of rawTokenMetrics) {
+            const r = rec as { story_id?: string; input_tokens?: number; output_tokens?: number; total_tokens?: number };
+            const sid = r.story_id ?? 'unknown';
+            if (!tokenBurnMap[sid]) tokenBurnMap[sid] = { story_id: sid, input: 0, output: 0, total: 0, calls: 0 };
+            tokenBurnMap[sid].input += r.input_tokens ?? 0;
+            tokenBurnMap[sid].output += r.output_tokens ?? 0;
+            tokenBurnMap[sid].total += r.total_tokens ?? ((r.input_tokens ?? 0) + (r.output_tokens ?? 0));
+            tokenBurnMap[sid].calls += 1;
+          }
+          const tokenBurn = Object.values(tokenBurnMap);
+
           // Last-seen from registry metadata (we just use now since we read files live)
           const lastSeen = new Date().toISOString();
 
@@ -233,6 +248,7 @@ function spiralApiPlugin() {
             constitution,
             activity,
             progressHistory,
+            tokenBurn,
           }));
         } catch (e) {
           res.statusCode = 500;

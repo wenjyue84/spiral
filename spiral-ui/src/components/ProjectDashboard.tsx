@@ -30,6 +30,14 @@ interface ProgressSnapshot {
   added: number;
 }
 
+interface TokenBurnEntry {
+  story_id: string;
+  input: number;
+  output: number;
+  total: number;
+  calls: number;
+}
+
 interface ProjectData {
   name: string;
   root: string;
@@ -39,6 +47,7 @@ interface ProjectData {
   constitution: string;
   activity: string;
   progressHistory: ProgressSnapshot[];
+  tokenBurn?: TokenBurnEntry[];
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -126,6 +135,14 @@ function ProgressTab({ data }: { data: ProjectData }) {
         </div>
       )}
 
+      {/* Token burn sparkline (US-189) */}
+      {data.tokenBurn && data.tokenBurn.length > 0 && (
+        <div>
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Token Burn by Story</div>
+          <TokenBurnSparkline entries={data.tokenBurn} />
+        </div>
+      )}
+
       {/* Story lists */}
       {pending.length > 0 && (
         <div>
@@ -159,6 +176,66 @@ function ProgressTab({ data }: { data: ProjectData }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function TokenBurnSparkline({ entries }: { entries: TokenBurnEntry[] }) {
+  if (entries.length === 0) {
+    return (
+      <div className="text-xs text-slate-400 italic">
+        No token data yet. Token metrics are recorded after each Phase I run.
+      </div>
+    );
+  }
+
+  // Sort by total tokens descending for the table
+  const sorted = [...entries].sort((a, b) => b.total - a.total);
+  const maxTotal = sorted[0]?.total ?? 1;
+
+  function fmtK(n: number) {
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+    if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+    return String(n);
+  }
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+      <table className="w-full text-xs">
+        <thead className="bg-slate-50 text-slate-500">
+          <tr>
+            <th className="px-3 py-2 text-left">Story</th>
+            <th className="px-3 py-2 text-right">Input</th>
+            <th className="px-3 py-2 text-right">Output</th>
+            <th className="px-3 py-2 text-right">Total</th>
+            <th className="px-3 py-2 w-32">Burn</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map(e => {
+            const barPct = maxTotal > 0 ? Math.round((e.total / maxTotal) * 100) : 0;
+            return (
+              <tr key={e.story_id} className="border-t border-slate-100 hover:bg-slate-50">
+                <td className="px-3 py-1.5 font-mono text-blue-700 whitespace-nowrap">{e.story_id}</td>
+                <td className="px-3 py-1.5 text-right text-slate-500">{fmtK(e.input)}</td>
+                <td className="px-3 py-1.5 text-right text-slate-500">{fmtK(e.output)}</td>
+                <td className="px-3 py-1.5 text-right font-medium text-slate-700">{fmtK(e.total)}</td>
+                <td className="px-3 py-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-violet-500"
+                        style={{ width: `${barPct}%` }}
+                      />
+                    </div>
+                    <span className="text-[10px] text-slate-400 w-8 text-right">{barPct}%</span>
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
