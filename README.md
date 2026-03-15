@@ -114,14 +114,16 @@ SPIRAL runs in two stages: a **one-time startup** to align on goals and stories,
   │     0-A Constitution — create/review non-negotiable rules       │
   │     0-B Focus        — set this session's theme                 │
   │     0-C Clarify      — 3 questions to lock scope & prevent drift│
-  │     0-D Story Preparation — enter seeds (Source 1) or pick      │
-  │             AI suggestions by number (Source 2: ai-example)     │
+  │     0-D Story Preparation                                       │
+  │         Type a story → _source = "seed"        (Source 1)      │
+  │         Pick a number → _source = "ai-example" (Source 2)      │
+  │         ↳ written directly to prd.json; bypass S and M         │
   │     0-E Options      — time limit & session knobs               │
   │     Skipped in --gate proceed / --gate skip mode                │
   └──────────────────────────────┬──────────────────────────────────┘
                                  │
   ┌──────────────────────────────▼──────────────────────────────────┐
-  │  STORY PREPARATION  (per iteration — builds the backlog)        │
+  │  STORY PIPELINE  (per iteration — Sources 3 & 4 only)           │
   │                                                                 │
   │  R) RESEARCH                               _source = "research" │
   │     Gemini web pre-fetch → Claude agent → story candidates      │
@@ -129,8 +131,9 @@ SPIRAL runs in two stages: a **one-time startup** to align on goals and stories,
   │  T) TEST SYNTHESIS                        _source = "test-fix"  │
   │     Scan test-reports/ failures → regression story candidates   │
   │                            │                                    │
-  │  S) STORY VALIDATE                                              │
-  │     • Constitution check          — applies to ALL sources      │
+  │  S) STORY VALIDATE  (Sources 3 & 4 only — seed/ai-example       │
+  │                       already in prd.json, not re-validated)    │
+  │     • Constitution check          — applies to all              │
   │     • Goal-alignment check        — skipped for test-fix        │
   │       (test-fix auto-approved; constitution still enforced)     │
   │     • Source breakdown printed: research=N/M | test-fix=N/M     │
@@ -170,12 +173,12 @@ SPIRAL runs in two stages: a **one-time startup** to align on goals and stories,
 
 Every story in `prd.json` carries a `_source` field that tracks its origin through the entire pipeline:
 
-| # | Source | Origin | When Added | Validation |
-|---|--------|---------|------------|------------|
-| 1 | `seed` | User typed in Phase 0-D | Startup | None (user-approved) |
-| 2 | `ai-example` | User picked a numbered suggestion in Phase 0-D | Startup | None (user-approved) |
-| 3 | `research` | Phase R (Claude research agent) | Per iteration | Full: constitution + goal alignment |
-| 4 | `test-fix` | Phase T (failing test synthesis) | Per iteration | Constitution only (auto-approved) |
+| # | Source | Origin | Pipeline path | Validation |
+|---|--------|---------|---------------|------------|
+| 1 | `seed` | User typed in Phase 0-D | **Startup only** — written directly to `prd.json`; bypasses S & M | None (user-approved) |
+| 2 | `ai-example` | User picked a numbered suggestion in Phase 0-D | **Startup only** — written directly to `prd.json`; bypasses S & M | None (user-approved) |
+| 3 | `research` | Phase R (Claude research agent) | **Loop** — R → S → M → `prd.json` | Full: constitution + goal alignment |
+| 4 | `test-fix` | Phase T (failing test synthesis) | **Loop** — T → S → M → `prd.json` | Constitution only (auto-approved) |
 
 **Phase M priority:** `test-fix` > `seed` > `research` > `ai-example`
 
