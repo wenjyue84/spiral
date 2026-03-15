@@ -41,6 +41,47 @@ check_claude_api() {
   fi
 }
 
+# ── check_git_author — git identity validation (US-211) ─────────────────────
+# Returns 0 (PASS) or 1 (FAIL).
+# When SPIRAL_GIT_AUTHOR="Name <email>" is set, it is used as a fallback.
+check_git_author() {
+  local git_name git_email
+
+  # If SPIRAL_GIT_AUTHOR is set, parse it and auto-configure git identity.
+  if [[ -n "${SPIRAL_GIT_AUTHOR:-}" ]]; then
+    git_name="${SPIRAL_GIT_AUTHOR%%<*}"
+    git_name="${git_name%% }"   # strip trailing space
+    git_email="${SPIRAL_GIT_AUTHOR#*<}"
+    git_email="${git_email%>*}"
+    if [[ -n "$git_name" && -n "$git_email" ]]; then
+      git config user.name "$git_name" 2>/dev/null || true
+      git config user.email "$git_email" 2>/dev/null || true
+      echo "  [doctor] [OK] git identity set from SPIRAL_GIT_AUTHOR: $git_name <$git_email>"
+      return 0
+    else
+      echo "  [doctor] [WARN] SPIRAL_GIT_AUTHOR='${SPIRAL_GIT_AUTHOR}' could not be parsed — expected format: 'Name <email>'"
+    fi
+  fi
+
+  # Check git config for user.name and user.email (local or global).
+  git_name=$(git config user.name 2>/dev/null || true)
+  git_email=$(git config user.email 2>/dev/null || true)
+
+  if [[ -z "$git_name" || -z "$git_email" ]]; then
+    local missing=""
+    [[ -z "$git_name" ]]  && missing+=" user.name"
+    [[ -z "$git_email" ]] && missing+=" user.email"
+    echo "  [doctor] [ERROR] git identity not configured (missing:${missing})"
+    echo "           → Fix: git config --global user.name  \"Your Name\""
+    echo "           → Fix: git config --global user.email \"you@example.com\""
+    echo "           → Alt: set SPIRAL_GIT_AUTHOR=\"Your Name <you@example.com>\" to auto-configure"
+    return 1
+  fi
+
+  echo "  [doctor] [OK] git identity: ${git_name} <${git_email}>"
+  return 0
+}
+
 spiral_doctor() {
   local error_count=0
   local warn_count=0
@@ -218,6 +259,13 @@ spiral_doctor() {
     echo "           → Fix: Install gitleaks (https://github.com/gitleaks/gitleaks#installing)"
     echo "           → Info: Secret scanning gate in ralph.sh requires gitleaks; set SPIRAL_SKIP_SECRET_SCAN=true to bypass"
     warn_count=$((warn_count + 1))
+  fi
+
+  # ── Git author identity (US-211) ────────────────────────────────────────────
+  if check_git_author; then
+    : # result already printed inside check_git_author
+  else
+    error_count=$((error_count + 1))
   fi
 
   # ── Claude API reachability (US-179) ────────────────────────────────────────

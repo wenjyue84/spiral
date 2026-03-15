@@ -168,5 +168,42 @@ spiral_preflight_check() {
     fi
   fi
 
+  # ── Git author identity (US-211) ──────────────────────────────────────────
+  local _git_name _git_email
+
+  # If SPIRAL_GIT_AUTHOR is set, parse it and auto-configure git identity.
+  if [[ -n "${SPIRAL_GIT_AUTHOR:-}" ]]; then
+    _git_name="${SPIRAL_GIT_AUTHOR%%<*}"
+    _git_name="${_git_name%% }"   # strip trailing space
+    _git_email="${SPIRAL_GIT_AUTHOR#*<}"
+    _git_email="${_git_email%>*}"
+    if [[ -n "$_git_name" && -n "$_git_email" ]]; then
+      git config user.name "$_git_name" 2>/dev/null || true
+      git config user.email "$_git_email" 2>/dev/null || true
+      echo "  [preflight] git identity set from SPIRAL_GIT_AUTHOR: $_git_name <$_git_email>"
+    else
+      echo "  [preflight] WARNING: SPIRAL_GIT_AUTHOR='${SPIRAL_GIT_AUTHOR}' could not be parsed — expected: 'Name <email>'"
+    fi
+  fi
+
+  _git_name=$(git config user.name 2>/dev/null || true)
+  _git_email=$(git config user.email 2>/dev/null || true)
+
+  if [[ -z "$_git_name" || -z "$_git_email" ]]; then
+    local _missing=""
+    [[ -z "$_git_name" ]]  && _missing+=" user.name"
+    [[ -z "$_git_email" ]] && _missing+=" user.email"
+    echo "  [preflight] FATAL: git identity not configured (missing:${_missing})"
+    echo "  [preflight]   → Fix: git config --global user.name  \"Your Name\""
+    echo "  [preflight]   → Fix: git config --global user.email \"you@example.com\""
+    echo "  [preflight]   → Alt: set SPIRAL_GIT_AUTHOR=\"Your Name <you@example.com>\" to auto-configure"
+    printf '{"ts":"%s","event":"preflight_git_author_missing","missing":"%s"}\n' \
+      "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${_missing# }" \
+      >> "${scratch_dir}/spiral_events.jsonl" 2>/dev/null || true
+    exit "${ERR_CONFIG:-3}"
+  fi
+
+  echo "  [preflight] git identity: OK ($_git_name <$_git_email>)"
+
   echo "  [preflight] All checks passed"
 }
