@@ -4488,7 +4488,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-225",
@@ -5990,6 +5990,297 @@
         "Truncate to 8 chars (like git short SHA) for readability in the TSV column",
         "Enables pandas groupby analysis: df.groupby('prompt_version')['status'].value_counts() shows pass rate per prompt version",
         "Reference: prompt versioning best practices — https://www.promptingguide.ai/"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-294",
+      "title": "Centralize model selection in lib/llm_router.py with tier-based routing",
+      "priority": "high",
+      "description": "Create a dedicated Python module `lib/llm_router.py` that encapsulates model selection logic into Utility (haiku), Production (sonnet), and Frontier (opus) tiers. This consolidates ad-hoc model selection scattered across spiral.sh, ralph.sh, and config into a single, testable routing layer with heuristic scoring.",
+      "acceptanceCriteria": [
+        "lib/llm_router.py exists and exports ModelTier enum and LlmRouter class",
+        "LlmRouter.route(story) returns a model ID string based on estimatedComplexity, retry_count, and SPIRAL_MODEL_ROUTING config",
+        "Unit tests cover all tier transitions and config override cases",
+        "ralph.sh can query routing decision via: uv run python lib/llm_router.py --story US-123"
+      ],
+      "technicalNotes": [
+        "Use Python dataclass for TaskContext with fields: complexity, retry_count, token_estimate, dependency_count",
+        "Tier mapping: small+retry0=haiku, medium+retry0=sonnet, large+retry0=sonnet, any+retry>=2=opus",
+        "Expose CLI: uv run python lib/llm_router.py --story US-123 prints routing decision as JSON"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true
+    },
+    {
+      "id": "US-295",
+      "title": "Context-window-aware model upgrade when story prompt exceeds safe token limit",
+      "priority": "high",
+      "description": "Before dispatching a story to ralph.sh, estimate the total prompt token count (system prompt + PRD context + story + filesTouch contents). If the estimate exceeds the target model's context window safety margin, automatically upgrade to the next model tier to prevent silent truncation and hallucinated implementations.",
+      "acceptanceCriteria": [
+        "Token estimation runs before each ralph.sh invocation in Phase I",
+        "If estimated tokens > model_context_limit * SPIRAL_CONTEXT_WINDOW_MARGIN, model is upgraded one tier",
+        "Upgrade decision is logged to spiral_events.jsonl with estimated_tokens and chosen_model fields",
+        "SPIRAL_CONTEXT_WINDOW_MARGIN env var configures the safety margin (default: 0.85)",
+        "Estimation uses 4-chars-per-token approximation when tiktoken is unavailable"
+      ],
+      "technicalNotes": [
+        "Use tiktoken cl100k_base encoding if available; fall back to len(text)//4",
+        "Context limit constants in lib/llm_router.py: haiku=200000, sonnet=200000, opus=200000",
+        "Log structured event: {event: context_window_upgrade, from_model, to_model, estimated_tokens}"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-296",
+      "title": "Make model escalation retry thresholds configurable via SPIRAL_ESCALATION_RETRY_*",
+      "priority": "medium",
+      "description": "The current model escalation logic (retry 0→haiku, retry 1→sonnet, retry 2→opus) is hardcoded in spiral.sh. Extract these thresholds into env vars so users can tune escalation aggressiveness to match their cost/quality preferences.",
+      "acceptanceCriteria": [
+        "SPIRAL_ESCALATION_RETRY_SONNET (default: 1) controls the retry count at which escalation to sonnet triggers",
+        "SPIRAL_ESCALATION_RETRY_OPUS (default: 2) controls the retry count for opus escalation",
+        "Setting SPIRAL_ESCALATION_RETRY_SONNET=0 forces sonnet as the starting model for all stories",
+        "Startup validation rejects configs where SPIRAL_ESCALATION_RETRY_OPUS < SPIRAL_ESCALATION_RETRY_SONNET with an actionable error",
+        "Both vars are documented with defaults in spiral.config.example.sh"
+      ],
+      "technicalNotes": [
+        "Modify model_routing_auto() function in spiral.sh to read these vars",
+        "Guard: SPIRAL_ESCALATION_RETRY_OPUS must be >= SPIRAL_ESCALATION_RETRY_SONNET",
+        "--preset flag integration: economy sets both to 99 (never escalate), quality sets both to 0 (always use best)"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-297",
+      "title": "Add Gemini Flash vs Pro dynamic selection in Phase R based on query complexity",
+      "priority": "medium",
+      "description": "Phase R currently uses a single Gemini model for all research queries. Add logic to select between Gemini 2.0 Flash (fast/cheap) for simple factual lookups and Gemini 2.5 Pro (capable) for complex multi-source synthesis tasks, reducing Phase R API costs by up to 10x for routine research.",
+      "acceptanceCriteria": [
+        "Simple queries (single-topic factual lookups with < 3 search terms) use gemini-2.0-flash",
+        "Complex synthesis queries (multi-source, comparative analysis, architecture review) use gemini-2.5-pro",
+        "SPIRAL_GEMINI_MODEL env var overrides auto-selection to force a specific model",
+        "Model selection decision is recorded in _research_output.json under a _meta.gemini_model field"
+      ],
+      "technicalNotes": [
+        "Classify query complexity by counting requested source URLs, logical operators, and synthesis keywords",
+        "Gemini 2.0 Flash is approximately 15x cheaper per token than Gemini 2.5 Pro",
+        "Fall back to Pro if Flash returns an empty or error result"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-298",
+      "title": "Score research story relevance against constitution.md before Phase M merge",
+      "priority": "medium",
+      "description": "Add a pre-merge relevance filter that scores each incoming research story against constitution.md goals using TF-IDF cosine similarity. Stories scoring below a configurable threshold are rejected before entering the pending queue, keeping the backlog focused on the project's stated goals.",
+      "acceptanceCriteria": [
+        "Each research story receives a _relevanceScore (0.0-1.0) computed against constitution.md keywords before merge",
+        "Stories with _relevanceScore < SPIRAL_RELEVANCE_THRESHOLD (default: 0.3) are discarded",
+        "Discarded stories are logged to .spiral/rejected_stories.jsonl with title, score, and rejection reason",
+        "SPIRAL_RELEVANCE_THRESHOLD=0 disables filtering entirely",
+        "Unit tests verify scoring and filtering logic with fixture stories and a sample constitution"
+      ],
+      "technicalNotes": [
+        "Use sklearn TfidfVectorizer or a pure-Python TF-IDF to avoid heavy dependencies",
+        "Corpus: tokenize constitution.md into sentences; score story description against corpus",
+        "Implementation in lib/score_relevance.py; called from merge_stories.py"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-299",
+      "title": "Auto-enrich thin acceptance criteria via LLM before story enters implementation queue",
+      "priority": "medium",
+      "description": "Stories with fewer than 2 acceptance criteria or a low _qualityScore should be automatically enriched by a lightweight haiku call before entering Phase I. This reduces implementation failures caused by ambiguous requirements without requiring human intervention.",
+      "acceptanceCriteria": [
+        "Stories with len(acceptanceCriteria) < 2 trigger an enrichment LLM call",
+        "Stories with _qualityScore < SPIRAL_ENRICH_QUALITY_THRESHOLD also trigger enrichment",
+        "Enrichment uses claude-haiku with a compact prompt requesting 3-5 testable criteria",
+        "Original criteria are preserved; enriched criteria are appended and flagged with _enriched: true",
+        "SPIRAL_AUTO_ENRICH=false disables enrichment (default: true)"
+      ],
+      "technicalNotes": [
+        "Implement in lib/enrich_criteria.py, invoked from Phase S (validate) or Phase M (merge) post-processing",
+        "Prompt template: 'Given story title and description, write 3-5 concrete verifiable acceptance criteria as a JSON array.'",
+        "Track enrichment timestamp and model used in a _criteriaEnrichedAt field"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-300",
+      "title": "Story batching by file affinity in partition_prd.py to reduce cross-worker merge conflicts",
+      "priority": "medium",
+      "description": "When partitioning stories across parallel workers, cluster stories that share filesTouch entries into the same worker shard. Stories touching the same files conflict when run in parallel; co-locating them eliminates the conflict while preserving full parallelism for unrelated story groups.",
+      "acceptanceCriteria": [
+        "partition_prd.py groups stories with overlapping filesTouch arrays into the same worker shard",
+        "Stories with empty filesTouch are distributed evenly across workers (current behavior preserved)",
+        "Shard assignment is logged per story at DEBUG level",
+        "Unit tests verify that two stories sharing a file always end up in the same shard",
+        "Behavior gracefully degrades to round-robin when all stories have no filesTouch data"
+      ],
+      "technicalNotes": [
+        "Use union-find (disjoint-set) algorithm to cluster stories by shared file membership",
+        "Max cluster count = SPIRAL_RALPH_WORKERS; merge smallest clusters when cluster count exceeds worker count",
+        "After clustering, assign cluster 0 to worker 0, cluster 1 to worker 1, etc."
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-301",
+      "title": "Phase 0 tech stack auto-detection to pre-fill wizard configuration defaults",
+      "priority": "medium",
+      "description": "During Phase 0 (Clarify) wizard initialization, scan the project root to detect the language, test framework, and package manager in use. Use detected values as smart defaults in wizard prompts, reducing required user input and improving first-run setup accuracy.",
+      "acceptanceCriteria": [
+        "Wizard detects Python projects (pyproject.toml or setup.py) and suggests 'uv run pytest' as SPIRAL_VALIDATE_CMD default",
+        "Wizard detects Node.js projects (package.json) and suggests 'npm test' as default",
+        "Wizard detects Rust projects (Cargo.toml) and suggests 'cargo test' as default",
+        "Detected tech stack is displayed as a summary before wizard prompts begin",
+        "All auto-detected defaults can be overridden interactively"
+      ],
+      "technicalNotes": [
+        "Detection searches SPIRAL_PROJECT_ROOT (or cwd) for indicator files",
+        "Priority order: pyproject.toml > package.json > Cargo.toml > go.mod > Makefile",
+        "Store detection results in .spiral/detected_stack.json to speed up subsequent wizard runs",
+        "Implement as lib/detect_stack.py returning a structured dict of detected values"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-302",
+      "title": "Invalidate research cache automatically when constitution.md content changes",
+      "priority": "medium",
+      "description": "The `.spiral/research_cache/` caches research HTTP responses across iterations. When `constitution.md` is modified between runs, cached research may be misaligned with updated project goals. Automatically clear the research cache when a content-hash change in constitution.md is detected at startup.",
+      "acceptanceCriteria": [
+        "At SPIRAL startup, SHA-256 of constitution.md is compared to the stored hash in .spiral/_constitution_hash",
+        "If hashes differ, all entries in .spiral/research_cache/ are cleared before Phase R begins",
+        "New hash is written to .spiral/_constitution_hash after clearance",
+        "Invalidation event is emitted to spiral_events.jsonl with old_hash, new_hash, and cleared_count fields",
+        "SPIRAL_INVALIDATE_CACHE_ON_CONSTITUTION_CHANGE=false disables this behavior"
+      ],
+      "technicalNotes": [
+        "Hash check runs in validate_preflight.sh or the spiral.sh startup section before Phase R",
+        "Only invalidates the HTTP research_cache, not the checkpoint or LLM response cache",
+        "If SPIRAL_SPECKIT_CONSTITUTION points to a custom path, hash that file instead of default constitution.md"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-303",
+      "title": "Wizard: probe available Claude models via API before presenting routing configuration",
+      "priority": "low",
+      "description": "During setup wizard initialization, call the Anthropic Models API to fetch the list of models accessible with the user's API key. Present only available models in routing configuration questions, preventing misconfiguration errors from referencing unavailable or deprecated model IDs.",
+      "acceptanceCriteria": [
+        "Wizard calls GET https://api.anthropic.com/v1/models before presenting the model routing question",
+        "Only claude-* models returned by the API are shown as selectable options",
+        "If the API call fails, wizard falls back to a hardcoded model list with a visible warning",
+        "Fetched model list is cached in .spiral/available_models.json and reused for 24 hours"
+      ],
+      "technicalNotes": [
+        "Use existing ANTHROPIC_API_KEY env var for authentication",
+        "Filter response to models where id starts with 'claude-' to exclude experimental IDs",
+        "Implement as lib/probe_models.py using urllib (no extra deps)"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-304",
+      "title": "Pre-warm git worktrees during Phase M to reduce Phase I startup latency",
+      "priority": "low",
+      "description": "Worker git worktrees are currently created on-demand at Phase I startup, adding sequential latency before any implementation work begins. Pre-create worktrees in background subprocesses during the lighter Phase M merge step so Phase I workers can start immediately.",
+      "acceptanceCriteria": [
+        "Worktree creation is triggered as a background subprocess at the end of Phase M",
+        "Phase I waits for pre-warm completion before dispatching workers, with a 30-second timeout fallback",
+        "SPIRAL_PREWARM_WORKTREES=false disables pre-warming (default: true)",
+        "Pre-warm failure falls back gracefully to on-demand creation without aborting Phase I",
+        "Pre-warm skips creation for worktrees that already exist from a prior run"
+      ],
+      "technicalNotes": [
+        "Background creation: git worktree add .spiral-workers/worker-N <branch> then disown",
+        "Coordination signal: write .spiral/_prewarm_ready when all N worktrees are confirmed present",
+        "Respect existing disk space preflight check before initiating pre-warm"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-305",
+      "title": "Add `spiral.sh --cost-report` command to summarize API spending by model and phase",
+      "priority": "low",
+      "description": "Add a `--cost-report` flag that reads results.tsv and produces a human-readable summary of API spending broken down by model tier, phase, and optional date range. Exits after printing the report without starting a SPIRAL loop.",
+      "acceptanceCriteria": [
+        "spiral.sh --cost-report prints a formatted table: model | stories | tokens_in | tokens_out | cost_usd",
+        "Output includes a phase breakdown section (Phase I vs Phase R) derived from results.tsv",
+        "--cost-report --since YYYY-MM-DD filters to entries after the given date",
+        "Total cost is displayed prominently at the bottom of the report",
+        "Command exits after report with code 0 without starting a SPIRAL loop"
+      ],
+      "technicalNotes": [
+        "Implement as lib/cost_report.py called by spiral.sh when --cost-report flag is detected",
+        "Read results.tsv columns: timestamp, story_id, model, tokens_in, tokens_out",
+        "Use same pricing constants as the dashboard widget for consistency"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-306",
+      "title": "Add deterministic LLM response cache keyed by prompt hash for story replays",
+      "priority": "low",
+      "description": "Cache LLM API responses for identical (model + prompt) pairs using a SHA-256 hash key stored in `.spiral/llm_cache/`. On retry or explicit replay, return the cached response instead of a live API call, reducing cost and latency for deterministic debugging sessions.",
+      "acceptanceCriteria": [
+        "Cache key = SHA-256(model_id + full_prompt_text); stored in .spiral/llm_cache/<hash>.json",
+        "A cache hit is logged to spiral_events.jsonl as {event: llm_cache_hit, story_id, model}",
+        "SPIRAL_LLM_CACHE_ENABLED=true enables caching (default: false for live accuracy)",
+        "Cache entries are auto-purged after SPIRAL_LLM_CACHE_TTL_HOURS (default: 24)",
+        "SPIRAL_CACHE_INVALIDATE=STORY_ID env var forces cache bypass for a specific story"
+      ],
+      "technicalNotes": [
+        "Distinct from .spiral/research_cache/ (HTTP responses) — this caches raw LLM API responses",
+        "Implement as lib/llm_cache.py with read_cache(key) and write_cache(key, response) functions",
+        "Disabled by default to avoid stale responses masking real behavior in production runs"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-307",
+      "title": "Add token usage percentile statistics (P50/P90/P99) to --cost-report output",
+      "priority": "low",
+      "description": "Extend cost reporting with per-model token usage percentile statistics computed from results.tsv. P50/P90/P99 token counts identify outlier stories that consume disproportionate context and should be targeted for story decomposition or context pruning.",
+      "acceptanceCriteria": [
+        "--cost-report output includes a percentile table: model | p50_tokens | p90_tokens | p99_tokens | max_tokens",
+        "Percentiles are computed separately for input tokens and output tokens",
+        "Stories exceeding the P99 input token threshold are listed by ID in a 'token outliers' section",
+        "Percentile section is omitted gracefully when fewer than 10 data points exist per model"
+      ],
+      "technicalNotes": [
+        "Use Python statistics.quantiles() for percentile computation (stdlib, no extra deps)",
+        "Group by model column in results.tsv before computing statistics",
+        "Implement in lib/cost_report.py alongside the --cost-report story"
       ],
       "dependencies": [],
       "estimatedComplexity": "small",

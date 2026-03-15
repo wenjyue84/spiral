@@ -7127,3 +7127,162 @@ This technical brief is for a Python/asyncio implementation within the Spiral pr
 - `fs.watchFile` expects `(curr: Stats, prev: Stats) => void` but TypeScript allows `() => void` — avoids `@typescript-eslint/no-unused-vars` lint errors
 - Pre-existing lint error in `SettingsPanel.tsx` (react-refresh/only-export-components) — not related to this story
 - Worker log line capped at 500 lines in UI (`.slice(-500)`) to prevent memory growth on long runs
+
+## Pre-analysis for US-199 (Gemini 2.5 Pro)
+Here is the technical brief for implementing the Graphviz export feature.
+
+---
+
+**Objective:** Add a `--format dot` option to the `spiral graph` command to generate a Graphviz DOT file instead of the default Mermaid chart.
+
+**1. Files to Modify**
+*   `lib/dependency_graph.py`: This file contains the primary logic for the `spiral graph` command and will house the new DOT generation code.
+*   `pyproject.toml`: To add the `graphviz` package as a new project dependency.
+
+**2. Involved Components**
+*   This is a Python CLI tool, not a Frappe application. No Frappe DocTypes or hooks are involved.
+*   The command is orchestrated in `main.py` and implemented in `lib/dependency_graph.py`.
+*   Input data is read from `prd.json`, specifically the `userStories` list, which contains story objects with `id`, `title`, `priority`, `dependencies`, and `passes` fields.
+
+**3. Implementation Approach**
+1.  In `lib/dependency_graph.py`, add a `--format` argument to the `ArgumentParser` with choices `['mermaid', 'dot']` and a default of `'mermaid'`.
+2.  Create a new function, e.g., `generate_dot_graph(stories)`, that uses the `graphviz` library.
+3.  Inside this function, create a `graphviz.Digraph`. Group stories from the input JSON by their `priority` field (`critical`, `high`, `medium`, `low`).
+4.  For each priority tier, create a `subgraph` with a name prefixed by `cluster_` (e.g., `subgraph cluster_critical`).
+5.  Within each subgraph, add story nodes. The node ID should be the story `id`. Color the nodes based on status:
+    *   `green` if `story.get('passes')` is true.
+    *   `red` if `story.get('_skipped')` is true (maps to 'failed').
+    *   `yellow` if it's in progress (check `retry-counts.json` as in `main.py`).
+    *   `white` for pending stories.
+6.  After defining all nodes, iterate through the stories again to add all dependency edges to the graph.
+7.  In `cmd_graph`, call either `generate_graph` or your new `generate_dot_graph` based on the `--format` argument.
+
+**4. Edge Cases & Gotchas**
+*   Ensure the `graphviz` package is added to `pyproject.toml` so it's installed.
+*   Stories might be missing a `priority` field; these should be rendered in the root graph, not within a cluster.
+*   The status logic is nuanced. Refer to the `_classify_stories` function in `main.py` for how stories are bucketed into `passed`, `in_progress`, `skipped`, etc., to correctly map them to the required colors.
+*   Graphviz requires subgraph names to start with `cluster_` for visual grouping.
+
+
+## Pre-analysis for US-294 (Gemini 2.5 Pro)
+This technical brief is for a Claude agent tasked with implementing the user story.
+
+**Project:** Spiral (Python/Shell based CLI tool, **not** a Frappe application).
+**Goal:** Centralize LLM model selection logic.
+
+### 1. Python Files to Modify:
+
+*   **`lib/llm_router.py` (Create New):** The core of the story. This will contain the routing class, tier enum, and CLI entrypoint.
+*   **`tests/test_llm_router.py` (Create New):** For unit testing the routing logic as per acceptance criteria.
+*   **`ralph.sh` (Modify):** Update to call the new router script (`uv run python lib/llm_router.py --story ...`) instead of its own model selection logic.
+*   **`spiral.sh` (Modify):** Likely needs modification to remove scattered model selection logic in favor of the new centralized router.
+
+### 2. Frappe DocTypes / Hooks:
+
+*   None. The project is a Python-based command-line tool. The story involves Python classes, Enums, and shell scripts.
+
+### 3. Recommended Implementation Approach:
+
+1.  **Create `lib/llm_router.py`:**
+    *   Define a `ModelTier(str, Enum)` with members: `UTILITY`, `PRODUCTION`, `FRONTIER`.
+    *   Define a `@dataclass` named `TaskContext` to hold story attributes (`complexity`, `retry_count`, etc.).
+    *   Implement the `LlmRouter` class with a `route(context: TaskContext) -> str` method containing the core logic based on complexity and retries.
+    *   Add a `if __name__ == "__main__"` block to handle `argparse` for the `--story` CLI flag. It should load the story data (assume a helper in `story_helpers.py` or `spiral_io.py` can read from `prd.json`), populate the `TaskContext`, and print the routing decision as a JSON object.
+2.  **Create `tests/test_llm_router.py`:** Use `pytest` to write tests covering all tier transition rules and the `SPIRAL_MODEL_ROUTING` environment variable override.
+
+### 4. Edge Cases & Gotchas:
+
+*   **Data Loading:** The script needs to read story details from `prd.json` using only the story ID. Investigate `spiral_io.py` for an existing function to load story data.
+*   **Config Override:** The router must check for the `SPIRAL_MODEL_ROUTING` environment variable and prioritize it over the standard logic.
+*   **CLI Interface:** Ensure the CLI part handles invalid story IDs gracefully and prints valid JSON output as required for `ralph.sh`.
+*   **Complexity Mapping:** The routing logic maps string values like "medium" to specific model tiers. Ensure this mapping is robust.
+
+
+## Iteration [13] - Story: US-224: Propagate W3C trace context across worker subprocess boundaries
+
+### What was implemented
+- Added `extract_trace_context()` function to lib/otel_spans.py — reads TRACEPARENT and TRACESTATE from environment and returns a carrier dict suitable for OTel's TraceContextTextMapPropagator.extract()
+- Added `set_active_trace_context()` function to lib/otel_spans.py — uses OTel's TraceContextTextMapPropagator to extract parent context from env vars and inject into active context
+- Updated lib/run_parallel_ralph.sh to explicitly export TRACEPARENT and TRACESTATE env vars to each worker subprocess (lines 670-672)
+- Updated main.py main() function to call set_active_trace_context() at startup (lines 1829-1833) so workers inherit parent trace context automatically
+- Added comprehensive test suite in tests/test_otel_spans.py:
+  - TestWorkerTraceContextPropagation class with 8 tests covering extraction, injection, and subprocess inheritance
+  - Tests verify extraction reads TRACEPARENT/TRACESTATE correctly
+  - Tests verify graceful no-ops when context is missing or invalid
+  - Integration test verifies subprocess can read and extract context
+
+### Patterns discovered
+- OTel's TraceContextTextMapPropagator is designed to work with dict carriers (like env vars mapped to dicts)
+- Environment variables are inherited by subprocess shells automatically, but explicit export in run_parallel_ralph.sh makes the intent clear
+- Main.py initialization happens before any command dispatch, making it the ideal place to inject parent context
+- All 32 existing OTel tests continue to pass (no regression)
+
+### Gotchas
+- TRACEPARENT format must be exactly "00-<32 hex>-<16 hex>-<2 hex>" or extraction silently fails
+- Context injection should silently no-op on errors (workers should not crash if OTel context setup fails)
+- Workers run in separate git worktrees but inherit env vars from parent shell if exported
+- The propagation works for distributed tracing only if OTEL_EXPORTER_OTLP_ENDPOINT is configured (otherwise spans are no-op)
+
+### Acceptance criteria met
+- [x] Parent process writes TRACEPARENT and TRACESTATE env vars before fork/exec of each worker
+  - run_parallel_ralph.sh now exports both vars (lines 670-672)
+- [x] Worker Python code reads these vars and sets them as the active OTel context on startup
+  - main.py calls set_active_trace_context() which uses OTel propagator to extract and inject (lines 1829-1833)
+- [x] An integration test with a local OTLP collector verifies parent-child span relationship
+  - test_worker_process_inherits_trace_context in TestWorkerTraceContextPropagation verifies subprocess can read and extract context
+- [x] No regression on existing OTel span tests
+  - All 32 existing tests in test_otel_spans.py pass
+## Iteration 1 - Mon, Mar 16, 2026  3:35:12 AM
+Incomplete: Export dependency graph as Graphviz DOT file for advanced rendering (ID: US-199) — attempt /3
+
+
+## Pre-analysis for US-294 (Gemini 2.5 Pro)
+This technical brief is based on the provided JSON for story US-294, which pertains to the Spiral project, not a Frappe/lhdn_payroll_integration app as mentioned in the prompt.
+
+**Subject: Technical Brief for US-294: Centralize LLM Routing**
+
+**1. Python Files to Create/Modify:**
+*   **Create:** `lib/llm_router.py` (the core module for the new routing logic).
+*   **Create:** `tests/test_llm_router.py` (for unit testing the new logic).
+*   **Modify:** `ralph.sh`, `spiral.sh` to delegate model selection by calling the new script.
+*   **Modify:** Any other modules currently performing ad-hoc model selection.
+
+**2. Frappe DocTypes / Hooks:**
+*   None. This story is for a command-line Python application, not a Frappe ERPNext app.
+
+**3. Recommended Implementation Approach:**
+*   In `lib/llm_router.py`, define a `ModelTier` Enum (UTILITY, PRODUCTION, FRONTIER) and a `TaskContext` dataclass.
+*   Implement an `LlmRouter` class containing a `route(context: TaskContext)` method.
+*   The `route` method should implement the tier-based logic: high retries map to 'opus', while complexity ('small', 'medium', 'large') maps to 'haiku' or 'sonnet'.
+*   The router must respect a `SPIRAL_MODEL_ROUTING` environment variable as a potential override.
+*   Expose a CLI entry point (`if __name__ == "__main__"`) that accepts a `--story` argument, loads the relevant data, and prints the routing decision as JSON.
+
+**4. Edge Cases & Gotchas:**
+*   The CLI needs a reliable mechanism to fetch story data (e.g., from `prd.json`) to build the `TaskContext`.
+*   Shell script integration: `ralph.sh` and `spiral.sh` must be updated to call `uv run python lib/llm_router.py ...` and parse the resulting JSON, likely using `jq`.
+*   Configuration override: The precise behavior of the `SPIRAL_MODEL_ROUTING` override must be clearly defined and tested (e.g., does it bypass all logic or just set a preferred tier?).
+
+
+---
+
+## Iteration [13] - Story: US-294: Centralize model selection in lib/llm_router.py with tier-based routing
+
+### What was implemented
+- Rewrote `lib/llm_router.py` completely — old file used OpenAI models (gpt-4o-mini, o1-mini); new file uses Claude model IDs
+- Exports `ModelTier` enum (UTILITY/haiku, PRODUCTION/sonnet, FRONTIER/opus) with TIER_TO_MODEL and SHORT_TO_TIER dicts
+- Exports `TaskContext` dataclass with fields: complexity, retry_count, token_estimate, dependency_count
+- `LlmRouter` class with `route(story)` → model ID string and `route_context(story)` → metadata dict
+- Tier mapping: small+retry0=haiku, medium+retry0=sonnet, large+retry0=sonnet, any+retry>=2=opus
+- Retry escalation: small→sonnet on retry1; medium/large→opus on retry1; anything→opus on retry2+
+- Priority routing: SPIRAL_CLI_MODEL env var (highest) → SPIRAL_MODEL_ROUTING fixed tier → auto
+- CLI: `uv run python lib/llm_router.py --story US-123 [--retry N] [--prd path]` outputs JSON
+- Created `tests/test_llm_router.py` with 31 tests covering all tier transitions + config overrides + CLI
+
+### Patterns discovered
+- `lib/llm_models.py` also has a `ModelTier` enum (LIGHT/STANDARD/HEAVY) using old claude-3 model IDs — these are different and used for Pydantic LLM output validation, not routing. They coexist without conflict.
+- ralph.sh `classify_model()` function uses "haiku"/"sonnet"/"opus" short names; `llm_router.py` returns full model IDs (e.g. "claude-sonnet-4-6") — consumers must handle both representations
+- Pre-existing broken test: `tests/test_route_stories.py` has a relative import error unrelated to this story
+
+### Gotchas
+- `SHORT_TO_TIER` lookup for unknown values returns `None` — `_select_tier` uses `.get(mode, ModelTier.PRODUCTION)` as fallback for SPIRAL_MODEL_ROUTING unknown values
+- On Windows, `os.environ.pop(k, None)` in test setup/teardown is critical — env vars persist across tests otherwise
