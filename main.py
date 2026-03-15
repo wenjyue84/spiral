@@ -1,11 +1,13 @@
 """main.py — Spiral CLI entrypoint.
 
 Subcommands:
-  init      Run the interactive setup wizard (lib/setup.py)
-  run       Execute spiral.sh with forwarded arguments
-  status    Show PRD completion summary
-  estimate  Show pre-flight API cost projection for pending stories
-  graph     Generate Mermaid dependency graph from prd.json
+  init          Run the interactive setup wizard (lib/setup.py)
+  run           Execute spiral.sh with forwarded arguments
+  status        Show PRD completion summary
+  estimate      Show pre-flight API cost projection for pending stories
+  graph         Generate Mermaid dependency graph from prd.json
+  config        Configuration utilities
+    export-env  Export spiral.config.sh SPIRAL_* variables as a .env file
 """
 import argparse
 import csv

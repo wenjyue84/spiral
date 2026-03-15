@@ -171,6 +171,7 @@ export default function App() {
     <Routes>
       <Route path="/" element={<SpiralHome />} />
       <Route path="/:projectName" element={<ProjectDashboard />} />
+      <Route path="/:projectName/:tab" element={<ProjectDashboard />} />
     </Routes>
   );
 }

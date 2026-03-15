@@ -1,6 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import DependencyGraph from './DependencyGraph';
+import { CONFIG_FIELDS } from '../data/configSchema';
+
+// Config description lookup for tooltips in Settings tab
+const CONFIG_DESCRIPTIONS: Record<string, { label: string; description: string }> = Object.fromEntries(
+  CONFIG_FIELDS.map(f => [f.key, { label: f.label, description: f.description }])
+);
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -50,6 +56,14 @@ interface CachePhaseEntry {
   read_tokens: number;
 }
 
+interface LastCompletedStory {
+  id: string;
+  title: string;
+  timestamp: string;
+  model?: string;
+  duration?: number;
+}
+
 interface ProjectData {
   name: string;
   root: string;
@@ -61,9 +75,19 @@ interface ProjectData {
   progressHistory: ProgressSnapshot[];
   tokenBurn?: TokenBurnEntry[];
   cacheStats?: CachePhaseEntry[];
+  lastCompletedStory?: LastCompletedStory | null;
+  checkpointTs?: string | null;
+  lastLogModified?: string | null;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Format Malaysia Time (MYT, UTC+8) from an ISO string. */
+function formatMYT(ts: string): string {
+  try {
+    return new Date(ts).toLocaleString('en-MY', { timeZone: 'Asia/Kuala_Lumpur', hour12: false });
+  } catch { return ts; }
+}
 
 function timeAgo(ts: string) {
   const s = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
@@ -88,6 +112,35 @@ function ProgressTab({ data }: { data: ProjectData }) {
 
   return (
     <div className="p-6 space-y-6">
+      {/* Last completed story indicator */}
+      {data.lastCompletedStory && (
+        <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50/50 px-4 py-2.5">
+          <span className="text-emerald-500 text-lg">&#10003;</span>
+          <div className="flex-1 min-w-0">
+            <span className="text-xs text-slate-500">Last story completed:</span>
+            <span className="ml-2 text-sm font-mono font-semibold text-emerald-700">{data.lastCompletedStory.id}</span>
+            {data.lastCompletedStory.title && (
+              <span className="ml-1.5 text-sm text-slate-600">{data.lastCompletedStory.title}</span>
+            )}
+          </div>
+          <div className="flex items-center gap-3 flex-shrink-0">
+            {data.lastCompletedStory.model && (
+              <span className="text-[10px] bg-white/80 text-slate-500 px-2 py-0.5 rounded-full border border-slate-200">{data.lastCompletedStory.model}</span>
+            )}
+            {(data.lastCompletedStory.duration ?? 0) > 0 && (
+              <span className="text-[10px] bg-white/80 text-slate-500 px-2 py-0.5 rounded-full border border-slate-200">
+                {(data.lastCompletedStory.duration ?? 0) >= 60
+                  ? `${Math.floor((data.lastCompletedStory.duration ?? 0) / 60)}m ${(data.lastCompletedStory.duration ?? 0) % 60}s`
+                  : `${data.lastCompletedStory.duration}s`}
+              </span>
+            )}
+            <span className="text-xs font-medium text-emerald-600" title={new Date(data.lastCompletedStory.timestamp).toLocaleString()}>
+              {timeAgo(data.lastCompletedStory.timestamp)}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Stats cards */}
       <div className="grid grid-cols-3 gap-4">
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
@@ -135,7 +188,7 @@ function ProgressTab({ data }: { data: ProjectData }) {
               <tbody>
                 {[...data.progressHistory].reverse().slice(0, 12).map((snap, i) => (
                   <tr key={i} className="border-t border-slate-100">
-                    <td className="px-3 py-1.5 text-slate-400">{timeAgo(snap.ts)}</td>
+                    <td className="px-3 py-1.5 text-slate-400" title={formatMYT(snap.ts)}>{timeAgo(snap.ts)}</td>
                     <td className="px-3 py-1.5 text-slate-600">#{snap.iter}</td>
                     <td className="px-3 py-1.5 text-right font-mono text-emerald-700">{snap.done}</td>
                     <td className="px-3 py-1.5 text-right font-mono text-amber-700">{snap.pending}</td>
@@ -325,12 +378,28 @@ function SettingsTab({ config }: { config: Record<string, string> }) {
             </tr>
           </thead>
           <tbody>
-            {entries.map(([k, v]) => (
-              <tr key={k} className="border-t border-slate-100 hover:bg-slate-50">
-                <td className="px-4 py-2 font-mono text-blue-700 whitespace-nowrap">{k}</td>
-                <td className="px-4 py-2 font-mono text-slate-700 break-all">{v}</td>
-              </tr>
-            ))}
+            {entries.map(([k, v]) => {
+              const meta = CONFIG_DESCRIPTIONS[k];
+              return (
+                <tr key={k} className="border-t border-slate-100 hover:bg-slate-50">
+                  <td className="px-4 py-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono text-blue-700 whitespace-nowrap">{k}</span>
+                      {meta && (
+                        <span
+                          className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-slate-200 text-slate-500 text-[9px] font-bold cursor-help flex-shrink-0"
+                          title={`${meta.label}\n\n${meta.description}`}
+                        >
+                          ?
+                        </span>
+                      )}
+                    </div>
+                    {meta && <div className="text-[10px] text-slate-400 mt-0.5">{meta.label}</div>}
+                  </td>
+                  <td className="px-4 py-2 font-mono text-slate-700 break-all">{v}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -356,16 +425,31 @@ function ConstitutionTab({ text }: { text: string }) {
   );
 }
 
+/** Convert ISO/UTC timestamps in a log line to Malaysia time (MYT, UTC+8). */
+function toMYT(line: string): string {
+  // Match ISO timestamps: 2026-03-16T10:30:45Z or 2026-03-16T10:30:45.123Z or +00:00
+  return line.replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})/g, (match) => {
+    try {
+      return new Date(match).toLocaleString('en-MY', { timeZone: 'Asia/Kuala_Lumpur', hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    } catch { return match; }
+  });
+}
+
 function ActivityTab({ log }: { log: string }) {
   if (!log) {
     return <div className="p-6 text-slate-500">No activity log yet. Start SPIRAL to see live output here.</div>;
   }
   const lines = log.split('\n').filter(Boolean);
+  const now = new Date().toLocaleString('en-MY', { timeZone: 'Asia/Kuala_Lumpur', hour12: false });
   return (
     <div className="p-6">
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-[10px] text-slate-400">Timestamps shown in Malaysia Time (MYT, UTC+8)</div>
+        <div className="text-[10px] text-slate-400">Now: {now}</div>
+      </div>
       <div className="rounded-xl bg-slate-950 overflow-auto max-h-[600px]">
         <pre className="p-4 text-[11px] text-slate-300 font-mono leading-relaxed whitespace-pre-wrap">
-          {lines.join('\n')}
+          {lines.map(toMYT).join('\n')}
         </pre>
       </div>
     </div>
@@ -374,12 +458,21 @@ function ActivityTab({ log }: { log: string }) {
 
 // ── Phase Trace types ────────────────────────────────────────────────────────
 
+interface Substep {
+  id: string;
+  label: string;
+  lines: string[];
+  lineStart: number;
+  lineEnd: number;
+}
+
 interface IterPhase {
   phase: string;
   label: string;
   lines: string[];
   lineStart: number;
   lineEnd: number;
+  substeps?: Substep[];
 }
 
 interface Iteration {
@@ -390,6 +483,7 @@ interface Iteration {
 }
 
 interface PhaseOutputs {
+  aiSuggestions: { stories?: unknown[] } | null;
   research: { stories?: unknown[] } | null;
   testStories: { stories?: unknown[] } | null;
   validated: { stories?: unknown[] } | null;
@@ -404,20 +498,36 @@ interface PhaseTraceData {
 }
 
 const PHASE_COLORS: Record<string, { bg: string; border: string; text: string; dot: string }> = {
-  R: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700', dot: 'bg-blue-500' },
-  T: { bg: 'bg-violet-50', border: 'border-violet-200', text: 'text-violet-700', dot: 'bg-violet-500' },
-  S: { bg: 'bg-cyan-50', border: 'border-cyan-200', text: 'text-cyan-700', dot: 'bg-cyan-500' },
-  M: { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700', dot: 'bg-amber-500' },
-  G: { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-700', dot: 'bg-orange-500' },
-  I: { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700', dot: 'bg-emerald-500' },
-  V: { bg: 'bg-teal-50', border: 'border-teal-200', text: 'text-teal-700', dot: 'bg-teal-500' },
-  P: { bg: 'bg-indigo-50', border: 'border-indigo-200', text: 'text-indigo-700', dot: 'bg-indigo-500' },
-  C: { bg: 'bg-rose-50', border: 'border-rose-200', text: 'text-rose-700', dot: 'bg-rose-500' },
+  '0': { bg: 'bg-slate-50',   border: 'border-slate-300',   text: 'text-slate-700',   dot: 'bg-slate-500' },
+  A:   { bg: 'bg-indigo-50',  border: 'border-indigo-200',  text: 'text-indigo-700',  dot: 'bg-indigo-500' },
+  R:   { bg: 'bg-blue-50',    border: 'border-blue-200',    text: 'text-blue-700',    dot: 'bg-blue-500' },
+  T:   { bg: 'bg-violet-50',  border: 'border-violet-200',  text: 'text-violet-700',  dot: 'bg-violet-500' },
+  S:   { bg: 'bg-cyan-50',    border: 'border-cyan-200',    text: 'text-cyan-700',    dot: 'bg-cyan-500' },
+  M:   { bg: 'bg-amber-50',   border: 'border-amber-200',   text: 'text-amber-700',   dot: 'bg-amber-500' },
+  G:   { bg: 'bg-yellow-50',  border: 'border-yellow-300',  text: 'text-yellow-800',  dot: 'bg-yellow-500' },
+  I:   { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700', dot: 'bg-emerald-500' },
+  V:   { bg: 'bg-teal-50',    border: 'border-teal-200',    text: 'text-teal-700',    dot: 'bg-teal-500' },
+  P:   { bg: 'bg-purple-50',  border: 'border-purple-200',  text: 'text-purple-700',  dot: 'bg-purple-500' },
+  C:   { bg: 'bg-rose-50',    border: 'border-rose-200',    text: 'text-rose-700',    dot: 'bg-rose-500' },
+  D:   { bg: 'bg-orange-50',  border: 'border-orange-200',  text: 'text-orange-700',  dot: 'bg-orange-500' },
 };
 
 const PHASE_NAMES: Record<string, string> = {
-  R: 'Research', T: 'Test Synthesis', S: 'Story Validate', M: 'Merge',
-  G: 'Gate', I: 'Implement', V: 'Validate', P: 'Push', C: 'Check Done',
+  '0': 'Clarify (Session Setup)', A: 'AI Suggestions', R: 'Research', T: 'Test Synthesis',
+  S: 'Story Validate', M: 'Merge', G: 'Human Gate',
+  I: 'Implement', V: 'Validate', P: 'Push', C: 'Check Done', D: 'Loop Decision',
+};
+
+const SUBSTEP_NAMES: Record<string, string> = {
+  '0-A': 'Constitution', '0-B': 'Focus', '0-C': 'Clarify', '0-D': 'Story Prep', '0-E': 'Options',
+  'I/decompose': 'Decompose', 'I/retry': 'Retry', 'I/commit': 'Commit', 'I/revert': 'Revert',
+  'I.5': 'Self-Review',
+  'test-ratchet': 'Test Ratchet', 'security-scan': 'Security Scan', 'tag': 'Git Tag', 'CAPACITY': 'Capacity Guard',
+};
+
+/** Canonical phase order — phases sort by this index in the timeline. */
+const PHASE_ORDER: Record<string, number> = {
+  '0': 0, A: 1, R: 2, T: 3, S: 4, M: 5, G: 6, I: 7, V: 8, P: 9, C: 10, D: 11,
 };
 
 function PhaseTraceTab({ projectName }: { projectName: string }) {
@@ -425,6 +535,7 @@ function PhaseTraceTab({ projectName }: { projectName: string }) {
   const [selectedIter, setSelectedIter] = useState<number | null>(null);
   const [expandedPhases, setExpandedPhases] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  const userSelectedRef = useRef(false);
 
   useEffect(() => {
     const load = async () => {
@@ -433,8 +544,8 @@ function PhaseTraceTab({ projectName }: { projectName: string }) {
         if (res.ok) {
           const data = await res.json() as PhaseTraceData;
           setTraceData(data);
-          // Auto-select latest iteration
-          if (data.iterations.length > 0 && selectedIter === null) {
+          // Auto-select latest iteration only on first load (before user clicks)
+          if (data.iterations.length > 0 && !userSelectedRef.current) {
             setSelectedIter(data.iterations[data.iterations.length - 1].iter);
           }
         }
@@ -444,7 +555,6 @@ function PhaseTraceTab({ projectName }: { projectName: string }) {
     load();
     const interval = setInterval(load, 15_000);
     return () => clearInterval(interval);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectName]);
 
   if (loading) return <div className="p-6 text-slate-500">Loading phase trace data...</div>;
@@ -481,6 +591,10 @@ function PhaseTraceTab({ projectName }: { projectName: string }) {
 
   // Phase output file summary
   const outputSummary = (phase: string): string | null => {
+    if (phase === 'A' && traceData.phaseOutputs.aiSuggestions) {
+      const count = traceData.phaseOutputs.aiSuggestions.stories?.length ?? 0;
+      return count > 0 ? `${count} ai suggestions` : 'No suggestions';
+    }
     if (phase === 'R' && traceData.phaseOutputs.research) {
       const count = traceData.phaseOutputs.research.stories?.length ?? 0;
       return count > 0 ? `${count} research stories` : 'No stories found';
@@ -516,7 +630,7 @@ function PhaseTraceTab({ projectName }: { projectName: string }) {
           {traceData.iterations.map(iter => (
             <button
               key={iter.iter}
-              onClick={() => { setSelectedIter(iter.iter); setExpandedPhases(new Set()); }}
+              onClick={() => { userSelectedRef.current = true; setSelectedIter(iter.iter); setExpandedPhases(new Set()); }}
               className={`px-2.5 py-1 text-xs font-mono rounded-lg border transition-colors ${
                 iter.iter === currentIter.iter
                   ? 'bg-blue-600 text-white border-blue-600'
@@ -532,14 +646,18 @@ function PhaseTraceTab({ projectName }: { projectName: string }) {
 
       {/* Phase timeline */}
       <div className="space-y-2">
-        {currentIter.phases.map((phase, idx) => {
+        {currentIter.phases
+        .sort((a, b) => (PHASE_ORDER[a.phase] ?? 99) - (PHASE_ORDER[b.phase] ?? 99))
+        .map((phase, idx) => {
           const colors = PHASE_COLORS[phase.phase] ?? { bg: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-700', dot: 'bg-slate-500' };
-          const phaseName = PHASE_NAMES[phase.phase] ?? phase.phase;
+          const phaseName = PHASE_NAMES[phase.phase] ?? `Phase ${phase.phase}`;
           const duration = getDuration(phase.phase);
           const summary = outputSummary(phase.phase);
           const key = `${currentIter.iter}-${phase.phase}-${idx}`;
           const isExpanded = expandedPhases.has(key);
           const lineCount = phase.lines.length;
+          const substeps: Substep[] = (phase as IterPhase & { substeps?: Substep[] }).substeps ?? [];
+          const hasSubsteps = substeps.length > 0;
 
           return (
             <div key={key} className={`rounded-xl border ${colors.border} ${colors.bg} overflow-hidden`}>
@@ -558,6 +676,7 @@ function PhaseTraceTab({ projectName }: { projectName: string }) {
                 )}
                 <div className="ml-auto flex items-center gap-3 flex-shrink-0">
                   {summary && <span className="text-[10px] text-slate-500 bg-white/60 px-2 py-0.5 rounded-full">{summary}</span>}
+                  {hasSubsteps && <span className="text-[10px] text-slate-500 bg-white/60 px-2 py-0.5 rounded-full">{substeps.length} steps</span>}
                   {duration !== null && (
                     <span className="text-[10px] font-mono text-slate-500 bg-white/60 px-2 py-0.5 rounded-full">
                       {duration >= 60 ? `${Math.floor(duration / 60)}m ${duration % 60}s` : `${duration}s`}
@@ -568,9 +687,46 @@ function PhaseTraceTab({ projectName }: { projectName: string }) {
                 </div>
               </button>
 
-              {/* Phase output (expanded) */}
+              {/* Phase detail (expanded) */}
               {isExpanded && (
                 <div className="border-t border-slate-200/50">
+                  {/* Sub-steps list */}
+                  {hasSubsteps && (
+                    <div className="px-4 py-3 space-y-1.5 border-b border-slate-200/50 bg-white/40">
+                      <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Steps</div>
+                      {substeps.map((sub: Substep, si: number) => {
+                        const subKey = `${key}-sub-${si}`;
+                        const subExpanded = expandedPhases.has(subKey);
+                        const subName = SUBSTEP_NAMES[sub.id] ?? sub.id;
+                        return (
+                          <div key={subKey} className="rounded-lg border border-slate-200 bg-white overflow-hidden">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); togglePhase(subKey); }}
+                              className="w-full flex items-center gap-2 px-3 py-1.5 text-left hover:bg-slate-50 transition-colors"
+                            >
+                              <span className="w-1.5 h-1.5 rounded-full bg-slate-400 flex-shrink-0" />
+                              <span className="text-[11px] font-mono font-semibold text-slate-600">{sub.id}</span>
+                              <span className="text-[11px] text-slate-500">{subName}</span>
+                              {sub.label && sub.label !== subName && (
+                                <span className="text-[10px] text-slate-400 truncate ml-1">{sub.label}</span>
+                              )}
+                              <span className="ml-auto text-[10px] text-slate-400">{sub.lines.length} lines</span>
+                              <span className={`text-[10px] text-slate-400 transition-transform ${subExpanded ? 'rotate-180' : ''}`}>▼</span>
+                            </button>
+                            {subExpanded && (
+                              <div className="border-t border-slate-100 bg-slate-950 overflow-auto max-h-[250px]">
+                                <pre className="p-2.5 text-[10px] text-slate-300 font-mono leading-relaxed whitespace-pre-wrap">
+                                  {sub.lines.join('\n')}
+                                </pre>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Full phase log output */}
                   <div className="bg-slate-950 overflow-auto max-h-[400px]">
                     <pre className="p-3 text-[11px] text-slate-300 font-mono leading-relaxed whitespace-pre-wrap">
                       {phase.lines.join('\n')}
@@ -588,6 +744,7 @@ function PhaseTraceTab({ projectName }: { projectName: string }) {
         <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Phase Output Files (Current)</div>
         <div className="grid grid-cols-2 gap-2">
           {[
+            { label: 'AI Suggestions', key: 'aiSuggestions' as const, phase: 'A' },
             { label: 'Research Output', key: 'research' as const, phase: 'R' },
             { label: 'Test Stories', key: 'testStories' as const, phase: 'T' },
             { label: 'Validated Stories', key: 'validated' as const, phase: 'S' },
@@ -616,24 +773,29 @@ function PhaseTraceTab({ projectName }: { projectName: string }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-type DashTab = 'progress' | 'settings' | 'constitution' | 'activity' | 'graph' | 'phases';
+type DashTab = 'progress' | 'settings' | 'constitution' | 'activity' | 'graph' | 'phase-trace';
 
-const DASH_TABS: { id: DashTab; label: string; icon: string }[] = [
-  { id: 'progress',     label: 'Progress',     icon: '📊' },
-  { id: 'phases',       label: 'Phase Trace',  icon: '🔬' },
-  { id: 'graph',        label: 'Graph',        icon: '🔗' },
-  { id: 'settings',     label: 'Settings',     icon: '⚙️' },
-  { id: 'constitution', label: 'Constitution', icon: '📜' },
-  { id: 'activity',     label: 'Activity Log', icon: '📝' },
+const DASH_TABS: { id: DashTab; slug: string; label: string; icon: string }[] = [
+  { id: 'progress',     slug: 'progress',     label: 'Progress',     icon: '📊' },
+  { id: 'phase-trace',  slug: 'phase-trace',  label: 'Phase Trace',  icon: '🔬' },
+  { id: 'graph',        slug: 'graph',        label: 'Graph',        icon: '🔗' },
+  { id: 'settings',     slug: 'settings',     label: 'Settings',     icon: '⚙️' },
+  { id: 'constitution', slug: 'constitution', label: 'Constitution', icon: '📜' },
+  { id: 'activity',     slug: 'activity',     label: 'Activity Log', icon: '📝' },
 ];
 
+const VALID_TABS = new Set(DASH_TABS.map(t => t.slug));
+
 export default function ProjectDashboard() {
-  const { projectName } = useParams<{ projectName: string }>();
+  const { projectName, tab } = useParams<{ projectName: string; tab?: string }>();
+  const navigate = useNavigate();
   const [data, setData] = useState<ProjectData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
-  const [activeTab, setActiveTab] = useState<DashTab>('progress');
+
+  const activeTab: DashTab = (tab && VALID_TABS.has(tab) ? tab : 'progress') as DashTab;
+  const setActiveTab = (t: DashTab) => navigate(`/${encodeURIComponent(projectName ?? '')}/${t}`, { replace: true });
 
   const load = useCallback(async () => {
     try {
@@ -685,8 +847,29 @@ export default function ProjectDashboard() {
 
   const p = data.progress;
   const donePct = p ? pct(p.done, p.total) : 0;
-  const isRunning = data.progressHistory.length > 0 &&
-    (Date.now() - new Date(data.progressHistory[data.progressHistory.length - 1].ts).getTime()) < 120_000;
+
+  // Determine RUNNING status from multiple signals
+  const isRunning = (() => {
+    const TWO_MIN = 120_000;
+    // Check progress history snapshots
+    if (data.progressHistory.length > 0) {
+      const lastTs = new Date(data.progressHistory[data.progressHistory.length - 1].ts).getTime();
+      if (Date.now() - lastTs < TWO_MIN) return true;
+    }
+    // Check checkpoint timestamp
+    if (data.checkpointTs) {
+      if (Date.now() - new Date(data.checkpointTs).getTime() < TWO_MIN) return true;
+    }
+    // Check log file modification time
+    if (data.lastLogModified) {
+      if (Date.now() - new Date(data.lastLogModified).getTime() < TWO_MIN) return true;
+    }
+    return false;
+  })();
+
+  const statusTooltip = isRunning
+    ? 'RUNNING: SPIRAL log or checkpoint was updated within the last 2 minutes, indicating an active loop.'
+    : 'IDLE: No log, checkpoint, or progress updates detected in the last 2 minutes. SPIRAL may have finished or not started yet.';
 
   return (
     <div className="flex flex-col h-screen bg-slate-100 overflow-hidden">
@@ -697,9 +880,12 @@ export default function ProjectDashboard() {
 
         <div className="flex items-center gap-2">
           <span className="text-lg font-bold text-slate-800">{data.progress?.productName ?? data.name}</span>
-          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-            isRunning ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
-          }`}>
+          <span
+            className={`px-2 py-0.5 rounded-full text-[10px] font-bold cursor-help ${
+              isRunning ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
+            }`}
+            title={statusTooltip}
+          >
             {isRunning ? '● RUNNING' : '○ IDLE'}
           </span>
         </div>
@@ -752,7 +938,7 @@ export default function ProjectDashboard() {
       {/* Tab content */}
       <main className="flex-1 overflow-hidden">
         {activeTab === 'progress'     && <div className="h-full overflow-y-auto"><ProgressTab data={data} /></div>}
-        {activeTab === 'phases'       && <div className="h-full overflow-y-auto"><PhaseTraceTab projectName={projectName ?? ''} /></div>}
+        {activeTab === 'phase-trace'  && <div className="h-full overflow-y-auto"><PhaseTraceTab projectName={projectName ?? ''} /></div>}
         {activeTab === 'graph'        && (
           <div className="h-full overflow-hidden">
             <DependencyGraph stories={data.progress?.stories ?? []} />

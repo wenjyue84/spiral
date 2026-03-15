@@ -182,6 +182,7 @@ function spiralApiPlugin() {
           };
 
           const phaseOutputs: Record<string, unknown> = {
+            aiSuggestions: readJsonSafe(path.join(root, '.spiral', '_ai_suggestions_output.json')),
             research: readJsonSafe(path.join(root, '.spiral', '_research_output.json')),
             testStories: readJsonSafe(path.join(root, '.spiral', '_test_stories_output.json')),
             validated: readJsonSafe(path.join(root, '.spiral', '_validated_stories.json')),
@@ -200,7 +201,7 @@ function spiralApiPlugin() {
           );
 
           // Parse iterations from the log
-          type IterPhase = { phase: string; label: string; lines: string[]; lineStart: number; lineEnd: number };
+          type IterPhase = { phase: string; label: string; lines: string[]; lineStart: number; lineEnd: number; substeps: { id: string; label: string; lines: string[]; lineStart: number; lineEnd: number }[] };
           type Iteration = { iter: number; phases: IterPhase[]; lineStart: number; lineEnd: number };
 
           const iterations: Iteration[] = [];
@@ -208,12 +209,41 @@ function spiralApiPlugin() {
 
           // Pattern: "SPIRAL Iteration N / M"
           const iterRe = /SPIRAL Iteration (\d+)\s*\/\s*(\d+)/;
-          // Pattern: "[Phase X] LABEL" or "[X] LABEL"
-          const phaseRe = /\[Phase ([A-Z])\]\s*(.*?)(?:\s*[—–-]\s*(.*))?$/;
-          const phaseShortRe = /\[([A-Z])\]\s+(Looping back|All current)/;
+          // Pattern: "[Phase X] LABEL" or "[Phase X / sub] LABEL" — X can be A-Z or 0
+          const phaseRe = /\[Phase ([A-Z0-9])\]\s*(.*?)(?:\s*[—–-]\s*(.*))?$/;
+          // Pattern: "[Phase X / substep] text" — sub-stages within a phase
+          const subStepRe = /\[Phase ([A-Z0-9])\s*\/\s*(\w+)\]\s*(.*)/;
+          // Pattern: "[Phase X.N] text" — numbered sub-phases (e.g. I.5)
+          const subPhaseRe = /\[Phase ([A-Z0-9])\.(\d+)\]\s*(.*)/;
+          // Pattern: "[0-A] text" through "[0-E] text" — Phase 0 sub-phases
+          const phase0SubRe = /\[0-([A-E])\]\s*(.*)/;
+          // Pattern: "[X] short text" — short-form markers
+          const phaseShortRe = /\[([A-Z0-9])\]\s+(Looping back|All current|Not done|Skipping|Pushed|WARNING|Velocity)/;
+          // Pattern: "[tag]", "[test-ratchet]", "[security-scan]", "[CAPACITY]" — quality gates
+          const qualityGateRe = /\[(test-ratchet|security-scan|tag|CAPACITY)\]\s*(.*)/;
+          // Pattern: "SPIRAL Phase 0" banner
+          const phase0BannerRe = /SPIRAL Phase 0/;
 
           let currentIter: Iteration | null = null;
           let currentPhase: IterPhase | null = null;
+          let currentSubstep: { id: string; label: string; lines: string[]; lineStart: number; lineEnd: number } | null = null;
+
+          const pushSubstep = () => {
+            if (currentSubstep && currentPhase) {
+              currentSubstep.lineEnd = currentSubstep.lines.length > 0 ? currentSubstep.lineStart + currentSubstep.lines.length - 1 : currentSubstep.lineStart;
+              currentPhase.substeps.push(currentSubstep);
+              currentSubstep = null;
+            }
+          };
+
+          const pushPhase = (endLine: number) => {
+            if (currentPhase && currentIter) {
+              pushSubstep();
+              currentPhase.lineEnd = endLine;
+              currentIter.phases.push(currentPhase);
+              currentPhase = null;
+            }
+          };
 
           for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
@@ -221,12 +251,7 @@ function spiralApiPlugin() {
             // New iteration
             const iterMatch = line.match(iterRe);
             if (iterMatch) {
-              // Close current phase and iteration
-              if (currentPhase && currentIter) {
-                currentPhase.lineEnd = i - 1;
-                currentIter.phases.push(currentPhase);
-                currentPhase = null;
-              }
+              pushPhase(i - 1);
               if (currentIter) {
                 currentIter.lineEnd = i - 1;
                 iterations.push(currentIter);
@@ -237,36 +262,105 @@ function spiralApiPlugin() {
 
             if (!currentIter) continue;
 
-            // Phase marker
-            const phaseMatch = line.match(phaseRe);
-            const shortMatch = line.match(phaseShortRe);
-            if (phaseMatch) {
-              if (currentPhase) {
-                currentPhase.lineEnd = i - 1;
-                currentIter.phases.push(currentPhase);
+            // Phase 0 banner (before iteration loop starts — attach to iter 0 or current)
+            if (line.match(phase0BannerRe) && !currentPhase?.phase?.startsWith('0')) {
+              pushPhase(i - 1);
+              currentPhase = { phase: '0', label: 'Session Setup', lines: [], lineStart: i, lineEnd: i, substeps: [] };
+              currentPhase.lines.push(line);
+              continue;
+            }
+
+            // Phase 0 sub-phases: [0-A] through [0-E]
+            const p0sub = line.match(phase0SubRe);
+            if (p0sub) {
+              // If no Phase 0 parent exists yet, create one
+              if (!currentPhase || currentPhase.phase !== '0') {
+                pushPhase(i - 1);
+                currentPhase = { phase: '0', label: 'Session Setup', lines: [], lineStart: i, lineEnd: i, substeps: [] };
               }
+              pushSubstep();
+              currentSubstep = { id: `0-${p0sub[1]}`, label: p0sub[2].trim(), lines: [line], lineStart: i, lineEnd: i };
+              currentPhase.lines.push(line);
+              continue;
+            }
+
+            // Sub-step within a phase: [Phase I / decompose], [Phase I / retry], etc.
+            const subMatch = line.match(subStepRe);
+            if (subMatch) {
+              const parentPhase = subMatch[1];
+              // If we're inside the matching parent phase, add as substep
+              if (currentPhase && currentPhase.phase === parentPhase) {
+                pushSubstep();
+                currentSubstep = { id: `${parentPhase}/${subMatch[2]}`, label: subMatch[3].trim(), lines: [line], lineStart: i, lineEnd: i };
+                currentPhase.lines.push(line);
+                continue;
+              }
+              // Otherwise treat as a new phase
+              pushPhase(i - 1);
+              currentPhase = { phase: parentPhase, label: `${subMatch[2]} — ${subMatch[3].trim()}`, lines: [line], lineStart: i, lineEnd: i, substeps: [] };
+              continue;
+            }
+
+            // Numbered sub-phase: [Phase I.5]
+            const subNumMatch = line.match(subPhaseRe);
+            if (subNumMatch) {
+              const parentPhase = subNumMatch[1];
+              if (currentPhase && currentPhase.phase === parentPhase) {
+                pushSubstep();
+                currentSubstep = { id: `${parentPhase}.${subNumMatch[2]}`, label: subNumMatch[3].trim(), lines: [line], lineStart: i, lineEnd: i };
+                currentPhase.lines.push(line);
+                continue;
+              }
+            }
+
+            // Quality gate markers — attach as substep of current phase
+            const gateMatch = line.match(qualityGateRe);
+            if (gateMatch && currentPhase) {
+              pushSubstep();
+              currentSubstep = { id: gateMatch[1], label: gateMatch[2].trim(), lines: [line], lineStart: i, lineEnd: i };
+              currentPhase.lines.push(line);
+              continue;
+            }
+
+            // Full phase marker: [Phase X] LABEL
+            const phaseMatch = line.match(phaseRe);
+            if (phaseMatch) {
+              pushPhase(i - 1);
               currentPhase = {
                 phase: phaseMatch[1],
                 label: (phaseMatch[2] + (phaseMatch[3] ? ' — ' + phaseMatch[3] : '')).trim(),
-                lines: [],
+                lines: [line],
                 lineStart: i,
                 lineEnd: i,
+                substeps: [],
               };
-            } else if (shortMatch) {
-              if (currentPhase) {
-                currentPhase.lineEnd = i - 1;
-                currentIter.phases.push(currentPhase);
+              continue;
+            }
+
+            // Short-form phase marker: [X] text
+            const shortMatch = line.match(phaseShortRe);
+            if (shortMatch) {
+              // If same phase as current, just add to it
+              if (currentPhase && currentPhase.phase === shortMatch[1]) {
+                currentPhase.lines.push(line);
+                continue;
               }
+              pushPhase(i - 1);
               currentPhase = {
                 phase: shortMatch[1],
                 label: shortMatch[2],
-                lines: [],
+                lines: [line],
                 lineStart: i,
                 lineEnd: i,
+                substeps: [],
               };
+              continue;
             }
 
-            // Accumulate lines for current phase
+            // Accumulate lines for current phase/substep
+            if (currentSubstep) {
+              currentSubstep.lines.push(line);
+            }
             if (currentPhase) {
               currentPhase.lines.push(line);
             }
@@ -282,17 +376,29 @@ function spiralApiPlugin() {
             iterations.push(currentIter);
           }
 
-          // Cap lines per phase to last 100 to avoid huge payloads
+          // Deduplicate iterations by iter number (keep last occurrence)
+          const iterMap = new Map<number, Iteration>();
           for (const iter of iterations) {
+            iterMap.set(iter.iter, iter);
+          }
+          const dedupedIterations = [...iterMap.values()].sort((a, b) => a.iter - b.iter);
+
+          // Cap lines per phase to last 150 to avoid huge payloads
+          for (const iter of dedupedIterations) {
             for (const p of iter.phases) {
-              if (p.lines.length > 100) {
-                p.lines = ['... (' + (p.lines.length - 100) + ' lines truncated)', ...p.lines.slice(-100)];
+              if (p.lines.length > 150) {
+                p.lines = ['... (' + (p.lines.length - 150) + ' lines truncated)', ...p.lines.slice(-150)];
+              }
+              for (const sub of (p.substeps ?? [])) {
+                if (sub.lines.length > 80) {
+                  sub.lines = ['... (' + (sub.lines.length - 80) + ' lines truncated)', ...sub.lines.slice(-80)];
+                }
               }
             }
           }
 
           res.end(JSON.stringify({
-            iterations: iterations.slice(-10), // last 10 iterations
+            iterations: dedupedIterations.slice(-10), // last 10 iterations
             phaseOutputs,
             phaseEvents,
           }));
@@ -412,6 +518,52 @@ function spiralApiPlugin() {
           // Last-seen from registry metadata (we just use now since we read files live)
           const lastSeen = new Date().toISOString();
 
+          // Last completed story from results.tsv (last row with status=pass)
+          let lastCompletedStory: { id: string; title: string; timestamp: string; model: string; duration: number } | null = null;
+          const tsvPath = path.join(root, 'results.tsv');
+          if (fs.existsSync(tsvPath)) {
+            try {
+              const tsvLines = fs.readFileSync(tsvPath, 'utf8').split('\n').filter(Boolean);
+              for (let i = 1; i < tsvLines.length; i++) {
+                const cols = tsvLines[i].split('\t');
+                if (cols[5] === 'pass') {
+                  lastCompletedStory = { id: cols[3], title: cols[4], timestamp: cols[0], model: cols[7] ?? '', duration: parseInt(cols[6]) || 0 };
+                }
+              }
+            } catch { /* ignore */ }
+          }
+
+          // Fallback: check story_passed events from spiral_events.jsonl
+          if (!lastCompletedStory) {
+            const storyEvents = [...rawEvents, ...readJsonl(path.join(root, 'spiral_events.jsonl'))];
+            for (const ev of storyEvents) {
+              const e = ev as { event?: string; storyId?: string; ts?: string; model?: string };
+              if (e.event === 'story_passed' && e.ts) {
+                if (!lastCompletedStory || e.ts > lastCompletedStory.timestamp) {
+                  lastCompletedStory = { id: e.storyId ?? '', title: '', timestamp: e.ts, model: e.model ?? '', duration: 0 };
+                }
+              }
+            }
+          }
+
+          // Checkpoint and log modification time for RUNNING detection
+          const checkpointPath = path.join(root, '.spiral', '_checkpoint.json');
+          let checkpointTs: string | null = null;
+          try {
+            if (fs.existsSync(checkpointPath)) {
+              const cp = JSON.parse(fs.readFileSync(checkpointPath, 'utf8')) as { ts?: string };
+              checkpointTs = cp.ts ?? null;
+            }
+          } catch { /* ignore */ }
+
+          const logPath = path.join(root, '.spiral', '_last_run.log');
+          let lastLogModified: string | null = null;
+          try {
+            if (fs.existsSync(logPath)) {
+              lastLogModified = fs.statSync(logPath).mtime.toISOString();
+            }
+          } catch { /* ignore */ }
+
           res.end(JSON.stringify({
             name,
             root,
@@ -423,6 +575,9 @@ function spiralApiPlugin() {
             progressHistory,
             tokenBurn,
             cacheStats,
+            lastCompletedStory,
+            checkpointTs,
+            lastLogModified,
           }));
         } catch (e) {
           res.statusCode = 500;
