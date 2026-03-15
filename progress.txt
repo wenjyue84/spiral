@@ -5009,3 +5009,57 @@ Completed: Import user stories from GitHub Issues via GraphQL API (ID: US-185) i
 ## Iteration 3 - Sun, Mar 15, 2026  4:09:50 PM
 Completed: Pre-flight cross-story file conflict detection using git merge-tree (ID: US-186) in 13m
 
+
+## Iteration N - Story: US-187: Detect and block prompt injection patterns in prd.json story fields
+
+### What was implemented
+- Created lib/injection_detector.py:
+  - `scan_for_injection(text)` → (detected: bool, pattern_name: str|None)
+  - 22 compiled regex patterns covering OWASP LLM01:2025: ignore/disregard/forget instructions, system prompt overrides, DAN/STAN/Jailbreak tokens, Developer Mode, Do Anything Now, safety override/bypass/disable, special tokens (<|im_start|>, [INST], <|system|>), repeat/print system prompt, reveal instructions, new instructions jailbreak
+  - Base64-decoded re-scan for encoded payloads (>= 20-char blobs)
+  - `scan_prd_stories(prd_path, audit_log, update_prd, allow_unsafe)`: scans all incomplete stories; marks blocked ones with passes=False, _failureReason=security_block, _injectionPattern; appends to security-audit.jsonl
+  - CLI: --prd, --audit-log, --update-prd, --allow-unsafe, --quiet; exits 2 if stories blocked
+- Updated spiral.sh:
+  - Added ALLOW_UNSAFE_STORIES=0 default (after SKIP_CONFLICT_PREFLIGHT)
+  - Added --allow-unsafe-stories flag parsing
+  - Added --allow-unsafe-stories to --help text
+  - Added injection scan block after spiral_preflight_check (before checkpoint coherence check)
+  - Exports ALLOW_UNSAFE_STORIES alongside DRY_RUN
+- Created tests/test_injection_detector.py: 32 tests; 810 total pass
+
+### Patterns discovered
+- Exit code 2 used to signal "stories blocked" vs 0 (clean) or 1 (error) — caller checks $? -eq 2
+- _INJECTION_FLAGS array pattern (same as _ARCHIVE_ARGS in spiral.sh) for conditional flag accumulation
+- Base64 scan: only decode blobs >= 20 chars that are printable after decode (avoids false positives)
+
+### Gotchas
+- scan_for_injection must return (False, None) for empty/None text — short-circuit before regex loop
+- DAN/STAN patterns use \b word boundaries — avoids false matches inside longer words
+- --allow-unsafe: scan_prd_stories still appends WARN audit entries; only blocking is skipped
+
+## Iteration N - Story: US-188: Sanitize LLM output before writing to disk to block indirect injection
+
+### What was implemented
+- Created lib/sanitize_output.py:
+  - `sanitize_content(content)`: strips actual ANSI escape sequences (ESC bytes) and null bytes; preserves Python string literals containing \x1b notation (not real ESC bytes)
+  - `validate_write_path(target_path, worktree_root, ...)`: path traversal prevention via os.path.realpath() + relative_to() check; blocks .git/ writes; blocks executable files outside src/tests/lib/scripts unless SPIRAL_ALLOW_EXEC_WRITES=true or allow_exec_writes=True; all violations logged to security-audit.jsonl
+  - `safe_write_file(target_path, content, worktree_root, ...)`: combines sanitize+validate; atomic write via .tmp swap; creates parent dirs
+  - `PathViolation` exception with violation_type (path_traversal|git_dir_write|exec_write), target, worktree_root attrs
+  - CLI: `check-path` and `sanitize` subcommands
+- Updated spiral.sh:
+  - Added ALLOW_EXEC_WRITES=0 default (after ALLOW_UNSAFE_STORIES)
+  - Added --allow-exec-writes flag parsing
+  - Added export SPIRAL_ALLOW_EXEC_WRITES="${ALLOW_EXEC_WRITES}"
+  - Added --allow-exec-writes to --help text
+- Created tests/test_sanitize_output.py: 53 tests covering all code paths
+
+### Patterns discovered
+- Actual ESC bytes (0x1b) in text are stripped; Python source files with \x1b as string literal notation are preserved because they are backslash-encoded, not real ESC bytes
+- _in_safe_exec_dir() checks only first path component (e.g. src/ but not deeply/nested/src/)
+- Path traversal detection: os.path.realpath() resolves symlinks and .. before check
+- Export uses SPIRAL_ALLOW_EXEC_WRITES so workers can read it via env var
+
+### Gotchas
+- sanitize_content must return content unchanged (not empty) for falsy but non-empty inputs: guard with `if not content: return content`
+- OSC sequences (\x1b]...BEL) need special pattern to avoid greedy match consuming all remaining text
+- Atomic write: use .with_suffix(resolved.suffix + ".tmp") to preserve original extension (e.g. foo.py.tmp not foo.tmp)

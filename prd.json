@@ -3688,7 +3688,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-189",
@@ -3972,6 +3972,340 @@
         "MADR (Markdown Architectural Decision Records) template: https://adr.github.io/madr/",
         "Heuristic: git diff --name-only | grep -E 'requirements.txt|package.json|go.mod|Cargo.toml' or diff lines matching new function/class/export declarations",
         "ADR numbering: count existing docs/adr/*.md files and increment by 1"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-202",
+      "title": "Add pip-audit and npm audit dependency vulnerability scan gate in CI",
+      "priority": "high",
+      "description": "Run pip-audit on Python dependencies and npm audit on Node dependencies as a CI gate that fails the build on HIGH or CRITICAL CVEs. AI-generated code that introduces new dependencies could silently pull in vulnerable packages; automated scanning catches these before merge.",
+      "acceptanceCriteria": [
+        "GitHub Actions workflow runs pip-audit and fails on severity >= HIGH",
+        "npm audit --audit-level=high is run when package.json is present",
+        "Scan results are uploaded as a CI artifact in JSON format",
+        "A known-safe suppress list (audit-ignore.txt or .pip-audit.toml) is supported to handle false positives"
+      ],
+      "technicalNotes": [
+        "pip-audit docs: https://pypi.org/project/pip-audit/",
+        "npm audit: https://docs.npmjs.com/cli/v10/commands/npm-audit",
+        "Use pip-audit --format json --output pip-audit-results.json",
+        "Pin pip-audit version in CI to ensure reproducible scans"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-203",
+      "title": "Validate LLM JSON outputs with Pydantic models before downstream processing",
+      "priority": "high",
+      "description": "Parse every LLM-returned JSON blob through a strict Pydantic v2 model before any downstream code processes it. Currently, malformed or unexpected LLM output can cause cryptic KeyError or AttributeError failures deep in the pipeline; Pydantic validation surfaces the exact field mismatch at the point of ingestion with a structured error.",
+      "acceptanceCriteria": [
+        "Pydantic models are defined for all LLM output shapes: story decomposition, research output, route_stories result, and synthesize_tests report",
+        "A ValidationError is caught, logged to spiral_events.jsonl with the raw LLM output, and triggers a retry or graceful skip",
+        "The validation error message includes the field path and received value",
+        "100% of LLM JSON parse sites use model_validate() rather than bare json.loads()"
+      ],
+      "technicalNotes": [
+        "Use Pydantic v2 model_validate() with strict=False for lenient coercion where safe",
+        "Pydantic v2 docs: https://docs.pydantic.dev/latest/concepts/models/",
+        "Define a BaseModel subclass per LLM call site in a new spiral/models/ package",
+        "Add model_json_schema() output to CI artifact for schema documentation"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-204",
+      "title": "Cascade skip status through dependency chain when a dependency is _skipped",
+      "priority": "high",
+      "description": "When a story is marked _skipped: true, automatically propagate that skip to all downstream stories that declare it as a dependency. Currently, blocked stories stay in pending state and waste worker time attempting implementation when their prerequisite will never be satisfied.",
+      "acceptanceCriteria": [
+        "When a story transitions to _skipped, a cascade function traverses prd.json and marks all direct and transitive dependents as _skipped with _failureReason: 'dependency <ID> was skipped'",
+        "Cascaded skips are logged to spiral_events.jsonl with event_type: dependency_cascade_skip",
+        "The cascade runs after every story skip, not just at startup",
+        "A --no-cascade-skip flag in spiral.sh disables this behavior for debugging"
+      ],
+      "technicalNotes": [
+        "Implement as a BFS/DFS traversal over the dependency graph in a new cascade_skip() function in state_machine.py",
+        "Must be idempotent: running cascade multiple times produces the same result",
+        "Update prd.json atomically after computing the full cascade set"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-205",
+      "title": "Add CodeQL security scanning GitHub Actions workflow for AI-generated code",
+      "priority": "high",
+      "description": "Add a CodeQL analysis workflow that runs on every push and pull request to detect security vulnerabilities (injection flaws, insecure deserialization, path traversal) in AI-generated code. Standard static analysis like Semgrep focuses on patterns; CodeQL performs dataflow analysis that catches subtle injection chains Semgrep misses.",
+      "acceptanceCriteria": [
+        "GitHub Actions workflow runs CodeQL analysis for Python and JavaScript on push/PR",
+        "Workflow uses SHA-pinned github/codeql-action version",
+        "Results are uploaded to GitHub Code Scanning via upload-sarif action",
+        "High-severity findings block PR merge via required status check",
+        "Workflow runs only on changed files using path filters to reduce CI time"
+      ],
+      "technicalNotes": [
+        "CodeQL setup: https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning",
+        "Use actions/checkout@<SHA> and github/codeql-action/init@<SHA> with pinned SHAs",
+        "CodeQL queries: use security-and-quality suite for broader coverage"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-206",
+      "title": "Graceful degradation: fall back to Claude for Phase R when Gemini returns 503",
+      "priority": "high",
+      "description": "When the Gemini API returns HTTP 503 Service Unavailable during Phase R pre-analysis, automatically retry once then fall back to Claude with a simplified research prompt rather than failing the phase. Gemini outages are common; current behavior blocks the entire iteration until the user manually intervenes.",
+      "acceptanceCriteria": [
+        "On Gemini 503, Phase R retries once after a 10-second backoff, then switches to Claude with SPIRAL_RESEARCH_MODEL as fallback",
+        "Fallback to Claude is logged with event_type: gemini_fallback in spiral_events.jsonl",
+        "A SPIRAL_GEMINI_FALLBACK_MODEL env var specifies which Claude model to use (default: claude-haiku-4-5-20251001 for cost)",
+        "If both Gemini and Claude fallback fail, Phase R exits with a clear error and the iteration is retried up to SPIRAL_RESEARCH_RETRIES times",
+        "spiral-doctor reports SPIRAL_GEMINI_FALLBACK_MODEL in its dependency check"
+      ],
+      "technicalNotes": [
+        "Google AI Studio API error codes: https://ai.google.dev/gemini-api/docs/troubleshooting",
+        "Distinguish 503 (transient, fall back) from 400 (bad request, do not retry)",
+        "Log which model ultimately served the Phase R response in _iteration_summary.json"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-207",
+      "title": "HMAC-SHA256 signing for SPIRAL_NOTIFY_WEBHOOK outbound payloads",
+      "priority": "medium",
+      "description": "Sign outbound webhook POST bodies with HMAC-SHA256 using a configurable secret key and include the signature in the X-Spiral-Signature-256 header. Receivers can verify payload authenticity and reject tampered or spoofed requests. Without signing, any actor who learns the webhook URL can inject fabricated events.",
+      "acceptanceCriteria": [
+        "When SPIRAL_NOTIFY_WEBHOOK_SECRET is set, every POST request includes an X-Spiral-Signature-256: sha256=<hex> header",
+        "The HMAC key is read from SPIRAL_NOTIFY_WEBHOOK_SECRET env var and never logged",
+        "Sending without the secret still works (backward-compatible, header omitted)",
+        "spiral-doctor reports a warning when SPIRAL_NOTIFY_WEBHOOK is set but SPIRAL_NOTIFY_WEBHOOK_SECRET is not"
+      ],
+      "technicalNotes": [
+        "Use Python hmac.new(key, body, hashlib.sha256).hexdigest() to generate signature",
+        "Follow GitHub's webhook signing convention: https://docs.github.com/en/webhooks/using-webhooks/securing-your-webhooks",
+        "Add SPIRAL_NOTIFY_WEBHOOK_SECRET to spiral.config.sh template comments"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-208",
+      "title": "Add `spiral import-csv` command to bulk-import stories from CSV spreadsheet",
+      "priority": "medium",
+      "description": "Allow users to import multiple stories at once by pointing `spiral import-csv stories.csv` at a spreadsheet. Product managers and stakeholders often manage backlogs in Excel or Google Sheets; supporting CSV import removes the manual JSON editing step and reduces entry errors.",
+      "acceptanceCriteria": [
+        "Command accepts a CSV file path with columns: title, description, priority, estimatedComplexity, acceptanceCriteria (semicolon-separated), technicalNotes (semicolon-separated)",
+        "Imported stories are assigned sequential IDs following the existing SPIRAL_STORY_PREFIX convention",
+        "Duplicate titles (exact match) are skipped with a warning rather than creating duplicates",
+        "A --dry-run flag prints the parsed stories without writing to prd.json",
+        "Invalid rows (missing title or priority) are reported with row numbers and skipped"
+      ],
+      "technicalNotes": [
+        "Use Python csv.DictReader for parsing; support both comma and tab delimiters via --delimiter flag",
+        "Reuse the atomic prd.json write pattern (temp-file rename) from merge_stories.py",
+        "Validate priority field against allowed enum values before inserting"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-209",
+      "title": "Lint prd.json at startup: warn on stories missing acceptanceCriteria",
+      "priority": "medium",
+      "description": "At startup, scan prd.json and emit a structured warning for every story that has an empty or missing acceptanceCriteria array. Acceptance criteria are essential for Phase V validation; stories lacking them will pass validation trivially and produce untested implementations.",
+      "acceptanceCriteria": [
+        "startup lint enumerates stories where acceptanceCriteria is absent, null, or an empty array",
+        "Each violation is printed as WARN [prd-lint] Story <ID> '<title>' has no acceptanceCriteria",
+        "Violations are also written to spiral_events.jsonl with event_type: prd_lint_warning",
+        "A SPIRAL_STRICT_AC=true env var causes the lint to be a hard error that aborts startup",
+        "Stories with _skipped: true are excluded from the lint check"
+      ],
+      "technicalNotes": [
+        "Add prd_lint() function to validate_prd.py or a new prd_lint.py module",
+        "Run after prd.json is loaded but before worker dispatch",
+        "Consider adding a --fix flag that prompts the user to add criteria interactively"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-210",
+      "title": "Add `spiral export-report` command to generate Markdown story status report",
+      "priority": "medium",
+      "description": "Generate a human-readable Markdown report summarizing all stories, their current status, failure reasons, and passed commit SHAs. This report serves as a release audit trail and can be attached to pull requests or sprint reviews without requiring access to the raw prd.json file.",
+      "acceptanceCriteria": [
+        "Command writes SPIRAL_REPORT_<timestamp>.md with sections: Summary, Passed Stories, Failed/Skipped Stories, Pending Stories",
+        "Each story entry shows: ID, title, status, _passedCommit (if passed), _failureReason (if skipped), retry count",
+        "Summary section includes: total stories, pass rate %, total API cost estimate (if tracked)",
+        "Output path is configurable via --output flag; defaults to current directory",
+        "Report is valid CommonMark Markdown renderable by GitHub"
+      ],
+      "technicalNotes": [
+        "Read directly from prd.json; no external dependencies needed beyond Python stdlib",
+        "Use Python's textwrap.dedent and f-strings for template rendering",
+        "Add --format json option to emit machine-readable version for CI artifact ingestion"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-211",
+      "title": "Validate git user.name and user.email config before any AI commit",
+      "priority": "medium",
+      "description": "Before ralph.sh or any script invokes git commit, verify that git config user.name and user.email are set in either the local repo or global config. Commits without author identity silently fail or produce anonymous commits that break git blame and changelog generation downstream.",
+      "acceptanceCriteria": [
+        "Pre-commit check runs git config user.name and git config user.email; aborts with a clear error if either is empty",
+        "Error message provides the exact git commands to fix the missing config",
+        "Check is part of spiral-doctor output",
+        "When SPIRAL_GIT_AUTHOR is set, it is used as a fallback if local/global config is missing",
+        "Check runs in spiral.sh preflight, not just in ralph.sh, so it catches the issue before any worker launches"
+      ],
+      "technicalNotes": [
+        "Use git config --get user.name and check exit code",
+        "If SPIRAL_GIT_AUTHOR=Name <email> is set, auto-configure: git config user.name and user.email from it",
+        "Reference: https://git-scm.com/docs/git-config"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-212",
+      "title": "Record per-phase wall-clock timing in _iteration_summary.json",
+      "priority": "medium",
+      "description": "Capture time.perf_counter() start and end timestamps for each pipeline phase (R, T, I, V, G, M) and write them to _iteration_summary.json under a phase_timings map. This data drives performance optimization decisions and helps users identify which phase is the bottleneck in slow iterations.",
+      "acceptanceCriteria": [
+        "_iteration_summary.json includes phase_timings: {R: {start_epoch: float, duration_seconds: float}, ...} for each phase that ran",
+        "Timing is measured with time.perf_counter() for monotonic accuracy",
+        "Phase timings are also included in the spiral_events.jsonl phase_end events",
+        "spiral_dashboard.py displays a per-phase timing bar chart using the iteration summary data",
+        "Phases that were skipped (e.g., Phase V when no stories passed) are omitted from phase_timings"
+      ],
+      "technicalNotes": [
+        "Python time.perf_counter() docs: https://docs.python.org/3/library/time.html#time.perf_counter",
+        "Store epoch timestamp alongside duration for absolute time reference: time.time() for epoch, perf_counter for duration",
+        "Consider a PhaseTimer context manager: with PhaseTimer('R') as t: ... that auto-writes to summary"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-213",
+      "title": "Add exponential backoff with jitter for transient filesystem I/O errors on prd.json",
+      "priority": "medium",
+      "description": "Wrap all prd.json read and write operations in a retry loop with exponential backoff and jitter to handle transient OS-level file lock errors (PermissionError, OSError EACCES/ETXTBSY) on Windows. These errors occur when antivirus or file indexers briefly lock the file; current code raises immediately and corrupts state.",
+      "acceptanceCriteria": [
+        "prd.json read and write functions retry up to 5 times on PermissionError or OSError with errno EACCES/ETXTBSY",
+        "Backoff follows: base_delay=0.1s * 2^attempt + random.uniform(0, 0.1) seconds",
+        "After all retries fail, the full error is logged to spiral_events.jsonl and re-raised",
+        "Retry attempts are logged at DEBUG level with attempt number and delay",
+        "Windows-specific errno values (EACCES=13, ETXTBSY=26) are handled alongside POSIX equivalents"
+      ],
+      "technicalNotes": [
+        "Python errno module: https://docs.python.org/3/library/errno.html",
+        "Use tenacity library or implement manually with time.sleep and random.uniform",
+        "Test with a mock that raises PermissionError on first N calls then succeeds"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-214",
+      "title": "Use git sparse-checkout in worker worktrees to reduce checkout footprint for large repos",
+      "priority": "low",
+      "description": "Configure git sparse-checkout in each worker's worktree so only the files listed in the story's filesTouch hint are checked out. In large monorepos, full worktree checkout can take significant time and disk space; sparse checkout reduces both by 60-90% for stories touching a small subset of files.",
+      "acceptanceCriteria": [
+        "When SPIRAL_SPARSE_CHECKOUT=true and filesTouch is non-empty, worker worktrees are created with git sparse-checkout set <files>",
+        "If filesTouch is empty, sparse checkout is skipped and full checkout is used",
+        "git sparse-checkout reapply is called when the story's filesTouch list is updated",
+        "sparse-checkout mode is cone mode for performance",
+        "Feature is disabled by default (opt-in via SPIRAL_SPARSE_CHECKOUT=true)"
+      ],
+      "technicalNotes": [
+        "git sparse-checkout documentation: https://git-scm.com/docs/git-sparse-checkout",
+        "Cone mode is significantly faster than non-cone: use git sparse-checkout init --cone",
+        "Ensure sparse-checkout does not interfere with git worktree prune operations"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-215",
+      "title": "Add _humanNotes and _reviewedBy annotation fields to prd.json story schema",
+      "priority": "low",
+      "description": "Add two optional human-facing annotation fields to the prd.json story schema: _humanNotes (free-text string array for reviewer comments) and _reviewedBy (username/timestamp pairs). These fields are ignored by all automated pipeline stages but preserved through merges, giving humans a structured place to annotate stories without interfering with automation.",
+      "acceptanceCriteria": [
+        "_humanNotes: string[] and _reviewedBy: {by: string, at: string}[] are valid fields in prd.json stories and pass JSON Schema validation",
+        "merge_stories.py preserves these fields when merging new research output (no clobber)",
+        "spiral export-report includes _humanNotes in the story entry if non-empty",
+        "The spiral_dashboard.py story detail view displays _humanNotes and _reviewedBy if present",
+        "These fields are stripped from the story context sent to LLM to avoid prompt contamination"
+      ],
+      "technicalNotes": [
+        "Add to prd.json JSON Schema file (created by the prd-schema story)",
+        "In Pydantic model, mark fields as Optional[list] = None to keep backward compatibility",
+        "Document in SPIRAL docs that underscore prefix conventionally marks non-automated fields"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-216",
+      "title": "Add ASCII dependency tree view to `spiral status` subcommand output",
+      "priority": "low",
+      "description": "Extend the `spiral status` subcommand to include an ASCII tree rendering of story dependencies, similar to the Unix `tree` command. This gives users a visual overview of the dependency DAG without needing the full dashboard, making it easy to spot which stories are blocked by pending dependencies directly in the terminal.",
+      "acceptanceCriteria": [
+        "`spiral status --tree` renders a Unicode/ASCII box-drawing tree of story dependencies",
+        "Each node shows: story ID, title (truncated to 50 chars), and status icon (checkmark/X/hourglass/circle with slash)",
+        "Root nodes (no dependencies) are shown at the top level; dependents are indented",
+        "Cyclic dependencies (if any) are shown with a [CYCLE] marker instead of infinite recursion",
+        "Output respects SPIRAL_LOG_LEVEL: --quiet shows only IDs, default shows title + status"
+      ],
+      "technicalNotes": [
+        "Implement tree rendering in a new cli/tree_view.py module using recursive DFS",
+        "Use Unicode box-drawing characters for cross-platform terminal output",
+        "Fall back to ASCII +-- `-- | when TERM does not support Unicode"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-217",
+      "title": "Add SPIRAL_COMMIT_SIGNING env var to enable GPG/SSH signing on AI-generated commits",
+      "priority": "low",
+      "description": "Add a SPIRAL_COMMIT_SIGNING env var that, when set to gpg or ssh, configures git to sign AI-generated commits using the user's configured GPG key or SSH signing key. Signed commits provide cryptographic proof that commits attributed to the AI agent actually originated from an authorized SPIRAL run, which is important for compliance in regulated environments.",
+      "acceptanceCriteria": [
+        "When SPIRAL_COMMIT_SIGNING=gpg, ralph.sh passes -c commit.gpgSign=true and -c gpg.program=<gpg> to git commit",
+        "When SPIRAL_COMMIT_SIGNING=ssh, ralph.sh sets commit.gpgSign=true and gpg.format=ssh",
+        "When SPIRAL_COMMIT_SIGNING is unset or empty, signing is not configured (default behavior unchanged)",
+        "spiral-doctor verifies that the required signing key (gpg --list-secret-keys or SSH key) is available when SPIRAL_COMMIT_SIGNING is set",
+        "A failed signing attempt aborts the commit with a clear error rather than committing unsigned"
+      ],
+      "technicalNotes": [
+        "Git commit signing docs: https://git-scm.com/book/en/v2/Git-Tools-Signing-Your-Work",
+        "SSH signing requires git >= 2.34: https://calebhearth.com/sign-git-with-ssh",
+        "Pass signing config via -c flags rather than modifying .git/config to keep it ephemeral"
       ],
       "dependencies": [],
       "estimatedComplexity": "small",

@@ -114,6 +114,7 @@ TIME_LIMIT_MINS=0     # 0 = no limit; >0 = stop after N minutes (--time-limit or
 DRY_RUN=0             # 1 = dry-run mode: skip API calls (R, T, I, V) but run control flow
 SKIP_CONFLICT_PREFLIGHT=0 # 1 = bypass pre-flight cross-story conflict detection (--skip-conflict-preflight)
 ALLOW_UNSAFE_STORIES=0    # 1 = log injection warnings but do not block stories (--allow-unsafe-stories)
+ALLOW_EXEC_WRITES=0       # 1 = allow LLM to write executable files outside src/ and tests/ (--allow-exec-writes)
 DOCTOR_MODE=0         # 1 = run dependency check and exit (--doctor)
 REPLAY_STORY_ID=""    # "" = normal mode; "US-XXX" = replay that story only (--replay)
 ROLLBACK_STORY_ID=""  # "" = normal mode; "US-XXX" = rollback that story's commit (--rollback)
@@ -208,6 +209,10 @@ while [[ $# -gt 0 ]]; do
       ALLOW_UNSAFE_STORIES=1
       shift
       ;;
+    --allow-exec-writes)
+      ALLOW_EXEC_WRITES=1
+      shift
+      ;;
     --doctor)
       DOCTOR_MODE=1
       shift
@@ -280,6 +285,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --dry-run                  Test loop control flow without API calls"
       echo "  --skip-conflict-preflight  Bypass pre-flight cross-story conflict detection (parallel mode)"
       echo "  --allow-unsafe-stories     Warn but do NOT block stories with prompt injection patterns (use with caution)"
+      echo "  --allow-exec-writes        Allow LLM to write executable files outside src/ and tests/ (sets SPIRAL_ALLOW_EXEC_WRITES=1)"
       echo "  --doctor                   Check all runtime dependencies and exit"
       echo "  --replay STORY_ID          Re-run a single story in an isolated worktree (Phases I+V only)"
   echo "  --rollback STORY_ID        Revert a passed story's git commit and reset its prd.json status"
@@ -1595,6 +1601,7 @@ export SPIRAL_MAX_RESEARCH_STORIES
 export SPIRAL_SKIP_STORY_IDS
 export DRY_RUN
 export ALLOW_UNSAFE_STORIES
+export SPIRAL_ALLOW_EXEC_WRITES="${ALLOW_EXEC_WRITES}"
 
 if [[ -f "$CHECKPOINT_FILE" ]]; then
   CKPT_ITER=$("$JQ" -r '.iter // 0' "$CHECKPOINT_FILE")
