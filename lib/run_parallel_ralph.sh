@@ -433,6 +433,12 @@ for i in $(seq 1 "$RALPH_WORKERS"); do
   # Lock worktree immediately to prevent git worktree prune from removing it while active
   git -C "$REPO_ROOT" worktree lock "$WTREE" --reason "spiral worker-${i} active" 2>/dev/null || true
 
+  # US-246: Sync worktree with already-fetched origin/main (no per-worker fetch needed)
+  # The main repo performed a single shared fetch before workers were created
+  if ! git -C "$WTREE" reset --hard origin/main 2>/dev/null; then
+    echo "  [parallel] Worker $i: WARNING — git reset --hard origin/main failed (branch may not be synced with latest)"
+  fi
+
   # Overlay worker prd.json + override branchName to match the worker's own branch
   cp "$WORKER_DIR/worker_${i}.json" "$WTREE/prd.json"
   "$JQ" --arg b "$BRANCH" '.branchName = $b' "$WTREE/prd.json" >"$WTREE/prd.json.tmp" && mv "$WTREE/prd.json.tmp" "$WTREE/prd.json"
@@ -666,6 +672,9 @@ _launch_worker_i() {
     export PATH="$WTREE/.spiral-bin:$PATH"
     export SPIRAL_WORKER_ID=$i HEARTBEAT_DIR="$HEARTBEAT_DIR"
     export SPIRAL_MEMORY_LIMIT="${SPIRAL_WORKER_MEMORY_LIMIT:-$SPIRAL_MEMORY_LIMIT}"
+    # US-224: Propagate W3C trace context to worker for distributed tracing
+    [[ -n "${TRACEPARENT:-}" ]] && export TRACEPARENT
+    [[ -n "${TRACESTATE:-}" ]] && export TRACESTATE
     if type worker_heartbeat_start &>/dev/null; then worker_heartbeat_start "$i" 30 2>/dev/null || true; fi
     _RC=0
     if [[ "$WORKER_TIMEOUT" -gt 0 ]] && command -v timeout &>/dev/null; then

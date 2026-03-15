@@ -3262,6 +3262,25 @@ $INJECTED_PROMPT"
 
           if [[ "$RALPH_WORKERS" -gt 1 ]]; then
             # ── Parallel mode with wave dispatch ───────────────────────────────
+            # US-246: Shared-fetch optimization — single coordinated fetch in main repo
+            # All worktrees share one object database, so one fetch satisfies all workers
+            echo "  [I] US-246: Performing shared git fetch (one fetch for all $RALPH_WORKERS workers)..."
+            _FETCH_START=$(date +%s%N)
+            if git -C "$REPO_ROOT" fetch origin 2>&1 | grep -q "fetch\|Already"; then
+              _FETCH_ELAPSED=$((( $(date +%s%N) - _FETCH_START ) / 1000000))
+              _FETCH_SECS=$(echo "scale=2; $_FETCH_ELAPSED / 1000" | bc 2>/dev/null || echo "$_FETCH_ELAPSED")
+              _ESTIMATED_PER_WORKER_TOTAL=$((${_FETCH_ELAPSED} * ${RALPH_WORKERS} / 1000))
+              echo "  [I]   Shared fetch completed in ${_FETCH_SECS}ms (vs estimated ${_ESTIMATED_PER_WORKER_TOTAL}ms if per-worker)"
+              printf '{"ts":"%s","event":"shared_fetch_completed","run_id":"%s","shared_fetch_ms":%d,"workers":%d,"estimated_per_worker_total_ms":%d}\n' \
+                "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${SPIRAL_RUN_ID:-}" "${_FETCH_ELAPSED}" "$RALPH_WORKERS" "$_ESTIMATED_PER_WORKER_TOTAL" \
+                >>"$SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || true
+            else
+              echo "  [I]   Shared fetch skipped (no remote updates needed)"
+              printf '{"ts":"%s","event":"shared_fetch_skipped","run_id":"%s","reason":"no_updates","workers":%d}\n' \
+                "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${SPIRAL_RUN_ID:-}" "$RALPH_WORKERS" \
+                >>"$SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || true
+            fi
+
             # Pre-populate filesTouch hints from git history (best-effort)
             "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/populate_hints.py" \
               --prd "$PRD_FILE" --repo-root "$REPO_ROOT" 2>/dev/null || true
