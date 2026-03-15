@@ -1,14 +1,24 @@
 """Tests for lib/prd_lock.py — exclusive prd.json write lock."""
+import errno
 import json
 import os
 import sys
 import threading
 import time
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
-from prd_lock import prd_locked, PrdLockTimeout
+from prd_lock import (
+    PrdLockTimeout,
+    _is_pid_alive,
+    _is_retryable_error,
+    _read_lock_pid,
+    _retry_io,
+    _write_lock_pid,
+    prd_locked,
+)
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -234,3 +244,294 @@ def test_lock_released_after_exception(tmp_path):
     # Lock should be released — second acquisition succeeds
     with prd_locked(path, timeout=1) as prd2:
         assert prd2["userStories"][0]["passes"] is False
+
+
+# ── Stale lock detection ─────────────────────────────────────────────────────
+
+def test_pid_written_to_lock_file(tmp_path):
+    """After acquiring the lock, the current PID is written to the lock file."""
+    path = _make_prd(tmp_path)
+    lock_path = path + ".lock"
+
+    with prd_locked(path) as _prd:
+        pid = _read_lock_pid(lock_path)
+        assert pid == os.getpid()
+
+
+def test_stale_lock_broken_when_holder_dead(tmp_path):
+    """A lock file left by a dead PID is broken and acquisition succeeds."""
+    path = _make_prd(tmp_path)
+    lock_path = path + ".lock"
+
+    # Create a lock file with a PID that doesn't exist (99999999)
+    dead_pid = 99999999
+    fd = os.open(lock_path, os.O_CREAT | os.O_RDWR)
+    if sys.platform == "win32":
+        import msvcrt
+        msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+        os.lseek(fd, 1, os.SEEK_SET)
+        os.write(fd, str(dead_pid).encode())
+        os.lseek(fd, 0, os.SEEK_SET)
+        msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+    else:
+        import fcntl
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        os.lseek(fd, 1, os.SEEK_SET)
+        os.write(fd, str(dead_pid).encode())
+        fcntl.flock(fd, fcntl.LOCK_UN)
+    os.close(fd)
+
+    # prd_locked should detect the dead PID and break the stale lock
+    with prd_locked(path, timeout=0.5) as prd:
+        prd["userStories"][0]["passes"] = True
+
+    with open(path, encoding="utf-8") as f:
+        result = json.load(f)
+    assert result["userStories"][0]["passes"] is True
+
+
+def test_live_lock_not_broken(tmp_path):
+    """A lock held by a live process is NOT broken — caller gets PrdLockTimeout."""
+    path = _make_prd(tmp_path)
+    lock_path = path + ".lock"
+
+    # Hold the lock with our own PID (alive)
+    fd = os.open(lock_path, os.O_CREAT | os.O_RDWR)
+    try:
+        if sys.platform == "win32":
+            import msvcrt
+            msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        # Write our PID (alive process)
+        os.lseek(fd, 1, os.SEEK_SET)
+        os.write(fd, str(os.getpid()).encode())
+
+        with pytest.raises(PrdLockTimeout):
+            with prd_locked(path, timeout=0.3) as _prd:
+                pass
+    finally:
+        if sys.platform == "win32":
+            import msvcrt
+            try:
+                os.lseek(fd, 0, os.SEEK_SET)
+                msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+            except OSError:
+                pass
+        else:
+            import fcntl
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        os.close(fd)
+
+
+def test_empty_lock_file_falls_back_to_timeout(tmp_path):
+    """An old-format lock file (no PID) falls back to normal timeout behavior."""
+    path = _make_prd(tmp_path)
+    lock_path = path + ".lock"
+
+    # Hold the lock with NO PID written (old format)
+    fd = os.open(lock_path, os.O_CREAT | os.O_RDWR)
+    try:
+        if sys.platform == "win32":
+            import msvcrt
+            msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+        with pytest.raises(PrdLockTimeout):
+            with prd_locked(path, timeout=0.3) as _prd:
+                pass
+    finally:
+        if sys.platform == "win32":
+            import msvcrt
+            try:
+                os.lseek(fd, 0, os.SEEK_SET)
+                msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+            except OSError:
+                pass
+        else:
+            import fcntl
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        os.close(fd)
+
+
+def test_is_pid_alive_current_process():
+    """Current process PID should be reported as alive."""
+    assert _is_pid_alive(os.getpid()) is True
+
+
+def test_is_pid_alive_dead_process():
+    """A very high PID should not be alive."""
+    assert _is_pid_alive(99999999) is False
+
+
+# ── _is_retryable_error ───────────────────────────────────────────────────────
+
+def test_retryable_permission_error():
+    """PermissionError is always retryable."""
+    assert _is_retryable_error(PermissionError("denied")) is True
+
+
+def test_retryable_eacces():
+    """OSError with EACCES errno is retryable."""
+    exc = OSError(errno.EACCES, "Permission denied")
+    assert _is_retryable_error(exc) is True
+
+
+def test_retryable_etxtbsy():
+    """OSError with ETXTBSY errno is retryable."""
+    exc = OSError(errno.ETXTBSY, "Text file busy")
+    assert _is_retryable_error(exc) is True
+
+
+def test_not_retryable_file_not_found():
+    """FileNotFoundError (ENOENT) is not retryable."""
+    assert _is_retryable_error(FileNotFoundError("nope")) is False
+
+
+def test_not_retryable_generic_oserror():
+    """A generic OSError with unrecognised errno is not retryable."""
+    exc = OSError(errno.ENOENT, "not found")
+    assert _is_retryable_error(exc) is False
+
+
+# ── _retry_io ────────────────────────────────────────────────────────────────
+
+def test_retry_io_succeeds_first_attempt():
+    """When fn succeeds immediately, the result is returned without retrying."""
+    fn = MagicMock(return_value=42)
+    result = _retry_io(fn, events_path="")
+    assert result == 42
+    fn.assert_called_once()
+
+
+def test_retry_io_succeeds_on_second_attempt():
+    """fn raises PermissionError once, then succeeds — result returned."""
+    calls = 0
+
+    def fn():
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise PermissionError("locked")
+        return "ok"
+
+    with patch("prd_lock.time.sleep"):
+        result = _retry_io(fn, events_path="")
+
+    assert result == "ok"
+    assert calls == 2
+
+
+def test_retry_io_retries_up_to_max(tmp_path):
+    """fn always raises PermissionError — after _MAX_IO_RETRIES+1 attempts, re-raises."""
+    call_count = 0
+
+    def fn():
+        nonlocal call_count
+        call_count += 1
+        raise PermissionError("always locked")
+
+    events_file = str(tmp_path / "events.jsonl")
+    with patch("prd_lock.time.sleep"):
+        with pytest.raises(PermissionError, match="always locked"):
+            _retry_io(fn, events_path=events_file)
+
+    # 1 initial attempt + 5 retries = 6 total
+    assert call_count == 6
+
+
+def test_retry_io_non_retryable_raises_immediately():
+    """fn raises FileNotFoundError (non-retryable) — no sleep, raised immediately."""
+    call_count = 0
+
+    def fn():
+        nonlocal call_count
+        call_count += 1
+        raise FileNotFoundError("gone")
+
+    with patch("prd_lock.time.sleep") as mock_sleep:
+        with pytest.raises(FileNotFoundError):
+            _retry_io(fn, events_path="")
+
+    assert call_count == 1
+    mock_sleep.assert_not_called()
+
+
+def test_retry_io_logs_to_events_file_on_exhaustion(tmp_path):
+    """After retries are exhausted, an event is appended to the JSONL file."""
+    events_file = str(tmp_path / "events.jsonl")
+
+    def fn():
+        raise PermissionError("denied")
+
+    with patch("prd_lock.time.sleep"):
+        with pytest.raises(PermissionError):
+            _retry_io(fn, events_path=events_file)
+
+    assert os.path.exists(events_file)
+    with open(events_file) as f:
+        record = json.loads(f.read().strip())
+    assert record["event_type"] == "prd_io_error"
+    assert record["attempts"] == 6  # 1 + 5 retries
+
+
+def test_retry_io_no_logging_when_events_path_empty():
+    """Pass events_path='' — no file is created, error still re-raised."""
+    def fn():
+        raise PermissionError("denied")
+
+    with patch("prd_lock.time.sleep"):
+        with pytest.raises(PermissionError):
+            _retry_io(fn, events_path="")
+
+
+def test_retry_io_backoff_delays_increase():
+    """sleep is called with increasing delays (exponential backoff)."""
+    call_count = 0
+
+    def fn():
+        nonlocal call_count
+        call_count += 1
+        if call_count < 4:
+            raise PermissionError("locked")
+        return "done"
+
+    sleep_delays: list[float] = []
+
+    def capture_sleep(delay: float) -> None:
+        sleep_delays.append(delay)
+
+    with patch("prd_lock.time.sleep", side_effect=capture_sleep):
+        result = _retry_io(fn, events_path="")
+
+    assert result == "done"
+    # 3 retries → 3 sleeps; each should be >= previous (backoff)
+    assert len(sleep_delays) == 3
+    assert sleep_delays[1] >= sleep_delays[0]
+    assert sleep_delays[2] >= sleep_delays[1]
+
+
+def test_prd_locked_retries_on_transient_read_error(tmp_path):
+    """prd_locked retries reading prd.json on transient PermissionError."""
+    path = _make_prd(tmp_path)
+    read_calls = 0
+    real_open = open
+
+    def flaky_open(file, *args, **kwargs):
+        nonlocal read_calls
+        # Only intercept reads of the prd path (not .tmp or .lock)
+        if str(file) == path and "w" not in str(kwargs.get("mode", args[0] if args else "r")):
+            read_calls += 1
+            if read_calls == 1:
+                raise PermissionError("antivirus hold")
+        return real_open(file, *args, **kwargs)
+
+    with patch("prd_lock.time.sleep"):
+        with patch("builtins.open", side_effect=flaky_open):
+            with prd_locked(path, events_path="") as prd:
+                prd["userStories"][0]["passes"] = True
+
+    assert read_calls >= 2  # first call raised, second succeeded

@@ -6239,3 +6239,27 @@ Incomplete: Enforce cgroups v2 memory and CPU limits on worker subprocesses (ID:
 - The acceptance criterion says "time.perf_counter() for monotonic accuracy" — since phases are tracked in bash with `date +%s`, precision is 1-second. This is acceptable (criterion met in spirit: monotonic within a single iteration).
 - `_PHASE_DUR_S` not initialized in reset block; safe to use with default `:-0`
 - mypy has 2 pre-existing errors in spiral_dashboard.py (lines 379, 530); not introduced by this change
+## Iteration 4 - Sun, Mar 15, 2026 11:28:27 PM
+Incomplete: Enforce cgroups v2 memory and CPU limits on worker subprocesses (ID: US-259) — attempt /3
+
+
+---
+
+## Iteration [N] - Story: US-213: Add exponential backoff with jitter for transient filesystem I/O errors on prd.json
+
+### What was implemented
+- Added `_MAX_IO_RETRIES=5`, `_IO_BASE_DELAY=0.1`, `_RETRYABLE_ERRNOS={EACCES, ETXTBSY}` constants to `lib/prd_lock.py`
+- Added `_is_retryable_error(exc)` helper: returns True for PermissionError or OSError with errno EACCES/ETXTBSY
+- Added `_retry_io(fn, *, events_path)` helper: retries fn() up to 5 times with delay=0.1*2^attempt+jitter(0,0.1); logs to spiral_events.jsonl on exhaustion via append_jsonl; logs DEBUG per attempt
+- Updated `prd_locked()` to wrap both the JSON read and atomic write-back in `_retry_io()`
+- Added `events_path` parameter to `prd_locked()` (default "spiral_events.jsonl", pass "" to disable)
+- Added 13 new tests in `tests/test_prd_lock.py` covering all 5 ACs; all 29 tests pass
+
+### Patterns discovered
+- `spiral_io.append_jsonl()` is the standard way to write events to JSONL audit logs
+- `_retry_io` wraps zero-argument callables (closures capture needed state), clean pattern for retrying specific I/O operations
+- Windows errno.ETXTBSY may not exist on all Python builds (stdlib module always defines it though)
+
+### Gotchas
+- The `open` call inside `prd_locked` for reading also triggers for lock file opens; test must filter by path to avoid false positives
+- `time.sleep` must be patched in tests to avoid slow retries during CI
