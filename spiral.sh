@@ -478,6 +478,7 @@ SPIRAL_EVENT_LOG_MAX_LINES="${SPIRAL_EVENT_LOG_MAX_LINES:-10000}"        # 0 = d
 SPIRAL_LOG_MAX_MB="${SPIRAL_LOG_MAX_MB:-50}"                             # 0 = disabled; rotate _last_run.log when size exceeds this value in MB
 SPIRAL_LOG_KEEP_ROTATIONS="${SPIRAL_LOG_KEEP_ROTATIONS:-3}"             # number of rotated _last_run.log files to keep (.log.1 ... .log.N)
 SPIRAL_RESEARCH_CACHE_TTL_HOURS="${SPIRAL_RESEARCH_CACHE_TTL_HOURS:-0}"  # 0 = disabled; cache TTL for Phase R URL responses AND Phase R output file reuse across iterations
+SPIRAL_INJECTION_THRESHOLD="${SPIRAL_INJECTION_THRESHOLD:-0.8}"          # US-198: LLM Guard PromptInjection scan threshold for Phase R web content (0.0–1.0)
 RESEARCH_CACHE_DIR=""                                                    # set after SCRATCH_DIR is known
 SPIRAL_RESEARCH_TIMEOUT="${SPIRAL_RESEARCH_TIMEOUT:-300}"                # seconds; 0 = disabled (unlimited); Phase R LLM call
 SPIRAL_RESEARCH_RETRIES="${SPIRAL_RESEARCH_RETRIES:-2}"                  # retries when _research_output.json missing/invalid after Phase R
@@ -1447,6 +1448,57 @@ checkpoint_phase_done() {
   [[ "${PHASE_ORDER[$ckpt_phase]:-0}" -ge "${PHASE_ORDER[$phase]:-0}" ]]
 }
 
+# ── Helper: scan text for prompt injection via LLM Guard (US-198) ────────────
+# Usage: scan_web_content <text_var_name> <source_label>
+# Reads the named variable, scans it, and updates the variable in-place.
+# Logs the scan result to spiral_events.jsonl. Returns 0 always (non-fatal).
+scan_web_content() {
+  local var_name="$1"
+  local source_label="$2"
+  local content="${!var_name}"
+
+  [[ -z "$content" ]] && return 0
+
+  local scan_result scan_json
+  scan_result=$(
+    export SPIRAL_INJECTION_THRESHOLD
+    printf '%s' "$content" | \
+      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/llm_guard_scanner.py" \
+        --source "$source_label" \
+        --threshold "$SPIRAL_INJECTION_THRESHOLD" \
+        --output json 2>/dev/null
+  ) || {
+    echo "  [R] llm-guard scan skipped (scanner unavailable) — source: $source_label" >&2
+    return 0
+  }
+
+  [[ -z "$scan_result" ]] && return 0
+
+  local truncated score
+  truncated=$(printf '%s' "$scan_result" | "$JQ" -r '.truncated' 2>/dev/null || echo "false")
+  score=$(printf '%s' "$scan_result" | "$JQ" -r '.score' 2>/dev/null || echo "0")
+
+  # Update the caller's variable with sanitized text
+  local sanitized_text
+  sanitized_text=$(printf '%s' "$scan_result" | "$JQ" -r '.text' 2>/dev/null)
+  if [[ -n "$sanitized_text" ]]; then
+    printf -v "$var_name" '%s' "$sanitized_text"
+  fi
+
+  # Log the scan event
+  scan_json=$(printf '%s' "$scan_result" | \
+    "$JQ" -c '{score:.score,threshold:.threshold,truncated:.truncated,source:.source,duration_ms:.duration_ms}' 2>/dev/null || true)
+  log_spiral_event "phase_r_injection_scan" \
+    "\"source\":\"$source_label\",\"score\":$score,\"threshold\":\"${SPIRAL_INJECTION_THRESHOLD}\",\"truncated\":$truncated,\"iteration\":$SPIRAL_ITER"
+
+  if [[ "$truncated" == "true" ]]; then
+    echo "  [R] llm-guard: BLOCKED injection in $source_label (score=$score, threshold=$SPIRAL_INJECTION_THRESHOLD)"
+  else
+    echo "  [R] llm-guard: OK $source_label (score=$score)"
+  fi
+  return 0
+}
+
 # ── Helper: inject placeholders into research prompt ─────────────────────────
 build_research_prompt() {
   local iter="$1"
@@ -2382,6 +2434,8 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
       INJECTED_PROMPT=$(build_research_prompt "$SPIRAL_ITER" "$RESEARCH_OUTPUT")
       # Prepend Gemini research context so Claude skips URL browsing and writes JSON faster
       if [[ -n "$GEMINI_RESEARCH" ]]; then
+        # ── US-198: LLM Guard scan of Gemini web-fetched content ──────────
+        scan_web_content GEMINI_RESEARCH "gemini_research"
         INJECTED_PROMPT="## Pre-Research Context (Gemini 2.5 Pro — web search enabled)
 
 The following compliance research was pre-fetched. Use this as your primary source.
@@ -2399,6 +2453,8 @@ $INJECTED_PROMPT"
       if [[ "$SPIRAL_RESEARCH_CACHE_TTL_HOURS" -gt 0 ]]; then
         CACHE_CONTEXT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/research_cache.py" inject "$RESEARCH_CACHE_DIR" --ttl-hours "$SPIRAL_RESEARCH_CACHE_TTL_HOURS" 2>/dev/null || true)
         if [[ -n "$CACHE_CONTEXT" ]]; then
+          # ── US-198: LLM Guard scan of cached URL content ──────────────────
+          scan_web_content CACHE_CONTEXT "research_cache"
           CACHE_COUNT=$(ls "$RESEARCH_CACHE_DIR"/*.json 2>/dev/null | wc -l)
           echo "  [R] Cache: injecting $CACHE_COUNT cached URL responses into prompt"
           INJECTED_PROMPT="$CACHE_CONTEXT

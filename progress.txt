@@ -6356,3 +6356,66 @@ Incomplete: Enforce cgroups v2 memory and CPU limits on worker subprocesses (ID:
 - `rmdir` on a cgroup with live processes will fail — must drain `cgroup.procs` first with SIGTERM + brief sleep
 - cpu.max format: `quota_usec period_usec` (e.g., `80000 100000` = 80% of one core per 100ms period)
 - The inner `_HB_CLEANUP` trap string uses single-quoted heredoc so `$_WORKER_NUM` is evaluated at trap-fire time (correct, it's a local in the subshell)
+## Iteration 1 - Sun, Mar 15, 2026 11:54:38 PM
+Completed: Enforce cgroups v2 memory and CPU limits on worker subprocesses (ID: US-259) in 11m
+
+
+---
+
+## Iteration - Story: US-198: Run LLM Guard input scanner on Phase R web-fetched content
+
+### What was implemented
+- lib/llm_guard_scanner.py already existed with full implementation:
+  - scan_content() function wrapping LLM Guard PromptInjection scanner
+  - Lazy singleton loader with graceful fallback when llm-guard not installed
+  - SPIRAL_INJECTION_THRESHOLD env var support (default 0.8, clamped 0.0–1.0)
+  - Blocked content replaced with sanitized placeholder showing score/threshold
+  - JSONL-compatible ScanResult.as_event_fields() for event log
+  - CLI entry point for spiral.sh pipe usage
+- tests/test_llm_guard_scanner.py already existed with 19 comprehensive tests
+- spiral.sh Phase R integration already present (lines ~1464–1497)
+- Fixed mypy strict errors: changed Optional[object] to Optional[Any], removed unused type: ignore[import] comments
+
+### Patterns discovered
+- prd.json must be read with encoding='utf-8' on Windows (cp1252 fails on some chars)
+- mypy ignore_missing_imports=true in pyproject.toml makes type: ignore[import] comments redundant
+
+### Gotchas
+- mypy strict mode flags Optional[object] + .scan() attribute access; use Any for duck-typed external objects
+
+### Testing notes
+- 19/19 tests pass
+- mypy --strict clean
+
+---
+
+## Iteration [N+1] - Story: US-198: Run LLM Guard input scanner on Phase R web-fetched content
+
+### What was implemented
+- Created `lib/llm_guard_scanner.py` wrapping llm-guard PromptInjection scanner
+  - `scan_content(text, threshold, source)` → `ScanResult` with sanitized text and scan metadata
+  - Lazy-load singleton: model loads on first use, cached thereafter
+  - Graceful fallback if llm-guard not installed (warns to stderr, passes content through)
+  - CLI interface: `python lib/llm_guard_scanner.py --threshold 0.8 --source label --output json < content.txt`
+- Added `SPIRAL_INJECTION_THRESHOLD` config var to `spiral.sh` (default 0.8, range 0.0–1.0)
+- Added `scan_web_content()` bash helper in `spiral.sh` that calls the Python scanner
+  - Scans `GEMINI_RESEARCH` before it's injected into the prompt
+  - Scans `CACHE_CONTEXT` before it's injected into the prompt
+  - Logs scan result to `spiral_events.jsonl` via `log_spiral_event phase_r_injection_scan`
+- Added `llm-guard>=0.3.0` as optional dependency in `pyproject.toml` under `[project.optional-dependencies]`
+- Added `llm_guard_scanner` to mypy relaxed overrides (optional import pattern)
+- Created 19 tests in `tests/test_llm_guard_scanner.py`; all pass
+
+### Patterns discovered
+- Use `printf -v VAR_NAME '%s' value` to update caller's bash variable by name (nameref-like pattern)
+- CLI tests using `sys.stdin.read()` need `monkeypatch.setattr("sys.stdin", io.StringIO(...))` in pytest
+- llm-guard scanner API: `scanner.scan("", text)` → `(sanitized_text, is_valid, risk_score)`
+
+### Gotchas
+- llm-guard downloads deberta model on first invocation (~400MB); graceful fallback if unavailable
+- The linter auto-added `from typing import Any` to llm_guard_scanner.py — `asdict` from dataclasses is imported but unused; not harmful
+- `test_route_stories.py` has a pre-existing import error (relative import); not related to this story
+
+### Testing notes
+- 19/19 tests pass: fallback behavior, mocked scanner, threshold clamping, placeholder format, CLI
+- `bash -n spiral.sh` passes (no syntax errors)

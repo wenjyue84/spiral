@@ -3964,7 +3964,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-199",
@@ -5614,6 +5614,385 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "large",
+      "passes": false
+    },
+    {
+      "id": "US-277",
+      "title": "Stream ralph.sh worker stdout to spiral_dashboard via Server-Sent Events",
+      "priority": "high",
+      "description": "Pipe real-time worker output from ralph.sh subprocess stdout into the spiral_dashboard via Server-Sent Events (SSE) so operators can watch live implementation progress without tailing log files. Each SSE event carries the story ID, worker index, and a line of output.",
+      "acceptanceCriteria": [
+        "GET /api/worker-stream/{worker_id} returns an SSE stream (Content-Type: text/event-stream)",
+        "Dashboard UI shows a live console panel per active worker, auto-scrolling to latest line",
+        "Stream ends with a final event {type: 'done', status: 'passed'|'failed'} when worker exits",
+        "Both stdout and stderr are interleaved in the stream using asyncio.create_task to prevent deadlock",
+        "When no active worker matches worker_id, endpoint returns HTTP 404 immediately"
+      ],
+      "technicalNotes": [
+        "Use asyncio.create_subprocess_exec with stdout=PIPE and stderr=PIPE; read both streams concurrently via asyncio.create_task to prevent OS pipe buffer deadlock",
+        "SSE format: 'data: {json}\\n\\n' per event; client reconnects with Last-Event-ID on disconnect",
+        "asyncio.StreamReader.readline() is non-blocking and safe for streaming; do not use process.communicate() which buffers everything",
+        "Reference: https://docs.python.org/3/library/asyncio-subprocess.html"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-278",
+      "title": "Block worker outbound network access during Phase I using network namespace isolation",
+      "priority": "high",
+      "description": "Isolate each ralph.sh worker's network access during implementation to prevent AI-generated code from exfiltrating secrets, making unauthorized API calls, or introducing supply chain attacks. When SPIRAL_WORKER_NETWORK_ISOLATION=true, workers run in a restricted network namespace that blocks all outbound connections except to localhost.",
+      "acceptanceCriteria": [
+        "When SPIRAL_WORKER_NETWORK_ISOLATION=true, ralph.sh is launched via 'unshare --net' (Linux) or equivalent",
+        "Worker can still read/write local filesystem; outbound HTTP from within a worker results in connection refused",
+        "Network isolation is skipped on Windows/macOS with a warning logged to spiral_events.jsonl",
+        "SPIRAL_WORKER_NETWORK_ISOLATION=false is the default to preserve backward compatibility",
+        "spiral-doctor checks whether 'unshare' binary is available and reports capability status"
+      ],
+      "technicalNotes": [
+        "Linux: 'unshare --net --fork -- bash ralph.sh' creates a new network namespace; loopback only by default",
+        "Namespaces are a visibility wall, not a full security boundary \u2014 combine with seccomp profiles for defense in depth",
+        "Docker --network none achieves equivalent isolation when workers run in containers",
+        "Reference: https://securitylabs.datadoghq.com/articles/container-security-fundamentals-part-2/"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-279",
+      "title": "Capture worker crash tracebacks and persist to .spiral/crashes/ directory",
+      "priority": "high",
+      "description": "When ralph.sh exits with a non-zero code, capture the full stderr output (including Python tracebacks) and write it to a timestamped file in .spiral/crashes/. Maintain a crash index JSON file so spiral-doctor and the dashboard can surface crash history without scanning file contents.",
+      "acceptanceCriteria": [
+        "Any ralph.sh exit with code != 0 writes stderr to .spiral/crashes/{story_id}_{timestamp}.txt",
+        ".spiral/crashes/index.json is updated with {story_id, timestamp, exit_code, worker_id, crash_file} per crash",
+        "Crash files older than SPIRAL_CRASH_RETENTION_DAYS (default: 7) are pruned on startup",
+        "spiral-doctor reports the N most recent crashes from index.json",
+        "Dashboard shows crash count badge on worker cards when crash history is non-empty",
+        "Crash directory is added to .gitignore (not committed)"
+      ],
+      "technicalNotes": [
+        "In bash: capture stderr with 2>.spiral/crashes/${story_id}_${ts}.txt alongside the ralph invocation using tee",
+        "Crash index must be updated atomically using a temp-file rename to prevent corruption under parallel workers",
+        "Retain only last SPIRAL_CRASH_RETENTION_DAYS days of crash files to prevent unbounded disk growth",
+        "Reference: https://docs.python.org/3/library/asyncio-subprocess.html"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-280",
+      "title": "Inject unified diff of filesTouch files as context into ralph.sh instead of full files",
+      "priority": "high",
+      "description": "Reduce ralph.sh context window usage by injecting a unified git diff of the filesTouch paths (last N commits) rather than full file contents. For large codebases, this can reduce context size by 60-80% while providing the precise delta the model needs to understand recent changes.",
+      "acceptanceCriteria": [
+        "ralph.sh computes 'git diff HEAD~3 -- ${filesTouch[@]}' and injects the output into the story context block",
+        "Full file contents are still injected when the diff is empty (new files) or when filesTouch is absent",
+        "Context injection mode is controlled by SPIRAL_CONTEXT_MODE=diff|full (default: diff)",
+        "Diff is truncated at SPIRAL_MAX_DIFF_LINES (default: 500 lines) with a truncation notice if exceeded",
+        "Unit test verifies that diff context is smaller than full-file context for a modified file with known content"
+      ],
+      "technicalNotes": [
+        "Use 'git diff --unified=5 HEAD~${SPIRAL_DIFF_DEPTH:-3} -- <files>' for context-rich diffs",
+        "For new files, 'git show HEAD:<file>' provides the full content as a fallback",
+        "Combined with the existing max-diff-size guard, this prevents context overflow from large refactors",
+        "Reference: https://git-scm.com/docs/git-diff \u2014 unified diff format"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-281",
+      "title": "Add OpenMetrics /metrics HTTP endpoint to spiral_dashboard.py",
+      "priority": "medium",
+      "description": "Expose a Prometheus-compatible OpenMetrics endpoint at /metrics in spiral_dashboard.py so external monitoring stacks (Grafana, Victoria Metrics) can scrape SPIRAL runtime state. Metrics should include story counts by status, cumulative API cost, iteration count, and active worker count.",
+      "acceptanceCriteria": [
+        "GET /metrics returns HTTP 200 with Content-Type: application/openmetrics-text; charset=utf-8",
+        "Response includes gauges for spiral_stories_total{status=pending|passed|failed|skipped}, spiral_cost_total_usd, spiral_iteration_count, spiral_workers_active",
+        "Metrics update in real time without requiring a dashboard restart",
+        "Endpoint is accessible when SPIRAL_DASHBOARD_PORT is set and dashboard is running",
+        "prometheus_client Python package is used via openmetrics exposition module"
+      ],
+      "technicalNotes": [
+        "Use prometheus_client.openmetrics.exposition.generate_latest() for correct Content-Type header",
+        "Register a CollectorRegistry and pass it to the Flask/FastAPI route handler",
+        "OpenMetrics is a GA CNCF standard (2023); legacy Prometheus text format is deprecated for new consumers",
+        "Reference: https://github.com/prometheus/client_python/blob/master/prometheus_client/openmetrics/exposition.py"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-282",
+      "title": "Semantic near-duplicate story detection using sentence-transformer embeddings",
+      "priority": "medium",
+      "description": "Augment the existing title-similarity deduplication in merge_stories.py with vector-embedding-based semantic deduplication. Two stories whose embeddings have cosine similarity >= 0.92 are flagged as near-duplicates and the lower-priority one is rejected, even when their titles differ substantially.",
+      "acceptanceCriteria": [
+        "merge_stories.py computes embeddings for new story titles+descriptions using sentence-transformers all-MiniLM-L6-v2",
+        "Stories with cosine similarity >= 0.92 against any existing prd.json story are logged as duplicates and dropped from the merge batch",
+        "Embedding computation is optional: if sentence-transformers is not installed, falls back to existing title-comparison logic with a warning",
+        "Unit test verifies that two paraphrased stories (same intent, different wording) are deduplicated",
+        "Embedding cache is persisted to .spiral/embed_cache.pkl to avoid recomputation on every iteration"
+      ],
+      "technicalNotes": [
+        "Use sentence-transformers/all-MiniLM-L6-v2 (22 MB, fast CPU inference) via pip installable package",
+        "Cosine similarity threshold 0.92-0.95 catches near-duplicates with low false-positive rate per SemDedup research",
+        "For PRDs > 500 stories, use FAISS IndexFlatIP for O(log n) ANN search instead of O(n^2) pairwise",
+        "Reference: NVIDIA SemDedup technique: https://docs.nvidia.com/nemo-framework/user-guide/latest/datacuration/semdedup.html"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-283",
+      "title": "Automated git bisect on Phase V failure to locate regression-introducing commit",
+      "priority": "medium",
+      "description": "When Phase V validation fails and SPIRAL_BISECT_ON_FAILURE=true is set, automatically run `git bisect run` using SPIRAL_VALIDATE_CMD as the test script. The bisect result (offending commit SHA) is written to .spiral/_bisect_result.json and displayed in the dashboard.",
+      "acceptanceCriteria": [
+        "When Phase V returns non-zero and SPIRAL_BISECT_ON_FAILURE=true, spiral.sh runs git bisect start HEAD <last_known_good_sha>",
+        "git bisect run is invoked with a wrapper script that executes SPIRAL_VALIDATE_CMD; exit 0 = good, exit 1 = bad, exit 125 = skip",
+        "_bisect_result.json is written with fields: offending_sha, commit_message, story_id, timestamp",
+        "Bisect aborts cleanly (git bisect reset) whether it succeeds or times out via SPIRAL_BISECT_TIMEOUT_MINUTES",
+        "If no known-good SHA is available in _checkpoint.json, bisect is skipped with a warning"
+      ],
+      "technicalNotes": [
+        "git bisect run <script> exits 0 when bisect identifies the first bad commit; the commit SHA is in git bisect log output",
+        "Bisect test scripts must exit 125 to skip untestable commits (e.g., build failures); this is different from exit 1 (definitively bad)",
+        "Store last known-good SHA as _lastGoodSha in .spiral/_checkpoint.json after each successful Phase V",
+        "Reference: https://git-scm.com/docs/git-bisect \u2014 'git bisect run' section"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-284",
+      "title": "Validate all phase output JSON files with versioned Pydantic v2 models",
+      "priority": "medium",
+      "description": "Replace ad-hoc JSON key checks in spiral.sh with Pydantic v2 models for each phase output file (_research_output.json, _validated_stories.json, _test_stories_output.json). Each model carries a schema_version field and auto-migrates older payloads on load, preventing silent data corruption from schema drift.",
+      "acceptanceCriteria": [
+        "lib/schemas.py defines Pydantic v2 BaseModel subclasses for ResearchOutput, ValidatedStories, and TestStoriesOutput",
+        "Each model has a schema_version: int field (default=1); a load_and_migrate() factory handles older versions",
+        "Loading a phase output file with an unrecognized schema_version raises a MigrationError with the version number",
+        "All existing Python modules that read phase output files use the new schema models",
+        "mypy --strict passes for lib/schemas.py with no type: ignore suppressions"
+      ],
+      "technicalNotes": [
+        "Pydantic v2 model_config = ConfigDict(extra='ignore') allows forward compatibility with unknown fields",
+        "Use Annotated[int, Field(ge=1)] for schema_version to enforce valid version numbers",
+        "V1 to V2 field renames handled via @model_validator(mode='before') in the Pydantic model",
+        "Reference: https://docs.pydantic.dev/latest/migration/ \u2014 model_config and @model_validator patterns"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-285",
+      "title": "Multi-model consensus voting for stories tagged estimatedComplexity=large",
+      "priority": "medium",
+      "description": "For stories with estimatedComplexity=large, run Phase I implementation with two different models in parallel and compare outputs. If both implementations pass Phase V, accept the one with higher test coverage delta. If they disagree, escalate to the interactive gate for human resolution.",
+      "acceptanceCriteria": [
+        "When SPIRAL_CONSENSUS_ENABLED=true, stories with estimatedComplexity=large spawn two parallel workers with different models",
+        "Both worker outputs are validated independently by SPIRAL_VALIDATE_CMD",
+        "If both pass, the implementation with higher line coverage delta is promoted",
+        "If only one passes, that implementation is accepted automatically",
+        "If both fail, the story is retried via normal retry logic; consensus result is logged to results.tsv as a consensus_result column",
+        "SPIRAL_CONSENSUS_MODELS env var specifies the two models (default: claude-sonnet-4-5,claude-opus-4-5)"
+      ],
+      "technicalNotes": [
+        "Majority voting with 2 agents requires a tie-breaker (coverage delta); 3-agent pools self-resolve via majority vote",
+        "Consensus doubles token cost for large stories; SPIRAL_COST_CEILING should account for this when SPIRAL_CONSENSUS_ENABLED=true",
+        "Debate-based consensus (ACL 2025) produces more accurate results but increases latency; simple output comparison is sufficient for Phase I",
+        "Reference: https://galileo.ai/blog/multi-agent-coordination-strategies"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "large",
+      "passes": false
+    },
+    {
+      "id": "US-286",
+      "title": "Auto-tag prd.json stories with affected module names derived from filesTouch field",
+      "priority": "medium",
+      "description": "When a story has a filesTouch field populated, automatically derive module-level tags by extracting top-level directory prefixes from the file paths and appending them to the story's tags array. This enables --focus-tags filtering without requiring manual tagging.",
+      "acceptanceCriteria": [
+        "populate_hints.py or merge_stories.py extracts unique directory prefixes (depth 1-2) from filesTouch entries",
+        "Derived tags are prefixed with 'module:' to distinguish them from user-supplied tags (e.g., 'module:lib', 'module:ralph')",
+        "Auto-tags are appended to the existing tags array without duplicating manually set tags",
+        "Stories with no filesTouch field are not modified",
+        "Unit test verifies that filesTouch: ['lib/phases/phase_r.sh', 'lib/merge_stories.py'] produces tags: ['module:lib']"
+      ],
+      "technicalNotes": [
+        "Use pathlib.PurePosixPath to extract the top-level directory consistently across platforms",
+        "Limit depth to first two path components to avoid overly granular tags",
+        "Auto-tagging runs as a post-process step after merge, not during Phase R \u2014 no LLM calls required",
+        "Connects to existing story tags field and --focus-tags CLI filter already implemented"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-287",
+      "title": "Add cyclomatic complexity gate: warn when story implementation exceeds threshold",
+      "priority": "medium",
+      "description": "After Phase I implementation, run a cyclomatic complexity analysis using radon on all Python files modified by the story. If any function exceeds SPIRAL_MAX_CYCLOMATIC_COMPLEXITY (default: 10), emit a warning to spiral_events.jsonl. When SPIRAL_COMPLEXITY_HARD_GATE=true, treat exceedance as a story failure.",
+      "acceptanceCriteria": [
+        "Phase I post-step runs 'radon cc -s -j <changed_files>' on modified Python files",
+        "Functions with complexity > SPIRAL_MAX_CYCLOMATIC_COMPLEXITY are logged as warnings in spiral_events.jsonl with story_id and file:line",
+        "When SPIRAL_COMPLEXITY_HARD_GATE=true, the story is flagged as failed and decomposition is triggered",
+        "SPIRAL_MAX_CYCLOMATIC_COMPLEXITY defaults to 10 per McCabe's recommended threshold",
+        "Complexity gate is skipped if radon is not installed, with a one-time advisory message"
+      ],
+      "technicalNotes": [
+        "radon is installable via 'uv pip install radon'; outputs JSON with 'radon cc -j'",
+        "McCabe's original paper (1976) recommends complexity <= 10 as the threshold for maintainable code",
+        "Run only on files in the story's filesTouch list to avoid scanning unrelated files",
+        "Reference: https://radon.readthedocs.io/en/latest/intro.html"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-288",
+      "title": "Integration test for Phase R to M pipeline with VCR-recorded API responses",
+      "priority": "medium",
+      "description": "Add a pytest integration test that exercises the full Phase R (research output parsing) through Phase S (validation) through Phase M (merge) pipeline using pre-recorded API responses via vcrpy cassettes. This catches regressions in JSON parsing, schema validation, and deduplication logic without live API calls.",
+      "acceptanceCriteria": [
+        "tests/test_phase_rsm_integration.py runs the Phase R output parser, Phase S validator, and Phase M merger in sequence",
+        "All HTTP calls are intercepted by vcrpy cassettes stored in tests/fixtures/cassettes/",
+        "Test verifies that a known research output containing duplicates results in the correctly deduplicated stories in prd.json",
+        "Test verifies that a research output with schema violations is rejected before merge",
+        "Test runs in CI without network access (cassettes are committed to the repo)",
+        "Test is marked @pytest.mark.integration and excluded from fast unit test run"
+      ],
+      "technicalNotes": [
+        "vcrpy records and replays HTTP interactions; cassettes are YAML files in tests/fixtures/cassettes/",
+        "Use @pytest.fixture with vcr.use_cassette() decorator for clean test isolation",
+        "Set cassette record_mode='none' in CI to prevent accidental live API calls",
+        "Reference: https://vcrpy.readthedocs.io/en/latest/"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-289",
+      "title": "Phase S completeness gate: reject stories below stored _qualityScore threshold",
+      "priority": "medium",
+      "description": "Extend Phase S (Story Validate) to use the _qualityScore field (computed at ingestion) as a hard gate. Stories below SPIRAL_MIN_STORY_QUALITY (default: 0.5) are rejected from the merge batch with a structured rejection reason, preventing low-quality stories from entering the implementation queue.",
+      "acceptanceCriteria": [
+        "Phase S reads _qualityScore from each candidate story; stories with _qualityScore < SPIRAL_MIN_STORY_QUALITY are dropped",
+        "Rejection reason 'quality_score_below_threshold' is written to the story's _rejectionReason field",
+        "Rejection count and score distribution are emitted to spiral_events.jsonl as a phase_s_summary event",
+        "SPIRAL_MIN_STORY_QUALITY defaults to 0.5; setting it to 0.0 disables the gate",
+        "Stories without a _qualityScore field (e.g., seed stories) bypass this gate entirely"
+      ],
+      "technicalNotes": [
+        "_qualityScore is computed by the pending 'Compute and store story quality score at ingestion' story",
+        "Gate should run after constitution/goal/dedup checks but before merge, as the last Phase S filter",
+        "Log rejected stories to .spiral/rejected_stories.jsonl for operator review",
+        "Depends on: Compute and store story quality score at ingestion based on acceptance criteria richness"
+      ],
+      "dependencies": [
+        "US-270"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-290",
+      "title": "Cross-run results.tsv aggregation: merge historical run files for trend reporting",
+      "priority": "medium",
+      "description": "Add a `spiral analytics` subcommand that aggregates results.tsv files from multiple SPIRAL runs (archived per run in .spiral/history/) to produce a trend report showing story velocity, cost per model, pass rate over time, and median implementation duration.",
+      "acceptanceCriteria": [
+        "Each SPIRAL run archives its results.tsv to .spiral/history/{run_id}_results.tsv on completion",
+        "'spiral analytics' reads all archived results.tsv files and aggregates by run_id, model, story status",
+        "Report includes: total stories passed/failed/skipped per run, cost per run, median duration per model, cumulative cost over all runs",
+        "Output supports --format=markdown (default) and --format=html (with embedded Chart.js bar chart)",
+        "Command works with pandas if available, or falls back to pure-Python csv module with no pandas requirement"
+      ],
+      "technicalNotes": [
+        "pandas.read_csv with dtype={'cost_usd': float, 'tokens': int} handles mixed-type TSV columns safely",
+        "Group by run_id using df.groupby(['run_id', 'model', 'status']).agg() for velocity metrics",
+        "Correlate run_id with SPIRAL_RUN_ID from existing spiral_events.jsonl implementation",
+        "Reference: https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-291",
+      "title": "Add `spiral config export-env` command to export spiral.config.sh as .env file",
+      "priority": "medium",
+      "description": "Add a `spiral config export-env` subcommand that reads spiral.config.sh, extracts all SPIRAL_* variable assignments, and writes them to a .env file. This enables CI/CD pipelines and Docker containers to load SPIRAL configuration without bash sourcing, following 12-factor app methodology.",
+      "acceptanceCriteria": [
+        "'spiral config export-env' writes a .env file with one SPIRAL_* variable per line in KEY=VALUE format",
+        "Output file defaults to .spiral/.env; overridden with --output flag",
+        "Sensitive values (containing TOKEN, KEY, SECRET in the variable name) are masked with *** in stdout preview but written in full to the output file",
+        "Generated .env is valid for use with 'docker run --env-file' and GitHub Actions env-file syntax",
+        "Command warns if spiral.config.sh contains dynamic bash expressions that cannot be statically extracted"
+      ],
+      "technicalNotes": [
+        "Parse spiral.config.sh with regex: '^\\s*export\\s+(SPIRAL_[A-Z_]+)=(.*)$' to extract variable assignments",
+        "Handle quoted values: strip surrounding single/double quotes from extracted values",
+        "GitHub Actions env-file format is identical to Docker --env-file: KEY=VALUE with no 'export' keyword",
+        "Reference: 12-factor app config methodology \u2014 https://12factor.net/config"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-292",
+      "title": "Watch plugin.toml for changes and hot-reload plugins without restarting spiral.sh",
+      "priority": "low",
+      "description": "Add between-iteration mtime checking for plugin.toml and plugin script files. When a change is detected, reload only the affected plugin hooks so operators can iterate on plugins without restarting long-running SPIRAL sessions.",
+      "acceptanceCriteria": [
+        "spiral.sh sources plugin hooks at the start of each phase iteration, not once at startup",
+        "When plugin.toml or a referenced script file mtime changes, a [plugin-reload] entry appears in spiral_events.jsonl",
+        "Reloading a plugin with a syntax error logs the error and skips the hook without aborting the iteration",
+        "Plugin hot-reload is enabled by default; disabled via SPIRAL_PLUGIN_HOT_RELOAD=false",
+        "Unit test verifies that modifying a plugin script between iterations causes the new version to be sourced"
+      ],
+      "technicalNotes": [
+        "In bash, store plugin file mtimes in an associative array and compare at each iteration start using 'stat -c %Y'",
+        "Avoid inotify in bash on Windows \u2014 mtime polling every iteration is sufficient for SPIRAL's loop cadence",
+        "Python watchdog library provides cross-platform inotify/FSEvents/kqueue file watching if a Python-based reload daemon is preferred",
+        "Reference: https://python-watchdog.readthedocs.io/en/stable/"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-293",
+      "title": "Track ralph/CLAUDE.md prompt version as content hash in results.tsv",
+      "priority": "low",
+      "description": "Compute a short SHA-256 hash of the ralph/CLAUDE.md system prompt at the start of each SPIRAL run and record it as a prompt_version column in results.tsv and as a field in _iteration_summary.json. This enables post-hoc analysis of which prompt version produced better story pass rates.",
+      "acceptanceCriteria": [
+        "spiral.sh computes PROMPT_VERSION=$(sha256sum ralph/CLAUDE.md | cut -c1-8) at startup",
+        "results.tsv gains a prompt_version column containing the 8-char hash for every story attempt row",
+        "_iteration_summary.json includes a prompt_version field",
+        "When ralph/CLAUDE.md has uncommitted changes, prompt_version is suffixed with '-dirty'",
+        "Unit test verifies that two different CLAUDE.md contents produce different hash values"
+      ],
+      "technicalNotes": [
+        "sha256sum is available in Git Bash on Windows; use certutil -hashfile on CMD as fallback",
+        "Truncate to 8 chars (like git short SHA) for readability in the TSV column",
+        "Enables pandas groupby analysis: df.groupby('prompt_version')['status'].value_counts() shows pass rate per prompt version",
+        "Reference: prompt versioning best practices \u2014 https://www.promptingguide.ai/"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
       "passes": false
     }
   ]
