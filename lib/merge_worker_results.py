@@ -51,8 +51,12 @@ def main() -> int:
         if not os.path.isfile(wpath):
             print(f"[merge_workers] WARNING: {wpath} not found — skipping")
             continue
-        with open(wpath, encoding="utf-8") as f:
-            worker_prd = json.load(f)
+        try:
+            with open(wpath, encoding="utf-8") as f:
+                worker_prd = json.load(f)
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+            print(f"[merge_workers] WARNING: {wpath} is corrupt ({exc}) — skipping")
+            continue
         w_errors = validate_prd(worker_prd)
         if w_errors:
             print(f"[merge_workers] WARNING: Worker PRD validation failed ({wpath}) — skipping")

@@ -358,7 +358,18 @@ NEEDS_LOCK=0
 [[ "\$*" == *"bench install-app"* ]] && NEEDS_LOCK=1
 if [[ "\$NEEDS_LOCK" -eq 1 ]]; then
   # Spin-wait using mkdir atomicity (works on all POSIX + MSYS2 / Git Bash)
-  while ! mkdir "\$LOCK" 2>/dev/null; do sleep 1; done
+  # Timeout after 120s to prevent infinite deadlock if lock holder crashed
+  _LOCK_WAIT=0
+  while ! mkdir "\$LOCK" 2>/dev/null; do
+    sleep 1
+    _LOCK_WAIT=\$((_LOCK_WAIT + 1))
+    if [[ "\$_LOCK_WAIT" -ge 120 ]]; then
+      echo "[docker-lock] WARNING: Lock held for 120s, assuming stale — breaking lock" >&2
+      rmdir "\$LOCK" 2>/dev/null || rm -rf "\$LOCK" 2>/dev/null || true
+      mkdir "\$LOCK" 2>/dev/null || true
+      break
+    fi
+  done
   "\$REAL" "\$@"
   RC=\$?
   rmdir "\$LOCK" 2>/dev/null || true
