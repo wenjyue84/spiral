@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\otel_spans.py
+# hypothesis_version: 6.151.9
+
+[5000, 1000000000, '-', '--duration-s', '--input-tokens', '--iteration', '--output-tokens', '--passes', '--phase', '--run-id', '--scratch-dir', '--story-count', '--story-id', '.spiral', 'C', 'G', 'I', 'M', 'R', 'S', 'SPIRAL_RUN_ID', 'SPIRAL_SCRATCH_DIR', 'T', 'TRACEPARENT', 'V', '__main__', 'anthropic', 'begin-run', 'check', 'command', 'end-phase', 'end-run', 'gen_ai.agent.id', 'gen_ai.agent.name', 'gen_ai.system', 'generate', 'implement', 'invoke_agent', 'invoke_agent spiral', 'merge', 'research', 'root_span_id', 'run_id', 'spiral', 'spiral.duration_s', 'spiral.iteration', 'spiral.phase', 'spiral.story_count', 'spiral.story_id', 'start_time_ns', 'story_validate', 'test_synth', 'trace_id', 'validate']
