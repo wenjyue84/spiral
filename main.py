@@ -279,6 +279,58 @@ def cmd_search(args) -> None:
     _sys.exit(0)
 
 
+def cmd_import_github(args) -> None:
+    """Import GitHub Issues as SPIRAL user stories into prd.json."""
+    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    from import_github import import_github_issues  # type: ignore[import-untyped]
+
+    token = os.environ.get("GITHUB_TOKEN", "").strip()
+    if not token:
+        print(
+            "ERROR: GITHUB_TOKEN environment variable is not set.\n"
+            "Create a GitHub token at https://github.com/settings/tokens "
+            "and export it as GITHUB_TOKEN.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    prd_path = str(PRD_FILE)
+    if not PRD_FILE.exists():
+        print(f"Error: {prd_path} not found", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        added, skipped = import_github_issues(
+            repo=args.repo,
+            label=args.label,
+            prd_path=prd_path,
+            token=token,
+            dry_run=getattr(args, "dry_run", False),
+        )
+    except (RuntimeError, ValueError, FileNotFoundError) as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    for title in skipped:
+        print(f"[skip] Duplicate: {title!r}")
+
+    if getattr(args, "dry_run", False):
+        if added:
+            print(f"\n[dry-run] Would add {len(added)} story/stories:")
+            for story in added:
+                print(f"  {story['id']} ({story['priority']}) — {story['title']}")
+        else:
+            print("[dry-run] No new stories to add.")
+        return
+
+    if added:
+        print(f"Added {len(added)} story/stories to prd.json:")
+        for story in added:
+            print(f"  {story['id']} ({story['priority']}) — {story['title']}")
+    else:
+        print("No new stories to add.")
+
+
 def cmd_compact_prd(args) -> None:
     """Strip transient runtime fields from completed/skipped stories in prd.json."""
     sys.path.insert(0, str(Path(__file__).parent / "lib"))
@@ -456,6 +508,29 @@ def main():
         help="Show what would be removed without writing changes",
     )
 
+    import_gh_parser = subparsers.add_parser(
+        "import-github",
+        help="Import GitHub Issues as SPIRAL user stories into prd.json",
+    )
+    import_gh_parser.add_argument(
+        "--repo",
+        required=True,
+        metavar="OWNER/REPO",
+        help="GitHub repository in owner/repo format (e.g. anthropics/claude-code)",
+    )
+    import_gh_parser.add_argument(
+        "--label",
+        default="spiral",
+        metavar="LABEL",
+        help="GitHub label to filter issues by (default: spiral)",
+    )
+    import_gh_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        dest="dry_run",
+        help="Print stories that would be added without modifying prd.json",
+    )
+
     args = parser.parse_args()
 
     if args.command == "init":
@@ -470,6 +545,8 @@ def main():
         cmd_search(args)
     elif args.command == "compact-prd":
         cmd_compact_prd(args)
+    elif args.command == "import-github":
+        cmd_import_github(args)
     else:
         parser.print_help()
         sys.exit(0)

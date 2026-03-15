@@ -4947,3 +4947,28 @@ Completed: Add SPIRAL_BRANCH_PREFIX for per-story feature branch creation and na
 - OTel SDK prints "Failed to export" to stderr on connection failure — stderr is redirected to /dev/null in spiral.sh
 - begin-run must be called AFTER SPIRAL_PYTHON is resolved (it uses $SPIRAL_PYTHON)
 - SPIRAL_SCRATCH_DIR must be set before begin-run (it is: set at line 532 before SPIRAL_RUN_ID use)
+## Iteration 1 - Sun, Mar 15, 2026  3:43:50 PM
+Completed: Emit OTel GenAI agent spans per story phase using semconv (ID: US-184) in 24m
+
+
+## Iteration N - Story: US-185: Import user stories from GitHub Issues via GraphQL API
+
+### What was implemented
+- Created lib/import_github.py: GitHub GraphQL API importer
+  - `fetch_issues(owner, repo, label, token)` generator: cursor-based pagination (100 issues/page) via GitHub GraphQL
+  - `map_issue_to_story(issue, existing_titles, next_id)`: maps title→title, body→description, labels/milestone→priority; returns None for duplicates
+  - `_extract_priority()`: priority:critical/high/medium/low labels take precedence, then milestone title keywords, default=medium
+  - `_next_story_id()`: finds highest US-NNN id and increments; sequential even when multiple issues imported in one run
+  - `import_github_issues()`: public API — loads prd.json, fetches issues, deduplicates, optionally writes atomically
+  - CLI main() with --repo, --label, --prd, --dry-run; exits code 1 if GITHUB_TOKEN missing
+- Updated main.py: added cmd_import_github() function + import-github subparser (--repo, --label, --dry-run)
+- Created tests/test_import_github.py: 29 tests covering priority extraction, ID generation, issue mapping, integration with mocked fetch, CLI behavior
+
+### Patterns discovered
+- cmd_import_github() uses `from import_github import import_github_issues` inside function body; tests must patch `ig.import_github_issues` (module-level attr), not `main.import_github_issues`
+- atomic write pattern: write to .tmp then os.replace() — same as compact_prd.py
+- urllib.request sufficient for GitHub GraphQL; no extra dependencies needed
+
+### Gotchas
+- test_partition.py has 2 pre-existing Hypothesis health-check flakes (not caused by this story); 740 pytest tests pass otherwise
+- GITHUB_TOKEN check must happen before prd.json check for correct error ordering
