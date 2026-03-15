@@ -440,7 +440,9 @@ if [[ "$MONITOR_TERMINALS" -eq 1 ]]; then
     INNER="echo '=== $TITLE — live log (ANSI colors ON) ==='; echo; tail -f '$LOG'"
 
     if [[ -n "$WT_EXE" && -f "$WT_EXE" ]]; then
-      "$WT_EXE" --window 0 new-tab --title "$TITLE" -- bash.exe -c "$INNER" &
+      # Escape semicolons for wt.exe — it treats unescaped ';' as its own command separator
+      _WT_INNER="${INNER//;/\\;}"
+      "$WT_EXE" --window 0 new-tab --title "$TITLE" -- bash.exe -c "$_WT_INNER" &
     elif command -v mintty &>/dev/null; then
       mintty --title "$TITLE" /bin/bash -c "$INNER" &
     else
