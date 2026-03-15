@@ -466,6 +466,8 @@ SPIRAL_CREATE_TAGS="${SPIRAL_CREATE_TAGS:-false}"                        # true 
 SPIRAL_AUTO_PUSH_TAGS="${SPIRAL_AUTO_PUSH_TAGS:-false}"                  # true = push run-complete tag to origin after creation (US-137)
 SPIRAL_WORKSPACE_CLEANUP="${SPIRAL_WORKSPACE_CLEANUP:-false}"            # true = prune transient artifacts after 100% completion (US-136)
 SPIRAL_CACHE_TTL="${SPIRAL_CACHE_TTL:-7}"                                # days; research_cache entries older than this are pruned (US-136)
+SPIRAL_AUTO_RELEASE="${SPIRAL_AUTO_RELEASE:-false}"                      # true = auto SemVer bump from conventional commits on run completion (US-190)
+SPIRAL_GIT_PUSH="${SPIRAL_GIT_PUSH:-false}"                              # true = push vX.Y.Z tag to origin after auto-release (US-190)
 
 # ── Config validation ─────────────────────────────────────────────────────────
 # Validates required keys are set and applies defaults for optional keys.
@@ -3383,6 +3385,24 @@ PYEOF
     # ── Emit OTel root span for completed run (US-184) ─────────────────────
     "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" end-run \
       --passes "$DONE" --story-count "$TOTAL" 2>/dev/null || true
+
+    # ── Auto SemVer release from conventional commits (US-190) ───────────
+    if [[ "${SPIRAL_AUTO_RELEASE:-false}" == "true" ]]; then
+      echo ""
+      echo "  [auto-release] Calculating SemVer bump from conventional commits..."
+      _RELEASE_FLAGS=""
+      [[ "${SPIRAL_GIT_PUSH:-false}" == "true" ]] && _RELEASE_FLAGS="--push"
+      _RELEASE_RC=0
+      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/auto_release.py" \
+        --prd "$PRD_FILE" \
+        --repo "$REPO_ROOT" \
+        ${_RELEASE_FLAGS} || _RELEASE_RC=$?
+      if [[ "$_RELEASE_RC" -eq 2 ]]; then
+        echo "  [auto-release] No releasable commits — skipping tag creation"
+      elif [[ "$_RELEASE_RC" -ne 0 ]]; then
+        echo "  [auto-release] WARNING: auto-release exited with code $_RELEASE_RC (ignored)"
+      fi
+    fi
 
     exit 0
   fi

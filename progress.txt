@@ -5365,3 +5365,55 @@ Completed: Pin all GitHub Actions to full commit SHA and enforce via policy (ID:
 - Shell comment lines inside `run:` blocks can contain `uses: owner/repo@v3` example text
   that causes false positives in the grep check — filter them out with the content-starts-with-#
   grep filter
+## Iteration 1 - Sun, Mar 15, 2026  7:02:56 PM
+Completed: Pin all GitHub Actions to full commit SHA and enforce via policy (ID: US-220) in 9m
+
+
+## Iteration N - Story: US-221: Replace GitHub Actions long-lived secrets with OIDC short-lived tokens
+
+### What was implemented
+- Created .github/SECURITY.md — authoritative credential & OIDC inventory checklist
+  - Documents that ZERO static secrets are currently stored as GitHub repository secrets
+  - All workflows use automatic GITHUB_TOKEN (expires at job end, no rotation)
+  - No cloud provider integrations exist, so OIDC not applicable yet
+  - Full OIDC mandatory checklist for when cloud integrations are added in future
+  - Example AWS OIDC job + trust policy (no wildcards in sub condition)
+  - Table of integrations that MUST retain static secrets (e.g. third-party LLM providers)
+  - Workflow-level permission defaults and forbidden patterns documented
+  - References to GitHub OIDC, AWS, GCP, PyPI, npm OIDC docs
+
+### Patterns discovered
+- SPIRAL workflows already use per-job permissions blocks (not workflow-level) — correct pattern
+- No secrets are used in any workflow; GITHUB_TOKEN is the only credential
+- release.yml uses contents: write for the changelog commit — this is correct (GITHUB_TOKEN scoped)
+- id-token: write should NEVER be set at workflow level, only per-job
+
+### Gotchas
+- US-221 acceptance criteria for AWS/GCP OIDC are N/A for this project (no cloud deployments)
+- The SECURITY.md in .github/ is the GitHub-standard location for security policies
+- python3 json.load() on Windows requires explicit encoding='utf-8' to avoid cp1252 errors
+- 957 pytest tests pass; no tests cover SECURITY.md (documentation-only story)
+
+## Iteration N - Story: US-190: Add semantic-release automated version bump on spiral completion
+
+### What was implemented
+- Created `lib/auto_release.py`: pure-Python SemVer bump from conventional commits
+  - `_last_version_tag()`: finds most recent vX.Y.Z tag via `git tag --sort=-version:refname`
+  - `_commits_since()`: git log with NUL-separated fields since last tag
+  - `_classify_bump()`: feat→minor, fix/perf/refactor/revert→patch, `!` or BREAKING CHANGE footer→major
+  - `_next_version()`: computes X.Y.Z from last tag + bump level (handles None = first release)
+  - `_write_changelog()`: prepends vX.Y.Z section (Stories + grouped commits) to CHANGELOG.md
+  - CLI: `--prd`, `--repo`, `--push`, `--dry-run`; exit 0=tagged, 2=no releasable commits, 1=error
+- Updated `spiral.sh`:
+  - Added `SPIRAL_AUTO_RELEASE` (default false) and `SPIRAL_GIT_PUSH` (default false) env vars at ~line 469
+  - Wired auto-release call in Phase C completion block (before `exit 0`) — reads `SPIRAL_GIT_PUSH` to pass `--push`; exit code 2 logged as "no releasable commits" warning
+- Created `tests/test_auto_release.py`: 27 tests covering classify_bump, next_version, write_changelog, and main() integration with real git repos in tmp_path
+
+### Patterns discovered
+- No new pip dependency required — uses stdlib subprocess + pathlib + json
+- `git tag --sort=-version:refname --list 'v[0-9]*.[0-9]*.[0-9]*'` reliably returns vX.Y.Z tags newest-first
+- Exit code 2 (no-releasable-commits) is non-zero but non-fatal; spiral.sh handles separately from error exit
+
+### Gotchas
+- `git log --format` with NUL/0x1f separator is more reliable than `%n` for multi-line body capture
+- `_RELEASE_FLAGS` must be unquoted in `${_RELEASE_FLAGS}` expansion to handle empty string gracefully
