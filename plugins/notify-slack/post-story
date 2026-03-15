@@ -1,0 +1,39 @@
+#!/bin/bash
+# Slack notification hook — POST-STORY
+#
+# Receives story context JSON on stdin (same format as post-phase).
+# Posts a story completion notification to Slack webhook.
+
+set -euo pipefail
+
+if [[ -z "${SLACK_WEBHOOK_URL:-}" ]]; then
+  exit 0
+fi
+
+context=$(cat)
+
+iteration=$(echo "$context" | grep -o '"iteration":[0-9]*' | cut -d: -f2)
+story_id=$(echo "$context" | grep -o '"story_id":"[^"]*"' | cut -d'"' -f4)
+
+# Build Slack message payload
+payload=$(cat <<EOF
+{
+  "text": "SPIRAL Story Complete",
+  "blocks": [
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": "*SPIRAL Story Complete*\nIteration: \`${iteration:-0}\`\nStory: \`${story_id:-(none)}\`"
+      }
+    }
+  ]
+}
+EOF
+)
+
+curl -s -X POST "$SLACK_WEBHOOK_URL" \
+  -H 'Content-type: application/json' \
+  --data "$payload" >/dev/null 2>&1 || true
+
+exit 0

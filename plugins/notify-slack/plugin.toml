@@ -1,0 +1,18 @@
+[plugin]
+name = "notify-slack"
+version = "1.0.0"
+hooks = ["post-phase", "post-story"]
+allowed_env = ["SLACK_WEBHOOK_URL"]
+
+# Description: Sends story lifecycle notifications to Slack
+#
+# Supported hooks:
+#  - post-phase: Notifies when a phase completes (R, T, M, G, I, V, C)
+#  - post-story: Notifies when a story is complete (passes or fails)
+#
+# Configuration:
+#  - Set SLACK_WEBHOOK_URL env var to your Slack webhook endpoint
+#  - Messages include: story ID, phase, iteration, and result status
+#
+# Example webhook URL:
+#  export SLACK_WEBHOOK_URL="https://hooks.slack.com/services/YOUR/WEBHOOK/URL"

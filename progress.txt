@@ -5842,3 +5842,6 @@ Incomplete: Generate per-story ADR stub when architectural decision is detected 
 - Tested calibration recording integration: hooks into post-ralph completion flow
 
 ---
+## Iteration 4 - Sun, Mar 15, 2026  9:31:02 PM
+Incomplete: Generate per-story ADR stub when architectural decision is detected in Phase I output (ID: US-201) — attempt /3
+

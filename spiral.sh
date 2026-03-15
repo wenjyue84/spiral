@@ -298,6 +298,13 @@ while [[ $# -gt 0 ]]; do
       STATUS_ONLY=1
       shift
       ;;
+    --list-plugins)
+      # Load and list all plugins, then exit
+      source "$SPIRAL_HOME/lib/plugin_system.sh"
+      load_plugins "$SPIRAL_HOME"
+      list_plugins
+      exit 0
+      ;;
     --help | -h)
       echo "SPIRAL — Self-iterating PRD Research & Implementation Autonomous Loop"
       echo ""
@@ -334,6 +341,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --stale-report             Print stories inactive beyond SPIRAL_STALE_DAYS (default: 7) and exit"
       echo "  --flaky-tests report       Print quarantined flaky test registry and exit"
       echo "  --calibration-report       Print actual vs estimated complexity calibration data and exit"
+      echo "  --list-plugins             List all loaded plugins and their hooks, then exit"
       echo "  --log-level DEBUG|INFO|WARN|ERROR  Output verbosity (default: INFO; can also set SPIRAL_LOG_LEVEL env var)"
       echo "  --status                   Print session state and story counts, then exit"
       echo "  --version                  Print SPIRAL version (git describe) and exit"
@@ -807,6 +815,7 @@ source "$SPIRAL_HOME/lib/spiral_assert.sh"
 source "$SPIRAL_HOME/lib/spiral_retry.sh"
 source "$SPIRAL_HOME/lib/phases/phase_s_story_validate.sh"
 source "$SPIRAL_HOME/lib/phases/phase_0_clarify.sh"
+source "$SPIRAL_HOME/lib/plugin_system.sh"
 
 # ── --doctor: run dependency checks and exit ────────────────────────────────
 if [[ "$DOCTOR_MODE" -eq 1 ]]; then
@@ -880,6 +889,13 @@ if [[ -f "$CHECKPOINT_FILE" ]]; then
     echo "  [checkpoint] WARNING: Corrupt checkpoint detected — removing and starting fresh from iter 1"
     rm -f "$CHECKPOINT_FILE"
   fi
+fi
+
+# ── Load SPIRAL plugin system (US-193) ─────────────────────────────────────────
+echo "  [plugin] Loading SPIRAL plugin system..."
+load_plugins "$SPIRAL_HOME"
+if [[ ${#PLUGINS[@]} -gt 0 ]]; then
+  echo "  [plugin] Loaded ${#PLUGINS[@]} plugin(s)"
 fi
 
 SESSION_START=$(date +%s)
