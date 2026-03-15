@@ -25,8 +25,9 @@ import re
 import sys
 from typing import Any
 
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+sys.path.insert(0, os.path.dirname(__file__))
+from spiral_io import atomic_write_json, configure_utf8_stdout
+configure_utf8_stdout()
 
 # Keywords that indicate a user-facing feature → E2E test
 _E2E_KW = {
@@ -241,18 +242,7 @@ def main() -> int:
                 candidates.append(candidate)
                 seen_keys.add(key)  # prevent duplicates within this run
 
-    tmp = args.out + ".tmp"
-    try:
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump({"stories": candidates}, f, indent=2, ensure_ascii=False)
-            f.write("\n")
-        os.replace(tmp, args.out)
-    finally:
-        if os.path.exists(tmp):
-            try:
-                os.unlink(tmp)
-            except OSError:
-                pass
+    atomic_write_json(args.out, {"stories": candidates})
 
     if candidates:
         by_type: dict[str, int] = {}

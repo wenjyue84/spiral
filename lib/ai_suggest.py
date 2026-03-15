@@ -25,8 +25,9 @@ import re
 import sys
 from typing import Any
 
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+sys.path.insert(0, os.path.dirname(__file__))
+from spiral_io import atomic_write_json, configure_utf8_stdout
+configure_utf8_stdout()
 
 _STOPWORDS = {
     "the", "and", "for", "are", "was", "this", "with", "from", "that",
@@ -41,21 +42,6 @@ def _tokens(text: str) -> set[str]:
         w for w in re.findall(r"[a-z0-9]+", text.lower())
         if len(w) >= 3 and w not in _STOPWORDS
     }
-
-
-def _atomic_write(data: Any, path: str) -> None:
-    tmp = path + ".tmp"
-    try:
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-            f.write("\n")
-        os.replace(tmp, path)
-    finally:
-        if os.path.exists(tmp):
-            try:
-                os.unlink(tmp)
-            except OSError:
-                pass
 
 
 def load_queue(queue_path: str) -> list[dict]:
@@ -73,7 +59,7 @@ def load_queue(queue_path: str) -> list[dict]:
 def clear_queue(queue_path: str) -> None:
     """Clear the queue after consuming it."""
     try:
-        _atomic_write({"stories": []}, queue_path)
+        atomic_write_json(queue_path, {"stories": []})
     except OSError:
         pass
 
@@ -218,7 +204,7 @@ def main() -> int:
 
     if not os.path.isfile(args.prd):
         print(f"  [A] WARNING: {args.prd} not found — no AI suggestions this iteration")
-        _atomic_write({"stories": []}, args.out)
+        atomic_write_json(args.out, {"stories": []})
         return 0
 
     with open(args.prd, encoding="utf-8") as f:
@@ -246,7 +232,7 @@ def main() -> int:
             s["_source"] = "ai-example"
             unique.append(s)
 
-    _atomic_write({"stories": unique}, args.out)
+    atomic_write_json(args.out, {"stories": unique})
     print(f"  [A] AI suggestions: {len(unique)} candidate(s) → {args.out}")
 
     if args.clear_queue and queued:

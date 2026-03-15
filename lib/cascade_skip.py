@@ -20,14 +20,12 @@ Exit codes:
 import argparse
 import json
 import os
-import shutil
 import sys
-import tempfile
-
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 sys.path.insert(0, os.path.dirname(__file__))
+from spiral_io import atomic_write_json, configure_utf8_stdout
+configure_utf8_stdout()
+
 from state_machine import cascade_skip
 
 
@@ -62,20 +60,7 @@ def main() -> int:
     )
 
     if newly:
-        # Atomic write: write to temp then rename
-        tmp = args.prd + ".tmp"
-        try:
-            with open(tmp, "w", encoding="utf-8") as f:
-                json.dump(prd, f, indent=2, ensure_ascii=False)
-                f.write("\n")
-            shutil.move(tmp, args.prd)
-        except OSError as e:
-            print(f"[cascade_skip] ERROR: cannot write {args.prd}: {e}", file=sys.stderr)
-            try:
-                os.unlink(tmp)
-            except OSError:
-                pass
-            return 1
+        atomic_write_json(args.prd, prd)
 
         for sid in newly:
             story = next((s for s in prd.get("userStories", []) if s.get("id") == sid), {})

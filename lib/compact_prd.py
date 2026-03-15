@@ -22,6 +22,9 @@ import time
 from pathlib import Path
 from typing import Any
 
+sys.path.insert(0, os.path.dirname(__file__))
+from spiral_io import atomic_write_json
+
 # Fields that are purely runtime state and safe to strip from completed/skipped stories.
 TRANSIENT_FIELDS: frozenset[str] = frozenset(
     [
@@ -39,21 +42,6 @@ REQUIRED_FIELDS: frozenset[str] = frozenset(["id", "title"])
 # Statuses whose stories are eligible for compaction.
 COMPACTABLE_STATUSES: frozenset[str] = frozenset(["passed", "skipped"])
 
-
-def _atomic_write_json(data: dict[str, Any], dest_path: str) -> None:
-    """Write *data* as pretty-printed JSON to *dest_path* atomically."""
-    tmp_path = dest_path + ".tmp"
-    try:
-        with open(tmp_path, "w", encoding="utf-8") as fh:
-            json.dump(data, fh, indent=2, ensure_ascii=False)
-            fh.write("\n")
-        os.replace(tmp_path, dest_path)
-    finally:
-        if os.path.exists(tmp_path):
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
 
 
 def _story_is_compactable(story: dict[str, Any]) -> bool:
@@ -131,7 +119,7 @@ def compact_prd(
     backup_path = os.path.join(backup_dir, f"prd_pre_compact_{timestamp}.json")
     shutil.copy2(prd_path, backup_path)
 
-    _atomic_write_json(prd, prd_path)
+    atomic_write_json(prd_path, prd)
 
     new_size = os.path.getsize(prd_path)
     bytes_saved = original_size - new_size

@@ -27,11 +27,9 @@ import subprocess
 import sys
 from typing import Any
 
-# Force UTF-8 stdout — prevents UnicodeEncodeError on Windows cp1252 terminals
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-if hasattr(sys.stderr, "reconfigure"):
-    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from spiral_io import configure_utf8_stdout
+configure_utf8_stdout()
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _TEMPLATE_PATH = os.path.join(_HERE, "prompts", "adr_template.md")

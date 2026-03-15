@@ -22,9 +22,11 @@ from datetime import datetime
 from html import escape
 from pathlib import Path
 
-# Force UTF-8 stdout on Windows
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+sys.path.insert(0, os.path.dirname(__file__))
+from constants import PRIORITY_RANK
+from spiral_io import configure_utf8_stdout
+
+configure_utf8_stdout()
 
 
 # ── Data helpers ─────────────────────────────────────────────────────────────
@@ -169,8 +171,7 @@ def generate_html(prd: dict, iteration: int, added_count: int = 0) -> str:
     epics_meta = prd.get("epics", []) if isinstance(prd.get("epics"), list) else []
 
     # Group pending stories by priority
-    priority_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
-    pending.sort(key=lambda s: priority_order.get((s.get("priority") or "medium").lower(), 2))
+    pending.sort(key=lambda s: PRIORITY_RANK.get((s.get("priority") or "medium").lower(), 2))
 
     # Group by epic for rendering
     epic_groups = _group_by_epic(stories, epics_meta)

@@ -20,8 +20,10 @@ import argparse
 import json
 import os
 import sys
-import tempfile
 from typing import Any
+
+sys.path.insert(0, os.path.dirname(__file__))
+from spiral_io import atomic_write_json, safe_read_json
 
 # ── Priority / complexity score helpers ──────────────────────────────────────
 
@@ -46,29 +48,6 @@ def importance_key(idx_story: tuple[int, dict[str, Any]]) -> tuple:
 
 
 # ── JSON I/O helpers ─────────────────────────────────────────────────────────
-
-def _atomic_write(path: str, data: Any) -> None:
-    """Write JSON atomically via a temp file in the same directory."""
-    dir_ = os.path.dirname(os.path.abspath(path)) or "."
-    fd, tmp = tempfile.mkstemp(dir=dir_, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(data, fh, indent=2, ensure_ascii=False)
-            fh.write("\n")
-        os.replace(tmp, path)
-    except Exception:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
-
-
-def _load_json(path: str, default: Any = None) -> Any:
-    if not os.path.exists(path):
-        return default
-    with open(path, encoding="utf-8") as fh:
-        return json.load(fh)
 
 
 def _story_to_candidate(story: dict[str, Any]) -> dict[str, Any]:
@@ -104,7 +83,7 @@ def main() -> int:
 
     # ── Load prd.json ─────────────────────────────────────────────────────────
     try:
-        prd = _load_json(args.prd)
+        prd = safe_read_json(args.prd)
     except Exception as e:
         print(f"[rebalance] ERROR reading prd.json: {e}", file=sys.stderr)
         return 1
@@ -136,14 +115,14 @@ def main() -> int:
 
     # ── Update prd.json (keep passed + top-N pending) ─────────────────────────
     prd["userStories"] = passed + keep
-    _atomic_write(args.prd, prd)
+    atomic_write_json(args.prd, prd)
     print(f"[rebalance] prd.json updated: {len(prd['userStories'])} stories ({len(passed)} passed + {len(keep)} pending)")
 
     # ── Convert evicted stories to candidate format ───────────────────────────
     new_candidates = [_story_to_candidate(s) for s in evict]
 
     # ── Merge into candidate_us.json (carry-forward queue) ───────────────────
-    existing_cand = _load_json(args.candidate_out, {"stories": []})
+    existing_cand = safe_read_json(args.candidate_out, {"stories": []})
     if not isinstance(existing_cand, dict) or "stories" not in existing_cand:
         existing_cand = {"stories": []}
 
@@ -156,12 +135,12 @@ def main() -> int:
             existing_titles.add(c["title"].strip().lower())
             added += 1
 
-    _atomic_write(args.candidate_out, existing_cand)
+    atomic_write_json(args.candidate_out, existing_cand)
     print(f"[rebalance] candidate_us.json: {added} new + {len(existing_cand['stories']) - added} existing = {len(existing_cand['stories'])} total")
 
     # ── Optionally merge into overflow file for Phase M pickup ────────────────
     if args.overflow_out:
-        existing_overflow = _load_json(args.overflow_out, {"stories": []})
+        existing_overflow = safe_read_json(args.overflow_out, {"stories": []})
         if not isinstance(existing_overflow, dict) or "stories" not in existing_overflow:
             existing_overflow = {"stories": []}
         overflow_titles = {s.get("title", "").strip().lower() for s in existing_overflow["stories"]}
@@ -171,7 +150,7 @@ def main() -> int:
                 existing_overflow["stories"].append(c)
                 overflow_titles.add(c["title"].strip().lower())
                 overflow_added += 1
-        _atomic_write(args.overflow_out, existing_overflow)
+        atomic_write_json(args.overflow_out, existing_overflow)
         if overflow_added:
             print(f"[rebalance] Also merged {overflow_added} candidates into {args.overflow_out}")
 

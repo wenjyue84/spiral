@@ -32,8 +32,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+sys.path.insert(0, os.path.dirname(__file__))
+from spiral_io import atomic_write_json, configure_utf8_stdout
+configure_utf8_stdout()
 
 # ── OWASP LLM01:2025 Injection Pattern Catalogue ──────────────────────────────
 # Covers the OWASP Top 10 for LLMs 2025 most common jailbreak / override phrases.
@@ -216,9 +217,7 @@ def scan_prd_stories(
 
     # Persist updated prd.json atomically
     if update_prd and blocked_ids:
-        tmp = prd_file.with_suffix(".json.tmp")
-        tmp.write_text(json.dumps(prd, indent=2), encoding="utf-8")
-        os.replace(tmp, prd_file)
+        atomic_write_json(str(prd_file), prd)
 
     return blocked_ids, audit_entries
 

@@ -23,13 +23,11 @@ from html import escape
 from pathlib import Path
 from statistics import median
 
-# Force UTF-8 stdout — prevents UnicodeEncodeError on Windows cp1252 terminals
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+sys.path.insert(0, os.path.dirname(__file__))
+from constants import COST_PER_HOUR
+from spiral_io import configure_utf8_stdout
 
-
-# ── Cost Constants ───────────────────────────────────────────────────────────
-COST_PER_HOUR = {"haiku": 0.04, "sonnet": 0.24, "opus": 2.40}
+configure_utf8_stdout()
 
 # ── Data Loaders ─────────────────────────────────────────────────────────────
 

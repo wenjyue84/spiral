@@ -18,9 +18,9 @@ import sys
 
 from pydantic import ValidationError
 
-# Force UTF-8 stdout
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+sys.path.insert(0, os.path.dirname(__file__))
+from spiral_io import atomic_write_json, configure_utf8_stdout
+configure_utf8_stdout()
 
 # Common English stopwords to exclude from keyword comparison
 _STOPWORDS = {
@@ -75,22 +75,6 @@ def _load_candidates(path: str) -> list[dict]:
             return data.get("stories", [])
     except (json.JSONDecodeError, OSError):
         return []
-
-
-def _atomic_write_json(data: dict, path: str) -> None:
-    """Write *data* as pretty-printed JSON to *path* atomically."""
-    tmp = path + ".tmp"
-    try:
-        with open(tmp, "w", encoding="utf-8") as fh:
-            json.dump(data, fh, indent=2, ensure_ascii=False)
-            fh.write("\n")
-        os.replace(tmp, path)
-    finally:
-        if os.path.exists(tmp):
-            try:
-                os.unlink(tmp)
-            except OSError:
-                pass
 
 
 def _load_constitution_forbidden(path: str) -> list[str]:
@@ -215,8 +199,8 @@ def validate_stories(
             accepted.append(story)
 
     # Write outputs
-    _atomic_write_json({"stories": accepted}, validated_out)
-    _atomic_write_json({"stories": rejected}, rejected_out)
+    atomic_write_json(validated_out, {"stories": accepted})
+    atomic_write_json(rejected_out, {"stories": rejected})
 
     return accepted, rejected
 

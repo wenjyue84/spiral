@@ -28,8 +28,9 @@ import urllib.request
 from pathlib import Path
 from typing import Any, Iterator
 
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+sys.path.insert(0, os.path.dirname(__file__))
+from spiral_io import atomic_write_json, configure_utf8_stdout
+configure_utf8_stdout()
 
 GITHUB_GRAPHQL_URL = "https://api.github.com/graphql"
 
@@ -213,21 +214,6 @@ def _load_prd(prd_path: str) -> dict[str, Any]:
         return json.load(fh)
 
 
-def _atomic_write_prd(data: dict[str, Any], prd_path: str) -> None:
-    tmp = prd_path + ".tmp"
-    try:
-        with open(tmp, "w", encoding="utf-8") as fh:
-            json.dump(data, fh, indent=2, ensure_ascii=False)
-            fh.write("\n")
-        os.replace(tmp, prd_path)
-    except Exception:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
-
-
 # ── Public API ────────────────────────────────────────────────────────────────
 
 
@@ -285,7 +271,7 @@ def import_github_issues(
 
     if not dry_run and added:
         prd_data["userStories"] = existing_stories + added
-        _atomic_write_prd(prd_data, prd_path)
+        atomic_write_json(prd_path, prd_data)
 
     return added, skipped
 

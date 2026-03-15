@@ -19,17 +19,12 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
+from constants import PRIORITY_RANK
 from prd_schema import validate_prd
+from spiral_io import configure_utf8_stdout
+from story_helpers import get_files_to_touch, priority_key
 
-# Force UTF-8 stdout — prevents UnicodeEncodeError on Windows cp1252 terminals
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-
-PRIORITY_RANK = {"critical": 0, "high": 1, "medium": 2, "low": 3}
-
-
-def priority_key(story: dict) -> int:
-    return PRIORITY_RANK.get(story.get("priority", "medium"), 2)
+configure_utf8_stdout()
 
 
 def compute_levels(pending: list[dict]) -> dict[str, int]:
@@ -67,16 +62,6 @@ def compute_levels(pending: list[dict]) -> dict[str, int]:
         level += 1
 
     return levels
-
-
-def get_files_to_touch(story: dict) -> set[str]:
-    """Extract filesTouch from story, checking both top-level and technicalHints."""
-    files = set(story.get("filesTouch", []))
-    if not files:
-        hints = story.get("technicalHints", {})
-        if isinstance(hints, dict):
-            files = set(hints.get("filesTouch", []))
-    return files
 
 
 def assign_stories(pending: list[dict], n_workers: int) -> list[list[dict]]:

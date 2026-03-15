@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Optional
 
 sys.path.insert(0, os.path.dirname(__file__))
+from spiral_io import append_jsonl
 
 
 def main() -> int:
@@ -108,9 +109,7 @@ def main() -> int:
                 }
 
                 # Append to calibration.jsonl
-                with open(calibration_path, "a", encoding="utf-8") as out:
-                    json.dump(record, out, ensure_ascii=False)
-                    out.write("\n")
+                append_jsonl(str(calibration_path), record)
 
                 new_records += 1
                 existing_records.add(unique_key)

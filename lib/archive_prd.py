@@ -13,26 +13,9 @@ import argparse
 import json
 import os
 import sys
-import tempfile
 
-
-def load_json(path):
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-def write_atomic(path, data):
-    """Write JSON atomically via a temp file in the same directory."""
-    dir_ = os.path.dirname(os.path.abspath(path))
-    fd, tmp = tempfile.mkstemp(dir=dir_, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-            f.write("\n")
-        os.replace(tmp, path)
-    except Exception:
-        os.unlink(tmp)
-        raise
+sys.path.insert(0, os.path.dirname(__file__))
+from spiral_io import atomic_write_json
 
 
 def is_archivable(story):
@@ -59,7 +42,8 @@ def main():
         print(f"[archive_prd] ERROR: {args.prd} not found", file=sys.stderr)
         sys.exit(1)
 
-    prd = load_json(args.prd)
+    with open(args.prd, "r", encoding="utf-8") as f:
+        prd = json.load(f)
     stories = prd.get("userStories", [])
     to_archive = [s for s in stories if is_archivable(s)]
     to_keep = [s for s in stories if not is_archivable(s)]
@@ -85,7 +69,8 @@ def main():
 
     # Load existing archive (append mode — never overwrites history)
     if os.path.isfile(args.archive):
-        existing = load_json(args.archive)
+        with open(args.archive, "r", encoding="utf-8") as f:
+            existing = json.load(f)
         existing_entries = existing.get("archivedStories", [])
     else:
         existing_entries = []
@@ -94,11 +79,11 @@ def main():
         "productName": prd.get("productName", ""),
         "archivedStories": existing_entries + to_archive,
     }
-    write_atomic(args.archive, archive_data)
+    atomic_write_json(args.archive, archive_data)
 
     slim_prd = {k: v for k, v in prd.items() if k != "userStories"}
     slim_prd["userStories"] = to_keep
-    write_atomic(args.prd, slim_prd)
+    atomic_write_json(args.prd, slim_prd)
 
     print(f"[archive_prd] Done. {args.prd} now has {len(to_keep)} stories.")
 

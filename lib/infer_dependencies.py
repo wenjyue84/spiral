@@ -22,19 +22,10 @@ import sys
 sys.path.insert(0, os.path.dirname(__file__))
 from check_dag import find_cycles
 from prd_schema import validate_prd
+from spiral_io import atomic_write_json, configure_utf8_stdout
+from story_helpers import get_files_to_touch
 
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-
-
-def get_files_to_touch(story: dict) -> set[str]:
-    """Extract filesTouch from story, checking both top-level and technicalHints."""
-    files = set(story.get("filesTouch", []))
-    if not files:
-        hints = story.get("technicalHints", {})
-        if isinstance(hints, dict):
-            files = set(hints.get("filesTouch", []))
-    return files
+configure_utf8_stdout()
 
 
 def jaccard(a: set, b: set) -> float:
@@ -138,18 +129,6 @@ def apply_strong_deps(
     return applied, skipped_cycles
 
 
-def _write_json(data: dict, path: str) -> None:
-    """Write JSON atomically via a .tmp file."""
-    dirpath = os.path.dirname(path)
-    if dirpath:
-        os.makedirs(dirpath, exist_ok=True)
-    tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-        f.write("\n")
-    os.replace(tmp, path)
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Infer story dependencies from filesTouch overlap"
@@ -198,14 +177,14 @@ def main() -> int:
                 for a, b, score in weak
             ]
         }
-        _write_json(hints_data, args.out_hints)
+        atomic_write_json(args.out_hints, hints_data)
         print(f"[infer_deps] Weak overlap hints → {args.out_hints}")
 
     # Apply strong deps when SPIRAL_AUTO_INFER_DEPS=true
     if auto_infer and strong:
         applied, skipped = apply_strong_deps(prd, strong)
         if applied > 0:
-            _write_json(prd, args.prd)
+            atomic_write_json(args.prd, prd)
             print(
                 f"[infer_deps] Applied {applied} dependency edges to prd.json"
                 + (f" (skipped {skipped} cycle-creating)" if skipped else "")

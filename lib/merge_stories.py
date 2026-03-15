@@ -19,39 +19,15 @@ from typing import Any
 from pydantic import ValidationError
 
 sys.path.insert(0, os.path.dirname(__file__))
+from constants import PRIORITY_RANK
 from llm_models import ResearchOutput, log_validation_error
 from prd_schema import validate_prd
+from spiral_io import atomic_write_json, configure_utf8_stdout
 
-# Force UTF-8 stdout — prevents UnicodeEncodeError on Windows cp1252 terminals
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-
-PRIORITY_RANK = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+configure_utf8_stdout()
 
 # Story ID prefix from env
 STORY_PREFIX = os.environ.get("SPIRAL_STORY_PREFIX", "US")
-
-
-def _atomic_write_json(data: dict[str, Any], dest_path: str) -> None:
-    """Write *data* as pretty-printed JSON to *dest_path* atomically.
-
-    Writes to ``dest_path + '.tmp'``, then renames with ``os.replace()``.
-    The temporary file is always removed in a ``finally`` block — on success
-    it has already been renamed away so the unlink is a no-op; on failure it
-    cleans up the partial file so *dest_path* is never left half-written.
-    """
-    tmp_path = dest_path + ".tmp"
-    try:
-        with open(tmp_path, "w", encoding="utf-8") as fh:
-            json.dump(data, fh, indent=2, ensure_ascii=False)
-            fh.write("\n")
-        os.replace(tmp_path, dest_path)
-    finally:
-        if os.path.exists(tmp_path):
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
 
 
 def normalize(text: str) -> set[str]:
@@ -346,7 +322,7 @@ def main() -> int:
 
     # ── Write overflow file ────────────────────────────────────────────────────
     if args.overflow_out:
-        _atomic_write_json({"stories": leftover_research}, args.overflow_out)
+        atomic_write_json(args.overflow_out, {"stories": leftover_research})
         if leftover_research:
             print(
                 f"[merge] Overflow: {len(leftover_research)} unused research candidates "
@@ -375,7 +351,7 @@ def main() -> int:
     # ── Post-merge sort: priority order so ralph picks highest-priority first ──
     prd["userStories"].sort(key=full_sort_key)
 
-    _atomic_write_json(prd, args.prd)
+    atomic_write_json(args.prd, prd)
 
     # Source breakdown
     src_counts: dict[str, int] = {}

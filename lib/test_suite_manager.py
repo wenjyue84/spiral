@@ -43,8 +43,9 @@ import sys
 from datetime import datetime, timezone
 from typing import Any
 
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+sys.path.insert(0, os.path.dirname(__file__))
+from spiral_io import atomic_write_json, configure_utf8_stdout
+configure_utf8_stdout()
 
 SUITE_TYPES = ["smoke", "regression", "performance", "security", "uat"]
 
@@ -70,21 +71,6 @@ _SUITE_KW: dict[str, set[str]] = {
 
 def _now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-
-
-def _atomic_write(data: Any, path: str) -> None:
-    tmp = path + ".tmp"
-    try:
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-            f.write("\n")
-        os.replace(tmp, path)
-    finally:
-        if os.path.exists(tmp):
-            try:
-                os.unlink(tmp)
-            except OSError:
-                pass
 
 
 def _tokens(text: str) -> set[str]:
@@ -116,7 +102,7 @@ class TestSuiteManager:
             return {"type": suite_type, "version": 1, "tests": []}
 
     def save(self, suite_type: str, suite: dict[str, Any]) -> None:
-        _atomic_write(suite, self._suite_path(suite_type))
+        atomic_write_json(self._suite_path(suite_type), suite)
 
     def add_test(self, suite_type: str, test: dict[str, Any]) -> bool:
         """Add a test to suite. Returns True if newly added (not a duplicate)."""
@@ -215,7 +201,8 @@ class TestSuiteManager:
         # Persist iteration results
         results_dir = os.path.join(self._suite_dir(suite_type), "results")
         results_path = os.path.join(results_dir, f"iter-{iteration:03d}.json")
-        _atomic_write(
+        atomic_write_json(
+            results_path,
             {
                 "iteration": iteration,
                 "suite_type": suite_type,
@@ -228,7 +215,6 @@ class TestSuiteManager:
                 },
                 "tests": results,
             },
-            results_path,
         )
 
         return {

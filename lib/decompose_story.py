@@ -12,7 +12,6 @@ import argparse
 import json
 import os
 import re
-import shutil
 import subprocess
 import sys
 from typing import Any
@@ -22,10 +21,8 @@ from pydantic import ValidationError
 sys.path.insert(0, os.path.dirname(__file__))
 from llm_models import DecompositionResult, log_validation_error, validate_llm_json
 from prd_schema import validate_prd
-
-# Force UTF-8 stdout — prevents UnicodeEncodeError on Windows cp1252 terminals
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+from spiral_io import atomic_write_json, configure_utf8_stdout
+configure_utf8_stdout()
 
 STORY_PREFIX = os.environ.get("SPIRAL_STORY_PREFIX", "US")
 
@@ -304,11 +301,7 @@ def main() -> int:
     prd["userStories"] = stories + new_entries
 
     # Atomic write
-    tmp_path = args.prd + ".tmp"
-    with open(tmp_path, "w", encoding="utf-8") as f:
-        json.dump(prd, f, indent=2, ensure_ascii=False)
-        f.write("\n")
-    shutil.move(tmp_path, args.prd)
+    atomic_write_json(args.prd, prd)
 
     print(
         f"[decompose] Done: {args.story_id} → {len(new_entries)} sub-stories "

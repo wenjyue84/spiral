@@ -19,9 +19,9 @@ import json
 import os
 import sys
 
-# Force UTF-8 stdout — prevents UnicodeEncodeError on Windows cp1252 terminals
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+sys.path.insert(0, os.path.dirname(__file__))
+from spiral_io import configure_utf8_stdout, atomic_write_json
+configure_utf8_stdout()
 
 # Must match prd_schema.CURRENT_SCHEMA_VERSION
 CURRENT_SCHEMA_VERSION = 1
@@ -125,9 +125,7 @@ def main() -> int:
         return 0
 
     # Write migrated prd.json
-    with open(args.prd, "w", encoding="utf-8") as f:
-        json.dump(migrated, f, indent=2, ensure_ascii=False)
-        f.write("\n")  # trailing newline
+    atomic_write_json(args.prd, migrated)
 
     print(f"[migrate] {args.prd} — migrated ({len(changes)} change(s)):")
     for c in changes:

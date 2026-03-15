@@ -28,30 +28,14 @@ import time
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(__file__))
+from constants import PRIORITY_RANK
+from spiral_io import configure_utf8_stdout
+from story_helpers import get_files_to_touch, priority_key
 
-# Force UTF-8 stdout — prevents UnicodeEncodeError on Windows cp1252 terminals
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-
-PRIORITY_RANK = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+configure_utf8_stdout()
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
-
-
-def get_files_to_touch(story: dict) -> set[str]:
-    """Extract filesTouch from story, checking both top-level and technicalHints."""
-    files = set(story.get("filesTouch", []))
-    if not files:
-        hints = story.get("technicalHints", {})
-        if isinstance(hints, dict):
-            files = set(hints.get("filesTouch", []))
-    return files
-
-
-def priority_rank(story: dict) -> int:
-    """Return numeric priority rank (lower = higher priority)."""
-    return PRIORITY_RANK.get(story.get("priority", "medium"), 2)
 
 
 def _branch_exists(repo_root: str, branch: str) -> bool:
@@ -250,8 +234,8 @@ def run_preflight(
                 continue
 
             # Lower-priority story loses (higher rank = lower priority)
-            rank_a = priority_rank(sa)
-            rank_b = priority_rank(sb)
+            rank_a = priority_key(sa)
+            rank_b = priority_key(sb)
             if rank_a >= rank_b:
                 loser = sa
             else:

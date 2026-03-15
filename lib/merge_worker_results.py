@@ -7,15 +7,12 @@ the main prd.json.  Worker prd files are never deleted here — caller cleans up
 import argparse
 import json
 import os
-import shutil
 import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
 from prd_schema import validate_prd
-
-# Force UTF-8 stdout — prevents UnicodeEncodeError on Windows cp1252 terminals
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+from spiral_io import atomic_write_json, configure_utf8_stdout
+configure_utf8_stdout()
 
 
 def main() -> int:
@@ -112,11 +109,7 @@ def main() -> int:
             print(f"[merge_workers]   + {ss['id']} (sub-story of {ss.get('_decomposedFrom')}) — {ss.get('title', '')[:60]}")
 
     # Atomic write
-    tmp = args.main + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(main_prd, f, indent=2, ensure_ascii=False)
-        f.write("\n")
-    shutil.move(tmp, args.main)
+    atomic_write_json(args.main, main_prd)
 
     total = len(main_prd.get("userStories", []))
     total_passed = sum(1 for s in main_prd.get("userStories", []) if s.get("passes"))

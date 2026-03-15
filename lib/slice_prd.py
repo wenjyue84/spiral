@@ -16,14 +16,14 @@ As module:
   sliced = slice_prd(prd_dict, batch_size=5)
 """
 import json
+import os
 import sys
 
-# Force UTF-8 stdout on Windows
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+sys.path.insert(0, os.path.dirname(__file__))
+from constants import PRIORITY_RANK
+from spiral_io import configure_utf8_stdout
 
-# Priority sort order (lower = higher priority)
-_PRIORITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+configure_utf8_stdout()
 
 
 def slice_prd(prd: dict, batch_size: int) -> dict:
@@ -51,7 +51,7 @@ def slice_prd(prd: dict, batch_size: int) -> dict:
 
     # Sort pending by priority (critical > high > medium > low), stable on
     # original order within the same priority.
-    pending.sort(key=lambda t: _PRIORITY_ORDER.get(t[1].get("priority", "low"), 99))
+    pending.sort(key=lambda t: PRIORITY_RANK.get(t[1].get("priority", "low"), 99))
 
     batch = [s for _, s in pending[:batch_size]]
 

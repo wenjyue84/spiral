@@ -18,10 +18,14 @@ Usage:
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Optional, Dict, List
 from collections import defaultdict
+
+sys.path.insert(0, os.path.dirname(__file__))
+from spiral_io import append_jsonl
 
 def record_calibration(
     story_id: str,
@@ -41,11 +45,7 @@ def record_calibration(
     }
     
     # Append to JSONL file
-    output_path = Path(output_file)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    
-    with open(output_path, "a") as f:
-        f.write(json.dumps(record) + "\n")
+    append_jsonl(str(output_file), record)
 
 def load_calibration_file(calibration_file: str) -> List[Dict]:
     """Load all calibration records from JSONL file."""

@@ -28,6 +28,9 @@ import re
 import sys
 from typing import Any, Generator
 
+sys.path.insert(0, os.path.dirname(__file__))
+from spiral_io import atomic_write_json
+
 # Control-character range: 0x00-0x08, 0x0B-0x0C, 0x0E-0x1F
 # Deliberately allows 0x09 (tab), 0x0A (newline), 0x0D (carriage return)
 # which are valid in JSON strings.
@@ -121,9 +124,7 @@ def sanitize_prd(prd_path: str) -> bool:
 
     clean_data = _strip(data)
     if changed:
-        with open(prd_path, "w", encoding="utf-8") as fh:
-            json.dump(clean_data, fh, indent=2, ensure_ascii=False)
-            fh.write("\n")
+        atomic_write_json(prd_path, clean_data)
     return changed
 
 

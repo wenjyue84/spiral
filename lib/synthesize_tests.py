@@ -17,10 +17,8 @@ from typing import Any
 
 sys.path.insert(0, os.path.dirname(__file__))
 from prd_schema import validate_prd
-
-# Force UTF-8 stdout — prevents UnicodeEncodeError on Windows cp1252 terminals
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+from spiral_io import configure_utf8_stdout, atomic_write_json
+configure_utf8_stdout()
 
 
 # Default priority mapping for test categories.
@@ -286,9 +284,7 @@ def main() -> int:
     if not report_paths:
         print(f"[synthesize] WARNING: No test reports found in {args.reports_dir}/")
         output: dict[str, Any] = {"stories": []}
-        os.makedirs(os.path.dirname(os.path.abspath(args.output)), exist_ok=True)
-        with open(args.output, "w", encoding="utf-8") as f:
-            json.dump(output, f, indent=2)
+        atomic_write_json(args.output, output)
         print(f"[synthesize] Wrote 0 stories → {args.output}")
         return 0
 
@@ -322,11 +318,7 @@ def main() -> int:
     print(f"[synthesize] Generated {len(candidates)} new story candidates from test failures")
 
     output = {"stories": candidates}
-    os.makedirs(os.path.dirname(os.path.abspath(args.output)), exist_ok=True)
-    tmp = args.output + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(output, f, indent=2, ensure_ascii=False)
-    os.replace(tmp, args.output)
+    atomic_write_json(args.output, output)
     print(f"[synthesize] Wrote {len(candidates)} stories → {args.output}")
     return 0
 

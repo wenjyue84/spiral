@@ -23,22 +23,16 @@ import math
 import os
 import sys
 
-# Minimum rows required before we trust the projection
-MIN_HISTORY_ROWS = 5
-
-# Anthropic 2025 pricing per million tokens (input / output)
-PRICING = {
-    "haiku": {"input": 0.80, "output": 4.00},
-    "sonnet": {"input": 3.00, "output": 15.00},
-    "opus": {"input": 15.00, "output": 75.00},
-}
+sys.path.insert(0, os.path.dirname(__file__))
+from constants import (
+    DEFAULT_TOKENS_PER_STORY,
+    INPUT_OUTPUT_RATIO,
+    MIN_HISTORY_ROWS,
+    PRICING,
+    TOKENS_PER_SEC_OUTPUT,
+)
 
 DEFAULT_MODEL = "sonnet"
-DEFAULT_TOKENS_PER_STORY = 8000
-
-# Same heuristics used by cost_check.py
-TOKENS_PER_SEC_OUTPUT = 20
-INPUT_OUTPUT_RATIO = 3.0  # input ≈ 3× output
 
 
 def normalise_model(raw: str) -> str:
