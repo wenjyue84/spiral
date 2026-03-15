@@ -5206,3 +5206,23 @@ Completed: Detect and reset dirty worker worktrees at startup to recover from ab
 - bats-core bundled in tests/ has Windows line ending issues; use system bats from npm instead
 - Worktree tests need careful teardown: must git worktree remove --force before deleting temp dir to avoid git admin state corruption
 
+## Iteration 1 - Sun, Mar 15, 2026  6:02:44 PM
+Completed: Detect and reset dirty worker worktrees at startup to recover from abrupt session termination (ID: US-218) in 9m
+
+
+## Iteration N - Story: US-204: Cascade skip status through dependency chain
+
+### What was implemented
+- cascade_skip() BFS function was already present in lib/state_machine.py (lines 285-370)
+- lib/cascade_skip.py CLI wrapper was already present
+- spiral.sh already had --no-cascade-skip flag (line 118, 160-161) and integration at line 2924
+- All 15 cascade_skip tests pass + 41 state_machine tests pass (56 total)
+
+### Patterns discovered
+- cascade_skip() uses reverse adjacency map (dep_id → set of story IDs) then BFS from already-skipped seeds
+- Events written as raw JSON string (no json.dumps) to avoid import overhead; best-effort (OSError silently skipped)
+- spiral.sh integration fires after each story implementation phase (Phase I), not just startup
+
+### Gotchas
+- Idempotent: re-running does NOT re-cascade already-skipped stories (queue.popleft() checks _skipped guard)
+- NO_CASCADE_SKIP defaults to 0; must be exported before Phase I section (line 1647)
