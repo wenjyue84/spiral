@@ -111,6 +111,9 @@ SPIRAL_HOME="${SPIRAL_HOME:-.}"
 # ── Source policy_check library for pre-action policy gate (US-242) ──────────
 [[ -f "$SPIRAL_HOME/lib/policy_check.sh" ]] && source "$SPIRAL_HOME/lib/policy_check.sh"
 
+# ── Source command_allowlist library for phase-scoped command gate (US-243) ──
+[[ -f "$SPIRAL_HOME/lib/command_allowlist.sh" ]] && source "$SPIRAL_HOME/lib/command_allowlist.sh"
+
 # ── Helper: append a JSONL event to spiral_events.jsonl ─────────────────────
 SPIRAL_SCRATCH_DIR="${SPIRAL_SCRATCH_DIR:-.spiral}"
 log_ralph_event() {
@@ -2261,6 +2264,18 @@ DIAG_EXTRACTOR_EOF
         echo "  [diagnosis] Diagnosis block found ($(echo "$_PHASE_I_DIAGNOSIS_BLOCK" | wc -l) lines)"
       else
         echo "  [diagnosis] No diagnosis block in Phase I output"
+      fi
+
+      # ── Allowlist scan: check LLM bash tool_use for violations (US-243) ─────
+      # Scan stream-json for Bash tool_use commands matching the deny list.
+      # Violations are logged to .spiral/security-events.log (non-blocking audit).
+      if declare -f allowlist_scan_stream_json >/dev/null 2>&1; then
+        _AL_VIOLATIONS=$(allowlist_scan_stream_json "$_RL_TMP" "I" "${NEXT_STORY:-}" 2>/dev/null || echo 0)
+        if [[ "${_AL_VIOLATIONS:-0}" -gt 0 ]]; then
+          echo "  [allowlist] ${_AL_VIOLATIONS} policy violation(s) logged for phase I (see .spiral/security-events.log)"
+          log_ralph_event "allowlist_violation" \
+            "\"story_id\":\"${NEXT_STORY:-}\",\"phase\":\"I\",\"count\":${_AL_VIOLATIONS}"
+        fi
       fi
     fi
 
