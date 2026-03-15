@@ -7496,3 +7496,120 @@ This is a Python/shell-based command-line tool, not a Frappe application. The im
 - `SPIRAL_ESCALATION_RETRY_SONNET=0` means escalation starts immediately at retry 0 — this forces sonnet as the starting model (since `0 < 0` is false, the condition `retry_count -lt sonnet_threshold` is never true for retry 0)
 - The threshold comparison uses `-lt` not `-le` so the threshold value is the FIRST retry that triggers escalation
 - test_route_stories.py has a pre-existing import error (relative import); not related to this story
+## Iteration 2 - Mon, Mar 16, 2026  4:21:10 AM
+Incomplete: Context-window-aware model upgrade when story prompt exceeds safe token limit (ID: US-295) — attempt /3
+
+
+## Pre-analysis for US-295 (Gemini 2.5 Pro)
+This is a technical brief for implementing story US-295.
+
+**1. Python Files to Modify:**
+*   **`lib/llm_router.py`**: This is the primary file. It should contain the new logic for estimating token count and selecting an appropriate model based on that count. The model context size constants are already here.
+*   **The script calling `ralph.sh`**: The logic in `llm_router.py` needs to be called *before* `ralph.sh` is executed. This is likely happening within a script in the `lib/phases/` directory that orchestrates the implementation phase, or in `main.py`. This script will be modified to invoke the new model selection function.
+*   **`lib/spiral_io.py`**: A helper function should be added here to handle writing the structured `context_window_upgrade` event to `spiral_events.jsonl`.
+
+**2. Frappe DocTypes / Hooks:**
+*   None. This user story pertains to the Spiral CLI tool's internal architecture, not a Frappe application.
+
+**3. Implementation Approach:**
+1.  In `lib/llm_router.py`, create a new public function, e.g., `get_intelligent_model_for_prompt(prompt_texts: list, base_model: str) -> str`.
+2.  This function will contain a nested helper, `estimate_tokens(texts: list) -> int`, which attempts to use `tiktoken`'s `cl100k_base` encoding for an accurate count. If `tiktoken` is not installed, it will fall back to a `len(text) // 4` approximation.
+3.  `get_intelligent_model_for_prompt` will sum the tokens for all provided text parts (system prompt, story, file contents).
+4.  It will then check if `estimated_tokens` exceeds `model_context_limit * SPIRAL_CONTEXT_WINDOW_MARGIN`. The margin should be read from an environment variable, defaulting to `0.85`.
+5.  If the threshold is exceeded, it will return the next tier model (e.g., `haiku` -> `sonnet`). It should also log the upgrade event using a new helper in `lib/spiral_io.py`.
+6.  Modify the script that executes `ralph.sh` to call this new function before making the subprocess call, passing the returned model name to the script.
+
+**4. Edge Cases & Gotchas:**
+*   **Top-Tier Limit**: If the estimated prompt size exceeds the context window for the highest-tier model (`opus`), the system should log a critical warning but proceed with `opus`, as no further upgrade is possible.
+*   **`ralph.sh` Interface**: The `ralph.sh` script must be able to receive and use the dynamically selected model name, likely via an environment variable or command-line argument.
+*   **Token Approximation Inaccuracy**: The fallback `len // 4` method is imprecise. The safety margin helps, but failures due to exceeding the context limit are still possible and should be monitored.
+*   **Context Gathering**: Ensure all text components—system prompts, PRD context, user story, and all `filesTouch` contents—are correctly gathered and passed to the estimation function.
+
+
+---
+
+## Iteration [13] - Story: US-295: Context-window-aware model upgrade when story prompt exceeds safe token limit
+
+### What was implemented
+- `estimate_tokens(text: str) -> int` in `lib/llm_router.py` — uses tiktoken cl100k_base if available, falls back to len(text)//4
+- `MODEL_CONTEXT_LIMITS` dict in `lib/llm_router.py` — all Claude 4.x models = 200k tokens
+- `_apply_context_window_upgrade()` private method — compares `prompt_tokens` vs `model_context_limit * margin`, steps up one tier if exceeded
+- `_log_context_window_upgrade()` private method — writes `context_window_upgrade` JSONL event to `spiral_events.jsonl` with `from_model`, `to_model`, `estimated_tokens`, `chosen_model` fields
+- `route()` and `route_context()` updated to accept `prompt_tokens: int` and `events_file: str | None` parameters
+- CLI gets `--prompt-tokens` and `--events-file` flags
+- `route_context()` output now includes `context_window_upgrade: bool`
+- `SPIRAL_CONTEXT_WINDOW_MARGIN` env var (default: 0.85) controls safety threshold
+- 22 new tests in `tests/test_llm_router.py` covering all acceptance criteria (52 total pass)
+
+### Patterns discovered
+- `spiral_events.jsonl` path is resolved via `$SCRATCH_DIR` env var, then `.spiral/` relative to repo root as fallback
+- Python event log pattern: build dict, write JSON line with `ts`, `event`, `run_id`, `level` fields (matches bash `log_spiral_event` format)
+- Upgrade is one tier step only (not jump to FRONTIER directly); if already at FRONTIER, flag stays False
+
+### Gotchas
+- At exactly the threshold (170_000 for 85% of 200k), no upgrade fires — threshold is strict `>` comparison
+- tiktoken is optional; `estimate_tokens` silently falls back on any import or encoding error
+- Event file write errors are swallowed silently (OSError pass) — event logging must never block story dispatch
+
+## Pre-analysis for US-199 (Gemini 2.5 Pro)
+Here is the technical brief for implementing the Graphviz export feature.
+
+**To:** Claude Code Agent
+**From:** Gemini Agent
+**Subject:** Technical Brief for User Story US-199: Export Dependency Graph as Graphviz DOT File
+
+This brief outlines the implementation plan for adding a Graphviz DOT file export feature to the `spiral graph` command.
+
+### 1. Primary Files to Modify
+
+*   **`lib/dependency_graph.py`**: This file contains the core logic for generating the dependency graph. The main function here will need to be updated to handle the new `dot` format.
+*   **`main.py`**: This is the application's entry point. The `argparse` configuration for the `graph` subcommand needs to be updated to include a `--format` option.
+
+### 2. Involved DocTypes & Hooks
+
+*   This is a command-line tool feature. No Frappe DocTypes or hooks are involved.
+
+### 3. Recommended Implementation Approach
+
+1.  **Update Argument Parsing:** In `main.py`, modify the `setup_graph_parser` function. Add a new argument `--format` with choices `['mermaid', 'dot']` and a default value of `mermaid`.
+2.  **Install `graphviz`:** Add the `graphviz` library to the project's dependencies in `pyproject.toml` under `[project.dependencies]`.
+3.  **Implement DOT Output in `dependency_graph.py`**:
+    *   In the `main` function, check the value of the new `args.format`.
+    *   If `format` is `dot`, create a new function `generate_dot_graph(stories)`.
+    *   Inside `generate_dot_graph`, use the `graphviz` library to initialize a `Digraph`.
+    *   Define a dictionary mapping story statuses (`pending`, `in_progress`, `passed`, `failed`) to Graphviz colors (`white`, `yellow`, `green`, `red`).
+    *   Group stories by priority (`critical`, `high`, `medium`, `low`). For each priority, create a `subgraph` with a name like `cluster_critical`.
+    *   Iterate through the stories within each priority group and add them as nodes to the corresponding subgraph. Set the node's `label` to its title, `style` to `filled`, and `fillcolor` based on its status.
+    *   After adding all nodes, iterate through the stories again to create `edges` for all dependencies.
+    *   Print the `graph.source` to stdout.
+
+### 4. Edge Cases & Gotchas
+
+*   **Graphviz Installation:** The `graphviz` Python library requires the Graphviz system package to be installed. This is a runtime dependency for the user, which should be documented.
+*   **Quoting:** Ensure node IDs (e.g., "US-199") are used as the internal identifiers for nodes to prevent issues with special characters in titles.
+*   **Empty PRD:** The script should handle cases where the input `prd.json` is empty or has no stories, producing a valid but empty graph.
+*   **Validation:** Per the acceptance criteria, the output must be pipeable to the `dot` command-line tool without errors (e.g., `spiral graph --format dot | dot -Tsvg`).
+
+
+---
+
+## Iteration [13] - Story: US-295: Context-window-aware model upgrade when story prompt exceeds safe token limit
+
+### What was implemented
+- `lib/llm_router.py` already had the full implementation: `estimate_tokens()`, `_apply_context_window_upgrade()`, `_log_context_window_upgrade()`, `MODEL_CONTEXT_LIMITS`, `SPIRAL_CONTEXT_WINDOW_MARGIN` env var support, and `--prompt-tokens` CLI flag
+- Added Phase I integration to `spiral.sh` (~25 lines, before ralph.sh dispatch):
+  - Reads ralph/CLAUDE.md + story JSON to build prompt text estimate
+  - Computes token estimate using bash `(${#text} + 3) / 4` (same 4-chars/token fallback)
+  - Calls `llm_router.py --story ID --prd PRD --prompt-tokens N --events-file` to get model + trigger upgrade logging
+  - Sets `RALPH_MODEL_FLAG="--model <chosen_model>"` — passed to both timeout and non-timeout ralph.sh invocations
+  - Logs upgrade message: `[I] Context-window upgrade: US-XXX → claude-sonnet-4-6 (est. N tokens)`
+- Added `SPIRAL_CONTEXT_WINDOW_MARGIN` to `spiral.config.sh` with default comment
+
+### Patterns discovered
+- `RALPH_MODEL_FLAG` was referenced in the non-timeout `else` branch but was never initialized — now properly initialized to `""` before the if block
+- `llm_router.py` already fully implements US-295 and was tested (52 tests, all pass); only the spiral.sh integration was missing
+- Use `<<< "$_VAR"` (here-string) in bash to pipe JSON to `jq -r` without a subshell pipe
+
+### Gotchas
+- `test_route_stories.py` has a pre-existing relative import error — excluded from test runs (noted in iteration 11)
+- Both timeout and non-timeout ralph.sh invocations now use `$RALPH_MODEL_FLAG` (previously only the non-timeout branch referenced it, but it was uninitialized)

@@ -3430,6 +3430,32 @@ $INJECTED_PROMPT"
             else
               _RALPH_TOOL="claude"
             fi
+            # US-295: context-window-aware model selection before ralph.sh dispatch
+            # Estimate prompt tokens (ralph CLAUDE.md + story JSON) and upgrade model if needed
+            RALPH_MODEL_FLAG=""
+            if [[ -n "$_NEXT_SID" ]]; then
+              _RALPH_PROMPT_TEXT=""
+              if [[ -f "$SPIRAL_HOME/ralph/CLAUDE.md" ]]; then
+                _RALPH_PROMPT_TEXT+=$(cat "$SPIRAL_HOME/ralph/CLAUDE.md" 2>/dev/null || true)
+              fi
+              _STORY_JSON=$("$JQ" -r --arg id "$_NEXT_SID" '.userStories[] | select(.id == $id)' "$PRD_FILE" 2>/dev/null || echo "")
+              _RALPH_PROMPT_TEXT+="$_STORY_JSON"
+              _PROMPT_TOKEN_EST=$(( (${#_RALPH_PROMPT_TEXT} + 3) / 4 ))
+              _ROUTER_JSON=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/llm_router.py" \
+                --story "$_NEXT_SID" --prd "$PRD_FILE" \
+                --prompt-tokens "$_PROMPT_TOKEN_EST" \
+                --events-file "$SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || echo "")
+              if [[ -n "$_ROUTER_JSON" ]]; then
+                _CHOSEN_MODEL=$("$JQ" -r '.model // ""' <<< "$_ROUTER_JSON" 2>/dev/null || echo "")
+                _CW_UPGRADED=$("$JQ" -r '.context_window_upgrade // false' <<< "$_ROUTER_JSON" 2>/dev/null || echo "false")
+                if [[ -n "$_CHOSEN_MODEL" ]]; then
+                  RALPH_MODEL_FLAG="--model $_CHOSEN_MODEL"
+                  if [[ "$_CW_UPGRADED" == "true" ]]; then
+                    echo "  [I] Context-window upgrade: $_NEXT_SID → $_CHOSEN_MODEL (est. ${_PROMPT_TOKEN_EST} tokens)"
+                  fi
+                fi
+              fi
+            fi
             # US-219: begin story task span; prints story-scoped TRACEPARENT for child action spans
             _STORY_TP=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" begin-story \
               --story-id "$_NEXT_SID" --scratch-dir "$SCRATCH_DIR" 2>/dev/null || true)
@@ -3438,7 +3464,7 @@ $INJECTED_PROMPT"
             # US-279: capture stderr to temp file for crash persistence
             _STDERR_CAPTURE=$(mktemp -p "$SCRATCH_DIR" _ralph_stderr_XXXXXX.txt 2>/dev/null || echo "$SCRATCH_DIR/_ralph_stderr_$$.txt")
             if [[ "${SPIRAL_IMPL_TIMEOUT:-600}" -gt 0 ]] && command -v timeout &>/dev/null; then
-              timeout --kill-after=30 "${SPIRAL_IMPL_TIMEOUT}" bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $_DRY_RUN_FLAG 2>"$_STDERR_CAPTURE" || _I_EXIT=$?
+              timeout --kill-after=30 "${SPIRAL_IMPL_TIMEOUT}" bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $RALPH_MODEL_FLAG $_DRY_RUN_FLAG 2>"$_STDERR_CAPTURE" || _I_EXIT=$?
             else
               bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $RALPH_MODEL_FLAG $_DRY_RUN_FLAG 2>"$_STDERR_CAPTURE" || _I_EXIT=$?
             fi

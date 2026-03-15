@@ -14,6 +14,10 @@ SPIRAL_VALIDATE_CMD="uv run pytest tests/ -v --tb=short"
 # auto = cheapest model that can handle the story; escalates on retry
 SPIRAL_MODEL_ROUTING="auto"
 
+# Context-window safety margin: upgrade model if prompt exceeds this fraction of the limit (US-295)
+# Default 0.85 = upgrade when prompt > 85% of the 200k context window (~170k tokens)
+SPIRAL_CONTEXT_WINDOW_MARGIN="${SPIRAL_CONTEXT_WINDOW_MARGIN:-0.85}"
+
 # Research phase uses sonnet by default (better synthesis than haiku)
 SPIRAL_RESEARCH_MODEL="sonnet"
 
