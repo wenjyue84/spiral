@@ -1,0 +1,49 @@
+version: 2
+
+updates:
+  # Automatically open PRs to update GitHub Actions SHA pins when new
+  # action releases are published. Dependabot replaces the old SHA with
+  # the new one and updates the inline version comment (e.g., # v4.2.2).
+  #
+  # Weekly cadence: balances staying current with not flooding the review queue.
+  # All PRs go through the normal PR review process, including the
+  # pinned-actions-check job and the @spiral-security-team CODEOWNERS rule.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Kuala_Lumpur"
+    # Limit to avoid overwhelming the review queue
+    open-pull-requests-limit: 5
+    # Group all action updates into a single PR to reduce review overhead
+    groups:
+      github-actions-updates:
+        patterns:
+          - "*"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    # Reviewers for action update PRs — same as CODEOWNERS security team
+    reviewers:
+      - "spiral-security-team"
+
+  # Python dependencies via pip (for workflows that install packages inline)
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Kuala_Lumpur"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "python"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"

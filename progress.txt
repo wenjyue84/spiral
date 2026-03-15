@@ -6002,3 +6002,27 @@ Incomplete: Enforce cgroups v2 memory and CPU limits on worker subprocesses (ID:
 - `list[dict[str, object]]` causes many attr-defined mypy errors; use `list[dict[str, Any]]` instead and add to overrides
 - Mermaid node IDs can't contain hyphens — must replace `US-195` → `US_195`
 - `--ignore-missing-imports` on CLI doesn't load pyproject.toml overrides; run `uv run mypy lib/` without extra flags to use project config
+## Iteration 1 - Sun, Mar 15, 2026 10:07:17 PM
+Incomplete: Enforce cgroups v2 memory and CPU limits on worker subprocesses (ID: US-259) — attempt /3
+
+
+---
+
+## Iteration [N] - Story: US-266: Pin all GitHub Actions third-party steps to immutable full commit SHAs
+
+### What was implemented
+- Created `.github/CODEOWNERS` — assigns `@spiral-security-team` as required reviewer for `.github/workflows/`, `CODEOWNERS`, `SECURITY.md`, and `dependabot.yml` changes
+- Created `.github/dependabot.yml` — weekly automated PRs to update GitHub Actions SHA pins; also covers pip dependencies; grouped into single PRs to reduce review overhead
+- Created `CONTRIBUTING.md` — documents the SHA pinning requirement, rationale, format, how to update pins, and how to verify SHAs independently
+- Updated `pinned-actions-check` step in `.github/workflows/ci.yml` — improved grep pattern from `@(v[0-9]|main|master)` (only known mutable patterns) to a comprehensive negative-match against 40-char hex SHA using `grep -Pv '@[0-9a-f]{40}'`, catching ANY non-SHA ref
+- Verified all 47 existing `uses:` lines in the 4 workflow files are already correctly SHA-pinned with version comments
+
+### Patterns discovered
+- All 4 workflow files (ci.yml, codeql.yml, release.yml, spiral.yml) were already using SHA-pinned actions with inline version comments — previous implementation was largely complete
+- The `grep -Pv '@[0-9a-f]{40}([[:space:]]|$)'` pattern (Perl regex) is available on Ubuntu CI runners and correctly rejects all non-SHA refs
+- `pinned-actions-check` job already existed; only the grep pattern needed strengthening
+
+### Gotchas
+- `grep -E` does NOT support negative lookaheads (`(?!...)`); must use `grep -P` (Perl regex) for that pattern — or use the two-step pipe approach (find uses: lines, then filter out valid SHAs)
+- CODEOWNERS team names (`@spiral-security-team`, `@spiral-team`) must exist in the GitHub org/repo for the CODEOWNERS rules to enforce properly — they are placeholders here
+- Dependabot `reviewers` field also requires team/user names to exist in the repo

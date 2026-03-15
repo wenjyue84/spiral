@@ -370,15 +370,16 @@ jobs:
 
       - name: Check all actions are pinned to full commit SHA
         run: |
-          # Fail if any action ref uses a mutable tag (e.g. @v3) or branch (@main, @master).
-          # Grep output format: filename:lineno:content — filter out shell comment lines
-          # (content starting with optional whitespace then #) to avoid false positives
-          # inside run: script blocks.
-          violations=$(grep -rEn 'uses:[[:space:]]+\S+@(v[0-9]|main|master)([[:space:]]|$)' .github/workflows/*.yml \
-            | grep -Ev '^[^:]+:[0-9]+:[[:space:]]*#' || true)
+          # Fail if any action ref is NOT a full 40-character hex SHA.
+          # Strategy: find all uses: lines, strip comment-only lines (false positives
+          # inside run: blocks), then reject any ref that isn't exactly 40 hex chars.
+          # Grep output format: filename:lineno:content
+          violations=$(grep -rEn 'uses:[[:space:]]+\S+@[^[:space:]]' .github/workflows/*.yml \
+            | grep -Ev '^[^:]+:[0-9]+:[[:space:]]*#' \
+            | grep -Pv '@[0-9a-f]{40}([[:space:]]|$)' || true)
           if [ -n "$violations" ]; then
             echo "$violations"
-            echo "::error::Unpinned action refs found above. Pin all actions to a full 40-character commit SHA with a version comment (e.g., @abc123...  # v1.2.3). See README for update process."
+            echo "::error::Unpinned action refs found above. All actions must be pinned to a full 40-character commit SHA with an inline version comment — e.g., '@abc123...def  # v1.2.3'. See CONTRIBUTING.md for the update process."
             exit 1
           fi
           echo "All action refs are SHA-pinned."

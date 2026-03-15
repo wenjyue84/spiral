@@ -1,0 +1,24 @@
+# CODEOWNERS — SPIRAL Repository
+#
+# Rules apply in last-match-wins order. The most specific patterns should
+# appear last so they override broader rules.
+#
+# Workflow files and security configuration require explicit approval from
+# a designated security reviewer before merge. This ensures that supply-chain
+# attacks (e.g., injected malicious actions or secret-exfiltration steps)
+# are caught by a human before they reach the main branch.
+#
+# See CONTRIBUTING.md for the rationale and the SHA-pin update process.
+
+# Default owners for everything in the repository
+* @spiral-team
+
+# GitHub Actions workflows — require security review on every change.
+# Rationale: mutable action tags can be silently replaced with malicious code;
+# SHA pins must be verified by a reviewer who understands supply-chain risks.
+.github/workflows/ @spiral-security-team
+
+# Security-sensitive configuration files — same reviewer requirement
+.github/CODEOWNERS @spiral-security-team
+.github/SECURITY.md @spiral-security-team
+.github/dependabot.yml @spiral-security-team
