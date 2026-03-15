@@ -6585,3 +6585,37 @@ Completed: Run Semgrep SAST scan on AI-generated code as a mandatory Gate phase 
 ### Gotchas
 - prd.json must be opened with `encoding='utf-8'` on Windows (cp1252 default fails on special chars in story text)
 - Top-level `permissions: read-all` placement must be between `on:` block and `jobs:` block in YAML
+## Iteration 2 - Mon, Mar 16, 2026  1:07:53 AM
+Incomplete: Enforce shell=False and per-phase command allowlist in all worker subprocess calls (ID: US-265) — attempt /3
+
+
+---
+
+## Iteration [N] - Story: US-265: Enforce shell=False and per-phase command allowlist in all worker subprocess calls
+
+### What was implemented
+- Created lib/subprocess_policy.py with:
+  - PHASE_COMMAND_ALLOWLIST: dict mapping phase -> frozenset of permitted executables
+  - SubprocessPolicyViolation exception class carrying executable, phase, and full cmd
+  - check_command(cmd, phase): validates list-form cmd against allowlist
+  - safe_run(cmd, phase, **kwargs): subprocess.run() wrapper enforcing shell=False and allowlist
+  - Audit logging to .spiral/security-audit.jsonl on violation (thread-safe, atomic append)
+- Created tests/test_subprocess_policy.py with 31 unit tests covering:
+  - Allowlist structure for all phases
+  - check_command allow/block/edge cases
+  - Shell metacharacter literal-passing (semicolon, pipe, command-substitution, backtick)
+  - safe_run execution and TypeError for string input
+  - Audit log creation, content, and multi-violation appending
+- Created tests/subprocess_injection.bats with 12 bats integration tests:
+  - LLM injection strings passed as literal arguments
+  - Blocked executables (curl, wget, bash, sh) in Phase I return exit 2
+  - Allowed executables (git, python3) in Phase I pass
+  - Audit log contains violation entries
+
+### Patterns discovered
+- test_shell_injection_prevention.py scans lib/*.py for shell=True and requires # spiral-allow-shell annotation -- docstrings also trigger this scan
+- Bats heredoc tests require the || exit_code=dollar-sign-question mark pattern to capture non-zero exits; run is preferred for subcommands
+
+### Gotchas
+- The existing lib/command_allowlist.sh handles the bash-level allowlist (US-243); subprocess_policy.py is the Python-level enforcement layer
+- All existing lib/*.py subprocess calls already use list form (no shell=True present before this story)
