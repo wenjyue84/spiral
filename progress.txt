@@ -5090,3 +5090,36 @@ Completed: Sanitize LLM output before writing to disk to block indirect injectio
 - `uv run pip-audit` works after install into the venv
 - The heredoc `<<'PYEOF'` syntax works in GitHub Actions `run:` steps for inline Python
 - test_route_stories.py has a pre-existing import error (relative import issue in lib/route_stories.py) — not related to this story
+## Iteration 2 - Sun, Mar 15, 2026  4:53:01 PM
+Completed: Add pip-audit and npm audit dependency vulnerability scan gate in CI (ID: US-202) in 13m
+
+
+## Iteration N - Story: US-205: Add CodeQL security scanning GitHub Actions workflow for AI-generated code
+
+### What was implemented
+- Created `.github/workflows/codeql.yml` with two jobs:
+  - `analyze-python`: CodeQL analysis for Python source files (lib/*.py, *.py)
+  - `analyze-javascript`: CodeQL analysis for JavaScript/TypeScript in spiral-ui/
+- Both jobs use `security-and-quality` query suite for broader coverage (injection, path traversal, insecure deserialization)
+- All actions SHA-pinned:
+  - `step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc` (v2.15.1)
+  - `actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5` (v4)
+  - `github/codeql-action/init|autobuild|analyze@4fa2a7953630fd2f3aab3b2c1b7c6eb76a5a5beb` (v3.26.6)
+  - `actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02` (v4)
+- Path filters: Python job triggers on lib/**, *.py; JS job on spiral-ui/src/**, spiral-ui/*.ts, spiral-ui/*.js
+- Weekly scheduled scan (Sunday 03:00 UTC) catches new CVEs without a push
+- SARIF results uploaded to GitHub Code Scanning (security-events: write permission)
+- SARIF also uploaded as CI artifact (7-day retention) for offline review
+- `upload: true` in analyze step means high-severity findings appear in Security tab — repo admin sets required status check to block PRs
+
+### Patterns discovered
+- GitHub Actions YAML `on:` key parses as boolean `True` in Python yaml module — this is expected; GitHub Actions handles it correctly
+- CodeQL `analyze` step has both `upload: true` (Code Scanning) and `output:` (SARIF file for artifact upload)
+- `actions: read` permission required by codeql-action on private repos (safe to include on public)
+- Path filter uses separate push/pull_request triggers rather than a single workflow_dispatch to enable per-trigger path filters
+- schedule trigger does not support path filters (by design) — the weekly run does full scan regardless
+
+### Gotchas
+- test_route_stories.py has a pre-existing import error (relative import in lib/route_stories.py) — unrelated to this story, pre-dates it
+- JavaScript job has conditional `if:` to run on schedule + any push/PR (path filter already handles changed-files scoping)
+- SHA `4fa2a7953630fd2f3aab3b2c1b7c6eb76a5a5beb` corresponds to codeql-action v3.26.6; Dependabot will keep this updated

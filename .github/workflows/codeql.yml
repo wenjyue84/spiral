@@ -1,0 +1,124 @@
+name: CodeQL Security Analysis
+
+# SECURITY: pull_request_target with untrusted code checkout is FORBIDDEN.
+# Never use pull_request_target alongside a checkout of the PR branch, as it
+# grants write permissions to untrusted code. See:
+# https://securitylab.github.com/research/github-actions-preventing-pwn-requests/
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "lib/**"
+      - "*.py"
+      - "spiral-ui/src/**"
+      - "spiral-ui/*.ts"
+      - "spiral-ui/*.js"
+  pull_request:
+    branches: [main]
+    paths:
+      - "lib/**"
+      - "*.py"
+      - "spiral-ui/src/**"
+      - "spiral-ui/*.ts"
+      - "spiral-ui/*.js"
+  schedule:
+    # Weekly full scan on Sunday at 03:00 UTC (catches new CVEs without a push)
+    - cron: "0 3 * * 0"
+
+jobs:
+  analyze-python:
+    name: CodeQL — Python
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write  # Required to upload SARIF to GitHub Code Scanning
+      actions: read           # Required by github/codeql-action for private repos
+
+    steps:
+      - name: Harden runner
+        # TODO: Change egress-policy to block after completing an audit period
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
+      - name: Initialize CodeQL (Python)
+        uses: github/codeql-action/init@4fa2a7953630fd2f3aab3b2c1b7c6eb76a5a5beb  # v3.26.6
+        with:
+          languages: python
+          # security-and-quality suite: broader coverage including injection, path traversal,
+          # insecure deserialization, and other OWASP Top 10 patterns relevant to AI-generated code
+          queries: security-and-quality
+
+      - name: Autobuild Python sources
+        uses: github/codeql-action/autobuild@4fa2a7953630fd2f3aab3b2c1b7c6eb76a5a5beb  # v3.26.6
+
+      - name: Perform CodeQL analysis (Python)
+        uses: github/codeql-action/analyze@4fa2a7953630fd2f3aab3b2c1b7c6eb76a5a5beb  # v3.26.6
+        with:
+          category: codeql-python
+          # Upload SARIF to GitHub Code Scanning — High-severity findings appear
+          # in the Security tab and can be used as a required status check to block PRs
+          upload: true
+          output: codeql-python.sarif
+
+      - name: Upload CodeQL Python SARIF as artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: codeql-python-sarif
+          path: codeql-python.sarif
+          retention-days: 7
+
+  analyze-javascript:
+    name: CodeQL — JavaScript/TypeScript
+    runs-on: ubuntu-latest
+    # Only run if spiral-ui JS/TS source files changed
+    if: >
+      github.event_name == 'schedule' ||
+      contains(toJSON(github.event.commits), 'spiral-ui') ||
+      github.event_name == 'push' ||
+      github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      security-events: write  # Required to upload SARIF to GitHub Code Scanning
+      actions: read           # Required by github/codeql-action for private repos
+
+    steps:
+      - name: Harden runner
+        # TODO: Change egress-policy to block after completing an audit period
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
+      - name: Initialize CodeQL (JavaScript/TypeScript)
+        uses: github/codeql-action/init@4fa2a7953630fd2f3aab3b2c1b7c6eb76a5a5beb  # v3.26.6
+        with:
+          languages: javascript-typescript
+          # security-and-quality suite covers XSS, prototype pollution, path traversal,
+          # and injection patterns common in React/Vite frontend code
+          queries: security-and-quality
+
+      - name: Autobuild JavaScript/TypeScript sources
+        uses: github/codeql-action/autobuild@4fa2a7953630fd2f3aab3b2c1b7c6eb76a5a5beb  # v3.26.6
+
+      - name: Perform CodeQL analysis (JavaScript/TypeScript)
+        uses: github/codeql-action/analyze@4fa2a7953630fd2f3aab3b2c1b7c6eb76a5a5beb  # v3.26.6
+        with:
+          category: codeql-javascript
+          upload: true
+          output: codeql-javascript.sarif
+
+      - name: Upload CodeQL JavaScript SARIF as artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: codeql-javascript-sarif
+          path: codeql-javascript.sarif
+          retention-days: 7
