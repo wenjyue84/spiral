@@ -5332,3 +5332,36 @@ Completed: Emit OTel agentic-system spans for tasks, actions, teams, and artifac
 - OTLP metric export uses delta semantics via counter.add() — each process exit emits one data point
 - Port collision in tests: each TestServePrometheus test must use a unique port (used 19876, 19877)
 - vite.config.ts backend runs in Node.js — uses readJsonl() helper already present in the file
+## Iteration 2 - Sun, Mar 15, 2026  7:00:57 PM
+Completed: Pin all GitHub Actions to full commit SHA and enforce via policy (ID: US-220) in 17m
+
+
+## Iteration N - Story: US-220: Pin all GitHub Actions to full commit SHA and enforce via policy
+
+### What was implemented
+- Pinned `github/codeql-action/upload-sarif@v3` → `@4fa2a7953630fd2f3aab3b2c1b7c6eb76a5a5beb  # v3.26.6`
+  in two places in `.github/workflows/ci.yml` (lines ~230, ~237)
+  Same SHA as the other codeql-action variants (init, autobuild, analyze) already in codeql.yml
+- Added `pinned-actions-check` CI job to ci.yml:
+  - Grep-based: fails if any `uses:` line refs `@v[0-9]`, `@main`, or `@master`
+  - Filters shell comment lines (lines where content starts with `#`) to avoid false positives
+    inside run: script blocks that mention example patterns
+- Added "GitHub Actions Security" section to README documenting:
+  - Why SHA pinning matters (supply-chain attack prevention)
+  - Step-by-step process for updating a pinned action to a new release
+  - Mention of `pin-github-action` CLI for bulk pinning
+- All 930 pytest tests pass
+
+### Patterns discovered
+- All codeql-action/* variants (init, autobuild, analyze, upload-sarif) share the same repo,
+  so they all use the same commit SHA. codeql.yml already had the SHA; ci.yml had two TODO pins.
+- grep output format for workflow files: `filename:lineno:content`
+  Filter with `grep -Ev '^[^:]+:[0-9]+:[[:space:]]*#'` to skip shell comment lines
+- The pinned-actions-check grep `'uses:[[:space:]]+\S+@(v[0-9]|main|master)([[:space:]]|$)'`
+  safely distinguishes SHA pins (hex chars only) from version tags (contain 'v' + digit)
+  because hex chars are 0-9,a-f and cannot spell "main", "master", or "v"+digit
+
+### Gotchas
+- Shell comment lines inside `run:` blocks can contain `uses: owner/repo@v3` example text
+  that causes false positives in the grep check — filter them out with the content-starts-with-#
+  grep filter
