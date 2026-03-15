@@ -1,18 +1,25 @@
 #!/usr/bin/env python3
 """
-lib/llm_router.py — Centralized LLM model selection for SPIRAL (US-294).
+lib/llm_router.py — Centralized LLM model selection for SPIRAL (US-294, US-295).
 
 Encapsulates model selection logic into three tiers:
   - UTILITY   (haiku)   — small/trivial stories, retry 0
   - PRODUCTION (sonnet) — medium/large stories, retry 0–1
   - FRONTIER  (opus)    — any story on retry ≥ 2
 
+Context-window-aware upgrade (US-295):
+  Before dispatching, if estimated prompt tokens exceed
+  model_context_limit * SPIRAL_CONTEXT_WINDOW_MARGIN the model is
+  automatically upgraded one tier to prevent silent truncation.
+
 Usage as CLI (called from ralph.sh):
   uv run python lib/llm_router.py --story US-123 [--retry 0] [--prd prd.json]
+  uv run python lib/llm_router.py --story US-123 --prompt-tokens 150000
 
 Outputs JSON:
   {"story_id": "US-123", "model": "claude-sonnet-4-6", "tier": "production",
-   "complexity": "medium", "retry_count": 0, "routing_mode": "auto"}
+   "complexity": "medium", "retry_count": 0, "routing_mode": "auto",
+   "context_window_upgrade": false}
 """
 from __future__ import annotations
 
@@ -21,6 +28,7 @@ import json
 import os
 import sys
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any
@@ -31,6 +39,8 @@ __all__ = [
     "LlmRouter",
     "TIER_TO_MODEL",
     "SHORT_TO_TIER",
+    "MODEL_CONTEXT_LIMITS",
+    "estimate_tokens",
 ]
 
 # ---------------------------------------------------------------------------
@@ -78,6 +88,51 @@ _ESCALATION: list[ModelTier] = [
     ModelTier.FRONTIER,
 ]
 
+# ---------------------------------------------------------------------------
+# Context window limits (US-295)
+# ---------------------------------------------------------------------------
+
+# Token limits per model — all Claude 4.x models share a 200k context window
+MODEL_CONTEXT_LIMITS: dict[str, int] = {
+    _HAIKU_ID: 200_000,
+    _SONNET_ID: 200_000,
+    _OPUS_ID: 200_000,
+}
+
+# Default safety margin: upgrade if prompt exceeds 85% of the context window
+_DEFAULT_CONTEXT_WINDOW_MARGIN = 0.85
+
+
+# ---------------------------------------------------------------------------
+# Token estimation (US-295)
+# ---------------------------------------------------------------------------
+
+
+def estimate_tokens(text: str) -> int:
+    """Estimate token count for *text*.
+
+    Uses tiktoken (cl100k_base) when available; falls back to the
+    4-chars-per-token approximation otherwise.
+
+    Parameters
+    ----------
+    text:
+        The combined prompt text to estimate.
+
+    Returns
+    -------
+    int
+        Estimated token count (always ≥ 0).
+    """
+    if not text:
+        return 0
+    try:
+        import tiktoken  # type: ignore[import]
+        enc = tiktoken.get_encoding("cl100k_base")
+        return len(enc.encode(text))
+    except Exception:
+        return len(text) // 4
+
 
 # ---------------------------------------------------------------------------
 # TaskContext
@@ -106,6 +161,8 @@ class LlmRouter:
     1. ``SPIRAL_CLI_MODEL`` env var — explicit override (haiku/sonnet/opus or full ID)
     2. ``SPIRAL_MODEL_ROUTING`` == fixed tier name — config-level fixed tier
     3. Auto-routing: complexity + retry escalation heuristic
+    4. Context-window upgrade: if prompt_tokens exceeds safety margin, step up one tier
+       (US-295; applied after tier selection, before returning)
     """
 
     # Heuristic: complexity → base tier for retry 0
@@ -115,7 +172,13 @@ class LlmRouter:
         "large": ModelTier.PRODUCTION,  # large still starts at sonnet, not opus
     }
 
-    def route(self, story: dict[str, Any], retry_count: int | None = None) -> str:
+    def route(
+        self,
+        story: dict[str, Any],
+        retry_count: int | None = None,
+        prompt_tokens: int = 0,
+        events_file: str | None = None,
+    ) -> str:
         """Return a full Claude model ID string for *story*.
 
         Parameters
@@ -125,18 +188,58 @@ class LlmRouter:
         retry_count:
             Override the retry count.  If ``None``, reads ``story["_retryCount"]``
             or falls back to 0.
+        prompt_tokens:
+            Estimated total prompt token count.  When > 0, a context-window
+            safety check is applied and the model may be upgraded one tier
+            (US-295).
+        events_file:
+            Path to ``spiral_events.jsonl``.  If ``None``, read from
+            ``$SCRATCH_DIR/spiral_events.jsonl`` or skip logging.
+        """
+        result = self.route_context(
+            story,
+            retry_count=retry_count,
+            prompt_tokens=prompt_tokens,
+            events_file=events_file,
+        )
+        return result["model"]
+
+    def route_context(
+        self,
+        story: dict[str, Any],
+        retry_count: int | None = None,
+        prompt_tokens: int = 0,
+        events_file: str | None = None,
+    ) -> dict[str, Any]:
+        """Return a dict with model ID plus routing metadata for logging/CLI.
+
+        Parameters
+        ----------
+        story:
+            A PRD story dict.
+        retry_count:
+            Override the retry count.
+        prompt_tokens:
+            Estimated total prompt token count for context-window upgrade check
+            (US-295).  Pass 0 to skip the check.
+        events_file:
+            Path to ``spiral_events.jsonl`` for logging upgrade decisions.
+            If ``None``, falls back to ``$SCRATCH_DIR/spiral_events.jsonl``.
         """
         ctx = self._build_context(story, retry_count)
         tier = self._select_tier(ctx)
-        return TIER_TO_MODEL[tier]
-
-    def route_context(
-        self, story: dict[str, Any], retry_count: int | None = None
-    ) -> dict[str, Any]:
-        """Return a dict with model ID plus routing metadata for logging/CLI."""
-        ctx = self._build_context(story, retry_count)
-        tier = self._select_tier(ctx)
         routing_mode = self._routing_mode()
+
+        # US-295: context-window-aware upgrade
+        context_window_upgrade = False
+        if prompt_tokens > 0:
+            tier, context_window_upgrade = self._apply_context_window_upgrade(
+                tier=tier,
+                prompt_tokens=prompt_tokens,
+                story_id=story.get("id", ""),
+                events_file=events_file,
+            )
+
         return {
             "story_id": story.get("id", ""),
             "model": TIER_TO_MODEL[tier],
@@ -145,6 +248,7 @@ class LlmRouter:
             "retry_count": ctx.retry_count,
             "dependency_count": ctx.dependency_count,
             "routing_mode": routing_mode,
+            "context_window_upgrade": context_window_upgrade,
         }
 
     # ------------------------------------------------------------------
@@ -207,6 +311,102 @@ class LlmRouter:
         except ValueError:
             return ModelTier.FRONTIER
 
+    def _apply_context_window_upgrade(
+        self,
+        tier: ModelTier,
+        prompt_tokens: int,
+        story_id: str,
+        events_file: str | None,
+    ) -> tuple[ModelTier, bool]:
+        """Check if *prompt_tokens* exceeds the safety margin for *tier*.
+
+        If it does, upgrade one tier and log a ``context_window_upgrade``
+        event to ``spiral_events.jsonl`` (US-295).
+
+        Returns
+        -------
+        tuple[ModelTier, bool]
+            The (possibly upgraded) tier and a flag indicating whether
+            an upgrade occurred.
+        """
+        margin = float(os.environ.get("SPIRAL_CONTEXT_WINDOW_MARGIN", str(_DEFAULT_CONTEXT_WINDOW_MARGIN)))
+        model_id = TIER_TO_MODEL[tier]
+        limit = MODEL_CONTEXT_LIMITS.get(model_id, 200_000)
+        threshold = int(limit * margin)
+
+        if prompt_tokens <= threshold:
+            return tier, False
+
+        # Upgrade one tier
+        try:
+            idx = _ESCALATION.index(tier)
+            upgraded_tier = _ESCALATION[min(idx + 1, len(_ESCALATION) - 1)]
+        except ValueError:
+            upgraded_tier = ModelTier.FRONTIER
+
+        if upgraded_tier == tier:
+            # Already at FRONTIER, no upgrade possible
+            return tier, False
+
+        # Log the upgrade decision
+        self._log_context_window_upgrade(
+            from_tier=tier,
+            to_tier=upgraded_tier,
+            estimated_tokens=prompt_tokens,
+            story_id=story_id,
+            events_file=events_file,
+        )
+
+        return upgraded_tier, True
+
+    def _log_context_window_upgrade(
+        self,
+        from_tier: ModelTier,
+        to_tier: ModelTier,
+        estimated_tokens: int,
+        story_id: str,
+        events_file: str | None,
+    ) -> None:
+        """Append a context_window_upgrade event to spiral_events.jsonl."""
+        # Resolve events file path
+        if events_file is None:
+            scratch_dir = os.environ.get("SCRATCH_DIR", "")
+            if scratch_dir:
+                events_file = os.path.join(scratch_dir, "spiral_events.jsonl")
+            else:
+                # Fallback: .spiral/ relative to this module's repo root
+                repo_root = Path(__file__).parent.parent
+                events_file = str(repo_root / ".spiral" / "spiral_events.jsonl")
+
+        ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        run_id = os.environ.get("SPIRAL_RUN_ID", "")
+        level = os.environ.get("SPIRAL_LOG_LEVEL", "INFO")
+
+        entry: dict[str, Any] = {
+            "ts": ts,
+            "event": "context_window_upgrade",
+            "run_id": run_id,
+            "level": level,
+            "story_id": story_id,
+            "from_model": TIER_TO_MODEL[from_tier],
+            "to_model": TIER_TO_MODEL[to_tier],
+            "estimated_tokens": estimated_tokens,
+            "chosen_model": TIER_TO_MODEL[to_tier],
+        }
+
+        # Inject W3C traceparent fields when available
+        traceparent = os.environ.get("TRACEPARENT", "")
+        if traceparent:
+            entry["trace_id"] = traceparent[3:35]
+            entry["span_id"] = traceparent[36:52]
+
+        try:
+            Path(events_file).parent.mkdir(parents=True, exist_ok=True)
+            with open(events_file, "a", encoding="utf-8") as fh:
+                fh.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        except OSError:
+            pass  # Non-fatal: event logging must not block story dispatch
+
 
 # ---------------------------------------------------------------------------
 # CLI entry point (called from ralph.sh)
@@ -246,6 +446,7 @@ Examples:
   uv run python lib/llm_router.py --story US-123
   uv run python lib/llm_router.py --story US-123 --retry 1
   uv run python lib/llm_router.py --story US-123 --prd my_prd.json
+  uv run python lib/llm_router.py --story US-123 --prompt-tokens 170000
 """,
     )
     parser.add_argument("--story", required=True, help="Story ID, e.g. US-123")
@@ -260,12 +461,33 @@ Examples:
         default="prd.json",
         help="Path to prd.json (default: prd.json)",
     )
+    parser.add_argument(
+        "--prompt-tokens",
+        type=int,
+        default=0,
+        dest="prompt_tokens",
+        help=(
+            "Estimated total prompt token count for context-window upgrade check "
+            "(US-295). Pass 0 to skip (default: 0)."
+        ),
+    )
+    parser.add_argument(
+        "--events-file",
+        default=None,
+        dest="events_file",
+        help="Path to spiral_events.jsonl for logging upgrade decisions (optional).",
+    )
 
     args = parser.parse_args(argv)
 
     story = _load_story(args.story, args.prd)
     router = LlmRouter()
-    result = router.route_context(story, retry_count=args.retry)
+    result = router.route_context(
+        story,
+        retry_count=args.retry,
+        prompt_tokens=args.prompt_tokens,
+        events_file=args.events_file,
+    )
     print(json.dumps(result))
 
 

@@ -14,10 +14,12 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 
 from llm_router import (
     LlmRouter,
+    MODEL_CONTEXT_LIMITS,
     ModelTier,
     SHORT_TO_TIER,
     TIER_TO_MODEL,
     TaskContext,
+    estimate_tokens,
     main,
 )
 
@@ -293,3 +295,184 @@ class TestCLI:
         result = json.loads(out)
         assert result["model"] == _HAIKU
         assert result["tier"] == "utility"
+
+    def test_cli_context_window_upgrade_field_present(self, tmp_path, capsys):
+        prd_path = self._write_prd(
+            [{"id": "US-30", "estimatedComplexity": "medium"}], tmp_path
+        )
+        main(["--story", "US-30", "--prd", prd_path])
+        out = capsys.readouterr().out
+        result = json.loads(out)
+        assert "context_window_upgrade" in result
+
+    def test_cli_prompt_tokens_triggers_upgrade(self, tmp_path, capsys):
+        prd_path = self._write_prd(
+            [{"id": "US-31", "estimatedComplexity": "small"}], tmp_path
+        )
+        # small → haiku (200k limit). 85% of 200k = 170k. Pass 171k to trigger.
+        main(["--story", "US-31", "--prd", prd_path, "--prompt-tokens", "171000"])
+        out = capsys.readouterr().out
+        result = json.loads(out)
+        assert result["context_window_upgrade"] is True
+        assert result["model"] == _SONNET  # upgraded from haiku → sonnet
+
+
+# ---------------------------------------------------------------------------
+# estimate_tokens (US-295)
+# ---------------------------------------------------------------------------
+
+
+class TestEstimateTokens:
+    def test_empty_string_returns_zero(self):
+        assert estimate_tokens("") == 0
+
+    def test_approximation_fallback(self):
+        # Without tiktoken, falls back to len//4
+        text = "a" * 400
+        tokens = estimate_tokens(text)
+        # Either tiktoken result or the 4-char approximation (100)
+        assert tokens > 0
+
+    def test_short_text(self):
+        tokens = estimate_tokens("hello world")
+        assert tokens >= 1
+
+    def test_longer_text_more_tokens(self):
+        short = estimate_tokens("hello")
+        long = estimate_tokens("hello " * 1000)
+        assert long > short
+
+
+# ---------------------------------------------------------------------------
+# MODEL_CONTEXT_LIMITS (US-295)
+# ---------------------------------------------------------------------------
+
+
+class TestModelContextLimits:
+    def test_all_models_have_limits(self):
+        for model_id in TIER_TO_MODEL.values():
+            assert model_id in MODEL_CONTEXT_LIMITS, f"{model_id} missing from MODEL_CONTEXT_LIMITS"
+
+    def test_limits_are_positive(self):
+        for model_id, limit in MODEL_CONTEXT_LIMITS.items():
+            assert limit > 0, f"{model_id} has non-positive limit"
+
+    def test_all_limits_are_200k(self):
+        for model_id, limit in MODEL_CONTEXT_LIMITS.items():
+            assert limit == 200_000, f"{model_id} limit is {limit}, expected 200000"
+
+
+# ---------------------------------------------------------------------------
+# Context-window upgrade logic (US-295)
+# ---------------------------------------------------------------------------
+
+
+class TestContextWindowUpgrade:
+    def setup_method(self):
+        for k in ("SPIRAL_CLI_MODEL", "SPIRAL_MODEL_ROUTING", "SPIRAL_CONTEXT_WINDOW_MARGIN"):
+            os.environ.pop(k, None)
+
+    def teardown_method(self):
+        for k in ("SPIRAL_CLI_MODEL", "SPIRAL_MODEL_ROUTING", "SPIRAL_CONTEXT_WINDOW_MARGIN"):
+            os.environ.pop(k, None)
+
+    def _s(self, complexity: str = "small") -> dict:
+        return {"id": "US-295-test", "estimatedComplexity": complexity}
+
+    def test_no_upgrade_when_tokens_zero(self):
+        r = LlmRouter()
+        ctx = r.route_context(self._s("small"), prompt_tokens=0)
+        assert ctx["context_window_upgrade"] is False
+        assert ctx["model"] == _HAIKU  # stays at haiku
+
+    def test_no_upgrade_below_threshold(self):
+        # 85% of 200k = 170k. 169k should not trigger upgrade.
+        r = LlmRouter()
+        ctx = r.route_context(self._s("small"), prompt_tokens=169_000)
+        assert ctx["context_window_upgrade"] is False
+        assert ctx["model"] == _HAIKU
+
+    def test_upgrade_at_threshold(self):
+        # Exactly at threshold (170_000) should NOT upgrade (must be strictly over)
+        r = LlmRouter()
+        ctx = r.route_context(self._s("small"), prompt_tokens=170_000)
+        assert ctx["context_window_upgrade"] is False
+
+    def test_upgrade_above_threshold(self):
+        # 171k > 170k threshold → haiku → sonnet
+        r = LlmRouter()
+        ctx = r.route_context(self._s("small"), prompt_tokens=171_000)
+        assert ctx["context_window_upgrade"] is True
+        assert ctx["model"] == _SONNET
+
+    def test_upgrade_from_sonnet_to_opus(self):
+        # medium → sonnet. 171k > 170k → upgrade to opus
+        r = LlmRouter()
+        ctx = r.route_context(self._s("medium"), prompt_tokens=171_000)
+        assert ctx["context_window_upgrade"] is True
+        assert ctx["model"] == _OPUS
+
+    def test_no_upgrade_when_already_at_frontier(self):
+        # opus is already FRONTIER; cannot upgrade further
+        os.environ["SPIRAL_CLI_MODEL"] = "opus"
+        r = LlmRouter()
+        ctx = r.route_context(self._s("small"), prompt_tokens=199_000)
+        assert ctx["context_window_upgrade"] is False
+        assert ctx["model"] == _OPUS
+
+    def test_custom_margin_env_var(self):
+        # Set margin to 0.5 → threshold = 100k. 101k should trigger upgrade.
+        os.environ["SPIRAL_CONTEXT_WINDOW_MARGIN"] = "0.5"
+        r = LlmRouter()
+        ctx = r.route_context(self._s("small"), prompt_tokens=101_000)
+        assert ctx["context_window_upgrade"] is True
+        assert ctx["model"] == _SONNET
+
+    def test_custom_margin_no_upgrade_below(self):
+        os.environ["SPIRAL_CONTEXT_WINDOW_MARGIN"] = "0.5"
+        r = LlmRouter()
+        ctx = r.route_context(self._s("small"), prompt_tokens=99_000)
+        assert ctx["context_window_upgrade"] is False
+
+    def test_upgrade_logged_to_events_file(self, tmp_path):
+        events_file = str(tmp_path / "events.jsonl")
+        r = LlmRouter()
+        r.route_context(
+            self._s("small"),
+            prompt_tokens=171_000,
+            events_file=events_file,
+        )
+        assert Path(events_file).exists(), "events file should be created"
+        lines = Path(events_file).read_text(encoding="utf-8").splitlines()
+        assert len(lines) == 1
+        event = json.loads(lines[0])
+        assert event["event"] == "context_window_upgrade"
+        assert event["from_model"] == _HAIKU
+        assert event["to_model"] == _SONNET
+        assert event["estimated_tokens"] == 171_000
+        assert event["chosen_model"] == _SONNET
+
+    def test_no_event_logged_when_no_upgrade(self, tmp_path):
+        events_file = str(tmp_path / "events.jsonl")
+        r = LlmRouter()
+        r.route_context(self._s("small"), prompt_tokens=100_000, events_file=events_file)
+        # File should not be created (no upgrade occurred)
+        assert not Path(events_file).exists()
+
+    def test_upgrade_event_has_required_fields(self, tmp_path):
+        events_file = str(tmp_path / "events.jsonl")
+        r = LlmRouter()
+        r.route_context(
+            {"id": "US-X", "estimatedComplexity": "small"},
+            prompt_tokens=171_000,
+            events_file=events_file,
+        )
+        event = json.loads(Path(events_file).read_text(encoding="utf-8"))
+        for field_name in ("ts", "event", "run_id", "level", "story_id",
+                           "from_model", "to_model", "estimated_tokens", "chosen_model"):
+            assert field_name in event, f"missing field: {field_name}"
+
+    def test_upgrade_route_method_also_upgrades(self):
+        r = LlmRouter()
+        model = r.route(self._s("small"), prompt_tokens=171_000)
+        assert model == _SONNET  # upgraded from haiku
