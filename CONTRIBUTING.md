@@ -78,6 +78,29 @@ The first column is the commit SHA. Compare it against the SHA in the workflow.
 
 ---
 
+## Python Toolchain (uv)
+
+SPIRAL uses [uv](https://docs.astral.sh/uv/) exclusively for Python dependency management.
+**Never use `pip install` or `pip install -r requirements.txt`** — always use `uv sync`.
+
+### Set up your local environment
+
+```bash
+# Install uv (first time only)
+curl -LsSf https://astral.sh/uv/install.sh | sh   # macOS/Linux
+# or: winget install astral-sh.uv                  # Windows
+
+# Install all Python dependencies (reads pyproject.toml + uv.lock)
+uv sync
+
+# After adding/removing a dependency in pyproject.toml, regenerate the lockfile:
+uv lock
+# Then commit both pyproject.toml and uv.lock together.
+```
+
+CI uses `uv sync --frozen` to enforce exact lockfile reproducibility.
+If CI fails with a lockfile error, run `uv lock` locally and commit the updated `uv.lock`.
+
 ## Running Tests Locally
 
 ```bash

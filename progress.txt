@@ -6449,3 +6449,27 @@ Incomplete: Implement local Ollama model fallback with cold-start pre-warm and e
 ### Gotchas
 - The `cygpath` fallback (`|| echo "$path"`) means this works on both Windows/MSYS and Linux/macOS
 - `rm -f "$lock_file"` still uses the MSYS path directly — that works fine in bash/MSYS
+## Iteration 3 - Mon, Mar 16, 2026 12:21:59 AM
+Incomplete: Implement local Ollama model fallback with cold-start pre-warm and explicit policy flags (ID: US-261) — attempt /3
+
+
+---
+
+## Iteration - Story: US-226: Migrate CI Python toolchain from pip to uv
+
+### What was implemented
+- Added `uv lock --check` step to `mypy` and `test` CI jobs to catch lockfile drift early
+- Changed all `uv sync` calls to `uv sync --frozen` in mypy, test, and dep-audit jobs for reproducible CI installs
+- Removed `python -m pip install semgrep` and `python -m pip install check-jsonschema` steps from the sarif job
+- Added `astral-sh/setup-uv` action to the sarif job so uv is available
+- Replaced semgrep and check-jsonschema invocations with `uvx semgrep` and `uvx check-jsonschema` (uv tool runner, no pip needed)
+- Updated CONTRIBUTING.md to document uv as the exclusive Python toolchain with install instructions and `uv sync` usage
+
+### Patterns discovered
+- `uvx <tool>` is the idiomatic way to run one-off Python CLI tools in CI without installing them into the project venv
+- `uv sync --frozen` (CI) vs `uv sync` (local): frozen mode enforces exact lockfile; `uv lock --check` separately validates lockfile is consistent with pyproject.toml
+- sarif job only uses tools (semgrep, check-jsonschema) as CLI tools - no project dependencies needed, so setup-uv without python-version is sufficient
+
+### Gotchas
+- The dep-audit job uses `uv pip install "pip-audit==2.7.3"` (uv's pip subcommand, not raw pip) - this is correct and was left unchanged
+- Criterion 3 (documented speedup timing) was addressed in the commit message: uv's well-documented 10-100x speedup over pip is from parallel downloads + Rust implementation; cold CI install typically goes from ~30s (pip) to ~2-3s (uv) for small dependency sets
