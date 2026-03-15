@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import DependencyGraph from './DependencyGraph';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -10,6 +11,8 @@ interface Story {
   priority?: string;
   complexity?: string;
   failureReason?: string;
+  dependencies?: string[];
+  status?: string;
 }
 
 interface ProgressData {
@@ -371,10 +374,11 @@ function ActivityTab({ log }: { log: string }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-type DashTab = 'progress' | 'settings' | 'constitution' | 'activity';
+type DashTab = 'progress' | 'settings' | 'constitution' | 'activity' | 'graph';
 
 const DASH_TABS: { id: DashTab; label: string; icon: string }[] = [
   { id: 'progress',     label: 'Progress',     icon: '📊' },
+  { id: 'graph',        label: 'Graph',        icon: '🔗' },
   { id: 'settings',     label: 'Settings',     icon: '⚙️' },
   { id: 'constitution', label: 'Constitution', icon: '📜' },
   { id: 'activity',     label: 'Activity Log', icon: '📝' },
@@ -503,11 +507,16 @@ export default function ProjectDashboard() {
       </div>
 
       {/* Tab content */}
-      <main className="flex-1 overflow-y-auto">
-        {activeTab === 'progress'     && <ProgressTab data={data} />}
-        {activeTab === 'settings'     && <SettingsTab config={data.config} />}
-        {activeTab === 'constitution' && <ConstitutionTab text={data.constitution} />}
-        {activeTab === 'activity'     && <ActivityTab log={data.activity} />}
+      <main className="flex-1 overflow-hidden">
+        {activeTab === 'progress'     && <div className="h-full overflow-y-auto"><ProgressTab data={data} /></div>}
+        {activeTab === 'graph'        && (
+          <div className="h-full overflow-hidden">
+            <DependencyGraph stories={data.progress?.stories ?? []} />
+          </div>
+        )}
+        {activeTab === 'settings'     && <div className="h-full overflow-y-auto"><SettingsTab config={data.config} /></div>}
+        {activeTab === 'constitution' && <div className="h-full overflow-y-auto"><ConstitutionTab text={data.constitution} /></div>}
+        {activeTab === 'activity'     && <div className="h-full overflow-y-auto"><ActivityTab log={data.activity} /></div>}
       </main>
     </div>
   );

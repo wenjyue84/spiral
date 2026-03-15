@@ -189,7 +189,7 @@ function spiralApiPlugin() {
               const prd = JSON.parse(fs.readFileSync(prdPath, 'utf8')) as {
                 productName?: string;
                 overview?: string;
-                userStories?: Array<{ id: string; title: string; passes: boolean; priority?: string; complexity?: string; _failureReason?: string }>;
+                userStories?: Array<{ id: string; title: string; passes: boolean; priority?: string; complexity?: string; _failureReason?: string; dependencies?: string[]; _status?: string }>;
               };
               const stories = (prd.userStories ?? []).map(s => ({
                 id: s.id,
@@ -198,6 +198,8 @@ function spiralApiPlugin() {
                 priority: s.priority,
                 complexity: s.complexity,
                 failureReason: s._failureReason,
+                dependencies: s.dependencies,
+                status: s._status,
               }));
               const done = stories.filter(s => s.passes).length;
               const pending = stories.filter(s => !s.passes).length;

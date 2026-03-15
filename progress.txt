@@ -6151,3 +6151,67 @@ Incomplete: Enforce cgroups v2 memory and CPU limits on worker subprocesses (ID:
 
 ### Gotchas
 - `test_route_stories.py` has a pre-existing ImportError (relative import in route_stories.py) — not related to this story
+## Iteration 2 - Sun, Mar 15, 2026 11:04:38 PM
+Incomplete: Enforce cgroups v2 memory and CPU limits on worker subprocesses (ID: US-259) — attempt /3
+
+## Iteration 1 - Sun, Mar 15, 2026 11:06:19 PM
+Incomplete: Enforce cgroups v2 memory and CPU limits on worker subprocesses (ID: US-259) — attempt /3
+
+
+---
+
+## Iteration [N] - Story: US-208: Add `spiral import-csv` command to bulk-import stories from CSV spreadsheet
+
+### What was implemented
+- `lib/import_csv.py` — CSV importer with:
+  - `parse_csv_rows()` using csv.DictReader; supports comma/tab delimiters
+  - Columns: title (required), description, priority (required), estimatedComplexity, acceptanceCriteria (semicolon-separated), technicalNotes (semicolon-separated)
+  - `_next_story_id()` follows SPIRAL_STORY_PREFIX convention (same pattern as import_jira.py)
+  - `import_csv_stories()` public API with dry_run, dedup, atomic prd.json write
+  - CLI: `main()` with --prd, --delimiter, --dry-run flags
+- `main.py` — `cmd_import_csv()` handler + `import-csv` subparser registered after `import-jira`
+- `tests/test_import_csv.py` — 32 tests, all passing
+
+### Patterns discovered
+- All import modules follow identical structure: `_next_story_id()`, `parse_*()`, `import_*()`, `main()` CLI
+- `atomic_write_json` from spiral_io handles safe temp-file rename pattern
+- `configure_utf8_stdout()` called at module level for Windows compatibility
+
+### Gotchas
+- `csv.DictReader` with `encoding="utf-8-sig"` handles BOM from Excel-exported CSVs
+- `--delimiter '\t'` requires decode("unicode_escape") in both CLI and main.py handler to resolve escape sequences from argv
+
+---
+
+## Iteration [N+1] - Story: US-197: Render interactive story dependency graph in spiral-ui React dashboard
+
+### What was implemented
+- Installed mermaid.js (v11.13.0) as a dependency in spiral-ui
+- Updated `vite.config.ts` `/api/project-live` handler to include `dependencies` and `_status` fields in story mapping
+- Created `spiral-ui/src/components/DependencyGraph.tsx`:
+  - Renders a Mermaid LR flowchart of all stories and their dependency edges
+  - Color-coded nodes: pending=grey, passed=green, in_progress=blue, failed=red, skipped=yellow
+  - Stories with no dependencies use oval/stadium shape; stories with deps use rectangle
+  - Click handlers registered as global window functions (required for mermaid securityLevel: loose)
+  - Clicking a node opens an inline StoryDetailPanel sidebar showing title, status, priority, complexity, dependencies, failure reason
+  - Graph re-renders on every stories prop change (aligned with 15s polling in ProjectDashboard)
+  - Render ID guard prevents stale async renders
+- Added `Story.dependencies` and `Story.status` fields to the interface in `ProjectDashboard.tsx`
+- Added 'Graph' tab (🔗) to the `DASH_TABS` array in ProjectDashboard, positioned after Progress
+- Tab content uses `overflow-hidden` + `h-full` layout to support the graph's flex layout
+
+### Patterns discovered
+- Mermaid requires `securityLevel: 'loose'` for click callbacks to work (otherwise click events are blocked)
+- Click handlers must be registered as global `window[handlerName]` functions before calling `mermaid.render()`
+- Mermaid.initialize() is idempotent if called multiple times but should only be called once; use a module-level flag
+- `mermaid.render()` returns `{ svg, bindFunctions }` — bindFunctions attaches interactive handlers to the SVG
+- Pre-existing lint error in SettingsPanel.tsx (react-refresh/only-export-components) is not related to this story
+
+### Gotchas
+- Mermaid 11.x uses async `mermaid.render()` returning a Promise (unlike older sync API)
+- Node IDs in Mermaid cannot contain hyphens — must convert US-197 to US_197 with `.replace(/-/g, '_')`
+- npm install mermaid requires `--legacy-peer-deps` due to vite 8 peer conflict with @tailwindcss/vite
+- Cannot update a ref (`ref.current = value`) during React render phase (react-hooks/refs lint rule)
+## Iteration 3 - Sun, Mar 15, 2026 11:19:11 PM
+Incomplete: Enforce cgroups v2 memory and CPU limits on worker subprocesses (ID: US-259) — attempt /3
+
