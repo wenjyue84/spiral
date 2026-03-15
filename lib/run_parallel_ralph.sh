@@ -513,10 +513,12 @@ _launch_worker_i() {
   local _WORKER_MODEL_FLAG=""
   [[ -n "$RALPH_MODEL" ]] && _WORKER_MODEL_FLAG="--model $RALPH_MODEL"
   echo "  [parallel] Launching worker $i → log: $LOG"
+  local _EXIT_CODE_FILE="$WORKTREE_BASE/worker-${i}/exit_code"
   (
     _UNLOCK_REPO="$REPO_ROOT"
     _UNLOCK_WTREE="$WTREE"
     _WORKER_NUM=$i
+    _EXIT_FILE="$_EXIT_CODE_FILE"
     _HB_CLEANUP='
       if type worker_heartbeat_stop &>/dev/null; then worker_heartbeat_stop "$_WORKER_NUM" 2>/dev/null || true; fi
       git -C "$_UNLOCK_REPO" worktree unlock "$_UNLOCK_WTREE" 2>/dev/null || true
@@ -527,19 +529,23 @@ _launch_worker_i() {
     export SPIRAL_WORKER_ID=$i HEARTBEAT_DIR="$HEARTBEAT_DIR"
     export SPIRAL_MEMORY_LIMIT="${SPIRAL_WORKER_MEMORY_LIMIT:-$SPIRAL_MEMORY_LIMIT}"
     if type worker_heartbeat_start &>/dev/null; then worker_heartbeat_start "$i" 30 2>/dev/null || true; fi
+    _RC=0
     if [[ "$WORKER_TIMEOUT" -gt 0 ]] && command -v timeout &>/dev/null; then
       if [[ "$_USE_SETSID" -eq 1 ]]; then
-        timeout --kill-after=60 "${WORKER_TIMEOUT}" setsid bash "$RALPH_SKILL" "$ITER_PER_WORKER" --prd prd.json $_WORKER_MODEL_FLAG >"$LOG" 2>&1 || exit $?
+        timeout --kill-after=60 "${WORKER_TIMEOUT}" setsid bash "$RALPH_SKILL" "$ITER_PER_WORKER" --prd prd.json $_WORKER_MODEL_FLAG >"$LOG" 2>&1 || _RC=$?
       else
-        timeout --kill-after=60 "${WORKER_TIMEOUT}" bash "$RALPH_SKILL" "$ITER_PER_WORKER" --prd prd.json $_WORKER_MODEL_FLAG >"$LOG" 2>&1 || exit $?
+        timeout --kill-after=60 "${WORKER_TIMEOUT}" bash "$RALPH_SKILL" "$ITER_PER_WORKER" --prd prd.json $_WORKER_MODEL_FLAG >"$LOG" 2>&1 || _RC=$?
       fi
     else
       if [[ "$_USE_SETSID" -eq 1 ]]; then
-        setsid bash "$RALPH_SKILL" "$ITER_PER_WORKER" --prd prd.json $_WORKER_MODEL_FLAG >"$LOG" 2>&1
+        setsid bash "$RALPH_SKILL" "$ITER_PER_WORKER" --prd prd.json $_WORKER_MODEL_FLAG >"$LOG" 2>&1 || _RC=$?
       else
-        bash "$RALPH_SKILL" "$ITER_PER_WORKER" --prd prd.json $_WORKER_MODEL_FLAG >"$LOG" 2>&1
+        bash "$RALPH_SKILL" "$ITER_PER_WORKER" --prd prd.json $_WORKER_MODEL_FLAG >"$LOG" 2>&1 || _RC=$?
       fi
     fi
+    # Write exit code to file so parent can read it after disown (wait returns 127 after disown)
+    echo "$_RC" >"$_EXIT_FILE" 2>/dev/null || true
+    exit "$_RC"
   ) &
   local _wpid=$!
   WORKER_PIDS+=("$_wpid")
@@ -550,7 +556,7 @@ _launch_worker_i() {
 }
 
 for i in $(seq 1 "$_INITIAL_LAUNCH_COUNT"); do
-  _MIN_FREE_MB=$(((RALPH_WORKERS - i + 1) * 1536 + 512))
+  _MIN_FREE_MB=$(((RALPH_WORKERS - i + 1) * _PER_WORKER_MB + 512))
   [[ "$_MIN_FREE_MB" -lt 2048 ]] && _MIN_FREE_MB=2048
   wait_for_memory "$_MIN_FREE_MB"
   _launch_worker_i "$i"
@@ -586,7 +592,18 @@ while [[ "$_ALL_DONE" -eq 0 ]]; do
         WORKER_FINISHED[$i]=1
         WORKER_NUM=$((i + 1))
         WORKER_EXIT=0
-        wait "${WORKER_PIDS[$i]}" 2>/dev/null || WORKER_EXIT=$?
+        # Read exit code from file (written by worker subshell) — more reliable than
+        # wait after disown, which returns 127 regardless of actual exit code
+        _ec_file="$WORKTREE_BASE/worker-${WORKER_NUM}/exit_code"
+        if [[ -f "$_ec_file" ]]; then
+          WORKER_EXIT=$(cat "$_ec_file" 2>/dev/null | tr -d '[:space:]')
+          [[ "$WORKER_EXIT" =~ ^[0-9]+$ ]] || WORKER_EXIT=1
+        else
+          # Fallback: try wait (may return 127 after disown)
+          wait "${WORKER_PIDS[$i]}" 2>/dev/null || WORKER_EXIT=$?
+          # 127 from wait means "no such child" (disowned) — not a real crash
+          [[ "$WORKER_EXIT" -eq 127 ]] && WORKER_EXIT=1
+        fi
         WTREE="${WORKER_DIRS[$i]}"
         DONE_W=$("$JQ" '[.userStories[] | select(.passes == true)] | length' "$WTREE/prd.json" 2>/dev/null || echo "?")
         TOTAL_W=$("$JQ" '[.userStories | length] | .[0]' "$WTREE/prd.json" 2>/dev/null || echo "?")
@@ -649,7 +666,6 @@ while [[ "$_ALL_DONE" -eq 0 ]]; do
     # Parse the JSON array and process each stale worker
     if [[ "$_STALE_JSON" != "[]" ]]; then
       # Extract worker IDs and story IDs from stale info
-      local stale_count
       stale_count=$("$JQ" 'length' <<<"$_STALE_JSON" 2>/dev/null || echo "0")
       if [[ "$stale_count" -gt 0 ]]; then
         echo "  [parallel] WARNING: Detected $stale_count stale heartbeat(s) — re-queueing..."

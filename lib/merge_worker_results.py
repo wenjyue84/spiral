@@ -28,8 +28,12 @@ def main() -> int:
         print(f"[merge_workers] ERROR: {args.main} not found", file=sys.stderr)
         return 1
 
-    with open(args.main, encoding="utf-8") as f:
-        main_prd = json.load(f)
+    try:
+        with open(args.main, encoding="utf-8") as f:
+            main_prd = json.load(f)
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        print(f"[merge_workers] ERROR: {args.main} is corrupt ({exc})", file=sys.stderr)
+        return 1
 
     errors = validate_prd(main_prd)
     if errors:
