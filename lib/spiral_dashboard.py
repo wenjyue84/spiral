@@ -777,7 +777,8 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
                 refresh_secs: int = 0,
                 orphaned_worktrees: list[dict] | None = None,
                 token_forecast: dict | None = None,
-                resource_usage: list[dict] | None = None) -> str:
+                resource_usage: list[dict] | None = None,
+                iter_summary: dict | None = None) -> str:
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     max_vel = max((v["kept"] for v in velocity), default=1) or 1
 
@@ -792,6 +793,28 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
             f'<span class="bar-value">{v["kept"]} kept ({v["velocity"]:.1f}/hr)</span>'
             f'</div>\n'
         )
+
+    # US-212: Per-phase timing bar chart
+    phase_timing_html = ""
+    _pt = (iter_summary or {}).get("phase_timings", {})
+    if _pt:
+        _phase_labels = {"R": "Research", "T": "Test Synth", "S": "Story Valid", "M": "Merge", "I": "Implement", "V": "Validate", "C": "Check Done"}
+        _max_dur = max(_pt[p]["duration_seconds"] for p in _pt) or 1
+        _timing_rows = ""
+        for _ph in ("R", "T", "S", "M", "I", "V", "C"):
+            if _ph not in _pt:
+                continue
+            _dur = _pt[_ph]["duration_seconds"]
+            _pct = _dur / _max_dur * 100
+            _label = _phase_labels.get(_ph, _ph)
+            _timing_rows += (
+                f'<div class="bar-row">'
+                f'<span class="bar-label">{_ph}: {_label}</span>'
+                f'<div class="bar-track"><div class="bar-fill" style="width:{_pct:.0f}%;background:#6c63ff"></div></div>'
+                f'<span class="bar-value">{_dur}s</span>'
+                f'</div>\n'
+            )
+        phase_timing_html = f'<section>\n<h2>Phase Timings (Last Iteration)</h2>\n{_timing_rows}</section>\n'
 
     # Status stacked bar
     ss = status["stories"]
@@ -1152,6 +1175,7 @@ footer{{text-align:center;color:#444;font-size:10px;margin-top:16px;padding-top:
 {vel_rows if vel_rows else '<div class="no-data">No results data yet</div>'}
 </section>
 
+{phase_timing_html}
 {epics_html}
 
 <div class="two-col">
@@ -1281,7 +1305,7 @@ def main() -> int:
         velocity = [{"iter": 0, "kept": 0, "total": 0, "duration_hours": 0.001, "velocity": 0}]
 
     # Render
-    html = render_html(overview, velocity, status, model_perf, retry_analysis, bottle, decomposition, insights, screenshot, iteration_velocity=iter_vel, epics=epics, activity_sections=activity, failure_reasons=failure_reasons, story_attempts=story_attempts, refresh_secs=args.refresh_secs, orphaned_worktrees=orphans, token_forecast=token_forecast, resource_usage=resource_usage)
+    html = render_html(overview, velocity, status, model_perf, retry_analysis, bottle, decomposition, insights, screenshot, iteration_velocity=iter_vel, epics=epics, activity_sections=activity, failure_reasons=failure_reasons, story_attempts=story_attempts, refresh_secs=args.refresh_secs, orphaned_worktrees=orphans, token_forecast=token_forecast, resource_usage=resource_usage, iter_summary=iter_summary)
 
     # Write
     output_path = os.path.abspath(args.output)

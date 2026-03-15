@@ -1243,6 +1243,22 @@ write_iter_summary() {
   done
   _phases_json="${_phases_json}]"
 
+  # US-212: Build phase_timings JSON: {R: {start_epoch, duration_seconds}, ...}
+  local _phase_timings_json _ts_var _dur_var _ts_val _dur_val
+  _phase_timings_json="{"
+  _sep=""
+  for _p in R T S M I V C; do
+    _ts_var="_PHASE_TS_${_p}"
+    _dur_var="_PHASE_DUR_${_p}"
+    _ts_val="${!_ts_var:-0}"
+    _dur_val="${!_dur_var:-0}"
+    if [[ "$_ts_val" -gt 0 ]]; then
+      _phase_timings_json="${_phase_timings_json}${_sep}\"${_p}\":{\"start_epoch\":${_ts_val},\"duration_seconds\":${_dur_val}}"
+      _sep=","
+    fi
+  done
+  _phase_timings_json="${_phase_timings_json}}"
+
   "$SPIRAL_PYTHON" -c "
 import json, sys, os
 d = {
@@ -1266,6 +1282,14 @@ if _ctx_stats_file and os.path.isfile(_ctx_stats_file):
         d['_contextStats'] = _ctx
     except Exception:
         pass
+# US-212: merge phase_timings
+_phase_timings_raw = sys.argv[13] if len(sys.argv) > 13 else '{}'
+try:
+    _phase_timings = json.loads(_phase_timings_raw)
+    if _phase_timings:
+        d['phase_timings'] = _phase_timings
+except Exception:
+    pass
 # Remove None values to keep JSON clean
 d = {k: v for k, v in d.items() if v is not None}
 with open(sys.argv[9], 'w') as f:
@@ -1274,7 +1298,8 @@ with open(sys.argv[9], 'w') as f:
 " "$SPIRAL_ITER" "$ITER_START" "$_iter_end" "$_iter_dur" \
     "$_attempted" "${RALPH_PROGRESS:-0}" "$_failed" \
     "$_phases_json" "$SCRATCH_DIR/_iteration_summary.json" "${_PHASE_V_SKIPPED:-0}" \
-    "${_PHASE_R_PRE_MODEL:-none}" "${SCRATCH_DIR}/_context_stats.json" 2>/dev/null || {
+    "${_PHASE_R_PRE_MODEL:-none}" "${SCRATCH_DIR}/_context_stats.json" \
+    "$_phase_timings_json" 2>/dev/null || {
     echo "  [C] WARNING: Failed to write _iteration_summary.json (non-fatal)"
   }
 }
@@ -2085,6 +2110,10 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
 
   # Compress artifacts from iterations N-2 and older (US-172)
   compress_old_artifacts "$SPIRAL_ITER"
+
+  # Recover incomplete transactions from a prior crash (Phase 3 safety)
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/txn_journal.py" recover \
+    --journal "$SCRATCH_DIR/_txn_journal.jsonl" 2>/dev/null || true
 
   # Validate prd.json integrity before each iteration (Idea 3)
   # If corrupted by a mid-write crash, restore from the most recent backup

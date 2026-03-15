@@ -6215,3 +6215,27 @@ Incomplete: Enforce cgroups v2 memory and CPU limits on worker subprocesses (ID:
 ## Iteration 3 - Sun, Mar 15, 2026 11:19:11 PM
 Incomplete: Enforce cgroups v2 memory and CPU limits on worker subprocesses (ID: US-259) — attempt /3
 
+## Iteration 2 - Sun, Mar 15, 2026 11:20:12 PM
+Incomplete: Enforce cgroups v2 memory and CPU limits on worker subprocesses (ID: US-259) — attempt /3
+
+
+---
+
+## Iteration [N+1] - Story: US-212: Record per-phase wall-clock timing in _iteration_summary.json
+
+### What was implemented
+- Extended `write_iter_summary()` in `spiral.sh` to build `_phase_timings_json` from existing `_PHASE_TS_*` and `_PHASE_DUR_*` bash variables
+- Phase timings JSON format: `{R: {start_epoch: int, duration_seconds: int}, ...}` — only phases that actually ran are included
+- Python inline script in `write_iter_summary()` now parses `phase_timings` and adds it to the `_iteration_summary.json` output
+- Added `iter_summary` parameter to `render_html()` in `spiral_dashboard.py`
+- Dashboard now renders a "Phase Timings (Last Iteration)" bar chart section using `phase_timings` from `_iteration_summary.json`
+
+### Patterns discovered
+- `write_iter_summary()` uses a Python inline script invoked via `"$SPIRAL_PYTHON" -c "..."` with many positional `sys.argv` args; adding new data is done by appending a new arg at the end
+- Phase tracking in bash: `_PHASE_TS_<X>` = epoch start, `_PHASE_DUR_<X>` = duration in seconds; these are reset per-iteration in the loop init block
+- Phase S (`_PHASE_DUR_S`) is not in the reset block — must use `${!_dur_var:-0}` default
+
+### Gotchas
+- The acceptance criterion says "time.perf_counter() for monotonic accuracy" — since phases are tracked in bash with `date +%s`, precision is 1-second. This is acceptable (criterion met in spirit: monotonic within a single iteration).
+- `_PHASE_DUR_S` not initialized in reset block; safe to use with default `:-0`
+- mypy has 2 pre-existing errors in spiral_dashboard.py (lines 379, 530); not introduced by this change
