@@ -59,6 +59,11 @@
           "minLength": 1,
           "maxLength": 100
         },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "in-progress", "done", "blocked", "blocked-by-sast", "skipped"],
+          "description": "Optional story lifecycle status"
+        },
         "priority": {
           "type": "string",
           "enum": ["critical", "high", "medium", "low"]

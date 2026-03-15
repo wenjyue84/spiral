@@ -24,9 +24,9 @@ import os
 import re
 import sys
 
-# Force UTF-8 stdout — prevents UnicodeEncodeError on Windows cp1252 terminals
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+sys.path.insert(0, os.path.dirname(__file__))
+from spiral_io import configure_utf8_stdout
+configure_utf8_stdout()
 
 STORY_PREFIX = os.environ.get("SPIRAL_STORY_PREFIX", "US")
 
@@ -237,7 +237,7 @@ def validate_prd(prd: dict) -> list[str]:
 def validate_jsonschema(prd: dict, schema_path: str) -> list[str]:
     """
     Validate prd against a formal JSON Schema file using the jsonschema package.
-    Returns list of diff-style error strings (empty = valid).
+    Returns list of error strings in 'SCHEMA ERROR: /pointer — message' format.
     Raises ImportError if jsonschema is not installed.
     """
     import jsonschema  # noqa: F811 — intentional late import
@@ -248,17 +248,10 @@ def validate_jsonschema(prd: dict, schema_path: str) -> list[str]:
     validator = jsonschema.Draft202012Validator(schema)
     errors: list[str] = []
     for err in sorted(validator.iter_errors(prd), key=lambda e: list(e.absolute_path)):
-        path = ".".join(str(p) for p in err.absolute_path) if err.absolute_path else "(root)"
-        # Identify story id for contextual error messages
-        story_ctx = ""
         parts = list(err.absolute_path)
-        if len(parts) >= 2 and parts[0] == "userStories":
-            idx = parts[1]
-            stories = prd.get("userStories", [])
-            if isinstance(idx, int) and 0 <= idx < len(stories):
-                sid = stories[idx].get("id", "?")
-                story_ctx = f" ({sid})"
-        errors.append(f"  - {path}{story_ctx}: {err.message}")
+        # Build JSON Pointer (RFC 6901): /userStories/3/priority
+        pointer = "/" + "/".join(str(p) for p in parts) if parts else "/"
+        errors.append(f"SCHEMA ERROR: {pointer} \u2014 {err.message}")
     return errors
 
 
@@ -288,14 +281,81 @@ def _find_schema_file(prd_path: str) -> str | None:
     return None
 
 
+def write_prd_validated(prd_path: str, new_content_path: str) -> int:
+    """
+    Atomically write new_content_path → prd_path after validation.
+
+    Workflow:
+      1. Back up prd_path → prd_path.bak
+      2. Validate new_content_path against schema
+      3. If valid:   copy new_content_path → prd_path, return 0
+      4. If invalid: print SCHEMA ERROR lines, restore from .bak, return 2
+
+    Returns 0 on success, 1 on file/parse error, 2 on schema error.
+    """
+    import shutil
+
+    # Step 1 — backup
+    backup_path = prd_path + ".bak"
+    if os.path.isfile(prd_path):
+        shutil.copy2(prd_path, backup_path)
+
+    # Step 2 — load + validate new content
+    try:
+        with open(new_content_path, encoding="utf-8") as f:
+            new_prd = json.load(f)
+    except json.JSONDecodeError as e:
+        print(f"SCHEMA ERROR: / \u2014 Invalid JSON: {e}", file=sys.stderr)
+        return 1
+
+    all_errors: list[str] = []
+    schema_file = _find_schema_file(prd_path)
+    if schema_file and has_jsonschema():
+        all_errors = validate_jsonschema(new_prd, schema_file)
+    # Always run stdlib cross-story checks (add as SCHEMA ERROR: / — ... if not already formatted)
+    stdlib_errors = validate_prd(new_prd)
+    for e in stdlib_errors:
+        all_errors.append(f"SCHEMA ERROR: / \u2014 {e}")
+
+    if all_errors:
+        print(f"[schema] {new_content_path} \u2014 {len(all_errors)} validation error(s):", file=sys.stderr)
+        for err in all_errors:
+            print(err, file=sys.stderr)
+        # Restore from backup
+        if os.path.isfile(backup_path):
+            shutil.copy2(backup_path, prd_path)
+            print(f"[schema] Restored {prd_path} from {backup_path}", file=sys.stderr)
+        return 2
+
+    # Step 3 — write
+    shutil.copy2(new_content_path, prd_path)
+    return 0
+
+
 def main() -> int:
     import argparse
 
     parser = argparse.ArgumentParser(description="Validate prd.json schema")
     parser.add_argument("prd", help="Path to prd.json")
     parser.add_argument("--quiet", action="store_true", help="Suppress success message")
+    parser.add_argument(
+        "--validate-write",
+        metavar="NEW_FILE",
+        help=(
+            "Validate NEW_FILE then atomically replace prd with it. "
+            "Creates prd.bak before write; restores on failure."
+        ),
+    )
     args = parser.parse_args()
 
+    # ── validate-write mode ───────────────────────────────────────────────────
+    if args.validate_write:
+        if not os.path.isfile(args.validate_write):
+            print(f"SCHEMA ERROR: / \u2014 new file not found: {args.validate_write}", file=sys.stderr)
+            return 1
+        return write_prd_validated(args.prd, args.validate_write)
+
+    # ── read-only validation mode ─────────────────────────────────────────────
     if not os.path.isfile(args.prd):
         print(f"[schema] ERROR: {args.prd} not found", file=sys.stderr)
         return 1
@@ -312,7 +372,10 @@ def main() -> int:
     if schema_file and has_jsonschema():
         js_errors = validate_jsonschema(prd, schema_file)
         if js_errors:
-            print(f"[schema] {args.prd} — JSON Schema validation failed ({len(js_errors)} error(s)):", file=sys.stderr)
+            print(
+                f"[schema] {args.prd} \u2014 JSON Schema validation failed ({len(js_errors)} error(s)):",
+                file=sys.stderr,
+            )
             for err in js_errors:
                 print(err, file=sys.stderr)
             return 2
@@ -320,15 +383,15 @@ def main() -> int:
     # Always run stdlib validation for cross-story checks (duplicates, dangling deps)
     errors = validate_prd(prd)
     if errors:
-        print(f"[schema] {args.prd} — {len(errors)} error(s):", file=sys.stderr)
+        print(f"[schema] {args.prd} \u2014 {len(errors)} error(s):", file=sys.stderr)
         for err in errors:
-            print(f"  - {err}", file=sys.stderr)
+            print(f"SCHEMA ERROR: / \u2014 {err}", file=sys.stderr)
         return 2
 
     if not args.quiet:
         story_count = len(prd.get("userStories", []))
         method = "JSON Schema + stdlib" if (schema_file and has_jsonschema()) else "stdlib"
-        print(f"[schema] {args.prd} — valid ({story_count} stories, {method})")
+        print(f"[schema] {args.prd} \u2014 valid ({story_count} stories, {method})")
     return 0
 
 

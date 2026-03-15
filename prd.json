@@ -20,7 +20,11 @@
       "filesTouch": [
         "spiral.sh",
         "lib/run_parallel_ralph.sh"
-      ]
+      ],
+      "acceptanceCriteria": [
+        "Implemented as described in the story description."
+      ],
+      "dependencies": []
     },
     {
       "id": "US-159",
@@ -31,7 +35,11 @@
       "retryCount": 0,
       "filesTouch": [
         "lib/run_parallel_ralph.sh"
-      ]
+      ],
+      "acceptanceCriteria": [
+        "Implemented as described in the story description."
+      ],
+      "dependencies": []
     },
     {
       "id": "US-160",
@@ -42,7 +50,11 @@
       "retryCount": 0,
       "filesTouch": [
         "lib/run_parallel_ralph.sh"
-      ]
+      ],
+      "acceptanceCriteria": [
+        "Implemented as described in the story description."
+      ],
+      "dependencies": []
     },
     {
       "id": "US-161",
@@ -53,7 +65,11 @@
       "retryCount": 0,
       "filesTouch": [
         "spiral.sh"
-      ]
+      ],
+      "acceptanceCriteria": [
+        "Implemented as described in the story description."
+      ],
+      "dependencies": []
     },
     {
       "id": "US-162",
@@ -64,7 +80,11 @@
       "retryCount": 0,
       "filesTouch": [
         "spiral.sh"
-      ]
+      ],
+      "acceptanceCriteria": [
+        "Implemented as described in the story description."
+      ],
+      "dependencies": []
     },
     {
       "id": "US-163",
@@ -75,7 +95,11 @@
       "retryCount": 0,
       "filesTouch": [
         "lib/run_parallel_ralph.sh"
-      ]
+      ],
+      "acceptanceCriteria": [
+        "Implemented as described in the story description."
+      ],
+      "dependencies": []
     },
     {
       "id": "US-164",
@@ -86,7 +110,11 @@
       "retryCount": 0,
       "filesTouch": [
         "lib/run_parallel_ralph.sh"
-      ]
+      ],
+      "acceptanceCriteria": [
+        "Implemented as described in the story description."
+      ],
+      "dependencies": []
     },
     {
       "id": "US-165",
@@ -98,7 +126,11 @@
       "filesTouch": [
         "lib/memory-watchdog.ps1",
         "spiral.sh"
-      ]
+      ],
+      "acceptanceCriteria": [
+        "Implemented as described in the story description."
+      ],
+      "dependencies": []
     },
     {
       "id": "US-166",
@@ -109,7 +141,11 @@
       "retryCount": 0,
       "filesTouch": [
         "lib/run_parallel_ralph.sh"
-      ]
+      ],
+      "acceptanceCriteria": [
+        "Implemented as described in the story description."
+      ],
+      "dependencies": []
     },
     {
       "id": "US-167",
@@ -120,7 +156,11 @@
       "retryCount": 0,
       "filesTouch": [
         "lib/run_parallel_ralph.sh"
-      ]
+      ],
+      "acceptanceCriteria": [
+        "Implemented as described in the story description."
+      ],
+      "dependencies": []
     },
     {
       "id": "US-168",
@@ -131,7 +171,11 @@
       "retryCount": 0,
       "filesTouch": [
         "lib/run_parallel_ralph.sh"
-      ]
+      ],
+      "acceptanceCriteria": [
+        "Implemented as described in the story description."
+      ],
+      "dependencies": []
     },
     {
       "id": "US-001",
@@ -2921,7 +2965,7 @@
         "git revert docs: https://git-scm.com/docs/git-revert"
       ],
       "dependencies": [
-        "Record _passedCommit git SHA in prd.json when story passes"
+        "US-047"
       ],
       "estimatedComplexity": "small",
       "passes": true
@@ -3720,7 +3764,7 @@
         "Attribute token counts from Claude's usage field in API response body"
       ],
       "dependencies": [
-        "Emit OTel GenAI agent spans per story phase using semconv"
+        "US-184"
       ],
       "estimatedComplexity": "medium",
       "passes": true
@@ -3829,7 +3873,7 @@
         "Implement as a plugin in plugins/notify-slack/ using the plugin system from the companion story"
       ],
       "dependencies": [
-        "Implement SPIRAL plugin system with hook-based extension points"
+        "US-193"
       ],
       "estimatedComplexity": "small",
       "passes": true
@@ -3896,7 +3940,7 @@
         "Mermaid npm package: https://mermaid.js.org/"
       ],
       "dependencies": [
-        "Generate Mermaid dependency graph of prd.json stories on demand"
+        "US-195"
       ],
       "estimatedComplexity": "medium",
       "passes": false
@@ -3940,7 +3984,7 @@
         "Node color attribute uses HTML color names compatible with both dot and neato engines"
       ],
       "dependencies": [
-        "Generate Mermaid dependency graph of prd.json stories on demand"
+        "US-195"
       ],
       "estimatedComplexity": "small",
       "passes": false
@@ -3963,7 +4007,7 @@
         "Grafana Tempo trace URL format: {tempo_host}/explore with datasource=Tempo and query=traceId"
       ],
       "dependencies": [
-        "Emit OTel GenAI agent spans per story phase using semconv"
+        "US-184"
       ],
       "estimatedComplexity": "small",
       "passes": false
@@ -5154,7 +5198,7 @@
         "Filter implementation: client-side JavaScript, no additional server endpoints required"
       ],
       "dependencies": [
-        "Add living PRD changelog tracking story field mutations with author and reason"
+        "US-256"
       ],
       "estimatedComplexity": "small",
       "passes": false
@@ -5273,7 +5317,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-264",
