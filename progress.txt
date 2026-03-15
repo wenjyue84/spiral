@@ -5655,3 +5655,28 @@ Completed: Add flaky bats test detection and quarantine registry (ID: US-240) in
 ## Iteration 2 - Sun, Mar 15, 2026  8:42:33 PM
 Completed: Add flaky bats test detection and quarantine registry (ID: US-240) in 28m
 
+
+## Iteration N - Story: US-242: Add policy adherence validation gate before high-risk phase actions
+
+### What was implemented
+- `lib/policy_check.sh`: New library with 3 exported functions:
+  - `policy_load()` — ensures `.spiral/policy.json` exists with safe defaults (allow-all); outputs policy file path
+  - `policy_check <operation> [phase]` — checks deny lists (phase-specific first, then global); returns 0=allowed, 1=denied; uses Python fnmatch for wildcard patterns
+  - `policy_log_violation <prd_file> <story_id> <operation> <phase> [jq]` — appends `{operation, phase, timestamp, blocked:true}` to `._policyViolations[]` in prd.json
+- `ralph/ralph.sh`:
+  - Sources `lib/policy_check.sh` at startup (line ~112)
+  - `do_git_commit()`: policy gate for `git_commit` in phase `I`; returns 1 (skip commit) if denied
+  - `do_story_reset()`: policy gate for `story_reset` in phase `I`; returns 0 (skip reset) if denied
+  - `finalize_story_branch()`: policy gate for `git_push` (phase `M`) and `git_merge` (phase `M`)
+  - All gates log to prd.json via `policy_log_violation` and emit `policy_violation` events to spiral_events.jsonl
+- `tests/policy_check.bats`: 21 bats tests — all pass
+
+### Patterns discovered
+- Policy check pattern: `declare -f policy_check >/dev/null 2>&1 && ! policy_check "op" "phase"` — safe even when lib not sourced
+- Python fnmatch used for glob patterns (`git_*` matches `git_push`, `git_merge`, etc.)
+- Phase-specific deny checked first, then global deny — phase > global precedence
+
+### Gotchas
+- Default policy is allow-all (empty deny list) to preserve existing behavior; users must opt-in to restrictions
+- `do_git_commit` returns 1 on policy block (caller should `|| echo "no changes"` to handle gracefully)
+- `do_story_reset` returns 0 on block (non-fatal; story continues without reset)
