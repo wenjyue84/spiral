@@ -2,6 +2,7 @@ import { useState } from 'react';
 import WorkflowDiagram from './components/WorkflowDiagram';
 import SettingsPanel, { defaultValues, type ConfigValues } from './components/SettingsPanel';
 import ConfigGenerator from './components/ConfigGenerator';
+import NodePanel from './components/NodePanel';
 
 type Tab = 'workflow' | 'settings' | 'config';
 
@@ -11,12 +12,24 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'config',   label: 'Config Output', icon: '📄' },
 ];
 
+interface SelectedNode {
+  id: string;
+  label: string;
+  sub: string;
+  zone: string;
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('workflow');
   const [values, setValues] = useState<ConfigValues>(defaultValues());
+  const [selectedNode, setSelectedNode] = useState<SelectedNode | null>(null);
 
   const handleChange = (key: string, value: string | number | boolean) => {
     setValues(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleNodeSelect = (id: string | null, label: string, sub: string, zone: string) => {
+    setSelectedNode(id ? { id, label, sub, zone } : null);
   };
 
   return (
@@ -46,15 +59,22 @@ export default function App() {
           ))}
         </nav>
 
-        {/* Legend */}
+        {/* Workflow legend */}
         {activeTab === 'workflow' && (
-          <div className="ml-auto flex gap-2 flex-wrap">
+          <div className="ml-auto flex items-center gap-3 flex-wrap">
+            {selectedNode ? (
+              <span className="text-xs text-slate-500 italic">
+                Click canvas to deselect
+              </span>
+            ) : (
+              <span className="text-xs text-slate-400 italic">Click a node to configure it</span>
+            )}
             {[
-              { label: 'Startup', bg: '#16a34a' },
-              { label: 'Pipeline', bg: '#2563eb' },
+              { label: 'Startup',   bg: '#16a34a' },
+              { label: 'Pipeline',  bg: '#2563eb' },
               { label: 'Implement', bg: '#ea580c' },
-              { label: 'Validate', bg: '#7c3aed' },
-              { label: 'Decision', bg: '#ca8a04' },
+              { label: 'Validate',  bg: '#7c3aed' },
+              { label: 'Decision',  bg: '#ca8a04' },
             ].map(z => (
               <span key={z.label} className="flex items-center gap-1 text-xs text-slate-600">
                 <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: z.bg }} />
@@ -67,10 +87,35 @@ export default function App() {
 
       {/* ── Main content ────────────────────────────────────────────────────── */}
       <main className="flex-1 overflow-hidden">
-        {/* Workflow tab — full bleed React Flow */}
+
+        {/* Workflow tab — diagram + slide-in panel */}
         {activeTab === 'workflow' && (
-          <div className="w-full h-full">
-            <WorkflowDiagram />
+          <div className="flex h-full">
+            {/* Diagram */}
+            <div className="flex-1 min-w-0 h-full">
+              <WorkflowDiagram
+                selectedNodeId={selectedNode?.id ?? null}
+                onNodeSelect={handleNodeSelect}
+              />
+            </div>
+
+            {/* Settings panel — slides in from right */}
+            {selectedNode && (
+              <div
+                className="w-80 flex-shrink-0 h-full overflow-hidden border-l border-slate-200"
+                style={{ animation: 'slideIn 0.18s ease-out' }}
+              >
+                <NodePanel
+                  nodeId={selectedNode.id}
+                  nodeLabel={selectedNode.label}
+                  nodeSub={selectedNode.sub}
+                  nodeZone={selectedNode.zone}
+                  values={values}
+                  onChange={handleChange}
+                  onClose={() => setSelectedNode(null)}
+                />
+              </div>
+            )}
           </div>
         )}
 
@@ -107,6 +152,14 @@ export default function App() {
           </div>
         )}
       </main>
+
+      {/* Slide-in animation */}
+      <style>{`
+        @keyframes slideIn {
+          from { transform: translateX(100%); opacity: 0; }
+          to   { transform: translateX(0);    opacity: 1; }
+        }
+      `}</style>
     </div>
   );
 }

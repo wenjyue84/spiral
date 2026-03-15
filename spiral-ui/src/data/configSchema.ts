@@ -13,6 +13,13 @@ export interface ConfigField {
 export const CONFIG_FIELDS: ConfigField[] = [
   // ── Session ─────────────────────────────────────────────────────────────────
   {
+    key: 'MAX_SPIRAL_ITERS',
+    label: 'Max Spiral Iterations',
+    description: 'Maximum outer SPIRAL iterations to run (each is a full R→T→S→M→G→I→V→C cycle). 0 = unlimited.',
+    type: 'number', defaultValue: 20, category: 'Session',
+    placeholder: '20',
+  },
+  {
     key: 'TIME_LIMIT_MINS',
     label: 'Time Limit (minutes)',
     description: 'Stop the SPIRAL loop after this many minutes. 0 = unlimited.',
@@ -139,6 +146,13 @@ export const CONFIG_FIELDS: ConfigField[] = [
     description: 'Number of parallel Ralph workers. >1 enables git worktree parallel mode.',
     type: 'number', defaultValue: 1, category: 'Implementation', phase: 'I',
     placeholder: '1',
+  },
+  {
+    key: 'SPIRAL_RALPH_ITERS',
+    label: 'Max Ralph Inner Iterations',
+    description: 'Max turns Ralph gets per implementation phase. Higher = more thorough but slower. Default: 120.',
+    type: 'number', defaultValue: 120, category: 'Implementation', phase: 'I',
+    placeholder: '120',
   },
   {
     key: 'SPIRAL_IMPL_TIMEOUT',

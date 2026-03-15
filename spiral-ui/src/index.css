@@ -3,3 +3,15 @@
 * { box-sizing: border-box; }
 body { margin: 0; font-family: system-ui, -apple-system, sans-serif; }
 #root { width: 100%; min-height: 100vh; }
+
+/* React Flow: undo Tailwind v4 preflight resets on SVG paint */
+.react-flow__edge-path,
+.react-flow__connection-path {
+  fill: none;
+  stroke: #94a3b8;
+  stroke-width: 2px;
+}
+.react-flow__arrowhead path {
+  fill: currentColor;
+  stroke: none;
+}
