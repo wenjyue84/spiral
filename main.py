@@ -92,6 +92,28 @@ def _latest_spiral_iter(results: list[dict]) -> int:
     return best
 
 
+def _load_drift_reports(scratch_dir: Path) -> dict[str, dict]:
+    """Load drift_report.json files from .spiral/workers/<story-id>/.
+
+    Returns a mapping of story_id → drift report dict.
+    """
+    reports: dict[str, dict] = {}
+    workers_dir = scratch_dir / "workers"
+    if not workers_dir.is_dir():
+        return reports
+    for story_dir in workers_dir.iterdir():
+        report_file = story_dir / "drift_report.json"
+        if report_file.exists():
+            try:
+                with open(report_file, encoding="utf-8") as f:
+                    data = json.load(f)
+                story_id = data.get("_storyId") or story_dir.name
+                reports[story_id] = data
+            except (json.JSONDecodeError, OSError):
+                pass
+    return reports
+
+
 # ── Status classification ─────────────────────────────────────────────────────
 
 def _classify_stories(
@@ -289,6 +311,103 @@ def _render_plain(
         )
 
     print(f"\n  Total: {total} stories\n")
+
+
+# ── Drift indicator rendering (US-260) ────────────────────────────────────────
+
+_DRIFT_COLOUR = {"pass": "green", "warn": "yellow", "fail": "red"}
+_DRIFT_ICON = {"pass": "●", "warn": "◐", "fail": "✗"}
+
+
+def _render_drift_rich(stories: list[dict], drift_reports: dict[str, dict]) -> None:
+    """Render per-story drift indicator table using Rich."""
+    from rich.console import Console
+    from rich.table import Table
+
+    console = Console()
+    console.print("\n[bold]SPIRAL Drift Report[/bold]\n")
+
+    table = Table(show_header=True, header_style="bold")
+    table.add_column("Story ID", style="cyan", no_wrap=True)
+    table.add_column("Title")
+    table.add_column("Status", justify="center")
+    table.add_column("Drift", justify="center")
+    table.add_column("Score", justify="right")
+
+    for story in stories:
+        sid = story.get("id", "")
+        title = (story.get("title") or "")[:55]
+        passes = story.get("passes", False)
+        skipped = story.get("_skipped", False)
+
+        if passes:
+            status_cell = "[green]passed[/green]"
+        elif skipped:
+            status_cell = "[red]skipped[/red]"
+        else:
+            status_cell = "[grey50]pending[/grey50]"
+
+        report = drift_reports.get(sid)
+        if report:
+            verdict = report.get("verdict", "?")
+            score = report.get("driftScore", "?")
+            col = _DRIFT_COLOUR.get(verdict, "grey50")
+            icon = _DRIFT_ICON.get(verdict, "?")
+            drift_cell = f"[{col}]{icon} {verdict}[/{col}]"
+            score_cell = f"[{col}]{score}[/{col}]"
+        else:
+            drift_cell = "[grey50]—[/grey50]"
+            score_cell = "[grey50]—[/grey50]"
+
+        table.add_row(sid, title, status_cell, drift_cell, score_cell)
+
+    console.print(table)
+    checked = sum(1 for s in stories if s.get("id", "") in drift_reports)
+    console.print(f"[dim]Drift data available for {checked}/{len(stories)} stories.[/dim]\n")
+
+
+def _render_drift_plain(stories: list[dict], drift_reports: dict[str, dict]) -> None:
+    """Render per-story drift indicator table (stdlib fallback)."""
+    print(f"\n{_c('SPIRAL Drift Report', 'bold')}\n")
+    header = (
+        _c("Story ID".ljust(10), "bold"),
+        _c("Status".ljust(10), "bold"),
+        _c("Drift".ljust(8), "bold"),
+        _c("Score".rjust(6), "bold"),
+        _c("Title", "bold"),
+    )
+    sep = "-" * 75
+    print(f"  {'  '.join(header)}")
+    print(f"  {sep}")
+
+    for story in stories:
+        sid = story.get("id", "")
+        title = (story.get("title") or "")[:45]
+        passes = story.get("passes", False)
+        skipped = story.get("_skipped", False)
+
+        if passes:
+            status_str = _c("passed".ljust(10), "green")
+        elif skipped:
+            status_str = _c("skipped".ljust(10), "red")
+        else:
+            status_str = _c("pending".ljust(10), "grey")
+
+        report = drift_reports.get(sid)
+        if report:
+            verdict = report.get("verdict", "?")
+            score = str(report.get("driftScore", "?"))
+            col = _DRIFT_COLOUR.get(verdict, "grey")
+            drift_str = _c(verdict.ljust(8), col)
+            score_str = _c(score.rjust(6), col)
+        else:
+            drift_str = "—".ljust(8)
+            score_str = "—".rjust(6)
+
+        print(f"  {sid.ljust(10)}  {status_str}  {drift_str}  {score_str}  {title}")
+
+    checked = sum(1 for s in stories if s.get("id", "") in drift_reports)
+    print(f"\n  Drift data available for {checked}/{len(stories)} stories.\n")
 
 
 # ── Commands ──────────────────────────────────────────────────────────────────
@@ -736,6 +855,28 @@ def cmd_status(args):
     run_id: str = checkpoint.get("run_id", "") or os.environ.get("SPIRAL_RUN_ID", "")
     iteration: int = checkpoint.get("iter", 0) or _latest_spiral_iter(results)
 
+    # ── US-260: --drift flag → per-story drift indicator table ────────────
+    if getattr(args, "drift", False):
+        drift_reports = _load_drift_reports(SCRATCH_DIR)
+        if getattr(args, "json", False):
+            output = [
+                {
+                    "id": s.get("id", ""),
+                    "title": s.get("title", ""),
+                    "passes": s.get("passes", False),
+                    "drift": drift_reports.get(s.get("id", "")),
+                }
+                for s in stories
+            ]
+            print(json.dumps(output, indent=2))
+            return
+        try:
+            import rich  # noqa: F401
+            _render_drift_rich(stories, drift_reports)
+        except ImportError:
+            _render_drift_plain(stories, drift_reports)
+        return
+
     if getattr(args, "json", False):
         output = {
             "run_id": run_id,
@@ -875,6 +1016,11 @@ def main():
         "--json",
         action="store_true",
         help="Output machine-readable JSON instead of a table",
+    )
+    status_parser.add_argument(
+        "--drift",
+        action="store_true",
+        help="Show per-story drift indicator column (green/yellow/red) from Phase I drift check",
     )
 
     estimate_parser = subparsers.add_parser(

@@ -498,6 +498,10 @@ SPIRAL_POST_PHASE_HOOK="${SPIRAL_POST_PHASE_HOOK:-}"                     # path 
 SPIRAL_HOOK_TIMEOUT="${SPIRAL_HOOK_TIMEOUT:-30}"                         # seconds; wall-clock limit per hook execution (default 30)
 SPIRAL_MAX_FILES_PER_STORY="${SPIRAL_MAX_FILES_PER_STORY:-10}"           # warn/abort when Phase I touches more files than this; 0 = disabled
 SPIRAL_SCOPE_CREEP_ACTION="${SPIRAL_SCOPE_CREEP_ACTION:-warn}"           # warn (default) = log only; abort = mark _failureReason and skip Phase V
+SPIRAL_DRIFT_CHECK="${SPIRAL_DRIFT_CHECK:-false}"                        # US-260: true = run post-Phase-I drift check against acceptance criteria
+SPIRAL_DRIFT_PASS_THRESHOLD="${SPIRAL_DRIFT_PASS_THRESHOLD:-70}"         # US-260: drift score >= this → pass (0-100, default 70)
+SPIRAL_DRIFT_FAIL_THRESHOLD="${SPIRAL_DRIFT_FAIL_THRESHOLD:-40}"         # US-260: drift score <  this → fail; 40-69 = warn (default 40)
+export SPIRAL_DRIFT_PASS_THRESHOLD SPIRAL_DRIFT_FAIL_THRESHOLD
 SPIRAL_FORCE_VALIDATE="${SPIRAL_FORCE_VALIDATE:-false}"                  # true = always run Phase V even when Phase I produced no new passes (CI bypass)
 SPIRAL_CREATE_PRS="${SPIRAL_CREATE_PRS:-false}"                          # true = push story commit to spiral/<ID> branch and open GitHub PR via gh CLI
 SPIRAL_PR_BASE_BRANCH="${SPIRAL_PR_BASE_BRANCH:-main}"                   # base branch for PRs created by SPIRAL_CREATE_PRS (default: main)
@@ -3113,6 +3117,19 @@ $INJECTED_PROMPT"
                     --passed true \
                     --output calibration.jsonl 2>/dev/null || true
                 fi
+                # ── US-260: Post-Phase-I drift check ──────────────────────────
+                if [[ "${SPIRAL_DRIFT_CHECK:-false}" != "false" && -n "${_NEXT_SID:-}" ]]; then
+                  echo "  [drift] Checking implementation drift for $_NEXT_SID..."
+                  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/drift_check.py" \
+                    --story-id "$_NEXT_SID" \
+                    --prd "$PRD_FILE" \
+                    --scratch-dir "$SCRATCH_DIR" \
+                    --repo-root "$REPO_ROOT" \
+                    --pass-threshold "${SPIRAL_DRIFT_PASS_THRESHOLD:-70}" \
+                    --fail-threshold "${SPIRAL_DRIFT_FAIL_THRESHOLD:-40}" \
+                    --iteration "$SPIRAL_ITER" 2>/dev/null || true
+                fi
+                # ── End drift check ───────────────────────────────────────────
                 # US-194: post-story plugin hooks (e.g. Slack notifications)
                 if [[ -n "${PLUGIN_HOOKS[post-story]:-}" ]]; then
                   _PS_TITLE=$("$JQ" -r --arg id "$_NEXT_SID" '.userStories[] | select(.id == $id) | .title // ""' "$PRD_FILE" 2>/dev/null || echo "")
@@ -3226,6 +3243,19 @@ $INJECTED_PROMPT"
                 --passed true \
                 --output calibration.jsonl 2>/dev/null || true
             fi
+            # ── US-260: Post-Phase-I drift check (parallel path) ──────────
+            if [[ "${SPIRAL_DRIFT_CHECK:-false}" != "false" && -n "${_NEXT_SID:-}" ]]; then
+              echo "  [drift] Checking implementation drift for $_NEXT_SID..."
+              "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/drift_check.py" \
+                --story-id "$_NEXT_SID" \
+                --prd "$PRD_FILE" \
+                --scratch-dir "$SCRATCH_DIR" \
+                --repo-root "$REPO_ROOT" \
+                --pass-threshold "${SPIRAL_DRIFT_PASS_THRESHOLD:-70}" \
+                --fail-threshold "${SPIRAL_DRIFT_FAIL_THRESHOLD:-40}" \
+                --iteration "$SPIRAL_ITER" 2>/dev/null || true
+            fi
+            # ── End drift check ───────────────────────────────────────────
             # US-194: post-story plugin hooks (e.g. Slack notifications)
             if [[ -n "${PLUGIN_HOOKS[post-story]:-}" ]]; then
               _PS_TITLE=$("$JQ" -r --arg id "$_NEXT_SID" '.userStories[] | select(.id == $id) | .title // ""' "$PRD_FILE" 2>/dev/null || echo "")

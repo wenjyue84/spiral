@@ -6263,3 +6263,43 @@ Incomplete: Enforce cgroups v2 memory and CPU limits on worker subprocesses (ID:
 ### Gotchas
 - The `open` call inside `prd_locked` for reading also triggers for lock file opens; test must filter by path to avoid false positives
 - `time.sleep` must be patched in tests to avoid slow retries during CI
+## Iteration 5 - Sun, Mar 15, 2026 11:35:37 PM
+Incomplete: Enforce cgroups v2 memory and CPU limits on worker subprocesses (ID: US-259) — attempt /3
+
+
+---
+
+## Iteration [N] - Story: US-260: Add story drift detection by diffing implementation against acceptance criteria
+
+### What was implemented
+- Created `lib/drift_check.py`:
+  - `run_drift_check(story_id, acceptance_criteria, diff_text, pass_threshold, fail_threshold)` — calls Claude haiku via subprocess to evaluate alignment
+  - LLM prompt presents each acceptance criterion; model ticks each as met/partial/absent → computes driftScore 0-100
+  - Verdict: score >= SPIRAL_DRIFT_PASS_THRESHOLD (default 70) → pass; < SPIRAL_DRIFT_FAIL_THRESHOLD (default 40) → fail; else → warn
+  - `write_drift_report()` → `.spiral/workers/<story-id>/drift_report.json`
+  - `update_prd_drift()` → patches `story._driftReport` in prd.json (underscore prefix = non-automated annotation)
+  - `get_git_diff()` → runs `git -C <repo_root> diff HEAD~1`
+  - `log_drift_event()` → appends to `spiral_events.jsonl`
+  - Heuristic fallback when LLM unavailable: score by diff presence (60 if diff non-empty, 0 if empty)
+  - CLI entrypoint with `--story-id`, `--prd`, `--scratch-dir`, `--diff-file`, `--repo-root`, thresholds
+- Added env var defaults in `spiral.sh` (line ~500):
+  - `SPIRAL_DRIFT_CHECK` (default: false)
+  - `SPIRAL_DRIFT_PASS_THRESHOLD` (default: 70)
+  - `SPIRAL_DRIFT_FAIL_THRESHOLD` (default: 40)
+- Added drift check step in `spiral.sh` in BOTH single-story path (line ~3116) and parallel path (line ~3246), running BEFORE post-story plugin hooks
+- Updated `main.py`:
+  - Added `_load_drift_reports(scratch_dir)` — reads all `.spiral/workers/*/drift_report.json` files
+  - Added `_render_drift_rich()` and `_render_drift_plain()` — per-story table with Drift and Score columns, color-coded green/yellow/red
+  - Updated `cmd_status()` to handle `--drift` flag
+  - Added `--drift` argument to `status_parser`
+
+### Patterns discovered
+- drift_check follows same LLM judge pattern as benchmark_judge.py: subprocess call → JSON parse → heuristic fallback
+- Drift reports use underscore prefix `_driftReport` on prd.json stories (non-automated annotation, stripped from LLM context)
+- `_load_drift_reports()` reads from `.spiral/workers/<story-id>/drift_report.json` (same directory structure as other per-worker files)
+- `spiral status --drift` shows per-story drift table; without `--drift` shows the existing summary table (backward-compatible)
+
+### Gotchas
+- mypy strict: `json.loads()` returns `Any`, must assign to typed variable before returning as `dict[str, Any] | None`
+- Drift check is OPT-IN via `SPIRAL_DRIFT_CHECK=true` (default false) to avoid LLM calls on every story
+- Drift check is non-fatal (uses `|| true`) — a failed drift judge never blocks Phase I completion
