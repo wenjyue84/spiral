@@ -69,7 +69,11 @@ declare -a WORKER_FINISHED=()
 declare -a WORKER_EXIT_CODES=()
 
 # ── Graceful cleanup trap — kill orphaned workers on exit/interrupt ─────────
+_CLEANUP_RUNNING=0
 cleanup_parallel() {
+  # Guard against re-entrant calls (2nd signal during cleanup)
+  if [[ "$_CLEANUP_RUNNING" -eq 1 ]]; then return 0; fi
+  _CLEANUP_RUNNING=1
   echo ""
   echo "  [parallel] Cleaning up workers..."
   # Two-phase kill: SIGTERM first, wait, then SIGKILL stragglers
@@ -132,10 +136,11 @@ done
 git -C "$REPO_ROOT" worktree prune 2>/dev/null || true
 
 # ── Pre-flight memory check — compute initial launch count if RAM is low ──────
-# Per-worker budget: ~1536MB (1024 heap + ~512 non-heap overhead for Zones, JIT, etc.)
+# Per-worker budget: ~2048MB (1024 heap + ~1024 non-heap overhead for Zones, JIT, GC,
+# child processes). Previous 1536MB estimate was too low and caused OOM on Windows.
 # RALPH_WORKERS is never reduced — partitioning and worktree creation use the full N.
 # Only the number of workers launched immediately may be less than N; the rest are queued.
-_PER_WORKER_MB=1536
+_PER_WORKER_MB=2048
 _INITIAL_LAUNCH_COUNT="$RALPH_WORKERS" # default: launch all workers immediately
 if command -v powershell.exe &>/dev/null; then
   FREE_MB=$(powershell.exe -Command \
@@ -290,6 +295,19 @@ for i in $(seq 1 "$RALPH_WORKERS"); do
   BRANCH="spiral-worker-${i}-${TIMESTAMP}"
   WTREE="$WORKTREE_BASE/worker-${i}"
 
+  # Reset dirty worktree before removal to recover from abrupt termination (US-218)
+  if [[ -d "$WTREE" ]]; then
+    _wt_dirty=$(git -C "$WTREE" status --porcelain 2>/dev/null) || true
+    if [[ -n "$_wt_dirty" ]]; then
+      echo "  [parallel] Worker $i: dirty worktree detected — resetting before recreation"
+      git -C "$WTREE" reset HEAD 2>/dev/null || true
+      git -C "$WTREE" checkout -- . 2>/dev/null || true
+      git -C "$WTREE" clean -fd 2>/dev/null || true
+      printf '{"ts":"%s","event":"worker_reset_dirty_worktree","run_id":"%s","worker":%d}\n' \
+        "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${SPIRAL_RUN_ID:-}" "$i" \
+        >>"$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || true
+    fi
+  fi
   # Remove stale worktree if it exists
   git -C "$REPO_ROOT" worktree remove "$WTREE" --force 2>/dev/null || rm -rf "$WTREE" 2>/dev/null || true
   # Clean up orphaned index.lock from OOM-killed previous worker (Idea 2)

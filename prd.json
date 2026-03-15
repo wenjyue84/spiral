@@ -11,6 +11,18 @@
   ],
   "userStories": [
     {
+      "id": "US-218",
+      "title": "Detect and reset dirty worker worktrees at startup to recover from abrupt session termination",
+      "description": "When Claude Code sessions stop abruptly (OOM kill, user interrupt, network drop), worker worktrees are left with staged/unstaged changes and reported as dirty submodules. On spiral.sh startup (before launching workers), detect each worker worktree with non-empty git status --porcelain output. For each dirty worktree, run git reset HEAD followed by git checkout -- . to restore a clean state. Emit a worker_reset_dirty_worktree event to spiral_events.jsonl listing which worktrees were cleaned. This ensures the next spiral run starts from a consistent state without manual intervention.",
+      "priority": "high",
+      "passes": true,
+      "retryCount": 0,
+      "filesTouch": [
+        "spiral.sh",
+        "lib/run_parallel_ralph.sh"
+      ]
+    },
+    {
       "id": "US-159",
       "title": "Auto-cleanup stale spiral-worker-* branches on startup",
       "description": "Crashed runs leave behind orphaned spiral-worker-* branches. At startup of run_parallel_ralph.sh, scan for and delete any spiral-worker-* branches not checked out in any live worktree, then run worktree prune. Prevents branch accumulation that degrades git performance.",
@@ -4309,6 +4321,420 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-219",
+      "title": "Emit OTel agentic-system spans for tasks, actions, teams, and artifacts",
+      "priority": "high",
+      "description": "The 2025 OTel GenAI agentic-systems proposal defines span conventions for tasks (trackable units of work), actions (tool calls, LLM queries, API requests), teams (agent groups), and artifacts (prompts, code, embeddings). Instrumenting Spiral's worker loop with these conventions enables end-to-end trace correlation across the full story lifecycle and makes telemetry compatible with CNCF-standard observability backends.",
+      "acceptanceCriteria": [
+        "Each story execution emits a root 'task' span with gen_ai.task.id and gen_ai.task.status attributes",
+        "Each LLM call inside a worker emits a child 'action' span tagged with gen_ai.action.type = 'llm_query'",
+        "Tool/bash executions inside workers emit 'action' spans with gen_ai.action.type = 'tool_call'",
+        "Spans carry W3C traceparent headers so they stitch into a single distributed trace",
+        "A smoke test verifies at least one task span and one action span appear in the OTLP export"
+      ],
+      "technicalNotes": [
+        "See OTel gen-ai-agent-spans spec: https://opentelemetry.io/docs/specs/semconv/gen-ai/gen-ai-agent-spans/",
+        "GitHub issue tracking agentic conventions: https://github.com/open-telemetry/semantic-conventions/issues/2664",
+        "Span kind CLIENT for cross-process, INTERNAL for same-process agent invocations"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-220",
+      "title": "Pin all GitHub Actions to full commit SHA and enforce via policy",
+      "priority": "high",
+      "description": "Third-party actions pinned to mutable tags (e.g., actions/checkout@v4) are a supply-chain attack vector; a compromised tag can inject malicious code. Pinning to the immutable full 40-character SHA guarantees the exact code that was reviewed is always executed. GitHub's 2025 allowed-actions policy can now enforce SHA pinning org-wide and block unpinned workflows from running.",
+      "acceptanceCriteria": [
+        "All uses of third-party actions in .github/workflows/*.yml are updated to full-length SHA pins with a version comment",
+        "A CI job (pinned-actions-check) runs actionlint or a grep-based check that fails if any action ref matches @v[0-9] or @main/master",
+        "README documents the process for updating a pinned action to a new release",
+        "No first-party actions (actions/checkout, etc.) are exempted without explicit justification"
+      ],
+      "technicalNotes": [
+        "StepSecurity best practices: https://www.stepsecurity.io/blog/github-actions-security-best-practices",
+        "GitHub 2025 SHA-pinning enforcement announcement: https://github.blog/changelog/2025-08-15-github-actions-policy-now-supports-blocking-and-sha-pinning-actions/",
+        "Use 'actionlint' linter or 'pin-github-action' CLI tool for bulk pinning"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-221",
+      "title": "Replace GitHub Actions long-lived secrets with OIDC short-lived tokens",
+      "priority": "high",
+      "description": "Long-lived API keys stored as GitHub Secrets (e.g., for AWS, GCP, or Anthropic billing) are a persistent credential-leak risk. GitHub Actions OIDC lets cloud providers and services issue short-lived tokens scoped to a single workflow job, automatically expiring after the job ends. This eliminates secret rotation burden and reduces the blast radius of any credential compromise.",
+      "acceptanceCriteria": [
+        "AWS/GCP deploy steps use OIDC role assumption instead of static key secrets where applicable",
+        "Workflows that use OIDC have id-token: write in permissions and read-only for all other scopes",
+        "Trust policy restricts token issuance to exact repository and branch (no wildcards)",
+        "A checklist in .github/SECURITY.md documents which integrations still require static secrets and why"
+      ],
+      "technicalNotes": [
+        "GitHub OIDC concepts: https://docs.github.com/en/actions/concepts/security/openid-connect",
+        "AWS OIDC setup: https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services",
+        "Minimum TTL for OIDC tokens is one workflow job; no explicit revocation needed"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-222",
+      "title": "Replace shell=True subprocess calls with create_subprocess_exec to prevent injection",
+      "priority": "high",
+      "description": "Python worker scripts that pass shell=True (or subprocess.run with a string command) are vulnerable to shell injection if any part of the command is derived from LLM output, story titles, or branch names. Migrating to asyncio.create_subprocess_exec() (or subprocess.run with a list of args) executes commands without a shell interpreter, making injection impossible regardless of input content.",
+      "acceptanceCriteria": [
+        "A grep CI check fails if any Python file in the project contains 'shell=True' without a '# spiral-allow-shell' inline comment",
+        "All existing shell=True call sites in worker utilities are migrated to exec-form equivalents",
+        "Pipe deadlock prevention: all subprocess calls that capture stdout also capture stderr or use communicate()",
+        "Tests cover at least one case with a command argument containing shell-special characters (semicolons, backticks)"
+      ],
+      "technicalNotes": [
+        "asyncio.create_subprocess_exec docs: https://docs.python.org/3/library/asyncio-subprocess.html",
+        "Security rationale: https://runebook.dev/en/docs/python/library/asyncio-eventloop/asyncio.loop.subprocess_shell",
+        "Use asyncio.wait_for(proc.communicate(), timeout=N) to prevent pipe deadlocks and hangs"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-223",
+      "title": "Implement explicit prompt cache breakpoints for system prompts and PRD context",
+      "priority": "high",
+      "description": "Claude's prompt caching charges cache reads at 10% of normal input token cost (90% discount) when cache_control breakpoints are explicitly placed at the end of static content. Spiral re-sends the full system prompt and PRD context on every LLM call; adding cache_control: {type: ephemeral} breakpoints after these static sections will dramatically reduce per-story API costs, especially for large PRDs.",
+      "acceptanceCriteria": [
+        "All LLM call sites in Python workers that send system_prompt + prd_context add a cache_control breakpoint after the last static block",
+        "Token cost tracking differentiates cache_read_input_tokens from input_tokens in cost calculations",
+        "Cache hit rate is logged per story phase (R/D/I/T) and surfaced in the dashboard",
+        "An integration test verifies cache_read_input_tokens > 0 on the second call with the same system prompt",
+        "Cost savings from caching are included in the per-story cost report"
+      ],
+      "technicalNotes": [
+        "Claude prompt caching docs: https://platform.claude.ai/docs/en/build-with-claude/prompt-caching",
+        "Cache TTL is 5 minutes for Claude; batched calls must complete within the TTL window",
+        "Place breakpoints after: system prompt, PRD snapshot, story context — before the per-call user message",
+        "Gemini context caching requires 32k+ token minimum and explicit cache object creation via API"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-224",
+      "title": "Propagate W3C trace context across worker subprocess boundaries",
+      "priority": "medium",
+      "description": "When spiral.sh spawns worker subprocesses (bash or Python), the parent trace context is currently lost, creating disconnected traces in any OTLP backend. Injecting the W3C traceparent/tracestate environment variables into each worker's environment and reading them at startup stitches all spans into a single end-to-end trace per story, making cross-worker debugging practical.",
+      "acceptanceCriteria": [
+        "Parent process writes TRACEPARENT and TRACESTATE env vars before fork/exec of each worker",
+        "Worker Python code reads these vars and sets them as the active OTel context on startup",
+        "An integration test with a local OTLP collector verifies parent-child span relationship",
+        "No regression on existing OTel span tests"
+      ],
+      "technicalNotes": [
+        "W3C Trace Context spec: https://www.w3.org/TR/trace-context/",
+        "OTel context propagation overview: https://opentelemetry.io/docs/concepts/context-propagation/",
+        "Python opentelemetry-api TraceContextTextMapPropagator can inject/extract from dicts"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-225",
+      "title": "Add stale git lock-file detection and safe cleanup to spiral.sh",
+      "priority": "medium",
+      "description": "When a worker is killed mid-operation, git may leave behind a stale .git/index.lock or packed-refs.lock file in the worktree. This causes all subsequent git commands in that worktree to fail with 'Another git process seems to be running', blocking story retries indefinitely. A pre-flight check that detects lock files older than a configurable threshold (default 5 min) and removes them — only after confirming no live git process owns them — prevents this class of stuck worker.",
+      "acceptanceCriteria": [
+        "spiral.sh pre-flight phase checks each active worktree for .git/*.lock files",
+        "Lock files older than SPIRAL_LOCK_TIMEOUT_MINUTES (default 5) are removed after verifying no live git PID holds them",
+        "An event is logged to the Spiral audit log whenever a stale lock is removed",
+        "Unit test (bats) covers: no lock present, fresh lock (skipped), stale lock (removed), stale lock with live PID (skipped)"
+      ],
+      "technicalNotes": [
+        "Common pattern: check mtime > threshold AND 'ps aux | grep git' returns no matching PID",
+        "Claude Code has known issue with stale index.lock: https://github.com/anthropics/claude-code/issues/11005",
+        "Use 'flock' or 'lsof' to verify ownership before deletion on Linux"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-226",
+      "title": "Migrate CI Python toolchain from pip to uv for 10-100x faster installs",
+      "priority": "medium",
+      "description": "GitHub Actions CI currently installs Python dependencies with pip, which is slow and inconsistent across runs due to resolver differences. Replacing it with uv — a Rust-based drop-in replacement — provides 10-100x faster cold installs via parallel downloads and system-wide caching, plus reproducible builds via uv sync --frozen. This directly reduces CI wait time and flakiness from resolver non-determinism.",
+      "acceptanceCriteria": [
+        "All GitHub Actions Python setup steps use 'pip install astral-sh/setup-uv' then 'uv sync --frozen'",
+        "A requirements.lock (or uv.lock) file is committed and kept up to date",
+        "CI cold install time for Python deps is measured before and after; at least 3x speedup documented",
+        "Local dev docs updated to recommend 'uv sync' instead of 'pip install -r requirements.txt'",
+        "uv.lock file is validated in CI (uv lock --check) to catch drift"
+      ],
+      "technicalNotes": [
+        "uv docs: https://docs.astral.sh/uv/",
+        "uv vs pip comparison: https://realpython.com/uv-vs-pip/",
+        "Use --frozen flag in CI to enforce exact lockfile; use --locked for local dev"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-227",
+      "title": "Add dead-letter queue for permanently failed stories with manual replay command",
+      "priority": "medium",
+      "description": "Stories that exhaust all retry attempts currently stay in a terminal 'failed' state with no structured path to recovery. A dead-letter queue (DLQ) pattern moves exhausted stories into a distinct dlq state in prd.json, preventing them from clogging the active queue and making their failure metadata (error type, last attempt timestamp, retry count) queryable. A 'spiral replay --story US-XYZ' command re-enqueues a DLQ story after human review.",
+      "acceptanceCriteria": [
+        "Stories that fail more than SPIRAL_MAX_RETRIES consecutive times transition to 'dlq' state in prd.json",
+        "'spiral list --state dlq' shows all dead-lettered stories with failure reason and timestamp",
+        "'spiral replay --story <id>' validates the story is in dlq state, resets retry count to 0, and re-enqueues it",
+        "DLQ transitions are written to the audit log",
+        "Dashboard shows a DLQ badge/count separate from active failures"
+      ],
+      "technicalNotes": [
+        "DLQ pattern overview: https://dev.to/andreparis/queue-based-exponential-backoff-a-resilient-retry-pattern-for-distributed-systems-37f3",
+        "Distinguish transient failures (network, rate-limit) from permanent failures (invalid story, auth error) — only permanent failures go to DLQ immediately",
+        "Store last_error_type and last_error_message in the story's DLQ metadata"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-228",
+      "title": "Add self-consistency hallucination check for LLM-generated acceptance criteria",
+      "priority": "medium",
+      "description": "When Spiral's Phase D (Design) or Phase R (Research) generates acceptance criteria or implementation plans, the LLM may hallucinate API names, file paths, or library versions that do not exist. A self-consistency check that re-prompts the model with the same input using temperature variation and compares outputs flags divergent claims for human review before implementation begins.",
+      "acceptanceCriteria": [
+        "Phase D runs the design prompt twice with temperature 0.0 and 0.7, then compares JSON outputs",
+        "Fields that differ between runs are flagged with a 'low_confidence' marker in prd.json",
+        "If more than 20% of acceptance criteria fields are low-confidence, the story is paused and a human-review flag is set",
+        "The consistency check cost (second LLM call) is tracked separately in token cost accounting",
+        "A --skip-consistency-check flag allows disabling for fast-path small stories"
+      ],
+      "technicalNotes": [
+        "SelfCheckGPT paper and repo: https://github.com/potsawee/selfcheckgpt",
+        "For structured outputs, compare field-by-field rather than full string similarity",
+        "Consistency threshold should be configurable via SPIRAL_CONSISTENCY_THRESHOLD env var"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-229",
+      "title": "Enforce least-privilege permissions block on all GitHub Actions workflow jobs",
+      "priority": "medium",
+      "description": "Without an explicit permissions block, GitHub Actions grants read/write access to the GITHUB_TOKEN for all scopes, giving any compromised step broad repository write access. Adding a top-level permissions: read-all (or no permissions) block and granting only the scopes each job actually needs (e.g., contents: write only for release jobs) limits the blast radius of a supply-chain compromise.",
+      "acceptanceCriteria": [
+        "Every .github/workflows/*.yml file has a top-level 'permissions: {}' or 'permissions: read-all' block",
+        "Jobs that write to the repository (e.g., release, PR creation) have a job-level permissions block granting only contents: write and pull-requests: write",
+        "A CI lint step (actionlint) fails if any workflow is missing a permissions block",
+        "No workflow uses the default implicit 'write-all' permission"
+      ],
+      "technicalNotes": [
+        "GitHub permissions reference: https://graphite.com/guides/github-actions-permissions",
+        "actionlint checks for missing permissions blocks: https://github.com/rhysd/actionlint",
+        "Best practice: set permissions at workflow level to read-all, then override at job level for write needs"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-230",
+      "title": "Add asyncio timeout and communicate() deadlock prevention to all worker subprocess calls",
+      "priority": "medium",
+      "description": "Python worker scripts that use proc.wait() or proc.stdout.read() on subprocesses with large output risk deadlocking when the OS pipe buffer fills — the subprocess blocks on write while the parent blocks on wait. Using proc.communicate() (which drains pipes concurrently) wrapped in asyncio.wait_for() with a hard timeout prevents both deadlocks and hung workers that never terminate.",
+      "acceptanceCriteria": [
+        "All asyncio subprocess calls in Python workers use 'await asyncio.wait_for(proc.communicate(), timeout=SPIRAL_SUBPROCESS_TIMEOUT)' instead of proc.wait()",
+        "SPIRAL_SUBPROCESS_TIMEOUT defaults to 300s and is configurable via environment variable",
+        "TimeoutExpired exceptions are caught and result in a worker 'timeout' failure state (distinct from 'error')",
+        "A test spawns a subprocess that writes 10 MB to stdout and verifies no deadlock occurs",
+        "Subprocess timeout events are logged with the command prefix and timeout value for debugging"
+      ],
+      "technicalNotes": [
+        "asyncio subprocess deadlock explanation: https://docs.python.org/3/library/asyncio-subprocess.html",
+        "Pattern: output, err = await asyncio.wait_for(proc.communicate(), timeout=300)",
+        "After TimeoutExpired, call proc.kill() then await proc.communicate() to drain and avoid zombie"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-231",
+      "title": "Add worktree health audit command that detects and reports all anomalies",
+      "priority": "medium",
+      "description": "In long-running Spiral sessions, worktrees accumulate inconsistent states: detached HEADs, branches checked out in multiple worktrees (violating git's safety constraint), stale lock files, and worktrees whose branch has been merged/deleted. A 'spiral worktree audit' command that enumerates all worktrees and reports each anomaly type gives operators a single actionable view before starting a new iteration.",
+      "acceptanceCriteria": [
+        "'spiral worktree audit' exits non-zero and prints a structured report if any anomaly is found",
+        "Detected anomaly types: stale locks, detached HEAD, missing branch, duplicate branch checkout, worktree directory missing from disk",
+        "Report includes remediation suggestion for each anomaly type (e.g., 'run spiral worktree prune')",
+        "A --fix flag auto-resolves safe anomalies (prune missing, remove stale locks) and leaves unsafe ones for human action",
+        "Audit output is machine-parseable JSON when --json flag is passed"
+      ],
+      "technicalNotes": [
+        "git worktree list --porcelain provides machine-readable worktree state",
+        "git worktree best practices: https://www.kenmuse.com/blog/using-git-worktrees-for-concurrent-development/",
+        "OpenAI Codex uses worktrees for parallel agents: https://developers.openai.com/codex/app/worktrees"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-232",
+      "title": "Emit gen_ai.usage.* metric counters for token consumption per story phase",
+      "priority": "medium",
+      "description": "The OTel GenAI metrics spec defines gen_ai.client.token.usage (histogram), gen_ai.client.operation.duration, and gen_ai.server.request.duration as standard metric instruments. Emitting these from every LLM call allows aggregating per-phase token burn (Research, Design, Implement, Test) in any OTLP-compatible metrics backend (Prometheus, Datadog, Grafana Cloud) without custom parsing of log lines.",
+      "acceptanceCriteria": [
+        "Every LLM API call records gen_ai.client.token.usage with attributes: gen_ai.operation.name, gen_ai.system, gen_ai.request.model, spiral.story.phase",
+        "gen_ai.client.operation.duration histogram is recorded per call in milliseconds",
+        "Metrics are exported via the existing OTLP exporter alongside traces",
+        "A Prometheus scrape test verifies the metric names and at least one non-zero sample",
+        "Dashboard can display token usage by phase using these metrics"
+      ],
+      "technicalNotes": [
+        "OTel GenAI metrics spec: https://opentelemetry.io/docs/specs/semconv/gen-ai/gen-ai-metrics/",
+        "Use opentelemetry-sdk Meter.create_histogram() for token counts",
+        "Add spiral.story.id and spiral.story.phase as extra attributes beyond the standard semconv set"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-233",
+      "title": "Add multi-agent failure attribution logging to identify root cause of cascade failures",
+      "priority": "medium",
+      "description": "When multiple Spiral workers run concurrently and one fails, it can cause downstream story failures through shared state (prd.json writes, git ref conflicts, port contention). Currently there is no structured attribution linking a cascade failure back to its root cause worker. Adding structured failure attribution logs — recording which worker ID triggered a cascade, what resource it was contending for, and which downstream stories were affected — makes incident diagnosis tractable.",
+      "acceptanceCriteria": [
+        "Each worker failure event includes: worker_id, story_id, failure_type (local|cascade), root_cause_worker_id (if cascade), contended_resource",
+        "Cascade detection: if worker B fails within 30s of worker A's failure and shares a resource, B's failure is tagged as potential cascade",
+        "'spiral diagnose --run <run-id>' prints a causal failure chain for the run",
+        "Failure attribution data is stored in a structured failures section of the run's checkpoint JSON",
+        "A test scenario with intentional worker conflict verifies cascade attribution is recorded"
+      ],
+      "technicalNotes": [
+        "ICML 2025 multi-agent failure attribution research: https://syncedreview.com/2025/08/14/which-agent-causes-task-failures-and-whenresearchers-from-psu-and-duke-explores-automated-failure-attribution-of-llm-multi-agent-systems/",
+        "Track shared resources per worker: worktree path, branch name, prd.json write lock, port allocations",
+        "Use monotonic timestamps to establish happens-before relationships between worker events"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-234",
+      "title": "Add GitHub Actions job summary with per-story results table on each CI run",
+      "priority": "low",
+      "description": "CI runs currently produce pass/fail status with no structured summary visible in the GitHub UI. Writing a Markdown summary to $GITHUB_STEP_SUMMARY with a table of story IDs, statuses, token costs, and durations gives reviewers an at-a-glance view of each iteration's output directly on the Actions run page, without needing to parse raw log lines.",
+      "acceptanceCriteria": [
+        "The CI workflow appends a Markdown table to $GITHUB_STEP_SUMMARY after each spiral run",
+        "Table columns: Story ID, Title, Status (pass/fail/skip), Duration (s), Token Cost ($)",
+        "A summary footer shows total stories run, total cost, and total duration",
+        "The summary step runs even if earlier steps fail (using 'if: always()')",
+        "Summary size stays under 1 MiB (enforced by truncating to top 200 stories if needed)"
+      ],
+      "technicalNotes": [
+        "GITHUB_STEP_SUMMARY docs: https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-commands",
+        "GitHub Flavored Markdown is supported; tables, bold, and checkboxes all render",
+        "Generate summary from prd.json using jq or Python after each spiral iteration"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-235",
+      "title": "Use jq --stream for prd.json parsing to support files exceeding 10 MB",
+      "priority": "low",
+      "description": "As Spiral accumulates hundreds of stories with embedded LLM outputs, prd.json can grow past 10 MB. jq's default mode reads the entire file into memory; on constrained CI runners this causes OOM kills. Migrating prd.json queries in shell scripts to jq --stream mode (combined with fromstream/truncate_stream) enables memory-efficient extraction without loading the full document.",
+      "acceptanceCriteria": [
+        "All jq invocations in spiral.sh and ralph.sh that read prd.json are audited; those reading top-level arrays are migrated to --stream mode",
+        "A test script generates a synthetic 15 MB prd.json and verifies jq --stream extraction completes under 512 MB RSS",
+        "Streaming queries use compact output (-c) to reduce intermediate allocation",
+        "A comment in the script explains why --stream is used, for maintainability"
+      ],
+      "technicalNotes": [
+        "jq streaming tutorial: https://devblog.songkick.com/parsing-ginormous-json-files-via-streaming-be6561ea8671",
+        "Pattern: jq -cn --stream 'fromstream(1|truncate_stream(.,1))' prd.json | jq 'select(.id==\"US-123\")'",
+        "jq 1.8.1 is the recommended version in 2026"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-236",
+      "title": "Add bats-assert and bats-support libraries to existing bats test suite",
+      "priority": "low",
+      "description": "The existing bats tests use raw bash assertions ([ ... ] with manual error messages), which produce cryptic output on failure. The bats-assert and bats-support helper libraries provide readable assertion functions (assert_output, assert_line, assert_success, refute_output) that emit diff-style failure messages. Adopting them improves test maintainability and makes CI failure output actionable without running locally.",
+      "acceptanceCriteria": [
+        "bats-assert and bats-support are added as git submodules or npm devDependencies in the test directory",
+        "All existing bats tests are migrated to use assert_output / assert_success / assert_failure",
+        "At least one new test uses assert_line to check specific lines in multi-line output",
+        "CI installs bats helper libraries as part of the test setup step",
+        "Test failure output in CI shows the expected vs actual diff without additional tooling"
+      ],
+      "technicalNotes": [
+        "bats-core repo: https://github.com/bats-core/bats-core",
+        "bats-assert/bats-support are sub-projects under the bats-core GitHub org",
+        "Install via: git submodule add https://github.com/bats-core/bats-assert test/lib/bats-assert"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-237",
+      "title": "Add per-job GitHub Actions cache for uv/pip deps and pre-commit hooks",
+      "priority": "low",
+      "description": "CI jobs that reinstall Python dependencies and pre-commit environments from scratch on every run waste 2-5 minutes per run. Adding actions/cache steps keyed on the uv.lock (or requirements.txt) hash for Python deps and on the pre-commit config hash for hook environments eliminates these redundant installs, directly reducing CI cost and wait time.",
+      "acceptanceCriteria": [
+        "A cache step with key '${{ hashFiles(\"**/uv.lock\") }}' wraps Python dependency install in all CI jobs",
+        "Pre-commit hook environments are cached with key '${{ hashFiles(\".pre-commit-config.yaml\") }}'",
+        "Cache restore-keys provide fallback to nearest ancestor cache on miss",
+        "CI run duration is measured before and after; at least 2 minutes saved on warm runs",
+        "Cache invalidation is documented: changing uv.lock or pre-commit config busts the respective cache"
+      ],
+      "technicalNotes": [
+        "actions/cache v4 is required (v2/v3 deprecated Feb 2025): https://github.com/actions/cache",
+        "uv has its own cache dir (~/.cache/uv); key on uv.lock for lockfile-based installs",
+        "Pre-commit cache dir: ~/.cache/pre-commit; separate cache key from Python deps"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-238",
+      "title": "Structure bats tests to source functions under test for true unit coverage",
+      "priority": "low",
+      "description": "Current bats tests execute shell scripts as black boxes, meaning individual functions cannot be tested in isolation. Refactoring scripts to guard direct execution with 'if [[ \"${BASH_SOURCE[0]}\" == \"${0}\" ]]' allows bats tests to source the script and call individual functions, enabling true unit testing of helpers like worktree_prune, cost_check, and lock_cleanup with fine-grained assertions.",
+      "acceptanceCriteria": [
+        "All major shell scripts (spiral.sh, ralph.sh, and key utility scripts) are refactored with BASH_SOURCE guard around their main execution block",
+        "At least 5 internal helper functions have dedicated bats unit tests that source the script and call the function directly",
+        "Existing integration-style bats tests continue to pass unchanged",
+        "A new 'unit' test suite target runs only the function-level tests (fast, no side effects)",
+        "CI runs both unit and integration bats suites and reports results separately"
+      ],
+      "technicalNotes": [
+        "BASH_SOURCE guard pattern: https://www.code-sage.com/blog/devops/2024/10/26/Automated-Testing-for-BASH-with-BATS.html",
+        "Move main logic to run_main() function, guard with: if [[ \"${BASH_SOURCE[0]}\" == \"${0}\" ]]; then run_main \"$@\"; fi",
+        "Use bats-mock (https://github.com/grayhemp/bats-mock) to stub external commands like git, curl, jq"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
       "passes": false
     }
   ]

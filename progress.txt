@@ -5159,3 +5159,30 @@ Incomplete: Validate LLM JSON outputs with Pydantic models before downstream pro
 ## Iteration 4 - Sun, Mar 15, 2026  5:14:54 PM
 Completed: Validate LLM JSON outputs with Pydantic models before downstream processing (ID: US-203) in 13m
 
+## Iteration 1 - Sun, Mar 15, 2026  5:47:17 PM
+Incomplete: Detect and reset dirty worker worktrees at startup to recover from abrupt session termination (ID: US-218) — attempt 1/3
+
+## Iteration 2 - Story: US-218: Detect and reset dirty worker worktrees at startup
+
+### What was implemented
+- Added dirty worktree detection block in spiral.sh (after memory check, before banner)
+  - Iterates over .spiral-workers/worker-* directories
+  - Checks git status --porcelain for each worktree
+  - Removes stale index.lock files before reset
+  - Runs git-reset HEAD, git-checkout -- ., git-clean -fd to restore clean state
+  - Emits worker_reset_dirty_worktree event to spiral_events.jsonl with worktree names and count
+- Added pre-removal dirty worktree reset in lib/run_parallel_ralph.sh (Step 2 worker loop)
+  - Resets dirty worktree state before worktree remove --force to avoid git errors
+  - Emits per-worker worker_reset_dirty_worktree event to spiral_events.jsonl
+
+### Patterns discovered
+- log_spiral_event from lib/spiral_events.sh uses SCRATCH_DIR for the events file path
+- run_parallel_ralph.sh uses SPIRAL_SCRATCH_DIR (exported from spiral.sh) for direct event writes
+- Worktrees use .git file (not directory) pointing to main repo .git/worktrees/
+- index.lock must be cleaned before reset or it will fail silently
+
+### Gotchas
+- git status --porcelain may fail if worktree is severely corrupted — handled with || continue
+- Untracked file cleanup needed in addition to checkout to handle files from interrupted writes
+- The spiral.sh detection runs once at startup; run_parallel_ralph.sh detection runs per-worker before recreation
+

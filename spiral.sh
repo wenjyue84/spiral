@@ -1154,6 +1154,9 @@ with open(sys.argv[9], 'w') as f:
 # ── Helper: write checkpoint ────────────────────────────────────────────────
 write_checkpoint() {
   local iter="$1" phase="$2"
+  # Atomic write via tmp + mv to prevent corruption if SIGINT fires mid-write
+  local _ckpt_tmp
+  _ckpt_tmp="${CHECKPOINT_FILE}.tmp.$$"
   printf '{"iter":%d,"phase":"%s","ts":"%s","run_id":"%s","spiralVersion":"%s","log_level":"%s","phaseDurations":{"R":%d,"T":%d,"M":%d,"I":%d,"V":%d,"C":%d}}\n' \
     "$iter" "$phase" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     "${SPIRAL_RUN_ID:-}" \
@@ -1161,7 +1164,7 @@ write_checkpoint() {
     "${SPIRAL_LOG_LEVEL:-INFO}" \
     "${_PHASE_DUR_R:-0}" "${_PHASE_DUR_T:-0}" "${_PHASE_DUR_M:-0}" \
     "${_PHASE_DUR_I:-0}" "${_PHASE_DUR_V:-0}" "${_PHASE_DUR_C:-0}" \
-    >"$CHECKPOINT_FILE"
+    >"$_ckpt_tmp" 2>/dev/null && mv "$_ckpt_tmp" "$CHECKPOINT_FILE" 2>/dev/null || true
 }
 
 # ── Helper: append a structured JSONL event to .spiral/spiral_events.jsonl ──
@@ -1263,8 +1266,10 @@ checkpoint_phase_done() {
   fi
   [[ -f "$CHECKPOINT_FILE" ]] || return 1
   local ckpt_iter ckpt_phase
-  ckpt_iter=$("$JQ" -r '.iter // 0' "$CHECKPOINT_FILE")
-  ckpt_phase=$("$JQ" -r '.phase // ""' "$CHECKPOINT_FILE")
+  ckpt_iter=$("$JQ" -r '.iter // 0' "$CHECKPOINT_FILE" 2>/dev/null) || ckpt_iter=""
+  ckpt_phase=$("$JQ" -r '.phase // ""' "$CHECKPOINT_FILE" 2>/dev/null) || ckpt_phase=""
+  # Guard: if jq failed or returned non-numeric, treat as no checkpoint
+  [[ "$ckpt_iter" =~ ^[0-9]+$ ]] || return 1
   [[ "$ckpt_iter" -eq "$SPIRAL_ITER" ]] || return 1
   # Phase order: R T S M G I V C
   local -A PHASE_ORDER=([R]=1 [T]=2 [S]=3 [M]=4 [G]=5 [I]=6 [V]=7 [C]=8)
@@ -1336,6 +1341,40 @@ if command -v powershell.exe &>/dev/null; then
         RALPH_WORKERS="$MAX_SAFE_WORKERS"
       fi
     fi
+  fi
+fi
+
+# ── Detect and reset dirty worker worktrees (US-218) ─────────────────────────
+# When a previous session was interrupted (OOM, Ctrl-C, network drop), worker
+# worktrees may be left with staged/unstaged changes. Detect each dirty worktree
+# and reset it to a clean state so the next run starts consistently.
+if [[ -d "$REPO_ROOT/.spiral-workers" ]]; then
+  _DIRTY_WORKERS_CLEANED=()
+  for _wt_dir in "$REPO_ROOT/.spiral-workers"/worker-*; do
+    [[ -d "$_wt_dir" ]] || continue
+    # Check if the worktree has any staged or unstaged changes
+    _wt_status=$(git -C "$_wt_dir" status --porcelain 2>/dev/null) || continue
+    if [[ -n "$_wt_status" ]]; then
+      _wt_name=$(basename "$_wt_dir")
+      echo "  [startup] Dirty worktree detected: $_wt_name — resetting to clean state"
+      # Remove stale index.lock before reset (may be left by OOM-killed process)
+      if [[ -f "$_wt_dir/.git" ]]; then
+        _wt_git_dir=$(sed 's/^gitdir: //' "$_wt_dir/.git" 2>/dev/null || true)
+        [[ -n "$_wt_git_dir" && -f "$_wt_git_dir/index.lock" ]] && rm -f "$_wt_git_dir/index.lock"
+      fi
+      # Reset staged changes, then discard unstaged modifications
+      git -C "$_wt_dir" reset HEAD 2>/dev/null || true
+      git -C "$_wt_dir" checkout -- . 2>/dev/null || true
+      # Remove any untracked files left behind
+      git -C "$_wt_dir" clean -fd 2>/dev/null || true
+      _DIRTY_WORKERS_CLEANED+=("$_wt_name")
+    fi
+  done
+  if [[ ${#_DIRTY_WORKERS_CLEANED[@]} -gt 0 ]]; then
+    _cleaned_list=$(IFS=,; echo "${_DIRTY_WORKERS_CLEANED[*]}")
+    echo "  [startup] Reset ${#_DIRTY_WORKERS_CLEANED[@]} dirty worktree(s): $_cleaned_list"
+    log_spiral_event "worker_reset_dirty_worktree" \
+      "\"worktrees\":[$(printf '"%s",' "${_DIRTY_WORKERS_CLEANED[@]}" | sed 's/,$//')],\"count\":${#_DIRTY_WORKERS_CLEANED[@]}"
   fi
 fi
 
