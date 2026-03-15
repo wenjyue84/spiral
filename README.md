@@ -4,7 +4,7 @@
 
 **Self-iterating PRD Research & Implementation Autonomous Loop**
 
-SPIRAL autonomously discovers requirements, validates and merges user stories, then implements them. A one-time startup clarification aligns goals before the loop begins; the loop then runs Research → Test Synthesis → Story Validate → Merge → Implement → Validate → Check Done until all stories pass.
+SPIRAL autonomously discovers requirements, validates and merges user stories, then implements them. A one-time startup clarification aligns goals before the loop begins; the loop then runs Research → Test Synthesis → Story Validate → Merge → Implement → Validate → Check Done until all stories pass. Every story is tagged with a `_source` (seed, ai-example, research, or test-fix) for transparent prioritisation, and three configurable test layers — unit, integration, and E2E — gate quality at every stage.
 
 It ships with **Ralph** (the implementation engine) and **two skills** (`/ralph` and `/prd`) bundled — one `git clone` gives you everything.
 
@@ -104,7 +104,7 @@ bash ~/.ai/Skills/spiral/spiral.sh 5 --gate proceed --ralph-workers 3
 
 ## How It Works
 
-SPIRAL runs in two stages: a **one-time startup** to align on goals and stories, then a **repeating loop** that researches, validates, merges, implements, and checks until all stories pass.
+SPIRAL runs in two stages: a **one-time startup** to align on goals and stories, then a **repeating loop** that researches, validates, merges, implements, and checks until all stories pass. Every story carries a `_source` field that traces where it came from — seed, ai-example, research, or test-fix — and three test layers gate quality at different granularities.
 
 ```
   ┌─────────────────────────────────────────────────────────────────┐
@@ -114,7 +114,8 @@ SPIRAL runs in two stages: a **one-time startup** to align on goals and stories,
   │     0-A Constitution — create/review non-negotiable rules       │
   │     0-B Focus        — set this session's theme                 │
   │     0-C Clarify      — 3 questions to lock scope & prevent drift│
-  │     0-D Stories      — seeds + AI-suggested examples            │
+  │     0-D Story Preparation — enter seeds (Source 1) or pick      │
+  │             AI suggestions by number (Source 2: ai-example)     │
   │     0-E Options      — time limit & session knobs               │
   │     Skipped in --gate proceed / --gate skip mode                │
   └──────────────────────────────┬──────────────────────────────────┘
@@ -122,18 +123,22 @@ SPIRAL runs in two stages: a **one-time startup** to align on goals and stories,
   ┌──────────────────────────────▼──────────────────────────────────┐
   │  STORY PREPARATION  (per iteration — builds the backlog)        │
   │                                                                 │
-  │  R) RESEARCH                                                    │
+  │  R) RESEARCH                               _source = "research" │
   │     Gemini web pre-fetch → Claude agent → story candidates      │
   │                            │                                    │
-  │  T) TEST SYNTHESIS                                              │
+  │  T) TEST SYNTHESIS                        _source = "test-fix"  │
   │     Scan test-reports/ failures → regression story candidates   │
   │                            │                                    │
-  │  S) STORY VALIDATE  ← new                                       │
-  │     Constitution · goal alignment · quality · dedup checks      │
+  │  S) STORY VALIDATE                                              │
+  │     • Constitution check          — applies to ALL sources      │
+  │     • Goal-alignment check        — skipped for test-fix        │
+  │       (test-fix auto-approved; constitution still enforced)     │
+  │     • Source breakdown printed: research=N/M | test-fix=N/M     │
   │     Rejects out-of-scope or vague stories before merge          │
   │                            │                                    │
   │  M) MERGE                                                       │
-  │     Patch prd.json with validated stories                       │
+  │     Patch prd.json · priority: test-fix > seed > research       │
+  │     Source summary: [merge] Added by source: test-fix=N, ...   │
   │     Overflow → _research_overflow.json (next iteration)         │
   └──────────────────────────────┬──────────────────────────────────┘
                                  │
@@ -143,17 +148,44 @@ SPIRAL runs in two stages: a **one-time startup** to align on goals and stories,
   │  I) IMPLEMENT                                                   │
   │   ├─ Decompose  — split oversized stories into sub-stories      │
   │   ├─ Execute    — Ralph workers (sequential or parallel)         │
+  │   │   Layer 1: SPIRAL_UNIT_TEST_CMD (per-story, inside Ralph)   │
+  │   │   Fast unit tests gate each story before integration runs   │
   │   ├─ Retry      — failure → escalate model → skip at attempt 3  │
   │   └─ Commit/Revert — merge on pass · drop branch on fail        │
   │                            │                                    │
-  │  V) VALIDATE                                                    │
-  │     Run project test suite (full or incremental)                │
+  │  V) VALIDATE  (3 layers)                                        │
+  │   ├─ Layer 2: SPIRAL_VALIDATE_CMD — full integration suite      │
+  │   │   (incremental or full; parallel with pytest-xdist/bats)    │
+  │   └─ Layer 3: SPIRAL_E2E_TEST_CMD — Playwright / Cypress / etc  │
+  │       trigger: "final" (default) | "batch" | "always"           │
+  │       E2E failure on "final" blocks completion; loop continues  │
   │                            │                                    │
   │  C) CHECK DONE                                                  │
   │     Always loops back to R to discover more stories             │
   │     Loop exits only when the time limit set in Phase 0 is hit  │
   └─────────────────────────────────────────────────────────────────┘
 ```
+
+### Story Source Model
+
+Every story in `prd.json` carries a `_source` field that tracks its origin through the entire pipeline:
+
+| # | Source | Origin | When Added | Validation |
+|---|--------|---------|------------|------------|
+| 1 | `seed` | User typed in Phase 0-D | Startup | None (user-approved) |
+| 2 | `ai-example` | User picked a numbered suggestion in Phase 0-D | Startup | None (user-approved) |
+| 3 | `research` | Phase R (Claude research agent) | Per iteration | Full: constitution + goal alignment |
+| 4 | `test-fix` | Phase T (failing test synthesis) | Per iteration | Constitution only (auto-approved) |
+
+**Phase M priority:** `test-fix` > `seed` > `research` > `ai-example`
+
+### Test Layers
+
+| Layer | Config Variable | When | Failure Action |
+|-------|----------------|------|----------------|
+| **1 — Unit** | `SPIRAL_UNIT_TEST_CMD` | Per story, inside Ralph | Story fails attempt; retried |
+| **2 — Integration** | `SPIRAL_VALIDATE_CMD` | After Phase I batch | Rolled back; loop continues |
+| **3 — E2E** | `SPIRAL_E2E_TEST_CMD` | Phase V, per trigger | Warn; blocks on `trigger=final` |
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for full phase reference and the modular file structure.
 
