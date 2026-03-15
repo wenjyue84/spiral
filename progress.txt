@@ -6815,3 +6815,36 @@ This brief outlines the implementation of a Server-Sent Events (SSE) stream for 
 ### Gotchas
 - SPIRAL_MAX_DIFF_LINES is already used for commit diff-guard; the same variable is reused for context injection truncation (both represent max diff lines)
 - test_check_dag.py and test_infer_dependencies.py have pre-existing failures (not related to US-280)
+## Iteration 3 - Mon, Mar 16, 2026  2:02:40 AM
+Incomplete: Stream ralph.sh worker stdout to spiral_dashboard via Server-Sent Events (ID: US-277) — attempt /3
+
+
+## Pre-analysis for US-277 (Gemini 2.5 Pro)
+Here is the technical brief for the Claude agent:
+
+**Subject: Technical Brief for US-277: SSE Worker Stream**
+
+This brief outlines the implementation plan for streaming `ralph.sh` worker output to the `spiral_dashboard` via Server-Sent Events (SSE), based on the provided user story.
+
+**1. Python Files to Modify:**
+*   **`spiral_dashboard.py`**: This is the primary file. It will host the new FastAPI/async web endpoint (`/api/worker-stream/{worker_id}`) responsible for handling the SSE streaming logic.
+*   **`lib/state_machine.py` or a similar central state manager**: This file likely manages the state of active workers. It will need to be updated to store and provide access to the `asyncio.subprocess.Process` objects for each running worker, so the SSE endpoint can find them.
+*   **The script that launches `ralph.sh`**: A script (e.g., within `lib/phases/` or `lib/run_parallel_ralph.sh` if it calls a Python script) will need modification to use `asyncio.create_subprocess_exec` and store the resulting process handle in the central state manager.
+
+**2. Frappe DocTypes / Hooks:**
+*   None. Despite the prompt mentioning Frappe, the project structure and technical notes confirm this is a standalone Python/asyncio application. No Frappe DocTypes or hooks are involved.
+
+**3. Recommended Implementation Approach:**
+1.  In `spiral_dashboard.py`, create a new `async` endpoint for `GET /api/worker-stream/{worker_id}`.
+2.  The endpoint should look up the `asyncio.subprocess.Process` object for the `{worker_id}` from the shared state. Return 404 if not found.
+3.  Use an `asyncio.Queue` to merge stdout and stderr streams.
+4.  Create two concurrent `asyncio.Task`s: one to read `process.stdout.readline()` and another for `process.stderr.readline()`. Both tasks will put the lines into the shared queue.
+5.  The main endpoint function will read from the queue, format each line into the required JSON structure, and `yield` it as an SSE message (`data: {json}\n\n`).
+6.  After the process terminates, send a final `{type: 'done'}` event.
+
+**4. Edge Cases & Gotchas:**
+*   **Deadlock Prevention**: Reading stdout and stderr must be done concurrently using `asyncio.create_task` to prevent the subprocess from freezing when an OS pipe buffer fills. Do not use `process.communicate()`.
+*   **State Management**: The `Process` object handles must be shared between the process launcher and the web endpoint. Ensure the chosen state manager is accessible and safe for concurrent access.
+*   **Client Disconnects**: The server must gracefully handle clients disconnecting without terminating the underlying `ralph.sh` worker process.
+*   **Process Cleanup**: Ensure `await process.wait()` is called after the stream is consumed to prevent zombie processes.
+

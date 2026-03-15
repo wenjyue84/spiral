@@ -8,6 +8,8 @@ Subcommands:
   graph         Generate Mermaid dependency graph from prd.json
   config        Configuration utilities
     export-env  Export spiral.config.sh SPIRAL_* variables as a .env file
+  worktree      Git worktree management utilities
+    audit       Audit all spiral worker worktrees for health anomalies
 """
 import argparse
 import csv
@@ -1142,6 +1144,239 @@ def cmd_calibration_report(args):
                 print(f"  {complexity:8} | median: {median:6}s | count: {count:4} | ✓ {passed:3} ✗ {failed:3}")
 
 
+def cmd_worktree_audit(args) -> None:
+    """Audit git worktrees for health anomalies (US-231).
+
+    Detects: stale locks, detached HEAD, missing branch, duplicate branch
+    checkout, worktree directory missing from disk.
+
+    Exits 0 when clean, 1 when anomalies found (or --fix applied).
+    """
+    import time
+
+    repo_root = Path(__file__).parent
+    worktree_base = repo_root / ".spiral-workers"
+    fix_mode: bool = getattr(args, "fix", False)
+    json_mode: bool = getattr(args, "json_output", False)
+    lock_age_limit: int = 5  # minutes
+
+    anomalies: list[dict] = []
+
+    # ── 1. Parse `git worktree list --porcelain` ─────────────────────────────
+    result = subprocess.run(
+        ["git", "-C", str(repo_root), "worktree", "list", "--porcelain"],
+        capture_output=True,
+        text=True,
+    )
+    raw = result.stdout
+
+    # Parse porcelain blocks (blank-line-separated)
+    worktrees: list[dict] = []
+    block: dict = {}
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line:
+            if block:
+                worktrees.append(block)
+                block = {}
+            continue
+        if line.startswith("worktree "):
+            block["path"] = line[len("worktree "):].strip()
+        elif line.startswith("HEAD "):
+            block["head"] = line[len("HEAD "):].strip()
+        elif line.startswith("branch "):
+            block["branch"] = line[len("branch "):].strip()
+        elif line == "detached":
+            block["detached"] = True
+        elif line.startswith("prunable"):
+            block["prunable"] = True
+        elif line.startswith("locked"):
+            block["locked"] = True
+    if block:
+        worktrees.append(block)
+
+    # Skip the main worktree (first entry)
+    worker_worktrees = worktrees[1:] if len(worktrees) > 1 else []
+
+    # ── 2. Anomaly: worktree directory missing from disk ─────────────────────
+    for wt in worker_worktrees:
+        wt_path = Path(wt.get("path", ""))
+        if not wt_path.exists():
+            anomalies.append({
+                "type": "missing_directory",
+                "path": str(wt_path),
+                "safe_to_fix": True,
+                "remediation": "Run `git worktree prune` to remove the stale admin record.",
+                "detail": "Git admin record exists but the worktree directory is missing from disk.",
+            })
+
+    # ── 3. Anomaly: prunable admin records ───────────────────────────────────
+    for wt in worker_worktrees:
+        if wt.get("prunable"):
+            wt_path = wt.get("path", "<unknown>")
+            anomalies.append({
+                "type": "prunable_record",
+                "path": str(wt_path),
+                "safe_to_fix": True,
+                "remediation": "Run `git worktree prune` to clean up this stale record.",
+                "detail": "Git reports this worktree as prunable (gitdir points to non-existent location).",
+            })
+
+    # ── 4. Anomaly: detached HEAD ─────────────────────────────────────────────
+    for wt in worker_worktrees:
+        if wt.get("detached"):
+            wt_path = wt.get("path", "<unknown>")
+            anomalies.append({
+                "type": "detached_head",
+                "path": str(wt_path),
+                "safe_to_fix": False,
+                "remediation": f"Manually checkout a branch: `git -C '{wt_path}' checkout -b <branch-name>`.",
+                "detail": f"Worktree HEAD is detached at {wt.get('head', 'unknown')}.",
+            })
+
+    # ── 5. Anomaly: missing branch ────────────────────────────────────────────
+    for wt in worker_worktrees:
+        branch_ref = wt.get("branch", "")
+        if not branch_ref or wt.get("detached"):
+            continue
+        branch_name = branch_ref.replace("refs/heads/", "")
+        check = subprocess.run(
+            ["git", "-C", str(repo_root), "rev-parse", "--verify", branch_ref],
+            capture_output=True,
+            text=True,
+        )
+        if check.returncode != 0:
+            wt_path = wt.get("path", "<unknown>")
+            anomalies.append({
+                "type": "missing_branch",
+                "path": str(wt_path),
+                "branch": branch_name,
+                "safe_to_fix": False,
+                "remediation": f"Recreate the branch: `git -C '{wt_path}' checkout -b {branch_name}`.",
+                "detail": f"Branch '{branch_name}' referenced by worktree no longer exists.",
+            })
+
+    # ── 6. Anomaly: duplicate branch checkout ────────────────────────────────
+    branch_to_paths: dict[str, list[str]] = {}
+    for wt in worker_worktrees:
+        branch_ref = wt.get("branch", "")
+        if not branch_ref or wt.get("detached"):
+            continue
+        branch_name = branch_ref.replace("refs/heads/", "")
+        branch_to_paths.setdefault(branch_name, []).append(wt.get("path", "<unknown>"))
+
+    for branch, paths in branch_to_paths.items():
+        if len(paths) > 1:
+            anomalies.append({
+                "type": "duplicate_branch_checkout",
+                "branch": branch,
+                "paths": paths,
+                "safe_to_fix": False,
+                "remediation": f"Remove duplicate worktree: `git worktree remove --force <path>`.",
+                "detail": f"Branch '{branch}' is checked out in {len(paths)} worktrees simultaneously.",
+            })
+
+    # ── 7. Anomaly: stale locks ───────────────────────────────────────────────
+    if worktree_base.is_dir():
+        for worker_dir in worktree_base.iterdir():
+            if not worker_dir.is_dir():
+                continue
+            # Resolve .git pointer to find actual git dir
+            git_ptr = worker_dir / ".git"
+            if git_ptr.is_file():
+                git_dir_line = git_ptr.read_text(encoding="utf-8", errors="replace").strip()
+                if git_dir_line.startswith("gitdir:"):
+                    git_dir = Path(git_dir_line[len("gitdir:"):].strip())
+                else:
+                    git_dir = worker_dir / ".git"
+            else:
+                git_dir = worker_dir / ".git"
+
+            if not git_dir.is_dir():
+                continue
+
+            now = time.time()
+            for lock_file in git_dir.glob("*.lock"):
+                try:
+                    age_secs = now - lock_file.stat().st_mtime
+                    age_mins = age_secs / 60
+                except OSError:
+                    age_mins = 0.0
+
+                if age_mins >= lock_age_limit:
+                    anomalies.append({
+                        "type": "stale_lock",
+                        "path": str(lock_file),
+                        "age_minutes": round(age_mins, 1),
+                        "safe_to_fix": True,
+                        "remediation": f"Remove the stale lock: `rm '{lock_file}'`.",
+                        "detail": f"Lock file is {round(age_mins, 1)} minutes old (threshold: {lock_age_limit} min).",
+                    })
+
+    # ── 8. Apply --fix for safe anomalies ────────────────────────────────────
+    fixed: list[dict] = []
+    skipped_unsafe: list[dict] = []
+    if fix_mode:
+        run_prune = False
+        for a in anomalies:
+            if not a["safe_to_fix"]:
+                skipped_unsafe.append(a)
+                continue
+            if a["type"] in ("missing_directory", "prunable_record"):
+                run_prune = True
+                fixed.append(a)
+            elif a["type"] == "stale_lock":
+                lock_path = Path(a["path"])
+                try:
+                    lock_path.unlink(missing_ok=True)
+                    fixed.append(a)
+                except OSError as exc:
+                    a["fix_error"] = str(exc)
+                    skipped_unsafe.append(a)
+
+        if run_prune:
+            subprocess.run(
+                ["git", "-C", str(repo_root), "worktree", "prune"],
+                capture_output=True,
+            )
+
+    # ── 9. Output ─────────────────────────────────────────────────────────────
+    report = {
+        "anomalies": anomalies,
+        "total": len(anomalies),
+        "clean": len(anomalies) == 0,
+    }
+    if fix_mode:
+        report["fixed"] = len(fixed)
+        report["skipped_unsafe"] = len(skipped_unsafe)
+
+    if json_mode:
+        print(json.dumps(report, indent=2))
+    else:
+        if report["clean"]:
+            print(_c("✓ All worktrees are healthy (no anomalies detected).", "green"))
+        else:
+            print(_c(f"✗ {len(anomalies)} anomaly(ies) found:", "red"))
+            for a in anomalies:
+                atype = _c(a["type"], "yellow")
+                print(f"\n  [{atype}]")
+                print(f"    Detail:      {a.get('detail', '')}")
+                path_key = "path" if "path" in a else ("paths" if "paths" in a else None)
+                if path_key:
+                    print(f"    Path:        {a[path_key]}")
+                if "branch" in a:
+                    print(f"    Branch:      {a['branch']}")
+                if "age_minutes" in a:
+                    print(f"    Age:         {a['age_minutes']} min")
+                safe = _c("yes", "green") if a["safe_to_fix"] else _c("no (manual action needed)", "red")
+                print(f"    Safe fix:    {safe}")
+                print(f"    Remediation: {a['remediation']}")
+            if fix_mode:
+                print(f"\n  Fixed: {len(fixed)}  |  Unsafe (skipped): {len(skipped_unsafe)}")
+
+    sys.exit(0 if report["clean"] else 1)
+
+
 def cmd_config_export_env(args) -> None:
     """Export spiral.config.sh SPIRAL_* variables to a .env file.
 
@@ -1458,6 +1693,29 @@ def main():
         ),
     )
 
+    # ── worktree subcommand (US-231) ──────────────────────────────────────────
+    worktree_parser = subparsers.add_parser(
+        "worktree",
+        help="Git worktree management utilities",
+    )
+    worktree_subs = worktree_parser.add_subparsers(dest="worktree_command", metavar="COMMAND")
+    audit_parser = worktree_subs.add_parser(
+        "audit",
+        help="Audit all spiral worker worktrees for health anomalies",
+    )
+    audit_parser.add_argument(
+        "--fix",
+        action="store_true",
+        dest="fix",
+        help="Auto-resolve safe anomalies (prune missing records, remove stale locks)",
+    )
+    audit_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="json_output",
+        help="Output machine-parseable JSON instead of human-readable text",
+    )
+
     args = parser.parse_args()
 
     if args.command == "init":
@@ -1488,6 +1746,13 @@ def main():
             cmd_config_export_env(args)
         else:
             config_parser.print_help()
+            sys.exit(0)
+    elif args.command == "worktree":
+        worktree_command = getattr(args, "worktree_command", None)
+        if worktree_command == "audit":
+            cmd_worktree_audit(args)
+        else:
+            worktree_parser.print_help()
             sys.exit(0)
     else:
         parser.print_help()
