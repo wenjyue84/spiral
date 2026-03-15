@@ -6419,3 +6419,33 @@ Completed: Enforce cgroups v2 memory and CPU limits on worker subprocesses (ID: 
 ### Testing notes
 - 19/19 tests pass: fallback behavior, mocked scanner, threshold clamping, placeholder format, CLI
 - `bash -n spiral.sh` passes (no syntax errors)
+## Iteration 1 - Mon, Mar 16, 2026 12:12:16 AM
+Incomplete: Implement local Ollama model fallback with cold-start pre-warm and explicit policy flags (ID: US-261) — attempt /3
+
+## Iteration 2 - Mon, Mar 16, 2026 12:14:35 AM
+Incomplete: Implement local Ollama model fallback with cold-start pre-warm and explicit policy flags (ID: US-261) — attempt /3
+
+
+---
+
+## Iteration - Story: US-225: Add stale git lock-file detection and safe cleanup to spiral.sh
+
+### What was implemented
+- `_check_stale_worktree_locks` function already existed in `lib/validate_preflight.sh`
+- `SPIRAL_LOCK_TIMEOUT_MINUTES=5` already existed in `spiral.config.sh`
+- Bats tests in `tests/stale_lock_cleanup.bats` already existed but all 6 functional tests failed on Windows
+- Root cause: `os.stat()` / `os.utime()` in Python subprocess received MSYS `/tmp/...` paths that Windows Python (win32) cannot resolve
+- Fix applied in 3 places:
+  1. `_make_lock_aged` helper in bats test: added `cygpath -w "$path"` before `os.utime`
+  2. Inline `_check_stale_worktree_locks` in bats `setup()`: added `cygpath -w "$lock_file"` before `os.stat`
+  3. Production `_check_stale_worktree_locks` in `lib/validate_preflight.sh`: same fix
+- All 9 bats tests now pass
+
+### Patterns discovered
+- Windows Python (win32) cannot resolve MSYS/MINGW paths (`/tmp/...`). Always use `cygpath -w` before embedding bash paths in Python subprocess calls
+- Pattern: `_win="$(cygpath -w "$path" 2>/dev/null || echo "$path")"` then `r'''${_win}'''` in Python
+- The `r'''...'''` raw triple-quoted string is important: handles backslashes in Windows paths safely
+
+### Gotchas
+- The `cygpath` fallback (`|| echo "$path"`) means this works on both Windows/MSYS and Linux/macOS
+- `rm -f "$lock_file"` still uses the MSYS path directly — that works fine in bash/MSYS

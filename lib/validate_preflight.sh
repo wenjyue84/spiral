@@ -250,11 +250,13 @@ _check_stale_worktree_locks() {
 
     while IFS= read -r -d '' lock_file; do
       # Get lock file age in minutes via Python (portable across platforms)
-      local age_mins
+      # Convert MSYS path to Windows path on win32 so Python can resolve it
+      local age_mins _lf_win
+      _lf_win="$(cygpath -w "$lock_file" 2>/dev/null || echo "$lock_file")"
       age_mins=$(python3 -c "
 import os, time
 try:
-    s = os.stat('$lock_file')
+    s = os.stat(r'''${_lf_win}''')
     print(int((time.time() - s.st_mtime) / 60))
 except Exception:
     print(-1)

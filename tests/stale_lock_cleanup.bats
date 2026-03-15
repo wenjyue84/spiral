@@ -42,11 +42,12 @@ setup() {
       [[ -d "$wt_git_dir" ]] || continue
 
       while IFS= read -r -d '' lock_file; do
-        local age_mins
+        local age_mins _lf_win
+        _lf_win="$(cygpath -w "$lock_file" 2>/dev/null || echo "$lock_file")"
         age_mins=$(python3 -c "
 import os, time
 try:
-    s = os.stat('$lock_file')
+    s = os.stat(r'''${_lf_win}''')
     print(int((time.time() - s.st_mtime) / 60))
 except Exception:
     print(-1)
@@ -95,12 +96,15 @@ _make_lock_aged() {
   local path="$1"
   local age_minutes="$2"
   touch "$path"
+  # Convert MSYS path to Windows path for Python on win32
+  local _win_path
+  _win_path="$(cygpath -w "$path" 2>/dev/null || echo "$path")"
   # Set mtime to (now - age_minutes * 60) seconds using Python
   python3 -c "
 import os, time
 age = $age_minutes * 60
 mtime = time.time() - age
-os.utime('$path', (mtime, mtime))
+os.utime(r'''${_win_path}''', (mtime, mtime))
 "
 }
 
