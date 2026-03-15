@@ -4918,3 +4918,32 @@ Incomplete: Add SPIRAL_BRANCH_PREFIX for per-story feature branch creation and n
 - SPIRAL_BASE_BRANCH must be captured BEFORE any `create_story_branch` call (captured at line 254 from `$CURRENT_BRANCH`)
 - `finalize_story_branch` is a no-op when SPIRAL_BRANCH_PREFIX is empty (default) — no behavior change for users who don't opt in
 - When SPIRAL_CREATE_PRS=true, `create_github_pr` (US-143) and `finalize_story_branch` both run; they operate on different branch names (spiral/<id> vs <prefix>/<id>)
+## Iteration 69 - Sun, Mar 15, 2026  7:27:37 AM
+Completed: Add SPIRAL_BRANCH_PREFIX for per-story feature branch creation and naming (ID: US-157) in 9m
+
+
+## Iteration N - Story: US-184: Emit OTel GenAI agent spans per story phase using semconv
+
+### What was implemented
+- Created lib/otel_spans.py: CLI tool with 3 commands (begin-run, end-phase, end-run)
+- begin-run: generates trace_id/span_id, saves to .spiral/otel_run_context.json, prints W3C TRACEPARENT
+- end-phase: emits completed child span per phase (R/T/I/V/M/G/S/C) with GenAI semconv attrs; reads TRACEPARENT from env for parent context
+- end-run: emits root span "invoke_agent spiral" using saved context; reads SPIRAL_SCRATCH_DIR
+- All commands silently no-op when OTEL_EXPORTER_OTLP_ENDPOINT is not set (exit 0)
+- spiral.sh: begin-run called after SPIRAL_RUN_ID is set; exports TRACEPARENT
+- spiral.sh: end-phase called after log_spiral_event for each phase (R,T,S,M,I,G,V,C)
+- spiral.sh: end-run called before both exit 0 (complete) and exit $ERR_MAX_ITERS
+- opentelemetry-sdk + opentelemetry-exporter-otlp-proto-http added to pyproject.toml deps
+- Created tests/test_otel_spans.py with 14 tests; 715 total pass
+
+### Patterns discovered
+- OTel spans can be created as "already completed" using start_time/end_time custom ns timestamps
+- _emit_completed_span uses NonRecordingSpan + TraceContext to inject parent span_id without keeping parent alive
+- Phase duration is already tracked in _PHASE_DUR_X vars; no new timing infra needed
+- SPIRAL_SCRATCH_DIR env var is already exported by spiral.sh for otel_run_context.json location
+
+### Gotchas
+- SimpleSpanProcessor (not BatchSpanProcessor) is needed for end-phase since we force_flush immediately
+- OTel SDK prints "Failed to export" to stderr on connection failure — stderr is redirected to /dev/null in spiral.sh
+- begin-run must be called AFTER SPIRAL_PYTHON is resolved (it uses $SPIRAL_PYTHON)
+- SPIRAL_SCRATCH_DIR must be set before begin-run (it is: set at line 532 before SPIRAL_RUN_ID use)
