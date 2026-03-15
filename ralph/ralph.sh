@@ -39,6 +39,9 @@ SPIRAL_SECURITY_SCAN_ARGS="${SPIRAL_SECURITY_SCAN_ARGS:-}"                  # ex
 SPIRAL_PRD_STREAM_THRESHOLD_KB="${SPIRAL_PRD_STREAM_THRESHOLD_KB:-512}"     # switch to jq --stream when prd.json exceeds this size (KB); 0 = always stream
 SPIRAL_OLLAMA_FALLBACK_MODEL="${SPIRAL_OLLAMA_FALLBACK_MODEL:-}"        # Ollama model for Claude API fallback (e.g. qwen2.5-coder:32b); empty = disabled
 SPIRAL_OLLAMA_HOST="${SPIRAL_OLLAMA_HOST:-http://localhost:11434/v1}"   # Ollama OpenAI-compat base URL (default: local Ollama)
+SPIRAL_LOCAL_FALLBACK_POLICY="${SPIRAL_LOCAL_FALLBACK_POLICY:-}"           # US-261: allow|deny|local-only; empty = disabled
+SPIRAL_OLLAMA_BASE_URL="${SPIRAL_OLLAMA_BASE_URL:-http://localhost:11434}"  # US-261: Ollama native base URL (no /v1 suffix)
+SPIRAL_OLLAMA_MODEL="${SPIRAL_OLLAMA_MODEL:-llama3.2}"                      # US-261: local model for policy-based fallback
 SPIRAL_SKIP_SELF_REVIEW="${SPIRAL_SKIP_SELF_REVIEW:-false}"             # true = disable Phase I.5 LLM self-review gate (US-145)
 SPIRAL_SELF_REVIEW_MODEL="${SPIRAL_SELF_REVIEW_MODEL:-haiku}"           # Claude model for self-review; haiku to minimise cost (US-145)
 SPIRAL_GEMINI_SKIP_SMALL="${SPIRAL_GEMINI_SKIP_SMALL:-true}"           # true = skip Gemini pre-analysis for small stories with <=2 filesTouch (US-171)
@@ -216,6 +219,9 @@ if [[ -f "./ralph-config.sh" ]]; then
   echo "[config] Loading project quality gates from ./ralph-config.sh"
   source "./ralph-config.sh"
 fi
+
+# ── Ollama pre-warm at worker startup (US-261) ──────────────────────────────
+ollama_prewarm
 
 # ── Progress file initialization ──────────────────────────────────
 if [[ ! -f "$PROGRESS_FILE" ]]; then
@@ -1112,6 +1118,93 @@ print(data['choices'][0]['message']['content'])
 " 2>/dev/null) || content="$response"
 
   printf '%s\n' "$content"
+}
+
+# ── Ollama pre-warm (US-261) ──────────────────────────────────────────────────
+# ollama_prewarm: Hits /api/tags at worker startup to trigger model loading.
+# Skipped when SPIRAL_LOCAL_FALLBACK_POLICY is empty or 'deny'.
+# Logs warning if Ollama unreachable or model absent; does NOT abort.
+ollama_prewarm() {
+  local policy="${SPIRAL_LOCAL_FALLBACK_POLICY:-}"
+  [[ -z "$policy" || "$policy" == "deny" ]] && return 0
+  local base_url="${SPIRAL_OLLAMA_BASE_URL:-http://localhost:11434}"
+  local model="${SPIRAL_OLLAMA_MODEL:-llama3.2}"
+  echo "  [ollama] Pre-warm: GET ${base_url}/api/tags (policy: ${policy}, model: ${model})"
+  local tags
+  if ! tags=$(curl -sf --connect-timeout 5 --max-time 10 "${base_url}/api/tags" 2>/dev/null); then
+    echo "  [ollama] WARNING: Ollama unreachable at ${base_url} — fallback may cold-start (~13s)"
+    log_ralph_event "ollama_prewarm_failed" \
+      "\"url\":\"${base_url}\",\"model\":\"${model}\",\"policy\":\"${policy}\""
+    return 0
+  fi
+  if echo "$tags" | grep -q "\"name\":\"${model}" 2>/dev/null; then
+    echo "  [ollama] [OK] Model '${model}' pre-loaded at ${base_url}"
+  else
+    echo "  [ollama] WARNING: Model '${model}' absent from /api/tags — cold-start ~13s on first use"
+    log_ralph_event "ollama_model_absent" \
+      "\"url\":\"${base_url}\",\"model\":\"${model}\",\"policy\":\"${policy}\""
+  fi
+}
+
+# ── US-261: Policy-based local fallback ──────────────────────────────────────
+# apply_local_fallback_policy <conn_fail_reason> <rl_tmp_output_file>
+# Enforces SPIRAL_LOCAL_FALLBACK_POLICY when a cloud API connection failure is
+# detected. Sets _OLLAMA_USED=1 on successful local invocation.
+# Returns:
+#   0 = local fallback succeeded (output written to rl_tmp_output_file)
+#   1 = local fallback failed or policy not set
+# For 'deny': prints LOCAL_FALLBACK_DENIED and exits with code 2 immediately.
+# Logs structured events to spiral_events.jsonl with reason/model_used/original_error.
+apply_local_fallback_policy() {
+  local reason="$1"
+  local rl_out="$2"
+  local policy="${SPIRAL_LOCAL_FALLBACK_POLICY:-}"
+  [[ -z "$policy" ]] && return 1
+  local base_url="${SPIRAL_OLLAMA_BASE_URL:-http://localhost:11434}"
+  local model="${SPIRAL_OLLAMA_MODEL:-llama3.2}"
+  case "$policy" in
+    deny)
+      echo "LOCAL_FALLBACK_DENIED: ${reason}"
+      log_spiral_event "local_fallback_denied" \
+        "\"story_id\":\"${NEXT_STORY:-}\",\"reason\":\"${reason}\",\"model_used\":\"none\",\"original_error\":\"${reason}\",\"policy\":\"deny\""
+      exit 2
+      ;;
+    allow|local-only)
+      mkdir -p "${SPIRAL_SCRATCH_DIR}"
+      local sys_tmp="${SPIRAL_SCRATCH_DIR}/_ol261_sys_$$.tmp"
+      local usr_tmp="${SPIRAL_SCRATCH_DIR}/_ol261_usr_$$.tmp"
+      printf '%s' "${RALPH_SYSTEM_PROMPT:-}" > "$sys_tmp"
+      printf '%s' "${RALPH_USER_PROMPT:-}" > "$usr_tmp"
+      echo "  [ollama] '${policy}' policy: invoking local model ${model} at ${base_url}"
+      echo "  ─────── Ollama Output Start (${policy}) ───────"
+      # Temporarily override US-144 vars so call_ollama_fallback uses US-261 settings
+      local _sv_model="${SPIRAL_OLLAMA_FALLBACK_MODEL}" _sv_host="${SPIRAL_OLLAMA_HOST}"
+      SPIRAL_OLLAMA_FALLBACK_MODEL="${model}"
+      SPIRAL_OLLAMA_HOST="${base_url}/v1"
+      local _rc=0
+      if call_ollama_fallback "$sys_tmp" "$usr_tmp" > "$rl_out"; then
+        _OLLAMA_USED=1
+        log_spiral_event "local_fallback_used" \
+          "\"story_id\":\"${NEXT_STORY:-}\",\"reason\":\"${reason}\",\"model_used\":\"${model}\",\"original_error\":\"${reason}\",\"policy\":\"${policy}\""
+        echo "  [ollama] Local fallback succeeded"
+      else
+        _rc=1
+        > "$rl_out"
+        log_spiral_event "local_fallback_failed" \
+          "\"story_id\":\"${NEXT_STORY:-}\",\"reason\":\"${reason}\",\"model_used\":\"${model}\",\"original_error\":\"${reason}\",\"policy\":\"${policy}\""
+        echo "  [ollama] Local fallback failed — story will be retried later"
+      fi
+      echo "  ─────── Ollama Output End (${policy}) ─────────"
+      SPIRAL_OLLAMA_FALLBACK_MODEL="${_sv_model}"
+      SPIRAL_OLLAMA_HOST="${_sv_host}"
+      rm -f "$sys_tmp" "$usr_tmp"
+      return $_rc
+      ;;
+    *)
+      echo "  [ollama] WARNING: unknown SPIRAL_LOCAL_FALLBACK_POLICY '${policy}' — ignoring"
+      return 1
+      ;;
+  esac
 }
 
 # ── Phase I.5: LLM self-review gate (US-145) ────────────────────────────────
@@ -2073,6 +2166,11 @@ $RALPH_USER_PROMPT"
       while true; do
         _CLAUDE_TMP="${SPIRAL_SCRATCH_DIR}/_claude_raw_$$.tmp"
         mkdir -p "${SPIRAL_SCRATCH_DIR}"
+        # ── US-261: local-only policy — skip cloud entirely, use Ollama directly ─────
+        if [[ "${SPIRAL_LOCAL_FALLBACK_POLICY:-}" == "local-only" ]]; then
+          apply_local_fallback_policy "local-only policy: bypassing cloud" "$_RL_TMP" && _OLLAMA_USED=1 || true
+          break
+        fi
         (
           unset CLAUDECODE
           "${_GNU_TIME_CMD[@]+"${_GNU_TIME_CMD[@]}"}" claude -p "$RALPH_USER_PROMPT" \
@@ -2130,6 +2228,26 @@ $RALPH_USER_PROMPT"
           else
             # Successful connection — reset fail streak
             _CLAUDE_API_FAIL_STREAK=0
+          fi
+        fi
+        # ── US-261: SPIRAL_LOCAL_FALLBACK_POLICY enforcement on cloud failure ─────────
+        # Independent of US-144 streak counter. Triggers on any single connection failure
+        # when SPIRAL_LOCAL_FALLBACK_POLICY is set and US-144 did not already handle it.
+        if [[ -n "${SPIRAL_LOCAL_FALLBACK_POLICY:-}" ]]; then
+          _261_TMP_SIZE=0
+          [[ -f "$_CLAUDE_TMP" ]] && _261_TMP_SIZE=$(wc -c < "$_CLAUDE_TMP" 2>/dev/null || echo 0)
+          _261_CONN_FAIL=0
+          if [[ "${_261_TMP_SIZE:-0}" -eq 0 ]]; then
+            _261_CONN_FAIL=1
+          elif grep -qiE 'ECONNREFUSED|ETIMEDOUT|connection refused|failed to connect|could not resolve host' \
+              "$_CLAUDE_TMP" 2>/dev/null; then
+            _261_CONN_FAIL=1
+          fi
+          if [[ "$_261_CONN_FAIL" -eq 1 ]]; then
+            _261_ORIG_ERR="Claude API unreachable (empty or connection-refused response)"
+            rm -f "$_CLAUDE_TMP"
+            apply_local_fallback_policy "${_261_ORIG_ERR}" "$_RL_TMP"
+            break  # exit 529 loop — connection failure handled by policy
           fi
         fi
         # Detect HTTP 529 overloaded_error — separate handler from 429 rate-limit

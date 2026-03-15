@@ -589,3 +589,24 @@
 #
 # SPIRAL_AUTO_STASH=false   # default: abort Phase I if tree is dirty
 # SPIRAL_AUTO_STASH=true    # auto-stash dirty changes around Phase I
+
+# ── Local LLM fallback policy (US-261) ───────────────────────────────────────
+# Controls behaviour when the cloud API (Claude/Gemini) is unreachable.
+#
+# SPIRAL_LOCAL_FALLBACK_POLICY values:
+#   allow      — retry the same prompt against Ollama when cloud connection fails
+#   deny       — exit with code 2 and print LOCAL_FALLBACK_DENIED: <reason>; never silently reroutes
+#   local-only — never use cloud; route every worker call directly to Ollama
+#
+# Default: empty (feature disabled)
+# SPIRAL_LOCAL_FALLBACK_POLICY="allow"
+
+# Base URL for the Ollama native API (no /v1 suffix).
+# Used for pre-warm (/api/tags) and fallback invocations.
+# Default: http://localhost:11434
+# SPIRAL_OLLAMA_BASE_URL="http://localhost:11434"
+
+# Local model name for policy-based fallback (distinct from US-144 SPIRAL_OLLAMA_FALLBACK_MODEL).
+# Ollama cold-start for large models can take ~13s; pre-warm mitigates this.
+# Default: llama3.2
+# SPIRAL_OLLAMA_MODEL="llama3.2"

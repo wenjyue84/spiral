@@ -6473,3 +6473,31 @@ Incomplete: Implement local Ollama model fallback with cold-start pre-warm and e
 ### Gotchas
 - The dep-audit job uses `uv pip install "pip-audit==2.7.3"` (uv's pip subcommand, not raw pip) - this is correct and was left unchanged
 - Criterion 3 (documented speedup timing) was addressed in the commit message: uv's well-documented 10-100x speedup over pip is from parallel downloads + Rust implementation; cold CI install typically goes from ~30s (pip) to ~2-3s (uv) for small dependency sets
+## Iteration 4 - Mon, Mar 16, 2026 12:30:40 AM
+Incomplete: Implement local Ollama model fallback with cold-start pre-warm and explicit policy flags (ID: US-261) — attempt /3
+
+
+---
+
+## Iteration [N] - Story: US-261: Implement local Ollama model fallback with cold-start pre-warm and explicit policy flags
+
+### What was implemented
+- Added 3 env vars in `ralph/ralph.sh`: `SPIRAL_LOCAL_FALLBACK_POLICY` (empty by default, accepts allow|deny|local-only), `SPIRAL_OLLAMA_BASE_URL` (default http://localhost:11434), `SPIRAL_OLLAMA_MODEL` (default llama3.2)
+- Added `ollama_prewarm()` function: hits GET /api/tags at worker startup; logs warning if Ollama unreachable or model absent but does NOT abort; skips when policy is empty or 'deny'
+- Called `ollama_prewarm` at startup, after sourcing project-specific quality gates
+- Added `apply_local_fallback_policy(reason, rl_out)` function: handles allow|deny|local-only|unknown policies; for 'deny' exits code 2 with 'LOCAL_FALLBACK_DENIED: <reason>'; for allow/local-only invokes Ollama via call_ollama_fallback with US-261 env vars; logs structured JSON events (local_fallback_used/denied/failed) to spiral_events.jsonl with reason, model_used, original_error fields
+- Added `local-only` early-exit at the top of the 529 while loop (before Claude call): when SPIRAL_LOCAL_FALLBACK_POLICY=local-only, skips cloud entirely and calls apply_local_fallback_policy directly
+- Added US-261 allow/deny enforcement block after the US-144 block: independently detects connection failures and calls apply_local_fallback_policy when policy is set
+- Added documentation for all 3 new vars in `templates/spiral.config.example.sh`
+- Created `tests/local_fallback_policy.bats` with 16 tests: all pass
+
+### Patterns discovered
+- US-261 and US-144 Ollama systems coexist: US-144 uses SPIRAL_OLLAMA_FALLBACK_MODEL+HOST (streak-based, after 3 failures); US-261 uses SPIRAL_LOCAL_FALLBACK_POLICY+BASE_URL+MODEL (immediate, policy-driven)
+- apply_local_fallback_policy temporarily overrides SPIRAL_OLLAMA_FALLBACK_MODEL/HOST to reuse call_ollama_fallback infrastructure, then restores originals
+- `sed -n '/^function_name()/,/^}/p'` pattern works for extracting functions only when function body ends at column-0 `}`
+- bats `bash -n` check fails on bats syntax (`@test`) — use `bats --count` to validate instead
+
+### Gotchas
+- For 'deny' policy: `exit 2` inside apply_local_fallback_policy exits the entire worker process (intended); in bats tests, `run` captures this via subshell so $status=2 works correctly
+- ollama_prewarm must be defined BEFORE it is called at startup — functions are defined after the variable defaults block but before the startup code
+- tests/test_route_stories.py has a pre-existing relative import error (not caused by this story)
