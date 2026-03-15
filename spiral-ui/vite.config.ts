@@ -209,7 +209,7 @@ function spiralApiPlugin() {
 
           // Pattern: "SPIRAL Iteration N / M"
           const iterRe = /SPIRAL Iteration (\d+)\s*\/\s*(\d+)/;
-          // Pattern: "[Phase X] LABEL" or "[Phase X / sub] LABEL" — X can be A-Z or 0
+          // Pattern: "[Phase X] LABEL" — X can be A-Z or 0. May be preceded by ║ box chars
           const phaseRe = /\[Phase ([A-Z0-9])\]\s*(.*?)(?:\s*[—–-]\s*(.*))?$/;
           // Pattern: "[Phase X / substep] text" — sub-stages within a phase
           const subStepRe = /\[Phase ([A-Z0-9])\s*\/\s*(\w+)\]\s*(.*)/;
@@ -217,10 +217,11 @@ function spiralApiPlugin() {
           const subPhaseRe = /\[Phase ([A-Z0-9])\.(\d+)\]\s*(.*)/;
           // Pattern: "[0-A] text" through "[0-E] text" — Phase 0 sub-phases
           const phase0SubRe = /\[0-([A-E])\]\s*(.*)/;
-          // Pattern: "[X] short text" — short-form markers
-          const phaseShortRe = /\[([A-Z0-9])\]\s+(Looping back|All current|Not done|Skipping|Pushed|WARNING|Velocity)/;
-          // Pattern: "[tag]", "[test-ratchet]", "[security-scan]", "[CAPACITY]" — quality gates
-          const qualityGateRe = /\[(test-ratchet|security-scan|tag|CAPACITY)\]\s*(.*)/;
+          // Pattern: "[X] text" — short-form phase markers (single uppercase letter or digit)
+          // Matches: [I] WARNING, [C] Not done, [G] Auto-gate, [R] Skipping, [V] No test, [P] Pushed, [M] Merge, [T] Test, [S] Story
+          const phaseShortRe = /^\s*\[([A-Z0-9])\]\s+(.*)/;
+          // Pattern: "[tag]", "[test-ratchet]", "[security-scan]", "[CAPACITY]", "[merge]" — quality gates & events
+          const qualityGateRe = /\[(test-ratchet|security-scan|tag|CAPACITY|merge)\]\s*(.*)/;
           // Pattern: "SPIRAL Phase 0" banner
           const phase0BannerRe = /SPIRAL Phase 0/;
 
@@ -382,6 +383,28 @@ function spiralApiPlugin() {
             iterMap.set(iter.iter, iter);
           }
           const dedupedIterations = [...iterMap.values()].sort((a, b) => a.iter - b.iter);
+
+          // Inject placeholder phases for the full pipeline so every iteration shows all stages
+          const FULL_PIPELINE = ['A', 'R', 'T', 'S', 'M', 'I', 'V', 'P', 'C'];
+          const PIPELINE_LABELS: Record<string, string> = {
+            A: 'AI Suggestions', R: 'Research', T: 'Test Synthesis', S: 'Story Validate',
+            M: 'Merge', I: 'Implement', V: 'Validate', P: 'Push', C: 'Check Done',
+          };
+          for (const iter of dedupedIterations) {
+            const existingPhases = new Set(iter.phases.map(p => p.phase));
+            for (const phaseId of FULL_PIPELINE) {
+              if (!existingPhases.has(phaseId)) {
+                iter.phases.push({
+                  phase: phaseId,
+                  label: `${PIPELINE_LABELS[phaseId] ?? phaseId} (not run)`,
+                  lines: [`(Phase ${phaseId} was skipped this iteration)`],
+                  lineStart: -1,
+                  lineEnd: -1,
+                  substeps: [],
+                });
+              }
+            }
+          }
 
           // Cap lines per phase to last 150 to avoid huge payloads
           for (const iter of dedupedIterations) {

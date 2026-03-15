@@ -504,7 +504,6 @@ const PHASE_COLORS: Record<string, { bg: string; border: string; text: string; d
   T:   { bg: 'bg-violet-50',  border: 'border-violet-200',  text: 'text-violet-700',  dot: 'bg-violet-500' },
   S:   { bg: 'bg-cyan-50',    border: 'border-cyan-200',    text: 'text-cyan-700',    dot: 'bg-cyan-500' },
   M:   { bg: 'bg-amber-50',   border: 'border-amber-200',   text: 'text-amber-700',   dot: 'bg-amber-500' },
-  G:   { bg: 'bg-yellow-50',  border: 'border-yellow-300',  text: 'text-yellow-800',  dot: 'bg-yellow-500' },
   I:   { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700', dot: 'bg-emerald-500' },
   V:   { bg: 'bg-teal-50',    border: 'border-teal-200',    text: 'text-teal-700',    dot: 'bg-teal-500' },
   P:   { bg: 'bg-purple-50',  border: 'border-purple-200',  text: 'text-purple-700',  dot: 'bg-purple-500' },
@@ -514,7 +513,7 @@ const PHASE_COLORS: Record<string, { bg: string; border: string; text: string; d
 
 const PHASE_NAMES: Record<string, string> = {
   '0': 'Clarify (Session Setup)', A: 'AI Suggestions', R: 'Research', T: 'Test Synthesis',
-  S: 'Story Validate', M: 'Merge', G: 'Human Gate',
+  S: 'Story Validate', M: 'Merge',
   I: 'Implement', V: 'Validate', P: 'Push', C: 'Check Done', D: 'Loop Decision',
 };
 
@@ -527,7 +526,7 @@ const SUBSTEP_NAMES: Record<string, string> = {
 
 /** Canonical phase order — phases sort by this index in the timeline. */
 const PHASE_ORDER: Record<string, number> = {
-  '0': 0, A: 1, R: 2, T: 3, S: 4, M: 5, G: 6, I: 7, V: 8, P: 9, C: 10, D: 11,
+  '0': 0, A: 1, R: 2, T: 3, S: 4, M: 5, I: 6, V: 7, P: 8, C: 9, D: 10,
 };
 
 function PhaseTraceTab({ projectName }: { projectName: string }) {
@@ -641,12 +640,13 @@ function PhaseTraceTab({ projectName }: { projectName: string }) {
             </button>
           ))}
         </div>
-        <span className="text-xs text-slate-400 ml-2">{currentIter.phases.length} phases</span>
+        <span className="text-xs text-slate-400 ml-2">{currentIter.phases.filter(p => p.phase !== 'G').length} phases</span>
       </div>
 
       {/* Phase timeline */}
       <div className="space-y-2">
         {currentIter.phases
+        .filter(p => p.phase !== 'G')
         .sort((a, b) => (PHASE_ORDER[a.phase] ?? 99) - (PHASE_ORDER[b.phase] ?? 99))
         .map((phase, idx) => {
           const colors = PHASE_COLORS[phase.phase] ?? { bg: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-700', dot: 'bg-slate-500' };
@@ -658,13 +658,14 @@ function PhaseTraceTab({ projectName }: { projectName: string }) {
           const lineCount = phase.lines.length;
           const substeps: Substep[] = (phase as IterPhase & { substeps?: Substep[] }).substeps ?? [];
           const hasSubsteps = substeps.length > 0;
+          const isSkipped = phase.label.endsWith('(not run)') || phase.lineStart === -1;
 
           return (
-            <div key={key} className={`rounded-xl border ${colors.border} ${colors.bg} overflow-hidden`}>
+            <div key={key} className={`rounded-xl border ${isSkipped ? 'border-slate-200 bg-slate-50/50' : `${colors.border} ${colors.bg}`} overflow-hidden ${isSkipped ? 'opacity-50' : ''}`}>
               {/* Phase header */}
               <button
-                onClick={() => togglePhase(key)}
-                className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:opacity-90 transition-opacity"
+                onClick={() => !isSkipped && togglePhase(key)}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-opacity ${isSkipped ? 'cursor-default' : 'hover:opacity-90'}`}
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <div className={`w-2.5 h-2.5 rounded-full ${colors.dot} flex-shrink-0`} />
@@ -675,15 +676,16 @@ function PhaseTraceTab({ projectName }: { projectName: string }) {
                   <span className="text-xs text-slate-500 truncate">{phase.label}</span>
                 )}
                 <div className="ml-auto flex items-center gap-3 flex-shrink-0">
-                  {summary && <span className="text-[10px] text-slate-500 bg-white/60 px-2 py-0.5 rounded-full">{summary}</span>}
-                  {hasSubsteps && <span className="text-[10px] text-slate-500 bg-white/60 px-2 py-0.5 rounded-full">{substeps.length} steps</span>}
-                  {duration !== null && (
+                  {isSkipped && <span className="text-[10px] text-slate-400 bg-slate-200 px-2 py-0.5 rounded-full font-medium">SKIPPED</span>}
+                  {!isSkipped && summary && <span className="text-[10px] text-slate-500 bg-white/60 px-2 py-0.5 rounded-full">{summary}</span>}
+                  {!isSkipped && hasSubsteps && <span className="text-[10px] text-slate-500 bg-white/60 px-2 py-0.5 rounded-full">{substeps.length} steps</span>}
+                  {!isSkipped && duration !== null && (
                     <span className="text-[10px] font-mono text-slate-500 bg-white/60 px-2 py-0.5 rounded-full">
                       {duration >= 60 ? `${Math.floor(duration / 60)}m ${duration % 60}s` : `${duration}s`}
                     </span>
                   )}
-                  <span className="text-[10px] text-slate-400">{lineCount} lines</span>
-                  <span className={`text-xs text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}>▼</span>
+                  {!isSkipped && <span className="text-[10px] text-slate-400">{lineCount} lines</span>}
+                  {!isSkipped && <span className={`text-xs text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}>▼</span>}
                 </div>
               </button>
 
