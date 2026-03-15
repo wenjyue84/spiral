@@ -1,38 +1,110 @@
 #!/bin/bash
 # Slack notification hook — POST-STORY
 #
-# Receives story context JSON on stdin (same format as post-phase).
-# Posts a story completion notification to Slack webhook.
+# Receives story context JSON on stdin with fields:
+#   - iteration, spiral_run_id, story_id, timestamp_iso
+#   - story_title (optional), story_passes (optional), retry_count (optional)
+#
+# Posts a story completion notification to Slack webhook when a story completes.
+# Called after a story passes or fails; can be filtered via SPIRAL_SLACK_EVENTS.
 
 set -euo pipefail
 
-if [[ -z "${SLACK_WEBHOOK_URL:-}" ]]; then
+# Check if webhook is configured
+if [[ -z "${SPIRAL_SLACK_WEBHOOK_URL:-}" ]]; then
   exit 0
 fi
 
+# Read context from stdin
 context=$(cat)
 
-iteration=$(echo "$context" | grep -o '"iteration":[0-9]*' | cut -d: -f2)
-story_id=$(echo "$context" | grep -o '"story_id":"[^"]*"' | cut -d'"' -f4)
+# Extract fields from JSON (with fallbacks for missing fields)
+iteration=$(echo "$context" | jq -r '.iteration // 0' 2>/dev/null || echo "0")
+story_id=$(echo "$context" | jq -r '.story_id // ""' 2>/dev/null || echo "")
 
-# Build Slack message payload
+# If story_id is empty, skip notification (invalid context)
+if [[ -z "$story_id" ]]; then
+  exit 0
+fi
+
+# Try to extract optional fields with sensible defaults
+story_title=$(echo "$context" | jq -r '.story_title // ""' 2>/dev/null || echo "")
+story_passes=$(echo "$context" | jq -r '.story_passes // ""' 2>/dev/null || echo "")
+retry_count=$(echo "$context" | jq -r '.retry_count // ""' 2>/dev/null || echo "")
+
+# If passes status not in context, skip (this hook is only for story completion events)
+if [[ -z "$story_passes" ]]; then
+  exit 0
+fi
+
+# Determine event type based on pass/fail
+event_type="failed"
+if [[ "$story_passes" == "true" ]]; then
+  event_type="passed"
+fi
+
+# Check if this event type should be notified based on SPIRAL_SLACK_EVENTS filter
+allowed_events="${SPIRAL_SLACK_EVENTS:-passed,failed}"
+if ! echo "$allowed_events" | grep -q "$event_type"; then
+  exit 0  # Skip this event type
+fi
+
+# Determine color and emoji based on pass/fail
+if [[ "$story_passes" == "true" ]]; then
+  color="#36a64f"  # Green
+  status_emoji="✅"
+  status_text="PASSED"
+else
+  color="#ff0000"  # Red
+  status_emoji="❌"
+  status_text="FAILED"
+fi
+
+# Build fields array conditionally
+fields='[]'
+if [[ -n "$retry_count" ]]; then
+  fields=$(cat <<'JSON'
+[
+  {
+    "title": "Retry Count",
+    "value": "'$retry_count'",
+    "short": true
+  }
+]
+JSON
+)
+fi
+
+# Build Slack message payload with Block Kit formatting
 payload=$(cat <<EOF
 {
-  "text": "SPIRAL Story Complete",
-  "blocks": [
+  "text": "SPIRAL Story $status_text: $story_id",
+  "attachments": [
     {
-      "type": "section",
-      "text": {
-        "type": "mrkdwn",
-        "text": "*SPIRAL Story Complete*\nIteration: \`${iteration:-0}\`\nStory: \`${story_id:-(none)}\`"
-      }
+      "color": "$color",
+      "title": "$story_id",
+      "text": "${story_title:-Story}",
+      "fields": [
+        {
+          "title": "Status",
+          "value": "$status_emoji $status_text",
+          "short": true
+        },
+        {
+          "title": "Iteration",
+          "value": "$iteration",
+          "short": true
+        }$(if [[ -n "$retry_count" ]]; then echo ",{\"title\": \"Retry Count\",\"value\": \"$retry_count\",\"short\": true}"; fi)
+      ],
+      "ts": $(date +%s)
     }
   ]
 }
 EOF
 )
 
-curl -s -X POST "$SLACK_WEBHOOK_URL" \
+# Send to Slack (ignore errors to avoid breaking SPIRAL if webhook fails)
+curl -s -X POST "$SPIRAL_SLACK_WEBHOOK_URL" \
   -H 'Content-type: application/json' \
   --data "$payload" >/dev/null 2>&1 || true
 

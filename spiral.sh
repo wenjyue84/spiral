@@ -3739,6 +3739,23 @@ PYEOF
       fi
     fi
 
+    # ── Invoke run-completion plugin hook (US-194) ─────────────────────────
+    if [[ -n "${PLUGIN_HOOKS[run-completion]:-}" ]]; then
+      _FAILED=$((TOTAL - DONE))
+      _SKIPPED=0
+      if [[ -f "$RETRY_FILE" ]]; then
+        _SKIPPED=$("$JQ" "[to_entries[] | select(.value >= $MAX_RETRIES)] | length" "$RETRY_FILE" 2>/dev/null || echo "0")
+      fi
+      # Export context as environment variables for run-completion hook
+      export SPIRAL_TOTAL_STORIES="$TOTAL"
+      export SPIRAL_PASSED_STORIES="$DONE"
+      export SPIRAL_FAILED_STORIES="$_FAILED"
+      export SPIRAL_SKIPPED_STORIES="$_SKIPPED"
+      export SPIRAL_DURATION_SECONDS="$((SESSION_END - SESSION_START))"
+      # Call the run-completion hook with empty story_id
+      run_plugin_hooks "run-completion" "POST" "" 2>/dev/null || true
+    fi
+
     exit 0
   fi
 

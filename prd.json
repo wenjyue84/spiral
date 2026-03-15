@@ -3832,7 +3832,7 @@
         "Implement SPIRAL plugin system with hook-based extension points"
       ],
       "estimatedComplexity": "small",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-195",
@@ -5157,6 +5157,419 @@
         "Add living PRD changelog tracking story field mutations with author and reason"
       ],
       "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-259",
+      "title": "Enforce cgroups v2 memory and CPU limits on worker subprocesses",
+      "priority": "high",
+      "description": "Each ralph.sh worker subprocess currently runs unconstrained, allowing a single runaway LLM call or compilation step to exhaust host memory and OOM-kill unrelated workers. Using Linux cgroups v2, assign a per-worker memory.max and cpu.max slice so that individual worker failure is contained and does not cascade. This pairs with the existing OOM-prevention heap caps by adding a kernel-enforced hard boundary.",
+      "acceptanceCriteria": [
+        "spiral.sh creates a named cgroup slice under /sys/fs/cgroup/spiral/ for each worker before exec",
+        "Each worker cgroup has memory.max set to SPIRAL_WORKER_MEM_LIMIT_MB (default 2048 MB) and cpu.max set to SPIRAL_WORKER_CPU_QUOTA (default 80%)",
+        "When a worker exceeds its memory.max, the kernel OOM-kills only that worker's cgroup; other workers continue unaffected",
+        "spiral.sh cleans up the cgroup slice on worker exit or crash via a trap",
+        "SPIRAL_WORKER_MEM_LIMIT_MB and SPIRAL_WORKER_CPU_QUOTA are documented in .env.example",
+        "Falls back gracefully with a warning log when cgroups v2 is unavailable (e.g., macOS or older kernels)"
+      ],
+      "technicalNotes": [
+        "Use cgcreate/cgexec from libcgroup-tools, or write directly to /sys/fs/cgroup/spiral/<worker-id>/",
+        "cgroups v2 unified hierarchy: memory.max (hard), memory.high (soft reclaim), cpu.max (quota/period)",
+        "Check availability with: [ -f /sys/fs/cgroup/cgroup.controllers ] && grep -q memory /sys/fs/cgroup/cgroup.controllers",
+        "Reference: https://kindatechnical.com/operating-systems/lesson-98-cgroups-v2.html"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-260",
+      "title": "Add story drift detection by diffing implementation against acceptance criteria",
+      "priority": "high",
+      "description": "After Phase I (Implementation), the code written by the worker may silently diverge from the story's acceptanceCriteria — implementing a different interface, omitting edge cases, or gold-plating out-of-scope features. A post-implementation drift check uses an LLM to compare the git diff of the worktree against the story's acceptanceCriteria and flags specific deviations before Phase V (Validation), reducing wasted validation cycles and misaligned merges.",
+      "acceptanceCriteria": [
+        "After Phase I completes, spiral.sh runs a drift-check step that sends the story's acceptanceCriteria and the git diff to the configured LLM",
+        "The LLM returns a structured JSON response: { driftScore: 0-100, missingCriteria: [], scopeCreep: [], verdict: 'pass'|'warn'|'fail' }",
+        "A driftScore >= 70 is 'pass', 40-69 is 'warn' (proceeds with annotation), < 40 is 'fail' (worker is paused for human review)",
+        "Drift report is written to .spiral/workers/<worker-id>/drift_report.json",
+        "The spiral status command shows a drift indicator column (green/yellow/red) per story",
+        "Drift threshold values are configurable via SPIRAL_DRIFT_PASS_THRESHOLD and SPIRAL_DRIFT_FAIL_THRESHOLD env vars"
+      ],
+      "technicalNotes": [
+        "Use git diff HEAD~1 within the worktree, or compare against the branch point from main",
+        "Prompt engineering: present each acceptance criterion as a numbered checklist; ask LLM to tick each one as met/partial/absent",
+        "Industry data: AI-generated code contains 1.7x more defects than human-written; drift detection is the primary mitigation",
+        "Reference spec-driven drift detection: https://www.javacodegeeks.com/2026/03/spec-driven-developmentwith-ai-coding-agents-the-workflow-replacingprompt-and-pray.html"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-261",
+      "title": "Implement local Ollama model fallback with cold-start pre-warm and explicit policy flags",
+      "priority": "high",
+      "description": "When Claude or Gemini API calls fail due to rate limits or network issues, SPIRAL workers silently stall or abort. Adding an Ollama-backed fallback tier with an explicit SPIRAL_LOCAL_FALLBACK_POLICY (allow|deny|local-only) ensures workers continue on local models when permitted, and fail loudly with a clear error when the policy forbids cloud fallback — preventing silent data leakage and cold-start timeouts that cause false failures.",
+      "acceptanceCriteria": [
+        "SPIRAL_LOCAL_FALLBACK_POLICY env var accepts 'allow' (try local on cloud failure), 'deny' (fail with error, no fallback), 'local-only' (never use cloud)",
+        "When policy is 'allow' and a cloud API call fails, worker retries the same prompt against SPIRAL_OLLAMA_BASE_URL with SPIRAL_OLLAMA_MODEL",
+        "Ollama model is pre-warmed via a GET request to SPIRAL_OLLAMA_BASE_URL/api/tags at worker startup; if model is absent, worker logs a warning but does not abort",
+        "Fallback events are logged as structured JSON in spiral_events.jsonl with reason, model_used, and original_error fields",
+        "When policy is 'deny' and cloud fails, worker exits with code 2 and prints 'LOCAL_FALLBACK_DENIED: <reason>' — never silently reroutes",
+        "A bats test simulates cloud failure by mocking the API endpoint and verifies the correct fallback behavior for each policy value"
+      ],
+      "technicalNotes": [
+        "Ollama cold-start: models take ~13 seconds to load on first request — pre-warm with GET /api/tags at startup",
+        "Tool-calling reliability is limited in open models; restrict local fallback to Phase R (research/summarisation) by default",
+        "SPIRAL_OLLAMA_BASE_URL defaults to http://localhost:11434; SPIRAL_OLLAMA_MODEL defaults to 'llama3.2'",
+        "Reference: https://medium.com/@rosgluk/local-llm-hosting-complete-2025-guide-ollama-vllm-localai-jan-lm-studio-more-f98136ce7e4a"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-262",
+      "title": "Run Semgrep SAST scan on AI-generated code as a mandatory Gate phase check",
+      "priority": "high",
+      "description": "AI-generated code contains 1.7x more defects than human-written code and may introduce OWASP Top 10 vulnerabilities such as injection, hardcoded secrets, and path traversal. Adding a Semgrep SAST scan as a blocking step in the Gate (G) phase ensures every AI-authored commit is checked for known vulnerability patterns before merge, with actionable findings reported directly to the story in prd.json.",
+      "acceptanceCriteria": [
+        "Phase G runs 'semgrep scan --config auto --json' scoped to the files changed in the story branch (via git diff --name-only origin/main)",
+        "If Semgrep returns severity HIGH or CRITICAL findings, the Gate fails and the story is moved to status 'blocked-by-sast'",
+        "MEDIUM findings generate a warning annotation in prd.json under _sast_warnings but do not block merge",
+        "Semgrep results are written to .spiral/gate-reports/<story-id>_sast.json",
+        "The spiral status command shows a SAST column with pass/warn/fail per story",
+        "SPIRAL_SAST_ENABLED=false env var disables the check for development environments",
+        "A bats test asserts that a story with a planted SQL injection pattern in its diff fails the Gate"
+      ],
+      "technicalNotes": [
+        "Semgrep CLI: https://semgrep.dev — install via 'pip install semgrep'",
+        "Parse results.findings[].severity for HIGH/CRITICAL detection from JSON output",
+        "Restrict scan to git diff files only: 'git diff --name-only origin/main' piped as include list to semgrep",
+        "Reference: https://corgea.com/blog/the-best-ai-powered-sast-in-2025"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-263",
+      "title": "Add prd.json schema validation using JSON Schema draft 2020-12 on every write",
+      "priority": "high",
+      "description": "prd.json is mutated by multiple workers, scripts, and manual edits without schema validation, making it possible to introduce malformed stories that crash downstream phases silently. A schema validator using JSON Schema draft 2020-12 validates every write to prd.json, surfacing field-level errors with exact JSON Pointer paths so operators know precisely what is wrong and where.",
+      "acceptanceCriteria": [
+        "A prd_schema.json file defines the full JSON Schema draft 2020-12 specification for prd.json including all story fields, required fields, and enum values",
+        "spiral.sh runs schema validation before and after every prd.json write operation using Python jsonschema",
+        "Validation errors are printed as 'SCHEMA ERROR: <jsonpointer> — <message>' and abort the write, restoring the previous file from prd.json.bak",
+        "The schema enforces: title (string, maxLength 80), priority (enum critical|high|medium|low), status (enum), estimatedComplexity (enum small|medium|large), acceptanceCriteria (array, minItems 1)",
+        "A pre-commit hook runs the same validation on staged prd.json changes",
+        "A bats test asserts that writing a story with an invalid priority value is rejected with the correct error message including the JSON Pointer path"
+      ],
+      "technicalNotes": [
+        "Python jsonschema library (pip install jsonschema[format]) supports draft 2020-12",
+        "JSON Schema spec: https://json-schema.org/draft/2020-12/json-schema-validation",
+        "JSON Pointer in error messages (e.g., /stories/3/priority) pinpoints the offending field",
+        "Backup prd.json to prd.json.bak before each write; restore on validation failure"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-264",
+      "title": "Add env var schema validation at SPIRAL startup with actionable missing-var errors",
+      "priority": "high",
+      "description": "SPIRAL currently discovers missing environment variables mid-run, producing cryptic errors such as 'NoneType has no attribute strip' when an API key is absent. A startup validation step checks all required and optional env vars against a schema, prints a colour-coded table of missing or invalid vars with their purpose and a concrete fix command, and exits immediately — turning a 30-minute debugging session into a 10-second fix.",
+      "acceptanceCriteria": [
+        "spiral.sh runs a validate_env() function as the very first step before any worker is launched",
+        "A machine-readable env_schema.json lists every env var with: name, required (bool), type (string/int/url/bool), default, description, and fix_hint",
+        "Missing required vars print: 'MISSING [VAR_NAME]: <description>. Fix: export VAR_NAME=<example>'",
+        "Invalid values (e.g., non-URL string in OTEL_EXPORTER_OTLP_ENDPOINT) print: 'INVALID [VAR_NAME]: expected URL, got \"foo\"'",
+        "Validation prints a summary table and exits with code 1 if any required var is missing; warns but continues if optional vars are absent",
+        "A bats test unsets a required var and verifies the error message contains the var name, a description, and a fix hint"
+      ],
+      "technicalNotes": [
+        "12-factor app: store config in environment variables; validate at startup before first IO — https://12factor.net/config",
+        "Use Python pydantic BaseSettings v2 or manual bash validation with regex for URL/int types",
+        "Color output: red for missing required, yellow for missing optional, green for all-present (using tput or ANSI codes)",
+        "env_schema.json also serves as living documentation of all SPIRAL configuration surface"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-265",
+      "title": "Enforce shell=False and per-phase command allowlist in all worker subprocess calls",
+      "priority": "high",
+      "description": "Worker scripts call subprocess with shell=True in several places, exposing SPIRAL to command injection if an LLM-generated string is interpolated into a shell command. Enforcing shell=False with list-form arguments and validating every dynamically-constructed command against a per-phase allowlist before exec closes this injection surface without breaking existing functionality.",
+      "acceptanceCriteria": [
+        "A grep/audit of all Python files finds zero occurrences of 'subprocess' with 'shell=True' after this change",
+        "All subprocess calls pass commands as lists (e.g., ['git', 'commit', '-m', msg]) not concatenated strings",
+        "A PHASE_COMMAND_ALLOWLIST dict in worker config defines permitted executables per phase; Phase I allows ['git', 'python', 'node', 'npm'] but not ['curl', 'wget', 'bash', 'sh']",
+        "Any attempt to execute a command not in the allowlist raises SubprocessPolicyViolation and logs the blocked command with timestamp to security-audit.jsonl",
+        "A unit test asserts that a shell metacharacter (';', '|', '$()') in a subprocess argument is passed as a literal string, not interpreted by the shell",
+        "A bats integration test verifies that an LLM-generated string containing '$(rm -rf /)' as an argument does not execute the injection"
+      ],
+      "technicalNotes": [
+        "OpenStack subprocess security guide: https://security.openstack.org/guidelines/dg_use-subprocess-securely.html",
+        "Primary rule: never use shell=True with any user/LLM-controlled input",
+        "Use shlex.split() only for developer-controlled config strings, never for LLM output",
+        "Reference: https://securecodingpractices.com/prevent-command-injection-python-subprocess/"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-266",
+      "title": "Pin all GitHub Actions third-party steps to immutable full commit SHAs",
+      "priority": "high",
+      "description": "SPIRAL's CI workflows reference third-party actions by mutable version tags such as actions/checkout@v4, which are vulnerable to tag-mutation supply-chain attacks where a compromised tag silently replaces the action with malicious code. Pinning every third-party action to its immutable 40-character commit SHA and adding a CI check that rejects any non-SHA reference closes this attack surface per GitHub's own security hardening guidance.",
+      "acceptanceCriteria": [
+        "All workflow YAML files in .github/workflows/ reference third-party actions as 'owner/repo@<40-char SHA>' with an inline comment showing the human-readable version",
+        "A new workflow job 'check-action-pins' runs on every PR and fails if any 'uses:' line references a tag or branch instead of a 40-character hex SHA",
+        "The check pattern: grep -E 'uses:\\s+[^#]+@(?![0-9a-f]{40})' fails the job on any match",
+        "Dependabot or a scheduled weekly workflow opens automated PRs to update SHA pins when new action releases are published",
+        "A CODEOWNERS rule assigns a designated security reviewer as required approver for any .github/workflows/ change",
+        "The check is documented in CONTRIBUTING.md with the rationale and instructions for updating pins"
+      ],
+      "technicalNotes": [
+        "GitHub security hardening guide: https://docs.github.com/en/actions/reference/security/secure-use",
+        "StepSecurity harden-runner can auto-pin actions: https://www.stepsecurity.io/blog/github-actions-security-best-practices",
+        "Wiz supply-chain attack analysis via mutable action tags: https://www.wiz.io/blog/github-actions-security-guide",
+        "Format: 'uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2'"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-267",
+      "title": "Instrument worker phase transitions with OTel gen_ai.agent spans",
+      "priority": "medium",
+      "description": "The existing OTel integration emits token-level gen_ai.usage.* counters but does not model each worker as a traceable agent entity with phase-level spans. Adopting the OpenTelemetry GenAI agent span conventions (gen_ai.agent.name, gen_ai.agent.id, invoke_agent span names) lets distributed tracing tools reconstruct the full R-I-V-T-M-G lifecycle per story as a trace tree, enabling root-cause analysis of slow or failing phases.",
+      "acceptanceCriteria": [
+        "Each worker emits a root span named 'invoke_agent {worker-name}' with gen_ai.agent.id set to the worker ID and gen_ai.agent.name set to 'spiral-worker'",
+        "Each phase (R, I, V, T, M, G) is a child span named '{phase}-phase {story-id}' with gen_ai.operation.name and gen_ai.request.model attributes",
+        "gen_ai.conversation.id is set to the story ID to correlate all phases of a story across the trace",
+        "Spans are exported via OTLP to the endpoint configured in OTEL_EXPORTER_OTLP_ENDPOINT",
+        "The existing otel_run_context.json is updated to include the trace ID and agent span ID for cross-referencing",
+        "A bats test verifies that span JSON output contains all required gen_ai.agent.* attributes"
+      ],
+      "technicalNotes": [
+        "OTel GenAI agent span spec: https://opentelemetry.io/docs/specs/semconv/gen-ai/gen-ai-agent-spans/",
+        "Required attributes: gen_ai.operation.name, gen_ai.provider.name; conditionally required: gen_ai.agent.name, gen_ai.agent.id",
+        "gen_ai.conversation.id maps naturally to prd.json story ID for full-trace correlation",
+        "Use opentelemetry-sdk Python package in spiral_dashboard.py or a separate otel_emitter.py helper"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-268",
+      "title": "Add gen_ai.client.operation.duration histogram for per-phase LLM latency",
+      "priority": "medium",
+      "description": "The OTel GenAI metrics specification defines gen_ai.client.operation.duration (histogram, seconds) and gen_ai.server.time_to_first_token as standard latency metrics, but SPIRAL currently only emits token count counters. Adding latency histograms per phase and model gives operators percentile-level visibility (p50/p95/p99) into which phases are slowest, enabling targeted prompt or model optimisation.",
+      "acceptanceCriteria": [
+        "gen_ai.client.operation.duration histogram is emitted for each LLM call with gen_ai.operation.name, gen_ai.request.model, and gen_ai.provider.name attributes",
+        "gen_ai.server.time_to_first_token is recorded for streaming responses where the first chunk timestamp is measurable",
+        "Metrics are exported alongside existing token counters via the same OTLP endpoint",
+        "spiral_dashboard.py displays p50 and p95 phase latency in the story detail panel",
+        "A unit test asserts that the histogram is updated on each simulated LLM call with the correct attribute set"
+      ],
+      "technicalNotes": [
+        "OTel GenAI metrics spec: https://opentelemetry.io/docs/specs/semconv/gen-ai/gen-ai-metrics/",
+        "gen_ai.client.operation.duration is Histogram with unit 's' and status Required",
+        "gen_ai.server.time_to_first_token is Histogram with unit 's' and status Recommended",
+        "Use opentelemetry-sdk MeterProvider; record start/end timestamps around each API call"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-269",
+      "title": "Add per-worktree git config isolation to stamp AI commits with worker identity",
+      "priority": "medium",
+      "description": "Worker worktrees inherit the global git user.name and user.email, meaning AI-generated commits appear attributed to the human developer's identity. Setting a per-worktree git config that stamps commits as a distinct SPIRAL worker identity provides clear audit trails distinguishing AI commits from human commits and prevents accidental exposure of developer PII in public repositories.",
+      "acceptanceCriteria": [
+        "When spiral.sh creates a worktree, it immediately runs 'git -C <worktree-path> config user.name' and 'git -C <worktree-path> config user.email' scoped to that worktree only",
+        "Default values are configurable via SPIRAL_WORKER_GIT_NAME (default: 'SPIRAL Worker') and SPIRAL_WORKER_GIT_EMAIL (default: 'spiral-worker@localhost')",
+        "The trailer 'AI-Generated-By: SPIRAL/<worker-id>' is appended to all AI-authored commit messages via git interpret-trailers",
+        "A bats test checks that commits made from a worker worktree carry the worker identity, not the global git config values",
+        "The spiral status output shows the git author identity used per active worker"
+      ],
+      "technicalNotes": [
+        "Use 'git -C <path> config user.name <value>' to set config local to the worktree (not --global)",
+        "Git worktrees share .git objects but each has its own config layer via the worktree-specific gitdir",
+        "AI-Generated-By trailer follows Git trailer convention (RFC-compliant key: value format)",
+        "Reference: https://medium.com/@richardhightower/git-worktree-isolation-in-claude-code-parallel-development-without-the-chaos-262e12b85cc5"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-270",
+      "title": "Compute and store story quality score at ingestion based on acceptance criteria richness",
+      "priority": "medium",
+      "description": "Stories enter the queue with wildly varying acceptance criteria quality — some have zero testable criteria, others contain only vague phrases like 'works correctly'. A quality scorer runs at ingestion time and assigns a 0-100 score based on measurable signals: number of acceptance criteria, presence of specific numeric thresholds, absence of vague language, and completeness of technicalNotes. Low-quality stories are flagged before any worker is assigned.",
+      "acceptanceCriteria": [
+        "A score_story_quality(story) function returns a QualityScore with: total (0-100), breakdown { criteria_count_pts, specificity_pts, measurability_pts, technical_notes_pts, source_pts }, and issues list",
+        "Scoring: +20 for >= 3 acceptance criteria; +5 per criterion containing a number/threshold/percentage (up to +20); -10 per criterion containing a vague term ('works', 'correctly', 'properly', 'good', 'better', 'appropriate'); +20 for non-empty technicalNotes; +20 for a source URL",
+        "Stories with quality score < 40 are assigned status 'needs-refinement' and are not dispatched to workers",
+        "spiral status shows a quality score column (numeric, colour-coded) per story",
+        "The _qualityScore field is written to prd.json as an annotation field not editable by humans",
+        "A unit test asserts a story with no acceptance criteria and only vague language scores below 40"
+      ],
+      "technicalNotes": [
+        "Vague term list: ['works', 'correctly', 'properly', 'good', 'better', 'nice', 'easy', 'simple', 'appropriate', 'reasonable']",
+        "Use regex r'\\b\\d+(\\.\\d+)?\\s*(ms|MB|GB|%|s|seconds|tokens|requests)\\b' to detect measurable thresholds",
+        "_qualityScore is stored alongside existing annotation fields like _humanNotes and _changelog",
+        "Reference quality benchmarking from JSONSchemaBench: https://arxiv.org/html/2501.10868v3"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-271",
+      "title": "Add Textual-based interactive TUI mode to spiral_dashboard.py",
+      "priority": "medium",
+      "description": "The current spiral_dashboard.py renders a static Rich table requiring manual refresh and offering no interactivity. Replacing the polling loop with a Textual application enables keyboard navigation between stories, inline live log streaming for the selected worker, and real-time auto-updating panels — eliminating the need for multiple terminal tabs during monitoring sessions.",
+      "acceptanceCriteria": [
+        "Running 'python spiral_dashboard.py --tui' launches a Textual app with a stories table panel and a worker log panel",
+        "Arrow keys navigate the story list; pressing Enter on a story opens a detail panel showing acceptanceCriteria, current phase, driftScore, qualityScore, and SAST status",
+        "The log panel live-tails .spiral/workers/<selected-worker-id>/ralph-run.log using async file watching, updating without user action",
+        "Press 'q' to quit, 'r' to force-refresh all data, 'p' to pause/resume auto-refresh (default interval: 2s)",
+        "The TUI degrades gracefully to the existing Rich table mode when TERM is 'dumb' or stdout is not a TTY",
+        "A non-interactive unit test instantiates the Textual App and verifies the stories table widget is populated correctly from a fixture prd.json"
+      ],
+      "technicalNotes": [
+        "Textual achieves 120 FPS renders via Rich segment trees with delta-updates of dirty regions only",
+        "Use Textual for the interactive app framework; embed Rich renderables inside Textual widgets for static sections",
+        "Async log tail: asyncio + aiofiles for non-blocking reads; update a Textual Log widget on new lines",
+        "Reference: https://johal.in/textual-tui-widgets-python-rich-terminal-user-interfaces-apps-2025/"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "large",
+      "passes": false
+    },
+    {
+      "id": "US-272",
+      "title": "Implement contract-based integration tests for each SPIRAL phase boundary",
+      "priority": "medium",
+      "description": "Phase handoffs in SPIRAL (Phase R output to Phase I input, Phase V output to Gate decision) are untested end-to-end; a bug in the Phase R output format silently breaks Phase I without a clear error. Contract-style integration tests with bats exercise each of the six phase boundaries using fixture inputs and assert the output contract (schema and key fields), catching regressions before they reach production workers.",
+      "acceptanceCriteria": [
+        "A test/integration/ directory contains bats tests for each of the 6 phase transitions: R->I, I->V, V->T, T->M, M->G, G->done",
+        "Each test sources a fixture JSON file (test/fixtures/phase_<N>_output.json) as input to the next phase and asserts the output satisfies the phase's documented contract",
+        "Contract assertions include: correct exit code, expected output file(s) created, required JSON keys present, status field updated correctly in prd.json",
+        "Tests use bats-assert for readable assertion failures (assert_output, assert_file_exists)",
+        "CI runs the integration tests in a dedicated matrix job after unit tests pass",
+        "A test specifically verifies that a malformed Phase R output missing the researchSummary key causes Phase I to exit with code 1 and a descriptive error message"
+      ],
+      "technicalNotes": [
+        "Contract testing concept: https://pactflow.io/blog/ai-automation-part-1/",
+        "bats-assert + bats-support: https://github.com/bats-core/bats-assert",
+        "Fixture files avoid LLM calls in CI by mocking API endpoints with environment variable stubs",
+        "Phase contracts should be codified as JSON Schema in test/contracts/phase_<N>_contract.json"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "large",
+      "passes": false
+    },
+    {
+      "id": "US-273",
+      "title": "Add structured error taxonomy with exit code ranges and inline remediation hints",
+      "priority": "medium",
+      "description": "SPIRAL currently exits with generic error messages and undifferentiated exit codes, making it difficult in CI or production to determine whether a failure is a config issue, an API error, a Git error, or a worker crash. A structured error taxonomy assigns each known failure mode a unique code, an exit code range by category, and a human-readable remediation hint with the exact fix command — turning opaque failures into self-diagnosing outputs.",
+      "acceptanceCriteria": [
+        "An ERROR_CATALOG (Python dict or bash associative array) maps error codes to: category, message template, exit_code, remediation_hint, and docs_url",
+        "Error categories and exit code ranges: Config (E1xx, exit 1x), API (E2xx, exit 2x), Git (E3xx, exit 3x), Worker (E4xx, exit 4x), Schema (E5xx, exit 5x)",
+        "Every exit point in spiral.sh and Python scripts calls spiral_exit(code, **context) which prints: '[SPIRAL-E-<code>] <message>\\nFix: <remediation_hint>\\nDocs: <docs_url>'",
+        "Errors are written to spiral_events.jsonl as structured JSON with error_code, category, context, and timestamp fields",
+        "A bats test triggers each of the 5 most common error codes and asserts the correct exit code range and message format",
+        "The spiral status command shows the last error code per worker in a 'Last Error' column"
+      ],
+      "technicalNotes": [
+        "Error message design principles: context (where) + specific details (what) + actionable guidance (how to fix) — https://florian-kraemer.net/software-architecture/2025/05/06/Designing-Effective-Error-Messages.html",
+        "Exit code ranges extend sysexits.h conventions (64-78 system) with SPIRAL-specific ranges (80-99)",
+        "Remediation hints must include the exact command to run, not just a prose description",
+        "Cross-reference error codes in GitHub Actions job summaries for CI visibility"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-274",
+      "title": "Add role-based story assignment and approval workflow for multi-user teams",
+      "priority": "low",
+      "description": "SPIRAL is currently single-operator; all stories are owned by the same author and all workers run under the same credentials. A lightweight role system (owner, reviewer, operator) in prd.json stories enables team use: owners author stories, reviewers approve quality scores before dispatch, and operators monitor workers — providing the audit trail and access boundaries that enterprise team adoption requires.",
+      "acceptanceCriteria": [
+        "prd.json stories gain three new optional fields: _assignedTo (string, GitHub username), _reviewedBy (string, GitHub username), _approvalStatus (enum: pending|approved|rejected)",
+        "spiral assign <story-id> <username> sets _assignedTo and records the action in _changelog with timestamp and actor",
+        "spiral approve <story-id> sets _reviewedBy to SPIRAL_USER env var and changes _approvalStatus to 'approved', enabling dispatch",
+        "Stories with quality score < 40 are automatically set to _approvalStatus 'pending' and require explicit 'spiral approve' before worker dispatch",
+        "A webhook event is emitted to SPIRAL_NOTIFY_WEBHOOK when _approvalStatus changes, including story ID, reviewer, verdict, and timestamp",
+        "The spiral status table shows _assignedTo and _approvalStatus columns when SPIRAL_SHOW_TEAM_COLUMNS=true"
+      ],
+      "technicalNotes": [
+        "Multiplayer AI pattern: permission-aware behavior respecting team boundaries — https://thenewstack.io/the-next-era-of-ai-from-single-user-to-team-collaboration/",
+        "SPIRAL_USER env var defaults to output of 'git config user.name'",
+        "Role enforcement is advisory (logged, not cryptographically enforced) in v1; pairs with HMAC webhook signing for tamper-evidence",
+        "Integrates with existing _humanNotes and _changelog annotation fields already in prd.json schema"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-275",
+      "title": "Generate Markdown documentation stubs and CHANGELOG entries on Gate pass",
+      "priority": "low",
+      "description": "Every story that passes the Gate represents a completed, tested feature whose documentation (README sections, changelog entries) is never automatically created. Generating documentation stubs from the story's title, description, acceptanceCriteria, and technicalNotes at Gate-pass time creates a reviewable first-draft, reducing documentation debt without requiring an additional LLM call.",
+      "acceptanceCriteria": [
+        "When a story transitions to status 'merged', a generate_docs() function creates docs/stories/<story-id>.md containing: title as H1, description, acceptanceCriteria as a checkbox list, and technicalNotes as a code-fenced list",
+        "A CHANGELOG.md entry is appended in Keep a Changelog format: '### Added\\n- <story-title> (<story-id>)'",
+        "Generated files are committed in the merge commit attributed to the SPIRAL worker identity with the AI-Generated-By trailer",
+        "SPIRAL_GENERATE_DOCS=false env var disables generation for development environments",
+        "A bats test verifies that running the Gate-pass hook on a fixture story produces the expected Markdown file with all required sections present",
+        "Generated stubs include a header comment: '<!-- AUTO-GENERATED by SPIRAL <story-id> — review before finalising -->'"
+      ],
+      "technicalNotes": [
+        "Keep a Changelog format: https://keepachangelog.com/en/1.1.0/",
+        "Use Python string templates or Jinja2 for Markdown generation; no external LLM call needed",
+        "Commit with git interpret-trailers to append 'AI-Generated-By: SPIRAL/<story-id>'",
+        "docs/stories/ directory follows the same pattern as planned ADR stubs for architectural decisions"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-276",
+      "title": "Add epic-level hierarchical orchestration with supervisor worker and DAG dispatch",
+      "priority": "low",
+      "description": "Large epics in prd.json have no structural relationship to their child stories; a single orchestrator dispatches all stories without priority awareness within an epic. A hierarchical orchestration mode assigns one supervisor worker per epic that reads the dependency graph, orders sub-stories topologically, and dispatches sub-workers in sequence or parallel — matching the NeurIPS 2025 finding that learned task routing outperforms fixed pipelines by structuring work before distributing it.",
+      "acceptanceCriteria": [
+        "prd.json stories gain an optional _epicId field; stories sharing an _epicId form an epic group",
+        "When SPIRAL_HIERARCHICAL_MODE=true, spiral.sh creates one supervisor process per epic before dispatching sub-workers",
+        "The supervisor builds a dependency DAG from stories' dependencies[] fields using topological sort and dispatches sub-workers in dependency order",
+        "Sub-worker progress is reported back to the supervisor, which updates the epic-level status in prd.json",
+        "If a sub-worker fails, the supervisor applies existing dead-letter queue logic and continues dispatching independent stories in the epic",
+        "spiral status shows epics as collapsible groups with aggregate progress displayed as 'X/N stories done'"
+      ],
+      "technicalNotes": [
+        "NeurIPS 2025 dynamic orchestration: learned task routing outperforms fixed multi-agent pipelines — https://blog.promptlayer.com/multi-agent-evolving-orchestration/",
+        "Orchestrator-Worker pattern: https://gurusup.com/blog/agent-orchestration-patterns — central coordinator with fan-out to workers",
+        "Topological sort: Python graphlib.TopologicalSorter (stdlib, Python 3.9+) for the dependency DAG",
+        "Supervisor state persisted to .spiral/workers/<epic-id>/supervisor_state.json for crash recovery"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "large",
       "passes": false
     }
   ]

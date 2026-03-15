@@ -1,0 +1,106 @@
+#!/bin/bash
+# Slack notification hook — RUN-COMPLETION
+#
+# Reads run summary from environment variables:
+#   - SPIRAL_TOTAL_STORIES, SPIRAL_PASSED_STORIES, SPIRAL_FAILED_STORIES
+#   - SPIRAL_SKIPPED_STORIES, SPIRAL_DURATION_SECONDS, SPIRAL_RUN_ID, SPIRAL_ITER
+#
+# Posts a comprehensive run summary to Slack webhook when SPIRAL completes.
+
+set -euo pipefail
+
+# Check if webhook is configured
+if [[ -z "${SPIRAL_SLACK_WEBHOOK_URL:-}" ]]; then
+  exit 0
+fi
+
+# Check if completion events are enabled
+allowed_events="${SPIRAL_SLACK_EVENTS:-passed,failed,completed}"
+if ! echo "$allowed_events" | grep -q "completed"; then
+  exit 0  # Skip if completion events are filtered out
+fi
+
+# Read run summary from environment variables (set by spiral.sh)
+iteration="${SPIRAL_ITER:-0}"
+spiral_run_id="${SPIRAL_RUN_ID:-unknown}"
+total_stories="${SPIRAL_TOTAL_STORIES:-0}"
+passed_stories="${SPIRAL_PASSED_STORIES:-0}"
+failed_stories="${SPIRAL_FAILED_STORIES:-0}"
+skipped_stories="${SPIRAL_SKIPPED_STORIES:-0}"
+duration_seconds="${SPIRAL_DURATION_SECONDS:-0}"
+
+# Determine overall status color
+if [[ "$failed_stories" -eq 0 ]]; then
+  color="#36a64f"  # Green - all passed
+  status_emoji="✅"
+  status_text="SUCCESS"
+else
+  color="#ff0000"  # Red - some failed
+  status_emoji="⚠️"
+  status_text="COMPLETED WITH FAILURES"
+fi
+
+# Format duration
+duration_min=$(( duration_seconds / 60 ))
+duration_sec=$(( duration_seconds % 60 ))
+duration_text="${duration_min}m ${duration_sec}s"
+
+# Build Slack message payload with Block Kit formatting
+payload=$(cat <<EOF
+{
+  "text": "SPIRAL Run $status_text",
+  "attachments": [
+    {
+      "color": "$color",
+      "title": "SPIRAL Run Summary",
+      "text": "$status_emoji $status_text",
+      "fields": [
+        {
+          "title": "Run ID",
+          "value": "\`$spiral_run_id\`",
+          "short": true
+        },
+        {
+          "title": "Iteration",
+          "value": "$iteration",
+          "short": true
+        },
+        {
+          "title": "Total Stories",
+          "value": "$total_stories",
+          "short": true
+        },
+        {
+          "title": "Passed",
+          "value": "✅ $passed_stories",
+          "short": true
+        },
+        {
+          "title": "Failed",
+          "value": "❌ $failed_stories",
+          "short": true
+        },
+        {
+          "title": "Skipped",
+          "value": "⏭️ $skipped_stories",
+          "short": true
+        },
+        {
+          "title": "Duration",
+          "value": "$duration_text",
+          "short": true
+        }
+      ],
+      "ts": $(date +%s)
+    }
+  ]
+}
+EOF
+)
+
+# Send to Slack (ignore errors to avoid breaking SPIRAL if webhook fails)
+curl -s -X POST "$SPIRAL_SLACK_WEBHOOK_URL" \
+  -H 'Content-type: application/json' \
+  --data "$payload" >/dev/null 2>&1 || true
+
+exit 0
