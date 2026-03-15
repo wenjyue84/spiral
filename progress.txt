@@ -5283,3 +5283,23 @@ Completed: Graceful degradation: fall back to Claude for Phase R when Gemini ret
 - Story state file uses safe_id (US_042 not US-042) for filesystem compatibility
 - begin-story always prints TRACEPARENT even when OTLP is not configured (needed by shell for scoping)
 - end-story no-ops without OTLP endpoint (consistent with end-phase/end-run pattern)
+## Iteration 1 - Sun, Mar 15, 2026  6:43:07 PM
+Completed: Emit OTel agentic-system spans for tasks, actions, teams, and artifacts (ID: US-219) in 15m
+
+
+## Iteration N - Story: US-222: Replace shell=True subprocess calls with exec-form
+
+### What was implemented
+- `lib/test_suite_manager.py`: Added `import shlex`; changed `subprocess.run(cmd, shell=True, ...)` to `subprocess.run(shlex.split(cmd), shell=False, ...)` at line 176-183. `capture_output=True` already captures both stdout+stderr (deadlock prevention).
+- `tests/test_merge_conflict_detection.py`: Added `# spiral-allow-shell` annotation on line 24 (developer-controlled git test helper; not LLM-derived input).
+- Created `lib/check_shell_injection.sh`: CI script that greps all `*.py` files for `shell=True` without `# spiral-allow-shell` annotation and exits 1 if violations found.
+- Created `tests/test_shell_injection_prevention.py`: 5 tests covering semicolon/backtick safety, valid command execution, stdout+stderr capture deadlock prevention, and lib/ annotation CI check.
+
+### Patterns discovered
+- Worker worktrees (.spiral-workers/) are separate git worktrees; changes to main source are NOT automatically reflected there. CI check excludes .spiral-workers via search path scoping.
+- shlex.split() on Windows (posix=True, default) mangles backslash paths. Tests must use `shlex.quote(sys.executable)` or simple commands without absolute Windows paths.
+- `capture_output=True` in subprocess.run is equivalent to stdout=PIPE + stderr=PIPE and uses communicate() internally — no pipe deadlock risk.
+
+### Gotchas
+- Avoid using `str(tmp_path)` in test commands on Windows — backslashes become shlex escape sequences
+- The CI check must exclude `.spiral-workers/` from its search path to avoid false positives from stale worker copies
