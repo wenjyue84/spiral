@@ -115,6 +115,7 @@ DRY_RUN=0             # 1 = dry-run mode: skip API calls (R, T, I, V) but run co
 SKIP_CONFLICT_PREFLIGHT=0 # 1 = bypass pre-flight cross-story conflict detection (--skip-conflict-preflight)
 ALLOW_UNSAFE_STORIES=0    # 1 = log injection warnings but do not block stories (--allow-unsafe-stories)
 ALLOW_EXEC_WRITES=0       # 1 = allow LLM to write executable files outside src/ and tests/ (--allow-exec-writes)
+NO_CASCADE_SKIP=0     # 1 = disable dependency cascade skip (--no-cascade-skip)
 DOCTOR_MODE=0         # 1 = run dependency check and exit (--doctor)
 REPLAY_STORY_ID=""    # "" = normal mode; "US-XXX" = replay that story only (--replay)
 ROLLBACK_STORY_ID=""  # "" = normal mode; "US-XXX" = rollback that story's commit (--rollback)
@@ -154,6 +155,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --no-monitor)
       MONITOR_TERMINALS=0
+      shift
+      ;;
+    --no-cascade-skip)
+      NO_CASCADE_SKIP=1
       shift
       ;;
     --prd)
@@ -275,6 +280,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --capacity-limit N         Skip Phase R when pending > N (default: 50)"
       echo "  --monitor                  Open terminal per worker (default: on)"
       echo "  --no-monitor               Disable per-worker terminals"
+      echo "  --no-cascade-skip          Disable dependency cascade skip propagation (debug)"
       echo "  --model haiku|sonnet|opus  Claude model override (default: auto-route by story complexity)"
       echo "  --focus TEXT               Focus iteration on a theme (e.g., 'performance', 'security')"
       echo "  --focus-tags TAG,TAG       Only implement stories matching at least one tag (e.g., 'frontend,auth')"
@@ -1599,6 +1605,7 @@ export SPIRAL_FOCUS_TAGS
 export SPIRAL_ITER
 export SPIRAL_MAX_RESEARCH_STORIES
 export SPIRAL_SKIP_STORY_IDS
+export NO_CASCADE_SKIP
 export DRY_RUN
 export ALLOW_UNSAFE_STORIES
 export SPIRAL_ALLOW_EXEC_WRITES="${ALLOW_EXEC_WRITES}"
@@ -2873,6 +2880,15 @@ $INJECTED_PROMPT"
     esac
 
     write_checkpoint "$SPIRAL_ITER" "I"
+
+    # ── US-204: Cascade skip status through dependency chain ──────────────
+    if [[ "${NO_CASCADE_SKIP:-0}" -eq 0 ]]; then
+      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/cascade_skip.py" \
+        --prd "$PRD_FILE" \
+        --events "${SCRATCH_DIR}/spiral_events.jsonl" \
+        --iteration "$SPIRAL_ITER" \
+        --run-id "${SPIRAL_RUN_ID:-}" 2>/dev/null || true
+    fi
 
     # ── Tier 2: Verify passes didn't regress during implementation ────────
     spiral_assert_passes_monotonic "$PRD_FILE"

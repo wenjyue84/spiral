@@ -18,6 +18,8 @@ import json
 import os
 import re
 import sys
+import tempfile
+from collections import deque
 from typing import Any
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -276,6 +278,91 @@ def validate_story_states(prd: dict) -> list[str]:
                 pass
 
     return errors
+
+
+# -- Dependency Cascade Skip --------------------------------------------------
+
+def cascade_skip(
+    prd: dict,
+    events_path: str | None = None,
+    iteration: int = 0,
+    run_id: str = "",
+) -> list[str]:
+    """
+    BFS traversal: for every story with ``_skipped: true``, mark all direct and
+    transitive dependents as ``_skipped: true`` with a ``_failureReason`` that
+    names the blocking dependency.
+
+    - Idempotent: re-running produces the same result.
+    - Returns the list of story IDs that were **newly** cascaded in this call.
+    - Optionally appends a ``dependency_cascade_skip`` event per cascaded story
+      to *events_path* (JSONL, one JSON object per line).
+
+    Callers are responsible for persisting ``prd`` back to disk atomically.
+    """
+    import datetime
+
+    stories = prd.get("userStories", [])
+    id_map: dict[str, dict] = {s["id"]: s for s in stories if isinstance(s, dict) and "id" in s}
+
+    # Build reverse adjacency: dep_id → set of story IDs that declare dep_id
+    reverse: dict[str, set[str]] = {}
+    for story in stories:
+        if not isinstance(story, dict):
+            continue
+        sid = story.get("id")
+        for dep in story.get("dependencies", []):
+            if dep not in reverse:
+                reverse[dep] = set()
+            reverse[dep].add(sid)
+
+    # Seed BFS with stories already marked _skipped
+    queue: deque[tuple[str, str]] = deque()  # (story_id, triggering_dep_id)
+    for story in stories:
+        if isinstance(story, dict) and story.get("_skipped") and story.get("id"):
+            sid = story["id"]
+            for dependent in reverse.get(sid, set()):
+                dep_story = id_map.get(dependent)
+                if dep_story and not dep_story.get("_skipped"):
+                    queue.append((dependent, sid))
+
+    newly_cascaded: list[str] = []
+
+    while queue:
+        sid, trigger_dep = queue.popleft()
+        story = id_map.get(sid)
+        if story is None or story.get("_skipped"):
+            continue  # already done or unknown — idempotent guard
+
+        story["_skipped"] = True
+        story["_failureReason"] = f"dependency {trigger_dep} was skipped"
+        newly_cascaded.append(sid)
+
+        # Append to events log
+        if events_path:
+            ts = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            entry = (
+                '{"ts":"' + ts + '",'
+                '"event":"dependency_cascade_skip",'
+                '"run_id":"' + run_id + '",'
+                '"level":"INFO",'
+                '"story_id":"' + sid + '",'
+                '"trigger_dep":"' + trigger_dep + '",'
+                '"iteration":' + str(iteration) + '}'
+            )
+            try:
+                with open(events_path, "a", encoding="utf-8") as f:
+                    f.write(entry + "\n")
+            except OSError:
+                pass  # event log is best-effort
+
+        # Propagate to dependents of this newly-cascaded story
+        for dependent in reverse.get(sid, set()):
+            dep_story = id_map.get(dependent)
+            if dep_story and not dep_story.get("_skipped"):
+                queue.append((dependent, sid))
+
+    return newly_cascaded
 
 
 # -- CLI -----------------------------------------------------------------------
