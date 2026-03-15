@@ -72,19 +72,19 @@ class TestGetFilesToTouch:
 
 class TestPriorityRank:
     def test_critical(self):
-        assert cp.priority_rank(_story("US-1", priority="critical")) == 0
+        assert cp.priority_key(_story("US-1", priority="critical")) == 0
 
     def test_high(self):
-        assert cp.priority_rank(_story("US-1", priority="high")) == 1
+        assert cp.priority_key(_story("US-1", priority="high")) == 1
 
     def test_medium(self):
-        assert cp.priority_rank(_story("US-1", priority="medium")) == 2
+        assert cp.priority_key(_story("US-1", priority="medium")) == 2
 
     def test_low(self):
-        assert cp.priority_rank(_story("US-1", priority="low")) == 3
+        assert cp.priority_key(_story("US-1", priority="low")) == 3
 
     def test_unknown_defaults_medium(self):
-        assert cp.priority_rank({"id": "US-1"}) == 2
+        assert cp.priority_key({"id": "US-1"}) == 2
 
 
 # ── check_pair (no git branches) ──────────────────────────────────────────────

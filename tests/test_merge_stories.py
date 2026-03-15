@@ -7,7 +7,8 @@ import sys
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
-from merge_stories import overlap_ratio, is_duplicate, find_next_id, sort_key, full_sort_key, _atomic_write_json
+from merge_stories import overlap_ratio, is_duplicate, find_next_id, sort_key, full_sort_key
+from spiral_io import atomic_write_json
 
 
 # ── overlap_ratio ────────────────────────────────────────────────────────
@@ -171,51 +172,21 @@ class TestAtomicWrite:
             prd = json.load(f)
         assert len(prd["userStories"]) == 2
 
-    def test_original_unchanged_when_tmp_write_blocked(self, tmp_path, monkeypatch):
-        """If os.replace (via shutil.move) fails, original prd.json stays intact.
-
-        We simulate this by making the .tmp file unwritable after writing research,
-        then verifying original prd.json is unchanged.
-        """
-        prd_path = tmp_path / "prd.json"
-        self._make_prd(prd_path)
-
-        original_content = prd_path.read_text(encoding="utf-8")
-
-        # Simulate failure: create a read-only tmp file to block shutil.move
-        tmp_file = tmp_path / "prd.json.tmp"
-        # Make the destination a directory so shutil.move fails
-        tmp_file.mkdir()
-
-        research_path = tmp_path / "research.json"
-        test_stories_path = tmp_path / "test_stories.json"
-        self._make_research(research_path, ["new story alpha bravo"])
-        test_stories_path.write_text('{"stories": []}', encoding="utf-8")
-
-        merge_script = os.path.join(os.path.dirname(__file__), "..", "lib", "merge_stories.py")
-        result = subprocess.run(
-            [sys.executable, merge_script,
-             "--prd", str(prd_path),
-             "--research", str(research_path),
-             "--test-stories", str(test_stories_path)],
-            capture_output=True, text=True,
-        )
-        # The merge should fail (non-zero exit or exception)
-        assert result.returncode != 0 or "Error" in result.stderr or "error" in result.stderr.lower()
-
-        # Original prd.json must be unchanged
-        assert prd_path.read_text(encoding="utf-8") == original_content
+    # NOTE: test_original_unchanged_when_tmp_write_blocked was removed because
+    # atomic_write_json now uses tempfile.mkstemp (random names), making the old
+    # "create prd.json.tmp as directory" trick impossible.  The same scenario is
+    # covered by TestAtomicWriteUnit.test_os_replace_raises_leaves_original_unchanged.
 
 
 # ── Atomic write unit — monkeypatch os.replace ───────────────────────────
 
 
 class TestAtomicWriteUnit:
-    """Unit tests for _atomic_write_json using monkeypatch on os.replace."""
+    """Unit tests for atomic_write_json (now in spiral_io)."""
 
     def test_os_replace_raises_leaves_original_unchanged(self, tmp_path, monkeypatch):
         """If os.replace raises, dest file is unchanged and .tmp is cleaned up."""
-        import merge_stories as ms
+        import spiral_io
 
         dest = tmp_path / "prd.json"
         original = {"productName": "Test", "branchName": "main", "userStories": []}
@@ -225,24 +196,26 @@ class TestAtomicWriteUnit:
         def _fail_replace(src, dst):
             raise OSError("simulated replace failure")
 
-        monkeypatch.setattr(ms.os, "replace", _fail_replace)
+        monkeypatch.setattr(spiral_io.os, "replace", _fail_replace)
 
         with pytest.raises(OSError, match="simulated replace failure"):
-            ms._atomic_write_json({"productName": "Changed", "userStories": []}, str(dest))
+            atomic_write_json(str(dest), {"productName": "Changed", "userStories": []})
 
         # Original file must be unchanged
         assert dest.read_text(encoding="utf-8") == original_content
-        # Tmp file must be cleaned up
-        assert not (tmp_path / "prd.json.tmp").exists()
+        # Tmp files must be cleaned up
+        tmp_files = [f for f in tmp_path.iterdir() if f.suffix == ".tmp"]
+        assert tmp_files == []
 
     def test_successful_write_creates_dest_and_removes_tmp(self, tmp_path):
         """Successful write produces correct dest file; no .tmp left behind."""
         dest = tmp_path / "out.json"
         data = {"key": "value", "items": [1, 2, 3]}
-        _atomic_write_json(data, str(dest))
+        atomic_write_json(str(dest), data)
 
         assert dest.exists()
-        assert not (tmp_path / "out.json.tmp").exists()
+        tmp_files = [f for f in tmp_path.iterdir() if f.suffix == ".tmp"]
+        assert tmp_files == []
         assert json.loads(dest.read_text(encoding="utf-8")) == data
 
 
