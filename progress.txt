@@ -699,3 +699,22 @@ Completed: Emit create_agent and invoke_agent OTel spans per worker lifecycle (I
 ## Iteration 3 - Mon, Mar 16, 2026  5:37:31 PM
 Completed: Add execute_tool OTel spans for each ralph.sh tool invocation (ID: US-319) in 7m
 
+## Iteration 4 - Mon, Mar 16, 2026  5:47:37 PM
+Incomplete: Add episodic memory store for Ralph workers to recall past implementation patterns (ID: US-350) — attempt /3
+
+
+## Iteration N - Story: US-344 Generate CycloneDX SBOM from uv.lock on each CI run and attach as workflow artifact
+
+### What was implemented
+- Added `sbom` job to `.github/workflows/ci.yml`: generates CycloneDX SBOM via `uvx --from cyclonedx-bom cyclonedx-py environment`, scans with grype (fail-on high), uploads as 'sbom-cyclonedx' artifact (30-day retention)
+- Added `sbom` job to `.github/workflows/release.yml`: generates SBOM and attaches to GitHub Release via `gh release upload`
+- All new action references reuse existing SHA-pinned versions from the workflow files
+
+### Patterns discovered
+- `uv export --format cyclonedx1.5` does NOT exist — uv only supports `requirements.txt` and `pylock.toml` formats
+- Used `cyclonedx-py environment` (from `cyclonedx-bom` package) via `uvx` as the CycloneDX generator instead
+- grype CLI installed via anchore's install script; scans `sbom:./sbom.json` format
+
+### Gotchas
+- Pre-existing test failure: `test_field_similarity_lists` in `test_consistency_check.py` — unrelated to this story
+- grype `--fail-on high` catches both HIGH and CRITICAL severity levels

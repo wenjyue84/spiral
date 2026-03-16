@@ -418,3 +418,49 @@ jobs:
         run: |
           export PATH="$PATH:$(go env GOPATH)/bin"
           actionlint -color .github/workflows/*.yml
+
+  sbom:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a  # v4
+        with:
+          enable-cache: true
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Generate CycloneDX SBOM
+        run: |
+          uvx --from cyclonedx-bom cyclonedx-py environment \
+            --of JSON \
+            --outfile sbom.json
+
+      - name: Install grype
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh \
+            | sh -s -- -b /usr/local/bin
+
+      - name: Scan SBOM for vulnerabilities
+        run: |
+          grype sbom:./sbom.json --fail-on high --output table \
+            || { echo "::error::grype found HIGH or CRITICAL vulnerabilities in SBOM — see sbom-cyclonedx artifact"; exit 1; }
+
+      - name: Upload SBOM artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: sbom-cyclonedx
+          path: sbom.json
+          retention-days: 30

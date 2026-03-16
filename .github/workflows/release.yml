@@ -56,3 +56,38 @@ jobs:
             git commit -m "chore(release): update CHANGELOG.md for ${GITHUB_REF_NAME}"
             git push origin HEAD:refs/heads/main
           fi
+
+  sbom:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # needed to upload release assets
+
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a  # v4
+        with:
+          enable-cache: true
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Generate CycloneDX SBOM
+        run: |
+          uvx --from cyclonedx-bom cyclonedx-py environment \
+            --of JSON \
+            --outfile sbom.json
+
+      - name: Attach SBOM to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ github.ref_name }}" sbom.json \
+            --clobber
