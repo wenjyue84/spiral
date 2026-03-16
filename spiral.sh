@@ -100,7 +100,7 @@ MAX_SPIRAL_ITERS=20
 GATE_DEFAULT="" # empty = interactive; "proceed"|"skip"|"quit" = auto
 STATUS_ONLY=0   # 1 = print session state and exit (--status)
 RALPH_MAX_ITERS=120
-SKIP_RESEARCH=0       # 1 = skip Phase R (Claude web research); T and M still run
+SKIP_RESEARCH=1       # 1 = skip Phase R (Claude web research); T and M still run (default off; enable via UI toggle or SKIP_RESEARCH=0 in spiral.config.sh)
 RALPH_WORKERS=1       # >1 = parallel mode (git worktrees + docker lock)
 WORKERS_EXPLICIT=0    # 1 = user passed --ralph-workers explicitly
 CAPACITY_LIMIT=50     # Phase R is skipped when PENDING exceeds this threshold
@@ -434,7 +434,7 @@ SPIRAL_PYTHON="${SPIRAL_PYTHON:-python3}"
 _SPIRAL_CORE_CANDIDATES=("$SPIRAL_HOME/lib/spiral-core" "$SPIRAL_HOME/lib/spiral-core.exe")
 SPIRAL_CORE_BIN=""
 for _sc in "${_SPIRAL_CORE_CANDIDATES[@]}"; do
-  if [[ -x "$_sc" ]]; then
+  if [[ -f "$_sc" && -x "$_sc" ]]; then
     SPIRAL_CORE_BIN="$_sc"
     break
   fi
@@ -459,6 +459,7 @@ SPIRAL_SPECKIT_CONSTITUTION="${SPIRAL_SPECKIT_CONSTITUTION:-}"
 SPIRAL_SPECKIT_SPECS_DIR="${SPIRAL_SPECKIT_SPECS_DIR:-}"
 SPIRAL_FOCUS="${SPIRAL_CLI_FOCUS:-${SPIRAL_FOCUS:-}}"
 SPIRAL_SKIP_STORY_IDS="${SPIRAL_SKIP_STORY_IDS:-}"              # comma-separated IDs to permanently skip without penalty
+SPIRAL_SKIP_PHASES="${SPIRAL_SKIP_PHASES:-}"                    # comma-separated phase letters to skip (e.g. "R,T"); UI-managed via .spiral/ui-phase-config.json
 SPIRAL_MAX_STORIES="${SPIRAL_MAX_STORIES:-100}"                 # warn threshold for total story count in prd.json
 SPIRAL_MAX_STORIES_ABORT="${SPIRAL_MAX_STORIES_ABORT:-0}"       # 0 = warn only; non-zero = fail hard when exceeded
 SPIRAL_AUTO_INFER_DEPS="${SPIRAL_AUTO_INFER_DEPS:-false}"       # true = write inferred dep edges to prd.json after Phase M merge
@@ -522,6 +523,11 @@ SPIRAL_AUTO_RELEASE="${SPIRAL_AUTO_RELEASE:-false}"                      # true 
 SPIRAL_GIT_PUSH="${SPIRAL_GIT_PUSH:-false}"                              # true = push vX.Y.Z tag to origin after auto-release (US-190)
 SPIRAL_GIT_AUTHOR="${SPIRAL_GIT_AUTHOR:-}"                               # fallback git identity "Name <email>" when git config user.name/email is missing (US-211)
 SPIRAL_SAST_ENABLED="${SPIRAL_SAST_ENABLED:-true}"                        # US-262: run Semgrep SAST scan in Phase G; false = disabled
+
+# ── Propagate SPIRAL_SKIP_PHASES to phase-specific flags ──────────────────────
+# SPIRAL_SKIP_PHASES is written by the Spiral UI phase toggles (.spiral/ui-phase-config.json).
+# If it contains "R", force SKIP_RESEARCH=1 regardless of what spiral.config.sh says.
+[[ "${SPIRAL_SKIP_PHASES:-}" == *"R"* ]] && SKIP_RESEARCH=1
 
 # ── Config validation ─────────────────────────────────────────────────────────
 # Validates required keys are set and applies defaults for optional keys.
@@ -964,6 +970,8 @@ fi
 # ── Signal trap state ─────────────────────────────────────────────────────────
 WATCHDOG_PID=""
 PHASE=""      # Current phase (R, T, M, G, I, V, C)
+_ACTIVE_STORY_ID=""    # US-311: story currently being implemented (populated in Phase I)
+_ACTIVE_STORY_TITLE="" # US-311: title of the active story
 CHILD_PIDS=() # Track explicitly spawned child processes
 
 # Signal handler for graceful interrupt (SIGINT/SIGTERM)
@@ -1025,7 +1033,39 @@ cleanup() {
   # Clean up memory pressure signal files
   rm -f "$SCRATCH_DIR/_memory_pressure.json" "$SCRATCH_DIR/_low_power_active" 2>/dev/null || true
   rm -f "$SCRATCH_DIR"/_worker_pause_* 2>/dev/null || true
+  # US-311: Delete active status file on clean exit (crash detection: file persists if killed)
+  rm -f "$SCRATCH_DIR/_active_status.json" 2>/dev/null || true
   echo "  [cleanup] Done."
+}
+
+# ── US-311: Write active status file ─────────────────────────────────────────
+# Writes .spiral/_active_status.json atomically at each phase start.
+# Globals read: _ACTIVE_STORY_ID, _ACTIVE_STORY_TITLE (optional story context)
+write_active_status() {
+  local phase="$1"
+  local pct_done="${2:-0}"
+  local tmp_file
+  tmp_file=$(mktemp -p "$SCRATCH_DIR" _active_status_XXXXXX.json 2>/dev/null || echo "$SCRATCH_DIR/_active_status_$$.json")
+  if [[ -n "${_ACTIVE_STORY_ID:-}" ]]; then
+    "$JQ" -n \
+      --arg phase "$phase" \
+      --argjson iter "${SPIRAL_ITER:-0}" \
+      --argjson ts "$(date +%s)" \
+      --argjson pct "$pct_done" \
+      --arg sid "$_ACTIVE_STORY_ID" \
+      --arg stitle "${_ACTIVE_STORY_TITLE:-}" \
+      '{phase:$phase,iteration:$iter,started_at:$ts,pct_done:$pct,story_id:$sid,story_title:$stitle}' \
+      >"$tmp_file" 2>/dev/null || true
+  else
+    "$JQ" -n \
+      --arg phase "$phase" \
+      --argjson iter "${SPIRAL_ITER:-0}" \
+      --argjson ts "$(date +%s)" \
+      --argjson pct "$pct_done" \
+      '{phase:$phase,iteration:$iter,started_at:$ts,pct_done:$pct}' \
+      >"$tmp_file" 2>/dev/null || true
+  fi
+  mv "$tmp_file" "$SCRATCH_DIR/_active_status.json" 2>/dev/null || true
 }
 
 # Set trap handlers: EXIT calls cleanup; INT/TERM call _spiral_cleanup
@@ -2446,6 +2486,8 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
   # ── Phase R + T: RESEARCH and TEST SYNTHESIS (parallel) ──────────────────
   # US-182: R and T are independent — launch as background jobs and await both.
   PHASE="R"
+  _ACTIVE_STORY_ID=""; _ACTIVE_STORY_TITLE=""  # US-311: clear story context at phase start
+  write_active_status "R" 10
   RESEARCH_OUTPUT="$SCRATCH_DIR/_research_output.json"
   TEST_OUTPUT="$SCRATCH_DIR/_test_stories_output.json"
   _phase_r_ckpt="$SCRATCH_DIR/_phase_R_${SPIRAL_ITER}.ckpt"
@@ -2510,6 +2552,12 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
     _T_SKIP=1
   elif [[ "$DRY_RUN" -eq 1 ]]; then
     echo "  [dry-run] skipping test synthesis"
+    echo '{"stories":[]}' >"$TEST_OUTPUT"
+    touch "$_phase_t_ckpt"
+    _T_SKIP=1
+  elif [[ "${SPIRAL_SKIP_PHASES:-}" == *"T"* ]]; then
+    echo ""
+    echo "  [T] Skipping Phase T (SPIRAL_SKIP_PHASES)"
     echo '{"stories":[]}' >"$TEST_OUTPUT"
     touch "$_phase_t_ckpt"
     _T_SKIP=1
@@ -2925,6 +2973,7 @@ $INJECTED_PROMPT"
 
   # ── Phase S: STORY VALIDATE ──────────────────────────────────────────────────
   PHASE="S"
+  write_active_status "S" 30  # US-311
   echo ""
   echo "  [Phase S] STORY VALIDATE — filtering candidates against project goals..."
   log_spiral_event "phase_start" "\"phase\":\"S\",\"iteration\":$SPIRAL_ITER"
@@ -2964,6 +3013,7 @@ $INJECTED_PROMPT"
 
   # ── Phase M: MERGE ──────────────────────────────────────────────────────────
   PHASE="M"
+  write_active_status "M" 40  # US-311
   echo ""
   echo "  [Phase M] MERGE — deduplicating and patching prd.json..."
   log_spiral_event "phase_start" "\"phase\":\"M\",\"iteration\":$SPIRAL_ITER"
@@ -3080,6 +3130,7 @@ $INJECTED_PROMPT"
 
   # ── Phase G: HUMAN GATE + Phase I: IMPLEMENT ───────────────────────────────
   PHASE="G"
+  write_active_status "G" 50  # US-311
   log_spiral_event "phase_start" "\"phase\":\"G\",\"iteration\":$SPIRAL_ITER"
   notify_webhook "G" "start"
   _PHASE_TS_I=$(date +%s)
@@ -3167,6 +3218,8 @@ $INJECTED_PROMPT"
 
         # ── Phase I: IMPLEMENT (Ralph) ──────────────────────────────────
         PHASE="I"
+        _ACTIVE_STORY_ID=""; _ACTIVE_STORY_TITLE=""  # US-311: reset story context
+        write_active_status "I" 60  # US-311
         log_spiral_event "phase_start" "\"phase\":\"I\",\"iteration\":$SPIRAL_ITER"
         notify_webhook "I" "start"
         echo ""
@@ -3357,6 +3410,12 @@ $INJECTED_PROMPT"
                 else
                   _RALPH_TOOL="claude"
                 fi
+                # US-311: update active status with story context
+                if [[ -n "$_NEXT_SID" ]]; then
+                  _ACTIVE_STORY_ID="$_NEXT_SID"
+                  _ACTIVE_STORY_TITLE=$("$JQ" -r --arg id "$_NEXT_SID" '.userStories[] | select(.id == $id) | .title // ""' "$PRD_FILE" 2>/dev/null || echo "")
+                  write_active_status "I" 60
+                fi
                 # US-219: begin story task span; prints story-scoped TRACEPARENT for child action spans
                 _STORY_TP=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" begin-story \
                   --story-id "$_NEXT_SID" --scratch-dir "$SCRATCH_DIR" 2>/dev/null || true)
@@ -3482,6 +3541,12 @@ $INJECTED_PROMPT"
               echo "  [I] Story $_NEXT_SID is a test story → routing to Codex"
             else
               _RALPH_TOOL="claude"
+            fi
+            # US-311: update active status with story context
+            if [[ -n "$_NEXT_SID" ]]; then
+              _ACTIVE_STORY_ID="$_NEXT_SID"
+              _ACTIVE_STORY_TITLE=$("$JQ" -r --arg id "$_NEXT_SID" '.userStories[] | select(.id == $id) | .title // ""' "$PRD_FILE" 2>/dev/null || echo "")
+              write_active_status "I" 60
             fi
             # US-295: context-window-aware model selection before ralph.sh dispatch
             # Estimate prompt tokens (ralph CLAUDE.md + story JSON) and upgrade model if needed
@@ -3785,6 +3850,8 @@ $INJECTED_PROMPT"
 
   # ── Phase V: VALIDATE (test suite) ────────────────────────────────────────
   PHASE="V"
+  _ACTIVE_STORY_ID=""; _ACTIVE_STORY_TITLE=""  # US-311: clear story context after Phase I
+  write_active_status "V" 80  # US-311
   echo ""
   echo "  [Phase V] VALIDATE — running test suite..."
   log_spiral_event "phase_start" "\"phase\":\"V\",\"iteration\":$SPIRAL_ITER"
@@ -4063,6 +4130,7 @@ PYEOF
 
   # ── Phase C: CHECK DONE ─────────────────────────────────────────────────────
   PHASE="C"
+  write_active_status "C" 95  # US-311
   echo ""
   echo "  [Phase C] CHECK DONE..."
   log_spiral_event "phase_start" "\"phase\":\"C\",\"iteration\":$SPIRAL_ITER"

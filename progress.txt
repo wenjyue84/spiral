@@ -7941,3 +7941,38 @@ COST CEILING: Export dependency graph as Graphviz DOT file for advanced renderin
 - [x] Scores stored in checkpoint under _qualityScores.{phase}: {score, rationale, timestamp}
 - [x] Dashboard displays average quality scores per phase across the current iteration
 - [x] Low scores (below SPIRAL_QUALITY_THRESHOLD) emit a warning but do not block progression
+
+---
+
+## Iteration [15] - Story: US-311: spiral.sh: write .spiral/_active_status.json with current phase and story
+
+### What was implemented
+- Added `write_active_status()` helper function (after `cleanup()`, ~line 1035) that:
+  - Takes `phase` and `pct_done` arguments
+  - Uses globals `_ACTIVE_STORY_ID` and `_ACTIVE_STORY_TITLE` for optional story context
+  - Writes atomically via mktemp + mv to `$SCRATCH_DIR/_active_status.json`
+  - Uses `$JQ` for proper JSON formatting (handles special chars in titles)
+- Declared `_ACTIVE_STORY_ID` and `_ACTIVE_STORY_TITLE` variables near `PHASE=""` declaration
+- Added `rm -f "$SCRATCH_DIR/_active_status.json"` to `cleanup()` (clean exit deletes file)
+- Added `write_active_status` calls at all 7 phase start points:
+  - R=10%, S=30%, M=40%, G=50%, I=60%, V=80%, C=95%
+- Phase I clears story context first (`_ACTIVE_STORY_ID=""`) then calls `write_active_status "I" 60`
+- Sequential mode: after `_NEXT_SID` is determined, sets `_ACTIVE_STORY_ID`/`_ACTIVE_STORY_TITLE` and calls `write_active_status "I" 60` again with story context
+- Wave mode single-story fallback: same pattern as sequential
+- Phase V clears story context (implementation done)
+
+### Patterns discovered
+- `$JQ` is already available as a global variable in spiral.sh — use it for JSON generation (avoids printf escaping issues with special chars in titles)
+- Atomic write pattern: `mktemp -p "$SCRATCH_DIR"` + `mv` ensures no partial reads
+- `cleanup()` is the EXIT trap — adding `rm -f` there means clean exits delete the file but SIGKILL (kill -9) leaves it, enabling crash detection
+
+### Acceptance Criteria Met
+- [x] spiral.sh writes .spiral/_active_status.json at the start of each phase with fields: phase, iteration, started_at (Unix epoch), pct_done (0-100)
+- [x] When starting a story: story_id and story_title are added to the status JSON
+- [x] File is written atomically (temp+mv pattern) to avoid partial reads
+- [x] File is deleted with rm -f on clean exit (EXIT trap via cleanup())
+- [x] File persists if spiral.sh is killed (enabling crash detection by dashboard)
+
+### Gotchas
+- Phase R and T run in parallel (US-182) — both log phase_start but only R gets write_active_status since they share the PHASE="R" assignment
+- story_title lookup uses existing $JQ pattern already used elsewhere in spiral.sh for title extraction
