@@ -1,8 +1,11 @@
 """Property-based tests for prd_schema.py validation."""
+import json
+import os
+import time
 import pytest
 from hypothesis import given, settings, assume, HealthCheck
 from conftest import valid_prd, invalid_prd_missing_field, prd_with_duplicate_ids, prd_with_dangling_dep
-from prd_schema import validate_prd
+from prd_schema import validate_prd, validate_jsonschema
 
 
 class TestValidPrd:
@@ -114,3 +117,47 @@ class TestSchemaIdempotency:
         errors1 = validate_prd(prd)
         errors2 = validate_prd(prd)
         assert errors1 == errors2
+
+
+class TestJsonSchemaRsBenchmark:
+    """Benchmark jsonschema-rs validation on prd.json."""
+
+    @pytest.fixture()
+    def prd_and_schema(self):
+        """Load the real prd.json and schema for benchmarking."""
+        repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        prd_path = os.path.join(repo_root, "prd.json")
+        schema_path = os.path.join(repo_root, "prd.schema.json")
+        if not os.path.isfile(prd_path) or not os.path.isfile(schema_path):
+            pytest.skip("prd.json or prd.schema.json not found")
+        with open(prd_path, encoding="utf-8") as f:
+            prd = json.load(f)
+        with open(schema_path, encoding="utf-8") as f:
+            schema = json.load(f)
+        return prd, schema, schema_path
+
+    def test_jsonschema_rs_validates_prd(self, prd_and_schema):
+        """jsonschema-rs validates the real prd.json without crashing."""
+        prd, _schema, schema_path = prd_and_schema
+        errors = validate_jsonschema(prd, schema_path)
+        # We just check it runs and returns a list (may have known schema errors)
+        assert isinstance(errors, list)
+
+    def test_jsonschema_rs_benchmark(self, prd_and_schema):
+        """Benchmark: time 100 validation runs on the real prd.json."""
+        import jsonschema_rs
+
+        prd, schema, _schema_path = prd_and_schema
+        validator = jsonschema_rs.validator_for(schema)
+        n_runs = 100
+
+        start = time.perf_counter()
+        for _ in range(n_runs):
+            list(validator.iter_errors(prd))
+        elapsed = time.perf_counter() - start
+
+        avg_ms = (elapsed / n_runs) * 1000
+        print(f"\njsonschema-rs: {n_runs} runs in {elapsed:.3f}s "
+              f"(avg {avg_ms:.2f}ms per validation)")
+        # Rust-backed validator should complete each run in under 100ms
+        assert avg_ms < 100, f"Validation too slow: {avg_ms:.2f}ms per run"

@@ -3,7 +3,7 @@
 SPIRAL — PRD Schema Validator
 Validates prd.json structure, types, ID uniqueness, and dependency integrity.
 
-Uses formal JSON Schema (prd.schema.json) when the `jsonschema` package is
+Uses formal JSON Schema (prd.schema.json) when the `jsonschema-rs` package is
 available; falls back to built-in stdlib validation otherwise.
 
 Exit codes:
@@ -254,15 +254,15 @@ def validate_jsonschema(prd: dict, schema_path: str) -> list[str]:
     Returns list of error strings in 'SCHEMA ERROR: /pointer — message' format.
     Raises ImportError if jsonschema is not installed.
     """
-    import jsonschema  # noqa: F811 — intentional late import
+    import jsonschema_rs  # noqa: F811 — intentional late import
 
     with open(schema_path, encoding="utf-8") as f:
         schema = json.load(f)
 
-    validator = jsonschema.Draft202012Validator(schema)
+    validator = jsonschema_rs.validator_for(schema)
     errors: list[str] = []
-    for err in sorted(validator.iter_errors(prd), key=lambda e: list(e.absolute_path)):
-        parts = list(err.absolute_path)
+    for err in sorted(validator.iter_errors(prd), key=lambda e: list(e.instance_path)):
+        parts = list(err.instance_path)
         # Build JSON Pointer (RFC 6901): /userStories/3/priority
         pointer = "/" + "/".join(str(p) for p in parts) if parts else "/"
         errors.append(f"SCHEMA ERROR: {pointer} \u2014 {err.message}")
@@ -270,9 +270,9 @@ def validate_jsonschema(prd: dict, schema_path: str) -> list[str]:
 
 
 def has_jsonschema() -> bool:
-    """Return True if the jsonschema package is importable."""
+    """Return True if the jsonschema-rs package is importable."""
     try:
-        import jsonschema  # noqa: F401
+        import jsonschema_rs  # noqa: F401
         return True
     except ImportError:
         return False

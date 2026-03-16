@@ -5,7 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "jsonschema>=4.23.0",
+    "jsonschema-rs>=0.45.0",
     "questionary>=2.0.1",
     "sentence-transformers>=3.0.1",
     "scikit-learn>=1.5.1",

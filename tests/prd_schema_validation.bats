@@ -35,9 +35,9 @@ with open(sys.argv[2], 'w', encoding='utf-8') as f:
   }
   export -f make_prd
 
-  # Check if jsonschema is available in the chosen Python
+  # Check if jsonschema-rs is available in the chosen Python
   export HAS_JSONSCHEMA
-  if "$SPIRAL_PYTHON" -c "import jsonschema" 2>/dev/null; then
+  if "$SPIRAL_PYTHON" -c "import jsonschema_rs" 2>/dev/null; then
     HAS_JSONSCHEMA="true"
   else
     HAS_JSONSCHEMA="false"

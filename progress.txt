@@ -929,3 +929,22 @@ Incomplete: Add episodic memory store for Ralph workers to recall past implement
 ## Iteration 3 - Mon, Mar 16, 2026  8:14:20 PM
 Incomplete: Add episodic memory store for Ralph workers to recall past implementation patterns (ID: US-350) — attempt 2/3
 
+
+## Iteration N - Story: US-384 Replace jsonschema with jsonschema-rs for PRD and story validation (43-240x speedup)
+
+### What was implemented
+- Replaced `jsonschema>=4.23.0` with `jsonschema-rs>=0.45.0` in pyproject.toml dependencies
+- Updated `lib/prd_schema.py`: `import jsonschema` → `import jsonschema_rs`, `Draft202012Validator(schema)` → `jsonschema_rs.validator_for(schema)`, `err.absolute_path` → `err.instance_path`
+- Updated `tests/prd_schema_validation.bats` import check from `jsonschema` to `jsonschema_rs`
+- Updated uv.lock (removed jsonschema + 3 transitive deps attrs/referencing/rpds-py; added jsonschema-rs with zero transitive deps)
+- Added benchmark test in `tests/test_prd_schema.py::TestJsonSchemaRsBenchmark` — validates real prd.json and times 100 runs
+- `uv run python lib/prd_schema.py prd.json` validates correctly with jsonschema-rs
+
+### Patterns discovered
+- jsonschema-rs API: `validator_for(schema)` auto-detects draft version (no need for `Draft202012Validator`)
+- Error objects use `instance_path` (list) instead of `absolute_path` (deque) — both are iterable lists of path segments
+- jsonschema-rs has zero Python deps (Rust native binary wheel) vs jsonschema's 4 deps (attrs, jsonschema-specifications, referencing, rpds-py)
+- Benchmark: 3.44ms per validation on full prd.json (300+ stories) — well under 100ms budget
+
+### Gotchas
+- Pre-existing 13 test failures remain (test_field_similarity_lists, test_infer_dependencies, test_merge_conflict_detection, etc.) — all unrelated
