@@ -18,6 +18,11 @@ SPIRAL_MODEL_ROUTING="auto"
 # Default 0.85 = upgrade when prompt > 85% of the 200k context window (~170k tokens)
 SPIRAL_CONTEXT_WINDOW_MARGIN="${SPIRAL_CONTEXT_WINDOW_MARGIN:-0.85}"
 
+# ── Adaptive thinking effort (US-373) ─────────────────────────────────────────
+# Controls --effort flag for 4.6 models (opus/sonnet). Choices: low/medium/high/max.
+# Older models (haiku-4-5, sonnet-4-5) ignore this and use default budget_tokens.
+SPIRAL_THINKING_EFFORT="${SPIRAL_THINKING_EFFORT:-high}"
+
 # ── Phase-specific model defaults ────────────────────────────────────────────
 # Each non-implementation phase can use a cheaper model (haiku is ~15x cheaper
 # than sonnet). Phase I continues to use SPIRAL_MODEL_ROUTING for escalation.

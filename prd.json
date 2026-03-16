@@ -7002,6 +7002,329 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false
+    },
+    {
+      "id": "US-373",
+      "title": "Add adaptive thinking mode to ralph.sh for claude-opus-4-6 and claude-sonnet-4-6",
+      "priority": "high",
+      "description": "The Anthropic API has deprecated thinking.type: 'enabled' with budget_tokens on Opus 4.6 and Sonnet 4.6 in favour of thinking.type: 'adaptive' with an effort parameter. Adding adaptive mode allows Claude to self-regulate thinking depth and automatically enables interleaved thinking between tool calls, improving implementation quality without manual budget tuning.",
+      "acceptanceCriteria": [
+        "When SPIRAL_MODEL_ROUTING routes to claude-opus-4-6 or claude-sonnet-4-6, ralph.sh sets thinking.type: 'adaptive' in the API payload instead of budget_tokens",
+        "The effort field is configurable via SPIRAL_THINKING_EFFORT env var (low/medium/high/max), defaulting to high",
+        "Older model IDs (Sonnet 4.5, Haiku 4.5) continue to use budget_tokens unchanged",
+        "A unit test asserts the correct payload shape is emitted for each model family"
+      ],
+      "technicalNotes": [
+        "type: 'adaptive' automatically enables interleaved thinking between tool calls, eliminating the need for the interleaved-thinking-2025-05-14 beta header on 4.6 models",
+        "The max effort level is Opus 4.6 only — add a guard that rejects max for other models"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true
+    },
+    {
+      "id": "US-374",
+      "title": "Add SSE /api/events endpoint to spiral-ui backend for real-time phase and story streaming",
+      "priority": "high",
+      "description": "The spiral-ui React dashboard currently polls for status updates. An SSE endpoint at /api/events that tails spiral_events.jsonl and pushes new events to the browser eliminates polling, reduces latency to sub-second updates, and provides a foundation for live log streaming and thinking-block display in the dashboard.",
+      "acceptanceCriteria": [
+        "A Node.js/Express route GET /api/events responds with Content-Type: text/event-stream and sends data lines for each new line appended to spiral_events.jsonl",
+        "The endpoint uses fs.watch or a tail-follow mechanism and does NOT poll on a timer",
+        "A React useSSE custom hook wraps EventSource with exponential backoff reconnection (max 5 retries, cap 30s)",
+        "The ProjectDashboard component subscribes to phase-change events and updates the phase indicator without a page refresh"
+      ],
+      "technicalNotes": [
+        "Use res.flushHeaders() immediately after setting headers to avoid proxy buffering",
+        "The useSSE hook must clean up EventSource in the useEffect return to prevent stale listeners on unmount"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-375",
+      "title": "Migrate spiral Python packages to uv workspace with shared requires-python constraint",
+      "priority": "medium",
+      "description": "SPIRAL has Python code spread across lib/*.py and tests/ without a unified workspace definition. Defining a uv workspace in a root pyproject.toml consolidates the virtual environment, enables inter-package workspace references, and enforces a single requires-python constraint (>=3.13), removing manual uv run path juggling in CI and dev scripts.",
+      "acceptanceCriteria": [
+        "A root pyproject.toml defines [tool.uv.workspace] with members = [\"lib\", \"tests\"]",
+        "Running uv sync from the repo root installs all deps for all workspace members into one .venv",
+        "uv run pytest tests/ continues to pass without modification",
+        "CI uv sync step replaces per-directory install commands; uv.lock is committed"
+      ],
+      "technicalNotes": [
+        "uv workspaces enforce a single requires-python as the intersection of all members' constraints — tighten any member with a looser requirement to >=3.13",
+        "Workspace inter-package deps use {workspace = true} in [tool.uv.sources]"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-376",
+      "title": "Apply sparse-checkout cone mode to spiral worker worktrees to reduce git index overhead",
+      "priority": "medium",
+      "description": "Each parallel ralph worker gets a full git worktree checkout including spiral-ui/node_modules artifacts irrelevant to implementation tasks. Using git sparse-checkout init --cone followed by git sparse-checkout set with only the directories each worker slice actually touches reduces index footprint, speeds up git status/git add operations, and cuts memory consumption.",
+      "acceptanceCriteria": [
+        "After git worktree add in lib/run_parallel_ralph.sh, each worker runs git sparse-checkout init --cone and git sparse-checkout set with directories from its PRD slice's filesTouch field",
+        "A fallback to full checkout is used when filesTouch is empty or unavailable",
+        "The existing --lock flag for worktree add is compatible with sparse-checkout initialization",
+        "A bats test verifies that a worker worktree contains only the expected directories after setup"
+      ],
+      "technicalNotes": [
+        "Cone mode restricts to directory-level patterns, which fits SPIRAL since filesTouch uses directory paths",
+        "Per-worktree sparse config lives in .git/worktrees/<name>/info/sparse-checkout independently of other worktrees"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-377",
+      "title": "Add OTel subprocess span instrumentation to ralph worker launch with TRACEPARENT env propagation",
+      "priority": "medium",
+      "description": "SPIRAL's run_parallel_ralph.sh launches subprocess workers that are invisible to OpenTelemetry tracing. Injecting a TRACEPARENT environment variable into each worker launch and adding a Python wrapper that opens a child span would link worker execution into the parent trace, enabling end-to-end distributed traces across phase to worker to story boundaries.",
+      "acceptanceCriteria": [
+        "Before launching each ralph subprocess, the parent span context is serialized into TRACEPARENT and TRACESTATE env vars using OTel's inject() carrier",
+        "A ralph_worker span is created with attributes: subprocess.command, subprocess.pid, story_id, worker_num, subprocess.returncode",
+        "The span status is set to ERROR when the worker exits non-zero, with record_exception() called",
+        "A pytest test using a mock subprocess verifies span attributes and TRACEPARENT propagation"
+      ],
+      "technicalNotes": [
+        "Use opentelemetry.propagate.inject(carrier) where carrier is a dict, then pass carrier['traceparent'] as an env var to the subprocess",
+        "The opentelemetry-instrumentation-asyncio package covers asyncio coroutine tracing separately from subprocess spans"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-378",
+      "title": "Add PreToolUse Claude Code hook to block ralph workers from touching protected SPIRAL system files",
+      "priority": "medium",
+      "description": "Ralph workers occasionally attempt to modify spiral.sh, prd.json, or .spiral/ state files during implementation, causing corruption. A PreToolUse hook on Edit|Write tool calls can inspect the target file path and exit with code 2 (block) if it matches a protected-file list, feeding back the reason to the worker's Claude context so it can correct its approach.",
+      "acceptanceCriteria": [
+        "Project-level .claude/settings.json defines a PreToolUse hook with matcher Edit|Write that calls .claude/hooks/protect-spiral-files.sh",
+        "The script blocks writes to: spiral.sh, spiral.config.sh, prd.json, prd.schema.json, .spiral/**, ralph/ralph.sh by exiting with code 2 and a descriptive stderr message",
+        "The script allows writes to all other paths by exiting 0",
+        "A bats test verifies exit codes for protected and non-protected paths"
+      ],
+      "technicalNotes": [
+        "The hook script reads the file path via stdin | jq -r '.tool_input.file_path'",
+        "PreToolUse is the correct event for automated enforcement; PermissionRequest hooks do not fire in headless mode"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-379",
+      "title": "Add PostCompact Claude Code hook to re-inject SPIRAL project context after context window compaction",
+      "priority": "medium",
+      "description": "When Claude Code's context window fills during a ralph worker session, compaction summarizes conversation history and loses project-specific conventions such as 'use uv not pip', the current story ID, and validation commands. A PostCompact hook re-injects key context from a project summary file, ensuring workers maintain consistent behavior across compaction boundaries.",
+      "acceptanceCriteria": [
+        ".claude/settings.json defines a SessionStart hook with matcher: 'compact' that runs cat ralph/CONTEXT_REFRESH.md",
+        "ralph/CONTEXT_REFRESH.md is created with: current story ID placeholder, key conventions from ralph/CLAUDE.md, and the validation command",
+        "The hook stdout is added to Claude's context automatically per the Claude Code hook contract",
+        "A bats test verifies the hook command exits 0 and produces non-empty stdout"
+      ],
+      "technicalNotes": [
+        "For SessionStart hooks, anything written to stdout is added to Claude's context",
+        "matcher: 'compact' fires only on compaction-triggered session starts; keep ralph/CONTEXT_REFRESH.md under 500 tokens"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-380",
+      "title": "Add Stop agent-based Claude Code hook to verify story acceptance criteria before ralph worker completes",
+      "priority": "medium",
+      "description": "Ralph workers sometimes mark a story complete before all acceptance criteria are genuinely met. A Stop hook using type: 'agent' spawns a verification subagent that reads the story's acceptanceCriteria from the PRD slice and runs targeted checks before allowing the worker to stop, returning {ok: false, reason: ...} if criteria are unmet so Claude continues working.",
+      "acceptanceCriteria": [
+        ".claude/settings.json defines a Stop hook with type: 'agent', timeout: 120, and a prompt that reads SPIRAL_CURRENT_STORY_ID from env to locate acceptance criteria",
+        "The agent hook checks: all filesTouch files exist and were modified in the last git commit; targeted pytest exit code on story-related test files",
+        "When criteria are unmet, the response {ok: false, reason: '<specific unmet criterion>'} causes Claude to continue working",
+        "The stop_hook_active field in hook input is checked to prevent infinite loops: if stop_hook_active == true, exit 0 immediately"
+      ],
+      "technicalNotes": [
+        "Agent hooks use the same ok/reason JSON format as prompt hooks but can make tool calls (read files, run bash)",
+        "Default timeout is 60s — set to 120s for pytest runs; always check stop_hook_active to avoid re-entry"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "large",
+      "passes": false
+    },
+    {
+      "id": "US-381",
+      "title": "Add property-based tests for merge_stories.py deduplication using @given with st.lists of story dicts",
+      "priority": "medium",
+      "description": "lib/merge_stories.py deduplication logic is tested with hand-written parametrized cases that miss edge cases: duplicate IDs with different titles, empty-string fields, Unicode in titles, and maximal-similarity near-duplicates. Property-based testing with @given(st.lists(story_strategy(), min_size=0, max_size=50)) would find these invariant violations automatically.",
+      "acceptanceCriteria": [
+        "A new tests/test_merge_stories_property.py defines a story_strategy() composite strategy producing valid story dicts",
+        "At least 3 @given tests assert invariants: merged output never contains duplicate IDs; output length <= input length; all output stories have valid priorities",
+        "hypothesis.settings(max_examples=200) is set for CI; a dev profile uses max_examples=500",
+        "Tests pass under uv run pytest tests/test_merge_stories_property.py -v"
+      ],
+      "technicalNotes": [
+        "Use st.text(alphabet=st.characters(whitelist_categories=(\"Lu\",\"Ll\",\"Nd\"))) for title generation to avoid control-character edge cases",
+        "Combining @pytest.mark.parametrize with @given is supported by Hypothesis 6.x"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-382",
+      "title": "Extract repeated spiral CI steps into composite actions in .github/actions/",
+      "priority": "low",
+      "description": "SPIRAL's CI has multiple workflow files that repeat setup steps: checkout, uv setup, Python version matrix, shellcheck, shfmt. Converting these into composite actions stored in .github/actions/ reduces duplication, makes SHA-pinned action updates apply in one place, and follows the GitHub Actions 2025 best practice of separating shared task templates from pipeline templates.",
+      "acceptanceCriteria": [
+        "A .github/actions/setup-uv/action.yml composite action handles Python setup, uv install, and cache restore",
+        "A .github/actions/lint-shell/action.yml composite action encapsulates shellcheck and shfmt steps",
+        "All existing workflow files are updated to call these composite actions with no raw duplicated steps remaining",
+        "CI passes after the migration; SHA-pinned versions of third-party actions are defined only in the composite actions"
+      ],
+      "technicalNotes": [
+        "Composite actions run inline in the calling job with no separate job overhead",
+        "Secrets must be passed explicitly as inputs — composite actions do not inherit secrets automatically"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-383",
+      "title": "Add pytest-xdist parallel execution to SPIRAL test suite with --dist loadscope",
+      "priority": "low",
+      "description": "SPIRAL's pytest suite runs sequentially, becoming slow as coverage grows toward the 48% minimum target. Adding pytest-xdist with --numprocesses=auto --dist loadscope parallelizes test execution across CPU cores while keeping module-level fixtures stable, following the pattern that achieved 81% faster test runs on comparable Python projects.",
+      "acceptanceCriteria": [
+        "pytest-xdist is added to dev-dependencies in pyproject.toml",
+        "pyproject.toml [tool.pytest.ini_options] sets addopts = \"-n auto --dist loadscope\"",
+        "All existing tests pass under parallel execution with no order-dependent failures",
+        "CI wall-clock time for the pytest step is reduced and documented in the PR description"
+      ],
+      "technicalNotes": [
+        "Hypothesis tests need special care with xdist — set suppress_health_check=[HealthCheck.too_slow] and use a per-worker database path via HYPOTHESIS_DATABASE_FILE env var",
+        "Use pytest.ini xdist_group marks for any tests that share mutable file state"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-384",
+      "title": "Replace jsonschema with jsonschema-rs for PRD and story validation (43-240x speedup)",
+      "priority": "low",
+      "description": "lib/prd_schema.py uses the Python jsonschema library. The Rust-backed jsonschema-rs package is a drop-in replacement with identical API (validate(), is_valid(), iter_errors()) and benchmarked 43-240x faster for complex schemas. Since PRD validation runs on every iteration and story merge, this reduces overhead on large prd.json files.",
+      "acceptanceCriteria": [
+        "jsonschema is replaced with jsonschema-rs in pyproject.toml dependencies (requires Python >=3.10, met by SPIRAL's >=3.13 constraint)",
+        "All existing Draft202012Validator and validate() call sites in lib/ work without code changes",
+        "uv run python lib/prd_schema.py prd.json continues to validate correctly",
+        "A pytest benchmark test documents the speedup on prd.json"
+      ],
+      "technicalNotes": [
+        "jsonschema-rs mirrors the jsonschema API but is a separate PyPI package; import alias may be needed",
+        "Verify $schema auto-detection works for SPIRAL's prd.schema.json targeting Draft 2020-12"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-385",
+      "title": "Migrate prd.schema.json to JSON Schema Draft 2020-12 with prefixItems and pattern constraints",
+      "priority": "low",
+      "description": "prd.schema.json uses older JSON Schema vocabulary with items for tuple validation. Draft 2020-12 replaced this with prefixItems/items split and adds format-assertion vocabulary. Migrating enables jsonschema-rs to use its fastest validation path, unlocks strict story ID pattern validation, and future-proofs the schema against library deprecations.",
+      "acceptanceCriteria": [
+        "prd.schema.json sets \"$schema\": \"https://json-schema.org/draft/2020-12/schema\"",
+        "Any tuple-style items arrays are converted to prefixItems with trailing items: false or items: true as appropriate",
+        "Story ID pattern validation uses \"pattern\": \"^(US|UT)-[0-9]{3,}$\" constraint",
+        "uv run python lib/prd_schema.py prd.json validates successfully against the new schema using Draft202012Validator"
+      ],
+      "technicalNotes": [
+        "jsonschema >= 4.18.0 and jsonschema-rs both support Draft 2020-12",
+        "The format-assertion vocabulary requires Draft202012Validator(format_checker=...) — use FormatChecker() from the jsonschema package"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-386",
+      "title": "Add asyncio.TaskGroup structured concurrency to replace asyncio.gather in lib/ helpers",
+      "priority": "low",
+      "description": "Several Python helpers in lib/ use asyncio.gather() which does not enforce structured concurrency — a failing task does not cancel siblings. Migrating to asyncio.TaskGroup (Python 3.11+, within SPIRAL's >=3.13 requirement) ensures task group cancellation on first failure, clean resource cleanup, and ExceptionGroup-based error reporting.",
+      "acceptanceCriteria": [
+        "All asyncio.gather() calls in lib/*.py that launch multiple independent coroutines are replaced with async with asyncio.TaskGroup() as tg: tg.create_task(...) patterns",
+        "Error handling uses except* ExceptionGroup syntax (Python 3.11+ exception groups)",
+        "Existing tests pass; new tests verify that when one task fails, sibling tasks are cancelled within 100ms",
+        "mypy --strict continues to pass on modified files"
+      ],
+      "technicalNotes": [
+        "asyncio.TaskGroup raises ExceptionGroup on first failure and cancels remaining tasks, unlike gather(return_exceptions=True)",
+        "Use anyio.create_task_group() if cross-backend compatibility is needed, but stdlib is preferred"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-387",
+      "title": "Add uv workspace-aware CI cache with hashFiles('uv.lock') key for exact-match restores",
+      "priority": "low",
+      "description": "SPIRAL's CI re-installs all Python dependencies on each run because the cache key strategy is not optimized. Using hashFiles('uv.lock') as the cache key suffix enables exact-match restores on lock-file-unchanged runs and falls back to a restore-keys prefix on changes, with uv sync --frozen ensuring no implicit lock file updates in CI.",
+      "acceptanceCriteria": [
+        "The CI workflow uses actions/cache with key uv-${{ runner.os }}-${{ hashFiles('uv.lock') }} and restore-keys uv-${{ runner.os }}-",
+        "The cached path covers both ~/.cache/uv and workspace .venv",
+        "A cache hit is confirmed in CI logs on a second run with an unchanged uv.lock",
+        "uv sync --frozen is used in CI to prevent implicit lock file updates"
+      ],
+      "technicalNotes": [
+        "With uv workspaces, the single uv.lock at the repo root covers all workspace member dependencies — no per-subdirectory cache keys needed",
+        "Combine with the composite action story so the cache key is defined in one place"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-388",
+      "title": "Add WorktreeCreate and WorktreeRemove Claude Code hooks to emit structured worker lifecycle audit log",
+      "priority": "low",
+      "description": "Claude Code exposes WorktreeCreate and WorktreeRemove hook events that fire when worktrees are created or removed. Registering these hooks emits structured audit log entries for every worker worktree event, complementing spiral.sh's own logging and providing a hook-level paper trail even when spiral.sh logging fails due to crash or signal.",
+      "acceptanceCriteria": [
+        ".claude/settings.json defines WorktreeCreate and WorktreeRemove hooks that append JSON to .spiral/worktree-audit.jsonl with fields: timestamp, event, worktree_path, session_id",
+        "The hook script uses jq to parse the hook's stdin payload and extract the path",
+        ".spiral/worktree-audit.jsonl is gitignored (already in .spiral/ scratch directory)",
+        "A bats test pipes sample hook JSON to the hook script and verifies the appended log entry format"
+      ],
+      "technicalNotes": [
+        "WorktreeCreate and WorktreeRemove are documented hook events in the Claude Code hooks lifecycle",
+        "Use now | todate in jq for the timestamp field; the hook receives session_id and cwd in common input fields"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-389",
+      "title": "Add ConfigChange Claude Code hook to detect and alert on unauthorized SPIRAL settings modifications",
+      "priority": "low",
+      "description": "SPIRAL's .claude/settings.json defines security-critical hooks. If a worker inadvertently modifies this file, protection hooks could be silently disabled. A user-level ConfigChange hook appends an audit entry to a log file and blocks changes to .claude/settings.json by exiting with code 2, providing a safety net against accidental configuration corruption.",
+      "acceptanceCriteria": [
+        "User-level ~/.claude/settings.json defines a ConfigChange hook with matcher: 'project_settings'",
+        "The hook appends {timestamp, source, file_path, session_id} to ~/.spiral/config-audit.jsonl",
+        "If the file being changed is .claude/settings.json or .claude/settings.local.json, the hook exits 2 with a descriptive stderr message blocking the change",
+        "A bats test verifies blocking behaviour by piping a mock payload with file_path: '.claude/settings.json'"
+      ],
+      "technicalNotes": [
+        "The ConfigChange event's matcher filters by configuration source type; the file path is in the stdin payload and must be parsed by the script to decide whether to block",
+        "The hook fires when any external process modifies the config file during a session"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
     }
   ]
 }

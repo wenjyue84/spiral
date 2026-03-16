@@ -59,6 +59,7 @@ SPIRAL_CONTEXT_MODE="${SPIRAL_CONTEXT_MODE:-diff}"                     # diff|fu
 SPIRAL_DIFF_DEPTH="${SPIRAL_DIFF_DEPTH:-3}"                            # number of commits to look back for git diff context injection (US-280)
 SPIRAL_WORKER_NETWORK_ISOLATION="${SPIRAL_WORKER_NETWORK_ISOLATION:-false}" # true = wrap worker in Linux network namespace via unshare --net (US-278)
 SPIRAL_STRICT_SCOPE_GUARD="${SPIRAL_STRICT_SCOPE_GUARD:-false}"          # true = abort commit when changed files exceed story filesTouch scope (US-356)
+SPIRAL_THINKING_EFFORT="${SPIRAL_THINKING_EFFORT:-high}"               # US-373: adaptive thinking effort for 4.6 models (low/medium/high/max)
 PRD_FILE="prd.json"
 PROGRESS_FILE="progress.txt"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -1726,6 +1727,19 @@ escalate_model_by_quality_failure() {
   fi
 }
 
+# US-373: Check if a model supports adaptive thinking (--effort flag).
+# Claude 4.6 models (opus-4-6, sonnet-4-6) use adaptive thinking.
+# Older models (haiku-4-5, sonnet-4-5) use budget_tokens (no --effort flag).
+# Short aliases "opus" and "sonnet" resolve to the latest (4.6) in Claude CLI.
+supports_adaptive_thinking() {
+  local model="$1"
+  case "$model" in
+    opus|sonnet) return 0 ;;            # short aliases → latest (4.6)
+    *opus-4-6*|*sonnet-4-6*) return 0 ;; # full model IDs
+    *) return 1 ;;                       # haiku, older models
+  esac
+}
+
 # Resolve the effective model: prd.json annotation > CLI override > auto-classify+escalate
 resolve_model() {
   local story_id="$1" retry_count="$2" escalation_count="$3"
@@ -2309,6 +2323,12 @@ Story JSON: $STORY_JSON"
       # Build model flag (empty if no model routing)
       CLAUDE_MODEL_FLAG=""
       [[ -n "$EFFECTIVE_MODEL" ]] && CLAUDE_MODEL_FLAG="--model $EFFECTIVE_MODEL"
+      # US-373: Build effort flag for adaptive thinking on 4.6 models
+      CLAUDE_EFFORT_FLAG=""
+      if [[ -n "$EFFECTIVE_MODEL" ]] && supports_adaptive_thinking "$EFFECTIVE_MODEL"; then
+        CLAUDE_EFFORT_FLAG="--effort $SPIRAL_THINKING_EFFORT"
+        echo "  [thinking] Adaptive thinking: effort=$SPIRAL_THINKING_EFFORT (model=$EFFECTIVE_MODEL)"
+      fi
       # Build prompt content — split into system prompt (cacheable) and user prompt (dynamic)
       # US-338: Cache-aware prompt structure. The system prompt MUST be identical across
       # stories/retries so Anthropic prompt caching preserves the prefix. All dynamic
@@ -2551,6 +2571,7 @@ ${_FT_CONTEXT_BODY}"
           unset CLAUDECODE
           "${_GNU_TIME_CMD[@]+"${_GNU_TIME_CMD[@]}"}" claude -p "$RALPH_USER_PROMPT" \
             $CLAUDE_MODEL_FLAG \
+            $CLAUDE_EFFORT_FLAG \
             --append-system-prompt "$RALPH_SYSTEM_PROMPT" \
             --betas "$_CACHE_BETAS" \
             $_CACHE_TTL_FLAG \

@@ -268,6 +268,14 @@
 # Default: auto
 # SPIRAL_MODEL_ROUTING="auto"
 
+# ── Adaptive thinking effort (US-373) ─────────────────────────────────────────
+# Controls the --effort flag passed to Claude CLI for models that support
+# adaptive thinking (claude-opus-4-6, claude-sonnet-4-6).
+# Older models (Haiku 4.5, Sonnet 4.5) ignore this setting and use
+# budget_tokens (the default Claude CLI behavior).
+# Choices: low, medium, high, max. Default: high
+# SPIRAL_THINKING_EFFORT="high"
+
 # ── Model escalation retry thresholds (US-296) ──────────────────────────────
 # Controls when failed story retries escalate to a more capable model.
 # SPIRAL_ESCALATION_RETRY_SONNET: retry count at which haiku escalates to sonnet.

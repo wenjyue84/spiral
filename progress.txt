@@ -417,3 +417,24 @@ Incomplete: Validate MCP server integrity via signed checksum manifest before Ph
 ## Iteration 6 - Mon, Mar 16, 2026  2:24:59 PM
 Incomplete: Validate MCP server integrity via signed checksum manifest before Phase I (ID: US-320) — attempt /3
 
+
+## Iteration N - Story: US-373 Add adaptive thinking mode to ralph.sh for claude-opus-4-6 and claude-sonnet-4-6
+
+### What was implemented
+- Added `supports_adaptive_thinking()` function in ralph.sh that detects 4.6 models (opus, sonnet aliases and full IDs like claude-opus-4-6, claude-sonnet-4-6)
+- Added `SPIRAL_THINKING_EFFORT` env var (default: "high") with choices: low/medium/high/max
+- Built `CLAUDE_EFFORT_FLAG` alongside `CLAUDE_MODEL_FLAG` — set to `--effort $SPIRAL_THINKING_EFFORT` for adaptive models, empty for older models
+- Inserted `$CLAUDE_EFFORT_FLAG` into the Claude CLI invocation (line after $CLAUDE_MODEL_FLAG)
+- Updated spiral.config.sh and templates/spiral.config.example.sh with documented setting
+- Added 19 pytest tests in tests/test_adaptive_thinking.py covering all acceptance criteria
+
+### Patterns discovered
+- Claude CLI `--effort` flag controls adaptive thinking mode (low/medium/high/max)
+- Short model aliases "opus" and "sonnet" resolve to latest (4.6) in Claude CLI
+- Model names in ralph.sh are short aliases ("haiku", "sonnet", "opus") not full IDs
+- Python subprocess on Windows/MSYS2 has encoding issues with Unicode in bash -c strings — use static analysis (fnmatch) instead of subprocess for case statement testing
+
+### Gotchas
+- `$CLAUDE_EFFORT_FLAG` is deliberately unquoted in the CLI invocation so it expands to nothing when empty
+- The `--effort` flag is placed between `$CLAUDE_MODEL_FLAG` and `--append-system-prompt` in the CLI invocation
+- Haiku (4.5) does NOT get adaptive thinking — it uses the default budget_tokens behavior
