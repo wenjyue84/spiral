@@ -1,3 +1,20 @@
+## Iteration N - Story: US-395 Add `uv sync --frozen` assertion in CI to detect uncommitted lockfile drift
+
+### What was implemented
+- Added documentation comments to all existing `Validate lockfile is up-to-date` steps in CI (mypy, ruff, test, mutation-test jobs)
+- Added missing `uv lock --check` step to dep-audit and sbom jobs that previously lacked it
+- All 6 uv-using jobs now have consistent lockfile validation with clear error messaging
+- Error message uses `::error::` GitHub Actions annotation for visibility in PR checks
+
+### Patterns discovered
+- 4 of 6 uv-using jobs already had `uv lock --check` — dep-audit and sbom were missing it
+- `uv lock --check` gives a clearer error than `uv sync --frozen` for lockfile drift (check-only vs install-then-fail)
+- Both `uv lock --check` and `uv sync --frozen` serve complementary purposes: check validates lockfile, frozen prevents install from modifying it
+
+### Gotchas
+- Pre-existing test failure: `test_field_similarity_lists` (similarity assertion mismatch) — unrelated to this change
+- The sarif job uses `uvx` directly (no `uv sync`), so it doesn't need lockfile validation
+
 ## Iteration N - Story: US-346 Add mutation testing with mutmut to measure Python test suite effectiveness on lib/
 
 ### What was implemented
@@ -1001,3 +1018,4 @@ Incomplete: Add episodic memory store for Ralph workers to recall past implement
 ### Gotchas
 - Pre-existing test failures unchanged: test_consistency_check, test_infer_dependencies, test_route_stories, test_worker_timeout
 - semantic_chunker.py also fails mypy (pre-existing syntax error) — separate fix needed
+

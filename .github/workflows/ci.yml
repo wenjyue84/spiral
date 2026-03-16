@@ -117,7 +117,10 @@ jobs:
             ${{ runner.os }}-
 
       - name: Validate lockfile is up-to-date
-        run: uv lock --check
+        # Developers must run 'uv lock' and commit uv.lock after changing pyproject.toml.
+        # This check fails (without modifying files) if the lockfile would change,
+        # surfacing drift as a CI failure rather than a mysterious import error.
+        run: uv lock --check || { echo "::error::uv.lock is out of date with pyproject.toml. Run 'uv lock' locally and commit the updated uv.lock."; exit 1; }
 
       - name: Install dependencies
         run: uv sync --frozen --group dev
@@ -162,7 +165,10 @@ jobs:
             ${{ runner.os }}-
 
       - name: Validate lockfile is up-to-date
-        run: uv lock --check
+        # Developers must run 'uv lock' and commit uv.lock after changing pyproject.toml.
+        # This check fails (without modifying files) if the lockfile would change,
+        # surfacing drift as a CI failure rather than a mysterious import error.
+        run: uv lock --check || { echo "::error::uv.lock is out of date with pyproject.toml. Run 'uv lock' locally and commit the updated uv.lock."; exit 1; }
 
       - name: Install dependencies
         run: uv sync --frozen --group dev
@@ -216,7 +222,10 @@ jobs:
             ${{ runner.os }}-hypothesis-
 
       - name: Validate lockfile is up-to-date
-        run: uv lock --check
+        # Developers must run 'uv lock' and commit uv.lock after changing pyproject.toml.
+        # This check fails (without modifying files) if the lockfile would change,
+        # surfacing drift as a CI failure rather than a mysterious import error.
+        run: uv lock --check || { echo "::error::uv.lock is out of date with pyproject.toml. Run 'uv lock' locally and commit the updated uv.lock."; exit 1; }
 
       - name: Install dependencies
         run: uv sync --frozen
@@ -289,7 +298,10 @@ jobs:
             ${{ runner.os }}-
 
       - name: Validate lockfile is up-to-date
-        run: uv lock --check
+        # Developers must run 'uv lock' and commit uv.lock after changing pyproject.toml.
+        # This check fails (without modifying files) if the lockfile would change,
+        # surfacing drift as a CI failure rather than a mysterious import error.
+        run: uv lock --check || { echo "::error::uv.lock is out of date with pyproject.toml. Run 'uv lock' locally and commit the updated uv.lock."; exit 1; }
 
       - name: Install dependencies
         run: uv sync --frozen --group dev
@@ -514,6 +526,12 @@ jobs:
             ${{ runner.os }}-uv-
             ${{ runner.os }}-
 
+      - name: Validate lockfile is up-to-date
+        # Developers must run 'uv lock' and commit uv.lock after changing pyproject.toml.
+        # This check fails (without modifying files) if the lockfile would change,
+        # surfacing drift as a CI failure rather than a mysterious import error.
+        run: uv lock --check || { echo "::error::uv.lock is out of date with pyproject.toml. Run 'uv lock' locally and commit the updated uv.lock."; exit 1; }
+
       - name: Install dependencies (includes uv-secure from dev group)
         run: uv sync --frozen --group dev
 
@@ -732,6 +750,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-uv-
             ${{ runner.os }}-
+
+      - name: Validate lockfile is up-to-date
+        # Developers must run 'uv lock' and commit uv.lock after changing pyproject.toml.
+        # This check fails (without modifying files) if the lockfile would change,
+        # surfacing drift as a CI failure rather than a mysterious import error.
+        run: uv lock --check || { echo "::error::uv.lock is out of date with pyproject.toml. Run 'uv lock' locally and commit the updated uv.lock."; exit 1; }
 
       - name: Install dependencies
         run: uv sync --frozen
