@@ -608,3 +608,21 @@ Incomplete: Implement per-worker short-lived credential context with lifecycle a
 ## Iteration 3 - Mon, Mar 16, 2026  4:38:45 PM
 Incomplete: Emit create_agent and invoke_agent OTel spans per worker lifecycle (ID: US-318) — attempt /3
 
+
+## Iteration N - Story: US-254 Implement hierarchical summarization for oversized Phase R research outputs
+
+### What was implemented
+- Verified all implementation already complete from prior iterations:
+  - `lib/summarize_research.py` — Full Python module with hierarchical summarization, token counting (tiktoken + approx fallback), story compression preserving AC/TN/source/deps
+  - `spiral.sh` lines 3205-3248 — Integration: check threshold, copy full → `_research_full.json`, summarize → `_research_output.json`, log stats, store both in checkpoint as base64 under `_phaseR.full` and `_phaseR.summary`
+  - Config vars `SPIRAL_RESEARCH_SUMMARY_THRESHOLD=4000` and `SPIRAL_USE_FULL_RESEARCH=0` in spiral.sh, spiral.config.sh, templates
+  - `tests/summarize_research.bats` — 10 comprehensive tests all passing
+- Fixed corrupted prd.json (truncated from 500KB to 10KB) by restoring from last commit
+- Marked US-254 as passes=true
+
+### Patterns discovered
+- prd.json can get truncated by concurrent writes from spiral workers — always validate JSON after write
+- The .bak file (442KB) had 281 stories vs HEAD commit (500KB, 318 stories) — .bak was stale
+
+### Gotchas
+- prd.json was corrupted in working tree but intact in git HEAD — always check git for recovery
