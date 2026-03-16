@@ -62,6 +62,13 @@ SPIRAL_LOCK_TIMEOUT_MINUTES=5
 # passed to ralph. 0 = disabled (all pending stories visible, current behavior).
 SPIRAL_STORY_BATCH_SIZE=20
 
+# ── Phase S: Message Batches API validation (US-390) ──────────────────────
+# Set to 1 to submit Phase S validation requests to the Anthropic Message
+# Batches API (50% cost reduction vs sequential, async up to 10k stories).
+# Requires ANTHROPIC_API_KEY. Single-story runs fall back to synchronous path.
+# Batch summary is written to .spiral/_phase_s_batch.json.
+SPIRAL_BATCH_VALIDATE="${SPIRAL_BATCH_VALIDATE:-0}"
+
 # ── Worker env allowlist (US-359) ──────────────────────────────────────────
 # Comma-separated list of env var names/prefixes passed to worker subprocesses.
 # Suffix * for prefix match (e.g. SPIRAL_* matches SPIRAL_WORKER_ID, SPIRAL_PYTHON).

@@ -794,3 +794,39 @@ Incomplete: Use Claude Message Batches API for Phase S multi-story validation (I
 ### Gotchas
 - The `< /dev/null` must come BEFORE `2>&1` in the pipeline (shell parses redirections left-to-right for the first pipeline member)
 - On Windows/Git Bash, `< /dev/null` maps to the NUL device — works correctly with MINGW
+## Iteration 2 - Mon, Mar 16, 2026  6:44:47 PM
+Incomplete: Use Claude Message Batches API for Phase S multi-story validation (ID: US-390) — attempt /3
+
+
+## Iteration 3 - Story: US-390 Use Claude Message Batches API for Phase S multi-story validation
+
+### What was implemented
+- Created `lib/batch_validate.py`: stdlib-only (urllib.request) Anthropic Message Batches API client
+  - `build_batch_requests(stories, goal_text, forbidden_phrases)` → batch request list
+  - `submit_batch(requests, api_key, base_url)` → POST to /v1/messages/batches
+  - `poll_batch(batch_id, api_key, base_url, max_wait_sec)` → exponential backoff until "ended"
+  - `parse_batch_results(results)` → dict[custom_id → {accepted, reason}]
+  - `validate_story_sync(story, ...)` → single-story synchronous /v1/messages fallback
+- Updated `lib/validate_stories.py`:
+  - Added `_validate_via_batch_api()` helper: routes research/ai-example stories to batch; auto-approves test-fix/test-story
+  - Added `_write_batch_summary()`: writes `.spiral/_phase_s_batch.json` (batch_id + per-story results)
+  - Added `use_batch_api`, `batch_out`, `batch_base_url` params to `validate_stories()`
+  - Added `--batch-api`, `--batch-out`, `--batch-base-url` CLI flags
+  - `SPIRAL_BATCH_VALIDATE=1` env var also enables batch path (no flag needed)
+  - Graceful fallback to keyword path on API error or missing API key
+- Updated `lib/phases/phase_s_story_validate.sh`: passes `--batch-api --batch-out` when `SPIRAL_BATCH_VALIDATE=1`
+- Updated `spiral.config.sh`: added `SPIRAL_BATCH_VALIDATE="${SPIRAL_BATCH_VALIDATE:-0}"` with comment
+- Created `tests/test_batch_validate.py`: 26 tests across 5 classes (all pass)
+
+### Patterns discovered
+- `urllib.request` is sufficient for Anthropic API calls (no `anthropic` SDK needed)
+- Batch results endpoint returns JSONL (line-delimited JSON, not JSON array) — iterate lines
+- mypy strict passes cleanly on new `batch_validate.py`; pre-existing validate_stories.py dict type errors are masked by semantic_chunker.py syntax error in full lib/ runs
+- `validate_stories` is NOT in mypy overrides — pre-existing `dict` without type params throughout
+- When mocking `urlopen` via `patch`, Request headers use title-case keys (X-api-key not x-api-key)
+
+### Gotchas
+- _validate_via_batch_api: test-fix and test-story sources skip LLM validation (same as keyword path)
+- batch_validate is a lazy import inside validate_stories.py to keep it optional
+- `SPIRAL_BATCH_VALIDATE=1` is the env var to enable (matches existing SPIRAL_ convention)
+- Batch summary file `.spiral/_phase_s_batch.json` records batch_id for each story (satisfies "Results file records batch_id" criterion)

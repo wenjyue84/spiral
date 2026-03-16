@@ -8,6 +8,12 @@ and writes:
   _validated_stories.json  — accepted stories (input to Phase M --research)
   _story_rejected.json     — rejected stories with rejection reasons (log only)
 
+When --batch-api is passed (and ANTHROPIC_API_KEY is set), story validation is
+delegated to the Anthropic Message Batches API for 50% cost savings.  Single-story
+runs fall back to the synchronous /v1/messages path transparently.
+The batch_id is recorded in each story's ``_batch_id`` field and in the
+``--batch-out`` JSON file (default: <scratch_dir>/_phase_s_batch.json).
+
 Exit code: 0 always (validation failures are non-fatal; use --min-overlap 0 to accept all).
 """
 import argparse
@@ -101,6 +107,123 @@ def _load_constitution_forbidden(path: str) -> list[str]:
     return forbidden
 
 
+def _validate_via_batch_api(
+    all_candidates: list[dict],
+    goals: list[str],
+    forbidden_phrases: list[str],
+    api_key: str,
+    batch_out: str,
+    base_url: str,
+) -> tuple[list[dict], list[dict]]:
+    """Validate story candidates using the Anthropic Message Batches API.
+
+    Assigns a ``_custom_id`` to each candidate (its index) and submits a
+    single batch request.  Polls until all results are available, then
+    applies the LLM decisions.  The batch_id is written to *batch_out* and
+    stamped onto each story as ``_batch_id``.
+
+    Single-story runs use the synchronous /v1/messages fallback.
+    """
+    import batch_validate as _bv  # lazy import so the module is optional
+
+    goal_text = "\n".join(goals) if goals else "(no goals specified)"
+
+    # Stamp _custom_id for correlation
+    for i, story in enumerate(all_candidates):
+        story["_custom_id"] = f"story-{i}"
+
+    accepted: list[dict] = []
+    rejected: list[dict] = []
+    batch_id: str = ""
+
+    if len(all_candidates) == 1:
+        # --- Synchronous fallback ---
+        story = all_candidates[0]
+        ok, reason = _bv.validate_story_sync(
+            story, goal_text, forbidden_phrases, api_key, base_url
+        )
+        if ok:
+            accepted.append(story)
+        else:
+            rejected.append({**story, "_rejection_reason": reason})
+        print(f"  [S] Batch API sync: {story.get('title', '')[:70]!r} → {'ACCEPT' if ok else 'REJECT'}")
+    else:
+        # --- Batch path ---
+        requests = _bv.build_batch_requests(all_candidates, goal_text, forbidden_phrases)
+        print(f"  [S] Submitting {len(requests)} stories to Message Batches API…")
+        batch_info = _bv.submit_batch(requests, api_key, base_url)
+        batch_id = str(batch_info.get("id", ""))
+        print(f"  [S] Batch submitted: {batch_id}")
+
+        raw_results = _bv.poll_batch(batch_id, api_key, base_url)
+        decisions = _bv.parse_batch_results(raw_results)
+
+        story_map = {str(s.get("_custom_id", "")): s for s in all_candidates}
+        for custom_id, story in story_map.items():
+            decision = decisions.get(custom_id, {"accepted": True, "reason": "missing"})
+            story["_batch_id"] = batch_id
+            ok = bool(decision.get("accepted", True))
+            reason = str(decision.get("reason", ""))
+            title = story.get("title", "")
+            if ok:
+                accepted.append(story)
+            else:
+                rejected.append({**story, "_rejection_reason": reason})
+                print(f"  [S] REJECTED (batch): {title[:70]!r} — {reason}")
+
+    # Write batch summary
+    if batch_out:
+        _write_batch_summary(batch_out, batch_id, accepted, rejected)
+
+    return accepted, rejected
+
+
+def _write_batch_summary(
+    batch_out: str,
+    batch_id: str,
+    accepted: list[dict],
+    rejected: list[dict],
+) -> None:
+    """Write a Phase S batch results summary to *batch_out*."""
+    import datetime
+
+    rows: list[dict[str, object]] = []
+    for story in accepted:
+        rows.append(
+            {
+                "batch_id": batch_id,
+                "story_id": story.get("id", ""),
+                "title": story.get("title", ""),
+                "accepted": True,
+            }
+        )
+    for story in rejected:
+        rows.append(
+            {
+                "batch_id": batch_id,
+                "story_id": story.get("id", ""),
+                "title": story.get("title", ""),
+                "accepted": False,
+                "rejection_reason": story.get("_rejection_reason", ""),
+            }
+        )
+    summary: dict[str, object] = {
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "batch_id": batch_id,
+        "total": len(rows),
+        "accepted": len(accepted),
+        "rejected": len(rejected),
+        "results": rows,
+    }
+    try:
+        os.makedirs(os.path.dirname(os.path.abspath(batch_out)), exist_ok=True)
+        with open(batch_out, "w", encoding="utf-8") as fh:
+            json.dump(summary, fh, indent=2)
+            fh.write("\n")
+    except OSError as exc:
+        print(f"  [S] WARNING: could not write batch summary to {batch_out}: {exc}")
+
+
 def validate_stories(
     research_path: str,
     test_stories_path: str,
@@ -111,6 +234,9 @@ def validate_stories(
     min_overlap: int = 1,
     ai_suggest_path: str = "",
     test_story_candidates_path: str = "",
+    use_batch_api: bool = False,
+    batch_out: str = "",
+    batch_base_url: str = "",
 ) -> tuple[list[dict], list[dict]]:
     """Core validation logic. Returns (accepted, rejected) lists."""
 
@@ -160,6 +286,63 @@ def validate_stories(
     accepted: list[dict] = []
     rejected: list[dict] = []
 
+    # ── Batch API path (US-390) ───────────────────────────────────────────
+    if use_batch_api:
+        api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+        if not api_key:
+            print(
+                "  [S] WARNING: --batch-api requested but ANTHROPIC_API_KEY not set"
+                " — falling back to keyword validation",
+                file=sys.stderr,
+            )
+            use_batch_api = False
+        else:
+            _base = batch_base_url or os.environ.get(
+                "SPIRAL_BATCH_API_URL", "https://api.anthropic.com"
+            )
+            try:
+                # Filter candidates that need LLM validation (research / ai-example)
+                # test-fix and test-story are auto-approved (same as keyword path)
+                llm_candidates: list[dict] = []
+                auto_approved: list[dict] = []
+                for story in all_candidates:
+                    if not story.get("title", "").strip():
+                        continue
+                    _src = story.get("_source", "research")
+                    if story.get("_isTestFix") or _src in ("test-fix", "test-story"):
+                        auto_approved.append(story)
+                    else:
+                        llm_candidates.append(story)
+
+                accepted.extend(auto_approved)
+
+                if llm_candidates:
+                    _accepted, _rejected = _validate_via_batch_api(
+                        llm_candidates,
+                        goals,
+                        forbidden_phrases,
+                        api_key,
+                        batch_out,
+                        _base,
+                    )
+                    accepted.extend(_accepted)
+                    rejected.extend(_rejected)
+
+                # Write outputs
+                atomic_write_json(validated_out, {"stories": accepted})
+                atomic_write_json(rejected_out, {"stories": rejected})
+                return accepted, rejected
+            except Exception as exc:  # noqa: BLE001
+                print(
+                    f"  [S] WARNING: Batch API validation failed ({exc})"
+                    " — falling back to keyword validation",
+                    file=sys.stderr,
+                )
+                # Reset and fall through to keyword path
+                accepted = []
+                rejected = []
+
+    # ── Keyword / constitution path (default) ────────────────────────────
     for story in all_candidates:
         title = story.get("title", "").strip()
         if not title:
@@ -243,7 +426,31 @@ def main() -> int:
         default="",
         help="Path to Source 5 test story candidates (_test_story_candidates.json)",
     )
+    parser.add_argument(
+        "--batch-api",
+        action="store_true",
+        default=False,
+        help=(
+            "Use Anthropic Message Batches API for validation (requires ANTHROPIC_API_KEY)."
+            " Single-story runs fall back to the synchronous /v1/messages path."
+        ),
+    )
+    parser.add_argument(
+        "--batch-out",
+        default="",
+        help="Path to write Phase S batch summary JSON (batch_id + per-story results).",
+    )
+    parser.add_argument(
+        "--batch-base-url",
+        default="",
+        help="Override Anthropic API base URL (default: https://api.anthropic.com).",
+    )
     args = parser.parse_args()
+
+    # --batch-api can also be enabled via env var SPIRAL_BATCH_VALIDATE=1
+    use_batch_api: bool = args.batch_api or (
+        os.environ.get("SPIRAL_BATCH_VALIDATE", "0").strip() == "1"
+    )
 
     accepted, rejected = validate_stories(
         research_path=args.research,
@@ -255,6 +462,9 @@ def main() -> int:
         min_overlap=args.min_overlap,
         ai_suggest_path=args.ai_suggest,
         test_story_candidates_path=args.test_story_candidates,
+        use_batch_api=use_batch_api,
+        batch_out=args.batch_out,
+        batch_base_url=args.batch_base_url,
     )
 
     total = len(accepted) + len(rejected)

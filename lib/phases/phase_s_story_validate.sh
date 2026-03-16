@@ -58,6 +58,15 @@ run_phase_story_validate() {
 
   local min_overlap="${SPIRAL_STORY_VALIDATE_MIN_OVERLAP:-1}"
 
+  # Build optional batch API args (US-390)
+  local batch_api_arg=()
+  if [[ "${SPIRAL_BATCH_VALIDATE:-0}" == "1" ]]; then
+    batch_api_arg=(
+      "--batch-api"
+      "--batch-out" "$scratch_dir/_phase_s_batch.json"
+    )
+  fi
+
   # Run Python validation script
   if "$spiral_python" "$spiral_home/lib/validate_stories.py" \
     --prd "$prd_file" \
@@ -68,7 +77,8 @@ run_phase_story_validate() {
     "${constitution_arg[@]}" \
     "${ai_suggest_arg[@]}" \
     "${test_story_arg[@]}" \
-    --min-overlap "$min_overlap"; then
+    --min-overlap "$min_overlap" \
+    "${batch_api_arg[@]}"; then
     : # success
   else
     echo "  [S] WARNING: Story validation failed — passing all stories through"
