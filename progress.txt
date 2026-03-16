@@ -648,3 +648,26 @@ Incomplete: Emit create_agent and invoke_agent OTel spans per worker lifecycle (
 - In parallel path, story ID for passed workers uses `last | .id` from passes=true; for failed uses `first | .id` from passes!=true
 - `SPIRAL_PYTHON` is not always exported in run_parallel_ralph.sh — use `${SPIRAL_PYTHON:-python3}` fallback
 
+## Iteration 2 - Mon, Mar 16, 2026  5:30:06 PM
+Completed: Emit create_agent and invoke_agent OTel spans per worker lifecycle (ID: US-318) in 9m
+
+## Iteration N - Story: US-323 Detect goal hijack by verifying prd.json goals hash unchanged after Phase R
+
+### What was implemented
+- Added pre-Phase-R goals hash recording: `$JQ -S '.goals // []'` piped through `sha256sum` to `$SCRATCH_DIR/_goals_hash`
+- Added pre-Phase-R goals snapshot: saves full sorted goals JSON to `$SCRATCH_DIR/_goals_before.json` for diffing
+- Added post-Phase-R / pre-Phase-M hash comparison check with `_GOALS_HIJACK_ABORT` flag
+- On mismatch: prints SECURITY banner, computes diff using saved snapshot vs current, logs to `security-audit.jsonl` with hash_before/hash_after/diff fields
+- Also logs `goal_hijack_detected` event to `spiral_events.jsonl` via `log_spiral_event`
+- Phase M is aborted by writing checkpoint early (`write_checkpoint "$SPIRAL_ITER" "M"`) so `checkpoint_phase_done "M"` returns true
+- Created `tests/goal_hijack.bats` with 6 tests: hash recording, unchanged (no alert), modified (alert), diff content, spiral_events logging, missing goals (no false positive)
+
+### Patterns discovered
+- `$JQ -S` sorts keys deterministically — critical for reproducible hashes across runs
+- `sha256sum` on the file (not piped content) is more reliable across platforms; awk extracts just the hash
+- Writing checkpoint for phase M before Phase M starts causes the existing `checkpoint_phase_done "M"` check to skip the merge naturally
+
+### Gotchas
+- `_GOALS_SNAPSHOT_FILE` must be saved before Phase R to capture the true "before" state — the prd-backups dir is only created inside Phase M which would be too late
+- `_GOALS_HIJACK_ABORT` is initialized to 0 before Phase R to avoid unbound variable errors in strict mode
+

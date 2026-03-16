@@ -2715,6 +2715,15 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
     --out "$TEST_STORY_CANDIDATES" \
     --min-complexity "$SPIRAL_TEST_STORY_MIN_COMPLEXITY" || true
 
+  # ── Record goals hash before Phase R (US-323: goal-hijack detection) ──────
+  _GOALS_HASH_FILE="$SCRATCH_DIR/_goals_hash"
+  _GOALS_SNAPSHOT_FILE="$SCRATCH_DIR/_goals_before.json"
+  _GOALS_HIJACK_ABORT=0
+  if [[ -f "$PRD_FILE" ]]; then
+    "$JQ" -S '.goals // []' "$PRD_FILE" > "$_GOALS_SNAPSHOT_FILE" 2>/dev/null
+    sha256sum "$_GOALS_SNAPSHOT_FILE" | awk '{print $1}' > "$_GOALS_HASH_FILE"
+  fi
+
   # ── Phase R + T: RESEARCH and TEST SYNTHESIS (parallel) ──────────────────
   # US-182: R and T are independent — launch as background jobs and await both.
   PHASE="R"
@@ -3285,6 +3294,38 @@ with open('$RESEARCH_OUTPUT', 'rb') as f:
   log_spiral_event "phase_end" "\"phase\":\"S\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_S,\"model\":\"$SPIRAL_VALIDATION_MODEL\""
   "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" end-phase --phase S --duration-s "$_PHASE_DUR_S" --iteration "$SPIRAL_ITER" 2>/dev/null || true
   notify_webhook "S" "end"
+
+  # ── US-323: Goal-hijack detection — verify goals hash unchanged after Phase R ──
+  if [[ -f "$_GOALS_HASH_FILE" && -f "$PRD_FILE" ]]; then
+    _GOALS_HASH_BEFORE=$(cat "$_GOALS_HASH_FILE")
+    _GOALS_HASH_AFTER=$("$JQ" -S '.goals // []' "$PRD_FILE" 2>/dev/null | sha256sum | awk '{print $1}')
+    if [[ "$_GOALS_HASH_BEFORE" != "$_GOALS_HASH_AFTER" ]]; then
+      echo ""
+      echo "  [SECURITY] GOAL-HIJACK DETECTED: prd.json goals changed during Phase R!"
+      echo "  [SECURITY] Expected hash: $_GOALS_HASH_BEFORE"
+      echo "  [SECURITY] Actual hash:   $_GOALS_HASH_AFTER"
+      # Compute diff for human review using the pre-Phase-R snapshot
+      _GOALS_DIFF_AFTER="$SCRATCH_DIR/_goals_after.json"
+      "$JQ" -S '.goals // []' "$PRD_FILE" > "$_GOALS_DIFF_AFTER" 2>/dev/null
+      _GOALS_DIFF=$(diff "$_GOALS_SNAPSHOT_FILE" "$_GOALS_DIFF_AFTER" 2>/dev/null || true)
+      echo "  [SECURITY] Goals diff:"
+      echo "$_GOALS_DIFF" | head -20
+      # Log to security-audit.jsonl
+      _SECURITY_AUDIT="$SCRATCH_DIR/security-audit.jsonl"
+      _HIJACK_TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+      _GOALS_DIFF_ESC=$(echo "$_GOALS_DIFF" | head -20 | "$JQ" -Rs '.' 2>/dev/null || echo '""')
+      printf '{"ts":"%s","event":"goal_hijack_detected","iteration":%d,"hash_before":"%s","hash_after":"%s","diff":%s}\n' \
+        "$_HIJACK_TS" "$SPIRAL_ITER" "$_GOALS_HASH_BEFORE" "$_GOALS_HASH_AFTER" "$_GOALS_DIFF_ESC" \
+        >> "$_SECURITY_AUDIT" 2>/dev/null || true
+      log_spiral_event "goal_hijack_detected" \
+        "\"iteration\":$SPIRAL_ITER,\"hash_before\":\"$_GOALS_HASH_BEFORE\",\"hash_after\":\"$_GOALS_HASH_AFTER\""
+      echo "  [SECURITY] Phase M ABORTED — goals integrity compromised. Review security-audit.jsonl"
+      # Skip Phase M by writing checkpoint
+      write_checkpoint "$SPIRAL_ITER" "M"
+      ADDED=0
+      _GOALS_HIJACK_ABORT=1
+    fi
+  fi
 
   # ── Phase M: MERGE ──────────────────────────────────────────────────────────
   PHASE="M"

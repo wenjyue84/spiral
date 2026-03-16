@@ -5886,7 +5886,7 @@
         "US-318"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "model": "haiku",
       "_skipped": true,
       "filesTouch": [
@@ -5904,7 +5904,8 @@
       "tags": [
         "module-claude",
         "module-hypothesis"
-      ]
+      ],
+      "status": "skipped"
     },
     {
       "id": "US-320",
@@ -5966,7 +5967,7 @@
         "US-229"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "model": "haiku",
       "_skipped": true,
       "filesTouch": [
@@ -5985,7 +5986,8 @@
         "module-claude",
         "module-github",
         "module-hypothesis"
-      ]
+      ],
+      "status": "skipped"
     },
     {
       "id": "US-322",
@@ -6053,7 +6055,7 @@
         "US-187"
       ],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku",
       "_skipped": true,
       "filesTouch": [
@@ -6072,7 +6074,8 @@
         "module-claude",
         "module-github",
         "module-hypothesis"
-      ]
+      ],
+      "status": "skipped"
     },
     {
       "id": "US-324",
@@ -6098,7 +6101,7 @@
         "US-323"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "model": "haiku",
       "_skipped": true,
       "filesTouch": [
@@ -6116,7 +6119,8 @@
       "tags": [
         "module-claude",
         "module-hypothesis"
-      ]
+      ],
+      "status": "skipped"
     },
     {
       "id": "US-325",
@@ -6184,7 +6188,7 @@
         "US-150"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "model": "haiku",
       "_skipped": true,
       "filesTouch": [
@@ -6203,7 +6207,8 @@
         "module-claude",
         "module-github",
         "module-hypothesis"
-      ]
+      ],
+      "status": "skipped"
     },
     {
       "id": "US-336",
