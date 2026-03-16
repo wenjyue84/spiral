@@ -3490,7 +3490,7 @@ $INJECTED_PROMPT"
                 # Single story — sequential fallback, skip worktree overhead entirely
                 echo "  [I] Wave $((WAVE + 1)): 1 story — sequential fallback (no worktrees)"
                 # Auto-detect tool: UT-* test stories → Codex; others → Claude
-                _NEXT_SID=$("$JQ" -r '[.userStories[] | select(.passes != true)] | sort_by(if .priority == "critical" then 0 elif .priority == "high" then 1 elif .priority == "medium" then 2 else 3 end) | first | .id // ""' "$PRD_FILE" 2>/dev/null || echo "")
+                _NEXT_SID=$("$JQ" -r '[.userStories[] | select(.passes != true)] | sort_by(if .priorityScore != null then (100 - .priorityScore) elif .priority == "critical" then 20 elif .priority == "high" then 40 elif .priority == "medium" then 60 else 80 end) | first | .id // ""' "$PRD_FILE" 2>/dev/null || echo "")
                 if [[ "$_NEXT_SID" == UT-* ]]; then
                   _RALPH_TOOL="codex"
                   echo "  [I] Story $_NEXT_SID is a test story → routing to Codex"
@@ -3579,7 +3579,7 @@ $INJECTED_PROMPT"
                 # conflicts and defer lower-priority ones to the next batch.
                 if [[ "${SKIP_CONFLICT_PREFLIGHT:-0}" -ne 1 ]]; then
                   _WAVE_STORY_IDS=($("$JQ" -r \
-                    '[.userStories[] | select(.passes != true and ._skipped != true and ._decomposed != true)] | sort_by(if .priority == "critical" then 0 elif .priority == "high" then 1 elif .priority == "medium" then 2 else 3 end) | .[0:'"$WAVE_STORY_COUNT"'] | .[].id' \
+                    '[.userStories[] | select(.passes != true and ._skipped != true and ._decomposed != true)] | sort_by(if .priorityScore != null then (100 - .priorityScore) elif .priority == "critical" then 20 elif .priority == "high" then 40 elif .priority == "medium" then 60 else 80 end) | .[0:'"$WAVE_STORY_COUNT"'] | .[].id' \
                     "$PRD_FILE" 2>/dev/null || true))
                   if [[ ${#_WAVE_STORY_IDS[@]} -ge 2 ]]; then
                     _CF_LOG="$SCRATCH_DIR/conflict-log.jsonl"
@@ -3622,7 +3622,7 @@ $INJECTED_PROMPT"
           else
             # ── Sequential mode (default) ────────────────────────────────────
             # Auto-detect tool: UT-* test stories → Codex; others → Claude
-            _NEXT_SID=$("$JQ" -r '[.userStories[] | select(.passes != true)] | sort_by(if .priority == "critical" then 0 elif .priority == "high" then 1 elif .priority == "medium" then 2 else 3 end) | first | .id // ""' "$PRD_FILE" 2>/dev/null || echo "")
+            _NEXT_SID=$("$JQ" -r '[.userStories[] | select(.passes != true)] | sort_by(if .priorityScore != null then (100 - .priorityScore) elif .priority == "critical" then 20 elif .priority == "high" then 40 elif .priority == "medium" then 60 else 80 end) | first | .id // ""' "$PRD_FILE" 2>/dev/null || echo "")
             if [[ "$_NEXT_SID" == UT-* ]]; then
               _RALPH_TOOL="codex"
               echo "  [I] Story $_NEXT_SID is a test story → routing to Codex"
