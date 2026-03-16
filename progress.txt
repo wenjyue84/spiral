@@ -1168,4 +1168,21 @@ Completed: Add pre-flight Claude API token count check before story prompt submi
 - Pre-existing test failures: test_field_similarity_lists (consistency_check), test_auto_complex/simple_story (route_stories) — unrelated to this change
 - Hypothesis tests timeout locally on Windows due to 10s per-test limit — CI uses a dedicated hypothesis profile
 
+## Iteration N - Story: US-410 Configure GitHub Dependabot for automated dependency update PRs
+
+### What was implemented
+- Added npm ecosystem to existing .github/dependabot.yml targeting /spiral-ui directory
+- Changed github-actions commit-message prefix from 'chore(deps)' to 'ci(deps)' per acceptance criteria
+- npm ecosystem configured with weekly schedule, open-pull-requests-limit: 5, and 'dependencies'+'npm' labels
+
+### Files modified
+- .github/dependabot.yml — added npm ecosystem block, updated github-actions commit prefix
+
+### Patterns discovered
+- dependabot.yml already existed with github-actions and pip ecosystems (added in a prior iteration)
+- spiral-ui/ is the only npm package in the repo (tests/bats-* are git submodules)
+
+### Gotchas
+- The 5th acceptance criterion ("At least one dependency update PR is raised within the first week") is a post-merge verification — cannot be checked before deployment
+
 
