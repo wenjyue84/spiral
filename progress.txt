@@ -414,3 +414,6 @@ Incomplete: Validate MCP server integrity via signed checksum manifest before Ph
 ### Gotchas
 - This is a pure text change — no code or tests needed
 - The section must NOT contain story IDs in comments (would fail the no-story-IDs test from US-338)
+## Iteration 6 - Mon, Mar 16, 2026  2:24:59 PM
+Incomplete: Validate MCP server integrity via signed checksum manifest before Phase I (ID: US-320) — attempt /3
+

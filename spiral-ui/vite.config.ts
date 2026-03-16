@@ -1112,6 +1112,214 @@ function spiralApiPlugin() {
           clearInterval(staleTimer);
         });
       });
+
+      // ── GET /api/token-stats?name=X — aggregated token analytics ─────────────
+      // Reads token_metrics.jsonl, story_costs.json, and results.tsv
+      // Returns: { total, byModel, byStory[], byPhase[], trend[] }
+      server.middlewares.use('/api/token-stats', (req: IncomingMessage, res: ServerResponse, next: () => void) => {
+        if (req.method !== 'GET') { next(); return; }
+        const url = new URL(req.url ?? '', 'http://localhost');
+        const name = url.searchParams.get('name') ?? '';
+
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Content-Type', 'application/json');
+
+        const reg = readRegistry();
+        const root = name ? (reg[name] ?? null) : PROJECT_ROOT;
+        if (!root) {
+          res.end(JSON.stringify({ error: 'Project not found' }));
+          return;
+        }
+
+        try {
+          // ── 1. Parse token_metrics.jsonl ─────────────────────────────────────
+          interface TokenMetricRec {
+            ts?: string;
+            story_id?: string;
+            phase?: string;
+            model?: string;
+            input_tokens?: number;
+            output_tokens?: number;
+            total_tokens?: number;
+            duration_ms?: number;
+          }
+          const rawMetrics = readJsonl(path.join(root, '.spiral', 'token_metrics.jsonl')) as TokenMetricRec[];
+
+          // Aggregate by story_id
+          interface StoryAgg {
+            story_id: string;
+            input: number;
+            output: number;
+            total: number;
+            calls: number;
+            models: Set<string>;
+            phases: Set<string>;
+            ts: string;
+          }
+          const storyAgg: Record<string, StoryAgg> = {};
+          const phaseAgg: Record<string, { input: number; output: number; total: number }> = {};
+          const modelAgg: Record<string, { input: number; output: number; total: number; stories: number }> = {};
+          const trendPoints: Array<{ ts: string; input: number; output: number; total: number; cumTotal: number }> = [];
+          let cumTotal = 0;
+
+          for (const r of rawMetrics) {
+            const sid = r.story_id ?? 'unknown';
+            const phase = r.phase ?? 'I';
+            const model = r.model ?? 'unknown';
+            const inp = r.input_tokens ?? 0;
+            const out = r.output_tokens ?? 0;
+            const tot = r.total_tokens ?? (inp + out);
+            const ts = r.ts ?? '';
+
+            // Per-story
+            if (!storyAgg[sid]) storyAgg[sid] = { story_id: sid, input: 0, output: 0, total: 0, calls: 0, models: new Set(), phases: new Set(), ts };
+            storyAgg[sid].input += inp;
+            storyAgg[sid].output += out;
+            storyAgg[sid].total += tot;
+            storyAgg[sid].calls += 1;
+            if (model !== 'unknown') storyAgg[sid].models.add(model);
+            storyAgg[sid].phases.add(phase);
+
+            // Per-phase
+            if (!phaseAgg[phase]) phaseAgg[phase] = { input: 0, output: 0, total: 0 };
+            phaseAgg[phase].input += inp;
+            phaseAgg[phase].output += out;
+            phaseAgg[phase].total += tot;
+
+            // Per-model
+            if (!modelAgg[model]) modelAgg[model] = { input: 0, output: 0, total: 0, stories: 0 };
+            modelAgg[model].input += inp;
+            modelAgg[model].output += out;
+            modelAgg[model].total += tot;
+            modelAgg[model].stories += 1;
+
+            // Trend (cumulative)
+            cumTotal += tot;
+            trendPoints.push({ ts, input: inp, output: out, total: tot, cumTotal });
+          }
+
+          // ── 2. Enrich with story_costs.json (USD estimates) ──────────────────
+          interface StoryCostRec { tokens_input?: number; tokens_output?: number; estimated_usd?: number }
+          const storyCostsPath = path.join(root, '.spiral', 'story_costs.json');
+          const storyCosts: Record<string, StoryCostRec> = (() => {
+            try {
+              if (fs.existsSync(storyCostsPath)) return JSON.parse(fs.readFileSync(storyCostsPath, 'utf8')) as Record<string, StoryCostRec>;
+            } catch { /* ignore */ }
+            return {};
+          })();
+
+          // ── 3. Enrich with results.tsv (model/status per story) ──────────────
+          const tsvPath = path.join(root, 'results.tsv');
+          const tsvModelMap: Record<string, string> = {};
+          const tsvStatusMap: Record<string, string> = {};
+          const tsvTitleMap: Record<string, string> = {};
+          if (fs.existsSync(tsvPath)) {
+            try {
+              const tsvLines = fs.readFileSync(tsvPath, 'utf8').split('\n').filter(Boolean);
+              // Header: timestamp(0) spiral_iter(1) ralph_iter(2) story_id(3) story_title(4) status(5) duration_sec(6) model(7)
+              for (let i = 1; i < tsvLines.length; i++) {
+                const cols = tsvLines[i].split('\t');
+                const sid = cols[3] ?? '';
+                if (!sid) continue;
+                const mdl = cols[7] ?? '';
+                const sts = cols[5] ?? '';
+                const ttl = cols[4] ?? '';
+                if (mdl) tsvModelMap[sid] = mdl;
+                if (sts) tsvStatusMap[sid] = sts;
+                if (ttl) tsvTitleMap[sid] = ttl;
+              }
+            } catch { /* ignore */ }
+          }
+
+          // ── 4. Build output structures ────────────────────────────────────────
+
+          // Helper: extract model tier from full model name
+          const modelTier = (m: string): string => {
+            if (!m || m === 'unknown') return 'unknown';
+            const lm = m.toLowerCase();
+            if (lm.includes('haiku')) return 'haiku';
+            if (lm.includes('sonnet')) return 'sonnet';
+            if (lm.includes('opus')) return 'opus';
+            return m.split('-').slice(-1)[0] ?? m;
+          };
+
+          // byStory: merge storyAgg + storyCosts
+          const byStory = Object.values(storyAgg).map(s => {
+            const costRec = storyCosts[s.story_id];
+            const usd = costRec?.estimated_usd ?? 0;
+            const primaryModel = (() => {
+              // Prefer TSV model, else first from Set
+              if (tsvModelMap[s.story_id]) return tsvModelMap[s.story_id];
+              const arr = Array.from(s.models);
+              return arr[0] ?? 'unknown';
+            })();
+            return {
+              story_id: s.story_id,
+              title: tsvTitleMap[s.story_id] ?? '',
+              input: s.input,
+              output: s.output,
+              total: s.total,
+              calls: s.calls,
+              usd,
+              model: primaryModel,
+              model_tier: modelTier(primaryModel),
+              status: tsvStatusMap[s.story_id] ?? 'unknown',
+            };
+          }).sort((a, b) => b.total - a.total);
+
+          // Also add stories from story_costs that might not be in token_metrics
+          for (const [sid, costRec] of Object.entries(storyCosts)) {
+            if (!storyAgg[sid] && (costRec.estimated_usd ?? 0) > 0) {
+              const inp = costRec.tokens_input ?? 0;
+              const out = costRec.tokens_output ?? 0;
+              byStory.push({
+                story_id: sid,
+                title: tsvTitleMap[sid] ?? '',
+                input: inp,
+                output: out,
+                total: inp + out,
+                calls: 1,
+                usd: costRec.estimated_usd ?? 0,
+                model: tsvModelMap[sid] ?? 'unknown',
+                model_tier: modelTier(tsvModelMap[sid] ?? ''),
+                status: tsvStatusMap[sid] ?? 'unknown',
+              });
+            }
+          }
+
+          // byPhase
+          const byPhase = Object.entries(phaseAgg).map(([phase, v]) => ({ phase, ...v }));
+
+          // byModel
+          const byModel = Object.entries(modelAgg).map(([model, v]) => ({
+            model,
+            tier: modelTier(model),
+            ...v,
+          }));
+
+          // Summary totals
+          const totalInput = byStory.reduce((s, r) => s + r.input, 0);
+          const totalOutput = byStory.reduce((s, r) => s + r.output, 0);
+          const totalTokens = byStory.reduce((s, r) => s + r.total, 0);
+          const totalUsd = byStory.reduce((s, r) => s + r.usd, 0)
+            || Object.values(storyCosts).reduce((s, r) => s + (r.estimated_usd ?? 0), 0);
+          const avgPerStory = byStory.length > 0 ? Math.round(totalTokens / byStory.length) : 0;
+          const mostExpensive = [...byStory].sort((a, b) => b.usd - a.usd)[0] ?? null;
+
+          res.end(JSON.stringify({
+            total: { input: totalInput, output: totalOutput, tokens: totalTokens, usd: totalUsd },
+            avgPerStory,
+            mostExpensive: mostExpensive ? { story_id: mostExpensive.story_id, title: mostExpensive.title, usd: mostExpensive.usd } : null,
+            byModel,
+            byStory: byStory.slice(0, 20), // top 20
+            byPhase,
+            trend: trendPoints,
+          }));
+        } catch (e) {
+          res.statusCode = 500;
+          res.end(JSON.stringify({ error: String(e) }));
+        }
+      });
     },
   };
 }

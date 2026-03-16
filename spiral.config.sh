@@ -57,6 +57,12 @@ SPIRAL_LOCK_TIMEOUT_MINUTES=5
 # passed to ralph. 0 = disabled (all pending stories visible, current behavior).
 SPIRAL_STORY_BATCH_SIZE=20
 
+# ── Worker env allowlist (US-359) ──────────────────────────────────────────
+# Comma-separated list of env var names/prefixes passed to worker subprocesses.
+# Suffix * for prefix match (e.g. SPIRAL_* matches SPIRAL_WORKER_ID, SPIRAL_PYTHON).
+# Anything not listed is unset before ralph.sh runs inside the worker.
+SPIRAL_WORKER_ENV_ALLOWLIST="${SPIRAL_WORKER_ENV_ALLOWLIST:-ANTHROPIC_API_KEY,PATH,HOME,TMPDIR,TERM,SHELL,USER,LANG,TZ,SPIRAL_*,NODE_*,CLAUDE_*,RALPH_*,HEARTBEAT_DIR,TRACEPARENT,TRACESTATE,JQ,PYTHON,PWD,SHLVL}"
+
 # ── Cost ceiling: abort when cumulative API spend exceeds budget ──────────────
 # Set to a USD amount (e.g., 50.0) to cap spending. Empty = disabled.
 # SPIRAL_COST_CEILING=""

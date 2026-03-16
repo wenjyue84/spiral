@@ -64,6 +64,11 @@ GEMINI_ANNOTATE="${SPIRAL_GEMINI_ANNOTATE_PROMPT:-}"
 WORKER_TIMEOUT="${SPIRAL_WORKER_TIMEOUT:-600}" # per-worker wall-clock limit (0 = unlimited)
 STRICT_WORKER_ISOLATION="${SPIRAL_STRICT_WORKER_ISOLATION:-false}" # US-355: abort on policy violation
 
+# US-359: Worker env allowlist — convert comma-separated config to grep regex
+_WORKER_ENV_ALLOWLIST_CFG="${SPIRAL_WORKER_ENV_ALLOWLIST:-ANTHROPIC_API_KEY,PATH,HOME,TMPDIR,TERM,SHELL,USER,LANG,TZ,SPIRAL_*,NODE_*,CLAUDE_*,RALPH_*,HEARTBEAT_DIR,TRACEPARENT,TRACESTATE,JQ,PYTHON,PWD,SHLVL}"
+# Convert "FOO,BAR_*,BAZ" → "FOO|BAR_.*|BAZ" for grep -E matching
+_WORKER_ENV_ALLOWLIST_RE=$(echo "$_WORKER_ENV_ALLOWLIST_CFG" | sed 's/\*/.\*/g; s/,/|/g')
+
 # ── cgroups v2 worker isolation (US-259) ─────────────────────────────────────
 # Per-worker memory and CPU hard limits enforced by the kernel.
 # Falls back gracefully when cgroups v2 is unavailable (Windows, macOS, older kernels).
@@ -728,6 +733,41 @@ _audit_worker_launch() {
   return 0
 }
 
+# ── US-359: Restrict worker env to allowlist ─────────────────────────────────
+# Called INSIDE the worker subshell before launching ralph.sh.
+# Unsets all exported env vars not matching _WORKER_ENV_ALLOWLIST_RE.
+# Logs a worker_env_audit event with passed/removed key names (no values).
+_restrict_worker_env() {
+  local worker_num="$1"
+  local _passed=""
+  local _removed=""
+  local _passed_count=0
+  local _removed_count=0
+
+  while IFS='=' read -r _vname _; do
+    if [[ -z "$_vname" ]]; then
+      continue
+    fi
+    if echo "$_vname" | grep -qE "^(${_WORKER_ENV_ALLOWLIST_RE})$"; then
+      _passed="${_passed}${_vname},"
+      _passed_count=$((_passed_count + 1))
+    else
+      _removed="${_removed}${_vname},"
+      _removed_count=$((_removed_count + 1))
+      unset "$_vname" 2>/dev/null || true
+    fi
+  done < <(env 2>/dev/null)
+
+  # Log worker_env_audit event (key names only, never values)
+  local _ts
+  _ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  printf '{"ts":"%s","event":"worker_env_audit","run_id":"%s","worker":%d,"passed_count":%d,"removed_count":%d,"passed_keys":"%s","removed_keys":"%s"}\n' \
+    "$_ts" "${SPIRAL_RUN_ID:-}" "$worker_num" \
+    "$_passed_count" "$_removed_count" \
+    "${_passed%,}" "${_removed%,}" \
+    >>"$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || true
+}
+
 # ── Reusable worker launch function ──────────────────────────────────────────
 # Launches worker $1 in a background subshell, appends to WORKER_PIDS /
 # WORKER_FINISHED / WORKER_EXIT_CODES, writes PID file, and disowns.
@@ -766,6 +806,8 @@ _launch_worker_i() {
     [[ -n "${TRACEPARENT:-}" ]] && export TRACEPARENT
     [[ -n "${TRACESTATE:-}" ]] && export TRACESTATE
     if type worker_heartbeat_start &>/dev/null; then worker_heartbeat_start "$i" 30 2>/dev/null || true; fi
+    # US-359: Restrict env to allowlist (unsets non-allowed vars before ralph runs)
+    _restrict_worker_env "$i"
     _RC=0
     if [[ "$WORKER_TIMEOUT" -gt 0 ]] && command -v timeout &>/dev/null; then
       if [[ "$_USE_SETSID" -eq 1 ]]; then

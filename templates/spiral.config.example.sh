@@ -414,6 +414,13 @@
 # Default: false (warn only).
 # SPIRAL_STRICT_WORKER_ISOLATION=false
 
+# Worker env allowlist (US-359): comma-separated var names/prefixes passed to
+# worker subprocesses. Non-listed vars are unset before ralph.sh runs.
+# Use * suffix for prefix matching (e.g. SPIRAL_* matches all SPIRAL_ vars).
+# Default covers essentials; add GITHUB_TOKEN, FIRECRAWL_API_KEY etc. only
+# when specific stories need them.
+# SPIRAL_WORKER_ENV_ALLOWLIST=ANTHROPIC_API_KEY,PATH,HOME,TMPDIR,TERM,SHELL,USER,LANG,TZ,SPIRAL_*,NODE_*,CLAUDE_*,RALPH_*,HEARTBEAT_DIR,TRACEPARENT,TRACESTATE,JQ,PYTHON,PWD,SHLVL
+
 # Scope guard (US-356): validates staged files against story filesTouch field
 # before committing. When true, aborts the commit if any file outside the
 # declared scope is staged. When false (default), logs a WARN but allows commit.
