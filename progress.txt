@@ -508,3 +508,22 @@ Incomplete: Validate MCP server integrity via signed checksum manifest before Ph
 ### Gotchas
 - The SSE endpoint initializes offset to current file size to avoid replaying the entire event history on connect
 - `fs.watchFile` is used (not `fs.watch`) for consistency with the existing worker-stream pattern and cross-platform reliability on Windows
+## Iteration 4 - Mon, Mar 16, 2026  3:31:07 PM
+Incomplete: Validate MCP server integrity via signed checksum manifest before Phase I (ID: US-320) — attempt /3
+
+## Iteration N - Story: US-365 Add GitHub Actions concurrency groups to cancel stale CI runs on new pushes
+
+### What was implemented
+- Added top-level `concurrency` block to `.github/workflows/ci.yml` between `permissions` and `jobs`
+- Concurrency group key: `${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}`
+- Main branch protection: appends `github.sha` so each main commit gets its own group (never cancelled)
+- Feature branches: uses `github.ref` so rapid pushes cancel stale queued runs
+- `cancel-in-progress: true` ensures superseded runs are terminated
+
+### Patterns discovered
+- Concurrency block is a top-level workflow key (same level as `on`, `permissions`, `jobs`)
+- The ternary expression `github.ref == 'refs/heads/main' && github.sha || github.ref` is standard GitHub Actions pattern for protecting main
+
+### Gotchas
+- This is a 3-line YAML addition — no code or tests needed beyond YAML validation
+

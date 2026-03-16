@@ -5940,7 +5940,7 @@
         "US-265"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "model": "haiku",
       "_skipped": true,
       "filesTouch": [
@@ -5952,7 +5952,8 @@
         "module-claude",
         "module-hypothesis"
       ],
-      "status": "skipped"
+      "status": "skipped",
+      "completedAt": null
     },
     {
       "id": "US-321",
@@ -6848,7 +6849,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-366",
