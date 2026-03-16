@@ -113,3 +113,30 @@ Completed: ProjectDashboard: recently completed stories feed (ID: US-314) in 9m
 ### Gotchas
 - ESLint OOM (heap exhausted) is a pre-existing system constraint, not related to this story
 - npx tsc exits with VirtualAlloc error on this system; use node node_modules/typescript/bin/tsc --noEmit instead
+## Iteration 4 - Mon, Mar 16, 2026 11:51:37 AM
+Completed: ProjectDashboard: 'SPIRAL IS RUNNING' live status indicator (ID: US-315) in 9m
+
+
+## Iteration N - Story: US-316 ProjectDashboard: story detail slide-in panel
+
+### What was implemented
+- Replaced centered `StoryDetailModal` with `StoryDetailPanel` — a right-side slide-in panel (max-w-lg, full height)
+- Panel slides in from right with CSS `animate-slide-in-right` animation (0.2s ease-out)
+- Added Escape key handler via `useEffect` + `keydown` event listener
+- Click outside (on the backdrop overlay) closes the panel
+- Dependencies section now shows each dep's pass/fail status with green/amber indicator, looked up from allStories
+- Added attempt history table: last 5 attempts per story from results.tsv (timestamp, model, status badge, duration)
+- API (vite.config.ts): added `storyAttemptsMap` — parses ALL results.tsv rows, groups by story_id, keeps last 5 per story desc by timestamp
+- Added `storyAttempts` field to API response and `StoryAttempt` interface + `storyAttempts` on `ProjectData`
+- Passed commit: shows short SHA (8 chars) from first passing attempt's commitSha with "Copy SHA" button (clipboard API)
+- Failure reason now renders with a border (`border-rose-200`) for better visual emphasis
+- Acceptance criteria checklist shows filled checkmarks when story passes, empty circles when pending
+
+### Patterns discovered
+- results.tsv column 9 (index 9) is `commit_sha` — available for pass rows
+- `StoryDetailPanel` receives `allStories` prop to build a Map for dependency lookups
+- CSS animation class `animate-slide-in-right` defined in index.css (not Tailwind config) since Tailwind v4 uses @import style
+
+### Gotchas
+- `navigator.clipboard.writeText` needs HTTPS or localhost — works fine in dev mode
+- The slide-in panel uses `flex justify-end` on the fixed container to anchor right instead of centering

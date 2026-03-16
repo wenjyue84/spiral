@@ -728,17 +728,30 @@ function spiralApiPlugin() {
           // Last-seen from registry metadata (we just use now since we read files live)
           const lastSeen = new Date().toISOString();
 
-          // Last completed story + recently completed feed from results.tsv
+          // Last completed story + recently completed feed + per-story attempt history from results.tsv
           let lastCompletedStory: { id: string; title: string; timestamp: string; model: string; duration: number } | null = null;
           const recentlyCompleted: { id: string; title: string; timestamp: string; model: string; duration: number }[] = [];
+          const storyAttemptsMap: Record<string, { timestamp: string; status: string; model: string; duration: number; commitSha: string }[]> = {};
           const tsvPath = path.join(root, 'results.tsv');
           if (fs.existsSync(tsvPath)) {
             try {
               const tsvLines = fs.readFileSync(tsvPath, 'utf8').split('\n').filter(Boolean);
               for (let i = 1; i < tsvLines.length; i++) {
                 const cols = tsvLines[i].split('\t');
+                const sid = cols[3] ?? '';
+                const attempt = {
+                  timestamp: cols[0] ?? '',
+                  status: cols[5] ?? '',
+                  model: cols[7] ?? '',
+                  duration: parseInt(cols[6]) || 0,
+                  commitSha: cols[9] ?? '',
+                };
+                if (sid) {
+                  if (!storyAttemptsMap[sid]) storyAttemptsMap[sid] = [];
+                  storyAttemptsMap[sid].push(attempt);
+                }
                 if (cols[5] === 'pass') {
-                  const entry = { id: cols[3], title: cols[4], timestamp: cols[0], model: cols[7] ?? '', duration: parseInt(cols[6]) || 0 };
+                  const entry = { id: sid, title: cols[4], timestamp: cols[0], model: cols[7] ?? '', duration: parseInt(cols[6]) || 0 };
                   lastCompletedStory = entry;
                   recentlyCompleted.push(entry);
                 }
@@ -746,6 +759,11 @@ function spiralApiPlugin() {
               // Sort descending by timestamp, keep top 10
               recentlyCompleted.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
               recentlyCompleted.splice(10);
+              // Keep last 5 attempts per story, sorted by timestamp desc
+              for (const sid of Object.keys(storyAttemptsMap)) {
+                storyAttemptsMap[sid].sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+                storyAttemptsMap[sid].splice(5);
+              }
             } catch { /* ignore */ }
           }
 
@@ -810,6 +828,7 @@ function spiralApiPlugin() {
             cacheStats,
             lastCompletedStory,
             recentlyCompleted,
+            storyAttempts: storyAttemptsMap,
             checkpointTs,
             lastLogModified,
             activeStatus,

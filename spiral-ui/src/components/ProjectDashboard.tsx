@@ -80,6 +80,14 @@ interface ActiveStatus {
   story_title?: string;
 }
 
+interface StoryAttempt {
+  timestamp: string;
+  status: string;
+  model: string;
+  duration: number;
+  commitSha: string;
+}
+
 interface ProjectData {
   name: string;
   root: string;
@@ -97,6 +105,7 @@ interface ProjectData {
   checkpointTs?: string | null;
   lastLogModified?: string | null;
   activeStatus?: ActiveStatus | null;
+  storyAttempts?: Record<string, StoryAttempt[]>;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -121,7 +130,12 @@ function pct(done: number, total: number) {
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function StoryDetailModal({ story, onClose }: { story: Story; onClose: () => void }) {
+function StoryDetailPanel({ story, allStories, attempts, onClose }: {
+  story: Story;
+  allStories: Story[];
+  attempts?: StoryAttempt[];
+  onClose: () => void;
+}) {
   const PRIORITY_COLOR: Record<string, string> = {
     critical: 'bg-red-100 text-red-700 border-red-200',
     high: 'bg-orange-100 text-orange-700 border-orange-200',
@@ -135,15 +149,36 @@ function StoryDetailModal({ story, onClose }: { story: Story; onClose: () => voi
     'ai-example': 'bg-slate-100 text-slate-500',
   };
 
+  // Close on Escape key
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [onClose]);
+
+  // Find the commit SHA from the last passing attempt
+  const passedCommit = attempts?.find(a => a.status === 'pass')?.commitSha ?? null;
+
+  // Dependency status lookup
+  const storyMap = new Map(allStories.map(s => [s.id, s]));
+
+  const [copiedSha, setCopiedSha] = useState(false);
+  const copySha = (sha: string) => {
+    navigator.clipboard.writeText(sha).then(() => {
+      setCopiedSha(true);
+      setTimeout(() => setCopiedSha(false), 2000);
+    }).catch(() => { /* ignore */ });
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+    <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/30" />
       <div
-        className="relative z-10 bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-2xl mx-4 max-h-[85vh] flex flex-col"
+        className="relative z-10 bg-white shadow-2xl border-l border-slate-200 w-full max-w-lg h-full flex flex-col animate-slide-in-right"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-start gap-3 px-6 py-4 border-b border-slate-100">
+        <div className="flex items-start gap-3 px-6 py-4 border-b border-slate-100 flex-shrink-0">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs font-mono font-bold text-slate-500">{story.id}</span>
@@ -169,12 +204,13 @@ function StoryDetailModal({ story, onClose }: { story: Story; onClose: () => voi
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-700 transition-colors p-1 rounded-lg hover:bg-slate-100 flex-shrink-0"
+            className="text-slate-400 hover:text-slate-700 transition-colors p-1.5 rounded-lg hover:bg-slate-100 flex-shrink-0"
+            title="Close (Esc)"
           >✕</button>
         </div>
 
         {/* Body (scrollable) */}
-        <div className="overflow-y-auto px-6 py-4 space-y-5 text-sm">
+        <div className="overflow-y-auto flex-1 px-6 py-4 space-y-5 text-sm">
           {/* Description */}
           {story.description ? (
             <div>
@@ -192,11 +228,36 @@ function StoryDetailModal({ story, onClose }: { story: Story; onClose: () => voi
               <ul className="space-y-1.5">
                 {story.acceptanceCriteria.map((c, i) => (
                   <li key={i} className="flex items-start gap-2 text-slate-700">
-                    <span className="text-emerald-500 mt-0.5 flex-shrink-0">✓</span>
+                    <span className={`mt-0.5 flex-shrink-0 ${story.passes ? 'text-emerald-500' : 'text-slate-300'}`}>
+                      {story.passes ? '✓' : '○'}
+                    </span>
                     <span className="leading-snug">{c}</span>
                   </li>
                 ))}
               </ul>
+            </div>
+          )}
+
+          {/* Dependencies with pass/fail status */}
+          {story.dependencies && story.dependencies.length > 0 && (
+            <div>
+              <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">Dependencies</div>
+              <div className="space-y-1">
+                {story.dependencies.map(depId => {
+                  const dep = storyMap.get(depId);
+                  const passed = dep?.passes ?? false;
+                  return (
+                    <div key={depId} className="flex items-center gap-2">
+                      <span className={`text-xs flex-shrink-0 ${passed ? 'text-emerald-500' : 'text-amber-500'}`}>
+                        {passed ? '✓' : '○'}
+                      </span>
+                      <span className="font-mono text-[11px] text-blue-700 font-semibold">{depId}</span>
+                      {dep && <span className="text-[11px] text-slate-500 truncate">{dep.title}</span>}
+                      {!dep && <span className="text-[11px] text-slate-400 italic">not found</span>}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
 
@@ -212,14 +273,55 @@ function StoryDetailModal({ story, onClose }: { story: Story; onClose: () => voi
             </div>
           )}
 
-          {/* Dependencies */}
-          {story.dependencies && story.dependencies.length > 0 && (
+          {/* Attempt history from results.tsv */}
+          {attempts && attempts.length > 0 && (
             <div>
-              <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">Dependencies</div>
-              <div className="flex flex-wrap gap-1.5">
-                {story.dependencies.map(d => (
-                  <span key={d} className="font-mono text-[11px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-100">{d}</span>
-                ))}
+              <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">Attempt History</div>
+              <div className="rounded-lg border border-slate-200 overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead className="bg-slate-50 text-slate-500">
+                    <tr>
+                      <th className="px-2.5 py-1.5 text-left">Time</th>
+                      <th className="px-2.5 py-1.5 text-left">Model</th>
+                      <th className="px-2.5 py-1.5 text-left">Status</th>
+                      <th className="px-2.5 py-1.5 text-right">Duration</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {attempts.map((a, i) => (
+                      <tr key={i} className="border-t border-slate-100">
+                        <td className="px-2.5 py-1.5 text-slate-500" title={formatMYT(a.timestamp)}>{timeAgo(a.timestamp)}</td>
+                        <td className="px-2.5 py-1.5 text-slate-600 font-mono">{a.model || '—'}</td>
+                        <td className="px-2.5 py-1.5">
+                          <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                            a.status === 'pass' ? 'bg-emerald-100 text-emerald-700' :
+                            a.status === 'reject' ? 'bg-red-100 text-red-700' :
+                            'bg-slate-100 text-slate-500'
+                          }`}>{a.status}</span>
+                        </td>
+                        <td className="px-2.5 py-1.5 text-right text-slate-500">
+                          {a.duration >= 60 ? `${Math.floor(a.duration / 60)}m ${a.duration % 60}s` : `${a.duration}s`}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Passed commit SHA */}
+          {passedCommit && (
+            <div>
+              <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">Passed Commit</div>
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-[11px] bg-emerald-50 text-emerald-700 px-2 py-1 rounded border border-emerald-200">{passedCommit.slice(0, 8)}</span>
+                <button
+                  onClick={() => copySha(passedCommit)}
+                  className="text-[10px] px-2 py-1 rounded border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-colors"
+                >
+                  {copiedSha ? '✓ Copied' : 'Copy SHA'}
+                </button>
               </div>
             </div>
           )}
@@ -228,7 +330,7 @@ function StoryDetailModal({ story, onClose }: { story: Story; onClose: () => voi
           {story.failureReason && (
             <div>
               <div className="text-[10px] font-semibold text-rose-400 uppercase tracking-widest mb-1.5">Failure Reason</div>
-              <p className="text-rose-700 bg-rose-50 rounded-lg px-3 py-2 text-xs leading-relaxed font-mono whitespace-pre-wrap">{story.failureReason}</p>
+              <p className="text-rose-700 bg-rose-50 rounded-lg px-3 py-2 text-xs leading-relaxed font-mono whitespace-pre-wrap border border-rose-200">{story.failureReason}</p>
             </div>
           )}
 
@@ -682,9 +784,14 @@ function ProgressTab({ data, projectName, onRefresh }: { data: ProjectData; proj
         )}
       </div>
 
-      {/* Story detail modal */}
+      {/* Story detail slide-in panel */}
       {selectedStory && (
-        <StoryDetailModal story={selectedStory} onClose={() => setSelectedStory(null)} />
+        <StoryDetailPanel
+          story={selectedStory}
+          allStories={p.stories}
+          attempts={data.storyAttempts?.[selectedStory.id]}
+          onClose={() => setSelectedStory(null)}
+        />
       )}
     </div>
   );
