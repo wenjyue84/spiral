@@ -1,3 +1,23 @@
+## Iteration N - Story: US-340 Add per-story tool use examples to Ralph tool definitions to improve parameter accuracy
+
+### What was implemented
+- Added tool_examples.json loading block to ralph/ralph.sh system prompt construction (~line 2564)
+- Uses jq to format tool_examples.json into markdown sections with code blocks
+- Appended to RALPH_SYSTEM_PROMPT as a "## Tool Usage Examples" section (constant across stories, prompt-cache friendly)
+- Gracefully degrades: if file is missing or jq fails, skips silently
+- Logs example count to console on successful load
+
+### Files modified
+- ralph/ralph.sh — added US-340 tool examples loading block between browser tools and user prompt construction
+
+### Patterns discovered
+- tool_examples.json and tests/tool_examples.bats already existed as scaffolding; only the ralph.sh integration was missing
+- System prompt sections must be constant across stories for Anthropic prompt caching (US-338 cache-aware design)
+- The jq formatting command in the bats tests was the exact pattern needed for ralph.sh integration
+
+### Gotchas
+- Pre-existing test failure in test_consistency_check.py::test_field_similarity_lists (unrelated to US-340)
+
 ## Iteration N - Story: US-398 Add SPIRAL_THINKING_BUDGET_TOKENS env var to cap max extended thinking tokens per story
 
 ### What was implemented
@@ -1401,5 +1421,6 @@ Completed: Add pre-flight Claude API token count check before story prompt submi
 
 ### Gotchas
 - The `tee` addition for stdout capture changes ralph output from direct to piped; this preserves PIPESTATUS but exit code via `|| _I_EXIT=$?` works correctly since tee exits 0 when ralph exits non-zero
+
 
 

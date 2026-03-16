@@ -2561,6 +2561,28 @@ $(cat "$SPECKIT_CONST")
 $BROWSER_TOOLS_HINT"
         echo "  [browser] Chrome DevTools MCP detected — visual verification enabled"
       fi
+      # ── US-340: Load per-tool usage examples into system prompt ──────────
+      _TOOL_EXAMPLES_FILE="${SCRIPT_DIR}/tool_examples.json"
+      if [[ -f "$_TOOL_EXAMPLES_FILE" ]]; then
+        _TOOL_EXAMPLES_MD=$("$JQ" -r '
+          .tools | to_entries[] |
+          "### " + .value.description + " (" + .key + ")\n" +
+          ([.value.input_examples[] |
+            "- **" + .description + "**\n  ```json\n  " + (.input | tojson) + "\n  ```"
+          ] | join("\n"))
+        ' "$_TOOL_EXAMPLES_FILE" 2>/dev/null || true)
+        if [[ -n "$_TOOL_EXAMPLES_MD" ]]; then
+          RALPH_SYSTEM_PROMPT="$RALPH_SYSTEM_PROMPT
+
+---
+
+## Tool Usage Examples
+
+$_TOOL_EXAMPLES_MD"
+          echo "  [tools] Tool examples loaded ($("$JQ" '[.tools[].input_examples | length] | add' "$_TOOL_EXAMPLES_FILE") examples from $_TOOL_EXAMPLES_FILE)"
+        fi
+      fi
+
       # Minimal user prompt — the system prompt has all instructions
       RALPH_USER_PROMPT="Implement the next incomplete story from prd.json now. Read prd.json and progress.txt, pick the highest priority story where passes is false, and implement it."
 
