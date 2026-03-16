@@ -43,3 +43,30 @@ Incomplete: ProjectDashboard: searchable story table with live status badges (ID
 - `test_check_dag.py` fails with Hypothesis HealthCheck.too_slow — pre-existing, unrelated to this story
 - Phase banner for "T" uses blue (same as R) since both are parallel research/synthesis phases
 - `print_phase_banner` always handles the leading blank line itself (no separate `echo ""` needed)
+## Iteration 1 - Mon, Mar 16, 2026 11:21:57 AM
+Completed: spiral.sh: ANSI-colored phase section banners in terminal output (ID: US-312) in 13m
+
+
+## Iteration N - Story: US-313 spiral.sh: print formatted iteration summary banner after each iteration
+
+### What was implemented
+- Added `print_iter_summary_banner` function after `print_phase_banner` (line 612) in spiral.sh
+- Function signature: `print_iter_summary_banner <iter> <done> <pending> <total> <iter_minutes> <iter_duration>`
+- Replaced the old `┌─ Iteration N Summary ─┐` box at Phase C end with a call to `print_iter_summary_banner`
+- New banner shows: `┌─── Iteration N complete ─────────────────────────────`
+- Stories line: `✓ N passed  ✗ N failed  ⏳ N pending` (green/red/yellow with ANSI colors)
+- Cost line: reads from results.tsv via cost_check.py, extracts `$N.NN` with sed regex
+- Duration line: `Nm (Ns)`
+- Next action line: `Next: N stories remain → starting iteration N+1` OR `COMPLETE: All stories passed`
+- Also added color (green) to the COMPLETE banner box (lines ~4241-4246)
+- Failed count from retry-counts.json (stories with retryCount >= SPIRAL_MAX_RETRIES)
+- Color respects existing `_USE_COLOR` / `SPIRAL_COLOR_OUTPUT` flag from US-312
+
+### Patterns discovered
+- `print_iter_summary_banner` must use `$REPO_ROOT`, `$JQ`, `$SPIRAL_PYTHON`, `$SPIRAL_HOME` which are all available by Phase C call time
+- Velocity/phase timing line kept as a supplementary `[C]` log line before the banner
+- `retry-counts.json` may be empty (0 bytes) — function handles gracefully via `|| echo "0"`
+
+### Gotchas
+- ANSI color codes in printf do not affect width math if you don't use %*s padding — kept content lines without right border to avoid alignment issues
+- cost_str extracted with `sed -nE 's/.*(\$[0-9]+\.[0-9]+).*/\1/p'` since grep -oP is not available on all bash setups

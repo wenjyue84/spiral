@@ -6045,7 +6045,7 @@
       "title": "spiral.sh: print formatted iteration summary banner after each iteration",
       "description": "After Phase C in each iteration, print a clear formatted summary box instead of scattered log lines. This is the single most requested UX improvement: know at a glance what just happened. Format: boxed banner showing stories passed/failed/pending, estimated cost so far, and what will happen next. Transforms the terminal UX from 'wall of text' to 'structured progress report'.",
       "priority": "high",
-      "passes": false,
+      "passes": true,
       "retryCount": 0,
       "filesTouch": [
         "spiral.sh"

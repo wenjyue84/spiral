@@ -609,6 +609,56 @@ print_phase_banner() {
   fi
 }
 
+# ── US-313: Print iteration summary banner after Phase C ────────────────────
+# Usage: print_iter_summary_banner <iter> <done> <pending> <total> <iter_minutes> <iter_duration>
+# Prints a bordered ASCII box with story stats, cost, and next action.
+print_iter_summary_banner() {
+  local iter="$1" done="$2" pending="$3" total="$4"
+  local iter_minutes="${5:-0}" iter_duration="${6:-0}"
+  local failed=0 actual_pending="$pending"
+  # Count exhausted stories (retry count >= max retries)
+  if [[ -f "$REPO_ROOT/retry-counts.json" ]]; then
+    failed=$("$JQ" "[to_entries[] | select(.value >= ${SPIRAL_MAX_RETRIES:-3})] | length" \
+      "$REPO_ROOT/retry-counts.json" 2>/dev/null || echo "0")
+    actual_pending=$((pending > failed ? pending - failed : 0))
+  fi
+  # Extract cumulative cost from results.tsv
+  local cost_str=""
+  if [[ -f "$REPO_ROOT/results.tsv" ]]; then
+    local _raw_cost
+    _raw_cost=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/cost_check.py" \
+      --results "$REPO_ROOT/results.tsv" 2>/dev/null | head -1) || true
+    cost_str=$(echo "$_raw_cost" | sed -nE 's/.*(\$[0-9]+\.[0-9]+).*/\1/p') || true
+  fi
+  echo ""
+  if [[ "$_USE_COLOR" -eq 1 ]]; then
+    printf "  ${_C_CYAN}┌─── Iteration %d complete ─────────────────────────────${_C_RESET}\n" "$iter"
+    printf "  ${_C_CYAN}│${_C_RESET}  Stories: ${_C_GREEN}✓ %d passed${_C_RESET}  ${_C_RED}✗ %d failed${_C_RESET}  ${_C_YELLOW}⏳ %d pending${_C_RESET}\n" \
+      "$done" "$failed" "$actual_pending"
+    [[ -n "$cost_str" ]] && printf "  ${_C_CYAN}│${_C_RESET}  Est. cost: %s\n" "$cost_str"
+    printf "  ${_C_CYAN}│${_C_RESET}  Duration:  %dm (%ds)\n" "$iter_minutes" "$iter_duration"
+    if [[ "$pending" -eq 0 ]]; then
+      printf "  ${_C_CYAN}│${_C_RESET}  ${_C_GREEN}COMPLETE: All stories passed${_C_RESET}\n"
+    else
+      printf "  ${_C_CYAN}│${_C_RESET}  Next: %d stories remain → starting iteration %d\n" \
+        "$pending" "$((iter + 1))"
+    fi
+    printf "  ${_C_CYAN}└───────────────────────────────────────────────────────${_C_RESET}\n"
+  else
+    echo "  ┌─── Iteration $iter complete ─────────────────────────────"
+    echo "  │  Stories: ✓ $done passed  ✗ $failed failed  ⏳ $actual_pending pending"
+    [[ -n "$cost_str" ]] && echo "  │  Est. cost: $cost_str"
+    echo "  │  Duration:  ${iter_minutes}m (${iter_duration}s)"
+    if [[ "$pending" -eq 0 ]]; then
+      echo "  │  COMPLETE: All stories passed"
+    else
+      echo "  │  Next: $pending stories remain → starting iteration $((iter + 1))"
+    fi
+    echo "  └───────────────────────────────────────────────────────"
+  fi
+  echo ""
+}
+
 # ── Structured logging: SPIRAL_LOG_LEVEL filtering (US-130) ──────────────────
 # Accepts DEBUG / INFO / WARN / ERROR (case-insensitive; normalised to upper on read).
 # Requires bash 4.0+ for associative arrays (already required by spiral.sh).
@@ -4188,12 +4238,23 @@ PYEOF
   fi
   if [[ "$_CHECK_DONE_RC" -eq 0 ]]; then
     rm -f "$CHECKPOINT_FILE"
+    # ── US-313: Colored complete banner ────────────────────────────────────
     echo ""
-    echo "  ╔══════════════════════════════════════════════════════╗"
-    echo "  ║   *** SPIRAL COMPLETE! ***                           ║"
-    echo "  ║   All stories implemented and tests passing.         ║"
-    echo "  ║   Iterations: $SPIRAL_ITER / $MAX_SPIRAL_ITERS"
-    echo "  ╚══════════════════════════════════════════════════════╝"
+    if [[ "$_USE_COLOR" -eq 1 ]]; then
+      printf "  ${_C_GREEN}╔══════════════════════════════════════════════════════╗${_C_RESET}\n"
+      printf "  ${_C_GREEN}║   *** SPIRAL COMPLETE! ***                           ║${_C_RESET}\n"
+      printf "  ${_C_GREEN}║   All stories implemented and tests passing.         ║${_C_RESET}\n"
+      printf "  ${_C_GREEN}║   Iterations: %s / %s${_C_RESET}\n" "$SPIRAL_ITER" "$MAX_SPIRAL_ITERS"
+      printf "  ${_C_GREEN}╚══════════════════════════════════════════════════════╝${_C_RESET}\n"
+    else
+      echo "  ╔══════════════════════════════════════════════════════╗"
+      echo "  ║   *** SPIRAL COMPLETE! ***                           ║"
+      echo "  ║   All stories implemented and tests passing.         ║"
+      echo "  ║   Iterations: $SPIRAL_ITER / $MAX_SPIRAL_ITERS"
+      echo "  ╚══════════════════════════════════════════════════════╝"
+    fi
+    # Print the iteration summary banner for the completed run (US-313)
+    print_iter_summary_banner "$SPIRAL_ITER" "$DONE" "0" "$TOTAL" "0" "0"
 
     if [[ -f "$REPO_ROOT/results.tsv" ]]; then
       echo ""
@@ -4344,25 +4405,16 @@ open(path, 'w', encoding='utf-8').write(text)
     fi
   fi
 
-  # ── Iteration dashboard ─────────────────────────────────────────────────
+  # ── Iteration summary banner (US-313) ───────────────────────────────────
   ITER_END=$(date +%s)
   ITER_DURATION=$((ITER_END - ITER_START))
   ITER_MINUTES=$((ITER_DURATION / 60))
-  echo ""
-  echo "  ┌─ Iteration $SPIRAL_ITER Summary ─────────────────┐"
-  echo "  │  Stories:   +${RALPH_PROGRESS:-0} completed, $PENDING remaining"
-  echo "  │  Duration:  ${ITER_MINUTES}m (${ITER_DURATION}s)"
-  echo "  │  Phases:    R=${_PHASE_DUR_R}s T=${_PHASE_DUR_T}s [R+T wall=${_PHASE_DUR_RT_WALL:-$_PHASE_DUR_R}s] M=${_PHASE_DUR_M}s I=${_PHASE_DUR_I}s V=${_PHASE_DUR_V}s C=${_PHASE_DUR_C}s"
+  # Print velocity line before main banner (supplementary phase timing info)
   if [[ "${RALPH_PROGRESS:-0}" -gt 0 && "$ITER_DURATION" -gt 0 ]]; then
     VEL=$(awk "BEGIN {printf \"%.1f\", ${RALPH_PROGRESS} / ($ITER_DURATION / 3600.0)}")
-    echo "  │  Velocity:  ${VEL} stories/hour"
+    echo "  [C] Velocity: ${VEL} stories/hour | Phases: R=${_PHASE_DUR_R}s T=${_PHASE_DUR_T}s M=${_PHASE_DUR_M}s I=${_PHASE_DUR_I}s V=${_PHASE_DUR_V}s C=${_PHASE_DUR_C}s"
   fi
-  if [[ -f "$REPO_ROOT/results.tsv" ]]; then
-    _ITER_COST=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/cost_check.py" \
-      --results "$REPO_ROOT/results.tsv" 2>/dev/null | head -1) || true
-    [[ -n "$_ITER_COST" ]] && echo "  │  ${_ITER_COST#*] }"
-  fi
-  echo "  └──────────────────────────────────────────────────┘"
+  print_iter_summary_banner "$SPIRAL_ITER" "$DONE" "$PENDING" "$TOTAL" "$ITER_MINUTES" "$ITER_DURATION"
 
   # ── Generate & open iteration dashboard ─────────────────────────────────────
   if [[ -f "$REPO_ROOT/results.tsv" ]]; then
