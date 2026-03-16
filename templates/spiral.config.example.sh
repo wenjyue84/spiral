@@ -408,6 +408,12 @@
 # Default: 80.
 # SPIRAL_WORKER_CPU_QUOTA=80
 
+# Worker launch input audit (US-355): logs all inputs passed to each worker and
+# flags any policy violations (full PRD instead of slice, session log leakage,
+# unexpected env vars). Set to "true" to abort on any violation instead of warning.
+# Default: false (warn only).
+# SPIRAL_STRICT_WORKER_ISOLATION=false
+
 # Memory watchdog: background PowerShell monitor that kills Node.js processes
 # exceeding the RSS threshold. Requires PowerShell on Windows.
 # 1 = enabled (default), 0 = disabled.

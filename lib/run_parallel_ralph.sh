@@ -62,6 +62,7 @@ DEPLOY_CMD="${SPIRAL_DEPLOY_CMD:-}"
 TERMINAL_EMU="${SPIRAL_TERMINAL:-}"
 GEMINI_ANNOTATE="${SPIRAL_GEMINI_ANNOTATE_PROMPT:-}"
 WORKER_TIMEOUT="${SPIRAL_WORKER_TIMEOUT:-600}" # per-worker wall-clock limit (0 = unlimited)
+STRICT_WORKER_ISOLATION="${SPIRAL_STRICT_WORKER_ISOLATION:-false}" # US-355: abort on policy violation
 
 # ── cgroups v2 worker isolation (US-259) ─────────────────────────────────────
 # Per-worker memory and CPU hard limits enforced by the kernel.
@@ -640,6 +641,93 @@ _inspect_crashed_worktree() {
   return 0
 }
 
+# ── US-355: Worker launch input audit ────────────────────────────────────────
+# Verifies that each worker receives ONLY the story slice, Ralph system prompt,
+# and prd.json subset — never the full spiral.sh session log or prior worker outputs.
+# Logs worker_launch_audit event to spiral_events.jsonl.
+# In SPIRAL_STRICT_WORKER_ISOLATION=true mode, aborts on any policy violation.
+#
+# Allowed env vars: PATH, HOME, TERM, SHELL, USER, LANG, LC_*, TZ, TMPDIR,
+#   SPIRAL_WORKER_ID, SPIRAL_SCRATCH_DIR, SPIRAL_MEMORY_LIMIT, SPIRAL_PYTHON,
+#   HEARTBEAT_DIR, TRACEPARENT, TRACESTATE, SPIRAL_*, NODE_*, ANTHROPIC_*,
+#   CLAUDE_*, RALPH_*, JQ, PYTHON
+_WORKER_ENV_ALLOWLIST='PATH|HOME|TERM|SHELL|USER|LANG|LC_.*|TZ|TMPDIR|SPIRAL_.*|NODE_.*|ANTHROPIC_.*|CLAUDE_.*|RALPH_.*|HEARTBEAT_DIR|TRACEPARENT|TRACESTATE|JQ|PYTHON|PWD|OLDPWD|SHLVL|_'
+
+_audit_worker_launch() {
+  local worker_num="$1"
+  local wtree="$2"
+  local violations=0
+  local violation_details=""
+
+  # 1. Check prd.json in worktree is a proper slice (not the full PRD)
+  local full_count slice_count
+  full_count=$("$JQ" '[.userStories | length] | .[0]' "$PRD_FILE" 2>/dev/null || echo "0")
+  slice_count=$("$JQ" '[.userStories | length] | .[0]' "$wtree/prd.json" 2>/dev/null || echo "0")
+  local prd_audit="slice:${slice_count}/${full_count}"
+  if [[ "$slice_count" -ge "$full_count" && "$full_count" -gt 0 ]]; then
+    prd_audit="${prd_audit}:WARN_full_prd"
+    violation_details="${violation_details}prd.json is full copy not slice; "
+    violations=$((violations + 1))
+  fi
+
+  # 2. Audit exported environment for unexpected vars
+  #    Collect env vars that will be inherited by the worker subshell
+  local unexpected_vars=""
+  local unexpected_count=0
+  while IFS='=' read -r varname _; do
+    if [[ -n "$varname" ]] && ! echo "$varname" | grep -qE "^(${_WORKER_ENV_ALLOWLIST})$"; then
+      unexpected_vars="${unexpected_vars}${varname},"
+      unexpected_count=$((unexpected_count + 1))
+    fi
+  done < <(env 2>/dev/null)
+
+  if [[ "$unexpected_count" -gt 0 ]]; then
+    violation_details="${violation_details}${unexpected_count} unexpected env vars: ${unexpected_vars%,}; "
+    violations=$((violations + 1))
+  fi
+
+  # 3. Verify no session log file is passed or accessible via env
+  local session_log_leak="false"
+  if [[ -n "${LOG_FILE:-}" && -f "${LOG_FILE:-}" ]]; then
+    local log_size
+    log_size=$(wc -c <"$LOG_FILE" 2>/dev/null || echo "0")
+    if [[ "$log_size" -gt 0 ]]; then
+      session_log_leak="true"
+      violation_details="${violation_details}LOG_FILE env points to ${log_size}-byte session log; "
+      violations=$((violations + 1))
+    fi
+  fi
+
+  # 4. Check that ralph.sh invocation uses only prd.json (not --input-file with session data)
+  #    The launch command is: bash "$RALPH_SKILL" "$ITER_PER_WORKER" --prd prd.json
+  #    This is safe by construction, but log it for audit trail
+  local cmd_audit="ralph_args:${ITER_PER_WORKER}:--prd:prd.json"
+
+  # Build audit result
+  local status="pass"
+  if [[ "$violations" -gt 0 ]]; then
+    status="warn"
+    echo "  [audit] WARN: Worker $worker_num launch has $violations policy violation(s): ${violation_details%%; }" >&2
+  fi
+
+  # Log to spiral_events.jsonl
+  local ts
+  ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  printf '{"ts":"%s","event":"worker_launch_audit","run_id":"%s","worker":%d,"status":"%s","violations":%d,"prd_audit":"%s","session_log_leak":%s,"unexpected_env_count":%d,"cmd_audit":"%s"%s}\n' \
+    "$ts" "${SPIRAL_RUN_ID:-}" "$worker_num" "$status" "$violations" \
+    "$prd_audit" "$session_log_leak" "$unexpected_count" "$cmd_audit" \
+    "${violation_details:+,\"details\":\"${violation_details%%; }\"}" \
+    >>"$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || true
+
+  # Strict mode: abort on any violation
+  if [[ "$STRICT_WORKER_ISOLATION" == "true" && "$violations" -gt 0 ]]; then
+    echo "  [audit] FATAL: SPIRAL_STRICT_WORKER_ISOLATION=true — aborting due to $violations violation(s)" >&2
+    exit 1
+  fi
+
+  return 0
+}
+
 # ── Reusable worker launch function ──────────────────────────────────────────
 # Launches worker $1 in a background subshell, appends to WORKER_PIDS /
 # WORKER_FINISHED / WORKER_EXIT_CODES, writes PID file, and disowns.
@@ -648,6 +736,8 @@ _launch_worker_i() {
   local WTREE="${WORKER_DIRS[$((i - 1))]}"
   local LOG="$WORKER_DIR/worker_${i}.log"
   touch "$LOG"
+  # US-355: Audit worker launch inputs before spawning
+  _audit_worker_launch "$i" "$WTREE"
   local _WORKER_MODEL_FLAG=""
   [[ -n "$RALPH_MODEL" ]] && _WORKER_MODEL_FLAG="--model $RALPH_MODEL"
   echo "  [parallel] Launching worker $i → log: $LOG"

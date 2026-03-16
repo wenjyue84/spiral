@@ -343,3 +343,28 @@ Incomplete: Validate MCP server integrity via signed checksum manifest before Ph
 - mypy strict requires `dict[str, Any]` not bare `dict`; `max(dict, key=dict.get)` needs lambda wrapper for type safety
 - Plan cache inject goes into user prompt (not system prompt) to preserve cache prefix stability per US-338
 - The plan cache dir is `.spiral/plan_cache/` (under SCRATCH_DIR) which is gitignored
+## Iteration 3 - Mon, Mar 16, 2026  2:01:53 PM
+Incomplete: Validate MCP server integrity via signed checksum manifest before Phase I (ID: US-320) — attempt /3
+
+## Iteration N - Story: US-355 Audit worker subprocess launch inputs to prevent full spiral.sh session log leakage
+
+### What was implemented
+- Added `_audit_worker_launch()` function in `lib/run_parallel_ralph.sh` before `_launch_worker_i()`
+- Function audits 3 vectors: prd.json slice vs full copy, environment variable allowlist, and LOG_FILE session log leakage
+- Added `SPIRAL_STRICT_WORKER_ISOLATION` env var (default: false) — when true, aborts on any policy violation instead of warning
+- Audit call inserted at start of `_launch_worker_i()` before worker subprocess spawn
+- Each audit writes a `worker_launch_audit` event to `spiral_events.jsonl` with status, violations count, prd_audit, session_log_leak, unexpected_env_count, and cmd_audit fields
+- Added `_WORKER_ENV_ALLOWLIST` regex pattern covering PATH, HOME, SPIRAL_*, NODE_*, ANTHROPIC_*, CLAUDE_*, RALPH_*, and standard shell vars
+- Updated `templates/spiral.config.example.sh` with documented SPIRAL_STRICT_WORKER_ISOLATION setting
+- Created `tests/worker_launch_audit.bats` with 5 tests: slice passes, full PRD warns, event fields verified, strict mode aborts, LOG_FILE leak detected
+
+### Patterns discovered
+- `run_parallel_ralph.sh` doesn't source `lib/spiral_events.sh` — uses direct printf to spiral_events.jsonl (same pattern as other events in the file)
+- Worker subshell inherits all parent env vars via fork — the audit checks BEFORE spawn, not inside the subshell
+- The env allowlist uses grep -qE for POSIX regex matching against each var name
+
+### Gotchas
+- `env` output format varies across shells — `IFS='=' read -r varname _` handles multi-value env vars correctly
+- shellcheck not available locally; used `bash -n` for syntax validation
+- The strict mode uses `return 1` in tests (not `exit 1`) to avoid killing the bats process
+
