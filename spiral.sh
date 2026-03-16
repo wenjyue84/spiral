@@ -798,14 +798,15 @@ else
   exit $ERR_MISSING_DEP
 fi
 
+# ── Source structured error taxonomy (US-273) ─────────────────────────────────
+source "$SPIRAL_HOME/lib/spiral_errors.sh"
+
 # ── Prerequisite checks ───────────────────────────────────────────────────────
 if [[ ! -f "$PRD_FILE" ]]; then
-  echo "[spiral] ERROR: prd.json not found at $PRD_FILE"
-  exit $ERR_PRD_NOT_FOUND
+  spiral_exit E501 "$PRD_FILE"
 fi
 if [[ ! -f "$SPIRAL_RALPH" ]]; then
-  echo "[spiral] ERROR: ralph.sh not found at $SPIRAL_RALPH"
-  exit $ERR_MISSING_DEP
+  spiral_exit E103 "ralph.sh not found at $SPIRAL_RALPH"
 fi
 
 # ── --migrate: run prd.json schema migration and exit ────────────────────────
@@ -825,13 +826,11 @@ fi
 # ── --changelog: generate CHANGELOG.md via git-cliff and exit ───────────────
 if [[ "$CHANGELOG_MODE" -eq 1 ]]; then
   if ! command -v git-cliff &>/dev/null; then
-    echo "[spiral] ERROR: git-cliff not found. Install with: cargo install git-cliff" >&2
-    exit $ERR_MISSING_DEP
+    spiral_exit E103 "git-cliff not found. Install with: cargo install git-cliff"
   fi
   _CLIFF_CONFIG="$SPIRAL_HOME/cliff.toml"
   if [[ ! -f "$_CLIFF_CONFIG" ]]; then
-    echo "[spiral] ERROR: cliff.toml not found at $_CLIFF_CONFIG" >&2
-    exit $ERR_CONFIG
+    spiral_exit E102 "cliff.toml not found at $_CLIFF_CONFIG"
   fi
   echo "[spiral] Generating CHANGELOG.md via git-cliff..."
   git-cliff --config "$_CLIFF_CONFIG" --output "$SPIRAL_HOME/CHANGELOG.md"
@@ -912,9 +911,7 @@ fi
 # ── Schema version check ────────────────────────────────────────────────────
 _PRD_SCHEMA_VER=$("$JQ" -r '.schemaVersion // empty' "$PRD_FILE" 2>/dev/null || echo "")
 if [[ -n "$_PRD_SCHEMA_VER" ]] && [[ "$_PRD_SCHEMA_VER" -gt 1 ]] 2>/dev/null; then
-  echo "[spiral] ERROR: prd.json schemaVersion $_PRD_SCHEMA_VER is newer than this SPIRAL version supports (max: 1)."
-  echo "         Please update SPIRAL or downgrade prd.json."
-  exit $ERR_SCHEMA_VERSION
+  spiral_exit E503 "$_PRD_SCHEMA_VER"
 fi
 
 # ── --status: print session state and exit ───────────────────────────────────
@@ -961,6 +958,32 @@ except Exception:
     fi
   else
     echo "  Worktrees : clean (no orphaned spiral-worker worktrees)"
+  fi
+  # Show last error from _last_error.json (US-273)
+  _LAST_ERR_FILE="$SCRATCH_DIR/_last_error.json"
+  if [[ -f "$_LAST_ERR_FILE" ]]; then
+    _LE_CODE=$("$JQ" -r '.error_code // "?"' "$_LAST_ERR_FILE" 2>/dev/null || echo "?")
+    _LE_CAT=$("$JQ" -r '.category // "?"' "$_LAST_ERR_FILE" 2>/dev/null || echo "?")
+    _LE_MSG=$("$JQ" -r '.message // "?"' "$_LAST_ERR_FILE" 2>/dev/null || echo "?")
+    _LE_TS=$("$JQ" -r '.ts // "?"' "$_LAST_ERR_FILE" 2>/dev/null || echo "?")
+    echo "  Last error: [SPIRAL-E-${_LE_CODE}] [${_LE_CAT}] ${_LE_MSG} (${_LE_TS})"
+  else
+    echo "  Last error: none"
+  fi
+  # Show per-worker last errors if available
+  _WORKER_ERR_DIR="$SCRATCH_DIR/workers"
+  if [[ -d "$_WORKER_ERR_DIR" ]]; then
+    _HAS_WORKER_ERRORS=0
+    for _WE_DIR in "$_WORKER_ERR_DIR"/*/; do
+      _WE_FILE="${_WE_DIR}_last_error.json"
+      if [[ -f "$_WE_FILE" ]]; then
+        _HAS_WORKER_ERRORS=1
+        _WE_SID=$(basename "$_WE_DIR")
+        _WE_CODE=$("$JQ" -r '.error_code // "?"' "$_WE_FILE" 2>/dev/null || echo "?")
+        _WE_MSG=$("$JQ" -r '.message // "?"' "$_WE_FILE" 2>/dev/null || echo "?")
+        echo "  [Worker ${_WE_SID}] Last Error: [SPIRAL-E-${_WE_CODE}] ${_WE_MSG}"
+      fi
+    done
   fi
   # Show manually-skipped stories
   if [[ -n "$SPIRAL_SKIP_STORY_IDS" ]]; then
@@ -2090,8 +2113,7 @@ if [[ -n "$REPLAY_STORY_ID" ]]; then
   _REPLAY_EXISTS=$("$JQ" --arg id "$REPLAY_STORY_ID" \
     '[.userStories[] | select(.id == $id)] | length' "$PRD_FILE" 2>/dev/null || echo "0")
   if [[ "$_REPLAY_EXISTS" -eq 0 ]]; then
-    echo "[replay] ERROR: Story '$REPLAY_STORY_ID' not found in $PRD_FILE"
-    exit $ERR_STORY_NOT_FOUND
+    spiral_exit E403 "$REPLAY_STORY_ID"
   fi
 
   # Validate --from-phase letter (only I and V are valid for replay mode)
@@ -2237,7 +2259,7 @@ if [[ -n "$REPLAY_STORY_ID" ]]; then
     echo "  ║  Worktree: $REPLAY_WORKTREE (preserved for inspection)"
     echo "  ╚══════════════════════════════════════════════════════╝"
     echo "  [replay] Worktree preserved for inspection"
-    exit $ERR_REPLAY_FAILED
+    spiral_exit E402 "$REPLAY_STORY_ID"
   fi
 fi
 
@@ -2247,16 +2269,14 @@ fi
 # writes results to benchmark-results.jsonl
 if [[ -n "$BENCHMARK_STORY_ID" ]]; then
   if [[ -z "$BENCHMARK_MODELS" ]]; then
-    echo "[benchmark] ERROR: --models must be specified when using --benchmark"
-    exit $ERR_BAD_USAGE
+    spiral_exit E101 "--models must be specified when using --benchmark"
   fi
 
   # Validate story ID exists in prd.json
   _BM_EXISTS=$("$JQ" --arg id "$BENCHMARK_STORY_ID" \
     '[.userStories[] | select(.id == $id)] | length' "$PRD_FILE" 2>/dev/null || echo "0")
   if [[ "$_BM_EXISTS" -eq 0 ]]; then
-    echo "[benchmark] ERROR: Story '$BENCHMARK_STORY_ID' not found in $PRD_FILE"
-    exit $ERR_STORY_NOT_FOUND
+    spiral_exit E403 "$BENCHMARK_STORY_ID"
   fi
 
   _BM_TITLE=$("$JQ" -r --arg id "$BENCHMARK_STORY_ID" \
@@ -2399,27 +2419,21 @@ if [[ -n "$ROLLBACK_STORY_ID" ]]; then
   _RB_EXISTS=$("$JQ" --arg id "$ROLLBACK_STORY_ID" \
     '[.userStories[] | select(.id == $id)] | length' "$PRD_FILE" 2>/dev/null || echo "0")
   if [[ "$_RB_EXISTS" -eq 0 ]]; then
-    echo "[rollback] ERROR: Story '$ROLLBACK_STORY_ID' not found in $PRD_FILE"
-    exit $ERR_STORY_NOT_FOUND
+    spiral_exit E403 "$ROLLBACK_STORY_ID"
   fi
 
   # Guard: reject if working tree has uncommitted changes (tracked files only;
   # untracked files are excluded since they cannot conflict with a revert)
   _RB_DIRTY=$(git -C "$REPO_ROOT" status --porcelain 2>/dev/null | grep -v '^??' || true)
   if [[ -n "$_RB_DIRTY" ]]; then
-    echo "[rollback] ERROR: Working tree has uncommitted changes. Commit or stash them first."
-    echo "[rollback]   Run: git -C '$REPO_ROOT' status"
-    exit $ERR_ROLLBACK_FAILED
+    spiral_exit E301 "Working tree has uncommitted changes. Commit or stash first."
   fi
 
   # Read _passedCommit from prd.json
   _RB_SHA=$("$JQ" -r --arg id "$ROLLBACK_STORY_ID" \
     '.userStories[] | select(.id == $id) | ._passedCommit // ""' "$PRD_FILE")
   if [[ -z "$_RB_SHA" || "$_RB_SHA" == "null" ]]; then
-    echo "[rollback] ERROR: Story '$ROLLBACK_STORY_ID' has no _passedCommit SHA recorded."
-    echo "[rollback]   Only stories implemented by SPIRAL with a recorded _passedCommit can"
-    echo "[rollback]   be rolled back. Use 'git log' to find and revert commits manually."
-    exit $ERR_ROLLBACK_FAILED
+    spiral_exit E301 "Story '$ROLLBACK_STORY_ID' has no _passedCommit SHA recorded"
   fi
 
   _RB_TITLE=$("$JQ" -r --arg id "$ROLLBACK_STORY_ID" \
@@ -2436,9 +2450,7 @@ if [[ -n "$ROLLBACK_STORY_ID" ]]; then
 
   # Run git revert (creates a new revert commit, preserves linear history)
   if ! git -C "$REPO_ROOT" revert --no-edit "$_RB_SHA"; then
-    echo "[rollback] ERROR: git revert failed for commit $_RB_SHA"
-    echo "[rollback]   Resolve conflicts manually, then update prd.json passes=false"
-    exit $ERR_ROLLBACK_FAILED
+    spiral_exit E301 "git revert failed for commit $_RB_SHA"
   fi
 
   # Reset story status in prd.json: clear passes, _passedCommit, _passedAt, _adrPath, _prUrl
@@ -2464,8 +2476,7 @@ fi
 if [[ -n "${UNDO_STORY_ID:-}" ]]; then
   _UNDO_LIB="$SPIRAL_HOME/lib/spiral_undo.sh"
   if [[ ! -f "$_UNDO_LIB" ]]; then
-    echo "[undo] ERROR: lib/spiral_undo.sh not found (SPIRAL_HOME=$SPIRAL_HOME)"
-    exit $ERR_MISSING_DEP
+    spiral_exit E103 "lib/spiral_undo.sh not found (SPIRAL_HOME=$SPIRAL_HOME)"
   fi
   source "$_UNDO_LIB"
 
@@ -2489,9 +2500,7 @@ if [[ -n "${UNDO_STORY_ID:-}" ]]; then
     echo "  [undo] Done. Story '$UNDO_STORY_ID' worktree restored."
     exit 0
   else
-    echo "  [undo] Replay finished with errors."
-    echo "  [undo] Manual inspection of the worktree is recommended."
-    exit $ERR_ROLLBACK_FAILED
+    spiral_exit E301 "Undo replay finished with errors for $UNDO_STORY_ID"
   fi
 fi
 
@@ -2644,8 +2653,7 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
       cp "$_LATEST_BACKUP" "$PRD_FILE"
       echo "  [spiral] Restored prd.json from: $(basename "$_LATEST_BACKUP")"
     else
-      echo "  [spiral] ERROR: No backup available — cannot recover prd.json"
-      exit $ERR_PRD_CORRUPT
+      spiral_exit E502 "No backup available — cannot recover prd.json"
     fi
   fi
 
@@ -2682,7 +2690,7 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
       echo "  ╔══════════════════════════════════════════════════════╗"
       echo "  ║  SPIRAL stopped: cost ceiling reached (\$${SPIRAL_COST_CEILING})  ║"
       echo "  ╚══════════════════════════════════════════════════════╝"
-      exit $ERR_COST_CEILING
+      spiral_exit E104 "$SPIRAL_COST_CEILING"
     fi
   fi
 
@@ -3847,7 +3855,7 @@ with open('$RESEARCH_OUTPUT', 'rb') as f:
                     log_spiral_event "cascade_abort" \
                       "\"iteration\":$SPIRAL_ITER,\"consecutive_failures\":$_CASCADE_FAIL_COUNT,\"failing_ids\":\"$_CASCADE_FAIL_IDS\",\"limit\":${SPIRAL_CASCADE_FAN_OUT_LIMIT:-5}"
                     rm -f "$CHECKPOINT_FILE"
-                    exit $ERR_CASCADE_ABORT
+                    spiral_exit E405 "${SPIRAL_CASCADE_FAN_OUT_LIMIT:-5}"
                   fi
                 fi
               else
@@ -3932,7 +3940,7 @@ with open('$RESEARCH_OUTPUT', 'rb') as f:
                     log_spiral_event "cascade_abort" \
                       "\"iteration\":$SPIRAL_ITER,\"consecutive_failures\":$_CASCADE_FAIL_COUNT,\"failing_ids\":\"$_CASCADE_FAIL_IDS\",\"limit\":${SPIRAL_CASCADE_FAN_OUT_LIMIT:-5}"
                     rm -f "$CHECKPOINT_FILE"
-                    exit $ERR_CASCADE_ABORT
+                    spiral_exit E405 "${SPIRAL_CASCADE_FAN_OUT_LIMIT:-5}"
                   fi
                 fi
               fi
@@ -4197,7 +4205,7 @@ with open('$RESEARCH_OUTPUT', 'rb') as f:
               echo ""
               "$JQ" -r '.userStories[] | select(.passes != true) | "  [PENDING] [\(.id)] \(.title)"' "$PRD_FILE" 2>/dev/null || true
               rm -f "$CHECKPOINT_FILE"
-              exit $ERR_ZERO_PROGRESS
+              spiral_exit E401
             fi
             echo "  [I] Continuing to check-done phase..."
           fi
@@ -4868,4 +4876,4 @@ echo "  Session: ${SESSION_MINUTES}m total, $SPIRAL_ITER iterations"
 "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" end-run \
   --passes "${DONE:-0}" --story-count "${TOTAL:-0}" 2>/dev/null || true
 
-exit $ERR_MAX_ITERS
+spiral_exit E404 "$MAX_SPIRAL_ITERS"
