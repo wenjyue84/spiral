@@ -60,6 +60,8 @@ _GEN_AI_OUTPUT_TOKENS = "gen_ai.usage.output_tokens"
 _GEN_AI_TASK_ID = "gen_ai.task.id"
 _GEN_AI_TASK_STATUS = "gen_ai.task.status"
 _GEN_AI_ACTION_TYPE = "gen_ai.action.type"
+_GEN_AI_AGENT_VERSION = "gen_ai.agent.version"
+_GEN_AI_CONVERSATION_ID = "gen_ai.conversation.id"
 
 # ── Phase → operation name mapping ────────────────────────────────────────────
 _PHASE_OPERATION: dict[str, str] = {
@@ -133,6 +135,7 @@ def _emit_completed_span(
     end_time_ns: int,
     attributes: dict[str, object],
     is_root: bool = False,
+    span_kind_override: Optional[str] = None,
 ) -> None:
     """
     Create and export a single completed OTel span.
@@ -186,18 +189,22 @@ def _emit_completed_span(
 
     tracer = provider.get_tracer("spiral")
 
+    # Determine span kind (default INTERNAL; invoke_agent uses CLIENT)
+    kind_map = {"CLIENT": SpanKind.CLIENT, "INTERNAL": SpanKind.INTERNAL}
+    kind = kind_map.get(span_kind_override or "", SpanKind.INTERNAL)
+
     # Start span (will be re-assigned timing below)
     if ctx:
         span = tracer.start_span(
             name,
             context=ctx,
-            kind=SpanKind.INTERNAL,
+            kind=kind,
             start_time=start_time_ns,
         )
     else:
         span = tracer.start_span(
             name,
-            kind=SpanKind.INTERNAL,
+            kind=kind,
             start_time=start_time_ns,
         )
 
@@ -483,6 +490,121 @@ def cmd_emit_action(args: argparse.Namespace) -> None:
     )
 
 
+def _log_invoke_agent_event(
+    *,
+    story_id: str,
+    worker_id: str,
+    duration_s: float,
+    status: str,
+    agent_version: str,
+    conversation_id: str,
+) -> None:
+    """Append an invoke_agent span event to spiral_events.jsonl."""
+    scratch = os.environ.get("SCRATCH_DIR", os.environ.get("SPIRAL_SCRATCH_DIR", ".spiral"))
+    log_file = os.path.join(scratch, "spiral_events.jsonl")
+    ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    run_id = os.environ.get("SPIRAL_RUN_ID", "")
+    level = os.environ.get("SPIRAL_LOG_LEVEL", "INFO")
+    entry: dict[str, object] = {
+        "ts": ts,
+        "event": "invoke_agent",
+        "run_id": run_id,
+        "level": level,
+        "gen_ai.operation.name": "invoke_agent",
+        "gen_ai.agent.id": story_id,
+        "gen_ai.agent.name": "ralph",
+        "gen_ai.agent.version": agent_version,
+        "gen_ai.conversation.id": conversation_id,
+        "span.kind": "CLIENT",
+        "worker_id": worker_id,
+        "duration_s": duration_s,
+        "status": status,
+    }
+    tp = os.environ.get("TRACEPARENT", "")
+    if tp:
+        try:
+            trace_id, span_id = _parse_traceparent(tp)
+            entry["trace_id"] = trace_id
+            entry["span_id"] = span_id
+        except ValueError:
+            pass
+    try:
+        os.makedirs(scratch, exist_ok=True)
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry) + "\n")
+    except OSError:
+        pass
+
+
+def cmd_invoke_agent(args: argparse.Namespace) -> None:
+    """
+    Emit an invoke_agent span per worker lifecycle (US-318).
+
+    Span kind = CLIENT (worker runs in a separate process).
+    Attributes follow OTel GenAI agent semconv:
+      gen_ai.operation.name = invoke_agent
+      gen_ai.agent.id       = story ID
+      gen_ai.agent.name     = ralph
+      gen_ai.agent.version  = SPIRAL_VERSION
+      gen_ai.conversation.id = SPIRAL_RUN_ID
+    """
+    story_id = args.story_id
+    worker_id = args.worker_id or "0"
+    duration_s = float(args.duration_s or 0)
+    status = args.status
+    agent_version = args.agent_version or os.environ.get("SPIRAL_VERSION", "unknown")
+    conversation_id = args.conversation_id or os.environ.get("SPIRAL_RUN_ID", "")
+
+    # Always log to spiral_events.jsonl (even without OTel exporter)
+    _log_invoke_agent_event(
+        story_id=story_id,
+        worker_id=worker_id,
+        duration_s=duration_s,
+        status=status,
+        agent_version=agent_version,
+        conversation_id=conversation_id,
+    )
+
+    # Emit OTel span if exporter is configured
+    if _otlp_endpoint():
+        traceparent = os.environ.get("TRACEPARENT", "")
+        if traceparent:
+            try:
+                trace_id, parent_span_id = _parse_traceparent(traceparent)
+            except ValueError:
+                trace_id = secrets.token_hex(16)
+                parent_span_id = None
+        else:
+            trace_id = secrets.token_hex(16)
+            parent_span_id = None
+
+        end_ns = _now_ns()
+        start_ns = end_ns - int(duration_s * 1_000_000_000)
+        span_id = secrets.token_hex(8)
+
+        attributes: dict[str, object] = {
+            _GEN_AI_OPERATION_NAME: "invoke_agent",
+            _GEN_AI_AGENT_ID: story_id,
+            _GEN_AI_AGENT_NAME: "ralph",
+            _GEN_AI_AGENT_VERSION: agent_version,
+            _GEN_AI_CONVERSATION_ID: conversation_id,
+            _GEN_AI_SYSTEM: "anthropic",
+            "spiral.worker_id": worker_id,
+            "spiral.status": status,
+        }
+
+        _emit_completed_span(
+            name="invoke_agent ralph",
+            trace_id_hex=trace_id,
+            parent_span_id_hex=parent_span_id,
+            span_id_hex=span_id,
+            start_time_ns=start_ns,
+            end_time_ns=end_ns,
+            attributes=attributes,
+            span_kind_override="CLIENT",
+        )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="SPIRAL OTel GenAI span emitter (US-184)",
@@ -540,6 +662,21 @@ def main() -> None:
                           help="Action wall-clock duration in seconds")
     p_action.add_argument("--story-id", default=None, help="Story ID (optional label)")
 
+    # invoke-agent (US-318 — per-worker invoke_agent span)
+    p_invoke = sub.add_parser("invoke-agent",
+                              help="Emit invoke_agent span for a worker lifecycle")
+    p_invoke.add_argument("--story-id", required=True, help="Story ID (gen_ai.agent.id)")
+    p_invoke.add_argument("--worker-id", default="0", help="Worker ID")
+    p_invoke.add_argument("--duration-s", type=float, default=0,
+                          help="Worker wall-clock duration in seconds")
+    p_invoke.add_argument("--status", required=True,
+                          choices=["passed", "failed", "skipped", "timeout"],
+                          help="Worker outcome")
+    p_invoke.add_argument("--agent-version", default=None,
+                          help="Agent version (defaults to SPIRAL_VERSION env)")
+    p_invoke.add_argument("--conversation-id", default=None,
+                          help="Conversation ID (defaults to SPIRAL_RUN_ID env)")
+
     args = parser.parse_args()
 
     try:
@@ -555,6 +692,8 @@ def main() -> None:
             cmd_end_story(args)
         elif args.command == "emit-action":
             cmd_emit_action(args)
+        elif args.command == "invoke-agent":
+            cmd_invoke_agent(args)
     except Exception:  # pylint: disable=broad-except
         import traceback
         print("[otel_spans] ERROR:", traceback.format_exc(), file=sys.stderr)

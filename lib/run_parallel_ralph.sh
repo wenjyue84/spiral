@@ -149,6 +149,7 @@ declare -a WORKER_PIDS=()
 declare -a WORKER_FINISHED=()
 declare -a WORKER_EXIT_CODES=()
 declare -a WORKER_PGID_FILES=()  # US-245: path to per-worker PGID file
+declare -a WORKER_START_TIMES=()  # US-318: epoch seconds per worker for invoke_agent span
 
 # ── Graceful cleanup trap — kill orphaned workers on exit/interrupt ─────────
 _CLEANUP_RUNNING=0
@@ -836,6 +837,7 @@ _launch_worker_i() {
   WORKER_FINISHED+=("0")
   WORKER_EXIT_CODES+=("0")
   WORKER_PGID_FILES+=("$_PGID_FILE")  # US-245: track PGID file for crash cleanup
+  WORKER_START_TIMES+=("$(date +%s)")  # US-318: record launch time for invoke_agent span
   echo "$_wpid" >"$WORKTREE_BASE/worker-${i}/worker.pid"
   disown "$_wpid"
 }
@@ -957,6 +959,22 @@ while [[ "$_ALL_DONE" -eq 0 ]]; do
         else
           echo "  [parallel] Worker $WORKER_NUM finished: $DONE_W/$TOTAL_W stories passed"
         fi
+        # US-318: emit invoke_agent span for worker lifecycle
+        _IA_DURATION=$(( $(date +%s) - ${WORKER_START_TIMES[$i]:-$(date +%s)} ))
+        _IA_STATUS="failed"
+        [[ "$WORKER_EXIT" -eq 0 ]] && _IA_STATUS="passed"
+        [[ "$WORKER_EXIT" -eq 124 ]] && _IA_STATUS="timeout"
+        # Get first story ID from worker's prd.json for gen_ai.agent.id
+        _IA_SID=$("$JQ" -r '[.userStories[] | select(.passes != true)] | first | .id // "unknown"' \
+          "${WORKER_DIRS[$i]}/prd.json" 2>/dev/null || echo "unknown")
+        [[ "$_IA_STATUS" == "passed" ]] && \
+          _IA_SID=$("$JQ" -r '[.userStories[] | select(.passes == true)] | last | .id // "unknown"' \
+            "${WORKER_DIRS[$i]}/prd.json" 2>/dev/null || echo "unknown")
+        "${SPIRAL_PYTHON:-python3}" "${SPIRAL_HOME:-$(dirname "${BASH_SOURCE[0]}")/..}/lib/otel_spans.py" invoke-agent \
+          --story-id "$_IA_SID" --worker-id "$WORKER_NUM" \
+          --duration-s "$_IA_DURATION" --status "$_IA_STATUS" \
+          --agent-version "${SPIRAL_VERSION:-unknown}" \
+          --conversation-id "${SPIRAL_RUN_ID:-}" 2>/dev/null || true
         # Remove pause file if it exists
         rm -f "${SPIRAL_SCRATCH_DIR}/_worker_pause_${WORKER_NUM}" 2>/dev/null || true
       else

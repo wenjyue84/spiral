@@ -3723,6 +3723,12 @@ with open('$RESEARCH_OUTPUT', 'rb') as f:
                 _STORY_STATUS="failed"; [[ "$_STORY_PASSES" == "true" ]] && _STORY_STATUS="passed"
                 "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" end-story \
                   --story-id "$_NEXT_SID" --status "$_STORY_STATUS" --scratch-dir "$SCRATCH_DIR" 2>/dev/null || true
+                # US-318: emit invoke_agent span for worker lifecycle
+                "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" invoke-agent \
+                  --story-id "$_NEXT_SID" --worker-id "0" \
+                  --duration-s "$_I_ELAPSED" --status "$_STORY_STATUS" \
+                  --agent-version "${SPIRAL_VERSION:-unknown}" \
+                  --conversation-id "${SPIRAL_RUN_ID:-}" 2>/dev/null || true
                 # US-189: record per-story token metrics after Phase I
                 _TOK_IN=$("$JQ" -r --arg id "$_NEXT_SID" '.[$id].tokens_input // 0' "$SCRATCH_DIR/story_costs.json" 2>/dev/null || echo 0)
                 _TOK_OUT=$("$JQ" -r --arg id "$_NEXT_SID" '.[$id].tokens_output // 0' "$SCRATCH_DIR/story_costs.json" 2>/dev/null || echo 0)

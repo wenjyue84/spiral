@@ -626,3 +626,25 @@ Incomplete: Emit create_agent and invoke_agent OTel spans per worker lifecycle (
 
 ### Gotchas
 - prd.json was corrupted in working tree but intact in git HEAD — always check git for recovery
+## Iteration N - Story: US-318 Emit create_agent and invoke_agent OTel spans per worker lifecycle
+
+### What was implemented
+- Added `cmd_invoke_agent()` function to `lib/otel_spans.py` that emits `invoke_agent` spans per OTel GenAI agent semconv
+- Added `_log_invoke_agent_event()` helper that always logs to `spiral_events.jsonl` (even without OTel exporter)
+- Added `_GEN_AI_AGENT_VERSION` and `_GEN_AI_CONVERSATION_ID` attribute constants
+- Extended `_emit_completed_span()` with `span_kind_override` parameter (supports CLIENT kind for invoke_agent)
+- Added `invoke-agent` subcommand to CLI parser with --story-id, --worker-id, --duration-s, --status, --agent-version, --conversation-id
+- Integrated in `spiral.sh` sequential path: emits invoke_agent span after end-story span
+- Integrated in `lib/run_parallel_ralph.sh` parallel path: tracks `WORKER_START_TIMES[]`, emits span at worker completion
+- Created `tests/invoke_agent_spans.bats` with 11 tests all passing
+
+### Patterns discovered
+- `_emit_completed_span` used `SpanKind.INTERNAL` everywhere — extended with `span_kind_override` to support CLIENT
+- The parallel path has 3 worker exit paths (timeout=124, crash!=0, success=0) — invoke_agent span goes after all three
+- `WORKER_START_TIMES` array parallels `WORKER_PIDS`/`WORKER_FINISHED`/`WORKER_EXIT_CODES` tracking arrays
+
+### Gotchas
+- Pre-existing mypy error on `set_attribute` arg type (line 215) — not related to this story
+- In parallel path, story ID for passed workers uses `last | .id` from passes=true; for failed uses `first | .id` from passes!=true
+- `SPIRAL_PYTHON` is not always exported in run_parallel_ralph.sh — use `${SPIRAL_PYTHON:-python3}` fallback
+
