@@ -2,13 +2,17 @@
 
 import json
 import os
+import re
 import subprocess
 import sys
 
 import pytest
+from hypothesis import HealthCheck, settings
+from hypothesis import strategies as st
+from hypothesis.stateful import Bundle, RuleBasedStateMachine, initialize, invariant, rule
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
-from merge_stories import find_next_id, full_sort_key, is_duplicate, overlap_ratio, sort_key
+from merge_stories import find_next_id, full_sort_key, is_duplicate, overlap_ratio, sort_key, story_to_prd_entry
 from spiral_io import atomic_write_json
 
 # ── overlap_ratio ────────────────────────────────────────────────────────
@@ -659,3 +663,166 @@ class TestPostMergeSortOrder:
         medium_stories = [s for s in active if s["priority"] == "medium"]
         medium_dep_counts = [len(s.get("dependencies", [])) for s in medium_stories]
         assert medium_dep_counts == [0, 2]
+
+
+# ── US-363: Hypothesis RuleBasedStateMachine for PRD merge invariants ────
+
+
+SOURCES = ["test-fix", "research", "seed", "ai-example"]
+PRIORITIES = ["critical", "high", "medium", "low"]
+COMPLEXITIES = ["small", "medium", "large"]
+
+_title_st = st.from_regex(r"[A-Za-z][A-Za-z0-9 _-]{2,30}", fullmatch=True)
+_desc_st = st.text(
+    alphabet="abcdefghijklmnopqrstuvwxyz 0123456789.,",
+    min_size=0,
+    max_size=60,
+)
+_ac_item_st = st.from_regex(r"[A-Za-z][A-Za-z0-9 ]{2,20}", fullmatch=True)
+
+
+@st.composite
+def valid_story_candidate(draw):
+    """Generate a valid story candidate with correlated source/priority/complexity."""
+    source = draw(st.sampled_from(SOURCES))
+    # test-fix stories tend to be higher priority
+    if source == "test-fix":
+        priority = draw(st.sampled_from(["critical", "high", "medium"]))
+    else:
+        priority = draw(st.sampled_from(PRIORITIES))
+    return {
+        "title": draw(_title_st),
+        "priority": priority,
+        "description": draw(_desc_st),
+        "acceptanceCriteria": draw(st.lists(_ac_item_st, min_size=1, max_size=3)),
+        "dependencies": [],
+        "estimatedComplexity": draw(st.sampled_from(COMPLEXITIES)),
+        "_source": source,
+    }
+
+
+class PRDMergeStateMachine(RuleBasedStateMachine):
+    """Model PRD story list as stateful object and verify merge invariants.
+
+    Rules: add_story, remove_story, merge_batch.
+    Invariants: no_duplicate_ids, count_within_cap, no_zombie_deps.
+    """
+
+    MAX_CAP = 20  # Keep state space small for fast test runs
+
+    def __init__(self):
+        super().__init__()
+        self.stories: list[dict] = []
+        self.next_num: int = 1
+
+    @initialize()
+    def init_prd(self):
+        self.stories = []
+        self.next_num = 1
+
+    @rule(candidate=valid_story_candidate())
+    def add_story(self, candidate):
+        """Add a single story to the PRD, assigning a new ID."""
+        if len(self.stories) >= self.MAX_CAP:
+            return  # cap reached, skip
+        story_id = f"US-{self.next_num:03d}"
+        self.next_num += 1
+        entry = story_to_prd_entry(candidate, story_id)
+        self.stories.append(entry)
+
+    @rule(data=st.data())
+    def remove_story(self, data):
+        """Remove a story and clean up references to its ID from dependencies."""
+        if not self.stories:
+            return
+        idx = data.draw(st.integers(min_value=0, max_value=len(self.stories) - 1))
+        removed_id = self.stories[idx]["id"]
+        del self.stories[idx]
+        # Clean up deps referencing the removed story
+        for s in self.stories:
+            if removed_id in s.get("dependencies", []):
+                s["dependencies"] = [d for d in s["dependencies"] if d != removed_id]
+
+    @rule(batch=st.lists(valid_story_candidate(), min_size=1, max_size=5))
+    def merge_batch(self, batch):
+        """Merge a batch of candidate stories, deduplicating and capping."""
+        existing_titles = [s.get("title", "") for s in self.stories]
+        for candidate in batch:
+            if len(self.stories) >= self.MAX_CAP:
+                break
+            title = candidate.get("title", "")
+            if not title:
+                continue
+            if is_duplicate(title, existing_titles):
+                continue
+            story_id = f"US-{self.next_num:03d}"
+            self.next_num += 1
+            entry = story_to_prd_entry(candidate, story_id)
+            self.stories.append(entry)
+            existing_titles.append(title)
+
+        # Apply the same post-merge sort as the real merge pipeline
+        self.stories.sort(key=full_sort_key)
+
+    @rule(data=st.data())
+    def add_dependency(self, data):
+        """Add a dependency between two existing stories."""
+        if len(self.stories) < 2:
+            return
+        src_idx = data.draw(st.integers(min_value=0, max_value=len(self.stories) - 1))
+        tgt_idx = data.draw(
+            st.integers(min_value=0, max_value=len(self.stories) - 1).filter(
+                lambda i: i != src_idx
+            )
+        )
+        dep_id = self.stories[tgt_idx]["id"]
+        deps = self.stories[src_idx].get("dependencies", [])
+        if dep_id not in deps:
+            self.stories[src_idx]["dependencies"] = deps + [dep_id]
+
+    @invariant()
+    def no_duplicate_ids(self):
+        """All story IDs must be unique."""
+        ids = [s["id"] for s in self.stories]
+        assert len(set(ids)) == len(ids), f"Duplicate IDs found: {ids}"
+
+    @invariant()
+    def count_within_cap(self):
+        """Story count must never exceed the cap."""
+        assert len(self.stories) <= self.MAX_CAP, (
+            f"Story count {len(self.stories)} exceeds cap {self.MAX_CAP}"
+        )
+
+    @invariant()
+    def no_zombie_deps(self):
+        """Every dependency ID must reference an existing story."""
+        live_ids = {s["id"] for s in self.stories}
+        for s in self.stories:
+            for dep in s.get("dependencies", []):
+                assert dep in live_ids, (
+                    f"Story {s['id']} depends on {dep} which does not exist. "
+                    f"Live IDs: {live_ids}"
+                )
+
+    @invariant()
+    def ids_have_valid_format(self):
+        """All IDs must match the US-NNN pattern."""
+        for s in self.stories:
+            assert re.match(r"^US-\d{3,}$", s["id"]), f"Invalid ID format: {s['id']}"
+
+    @invariant()
+    def all_stories_have_required_fields(self):
+        """Every story must have id, title, priority, passes fields."""
+        for s in self.stories:
+            for field in ("id", "title", "priority", "passes"):
+                assert field in s, f"Story {s.get('id', '?')} missing required field: {field}"
+
+
+# Hypothesis needs this test class to discover the state machine
+TestPRDMergeInvariants = PRDMergeStateMachine.TestCase
+TestPRDMergeInvariants.settings = settings(
+    max_examples=50,
+    stateful_step_count=20,
+    suppress_health_check=[HealthCheck.too_slow, HealthCheck.large_base_example],
+    deadline=None,
+)

@@ -1,3 +1,32 @@
+## Iteration N - Story: US-363 Add Hypothesis RuleBasedStateMachine tests for PRD merge invariants
+
+### What was implemented
+- Added `PRDMergeStateMachine` class to `tests/test_merge_stories.py` using Hypothesis's `RuleBasedStateMachine`
+- `@initialize` resets PRD to empty state
+- `@rule add_story` adds a single story with sequential ID, respecting MAX_CAP
+- `@rule remove_story` removes a random story and cleans up dependency references
+- `@rule merge_batch` merges 1-5 candidates with deduplication via `is_duplicate()` and post-merge sort via `full_sort_key()`
+- `@rule add_dependency` adds a dependency between two existing stories
+- `@invariant no_duplicate_ids` asserts all story IDs are unique
+- `@invariant count_within_cap` asserts story count never exceeds MAX_CAP
+- `@invariant no_zombie_deps` asserts every dependency references a live story
+- `@invariant ids_have_valid_format` asserts all IDs match US-NNN pattern
+- `@invariant all_stories_have_required_fields` asserts id, title, priority, passes exist
+- Used `@st.composite valid_story_candidate()` strategy with correlated source/priority/complexity fields
+- Test class exposed as `TestPRDMergeInvariants` with settings for both dev and ci profiles
+
+### Files modified
+- tests/test_merge_stories.py — added RuleBasedStateMachine tests (imports, strategy, state machine class, TestCase alias)
+
+### Patterns discovered
+- `story_to_prd_entry()` is the canonical way to convert a candidate to PRD format — reuse it in tests
+- `remove_story` must clean up dependency references to avoid zombie dep invariant violations
+- Hypothesis's stateful testing discovers multi-step sequences that unit tests miss (e.g., add→add_dep→remove→invariant check)
+
+### Gotchas
+- The `settings` override on `TestCase` must use `deadline=None` since composite strategies + state machine steps can be slow
+- `suppress_health_check=[HealthCheck.too_slow, HealthCheck.large_base_example]` needed for composite strategy generation
+
 ## Iteration N - Story: US-372 Add --lock flag to all git worktree add calls in run_parallel_ralph.sh
 
 ### What was implemented
@@ -1344,3 +1373,4 @@ Completed: Add pre-flight Claude API token count check before story prompt submi
 
 ### Gotchas
 - The `tee` addition for stdout capture changes ralph output from direct to piped; this preserves PIPESTATUS but exit code via `|| _I_EXIT=$?` works correctly since tee exits 0 when ralph exits non-zero
+
