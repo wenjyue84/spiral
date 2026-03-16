@@ -52,6 +52,7 @@ set -euo pipefail
 # │  12 │ ERR_ROLLBACK_FAILED │ --rollback mode: git revert or guard failed  │
 # │  13 │ ERR_MAX_ITERS       │ Max spiral iterations reached; stories remain│
 # │  14 │ ERR_API_DOWN        │ Claude API unreachable at startup probe      │
+# │  15 │ ERR_CASCADE_ABORT   │ Consecutive story failures exceeded fan-out  │
 # │ 130 │ (signal)            │ Interrupted by SIGINT (Ctrl-C) — shell std   │
 # └─────┴─────────────────────┴──────────────────────────────────────────────┘
 readonly ERR_BAD_USAGE=2
@@ -67,6 +68,7 @@ readonly ERR_STORY_NOT_FOUND=11
 readonly ERR_ROLLBACK_FAILED=12
 readonly ERR_MAX_ITERS=13
 readonly ERR_API_DOWN=14
+readonly ERR_CASCADE_ABORT=15
 
 # ── Memory guard — cap V8 heap to prevent OOM on 16 GB machines ─────────────
 # Each Claude CLI (Node.js) can consume 4 GB+ uncapped; with multiple processes
@@ -378,6 +380,7 @@ while [[ $# -gt 0 ]]; do
       echo "  12  ERR_ROLLBACK_FAILED — --rollback: git revert or guard failed"
       echo "  13  ERR_MAX_ITERS       — max iterations reached; stories remain"
       echo "  14  ERR_API_DOWN        — Claude API unreachable at startup probe"
+      echo "  15  ERR_CASCADE_ABORT   — consecutive story failures exceeded fan-out cap"
       echo " 130  (signal)            — interrupted by SIGINT (Ctrl-C)"
       exit 0
       ;;
@@ -525,6 +528,7 @@ SPIRAL_PR_BASE_BRANCH="${SPIRAL_PR_BASE_BRANCH:-main}"                   # base 
 SPIRAL_PR_DRAFT="${SPIRAL_PR_DRAFT:-false}"                              # true = create draft PRs (prevents auto-merge triggers)
 export SPIRAL_CREATE_PRS SPIRAL_PR_BASE_BRANCH SPIRAL_PR_DRAFT
 SPIRAL_AUTO_STASH="${SPIRAL_AUTO_STASH:-false}"                          # true = auto-stash dirty working tree before Phase I and pop after (US-177)
+SPIRAL_CASCADE_FAN_OUT_LIMIT="${SPIRAL_CASCADE_FAN_OUT_LIMIT:-5}"        # US-322: max consecutive story failures before Phase I aborts; 0 = disabled
 SPIRAL_QUALITY_THRESHOLD="${SPIRAL_QUALITY_THRESHOLD:-3}"               # US-248: LLM-as-Judge score threshold (1-5); below this emits a warning (non-blocking)
 SPIRAL_QUALITY_JUDGE_DISABLE="${SPIRAL_QUALITY_JUDGE_DISABLE:-0}"       # US-248: set to 1 to skip all LLM quality judge calls
 export SPIRAL_QUALITY_THRESHOLD SPIRAL_QUALITY_JUDGE_DISABLE
@@ -3601,6 +3605,10 @@ $INJECTED_PROMPT"
               --prd "$PRD_FILE" --list-waves 2>/dev/null || echo "1")
             echo "  [I] Parallel mode: $RALPH_WORKERS workers, $TOTAL_WAVES wave(s)"
 
+            # ── US-322: Cascade fan-out counter (reset per Phase I) ──────────
+            _CASCADE_FAIL_COUNT=0
+            _CASCADE_FAIL_IDS=""
+
             WAVE=0
             while true; do
               # Get story count for this wave level (recomputed from current prd.json)
@@ -3723,6 +3731,27 @@ $INJECTED_PROMPT"
                   run_plugin_hooks "post-story" "POST" "$_NEXT_SID" \
                     "\"story_title\":\"${_PS_TITLE//\"/\\\"}\",\"story_passes\":$_STORY_PASSES,\"retry_count\":${_PS_RETRY:-0}" 2>/dev/null || true
                 fi
+                # ── US-322: Update cascade fan-out counter ────────────────────
+                if [[ "$_STORY_PASSES" == "true" ]]; then
+                  _CASCADE_FAIL_COUNT=0
+                  _CASCADE_FAIL_IDS=""
+                else
+                  _CASCADE_FAIL_COUNT=$((_CASCADE_FAIL_COUNT + 1))
+                  _CASCADE_FAIL_IDS="${_CASCADE_FAIL_IDS:+$_CASCADE_FAIL_IDS,}$_NEXT_SID"
+                  if [[ "${SPIRAL_CASCADE_FAN_OUT_LIMIT:-5}" -gt 0 && "$_CASCADE_FAIL_COUNT" -ge "${SPIRAL_CASCADE_FAN_OUT_LIMIT:-5}" ]]; then
+                    echo ""
+                    echo "  ╔══════════════════════════════════════════════════════════════╗"
+                    echo "  ║  CASCADE ABORT — $_CASCADE_FAIL_COUNT consecutive story failures        ║"
+                    echo "  ║  Failing stories: ${_CASCADE_FAIL_IDS}"
+                    echo "  ║  Inspect the first failure and fix the root cause.          ║"
+                    echo "  ╚══════════════════════════════════════════════════════════════╝"
+                    echo ""
+                    log_spiral_event "cascade_abort" \
+                      "\"iteration\":$SPIRAL_ITER,\"consecutive_failures\":$_CASCADE_FAIL_COUNT,\"failing_ids\":\"$_CASCADE_FAIL_IDS\",\"limit\":${SPIRAL_CASCADE_FAN_OUT_LIMIT:-5}"
+                    rm -f "$CHECKPOINT_FILE"
+                    exit $ERR_CASCADE_ABORT
+                  fi
+                fi
               else
                 # Cap workers to story count so no worker sits idle
                 WAVE_WORKERS="$RALPH_WORKERS"
@@ -3772,6 +3801,42 @@ $INJECTED_PROMPT"
                   "$WAVE_WORKERS" "$RALPH_MAX_ITERS" "$REPO_ROOT" "$PRD_FILE" \
                   "$SCRATCH_DIR" "$SPIRAL_RALPH" "$JQ" "$SPIRAL_PYTHON" \
                   "$MONITOR_TERMINALS" "$SPIRAL_HOME" "" || true
+                # ── US-322: Check cascade fan-out after parallel wave ────────
+                # Count how many stories from this wave passed vs failed
+                _WAVE_PASSED=0
+                _WAVE_FAILED_IDS=""
+                for _WS_ID in "${_WAVE_STORY_IDS[@]:0:$WAVE_WORKERS}"; do
+                  [[ -z "$_WS_ID" ]] && continue
+                  _WS_PASSES=$("$JQ" -r --arg id "$_WS_ID" \
+                    '.userStories[] | select(.id == $id) | .passes // false' "$PRD_FILE" 2>/dev/null || echo "false")
+                  if [[ "$_WS_PASSES" == "true" ]]; then
+                    _WAVE_PASSED=$((_WAVE_PASSED + 1))
+                  else
+                    _WAVE_FAILED_IDS="${_WAVE_FAILED_IDS:+$_WAVE_FAILED_IDS,}$_WS_ID"
+                  fi
+                done
+                if [[ "$_WAVE_PASSED" -gt 0 ]]; then
+                  _CASCADE_FAIL_COUNT=0
+                  _CASCADE_FAIL_IDS=""
+                elif [[ -n "$_WAVE_FAILED_IDS" ]]; then
+                  # All stories in this wave failed — count them as consecutive
+                  IFS=',' read -ra _WF_ARR <<< "$_WAVE_FAILED_IDS"
+                  _CASCADE_FAIL_COUNT=$((_CASCADE_FAIL_COUNT + ${#_WF_ARR[@]}))
+                  _CASCADE_FAIL_IDS="${_CASCADE_FAIL_IDS:+$_CASCADE_FAIL_IDS,}$_WAVE_FAILED_IDS"
+                  if [[ "${SPIRAL_CASCADE_FAN_OUT_LIMIT:-5}" -gt 0 && "$_CASCADE_FAIL_COUNT" -ge "${SPIRAL_CASCADE_FAN_OUT_LIMIT:-5}" ]]; then
+                    echo ""
+                    echo "  ╔══════════════════════════════════════════════════════════════╗"
+                    echo "  ║  CASCADE ABORT — $_CASCADE_FAIL_COUNT consecutive story failures        ║"
+                    echo "  ║  Failing stories: ${_CASCADE_FAIL_IDS}"
+                    echo "  ║  Inspect the first failure and fix the root cause.          ║"
+                    echo "  ╚══════════════════════════════════════════════════════════════╝"
+                    echo ""
+                    log_spiral_event "cascade_abort" \
+                      "\"iteration\":$SPIRAL_ITER,\"consecutive_failures\":$_CASCADE_FAIL_COUNT,\"failing_ids\":\"$_CASCADE_FAIL_IDS\",\"limit\":${SPIRAL_CASCADE_FAN_OUT_LIMIT:-5}"
+                    rm -f "$CHECKPOINT_FILE"
+                    exit $ERR_CASCADE_ABORT
+                  fi
+                fi
               fi
 
               WAVE=$((WAVE + 1))

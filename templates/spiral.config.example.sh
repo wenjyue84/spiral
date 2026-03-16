@@ -429,6 +429,12 @@
 # when specific stories need them.
 # SPIRAL_WORKER_ENV_ALLOWLIST=ANTHROPIC_API_KEY,PATH,HOME,TMPDIR,TERM,SHELL,USER,LANG,TZ,SPIRAL_*,NODE_*,CLAUDE_*,RALPH_*,HEARTBEAT_DIR,TRACEPARENT,TRACESTATE,JQ,PYTHON,PWD,SHLVL
 
+# Cascading-failure fan-out cap (US-322): max consecutive story failures within
+# a single Phase I before aborting. Prevents runaway failure propagation when a
+# shared dependency is broken. Counter resets on each story success.
+# 0 = disabled (never abort on consecutive failures). Default: 5.
+# SPIRAL_CASCADE_FAN_OUT_LIMIT=5
+
 # Scope guard (US-356): validates staged files against story filesTouch field
 # before committing. When true, aborts the commit if any file outside the
 # declared scope is staged. When false (default), logs a WARN but allows commit.

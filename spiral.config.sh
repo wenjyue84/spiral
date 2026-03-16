@@ -68,6 +68,12 @@ SPIRAL_STORY_BATCH_SIZE=20
 # Anything not listed is unset before ralph.sh runs inside the worker.
 SPIRAL_WORKER_ENV_ALLOWLIST="${SPIRAL_WORKER_ENV_ALLOWLIST:-ANTHROPIC_API_KEY,PATH,HOME,TMPDIR,TERM,SHELL,USER,LANG,TZ,SPIRAL_*,NODE_*,CLAUDE_*,RALPH_*,HEARTBEAT_DIR,TRACEPARENT,TRACESTATE,JQ,PYTHON,PWD,SHLVL}"
 
+# ── Cascading-failure fan-out cap (US-322) ──────────────────────────────────
+# Max consecutive story failures within a single Phase I before aborting.
+# Prevents runaway failure propagation when a shared dependency is broken.
+# 0 = disabled (never abort on consecutive failures).
+SPIRAL_CASCADE_FAN_OUT_LIMIT="${SPIRAL_CASCADE_FAN_OUT_LIMIT:-5}"
+
 # ── Cost ceiling: abort when cumulative API spend exceeds budget ──────────────
 # Set to a USD amount (e.g., 50.0) to cap spending. Empty = disabled.
 # SPIRAL_COST_CEILING=""

@@ -581,3 +581,27 @@ Incomplete: Implement per-worker short-lived credential context with lifecycle a
 - `stat -c%s` works on Linux/Git Bash but not BSD/macOS (would need `stat -f%z`); acceptable for this codebase
 - `_TELEM_V_START_MS=0` initialized at story start; if Claude invocation is skipped (e.g. circuit breaker), I→V will still emit with durationMs=0 (safe)
 - qualityScore is integer 1 for V→C (bash arithmetic); JSON renders it as `1` not `1.0` — dashboard float() handles both
+## Iteration 2 - Mon, Mar 16, 2026  4:27:32 PM
+Incomplete: Implement per-worker short-lived credential context with lifecycle audit log (ID: US-321) — attempt /3
+
+## Iteration N - Story: US-322 Add cascading-failure fan-out cap to abort runaway story failure propagation
+
+### What was implemented
+- Added `SPIRAL_CASCADE_FAN_OUT_LIMIT` env var (default: 5) to spiral.sh, spiral.config.sh, and templates/spiral.config.example.sh
+- Added `ERR_CASCADE_ABORT` exit code (15) to spiral.sh error code table and help text
+- Initialized `_CASCADE_FAIL_COUNT` and `_CASCADE_FAIL_IDS` counters before the Phase I wave loop
+- In parallel single-story fallback path: after story pass/fail, increments counter on failure, resets on success
+- In multi-worker path: after run_parallel_ralph.sh, checks wave results — if any story passed, resets counter; if all failed, increments by failed count
+- When counter >= limit, prints CASCADE ABORT banner, logs `cascade_abort` event, and exits with ERR_CASCADE_ABORT (15)
+- Created tests/cascade_fan_out.bats with 6 tests: default value, below-limit, at-limit abort, reset on success, event logging, disabled (limit=0)
+
+### Patterns discovered
+- Sequential mode (RALPH_WORKERS=1) runs only one story per Phase I, so cascade counter can only reach 1 — fan-out cap only meaningful in parallel wave loop
+- The multi-worker path uses `_WAVE_STORY_IDS` array (populated by conflict preflight) to check per-story results after run_parallel_ralph.sh
+- Cascade abort pattern mirrors the zero-progress halt (ERR_ZERO_PROGRESS=9) but scoped to consecutive failures not iterations
+
+### Gotchas
+- `_CASCADE_FAIL_IDS` is comma-separated; in the multi-worker path, `IFS=',' read -ra` splits for counting
+- The counter must be initialized BEFORE the wave loop but AFTER the parallel mode branch (not in sequential mode, where it's not needed)
+- The abort removes checkpoint file to prevent crash-recovery from re-entering a broken Phase I
+
