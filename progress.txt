@@ -1037,3 +1037,29 @@ Incomplete: Add episodic memory store for Ralph workers to recall past implement
 ### Gotchas
 - Do NOT use `@pytest.mark.timeout(1)` on a test that itself spawns a subprocess — Python startup alone takes >1s and the mark kills it before the child starts
 - The acceptance criterion "A test with sleep(timeout+1) fails with TIMEOUT" is verified via subprocess, not inline, to keep suite green
+## Iteration 1 - Mon, Mar 16, 2026 10:05:27 PM
+Completed: Add pytest-timeout plugin to prevent indefinitely hanging CI tests (ID: US-407) in 9m
+
+
+## Iteration N - Story: US-408 Add pre-flight Claude API token count check before story prompt submission
+
+### What was implemented
+- Created `lib/token_guard.py` — implements `count_tokens(messages, model)` using Anthropic `beta.messages.count_tokens` API (betas=['token-counting-2024-11-01']); falls back to tiktoken/4-char approx when SDK absent or ANTHROPIC_API_KEY not set
+- `guard_story()` checks assembled messages against SPIRAL_CONTEXT_BUDGET_TOKENS (default 150000); calls `truncate_context.truncate_story()` if over budget; emits `token_budget_exceeded` event to spiral_events.jsonl
+- `estimate_pending_tokens()` helper for `main.py estimate` — counts pending stories whose approx token size exceeds the budget
+- Added token_guard block to `ralph/ralph.sh` immediately before the existing truncate_context gate (US-141); updates STORY_JSON with trimmed output; emits warning to PROGRESS_FILE
+- Updated `cmd_estimate()` in `main.py` to dynamically load token_guard and print context budget summary after cost projection
+- Created `tests/test_token_guard.py` — 15 tests covering: API call with mock, SDK-missing fallback, API key absent fallback, API error fallback, guard no-trim, guard trim, event emission, CLI stdin/stdout, estimate_pending_tokens
+- Added `token_guard` to mypy relaxed overrides (imports from truncate_context which has pre-existing type errors)
+
+### Patterns discovered
+- `client.beta.messages.count_tokens` requires `betas=['token-counting-2024-11-01']` in the call — not just in headers
+- Response has `.input_tokens` (not `.tokens` or `.count`)
+- `count_tokens` endpoint is free and doesn't consume API quota — safe to call pre-flight
+- `redirect_stdin` does NOT exist in Python 3.13 `contextlib` — use `patch('sys.stdin', io.StringIO(...))` instead
+- Existing ruff global `ignore_missing_imports = true` makes `type: ignore[import]` on lazy imports produce "unused ignore" mypy errors — remove the comment when the setting is global
+
+### Gotchas
+- `truncate_context.py` has 3 pre-existing mypy errors (dict type params, unused ignore) — not introduced by this story
+- ralph.sh token_guard block runs BEFORE the existing truncate_context block; both use independent budget settings (SPIRAL_CONTEXT_BUDGET_TOKENS=150k vs SPIRAL_CONTEXT_LIMIT=180k)
+- The existing truncate_context block in ralph.sh computed _TRUNC_JSON but never updated STORY_JSON (pre-existing bug); token_guard block correctly updates STORY_JSON with trimmed output

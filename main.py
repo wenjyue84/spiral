@@ -573,8 +573,8 @@ def _render_drift_plain(stories: list[dict], drift_reports: dict[str, dict]) -> 
 
 def cmd_estimate(args):
     """Show pre-flight API cost projection for pending stories."""
-    import sys as _sys
     import importlib.util as _ilu
+    import sys as _sys
 
     cost_project_path = Path(__file__).parent / "lib" / "cost_project.py"
     spec = _ilu.spec_from_file_location("cost_project", cost_project_path)
@@ -585,10 +585,14 @@ def cmd_estimate(args):
     spec.loader.exec_module(mod)  # type: ignore[union-attr]
 
     argv = [
-        "--prd", str(PRD_FILE),
-        "--results", str(RESULTS_TSV),
-        "--threshold", str(getattr(args, "threshold", 5.00)),
-        "--default-tokens", str(getattr(args, "default_tokens", mod.DEFAULT_TOKENS_PER_STORY)),
+        "--prd",
+        str(PRD_FILE),
+        "--results",
+        str(RESULTS_TSV),
+        "--threshold",
+        str(getattr(args, "threshold", 5.00)),
+        "--default-tokens",
+        str(getattr(args, "default_tokens", mod.DEFAULT_TOKENS_PER_STORY)),
     ]
     if getattr(args, "model", ""):
         argv += ["--model", args.model]
@@ -596,6 +600,30 @@ def cmd_estimate(args):
         argv.append("--yes")
 
     rc = mod.main(argv)
+
+    # ── Token guard summary (US-408) ──────────────────────────────────────
+    # Report how many pending stories would exceed the context budget.
+    token_guard_path = Path(__file__).parent / "lib" / "token_guard.py"
+    if token_guard_path.exists():
+        tg_spec = _ilu.spec_from_file_location("token_guard", token_guard_path)
+        if tg_spec is not None and tg_spec.loader is not None:
+            tg_mod = _ilu.module_from_spec(tg_spec)
+            tg_spec.loader.exec_module(tg_mod)  # type: ignore[union-attr]
+            budget = int(os.environ.get("SPIRAL_CONTEXT_BUDGET_TOKENS", tg_mod.DEFAULT_BUDGET))
+            model = getattr(args, "model", "") or os.environ.get("SPIRAL_MODEL", "sonnet")
+            try:
+                stats = tg_mod.estimate_pending_tokens(str(PRD_FILE), model=model, budget=budget)
+                if stats["pending"] > 0:
+                    over = stats["over_budget"]
+                    total = stats["pending"]
+                    pct = f"{100 * over / total:.0f}%" if total else "0%"
+                    print(
+                        f"\n  Context budget: {budget:,} tokens  "
+                        f"({over}/{total} stories ~over budget, {pct})"
+                    )
+            except Exception:  # noqa: BLE001
+                pass
+
     _sys.exit(rc)
 
 

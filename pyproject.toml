@@ -77,6 +77,7 @@ module = [
     "state_machine",
     "story_review_report",
     "llm_guard_scanner",
+    "token_guard",
 ]
 disallow_any_generics = false
 disallow_untyped_defs = false

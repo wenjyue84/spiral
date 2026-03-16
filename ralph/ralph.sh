@@ -2273,6 +2273,42 @@ while [[ $ITERATION -lt $MAX_ITERATIONS ]]; do
   # ── Gemini pre-context (paid tier, deep reasoning, saves 20+ claude turns) ──
   STORY_JSON=$($JQ -c ".userStories[] | select(.id == \"$NEXT_STORY\")" "$PRD_FILE" 2>/dev/null || echo "{}")
 
+  # ── Token guard (US-408): Anthropic API token count + auto-trim ──────────
+  # Uses count_tokens API (free, no quota) for accurate pre-flight check.
+  # Falls back to tiktoken/approx when API key is absent or SDK not installed.
+  # Emits token_budget_exceeded event to spiral_events.jsonl if over budget.
+  _TOKEN_GUARD_PY="$(cd "$SCRIPT_DIR/.." 2>/dev/null && pwd)/lib/token_guard.py"
+  if [[ -f "$_TOKEN_GUARD_PY" ]] && command -v python3 &>/dev/null &&
+    [[ -n "$STORY_JSON" && "$STORY_JSON" != "{}" ]]; then
+    _TG_WARN=$(echo "$STORY_JSON" |
+      python3 "$_TOKEN_GUARD_PY" \
+        --model "${SPIRAL_MODEL:-sonnet}" \
+        --base-prompt-file "$PROMPT_FILE" \
+        --scratch-dir "${SPIRAL_SCRATCH_DIR:-.spiral}" \
+        2>&1 1>/dev/null)
+    _TG_JSON=$(echo "$STORY_JSON" |
+      python3 "$_TOKEN_GUARD_PY" \
+        --model "${SPIRAL_MODEL:-sonnet}" \
+        --base-prompt-file "$PROMPT_FILE" \
+        --scratch-dir "${SPIRAL_SCRATCH_DIR:-.spiral}" \
+        2>/dev/null)
+    if [[ -n "$_TG_JSON" && "$_TG_JSON" != "{}" ]]; then
+      STORY_JSON="$_TG_JSON"
+    fi
+    if [[ -n "$_TG_WARN" ]]; then
+      echo "  [token_guard] WARNING: $(echo "$_TG_WARN" | python3 -c \
+        "import sys,json; d=json.load(sys.stdin); \
+         print(f\"token budget exceeded for {d.get('story_id','?')}: \
+{d.get('token_count','?')} tokens > budget {d.get('budget','?')} — context trimmed\")" 2>/dev/null || echo "$_TG_WARN")"
+      {
+        echo ""
+        echo "## Token Guard Warning — $NEXT_STORY"
+        echo "$_TG_WARN"
+        echo ""
+      } >>"$PROGRESS_FILE"
+    fi
+  fi
+
   # ── Context truncation gate (US-141) ─────────────────────────────────────
   # Measure story token count before spawning AI; strip over-budget fields.
   _TRUNCATE_PY="$(cd "$SCRIPT_DIR/.." 2>/dev/null && pwd)/lib/truncate_context.py"
