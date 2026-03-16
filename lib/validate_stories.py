@@ -114,15 +114,24 @@ def _validate_via_batch_api(
     api_key: str,
     batch_out: str,
     base_url: str,
+    batch_size: int = 0,
 ) -> tuple[list[dict], list[dict]]:
     """Validate story candidates using the Anthropic Message Batches API.
 
     Assigns a ``_custom_id`` to each candidate (its index) and submits a
-    single batch request.  Polls until all results are available, then
-    applies the LLM decisions.  The batch_id is written to *batch_out* and
-    stamped onto each story as ``_batch_id``.
+    single batch request (or multiple chunks when *batch_size* > 0).
+    Polls until all results are available, then applies the LLM decisions.
+    The batch_id is written to *batch_out* and stamped onto each story as
+    ``_batch_id``.
 
     Single-story runs use the synchronous /v1/messages fallback.
+
+    Parameters
+    ----------
+    batch_size:
+        Maximum number of stories per batch request (0 = no cap, send all
+        in one batch). When > 0, candidates are split into chunks of this
+        size and submitted as separate batch requests.
     """
     import batch_validate as _bv  # lazy import so the module is optional
 
@@ -134,10 +143,11 @@ def _validate_via_batch_api(
 
     accepted: list[dict] = []
     rejected: list[dict] = []
-    batch_id: str = ""
+    # All batch IDs collected across chunks (for summary)
+    all_batch_ids: list[str] = []
 
     if len(all_candidates) == 1:
-        # --- Synchronous fallback ---
+        # --- Synchronous fallback for single story ---
         story = all_candidates[0]
         ok, reason = _bv.validate_story_sync(
             story, goal_text, forbidden_phrases, api_key, base_url
@@ -148,32 +158,45 @@ def _validate_via_batch_api(
             rejected.append({**story, "_rejection_reason": reason})
         print(f"  [S] Batch API sync: {story.get('title', '')[:70]!r} → {'ACCEPT' if ok else 'REJECT'}")
     else:
-        # --- Batch path ---
-        requests = _bv.build_batch_requests(all_candidates, goal_text, forbidden_phrases)
-        print(f"  [S] Submitting {len(requests)} stories to Message Batches API…")
-        batch_info = _bv.submit_batch(requests, api_key, base_url)
-        batch_id = str(batch_info.get("id", ""))
-        print(f"  [S] Batch submitted: {batch_id}")
+        # --- Batch path (with optional chunking) ---
+        # Split into chunks when batch_size is set
+        chunk_size = batch_size if batch_size > 0 else len(all_candidates)
+        chunks: list[list[dict]] = [
+            all_candidates[i: i + chunk_size]
+            for i in range(0, len(all_candidates), chunk_size)
+        ]
+        print(
+            f"  [S] Submitting {len(all_candidates)} stories to Message Batches API"
+            f" in {len(chunks)} chunk(s) (batch_size={chunk_size})…"
+        )
 
-        raw_results = _bv.poll_batch(batch_id, api_key, base_url)
-        decisions = _bv.parse_batch_results(raw_results)
+        for chunk in chunks:
+            requests = _bv.build_batch_requests(chunk, goal_text, forbidden_phrases)
+            batch_info = _bv.submit_batch(requests, api_key, base_url)
+            batch_id = str(batch_info.get("id", ""))
+            all_batch_ids.append(batch_id)
+            print(f"  [S] Batch submitted: {batch_id} ({len(chunk)} stories)")
 
-        story_map = {str(s.get("_custom_id", "")): s for s in all_candidates}
-        for custom_id, story in story_map.items():
-            decision = decisions.get(custom_id, {"accepted": True, "reason": "missing"})
-            story["_batch_id"] = batch_id
-            ok = bool(decision.get("accepted", True))
-            reason = str(decision.get("reason", ""))
-            title = story.get("title", "")
-            if ok:
-                accepted.append(story)
-            else:
-                rejected.append({**story, "_rejection_reason": reason})
-                print(f"  [S] REJECTED (batch): {title[:70]!r} — {reason}")
+            raw_results = _bv.poll_batch(batch_id, api_key, base_url)
+            decisions = _bv.parse_batch_results(raw_results)
 
-    # Write batch summary
+            story_map = {str(s.get("_custom_id", "")): s for s in chunk}
+            for custom_id, story in story_map.items():
+                decision = decisions.get(custom_id, {"accepted": True, "reason": "missing"})
+                story["_batch_id"] = batch_id
+                ok = bool(decision.get("accepted", True))
+                reason = str(decision.get("reason", ""))
+                title = story.get("title", "")
+                if ok:
+                    accepted.append(story)
+                else:
+                    rejected.append({**story, "_rejection_reason": reason})
+                    print(f"  [S] REJECTED (batch): {title[:70]!r} — {reason}")
+
+    # Write batch summary using the last batch_id (or first if single chunk)
+    summary_batch_id = all_batch_ids[-1] if all_batch_ids else ""
     if batch_out:
-        _write_batch_summary(batch_out, batch_id, accepted, rejected)
+        _write_batch_summary(batch_out, summary_batch_id, accepted, rejected)
 
     return accepted, rejected
 
@@ -237,6 +260,7 @@ def validate_stories(
     use_batch_api: bool = False,
     batch_out: str = "",
     batch_base_url: str = "",
+    batch_size: int = 0,
 ) -> tuple[list[dict], list[dict]]:
     """Core validation logic. Returns (accepted, rejected) lists."""
 
@@ -324,6 +348,7 @@ def validate_stories(
                         api_key,
                         batch_out,
                         _base,
+                        batch_size=batch_size,
                     )
                     accepted.extend(_accepted)
                     rejected.extend(_rejected)

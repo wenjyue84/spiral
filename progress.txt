@@ -876,3 +876,6 @@ Completed: Build Message Batches request builder and response parser (ID: US-404
 ### Gotchas
 - Both `poll_batch` (urllib-based, takes api_key) and `poll_batch_until_complete` (SDK-based, takes client) coexist
 - `inspect.signature` works fine for testing default parameter values without calling the function
+## Iteration 5 - Mon, Mar 16, 2026  7:18:57 PM
+Completed: Implement batch polling with exponential backoff (ID: US-405) in 9m
+
