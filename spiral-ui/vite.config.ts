@@ -839,6 +839,89 @@ function spiralApiPlugin() {
         }
       });
 
+      // ── GET /api/active-story?name=X — currently active story being worked on ──
+      // Parses .spiral/ralph-run.log to find the most recent [spawn] that has no
+      // matching [done] or [fail] after it.
+      server.middlewares.use('/api/active-story', (req, res, next) => {
+        if (req.method !== 'GET') { next(); return; }
+        const url = new URL(req.url ?? '', 'http://localhost');
+        const name = url.searchParams.get('name') ?? '';
+
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Content-Type', 'application/json');
+
+        const reg = readRegistry();
+        const root = name ? (reg[name] ?? null) : PROJECT_ROOT;
+        if (!root) {
+          res.end(JSON.stringify({ storyId: null }));
+          return;
+        }
+
+        try {
+          const logPath = path.join(root, '.spiral', 'ralph-run.log');
+          if (!fs.existsSync(logPath)) {
+            res.end(JSON.stringify({ storyId: null }));
+            return;
+          }
+
+          const logText = fs.readFileSync(logPath, 'utf8').replace(/\0/g, '');
+          const lines = logText.split('\n');
+
+          // Walk lines in reverse to find the last [spawn] and check if [done]/[fail] follows it
+          const spawnRe = /\[spawn\]\s+Fresh claude instance for\s+((?:US|UT)-\d+)/i;
+          const doneRe = /\[done\]\s+Story completed/i;
+          const failRe = /\[fail\]/i;
+
+          // Find the last spawn line index and story ID
+          let lastSpawnIdx = -1;
+          let lastSpawnStoryId: string | null = null;
+          for (let i = lines.length - 1; i >= 0; i--) {
+            const m = lines[i].match(spawnRe);
+            if (m) {
+              lastSpawnIdx = i;
+              lastSpawnStoryId = m[1].toUpperCase();
+              break;
+            }
+          }
+
+          if (lastSpawnIdx === -1 || !lastSpawnStoryId) {
+            res.end(JSON.stringify({ storyId: null }));
+            return;
+          }
+
+          // Check if any [done] or [fail] line appears AFTER the last spawn
+          let isCompleted = false;
+          for (let i = lastSpawnIdx + 1; i < lines.length; i++) {
+            if (doneRe.test(lines[i]) || failRe.test(lines[i])) {
+              isCompleted = true;
+              break;
+            }
+          }
+
+          if (isCompleted) {
+            res.end(JSON.stringify({ storyId: null }));
+            return;
+          }
+
+          // Look up the story title from prd.json
+          let storyTitle: string | null = null;
+          try {
+            const prdPath = path.join(root, 'prd.json');
+            if (fs.existsSync(prdPath)) {
+              const prd = JSON.parse(fs.readFileSync(prdPath, 'utf8')) as {
+                userStories?: Array<{ id: string; title: string }>;
+              };
+              const story = (prd.userStories ?? []).find(s => s.id === lastSpawnStoryId);
+              storyTitle = story?.title ?? null;
+            }
+          } catch { /* ignore */ }
+
+          res.end(JSON.stringify({ storyId: lastSpawnStoryId, title: storyTitle }));
+        } catch (e) {
+          res.end(JSON.stringify({ storyId: null, error: String(e) }));
+        }
+      });
+
       // ── DELETE /api/story?name=X&id=Y — remove a story from prd.json ───────
       server.middlewares.use('/api/story', (req, res, next) => {
         if (req.method !== 'DELETE' && req.method !== 'OPTIONS') { next(); return; }

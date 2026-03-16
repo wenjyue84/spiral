@@ -88,6 +88,11 @@ interface StoryAttempt {
   commitSha: string;
 }
 
+interface ActiveStoryInfo {
+  storyId: string | null;
+  title: string | null;
+}
+
 interface ProjectData {
   name: string;
   root: string;
@@ -469,7 +474,25 @@ function LiveStatusBanner({ activeStatus, lastCompletedStory, checkpointTs, last
   );
 }
 
-function ProgressTab({ data, projectName, onRefresh }: { data: ProjectData; projectName: string; onRefresh: () => void }) {
+function ActiveStoryBanner({ activeStory, className }: { activeStory: ActiveStoryInfo | null; className?: string }) {
+  if (!activeStory?.storyId) return null;
+  const truncate = (s: string, max = 60) => s.length > max ? s.slice(0, max) + '…' : s;
+  return (
+    <div className={`flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-xl ${className ?? ''}`}>
+      <span className="relative flex h-2 w-2 flex-shrink-0">
+        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+        <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+      </span>
+      <span className="text-xs font-semibold text-amber-700">Ralph is working on:</span>
+      <span className="text-xs font-mono font-bold text-amber-800">{activeStory.storyId}</span>
+      {activeStory.title && (
+        <span className="text-xs text-amber-700">— {truncate(activeStory.title)}</span>
+      )}
+    </div>
+  );
+}
+
+function ProgressTab({ data, projectName, onRefresh, activeStory }: { data: ProjectData; projectName: string; onRefresh: () => void; activeStory: ActiveStoryInfo | null }) {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [selectedStory, setSelectedStory] = useState<Story | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -544,6 +567,9 @@ function ProgressTab({ data, projectName, onRefresh }: { data: ProjectData; proj
           </div>
         </div>
       )}
+
+      {/* Active story banner */}
+      <ActiveStoryBanner activeStory={activeStory} />
 
       {/* Stats cards */}
       <div className="grid grid-cols-3 gap-4">
@@ -1162,7 +1188,7 @@ function WorkerConsole({ workerId, projectName }: { workerId: number; projectNam
   );
 }
 
-function WorkersTab({ projectName }: { projectName: string }) {
+function WorkersTab({ projectName, activeStory }: { projectName: string; activeStory: ActiveStoryInfo | null }) {
   const [workers, setWorkers] = useState<WorkerInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -1180,48 +1206,58 @@ function WorkersTab({ projectName }: { projectName: string }) {
   if (fetchError) return <div className="p-6 text-sm text-red-500">Error: {fetchError}</div>;
   if (workers.length === 0) {
     return (
-      <div className="p-6 text-center text-slate-500">
-        <div className="text-2xl mb-2">👷</div>
-        <div className="text-sm font-medium">No workers found</div>
-        <div className="text-xs mt-1 text-slate-400">
-          Run <code className="bg-slate-100 px-1 rounded">bash spiral.sh 5 --ralph-workers 2</code> to launch parallel workers and see live output here.
+      <div className="p-6 space-y-4">
+        <ActiveStoryBanner activeStory={activeStory} />
+        <div className="text-center text-slate-500">
+          <div className="text-2xl mb-2">👷</div>
+          <div className="text-sm font-medium">No workers found</div>
+          <div className="text-xs mt-1 text-slate-400">
+            Run <code className="bg-slate-100 px-1 rounded">bash spiral.sh 5 --ralph-workers 2</code> to launch parallel workers and see live output here.
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-4 grid grid-cols-1 xl:grid-cols-2 gap-4">
-      {workers.map(w => (
-        w.hasLog
-          ? <WorkerConsole key={w.id} workerId={w.id} projectName={projectName} />
-          : (
-            <div key={w.id} className="flex flex-col border border-slate-700 rounded-lg overflow-hidden">
-              <div className="flex items-center justify-between px-3 py-1.5 bg-slate-800 border-b border-slate-700">
-                <span className="text-xs font-mono font-semibold text-slate-200">Worker {w.id}</span>
-                <span className="text-xs font-mono text-slate-400">○ Completed (no log)</span>
+    <div className="p-4 space-y-4">
+      {/* Active story banner at top of workers tab */}
+      <ActiveStoryBanner activeStory={activeStory} />
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        {workers.map(w => (
+          w.hasLog
+            ? <WorkerConsole key={w.id} workerId={w.id} projectName={projectName} />
+            : (
+              <div key={w.id} className="flex flex-col border border-slate-700 rounded-lg overflow-hidden">
+                <div className="flex items-center justify-between px-3 py-1.5 bg-slate-800 border-b border-slate-700">
+                  <span className="text-xs font-mono font-semibold text-slate-200">Worker {w.id}</span>
+                  <span className="text-xs font-mono text-slate-400">○ Completed (no log)</span>
+                </div>
+                <div className="h-32 flex items-center justify-center bg-slate-950 p-2">
+                  <span className="text-xs font-mono text-slate-600">
+                    PRD slice assigned — log not available.{w.hasHeartbeat ? ' Heartbeat active.' : ''}
+                  </span>
+                </div>
               </div>
-              <div className="h-32 flex items-center justify-center bg-slate-950 p-2">
-                <span className="text-xs font-mono text-slate-600">
-                  PRD slice assigned — log not available.{w.hasHeartbeat ? ' Heartbeat active.' : ''}
-                </span>
-              </div>
-            </div>
-          )
-      ))}
+            )
+        ))}
+      </div>
     </div>
   );
 }
 
-function ActivityTab({ log }: { log: string }) {
+function ActivityTab({ log, activeStory }: { log: string; activeStory: ActiveStoryInfo | null }) {
   if (!log) {
     return <div className="p-6 text-slate-500">No activity log yet. Start SPIRAL to see live output here.</div>;
   }
   const lines = log.split('\n').filter(Boolean);
   const now = new Date().toLocaleString('en-MY', { timeZone: 'Asia/Kuala_Lumpur', hour12: false });
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-2">
+    <div className="p-6 space-y-3">
+      {/* Active story banner at top of activity log */}
+      <ActiveStoryBanner activeStory={activeStory} />
+
+      <div className="flex items-center justify-between">
         <div className="text-[10px] text-slate-400">Timestamps shown in Malaysia Time (MYT, UTC+8)</div>
         <div className="text-[10px] text-slate-400">Now: {now}</div>
       </div>
@@ -1343,7 +1379,7 @@ const PRIORITY_BADGE: Record<string, string> = {
   low:      'bg-slate-100 text-slate-500 border-slate-200',
 };
 
-function PhaseTraceTab({ projectName, stories }: { projectName: string; stories?: Story[] }) {
+function PhaseTraceTab({ projectName, stories, activeStory }: { projectName: string; stories?: Story[]; activeStory: ActiveStoryInfo | null }) {
   const [traceData, setTraceData] = useState<PhaseTraceData | null>(null);
   const [selectedIter, setSelectedIter] = useState<number | null>(null);
   const [expandedPhases, setExpandedPhases] = useState<Set<string>>(new Set());
@@ -1578,6 +1614,14 @@ function PhaseTraceTab({ projectName, stories }: { projectName: string; stories?
                   </div>
                   {phase.label && phase.label !== phaseName && !isSkipped && (
                     <span className="text-xs text-slate-500 truncate">{phase.label}</span>
+                  )}
+                  {/* Active story inline badge for Phase I */}
+                  {phase.phase === 'I' && !isSkipped && activeStory?.storyId && (
+                    <span className="flex items-center gap-1.5 text-[10px] font-medium bg-amber-50 border border-amber-200 text-amber-700 px-2 py-0.5 rounded-full flex-shrink-0">
+                      <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                      {activeStory.storyId}
+                      {activeStory.title && <span className="text-amber-600 truncate max-w-[140px]">{activeStory.title}</span>}
+                    </span>
                   )}
                 </div>
                 <div className="ml-auto flex items-center gap-3 flex-shrink-0">
@@ -1862,6 +1906,7 @@ export default function ProjectDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const [activeStory, setActiveStory] = useState<ActiveStoryInfo | null>(null);
 
   const activeTab: DashTab = (tab && VALID_TABS.has(tab) ? tab : 'progress') as DashTab;
   const setActiveTab = (t: DashTab) => navigate(`/${encodeURIComponent(projectName ?? '')}/${t}`, { replace: true });
@@ -1884,11 +1929,27 @@ export default function ProjectDashboard() {
     }
   }, [projectName]);
 
+  const loadActiveStory = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/active-story?name=${encodeURIComponent(projectName ?? '')}`);
+      if (res.ok) {
+        const d = await res.json() as { storyId: string | null; title?: string | null };
+        setActiveStory({ storyId: d.storyId, title: d.title ?? null });
+      }
+    } catch { /* ignore */ }
+  }, [projectName]);
+
   useEffect(() => {
     load();
     const interval = setInterval(load, 5_000); // refresh every 5s for live status banner (US-315)
     return () => clearInterval(interval);
   }, [load]);
+
+  useEffect(() => {
+    loadActiveStory();
+    const interval = setInterval(loadActiveStory, 15_000); // poll active story every 15s
+    return () => clearInterval(interval);
+  }, [loadActiveStory]);
 
   if (loading) {
     return (
@@ -2014,9 +2075,9 @@ export default function ProjectDashboard() {
 
       {/* Tab content */}
       <main className="flex-1 overflow-hidden">
-        {activeTab === 'progress'     && <div className="h-full overflow-y-auto"><ProgressTab data={data} projectName={projectName ?? ''} onRefresh={load} /></div>}
-        {activeTab === 'phase-trace'  && <div className="h-full overflow-y-auto"><PhaseTraceTab projectName={projectName ?? ''} stories={data.progress?.stories ?? []} /></div>}
-        {activeTab === 'workers'      && <div className="h-full overflow-y-auto"><WorkersTab projectName={projectName ?? ''} /></div>}
+        {activeTab === 'progress'     && <div className="h-full overflow-y-auto"><ProgressTab data={data} projectName={projectName ?? ''} onRefresh={load} activeStory={activeStory} /></div>}
+        {activeTab === 'phase-trace'  && <div className="h-full overflow-y-auto"><PhaseTraceTab projectName={projectName ?? ''} stories={data.progress?.stories ?? []} activeStory={activeStory} /></div>}
+        {activeTab === 'workers'      && <div className="h-full overflow-y-auto"><WorkersTab projectName={projectName ?? ''} activeStory={activeStory} /></div>}
         {activeTab === 'graph'        && (
           <div className="h-full overflow-hidden">
             <DependencyGraph stories={data.progress?.stories ?? []} />
@@ -2024,7 +2085,7 @@ export default function ProjectDashboard() {
         )}
         {activeTab === 'settings'     && <div className="h-full overflow-y-auto"><SettingsTab config={data.config} configRaw={data.configRaw ?? ''} projectName={projectName ?? ''} onConfigSaved={() => load()} /></div>}
         {activeTab === 'constitution' && <div className="h-full overflow-y-auto"><ConstitutionTab text={data.constitution} /></div>}
-        {activeTab === 'activity'     && <div className="h-full overflow-y-auto"><ActivityTab log={data.activity} /></div>}
+        {activeTab === 'activity'     && <div className="h-full overflow-y-auto"><ActivityTab log={data.activity} activeStory={activeStory} /></div>}
       </main>
     </div>
   );

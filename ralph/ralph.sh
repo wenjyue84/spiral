@@ -2206,9 +2206,10 @@ Story JSON: $STORY_JSON"
       # Build model flag (empty if no model routing)
       CLAUDE_MODEL_FLAG=""
       [[ -n "$EFFECTIVE_MODEL" ]] && CLAUDE_MODEL_FLAG="--model $EFFECTIVE_MODEL"
-      # Build prompt content — split into system prompt (cacheable) and user prompt (minimal)
-      # The system prompt is stable across story iterations so Anthropic prompt caching
-      # (cache_control: {type: ephemeral}) can cache it, saving ~90% input token cost.
+      # Build prompt content — split into system prompt (cacheable) and user prompt (dynamic)
+      # US-338: Cache-aware prompt structure. The system prompt MUST be identical across
+      # stories/retries so Anthropic prompt caching preserves the prefix. All dynamic
+      # values (story IDs, iteration numbers, masking stats) go into user prompt ONLY.
       RALPH_SYSTEM_PROMPT="$(cat "$PROMPT_FILE")"
       SPECKIT_CONST=".specify/memory/constitution.md"
       if [[ -f "$SPECKIT_CONST" ]]; then
@@ -2313,13 +2314,14 @@ ${_RETRY_NOTES:-  (none found)}"
         _OBS_TOKENS_BEFORE=$(( _OBS_TOKENS_BEFORE + _FULL_TOKENS ))
         _OBS_TOKENS_AFTER=$(( _OBS_TOKENS_AFTER + _MASKED_TOKENS ))
 
-        # Add masking note to system prompt when observations were truncated
+        # US-338: Masking note goes into user prompt (not system prompt) to preserve
+        # prompt cache stability — the system prompt must be identical across stories.
         _MASKING_NOTE=""
         if (( _MASK_COUNT > 0 )); then
           _REDUCTION_PCT=$(( (_FULL_TOKENS - _MASKED_TOKENS) * 100 / (_FULL_TOKENS + 1) ))
           _MASKING_NOTE="NOTE: ${_MASK_COUNT} earlier phase output(s) omitted for brevity (kept last ${_WINDOW} of ${_OBS_COUNT}).
 "
-          RALPH_SYSTEM_PROMPT="${RALPH_SYSTEM_PROMPT}
+          _CONTEXT_MGMT_NOTE="
 
 ---
 
@@ -2352,7 +2354,7 @@ ${_MASKED_CONTEXT}
 ACTION: Do NOT repeat the same approach that failed. Read progress.txt carefully for what
 was tried, then implement the story differently. You are using a more powerful model this
 attempt ($EFFECTIVE_MODEL) — use it."
-        RALPH_USER_PROMPT="$_RETRY_BRIEF
+        RALPH_USER_PROMPT="$_RETRY_BRIEF${_CONTEXT_MGMT_NOTE:-}
 
 ---
 

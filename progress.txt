@@ -140,3 +140,6 @@ Completed: ProjectDashboard: 'SPIRAL IS RUNNING' live status indicator (ID: US-3
 ### Gotchas
 - `navigator.clipboard.writeText` needs HTTPS or localhost — works fine in dev mode
 - The slide-in panel uses `flex justify-end` on the fixed container to anchor right instead of centering
+## Iteration 5 - Mon, Mar 16, 2026 12:00:05 PM
+Completed: ProjectDashboard: story detail slide-in panel (ID: US-316) in 8m
+

@@ -801,6 +801,26 @@ def cmd_graph(args) -> None:
     sys.exit(rc)
 
 
+def _diagnose_cache_hit_rate() -> dict:
+    """US-338: Analyze prompt cache hit rate from results.tsv."""
+    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    from prompt_cache_analysis import analyze_cache_hit_rate
+
+    if not RESULTS_TSV.exists():
+        return analyze_cache_hit_rate([])
+
+    rows = []
+    try:
+        with open(RESULTS_TSV, encoding="utf-8", errors="replace") as f:
+            reader = csv.DictReader(f, delimiter="\t")
+            for row in reader:
+                rows.append(row)
+    except (OSError, csv.Error):
+        return analyze_cache_hit_rate([])
+
+    return analyze_cache_hit_rate(rows)
+
+
 def cmd_diagnose(args) -> None:
     """Print a causal failure chain for a spiral run (uses failure_attribution.py)."""
     sys.path.insert(0, str(Path(__file__).parent / "lib"))
@@ -844,6 +864,9 @@ def cmd_diagnose(args) -> None:
     fmt = getattr(args, "format", "text")
     if fmt == "json":
         chain = attributor.get_causal_chain()
+        # US-338: Include cache hit rate analysis in JSON output
+        cache_analysis = _diagnose_cache_hit_rate()
+        chain["cache_analysis"] = cache_analysis
         print(json.dumps(chain, indent=2))
     else:
         chain = attributor.get_causal_chain()
@@ -873,6 +896,15 @@ def cmd_diagnose(args) -> None:
                 print(f"{prefix}{f_type}: worker {f_wid} ({f_sid}) — {f_err}")
                 if f_res:
                     print(f"       Resource: {f_res}")
+
+        # US-338: Cache hit rate analysis
+        cache_analysis = _diagnose_cache_hit_rate()
+        print(f"\nPrompt cache analysis:")
+        print(f"  Hit rate       : {cache_analysis['hit_rate_pct']:.1f}%")
+        print(f"  Calls          : {cache_analysis['total_calls']} ({cache_analysis['cache_hits']} hits, {cache_analysis['cache_misses']} misses)")
+        print(f"  Cache tokens   : {cache_analysis['total_cache_read_tokens']:,}")
+        if not cache_analysis["healthy"]:
+            print(f"  WARNING: {cache_analysis['diagnosis']}")
 
 
 def cmd_export_report(args) -> None:
