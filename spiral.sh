@@ -953,6 +953,21 @@ fi
 # ── Tee all output to log file ──────────────────────────────────────────────
 mkdir -p "$SCRATCH_DIR"
 
+# ── US-347: Enable git rerere for automatic conflict resolution replay ───────
+# rerere records conflict resolutions so identical future conflicts in worker
+# branches (especially prd.json, results.tsv) are auto-replayed without manual
+# intervention. autoupdate auto-stages the replayed resolution.
+git -C "$REPO_ROOT" config rerere.enabled true 2>/dev/null || true
+git -C "$REPO_ROOT" config rerere.autoupdate true 2>/dev/null || true
+# Install post-merge hook for rerere replay logging (non-destructive: skips if
+# a user-provided post-merge hook already exists)
+_PM_HOOK="$REPO_ROOT/.git/hooks/post-merge"
+_PM_SRC="$SPIRAL_HOME/lib/hooks/post-merge"
+if [[ ! -f "$_PM_HOOK" && -f "$_PM_SRC" ]]; then
+  cp "$_PM_SRC" "$_PM_HOOK"
+  chmod +x "$_PM_HOOK" 2>/dev/null || true
+fi
+
 # ── US-279: Prune old crash files on startup ─────────────────────────────────
 prune_old_crashes
 

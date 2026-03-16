@@ -1,0 +1,51 @@
+#!/bin/bash
+# post-merge hook — Log git rerere auto-replay events to spiral_events.jsonl
+# Installed by US-347: Enable git rerere across Ralph worker branches
+#
+# When rerere auto-applies a recorded conflict resolution during a merge,
+# this hook detects it and logs a rerere_replay event.
+
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+SCRATCH_DIR="${SPIRAL_SCRATCH_DIR:-$REPO_ROOT/.spiral}"
+EVENT_LOG="$SCRATCH_DIR/spiral_events.jsonl"
+
+# Check if rerere is enabled
+if [[ "$(git config --get rerere.enabled 2>/dev/null)" != "true" ]]; then
+  exit 0
+fi
+
+# Check if rerere auto-resolved any conflicts during this merge
+# git rerere status lists files that were auto-resolved
+RERERE_FILES=$(git rerere status 2>/dev/null || true)
+
+if [[ -z "$RERERE_FILES" ]]; then
+  exit 0
+fi
+
+# Count resolved files
+FILE_COUNT=$(echo "$RERERE_FILES" | wc -l | tr -d ' ')
+
+# Build JSON array of resolved file paths
+FILES_JSON="["
+FIRST=1
+while IFS= read -r f; do
+  [[ -z "$f" ]] && continue
+  if [[ "$FIRST" -eq 1 ]]; then
+    FILES_JSON+="\"$f\""
+    FIRST=0
+  else
+    FILES_JSON+=",\"$f\""
+  fi
+done <<<"$RERERE_FILES"
+FILES_JSON+="]"
+
+# Ensure scratch dir exists
+mkdir -p "$SCRATCH_DIR"
+
+# Append rerere_replay event
+TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+printf '%s\n' \
+  "{\"ts\":\"$TS\",\"event\":\"rerere_replay\",\"run_id\":\"${SPIRAL_RUN_ID:-}\",\"level\":\"INFO\",\"files\":$FILES_JSON,\"file_count\":$FILE_COUNT}" \
+  >>"$EVENT_LOG" 2>/dev/null || true

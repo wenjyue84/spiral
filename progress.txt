@@ -216,3 +216,26 @@ Incomplete: Validate MCP server integrity via signed checksum manifest before Ph
 ### Gotchas
 - HTML comments in CLAUDE.md are still parsed by the dynamic pattern tests — don't put story IDs in comments
 - The _build_system_prompt_shell_snippet test helper needed updating to remove focus parameter after the move
+## Iteration 4 - Mon, Mar 16, 2026 12:57:56 PM
+Completed: ProjectDashboard: story detail slide-in panel (ID: US-316) in 8m
+
+## Iteration N - Story: US-347 Enable git rerere to auto-replay recorded conflict resolutions across Ralph worker branches
+
+### What was implemented
+- Added `git config rerere.enabled true` and `git config rerere.autoupdate true` in spiral.sh startup (after `mkdir -p "$SCRATCH_DIR"`, line 960-961)
+- Created `lib/hooks/post-merge` hook that detects rerere auto-resolutions and logs `rerere_replay` events to spiral_events.jsonl
+- Hook install is non-destructive: only copies if no user-provided post-merge hook already exists
+- `.git/rr-cache/` is already NOT in .gitignore (correct — it must persist for rerere to work)
+- Added 5 bats tests in `tests/git_rerere.bats`: config verification, rr-cache creation, auto-replay verification, hook event logging, and graceful disabled handling
+
+### Patterns discovered
+- `git init -b main` is needed in bats tests because default branch on this system is `master`
+- `git config core.autocrlf false` is needed in test repos on Windows to avoid CRLF warnings that cause bats failures
+- `git rerere status` lists files that were auto-resolved — empty output means no replay occurred
+- rerere records resolutions on first manual resolve, replays on subsequent identical conflicts
+
+### Gotchas
+- post-merge hook only fires on successful merge commits, not on conflict state
+- rerere auto-replay happens during the merge itself (before the hook fires), so `git rerere status` in the hook may show empty if autoupdate already staged everything
+- The hook uses `SPIRAL_SCRATCH_DIR` env var (exported by spiral.sh) to locate spiral_events.jsonl
+
