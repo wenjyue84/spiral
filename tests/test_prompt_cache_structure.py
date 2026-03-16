@@ -42,12 +42,13 @@ def _read_ralph_claude_md() -> str:
 
 
 def _build_system_prompt_shell_snippet(
-    focus: str = "", has_constitution: bool = False, has_browser: bool = False
+    has_constitution: bool = False, has_browser: bool = False
 ) -> str:
     """Return a bash snippet that prints the system prompt to stdout.
 
-    Mirrors the system prompt construction in ralph.sh (lines ~2209-2248)
-    WITHOUT the retry context management section (moved to user prompt by US-338).
+    Mirrors the system prompt construction in ralph.sh (lines ~2209-2248).
+    US-338: Focus is now in user prompt, not system prompt. All system prompt
+    content must be static across stories/retries for cache prefix stability.
     """
     constitution_block = ""
     if has_constitution:
@@ -59,18 +60,6 @@ def _build_system_prompt_shell_snippet(
             ## Project Constitution (Spec-Kit — non-negotiable standards)
 
             Test constitution content."
-        """)
-
-    focus_block = ""
-    if focus:
-        focus_block = textwrap.dedent(f"""\
-            RALPH_SYSTEM_PROMPT="$RALPH_SYSTEM_PROMPT
-
-            ---
-
-            ## Iteration Focus: {focus}
-
-            This SPIRAL iteration is focused on **{focus}**."
         """)
 
     browser_block = ""
@@ -90,7 +79,6 @@ def _build_system_prompt_shell_snippet(
         PROMPT_FILE="ralph/CLAUDE.md"
         RALPH_SYSTEM_PROMPT="$(cat "$PROMPT_FILE")"
         {constitution_block}
-        {focus_block}
         {browser_block}
         printf '%s' "$RALPH_SYSTEM_PROMPT"
     """)
@@ -181,6 +169,71 @@ class TestSystemPromptStability:
         # Verify it's used in RALPH_USER_PROMPT, not RALPH_SYSTEM_PROMPT
         assert "RALPH_USER_PROMPT=\"$_RETRY_BRIEF${_CONTEXT_MGMT_NOTE:-}" in ralph_sh, (
             "_CONTEXT_MGMT_NOTE should be injected into RALPH_USER_PROMPT"
+        )
+
+    def test_focus_not_in_system_prompt(self):
+        """RALPH_FOCUS / Iteration Focus must NOT be in RALPH_SYSTEM_PROMPT assignments."""
+        from pathlib import Path
+
+        ralph_sh = (
+            Path(__file__).parent.parent / "ralph" / "ralph.sh"
+        ).read_text(encoding="utf-8")
+
+        # Find all lines that assign to RALPH_SYSTEM_PROMPT
+        sys_prompt_lines = [
+            line.strip()
+            for line in ralph_sh.splitlines()
+            if "RALPH_SYSTEM_PROMPT=" in line
+            or 'RALPH_SYSTEM_PROMPT="$RALPH_SYSTEM_PROMPT' in line
+        ]
+
+        for line in sys_prompt_lines:
+            assert "RALPH_FOCUS" not in line, (
+                f"RALPH_SYSTEM_PROMPT assignment contains RALPH_FOCUS (dynamic): {line}"
+            )
+            assert "Iteration Focus" not in line, (
+                f"RALPH_SYSTEM_PROMPT assignment contains 'Iteration Focus' (dynamic): {line}"
+            )
+
+    def test_focus_in_user_prompt(self):
+        """RALPH_FOCUS / Iteration Focus must be injected into RALPH_USER_PROMPT."""
+        from pathlib import Path
+
+        ralph_sh = (
+            Path(__file__).parent.parent / "ralph" / "ralph.sh"
+        ).read_text(encoding="utf-8")
+
+        # The focus block is a multi-line heredoc-style string appended to
+        # RALPH_USER_PROMPT. Look for the pattern where RALPH_USER_PROMPT
+        # assignment contains "Iteration Focus" in a nearby context.
+        # Find the section between "US-338: Focus hint" comment and next section
+        assert "Iteration Focus: $RALPH_FOCUS" in ralph_sh, (
+            "Iteration Focus block must exist in ralph.sh"
+        )
+        # Find which variable the focus block is assigned to
+        lines = ralph_sh.splitlines()
+        in_focus_block = False
+        focus_target = None
+        for line in lines:
+            if "Iteration Focus:" in line and "RALPH_FOCUS" in line:
+                in_focus_block = True
+            if in_focus_block and line.strip().startswith("RALPH_USER_PROMPT="):
+                focus_target = "user"
+                break
+            if in_focus_block and line.strip().startswith("RALPH_SYSTEM_PROMPT="):
+                focus_target = "system"
+                break
+
+        # Also check: the focus block should be in a RALPH_USER_PROMPT= assignment
+        # by looking for the multi-line string context
+        idx = ralph_sh.index("Iteration Focus: $RALPH_FOCUS")
+        # Search backwards from this index for the nearest variable assignment
+        before = ralph_sh[:idx]
+        last_user = before.rfind("RALPH_USER_PROMPT=")
+        last_sys = before.rfind("RALPH_SYSTEM_PROMPT=")
+        assert last_user > last_sys, (
+            "RALPH_FOCUS / Iteration Focus must be assigned to RALPH_USER_PROMPT "
+            "(not RALPH_SYSTEM_PROMPT) to preserve cache prefix stability"
         )
 
 

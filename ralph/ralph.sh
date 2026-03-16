@@ -2229,16 +2229,8 @@ $(cat "$SPECKIT_CONST")
 "
         echo "  [speckit] Constitution loaded ($(wc -l <"$SPECKIT_CONST") lines)"
       fi
-      if [[ -n "$RALPH_FOCUS" ]]; then
-        RALPH_SYSTEM_PROMPT="$RALPH_SYSTEM_PROMPT
-
----
-
-## Iteration Focus: $RALPH_FOCUS
-
-This SPIRAL iteration is focused on **$RALPH_FOCUS**. Keep this theme in mind while implementing the assigned story. Prioritize approaches that align with this focus area."
-        echo "  [focus] Focus context injected: \"$RALPH_FOCUS\""
-      fi
+      # US-338: RALPH_FOCUS moved to user prompt to preserve cache prefix stability.
+      # The system prompt must be identical across stories/retries for prompt caching.
       # Detect Chrome DevTools MCP availability
       BROWSER_TOOLS_HINT=""
       if claude --help 2>&1 | grep -q "chrome-devtools" 2>/dev/null || [[ -n "${CHROME_DEVTOOLS_MCP:-}" ]]; then
@@ -2256,6 +2248,18 @@ $BROWSER_TOOLS_HINT"
       fi
       # Minimal user prompt — the system prompt has all instructions
       RALPH_USER_PROMPT="Implement the next incomplete story from prd.json now. Read prd.json and progress.txt, pick the highest priority story where passes is false, and implement it."
+
+      # ── US-338: Focus hint injected into user prompt (not system prompt) ────
+      if [[ -n "$RALPH_FOCUS" ]]; then
+        RALPH_USER_PROMPT="$RALPH_USER_PROMPT
+
+---
+
+## Iteration Focus: $RALPH_FOCUS
+
+This SPIRAL iteration is focused on **$RALPH_FOCUS**. Keep this theme in mind while implementing the assigned story. Prioritize approaches that align with this focus area."
+        echo "  [focus] Focus context injected into user prompt: \"$RALPH_FOCUS\""
+      fi
 
       # ── US-280: File context injection (diff or full) ────────────────────────
       if [[ -n "${STORY_JSON:-}" && "${STORY_JSON:-}" != "{}" ]]; then

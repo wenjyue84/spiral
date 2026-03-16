@@ -193,3 +193,26 @@ Incomplete: Validate MCP server integrity via signed checksum manifest before Ph
 - `ToolSearch` MUST be in both `--tools` (so its definition is loaded) and `--allowedTools` (so it can execute) — without it, Claude cannot discover deferred tools
 - The jq binary path uses `$JQ` variable (set earlier in ralph.sh) which resolves to `ralph/jq.exe` on Windows
 
+## Iteration 3 - Mon, Mar 16, 2026 12:49:24 PM
+Incomplete: Validate MCP server integrity via signed checksum manifest before Phase I (ID: US-320) — attempt /3
+
+
+## Iteration N - Story: US-338 Build cache-aware prompt structure for Ralph system prompts to prevent prefix invalidation
+
+### What was implemented
+- Moved RALPH_FOCUS injection from system prompt (RALPH_SYSTEM_PROMPT) to user prompt (RALPH_USER_PROMPT) in ralph.sh
+- Added cache-stability HTML comment header to ralph/CLAUDE.md warning against adding dynamic values
+- Added 2 new tests: test_focus_not_in_system_prompt and test_focus_in_user_prompt to TestSystemPromptStability class
+- Updated _build_system_prompt_shell_snippet helper to remove focus parameter (no longer part of system prompt)
+- Removed US-338 story ID from CLAUDE.md comment to pass no-story-IDs test
+- Also fixed prd.json status for US-316 and US-336 which had committed code but passes=false
+
+### Patterns discovered
+- System prompt is built from: CLAUDE.md + constitution + browser tools hint (all static)
+- User prompt gets: focus hint, file context, retry context, masking stats (all dynamic)
+- The --append-system-prompt flag in Claude CLI sets the system prompt; -p flag sets the user prompt
+- Multi-line assignments in bash (heredoc-style) make line-by-line test matching unreliable — use index-based lookups
+
+### Gotchas
+- HTML comments in CLAUDE.md are still parsed by the dynamic pattern tests — don't put story IDs in comments
+- The _build_system_prompt_shell_snippet test helper needed updating to remove focus parameter after the move

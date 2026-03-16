@@ -1,5 +1,10 @@
 # Ralph Autonomous Agent - Claude Code Instructions
 
+<!-- CACHE-STABLE PROMPT — Do NOT add dynamic values (timestamps, iteration
+     numbers, story IDs, session tokens) anywhere in this file. Dynamic content is
+     injected via the user prompt in ralph.sh to preserve Anthropic prompt cache prefix
+     stability. Adding dynamic values here busts the cache on every call. -->
+
 ## Token Efficiency
 
 **Always use `rtk` prefix** for shell commands — it filters verbose output and saves 60-99% tokens.

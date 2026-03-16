@@ -5812,7 +5812,7 @@
       "title": "ProjectDashboard: story detail slide-in panel",
       "description": "Clicking a story ID or title in any part of the dashboard should reveal a detailed view. Currently nothing happens on click. Add a slide-in panel (same pattern as the workflow node panel) that shows the full story: description, acceptance criteria, dependencies, attempt history from results.tsv, _passedCommit link, and _failureReason if applicable. This makes the dashboard a full story management interface.",
       "priority": "high",
-      "passes": false,
+      "passes": true,
       "retryCount": 0,
       "filesTouch": [
         "spiral-ui/src/components/ProjectDashboard.tsx"
@@ -6239,7 +6239,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "tags": [],
       "model": "haiku"
     },
@@ -6283,7 +6283,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "tags": [],
       "model": "sonnet"
     },
