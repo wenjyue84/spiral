@@ -390,8 +390,20 @@ class SpiralLiveServer:
 
     async def _handle_index(self, writer: asyncio.StreamWriter) -> None:
         """Return HTML index listing registered projects."""
+        # Merge persistent registry (~/.spiral/ui-projects.json) with in-memory projects
+        combined: dict[str, dict] = {}  # type: ignore[type-arg]
+        registry_path = os.path.join(os.path.expanduser("~"), ".spiral", "ui-projects.json")
+        try:
+            with open(registry_path, encoding="utf-8") as f:
+                reg = json.load(f)
+            for name, root in reg.items():
+                combined[name] = {"name": name, "root": str(root)}
+        except (OSError, json.JSONDecodeError, TypeError):
+            pass
+        combined.update(self._projects)  # in-memory takes precedence
+
         rows = ""
-        for name in sorted(self._projects):
+        for name in sorted(combined):
             rows += f'<li><a href="/{escape(name)}">{escape(name)}</a></li>\n'
         if not rows:
             rows = "<li><em>No projects registered yet. Run <code>spiral.sh</code> to register.</em></li>\n"
