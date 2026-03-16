@@ -241,9 +241,7 @@ function spiralApiPlugin() {
 
               shContent = patchShVar(shContent, 'SPIRAL_SKIP_PHASES', skipPhases);
               shContent = patchShVar(shContent, 'SKIP_RESEARCH', config['R'] === false ? '1' : '0');
-              if (fs.existsSync(configSh)) {
-                fs.writeFileSync(configSh, shContent, 'utf8');
-              }
+              fs.writeFileSync(configSh, shContent, 'utf8');
 
               res.end(JSON.stringify({ ok: true }));
             } catch (e) {
@@ -1113,6 +1111,86 @@ function spiralApiPlugin() {
         });
       });
 
+      // ── GET /api/events?name=X — SSE stream of new spiral_events.jsonl lines ──
+      // US-374: Pushes each new JSONL line as an SSE data event using fs.watchFile.
+      server.middlewares.use('/api/events', (req, res, next) => {
+        if (req.method !== 'GET') { next(); return; }
+        const url = new URL(req.url ?? '', 'http://localhost');
+        const name = url.searchParams.get('name') ?? '';
+
+        const reg = readRegistry();
+        const root = name ? (reg[name] ?? PROJECT_ROOT) : PROJECT_ROOT;
+
+        // Try .spiral/spiral_events.jsonl first, then root-level fallback
+        const candidates = [
+          path.join(root, '.spiral', 'spiral_events.jsonl'),
+          path.join(root, 'spiral_events.jsonl'),
+        ];
+        const eventsFile = candidates.find(p => fs.existsSync(p)) ?? candidates[0];
+
+        // SSE headers
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.flushHeaders();
+
+        let offset = 0;
+        let closed = false;
+
+        // Initialize offset to current file size (only stream NEW lines)
+        try {
+          if (fs.existsSync(eventsFile)) {
+            offset = fs.statSync(eventsFile).size;
+          }
+        } catch { /* file doesn't exist yet, offset stays 0 */ }
+
+        const sendEvent = (parsed: unknown) => {
+          if (closed) return;
+          try { res.write(`data: ${JSON.stringify(parsed)}\n\n`); } catch { /* closed */ }
+        };
+
+        const readNewLines = () => {
+          if (closed) return;
+          try {
+            if (!fs.existsSync(eventsFile)) return;
+            const stat = fs.statSync(eventsFile);
+            if (stat.size <= offset) return;
+
+            const buf = Buffer.alloc(stat.size - offset);
+            const fd = fs.openSync(eventsFile, 'r');
+            fs.readSync(fd, buf, 0, buf.length, offset);
+            fs.closeSync(fd);
+            offset = stat.size;
+
+            for (const line of buf.toString('utf8').split('\n')) {
+              if (!line.trim()) continue;
+              try {
+                const parsed = JSON.parse(line);
+                sendEvent(parsed);
+              } catch { /* skip malformed lines */ }
+            }
+          } catch { /* file locked or deleted */ }
+        };
+
+        // Watch file for changes (500ms poll interval, same as worker-stream)
+        const watcher = () => readNewLines();
+        fs.watchFile(eventsFile, { interval: 500, persistent: false }, watcher);
+
+        // Send a heartbeat comment every 15s to keep connection alive through proxies
+        const heartbeat = setInterval(() => {
+          if (closed) return;
+          try { res.write(': heartbeat\n\n'); } catch { /* closed */ }
+        }, 15_000);
+
+        // Clean up on client disconnect
+        req.on('close', () => {
+          closed = true;
+          fs.unwatchFile(eventsFile, watcher);
+          clearInterval(heartbeat);
+        });
+      });
+
       // ── GET /api/token-stats?name=X — aggregated token analytics ─────────────
       // Reads token_metrics.jsonl, story_costs.json, and results.tsv
       // Returns: { total, byModel, byStory[], byPhase[], trend[] }
@@ -1319,6 +1397,93 @@ function spiralApiPlugin() {
           res.statusCode = 500;
           res.end(JSON.stringify({ error: String(e) }));
         }
+      });
+
+      // ── GET /api/tests?name=X — list all pytest test IDs ────────────────────
+      server.middlewares.use('/api/tests', (req: IncomingMessage, res: ServerResponse, next: () => void) => {
+        if (req.method !== 'GET') { next(); return; }
+        const url = new URL(req.url ?? '', 'http://localhost');
+        const name = url.searchParams.get('name') ?? '';
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Content-Type', 'application/json');
+        const reg = readRegistry();
+        const root = name ? (reg[name] ?? PROJECT_ROOT) : PROJECT_ROOT;
+        try {
+          const result = spawnSync(
+            'uv',
+            ['run', 'pytest', 'tests/', '--collect-only', '-q', '--no-header', '--color=no', '--ignore=tests/bats-core'],
+            { cwd: root, timeout: 30_000, encoding: 'utf8' }
+          );
+          interface TItem { id: string; cls: string; name: string; }
+          interface TFile { name: string; path: string; tests: TItem[]; }
+          const fileMap = new Map<string, TFile>();
+          const stdout: string = (result.stdout as string) ?? '';
+          for (const rawLine of stdout.split('\n')) {
+            const line = rawLine.trim();
+            if (!line.includes('::')) continue;
+            const parts = line.split('::');
+            const filePath = parts[0];
+            const fileName = filePath.split(/[/\\]/).pop() ?? filePath;
+            const cls = parts.length === 3 ? parts[1] : '';
+            const testName = parts[parts.length - 1];
+            if (!fileMap.has(filePath)) fileMap.set(filePath, { name: fileName, path: filePath, tests: [] });
+            fileMap.get(filePath)!.tests.push({ id: line, cls, name: testName });
+          }
+          const files = Array.from(fileMap.values());
+          const total = files.reduce((s, f) => s + f.tests.length, 0);
+          res.end(JSON.stringify({ files, total }));
+        } catch (e) {
+          res.statusCode = 500;
+          res.end(JSON.stringify({ error: String(e) }));
+        }
+      });
+
+      // ── POST /api/run-tests — run selected pytest tests ──────────────────────
+      server.middlewares.use('/api/run-tests', (req: IncomingMessage, res: ServerResponse, next: () => void) => {
+        if (req.method !== 'POST') { next(); return; }
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Content-Type', 'application/json');
+        let body = '';
+        req.on('data', (chunk: Buffer) => { body += chunk.toString(); });
+        req.on('end', () => {
+          try {
+            interface RunBody { name?: string; testIds?: string[]; }
+            const parsed = JSON.parse(body || '{}') as RunBody;
+            const name = parsed.name ?? '';
+            const testIds: string[] = parsed.testIds ?? [];
+            const reg = readRegistry();
+            const root = name ? (reg[name] ?? PROJECT_ROOT) : PROJECT_ROOT;
+            const args = ['run', 'pytest', '--tb=short', '-v', '--no-header', '--color=no'];
+            if (testIds.length > 0) {
+              args.push(...testIds);
+            } else {
+              args.push('tests/', '--ignore=tests/bats-core');
+            }
+            const result = spawnSync('uv', args, {
+              cwd: root,
+              timeout: 300_000,
+              encoding: 'utf8',
+            });
+            const stdout: string = (result.stdout as string) ?? '';
+            const stderr: string = (result.stderr as string) ?? '';
+            const output = stdout + (stderr ? `\n--- stderr ---\n${stderr}` : '');
+            // Parse summary: "X passed, Y failed in Zs" or "X passed in Zs"
+            const sumMatch = output.match(/(\d+)\s+passed(?:,\s*(\d+)\s+failed)?(?:,\s*(\d+)\s+error(?:s)?)?/);
+            const passed = sumMatch ? parseInt(sumMatch[1]) : 0;
+            const failed = sumMatch ? parseInt(sumMatch[2] ?? '0') : 0;
+            const errors = sumMatch ? parseInt(sumMatch[3] ?? '0') : 0;
+            // Parse per-test results from verbose output
+            const testResults: Record<string, string> = {};
+            for (const line of output.split('\n')) {
+              const m = line.match(/^(PASSED|FAILED|ERROR)\s+(.+?)(?:\s+-\s+.*)?$/);
+              if (m) testResults[m[2].trim()] = m[1].toLowerCase();
+            }
+            res.end(JSON.stringify({ output, passed, failed, errors, total: passed + failed + errors, testResults }));
+          } catch (e) {
+            res.statusCode = 500;
+            res.end(JSON.stringify({ error: String(e) }));
+          }
+        });
       });
     },
   };

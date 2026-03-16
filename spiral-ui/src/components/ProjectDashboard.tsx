@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import DependencyGraph from './DependencyGraph';
 import { CONFIG_FIELDS } from '../data/configSchema';
+import { useSSE, type SSEEvent } from '../hooks/useSSE';
 
 // Config description lookup for tooltips in Settings tab
 const CONFIG_DESCRIPTIONS: Record<string, { label: string; description: string }> = Object.fromEntries(
@@ -1386,6 +1387,7 @@ function PhaseTraceTab({ projectName, stories, activeStory }: { projectName: str
   const [loading, setLoading] = useState(true);
   const [phaseEnabled, setPhaseEnabled] = useState<Record<string, boolean>>(PHASE_ENABLED_DEFAULTS);
   const [savingPhase, setSavingPhase] = useState<string | null>(null);
+  const [phaseChanged, setPhaseChanged] = useState(false);
   const [selectedOutputFile, setSelectedOutputFile] = useState<keyof PhaseOutputs | null>(null);
   const userSelectedRef = useRef(false);
 
@@ -1422,11 +1424,15 @@ function PhaseTraceTab({ projectName, stories, activeStory }: { projectName: str
     setPhaseEnabled(next);
     setSavingPhase(phaseId);
     try {
-      await fetch(`/api/phase-config?name=${encodeURIComponent(projectName)}`, {
+      const res = await fetch(`/api/phase-config?name=${encodeURIComponent(projectName)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ config: next }),
       });
+      if (res.ok) {
+        setPhaseChanged(true);
+        setTimeout(() => setPhaseChanged(false), 60_000);
+      }
     } catch { /* ignore */ }
     setSavingPhase(null);
   };
@@ -1524,6 +1530,12 @@ function PhaseTraceTab({ projectName, stories, activeStory }: { projectName: str
 
   return (
     <div className="p-6 space-y-4">
+      {phaseChanged && (
+        <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 text-xs font-medium">
+          <span>⚠️ Phase settings saved. Restart Spiral for changes to take effect.</span>
+          <button onClick={() => setPhaseChanged(false)} className="text-amber-500 hover:text-amber-700 font-bold text-sm leading-none">✕</button>
+        </div>
+      )}
       {/* Timestamp indicator + Checkpoint status */}
       <div className="flex items-center justify-between">
         <div className="text-[10px] text-slate-400">Timestamps shown in Malaysia Time (MYT, UTC+8)</div>
@@ -1883,15 +1895,681 @@ function PhaseTraceTab({ projectName, stories, activeStory }: { projectName: str
   );
 }
 
+// ── Token Stats types ─────────────────────────────────────────────────────────
+
+interface TokenStoryRow {
+  story_id: string;
+  title: string;
+  input: number;
+  output: number;
+  total: number;
+  calls: number;
+  usd: number;
+  model: string;
+  model_tier: string;
+  status: string;
+}
+
+interface TokenModelRow {
+  model: string;
+  tier: string;
+  input: number;
+  output: number;
+  total: number;
+  stories: number;
+}
+
+interface TokenPhaseRow {
+  phase: string;
+  input: number;
+  output: number;
+  total: number;
+}
+
+interface TrendPoint {
+  ts: string;
+  input: number;
+  output: number;
+  total: number;
+  cumTotal: number;
+}
+
+interface TokenStats {
+  total: { input: number; output: number; tokens: number; usd: number };
+  avgPerStory: number;
+  mostExpensive: { story_id: string; title: string; usd: number } | null;
+  byModel: TokenModelRow[];
+  byStory: TokenStoryRow[];
+  byPhase: TokenPhaseRow[];
+  trend: TrendPoint[];
+}
+
+// ── TokenTab component ────────────────────────────────────────────────────────
+
+function fmtK(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+  return String(n);
+}
+
+function fmtUsd(n: number): string {
+  if (n === 0) return '—';
+  if (n < 0.001) return '<$0.001';
+  return `$${n.toFixed(3)}`;
+}
+
+const MODEL_TIER_STYLE: Record<string, string> = {
+  haiku:   'bg-sky-100 text-sky-700 border-sky-200',
+  sonnet:  'bg-violet-100 text-violet-700 border-violet-200',
+  opus:    'bg-amber-100 text-amber-700 border-amber-200',
+  unknown: 'bg-slate-100 text-slate-500 border-slate-200',
+};
+
+const PHASE_FULL_NAMES: Record<string, string> = {
+  '0': 'Clarify', A: 'AI Suggestions', R: 'Research', T: 'Test Synthesis',
+  S: 'Story Validate', M: 'Merge', I: 'Implement', V: 'Validate',
+  P: 'Push', C: 'Check Done', D: 'Loop Decision',
+};
+
+function TokenTab({ projectName }: { projectName: string }) {
+  const [stats, setStats] = useState<TokenStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [tipsOpen, setTipsOpen] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/token-stats?name=${encodeURIComponent(projectName)}`);
+      if (!res.ok) {
+        const d = await res.json() as { error?: string };
+        setFetchError(d.error ?? 'Failed to load token stats');
+        return;
+      }
+      setStats(await res.json() as TokenStats);
+      setFetchError(null);
+    } catch (e) {
+      setFetchError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [projectName]);
+
+  useEffect(() => {
+    load();
+    const interval = setInterval(load, 30_000);
+    return () => clearInterval(interval);
+  }, [load]);
+
+  if (loading) return <div className="p-6 text-sm text-slate-500">Loading token stats…</div>;
+  if (fetchError) return <div className="p-6 text-sm text-red-500">Error: {fetchError}</div>;
+
+  const hasData = stats && (stats.total.tokens > 0 || stats.byStory.length > 0);
+  if (!hasData) {
+    return (
+      <div className="p-6 flex flex-col items-center justify-center gap-3 text-center">
+        <div className="text-3xl">💰</div>
+        <div className="text-sm font-medium text-slate-600">No token data yet</div>
+        <div className="text-xs text-slate-400 max-w-sm">
+          Token metrics are recorded after each Phase I (Implement) run. Start SPIRAL to begin tracking usage.
+        </div>
+      </div>
+    );
+  }
+
+  const s = stats!;
+
+  // Sorted phase data
+  const sortedPhases = [...s.byPhase].sort((a, b) => b.total - a.total);
+  const maxPhaseTotal = sortedPhases[0]?.total ?? 1;
+
+  // Sorted model data
+  const sortedModels = [...s.byModel].sort((a, b) => b.total - a.total);
+  const maxModelTotal = sortedModels[0]?.total ?? 1;
+
+  // Optimization tips based on actual data
+  const opusPct = (() => {
+    const opusRow = s.byModel.find(m => m.tier === 'opus');
+    if (!opusRow || s.total.tokens === 0) return 0;
+    return Math.round((opusRow.total / s.total.tokens) * 100);
+  })();
+
+  const researchPct = (() => {
+    const rRow = s.byPhase.find(p => p.phase === 'R');
+    if (!rRow || s.total.tokens === 0) return 0;
+    return Math.round((rRow.total / s.total.tokens) * 100);
+  })();
+
+  const avgUsd = s.total.usd > 0 && s.byStory.length > 0
+    ? s.total.usd / s.byStory.length
+    : 0;
+
+  // Trend: downsample to ~20 points for display
+  const trendDownsampled = (() => {
+    const pts = s.trend;
+    if (pts.length <= 20) return pts;
+    const step = Math.floor(pts.length / 20);
+    return pts.filter((_, i) => i % step === 0 || i === pts.length - 1);
+  })();
+  const maxCumTotal = trendDownsampled[trendDownsampled.length - 1]?.cumTotal ?? 1;
+
+  return (
+    <div className="p-6 space-y-6">
+
+      {/* ── A) Summary Cards ─────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className="rounded-xl border border-violet-200 bg-violet-50 p-4">
+          <div className="text-2xl font-bold text-violet-700">{fmtK(s.total.tokens)}</div>
+          <div className="text-xs text-violet-600 mt-0.5">Total Tokens</div>
+          <div className="text-[10px] text-violet-400 mt-0.5">{fmtK(s.total.input)} in · {fmtK(s.total.output)} out</div>
+        </div>
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+          <div className="text-2xl font-bold text-emerald-700">{fmtUsd(s.total.usd)}</div>
+          <div className="text-xs text-emerald-600 mt-0.5">Estimated Cost</div>
+          <div className="text-[10px] text-emerald-400 mt-0.5">across all stories</div>
+        </div>
+        <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+          <div className="text-2xl font-bold text-blue-700">{fmtK(s.avgPerStory)}</div>
+          <div className="text-xs text-blue-600 mt-0.5">Avg per Story</div>
+          <div className="text-[10px] text-blue-400 mt-0.5">{s.byStory.length} stories tracked</div>
+        </div>
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <div className="text-lg font-bold text-amber-700 truncate" title={s.mostExpensive?.story_id ?? '—'}>
+            {s.mostExpensive?.story_id ?? '—'}
+          </div>
+          <div className="text-xs text-amber-600 mt-0.5">Most Expensive</div>
+          <div className="text-[10px] text-amber-400 mt-0.5">{fmtUsd(s.mostExpensive?.usd ?? 0)}</div>
+        </div>
+      </div>
+
+      {/* ── B) Model Breakdown ───────────────────────────────────────────── */}
+      {sortedModels.length > 0 && (
+        <div>
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Token Breakdown by Model</div>
+          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+            <table className="w-full text-xs">
+              <thead className="bg-slate-50 text-slate-500">
+                <tr>
+                  <th className="px-3 py-2 text-left font-medium">Model</th>
+                  <th className="px-3 py-2 text-right font-medium">Input</th>
+                  <th className="px-3 py-2 text-right font-medium">Output</th>
+                  <th className="px-3 py-2 text-right font-medium">Total</th>
+                  <th className="px-3 py-2 text-right font-medium">Calls</th>
+                  <th className="px-3 py-2 w-36 font-medium">Share</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedModels.map(m => {
+                  const share = maxModelTotal > 0 ? Math.round((m.total / maxModelTotal) * 100) : 0;
+                  const tierStyle = MODEL_TIER_STYLE[m.tier] ?? MODEL_TIER_STYLE['unknown'];
+                  return (
+                    <tr key={m.model} className="border-t border-slate-100 hover:bg-slate-50">
+                      <td className="px-3 py-2">
+                        <span className={`inline-block text-[10px] px-2 py-0.5 rounded-full border font-medium ${tierStyle}`}>
+                          {m.tier !== 'unknown' ? m.tier : m.model}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-right text-slate-500">{fmtK(m.input)}</td>
+                      <td className="px-3 py-2 text-right text-slate-500">{fmtK(m.output)}</td>
+                      <td className="px-3 py-2 text-right font-medium text-slate-700">{fmtK(m.total)}</td>
+                      <td className="px-3 py-2 text-right text-slate-400">{m.stories}</td>
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-1.5">
+                          <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${
+                                m.tier === 'haiku' ? 'bg-sky-400' :
+                                m.tier === 'sonnet' ? 'bg-violet-500' :
+                                m.tier === 'opus' ? 'bg-amber-500' : 'bg-slate-400'
+                              }`}
+                              style={{ width: `${share}%` }}
+                            />
+                          </div>
+                          <span className="text-[10px] text-slate-400 w-7 text-right">{share}%</span>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── Phase Breakdown ──────────────────────────────────────────────── */}
+      {sortedPhases.length > 0 && (
+        <div>
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Token Breakdown by Phase</div>
+          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+            <table className="w-full text-xs">
+              <thead className="bg-slate-50 text-slate-500">
+                <tr>
+                  <th className="px-3 py-2 text-left font-medium">Phase</th>
+                  <th className="px-3 py-2 text-right font-medium">Input</th>
+                  <th className="px-3 py-2 text-right font-medium">Output</th>
+                  <th className="px-3 py-2 text-right font-medium">Total</th>
+                  <th className="px-3 py-2 w-36 font-medium">Share</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedPhases.map(p => {
+                  const share = maxPhaseTotal > 0 ? Math.round((p.total / maxPhaseTotal) * 100) : 0;
+                  const phaseColor = PHASE_COLORS[p.phase];
+                  return (
+                    <tr key={p.phase} className="border-t border-slate-100 hover:bg-slate-50">
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          {phaseColor && <span className={`w-2 h-2 rounded-full ${phaseColor.dot} flex-shrink-0`} />}
+                          <span className="font-mono font-semibold text-slate-700">{p.phase}</span>
+                          <span className="text-slate-400">{PHASE_FULL_NAMES[p.phase] ?? p.phase}</span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 text-right text-slate-500">{fmtK(p.input)}</td>
+                      <td className="px-3 py-2 text-right text-slate-500">{fmtK(p.output)}</td>
+                      <td className="px-3 py-2 text-right font-medium text-slate-700">{fmtK(p.total)}</td>
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-1.5">
+                          <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${phaseColor?.dot.replace('bg-', 'bg-') ?? 'bg-slate-400'}`}
+                              style={{ width: `${share}%` }}
+                            />
+                          </div>
+                          <span className="text-[10px] text-slate-400 w-7 text-right">{share}%</span>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── C) Top Token Consumers ───────────────────────────────────────── */}
+      {s.byStory.length > 0 && (
+        <div>
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Top Token Consumers</div>
+          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+            <table className="w-full text-xs">
+              <thead className="bg-slate-50 text-slate-500">
+                <tr>
+                  <th className="px-3 py-2 text-left font-medium w-24">Story</th>
+                  <th className="px-3 py-2 text-left font-medium">Model</th>
+                  <th className="px-3 py-2 text-right font-medium">Input</th>
+                  <th className="px-3 py-2 text-right font-medium">Output</th>
+                  <th className="px-3 py-2 text-right font-medium">Total</th>
+                  <th className="px-3 py-2 text-right font-medium">Cost</th>
+                  <th className="px-3 py-2 text-left font-medium w-20">Status</th>
+                  <th className="px-3 py-2 w-28 font-medium">Burn</th>
+                </tr>
+              </thead>
+              <tbody>
+                {s.byStory.map(row => {
+                  const maxTotal = s.byStory[0]?.total ?? 1;
+                  const barPct = maxTotal > 0 ? Math.round((row.total / maxTotal) * 100) : 0;
+                  const tierStyle = MODEL_TIER_STYLE[row.model_tier] ?? MODEL_TIER_STYLE['unknown'];
+                  const statusBadge = row.status === 'pass'
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : row.status === 'reject'
+                    ? 'bg-red-100 text-red-700'
+                    : 'bg-slate-100 text-slate-500';
+                  const truncTitle = row.title.length > 50 ? row.title.slice(0, 50) + '…' : row.title;
+                  return (
+                    <tr key={row.story_id} className="border-t border-slate-100 hover:bg-slate-50">
+                      <td className="px-3 py-2">
+                        <span className="font-mono font-semibold text-blue-700" title={row.title}>
+                          {row.story_id}
+                        </span>
+                        {row.title && (
+                          <div className="text-[10px] text-slate-400 truncate max-w-[140px]" title={row.title}>{truncTitle}</div>
+                        )}
+                      </td>
+                      <td className="px-3 py-2">
+                        {row.model_tier !== 'unknown' && (
+                          <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${tierStyle}`}>
+                            {row.model_tier}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-right text-slate-500">{fmtK(row.input)}</td>
+                      <td className="px-3 py-2 text-right text-slate-500">{fmtK(row.output)}</td>
+                      <td className="px-3 py-2 text-right font-medium text-slate-700">{fmtK(row.total)}</td>
+                      <td className="px-3 py-2 text-right text-slate-500">{fmtUsd(row.usd)}</td>
+                      <td className="px-3 py-2">
+                        {row.status !== 'unknown' && (
+                          <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded-full font-medium ${statusBadge}`}>
+                            {row.status}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-1.5">
+                          <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
+                            <div className="h-full rounded-full bg-violet-500" style={{ width: `${barPct}%` }} />
+                          </div>
+                          <span className="text-[10px] text-slate-400 w-7 text-right">{barPct}%</span>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── D) Token Trend Over Time ─────────────────────────────────────── */}
+      {trendDownsampled.length > 1 && (
+        <div>
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Cumulative Token Spend</div>
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <div className="flex items-end gap-0.5 h-24">
+              {trendDownsampled.map((pt, i) => {
+                const barH = maxCumTotal > 0 ? Math.round((pt.cumTotal / maxCumTotal) * 100) : 0;
+                return (
+                  <div
+                    key={i}
+                    className="flex-1 bg-violet-400 rounded-sm hover:bg-violet-600 transition-colors cursor-default"
+                    style={{ height: `${barH}%` }}
+                    title={`${formatMYT(pt.ts)}\nCumulative: ${fmtK(pt.cumTotal)} tokens`}
+                  />
+                );
+              })}
+            </div>
+            <div className="flex justify-between mt-1.5 text-[10px] text-slate-400">
+              <span>{trendDownsampled[0] ? formatMYT(trendDownsampled[0].ts) : ''}</span>
+              <span>Cumulative: {fmtK(maxCumTotal)} total tokens</span>
+              <span>{trendDownsampled[trendDownsampled.length - 1] ? formatMYT(trendDownsampled[trendDownsampled.length - 1].ts) : ''}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── E) Optimization Tips ─────────────────────────────────────────── */}
+      <div className="rounded-xl border border-amber-200 bg-amber-50 overflow-hidden">
+        <button
+          onClick={() => setTipsOpen(v => !v)}
+          className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-amber-100/50 transition-colors"
+        >
+          <span className="text-sm font-semibold text-amber-800">How to save tokens</span>
+          <span className={`text-amber-600 text-xs transition-transform ${tipsOpen ? 'rotate-180' : ''}`}>▼</span>
+        </button>
+        {tipsOpen && (
+          <div className="px-4 pb-4 space-y-2 border-t border-amber-200 pt-3">
+            {opusPct > 20 && (
+              <div className="flex items-start gap-2 text-xs text-amber-800">
+                <span className="flex-shrink-0 text-amber-500 font-bold">!</span>
+                <span><strong>{opusPct}%</strong> of tokens used opus — consider using sonnet or haiku for simpler stories via <code className="bg-amber-100 px-1 rounded">SPIRAL_MODEL_ROUTING=auto</code></span>
+              </div>
+            )}
+            {researchPct > 30 && (
+              <div className="flex items-start gap-2 text-xs text-amber-800">
+                <span className="flex-shrink-0 text-amber-500 font-bold">!</span>
+                <span><strong>{researchPct}%</strong> of tokens in Research phase — try <code className="bg-amber-100 px-1 rounded">--skip-research</code> for implementation-only runs</span>
+              </div>
+            )}
+            {avgUsd > 1 && (
+              <div className="flex items-start gap-2 text-xs text-amber-800">
+                <span className="flex-shrink-0 text-amber-500 font-bold">!</span>
+                <span>Average story cost is <strong>{fmtUsd(avgUsd)}</strong> — stories over $1.00 are candidates for decomposition via <code className="bg-amber-100 px-1 rounded">SPIRAL_STORY_BATCH_SIZE=1</code></span>
+              </div>
+            )}
+            {s.total.tokens > 100_000 && (
+              <div className="flex items-start gap-2 text-xs text-amber-800">
+                <span className="flex-shrink-0 text-amber-500 font-bold">!</span>
+                <span>Enable prompt caching in your config — check the Progress tab for current cache hit rates</span>
+              </div>
+            )}
+            <div className="flex items-start gap-2 text-xs text-amber-700">
+              <span className="flex-shrink-0">•</span>
+              <span>Use <code className="bg-amber-100 px-1 rounded">python main.py estimate</code> to project costs before long runs</span>
+            </div>
+            <div className="flex items-start gap-2 text-xs text-amber-700">
+              <span className="flex-shrink-0">•</span>
+              <span>Set <code className="bg-amber-100 px-1 rounded">SPIRAL_COST_CEILING</code> to auto-stop when budget is exceeded</span>
+            </div>
+            <div className="flex items-start gap-2 text-xs text-amber-700">
+              <span className="flex-shrink-0">•</span>
+              <span>Limit batch size with <code className="bg-amber-100 px-1 rounded">SPIRAL_MAX_PENDING</code> to control how many stories run per iteration</span>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Tests tab ────────────────────────────────────────────────────────────────
+
+interface TestItem { id: string; cls: string; name: string; }
+interface TestFileEntry { name: string; path: string; tests: TestItem[]; }
+
+function TestsTab({ projectName }: { projectName: string }) {
+  const [files, setFiles] = useState<TestFileEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [filter, setFilter] = useState('');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [running, setRunning] = useState(false);
+  const [output, setOutput] = useState<string | null>(null);
+  const [summary, setSummary] = useState<{ passed: number; failed: number; errors: number; total: number } | null>(null);
+  const [lastResults, setLastResults] = useState<Record<string, 'passed' | 'failed' | 'error'>>({});
+  const outputRef = useRef<HTMLPreElement>(null);
+
+  useEffect(() => {
+    fetch(`/api/tests?name=${encodeURIComponent(projectName)}`)
+      .then(r => r.json() as Promise<{ files: TestFileEntry[]; total: number; error?: string }>)
+      .then(d => {
+        if (d.error) setFetchError(d.error);
+        else setFiles(d.files ?? []);
+        setLoading(false);
+      })
+      .catch(e => { setFetchError(String(e)); setLoading(false); });
+  }, [projectName]);
+
+  useEffect(() => {
+    if (outputRef.current) outputRef.current.scrollTop = outputRef.current.scrollHeight;
+  }, [output]);
+
+  const totalTests = files.reduce((s, f) => s + f.tests.length, 0);
+
+  const filteredFiles = filter.trim()
+    ? files
+        .map(f => ({ ...f, tests: f.tests.filter(t => t.id.toLowerCase().includes(filter.toLowerCase()) || t.name.toLowerCase().includes(filter.toLowerCase())) }))
+        .filter(f => f.tests.length > 0)
+    : files;
+
+  const allFilteredIds = filteredFiles.flatMap(f => f.tests.map(t => t.id));
+
+  const toggleTest = (id: string) => {
+    setSelected(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  };
+  const toggleFile = (file: TestFileEntry) => {
+    const ids = file.tests.map(t => t.id);
+    const allSel = ids.every(id => selected.has(id));
+    setSelected(prev => { const n = new Set(prev); if (allSel) ids.forEach(id => n.delete(id)); else ids.forEach(id => n.add(id)); return n; });
+  };
+  const toggleExpanded = (p: string) => {
+    setExpanded(prev => { const n = new Set(prev); if (n.has(p)) n.delete(p); else n.add(p); return n; });
+  };
+
+  const runTests = async () => {
+    setRunning(true);
+    setOutput(null);
+    setSummary(null);
+    try {
+      const testIds = selected.size > 0 ? Array.from(selected) : [];
+      const res = await fetch('/api/run-tests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: projectName, testIds }),
+      });
+      type RunResult = { output: string; passed: number; failed: number; errors: number; total: number; testResults: Record<string, string>; error?: string };
+      const data = await res.json() as RunResult;
+      if (data.error) {
+        setOutput(`Error: ${data.error}`);
+      } else {
+        setOutput(data.output ?? '');
+        setSummary({ passed: data.passed ?? 0, failed: data.failed ?? 0, errors: data.errors ?? 0, total: data.total ?? 0 });
+        setLastResults((data.testResults ?? {}) as Record<string, 'passed' | 'failed' | 'error'>);
+      }
+    } catch (e) {
+      setOutput(`Request error: ${String(e)}`);
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  if (loading) return <div className="p-6 text-sm text-slate-500">Loading tests…</div>;
+  if (fetchError) return <div className="p-6 text-sm text-red-500">Error loading tests: {fetchError}</div>;
+
+  const selCount = selected.size;
+
+  return (
+    <div className="h-full flex flex-col">
+      {/* Toolbar */}
+      <div className="flex items-center gap-2 px-4 py-2 border-b border-slate-200 bg-white flex-shrink-0 flex-wrap">
+        <span className="text-xs text-slate-500 font-medium whitespace-nowrap">{totalTests} tests</span>
+        <input
+          type="text"
+          placeholder="Filter tests…"
+          value={filter}
+          onChange={e => setFilter(e.target.value)}
+          className="w-52 border border-slate-300 rounded px-2 py-1 text-xs focus:outline-none focus:border-blue-400"
+        />
+        <button
+          onClick={() => setSelected(new Set(allFilteredIds))}
+          className="text-xs px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors whitespace-nowrap"
+        >Select All</button>
+        <button
+          onClick={() => setSelected(new Set())}
+          className="text-xs px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+        >Clear</button>
+        <button
+          onClick={runTests}
+          disabled={running}
+          className={`text-xs px-3 py-1 rounded font-semibold transition-colors whitespace-nowrap ${
+            running ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
+          }`}
+        >
+          {running ? '⏳ Running…' : selCount > 0 ? `▶ Run Selected (${selCount})` : '▶ Run All'}
+        </button>
+        {summary && (
+          <div className="flex items-center gap-2 text-xs">
+            {summary.passed > 0 && <span className="text-emerald-600 font-semibold">✓ {summary.passed} passed</span>}
+            {summary.failed > 0 && <span className="text-red-600 font-semibold">✗ {summary.failed} failed</span>}
+            {summary.errors > 0 && <span className="text-orange-500 font-semibold">! {summary.errors} error</span>}
+            <span className="text-slate-400">({summary.total} total)</span>
+          </div>
+        )}
+      </div>
+
+      {/* Split pane */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left: test tree */}
+        <div className="w-80 flex-shrink-0 border-r border-slate-200 overflow-y-auto bg-white">
+          {filteredFiles.length === 0 && (
+            <div className="p-4 text-xs text-slate-400 text-center">No tests match filter</div>
+          )}
+          {filteredFiles.map(file => {
+            const isOpen = expanded.has(file.path);
+            const fileSel = file.tests.filter(t => selected.has(t.id)).length;
+            const allSel = fileSel === file.tests.length && file.tests.length > 0;
+            const partSel = fileSel > 0 && !allSel;
+            return (
+              <div key={file.path} className="border-b border-slate-100">
+                <div
+                  className="flex items-center gap-1.5 px-2 py-1.5 hover:bg-slate-50 cursor-pointer select-none"
+                  onClick={() => toggleExpanded(file.path)}
+                >
+                  <input
+                    type="checkbox"
+                    checked={allSel}
+                    ref={el => { if (el) el.indeterminate = partSel; }}
+                    onChange={() => toggleFile(file)}
+                    onClick={e => e.stopPropagation()}
+                    className="w-3 h-3 accent-blue-600 flex-shrink-0"
+                  />
+                  <span className="text-[10px] text-slate-400 w-3 flex-shrink-0">{isOpen ? '▾' : '▸'}</span>
+                  <span className="text-[11px] font-mono font-semibold text-slate-700 truncate flex-1">{file.name}</span>
+                  <span className="text-[10px] text-slate-400 flex-shrink-0">{fileSel}/{file.tests.length}</span>
+                </div>
+                {isOpen && file.tests.map(test => {
+                  const result = lastResults[test.id];
+                  return (
+                    <div
+                      key={test.id}
+                      className={`flex items-center gap-1.5 pl-7 pr-2 py-0.5 hover:bg-slate-50 cursor-pointer ${selected.has(test.id) ? 'bg-blue-50' : ''}`}
+                      onClick={() => toggleTest(test.id)}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected.has(test.id)}
+                        onChange={() => toggleTest(test.id)}
+                        onClick={e => e.stopPropagation()}
+                        className="w-3 h-3 accent-blue-600 flex-shrink-0"
+                      />
+                      <span className="w-3 flex-shrink-0 text-[10px] leading-none">
+                        {result === 'passed' && <span className="text-emerald-500">✓</span>}
+                        {result === 'failed' && <span className="text-red-500">✗</span>}
+                        {result === 'error'  && <span className="text-orange-500">!</span>}
+                      </span>
+                      <span className="text-[11px] font-mono text-slate-600 truncate">{test.name}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Right: output console */}
+        <div className="flex-1 bg-slate-950 overflow-hidden flex flex-col">
+          {output === null && !running ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center text-slate-500">
+                <div className="text-4xl mb-3">🧪</div>
+                <div className="text-sm font-medium">No results yet</div>
+                <div className="text-xs mt-1 text-slate-600">Select tests and click Run, or click ▶ Run All</div>
+              </div>
+            </div>
+          ) : running ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center text-slate-400">
+                <div className="text-3xl mb-3">⏳</div>
+                <div className="text-sm">Running tests…</div>
+                <div className="text-xs mt-1 text-slate-600">This may take a while for large suites</div>
+              </div>
+            </div>
+          ) : (
+            <pre
+              ref={outputRef}
+              className="flex-1 overflow-y-auto p-4 text-[11px] font-mono leading-relaxed text-slate-200 whitespace-pre-wrap break-all"
+            >
+              {output}
+            </pre>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
-type DashTab = 'progress' | 'settings' | 'constitution' | 'activity' | 'graph' | 'phase-trace' | 'workers';
+type DashTab = 'progress' | 'settings' | 'constitution' | 'activity' | 'graph' | 'phase-trace' | 'workers' | 'tokens' | 'tests';
 
 const DASH_TABS: { id: DashTab; slug: string; label: string; icon: string }[] = [
   { id: 'progress',     slug: 'progress',     label: 'Progress',     icon: '📊' },
   { id: 'phase-trace',  slug: 'phase-trace',  label: 'Phase Trace',  icon: '🔬' },
   { id: 'workers',      slug: 'workers',      label: 'Workers',      icon: '👷' },
+  { id: 'tokens',       slug: 'tokens',       label: 'Tokens',       icon: '💰' },
   { id: 'graph',        slug: 'graph',        label: 'Graph',        icon: '🔗' },
+  { id: 'tests',        slug: 'tests',        label: 'Tests',        icon: '🧪' },
   { id: 'settings',     slug: 'settings',     label: 'Settings',     icon: '⚙️' },
   { id: 'constitution', slug: 'constitution', label: 'Constitution', icon: '📜' },
   { id: 'activity',     slug: 'activity',     label: 'Activity Log', icon: '📝' },
@@ -1950,6 +2628,41 @@ export default function ProjectDashboard() {
     const interval = setInterval(loadActiveStory, 15_000); // poll active story every 15s
     return () => clearInterval(interval);
   }, [loadActiveStory]);
+
+  // US-374: SSE subscription for real-time phase and story event streaming.
+  // On phase_start/phase_end events, update activeStatus immediately for sub-second
+  // UI feedback, then trigger a debounced full data reload for consistency.
+  const sseRefreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleSSEEvent = useCallback((evt: SSEEvent) => {
+    const eventName = evt.event_type ?? evt.event ?? evt.type ?? '';
+    if (eventName === 'phase_start' || eventName === 'phase_end') {
+      // Immediately update activeStatus in data for instant phase indicator update
+      setData(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          activeStatus: eventName === 'phase_start'
+            ? {
+                phase: (evt.phase as string) ?? prev.activeStatus?.phase ?? '',
+                iteration: (evt.iteration as number) ?? prev.activeStatus?.iteration ?? 0,
+                started_at: Date.now(),
+                pct_done: 0,
+                story_id: (evt.story_id as string) ?? prev.activeStatus?.story_id,
+                story_title: (evt.story_title as string) ?? prev.activeStatus?.story_title,
+              }
+            : prev.activeStatus, // phase_end: keep current until full refresh
+        };
+      });
+      // Debounced full reload (500ms) so rapid events don't flood the server
+      if (sseRefreshTimer.current) clearTimeout(sseRefreshTimer.current);
+      sseRefreshTimer.current = setTimeout(() => { load(); loadActiveStory(); }, 500);
+    } else if (eventName === 'story_passed' || eventName === 'story_failed') {
+      // Story completion: trigger full reload for updated progress stats
+      if (sseRefreshTimer.current) clearTimeout(sseRefreshTimer.current);
+      sseRefreshTimer.current = setTimeout(() => { load(); loadActiveStory(); }, 500);
+    }
+  }, [load, loadActiveStory]);
+  useSSE(projectName, handleSSEEvent);
 
   if (loading) {
     return (
@@ -2078,6 +2791,7 @@ export default function ProjectDashboard() {
         {activeTab === 'progress'     && <div className="h-full overflow-y-auto"><ProgressTab data={data} projectName={projectName ?? ''} onRefresh={load} activeStory={activeStory} /></div>}
         {activeTab === 'phase-trace'  && <div className="h-full overflow-y-auto"><PhaseTraceTab projectName={projectName ?? ''} stories={data.progress?.stories ?? []} activeStory={activeStory} /></div>}
         {activeTab === 'workers'      && <div className="h-full overflow-y-auto"><WorkersTab projectName={projectName ?? ''} activeStory={activeStory} /></div>}
+        {activeTab === 'tokens'       && <div className="h-full overflow-y-auto"><TokenTab projectName={projectName ?? ''} /></div>}
         {activeTab === 'graph'        && (
           <div className="h-full overflow-hidden">
             <DependencyGraph stories={data.progress?.stories ?? []} />
@@ -2086,6 +2800,7 @@ export default function ProjectDashboard() {
         {activeTab === 'settings'     && <div className="h-full overflow-y-auto"><SettingsTab config={data.config} configRaw={data.configRaw ?? ''} projectName={projectName ?? ''} onConfigSaved={() => load()} /></div>}
         {activeTab === 'constitution' && <div className="h-full overflow-y-auto"><ConstitutionTab text={data.constitution} /></div>}
         {activeTab === 'activity'     && <div className="h-full overflow-y-auto"><ActivityTab log={data.activity} activeStory={activeStory} /></div>}
+        {activeTab === 'tests'        && <div className="h-full overflow-hidden"><TestsTab projectName={projectName ?? ''} /></div>}
       </main>
     </div>
   );

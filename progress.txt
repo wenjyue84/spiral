@@ -483,3 +483,28 @@ Incomplete: Validate MCP server integrity via signed checksum manifest before Ph
 ### Gotchas
 - This is a pure text change — no code or tests needed
 - The Plan-Then-Execute section must NOT contain story IDs in comments (cache stability)
+## Iteration 3 - Mon, Mar 16, 2026  3:21:38 PM
+Incomplete: Validate MCP server integrity via signed checksum manifest before Phase I (ID: US-320) — attempt /3
+
+
+## Iteration N - Story: US-374 Add SSE /api/events endpoint to spiral-ui backend for real-time phase and story streaming
+
+### What was implemented
+- Added SSE endpoint `GET /api/events?name=X` in vite.config.ts that tails `spiral_events.jsonl` using `fs.watchFile` (500ms poll)
+- Endpoint sends `Content-Type: text/event-stream`, uses `res.flushHeaders()`, and only streams NEW lines (offset starts at current file size)
+- 15s heartbeat comments to keep connection alive through proxies
+- Clean disconnect handling: unwatchFile + clearInterval on client close
+- Created `src/hooks/useSSE.ts` — custom React hook wrapping `EventSource` with exponential backoff reconnection (max 5 retries, cap 30s)
+- Hook uses `useEffect` for ref sync (React 19 strict mode compliant), stable closure-based connect with disposed flag
+- Integrated useSSE into ProjectDashboard: on `phase_start` events, immediately updates `activeStatus` for sub-second phase indicator changes
+- On `phase_end`, `story_passed`, `story_failed` events: triggers debounced (500ms) full data reload
+- Existing 5s polling interval preserved as fallback for SSE connection failures
+
+### Patterns discovered
+- ESLint react-hooks/refs rule requires ref.current updates to be inside useEffect, not at render scope
+- ESLint react-hooks/immutability blocks self-referencing useCallback (connect calling connect) — use plain function inside useEffect instead
+- Pre-existing no-control-regex errors on line 1688 (ANSI strip regex in PhaseTraceTab) — unrelated
+
+### Gotchas
+- The SSE endpoint initializes offset to current file size to avoid replaying the entire event history on connect
+- `fs.watchFile` is used (not `fs.watch`) for consistency with the existing worker-stream pattern and cross-platform reliability on Windows
