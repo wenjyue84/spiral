@@ -549,6 +549,8 @@ SPIRAL_PLAN_CACHE_TTL_HOURS="${SPIRAL_PLAN_CACHE_TTL_HOURS:-168}"         # US-3
 SPIRAL_GIT_PUSH="${SPIRAL_GIT_PUSH:-false}"                              # true = push vX.Y.Z tag to origin after auto-release (US-190)
 SPIRAL_GIT_AUTHOR="${SPIRAL_GIT_AUTHOR:-}"                               # fallback git identity "Name <email>" when git config user.name/email is missing (US-211)
 SPIRAL_SAST_ENABLED="${SPIRAL_SAST_ENABLED:-true}"                        # US-262: run Semgrep SAST scan in Phase G; false = disabled
+SPIRAL_SNAPSHOT_RETENTION="${SPIRAL_SNAPSHOT_RETENTION:-7}"                # US-362: prune invocation snapshots older than N iterations; 0 = keep all
+SPIRAL_COMPRESS_ARTIFACTS="${SPIRAL_COMPRESS_ARTIFACTS:-false}"            # US-362: gzip-compress invocation snapshots after completion
 
 # ── Propagate SPIRAL_SKIP_PHASES to phase-specific flags ──────────────────────
 # SPIRAL_SKIP_PHASES is written by the Spiral UI phase toggles (.spiral/ui-phase-config.json).
@@ -2227,6 +2229,19 @@ if [[ -n "$REPLAY_STORY_ID" ]]; then
   echo "  ║  Log:      $REPLAY_LOG"
   [[ -n "$REPLAY_FROM_PHASE" ]] && echo "  ║  From phase: $REPLAY_FROM_PHASE"
   [[ -n "$REPLAY_HINT" ]] && echo "  ║  Hint:       ${REPLAY_HINT:0:60}..."
+  # US-362: Show previous invocation snapshot context if available
+  _SNAP_JSON=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/invocation_snapshot.py" read "$SCRATCH_DIR" \
+    --story-id "$REPLAY_STORY_ID" 2>/dev/null || true)
+  if [[ -n "$_SNAP_JSON" && "$_SNAP_JSON" != "null" ]]; then
+    _SNAP_MODEL=$(echo "$_SNAP_JSON" | "$JQ" -r '.model // "unknown"' 2>/dev/null || echo "unknown")
+    _SNAP_RC=$(echo "$_SNAP_JSON" | "$JQ" -r '.rc // "N/A"' 2>/dev/null || echo "N/A")
+    _SNAP_ITER=$(echo "$_SNAP_JSON" | "$JQ" -r '.iteration // 0' 2>/dev/null || echo "0")
+    _SNAP_TS=$(echo "$_SNAP_JSON" | "$JQ" -r '.ts_start // "unknown"' 2>/dev/null || echo "unknown")
+    echo "  ╠──────────────────────────────────────────────────────╣"
+    echo "  ║  Previous snapshot:"
+    echo "  ║    Model: $_SNAP_MODEL  RC: $_SNAP_RC  Iter: $_SNAP_ITER"
+    echo "  ║    Started: $_SNAP_TS"
+  fi
   echo "  ╚══════════════════════════════════════════════════════╝"
   echo ""
 
@@ -3676,6 +3691,13 @@ with open('$RESEARCH_OUTPUT', 'rb') as f:
 
           print_phase_banner "I" "IMPLEMENT — running ralph ($RALPH_MAX_ITERS inner iterations)..."
 
+          # ── US-362: Prune old invocation snapshots ────────────────────────
+          if [[ "${SPIRAL_SNAPSHOT_RETENTION:-7}" -gt 0 ]]; then
+            _SNAP_PRUNED=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/invocation_snapshot.py" prune "$SCRATCH_DIR" \
+              --iteration "$SPIRAL_ITER" --retention "${SPIRAL_SNAPSHOT_RETENTION:-7}" 2>/dev/null || echo "0")
+            [[ "${_SNAP_PRUNED:-0}" -gt 0 ]] && echo "  [I] Pruned $_SNAP_PRUNED old invocation snapshot(s)"
+          fi
+
           # ── Batch slicing: cap stories visible to ralph ──────────────────
           _BATCH_ACTIVE=0
           _FULL_PRD_BACKUP="$SCRATCH_DIR/_full_prd_backup.json"
@@ -3832,16 +3854,36 @@ with open('$RESEARCH_OUTPUT', 'rb') as f:
                 # US-219: begin story task span; prints story-scoped TRACEPARENT for child action spans
                 _STORY_TP=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" begin-story \
                   --story-id "$_NEXT_SID" --scratch-dir "$SCRATCH_DIR" 2>/dev/null || true)
+                # US-362: Write pre-invocation snapshot for post-mortem replay
+                _SNAP_STORY_TMP=$(mktemp -p "$SCRATCH_DIR" _snap_story_XXXXXX.json 2>/dev/null || echo "$SCRATCH_DIR/_snap_story_$$.json")
+                "$JQ" --arg id "$_NEXT_SID" '.userStories[] | select(.id == $id)' "$PRD_FILE" > "$_SNAP_STORY_TMP" 2>/dev/null || true
+                _SNAP_RALPH_FLAGS="$RALPH_MAX_ITERS --prd $PRD_FILE --tool $_RALPH_TOOL $_DRY_RUN_FLAG"
+                "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/invocation_snapshot.py" write "$SCRATCH_DIR" \
+                  --story-id "$_NEXT_SID" \
+                  --story-json "$_SNAP_STORY_TMP" \
+                  --model "${EFFECTIVE_MODEL:-unknown}" \
+                  --ralph-flags "$_SNAP_RALPH_FLAGS" \
+                  --iteration "$SPIRAL_ITER" \
+                  --phase "I" 2>/dev/null || true
+                rm -f "$_SNAP_STORY_TMP" 2>/dev/null || true
                 _I_EXIT=0
                 _I_START=$(date +%s)
                 _STORY_BUDGET=$(get_story_timeout "$_NEXT_SID")
+                _I_STDOUT_FILE=$(mktemp -p "$SCRATCH_DIR" _ralph_out_XXXXXX.log 2>/dev/null || echo "$SCRATCH_DIR/_ralph_out_$$.log")
                 if [[ "${_STORY_BUDGET:-0}" -gt 0 ]] && command -v timeout &>/dev/null; then
                   echo "  [I] Budget: ${_STORY_BUDGET}s for $_NEXT_SID"
-                  timeout --kill-after=30 "${_STORY_BUDGET}" bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $_DRY_RUN_FLAG || _I_EXIT=$?
+                  timeout --kill-after=30 "${_STORY_BUDGET}" bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $_DRY_RUN_FLAG 2>&1 | tee "$_I_STDOUT_FILE" || _I_EXIT=$?
                 else
-                  bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $_DRY_RUN_FLAG || _I_EXIT=$?
+                  bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $_DRY_RUN_FLAG 2>&1 | tee "$_I_STDOUT_FILE" || _I_EXIT=$?
                 fi
                 _I_ELAPSED=$(($(date +%s) - _I_START))
+                # US-362: Finish snapshot with returncode and stdout head
+                _SNAP_STDOUT_HEAD=$(head -c 2000 "$_I_STDOUT_FILE" 2>/dev/null || true)
+                "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/invocation_snapshot.py" finish "$SCRATCH_DIR" \
+                  --story-id "$_NEXT_SID" \
+                  --returncode "$_I_EXIT" \
+                  --stdout-head "${_SNAP_STDOUT_HEAD:-}" 2>/dev/null || true
+                rm -f "$_I_STDOUT_FILE" 2>/dev/null || true
                 if [[ "$_I_EXIT" -eq 124 ]]; then
                   echo "  [I] WARNING: Ralph timed out after ${_I_ELAPSED}s (budget: ${_STORY_BUDGET}s)"
                   log_spiral_event "phase_timeout" "\"phase\":\"I\",\"story_id\":\"$_NEXT_SID\",\"iteration\":$SPIRAL_ITER,\"duration_ms\":$((_I_ELAPSED * 1000)),\"timeout_s\":${_STORY_BUDGET}"

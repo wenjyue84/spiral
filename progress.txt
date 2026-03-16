@@ -1319,3 +1319,28 @@ Completed: Add pre-flight Claude API token count check before story prompt submi
 
 ### Gotchas
 - Do NOT match stale entries by their dry-run output text — the output uses internal worktree admin names, not filesystem paths
+
+
+## Iteration N - Story: US-362 Extend _checkpoint.json with per-story invocation snapshot for post-mortem replay
+
+### What was implemented
+- Created lib/invocation_snapshot.py — Python module for writing, reading, finishing, listing, pruning, and compressing per-story invocation snapshots in .spiral/invocations/
+- Integrated snapshot write into spiral.sh sequential Phase I path: writes pre-invocation snapshot before ralph runs, finishes with returncode + stdout head after ralph completes
+- Enhanced existing --replay command to display previous invocation snapshot context (model, returncode, iteration, timestamp) in the replay banner
+- Added SPIRAL_SNAPSHOT_RETENTION config var (default: 7 iterations) with automatic pruning at Phase I start
+- Added SPIRAL_COMPRESS_ARTIFACTS config var for optional gzip compression
+- Created tests/test_invocation_snapshot.py with 16 unit tests covering all functions
+- Passed mypy --strict
+
+### Files modified
+- lib/invocation_snapshot.py — new: snapshot manager with CLI (write/finish/read/prune/list subcommands)
+- spiral.sh — added config vars (SPIRAL_SNAPSHOT_RETENTION, SPIRAL_COMPRESS_ARTIFACTS), snapshot write/finish in sequential Phase I, pruning at Phase I start, snapshot context in --replay banner
+- tests/test_invocation_snapshot.py — new: 16 pytest tests
+
+### Patterns discovered
+- Sequential Phase I captures ralph stdout via pipe+tee to a temp file for snapshot; temp file is cleaned up after snapshot finish
+- Parallel workers already have per-worker logs in $WORKER_DIR/worker_N.log so snapshot is sequential-path only
+- Existing --replay flow already creates worktrees and tracks history in _checkpoint.json _replayHistory; snapshot context extends this with model/rc/iteration display
+
+### Gotchas
+- The `tee` addition for stdout capture changes ralph output from direct to piped; this preserves PIPESTATUS but exit code via `|| _I_EXIT=$?` works correctly since tee exits 0 when ralph exits non-zero
