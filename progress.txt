@@ -1250,3 +1250,20 @@ Completed: Add pre-flight Claude API token count check before story prompt submi
 
 ### Gotchas
 - File had CRLF line endings that needed conversion to LF for shfmt compliance
+
+
+## Iteration N - Story: US-427 Inject top-3 episodic memory records into RALPH_USER_PROMPT
+
+### What was implemented
+- Added episodic memory injection block in ralph/ralph.sh (line ~2584) between the US-353 plan cache block and US-280 file context block
+- Block checks if lib/episodic_memory.py and .spiral/episodic_memory.db exist, queries top-3 similar past implementations by story title
+- Non-empty results are appended to RALPH_USER_PROMPT with "## Episodic Memory — Top 3 Similar Past Implementations" header and "(Reference only — do not copy verbatim.)" footer
+- Calls log_ralph_event "episodic_memory_injected" on success
+- Entire block is non-fatal: guards on file existence and uses `2>/dev/null || true`
+
+### Patterns discovered
+- The RALPH_USER_PROMPT injection pattern in ralph.sh follows a consistent style: check preconditions, generate content, append with `---` separator, log event
+- SPIRAL_PYTHON and SPIRAL_SCRATCH_DIR are the standard vars for python binary and .spiral/ directory
+
+### Gotchas
+- Pre-existing test failures unchanged: test_field_similarity_lists, test_infer_dependencies (4), test_route_stories (2)

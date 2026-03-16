@@ -2581,6 +2581,27 @@ $_PC_INJECT"
         fi
       fi
 
+      # ── US-427: Episodic memory injection (top-3 similar past implementations) ──
+      _EPISODIC_SCRIPT="$SPIRAL_HOME/lib/episodic_memory.py"
+      _EPISODIC_DB="${SPIRAL_SCRATCH_DIR:-.spiral}/episodic_memory.db"
+      if [[ -f "$_EPISODIC_SCRIPT" && -f "$_EPISODIC_DB" && -n "${STORY_TITLE:-}" ]]; then
+        _EPISODIC_RAW=$("${SPIRAL_PYTHON:-python3}" "$_EPISODIC_SCRIPT" query "$_EPISODIC_DB" "$STORY_TITLE" --top-k 3 2>/dev/null || true)
+        if [[ -n "$_EPISODIC_RAW" && "$_EPISODIC_RAW" != "[]" ]]; then
+          _EPISODIC_BLOCK="## Episodic Memory — Top 3 Similar Past Implementations
+
+$_EPISODIC_RAW
+
+(Reference only — do not copy verbatim.)"
+          RALPH_USER_PROMPT="$RALPH_USER_PROMPT
+
+---
+
+$_EPISODIC_BLOCK"
+          echo "  [episodic] Top-3 similar past implementations injected for $NEXT_STORY"
+          log_ralph_event "episodic_memory_injected" "\"story_id\":\"$NEXT_STORY\""
+        fi
+      fi
+
       # ── US-280: File context injection (diff or full) ────────────────────────
       if [[ -n "${STORY_JSON:-}" && "${STORY_JSON:-}" != "{}" ]]; then
         _FILE_CTX=$(build_files_context "$STORY_JSON" 2>/dev/null || true)
