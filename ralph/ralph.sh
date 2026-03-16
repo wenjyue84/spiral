@@ -58,6 +58,7 @@ SPIRAL_CONTEXT_WINDOW="${SPIRAL_CONTEXT_WINDOW:-10}"                    # rollin
 SPIRAL_CONTEXT_MODE="${SPIRAL_CONTEXT_MODE:-diff}"                     # diff|full — context injection mode for filesTouch files (US-280)
 SPIRAL_DIFF_DEPTH="${SPIRAL_DIFF_DEPTH:-3}"                            # number of commits to look back for git diff context injection (US-280)
 SPIRAL_WORKER_NETWORK_ISOLATION="${SPIRAL_WORKER_NETWORK_ISOLATION:-false}" # true = wrap worker in Linux network namespace via unshare --net (US-278)
+SPIRAL_STRICT_SCOPE_GUARD="${SPIRAL_STRICT_SCOPE_GUARD:-false}"          # true = abort commit when changed files exceed story filesTouch scope (US-356)
 PRD_FILE="prd.json"
 PROGRESS_FILE="progress.txt"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -547,6 +548,102 @@ check_diff_size() {
   if [[ "${total_lines:-0}" -gt "${SPIRAL_MAX_DIFF_LINES:-500}" ]]; then
     return 1
   fi
+  return 0
+}
+
+# ── Scope guard: validate changed files against story filesTouch (US-356) ───
+# check_scope_guard <story_id>
+# Extracts staged file list and compares against the story's filesTouch field.
+# Returns 0 when scope is valid (or filesTouch is empty/absent — no check needed).
+# Returns 1 when out-of-scope files are detected AND SPIRAL_STRICT_SCOPE_GUARD=true.
+# Always logs the result to spiral_events.jsonl.
+check_scope_guard() {
+  local story_id="$1"
+
+  # Read filesTouch from prd.json
+  local files_touch_json
+  files_touch_json=$($JQ -r \
+    --arg id "$story_id" \
+    '.userStories[] | select(.id == $id) | .filesTouch // []' "$PRD_FILE" 2>/dev/null)
+
+  local ft_count
+  ft_count=$(echo "$files_touch_json" | $JQ 'length' 2>/dev/null || echo "0")
+
+  # Skip check if filesTouch is empty or absent
+  if [[ "$ft_count" -eq 0 ]]; then
+    log_ralph_event "scope_guard" \
+      "\"story_id\":\"$story_id\",\"result\":\"skip\",\"reason\":\"empty_filesTouch\""
+    return 0
+  fi
+
+  # Get staged file list
+  local changed_files
+  changed_files=$(git diff --name-only --cached 2>/dev/null || true)
+  if [[ -z "$changed_files" ]]; then
+    log_ralph_event "scope_guard" \
+      "\"story_id\":\"$story_id\",\"result\":\"pass\",\"reason\":\"no_staged_changes\""
+    return 0
+  fi
+
+  # Build filesTouch array for matching
+  local -a ft_array=()
+  while IFS= read -r entry; do
+    entry="${entry%$'\r'}"
+    [[ -n "$entry" ]] && ft_array+=("$entry")
+  done < <(echo "$files_touch_json" | $JQ -r '.[]' 2>/dev/null)
+
+  # Check each changed file against filesTouch (with subdirectory prefix matching)
+  local -a out_of_scope=()
+  while IFS= read -r changed; do
+    changed="${changed%$'\r'}"
+    [[ -z "$changed" ]] && continue
+    local matched=false
+    for ft_entry in "${ft_array[@]}"; do
+      # Strip trailing slash for consistent matching
+      local ft_clean="${ft_entry%/}"
+      local ch_clean="${changed%/}"
+      # Exact match or changed file is under ft_entry directory
+      if [[ "$ch_clean" == "$ft_clean" || "$ch_clean" == "$ft_clean"/* ]]; then
+        matched=true
+        break
+      fi
+      # ft_entry is under changed file's directory
+      if [[ "$ft_clean" == "$ch_clean"/* ]]; then
+        matched=true
+        break
+      fi
+    done
+    if [[ "$matched" == "false" ]]; then
+      out_of_scope+=("$changed")
+    fi
+  done <<< "$changed_files"
+
+  # Build JSON array of out-of-scope files for event logging
+  local oos_json="[]"
+  if [[ ${#out_of_scope[@]} -gt 0 ]]; then
+    oos_json=$(printf '%s\n' "${out_of_scope[@]}" | $JQ -R . | $JQ -s . 2>/dev/null || echo "[]")
+  fi
+
+  if [[ ${#out_of_scope[@]} -eq 0 ]]; then
+    log_ralph_event "scope_guard" \
+      "\"story_id\":\"$story_id\",\"result\":\"pass\",\"changed_count\":$(echo "$changed_files" | wc -l | tr -d ' '),\"filesTouch_count\":$ft_count"
+    return 0
+  fi
+
+  # Out-of-scope files detected
+  echo "  [scope-guard] WARNING: ${#out_of_scope[@]} file(s) outside story filesTouch scope:"
+  for oos in "${out_of_scope[@]}"; do
+    echo "    - $oos"
+  done
+
+  log_ralph_event "scope_guard" \
+    "\"story_id\":\"$story_id\",\"result\":\"$([ "${SPIRAL_STRICT_SCOPE_GUARD:-false}" == "true" ] && echo "abort" || echo "warn")\",\"out_of_scope\":$oos_json,\"out_of_scope_count\":${#out_of_scope[@]},\"filesTouch_count\":$ft_count"
+
+  if [[ "${SPIRAL_STRICT_SCOPE_GUARD:-false}" == "true" ]]; then
+    echo "  [scope-guard] SPIRAL_STRICT_SCOPE_GUARD=true — aborting commit"
+    return 1
+  fi
+
   return 0
 }
 
@@ -2979,6 +3076,22 @@ ACTION: Fix the critical issues listed above before marking passes=true."
         append_result "reject"
         echo "## Iteration $ITERATION - $(date)" >>"$PROGRESS_FILE"
         echo "FAILED diff-guard: $STORY_TITLE (ID: $NEXT_STORY) — ${LAST_DIFF_LINES} lines > ${SPIRAL_MAX_DIFF_LINES} limit — attempt $RETRY_NOW/$MAX_RETRIES" >>"$PROGRESS_FILE"
+        echo "" >>"$PROGRESS_FILE"
+        continue
+      fi
+      if ! check_scope_guard "$NEXT_STORY"; then
+        echo "  [scope-guard] Unstaging changes and aborting story"
+        do_story_reset "$PRE_STORY_SHA"
+        $JQ "(.userStories[] | select(.id == \"$NEXT_STORY\") | .passes) = false" "$PRD_FILE" >"${PRD_FILE}.tmp"
+        mv "${PRD_FILE}.tmp" "$PRD_FILE"
+        $JQ "(.userStories[] | select(.id == \"$NEXT_STORY\") | ._failureReason) = \"scope_guard_violation\"" "$PRD_FILE" >"${PRD_FILE}.tmp"
+        mv "${PRD_FILE}.tmp" "$PRD_FILE"
+        increment_retry "$NEXT_STORY"
+        RETRY_NOW=$(get_retry_count "$NEXT_STORY")
+        echo "[retry] $NEXT_STORY attempt $RETRY_NOW/$MAX_RETRIES (scope guard failed)"
+        append_result "reject"
+        echo "## Iteration $ITERATION - $(date)" >>"$PROGRESS_FILE"
+        echo "FAILED scope-guard: $STORY_TITLE (ID: $NEXT_STORY) — out-of-scope files detected — attempt $RETRY_NOW/$MAX_RETRIES" >>"$PROGRESS_FILE"
         echo "" >>"$PROGRESS_FILE"
         continue
       fi

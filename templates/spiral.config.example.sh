@@ -414,6 +414,11 @@
 # Default: false (warn only).
 # SPIRAL_STRICT_WORKER_ISOLATION=false
 
+# Scope guard (US-356): validates staged files against story filesTouch field
+# before committing. When true, aborts the commit if any file outside the
+# declared scope is staged. When false (default), logs a WARN but allows commit.
+# SPIRAL_STRICT_SCOPE_GUARD=false
+
 # Memory watchdog: background PowerShell monitor that kills Node.js processes
 # exceeding the RSS threshold. Requires PowerShell on Windows.
 # 1 = enabled (default), 0 = disabled.

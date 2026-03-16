@@ -368,3 +368,29 @@ Incomplete: Validate MCP server integrity via signed checksum manifest before Ph
 - shellcheck not available locally; used `bash -n` for syntax validation
 - The strict mode uses `return 1` in tests (not `exit 1`) to avoid killing the bats process
 
+## Iteration 4 - Mon, Mar 16, 2026  2:11:15 PM
+Incomplete: Validate MCP server integrity via signed checksum manifest before Phase I (ID: US-320) — attempt /3
+
+## Iteration N - Story: US-356 Validate AI-generated commit file scope against story filesTouch field before git apply
+
+### What was implemented
+- Added `check_scope_guard()` function in ralph.sh (after check_diff_size) that validates staged files against story filesTouch field
+- Uses `git diff --name-only --cached` to get staged file list
+- Supports subdirectory prefix matching (e.g. filesTouch `src/` matches `src/utils/helper.py`)
+- Empty filesTouch = skip check (no false positives for exploratory stories)
+- Added `SPIRAL_STRICT_SCOPE_GUARD` env var (default: false) — warn only vs abort
+- Scope guard gate inserted between check_diff_size and run_security_scan in commit pipeline
+- All results logged to spiral_events.jsonl with story_id, result (pass/warn/abort/skip), file lists
+- Updated templates/spiral.config.example.sh with documented setting
+- Created tests/scope_guard.bats with 6 tests: in-scope pass, out-of-scope warn, strict abort, empty skip, prefix matching, event fields
+
+### Patterns discovered
+- Windows `\r` handling is critical — both jq output and git output need `${var%$'\r'}` stripping
+- Trailing slash in filesTouch entries (e.g. `src/`) must be stripped before prefix matching to avoid `src//*` pattern
+- Gate pattern in ralph.sh: return 0=pass, return 1=fail, with matching rejection block (do_story_reset, jq update, increment_retry, append_result, continue)
+
+### Gotchas
+- `$JQ -r '.[]'` on Windows outputs `\r\n` — use `${entry%$'\r'}` to strip
+- filesTouch entries may have trailing slashes; prefix matching needs `${ft_entry%/}` normalization
+- bats test functions extracted from ralph.sh via sed to avoid sourcing the full monolith (which has side effects)
+
