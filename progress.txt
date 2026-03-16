@@ -1267,3 +1267,30 @@ Completed: Add pre-flight Claude API token count check before story prompt submi
 
 ### Gotchas
 - Pre-existing test failures unchanged: test_field_similarity_lists, test_infer_dependencies (4), test_route_stories (2)
+
+
+## Iteration N - Story: US-378 Add PreToolUse Claude Code hook to block ralph workers from touching protected SPIRAL system files
+
+### What was implemented
+- Created `.claude/hooks/protect-spiral-files.sh` — PreToolUse hook script that reads tool input JSON from stdin, extracts `file_path`, and checks against a protected list
+- Protected files: spiral.sh, spiral.config.sh, prd.json, prd.schema.json, ralph/ralph.sh
+- Protected prefixes: .spiral/** (all state files)
+- Exit code 2 blocks the tool call with a descriptive stderr message; exit 0 allows
+- Created `.claude/settings.json` with PreToolUse hook config matching Edit|Write tools
+- Normalizes Windows backslash paths and strips leading ./ before matching
+
+### Files modified
+- .claude/hooks/protect-spiral-files.sh — new: hook script (exit 0=allow, exit 2=block)
+- .claude/settings.json — new: PreToolUse hook configuration
+- tests/protect_spiral_files.bats — new: 16 bats tests covering blocks, allows, and edge cases
+
+### Patterns discovered
+- Claude Code PreToolUse hooks receive JSON on stdin with `tool_input.file_path` for Edit/Write tools
+- Exit code 2 specifically means "block" — the reason on stderr is fed back into the agent's context
+- `jq -r '.tool_input.file_path // empty'` safely handles missing keys without error
+- Bash parameter expansion `${var//\//}` converts backslashes to forward slashes for Windows path normalization
+
+### Gotchas
+- The hook must handle both `jq` and no-jq environments (fallback grep extraction)
+- Windows paths may arrive with backslashes from Claude Code — normalize before matching
+- shellcheck not installed locally but script follows strict mode (set -euo pipefail)
