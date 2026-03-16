@@ -1,8 +1,8 @@
 """Tests for lib/spiral_io.py — atomic write, JSONL, safe read, UTF-8 config."""
+
 import json
 import os
 import sys
-import textwrap
 
 import pytest
 
@@ -14,7 +14,6 @@ from spiral_io import (
     safe_read_json,
     safe_read_jsonl,
 )
-
 
 # ── atomic_write_json ─────────────────────────────────────────────────────────
 

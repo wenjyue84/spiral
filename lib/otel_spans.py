@@ -110,9 +110,9 @@ def _make_tracer() -> tuple[object, object]:
     If OTEL_EXPORTER_OTLP_ENDPOINT is not set, returns a no-op tracer.
     """
     from opentelemetry import trace
+    from opentelemetry.sdk.resources import SERVICE_NAME, Resource
     from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor
-    from opentelemetry.sdk.resources import Resource, SERVICE_NAME
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
     resource = Resource.create({SERVICE_NAME: "spiral"})
     provider = TracerProvider(resource=resource)
@@ -148,11 +148,10 @@ def _emit_completed_span(
     requiring the parent span to be alive in this process.
     """
     from opentelemetry import trace
-    from opentelemetry.sdk.trace import TracerProvider, ReadableSpan
+    from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+    from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-    from opentelemetry.sdk.resources import Resource, SERVICE_NAME
-    from opentelemetry.trace import SpanKind, SpanContext, TraceFlags
-    from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+    from opentelemetry.trace import SpanContext, SpanKind, TraceFlags
 
     resource = Resource.create({SERVICE_NAME: "spiral"})
     provider = TracerProvider(resource=resource)
@@ -167,15 +166,7 @@ def _emit_completed_span(
 
     # Build trace and span IDs as integers (OTel SDK expects int)
     trace_id_int = int(trace_id_hex, 16)
-    span_id_int = int(span_id_hex, 16)
-
-    # Build context for the span itself (used to set its own context)
-    span_ctx = SpanContext(
-        trace_id=trace_id_int,
-        span_id=span_id_int,
-        is_remote=False,
-        trace_flags=TraceFlags(TraceFlags.SAMPLED),
-    )
+    _span_id_int = int(span_id_hex, 16)  # reserved for future span context rebuild
 
     # If we have a parent, set the parent context
     if parent_span_id_hex:
@@ -231,7 +222,7 @@ def cmd_begin_run(args: argparse.Namespace) -> None:
     Prints W3C TRACEPARENT to stdout so the shell can export it.
     """
     trace_id = secrets.token_hex(16)  # 32 hex chars
-    span_id = secrets.token_hex(8)    # 16 hex chars
+    span_id = secrets.token_hex(8)  # 16 hex chars
     traceparent = _build_traceparent(trace_id, span_id)
 
     # Save state for end-run
@@ -455,10 +446,7 @@ def cmd_emit_action(args: argparse.Namespace) -> None:
         return
 
     # Prefer story-scoped TRACEPARENT for correct parent linkage
-    traceparent = (
-        os.environ.get("STORY_TRACEPARENT", "")
-        or os.environ.get("TRACEPARENT", "")
-    )
+    traceparent = os.environ.get("STORY_TRACEPARENT", "") or os.environ.get("TRACEPARENT", "")
     if not traceparent:
         return
 
@@ -635,26 +623,19 @@ def main() -> None:
 
     # end-phase
     p_phase = sub.add_parser("end-phase", help="Emit a completed phase span")
-    p_phase.add_argument("--phase", required=True,
-                         choices=list(_PHASE_OPERATION.keys()),
-                         help="Phase letter (R/T/I/V/M/G/S/C)")
-    p_phase.add_argument("--duration-s", type=float, default=0,
-                         help="Phase wall-clock duration in seconds")
-    p_phase.add_argument("--input-tokens", type=int, default=None,
-                         help="LLM input token count")
-    p_phase.add_argument("--output-tokens", type=int, default=None,
-                         help="LLM output token count")
-    p_phase.add_argument("--story-id", default=None,
-                         help="Current story ID (e.g. US-042)")
-    p_phase.add_argument("--iteration", type=int, default=None,
-                         help="Spiral iteration number")
+    p_phase.add_argument(
+        "--phase", required=True, choices=list(_PHASE_OPERATION.keys()), help="Phase letter (R/T/I/V/M/G/S/C)"
+    )
+    p_phase.add_argument("--duration-s", type=float, default=0, help="Phase wall-clock duration in seconds")
+    p_phase.add_argument("--input-tokens", type=int, default=None, help="LLM input token count")
+    p_phase.add_argument("--output-tokens", type=int, default=None, help="LLM output token count")
+    p_phase.add_argument("--story-id", default=None, help="Current story ID (e.g. US-042)")
+    p_phase.add_argument("--iteration", type=int, default=None, help="Spiral iteration number")
 
     # end-run
     p_end = sub.add_parser("end-run", help="Emit the root run span")
-    p_end.add_argument("--passes", type=int, default=None,
-                       help="Number of stories that passed")
-    p_end.add_argument("--story-count", type=int, default=None,
-                       help="Total number of stories")
+    p_end.add_argument("--passes", type=int, default=None, help="Number of stories that passed")
+    p_end.add_argument("--story-count", type=int, default=None, help="Total number of stories")
 
     # begin-story (US-219 — task span)
     p_begin_story = sub.add_parser("begin-story", help="Start a task span for a story")
@@ -664,38 +645,31 @@ def main() -> None:
     # end-story (US-219 — task span)
     p_end_story = sub.add_parser("end-story", help="Emit completed task span for a story")
     p_end_story.add_argument("--story-id", required=True, help="Story ID (e.g. US-042)")
-    p_end_story.add_argument("--status", required=True,
-                             choices=["passed", "failed", "skipped"],
-                             help="Story outcome")
+    p_end_story.add_argument("--status", required=True, choices=["passed", "failed", "skipped"], help="Story outcome")
     p_end_story.add_argument("--scratch-dir", required=True, help="Path to .spiral/ scratch dir")
 
     # emit-action (US-219 — action span)
     p_action = sub.add_parser("emit-action", help="Emit an action span (llm_query or tool_call)")
-    p_action.add_argument("--type", required=True,
-                          choices=["llm_query", "tool_call"],
-                          help="Action type")
-    p_action.add_argument("--duration-s", type=float, default=0,
-                          help="Action wall-clock duration in seconds")
+    p_action.add_argument("--type", required=True, choices=["llm_query", "tool_call"], help="Action type")
+    p_action.add_argument("--duration-s", type=float, default=0, help="Action wall-clock duration in seconds")
     p_action.add_argument("--story-id", default=None, help="Story ID (optional label)")
 
     # invoke-agent (US-318 — per-worker invoke_agent span)
-    p_invoke = sub.add_parser("invoke-agent",
-                              help="Emit invoke_agent span for a worker lifecycle")
+    p_invoke = sub.add_parser("invoke-agent", help="Emit invoke_agent span for a worker lifecycle")
     p_invoke.add_argument("--story-id", required=True, help="Story ID (gen_ai.agent.id)")
     p_invoke.add_argument("--worker-id", default="0", help="Worker ID")
-    p_invoke.add_argument("--duration-s", type=float, default=0,
-                          help="Worker wall-clock duration in seconds")
-    p_invoke.add_argument("--status", required=True,
-                          choices=["passed", "failed", "skipped", "timeout"],
-                          help="Worker outcome")
-    p_invoke.add_argument("--agent-version", default=None,
-                          help="Agent version (defaults to SPIRAL_VERSION env)")
-    p_invoke.add_argument("--conversation-id", default=None,
-                          help="Conversation ID (defaults to SPIRAL_RUN_ID env)")
-    p_invoke.add_argument("--cache-read-tokens", type=int, default=0,
-                          help="Cache read input tokens from Claude API usage")
-    p_invoke.add_argument("--cache-creation-tokens", type=int, default=0,
-                          help="Cache creation input tokens from Claude API usage")
+    p_invoke.add_argument("--duration-s", type=float, default=0, help="Worker wall-clock duration in seconds")
+    p_invoke.add_argument(
+        "--status", required=True, choices=["passed", "failed", "skipped", "timeout"], help="Worker outcome"
+    )
+    p_invoke.add_argument("--agent-version", default=None, help="Agent version (defaults to SPIRAL_VERSION env)")
+    p_invoke.add_argument("--conversation-id", default=None, help="Conversation ID (defaults to SPIRAL_RUN_ID env)")
+    p_invoke.add_argument(
+        "--cache-read-tokens", type=int, default=0, help="Cache read input tokens from Claude API usage"
+    )
+    p_invoke.add_argument(
+        "--cache-creation-tokens", type=int, default=0, help="Cache creation input tokens from Claude API usage"
+    )
 
     args = parser.parse_args()
 
@@ -716,6 +690,7 @@ def main() -> None:
             cmd_invoke_agent(args)
     except Exception:  # pylint: disable=broad-except
         import traceback
+
         print("[otel_spans] ERROR:", traceback.format_exc(), file=sys.stderr)
 
 

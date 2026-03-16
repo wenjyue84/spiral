@@ -1,4 +1,5 @@
 """Unified I/O utilities for SPIRAL -- stdlib-only, no circular dependency risk."""
+
 from __future__ import annotations
 
 import json

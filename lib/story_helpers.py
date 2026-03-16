@@ -1,4 +1,5 @@
 """Shared story helpers for SPIRAL -- imports only from constants."""
+
 from __future__ import annotations
 
 import os
@@ -6,7 +7,7 @@ import sys
 from typing import Any
 
 sys.path.insert(0, os.path.dirname(__file__))
-from constants import PRIORITY_RANK, PRIORITY_SCORE_DEFAULT
+from constants import PRIORITY_SCORE_DEFAULT
 
 
 def get_files_to_touch(story: dict[str, Any]) -> set[str]:

@@ -9,6 +9,7 @@ Exit codes:
   0 — no violations (or violations found but SPIRAL_STRICT_AC not set)
   1 — violations found AND SPIRAL_STRICT_AC=true
 """
+
 import argparse
 import json
 import os
@@ -17,6 +18,7 @@ from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(__file__))
 from spiral_io import configure_utf8_stdout
+
 configure_utf8_stdout()
 
 
@@ -37,9 +39,7 @@ def prd_lint(prd: dict) -> list[dict]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Lint prd.json for stories missing acceptanceCriteria"
-    )
+    parser = argparse.ArgumentParser(description="Lint prd.json for stories missing acceptanceCriteria")
     parser.add_argument("prd", help="Path to prd.json")
     parser.add_argument(
         "--events-file",
@@ -90,10 +90,7 @@ def main() -> int:
                 pass  # non-fatal
 
     if violations and strict:
-        print(
-            f"[prd-lint] FATAL: {len(violations)} story(ies) missing acceptanceCriteria "
-            f"(SPIRAL_STRICT_AC=true)"
-        )
+        print(f"[prd-lint] FATAL: {len(violations)} story(ies) missing acceptanceCriteria (SPIRAL_STRICT_AC=true)")
         return 1
 
     if violations and not args.quiet:

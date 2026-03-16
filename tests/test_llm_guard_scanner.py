@@ -1,4 +1,5 @@
 """Tests for lib/llm_guard_scanner.py — US-198: LLM Guard PromptInjection scanner for Phase R."""
+
 from __future__ import annotations
 
 import json
@@ -11,7 +12,6 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 import llm_guard_scanner as scanner
-
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -210,7 +210,7 @@ class TestPerformanceGuard:
         text = "x" * 4096
 
         t0 = time.monotonic()
-        result = scanner.scan_content(text, threshold=0.8)
+        _result = scanner.scan_content(text, threshold=0.8)
         elapsed_ms = (time.monotonic() - t0) * 1000
 
         assert elapsed_ms < 100, f"Mocked scan took {elapsed_ms:.1f}ms — expected <100ms"
@@ -226,6 +226,7 @@ class TestCLI:
 
     def test_cli_json_output(self, capsys, monkeypatch):
         import io
+
         monkeypatch.setattr("sys.stdin", io.StringIO("clean research content"))
         rc = scanner.main(["--threshold", "0.8", "--source", "gemini_research", "--output", "json"])
         assert rc == 0
@@ -235,6 +236,7 @@ class TestCLI:
 
     def test_cli_text_output(self, capsys, monkeypatch):
         import io
+
         monkeypatch.setattr("sys.stdin", io.StringIO("plain text input"))
         rc = scanner.main(["--threshold", "0.8", "--output", "text"])
         assert rc == 0
@@ -248,6 +250,7 @@ class TestCLI:
 
     def test_cli_json_contains_required_fields(self, capsys, monkeypatch):
         import io
+
         mock = _make_scanner_mock(risk_score=0.2, is_valid=True)
         scanner._scanner_cache = mock
         scanner._guard_available = True

@@ -8,12 +8,8 @@ Tests cover:
 - Fallback to full suite when no filesTouch entries have matching test files
 - Fallback to full suite when SPIRAL_INCREMENTAL_VALIDATE is false
 """
-import json
-import os
-import sys
-import tempfile
 
-import pytest
+import os
 
 # ---------------------------------------------------------------------------
 # Helper: the path-mapping logic extracted from spiral.sh for Python testing

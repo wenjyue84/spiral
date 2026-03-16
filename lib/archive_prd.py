@@ -49,9 +49,7 @@ def main():
     to_keep = [s for s in stories if not is_archivable(s)]
 
     if not to_archive:
-        print(
-            f"[archive_prd] Nothing to archive — all {len(stories)} stories are pending or decomposed parents."
-        )
+        print(f"[archive_prd] Nothing to archive — all {len(stories)} stories are pending or decomposed parents.")
         sys.exit(0)
 
     prefix = "[DRY RUN] " if args.dry_run else ""

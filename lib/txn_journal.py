@@ -18,6 +18,7 @@ Usage:
     # On startup — roll back any incomplete transactions:
     actions = journal.recover()
 """
+
 import argparse
 import os
 import sys
@@ -84,6 +85,7 @@ class TxnJournal:
                 target = f_info.get("path", "")
                 if backup and os.path.isfile(backup) and target:
                     import shutil
+
                     shutil.copy2(backup, target)
                     os.unlink(backup)
                     msg = f"Rolled back {target} from {backup} (txn {txn_id}: {label})"
@@ -115,28 +117,35 @@ class TxnWriter:
         # Create backup of existing file
         if os.path.isfile(path):
             import shutil
+
             shutil.copy2(path, backup_path)
 
         self._files.append({"path": path, "backup": backup_path})
 
         # Write pending record on first write
         if not self._pending_written:
-            append_jsonl(self.journal_path, {
-                "id": self.txn_id,
-                "label": self.label,
-                "status": "pending",
-                "files": self._files,
-            })
+            append_jsonl(
+                self.journal_path,
+                {
+                    "id": self.txn_id,
+                    "label": self.label,
+                    "status": "pending",
+                    "files": self._files,
+                },
+            )
             self._pending_written = True
         else:
             # Update the pending record with the new file list by re-appending
             # (JSONL: last pending entry for this ID wins during recovery)
-            append_jsonl(self.journal_path, {
-                "id": self.txn_id,
-                "label": self.label,
-                "status": "pending",
-                "files": self._files,
-            })
+            append_jsonl(
+                self.journal_path,
+                {
+                    "id": self.txn_id,
+                    "label": self.label,
+                    "status": "pending",
+                    "files": self._files,
+                },
+            )
 
         # Write the actual file
         atomic_write_json(path, data)

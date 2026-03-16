@@ -1,13 +1,17 @@
 """Unit and property-based tests for the SPIRAL state machine."""
+
 import os
 import sys
+
 import pytest
-from hypothesis import given, settings, assume
+from hypothesis import given
 from hypothesis import strategies as st
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 from state_machine import (
-    SpiralPhaseStateMachine, StoryLifecycle, InvalidTransition,
+    InvalidTransition,
+    SpiralPhaseStateMachine,
+    StoryLifecycle,
     validate_story_states,
 )
 
@@ -65,7 +69,7 @@ class TestPhaseStateMachine:
 
         # Check if the permutation was actually monotonic
         indices = [PHASES.index(p) for p in phases]
-        is_monotonic = all(indices[i] < indices[i+1] for i in range(len(indices)-1))
+        is_monotonic = all(indices[i] < indices[i + 1] for i in range(len(indices) - 1))
 
         if is_monotonic:
             assert valid, "Monotonic sequence should be valid"
@@ -270,7 +274,14 @@ class TestValidateCheckpoint:
 
     def test_valid_checkpoint(self):
         sm = SpiralPhaseStateMachine()
-        errors = sm.validate_checkpoint({"iter": 1, "phase": "R", "ts": "2026-03-13T00:00:00Z", "spiralVersion": "v1.0.0"})
+        errors = sm.validate_checkpoint(
+            {
+                "iter": 1,
+                "phase": "R",
+                "ts": "2026-03-13T00:00:00Z",
+                "spiralVersion": "v1.0.0",
+            }
+        )
         assert errors == []
 
     def test_missing_ts_reports_error(self):
@@ -301,38 +312,48 @@ class TestValidateStoryStates:
         return {"userStories": stories}
 
     def test_valid_prd_no_errors(self):
-        prd = self._prd([
-            {"id": "US-001", "passes": True, "dependencies": []},
-            {"id": "US-002", "passes": False, "dependencies": ["US-001"]},
-        ])
+        prd = self._prd(
+            [
+                {"id": "US-001", "passes": True, "dependencies": []},
+                {"id": "US-002", "passes": False, "dependencies": ["US-001"]},
+            ]
+        )
         assert validate_story_states(prd) == []
 
     def test_passed_story_with_unpassed_dependency_is_error(self):
-        prd = self._prd([
-            {"id": "US-001", "passes": False, "dependencies": []},
-            {"id": "US-002", "passes": True, "dependencies": ["US-001"]},
-        ])
+        prd = self._prd(
+            [
+                {"id": "US-001", "passes": False, "dependencies": []},
+                {"id": "US-002", "passes": True, "dependencies": ["US-001"]},
+            ]
+        )
         errors = validate_story_states(prd)
         assert any("US-002" in e and "US-001" in e for e in errors)
 
     def test_decomposed_and_passes_both_true_is_error(self):
-        prd = self._prd([
-            {"id": "US-001", "passes": True, "_decomposed": True, "_decomposedInto": ["US-010"]},
-            {"id": "US-010", "passes": True, "dependencies": []},
-        ])
+        prd = self._prd(
+            [
+                {"id": "US-001", "passes": True, "_decomposed": True, "_decomposedInto": ["US-010"]},
+                {"id": "US-010", "passes": True, "dependencies": []},
+            ]
+        )
         errors = validate_story_states(prd)
         assert any("US-001" in e and ("_decomposed" in e or "passes=true" in e) for e in errors)
 
     def test_decomposed_without_decomposed_into_is_error(self):
-        prd = self._prd([
-            {"id": "US-001", "_decomposed": True, "passes": False},
-        ])
+        prd = self._prd(
+            [
+                {"id": "US-001", "_decomposed": True, "passes": False},
+            ]
+        )
         errors = validate_story_states(prd)
         assert any("US-001" in e and "_decomposedInto" in e for e in errors)
 
     def test_decomposed_into_missing_child_is_error(self):
-        prd = self._prd([
-            {"id": "US-001", "_decomposed": True, "passes": False, "_decomposedInto": ["US-999"]},
-        ])
+        prd = self._prd(
+            [
+                {"id": "US-001", "_decomposed": True, "passes": False, "_decomposedInto": ["US-999"]},
+            ]
+        )
         errors = validate_story_states(prd)
         assert any("US-999" in e for e in errors)

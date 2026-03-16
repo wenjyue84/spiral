@@ -25,10 +25,10 @@ parse_batch_results(results)
 validate_story_sync(story, goal_text, forbidden_phrases, api_key, base_url)
     Single-story synchronous fallback via direct /v1/messages call.
 """
+
 from __future__ import annotations
 
 import json
-import os
 import time
 import urllib.error
 import urllib.request
@@ -82,9 +82,7 @@ def _story_validation_prompt(
     title = story.get("title", "")
     description = story.get("description", "")
     forbidden_block = (
-        "\nForbidden topics (reject if matched): " + "; ".join(forbidden_phrases)
-        if forbidden_phrases
-        else ""
+        "\nForbidden topics (reject if matched): " + "; ".join(forbidden_phrases) if forbidden_phrases else ""
     )
     return (
         "You are a strict story validator for a software project.\n\n"
@@ -103,7 +101,7 @@ def _parse_llm_json(text: str) -> tuple[bool, str]:
     cleaned = text.strip()
     if cleaned.startswith("```"):
         lines = cleaned.splitlines()
-        inner = [l for l in lines if not l.startswith("```")]
+        inner = [line for line in lines if not line.startswith("```")]
         cleaned = "\n".join(inner).strip()
     try:
         data: dict[str, Any] = json.loads(cleaned)
@@ -155,9 +153,7 @@ def build_batch_requests(
                     "messages": [
                         {
                             "role": "user",
-                            "content": _story_validation_prompt(
-                                story, goal_text, forbidden_phrases
-                            ),
+                            "content": _story_validation_prompt(story, goal_text, forbidden_phrases),
                         }
                     ],
                 },
@@ -276,9 +272,7 @@ def poll_batch(
             return _get_batch_results(batch_id, api_key, base_url)
         time.sleep(sleep_sec)
         sleep_sec = min(sleep_sec * _POLL_BACKOFF, _POLL_MAX_SLEEP)
-    raise TimeoutError(
-        f"Batch {batch_id!r} did not complete within {max_wait_sec:.0f}s"
-    )
+    raise TimeoutError(f"Batch {batch_id!r} did not complete within {max_wait_sec:.0f}s")
 
 
 def poll_batch_until_complete(
@@ -321,9 +315,7 @@ def poll_batch_until_complete(
             return client.beta.messages.batches.results(batch_id)
         time.sleep(sleep_sec)
         sleep_sec = min(sleep_sec * 2.0, 60.0)
-    raise TimeoutError(
-        f"Batch {batch_id!r} did not complete within {max_wait_sec:.0f}s"
-    )
+    raise TimeoutError(f"Batch {batch_id!r} did not complete within {max_wait_sec:.0f}s")
 
 
 def parse_batch_results(
@@ -403,9 +395,7 @@ def validate_story_sync(
             "messages": [
                 {
                     "role": "user",
-                    "content": _story_validation_prompt(
-                        story, goal_text, forbidden_phrases
-                    ),
+                    "content": _story_validation_prompt(story, goal_text, forbidden_phrases),
                 }
             ],
         }

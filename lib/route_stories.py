@@ -1,17 +1,18 @@
 # lib/route_stories.py
-import json
 import argparse
+import json
 import os
 import re
 import tempfile
 
 # Simple keyword-based fallback complexity classifier (no ML dependencies, instant)
 _COMPLEX_PATTERNS = re.compile(
-    r'\b(parallel|orchestrat|multi.agent|dag|dependency|migration|refactor|arch|'
-    r'integrat|security|auth|oauth|webhook|crawl|scrape|stream|async|concurr|'
-    r'distribut|circuit.break|retry|backoff|cache|shard|partition)\b',
+    r"\b(parallel|orchestrat|multi.agent|dag|dependency|migration|refactor|arch|"
+    r"integrat|security|auth|oauth|webhook|crawl|scrape|stream|async|concurr|"
+    r"distribut|circuit.break|retry|backoff|cache|shard|partition)\b",
     re.IGNORECASE,
 )
+
 
 def _keyword_complexity(title: str) -> str:
     return "complex" if _COMPLEX_PATTERNS.search(title) else "simple"
@@ -20,6 +21,7 @@ def _keyword_complexity(title: str) -> str:
 def _try_load_semantic_router():
     """Load SemanticRouter with a 10-second timeout guard. Returns None on failure."""
     import threading
+
     result = [None]
     error = [None]
 
@@ -54,7 +56,7 @@ def route_stories(prd_path, profile):
         raise FileNotFoundError(f"[router] ERROR: PRD file not found at {prd_path}")
 
     try:
-        with open(prd_path, 'r', encoding='utf-8') as f:
+        with open(prd_path, "r", encoding="utf-8") as f:
             prd = json.load(f)
     except json.JSONDecodeError:
         print(f"[router] ERROR: Could not decode JSON from {prd_path}")
@@ -92,7 +94,7 @@ def route_stories(prd_path, profile):
         # Atomic write to prevent corruption
         temp_fd, temp_path = tempfile.mkstemp(dir=os.path.dirname(prd_path))
         try:
-            with os.fdopen(temp_fd, 'w', encoding='utf-8') as tf:
+            with os.fdopen(temp_fd, "w", encoding="utf-8") as tf:
                 json.dump(prd, tf, indent=2)
             os.replace(temp_path, prd_path)
         except Exception as e:

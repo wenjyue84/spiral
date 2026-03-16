@@ -16,6 +16,7 @@ Usage (library):
 Usage (CLI):
     python lib/import_github.py --repo owner/repo --label spiral [--dry-run]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -30,6 +31,7 @@ from typing import Any, Iterator
 
 sys.path.insert(0, os.path.dirname(__file__))
 from spiral_io import atomic_write_json, configure_utf8_stdout
+
 configure_utf8_stdout()
 
 GITHUB_GRAPHQL_URL = "https://api.github.com/graphql"

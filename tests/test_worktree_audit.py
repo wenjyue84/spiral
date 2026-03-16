@@ -1,9 +1,9 @@
 """Tests for `spiral worktree audit` command (US-231)."""
+
 import json
 import os
 import subprocess
 import sys
-import tempfile
 import time
 from pathlib import Path
 
@@ -28,25 +28,23 @@ def run_audit(*extra_args: str, cwd: str | None = None) -> subprocess.CompletedP
 
 def _init_git_repo(tmp_path: Path) -> None:
     """Initialise a minimal git repo suitable for worktree tests."""
-    subprocess.run(["git", "init", "-b", "main"], cwd=str(tmp_path), check=True,
-                   capture_output=True)
-    subprocess.run(["git", "config", "user.email", "test@test.com"],
-                   cwd=str(tmp_path), check=True, capture_output=True)
-    subprocess.run(["git", "config", "user.name", "Test"],
-                   cwd=str(tmp_path), check=True, capture_output=True)
+    subprocess.run(["git", "init", "-b", "main"], cwd=str(tmp_path), check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=str(tmp_path), check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=str(tmp_path), check=True, capture_output=True)
     (tmp_path / "README.md").write_text("hello")
     subprocess.run(["git", "add", "."], cwd=str(tmp_path), check=True, capture_output=True)
-    subprocess.run(["git", "commit", "-m", "init"], cwd=str(tmp_path), check=True,
-                   capture_output=True)
+    subprocess.run(["git", "commit", "-m", "init"], cwd=str(tmp_path), check=True, capture_output=True)
 
 
 # ── CLI smoke tests (run against real repo) ───────────────────────────────────
+
 
 class TestWorktreeAuditCLI:
     def test_help_exits_zero(self):
         result = subprocess.run(
             [sys.executable, MAIN_PY, "worktree", "audit", "--help"],
-            capture_output=True, text=True,
+            capture_output=True,
+            text=True,
         )
         assert result.returncode == 0
         assert "audit" in result.stdout.lower()
@@ -87,9 +85,7 @@ class TestWorktreeAuditCLI:
     def test_human_readable_output_contains_keyword(self):
         result = run_audit()
         combined = result.stdout + result.stderr
-        assert ("healthy" in combined.lower() or "anomaly" in combined.lower()), (
-            f"Unexpected output: {combined!r}"
-        )
+        assert "healthy" in combined.lower() or "anomaly" in combined.lower(), f"Unexpected output: {combined!r}"
 
     def test_anomaly_entries_have_required_fields(self):
         """Every anomaly entry must carry type, safe_to_fix, remediation, detail."""
@@ -104,6 +100,7 @@ class TestWorktreeAuditCLI:
 
 # ── Isolated anomaly detection tests ─────────────────────────────────────────
 
+
 class TestWorktreeAuditIsolated:
     """Tests using a temporary, isolated git repo to avoid polluting the main repo."""
 
@@ -112,10 +109,13 @@ class TestWorktreeAuditIsolated:
         _init_git_repo(tmp_path)
         # Copy main.py into tmp_path so Path(__file__).parent resolves to tmp_path
         import shutil
+
         shutil.copy(MAIN_PY, tmp_path / "main.py")
         result = subprocess.run(
             [sys.executable, str(tmp_path / "main.py"), "worktree", "audit", "--json"],
-            capture_output=True, text=True, cwd=str(tmp_path),
+            capture_output=True,
+            text=True,
+            cwd=str(tmp_path),
         )
         data = json.loads(result.stdout)
         assert data["clean"] is True, f"Expected clean, got anomalies: {data['anomalies']}"
@@ -124,15 +124,16 @@ class TestWorktreeAuditIsolated:
     def test_stale_lock_detected(self, tmp_path):
         """A lock file older than threshold is detected as stale_lock."""
         import shutil
+
         _init_git_repo(tmp_path)
         shutil.copy(MAIN_PY, tmp_path / "main.py")
 
         worker_dir = tmp_path / ".spiral-workers" / "worker-test"
         worker_dir.mkdir(parents=True)
         r = subprocess.run(
-            ["git", "-C", str(tmp_path), "worktree", "add",
-             str(worker_dir), "-b", "stale-lock-branch"],
-            capture_output=True, text=True,
+            ["git", "-C", str(tmp_path), "worktree", "add", str(worker_dir), "-b", "stale-lock-branch"],
+            capture_output=True,
+            text=True,
         )
         if r.returncode != 0:
             pytest.skip(f"Could not create test worktree: {r.stderr}")
@@ -141,7 +142,7 @@ class TestWorktreeAuditIsolated:
         git_ptr = worker_dir / ".git"
         git_dir_line = git_ptr.read_text().strip()
         if git_dir_line.startswith("gitdir:"):
-            git_dir = Path(git_dir_line[len("gitdir:"):].strip())
+            git_dir = Path(git_dir_line[len("gitdir:") :].strip())
             if not git_dir.is_absolute():
                 git_dir = worker_dir / git_dir
         else:
@@ -157,7 +158,9 @@ class TestWorktreeAuditIsolated:
 
         result = subprocess.run(
             [sys.executable, str(tmp_path / "main.py"), "worktree", "audit", "--json"],
-            capture_output=True, text=True, cwd=str(tmp_path),
+            capture_output=True,
+            text=True,
+            cwd=str(tmp_path),
         )
         data = json.loads(result.stdout)
         types = [a["type"] for a in data["anomalies"]]
@@ -167,6 +170,7 @@ class TestWorktreeAuditIsolated:
     def test_detached_head_detected(self, tmp_path):
         """A detached HEAD worktree is detected as detached_head."""
         import shutil
+
         _init_git_repo(tmp_path)
         shutil.copy(MAIN_PY, tmp_path / "main.py")
 
@@ -174,14 +178,17 @@ class TestWorktreeAuditIsolated:
         worker_dir.mkdir(parents=True)
         r = subprocess.run(
             ["git", "-C", str(tmp_path), "worktree", "add", "--detach", str(worker_dir)],
-            capture_output=True, text=True,
+            capture_output=True,
+            text=True,
         )
         if r.returncode != 0:
             pytest.skip(f"Could not create detached worktree: {r.stderr}")
 
         result = subprocess.run(
             [sys.executable, str(tmp_path / "main.py"), "worktree", "audit", "--json"],
-            capture_output=True, text=True, cwd=str(tmp_path),
+            capture_output=True,
+            text=True,
+            cwd=str(tmp_path),
         )
         data = json.loads(result.stdout)
         types = [a["type"] for a in data["anomalies"]]
@@ -191,15 +198,16 @@ class TestWorktreeAuditIsolated:
     def test_fix_removes_stale_lock(self, tmp_path):
         """--fix removes a stale lock and reports it as fixed."""
         import shutil
+
         _init_git_repo(tmp_path)
         shutil.copy(MAIN_PY, tmp_path / "main.py")
 
         worker_dir = tmp_path / ".spiral-workers" / "worker-fix"
         worker_dir.mkdir(parents=True)
         r = subprocess.run(
-            ["git", "-C", str(tmp_path), "worktree", "add",
-             str(worker_dir), "-b", "fix-test-branch"],
-            capture_output=True, text=True,
+            ["git", "-C", str(tmp_path), "worktree", "add", str(worker_dir), "-b", "fix-test-branch"],
+            capture_output=True,
+            text=True,
         )
         if r.returncode != 0:
             pytest.skip(f"Could not create worker worktree: {r.stderr}")
@@ -207,7 +215,7 @@ class TestWorktreeAuditIsolated:
         git_ptr = worker_dir / ".git"
         git_dir_line = git_ptr.read_text().strip()
         if git_dir_line.startswith("gitdir:"):
-            git_dir = Path(git_dir_line[len("gitdir:"):].strip())
+            git_dir = Path(git_dir_line[len("gitdir:") :].strip())
             if not git_dir.is_absolute():
                 git_dir = worker_dir / git_dir
         else:
@@ -222,9 +230,10 @@ class TestWorktreeAuditIsolated:
         os.utime(str(lock_file), (old_time, old_time))
 
         result = subprocess.run(
-            [sys.executable, str(tmp_path / "main.py"),
-             "worktree", "audit", "--json", "--fix"],
-            capture_output=True, text=True, cwd=str(tmp_path),
+            [sys.executable, str(tmp_path / "main.py"), "worktree", "audit", "--json", "--fix"],
+            capture_output=True,
+            text=True,
+            cwd=str(tmp_path),
         )
         data = json.loads(result.stdout)
         assert data.get("fixed", 0) >= 1, f"Expected fixed>=1, got: {data}"

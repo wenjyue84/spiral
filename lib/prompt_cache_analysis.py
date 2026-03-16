@@ -5,6 +5,7 @@ Analyzes results.tsv rows to compute prompt cache hit rates and diagnose
 low hit rates caused by prompt structure changes (dynamic values in
 system prompt busting the cache prefix).
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -43,12 +44,8 @@ def analyze_cache_hit_rate(rows: list[dict[str, Any]]) -> dict[str, Any]:
     total = len(rows)
     hits = sum(1 for r in rows if str(r.get("cache_hit", "false")).lower() == "true")
     misses = total - hits
-    cache_read_tokens = sum(
-        int(r.get("cache_read_tokens", 0) or 0) for r in rows
-    )
-    cache_creation_tokens = sum(
-        int(r.get("cache_creation_tokens", 0) or 0) for r in rows
-    )
+    cache_read_tokens = sum(int(r.get("cache_read_tokens", 0) or 0) for r in rows)
+    cache_creation_tokens = sum(int(r.get("cache_creation_tokens", 0) or 0) for r in rows)
     hit_rate = (hits / total) * 100 if total > 0 else 0.0
     healthy = hit_rate >= 50.0 or total == 0
 
@@ -100,9 +97,7 @@ def per_story_cache_ratio(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if sid not in stories:
             stories[sid] = {"cache_read": 0, "cache_creation": 0}
         stories[sid]["cache_read"] += int(r.get("cache_read_tokens", 0) or 0)
-        stories[sid]["cache_creation"] += int(
-            r.get("cache_creation_tokens", 0) or 0
-        )
+        stories[sid]["cache_creation"] += int(r.get("cache_creation_tokens", 0) or 0)
 
     result = []
     for sid, vals in stories.items():
@@ -111,12 +106,14 @@ def per_story_cache_ratio(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             ratio = (vals["cache_read"] / denominator) * 100
         else:
             ratio = 0.0
-        result.append({
-            "story_id": sid,
-            "cache_read_tokens": vals["cache_read"],
-            "cache_creation_tokens": vals["cache_creation"],
-            "cache_ratio_pct": round(ratio, 1),
-        })
+        result.append(
+            {
+                "story_id": sid,
+                "cache_read_tokens": vals["cache_read"],
+                "cache_creation_tokens": vals["cache_creation"],
+                "cache_ratio_pct": round(ratio, 1),
+            }
+        )
 
     def _sort_key(entry: dict[str, Any]) -> float:
         val = entry["cache_ratio_pct"]

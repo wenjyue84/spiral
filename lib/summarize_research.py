@@ -24,6 +24,7 @@ Exit codes:
   1 — error (bad input / missing file)
   2 — over threshold (--check-only mode)
 """
+
 from __future__ import annotations
 
 import argparse
@@ -32,13 +33,14 @@ import os
 import sys
 from typing import Any
 
-
 # ---------------------------------------------------------------------------
 # Token counting (reuses pattern from truncate_context.py)
 # ---------------------------------------------------------------------------
 
+
 def _count_tokens_tiktoken(text: str) -> int:
     import tiktoken  # type: ignore[import-untyped,unused-ignore]
+
     enc = tiktoken.get_encoding("cl100k_base")
     return len(enc.encode(text))
 
@@ -59,11 +61,19 @@ def count_tokens(text: str) -> int:
 # ---------------------------------------------------------------------------
 
 # Fields that must be preserved verbatim in every story.
-PRESERVE_FIELDS: frozenset[str] = frozenset([
-    "id", "title", "acceptanceCriteria", "technicalNotes",
-    "source", "dependencies", "priority", "estimatedComplexity",
-    "_source",
-])
+PRESERVE_FIELDS: frozenset[str] = frozenset(
+    [
+        "id",
+        "title",
+        "acceptanceCriteria",
+        "technicalNotes",
+        "source",
+        "dependencies",
+        "priority",
+        "estimatedComplexity",
+        "_source",
+    ]
+)
 
 # Fields whose text content can be compressed.
 COMPRESSIBLE_FIELDS: list[str] = ["description"]
@@ -133,10 +143,9 @@ def summarize_research(
 # CLI
 # ---------------------------------------------------------------------------
 
+
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Hierarchical summarization for Phase R research output"
-    )
+    parser = argparse.ArgumentParser(description="Hierarchical summarization for Phase R research output")
     parser.add_argument("--input", required=True, help="Path to _research_output.json")
     parser.add_argument("--output", help="Path to write summarized JSON (default: stdout)")
     parser.add_argument(
@@ -165,9 +174,7 @@ def main() -> None:
     if args.check_only:
         sys.exit(2 if original_tokens > args.threshold else 0)
 
-    output, orig_tok, final_tok, was_summarized = summarize_research(
-        data, args.threshold
-    )
+    output, orig_tok, final_tok, was_summarized = summarize_research(data, args.threshold)
 
     if was_summarized:
         reduction_pct = round((1 - final_tok / orig_tok) * 100) if orig_tok > 0 else 0

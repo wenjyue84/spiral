@@ -16,6 +16,7 @@ The batch_id is recorded in each story's ``_batch_id`` field and in the
 
 Exit code: 0 always (validation failures are non-fatal; use --min-overlap 0 to accept all).
 """
+
 import argparse
 import json
 import os
@@ -26,26 +27,78 @@ from pydantic import ValidationError
 
 sys.path.insert(0, os.path.dirname(__file__))
 from spiral_io import atomic_write_json, configure_utf8_stdout
+
 configure_utf8_stdout()
 
 # Common English stopwords to exclude from keyword comparison
 _STOPWORDS = {
-    "the", "and", "for", "are", "was", "this", "with", "from", "that",
-    "not", "all", "can", "but", "has", "new", "add", "run", "use",
-    "set", "get", "put", "may", "via", "its", "also", "any", "each",
-    "when", "have", "been", "will", "into", "only", "more", "such",
-    "than", "then", "they", "their", "them", "what", "where", "which",
-    "who", "how", "per", "non", "now", "one", "two", "should", "would",
-    "could", "must", "does", "did", "out", "too", "end", "log", "key",
+    "the",
+    "and",
+    "for",
+    "are",
+    "was",
+    "this",
+    "with",
+    "from",
+    "that",
+    "not",
+    "all",
+    "can",
+    "but",
+    "has",
+    "new",
+    "add",
+    "run",
+    "use",
+    "set",
+    "get",
+    "put",
+    "may",
+    "via",
+    "its",
+    "also",
+    "any",
+    "each",
+    "when",
+    "have",
+    "been",
+    "will",
+    "into",
+    "only",
+    "more",
+    "such",
+    "than",
+    "then",
+    "they",
+    "their",
+    "them",
+    "what",
+    "where",
+    "which",
+    "who",
+    "how",
+    "per",
+    "non",
+    "now",
+    "one",
+    "two",
+    "should",
+    "would",
+    "could",
+    "must",
+    "does",
+    "did",
+    "out",
+    "too",
+    "end",
+    "log",
+    "key",
 }
 
 
 def _normalize(text: str) -> set[str]:
     """Extract lowercase alpha-numeric tokens >= 3 chars, excluding stopwords."""
-    return {
-        w for w in re.findall(r"[a-z0-9]+", text.lower())
-        if len(w) >= 3 and w not in _STOPWORDS
-    }
+    return {w for w in re.findall(r"[a-z0-9]+", text.lower()) if len(w) >= 3 and w not in _STOPWORDS}
 
 
 def _goal_keywords(goals: list[str]) -> set[str]:
@@ -98,7 +151,7 @@ def _load_constitution_forbidden(path: str) -> list[str]:
                 line = line.strip()
                 for prefix in ("NOT:", "NEVER:", "AVOID:", "FORBIDDEN:"):
                     if line.upper().startswith(prefix):
-                        phrase = line[len(prefix):].strip().lower()
+                        phrase = line[len(prefix) :].strip().lower()
                         if phrase:
                             forbidden.append(phrase)
                         break
@@ -149,9 +202,7 @@ def _validate_via_batch_api(
     if len(all_candidates) == 1:
         # --- Synchronous fallback for single story ---
         story = all_candidates[0]
-        ok, reason = _bv.validate_story_sync(
-            story, goal_text, forbidden_phrases, api_key, base_url
-        )
+        ok, reason = _bv.validate_story_sync(story, goal_text, forbidden_phrases, api_key, base_url)
         if ok:
             accepted.append(story)
         else:
@@ -162,8 +213,7 @@ def _validate_via_batch_api(
         # Split into chunks when batch_size is set
         chunk_size = batch_size if batch_size > 0 else len(all_candidates)
         chunks: list[list[dict]] = [
-            all_candidates[i: i + chunk_size]
-            for i in range(0, len(all_candidates), chunk_size)
+            all_candidates[i : i + chunk_size] for i in range(0, len(all_candidates), chunk_size)
         ]
         print(
             f"  [S] Submitting {len(all_candidates)} stories to Message Batches API"
@@ -321,9 +371,7 @@ def validate_stories(
             )
             use_batch_api = False
         else:
-            _base = batch_base_url or os.environ.get(
-                "SPIRAL_BATCH_API_URL", "https://api.anthropic.com"
-            )
+            _base = batch_base_url or os.environ.get("SPIRAL_BATCH_API_URL", "https://api.anthropic.com")
             try:
                 # Filter candidates that need LLM validation (research / ai-example)
                 # test-fix and test-story are auto-approved (same as keyword path)
@@ -359,8 +407,7 @@ def validate_stories(
                 return accepted, rejected
             except Exception as exc:  # noqa: BLE001
                 print(
-                    f"  [S] WARNING: Batch API validation failed ({exc})"
-                    " — falling back to keyword validation",
+                    f"  [S] WARNING: Batch API validation failed ({exc}) — falling back to keyword validation",
                     file=sys.stderr,
                 )
                 # Reset and fall through to keyword path
@@ -387,17 +434,13 @@ def validate_stories(
         # Skipped for: test-fix, test-story (auto-approved; constitution still runs)
         # Applied for: research, ai-example (must connect to project goals)
         _src = story.get("_source", "research")
-        _skip_alignment = (
-            story.get("_isTestFix")
-            or _src in ("test-fix", "test-story")
-        )
+        _skip_alignment = story.get("_isTestFix") or _src in ("test-fix", "test-story")
         if rejection_reason is None and gkw and min_overlap > 0 and not _skip_alignment:
             skw = _story_keywords(story)
             overlap = len(gkw & skw)
             if overlap < min_overlap:
                 rejection_reason = (
-                    f"No connection to project goals "
-                    f"(keyword overlap={overlap}, required>={min_overlap})"
+                    f"No connection to project goals (keyword overlap={overlap}, required>={min_overlap})"
                 )
 
         if rejection_reason:
@@ -414,22 +457,12 @@ def validate_stories(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Phase S: validate story candidates against project goals"
-    )
+    parser = argparse.ArgumentParser(description="Phase S: validate story candidates against project goals")
     parser.add_argument("--prd", required=True, help="Path to prd.json")
-    parser.add_argument(
-        "--research", required=True, help="Path to _research_output.json"
-    )
-    parser.add_argument(
-        "--test-stories", required=True, help="Path to _test_stories_output.json"
-    )
-    parser.add_argument(
-        "--validated-out", required=True, help="Output: _validated_stories.json"
-    )
-    parser.add_argument(
-        "--rejected-out", required=True, help="Output: _story_rejected.json"
-    )
+    parser.add_argument("--research", required=True, help="Path to _research_output.json")
+    parser.add_argument("--test-stories", required=True, help="Path to _test_stories_output.json")
+    parser.add_argument("--validated-out", required=True, help="Output: _validated_stories.json")
+    parser.add_argument("--rejected-out", required=True, help="Output: _story_rejected.json")
     parser.add_argument(
         "--constitution",
         default="",
@@ -483,9 +516,7 @@ def main() -> int:
     args = parser.parse_args()
 
     # --batch-size from env var fallback
-    batch_size: int = args.batch_size or int(
-        os.environ.get("SPIRAL_STORY_BATCH_SIZE", "0") or "0"
-    )
+    batch_size: int = args.batch_size or int(os.environ.get("SPIRAL_STORY_BATCH_SIZE", "0") or "0")
 
     # --batch-api can also be enabled via env var SPIRAL_BATCH_VALIDATE=1
     # or auto-triggered when batch_size > 1 and ANTHROPIC_API_KEY is set
@@ -513,10 +544,7 @@ def main() -> int:
 
     total = len(accepted) + len(rejected)
     rate = (len(accepted) / total * 100) if total > 0 else 100.0
-    print(
-        f"  [S] Validated {total} stories: "
-        f"{len(accepted)} accepted ({rate:.0f}%), {len(rejected)} rejected"
-    )
+    print(f"  [S] Validated {total} stories: {len(accepted)} accepted ({rate:.0f}%), {len(rejected)} rejected")
 
     # Source breakdown
     src_stats: dict[str, list[int]] = {}  # source -> [accepted_count, total_count]
@@ -530,10 +558,7 @@ def main() -> int:
         src_stats.setdefault(src, [0, 0])
         src_stats[src][1] += 1
     if src_stats:
-        parts = " | ".join(
-            f"{src}={counts[0]} accepted/{counts[1]}"
-            for src, counts in src_stats.items()
-        )
+        parts = " | ".join(f"{src}={counts[0]} accepted/{counts[1]}" for src, counts in src_stats.items())
         print(f"  [S] Source breakdown: {parts}")
 
     return 0

@@ -1,12 +1,12 @@
 """Tests for lib/migrate_prd.py migration logic."""
+
 import json
 import os
-import sys
 import subprocess
-import pytest
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
-from migrate_prd import migrate_prd, CURRENT_SCHEMA_VERSION
+from migrate_prd import CURRENT_SCHEMA_VERSION, migrate_prd
 
 
 class TestMigratePrdFunction:
@@ -19,8 +19,14 @@ class TestMigratePrdFunction:
             "productName": "Test",
             "branchName": "main",
             "userStories": [
-                {"id": "US-001", "title": "T", "passes": False, "priority": "high",
-                 "acceptanceCriteria": ["x"], "dependencies": []}
+                {
+                    "id": "US-001",
+                    "title": "T",
+                    "passes": False,
+                    "priority": "high",
+                    "acceptanceCriteria": ["x"],
+                    "dependencies": [],
+                }
             ],
         }
         result, changes = migrate_prd(prd)
@@ -33,8 +39,14 @@ class TestMigratePrdFunction:
             "productName": "Test",
             "branchName": "main",
             "userStories": [
-                {"id": "US-001", "title": "T", "passes": False, "priority": "high",
-                 "acceptanceCriteria": ["x"], "dependencies": []}
+                {
+                    "id": "US-001",
+                    "title": "T",
+                    "passes": False,
+                    "priority": "high",
+                    "acceptanceCriteria": ["x"],
+                    "dependencies": [],
+                }
             ],
         }
         result, changes = migrate_prd(prd)
@@ -47,10 +59,15 @@ class TestMigratePrdFunction:
             "productName": "Test",
             "branchName": "main",
             "userStories": [
-                {"id": "US-001", "title": "T", "passes": False, "priority": "high",
-                 "acceptanceCriteria": ["x"]},
-                {"id": "US-002", "title": "T2", "passes": False, "priority": "low",
-                 "acceptanceCriteria": ["y"], "dependencies": ["US-001"]},
+                {"id": "US-001", "title": "T", "passes": False, "priority": "high", "acceptanceCriteria": ["x"]},
+                {
+                    "id": "US-002",
+                    "title": "T2",
+                    "passes": False,
+                    "priority": "low",
+                    "acceptanceCriteria": ["y"],
+                    "dependencies": ["US-001"],
+                },
             ],
         }
         result, changes = migrate_prd(prd)
@@ -64,8 +81,7 @@ class TestMigratePrdFunction:
             "productName": "Test",
             "branchName": "main",
             "userStories": [
-                {"id": "US-001", "title": "T", "passes": False, "priority": "high",
-                 "acceptanceCriteria": ["x"]},
+                {"id": "US-001", "title": "T", "passes": False, "priority": "high", "acceptanceCriteria": ["x"]},
             ],
         }
         result1, changes1 = migrate_prd(prd)
@@ -96,13 +112,15 @@ class TestMigratePrdCli:
     """Integration tests for migrate_prd.py CLI."""
 
     def _run(self, prd_path, *extra_args):
-        cmd = [sys.executable, os.path.join(os.path.dirname(__file__), "..", "lib", "migrate_prd.py"),
-               str(prd_path)] + list(extra_args)
+        cmd = [
+            sys.executable,
+            os.path.join(os.path.dirname(__file__), "..", "lib", "migrate_prd.py"),
+            str(prd_path),
+        ] + list(extra_args)
         return subprocess.run(cmd, capture_output=True, text=True)
 
     def test_check_current_returns_0(self, tmp_path):
-        prd = {"schemaVersion": CURRENT_SCHEMA_VERSION, "productName": "X",
-               "branchName": "m", "userStories": []}
+        prd = {"schemaVersion": CURRENT_SCHEMA_VERSION, "productName": "X", "branchName": "m", "userStories": []}
         p = tmp_path / "prd.json"
         p.write_text(json.dumps(prd), encoding="utf-8")
         result = self._run(p, "--check")
@@ -125,10 +143,13 @@ class TestMigratePrdCli:
         assert p.read_text(encoding="utf-8") == original
 
     def test_migrate_writes_schema_version(self, tmp_path):
-        prd = {"productName": "X", "branchName": "m", "userStories": [
-            {"id": "US-001", "title": "T", "passes": False, "priority": "high",
-             "acceptanceCriteria": ["x"]}
-        ]}
+        prd = {
+            "productName": "X",
+            "branchName": "m",
+            "userStories": [
+                {"id": "US-001", "title": "T", "passes": False, "priority": "high", "acceptanceCriteria": ["x"]}
+            ],
+        }
         p = tmp_path / "prd.json"
         p.write_text(json.dumps(prd), encoding="utf-8")
         result = self._run(p)

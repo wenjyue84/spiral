@@ -13,6 +13,7 @@ Query modes (exit after printing):
   --list-waves     Print total number of topological levels
   --wave-level N   Only partition stories at topological level N
 """
+
 import argparse
 import json
 import os
@@ -81,7 +82,7 @@ def assign_stories(pending: list[dict], n_workers: int) -> list[list[dict]]:
     pending_sorted = sorted(pending, key=priority_key)
 
     buckets: list[list[dict]] = [[] for _ in range(n_workers)]
-    assignments: dict[str, int] = {}   # story_id → bucket index
+    assignments: dict[str, int] = {}  # story_id → bucket index
     file_to_worker: dict[str, int] = {}  # file_path → bucket index
 
     for story in pending_sorted:
@@ -124,12 +125,17 @@ def main() -> int:
     parser.add_argument("--outdir", default="", help="Output directory for worker prd files")
 
     # Query modes
-    parser.add_argument("--wave-count", type=int, default=None, metavar="N",
-                        help="Print number of pending stories at topological level N, then exit")
-    parser.add_argument("--list-waves", action="store_true",
-                        help="Print total number of topological levels, then exit")
-    parser.add_argument("--wave-level", type=int, default=None, metavar="N",
-                        help="Only partition stories at topological level N")
+    parser.add_argument(
+        "--wave-count",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Print number of pending stories at topological level N, then exit",
+    )
+    parser.add_argument("--list-waves", action="store_true", help="Print total number of topological levels, then exit")
+    parser.add_argument(
+        "--wave-level", type=int, default=None, metavar="N", help="Only partition stories at topological level N"
+    )
 
     args = parser.parse_args()
 
@@ -217,15 +223,9 @@ def main() -> int:
             p = s.get("priority", "medium")
             priority_counts[p] = priority_counts.get(p, 0) + 1
         pcount_str = " ".join(
-            f"{p}:{c}"
-            for p, c in sorted(
-                priority_counts.items(), key=lambda kv: PRIORITY_RANK.get(kv[0], 2)
-            )
+            f"{p}:{c}" for p, c in sorted(priority_counts.items(), key=lambda kv: PRIORITY_RANK.get(kv[0], 2))
         )
-        print(
-            f"[partition] Worker {worker_num}: {len(bucket)} stories "
-            f"[{id_list}] ({pcount_str}) → {out_path}"
-        )
+        print(f"[partition] Worker {worker_num}: {len(bucket)} stories [{id_list}] ({pcount_str}) → {out_path}")
 
     return 0
 

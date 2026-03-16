@@ -9,12 +9,14 @@ Thresholds:
   independence_ratio >= 0.3 → 2 workers
   else                      → 1 worker
 """
+
 import json
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
 from spiral_io import configure_utf8_stdout
+
 configure_utf8_stdout()
 
 
@@ -27,14 +29,8 @@ def recommend_workers(stories: list[dict]) -> tuple[int, int, int]:
     Returns:
         (recommended_workers, independent_count, pending_count)
     """
-    passed_ids = {
-        s["id"] for s in stories
-        if isinstance(s, dict) and s.get("passes") is True
-    }
-    pending = [
-        s for s in stories
-        if isinstance(s, dict) and s.get("passes") is not True and "id" in s
-    ]
+    passed_ids = {s["id"] for s in stories if isinstance(s, dict) and s.get("passes") is True}
+    pending = [s for s in stories if isinstance(s, dict) and s.get("passes") is not True and "id" in s]
     pending_count = len(pending)
 
     if pending_count == 0:
@@ -63,9 +59,7 @@ def recommend_workers(stories: list[dict]) -> tuple[int, int, int]:
 def main() -> int:
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Recommend worker count based on story independence"
-    )
+    parser = argparse.ArgumentParser(description="Recommend worker count based on story independence")
     parser.add_argument("prd", help="Path to prd.json")
     args = parser.parse_args()
 
@@ -83,10 +77,7 @@ def main() -> int:
     stories = prd.get("userStories", [])
     recommended, independent, pending = recommend_workers(stories)
 
-    print(
-        f"[workers] {independent} of {pending} pending stories are independent"
-        f" — recommending {recommended} workers"
-    )
+    print(f"[workers] {independent} of {pending} pending stories are independent — recommending {recommended} workers")
     # Output just the number on the last line for shell parsing
     print(recommended)
     return 0

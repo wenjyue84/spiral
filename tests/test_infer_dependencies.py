@@ -1,9 +1,8 @@
 """Unit tests for lib/infer_dependencies.py — story dependency auto-inference."""
+
 import json
 import os
 import sys
-
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 from infer_dependencies import (
@@ -13,7 +12,6 @@ from infer_dependencies import (
     jaccard,
     main,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -197,9 +195,7 @@ class TestApplyStrongDeps:
         assert skipped == 0
         # One of the two should have a dep on the other
         sm = {s["id"]: s for s in prd["userStories"]}
-        has_edge = "US-002" in sm["US-001"].get(
-            "dependencies", []
-        ) or "US-001" in sm["US-002"].get("dependencies", [])
+        has_edge = "US-002" in sm["US-001"].get("dependencies", []) or "US-001" in sm["US-002"].get("dependencies", [])
         assert has_edge
 
     def test_skips_existing_dep(self):
@@ -284,9 +280,7 @@ class TestMain:
         assert main() == 0
         prd = json.loads(open(prd_path).read())
         sm = {s["id"]: s for s in prd["userStories"]}
-        has_edge = "US-002" in sm["US-001"].get(
-            "dependencies", []
-        ) or "US-001" in sm["US-002"].get("dependencies", [])
+        has_edge = "US-002" in sm["US-001"].get("dependencies", []) or "US-001" in sm["US-002"].get("dependencies", [])
         assert has_edge
 
     def test_auto_infer_false_does_not_write(self, tmp_path, monkeypatch):

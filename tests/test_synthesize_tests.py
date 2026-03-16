@@ -1,20 +1,21 @@
 """Unit tests for synthesize_tests.py — report parsing and priority mapping."""
+
 import json
 import os
 import sys
+
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 from synthesize_tests import (
-    find_recent_reports,
-    normalize,
-    overlap_ratio,
-    is_duplicate,
     PRIORITY_MAP,
     aggregate_failures,
+    find_recent_reports,
+    is_duplicate,
+    normalize,
+    overlap_ratio,
     result_to_story,
 )
-
 
 # ── find_recent_reports ──────────────────────────────────────────────────
 
@@ -132,8 +133,14 @@ class TestPriorityMap:
     def test_all_known_categories_covered(self):
         """Ensure every key in PRIORITY_MAP is tested by the parametrized test above."""
         expected_keys = {
-            "smoke", "security", "regression", "api_contract",
-            "integration", "unit", "edge_cases", "performance",
+            "smoke",
+            "security",
+            "regression",
+            "api_contract",
+            "integration",
+            "unit",
+            "edge_cases",
+            "performance",
         }
         assert set(PRIORITY_MAP.keys()) == expected_keys
 
@@ -190,9 +197,7 @@ class TestAggregateFailures:
         run = tmp_path / name
         run.mkdir(parents=True, exist_ok=True)
         report = {"all_results": results}
-        (run / "report.json").write_text(
-            json.dumps(report), encoding="utf-8"
-        )
+        (run / "report.json").write_text(json.dumps(report), encoding="utf-8")
         return str(run / "report.json")
 
     def test_empty_report_list(self):
@@ -201,22 +206,34 @@ class TestAggregateFailures:
         assert names == []
 
     def test_single_failure(self, tmp_path):
-        path = self._make_report(tmp_path, "run-001", [
-            {"id": "test.foo", "status": "FAIL", "name": "test_foo"},
-        ])
+        path = self._make_report(
+            tmp_path,
+            "run-001",
+            [
+                {"id": "test.foo", "status": "FAIL", "name": "test_foo"},
+            ],
+        )
         failures, names = aggregate_failures([path])
         assert len(failures) == 1
         assert failures[0]["id"] == "test.foo"
 
     def test_dedup_across_reports(self, tmp_path):
         """Same test ID failing in two reports should only appear once."""
-        p1 = self._make_report(tmp_path, "run-001", [
-            {"id": "test.foo", "status": "FAIL", "name": "test_foo"},
-        ])
-        p2 = self._make_report(tmp_path, "run-002", [
-            {"id": "test.foo", "status": "FAIL", "name": "test_foo"},
-            {"id": "test.bar", "status": "ERROR", "name": "test_bar"},
-        ])
+        p1 = self._make_report(
+            tmp_path,
+            "run-001",
+            [
+                {"id": "test.foo", "status": "FAIL", "name": "test_foo"},
+            ],
+        )
+        p2 = self._make_report(
+            tmp_path,
+            "run-002",
+            [
+                {"id": "test.foo", "status": "FAIL", "name": "test_foo"},
+                {"id": "test.bar", "status": "ERROR", "name": "test_bar"},
+            ],
+        )
         failures, names = aggregate_failures([p1, p2])
         ids = [f["id"] for f in failures]
         assert ids.count("test.foo") == 1
@@ -224,10 +241,14 @@ class TestAggregateFailures:
         assert len(failures) == 2
 
     def test_passing_tests_ignored(self, tmp_path):
-        path = self._make_report(tmp_path, "run-001", [
-            {"id": "test.pass", "status": "PASS", "name": "test_pass"},
-            {"id": "test.fail", "status": "FAIL", "name": "test_fail"},
-        ])
+        path = self._make_report(
+            tmp_path,
+            "run-001",
+            [
+                {"id": "test.pass", "status": "PASS", "name": "test_pass"},
+                {"id": "test.fail", "status": "FAIL", "name": "test_fail"},
+            ],
+        )
         failures, _ = aggregate_failures([path])
         assert len(failures) == 1
         assert failures[0]["id"] == "test.fail"

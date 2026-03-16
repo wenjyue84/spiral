@@ -1,4 +1,5 @@
 """Tests for lib/txn_journal.py — write-ahead transaction journal."""
+
 import json
 import os
 import sys
@@ -8,8 +9,8 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 from txn_journal import TxnJournal
 
-
 # ── Helpers ──────────────────────────────────────────────────────────────────
+
 
 def _write_json(path, data):
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
@@ -23,6 +24,7 @@ def _read_json(path):
 
 
 # ── Tests ────────────────────────────────────────────────────────────────────
+
 
 def test_committed_transaction_writes_both_files(tmp_path):
     """A successful transaction writes both files and marks committed."""

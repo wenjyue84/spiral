@@ -22,6 +22,7 @@ As module:
   issues = check_encoding(prd_path)  # list of dicts
   clean  = sanitize_prd(prd_path)    # rewrites in-place, returns True on change
 """
+
 import json
 import os
 import re
@@ -40,6 +41,7 @@ _CTRL_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
 # ---------------------------------------------------------------------------
 # Core helpers
 # ---------------------------------------------------------------------------
+
 
 def _walk_strings(obj: Any, path: str = "") -> Generator[tuple[str, str], None, None]:
     """Yield (path, value) for every string in the JSON tree."""
@@ -73,10 +75,7 @@ def check_encoding(prd_path: str) -> list[dict]:
     try:
         text = raw.decode("utf-8")
     except UnicodeDecodeError as exc:
-        raise ValueError(
-            f"prd.json is not valid UTF-8 at byte offset {exc.start}: "
-            f"0x{raw[exc.start]:02x}"
-        ) from exc
+        raise ValueError(f"prd.json is not valid UTF-8 at byte offset {exc.start}: 0x{raw[exc.start]:02x}") from exc
 
     # 2. JSON parsability
     try:
@@ -88,11 +87,13 @@ def check_encoding(prd_path: str) -> list[dict]:
     issues: list[dict] = []
     for path, value in _walk_strings(data):
         for m in _CTRL_RE.finditer(value):
-            issues.append({
-                "path": path,
-                "char": f"0x{ord(m.group()):02x}",
-                "pos": m.start(),
-            })
+            issues.append(
+                {
+                    "path": path,
+                    "char": f"0x{ord(m.group()):02x}",
+                    "pos": m.start(),
+                }
+            )
     return issues
 
 
@@ -132,12 +133,11 @@ def sanitize_prd(prd_path: str) -> bool:
 # CLI entry point
 # ---------------------------------------------------------------------------
 
+
 def main() -> int:
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Check prd.json for non-UTF-8 bytes and control characters."
-    )
+    parser = argparse.ArgumentParser(description="Check prd.json for non-UTF-8 bytes and control characters.")
     parser.add_argument("prd_file", help="Path to prd.json")
     parser.add_argument(
         "--sanitize",

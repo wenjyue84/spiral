@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Tests for lib/llm_models.py — Pydantic v2 models for LLM JSON outputs (US-203)."""
+
 import json
 import os
 import sys
@@ -14,14 +15,10 @@ from llm_models import (
     DecompositionResult,
     ResearchOutput,
     RouteStoriesResult,
-    StoryCandidate,
-    SubStory,
-    FailingTestStory,
     TestSynthesisReport,
     log_validation_error,
     validate_llm_json,
 )
-
 
 # ── DecompositionResult ──────────────────────────────────────────────────────
 
@@ -195,11 +192,7 @@ class TestTestSynthesisReport:
         assert result.stories[0].estimatedComplexity == "small"
 
     def test_extra_source_field(self):
-        data = {
-            "stories": [
-                {"title": "Fix test", "_source": "test-synthesis:test_foo"}
-            ]
-        }
+        data = {"stories": [{"title": "Fix test", "_source": "test-synthesis:test_foo"}]}
         result = TestSynthesisReport.model_validate(data)
         assert len(result.stories) == 1
 

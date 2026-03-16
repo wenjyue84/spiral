@@ -1,18 +1,18 @@
 """Tests for lib/check_prd_encoding.py — UTF-8 and control character validation."""
+
 import json
 import os
 import sys
-import tempfile
 
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 from check_prd_encoding import check_encoding, sanitize_prd  # noqa: E402
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _write_json(tmp_path, data) -> str:
     p = os.path.join(tmp_path, "prd.json")
@@ -47,6 +47,7 @@ def _minimal_prd() -> dict:
 # check_encoding: valid files
 # ---------------------------------------------------------------------------
 
+
 class TestCheckEncodingValid:
     def test_clean_file_returns_empty_list(self, tmp_path):
         path = _write_json(str(tmp_path), _minimal_prd())
@@ -71,6 +72,7 @@ class TestCheckEncodingValid:
 # ---------------------------------------------------------------------------
 # check_encoding: invalid files
 # ---------------------------------------------------------------------------
+
 
 class TestCheckEncodingInvalid:
     def test_null_byte_in_description_detected(self, tmp_path):
@@ -131,6 +133,7 @@ class TestCheckEncodingInvalid:
 # ---------------------------------------------------------------------------
 # sanitize_prd
 # ---------------------------------------------------------------------------
+
 
 class TestSanitizePrd:
     def test_strips_null_byte_from_description(self, tmp_path):

@@ -11,6 +11,7 @@ Priority order (highest to lowest):
   go.mod                     → Go
   Makefile                   → Make (generic fallback)
 """
+
 from __future__ import annotations
 
 import json
@@ -148,6 +149,7 @@ def format_summary(result: StackResult) -> str:
 # CLI entry point — callable from bash:
 #   python lib/detect_stack.py [--root PATH] [--cache-dir DIR] [--json]
 # ---------------------------------------------------------------------------
+
 
 def _cli() -> None:
     import argparse

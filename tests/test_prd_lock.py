@@ -1,11 +1,12 @@
 """Tests for lib/prd_lock.py — exclusive prd.json write lock."""
+
 import errno
 import json
 import os
 import sys
 import threading
 import time
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -16,23 +17,40 @@ from prd_lock import (
     _is_retryable_error,
     _read_lock_pid,
     _retry_io,
-    _write_lock_pid,
     prd_locked,
 )
 
-
 # ── Helpers ──────────────────────────────────────────────────────────────────
+
 
 def _make_prd(tmp_path, stories=None):
     """Write a minimal valid prd.json and return its path."""
     if stories is None:
         stories = [
-            {"id": "US-001", "title": "A", "passes": False, "priority": "high",
-             "acceptanceCriteria": ["x"], "dependencies": []},
-            {"id": "US-002", "title": "B", "passes": False, "priority": "high",
-             "acceptanceCriteria": ["x"], "dependencies": []},
-            {"id": "US-003", "title": "C", "passes": False, "priority": "high",
-             "acceptanceCriteria": ["x"], "dependencies": []},
+            {
+                "id": "US-001",
+                "title": "A",
+                "passes": False,
+                "priority": "high",
+                "acceptanceCriteria": ["x"],
+                "dependencies": [],
+            },
+            {
+                "id": "US-002",
+                "title": "B",
+                "passes": False,
+                "priority": "high",
+                "acceptanceCriteria": ["x"],
+                "dependencies": [],
+            },
+            {
+                "id": "US-003",
+                "title": "C",
+                "passes": False,
+                "priority": "high",
+                "acceptanceCriteria": ["x"],
+                "dependencies": [],
+            },
         ]
     prd = {"productName": "Test", "branchName": "main", "userStories": stories}
     path = str(tmp_path / "prd.json")
@@ -42,6 +60,7 @@ def _make_prd(tmp_path, stories=None):
 
 
 # ── Basic functionality ──────────────────────────────────────────────────────
+
 
 def test_read_and_write_back(tmp_path):
     """Lock, mutate, release — file should reflect the mutation."""
@@ -62,7 +81,7 @@ def test_no_mutation_still_writes(tmp_path):
     mtime_before = os.path.getmtime(path)
     time.sleep(0.05)
 
-    with prd_locked(path) as prd:
+    with prd_locked(path) as _prd:
         pass  # no changes
 
     mtime_after = os.path.getmtime(path)
@@ -97,6 +116,7 @@ def test_exception_inside_context_does_not_write(tmp_path):
 
 # ── Timeout behaviour ────────────────────────────────────────────────────────
 
+
 def test_timeout_raises_clear_error(tmp_path):
     """If the lock is held, a second caller times out with PrdLockTimeout."""
     path = _make_prd(tmp_path)
@@ -107,9 +127,11 @@ def test_timeout_raises_clear_error(tmp_path):
     try:
         if sys.platform == "win32":
             import msvcrt
+
             msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
         else:
             import fcntl
+
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
 
         with pytest.raises(PrdLockTimeout, match="Could not acquire"):
@@ -118,6 +140,7 @@ def test_timeout_raises_clear_error(tmp_path):
     finally:
         if sys.platform == "win32":
             import msvcrt
+
             try:
                 os.lseek(fd, 0, os.SEEK_SET)
                 msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
@@ -125,11 +148,13 @@ def test_timeout_raises_clear_error(tmp_path):
                 pass
         else:
             import fcntl
+
             fcntl.flock(fd, fcntl.LOCK_UN)
         os.close(fd)
 
 
 # ── Concurrent workers (AC #2) ──────────────────────────────────────────────
+
 
 def test_three_concurrent_workers_all_pass(tmp_path):
     """3 threads each mark a different story passed — all 3 end up True.
@@ -174,8 +199,14 @@ def test_three_concurrent_workers_all_pass(tmp_path):
 def test_five_concurrent_workers(tmp_path):
     """5 threads each mark a different story — stress test variant."""
     stories = [
-        {"id": f"US-{i:03d}", "title": f"S{i}", "passes": False,
-         "priority": "high", "acceptanceCriteria": ["x"], "dependencies": []}
+        {
+            "id": f"US-{i:03d}",
+            "title": f"S{i}",
+            "passes": False,
+            "priority": "high",
+            "acceptanceCriteria": ["x"],
+            "dependencies": [],
+        }
         for i in range(1, 6)
     ]
     path = _make_prd(tmp_path, stories=stories)
@@ -193,10 +224,7 @@ def test_five_concurrent_workers(tmp_path):
         except Exception as exc:
             errors.append(f"{story_id}: {exc}")
 
-    threads = [
-        threading.Thread(target=worker, args=(f"US-{i:03d}",))
-        for i in range(1, 6)
-    ]
+    threads = [threading.Thread(target=worker, args=(f"US-{i:03d}",)) for i in range(1, 6)]
     for t in threads:
         t.start()
     for t in threads:
@@ -212,6 +240,7 @@ def test_five_concurrent_workers(tmp_path):
 
 
 # ── Edge cases ───────────────────────────────────────────────────────────────
+
 
 def test_file_not_found(tmp_path):
     """Lock on a non-existent prd.json raises FileNotFoundError."""
@@ -238,7 +267,7 @@ def test_lock_released_after_exception(tmp_path):
     path = _make_prd(tmp_path)
 
     with pytest.raises(RuntimeError):
-        with prd_locked(path) as prd:
+        with prd_locked(path) as _prd:
             raise RuntimeError("oops")
 
     # Lock should be released — second acquisition succeeds
@@ -247,6 +276,7 @@ def test_lock_released_after_exception(tmp_path):
 
 
 # ── Stale lock detection ─────────────────────────────────────────────────────
+
 
 def test_pid_written_to_lock_file(tmp_path):
     """After acquiring the lock, the current PID is written to the lock file."""
@@ -268,6 +298,7 @@ def test_stale_lock_broken_when_holder_dead(tmp_path):
     fd = os.open(lock_path, os.O_CREAT | os.O_RDWR)
     if sys.platform == "win32":
         import msvcrt
+
         msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
         os.lseek(fd, 1, os.SEEK_SET)
         os.write(fd, str(dead_pid).encode())
@@ -275,6 +306,7 @@ def test_stale_lock_broken_when_holder_dead(tmp_path):
         msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
     else:
         import fcntl
+
         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         os.lseek(fd, 1, os.SEEK_SET)
         os.write(fd, str(dead_pid).encode())
@@ -300,9 +332,11 @@ def test_live_lock_not_broken(tmp_path):
     try:
         if sys.platform == "win32":
             import msvcrt
+
             msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
         else:
             import fcntl
+
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         # Write our PID (alive process)
         os.lseek(fd, 1, os.SEEK_SET)
@@ -314,6 +348,7 @@ def test_live_lock_not_broken(tmp_path):
     finally:
         if sys.platform == "win32":
             import msvcrt
+
             try:
                 os.lseek(fd, 0, os.SEEK_SET)
                 msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
@@ -321,6 +356,7 @@ def test_live_lock_not_broken(tmp_path):
                 pass
         else:
             import fcntl
+
             fcntl.flock(fd, fcntl.LOCK_UN)
         os.close(fd)
 
@@ -335,9 +371,11 @@ def test_empty_lock_file_falls_back_to_timeout(tmp_path):
     try:
         if sys.platform == "win32":
             import msvcrt
+
             msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
         else:
             import fcntl
+
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
 
         with pytest.raises(PrdLockTimeout):
@@ -346,6 +384,7 @@ def test_empty_lock_file_falls_back_to_timeout(tmp_path):
     finally:
         if sys.platform == "win32":
             import msvcrt
+
             try:
                 os.lseek(fd, 0, os.SEEK_SET)
                 msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
@@ -353,6 +392,7 @@ def test_empty_lock_file_falls_back_to_timeout(tmp_path):
                 pass
         else:
             import fcntl
+
             fcntl.flock(fd, fcntl.LOCK_UN)
         os.close(fd)
 
@@ -368,6 +408,7 @@ def test_is_pid_alive_dead_process():
 
 
 # ── _is_retryable_error ───────────────────────────────────────────────────────
+
 
 def test_retryable_permission_error():
     """PermissionError is always retryable."""
@@ -398,6 +439,7 @@ def test_not_retryable_generic_oserror():
 
 
 # ── _retry_io ────────────────────────────────────────────────────────────────
+
 
 def test_retry_io_succeeds_first_attempt():
     """When fn succeeds immediately, the result is returned without retrying."""
@@ -480,6 +522,7 @@ def test_retry_io_logs_to_events_file_on_exhaustion(tmp_path):
 
 def test_retry_io_no_logging_when_events_path_empty():
     """Pass events_path='' — no file is created, error still re-raised."""
+
     def fn():
         raise PermissionError("denied")
 

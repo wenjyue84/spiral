@@ -1,25 +1,22 @@
 """Tests for merge_results_tsv.py — parallel worker results.tsv merging."""
+
 import csv
 import os
 import sys
 
-import pytest
-
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
-from merge_results_tsv import merge, read_tsv, dedup_key, HEADER
+from merge_results_tsv import HEADER, dedup_key, merge, read_tsv
 
 
 def _write_tsv(path: str, rows: list[dict]) -> None:
     """Helper: write a results.tsv file with header + rows."""
     with open(path, "w", encoding="utf-8", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=HEADER, delimiter="\t",
-                                extrasaction="ignore", lineterminator="\n")
+        writer = csv.DictWriter(f, fieldnames=HEADER, delimiter="\t", extrasaction="ignore", lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
 
 
-def _make_row(story_id: str, timestamp: str, status: str = "PASS",
-              **overrides) -> dict:
+def _make_row(story_id: str, timestamp: str, status: str = "PASS", **overrides) -> dict:
     """Helper: create a results row with sensible defaults."""
     row = {
         "timestamp": timestamp,
@@ -65,10 +62,13 @@ class TestMerge:
         """Worker results create main results.tsv from scratch."""
         main_path = str(tmp_path / "results.tsv")
         w1 = str(tmp_path / "w1.tsv")
-        _write_tsv(w1, [
-            _make_row("US-001", "2026-03-13T10:00:00Z"),
-            _make_row("US-002", "2026-03-13T10:05:00Z"),
-        ])
+        _write_tsv(
+            w1,
+            [
+                _make_row("US-001", "2026-03-13T10:00:00Z"),
+                _make_row("US-002", "2026-03-13T10:05:00Z"),
+            ],
+        )
         rc = merge(main_path, [w1])
         assert rc == 0
         result = read_tsv(main_path)
@@ -178,10 +178,13 @@ class TestMerge:
         """Same story_id with different timestamps are both kept (different attempts)."""
         main_path = str(tmp_path / "results.tsv")
         w1 = str(tmp_path / "w1.tsv")
-        _write_tsv(w1, [
-            _make_row("US-001", "2026-03-13T10:00:00Z", status="FAIL"),
-            _make_row("US-001", "2026-03-13T10:05:00Z", status="PASS"),
-        ])
+        _write_tsv(
+            w1,
+            [
+                _make_row("US-001", "2026-03-13T10:00:00Z", status="FAIL"),
+                _make_row("US-001", "2026-03-13T10:05:00Z", status="PASS"),
+            ],
+        )
         rc = merge(main_path, [w1])
         assert rc == 0
         result = read_tsv(main_path)

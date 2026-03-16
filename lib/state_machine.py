@@ -14,21 +14,21 @@ Usage as CLI:
   python lib/state_machine.py validate-stories --prd prd.json
   python lib/state_machine.py validate-stories --prd prd.json --progress progress.txt
 """
+
 import json
 import os
-import re
 import sys
-import tempfile
 from collections import deque
-from typing import Any
 
 sys.path.insert(0, os.path.dirname(__file__))
 from spiral_io import configure_utf8_stdout
+
 configure_utf8_stdout()
 
 
 class InvalidTransition(Exception):
     """Raised when a state transition violates the state machine rules."""
+
     pass
 
 
@@ -36,8 +36,13 @@ class InvalidTransition(Exception):
 
 PHASE_ORDER = {"R": 0, "T": 1, "M": 2, "G": 3, "I": 4, "V": 5, "C": 6}
 PHASE_NAMES = {
-    "R": "Research", "T": "Test Synthesis", "M": "Merge",
-    "G": "Gate", "I": "Implement", "V": "Validate", "C": "Check Done",
+    "R": "Research",
+    "T": "Test Synthesis",
+    "M": "Merge",
+    "G": "Gate",
+    "I": "Implement",
+    "V": "Validate",
+    "C": "Check Done",
 }
 
 
@@ -115,23 +120,15 @@ class SpiralPhaseStateMachine:
         durations = checkpoint.get("phaseDurations")
         if durations is not None:
             if not isinstance(durations, dict):
-                errors.append(
-                    f"phaseDurations must be an object, got {type(durations).__name__}"
-                )
+                errors.append(f"phaseDurations must be an object, got {type(durations).__name__}")
             else:
                 for key, val in durations.items():
                     if key not in PHASE_ORDER:
-                        errors.append(
-                            f"phaseDurations key '{key}' is not a valid phase"
-                        )
+                        errors.append(f"phaseDurations key '{key}' is not a valid phase")
                     if not isinstance(val, (int, float)):
-                        errors.append(
-                            f"phaseDurations['{key}'] must be a number, got {type(val).__name__}"
-                        )
+                        errors.append(f"phaseDurations['{key}'] must be a number, got {type(val).__name__}")
                     elif val < 0:
-                        errors.append(
-                            f"phaseDurations['{key}'] must be non-negative, got {val}"
-                        )
+                        errors.append(f"phaseDurations['{key}'] must be non-negative, got {val}")
 
         return errors
 
@@ -145,8 +142,8 @@ STORY_TRANSITIONS = {
     "pending": {"start_implementing", "decompose"},
     "implementing": {"mark_passed", "mark_failed"},
     "failed_retry": {"start_implementing", "decompose"},  # retry or give up
-    "passed": set(),         # terminal — no further transitions
-    "decomposed": set(),     # terminal — replaced by children
+    "passed": set(),  # terminal — no further transitions
+    "decomposed": set(),  # terminal — replaced by children
 }
 
 
@@ -198,9 +195,7 @@ class StoryLifecycle:
 
     def decompose(self, child_ids: list[str]) -> None:
         if self.state not in ("pending", "failed_retry"):
-            raise InvalidTransition(
-                f"Story {self.story_id}: cannot decompose from state '{self.state}'"
-            )
+            raise InvalidTransition(f"Story {self.story_id}: cannot decompose from state '{self.state}'")
         self.children = list(child_ids)
         self.history.append((self.state, "decompose"))
         self.state = "decomposed"
@@ -215,6 +210,7 @@ class StoryLifecycle:
 
 
 # -- PRD Story State Inference -------------------------------------------------
+
 
 def infer_story_state(story: dict) -> str:
     """Infer the lifecycle state of a story from its prd.json fields."""
@@ -245,9 +241,7 @@ def validate_story_states(prd: dict) -> list[str]:
             for dep_id in story.get("dependencies", []):
                 dep = id_map.get(dep_id)
                 if dep and not dep.get("passes") and not dep.get("_decomposed"):
-                    errors.append(
-                        f"{sid}: passed but dependency {dep_id} is not passed/decomposed"
-                    )
+                    errors.append(f"{sid}: passed but dependency {dep_id} is not passed/decomposed")
 
         # Rule 2: Decomposed stories must not also be marked passes=true
         if story.get("_decomposed") and story.get("passes"):
@@ -282,6 +276,7 @@ def validate_story_states(prd: dict) -> list[str]:
 
 
 # -- Dependency Cascade Skip --------------------------------------------------
+
 
 def cascade_skip(
     prd: dict,
@@ -349,7 +344,7 @@ def cascade_skip(
                 '"level":"INFO",'
                 '"story_id":"' + sid + '",'
                 '"trigger_dep":"' + trigger_dep + '",'
-                '"iteration":' + str(iteration) + '}'
+                '"iteration":' + str(iteration) + "}"
             )
             try:
                 with open(events_path, "a", encoding="utf-8") as f:
@@ -367,6 +362,7 @@ def cascade_skip(
 
 
 # -- CLI -----------------------------------------------------------------------
+
 
 def main() -> int:
     import argparse

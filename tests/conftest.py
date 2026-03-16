@@ -1,9 +1,12 @@
 """Shared test fixtures and Hypothesis strategies for SPIRAL property tests."""
+
+import json
 import os
 import sys
-import json
+
 import pytest
-from hypothesis import strategies as st, HealthCheck, settings
+from hypothesis import HealthCheck, settings
+from hypothesis import strategies as st
 
 # Ensure lib/ is importable
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
@@ -32,7 +35,8 @@ COMPLEXITIES = ["small", "medium", "large"]
 _title_st = st.from_regex(r"[A-Za-z][A-Za-z0-9 _-]{2,30}", fullmatch=True)
 _desc_st = st.text(
     alphabet="abcdefghijklmnopqrstuvwxyz 0123456789.,",
-    min_size=0, max_size=60,
+    min_size=0,
+    max_size=60,
 )
 _ac_item_st = st.from_regex(r"[A-Za-z][A-Za-z0-9 ]{2,40}", fullmatch=True)
 _note_st = st.from_regex(r"[A-Za-z][A-Za-z0-9 ]{2,30}", fullmatch=True)
@@ -57,11 +61,13 @@ def valid_prd(draw, min_stories=1, max_stories=10):
         # Pick deps from earlier IDs only (forward deps = no cycles)
         deps = []
         if earlier_ids:
-            deps = draw(st.lists(
-                st.sampled_from(earlier_ids),
-                max_size=min(2, len(earlier_ids)),
-                unique=True,
-            ))
+            deps = draw(
+                st.lists(
+                    st.sampled_from(earlier_ids),
+                    max_size=min(2, len(earlier_ids)),
+                    unique=True,
+                )
+            )
 
         story = {
             "id": sid,
@@ -144,8 +150,10 @@ def example_prd():
 @pytest.fixture
 def tmp_prd(tmp_path):
     """Create a temp prd.json and return its path."""
+
     def _write(prd_dict):
         path = tmp_path / "prd.json"
         path.write_text(json.dumps(prd_dict, indent=2), encoding="utf-8")
         return str(path)
+
     return _write

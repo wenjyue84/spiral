@@ -23,6 +23,7 @@ Usage (library):
 Usage (CLI):
     python lib/import_csv.py stories.csv [--prd prd.json] [--delimiter ,] [--dry-run]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -43,9 +44,7 @@ configure_utf8_stdout()
 _VALID_PRIORITIES: frozenset[str] = frozenset({"critical", "high", "medium", "low"})
 
 # Valid complexity values.
-_VALID_COMPLEXITIES: frozenset[str] = frozenset(
-    {"trivial", "small", "medium", "large", "xlarge"}
-)
+_VALID_COMPLEXITIES: frozenset[str] = frozenset({"trivial", "small", "medium", "large", "xlarge"})
 
 # Story ID prefix respects the same env var as merge_stories.py.
 _STORY_PREFIX: str = os.environ.get("SPIRAL_STORY_PREFIX", "US")
@@ -117,14 +116,11 @@ def parse_csv_rows(
                 row_errors.append("missing priority")
             elif priority not in _VALID_PRIORITIES:
                 row_errors.append(
-                    f"invalid priority {priority!r} (must be one of: "
-                    f"{', '.join(sorted(_VALID_PRIORITIES))})"
+                    f"invalid priority {priority!r} (must be one of: {', '.join(sorted(_VALID_PRIORITIES))})"
                 )
 
             if row_errors:
-                errors.append(
-                    f"Row {row_num}: {'; '.join(row_errors)} — skipped"
-                )
+                errors.append(f"Row {row_num}: {'; '.join(row_errors)} — skipped")
                 continue
 
             complexity = row.get("estimatedComplexity", "").strip().lower()
@@ -137,12 +133,8 @@ def parse_csv_rows(
                     "priority": priority,
                     "description": row.get("description", "").strip(),
                     "estimatedComplexity": complexity or "medium",
-                    "acceptanceCriteria": _split_list_field(
-                        row.get("acceptanceCriteria", "")
-                    ),
-                    "technicalNotes": _split_list_field(
-                        row.get("technicalNotes", "")
-                    ),
+                    "acceptanceCriteria": _split_list_field(row.get("acceptanceCriteria", "")),
+                    "technicalNotes": _split_list_field(row.get("technicalNotes", "")),
                 }
             )
 
@@ -173,9 +165,7 @@ def import_csv_stories(
 
     prd_data = _load_prd(prd_path)
     existing_stories: list[dict[str, Any]] = prd_data.get("userStories", [])
-    existing_titles: set[str] = {
-        (s.get("title") or "").strip() for s in existing_stories
-    }
+    existing_titles: set[str] = {(s.get("title") or "").strip() for s in existing_stories}
 
     added: list[dict[str, Any]] = []
     skipped: list[str] = []
@@ -270,9 +260,7 @@ def main(argv: list[str] | None = None) -> int:
         if added:
             print(f"\n[dry-run] Would add {len(added)} story/stories:")
             for story in added:
-                print(
-                    f"  {story['id']} ({story['priority']}) — {story['title']}"
-                )
+                print(f"  {story['id']} ({story['priority']}) — {story['title']}")
         else:
             print("[dry-run] No new stories to add.")
         return 0

@@ -27,9 +27,7 @@ _BOLD = "\033[1m" if _IS_TTY else ""
 _RESET = "\033[0m" if _IS_TTY else ""
 
 # URL validation pattern (basic; requires scheme + host)
-_URL_RE = re.compile(
-    r"^https?://[a-zA-Z0-9._~:/?#\[\]@!$&'()*+,;=%\-]+"
-)
+_URL_RE = re.compile(r"^https?://[a-zA-Z0-9._~:/?#\[\]@!$&'()*+,;=%\-]+")
 
 
 def _is_valid_url(value: str) -> bool:
@@ -52,13 +50,13 @@ def _validate_type(var_type: str, value: str) -> str | None:
     """Return error description if invalid, or None if valid."""
     if var_type == "url":
         if not _is_valid_url(value):
-            return f"expected URL starting with http:// or https://, got \"{value}\""
+            return f'expected URL starting with http:// or https://, got "{value}"'
     elif var_type == "int":
         if not _is_valid_int(value):
-            return f"expected integer, got \"{value}\""
+            return f'expected integer, got "{value}"'
     elif var_type == "bool":
         if not _is_valid_bool(value):
-            return f"expected bool (0/1/true/false), got \"{value}\""
+            return f'expected bool (0/1/true/false), got "{value}"'
     return None
 
 
@@ -111,10 +109,7 @@ def validate(schema_path: Path) -> int:
                     )
                 )
                 # Print actionable line immediately
-                print(
-                    f"{_RED}MISSING{_RESET} [{name}]: {description}. "
-                    f"Fix: {fix_hint}"
-                )
+                print(f"{_RED}MISSING{_RESET} [{name}]: {description}. Fix: {fix_hint}")
             elif not value and not default:
                 # Optional, no default, currently absent — warn
                 missing_optional.append(name)
@@ -143,10 +138,7 @@ def validate(schema_path: Path) -> int:
                             fix_hint,
                         )
                     )
-                    print(
-                        f"{_RED}INVALID{_RESET} [{name}]: {type_error}. "
-                        f"Fix: {fix_hint}"
-                    )
+                    print(f"{_RED}INVALID{_RESET} [{name}]: {type_error}. Fix: {fix_hint}")
                 else:
                     ok_vars.append(name)
                     rows.append((f"{_GREEN}OK{_RESET}", name, description, ""))
@@ -190,9 +182,7 @@ def validate(schema_path: Path) -> int:
 def main() -> None:
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Validate SPIRAL environment variables against env_schema.json"
-    )
+    parser = argparse.ArgumentParser(description="Validate SPIRAL environment variables against env_schema.json")
     parser.add_argument(
         "--schema",
         default=str(Path(__file__).parent.parent / "env_schema.json"),

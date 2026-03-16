@@ -3,12 +3,12 @@
 These tests are fully offline: all HTTP calls are mocked so no real API key
 or network access is required.
 """
+
 from __future__ import annotations
 
 import json
 import os
 import sys
-from io import BytesIO
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -17,7 +17,6 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 
 import batch_validate as bv
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -118,16 +117,12 @@ class TestBuildBatchRequests:
 class TestParseBatchResults:
     """Tests for parse_batch_results()."""
 
-    def _make_succeeded(
-        self, custom_id: str, text: str
-    ) -> dict[str, Any]:
+    def _make_succeeded(self, custom_id: str, text: str) -> dict[str, Any]:
         return {
             "custom_id": custom_id,
             "result": {
                 "type": "succeeded",
-                "message": {
-                    "content": [{"type": "text", "text": text}]
-                },
+                "message": {"content": [{"type": "text", "text": text}]},
             },
         }
 
@@ -204,7 +199,7 @@ class TestSubmitBatch:
     def test_posts_to_correct_endpoint(self) -> None:
         response = _make_fake_response({"id": "batch_abc", "processing_status": "in_progress"})
         with patch("urllib.request.urlopen", return_value=response) as mock_open:
-            result = bv.submit_batch([{"custom_id": "s0", "params": {}}], "sk-test", "https://api.test")
+            _result = bv.submit_batch([{"custom_id": "s0", "params": {}}], "sk-test", "https://api.test")
         call_args = mock_open.call_args
         req = call_args[0][0]
         assert req.full_url == "https://api.test/v1/messages/batches"
@@ -304,9 +299,7 @@ class TestPollBatchUntilComplete:
     def test_polls_until_ended(self) -> None:
         client = MagicMock()
         statuses = ["in_progress", "in_progress", "ended"]
-        client.beta.messages.batches.retrieve.side_effect = [
-            self._make_batch(s) for s in statuses
-        ]
+        client.beta.messages.batches.retrieve.side_effect = [self._make_batch(s) for s in statuses]
         results = MagicMock()
         client.beta.messages.batches.results.return_value = results
 
@@ -331,9 +324,7 @@ class TestPollBatchUntilComplete:
         client = MagicMock()
         # 6 in_progress then ended → 6 sleeps recorded
         statuses = ["in_progress"] * 6 + ["ended"]
-        client.beta.messages.batches.retrieve.side_effect = [
-            self._make_batch(s) for s in statuses
-        ]
+        client.beta.messages.batches.retrieve.side_effect = [self._make_batch(s) for s in statuses]
         client.beta.messages.batches.results.return_value = MagicMock()
 
         sleep_calls: list[float] = []
@@ -352,9 +343,7 @@ class TestPollBatchUntilComplete:
         client = MagicMock()
         # Enough in_progress to confirm cap persists
         statuses = ["in_progress"] * 9 + ["ended"]
-        client.beta.messages.batches.retrieve.side_effect = [
-            self._make_batch(s) for s in statuses
-        ]
+        client.beta.messages.batches.retrieve.side_effect = [self._make_batch(s) for s in statuses]
         client.beta.messages.batches.results.return_value = MagicMock()
 
         sleep_calls: list[float] = []
@@ -373,6 +362,7 @@ class TestPollBatchUntilComplete:
         client.beta.messages.batches.retrieve.return_value = self._make_batch("ended")
         client.beta.messages.batches.results.return_value = MagicMock()
         import inspect
+
         sig = inspect.signature(bv.poll_batch_until_complete)
         assert sig.parameters["max_wait_sec"].default == 3600.0
 
@@ -386,26 +376,18 @@ class TestValidateStorySync:
     """Tests for validate_story_sync() — mocks urlopen."""
 
     def test_accepted_story(self) -> None:
-        body = {
-            "content": [{"type": "text", "text": '{"accepted": true, "reason": "fits goals"}'}]
-        }
+        body = {"content": [{"type": "text", "text": '{"accepted": true, "reason": "fits goals"}'}]}
         response = _make_fake_response(body)
         with patch("urllib.request.urlopen", return_value=response):
-            ok, reason = bv.validate_story_sync(
-                _story(), "goals", [], "sk-test"
-            )
+            ok, reason = bv.validate_story_sync(_story(), "goals", [], "sk-test")
         assert ok is True
         assert "fits goals" in reason
 
     def test_rejected_story(self) -> None:
-        body = {
-            "content": [{"type": "text", "text": '{"accepted": false, "reason": "off-topic"}'}]
-        }
+        body = {"content": [{"type": "text", "text": '{"accepted": false, "reason": "off-topic"}'}]}
         response = _make_fake_response(body)
         with patch("urllib.request.urlopen", return_value=response):
-            ok, reason = bv.validate_story_sync(
-                _story(), "goals", [], "sk-test"
-            )
+            ok, reason = bv.validate_story_sync(_story(), "goals", [], "sk-test")
         assert ok is False
         assert "off-topic" in reason
 

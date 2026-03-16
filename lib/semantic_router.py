@@ -1,10 +1,10 @@
 # lib/semantic_router.py
-import json
-from sentence_transformers import SentenceTransformer, util
 import torch
+from sentence_transformers import SentenceTransformer, util
+
 
 class SemanticRouter:
-    def __init__(self, model_name='all-MiniLM-L6-v2'):
+    def __init__(self, model_name="all-MiniLM-L6-v2"):
         self.model = SentenceTransformer(model_name)
         self.routes = {}
 
@@ -12,10 +12,7 @@ class SemanticRouter:
         """
         Adds a route with a list of example phrases.
         """
-        self.routes[name] = {
-            "examples": examples,
-            "embeddings": self.model.encode(examples, convert_to_tensor=True)
-        }
+        self.routes[name] = {"examples": examples, "embeddings": self.model.encode(examples, convert_to_tensor=True)}
 
     def route(self, text, threshold=0.5):
         """
@@ -41,6 +38,7 @@ class SemanticRouter:
             return best_route
         return None
 
+
 def create_complexity_router():
     """
     Creates a router pre-configured for 'simple' and 'complex' story classification.
@@ -53,8 +51,8 @@ def create_complexity_router():
             "Implement a new caching layer for the database",
             "Integrate with a third-party payment gateway",
             "Develop a real-time notification system",
-            "Create a new microservice for user profiles"
-        ]
+            "Create a new microservice for user profiles",
+        ],
     )
     router.add_route(
         name="simple",
@@ -63,7 +61,7 @@ def create_complexity_router():
             "Change the color of the primary button",
             "Add a new field to the user profile page",
             "Update the terms of service link",
-            "Improve the error message for invalid login"
-        ]
+            "Improve the error message for invalid login",
+        ],
     )
     return router

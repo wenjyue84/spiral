@@ -2,11 +2,11 @@
 
 Run with:  uv run pytest tests/test_subprocess_policy.py -v
 """
+
 from __future__ import annotations
 
 import json
 import os
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -17,16 +17,14 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from lib.subprocess_policy import (
     PHASE_COMMAND_ALLOWLIST,
     SubprocessPolicyViolation,
-    _log_violation,
-    _security_audit_log_path,
     check_command,
     safe_run,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 class _IsolatedScratch:
     """Context manager that redirects the audit log to a temp dir."""
@@ -53,6 +51,7 @@ class _IsolatedScratch:
 # ---------------------------------------------------------------------------
 # PHASE_COMMAND_ALLOWLIST structure
 # ---------------------------------------------------------------------------
+
 
 class TestAllowlistStructure:
     def test_phase_I_allows_git(self) -> None:
@@ -95,6 +94,7 @@ class TestAllowlistStructure:
 # check_command
 # ---------------------------------------------------------------------------
 
+
 class TestCheckCommand:
     def test_allowed_command_passes(self) -> None:
         # Should not raise
@@ -136,6 +136,7 @@ class TestCheckCommand:
 # ---------------------------------------------------------------------------
 # Shell metacharacters are NOT interpreted (shell=False enforced)
 # ---------------------------------------------------------------------------
+
 
 class TestShellMetacharacters:
     """Verify that shell metacharacters in arguments are treated as literals."""
@@ -190,6 +191,7 @@ class TestShellMetacharacters:
 # safe_run
 # ---------------------------------------------------------------------------
 
+
 class TestSafeRun:
     def test_executes_allowed_command(self) -> None:
         result = safe_run(
@@ -227,6 +229,7 @@ class TestSafeRun:
 # ---------------------------------------------------------------------------
 # Audit log
 # ---------------------------------------------------------------------------
+
 
 class TestAuditLog:
     def test_violation_logged_to_security_audit(self) -> None:

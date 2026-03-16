@@ -1,9 +1,8 @@
 """Unit tests for populate_hints.py (keyword extraction and filesTouch mutation)."""
-import json
+
 import os
 import sys
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 import populate_hints
@@ -111,8 +110,7 @@ class TestPopulateHints:
         }
         stories = [
             _make_story("US-001", title="dashboard widget", passes=True),
-            _make_story("US-002", title="dashboard config", passes=False,
-                        filesTouch=["lib/existing.py"]),
+            _make_story("US-002", title="dashboard config", passes=False, filesTouch=["lib/existing.py"]),
         ]
         prd = _make_prd(stories)
         updated = populate_hints.populate_hints(prd, "/fake/repo")
@@ -179,18 +177,22 @@ class TestDeriveModuleTags:
 
     def test_multiple_files_same_dir_deduplicated(self):
         """Files from the same directory produce a single module tag."""
-        tags = populate_hints.derive_module_tags([
-            "lib/phases/phase_r.sh",
-            "lib/merge_stories.py",
-        ])
+        tags = populate_hints.derive_module_tags(
+            [
+                "lib/phases/phase_r.sh",
+                "lib/merge_stories.py",
+            ]
+        )
         assert tags == ["module:lib"]
 
     def test_multiple_dirs_produce_multiple_tags(self):
         """Files from different top-level dirs produce one tag each."""
-        tags = populate_hints.derive_module_tags([
-            "lib/merge_stories.py",
-            "ralph/ralph.sh",
-        ])
+        tags = populate_hints.derive_module_tags(
+            [
+                "lib/merge_stories.py",
+                "ralph/ralph.sh",
+            ]
+        )
         assert tags == ["module:lib", "module:ralph"]
 
     def test_root_level_file_excluded(self):
@@ -205,10 +207,12 @@ class TestDeriveModuleTags:
 
     def test_acceptance_criteria_example(self):
         """Exact example from US-286 AC: lib/phases/phase_r.sh + lib/merge_stories.py -> module:lib."""
-        tags = populate_hints.derive_module_tags([
-            "lib/phases/phase_r.sh",
-            "lib/merge_stories.py",
-        ])
+        tags = populate_hints.derive_module_tags(
+            [
+                "lib/phases/phase_r.sh",
+                "lib/merge_stories.py",
+            ]
+        )
         assert tags == ["module:lib"]
 
 

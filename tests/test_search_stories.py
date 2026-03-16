@@ -1,4 +1,5 @@
 """Tests for lib/search_stories.py — spiral search subcommand."""
+
 from __future__ import annotations
 
 import json
@@ -13,9 +14,9 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 
-import main  # noqa: E402
-from search_stories import search_stories, format_table  # noqa: E402
+from search_stories import format_table, search_stories  # noqa: E402
 
+import main  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -68,7 +69,8 @@ SAMPLE_STORIES = [
 
 
 def _make_prd(tmp_path: Path, stories=None) -> Path:
-    prd = {"productName": "Test", "branchName": "main", "userStories": stories if stories is not None else SAMPLE_STORIES}
+    stories_list = stories if stories is not None else SAMPLE_STORIES
+    prd = {"productName": "Test", "branchName": "main", "userStories": stories_list}
     p = tmp_path / "prd.json"
     p.write_text(json.dumps(prd, indent=2), encoding="utf-8")
     return p
@@ -191,8 +193,7 @@ class TestCmdSearchCli:
             for k, v in extra_args.items():
                 setattr(ns, k, v)
 
-        with patch.object(main, "PRD_FILE", prd_path), \
-             patch.object(main, "SCRATCH_DIR", scratch):
+        with patch.object(main, "PRD_FILE", prd_path), patch.object(main, "SCRATCH_DIR", scratch):
             with pytest.raises(SystemExit) as exc_info:
                 main.cmd_search(ns)
         return exc_info.value.code
@@ -211,8 +212,7 @@ class TestCmdSearchCli:
         scratch.mkdir(exist_ok=True)
 
         ns = SimpleNamespace(query="rate limit", top=5, json=True, fuzzy=True)
-        with patch.object(main, "PRD_FILE", prd_path), \
-             patch.object(main, "SCRATCH_DIR", scratch):
+        with patch.object(main, "PRD_FILE", prd_path), patch.object(main, "SCRATCH_DIR", scratch):
             with pytest.raises(SystemExit):
                 main.cmd_search(ns)
         captured = capsys.readouterr()
@@ -225,8 +225,7 @@ class TestCmdSearchCli:
         scratch.mkdir(exist_ok=True)
 
         ns = SimpleNamespace(query="rate limit retry", top=5, json=True, fuzzy=True)
-        with patch.object(main, "PRD_FILE", prd_path), \
-             patch.object(main, "SCRATCH_DIR", scratch):
+        with patch.object(main, "PRD_FILE", prd_path), patch.object(main, "SCRATCH_DIR", scratch):
             with pytest.raises(SystemExit):
                 main.cmd_search(ns)
         captured = capsys.readouterr()

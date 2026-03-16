@@ -10,6 +10,7 @@ stdlib-only — no external dependencies.
 Usage:
     python lib/spiral_dashboard.py --prd prd.json --results results.tsv --open
 """
+
 import argparse
 import csv
 import json
@@ -20,7 +21,6 @@ import sys
 from collections import defaultdict
 from datetime import datetime
 from html import escape
-from pathlib import Path
 from statistics import median
 
 sys.path.insert(0, os.path.dirname(__file__))
@@ -30,6 +30,7 @@ from spiral_io import configure_utf8_stdout
 configure_utf8_stdout()
 
 # ── Data Loaders ─────────────────────────────────────────────────────────────
+
 
 def load_prd(path: str) -> dict:
     """Load prd.json, return full dict. Returns empty structure if missing."""
@@ -47,9 +48,18 @@ def load_results(path: str) -> list[dict]:
     with open(path, encoding="utf-8", errors="replace") as f:
         reader = csv.DictReader(f, delimiter="\t")
         for row in reader:
-            for key in ("duration_sec", "retry_num", "spiral_iter", "ralph_iter",
-                        "input_tokens", "output_tokens",
-                        "wall_seconds", "user_cpu_s", "sys_cpu_s", "peak_rss_kb"):
+            for key in (
+                "duration_sec",
+                "retry_num",
+                "spiral_iter",
+                "ralph_iter",
+                "input_tokens",
+                "output_tokens",
+                "wall_seconds",
+                "user_cpu_s",
+                "sys_cpu_s",
+                "peak_rss_kb",
+            ):
                 if key in row and row[key]:
                     try:
                         row[key] = float(row[key])
@@ -121,6 +131,7 @@ def load_progress(path: str, max_entries: int = 10) -> list[str]:
 
 # ── Manual skip IDs (from environment) ───────────────────────────────────────
 
+
 def _get_manual_skip_ids() -> set[str]:
     """Return set of story IDs from SPIRAL_SKIP_STORY_IDS env var."""
     raw = os.environ.get("SPIRAL_SKIP_STORY_IDS", "")
@@ -128,6 +139,7 @@ def _get_manual_skip_ids() -> set[str]:
 
 
 # ── Metrics Computation ──────────────────────────────────────────────────────
+
 
 def compute_overview(prd: dict, results: list[dict]) -> dict:
     stories = prd.get("userStories", [])
@@ -159,10 +171,7 @@ def compute_overview(prd: dict, results: list[dict]) -> dict:
 
     iters = max((r.get("spiral_iter", 0) for r in results), default=0) if results else 0
 
-    est_cost = sum(
-        r.get("duration_sec", 0) / 3600 * COST_PER_HOUR.get(r.get("model", ""), 0.24)
-        for r in results
-    )
+    est_cost = sum(r.get("duration_sec", 0) / 3600 * COST_PER_HOUR.get(r.get("model", ""), 0.24) for r in results)
 
     return {
         "total": total,
@@ -192,13 +201,15 @@ def compute_velocity(results: list[dict]) -> list[dict]:
         kept = sum(1 for r in rows if r.get("status") == "keep")
         total_dur = sum(r.get("duration_sec", 0) for r in rows)
         dur_hours = total_dur / 3600 if total_dur > 0 else 0.001
-        velocity.append({
-            "iter": it,
-            "kept": kept,
-            "total": len(rows),
-            "duration_hours": dur_hours,
-            "velocity": kept / dur_hours if dur_hours > 0 else 0,
-        })
+        velocity.append(
+            {
+                "iter": it,
+                "kept": kept,
+                "total": len(rows),
+                "duration_hours": dur_hours,
+                "velocity": kept / dur_hours if dur_hours > 0 else 0,
+            }
+        )
     return velocity
 
 
@@ -206,7 +217,9 @@ def compute_status_breakdown(prd: dict, results: list[dict]) -> dict:
     stories = prd.get("userStories", [])
     story_status = {
         "passed": sum(1 for s in stories if s.get("passes")),
-        "pending": sum(1 for s in stories if not s.get("passes") and not s.get("_decomposed") and not s.get("_skipped")),
+        "pending": sum(
+            1 for s in stories if not s.get("passes") and not s.get("_decomposed") and not s.get("_skipped")
+        ),
         "decomposed": sum(1 for s in stories if s.get("_decomposed")),
         "skipped": sum(1 for s in stories if s.get("_skipped")),
     }
@@ -229,14 +242,16 @@ def compute_model_performance(results: list[dict]) -> list[dict]:
         durations = [r.get("duration_sec", 0) for r in rows if r.get("duration_sec")]
         avg_dur = sum(durations) / len(durations) if durations else 0
         med_dur = median(durations) if durations else 0
-        perf.append({
-            "model": model,
-            "total": len(rows),
-            "kept": kept,
-            "success_rate": (kept / len(rows) * 100) if rows else 0,
-            "avg_duration": avg_dur,
-            "median_duration": med_dur,
-        })
+        perf.append(
+            {
+                "model": model,
+                "total": len(rows),
+                "kept": kept,
+                "success_rate": (kept / len(rows) * 100) if rows else 0,
+                "avg_duration": avg_dur,
+                "median_duration": med_dur,
+            }
+        )
     perf.sort(key=lambda x: x["success_rate"], reverse=True)
     return perf
 
@@ -263,18 +278,18 @@ def compute_resource_usage(results: list[dict]) -> list[dict]:
 
     usage = []
     for model, rows in sorted(by_model.items()):
-        wall_vals = [float(r.get("wall_seconds", 0)) for r in rows
-                     if float(r.get("wall_seconds", 0)) > 0]
-        rss_vals = [float(r.get("peak_rss_kb", 0)) for r in rows
-                    if float(r.get("peak_rss_kb", 0)) > 0]
-        usage.append({
-            "model": model,
-            "count": len(rows),
-            "median_wall_s": median(wall_vals) if wall_vals else 0.0,
-            "p95_wall_s": _p95(wall_vals),
-            "median_rss_kb": median(rss_vals) if rss_vals else 0.0,
-            "p95_rss_kb": _p95(rss_vals),
-        })
+        wall_vals = [float(r.get("wall_seconds", 0)) for r in rows if float(r.get("wall_seconds", 0)) > 0]
+        rss_vals = [float(r.get("peak_rss_kb", 0)) for r in rows if float(r.get("peak_rss_kb", 0)) > 0]
+        usage.append(
+            {
+                "model": model,
+                "count": len(rows),
+                "median_wall_s": median(wall_vals) if wall_vals else 0.0,
+                "p95_wall_s": _p95(wall_vals),
+                "median_rss_kb": median(rss_vals) if rss_vals else 0.0,
+                "p95_rss_kb": _p95(rss_vals),
+            }
+        )
     return usage
 
 
@@ -289,12 +304,14 @@ def compute_retry_analysis(results: list[dict]) -> list[dict]:
     for attempt in sorted(by_attempt):
         rows = by_attempt[attempt]
         kept = sum(1 for r in rows if r.get("status") == "keep")
-        analysis.append({
-            "attempt": attempt + 1,  # 1-based display
-            "total": len(rows),
-            "kept": kept,
-            "success_rate": (kept / len(rows) * 100) if rows else 0,
-        })
+        analysis.append(
+            {
+                "attempt": attempt + 1,  # 1-based display
+                "total": len(rows),
+                "kept": kept,
+                "success_rate": (kept / len(rows) * 100) if rows else 0,
+            }
+        )
     return analysis
 
 
@@ -304,7 +321,8 @@ def compute_bottlenecks(results: list[dict], retries: dict, prd: dict) -> dict:
     top_retried = sorted(retries.items(), key=lambda x: x[1], reverse=True)[:5]
     most_retried = [
         {"story_id": sid, "title": story_titles.get(sid, ""), "retries": count}
-        for sid, count in top_retried if count > 0
+        for sid, count in top_retried
+        if count > 0
     ]
 
     # Longest duration (kept stories)
@@ -370,24 +388,28 @@ def compute_epics(prd: dict) -> list[dict]:
         g = groups[eid]
         passed = sum(1 for s in g if s.get("passes"))
         total = len(g)
-        result.append({
-            "id": eid,
-            "title": epic_title_map.get(eid, eid),
-            "total": total,
-            "passed": passed,
-            "pct": (passed / total * 100) if total > 0 else 0,
-        })
+        result.append(
+            {
+                "id": eid,
+                "title": epic_title_map.get(eid, eid),
+                "total": total,
+                "passed": passed,
+                "pct": (passed / total * 100) if total > 0 else 0,
+            }
+        )
     if "__ungrouped__" in groups:
         g = groups["__ungrouped__"]
         passed = sum(1 for s in g if s.get("passes"))
         total = len(g)
-        result.append({
-            "id": "__ungrouped__",
-            "title": "Ungrouped",
-            "total": total,
-            "passed": passed,
-            "pct": (passed / total * 100) if total > 0 else 0,
-        })
+        result.append(
+            {
+                "id": "__ungrouped__",
+                "title": "Ungrouped",
+                "total": total,
+                "passed": passed,
+                "pct": (passed / total * 100) if total > 0 else 0,
+            }
+        )
     return result
 
 
@@ -432,12 +454,14 @@ def detect_orphaned_worktrees(workers_dir: str = ".spiral-workers") -> list[dict
 
         if is_dead:
             abs_path = os.path.abspath(worker_path)
-            orphans.append({
-                "worker_dir": entry,
-                "path": abs_path,
-                "pid": pid,
-                "suggested_cmd": f"git worktree remove {abs_path}",
-            })
+            orphans.append(
+                {
+                    "worker_dir": entry,
+                    "path": abs_path,
+                    "pid": pid,
+                    "suggested_cmd": f"git worktree remove {abs_path}",
+                }
+            )
 
     return orphans
 
@@ -452,11 +476,15 @@ def compute_decomposition(prd: dict) -> dict:
     for p in parents:
         child_ids = p.get("_decomposedInto", [])
         child_objs = [s for s in stories if s["id"] in child_ids]
-        details.append({
-            "parent_id": p["id"],
-            "parent_title": p.get("title", ""),
-            "children": [{"id": c["id"], "title": c.get("title", ""), "passes": c.get("passes", False)} for c in child_objs],
-        })
+        details.append(
+            {
+                "parent_id": p["id"],
+                "parent_title": p.get("title", ""),
+                "children": [
+                    {"id": c["id"], "title": c.get("title", ""), "passes": c.get("passes", False)} for c in child_objs
+                ],
+            }
+        )
 
     return {
         "total_decomposed": len(parents),
@@ -475,6 +503,7 @@ def compute_stale_stories(prd: dict, stale_days: int | None = None) -> dict[str,
     ``SPIRAL_STALE_DAYS`` env var, or 7 if unset).
     """
     from datetime import timedelta, timezone
+
     if stale_days is None:
         try:
             stale_days = int(os.environ.get("SPIRAL_STALE_DAYS", "7"))
@@ -628,6 +657,7 @@ def compute_story_attempts(prd: dict, results: list[dict]) -> dict:
 
 # ── SVG Velocity Chart ───────────────────────────────────────────────────────
 
+
 def _render_velocity_svg(iteration_velocity: dict) -> str:
     """Render an inline SVG bar chart of stories completed per SPIRAL iteration."""
     if not iteration_velocity:
@@ -669,20 +699,13 @@ def _render_velocity_svg(iteration_velocity: dict) -> str:
         x = slot_x + (slot_w - bar_w) // 2
         bar_h = int(count / max_count * chart_h)
         y = margin_top + chart_h - bar_h
-        elements.append(
-            f'<rect x="{x}" y="{y}" width="{bar_w}" height="{bar_h}" '
-            f'fill="#6c63ff" rx="3"/>'
-        )
+        elements.append(f'<rect x="{x}" y="{y}" width="{bar_w}" height="{bar_h}" fill="#6c63ff" rx="3"/>')
         if count > 0:
             elements.append(
-                f'<text x="{x + bar_w // 2}" y="{y - 3}" '
-                f'text-anchor="middle" fill="#aaa" font-size="10">{count}</text>'
+                f'<text x="{x + bar_w // 2}" y="{y - 3}" text-anchor="middle" fill="#aaa" font-size="10">{count}</text>'
             )
         lx = x + bar_w // 2
-        elements.append(
-            f'<text x="{lx}" y="{svg_h - 6}" '
-            f'text-anchor="middle" fill="#888" font-size="9">i{it}</text>'
-        )
+        elements.append(f'<text x="{lx}" y="{svg_h - 6}" text-anchor="middle" fill="#888" font-size="9">i{it}</text>')
 
     inner = "\n".join(elements)
     return (
@@ -692,6 +715,7 @@ def _render_velocity_svg(iteration_velocity: dict) -> str:
 
 
 # ── Screenshot Discovery ─────────────────────────────────────────────────────
+
 
 def find_latest_screenshot(scratch_dir: str) -> str | None:
     """Return the path to the latest screenshot in scratch_dir/screenshots/, or None."""
@@ -707,7 +731,10 @@ def find_latest_screenshot(scratch_dir: str) -> str | None:
 
 # ── Insight Generation ───────────────────────────────────────────────────────
 
-def generate_insights(overview: dict, model_perf: list[dict], retry_analysis: list[dict], bottlenecks: dict) -> list[str]:
+
+def generate_insights(
+    overview: dict, model_perf: list[dict], retry_analysis: list[dict], bottlenecks: dict
+) -> list[str]:
     insights = []
 
     # Model disparity
@@ -717,9 +744,9 @@ def generate_insights(overview: dict, model_perf: list[dict], retry_analysis: li
         gap = best["success_rate"] - worst["success_rate"]
         if gap > 20 and worst["total"] >= 3:
             insights.append(
-                f'{best["model"]} has {gap:.0f}% higher success rate than {worst["model"]} '
-                f'({best["success_rate"]:.0f}% vs {worst["success_rate"]:.0f}%) — '
-                f'consider routing more stories to {best["model"]}'
+                f"{best['model']} has {gap:.0f}% higher success rate than {worst['model']} "
+                f"({best['success_rate']:.0f}% vs {worst['success_rate']:.0f}%) — "
+                f"consider routing more stories to {best['model']}"
             )
 
     # Low first-attempt rate
@@ -727,16 +754,15 @@ def generate_insights(overview: dict, model_perf: list[dict], retry_analysis: li
         first = retry_analysis[0]
         if first["success_rate"] < 50 and first["total"] >= 5:
             insights.append(
-                f'First-attempt success rate is only {first["success_rate"]:.0f}% — '
-                f'consider improving story clarity or prompt quality'
+                f"First-attempt success rate is only {first['success_rate']:.0f}% — "
+                f"consider improving story clarity or prompt quality"
             )
 
     # Heavy retrier
     for b in bottlenecks.get("most_retried", []):
         if b["retries"] >= 3:
             insights.append(
-                f'Story {b["story_id"]} consumed {b["retries"]} retries — '
-                f'consider manual decomposition or intervention'
+                f"Story {b['story_id']} consumed {b['retries']} retries — consider manual decomposition or intervention"
             )
             break
 
@@ -745,6 +771,7 @@ def generate_insights(overview: dict, model_perf: list[dict], retry_analysis: li
 
 # ── HTML Renderer ────────────────────────────────────────────────────────────
 
+
 def _render_screenshot_section(screenshot_path: str | None) -> str:
     """Return an HTML section with the latest screenshot, or empty string."""
     if not screenshot_path or not os.path.isfile(screenshot_path):
@@ -752,14 +779,14 @@ def _render_screenshot_section(screenshot_path: str | None) -> str:
     fname = os.path.basename(screenshot_path)
     # Use relative path from the dashboard output directory
     return (
-        '<section>\n'
-        '<h2>Latest Screenshot</h2>\n'
+        "<section>\n"
+        "<h2>Latest Screenshot</h2>\n"
         f'<div style="text-align:center">'
         f'<img src="screenshots/{escape(fname)}" alt="App screenshot" '
         f'style="max-width:100%;border-radius:6px;border:1px solid #333">'
         f'<div class="metric-label" style="margin-top:6px">{escape(fname)}</div>'
-        f'</div>\n'
-        '</section>\n'
+        f"</div>\n"
+        "</section>\n"
     )
 
 
@@ -775,36 +802,43 @@ def _render_activity_feed(sections: list[str]) -> str:
         body = lines[1].strip() if len(lines) > 1 else ""
         entries += (
             f'<div style="margin-bottom:12px">'
-            f'<b>{escape(title)}</b>'
+            f"<b>{escape(title)}</b>"
             f'<pre style="white-space:pre-wrap;font-size:11px;margin-top:4px;color:#aaa">{escape(body)}</pre>'
-            f'</div>\n'
+            f"</div>\n"
         )
     return (
-        '<section>\n'
+        "<section>\n"
         f'<details><summary style="cursor:pointer;color:#6c63ff;font-size:14px;text-transform:uppercase;letter-spacing:1px">'
-        f'Recent Activity (last {n} entries)</summary>\n'
+        f"Recent Activity (last {n} entries)</summary>\n"
         f'<div style="margin-top:12px">{entries}</div>\n'
-        '</details>\n'
-        '</section>\n'
+        "</details>\n"
+        "</section>\n"
     )
 
 
-def render_html(overview: dict, velocity: list[dict], status: dict,
-                model_perf: list[dict], retry_analysis: list[dict],
-                bottlenecks: dict, decomposition: dict, insights: list[str],
-                screenshot_path: str | None = None,
-                iteration_velocity: dict | None = None,
-                epics: list[dict] | None = None,
-                activity_sections: list[str] | None = None,
-                failure_reasons: list[dict] | None = None,
-                story_attempts: dict | None = None,
-                refresh_secs: int = 0,
-                orphaned_worktrees: list[dict] | None = None,
-                token_forecast: dict | None = None,
-                resource_usage: list[dict] | None = None,
-                iter_summary: dict | None = None,
-                quality_scores: dict | None = None,
-                agent_telemetry: list[dict] | None = None) -> str:
+def render_html(
+    overview: dict,
+    velocity: list[dict],
+    status: dict,
+    model_perf: list[dict],
+    retry_analysis: list[dict],
+    bottlenecks: dict,
+    decomposition: dict,
+    insights: list[str],
+    screenshot_path: str | None = None,
+    iteration_velocity: dict | None = None,
+    epics: list[dict] | None = None,
+    activity_sections: list[str] | None = None,
+    failure_reasons: list[dict] | None = None,
+    story_attempts: dict | None = None,
+    refresh_secs: int = 0,
+    orphaned_worktrees: list[dict] | None = None,
+    token_forecast: dict | None = None,
+    resource_usage: list[dict] | None = None,
+    iter_summary: dict | None = None,
+    quality_scores: dict | None = None,
+    agent_telemetry: list[dict] | None = None,
+) -> str:
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     max_vel = max((v["kept"] for v in velocity), default=1) or 1
 
@@ -817,14 +851,22 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
             f'<span class="bar-label">iter {v["iter"]}</span>'
             f'<div class="bar-track"><div class="bar-fill" style="width:{pct:.0f}%"></div></div>'
             f'<span class="bar-value">{v["kept"]} kept ({v["velocity"]:.1f}/hr)</span>'
-            f'</div>\n'
+            f"</div>\n"
         )
 
     # US-212: Per-phase timing bar chart
     phase_timing_html = ""
     _pt = (iter_summary or {}).get("phase_timings", {})
     if _pt:
-        _phase_labels = {"R": "Research", "T": "Test Synth", "S": "Story Valid", "M": "Merge", "I": "Implement", "V": "Validate", "C": "Check Done"}
+        _phase_labels = {
+            "R": "Research",
+            "T": "Test Synth",
+            "S": "Story Valid",
+            "M": "Merge",
+            "I": "Implement",
+            "V": "Validate",
+            "C": "Check Done",
+        }
         _max_dur = max(_pt[p]["duration_seconds"] for p in _pt) or 1
         _timing_rows = ""
         for _ph in ("R", "T", "S", "M", "I", "V", "C"):
@@ -838,9 +880,9 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
                 f'<span class="bar-label">{_ph}: {_label}</span>'
                 f'<div class="bar-track"><div class="bar-fill" style="width:{_pct:.0f}%;background:#6c63ff"></div></div>'
                 f'<span class="bar-value">{_dur}s</span>'
-                f'</div>\n'
+                f"</div>\n"
             )
-        phase_timing_html = f'<section>\n<h2>Phase Timings (Last Iteration)</h2>\n{_timing_rows}</section>\n'
+        phase_timing_html = f"<section>\n<h2>Phase Timings (Last Iteration)</h2>\n{_timing_rows}</section>\n"
 
     # US-253: Agent telemetry timeline (per-worker phase transitions)
     agent_telem_html = ""
@@ -861,7 +903,7 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
             _tp_color = _phase_colors.get(_tp, "#64748b")
             _qs_class = "good" if _qs >= 1.0 else "warn" if _qs > 0 else ""
             _tbl += (
-                f'<tr>'
+                f"<tr>"
                 f'<td style="color:#94a3b8;font-size:0.8em">{_ts}</td>'
                 f'<td style="font-family:monospace">{_wid}</td>'
                 f'<td style="font-family:monospace;color:#60a5fa">{_sid}</td>'
@@ -870,20 +912,20 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
                 f'<td style="text-align:right">{_dur:,}ms</td>'
                 f'<td class="{_qs_class}" style="text-align:right">{_qs:.1f}</td>'
                 f'<td style="text-align:right">{_rc}</td>'
-                f'</tr>\n'
+                f"</tr>\n"
             )
         agent_telem_html = (
-            '<section>\n'
-            '<h2>Agent Phase Telemetry (last 50 transitions)</h2>\n'
+            "<section>\n"
+            "<h2>Agent Phase Telemetry (last 50 transitions)</h2>\n"
             '<p style="color:#94a3b8;font-size:0.85em">Source: .spiral/agent-telemetry.jsonl &mdash; '
-            'R=pre-context, I=implementation, V=validation, C=complete, F=failed</p>\n'
-            '<table>\n'
-            '<thead><tr><th>Time</th><th>Worker</th><th>Story</th><th>Transition</th>'
+            "R=pre-context, I=implementation, V=validation, C=complete, F=failed</p>\n"
+            "<table>\n"
+            "<thead><tr><th>Time</th><th>Worker</th><th>Story</th><th>Transition</th>"
             '<th style="text-align:right">Duration</th><th style="text-align:right">Quality</th>'
             '<th style="text-align:right">Retry</th></tr></thead>\n'
-            f'<tbody>\n{_tbl}</tbody>\n'
-            '</table>\n'
-            '</section>\n'
+            f"<tbody>\n{_tbl}</tbody>\n"
+            "</table>\n"
+            "</section>\n"
         )
 
     # Status stacked bar
@@ -899,35 +941,35 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
 
     # Attempt status
     att = status["attempts"]
-    att_html = " &middot; ".join(f'{k}: <b>{v}</b>' for k, v in sorted(att.items()))
+    att_html = " &middot; ".join(f"{k}: <b>{v}</b>" for k, v in sorted(att.items()))
 
     # Model table
     model_rows = ""
     for m in model_perf:
         rate_class = "good" if m["success_rate"] >= 70 else "warn" if m["success_rate"] >= 40 else "bad"
         model_rows += (
-            f'<tr>'
-            f'<td>{escape(m["model"])}</td>'
-            f'<td>{m["total"]}</td>'
-            f'<td>{m["kept"]}</td>'
+            f"<tr>"
+            f"<td>{escape(m['model'])}</td>"
+            f"<td>{m['total']}</td>"
+            f"<td>{m['kept']}</td>"
             f'<td class="{rate_class}">{m["success_rate"]:.0f}%</td>'
-            f'<td>{m["avg_duration"]:.0f}s</td>'
-            f'</tr>\n'
+            f"<td>{m['avg_duration']:.0f}s</td>"
+            f"</tr>\n"
         )
 
     # Resource usage table (US-158)
     resource_rows = ""
-    for ru in (resource_usage or []):
+    for ru in resource_usage or []:
         if ru["median_wall_s"] > 0 or ru["median_rss_kb"] > 0:
             resource_rows += (
-                f'<tr>'
-                f'<td>{escape(ru["model"])}</td>'
-                f'<td>{ru["count"]}</td>'
-                f'<td>{ru["median_wall_s"]:.1f}s</td>'
-                f'<td>{ru["p95_wall_s"]:.1f}s</td>'
-                f'<td>{ru["median_rss_kb"]:.0f}</td>'
-                f'<td>{ru["p95_rss_kb"]:.0f}</td>'
-                f'</tr>\n'
+                f"<tr>"
+                f"<td>{escape(ru['model'])}</td>"
+                f"<td>{ru['count']}</td>"
+                f"<td>{ru['median_wall_s']:.1f}s</td>"
+                f"<td>{ru['p95_wall_s']:.1f}s</td>"
+                f"<td>{ru['median_rss_kb']:.0f}</td>"
+                f"<td>{ru['p95_rss_kb']:.0f}</td>"
+                f"</tr>\n"
             )
 
     # Retry bars
@@ -938,7 +980,7 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
             f'<span class="bar-label">attempt {r["attempt"]}</span>'
             f'<div class="bar-track"><div class="bar-fill retry" style="width:{r["success_rate"]:.0f}%"></div></div>'
             f'<span class="bar-value">{r["success_rate"]:.0f}% ({r["kept"]}/{r["total"]})</span>'
-            f'</div>\n'
+            f"</div>\n"
         )
 
     # Decomposition
@@ -983,14 +1025,14 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
         fr_rows = ""
         for fr in fr_list:
             fr_rows += (
-                f'<tr><td>{escape(fr["story_id"])}</td>'
+                f"<tr><td>{escape(fr['story_id'])}</td>"
                 f'<td class="trunc">{escape(fr["title"][:50])}</td>'
                 f'<td title="{escape(fr["reason"])}">{escape(fr["reason"][:80])}</td></tr>\n'
             )
         failure_reasons_html = (
-            f'<section>\n<h2>Failure Reasons</h2>\n'
-            f'<table>\n<tr><th>ID</th><th>Title</th><th>Reason</th></tr>\n'
-            f'{fr_rows}</table>\n</section>\n'
+            f"<section>\n<h2>Failure Reasons</h2>\n"
+            f"<table>\n<tr><th>ID</th><th>Title</th><th>Reason</th></tr>\n"
+            f"{fr_rows}</table>\n</section>\n"
         )
 
     # Velocity by iteration SVG chart
@@ -1003,18 +1045,18 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
         for e in epics:
             pct_class = "good" if e["pct"] >= 70 else "warn" if e["pct"] >= 40 else "bad"
             epic_rows += (
-                f'<tr>'
-                f'<td>{escape(e["title"])}</td>'
-                f'<td>{e["total"]}</td>'
-                f'<td>{e["passed"]}</td>'
+                f"<tr>"
+                f"<td>{escape(e['title'])}</td>"
+                f"<td>{e['total']}</td>"
+                f"<td>{e['passed']}</td>"
                 f'<td class="{pct_class}">{e["pct"]:.0f}%</td>'
                 f'<td><div class="bar-track" style="height:12px"><div class="bar-fill" style="width:{e["pct"]:.0f}%"></div></div></td>'
-                f'</tr>\n'
+                f"</tr>\n"
             )
         epics_html = (
-            f'<section>\n<h2>Epics</h2>\n'
-            f'<table>\n<tr><th>Epic</th><th>Total</th><th>Done</th><th>%</th><th>Progress</th></tr>\n'
-            f'{epic_rows}</table>\n</section>\n'
+            f"<section>\n<h2>Epics</h2>\n"
+            f"<table>\n<tr><th>Epic</th><th>Total</th><th>Done</th><th>%</th><th>Progress</th></tr>\n"
+            f"{epic_rows}</table>\n</section>\n"
         )
 
     # Completion ring SVG
@@ -1035,13 +1077,11 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
             stale_days_val = story.get("stale_days")
             stale_badge = (
                 f'<span class="stale-badge">&#9200; stale {stale_days_val}d</span>'
-                if stale_days_val is not None else ""
+                if stale_days_val is not None
+                else ""
             )
             scope_creep_flag = story.get("scope_creep", False)
-            scope_creep_badge = (
-                '<span class="scope-creep-badge">&#9888; scope-creep</span>'
-                if scope_creep_flag else ""
-            )
+            scope_creep_badge = '<span class="scope-creep-badge">&#9888; scope-creep</span>' if scope_creep_flag else ""
 
             # Build attempt table HTML
             attempt_rows = ""
@@ -1057,38 +1097,42 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
                     attempt_rows += (
                         f'<tr style="font-size:11px">'
                         f'<td style="font-family:monospace;font-size:10px">{timestamp}</td>'
-                        f'<td>{model}</td>'
-                        f'<td>{tool}</td>'
+                        f"<td>{model}</td>"
+                        f"<td>{tool}</td>"
                         f'<td class="{att_status}">{att_status}</td>'
                         f'<td style="text-align:right">{duration}s</td>'
                         f'<td style="text-align:center">{retry_num}</td>'
                         f'<td style="font-family:monospace;font-size:10px">{commit}</td>'
-                        f'</tr>\n'
+                        f"</tr>\n"
                     )
             else:
-                attempt_rows = '<tr style="font-size:11px"><td colspan="7" class="no-data">No attempts recorded</td></tr>'
+                attempt_rows = (
+                    '<tr style="font-size:11px"><td colspan="7" class="no-data">No attempts recorded</td></tr>'
+                )
 
             _border_color = "#ffa040" if stale_days_val is not None else ("#ff9900" if scope_creep_flag else "#333")
-            _detail_class = "stale-story" if stale_days_val is not None else ("scope-creep-story" if scope_creep_flag else "")
+            _detail_class = (
+                "stale-story" if stale_days_val is not None else ("scope-creep-story" if scope_creep_flag else "")
+            )
             stories_rows += (
                 f'<details class="{_detail_class}" style="margin-bottom:8px;border:1px solid {_border_color};border-radius:4px">'
                 f'<summary style="cursor:pointer;padding:8px;background:#0f3460;color:#fff;font-weight:bold;display:flex;justify-content:space-between;align-items:center">'
-                f'<span>{escape(story_id)}: {escape(story["title"][:50])}{stale_badge}{scope_creep_badge}</span>'
+                f"<span>{escape(story_id)}: {escape(story['title'][:50])}{stale_badge}{scope_creep_badge}</span>"
                 f'<span class="{status_color}" style="font-size:11px;padding:2px 6px;border-radius:3px">{display_status}</span>'
-                f'</summary>'
+                f"</summary>"
                 f'<div style="padding:8px;overflow-x:auto">'
                 f'<table style="font-size:11px;width:100%">'
                 f'<tr><th style="font-size:9px">Timestamp</th><th>Model</th><th>Tool</th><th>Status</th><th style="text-align:right">Secs</th><th style="text-align:center">Retry</th><th>Commit</th></tr>'
-                f'{attempt_rows}'
-                f'</table>'
-                f'</div>'
-                f'</details>\n'
+                f"{attempt_rows}"
+                f"</table>"
+                f"</div>"
+                f"</details>\n"
             )
 
         stories_html = (
-            f'<section>\n<h2>Stories</h2>\n'
+            f"<section>\n<h2>Stories</h2>\n"
             f'<div style="max-height:600px;overflow-y:auto">{stories_rows}</div>\n'
-            f'</section>\n'
+            f"</section>\n"
         )
 
     # Orphaned worktrees section
@@ -1098,21 +1142,21 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
         ow_rows = ""
         for ow in ow_list:
             ow_rows += (
-                f'<tr>'
+                f"<tr>"
                 f'<td><span class="bad">ORPHANED</span></td>'
-                f'<td>{escape(ow["worker_dir"])}</td>'
+                f"<td>{escape(ow['worker_dir'])}</td>"
                 f'<td class="trunc" title="{escape(ow["path"])}">{escape(ow["path"])}</td>'
-                f'<td>{ow["pid"]}</td>'
+                f"<td>{ow['pid']}</td>"
                 f'<td><code style="font-size:11px;color:#ffd93d">{escape(ow["suggested_cmd"])}</code></td>'
-                f'</tr>\n'
+                f"</tr>\n"
             )
         orphaned_html = (
             f'<section style="border-color:#ff6b6b">\n'
             f'<h2 style="color:#ff6b6b">&#9888; Orphaned Worktrees ({len(ow_list)})</h2>\n'
             f'<p style="font-size:12px;color:#aaa;margin-bottom:10px">'
-            f'These worktrees have dead worker PIDs. Run the suggested command to clean up.</p>\n'
-            f'<table>\n<tr><th>Status</th><th>Worker</th><th>Path</th><th>Dead PID</th><th>Cleanup Command</th></tr>\n'
-            f'{ow_rows}</table>\n</section>\n'
+            f"These worktrees have dead worker PIDs. Run the suggested command to clean up.</p>\n"
+            f"<table>\n<tr><th>Status</th><th>Worker</th><th>Path</th><th>Dead PID</th><th>Cleanup Command</th></tr>\n"
+            f"{ow_rows}</table>\n</section>\n"
         )
 
     # Token forecast widget
@@ -1122,7 +1166,11 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
         amber = tf.get("amber_alert", False)
         border_col = "#ffd93d" if amber else "#0f3460"
         title_col = "#ffd93d" if amber else "#6c63ff"
-        alert_badge = ' <span style="font-size:10px;background:#ffd93d;color:#333;padding:1px 6px;border-radius:8px;vertical-align:middle">&#9888; LOW BUDGET</span>' if amber else ""
+        alert_badge = (
+            ' <span style="font-size:10px;background:#ffd93d;color:#333;padding:1px 6px;border-radius:8px;vertical-align:middle">&#9888; LOW BUDGET</span>'
+            if amber
+            else ""
+        )
         burn_rate_fmt = f"{tf['burn_rate_per_hour']:,}"
         limit_fmt = f"{tf['daily_limit']:,}"
         token_forecast_html = (
@@ -1136,11 +1184,11 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
             f'<div style="font-size:11px;color:#888;margin-top:4px;text-transform:uppercase">Daily Limit In</div></div>\n'
             f'<div style="text-align:center"><div style="font-size:22px;font-weight:bold;color:#fff">{limit_fmt}</div>'
             f'<div style="font-size:11px;color:#888;margin-top:4px;text-transform:uppercase">Daily Budget (SPIRAL_DAILY_TOKEN_LIMIT)</div></div>\n'
-            f'</div>\n'
+            f"</div>\n"
             f'<div style="font-size:11px;color:#555;margin-top:8px">'
-            f'At current pace, daily limit reached in {tf["time_str"]} (at {tf["exhaustion_clock"]}). '
-            f'Based on rolling 1-hour token window.</div>\n'
-            f'</section>\n'
+            f"At current pace, daily limit reached in {tf['time_str']} (at {tf['exhaustion_clock']}). "
+            f"Based on rolling 1-hour token window.</div>\n"
+            f"</section>\n"
         )
 
     # ── Quality scores widget (US-248) ───────────────────────────────────────
@@ -1160,24 +1208,24 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
             ts = escape(str(latest.get("timestamp", "")))
             color = "#6bcb77" if avg >= 4 else ("#ffd93d" if avg >= 3 else "#ff6b6b")
             phase_rows += (
-                f'<tr>'
-                f'<td>Phase {escape(phase)}</td>'
+                f"<tr>"
+                f"<td>Phase {escape(phase)}</td>"
                 f'<td style="color:{color};font-weight:bold">{avg:.1f}</td>'
-                f'<td>{latest_score}</td>'
-                f'<td>{len(scores)}</td>'
+                f"<td>{latest_score}</td>"
+                f"<td>{len(scores)}</td>"
                 f'<td style="font-size:11px;color:#aaa" title="{ts}">{rationale}</td>'
-                f'</tr>\n'
+                f"</tr>\n"
             )
         if phase_rows:
             quality_html = (
-                f'<section>\n'
-                f'<h2>&#127919; LLM Quality Scores</h2>\n'
+                f"<section>\n"
+                f"<h2>&#127919; LLM Quality Scores</h2>\n"
                 f'<p style="font-size:12px;color:#aaa;margin-bottom:10px">'
-                f'Average 1-5 scores from LLM-as-Judge evaluation per phase.</p>\n'
-                f'<table>\n'
-                f'<tr><th>Phase</th><th>Avg Score</th><th>Latest</th><th>N</th><th>Latest Rationale</th></tr>\n'
-                f'{phase_rows}</table>\n'
-                f'</section>\n'
+                f"Average 1-5 scores from LLM-as-Judge evaluation per phase.</p>\n"
+                f"<table>\n"
+                f"<tr><th>Phase</th><th>Avg Score</th><th>Latest</th><th>N</th><th>Latest Rationale</th></tr>\n"
+                f"{phase_rows}</table>\n"
+                f"</section>\n"
             )
 
     refresh_meta = f'<meta http-equiv="refresh" content="{refresh_secs}">\n' if refresh_secs > 0 else ""
@@ -1273,7 +1321,7 @@ footer{{text-align:center;color:#444;font-size:10px;margin-top:16px;padding-top:
 </div>
 
 {orphaned_html}
-{token_forecast_html}{f'<div>{insights_html}</div>' if insights_html else ''}
+{token_forecast_html}{f"<div>{insights_html}</div>" if insights_html else ""}
 {quality_html}
 
 {stories_html}
@@ -1293,10 +1341,10 @@ footer{{text-align:center;color:#444;font-size:10px;margin-top:16px;padding-top:
 <div class="stacked-bar">
 <div class="seg pass" style="width:{pct_passed:.0f}%">{ss["passed"]}</div>
 <div class="seg pend" style="width:{pct_pending:.0f}%">{ss["pending"]}</div>
-{f'<div class="seg dec" style="width:{pct_decomp:.0f}%">{ss["decomposed"]}</div>' if ss["decomposed"] else ''}
-{f'<div class="seg skip" style="width:{pct_skipped:.0f}%">{ss["skipped"]}</div>' if ss["skipped"] else ''}
+{f'<div class="seg dec" style="width:{pct_decomp:.0f}%">{ss["decomposed"]}</div>' if ss["decomposed"] else ""}
+{f'<div class="seg skip" style="width:{pct_skipped:.0f}%">{ss["skipped"]}</div>' if ss["skipped"] else ""}
 </div>
-<div class="att-line">Attempts: {att_html if att_html else 'none'}</div>
+<div class="att-line">Attempts: {att_html if att_html else "none"}</div>
 </section>
 <section>
 <h2>Model Performance</h2>
@@ -1358,6 +1406,7 @@ footer{{text-align:center;color:#444;font-size:10px;margin-top:16px;padding-top:
 
 # ── Main ─────────────────────────────────────────────────────────────────────
 
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="SPIRAL metrics dashboard generator")
     parser.add_argument("--prd", default="prd.json", help="Path to prd.json")
@@ -1368,9 +1417,12 @@ def main() -> int:
     parser.add_argument("--scratch-dir", default=".spiral", help="Path to .spiral scratch dir (for screenshots)")
     parser.add_argument("--output", default=".spiral/dashboard.html", help="Output HTML path")
     parser.add_argument("--open", action="store_true", help="Auto-open in browser after generating")
-    parser.add_argument("--refresh-secs", type=int,
-                        default=int(os.environ.get("SPIRAL_DASHBOARD_REFRESH_SECS", "30")),
-                        help="Auto-refresh interval in seconds (0 to disable)")
+    parser.add_argument(
+        "--refresh-secs",
+        type=int,
+        default=int(os.environ.get("SPIRAL_DASHBOARD_REFRESH_SECS", "30")),
+        help="Auto-refresh interval in seconds (0 to disable)",
+    )
     args = parser.parse_args()
 
     # Orphan check runs at startup (US-087)
@@ -1423,7 +1475,29 @@ def main() -> int:
         velocity = [{"iter": 0, "kept": 0, "total": 0, "duration_hours": 0.001, "velocity": 0}]
 
     # Render
-    html = render_html(overview, velocity, status, model_perf, retry_analysis, bottle, decomposition, insights, screenshot, iteration_velocity=iter_vel, epics=epics, activity_sections=activity, failure_reasons=failure_reasons, story_attempts=story_attempts, refresh_secs=args.refresh_secs, orphaned_worktrees=orphans, token_forecast=token_forecast, resource_usage=resource_usage, iter_summary=iter_summary, quality_scores=quality_scores, agent_telemetry=agent_telem)
+    html = render_html(
+        overview,
+        velocity,
+        status,
+        model_perf,
+        retry_analysis,
+        bottle,
+        decomposition,
+        insights,
+        screenshot,
+        iteration_velocity=iter_vel,
+        epics=epics,
+        activity_sections=activity,
+        failure_reasons=failure_reasons,
+        story_attempts=story_attempts,
+        refresh_secs=args.refresh_secs,
+        orphaned_worktrees=orphans,
+        token_forecast=token_forecast,
+        resource_usage=resource_usage,
+        iter_summary=iter_summary,
+        quality_scores=quality_scores,
+        agent_telemetry=agent_telem,
+    )
 
     # Write
     output_path = os.path.abspath(args.output)

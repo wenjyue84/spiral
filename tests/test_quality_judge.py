@@ -11,12 +11,9 @@ import sys
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
 
 from quality_judge import (
-    _call_judge,
     _parse_score_json,
     _update_checkpoint_scores,
     cmd_judge_phase_i,
@@ -24,12 +21,13 @@ from quality_judge import (
     cmd_show,
 )
 
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _make_args(**kwargs):
     """Build a simple argparse.Namespace-like object."""
     import argparse
+
     return argparse.Namespace(**kwargs)
 
 
@@ -45,29 +43,36 @@ def _write_prd(tmp_path: Path, stories: list[dict]) -> Path:
     return p
 
 
-_GOOD_R_RESPONSE = json.dumps({
-    "relevance": 4,
-    "completeness": 4,
-    "score": 4.0,
-    "rationale": "Research covers most required areas.",
-})
+_GOOD_R_RESPONSE = json.dumps(
+    {
+        "relevance": 4,
+        "completeness": 4,
+        "score": 4.0,
+        "rationale": "Research covers most required areas.",
+    }
+)
 
-_LOW_R_RESPONSE = json.dumps({
-    "relevance": 2,
-    "completeness": 1,
-    "score": 1.5,
-    "rationale": "Research is off-topic and sparse.",
-})
+_LOW_R_RESPONSE = json.dumps(
+    {
+        "relevance": 2,
+        "completeness": 1,
+        "score": 1.5,
+        "rationale": "Research is off-topic and sparse.",
+    }
+)
 
-_GOOD_I_RESPONSE = json.dumps({
-    "criteria_coverage": 5,
-    "quality": 4,
-    "score": 4.5,
-    "rationale": "All acceptance criteria are addressed cleanly.",
-})
+_GOOD_I_RESPONSE = json.dumps(
+    {
+        "criteria_coverage": 5,
+        "quality": 4,
+        "score": 4.5,
+        "rationale": "All acceptance criteria are addressed cleanly.",
+    }
+)
 
 
 # ── _parse_score_json ─────────────────────────────────────────────────────────
+
 
 class TestParseScoreJson:
     def test_parses_plain_json(self) -> None:
@@ -91,6 +96,7 @@ class TestParseScoreJson:
 
 
 # ── _update_checkpoint_scores ─────────────────────────────────────────────────
+
 
 class TestUpdateCheckpointScores:
     def test_creates_checkpoint_if_missing(self, tmp_path: Path) -> None:
@@ -125,6 +131,7 @@ class TestUpdateCheckpointScores:
 
 
 # ── cmd_judge_phase_r ─────────────────────────────────────────────────────────
+
 
 class TestJudgePhaseR:
     def test_scores_written_to_checkpoint(self, tmp_path: Path) -> None:
@@ -214,6 +221,7 @@ class TestJudgePhaseR:
 
 # ── cmd_judge_phase_i ─────────────────────────────────────────────────────────
 
+
 class TestJudgePhaseI:
     def test_scores_written_to_checkpoint(self, tmp_path: Path) -> None:
         stories = [
@@ -241,6 +249,7 @@ class TestJudgePhaseI:
 
 # ── cmd_show ──────────────────────────────────────────────────────────────────
 
+
 class TestCmdShow:
     def test_shows_no_scores_message(self, tmp_path: Path, capsys) -> None:
         ckpt = tmp_path / "checkpoint.json"
@@ -251,14 +260,18 @@ class TestCmdShow:
 
     def test_displays_phase_averages(self, tmp_path: Path, capsys) -> None:
         ckpt = tmp_path / "checkpoint.json"
-        ckpt.write_text(json.dumps({
-            "_qualityScores": {
-                "R": [
-                    {"score": 3.0, "rationale": "ok", "timestamp": "2026-03-16T00:00:00Z"},
-                    {"score": 4.0, "rationale": "good", "timestamp": "2026-03-16T01:00:00Z"},
-                ],
-            }
-        }))
+        ckpt.write_text(
+            json.dumps(
+                {
+                    "_qualityScores": {
+                        "R": [
+                            {"score": 3.0, "rationale": "ok", "timestamp": "2026-03-16T00:00:00Z"},
+                            {"score": 4.0, "rationale": "good", "timestamp": "2026-03-16T01:00:00Z"},
+                        ],
+                    }
+                }
+            )
+        )
         cmd_show(_make_args(checkpoint=str(ckpt)))
         captured = capsys.readouterr()
         assert "Phase R" in captured.out

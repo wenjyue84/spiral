@@ -1,8 +1,8 @@
 """Tests for US-227: Dead-letter queue for permanently failed stories."""
+
 import json
 import os
 import sys
-from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -11,8 +11,8 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import main  # noqa: E402
 
-
 # ── Helpers ────────────────────────────────────────────────────────────────
+
 
 def _make_prd(tmp_path, stories):
     prd = {
@@ -49,6 +49,7 @@ def _patch_paths(tmp_path, prd_path, retry_path=None, scratch_dir=None):
 
 # ── _classify_stories dlq bucket ──────────────────────────────────────────
 
+
 class TestClassifyStoriesDlq:
     def test_dlq_story_goes_to_dlq_bucket(self):
         stories = [{"id": "US-001", "title": "t", "passes": False, "_dlq": True}]
@@ -79,16 +80,24 @@ class TestClassifyStoriesDlq:
 
 # ── cmd_dlq_promote ────────────────────────────────────────────────────────
 
+
 class TestCmdDlqPromote:
     def test_promotes_exhausted_story(self, tmp_path, monkeypatch):
         monkeypatch.setenv("SPIRAL_MAX_RETRIES", "3")
-        prd_path = _make_prd(tmp_path, [
-            {"id": "US-001", "title": "t", "passes": False},
-        ])
+        prd_path = _make_prd(
+            tmp_path,
+            [
+                {"id": "US-001", "title": "t", "passes": False},
+            ],
+        )
         retry_path = _make_retry_counts(tmp_path, {"US-001": 3})
-        with patch.multiple(main, PRD_FILE=prd_path, RETRY_COUNTS=retry_path,
-                            SCRATCH_DIR=tmp_path / ".spiral",
-                            DLQ_AUDIT_LOG=tmp_path / ".spiral" / "audit.log"):
+        with patch.multiple(
+            main,
+            PRD_FILE=prd_path,
+            RETRY_COUNTS=retry_path,
+            SCRATCH_DIR=tmp_path / ".spiral",
+            DLQ_AUDIT_LOG=tmp_path / ".spiral" / "audit.log",
+        ):
             (tmp_path / ".spiral").mkdir(exist_ok=True)
             args = SimpleNamespace(dry_run=False)
             main.cmd_dlq_promote(args)
@@ -101,13 +110,20 @@ class TestCmdDlqPromote:
 
     def test_does_not_promote_below_threshold(self, tmp_path, monkeypatch):
         monkeypatch.setenv("SPIRAL_MAX_RETRIES", "3")
-        prd_path = _make_prd(tmp_path, [
-            {"id": "US-001", "title": "t", "passes": False},
-        ])
+        prd_path = _make_prd(
+            tmp_path,
+            [
+                {"id": "US-001", "title": "t", "passes": False},
+            ],
+        )
         retry_path = _make_retry_counts(tmp_path, {"US-001": 2})
-        with patch.multiple(main, PRD_FILE=prd_path, RETRY_COUNTS=retry_path,
-                            SCRATCH_DIR=tmp_path / ".spiral",
-                            DLQ_AUDIT_LOG=tmp_path / ".spiral" / "audit.log"):
+        with patch.multiple(
+            main,
+            PRD_FILE=prd_path,
+            RETRY_COUNTS=retry_path,
+            SCRATCH_DIR=tmp_path / ".spiral",
+            DLQ_AUDIT_LOG=tmp_path / ".spiral" / "audit.log",
+        ):
             (tmp_path / ".spiral").mkdir(exist_ok=True)
             args = SimpleNamespace(dry_run=False)
             main.cmd_dlq_promote(args)
@@ -118,13 +134,20 @@ class TestCmdDlqPromote:
 
     def test_skips_passed_stories(self, tmp_path, monkeypatch):
         monkeypatch.setenv("SPIRAL_MAX_RETRIES", "3")
-        prd_path = _make_prd(tmp_path, [
-            {"id": "US-001", "title": "t", "passes": True},
-        ])
+        prd_path = _make_prd(
+            tmp_path,
+            [
+                {"id": "US-001", "title": "t", "passes": True},
+            ],
+        )
         retry_path = _make_retry_counts(tmp_path, {"US-001": 5})
-        with patch.multiple(main, PRD_FILE=prd_path, RETRY_COUNTS=retry_path,
-                            SCRATCH_DIR=tmp_path / ".spiral",
-                            DLQ_AUDIT_LOG=tmp_path / ".spiral" / "audit.log"):
+        with patch.multiple(
+            main,
+            PRD_FILE=prd_path,
+            RETRY_COUNTS=retry_path,
+            SCRATCH_DIR=tmp_path / ".spiral",
+            DLQ_AUDIT_LOG=tmp_path / ".spiral" / "audit.log",
+        ):
             (tmp_path / ".spiral").mkdir(exist_ok=True)
             args = SimpleNamespace(dry_run=False)
             main.cmd_dlq_promote(args)
@@ -135,14 +158,26 @@ class TestCmdDlqPromote:
 
     def test_skips_already_dlq_stories(self, tmp_path, monkeypatch):
         monkeypatch.setenv("SPIRAL_MAX_RETRIES", "3")
-        prd_path = _make_prd(tmp_path, [
-            {"id": "US-001", "title": "t", "passes": False, "_dlq": True,
-             "_dlqMetadata": {"timestamp": "2025-01-01T00:00:00+00:00", "retryCount": 3, "reason": "old"}},
-        ])
+        prd_path = _make_prd(
+            tmp_path,
+            [
+                {
+                    "id": "US-001",
+                    "title": "t",
+                    "passes": False,
+                    "_dlq": True,
+                    "_dlqMetadata": {"timestamp": "2025-01-01T00:00:00+00:00", "retryCount": 3, "reason": "old"},
+                },
+            ],
+        )
         retry_path = _make_retry_counts(tmp_path, {"US-001": 5})
-        with patch.multiple(main, PRD_FILE=prd_path, RETRY_COUNTS=retry_path,
-                            SCRATCH_DIR=tmp_path / ".spiral",
-                            DLQ_AUDIT_LOG=tmp_path / ".spiral" / "audit.log"):
+        with patch.multiple(
+            main,
+            PRD_FILE=prd_path,
+            RETRY_COUNTS=retry_path,
+            SCRATCH_DIR=tmp_path / ".spiral",
+            DLQ_AUDIT_LOG=tmp_path / ".spiral" / "audit.log",
+        ):
             (tmp_path / ".spiral").mkdir(exist_ok=True)
             args = SimpleNamespace(dry_run=False)
             main.cmd_dlq_promote(args)
@@ -154,14 +189,21 @@ class TestCmdDlqPromote:
 
     def test_dry_run_does_not_modify_prd(self, tmp_path, monkeypatch):
         monkeypatch.setenv("SPIRAL_MAX_RETRIES", "3")
-        prd_path = _make_prd(tmp_path, [
-            {"id": "US-001", "title": "t", "passes": False},
-        ])
+        prd_path = _make_prd(
+            tmp_path,
+            [
+                {"id": "US-001", "title": "t", "passes": False},
+            ],
+        )
         retry_path = _make_retry_counts(tmp_path, {"US-001": 4})
         original = prd_path.read_text()
-        with patch.multiple(main, PRD_FILE=prd_path, RETRY_COUNTS=retry_path,
-                            SCRATCH_DIR=tmp_path / ".spiral",
-                            DLQ_AUDIT_LOG=tmp_path / ".spiral" / "audit.log"):
+        with patch.multiple(
+            main,
+            PRD_FILE=prd_path,
+            RETRY_COUNTS=retry_path,
+            SCRATCH_DIR=tmp_path / ".spiral",
+            DLQ_AUDIT_LOG=tmp_path / ".spiral" / "audit.log",
+        ):
             (tmp_path / ".spiral").mkdir(exist_ok=True)
             args = SimpleNamespace(dry_run=True)
             main.cmd_dlq_promote(args)
@@ -170,14 +212,18 @@ class TestCmdDlqPromote:
 
     def test_writes_audit_log(self, tmp_path, monkeypatch):
         monkeypatch.setenv("SPIRAL_MAX_RETRIES", "3")
-        prd_path = _make_prd(tmp_path, [
-            {"id": "US-001", "title": "t", "passes": False},
-        ])
+        prd_path = _make_prd(
+            tmp_path,
+            [
+                {"id": "US-001", "title": "t", "passes": False},
+            ],
+        )
         retry_path = _make_retry_counts(tmp_path, {"US-001": 3})
         scratch = tmp_path / ".spiral"
         audit_log = scratch / "audit.log"
-        with patch.multiple(main, PRD_FILE=prd_path, RETRY_COUNTS=retry_path,
-                            SCRATCH_DIR=scratch, DLQ_AUDIT_LOG=audit_log):
+        with patch.multiple(
+            main, PRD_FILE=prd_path, RETRY_COUNTS=retry_path, SCRATCH_DIR=scratch, DLQ_AUDIT_LOG=audit_log
+        ):
             scratch.mkdir(exist_ok=True)
             args = SimpleNamespace(dry_run=False)
             main.cmd_dlq_promote(args)
@@ -191,13 +237,22 @@ class TestCmdDlqPromote:
 
 # ── cmd_dlq_list ───────────────────────────────────────────────────────────
 
+
 class TestCmdDlqList:
     def test_lists_dlq_stories(self, tmp_path, capsys):
-        prd_path = _make_prd(tmp_path, [
-            {"id": "US-001", "title": "A broken story", "passes": False, "_dlq": True,
-             "_dlqMetadata": {"timestamp": "2025-06-01T10:00:00+00:00", "retryCount": 3, "reason": "Exhausted"}},
-            {"id": "US-002", "title": "Normal story", "passes": False},
-        ])
+        prd_path = _make_prd(
+            tmp_path,
+            [
+                {
+                    "id": "US-001",
+                    "title": "A broken story",
+                    "passes": False,
+                    "_dlq": True,
+                    "_dlqMetadata": {"timestamp": "2025-06-01T10:00:00+00:00", "retryCount": 3, "reason": "Exhausted"},
+                },
+                {"id": "US-002", "title": "Normal story", "passes": False},
+            ],
+        )
         with patch.object(main, "PRD_FILE", prd_path):
             args = SimpleNamespace(json_output=False)
             main.cmd_dlq_list(args)
@@ -208,10 +263,18 @@ class TestCmdDlqList:
         assert "US-002" not in out
 
     def test_json_output(self, tmp_path, capsys):
-        prd_path = _make_prd(tmp_path, [
-            {"id": "US-001", "title": "A broken story", "passes": False, "_dlq": True,
-             "_dlqMetadata": {"timestamp": "2025-06-01T10:00:00+00:00", "retryCount": 3, "reason": "x"}},
-        ])
+        prd_path = _make_prd(
+            tmp_path,
+            [
+                {
+                    "id": "US-001",
+                    "title": "A broken story",
+                    "passes": False,
+                    "_dlq": True,
+                    "_dlqMetadata": {"timestamp": "2025-06-01T10:00:00+00:00", "retryCount": 3, "reason": "x"},
+                },
+            ],
+        )
         with patch.object(main, "PRD_FILE", prd_path):
             args = SimpleNamespace(json_output=True)
             main.cmd_dlq_list(args)
@@ -223,9 +286,12 @@ class TestCmdDlqList:
         assert "dlqMetadata" in data[0]
 
     def test_empty_dlq(self, tmp_path, capsys):
-        prd_path = _make_prd(tmp_path, [
-            {"id": "US-001", "title": "Normal", "passes": False},
-        ])
+        prd_path = _make_prd(
+            tmp_path,
+            [
+                {"id": "US-001", "title": "Normal", "passes": False},
+            ],
+        )
         with patch.object(main, "PRD_FILE", prd_path):
             args = SimpleNamespace(json_output=False)
             main.cmd_dlq_list(args)
@@ -236,17 +302,27 @@ class TestCmdDlqList:
 
 # ── cmd_dlq_replay ─────────────────────────────────────────────────────────
 
+
 class TestCmdDlqReplay:
     def test_replay_clears_dlq(self, tmp_path):
-        prd_path = _make_prd(tmp_path, [
-            {"id": "US-001", "title": "t", "passes": False, "_dlq": True,
-             "_dlqMetadata": {"timestamp": "2025-06-01T10:00:00+00:00", "retryCount": 3, "reason": "x"}},
-        ])
+        prd_path = _make_prd(
+            tmp_path,
+            [
+                {
+                    "id": "US-001",
+                    "title": "t",
+                    "passes": False,
+                    "_dlq": True,
+                    "_dlqMetadata": {"timestamp": "2025-06-01T10:00:00+00:00", "retryCount": 3, "reason": "x"},
+                },
+            ],
+        )
         retry_path = _make_retry_counts(tmp_path, {"US-001": 3})
         scratch = tmp_path / ".spiral"
         audit_log = scratch / "audit.log"
-        with patch.multiple(main, PRD_FILE=prd_path, RETRY_COUNTS=retry_path,
-                            SCRATCH_DIR=scratch, DLQ_AUDIT_LOG=audit_log):
+        with patch.multiple(
+            main, PRD_FILE=prd_path, RETRY_COUNTS=retry_path, SCRATCH_DIR=scratch, DLQ_AUDIT_LOG=audit_log
+        ):
             scratch.mkdir(exist_ok=True)
             args = SimpleNamespace(story="US-001", dry_run=False)
             main.cmd_dlq_replay(args)
@@ -257,15 +333,24 @@ class TestCmdDlqReplay:
         assert "_dlqMetadata" not in story
 
     def test_replay_resets_retry_count(self, tmp_path):
-        prd_path = _make_prd(tmp_path, [
-            {"id": "US-001", "title": "t", "passes": False, "_dlq": True,
-             "_dlqMetadata": {"timestamp": "2025-06-01T10:00:00+00:00", "retryCount": 3, "reason": "x"}},
-        ])
+        prd_path = _make_prd(
+            tmp_path,
+            [
+                {
+                    "id": "US-001",
+                    "title": "t",
+                    "passes": False,
+                    "_dlq": True,
+                    "_dlqMetadata": {"timestamp": "2025-06-01T10:00:00+00:00", "retryCount": 3, "reason": "x"},
+                },
+            ],
+        )
         retry_path = _make_retry_counts(tmp_path, {"US-001": 3, "US-002": 5})
         scratch = tmp_path / ".spiral"
         audit_log = scratch / "audit.log"
-        with patch.multiple(main, PRD_FILE=prd_path, RETRY_COUNTS=retry_path,
-                            SCRATCH_DIR=scratch, DLQ_AUDIT_LOG=audit_log):
+        with patch.multiple(
+            main, PRD_FILE=prd_path, RETRY_COUNTS=retry_path, SCRATCH_DIR=scratch, DLQ_AUDIT_LOG=audit_log
+        ):
             scratch.mkdir(exist_ok=True)
             args = SimpleNamespace(story="US-001", dry_run=False)
             main.cmd_dlq_replay(args)
@@ -275,15 +360,24 @@ class TestCmdDlqReplay:
         assert counts["US-002"] == 5  # unaffected
 
     def test_replay_writes_audit_log(self, tmp_path):
-        prd_path = _make_prd(tmp_path, [
-            {"id": "US-001", "title": "t", "passes": False, "_dlq": True,
-             "_dlqMetadata": {"timestamp": "2025-06-01T10:00:00+00:00", "retryCount": 3, "reason": "x"}},
-        ])
+        prd_path = _make_prd(
+            tmp_path,
+            [
+                {
+                    "id": "US-001",
+                    "title": "t",
+                    "passes": False,
+                    "_dlq": True,
+                    "_dlqMetadata": {"timestamp": "2025-06-01T10:00:00+00:00", "retryCount": 3, "reason": "x"},
+                },
+            ],
+        )
         retry_path = _make_retry_counts(tmp_path, {"US-001": 3})
         scratch = tmp_path / ".spiral"
         audit_log = scratch / "audit.log"
-        with patch.multiple(main, PRD_FILE=prd_path, RETRY_COUNTS=retry_path,
-                            SCRATCH_DIR=scratch, DLQ_AUDIT_LOG=audit_log):
+        with patch.multiple(
+            main, PRD_FILE=prd_path, RETRY_COUNTS=retry_path, SCRATCH_DIR=scratch, DLQ_AUDIT_LOG=audit_log
+        ):
             scratch.mkdir(exist_ok=True)
             args = SimpleNamespace(story="US-001", dry_run=False)
             main.cmd_dlq_replay(args)
@@ -293,13 +387,17 @@ class TestCmdDlqReplay:
         assert entry["story_id"] == "US-001"
 
     def test_replay_fails_for_non_dlq_story(self, tmp_path):
-        prd_path = _make_prd(tmp_path, [
-            {"id": "US-001", "title": "t", "passes": False},
-        ])
+        prd_path = _make_prd(
+            tmp_path,
+            [
+                {"id": "US-001", "title": "t", "passes": False},
+            ],
+        )
         retry_path = _make_retry_counts(tmp_path, {"US-001": 2})
         scratch = tmp_path / ".spiral"
-        with patch.multiple(main, PRD_FILE=prd_path, RETRY_COUNTS=retry_path,
-                            SCRATCH_DIR=scratch, DLQ_AUDIT_LOG=scratch / "audit.log"):
+        with patch.multiple(
+            main, PRD_FILE=prd_path, RETRY_COUNTS=retry_path, SCRATCH_DIR=scratch, DLQ_AUDIT_LOG=scratch / "audit.log"
+        ):
             scratch.mkdir(exist_ok=True)
             args = SimpleNamespace(story="US-001", dry_run=False)
             with pytest.raises(SystemExit) as exc:
@@ -310,8 +408,9 @@ class TestCmdDlqReplay:
         prd_path = _make_prd(tmp_path, [])
         retry_path = _make_retry_counts(tmp_path, {})
         scratch = tmp_path / ".spiral"
-        with patch.multiple(main, PRD_FILE=prd_path, RETRY_COUNTS=retry_path,
-                            SCRATCH_DIR=scratch, DLQ_AUDIT_LOG=scratch / "audit.log"):
+        with patch.multiple(
+            main, PRD_FILE=prd_path, RETRY_COUNTS=retry_path, SCRATCH_DIR=scratch, DLQ_AUDIT_LOG=scratch / "audit.log"
+        ):
             scratch.mkdir(exist_ok=True)
             args = SimpleNamespace(story="US-999", dry_run=False)
             with pytest.raises(SystemExit) as exc:
@@ -319,15 +418,24 @@ class TestCmdDlqReplay:
             assert exc.value.code == 1
 
     def test_dry_run_does_not_modify_prd(self, tmp_path):
-        prd_path = _make_prd(tmp_path, [
-            {"id": "US-001", "title": "t", "passes": False, "_dlq": True,
-             "_dlqMetadata": {"timestamp": "2025-06-01T10:00:00+00:00", "retryCount": 3, "reason": "x"}},
-        ])
+        prd_path = _make_prd(
+            tmp_path,
+            [
+                {
+                    "id": "US-001",
+                    "title": "t",
+                    "passes": False,
+                    "_dlq": True,
+                    "_dlqMetadata": {"timestamp": "2025-06-01T10:00:00+00:00", "retryCount": 3, "reason": "x"},
+                },
+            ],
+        )
         retry_path = _make_retry_counts(tmp_path, {"US-001": 3})
         original = prd_path.read_text()
         scratch = tmp_path / ".spiral"
-        with patch.multiple(main, PRD_FILE=prd_path, RETRY_COUNTS=retry_path,
-                            SCRATCH_DIR=scratch, DLQ_AUDIT_LOG=scratch / "audit.log"):
+        with patch.multiple(
+            main, PRD_FILE=prd_path, RETRY_COUNTS=retry_path, SCRATCH_DIR=scratch, DLQ_AUDIT_LOG=scratch / "audit.log"
+        ):
             scratch.mkdir(exist_ok=True)
             args = SimpleNamespace(story="US-001", dry_run=True)
             main.cmd_dlq_replay(args)

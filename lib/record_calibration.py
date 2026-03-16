@@ -8,13 +8,13 @@ for each completed story, and appends records to calibration.jsonl.
 Usage:
   ./lib/record_calibration.py --results results.tsv --prd prd.json --calibration calibration.jsonl
 """
+
 import argparse
 import csv
 import json
 import os
 import sys
 from pathlib import Path
-from typing import Optional
 
 sys.path.insert(0, os.path.dirname(__file__))
 from spiral_io import append_jsonl
@@ -24,7 +24,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Record calibration data for SPIRAL stories")
     parser.add_argument("--results", required=True, help="Path to results.tsv")
     parser.add_argument("--prd", required=True, help="Path to prd.json")
-    parser.add_argument("--calibration", default="calibration.jsonl", help="Path to calibration.jsonl (default: calibration.jsonl)")
+    parser.add_argument(
+        "--calibration",
+        default="calibration.jsonl",
+        help="Path to calibration.jsonl (default: calibration.jsonl)",
+    )
     args = parser.parse_args()
 
     results_path = Path(args.results)

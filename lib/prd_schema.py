@@ -19,6 +19,7 @@ As module:
   from prd_schema import validate_prd
   errors = validate_prd(prd_dict)  # [] = valid
 """
+
 import json
 import os
 import re
@@ -26,6 +27,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
 from spiral_io import configure_utf8_stdout
+
 configure_utf8_stdout()
 
 STORY_PREFIX = os.environ.get("SPIRAL_STORY_PREFIX", "US")
@@ -133,9 +135,7 @@ def validate_prd(prd: dict) -> list[str]:
         elif not isinstance(story["title"], str) or not story["title"].strip():
             errors.append(f"{sp}/title — title must be a non-empty string")
         elif len(story["title"]) > 120:
-            errors.append(
-                f"{sp}/title — title exceeds maxLength 120 ({len(story['title'])} chars)"
-            )
+            errors.append(f"{sp}/title — title exceeds maxLength 120 ({len(story['title'])} chars)")
 
         if "passes" not in story:
             errors.append(f"{sp}/passes — missing required field 'passes'")
@@ -146,8 +146,7 @@ def validate_prd(prd: dict) -> list[str]:
             errors.append(f"{sp}/priority — missing required field 'priority'")
         elif story["priority"] not in VALID_PRIORITIES:
             errors.append(
-                f"{sp}/priority — invalid priority '{story['priority']}'"
-                f" (valid: {', '.join(sorted(VALID_PRIORITIES))})"
+                f"{sp}/priority — invalid priority '{story['priority']}' (valid: {', '.join(sorted(VALID_PRIORITIES))})"
             )
 
         if "description" in story and not isinstance(story["description"], str):
@@ -193,7 +192,7 @@ def validate_prd(prd: dict) -> list[str]:
             pc = story["_passedCommit"]
             if not isinstance(pc, str):
                 errors.append(f"{sp}/_passedCommit — _passedCommit must be string")
-            elif pc and not re.match(r'^[0-9a-f]{40}$', pc):
+            elif pc and not re.match(r"^[0-9a-f]{40}$", pc):
                 errors.append(f"{sp}/_passedCommit — _passedCommit must be a 40-char hex SHA or empty string")
 
         if "filesTouch" in story and not isinstance(story["filesTouch"], list):
@@ -273,6 +272,7 @@ def has_jsonschema() -> bool:
     """Return True if the jsonschema-rs package is importable."""
     try:
         import jsonschema_rs  # noqa: F401
+
         return True
     except ImportError:
         return False
@@ -356,8 +356,7 @@ def main() -> int:
         "--validate-write",
         metavar="NEW_FILE",
         help=(
-            "Validate NEW_FILE then atomically replace prd with it. "
-            "Creates prd.bak before write; restores on failure."
+            "Validate NEW_FILE then atomically replace prd with it. Creates prd.bak before write; restores on failure."
         ),
     )
     args = parser.parse_args()

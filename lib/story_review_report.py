@@ -13,6 +13,7 @@ Usage:
     python lib/story_review_report.py --prd prd.json --iter 3 --output .spiral/gate-reports/
     python lib/story_review_report.py --prd prd.json --iter 3 --output .spiral/gate-reports/ --open
 """
+
 import argparse
 import json
 import os
@@ -20,7 +21,6 @@ import subprocess
 import sys
 from datetime import datetime
 from html import escape
-from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(__file__))
 from constants import PRIORITY_RANK
@@ -30,6 +30,7 @@ configure_utf8_stdout()
 
 
 # ── Data helpers ─────────────────────────────────────────────────────────────
+
 
 def load_prd(path: str) -> dict:
     if not os.path.isfile(path):
@@ -42,9 +43,9 @@ def classify_complexity(story: dict) -> dict:
     """Return a human-friendly complexity label and colour."""
     c = (story.get("estimatedComplexity") or "medium").lower()
     mapping = {
-        "small":  {"label": "Small — Quick change",  "color": "#22c55e", "icon": "🟢"},
-        "medium": {"label": "Medium — Some work",     "color": "#f59e0b", "icon": "🟡"},
-        "large":  {"label": "Large — Significant effort", "color": "#ef4444", "icon": "🔴"},
+        "small": {"label": "Small — Quick change", "color": "#22c55e", "icon": "🟢"},
+        "medium": {"label": "Medium — Some work", "color": "#f59e0b", "icon": "🟡"},
+        "large": {"label": "Large — Significant effort", "color": "#ef4444", "icon": "🔴"},
     }
     return mapping.get(c, mapping["medium"])
 
@@ -102,7 +103,9 @@ def explain_story(story: dict) -> str:
 
     if ac:
         items = "".join(f"<li>{escape(c)}</li>" for c in ac)
-        parts.append(f'<p style="margin-top:10px;font-size:0.85rem;color:var(--text-dim)">Done when:</p><ul>{items}</ul>')
+        parts.append(
+            f'<p style="margin-top:10px;font-size:0.85rem;color:var(--text-dim)">Done when:</p><ul>{items}</ul>'
+        )
 
     if deps:
         dep_str = ", ".join(deps)
@@ -121,6 +124,7 @@ def explain_impact(story: dict) -> str:
 
 
 # ── HTML generation ──────────────────────────────────────────────────────────
+
 
 def _group_by_epic(stories: list[dict], epics_meta: list[dict]) -> list[tuple[str, str, list[dict]]]:
     """Group stories by epicId. Returns list of (epic_id, epic_title, stories).
@@ -156,9 +160,9 @@ def _render_epic_progress_bar(stories: list[dict]) -> str:
         f'<div class="epic-progress">'
         f'<div class="epic-progress-track">'
         f'<div class="epic-progress-fill" style="width:{pct:.0f}%"></div>'
-        f'</div>'
+        f"</div>"
         f'<span class="epic-progress-label">{done}/{total} done ({pct:.0f}%)</span>'
-        f'</div>'
+        f"</div>"
     )
 
 
@@ -183,7 +187,9 @@ def generate_html(prd: dict, iteration: int, added_count: int = 0) -> str:
         sid = escape(s.get("id", "?"))
         title = escape(s.get("title", "Untitled"))
         priority = (s.get("priority") or "medium").capitalize()
-        priority_color = {"Critical": "#dc2626", "High": "#ef4444", "Medium": "#f59e0b", "Low": "#6b7280"}.get(priority, "#6b7280")
+        priority_color = {"Critical": "#dc2626", "High": "#ef4444", "Medium": "#f59e0b", "Low": "#6b7280"}.get(
+            priority, "#6b7280"
+        )
         cx = classify_complexity(s)
         risk = classify_risk(s)
         explanation = explain_story(s)
@@ -199,20 +205,20 @@ def generate_html(prd: dict, iteration: int, added_count: int = 0) -> str:
         risk_body = ""
         if risk["level"] != "Low" and risk["reasons"]:
             risk_items = "".join(f"<li>{escape(r)}</li>" for r in risk["reasons"])
-            risk_body = f'''
+            risk_body = f"""
                 <div class="section risk-section">
-                    <h4>{risk['icon']} Risk: {risk['level']}</h4>
+                    <h4>{risk["icon"]} Risk: {risk["level"]}</h4>
                     <ul class="risk-reasons">{risk_items}</ul>
-                </div>'''
+                </div>"""
 
         # Impact: only show section when there are actual technical notes
         impact_section = ""
         if impact:
-            impact_section = f'''
+            impact_section = f"""
                 <div class="section">
                     <h4>🔧 Implementation notes</h4>
                     <div class="explanation">{impact}</div>
-                </div>'''
+                </div>"""
 
         card = f"""
         <div class="story-card" id="story-{sid}">
@@ -224,8 +230,8 @@ def generate_html(prd: dict, iteration: int, added_count: int = 0) -> str:
                 </div>
                 <div class="story-badges">
                     <span class="badge" style="background:{priority_color}">{priority}</span>
-                    <span class="badge" style="background:{cx['color']}">{cx['icon']} {escape(cx['label'])}</span>
-                    <span class="badge" style="background:{risk['color']}">{risk['icon']} Risk: {risk['level']}</span>
+                    <span class="badge" style="background:{cx["color"]}">{cx["icon"]} {escape(cx["label"])}</span>
+                    <span class="badge" style="background:{risk["color"]}">{risk["icon"]} Risk: {risk["level"]}</span>
                 </div>
             </div>
             <div class="story-body">
@@ -250,7 +256,7 @@ def generate_html(prd: dict, iteration: int, added_count: int = 0) -> str:
     total = len(stories)
     n_pending = len(pending)
     n_done = len(completed)
-    n_new = sum(1 for s in pending if s.get("_isNew"))
+    _n_new = sum(1 for s in pending if s.get("_isNew"))
 
     # Build card lookup by story id for epic grouping
     card_by_id = {}
@@ -273,10 +279,16 @@ def generate_html(prd: dict, iteration: int, added_count: int = 0) -> str:
                 sid = s.get("id", "")
                 if sid in card_by_id:
                     grouped_html_parts.append(card_by_id[sid])
-            grouped_html_parts.append('</div>')
-        cards_html = "\n".join(grouped_html_parts) if grouped_html_parts else '<div class="no-stories">No pending stories to review.</div>'
+            grouped_html_parts.append("</div>")
+        cards_html = (
+            "\n".join(grouped_html_parts)
+            if grouped_html_parts
+            else '<div class="no-stories">No pending stories to review.</div>'
+        )
     else:
-        cards_html = "\n".join(story_cards) if story_cards else '<div class="no-stories">No pending stories to review.</div>'
+        cards_html = (
+            "\n".join(story_cards) if story_cards else '<div class="no-stories">No pending stories to review.</div>'
+        )
 
     # Completed stories summary (collapsed)
     completed_rows = ""
@@ -287,7 +299,7 @@ def generate_html(prd: dict, iteration: int, added_count: int = 0) -> str:
             commit_cell = f'<code title="{escape(sha)}">{short_sha}</code>'
         else:
             commit_cell = '<span style="color:var(--text-dim)">—</span>'
-        completed_rows += f'<tr><td>{escape(s.get("id",""))}</td><td>{escape(s.get("title",""))}</td><td>{commit_cell}</td><td><span class="badge" style="background:#22c55e">Done</span></td></tr>\n'
+        completed_rows += f'<tr><td>{escape(s.get("id", ""))}</td><td>{escape(s.get("title", ""))}</td><td>{commit_cell}</td><td><span class="badge" style="background:#22c55e">Done</span></td></tr>\n'
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -631,7 +643,10 @@ body {{
     </div>
     <pre id="summary-output"></pre>
 
-    {"" if not completed_rows else f'''
+    {
+        ""
+        if not completed_rows
+        else f'''
     <div class="completed-section">
         <button class="completed-toggle" onclick="toggleCompleted()">
             <span>✅ Already Completed ({n_done} stories)</span>
@@ -644,7 +659,8 @@ body {{
             </table>
         </div>
     </div>
-    '''}
+    '''
+    }
 
     <div class="footer">
         Generated by SPIRAL · story_review_report.py · {now}
@@ -704,6 +720,7 @@ function toggleCompleted() {{
 
 
 # ── CLI ──────────────────────────────────────────────────────────────────────
+
 
 def main():
     parser = argparse.ArgumentParser(description="Generate SPIRAL story review HTML report")

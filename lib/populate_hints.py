@@ -16,6 +16,7 @@ Environment:
   SPIRAL_HINT_DIRS  — comma-separated directories to include (default: all)
   SPIRAL_STORY_PREFIX — story ID prefix (default: US)
 """
+
 import argparse
 import json
 import os
@@ -26,8 +27,8 @@ from collections import defaultdict
 
 sys.path.insert(0, os.path.dirname(__file__))
 from prd_schema import validate_prd
-
 from spiral_io import configure_utf8_stdout
+
 configure_utf8_stdout()
 
 # Directories to include in filesTouch (from env or all files)
@@ -50,11 +51,53 @@ GITNEXUS_REPO = os.environ.get("SPIRAL_GITNEXUS_REPO", "")
 
 # Stop words to exclude from keyword matching
 STOP_WORDS = {
-    "a", "an", "the", "and", "or", "for", "in", "on", "to", "of", "is",
-    "add", "fix", "update", "implement", "create", "with", "from", "that",
-    "this", "are", "was", "be", "has", "had", "have", "it", "its", "as",
-    "at", "by", "not", "but", "all", "can", "if", "do", "no", "so",
-    "us", "new", "test", "ensure", "based", "when", "per", "via",
+    "a",
+    "an",
+    "the",
+    "and",
+    "or",
+    "for",
+    "in",
+    "on",
+    "to",
+    "of",
+    "is",
+    "add",
+    "fix",
+    "update",
+    "implement",
+    "create",
+    "with",
+    "from",
+    "that",
+    "this",
+    "are",
+    "was",
+    "be",
+    "has",
+    "had",
+    "have",
+    "it",
+    "its",
+    "as",
+    "at",
+    "by",
+    "not",
+    "but",
+    "all",
+    "can",
+    "if",
+    "do",
+    "no",
+    "so",
+    "us",
+    "new",
+    "test",
+    "ensure",
+    "based",
+    "when",
+    "per",
+    "via",
 }
 
 
@@ -76,10 +119,12 @@ def get_completed_story_files(repo_root: str) -> dict[str, list[str]]:
     try:
         # Get all commits matching feat: PREFIX-* pattern
         result = subprocess.run(
-            ["git", "-C", repo_root, "log", "--oneline", "--all",
-             f"--grep=feat: {STORY_PREFIX}-", "--format=%H %s"],
-            capture_output=True, text=True, encoding="utf-8", errors="replace",
-            timeout=30
+            ["git", "-C", repo_root, "log", "--oneline", "--all", f"--grep=feat: {STORY_PREFIX}-", "--format=%H %s"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=30,
         )
         if result.returncode != 0:
             return story_files
@@ -100,10 +145,12 @@ def get_completed_story_files(repo_root: str) -> dict[str, list[str]]:
 
             # Get files changed in this commit
             diff_result = subprocess.run(
-                ["git", "-C", repo_root, "diff-tree", "--no-commit-id",
-                 "-r", "--name-only", commit_hash],
-                capture_output=True, text=True, encoding="utf-8", errors="replace",
-                timeout=10
+                ["git", "-C", repo_root, "diff-tree", "--no-commit-id", "-r", "--name-only", commit_hash],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=10,
             )
             if diff_result.returncode != 0:
                 continue
@@ -136,9 +183,7 @@ def get_completed_story_files(repo_root: str) -> dict[str, list[str]]:
     return story_files
 
 
-def build_keyword_file_mapping(
-    stories: list[dict], story_files: dict[str, list[str]]
-) -> dict[str, set[str]]:
+def build_keyword_file_mapping(stories: list[dict], story_files: dict[str, list[str]]) -> dict[str, set[str]]:
     """
     Build keyword → files mapping from completed stories.
     For each completed story with known files, map its title keywords to those files.
@@ -171,8 +216,11 @@ def query_gitnexus_files(title: str, repo_root: str) -> list[str]:
     try:
         result = subprocess.run(
             ["gitnexus", "query", title, "-r", GITNEXUS_REPO, "--limit", "8"],
-            capture_output=True, text=True, encoding="utf-8", errors="replace",
-            timeout=10
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=10,
         )
         if result.returncode != 0:
             return []
@@ -311,13 +359,10 @@ def populate_hints(prd: dict, repo_root: str) -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Auto-populate filesTouch hints from git history"
-    )
+    parser = argparse.ArgumentParser(description="Auto-populate filesTouch hints from git history")
     parser.add_argument("--prd", required=True, help="Path to prd.json")
     parser.add_argument("--repo-root", default=".", help="Path to git repo root")
-    parser.add_argument("--dry-run", action="store_true",
-                        help="Print what would change without modifying prd.json")
+    parser.add_argument("--dry-run", action="store_true", help="Print what would change without modifying prd.json")
     args = parser.parse_args()
 
     if not os.path.isfile(args.prd):

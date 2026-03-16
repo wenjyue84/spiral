@@ -11,11 +11,12 @@ Categories and catalog code ranges:
   Worker  E4xx  — worker lifecycle and progress errors
   Schema  E5xx  — PRD schema and validation errors
 """
+
 from __future__ import annotations
 
 import json
 import sys
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -144,7 +145,9 @@ ERROR_CATALOG: dict[str, ErrorEntry] = {
         category="Schema",
         exit_code=6,
         message="prd.json is corrupt and unrecoverable: {details}",
-        remediation="Run: python -m json.tool prd.json   # check JSON syntax; restore from git: git checkout HEAD -- prd.json",
+        remediation=(
+            "Run: python -m json.tool prd.json   # check JSON syntax; restore from git: git checkout HEAD -- prd.json"
+        ),
         docs_url="https://github.com/user/spiral#prd-recovery",
     ),
     "E503": ErrorEntry(

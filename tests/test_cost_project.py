@@ -1,34 +1,39 @@
 """Unit tests for lib/cost_project.py — pre-flight cost projection."""
+
 import csv
 import json
 import os
 import sys
-from io import StringIO
 from unittest.mock import patch
-
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 from cost_project import (
-    MIN_HISTORY_ROWS,
     DEFAULT_TOKENS_PER_STORY,
-    PRICING,
     compute_mean_tokens,
     count_pending,
     format_table,
+    main,
     normalise_model,
     project_cost,
     run_projection,
-    main,
 )
 
 RESULTS_HEADER = [
-    "timestamp", "spiral_iter", "ralph_iter", "story_id", "story_title",
-    "status", "duration_sec", "model", "retry_num", "commit_sha",
+    "timestamp",
+    "spiral_iter",
+    "ralph_iter",
+    "story_id",
+    "story_title",
+    "status",
+    "duration_sec",
+    "model",
+    "retry_num",
+    "commit_sha",
 ]
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────
+
 
 def _write_results(path, rows):
     with open(path, "w", encoding="utf-8", newline="") as f:
@@ -65,6 +70,7 @@ def _write_prd(path, stories):
 
 # ── normalise_model ────────────────────────────────────────────────────────
 
+
 class TestNormaliseModel:
     def test_haiku(self):
         assert normalise_model("claude-haiku-4-5") == "haiku"
@@ -84,6 +90,7 @@ class TestNormaliseModel:
 
 # ── project_cost ───────────────────────────────────────────────────────────
 
+
 class TestProjectCost:
     def test_zero_tokens_is_zero(self):
         assert project_cost(0, "sonnet") == 0.0
@@ -100,6 +107,7 @@ class TestProjectCost:
 
 
 # ── compute_mean_tokens ────────────────────────────────────────────────────
+
 
 class TestComputeMeanTokens:
     def test_missing_file_returns_zeros(self, tmp_path):
@@ -146,6 +154,7 @@ class TestComputeMeanTokens:
 
 # ── count_pending ──────────────────────────────────────────────────────────
 
+
 class TestCountPending:
     def test_missing_prd_returns_zero(self, tmp_path):
         assert count_pending(str(tmp_path / "no.json")) == 0
@@ -167,11 +176,14 @@ class TestCountPending:
 
     def test_pending_counted(self, tmp_path):
         p = tmp_path / "prd.json"
-        _write_prd(p, [
-            {"id": "US-001", "passes": True},
-            {"id": "US-002", "passes": False},
-            {"id": "US-003", "passes": False},
-        ])
+        _write_prd(
+            p,
+            [
+                {"id": "US-001", "passes": True},
+                {"id": "US-002", "passes": False},
+                {"id": "US-003", "passes": False},
+            ],
+        )
         assert count_pending(str(p)) == 2
 
     def test_empty_prd(self, tmp_path):
@@ -182,45 +194,67 @@ class TestCountPending:
 
 # ── format_table ───────────────────────────────────────────────────────────
 
+
 class TestFormatTable:
     def test_returns_non_empty_string(self):
         table_str, est_usd = format_table(
-            pending_count=5, model="sonnet", mean_tokens=8000.0,
-            std_tokens=1000.0, row_count=10, default_tokens=8000,
+            pending_count=5,
+            model="sonnet",
+            mean_tokens=8000.0,
+            std_tokens=1000.0,
+            row_count=10,
+            default_tokens=8000,
         )
         assert len(table_str) > 0
         assert est_usd > 0
 
     def test_shows_pending_count(self):
         table_str, _ = format_table(
-            pending_count=7, model="sonnet", mean_tokens=8000.0,
-            std_tokens=0, row_count=10, default_tokens=8000,
+            pending_count=7,
+            model="sonnet",
+            mean_tokens=8000.0,
+            std_tokens=0,
+            row_count=10,
+            default_tokens=8000,
         )
         assert "7" in table_str
 
     def test_shows_model_name(self):
         table_str, _ = format_table(
-            pending_count=1, model="haiku", mean_tokens=8000.0,
-            std_tokens=0, row_count=10, default_tokens=8000,
+            pending_count=1,
+            model="haiku",
+            mean_tokens=8000.0,
+            std_tokens=0,
+            row_count=10,
+            default_tokens=8000,
         )
         assert "haiku" in table_str
 
     def test_confidence_range_shown_with_std(self):
         table_str, _ = format_table(
-            pending_count=5, model="sonnet", mean_tokens=8000.0,
-            std_tokens=2000.0, row_count=10, default_tokens=8000,
+            pending_count=5,
+            model="sonnet",
+            mean_tokens=8000.0,
+            std_tokens=2000.0,
+            row_count=10,
+            default_tokens=8000,
         )
         assert "σ" in table_str or "–" in table_str
 
     def test_no_confidence_range_without_std(self):
         table_str, _ = format_table(
-            pending_count=5, model="sonnet", mean_tokens=8000.0,
-            std_tokens=0.0, row_count=10, default_tokens=8000,
+            pending_count=5,
+            model="sonnet",
+            mean_tokens=8000.0,
+            std_tokens=0.0,
+            row_count=10,
+            default_tokens=8000,
         )
         assert "σ" not in table_str
 
 
 # ── run_projection (integration) ───────────────────────────────────────────
+
 
 class TestRunProjection:
     def _make_results_with_rows(self, tmp_path, n_rows, duration=300):
@@ -318,6 +352,7 @@ class TestRunProjection:
 
 # ── main() CLI ─────────────────────────────────────────────────────────────
 
+
 class TestMainCli:
     def test_main_returns_2_for_insufficient_history(self, tmp_path, capsys):
         prd = tmp_path / "prd.json"
@@ -333,8 +368,7 @@ class TestMainCli:
         _write_prd(prd, [{"id": f"US-{i:03d}", "passes": False} for i in range(50)])
         results = tmp_path / "results.tsv"
         _write_results(results, [_make_row(duration_sec="3600", model="opus") for _ in range(10)])
-        rc = main(["--prd", str(prd), "--results", str(results), "--model", "opus",
-                   "--threshold", "0.01", "--yes"])
+        rc = main(["--prd", str(prd), "--results", str(results), "--model", "opus", "--threshold", "0.01", "--yes"])
         assert rc == 0
         out = capsys.readouterr().out
         assert "--yes flag set" in out
@@ -345,6 +379,5 @@ class TestMainCli:
         _write_prd(prd, [{"id": "US-001", "passes": False}])
         results = tmp_path / "results.tsv"
         _write_results(results, [])  # 0 rows
-        rc = main(["--prd", str(prd), "--results", str(results),
-                   "--default-tokens", "5000"])
+        rc = main(["--prd", str(prd), "--results", str(results), "--default-tokens", "5000"])
         assert rc == 2  # skipped due to insufficient history

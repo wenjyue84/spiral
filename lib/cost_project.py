@@ -16,6 +16,7 @@ Exit codes:
     2 — insufficient history (< 5 usable rows in results.tsv) — projection skipped
     3 — error (missing/corrupt prd.json or I/O failure)
 """
+
 import argparse
 import csv
 import json
@@ -131,7 +132,8 @@ def format_table(
         "  ├─────────────────────────────┬────────────────────────────────────┤",
         f"  │  Model                      │  {m:<34s}│",
         f"  │  Pending stories            │  {pending_count:<34d}│",
-        f"  │  Tokens / story (est.)      │  {int(est_tokens):>10,d}  [{source_label}]{'':<{max(0, 17 - len(source_label))}s}│",
+        f"  │  Tokens / story (est.)      │  {int(est_tokens):>10,d}  "
+        f"[{source_label}]{'':<{max(0, 17 - len(source_label))}}│",
         f"  │  Estimated cost             │  ${est_usd:<33.2f}│",
     ]
 
@@ -139,9 +141,7 @@ def format_table(
         low_usd = project_cost(max(0.0, est_tokens - std_tokens) * pending_count, model)
         high_usd = project_cost((est_tokens + std_tokens) * pending_count, model)
         range_str = f"${low_usd:.2f} – ${high_usd:.2f}"
-        lines.append(
-            f"  │  Confidence range (±1σ)     │  {range_str:<34s}│"
-        )
+        lines.append(f"  │  Confidence range (±1σ)     │  {range_str:<34s}│")
 
     lines.append("  └──────────────────────────────────────────────────────────────────┘")
     return "\n".join(lines), est_usd
@@ -211,9 +211,7 @@ def run_projection(
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        description="Pre-flight API cost projection for SPIRAL runs"
-    )
+    parser = argparse.ArgumentParser(description="Pre-flight API cost projection for SPIRAL runs")
     parser.add_argument("--prd", default="prd.json", help="Path to prd.json")
     parser.add_argument("--results", default="results.tsv", help="Path to results.tsv")
     parser.add_argument("--model", default="", help="Model tier (haiku|sonnet|opus)")

@@ -1,4 +1,5 @@
 """Unit tests for decompose_story.py (ID allocation + JSON extraction)."""
+
 import json
 import os
 import sys
@@ -6,12 +7,12 @@ import sys
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
-from decompose_story import find_next_id, extract_json_from_response, main
-
+from decompose_story import extract_json_from_response, find_next_id, main
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _story(sid, **kwargs):
     base = {
@@ -43,6 +44,7 @@ def _write_prd(path, stories):
 # find_next_id tests
 # ---------------------------------------------------------------------------
 
+
 class TestFindNextId:
     def test_find_next_id_no_gaps(self):
         """Returns max+1 when IDs are contiguous."""
@@ -71,6 +73,7 @@ class TestFindNextId:
 # ---------------------------------------------------------------------------
 # extract_json_from_response tests
 # ---------------------------------------------------------------------------
+
 
 class TestExtractJsonFromResponse:
     def test_extract_json_plain_text(self):
@@ -110,6 +113,7 @@ class TestExtractJsonFromResponse:
 # main() integration tests
 # ---------------------------------------------------------------------------
 
+
 class TestMainDryRun:
     def test_main_dry_run_exits_0(self, tmp_path, monkeypatch, capsys):
         """--dry-run exits 0 and prints prompt without writing prd.json."""
@@ -121,9 +125,9 @@ class TestMainDryRun:
         _write_prd(prd_path, stories)
 
         monkeypatch.setattr(
-            sys, "argv",
-            ["decompose_story.py", "--story-id", "US-002",
-             "--prd", str(prd_path), "--dry-run"],
+            sys,
+            "argv",
+            ["decompose_story.py", "--story-id", "US-002", "--prd", str(prd_path), "--dry-run"],
         )
 
         rc = main()
@@ -148,9 +152,9 @@ class TestMainDryRun:
         _write_prd(prd_path, stories)
 
         monkeypatch.setattr(
-            sys, "argv",
-            ["decompose_story.py", "--story-id", "US-002",
-             "--prd", str(prd_path), "--dry-run"],
+            sys,
+            "argv",
+            ["decompose_story.py", "--story-id", "US-002", "--prd", str(prd_path), "--dry-run"],
         )
 
         rc = main()
@@ -159,9 +163,9 @@ class TestMainDryRun:
     def test_main_missing_prd_exits_1(self, tmp_path, monkeypatch):
         """Exits 1 when prd.json file does not exist."""
         monkeypatch.setattr(
-            sys, "argv",
-            ["decompose_story.py", "--story-id", "US-001",
-             "--prd", str(tmp_path / "missing.json"), "--dry-run"],
+            sys,
+            "argv",
+            ["decompose_story.py", "--story-id", "US-001", "--prd", str(tmp_path / "missing.json"), "--dry-run"],
         )
         rc = main()
         assert rc == 1
@@ -172,9 +176,9 @@ class TestMainDryRun:
         _write_prd(prd_path, [_story("US-001")])
 
         monkeypatch.setattr(
-            sys, "argv",
-            ["decompose_story.py", "--story-id", "US-999",
-             "--prd", str(prd_path), "--dry-run"],
+            sys,
+            "argv",
+            ["decompose_story.py", "--story-id", "US-999", "--prd", str(prd_path), "--dry-run"],
         )
         rc = main()
         assert rc == 1

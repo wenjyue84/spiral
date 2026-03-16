@@ -17,6 +17,7 @@ Usage:
 The lock file is ``<prd_path>.lock``.  On Windows the lock uses
 ``msvcrt.locking``; on POSIX it uses ``fcntl.flock``.
 """
+
 import contextlib
 import errno
 import json
@@ -39,7 +40,7 @@ _IO_BASE_DELAY = 0.1  # seconds; actual delay = base * 2^attempt + jitter
 # errno values for transient lock/permission errors (POSIX + Windows)
 _RETRYABLE_ERRNOS: frozenset[int] = frozenset(
     [
-        errno.EACCES,   # 13 — Permission denied (Windows antivirus, indexer)
+        errno.EACCES,  # 13 — Permission denied (Windows antivirus, indexer)
         errno.ETXTBSY,  # 26 — Text file busy (Linux)
     ]
 )
@@ -68,6 +69,7 @@ def _is_pid_alive(pid: int) -> bool:
     """Check if process is still running (cross-platform)."""
     if sys.platform == "win32":
         import ctypes
+
         handle = ctypes.windll.kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
         if handle:
             ctypes.windll.kernel32.CloseHandle(handle)
@@ -82,8 +84,10 @@ def _is_pid_alive(pid: int) -> bool:
         except PermissionError:
             return True  # process exists but we can't signal it
 
+
 sys.path.insert(0, os.path.dirname(__file__))
 from spiral_io import append_jsonl, configure_utf8_stdout
+
 configure_utf8_stdout()
 
 # ── Transient I/O retry helpers ────────────────────────────────────────────────
@@ -158,6 +162,7 @@ def _retry_io(
 
 class PrdLockTimeout(Exception):
     """Raised when the lock cannot be acquired within the timeout period."""
+
     pass
 
 
@@ -165,9 +170,11 @@ def _lock_fd(fd: int) -> None:
     """Acquire an exclusive, non-blocking lock on an open file descriptor."""
     if sys.platform == "win32":
         import msvcrt
+
         msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
     else:
         import fcntl
+
         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
 
 
@@ -175,6 +182,7 @@ def _unlock_fd(fd: int) -> None:
     """Release the lock on an open file descriptor."""
     if sys.platform == "win32":
         import msvcrt
+
         try:
             os.lseek(fd, 0, os.SEEK_SET)
             msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
@@ -182,6 +190,7 @@ def _unlock_fd(fd: int) -> None:
             pass
     else:
         import fcntl
+
         fcntl.flock(fd, fcntl.LOCK_UN)
 
 
@@ -236,8 +245,7 @@ def prd_locked(
                     holder_pid = _read_lock_pid(lock_path)
                     if holder_pid is not None and not _is_pid_alive(holder_pid):
                         print(
-                            f"[prd_lock] WARNING: breaking stale lock "
-                            f"(PID {holder_pid} is dead)",
+                            f"[prd_lock] WARNING: breaking stale lock (PID {holder_pid} is dead)",
                             file=sys.stderr,
                         )
                         os.close(fd)
@@ -252,14 +260,10 @@ def prd_locked(
                             _lock_fd(fd)
                         except OSError:
                             raise PrdLockTimeout(
-                                f"Could not acquire prd.json lock within {timeout}s "
-                                f"(lock file: {lock_path})"
+                                f"Could not acquire prd.json lock within {timeout}s (lock file: {lock_path})"
                             )
                         break  # lock acquired after stale break
-                    raise PrdLockTimeout(
-                        f"Could not acquire prd.json lock within {timeout}s "
-                        f"(lock file: {lock_path})"
-                    )
+                    raise PrdLockTimeout(f"Could not acquire prd.json lock within {timeout}s (lock file: {lock_path})")
                 time.sleep(poll_interval)
 
         # Write PID for stale detection by other processes

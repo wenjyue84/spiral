@@ -2,6 +2,7 @@
 import subprocess
 import sys
 
+
 def validate_code(file_path):
     """
     Runs pylint on a given file and returns a score.
@@ -29,6 +30,7 @@ def validate_code(file_path):
     except (subprocess.TimeoutExpired, FileNotFoundError) as e:
         print(f"[validator] Pylint failed: {e}")
         return 0.0
+
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:

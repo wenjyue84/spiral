@@ -15,12 +15,14 @@ Usage:
   python lib/migrate_prd.py prd.json --dry-run     # show what would change
   python lib/migrate_prd.py prd.json --check       # exit 0 if current, 2 if needs migration
 """
+
 import json
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
-from spiral_io import configure_utf8_stdout, atomic_write_json
+from spiral_io import atomic_write_json, configure_utf8_stdout
+
 configure_utf8_stdout()
 
 # Must match prd_schema.CURRENT_SCHEMA_VERSION
@@ -75,7 +77,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Migrate prd.json to current schema version")
     parser.add_argument("prd", help="Path to prd.json")
     parser.add_argument("--dry-run", action="store_true", help="Show changes without writing")
-    parser.add_argument("--check", action="store_true", help="Check if migration needed (exit 0=current, 2=needs migration)")
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="Check if migration needed (exit 0=current, 2=needs migration)",
+    )
     args = parser.parse_args()
 
     if not os.path.isfile(args.prd):
@@ -90,7 +96,7 @@ def main() -> int:
         return 1
 
     if not isinstance(prd, dict):
-        print(f"[migrate] ERROR: prd.json root must be an object", file=sys.stderr)
+        print("[migrate] ERROR: prd.json root must be an object", file=sys.stderr)
         return 1
 
     # Check for incompatible future version
@@ -109,7 +115,9 @@ def main() -> int:
             print(f"[migrate] {args.prd} is at current schema version {CURRENT_SCHEMA_VERSION}")
             return 0
         else:
-            print(f"[migrate] {args.prd} needs migration (current: {current_version}, target: {CURRENT_SCHEMA_VERSION})")
+            print(
+                f"[migrate] {args.prd} needs migration (current: {current_version}, target: {CURRENT_SCHEMA_VERSION})"
+            )
             return 2
 
     migrated, changes = migrate_prd(prd)

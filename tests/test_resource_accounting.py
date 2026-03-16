@@ -1,5 +1,5 @@
 """Tests for US-158: per-worker resource accounting columns in results.tsv."""
-import io
+
 import os
 import sys
 
@@ -14,6 +14,7 @@ RESOURCE_COLUMNS = ("wall_seconds", "user_cpu_s", "sys_cpu_s", "peak_rss_kb")
 
 # ── results.tsv header ────────────────────────────────────────────────────────
 
+
 class TestResultsTsvHeader:
     def test_header_contains_all_resource_columns(self, tmp_path):
         """The results.tsv header must include the four resource columns."""
@@ -25,9 +26,10 @@ class TestResultsTsvHeader:
             "\twall_seconds\tuser_cpu_s\tsys_cpu_s\tpeak_rss_kb\n"
         )
         tsv.write_text(header, encoding="utf-8")
-        rows = load_results(str(tsv))
+        _rows = load_results(str(tsv))
         # No data rows, but we can inspect via csv reader directly
         import csv
+
         with open(str(tsv), encoding="utf-8") as f:
             fieldnames = next(csv.reader(f, delimiter="\t"))
         for col in RESOURCE_COLUMNS:
@@ -43,6 +45,7 @@ class TestResultsTsvHeader:
 
 
 # ── load_results coercion ─────────────────────────────────────────────────────
+
 
 class TestLoadResultsResourceColumns:
     def _make_tsv(self, tmp_path, rows):
@@ -74,12 +77,7 @@ class TestLoadResultsResourceColumns:
         assert r["peak_rss_kb"] == pytest.approx(512000.0)
 
     def test_zero_resource_values_coerced(self, tmp_path):
-        row = (
-            "2026-03-15T00:00:00Z\t1\t1\tUS-002\tAnother story"
-            "\treject\t60\thaiku\t1\t"
-            "\t\tfalse\t0\t0"
-            "\t0\t0\t0\t0\n"
-        )
+        row = "2026-03-15T00:00:00Z\t1\t1\tUS-002\tAnother story\treject\t60\thaiku\t1\t\t\tfalse\t0\t0\t0\t0\t0\t0\n"
         path = self._make_tsv(tmp_path, [row])
         results = load_results(path)
         assert results[0]["wall_seconds"] == 0.0
@@ -101,6 +99,7 @@ class TestLoadResultsResourceColumns:
 
 
 # ── compute_resource_usage ────────────────────────────────────────────────────
+
 
 class TestComputeResourceUsage:
     def test_empty_returns_empty(self):
@@ -137,8 +136,7 @@ class TestComputeResourceUsage:
         assert usage[0]["median_rss_kb"] == 0.0
 
     def test_p95_computed(self):
-        rows = [{"model": "sonnet", "wall_seconds": float(i), "peak_rss_kb": float(i * 1000)}
-                for i in range(1, 21)]
+        rows = [{"model": "sonnet", "wall_seconds": float(i), "peak_rss_kb": float(i * 1000)} for i in range(1, 21)]
         usage = compute_resource_usage(rows)
         assert usage[0]["p95_wall_s"] > usage[0]["median_wall_s"]
         assert usage[0]["p95_rss_kb"] > usage[0]["median_rss_kb"]

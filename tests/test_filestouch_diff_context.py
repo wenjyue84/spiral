@@ -8,10 +8,7 @@ modified file is strictly smaller (in character count) than the full file
 contents, confirming the core premise of the optimisation.
 """
 
-import os
 import subprocess
-import tempfile
-import textwrap
 from pathlib import Path
 
 
@@ -140,6 +137,4 @@ class TestFilesTouchDiffContextSmallerThanFullFile:
         truncated = diff_lines[:max_lines]
 
         assert len(truncated) == max_lines
-        assert diff_line_count > max_lines, (
-            "A 100-line change should produce more than 50 diff lines"
-        )
+        assert diff_line_count > max_lines, "A 100-line change should produce more than 50 diff lines"

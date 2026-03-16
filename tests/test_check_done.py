@@ -1,13 +1,11 @@
 """Unit tests for check_done.py (PRD gate + report logic)."""
+
 import json
 import os
 import sys
-import time
-
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
-from check_done import main, find_latest_report
+from check_done import find_latest_report, main
 
 
 def _write_prd(tmp_path, stories):
@@ -61,9 +59,9 @@ class TestAllStoriesPassedCleanReport:
 
     def test_exits_0(self, tmp_path, monkeypatch):
         prd_path = _write_prd(tmp_path, [_all_passed_story()])
-        reports_dir = _write_report(tmp_path, {
-            "passed": 10, "failed": 0, "errored": 0, "total": 10, "pass_rate": "100%"
-        })
+        reports_dir = _write_report(
+            tmp_path, {"passed": 10, "failed": 0, "errored": 0, "total": 10, "pass_rate": "100%"}
+        )
         monkeypatch.setattr("sys.argv", ["check_done", "--prd", prd_path, "--reports-dir", reports_dir])
         assert main() == 0
 
@@ -73,9 +71,9 @@ class TestPendingStoriesPresent:
 
     def test_exits_1(self, tmp_path, monkeypatch):
         prd_path = _write_prd(tmp_path, [_all_passed_story(), _pending_story()])
-        reports_dir = _write_report(tmp_path, {
-            "passed": 10, "failed": 0, "errored": 0, "total": 10, "pass_rate": "100%"
-        })
+        reports_dir = _write_report(
+            tmp_path, {"passed": 10, "failed": 0, "errored": 0, "total": 10, "pass_rate": "100%"}
+        )
         monkeypatch.setattr("sys.argv", ["check_done", "--prd", prd_path, "--reports-dir", reports_dir])
         assert main() == 1
 
@@ -84,9 +82,7 @@ class TestPendingStoriesPresent:
         decomposed = _pending_story("US-002")
         decomposed["_decomposed"] = True
         prd_path = _write_prd(tmp_path, [_all_passed_story(), decomposed])
-        reports_dir = _write_report(tmp_path, {
-            "passed": 5, "failed": 0, "errored": 0, "total": 5, "pass_rate": "100%"
-        })
+        reports_dir = _write_report(tmp_path, {"passed": 5, "failed": 0, "errored": 0, "total": 5, "pass_rate": "100%"})
         monkeypatch.setattr("sys.argv", ["check_done", "--prd", prd_path, "--reports-dir", reports_dir])
         assert main() == 0
 
@@ -95,9 +91,7 @@ class TestPendingStoriesPresent:
         skipped = _pending_story("US-002")
         skipped["_skipped"] = True
         prd_path = _write_prd(tmp_path, [_all_passed_story(), skipped])
-        reports_dir = _write_report(tmp_path, {
-            "passed": 5, "failed": 0, "errored": 0, "total": 5, "pass_rate": "100%"
-        })
+        reports_dir = _write_report(tmp_path, {"passed": 5, "failed": 0, "errored": 0, "total": 5, "pass_rate": "100%"})
         monkeypatch.setattr("sys.argv", ["check_done", "--prd", prd_path, "--reports-dir", reports_dir])
         assert main() == 0
 
@@ -127,15 +121,16 @@ class TestStaleReportPrintsWarning:
 
     def test_stale_report_still_exits_0_when_all_pass(self, tmp_path, monkeypatch, capsys):
         prd_path = _write_prd(tmp_path, [_all_passed_story()])
-        reports_dir = _write_report(tmp_path, {
-            "passed": 10, "failed": 0, "errored": 0, "total": 10, "pass_rate": "100%"
-        })
+        reports_dir = _write_report(
+            tmp_path, {"passed": 10, "failed": 0, "errored": 0, "total": 10, "pass_rate": "100%"}
+        )
         # Make report appear 3 hours old by mocking time.time()
         report_file = os.path.join(reports_dir, "20260313-120000", "report.json")
         real_mtime = os.path.getmtime(report_file)
         # time.time returns 3 hours (180 min) after the file mtime
         monkeypatch.setattr("check_done.time", type(sys)("fake_time"))
         import types
+
         fake_time = types.ModuleType("fake_time")
         fake_time.time = lambda: real_mtime + (180 * 60)
         monkeypatch.setattr("check_done.time", fake_time)
@@ -154,9 +149,7 @@ class TestFailedTestsExits1:
 
     def test_exits_1(self, tmp_path, monkeypatch):
         prd_path = _write_prd(tmp_path, [_all_passed_story()])
-        reports_dir = _write_report(tmp_path, {
-            "passed": 8, "failed": 2, "errored": 0, "total": 10, "pass_rate": "80%"
-        })
+        reports_dir = _write_report(tmp_path, {"passed": 8, "failed": 2, "errored": 0, "total": 10, "pass_rate": "80%"})
         monkeypatch.setattr("sys.argv", ["check_done", "--prd", prd_path, "--reports-dir", reports_dir])
         assert main() == 1
 
@@ -166,9 +159,7 @@ class TestErroredTestsExits1:
 
     def test_exits_1(self, tmp_path, monkeypatch):
         prd_path = _write_prd(tmp_path, [_all_passed_story()])
-        reports_dir = _write_report(tmp_path, {
-            "passed": 9, "failed": 0, "errored": 1, "total": 10, "pass_rate": "90%"
-        })
+        reports_dir = _write_report(tmp_path, {"passed": 9, "failed": 0, "errored": 1, "total": 10, "pass_rate": "90%"})
         monkeypatch.setattr("sys.argv", ["check_done", "--prd", prd_path, "--reports-dir", reports_dir])
         assert main() == 1
 
@@ -188,9 +179,9 @@ class TestInvalidPrdSchema:
         bad_prd = {"not_a_valid": "prd"}
         path = tmp_path / "bad.json"
         path.write_text(json.dumps(bad_prd), encoding="utf-8")
-        reports_dir = _write_report(tmp_path, {
-            "passed": 10, "failed": 0, "errored": 0, "total": 10, "pass_rate": "100%"
-        })
+        reports_dir = _write_report(
+            tmp_path, {"passed": 10, "failed": 0, "errored": 0, "total": 10, "pass_rate": "100%"}
+        )
         monkeypatch.setattr("sys.argv", ["check_done", "--prd", str(path), "--reports-dir", reports_dir])
         assert main() == 1
 

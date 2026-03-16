@@ -1,4 +1,5 @@
 """Shared constants for SPIRAL -- no imports from other lib modules."""
+
 from __future__ import annotations
 
 # Story priority ranking (lower = higher priority)

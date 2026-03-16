@@ -8,6 +8,7 @@ Optionally enriches stories with the failing test method source code.
 Writes {"stories": [...]} to --output path.
 stdlib only — no extra dependencies.
 """
+
 import argparse
 import json
 import os
@@ -17,7 +18,8 @@ from typing import Any
 
 sys.path.insert(0, os.path.dirname(__file__))
 from prd_schema import validate_prd
-from spiral_io import configure_utf8_stdout, atomic_write_json
+from spiral_io import atomic_write_json, configure_utf8_stdout
+
 configure_utf8_stdout()
 
 
@@ -102,9 +104,7 @@ def _extract_method_source(filepath: str, method_name: str, max_lines: int = 20)
     base_indent: int = 0
     for i, line in enumerate(lines):
         stripped = line.lstrip()
-        if stripped.startswith(f"def {method_name}(") or stripped.startswith(
-            f"async def {method_name}("
-        ):
+        if stripped.startswith(f"def {method_name}(") or stripped.startswith(f"async def {method_name}("):
             start = i
             base_indent = len(line) - len(stripped)
             break
@@ -175,17 +175,12 @@ def aggregate_failures(report_paths: list[str]) -> tuple[list[dict[str, Any]], l
                 new_count += 1
 
         report_names.append(report_dir)
-        print(
-            f"[synthesize] Report {report_dir}: "
-            f"{new_count} new failures (running pool: {len(failures)})"
-        )
+        print(f"[synthesize] Report {report_dir}: {new_count} new failures (running pool: {len(failures)})")
 
     return failures, report_names
 
 
-def result_to_story(
-    result: dict[str, Any], repo_root: str | None = None
-) -> dict[str, Any]:
+def result_to_story(result: dict[str, Any], repo_root: str | None = None) -> dict[str, Any]:
     """Convert a FAIL/ERROR test result to a story candidate."""
     test_id = result.get("id", "")
     name = result.get("name", test_id)
@@ -195,9 +190,7 @@ def result_to_story(
 
     category_hint, class_name, method_name = parse_test_id(test_id)
 
-    priority = PRIORITY_MAP.get(
-        category, PRIORITY_MAP.get(category_hint.split(":")[0], "medium")
-    )
+    priority = PRIORITY_MAP.get(category, PRIORITY_MAP.get(category_hint.split(":")[0], "medium"))
 
     readable = method_name.lstrip("test_").replace("_", " ").strip()
     if class_name:
@@ -264,7 +257,7 @@ def main() -> int:
     args = parser.parse_args()
 
     if args.focus:
-        print(f"[synthesize] Focus active: \"{args.focus}\" — matching stories tagged for priority boost")
+        print(f'[synthesize] Focus active: "{args.focus}" — matching stories tagged for priority boost')
 
     # Load existing titles from prd.json for dedup
     existing_titles: list[str] = []
@@ -290,10 +283,7 @@ def main() -> int:
 
     # Aggregate failures from all recent reports (dedup by test ID)
     failures, report_names = aggregate_failures(report_paths)
-    print(
-        f"[synthesize] Aggregated {len(failures)} unique failures "
-        f"from {len(report_names)} report(s)"
-    )
+    print(f"[synthesize] Aggregated {len(failures)} unique failures from {len(report_names)} report(s)")
 
     repo_root = os.path.abspath(args.repo_root)
 

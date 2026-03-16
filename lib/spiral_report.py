@@ -10,12 +10,12 @@ stdlib-only — no pandas, numpy, or other external dependencies.
 Usage:
     python lib/spiral_report.py [--results PATH] [--last-n N] [--json]
 """
+
 import argparse
 import csv
 import json
 import sys
 from collections import defaultdict
-from io import StringIO
 
 
 def load_results(path, last_n=0):
@@ -42,7 +42,9 @@ def section_summary(rows):
     if not rows:
         return {"total": 0}
     timestamps = [r["timestamp"] for r in rows if r.get("timestamp")]
-    date_range = f"{timestamps[0]} → {timestamps[-1]}" if len(timestamps) >= 2 else (timestamps[0] if timestamps else "?")
+    date_range = (
+        f"{timestamps[0]} → {timestamps[-1]}" if len(timestamps) >= 2 else (timestamps[0] if timestamps else "?")
+    )
 
     status_counts: defaultdict[str, int] = defaultdict(int)
     for r in rows:
@@ -124,7 +126,12 @@ def section_duration(rows):
             mx = max(vals)
             lines.append(f"     {status:8s}  avg {avg:7.0f}s  min {mn:5.0f}s  max {mx:5.0f}s  (n={len(vals)})")
 
-    return {"text": "\n".join(lines), "by_status": {k: {"avg": sum(v)/len(v), "min": min(v), "max": max(v), "n": len(v)} for k, v in durations.items()}}
+    return {
+        "text": "\n".join(lines),
+        "by_status": {
+            k: {"avg": sum(v) / len(v), "min": min(v), "max": max(v), "n": len(v)} for k, v in durations.items()
+        },
+    }
 
 
 def section_models(rows):
@@ -231,8 +238,10 @@ def section_cache_savings(rows):
         for model in sorted(per_model.keys()):
             d = per_model[model]
             r = d["hits"] * 100.0 / d["total"] if d["total"] else 0
-            lines.append(f"       {model:8s}  {d['hits']:3d}/{d['total']:3d} hits ({r:.0f}%)  "
-                         f"{d['cache_read']:,} cache tokens  ${d['savings']:.4f} saved")
+            lines.append(
+                f"       {model:8s}  {d['hits']:3d}/{d['total']:3d} hits ({r:.0f}%)  "
+                f"{d['cache_read']:,} cache tokens  ${d['savings']:.4f} saved"
+            )
 
     return {
         "text": "\n".join(lines),

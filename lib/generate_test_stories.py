@@ -18,37 +18,90 @@ layer invocations in Phase V.
 
 Output: .spiral/_test_story_candidates.json {"stories": [...]}
 """
+
 import argparse
 import json
 import os
 import re
 import sys
-from typing import Any
 
 sys.path.insert(0, os.path.dirname(__file__))
 from spiral_io import atomic_write_json, configure_utf8_stdout
+
 configure_utf8_stdout()
 
 # Keywords that indicate a user-facing feature → E2E test
 _E2E_KW = {
-    "user", "page", "view", "display", "form", "login", "signup",
-    "dashboard", "screen", "interface", "button", "modal", "navigate",
-    "flow", "checkout", "profile", "settings", "menu", "table", "list",
-    "search", "filter", "sort", "upload", "download", "export", "import",
+    "user",
+    "page",
+    "view",
+    "display",
+    "form",
+    "login",
+    "signup",
+    "dashboard",
+    "screen",
+    "interface",
+    "button",
+    "modal",
+    "navigate",
+    "flow",
+    "checkout",
+    "profile",
+    "settings",
+    "menu",
+    "table",
+    "list",
+    "search",
+    "filter",
+    "sort",
+    "upload",
+    "download",
+    "export",
+    "import",
 }
 
 # Keywords that indicate security-sensitive logic → security test
 _SECURITY_KW = {
-    "auth", "login", "token", "permission", "role", "password", "secret",
-    "encrypt", "jwt", "session", "access", "oauth", "csrf", "xss",
-    "injection", "sanitize", "validate", "authoriz", "authenticat",
+    "auth",
+    "login",
+    "token",
+    "permission",
+    "role",
+    "password",
+    "secret",
+    "encrypt",
+    "jwt",
+    "session",
+    "access",
+    "oauth",
+    "csrf",
+    "xss",
+    "injection",
+    "sanitize",
+    "validate",
+    "authoriz",
+    "authenticat",
 }
 
 # Keywords that indicate performance concern → performance test
 _PERF_KW = {
-    "performance", "speed", "cache", "latency", "slow", "optimiz",
-    "bulk", "batch", "concurrent", "parallel", "load", "scale", "throughput",
-    "paginate", "index", "query",
+    "performance",
+    "speed",
+    "cache",
+    "latency",
+    "slow",
+    "optimiz",
+    "bulk",
+    "batch",
+    "concurrent",
+    "parallel",
+    "load",
+    "scale",
+    "throughput",
+    "paginate",
+    "index",
+    "query",
 }
 
 _COMPLEXITY_RANK = {"small": 0, "medium": 1, "large": 2}
@@ -103,8 +156,7 @@ def _make_test_story(source: dict, test_type: str) -> dict:
         "integration": {
             "title": f"[Integration Test] {title}",
             "description": (
-                f"Write integration tests for the feature implemented in {sid}. "
-                f"Story description: {description}"
+                f"Write integration tests for the feature implemented in {sid}. Story description: {description}"
             ),
             "criteria": [
                 f"Integration tests exist covering the core behaviour of {sid}",
@@ -116,8 +168,7 @@ def _make_test_story(source: dict, test_type: str) -> dict:
         "e2e": {
             "title": f"[E2E Test] {title}",
             "description": (
-                f"Write end-to-end user flow test for the feature in {sid}. "
-                f"Story description: {description}"
+                f"Write end-to-end user flow test for the feature in {sid}. Story description: {description}"
             ),
             "criteria": [
                 f"E2E test covers the user flow introduced by {sid}",
@@ -129,8 +180,7 @@ def _make_test_story(source: dict, test_type: str) -> dict:
         "security": {
             "title": f"[Security Test] {title}",
             "description": (
-                f"Write security tests for auth/permission logic in {sid}. "
-                f"Story description: {description}"
+                f"Write security tests for auth/permission logic in {sid}. Story description: {description}"
             ),
             "criteria": [
                 f"Security test covers access control introduced by {sid}",
@@ -142,8 +192,7 @@ def _make_test_story(source: dict, test_type: str) -> dict:
         "performance": {
             "title": f"[Performance Test] {title}",
             "description": (
-                f"Write performance benchmark for the operation in {sid}. "
-                f"Story description: {description}"
+                f"Write performance benchmark for the operation in {sid}. Story description: {description}"
             ),
             "criteria": [
                 f"Performance test measures key metrics for {sid}",
@@ -155,8 +204,7 @@ def _make_test_story(source: dict, test_type: str) -> dict:
         "regression": {
             "title": f"[Regression Test] {title}",
             "description": (
-                f"Write regression test to guard against future breakage of {sid}. "
-                f"Story description: {description}"
+                f"Write regression test to guard against future breakage of {sid}. Story description: {description}"
             ),
             "criteria": [
                 f"Regression test covers core observable behaviour of {sid}",
@@ -224,7 +272,8 @@ def main() -> int:
 
     # Candidate source stories: passed implementation stories meeting min complexity
     candidates_source = [
-        s for s in prd.get("userStories", [])
+        s
+        for s in prd.get("userStories", [])
         if s.get("passes") is True
         and s.get("_source") not in ("test-story", "test-fix")
         and not s.get("isTestFix")

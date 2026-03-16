@@ -13,16 +13,32 @@ results.tsv with telemetry rows. This script:
 Usage:
     python lib/merge_results_tsv.py --main results.tsv --workers wt1/results.tsv wt2/results.tsv
 """
+
 import argparse
 import csv
 import os
 import sys
 
 HEADER = [
-    "timestamp", "spiral_iter", "ralph_iter", "story_id", "story_title",
-    "status", "duration_sec", "model", "retry_num", "commit_sha", "run_id",
-    "cache_hit", "cache_read_tokens", "cache_creation_tokens", "review_tokens",
-    "wall_seconds", "user_cpu_s", "sys_cpu_s", "peak_rss_kb",
+    "timestamp",
+    "spiral_iter",
+    "ralph_iter",
+    "story_id",
+    "story_title",
+    "status",
+    "duration_sec",
+    "model",
+    "retry_num",
+    "commit_sha",
+    "run_id",
+    "cache_hit",
+    "cache_read_tokens",
+    "cache_creation_tokens",
+    "review_tokens",
+    "wall_seconds",
+    "user_cpu_s",
+    "sys_cpu_s",
+    "peak_rss_kb",
     "batch_id",  # US-406: Phase S batch validation ID (empty string for sync path rows)
 ]
 
@@ -85,23 +101,26 @@ def merge(main_path: str, worker_paths: list[str]) -> int:
     # Write merged results
     with open(main_path, "w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(
-            f, fieldnames=HEADER, delimiter="\t",
-            extrasaction="ignore", lineterminator="\n",
+            f,
+            fieldnames=HEADER,
+            delimiter="\t",
+            extrasaction="ignore",
+            lineterminator="\n",
         )
         writer.writeheader()
         writer.writerows(unique_rows)
 
-    print(f"[merge_results] Merged {workers_merged} worker file(s): "
-          f"{rows_added} new rows added, {len(unique_rows)} total rows")
+    print(
+        f"[merge_results] Merged {workers_merged} worker file(s): "
+        f"{rows_added} new rows added, {len(unique_rows)} total rows"
+    )
     return 0
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Merge parallel worker results.tsv into main results.tsv")
+    parser = argparse.ArgumentParser(description="Merge parallel worker results.tsv into main results.tsv")
     parser.add_argument("--main", required=True, help="Main results.tsv path")
-    parser.add_argument("--workers", nargs="+", required=True,
-                        help="Worker results.tsv paths")
+    parser.add_argument("--workers", nargs="+", required=True, help="Worker results.tsv paths")
     args = parser.parse_args()
     return merge(args.main, args.workers)
 

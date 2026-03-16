@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Tests for lib/llm_router.py — centralized model selection (US-294)."""
+
 from __future__ import annotations
 
 import json
 import os
 import sys
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -13,11 +13,11 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 
 from llm_router import (
-    LlmRouter,
     MODEL_CONTEXT_LIMITS,
-    ModelTier,
     SHORT_TO_TIER,
     TIER_TO_MODEL,
+    LlmRouter,
+    ModelTier,
     TaskContext,
     estimate_tokens,
     main,
@@ -256,9 +256,7 @@ class TestCLI:
         return str(path)
 
     def test_cli_prints_json(self, tmp_path, capsys):
-        prd_path = self._write_prd(
-            [{"id": "US-10", "estimatedComplexity": "medium"}], tmp_path
-        )
+        prd_path = self._write_prd([{"id": "US-10", "estimatedComplexity": "medium"}], tmp_path)
         main(["--story", "US-10", "--prd", prd_path])
         out = capsys.readouterr().out
         result = json.loads(out)
@@ -267,9 +265,7 @@ class TestCLI:
         assert result["tier"] == "production"
 
     def test_cli_retry_override(self, tmp_path, capsys):
-        prd_path = self._write_prd(
-            [{"id": "US-11", "estimatedComplexity": "small"}], tmp_path
-        )
+        prd_path = self._write_prd([{"id": "US-11", "estimatedComplexity": "small"}], tmp_path)
         main(["--story", "US-11", "--retry", "2", "--prd", prd_path])
         out = capsys.readouterr().out
         result = json.loads(out)
@@ -287,9 +283,7 @@ class TestCLI:
         assert exc.value.code != 0
 
     def test_cli_haiku_for_small(self, tmp_path, capsys):
-        prd_path = self._write_prd(
-            [{"id": "US-20", "estimatedComplexity": "small"}], tmp_path
-        )
+        prd_path = self._write_prd([{"id": "US-20", "estimatedComplexity": "small"}], tmp_path)
         main(["--story", "US-20", "--prd", prd_path])
         out = capsys.readouterr().out
         result = json.loads(out)
@@ -297,18 +291,14 @@ class TestCLI:
         assert result["tier"] == "utility"
 
     def test_cli_context_window_upgrade_field_present(self, tmp_path, capsys):
-        prd_path = self._write_prd(
-            [{"id": "US-30", "estimatedComplexity": "medium"}], tmp_path
-        )
+        prd_path = self._write_prd([{"id": "US-30", "estimatedComplexity": "medium"}], tmp_path)
         main(["--story", "US-30", "--prd", prd_path])
         out = capsys.readouterr().out
         result = json.loads(out)
         assert "context_window_upgrade" in result
 
     def test_cli_prompt_tokens_triggers_upgrade(self, tmp_path, capsys):
-        prd_path = self._write_prd(
-            [{"id": "US-31", "estimatedComplexity": "small"}], tmp_path
-        )
+        prd_path = self._write_prd([{"id": "US-31", "estimatedComplexity": "small"}], tmp_path)
         # small → haiku (200k limit). 85% of 200k = 170k. Pass 171k to trigger.
         main(["--story", "US-31", "--prd", prd_path, "--prompt-tokens", "171000"])
         out = capsys.readouterr().out
@@ -468,8 +458,17 @@ class TestContextWindowUpgrade:
             events_file=events_file,
         )
         event = json.loads(Path(events_file).read_text(encoding="utf-8"))
-        for field_name in ("ts", "event", "run_id", "level", "story_id",
-                           "from_model", "to_model", "estimated_tokens", "chosen_model"):
+        for field_name in (
+            "ts",
+            "event",
+            "run_id",
+            "level",
+            "story_id",
+            "from_model",
+            "to_model",
+            "estimated_tokens",
+            "chosen_model",
+        ):
             assert field_name in event, f"missing field: {field_name}"
 
     def test_upgrade_route_method_also_upgrades(self):

@@ -128,6 +128,51 @@ jobs:
           uv run mypy lib/ --strict --output json \
             | uv run python lib/mypy_to_github_annotations.py
 
+  ruff:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a  # v4
+        with:
+          enable-cache: false
+          python-version: "3.13"
+
+      - name: Get uv cache directory
+        id: uv-cache-dir
+        shell: bash
+        run: echo "path=$(uv cache dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache uv dependencies
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
+        with:
+          path: ${{ steps.uv-cache-dir.outputs.path }}
+          key: ${{ runner.os }}-uv-${{ hashFiles('**/uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+            ${{ runner.os }}-
+
+      - name: Validate lockfile is up-to-date
+        run: uv lock --check
+
+      - name: Install dependencies
+        run: uv sync --frozen --group dev
+
+      - name: Run ruff lint check
+        run: uv run ruff check lib/ tests/
+
+      - name: Run ruff format check
+        run: uv run ruff format --check lib/ tests/
+
   test:
     runs-on: ubuntu-latest
     permissions:

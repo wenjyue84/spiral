@@ -9,6 +9,7 @@ Overflow: unused research candidates (cap-blocked, not duplicates) are persisted
           --overflow-out and consumed next iteration via --overflow-in.
 Cap: --max-new 50 total additions per SPIRAL iteration.
 """
+
 import argparse
 import json
 import os
@@ -19,11 +20,10 @@ from typing import Any
 from pydantic import ValidationError
 
 sys.path.insert(0, os.path.dirname(__file__))
-from constants import PRIORITY_RANK
-from story_helpers import priority_key
 from llm_models import ResearchOutput, log_validation_error
 from prd_schema import validate_prd
 from spiral_io import atomic_write_json, configure_utf8_stdout
+from story_helpers import priority_key
 from txn_journal import TxnJournal
 
 configure_utf8_stdout()
@@ -44,8 +44,13 @@ def overlap_ratio(a: str, b: str) -> float:
     return len(wa & wb) / len(wa)
 
 
-def is_duplicate(candidate_title: str, existing_titles: list[str], threshold: float = 0.6,
-                 candidate_epic: str = "", existing_epics: list[str] | None = None) -> bool:
+def is_duplicate(
+    candidate_title: str,
+    existing_titles: list[str],
+    threshold: float = 0.6,
+    candidate_epic: str = "",
+    existing_epics: list[str] | None = None,
+) -> bool:
     """Check if candidate is duplicate of any existing title.
 
     When both candidate and existing share the same non-empty epicId, the
@@ -83,11 +88,7 @@ def sort_key(story: dict[str, Any]) -> int:
 
 def _is_done(story: dict[str, Any]) -> bool:
     """Return True if story is completed, decomposed, or skipped."""
-    return bool(
-        story.get("passes")
-        or story.get("_decomposed")
-        or story.get("_skipped")
-    )
+    return bool(story.get("passes") or story.get("_decomposed") or story.get("_skipped"))
 
 
 def full_sort_key(story: dict[str, Any]) -> tuple[int, int, int]:
@@ -187,7 +188,12 @@ def main() -> int:
         help="Write leftover research candidates here for next iteration",
     )
     parser.add_argument("--max-new", type=int, default=50, help="Max new stories to add per iteration")
-    parser.add_argument("--max-pending", type=int, default=0, help="Max total pending (incomplete) stories allowed. 0 = unlimited")
+    parser.add_argument(
+        "--max-pending",
+        type=int,
+        default=0,
+        help="Max total pending (incomplete) stories allowed. 0 = unlimited",
+    )
     parser.add_argument("--focus", default="", help="Focus theme — hard-filter research, soft-prioritize tests")
     args = parser.parse_args()
 
@@ -219,7 +225,10 @@ def main() -> int:
         effective_cap = min(effective_cap, room)
         print(f"[merge] Max pending limit: {args.max_pending} (current: {current_pending}, room: {room})")
         if room == 0:
-            print(f"[merge] At or over max pending limit ({current_pending}/{args.max_pending}) — no new stories will be added")
+            print(
+                f"[merge] At or over max pending limit ({current_pending}/{args.max_pending})"
+                " — no new stories will be added"
+            )
             return 0
 
     # Load all candidate sources
@@ -243,7 +252,7 @@ def main() -> int:
 
     if args.focus:
         test_candidates.sort(key=lambda s: (0 if matches_focus(s, args.focus) else 1, sort_key(s)))
-        print(f"[merge] Focus: \"{args.focus}\" — research hard-filtered, test stories soft-prioritized")
+        print(f'[merge] Focus: "{args.focus}" — research hard-filtered, test stories soft-prioritized')
 
     new_stories: list[dict[str, Any]] = []
     seen_titles: list[str] = list(existing_titles)
@@ -329,7 +338,7 @@ def main() -> int:
         # No overflow to write and no new stories
         if args.overflow_out:
             atomic_write_json(args.overflow_out, {"stories": leftover_research})
-            print(f"[merge] Overflow: cleared (all candidates consumed or cap not reached)")
+            print("[merge] Overflow: cleared (all candidates consumed or cap not reached)")
         if not new_stories:
             print("[merge] No new stories to add — prd.json unchanged")
             return 0
@@ -357,12 +366,9 @@ def main() -> int:
         if args.overflow_out:
             txn.write_json(args.overflow_out, {"stories": leftover_research})
             if leftover_research:
-                print(
-                    f"[merge] Overflow: {len(leftover_research)} unused research candidates "
-                    f"→ {args.overflow_out}"
-                )
+                print(f"[merge] Overflow: {len(leftover_research)} unused research candidates → {args.overflow_out}")
             else:
-                print(f"[merge] Overflow: cleared (all candidates consumed or cap not reached)")
+                print("[merge] Overflow: cleared (all candidates consumed or cap not reached)")
         txn.write_json(args.prd, prd)
 
     # Source breakdown

@@ -9,18 +9,14 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
-import time
 from datetime import datetime, timedelta
 from pathlib import Path
-
-import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
 
 from failure_attribution import (
     FailureAttributor,
     WorkerFailure,
-    WorkerResources,
 )
 
 
@@ -114,7 +110,7 @@ class TestFailureAttributor:
             port=8001,
         )
 
-        failure1 = attr.record_failure(
+        _failure1 = attr.record_failure(
             worker_id=1,
             story_id="US-001",
             error_message="Bind failed",
@@ -200,11 +196,11 @@ class TestFailureAttributor:
         attr.register_worker_resources(3, "/repo/.spiral-workers/worker-3", "branch-3")
 
         # Root failure
-        f1 = attr.record_failure(1, "US-001", "Root cause")
+        _f1 = attr.record_failure(1, "US-001", "Root cause")
 
         # Two cascades from same root
-        f2 = attr.record_failure(2, "US-002", "Cascade from 1")
-        f3 = attr.record_failure(3, "US-003", "Another cascade from 1")
+        _f2 = attr.record_failure(2, "US-002", "Cascade from 1")
+        _f3 = attr.record_failure(3, "US-003", "Another cascade from 1")
 
         chain = attr.get_causal_chain()
         assert chain["total_failures"] == 3

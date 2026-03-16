@@ -38,6 +38,7 @@ Environment:
   SPIRAL_CONTEXT_CACHE_DIR — directory for caching token counts
                               (default: none, caching disabled)
 """
+
 import argparse
 import json
 import os
@@ -59,26 +60,30 @@ TRUNCATION_ORDER: list[str] = [
 ]
 
 # These fields constitute the "story spec" and must never be removed.
-CORE_FIELDS: frozenset[str] = frozenset([
-    "id",
-    "title",
-    "description",
-    "acceptanceCriteria",
-    "technicalNotes",
-    "dependencies",
-    "priority",
-    "estimatedComplexity",
-    "passes",
-])
+CORE_FIELDS: frozenset[str] = frozenset(
+    [
+        "id",
+        "title",
+        "description",
+        "acceptanceCriteria",
+        "technicalNotes",
+        "dependencies",
+        "priority",
+        "estimatedComplexity",
+        "passes",
+    ]
+)
 
 
 # ---------------------------------------------------------------------------
 # Token counting
 # ---------------------------------------------------------------------------
 
+
 def _count_tokens_tiktoken(text: str) -> int:
     """Count tokens using tiktoken cl100k_base (exact for GPT/Claude models)."""
     import tiktoken  # type: ignore[import]
+
     enc = tiktoken.get_encoding("cl100k_base")
     return len(enc.encode(text))
 
@@ -104,6 +109,7 @@ def count_tokens(text: str) -> int:
 # ---------------------------------------------------------------------------
 # Core truncation logic
 # ---------------------------------------------------------------------------
+
 
 def truncate_story(
     story: dict,
@@ -147,14 +153,13 @@ def truncate_story(
 # Token-count caching (optional, keyed by story_id + attempt)
 # ---------------------------------------------------------------------------
 
+
 def _cache_path(cache_dir: str, story_id: str, attempt: int) -> str:
     safe_id = story_id.replace("/", "_").replace("\\", "_")
     return os.path.join(cache_dir, f"tokens_{safe_id}_{attempt}.json")
 
 
-def load_cached_tokens(
-    cache_dir: str, story_id: str, attempt: int
-) -> int | None:
+def load_cached_tokens(cache_dir: str, story_id: str, attempt: int) -> int | None:
     """Return cached token count or None if no cache entry exists."""
     if not cache_dir:
         return None
@@ -167,9 +172,7 @@ def load_cached_tokens(
         return None
 
 
-def save_cached_tokens(
-    cache_dir: str, story_id: str, attempt: int, tokens: int
-) -> None:
+def save_cached_tokens(cache_dir: str, story_id: str, attempt: int, tokens: int) -> None:
     """Persist token count to cache."""
     if not cache_dir:
         return
@@ -186,10 +189,9 @@ def save_cached_tokens(
 # CLI entry point
 # ---------------------------------------------------------------------------
 
+
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        description="Truncate story context to fit Claude context window"
-    )
+    parser = argparse.ArgumentParser(description="Truncate story context to fit Claude context window")
     parser.add_argument(
         "--story",
         help="Story JSON string (reads from stdin if omitted)",
@@ -261,9 +263,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     # Perform truncation
-    truncated, original_total, final_total, dropped = truncate_story(
-        story, base_tokens=base_tokens, limit=limit
-    )
+    truncated, original_total, final_total, dropped = truncate_story(story, base_tokens=base_tokens, limit=limit)
 
     # Cache the original total for this story/attempt
     save_cached_tokens(cache_dir, story_id, args.attempt, original_total)

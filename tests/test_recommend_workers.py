@@ -1,7 +1,7 @@
 """Tests for recommend_workers.py dynamic worker count recommendation."""
+
 import os
 import sys
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 from recommend_workers import recommend_workers

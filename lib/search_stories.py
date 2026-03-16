@@ -9,24 +9,26 @@ Uses rapidfuzz for fuzzy matching by default.
 Falls back to cosine similarity via sentence-transformers when available,
 with embedding cache at .spiral/story_embeddings.pkl.
 """
+
 from __future__ import annotations
 
 import json
 import os
 import pickle
 import sys
-import time
 from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, os.path.dirname(__file__))
 from spiral_io import configure_utf8_stdout
+
 configure_utf8_stdout()
 
 
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
 
 def _story_text(story: dict[str, Any]) -> str:
     """Return a single search string combining title, description, and ACs."""
@@ -53,12 +55,13 @@ def _status(story: dict[str, Any]) -> str:
 # Fuzzy search (always available)
 # ---------------------------------------------------------------------------
 
+
 def _fuzzy_search(
     stories: list[dict[str, Any]],
     query: str,
     top_k: int,
 ) -> list[dict[str, Any]]:
-    from rapidfuzz import process, fuzz
+    from rapidfuzz import fuzz, process
 
     corpus = [_story_text(s) for s in stories]
     matches = process.extract(
@@ -85,6 +88,7 @@ def _fuzzy_search(
 # ---------------------------------------------------------------------------
 # Semantic search (optional; requires sentence-transformers)
 # ---------------------------------------------------------------------------
+
 
 def _cache_path(scratch_dir: Path) -> Path:
     return scratch_dir / "story_embeddings.pkl"
@@ -139,8 +143,8 @@ def _semantic_search(
     prd_path: Path,
     scratch_dir: Path,
 ) -> list[dict[str, Any]]:
-    from sentence_transformers import SentenceTransformer
     import numpy as np
+    from sentence_transformers import SentenceTransformer
 
     corpus = [_story_text(s) for s in stories]
     prd_mtime = prd_path.stat().st_mtime
@@ -184,6 +188,7 @@ def _semantic_search(
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def search_stories(
     prd_path: Path,
@@ -232,6 +237,7 @@ def search_stories(
 # Formatting helpers
 # ---------------------------------------------------------------------------
 
+
 def format_table(results: list[dict[str, Any]]) -> str:
     """Return a compact fixed-width table string."""
     if not results:
@@ -243,15 +249,14 @@ def format_table(results: list[dict[str, Any]]) -> str:
         title = r["title"]
         if len(title) > 55:
             title = title[:52] + "..."
-        rows.append(
-            f"{i:<3}  {r['id']:<10}  {r['status']:<8}  {r['score']:<7.4f}  {r['engine']:<8}  {title}"
-        )
+        rows.append(f"{i:<3}  {r['id']:<10}  {r['status']:<8}  {r['score']:<7.4f}  {r['engine']:<8}  {title}")
     return "\n".join(rows)
 
 
 # ---------------------------------------------------------------------------
 # CLI (standalone usage)
 # ---------------------------------------------------------------------------
+
 
 def main() -> None:
     import argparse

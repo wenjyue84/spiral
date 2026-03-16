@@ -1,8 +1,8 @@
 """Unit tests for merge_worker_results.py (parallel result promotion)."""
+
 import json
 import os
 import sys
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 from merge_worker_results import main
@@ -67,9 +67,11 @@ class TestWorkerSkippedStory:
 
     def test_skipped_flag_propagated(self, tmp_path, monkeypatch):
         main_prd = _make_prd([_make_story("US-001")])
-        worker_prd = _make_prd([
-            _make_story("US-001", _skipped=True, _skipReason="MAX_RETRIES exhausted after 3 attempts"),
-        ])
+        worker_prd = _make_prd(
+            [
+                _make_story("US-001", _skipped=True, _skipReason="MAX_RETRIES exhausted after 3 attempts"),
+            ]
+        )
 
         main_path = _write_prd(tmp_path / "main.json", main_prd)
         w1_path = _write_prd(tmp_path / "w1.json", worker_prd)
@@ -89,11 +91,13 @@ class TestWorkerDecomposedAndSubStories:
 
     def test_decomposed_parent_and_substories_promoted(self, tmp_path, monkeypatch):
         main_prd = _make_prd([_make_story("US-001")])
-        worker_prd = _make_prd([
-            _make_story("US-001", _decomposed=True, _decomposedInto=["US-010", "US-011"]),
-            _make_story("US-010", _decomposedFrom="US-001"),
-            _make_story("US-011", _decomposedFrom="US-001"),
-        ])
+        worker_prd = _make_prd(
+            [
+                _make_story("US-001", _decomposed=True, _decomposedInto=["US-010", "US-011"]),
+                _make_story("US-010", _decomposedFrom="US-001"),
+                _make_story("US-011", _decomposedFrom="US-001"),
+            ]
+        )
 
         main_path = _write_prd(tmp_path / "main.json", main_prd)
         w1_path = _write_prd(tmp_path / "w1.json", worker_prd)
@@ -127,9 +131,18 @@ class TestTwoWorkersSameStoryNoDuplicate:
         w1_path = _write_prd(tmp_path / "w1.json", w1_prd)
         w2_path = _write_prd(tmp_path / "w2.json", w2_prd)
 
-        monkeypatch.setattr(sys, "argv", [
-            "merge", "--main", main_path, "--workers", w1_path, w2_path,
-        ])
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "merge",
+                "--main",
+                main_path,
+                "--workers",
+                w1_path,
+                w2_path,
+            ],
+        )
         rc = main()
 
         assert rc == 0
@@ -169,9 +182,18 @@ class TestWorkerFileMissing:
         missing_path = str(tmp_path / "nonexistent.json")
         w2_path = _write_prd(tmp_path / "w2.json", w2_prd)
 
-        monkeypatch.setattr(sys, "argv", [
-            "merge", "--main", main_path, "--workers", missing_path, w2_path,
-        ])
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "merge",
+                "--main",
+                main_path,
+                "--workers",
+                missing_path,
+                w2_path,
+            ],
+        )
         rc = main()
 
         assert rc == 0
@@ -215,29 +237,44 @@ class TestMultipleWorkersDifferentStories:
     """Multiple workers each pass different stories — all promoted."""
 
     def test_both_workers_stories_promoted(self, tmp_path, monkeypatch):
-        main_prd = _make_prd([
-            _make_story("US-001"),
-            _make_story("US-002"),
-            _make_story("US-003"),
-        ])
-        w1_prd = _make_prd([
-            _make_story("US-001", passes=True),
-            _make_story("US-002"),
-            _make_story("US-003"),
-        ])
-        w2_prd = _make_prd([
-            _make_story("US-001"),
-            _make_story("US-002"),
-            _make_story("US-003", passes=True),
-        ])
+        main_prd = _make_prd(
+            [
+                _make_story("US-001"),
+                _make_story("US-002"),
+                _make_story("US-003"),
+            ]
+        )
+        w1_prd = _make_prd(
+            [
+                _make_story("US-001", passes=True),
+                _make_story("US-002"),
+                _make_story("US-003"),
+            ]
+        )
+        w2_prd = _make_prd(
+            [
+                _make_story("US-001"),
+                _make_story("US-002"),
+                _make_story("US-003", passes=True),
+            ]
+        )
 
         main_path = _write_prd(tmp_path / "main.json", main_prd)
         w1_path = _write_prd(tmp_path / "w1.json", w1_prd)
         w2_path = _write_prd(tmp_path / "w2.json", w2_prd)
 
-        monkeypatch.setattr(sys, "argv", [
-            "merge", "--main", main_path, "--workers", w1_path, w2_path,
-        ])
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "merge",
+                "--main",
+                main_path,
+                "--workers",
+                w1_path,
+                w2_path,
+            ],
+        )
         rc = main()
 
         assert rc == 0

@@ -17,6 +17,7 @@ Four shapes are modelled:
 A helper ``log_validation_error()`` writes validation failures to
 ``spiral_events.jsonl`` so they are observable without grepping logs.
 """
+
 from __future__ import annotations
 
 import json
@@ -45,6 +46,7 @@ __all__ = [
 # 1. Story Decomposition
 # ---------------------------------------------------------------------------
 
+
 class SubStory(BaseModel):
     """A single sub-story produced by the decomposition LLM call."""
 
@@ -68,6 +70,7 @@ class DecompositionResult(BaseModel):
 # ---------------------------------------------------------------------------
 # 2. Research Output (Phase R)
 # ---------------------------------------------------------------------------
+
 
 class StoryCandidate(BaseModel):
     """A story candidate discovered during Phase R research."""
@@ -98,6 +101,7 @@ class ResearchOutput(BaseModel):
 # 3. Route Stories Result
 # ---------------------------------------------------------------------------
 
+
 class RoutedStory(BaseModel):
     """A story annotated with a model assignment by the semantic router."""
 
@@ -122,6 +126,7 @@ class RouteStoriesResult(BaseModel):
 # ---------------------------------------------------------------------------
 # 4. Test Synthesis Report (Phase T)
 # ---------------------------------------------------------------------------
+
 
 class FailingTestStory(BaseModel):
     """A story candidate generated from a failing test."""
@@ -149,6 +154,7 @@ class TestSynthesisReport(BaseModel):
 # ---------------------------------------------------------------------------
 # Logging helper
 # ---------------------------------------------------------------------------
+
 
 def log_validation_error(
     error: ValidationError,
@@ -178,12 +184,14 @@ def log_validation_error(
     # Build structured error details including field path + received value
     error_details = []
     for e in error.errors():
-        error_details.append({
-            "field_path": " -> ".join(str(loc) for loc in e["loc"]),
-            "message": e["msg"],
-            "received_value": repr(e.get("input", ""))[:200],
-            "type": e["type"],
-        })
+        error_details.append(
+            {
+                "field_path": " -> ".join(str(loc) for loc in e["loc"]),
+                "message": e["msg"],
+                "received_value": repr(e.get("input", ""))[:200],
+                "type": e["type"],
+            }
+        )
 
     # Truncate raw_data for logging (avoid huge payloads)
     raw_str = json.dumps(raw_data, ensure_ascii=False, default=str) if not isinstance(raw_data, str) else raw_data

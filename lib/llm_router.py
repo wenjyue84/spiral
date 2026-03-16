@@ -21,13 +21,14 @@ Outputs JSON:
    "complexity": "medium", "retry_count": 0, "routing_mode": "auto",
    "context_window_upgrade": false}
 """
+
 from __future__ import annotations
 
 import argparse
 import json
 import os
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
@@ -56,9 +57,9 @@ _OPUS_ID = "claude-opus-4-6"
 class ModelTier(Enum):
     """Three-tier routing ladder for SPIRAL model selection."""
 
-    UTILITY = "utility"       # haiku  — cheap, fast, trivial tasks
-    PRODUCTION = "production" # sonnet — default mid-tier
-    FRONTIER = "frontier"     # opus   — complex / repeated failures
+    UTILITY = "utility"  # haiku  — cheap, fast, trivial tasks
+    PRODUCTION = "production"  # sonnet — default mid-tier
+    FRONTIER = "frontier"  # opus   — complex / repeated failures
 
 
 # Map tier → full Claude model ID
@@ -128,6 +129,7 @@ def estimate_tokens(text: str) -> int:
         return 0
     try:
         import tiktoken  # type: ignore[import]
+
         enc = tiktoken.get_encoding("cl100k_base")
         return len(enc.encode(text))
     except Exception:
@@ -143,10 +145,10 @@ def estimate_tokens(text: str) -> int:
 class TaskContext:
     """Routing inputs derived from a PRD story."""
 
-    complexity: str = "medium"        # "small" | "medium" | "large"
+    complexity: str = "medium"  # "small" | "medium" | "large"
     retry_count: int = 0
-    token_estimate: int = 0           # estimated prompt tokens (optional)
-    dependency_count: int = 0         # number of dependencies in prd.json
+    token_estimate: int = 0  # estimated prompt tokens (optional)
+    dependency_count: int = 0  # number of dependencies in prd.json
 
 
 # ---------------------------------------------------------------------------
@@ -255,18 +257,12 @@ class LlmRouter:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _build_context(
-        self, story: dict[str, Any], retry_override: int | None
-    ) -> TaskContext:
+    def _build_context(self, story: dict[str, Any], retry_override: int | None) -> TaskContext:
         complexity = str(story.get("estimatedComplexity", "medium")).lower()
         if complexity not in ("small", "medium", "large"):
             complexity = "medium"
 
-        retry_count = (
-            retry_override
-            if retry_override is not None
-            else int(story.get("_retryCount", 0))
-        )
+        retry_count = retry_override if retry_override is not None else int(story.get("_retryCount", 0))
         deps: list[Any] = story.get("dependencies") or []
         dependency_count = len(deps)
 
@@ -467,8 +463,7 @@ Examples:
         default=0,
         dest="prompt_tokens",
         help=(
-            "Estimated total prompt token count for context-window upgrade check "
-            "(US-295). Pass 0 to skip (default: 0)."
+            "Estimated total prompt token count for context-window upgrade check (US-295). Pass 0 to skip (default: 0)."
         ),
     )
     parser.add_argument(

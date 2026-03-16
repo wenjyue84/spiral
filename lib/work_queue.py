@@ -7,6 +7,7 @@ stories from the shared queue instead of sitting idle.
 
 Queue file: .spiral/workers/_work_queue.json (file-locked for concurrency).
 """
+
 import json
 import os
 import sys
@@ -14,7 +15,6 @@ import time
 from typing import Any
 
 sys.path.insert(0, os.path.dirname(__file__))
-from constants import PRIORITY_RANK
 from spiral_io import atomic_write_json, configure_utf8_stdout, safe_read_json
 from story_helpers import priority_key
 
@@ -36,23 +36,24 @@ class WorkQueue:
             try:
                 if sys.platform == "win32":
                     import msvcrt
+
                     msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
                 else:
                     import fcntl
+
                     fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
                 return fd
             except OSError:
                 if time.monotonic() >= deadline:
                     os.close(fd)
-                    raise TimeoutError(
-                        f"Could not acquire work queue lock within {self.lock_timeout}s"
-                    )
+                    raise TimeoutError(f"Could not acquire work queue lock within {self.lock_timeout}s")
                 time.sleep(0.05)
 
     def _release_lock(self, fd: int) -> None:
         """Release file lock."""
         if sys.platform == "win32":
             import msvcrt
+
             try:
                 os.lseek(fd, 0, os.SEEK_SET)
                 msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
@@ -60,6 +61,7 @@ class WorkQueue:
                 pass
         else:
             import fcntl
+
             fcntl.flock(fd, fcntl.LOCK_UN)
         os.close(fd)
 

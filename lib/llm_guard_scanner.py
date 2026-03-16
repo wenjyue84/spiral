@@ -19,8 +19,9 @@ Usage (library):
 
 Usage (CLI — called from spiral.sh):
     python lib/llm_guard_scanner.py --threshold 0.8 --source "gemini_research" < content.txt
-    # Returns JSON line: {"score": 0.95, "threshold": 0.8, "truncated": true, "text": "...", "source": "gemini_research"}
+    # Returns JSON: {"score": 0.95, "threshold": 0.8, "truncated": true, ...}
 """
+
 from __future__ import annotations
 
 import argparse
@@ -28,7 +29,7 @@ import json
 import os
 import sys
 import time
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from typing import Any, Optional
 
 # ── Constants ──────────────────────────────────────────────────────────────────
@@ -47,12 +48,12 @@ _DEFAULT_THRESHOLD = 0.8
 class ScanResult:
     """Result of scanning a single text block for prompt injection."""
 
-    text: str           # sanitized text (original if not truncated)
-    score: float        # injection risk score 0.0–1.0 (higher = more suspicious)
-    threshold: float    # threshold used for this scan
-    truncated: bool     # True if content was replaced with placeholder
-    source: str         # label for the content source (e.g. "gemini_research")
-    duration_ms: int    # wall-clock time for the scan in milliseconds
+    text: str  # sanitized text (original if not truncated)
+    score: float  # injection risk score 0.0–1.0 (higher = more suspicious)
+    threshold: float  # threshold used for this scan
+    truncated: bool  # True if content was replaced with placeholder
+    source: str  # label for the content source (e.g. "gemini_research")
+    duration_ms: int  # wall-clock time for the scan in milliseconds
 
     def as_event_fields(self) -> dict:
         """Return fields suitable for embedding in a JSONL event."""
@@ -67,8 +68,8 @@ class ScanResult:
 
 # ── Scanner implementation ─────────────────────────────────────────────────────
 
-_scanner_cache: Optional[Any] = None   # lazy singleton; None = uninitialised
-_guard_available: Optional[bool] = None   # None = not yet checked
+_scanner_cache: Optional[Any] = None  # lazy singleton; None = uninitialised
+_guard_available: Optional[bool] = None  # None = not yet checked
 
 
 def _load_scanner() -> Optional[Any]:
@@ -98,8 +99,7 @@ def _load_scanner() -> Optional[Any]:
     except Exception as exc:  # noqa: BLE001
         _guard_available = False
         print(
-            f"  [llm-guard] WARNING: failed to initialise scanner ({exc}) — "
-            "skipping PromptInjection scan",
+            f"  [llm-guard] WARNING: failed to initialise scanner ({exc}) — skipping PromptInjection scan",
             file=sys.stderr,
         )
         return None

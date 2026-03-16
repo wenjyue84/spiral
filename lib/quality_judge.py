@@ -24,6 +24,7 @@ Shell integration:
 Silently no-ops when SPIRAL_QUALITY_JUDGE_DISABLE=1.
 Always writes to checkpoint regardless of score.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -32,7 +33,6 @@ import os
 import subprocess
 import sys
 import time
-from pathlib import Path
 from typing import Any, Optional
 
 sys.path.insert(0, os.path.dirname(__file__))
@@ -93,10 +93,14 @@ def _call_judge(prompt: str, timeout: int = 90) -> Optional[str]:
     """Invoke Claude CLI with the judge prompt. Returns output text or None."""
     cmd = [
         "claude",
-        "-p", prompt,
-        "--model", _JUDGE_MODEL,
-        "--max-turns", "1",
-        "--output-format", "text",
+        "-p",
+        prompt,
+        "--model",
+        _JUDGE_MODEL,
+        "--max-turns",
+        "1",
+        "--output-format",
+        "text",
         "--dangerously-skip-permissions",
     ]
     try:
@@ -294,15 +298,13 @@ def cmd_show(args: argparse.Namespace) -> None:
         latest = records[-1]
         print(
             f"Phase {phase}: avg={avg:.1f}/5  latest={latest.get('score', '?')}/5  "
-            f"n={len(records)}  last=\"{latest.get('rationale', '')}\" "
+            f'n={len(records)}  last="{latest.get("rationale", "")}" '
             f"({latest.get('timestamp', '')})"
         )
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="LLM-as-Judge quality evaluation for SPIRAL phase outputs (US-248)"
-    )
+    parser = argparse.ArgumentParser(description="LLM-as-Judge quality evaluation for SPIRAL phase outputs (US-248)")
     sub = parser.add_subparsers(dest="command", required=True)
 
     # judge-phase-r

@@ -1,4 +1,5 @@
 """Tests for lib/conflict_preflight.py — pre-flight cross-story conflict detection."""
+
 from __future__ import annotations
 
 import json
@@ -7,12 +8,9 @@ import sys
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 
 import conflict_preflight as cp
-
 
 # ── Fixtures ───────────────────────────────────────────────────────────────────
 
@@ -120,8 +118,10 @@ class TestCheckPair:
         sa = _story("US-1", files=["shared.py"])
         sb = _story("US-2", files=["shared.py"])
         branches = {"US-1": "branch-a", "US-2": "branch-b"}
-        with patch.object(cp, "_branch_exists", return_value=True), \
-             patch.object(cp, "_check_merge_tree", return_value=[]):
+        with (
+            patch.object(cp, "_branch_exists", return_value=True),
+            patch.object(cp, "_check_merge_tree", return_value=[]),
+        ):
             result = cp.check_pair(sa, sb, ".", branches)
         # merge-tree says no conflict — trust it
         assert result == []
@@ -131,8 +131,10 @@ class TestCheckPair:
         sa = _story("US-1", files=["shared.py"])
         sb = _story("US-2", files=["shared.py"])
         branches = {"US-1": "branch-a", "US-2": "branch-b"}
-        with patch.object(cp, "_branch_exists", return_value=True), \
-             patch.object(cp, "_check_merge_tree", return_value=["shared.py"]):
+        with (
+            patch.object(cp, "_branch_exists", return_value=True),
+            patch.object(cp, "_check_merge_tree", return_value=["shared.py"]),
+        ):
             result = cp.check_pair(sa, sb, ".", branches)
         assert "shared.py" in result
 
@@ -196,9 +198,7 @@ class TestRunPreflight:
         ]
         prd_path = _prd(tmp_path, stories)
         log_path = tmp_path / ".spiral" / "conflict-log.jsonl"
-        cp.run_preflight(
-            str(prd_path), ["US-1", "US-2"], ".", str(log_path), 3
-        )
+        cp.run_preflight(str(prd_path), ["US-1", "US-2"], ".", str(log_path), 3)
         assert log_path.exists()
         entry = json.loads(log_path.read_text())
         assert entry["event"] == "preflight_conflict"
@@ -245,13 +245,11 @@ class TestRunPreflight:
 
     def test_completes_quickly_for_eight_stories(self, tmp_path: Path):
         """Detection must complete within 5 seconds for batches of up to 8 stories."""
-        stories = [
-            _story(f"US-{i}", priority="medium", files=[f"file{i}.py"])
-            for i in range(1, 9)
-        ]
+        stories = [_story(f"US-{i}", priority="medium", files=[f"file{i}.py"]) for i in range(1, 9)]
         prd_path = _prd(tmp_path, stories)
         ids = [s["id"] for s in stories]
         import time
+
         start = time.monotonic()
         result = cp.run_preflight(str(prd_path), ids, ".", "", 1)
         elapsed = time.monotonic() - start
@@ -323,12 +321,17 @@ class TestCLI:
         stories = [_story("US-1", files=["a.py"]), _story("US-2", files=["b.py"])]
         prd_path = _prd(tmp_path, stories)
         import sys as _sys
+
         argv_backup = _sys.argv[:]
         _sys.argv = [
             "conflict_preflight.py",
-            "--prd", str(prd_path),
-            "--story-ids", "US-1", "US-2",
-            "--repo-root", ".",
+            "--prd",
+            str(prd_path),
+            "--story-ids",
+            "US-1",
+            "US-2",
+            "--repo-root",
+            ".",
         ]
         try:
             rc = cp.main()
@@ -346,12 +349,17 @@ class TestCLI:
         ]
         prd_path = _prd(tmp_path, stories)
         import sys as _sys
+
         argv_backup = _sys.argv[:]
         _sys.argv = [
             "conflict_preflight.py",
-            "--prd", str(prd_path),
-            "--story-ids", "US-1", "US-2",
-            "--repo-root", ".",
+            "--prd",
+            str(prd_path),
+            "--story-ids",
+            "US-1",
+            "US-2",
+            "--repo-root",
+            ".",
             "--update-prd",
         ]
         try:

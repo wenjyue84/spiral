@@ -1,22 +1,20 @@
 """Property-based tests for partition_prd.py operations."""
+
 import os
 import sys
-import pytest
-from hypothesis import given, settings, assume
-from hypothesis import strategies as st
+
 from conftest import valid_prd
+from hypothesis import assume, given, settings
+from hypothesis import strategies as st
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
-from partition_prd import assign_stories, compute_levels, priority_key
+from partition_prd import assign_stories, compute_levels
 
 
 class TestAssignStories:
     """Properties of the story partitioning algorithm."""
 
-    @given(
-        prd=valid_prd(min_stories=2, max_stories=20),
-        n_workers=st.integers(min_value=2, max_value=5)
-    )
+    @given(prd=valid_prd(min_stories=2, max_stories=20), n_workers=st.integers(min_value=2, max_value=5))
     @settings(max_examples=100)
     def test_all_pending_stories_assigned(self, prd, n_workers):
         """Every pending story must appear in exactly one bucket."""
@@ -32,10 +30,7 @@ class TestAssignStories:
         pending_ids = {s["id"] for s in pending}
         assert set(assigned_ids) == pending_ids, "All pending stories must be assigned"
 
-    @given(
-        prd=valid_prd(min_stories=2, max_stories=20),
-        n_workers=st.integers(min_value=2, max_value=5)
-    )
+    @given(prd=valid_prd(min_stories=2, max_stories=20), n_workers=st.integers(min_value=2, max_value=5))
     @settings(max_examples=100)
     def test_no_story_assigned_twice(self, prd, n_workers):
         """No story may appear in more than one bucket."""
@@ -50,10 +45,7 @@ class TestAssignStories:
 
         assert len(all_ids) == len(set(all_ids)), "No story should be assigned to multiple workers"
 
-    @given(
-        prd=valid_prd(min_stories=4, max_stories=20),
-        n_workers=st.integers(min_value=2, max_value=4)
-    )
+    @given(prd=valid_prd(min_stories=4, max_stories=20), n_workers=st.integers(min_value=2, max_value=4))
     @settings(max_examples=50)
     def test_bucket_count_matches_workers(self, prd, n_workers):
         """Always produces exactly n_workers buckets."""
@@ -113,5 +105,6 @@ class TestComputeLevels:
             for dep in s.get("dependencies", []):
                 if dep in pending_ids and dep in levels and sid in levels:
                     # dep should be at a lower OR EQUAL level (equal if cycle was broken)
-                    assert levels[dep] <= levels[sid], \
+                    assert levels[dep] <= levels[sid], (
                         f"Dep {dep} (level {levels[dep]}) should be <= {sid} (level {levels[sid]})"
+                    )

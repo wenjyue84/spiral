@@ -4,6 +4,7 @@ SPIRAL Parallel Phase — Merge Worker Results
 Reads N worker prd.json files and promotes any passes=true story back into
 the main prd.json.  Worker prd files are never deleted here — caller cleans up.
 """
+
 import argparse
 import json
 import os
@@ -12,6 +13,7 @@ import sys
 sys.path.insert(0, os.path.dirname(__file__))
 from prd_schema import validate_prd
 from spiral_io import atomic_write_json, configure_utf8_stdout
+
 configure_utf8_stdout()
 
 
@@ -106,7 +108,10 @@ def main() -> int:
     if new_substories:
         main_prd["userStories"].extend(new_substories)
         for ss in new_substories:
-            print(f"[merge_workers]   + {ss['id']} (sub-story of {ss.get('_decomposedFrom')}) — {ss.get('title', '')[:60]}")
+            print(
+                f"[merge_workers]   + {ss['id']} (sub-story of {ss.get('_decomposedFrom')})"
+                f" — {ss.get('title', '')[:60]}"
+            )
 
     # Atomic write
     atomic_write_json(args.main, main_prd)

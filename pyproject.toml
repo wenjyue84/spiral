@@ -32,6 +32,7 @@ dev = [
     "mypy==1.11.2",
     "pytest>=9.0.2",
     "pytest-cov>=7.0.0",
+    "ruff>=0.11.0",
     "uv-secure>=0.2.0",
 ]
 
@@ -80,6 +81,25 @@ disallow_any_generics = false
 disallow_untyped_defs = false
 disallow_untyped_calls = false
 warn_return_any = false
+
+[tool.ruff]
+target-version = "py313"
+line-length = 120
+exclude = ["lib/semantic_chunker.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["E402"]
+
+[tool.ruff.lint.per-file-ignores]
+"lib/spiral_dashboard.py" = ["E501"]
+"lib/spiral_report.py" = ["E501"]
+"lib/story_review_report.py" = ["E501"]
+"lib/injection_detector.py" = ["E501"]
+"lib/spiral_live_server.py" = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["lib"]
 
 [tool.mutmut]
 paths_to_mutate = ["lib/"]

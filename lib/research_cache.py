@@ -10,6 +10,7 @@ Usage (CLI):
     python research_cache.py list   CACHE_DIR --ttl-hours 24
     python research_cache.py inject CACHE_DIR --ttl-hours 24
 """
+
 import argparse
 import hashlib
 import json
@@ -112,11 +113,13 @@ def cache_list_valid(cache_dir: str, ttl_hours: float) -> list[dict]:
             with open(fpath, "r", encoding="utf-8") as f:
                 entry = json.load(f)
             if _is_valid(entry, ttl_hours):
-                entries.append({
-                    "url": entry.get("url", ""),
-                    "fetched_ts": entry.get("fetched_ts", 0),
-                    "key": fname.replace(".json", ""),
-                })
+                entries.append(
+                    {
+                        "url": entry.get("url", ""),
+                        "fetched_ts": entry.get("fetched_ts", 0),
+                        "key": fname.replace(".json", ""),
+                    }
+                )
         except (json.JSONDecodeError, OSError):
             pass
     return entries

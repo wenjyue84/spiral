@@ -14,6 +14,7 @@ Usage:
 Environment:
   SPIRAL_AUTO_INFER_DEPS  — set to "true" to write strong deps to prd.json (default: false)
 """
+
 import argparse
 import json
 import os
@@ -51,10 +52,7 @@ def infer_dependencies(
     pending = [
         s
         for s in stories
-        if isinstance(s, dict)
-        and not s.get("passes")
-        and not s.get("_skipped")
-        and not s.get("_decomposed")
+        if isinstance(s, dict) and not s.get("passes") and not s.get("_skipped") and not s.get("_decomposed")
     ]
 
     strong: list[tuple[str, str]] = []
@@ -77,9 +75,7 @@ def infer_dependencies(
     return strong, weak
 
 
-def apply_strong_deps(
-    prd: dict, strong: list[tuple[str, str]]
-) -> tuple[int, int]:
+def apply_strong_deps(prd: dict, strong: list[tuple[str, str]]) -> tuple[int, int]:
     """
     Apply strong dependency edges to prd stories without creating cycles.
 
@@ -88,11 +84,7 @@ def apply_strong_deps(
 
     Returns (applied_count, skipped_cycle_count).
     """
-    story_map = {
-        s["id"]: s
-        for s in prd.get("userStories", [])
-        if isinstance(s, dict) and "id" in s
-    }
+    story_map = {s["id"]: s for s in prd.get("userStories", []) if isinstance(s, dict) and "id" in s}
     applied = 0
     skipped_cycles = 0
 
@@ -130,9 +122,7 @@ def apply_strong_deps(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Infer story dependencies from filesTouch overlap"
-    )
+    parser = argparse.ArgumentParser(description="Infer story dependencies from filesTouch overlap")
     parser.add_argument("--prd", required=True, help="Path to prd.json")
     parser.add_argument(
         "--out-hints",
@@ -164,18 +154,12 @@ def main() -> int:
     stories = prd.get("userStories", [])
     strong, weak = infer_dependencies(stories)
 
-    print(
-        f"[infer_deps] Scanned {len(stories)} stories — "
-        f"{len(strong)} strong deps, {len(weak)} weak overlaps"
-    )
+    print(f"[infer_deps] Scanned {len(stories)} stories — {len(strong)} strong deps, {len(weak)} weak overlaps")
 
     # Write weak overlaps to hints file
     if args.out_hints:
         hints_data = {
-            "weak_overlaps": [
-                {"story_a": a, "story_b": b, "jaccard_score": round(score, 4)}
-                for a, b, score in weak
-            ]
+            "weak_overlaps": [{"story_a": a, "story_b": b, "jaccard_score": round(score, 4)} for a, b, score in weak]
         }
         atomic_write_json(args.out_hints, hints_data)
         print(f"[infer_deps] Weak overlap hints → {args.out_hints}")
@@ -190,15 +174,9 @@ def main() -> int:
                 + (f" (skipped {skipped} cycle-creating)" if skipped else "")
             )
         else:
-            print(
-                f"[infer_deps] No new edges applied"
-                + (f" (skipped {skipped} cycle-creating)" if skipped else "")
-            )
+            print("[infer_deps] No new edges applied" + (f" (skipped {skipped} cycle-creating)" if skipped else ""))
     elif not auto_infer and strong:
-        print(
-            f"[infer_deps] {len(strong)} strong dep(s) found — "
-            "set SPIRAL_AUTO_INFER_DEPS=true to apply to prd.json"
-        )
+        print(f"[infer_deps] {len(strong)} strong dep(s) found — set SPIRAL_AUTO_INFER_DEPS=true to apply to prd.json")
 
     return 0
 

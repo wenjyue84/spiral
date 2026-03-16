@@ -9,6 +9,7 @@ Usage:
 
 Exit code mirrors the number of errors found (0 = clean).
 """
+
 import json
 import sys
 from typing import Any

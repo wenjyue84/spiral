@@ -22,13 +22,13 @@ Usage (CLI):
     python lib/sanitize_output.py --check-path <path> --worktree <root>
     python lib/sanitize_output.py --sanitize-stdin --output <path> --worktree <root>
 """
+
 from __future__ import annotations
 
 import argparse
 import json
 import os
 import re
-import stat
 import sys
 import time
 from datetime import datetime, timezone
@@ -37,6 +37,7 @@ from typing import Optional
 
 sys.path.insert(0, os.path.dirname(__file__))
 from spiral_io import configure_utf8_stdout
+
 configure_utf8_stdout()
 
 # ── Sanitization constants ─────────────────────────────────────────────────────
@@ -59,8 +60,27 @@ _ANSI_ESCAPE_RE = re.compile(
 
 # Executable file extensions that warrant extra scrutiny
 _EXEC_EXTENSIONS = frozenset(
-    {".sh", ".bash", ".zsh", ".fish", ".ps1", ".cmd", ".bat", ".py", ".rb", ".pl",
-     ".js", ".mjs", ".cjs", ".ts", ".go", ".rs", ".c", ".cpp", ".cc"}
+    {
+        ".sh",
+        ".bash",
+        ".zsh",
+        ".fish",
+        ".ps1",
+        ".cmd",
+        ".bat",
+        ".py",
+        ".rb",
+        ".pl",
+        ".js",
+        ".mjs",
+        ".cjs",
+        ".ts",
+        ".go",
+        ".rs",
+        ".c",
+        ".cpp",
+        ".cc",
+    }
 )
 
 # Permitted top-level subdirs for executable writes without SPIRAL_ALLOW_EXEC_WRITES
@@ -161,7 +181,9 @@ def validate_write_path(
 
     # ── 3. Executable-file check ──────────────────────────────────────────────
     allow_exec = allow_exec_writes or os.environ.get("SPIRAL_ALLOW_EXEC_WRITES", "").lower() in (
-        "1", "true", "yes",
+        "1",
+        "true",
+        "yes",
     )
     if not allow_exec and target.suffix.lower() in _EXEC_EXTENSIONS:
         if not _in_safe_exec_dir(rel):
@@ -272,9 +294,7 @@ def _audit(
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(
-        description="Sanitize LLM output and validate write paths for SPIRAL workers."
-    )
+    p = argparse.ArgumentParser(description="Sanitize LLM output and validate write paths for SPIRAL workers.")
     sub = p.add_subparsers(dest="cmd")
 
     # --- check-path subcommand ---

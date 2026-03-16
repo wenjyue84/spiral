@@ -13,13 +13,13 @@ Usage (library):
 Usage (CLI):
     python lib/compact_prd.py [--prd prd.json] [--backup-dir .spiral] [--dry-run]
 """
+
 import argparse
 import json
 import os
 import shutil
 import sys
 import time
-from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, os.path.dirname(__file__))
@@ -41,7 +41,6 @@ REQUIRED_FIELDS: frozenset[str] = frozenset(["id", "title"])
 
 # Statuses whose stories are eligible for compaction.
 COMPACTABLE_STATUSES: frozenset[str] = frozenset(["passed", "skipped"])
-
 
 
 def _story_is_compactable(story: dict[str, Any]) -> bool:

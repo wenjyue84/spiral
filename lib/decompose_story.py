@@ -8,6 +8,7 @@ Usage:
   python decompose_story.py --story-id US-005
   python decompose_story.py --story-id US-005 --prd prd.json --model sonnet --dry-run
 """
+
 import argparse
 import json
 import os
@@ -19,9 +20,10 @@ from typing import Any
 from pydantic import ValidationError
 
 sys.path.insert(0, os.path.dirname(__file__))
-from llm_models import DecompositionResult, log_validation_error, validate_llm_json
+from llm_models import DecompositionResult, validate_llm_json
 from prd_schema import validate_prd
 from spiral_io import atomic_write_json, configure_utf8_stdout
+
 configure_utf8_stdout()
 
 STORY_PREFIX = os.environ.get("SPIRAL_STORY_PREFIX", "US")
@@ -133,7 +135,9 @@ def extract_json_from_response(text: str) -> dict[str, Any]:
 
 def _claude_cmd() -> str:
     """Return the Claude CLI executable name, using .cmd on Windows."""
-    import shutil, sys
+    import shutil
+    import sys
+
     if sys.platform == "win32":
         return shutil.which("claude.cmd") or shutil.which("claude") or "claude.cmd"
     return shutil.which("claude") or "claude"
@@ -146,10 +150,14 @@ def call_claude(prompt: str, model: str) -> str:
     cmd.exe interpreting XML angle-brackets in the prompt as shell redirects.
     """
     cmd = [
-        _claude_cmd(), "-p",
-        "--model", model,
-        "--max-turns", "3",
-        "--output-format", "text",
+        _claude_cmd(),
+        "-p",
+        "--model",
+        model,
+        "--max-turns",
+        "3",
+        "--output-format",
+        "text",
         "--dangerously-skip-permissions",
     ]
     result = subprocess.run(
@@ -265,7 +273,7 @@ def main() -> int:
         return 1
     if len(sub_stories_raw) > args.max_substories:
         print(f"[decompose] WARNING: truncating from {len(sub_stories_raw)} to {args.max_substories} sub-stories")
-        sub_stories_raw = sub_stories_raw[:args.max_substories]
+        sub_stories_raw = sub_stories_raw[: args.max_substories]
 
     # Validate each sub-story
     for i, ss in enumerate(sub_stories_raw):
@@ -316,10 +324,7 @@ def main() -> int:
     # Atomic write
     atomic_write_json(args.prd, prd)
 
-    print(
-        f"[decompose] Done: {args.story_id} → {len(new_entries)} sub-stories "
-        f"({', '.join(child_ids)})"
-    )
+    print(f"[decompose] Done: {args.story_id} → {len(new_entries)} sub-stories ({', '.join(child_ids)})")
     return 0
 
 

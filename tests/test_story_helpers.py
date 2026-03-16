@@ -1,12 +1,10 @@
 """Tests for lib/story_helpers.py — get_files_to_touch, priority_key."""
+
 import os
 import sys
 
-import pytest
-
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 from story_helpers import get_files_to_touch, priority_key
-
 
 # ── get_files_to_touch ────────────────────────────────────────────────────────
 
@@ -75,9 +73,9 @@ def test_priority_key_priority_score_overrides_text():
 
 
 def test_priority_key_priority_score_range():
-    assert priority_key({"priorityScore": 100}) == 0    # highest possible
-    assert priority_key({"priorityScore": 0}) == 100    # lowest possible
-    assert priority_key({"priorityScore": 60}) == 40    # same sort key as "high" default
+    assert priority_key({"priorityScore": 100}) == 0  # highest possible
+    assert priority_key({"priorityScore": 0}) == 100  # lowest possible
+    assert priority_key({"priorityScore": 60}) == 40  # same sort key as "high" default
 
 
 def test_priority_key_priority_score_fine_grained():

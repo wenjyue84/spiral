@@ -1,10 +1,8 @@
 """Tests for cascade_skip() — US-204."""
+
 import json
 import os
 import sys
-import tempfile
-
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 from state_machine import cascade_skip
@@ -99,7 +97,7 @@ class TestCascadeSkipIdempotent:
             _make_story("US-001", skipped=True),
             _make_story("US-002", deps=["US-001"], passed=True),
         )
-        result = cascade_skip(prd)
+        _result = cascade_skip(prd)
         # US-002 already passed — it is not re-marked (cascade_skip only marks unfinished)
         # Actually cascade_skip will cascade regardless of passes — let's verify behaviour
         # The correct behaviour: cascade sets _skipped on pending stories only
@@ -203,10 +201,16 @@ class TestCascadeSkipCLI:
         prd_file.write_text(json.dumps(prd, indent=2))
 
         import subprocess
+
         result = subprocess.run(
-            [sys.executable, os.path.join(os.path.dirname(__file__), "..", "lib", "cascade_skip.py"),
-             "--prd", str(prd_file)],
-            capture_output=True, text=True,
+            [
+                sys.executable,
+                os.path.join(os.path.dirname(__file__), "..", "lib", "cascade_skip.py"),
+                "--prd",
+                str(prd_file),
+            ],
+            capture_output=True,
+            text=True,
         )
         assert result.returncode == 0
         assert "US-002" in result.stdout
@@ -217,10 +221,16 @@ class TestCascadeSkipCLI:
 
     def test_cli_missing_prd_returns_error(self, tmp_path):
         import subprocess
+
         result = subprocess.run(
-            [sys.executable, os.path.join(os.path.dirname(__file__), "..", "lib", "cascade_skip.py"),
-             "--prd", str(tmp_path / "nonexistent.json")],
-            capture_output=True, text=True,
+            [
+                sys.executable,
+                os.path.join(os.path.dirname(__file__), "..", "lib", "cascade_skip.py"),
+                "--prd",
+                str(tmp_path / "nonexistent.json"),
+            ],
+            capture_output=True,
+            text=True,
         )
         assert result.returncode == 1
         assert "not found" in result.stderr

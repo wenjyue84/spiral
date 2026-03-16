@@ -11,10 +11,9 @@ Ensures:
   6. CLAUDE_EFFORT_FLAG is passed in the Claude CLI invocation
   7. Config files document the new setting
 """
+
 import re
 from pathlib import Path
-
-import pytest
 
 ROOT = Path(__file__).parent.parent
 RALPH_SH = ROOT / "ralph" / "ralph.sh"
@@ -44,9 +43,7 @@ def _parse_function_case_patterns() -> dict[str, int]:
 
     # Extract case arms: pattern) return N ;;
     patterns: dict[str, int] = {}
-    for arm_match in re.finditer(
-        r"([\w|*-]+(?:\|[\w|*-]+)*)\)\s*return\s+(\d+)\s*;;", body
-    ):
+    for arm_match in re.finditer(r"([\w|*-]+(?:\|[\w|*-]+)*)\)\s*return\s+(\d+)\s*;;", body):
         pattern_str = arm_match.group(1)
         return_code = int(arm_match.group(2))
         for pat in pattern_str.split("|"):
@@ -167,12 +164,10 @@ class TestOlderModelsUnchanged:
         """Verify supports_adaptive_thinking returns 1 for haiku
         which means CLAUDE_EFFORT_FLAG stays empty."""
         patterns = _parse_function_case_patterns()
-        assert (
-            _model_matches_case("haiku", patterns) == 1
-        ), "haiku should not support adaptive thinking"
+        assert _model_matches_case("haiku", patterns) == 1, "haiku should not support adaptive thinking"
 
     def test_sonnet_4_5_gets_no_effort_flag(self) -> None:
         patterns = _parse_function_case_patterns()
-        assert (
-            _model_matches_case("claude-sonnet-4-5-20241022", patterns) == 1
-        ), "sonnet 4.5 should not support adaptive thinking"
+        assert _model_matches_case("claude-sonnet-4-5-20241022", patterns) == 1, (
+            "sonnet 4.5 should not support adaptive thinking"
+        )

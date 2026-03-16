@@ -1,23 +1,20 @@
 """Tests for lib/research_cache.py — URL-level research cache."""
+
 import json
 import os
 import sys
 import time
 
-import pytest
-
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 
 from research_cache import (
     _cache_key,
-    _cache_path,
     cache_inject_context,
     cache_list_valid,
     cache_lookup,
     cache_prune,
     cache_store,
 )
-
 
 # ── _cache_key tests ─────────────────────────────────────────────────────────
 

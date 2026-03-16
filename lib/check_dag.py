@@ -4,12 +4,14 @@ SPIRAL — Dependency DAG Validator
 Checks prd.json dependency graph for cycles using topological sort.
 Exit 0 = valid DAG, Exit 1 = cycles detected (prints cycle members).
 """
+
 import json
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
 from spiral_io import configure_utf8_stdout
+
 configure_utf8_stdout()
 
 

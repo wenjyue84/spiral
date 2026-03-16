@@ -1,26 +1,25 @@
 """Unit tests for lib/truncate_context.py — story context truncation."""
+
 import json
 import os
 import sys
 
-import pytest
-
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 from truncate_context import (
-    count_tokens,
-    truncate_story,
-    load_cached_tokens,
-    save_cached_tokens,
-    main,
+    CORE_FIELDS,
     DEFAULT_CONTEXT_LIMIT,
     TRUNCATION_ORDER,
-    CORE_FIELDS,
+    count_tokens,
+    load_cached_tokens,
+    main,
+    save_cached_tokens,
+    truncate_story,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_story(
     story_id: str = "US-001",
@@ -53,6 +52,7 @@ def _big_text(n_chars: int) -> str:
 # count_tokens
 # ---------------------------------------------------------------------------
 
+
 class TestCountTokens:
     def test_empty_string_returns_at_least_one(self):
         # Approximation: max(1, len("") // 4) = 1
@@ -76,6 +76,7 @@ class TestCountTokens:
 # truncate_story — no-op when under threshold
 # ---------------------------------------------------------------------------
 
+
 class TestTruncateStoryNoOp:
     def test_small_story_unchanged(self):
         story = _make_story()
@@ -98,11 +99,13 @@ class TestTruncateStoryNoOp:
 
     def test_zero_limit_drops_all_droppable_fields(self):
         """A limit of 0 should try to drop all optional fields."""
-        story = _make_story(extra_fields={
-            "_researchOutput": _big_text(1000),
-            "hints": {"key": "value"},
-            "filesTouch": ["file.py"],
-        })
+        story = _make_story(
+            extra_fields={
+                "_researchOutput": _big_text(1000),
+                "hints": {"key": "value"},
+                "filesTouch": ["file.py"],
+            }
+        )
         truncated, _, _, dropped = truncate_story(story, limit=0)
         assert "_researchOutput" not in truncated
         assert "hints" not in truncated
@@ -113,28 +116,33 @@ class TestTruncateStoryNoOp:
 # truncate_story — truncation ordering
 # ---------------------------------------------------------------------------
 
+
 class TestTruncateStoryOrdering:
     def _story_with_all_extras(self, size_each: int = 20_000) -> dict:
         """Story with all droppable fields populated with large content."""
-        return _make_story(extra_fields={
-            "_researchOutput": _big_text(size_each),
-            "hints": {"context": _big_text(size_each)},
-            "technicalHints": {"notes": _big_text(size_each)},
-            "filesTouch": [f"file_{i}.py" for i in range(500)],
-        })
+        return _make_story(
+            extra_fields={
+                "_researchOutput": _big_text(size_each),
+                "hints": {"context": _big_text(size_each)},
+                "technicalHints": {"notes": _big_text(size_each)},
+                "filesTouch": [f"file_{i}.py" for i in range(500)],
+            }
+        )
 
     def test_research_output_dropped_first(self):
         """_researchOutput is the first field to be dropped."""
         # Create a story that is slightly over limit — only need to drop
         # _researchOutput to get under.
         base_story = _make_story()
-        base_tokens = count_tokens(json.dumps(base_story))
+        _base_tokens = count_tokens(json.dumps(base_story))
         # Make a story big enough that removing just _researchOutput brings it under
         padding = _big_text(2000)  # ~500 tokens
-        story = _make_story(extra_fields={
-            "_researchOutput": padding,
-            "filesTouch": ["a.py"],
-        })
+        story = _make_story(
+            extra_fields={
+                "_researchOutput": padding,
+                "filesTouch": ["a.py"],
+            }
+        )
         total_tokens = count_tokens(json.dumps(story))
         # Set limit just below total but above story-minus-research
         limit = total_tokens - 5
@@ -144,12 +152,14 @@ class TestTruncateStoryOrdering:
 
     def test_hints_dropped_before_filesTouch(self):
         """hints is dropped before filesTouch."""
-        base_story = _make_story()
+        _base_story = _make_story()
         padding = _big_text(2000)
-        story = _make_story(extra_fields={
-            "hints": {"context": padding},
-            "filesTouch": ["b.py"],
-        })
+        story = _make_story(
+            extra_fields={
+                "hints": {"context": padding},
+                "filesTouch": ["b.py"],
+            }
+        )
         total_tokens = count_tokens(json.dumps(story))
         limit = total_tokens - 5
         truncated, _, _, dropped = truncate_story(story, limit=limit)
@@ -185,6 +195,7 @@ class TestTruncateStoryOrdering:
 # truncate_story — edge case: story spec alone exceeds limit
 # ---------------------------------------------------------------------------
 
+
 class TestTruncateStorySpecExceedsLimit:
     def test_core_story_unchanged_even_when_over_limit(self):
         """If the core story spec itself exceeds the limit, return it unchanged
@@ -201,10 +212,12 @@ class TestTruncateStorySpecExceedsLimit:
     def test_story_with_extras_but_core_still_over_limit(self):
         """When even after dropping all optional fields the core exceeds the limit,
         return the stripped (core-only) story rather than panicking."""
-        big_core_story = _make_story(extra_fields={
-            "_researchOutput": _big_text(500),
-            "description": _big_text(10_000),  # core — cannot be dropped
-        })
+        big_core_story = _make_story(
+            extra_fields={
+                "_researchOutput": _big_text(500),
+                "description": _big_text(10_000),  # core — cannot be dropped
+            }
+        )
         # Set an absurdly tiny limit
         _, _, _, dropped = truncate_story(big_core_story, limit=10)
         # All optional fields should be dropped; core kept
@@ -215,6 +228,7 @@ class TestTruncateStorySpecExceedsLimit:
 # ---------------------------------------------------------------------------
 # Caching
 # ---------------------------------------------------------------------------
+
 
 class TestTokenCache:
     def test_roundtrip(self, tmp_path):
@@ -239,6 +253,7 @@ class TestTokenCache:
 # ---------------------------------------------------------------------------
 # main() CLI
 # ---------------------------------------------------------------------------
+
 
 class TestMain:
     def test_noop_under_limit(self, monkeypatch, capsys):
@@ -310,14 +325,14 @@ class TestMain:
         story = _make_story(extra_fields={"_researchOutput": _big_text(4000)})
         monkeypatch.delenv("SPIRAL_CONTEXT_LIMIT", raising=False)
         # With a huge base prompt, total will exceed 180000 limit
-        rc = main(["--story", json.dumps(story),
-                   "--base-prompt-file", str(prompt_file)])
+        rc = main(["--story", json.dumps(story), "--base-prompt-file", str(prompt_file)])
         assert rc == 0
         # Warning may or may not fire depending on approx; just ensure no crash
 
     def test_stdin_fallback(self, monkeypatch, capsys):
         """Reads story JSON from stdin when --story is not provided."""
         import io
+
         story = _make_story()
         monkeypatch.delenv("SPIRAL_CONTEXT_LIMIT", raising=False)
         monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(story)))

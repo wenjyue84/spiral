@@ -15,22 +15,16 @@ import os
 import re
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import MagicMock
 
 # Ensure lib/ is on the import path
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
 
 import otel_spans  # noqa: E402
 
-
 # ── Regex for W3C TRACEPARENT ─────────────────────────────────────────────────
-_TRACEPARENT_RE = re.compile(
-    r"^00-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$"
-)
+_TRACEPARENT_RE = re.compile(r"^00-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$")
 
 
 class TestBeginRun:
@@ -93,9 +87,7 @@ class TestEndPhaseNoOp:
     def test_noop_without_otlp_endpoint(self, monkeypatch):
         """end-phase silently returns when OTEL_EXPORTER_OTLP_ENDPOINT is unset."""
         monkeypatch.delenv("OTEL_EXPORTER_OTLP_ENDPOINT", raising=False)
-        monkeypatch.setenv(
-            "TRACEPARENT", "00-abcd1234abcd1234abcd1234abcd1234-1234567890abcdef-01"
-        )
+        monkeypatch.setenv("TRACEPARENT", "00-abcd1234abcd1234abcd1234abcd1234-1234567890abcdef-01")
         args = MagicMock()
         args.phase = "R"
         args.duration_s = 10.0
@@ -155,13 +147,20 @@ class TestSpanAttributes:
     def test_phase_attributes_passed_to_emit(self, monkeypatch):
         """end-phase builds correct attributes dict including GenAI semconv keys."""
         monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4318")
-        monkeypatch.setenv(
-            "TRACEPARENT", "00-abcd1234abcd1234abcd1234abcd1234-1234567890abcdef-01"
-        )
+        monkeypatch.setenv("TRACEPARENT", "00-abcd1234abcd1234abcd1234abcd1234-1234567890abcdef-01")
         captured_attrs: dict = {}
 
-        def fake_emit(*, name, trace_id_hex, parent_span_id_hex, span_id_hex,
-                      start_time_ns, end_time_ns, attributes, is_root=False):
+        def fake_emit(
+            *,
+            name,
+            trace_id_hex,
+            parent_span_id_hex,
+            span_id_hex,
+            start_time_ns,
+            end_time_ns,
+            attributes,
+            is_root=False,
+        ):
             captured_attrs.update(attributes)
             captured_attrs["_name"] = name
 
@@ -224,9 +223,7 @@ class TestSpanAttributes:
     def test_optional_token_counts_omitted_when_none(self, monkeypatch):
         """Token attributes are omitted when not provided."""
         monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4318")
-        monkeypatch.setenv(
-            "TRACEPARENT", "00-abcd1234abcd1234abcd1234abcd1234-1234567890abcdef-01"
-        )
+        monkeypatch.setenv("TRACEPARENT", "00-abcd1234abcd1234abcd1234abcd1234-1234567890abcdef-01")
         captured_attrs: dict = {}
 
         def fake_emit(*, attributes, **kwargs):
@@ -349,9 +346,7 @@ class TestEmitAction:
     def test_noop_without_otlp_endpoint(self, monkeypatch):
         """emit-action silently returns when OTEL_EXPORTER_OTLP_ENDPOINT is unset."""
         monkeypatch.delenv("OTEL_EXPORTER_OTLP_ENDPOINT", raising=False)
-        monkeypatch.setenv(
-            "STORY_TRACEPARENT", "00-abcd1234abcd1234abcd1234abcd1234-1234567890abcdef-01"
-        )
+        monkeypatch.setenv("STORY_TRACEPARENT", "00-abcd1234abcd1234abcd1234abcd1234-1234567890abcdef-01")
         args = MagicMock()
         args.type = "llm_query"
         args.duration_s = 5.0
@@ -362,9 +357,7 @@ class TestEmitAction:
     def test_emits_llm_query_action_span(self, monkeypatch):
         """emit-action llm_query sets gen_ai.action.type = llm_query."""
         monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4318")
-        monkeypatch.setenv(
-            "STORY_TRACEPARENT", "00-abcd1234abcd1234abcd1234abcd1234-1234567890abcdef-01"
-        )
+        monkeypatch.setenv("STORY_TRACEPARENT", "00-abcd1234abcd1234abcd1234abcd1234-1234567890abcdef-01")
         monkeypatch.delenv("TRACEPARENT", raising=False)
 
         captured_attrs: dict = {}
@@ -387,9 +380,7 @@ class TestEmitAction:
     def test_emits_tool_call_action_span(self, monkeypatch):
         """emit-action tool_call sets gen_ai.action.type = tool_call."""
         monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4318")
-        monkeypatch.setenv(
-            "STORY_TRACEPARENT", "00-abcd1234abcd1234abcd1234abcd1234-1234567890abcdef-01"
-        )
+        monkeypatch.setenv("STORY_TRACEPARENT", "00-abcd1234abcd1234abcd1234abcd1234-1234567890abcdef-01")
 
         captured_attrs: dict = {}
 
@@ -411,9 +402,7 @@ class TestEmitAction:
         """emit-action falls back to TRACEPARENT when STORY_TRACEPARENT is unset."""
         monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4318")
         monkeypatch.delenv("STORY_TRACEPARENT", raising=False)
-        monkeypatch.setenv(
-            "TRACEPARENT", "00-abcd1234abcd1234abcd1234abcd1234-1234567890abcdef-01"
-        )
+        monkeypatch.setenv("TRACEPARENT", "00-abcd1234abcd1234abcd1234abcd1234-1234567890abcdef-01")
 
         captured_attrs: dict = {}
 
@@ -500,9 +489,9 @@ class TestCLI:
     def test_begin_run_cli(self, tmp_path):
         """CLI begin-run prints valid TRACEPARENT."""
         result = subprocess.run(
-            [sys.executable, "lib/otel_spans.py", "begin-run",
-             "--run-id", "cli-test", "--scratch-dir", str(tmp_path)],
-            capture_output=True, text=True,
+            [sys.executable, "lib/otel_spans.py", "begin-run", "--run-id", "cli-test", "--scratch-dir", str(tmp_path)],
+            capture_output=True,
+            text=True,
             cwd=str(Path(__file__).parent.parent),
         )
         assert result.returncode == 0
@@ -514,9 +503,10 @@ class TestCLI:
         env = {**os.environ}
         env.pop("OTEL_EXPORTER_OTLP_ENDPOINT", None)
         result = subprocess.run(
-            [sys.executable, "lib/otel_spans.py", "end-phase",
-             "--phase", "R", "--duration-s", "5"],
-            capture_output=True, text=True, env=env,
+            [sys.executable, "lib/otel_spans.py", "end-phase", "--phase", "R", "--duration-s", "5"],
+            capture_output=True,
+            text=True,
+            env=env,
             cwd=str(Path(__file__).parent.parent),
         )
         assert result.returncode == 0
@@ -527,7 +517,9 @@ class TestCLI:
         env.pop("OTEL_EXPORTER_OTLP_ENDPOINT", None)
         result = subprocess.run(
             [sys.executable, "lib/otel_spans.py", "end-run"],
-            capture_output=True, text=True, env=env,
+            capture_output=True,
+            text=True,
+            env=env,
             cwd=str(Path(__file__).parent.parent),
         )
         assert result.returncode == 0

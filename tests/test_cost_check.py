@@ -1,25 +1,32 @@
 """Unit tests for lib/cost_check.py — cumulative API cost estimation."""
+
 import csv
 import os
-import pytest
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 from cost_check import (
+    INPUT_OUTPUT_RATIO,
+    TOKENS_PER_SEC_OUTPUT,
     compute_cumulative_cost,
     compute_row_cost,
     estimate_tokens_from_duration,
     format_cost_summary,
     main,
     normalise_model,
-    PRICING,
-    TOKENS_PER_SEC_OUTPUT,
-    INPUT_OUTPUT_RATIO,
 )
 
 HEADER = [
-    "timestamp", "spiral_iter", "ralph_iter", "story_id", "story_title",
-    "status", "duration_sec", "model", "retry_num", "commit_sha",
+    "timestamp",
+    "spiral_iter",
+    "ralph_iter",
+    "story_id",
+    "story_title",
+    "status",
+    "duration_sec",
+    "model",
+    "retry_num",
+    "commit_sha",
 ]
 
 

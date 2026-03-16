@@ -1,10 +1,11 @@
 """Tests for lib/generate_adr.py — ADR generation on story pass (US-155)."""
+
 from __future__ import annotations
 
 import json
 import os
 import sys
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -80,6 +81,7 @@ def prd_file(tmp_path):
 # Unit tests: _kebab
 # ---------------------------------------------------------------------------
 
+
 class TestKebab:
     def test_basic_title(self):
         assert _kebab("Add rate-limit retry") == "add-rate-limit-retry"
@@ -102,9 +104,12 @@ class TestKebab:
 # Unit tests: _build_prompt
 # ---------------------------------------------------------------------------
 
+
 class TestBuildPrompt:
     def test_includes_story_id(self):
-        template = "ID: {story_id} title: {story_title} desc: {story_description} ac: {acceptance_criteria} diff: {git_diff}"
+        template = (
+            "ID: {story_id} title: {story_title} desc: {story_description} ac: {acceptance_criteria} diff: {git_diff}"
+        )
         result = _build_prompt(SAMPLE_STORY, SAMPLE_DIFF, template)
         assert "US-042" in result
 
@@ -140,12 +145,15 @@ class TestBuildPrompt:
 # Integration tests: generate_adr
 # ---------------------------------------------------------------------------
 
+
 class TestGenerateAdr:
     def test_writes_adr_file(self, tmp_path, prd_file):
         output_dir = str(tmp_path / "decisions")
         with patch("generate_adr._call_claude", return_value=SAMPLE_ADR):
             result = generate_adr(
-                "US-042", prd_file, output_dir,
+                "US-042",
+                prd_file,
+                output_dir,
                 diff_override=SAMPLE_DIFF,
             )
         assert result is not None
@@ -157,7 +165,9 @@ class TestGenerateAdr:
         output_dir = str(tmp_path / "decisions")
         with patch("generate_adr._call_claude", return_value=SAMPLE_ADR):
             result = generate_adr(
-                "US-042", prd_file, output_dir,
+                "US-042",
+                prd_file,
+                output_dir,
                 diff_override=SAMPLE_DIFF,
             )
         assert result is not None
@@ -169,7 +179,9 @@ class TestGenerateAdr:
         output_dir = str(tmp_path / "decisions")
         with patch("generate_adr._call_claude", return_value=SAMPLE_ADR):
             adr_path = generate_adr(
-                "US-042", prd_file, output_dir,
+                "US-042",
+                prd_file,
+                output_dir,
                 diff_override=SAMPLE_DIFF,
             )
         assert adr_path is not None
@@ -182,7 +194,9 @@ class TestGenerateAdr:
         output_dir = str(tmp_path / "decisions")
         with patch("generate_adr._call_claude", return_value=""):
             result = generate_adr(
-                "US-042", prd_file, output_dir,
+                "US-042",
+                prd_file,
+                output_dir,
                 diff_override=SAMPLE_DIFF,
             )
         assert result is None
@@ -191,7 +205,9 @@ class TestGenerateAdr:
         output_dir = str(tmp_path / "decisions")
         with patch("generate_adr._call_claude", return_value=SAMPLE_ADR):
             result = generate_adr(
-                "US-999", prd_file, output_dir,
+                "US-999",
+                prd_file,
+                output_dir,
                 diff_override=SAMPLE_DIFF,
             )
         assert result is None
@@ -200,7 +216,9 @@ class TestGenerateAdr:
         output_dir = str(tmp_path / "new" / "deep" / "dir")
         with patch("generate_adr._call_claude", return_value=SAMPLE_ADR):
             result = generate_adr(
-                "US-042", prd_file, output_dir,
+                "US-042",
+                prd_file,
+                output_dir,
                 diff_override=SAMPLE_DIFF,
             )
         assert result is not None
@@ -211,7 +229,9 @@ class TestGenerateAdr:
         adr_no_newline = SAMPLE_ADR.rstrip("\n")
         with patch("generate_adr._call_claude", return_value=adr_no_newline):
             result = generate_adr(
-                "US-042", prd_file, output_dir,
+                "US-042",
+                prd_file,
+                output_dir,
                 diff_override=SAMPLE_DIFF,
             )
         assert result is not None
@@ -225,6 +245,7 @@ class TestGenerateAdr:
 # that the skip logic lives in ralph.sh, not the Python layer)
 # ---------------------------------------------------------------------------
 
+
 class TestSpiralSkipAdrEnvVar:
     def test_generate_adr_module_importable(self):
         """generate_adr module must import cleanly — no top-level side effects."""
@@ -232,18 +253,14 @@ class TestSpiralSkipAdrEnvVar:
 
     def test_ralph_sh_contains_skip_adr_default(self):
         """ralph.sh must declare SPIRAL_SKIP_ADR default."""
-        ralph_path = os.path.join(
-            os.path.dirname(__file__), "..", "ralph", "ralph.sh"
-        )
+        ralph_path = os.path.join(os.path.dirname(__file__), "..", "ralph", "ralph.sh")
         with open(ralph_path, encoding="utf-8") as fh:
             content = fh.read()
         assert 'SPIRAL_SKIP_ADR="${SPIRAL_SKIP_ADR:-false}"' in content
 
     def test_ralph_sh_calls_generate_adr(self):
         """ralph.sh must reference generate_adr.py."""
-        ralph_path = os.path.join(
-            os.path.dirname(__file__), "..", "ralph", "ralph.sh"
-        )
+        ralph_path = os.path.join(os.path.dirname(__file__), "..", "ralph", "ralph.sh")
         with open(ralph_path, encoding="utf-8") as fh:
             content = fh.read()
         assert "generate_adr.py" in content

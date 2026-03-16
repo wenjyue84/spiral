@@ -95,10 +95,10 @@ def cmd_record_tokens(args: argparse.Namespace) -> None:
         return
 
     try:
+        from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
         from opentelemetry.sdk.metrics import MeterProvider
         from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
-        from opentelemetry.sdk.resources import Resource, SERVICE_NAME
-        from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
+        from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 
         resource = Resource.create({SERVICE_NAME: "spiral"})
         exporter = OTLPMetricExporter(endpoint=endpoint)
@@ -139,6 +139,7 @@ def cmd_record_tokens(args: argparse.Namespace) -> None:
         provider.force_flush(timeout_millis=5000)
     except Exception:  # pylint: disable=broad-except
         import traceback
+
         print("[otel_metrics] ERROR:", traceback.format_exc(), file=sys.stderr)
 
 
@@ -168,7 +169,15 @@ def _build_prometheus_text(scratch_dir: str) -> str:
             model = rec.get("model", "unknown")
             key = f"{sid}:{phase}:{model}"
             if key not in totals:
-                totals[key] = {"story_id": sid, "phase": phase, "model": model, "input": 0, "output": 0, "calls": 0, "duration_ms": 0.0}
+                totals[key] = {
+                    "story_id": sid,
+                    "phase": phase,
+                    "model": model,
+                    "input": 0,
+                    "output": 0,
+                    "calls": 0,
+                    "duration_ms": 0.0,
+                }
             totals[key]["input"] = totals[key]["input"] + rec.get("input_tokens", 0)  # type: ignore[operator]
             totals[key]["output"] = totals[key]["output"] + rec.get("output_tokens", 0)  # type: ignore[operator]
             totals[key]["calls"] = totals[key]["calls"] + 1  # type: ignore[operator]
@@ -198,7 +207,7 @@ def _build_prometheus_text(scratch_dir: str) -> str:
         phase = str(entry["phase"])
         model = str(entry["model"]).replace('"', '\\"')
         labels = f'story_id="{sid}",phase="{phase}",model="{model}"'
-        lines.append(f'gen_ai_client_operation_duration_ms_total{{{labels}}} {entry["duration_ms"]:.3f}')
+        lines.append(f"gen_ai_client_operation_duration_ms_total{{{labels}}} {entry['duration_ms']:.3f}")
 
     lines += [
         "",
@@ -210,7 +219,7 @@ def _build_prometheus_text(scratch_dir: str) -> str:
         phase = str(entry["phase"])
         model = str(entry["model"]).replace('"', '\\"')
         labels = f'story_id="{sid}",phase="{phase}",model="{model}"'
-        lines.append(f'gen_ai_client_llm_calls_total{{{labels}}} {entry["calls"]}')
+        lines.append(f"gen_ai_client_llm_calls_total{{{labels}}} {entry['calls']}")
 
     lines.append("")
     return "\n".join(lines)
@@ -280,6 +289,7 @@ def main() -> None:
             cmd_serve_prometheus(args)
     except Exception:  # pylint: disable=broad-except
         import traceback
+
         print("[otel_metrics] ERROR:", traceback.format_exc(), file=sys.stderr)
 
 

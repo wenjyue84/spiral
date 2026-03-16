@@ -1,13 +1,11 @@
 """Unit tests for lib/compact_prd.py — field stripping and schema safety."""
+
 import json
 import os
 import sys
 
-import pytest
-
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
-from compact_prd import compact_prd, TRANSIENT_FIELDS, REQUIRED_FIELDS, _story_is_compactable
-
+from compact_prd import REQUIRED_FIELDS, TRANSIENT_FIELDS, _story_is_compactable, compact_prd
 
 # ── _story_is_compactable ────────────────────────────────────────────────────
 
@@ -115,9 +113,7 @@ class TestCompactPrdTransientRemoval:
         assert result["backup_path"] is None
 
     def test_backup_created_when_changes_made(self, tmp_path):
-        stories = [
-            {"id": "US-5", "title": "Story", "passes": True, "_lastAttempt": "x"}
-        ]
+        stories = [{"id": "US-5", "title": "Story", "passes": True, "_lastAttempt": "x"}]
         prd_path = _make_prd(tmp_path, stories)
         backup_dir = str(tmp_path / ".spiral")
         result = compact_prd(prd_path, backup_dir=backup_dir)
@@ -136,9 +132,7 @@ class TestCompactPrdTransientRemoval:
         assert result["backup_path"] is None
 
     def test_dry_run_does_not_modify_file(self, tmp_path):
-        stories = [
-            {"id": "US-7", "title": "Story", "passes": True, "_lastAttempt": "x"}
-        ]
+        stories = [{"id": "US-7", "title": "Story", "passes": True, "_lastAttempt": "x"}]
         prd_path = _make_prd(tmp_path, stories)
         original = open(prd_path, encoding="utf-8").read()
 
@@ -169,9 +163,7 @@ class TestCompactPrdTransientRemoval:
         assert "_lastAttempt" in updated["userStories"][1]
 
     def test_status_skipped_also_compacted(self, tmp_path):
-        stories = [
-            {"id": "US-10", "title": "Skipped", "status": "skipped", "_routerScore": 0.5}
-        ]
+        stories = [{"id": "US-10", "title": "Skipped", "status": "skipped", "_routerScore": 0.5}]
         prd_path = _make_prd(tmp_path, stories)
         result = compact_prd(prd_path, backup_dir=str(tmp_path / ".spiral"))
         assert result["fields_removed"] == 1

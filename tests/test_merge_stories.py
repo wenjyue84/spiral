@@ -1,4 +1,5 @@
 """Unit tests for merge_stories.py — deduplication, ID assignment, atomic write, and overflow."""
+
 import json
 import os
 import subprocess
@@ -7,9 +8,8 @@ import sys
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
-from merge_stories import overlap_ratio, is_duplicate, find_next_id, sort_key, full_sort_key
+from merge_stories import find_next_id, full_sort_key, is_duplicate, overlap_ratio, sort_key
 from spiral_io import atomic_write_json
-
 
 # ── overlap_ratio ────────────────────────────────────────────────────────
 
@@ -129,9 +129,15 @@ class TestAtomicWrite:
     def _make_prd(self, path, stories=None):
         if stories is None:
             stories = [
-                {"id": "US-001", "title": "existing story", "passes": True,
-                 "priority": "medium", "description": "", "acceptanceCriteria": ["done"],
-                 "dependencies": []}
+                {
+                    "id": "US-001",
+                    "title": "existing story",
+                    "passes": True,
+                    "priority": "medium",
+                    "description": "",
+                    "acceptanceCriteria": ["done"],
+                    "dependencies": [],
+                }
             ]
         prd = {
             "productName": "TestApp",
@@ -142,8 +148,7 @@ class TestAtomicWrite:
 
     def _make_research(self, path, titles):
         stories = [
-            {"title": t, "priority": "medium", "description": t,
-             "acceptanceCriteria": [f"criterion for {t}"]}
+            {"title": t, "priority": "medium", "description": t, "acceptanceCriteria": [f"criterion for {t}"]}
             for t in titles
         ]
         path.write_text(json.dumps({"stories": stories}, indent=2), encoding="utf-8")
@@ -160,11 +165,18 @@ class TestAtomicWrite:
 
         merge_script = os.path.join(os.path.dirname(__file__), "..", "lib", "merge_stories.py")
         result = subprocess.run(
-            [sys.executable, merge_script,
-             "--prd", str(prd_path),
-             "--research", str(research_path),
-             "--test-stories", str(test_stories_path)],
-            capture_output=True, text=True,
+            [
+                sys.executable,
+                merge_script,
+                "--prd",
+                str(prd_path),
+                "--research",
+                str(research_path),
+                "--test-stories",
+                str(test_stories_path),
+            ],
+            capture_output=True,
+            text=True,
         )
         assert result.returncode == 0, f"merge failed:\n{result.stderr}"
 
@@ -227,9 +239,14 @@ class TestOverflow:
 
     # Each title uses unique words to avoid dedup
     _TITLES = [
-        "alpha bravo charlie", "delta echo foxtrot", "golf hotel india",
-        "juliet kilo lima", "mike november oscar", "papa quebec romeo",
-        "sierra tango uniform", "victor whiskey xray",
+        "alpha bravo charlie",
+        "delta echo foxtrot",
+        "golf hotel india",
+        "juliet kilo lima",
+        "mike november oscar",
+        "papa quebec romeo",
+        "sierra tango uniform",
+        "victor whiskey xray",
     ]
 
     def _make_prd(self, path):
@@ -237,17 +254,27 @@ class TestOverflow:
             "productName": "TestApp",
             "branchName": "main",
             "userStories": [
-                {"id": "US-001", "title": "xyzzy plugh plover", "passes": True,
-                 "priority": "medium", "description": "", "acceptanceCriteria": ["done"],
-                 "dependencies": []}
-            ]
+                {
+                    "id": "US-001",
+                    "title": "xyzzy plugh plover",
+                    "passes": True,
+                    "priority": "medium",
+                    "description": "",
+                    "acceptanceCriteria": ["done"],
+                    "dependencies": [],
+                }
+            ],
         }
         path.write_text(json.dumps(prd, indent=2), encoding="utf-8")
 
     def _make_research(self, path, count):
         stories = [
-            {"title": self._TITLES[i], "priority": "medium",
-             "description": self._TITLES[i], "acceptanceCriteria": [f"criterion{i}"]}
+            {
+                "title": self._TITLES[i],
+                "priority": "medium",
+                "description": self._TITLES[i],
+                "acceptanceCriteria": [f"criterion{i}"],
+            }
             for i in range(count)
         ]
         path.write_text(json.dumps({"stories": stories}, indent=2), encoding="utf-8")
@@ -265,13 +292,22 @@ class TestOverflow:
 
         merge_script = os.path.join(os.path.dirname(__file__), "..", "lib", "merge_stories.py")
         result = subprocess.run(
-            [sys.executable, merge_script,
-             "--prd", str(prd_path),
-             "--research", str(research_path),
-             "--test-stories", str(test_stories_path),
-             "--max-new", "3",
-             "--overflow-out", str(overflow_path)],
-            capture_output=True, text=True,
+            [
+                sys.executable,
+                merge_script,
+                "--prd",
+                str(prd_path),
+                "--research",
+                str(research_path),
+                "--test-stories",
+                str(test_stories_path),
+                "--max-new",
+                "3",
+                "--overflow-out",
+                str(overflow_path),
+            ],
+            capture_output=True,
+            text=True,
         )
         assert result.returncode == 0, f"merge failed:\n{result.stderr}"
 
@@ -299,13 +335,22 @@ class TestOverflow:
 
         merge_script = os.path.join(os.path.dirname(__file__), "..", "lib", "merge_stories.py")
         result = subprocess.run(
-            [sys.executable, merge_script,
-             "--prd", str(prd_path),
-             "--research", str(research_path),
-             "--test-stories", str(test_stories_path),
-             "--max-new", "10",
-             "--overflow-out", str(overflow_path)],
-            capture_output=True, text=True,
+            [
+                sys.executable,
+                merge_script,
+                "--prd",
+                str(prd_path),
+                "--research",
+                str(research_path),
+                "--test-stories",
+                str(test_stories_path),
+                "--max-new",
+                "10",
+                "--overflow-out",
+                str(overflow_path),
+            ],
+            capture_output=True,
+            text=True,
         )
         assert result.returncode == 0, f"merge failed:\n{result.stderr}"
 
@@ -326,13 +371,22 @@ class TestOverflow:
 
         merge_script = os.path.join(os.path.dirname(__file__), "..", "lib", "merge_stories.py")
         result = subprocess.run(
-            [sys.executable, merge_script,
-             "--prd", str(prd_path),
-             "--research", str(research_path),
-             "--test-stories", str(test_stories_path),
-             "--max-new", "0",
-             "--overflow-out", str(overflow_path)],
-            capture_output=True, text=True,
+            [
+                sys.executable,
+                merge_script,
+                "--prd",
+                str(prd_path),
+                "--research",
+                str(research_path),
+                "--test-stories",
+                str(test_stories_path),
+                "--max-new",
+                "0",
+                "--overflow-out",
+                str(overflow_path),
+            ],
+            capture_output=True,
+            text=True,
         )
         assert result.returncode == 0, f"merge failed:\n{result.stderr}"
 
@@ -357,12 +411,20 @@ class TestOverflow:
 
         merge_script = os.path.join(os.path.dirname(__file__), "..", "lib", "merge_stories.py")
         result = subprocess.run(
-            [sys.executable, merge_script,
-             "--prd", str(prd_path),
-             "--research", str(research_path),
-             "--test-stories", str(test_stories_path),
-             "--max-new", "1"],
-            capture_output=True, text=True,
+            [
+                sys.executable,
+                merge_script,
+                "--prd",
+                str(prd_path),
+                "--research",
+                str(research_path),
+                "--test-stories",
+                str(test_stories_path),
+                "--max-new",
+                "1",
+            ],
+            capture_output=True,
+            text=True,
         )
         assert result.returncode == 0, f"merge failed:\n{result.stderr}"
 
@@ -397,32 +459,57 @@ class TestPriorityOrdering:
             "productName": "TestApp",
             "branchName": "main",
             "userStories": [
-                {"id": "US-001", "title": "xyzzy plugh plover", "passes": True,
-                 "priority": "medium", "description": "", "acceptanceCriteria": ["done"],
-                 "dependencies": []}
-            ]
+                {
+                    "id": "US-001",
+                    "title": "xyzzy plugh plover",
+                    "passes": True,
+                    "priority": "medium",
+                    "description": "",
+                    "acceptanceCriteria": ["done"],
+                    "dependencies": [],
+                }
+            ],
         }
         prd_path.write_text(json.dumps(prd, indent=2), encoding="utf-8")
 
         # Research candidates with mixed priorities
         stories = [
-            {"title": "low priority zephyr quasar nebula", "priority": "low",
-             "description": "low", "acceptanceCriteria": ["c1"]},
-            {"title": "critical priority zenith apex summit", "priority": "critical",
-             "description": "critical", "acceptanceCriteria": ["c2"]},
-            {"title": "medium priority aurora borealis cosmic", "priority": "medium",
-             "description": "medium", "acceptanceCriteria": ["c3"]},
+            {
+                "title": "low priority zephyr quasar nebula",
+                "priority": "low",
+                "description": "low",
+                "acceptanceCriteria": ["c1"],
+            },
+            {
+                "title": "critical priority zenith apex summit",
+                "priority": "critical",
+                "description": "critical",
+                "acceptanceCriteria": ["c2"],
+            },
+            {
+                "title": "medium priority aurora borealis cosmic",
+                "priority": "medium",
+                "description": "medium",
+                "acceptanceCriteria": ["c3"],
+            },
         ]
         research_path.write_text(json.dumps({"stories": stories}, indent=2), encoding="utf-8")
         test_stories_path.write_text('{"stories": []}', encoding="utf-8")
 
         merge_script = os.path.join(os.path.dirname(__file__), "..", "lib", "merge_stories.py")
         result = subprocess.run(
-            [sys.executable, merge_script,
-             "--prd", str(prd_path),
-             "--research", str(research_path),
-             "--test-stories", str(test_stories_path)],
-            capture_output=True, text=True,
+            [
+                sys.executable,
+                merge_script,
+                "--prd",
+                str(prd_path),
+                "--research",
+                str(research_path),
+                "--test-stories",
+                str(test_stories_path),
+            ],
+            capture_output=True,
+            text=True,
         )
         assert result.returncode == 0, f"merge failed:\n{result.stderr}"
 
@@ -478,38 +565,70 @@ class TestPostMergeSortOrder:
             "productName": "TestApp",
             "branchName": "main",
             "userStories": [
-                {"id": "US-001", "title": "done story omega phi psi", "passes": True,
-                 "priority": "high", "description": "", "acceptanceCriteria": ["done"],
-                 "dependencies": []},
-                {"id": "US-002", "title": "active low zephyr quasar nebula", "passes": False,
-                 "priority": "low", "description": "", "acceptanceCriteria": ["c"],
-                 "dependencies": []},
-                {"id": "US-003", "title": "active medium aurora borealis cosmic", "passes": False,
-                 "priority": "medium", "description": "", "acceptanceCriteria": ["c"],
-                 "dependencies": ["US-001", "US-002"]},
+                {
+                    "id": "US-001",
+                    "title": "done story omega phi psi",
+                    "passes": True,
+                    "priority": "high",
+                    "description": "",
+                    "acceptanceCriteria": ["done"],
+                    "dependencies": [],
+                },
+                {
+                    "id": "US-002",
+                    "title": "active low zephyr quasar nebula",
+                    "passes": False,
+                    "priority": "low",
+                    "description": "",
+                    "acceptanceCriteria": ["c"],
+                    "dependencies": [],
+                },
+                {
+                    "id": "US-003",
+                    "title": "active medium aurora borealis cosmic",
+                    "passes": False,
+                    "priority": "medium",
+                    "description": "",
+                    "acceptanceCriteria": ["c"],
+                    "dependencies": ["US-001", "US-002"],
+                },
             ],
         }
         prd_path.write_text(json.dumps(prd, indent=2), encoding="utf-8")
 
         # Add one critical research story with no deps
         stories = [
-            {"title": "critical story zenith apex summit pinnacle",
-             "priority": "critical", "description": "critical",
-             "acceptanceCriteria": ["c1"]},
-            {"title": "medium story gamma delta epsilon zeta",
-             "priority": "medium", "description": "medium",
-             "acceptanceCriteria": ["c2"], "dependencies": []},
+            {
+                "title": "critical story zenith apex summit pinnacle",
+                "priority": "critical",
+                "description": "critical",
+                "acceptanceCriteria": ["c1"],
+            },
+            {
+                "title": "medium story gamma delta epsilon zeta",
+                "priority": "medium",
+                "description": "medium",
+                "acceptanceCriteria": ["c2"],
+                "dependencies": [],
+            },
         ]
         research_path.write_text(json.dumps({"stories": stories}, indent=2), encoding="utf-8")
         test_stories_path.write_text('{"stories": []}', encoding="utf-8")
 
         merge_script = os.path.join(os.path.dirname(__file__), "..", "lib", "merge_stories.py")
         result = subprocess.run(
-            [sys.executable, merge_script,
-             "--prd", str(prd_path),
-             "--research", str(research_path),
-             "--test-stories", str(test_stories_path)],
-            capture_output=True, text=True,
+            [
+                sys.executable,
+                merge_script,
+                "--prd",
+                str(prd_path),
+                "--research",
+                str(research_path),
+                "--test-stories",
+                str(test_stories_path),
+            ],
+            capture_output=True,
+            text=True,
         )
         assert result.returncode == 0, f"merge failed:\n{result.stderr}"
 
@@ -525,7 +644,7 @@ class TestPostMergeSortOrder:
         #   4. low (active, 0 deps)     — US-002
         #   5. high (done)              — US-001
         active = [s for s in all_stories if not s.get("passes")]
-        done = [s for s in all_stories if s.get("passes")]
+        _done = [s for s in all_stories if s.get("passes")]
 
         # All active come before all done
         active_indices = [i for i, s in enumerate(all_stories) if not s.get("passes")]

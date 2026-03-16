@@ -1,11 +1,13 @@
 """Property-based tests for prd_schema.py validation."""
+
 import json
 import os
 import time
+
 import pytest
-from hypothesis import given, settings, assume, HealthCheck
-from conftest import valid_prd, invalid_prd_missing_field, prd_with_duplicate_ids, prd_with_dangling_dep
-from prd_schema import validate_prd, validate_jsonschema
+from conftest import invalid_prd_missing_field, prd_with_dangling_dep, prd_with_duplicate_ids, valid_prd
+from hypothesis import HealthCheck, assume, given, settings
+from prd_schema import validate_jsonschema, validate_prd
 
 
 class TestValidPrd:
@@ -84,20 +86,17 @@ class TestSchemaVersion:
     """Tests for schemaVersion validation."""
 
     def test_valid_schema_version(self):
-        prd = {"productName": "X", "branchName": "main", "schemaVersion": 1,
-               "userStories": []}
+        prd = {"productName": "X", "branchName": "main", "schemaVersion": 1, "userStories": []}
         errors = validate_prd(prd)
         assert errors == []
 
     def test_non_integer_schema_version(self):
-        prd = {"productName": "X", "branchName": "main", "schemaVersion": "1",
-               "userStories": []}
+        prd = {"productName": "X", "branchName": "main", "schemaVersion": "1", "userStories": []}
         errors = validate_prd(prd)
         assert any("schemaVersion" in e and "integer" in e for e in errors)
 
     def test_negative_schema_version(self):
-        prd = {"productName": "X", "branchName": "main", "schemaVersion": 0,
-               "userStories": []}
+        prd = {"productName": "X", "branchName": "main", "schemaVersion": 0, "userStories": []}
         errors = validate_prd(prd)
         assert any("schemaVersion" in e for e in errors)
 
@@ -157,7 +156,6 @@ class TestJsonSchemaRsBenchmark:
         elapsed = time.perf_counter() - start
 
         avg_ms = (elapsed / n_runs) * 1000
-        print(f"\njsonschema-rs: {n_runs} runs in {elapsed:.3f}s "
-              f"(avg {avg_ms:.2f}ms per validation)")
+        print(f"\njsonschema-rs: {n_runs} runs in {elapsed:.3f}s (avg {avg_ms:.2f}ms per validation)")
         # Rust-backed validator should complete each run in under 100ms
         assert avg_ms < 100, f"Validation too slow: {avg_ms:.2f}ms per run"

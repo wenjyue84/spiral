@@ -11,10 +11,9 @@ Ensures:
   6. All new env vars are documented in spiral.config.sh
   7. Template config documents the new vars
 """
+
 import re
 from pathlib import Path
-
-import pytest
 
 ROOT = Path(__file__).parent.parent
 SPIRAL_SH = ROOT / "spiral.sh"
@@ -48,7 +47,7 @@ class TestPhaseModelDefaults:
     def test_research_model_no_longer_defaults_to_sonnet(self):
         content = _read(SPIRAL_SH)
         # Should NOT have sonnet as default anywhere for SPIRAL_RESEARCH_MODEL
-        assert 'SPIRAL_RESEARCH_MODEL:-sonnet' not in content
+        assert "SPIRAL_RESEARCH_MODEL:-sonnet" not in content
 
 
 class TestPhaseModelOverride:
@@ -61,9 +60,9 @@ class TestPhaseModelOverride:
     def test_override_handles_R_S_M_phases(self):
         content = _read(SPIRAL_SH)
         # The case statement should handle R, S, M
-        assert 'R) SPIRAL_RESEARCH_MODEL=' in content
-        assert 'S) SPIRAL_VALIDATION_MODEL=' in content
-        assert 'M) SPIRAL_MERGE_MODEL=' in content
+        assert "R) SPIRAL_RESEARCH_MODEL=" in content
+        assert "S) SPIRAL_VALIDATION_MODEL=" in content
+        assert "M) SPIRAL_MERGE_MODEL=" in content
 
 
 class TestPhaseEndEventLogging:

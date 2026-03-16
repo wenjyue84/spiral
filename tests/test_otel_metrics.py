@@ -12,7 +12,6 @@ Tests confirm:
 import json
 import os
 import sys
-import tempfile
 import threading
 import time
 import urllib.request
@@ -26,8 +25,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
 
 import otel_metrics  # noqa: E402
 
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _make_args(**kwargs):
     args = MagicMock()
@@ -42,6 +41,7 @@ def _make_args(**kwargs):
 
 
 # ── TestRecordTokens ──────────────────────────────────────────────────────────
+
 
 class TestRecordTokens:
     def test_creates_jsonl_file(self, tmp_path):
@@ -64,9 +64,7 @@ class TestRecordTokens:
         otel_metrics.cmd_record_tokens(args)
 
         records = [
-            json.loads(line)
-            for line in (tmp_path / "token_metrics.jsonl").read_text().splitlines()
-            if line.strip()
+            json.loads(line) for line in (tmp_path / "token_metrics.jsonl").read_text().splitlines() if line.strip()
         ]
         assert len(records) == 1
         rec = records[0]
@@ -85,18 +83,14 @@ class TestRecordTokens:
             otel_metrics.cmd_record_tokens(
                 _make_args(scratch_dir=str(tmp_path), story_id=f"US-{i:03d}", input_tokens=i * 10)
             )
-        lines = [
-            l for l in (tmp_path / "token_metrics.jsonl").read_text().splitlines() if l.strip()
-        ]
+        lines = [line for line in (tmp_path / "token_metrics.jsonl").read_text().splitlines() if line.strip()]
         assert len(lines) == 3
 
     def test_zero_tokens_recorded(self, tmp_path):
         """record-tokens with zero tokens still writes a valid record."""
         args = _make_args(scratch_dir=str(tmp_path), input_tokens=0, output_tokens=0, duration_ms=0)
         otel_metrics.cmd_record_tokens(args)
-        lines = [
-            l for l in (tmp_path / "token_metrics.jsonl").read_text().splitlines() if l.strip()
-        ]
+        lines = [line for line in (tmp_path / "token_metrics.jsonl").read_text().splitlines() if line.strip()]
         assert len(lines) == 1
         rec = json.loads(lines[0])
         assert rec["total_tokens"] == 0
@@ -115,9 +109,7 @@ class TestRecordTokens:
         """Negative token counts are clamped to 0."""
         args = _make_args(scratch_dir=str(tmp_path), input_tokens=-50, output_tokens=-100)
         otel_metrics.cmd_record_tokens(args)
-        rec = json.loads(
-            (tmp_path / "token_metrics.jsonl").read_text().strip().splitlines()[-1]
-        )
+        rec = json.loads((tmp_path / "token_metrics.jsonl").read_text().strip().splitlines()[-1])
         assert rec["input_tokens"] == 0
         assert rec["output_tokens"] == 0
 
@@ -130,6 +122,7 @@ class TestRecordTokens:
 
 
 # ── TestBuildPrometheusText ───────────────────────────────────────────────────
+
 
 class TestBuildPrometheusText:
     def test_empty_returns_placeholder(self, tmp_path):
@@ -164,7 +157,13 @@ class TestBuildPrometheusText:
         """Token counts for the same story are summed."""
         for _ in range(3):
             otel_metrics.cmd_record_tokens(
-                _make_args(scratch_dir=str(tmp_path), story_id="US-X", input_tokens=100, output_tokens=50, model="claude-opus-4-6")
+                _make_args(
+                    scratch_dir=str(tmp_path),
+                    story_id="US-X",
+                    input_tokens=100,
+                    output_tokens=50,
+                    model="claude-opus-4-6",
+                )
             )
         text = otel_metrics._build_prometheus_text(str(tmp_path))
         # 3 × 100 = 300 input
@@ -202,6 +201,7 @@ class TestBuildPrometheusText:
 
 
 # ── TestServePrometheus ───────────────────────────────────────────────────────
+
 
 class TestServePrometheus:
     def test_metrics_endpoint_returns_200(self, tmp_path):

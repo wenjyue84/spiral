@@ -17,6 +17,7 @@ Exit codes:
   0 = success (0 or more stories cascaded)
   1 = prd.json not found or invalid JSON
 """
+
 import argparse
 import json
 import os
@@ -24,15 +25,14 @@ import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
 from spiral_io import atomic_write_json, configure_utf8_stdout
+
 configure_utf8_stdout()
 
 from state_machine import cascade_skip
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Cascade _skipped status through the prd.json dependency chain"
-    )
+    parser = argparse.ArgumentParser(description="Cascade _skipped status through the prd.json dependency chain")
     parser.add_argument("--prd", required=True, help="Path to prd.json")
     parser.add_argument("--events", default="", help="Path to spiral_events.jsonl (optional)")
     parser.add_argument("--iteration", type=int, default=0, help="Current SPIRAL iteration number")

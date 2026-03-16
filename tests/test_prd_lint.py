@@ -1,18 +1,16 @@
 """Tests for lib/prd_lint.py — acceptance-criteria lint check (US-209)."""
+
 import json
 import os
 import sys
-import tempfile
-
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
-from prd_lint import prd_lint, main  # noqa: E402
-
+from prd_lint import main, prd_lint  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _prd(*stories: dict) -> dict:
     return {"projectName": "Test", "userStories": list(stories)}
@@ -37,6 +35,7 @@ def _write_prd(tmp_path, prd: dict) -> str:
 # ---------------------------------------------------------------------------
 # Unit tests: prd_lint()
 # ---------------------------------------------------------------------------
+
 
 class TestPrdLintFunction:
     def test_no_violations_for_full_criteria(self):
@@ -70,8 +69,8 @@ class TestPrdLintFunction:
 
     def test_multiple_violations(self):
         prd = _prd(
-            _story("US-010", ac=["OK"]),           # fine
-            _story("US-011", ac=[]),                # violation
+            _story("US-010", ac=["OK"]),  # fine
+            _story("US-011", ac=[]),  # violation
             {"id": "US-012", "title": "No key", "passes": False},  # violation
         )
         violations = prd_lint(prd)
@@ -92,6 +91,7 @@ class TestPrdLintFunction:
 # ---------------------------------------------------------------------------
 # Integration tests: main() CLI
 # ---------------------------------------------------------------------------
+
 
 class TestPrdLintMain:
     def test_clean_prd_exits_zero(self, tmp_path):
@@ -150,8 +150,10 @@ class TestPrdLintMain:
 # Helper to invoke main() via sys.argv patching
 # ---------------------------------------------------------------------------
 
+
 def _run_main(prd_path: str, events_file: str = "") -> int:
     import prd_lint as _mod
+
     argv_backup = sys.argv[:]
     sys.argv = ["prd_lint.py", prd_path]
     if events_file:

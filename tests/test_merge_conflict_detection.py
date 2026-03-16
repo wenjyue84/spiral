@@ -10,19 +10,22 @@ logic, covering the requeue path when workers modify the same files.
 
 import json
 import subprocess
-import tempfile
 from pathlib import Path
 
 import pytest
 
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def run(cmd, cwd=None, check=True):
     """Run a shell command and return CompletedProcess."""
     return subprocess.run(
-        cmd, shell=True, cwd=str(cwd) if cwd else None,  # spiral-allow-shell
-        capture_output=True, text=True, check=check,
+        cmd,
+        shell=True,
+        cwd=str(cwd) if cwd else None,  # spiral-allow-shell
+        capture_output=True,
+        text=True,
+        check=check,
     )
 
 
@@ -66,6 +69,7 @@ HAS_NEW_MERGE_TREE = git_version_supports_write_tree()
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture()
 def repo(tmp_path):
@@ -129,6 +133,7 @@ def clean_branches(tmp_path):
 
 # ── Unit: _detect_merge_conflicts logic ──────────────────────────────────────
 
+
 class TestMergeTreeDetection:
     """Test conflict detection using git merge-tree --write-tree."""
 
@@ -138,11 +143,10 @@ class TestMergeTreeDetection:
         repo, _ = conflicting_branches
         result = run(
             "git merge-tree --write-tree HEAD branch1",
-            cwd=repo, check=False,
+            cwd=repo,
+            check=False,
         )
-        assert result.returncode != 0, (
-            "Expected non-zero exit code for conflicting branches"
-        )
+        assert result.returncode != 0, "Expected non-zero exit code for conflicting branches"
 
     @pytest.mark.skipif(not HAS_NEW_MERGE_TREE, reason="git < 2.38")
     def test_clean_branches_not_detected(self, clean_branches):
@@ -150,11 +154,10 @@ class TestMergeTreeDetection:
         repo, _ = clean_branches
         result = run(
             "git merge-tree --write-tree HEAD branch1",
-            cwd=repo, check=False,
+            cwd=repo,
+            check=False,
         )
-        assert result.returncode == 0, (
-            f"Expected clean merge; got rc={result.returncode}\n{result.stdout}"
-        )
+        assert result.returncode == 0, f"Expected clean merge; got rc={result.returncode}\n{result.stdout}"
 
     @pytest.mark.skipif(not HAS_NEW_MERGE_TREE, reason="git < 2.38")
     def test_conflict_output_mentions_file(self, conflicting_branches):
@@ -162,7 +165,8 @@ class TestMergeTreeDetection:
         repo, _ = conflicting_branches
         result = run(
             "git merge-tree --write-tree HEAD branch1",
-            cwd=repo, check=False,
+            cwd=repo,
+            check=False,
         )
         combined = result.stdout + result.stderr
         assert "Merge conflict in" in combined or "CONFLICT" in combined, (
@@ -175,11 +179,10 @@ class TestMergeTreeDetection:
         base = run("git merge-base HEAD branch1", cwd=repo).stdout.strip()
         result = run(
             f"git merge-tree {base} HEAD branch1",
-            cwd=repo, check=False,
+            cwd=repo,
+            check=False,
         )
-        assert "<<<<<<<" in result.stdout, (
-            "Expected <<< conflict marker in old-style merge-tree output"
-        )
+        assert "<<<<<<<" in result.stdout, "Expected <<< conflict marker in old-style merge-tree output"
 
     def test_old_style_no_conflict(self, clean_branches):
         """Old-style merge-tree shows no <<< markers for clean branches."""
@@ -187,23 +190,20 @@ class TestMergeTreeDetection:
         base = run("git merge-base HEAD branch1", cwd=repo).stdout.strip()
         result = run(
             f"git merge-tree {base} HEAD branch1",
-            cwd=repo, check=False,
+            cwd=repo,
+            check=False,
         )
-        assert "<<<<<<<" not in result.stdout, (
-            "Unexpected conflict marker for clean branches"
-        )
+        assert "<<<<<<<" not in result.stdout, "Unexpected conflict marker for clean branches"
 
 
 # ── Unit: prd.json story requeue ─────────────────────────────────────────────
+
 
 def make_worker_prd(stories_passed: list) -> dict:
     """Build a minimal prd.json dict with passed stories."""
     return {
         "productName": "test",
-        "userStories": [
-            {"id": sid, "title": f"Story {sid}", "passes": True}
-            for sid in stories_passed
-        ],
+        "userStories": [{"id": sid, "title": f"Story {sid}", "passes": True} for sid in stories_passed],
     }
 
 
@@ -302,6 +302,7 @@ class TestStoryRequeueOnConflict:
 
 # ── Unit: spiral_events.jsonl logging ────────────────────────────────────────
 
+
 class TestSpiralEventsLogging:
     """Verify merge conflict events are written to spiral_events.jsonl."""
 
@@ -352,7 +353,7 @@ class TestSpiralEventsLogging:
         }
         events_file.write_text(json.dumps(summary) + "\n")
 
-        events = [json.loads(l) for l in events_file.read_text().strip().splitlines()]
+        events = [json.loads(line) for line in events_file.read_text().strip().splitlines()]
         conflict_events = [e for e in events if e["event"] == "merge_conflict_detected"]
         assert len(conflict_events) == 0
 
@@ -370,6 +371,7 @@ class TestSpiralEventsLogging:
 
 
 # ── Integration: full conflict-requeue path with fixture repo ─────────────────
+
 
 class TestConflictRequeueIntegration:
     """
@@ -418,7 +420,8 @@ class TestConflictRequeueIntegration:
         # Step 6.5: merge-tree check of Worker 2 vs updated main → conflict
         result = run(
             "git merge-tree --write-tree HEAD spiral-worker-2-ts",
-            cwd=repo, check=False,
+            cwd=repo,
+            check=False,
         )
         assert result.returncode != 0, "Should detect conflict for Worker 2"
 
@@ -461,11 +464,10 @@ class TestConflictRequeueIntegration:
         for branch in ("spiral-worker-1-ts", "spiral-worker-2-ts"):
             result = run(
                 f"git merge-tree --write-tree HEAD {branch}",
-                cwd=repo, check=False,
+                cwd=repo,
+                check=False,
             )
-            assert result.returncode == 0, (
-                f"Expected clean merge for {branch}: rc={result.returncode}"
-            )
+            assert result.returncode == 0, f"Expected clean merge for {branch}: rc={result.returncode}"
 
     @pytest.mark.skipif(not HAS_NEW_MERGE_TREE, reason="git < 2.38")
     def test_merge_conflict_does_not_affect_sibling_worker(self, tmp_path):
@@ -508,11 +510,13 @@ class TestConflictRequeueIntegration:
         # Worker 1 now conflicts; Worker 2 should still be clean
         w1_result = run(
             "git merge-tree --write-tree HEAD spiral-worker-1-ts",
-            cwd=repo, check=False,
+            cwd=repo,
+            check=False,
         )
         w2_result = run(
             "git merge-tree --write-tree HEAD spiral-worker-2-ts",
-            cwd=repo, check=False,
+            cwd=repo,
+            check=False,
         )
 
         # Worker 1 conflicts (both modified base.txt differently)

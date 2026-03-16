@@ -1,21 +1,20 @@
 """Unit tests for lib/plan_cache.py — Agentic Plan Cache (US-353)."""
+
 import json
 import os
 import sys
 import time
 
-import pytest
-
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 from plan_cache import (
-    plan_cache_key,
-    plan_cache_store,
-    plan_cache_lookup,
-    plan_cache_prune,
-    plan_cache_inject,
+    _key_source,
     _primary_file_ext,
     _story_type,
-    _key_source,
+    plan_cache_inject,
+    plan_cache_key,
+    plan_cache_lookup,
+    plan_cache_prune,
+    plan_cache_store,
 )
 
 

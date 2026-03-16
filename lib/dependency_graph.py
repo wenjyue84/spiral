@@ -7,6 +7,7 @@ Usage:
     python lib/dependency_graph.py prd.json
     python lib/dependency_graph.py prd.json --output docs/dependency-graph.md
 """
+
 import argparse
 import json
 import os
@@ -16,6 +17,7 @@ from typing import Any, Optional
 
 sys.path.insert(0, os.path.dirname(__file__))
 from spiral_io import configure_utf8_stdout
+
 configure_utf8_stdout()
 
 _TITLE_MAX = 40

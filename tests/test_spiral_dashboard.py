@@ -1,4 +1,5 @@
 """Tests for spiral_dashboard.py — velocity chart (US-034)."""
+
 import os
 import sys
 from datetime import datetime, timedelta, timezone
@@ -8,27 +9,27 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 
 from spiral_dashboard import (  # noqa: E402
-    compute_iteration_velocity,
-    _render_velocity_svg,
     _render_activity_feed,
-    load_progress,
-    render_html,
-    compute_overview,
-    compute_velocity,
-    compute_status_breakdown,
-    compute_model_performance,
-    compute_retry_analysis,
+    _render_velocity_svg,
     compute_bottlenecks,
     compute_decomposition,
-    generate_insights,
-    detect_orphaned_worktrees,
+    compute_iteration_velocity,
+    compute_model_performance,
+    compute_overview,
+    compute_retry_analysis,
     compute_stale_stories,
+    compute_status_breakdown,
     compute_story_attempts,
     compute_token_forecast,
+    compute_velocity,
+    detect_orphaned_worktrees,
+    generate_insights,
+    load_progress,
+    render_html,
 )
 
-
 # ── compute_iteration_velocity ───────────────────────────────────────────────
+
 
 class TestComputeIterationVelocity:
     def test_empty_results_returns_empty_dict(self):
@@ -76,6 +77,7 @@ class TestComputeIterationVelocity:
 
 # ── _render_velocity_svg ─────────────────────────────────────────────────────
 
+
 class TestRenderVelocitySvg:
     def test_empty_dict_returns_no_data_message(self):
         html = _render_velocity_svg({})
@@ -120,11 +122,13 @@ class TestRenderVelocitySvg:
 
 # ── render_html velocity section ─────────────────────────────────────────────
 
+
 def _make_minimal_render_args():
     """Return minimal arguments to call render_html without errors."""
     prd = {"userStories": [{"id": "US-001", "passes": True}]}
-    results = [{"spiral_iter": 1, "status": "keep", "duration_sec": 60,
-                "retry_num": 0, "ralph_iter": 1, "model": "sonnet"}]
+    results = [
+        {"spiral_iter": 1, "status": "keep", "duration_sec": 60, "retry_num": 0, "ralph_iter": 1, "model": "sonnet"}
+    ]
     retries = {}
     overview = compute_overview(prd, results)
     velocity = compute_velocity(results)
@@ -171,6 +175,7 @@ class TestRenderHtmlVelocitySection:
 
 # ── load_progress ────────────────────────────────────────────────────────────
 
+
 class TestLoadProgress:
     def test_missing_file_returns_empty(self, tmp_path):
         assert load_progress(str(tmp_path / "nonexistent.txt")) == []
@@ -209,6 +214,7 @@ class TestLoadProgress:
 
 # ── _render_activity_feed ────────────────────────────────────────────────────
 
+
 class TestRenderActivityFeed:
     def test_empty_sections_returns_empty_string(self):
         assert _render_activity_feed([]) == ""
@@ -219,10 +225,12 @@ class TestRenderActivityFeed:
         assert "</details>" in html
 
     def test_summary_shows_count(self):
-        html = _render_activity_feed([
-            "## Iteration 1 - Story: US-001\nbody1",
-            "## Iteration 2 - Story: US-002\nbody2",
-        ])
+        html = _render_activity_feed(
+            [
+                "## Iteration 1 - Story: US-001\nbody1",
+                "## Iteration 2 - Story: US-002\nbody2",
+            ]
+        )
         assert "last 2 entries" in html
 
     def test_title_and_body_rendered(self):
@@ -237,6 +245,7 @@ class TestRenderActivityFeed:
 
 
 # ── render_html activity section ─────────────────────────────────────────────
+
 
 class TestRenderHtmlActivitySection:
     def test_activity_section_present_when_sections_provided(self):
@@ -263,6 +272,7 @@ class TestRenderHtmlActivitySection:
 
 # ── compute_overview ─────────────────────────────────────────────────────────
 
+
 class TestComputeOverview:
     def test_empty_inputs_produce_zero_counts(self):
         """Empty prd and results → zeroed overview with no crash."""
@@ -280,14 +290,16 @@ class TestComputeOverview:
 
     def test_partial_inputs_correct_counts(self):
         """Mix of passed, pending, decomposed, skipped stories."""
-        prd = {"userStories": [
-            {"id": "S-1", "passes": True},
-            {"id": "S-2", "passes": True},
-            {"id": "S-3", "passes": False},
-            {"id": "S-4", "passes": False, "_decomposed": True, "_decomposedInto": ["S-4a"]},
-            {"id": "S-4a", "passes": True, "_decomposedFrom": "S-4"},
-            {"id": "S-5", "passes": False, "_skipped": True},
-        ]}
+        prd = {
+            "userStories": [
+                {"id": "S-1", "passes": True},
+                {"id": "S-2", "passes": True},
+                {"id": "S-3", "passes": False},
+                {"id": "S-4", "passes": False, "_decomposed": True, "_decomposedInto": ["S-4a"]},
+                {"id": "S-4a", "passes": True, "_decomposedFrom": "S-4"},
+                {"id": "S-5", "passes": False, "_skipped": True},
+            ]
+        }
         results = [
             {"spiral_iter": 1, "status": "keep", "duration_sec": 120, "model": "sonnet"},
             {"spiral_iter": 1, "status": "fail", "duration_sec": 60, "model": "haiku"},
@@ -304,10 +316,12 @@ class TestComputeOverview:
         assert overview["total_attempts"] == 2
 
     def test_all_passed_gives_100_pct(self):
-        prd = {"userStories": [
-            {"id": "S-1", "passes": True},
-            {"id": "S-2", "passes": True},
-        ]}
+        prd = {
+            "userStories": [
+                {"id": "S-1", "passes": True},
+                {"id": "S-2", "passes": True},
+            ]
+        }
         overview = compute_overview(prd, [])
         assert overview["completion_pct"] == pytest.approx(100.0)
 
@@ -341,7 +355,7 @@ class TestComputeOverview:
         prd = {"userStories": []}
         results = [
             {"spiral_iter": 1, "duration_sec": 3600, "model": "sonnet"},  # 1hr * $0.24
-            {"spiral_iter": 1, "duration_sec": 3600, "model": "haiku"},   # 1hr * $0.04
+            {"spiral_iter": 1, "duration_sec": 3600, "model": "haiku"},  # 1hr * $0.04
         ]
         overview = compute_overview(prd, results)
         assert overview["est_cost"] == pytest.approx(0.28)
@@ -358,6 +372,7 @@ class TestComputeOverview:
 
 
 # ── compute_velocity ─────────────────────────────────────────────────────────
+
 
 class TestComputeVelocity:
     def test_empty_results_returns_empty(self):
@@ -402,6 +417,7 @@ class TestComputeVelocity:
 
 # ── compute_model_performance ────────────────────────────────────────────────
 
+
 class TestComputeModelPerformance:
     def test_empty_results_returns_empty(self):
         assert compute_model_performance([]) == []
@@ -445,6 +461,7 @@ class TestComputeModelPerformance:
 
 # ── compute_status_breakdown ─────────────────────────────────────────────────
 
+
 class TestComputeStatusBreakdown:
     def test_empty_inputs(self):
         bd = compute_status_breakdown({"userStories": []}, [])
@@ -452,12 +469,14 @@ class TestComputeStatusBreakdown:
         assert bd["attempts"] == {}
 
     def test_correct_story_and_attempt_breakdown(self):
-        prd = {"userStories": [
-            {"id": "S-1", "passes": True},
-            {"id": "S-2", "passes": False},
-            {"id": "S-3", "passes": False, "_decomposed": True},
-            {"id": "S-4", "passes": False, "_skipped": True},
-        ]}
+        prd = {
+            "userStories": [
+                {"id": "S-1", "passes": True},
+                {"id": "S-2", "passes": False},
+                {"id": "S-3", "passes": False, "_decomposed": True},
+                {"id": "S-4", "passes": False, "_skipped": True},
+            ]
+        }
         results = [
             {"status": "keep"},
             {"status": "keep"},
@@ -475,6 +494,7 @@ class TestComputeStatusBreakdown:
 
 
 # ── Auto-refresh meta tag (US-056) ──────────────────────────────────────────
+
 
 class TestDashboardAutoRefresh:
     def test_meta_refresh_present_when_refresh_secs_positive(self):
@@ -512,7 +532,6 @@ class TestDashboardAutoRefresh:
 
 # ── detect_orphaned_worktrees ─────────────────────────────────────────────────
 
-import tempfile
 import unittest.mock as mock
 
 
@@ -606,7 +625,14 @@ class TestDetectOrphanedWorktrees:
     def test_render_html_shows_orphaned_section(self):
         """render_html includes ORPHANED section when orphaned_worktrees provided."""
         args = _make_minimal_render_args()
-        orphans = [{"worker_dir": "worker-1", "path": "/some/path/worker-1", "pid": 9999, "suggested_cmd": "git worktree remove /some/path/worker-1"}]
+        orphans = [
+            {
+                "worker_dir": "worker-1",
+                "path": "/some/path/worker-1",
+                "pid": 9999,
+                "suggested_cmd": "git worktree remove /some/path/worker-1",
+            }
+        ]
         html = render_html(*args, orphaned_worktrees=orphans)
         assert "ORPHANED" in html
         assert "worker-1" in html
@@ -620,6 +646,7 @@ class TestDetectOrphanedWorktrees:
 
 
 # ── compute_stale_stories (US-129) ───────────────────────────────────────────
+
 
 def _make_ts(days_ago: float) -> str:
     """Return ISO 8601 UTC timestamp that is *days_ago* days in the past."""
@@ -636,76 +663,71 @@ class TestComputeStaleStories:
         assert compute_stale_stories(prd, stale_days=7) == {}
 
     def test_fresh_story_not_stale(self):
-        prd = {"userStories": [
-            {"id": "US-001", "title": "T", "passes": False, "last_attempted": _make_ts(1)}
-        ]}
+        prd = {"userStories": [{"id": "US-001", "title": "T", "passes": False, "last_attempted": _make_ts(1)}]}
         assert compute_stale_stories(prd, stale_days=7) == {}
 
     def test_old_story_is_stale(self):
-        prd = {"userStories": [
-            {"id": "US-001", "title": "T", "passes": False, "last_attempted": _make_ts(10)}
-        ]}
+        prd = {"userStories": [{"id": "US-001", "title": "T", "passes": False, "last_attempted": _make_ts(10)}]}
         result = compute_stale_stories(prd, stale_days=7)
         assert "US-001" in result
         assert result["US-001"] >= 9  # at least 9 days old
 
     def test_passed_story_never_stale(self):
-        prd = {"userStories": [
-            {"id": "US-001", "title": "T", "passes": True, "last_attempted": _make_ts(20)}
-        ]}
+        prd = {"userStories": [{"id": "US-001", "title": "T", "passes": True, "last_attempted": _make_ts(20)}]}
         assert compute_stale_stories(prd, stale_days=7) == {}
 
     def test_decomposed_story_never_stale(self):
-        prd = {"userStories": [
-            {"id": "US-001", "title": "T", "passes": False, "_decomposed": True, "last_attempted": _make_ts(20)}
-        ]}
+        prd = {
+            "userStories": [
+                {"id": "US-001", "title": "T", "passes": False, "_decomposed": True, "last_attempted": _make_ts(20)}
+            ]
+        }
         assert compute_stale_stories(prd, stale_days=7) == {}
 
     def test_skipped_story_never_stale(self):
-        prd = {"userStories": [
-            {"id": "US-001", "title": "T", "passes": False, "_skipped": True, "last_attempted": _make_ts(20)}
-        ]}
+        prd = {
+            "userStories": [
+                {"id": "US-001", "title": "T", "passes": False, "_skipped": True, "last_attempted": _make_ts(20)}
+            ]
+        }
         assert compute_stale_stories(prd, stale_days=7) == {}
 
     def test_multiple_stories_only_old_ones_flagged(self):
-        prd = {"userStories": [
-            {"id": "US-001", "passes": False, "last_attempted": _make_ts(2)},
-            {"id": "US-002", "passes": False, "last_attempted": _make_ts(10)},
-            {"id": "US-003", "passes": False, "last_attempted": _make_ts(15)},
-        ]}
+        prd = {
+            "userStories": [
+                {"id": "US-001", "passes": False, "last_attempted": _make_ts(2)},
+                {"id": "US-002", "passes": False, "last_attempted": _make_ts(10)},
+                {"id": "US-003", "passes": False, "last_attempted": _make_ts(15)},
+            ]
+        }
         result = compute_stale_stories(prd, stale_days=7)
         assert "US-001" not in result
         assert "US-002" in result
         assert "US-003" in result
 
     def test_invalid_timestamp_skipped(self):
-        prd = {"userStories": [
-            {"id": "US-001", "passes": False, "last_attempted": "not-a-date"}
-        ]}
+        prd = {"userStories": [{"id": "US-001", "passes": False, "last_attempted": "not-a-date"}]}
         assert compute_stale_stories(prd, stale_days=7) == {}
 
 
 class TestComputeStoryAttemptsStale:
     def test_stale_days_present_in_stale_story(self):
-        prd = {"userStories": [
-            {"id": "US-001", "title": "T", "passes": False, "last_attempted": _make_ts(10)}
-        ]}
-        result = compute_story_attempts(prd, [], )
+        prd = {"userStories": [{"id": "US-001", "title": "T", "passes": False, "last_attempted": _make_ts(10)}]}
+        result = compute_story_attempts(
+            prd,
+            [],
+        )
         assert "stale_days" in result["US-001"]
         assert result["US-001"]["stale_days"] >= 9
 
     def test_stale_days_absent_for_fresh_story(self):
-        prd = {"userStories": [
-            {"id": "US-001", "title": "T", "passes": False, "last_attempted": _make_ts(1)}
-        ]}
+        prd = {"userStories": [{"id": "US-001", "title": "T", "passes": False, "last_attempted": _make_ts(1)}]}
         result = compute_story_attempts(prd, [])
         assert "stale_days" not in result["US-001"]
 
     def test_stale_badge_in_render_html(self):
         """render_html shows stale badge for a stale pending story."""
-        prd = {"userStories": [
-            {"id": "US-001", "title": "Old story", "passes": False, "last_attempted": _make_ts(10)}
-        ]}
+        prd = {"userStories": [{"id": "US-001", "title": "Old story", "passes": False, "last_attempted": _make_ts(10)}]}
         story_attempts = compute_story_attempts(prd, [])
         args = _make_minimal_render_args()
         html = render_html(*args, story_attempts=story_attempts)
@@ -714,6 +736,7 @@ class TestComputeStoryAttemptsStale:
 
 
 # ── compute_token_forecast (US-151) ──────────────────────────────────────────
+
 
 def _recent_ts(seconds_ago: float = 0) -> str:
     """Return ISO 8601 UTC timestamp that is *seconds_ago* seconds in the past."""
@@ -803,6 +826,7 @@ class TestComputeTokenForecast:
         result = compute_token_forecast(rows, daily_limit=1_000_000)
         assert result is not None
         import re
+
         assert re.match(r"^\d{2}:\d{2}$", result["exhaustion_clock"])
 
     def test_daily_limit_key_present_in_result(self):
@@ -826,10 +850,7 @@ class TestComputeTokenForecast:
         assert result["daily_limit"] == 1_000_000
 
     def test_rows_with_only_output_tokens_counted(self):
-        rows = [
-            {"timestamp": _recent_ts(60), "input_tokens": 0, "output_tokens": 10_000}
-            for _ in range(3)
-        ]
+        rows = [{"timestamp": _recent_ts(60), "input_tokens": 0, "output_tokens": 10_000} for _ in range(3)]
         result = compute_token_forecast(rows, daily_limit=1_000_000)
         assert result is not None
         assert result["burn_rate_per_hour"] == 30_000

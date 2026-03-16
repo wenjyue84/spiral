@@ -1,4 +1,5 @@
 """Tests for spiral_live_server.py — SSE worker streaming (US-277, US-230)."""
+
 from __future__ import annotations
 
 import asyncio
@@ -8,15 +9,13 @@ import sys
 from typing import List
 from unittest.mock import AsyncMock, MagicMock
 
-import pytest
-
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 
 import spiral_live_server as _live_mod
-from spiral_live_server import SpiralLiveServer, WorkerState, _DONE_SENTINEL
-
+from spiral_live_server import _DONE_SENTINEL, SpiralLiveServer, WorkerState
 
 # ── Helper: run async tests without pytest-asyncio ───────────────────────────
+
 
 def arun(coro):  # type: ignore[no-untyped-def]
     """Run *coro* in a fresh event loop and return the result."""
@@ -24,6 +23,7 @@ def arun(coro):  # type: ignore[no-untyped-def]
 
 
 # ── Mock writer ───────────────────────────────────────────────────────────────
+
 
 def _make_writer() -> MagicMock:
     """Return a mock asyncio.StreamWriter that records written bytes."""
@@ -43,7 +43,7 @@ def _make_writer() -> MagicMock:
 def _get_response_body(writer: MagicMock) -> bytes:
     combined = b"".join(writer._written)
     sep = combined.find(b"\r\n\r\n")
-    return combined[sep + 4:] if sep != -1 else b""
+    return combined[sep + 4 :] if sep != -1 else b""
 
 
 def _get_status_code(writer: MagicMock) -> int:
@@ -209,9 +209,7 @@ class TestSseStream:
             server._workers["w1"] = worker
 
             writer = _make_writer()
-            sse_task = asyncio.create_task(
-                server._handle_sse_stream("w1", writer)
-            )
+            sse_task = asyncio.create_task(server._handle_sse_stream("w1", writer))
             # Yield control so the handler can subscribe and write headers
             await asyncio.sleep(0)
 
@@ -248,20 +246,12 @@ class TestSseStream:
             server._workers["w2"] = worker
 
             writer = _make_writer()
-            sse_task = asyncio.create_task(
-                server._handle_sse_stream("w2", writer)
-            )
+            sse_task = asyncio.create_task(server._handle_sse_stream("w2", writer))
             await asyncio.sleep(0)
 
-            await worker.broadcast(
-                {"type": "line", "worker_id": "w2", "text": "out line", "stream": "stdout"}
-            )
-            await worker.broadcast(
-                {"type": "line", "worker_id": "w2", "text": "err line", "stream": "stderr"}
-            )
-            await worker.broadcast(
-                {"type": "done", "worker_id": "w2", "status": "failed"}
-            )
+            await worker.broadcast({"type": "line", "worker_id": "w2", "text": "out line", "stream": "stdout"})
+            await worker.broadcast({"type": "line", "worker_id": "w2", "text": "err line", "stream": "stderr"})
+            await worker.broadcast({"type": "done", "worker_id": "w2", "status": "failed"})
             await worker.close_subscribers()
 
             await asyncio.wait_for(sse_task, timeout=2.0)
@@ -280,10 +270,7 @@ class TestWorkerSubprocess:
     def test_run_worker_streams_stdout_and_stderr(self) -> None:
         async def _run() -> None:
             server = SpiralLiveServer()
-            cmd = [
-                sys.executable, "-c",
-                "import sys; print('hello stdout'); print('hello stderr', file=sys.stderr)"
-            ]
+            cmd = [sys.executable, "-c", "import sys; print('hello stdout'); print('hello stderr', file=sys.stderr)"]
             worker = WorkerState(worker_id="sub1", cmd=cmd)
             server._workers["sub1"] = worker
 
@@ -338,6 +325,7 @@ class TestWorkerSubprocess:
         The streaming architecture drains both pipes concurrently so this
         should complete well within the 30-second guard timeout.
         """
+
         async def _run() -> None:
             # Generate ~10 MB of stdout output (line-buffered)
             big_script = (
@@ -371,6 +359,7 @@ class TestWorkerSubprocess:
 
     def test_run_worker_timeout_sets_timeout_status(self) -> None:
         """A subprocess that hangs must be killed and result in status 'timeout' (US-230)."""
+
         async def _run() -> None:
             # Subprocess that sleeps forever
             hang_script = "import time; time.sleep(9999)"
@@ -402,10 +391,7 @@ class TestWorkerSubprocess:
             assert done_events
             assert done_events[-1]["status"] == "timeout"
             # Should have a stderr line mentioning TIMEOUT
-            timeout_lines = [
-                e for e in events
-                if e.get("type") == "line" and "TIMEOUT" in e.get("text", "")
-            ]
+            timeout_lines = [e for e in events if e.get("type") == "line" and "TIMEOUT" in e.get("text", "")]
             assert timeout_lines, "Expected a TIMEOUT log line broadcast to subscribers"
 
         arun(_run())

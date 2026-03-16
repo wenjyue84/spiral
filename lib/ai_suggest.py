@@ -18,30 +18,59 @@ Gap detection heuristics:
   3. Focus theme gaps (if SPIRAL_FOCUS set)
   4. Dependency chains ending in passed stories (next logical story)
 """
+
 import argparse
 import json
 import os
 import re
 import sys
-from typing import Any
 
 sys.path.insert(0, os.path.dirname(__file__))
 from spiral_io import atomic_write_json, configure_utf8_stdout
+
 configure_utf8_stdout()
 
 _STOPWORDS = {
-    "the", "and", "for", "are", "was", "this", "with", "from", "that",
-    "not", "all", "can", "but", "has", "new", "add", "run", "use",
-    "set", "get", "put", "may", "via", "its", "also", "any", "each",
-    "when", "have", "been", "will", "into", "only", "more", "such",
+    "the",
+    "and",
+    "for",
+    "are",
+    "was",
+    "this",
+    "with",
+    "from",
+    "that",
+    "not",
+    "all",
+    "can",
+    "but",
+    "has",
+    "new",
+    "add",
+    "run",
+    "use",
+    "set",
+    "get",
+    "put",
+    "may",
+    "via",
+    "its",
+    "also",
+    "any",
+    "each",
+    "when",
+    "have",
+    "been",
+    "will",
+    "into",
+    "only",
+    "more",
+    "such",
 }
 
 
 def _tokens(text: str) -> set[str]:
-    return {
-        w for w in re.findall(r"[a-z0-9]+", text.lower())
-        if len(w) >= 3 and w not in _STOPWORDS
-    }
+    return {w for w in re.findall(r"[a-z0-9]+", text.lower()) if len(w) >= 3 and w not in _STOPWORDS}
 
 
 def load_queue(queue_path: str) -> list[dict]:
@@ -94,15 +123,17 @@ def analyze_gaps(prd: dict, focus: str = "", max_suggest: int = 5) -> list[dict]
         if not etitle or epic_pending.get(eid, 0) > 0:
             continue
         # Epic has no pending stories — suggest one
-        suggestions.append({
-            "title": f"Implement {etitle}",
-            "description": edesc or f"Core implementation for epic: {etitle}",
-            "_source": "ai-example",
-            "priority": "medium",
-            "acceptanceCriteria": [f"Epic {eid} has at least one working implementation"],
-            "dependencies": [],
-            "epicId": eid,
-        })
+        suggestions.append(
+            {
+                "title": f"Implement {etitle}",
+                "description": edesc or f"Core implementation for epic: {etitle}",
+                "_source": "ai-example",
+                "priority": "medium",
+                "acceptanceCriteria": [f"Epic {eid} has at least one working implementation"],
+                "dependencies": [],
+                "epicId": eid,
+            }
+        )
 
     # 2. Goals with low keyword coverage
     for goal in goals:
@@ -114,14 +145,16 @@ def analyze_gaps(prd: dict, focus: str = "", max_suggest: int = 5) -> list[dict]
         coverage = len(goal_kw & existing_title_tokens) / len(goal_kw)
         if coverage < 0.3:
             title = goal.strip()[:80]
-            suggestions.append({
-                "title": f"Implement: {title}",
-                "description": f"Story to address low-coverage project goal: {goal.strip()}",
-                "_source": "ai-example",
-                "priority": "medium",
-                "acceptanceCriteria": [f"Goal achieved: {goal.strip()[:120]}"],
-                "dependencies": [],
-            })
+            suggestions.append(
+                {
+                    "title": f"Implement: {title}",
+                    "description": f"Story to address low-coverage project goal: {goal.strip()}",
+                    "_source": "ai-example",
+                    "priority": "medium",
+                    "acceptanceCriteria": [f"Goal achieved: {goal.strip()[:120]}"],
+                    "dependencies": [],
+                }
+            )
 
     # 3. Focus theme gap
     if focus and len(suggestions) < max_suggest:
@@ -130,23 +163,23 @@ def analyze_gaps(prd: dict, focus: str = "", max_suggest: int = 5) -> list[dict]
         if focus_kw:
             coverage = len(focus_kw & existing_title_tokens) / len(focus_kw)
             if coverage < 0.5:
-                suggestions.append({
-                    "title": f"Improve {focus_primary} — fill coverage gap",
-                    "description": (
-                        f"Additional stories needed to achieve the '{focus_primary}' "
-                        f"focus theme. Current keyword coverage: {coverage:.0%}."
-                    ),
-                    "_source": "ai-example",
-                    "priority": "medium",
-                    "acceptanceCriteria": [
-                        f"Focus area '{focus_primary}' has improved story coverage",
-                    ],
-                    "dependencies": [],
-                })
+                suggestions.append(
+                    {
+                        "title": f"Improve {focus_primary} — fill coverage gap",
+                        "description": (
+                            f"Additional stories needed to achieve the '{focus_primary}' "
+                            f"focus theme. Current keyword coverage: {coverage:.0%}."
+                        ),
+                        "_source": "ai-example",
+                        "priority": "medium",
+                        "acceptanceCriteria": [
+                            f"Focus area '{focus_primary}' has improved story coverage",
+                        ],
+                        "dependencies": [],
+                    }
+                )
 
     # 4. Dependency chain extension: passed stories whose dependents aren't yet planned
-    passed_ids = {s.get("id") for s in existing_stories if s.get("passes")}
-    planned_ids = {s.get("id") for s in existing_stories}
     for story in existing_stories:
         if len(suggestions) >= max_suggest:
             break
@@ -155,32 +188,30 @@ def analyze_gaps(prd: dict, focus: str = "", max_suggest: int = 5) -> list[dict]
         # If this story has no dependent stories and was complex, suggest a follow-up
         complexity = story.get("estimatedComplexity", "medium")
         has_dependents = any(
-            story.get("id") in s.get("dependencies", [])
-            for s in existing_stories
-            if not s.get("passes")
+            story.get("id") in s.get("dependencies", []) for s in existing_stories if not s.get("passes")
         )
         if complexity == "large" and not has_dependents:
-            suggestions.append({
-                "title": f"Extend {story.get('title', '')[:60]} — next iteration",
-                "description": (
-                    f"Follow-up story to extend the large completed story "
-                    f"{story.get('id')}: {story.get('title', '')}"
-                ),
-                "_source": "ai-example",
-                "priority": "low",
-                "acceptanceCriteria": [
-                    f"Extends or builds upon {story.get('id')} with additional capability",
-                ],
-                "dependencies": [story.get("id", "")],
-            })
+            suggestions.append(
+                {
+                    "title": f"Extend {story.get('title', '')[:60]} — next iteration",
+                    "description": (
+                        f"Follow-up story to extend the large completed story "
+                        f"{story.get('id')}: {story.get('title', '')}"
+                    ),
+                    "_source": "ai-example",
+                    "priority": "low",
+                    "acceptanceCriteria": [
+                        f"Extends or builds upon {story.get('id')} with additional capability",
+                    ],
+                    "dependencies": [story.get("id", "")],
+                }
+            )
 
     return suggestions
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Phase A: Generate AI story suggestions (Source 2, per-iteration)"
-    )
+    parser = argparse.ArgumentParser(description="Phase A: Generate AI story suggestions (Source 2, per-iteration)")
     parser.add_argument("--prd", default="prd.json")
     parser.add_argument(
         "--queue",

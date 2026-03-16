@@ -9,34 +9,36 @@ Verifies:
   4. section_cache_savings in spiral_report computes correct savings
   5. Phase R cache event structure is valid
 """
+
 import json
 import os
 import sys
 import tempfile
+
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
-from spiral_report import section_cache_savings, load_results
-
+from spiral_report import load_results, section_cache_savings
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 
-def make_result_json(input_tokens=5000, output_tokens=1200,
-                     cache_creation=0, cache_read=0):
+
+def make_result_json(input_tokens=5000, output_tokens=1200, cache_creation=0, cache_read=0):
     """Build a mock claude stream-json result line."""
-    return json.dumps({
-        "type": "result",
-        "usage": {
-            "input_tokens": input_tokens,
-            "output_tokens": output_tokens,
-            "cache_creation_input_tokens": cache_creation,
-            "cache_read_input_tokens": cache_read,
+    return json.dumps(
+        {
+            "type": "result",
+            "usage": {
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "cache_creation_input_tokens": cache_creation,
+                "cache_read_input_tokens": cache_read,
+            },
         }
-    })
+    )
 
 
-def _compute_cost(tokens_input, tokens_output, cache_creation=0, cache_read=0,
-                  input_price=3.0, output_price=15.0):
+def _compute_cost(tokens_input, tokens_output, cache_creation=0, cache_read=0, input_price=3.0, output_price=15.0):
     """Mirror of accumulate_story_cost pricing logic (pure Python)."""
     non_cached = max(0, tokens_input - cache_creation - cache_read)
     return (
@@ -48,6 +50,7 @@ def _compute_cost(tokens_input, tokens_output, cache_creation=0, cache_read=0,
 
 
 # ── AC4: Integration tests for cache_read_input_tokens > 0 on second call ──
+
 
 class TestCacheTokenParsing:
     def test_parse_cache_creation_tokens(self):
@@ -67,9 +70,7 @@ class TestCacheTokenParsing:
         # Second call: reads from cache (same system prompt → cache hit)
         second_result = json.loads(make_result_json(cache_creation=0, cache_read=4500))
         cache_read = second_result["usage"]["cache_read_input_tokens"]
-        assert cache_read > 0, (
-            "cache_read_input_tokens must be > 0 on second call with same system prompt"
-        )
+        assert cache_read > 0, "cache_read_input_tokens must be > 0 on second call with same system prompt"
 
     def test_cache_hit_flag_set_when_cache_read_gt_zero(self):
         """cache_hit is true when cache_read_input_tokens > 0."""
@@ -80,10 +81,7 @@ class TestCacheTokenParsing:
 
     def test_no_cache_fields_graceful_fallback(self):
         """Missing cache fields default to 0 (pre-caching API compatibility)."""
-        result = json.loads(json.dumps({
-            "type": "result",
-            "usage": {"input_tokens": 5000, "output_tokens": 1200}
-        }))
+        result = json.loads(json.dumps({"type": "result", "usage": {"input_tokens": 5000, "output_tokens": 1200}}))
         cc = result["usage"].get("cache_creation_input_tokens", 0)
         cr = result["usage"].get("cache_read_input_tokens", 0)
         assert cc == 0
@@ -123,6 +121,7 @@ class TestCacheTokenParsing:
 
 # ── AC5: Cost savings in per-story report ──────────────────────────────────
 
+
 class TestSectionCacheSavings:
     def _make_results_tsv(self, rows, tmp_dir):
         """Write a mock results.tsv with cache columns."""
@@ -137,12 +136,12 @@ class TestSectionCacheSavings:
             f.write(header)
             for r in rows:
                 f.write(
-                    f"{r.get('ts','2026-01-01T00:00:00Z')}\t"
-                    f"{r.get('spiral_iter',0)}\t{r.get('ralph_iter',1)}\t"
-                    f"{r.get('story_id','US-001')}\t{r.get('title','Test')}\t"
-                    f"{r.get('status','keep')}\t{r.get('duration',120)}\t"
-                    f"{r.get('model','claude-sonnet-4-6')}\t0\t\t\t"
-                    f"{r.get('cache_hit','false')}\t{r.get('cache_read',0)}\t"
+                    f"{r.get('ts', '2026-01-01T00:00:00Z')}\t"
+                    f"{r.get('spiral_iter', 0)}\t{r.get('ralph_iter', 1)}\t"
+                    f"{r.get('story_id', 'US-001')}\t{r.get('title', 'Test')}\t"
+                    f"{r.get('status', 'keep')}\t{r.get('duration', 120)}\t"
+                    f"{r.get('model', 'claude-sonnet-4-6')}\t0\t\t\t"
+                    f"{r.get('cache_hit', 'false')}\t{r.get('cache_read', 0)}\t"
                     f"0\t120\t0\t0\t0\n"
                 )
         return path
@@ -150,14 +149,14 @@ class TestSectionCacheSavings:
     def test_cache_savings_section_with_cache_hits(self):
         """section_cache_savings correctly reports savings when cache hits present."""
         with tempfile.TemporaryDirectory() as tmp:
-            tsv = self._make_results_tsv([
-                {"story_id": "US-001", "model": "claude-sonnet-4-6",
-                 "cache_hit": "true", "cache_read": 4_500_000},
-                {"story_id": "US-002", "model": "claude-sonnet-4-6",
-                 "cache_hit": "true", "cache_read": 3_000_000},
-                {"story_id": "US-003", "model": "claude-haiku-4-5",
-                 "cache_hit": "false", "cache_read": 0},
-            ], tmp)
+            tsv = self._make_results_tsv(
+                [
+                    {"story_id": "US-001", "model": "claude-sonnet-4-6", "cache_hit": "true", "cache_read": 4_500_000},
+                    {"story_id": "US-002", "model": "claude-sonnet-4-6", "cache_hit": "true", "cache_read": 3_000_000},
+                    {"story_id": "US-003", "model": "claude-haiku-4-5", "cache_hit": "false", "cache_read": 0},
+                ],
+                tmp,
+            )
             rows = load_results(tsv)
             result = section_cache_savings(rows)
 
@@ -171,9 +170,12 @@ class TestSectionCacheSavings:
     def test_cache_savings_section_no_cache_hits(self):
         """section_cache_savings shows zero savings when no cache hits."""
         with tempfile.TemporaryDirectory() as tmp:
-            tsv = self._make_results_tsv([
-                {"story_id": "US-001", "cache_hit": "false", "cache_read": 0},
-            ], tmp)
+            tsv = self._make_results_tsv(
+                [
+                    {"story_id": "US-001", "cache_hit": "false", "cache_read": 0},
+                ],
+                tmp,
+            )
             rows = load_results(tsv)
             result = section_cache_savings(rows)
 
@@ -189,10 +191,12 @@ class TestSectionCacheSavings:
     def test_cache_savings_text_contains_key_info(self):
         """section_cache_savings text report includes hit rate and savings."""
         with tempfile.TemporaryDirectory() as tmp:
-            tsv = self._make_results_tsv([
-                {"cache_hit": "true", "cache_read": 1_000_000,
-                 "model": "claude-sonnet-4-6"},
-            ], tmp)
+            tsv = self._make_results_tsv(
+                [
+                    {"cache_hit": "true", "cache_read": 1_000_000, "model": "claude-sonnet-4-6"},
+                ],
+                tmp,
+            )
             rows = load_results(tsv)
             result = section_cache_savings(rows)
 
@@ -203,6 +207,7 @@ class TestSectionCacheSavings:
 
 
 # ── AC3: Phase R cache event structure ─────────────────────────────────────
+
 
 class TestPhaseRCacheEvents:
     def test_phase_r_cache_event_has_correct_fields(self):
@@ -224,11 +229,21 @@ class TestPhaseRCacheEvents:
         """Second Phase R call with same research prompt logs cache_hit=True."""
         events = [
             # First call: creates cache
-            {"event": "phase_cache_hit", "phase": "R",
-             "cache_creation_tokens": 4500, "cache_read_tokens": 0, "cache_hit": False},
+            {
+                "event": "phase_cache_hit",
+                "phase": "R",
+                "cache_creation_tokens": 4500,
+                "cache_read_tokens": 0,
+                "cache_hit": False,
+            },
             # Second call: cache hit
-            {"event": "phase_cache_hit", "phase": "R",
-             "cache_creation_tokens": 0, "cache_read_tokens": 4500, "cache_hit": True},
+            {
+                "event": "phase_cache_hit",
+                "phase": "R",
+                "cache_creation_tokens": 0,
+                "cache_read_tokens": 4500,
+                "cache_hit": True,
+            },
         ]
         hit_events = [e for e in events if e.get("cache_hit")]
         assert len(hit_events) == 1
@@ -237,10 +252,8 @@ class TestPhaseRCacheEvents:
     def test_phase_i_cache_events_distinct_from_phase_r(self):
         """Phase I and Phase R cache events can be distinguished by 'phase' field."""
         events = [
-            {"event": "prompt_cache", "phase": "I",
-             "cache_creation_tokens": 3000, "cache_read_tokens": 0},
-            {"event": "phase_cache_hit", "phase": "R",
-             "cache_creation_tokens": 4500, "cache_read_tokens": 0},
+            {"event": "prompt_cache", "phase": "I", "cache_creation_tokens": 3000, "cache_read_tokens": 0},
+            {"event": "phase_cache_hit", "phase": "R", "cache_creation_tokens": 4500, "cache_read_tokens": 0},
         ]
         i_events = [e for e in events if e.get("phase") == "I"]
         r_events = [e for e in events if e.get("phase") == "R"]
@@ -250,16 +263,18 @@ class TestPhaseRCacheEvents:
 
 # ── US-341: Per-story cache hit ratio ─────────────────────────────────────
 
+
 class TestPerStoryCacheRatio:
     def test_empty_rows_returns_empty(self):
         from prompt_cache_analysis import per_story_cache_ratio
+
         assert per_story_cache_ratio([]) == []
 
     def test_single_story_high_cache_read(self):
         from prompt_cache_analysis import per_story_cache_ratio
+
         rows = [
-            {"story_id": "US-100", "cache_read_tokens": "9000",
-             "cache_creation_tokens": "1000"},
+            {"story_id": "US-100", "cache_read_tokens": "9000", "cache_creation_tokens": "1000"},
         ]
         result = per_story_cache_ratio(rows)
         assert len(result) == 1
@@ -268,9 +283,9 @@ class TestPerStoryCacheRatio:
 
     def test_single_story_no_cache(self):
         from prompt_cache_analysis import per_story_cache_ratio
+
         rows = [
-            {"story_id": "US-200", "cache_read_tokens": "0",
-             "cache_creation_tokens": "5000"},
+            {"story_id": "US-200", "cache_read_tokens": "0", "cache_creation_tokens": "5000"},
         ]
         result = per_story_cache_ratio(rows)
         assert len(result) == 1
@@ -278,13 +293,11 @@ class TestPerStoryCacheRatio:
 
     def test_multiple_stories_sorted_worst_first(self):
         from prompt_cache_analysis import per_story_cache_ratio
+
         rows = [
-            {"story_id": "US-A", "cache_read_tokens": "8000",
-             "cache_creation_tokens": "2000"},
-            {"story_id": "US-B", "cache_read_tokens": "0",
-             "cache_creation_tokens": "5000"},
-            {"story_id": "US-C", "cache_read_tokens": "5000",
-             "cache_creation_tokens": "5000"},
+            {"story_id": "US-A", "cache_read_tokens": "8000", "cache_creation_tokens": "2000"},
+            {"story_id": "US-B", "cache_read_tokens": "0", "cache_creation_tokens": "5000"},
+            {"story_id": "US-C", "cache_read_tokens": "5000", "cache_creation_tokens": "5000"},
         ]
         result = per_story_cache_ratio(rows)
         assert len(result) == 3
@@ -295,11 +308,10 @@ class TestPerStoryCacheRatio:
 
     def test_aggregates_multiple_rows_per_story(self):
         from prompt_cache_analysis import per_story_cache_ratio
+
         rows = [
-            {"story_id": "US-X", "cache_read_tokens": "3000",
-             "cache_creation_tokens": "7000"},
-            {"story_id": "US-X", "cache_read_tokens": "7000",
-             "cache_creation_tokens": "3000"},
+            {"story_id": "US-X", "cache_read_tokens": "3000", "cache_creation_tokens": "7000"},
+            {"story_id": "US-X", "cache_read_tokens": "7000", "cache_creation_tokens": "3000"},
         ]
         result = per_story_cache_ratio(rows)
         assert len(result) == 1
@@ -310,9 +322,9 @@ class TestPerStoryCacheRatio:
 
     def test_zero_both_tokens_returns_zero_ratio(self):
         from prompt_cache_analysis import per_story_cache_ratio
+
         rows = [
-            {"story_id": "US-Z", "cache_read_tokens": "0",
-             "cache_creation_tokens": "0"},
+            {"story_id": "US-Z", "cache_read_tokens": "0", "cache_creation_tokens": "0"},
         ]
         result = per_story_cache_ratio(rows)
         assert len(result) == 1

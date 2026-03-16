@@ -15,6 +15,7 @@ As module:
   from slice_prd import slice_prd
   sliced = slice_prd(prd_dict, batch_size=5)
 """
+
 import json
 import os
 import sys
@@ -78,9 +79,7 @@ def merge_batch_results(full_prd: dict, batched_prd: dict) -> dict:
     import copy
 
     result = copy.deepcopy(full_prd)
-    batched_map: dict[str, dict] = {
-        s["id"]: s for s in batched_prd.get("userStories", []) if "id" in s
-    }
+    batched_map: dict[str, dict] = {s["id"]: s for s in batched_prd.get("userStories", []) if "id" in s}
 
     for story in result["userStories"]:
         sid = story.get("id", "")

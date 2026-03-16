@@ -13,6 +13,7 @@ Exit codes:
     2 — cumulative cost >= ceiling (budget exceeded)
     1 — error (missing file, bad data)
 """
+
 import argparse
 import csv
 import os
@@ -66,8 +67,7 @@ def compute_row_cost(row: dict) -> float:
         return 0.0
 
     input_tokens, output_tokens = estimate_tokens_from_duration(duration)
-    cost = (input_tokens / 1_000_000) * pricing["input"] + \
-           (output_tokens / 1_000_000) * pricing["output"]
+    cost = (input_tokens / 1_000_000) * pricing["input"] + (output_tokens / 1_000_000) * pricing["output"]
     return cost
 
 
@@ -98,8 +98,7 @@ def format_cost_summary(total: float, count: int, ceiling: float | None) -> str:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Check cumulative API cost")
     parser.add_argument("--results", required=True, help="Path to results.tsv")
-    parser.add_argument("--ceiling", type=float, default=0.0,
-                        help="Cost ceiling in USD (0 = disabled)")
+    parser.add_argument("--ceiling", type=float, default=0.0, help="Cost ceiling in USD (0 = disabled)")
     args = parser.parse_args(argv)
 
     total, count = compute_cumulative_cost(args.results)

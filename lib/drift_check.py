@@ -21,6 +21,7 @@ Usage (CLI):
     python lib/drift_check.py --story-id US-260 --prd prd.json \\
         --scratch-dir .spiral [--diff-file /tmp/diff.txt]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -42,20 +43,25 @@ configure_utf8_stdout()
 
 _DEFAULT_PASS_THRESHOLD = 70
 _DEFAULT_FAIL_THRESHOLD = 40
-_MAX_DIFF_CHARS = 6000   # truncate large diffs to avoid token bloat
+_MAX_DIFF_CHARS = 6000  # truncate large diffs to avoid token bloat
 _JUDGE_MODEL = "claude-haiku-4-5-20251001"  # fast, low-cost judge
 
 
 # ── LLM call ──────────────────────────────────────────────────────────────────
 
+
 def _call_claude(prompt: str, timeout: int = 90) -> str:
     """Call Claude CLI via subprocess and return raw text output."""
     cmd = [
         "claude",
-        "-p", prompt,
-        "--model", _JUDGE_MODEL,
-        "--max-turns", "1",
-        "--output-format", "text",
+        "-p",
+        prompt,
+        "--model",
+        _JUDGE_MODEL,
+        "--max-turns",
+        "1",
+        "--output-format",
+        "text",
         "--dangerously-skip-permissions",
     ]
     try:
@@ -85,6 +91,7 @@ def _call_claude(prompt: str, timeout: int = 90) -> str:
 
 
 # ── Core logic ─────────────────────────────────────────────────────────────────
+
 
 def _build_prompt(acceptance_criteria: list[str], diff_text: str) -> str:
     criteria_block = "\n".join(f"{i + 1}. {c}" for i, c in enumerate(acceptance_criteria))
@@ -219,6 +226,7 @@ def run_drift_check(
 
 # ── I/O helpers ────────────────────────────────────────────────────────────────
 
+
 def write_drift_report(
     report: dict[str, Any],
     scratch_dir: str,
@@ -304,6 +312,7 @@ def log_drift_event(
 
 
 # ── CLI ────────────────────────────────────────────────────────────────────────
+
 
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
@@ -404,10 +413,7 @@ def main(argv: list[str] | None = None) -> int:
     verdict = report.get("verdict", "?")
     score = report.get("driftScore", 0)
     verdict_label = {"pass": "PASS", "warn": "WARN", "fail": "FAIL"}.get(verdict, verdict.upper())
-    print(
-        f"  [drift] {args.story_id}: score={score}/100 verdict={verdict_label} "
-        f"({duration_ms}ms) → {report_path}"
-    )
+    print(f"  [drift] {args.story_id}: score={score}/100 verdict={verdict_label} ({duration_ms}ms) → {report_path}")
     if report.get("missingCriteria"):
         print(f"  [drift]   missing criteria: {report['missingCriteria']}")
     if report.get("scopeCreep"):

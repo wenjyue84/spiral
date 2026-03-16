@@ -1,9 +1,10 @@
 """Property-based tests for check_dag.py cycle detection."""
+
 import os
 import sys
-import pytest
-from hypothesis import given, settings, assume, HealthCheck
-from conftest import valid_prd, prd_with_cycle
+
+from conftest import prd_with_cycle, valid_prd
+from hypothesis import HealthCheck, given, settings
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 from check_dag import find_cycles

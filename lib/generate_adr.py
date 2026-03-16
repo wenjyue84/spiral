@@ -17,6 +17,7 @@ Exit codes:
     0 — ADR written successfully; ADR path is printed to stdout
     1 — ADR generation failed (warning only; caller should not block commit)
 """
+
 from __future__ import annotations
 
 import argparse
@@ -29,6 +30,7 @@ from typing import Any
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from spiral_io import configure_utf8_stdout
+
 configure_utf8_stdout()
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -80,6 +82,7 @@ Accepted
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _kebab(title: str) -> str:
     """Convert a story title to a kebab-case filename slug (max 60 chars)."""
     slug = title.lower()
@@ -94,8 +97,12 @@ def _get_staged_diff(max_lines: int = 500) -> str:
     for cmd in (["git", "diff", "--cached"], ["git", "diff", "HEAD"]):
         try:
             result = subprocess.run(
-                cmd, capture_output=True, text=True,
-                timeout=15, encoding="utf-8", errors="replace",
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=15,
+                encoding="utf-8",
+                errors="replace",
             )
             diff = result.stdout
         except Exception:
@@ -126,9 +133,7 @@ def _load_template() -> str:
 
 def _build_prompt(story: dict[str, Any], diff: str, template: str) -> str:
     """Interpolate story fields + diff into the ADR prompt template."""
-    ac_lines = "\n".join(
-        f"- {ac}" for ac in story.get("acceptanceCriteria", [])
-    )
+    ac_lines = "\n".join(f"- {ac}" for ac in story.get("acceptanceCriteria", []))
     return template.format(
         story_id=story.get("id", ""),
         story_title=story.get("title", ""),
@@ -156,11 +161,17 @@ def _call_claude(prompt: str, model: str = "haiku") -> str:
     try:
         result = subprocess.run(
             [
-                "claude", "-p", prompt,
-                "--model", model,
-                "--append-system-prompt", system,
-                "--max-turns", "1",
-                "--output-format", "text",
+                "claude",
+                "-p",
+                prompt,
+                "--model",
+                model,
+                "--append-system-prompt",
+                system,
+                "--max-turns",
+                "1",
+                "--output-format",
+                "text",
                 "--dangerously-skip-permissions",
             ],
             capture_output=True,
@@ -195,6 +206,7 @@ def _update_prd_adr_path(prd_path: str, story_id: str, adr_path: str) -> None:
 # ---------------------------------------------------------------------------
 # Public API (used by tests)
 # ---------------------------------------------------------------------------
+
 
 def generate_adr(
     story_id: str,
@@ -267,6 +279,7 @@ def generate_adr(
 # CLI entry point
 # ---------------------------------------------------------------------------
 
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Generate a MADR-format ADR for a passed Spiral story",
@@ -274,11 +287,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--story-id", required=True, help="Story ID (e.g. US-042)")
     parser.add_argument("--prd", default="prd.json", help="Path to prd.json")
     parser.add_argument(
-        "--output-dir", default="docs/decisions",
+        "--output-dir",
+        default="docs/decisions",
         help="Directory to write ADR files (created if absent)",
     )
     parser.add_argument(
-        "--model", default="haiku",
+        "--model",
+        default="haiku",
         help="Claude model shortname (default: haiku)",
     )
     args = parser.parse_args(argv)

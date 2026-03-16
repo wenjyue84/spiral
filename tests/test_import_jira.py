@@ -1,4 +1,5 @@
 """Tests for lib/import_jira.py — Jira Issues importer."""
+
 from __future__ import annotations
 
 import json
@@ -15,8 +16,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import import_jira as ij  # noqa: E402
-import main  # noqa: E402
 
+import main  # noqa: E402
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -215,6 +216,7 @@ class TestBuildAuthHeader:
         header = ij._build_auth_header("user@example.com", "mytoken")
         assert header.startswith("Basic ")
         import base64
+
         decoded = base64.b64decode(header[6:]).decode("utf-8")
         assert decoded == "user@example.com:mytoken"
 
@@ -226,6 +228,7 @@ class TestImportJiraIssues:
     def _mock_fetch(self, issues: list[dict]):
         def _fake_fetch(host, jql, email, api_token):
             yield from issues
+
         return _fake_fetch
 
     def test_adds_new_stories(self, tmp_path):
@@ -411,8 +414,7 @@ class TestCmdImportJira:
         return SimpleNamespace(host=host, project=project, jql=jql, dry_run=dry_run)
 
     def test_exits_1_without_credentials(self, tmp_path, capsys):
-        with patch.object(main, "PRD_FILE", tmp_path / "prd.json"), \
-             patch.dict(os.environ, {}, clear=False):
+        with patch.object(main, "PRD_FILE", tmp_path / "prd.json"), patch.dict(os.environ, {}, clear=False):
             env_backup_email = os.environ.pop("JIRA_USER_EMAIL", None)
             env_backup_token = os.environ.pop("JIRA_API_TOKEN", None)
             try:
@@ -429,8 +431,10 @@ class TestCmdImportJira:
         assert "JIRA_USER_EMAIL" in err or "JIRA_API_TOKEN" in err
 
     def test_exits_1_when_prd_missing(self, tmp_path, capsys):
-        with patch.object(main, "PRD_FILE", tmp_path / "missing.json"), \
-             patch.dict(os.environ, {"JIRA_USER_EMAIL": "u@e.com", "JIRA_API_TOKEN": "tok"}):
+        with (
+            patch.object(main, "PRD_FILE", tmp_path / "missing.json"),
+            patch.dict(os.environ, {"JIRA_USER_EMAIL": "u@e.com", "JIRA_API_TOKEN": "tok"}),
+        ):
             with pytest.raises(SystemExit) as exc:
                 main.cmd_import_jira(self._args())
             assert exc.value.code == 1
@@ -438,9 +442,11 @@ class TestCmdImportJira:
     def test_dry_run_output(self, tmp_path, capsys):
         prd_path = _make_prd(tmp_path, [])
         mock_added = [{"id": "US-1", "title": "Story X", "priority": "medium", "_jiraKey": "ENG-1"}]
-        with patch.object(main, "PRD_FILE", prd_path), \
-             patch.dict(os.environ, {"JIRA_USER_EMAIL": "u@e.com", "JIRA_API_TOKEN": "tok"}), \
-             patch.object(ij, "import_jira_issues", return_value=(mock_added, [])):
+        with (
+            patch.object(main, "PRD_FILE", prd_path),
+            patch.dict(os.environ, {"JIRA_USER_EMAIL": "u@e.com", "JIRA_API_TOKEN": "tok"}),
+            patch.object(ij, "import_jira_issues", return_value=(mock_added, [])),
+        ):
             main.cmd_import_jira(self._args(dry_run=True))
 
         out = capsys.readouterr().out
@@ -449,9 +455,11 @@ class TestCmdImportJira:
 
     def test_reports_skipped_duplicates(self, tmp_path, capsys):
         prd_path = _make_prd(tmp_path, [])
-        with patch.object(main, "PRD_FILE", prd_path), \
-             patch.dict(os.environ, {"JIRA_USER_EMAIL": "u@e.com", "JIRA_API_TOKEN": "tok"}), \
-             patch.object(ij, "import_jira_issues", return_value=([], ["Duplicate title"])):
+        with (
+            patch.object(main, "PRD_FILE", prd_path),
+            patch.dict(os.environ, {"JIRA_USER_EMAIL": "u@e.com", "JIRA_API_TOKEN": "tok"}),
+            patch.object(ij, "import_jira_issues", return_value=([], ["Duplicate title"])),
+        ):
             main.cmd_import_jira(self._args())
 
         out = capsys.readouterr().out
@@ -461,6 +469,7 @@ class TestCmdImportJira:
     def test_import_jira_subcommand_registered(self):
         """spiral import-jira parses --host, --project, --jql correctly."""
         import argparse
+
         parser = argparse.ArgumentParser()
         sub = parser.add_subparsers(dest="command")
         p = sub.add_parser("import-jira")

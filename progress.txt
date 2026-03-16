@@ -974,3 +974,30 @@ Incomplete: Add episodic memory store for Ralph workers to recall past implement
 ### Gotchas
 - Pre-existing 13 test failures remain (test_field_similarity_lists, test_infer_dependencies, test_merge_conflict_detection, etc.) — all unrelated
 
+
+
+## Iteration N - Story: US-396 Add ruff linter and formatter to pyproject.toml with CI enforcement
+
+### What was implemented
+- Added `ruff>=0.11.0` to dev dependency group in pyproject.toml (installed v0.15.6)
+- Configured `[tool.ruff]` with target-version="py313", line-length=120
+- Configured `[tool.ruff.lint]` with select=["E", "F", "I"] (pycodestyle, pyflakes, isort)
+- Ignored E402 globally (deliberate sys.path.insert pattern throughout codebase)
+- Excluded `lib/semantic_chunker.py` (has broken multi-line string syntax that ruff can't parse)
+- Added per-file-ignores for E501 on HTML-heavy files: spiral_dashboard.py, spiral_report.py, story_review_report.py, injection_detector.py, spiral_live_server.py
+- Configured `[tool.ruff.lint.isort]` with known-first-party=["lib"]
+- Auto-fixed ~70 import ordering (I001) and unused import (F401) violations via `ruff check --fix`
+- Auto-formatted all 145 Python files via `ruff format`
+- Manually fixed: F841 (unused variables — prefixed with `_`), E741 (renamed `l` to `line`), E501 (broke long lines)
+- Added `ruff` CI job in .github/workflows/ci.yml: runs `uv run ruff check lib/ tests/` and `uv run ruff format --check lib/ tests/`
+- CI job uses same action pinning pattern as other jobs (SHA-pinned checkout, setup-uv, cache)
+
+### Patterns discovered
+- ruff v0.15.6 is ~100x faster than flake8+isort+black combined
+- Many lib/ files use `sys.path.insert(0, os.path.dirname(__file__))` before local imports — E402 must be ignored globally for this pattern
+- `ruff format` is Black-compatible; reformatted 145 files with no test breakage
+- `semantic_chunker.py` has genuine syntax errors (literal newlines in f-strings) — excluded from ruff
+
+### Gotchas
+- Pre-existing test failures unchanged: test_consistency_check, test_infer_dependencies, test_route_stories, test_worker_timeout
+- semantic_chunker.py also fails mypy (pre-existing syntax error) — separate fix needed

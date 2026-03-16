@@ -1,11 +1,12 @@
 # lib/setup.py
-import questionary
 import os
 import sys
 
+import questionary
+
 # Detect stack before prompting — provides smart defaults
 sys.path.insert(0, os.path.dirname(__file__))
-from detect_stack import load_or_detect, format_summary
+from detect_stack import format_summary, load_or_detect
 
 
 def create_config_file(config):
@@ -17,6 +18,7 @@ def create_config_file(config):
     with open("spiral.config.sh", "w") as f:
         f.write(content)
     print("✅ Created spiral.config.sh")
+
 
 def setup_wizard():
     """Runs the interactive setup wizard."""
@@ -41,7 +43,7 @@ def setup_wizard():
         choices=[
             "🚀 Quick Start (recommended)",
             "⚙️ Advanced Configuration",
-        ]
+        ],
     ).ask()
 
     config = {}
@@ -62,26 +64,20 @@ def setup_wizard():
         config["SPIRAL_MODEL_PROFILE"] = questionary.select(
             "Select your preferred model routing profile:",
             choices=[
-                {
-                    "name": "Cost-Conscious (uses smaller models, may be less accurate)",
-                    "value": "haiku"
-                },
-                {
-                    "name": "Balanced (recommended default)",
-                    "value": "auto"
-                },
-                {
-                    "name": "Performance-Focused (uses larger models, will be more expensive)",
-                    "value": "opus"
-                }
+                {"name": "Cost-Conscious (uses smaller models, may be less accurate)", "value": "haiku"},
+                {"name": "Balanced (recommended default)", "value": "auto"},
+                {"name": "Performance-Focused (uses larger models, will be more expensive)", "value": "opus"},
             ],
-            instruction="The 'auto' profile uses a fast, cheap model to classify tasks and routes them to the appropriate model (haiku, sonnet, or opus)."
+            instruction=(
+                "The 'auto' profile uses a fast, cheap model to classify tasks"
+                " and routes them to the appropriate model (haiku, sonnet, or opus)."
+            ),
         ).ask()
 
         config["SPIRAL_STORY_COST_HARD_USD"] = questionary.text(
             "Set a hard cost limit per story (in USD). If a story exceeds this, it will be abandoned.",
             default="2.00",
-            validate=lambda text: text.replace('.', '', 1).isdigit() or "Please enter a valid number."
+            validate=lambda text: text.replace(".", "", 1).isdigit() or "Please enter a valid number.",
         ).ask()
 
         config["SPIRAL_VALIDATE_CMD"] = questionary.text(
@@ -90,6 +86,7 @@ def setup_wizard():
         ).ask()
 
     create_config_file(config)
+
 
 if __name__ == "__main__":
     setup_wizard()

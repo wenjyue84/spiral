@@ -1,12 +1,10 @@
 """Unit tests for slice_prd.py (PRD batch slicing and merge-back)."""
-import json
+
 import os
 import sys
 
-import pytest
-
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
-from slice_prd import slice_prd, merge_batch_results
+from slice_prd import merge_batch_results, slice_prd
 
 
 def _story(sid, passes=False, priority="medium", decomposed=False, extra=None):
@@ -166,11 +164,13 @@ class TestMergeBatchResults:
     def test_new_sub_stories_appended(self):
         """Decomposed sub-stories created during batch are added to full PRD."""
         full = _prd([_story("US-001")])
-        batched = _prd([
-            _story("US-001", decomposed=True, extra={"_decomposedInto": ["US-010", "US-011"]}),
-            _story("US-010", extra={"_decomposedFrom": "US-001"}),
-            _story("US-011", extra={"_decomposedFrom": "US-001"}),
-        ])
+        batched = _prd(
+            [
+                _story("US-001", decomposed=True, extra={"_decomposedInto": ["US-010", "US-011"]}),
+                _story("US-010", extra={"_decomposedFrom": "US-001"}),
+                _story("US-011", extra={"_decomposedFrom": "US-001"}),
+            ]
+        )
         result = merge_batch_results(full, batched)
         ids = [s["id"] for s in result["userStories"]]
         assert "US-010" in ids
@@ -205,14 +205,18 @@ class TestMergeBatchResults:
 
     def test_no_duplicate_sub_stories_on_remerge(self):
         """If sub-stories already exist in full PRD, don't duplicate them."""
-        full = _prd([
-            _story("US-001"),
-            _story("US-010", extra={"_decomposedFrom": "US-001"}),
-        ])
-        batched = _prd([
-            _story("US-001", passes=True),
-            _story("US-010", passes=True, extra={"_decomposedFrom": "US-001"}),
-        ])
+        full = _prd(
+            [
+                _story("US-001"),
+                _story("US-010", extra={"_decomposedFrom": "US-001"}),
+            ]
+        )
+        batched = _prd(
+            [
+                _story("US-001", passes=True),
+                _story("US-010", passes=True, extra={"_decomposedFrom": "US-001"}),
+            ]
+        )
         result = merge_batch_results(full, batched)
         ids = [s["id"] for s in result["userStories"]]
         assert ids.count("US-010") == 1

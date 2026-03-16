@@ -12,18 +12,19 @@ Features:
   - 'spiral diagnose --run <run-id>' command to print causal chain
 """
 
+import argparse
 import json
 import sys
-from dataclasses import dataclass, asdict
-from pathlib import Path
-from typing import Optional, Any
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-import argparse
+from pathlib import Path
+from typing import Any, Optional
 
 
 @dataclass
 class WorkerFailure:
     """Represents a single worker failure event."""
+
     worker_id: int
     story_id: str
     failure_type: str  # "local" or "cascade"
@@ -37,6 +38,7 @@ class WorkerFailure:
 @dataclass
 class WorkerResources:
     """Track resources allocated to a worker."""
+
     worker_id: int
     worktree_path: str
     branch_name: str

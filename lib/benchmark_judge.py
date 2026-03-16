@@ -10,17 +10,20 @@ import os
 import subprocess
 import sys
 from datetime import datetime
-from pathlib import Path
 
 
 def call_claude(prompt: str) -> str:
     """Call Claude CLI via subprocess (haiku model for speed/cost)."""
     cmd = [
         "claude",
-        "-p", prompt,
-        "--model", "claude-3-5-haiku-20241022",
-        "--max-turns", "1",
-        "--output-format", "text",
+        "-p",
+        prompt,
+        "--model",
+        "claude-3-5-haiku-20241022",
+        "--max-turns",
+        "1",
+        "--output-format",
+        "text",
         "--dangerously-skip-permissions",
     ]
     try:
@@ -66,10 +69,10 @@ Story ID: {story_id}
 Story: {story_title}
 Model: {model_name}
 Duration: {duration_s}s
-Compilation Status: {'PASSED' if passes else 'FAILED'}
+Compilation Status: {"PASSED" if passes else "FAILED"}
 
 Acceptance Criteria:
-{chr(10).join(f'- {c}' for c in acceptance_criteria)}
+{chr(10).join(f"- {c}" for c in acceptance_criteria)}
 
 Implementation Log (first 1500 chars):
 {log_content}
@@ -175,24 +178,22 @@ def main():
         )
 
         # Compute overall score (average of dimensions)
-        overall = (
-            scores["correctness"] +
-            scores["test_pass_rate"] +
-            scores["code_style"]
-        ) / 3.0
+        overall = (scores["correctness"] + scores["test_pass_rate"] + scores["code_style"]) / 3.0
 
-        benchmark_result["models"].append({
-            "name": model_name,
-            "passes": passes,
-            "duration_s": duration_s,
-            "scores": {
-                "correctness": scores["correctness"],
-                "test_pass_rate": scores["test_pass_rate"],
-                "code_style": scores["code_style"],
-                "overall": round(overall, 2),
-            },
-            "notes": scores["notes"],
-        })
+        benchmark_result["models"].append(
+            {
+                "name": model_name,
+                "passes": passes,
+                "duration_s": duration_s,
+                "scores": {
+                    "correctness": scores["correctness"],
+                    "test_pass_rate": scores["test_pass_rate"],
+                    "code_style": scores["code_style"],
+                    "overall": round(overall, 2),
+                },
+                "notes": scores["notes"],
+            }
+        )
 
     # Write results to JSONL
     try:

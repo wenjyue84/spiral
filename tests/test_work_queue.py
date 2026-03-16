@@ -1,16 +1,15 @@
 """Tests for lib/work_queue.py — work-offering queue for idle worker prevention."""
+
 import json
 import os
 import sys
 import threading
 
-import pytest
-
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 from work_queue import WorkQueue
 
-
 # ── Helpers ──────────────────────────────────────────────────────────────────
+
 
 def _write_json(path, data):
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
@@ -42,6 +41,7 @@ def _story(sid, priority="medium", passes=False, deps=None):
 
 # ── Tests ────────────────────────────────────────────────────────────────────
 
+
 def test_offer_and_claim_roundtrip(tmp_path):
     """Stories offered by one worker can be claimed by another."""
     queue_path = str(tmp_path / "queue.json")
@@ -64,11 +64,14 @@ def test_claim_returns_highest_priority(tmp_path):
     _make_prd(prd_path, [])
 
     wq = WorkQueue(queue_path)
-    wq.offer([
-        _story("US-010", priority="low"),
-        _story("US-011", priority="critical"),
-        _story("US-012", priority="medium"),
-    ], source_worker=1)
+    wq.offer(
+        [
+            _story("US-010", priority="low"),
+            _story("US-011", priority="critical"),
+            _story("US-012", priority="medium"),
+        ],
+        source_worker=1,
+    )
 
     claimed = wq.claim(worker_id=2, main_prd_path=prd_path)
     assert claimed is not None
@@ -83,10 +86,13 @@ def test_claim_skips_unmet_deps(tmp_path):
     _make_prd(prd_path, [_story("US-001", passes=True)])
 
     wq = WorkQueue(queue_path)
-    wq.offer([
-        _story("US-002", priority="high", deps=["US-099"]),  # dep not met
-        _story("US-003", priority="medium"),  # no deps
-    ], source_worker=1)
+    wq.offer(
+        [
+            _story("US-002", priority="high", deps=["US-099"]),  # dep not met
+            _story("US-003", priority="medium"),  # no deps
+        ],
+        source_worker=1,
+    )
 
     claimed = wq.claim(worker_id=2, main_prd_path=prd_path)
     assert claimed is not None

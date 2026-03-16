@@ -19,6 +19,7 @@ Usage (CLI):
     python lib/import_jira.py --host mycompany.atlassian.net --project ENG \
         --jql "labels=spiral AND status=Backlog" [--dry-run]
 """
+
 from __future__ import annotations
 
 import argparse

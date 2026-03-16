@@ -1,4 +1,5 @@
 """Tests for lib/sanitize_output.py — LLM output sanitization and path validation."""
+
 from __future__ import annotations
 
 import json
@@ -14,11 +15,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 import sanitize_output as so
 from sanitize_output import (
     PathViolation,
-    sanitize_content,
     safe_write_file,
+    sanitize_content,
     validate_write_path,
 )
-
 
 # ── Fixtures ───────────────────────────────────────────────────────────────────
 
@@ -89,13 +89,13 @@ class TestSanitizeContent:
         (backslash + x + 1 + b + ...) rather than an actual ESC byte (0x1b).
         The sanitizer must leave those string literals intact.
         """
-        code = textwrap.dedent(r'''
+        code = textwrap.dedent(r"""
             RESET = "\x1b[0m"
             GREEN = "\x1b[32m"
 
             def coloured(text: str) -> str:
                 return f"{GREEN}{text}{RESET}"
-            ''')
+            """)
         # No actual ESC bytes present — sanitizer should leave code unchanged
         assert sanitize_content(code) == code
 
@@ -302,13 +302,13 @@ class TestSafeWriteFile:
 
     def test_python_file_with_ansi_string_literals_preserved(self, worktree: Path):
         """Acceptance criterion: ANSI as string data in Python source is untouched."""
-        code = textwrap.dedent(r'''
+        code = textwrap.dedent(r"""
             RED = "\x1b[31m"
             RESET = "\x1b[0m"
 
             def red(text):
                 return f"{RED}{text}{RESET}"
-            ''')
+            """)
         target = worktree / "src" / "colours.py"
         safe_write_file(target, code, worktree)
         written = target.read_text()
@@ -321,7 +321,7 @@ class TestSafeWriteFile:
         with pytest.raises(PathViolation):
             safe_write_file(target, "evil", worktree, audit_log=audit_log)
         assert audit_log.exists()
-        entries = [json.loads(l) for l in audit_log.read_text().splitlines() if l]
+        entries = [json.loads(line) for line in audit_log.read_text().splitlines() if line]
         assert any(e["event"] == "git_dir_write_blocked" for e in entries)
 
     def test_string_content_encoding(self, worktree: Path):
@@ -371,26 +371,34 @@ class TestCLICheckPath:
 
     def test_sanitize_stdin_writes_file(self, worktree: Path, monkeypatch, tmp_path):
         import io
+
         raw = "\x1b[32mhello\x1b[0m world\n"
         monkeypatch.setattr("sys.stdin", io.StringIO(raw))
         out_path = str(worktree / "src" / "out.txt")
         sys.argv = [
-            "sanitize_output.py", "sanitize",
-            "--output", out_path,
-            "--worktree", str(worktree),
+            "sanitize_output.py",
+            "sanitize",
+            "--output",
+            out_path,
+            "--worktree",
+            str(worktree),
         ]
         so.main()
         assert Path(out_path).read_text() == "hello world\n"
 
     def test_sanitize_stdin_blocked_exits_1(self, worktree: Path, monkeypatch):
         import io
+
         monkeypatch.setattr("sys.stdin", io.StringIO("evil"))
         # Write to .git/
         out_path = str(worktree / ".git" / "config")
         sys.argv = [
-            "sanitize_output.py", "sanitize",
-            "--output", out_path,
-            "--worktree", str(worktree),
+            "sanitize_output.py",
+            "sanitize",
+            "--output",
+            out_path,
+            "--worktree",
+            str(worktree),
         ]
         with pytest.raises(SystemExit) as exc_info:
             so.main()

@@ -19,6 +19,7 @@ Usage::
 SubprocessPolicyViolation is raised (and the event is logged) when the
 executable is not permitted in the given phase.
 """
+
 from __future__ import annotations
 
 import json
@@ -40,36 +41,124 @@ from typing import Any
 
 PHASE_COMMAND_ALLOWLIST: dict[str, frozenset[str]] = {
     # Research phase — fetching is expected here
-    "R": frozenset([
-        "curl", "wget", "python", "python3", "uv", "cat", "ls",
-        "jq", "head", "tail", "grep", "find", "echo", "printf",
-        "wc", "sort", "uniq", "git",
-    ]),
+    "R": frozenset(
+        [
+            "curl",
+            "wget",
+            "python",
+            "python3",
+            "uv",
+            "cat",
+            "ls",
+            "jq",
+            "head",
+            "tail",
+            "grep",
+            "find",
+            "echo",
+            "printf",
+            "wc",
+            "sort",
+            "uniq",
+            "git",
+        ]
+    ),
     # Implementation phase — build/test tools only; no network fetch or raw shell
-    "I": frozenset([
-        "git", "python", "python3", "uv", "node", "npm", "npx",
-        "cargo", "make", "cat", "ls", "head", "tail", "grep",
-        "find", "echo", "printf", "cp", "mv", "mkdir", "touch", "wc", "sort",
-    ]),
+    "I": frozenset(
+        [
+            "git",
+            "python",
+            "python3",
+            "uv",
+            "node",
+            "npm",
+            "npx",
+            "cargo",
+            "make",
+            "cat",
+            "ls",
+            "head",
+            "tail",
+            "grep",
+            "find",
+            "echo",
+            "printf",
+            "cp",
+            "mv",
+            "mkdir",
+            "touch",
+            "wc",
+            "sort",
+        ]
+    ),
     # Validation phase — test runners
-    "V": frozenset([
-        "python", "python3", "uv", "pytest", "npm", "npx",
-        "bats", "cargo", "node", "cat", "ls", "grep", "echo", "printf",
-    ]),
+    "V": frozenset(
+        [
+            "python",
+            "python3",
+            "uv",
+            "pytest",
+            "npm",
+            "npx",
+            "bats",
+            "cargo",
+            "node",
+            "cat",
+            "ls",
+            "grep",
+            "echo",
+            "printf",
+        ]
+    ),
     # Merge phase — git operations only
-    "M": frozenset([
-        "git", "echo", "cat", "ls", "jq",
-    ]),
+    "M": frozenset(
+        [
+            "git",
+            "echo",
+            "cat",
+            "ls",
+            "jq",
+        ]
+    ),
     # Gate / check done phase
-    "C": frozenset([
-        "python", "python3", "uv", "git", "cat", "ls", "echo", "jq",
-    ]),
+    "C": frozenset(
+        [
+            "python",
+            "python3",
+            "uv",
+            "git",
+            "cat",
+            "ls",
+            "echo",
+            "jq",
+        ]
+    ),
     # Fallback: used when no phase is specified
-    "global": frozenset([
-        "git", "python", "python3", "uv", "node", "npm", "npx",
-        "cat", "ls", "echo", "printf", "grep", "find", "head", "tail",
-        "jq", "wc", "sort", "uniq", "curl", "wget",
-    ]),
+    "global": frozenset(
+        [
+            "git",
+            "python",
+            "python3",
+            "uv",
+            "node",
+            "npm",
+            "npx",
+            "cat",
+            "ls",
+            "echo",
+            "printf",
+            "grep",
+            "find",
+            "head",
+            "tail",
+            "jq",
+            "wc",
+            "sort",
+            "uniq",
+            "curl",
+            "wget",
+        ]
+    ),
 }
 
 # ---------------------------------------------------------------------------
@@ -106,6 +195,7 @@ def _log_violation(executable: str, phase: str, cmd: list[str]) -> None:
 # Exception
 # ---------------------------------------------------------------------------
 
+
 class SubprocessPolicyViolation(RuntimeError):
     """Raised when a subprocess call violates the per-phase command allowlist."""
 
@@ -122,6 +212,7 @@ class SubprocessPolicyViolation(RuntimeError):
 # ---------------------------------------------------------------------------
 # Core enforcement function
 # ---------------------------------------------------------------------------
+
 
 def _resolve_allowlist(phase: str) -> frozenset[str]:
     """Return the allowlist for *phase*, falling back to 'global'."""

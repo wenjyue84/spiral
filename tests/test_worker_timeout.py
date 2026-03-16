@@ -21,6 +21,7 @@ import pytest
 # Availability guard
 # ---------------------------------------------------------------------------
 
+
 def _gnu_timeout_available() -> bool:
     """Return True if GNU timeout (with --kill-after support) is available.
 
@@ -39,13 +40,12 @@ def _gnu_timeout_available() -> bool:
         return False
 
 
-TIMEOUT_SKIP = pytest.mark.skipif(
-    not _gnu_timeout_available(), reason="GNU timeout not found in PATH"
-)
+TIMEOUT_SKIP = pytest.mark.skipif(not _gnu_timeout_available(), reason="GNU timeout not found in PATH")
 
 # ---------------------------------------------------------------------------
 # Timeout mechanism tests
 # ---------------------------------------------------------------------------
+
 
 @TIMEOUT_SKIP
 def test_timeout_kills_long_running_worker():
@@ -55,8 +55,8 @@ def test_timeout_kills_long_running_worker():
     SPIRAL_WORKER_TIMEOUT+75s.  Uses scaled-down values (3s timeout, 30s sleep)
     so the test finishes quickly in CI.
     """
-    worker_timeout = 3   # SPIRAL_WORKER_TIMEOUT equivalent
-    worker_sleep = 30    # simulates a hung worker (700s at production scale)
+    worker_timeout = 3  # SPIRAL_WORKER_TIMEOUT equivalent
+    worker_sleep = 30  # simulates a hung worker (700s at production scale)
 
     start = time.monotonic()
     result = subprocess.run(
@@ -65,13 +65,9 @@ def test_timeout_kills_long_running_worker():
     )
     elapsed = time.monotonic() - start
 
-    assert result.returncode == 124, (
-        f"Expected exit 124 (SIGTERM via timeout), got {result.returncode}"
-    )
+    assert result.returncode == 124, f"Expected exit 124 (SIGTERM via timeout), got {result.returncode}"
     # Must be killed well within SPIRAL_WORKER_TIMEOUT + 75s grace budget
-    assert elapsed < worker_timeout + 75, (
-        f"Worker not killed within timeout budget: {elapsed:.1f}s"
-    )
+    assert elapsed < worker_timeout + 75, f"Worker not killed within timeout budget: {elapsed:.1f}s"
 
 
 @TIMEOUT_SKIP
@@ -81,9 +77,7 @@ def test_timeout_fast_worker_exits_zero():
         ["bash", "-c", "timeout --kill-after=5 10 sleep 0"],
         capture_output=True,
     )
-    assert result.returncode == 0, (
-        f"Fast worker should exit 0, got {result.returncode}"
-    )
+    assert result.returncode == 0, f"Fast worker should exit 0, got {result.returncode}"
 
 
 def test_worker_timeout_zero_disables_wrapper():
@@ -113,12 +107,21 @@ def test_worker_timeout_default_is_600():
 # results.tsv logging tests
 # ---------------------------------------------------------------------------
 
+
 def test_timeout_tsv_row_status(tmp_path):
     """Pending stories from a timed-out worker are written with status='timeout'."""
     tsv_path = tmp_path / "results.tsv"
     header = [
-        "timestamp", "spiral_iter", "ralph_iter", "story_id", "story_title",
-        "status", "duration_sec", "model", "retry_num", "commit_sha",
+        "timestamp",
+        "spiral_iter",
+        "ralph_iter",
+        "story_id",
+        "story_title",
+        "status",
+        "duration_sec",
+        "model",
+        "retry_num",
+        "commit_sha",
     ]
     pending_stories = [
         ("US-010", "Mock story alpha"),
@@ -130,19 +133,27 @@ def test_timeout_tsv_row_status(tmp_path):
         writer = csv.writer(f, delimiter="\t")
         writer.writerow(header)
         for sid, title in pending_stories:
-            writer.writerow([
-                "2026-01-01T00:00:00Z", "-", "-", sid, title,
-                "timeout", "-", "-", "-", "-",
-            ])
+            writer.writerow(
+                [
+                    "2026-01-01T00:00:00Z",
+                    "-",
+                    "-",
+                    sid,
+                    title,
+                    "timeout",
+                    "-",
+                    "-",
+                    "-",
+                    "-",
+                ]
+            )
 
     rows = []
     with open(tsv_path, encoding="utf-8") as f:
         rows = list(csv.DictReader(f, delimiter="\t"))
 
     assert len(rows) == 2, f"Expected 2 timeout rows, got {len(rows)}"
-    assert all(r["status"] == "timeout" for r in rows), (
-        f"All rows should have status='timeout': {rows}"
-    )
+    assert all(r["status"] == "timeout" for r in rows), f"All rows should have status='timeout': {rows}"
     assert {r["story_id"] for r in rows} == {"US-010", "US-011"}
 
 
@@ -150,14 +161,20 @@ def test_timeout_tsv_distinct_from_failed(tmp_path):
     """'timeout' status is distinguishable from regular 'failed' in results.tsv."""
     tsv_path = tmp_path / "results.tsv"
     header = [
-        "timestamp", "spiral_iter", "ralph_iter", "story_id", "story_title",
-        "status", "duration_sec", "model", "retry_num", "commit_sha",
+        "timestamp",
+        "spiral_iter",
+        "ralph_iter",
+        "story_id",
+        "story_title",
+        "status",
+        "duration_sec",
+        "model",
+        "retry_num",
+        "commit_sha",
     ]
     rows_to_write = [
-        ["2026-01-01T00:00:00Z", "1", "2", "US-001", "Failing story",
-         "failed",  "30", "sonnet", "1", "abc1234"],
-        ["2026-01-01T00:01:00Z", "-", "-", "US-002", "Timed-out story",
-         "timeout", "-",  "-",      "-", "-"],
+        ["2026-01-01T00:00:00Z", "1", "2", "US-001", "Failing story", "failed", "30", "sonnet", "1", "abc1234"],
+        ["2026-01-01T00:01:00Z", "-", "-", "US-002", "Timed-out story", "timeout", "-", "-", "-", "-"],
     ]
     with open(tsv_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f, delimiter="\t")
@@ -176,6 +193,7 @@ def test_timeout_tsv_distinct_from_failed(tmp_path):
 # Story state tests
 # ---------------------------------------------------------------------------
 
+
 def test_timed_out_stories_remain_pending(tmp_path):
     """Stories that were pending when a worker timed out stay passes=false.
 
@@ -186,28 +204,27 @@ def test_timed_out_stories_remain_pending(tmp_path):
     prd = {
         "overview": "Test PRD",
         "userStories": [
-            {"id": "US-010", "title": "Story pending",  "passes": False, "priority": "medium"},
-            {"id": "US-011", "title": "Story completed", "passes": True,  "priority": "medium"},
+            {"id": "US-010", "title": "Story pending", "passes": False, "priority": "medium"},
+            {"id": "US-011", "title": "Story completed", "passes": True, "priority": "medium"},
         ],
     }
     prd_path = tmp_path / "prd.json"
     prd_path.write_text(json.dumps(prd), encoding="utf-8")
 
     data = json.loads(prd_path.read_text(encoding="utf-8"))
-    pending  = [s for s in data["userStories"] if not s["passes"]]
-    passing  = [s for s in data["userStories"] if s["passes"]]
+    pending = [s for s in data["userStories"] if not s["passes"]]
+    passing = [s for s in data["userStories"] if s["passes"]]
 
     assert len(pending) == 1 and pending[0]["id"] == "US-010", (
         "Pending story must remain pending after a simulated timeout"
     )
-    assert len(passing) == 1 and passing[0]["id"] == "US-011", (
-        "Completed story must still be marked as passed"
-    )
+    assert len(passing) == 1 and passing[0]["id"] == "US-011", "Completed story must still be marked as passed"
 
 
 # ---------------------------------------------------------------------------
 # Worktree / branch cleanup tests (US-176)
 # ---------------------------------------------------------------------------
+
 
 def test_timeout_worktree_cleanup_removes_directory(tmp_path):
     """Simulates the shell cleanup block: after timeout, the worktree dir is removed.
@@ -223,16 +240,14 @@ def test_timeout_worktree_cleanup_removes_directory(tmp_path):
 
     # Simulate the shell block: git worktree remove will fail (not a real repo),
     # so we fall back to shutil.rmtree — same effect as rm -rf in the shell script.
-    result = subprocess.run(
+    _result = subprocess.run(
         ["git", "-C", str(tmp_path), "worktree", "remove", str(wt_dir), "--force"],
         capture_output=True,
     )
     if wt_dir.exists():
         shutil.rmtree(wt_dir)  # rm -rf fallback
 
-    assert not wt_dir.exists(), (
-        "Worktree directory must be removed by timeout cleanup (git or rm fallback)"
-    )
+    assert not wt_dir.exists(), "Worktree directory must be removed by timeout cleanup (git or rm fallback)"
 
 
 def test_timeout_cleanup_warns_on_removal_failure(tmp_path):
@@ -241,7 +256,7 @@ def test_timeout_cleanup_warns_on_removal_failure(tmp_path):
     AC: If removal fails, a warning is logged but the run continues.
     We verify that the compound command exits 0 even when the worktree is absent.
     """
-    nonexistent = tmp_path / "ghost-worktree"
+    _nonexistent = tmp_path / "ghost-worktree"
     # Script mirrors the run_parallel_ralph.sh timeout cleanup block (US-176)
     script = (
         "if git -C /tmp worktree remove /tmp/ghost-nonexistent --force 2>/dev/null; then "
@@ -271,13 +286,9 @@ def test_status_reports_clean_when_no_spiral_workers_dir(tmp_path):
     else:
         status_line = "Worktrees : clean (no orphaned spiral-worker worktrees)"
 
-    assert "clean" in status_line, (
-        "Status must report clean when .spiral-workers directory is absent"
-    )
+    assert "clean" in status_line, "Status must report clean when .spiral-workers directory is absent"
     # "no orphaned" is part of the clean message — ensure "clean" appears
-    assert status_line.startswith("Worktrees : clean"), (
-        f"Unexpected status line: {status_line}"
-    )
+    assert status_line.startswith("Worktrees : clean"), f"Unexpected status line: {status_line}"
 
 
 def test_status_reports_worktrees_dir_when_present(tmp_path):
@@ -297,6 +308,4 @@ def test_status_reports_worktrees_dir_when_present(tmp_path):
         status_line = "Worktrees : clean (no orphaned spiral-worker worktrees)"
 
     assert "Worktrees" in status_line
-    assert "clean" not in status_line, (
-        "Status must not report clean when .spiral-workers directory is present"
-    )
+    assert "clean" not in status_line, "Status must not report clean when .spiral-workers directory is present"

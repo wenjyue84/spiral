@@ -1,13 +1,11 @@
 """Tests for lib/import_csv.py — CSV story importer."""
+
 from __future__ import annotations
 
-import io
 import json
 import os
 import sys
 from pathlib import Path
-from types import SimpleNamespace
-from unittest.mock import patch
 
 import pytest
 
@@ -16,8 +14,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import import_csv as ic  # noqa: E402
-import main  # noqa: E402
 
+import main  # noqa: E402
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -159,12 +157,7 @@ class TestParseCsvRows:
         assert rows[0]["title"] == "TSV story"
 
     def test_multiple_rows_with_mixed_validity(self, tmp_path):
-        csv_content = (
-            "title,priority\n"
-            "Valid story,medium\n"
-            ",high\n"
-            "Another story,low\n"
-        )
+        csv_content = "title,priority\nValid story,medium\n,high\nAnother story,low\n"
         csv_path = _write_csv(tmp_path, csv_content)
         rows, errors = ic.parse_csv_rows(str(csv_path))
         assert len(rows) == 2
@@ -308,9 +301,7 @@ class TestImportCsvCli:
         csv_content = "title,priority\nCLI story,medium\n"
         csv_path = _write_csv(tmp_path, csv_content)
 
-        result = ic.main(
-            [str(csv_path), "--prd", str(prd_path), "--dry-run"]
-        )
+        result = ic.main([str(csv_path), "--prd", str(prd_path), "--dry-run"])
 
         assert result == 0
         captured = capsys.readouterr()
@@ -330,9 +321,7 @@ class TestImportCsvCli:
 
     def test_missing_csv_returns_1(self, tmp_path, capsys):
         prd_path = _make_prd(tmp_path)
-        result = ic.main(
-            [str(tmp_path / "nope.csv"), "--prd", str(prd_path)]
-        )
+        result = ic.main([str(tmp_path / "nope.csv"), "--prd", str(prd_path)])
         assert result == 1
 
     def test_warn_output_for_invalid_rows(self, tmp_path, capsys):
@@ -356,11 +345,12 @@ class TestMainImportCsvDispatch:
         import argparse
 
         # Build the parser by calling main() with --help captured.
-        parser = argparse.ArgumentParser()
+        _parser = argparse.ArgumentParser()
         # Verify the command is dispatchable without error.
         with pytest.raises(SystemExit):
             # Parsing --help triggers SystemExit(0); that's fine.
             import sys as _sys
+
             old_argv = _sys.argv
             _sys.argv = ["spiral", "--help"]
             try:

@@ -4,6 +4,7 @@ SPIRAL Phase C — Check Done
 Exits 0 if: all prd.json stories pass AND latest test report has 0 failures.
 Exits 1 otherwise (loop continues).
 """
+
 import argparse
 import json
 import os
@@ -12,8 +13,8 @@ import time
 
 sys.path.insert(0, os.path.dirname(__file__))
 from prd_schema import validate_prd
-
 from spiral_io import configure_utf8_stdout
+
 configure_utf8_stdout()
 
 
@@ -35,8 +36,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="SPIRAL check-done gate")
     parser.add_argument("--prd", default="prd.json", help="Path to prd.json")
     parser.add_argument("--reports-dir", default="test-reports", help="Test reports directory")
-    parser.add_argument("--skip-ids", default="",
-                        help="Comma-separated story IDs to treat as manually skipped (non-blocking)")
+    parser.add_argument(
+        "--skip-ids", default="", help="Comma-separated story IDs to treat as manually skipped (non-blocking)"
+    )
     args = parser.parse_args()
 
     manual_skip_ids = {s.strip() for s in args.skip_ids.split(",") if s.strip()}
@@ -58,7 +60,14 @@ def main() -> int:
 
     stories = prd.get("userStories", [])
     total = len(stories)
-    pending = [s for s in stories if not s.get("passes") and not s.get("_decomposed") and not s.get("_skipped") and s.get("id", "") not in manual_skip_ids]
+    pending = [
+        s
+        for s in stories
+        if not s.get("passes")
+        and not s.get("_decomposed")
+        and not s.get("_skipped")
+        and s.get("id", "") not in manual_skip_ids
+    ]
     done = total - len(pending)
 
     print(f"[check_done] PRD: {done}/{total} stories complete, {len(pending)} pending")
@@ -96,12 +105,14 @@ def main() -> int:
     test_total = summary.get("total", 0)
     pass_rate = summary.get("pass_rate", "?")
 
-    print(f"[check_done] Tests ({os.path.basename(os.path.dirname(report_path))}): "
-          f"{passed}/{test_total} pass ({pass_rate}), {failed} failed, {errored} errored")
+    print(
+        f"[check_done] Tests ({os.path.basename(os.path.dirname(report_path))}): "
+        f"{passed}/{test_total} pass ({pass_rate}), {failed} failed, {errored} errored"
+    )
 
     # ── Decision ─────────────────────────────────────────────────
     prd_done = len(pending) == 0
-    tests_clean = (failed == 0 and errored == 0)
+    tests_clean = failed == 0 and errored == 0
 
     if prd_done and tests_clean:
         print("[check_done] RESULT: SPIRAL COMPLETE — all stories done and 100% tests pass!")

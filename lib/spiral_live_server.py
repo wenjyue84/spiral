@@ -17,6 +17,7 @@ stdlib-only — no external dependencies.
 Usage:
     python lib/spiral_live_server.py [--port 5299] [--host 0.0.0.0]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -83,6 +84,7 @@ class WorkerState:
 
 # ── Server ────────────────────────────────────────────────────────────────────
 
+
 class SpiralLiveServer:
     """Asyncio-based HTTP server with SSE worker-stream support."""
 
@@ -138,12 +140,8 @@ class SpiralLiveServer:
 
             # Read both streams concurrently to prevent OS pipe-buffer deadlock,
             # then wait for the process to exit — all under a hard timeout.
-            stdout_task = asyncio.create_task(
-                self._stream_pipe(worker, proc.stdout, "stdout")
-            )
-            stderr_task = asyncio.create_task(
-                self._stream_pipe(worker, proc.stderr, "stderr")
-            )
+            stdout_task = asyncio.create_task(self._stream_pipe(worker, proc.stdout, "stdout"))
+            stderr_task = asyncio.create_task(self._stream_pipe(worker, proc.stderr, "stderr"))
 
             async def _drain_and_wait() -> int:
                 await asyncio.gather(stdout_task, stderr_task)
@@ -207,9 +205,7 @@ class SpiralLiveServer:
 
     # ── HTTP handling ─────────────────────────────────────────────────────────
 
-    async def handle_client(
-        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
-    ) -> None:
+    async def handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         """Dispatch incoming HTTP request to the appropriate handler."""
         try:
             request_line = await asyncio.wait_for(reader.readline(), timeout=10.0)
@@ -237,9 +233,7 @@ class SpiralLiveServer:
             body = b""
             content_length = int(headers.get("content-length", "0"))
             if content_length > 0:
-                body = await asyncio.wait_for(
-                    reader.readexactly(content_length), timeout=10.0
-                )
+                body = await asyncio.wait_for(reader.readexactly(content_length), timeout=10.0)
 
             # Route
             await self._route(method, path, headers, body, writer)
@@ -302,9 +296,7 @@ class SpiralLiveServer:
 
     # ── Route handlers ────────────────────────────────────────────────────────
 
-    async def _handle_sse_stream(
-        self, worker_id: str, writer: asyncio.StreamWriter
-    ) -> None:
+    async def _handle_sse_stream(self, worker_id: str, writer: asyncio.StreamWriter) -> None:
         """Stream worker output as Server-Sent Events."""
         if worker_id not in self._workers:
             await self._send_error(writer, 404, f"Worker '{worker_id}' not found")
@@ -339,9 +331,7 @@ class SpiralLiveServer:
             if queue in worker._subscriber_queues:
                 worker._subscriber_queues.remove(queue)
 
-    async def _handle_worker_start(
-        self, body: bytes, writer: asyncio.StreamWriter
-    ) -> None:
+    async def _handle_worker_start(self, body: bytes, writer: asyncio.StreamWriter) -> None:
         """Start a new worker subprocess from a JSON request body."""
         try:
             data = json.loads(body.decode("utf-8"))
@@ -352,19 +342,13 @@ class SpiralLiveServer:
             return
 
         if worker_id in self._workers and self._workers[worker_id].status == "running":
-            await self._send_json(
-                writer, 409, {"error": f"Worker '{worker_id}' already running"}
-            )
+            await self._send_json(writer, 409, {"error": f"Worker '{worker_id}' already running"})
             return
 
         self.start_worker(worker_id, cmd)
-        await self._send_json(
-            writer, 200, {"worker_id": worker_id, "status": "started"}
-        )
+        await self._send_json(writer, 200, {"worker_id": worker_id, "status": "started"})
 
-    async def _handle_register_project(
-        self, body: bytes, writer: asyncio.StreamWriter
-    ) -> None:
+    async def _handle_register_project(self, body: bytes, writer: asyncio.StreamWriter) -> None:
         """Accept a project registration (called by spiral.sh on startup)."""
         try:
             data = json.loads(body.decode("utf-8"))
@@ -375,9 +359,7 @@ class SpiralLiveServer:
         self._projects[name] = {"name": name, "root": root}
         await self._send_json(writer, 200, {"registered": name})
 
-    async def _handle_workers_status(
-        self, path: str, writer: asyncio.StreamWriter
-    ) -> None:
+    async def _handle_workers_status(self, path: str, writer: asyncio.StreamWriter) -> None:
         """Return JSON array of live worker states read from heartbeat files."""
         qs = path.partition("?")[2]
         params = urllib.parse.parse_qs(qs)
@@ -398,11 +380,7 @@ class SpiralLiveServer:
                 age_sec = int(now - data.get("ts", now))
                 data["heartbeat_age_sec"] = age_sec
                 data["stale"] = age_sec > 120
-                data["worker_id"] = (
-                    os.path.basename(hb_file)
-                    .replace("worker_", "")
-                    .replace(".heartbeat", "")
-                )
+                data["worker_id"] = os.path.basename(hb_file).replace("worker_", "").replace(".heartbeat", "")
                 workers.append(data)
             except Exception:
                 pass
@@ -420,34 +398,30 @@ class SpiralLiveServer:
         html = _INDEX_HTML.replace("{{ROWS}}", rows)
         await self._send_html(writer, 200, html)
 
-    async def _handle_project_dashboard(
-        self, project_name: str, writer: asyncio.StreamWriter
-    ) -> None:
+    async def _handle_project_dashboard(self, project_name: str, writer: asyncio.StreamWriter) -> None:
         """Return per-project live dashboard HTML."""
-        active_workers = [
-            w for w in self._workers.values()
-        ]
+        active_workers = [w for w in self._workers.values()]
         worker_cards = ""
         for w in active_workers:
             wid = escape(w.worker_id)
-            status_cls = "status-running" if w.status == "running" else (
-                "status-passed" if w.status == "passed" else "status-failed"
+            status_cls = (
+                "status-running"
+                if w.status == "running"
+                else ("status-passed" if w.status == "passed" else "status-failed")
             )
-            worker_cards += _WORKER_CARD_TMPL.replace("{{WID}}", wid).replace(
-                "{{STATUS_CLS}}", status_cls
-            ).replace("{{STATUS}}", escape(w.status))
+            worker_cards += (
+                _WORKER_CARD_TMPL.replace("{{WID}}", wid)
+                .replace("{{STATUS_CLS}}", status_cls)
+                .replace("{{STATUS}}", escape(w.status))
+            )
         if not worker_cards:
             worker_cards = '<p class="no-workers">No active workers. Start SPIRAL to see live output here.</p>'
-        html = _DASHBOARD_HTML.replace(
-            "{{PROJECT}}", escape(project_name)
-        ).replace("{{WORKER_CARDS}}", worker_cards)
+        html = _DASHBOARD_HTML.replace("{{PROJECT}}", escape(project_name)).replace("{{WORKER_CARDS}}", worker_cards)
         await self._send_html(writer, 200, html)
 
     # ── Low-level response helpers ────────────────────────────────────────────
 
-    async def _send_html(
-        self, writer: asyncio.StreamWriter, status: int, html: str
-    ) -> None:
+    async def _send_html(self, writer: asyncio.StreamWriter, status: int, html: str) -> None:
         body = html.encode("utf-8")
         response = (
             f"HTTP/1.1 {status} OK\r\n"
@@ -461,11 +435,15 @@ class SpiralLiveServer:
         await writer.drain()
 
     async def _send_json(
-        self, writer: asyncio.StreamWriter, status: int, data: dict  # type: ignore[type-arg]
+        self,
+        writer: asyncio.StreamWriter,
+        status: int,
+        data: dict,  # type: ignore[type-arg]
     ) -> None:
         body = json.dumps(data).encode("utf-8")
-        phrase = {200: "OK", 400: "Bad Request", 404: "Not Found",
-                  409: "Conflict", 500: "Internal Server Error"}.get(status, "Unknown")
+        phrase = {200: "OK", 400: "Bad Request", 404: "Not Found", 409: "Conflict", 500: "Internal Server Error"}.get(
+            status, "Unknown"
+        )
         response = (
             f"HTTP/1.1 {status} {phrase}\r\n"
             "Content-Type: application/json\r\n"
@@ -477,18 +455,14 @@ class SpiralLiveServer:
         writer.write(body)
         await writer.drain()
 
-    async def _send_error(
-        self, writer: asyncio.StreamWriter, status: int, message: str
-    ) -> None:
+    async def _send_error(self, writer: asyncio.StreamWriter, status: int, message: str) -> None:
         await self._send_json(writer, status, {"error": message})
 
     # ── Server lifecycle ──────────────────────────────────────────────────────
 
     async def serve(self) -> None:
         """Start the server and run until interrupted."""
-        server = await asyncio.start_server(
-            self.handle_client, self.host, self.port
-        )
+        server = await asyncio.start_server(self.handle_client, self.host, self.port)
         addr = server.sockets[0].getsockname() if server.sockets else (self.host, self.port)
         print(
             f"[spiral_live_server] Listening on http://{addr[0]}:{addr[1]}/",
@@ -645,6 +619,7 @@ h1{color:#58a6ff;margin-bottom:1rem;font-size:1.2rem}
 
 
 # ── CLI entry point ───────────────────────────────────────────────────────────
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(

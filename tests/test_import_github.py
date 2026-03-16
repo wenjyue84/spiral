@@ -1,4 +1,5 @@
 """Tests for lib/import_github.py — GitHub Issues importer."""
+
 from __future__ import annotations
 
 import json
@@ -6,7 +7,7 @@ import os
 import sys
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -15,10 +16,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import import_github as ig  # noqa: E402
+
 import main  # noqa: E402
 
-
 # ── Fixtures ──────────────────────────────────────────────────────────────────
+
 
 def _make_issue(
     number: int = 1,
@@ -44,6 +46,7 @@ def _make_prd(tmp_path: Path, stories: list[dict]) -> Path:
 
 
 # ── Priority extraction ───────────────────────────────────────────────────────
+
 
 class TestExtractPriority:
     def test_priority_critical_label(self):
@@ -81,6 +84,7 @@ class TestExtractPriority:
 
 # ── ID generation ─────────────────────────────────────────────────────────────
 
+
 class TestNextStoryId:
     def test_empty_list_returns_us_1(self):
         assert ig._next_story_id([]) == "US-1"
@@ -99,6 +103,7 @@ class TestNextStoryId:
 
 
 # ── Issue mapping ─────────────────────────────────────────────────────────────
+
 
 class TestMapIssueToStory:
     def test_basic_mapping(self):
@@ -137,11 +142,14 @@ class TestMapIssueToStory:
 
 # ── import_github_issues (integration with mocked fetch) ─────────────────────
 
+
 class TestImportGithubIssues:
     def _mock_fetch(self, issues: list[dict]):
         """Return a mock for ig.fetch_issues that yields *issues*."""
+
         def _fake_fetch(owner, repo, label, token):
             yield from issues
+
         return _fake_fetch
 
     def test_adds_new_stories(self, tmp_path):
@@ -149,8 +157,11 @@ class TestImportGithubIssues:
         issues = [_make_issue(number=1, title="Story A"), _make_issue(number=2, title="Story B")]
         with patch.object(ig, "fetch_issues", self._mock_fetch(issues)):
             added, skipped = ig.import_github_issues(
-                repo="owner/repo", label="spiral",
-                prd_path=str(prd_path), token="tok", dry_run=False,
+                repo="owner/repo",
+                label="spiral",
+                prd_path=str(prd_path),
+                token="tok",
+                dry_run=False,
             )
         assert len(added) == 2
         assert len(skipped) == 0
@@ -163,8 +174,11 @@ class TestImportGithubIssues:
         issues = [_make_issue(title="Already here"), _make_issue(title="New story")]
         with patch.object(ig, "fetch_issues", self._mock_fetch(issues)):
             added, skipped = ig.import_github_issues(
-                repo="owner/repo", label="spiral",
-                prd_path=str(prd_path), token="tok", dry_run=False,
+                repo="owner/repo",
+                label="spiral",
+                prd_path=str(prd_path),
+                token="tok",
+                dry_run=False,
             )
         assert len(added) == 1
         assert added[0]["title"] == "New story"
@@ -175,8 +189,11 @@ class TestImportGithubIssues:
         issues = [_make_issue(title="Ghost story")]
         with patch.object(ig, "fetch_issues", self._mock_fetch(issues)):
             added, skipped = ig.import_github_issues(
-                repo="owner/repo", label="spiral",
-                prd_path=str(prd_path), token="tok", dry_run=True,
+                repo="owner/repo",
+                label="spiral",
+                prd_path=str(prd_path),
+                token="tok",
+                dry_run=True,
             )
         assert len(added) == 1
         # File must be unchanged (empty userStories)
@@ -189,8 +206,11 @@ class TestImportGithubIssues:
         issues = [_make_issue(title="First new"), _make_issue(title="Second new")]
         with patch.object(ig, "fetch_issues", self._mock_fetch(issues)):
             added, _ = ig.import_github_issues(
-                repo="owner/repo", label="spiral",
-                prd_path=str(prd_path), token="tok", dry_run=False,
+                repo="owner/repo",
+                label="spiral",
+                prd_path=str(prd_path),
+                token="tok",
+                dry_run=False,
             )
         assert added[0]["id"] == "US-6"
         assert added[1]["id"] == "US-7"
@@ -199,23 +219,29 @@ class TestImportGithubIssues:
         prd_path = _make_prd(tmp_path, [])
         with pytest.raises(ValueError, match="owner/repo"):
             ig.import_github_issues(
-                repo="nodash", label="spiral",
-                prd_path=str(prd_path), token="tok",
+                repo="nodash",
+                label="spiral",
+                prd_path=str(prd_path),
+                token="tok",
             )
 
     def test_missing_prd_raises(self, tmp_path):
         with pytest.raises(FileNotFoundError):
             ig.import_github_issues(
-                repo="owner/repo", label="spiral",
-                prd_path=str(tmp_path / "missing.json"), token="tok",
+                repo="owner/repo",
+                label="spiral",
+                prd_path=str(tmp_path / "missing.json"),
+                token="tok",
             )
 
     def test_empty_issues_returns_empty(self, tmp_path):
         prd_path = _make_prd(tmp_path, [])
         with patch.object(ig, "fetch_issues", self._mock_fetch([])):
             added, skipped = ig.import_github_issues(
-                repo="owner/repo", label="spiral",
-                prd_path=str(prd_path), token="tok",
+                repo="owner/repo",
+                label="spiral",
+                prd_path=str(prd_path),
+                token="tok",
             )
         assert added == []
         assert skipped == []
@@ -223,13 +249,13 @@ class TestImportGithubIssues:
 
 # ── CLI (main.py import-github) ───────────────────────────────────────────────
 
+
 class TestCmdImportGithub:
     def _args(self, repo="owner/repo", label="spiral", dry_run=False):
         return SimpleNamespace(repo=repo, label=label, dry_run=dry_run)
 
     def test_exits_1_without_token(self, tmp_path, capsys):
-        with patch.object(main, "PRD_FILE", tmp_path / "prd.json"), \
-             patch.dict(os.environ, {}, clear=False):
+        with patch.object(main, "PRD_FILE", tmp_path / "prd.json"), patch.dict(os.environ, {}, clear=False):
             env_backup = os.environ.pop("GITHUB_TOKEN", None)
             try:
                 with pytest.raises(SystemExit) as exc:
@@ -243,8 +269,7 @@ class TestCmdImportGithub:
         assert "GITHUB_TOKEN" in err
 
     def test_exits_1_when_prd_missing(self, tmp_path, capsys):
-        with patch.object(main, "PRD_FILE", tmp_path / "missing.json"), \
-             patch.dict(os.environ, {"GITHUB_TOKEN": "tok"}):
+        with patch.object(main, "PRD_FILE", tmp_path / "missing.json"), patch.dict(os.environ, {"GITHUB_TOKEN": "tok"}):
             with pytest.raises(SystemExit) as exc:
                 main.cmd_import_github(self._args())
             assert exc.value.code == 1
@@ -254,9 +279,11 @@ class TestCmdImportGithub:
         mock_added = [{"id": "US-1", "title": "Story X", "priority": "medium"}]
         # cmd_import_github does `from import_github import import_github_issues` locally,
         # so we patch the symbol on the already-loaded ig module (sys.modules['import_github']).
-        with patch.object(main, "PRD_FILE", prd_path), \
-             patch.dict(os.environ, {"GITHUB_TOKEN": "tok"}), \
-             patch.object(ig, "import_github_issues", return_value=(mock_added, [])):
+        with (
+            patch.object(main, "PRD_FILE", prd_path),
+            patch.dict(os.environ, {"GITHUB_TOKEN": "tok"}),
+            patch.object(ig, "import_github_issues", return_value=(mock_added, [])),
+        ):
             main.cmd_import_github(self._args(dry_run=True))
 
         out = capsys.readouterr().out
@@ -265,9 +292,11 @@ class TestCmdImportGithub:
 
     def test_reports_skipped_duplicates(self, tmp_path, capsys):
         prd_path = _make_prd(tmp_path, [])
-        with patch.object(main, "PRD_FILE", prd_path), \
-             patch.dict(os.environ, {"GITHUB_TOKEN": "tok"}), \
-             patch.object(ig, "import_github_issues", return_value=([], ["Duplicate title"])):
+        with (
+            patch.object(main, "PRD_FILE", prd_path),
+            patch.dict(os.environ, {"GITHUB_TOKEN": "tok"}),
+            patch.object(ig, "import_github_issues", return_value=([], ["Duplicate title"])),
+        ):
             main.cmd_import_github(self._args())
 
         out = capsys.readouterr().out
@@ -277,6 +306,7 @@ class TestCmdImportGithub:
     def test_import_github_subcommand_registered(self):
         """spiral import-github parses --repo and --label correctly."""
         import argparse
+
         parser = argparse.ArgumentParser()
         sub = parser.add_subparsers(dest="command")
         p = sub.add_parser("import-github")

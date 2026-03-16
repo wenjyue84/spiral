@@ -1,19 +1,18 @@
 """Unit tests for lib/detect_stack.py (US-301)."""
+
 from __future__ import annotations
 
 import json
 import os
 import sys
 
-import pytest
-
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
-from detect_stack import detect_stack, load_or_detect, format_summary
-
+from detect_stack import detect_stack, format_summary, load_or_detect
 
 # ---------------------------------------------------------------------------
 # detect_stack — core detection
 # ---------------------------------------------------------------------------
+
 
 class TestDetectStackPython:
     def test_pyproject_toml(self, tmp_path):
@@ -52,7 +51,7 @@ class TestDetectStackNode:
 
 class TestDetectStackRust:
     def test_cargo_toml(self, tmp_path):
-        (tmp_path / "Cargo.toml").write_text("[package]\nname = \"myapp\"\n")
+        (tmp_path / "Cargo.toml").write_text('[package]\nname = "myapp"\n')
         result = detect_stack(tmp_path)
         assert result["language"] == "Rust"
         assert result["validate_cmd"] == "cargo test"
@@ -95,6 +94,7 @@ class TestDetectStackUnknown:
 # ---------------------------------------------------------------------------
 # load_or_detect — caching
 # ---------------------------------------------------------------------------
+
 
 class TestLoadOrDetect:
     def test_writes_cache_file(self, tmp_path):
@@ -151,6 +151,7 @@ class TestLoadOrDetect:
 # ---------------------------------------------------------------------------
 # format_summary
 # ---------------------------------------------------------------------------
+
 
 class TestFormatSummary:
     def test_detected_contains_lang(self, tmp_path):

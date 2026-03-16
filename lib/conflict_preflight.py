@@ -17,6 +17,7 @@ Usage:
 Exits 0 always (results printed as JSON to stdout + appended to conflict-log.jsonl).
 Output JSON: {"deferred": ["US-003"], "conflicts": [...], "elapsed_ms": N}
 """
+
 from __future__ import annotations
 
 import argparse
@@ -28,7 +29,6 @@ import time
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(__file__))
-from constants import PRIORITY_RANK
 from spiral_io import configure_utf8_stdout
 from story_helpers import get_files_to_touch, priority_key
 
@@ -67,9 +67,7 @@ def _merge_base(repo_root: str, ref_a: str, ref_b: str) -> str | None:
     return None
 
 
-def _check_merge_tree(
-    repo_root: str, branch_a: str, branch_b: str
-) -> list[str]:
+def _check_merge_tree(repo_root: str, branch_a: str, branch_b: str) -> list[str]:
     """
     Run git merge-tree to detect conflicts between two branches.
 
@@ -164,12 +162,7 @@ def check_pair(
     branch_a = worker_branches.get(story_a["id"])
     branch_b = worker_branches.get(story_b["id"])
 
-    if (
-        branch_a
-        and branch_b
-        and _branch_exists(repo_root, branch_a)
-        and _branch_exists(repo_root, branch_b)
-    ):
+    if branch_a and branch_b and _branch_exists(repo_root, branch_a) and _branch_exists(repo_root, branch_b):
         # Both branches exist — use git merge-tree for a precise answer
         mt_files = _check_merge_tree(repo_root, branch_a, branch_b)
         # Trust merge-tree result: no conflicts found even with overlap → no conflict
@@ -320,12 +313,8 @@ def main() -> int:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("--prd", required=True, help="Path to prd.json")
-    parser.add_argument(
-        "--story-ids", nargs="+", required=True, help="Story IDs in this batch"
-    )
-    parser.add_argument(
-        "--repo-root", default=".", help="Git repository root (default: .)"
-    )
+    parser.add_argument("--story-ids", nargs="+", required=True, help="Story IDs in this batch")
+    parser.add_argument("--repo-root", default=".", help="Git repository root (default: .)")
     parser.add_argument(
         "--conflict-log",
         default="",

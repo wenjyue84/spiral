@@ -1,16 +1,17 @@
 """Property-based tests for merge_stories.py operations."""
+
 import json
 import os
+import re
 import subprocess
 import sys
-import re
-import pytest
-from hypothesis import given, settings, assume, HealthCheck
-from hypothesis import strategies as st
+
 from conftest import valid_prd
+from hypothesis import HealthCheck, given, settings
+from hypothesis import strategies as st
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
-from merge_stories import is_duplicate, overlap_ratio, find_next_id, sort_key, story_to_prd_entry
+from merge_stories import find_next_id, is_duplicate, overlap_ratio, sort_key, story_to_prd_entry
 
 
 class TestOverlapRatio:
@@ -50,7 +51,7 @@ class TestIsDuplicate:
 
     @given(
         title=st.text(alphabet="abcdefghijklmnop ", min_size=5, max_size=50),
-        existing=st.lists(st.text(alphabet="qrstuvwxyz ", min_size=5, max_size=50), max_size=5)
+        existing=st.lists(st.text(alphabet="qrstuvwxyz ", min_size=5, max_size=50), max_size=5),
     )
     def test_non_overlapping_titles_not_duplicate(self, title, existing):
         """Titles with completely different alphabets are never duplicates."""
@@ -120,20 +121,37 @@ class TestMaxResearchStoriesCap:
 
     # Each title uses only its own unique words (3 words each, no overlap)
     _TITLES = [
-        "alpha bravo charlie", "delta echo foxtrot", "golf hotel india",
-        "juliet kilo lima", "mike november oscar", "papa quebec romeo",
-        "sierra tango uniform", "victor whiskey xray", "yankee zulu amber",
-        "bronze copper diamond", "emerald flint granite", "hickory ivory jade",
-        "kelp lemon maple", "nutmeg olive pecan", "quartz ruby sapphire",
-        "topaz umber violet", "walnut xenon yew", "zinc agate basalt",
-        "cedar dusk ember", "frost glow haze",
+        "alpha bravo charlie",
+        "delta echo foxtrot",
+        "golf hotel india",
+        "juliet kilo lima",
+        "mike november oscar",
+        "papa quebec romeo",
+        "sierra tango uniform",
+        "victor whiskey xray",
+        "yankee zulu amber",
+        "bronze copper diamond",
+        "emerald flint granite",
+        "hickory ivory jade",
+        "kelp lemon maple",
+        "nutmeg olive pecan",
+        "quartz ruby sapphire",
+        "topaz umber violet",
+        "walnut xenon yew",
+        "zinc agate basalt",
+        "cedar dusk ember",
+        "frost glow haze",
     ]
 
     def _make_research_file(self, path, count):
         """Write a research output JSON with `count` non-overlapping stories."""
         stories = [
-            {"title": self._TITLES[i], "priority": "medium",
-             "description": self._TITLES[i], "acceptanceCriteria": [f"criterion{i}"]}
+            {
+                "title": self._TITLES[i],
+                "priority": "medium",
+                "description": self._TITLES[i],
+                "acceptanceCriteria": [f"criterion{i}"],
+            }
             for i in range(count)
         ]
         path.write_text(json.dumps({"stories": stories}, indent=2), encoding="utf-8")
@@ -144,10 +162,16 @@ class TestMaxResearchStoriesCap:
             "productName": "TestApp",
             "branchName": "main",
             "userStories": [
-                {"id": "US-001", "title": "xyzzy plugh plover", "passes": True,
-                 "priority": "medium", "description": "", "acceptanceCriteria": ["done"],
-                 "dependencies": []}
-            ]
+                {
+                    "id": "US-001",
+                    "title": "xyzzy plugh plover",
+                    "passes": True,
+                    "priority": "medium",
+                    "description": "",
+                    "acceptanceCriteria": ["done"],
+                    "dependencies": [],
+                }
+            ],
         }
         path.write_text(json.dumps(prd, indent=2), encoding="utf-8")
 
@@ -166,11 +190,18 @@ class TestMaxResearchStoriesCap:
         # Run merge_stories.py as subprocess to test env var integration
         merge_script = os.path.join(os.path.dirname(__file__), "..", "lib", "merge_stories.py")
         result = subprocess.run(
-            [sys.executable, merge_script,
-             "--prd", str(prd_path),
-             "--research", str(research_path),
-             "--test-stories", str(test_stories_path)],
-            capture_output=True, text=True,
+            [
+                sys.executable,
+                merge_script,
+                "--prd",
+                str(prd_path),
+                "--research",
+                str(research_path),
+                "--test-stories",
+                str(test_stories_path),
+            ],
+            capture_output=True,
+            text=True,
             env={**os.environ, "SPIRAL_MAX_RESEARCH_STORIES": "5"},
         )
         assert result.returncode == 0, f"merge_stories.py failed:\n{result.stderr}"
@@ -197,11 +228,18 @@ class TestMaxResearchStoriesCap:
 
         merge_script = os.path.join(os.path.dirname(__file__), "..", "lib", "merge_stories.py")
         result = subprocess.run(
-            [sys.executable, merge_script,
-             "--prd", str(prd_path),
-             "--research", str(research_path),
-             "--test-stories", str(test_stories_path)],
-            capture_output=True, text=True,
+            [
+                sys.executable,
+                merge_script,
+                "--prd",
+                str(prd_path),
+                "--research",
+                str(research_path),
+                "--test-stories",
+                str(test_stories_path),
+            ],
+            capture_output=True,
+            text=True,
             env={**os.environ, "SPIRAL_MAX_RESEARCH_STORIES": "0"},
         )
         assert result.returncode == 0, f"merge_stories.py failed:\n{result.stderr}"

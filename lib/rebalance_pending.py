@@ -17,7 +17,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import sys
 from typing import Any
@@ -61,15 +60,18 @@ def _story_to_candidate(story: dict[str, Any]) -> dict[str, Any]:
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Enforce pending story cap in prd.json")
     parser.add_argument("--prd", required=True, help="Path to prd.json")
-    parser.add_argument("--candidate-out", required=True,
-                        help="Path to write/update candidate_us.json")
-    parser.add_argument("--overflow-out",
-                        help="Also merge evicted candidates here (for Phase M pickup)")
-    parser.add_argument("--max-pending", type=int, default=50,
-                        help="Maximum allowed pending (incomplete) stories in prd.json (default 50)")
+    parser.add_argument("--candidate-out", required=True, help="Path to write/update candidate_us.json")
+    parser.add_argument("--overflow-out", help="Also merge evicted candidates here (for Phase M pickup)")
+    parser.add_argument(
+        "--max-pending",
+        type=int,
+        default=50,
+        help="Maximum allowed pending (incomplete) stories in prd.json (default 50)",
+    )
     args = parser.parse_args()
 
     if args.max_pending <= 0:
@@ -89,12 +91,12 @@ def main() -> int:
 
     user_stories: list[dict[str, Any]] = prd["userStories"]
     pending = [s for s in user_stories if not s.get("passes", False)]
-    passed  = [s for s in user_stories if s.get("passes", False)]
+    passed = [s for s in user_stories if s.get("passes", False)]
 
     print(f"[rebalance] Pending: {len(pending)}, cap: {args.max_pending}")
 
     if len(pending) <= args.max_pending:
-        print(f"[rebalance] Within cap — no eviction needed")
+        print("[rebalance] Within cap — no eviction needed")
         return 0
 
     # ── Rank pending by importance ────────────────────────────────────────────
@@ -106,12 +108,17 @@ def main() -> int:
 
     print(f"[rebalance] Keeping {len(keep)} stories, evicting {len(evict)} → candidate_us.json")
     for s in evict:
-        print(f"[rebalance]   EVICT [{s.get('id','?')}] P={s.get('priority','?')} C={s.get('complexity','?')} — {s.get('title','')[:70]}")
+        print(
+            f"[rebalance]   EVICT [{s.get('id', '?')}] P={s.get('priority', '?')}"
+            f" C={s.get('complexity', '?')} — {s.get('title', '')[:70]}"
+        )
 
     # ── Update prd.json (keep passed + top-N pending) ─────────────────────────
     prd["userStories"] = passed + keep
     atomic_write_json(args.prd, prd)
-    print(f"[rebalance] prd.json updated: {len(prd['userStories'])} stories ({len(passed)} passed + {len(keep)} pending)")
+    print(
+        f"[rebalance] prd.json updated: {len(prd['userStories'])} stories ({len(passed)} passed + {len(keep)} pending)"
+    )
 
     # ── Convert evicted stories to candidate format ───────────────────────────
     new_candidates = [_story_to_candidate(s) for s in evict]
@@ -131,7 +138,10 @@ def main() -> int:
             added += 1
 
     atomic_write_json(args.candidate_out, existing_cand)
-    print(f"[rebalance] candidate_us.json: {added} new + {len(existing_cand['stories']) - added} existing = {len(existing_cand['stories'])} total")
+    print(
+        f"[rebalance] candidate_us.json: {added} new"
+        f" + {len(existing_cand['stories']) - added} existing = {len(existing_cand['stories'])} total"
+    )
 
     # ── Optionally merge into overflow file for Phase M pickup ────────────────
     if args.overflow_out:

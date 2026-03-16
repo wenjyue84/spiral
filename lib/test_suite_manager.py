@@ -33,6 +33,7 @@ Usage (CLI):
   python test_suite_manager.py status
   python test_suite_manager.py mark-obsolete --story-id US-042
 """
+
 import argparse
 import json
 import os
@@ -45,6 +46,7 @@ from typing import Any
 
 sys.path.insert(0, os.path.dirname(__file__))
 from spiral_io import atomic_write_json, configure_utf8_stdout
+
 configure_utf8_stdout()
 
 SUITE_TYPES = ["smoke", "regression", "performance", "security", "uat"]
@@ -52,19 +54,57 @@ SUITE_TYPES = ["smoke", "regression", "performance", "security", "uat"]
 # Keywords that classify a story into suite types
 _SUITE_KW: dict[str, set[str]] = {
     "smoke": {
-        "create", "read", "update", "delete", "list", "save", "load",
-        "start", "stop", "connect", "basic", "core", "main",
+        "create",
+        "read",
+        "update",
+        "delete",
+        "list",
+        "save",
+        "load",
+        "start",
+        "stop",
+        "connect",
+        "basic",
+        "core",
+        "main",
     },
     "regression": {
-        "fix", "bug", "patch", "correct", "revert", "restore", "broken",
+        "fix",
+        "bug",
+        "patch",
+        "correct",
+        "revert",
+        "restore",
+        "broken",
     },
     "performance": {
-        "performance", "speed", "cache", "slow", "optimize", "bulk",
-        "batch", "concurrent", "parallel", "load", "scale", "throughput",
+        "performance",
+        "speed",
+        "cache",
+        "slow",
+        "optimize",
+        "bulk",
+        "batch",
+        "concurrent",
+        "parallel",
+        "load",
+        "scale",
+        "throughput",
     },
     "security": {
-        "auth", "login", "token", "permission", "role", "password",
-        "secret", "encrypt", "jwt", "session", "oauth", "csrf", "xss",
+        "auth",
+        "login",
+        "token",
+        "permission",
+        "role",
+        "password",
+        "secret",
+        "encrypt",
+        "jwt",
+        "session",
+        "oauth",
+        "csrf",
+        "xss",
     },
 }
 
@@ -133,9 +173,7 @@ class TestSuiteManager:
             self.save(suite_type, suite)
         return count
 
-    def run_suite(
-        self, suite_type: str, iteration: int, repo_root: str = ".", timeout: int = 120
-    ) -> dict[str, Any]:
+    def run_suite(self, suite_type: str, iteration: int, repo_root: str = ".", timeout: int = 120) -> dict[str, Any]:
         """Run all non-obsolete tests with a runnable command. Returns summary dict."""
         suite = self.load(suite_type)
         active = [t for t in suite.get("tests", []) if not t.get("obsolete")]
@@ -225,9 +263,7 @@ class TestSuiteManager:
             "skipped": skipped,
         }
 
-    def generate_entry_from_story(
-        self, story: dict[str, Any], suite_type: str
-    ) -> dict[str, Any] | None:
+    def generate_entry_from_story(self, story: dict[str, Any], suite_type: str) -> dict[str, Any] | None:
         """Generate a test suite entry from a passed story. Returns None if not applicable."""
         sid = story.get("id", "")
         title = story.get("title", "")
@@ -289,9 +325,7 @@ def main() -> int:
 
     if args.cmd == "run":
         mgr = TestSuiteManager(args.suite_root)
-        summary = mgr.run_suite(
-            args.suite_type, args.iteration, args.repo_root, args.timeout
-        )
+        summary = mgr.run_suite(args.suite_type, args.iteration, args.repo_root, args.timeout)
         status = f"{summary['passed']}/{summary['total']} pass"
         if summary["failed"]:
             status += f", {summary['failed']} FAILED"

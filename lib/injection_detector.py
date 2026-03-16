@@ -19,6 +19,7 @@ Usage (CLI):
     python lib/injection_detector.py --prd prd.json --update-prd
     python lib/injection_detector.py --prd prd.json --allow-unsafe
 """
+
 from __future__ import annotations
 
 import argparse
@@ -27,13 +28,13 @@ import json
 import os
 import re
 import sys
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
 sys.path.insert(0, os.path.dirname(__file__))
 from spiral_io import atomic_write_json, configure_utf8_stdout
+
 configure_utf8_stdout()
 
 # ── OWASP LLM01:2025 Injection Pattern Catalogue ──────────────────────────────
@@ -45,28 +46,27 @@ _RAW_PATTERNS: list[tuple[str, str]] = [
     (r"\bignore\s+(all\s+)?previous\s+instructions?\b", "ignore_previous_instructions"),
     (r"\bdisregard\s+(all\s+)?previous\s+instructions?\b", "disregard_previous_instructions"),
     (r"\bforget\s+(all\s+)?previous\s+instructions?\b", "forget_previous_instructions"),
-
     # 2. System prompt override attempts
     (r"\bsystem\s*prompt\s*:?\s*override\b", "system_prompt_override"),
     (r"\bnew\s+system\s+prompt\b", "new_system_prompt"),
     (r"\byou\s+are\s+now\s+(a|an)\s+\w", "you_are_now_jailbreak"),
     (r"\byour\s+new\s+instructions?\s+(are|is)\b", "new_instructions_jailbreak"),
-    (r"\bact\s+as\s+(if\s+you\s+are\s+)?(a|an)\s+\w+\s+(without|that\s+has\s+no)\s+(restriction|filter|limit)", "act_as_unrestricted"),
-
+    (
+        r"\bact\s+as\s+(if\s+you\s+are\s+)?(a|an)\s+\w+\s+(without|that\s+has\s+no)\s+(restriction|filter|limit)",
+        "act_as_unrestricted",
+    ),
     # 3. DAN / STAN / Developer Mode jailbreak tokens
     (r"\bDAN\b", "jailbreak_token_DAN"),
     (r"\bSTAN\b", "jailbreak_token_STAN"),
     (r"\bJailbreak\b", "jailbreak_token_explicit"),
     (r"\bDeveloper\s+Mode\s+(enabled|unlocked|activated)\b", "developer_mode_jailbreak"),
     (r"\bDo\s+Anything\s+Now\b", "do_anything_now"),
-
     # 4. Prompt delimiter / injection via special tokens
     (r"<\|im_start\|>", "special_token_im_start"),
     (r"<\|im_end\|>", "special_token_im_end"),
     (r"\[INST\]", "llama_inst_tag"),
     (r"<\|system\|>", "special_token_system"),
     (r"\bHuman:\s*Ignore\b", "human_ignore_prefix"),
-
     # 5. Instruction override / manipulation phrases
     (r"\boverride\s+(your|all)\s+(safety|filter|guideline|restrict|rule|instruct)", "safety_override"),
     (r"\bbypass\s+(your|all)\s+(safety|filter|guideline|restrict|rule|instruct)", "safety_bypass"),
@@ -80,16 +80,15 @@ _RAW_PATTERNS: list[tuple[str, str]] = [
 
 # 6. Base64-encoded suspicious payloads — decoded and re-scanned
 _BASE64_PATTERN = re.compile(
-    r"(?<![A-Za-z0-9+/])"   # not preceded by base64 char
-    r"[A-Za-z0-9+/]{20,}"   # at least 20 chars of base64
-    r"={0,2}"               # optional padding
-    r"(?![A-Za-z0-9+/])",   # not followed by base64 char
+    r"(?<![A-Za-z0-9+/])"  # not preceded by base64 char
+    r"[A-Za-z0-9+/]{20,}"  # at least 20 chars of base64
+    r"={0,2}"  # optional padding
+    r"(?![A-Za-z0-9+/])",  # not followed by base64 char
     re.ASCII,
 )
 
 _COMPILED_PATTERNS: list[tuple[re.Pattern, str]] = [
-    (re.compile(raw, re.IGNORECASE), name)
-    for raw, name in _RAW_PATTERNS
+    (re.compile(raw, re.IGNORECASE), name) for raw, name in _RAW_PATTERNS
 ]
 
 # Text fields extracted from a story for scanning
@@ -226,9 +225,7 @@ def scan_prd_stories(
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(
-        description="Scan prd.json stories for OWASP LLM01:2025 prompt injection patterns."
-    )
+    p = argparse.ArgumentParser(description="Scan prd.json stories for OWASP LLM01:2025 prompt injection patterns.")
     p.add_argument("--prd", default="prd.json", help="Path to prd.json")
     p.add_argument(
         "--audit-log",

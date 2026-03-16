@@ -5,10 +5,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
-import textwrap
 from pathlib import Path
-
-import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
 
@@ -19,12 +16,10 @@ from auto_release import (
     BUMP_PATCH,
     Commit,
     _classify_bump,
-    _last_version_tag,
     _next_version,
     _write_changelog,
     main,
 )
-
 
 # ── _classify_bump ────────────────────────────────────────────────────────────
 
@@ -160,25 +155,25 @@ def _init_git_repo(path: Path) -> None:
     subprocess.run(["git", "init", str(path)], check=True, capture_output=True)
     subprocess.run(
         ["git", "-C", str(path), "config", "user.email", "test@test.com"],
-        check=True, capture_output=True,
+        check=True,
+        capture_output=True,
     )
     subprocess.run(
         ["git", "-C", str(path), "config", "user.name", "Test"],
-        check=True, capture_output=True,
+        check=True,
+        capture_output=True,
     )
     (path / "README.md").write_text("hello")
     subprocess.run(["git", "-C", str(path), "add", "."], check=True, capture_output=True)
     subprocess.run(
         ["git", "-C", str(path), "commit", "-m", "chore: initial commit"],
-        check=True, capture_output=True,
+        check=True,
+        capture_output=True,
     )
 
 
 def _make_prd(path: Path, n_passed: int = 2) -> Path:
-    stories = [
-        {"id": f"US-{i:03d}", "title": f"Story {i}", "passes": True}
-        for i in range(n_passed)
-    ]
+    stories = [{"id": f"US-{i:03d}", "title": f"Story {i}", "passes": True} for i in range(n_passed)]
     prd = {"userStories": stories}
     prd_path = path / "prd.json"
     prd_path.write_text(json.dumps(prd))
@@ -199,7 +194,8 @@ class TestMainIntegration:
         subprocess.run(["git", "-C", str(tmp_path), "add", "."], check=True, capture_output=True)
         subprocess.run(
             ["git", "-C", str(tmp_path), "commit", "-m", "feat: add new feature"],
-            check=True, capture_output=True,
+            check=True,
+            capture_output=True,
         )
         prd = _make_prd(tmp_path)
         rc = main(["--prd", str(prd), "--repo", str(tmp_path)])
@@ -207,7 +203,8 @@ class TestMainIntegration:
         # Check tag exists
         result = subprocess.run(
             ["git", "-C", str(tmp_path), "tag", "-l", "v*"],
-            capture_output=True, text=True,
+            capture_output=True,
+            text=True,
         )
         assert "v0.1.0" in result.stdout
 
@@ -216,20 +213,23 @@ class TestMainIntegration:
         # Tag v1.0.0 first
         subprocess.run(
             ["git", "-C", str(tmp_path), "tag", "-a", "v1.0.0", "-m", "initial"],
-            check=True, capture_output=True,
+            check=True,
+            capture_output=True,
         )
         (tmp_path / "fix.txt").write_text("fix")
         subprocess.run(["git", "-C", str(tmp_path), "add", "."], check=True, capture_output=True)
         subprocess.run(
             ["git", "-C", str(tmp_path), "commit", "-m", "fix: correct a bug"],
-            check=True, capture_output=True,
+            check=True,
+            capture_output=True,
         )
         prd = _make_prd(tmp_path)
         rc = main(["--prd", str(prd), "--repo", str(tmp_path)])
         assert rc == 0
         result = subprocess.run(
             ["git", "-C", str(tmp_path), "tag", "-l", "v*"],
-            capture_output=True, text=True,
+            capture_output=True,
+            text=True,
         )
         assert "v1.0.1" in result.stdout
 
@@ -239,14 +239,16 @@ class TestMainIntegration:
         subprocess.run(["git", "-C", str(tmp_path), "add", "."], check=True, capture_output=True)
         subprocess.run(
             ["git", "-C", str(tmp_path), "commit", "-m", "feat: something"],
-            check=True, capture_output=True,
+            check=True,
+            capture_output=True,
         )
         prd = _make_prd(tmp_path)
         rc = main(["--prd", str(prd), "--repo", str(tmp_path), "--dry-run"])
         assert rc == 0
         result = subprocess.run(
             ["git", "-C", str(tmp_path), "tag", "-l", "v*"],
-            capture_output=True, text=True,
+            capture_output=True,
+            text=True,
         )
         assert result.stdout.strip() == ""
 
@@ -256,7 +258,8 @@ class TestMainIntegration:
         subprocess.run(["git", "-C", str(tmp_path), "add", "."], check=True, capture_output=True)
         subprocess.run(
             ["git", "-C", str(tmp_path), "commit", "-m", "feat: cool feature"],
-            check=True, capture_output=True,
+            check=True,
+            capture_output=True,
         )
         prd = _make_prd(tmp_path, n_passed=3)
         rc = main(["--prd", str(prd), "--repo", str(tmp_path)])

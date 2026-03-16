@@ -1,16 +1,18 @@
 """Unit tests for lib/route_stories.py - story model annotation and routing."""
+
 import json
 import os
 import sys
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 
 from route_stories import route_stories
 
-
 # ── Helpers ────────────────────────────────────────────────────────────────
+
 
 def make_prd(stories):
     return {
@@ -47,6 +49,7 @@ def read_prd(tmp_path):
 
 # ── Profile assignment tests ────────────────────────────────────────────────
 
+
 class TestHaikuProfile:
     def test_haiku_assigns_haiku_to_all_pending(self, tmp_path):
         prd = make_prd([make_story("US-001"), make_story("US-002")])
@@ -73,10 +76,11 @@ class TestOpusProfile:
 
 # ── Passed-story filtering ──────────────────────────────────────────────────
 
+
 class TestPassedStoriesFiltered:
     def test_passed_stories_not_reannotated(self, tmp_path):
         stories = [
-            make_story("US-001", passes=True),   # already done — must not be touched
+            make_story("US-001", passes=True),  # already done — must not be touched
             make_story("US-002", passes=False),  # pending — must be annotated
         ]
         prd_path = write_prd(tmp_path, make_prd(stories))
@@ -93,6 +97,7 @@ class TestPassedStoriesFiltered:
 
 # ── Model overwrite ─────────────────────────────────────────────────────────
 
+
 class TestModelOverwrite:
     def test_existing_model_overwritten_on_reroute(self, tmp_path):
         """A story already annotated with 'haiku' is overwritten when re-routed with 'opus'."""
@@ -105,6 +110,7 @@ class TestModelOverwrite:
 
 
 # ── Atomic write ────────────────────────────────────────────────────────────
+
 
 class TestAtomicWrite:
     def test_atomic_write_produces_valid_json(self, tmp_path):
@@ -128,6 +134,7 @@ class TestAtomicWrite:
 
 # ── Missing PRD ─────────────────────────────────────────────────────────────
 
+
 class TestMissingPrd:
     def test_missing_prd_raises_file_not_found(self, tmp_path):
         prd_path = str(tmp_path / "nonexistent.json")
@@ -137,6 +144,7 @@ class TestMissingPrd:
 
 
 # ── Auto profile ────────────────────────────────────────────────────────────
+
 
 class TestAutoProfile:
     def test_auto_complex_story_gets_sonnet(self, tmp_path):

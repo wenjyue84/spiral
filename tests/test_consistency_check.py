@@ -2,13 +2,12 @@
 """Tests for lib/consistency_check.py (US-228)"""
 
 import json
+import os
+import sys
 import tempfile
 from pathlib import Path
 
 import pytest
-
-import sys
-import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 
@@ -210,9 +209,7 @@ class TestFlagStoriesInPrd:
 
     def test_skip_consistency_check_flag(self):
         """--skip-consistency-check should prevent PRD modifications."""
-        prd = {
-            "userStories": [{"id": "US-001", "title": "Story 1", "passes": False}]
-        }
+        prd = {"userStories": [{"id": "US-001", "title": "Story 1", "passes": False}]}
         reports = [
             {
                 "story_id": "US-001",

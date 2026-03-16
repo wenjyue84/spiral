@@ -1,10 +1,10 @@
 """Integration tests for run_parallel_ralph.sh parallel orchestration."""
+
 import json
 import os
-import sys
 import shutil
+import sys
 from pathlib import Path
-import pytest
 
 # Ensure lib/ is importable
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
@@ -49,8 +49,6 @@ def _read_prd(path):
         return json.load(f)
 
 
-
-
 class TestParallelOrchestration:
     """Test run_parallel_ralph.sh orchestration with 2 workers."""
 
@@ -59,26 +57,32 @@ class TestParallelOrchestration:
         # This test validates the orchestration concept without executing the full script
 
         # Create initial PRD with 3 stories
-        prd = _make_prd([
-            _make_story("US-001"),
-            _make_story("US-002"),
-            _make_story("US-003"),
-        ])
+        prd = _make_prd(
+            [
+                _make_story("US-001"),
+                _make_story("US-002"),
+                _make_story("US-003"),
+            ]
+        )
         prd_file = _write_prd(tmp_path / "prd.json", prd)
 
         # Simulate what 2 workers would do:
         # Worker 1 processes: US-001, US-002
         # Worker 2 processes: US-003
 
-        worker_1_prd = _make_prd([
-            _make_story("US-001", passes=True),  # Worker 1 passes first story
-            _make_story("US-002"),
-        ])
+        worker_1_prd = _make_prd(
+            [
+                _make_story("US-001", passes=True),  # Worker 1 passes first story
+                _make_story("US-002"),
+            ]
+        )
         worker_1_file = _write_prd(tmp_path / "w1.json", worker_1_prd)
 
-        worker_2_prd = _make_prd([
-            _make_story("US-003", passes=True),  # Worker 2 passes its story
-        ])
+        worker_2_prd = _make_prd(
+            [
+                _make_story("US-003", passes=True),  # Worker 2 passes its story
+            ]
+        )
         worker_2_file = _write_prd(tmp_path / "w2.json", worker_2_prd)
 
         # Merge results from both workers back to main PRD
@@ -130,16 +134,20 @@ class TestParallelOrchestration:
         # This tests the conceptual merging behavior without running full orchestration
 
         # Create main and worker PRDs
-        main_prd = _make_prd([
-            _make_story("US-001"),
-            _make_story("US-002"),
-            _make_story("US-003"),
-        ])
+        main_prd = _make_prd(
+            [
+                _make_story("US-001"),
+                _make_story("US-002"),
+                _make_story("US-003"),
+            ]
+        )
 
-        worker_prd = _make_prd([
-            _make_story("US-001", passes=True),  # Worker processed this
-            _make_story("US-002"),
-        ])
+        worker_prd = _make_prd(
+            [
+                _make_story("US-001", passes=True),  # Worker processed this
+                _make_story("US-002"),
+            ]
+        )
 
         main_path = _write_prd(tmp_path / "main.json", main_prd)
         worker_path = _write_prd(tmp_path / "worker.json", worker_prd)
@@ -168,24 +176,30 @@ class TestParallelOrchestration:
         # Simulate orchestration with one worker succeeding and one failing
 
         # Create PRD with 3 stories
-        main_prd = _make_prd([
-            _make_story("US-001"),
-            _make_story("US-002"),
-            _make_story("US-003"),
-        ])
+        main_prd = _make_prd(
+            [
+                _make_story("US-001"),
+                _make_story("US-002"),
+                _make_story("US-003"),
+            ]
+        )
         prd_file = _write_prd(tmp_path / "prd.json", main_prd)
 
         # Worker 1 fails (processes nothing)
-        worker_1_prd = _make_prd([
-            _make_story("US-001"),  # Still pending
-            _make_story("US-002"),
-        ])
+        worker_1_prd = _make_prd(
+            [
+                _make_story("US-001"),  # Still pending
+                _make_story("US-002"),
+            ]
+        )
         worker_1_file = _write_prd(tmp_path / "w1.json", worker_1_prd)
 
         # Worker 2 succeeds (processes US-003)
-        worker_2_prd = _make_prd([
-            _make_story("US-003", passes=True),
-        ])
+        worker_2_prd = _make_prd(
+            [
+                _make_story("US-003", passes=True),
+            ]
+        )
         worker_2_file = _write_prd(tmp_path / "w2.json", worker_2_prd)
 
         # Even though worker 1 failed, merge worker 2's successful result
@@ -231,6 +245,7 @@ class TestPnpmDeduplication:
         dst = worktree / "pnpm-workspace.yaml"
         if src.exists():
             import shutil
+
             shutil.copy(str(src), str(dst))
 
         assert dst.exists(), "pnpm-workspace.yaml should be copied to worktree"
@@ -248,6 +263,7 @@ class TestPnpmDeduplication:
         dst = worktree / "pnpm-workspace.yaml"
         if src.exists():
             import shutil
+
             shutil.copy(str(src), str(dst))
 
         assert not dst.exists(), "No copy should happen when source is absent"
@@ -255,14 +271,13 @@ class TestPnpmDeduplication:
     def test_spiral_skip_pnpm_dedup_env_var(self, tmp_path):
         """AC: SPIRAL_SKIP_PNPM_DEDUP=1 disables pnpm deduplication logic."""
         import os
-        import subprocess
 
         # The env var check is in bash; simulate by checking the logic
         skip_dedup = os.environ.get("SPIRAL_SKIP_PNPM_DEDUP", "0")
 
         # When SPIRAL_SKIP_PNPM_DEDUP=1, pnpm logic should be skipped
         # We validate the guard condition: skip_dedup != "1" means enabled
-        should_use_pnpm = (skip_dedup != "1")
+        should_use_pnpm = skip_dedup != "1"
 
         # With default env (SPIRAL_SKIP_PNPM_DEDUP not set), dedup is enabled
         assert should_use_pnpm is True, "pnpm dedup should be enabled by default"
@@ -272,7 +287,7 @@ class TestPnpmDeduplication:
         os.environ["SPIRAL_SKIP_PNPM_DEDUP"] = "1"
         try:
             skip_dedup = os.environ.get("SPIRAL_SKIP_PNPM_DEDUP", "0")
-            should_use_pnpm = (skip_dedup != "1")
+            should_use_pnpm = skip_dedup != "1"
             assert should_use_pnpm is False, "pnpm dedup should be disabled when SPIRAL_SKIP_PNPM_DEDUP=1"
         finally:
             if old_val is None:
@@ -352,10 +367,12 @@ class TestParallelMockRalph:
 
     def test_mock_ralph_pass_first_behavior(self, tmp_path):
         """Mock ralph can mark first pending story as passing."""
-        prd = _make_prd([
-            _make_story("US-001"),
-            _make_story("US-002"),
-        ])
+        prd = _make_prd(
+            [
+                _make_story("US-001"),
+                _make_story("US-002"),
+            ]
+        )
         prd_file = _write_prd(tmp_path / "prd.json", prd)
 
         # Apply behavior directly
@@ -368,11 +385,13 @@ class TestParallelMockRalph:
 
     def test_mock_ralph_pass_all_behavior(self, tmp_path):
         """Mock ralph can mark all pending stories as passing."""
-        prd = _make_prd([
-            _make_story("US-001"),
-            _make_story("US-002"),
-            _make_story("US-003"),
-        ])
+        prd = _make_prd(
+            [
+                _make_story("US-001"),
+                _make_story("US-002"),
+                _make_story("US-003"),
+            ]
+        )
         prd_file = _write_prd(tmp_path / "prd.json", prd)
 
         # Apply behavior directly
@@ -383,10 +402,12 @@ class TestParallelMockRalph:
 
     def test_mock_ralph_with_no_pending_stories(self, tmp_path):
         """Mock ralph handles case where all stories already passed."""
-        prd = _make_prd([
-            _make_story("US-001", passes=True),
-            _make_story("US-002", passes=True),
-        ])
+        prd = _make_prd(
+            [
+                _make_story("US-001", passes=True),
+                _make_story("US-002", passes=True),
+            ]
+        )
         prd_file = _write_prd(tmp_path / "prd.json", prd)
 
         # Apply behavior directly

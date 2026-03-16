@@ -1,12 +1,12 @@
 """Tests for main.py CLI (spiral entrypoint)."""
+
 import json
 import os
 import sys
-import subprocess
 import time
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -15,8 +15,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import main  # noqa: E402
 
-
 # ── Helpers ────────────────────────────────────────────────────────────────
+
 
 def _make_prd(tmp_path, stories):
     prd = {
@@ -38,7 +38,11 @@ def _make_retry_counts(tmp_path, counts: dict):
 def _make_results_tsv(tmp_path, rows: list[dict]):
     p = tmp_path / "results.tsv"
     if not rows:
-        p.write_text("timestamp\tspiral_iter\tralph_iter\tstory_id\tstory_title\tstatus\tduration_sec\tmodel\tretry_num\tcommit_sha\n", encoding="utf-8")
+        p.write_text(
+            "timestamp\tspiral_iter\tralph_iter\tstory_id\tstory_title"
+            "\tstatus\tduration_sec\tmodel\tretry_num\tcommit_sha\n",
+            encoding="utf-8",
+        )
         return p
     headers = list(rows[0].keys())
     lines = ["\t".join(headers)]
@@ -74,19 +78,25 @@ def _patch_paths(tmp_path, prd_path, retry_path=None, results_path=None, checkpo
 
 # ── status table output ────────────────────────────────────────────────────
 
+
 class TestCmdStatusTable:
     def test_table_has_all_status_rows(self, tmp_path, capsys):
         """status table contains passed / in_progress / skipped / pending rows."""
-        prd_path = _make_prd(tmp_path, [
-            {"id": "US-001", "title": "A", "passes": True},
-            {"id": "US-002", "title": "B", "passes": False},
-            {"id": "US-003", "title": "C", "passes": False, "_skipped": True},
-        ])
+        prd_path = _make_prd(
+            tmp_path,
+            [
+                {"id": "US-001", "title": "A", "passes": True},
+                {"id": "US-002", "title": "B", "passes": False},
+                {"id": "US-003", "title": "C", "passes": False, "_skipped": True},
+            ],
+        )
         retry_path = _make_retry_counts(tmp_path, {"US-002": 1})
-        with patch.object(main, "PRD_FILE", prd_path), \
-             patch.object(main, "RETRY_COUNTS", retry_path), \
-             patch.object(main, "RESULTS_TSV", tmp_path / "no.tsv"), \
-             patch.object(main, "CHECKPOINT_FILE", tmp_path / "no-ckpt.json"):
+        with (
+            patch.object(main, "PRD_FILE", prd_path),
+            patch.object(main, "RETRY_COUNTS", retry_path),
+            patch.object(main, "RESULTS_TSV", tmp_path / "no.tsv"),
+            patch.object(main, "CHECKPOINT_FILE", tmp_path / "no-ckpt.json"),
+        ):
             main.cmd_status(_args())
 
         out = capsys.readouterr().out
@@ -97,16 +107,17 @@ class TestCmdStatusTable:
 
     def test_table_shows_correct_counts(self, tmp_path, capsys):
         """Counts in table match actual story distribution."""
-        stories = (
-            [{"id": f"US-{i:03d}", "title": f"S{i}", "passes": True} for i in range(5)]
-            + [{"id": f"US-{i:03d}", "title": f"S{i}", "passes": False} for i in range(5, 8)]
-        )
+        stories = [{"id": f"US-{i:03d}", "title": f"S{i}", "passes": True} for i in range(5)] + [
+            {"id": f"US-{i:03d}", "title": f"S{i}", "passes": False} for i in range(5, 8)
+        ]
         prd_path = _make_prd(tmp_path, stories)
         retry_path = _make_retry_counts(tmp_path, {"US-006": 2})
-        with patch.object(main, "PRD_FILE", prd_path), \
-             patch.object(main, "RETRY_COUNTS", retry_path), \
-             patch.object(main, "RESULTS_TSV", tmp_path / "no.tsv"), \
-             patch.object(main, "CHECKPOINT_FILE", tmp_path / "no-ckpt.json"):
+        with (
+            patch.object(main, "PRD_FILE", prd_path),
+            patch.object(main, "RETRY_COUNTS", retry_path),
+            patch.object(main, "RESULTS_TSV", tmp_path / "no.tsv"),
+            patch.object(main, "CHECKPOINT_FILE", tmp_path / "no-ckpt.json"),
+        ):
             main.cmd_status(_args())
 
         out = capsys.readouterr().out
@@ -116,11 +127,13 @@ class TestCmdStatusTable:
     def test_table_shows_run_id_header(self, tmp_path, capsys):
         """Header contains SPIRAL_RUN_ID when set via env var."""
         prd_path = _make_prd(tmp_path, [{"id": "US-001", "title": "A", "passes": True}])
-        with patch.object(main, "PRD_FILE", prd_path), \
-             patch.object(main, "RETRY_COUNTS", tmp_path / "no.json"), \
-             patch.object(main, "RESULTS_TSV", tmp_path / "no.tsv"), \
-             patch.object(main, "CHECKPOINT_FILE", tmp_path / "no-ckpt.json"), \
-             patch.dict(os.environ, {"SPIRAL_RUN_ID": "run-xyz-42"}):
+        with (
+            patch.object(main, "PRD_FILE", prd_path),
+            patch.object(main, "RETRY_COUNTS", tmp_path / "no.json"),
+            patch.object(main, "RESULTS_TSV", tmp_path / "no.tsv"),
+            patch.object(main, "CHECKPOINT_FILE", tmp_path / "no-ckpt.json"),
+            patch.dict(os.environ, {"SPIRAL_RUN_ID": "run-xyz-42"}),
+        ):
             main.cmd_status(_args())
 
         out = capsys.readouterr().out
@@ -129,15 +142,29 @@ class TestCmdStatusTable:
     def test_table_iteration_from_results_tsv(self, tmp_path, capsys):
         """Iteration number is read from results.tsv when no checkpoint exists."""
         prd_path = _make_prd(tmp_path, [{"id": "US-001", "title": "A", "passes": True}])
-        results_path = _make_results_tsv(tmp_path, [
-            {"timestamp": "2026-01-01T00:00:00Z", "spiral_iter": "7", "ralph_iter": "1",
-             "story_id": "US-001", "story_title": "A", "status": "pass",
-             "duration_sec": "100", "model": "haiku", "retry_num": "0", "commit_sha": "abc"},
-        ])
-        with patch.object(main, "PRD_FILE", prd_path), \
-             patch.object(main, "RETRY_COUNTS", tmp_path / "no.json"), \
-             patch.object(main, "RESULTS_TSV", results_path), \
-             patch.object(main, "CHECKPOINT_FILE", tmp_path / "no-ckpt.json"):
+        results_path = _make_results_tsv(
+            tmp_path,
+            [
+                {
+                    "timestamp": "2026-01-01T00:00:00Z",
+                    "spiral_iter": "7",
+                    "ralph_iter": "1",
+                    "story_id": "US-001",
+                    "story_title": "A",
+                    "status": "pass",
+                    "duration_sec": "100",
+                    "model": "haiku",
+                    "retry_num": "0",
+                    "commit_sha": "abc",
+                },
+            ],
+        )
+        with (
+            patch.object(main, "PRD_FILE", prd_path),
+            patch.object(main, "RETRY_COUNTS", tmp_path / "no.json"),
+            patch.object(main, "RESULTS_TSV", results_path),
+            patch.object(main, "CHECKPOINT_FILE", tmp_path / "no-ckpt.json"),
+        ):
             main.cmd_status(_args())
 
         out = capsys.readouterr().out
@@ -147,10 +174,12 @@ class TestCmdStatusTable:
         """Total story count is shown in output."""
         stories = [{"id": f"US-{i:03d}", "title": f"S{i}", "passes": i < 3} for i in range(6)]
         prd_path = _make_prd(tmp_path, stories)
-        with patch.object(main, "PRD_FILE", prd_path), \
-             patch.object(main, "RETRY_COUNTS", tmp_path / "no.json"), \
-             patch.object(main, "RESULTS_TSV", tmp_path / "no.tsv"), \
-             patch.object(main, "CHECKPOINT_FILE", tmp_path / "no-ckpt.json"):
+        with (
+            patch.object(main, "PRD_FILE", prd_path),
+            patch.object(main, "RETRY_COUNTS", tmp_path / "no.json"),
+            patch.object(main, "RESULTS_TSV", tmp_path / "no.tsv"),
+            patch.object(main, "CHECKPOINT_FILE", tmp_path / "no-ckpt.json"),
+        ):
             main.cmd_status(_args())
 
         out = capsys.readouterr().out
@@ -159,17 +188,23 @@ class TestCmdStatusTable:
 
 # ── status --json output ───────────────────────────────────────────────────
 
+
 class TestCmdStatusJson:
     def test_json_structure(self, tmp_path, capsys):
         """--json outputs valid JSON with expected top-level keys."""
-        prd_path = _make_prd(tmp_path, [
-            {"id": "US-001", "title": "A", "passes": True},
-            {"id": "US-002", "title": "B", "passes": False},
-        ])
-        with patch.object(main, "PRD_FILE", prd_path), \
-             patch.object(main, "RETRY_COUNTS", tmp_path / "no.json"), \
-             patch.object(main, "RESULTS_TSV", tmp_path / "no.tsv"), \
-             patch.object(main, "CHECKPOINT_FILE", tmp_path / "no-ckpt.json"):
+        prd_path = _make_prd(
+            tmp_path,
+            [
+                {"id": "US-001", "title": "A", "passes": True},
+                {"id": "US-002", "title": "B", "passes": False},
+            ],
+        )
+        with (
+            patch.object(main, "PRD_FILE", prd_path),
+            patch.object(main, "RETRY_COUNTS", tmp_path / "no.json"),
+            patch.object(main, "RESULTS_TSV", tmp_path / "no.tsv"),
+            patch.object(main, "CHECKPOINT_FILE", tmp_path / "no-ckpt.json"),
+        ):
             main.cmd_status(_args(json_flag=True))
 
         out = capsys.readouterr().out
@@ -181,13 +216,18 @@ class TestCmdStatusJson:
 
     def test_json_statuses_has_all_buckets(self, tmp_path, capsys):
         """statuses dict contains passed / in_progress / skipped / pending."""
-        prd_path = _make_prd(tmp_path, [
-            {"id": "US-001", "title": "A", "passes": True},
-        ])
-        with patch.object(main, "PRD_FILE", prd_path), \
-             patch.object(main, "RETRY_COUNTS", tmp_path / "no.json"), \
-             patch.object(main, "RESULTS_TSV", tmp_path / "no.tsv"), \
-             patch.object(main, "CHECKPOINT_FILE", tmp_path / "no-ckpt.json"):
+        prd_path = _make_prd(
+            tmp_path,
+            [
+                {"id": "US-001", "title": "A", "passes": True},
+            ],
+        )
+        with (
+            patch.object(main, "PRD_FILE", prd_path),
+            patch.object(main, "RETRY_COUNTS", tmp_path / "no.json"),
+            patch.object(main, "RESULTS_TSV", tmp_path / "no.tsv"),
+            patch.object(main, "CHECKPOINT_FILE", tmp_path / "no-ckpt.json"),
+        ):
             main.cmd_status(_args(json_flag=True))
 
         data = json.loads(capsys.readouterr().out)
@@ -199,17 +239,22 @@ class TestCmdStatusJson:
 
     def test_json_counts_correct(self, tmp_path, capsys):
         """JSON counts match actual story distribution."""
-        prd_path = _make_prd(tmp_path, [
-            {"id": "US-001", "title": "A", "passes": True},
-            {"id": "US-002", "title": "B", "passes": True},
-            {"id": "US-003", "title": "C", "passes": False},
-            {"id": "US-004", "title": "D", "passes": False, "_skipped": True},
-        ])
+        prd_path = _make_prd(
+            tmp_path,
+            [
+                {"id": "US-001", "title": "A", "passes": True},
+                {"id": "US-002", "title": "B", "passes": True},
+                {"id": "US-003", "title": "C", "passes": False},
+                {"id": "US-004", "title": "D", "passes": False, "_skipped": True},
+            ],
+        )
         retry_path = _make_retry_counts(tmp_path, {"US-003": 1})
-        with patch.object(main, "PRD_FILE", prd_path), \
-             patch.object(main, "RETRY_COUNTS", retry_path), \
-             patch.object(main, "RESULTS_TSV", tmp_path / "no.tsv"), \
-             patch.object(main, "CHECKPOINT_FILE", tmp_path / "no-ckpt.json"):
+        with (
+            patch.object(main, "PRD_FILE", prd_path),
+            patch.object(main, "RETRY_COUNTS", retry_path),
+            patch.object(main, "RESULTS_TSV", tmp_path / "no.tsv"),
+            patch.object(main, "CHECKPOINT_FILE", tmp_path / "no-ckpt.json"),
+        ):
             main.cmd_status(_args(json_flag=True))
 
         data = json.loads(capsys.readouterr().out)
@@ -221,15 +266,20 @@ class TestCmdStatusJson:
 
     def test_json_avg_retry_count(self, tmp_path, capsys):
         """avg_retry_count computed correctly per status group."""
-        prd_path = _make_prd(tmp_path, [
-            {"id": "US-001", "title": "A", "passes": False},
-            {"id": "US-002", "title": "B", "passes": False},
-        ])
+        prd_path = _make_prd(
+            tmp_path,
+            [
+                {"id": "US-001", "title": "A", "passes": False},
+                {"id": "US-002", "title": "B", "passes": False},
+            ],
+        )
         retry_path = _make_retry_counts(tmp_path, {"US-001": 2, "US-002": 4})
-        with patch.object(main, "PRD_FILE", prd_path), \
-             patch.object(main, "RETRY_COUNTS", retry_path), \
-             patch.object(main, "RESULTS_TSV", tmp_path / "no.tsv"), \
-             patch.object(main, "CHECKPOINT_FILE", tmp_path / "no-ckpt.json"):
+        with (
+            patch.object(main, "PRD_FILE", prd_path),
+            patch.object(main, "RETRY_COUNTS", retry_path),
+            patch.object(main, "RESULTS_TSV", tmp_path / "no.tsv"),
+            patch.object(main, "CHECKPOINT_FILE", tmp_path / "no-ckpt.json"),
+        ):
             main.cmd_status(_args(json_flag=True))
 
         data = json.loads(capsys.readouterr().out)
@@ -240,10 +290,12 @@ class TestCmdStatusJson:
         """All percentage values sum to ~100%."""
         stories = [{"id": f"US-{i:03d}", "title": f"S{i}", "passes": i < 5} for i in range(10)]
         prd_path = _make_prd(tmp_path, stories)
-        with patch.object(main, "PRD_FILE", prd_path), \
-             patch.object(main, "RETRY_COUNTS", tmp_path / "no.json"), \
-             patch.object(main, "RESULTS_TSV", tmp_path / "no.tsv"), \
-             patch.object(main, "CHECKPOINT_FILE", tmp_path / "no-ckpt.json"):
+        with (
+            patch.object(main, "PRD_FILE", prd_path),
+            patch.object(main, "RETRY_COUNTS", tmp_path / "no.json"),
+            patch.object(main, "RESULTS_TSV", tmp_path / "no.tsv"),
+            patch.object(main, "CHECKPOINT_FILE", tmp_path / "no-ckpt.json"),
+        ):
             main.cmd_status(_args(json_flag=True))
 
         data = json.loads(capsys.readouterr().out)
@@ -252,6 +304,7 @@ class TestCmdStatusJson:
 
 
 # ── story classification ───────────────────────────────────────────────────
+
 
 class TestClassifyStories:
     def test_passed_story(self):
@@ -279,6 +332,7 @@ class TestClassifyStories:
 
 # ── missing prd.json ───────────────────────────────────────────────────────
 
+
 class TestCmdStatusMissingPrd:
     def test_status_no_prd_exits_1(self, tmp_path):
         """status exits with code 1 when prd.json missing."""
@@ -291,18 +345,18 @@ class TestCmdStatusMissingPrd:
 
 # ── performance ────────────────────────────────────────────────────────────
 
+
 class TestCmdStatusPerformance:
     def test_completes_under_1_second(self, tmp_path, capsys):
         """spiral status completes in < 1 second on a realistic prd.json."""
-        stories = [
-            {"id": f"US-{i:03d}", "title": f"Story {i}", "passes": i % 3 == 0}
-            for i in range(200)
-        ]
+        stories = [{"id": f"US-{i:03d}", "title": f"Story {i}", "passes": i % 3 == 0} for i in range(200)]
         prd_path = _make_prd(tmp_path, stories)
-        with patch.object(main, "PRD_FILE", prd_path), \
-             patch.object(main, "RETRY_COUNTS", tmp_path / "no.json"), \
-             patch.object(main, "RESULTS_TSV", tmp_path / "no.tsv"), \
-             patch.object(main, "CHECKPOINT_FILE", tmp_path / "no-ckpt.json"):
+        with (
+            patch.object(main, "PRD_FILE", prd_path),
+            patch.object(main, "RETRY_COUNTS", tmp_path / "no.json"),
+            patch.object(main, "RESULTS_TSV", tmp_path / "no.tsv"),
+            patch.object(main, "CHECKPOINT_FILE", tmp_path / "no-ckpt.json"),
+        ):
             t0 = time.monotonic()
             main.cmd_status(_args())
             elapsed = time.monotonic() - t0
@@ -311,6 +365,7 @@ class TestCmdStatusPerformance:
 
 
 # ── init calls setup.py ───────────────────────────────────────────────────
+
 
 class TestCmdInit:
     def test_init_calls_setup_py(self):
@@ -336,6 +391,7 @@ class TestCmdInit:
 
 
 # ── config export-env ─────────────────────────────────────────────────────────
+
 
 class TestCmdConfigExportEnv:
     """Tests for cmd_config_export_env (US-291)."""
@@ -435,10 +491,9 @@ class TestCmdConfigExportEnv:
 
 # ── US-216: status --tree ───────────────────────────────────────────────────
 
+
 def _tree_args(quiet=False):
-    return SimpleNamespace(
-        json=False, drift=False, sast=False, tree=True, quiet=quiet
-    )
+    return SimpleNamespace(json=False, drift=False, sast=False, tree=True, quiet=quiet)
 
 
 class TestCmdStatusTree:
@@ -484,11 +539,11 @@ class TestCmdStatusTree:
         ]
         out = self._run(tmp_path, stories, capsys)
         lines = [ln for ln in out.splitlines() if ln.strip()]
-        parent_idx = next(i for i, l in enumerate(lines) if "US-001" in l)
-        child_idx  = next(i for i, l in enumerate(lines) if "US-002" in l)
+        parent_idx = next(i for i, line in enumerate(lines) if "US-001" in line)
+        child_idx = next(i for i, line in enumerate(lines) if "US-002" in line)
         assert child_idx > parent_idx, "child must appear after parent"
         parent_indent = len(lines[parent_idx]) - len(lines[parent_idx].lstrip("+`|-\u251c\u2514\u2502 "))
-        child_indent  = len(lines[child_idx])  - len(lines[child_idx].lstrip("+`|-\u251c\u2514\u2502 "))
+        child_indent = len(lines[child_idx]) - len(lines[child_idx].lstrip("+`|-\u251c\u2514\u2502 "))
         assert child_indent > parent_indent, "child line must have more leading chars than parent"
 
     def test_cycle_marker_shown(self, tmp_path, capsys):

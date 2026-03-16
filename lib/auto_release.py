@@ -30,7 +30,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import NamedTuple
 
-
 # ── Conventional commit parsing ───────────────────────────────────────────────
 
 _BREAKING_RE = re.compile(r"^BREAKING[- ]CHANGE:", re.MULTILINE)
@@ -150,15 +149,12 @@ def _next_version(current: str | None, bump: int) -> str:
 
 # ── CHANGELOG writer ──────────────────────────────────────────────────────────
 
+
 def _story_titles(prd_path: Path) -> list[str]:
     """Return titles of all passed stories."""
     try:
         prd = json.loads(prd_path.read_text(encoding="utf-8"))
-        return [
-            s["title"]
-            for s in prd.get("userStories", [])
-            if s.get("passes") is True
-        ]
+        return [s["title"] for s in prd.get("userStories", []) if s.get("passes") is True]
     except Exception:
         return []
 
@@ -224,15 +220,12 @@ def _write_changelog(
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
+
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        description="Semantic version bump on SPIRAL completion"
-    )
+    parser = argparse.ArgumentParser(description="Semantic version bump on SPIRAL completion")
     parser.add_argument("--prd", required=True, help="Path to prd.json")
     parser.add_argument("--repo", required=True, help="Repository root")
-    parser.add_argument(
-        "--push", action="store_true", help="Push tag to origin after creation"
-    )
+    parser.add_argument("--push", action="store_true", help="Push tag to origin after creation")
     parser.add_argument(
         "--dry-run",
         action="store_true",
@@ -284,7 +277,8 @@ def main(argv: list[str] | None = None) -> int:
 
     # 6. Create annotated git tag
     releasable = [
-        c for c in commits
+        c
+        for c in commits
         if _TYPE_RE.match(c.subject) and _TYPE_RE.match(c.subject).group("type") in RELEASABLE_TYPES  # type: ignore[union-attr]
     ]
     summary_lines = [f"Release {tag_name}"]

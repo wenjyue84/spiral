@@ -20,7 +20,7 @@ import argparse
 import json
 import os
 import sys
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List
 
 sys.path.insert(0, os.path.dirname(__file__))
 from spiral_io import atomic_write_json, configure_utf8_stdout
@@ -39,9 +39,7 @@ class ConsistencyChecker:
         """
         self.threshold = threshold
 
-    def compare_stories(
-        self, story_v1: Dict[str, Any], story_v2: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def compare_stories(self, story_v1: Dict[str, Any], story_v2: Dict[str, Any]) -> Dict[str, Any]:
         """
         Compare two story versions and return consistency report.
 
@@ -96,9 +94,7 @@ class ConsistencyChecker:
                 divergent_fields.append(field)
 
         # Compute percentage of low-confidence fields
-        low_confidence_percentage = (
-            (len(divergent_fields) / total_fields * 100) if total_fields > 0 else 0
-        )
+        low_confidence_percentage = (len(divergent_fields) / total_fields * 100) if total_fields > 0 else 0
         requires_human_review = low_confidence_percentage > 20.0
 
         return {
@@ -110,9 +106,7 @@ class ConsistencyChecker:
             "total_compared_fields": total_fields,
         }
 
-    def _field_similarity(
-        self, val1: Any, val2: Any, field_name: str
-    ) -> float:
+    def _field_similarity(self, val1: Any, val2: Any, field_name: str) -> float:
         """
         Compute similarity between two field values (0.0 = different, 1.0 = identical).
 
@@ -237,9 +231,7 @@ def flag_stories_in_prd(
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Self-consistency hallucination check for story generation"
-    )
+    parser = argparse.ArgumentParser(description="Self-consistency hallucination check for story generation")
     parser.add_argument(
         "mode",
         choices=["compare", "flag"],
