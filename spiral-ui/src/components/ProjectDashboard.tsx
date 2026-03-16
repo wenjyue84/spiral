@@ -354,6 +354,9 @@ function StoryDetailPanel({ story, allStories, attempts, onClose }: {
 }
 
 function RecentlyCompletedFeed({ entries }: { entries?: LastCompletedStory[] }) {
+  const [showAll, setShowAll] = useState(false);
+  const PREVIEW = 5;
+
   const MODEL_COLOR: Record<string, string> = {
     haiku:  'bg-sky-100 text-sky-700 border-sky-200',
     sonnet: 'bg-violet-100 text-violet-700 border-violet-200',
@@ -377,10 +380,13 @@ function RecentlyCompletedFeed({ entries }: { entries?: LastCompletedStory[] }) 
     );
   }
 
+  const visible = showAll ? entries : entries.slice(0, PREVIEW);
+  const hidden = entries.length - PREVIEW;
+
   return (
     <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
       <ul className="divide-y divide-slate-100">
-        {entries.map((e, i) => {
+        {visible.map((e, i) => {
           const badge = modelLabel(e.model ?? '');
           const truncTitle = (e.title ?? '').length > 60 ? (e.title ?? '').slice(0, 60) + '…' : (e.title ?? '');
           return (
@@ -405,6 +411,14 @@ function RecentlyCompletedFeed({ entries }: { entries?: LastCompletedStory[] }) 
           );
         })}
       </ul>
+      {entries.length > PREVIEW && (
+        <button
+          onClick={() => setShowAll(v => !v)}
+          className="w-full py-2 text-xs text-slate-500 hover:text-blue-600 hover:bg-slate-50 border-t border-slate-100 transition-colors"
+        >
+          {showAll ? '▲ Show less' : `▼ ${hidden} more…`}
+        </button>
+      )}
     </div>
   );
 }
@@ -423,11 +437,12 @@ const PHASE_LABELS: Record<string, string> = {
   G:   'Generating Stories',
 };
 
-function LiveStatusBanner({ activeStatus, lastCompletedStory, checkpointTs, lastLogModified }: {
+function LiveStatusBanner({ activeStatus, lastCompletedStory, checkpointTs, lastLogModified, isRunning }: {
   activeStatus?: ActiveStatus | null;
   lastCompletedStory?: LastCompletedStory | null;
   checkpointTs?: string | null;
   lastLogModified?: string | null;
+  isRunning?: boolean;
 }) {
   const truncate = (s: string, max = 50) => s.length > max ? s.slice(0, max) + '…' : s;
 
@@ -457,10 +472,38 @@ function LiveStatusBanner({ activeStatus, lastCompletedStory, checkpointTs, last
     );
   }
 
+  // No activeStatus but log/checkpoint was recently modified — between phases
+  if (isRunning) {
+    const lastRunTs = lastCompletedStory?.timestamp ?? checkpointTs ?? lastLogModified ?? null;
+    return (
+      <div
+        className="flex items-center gap-3 px-5 py-2 bg-emerald-50 border-b border-emerald-200 flex-shrink-0"
+        title="SPIRAL is active (log or checkpoint updated within 2 min) but no active phase is reported yet — likely transitioning between phases."
+      >
+        <span className="relative flex h-2.5 w-2.5 flex-shrink-0">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+        </span>
+        <span className="text-xs font-bold text-emerald-700 tracking-wide">SPIRAL IS RUNNING</span>
+        <span className="h-3.5 w-px bg-emerald-300 flex-shrink-0" />
+        <span className="text-xs text-emerald-600 font-medium italic">Between phases…</span>
+        {lastRunTs && (
+          <>
+            <span className="h-3.5 w-px bg-emerald-300 flex-shrink-0" />
+            <span className="text-xs text-emerald-500">Last activity: {timeAgo(lastRunTs)}</span>
+          </>
+        )}
+      </div>
+    );
+  }
+
   // Idle: find last run time
   const lastRunTs = lastCompletedStory?.timestamp ?? checkpointTs ?? lastLogModified ?? null;
   return (
-    <div className="flex items-center gap-3 px-5 py-2 bg-slate-50 border-b border-slate-100 flex-shrink-0">
+    <div
+      className="flex items-center gap-3 px-5 py-2 bg-slate-50 border-b border-slate-100 flex-shrink-0"
+      title="SPIRAL is idle — no log or checkpoint updates detected in the last 2 minutes."
+    >
       <span className="relative flex h-2.5 w-2.5 flex-shrink-0">
         <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-slate-300" />
       </span>
@@ -499,6 +542,8 @@ function ProgressTab({ data, projectName, onRefresh, activeStory }: { data: Proj
   const [searchQuery, setSearchQuery] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [storyPage, setStoryPage] = useState(0);
+  const [showAllHistory, setShowAllHistory] = useState(false);
+  const HISTORY_PREVIEW = 5;
   const PAGE_SIZE = 50;
   const p = data.progress;
   if (!p) return <div className="p-6 text-slate-500">No prd.json found in project root.</div>;
@@ -645,33 +690,46 @@ function ProgressTab({ data, projectName, onRefresh, activeStory }: { data: Proj
                   </tr>
                 </thead>
                 <tbody>
-                  {[...data.progressHistory].reverse().slice(0, 12).map((snap, i) => {
-                    const doneCellTooltip = `${snap.done} stories passed at iter #${snap.iter}\n${formatIdList(doneStories)}`;
-                    const pendingCellTooltip = `${snap.pending} stories still pending at iter #${snap.iter}\n${formatIdList(pendingStories)}`;
+                  {(() => {
+                    const reversed = [...data.progressHistory].reverse();
+                    const visible = showAllHistory ? reversed : reversed.slice(0, HISTORY_PREVIEW);
+                    const hiddenCount = reversed.length - HISTORY_PREVIEW;
                     return (
-                      <tr key={i} className="border-t border-slate-100">
-                        <td className="px-3 py-1.5 text-slate-400" title={formatMYT(snap.ts)}>{timeAgo(snap.ts)}</td>
-                        <td className="px-3 py-1.5 text-slate-600">#{snap.iter}</td>
-                        <td className="px-3 py-1.5 text-right font-mono text-emerald-700 cursor-help" title={doneCellTooltip}>{snap.done}</td>
-                        <td className="px-3 py-1.5 text-right font-mono text-amber-700 cursor-help" title={pendingCellTooltip}>{snap.pending}</td>
-                        <td className="px-3 py-1.5 text-right font-mono text-blue-700" title={addedTooltip}>+{snap.added}</td>
-                      </tr>
+                      <>
+                        {visible.map((snap, i) => {
+                          const doneCellTooltip = `${snap.done} stories passed at iter #${snap.iter}\n${formatIdList(doneStories)}`;
+                          const pendingCellTooltip = `${snap.pending} stories still pending at iter #${snap.iter}\n${formatIdList(pendingStories)}`;
+                          return (
+                            <tr key={i} className="border-t border-slate-100">
+                              <td className="px-3 py-1.5 text-slate-400" title={formatMYT(snap.ts)}>{timeAgo(snap.ts)}</td>
+                              <td className="px-3 py-1.5 text-slate-600">#{snap.iter}</td>
+                              <td className="px-3 py-1.5 text-right font-mono text-emerald-700 cursor-help" title={doneCellTooltip}>{snap.done}</td>
+                              <td className="px-3 py-1.5 text-right font-mono text-amber-700 cursor-help" title={pendingCellTooltip}>{snap.pending}</td>
+                              <td className="px-3 py-1.5 text-right font-mono text-blue-700" title={addedTooltip}>+{snap.added}</td>
+                            </tr>
+                          );
+                        })}
+                        {reversed.length > HISTORY_PREVIEW && (
+                          <tr className="border-t border-slate-100">
+                            <td colSpan={5} className="px-3 py-0">
+                              <button
+                                onClick={() => setShowAllHistory(v => !v)}
+                                className="w-full py-2 text-xs text-slate-500 hover:text-blue-600 transition-colors text-left"
+                              >
+                                {showAllHistory ? '▲ Show less' : `▼ ${hiddenCount} older entries…`}
+                              </button>
+                            </td>
+                          </tr>
+                        )}
+                      </>
                     );
-                  })}
+                  })()}
                 </tbody>
               </table>
             </div>
           </div>
         );
       })()}
-
-      {/* Token burn sparkline (US-189) */}
-      {data.tokenBurn && data.tokenBurn.length > 0 && (
-        <div>
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Token Burn by Story</div>
-          <TokenBurnSparkline entries={data.tokenBurn} />
-        </div>
-      )}
 
       {/* Prompt cache hit rate by phase (US-223) */}
       {data.cacheStats && data.cacheStats.length > 0 && (
@@ -730,13 +788,14 @@ function ProgressTab({ data, projectName, onRefresh, activeStory }: { data: Proj
                 <th className="px-3 py-2.5 text-left font-medium">Title</th>
                 <th className="px-3 py-2.5 text-left font-medium w-20">Priority</th>
                 <th className="px-3 py-2.5 text-left font-medium w-28">Status</th>
+                <th className="px-3 py-2.5 text-left font-medium w-36">Completed</th>
                 <th className="px-3 py-2.5 w-8"></th>
               </tr>
             </thead>
             <tbody>
               {pagedStories.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-3 py-6 text-center text-slate-400 italic">No stories match your filter.</td>
+                  <td colSpan={6} className="px-3 py-6 text-center text-slate-400 italic">No stories match your filter.</td>
                 </tr>
               ) : pagedStories.map(s => {
                 const status = storyStatusOf(s);
@@ -771,6 +830,13 @@ function ProgressTab({ data, projectName, onRefresh, activeStory }: { data: Proj
                       <span className={`inline-block text-[10px] px-2 py-0.5 rounded-full border font-medium whitespace-nowrap ${statusBadge.cls}`}>
                         {statusBadge.label}
                       </span>
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      {s.passes
+                        ? s.completedAt
+                          ? <span className="text-[10px] text-emerald-600" title={formatMYT(s.completedAt)}>{timeAgo(s.completedAt)}</span>
+                          : <span className="text-[10px] text-slate-400">—</span>
+                        : null}
                     </td>
                     <td className="px-3 py-2">
                       <button
@@ -1971,7 +2037,7 @@ const PHASE_FULL_NAMES: Record<string, string> = {
   P: 'Push', C: 'Check Done', D: 'Loop Decision',
 };
 
-function TokenTab({ projectName }: { projectName: string }) {
+function TokenTab({ projectName, tokenBurn }: { projectName: string; tokenBurn?: TokenBurnEntry[] }) {
   const [stats, setStats] = useState<TokenStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -2288,7 +2354,53 @@ function TokenTab({ projectName }: { projectName: string }) {
         </div>
       )}
 
-      {/* ── E) Optimization Tips ─────────────────────────────────────────── */}
+      {/* ── E) Token Burn by Story (from results.tsv, includes cache tokens) ── */}
+      {tokenBurn && tokenBurn.length > 0 && (
+        <div>
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Token Burn by Story (detailed)</div>
+          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+            <table className="w-full text-xs">
+              <thead className="bg-slate-50 text-slate-500">
+                <tr>
+                  <th className="px-3 py-2 text-left font-medium">Story</th>
+                  <th className="px-3 py-2 text-right font-medium">Input</th>
+                  <th className="px-3 py-2 text-right font-medium">Output</th>
+                  <th className="px-3 py-2 text-right font-medium">Cache Write</th>
+                  <th className="px-3 py-2 text-right font-medium">Cache Read</th>
+                  <th className="px-3 py-2 text-right font-medium">Total</th>
+                  <th className="px-3 py-2 w-32 font-medium">Burn</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...tokenBurn].sort((a, b) => b.total - a.total).map(e => {
+                  const maxTotal = [...tokenBurn].sort((a, b) => b.total - a.total)[0]?.total ?? 1;
+                  const barPct = maxTotal > 0 ? Math.round((e.total / maxTotal) * 100) : 0;
+                  return (
+                    <tr key={e.story_id} className="border-t border-slate-100 hover:bg-slate-50">
+                      <td className="px-3 py-1.5 font-mono font-semibold text-blue-700 whitespace-nowrap">{e.story_id}</td>
+                      <td className="px-3 py-1.5 text-right text-slate-500">{fmtK(e.input)}</td>
+                      <td className="px-3 py-1.5 text-right text-slate-500">{fmtK(e.output)}</td>
+                      <td className="px-3 py-1.5 text-right text-slate-400">{fmtK(e.creation_tokens)}</td>
+                      <td className="px-3 py-1.5 text-right text-emerald-600">{fmtK(e.read_tokens)}</td>
+                      <td className="px-3 py-1.5 text-right font-medium text-slate-700">{fmtK(e.total)}</td>
+                      <td className="px-3 py-1.5">
+                        <div className="flex items-center gap-1.5">
+                          <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
+                            <div className="h-full rounded-full bg-violet-500" style={{ width: `${barPct}%` }} />
+                          </div>
+                          <span className="text-[10px] text-slate-400 w-8 text-right">{barPct}%</span>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── F) Optimization Tips ─────────────────────────────────────────── */}
       <div className="rounded-xl border border-amber-200 bg-amber-50 overflow-hidden">
         <button
           onClick={() => setTipsOpen(v => !v)}
@@ -2759,6 +2871,7 @@ export default function ProjectDashboard() {
         lastCompletedStory={data.lastCompletedStory}
         checkpointTs={data.checkpointTs}
         lastLogModified={data.lastLogModified}
+        isRunning={isRunning}
       />
 
       {/* Project path + overview */}
@@ -2791,7 +2904,7 @@ export default function ProjectDashboard() {
         {activeTab === 'progress'     && <div className="h-full overflow-y-auto"><ProgressTab data={data} projectName={projectName ?? ''} onRefresh={load} activeStory={activeStory} /></div>}
         {activeTab === 'phase-trace'  && <div className="h-full overflow-y-auto"><PhaseTraceTab projectName={projectName ?? ''} stories={data.progress?.stories ?? []} activeStory={activeStory} /></div>}
         {activeTab === 'workers'      && <div className="h-full overflow-y-auto"><WorkersTab projectName={projectName ?? ''} activeStory={activeStory} /></div>}
-        {activeTab === 'tokens'       && <div className="h-full overflow-y-auto"><TokenTab projectName={projectName ?? ''} /></div>}
+        {activeTab === 'tokens'       && <div className="h-full overflow-y-auto"><TokenTab projectName={projectName ?? ''} tokenBurn={data.tokenBurn} /></div>}
         {activeTab === 'graph'        && (
           <div className="h-full overflow-hidden">
             <DependencyGraph stories={data.progress?.stories ?? []} />
