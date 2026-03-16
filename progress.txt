@@ -1,3 +1,25 @@
+## Iteration N - Story: US-372 Add --lock flag to all git worktree add calls in run_parallel_ralph.sh
+
+### What was implemented
+- Changed both `git worktree add` calls in run_parallel_ralph.sh (line ~435 detached, line ~438 branched) to use `--lock --reason "spiral-worker-${i}"` atomically instead of a separate `git worktree lock` call after creation
+- Removed the now-redundant separate `git worktree lock` call (was line 441)
+- Added `git worktree unlock` before `git worktree remove` in the _cleanup trap handler (line ~197)
+- Added `git worktree unlock` before `git worktree remove` in Step 9 final cleanup (line ~1439)
+- Existing unlock calls in worker subshell EXIT trap (line 798) and timeout handler (line 923) were already correct
+
+### Files modified
+- lib/run_parallel_ralph.sh — atomic --lock on worktree add, unlock before remove in all cleanup paths
+- tests/worktree_lock.bats — new: 4 bats tests verifying lock survives prune, unlock+remove works, detached HEAD path
+
+### Patterns discovered
+- `git worktree add --lock --reason` is supported since Git 2.36 and makes lock atomic with creation (no race window)
+- On Windows/MSYS, `mktemp -d` returns `/tmp/...` but git resolves to `C:/Users/.../AppData/Local/Temp/...` — bats tests matching worktree paths should use directory name fragments, not full paths
+- `git worktree remove --force` does NOT override locks — need explicit unlock first (or double --force)
+- `git worktree unlock` on an unlocked worktree exits 0 silently, so it's always safe to call
+
+### Gotchas
+- Pre-existing test failures unchanged: test_field_similarity_lists, test_infer_dependencies (4), test_route_stories (2)
+
 ## Iteration N - Story: US-368 Add Hypothesis settings profiles for CI vs dev test execution in conftest.py
 
 ### What was implemented
@@ -1184,5 +1206,6 @@ Completed: Add pre-flight Claude API token count check before story prompt submi
 
 ### Gotchas
 - The 5th acceptance criterion ("At least one dependency update PR is raised within the first week") is a post-merge verification — cannot be checked before deployment
+
 
 

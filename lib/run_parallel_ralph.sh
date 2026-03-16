@@ -194,7 +194,10 @@ cleanup_parallel() {
   for i in $(seq 1 "$RALPH_WORKERS"); do
     local branch="${WORKER_BRANCHES[$((i - 1))]:-}"
     local wtree="${WORKER_DIRS[$((i - 1))]:-}"
-    [[ -n "$wtree" && -d "$wtree" ]] && git -C "$REPO_ROOT" worktree remove "$wtree" --force 2>/dev/null || true
+    if [[ -n "$wtree" && -d "$wtree" ]]; then
+      git -C "$REPO_ROOT" worktree unlock "$wtree" 2>/dev/null || true
+      git -C "$REPO_ROOT" worktree remove "$wtree" --force 2>/dev/null || true
+    fi
     [[ -n "$branch" ]] && git -C "$REPO_ROOT" branch -D "$branch" 2>/dev/null || true
   done
   rm -rf "$WORKTREE_BASE" 2>/dev/null || true
@@ -432,13 +435,11 @@ for i in $(seq 1 "$RALPH_WORKERS"); do
   # existing worktree, fall back to detached HEAD mode to avoid a hard failure.
   if git -C "$REPO_ROOT" worktree list --porcelain 2>/dev/null | grep -qF "branch refs/heads/${BRANCH}"; then
     echo "  [parallel] Worker $i: branch '$BRANCH' already checked out in another worktree — falling back to detached HEAD"
-    git -C "$REPO_ROOT" worktree add --detach "$WTREE" HEAD
+    git -C "$REPO_ROOT" worktree add --detach --lock --reason "spiral-worker-${i}" "$WTREE" HEAD
     BRANCH="" # No dedicated branch; cleanup and diff steps skip gracefully
   else
-    git -C "$REPO_ROOT" worktree add "$WTREE" -b "$BRANCH" HEAD
+    git -C "$REPO_ROOT" worktree add --lock --reason "spiral-worker-${i}" "$WTREE" -b "$BRANCH" HEAD
   fi
-  # Lock worktree immediately to prevent git worktree prune from removing it while active
-  git -C "$REPO_ROOT" worktree lock "$WTREE" --reason "spiral worker-${i} active" 2>/dev/null || true
 
   # US-246: Sync worktree with already-fetched origin/main (no per-worker fetch needed)
   # The main repo performed a single shared fetch before workers were created
@@ -1436,6 +1437,7 @@ rm -rf "$LOCK_DIR" 2>/dev/null || true
 for i in $(seq 1 "$RALPH_WORKERS"); do
   BRANCH="${WORKER_BRANCHES[$((i - 1))]}"
   WTREE="${WORKER_DIRS[$((i - 1))]}"
+  git -C "$REPO_ROOT" worktree unlock "$WTREE" 2>/dev/null || true
   git -C "$REPO_ROOT" worktree remove "$WTREE" --force 2>/dev/null || true
   git -C "$REPO_ROOT" branch -D "$BRANCH" 2>/dev/null || true
 done
