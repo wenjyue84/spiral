@@ -117,9 +117,10 @@ class TestEffortFlagConstruction:
             re.DOTALL,
         )
 
-    def test_effort_flag_uses_spiral_thinking_effort(self) -> None:
+    def test_effort_flag_uses_budget_to_effort(self) -> None:
+        """US-398: Effort flag now derived from SPIRAL_THINKING_BUDGET_TOKENS via budget_to_effort."""
         content = _read(RALPH_SH)
-        assert 'CLAUDE_EFFORT_FLAG="--effort $SPIRAL_THINKING_EFFORT"' in content
+        assert 'CLAUDE_EFFORT_FLAG="--effort $_BUDGET_EFFORT"' in content
 
     def test_effort_flag_empty_by_default(self) -> None:
         content = _read(RALPH_SH)

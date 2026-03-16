@@ -284,6 +284,17 @@
 # Choices: low, medium, high, max. Default: high
 # SPIRAL_THINKING_EFFORT="high"
 
+# ── Thinking budget cap (US-398) ─────────────────────────────────────────────
+# Maximum thinking tokens per story. Maps to --effort level in Claude CLI:
+#   0          = disable thinking entirely (no --effort flag)
+#   1024-4999  = low
+#   5000-9999  = medium
+#   10000-49999 = high (default)
+#   50000+     = max
+# Minimum 1024 when >0 (Anthropic API floor). spiral-doctor validates this.
+# Default: 10000
+# SPIRAL_THINKING_BUDGET_TOKENS=10000
+
 # ── Model escalation retry thresholds (US-296) ──────────────────────────────
 # Controls when failed story retries escalate to a more capable model.
 # SPIRAL_ESCALATION_RETRY_SONNET: retry count at which haiku escalates to sonnet.

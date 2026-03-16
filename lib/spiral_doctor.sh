@@ -373,6 +373,18 @@ spiral_doctor() {
     echo "  [doctor] [INFO] unshare: OS is '$_os_type' — worker network isolation (US-278) requires Linux"
   fi
 
+  # ── US-398: Validate SPIRAL_THINKING_BUDGET_TOKENS ─────────────────────────
+  local _budget="${SPIRAL_THINKING_BUDGET_TOKENS:-10000}"
+  if [[ "$_budget" -eq 0 ]]; then
+    echo "  [doctor] [OK] SPIRAL_THINKING_BUDGET_TOKENS=0 (extended thinking disabled)"
+  elif [[ "$_budget" -ge 1024 ]]; then
+    echo "  [doctor] [OK] SPIRAL_THINKING_BUDGET_TOKENS=$_budget (>= 1024 minimum)"
+  else
+    echo "  [doctor] [ERROR] SPIRAL_THINKING_BUDGET_TOKENS=$_budget is below the Anthropic minimum of 1024"
+    echo "           → Fix: Set SPIRAL_THINKING_BUDGET_TOKENS to 0 (disable) or >= 1024"
+    error_count=$((error_count + 1))
+  fi
+
   # ── US-279: Recent crash history ──────────────────────────────────────────
   if type report_recent_crashes &>/dev/null; then
     report_recent_crashes 5

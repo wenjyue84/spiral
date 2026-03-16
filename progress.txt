@@ -1,3 +1,31 @@
+## Iteration N - Story: US-398 Add SPIRAL_THINKING_BUDGET_TOKENS env var to cap max extended thinking tokens per story
+
+### What was implemented
+- Added `SPIRAL_THINKING_BUDGET_TOKENS` env var (default: 10000) to ralph.sh
+- Added `budget_to_effort()` function that maps numeric budget to Claude CLI --effort levels (0=disabled, 1024-4999=low, 5000-9999=medium, 10000-49999=high, 50000+=max)
+- Modified effort flag construction to use budget_to_effort instead of directly reading SPIRAL_THINKING_EFFORT
+- When SPIRAL_THINKING_BUDGET_TOKENS=0, thinking is disabled entirely (no --effort flag passed)
+- Added config entry to spiral.config.sh with full documentation
+- Added config entry to templates/spiral.config.example.sh with mapping documentation
+- Added spiral-doctor validation: rejects values >0 but <1024 (Anthropic minimum)
+- Created tests/thinking_budget.bats with 19 tests covering mapping, config, and doctor validation
+- Updated tests/test_adaptive_thinking.py to reflect new budget-based effort derivation
+
+### Files modified
+- ralph/ralph.sh — SPIRAL_THINKING_BUDGET_TOKENS default, budget_to_effort() function, updated effort flag construction
+- spiral.config.sh — documented config entry
+- templates/spiral.config.example.sh — documented config entry
+- lib/spiral_doctor.sh — validation check for >= 1024 when enabled
+- tests/thinking_budget.bats — new: 19 bats tests
+- tests/test_adaptive_thinking.py — updated test_effort_flag_uses_budget_to_effort
+
+### Patterns discovered
+- Claude CLI uses --effort (low/medium/high/max) not raw budget_tokens, so numeric budgets must be mapped to effort levels
+- budget_to_effort can be extracted and tested independently via sed from ralph.sh
+
+### Gotchas
+- The existing test_effort_flag_uses_spiral_thinking_effort asserted exact string match on the old approach; needed updating to reflect budget-based derivation
+
 ## Iteration N - Story: US-363 Add Hypothesis RuleBasedStateMachine tests for PRD merge invariants
 
 ### What was implemented
@@ -1373,4 +1401,5 @@ Completed: Add pre-flight Claude API token count check before story prompt submi
 
 ### Gotchas
 - The `tee` addition for stdout capture changes ralph output from direct to piped; this preserves PIPESTATUS but exit code via `|| _I_EXIT=$?` works correctly since tee exits 0 when ralph exits non-zero
+
 

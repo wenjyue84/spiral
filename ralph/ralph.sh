@@ -60,6 +60,7 @@ SPIRAL_DIFF_DEPTH="${SPIRAL_DIFF_DEPTH:-3}"                            # number 
 SPIRAL_WORKER_NETWORK_ISOLATION="${SPIRAL_WORKER_NETWORK_ISOLATION:-false}" # true = wrap worker in Linux network namespace via unshare --net (US-278)
 SPIRAL_STRICT_SCOPE_GUARD="${SPIRAL_STRICT_SCOPE_GUARD:-false}"          # true = abort commit when changed files exceed story filesTouch scope (US-356)
 SPIRAL_THINKING_EFFORT="${SPIRAL_THINKING_EFFORT:-high}"               # US-373: adaptive thinking effort for 4.6 models (low/medium/high/max)
+SPIRAL_THINKING_BUDGET_TOKENS="${SPIRAL_THINKING_BUDGET_TOKENS:-10000}" # US-398: max thinking tokens per story (0=disable thinking, min 1024)
 PRD_FILE="prd.json"
 PROGRESS_FILE="progress.txt"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -1864,6 +1865,29 @@ supports_adaptive_thinking() {
   esac
 }
 
+# US-398: Map SPIRAL_THINKING_BUDGET_TOKENS to --effort level.
+# The Claude CLI uses --effort (low/medium/high/max) instead of raw budget_tokens.
+# This function maps the numeric budget to the closest effort level:
+#   0          → (disabled — no --effort flag)
+#   1024-4999  → low
+#   5000-9999  → medium
+#   10000-49999 → high
+#   50000+     → max
+budget_to_effort() {
+  local budget="$1"
+  if [[ "$budget" -le 0 ]]; then
+    echo ""
+  elif [[ "$budget" -lt 5000 ]]; then
+    echo "low"
+  elif [[ "$budget" -lt 10000 ]]; then
+    echo "medium"
+  elif [[ "$budget" -lt 50000 ]]; then
+    echo "high"
+  else
+    echo "max"
+  fi
+}
+
 # Resolve the effective model: prd.json annotation > CLI override > auto-classify+escalate
 resolve_model() {
   local story_id="$1" retry_count="$2" escalation_count="$3"
@@ -2488,11 +2512,20 @@ Story JSON: $STORY_JSON"
       # Build model flag (empty if no model routing)
       CLAUDE_MODEL_FLAG=""
       [[ -n "$EFFECTIVE_MODEL" ]] && CLAUDE_MODEL_FLAG="--model $EFFECTIVE_MODEL"
-      # US-373: Build effort flag for adaptive thinking on 4.6 models
+      # US-373 + US-398: Build effort flag for adaptive thinking on 4.6 models.
+      # When SPIRAL_THINKING_BUDGET_TOKENS is set, it overrides SPIRAL_THINKING_EFFORT
+      # by mapping the budget to an effort level. When =0, thinking is disabled entirely.
       CLAUDE_EFFORT_FLAG=""
       if [[ -n "$EFFECTIVE_MODEL" ]] && supports_adaptive_thinking "$EFFECTIVE_MODEL"; then
-        CLAUDE_EFFORT_FLAG="--effort $SPIRAL_THINKING_EFFORT"
-        echo "  [thinking] Adaptive thinking: effort=$SPIRAL_THINKING_EFFORT (model=$EFFECTIVE_MODEL)"
+        if [[ "${SPIRAL_THINKING_BUDGET_TOKENS:-10000}" -eq 0 ]]; then
+          echo "  [thinking] Disabled: SPIRAL_THINKING_BUDGET_TOKENS=0 (model=$EFFECTIVE_MODEL)"
+        else
+          _BUDGET_EFFORT=$(budget_to_effort "${SPIRAL_THINKING_BUDGET_TOKENS:-10000}")
+          if [[ -n "$_BUDGET_EFFORT" ]]; then
+            CLAUDE_EFFORT_FLAG="--effort $_BUDGET_EFFORT"
+            echo "  [thinking] Adaptive thinking: effort=$_BUDGET_EFFORT (budget=${SPIRAL_THINKING_BUDGET_TOKENS:-10000} tokens, model=$EFFECTIVE_MODEL)"
+          fi
+        fi
       fi
       # Build prompt content — split into system prompt (cacheable) and user prompt (dynamic)
       # US-338: Cache-aware prompt structure. The system prompt MUST be identical across
