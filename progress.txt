@@ -1229,3 +1229,24 @@ Completed: Add pre-flight Claude API token count check before story prompt submi
 ### Gotchas
 - FTS5 MATCH raises sqlite3.OperationalError on empty or malformed queries — need try/except guard
 - Short tokens (<=2 chars) should be filtered before building the FTS query to avoid noise
+
+
+## Iteration N - Story: US-426 Write episodic memory record after each successful story commit in commit_revert.sh
+
+### What was implemented
+- Added episodic memory write call in the passes==true branch of commit_or_revert() in lib/impl/commit_revert.sh
+- Extracts approach summary from the most recent git commit message (subject + body, max 300 chars)
+- Calls lib/episodic_memory.py write with story_id, story_type "unknown", approach summary, outcome "pass", and current iteration
+- Entire block wrapped in { ... } 2>/dev/null || true to ensure episodic writes never block the commit path
+- Uses SPIRAL_EPISODIC_DB env var with fallback to .spiral/episodic_memory.db
+- Uses SPIRAL_ITERATION env var (already exported by spiral.sh) with fallback to 0
+
+### Files modified
+- lib/impl/commit_revert.sh — added episodic memory write in passes==true branch
+
+### Patterns discovered
+- SPIRAL_ITERATION is exported by spiral.sh (line ~1715) so it's available in all child scripts
+- SPIRAL_EPISODIC_DB can be used to override the default DB path for testing
+
+### Gotchas
+- File had CRLF line endings that needed conversion to LF for shfmt compliance

@@ -39,6 +39,18 @@ commit_or_revert() {
   if [[ "$passes" == "true" ]]; then
     echo "[Phase I / commit] $story_id passed — merging $worker_branch"
     # TODO: implement merge + quality gate assertion
+
+    # ── Episodic memory write (non-fatal) ────────────────────────────
+    {
+      _approach=$(git log -1 --format='%s %b' | head -c 300)
+      uv run python lib/episodic_memory.py write \
+        "${SPIRAL_EPISODIC_DB:-.spiral/episodic_memory.db}" \
+        "$story_id" \
+        "unknown" \
+        "$_approach" \
+        "pass" \
+        "${SPIRAL_ITERATION:-0}"
+    } 2>/dev/null || true
   else
     echo "[Phase I / revert] $story_id failed — discarding $worker_branch"
     # TODO: implement branch drop + git reset
