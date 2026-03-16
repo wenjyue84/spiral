@@ -286,3 +286,31 @@ Incomplete: Validate MCP server integrity via signed checksum manifest before Ph
 - Template config still had old comment "sonnet is recommended" for research model — updated to reflect haiku default
 - Phase end event log uses escaped quotes (\\\"model\\\") — regex tests need to avoid matching literal quote chars
 
+## Iteration 1 - Mon, Mar 16, 2026  1:43:39 PM
+Incomplete: Validate MCP server integrity via signed checksum manifest before Phase I (ID: US-320) — attempt /3
+
+## Iteration N - Story: US-357 Fix bats test FD 3 leaks: add 3>&- redirect in all background process spawns
+
+### What was implemented
+- Audited all 53 SPIRAL bats test files (excluding bats-core submodule) for background process spawns lacking 3>&-
+- Fixed 3 instances in tests/worker_crash_cleanup.bats:
+  - Line 141: `setsid bash -c ... &` → `setsid bash -c ... 3>&- &`
+  - Line 161: `sleep 30 &` → `sleep 30 3>&- &`
+  - Line 165: `sleep 30 &` → `sleep 30 3>&- &`
+- Created tests/lib/fd3_leak.bats with 4 tests:
+  - Verifies background process with 3>&- cannot see FD 3
+  - Confirms FD 3 exists in bats environment (proving the leak vector is real)
+  - Static audit: scans all SPIRAL .bats files for unguarded background spawns
+  - Checks bats --timeout flag support (skipped if bats < 1.7.0)
+
+### Patterns discovered
+- Only tests/worker_crash_cleanup.bats had background spawns among all SPIRAL test files
+- bats-core submodule fixture issue-205.bats intentionally tests background FD behavior — not our code to fix
+- `3>&-` must be placed before `&` in the command: `cmd 3>&- &` (not `cmd & 3>&-`)
+- `/dev/fd/3` check confirms FD 3 exists in bats test environment
+
+### Gotchas
+- The bundled bats-core version does not support --timeout flag (< 1.7.0) — test skips gracefully
+- `&>/dev/null` is a redirect pattern, not a background operator — safe to ignore in audit
+- `command -v setsid &>/dev/null` is also a redirect, not a background spawn
+

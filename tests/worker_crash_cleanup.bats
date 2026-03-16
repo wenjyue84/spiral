@@ -138,7 +138,7 @@ teardown() {
   fi
   local pgid_file="$TEST_TMPDIR/kill_test.pgid"
   # Launch a setsid'd process that writes its PGID then spawns a child sleep
-  setsid bash -c "echo \"\$\$\" > \"$pgid_file\"; sleep 300" &
+  setsid bash -c "echo \"\$\$\" > \"$pgid_file\"; sleep 300" 3>&- &
   local parent_pid=$!
   sleep 0.3  # allow PGID file to be written
   [ -f "$pgid_file" ]
@@ -158,11 +158,11 @@ teardown() {
 @test "sibling worker continues running after one worker is SIGKILLed" {
   # Launch two background sleep workers; SIGKILL one; verify sibling still runs
   local sibling_pid sibling_alive
-  sleep 30 &
+  sleep 30 3>&- &
   sibling_pid=$!
 
   # Launch 'worker' and kill it
-  sleep 30 &
+  sleep 30 3>&- &
   local crash_pid=$!
   kill -9 "$crash_pid" 2>/dev/null
   sleep 0.3
