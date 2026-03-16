@@ -5944,21 +5944,15 @@
       "model": "haiku",
       "_skipped": true,
       "filesTouch": [
-        ".claude/scheduled_tasks.lock",
-        ".claude/worktrees/exciting-bell",
-        ".gitleaks.toml",
-        ".gitmodules",
-        ".hypothesis/constants/7ef9d035f7f26d43",
-        ".hypothesis/tmp/tmp0eb9n4pu",
-        ".hypothesis/tmp/tmp11wqkk0t",
-        ".hypothesis/tmp/tmp1uzbi204",
-        ".hypothesis/tmp/tmp34aze7rh",
-        ".hypothesis/tmp/tmp3h0vibb5"
+        ".spiral/tool-schema.json",
+        "spiral.sh",
+        "tests/test_mcp_integrity.py"
       ],
       "tags": [
         "module-claude",
         "module-hypothesis"
-      ]
+      ],
+      "status": "skipped"
     },
     {
       "id": "US-321",
@@ -6717,7 +6711,13 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false
+      "passes": true,
+      "filesTouch": [
+        "lib/run_parallel_ralph.sh",
+        "spiral.config.sh",
+        "templates/spiral.config.example.sh",
+        "tests/worker_env_restrict.bats"
+      ]
     },
     {
       "id": "US-360",

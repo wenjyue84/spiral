@@ -438,3 +438,27 @@ Incomplete: Validate MCP server integrity via signed checksum manifest before Ph
 - `$CLAUDE_EFFORT_FLAG` is deliberately unquoted in the CLI invocation so it expands to nothing when empty
 - The `--effort` flag is placed between `$CLAUDE_MODEL_FLAG` and `--append-system-prompt` in the CLI invocation
 - Haiku (4.5) does NOT get adaptive thinking — it uses the default budget_tokens behavior
+## Iteration 1 - Mon, Mar 16, 2026  3:09:11 PM
+Incomplete: Validate MCP server integrity via signed checksum manifest before Phase I (ID: US-320) — attempt /3
+
+
+## Iteration N - Story: US-359 Restrict worker subprocess environment variable inheritance to explicit allowlist
+
+### What was implemented
+- Verified that all 5 acceptance criteria are already fully implemented from prior iterations:
+  - `_restrict_worker_env()` function in `lib/run_parallel_ralph.sh` unsets non-allowlisted env vars inside each worker subshell (line 810)
+  - `SPIRAL_WORKER_ENV_ALLOWLIST` config var in `spiral.config.sh` (comma-separated with wildcard prefix support)
+  - `worker_env_audit` events logged to `spiral_events.jsonl` with passed/removed key names (never values)
+  - 6 bats tests in `tests/worker_env_restrict.bats` including GITHUB_TOKEN exclusion integration test
+  - Windows Git Bash fallback: uses `unset` loop instead of `env -i` (env -i unavailable on MSYS2)
+- Updated `filesTouch` field to reflect actual implementation files
+- All 6 bats tests pass
+
+### Patterns discovered
+- Two separate allowlist patterns exist: `_WORKER_ENV_ALLOWLIST` (hardcoded regex for audit in US-355) and `_WORKER_ENV_ALLOWLIST_RE` (built from config var for US-359 restriction)
+- The restriction function runs INSIDE the worker subshell (line 810), not before fork — this means the parent env is untouched
+- Config-driven allowlist uses sed to convert comma-separated wildcards (SPIRAL_*) to regex (SPIRAL_.*)
+
+### Gotchas
+- `_restrict_worker_env` and `_audit_worker_launch` serve different purposes: audit=warn/log, restrict=actually unset vars
+- The env loop uses `env` command output (not `printenv`) which includes function exports on some shells — the grep filter handles this correctly
