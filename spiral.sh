@@ -1047,6 +1047,42 @@ check_checkpoint_completeness() {
   return 0
 }
 
+# ── US-325: Idempotency guard — skip story if matching commit already exists ──
+# Before invoking ralph for a story, check git log for a commit containing the
+# story ID. If found (and not a Revert commit), mark the story passed and skip.
+# Returns 0 if story should be SKIPPED (already implemented), 1 if ralph should run.
+check_idempotency_guard() {
+  local story_id="$1"
+  local prd_file="$2"
+
+  # Fast path: git log --grep with --max-count=1 adds <100ms overhead
+  local existing_sha
+  existing_sha=$(git -C "$REPO_ROOT" log --grep="$story_id" --max-count=1 --format=%H 2>/dev/null || echo "")
+
+  if [[ -z "$existing_sha" ]]; then
+    return 1  # No matching commit — proceed with ralph
+  fi
+
+  # Skip if the matching commit is a revert (avoid false positives)
+  local commit_subject
+  commit_subject=$(git -C "$REPO_ROOT" log -1 --format=%s "$existing_sha" 2>/dev/null || echo "")
+  if [[ "$commit_subject" == Revert* ]]; then
+    return 1  # Revert commit — proceed with ralph
+  fi
+
+  # Mark story as passed with _passedCommit
+  echo "  [idempotency] Story $story_id already implemented in commit ${existing_sha:0:8} — skipping"
+  "$JQ" --arg id "$story_id" --arg sha "$existing_sha" \
+    '(.userStories[] | select(.id == $id)) |= (.passes = true | ._passedCommit = $sha)' \
+    "$prd_file" > "${prd_file}.tmp" && mv "${prd_file}.tmp" "$prd_file"
+
+  # Log to spiral_events.jsonl
+  log_spiral_event "idempotency_skip" \
+    "\"story_id\":\"$story_id\",\"commit_sha\":\"$existing_sha\",\"iteration\":${SPIRAL_ITER:-0}"
+
+  return 0  # Story already implemented — skip ralph
+}
+
 # ── Checkpoint state machine coherence check ──────────────────────────────
 if [[ -f "$CHECKPOINT_FILE" ]]; then
   if ! "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/state_machine.py" validate-phases --checkpoint "$CHECKPOINT_FILE"; then
@@ -3518,6 +3554,11 @@ $INJECTED_PROMPT"
                   _ACTIVE_STORY_TITLE=$("$JQ" -r --arg id "$_NEXT_SID" '.userStories[] | select(.id == $id) | .title // ""' "$PRD_FILE" 2>/dev/null || echo "")
                   write_active_status "I" 60
                 fi
+                # US-325: Idempotency guard — skip if matching commit already exists
+                if [[ -n "$_NEXT_SID" ]] && check_idempotency_guard "$_NEXT_SID" "$PRD_FILE"; then
+                  WAVE=$((WAVE + 1))
+                  continue
+                fi
                 # US-219: begin story task span; prints story-scoped TRACEPARENT for child action spans
                 _STORY_TP=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" begin-story \
                   --story-id "$_NEXT_SID" --scratch-dir "$SCRATCH_DIR" 2>/dev/null || true)
@@ -3650,6 +3691,11 @@ $INJECTED_PROMPT"
               _ACTIVE_STORY_TITLE=$("$JQ" -r --arg id "$_NEXT_SID" '.userStories[] | select(.id == $id) | .title // ""' "$PRD_FILE" 2>/dev/null || echo "")
               write_active_status "I" 60
             fi
+            # US-325: Idempotency guard — skip if matching commit already exists
+            if [[ -n "$_NEXT_SID" ]] && check_idempotency_guard "$_NEXT_SID" "$PRD_FILE"; then
+              # Story already implemented — skip entire sequential ralph invocation
+              :
+            else
             # US-295: context-window-aware model selection before ralph.sh dispatch
             # Estimate prompt tokens (ralph CLAUDE.md + story JSON) and upgrade model if needed
             RALPH_MODEL_FLAG=""
@@ -3746,6 +3792,7 @@ $INJECTED_PROMPT"
               run_plugin_hooks "post-story" "POST" "$_NEXT_SID" \
                 "\"story_title\":\"${_PS_TITLE//\"/\\\"}\",\"story_passes\":$_STORY_PASSES,\"retry_count\":${_PS_RETRY:-0}" 2>/dev/null || true
             fi
+            fi  # US-325: close idempotency guard else
           fi
 
           # ── Batch merge: restore full PRD with ralph's updates ─────────

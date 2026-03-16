@@ -239,3 +239,25 @@ Completed: ProjectDashboard: story detail slide-in panel (ID: US-316) in 8m
 - rerere auto-replay happens during the merge itself (before the hook fires), so `git rerere status` in the hook may show empty if autoupdate already staged everything
 - The hook uses `SPIRAL_SCRATCH_DIR` env var (exported by spiral.sh) to locate spiral_events.jsonl
 
+## Iteration 5 - Mon, Mar 16, 2026  1:07:42 PM
+Incomplete: Validate MCP server integrity via signed checksum manifest before Phase I (ID: US-320) — attempt /3
+
+## Iteration N - Story: US-325 Add Phase I idempotency guard: skip story if matching commit already exists
+
+### What was implemented
+- Added `check_idempotency_guard()` function in spiral.sh (after check_checkpoint_completeness, ~line 1054)
+- Function runs `git log --grep="$STORY_ID" --max-count=1 --format=%H` to find matching commits
+- Skips commits whose subject starts with "Revert" to avoid false positives
+- On match: marks story passes=true, sets _passedCommit to the SHA, logs idempotency_skip event
+- Inserted guard call in both code paths: sequential mode (line ~3697) and single-story parallel fallback (line ~3559)
+- Created tests/idempotency_guard.bats with 5 tests: skip on match, passes+SHA set, revert ignored, no-match proceeds, event logged
+
+### Patterns discovered
+- `git log --grep --max-count=1` is fast (<100ms) since it stops at first match
+- Return convention: 0=skip (match found), 1=proceed (no match) — aligns with bash if/then usage
+- The sequential mode needed an if/else wrapper with closing `fi` before the workers-gt-1 fi
+
+### Gotchas
+- In sequential mode, the idempotency guard wraps the entire ralph invocation block in an else clause — the closing `fi` must come before the outer block's fi
+- In parallel single-story fallback, the guard uses `continue` to skip to next wave instead of wrapping in else
+
