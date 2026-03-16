@@ -21,6 +21,8 @@ import sys
 HEADER = [
     "timestamp", "spiral_iter", "ralph_iter", "story_id", "story_title",
     "status", "duration_sec", "model", "retry_num", "commit_sha", "run_id",
+    "cache_hit", "cache_read_tokens", "cache_creation_tokens", "review_tokens",
+    "wall_seconds", "user_cpu_s", "sys_cpu_s", "peak_rss_kb",
 ]
 
 

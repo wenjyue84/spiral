@@ -6245,7 +6245,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "tags": [],
       "model": "haiku",
       "priorityScore": 89
@@ -6339,6 +6339,246 @@
       "passes": false,
       "model": "haiku",
       "priorityScore": 72
+    },
+    {
+      "id": "US-341",
+      "title": "Add cache token attributes to Ralph OTel invoke_agent spans for cost attribution",
+      "priority": "medium",
+      "description": "The OTel GenAI agent spans spec defines gen_ai.usage.cache_read.input_tokens and gen_ai.usage.cache_creation.input_tokens as recommended attributes on invoke_agent spans. SPIRAL's current OTel instrumentation tracks total tokens but does not distinguish cached from uncached tokens, making it impossible to verify that prompt caching is delivering expected savings in observability dashboards. Adding these attributes enables per-story and per-worker cache efficiency metrics.",
+      "acceptanceCriteria": [
+        "Every invoke_agent span on Ralph API calls includes gen_ai.usage.cache_read.input_tokens and gen_ai.usage.cache_creation.input_tokens populated from the Claude API usage response",
+        "A spiral diagnose or spiral estimate command reports per-story cache hit ratio: cache_read_tokens / (cache_read_tokens + input_tokens)",
+        "results.tsv gains two new columns: cache_read_tokens and cache_creation_tokens alongside the existing tokens column",
+        "Grafana or OTLP dashboard can display cache efficiency trend over iterations without additional transformation"
+      ],
+      "technicalNotes": [
+        "Claude API returns usage.cache_read_input_tokens and usage.cache_creation_input_tokens in the response body. Map these to OTel attributes: gen_ai.usage.cache_read.input_tokens and gen_ai.usage.cache_creation.input_tokens on the invoke_agent span.",
+        "These are 'recommended' attributes in the OTel spec, not required, but Datadog LLM Observability v1.37+ natively maps them for cost dashboards.",
+        "Reference: https://opentelemetry.io/docs/specs/semconv/gen-ai/gen-ai-agent-spans/ — recommended attributes table"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-342",
+      "title": "Implement majority-voting consensus for Phase S story validation to reduce false accept/reject",
+      "priority": "medium",
+      "description": "Research on multi-agent decision-making (arxiv:2502.19130) shows that majority voting across 3-5 independent LLM calls reduces false accept/reject rates by 13.2% on reasoning tasks versus a single call. SPIRAL's Phase S story validation uses a single Claude call to accept or reject each story against the constitution. Story validation is fundamentally a reasoning task (logical consistency, deduplication), making voting the appropriate strategy per the research.",
+      "acceptanceCriteria": [
+        "Phase S story validation runs the validate_story check N times (default N=3, configurable via SPIRAL_VALIDATION_VOTES env var) with independent API calls",
+        "A story is accepted only if the majority (>50%) of votes accept it; ties default to reject",
+        "results.tsv records the vote breakdown (e.g., votes_accept=2, votes_reject=1) for each validated story",
+        "With N=1 (default for cost-constrained runs), behavior is identical to current single-call validation (no regression)"
+      ],
+      "technicalNotes": [
+        "Run validation calls in parallel using asyncio.gather() or a thread pool to avoid multiplying wall-clock time. For N=3, total latency should be approximately equal to a single sequential call.",
+        "Research recommends 'scaling up the number of agents instead of the number of rounds' — use separate independent calls with different random seeds, not multi-turn conversation.",
+        "Reference: https://arxiv.org/html/2502.19130v4 — 'Recommended Strategy' section"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-343",
+      "title": "Implement transactional filesystem snapshots in ralph.sh for guaranteed atomic rollback",
+      "priority": "medium",
+      "description": "Research on fault-tolerant sandboxing for AI coding agents (arxiv:2512.12806) demonstrates a transactional approach achieving 100% rollback success rate for failed agent actions with only 14.5% performance overhead (1.8s per transaction). SPIRAL's current commit_revert.sh performs git revert on failure, but filesystem state outside git (temp files, package installs, env vars) is not rolled back. A snapshot layer using git stash + a non-git file manifest provides stronger atomicity guarantees.",
+      "acceptanceCriteria": [
+        "lib/impl/commit_revert.sh takes a filesystem snapshot (via git stash + a manifest of non-git files) before each Ralph execution begins",
+        "On Ralph failure, rollback restores both git-tracked and non-git-tracked files to the pre-execution snapshot state",
+        "Rollback success rate is logged to spiral_events.jsonl; a rollback_failed event triggers an alert and marks the story as requires_manual_review",
+        "Transaction overhead adds no more than 3 seconds per story execution as measured against the current baseline"
+      ],
+      "technicalNotes": [
+        "Lightweight implementation: before Ralph runs, record git stash create (saves staged/unstaged changes) and a manifest of files in /tmp and the project root that are not git-tracked. On failure: git stash apply and remove newly created non-tracked files.",
+        "For stronger guarantees in Linux CI environments, use Btrfs/ZFS subvolume snapshots or overlay filesystem mounts.",
+        "Reference: https://arxiv.org/abs/2512.12806 — 'Core Approach' and 'Safety Guarantees'"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-344",
+      "title": "Generate CycloneDX SBOM from uv.lock on each CI run and attach as workflow artifact",
+      "priority": "medium",
+      "description": "SPIRAL's CI pipeline performs security scanning via semgrep, shellcheck, and pip-audit but does not produce a Software Bill of Materials. The uv package manager supports exporting a CycloneDX 1.5 SBOM directly from uv.lock, providing a complete, deterministic inventory of all Python dependencies for supply chain auditing, compliance, and vulnerability correlation with grype/Trivy.",
+      "acceptanceCriteria": [
+        "GitHub Actions CI workflow includes a 'Generate SBOM' step that runs uv export --format cyclonedx1.5 > sbom.json",
+        "The generated sbom.json is uploaded as a workflow artifact named 'sbom-cyclonedx' and retained for 30 days",
+        "A second step runs grype sbom:./sbom.json and fails the build if any HIGH or CRITICAL vulnerabilities are found",
+        "SBOM generation is also triggered on release tags and the resulting SBOM is attached to the GitHub Release"
+      ],
+      "technicalNotes": [
+        "uv supports --format cyclonedx1.5 via 'uv export'. Alternatively use the cyclonedx-bom CLI: 'cyclonedx-py environment --of JSON > sbom.json' for more complete metadata including CPE identifiers.",
+        "For deeper coverage including transitive dependencies from container images, combine with Syft: 'syft dir:. --output cyclonedx-json=sbom-syft.json'. Syft handles mixed Python/Node.js/shell environments.",
+        "Reference: https://github.com/CycloneDX/cyclonedx-python"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-345",
+      "title": "Scan uv.lock for known vulnerabilities in CI using uv-secure",
+      "priority": "medium",
+      "description": "SPIRAL uses uv exclusively for Python dependency management, but the current CI pipeline's pip-audit step requires a virtual environment and does not natively understand uv.lock files. The uv-secure tool statically analyses uv.lock against OSV vulnerability databases without requiring a virtual environment or an external account, providing faster and more accurate dependency security scanning aligned with uv's lockfile format.",
+      "acceptanceCriteria": [
+        "CI workflow replaces or supplements the existing pip-audit step with: uv run uv-secure uv.lock",
+        "Build fails on any vulnerability with severity HIGH or CRITICAL; MEDIUM and below generate warnings only",
+        "uv-secure is added to the [dependency-groups.dev] section of pyproject.toml so it is available in CI without separate installation",
+        "Results are reported in both human-readable console output and a machine-readable JSON file uploaded as a CI artifact"
+      ],
+      "technicalNotes": [
+        "Install as a dev dependency: uv add --dev uv-secure. Run in CI: uv run uv-secure uv.lock --output-format json --output-file vuln-report.json",
+        "uv-secure checks against the OSV (Open Source Vulnerabilities) database. For GHSA coverage, also run: uv run pip-audit as a secondary check.",
+        "Reference: https://pypi.org/project/uv-secure/"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-346",
+      "title": "Add mutation testing with mutmut to measure Python test suite effectiveness on lib/",
+      "priority": "medium",
+      "description": "SPIRAL's pytest suite enforces 48% line coverage but coverage alone cannot detect weak assertions or logic gaps — a test can cover a line without catching mutations. Mutmut introduces systematic code mutations (operator swaps, constant changes, boolean flips) and verifies that the existing test suite kills each mutant. Running mutmut against lib/ in CI exposes tests that pass despite incorrect implementation logic, directly improving confidence in story validation and merge logic.",
+      "acceptanceCriteria": [
+        "mutmut is added to pyproject.toml [tool.mutmut] config with paths_to_mutate = ['lib/'] and tests_dir = ['tests/'] and a mutation_score_threshold of 60",
+        "A GitHub Actions CI job runs mutmut on pull requests targeting lib/merge_stories.py, lib/validate_story.py, and lib/route_model.py (highest-risk modules)",
+        "The job fails if the mutation score falls below the configured threshold",
+        "mutmut results HTML report is uploaded as a CI artifact for developer review"
+      ],
+      "technicalNotes": [
+        "Configure mutmut in pyproject.toml: [tool.mutmut] paths_to_mutate = 'lib/', runner = 'uv run pytest --timeout=10 -x', exclude = 'tests/'. Run with: uv run mutmut run --use-coverage to skip mutations in uncovered lines (10x speedup).",
+        "First run will establish a baseline. Gate the CI step with continues-on-error: true initially to collect baseline scores before enforcing the threshold.",
+        "Reference: https://github.com/boxed/mutmut"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-347",
+      "title": "Enable git rerere to auto-replay recorded conflict resolutions across Ralph worker branches",
+      "priority": "medium",
+      "description": "SPIRAL's parallel Ralph workers frequently encounter the same merge conflicts when rebasing worker branches onto main — especially in prd.json and results.tsv. git rerere (Reuse Recorded Resolution) records the first manual resolution of a conflict pattern and automatically replays it for identical future conflicts, eliminating repeated developer intervention for structurally identical conflicts across worker branches.",
+      "acceptanceCriteria": [
+        "spiral.sh startup (or setup.sh) runs: git config rerere.enabled true and git config rerere.autoupdate true in the main repository",
+        "The .git/rr-cache/ directory is excluded from .gitignore (it must persist across sessions for rerere to replay)",
+        "A post-merge hook logs when rerere auto-applies a recorded resolution to spiral_events.jsonl as a rerere_replay event",
+        "Integration test demonstrates that a conflict in prd.json resolved once is automatically replayed on a second identical conflict without developer input"
+      ],
+      "technicalNotes": [
+        "Enable with: git config rerere.enabled true. rerere.autoupdate true causes Git to automatically stage auto-applied resolutions. The rr-cache is stored in .git/rr-cache/ and should be shared across the team via git bundle or by committing rr-cache to a separate branch.",
+        "Useful specifically for prd.json merges where worker branches add stories in predictable JSON array patterns.",
+        "Reference: https://git-scm.com/book/en/v2/Git-Tools-Rerere"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-348",
+      "title": "Add privacy-scrubbing OTel span processor to redact secrets before telemetry export",
+      "priority": "medium",
+      "description": "Research on LLM agent privacy (arxiv:2509.17488) demonstrates that agents leak sensitive data through telemetry pipelines — prompts, tool call arguments, and file contents may contain API keys, personal data, or proprietary code. SPIRAL's OTel exporter emits gen_ai.input.messages and gen_ai.output.messages attributes without any scrubbing. A structured scrubbing layer using regex patterns for secrets and a configurable allowlist reduces privacy risk before telemetry leaves the host.",
+      "acceptanceCriteria": [
+        "An OTel span processor (privacy_scrubber.py) runs before the OTLP exporter and redacts values matching patterns for API keys (sk-ant-*, ghp_*, etc.), emails, and file paths containing credentials",
+        "gen_ai.input.messages and gen_ai.output.messages attributes are opt-in AND disabled by default; enabling them requires SPIRAL_OTEL_EMIT_MESSAGES=true",
+        "Scrubbing can be configured via spiral.config.sh with SPIRAL_OTEL_SCRUB_PATTERNS (list of regex patterns) and SPIRAL_OTEL_SCRUB_FIELDS (list of attribute names to fully redact)",
+        "A unit test verifies that a prompt containing 'sk-ant-api03-...' is replaced with '[REDACTED_API_KEY]' before export"
+      ],
+      "technicalNotes": [
+        "Implement as an OpenTelemetry SpanProcessor that wraps the OTLP exporter. Override on_end(span) to scan and redact attribute values before forwarding to the base exporter.",
+        "Use the detect-secrets library for pattern-based detection, or a curated list of regexes for common secret formats. Do not use an LLM for redaction in the critical path.",
+        "Reference: https://arxiv.org/abs/2509.17488"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-349",
+      "title": "Create OpenAI Evals-style YAML harness for testing SPIRAL phase behaviors",
+      "priority": "medium",
+      "description": "OpenAI's Evals framework defines a structured pattern of dataset + testing_criteria (graders) that produces comparable scores over time. SPIRAL lacks a formalized evaluation harness for its own phase logic — Phase S story validation, Phase M merge scoring, and Phase R research synthesis are tested only by unit tests without behavioral scoring. An Evals-style harness with YAML-defined test cases and LLM-judge graders enables regression detection as prompts and models change.",
+      "acceptanceCriteria": [
+        "A tests/evals/ directory contains YAML eval definitions for Phase S (story validation), Phase R (research quality), and Phase V (LLM-as-judge output quality)",
+        "Each eval YAML specifies: data_source (CSV of input/expected pairs) and testing_criteria (at minimum one deterministic checker and one model-graded rubric)",
+        "Running uv run python -m spiral.evals runs all evals and outputs a score summary with pass/fail per eval",
+        "CI runs the evals suite on PRs that modify prompt templates in ralph/CLAUDE.md or phase scripts"
+      ],
+      "technicalNotes": [
+        "Use the openai/evals pattern: each eval is a YAML with dataset and grader config. Implement a lightweight Python runner using the open-source lm-evaluation-harness backend to avoid vendor lock-in.",
+        "Start with 10-20 golden test cases per phase. Use deterministic checks first (e.g., 'does output contain valid JSON with required fields?'), then layer in model-graded rubric scoring (G-Eval style).",
+        "Reference: https://github.com/openai/evals"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "large",
+      "passes": false
+    },
+    {
+      "id": "US-350",
+      "title": "Add episodic memory store for Ralph workers to recall past implementation patterns",
+      "priority": "low",
+      "description": "Research on AI agent memory (arxiv:2512.13564) categorizes agent memory into working, episodic, and semantic forms. SPIRAL's Ralph workers have no episodic memory — each worker begins every story without knowledge of how similar stories were implemented in prior iterations. Writing a compact episodic record of 'story type → implementation approach → outcome' to a SQLite FTS5 store and injecting the top-3 relevant past implementations into Ralph's context provides few-shot learning from SPIRAL's own history.",
+      "acceptanceCriteria": [
+        "A .spiral/episodic_memory.db SQLite database stores records with columns: story_id, story_type, approach_summary, outcome (pass/fail), iteration, timestamp",
+        "After each successful Ralph execution, lib/impl/commit_revert.sh writes a summary (generated by a cheap haiku call) to the episodic store",
+        "Before Ralph executes a story, the top-3 most similar past implementations (by story title keyword match or FTS5 similarity) are retrieved and injected as few-shot examples in the user message",
+        "A spiral memory list command displays the 20 most recent episodic records with their pass/fail outcomes"
+      ],
+      "technicalNotes": [
+        "Use SQLite with FTS5 (full-text search) for keyword-based retrieval without an embedding model dependency. For semantic similarity, optionally integrate with a local embedding (e.g., nomic-embed-text via ollama) gated by SPIRAL_EPISODIC_EMBEDDINGS=true.",
+        "The episodic record injection should be placed after the static system prompt but before the story description, to avoid invalidating the cached prompt prefix.",
+        "Reference: https://arxiv.org/abs/2512.13564"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "large",
+      "passes": false
+    },
+    {
+      "id": "US-351",
+      "title": "Use single shared git fetch before parallel worker launch to cut pre-launch sync time 90%",
+      "priority": "low",
+      "description": "SPIRAL's parallel workers each run independent git fetch operations, generating redundant network transfers because all worktrees share the same underlying object database. A single git fetch in any one worktree downloads objects for all worktrees simultaneously. Replacing N individual fetches with one shared fetch before worker launch reduces fetch time from O(N*network) to O(network), with measured speedups of 90% at 10 worktrees (12s to 1.3s).",
+      "acceptanceCriteria": [
+        "lib/run_parallel_ralph.sh performs exactly one git fetch origin before launching workers, replacing any per-worker fetch steps",
+        "Worker launch includes a lightweight git diff-index --quiet HEAD check (~15ms) to detect which worktrees need attention rather than running full git status (~80ms) across all workers",
+        "spiral_events.jsonl records a shared_fetch_complete event with the count of worktrees synchronized and elapsed time",
+        "Test confirms that with 4 workers, total pre-launch git sync time is under 3 seconds on a standard connection"
+      ],
+      "technicalNotes": [
+        "All git worktrees share .git/objects, so any fetch populates objects for all worktrees. Run: git fetch --all --prune once in the main repo root before workers start. Workers then do git checkout or git reset --hard origin/main without fetching.",
+        "For parallel status checks across worktrees: use xargs -P with a concurrency of min(4, cpu_count) for disk-bound operations.",
+        "Reference: https://gitcheatsheet.dev/docs/advanced/worktrees/performance/"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-352",
+      "title": "Derive cross-iteration story velocity model from results.tsv to improve cost estimates",
+      "priority": "low",
+      "description": "SPIRAL's python main.py estimate command uses static per-story cost estimates. results.tsv accumulates per-story telemetry (model, tokens, cost, duration, status) across all iterations, providing a growing empirical dataset for velocity and cost forecasting. Fitting a simple linear regression on story_type to (mean_tokens, mean_duration, pass_rate) from results.tsv enables estimate to produce data-driven projections that improve as SPIRAL runs more iterations.",
+      "acceptanceCriteria": [
+        "python main.py estimate reads results.tsv and groups rows by a story_type heuristic (derived from story title keywords or tags)",
+        "For each story type with at least 5 historical data points, the estimate uses the empirical mean cost and duration; otherwise falls back to the static default",
+        "python main.py estimate --report outputs a table showing: story_type, historical_samples, mean_tokens, mean_cost, empirical_pass_rate, estimated_retries",
+        "The model is saved to .spiral/velocity_model.json on each estimate run so it persists between sessions"
+      ],
+      "technicalNotes": [
+        "Use scipy.stats.linregress or numpy polyfit for the regression. For classification of story types, use simple keyword matching on the title (e.g., 'Add OTel' -> 'observability', 'Fix bug' -> 'bug_fix') rather than a model call.",
+        "Consider a rolling window (last 50 rows per story type) rather than all historical data to account for model upgrades that change token patterns.",
+        "Reference: https://agenta.ai/blog/the-ai-engineer-s-guide-to-llm-observability-with-opentelemetry"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
     }
   ]
 }

@@ -902,7 +902,8 @@ def cmd_diagnose(args) -> None:
         print(f"\nPrompt cache analysis:")
         print(f"  Hit rate       : {cache_analysis['hit_rate_pct']:.1f}%")
         print(f"  Calls          : {cache_analysis['total_calls']} ({cache_analysis['cache_hits']} hits, {cache_analysis['cache_misses']} misses)")
-        print(f"  Cache tokens   : {cache_analysis['total_cache_read_tokens']:,}")
+        print(f"  Read tokens    : {cache_analysis['total_cache_read_tokens']:,}")
+        print(f"  Creation tokens: {cache_analysis['total_cache_creation_tokens']:,}")
         if not cache_analysis["healthy"]:
             print(f"  WARNING: {cache_analysis['diagnosis']}")
 

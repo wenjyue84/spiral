@@ -143,3 +143,29 @@ Completed: ProjectDashboard: 'SPIRAL IS RUNNING' live status indicator (ID: US-3
 ## Iteration 5 - Mon, Mar 16, 2026 12:00:05 PM
 Completed: ProjectDashboard: story detail slide-in panel (ID: US-316) in 8m
 
+## Iteration 1 - Mon, Mar 16, 2026 12:17:32 PM
+Incomplete: Validate MCP server integrity via signed checksum manifest before Phase I (ID: US-320) — attempt /3
+
+
+## Iteration N - Story: US-336 Adopt automatic prompt caching at request level for all Ralph API calls
+
+### What was implemented
+- Added `SPIRAL_CACHE_TTL` env var and `--cache-ttl` CLI flag to ralph.sh for extended cache TTL
+- Updated `--betas` flag to use variable `_CACHE_BETAS` and conditional `_CACHE_TTL_FLAG` for TTL support
+- Added `cache_creation_tokens` column to results.tsv header (between `cache_read_tokens` and `review_tokens`)
+- Updated `append_result()` printf to emit `_CACHE_CREATION_TOKENS` in the new column
+- Updated `lib/merge_results_tsv.py` HEADER to include all 18 columns (was only 11)
+- Updated `lib/prompt_cache_analysis.py` to track and return `total_cache_creation_tokens`
+- Updated `main.py` diagnose output to show both read and creation tokens separately
+- Added 5 new tests in `TestCacheCreationTokensTracking` class validating all cache changes
+
+### Patterns discovered
+- Ralph uses `claude -p` CLI with `--betas prompt-caching-2024-07-31` — prompt caching is API-level via CLI flag
+- `csv.DictReader` in main.py reads by column name, so adding columns doesn't break existing parsers
+- The `merge_results_tsv.py` HEADER was outdated (only 11 of 18 columns) — columns 12-17 were silently dropped during merge
+- Cache tokens were already extracted from response (lines 2546-2566) but only `cache_read_tokens` was in results.tsv
+
+### Gotchas
+- Pre-existing test failures: test_consistency_check, test_infer_dependencies, test_route_stories — unrelated to this story
+- The Claude CLI `--betas` flag is still needed for prompt caching; automatic caching GA may still require it
+- `_CACHE_TTL_FLAG` is deliberately unquoted in the CLI invocation so it expands to nothing when empty

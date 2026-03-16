@@ -46,6 +46,7 @@ SPIRAL_OLLAMA_HOST="${SPIRAL_OLLAMA_HOST:-http://localhost:11434/v1}"   # Ollama
 SPIRAL_LOCAL_FALLBACK_POLICY="${SPIRAL_LOCAL_FALLBACK_POLICY:-}"           # US-261: allow|deny|local-only; empty = disabled
 SPIRAL_OLLAMA_BASE_URL="${SPIRAL_OLLAMA_BASE_URL:-http://localhost:11434}"  # US-261: Ollama native base URL (no /v1 suffix)
 SPIRAL_OLLAMA_MODEL="${SPIRAL_OLLAMA_MODEL:-llama3.2}"                      # US-261: local model for policy-based fallback
+SPIRAL_CACHE_TTL="${SPIRAL_CACHE_TTL:-}"                               # US-336: prompt cache TTL (e.g. "1h") — extends cache lifetime at 2x cost
 SPIRAL_SKIP_SELF_REVIEW="${SPIRAL_SKIP_SELF_REVIEW:-false}"             # true = disable Phase I.5 LLM self-review gate (US-145)
 SPIRAL_SELF_REVIEW_MODEL="${SPIRAL_SELF_REVIEW_MODEL:-haiku}"           # Claude model for self-review; haiku to minimise cost (US-145)
 SPIRAL_GEMINI_SKIP_SMALL="${SPIRAL_GEMINI_SKIP_SMALL:-true}"           # true = skip Gemini pre-analysis for small stories with <=2 filesTouch (US-171)
@@ -81,6 +82,10 @@ while [[ $# -gt 0 ]]; do
     --dry-run)
       DRY_RUN=true
       shift
+      ;;
+    --cache-ttl)
+      SPIRAL_CACHE_TTL="$2"
+      shift 2
       ;;
     *)
       MAX_ITERATIONS="$1"
@@ -995,13 +1000,13 @@ append_result() {
   local duration_sec=$((STORY_END - STORY_START))
   local model_col="${EFFECTIVE_MODEL:-${EFFECTIVE_TOOL:-unknown}}"
   if [[ ! -f "$RESULTS_FILE" ]]; then
-    printf 'timestamp\tspiral_iter\tralph_iter\tstory_id\tstory_title\tstatus\tduration_sec\tmodel\tretry_num\tcommit_sha\trun_id\tcache_hit\tcache_read_tokens\treview_tokens\twall_seconds\tuser_cpu_s\tsys_cpu_s\tpeak_rss_kb\n' >"$RESULTS_FILE"
+    printf 'timestamp\tspiral_iter\tralph_iter\tstory_id\tstory_title\tstatus\tduration_sec\tmodel\tretry_num\tcommit_sha\trun_id\tcache_hit\tcache_read_tokens\tcache_creation_tokens\treview_tokens\twall_seconds\tuser_cpu_s\tsys_cpu_s\tpeak_rss_kb\n' >"$RESULTS_FILE"
   fi
   local safe_title="${STORY_TITLE//$'\t'/ }"
-  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
     "$ts" "${SPIRAL_ITER:-0}" "$ITERATION" "$NEXT_STORY" "$safe_title" \
     "$status" "$duration_sec" "$model_col" "$RETRY_NOW" "$commit_sha" "${SPIRAL_RUN_ID:-}" \
-    "${_CACHE_HIT:-false}" "${_CACHE_READ_TOKENS:-0}" "${_REVIEW_TOKENS:-0}" \
+    "${_CACHE_HIT:-false}" "${_CACHE_READ_TOKENS:-0}" "${_CACHE_CREATION_TOKENS:-0}" "${_REVIEW_TOKENS:-0}" \
     "${_WALL_SEC:-0}" "${_USER_CPU_S:-0}" "${_SYS_CPU_S:-0}" "${_PEAK_RSS_KB:-0}" \
     >>"$RESULTS_FILE"
 }
@@ -2378,7 +2383,16 @@ ${_FT_CONTEXT_BODY}"
         [[ -n "$_FT_STATUS" ]] && echo "$_FT_STATUS"
       fi
 
-      echo "  [cache] System prompt: $(echo "$RALPH_SYSTEM_PROMPT" | wc -c) bytes (cacheable via prompt-caching beta)"
+      echo "  [cache] System prompt: $(echo "$RALPH_SYSTEM_PROMPT" | wc -c) bytes (automatic prompt caching)"
+      # US-336: Build cache flags — automatic prompt caching is GA; the --betas flag
+      # enables request-level cache_control:{type:'ephemeral'} on the Anthropic API.
+      # When --cache-ttl is set, pass it as an additional beta for extended TTL.
+      _CACHE_BETAS="prompt-caching-2024-07-31"
+      _CACHE_TTL_FLAG=""
+      if [[ -n "${SPIRAL_CACHE_TTL:-}" ]]; then
+        echo "  [cache] Extended TTL: ${SPIRAL_CACHE_TTL} (2x cost for longer cache lifetime)"
+        _CACHE_TTL_FLAG="--cache-ttl ${SPIRAL_CACHE_TTL}"
+      fi
       # Unset CLAUDECODE to allow nested Claude Code invocation from within an active session
       # Wrap with 529 overloaded_error retry loop (separate from 429 rate-limit handling)
       _529_ATTEMPT=0
@@ -2398,7 +2412,8 @@ ${_FT_CONTEXT_BODY}"
           "${_GNU_TIME_CMD[@]+"${_GNU_TIME_CMD[@]}"}" claude -p "$RALPH_USER_PROMPT" \
             $CLAUDE_MODEL_FLAG \
             --append-system-prompt "$RALPH_SYSTEM_PROMPT" \
-            --betas prompt-caching-2024-07-31 \
+            --betas "$_CACHE_BETAS" \
+            $_CACHE_TTL_FLAG \
             --allowedTools "Edit,Write,Read,Glob,Grep,Bash,Skill,Task" \
             --max-turns 75 \
             --verbose \

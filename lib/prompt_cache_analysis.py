@@ -14,7 +14,8 @@ def analyze_cache_hit_rate(rows: list[dict[str, Any]]) -> dict[str, Any]:
     """Analyze cache hit rate from results.tsv rows.
 
     Args:
-        rows: List of dicts with at least 'cache_hit' and 'cache_read_tokens' keys.
+        rows: List of dicts with at least 'cache_hit', 'cache_read_tokens',
+              and optionally 'cache_creation_tokens' keys.
 
     Returns:
         Dict with:
@@ -23,6 +24,7 @@ def analyze_cache_hit_rate(rows: list[dict[str, Any]]) -> dict[str, Any]:
           - cache_hits: int
           - cache_misses: int
           - total_cache_read_tokens: int
+          - total_cache_creation_tokens: int
           - healthy: bool (True if hit_rate >= 50% or no data)
           - diagnosis: str (human-readable explanation)
     """
@@ -33,6 +35,7 @@ def analyze_cache_hit_rate(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "cache_hits": 0,
             "cache_misses": 0,
             "total_cache_read_tokens": 0,
+            "total_cache_creation_tokens": 0,
             "healthy": True,
             "diagnosis": "No data available for cache analysis.",
         }
@@ -42,6 +45,9 @@ def analyze_cache_hit_rate(rows: list[dict[str, Any]]) -> dict[str, Any]:
     misses = total - hits
     cache_read_tokens = sum(
         int(r.get("cache_read_tokens", 0) or 0) for r in rows
+    )
+    cache_creation_tokens = sum(
+        int(r.get("cache_creation_tokens", 0) or 0) for r in rows
     )
     hit_rate = (hits / total) * 100 if total > 0 else 0.0
     healthy = hit_rate >= 50.0 or total == 0
@@ -63,6 +69,7 @@ def analyze_cache_hit_rate(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "cache_hits": hits,
         "cache_misses": misses,
         "total_cache_read_tokens": cache_read_tokens,
+        "total_cache_creation_tokens": cache_creation_tokens,
         "healthy": healthy,
         "diagnosis": diagnosis,
     }

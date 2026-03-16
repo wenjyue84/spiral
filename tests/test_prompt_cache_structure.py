@@ -271,3 +271,82 @@ class TestCacheHitRateAnalysis:
         result = analyze_cache_hit_rate([])
         assert result["hit_rate_pct"] == 0.0
         assert result["healthy"] is True  # No data = no alarm
+
+
+# ── US-336: Cache creation tokens tracking ────────────────────────────────
+
+
+class TestCacheCreationTokensTracking:
+    """US-336: Verify cache_creation_tokens column in results.tsv and analysis."""
+
+    def test_results_tsv_header_has_cache_creation_tokens(self):
+        """results.tsv header must include cache_creation_tokens column."""
+        from pathlib import Path
+
+        ralph_sh = (
+            Path(__file__).parent.parent / "ralph" / "ralph.sh"
+        ).read_text(encoding="utf-8")
+
+        assert "cache_creation_tokens" in ralph_sh, (
+            "ralph.sh must declare cache_creation_tokens in results.tsv header"
+        )
+        # Verify it's in the printf header line
+        header_lines = [
+            line for line in ralph_sh.splitlines()
+            if "printf" in line and "timestamp" in line and "cache_creation_tokens" in line
+        ]
+        assert len(header_lines) >= 1, (
+            "cache_creation_tokens must be in results.tsv header printf"
+        )
+
+    def test_analyze_tracks_cache_creation_tokens(self):
+        """analyze_cache_hit_rate must sum cache_creation_tokens from rows."""
+        from pathlib import Path
+        import sys
+
+        sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
+        from prompt_cache_analysis import analyze_cache_hit_rate
+
+        rows = [
+            {"cache_hit": "true", "cache_read_tokens": "4500", "cache_creation_tokens": "1000"},
+            {"cache_hit": "true", "cache_read_tokens": "3000", "cache_creation_tokens": "500"},
+            {"cache_hit": "false", "cache_read_tokens": "0", "cache_creation_tokens": "2000"},
+        ]
+        result = analyze_cache_hit_rate(rows)
+        assert result["total_cache_creation_tokens"] == 3500
+        assert result["total_cache_read_tokens"] == 7500
+
+    def test_analyze_empty_has_cache_creation_field(self):
+        """Empty analysis result must include total_cache_creation_tokens: 0."""
+        from pathlib import Path
+        import sys
+
+        sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
+        from prompt_cache_analysis import analyze_cache_hit_rate
+
+        result = analyze_cache_hit_rate([])
+        assert "total_cache_creation_tokens" in result
+        assert result["total_cache_creation_tokens"] == 0
+
+    def test_cache_ttl_flag_in_ralph_sh(self):
+        """ralph.sh must accept --cache-ttl CLI flag."""
+        from pathlib import Path
+
+        ralph_sh = (
+            Path(__file__).parent.parent / "ralph" / "ralph.sh"
+        ).read_text(encoding="utf-8")
+
+        assert "--cache-ttl" in ralph_sh, "ralph.sh must accept --cache-ttl flag"
+        assert "SPIRAL_CACHE_TTL" in ralph_sh, "ralph.sh must define SPIRAL_CACHE_TTL variable"
+
+    def test_merge_results_header_has_cache_creation_tokens(self):
+        """merge_results_tsv.py HEADER must include cache_creation_tokens."""
+        from pathlib import Path
+        import sys
+
+        sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
+        from merge_results_tsv import HEADER
+
+        assert "cache_creation_tokens" in HEADER, (
+            "merge_results_tsv.py HEADER must include cache_creation_tokens"
+        )
