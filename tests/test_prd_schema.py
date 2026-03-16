@@ -1,6 +1,6 @@
 """Property-based tests for prd_schema.py validation."""
 import pytest
-from hypothesis import given, settings, assume
+from hypothesis import given, settings, assume, HealthCheck
 from conftest import valid_prd, invalid_prd_missing_field, prd_with_duplicate_ids, prd_with_dangling_dep
 from prd_schema import validate_prd
 
@@ -9,7 +9,7 @@ class TestValidPrd:
     """Property: valid PRDs always pass validation."""
 
     @given(prd=valid_prd())
-    @settings(max_examples=200)
+    @settings(max_examples=200, suppress_health_check=[HealthCheck.too_slow])
     def test_valid_prd_has_no_errors(self, prd):
         errors = validate_prd(prd)
         assert errors == [], f"Valid PRD should have no errors: {errors}"
@@ -24,7 +24,7 @@ class TestInvalidPrd:
     """Property: known-invalid PRDs always fail validation."""
 
     @given(data=invalid_prd_missing_field())
-    @settings(max_examples=100)
+    @settings(max_examples=100, suppress_health_check=[HealthCheck.too_slow])
     def test_missing_required_field_detected(self, data):
         prd, field = data
         errors = validate_prd(prd)
@@ -32,13 +32,13 @@ class TestInvalidPrd:
         assert any(field in e for e in errors)
 
     @given(prd=prd_with_duplicate_ids())
-    @settings(max_examples=100)
+    @settings(max_examples=100, suppress_health_check=[HealthCheck.too_slow])
     def test_duplicate_ids_detected(self, prd):
         errors = validate_prd(prd)
         assert any("duplicate" in e.lower() for e in errors)
 
     @given(prd=prd_with_dangling_dep())
-    @settings(max_examples=100)
+    @settings(max_examples=100, suppress_health_check=[HealthCheck.too_slow])
     def test_dangling_dependency_detected(self, prd):
         errors = validate_prd(prd)
         assert any("not found" in e for e in errors)

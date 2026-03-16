@@ -527,3 +527,6 @@ Incomplete: Validate MCP server integrity via signed checksum manifest before Ph
 ### Gotchas
 - This is a 3-line YAML addition — no code or tests needed beyond YAML validation
 
+## Iteration 5 - Mon, Mar 16, 2026  3:36:08 PM
+Completed: Validate MCP server integrity via signed checksum manifest before Phase I (ID: US-320) in 4m
+

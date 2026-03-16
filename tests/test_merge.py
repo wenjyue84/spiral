@@ -5,7 +5,7 @@ import subprocess
 import sys
 import re
 import pytest
-from hypothesis import given, settings, assume
+from hypothesis import given, settings, assume, HealthCheck
 from hypothesis import strategies as st
 from conftest import valid_prd
 
@@ -62,6 +62,7 @@ class TestFindNextId:
     """Properties of ID generation."""
 
     @given(prd=valid_prd(min_stories=1, max_stories=10))
+    @settings(suppress_health_check=[HealthCheck.too_slow])
     def test_next_id_is_higher_than_all_existing(self, prd):
         """Next ID number is always greater than any existing ID number."""
         stories = prd["userStories"]
@@ -84,6 +85,7 @@ class TestSortKey:
         assert sort_key(critical) < sort_key(low)
 
     @given(prd=valid_prd(min_stories=2, max_stories=10))
+    @settings(suppress_health_check=[HealthCheck.too_slow])
     def test_sort_is_stable(self, prd):
         """Sorting by priority key is deterministic."""
         stories = prd["userStories"]
@@ -96,6 +98,7 @@ class TestStoryToPrdEntry:
     """Properties of story conversion."""
 
     @given(prd=valid_prd(min_stories=1, max_stories=3))
+    @settings(suppress_health_check=[HealthCheck.too_slow])
     def test_entry_always_has_required_fields(self, prd):
         """Converted entry always has all required PRD fields."""
         story = prd["userStories"][0]
@@ -104,6 +107,7 @@ class TestStoryToPrdEntry:
             assert field in entry, f"Missing field: {field}"
 
     @given(prd=valid_prd(min_stories=1, max_stories=3))
+    @settings(suppress_health_check=[HealthCheck.too_slow])
     def test_entry_passes_is_always_false(self, prd):
         """New entries from merge always start as passes=false."""
         story = prd["userStories"][0]

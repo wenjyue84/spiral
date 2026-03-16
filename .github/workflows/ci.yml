@@ -152,6 +152,8 @@ jobs:
         run: uv run python lib/prd_schema.py prd.json
 
       - name: Run tests with coverage
+        env:
+          HYPOTHESIS_PROFILE: ci
         run: |
           uv run pytest tests/ -v --tb=short \
             --cov=lib \

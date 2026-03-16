@@ -3,7 +3,7 @@ import os
 import sys
 import json
 import pytest
-from hypothesis import strategies as st, HealthCheck
+from hypothesis import strategies as st, HealthCheck, settings
 
 # Ensure lib/ is importable
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
@@ -11,6 +11,17 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 # ── Common settings for suppressing slow-generation health checks ──────────
 # The PRD strategy is inherently composite; suppress slow/large warnings.
 HEALTH_SUPPRESSED = [HealthCheck.too_slow, HealthCheck.large_base_example]
+
+# ── US-368: Hypothesis settings profiles for CI vs dev test execution ──────
+# ci       — thorough coverage for CI pipelines (high example count, no deadline)
+# dev      — fast local feedback loop (low example count, 500ms deadline)
+# thorough — pre-release deep testing (very high example count, no deadline)
+settings.register_profile("ci", max_examples=500, deadline=None)
+settings.register_profile("dev", max_examples=50, deadline=500)
+settings.register_profile("thorough", max_examples=2000, deadline=None)
+
+# Load profile from env var (defaults to 'dev' for fast local runs)
+settings.load_profile(os.getenv("HYPOTHESIS_PROFILE", "dev"))
 
 # ── Hypothesis strategies ──────────────────────────────────────────────────
 
