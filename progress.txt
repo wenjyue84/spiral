@@ -852,3 +852,27 @@ Completed: Use Claude Message Batches API for Phase S multi-story validation (ID
 
 ### Gotchas
 - Function names differ slightly from PRD spec: build_batch_requests (plural), parse_batch_results (not parse_batch_response) — but acceptance criteria check functionality, not exact names
+## Iteration 4 - Mon, Mar 16, 2026  7:09:39 PM
+Completed: Build Message Batches request builder and response parser (ID: US-404) in 6m
+
+
+## Iteration N - Story: US-405 Implement batch polling with exponential backoff
+
+### What was implemented
+- Added `poll_batch_until_complete(batch_id, client, max_wait_sec=3600.0)` to `lib/batch_validate.py`
+- Uses Anthropic SDK client interface: `client.beta.messages.batches.retrieve(batch_id)` for status, `client.beta.messages.batches.results(batch_id)` for results
+- Exponential backoff: starts at 2.0s, doubles each attempt (`* 2.0`), capped at 60.0s
+- Raises `TimeoutError` with message matching `"did not complete within"` on timeout
+- Added to `__all__` alongside existing `poll_batch`
+- Added `TestPollBatchUntilComplete` class to `tests/test_batch_validate.py` with 6 tests (all pass)
+- 32 total tests pass in test_batch_validate.py
+
+### Patterns discovered
+- `poll_batch_until_complete` takes SDK `client` object (not api_key/base_url) — different interface from existing `poll_batch`
+- Use `getattr(batch, "processing_status", None)` to safely access status from SDK response object
+- `time.sleep` is at module level in batch_validate — patch `"time.sleep"` (not `"batch_validate.time.sleep"`)
+- Backoff sequence: 2, 4, 8, 16, 32, 60, 60... (5 doublings before hitting 60s cap)
+
+### Gotchas
+- Both `poll_batch` (urllib-based, takes api_key) and `poll_batch_until_complete` (SDK-based, takes client) coexist
+- `inspect.signature` works fine for testing default parameter values without calling the function
