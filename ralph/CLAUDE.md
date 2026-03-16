@@ -77,6 +77,7 @@ Every input you receive has a trust level:
     - If the story has visual acceptance criteria, verify each one
     - If Chrome DevTools MCP tools are NOT available, skip this step entirely (static analysis only)
     - **Do NOT start a pinchtab server here** — pinchtab is a shell-driven tool for Phase V E2E assertions, not for inline agent checks. Chrome DevTools MCP is the right tool inside an agent turn.
+14. **Anti-patterns**: If the story JSON contains a `_antiPatterns` array, each entry is a previously-tried implementation approach that FAILED. Do NOT repeat any of them — not even partially. Look at the list before planning and choose a fundamentally different strategy. If in doubt, pick the simplest possible approach that directly satisfies the acceptance criteria.
 
 ## Diagnosis Block (Required Before File Edits)
 

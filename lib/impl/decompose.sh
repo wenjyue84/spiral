@@ -24,11 +24,39 @@
 
 [[ "${BASH_SOURCE[0]}" == "${0}" ]] && echo "Source this file, do not execute it directly." && exit 1
 
-# decompose_story <story_id>
-# Calls decompose_story.py and patches prd.json with sub-stories.
+# decompose_story <story_id> [model]
+# Calls lib/decompose_story.py and patches prd.json with sub-stories.
+# Returns 0 on success, 1 on failure.
+#
+# Environment:
+#   PRD_FILE       — path to prd.json (default: prd.json)
+#   PROGRESS_FILE  — path to progress.txt (default: progress.txt)
+#   SPIRAL_HOME    — repo root (default: .)
+#   SPIRAL_PYTHON  — Python interpreter (default: python3)
 decompose_story() {
   local story_id="$1"
-  echo "[Phase I / decompose] Decomposing $story_id into sub-stories"
-  # TODO: implement — wrap lib/decompose_story.py call
-  :
+  local model="${2:-sonnet}"
+  local prd_file="${PRD_FILE:-prd.json}"
+  local progress_file="${PROGRESS_FILE:-progress.txt}"
+  local spiral_home="${SPIRAL_HOME:-.}"
+  local python="${SPIRAL_PYTHON:-python3}"
+  local decompose_script="$spiral_home/lib/decompose_story.py"
+
+  echo "[Phase I / decompose] Decomposing $story_id into sub-stories (model=$model)"
+
+  if [[ ! -f "$prd_file" ]]; then
+    echo "[Phase I / decompose] ERROR: $prd_file not found" >&2
+    return 1
+  fi
+
+  if [[ ! -f "$decompose_script" ]]; then
+    echo "[Phase I / decompose] ERROR: $decompose_script not found" >&2
+    return 1
+  fi
+
+  "$python" "$decompose_script" \
+    --story-id "$story_id" \
+    --prd "$prd_file" \
+    --model "$model" \
+    --progress "$progress_file"
 }

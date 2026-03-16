@@ -160,3 +160,18 @@ SPIRAL_WORK_STEALING="${SPIRAL_WORK_STEALING:-false}"
 # Not run on iteration-limit exits, SIGINT, or errors.
 # Example: SPIRAL_ON_COMPLETE='curl -s -X POST "$SLACK_WEBHOOK_URL" -d "{\"text\":\"Spiral done!\"}"'
 # SPIRAL_ON_COMPLETE=""
+
+# ── Strategy 1: Anti-pattern prompt injection ─────────────────────────────
+# When true, each story failure appends the failure reason to _antiPatterns[]
+# in prd.json. On the next retry, these are injected as a numbered "FORBIDDEN
+# APPROACHES" list so the agent tries a fundamentally different implementation.
+SPIRAL_ANTI_PATTERN_INJECT="${SPIRAL_ANTI_PATTERN_INJECT:-true}"
+
+# ── Strategy 2: Early aggressive decomposition ────────────────────────────
+# When true, a story that fails on its FIRST attempt is immediately decomposed
+# if its complexity is >= SPIRAL_DECOMPOSE_FIRST_FAIL_COMPLEXITY (or its title
+# word count > 12). This avoids wasting sonnet/opus calls on stories that
+# should have been split from the start.
+SPIRAL_DECOMPOSE_ON_FIRST_FAIL="${SPIRAL_DECOMPOSE_ON_FIRST_FAIL:-false}"
+# Complexity threshold (small | medium | large) for first-fail decomposition.
+SPIRAL_DECOMPOSE_FIRST_FAIL_COMPLEXITY="${SPIRAL_DECOMPOSE_FIRST_FAIL_COMPLEXITY:-medium}"

@@ -3935,10 +3935,37 @@ $INJECTED_PROMPT"
           else
             ZERO_PROGRESS_COUNT=$((ZERO_PROGRESS_COUNT + 1))
             echo "  [I] WARNING: Ralph made zero progress (streak: $ZERO_PROGRESS_COUNT)"
-            if [[ "$ZERO_PROGRESS_COUNT" -ge 2 ]]; then
+            # Strategy 8: Zero-progress auto-tune — graduated recovery before halting.
+            # Count 1: force-decompose stuck stories (retries > 1) to unlock the backlog.
+            # Count 2: halve SPIRAL_STORY_BATCH_SIZE to expose different stories.
+            # Count 3: halt with ERR_ZERO_PROGRESS (was previously at count 2).
+            if [[ "$ZERO_PROGRESS_COUNT" -eq 1 ]]; then
+              echo "  [zero-progress] Recovery 1/3: force-decomposing stuck stories (retries > 1)..."
+              log_spiral_event "zero_progress_recovery" "\"action\":\"force_decompose\",\"streak\":$ZERO_PROGRESS_COUNT"
+              _ZP_DECOMPOSED=0
+              while IFS= read -r _ZP_SID; do
+                [[ -z "$_ZP_SID" ]] && continue
+                _ZP_RETRIES=$("$JQ" -r --arg id "$_ZP_SID" '.[$id] // 0' "$REPO_ROOT/retry-counts.json" 2>/dev/null || echo "0")
+                if [[ "$_ZP_RETRIES" -gt 1 ]]; then
+                  echo "  [zero-progress] Force-decomposing $_ZP_SID (retries=$_ZP_RETRIES)..."
+                  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/decompose_story.py" \
+                    --story-id "$_ZP_SID" --prd "$PRD_FILE" \
+                    --progress "$REPO_ROOT/progress.txt" --model sonnet 2>/dev/null && \
+                    _ZP_DECOMPOSED=$((_ZP_DECOMPOSED + 1)) || \
+                    echo "  [zero-progress] Decompose failed for $_ZP_SID — skipping"
+                fi
+              done < <("$JQ" -r '[.userStories[] | select(.passes != true and ._skipped != true and ._decomposed != true)] | .[].id' "$PRD_FILE" 2>/dev/null || true)
+              echo "  [zero-progress] Force-decomposed $_ZP_DECOMPOSED stuck stories"
+            elif [[ "$ZERO_PROGRESS_COUNT" -eq 2 ]]; then
+              _ZP_OLD_BATCH="${SPIRAL_STORY_BATCH_SIZE:-20}"
+              _ZP_NEW_BATCH=$(( ${SPIRAL_STORY_BATCH_SIZE:-20} > 10 ? ${SPIRAL_STORY_BATCH_SIZE:-20} / 2 : 5 ))
+              SPIRAL_STORY_BATCH_SIZE="$_ZP_NEW_BATCH"
+              echo "  [zero-progress] Recovery 2/3: batch size reduced $_ZP_OLD_BATCH → $SPIRAL_STORY_BATCH_SIZE (exposes different stories)"
+              log_spiral_event "zero_progress_recovery" "\"action\":\"halve_batch_size\",\"streak\":$ZERO_PROGRESS_COUNT,\"old_batch\":$_ZP_OLD_BATCH,\"new_batch\":$SPIRAL_STORY_BATCH_SIZE"
+            elif [[ "$ZERO_PROGRESS_COUNT" -ge 3 ]]; then
               echo ""
               echo "  ╔══════════════════════════════════════════════════════╗"
-              echo "  ║  SPIRAL HALTED — 2 consecutive zero-progress iters  ║"
+              echo "  ║  SPIRAL HALTED — 3 consecutive zero-progress iters  ║"
               echo "  ║  Pending stories may be blocked or require manual   ║"
               echo "  ║  intervention. Review prd.json and re-run.          ║"
               echo "  ╚══════════════════════════════════════════════════════╝"

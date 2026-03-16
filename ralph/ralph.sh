@@ -1016,6 +1016,42 @@ maybe_auto_decompose() {
     return 1
   fi
 
+  # Strategy 2: Early aggressive decomposition on first failure for complex stories.
+  # When SPIRAL_DECOMPOSE_ON_FIRST_FAIL=true, decompose immediately after the 1st
+  # failure if the story's complexity >= SPIRAL_DECOMPOSE_FIRST_FAIL_COMPLEXITY
+  # (default: medium) or its title has > 12 words.
+  if [[ "${SPIRAL_DECOMPOSE_ON_FIRST_FAIL:-false}" == "true" && "$retry_now" -eq 1 ]]; then
+    local complexity title_words complexity_rank threshold_rank
+    local first_fail_complexity="${SPIRAL_DECOMPOSE_FIRST_FAIL_COMPLEXITY:-medium}"
+    complexity=$($JQ -r ".userStories[] | select(.id == \"$story_id\") | .estimatedComplexity // \"medium\"" \
+      "$PRD_FILE" 2>/dev/null | tr -d '\r' || echo "medium")
+    title_words=$($JQ -r ".userStories[] | select(.id == \"$story_id\") | .title // \"\"" \
+      "$PRD_FILE" 2>/dev/null | wc -w || echo "0")
+    case "$complexity" in small) complexity_rank=1 ;; medium) complexity_rank=2 ;; *) complexity_rank=3 ;; esac
+    case "$first_fail_complexity" in small) threshold_rank=1 ;; medium) threshold_rank=2 ;; *) threshold_rank=3 ;; esac
+    if [[ "$complexity_rank" -ge "$threshold_rank" || "$title_words" -gt 12 ]]; then
+      echo "  [early-decompose] SPIRAL_DECOMPOSE_ON_FIRST_FAIL=true — decomposing $story_id at retry 1 (complexity=$complexity, title_words=$title_words)"
+      log_ralph_event "early_decompose" \
+        "\"storyId\":\"$story_id\",\"complexity\":\"$complexity\",\"titleWords\":$title_words,\"threshold\":\"$first_fail_complexity\""
+      if decompose_story "$story_id" "$model"; then
+        $JQ "(.userStories[] | select(.id == \"$story_id\") | ._failureReason) = \"early_decomposed_on_first_fail\"" \
+          "$PRD_FILE" >"${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE" || true
+        $JQ "(.userStories[] | select(.id == \"$story_id\") | ._skipped) = true" \
+          "$PRD_FILE" >"${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE" || true
+        local child_ids
+        child_ids=$($JQ -r ".userStories[] | select(.id == \"$story_id\") | ._decomposedInto // [] | join(\",\")" \
+          "$PRD_FILE" 2>/dev/null | tr -d '\r' || echo "")
+        log_ralph_event "early_decompose_done" \
+          "\"storyId\":\"$story_id\",\"retryCount\":$retry_now,\"childIds\":\"$child_ids\""
+        echo "EARLY-DECOMPOSED: $story_id at retry 1 (complexity=$complexity) → $child_ids" >>"$PROGRESS_FILE"
+        reset_retry "$story_id"
+        return 0
+      else
+        echo "  [early-decompose] Decomposition failed for $story_id — falling back to normal retry"
+      fi
+    fi
+  fi
+
   # Only trigger at threshold but before MAX_RETRIES (MAX_RETRIES has its own decompose path)
   if [[ "$retry_now" -lt "$threshold" || "$retry_now" -ge "$MAX_RETRIES" ]]; then
     return 1
@@ -2505,6 +2541,28 @@ ${_MASKED_CONTEXT}
 ACTION: Do NOT repeat the same approach that failed. Read progress.txt carefully for what
 was tried, then implement the story differently. You are using a more powerful model this
 attempt ($EFFECTIVE_MODEL) — use it."
+
+        # Strategy 1: Anti-pattern injection — list every previously-tried approach that
+        # failed so the agent cannot accidentally repeat it. Reads _antiPatterns[] from
+        # prd.json (accumulated by ralph after each failed attempt).
+        if [[ "${SPIRAL_ANTI_PATTERN_INJECT:-true}" == "true" ]]; then
+          _AP_LIST=$($JQ -r \
+            ".userStories[] | select(.id == \"$NEXT_STORY\") | ._antiPatterns // [] | to_entries[] | \"  \(.key+1). \(.value[:150])\"" \
+            "$PRD_FILE" 2>/dev/null | head -5 | tr -d '\r' || true)
+          if [[ -n "$_AP_LIST" ]]; then
+            _AP_COUNT=$(printf '%s\n' "$_AP_LIST" | wc -l | tr -d ' ')
+            _RETRY_BRIEF="${_RETRY_BRIEF}
+
+FORBIDDEN APPROACHES — DO NOT TRY any of these (all previously failed):
+${_AP_LIST}
+
+Choose a COMPLETELY DIFFERENT implementation strategy from the ones listed above."
+            echo "  [anti-pattern] $_AP_COUNT anti-pattern(s) injected for $NEXT_STORY"
+            log_ralph_event "anti_pattern_injected" \
+              "\"story_id\":\"$NEXT_STORY\",\"retry\":$RETRY_NOW,\"count\":$_AP_COUNT"
+          fi
+        fi
+
         RALPH_USER_PROMPT="$_RETRY_BRIEF${_CONTEXT_MGMT_NOTE:-}
 
 ---
@@ -3239,6 +3297,17 @@ Co-Authored-By: Claude ${COAUTHOR_LABEL} 4.6 <noreply@anthropic.com>"
       $JQ "(.userStories[] | select(.id == \"$NEXT_STORY\") | .passes) = false" "$PRD_FILE" >"${PRD_FILE}.tmp"
       mv "${PRD_FILE}.tmp" "$PRD_FILE"
 
+      # Strategy 1: Accumulate failure approach as anti-pattern for next retry
+      if [[ "${SPIRAL_ANTI_PATTERN_INJECT:-true}" == "true" ]]; then
+        _AP_FAIL_REASON=$($JQ -r ".userStories[] | select(.id == \"$NEXT_STORY\") | ._failureReason // \"quality_gate_failed\"" \
+          "$PRD_FILE" 2>/dev/null | tr -d '\r"\\' | head -c 200 || echo "quality_gate_failed")
+        if [[ -n "$_AP_FAIL_REASON" ]]; then
+          $JQ --arg sid "$NEXT_STORY" --arg note "$_AP_FAIL_REASON" \
+            '(.userStories[] | select(.id == $sid) | ._antiPatterns) |= (. // []) + [$note]' \
+            "$PRD_FILE" > "${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE" || true
+        fi
+      fi
+
       increment_retry "$NEXT_STORY"
       RETRY_NOW=$(get_retry_count "$NEXT_STORY")
       echo "[retry] $NEXT_STORY attempt $RETRY_NOW/$MAX_RETRIES"
@@ -3270,6 +3339,17 @@ Co-Authored-By: Claude ${COAUTHOR_LABEL} 4.6 <noreply@anthropic.com>"
   else
     echo ""
     echo "[warn] Story not completed by $EFFECTIVE_TOOL instance"
+
+    # Strategy 1: Accumulate "story not completed" as anti-pattern for next retry
+    if [[ "${SPIRAL_ANTI_PATTERN_INJECT:-true}" == "true" ]]; then
+      _AP_FAIL_REASON=$($JQ -r ".userStories[] | select(.id == \"$NEXT_STORY\") | ._failureReason // \"story_incomplete\"" \
+        "$PRD_FILE" 2>/dev/null | tr -d '\r"\\' | head -c 200 || echo "story_incomplete")
+      if [[ -n "$_AP_FAIL_REASON" ]]; then
+        $JQ --arg sid "$NEXT_STORY" --arg note "$_AP_FAIL_REASON" \
+          '(.userStories[] | select(.id == $sid) | ._antiPatterns) |= (. // []) + [$note]' \
+          "$PRD_FILE" > "${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE" || true
+      fi
+    fi
 
     increment_retry "$NEXT_STORY"
     RETRY_NOW=$(get_retry_count "$NEXT_STORY")

@@ -29,12 +29,33 @@
 
 [[ "${BASH_SOURCE[0]}" == "${0}" ]] && echo "Source this file, do not execute it directly." && exit 1
 
-# handle_story_failure <story_id> <current_retries>
-# Returns 0 if story should be retried, 1 if it should be skipped.
+# handle_story_failure <story_id> <current_retries> [failure_reason]
+# Records the failure reason as an anti-pattern on the story (Strategy 1).
+# Returns 0 always (non-fatal — caller decides skip vs retry).
+#
+# When SPIRAL_ANTI_PATTERN_INJECT=true (default), appends failure_reason to
+# _antiPatterns[] in prd.json so the next retry prompt shows a "FORBIDDEN
+# APPROACHES" list and the agent tries a different implementation.
 handle_story_failure() {
   local story_id="$1"
   local retries="$2"
+  local failure_reason="${3:-}"
+  local prd_file="${PRD_FILE:-prd.json}"
+  local jq_bin="${JQ:-jq}"
+
   echo "[Phase I / retry] Story $story_id failed (attempt $((retries + 1)))"
-  # TODO: implement retry counter logic + model escalation
-  :
+
+  # Strategy 1: anti-pattern accumulation
+  if [[ "${SPIRAL_ANTI_PATTERN_INJECT:-true}" == "true" && -n "$failure_reason" && -f "$prd_file" ]]; then
+    # Truncate to 200 chars and strip characters unsafe for jq --arg
+    local truncated
+    truncated=$(printf '%s' "$failure_reason" | head -c 200 | tr -d '\n\r"\\')
+    if [[ -n "$truncated" ]]; then
+      "$jq_bin" --arg sid "$story_id" --arg note "$truncated" \
+        '(.userStories[] | select(.id == $sid) | ._antiPatterns) |= (. // []) + [$note]' \
+        "$prd_file" > "${prd_file}.tmp" && mv "${prd_file}.tmp" "$prd_file" || true
+      echo "[Phase I / retry] Anti-pattern recorded for $story_id: ${truncated:0:60}..."
+    fi
+  fi
+  return 0
 }

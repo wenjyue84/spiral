@@ -21,11 +21,14 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import glob
 import json
 import logging
 import os
 import re
 import sys
+import time
+import urllib.parse
 from asyncio import Queue
 from dataclasses import dataclass, field
 from html import escape
@@ -284,6 +287,11 @@ class SpiralLiveServer:
             await self._handle_index(writer)
             return
 
+        # --- Workers status ---
+        if path.split("?")[0] == "/api/workers-status" and method == "GET":
+            await self._handle_workers_status(path, writer)
+            return
+
         # --- Project dashboard ---
         m2 = re.match(r"^/([^/?]+)$", path)
         if m2 and method == "GET":
@@ -366,6 +374,41 @@ class SpiralLiveServer:
             name, root = "unknown", ""
         self._projects[name] = {"name": name, "root": root}
         await self._send_json(writer, 200, {"registered": name})
+
+    async def _handle_workers_status(
+        self, path: str, writer: asyncio.StreamWriter
+    ) -> None:
+        """Return JSON array of live worker states read from heartbeat files."""
+        qs = path.partition("?")[2]
+        params = urllib.parse.parse_qs(qs)
+        project_name = params.get("project_name", [""])[0]
+
+        heartbeat_dir = os.path.join(".spiral", "workers")
+        if project_name and project_name in self._projects:
+            root = self._projects[project_name].get("root", "")
+            if root:
+                heartbeat_dir = os.path.join(root, ".spiral", "workers")
+
+        workers = []
+        now = time.time()
+        for hb_file in glob.glob(os.path.join(heartbeat_dir, "worker_*.heartbeat")):
+            try:
+                with open(hb_file) as f:
+                    data = json.load(f)
+                age_sec = int(now - data.get("ts", now))
+                data["heartbeat_age_sec"] = age_sec
+                data["stale"] = age_sec > 120
+                data["worker_id"] = (
+                    os.path.basename(hb_file)
+                    .replace("worker_", "")
+                    .replace(".heartbeat", "")
+                )
+                workers.append(data)
+            except Exception:
+                pass
+
+        workers.sort(key=lambda w: w.get("worker_id", "0"))
+        await self._send_json(writer, 200, {"workers": workers, "ts": now})
 
     async def _handle_index(self, writer: asyncio.StreamWriter) -> None:
         """Return HTML index listing registered projects."""
@@ -487,6 +530,13 @@ _WORKER_CARD_TMPL = """\
     <span class="worker-id">Worker {{WID}}</span>
     <span class="worker-status {{STATUS_CLS}}">{{STATUS}}</span>
   </div>
+  <div class="worker-meta" id="meta-{{WID}}">
+    <span class="meta-story">\u2013</span>
+    <span class="meta-phase">\u2013</span>
+    <span class="meta-completed">0 done</span>
+    <span class="meta-mem">\u2013 MB</span>
+    <span class="meta-hb">hb \u2013s ago</span>
+  </div>
   <div class="console" id="console-{{WID}}"></div>
 </div>
 """
@@ -514,6 +564,14 @@ h1{color:#58a6ff;margin-bottom:1rem;font-size:1.2rem}
   line-height:1.4;background:#0d1117;color:#c9d1d9;white-space:pre-wrap;word-break:break-all}
 .console .err{color:#f85149}
 .no-workers{color:#8b949e;padding:1rem}
+.worker-meta{display:flex;gap:8px;padding:6px 10px;background:#161b22;border-bottom:1px solid #30363d;font-size:11px;font-family:monospace;flex-wrap:wrap;align-items:center}
+.meta-story{color:#58a6ff;font-weight:bold}
+.meta-phase{color:#d2a8ff;background:#2d1f66;padding:1px 6px;border-radius:10px}
+.meta-completed{color:#56d364}
+.meta-mem{color:#8b949e}
+.meta-hb{color:#8b949e}
+.meta-hb.stale{color:#f85149}
+.meta-hb.warn{color:#e3b341}
 </style>
 </head>
 <body>
@@ -557,6 +615,28 @@ h1{color:#58a6ff;margin-bottom:1rem;font-size:1.2rem}
     var wid = cards[i].id.replace("card-", "");
     connectWorker(wid);
   }
+  // Poll heartbeat status every 5s to update metadata bars
+  var PROJECT_NAME = "{{PROJECT}}";
+  function pollWorkersStatus() {
+    fetch("/api/workers-status?project_name=" + encodeURIComponent(PROJECT_NAME))
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        data.workers.forEach(function(w){
+          var meta = document.getElementById("meta-" + w.worker_id);
+          if (!meta) return;
+          meta.querySelector(".meta-story").textContent = w.storyId || "\u2013";
+          meta.querySelector(".meta-phase").textContent = w.phase || "\u2013";
+          meta.querySelector(".meta-completed").textContent = (w.completed != null ? w.completed : 0) + " done";
+          meta.querySelector(".meta-mem").textContent = w.memMb ? w.memMb + " MB" : "\u2013 MB";
+          var hbEl = meta.querySelector(".meta-hb");
+          hbEl.textContent = "hb " + w.heartbeat_age_sec + "s ago";
+          hbEl.className = "meta-hb" + (w.stale ? " stale" : w.heartbeat_age_sec > 60 ? " warn" : "");
+        });
+      })
+      .catch(function(){});
+  }
+  setInterval(pollWorkersStatus, 5000);
+  pollWorkersStatus();
 })();
 </script>
 </body>
