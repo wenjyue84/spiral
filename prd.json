@@ -6865,7 +6865,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-367",
@@ -7319,6 +7319,306 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-390",
+      "title": "Use Claude Message Batches API for Phase S multi-story validation",
+      "priority": "high",
+      "description": "Phase S currently validates stories sequentially via individual Claude API calls. Submitting all pending story validation requests as a single Message Batches API request cuts cost by 50% and enables asynchronous processing of up to 10,000 stories per batch, completing in under 1 hour. This also unlocks stacking with prompt caching discounts for further savings.",
+      "acceptanceCriteria": [
+        "Phase S submits a batch of up to SPIRAL_STORY_BATCH_SIZE validation requests to the Message Batches API when batch size > 1",
+        "Batch results are polled with exponential backoff until all requests resolve",
+        "Single-story runs fall back to the synchronous path transparently",
+        "Results file records batch_id for each story attempt row in results.tsv",
+        "Unit tests verify batch request construction and response parsing"
+      ],
+      "technicalNotes": [
+        "POST /v1/messages/batches with up to 10,000 custom_id-keyed requests",
+        "Poll GET /v1/messages/batches/{id} until processing_status == 'ended'",
+        "Cost is 50% of standard API prices; compatible with prompt caching (discounts stack)",
+        "See https://platform.claude.com/docs/en/build-with-claude/batch-processing"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-391",
+      "title": "Redirect ralph.sh worker stdin from /dev/null to prevent interactive prompt hangs",
+      "priority": "high",
+      "description": "ralph.sh workers launch as background subprocesses. If any tool in the claude CLI invocation attempts to read stdin (e.g., a git credential helper, passphrase prompt, or unexpected confirmation dialog), the worker silently hangs indefinitely, consuming a worktree slot and preventing the parallelism manager from detecting the stall. Redirecting stdin from /dev/null ensures any unexpected stdin read immediately returns EOF.",
+      "acceptanceCriteria": [
+        "ralph.sh adds `< /dev/null` to the claude CLI invocation so worker stdin is always /dev/null",
+        "Existing worker heartbeat and timeout logic is unaffected",
+        "A bats test verifies that a mock worker script that reads stdin receives EOF within 100ms",
+        "The change is documented in ralph/CLAUDE.md as a worker isolation measure"
+      ],
+      "technicalNotes": [
+        "Bash: `claude ... < /dev/null &` or `exec 0< /dev/null` at top of worker script",
+        "On Windows/Git Bash: `< /dev/null` maps to NUL device on MINGW",
+        "Standard pattern for backgrounded daemon processes in CI"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-392",
+      "title": "Enable interleaved thinking in ralph.sh for claude-4 models via beta header",
+      "priority": "medium",
+      "description": "Claude 4 models support the `interleaved-thinking-2025-05-14` beta header, which lets the model reason between tool calls rather than only before the first one. This enables more sophisticated multi-step implementation plans where Claude can re-evaluate intermediate tool results before proceeding. The current adaptive thinking mode fires once; interleaved mode unlocks iterative reasoning throughout a story's tool chain.",
+      "acceptanceCriteria": [
+        "ralph.sh passes the `anthropic-beta: interleaved-thinking-2025-05-14` header when model is claude-opus-4-6 or claude-sonnet-4-6",
+        "Interleaved thinking is gated on SPIRAL_INTERLEAVED_THINKING=true (default: false) to allow gradual adoption",
+        "Token budget for interleaved thinking respects SPIRAL_THINKING_BUDGET_TOKENS env var",
+        "A bats test verifies the beta header is injected correctly in the claude CLI invocation"
+      ],
+      "technicalNotes": [
+        "Beta header: `anthropic-beta: interleaved-thinking-2025-05-14`",
+        "Supported on claude-opus-4-6 and claude-sonnet-4-6 only",
+        "With interleaved thinking, budget_tokens limit expands to full context window (200k tokens)",
+        "See https://platform.claude.com/docs/en/build-with-claude/extended-thinking"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-393",
+      "title": "Add SLSA Build Level 2 artifact attestation via actions/attest-build-provenance",
+      "priority": "medium",
+      "description": "SPIRAL's CI currently generates prd.json, spiral_events.jsonl, and SBOM artifacts but does not cryptographically attest their build provenance. Adding `actions/attest-build-provenance` to the release workflow produces a Sigstore-signed in-toto attestation achieving SLSA v1.0 Build Level 2, making it verifiable that artifacts were produced by this repo's Actions workflow and not tampered with post-build.",
+      "acceptanceCriteria": [
+        "The CI release job calls `actions/attest-build-provenance` after artifact generation",
+        "Attestation covers prd.json, spiral_events.jsonl, and the CycloneDX SBOM",
+        "The workflow job has `id-token: write` and `attestations: write` permissions",
+        "Attestation can be verified with `gh attestation verify` against the uploaded artifact",
+        "The actions/attest-build-provenance step is pinned to a full commit SHA"
+      ],
+      "technicalNotes": [
+        "Action: actions/attest-build-provenance@v2 (pin to full SHA)",
+        "Requires permissions: id-token: write, attestations: write",
+        "Produces SLSA v1.0 Build Level 2 by default; Level 3 requires reusable workflows",
+        "See https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations/using-artifact-attestations-to-establish-provenance-for-builds"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-394",
+      "title": "Add pytest-benchmark suite for lib/ critical path functions with CI regression detection",
+      "priority": "medium",
+      "description": "lib/ functions like merge_stories, validate_prd, decompose_story, and slice_prd are called every iteration. Currently there is no performance baseline, so regressions go undetected. Adding pytest-benchmark fixtures establishes per-function latency baselines with saved JSON results, enabling CI to catch performance regressions before they accumulate.",
+      "acceptanceCriteria": [
+        "pytest-benchmark is added as a dev dependency in pyproject.toml",
+        "At least merge_stories, validate_prd, and decompose_story have benchmark tests in tests/benchmarks/",
+        "Benchmarks run with `uv run pytest tests/benchmarks/ --benchmark-only`",
+        "CI saves benchmark results to `.benchmarks/` and compares against the previous baseline using `--benchmark-compare`",
+        "A regression > 20% in any benchmark causes CI to emit a warning annotation"
+      ],
+      "technicalNotes": [
+        "pytest-benchmark 5.x provides benchmark fixture with min/mean/stddev statistics",
+        "Use `--benchmark-autosave` to persist results JSON; `--benchmark-compare=0001` to diff",
+        "Benchmark tests should be excluded from default pytest run via markers (@pytest.mark.benchmark)",
+        "See https://pytest-benchmark.readthedocs.io/"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
+    },
+    {
+      "id": "US-395",
+      "title": "Add `uv sync --frozen` assertion in CI to detect uncommitted lockfile drift",
+      "priority": "medium",
+      "description": "If a developer adds a dependency to pyproject.toml without running `uv lock`, the lockfile diverges silently and CI installs unexpected transitive versions. Running `uv sync --frozen` as a pre-test step fails the job if uv.lock would be modified, surfacing drift as a CI failure rather than a mysterious import error. This complements the existing uv workspace migration work.",
+      "acceptanceCriteria": [
+        "The CI test job runs `uv sync --frozen` before any test commands",
+        "If uv.lock is out of date with pyproject.toml the job fails with a clear error message",
+        "CI job documentation comments explain that developers must run `uv lock` and commit uv.lock after changing pyproject.toml",
+        "The step is placed before all test runs to avoid masking the root cause"
+      ],
+      "technicalNotes": [
+        "`uv sync --frozen` fails if the lockfile would change; `uv lock --check` only checks without installing",
+        "Distinct from `--no-sync` which skips lockfile sync entirely",
+        "See https://docs.astral.sh/uv/guides/projects/"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-396",
+      "title": "Add ruff linter and formatter to pyproject.toml with CI enforcement",
+      "priority": "medium",
+      "description": "SPIRAL enforces mypy strict typing and shellcheck/shfmt for shell scripts but Python style and import ordering are not enforced. Ruff provides lint, import sorting, and formatting in a single tool (10-100x faster than flake8+isort+black), configured via pyproject.toml. Adding it to CI and pre-commit eliminates style drift without introducing multiple slow tools.",
+      "acceptanceCriteria": [
+        "ruff is added as a dev dependency in pyproject.toml",
+        "`[tool.ruff]` and `[tool.ruff.lint]` sections configure target-version, line-length, and rule sets (E, F, I minimum)",
+        "CI runs `uv run ruff check lib/ tests/` and `uv run ruff format --check lib/ tests/`",
+        "CI step fails on any lint or format violation",
+        "Existing code passes ruff check (violations fixed or added to per-file-ignores)"
+      ],
+      "technicalNotes": [
+        "ruff check --fix auto-fixes most violations; run once to clean up before enabling CI",
+        "ruff format is Black-compatible; both can coexist",
+        "Recommended minimal rule set: select = ['E', 'F', 'I'] (pycodestyle + pyflakes + isort)",
+        "See https://docs.astral.sh/ruff/configuration/"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-397",
+      "title": "Emit OTel gen_ai content Events for ralph.sh prompt and completion bodies",
+      "priority": "medium",
+      "description": "The OpenTelemetry GenAI semantic conventions define gen_ai.content.prompt and gen_ai.content.completion Event types that carry the actual message bodies of LLM requests and responses. SPIRAL currently emits invoke_agent and execute_tool Spans and gen_ai.usage Metrics but does not emit content Events, which are required for full-fidelity LLM observability replay and audit trail in Jaeger or Grafana Tempo.",
+      "acceptanceCriteria": [
+        "ralph.sh (or the Python OTel helper) emits a gen_ai.content.prompt Event on the invoke_agent span before the API call",
+        "ralph.sh emits a gen_ai.content.completion Event on the same span after response receipt",
+        "Events contain gen_ai.prompt and gen_ai.completion attributes per the OTel GenAI Events spec",
+        "Content events are suppressed when SPIRAL_OTEL_REDACT_CONTENT=true to protect sensitive prompt data",
+        "Unit test verifies event presence and attribute schema"
+      ],
+      "technicalNotes": [
+        "OTel GenAI Events spec: https://opentelemetry.io/docs/specs/semconv/gen-ai/gen-ai-events/",
+        "gen_ai.content.prompt event attribute: gen_ai.prompt (string or JSON array of message objects)",
+        "gen_ai.content.completion event attribute: gen_ai.completion",
+        "Events attach to the enclosing invoke_agent span via span.add_event()"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-398",
+      "title": "Add SPIRAL_THINKING_BUDGET_TOKENS env var to cap max extended thinking tokens per story",
+      "priority": "medium",
+      "description": "ralph.sh enables adaptive thinking which lets Claude dynamically choose a thinking budget. Without a ceiling, a complex story could consume the entire 200k token context window on thinking alone, spiking cost unpredictably. SPIRAL_THINKING_BUDGET_TOKENS sets an explicit budget_tokens cap, giving operators cost predictability while still allowing adaptive behavior up to the limit.",
+      "acceptanceCriteria": [
+        "ralph.sh reads SPIRAL_THINKING_BUDGET_TOKENS (default: 10000) and passes it as budget_tokens in the thinking parameter",
+        "When SPIRAL_THINKING_BUDGET_TOKENS=0, extended thinking is disabled entirely (thinking block omitted from the request)",
+        "spiral.config.sh template includes SPIRAL_THINKING_BUDGET_TOKENS with a documentation comment",
+        "spiral-doctor validates the value is >= 1024 when extended thinking is enabled (Anthropic minimum)",
+        "A bats test verifies the correct budget_tokens value appears in the generated claude CLI invocation"
+      ],
+      "technicalNotes": [
+        "API parameter: messages[].content[].thinking.budget_tokens (integer, minimum 1024)",
+        "Adaptive thinking may use less than the budget but never more",
+        "Combined with SPIRAL_INTERLEAVED_THINKING, the budget spans across all thinking blocks in the conversation",
+        "See https://platform.claude.com/docs/en/build-with-claude/extended-thinking"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-399",
+      "title": "Add step-security/harden-runner to CI workflows for network egress auditing",
+      "priority": "medium",
+      "description": "SPIRAL's CI jobs make outbound calls to Anthropic API, PyPI, GitHub APIs, and npm registries. An unexpected egress from a compromised dependency would be invisible. Adding step-security/harden-runner in audit mode builds a baseline of expected outbound domains and alerts on deviations, providing supply chain threat detection without blocking legitimate traffic during the initial rollout.",
+      "acceptanceCriteria": [
+        "harden-runner is added as the first step in each CI job with `egress-policy: audit`",
+        "The action is pinned to a full commit SHA per CI policy",
+        "An allowed-endpoints comment documents the expected domain allowlist in the workflow YAML",
+        "harden-runner does not increase total CI job duration by more than 5 seconds",
+        "After a 2-week audit baseline period, the policy is promoted to `egress-policy: block` with the allowlist"
+      ],
+      "technicalNotes": [
+        "Action: step-security/harden-runner (pin to full SHA from https://github.com/step-security/harden-runner)",
+        "egress-policy: audit logs all outbound calls; block mode enforces allowlist",
+        "Expected SPIRAL endpoints: api.anthropic.com, pypi.org, files.pythonhosted.org, api.github.com, registry.npmjs.org",
+        "See https://github.com/step-security/harden-runner"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-400",
+      "title": "Add SPIRAL_CONSECUTIVE_FAIL_ABORT to stop loop after N zero-pass iterations",
+      "priority": "medium",
+      "description": "SPIRAL_COST_CEILING aborts on total spend but does not detect a stuck loop where the same stories repeatedly fail every iteration. SPIRAL_CONSECUTIVE_FAIL_ABORT (default: 5) tracks consecutive iterations with zero new story passes; if the count reaches the threshold, SPIRAL exits with exit code 4 and writes a diagnostic summary listing stuck stories, preventing runaway spend on intractable stories.",
+      "acceptanceCriteria": [
+        "spiral.sh tracks a consecutive_zero_pass_iterations counter, reset to 0 on any story pass in Phase V",
+        "When counter >= SPIRAL_CONSECUTIVE_FAIL_ABORT, spiral.sh exits with exit code 4 and prints a diagnostic listing stuck story IDs, retry counts, and last failure reason",
+        "SPIRAL_CONSECUTIVE_FAIL_ABORT=0 disables the check (unlimited retries)",
+        "The exit condition is recorded in .spiral/_checkpoint.json as abort_reason: consecutive_failures",
+        "A bats test simulates N zero-pass iterations and asserts exit code 4"
+      ],
+      "technicalNotes": [
+        "Distinct from SPIRAL_COST_CEILING (exit code 3) and normal completion (exit code 0)",
+        "Counter must persist in .spiral/_checkpoint.json for accurate resume behavior after a crash",
+        "Diagnostic summary should include story IDs with their _failureReason fields"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-401",
+      "title": "Add OTel Resource attributes for SPIRAL service identity to all telemetry signals",
+      "priority": "medium",
+      "description": "SPIRAL emits spans, metrics, and events but without a consistent OTel Resource block they cannot be correlated across instances or distinguished from other services in a shared observability backend. Adding service.name, service.version, service.namespace, and host.name as Resource attributes makes all SPIRAL telemetry filterable and enables multi-instance dashboards in Jaeger or Grafana Tempo.",
+      "acceptanceCriteria": [
+        "The Python OTel SDK initializer sets Resource attributes: service.name='spiral', service.version (from `git describe --tags --always`), service.namespace='autonomous-dev', host.name (from platform.node())",
+        "All existing spans, metrics, and events inherit the Resource automatically via the TracerProvider/MeterProvider",
+        "SPIRAL_OTEL_SERVICE_NAME env var overrides service.name for multi-project deployments",
+        "spiral_events.jsonl entries include a resource field with the same key-value pairs",
+        "A unit test verifies Resource attributes are present on a sample span"
+      ],
+      "technicalNotes": [
+        "opentelemetry-sdk: Resource(attributes={SERVICE_NAME: 'spiral', SERVICE_VERSION: ver, ...})",
+        "service.version from `git describe --tags --always` for pre-release builds",
+        "OTel Resource semconv: https://opentelemetry.io/docs/specs/semconv/resource/",
+        "Resource propagates to all telemetry signals automatically once set on the TracerProvider"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-402",
+      "title": "Add .pre-commit-config.yaml for local dev quality gate enforcement",
+      "priority": "low",
+      "description": "SPIRAL enforces shellcheck, shfmt, mypy, and ruff in CI, but developers only discover violations at push time. A `.pre-commit-config.yaml` that mirrors CI checks runs them locally on every commit, shifting feedback from CI minutes to sub-second. This is especially valuable for contributors unfamiliar with all enforced tools.",
+      "acceptanceCriteria": [
+        ".pre-commit-config.yaml is added at repo root with hooks for: ruff (lint+format), mypy, shellcheck, shfmt, and trailing-whitespace/end-of-file-fixer",
+        "pre-commit is listed as a dev dependency in pyproject.toml",
+        "CLAUDE.md development setup section documents `uv run pre-commit install`",
+        "All hooks pass on the current codebase without --skip"
+      ],
+      "technicalNotes": [
+        "pre-commit hooks: astral-sh/ruff-pre-commit for ruff, pre-commit/mirrors-mypy, jumanjihouse/pre-commit-hooks for shellcheck+shfmt",
+        "Use `language: system` for ruff/mypy to reuse uv venv deps rather than isolated envs",
+        "See https://pre-commit.com/hooks.html"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-403",
+      "title": "Add cosine-similarity Phase R research cache lookup using sentence embeddings",
+      "priority": "low",
+      "description": "The current Phase R research cache uses exact string key matching. Near-duplicate queries (e.g., 'Claude API rate limits' vs 'Anthropic API 429 throttling') miss the cache and trigger redundant API calls. Adding an embedding-based similarity lookup using a local MiniLM model reuses cached research for semantically equivalent queries, cutting Phase R API costs on long runs with iterative refinement.",
+      "acceptanceCriteria": [
+        "Phase R computes a sentence embedding for each research query using sentence-transformers/all-MiniLM-L6-v2 via uv",
+        "Cache lookup computes cosine similarity against all cached query embeddings; hits above SPIRAL_CACHE_SIM_THRESHOLD (default 0.92) return the cached result",
+        "Embeddings are stored alongside cached responses in .spiral/research_cache/ as .npy files",
+        "SPIRAL_CACHE_SIM_THRESHOLD=1.0 disables similarity lookup and falls back to exact match only",
+        "Embedding computation adds < 200ms per lookup (MiniLM runs in ~15ms on CPU)"
+      ],
+      "technicalNotes": [
+        "sentence-transformers all-MiniLM-L6-v2 is 22MB and runs on CPU in ~15ms per query",
+        "Cosine similarity: dot(a,b) / (norm(a) * norm(b)) using numpy",
+        "Store embedding arrays as SHA256(query).npy for O(1) disk load",
+        "See https://www.sbert.net/"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
       "passes": false
     }
   ]

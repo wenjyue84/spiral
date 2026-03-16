@@ -747,3 +747,26 @@ Incomplete: Add episodic memory store for Ralph workers to recall past implement
 ## Iteration 6 - Mon, Mar 16, 2026  6:03:30 PM
 Incomplete: Add episodic memory store for Ralph workers to recall past implementation patterns (ID: US-350) — attempt /3
 
+
+## Iteration N - Story: US-366 Add uv dependency cache with restore-keys fallback in GitHub Actions CI
+
+### What was implemented
+- Added explicit `actions/cache` steps to all Python CI jobs in ci.yml and release.yml
+- Changed `enable-cache: true` → `enable-cache: false` in all `astral-sh/setup-uv` steps to avoid double-caching
+- Each Python job now has two new steps: "Get uv cache directory" (runs `uv cache dir`) and "Cache uv dependencies"
+- Cache key: `${{ runner.os }}-uv-${{ hashFiles('**/uv.lock') }}` for exact lock-file matching
+- restore-keys fallback: `${{ runner.os }}-uv-` then `${{ runner.os }}-` (progressively shorter)
+- Cache path: `${{ steps.uv-cache-dir.outputs.path }}` (platform-appropriate via `uv cache dir`)
+- Affected jobs: mypy, test, dep-audit, sarif, sbom (ci.yml) and sbom (release.yml)
+- Used existing pinned `actions/cache` SHA: `0057852bfaa89a56745cba8c7296529d2fc39830  # v4`
+
+### Patterns discovered
+- `astral-sh/setup-uv` with `enable-cache: true` already cached uv packages, but without explicit restore-keys hierarchy
+- `setup-uv` must be run BEFORE "Get uv cache directory" step since it installs the `uv` binary
+- The `uv cache dir` command returns the platform-specific cache path (~/.cache/uv on Linux)
+- The `pinned-actions-check` job enforces all `uses:` must be full 40-char SHA — reuse existing `actions/cache` SHA from other steps
+
+### Gotchas
+- Disabling `enable-cache` in setup-uv means the Python interpreter itself is not cached (acceptable since Python download is fast)
+- Do NOT add explicit cache steps alongside `enable-cache: true` — it causes double-caching the same path
+- `actions/cache` SHA `0057852bfaa89a56745cba8c7296529d2fc39830` was already in use in the test job for hypothesis db
