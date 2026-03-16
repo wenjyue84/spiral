@@ -246,3 +246,74 @@ class TestPhaseRCacheEvents:
         r_events = [e for e in events if e.get("phase") == "R"]
         assert len(i_events) == 1
         assert len(r_events) == 1
+
+
+# ── US-341: Per-story cache hit ratio ─────────────────────────────────────
+
+class TestPerStoryCacheRatio:
+    def test_empty_rows_returns_empty(self):
+        from prompt_cache_analysis import per_story_cache_ratio
+        assert per_story_cache_ratio([]) == []
+
+    def test_single_story_high_cache_read(self):
+        from prompt_cache_analysis import per_story_cache_ratio
+        rows = [
+            {"story_id": "US-100", "cache_read_tokens": "9000",
+             "cache_creation_tokens": "1000"},
+        ]
+        result = per_story_cache_ratio(rows)
+        assert len(result) == 1
+        assert result[0]["story_id"] == "US-100"
+        assert result[0]["cache_ratio_pct"] == 90.0
+
+    def test_single_story_no_cache(self):
+        from prompt_cache_analysis import per_story_cache_ratio
+        rows = [
+            {"story_id": "US-200", "cache_read_tokens": "0",
+             "cache_creation_tokens": "5000"},
+        ]
+        result = per_story_cache_ratio(rows)
+        assert len(result) == 1
+        assert result[0]["cache_ratio_pct"] == 0.0
+
+    def test_multiple_stories_sorted_worst_first(self):
+        from prompt_cache_analysis import per_story_cache_ratio
+        rows = [
+            {"story_id": "US-A", "cache_read_tokens": "8000",
+             "cache_creation_tokens": "2000"},
+            {"story_id": "US-B", "cache_read_tokens": "0",
+             "cache_creation_tokens": "5000"},
+            {"story_id": "US-C", "cache_read_tokens": "5000",
+             "cache_creation_tokens": "5000"},
+        ]
+        result = per_story_cache_ratio(rows)
+        assert len(result) == 3
+        # Sorted worst first: US-B (0%), US-C (50%), US-A (80%)
+        assert result[0]["story_id"] == "US-B"
+        assert result[1]["story_id"] == "US-C"
+        assert result[2]["story_id"] == "US-A"
+
+    def test_aggregates_multiple_rows_per_story(self):
+        from prompt_cache_analysis import per_story_cache_ratio
+        rows = [
+            {"story_id": "US-X", "cache_read_tokens": "3000",
+             "cache_creation_tokens": "7000"},
+            {"story_id": "US-X", "cache_read_tokens": "7000",
+             "cache_creation_tokens": "3000"},
+        ]
+        result = per_story_cache_ratio(rows)
+        assert len(result) == 1
+        # Total: read=10000, creation=10000 → ratio = 50%
+        assert result[0]["cache_ratio_pct"] == 50.0
+        assert result[0]["cache_read_tokens"] == 10000
+        assert result[0]["cache_creation_tokens"] == 10000
+
+    def test_zero_both_tokens_returns_zero_ratio(self):
+        from prompt_cache_analysis import per_story_cache_ratio
+        rows = [
+            {"story_id": "US-Z", "cache_read_tokens": "0",
+             "cache_creation_tokens": "0"},
+        ]
+        result = per_story_cache_ratio(rows)
+        assert len(result) == 1
+        assert result[0]["cache_ratio_pct"] == 0.0

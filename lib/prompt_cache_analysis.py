@@ -73,3 +73,54 @@ def analyze_cache_hit_rate(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "healthy": healthy,
         "diagnosis": diagnosis,
     }
+
+
+def per_story_cache_ratio(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Compute per-story cache hit ratio: cache_read / (cache_read + cache_creation).
+
+    This measures what fraction of cacheable prompt content was served from
+    cache vs freshly created. High ratio = cache working well.
+
+    Args:
+        rows: List of dicts from results.tsv with story_id, cache_read_tokens,
+              and cache_creation_tokens fields.
+
+    Returns:
+        List of dicts with story_id, cache_read_tokens, cache_creation_tokens,
+        cache_ratio_pct (0-100), sorted by ratio ascending (worst first).
+    """
+    if not rows:
+        return []
+
+    stories: dict[str, dict[str, int]] = {}
+    for r in rows:
+        sid = str(r.get("story_id", ""))
+        if not sid:
+            continue
+        if sid not in stories:
+            stories[sid] = {"cache_read": 0, "cache_creation": 0}
+        stories[sid]["cache_read"] += int(r.get("cache_read_tokens", 0) or 0)
+        stories[sid]["cache_creation"] += int(
+            r.get("cache_creation_tokens", 0) or 0
+        )
+
+    result = []
+    for sid, vals in stories.items():
+        denominator = vals["cache_read"] + vals["cache_creation"]
+        if denominator > 0:
+            ratio = (vals["cache_read"] / denominator) * 100
+        else:
+            ratio = 0.0
+        result.append({
+            "story_id": sid,
+            "cache_read_tokens": vals["cache_read"],
+            "cache_creation_tokens": vals["cache_creation"],
+            "cache_ratio_pct": round(ratio, 1),
+        })
+
+    def _sort_key(entry: dict[str, Any]) -> float:
+        val = entry["cache_ratio_pct"]
+        return float(val) if isinstance(val, (int, float)) else 0.0
+
+    result.sort(key=_sort_key)
+    return result

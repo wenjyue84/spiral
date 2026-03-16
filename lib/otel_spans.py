@@ -63,6 +63,10 @@ _GEN_AI_ACTION_TYPE = "gen_ai.action.type"
 _GEN_AI_AGENT_VERSION = "gen_ai.agent.version"
 _GEN_AI_CONVERSATION_ID = "gen_ai.conversation.id"
 
+# ── Cache token attributes (OTel GenAI semconv recommended) ──────────────────
+_GEN_AI_CACHE_READ_TOKENS = "gen_ai.usage.cache_read.input_tokens"
+_GEN_AI_CACHE_CREATION_TOKENS = "gen_ai.usage.cache_creation.input_tokens"
+
 # ── Phase → operation name mapping ────────────────────────────────────────────
 _PHASE_OPERATION: dict[str, str] = {
     "R": "research",
@@ -498,6 +502,8 @@ def _log_invoke_agent_event(
     status: str,
     agent_version: str,
     conversation_id: str,
+    cache_read_tokens: int = 0,
+    cache_creation_tokens: int = 0,
 ) -> None:
     """Append an invoke_agent span event to spiral_events.jsonl."""
     scratch = os.environ.get("SCRATCH_DIR", os.environ.get("SPIRAL_SCRATCH_DIR", ".spiral"))
@@ -519,6 +525,8 @@ def _log_invoke_agent_event(
         "worker_id": worker_id,
         "duration_s": duration_s,
         "status": status,
+        "gen_ai.usage.cache_read.input_tokens": cache_read_tokens,
+        "gen_ai.usage.cache_creation.input_tokens": cache_creation_tokens,
     }
     tp = os.environ.get("TRACEPARENT", "")
     if tp:
@@ -554,6 +562,8 @@ def cmd_invoke_agent(args: argparse.Namespace) -> None:
     status = args.status
     agent_version = args.agent_version or os.environ.get("SPIRAL_VERSION", "unknown")
     conversation_id = args.conversation_id or os.environ.get("SPIRAL_RUN_ID", "")
+    cache_read_tokens = int(args.cache_read_tokens or 0)
+    cache_creation_tokens = int(args.cache_creation_tokens or 0)
 
     # Always log to spiral_events.jsonl (even without OTel exporter)
     _log_invoke_agent_event(
@@ -563,6 +573,8 @@ def cmd_invoke_agent(args: argparse.Namespace) -> None:
         status=status,
         agent_version=agent_version,
         conversation_id=conversation_id,
+        cache_read_tokens=cache_read_tokens,
+        cache_creation_tokens=cache_creation_tokens,
     )
 
     # Emit OTel span if exporter is configured
@@ -592,6 +604,10 @@ def cmd_invoke_agent(args: argparse.Namespace) -> None:
             "spiral.worker_id": worker_id,
             "spiral.status": status,
         }
+        if cache_read_tokens > 0:
+            attributes[_GEN_AI_CACHE_READ_TOKENS] = cache_read_tokens
+        if cache_creation_tokens > 0:
+            attributes[_GEN_AI_CACHE_CREATION_TOKENS] = cache_creation_tokens
 
         _emit_completed_span(
             name="invoke_agent ralph",
@@ -676,6 +692,10 @@ def main() -> None:
                           help="Agent version (defaults to SPIRAL_VERSION env)")
     p_invoke.add_argument("--conversation-id", default=None,
                           help="Conversation ID (defaults to SPIRAL_RUN_ID env)")
+    p_invoke.add_argument("--cache-read-tokens", type=int, default=0,
+                          help="Cache read input tokens from Claude API usage")
+    p_invoke.add_argument("--cache-creation-tokens", type=int, default=0,
+                          help="Cache creation input tokens from Claude API usage")
 
     args = parser.parse_args()
 

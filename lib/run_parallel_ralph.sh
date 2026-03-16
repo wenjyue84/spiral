@@ -970,11 +970,16 @@ while [[ "$_ALL_DONE" -eq 0 ]]; do
         [[ "$_IA_STATUS" == "passed" ]] && \
           _IA_SID=$("$JQ" -r '[.userStories[] | select(.passes == true)] | last | .id // "unknown"' \
             "${WORKER_DIRS[$i]}/prd.json" 2>/dev/null || echo "unknown")
+        # US-341: extract cache tokens from worker's results.tsv for the story
+        _IA_CACHE_READ=$(awk -F'\t' -v sid="$_IA_SID" '$4 == sid { cr=$13 } END { print cr+0 }' "${WORKER_DIRS[$i]}/results.tsv" 2>/dev/null || echo 0)
+        _IA_CACHE_CREATE=$(awk -F'\t' -v sid="$_IA_SID" '$4 == sid { cc=$14 } END { print cc+0 }' "${WORKER_DIRS[$i]}/results.tsv" 2>/dev/null || echo 0)
         "${SPIRAL_PYTHON:-python3}" "${SPIRAL_HOME:-$(dirname "${BASH_SOURCE[0]}")/..}/lib/otel_spans.py" invoke-agent \
           --story-id "$_IA_SID" --worker-id "$WORKER_NUM" \
           --duration-s "$_IA_DURATION" --status "$_IA_STATUS" \
           --agent-version "${SPIRAL_VERSION:-unknown}" \
-          --conversation-id "${SPIRAL_RUN_ID:-}" 2>/dev/null || true
+          --conversation-id "${SPIRAL_RUN_ID:-}" \
+          --cache-read-tokens "${_IA_CACHE_READ:-0}" \
+          --cache-creation-tokens "${_IA_CACHE_CREATE:-0}" 2>/dev/null || true
         # Remove pause file if it exists
         rm -f "${SPIRAL_SCRATCH_DIR}/_worker_pause_${WORKER_NUM}" 2>/dev/null || true
       else

@@ -907,6 +907,23 @@ def cmd_diagnose(args) -> None:
         if not cache_analysis["healthy"]:
             print(f"  WARNING: {cache_analysis['diagnosis']}")
 
+        # US-341: Per-story cache hit ratio
+        from prompt_cache_analysis import per_story_cache_ratio
+        tsv_rows: list[dict[str, str]] = []
+        if RESULTS_TSV.exists():
+            try:
+                with open(RESULTS_TSV, encoding="utf-8", errors="replace") as f:
+                    reader = csv.DictReader(f, delimiter="\t")
+                    tsv_rows = list(reader)
+            except (OSError, csv.Error):
+                pass
+        story_ratios = per_story_cache_ratio(tsv_rows)
+        if story_ratios:
+            print(f"\n  Per-story cache ratio (worst first):")
+            for sr in story_ratios[:10]:
+                print(f"    {sr['story_id']:>8s}  {sr['cache_ratio_pct']:5.1f}%  "
+                      f"(read={sr['cache_read_tokens']:,} create={sr['cache_creation_tokens']:,})")
+
 
 def cmd_export_report(args) -> None:
     """Generate a Markdown (or JSON) story status report from prd.json."""

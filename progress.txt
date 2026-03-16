@@ -671,3 +671,31 @@ Completed: Emit create_agent and invoke_agent OTel spans per worker lifecycle (I
 - `_GOALS_SNAPSHOT_FILE` must be saved before Phase R to capture the true "before" state — the prd-backups dir is only created inside Phase M which would be too late
 - `_GOALS_HIJACK_ABORT` is initialized to 0 before Phase R to avoid unbound variable errors in strict mode
 
+## Iteration N - Story: US-341 Add cache token attributes to Ralph OTel invoke_agent spans for cost attribution
+
+### What was implemented
+- Added `gen_ai.usage.cache_read.input_tokens` and `gen_ai.usage.cache_creation.input_tokens` OTel semconv attribute constants to `lib/otel_spans.py`
+- Added `--cache-read-tokens` and `--cache-creation-tokens` CLI args to `invoke-agent` subcommand
+- Updated `_log_invoke_agent_event()` to include cache token fields in spiral_events.jsonl entries
+- Updated `cmd_invoke_agent()` to set cache token attributes on OTel spans (only when > 0)
+- Updated `spiral.sh` sequential path: extracts cache tokens from results.tsv via awk before emitting invoke_agent span
+- Updated `lib/run_parallel_ralph.sh` parallel path: extracts cache tokens from worker's results.tsv
+- Added `per_story_cache_ratio()` function to `lib/prompt_cache_analysis.py`: computes cache_read / (cache_read + cache_creation) per story
+- Updated `main.py` diagnose to show per-story cache ratio (worst first, top 10)
+- Added 2 bats tests (cache tokens with values, cache tokens default to 0) — all 13 tests pass
+- Added 6 pytest tests in TestPerStoryCacheRatio class — all 19 tests pass
+- mypy --strict passes on prompt_cache_analysis.py
+
+### Patterns discovered
+- results.tsv column 13 = cache_read_tokens, column 14 = cache_creation_tokens (1-indexed, tab-separated)
+- awk `$4 == sid { cr=$13 } END { print cr+0 }` reads the LAST matching row's value (last attempt for the story)
+- Cache token attributes are "recommended" in OTel semconv, not required — only set when > 0 to avoid noise
+
+### Gotchas
+- Worker results.tsv in `${WORKER_DIRS[$i]}/results.tsv` — not the main repo's results.tsv
+- Pre-existing mypy error on otel_spans.py:219 `set_attribute` arg type — not related to this story
+- `per_story_cache_ratio` sort key needs explicit `float()` cast for mypy strict (`dict[str, Any]` values are `object`)
+
+## Iteration 3 - Mon, Mar 16, 2026  5:37:31 PM
+Completed: Add execute_tool OTel spans for each ralph.sh tool invocation (ID: US-319) in 7m
+

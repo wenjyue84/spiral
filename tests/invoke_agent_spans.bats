@@ -179,6 +179,37 @@ assert d.get('span_id') == 'fedcba9876543210', \
   unset TRACEPARENT
 }
 
+@test "invoke-agent includes cache token attributes when provided" {
+  run_invoke_agent --story-id "US-341" --worker-id "0" \
+    --duration-s 25 --status passed \
+    --cache-read-tokens 15000 --cache-creation-tokens 3000
+  local line
+  line="$(last_event)"
+  echo "$line" | "$PYTHON" -c "
+import json, sys
+d = json.load(sys.stdin)
+assert d['gen_ai.usage.cache_read.input_tokens'] == 15000, \
+    f\"expected 15000, got {d['gen_ai.usage.cache_read.input_tokens']}\"
+assert d['gen_ai.usage.cache_creation.input_tokens'] == 3000, \
+    f\"expected 3000, got {d['gen_ai.usage.cache_creation.input_tokens']}\"
+"
+}
+
+@test "invoke-agent cache tokens default to 0 when omitted" {
+  run_invoke_agent --story-id "US-341B" --worker-id "1" \
+    --duration-s 10 --status passed
+  local line
+  line="$(last_event)"
+  echo "$line" | "$PYTHON" -c "
+import json, sys
+d = json.load(sys.stdin)
+assert d['gen_ai.usage.cache_read.input_tokens'] == 0, \
+    f\"expected 0, got {d['gen_ai.usage.cache_read.input_tokens']}\"
+assert d['gen_ai.usage.cache_creation.input_tokens'] == 0, \
+    f\"expected 0, got {d['gen_ai.usage.cache_creation.input_tokens']}\"
+"
+}
+
 @test "multiple invoke-agent events append correctly" {
   run_invoke_agent --story-id "US-A" --worker-id "1" \
     --duration-s 10 --status passed
