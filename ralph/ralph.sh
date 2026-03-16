@@ -47,6 +47,7 @@ SPIRAL_LOCAL_FALLBACK_POLICY="${SPIRAL_LOCAL_FALLBACK_POLICY:-}"           # US-
 SPIRAL_OLLAMA_BASE_URL="${SPIRAL_OLLAMA_BASE_URL:-http://localhost:11434}"  # US-261: Ollama native base URL (no /v1 suffix)
 SPIRAL_OLLAMA_MODEL="${SPIRAL_OLLAMA_MODEL:-llama3.2}"                      # US-261: local model for policy-based fallback
 SPIRAL_CACHE_TTL="${SPIRAL_CACHE_TTL:-}"                               # US-336: prompt cache TTL (e.g. "1h") — extends cache lifetime at 2x cost
+SPIRAL_DEFERRED_TOOLS="${SPIRAL_DEFERRED_TOOLS:-true}"                 # US-337: true = use --tools flag with core tools only; deferred tools via ToolSearch
 SPIRAL_SKIP_SELF_REVIEW="${SPIRAL_SKIP_SELF_REVIEW:-false}"             # true = disable Phase I.5 LLM self-review gate (US-145)
 SPIRAL_SELF_REVIEW_MODEL="${SPIRAL_SELF_REVIEW_MODEL:-haiku}"           # Claude model for self-review; haiku to minimise cost (US-145)
 SPIRAL_GEMINI_SKIP_SMALL="${SPIRAL_GEMINI_SKIP_SMALL:-true}"           # true = skip Gemini pre-analysis for small stories with <=2 filesTouch (US-171)
@@ -2393,6 +2394,20 @@ ${_FT_CONTEXT_BODY}"
         echo "  [cache] Extended TTL: ${SPIRAL_CACHE_TTL} (2x cost for longer cache lifetime)"
         _CACHE_TTL_FLAG="--cache-ttl ${SPIRAL_CACHE_TTL}"
       fi
+      # ── US-337: Deferred tool loading — reduce tool definition tokens ──────
+      # When enabled, use --tools with only core tools from tool_manifest.json.
+      # Deferred tools are discoverable via ToolSearch at runtime.
+      _DEFERRED_TOOLS_FLAG=""
+      if [[ "${SPIRAL_DEFERRED_TOOLS:-true}" == "true" ]]; then
+        _TOOL_MANIFEST="${SCRIPT_DIR}/tool_manifest.json"
+        if [[ -f "$_TOOL_MANIFEST" ]]; then
+          _CORE_TOOLS=$("$JQ" -r '.core | join(",")' "$_TOOL_MANIFEST" 2>/dev/null || echo "")
+          if [[ -n "$_CORE_TOOLS" ]]; then
+            _DEFERRED_TOOLS_FLAG="--tools $_CORE_TOOLS"
+            echo "  [tools] Deferred loading: core=${_CORE_TOOLS} (ToolSearch for others)"
+          fi
+        fi
+      fi
       # Unset CLAUDECODE to allow nested Claude Code invocation from within an active session
       # Wrap with 529 overloaded_error retry loop (separate from 429 rate-limit handling)
       _529_ATTEMPT=0
@@ -2414,7 +2429,8 @@ ${_FT_CONTEXT_BODY}"
             --append-system-prompt "$RALPH_SYSTEM_PROMPT" \
             --betas "$_CACHE_BETAS" \
             $_CACHE_TTL_FLAG \
-            --allowedTools "Edit,Write,Read,Glob,Grep,Bash,Skill,Task" \
+            $_DEFERRED_TOOLS_FLAG \
+            --allowedTools "Edit,Write,Read,Glob,Grep,Bash,Skill,Task,ToolSearch" \
             --max-turns 75 \
             --verbose \
             --output-format stream-json \

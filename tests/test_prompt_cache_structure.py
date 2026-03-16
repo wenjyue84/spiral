@@ -350,3 +350,121 @@ class TestCacheCreationTokensTracking:
         assert "cache_creation_tokens" in HEADER, (
             "merge_results_tsv.py HEADER must include cache_creation_tokens"
         )
+
+
+# ── US-337: Deferred tool loading ──────────────────────────────────────────
+
+
+class TestDeferredToolLoading:
+    """US-337: Validate tool manifest and deferred tool loading configuration."""
+
+    def test_tool_manifest_exists(self):
+        """ralph/tool_manifest.json must exist."""
+        from pathlib import Path
+
+        manifest = Path(__file__).parent.parent / "ralph" / "tool_manifest.json"
+        assert manifest.exists(), "ralph/tool_manifest.json must exist"
+
+    def test_tool_manifest_valid_json(self):
+        """tool_manifest.json must be valid JSON with core and deferred arrays."""
+        import json
+        from pathlib import Path
+
+        manifest = Path(__file__).parent.parent / "ralph" / "tool_manifest.json"
+        data = json.loads(manifest.read_text(encoding="utf-8"))
+        assert "core" in data, "tool_manifest.json must have 'core' array"
+        assert "deferred" in data, "tool_manifest.json must have 'deferred' array"
+        assert isinstance(data["core"], list)
+        assert isinstance(data["deferred"], list)
+
+    def test_core_tools_include_essentials(self):
+        """Core tools must include Bash, Edit, Read, Write, and ToolSearch."""
+        import json
+        from pathlib import Path
+
+        manifest = Path(__file__).parent.parent / "ralph" / "tool_manifest.json"
+        data = json.loads(manifest.read_text(encoding="utf-8"))
+        core = set(data["core"])
+        for required in ["Bash", "Edit", "Read", "Write", "ToolSearch"]:
+            assert required in core, (
+                f"Core tools must include '{required}' — it is essential for Ralph"
+            )
+
+    def test_toolsearch_in_core_not_deferred(self):
+        """ToolSearch must be in core (always loaded), never in deferred."""
+        import json
+        from pathlib import Path
+
+        manifest = Path(__file__).parent.parent / "ralph" / "tool_manifest.json"
+        data = json.loads(manifest.read_text(encoding="utf-8"))
+        assert "ToolSearch" in data["core"], "ToolSearch must be in core tools"
+        assert "ToolSearch" not in data["deferred"], "ToolSearch must not be deferred"
+
+    def test_no_overlap_between_core_and_deferred(self):
+        """No tool should appear in both core and deferred lists."""
+        import json
+        from pathlib import Path
+
+        manifest = Path(__file__).parent.parent / "ralph" / "tool_manifest.json"
+        data = json.loads(manifest.read_text(encoding="utf-8"))
+        overlap = set(data["core"]) & set(data["deferred"])
+        assert overlap == set(), (
+            f"Tools appear in both core and deferred: {overlap}"
+        )
+
+    def test_deferred_tools_flag_in_ralph_sh(self):
+        """ralph.sh must define SPIRAL_DEFERRED_TOOLS variable."""
+        from pathlib import Path
+
+        ralph_sh = (
+            Path(__file__).parent.parent / "ralph" / "ralph.sh"
+        ).read_text(encoding="utf-8")
+        assert "SPIRAL_DEFERRED_TOOLS" in ralph_sh, (
+            "ralph.sh must define SPIRAL_DEFERRED_TOOLS variable"
+        )
+
+    def test_tools_flag_in_claude_invocation(self):
+        """ralph.sh must pass --tools flag via _DEFERRED_TOOLS_FLAG."""
+        from pathlib import Path
+
+        ralph_sh = (
+            Path(__file__).parent.parent / "ralph" / "ralph.sh"
+        ).read_text(encoding="utf-8")
+        assert "_DEFERRED_TOOLS_FLAG" in ralph_sh, (
+            "ralph.sh must build _DEFERRED_TOOLS_FLAG from tool_manifest.json"
+        )
+        assert "$_DEFERRED_TOOLS_FLAG" in ralph_sh, (
+            "ralph.sh must pass $_DEFERRED_TOOLS_FLAG in Claude CLI invocation"
+        )
+
+    def test_toolsearch_in_allowed_tools(self):
+        """ToolSearch must be in --allowedTools so Claude can use it."""
+        from pathlib import Path
+
+        ralph_sh = (
+            Path(__file__).parent.parent / "ralph" / "ralph.sh"
+        ).read_text(encoding="utf-8")
+        # Find the --allowedTools line in the main Claude invocation
+        allowed_lines = [
+            line.strip()
+            for line in ralph_sh.splitlines()
+            if "--allowedTools" in line and "ToolSearch" in line
+        ]
+        assert len(allowed_lines) >= 1, (
+            "ToolSearch must be in --allowedTools for the main Claude invocation"
+        )
+
+    def test_deferred_has_fewer_tokens_than_all_tools(self):
+        """Core tools list should be significantly smaller than core + deferred."""
+        import json
+        from pathlib import Path
+
+        manifest = Path(__file__).parent.parent / "ralph" / "tool_manifest.json"
+        data = json.loads(manifest.read_text(encoding="utf-8"))
+        total = len(data["core"]) + len(data["deferred"])
+        core_count = len(data["core"])
+        # Core should be less than 60% of total tools (i.e., meaningful deferral)
+        assert core_count < total * 0.6, (
+            f"Core tools ({core_count}) should be < 60% of total ({total}) "
+            f"to achieve meaningful token savings"
+        )

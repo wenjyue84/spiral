@@ -236,6 +236,15 @@
 # Example: SPIRAL_SKIP_STORY_IDS="US-042,US-099"
 # SPIRAL_SKIP_STORY_IDS=""
 
+# ── Deferred tool loading (US-337) ────────────────────────────────────────────
+# When true, Ralph uses --tools with only core tools (Bash, Edit, Read, Write,
+# Glob, Grep, ToolSearch) and defers infrequently-used tools (Skill, Task,
+# Agent, etc.) so they're only loaded when Claude discovers them via ToolSearch.
+# This reduces tool definition tokens by ~60-88% per Ralph call.
+# Tool categories are defined in ralph/tool_manifest.json.
+# Default: true
+# SPIRAL_DEFERRED_TOOLS=true
+
 # ── Model routing (Claude model selection) ──────────────────────────────────
 # Controls which Claude model Ralph uses for implementation.
 #   "auto"   — auto-classify per story: haiku (trivial), sonnet (default), opus (complex)

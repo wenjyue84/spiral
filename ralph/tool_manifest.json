@@ -1,0 +1,23 @@
+{
+  "_comment": "US-337: Tool manifest for Ralph deferred tool loading. Core tools are always loaded; deferred tools are discoverable via ToolSearch.",
+  "core": [
+    "Bash",
+    "Edit",
+    "Read",
+    "Write",
+    "Glob",
+    "Grep",
+    "ToolSearch"
+  ],
+  "deferred": [
+    "Skill",
+    "Task",
+    "Agent",
+    "NotebookEdit",
+    "WebFetch",
+    "WebSearch",
+    "AskUserQuestion",
+    "TodoWrite",
+    "SendMessage"
+  ]
+}

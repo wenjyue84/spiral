@@ -5057,8 +5057,7 @@
         "module-claude",
         "module-github",
         "module-hypothesis"
-      ],
-      "priorityScore": 48
+      ]
     },
     {
       "id": "US-253",
@@ -5097,8 +5096,7 @@
         "module-claude",
         "module-github",
         "module-hypothesis"
-      ],
-      "priorityScore": 28
+      ]
     },
     {
       "id": "US-254",
@@ -5136,8 +5134,7 @@
       "tags": [
         "module-claude",
         "module-hypothesis"
-      ],
-      "priorityScore": 65
+      ]
     },
     {
       "id": "US-259",
@@ -5371,8 +5368,7 @@
         "module-claude",
         "module-github",
         "module-hypothesis"
-      ],
-      "priorityScore": 78
+      ]
     },
     {
       "id": "US-273",
@@ -5413,8 +5409,7 @@
         "module-claude",
         "module-github",
         "module-hypothesis"
-      ],
-      "priorityScore": 68
+      ]
     },
     {
       "id": "US-277",
@@ -5817,7 +5812,7 @@
       "title": "ProjectDashboard: story detail slide-in panel",
       "description": "Clicking a story ID or title in any part of the dashboard should reveal a detailed view. Currently nothing happens on click. Add a slide-in panel (same pattern as the workflow node panel) that shows the full story: description, acceptance criteria, dependencies, attempt history from results.tsv, _passedCommit link, and _failureReason if applicable. This makes the dashboard a full story management interface.",
       "priority": "high",
-      "passes": true,
+      "passes": false,
       "retryCount": 0,
       "filesTouch": [
         "spiral-ui/src/components/ProjectDashboard.tsx"
@@ -5836,8 +5831,7 @@
       "model": "haiku",
       "tags": [
         "module-spiral-ui"
-      ],
-      "priorityScore": 84
+      ]
     },
     {
       "id": "US-318",
@@ -6245,10 +6239,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true,
+      "passes": false,
       "tags": [],
-      "model": "haiku",
-      "priorityScore": 89
+      "model": "haiku"
     },
     {
       "id": "US-337",
@@ -6268,10 +6261,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "tags": [],
-      "model": "haiku",
-      "priorityScore": 92
+      "model": "haiku"
     },
     {
       "id": "US-338",
@@ -6293,8 +6285,7 @@
       "estimatedComplexity": "small",
       "passes": false,
       "tags": [],
-      "model": "sonnet",
-      "priorityScore": 87
+      "model": "sonnet"
     },
     {
       "id": "US-339",
@@ -6314,9 +6305,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku",
-      "priorityScore": 82
+      "passes": false
     },
     {
       "id": "US-340",
@@ -6336,9 +6325,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku",
-      "priorityScore": 72
+      "passes": false
     },
     {
       "id": "US-341",

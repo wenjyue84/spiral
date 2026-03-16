@@ -169,3 +169,27 @@ Incomplete: Validate MCP server integrity via signed checksum manifest before Ph
 - Pre-existing test failures: test_consistency_check, test_infer_dependencies, test_route_stories — unrelated to this story
 - The Claude CLI `--betas` flag is still needed for prompt caching; automatic caching GA may still require it
 - `_CACHE_TTL_FLAG` is deliberately unquoted in the CLI invocation so it expands to nothing when empty
+## Iteration 2 - Mon, Mar 16, 2026 12:33:11 PM
+Incomplete: Validate MCP server integrity via signed checksum manifest before Phase I (ID: US-320) — attempt /3
+
+## Iteration N - Story: US-337 Implement tool-search deferred loading to eliminate 88% of tool definition tokens per Ralph call
+
+### What was implemented
+- Created `ralph/tool_manifest.json` defining core tools (Bash, Edit, Read, Write, Glob, Grep, ToolSearch) and deferred tools (Skill, Task, Agent, NotebookEdit, WebFetch, WebSearch, AskUserQuestion, TodoWrite, SendMessage)
+- Added `SPIRAL_DEFERRED_TOOLS` env var (default: `true`) to ralph.sh for toggling deferred tool loading
+- Added `--tools` flag construction from tool_manifest.json using jq to read core tools as comma-separated list
+- Modified Claude CLI invocation to pass `$_DEFERRED_TOOLS_FLAG` (empty when disabled, `--tools <core>` when enabled)
+- Added `ToolSearch` to `--allowedTools` so Claude can discover deferred tools on demand
+- Updated `templates/spiral.config.example.sh` with documented SPIRAL_DEFERRED_TOOLS setting
+- Added 9 tests in `TestDeferredToolLoading` class validating manifest structure, core tool requirements, tool flag construction, and allowedTools inclusion
+
+### Patterns discovered
+- Claude CLI `--tools` flag controls which tool DEFINITIONS are included in the API call (affects token count); `--allowedTools` controls which tools are PERMITTED to execute (permission filter)
+- `_DEFERRED_TOOLS_FLAG` is deliberately unquoted in the CLI invocation so it expands to nothing when SPIRAL_DEFERRED_TOOLS=false or manifest is missing
+- Core tools (7) vs total tools (16) gives a 56% ratio — significant token savings since deferred tools only load their name, not full schema
+- prd.json has CRLF line endings; pipe to `json.load(sys.stdin)` fails but `json.load(open(file))` works correctly
+
+### Gotchas
+- `ToolSearch` MUST be in both `--tools` (so its definition is loaded) and `--allowedTools` (so it can execute) — without it, Claude cannot discover deferred tools
+- The jq binary path uses `$JQ` variable (set earlier in ralph.sh) which resolves to `ralph/jq.exe` on Windows
+
