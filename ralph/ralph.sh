@@ -2402,6 +2402,20 @@ $BROWSER_TOOLS_HINT"
       # Minimal user prompt — the system prompt has all instructions
       RALPH_USER_PROMPT="Implement the next incomplete story from prd.json now. Read prd.json and progress.txt, pick the highest priority story where passes is false, and implement it."
 
+      # ── US-251: Replay hint injected into system prompt (not user prompt) ────
+      # SPIRAL_REPLAY_HINT is set by spiral.sh --hint during --replay mode.
+      # Placed in system prompt (not user prompt) to reduce prompt injection risk.
+      if [[ -n "${SPIRAL_REPLAY_HINT:-}" ]]; then
+        RALPH_SYSTEM_PROMPT="$RALPH_SYSTEM_PROMPT
+
+---
+
+## Operator Replay Hint
+
+$SPIRAL_REPLAY_HINT"
+        echo "  [replay-hint] Extra context injected into system prompt"
+      fi
+
       # ── US-338: Focus hint injected into user prompt (not system prompt) ────
       if [[ -n "$RALPH_FOCUS" ]]; then
         RALPH_USER_PROMPT="$RALPH_USER_PROMPT

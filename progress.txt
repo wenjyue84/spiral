@@ -530,3 +530,26 @@ Incomplete: Validate MCP server integrity via signed checksum manifest before Ph
 ## Iteration 5 - Mon, Mar 16, 2026  3:36:08 PM
 Completed: Validate MCP server integrity via signed checksum manifest before Phase I (ID: US-320) in 4m
 
+
+## Iteration N - Story: US-251 Extend spiral.sh --replay with --from-phase and --hint for targeted recovery
+
+### What was implemented
+- Added `REPLAY_FROM_PHASE` and `REPLAY_HINT` vars at top of spiral.sh (lines 121-122)
+- Added `--from-phase PHASE_LETTER` and `--hint TEXT` argument parsing in the case/esac block
+- Added validation: only `I` and `V` are valid for replay mode; invalid letters exit with ERR_BAD_USAGE
+- Updated replay block to: skip Phase I when `--from-phase V`, reuse existing worktree when `--from-phase` is set AND worktree exists
+- Tracks replay attempt in `_checkpoint.json` under `_replayHistory: [{timestamp, storyId, fromPhase, hint}]` using jq in-place update
+- Exports `SPIRAL_REPLAY_HINT` env var before ralph invocation; unsets after
+- Added hint injection in ralph/ralph.sh: if `SPIRAL_REPLAY_HINT` is set, appends "## Operator Replay Hint\n..." to system prompt
+- Added 16-test bats suite at `tests/replay_from_phase.bats` covering: phase-skip decisions, phase letter validation, _replayHistory accumulation, worktree reuse decisions
+
+### Patterns discovered
+- Phase letter validation uses a simple `case` statement — same pattern as other spiral.sh flag validation
+- Checkpoint update uses jq's `if .["_replayHistory"]` pattern with `+= [$entry]` to safely append to array (or create it if missing)
+- `SPIRAL_REPLAY_HINT` is exported before the `(cd ... && bash ralph.sh ...)` subshell and unset after — the subshell inherits the export
+- The replay block's worktree-branch detection uses `git rev-parse --abbrev-ref HEAD` in the existing worktree to get the actual branch name
+
+### Gotchas
+- `--from-phase` with an existing worktree skips worktree creation entirely — the prd.json in the worktree already has the story pending from the prior failed attempt
+- Checkpoint update is best-effort (`2>/dev/null || true`) — don't fail the replay if jq fails
+- The hint is placed in the system prompt (not user prompt) per technicalNotes, to reduce prompt injection risk. This differs from RALPH_FOCUS which goes in user prompt for cache stability — but since hints are per-replay not per-story, cache stability is less critical here

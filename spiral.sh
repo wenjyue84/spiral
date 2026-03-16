@@ -118,6 +118,8 @@ ALLOW_EXEC_WRITES=0       # 1 = allow LLM to write executable files outside src/
 NO_CASCADE_SKIP=0     # 1 = disable dependency cascade skip (--no-cascade-skip)
 DOCTOR_MODE=0         # 1 = run dependency check and exit (--doctor)
 REPLAY_STORY_ID=""    # "" = normal mode; "US-XXX" = replay that story only (--replay)
+REPLAY_FROM_PHASE=""  # "" = start from Phase I; "V" = skip Phase I (--from-phase)
+REPLAY_HINT=""        # extra context injected into Phase I system prompt (--hint)
 ROLLBACK_STORY_ID=""  # "" = normal mode; "US-XXX" = rollback that story's commit (--rollback)
 UNDO_STORY_ID=""      # "" = normal mode; "US-XXX" = replay undo log for that story (--undo)
 BENCHMARK_STORY_ID="" # "" = normal mode; "US-XXX" = benchmark that story (--benchmark)
@@ -231,6 +233,14 @@ while [[ $# -gt 0 ]]; do
       REPLAY_STORY_ID="$2"
       shift 2
       ;;
+    --from-phase)
+      REPLAY_FROM_PHASE="$2"
+      shift 2
+      ;;
+    --hint)
+      REPLAY_HINT="$2"
+      shift 2
+      ;;
     --rollback)
       ROLLBACK_STORY_ID="$2"
       shift 2
@@ -332,6 +342,8 @@ while [[ $# -gt 0 ]]; do
       echo "  --allow-exec-writes        Allow LLM to write executable files outside src/ and tests/ (sets SPIRAL_ALLOW_EXEC_WRITES=1)"
       echo "  --doctor                   Check all runtime dependencies and exit"
       echo "  --replay STORY_ID          Re-run a single story in an isolated worktree (Phases I+V only)"
+      echo "  --from-phase PHASE_LETTER  Used with --replay: start from this phase (I or V); reuses existing worktree"
+      echo "  --hint TEXT                Used with --replay: inject extra context into Phase I system prompt"
       echo "  --rollback STORY_ID        Revert a passed story's git commit and reset its prd.json status"
       echo "  --undo STORY_ID            Replay undo log in reverse, restoring worktree to pre-attempt state"
       echo "  --reset                    Remove checkpoint and start fresh from iteration 1"
@@ -2062,6 +2074,11 @@ fi
 # Runs only Phases I+V+C for the specified story ID; skips R/T/M/G entirely.
 # Phase G (human gate) is automatically skipped.
 # Worktree cleaned up on pass; preserved on failure for inspection.
+#
+# US-251: --from-phase PHASE_LETTER  Start from this phase (I or V).
+#           --from-phase V skips Phase I and reuses the existing worktree.
+#         --hint TEXT  Inject extra context into Phase I system prompt.
+#           Tracked in _checkpoint.json under _replayHistory.
 if [[ -n "$REPLAY_STORY_ID" ]]; then
   # Validate story ID exists in prd.json
   _REPLAY_EXISTS=$("$JQ" --arg id "$REPLAY_STORY_ID" \
@@ -2069,6 +2086,19 @@ if [[ -n "$REPLAY_STORY_ID" ]]; then
   if [[ "$_REPLAY_EXISTS" -eq 0 ]]; then
     echo "[replay] ERROR: Story '$REPLAY_STORY_ID' not found in $PRD_FILE"
     exit $ERR_STORY_NOT_FOUND
+  fi
+
+  # Validate --from-phase letter (only I and V are valid for replay mode)
+  if [[ -n "$REPLAY_FROM_PHASE" ]]; then
+    case "$REPLAY_FROM_PHASE" in
+      I|V) ;;  # valid
+      *)
+        echo "[replay] ERROR: --from-phase '$REPLAY_FROM_PHASE' is invalid for replay mode."
+        echo "[replay]   Valid phase letters: I (Phase I: Implement), V (Phase V: Validate)"
+        exit $ERR_BAD_USAGE
+        ;;
+    esac
+    echo "  [replay] --from-phase $REPLAY_FROM_PHASE: reusing existing worktree, skipping phases before $REPLAY_FROM_PHASE"
   fi
 
   _REPLAY_TITLE=$("$JQ" -r --arg id "$REPLAY_STORY_ID" \
@@ -2086,47 +2116,78 @@ if [[ -n "$REPLAY_STORY_ID" ]]; then
   echo "  ╠══════════════════════════════════════════════════════╣"
   echo "  ║  Worktree: $REPLAY_WORKTREE"
   echo "  ║  Log:      $REPLAY_LOG"
+  [[ -n "$REPLAY_FROM_PHASE" ]] && echo "  ║  From phase: $REPLAY_FROM_PHASE"
+  [[ -n "$REPLAY_HINT" ]] && echo "  ║  Hint:       ${REPLAY_HINT:0:60}..."
   echo "  ╚══════════════════════════════════════════════════════╝"
   echo ""
 
-  # Remove existing replay worktree if present (leftover from previous failed replay)
-  if [[ -d "$REPLAY_WORKTREE" ]]; then
-    echo "  [replay] Removing existing replay worktree: $REPLAY_WORKTREE"
-    git -C "$REPO_ROOT" worktree remove "$REPLAY_WORKTREE" --force 2>/dev/null || rm -rf "$REPLAY_WORKTREE"
-  fi
-
-  # Create isolated git worktree from current HEAD
-  echo "  [replay] Creating worktree from HEAD..."
-  git -C "$REPO_ROOT" worktree add -b "$REPLAY_BRANCH" "$REPLAY_WORKTREE" HEAD
-
-  # Copy prd.json to worktree; set only the target story to pending
+  # Worktree management: reuse on --from-phase, recreate otherwise
   REPLAY_PRD="$REPLAY_WORKTREE/prd.json"
-  cp "$PRD_FILE" "$REPLAY_PRD"
-  _UPDATED=$("$JQ" --arg id "$REPLAY_STORY_ID" \
-    '(.userStories[] | select(.id == $id) | .passes) = false' "$REPLAY_PRD") &&
-    echo "$_UPDATED" >"$REPLAY_PRD"
-  echo "  [replay] Story $REPLAY_STORY_ID set to pending; all others preserved"
-
-  # Phase I: run ralph in the worktree
-  echo ""
-  echo "  [replay] Phase I — running ralph on $REPLAY_STORY_ID..."
-  REPLAY_I_RC=0
-  _REPLAY_DRY_RUN_FLAG=""
-  [[ "${DRY_RUN:-0}" -eq 1 ]] && _REPLAY_DRY_RUN_FLAG="--dry-run"
-  _REPLAY_I_START=$(date +%s)
-  if [[ "${SPIRAL_IMPL_TIMEOUT:-600}" -gt 0 ]] && command -v timeout &>/dev/null; then
-    (cd "$REPLAY_WORKTREE" && timeout --kill-after=30 "${SPIRAL_IMPL_TIMEOUT}" bash "$SPIRAL_RALPH" \
-      "$RALPH_MAX_ITERS" --prd "$REPLAY_PRD" --tool claude $_REPLAY_DRY_RUN_FLAG \
-      2>&1) | tee "$REPLAY_LOG" || REPLAY_I_RC=$?
+  if [[ -n "$REPLAY_FROM_PHASE" && -d "$REPLAY_WORKTREE" ]]; then
+    # Reuse the existing worktree; determine branch from git
+    REPLAY_BRANCH=$(git -C "$REPLAY_WORKTREE" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "$REPLAY_BRANCH")
+    echo "  [replay] Reusing existing worktree (--from-phase $REPLAY_FROM_PHASE): $REPLAY_WORKTREE"
+    echo "  [replay] Branch: $REPLAY_BRANCH"
   else
-    (cd "$REPLAY_WORKTREE" && bash "$SPIRAL_RALPH" \
-      "$RALPH_MAX_ITERS" --prd "$REPLAY_PRD" --tool claude $_REPLAY_DRY_RUN_FLAG \
-      2>&1) | tee "$REPLAY_LOG" || REPLAY_I_RC=$?
+    # Remove existing replay worktree if present (leftover from previous failed replay)
+    if [[ -d "$REPLAY_WORKTREE" ]]; then
+      echo "  [replay] Removing existing replay worktree: $REPLAY_WORKTREE"
+      git -C "$REPO_ROOT" worktree remove "$REPLAY_WORKTREE" --force 2>/dev/null || rm -rf "$REPLAY_WORKTREE"
+    fi
+
+    # Create isolated git worktree from current HEAD
+    echo "  [replay] Creating worktree from HEAD..."
+    git -C "$REPO_ROOT" worktree add -b "$REPLAY_BRANCH" "$REPLAY_WORKTREE" HEAD
+
+    # Copy prd.json to worktree; set only the target story to pending
+    cp "$PRD_FILE" "$REPLAY_PRD"
+    _UPDATED=$("$JQ" --arg id "$REPLAY_STORY_ID" \
+      '(.userStories[] | select(.id == $id) | .passes) = false' "$REPLAY_PRD") &&
+      echo "$_UPDATED" >"$REPLAY_PRD"
+    echo "  [replay] Story $REPLAY_STORY_ID set to pending; all others preserved"
   fi
-  _REPLAY_I_ELAPSED=$(($(date +%s) - _REPLAY_I_START))
-  if [[ "$REPLAY_I_RC" -eq 124 ]]; then
-    echo "  [replay] WARNING: Ralph timed out after ${_REPLAY_I_ELAPSED}s (limit: ${SPIRAL_IMPL_TIMEOUT}s)"
-    log_spiral_event "phase_timeout" "\"phase\":\"I\",\"story_id\":\"$REPLAY_STORY_ID\",\"iteration\":0,\"duration_ms\":$((_REPLAY_I_ELAPSED * 1000)),\"timeout_s\":${SPIRAL_IMPL_TIMEOUT}"
+
+  # ── US-251: Track this replay attempt in _checkpoint.json _replayHistory ──
+  if [[ -f "$CHECKPOINT_FILE" ]]; then
+    _CKPT_TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    _REPLAY_ENTRY="{\"timestamp\":\"$_CKPT_TS\",\"storyId\":\"$REPLAY_STORY_ID\",\"fromPhase\":\"${REPLAY_FROM_PHASE:-I}\",\"hint\":\"${REPLAY_HINT}\"}"
+    _UPDATED_CKPT=$("$JQ" --argjson entry "$_REPLAY_ENTRY" \
+      'if .["_replayHistory"] then .["_replayHistory"] += [$entry] else .["_replayHistory"] = [$entry] end' \
+      "$CHECKPOINT_FILE" 2>/dev/null)
+    if [[ -n "$_UPDATED_CKPT" ]]; then
+      _CKPT_TMP=$(mktemp -p "$SCRATCH_DIR" 2>/dev/null || echo "$SCRATCH_DIR/.replay_ckpt.tmp")
+      echo "$_UPDATED_CKPT" >"$_CKPT_TMP" && mv "$_CKPT_TMP" "$CHECKPOINT_FILE" 2>/dev/null || true
+      echo "  [replay] Checkpoint updated with _replayHistory entry (fromPhase=${REPLAY_FROM_PHASE:-I})"
+    fi
+  fi
+
+  # Phase I: run ralph in the worktree (skip if --from-phase V)
+  REPLAY_I_RC=0
+  if [[ "${REPLAY_FROM_PHASE:-I}" == "I" ]]; then
+    echo ""
+    echo "  [replay] Phase I — running ralph on $REPLAY_STORY_ID..."
+    _REPLAY_DRY_RUN_FLAG=""
+    [[ "${DRY_RUN:-0}" -eq 1 ]] && _REPLAY_DRY_RUN_FLAG="--dry-run"
+    # Export hint so ralph.sh can inject it into the system prompt (US-251)
+    export SPIRAL_REPLAY_HINT="${REPLAY_HINT:-}"
+    _REPLAY_I_START=$(date +%s)
+    if [[ "${SPIRAL_IMPL_TIMEOUT:-600}" -gt 0 ]] && command -v timeout &>/dev/null; then
+      (cd "$REPLAY_WORKTREE" && timeout --kill-after=30 "${SPIRAL_IMPL_TIMEOUT}" bash "$SPIRAL_RALPH" \
+        "$RALPH_MAX_ITERS" --prd "$REPLAY_PRD" --tool claude $_REPLAY_DRY_RUN_FLAG \
+        2>&1) | tee "$REPLAY_LOG" || REPLAY_I_RC=$?
+    else
+      (cd "$REPLAY_WORKTREE" && bash "$SPIRAL_RALPH" \
+        "$RALPH_MAX_ITERS" --prd "$REPLAY_PRD" --tool claude $_REPLAY_DRY_RUN_FLAG \
+        2>&1) | tee "$REPLAY_LOG" || REPLAY_I_RC=$?
+    fi
+    unset SPIRAL_REPLAY_HINT
+    _REPLAY_I_ELAPSED=$(($(date +%s) - _REPLAY_I_START))
+    if [[ "$REPLAY_I_RC" -eq 124 ]]; then
+      echo "  [replay] WARNING: Ralph timed out after ${_REPLAY_I_ELAPSED}s (limit: ${SPIRAL_IMPL_TIMEOUT}s)"
+      log_spiral_event "phase_timeout" "\"phase\":\"I\",\"story_id\":\"$REPLAY_STORY_ID\",\"iteration\":0,\"duration_ms\":$((_REPLAY_I_ELAPSED * 1000)),\"timeout_s\":${SPIRAL_IMPL_TIMEOUT}"
+    fi
+  else
+    echo "  [replay] Phase I — SKIPPED (--from-phase $REPLAY_FROM_PHASE)"
   fi
 
   # Check story pass state from worktree prd.json
@@ -2151,7 +2212,7 @@ if [[ -n "$REPLAY_STORY_ID" ]]; then
 
   # Log event to spiral_events.jsonl
   log_spiral_event "replay_complete" \
-    "\"storyId\":\"$REPLAY_STORY_ID\",\"result\":\"$REPLAY_RESULT\",\"duration_s\":$REPLAY_DURATION,\"log\":\"$REPLAY_LOG\""
+    "\"storyId\":\"$REPLAY_STORY_ID\",\"result\":\"$REPLAY_RESULT\",\"duration_s\":$REPLAY_DURATION,\"fromPhase\":\"${REPLAY_FROM_PHASE:-I}\",\"log\":\"$REPLAY_LOG\""
 
   echo ""
   if [[ "$REPLAY_RESULT" == "pass" ]]; then
