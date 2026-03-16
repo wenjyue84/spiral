@@ -858,13 +858,25 @@ function spiralApiPlugin() {
         }
 
         try {
-          const logPath = path.join(root, '.spiral', 'ralph-run.log');
-          if (!fs.existsSync(logPath)) {
+          // Check _last_run.log first (current run), fall back to ralph-run.log
+          const spiralDir = path.join(root, '.spiral');
+          const logCandidates = [
+            path.join(spiralDir, '_last_run.log'),
+            path.join(spiralDir, 'ralph-run.log'),
+          ];
+          const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;]*[mGKHF]/g, '').replace(/\0/g, '');
+          let logText = '';
+          for (const lp of logCandidates) {
+            if (fs.existsSync(lp)) {
+              const t = stripAnsi(fs.readFileSync(lp, 'utf8'));
+              if (/\[spawn\]/i.test(t)) { logText = t; break; }
+              if (!logText) logText = t; // keep first existing as fallback
+            }
+          }
+          if (!logText) {
             res.end(JSON.stringify({ storyId: null }));
             return;
           }
-
-          const logText = fs.readFileSync(logPath, 'utf8').replace(/\0/g, '');
           const lines = logText.split('\n');
 
           // Walk lines in reverse to find the last [spawn] and check if [done]/[fail] follows it
