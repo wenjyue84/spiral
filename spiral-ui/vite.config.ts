@@ -787,6 +787,15 @@ function spiralApiPlugin() {
             } catch { return ''; }
           })();
 
+          // US-315: Active status from .spiral/_active_status.json
+          let activeStatus: { phase: string; iteration: number; started_at: number; pct_done: number; story_id?: string; story_title?: string } | null = null;
+          try {
+            const activeStatusPath = path.join(root, '.spiral', '_active_status.json');
+            if (fs.existsSync(activeStatusPath)) {
+              activeStatus = JSON.parse(fs.readFileSync(activeStatusPath, 'utf8')) as typeof activeStatus;
+            }
+          } catch { /* ignore */ }
+
           res.end(JSON.stringify({
             name,
             root,
@@ -803,6 +812,7 @@ function spiralApiPlugin() {
             recentlyCompleted,
             checkpointTs,
             lastLogModified,
+            activeStatus,
           }));
         } catch (e) {
           res.statusCode = 500;

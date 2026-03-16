@@ -5784,7 +5784,7 @@
       "title": "ProjectDashboard: 'SPIRAL IS RUNNING' live status indicator",
       "description": "When you open /Spiral while spiral.sh is running, there is no indication the loop is active. Add a live status header bar that shows 'SPIRAL IS RUNNING' with an animated pulse, current phase, current story being implemented, and iteration progress. When spiral is idle, the bar shows the last run's completion time. Requires US-311 (status file) as data source.",
       "priority": "high",
-      "passes": false,
+      "passes": true,
       "retryCount": 0,
       "filesTouch": [
         "spiral-ui/src/components/ProjectDashboard.tsx",
@@ -6286,6 +6286,48 @@
       "passes": false,
       "tags": [],
       "model": "sonnet"
+    },
+    {
+      "id": "US-339",
+      "title": "Use programmatic tool calling to reduce Ralph inference passes by 37%",
+      "priority": "medium",
+      "description": "Anthropic's Programmatic Tool Calling feature (type: code_execution_20250825) allows Claude to write code that orchestrates multiple tool calls in a single inference pass rather than requiring separate inference rounds for each tool call. In SPIRAL's Ralph workers, complex stories requiring sequential file reads, writes, and test runs currently require 19+ inference passes. Programmatic tool calling reduces this by processing tool results in a sandboxed code environment, cutting per-story latency and token consumption significantly.",
+      "acceptanceCriteria": [
+        "Ralph's tool manifest includes a code_execution tool with type: code_execution_20250825",
+        "Tools intended to be callable from code (bash_execute, file_read, file_write) include allowed_callers: ['code_execution_20250825'] in their definitions",
+        "A benchmark run comparing a 'medium' complexity story with and without programmatic tool calling shows at least 15% reduction in total inference passes in results.tsv",
+        "Tool calls originating from code execution are logged with caller: code_execution in Ralph's trace output for debugging"
+      ],
+      "technicalNotes": [
+        "Configure in the API request: tools array includes {type: 'code_execution_20250825'} as a tool. On other tools, set allowed_callers: ['code_execution_20250825'] to permit code-originated calls. Tool results are processed in the sandbox and do not return to Claude's context unless Claude explicitly reads them.",
+        "This feature requires Claude Sonnet 4.6 or newer. Check model routing logic to ensure haiku fallback gracefully disables programmatic tool calling (it is not available on all models).",
+        "Reference: https://www.anthropic.com/engineering/advanced-tool-use — section 'Programmatic Tool Calling'"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-340",
+      "title": "Add per-story tool use examples to Ralph tool definitions to improve parameter accuracy",
+      "priority": "medium",
+      "description": "Anthropic's Tool Use Examples feature (input_examples array on tool definitions) improved complex parameter handling accuracy from 72% to 90% in internal testing by showing Claude concrete usage patterns rather than relying on schema alone. SPIRAL's Ralph tool definitions for bash_execute, file_write, and git operations have complex nested parameters and optional fields that Claude frequently misconfigures. Adding 2-5 examples per tool with realistic SPIRAL-specific patterns will reduce malformed tool call errors.",
+      "acceptanceCriteria": [
+        "Ralph's tool manifest for bash_execute, file_write, git_commit, and run_tests includes an input_examples array with 2-5 realistic usage examples each",
+        "Examples demonstrate minimal (required-only), partial (some optional fields), and full (all fields) parameter patterns",
+        "A/B test over 20 stories shows reduction in tool call parse errors (logged to spiral_events.jsonl as tool_call_error) by at least 30%",
+        "Examples are stored in ralph/tool_examples.json and loaded into tool definitions at Ralph startup to allow updating examples without modifying tool logic"
+      ],
+      "technicalNotes": [
+        "Add input_examples to each tool definition object: [{description: 'Run pytest on a single test file', input: {command: 'uv run pytest tests/test_merge.py -v --tb=short'}}]. Include 1 minimal and 2-3 realistic SPIRAL-specific examples.",
+        "Focus on tools with the highest error rates first. Identify these by parsing spiral_events.jsonl for tool_call_error events grouped by tool name.",
+        "Reference: https://www.anthropic.com/engineering/advanced-tool-use — section 'Tool Use Examples'"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
     }
   ]
 }

@@ -91,3 +91,25 @@ Completed: spiral.sh: print formatted iteration summary banner after each iterat
 ### Gotchas
 - Pre-existing schema error: US-323 had a dependency on US-298 which was no longer in prd.json — removed dangling dependency before commit to pass pre-commit hook
 - `jq '(.field) = value'` piped from `cat prd.json` instead of `jq ... prd.json` is needed to avoid "file changed since read" issues when chaining in bash
+## Iteration 3 - Mon, Mar 16, 2026 11:41:37 AM
+Completed: ProjectDashboard: recently completed stories feed (ID: US-314) in 9m
+
+
+## Iteration N - Story: US-315 ProjectDashboard: SPIRAL IS RUNNING live status indicator
+
+### What was implemented
+- Added activeStatus field reading in vite.config.ts /api/project-live endpoint -- reads .spiral/_active_status.json if present, returns null otherwise
+- Added ActiveStatus interface and activeStatus?: ActiveStatus | null to ProjectData interface
+- Changed main polling interval from 15s to 5s (per acceptance criteria)
+- Added PHASE_LABELS map: R->Researching, I->Implementing, V->Validating, etc.
+- Added LiveStatusBanner component: green pulsing dot + SPIRAL IS RUNNING + phase name + story title (<=50 chars) when active; grey dot + Idle + Last run: X ago when absent
+- Inserted LiveStatusBanner between the header and the blue overview bar in main component JSX
+
+### Patterns discovered
+- _active_status.json structure: {phase, iteration, started_at (unix ts), pct_done, story_id?, story_title?}
+- File is deleted by spiral.sh cleanup on exit -- so presence = truly running
+- Tailwind animate-ping gives the pulsing dot effect without extra CSS
+
+### Gotchas
+- ESLint OOM (heap exhausted) is a pre-existing system constraint, not related to this story
+- npx tsc exits with VirtualAlloc error on this system; use node node_modules/typescript/bin/tsc --noEmit instead
