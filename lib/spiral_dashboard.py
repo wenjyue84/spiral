@@ -78,6 +78,30 @@ def load_iter_summary(path: str) -> dict:
         return {}
 
 
+def load_agent_telemetry(path: str, max_rows: int = 200) -> list[dict]:
+    """Load agent-telemetry.jsonl (US-253). Returns [] if missing or unreadable.
+
+    Each row has: ts, workerId, storyId, fromPhase, toPhase, durationMs,
+    qualityScore, retryCount.  Returns the last *max_rows* entries.
+    """
+    if not os.path.isfile(path):
+        return []
+    rows: list[dict] = []
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    rows.append(json.loads(line))
+                except json.JSONDecodeError:
+                    pass
+    except OSError:
+        pass
+    return rows[-max_rows:]
+
+
 def load_progress(path: str, max_entries: int = 10) -> list[str]:
     """Load progress.txt and return last *max_entries* iteration sections.
 
@@ -779,7 +803,8 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
                 token_forecast: dict | None = None,
                 resource_usage: list[dict] | None = None,
                 iter_summary: dict | None = None,
-                quality_scores: dict | None = None) -> str:
+                quality_scores: dict | None = None,
+                agent_telemetry: list[dict] | None = None) -> str:
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     max_vel = max((v["kept"] for v in velocity), default=1) or 1
 
@@ -816,6 +841,50 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
                 f'</div>\n'
             )
         phase_timing_html = f'<section>\n<h2>Phase Timings (Last Iteration)</h2>\n{_timing_rows}</section>\n'
+
+    # US-253: Agent telemetry timeline (per-worker phase transitions)
+    agent_telem_html = ""
+    _telem_rows = agent_telemetry or []
+    if _telem_rows:
+        _phase_colors = {"R": "#3b82f6", "I": "#f59e0b", "V": "#10b981", "C": "#6c63ff", "F": "#ef4444"}
+        _tbl = ""
+        for _row in _telem_rows[-50:]:  # last 50 transitions
+            _fp = escape(str(_row.get("fromPhase", "")))
+            _tp = escape(str(_row.get("toPhase", "")))
+            _sid = escape(str(_row.get("storyId", "")))
+            _wid = escape(str(_row.get("workerId", "0")))
+            _dur = int(_row.get("durationMs", 0))
+            _qs = float(_row.get("qualityScore", 0))
+            _rc = int(_row.get("retryCount", 0))
+            _ts = escape(str(_row.get("ts", ""))[:19])
+            _fp_color = _phase_colors.get(_fp, "#64748b")
+            _tp_color = _phase_colors.get(_tp, "#64748b")
+            _qs_class = "good" if _qs >= 1.0 else "warn" if _qs > 0 else ""
+            _tbl += (
+                f'<tr>'
+                f'<td style="color:#94a3b8;font-size:0.8em">{_ts}</td>'
+                f'<td style="font-family:monospace">{_wid}</td>'
+                f'<td style="font-family:monospace;color:#60a5fa">{_sid}</td>'
+                f'<td><span style="background:{_fp_color};color:#fff;padding:1px 6px;border-radius:3px;font-size:0.85em">{_fp}</span>'
+                f' → <span style="background:{_tp_color};color:#fff;padding:1px 6px;border-radius:3px;font-size:0.85em">{_tp}</span></td>'
+                f'<td style="text-align:right">{_dur:,}ms</td>'
+                f'<td class="{_qs_class}" style="text-align:right">{_qs:.1f}</td>'
+                f'<td style="text-align:right">{_rc}</td>'
+                f'</tr>\n'
+            )
+        agent_telem_html = (
+            '<section>\n'
+            '<h2>Agent Phase Telemetry (last 50 transitions)</h2>\n'
+            '<p style="color:#94a3b8;font-size:0.85em">Source: .spiral/agent-telemetry.jsonl &mdash; '
+            'R=pre-context, I=implementation, V=validation, C=complete, F=failed</p>\n'
+            '<table>\n'
+            '<thead><tr><th>Time</th><th>Worker</th><th>Story</th><th>Transition</th>'
+            '<th style="text-align:right">Duration</th><th style="text-align:right">Quality</th>'
+            '<th style="text-align:right">Retry</th></tr></thead>\n'
+            f'<tbody>\n{_tbl}</tbody>\n'
+            '</table>\n'
+            '</section>\n'
+        )
 
     # Status stacked bar
     ss = status["stories"]
@@ -1215,6 +1284,7 @@ footer{{text-align:center;color:#444;font-size:10px;margin-top:16px;padding-top:
 </section>
 
 {phase_timing_html}
+{agent_telem_html}
 {epics_html}
 
 <div class="two-col">
@@ -1312,6 +1382,10 @@ def main() -> int:
     retries = load_retries(args.retries)
     activity = load_progress(args.progress)
 
+    # Load agent telemetry (US-253)
+    agent_telem_path = os.path.join(args.scratch_dir, "agent-telemetry.jsonl")
+    agent_telem = load_agent_telemetry(agent_telem_path)
+
     # Load optional iteration summary (US-039)
     iter_summary_path = os.path.join(args.scratch_dir, "_iteration_summary.json")
     iter_summary = load_iter_summary(iter_summary_path)
@@ -1349,7 +1423,7 @@ def main() -> int:
         velocity = [{"iter": 0, "kept": 0, "total": 0, "duration_hours": 0.001, "velocity": 0}]
 
     # Render
-    html = render_html(overview, velocity, status, model_perf, retry_analysis, bottle, decomposition, insights, screenshot, iteration_velocity=iter_vel, epics=epics, activity_sections=activity, failure_reasons=failure_reasons, story_attempts=story_attempts, refresh_secs=args.refresh_secs, orphaned_worktrees=orphans, token_forecast=token_forecast, resource_usage=resource_usage, iter_summary=iter_summary, quality_scores=quality_scores)
+    html = render_html(overview, velocity, status, model_perf, retry_analysis, bottle, decomposition, insights, screenshot, iteration_velocity=iter_vel, epics=epics, activity_sections=activity, failure_reasons=failure_reasons, story_attempts=story_attempts, refresh_secs=args.refresh_secs, orphaned_worktrees=orphans, token_forecast=token_forecast, resource_usage=resource_usage, iter_summary=iter_summary, quality_scores=quality_scores, agent_telemetry=agent_telem)
 
     # Write
     output_path = os.path.abspath(args.output)

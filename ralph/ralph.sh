@@ -180,6 +180,9 @@ SPIRAL_HOME="${SPIRAL_HOME:-.}"
 # ── Source tool parameter validator (US-249) ──────────────────────────────────
 [[ -f "$SPIRAL_HOME/lib/tool_param_validator.sh" ]] && source "$SPIRAL_HOME/lib/tool_param_validator.sh"
 
+# ── Source agent telemetry library (US-253) ──────────────────────────────────
+[[ -f "$SPIRAL_HOME/lib/agent_telemetry.sh" ]] && source "$SPIRAL_HOME/lib/agent_telemetry.sh"
+
 # ── Helper: append a JSONL event to spiral_events.jsonl ─────────────────────
 SPIRAL_SCRATCH_DIR="${SPIRAL_SCRATCH_DIR:-.spiral}"
 log_ralph_event() {
@@ -2167,6 +2170,9 @@ while [[ $ITERATION -lt $MAX_ITERATIONS ]]; do
 
   # Spawn fresh AI instance with real-time stream output
   STORY_START=$(date +%s)
+  _TELEM_R_START_MS=$(date +%s%3N 2>/dev/null || echo 0)  # US-253: Phase R start timestamp (ms)
+  _TELEM_I_START_MS=0  # set right before AI invocation
+  _TELEM_V_START_MS=0  # set right after AI invocation
   _OLLAMA_USED=0      # reset per-story; set to 1 if Ollama fallback fires (US-144)
   _REVIEW_TOKENS=0    # reset per-story; set by run_self_review Phase I.5 (US-145)
   _WALL_SEC=0; _USER_CPU_S=0; _SYS_CPU_S=0; _PEAK_RSS_KB=0  # reset per-story resource stats (US-158)
@@ -2625,6 +2631,13 @@ ${_FT_CONTEXT_BODY}"
           fi
         fi
       fi
+      # ── US-253: emit R→I phase transition telemetry ─────────────────────────
+      _TELEM_I_START_MS=$(date +%s%3N 2>/dev/null || echo 0)
+      _TELEM_R_DUR=0
+      [[ "$_TELEM_I_START_MS" -gt 0 && "$_TELEM_R_START_MS" -gt 0 ]] && \
+        _TELEM_R_DUR=$(( _TELEM_I_START_MS - _TELEM_R_START_MS ))
+      declare -f emit_agent_telemetry >/dev/null 2>&1 && \
+        emit_agent_telemetry "R" "I" "$_TELEM_R_DUR" 0
       # Unset CLAUDECODE to allow nested Claude Code invocation from within an active session
       # Wrap with 529 overloaded_error retry loop (separate from 429 rate-limit handling)
       _529_ATTEMPT=0
@@ -2897,6 +2910,13 @@ DIAG_EXTRACTOR_EOF
     fi
 
     rm -f "$_RL_TMP"
+    # ── US-253: emit I→V phase transition telemetry ─────────────────────────
+    _TELEM_V_START_MS=$(date +%s%3N 2>/dev/null || echo 0)
+    _TELEM_I_DUR=0
+    [[ "$_TELEM_V_START_MS" -gt 0 && "$_TELEM_I_START_MS" -gt 0 ]] && \
+      _TELEM_I_DUR=$(( _TELEM_V_START_MS - _TELEM_I_START_MS ))
+    declare -f emit_agent_telemetry >/dev/null 2>&1 && \
+      emit_agent_telemetry "I" "V" "$_TELEM_I_DUR" 0
     break
   done # end rate-limit retry loop
 
@@ -3054,6 +3074,14 @@ except Exception:
 
   if [[ "$PASSES" == "true" ]]; then
     STORIES_COMPLETED=$((STORIES_COMPLETED + 1))
+    # ── US-253: emit V→C phase transition telemetry ─────────────────────────
+    if declare -f emit_agent_telemetry >/dev/null 2>&1; then
+      _TELEM_C_MS=$(date +%s%3N 2>/dev/null || echo 0)
+      _TELEM_V_DUR=0
+      [[ "$_TELEM_C_MS" -gt 0 && "$_TELEM_V_START_MS" -gt 0 ]] && \
+        _TELEM_V_DUR=$(( _TELEM_C_MS - _TELEM_V_START_MS ))
+      emit_agent_telemetry "V" "C" "$_TELEM_V_DUR" 1
+    fi
     echo ""
     echo "  [done] Story completed: $STORY_TITLE"
 

@@ -553,3 +553,31 @@ Completed: Validate MCP server integrity via signed checksum manifest before Pha
 - `--from-phase` with an existing worktree skips worktree creation entirely — the prd.json in the worktree already has the story pending from the prior failed attempt
 - Checkpoint update is best-effort (`2>/dev/null || true`) — don't fail the replay if jq fails
 - The hint is placed in the system prompt (not user prompt) per technicalNotes, to reduce prompt injection risk. This differs from RALPH_FOCUS which goes in user prompt for cache stability — but since hints are per-replay not per-story, cache stability is less critical here
+## Iteration 1 - Mon, Mar 16, 2026  4:10:38 PM
+Incomplete: Implement per-worker short-lived credential context with lifecycle audit log (ID: US-321) — attempt /3
+
+
+## Iteration N - Story: US-253 Emit structured agent telemetry for worker phase transitions
+
+### What was implemented
+- Created `lib/agent_telemetry.sh` — standalone `emit_agent_telemetry()` library (sourceable by bats)
+- Modified `ralph/ralph.sh` to source `lib/agent_telemetry.sh` and emit 3 phase transitions per story:
+  - `R → I` (pre-context/research complete → impl starts): before the 529 retry loop
+  - `I → V` (Claude invocation complete → validation starts): after rate-limit retry loop
+  - `V → C` (validation passed → story complete): when passes=true first detected
+- Tracking vars: `_TELEM_R_START_MS`, `_TELEM_I_START_MS`, `_TELEM_V_START_MS` using `date +%s%3N`
+- Rotation: 10MB file size check via `stat -c%s`; rotates to timestamped archive file
+- Modified `lib/spiral_dashboard.py` — added `load_agent_telemetry()` and `agent_telem_html` section
+  - Shows last 50 transitions in a color-coded table (R=blue, I=amber, V=green, C=purple, F=red)
+- Created `tests/agent_telemetry.bats` — 11 tests all passing
+
+### Patterns discovered
+- emit_agent_telemetry uses `declare -f fn_name >/dev/null 2>&1` guard in ralph.sh for optional sourcing
+- `date +%s%3N` gives ms-precision on Git Bash/Linux; fallback `echo 0` keeps arithmetic safe
+- bats tests source `lib/agent_telemetry.sh` directly (same pattern as `spiral_events.bats` → `lib/spiral_events.sh`)
+- Pre-existing mypy errors at spiral_dashboard.py:403,554 unrelated to this story
+
+### Gotchas
+- `stat -c%s` works on Linux/Git Bash but not BSD/macOS (would need `stat -f%z`); acceptable for this codebase
+- `_TELEM_V_START_MS=0` initialized at story start; if Claude invocation is skipped (e.g. circuit breaker), I→V will still emit with durationMs=0 (safe)
+- qualityScore is integer 1 for V→C (bash arithmetic); JSON renders it as `1` not `1.0` — dashboard float() handles both
