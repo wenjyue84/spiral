@@ -569,6 +569,45 @@ validate_env() {
 }
 validate_env
 
+# ── US-312: ANSI color output for phase section banners ──────────────────────
+# SPIRAL_COLOR_OUTPUT: auto (default) | 1 (force on) | 0 (force off)
+SPIRAL_COLOR_OUTPUT="${SPIRAL_COLOR_OUTPUT:-auto}"
+_USE_COLOR=0
+if [[ "$SPIRAL_COLOR_OUTPUT" == "1" ]]; then
+  _USE_COLOR=1
+elif [[ "$SPIRAL_COLOR_OUTPUT" == "auto" ]]; then
+  # Enable when stdout is a TTY and TERM is not dumb
+  [[ -t 1 && "${TERM:-}" != "dumb" ]] && _USE_COLOR=1
+fi
+if [[ "$_USE_COLOR" -eq 1 ]]; then
+  _C_BLUE='\033[1;34m'
+  _C_YELLOW='\033[1;33m'
+  _C_GREEN='\033[1;32m'
+  _C_RED='\033[1;31m'
+  _C_CYAN='\033[1;36m'
+  _C_RESET='\033[0m'
+else
+  _C_BLUE='' _C_YELLOW='' _C_GREEN='' _C_RED='' _C_CYAN='' _C_RESET=''
+fi
+# Helper: print a colored phase banner to stdout
+# Usage: print_phase_banner "R" "RESEARCH"
+print_phase_banner() {
+  local phase="$1" label="$2"
+  local color=""
+  case "$phase" in
+    R|T) color="$_C_BLUE" ;;
+    I)   color="$_C_YELLOW" ;;
+    V)   color="$_C_GREEN" ;;
+    S|M|C|A|G) color="$_C_CYAN" ;;
+    *)   color="" ;;
+  esac
+  if [[ "$_USE_COLOR" -eq 1 ]]; then
+    printf "\n  ${color}▓▓ Phase %s: %s ▓▓${_C_RESET}\n" "$phase" "$label"
+  else
+    echo ""
+    echo "  [Phase $phase] $label"
+  fi
+}
 
 # ── Structured logging: SPIRAL_LOG_LEVEL filtering (US-130) ──────────────────
 # Accepts DEBUG / INFO / WARN / ERROR (case-insensitive; normalised to upper on read).
@@ -596,6 +635,8 @@ log_msg() {
     if [[ "$lvl" == "DEBUG" ]]; then
       local caller_ctx="${BASH_SOURCE[1]:-spiral.sh}:${BASH_LINENO[0]:-0}"
       echo "[DEBUG] ($caller_ctx) $*" >&2
+    elif [[ "$lvl" == "ERROR" && "$_USE_COLOR" -eq 1 ]]; then
+      printf "${_C_RED}[ERROR]${_C_RESET} %s\n" "$*" >&2
     else
       echo "[$lvl] $*" >&2
     fi
@@ -2469,8 +2510,7 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
   AI_SUGGEST_OUTPUT="$SCRATCH_DIR/_ai_suggest_output.json"
   TEST_STORY_CANDIDATES="$SCRATCH_DIR/_test_story_candidates.json"
   AI_QUEUE_FILE="$SCRATCH_DIR/_ai_example_queue.json"
-  echo ""
-  echo "  [Phase A] AI SUGGESTIONS — generating per-iteration story candidates..."
+  print_phase_banner "A" "AI SUGGESTIONS — generating per-iteration story candidates..."
   "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/ai_suggest.py" \
     --prd "$PRD_FILE" \
     --queue "$AI_QUEUE_FILE" \
@@ -2578,8 +2618,7 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
   PID_T=""
 
   if [[ "$_R_SKIP" -eq 0 ]]; then
-    echo ""
-    echo "  [Phase R] RESEARCH — launching in background..."
+    print_phase_banner "R" "RESEARCH — launching in background..."
     (
       # ── Research cache: prune expired entries ──────────────────────────────
       if [[ "$SPIRAL_RESEARCH_CACHE_TTL_HOURS" -gt 0 ]]; then
@@ -2862,7 +2901,7 @@ $INJECTED_PROMPT"
   fi
 
   if [[ "$_T_SKIP" -eq 0 ]]; then
-    echo "  [Phase T] TEST SYNTHESIS — launching in background..."
+    print_phase_banner "T" "TEST SYNTHESIS — launching in background..."
     (
       _T_EXIT=0
       _T_START=$(date +%s)
@@ -2974,8 +3013,7 @@ $INJECTED_PROMPT"
   # ── Phase S: STORY VALIDATE ──────────────────────────────────────────────────
   PHASE="S"
   write_active_status "S" 30  # US-311
-  echo ""
-  echo "  [Phase S] STORY VALIDATE — filtering candidates against project goals..."
+  print_phase_banner "S" "STORY VALIDATE — filtering candidates against project goals..."
   log_spiral_event "phase_start" "\"phase\":\"S\",\"iteration\":$SPIRAL_ITER"
   notify_webhook "S" "start"
   _PHASE_TS_S=$(date +%s)
@@ -3014,8 +3052,7 @@ $INJECTED_PROMPT"
   # ── Phase M: MERGE ──────────────────────────────────────────────────────────
   PHASE="M"
   write_active_status "M" 40  # US-311
-  echo ""
-  echo "  [Phase M] MERGE — deduplicating and patching prd.json..."
+  print_phase_banner "M" "MERGE — deduplicating and patching prd.json..."
   log_spiral_event "phase_start" "\"phase\":\"M\",\"iteration\":$SPIRAL_ITER"
   notify_webhook "M" "start"
   _PHASE_TS_M=$(date +%s)
@@ -3270,7 +3307,7 @@ $INJECTED_PROMPT"
           # ── Export per-story test baseline command for ralph ─────────────────
           export SPIRAL_TEST_BASELINE_CMD="${SPIRAL_VALIDATE_CMD:-}"
 
-          echo "  [Phase I] IMPLEMENT — running ralph ($RALPH_MAX_ITERS inner iterations)..."
+          print_phase_banner "I" "IMPLEMENT — running ralph ($RALPH_MAX_ITERS inner iterations)..."
 
           # ── Batch slicing: cap stories visible to ralph ──────────────────
           _BATCH_ACTIVE=0
@@ -3852,8 +3889,7 @@ $INJECTED_PROMPT"
   PHASE="V"
   _ACTIVE_STORY_ID=""; _ACTIVE_STORY_TITLE=""  # US-311: clear story context after Phase I
   write_active_status "V" 80  # US-311
-  echo ""
-  echo "  [Phase V] VALIDATE — running test suite..."
+  print_phase_banner "V" "VALIDATE — running test suite..."
   log_spiral_event "phase_start" "\"phase\":\"V\",\"iteration\":$SPIRAL_ITER"
   notify_webhook "V" "start"
   _PHASE_TS_V=$(date +%s)
@@ -4131,8 +4167,7 @@ PYEOF
   # ── Phase C: CHECK DONE ─────────────────────────────────────────────────────
   PHASE="C"
   write_active_status "C" 95  # US-311
-  echo ""
-  echo "  [Phase C] CHECK DONE..."
+  print_phase_banner "C" "CHECK DONE..."
   log_spiral_event "phase_start" "\"phase\":\"C\",\"iteration\":$SPIRAL_ITER"
   notify_webhook "C" "start"
   _PHASE_TS_C=$(date +%s)

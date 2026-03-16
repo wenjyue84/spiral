@@ -23,3 +23,23 @@ Incomplete: ProjectDashboard: searchable story table with live status badges (ID
 
 ### Gotchas
 - `const done` and `const pending` vars were removed — stats cards use `p.done`, `p.pending`, `p.total` directly from the API response, not derived arrays
+
+## Iteration N - Story: US-312 spiral.sh: ANSI-colored phase section banners in terminal output
+
+### What was implemented
+- Added `SPIRAL_COLOR_OUTPUT` env var (auto|1|0) after `validate_env` call in spiral.sh
+- Added `_USE_COLOR` flag: auto-detects TTY (`-t 1`) and checks `TERM != dumb`; SPIRAL_COLOR_OUTPUT=0 or TERM=dumb disables
+- Added color variables: `_C_BLUE`, `_C_YELLOW`, `_C_GREEN`, `_C_RED`, `_C_CYAN`, `_C_RESET` (empty strings when color disabled)
+- Added `print_phase_banner()` helper: Phase R/T=blue, I=yellow/orange, V=green, S/M/C/A/G=cyan
+- Replaced all 8 `echo "" && echo "  [Phase X] ..."` patterns with `print_phase_banner "X" "..."` calls
+- Colored `[ERROR]` prefix in `log_msg()` for ERROR level when color enabled
+
+### Patterns discovered
+- `print_phase_banner` uses `printf` for color path to avoid subshell issues with `echo -e`
+- Color variables defined as empty strings (not unset) for no-color mode — safe to interpolate anywhere
+- `_USE_COLOR` and color vars are global shell vars, set before `log_msg` function is defined
+
+### Gotchas
+- `test_check_dag.py` fails with Hypothesis HealthCheck.too_slow — pre-existing, unrelated to this story
+- Phase banner for "T" uses blue (same as R) since both are parallel research/synthesis phases
+- `print_phase_banner` always handles the leading blank line itself (no separate `echo ""` needed)
