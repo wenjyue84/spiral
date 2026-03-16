@@ -131,10 +131,22 @@ def extract_json_from_response(text: str) -> dict[str, Any]:
     raise ValueError(f"Could not extract JSON from response:\n{text[:500]}")
 
 
+def _claude_cmd() -> str:
+    """Return the Claude CLI executable name, using .cmd on Windows."""
+    import shutil, sys
+    if sys.platform == "win32":
+        return shutil.which("claude.cmd") or shutil.which("claude") or "claude.cmd"
+    return shutil.which("claude") or "claude"
+
+
 def call_claude(prompt: str, model: str) -> str:
-    """Call Claude CLI and return the text response."""
+    """Call Claude CLI and return the text response.
+
+    Prompt is passed via stdin (not as a CLI argument) to avoid Windows
+    cmd.exe interpreting XML angle-brackets in the prompt as shell redirects.
+    """
     cmd = [
-        "claude", "-p", prompt,
+        _claude_cmd(), "-p",
         "--model", model,
         "--max-turns", "3",
         "--output-format", "text",
@@ -142,6 +154,7 @@ def call_claude(prompt: str, model: str) -> str:
     ]
     result = subprocess.run(
         cmd,
+        input=prompt,
         capture_output=True,
         text=True,
         timeout=300,

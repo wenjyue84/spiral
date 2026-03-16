@@ -935,7 +935,7 @@ check_test_ratchet() {
 
 # ── Retry tracking ───────────────────────────────────────────────
 RETRY_FILE="retry-counts.json"
-if [[ ! -f "$RETRY_FILE" ]]; then
+if [[ ! -f "$RETRY_FILE" ]] || ! $JQ -e . "$RETRY_FILE" >/dev/null 2>&1; then
   echo '{}' >"$RETRY_FILE"
 fi
 MAX_RETRIES=3
@@ -961,7 +961,7 @@ reset_retry() {
   mv "${RETRY_FILE}.tmp" "$RETRY_FILE"
 }
 
-if [[ ! -f "$ESCALATION_FILE" ]]; then
+if [[ ! -f "$ESCALATION_FILE" ]] || ! $JQ -e . "$ESCALATION_FILE" >/dev/null 2>&1; then
   echo '{}' >"$ESCALATION_FILE"
 fi
 

@@ -7341,7 +7341,13 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false
+      "passes": false,
+      "_decomposed": true,
+      "_decomposedInto": [
+        "US-404",
+        "US-405",
+        "US-406"
+      ]
     },
     {
       "id": "US-391",
@@ -7620,6 +7626,75 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": false
+    },
+    {
+      "id": "US-404",
+      "title": "Build Message Batches request builder and response parser",
+      "priority": "high",
+      "description": "Create a Python module (lib/batch_validate.py) with functions to construct a Message Batches API payload from a list of story validation prompts, parse the completed batch response into per-story validation outcomes, and extract the batch_id. Include unit tests for both construction and parsing.",
+      "acceptanceCriteria": [
+        "build_batch_request(stories, prompts) returns a valid Message Batches API payload dict",
+        "parse_batch_response(response) returns a dict mapping custom_id to validation result",
+        "batch_id is extracted and returned from the API response object",
+        "Unit tests verify batch request construction with multiple stories",
+        "Unit tests verify response parsing with success and error result types"
+      ],
+      "technicalNotes": [
+        "Use anthropic Python SDK MessageBatches API (client.beta.messages.batches.create)",
+        "Map each story's US-NNN id as the custom_id in the batch request",
+        "Reuse existing single-story validation prompt construction logic from lib/validate_stories.py",
+        "Tests go in tests/test_batch_validate.py"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_decomposedFrom": "US-390"
+    },
+    {
+      "id": "US-405",
+      "title": "Implement batch polling with exponential backoff",
+      "priority": "high",
+      "description": "Add a poll_batch_until_complete(batch_id, client) function to lib/batch_validate.py that polls the Message Batches API with exponential backoff until all requests in the batch reach a terminal state (succeeded or errored).",
+      "acceptanceCriteria": [
+        "poll_batch_until_complete polls until batch processing_status is 'ended'",
+        "Backoff starts at 2s, doubles each attempt, caps at 60s",
+        "Returns the completed batch results iterable when done",
+        "Raises a timeout error if polling exceeds a configurable max duration (default 3600s)"
+      ],
+      "technicalNotes": [
+        "Use client.beta.messages.batches.retrieve(batch_id) to check status",
+        "Use client.beta.messages.batches.results(batch_id) to stream results once ended",
+        "processing_status field on the batch object indicates completion"
+      ],
+      "dependencies": [
+        "US-404"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_decomposedFrom": "US-390"
+    },
+    {
+      "id": "US-406",
+      "title": "Integrate batch validation into Phase S with sync fallback and results.tsv tracking",
+      "priority": "high",
+      "description": "Wire lib/batch_validate.py into Phase S story validation. When SPIRAL_STORY_BATCH_SIZE > 1 and multiple stories are pending, use the batch path. For a single story, fall back to the existing synchronous validation path. Record the batch_id in results.tsv for each story attempt row processed via batch.",
+      "acceptanceCriteria": [
+        "Phase S submits a batch request when pending story count > 1",
+        "Single-story validation continues to use the existing synchronous path",
+        "Each story attempt row written to results.tsv includes the batch_id column when processed via batch",
+        "Batch path respects the SPIRAL_STORY_BATCH_SIZE cap on stories per batch"
+      ],
+      "technicalNotes": [
+        "Edit lib/phases/phase_s_story_validate.sh or the Python caller that invokes validate_stories.py",
+        "Add batch_id as a new column to results.tsv (empty string for sync path rows)",
+        "Ensure backwards compatibility — existing results.tsv rows without batch_id column are valid"
+      ],
+      "dependencies": [
+        "US-405"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_decomposedFrom": "US-390"
     }
   ]
 }
