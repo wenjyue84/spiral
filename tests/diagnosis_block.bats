@@ -10,9 +10,13 @@
 #   - Partial diagnosis block (only some headers) is rejected
 #   - Diagnosis block is stored in prd.json under _phaseI.diagnosisBlock
 
+bats_require_minimum_version 1.7.0
+
 # ── Setup / teardown ──────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   export TMPDIR_DB
   TMPDIR_DB="$(mktemp -d)"
 
@@ -35,15 +39,6 @@ setup() {
   ]
 }
 EOF
-
-  # Resolve jq binary
-  if command -v jq &>/dev/null; then
-    export JQ="jq"
-  elif [[ -f "ralph/jq.exe" ]]; then
-    export JQ="ralph/jq.exe"
-  elif [[ -f "ralph/jq" ]]; then
-    export JQ="ralph/jq"
-  fi
 
   # Stub helpers used by the gate block
   increment_retry() {

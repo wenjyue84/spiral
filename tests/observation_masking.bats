@@ -10,6 +10,15 @@
 #   - No masking when attempt count <= window
 #   - 40%+ token reduction achievable with 5+ observations and small window
 
+bats_require_minimum_version 1.7.0
+
+# ── Setup ───────────────────────────────────────────────────────────────────
+
+setup() {
+  load test_helper/common-setup
+  _resolve_jq
+}
+
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 # Source only the functions we need from ralph.sh (observation masking helpers)

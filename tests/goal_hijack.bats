@@ -10,6 +10,8 @@
 #   - Alert includes a diff of the changed goals
 #   - Phase M is aborted on detection
 
+bats_require_minimum_version 1.7.0
+
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 _setup_env() {
@@ -81,6 +83,8 @@ _check_goals_hash() {
 }
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   TEST_DIR="$(mktemp -d)"
   _setup_env
 }
@@ -119,7 +123,7 @@ EOF
   _record_goals_hash "$prd"
   # goals unchanged — should return 0 (no hijack)
   run _check_goals_hash "$prd"
-  [[ "$status" -eq 0 ]]
+  assert_success
   # No security-audit.jsonl created
   [[ ! -f "$SCRATCH_DIR/security-audit.jsonl" ]]
 }
@@ -143,7 +147,7 @@ EOF
 EOF
 
   run _check_goals_hash "$prd"
-  [[ "$status" -eq 1 ]]
+  assert_failure 1
 
   # Verify security-audit.jsonl has the event
   [[ -f "$SCRATCH_DIR/security-audit.jsonl" ]]
@@ -170,7 +174,7 @@ EOF
 EOF
 
   run _check_goals_hash "$prd"
-  [[ "$status" -eq 1 ]]
+  assert_failure 1
 
   # Check diff field is present and non-empty in security-audit.jsonl
   local diff_field
@@ -198,7 +202,7 @@ EOF
 EOF
 
   run _check_goals_hash "$prd"
-  [[ "$status" -eq 1 ]]
+  assert_failure 1
 
   # Verify spiral_events.jsonl has the event
   [[ -f "$SCRATCH_DIR/spiral_events.jsonl" ]]
@@ -219,5 +223,5 @@ EOF
 
   # goals still absent — no hijack
   run _check_goals_hash "$prd"
-  [[ "$status" -eq 0 ]]
+  assert_success
 }

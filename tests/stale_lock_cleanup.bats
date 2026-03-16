@@ -9,9 +9,13 @@
 #   - Stale lock (>= timeout, no live git): removed + event logged
 #   - Stale lock with live git PID: skipped (conservative guard)
 
+bats_require_minimum_version 1.7.0
+
 # ── Setup / teardown ──────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   export TEST_TMPDIR
   TEST_TMPDIR="$(mktemp -d)"
   export WORKTREE_BASE="$TEST_TMPDIR/spiral-workers"
@@ -112,17 +116,17 @@ os.utime(r'''${_win_path}''', (mtime, mtime))
 
 @test "no lock files: returns 0 with no removal output" {
   run _check_stale_worktree_locks "$WORKTREE_BASE" "$SCRATCH_DIR" 5
-  [ "$status" -eq 0 ]
-  [[ "$output" != *"Removed"* ]]
+  assert_success
+  refute_output --partial "Removed"
 }
 
 @test "fresh lock (< timeout): not removed" {
   local lock="$WORKTREE_BASE/worker-1/.git/index.lock"
   _make_lock_aged "$lock" 2   # 2 minutes old, timeout is 5
   run _check_stale_worktree_locks "$WORKTREE_BASE" "$SCRATCH_DIR" 5
-  [ "$status" -eq 0 ]
+  assert_success
   [ -f "$lock" ]              # file still exists
-  [[ "$output" != *"Removed"* ]]
+  refute_output --partial "Removed"
 }
 
 @test "stale lock (>= timeout, no live git): removed" {
@@ -130,9 +134,9 @@ os.utime(r'''${_win_path}''', (mtime, mtime))
   _make_lock_aged "$lock" 10  # 10 minutes old, timeout is 5
   export TEST_LIVE_GIT_COUNT=0
   run _check_stale_worktree_locks "$WORKTREE_BASE" "$SCRATCH_DIR" 5
-  [ "$status" -eq 0 ]
+  assert_success
   [ ! -f "$lock" ]            # file removed
-  [[ "$output" == *"Removed stale git lock"* ]]
+  assert_output --partial "Removed stale git lock"
 }
 
 @test "stale lock removal emits event to spiral_events.jsonl" {
@@ -142,7 +146,7 @@ os.utime(r'''${_win_path}''', (mtime, mtime))
   _check_stale_worktree_locks "$WORKTREE_BASE" "$SCRATCH_DIR" 5
   [ -f "$SCRATCH_DIR/spiral_events.jsonl" ]
   run grep "stale_lock_removed" "$SCRATCH_DIR/spiral_events.jsonl"
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "stale lock with live git PID: skipped (not removed)" {
@@ -150,9 +154,9 @@ os.utime(r'''${_win_path}''', (mtime, mtime))
   _make_lock_aged "$lock" 10  # 10 minutes old
   export TEST_LIVE_GIT_COUNT=1  # simulate live git process
   run _check_stale_worktree_locks "$WORKTREE_BASE" "$SCRATCH_DIR" 5
-  [ "$status" -eq 0 ]
+  assert_success
   [ -f "$lock" ]              # file NOT removed
-  [[ "$output" == *"live git process found"* ]]
+  assert_output --partial "live git process found"
 }
 
 @test "multiple stale locks across workers: all removed" {
@@ -162,15 +166,15 @@ os.utime(r'''${_win_path}''', (mtime, mtime))
   _make_lock_aged "$lock2" 15
   export TEST_LIVE_GIT_COUNT=0
   run _check_stale_worktree_locks "$WORKTREE_BASE" "$SCRATCH_DIR" 5
-  [ "$status" -eq 0 ]
+  assert_success
   [ ! -f "$lock1" ]
   [ ! -f "$lock2" ]
-  [[ "$output" == *"removed 2 lock file(s)"* ]]
+  assert_output --partial "removed 2 lock file(s)"
 }
 
 @test "missing worktree base dir: returns 0 silently" {
   run _check_stale_worktree_locks "$TEST_TMPDIR/nonexistent" "$SCRATCH_DIR" 5
-  [ "$status" -eq 0 ]
+  assert_success
   [ -z "$output" ]
 }
 
@@ -178,7 +182,7 @@ os.utime(r'''${_win_path}''', (mtime, mtime))
   local script
   script="$(git -C "$(dirname "$BATS_TEST_FILENAME")" rev-parse --show-toplevel 2>/dev/null)/lib/validate_preflight.sh"
   run grep -c "_check_stale_worktree_locks" "$script"
-  [ "$status" -eq 0 ]
+  assert_success
   [ "$output" -ge 1 ]
 }
 
@@ -186,6 +190,6 @@ os.utime(r'''${_win_path}''', (mtime, mtime))
   local cfg
   cfg="$(git -C "$(dirname "$BATS_TEST_FILENAME")" rev-parse --show-toplevel 2>/dev/null)/spiral.config.sh"
   run grep -c "SPIRAL_LOCK_TIMEOUT_MINUTES" "$cfg"
-  [ "$status" -eq 0 ]
+  assert_success
   [ "$output" -ge 1 ]
 }

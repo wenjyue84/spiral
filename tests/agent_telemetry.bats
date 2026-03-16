@@ -10,9 +10,13 @@
 #   - Telemetry is queryable by storyId
 #   - Log file is created in SPIRAL_SCRATCH_DIR
 
+bats_require_minimum_version 1.7.0
+
 # ── Test setup ────────────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   export TMPDIR_AT
   TMPDIR_AT="$(mktemp -d)"
   export SPIRAL_SCRATCH_DIR="$TMPDIR_AT"

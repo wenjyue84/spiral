@@ -10,21 +10,16 @@
 #   - Empty pending set returns no output
 #   - Decomposed stories are excluded from both paths
 
+bats_require_minimum_version 1.7.0
+
 # ── Test setup ────────────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   export SPIRAL_SCRATCH_DIR="$(mktemp -d)"
   export PRD_FILE="$SPIRAL_SCRATCH_DIR/prd.json"
   export PROGRESS_FILE="/dev/null"
-
-  # Resolve jq binary (same logic as other bats tests)
-  if command -v jq &>/dev/null; then
-    export JQ="jq"
-  elif [[ -f "ralph/jq.exe" ]]; then
-    export JQ="ralph/jq.exe"
-  elif [[ -f "ralph/jq" ]]; then
-    export JQ="ralph/jq"
-  fi
 
   # Source only get_pending_story_ids from ralph.sh
   # Use sed to extract the function body plus the default variable it references
@@ -57,7 +52,7 @@ _write_prd() {
 EOF
   export SPIRAL_PRD_STREAM_THRESHOLD_KB=9999
   run get_pending_story_ids "$PRD_FILE"
-  [ "$status" -eq 0 ]
+  assert_success
   # critical < high < low alphabetically (same order as sort_by(.priority) in jq)
   [ "${lines[0]}" = "US-002" ]
   [ "${lines[1]}" = "US-003" ]
@@ -75,7 +70,7 @@ EOF
 EOF
   export SPIRAL_PRD_STREAM_THRESHOLD_KB=9999
   run get_pending_story_ids "$PRD_FILE"
-  [ "$status" -eq 0 ]
+  assert_success
   [ "${#lines[@]}" -eq 1 ]
   [ "${lines[0]}" = "US-002" ]
 }
@@ -91,7 +86,7 @@ EOF
 EOF
   export SPIRAL_PRD_STREAM_THRESHOLD_KB=9999
   run get_pending_story_ids "$PRD_FILE"
-  [ "$status" -eq 0 ]
+  assert_success
   [ "${#lines[@]}" -eq 1 ]
   [ "${lines[0]}" = "US-002" ]
 }
@@ -102,7 +97,7 @@ EOF
 EOF
   export SPIRAL_PRD_STREAM_THRESHOLD_KB=9999
   run get_pending_story_ids "$PRD_FILE"
-  [ "$status" -eq 0 ]
+  assert_success
   [ "${#lines[@]}" -eq 0 ]
 }
 
@@ -121,7 +116,7 @@ EOF
 EOF
   export SPIRAL_PRD_STREAM_THRESHOLD_KB=0
   run get_pending_story_ids "$PRD_FILE"
-  [ "$status" -eq 0 ]
+  assert_success
   [ "${lines[0]}" = "US-002" ]
   [ "${lines[1]}" = "US-003" ]
   [ "${lines[2]}" = "US-001" ]
@@ -138,7 +133,7 @@ EOF
 EOF
   export SPIRAL_PRD_STREAM_THRESHOLD_KB=0
   run get_pending_story_ids "$PRD_FILE"
-  [ "$status" -eq 0 ]
+  assert_success
   [ "${#lines[@]}" -eq 1 ]
   [ "${lines[0]}" = "US-002" ]
 }
@@ -154,7 +149,7 @@ EOF
 EOF
   export SPIRAL_PRD_STREAM_THRESHOLD_KB=0
   run get_pending_story_ids "$PRD_FILE"
-  [ "$status" -eq 0 ]
+  assert_success
   [ "${#lines[@]}" -eq 1 ]
   [ "${lines[0]}" = "US-002" ]
 }
@@ -165,7 +160,7 @@ EOF
 EOF
   export SPIRAL_PRD_STREAM_THRESHOLD_KB=0
   run get_pending_story_ids "$PRD_FILE"
-  [ "$status" -eq 0 ]
+  assert_success
   [ "${#lines[@]}" -eq 0 ]
 }
 

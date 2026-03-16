@@ -11,9 +11,13 @@
 #   - Span kind is CLIENT
 #   - Events appear with correct status values
 
+bats_require_minimum_version 1.7.0
+
 # ── Test setup ────────────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   export TMPDIR_IA
   TMPDIR_IA="$(mktemp -d)"
   export SCRATCH_DIR="$TMPDIR_IA"

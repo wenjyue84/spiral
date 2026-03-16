@@ -10,7 +10,10 @@
 #   - No scope parentheses when filesTouch is empty
 #   - Story: and SPIRAL-Run: trailers appear in the footer
 
+bats_require_minimum_version 1.7.0
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   # Source only the build_commit_msg function from ralph.sh
   # shellcheck source=ralph/ralph.sh
   source <(sed -n '/^build_commit_msg()/,/^}/p' ralph/ralph.sh)

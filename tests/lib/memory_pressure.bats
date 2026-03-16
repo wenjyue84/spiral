@@ -13,18 +13,12 @@
 #   - spiral_should_skip_phase returns true (0) when phase is in skip_phases
 #   - spiral_pressure_free_mb returns free MB from fresh file
 
+bats_require_minimum_version 1.7.0
 setup() {
+  load ../test_helper/common-setup
+  _resolve_jq
   export TMPDIR_MP="$(mktemp -d)"
   export SPIRAL_SCRATCH_DIR="$TMPDIR_MP"
-
-  # Provide JQ
-  if command -v jq &>/dev/null; then
-    export JQ="jq"
-  elif [[ -f "ralph/jq.exe" ]]; then
-    export JQ="ralph/jq.exe"
-  elif [[ -f "ralph/jq" ]]; then
-    export JQ="ralph/jq"
-  fi
 
   local SPIRAL_HOME
   SPIRAL_HOME="$(cd "$(dirname "${BATS_TEST_DIRNAME}")/.." && pwd)"
@@ -64,7 +58,7 @@ EOF
 @test "spiral_pressure_level returns 0 when no pressure file exists" {
   rm -f "$_SPIRAL_PRESSURE_FILE"
   run spiral_pressure_level
-  [ "$output" = "0" ]
+  assert_output "0"
 }
 
 @test "spiral_recommended_workers returns empty string when no pressure file" {
@@ -82,7 +76,7 @@ EOF
 @test "spiral_should_skip_phase returns 1 (do not skip) when no pressure file" {
   rm -f "$_SPIRAL_PRESSURE_FILE"
   run spiral_should_skip_phase "R"
-  [ "$status" -eq 1 ]
+  assert_failure 1
 }
 
 @test "spiral_pressure_free_mb returns empty when no pressure file" {
@@ -96,19 +90,19 @@ EOF
 @test "spiral_pressure_level returns level from fresh file" {
   write_pressure_file 2 4096 2 "haiku" '[]'
   run spiral_pressure_level
-  [ "$output" = "2" ]
+  assert_output "2"
 }
 
 @test "spiral_pressure_level returns 4 when file has level 4 (high pressure)" {
   write_pressure_file 4 512 1 "haiku" '["R","T"]'
   run spiral_pressure_level
-  [ "$output" = "4" ]
+  assert_output "4"
 }
 
 @test "spiral_pressure_level returns 0 when file has level 0 (no pressure)" {
   write_pressure_file 0 16384 8 "" '[]'
   run spiral_pressure_level
-  [ "$output" = "0" ]
+  assert_output "0"
 }
 
 # ── Test: recommended workers from fresh file ─────────────────────────────────
@@ -116,7 +110,7 @@ EOF
 @test "spiral_recommended_workers returns worker count from fresh file" {
   write_pressure_file 2 4096 3 "sonnet" '[]'
   run spiral_recommended_workers
-  [ "$output" = "3" ]
+  assert_output "3"
 }
 
 @test "spiral_recommended_workers returns empty when recommended_workers is 0" {
@@ -130,25 +124,25 @@ EOF
 @test "spiral_should_skip_phase returns 0 (skip) when phase is in skip_phases" {
   write_pressure_file 4 512 1 "haiku" '["R","T"]'
   run spiral_should_skip_phase "R"
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "spiral_should_skip_phase returns 0 (skip) for second phase in list" {
   write_pressure_file 4 512 1 "haiku" '["R","T"]'
   run spiral_should_skip_phase "T"
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "spiral_should_skip_phase returns 1 (do not skip) when phase not in list" {
   write_pressure_file 3 1024 2 "haiku" '["R","T"]'
   run spiral_should_skip_phase "I"
-  [ "$status" -eq 1 ]
+  assert_failure 1
 }
 
 @test "spiral_should_skip_phase returns 1 when skip_phases is empty array" {
   write_pressure_file 1 4096 4 "" '[]'
   run spiral_should_skip_phase "R"
-  [ "$status" -eq 1 ]
+  assert_failure 1
 }
 
 # ── Test: free MB from fresh file ────────────────────────────────────────────
@@ -156,7 +150,7 @@ EOF
 @test "spiral_pressure_free_mb returns free MB from fresh file" {
   write_pressure_file 2 2048 2 "sonnet" '[]'
   run spiral_pressure_free_mb
-  [ "$output" = "2048" ]
+  assert_output "2048"
 }
 
 # ── Test: stale pressure file (simulate by backdating the file) ───────────────
@@ -187,7 +181,7 @@ EOF
 @test "spiral_recommended_model returns model from fresh file" {
   write_pressure_file 3 1024 1 "haiku" '[]'
   run spiral_recommended_model
-  [ "$output" = "haiku" ]
+  assert_output "haiku"
 }
 
 @test "spiral_recommended_model returns empty string when model is empty" {

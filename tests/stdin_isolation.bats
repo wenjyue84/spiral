@@ -7,9 +7,13 @@
 #   - A mock worker script that reads stdin receives EOF immediately (<100ms)
 #   - The ralph.sh claude invocation contains "< /dev/null" as a stdin redirect
 
+bats_require_minimum_version 1.7.0
+
 # ── Test setup ────────────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   export TMPDIR_SI="$(mktemp -d)"
 }
 

@@ -14,9 +14,13 @@
 #   - level field matches SPIRAL_LOG_LEVEL (US-130)
 #   - level field defaults to INFO when SPIRAL_LOG_LEVEL is unset (US-130)
 
+bats_require_minimum_version 1.7.0
+
 # ── Test setup ────────────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   export TMPDIR_SE="$(mktemp -d)"
   export SCRATCH_DIR="$TMPDIR_SE"
   export SPIRAL_RUN_ID="test-run-$(date +%s)"

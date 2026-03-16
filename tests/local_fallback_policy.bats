@@ -14,9 +14,13 @@
 #   - apply_local_fallback_policy with 'local-only' → calls Ollama (same as allow)
 #   - apply_local_fallback_policy with empty policy → returns 1 (disabled)
 
+bats_require_minimum_version 1.7.0
+
 # ── Test setup ────────────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   export TMPDIR_LP
   TMPDIR_LP="$(mktemp -d)"
   export SPIRAL_SCRATCH_DIR="$TMPDIR_LP"
@@ -25,15 +29,6 @@ setup() {
   export MOCK_BIN="$TMPDIR_LP/bin"
   mkdir -p "$MOCK_BIN"
   export PATH="$MOCK_BIN:$PATH"
-
-  # Resolve jq binary
-  if command -v jq &>/dev/null; then
-    export JQ="jq"
-  elif [[ -f "ralph/jq.exe" ]]; then
-    export JQ="ralph/jq.exe"
-  elif [[ -f "ralph/jq" ]]; then
-    export JQ="ralph/jq"
-  fi
 
   # Stub log_spiral_event and log_ralph_event (not needed in unit tests)
   log_spiral_event() { true; }
@@ -70,12 +65,12 @@ source_policy_fn() {
 
 @test "SPIRAL_OLLAMA_BASE_URL defaults to http://localhost:11434" {
   run grep 'SPIRAL_OLLAMA_BASE_URL.*:-' ralph/ralph.sh
-  [[ "$output" == *"http://localhost:11434"* ]]
+  assert_output --partial "http://localhost:11434"
 }
 
 @test "SPIRAL_OLLAMA_MODEL defaults to llama3.2" {
   run grep 'SPIRAL_OLLAMA_MODEL.*:-' ralph/ralph.sh
-  [[ "$output" == *"llama3.2"* ]]
+  assert_output --partial "llama3.2"
 }
 
 # ── ollama_prewarm tests ───────────────────────────────────────────────────────
@@ -85,7 +80,7 @@ source_policy_fn() {
 
   export SPIRAL_LOCAL_FALLBACK_POLICY=""
   run ollama_prewarm
-  [ "$status" -eq 0 ]
+  assert_success
   # No output expected (returns immediately)
   [[ -z "$output" ]]
 }
@@ -95,7 +90,7 @@ source_policy_fn() {
 
   export SPIRAL_LOCAL_FALLBACK_POLICY="deny"
   run ollama_prewarm
-  [ "$status" -eq 0 ]
+  assert_success
   [[ -z "$output" ]]
 }
 
@@ -115,9 +110,9 @@ EOF
 
   run ollama_prewarm
   # Must NOT abort (exit 0) — warning only
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"WARNING"* ]]
-  [[ "$output" == *"unreachable"* ]]
+  assert_success
+  assert_output --partial "WARNING"
+  assert_output --partial "unreachable"
 }
 
 @test "ollama_prewarm logs [OK] when model found in /api/tags" {
@@ -136,9 +131,9 @@ EOF
   export SPIRAL_OLLAMA_MODEL="llama3.2"
 
   run ollama_prewarm
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"[OK]"* ]]
-  [[ "$output" == *"pre-loaded"* ]]
+  assert_success
+  assert_output --partial "[OK]"
+  assert_output --partial "pre-loaded"
 }
 
 @test "ollama_prewarm warns when model absent from /api/tags (non-fatal)" {
@@ -157,9 +152,9 @@ EOF
   export SPIRAL_OLLAMA_MODEL="llama3.2"
 
   run ollama_prewarm
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"WARNING"* ]]
-  [[ "$output" == *"absent"* ]]
+  assert_success
+  assert_output --partial "WARNING"
+  assert_output --partial "absent"
 }
 
 # ── apply_local_fallback_policy tests ────────────────────────────────────────
@@ -174,9 +169,9 @@ EOF
   local out_file="$TMPDIR_LP/out.txt"
 
   run apply_local_fallback_policy "Claude API unreachable" "$out_file"
-  [ "$status" -eq 2 ]
-  [[ "$output" == *"LOCAL_FALLBACK_DENIED"* ]]
-  [[ "$output" == *"Claude API unreachable"* ]]
+  assert_failure 2
+  assert_output --partial "LOCAL_FALLBACK_DENIED"
+  assert_output --partial "Claude API unreachable"
 }
 
 @test "deny policy never silently reroutes (output file not written)" {
@@ -215,8 +210,8 @@ EOF
   local out_file="$TMPDIR_LP/out.txt"
 
   run apply_local_fallback_policy "cloud unavailable" "$out_file"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"Local fallback succeeded"* ]]
+  assert_success
+  assert_output --partial "Local fallback succeeded"
 }
 
 @test "allow policy returns 1 when Ollama call fails" {
@@ -240,8 +235,8 @@ EOF
   local out_file="$TMPDIR_LP/out.txt"
 
   run apply_local_fallback_policy "cloud unavailable" "$out_file"
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"failed"* ]]
+  assert_failure 1
+  assert_output --partial "failed"
 }
 
 @test "local-only policy calls Ollama (behaves like allow)" {
@@ -266,8 +261,8 @@ EOF
   local out_file="$TMPDIR_LP/out.txt"
 
   run apply_local_fallback_policy "local-only policy: bypassing cloud" "$out_file"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"Local fallback succeeded"* ]]
+  assert_success
+  assert_output --partial "Local fallback succeeded"
 }
 
 @test "empty policy returns 1 (feature disabled — no Ollama call)" {
@@ -279,7 +274,7 @@ EOF
   local out_file="$TMPDIR_LP/out.txt"
 
   run apply_local_fallback_policy "some failure" "$out_file"
-  [ "$status" -eq 1 ]
+  assert_failure 1
   # Output file should not be written
   [[ ! -s "$out_file" ]]
 }
@@ -327,11 +322,11 @@ EOF
 
   # Check that a local_fallback_used event was written with required fields
   run grep -l 'local_fallback_used' "$events_file"
-  [ "$status" -eq 0 ]
+  assert_success
 
   run grep 'model_used' "$events_file"
-  [ "$status" -eq 0 ]
+  assert_success
 
   run grep 'original_error' "$events_file"
-  [ "$status" -eq 0 ]
+  assert_success
 }

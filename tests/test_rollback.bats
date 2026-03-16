@@ -9,9 +9,12 @@
 #   - Dirty working-tree guard: exits ERR_ROLLBACK_FAILED (12) with message
 #   - Story not found: exits ERR_STORY_NOT_FOUND (11)
 
+bats_require_minimum_version 1.7.0
 SPIRAL_SH="$(cd "$(dirname "${BATS_TEST_DIRNAME}")" && pwd)/spiral.sh"
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   # Create a fresh temp git repo for each test
   TEST_REPO="$(mktemp -d)"
   export TEST_REPO
@@ -96,7 +99,7 @@ teardown() {
   run bash "$SPIRAL_SH" --rollback US-001
 
   # Should exit 0 on success
-  [ "$status" -eq 0 ]
+  assert_success
 
   # Read prd.json using cwd-relative path (avoids MSYS2/Windows path translation issues)
   passes=$(python3 -c "
@@ -143,10 +146,10 @@ with open(path, 'w', encoding='utf-8') as f:
   run bash "$SPIRAL_SH" --rollback US-001
 
   # Should exit 12 (ERR_ROLLBACK_FAILED)
-  [ "$status" -eq 12 ]
+  assert_failure 12
 
   # Output should contain actionable error message
-  [[ "$output" == *"no _passedCommit"* ]]
+  assert_output --partial "no _passedCommit"
 }
 
 # ── Test: dirty working-tree guard ───────────────────────────────────────────
@@ -161,10 +164,10 @@ with open(path, 'w', encoding='utf-8') as f:
   run bash "$SPIRAL_SH" --rollback US-001
 
   # Should exit 12 (ERR_ROLLBACK_FAILED)
-  [ "$status" -eq 12 ]
+  assert_failure 12
 
   # Output should mention uncommitted changes
-  [[ "$output" == *"uncommitted changes"* ]]
+  assert_output --partial "uncommitted changes"
 }
 
 # ── Test: story not found ─────────────────────────────────────────────────────
@@ -175,7 +178,7 @@ with open(path, 'w', encoding='utf-8') as f:
   run bash "$SPIRAL_SH" --rollback US-999
 
   # Should exit 11 (ERR_STORY_NOT_FOUND)
-  [ "$status" -eq 11 ]
+  assert_failure 11
 
-  [[ "$output" == *"not found"* ]]
+  assert_output --partial "not found"
 }

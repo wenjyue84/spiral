@@ -8,7 +8,10 @@
 #
 # After the run, we verify that T started before R finished (overlap = parallel).
 
+bats_require_minimum_version 1.7.0
+
 # ── bats helpers ──────────────────────────────────────────────────────────────
+
 load "bats-support/load"
 load "bats-assert/load"
 
@@ -136,6 +139,8 @@ teardown_file() {
 }
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   rm -rf "$TEST_SCRATCH_DIR"
   mkdir -p "$TEST_SCRATCH_DIR"
 }

@@ -11,9 +11,13 @@
 #   - On success, parent is marked _skipped=true + _failureReason=auto_decomposed
 #   - On success, an auto_decompose event is written to spiral_events.jsonl
 
+bats_require_minimum_version 1.7.0
+
 # ── Test setup ────────────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   export TMPDIR_AD
   TMPDIR_AD="$(mktemp -d)"
 
@@ -25,15 +29,6 @@ setup() {
 
   touch "$PROGRESS_FILE"
   echo '{}' > "$RETRY_FILE"
-
-  # Resolve jq binary
-  if command -v jq &>/dev/null; then
-    export JQ="jq"
-  elif [[ -f "ralph/jq.exe" ]]; then
-    export JQ="ralph/jq.exe"
-  elif [[ -f "ralph/jq" ]]; then
-    export JQ="ralph/jq"
-  fi
 
   # Minimal prd.json with one story
   cat > "$PRD_FILE" <<'JSON'
@@ -86,21 +81,21 @@ teardown() {
 @test "threshold=0 disables auto-decompose (returns 1, no decompose called)" {
   export SPIRAL_DECOMPOSE_THRESHOLD=0
   run maybe_auto_decompose "US-001" 2 "sonnet"
-  [ "$status" -eq 1 ]
+  assert_failure 1
   [ ! -f "$TMPDIR_AD/decompose_called" ]
 }
 
 @test "retry_count below threshold does not trigger (returns 1)" {
   export SPIRAL_DECOMPOSE_THRESHOLD=2
   run maybe_auto_decompose "US-001" 1 "sonnet"
-  [ "$status" -eq 1 ]
+  assert_failure 1
   [ ! -f "$TMPDIR_AD/decompose_called" ]
 }
 
 @test "retry_count at threshold triggers decompose_story (returns 0)" {
   export SPIRAL_DECOMPOSE_THRESHOLD=2
   run maybe_auto_decompose "US-001" 2 "sonnet"
-  [ "$status" -eq 0 ]
+  assert_success
   [ -f "$TMPDIR_AD/decompose_called" ]
 }
 
@@ -108,7 +103,7 @@ teardown() {
   export SPIRAL_DECOMPOSE_THRESHOLD=2
   # MAX_RETRIES=3; at 3 the existing decompose-at-MAX_RETRIES path handles it
   run maybe_auto_decompose "US-001" 3 "sonnet"
-  [ "$status" -eq 1 ]
+  assert_failure 1
   [ ! -f "$TMPDIR_AD/decompose_called" ]
 }
 
@@ -116,34 +111,34 @@ teardown() {
   export SPIRAL_DECOMPOSE_THRESHOLD=2
   maybe_auto_decompose "US-001" 2 "sonnet"
   run "$JQ" -r '.userStories[] | select(.id == "US-001") | ._skipped' "$PRD_FILE"
-  [ "$output" = "true" ]
+  assert_output "true"
 }
 
 @test "after threshold trigger, parent _failureReason is auto_decomposed" {
   export SPIRAL_DECOMPOSE_THRESHOLD=2
   maybe_auto_decompose "US-001" 2 "sonnet"
   run "$JQ" -r '.userStories[] | select(.id == "US-001") | ._failureReason' "$PRD_FILE"
-  [ "$output" = "auto_decomposed" ]
+  assert_output "auto_decomposed"
 }
 
 @test "auto_decompose event is logged to events.log" {
   export SPIRAL_DECOMPOSE_THRESHOLD=2
   maybe_auto_decompose "US-001" 2 "sonnet"
   run grep "auto_decompose" "$TMPDIR_AD/events.log"
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "auto_decompose event contains storyId and childIds" {
   export SPIRAL_DECOMPOSE_THRESHOLD=2
   maybe_auto_decompose "US-001" 2 "sonnet"
   run grep "auto_decompose" "$TMPDIR_AD/events.log"
-  [[ "$output" == *"US-001"* ]]
-  [[ "$output" == *"US-002"* ]]
+  assert_output --partial "US-001"
+  assert_output --partial "US-002"
 }
 
 @test "custom threshold=1 triggers on first retry" {
   export SPIRAL_DECOMPOSE_THRESHOLD=1
   run maybe_auto_decompose "US-001" 1 "sonnet"
-  [ "$status" -eq 0 ]
+  assert_success
   [ -f "$TMPDIR_AD/decompose_called" ]
 }

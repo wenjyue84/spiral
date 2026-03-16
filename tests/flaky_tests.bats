@@ -16,9 +16,13 @@
 #   - Registry persists across source calls (file-based)
 #   - Tests need at least 5 samples before quarantining
 
+bats_require_minimum_version 1.7.0
+
 # ── Setup / teardown ──────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   export SPIRAL_SCRATCH_DIR
   SPIRAL_SCRATCH_DIR="$(mktemp -d)"
   export SPIRAL_FLAKY_THRESHOLD="0.3"
@@ -115,13 +119,13 @@ record_fails() {
 
 @test "flaky_is_quarantined returns false for unknown test" {
   run flaky_is_quarantined "unknown_test"
-  [ "$status" -eq 1 ]
+  assert_failure 1
 }
 
 @test "flaky_is_quarantined returns false for healthy test" {
   record_passes "healthy_test" 10
   run flaky_is_quarantined "healthy_test"
-  [ "$status" -eq 1 ]
+  assert_failure 1
 }
 
 @test "flaky_is_quarantined requires at least 5 samples before quarantining" {
@@ -129,7 +133,7 @@ record_fails() {
   record_fails "early_test" 3
   record_passes "early_test" 1
   run flaky_is_quarantined "early_test"
-  [ "$status" -eq 1 ]
+  assert_failure 1
 }
 
 @test "flaky_is_quarantined returns true after threshold failures (5+ samples)" {
@@ -137,7 +141,7 @@ record_fails() {
   record_fails "flaky_test" 5
   record_passes "flaky_test" 5
   run flaky_is_quarantined "flaky_test"
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "flaky_is_quarantined returns false when failure rate is at or below threshold" {
@@ -146,7 +150,7 @@ record_fails() {
   record_fails "borderline_test" 3
   run flaky_is_quarantined "borderline_test"
   # 30% is NOT above 0.3 (strict greater-than), so should not quarantine
-  [ "$status" -eq 1 ]
+  assert_failure 1
 }
 
 # ── Tests: quarantine lifting ─────────────────────────────────────────────────
@@ -164,13 +168,13 @@ record_fails() {
 
   # Should be quarantined now (6/8 = 75% > 0.3)
   run flaky_is_quarantined "recover_test"
-  [ "$status" -eq 0 ]
+  assert_success
 
   # Now add exactly CONSEC=3 consecutive passes — should lift quarantine
   record_passes "recover_test" 3
 
   run flaky_is_quarantined "recover_test"
-  [ "$status" -eq 1 ]
+  assert_failure 1
 }
 
 @test "consecutive pass counter resets on failure" {
@@ -198,7 +202,7 @@ record_fails() {
   record_passes "gate_test" 5
 
   run flaky_is_quarantined "gate_test"
-  [ "$status" -eq 0 ]
+  assert_success
 
   result=$(flaky_gate_exit_code "gate_test" 1)
   [ "$result" -eq 0 ]
@@ -225,7 +229,7 @@ record_fails() {
 
 @test "flaky_report prints without error on empty registry" {
   run flaky_report
-  [ "$status" -eq 0 ]
+  assert_success
   echo "$output" | grep -q "Flaky Test Registry"
 }
 
@@ -234,7 +238,7 @@ record_fails() {
   record_passes "noisy_test" 5
 
   run flaky_report
-  [ "$status" -eq 0 ]
+  assert_success
   echo "$output" | grep -q "noisy_test"
 }
 
@@ -243,7 +247,7 @@ record_fails() {
   record_passes "rate_test" 5
 
   run flaky_report
-  [ "$status" -eq 0 ]
+  assert_success
   # Should include a percentage
   echo "$output" | grep -q "%"
 }
@@ -253,7 +257,7 @@ record_fails() {
 @test "flaky_list_quarantined outputs empty when no tests quarantined" {
   record_passes "clean1" 10
   run flaky_list_quarantined
-  [ "$status" -eq 0 ]
+  assert_success
   [ -z "$output" ]
 }
 
@@ -263,7 +267,7 @@ record_fails() {
   record_passes "clean1" 10
 
   run flaky_list_quarantined
-  [ "$status" -eq 0 ]
+  assert_success
   echo "$output" | grep -q "noisy1"
   ! echo "$output" | grep -q "clean1"
 }

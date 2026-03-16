@@ -12,9 +12,13 @@
 #   - Crash is detected within 5 seconds (sleep interval check)
 #   - kill -- -PGID terminates process group descendants
 
+bats_require_minimum_version 1.7.0
+
 # ── Setup / teardown ──────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   # Temporary scratch + fake worktree dirs
   export TEST_TMPDIR
   TEST_TMPDIR="$(mktemp -d)"
@@ -80,13 +84,13 @@ teardown() {
 @test "_inspect_crashed_worktree: reports clean when no artifacts present" {
   local wtree="$WORKTREE_BASE/worker-2"
   run _inspect_crashed_worktree "$wtree" "2"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"appears clean"* ]]
+  assert_success
+  assert_output --partial "appears clean"
 }
 
 @test "_inspect_crashed_worktree: handles missing worktree dir gracefully" {
   run _inspect_crashed_worktree "$TEST_TMPDIR/nonexistent" "99"
-  [ "$status" -eq 0 ]
+  assert_success
   # Should produce no output (early return)
   [ -z "$output" ]
 }
@@ -180,18 +184,18 @@ teardown() {
 @test "monitor loop sleep interval is 5 seconds (crash detection bound)" {
   # Verify the sleep 5 line exists in run_parallel_ralph.sh (not sleep 10)
   run grep -c "^  sleep 5  # US-245" lib/run_parallel_ralph.sh
-  [ "$status" -eq 0 ]
+  assert_success
   [ "$output" -ge 1 ]
 }
 
 @test "WORKER_PGID_FILES array is declared in run_parallel_ralph.sh" {
   run grep -c "declare -a WORKER_PGID_FILES" lib/run_parallel_ralph.sh
-  [ "$status" -eq 0 ]
+  assert_success
   [ "$output" -ge 1 ]
 }
 
 @test "_inspect_crashed_worktree function exists in run_parallel_ralph.sh" {
   run grep -c "_inspect_crashed_worktree()" lib/run_parallel_ralph.sh
-  [ "$status" -eq 0 ]
+  assert_success
   [ "$output" -ge 1 ]
 }

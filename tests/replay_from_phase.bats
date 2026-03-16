@@ -12,20 +12,15 @@
 #   - _replayHistory entry is appended to _checkpoint.json on replay
 #   - SPIRAL_REPLAY_HINT is exported before ralph invocation when --hint is set
 
+bats_require_minimum_version 1.7.0
+
 # ── Test setup ────────────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   export TMPDIR_RF="$(mktemp -d)"
   export SPIRAL_SCRATCH_DIR="$TMPDIR_RF"
-
-  # Resolve jq
-  if command -v jq &>/dev/null; then
-    export JQ="jq"
-  elif [[ -f "ralph/jq.exe" ]]; then
-    export JQ="ralph/jq.exe"
-  elif [[ -f "ralph/jq" ]]; then
-    export JQ="ralph/jq"
-  fi
 
   # Minimal prd.json with one pending story
   export PRD_FILE="$TMPDIR_RF/prd.json"
@@ -73,26 +68,26 @@ _phase_i_decision() {
 
 @test "--from-phase V: Phase I decision is SKIPPED" {
   run _phase_i_decision "V"
-  [ "$status" -eq 0 ]
-  [ "$output" = "SKIPPED" ]
+  assert_success
+  assert_output "SKIPPED"
 }
 
 @test "--from-phase I: Phase I decision is RAN" {
   run _phase_i_decision "I"
-  [ "$status" -eq 0 ]
-  [ "$output" = "RAN" ]
+  assert_success
+  assert_output "RAN"
 }
 
 @test "no --from-phase (empty): Phase I decision is RAN" {
   run _phase_i_decision ""
-  [ "$status" -eq 0 ]
-  [ "$output" = "RAN" ]
+  assert_success
+  assert_output "RAN"
 }
 
 @test "--from-phase X: decision is INVALID" {
   run _phase_i_decision "X"
-  [ "$status" -eq 0 ]
-  [ "$output" = "INVALID" ]
+  assert_success
+  assert_output "INVALID"
 }
 
 # ── Phase letter validation (mirrors spiral.sh case statement) ────────────────
@@ -107,27 +102,27 @@ _validate_from_phase() {
 
 @test "validate --from-phase I: valid" {
   run _validate_from_phase "I"
-  [ "$output" = "valid" ]
+  assert_output "valid"
 }
 
 @test "validate --from-phase V: valid" {
   run _validate_from_phase "V"
-  [ "$output" = "valid" ]
+  assert_output "valid"
 }
 
 @test "validate --from-phase R: invalid" {
   run _validate_from_phase "R"
-  [ "$output" = "invalid" ]
+  assert_output "invalid"
 }
 
 @test "validate --from-phase empty string: invalid" {
   run _validate_from_phase ""
-  [ "$output" = "invalid" ]
+  assert_output "invalid"
 }
 
 @test "validate --from-phase lowercase i: invalid (case-sensitive)" {
   run _validate_from_phase "i"
-  [ "$output" = "invalid" ]
+  assert_output "invalid"
 }
 
 # ── _replayHistory checkpoint update tests ────────────────────────────────────
@@ -148,7 +143,7 @@ _validate_from_phase() {
 
   # Verify one entry in _replayHistory
   run $JQ -r '._replayHistory | length' "$ckpt"
-  [ "$output" = "1" ]
+  assert_output "1"
 }
 
 @test "_replayHistory accumulates multiple replay entries" {
@@ -171,13 +166,13 @@ _validate_from_phase() {
   echo "$updated" >"$ckpt"
 
   run $JQ -r '._replayHistory | length' "$ckpt"
-  [ "$output" = "2" ]
+  assert_output "2"
 
   run $JQ -r '._replayHistory[1].fromPhase' "$ckpt"
-  [ "$output" = "V" ]
+  assert_output "V"
 
   run $JQ -r '._replayHistory[1].hint' "$ckpt"
-  [ "$output" = "try a different approach" ]
+  assert_output "try a different approach"
 }
 
 @test "_replayHistory entry preserves fromPhase V correctly" {
@@ -193,7 +188,7 @@ _validate_from_phase() {
   echo "$updated" >"$ckpt"
 
   run $JQ -r '._replayHistory[0].fromPhase' "$ckpt"
-  [ "$output" = "V" ]
+  assert_output "V"
 }
 
 # ── Worktree reuse logic tests ────────────────────────────────────────────────
@@ -211,20 +206,20 @@ _worktree_decision() {
 
 @test "worktree decision: --from-phase V + existing worktree = reuse" {
   run _worktree_decision "V" 1
-  [ "$output" = "reuse" ]
+  assert_output "reuse"
 }
 
 @test "worktree decision: --from-phase I + existing worktree = reuse" {
   run _worktree_decision "I" 1
-  [ "$output" = "reuse" ]
+  assert_output "reuse"
 }
 
 @test "worktree decision: no --from-phase + existing worktree = recreate" {
   run _worktree_decision "" 1
-  [ "$output" = "recreate" ]
+  assert_output "recreate"
 }
 
 @test "worktree decision: --from-phase V + no existing worktree = recreate" {
   run _worktree_decision "V" 0
-  [ "$output" = "recreate" ]
+  assert_output "recreate"
 }

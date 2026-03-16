@@ -11,10 +11,13 @@
 #   - SPIRAL_WORKSPACE_CLEANUP=true: workspace_cleanup event logged to spiral_events.jsonl
 #   - Preserved files (prd.json, spiral_events.jsonl, _checkpoint.json, results.tsv) are kept
 
+bats_require_minimum_version 1.7.0
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 # Source cleanup_workspace() in a subshell with a scratch dir environment.
 # Args: SPIRAL_WORKSPACE_CLEANUP SPIRAL_CACHE_TTL [extra env vars]
+
 run_cleanup() {
   local cleanup_flag="$1"
   local cache_ttl="${2:-7}"
@@ -91,6 +94,8 @@ run_cleanup() {
 }
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   TMP_SCRATCH="$(mktemp -d)"
   mkdir -p "$TMP_SCRATCH/research_cache"
 }
@@ -107,7 +112,7 @@ teardown() {
   touch "$TMP_SCRATCH/empty.log"
 
   run run_cleanup "false" "7" "$TMP_SCRATCH"
-  [ "$status" -eq 0 ]
+  assert_success
 
   # Files should still exist
   [ -f "$TMP_SCRATCH/research_cache/old_file.json" ]
@@ -122,7 +127,7 @@ teardown() {
   echo "content" > "$TMP_SCRATCH/nonempty.log"
 
   run run_cleanup "true" "7" "$TMP_SCRATCH"
-  [ "$status" -eq 0 ]
+  assert_success
 
   [ ! -f "$TMP_SCRATCH/empty1.log" ]
   [ ! -f "$TMP_SCRATCH/empty2.log" ]
@@ -131,7 +136,7 @@ teardown() {
 
 @test "cleanup_workspace emits workspace_cleanup event to spiral_events.jsonl" {
   run run_cleanup "true" "7" "$TMP_SCRATCH"
-  [ "$status" -eq 0 ]
+  assert_success
 
   [ -f "$TMP_SCRATCH/spiral_events.jsonl" ]
   grep -q '"event":"workspace_cleanup"' "$TMP_SCRATCH/spiral_events.jsonl"
@@ -147,7 +152,7 @@ teardown() {
   done
 
   run run_cleanup "true" "7" "$TMP_SCRATCH"
-  [ "$status" -eq 0 ]
+  assert_success
 
   # Count remaining summary files
   local remaining
@@ -167,7 +172,7 @@ teardown() {
   done
 
   run run_cleanup "true" "7" "$TMP_SCRATCH"
-  [ "$status" -eq 0 ]
+  assert_success
 
   local remaining
   remaining=$(ls "$TMP_SCRATCH"/_iteration_summary_*.json 2>/dev/null | wc -l)
@@ -180,7 +185,7 @@ teardown() {
   touch "$TMP_SCRATCH/research_cache/fresh_file.json"
 
   run run_cleanup "true" "7" "$TMP_SCRATCH"
-  [ "$status" -eq 0 ]
+  assert_success
 
   # File should still exist (it's not older than 7 days)
   [ -f "$TMP_SCRATCH/research_cache/fresh_file.json" ]

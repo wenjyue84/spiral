@@ -10,6 +10,8 @@
 #   - SPIRAL_STRICT_WORKER_ISOLATION=true aborts on policy violations
 #   - Unexpected environment variables are detected and counted
 
+bats_require_minimum_version 1.7.0
+
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 _setup_audit_env() {
@@ -117,6 +119,8 @@ EOF
 # ── Setup / Teardown ─────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   TEST_DIR="$(mktemp -d)"
   _setup_audit_env
 }
@@ -141,7 +145,7 @@ teardown() {
 EOF
 
   run _audit_worker_launch 1 "$wtree"
-  [ "$status" -eq 0 ]
+  assert_success
 
   # Verify event was logged
   [ -f "$SCRATCH_DIR/spiral_events.jsonl" ]
@@ -159,7 +163,7 @@ EOF
   cp "$PRD_FILE" "$wtree/prd.json"
 
   run _audit_worker_launch 2 "$wtree"
-  [ "$status" -eq 0 ]
+  assert_success
 
   # Should contain WARN about full PRD
   [[ "$output" == *"WARN"* ]] || [[ "$stderr" == *"WARN"* ]] || {
@@ -213,7 +217,7 @@ EOF
 
   run _audit_worker_launch 1 "$wtree"
   [ "$status" -ne 0 ]
-  [[ "$output" == *"FATAL"* ]] || [[ "$output" == *"aborting"* ]]
+  assert_output --partial "FATAL"* ]] || [[ "$output" == *"aborting"
 }
 
 # ── Test: LOG_FILE session log leak is detected ──────────────────────────────

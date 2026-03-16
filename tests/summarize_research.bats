@@ -12,6 +12,8 @@
 #   - --check-only mode returns correct exit codes
 #   - Empty stories array handled gracefully
 
+bats_require_minimum_version 1.7.0
+
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 SPIRAL_HOME="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
@@ -42,6 +44,8 @@ _pypath() {
 }
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   _detect_python || skip "python not available"
   TEST_DIR="$(mktemp -d)"
   # Python-compatible path (Windows: C:/Users/.../Temp/...)
@@ -82,7 +86,6 @@ teardown() {
   [[ -d "$TEST_DIR" ]] && rm -rf "$TEST_DIR"
 }
 
-
 # ── Tests ────────────────────────────────────────────────────────────────────
 
 @test "US-254: small research output is not summarized" {
@@ -91,7 +94,7 @@ teardown() {
     --output "$PY_DIR/output.json" \
     --threshold 4000
 
-  [ "$status" -eq 0 ]
+  assert_success
   # Check story count preserved
   run "$PYTHON" -c "
 import json
@@ -100,8 +103,8 @@ with open('$PY_DIR/output.json') as f:
 assert len(d['stories']) == 1
 print('OK')
 "
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"OK"* ]]
+  assert_success
+  assert_output --partial "OK"
 }
 
 @test "US-254: large research output is summarized" {
@@ -110,7 +113,7 @@ print('OK')
     --output "$PY_DIR/output.json" \
     --threshold 4000
 
-  [ "$status" -eq 0 ]
+  assert_success
   # Output should be smaller than input
   local input_size output_size
   input_size=$(wc -c < "$TEST_DIR/large_research.json")
@@ -133,8 +136,8 @@ for s in d['stories']:
     assert len(s['acceptanceCriteria']) > 0, f'Empty AC in {s[\"id\"]}'
 print('OK')
 "
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"OK"* ]]
+  assert_success
+  assert_output --partial "OK"
 }
 
 @test "US-254: technical notes preserved in summary" {
@@ -152,8 +155,8 @@ for s in d['stories']:
     assert len(s['technicalNotes']) > 0, f'Empty TN in {s[\"id\"]}'
 print('OK')
 "
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"OK"* ]]
+  assert_success
+  assert_output --partial "OK"
 }
 
 @test "US-254: source URLs preserved in summary" {
@@ -171,20 +174,20 @@ for s in d['stories']:
     assert s['source'].startswith('https://'), f'Bad source in {s[\"id\"]}'
 print('OK')
 "
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"OK"* ]]
+  assert_success
+  assert_output --partial "OK"
 }
 
 @test "US-254: --check-only returns 0 when under threshold" {
   run "$PYTHON" "$SPIRAL_HOME/lib/summarize_research.py" \
     --input "$PY_DIR/small_research.json" --check-only --threshold 4000
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "US-254: --check-only returns 2 when over threshold" {
   run "$PYTHON" "$SPIRAL_HOME/lib/summarize_research.py" \
     --input "$PY_DIR/large_research.json" --check-only --threshold 4000
-  [ "$status" -eq 2 ]
+  assert_failure 2
 }
 
 @test "US-254: empty stories array handled gracefully" {
@@ -193,7 +196,7 @@ print('OK')
     --output "$PY_DIR/output.json" \
     --threshold 4000
 
-  [ "$status" -eq 0 ]
+  assert_success
   run "$PYTHON" -c "
 import json
 with open('$PY_DIR/output.json') as f:
@@ -201,8 +204,8 @@ with open('$PY_DIR/output.json') as f:
 assert d['stories'] == []
 print('OK')
 "
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"OK"* ]]
+  assert_success
+  assert_output --partial "OK"
 }
 
 @test "US-254: stderr reports summarization stats as JSON" {
@@ -220,8 +223,8 @@ assert data['original_tokens'] > data['summary_tokens']
 assert data['reduction_pct'] > 0
 print('OK')
 "
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"OK"* ]]
+  assert_success
+  assert_output --partial "OK"
 }
 
 @test "US-254: story IDs preserved after summarization" {
@@ -241,6 +244,6 @@ summ_ids = {s['id'] for s in summ['stories']}
 assert orig_ids == summ_ids, f'{orig_ids} != {summ_ids}'
 print('OK')
 "
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"OK"* ]]
+  assert_success
+  assert_output --partial "OK"
 }

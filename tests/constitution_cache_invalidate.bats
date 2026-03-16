@@ -12,8 +12,11 @@
 #   - SPIRAL_INVALIDATE_CACHE_ON_CONSTITUTION_CHANGE=false: feature is disabled
 #   - Event includes old_hash, new_hash, cleared_count fields
 
+bats_require_minimum_version 1.7.0
+
 # ── Helper: run the US-302 block in a subshell ───────────────────────────────
 # Args: REPO_ROOT, SPIRAL_INVALIDATE_CACHE_ON_CONSTITUTION_CHANGE, SPIRAL_SPECKIT_CONSTITUTION
+
 run_cache_invalidate() {
   local repo_root="$1"
   local feature_flag="${2:-true}"
@@ -78,6 +81,8 @@ run_cache_invalidate() {
 # ── Setup / teardown ─────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   TMPDIR_T="$(mktemp -d)"
   export TMPDIR_T
 }
@@ -93,8 +98,8 @@ teardown() {
   mkdir -p "$TMPDIR_T/.spiral/research_cache"
 
   run run_cache_invalidate "$TMPDIR_T" "true" ""
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"first run"* ]]
+  assert_success
+  assert_output --partial "first run"
   # Hash file must exist after first run
   [ -f "$TMPDIR_T/.spiral/_constitution_hash" ]
   # No invalidation event on first run (no old hash to compare against)
@@ -108,15 +113,15 @@ teardown() {
 
   # Simulate first run by writing hash
   run run_cache_invalidate "$TMPDIR_T" "true" ""
-  [ "$status" -eq 0 ]
+  assert_success
 
   # Place a new cache entry
   touch "$TMPDIR_T/.spiral/research_cache/cache2.json"
 
   # Second run with same file — no change
   run run_cache_invalidate "$TMPDIR_T" "true" ""
-  [ "$status" -eq 0 ]
-  [[ "$output" != *"cleared"* ]]
+  assert_success
+  refute_output --partial "cleared"
   [ -f "$TMPDIR_T/.spiral/research_cache/cache2.json" ]
 }
 
@@ -135,8 +140,8 @@ teardown() {
   echo "# Version 2 — new goals added" > "$TMPDIR_T/constitution.md"
 
   run run_cache_invalidate "$TMPDIR_T" "true" ""
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"changed"* ]]
+  assert_success
+  assert_output --partial "changed"
   [[ "$output" == *"2"* ]]  # cleared 2 entries
   # Cache files must be gone
   [ ! -f "$TMPDIR_T/.spiral/research_cache/entry_a.json" ]
@@ -154,7 +159,7 @@ teardown() {
   echo "# Version 2" > "$TMPDIR_T/constitution.md"
 
   run run_cache_invalidate "$TMPDIR_T" "true" ""
-  [ "$status" -eq 0 ]
+  assert_success
 
   local events_file="$TMPDIR_T/.spiral/spiral_events.jsonl"
   [ -f "$events_file" ]
@@ -175,8 +180,8 @@ teardown() {
   printf 'deadbeef\n' > "$TMPDIR_T/.spiral/_constitution_hash"
 
   run run_cache_invalidate "$TMPDIR_T" "false" ""
-  [ "$status" -eq 0 ]
-  [[ "$output" != *"cleared"* ]]
+  assert_success
+  refute_output --partial "cleared"
   # Cache must be untouched
   [ -f "$TMPDIR_T/.spiral/research_cache/keep_me.json" ]
   # No event emitted
@@ -189,8 +194,8 @@ teardown() {
   # No constitution.md, SPIRAL_SPECKIT_CONSTITUTION empty
 
   run run_cache_invalidate "$TMPDIR_T" "true" ""
-  [ "$status" -eq 0 ]
-  [[ "$output" != *"cleared"* ]]
+  assert_success
+  refute_output --partial "cleared"
   [ -f "$TMPDIR_T/.spiral/research_cache/safe.json" ]
 }
 
@@ -203,7 +208,7 @@ teardown() {
 
   # First run
   run run_cache_invalidate "$TMPDIR_T" "true" ".specify/memory/constitution.md"
-  [ "$status" -eq 0 ]
+  assert_success
 
   # Hash should be based on speckit file
   local hash1
@@ -213,8 +218,8 @@ teardown() {
   echo "# Spec-Kit constitution v2" > "$TMPDIR_T/.specify/memory/constitution.md"
 
   run run_cache_invalidate "$TMPDIR_T" "true" ".specify/memory/constitution.md"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"changed"* ]]
+  assert_success
+  assert_output --partial "changed"
   # Cache cleared
   [ ! -f "$TMPDIR_T/.spiral/research_cache/entry.json" ]
 }

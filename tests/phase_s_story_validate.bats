@@ -14,7 +14,10 @@
 # NOTE (Windows/Git bash): Python inline -c strings don't get POSIX→Windows path
 # translation. All paths passed to Python must be via sys.argv (not -c literals).
 
+bats_require_minimum_version 1.7.0
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   TEST_TMP="$(mktemp -d)"
   export TEST_TMP
   export SCRATCH_DIR="$TEST_TMP/.spiral"
@@ -147,7 +150,7 @@ except Exception:
     --rejected-out "$REJECTED_OUT" \
     --min-overlap 1
 
-  [ "$status" -eq 0 ]
+  assert_success
   [ -f "$VALIDATED_OUT" ]
   [ -f "$REJECTED_OUT" ]
 
@@ -169,7 +172,7 @@ except Exception:
     --rejected-out "$REJECTED_OUT" \
     --min-overlap 1
 
-  [ "$status" -eq 0 ]
+  assert_success
 
   has_reason=$(py_any_field_contains "$REJECTED_OUT" "_rejection_reason" "goal")
   [ "$has_reason" = "yes" ]
@@ -184,7 +187,7 @@ except Exception:
     --rejected-out "$REJECTED_OUT" \
     --min-overlap 1
 
-  [ "$status" -eq 0 ]
+  assert_success
 
   rejected_title=$(py_first_story_field "$REJECTED_OUT" "title")
   [ "$rejected_title" = "Add recipe management for the cafe menu" ]
@@ -199,7 +202,7 @@ except Exception:
     --rejected-out "$REJECTED_OUT" \
     --min-overlap 0
 
-  [ "$status" -eq 0 ]
+  assert_success
 
   accepted=$(py_count_stories "$VALIDATED_OUT")
   rejected=$(py_count_stories "$REJECTED_OUT")
@@ -226,7 +229,7 @@ EOF
     --rejected-out "$REJECTED_OUT" \
     --min-overlap 1
 
-  [ "$status" -eq 0 ]
+  assert_success
 
   accepted=$(py_count_stories "$VALIDATED_OUT")
   [ "$accepted" -eq 3 ]
@@ -251,7 +254,7 @@ EOF
     --constitution "$constitution" \
     --min-overlap 0
 
-  [ "$status" -eq 0 ]
+  assert_success
 
   rejected=$(py_count_stories "$REJECTED_OUT")
   [ "$rejected" -ge 1 ]
@@ -272,7 +275,7 @@ EOF
     --rejected-out "$REJECTED_OUT" \
     --min-overlap 1
 
-  [ "$status" -eq 0 ]
+  assert_success
   [ -f "$VALIDATED_OUT" ]
 
   accepted=$(py_count_stories "$VALIDATED_OUT")
@@ -305,7 +308,7 @@ EOF
     --rejected-out "$REJECTED_OUT" \
     --min-overlap 1
 
-  [ "$status" -eq 0 ]
+  assert_success
 
   # CAND-002 (cafe) and TEST-001 (hostel booking) have no goal-keyword overlap → rejected
   rejected=$(py_count_stories "$REJECTED_OUT")
@@ -324,7 +327,7 @@ EOF
     "$RESEARCH_OUTPUT" "$TEST_OUTPUT" "$PRD_FILE" "$SCRATCH_DIR" \
     "$SPIRAL_PYTHON" "$SPIRAL_HOME"
 
-  [ "$status" -eq 0 ]
+  assert_success
   [ -f "$SCRATCH_DIR/_validated_stories.json" ]
   [ -f "$SCRATCH_DIR/_story_rejected.json" ]
 }

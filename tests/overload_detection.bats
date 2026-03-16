@@ -10,21 +10,16 @@
 #   - api_overloaded event is logged on detection
 #   - Exit code 0 from mock claude does not fool the detection logic
 
+bats_require_minimum_version 1.7.0
+
 # ── Test setup ────────────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   export TMPDIR_OD
   TMPDIR_OD="$(mktemp -d)"
   export SPIRAL_SCRATCH_DIR="$TMPDIR_OD"
-
-  # Provide a minimal JQ path
-  if command -v jq &>/dev/null; then
-    export JQ="jq"
-  elif [[ -f "ralph/jq.exe" ]]; then
-    export JQ="ralph/jq.exe"
-  elif [[ -f "ralph/jq" ]]; then
-    export JQ="ralph/jq"
-  fi
 
   # Create mock binary directory and prepend to PATH
   export MOCK_BIN="$TMPDIR_OD/bin"
@@ -75,8 +70,8 @@ export -f detect_overload
   make_mock_claude '{"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}}'
 
   run claude -p "test prompt"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"overloaded_error"* ]]
+  assert_success
+  assert_output --partial "overloaded_error"
 }
 
 @test "detect overloaded_error keyword in captured output" {
@@ -84,7 +79,7 @@ export -f detect_overload
   echo '{"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}}' > "$tmp"
 
   run detect_overload "$tmp"
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "detect type:error pattern in first NDJSON chunk" {
@@ -96,7 +91,7 @@ export -f detect_overload
   local first_line
   first_line=$(head -1 "$tmp")
   run bash -c 'echo "$1" | grep -qF "\"type\":\"error\"" && echo MATCHED || echo NO_MATCH' _ "$first_line"
-  [ "$output" = "MATCHED" ]
+  assert_output "MATCHED"
 }
 
 @test "detect_overload returns 0 for overloaded_error body from mock claude" {
@@ -106,7 +101,7 @@ export -f detect_overload
   claude -p "test" > "$tmp" 2>&1 || true
 
   run detect_overload "$tmp"
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "clean successful output is not flagged as overload" {
@@ -127,7 +122,7 @@ CLEANEOF
   printf '{"status":"529","message":"Too Many Requests"}\n' > "$tmp"
 
   run detect_overload "$tmp"
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "api_overloaded event is logged on detection" {
@@ -137,7 +132,7 @@ CLEANEOF
 
   [ -f "$events_file" ]
   run grep -c "api_overloaded" "$events_file"
-  [ "$output" = "1" ]
+  assert_output "1"
 }
 
 @test "api_overloaded event contains retry metadata" {
@@ -146,6 +141,6 @@ CLEANEOF
   log_spiral_event "api_overloaded" '"retry_attempt":2,"sleep_sec":7'
 
   run grep "retry_attempt" "$events_file"
-  [[ "$output" == *"retry_attempt"* ]]
-  [[ "$output" == *"sleep_sec"* ]]
+  assert_output --partial "retry_attempt"
+  assert_output --partial "sleep_sec"
 }

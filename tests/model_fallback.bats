@@ -10,21 +10,17 @@
 #   - Per-model circuit breaker state is isolated
 #   - Fallback emits model_fallback event to spiral_events.jsonl
 
+bats_require_minimum_version 1.7.0
+
 # ── Test setup ────────────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   export TMPDIR_FB="$(mktemp -d)"
   export SPIRAL_SCRATCH_DIR="$TMPDIR_FB"
   export SPIRAL_CB_FAILURE_THRESHOLD=3
   export SPIRAL_CB_COOLDOWN_SECS=600
-
-  if command -v jq &>/dev/null; then
-    export JQ="jq"
-  elif [[ -f "ralph/jq.exe" ]]; then
-    export JQ="ralph/jq.exe"
-  elif [[ -f "ralph/jq" ]]; then
-    export JQ="ralph/jq"
-  fi
 
   source "lib/circuit_breaker.sh"
 
@@ -61,11 +57,11 @@ trip_breaker() {
 
   # Verify primary is OPEN
   run cb_check "sonnet"
-  [ "$status" -eq 1 ]
+  assert_failure 1
 
   # haiku should still be CLOSED
   run cb_check "haiku"
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "fallback chain: each model has independent circuit breaker state" {
@@ -73,14 +69,14 @@ trip_breaker() {
   trip_breaker "opus"
 
   run cb_check "sonnet"
-  [ "$status" -eq 1 ]
+  assert_failure 1
 
   run cb_check "opus"
-  [ "$status" -eq 1 ]
+  assert_failure 1
 
   # haiku is untouched
   run cb_check "haiku"
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "fallback chain: all models OPEN when all tripped" {
@@ -89,11 +85,11 @@ trip_breaker() {
   trip_breaker "opus"
 
   run cb_check "sonnet"
-  [ "$status" -eq 1 ]
+  assert_failure 1
   run cb_check "haiku"
-  [ "$status" -eq 1 ]
+  assert_failure 1
   run cb_check "opus"
-  [ "$status" -eq 1 ]
+  assert_failure 1
 }
 
 @test "fallback chain: colon-separated parsing works" {
@@ -142,7 +138,7 @@ trip_breaker() {
 
   # Verify
   run $JQ -r '.userStories[0]._failureReason' "$prd"
-  [ "$output" = "all_models_unavailable" ]
+  assert_output "all_models_unavailable"
 }
 
 @test "fallback chain: success on fallback model resets only that model's breaker" {
@@ -153,7 +149,7 @@ trip_breaker() {
 
   # sonnet should still be OPEN
   run cb_check "sonnet"
-  [ "$status" -eq 1 ]
+  assert_failure 1
 
   # haiku should be CLOSED
   cb_read "haiku"
@@ -183,10 +179,10 @@ trip_breaker() {
   # Verify event was written
   [ -f "$events_file" ]
   run grep -c "model_fallback" "$events_file"
-  [ "$output" = "1" ]
+  assert_output "1"
   run grep "primary_model" "$events_file"
-  [[ "$output" == *"sonnet"* ]]
-  [[ "$output" == *"haiku"* ]]
+  assert_output --partial "sonnet"
+  assert_output --partial "haiku"
 }
 
 @test "all_models_unavailable event is logged when chain exhausted" {
@@ -225,5 +221,5 @@ trip_breaker() {
     "\"story_id\":\"US-TEST-001\",\"primary_model\":\"sonnet\",\"chain\":\"$chain\""
 
   run grep -c "all_models_unavailable" "$events_file"
-  [ "$output" = "1" ]
+  assert_output "1"
 }

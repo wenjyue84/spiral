@@ -17,24 +17,19 @@
 #   - requeue_stale_stories is a no-op for unknown story IDs
 #   - Integration: simulate crashed worker → story requeued within threshold
 
+bats_require_minimum_version 1.7.0
+
 # ── Test setup ────────────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   export TMPDIR_HB="$(mktemp -d)"
   export HEARTBEAT_DIR="$TMPDIR_HB/workers"
   export HEARTBEAT_INTERVAL=2    # Fast interval for testing
   export STALE_THRESHOLD=120
 
   mkdir -p "$HEARTBEAT_DIR"
-
-  # Resolve jq
-  if command -v jq &>/dev/null; then
-    export JQ="jq"
-  elif [[ -f "ralph/jq.exe" ]]; then
-    export JQ="ralph/jq.exe"
-  elif [[ -f "ralph/jq" ]]; then
-    export JQ="ralph/jq"
-  fi
 
   source "lib/worker_heartbeat.sh"
 }

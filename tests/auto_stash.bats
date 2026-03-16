@@ -9,6 +9,8 @@
 #   - Dirty tree + SPIRAL_AUTO_STASH=false: DIRTY_SKIP_RALPH=1, abort message printed
 #   - Stash pop after Phase I succeeds (or warns on failure)
 
+bats_require_minimum_version 1.7.0
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 # Execute the dirty-tree guard inline snippet in a subshell and capture results.
@@ -55,6 +57,8 @@ run_dirty_guard() {
 # ── Setup / teardown ──────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   export TMPDIR_AS
   TMPDIR_AS="$(mktemp -d)"
 
@@ -81,16 +85,16 @@ teardown() {
 
 @test "clean working tree: guard reports clean, DIRTY_SKIP_RALPH=0" {
   run run_dirty_guard "$REPO" "false"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"clean-tree"* ]]
-  [[ "$output" == *"_DIRTY_SKIP_RALPH=0"* ]]
+  assert_success
+  assert_output --partial "clean-tree"
+  assert_output --partial "_DIRTY_SKIP_RALPH=0"
 }
 
 @test "clean working tree with SPIRAL_AUTO_STASH=true: guard still reports clean" {
   run run_dirty_guard "$REPO" "true"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"clean-tree"* ]]
-  [[ "$output" == *"_DIRTY_SKIP_RALPH=0"* ]]
+  assert_success
+  assert_output --partial "clean-tree"
+  assert_output --partial "_DIRTY_SKIP_RALPH=0"
 }
 
 @test "dirty tree + SPIRAL_AUTO_STASH=false: DIRTY_SKIP_RALPH=1 (abort path)" {
@@ -99,9 +103,9 @@ teardown() {
   git -C "$REPO" add dirty.txt   # staged but not committed
 
   run run_dirty_guard "$REPO" "false"
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"skip-phase-i"* ]]
-  [[ "$output" == *"_DIRTY_SKIP_RALPH=1"* ]]
+  assert_failure 1
+  assert_output --partial "skip-phase-i"
+  assert_output --partial "_DIRTY_SKIP_RALPH=1"
 }
 
 @test "dirty tree + SPIRAL_AUTO_STASH=false: untracked file also triggers abort" {
@@ -109,8 +113,8 @@ teardown() {
   echo "untracked" > "$REPO/untracked.txt"
 
   run run_dirty_guard "$REPO" "false"
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"skip-phase-i"* ]]
+  assert_failure 1
+  assert_output --partial "skip-phase-i"
 }
 
 @test "dirty tree + SPIRAL_AUTO_STASH=true: stash is created, DIRTY_SKIP_RALPH=0" {
@@ -118,9 +122,9 @@ teardown() {
   git -C "$REPO" add dirty.txt
 
   run run_dirty_guard "$REPO" "true"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"stash-created"* ]]
-  [[ "$output" == *"_DIRTY_SKIP_RALPH=0"* ]]
+  assert_success
+  assert_output --partial "stash-created"
+  assert_output --partial "_DIRTY_SKIP_RALPH=0"
 
   # Verify stash actually exists in the repo
   stash_count=$(git -C "$REPO" stash list | wc -l)
@@ -131,8 +135,8 @@ teardown() {
   echo "modified content" >> "$REPO/README.md"
 
   run run_dirty_guard "$REPO" "true"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"stash-ref="* ]]
+  assert_success
+  assert_output --partial "stash-ref="
 }
 
 @test "dirty tree + SPIRAL_AUTO_STASH=true: stash pop restores changes" {
@@ -141,7 +145,7 @@ teardown() {
 
   # Stash the changes
   run run_dirty_guard "$REPO" "true"
-  [ "$status" -eq 0 ]
+  assert_success
 
   # File should be gone after stash
   [ ! -f "$REPO/work.txt" ]
@@ -152,7 +156,7 @@ teardown() {
   # File should be back
   [ -f "$REPO/work.txt" ]
   run cat "$REPO/work.txt"
-  [ "$output" = "important work" ]
+  assert_output "important work"
 }
 
 @test "stash message contains iter number" {
@@ -160,7 +164,7 @@ teardown() {
   git -C "$REPO" add README.md
 
   run run_dirty_guard "$REPO" "true"
-  [ "$status" -eq 0 ]
+  assert_success
 
   # Check that the stash list contains our message with iter number
   stash_msg=$(git -C "$REPO" stash list 2>/dev/null | head -1)

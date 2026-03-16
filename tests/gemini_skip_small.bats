@@ -12,9 +12,13 @@
 #   - Fast-path does NOT apply for non-small complexity
 #   - Fast-path does NOT apply when filesTouch > 2
 
+bats_require_minimum_version 1.7.0
+
 # ── Test setup ────────────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   export TMPDIR_GS
   TMPDIR_GS="$(mktemp -d)"
   export SPIRAL_SCRATCH_DIR="$TMPDIR_GS"
@@ -23,15 +27,6 @@ setup() {
   export MOCK_BIN="$TMPDIR_GS/bin"
   mkdir -p "$MOCK_BIN"
   export PATH="$MOCK_BIN:$PATH"
-
-  # Resolve jq binary
-  if command -v jq &>/dev/null; then
-    export JQ="jq"
-  elif [[ -f "ralph/jq.exe" ]]; then
-    export JQ="ralph/jq.exe"
-  elif [[ -f "ralph/jq" ]]; then
-    export JQ="ralph/jq"
-  fi
 
   # Gemini call counter — records invocations into a file
   GEMINI_CALLS_FILE="$TMPDIR_GS/gemini_calls"
@@ -86,7 +81,7 @@ _run_gemini_fastpath() {
 
 @test "SPIRAL_GEMINI_SKIP_SMALL defaults to true in ralph.sh" {
   run grep 'SPIRAL_GEMINI_SKIP_SMALL.*:-' ralph/ralph.sh
-  [ "$status" -eq 0 ]
+  assert_success
   [[ "$output" == *'SPIRAL_GEMINI_SKIP_SMALL:-true'* ]]
 }
 

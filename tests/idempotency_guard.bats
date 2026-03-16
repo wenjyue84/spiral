@@ -10,11 +10,14 @@
 #   - Stories without matching commits proceed normally
 #   - idempotency_skip event is logged to spiral_events.jsonl
 
+bats_require_minimum_version 1.7.0
+
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 # Source check_idempotency_guard from spiral.sh by extracting just the function
 # and its dependencies. We set up a minimal environment to avoid running the
 # full script.
+
 _source_guard() {
   export REPO_ROOT="$TEST_DIR/repo"
   export SCRATCH_DIR="$TEST_DIR/scratch"
@@ -70,6 +73,8 @@ _source_guard() {
 # ── Setup / Teardown ─────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   TEST_DIR="$(mktemp -d)"
   git init -b main "$TEST_DIR/repo" >/dev/null 2>&1
   cd "$TEST_DIR/repo"
@@ -112,10 +117,10 @@ teardown() {
   git commit -m "feat: US-999 implement test story" >/dev/null 2>&1
 
   run check_idempotency_guard "US-999" "$TEST_DIR/repo/prd.json"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"[idempotency]"* ]]
-  [[ "$output" == *"US-999"* ]]
-  [[ "$output" == *"skipping"* ]]
+  assert_success
+  assert_output --partial "[idempotency]"
+  assert_output --partial "US-999"
+  assert_output --partial "skipping"
 }
 
 # ── Test: story marked passes=true with _passedCommit ────────────────────────
@@ -152,7 +157,7 @@ teardown() {
 
   # The most recent commit mentioning US-999 is the revert
   run check_idempotency_guard "US-999" "$TEST_DIR/repo/prd.json"
-  [ "$status" -eq 1 ]
+  assert_failure 1
 
   # Story should still be passes=false
   passes=$("$JQ" -r '.userStories[] | select(.id == "US-999") | .passes' "$TEST_DIR/repo/prd.json")
@@ -166,7 +171,7 @@ teardown() {
 
   # No commit mentioning US-999 beyond the init (which mentions prd.json, not the story)
   run check_idempotency_guard "US-999" "$TEST_DIR/repo/prd.json"
-  [ "$status" -eq 1 ]
+  assert_failure 1
 
   # Story should still be passes=false
   passes=$("$JQ" -r '.userStories[] | select(.id == "US-999") | .passes' "$TEST_DIR/repo/prd.json")

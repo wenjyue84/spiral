@@ -3,7 +3,10 @@
 #
 # Run with: tests/bats-core/bin/bats tests/env_validation.bats
 
+bats_require_minimum_version 1.7.0
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   export SPIRAL_HOME="$PWD"
 
   # Prefer the uv venv Python; fall back to system python3
@@ -46,40 +49,40 @@ EOF
 @test "validator passes when ANTHROPIC_API_KEY is set" {
   export ANTHROPIC_API_KEY="sk-ant-test-key"
   run run_validator
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"OK"* ]]
+  assert_success
+  assert_output --partial "OK"
 }
 
 @test "missing required var prints var name in error output" {
   unset ANTHROPIC_API_KEY
   run run_validator
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"ANTHROPIC_API_KEY"* ]]
+  assert_failure 1
+  assert_output --partial "ANTHROPIC_API_KEY"
 }
 
 @test "missing required var prints description in error output" {
   unset ANTHROPIC_API_KEY
   run run_validator
-  [ "$status" -eq 1 ]
+  assert_failure 1
   # description contains 'Anthropic API key'
-  [[ "$output" == *"Anthropic API key"* ]]
+  assert_output --partial "Anthropic API key"
 }
 
 @test "missing required var prints fix hint in error output" {
   unset ANTHROPIC_API_KEY
   run run_validator
-  [ "$status" -eq 1 ]
+  assert_failure 1
   # fix hint starts with 'export ANTHROPIC_API_KEY='
-  [[ "$output" == *"export ANTHROPIC_API_KEY="* ]]
+  assert_output --partial "export ANTHROPIC_API_KEY="
 }
 
 @test "invalid URL var prints INVALID with type info" {
   export ANTHROPIC_API_KEY="sk-ant-test-key"
   export SPIRAL_NOTIFY_WEBHOOK="not-a-url"
   run run_validator
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"INVALID"* ]]
-  [[ "$output" == *"SPIRAL_NOTIFY_WEBHOOK"* ]]
+  assert_failure 1
+  assert_output --partial "INVALID"
+  assert_output --partial "SPIRAL_NOTIFY_WEBHOOK"
   unset SPIRAL_NOTIFY_WEBHOOK
 }
 
@@ -87,9 +90,9 @@ EOF
   export ANTHROPIC_API_KEY="sk-ant-test-key"
   export SPIRAL_MAX_PENDING="notanumber"
   run run_validator
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"INVALID"* ]]
-  [[ "$output" == *"SPIRAL_MAX_PENDING"* ]]
+  assert_failure 1
+  assert_output --partial "INVALID"
+  assert_output --partial "SPIRAL_MAX_PENDING"
   unset SPIRAL_MAX_PENDING
 }
 
@@ -97,7 +100,7 @@ EOF
   export ANTHROPIC_API_KEY="sk-ant-test-key"
   export SPIRAL_NOTIFY_WEBHOOK="https://hooks.example.com/spiral"
   run run_validator
-  [ "$status" -eq 0 ]
+  assert_success
   unset SPIRAL_NOTIFY_WEBHOOK
 }
 
@@ -106,12 +109,12 @@ EOF
   unset SPIRAL_NOTIFY_WEBHOOK
   unset OTEL_EXPORTER_OTLP_ENDPOINT
   run run_validator
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "summary line shows required vars missing count" {
   unset ANTHROPIC_API_KEY
   run run_validator
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"MISSING required"* ]]
+  assert_failure 1
+  assert_output --partial "MISSING required"
 }

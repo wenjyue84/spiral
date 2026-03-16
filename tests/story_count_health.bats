@@ -4,20 +4,15 @@
 #
 # Run with: bats tests/story_count_health.bats
 
+bats_require_minimum_version 1.7.0
+
 # ── Test setup ────────────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   export TMPDIR_TEST="$(mktemp -d)"
   export SCRATCH_DIR="$TMPDIR_TEST"
-
-  # Resolve jq binary
-  if command -v jq &>/dev/null; then
-    export JQ="jq"
-  elif [[ -f "ralph/jq.exe" ]]; then
-    export JQ="ralph/jq.exe"
-  elif [[ -f "ralph/jq" ]]; then
-    export JQ="ralph/jq"
-  fi
 
   export SPIRAL_PYTHON="python3"
   export SPIRAL_HOME="$PWD"
@@ -64,36 +59,36 @@ _run_story_count_check() {
   local prd
   prd="$(make_prd 5)"
   SPIRAL_MAX_STORIES=200 run _run_story_count_check "$prd"
-  [ "$status" -eq 0 ]
-  [[ "$output" != *"WARNING"* ]]
+  assert_success
+  refute_output --partial "WARNING"
 }
 
 @test "story count exactly at threshold: no warning emitted" {
   local prd
   prd="$(make_prd 200)"
   SPIRAL_MAX_STORIES=200 run _run_story_count_check "$prd"
-  [ "$status" -eq 0 ]
-  [[ "$output" != *"WARNING"* ]]
+  assert_success
+  refute_output --partial "WARNING"
 }
 
 @test "story count exceeds threshold: WARNING emitted" {
   local prd
   prd="$(make_prd 201)"
   SPIRAL_MAX_STORIES=200 run _run_story_count_check "$prd"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"WARNING"* ]]
-  [[ "$output" == *"201 stories"* ]]
-  [[ "$output" == *"threshold: 200"* ]]
-  [[ "$output" == *"archiving"* ]]
+  assert_success
+  assert_output --partial "WARNING"
+  assert_output --partial "201 stories"
+  assert_output --partial "threshold: 200"
+  assert_output --partial "archiving"
 }
 
 @test "story count exceeds threshold: warning includes count and suggestion" {
   local prd
   prd="$(make_prd 50)"
   SPIRAL_MAX_STORIES=10 run _run_story_count_check "$prd"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"50 stories"* ]]
-  [[ "$output" == *"threshold: 10"* ]]
+  assert_success
+  assert_output --partial "50 stories"
+  assert_output --partial "threshold: 10"
 }
 
 @test "SPIRAL_MAX_STORIES_ABORT=1: fails hard when count exceeded" {
@@ -101,31 +96,31 @@ _run_story_count_check() {
   prd="$(make_prd 201)"
   SPIRAL_MAX_STORIES=200 SPIRAL_MAX_STORIES_ABORT=1 run _run_story_count_check "$prd"
   [ "$status" -ne 0 ]
-  [[ "$output" == *"FATAL"* ]]
-  [[ "$output" == *"SPIRAL_MAX_STORIES_ABORT"* ]]
+  assert_output --partial "FATAL"
+  assert_output --partial "SPIRAL_MAX_STORIES_ABORT"
 }
 
 @test "SPIRAL_MAX_STORIES_ABORT=0 (default): warns but does not fail" {
   local prd
   prd="$(make_prd 201)"
   SPIRAL_MAX_STORIES=200 SPIRAL_MAX_STORIES_ABORT=0 run _run_story_count_check "$prd"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"WARNING"* ]]
-  [[ "$output" != *"FATAL"* ]]
+  assert_success
+  assert_output --partial "WARNING"
+  refute_output --partial "FATAL"
 }
 
 @test "custom SPIRAL_MAX_STORIES=5: warns when prd has 6 stories" {
   local prd
   prd="$(make_prd 6)"
   SPIRAL_MAX_STORIES=5 run _run_story_count_check "$prd"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"WARNING"* ]]
+  assert_success
+  assert_output --partial "WARNING"
 }
 
 @test "empty prd (0 stories): no warning" {
   local prd="$TMPDIR_TEST/empty.json"
   echo '{"schemaVersion":"1","userStories":[]}' > "$prd"
   SPIRAL_MAX_STORIES=200 run _run_story_count_check "$prd"
-  [ "$status" -eq 0 ]
-  [[ "$output" != *"WARNING"* ]]
+  assert_success
+  refute_output --partial "WARNING"
 }

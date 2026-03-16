@@ -3,18 +3,13 @@
 #
 # Run with: bats tests/duplicate_story_ids.bats
 
+bats_require_minimum_version 1.7.0
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   export TMPDIR_TEST
   TMPDIR_TEST="$(mktemp -d)"
   export SCRATCH_DIR="$TMPDIR_TEST"
-
-  if command -v jq &>/dev/null; then
-    export JQ="jq"
-  elif [[ -f "ralph/jq.exe" ]]; then
-    export JQ="ralph/jq.exe"
-  elif [[ -f "ralph/jq" ]]; then
-    export JQ="ralph/jq"
-  fi
 
   export SPIRAL_PYTHON="python3"
   export SPIRAL_HOME="$PWD"
@@ -75,9 +70,9 @@ _run_dedup_check() {
   local prd
   prd="$(make_prd '[{"id":"US-001","title":"A","passes":false},{"id":"US-002","title":"B","passes":false}]')"
   run _run_dedup_check "$prd"
-  [ "$status" -eq 0 ]
-  [[ "$output" != *"FATAL"* ]]
-  [[ "$output" != *"WARNING"* ]]
+  assert_success
+  refute_output --partial "FATAL"
+  refute_output --partial "WARNING"
 }
 
 @test "strict mode (default): duplicate IDs cause exit 1 with conflict list" {
@@ -85,9 +80,9 @@ _run_dedup_check() {
   prd="$(make_prd '[{"id":"US-001","title":"A","passes":false},{"id":"US-001","title":"A-dup","passes":false}]')"
   SPIRAL_DEDUP_IDS=strict run _run_dedup_check "$prd"
   [ "$status" -ne 0 ]
-  [[ "$output" == *"FATAL"* ]]
-  [[ "$output" == *"US-001"* ]]
-  [[ "$output" == *"SPIRAL_DEDUP_IDS=lenient"* ]]
+  assert_output --partial "FATAL"
+  assert_output --partial "US-001"
+  assert_output --partial "SPIRAL_DEDUP_IDS=lenient"
 }
 
 @test "strict mode is default when SPIRAL_DEDUP_IDS is unset" {
@@ -96,16 +91,16 @@ _run_dedup_check() {
   unset SPIRAL_DEDUP_IDS
   run _run_dedup_check "$prd"
   [ "$status" -ne 0 ]
-  [[ "$output" == *"FATAL"* ]]
+  assert_output --partial "FATAL"
 }
 
 @test "lenient mode: keeps passes:true entry, removes duplicate" {
   local prd
   prd="$(make_prd '[{"id":"US-010","title":"Pass","passes":true},{"id":"US-010","title":"Fail","passes":false}]')"
   SPIRAL_DEDUP_IDS=lenient run _run_dedup_check "$prd"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"WARNING"* ]]
-  [[ "$output" == *"Resolved"* || "$output" == *"resolved"* ]]
+  assert_success
+  assert_output --partial "WARNING"
+  assert_output --partial "Resolved"* || "$output" == *"resolved"
   # The file should now have only 1 entry with passes:true
   local remaining
   remaining=$("$JQ" '[.userStories[] | select(.id == "US-010")] | length' "$prd")
@@ -119,7 +114,7 @@ _run_dedup_check() {
   local prd
   prd="$(make_prd '[{"id":"US-020","title":"First","passes":false},{"id":"US-020","title":"Second","passes":false}]')"
   SPIRAL_DEDUP_IDS=lenient run _run_dedup_check "$prd"
-  [ "$status" -eq 0 ]
+  assert_success
   local remaining
   remaining=$("$JQ" '[.userStories[] | select(.id == "US-020")] | length' "$prd")
   [ "$remaining" -eq 1 ]
@@ -146,8 +141,8 @@ _run_dedup_check() {
   prd="$(make_prd '[{"id":"US-001","title":"A","passes":false},{"id":"US-001","title":"A2","passes":false},{"id":"US-002","title":"B","passes":false},{"id":"US-002","title":"B2","passes":false}]')"
   SPIRAL_DEDUP_IDS=strict run _run_dedup_check "$prd"
   [ "$status" -ne 0 ]
-  [[ "$output" == *"US-001"* ]]
-  [[ "$output" == *"US-002"* ]]
+  assert_output --partial "US-001"
+  assert_output --partial "US-002"
 }
 
 @test "lenient mode: prd written back atomically (file is valid JSON after dedup)" {

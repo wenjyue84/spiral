@@ -438,6 +438,17 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Verify bats version >= 1.7.0
+        run: |
+          BATS_VERSION=$(tests/bats-core/bin/bats --version | grep -oP '\d+\.\d+\.\d+')
+          echo "bats version: $BATS_VERSION"
+          MAJOR=$(echo "$BATS_VERSION" | cut -d. -f1)
+          MINOR=$(echo "$BATS_VERSION" | cut -d. -f2)
+          if [ "$MAJOR" -lt 1 ] || { [ "$MAJOR" -eq 1 ] && [ "$MINOR" -lt 7 ]; }; then
+            echo "::error::bats version $BATS_VERSION is too old (need >= 1.7.0)"
+            exit 1
+          fi
+
       - name: Run bats tests with JUnit output
         run: |
           mkdir -p test-reports

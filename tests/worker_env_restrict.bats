@@ -11,6 +11,8 @@
 #   - Custom SPIRAL_WORKER_ENV_ALLOWLIST extends the default allowlist
 #   - Wildcard prefix matching works (SPIRAL_* matches SPIRAL_WORKER_ID)
 
+bats_require_minimum_version 1.7.0
+
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 _setup_restrict_env() {
@@ -58,6 +60,8 @@ _setup_restrict_env() {
 # ── Setup / Teardown ─────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   TEST_DIR="$(mktemp -d)"
   _setup_restrict_env
 }

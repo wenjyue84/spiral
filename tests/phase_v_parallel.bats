@@ -12,9 +12,13 @@
 #   - SPIRAL_TEST_WORKERS explicit → uses that value, not nproc/2
 #   - SPIRAL_TEST_WORKERS empty → nproc/2, minimum 1
 
+bats_require_minimum_version 1.7.0
+
 # ── Test setup ────────────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   export TMPDIR_PV
   TMPDIR_PV="$(mktemp -d)"
 

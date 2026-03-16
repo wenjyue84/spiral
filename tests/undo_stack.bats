@@ -10,9 +10,13 @@
 #   - undo_log_cleanup removes the log file
 #   - Mid-story failure scenario: simulated git commit followed by undo restores HEAD
 
+bats_require_minimum_version 1.7.0
+
 # ── Setup / teardown ──────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   export SPIRAL_SCRATCH_DIR
   SPIRAL_SCRATCH_DIR="$(mktemp -d)"
 
@@ -79,13 +83,13 @@ teardown() {
 
 @test "undo_log_exists returns 1 when no log present" {
   run undo_log_exists "US-999"
-  [ "$status" -eq 1 ]
+  assert_failure 1
 }
 
 @test "undo_log_exists returns 0 after undo_log_record" {
   undo_log_record "US-007" "checkpoint" "HEAD:abc" "git reset --hard abc"
   run undo_log_exists "US-007"
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 # ── Tests: undo_log_cleanup ───────────────────────────────────────────────────
@@ -100,29 +104,29 @@ teardown() {
 @test "undo_log_cleanup is a no-op when no log exists" {
   # Should not fail even when no log present
   run undo_log_cleanup "US-999"
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "undo_log_exists returns 1 after cleanup" {
   undo_log_record "US-011" "checkpoint" "HEAD:abc" "git reset --hard abc"
   undo_log_cleanup "US-011"
   run undo_log_exists "US-011"
-  [ "$status" -eq 1 ]
+  assert_failure 1
 }
 
 # ── Tests: undo_log_replay ────────────────────────────────────────────────────
 
 @test "undo_log_replay returns 0 when no log present" {
   run undo_log_replay "US-999"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"No undo log found"* ]]
+  assert_success
+  assert_output --partial "No undo log found"
 }
 
 @test "undo_log_replay returns 0 on empty log" {
   mkdir -p "$SPIRAL_SCRATCH_DIR/undo"
   touch "$SPIRAL_SCRATCH_DIR/undo/US-050.jsonl"
   run undo_log_replay "US-050"
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "undo_log_replay executes inverse_commands in LIFO order" {
@@ -165,7 +169,7 @@ teardown() {
 
   # Simulate failure: replay undo log — should reset HEAD back to baseline
   run undo_log_replay "US-SIM"
-  [ "$status" -eq 0 ]
+  assert_success
 
   # HEAD should be back to baseline
   local restored
@@ -182,5 +186,5 @@ teardown() {
 
   # undo_log_exists should return 0 — stale log exists
   run undo_log_exists "US-IDEM"
-  [ "$status" -eq 0 ]
+  assert_success
 }

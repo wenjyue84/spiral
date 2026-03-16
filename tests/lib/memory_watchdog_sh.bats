@@ -12,6 +12,8 @@
 #   - SPIRAL_MEMORY_SIGNAL_FILE override is respected
 
 # Load bats helpers if available
+
+bats_require_minimum_version 1.7.0
 BATS_LIB_PATH="${BATS_TEST_DIRNAME}"
 if [[ -f "${BATS_LIB_PATH}/../bats-support/load.bash" ]]; then
   load "${BATS_LIB_PATH}/../bats-support/load.bash"
@@ -23,6 +25,8 @@ fi
 # ── Setup / Teardown ──────────────────────────────────────────────────────────
 
 setup() {
+  load ../test_helper/common-setup
+  _resolve_jq
   export TMPDIR_WD
   TMPDIR_WD="$(mktemp -d)"
   export SCRATCH_DIR="$TMPDIR_WD/scratch"
@@ -73,37 +77,37 @@ source_watchdog_functions() {
 @test "get_pressure_level returns 0 when free_pct >= threshold[0] (40%)" {
   source_watchdog_functions
   run get_pressure_level 50
-  [ "$output" = "0" ]
+  assert_output "0"
 }
 
 @test "get_pressure_level returns 1 when free_pct < threshold[0] (40%) but >= threshold[1] (25%)" {
   source_watchdog_functions
   run get_pressure_level 30
-  [ "$output" = "1" ]
+  assert_output "1"
 }
 
 @test "get_pressure_level returns 2 when free_pct < threshold[1] (25%) but >= threshold[2] (18%)" {
   source_watchdog_functions
   run get_pressure_level 20
-  [ "$output" = "2" ]
+  assert_output "2"
 }
 
 @test "get_pressure_level returns 3 when free_pct < threshold[2] (18%) but >= threshold[3] (12%)" {
   source_watchdog_functions
   run get_pressure_level 15
-  [ "$output" = "3" ]
+  assert_output "3"
 }
 
 @test "get_pressure_level returns 4 when free_pct < threshold[3] (12%)" {
   source_watchdog_functions
   run get_pressure_level 5
-  [ "$output" = "4" ]
+  assert_output "4"
 }
 
 @test "get_pressure_level returns 0 at exactly threshold[0] (40%)" {
   source_watchdog_functions
   run get_pressure_level 40
-  [ "$output" = "0" ]
+  assert_output "0"
 }
 
 # ── Test: get_recommendations ─────────────────────────────────────────────────
@@ -111,26 +115,26 @@ source_watchdog_functions() {
 @test "get_recommendations level 0 returns no model cap and empty skip_phases" {
   source_watchdog_functions
   run get_recommendations 0 8192
-  [ "$status" -eq 0 ]
+  assert_success
   # Should not include "haiku" or "sonnet" model cap
-  [[ "$output" != *"haiku"* ]]
-  [[ "$output" != *"sonnet"* ]]
-  [[ "$output" == *"[]"* ]]
+  refute_output --partial "haiku"
+  refute_output --partial "sonnet"
+  assert_output --partial "[]"
 }
 
 @test "get_recommendations level 2 returns sonnet model and skips R" {
   source_watchdog_functions
   run get_recommendations 2 4096
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"sonnet"* ]]
+  assert_success
+  assert_output --partial "sonnet"
   [[ "$output" == *'"R"'* ]]
 }
 
 @test "get_recommendations level 3 returns haiku model and skips R+T" {
   source_watchdog_functions
   run get_recommendations 3 1024
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"haiku"* ]]
+  assert_success
+  assert_output --partial "haiku"
   [[ "$output" == *'"R"'* ]]
   [[ "$output" == *'"T"'* ]]
 }
@@ -138,14 +142,14 @@ source_watchdog_functions() {
 @test "get_recommendations level 4 returns haiku model (same as critical)" {
   source_watchdog_functions
   run get_recommendations 4 512
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"haiku"* ]]
+  assert_success
+  assert_output --partial "haiku"
 }
 
 @test "get_recommendations level 0 with 8192MB free recommends at least 1 worker" {
   source_watchdog_functions
   run get_recommendations 0 8192
-  [ "$status" -eq 0 ]
+  assert_success
   # First token is rec_workers — should be a positive integer
   local workers
   workers=$(echo "$output" | awk '{print $1}')
@@ -158,7 +162,7 @@ source_watchdog_functions() {
   source_watchdog_functions
   export PRESSURE_FILE="$TMPDIR_WD/scratch/_memory_pressure.json"
   run write_pressure_file 2 4096 16384 2 "sonnet" '["R"]'
-  [ "$status" -eq 0 ]
+  assert_success
   [ -f "$PRESSURE_FILE" ]
 
   # Verify required fields exist
@@ -176,7 +180,7 @@ source_watchdog_functions() {
   source_watchdog_functions
   export PRESSURE_FILE="$TMPDIR_WD/scratch/_memory_pressure.json"
   run write_pressure_file 0 16384 32768 8 "" "[]"
-  [ "$status" -eq 0 ]
+  assert_success
   [ -f "$PRESSURE_FILE" ]
   local content
   content=$(cat "$PRESSURE_FILE")
@@ -189,7 +193,7 @@ source_watchdog_functions() {
   source_watchdog_functions
   export PRESSURE_FILE="$TMPDIR_WD/scratch/_memory_pressure.json"
   run write_pressure_file 1 8192 16384 4 "" "[]"
-  [ "$status" -eq 0 ]
+  assert_success
   # No leftover tmp file
   local tmp_count
   tmp_count=$(ls "$TMPDIR_WD/scratch/_memory_pressure.json.tmp."* 2>/dev/null | wc -l || echo "0")
@@ -230,7 +234,7 @@ source_watchdog_functions() {
   source_watchdog_functions
 
   run get_memory_info
-  [ "$status" -eq 0 ]
+  assert_success
   # Output should be two numbers: free_mb total_mb
   local free_mb total_mb
   free_mb=$(echo "$output" | awk '{print $1}')
@@ -248,7 +252,7 @@ source_watchdog_functions() {
     skip "No supported memory info source on this platform"
   fi
   run get_memory_info
-  [ "$status" -eq 0 ]
+  assert_success
   local total_mb
   total_mb=$(echo "$output" | awk '{print $2}')
   [[ "$total_mb" -gt 0 ]]

@@ -10,6 +10,8 @@
 #   - Fan-out limit triggers cascade_abort exit
 #   - cascade_abort event is logged to spiral_events.jsonl
 
+bats_require_minimum_version 1.7.0
+
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 _setup_env() {
@@ -71,6 +73,8 @@ _simulate_cascade() {
 # ── Setup / Teardown ─────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   TEST_DIR="$(mktemp -d)"
   _setup_env
 }
@@ -92,18 +96,18 @@ teardown() {
 @test "consecutive failures below limit do not trigger abort" {
   # 4 failures with limit 5 — should NOT abort
   run _simulate_cascade 5 "US-001:fail" "US-002:fail" "US-003:fail" "US-004:fail"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"cascade_fail_count=4"* ]]
+  assert_success
+  assert_output --partial "cascade_fail_count=4"
 }
 
 @test "consecutive failures at limit trigger cascade abort" {
   # 5 failures with limit 5 — should abort
   run _simulate_cascade 5 "US-001:fail" "US-002:fail" "US-003:fail" "US-004:fail" "US-005:fail"
-  [ "$status" -eq 15 ]
-  [[ "$output" == *"CASCADE_ABORT"* ]]
-  [[ "$output" == *"5 consecutive failures"* ]]
-  [[ "$output" == *"US-001"* ]]
-  [[ "$output" == *"US-005"* ]]
+  assert_failure 15
+  assert_output --partial "CASCADE_ABORT"
+  assert_output --partial "5 consecutive failures"
+  assert_output --partial "US-001"
+  assert_output --partial "US-005"
 }
 
 @test "success resets consecutive failure counter" {
@@ -111,8 +115,8 @@ teardown() {
   run _simulate_cascade 5 "US-001:fail" "US-002:fail" "US-003:fail" \
     "US-004:pass" \
     "US-005:fail" "US-006:fail" "US-007:fail"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"cascade_fail_count=3"* ]]
+  assert_success
+  assert_output --partial "cascade_fail_count=3"
 }
 
 @test "cascade_abort event is logged to spiral_events.jsonl" {
@@ -135,6 +139,6 @@ teardown() {
   run _simulate_cascade 0 \
     "US-01:fail" "US-02:fail" "US-03:fail" "US-04:fail" "US-05:fail" \
     "US-06:fail" "US-07:fail" "US-08:fail" "US-09:fail" "US-10:fail"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"cascade_fail_count=10"* ]]
+  assert_success
+  assert_output --partial "cascade_fail_count=10"
 }

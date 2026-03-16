@@ -12,7 +12,10 @@
 #   - cmd_log_blocked writes to .spiral/security-events.log
 #   - allowlist_scan_stream_json detects bash tool_use deny-pattern commands
 
+bats_require_minimum_version 1.7.0
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   export TMPDIR_AL
   TMPDIR_AL="$(mktemp -d)"
   export SPIRAL_SCRATCH_DIR="$TMPDIR_AL"
@@ -45,8 +48,8 @@ with open(sys.argv[1], encoding='utf-8') as f:
     json.load(f)
 print('ok')
 PYEOF
-  [ "$status" -eq 0 ]
-  [ "$output" = "ok" ]
+  assert_success
+  assert_output "ok"
 }
 
 @test "allowlist_load default has R phase" {
@@ -114,13 +117,13 @@ PYEOF
 @test "cmd_allowed allows command when deny list is empty" {
   printf '%s\n' '{"global":{"allow":["*"],"deny":[]},"I":{"allow":[],"deny":[]}}' > "$SPIRAL_ALLOWLIST_FILE"
   run cmd_allowed "git commit -m test" "I"
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "cmd_allowed allows command not in any deny list" {
   printf '%s\n' '{"global":{"allow":[],"deny":["rm -rf"]},"I":{"allow":[],"deny":[]}}' > "$SPIRAL_ALLOWLIST_FILE"
   run cmd_allowed "git commit -m msg" "I"
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "cmd_allowed allows commands not matching any deny pattern even in default policy" {
@@ -128,14 +131,14 @@ PYEOF
   allowlist_load
   # "ls" is in the Phase I allow list and not in any deny list — should be allowed
   run cmd_allowed "ls -la /tmp" "I"
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "cmd_allowed allows curl in phase R" {
   rm -f "$SPIRAL_ALLOWLIST_FILE"
   allowlist_load
   run cmd_allowed "curl https://example.com" "R"
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 # ── Tests: cmd_allowed — deny ─────────────────────────────────────────────────
@@ -143,43 +146,43 @@ PYEOF
 @test "cmd_allowed blocks command matching global deny list" {
   printf '%s\n' '{"global":{"allow":[],"deny":["rm -rf"]}}' > "$SPIRAL_ALLOWLIST_FILE"
   run cmd_allowed "rm -rf /important" "I"
-  [ "$status" -eq 1 ]
+  assert_failure 1
 }
 
 @test "cmd_allowed blocks command matching phase-specific deny list" {
   printf '%s\n' '{"global":{"allow":["*"],"deny":[]},"I":{"allow":[],"deny":["git push"]}}' > "$SPIRAL_ALLOWLIST_FILE"
   run cmd_allowed "git push origin main" "I"
-  [ "$status" -eq 1 ]
+  assert_failure 1
 }
 
 @test "cmd_allowed blocks git push --force in phase I default policy" {
   rm -f "$SPIRAL_ALLOWLIST_FILE"
   allowlist_load
   run cmd_allowed "git push --force origin main" "I"
-  [ "$status" -eq 1 ]
+  assert_failure 1
 }
 
 @test "cmd_allowed blocks git reset --hard in phase R default policy" {
   rm -f "$SPIRAL_ALLOWLIST_FILE"
   allowlist_load
   run cmd_allowed "git reset --hard HEAD~1" "R"
-  [ "$status" -eq 1 ]
+  assert_failure 1
 }
 
 @test "phase-specific deny blocks in that phase only" {
   printf '%s\n' '{"global":{"allow":["*"],"deny":[]},"I":{"allow":[],"deny":["git push"]}}' > "$SPIRAL_ALLOWLIST_FILE"
   # In phase I: git push is denied
   run cmd_allowed "git push origin main" "I"
-  [ "$status" -eq 1 ]
+  assert_failure 1
   # In phase M: git push is allowed (not denied in M or global)
   run cmd_allowed "git push origin main" "M"
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "global deny blocks across all phases" {
   printf '%s\n' '{"global":{"allow":[],"deny":["rm -rf"]},"I":{"allow":["*"],"deny":[]}}' > "$SPIRAL_ALLOWLIST_FILE"
   run cmd_allowed "rm -rf /var" "I"
-  [ "$status" -eq 1 ]
+  assert_failure 1
 }
 
 # ── Tests: cmd_log_blocked ────────────────────────────────────────────────────
@@ -192,25 +195,25 @@ PYEOF
 @test "cmd_log_blocked writes command to security-events.log" {
   cmd_log_blocked "rm -rf /important" "I" "test-worker"
   run grep -q "rm -rf /important" "$TMPDIR_AL/security-events.log"
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "cmd_log_blocked writes phase to security-events.log" {
   cmd_log_blocked "git push --force" "M" "worker-5"
   run grep -q "phase=M" "$TMPDIR_AL/security-events.log"
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "cmd_log_blocked writes worker ID to security-events.log" {
   cmd_log_blocked "git reset --hard" "R" "worker-99"
   run grep -q "worker=worker-99" "$TMPDIR_AL/security-events.log"
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "cmd_log_blocked writes BLOCKED marker to security-events.log" {
   cmd_log_blocked "rm -rf /" "I" "test"
   run grep -q "BLOCKED" "$TMPDIR_AL/security-events.log"
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "cmd_log_blocked appends multiple violations" {
@@ -225,15 +228,15 @@ PYEOF
 @test "safe_run executes allowed command" {
   printf '%s\n' '{"global":{"allow":["*"],"deny":[]}}' > "$SPIRAL_ALLOWLIST_FILE"
   run safe_run "I" "echo hello_safe"
-  [ "$status" -eq 0 ]
-  [ "$output" = "hello_safe" ]
+  assert_success
+  assert_output "hello_safe"
 }
 
 @test "safe_run blocks forbidden command and does not execute it" {
   printf '%s\n' '{"global":{"allow":[],"deny":["echo bad"]}}' > "$SPIRAL_ALLOWLIST_FILE"
   MARKER_FILE="$TMPDIR_AL/should_not_exist.txt"
   run safe_run "I" "echo bad && touch $MARKER_FILE"
-  [ "$status" -eq 1 ]
+  assert_failure 1
   [ ! -f "$MARKER_FILE" ]
 }
 
@@ -241,7 +244,7 @@ PYEOF
   printf '%s\n' '{"global":{"allow":[],"deny":["rm -rf"]}}' > "$SPIRAL_ALLOWLIST_FILE"
   safe_run "I" "rm -rf /tmp/nonexistent" 2>/dev/null || true
   run grep -q "rm -rf" "$TMPDIR_AL/security-events.log"
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 # ── Tests: allowlist_scan_stream_json ─────────────────────────────────────────
@@ -266,7 +269,7 @@ PYEOF
   # allowlist_scan_stream_json exits with violation count (non-zero when violations found)
   allowlist_scan_stream_json "$STREAM_FILE" "I" "US-TEST" >/dev/null || true
   run grep -q "rm -rf" "$TMPDIR_AL/security-events.log"
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "allowlist_scan_stream_json ignores non-bash tool_use" {

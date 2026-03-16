@@ -11,10 +11,13 @@
 #   - _checkpoint.json and latest-review.html are never compressed
 #   - Function skips gracefully when gzip is unavailable
 
+bats_require_minimum_version 1.7.0
+
 # ── Helper ────────────────────────────────────────────────────────────────────
 
 # Run compress_old_artifacts() in an isolated subshell with a temp SCRATCH_DIR.
 # Args: current_iter scratch_dir [GZIP_CMD override to simulate unavailability]
+
 run_compress() {
   local current_iter="$1"
   local scratch="$2"
@@ -78,6 +81,8 @@ run_compress() {
 # ── Setup / teardown ──────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   TMP_SCRATCH="$(mktemp -d)"
   mkdir -p "$TMP_SCRATCH/prd-backups"
   mkdir -p "$TMP_SCRATCH/gate-reports"
@@ -94,7 +99,7 @@ teardown() {
   touch "$TMP_SCRATCH/_phase_R_1.ckpt"
 
   run run_compress 1 "$TMP_SCRATCH"
-  [ "$status" -eq 0 ]
+  assert_success
 
   # File must still exist uncompressed
   [ -f "$TMP_SCRATCH/prd-backups/prd-iter1.json" ]
@@ -105,7 +110,7 @@ teardown() {
   echo '{}' > "$TMP_SCRATCH/prd-backups/prd-iter1.json"
 
   run run_compress 2 "$TMP_SCRATCH"
-  [ "$status" -eq 0 ]
+  assert_success
 
   [ -f "$TMP_SCRATCH/prd-backups/prd-iter1.json" ]
   [ ! -f "$TMP_SCRATCH/prd-backups/prd-iter1.json.gz" ]
@@ -115,7 +120,7 @@ teardown() {
   echo '{"iter":1}' > "$TMP_SCRATCH/prd-backups/prd-iter1.json"
 
   run run_compress 3 "$TMP_SCRATCH"
-  [ "$status" -eq 0 ]
+  assert_success
 
   # Original removed, .gz created
   [ ! -f "$TMP_SCRATCH/prd-backups/prd-iter1.json" ]
@@ -129,7 +134,7 @@ teardown() {
 
   # At iter=3: threshold=1, so only iter1 is compressed; iter2 and iter3 stay
   run run_compress 3 "$TMP_SCRATCH"
-  [ "$status" -eq 0 ]
+  assert_success
 
   [ ! -f "$TMP_SCRATCH/prd-backups/prd-iter1.json" ]
   [ -f  "$TMP_SCRATCH/prd-backups/prd-iter1.json.gz" ]
@@ -142,7 +147,7 @@ teardown() {
   touch "$TMP_SCRATCH/_phase_T_1.ckpt"
 
   run run_compress 3 "$TMP_SCRATCH"
-  [ "$status" -eq 0 ]
+  assert_success
 
   [ ! -f "$TMP_SCRATCH/_phase_R_1.ckpt" ]
   [ -f  "$TMP_SCRATCH/_phase_R_1.ckpt.gz" ]
@@ -155,7 +160,7 @@ teardown() {
   echo "1741234568" > "$TMP_SCRATCH/_phase_T_1.endtime"
 
   run run_compress 3 "$TMP_SCRATCH"
-  [ "$status" -eq 0 ]
+  assert_success
 
   [ ! -f "$TMP_SCRATCH/_phase_R_1.endtime" ]
   [ -f  "$TMP_SCRATCH/_phase_R_1.endtime.gz" ]
@@ -169,7 +174,7 @@ teardown() {
   # .gz exists, original is gone
 
   run run_compress 3 "$TMP_SCRATCH"
-  [ "$status" -eq 0 ]
+  assert_success
 
   # .gz still present, no .gz.gz
   [ -f  "$TMP_SCRATCH/prd-backups/prd-iter1.json.gz" ]
@@ -180,7 +185,7 @@ teardown() {
   echo '{"iter":1,"phase":"C"}' > "$TMP_SCRATCH/_checkpoint.json"
 
   run run_compress 5 "$TMP_SCRATCH"
-  [ "$status" -eq 0 ]
+  assert_success
 
   [ -f "$TMP_SCRATCH/_checkpoint.json" ]
   [ ! -f "$TMP_SCRATCH/_checkpoint.json.gz" ]
@@ -190,7 +195,7 @@ teardown() {
   echo "<html></html>" > "$TMP_SCRATCH/gate-reports/latest-review.html"
 
   run run_compress 5 "$TMP_SCRATCH"
-  [ "$status" -eq 0 ]
+  assert_success
 
   [ -f "$TMP_SCRATCH/gate-reports/latest-review.html" ]
   [ ! -f "$TMP_SCRATCH/gate-reports/latest-review.html.gz" ]
@@ -200,17 +205,17 @@ teardown() {
   echo '{"iter":1}' > "$TMP_SCRATCH/prd-backups/prd-iter1.json"
 
   run run_compress 3 "$TMP_SCRATCH"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"[compress]"* ]]
-  [[ "$output" == *"iters 1-1"* ]]
+  assert_success
+  assert_output --partial "[compress]"
+  assert_output --partial "iters 1-1"
 }
 
 @test "skips gracefully when gzip is unavailable" {
   echo '{"iter":1}' > "$TMP_SCRATCH/prd-backups/prd-iter1.json"
 
   run run_compress 3 "$TMP_SCRATCH" "false"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"gzip not available"* ]]
+  assert_success
+  assert_output --partial "gzip not available"
 
   # File must be left untouched
   [ -f "$TMP_SCRATCH/prd-backups/prd-iter1.json" ]

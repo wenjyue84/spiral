@@ -11,20 +11,15 @@
 #   - _PHASE_V_SKIPPED is set to 1 on skip
 #   - _PASSES_BEFORE_I=-1 (sentinel) never triggers the skip
 
+bats_require_minimum_version 1.7.0
+
 # ── Test setup ────────────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   export TMPDIR_PVS
   TMPDIR_PVS="$(mktemp -d)"
-
-  # Resolve jq binary
-  if command -v jq &>/dev/null; then
-    export JQ="jq"
-  elif [[ -f "ralph/jq.exe" ]]; then
-    export JQ="ralph/jq.exe"
-  elif [[ -f "ralph/jq" ]]; then
-    export JQ="ralph/jq"
-  fi
 
   # Stub helpers used in the Phase V decision block
   log_spiral_event() { printf '{"type":"%s"}\n' "$1" >> "$TMPDIR_PVS/events.jsonl"; }
@@ -67,20 +62,20 @@ export -f phase_v_decision
 
 @test "Phase V is skipped when passes count did not increase" {
   run phase_v_decision 3 3
-  [ "$status" -eq 0 ]
+  assert_success
   [[ "$output" == "SKIPPED" ]]
 }
 
 @test "Phase V is skipped when passes count decreased (regression guard)" {
   # Should not happen in normal flow but guard is still correct
   run phase_v_decision 4 3
-  [ "$status" -eq 0 ]
+  assert_success
   [[ "$output" == "SKIPPED" ]]
 }
 
 @test "Phase V is skipped when zero passes before and after (all stories retry)" {
   run phase_v_decision 0 0
-  [ "$status" -eq 0 ]
+  assert_success
   [[ "$output" == "SKIPPED" ]]
 }
 
@@ -88,13 +83,13 @@ export -f phase_v_decision
 
 @test "Phase V runs when passes count increased by one" {
   run phase_v_decision 3 4
-  [ "$status" -eq 0 ]
+  assert_success
   [[ "$output" == "RAN" ]]
 }
 
 @test "Phase V runs when passes count increased from zero to one" {
   run phase_v_decision 0 1
-  [ "$status" -eq 0 ]
+  assert_success
   [[ "$output" == "RAN" ]]
 }
 
@@ -102,13 +97,13 @@ export -f phase_v_decision
 
 @test "SPIRAL_FORCE_VALIDATE=true bypasses skip when no new passes" {
   run phase_v_decision 3 3 "true"
-  [ "$status" -eq 0 ]
+  assert_success
   [[ "$output" == "RAN" ]]
 }
 
 @test "SPIRAL_FORCE_VALIDATE=false respects skip (default)" {
   run phase_v_decision 5 5 "false"
-  [ "$status" -eq 0 ]
+  assert_success
   [[ "$output" == "SKIPPED" ]]
 }
 
@@ -117,7 +112,7 @@ export -f phase_v_decision
 @test "sentinel _PASSES_BEFORE_I=-1 does not trigger skip (ralph never ran)" {
   # When _PASSES_BEFORE_I=-1 the _PASSES_BEFORE_I -ge 0 guard prevents skip
   run phase_v_decision -1 -1
-  [ "$status" -eq 0 ]
+  assert_success
   # -1 is NOT >= 0, so skip condition is false → falls through to RAN
   [[ "$output" == "RAN" ]]
 }
@@ -126,7 +121,7 @@ export -f phase_v_decision
 
 @test "RALPH_RAN=0 uses the existing ralph-did-not-run skip path" {
   run phase_v_decision 3 3 "false" 0
-  [ "$status" -eq 0 ]
+  assert_success
   [[ "$output" == "RALPH_NOT_RAN" ]]
 }
 

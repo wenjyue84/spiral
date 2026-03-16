@@ -12,24 +12,19 @@
 #   - preflight probe is skipped when SPIRAL_SKIP_API_CHECK=true
 #   - preflight probe exits ERR_API_DOWN (14) when API unreachable
 
+bats_require_minimum_version 1.7.0
+
 # ── Test setup ────────────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   export TMPDIR_API
   TMPDIR_API="$(mktemp -d)"
 
   export MOCK_BIN="$TMPDIR_API/bin"
   mkdir -p "$MOCK_BIN"
   export PATH="$MOCK_BIN:$PATH"
-
-  # Resolve jq binary
-  if command -v jq &>/dev/null; then
-    export JQ="jq"
-  elif [[ -f "ralph/jq.exe" ]]; then
-    export JQ="ralph/jq.exe"
-  elif [[ -f "ralph/jq" ]]; then
-    export JQ="ralph/jq"
-  fi
 
   # Provide a dummy API key so key-presence checks pass by default
   export ANTHROPIC_API_KEY="test-key-us179"
@@ -59,9 +54,9 @@ EOF
   source_check_claude_api
 
   run check_claude_api
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"[OK]"* ]]
-  [[ "$output" == *"Claude API reachable"* ]]
+  assert_success
+  assert_output --partial "[OK]"
+  assert_output --partial "Claude API reachable"
 }
 
 @test "check_claude_api returns ERROR when curl fails (network error)" {
@@ -73,9 +68,9 @@ EOF
   source_check_claude_api
 
   run check_claude_api
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"[ERROR]"* ]]
-  [[ "$output" == *"not reachable"* ]]
+  assert_failure 1
+  assert_output --partial "[ERROR]"
+  assert_output --partial "not reachable"
 }
 
 @test "check_claude_api returns ERROR when curl times out" {
@@ -87,8 +82,8 @@ EOF
   source_check_claude_api
 
   run check_claude_api
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"[ERROR]"* ]]
+  assert_failure 1
+  assert_output --partial "[ERROR]"
 }
 
 @test "check_claude_api returns ERROR when ANTHROPIC_API_KEY is empty" {
@@ -96,9 +91,9 @@ EOF
   export ANTHROPIC_API_KEY=""
 
   run check_claude_api
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"[ERROR]"* ]]
-  [[ "$output" == *"ANTHROPIC_API_KEY is not set"* ]]
+  assert_failure 1
+  assert_output --partial "[ERROR]"
+  assert_output --partial "ANTHROPIC_API_KEY is not set"
 }
 
 @test "check_claude_api returns SKIP when SPIRAL_SKIP_API_CHECK=true" {
@@ -106,8 +101,8 @@ EOF
   export SPIRAL_SKIP_API_CHECK="true"
 
   run check_claude_api
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"SKIP"* ]]
+  assert_success
+  assert_output --partial "SKIP"
 }
 
 @test "check_claude_api hint mentions SPIRAL_SKIP_API_CHECK on failure" {
@@ -119,8 +114,8 @@ EOF
   source_check_claude_api
 
   run check_claude_api
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"SPIRAL_SKIP_API_CHECK"* ]]
+  assert_failure 1
+  assert_output --partial "SPIRAL_SKIP_API_CHECK"
 }
 
 # ── preflight integration tests ───────────────────────────────────────────────
@@ -152,8 +147,8 @@ source_preflight() {
     JQ=jq
     spiral_preflight_check '$PRD_FILE' '$TMPDIR_API'
   "
-  [[ "$output" == *"Skipping Claude API check"* ]]
-  [[ "$output" == *"dry-run"* ]]
+  assert_output --partial "Skipping Claude API check"
+  assert_output --partial "dry-run"
 }
 
 @test "preflight skips API probe when SPIRAL_SKIP_API_CHECK=true" {
@@ -169,8 +164,8 @@ source_preflight() {
     JQ=jq
     spiral_preflight_check '$(pwd)/prd.json' '$TMPDIR_API'
   "
-  [[ "$output" == *"Skipping Claude API check"* ]]
-  [[ "$output" == *"SPIRAL_SKIP_API_CHECK=true"* ]]
+  assert_output --partial "Skipping Claude API check"
+  assert_output --partial "SPIRAL_SKIP_API_CHECK=true"
 }
 
 @test "preflight exits 14 (ERR_API_DOWN) when curl fails" {
@@ -192,9 +187,9 @@ EOF
     JQ=jq
     spiral_preflight_check '$(pwd)/prd.json' '$TMPDIR_API'
   "
-  [ "$status" -eq 14 ]
-  [[ "$output" == *"FATAL"* ]]
-  [[ "$output" == *"not reachable"* ]]
+  assert_failure 14
+  assert_output --partial "FATAL"
+  assert_output --partial "not reachable"
 }
 
 @test "preflight exits 14 when ANTHROPIC_API_KEY is empty" {
@@ -208,6 +203,6 @@ EOF
     JQ=jq
     spiral_preflight_check '$(pwd)/prd.json' '$TMPDIR_API'
   "
-  [ "$status" -eq 14 ]
-  [[ "$output" == *"ANTHROPIC_API_KEY"* ]]
+  assert_failure 14
+  assert_output --partial "ANTHROPIC_API_KEY"
 }

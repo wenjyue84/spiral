@@ -13,9 +13,13 @@
 #   - SPIRAL_SECURITY_SCAN_TOOL=bandit → uses bandit parsing path
 #   - Bandit HIGH findings → returns 1
 
+bats_require_minimum_version 1.7.0
+
 # ── Test setup ────────────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   export TMPDIR_SS
   TMPDIR_SS="$(mktemp -d)"
 
@@ -28,15 +32,6 @@ setup() {
   export SPIRAL_SECURITY_SCAN_ARGS=""
 
   touch "$PROGRESS_FILE"
-
-  # Resolve jq binary (same logic as other bats tests)
-  if command -v jq &>/dev/null; then
-    export JQ="jq"
-  elif [[ -f "ralph/jq.exe" ]]; then
-    export JQ="ralph/jq.exe"
-  elif [[ -f "ralph/jq" ]]; then
-    export JQ="ralph/jq"
-  fi
 
   # Stub log_ralph_event to avoid real file writes
   log_ralph_event() {
@@ -66,13 +61,13 @@ teardown() {
 @test "SPIRAL_SECURITY_SCAN=false: no-op, returns 0" {
   export SPIRAL_SECURITY_SCAN="false"
   run run_security_scan
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "SPIRAL_SECURITY_SCAN unset: no-op, returns 0" {
   unset SPIRAL_SECURITY_SCAN
   run run_security_scan
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "semgrep not found: skips with warning, returns 0" {
@@ -84,8 +79,8 @@ teardown() {
   }
   export -f semgrep command
   run run_security_scan
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"not found"* ]]
+  assert_success
+  assert_output --partial "not found"
 }
 
 @test "bandit not found: skips with warning, returns 0" {
@@ -97,8 +92,8 @@ teardown() {
   }
   export -f bandit command
   run run_security_scan
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"not found"* ]]
+  assert_success
+  assert_output --partial "not found"
 }
 
 @test "no staged files: skips, returns 0" {
@@ -109,8 +104,8 @@ teardown() {
   }
   export -f git
   run run_security_scan
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"No staged files"* ]]
+  assert_success
+  assert_output --partial "No staged files"
 }
 
 @test "semgrep: HIGH finding fails the scan (returns 1)" {
@@ -128,8 +123,8 @@ JSON
   }
   export -f semgrep command
   run run_security_scan
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"FAILED"* ]]
+  assert_failure 1
+  assert_output --partial "FAILED"
 }
 
 @test "semgrep: MEDIUM-only findings returns 0 (warning only)" {
@@ -146,8 +141,8 @@ JSON
   }
   export -f semgrep command
   run run_security_scan
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"WARNING"* ]]
+  assert_success
+  assert_output --partial "WARNING"
 }
 
 @test "semgrep: no findings returns 0 (passed)" {
@@ -164,8 +159,8 @@ JSON
   }
   export -f semgrep command
   run run_security_scan
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"Passed"* ]]
+  assert_success
+  assert_output --partial "Passed"
 }
 
 @test "semgrep: report written to SPIRAL_SCRATCH_DIR/security_scan_STORY_ID.json" {
@@ -207,6 +202,6 @@ JSON
   }
   export -f bandit command
   run run_security_scan
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"FAILED"* ]]
+  assert_failure 1
+  assert_output --partial "FAILED"
 }

@@ -14,6 +14,7 @@
 # spiral_exit in subshells. This avoids the complexity of running full
 # spiral.sh for each test while thoroughly validating the taxonomy.
 
+bats_require_minimum_version 1.7.0
 SPIRAL_SH="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)/spiral.sh"
 SPIRAL_HOME="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
 
@@ -44,6 +45,8 @@ assert_error_format() {
 # ── Test setup ─────────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   TEST_DIR="$(mktemp -d)"
   export SCRATCH_DIR="$TEST_DIR/.spiral"
   mkdir -p "$SCRATCH_DIR"
@@ -97,7 +100,7 @@ run_spiral_exit() {
 
 @test "E501: spiral_exit produces correct exit code and [SPIRAL-E-E501] format" {
   run_spiral_exit E501 "/path/to/missing/prd.json"
-  [ "$status" -eq 5 ]
+  assert_failure 5
   assert_error_format "E501" "$output"
   echo "$output" | grep -q "/path/to/missing/prd.json"
 }
@@ -106,7 +109,7 @@ run_spiral_exit() {
 
 @test "E503: spiral_exit produces correct exit code and [SPIRAL-E-E503] format" {
   run_spiral_exit E503 "99"
-  [ "$status" -eq 7 ]
+  assert_failure 7
   assert_error_format "E503" "$output"
   echo "$output" | grep -q "99"
 }
@@ -115,7 +118,7 @@ run_spiral_exit() {
 
 @test "E103: spiral_exit produces correct exit code and [SPIRAL-E-E103] format" {
   run_spiral_exit E103 "ralph.sh not found at /nonexistent/ralph.sh"
-  [ "$status" -eq 4 ]
+  assert_failure 4
   assert_error_format "E103" "$output"
   echo "$output" | grep -q "ralph.sh"
 }
@@ -124,7 +127,7 @@ run_spiral_exit() {
 
 @test "E401: spiral_exit produces correct exit code and [SPIRAL-E-E401] format" {
   run_spiral_exit E401
-  [ "$status" -eq 9 ]
+  assert_failure 9
   assert_error_format "E401" "$output"
   echo "$output" | grep -q "Zero-progress"
 }
@@ -133,7 +136,7 @@ run_spiral_exit() {
 
 @test "E201: spiral_exit produces correct exit code and [SPIRAL-E-E201] format" {
   run_spiral_exit E201 "connection timeout"
-  [ "$status" -eq 14 ]
+  assert_failure 14
   assert_error_format "E201" "$output"
   echo "$output" | grep -q "connection timeout"
 }
@@ -212,7 +215,7 @@ CONF
   run bash "$SPIRAL_SH" \
     --config "$TEST_DIR/spiral.config.sh" \
     --prd "$TEST_DIR/project/prd.json" 2>&1
-  [ "$status" -eq 5 ]
+  assert_failure 5
   echo "$output" | grep -q "\[SPIRAL-E-E501\]"
 }
 
@@ -228,6 +231,6 @@ CONF
   run bash "$SPIRAL_SH" \
     --config "$TEST_DIR/spiral.config.sh" \
     --prd "$TEST_DIR/project/prd.json" 2>&1
-  [ "$status" -eq 7 ]
+  assert_failure 7
   echo "$output" | grep -q "\[SPIRAL-E-E503\]"
 }

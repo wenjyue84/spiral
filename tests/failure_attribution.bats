@@ -1,7 +1,10 @@
 #!/usr/bin/env bats
 # Tests for multi-agent failure attribution (US-233)
 
+bats_require_minimum_version 1.7.0
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   export TMPDIR="${TMPDIR:-/tmp}"
   CHECKPOINT_FILE="$TMPDIR/checkpoint_$RANDOM.json"
   PYTHON="${PYTHON:-python}"

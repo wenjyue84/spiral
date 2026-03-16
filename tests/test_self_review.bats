@@ -13,9 +13,13 @@
 #   - _REVIEW_TOKENS is set from usage.input_tokens + usage.output_tokens
 #   - review_tokens column appears in results.tsv header
 
+bats_require_minimum_version 1.7.0
+
 # ── Test setup ────────────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   export TMPDIR_SR
   TMPDIR_SR="$(mktemp -d)"
   export SPIRAL_SCRATCH_DIR="$TMPDIR_SR"
@@ -24,15 +28,6 @@ setup() {
   export MOCK_BIN="$TMPDIR_SR/bin"
   mkdir -p "$MOCK_BIN"
   export PATH="$MOCK_BIN:$PATH"
-
-  # Resolve jq binary
-  if command -v jq &>/dev/null; then
-    export JQ="jq"
-  elif [[ -f "ralph/jq.exe" ]]; then
-    export JQ="ralph/jq.exe"
-  elif [[ -f "ralph/jq" ]]; then
-    export JQ="ralph/jq"
-  fi
 
   # Stub log_spiral_event and log_ralph_event (not needed in unit tests)
   log_spiral_event() { true; }
@@ -103,7 +98,7 @@ EOF
 
   source_self_review_fn
   run run_self_review "US-TEST"
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "run_self_review returns 0 when review finds only minor issues" {
@@ -122,7 +117,7 @@ EOF
 
   source_self_review_fn
   run run_self_review "US-TEST"
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 # ── Tests: run_self_review returns 1 on critical issues ──────────────────────
@@ -143,7 +138,7 @@ EOF
 
   source_self_review_fn
   run run_self_review "US-TEST"
-  [ "$status" -eq 1 ]
+  assert_failure 1
 }
 
 @test "run_self_review stores _selfReviewIssues in prd.json on critical find" {
@@ -211,7 +206,7 @@ EOF
   source_self_review_fn
   run run_self_review "US-TEST"
   # Should return 0 (non-JSON treated as no issues — fail open)
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "run_self_review returns 0 when there is no diff" {
@@ -224,7 +219,7 @@ EOF
 
   source_self_review_fn
   run run_self_review "US-TEST"
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 # ── Tests: results.tsv header ────────────────────────────────────────────────

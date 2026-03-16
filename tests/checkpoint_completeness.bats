@@ -10,9 +10,13 @@
 #   - check_checkpoint_completeness returns 0 for complete checkpoint
 #   - Truncated checkpoint triggers re-load in spiral.sh
 
+bats_require_minimum_version 1.7.0
+
 # ── Test setup ────────────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   export SPIRAL_SCRATCH_DIR="$(mktemp -d)"
   export JQ="jq"
 
@@ -41,7 +45,7 @@ teardown() {
   $JQ -n '{phase: "I", storyId: "US-123", retryCount: 0}' > "$ckpt_file"
 
   run check_checkpoint_completeness "$ckpt_file"
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "check_checkpoint_completeness: missing phase returns 1" {
@@ -49,8 +53,8 @@ teardown() {
   $JQ -n '{storyId: "US-123", retryCount: 0}' > "$ckpt_file"
 
   run check_checkpoint_completeness "$ckpt_file"
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"phase=✗"* ]]
+  assert_failure 1
+  assert_output --partial "phase=✗"
 }
 
 @test "check_checkpoint_completeness: missing storyId returns 1" {
@@ -58,8 +62,8 @@ teardown() {
   $JQ -n '{phase: "I", retryCount: 0}' > "$ckpt_file"
 
   run check_checkpoint_completeness "$ckpt_file"
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"storyId=✗"* ]]
+  assert_failure 1
+  assert_output --partial "storyId=✗"
 }
 
 @test "check_checkpoint_completeness: missing retryCount returns 1" {
@@ -67,8 +71,8 @@ teardown() {
   $JQ -n '{phase: "I", storyId: "US-123"}' > "$ckpt_file"
 
   run check_checkpoint_completeness "$ckpt_file"
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"retryCount=✗"* ]]
+  assert_failure 1
+  assert_output --partial "retryCount=✗"
 }
 
 @test "check_checkpoint_completeness: empty checkpoint returns 1" {
@@ -76,7 +80,7 @@ teardown() {
   $JQ -n '{}' > "$ckpt_file"
 
   run check_checkpoint_completeness "$ckpt_file"
-  [ "$status" -eq 1 ]
+  assert_failure 1
 }
 
 @test "check_checkpoint_completeness: truncated checkpoint returns 1" {
@@ -85,7 +89,7 @@ teardown() {
   echo '{"phase":"R","storyId":"US-456"' > "$ckpt_file"
 
   run check_checkpoint_completeness "$ckpt_file"
-  [ "$status" -eq 1 ]
+  assert_failure 1
 }
 
 @test "check_checkpoint_completeness: checkpoint with null values returns 1" {
@@ -93,7 +97,7 @@ teardown() {
   $JQ -n '{phase: null, storyId: null, retryCount: null}' > "$ckpt_file"
 
   run check_checkpoint_completeness "$ckpt_file"
-  [ "$status" -eq 1 ]
+  assert_failure 1
 }
 
 @test "check_checkpoint_completeness: checkpoint with extra fields returns 0" {
@@ -101,5 +105,5 @@ teardown() {
   $JQ -n '{phase: "V", storyId: "US-789", retryCount: 2, timestamp: "2026-03-16T10:00:00Z", extra: "data"}' > "$ckpt_file"
 
   run check_checkpoint_completeness "$ckpt_file"
-  [ "$status" -eq 0 ]
+  assert_success
 }

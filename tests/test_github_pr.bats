@@ -14,10 +14,13 @@
 #   - SPIRAL_PR_BASE_BRANCH override: custom base branch used
 #   - rollback: _prUrl cleared from prd.json by --rollback
 
+bats_require_minimum_version 1.7.0
 RALPH_SH="$(cd "$(dirname "${BATS_TEST_DIRNAME}")" && pwd)/ralph/ralph.sh"
 SPIRAL_SH="$(cd "$(dirname "${BATS_TEST_DIRNAME}")" && pwd)/spiral.sh"
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   # Fresh temp git repo per test
   TEST_REPO="$(mktemp -d)"
   export TEST_REPO
@@ -125,9 +128,9 @@ STUB
       fi
       echo 'done'
     "
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"done"* ]]
-  [[ "$output" != *"ERROR: gh should not be called"* ]]
+  assert_success
+  assert_output --partial "done"
+  refute_output --partial "ERROR: gh should not be called"
 }
 
 # ── Test 2: gh not in PATH → SKIP with actionable message ────────────────────
@@ -145,8 +148,8 @@ STUB
       log_ralph_event() { :; }
       create_github_pr 'US-001' 'Add hello world feature' '$INITIAL_SHA'
     "
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"SKIP: gh CLI not found"* ]]
+  assert_success
+  assert_output --partial "SKIP: gh CLI not found"
 }
 
 # ── Test 3: gh present but not authenticated → SKIP message ──────────────────
@@ -175,8 +178,8 @@ STUB
       log_ralph_event() { :; }
       create_github_pr 'US-001' 'Add hello world feature' '$INITIAL_SHA'
     "
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"SKIP: gh CLI is not authenticated"* ]]
+  assert_success
+  assert_output --partial "SKIP: gh CLI is not authenticated"
 }
 
 # ── Test 4: happy path → branch pushed, PR created, _prUrl stored ────────────
@@ -221,8 +224,8 @@ STUB
       log_ralph_event() { :; }
       create_github_pr 'US-001' 'Add hello world feature' '$INITIAL_SHA'
     "
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"Created PR: $fake_pr_url"* ]]
+  assert_success
+  assert_output --partial "Created PR: $fake_pr_url"
 
   # _prUrl must be written to prd.json
   local stored_url
@@ -271,9 +274,9 @@ STUB
       log_ralph_event() { :; }
       create_github_pr 'US-001' 'Add hello world feature' '$INITIAL_SHA'
     "
-  [ "$status" -eq 0 ]
-  [[ "$output" != *"ERROR: should not create duplicate"* ]]
-  [[ "$output" == *"PR already exists: $existing_url"* ]]
+  assert_success
+  refute_output --partial "ERROR: should not create duplicate"
+  assert_output --partial "PR already exists: $existing_url"
 }
 
 # ── Test 6: SPIRAL_PR_DRAFT=true → --draft flag passed ──────────────────────
@@ -315,7 +318,7 @@ STUB
       log_ralph_event() { :; }
       create_github_pr 'US-001' 'Add hello world feature' '$INITIAL_SHA'
     "
-  [ "$status" -eq 0 ]
+  assert_success
   [[ -f "$args_file" ]]
   grep -q "\-\-draft" "$args_file"
 }
@@ -359,7 +362,7 @@ STUB
       log_ralph_event() { :; }
       create_github_pr 'US-001' 'Add hello world feature' '$INITIAL_SHA'
     "
-  [ "$status" -eq 0 ]
+  assert_success
   [[ -f "$args_file" ]]
   grep -q "develop" "$args_file"
 }
@@ -407,7 +410,7 @@ CONFEOF
   cd "$TEST_REPO"
   run bash "$SPIRAL_SH" --rollback US-001
 
-  [ "$status" -eq 0 ]
+  assert_success
 
   # _prUrl must be absent after rollback
   local pr_url

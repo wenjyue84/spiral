@@ -11,21 +11,16 @@
 #   - results.tsv header includes cache_hit and cache_read_tokens columns
 #   - accumulate_story_cost accounts for cache pricing
 
+bats_require_minimum_version 1.7.0
+
 # ── Test setup ────────────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   export TMPDIR_PC
   TMPDIR_PC="$(mktemp -d)"
   export SPIRAL_SCRATCH_DIR="$TMPDIR_PC"
-
-  # Provide a minimal JQ path
-  if command -v jq &>/dev/null; then
-    export JQ="jq"
-  elif [[ -f "ralph/jq.exe" ]]; then
-    export JQ="ralph/jq.exe"
-  elif [[ -f "ralph/jq" ]]; then
-    export JQ="ralph/jq"
-  fi
 
   # Stub log_spiral_event for tests
   log_spiral_event() {
@@ -103,9 +98,9 @@ export -f parse_cache_fields
 
   [ -f "$events_file" ]
   run grep "prompt_cache" "$events_file"
-  [[ "$output" == *"cache_creation_tokens"* ]]
-  [[ "$output" == *"cache_read_tokens"* ]]
-  [[ "$output" == *"cache_hit"* ]]
+  assert_output --partial "cache_creation_tokens"
+  assert_output --partial "cache_read_tokens"
+  assert_output --partial "cache_hit"
 }
 
 @test "prompt_cache event records cache hit on second invocation" {
@@ -119,7 +114,7 @@ export -f parse_cache_fields
     '"cache_creation_tokens":0,"cache_read_tokens":4500,"cache_hit":true'
 
   run grep -c "prompt_cache" "$events_file"
-  [ "$output" = "2" ]
+  assert_output "2"
 
   # Second event should have cache_hit:true
   local second_event
@@ -134,8 +129,8 @@ export -f parse_cache_fields
   printf 'timestamp\tspiral_iter\tralph_iter\tstory_id\tstory_title\tstatus\tduration_sec\tmodel\tretry_num\tcommit_sha\trun_id\tcache_hit\tcache_read_tokens\n' > "$results_file"
 
   run head -1 "$results_file"
-  [[ "$output" == *"cache_hit"* ]]
-  [[ "$output" == *"cache_read_tokens"* ]]
+  assert_output --partial "cache_hit"
+  assert_output --partial "cache_read_tokens"
 }
 
 @test "results.tsv data row includes cache fields" {
@@ -206,7 +201,7 @@ PYEOF
 
   # Compare with tolerance (python float rounding)
   run python3 -c "import sys; sys.exit(0 if abs(float('$result') - 0.0234) < 0.0001 else 1)"
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "accumulate_story_cost without cache tokens matches original behavior" {
@@ -229,5 +224,5 @@ print(round(cost, 6))
 ")
 
   run python3 -c "import sys; sys.exit(0 if abs(float('$result') - 0.045) < 0.0001 else 1)"
-  [ "$status" -eq 0 ]
+  assert_success
 }

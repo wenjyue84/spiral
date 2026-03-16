@@ -10,6 +10,7 @@
 #      values.  Only tests error paths that fire *before* any API call or
 #      long-running operation (argument validation, missing deps, etc.).
 
+bats_require_minimum_version 1.7.0
 SPIRAL_SH="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)/spiral.sh"
 
 # ── Helpers ────────────────────────────────────────────────────────────────
@@ -98,7 +99,7 @@ constant_value() {
 
 @test "--help lists exit codes section" {
   run bash "$SPIRAL_SH" --help
-  [ "$status" -eq 0 ]
+  assert_success
   echo "$output" | grep -q 'Exit Codes'
   echo "$output" | grep -q 'ERR_MAX_ITERS'
   echo "$output" | grep -q 'ERR_API_DOWN'
@@ -128,6 +129,8 @@ constant_value() {
 }
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   # Create a minimal project directory so we can reach checks that fire
   # after argument parsing and config loading.
   SPIRAL_TEST_DIR="$(mktemp -d)"

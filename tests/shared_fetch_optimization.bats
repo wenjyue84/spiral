@@ -9,9 +9,13 @@
 #   - With 5+ workers, total fetch time is reduced vs per-worker approach
 #   - Git trace shows exactly one fetch operation
 
+bats_require_minimum_version 1.7.0
+
 # ── Setup / teardown ──────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   export TMPDIR_TEST
   TMPDIR_TEST="$(mktemp -d)"
 
@@ -114,7 +118,7 @@ create_and_sync_worktrees() {
   # Verify worktree has updated content (the "updated" commit)
   [ -f "$WTR/README.md" ]
   run cat "$WTR/README.md"
-  [[ "$output" == *"updated"* ]]
+  assert_output --partial "updated"
 }
 
 @test "git reset --hard origin/main succeeds in worktree after shared fetch" {
@@ -127,7 +131,7 @@ create_and_sync_worktrees() {
 
   # Reset should succeed (no fetch needed, objects already in shared db)
   run git -C "$WTR" reset --hard origin/main 2>&1
-  [ "$status" -eq 0 ]
+  assert_success
   [[ "$output" == *"HEAD is now at"* ]] || [[ "$output" == "" ]]
 }
 
@@ -165,7 +169,7 @@ create_and_sync_worktrees() {
 
   # Reset to origin/main using existing objects (no fetch)
   run git -C "$WTR" reset --hard origin/main 2>&1
-  [ "$status" -eq 0 ]
+  assert_success
 
   # Verify worktree is now at origin/main
   WTR_SHA=$(git -C "$WTR" rev-parse HEAD 2>/dev/null)

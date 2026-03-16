@@ -11,9 +11,13 @@
 #   - truncation at SPIRAL_MAX_DIFF_LINES adds notice
 #   - SPIRAL_CONTEXT_MODE=full injects full file contents
 
+bats_require_minimum_version 1.7.0
+
 # ── Setup / teardown ──────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   export TMPDIR
   TMPDIR="$(mktemp -d)"
 
@@ -85,7 +89,7 @@ make_story_json() {
   local story_json
   story_json=$(make_story_json '["bigfile.txt"]')
   run build_files_context "$story_json"
-  [ "$status" -eq 0 ]
+  assert_success
   [ -n "$output" ]
 }
 
@@ -95,8 +99,8 @@ make_story_json() {
   local story_json
   story_json=$(make_story_json '["bigfile.txt"]')
   run build_files_context "$story_json"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"Diff (last"* ]] || [[ "$output" == *"File (new/unchanged)"* ]]
+  assert_success
+  assert_output --partial "Diff (last"* ]] || [[ "$output" == *"File (new/unchanged)"
 }
 
 @test "diff mode output is smaller than full mode for modified file" {
@@ -132,10 +136,10 @@ make_story_json() {
   local story_json
   story_json=$(make_story_json '["bigfile.txt"]')
   run build_files_context "$story_json"
-  [ "$status" -eq 0 ]
+  assert_success
   # Full file has 200+ lines; output should contain line 200
-  [[ "$output" == *"200"* ]]
-  [[ "$output" == *"### File:"* ]]
+  assert_output --partial "200"
+  assert_output --partial "### File:"
 }
 
 @test "new file (empty diff): falls back to full content" {
@@ -144,9 +148,9 @@ make_story_json() {
   local story_json
   story_json=$(make_story_json '["newfile.txt"]')
   run build_files_context "$story_json"
-  [ "$status" -eq 0 ]
+  assert_success
   # newfile.txt has no history before HEAD~1, so diff is empty → fall back
-  [[ "$output" == *"brand new"* ]] || [[ "$output" == *"new/unchanged"* ]]
+  assert_output --partial "brand new"* ]] || [[ "$output" == *"new/unchanged"
 }
 
 @test "empty filesTouch: produces no output" {
@@ -155,7 +159,7 @@ make_story_json() {
   local story_json
   story_json='{"id":"US-TEST","filesTouch":[]}'
   run build_files_context "$story_json"
-  [ "$status" -eq 0 ]
+  assert_success
   [ -z "$output" ]
 }
 
@@ -164,7 +168,7 @@ make_story_json() {
   SPIRAL_CONTEXT_MODE="diff"
   local story_json='{"id":"US-TEST"}'
   run build_files_context "$story_json"
-  [ "$status" -eq 0 ]
+  assert_success
   [ -z "$output" ]
 }
 
@@ -175,10 +179,10 @@ make_story_json() {
   local story_json
   story_json=$(make_story_json '["bigfile.txt"]')
   run build_files_context "$story_json"
-  [ "$status" -eq 0 ]
+  assert_success
   [ -n "$output" ]
   # Should contain truncation notice
-  [[ "$output" == *"truncated at SPIRAL_MAX_DIFF_LINES"* ]]
+  assert_output --partial "truncated at SPIRAL_MAX_DIFF_LINES"
 }
 
 @test "truncation: line count is at most max_lines + small header overhead" {
@@ -188,7 +192,7 @@ make_story_json() {
   local story_json
   story_json=$(make_story_json '["bigfile.txt"]')
   run build_files_context "$story_json"
-  [ "$status" -eq 0 ]
+  assert_success
   local line_count
   line_count=$(printf '%s\n' "$output" | wc -l)
   # Allow a few extra lines for header + truncation notice
@@ -201,6 +205,6 @@ make_story_json() {
   local story_json
   story_json=$(make_story_json '["bigfile.txt"]')
   run build_files_context "$story_json"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"SPIRAL_CONTEXT_MODE=diff"* ]]
+  assert_success
+  assert_output --partial "SPIRAL_CONTEXT_MODE=diff"
 }

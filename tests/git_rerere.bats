@@ -8,9 +8,13 @@
 #   - post-merge hook logs rerere_replay event to spiral_events.jsonl
 #   - A conflict resolved once is automatically replayed on identical conflict
 
+bats_require_minimum_version 1.7.0
+
 # ── Setup / Teardown ─────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   TEST_DIR="$(mktemp -d)"
   git init -b main "$TEST_DIR/repo" >/dev/null 2>&1
   cd "$TEST_DIR/repo"
@@ -176,5 +180,5 @@ teardown() {
 
   # Merge should succeed and hook should exit cleanly
   run git merge feat-c
-  [ "$status" -eq 0 ]
+  assert_success
 }

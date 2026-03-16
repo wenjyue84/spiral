@@ -12,10 +12,13 @@
 #   - Multiple dirty worktrees are all cleaned and reported
 #   - Non-existent .spiral-workers directory is handled gracefully
 
+bats_require_minimum_version 1.7.0
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 # Run the US-218 dirty-worktree detection block from spiral.sh in a subshell.
 # Args: REPO_ROOT (must contain .spiral-workers/worker-* dirs)
+
 run_dirty_reset() {
   bash -c '
     set -euo pipefail
@@ -79,6 +82,8 @@ create_worker_worktree() {
 # ── Setup / teardown ──────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   export TMPDIR_DWR
   TMPDIR_DWR="$(mktemp -d)"
 
@@ -111,8 +116,8 @@ teardown() {
 
 @test "no .spiral-workers directory: graceful no-op" {
   run run_dirty_reset "$REPO"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"No .spiral-workers directory"* ]]
+  assert_success
+  assert_output --partial "No .spiral-workers directory"
 }
 
 @test "clean worktree: no reset, reports clean" {
@@ -120,8 +125,8 @@ teardown() {
   create_worker_worktree "$REPO" "worker-1"
 
   run run_dirty_reset "$REPO"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"All worktrees clean"* ]]
+  assert_success
+  assert_output --partial "All worktrees clean"
 
   # No event logged
   [ ! -f "$REPO/.spiral/spiral_events.jsonl" ] || \
@@ -137,9 +142,9 @@ teardown() {
   git -C "$REPO/.spiral-workers/worker-1" add dirty.txt
 
   run run_dirty_reset "$REPO"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"Dirty worktree detected: worker-1"* ]]
-  [[ "$output" == *"Reset 1 dirty worktree(s)"* ]]
+  assert_success
+  assert_output --partial "Dirty worktree detected: worker-1"
+  assert_output --partial "Reset 1 dirty worktree(s)"
 
   # Verify worktree is now clean
   wt_status=$(git -C "$REPO/.spiral-workers/worker-1" status --porcelain 2>/dev/null)
@@ -154,8 +159,8 @@ teardown() {
   echo "modified" >> "$REPO/.spiral-workers/worker-1/README.md"
 
   run run_dirty_reset "$REPO"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"Dirty worktree detected: worker-1"* ]]
+  assert_success
+  assert_output --partial "Dirty worktree detected: worker-1"
 
   # Verify worktree is now clean
   wt_status=$(git -C "$REPO/.spiral-workers/worker-1" status --porcelain 2>/dev/null)
@@ -170,8 +175,8 @@ teardown() {
   echo "untracked" > "$REPO/.spiral-workers/worker-1/leftover.txt"
 
   run run_dirty_reset "$REPO"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"Dirty worktree detected: worker-1"* ]]
+  assert_success
+  assert_output --partial "Dirty worktree detected: worker-1"
 
   # Verify untracked file was removed
   [ ! -f "$REPO/.spiral-workers/worker-1/leftover.txt" ]
@@ -185,7 +190,7 @@ teardown() {
   git -C "$REPO/.spiral-workers/worker-1" add dirty.txt
 
   run run_dirty_reset "$REPO"
-  [ "$status" -eq 0 ]
+  assert_success
 
   # Check the event file
   [ -f "$REPO/.spiral/spiral_events.jsonl" ]
@@ -206,10 +211,10 @@ teardown() {
   echo "dirty2" >> "$REPO/.spiral-workers/worker-2/README.md"
 
   run run_dirty_reset "$REPO"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"Dirty worktree detected: worker-1"* ]]
-  [[ "$output" == *"Dirty worktree detected: worker-2"* ]]
-  [[ "$output" == *"Reset 2 dirty worktree(s)"* ]]
+  assert_success
+  assert_output --partial "Dirty worktree detected: worker-1"
+  assert_output --partial "Dirty worktree detected: worker-2"
+  assert_output --partial "Reset 2 dirty worktree(s)"
 
   # Both worktrees should be clean now
   wt1_status=$(git -C "$REPO/.spiral-workers/worker-1" status --porcelain 2>/dev/null)
@@ -231,8 +236,8 @@ teardown() {
   git -C "$REPO/.spiral-workers/worker-2" add dirty.txt
 
   run run_dirty_reset "$REPO"
-  [ "$status" -eq 0 ]
-  [[ "$output" != *"Dirty worktree detected: worker-1"* ]]
-  [[ "$output" == *"Dirty worktree detected: worker-2"* ]]
-  [[ "$output" == *"Reset 1 dirty worktree(s)"* ]]
+  assert_success
+  refute_output --partial "Dirty worktree detected: worker-1"
+  assert_output --partial "Dirty worktree detected: worker-2"
+  assert_output --partial "Reset 1 dirty worktree(s)"
 }

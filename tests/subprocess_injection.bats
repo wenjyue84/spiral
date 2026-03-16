@@ -8,7 +8,10 @@
 #   - safe_run with shell=False passes metacharacters as literal arguments
 #   - SubprocessPolicyViolation is raised (non-zero exit) for blocked executables
 
+bats_require_minimum_version 1.7.0
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   export TMPDIR_INJ
   TMPDIR_INJ="$(mktemp -d)"
   export SPIRAL_SCRATCH_DIR="$TMPDIR_INJ"
@@ -55,7 +58,7 @@ PYEOF
   run _safe_run_py "global" '["echo","$(rm -rf /)"]'
 
   # echo should succeed and output the literal string
-  [ "$status" -eq 0 ]
+  assert_success
   # Sentinel must still exist — injection was NOT executed
   [ -f "$SENTINEL" ]
   # The literal injection string must appear in stdout
@@ -69,11 +72,11 @@ PYEOF
 
   run _safe_run_py "global" "[\"echo\",\"hello; touch $MARKER\"]"
 
-  [ "$status" -eq 0 ]
+  assert_success
   # The marker must NOT have been created
   [ ! -f "$MARKER" ]
   # 'hello' is in the output
-  [[ "$output" == *"hello"* ]]
+  assert_output --partial "hello"
 }
 
 # ── Test: pipe metacharacter is literal ──────────────────────────────────────
@@ -81,42 +84,42 @@ PYEOF
 @test "pipe | in argument is treated as literal string" {
   run _safe_run_py "global" '["echo","hello | cat /etc/passwd"]'
 
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"|"* ]]
+  assert_success
+  assert_output --partial "|"
 }
 
 # ── Test: blocked executable in Phase I returns non-zero exit ────────────────
 
 @test "curl blocked in Phase I returns exit code 2 (SubprocessPolicyViolation)" {
   run _safe_run_py "I" '["curl","https://example.com"]'
-  [ "$status" -eq 2 ]
+  assert_failure 2
 }
 
 @test "wget blocked in Phase I returns exit code 2" {
   run _safe_run_py "I" '["wget","https://example.com"]'
-  [ "$status" -eq 2 ]
+  assert_failure 2
 }
 
 @test "bash blocked in Phase I returns exit code 2" {
   run _safe_run_py "I" '["bash","-c","id"]'
-  [ "$status" -eq 2 ]
+  assert_failure 2
 }
 
 @test "sh blocked in Phase I returns exit code 2" {
   run _safe_run_py "I" '["sh","-c","id"]'
-  [ "$status" -eq 2 ]
+  assert_failure 2
 }
 
 # ── Test: allowed executable in Phase I succeeds ─────────────────────────────
 
 @test "git allowed in Phase I succeeds" {
   run _safe_run_py "I" '["git","--version"]'
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "python3 allowed in Phase I succeeds" {
   run _safe_run_py "I" '["python3","--version"]'
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 # ── Test: violation is logged to security-audit.jsonl ────────────────────────
@@ -129,7 +132,7 @@ PYEOF
   [ -f "$AUDIT_LOG" ]
 
   run grep -q "SubprocessPolicyViolation" "$AUDIT_LOG"
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "audit log entry contains blocked executable name" {
@@ -137,7 +140,7 @@ PYEOF
 
   AUDIT_LOG="$TMPDIR_INJ/security-audit.jsonl"
   run grep -q "wget" "$AUDIT_LOG"
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 # ── Test: string command raises TypeError (exit 3) ───────────────────────────
@@ -157,5 +160,5 @@ PYEOF
   # run captures exit code in $status without aborting on non-zero
   run python3 "$tmpscript"
   # We expect exit 3 (TypeError raised)
-  [ "$status" -eq 3 ]
+  assert_failure 3
 }

@@ -9,9 +9,13 @@
 #   - check_story_completeness detects missing acceptanceCriteria
 #   - check_story_completeness returns 0 for complete story
 
+bats_require_minimum_version 1.7.0
+
 # ── Test setup ────────────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   export SPIRAL_SCRATCH_DIR="$(mktemp -d)"
   export JQ="jq"
 
@@ -48,7 +52,7 @@ teardown() {
   }' > "$prd_file"
 
   run check_story_completeness "US-100" "$prd_file"
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "check_story_completeness: missing title returns 1" {
@@ -64,8 +68,8 @@ teardown() {
   }' > "$prd_file"
 
   run check_story_completeness "US-101" "$prd_file"
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"title=✗"* ]]
+  assert_failure 1
+  assert_output --partial "title=✗"
 }
 
 @test "check_story_completeness: missing description returns 1" {
@@ -81,8 +85,8 @@ teardown() {
   }' > "$prd_file"
 
   run check_story_completeness "US-102" "$prd_file"
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"description=✗"* ]]
+  assert_failure 1
+  assert_output --partial "description=✗"
 }
 
 @test "check_story_completeness: missing acceptanceCriteria returns 1" {
@@ -98,8 +102,8 @@ teardown() {
   }' > "$prd_file"
 
   run check_story_completeness "US-103" "$prd_file"
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"acceptanceCriteria=✗"* ]]
+  assert_failure 1
+  assert_output --partial "acceptanceCriteria=✗"
 }
 
 @test "check_story_completeness: empty acceptanceCriteria array returns 1" {
@@ -116,8 +120,8 @@ teardown() {
   }' > "$prd_file"
 
   run check_story_completeness "US-104" "$prd_file"
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"acceptanceCriteria=✗"* ]]
+  assert_failure 1
+  assert_output --partial "acceptanceCriteria=✗"
 }
 
 @test "check_story_completeness: story with multiple acceptance criteria returns 0" {
@@ -140,7 +144,7 @@ teardown() {
   }' > "$prd_file"
 
   run check_story_completeness "US-105" "$prd_file"
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 @test "check_story_completeness: nonexistent story returns 1" {
@@ -148,5 +152,5 @@ teardown() {
   $JQ -n '{userStories: []}' > "$prd_file"
 
   run check_story_completeness "US-999" "$prd_file"
-  [ "$status" -eq 1 ]
+  assert_failure 1
 }

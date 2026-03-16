@@ -10,7 +10,10 @@
 #   - SAST gate check detects HIGH/CRITICAL findings and blocks
 #   - SAST gate writes reports to gate-reports/<story-id>_sast.json
 
+bats_require_minimum_version 1.7.0
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   export TMPDIR_SAST
   TMPDIR_SAST="$(mktemp -d)"
   export SCRATCH_DIR="$TMPDIR_SAST/.spiral"
@@ -53,8 +56,8 @@ _source_sast_fn() {
   export SPIRAL_SAST_ENABLED=false
   _source_sast_fn
   run run_sast_gate_check
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"Disabled"* ]]
+  assert_success
+  assert_output --partial "Disabled"
 }
 
 # ── Tests: semgrep not found ─────────────────────────────────────────────────
@@ -65,8 +68,8 @@ _source_sast_fn() {
   export PATH="/usr/bin:/bin"
   _source_sast_fn
   run run_sast_gate_check
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"semgrep not found"* ]]
+  assert_success
+  assert_output --partial "semgrep not found"
 }
 
 # ── Tests: no changed files ──────────────────────────────────────────────────
@@ -83,8 +86,8 @@ _source_sast_fn() {
   # No remote so git diff --name-only origin/main will fail → empty
   _source_sast_fn
   run run_sast_gate_check
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"No changed files"* || "$output" == *"skipping"* ]]
+  assert_success
+  assert_output --partial "No changed files"* || "$output" == *"skipping"
 }
 
 # ── Tests: planted SQL injection triggers HIGH finding ───────────────────────
@@ -130,7 +133,7 @@ PYEOF
   # Semgrep should detect the SQL injection and return non-zero
   # Note: semgrep may or may not flag this depending on ruleset availability
   # The function should at least run and produce output
-  [[ "$output" == *"Scanning"* || "$output" == *"SAST"* ]]
+  assert_output --partial "Scanning"* || "$output" == *"SAST"
 }
 
 # ── Tests: report file creation ──────────────────────────────────────────────

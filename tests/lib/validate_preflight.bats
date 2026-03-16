@@ -10,19 +10,13 @@
 #   - Invalid checkpoint phase is removed during preflight
 #   - Valid checkpoint is preserved during preflight
 
+bats_require_minimum_version 1.7.0
 setup() {
+  load ../test_helper/common-setup
+  _resolve_jq
   export TMPDIR_PF="$(mktemp -d)"
   export SCRATCH_DIR="$TMPDIR_PF/scratch"
   mkdir -p "$SCRATCH_DIR"
-
-  # Provide JQ
-  if command -v jq &>/dev/null; then
-    export JQ="jq"
-  elif [[ -f "ralph/jq.exe" ]]; then
-    export JQ="ralph/jq.exe"
-  elif [[ -f "ralph/jq" ]]; then
-    export JQ="ralph/jq"
-  fi
 
   # Create a bin/ with mock prd_schema.py (pass by default)
   export MOCK_BIN="$TMPDIR_PF/bin"
@@ -72,7 +66,7 @@ teardown() {
 
 @test "spiral_preflight_check passes with valid prd.json and no checkpoint" {
   run spiral_preflight_check "$PRD_FILE" "$SCRATCH_DIR"
-  [ "$status" -eq 0 ]
+  assert_success
   [[ "$output" =~ "All checks passed" ]]
 }
 
@@ -96,7 +90,7 @@ teardown() {
   local ckpt="$SCRATCH_DIR/_checkpoint.json"
   echo "NOT VALID JSON" > "$ckpt"
   run spiral_preflight_check "$PRD_FILE" "$SCRATCH_DIR"
-  [ "$status" -eq 0 ]
+  assert_success
   [ ! -f "$ckpt" ]
 }
 
@@ -104,7 +98,7 @@ teardown() {
   local ckpt="$SCRATCH_DIR/_checkpoint.json"
   echo '{"iter": 1}' > "$ckpt"
   run spiral_preflight_check "$PRD_FILE" "$SCRATCH_DIR"
-  [ "$status" -eq 0 ]
+  assert_success
   [ ! -f "$ckpt" ]
 }
 
@@ -112,7 +106,7 @@ teardown() {
   local ckpt="$SCRATCH_DIR/_checkpoint.json"
   echo '{"iter": 1, "phase": "X", "ts": 1000}' > "$ckpt"
   run spiral_preflight_check "$PRD_FILE" "$SCRATCH_DIR"
-  [ "$status" -eq 0 ]
+  assert_success
   [ ! -f "$ckpt" ]
 }
 
@@ -122,7 +116,7 @@ teardown() {
   local ckpt="$SCRATCH_DIR/_checkpoint.json"
   echo '{"iter": 1, "phase": "R", "ts": 1000}' > "$ckpt"
   run spiral_preflight_check "$PRD_FILE" "$SCRATCH_DIR"
-  [ "$status" -eq 0 ]
+  assert_success
   [ -f "$ckpt" ]
 }
 
@@ -130,7 +124,7 @@ teardown() {
   local ckpt="$SCRATCH_DIR/_checkpoint.json"
   echo '{"iter": 2, "phase": "I", "ts": 9999}' > "$ckpt"
   run spiral_preflight_check "$PRD_FILE" "$SCRATCH_DIR"
-  [ "$status" -eq 0 ]
+  assert_success
   [ -f "$ckpt" ]
 }
 
@@ -139,14 +133,14 @@ teardown() {
 @test "SPIRAL_MODEL_ROUTING=auto is accepted without warning" {
   export SPIRAL_MODEL_ROUTING="auto"
   run spiral_preflight_check "$PRD_FILE" "$SCRATCH_DIR"
-  [ "$status" -eq 0 ]
+  assert_success
   [[ ! "$output" =~ "WARNING: Unknown SPIRAL_MODEL_ROUTING" ]]
 }
 
 @test "SPIRAL_MODEL_ROUTING=badvalue emits a WARNING" {
   export SPIRAL_MODEL_ROUTING="badvalue"
   run spiral_preflight_check "$PRD_FILE" "$SCRATCH_DIR"
-  [ "$status" -eq 0 ]
+  assert_success
   [[ "$output" =~ "WARNING: Unknown SPIRAL_MODEL_ROUTING" ]]
   unset SPIRAL_MODEL_ROUTING
 }
@@ -156,7 +150,7 @@ teardown() {
 @test "MAX_RETRIES=3 passes validation without warning" {
   export MAX_RETRIES="3"
   run spiral_preflight_check "$PRD_FILE" "$SCRATCH_DIR"
-  [ "$status" -eq 0 ]
+  assert_success
   [[ ! "$output" =~ "WARNING: MAX_RETRIES" ]]
   unset MAX_RETRIES
 }
@@ -164,7 +158,7 @@ teardown() {
 @test "MAX_RETRIES=0 emits a WARNING (not positive integer)" {
   export MAX_RETRIES="0"
   run spiral_preflight_check "$PRD_FILE" "$SCRATCH_DIR"
-  [ "$status" -eq 0 ]
+  assert_success
   [[ "$output" =~ "WARNING: MAX_RETRIES" ]]
   unset MAX_RETRIES
 }

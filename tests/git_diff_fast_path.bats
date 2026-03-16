@@ -9,11 +9,14 @@
 #   - Skip count is logged: "Skipped full status on N/M worktrees (clean)"
 #   - Mixed scenario: some clean, some dirty — correct split
 
+bats_require_minimum_version 1.7.0
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 # Run the US-247 fast-path worktree status block in a subshell.
 # Mirrors the block in spiral.sh (US-218 + US-247 merged block).
 # Args: REPO_ROOT
+
 run_fast_path_check() {
   bash -c '
     set -euo pipefail
@@ -82,6 +85,8 @@ create_worker_worktree() {
 # ── Setup / teardown ──────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   export TMPDIR_DFP
   TMPDIR_DFP="$(mktemp -d)"
 
@@ -114,19 +119,19 @@ teardown() {
   create_worker_worktree "$REPO" "worker-1"
 
   run run_fast_path_check "$REPO"
-  [ "$status" -eq 0 ]
+  assert_success
   # Fast path message emitted
-  [[ "$output" == *"SKIPPED full status for worker-1 (clean)"* ]]
+  assert_output --partial "SKIPPED full status for worker-1 (clean)"
   # Full status message NOT emitted
-  [[ "$output" != *"RUNNING full status for worker-1"* ]]
+  refute_output --partial "RUNNING full status for worker-1"
 }
 
 @test "clean worktree: skip count logged correctly" {
   create_worker_worktree "$REPO" "worker-1"
 
   run run_fast_path_check "$REPO"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"Skipped full status on 1/1 worktrees (clean)"* ]]
+  assert_success
+  assert_output --partial "Skipped full status on 1/1 worktrees (clean)"
 }
 
 @test "dirty worktree (staged): full status runs, not skipped" {
@@ -136,13 +141,13 @@ teardown() {
   git -C "$REPO/.spiral-workers/worker-1" add staged.txt
 
   run run_fast_path_check "$REPO"
-  [ "$status" -eq 0 ]
+  assert_success
   # Full status ran for dirty worktree
-  [[ "$output" == *"RUNNING full status for worker-1 (dirty)"* ]]
+  assert_output --partial "RUNNING full status for worker-1 (dirty)"
   # Was NOT skipped
-  [[ "$output" != *"SKIPPED full status for worker-1"* ]]
+  refute_output --partial "SKIPPED full status for worker-1"
   # Reset was applied
-  [[ "$output" == *"Reset 1 dirty worktree(s)"* ]]
+  assert_output --partial "Reset 1 dirty worktree(s)"
 }
 
 @test "dirty worktree (unstaged modification): fast path detects dirty" {
@@ -157,8 +162,8 @@ teardown() {
   echo "modified" > "$REPO/.spiral-workers/worker-1/tracked.txt"
 
   run run_fast_path_check "$REPO"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"RUNNING full status for worker-1 (dirty)"* ]]
+  assert_success
+  assert_output --partial "RUNNING full status for worker-1 (dirty)"
 }
 
 @test "mixed: 2 clean + 1 dirty — correct skip count and reset" {
@@ -171,16 +176,16 @@ teardown() {
   git -C "$REPO/.spiral-workers/worker-2" add dirty.txt
 
   run run_fast_path_check "$REPO"
-  [ "$status" -eq 0 ]
+  assert_success
   # 2 of 3 skipped
-  [[ "$output" == *"Skipped full status on 2/3 worktrees (clean)"* ]]
+  assert_output --partial "Skipped full status on 2/3 worktrees (clean)"
   # worker-2 was processed
-  [[ "$output" == *"RUNNING full status for worker-2 (dirty)"* ]]
+  assert_output --partial "RUNNING full status for worker-2 (dirty)"
   # worker-1 and worker-3 were skipped
-  [[ "$output" == *"SKIPPED full status for worker-1 (clean)"* ]]
-  [[ "$output" == *"SKIPPED full status for worker-3 (clean)"* ]]
+  assert_output --partial "SKIPPED full status for worker-1 (clean)"
+  assert_output --partial "SKIPPED full status for worker-3 (clean)"
   # Reset count correct
-  [[ "$output" == *"Reset 1 dirty worktree(s)"* ]]
+  assert_output --partial "Reset 1 dirty worktree(s)"
 }
 
 @test "all clean: skip count is N/N" {
@@ -188,15 +193,15 @@ teardown() {
   create_worker_worktree "$REPO" "worker-2"
 
   run run_fast_path_check "$REPO"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"Skipped full status on 2/2 worktrees (clean)"* ]]
-  [[ "$output" != *"Reset"* ]]
+  assert_success
+  assert_output --partial "Skipped full status on 2/2 worktrees (clean)"
+  refute_output --partial "Reset"
 }
 
 @test "no .spiral-workers directory: graceful no-op" {
   rm -rf "$REPO/.spiral-workers"
 
   run run_fast_path_check "$REPO"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"No .spiral-workers directory"* ]]
+  assert_success
+  assert_output --partial "No .spiral-workers directory"
 }

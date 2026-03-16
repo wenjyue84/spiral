@@ -16,6 +16,8 @@
 #   - mocked `claude` binary (returns canned research output)
 #   - mocked `ralph` script (no-op implementation)
 
+bats_require_minimum_version 1.7.0
+
 # ── Load bats utilities ────────────────────────────────────────────────────────
 
 setup_file() {
@@ -146,6 +148,8 @@ teardown_file() {
 }
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   # Reset SCRATCH_DIR for each test
   rm -rf "$TEST_SCRATCH_DIR"
   mkdir -p "$TEST_SCRATCH_DIR"

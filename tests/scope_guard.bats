@@ -11,6 +11,15 @@
 #   - Empty filesTouch skips the check (no false positives)
 #   - Event is logged to spiral_events.jsonl with correct fields
 
+bats_require_minimum_version 1.7.0
+
+# ── Setup ───────────────────────────────────────────────────────────────────
+
+setup() {
+  load test_helper/common-setup
+  _resolve_jq
+}
+
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 _setup_scope_env() {
@@ -109,7 +118,7 @@ _teardown_scope_env() {
 
   run check_scope_guard "US-TEST"
   echo "status=$status output=$output"
-  [ "$status" -eq 0 ]
+  assert_success
 
   # Verify event logged
   local events_file="$SPIRAL_SCRATCH_DIR/spiral_events.jsonl"
@@ -132,10 +141,10 @@ _teardown_scope_env() {
   run check_scope_guard "US-TEST"
   echo "status=$status output=$output"
   # Default mode: returns 0 (warn only)
-  [ "$status" -eq 0 ]
+  assert_success
   # Should mention the warning
-  [[ "$output" == *"WARNING"* ]]
-  [[ "$output" == *"config/settings.yaml"* ]]
+  assert_output --partial "WARNING"
+  assert_output --partial "config/settings.yaml"
 
   # Event should have result=warn
   grep -q '"result":"warn"' "$SPIRAL_SCRATCH_DIR/spiral_events.jsonl"
@@ -157,8 +166,8 @@ _teardown_scope_env() {
   run check_scope_guard "US-TEST"
   echo "status=$status output=$output"
   # Strict mode: returns 1 (abort)
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"aborting commit"* ]]
+  assert_failure 1
+  assert_output --partial "aborting commit"
 
   # Event should have result=abort
   grep -q '"result":"abort"' "$SPIRAL_SCRATCH_DIR/spiral_events.jsonl"
@@ -177,7 +186,7 @@ _teardown_scope_env() {
 
   run check_scope_guard "US-TEST"
   echo "status=$status output=$output"
-  [ "$status" -eq 0 ]
+  assert_success
 
   # Event should have result=skip
   grep -q '"result":"skip"' "$SPIRAL_SCRATCH_DIR/spiral_events.jsonl"
@@ -197,7 +206,7 @@ _teardown_scope_env() {
 
   run check_scope_guard "US-TEST"
   echo "status=$status output=$output"
-  [ "$status" -eq 0 ]
+  assert_success
 
   # Event should have result=pass
   grep -q '"result":"pass"' "$SPIRAL_SCRATCH_DIR/spiral_events.jsonl"

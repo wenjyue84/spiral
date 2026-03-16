@@ -3,7 +3,10 @@
 #
 # Run with: bats tests/prd_schema_validation.bats
 
+bats_require_minimum_version 1.7.0
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   export TMPDIR_TEST
   TMPDIR_TEST="$(mktemp -d)"
   export SCRATCH_DIR="$TMPDIR_TEST"
@@ -51,7 +54,7 @@ teardown() {
   local prd="$TMPDIR_TEST/prd.json"
   make_prd "$prd" '[{"id":"US-001","title":"Short title","priority":"high","passes":false,"acceptanceCriteria":["AC1"],"dependencies":[]}]'
   run "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/prd_schema.py" "$prd"
-  [ "$status" -eq 0 ]
+  assert_success
 }
 
 # ── Invalid priority — core AC for US-263 ────────────────────────────────────
@@ -68,7 +71,7 @@ teardown() {
   make_prd "$prd" '[{"id":"US-001","title":"My story","priority":"urgent","passes":false,"acceptanceCriteria":["AC1"],"dependencies":[]}]'
   run "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/prd_schema.py" "$prd" 2>&1
   [ "$status" -ne 0 ]
-  [[ "$output" == *"SCHEMA ERROR"* ]] || [[ "$output" == *"urgent"* ]]
+  assert_output --partial "SCHEMA ERROR"* ]] || [[ "$output" == *"urgent"
 }
 
 @test "invalid priority error contains JSON Pointer path (requires jsonschema)" {
@@ -80,8 +83,8 @@ teardown() {
   run "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/prd_schema.py" "$prd" 2>&1
   [ "$status" -ne 0 ]
   # JSON Pointer format: /userStories/0/priority
-  [[ "$output" == *"/userStories/0/priority"* ]]
-  [[ "$output" == *"SCHEMA ERROR"* ]]
+  assert_output --partial "/userStories/0/priority"
+  assert_output --partial "SCHEMA ERROR"
 }
 
 # ── validate-write mode ───────────────────────────────────────────────────────
@@ -92,7 +95,7 @@ teardown() {
   make_prd "$prd" '[]'
   make_prd "$new_prd" '[{"id":"US-010","title":"New story","priority":"low","passes":false,"acceptanceCriteria":["AC1"],"dependencies":[]}]'
   run "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/prd_schema.py" "$prd" --validate-write "$new_prd"
-  [ "$status" -eq 0 ]
+  assert_success
   # prd.json should now contain US-010 — pass path as sys.argv to avoid POSIX→Windows translation
   "$SPIRAL_PYTHON" -c "
 import json, sys
@@ -109,7 +112,7 @@ assert any(s['id'] == 'US-010' for s in prd['userStories']), 'US-010 not found a
   run "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/prd_schema.py" "$prd" --validate-write "$new_prd" 2>&1
   [ "$status" -ne 0 ]
   # SCHEMA ERROR must appear in combined output
-  [[ "$output" == *"SCHEMA ERROR"* ]] || [[ "$output" == *"bogus"* ]]
+  assert_output --partial "SCHEMA ERROR"* ]] || [[ "$output" == *"bogus"
   # Backup must have been created — pass path as arg
   "$SPIRAL_PYTHON" -c "import sys, os; assert os.path.isfile(sys.argv[1]+'.bak'), f'{sys.argv[1]}.bak missing'" "$prd"
 }
@@ -143,7 +146,7 @@ assert any(s['id'] == 'US-001' for s in prd['userStories']), 'US-001 not found �
   make_prd "$prd" "[{\"id\":\"US-020\",\"title\":\"$long_title\",\"priority\":\"low\",\"passes\":false,\"acceptanceCriteria\":[\"AC1\"],\"dependencies\":[]}]"
   run "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/prd_schema.py" "$prd" 2>&1
   [ "$status" -ne 0 ]
-  [[ "$output" == *"SCHEMA ERROR"* ]]
+  assert_output --partial "SCHEMA ERROR"
 }
 
 @test "acceptanceCriteria with zero items is rejected (requires jsonschema)" {

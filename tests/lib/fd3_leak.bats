@@ -13,7 +13,10 @@
 #   - All SPIRAL bats test files close FD 3 on background spawns
 #   - spiral.sh main loop does not leak FD 3 when spawned from bats
 
+bats_require_minimum_version 1.7.0
 setup() {
+  load ../test_helper/common-setup
+  _resolve_jq
   export TEST_TMPDIR
   TEST_TMPDIR="$(mktemp -d)"
 }

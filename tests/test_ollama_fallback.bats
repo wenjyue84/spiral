@@ -12,9 +12,13 @@
 #   - spiral-doctor warns when Ollama unreachable and model is configured
 #   - spiral-doctor passes when Ollama is reachable
 
+bats_require_minimum_version 1.7.0
+
 # ── Test setup ────────────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   export TMPDIR_OL
   TMPDIR_OL="$(mktemp -d)"
   export SPIRAL_SCRATCH_DIR="$TMPDIR_OL"
@@ -23,15 +27,6 @@ setup() {
   export MOCK_BIN="$TMPDIR_OL/bin"
   mkdir -p "$MOCK_BIN"
   export PATH="$MOCK_BIN:$PATH"
-
-  # Resolve jq binary
-  if command -v jq &>/dev/null; then
-    export JQ="jq"
-  elif [[ -f "ralph/jq.exe" ]]; then
-    export JQ="ralph/jq.exe"
-  elif [[ -f "ralph/jq" ]]; then
-    export JQ="ralph/jq"
-  fi
 
   # Stub log_spiral_event and log_ralph_event (not needed in unit tests)
   log_spiral_event() { true; }
@@ -80,7 +75,7 @@ export -f run_ollama_doctor_check
 
 @test "SPIRAL_OLLAMA_HOST defaults to http://localhost:11434/v1" {
   run grep 'SPIRAL_OLLAMA_HOST.*:-' ralph/ralph.sh
-  [[ "$output" == *"http://localhost:11434/v1"* ]]
+  assert_output --partial "http://localhost:11434/v1"
 }
 
 @test "call_ollama_fallback returns 1 on curl exit 7 (connection refused)" {
@@ -102,8 +97,8 @@ EOF
   export SPIRAL_OLLAMA_HOST="http://localhost:11434/v1"
 
   run call_ollama_fallback "$sys_file" "$usr_file"
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"connection refused"* ]] || [[ "$output" == *"curl exit 7"* ]]
+  assert_failure 1
+  assert_output --partial "connection refused"* ]] || [[ "$output" == *"curl exit 7"
 }
 
 @test "call_ollama_fallback returns 1 on curl exit 28 (timeout)" {
@@ -125,8 +120,8 @@ EOF
   export SPIRAL_OLLAMA_HOST="http://localhost:11434/v1"
 
   run call_ollama_fallback "$sys_file" "$usr_file"
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"timed out"* ]] || [[ "$output" == *"curl exit 28"* ]]
+  assert_failure 1
+  assert_output --partial "timed out"* ]] || [[ "$output" == *"curl exit 28"
 }
 
 @test "call_ollama_fallback returns 0 and prints content on success" {
@@ -149,8 +144,8 @@ EOF
   export SPIRAL_OLLAMA_HOST="http://localhost:11434/v1"
 
   run call_ollama_fallback "$sys_file" "$usr_file"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"Hello from Ollama!"* ]]
+  assert_success
+  assert_output --partial "Hello from Ollama!"
 }
 
 @test "call_ollama_fallback uses SPIRAL_OLLAMA_HOST in initial log message" {
@@ -172,7 +167,7 @@ EOF
   export SPIRAL_OLLAMA_HOST="http://custom-host:11434/v1"
 
   run call_ollama_fallback "$sys_file" "$usr_file"
-  [[ "$output" == *"http://custom-host:11434/v1"* ]]
+  assert_output --partial "http://custom-host:11434/v1"
 }
 
 @test "spiral-doctor warns when Ollama unreachable and model is configured" {
@@ -184,9 +179,9 @@ EOF
   chmod +x "$MOCK_BIN/curl"
 
   run run_ollama_doctor_check "qwen2.5-coder:32b" "http://localhost:11434/v1"
-  [[ "$output" == *"WARN"* ]]
-  [[ "$output" == *"qwen2.5-coder:32b"* ]]
-  [[ "$output" == *"ollama serve"* ]]
+  assert_output --partial "WARN"
+  assert_output --partial "qwen2.5-coder:32b"
+  assert_output --partial "ollama serve"
 }
 
 @test "spiral-doctor passes OK when Ollama is reachable" {
@@ -199,7 +194,7 @@ EOF
   chmod +x "$MOCK_BIN/curl"
 
   run run_ollama_doctor_check "qwen2.5-coder:32b" "http://localhost:11434/v1"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"[OK]"* ]]
-  [[ "$output" == *"Ollama reachable"* ]]
+  assert_success
+  assert_output --partial "[OK]"
+  assert_output --partial "Ollama reachable"
 }

@@ -10,22 +10,17 @@
 #   - SPIRAL_GIT_EMAIL defaults to spiral@noreply.local when SPIRAL_GIT_AUTHOR is set
 #     but SPIRAL_GIT_EMAIL is left empty
 
+bats_require_minimum_version 1.7.0
+
 # ── Test setup ────────────────────────────────────────────────────────────────
 
 setup() {
+  load test_helper/common-setup
+  _resolve_jq
   export SPIRAL_SCRATCH_DIR="$(mktemp -d)"
   export PRD_FILE="/dev/null"
   export PROGRESS_FILE="/dev/null"
   export SPIRAL_MAX_DIFF_LINES=500
-
-  # Resolve jq binary (same logic as other bats tests)
-  if command -v jq &>/dev/null; then
-    export JQ="jq"
-  elif [[ -f "ralph/jq.exe" ]]; then
-    export JQ="ralph/jq.exe"
-  elif [[ -f "ralph/jq" ]]; then
-    export JQ="ralph/jq"
-  fi
 
   # Source only the do_git_commit function from ralph.sh
   source <(sed -n '/^do_git_commit()/,/^}/p' ralph/ralph.sh)
