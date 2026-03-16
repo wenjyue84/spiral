@@ -144,7 +144,7 @@ spiral_exit() {
   local ts
   ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   local json_line
-  json_line=$("$JQ" -n \
+  json_line=$("$JQ" -cn \
     --arg ts "$ts" \
     --arg event "spiral_error" \
     --arg error_code "$error_code" \
@@ -165,7 +165,7 @@ spiral_exit() {
 
   # Write last error to _last_error.json for status display
   local last_error_file="${SCRATCH_DIR:-.spiral}/_last_error.json"
-  "$JQ" -n \
+  "$JQ" -cn \
     --arg ts "$ts" \
     --arg error_code "$error_code" \
     --arg category "$category" \

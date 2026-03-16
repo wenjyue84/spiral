@@ -1,3 +1,24 @@
+## Iteration N - Story: US-273 Add structured error taxonomy with exit code ranges and inline remediation hints
+
+### What was implemented
+- Created `tests/error_taxonomy.bats` — 11 bats tests covering 5 error codes (E501, E503, E103, E401, E201) from all 5 categories
+- Tests verify: exit code, `[SPIRAL-E-<code>]` message format, `Fix:` remediation line, `Docs:` URL line
+- Tests verify: structured JSON events written to `spiral_events.jsonl` with required fields
+- Tests verify: `_last_error.json` written for status display
+- Tests verify: catalog consistency between bash (`spiral_errors.sh`) and Python (`error_catalog.py`)
+- Integration tests: E501 and E503 triggered through real `spiral.sh` invocation
+- Fixed `jq -n` → `jq -cn` in `spiral_errors.sh` for proper compact JSONL output (was pretty-printing multi-line JSON)
+
+### Patterns discovered
+- `spiral_errors.sh` is sourced at line 805 of spiral.sh, AFTER argument parsing — so arg-parse errors (unknown flag, bad int) can't use `spiral_exit`
+- `jq -n` produces pretty-printed output by default; JSONL requires `-c` flag for compact single-line JSON
+- Bats `run` captures stdout; to capture stderr use `2>&1` redirection
+- `--prd /nonexistent/path` fails at directory resolution (line 748) before reaching `spiral_exit E501` (line 808); test must use existing directory with missing file
+
+### Gotchas
+- Pre-existing test failures: `test_field_similarity_lists` (similarity assertion mismatch), `exit_codes.bats` tests 15/19 (bare exit 1 and missing ERR_MAX_ITERS) — all unrelated
+- The `_last_error.json` was also pretty-printed; fixed to compact for consistency
+
 ## Iteration N - Story: US-345 Scan uv.lock for known vulnerabilities in CI using uv-secure
 
 ### What was implemented
@@ -899,3 +920,6 @@ Completed: Implement batch polling with exponential backoff (ID: US-405) in 9m
 ### Gotchas
 - `merge_results_tsv.py` HEADER constant drives the output column order; add there too when adding to results.tsv
 - Pre-existing test failure: `test_field_similarity_lists` (similarity assertion mismatch) — unrelated
+## Iteration 1 - Mon, Mar 16, 2026  7:46:37 PM
+Completed: Integrate batch validation into Phase S with sync fallback and results.tsv tracking (ID: US-406) in 14m
+
