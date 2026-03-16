@@ -14,6 +14,7 @@ Subcommands:
     promote     Move exhausted stories (retry >= SPIRAL_MAX_RETRIES) to DLQ state
     list        Show all dead-lettered stories with failure reason and timestamp
     replay      Re-enqueue a DLQ story after human review
+  diagnose      Print causal failure chain for a run (multi-agent failure attribution)
 """
 import argparse
 import csv
@@ -798,6 +799,80 @@ def cmd_graph(args) -> None:
     output = _Path(args.output) if args.output else None
     rc = _graph(PRD_FILE, output)
     sys.exit(rc)
+
+
+def cmd_diagnose(args) -> None:
+    """Print a causal failure chain for a spiral run (uses failure_attribution.py)."""
+    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    from failure_attribution import FailureAttributor  # type: ignore[import]
+
+    # Resolve checkpoint: use --checkpoint if given, else find by run-id, else default
+    if hasattr(args, "checkpoint") and args.checkpoint:
+        checkpoint_path = Path(args.checkpoint)
+    elif hasattr(args, "run") and args.run:
+        # Check default checkpoint first — it may match the requested run_id
+        if CHECKPOINT_FILE.exists():
+            try:
+                with open(CHECKPOINT_FILE, encoding="utf-8") as f:
+                    ckpt_data = json.load(f)
+                if ckpt_data.get("run_id") == args.run:
+                    checkpoint_path = CHECKPOINT_FILE
+                else:
+                    # Look for archived run checkpoints in .spiral/runs/<run-id>/
+                    run_dir = SCRATCH_DIR / "runs" / args.run
+                    checkpoint_path = run_dir / "_checkpoint.json"
+                    if not checkpoint_path.exists():
+                        print(
+                            f"Warning: no checkpoint found for run '{args.run}'. "
+                            f"Using current run checkpoint.",
+                            file=sys.stderr,
+                        )
+                        checkpoint_path = CHECKPOINT_FILE
+            except (json.JSONDecodeError, OSError):
+                checkpoint_path = CHECKPOINT_FILE
+        else:
+            checkpoint_path = CHECKPOINT_FILE
+    else:
+        checkpoint_path = CHECKPOINT_FILE
+
+    if not checkpoint_path.exists():
+        print(f"Error: checkpoint not found at {checkpoint_path}", file=sys.stderr)
+        sys.exit(1)
+
+    attributor = FailureAttributor(str(checkpoint_path))
+
+    fmt = getattr(args, "format", "text")
+    if fmt == "json":
+        chain = attributor.get_causal_chain()
+        print(json.dumps(chain, indent=2))
+    else:
+        chain = attributor.get_causal_chain()
+        total = chain.get("total_failures", 0)
+        local = chain.get("local_failures", 0)
+        cascade = chain.get("cascade_failures", 0)
+        print(f"Failure attribution report: {checkpoint_path}")
+        print(f"  Total failures : {total}")
+        print(f"  Local          : {local}")
+        print(f"  Cascade        : {cascade}")
+        chains_list = chain.get("chains", [])
+        if not chains_list:
+            print("\nNo failure chains recorded.")
+        for idx, chain_item in enumerate(chains_list, 1):
+            root_w = chain_item.get("root_worker", "?")
+            root_s = chain_item.get("root_story", "?")
+            root_ts = chain_item.get("root_timestamp", "?")
+            cascade_n = chain_item.get("cascade_count", 0)
+            print(f"\nChain {idx}: root=worker {root_w} ({root_s}) at {root_ts}, cascades={cascade_n}")
+            for failure in chain_item.get("failures", []):
+                f_type = failure.get("failure_type", "unknown").upper()
+                f_wid = failure.get("worker_id", "?")
+                f_sid = failure.get("story_id", "?")
+                f_err = (failure.get("error_message") or "")[:80]
+                f_res = failure.get("contended_resource")
+                prefix = "  " if f_type == "LOCAL" else "    -> "
+                print(f"{prefix}{f_type}: worker {f_wid} ({f_sid}) — {f_err}")
+                if f_res:
+                    print(f"       Resource: {f_res}")
 
 
 def cmd_export_report(args) -> None:
@@ -2014,6 +2089,29 @@ def main():
         help="Write graph to FILE (e.g. docs/dependency-graph.md); default: stdout",
     )
 
+    diagnose_parser = subparsers.add_parser(
+        "diagnose",
+        help="Print causal failure chain for a spiral run (failure attribution)",
+    )
+    diagnose_parser.add_argument(
+        "--run",
+        metavar="RUN_ID",
+        default=None,
+        help="Run ID to diagnose (default: current run from .spiral/_checkpoint.json)",
+    )
+    diagnose_parser.add_argument(
+        "--checkpoint",
+        metavar="FILE",
+        default=None,
+        help="Path to a specific checkpoint.json file (overrides --run)",
+    )
+    diagnose_parser.add_argument(
+        "--format",
+        choices=["text", "json"],
+        default="text",
+        help="Output format: text (default) or json",
+    )
+
     report_parser = subparsers.add_parser(
         "export-report",
         help="Generate a Markdown story status report from prd.json",
@@ -2141,6 +2239,8 @@ def main():
         cmd_import_csv(args)
     elif args.command == "graph":
         cmd_graph(args)
+    elif args.command == "diagnose":
+        cmd_diagnose(args)
     elif args.command == "export-report":
         cmd_export_report(args)
     elif args.command == "config":

@@ -7870,3 +7870,31 @@ This brief outlines the implementation plan for adding Graphviz DOT file export 
     *   Handle cases where stories have missing or unexpected `priority` or `status` values.
     *   The `graphviz` library should handle escaping special characters in node labels, but this should be verified.
 
+
+
+## Iteration [N] - Story: US-233: Add multi-agent failure attribution logging to identify root cause of cascade failures
+
+### What was implemented
+- `lib/failure_attribution.py` was already implemented (FailureAttributor class, cascade detection, checkpoint persistence, causal chain generation, CLI: record-failure / register-worker / diagnose subcommands)
+- `tests/test_failure_attribution.py` was already implemented (12 tests: all pass)
+- Added `spiral diagnose --run <run-id>` command to `main.py`:
+  - `cmd_diagnose()` function: loads checkpoint, calls FailureAttributor.get_causal_chain(), prints text or JSON
+  - Subparser: --run RUN_ID, --checkpoint FILE, --format {text,json}
+  - Dispatch: `elif args.command == "diagnose": cmd_diagnose(args)`
+  - Docstring updated to document the new subcommand
+
+### Patterns discovered
+- `failure_attribution.py` already existed with full implementation; only the main.py integration was missing
+- Run-id lookup: match against checkpoint's run_id field, fallback to .spiral/runs/<run-id>/_checkpoint.json, then default checkpoint
+
+### Testing notes
+- 12 tests pass (all from TestFailureAttributor and TestFailureAttributorCLI)
+- `uv run python main.py diagnose --help` works
+- `uv run python main.py diagnose` outputs report correctly
+
+### Acceptance criteria status
+- [x] Each worker failure event includes: worker_id, story_id, failure_type, root_cause_worker_id, contended_resource
+- [x] Cascade detection within 30s window with shared resources
+- [x] spiral diagnose --run <run-id> prints causal failure chain
+- [x] Failure attribution data stored in failures section of checkpoint JSON
+- [x] Test scenario with intentional worker conflict verifies cascade attribution (test_intentional_worker_conflict_scenario)
