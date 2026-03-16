@@ -261,3 +261,6 @@ Incomplete: Validate MCP server integrity via signed checksum manifest before Ph
 - In sequential mode, the idempotency guard wraps the entire ralph invocation block in an else clause — the closing `fi` must come before the outer block's fi
 - In parallel single-story fallback, the guard uses `continue` to skip to next wave instead of wrapping in else
 
+## Iteration 6 - Mon, Mar 16, 2026  1:15:43 PM
+Incomplete: Validate MCP server integrity via signed checksum manifest before Phase I (ID: US-320) — attempt /3
+
