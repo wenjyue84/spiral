@@ -28,6 +28,7 @@ py-modules = ["main"]
 dev = [
     "coverage[toml]>=7.13.4",
     "hypothesis>=6.151.9",
+    "mutmut>=3.2.0",
     "mypy==1.11.2",
     "pytest>=9.0.2",
     "pytest-cov>=7.0.0",
@@ -79,3 +80,9 @@ disallow_any_generics = false
 disallow_untyped_defs = false
 disallow_untyped_calls = false
 warn_return_any = false
+
+[tool.mutmut]
+paths_to_mutate = ["lib/"]
+tests_dir = ["tests/"]
+runner = "uv run pytest -x -q"
+# mutation_score_threshold = 60 (enforced in CI: .github/workflows/ci.yml mutation-test job)

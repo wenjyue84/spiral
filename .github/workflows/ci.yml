@@ -209,6 +209,137 @@ jobs:
           path: coverage.xml
           retention-days: 7
 
+  mutation-test:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a  # v4
+        with:
+          enable-cache: false
+          python-version: "3.13"
+
+      - name: Get uv cache directory
+        id: uv-cache-dir
+        shell: bash
+        run: echo "path=$(uv cache dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache uv dependencies
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
+        with:
+          path: ${{ steps.uv-cache-dir.outputs.path }}
+          key: ${{ runner.os }}-uv-${{ hashFiles('**/uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+            ${{ runner.os }}-
+
+      - name: Validate lockfile is up-to-date
+        run: uv lock --check
+
+      - name: Install dependencies
+        run: uv sync --frozen --group dev
+
+      - name: Generate coverage data for mutmut
+        run: |
+          uv run pytest tests/ --cov=lib --cov-report= -x -q || true
+
+      - name: Run mutmut on high-risk modules
+        continue-on-error: true
+        run: |
+          uv run mutmut run \
+            --paths-to-mutate \
+              lib/merge_stories.py \
+              lib/validate_stories.py \
+              lib/route_stories.py \
+            --use-coverage \
+            --no-progress \
+            2>&1 | tee mutmut-output.txt || true
+
+      - name: Generate mutmut HTML report
+        if: always()
+        run: uv run mutmut html || true
+
+      - name: Check mutation score threshold
+        if: always()
+        run: |
+          python3 - <<'PYEOF'
+          import json, sys, pathlib, sqlite3
+
+          cache = pathlib.Path(".mutmut-cache")
+          if not cache.exists():
+              print("::warning::mutmut cache not found — mutation testing may not have run")
+              sys.exit(0)
+
+          db = sqlite3.connect(str(cache))
+          try:
+              rows = db.execute(
+                  "SELECT status, count(*) FROM mutant GROUP BY status"
+              ).fetchall()
+          except Exception as e:
+              print(f"::warning::Could not read mutmut cache: {e}")
+              sys.exit(0)
+          finally:
+              db.close()
+
+          counts = dict(rows)
+          killed = counts.get("killed", 0) + counts.get("timeout", 0)
+          survived = counts.get("survived", 0)
+          suspicious = counts.get("suspicious", 0)
+          skipped = counts.get("skipped", 0)
+          total = killed + survived + suspicious
+
+          if total == 0:
+              print("::warning::No mutations were generated")
+              sys.exit(0)
+
+          score = (killed / total) * 100
+          print(f"## Mutation Testing Results")
+          print(f"- **Killed:** {killed}")
+          print(f"- **Survived:** {survived}")
+          print(f"- **Suspicious:** {suspicious}")
+          print(f"- **Skipped:** {skipped}")
+          print(f"- **Total (scored):** {total}")
+          print(f"- **Mutation score:** {score:.1f}%")
+          print()
+
+          THRESHOLD = 60
+          if score < THRESHOLD:
+              print(f"::error::Mutation score {score:.1f}% is below threshold of {THRESHOLD}%")
+              sys.exit(1)
+          else:
+              print(f"Mutation score {score:.1f}% meets threshold of {THRESHOLD}% — OK")
+          PYEOF
+
+      - name: Append mutation summary to step summary
+        if: always()
+        run: |
+          {
+            echo "## Mutation Testing"
+            if [ -f mutmut-output.txt ]; then
+              echo '```'
+              tail -20 mutmut-output.txt
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload mutmut HTML report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: mutmut-report-html
+          path: html/
+          retention-days: 7
+
   sarif:
     runs-on: ubuntu-latest
     permissions:

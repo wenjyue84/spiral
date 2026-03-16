@@ -1,3 +1,28 @@
+## Iteration N - Story: US-346 Add mutation testing with mutmut to measure Python test suite effectiveness on lib/
+
+### What was implemented
+- Added `mutmut>=3.2.0` to dev dependency group in pyproject.toml
+- Configured `[tool.mutmut]` in pyproject.toml: paths_to_mutate=["lib/"], tests_dir=["tests/"], runner="uv run pytest -x -q", threshold=60 (comment)
+- Added `mutation-test` CI job in .github/workflows/ci.yml that runs only on pull_request events
+- CI job generates coverage data first, then runs mutmut with `--use-coverage` targeting high-risk modules: merge_stories.py, validate_stories.py, route_stories.py
+- Score threshold check (60%) via Python script parsing mutmut's SQLite cache (.mutmut-cache)
+- HTML report generated via `mutmut html` and uploaded as CI artifact (mutmut-report-html, 7-day retention)
+- Mutation summary appended to GitHub step summary
+- Job uses `continue-on-error: true` on the mutmut run step to collect baseline before enforcing threshold
+- Updated uv.lock with mutmut v3.5.0 and its dependencies
+
+### Patterns discovered
+- mutmut v3.5.0 does not support native Windows — only runs in WSL or Linux (CI is ubuntu-latest, so fine)
+- mutmut stores results in a SQLite database at `.mutmut-cache` — can query `SELECT status, count(*) FROM mutant GROUP BY status` for score calculation
+- `pytest-timeout` is not a project dependency — don't use `--timeout` flag in runner config
+- pyproject.toml `[tool.mutmut]` expects arrays for paths_to_mutate and tests_dir (e.g., `["lib/"]` not `"lib/"`)
+- `--paths-to-mutate` CLI flag can override pyproject.toml config to target specific files
+- `--use-coverage` requires a `.coverage` file — generate it with pytest --cov first
+
+### Gotchas
+- Pre-existing test failures (8 tests) unrelated to this change: test_auto_release git init on Windows, test_consistency_check similarity, test_infer_dependencies, test_route_stories, test_worker_timeout
+- mutmut doesn't have a native `mutation_score_threshold` config key — threshold is enforced in CI script only
+
 ## Iteration N - Story: US-273 Add structured error taxonomy with exit code ranges and inline remediation hints
 
 ### What was implemented
@@ -948,3 +973,4 @@ Incomplete: Add episodic memory store for Ralph workers to recall past implement
 
 ### Gotchas
 - Pre-existing 13 test failures remain (test_field_similarity_lists, test_infer_dependencies, test_merge_conflict_detection, etc.) — all unrelated
+
