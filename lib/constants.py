@@ -4,6 +4,16 @@ from __future__ import annotations
 # Story priority ranking (lower = higher priority)
 PRIORITY_RANK: dict[str, int] = {"critical": 0, "high": 1, "medium": 2, "low": 3}
 
+# Default 0-100 score for each text priority level (higher = more important).
+# Used by priority_key() when a story has no explicit priorityScore field.
+# Gaps (0-19, 21-39, etc.) are reserved for fine-grained numeric overrides.
+PRIORITY_SCORE_DEFAULT: dict[str, int] = {
+    "critical": 80,
+    "high": 60,
+    "medium": 40,
+    "low": 20,
+}
+
 # Anthropic 2025 pricing per million tokens (input / output)
 PRICING: dict[str, dict[str, float]] = {
     "haiku": {"input": 0.80, "output": 4.00},

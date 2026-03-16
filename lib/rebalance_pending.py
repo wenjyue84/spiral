@@ -24,16 +24,11 @@ from typing import Any
 
 sys.path.insert(0, os.path.dirname(__file__))
 from spiral_io import atomic_write_json, safe_read_json
+from story_helpers import priority_key
 
 # ── Priority / complexity score helpers ──────────────────────────────────────
 
-_PRIORITY_ORDER = {"S": 0, "P0": 1, "P1": 2, "P2": 3, "P3": 4, "P4": 5}
 _COMPLEXITY_ORDER = {"low": 0, "medium": 1, "high": 2}
-
-
-def _priority_score(story: dict[str, Any]) -> int:
-    p = (story.get("priority") or "").strip().upper()
-    return _PRIORITY_ORDER.get(p, 6)  # unset = least important
 
 
 def _complexity_score(story: dict[str, Any]) -> int:
@@ -44,7 +39,7 @@ def _complexity_score(story: dict[str, Any]) -> int:
 def importance_key(idx_story: tuple[int, dict[str, Any]]) -> tuple:
     """Lower = more important. Sort ascending to get most important first."""
     idx, story = idx_story
-    return (_priority_score(story), _complexity_score(story), idx)
+    return (priority_key(story), _complexity_score(story), idx)
 
 
 # ── JSON I/O helpers ─────────────────────────────────────────────────────────
@@ -58,7 +53,7 @@ def _story_to_candidate(story: dict[str, Any]) -> dict[str, Any]:
         "_source": story.get("_source", "candidate"),
         "_evictedFromPrd": True,
     }
-    for k in ("priority", "complexity", "epicId", "acceptanceCriteria", "filesTouched"):
+    for k in ("priority", "priorityScore", "complexity", "epicId", "acceptanceCriteria", "filesTouched"):
         if story.get(k) is not None:
             cand[k] = story[k]
     return cand

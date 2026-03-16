@@ -16,6 +16,7 @@ from typing import Any
 sys.path.insert(0, os.path.dirname(__file__))
 from constants import PRIORITY_RANK
 from spiral_io import atomic_write_json, configure_utf8_stdout, safe_read_json
+from story_helpers import priority_key
 
 configure_utf8_stdout()
 
@@ -111,7 +112,7 @@ class WorkQueue:
                         passed_ids.add(s.get("id", ""))
 
             # Sort by priority (highest first)
-            queue.sort(key=lambda s: PRIORITY_RANK.get(s.get("priority", "medium"), 2))
+            queue.sort(key=priority_key)
 
             claimed = None
             remaining = []

@@ -44,15 +44,16 @@ def test_get_files_to_touch_hints_not_dict():
 
 
 def test_priority_key_all_levels():
-    assert priority_key({"priority": "critical"}) == 0
-    assert priority_key({"priority": "high"}) == 1
-    assert priority_key({"priority": "medium"}) == 2
-    assert priority_key({"priority": "low"}) == 3
+    # critical=80 → key=20, high=60 → key=40, medium=40 → key=60, low=20 → key=80
+    assert priority_key({"priority": "critical"}) == 20
+    assert priority_key({"priority": "high"}) == 40
+    assert priority_key({"priority": "medium"}) == 60
+    assert priority_key({"priority": "low"}) == 80
 
 
 def test_priority_key_default():
-    assert priority_key({}) == 2  # defaults to medium
-    assert priority_key({"priority": "unknown"}) == 2
+    assert priority_key({}) == 60  # defaults to medium score (40) → key=60
+    assert priority_key({"priority": "unknown"}) == 60
 
 
 def test_priority_key_sorting():
@@ -64,3 +65,23 @@ def test_priority_key_sorting():
     ]
     sorted_stories = sorted(stories, key=priority_key)
     assert [s["id"] for s in sorted_stories] == ["b", "c", "d", "a"]
+
+
+def test_priority_key_priority_score_overrides_text():
+    # priorityScore=90 → key=10, beats critical text (key=20)
+    assert priority_key({"priority": "low", "priorityScore": 90}) < priority_key({"priority": "critical"})
+    # priorityScore=5 → key=95, lower than low text (key=80)
+    assert priority_key({"priority": "critical", "priorityScore": 5}) > priority_key({"priority": "low"})
+
+
+def test_priority_key_priority_score_range():
+    assert priority_key({"priorityScore": 100}) == 0    # highest possible
+    assert priority_key({"priorityScore": 0}) == 100    # lowest possible
+    assert priority_key({"priorityScore": 60}) == 40    # same sort key as "high" default
+
+
+def test_priority_key_priority_score_fine_grained():
+    # Two "high" stories can now be ordered within the bucket
+    a = {"priority": "high", "priorityScore": 65}
+    b = {"priority": "high", "priorityScore": 55}
+    assert priority_key(a) < priority_key(b)  # a ranks higher

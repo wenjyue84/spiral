@@ -70,3 +70,24 @@ Completed: spiral.sh: ANSI-colored phase section banners in terminal output (ID:
 ### Gotchas
 - ANSI color codes in printf do not affect width math if you don't use %*s padding — kept content lines without right border to avoid alignment issues
 - cost_str extracted with `sed -nE 's/.*(\$[0-9]+\.[0-9]+).*/\1/p'` since grep -oP is not available on all bash setups
+## Iteration 2 - Mon, Mar 16, 2026 11:32:11 AM
+Completed: spiral.sh: print formatted iteration summary banner after each iteration (ID: US-313) in 10m
+
+
+## Iteration N - Story: US-314 ProjectDashboard: recently completed stories feed
+
+### What was implemented
+- vite.config.ts: extended the results.tsv reading block to collect all `pass` rows, sort by timestamp descending, splice to top 10, and expose as `recentlyCompleted[]` in the API response alongside the existing `lastCompletedStory`
+- ProjectDashboard.tsx: added `recentlyCompleted?: LastCompletedStory[]` to `ProjectData` interface
+- Added `RecentlyCompletedFeed` sub-component: renders a divided list with ✓, story ID (monospace blue), truncated title (60 chars), model badge (haiku/sonnet/opus color-coded), duration in seconds, and timeAgo timestamp
+- Renders as "No stories completed yet" empty state when entries is undefined or empty
+- Section appears in ProgressTab above the progress history sparkline under a "Recently Completed" heading
+- Auto-refreshes via existing 30s polling (no new polling code needed)
+
+### Patterns discovered
+- Model badge classification: check `lower.includes('haiku'/'sonnet'/'opus')` — model string from results.tsv may be full model ID like `claude-haiku-3-5-20251001`
+- `LastCompletedStory` interface (already in file) has `duration?: number` — works as-is for the feed entries
+
+### Gotchas
+- Pre-existing schema error: US-323 had a dependency on US-298 which was no longer in prd.json — removed dangling dependency before commit to pass pre-commit hook
+- `jq '(.field) = value'` piped from `cat prd.json` instead of `jq ... prd.json` is needed to avoid "file changed since read" issues when chaining in bash

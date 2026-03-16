@@ -68,6 +68,12 @@
           "type": "string",
           "enum": ["critical", "high", "medium", "low"]
         },
+        "priorityScore": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Optional numeric priority (0-100, higher = more important). Overrides text priority for sorting when set."
+        },
         "description": {
           "type": "string"
         },

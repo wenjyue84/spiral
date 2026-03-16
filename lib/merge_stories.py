@@ -20,6 +20,7 @@ from pydantic import ValidationError
 
 sys.path.insert(0, os.path.dirname(__file__))
 from constants import PRIORITY_RANK
+from story_helpers import priority_key
 from llm_models import ResearchOutput, log_validation_error
 from prd_schema import validate_prd
 from spiral_io import atomic_write_json, configure_utf8_stdout
@@ -77,7 +78,7 @@ def find_next_id(stories: list[dict[str, Any]]) -> int:
 
 
 def sort_key(story: dict[str, Any]) -> int:
-    return PRIORITY_RANK.get(story.get("priority", "medium"), 2)
+    return priority_key(story)
 
 
 def _is_done(story: dict[str, Any]) -> bool:
@@ -99,7 +100,7 @@ def full_sort_key(story: dict[str, Any]) -> tuple[int, int, int]:
     Python's stable sort preserves relative order for equal keys.
     """
     done_rank = 1 if _is_done(story) else 0
-    priority_rank = PRIORITY_RANK.get(story.get("priority", "medium"), 2)
+    priority_rank = priority_key(story)
     dep_count = len(story.get("dependencies", []))
     return (done_rank, priority_rank, dep_count)
 
