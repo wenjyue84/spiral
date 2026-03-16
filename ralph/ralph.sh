@@ -1149,6 +1149,90 @@ append_result() {
     >>"$RESULTS_FILE"
 }
 
+# ── Experience capture: save exhausted-story summary to candidate_us.md ─────
+# Called when a story has hit MAX_RETRIES and will be permanently skipped.
+# Appends a structured markdown entry so future runs (or humans) can understand
+# what was tried and pick it back up with better context.
+#
+# candidate_us.md layout per entry:
+#   ## [US-XXX] Title
+#   Why it failed, anti-patterns tried, progress notes, acceptance criteria
+save_candidate_experience() {
+  local story_id="$1"
+  local candidate_file="${SPIRAL_CANDIDATE_FILE:-candidate_us.md}"
+
+  local title description complexity failure_reason
+  title=$($JQ -r ".userStories[] | select(.id == \"$story_id\") | .title // \"(unknown)\"" \
+    "$PRD_FILE" 2>/dev/null | tr -d '\r' || echo "(unknown)")
+  description=$($JQ -r ".userStories[] | select(.id == \"$story_id\") | .description // \"\"" \
+    "$PRD_FILE" 2>/dev/null | tr -d '\r' || echo "")
+  complexity=$($JQ -r ".userStories[] | select(.id == \"$story_id\") | .estimatedComplexity // \"medium\"" \
+    "$PRD_FILE" 2>/dev/null | tr -d '\r' || echo "medium")
+  failure_reason=$($JQ -r ".userStories[] | select(.id == \"$story_id\") | ._failureReason // \"(not recorded)\"" \
+    "$PRD_FILE" 2>/dev/null | tr -d '\r' || echo "(not recorded)")
+
+  local ac_list
+  ac_list=$($JQ -r ".userStories[] | select(.id == \"$story_id\") | .acceptanceCriteria // [] | .[] | \"- \" + ." \
+    "$PRD_FILE" 2>/dev/null | tr -d '\r' || echo "- (none)")
+
+  local anti_patterns
+  anti_patterns=$($JQ -r ".userStories[] | select(.id == \"$story_id\") | ._antiPatterns // [] | to_entries[] | \"\(.key+1). \(.value)\"" \
+    "$PRD_FILE" 2>/dev/null | tr -d '\r' || echo "(none)")
+
+  # Grab the last 30 lines from progress.txt that mention this story
+  local progress_notes=""
+  if [[ -f "${PROGRESS_FILE:-progress.txt}" ]]; then
+    progress_notes=$(grep -A 12 -B 1 "$story_id" "${PROGRESS_FILE:-progress.txt}" 2>/dev/null | tail -30 || true)
+  fi
+
+  # Create file with header if it doesn't exist yet
+  if [[ ! -f "$candidate_file" ]]; then
+    {
+      echo "# candidate_us.md — Exhausted Story Experience Log"
+      echo ""
+      echo "Stories listed here hit MAX_RETRIES without passing. Each entry captures"
+      echo "what was tried and why it failed, so future attempts start with better context."
+      echo ""
+    } > "$candidate_file"
+  fi
+
+  {
+    echo ""
+    echo "## [$story_id] $title"
+    echo ""
+    echo "**Status:** Exhausted (${MAX_RETRIES} attempts) | **Complexity:** $complexity | **Date:** $(date '+%Y-%m-%d')"
+    echo ""
+    echo "### Description"
+    echo "$description"
+    echo ""
+    echo "### Why it failed"
+    echo '```'
+    echo "$failure_reason"
+    echo '```'
+    echo ""
+    echo "### Anti-patterns — do NOT repeat these"
+    if [[ -n "$anti_patterns" && "$anti_patterns" != "(none)" ]]; then
+      echo "$anti_patterns"
+    else
+      echo "(none recorded)"
+    fi
+    echo ""
+    echo "### Progress notes from last attempts"
+    echo '```'
+    echo "${progress_notes:-(none found)}"
+    echo '```'
+    echo ""
+    echo "### Acceptance Criteria (re-attempt checklist)"
+    echo "$ac_list"
+    echo ""
+    echo "---"
+  } >> "$candidate_file"
+
+  echo "  [candidate] [$story_id] experience saved → $candidate_file"
+  log_ralph_event "candidate_saved" \
+    "\"storyId\":\"$story_id\",\"complexity\":\"$complexity\",\"file\":\"$candidate_file\""
+}
+
 # ── GitHub PR creation (US-143) ─────────────────────────────────────────────
 # create_github_pr <story_id> <story_title> <commit_sha>
 # Pushes story commit to spiral/<story_id> branch and opens a GitHub PR.
@@ -1984,6 +2068,7 @@ while [[ $ITERATION -lt $MAX_ITERATIONS ]]; do
           echo "    DECOMPOSED:            [$sid] $stitle → [$children]"
         elif [[ "$retries" -ge "$MAX_RETRIES" ]]; then
           echo "    SKIPPED (${retries}x failed): [$sid] $stitle"
+          save_candidate_experience "$sid"
           STORIES_SKIPPED=$((STORIES_SKIPPED + 1))
           # Log skip to results ledger
           NEXT_STORY="$sid"

@@ -503,7 +503,10 @@ RESEARCH_CACHE_DIR=""                                                    # set a
 SPIRAL_RESEARCH_TIMEOUT="${SPIRAL_RESEARCH_TIMEOUT:-300}"                # seconds; 0 = disabled (unlimited); Phase R LLM call
 SPIRAL_RESEARCH_RETRIES="${SPIRAL_RESEARCH_RETRIES:-2}"                  # retries when _research_output.json missing/invalid after Phase R
 SPIRAL_GEMINI_FALLBACK_MODEL="${SPIRAL_GEMINI_FALLBACK_MODEL:-claude-haiku-4-5-20251001}"  # Claude model for Gemini 503 fallback (US-206)
-SPIRAL_IMPL_TIMEOUT="${SPIRAL_IMPL_TIMEOUT:-600}"                        # seconds; 0 = disabled (unlimited); Phase I ralph call
+SPIRAL_IMPL_TIMEOUT="${SPIRAL_IMPL_TIMEOUT:-600}"                        # seconds; 0 = disabled (unlimited); Phase I ralph call (fallback when complexity unknown)
+SPIRAL_STORY_TIMEOUT_SMALL="${SPIRAL_STORY_TIMEOUT_SMALL:-300}"          # seconds; per-story timeout for small complexity  (~5 min)
+SPIRAL_STORY_TIMEOUT_MEDIUM="${SPIRAL_STORY_TIMEOUT_MEDIUM:-600}"        # seconds; per-story timeout for medium complexity (~10 min)
+SPIRAL_STORY_TIMEOUT_LARGE="${SPIRAL_STORY_TIMEOUT_LARGE:-1200}"         # seconds; per-story timeout for large complexity  (~20 min)
 SPIRAL_VALIDATE_TIMEOUT="${SPIRAL_VALIDATE_TIMEOUT:-300}"                # seconds; 0 = disabled (unlimited)
 SPIRAL_INCREMENTAL_VALIDATE="${SPIRAL_INCREMENTAL_VALIDATE:-false}"      # true = run only tests covering files touched by current story (Phase V)
 SPIRAL_PARALLEL_TESTS="${SPIRAL_PARALLEL_TESTS:-false}"                  # true = run Phase V tests in parallel (pytest-xdist or bats --jobs)
@@ -1338,6 +1341,28 @@ fi
 # ── Backup prd.json before any modifications ────────────────────────────────
 cp "$PRD_FILE" "${PRD_FILE}.bak"
 echo "[spiral] Backup: ${PRD_FILE}.bak"
+
+# ── Helper: per-story complexity-based timeout ───────────────────────────────
+# Returns the wall-clock timeout (seconds) to use for a single ralph invocation
+# based on the story's estimatedComplexity field in prd.json.
+# Falls back to SPIRAL_IMPL_TIMEOUT when story_id is empty or not found.
+get_story_timeout() {
+  local story_id="${1:-}"
+  local prd="${2:-${PRD_FILE:-prd.json}}"
+  if [[ -z "$story_id" ]]; then
+    echo "${SPIRAL_IMPL_TIMEOUT:-600}"
+    return
+  fi
+  local complexity
+  complexity=$("$JQ" -r --arg id "$story_id" \
+    '.userStories[] | select(.id == $id) | .estimatedComplexity // "medium"' \
+    "$prd" 2>/dev/null | tr -d '\r' || echo "medium")
+  case "$complexity" in
+    small)  echo "${SPIRAL_STORY_TIMEOUT_SMALL:-300}" ;;
+    large)  echo "${SPIRAL_STORY_TIMEOUT_LARGE:-1200}" ;;
+    *)      echo "${SPIRAL_STORY_TIMEOUT_MEDIUM:-600}" ;;
+  esac
+}
 
 # ── Helper: stats from prd.json ─────────────────────────────────────────────
 prd_stats() {
@@ -3753,15 +3778,17 @@ with open('$RESEARCH_OUTPUT', 'rb') as f:
                   --story-id "$_NEXT_SID" --scratch-dir "$SCRATCH_DIR" 2>/dev/null || true)
                 _I_EXIT=0
                 _I_START=$(date +%s)
-                if [[ "${SPIRAL_IMPL_TIMEOUT:-600}" -gt 0 ]] && command -v timeout &>/dev/null; then
-                  timeout --kill-after=30 "${SPIRAL_IMPL_TIMEOUT}" bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $_DRY_RUN_FLAG || _I_EXIT=$?
+                _STORY_BUDGET=$(get_story_timeout "$_NEXT_SID")
+                if [[ "${_STORY_BUDGET:-0}" -gt 0 ]] && command -v timeout &>/dev/null; then
+                  echo "  [I] Budget: ${_STORY_BUDGET}s for $_NEXT_SID"
+                  timeout --kill-after=30 "${_STORY_BUDGET}" bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $_DRY_RUN_FLAG || _I_EXIT=$?
                 else
                   bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $_DRY_RUN_FLAG || _I_EXIT=$?
                 fi
                 _I_ELAPSED=$(($(date +%s) - _I_START))
                 if [[ "$_I_EXIT" -eq 124 ]]; then
-                  echo "  [I] WARNING: Ralph timed out after ${_I_ELAPSED}s (limit: ${SPIRAL_IMPL_TIMEOUT}s)"
-                  log_spiral_event "phase_timeout" "\"phase\":\"I\",\"story_id\":\"$_NEXT_SID\",\"iteration\":$SPIRAL_ITER,\"duration_ms\":$((_I_ELAPSED * 1000)),\"timeout_s\":${SPIRAL_IMPL_TIMEOUT}"
+                  echo "  [I] WARNING: Ralph timed out after ${_I_ELAPSED}s (budget: ${_STORY_BUDGET}s)"
+                  log_spiral_event "phase_timeout" "\"phase\":\"I\",\"story_id\":\"$_NEXT_SID\",\"iteration\":$SPIRAL_ITER,\"duration_ms\":$((_I_ELAPSED * 1000)),\"timeout_s\":${_STORY_BUDGET}"
                 fi
                 # US-219: emit action span for the LLM implementation call
                 STORY_TRACEPARENT="$_STORY_TP" "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" emit-action \
@@ -3999,17 +4026,19 @@ with open('$RESEARCH_OUTPUT', 'rb') as f:
               --story-id "$_NEXT_SID" --scratch-dir "$SCRATCH_DIR" 2>/dev/null || true)
             _I_EXIT=0
             _I_START=$(date +%s)
+            _STORY_BUDGET=$(get_story_timeout "$_NEXT_SID")
             # US-279: capture stderr to temp file for crash persistence
             _STDERR_CAPTURE=$(mktemp -p "$SCRATCH_DIR" _ralph_stderr_XXXXXX.txt 2>/dev/null || echo "$SCRATCH_DIR/_ralph_stderr_$$.txt")
-            if [[ "${SPIRAL_IMPL_TIMEOUT:-600}" -gt 0 ]] && command -v timeout &>/dev/null; then
-              timeout --kill-after=30 "${SPIRAL_IMPL_TIMEOUT}" bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $RALPH_MODEL_FLAG $_DRY_RUN_FLAG 2>"$_STDERR_CAPTURE" || _I_EXIT=$?
+            if [[ "${_STORY_BUDGET:-0}" -gt 0 ]] && command -v timeout &>/dev/null; then
+              echo "  [I] Budget: ${_STORY_BUDGET}s for $_NEXT_SID"
+              timeout --kill-after=30 "${_STORY_BUDGET}" bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $RALPH_MODEL_FLAG $_DRY_RUN_FLAG 2>"$_STDERR_CAPTURE" || _I_EXIT=$?
             else
               bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $RALPH_MODEL_FLAG $_DRY_RUN_FLAG 2>"$_STDERR_CAPTURE" || _I_EXIT=$?
             fi
             _I_ELAPSED=$(($(date +%s) - _I_START))
             if [[ "$_I_EXIT" -eq 124 ]]; then
-              echo "  [I] WARNING: Ralph timed out after ${_I_ELAPSED}s (limit: ${SPIRAL_IMPL_TIMEOUT}s) — partial progress saved"
-              log_spiral_event "phase_timeout" "\"phase\":\"I\",\"story_id\":\"$_NEXT_SID\",\"iteration\":$SPIRAL_ITER,\"duration_ms\":$((_I_ELAPSED * 1000)),\"timeout_s\":${SPIRAL_IMPL_TIMEOUT}"
+              echo "  [I] WARNING: Ralph timed out after ${_I_ELAPSED}s (budget: ${_STORY_BUDGET}s) — partial progress saved"
+              log_spiral_event "phase_timeout" "\"phase\":\"I\",\"story_id\":\"$_NEXT_SID\",\"iteration\":$SPIRAL_ITER,\"duration_ms\":$((_I_ELAPSED * 1000)),\"timeout_s\":${_STORY_BUDGET}"
             fi
             # US-279: capture crash traceback on non-zero exit
             if [[ "$_I_EXIT" -ne 0 ]]; then
