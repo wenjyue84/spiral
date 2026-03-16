@@ -73,3 +73,44 @@ suite that grows more comprehensive each iteration.
 - Expanding test coverage
 - Fixing bugs in existing behaviour
 - Improving documentation and onboarding
+
+## Story Prioritization: Production Value First
+
+**The primary question for every story**: "Would a user NOTICE or FEEL this improvement when running Spiral?"
+
+### Priority Tiers (highest to lowest)
+
+1. **Tier 1 — Visible & Felt** (implement first)
+   - Terminal UX improvements during a run (colors, progress, summaries)
+   - Web dashboard (localhost:5299) enhancements visible in real-time
+   - Features a user would demo to another person
+   - Improvements that reduce run failures or wasted API spend
+
+2. **Tier 2 — Reliability & Correctness** (implement when blocking)
+   - Crash recovery and data integrity
+   - Features that prevent silent data loss
+   - Error messages that explain WHY something failed
+
+3. **Tier 3 — Power User Features** (implement after Tier 1 & 2)
+   - CLI flags for advanced control (--replay, --cost-report, --focus-tags)
+   - Configuration options that reduce cost or improve quality
+   - Test coverage for existing features
+
+4. **Tier 4 — Infrastructure & Observability** (candidates/backlog)
+   - OTel spans, OpenMetrics endpoints, telemetry pipelines
+   - TLA+ specs, bats test scaffolding, contract tests
+   - CI/CD workflow enhancements (GitHub Actions)
+   - Niche features used by <5% of users
+
+### Anti-Patterns to Avoid
+- Stories that only change internal file formats with no user-facing effect
+- "Add X for future use" stories with no current consumer
+- Duplicate coverage of already-tested code paths
+- Features that require rare external dependencies (GPG, TLA+ toolchain)
+- Telemetry/observability infrastructure before there is a consumer UI
+
+### This Principle Applies to ALL Projects
+When writing a prd.json for any project (not just Spiral), always ask:
+> "If someone ran this software today after this story is done, would they notice something better?"
+
+If the answer is "no" or "only a developer would notice", the story belongs in Tier 4 (candidates).

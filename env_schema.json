@@ -5,6 +5,7 @@
     {
       "name": "ANTHROPIC_API_KEY",
       "required": true,
+      "or_env": "CLAUDE_CODE_SESSION_ACCESS_TOKEN",
       "type": "string",
       "default": "",
       "description": "Anthropic API key used by Claude CLI workers to make LLM calls",

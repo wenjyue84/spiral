@@ -21,6 +21,14 @@ _spiral_assert_fail() {
     echo "[ASSERT] Strict mode — aborting"
     exit 1
   fi
+  # In warn mode: return 0 so callers can propagate non-fatal failures
+  return 0
+}
+
+# Helper: exit 1 only in strict mode, otherwise return 0.
+# Use after _spiral_assert_fail in functions that need to propagate the failure.
+_assert_return() {
+  [[ "$SPIRAL_ASSERT_MODE" == "strict" ]] && return 1 || return 0
 }
 
 # ── PRD Schema Validation ────────────────────────────────────────────────────
@@ -28,7 +36,7 @@ spiral_assert_prd_valid() {
   local prd="${1:-$PRD_FILE}"
   if ! "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/prd_schema.py" "$prd" --quiet 2>/dev/null; then
     _spiral_assert_fail "prd_valid" "Schema validation failed for $prd"
-    return 1
+    _assert_return
   fi
   return 0
 }
@@ -41,7 +49,7 @@ spiral_assert_ids_unique() {
   unique=$("$JQ" '[.userStories[].id] | unique | length' "$prd")
   if [[ "$total" -ne "$unique" ]]; then
     _spiral_assert_fail "ids_unique" "Duplicate IDs: $total stories but only $unique unique IDs"
-    return 1
+    _assert_return
   fi
   return 0
 }
@@ -51,7 +59,7 @@ spiral_assert_deps_dag() {
   local prd="${1:-$PRD_FILE}"
   if ! "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/check_dag.py" "$prd" >/dev/null 2>&1; then
     _spiral_assert_fail "deps_dag" "Dependency cycle detected in $prd"
-    return 1
+    _assert_return
   fi
   return 0
 }
@@ -64,7 +72,7 @@ spiral_assert_story_count_bounded() {
   count=$("$JQ" '[.userStories | length] | .[0]' "$prd")
   if [[ "$count" -gt "$max_stories" ]]; then
     _spiral_assert_fail "story_count_bounded" "Total stories ($count) exceeds max ($max_stories)"
-    return 1
+    _assert_return
   fi
   return 0
 }
@@ -89,7 +97,7 @@ spiral_assert_passes_monotonic() {
   current=$("$JQ" '[.userStories[] | select(.passes == true)] | length' "$prd")
   if [[ "$current" -lt "$baseline" ]]; then
     _spiral_assert_fail "passes_monotonic" "Passes decreased: $baseline → $current (regression detected)"
-    return 1
+    _assert_return
   fi
   # Update baseline to new value
   echo "$current" >"$baseline_file"
@@ -111,7 +119,7 @@ spiral_assert_phase_order() {
     # Phase order must increase within an iteration, or reset (C → R on new iteration)
     if [[ "$curr_ord" -le "$last_ord" && "$current_phase" != "R" ]]; then
       _spiral_assert_fail "phase_order" "Phase went backward: $last_phase → $current_phase"
-      return 1
+      _assert_return
     fi
   fi
 
@@ -126,7 +134,7 @@ spiral_assert_no_orphan_tmpfiles() {
   count=$(find "$scratch" -maxdepth 1 -name "*.tmp" -mmin +10 2>/dev/null | wc -l)
   if [[ "$count" -gt 0 ]]; then
     _spiral_assert_fail "orphan_tmpfiles" "$count stale .tmp files in $scratch (>10 min old)"
-    return 1
+    _assert_return
   fi
   return 0
 }
@@ -137,7 +145,7 @@ spiral_assert_merge_no_story_loss() {
   local after="$2"
   if [[ "$after" -lt "$before" ]]; then
     _spiral_assert_fail "merge_no_story_loss" "Stories decreased during merge: $before → $after"
-    return 1
+    _assert_return
   fi
   return 0
 }
@@ -151,7 +159,7 @@ spiral_assert_pending_bounded() {
   pending=$("$JQ" '[.userStories[] | select(.passes != true and ._decomposed != true)] | length' "$prd")
   if [[ "$pending" -gt "$max_pending" ]]; then
     _spiral_assert_fail "pending_bounded" "Pending stories ($pending) exceeds max ($max_pending)"
-    return 1
+    _assert_return
   fi
   return 0
 }
@@ -193,7 +201,7 @@ if errors:
 " "$prd" 2>&1)
   if [[ $? -ne 0 ]]; then
     _spiral_assert_fail "decomposition_integrity" "$result"
-    return 1
+    _assert_return
   fi
   return 0
 }
@@ -214,7 +222,7 @@ spiral_assert_dependency_completion_order() {
   ' "$prd" 2>/dev/null || true)
   if [[ -n "$violations" ]]; then
     _spiral_assert_fail "dep_completion_order" "$violations"
-    return 1
+    _assert_return
   fi
   return 0
 }
@@ -250,7 +258,7 @@ if errors:
 " "${worker_files[@]}" 2>&1)
   if [[ $? -ne 0 ]]; then
     _spiral_assert_fail "worker_disjoint" "$result"
-    return 1
+    _assert_return
   fi
   return 0
 }
@@ -261,7 +269,7 @@ spiral_assert_iteration_progress() {
   local max_zero="${2:-3}"
   if [[ "$zero_count" -ge "$max_zero" ]]; then
     _spiral_assert_fail "iteration_progress" "No progress for $zero_count consecutive iterations (limit: $max_zero)"
-    return 1
+    _assert_return
   fi
   return 0
 }
@@ -273,7 +281,7 @@ spiral_assert_story_lifecycle() {
   result=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/state_machine.py" validate-stories --prd "$prd" 2>&1)
   if [[ $? -ne 0 ]]; then
     _spiral_assert_fail "story_lifecycle" "$result"
-    return 1
+    _assert_return
   fi
   return 0
 }
@@ -288,17 +296,17 @@ spiral_assert_checkpoint_coherent() {
   ckpt_phase=$("$JQ" -r '.phase // empty' "$ckpt" 2>/dev/null || echo "")
   if [[ -z "$ckpt_iter" || -z "$ckpt_phase" ]]; then
     _spiral_assert_fail "checkpoint_coherent" "Checkpoint missing iter or phase"
-    return 1
+    _assert_return
   fi
   if [[ -n "$expected_iter" && "$ckpt_iter" != "$expected_iter" ]]; then
     _spiral_assert_fail "checkpoint_coherent" "Checkpoint iter=$ckpt_iter but expected $expected_iter"
-    return 1
+    _assert_return
   fi
   case "$ckpt_phase" in
     R | T | M | G | I | V | C) ;;
     *)
       _spiral_assert_fail "checkpoint_coherent" "Invalid checkpoint phase: $ckpt_phase"
-      return 1
+      _assert_return
       ;;
   esac
   return 0

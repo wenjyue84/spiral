@@ -340,35 +340,62 @@ function ProgressTab({ data, projectName, onRefresh }: { data: ProjectData; proj
       </div>
 
       {/* Progress history sparkline */}
-      {data.progressHistory.length > 1 && (
-        <div>
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Progress History</div>
-          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-            <table className="w-full text-xs">
-              <thead className="bg-slate-50 text-slate-500">
-                <tr>
-                  <th className="px-3 py-2 text-left">Time</th>
-                  <th className="px-3 py-2 text-left">Iter</th>
-                  <th className="px-3 py-2 text-right">Done</th>
-                  <th className="px-3 py-2 text-right">Pending</th>
-                  <th className="px-3 py-2 text-right">Added</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[...data.progressHistory].reverse().slice(0, 12).map((snap, i) => (
-                  <tr key={i} className="border-t border-slate-100">
-                    <td className="px-3 py-1.5 text-slate-400" title={formatMYT(snap.ts)}>{timeAgo(snap.ts)}</td>
-                    <td className="px-3 py-1.5 text-slate-600">#{snap.iter}</td>
-                    <td className="px-3 py-1.5 text-right font-mono text-emerald-700">{snap.done}</td>
-                    <td className="px-3 py-1.5 text-right font-mono text-amber-700">{snap.pending}</td>
-                    <td className="px-3 py-1.5 text-right font-mono text-blue-700">+{snap.added}</td>
+      {data.progressHistory.length > 1 && (() => {
+        // Precompute story ID lists for Done and Pending tooltips
+        const doneStories = p.stories
+          .filter(s => s.passes)
+          .map(s => s.id)
+          .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+        const pendingStories = p.stories
+          .filter(s => !s.passes && s.status !== 'skipped' && (s.retryCount ?? 0) < 3)
+          .map(s => s.id)
+          .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+        const formatIdList = (ids: string[], max = 15): string => {
+          if (ids.length === 0) return '(none)';
+          const shown = ids.slice(0, max);
+          const rest = ids.length - shown.length;
+          return shown.join(', ') + (rest > 0 ? ` … (+${rest} more)` : '');
+        };
+
+        const doneTooltip = `Stories with passes: true\n${formatIdList(doneStories)}`;
+        const pendingTooltip = `Stories not yet implemented (passes: false, not skipped)\n${formatIdList(pendingStories)}`;
+        const addedTooltip = '+N means N new stories were merged into the backlog this iteration (from research or AI suggestions)';
+
+        return (
+          <div>
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Progress History</div>
+            <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+              <table className="w-full text-xs">
+                <thead className="bg-slate-50 text-slate-500">
+                  <tr>
+                    <th className="px-3 py-2 text-left">Time</th>
+                    <th className="px-3 py-2 text-left">Iter</th>
+                    <th className="px-3 py-2 text-right cursor-help" title={doneTooltip}>Done ⓘ</th>
+                    <th className="px-3 py-2 text-right cursor-help" title={pendingTooltip}>Pending ⓘ</th>
+                    <th className="px-3 py-2 text-right cursor-help" title={addedTooltip}>Added ⓘ</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {[...data.progressHistory].reverse().slice(0, 12).map((snap, i) => {
+                    const doneCellTooltip = `${snap.done} stories passed at iter #${snap.iter}\n${formatIdList(doneStories)}`;
+                    const pendingCellTooltip = `${snap.pending} stories still pending at iter #${snap.iter}\n${formatIdList(pendingStories)}`;
+                    return (
+                      <tr key={i} className="border-t border-slate-100">
+                        <td className="px-3 py-1.5 text-slate-400" title={formatMYT(snap.ts)}>{timeAgo(snap.ts)}</td>
+                        <td className="px-3 py-1.5 text-slate-600">#{snap.iter}</td>
+                        <td className="px-3 py-1.5 text-right font-mono text-emerald-700 cursor-help" title={doneCellTooltip}>{snap.done}</td>
+                        <td className="px-3 py-1.5 text-right font-mono text-amber-700 cursor-help" title={pendingCellTooltip}>{snap.pending}</td>
+                        <td className="px-3 py-1.5 text-right font-mono text-blue-700" title={addedTooltip}>+{snap.added}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Token burn sparkline (US-189) */}
       {data.tokenBurn && data.tokenBurn.length > 0 && (
@@ -1039,6 +1066,37 @@ const PHASE_ENABLED_DEFAULTS: Record<string, boolean> = {
   A: true, R: false, T: true, S: true, M: true, I: true, V: true, P: true, C: true,
 };
 
+// Story shape inside phase output files
+interface OutputFileStory {
+  id?: string;
+  title?: string;
+  priority?: string;
+  _source?: string;
+  [key: string]: unknown;
+}
+
+const OUTPUT_FILE_PATHS: Record<string, string> = {
+  aiSuggestions: '.spiral/_ai_suggestions_output.json',
+  research:      '.spiral/_research_output.json',
+  testStories:   '.spiral/_test_stories_output.json',
+  validated:     '.spiral/_validated_stories.json',
+  overflow:      '.spiral/_research_overflow.json',
+};
+
+const SOURCE_COLORS: Record<string, string> = {
+  'test-fix':   'bg-violet-100 text-violet-700 border-violet-200',
+  'research':   'bg-blue-100 text-blue-700 border-blue-200',
+  'ai-example': 'bg-indigo-100 text-indigo-700 border-indigo-200',
+  'seed':       'bg-slate-100 text-slate-600 border-slate-200',
+};
+
+const PRIORITY_BADGE: Record<string, string> = {
+  critical: 'bg-red-100 text-red-700 border-red-200',
+  high:     'bg-orange-100 text-orange-700 border-orange-200',
+  medium:   'bg-yellow-100 text-yellow-700 border-yellow-200',
+  low:      'bg-slate-100 text-slate-500 border-slate-200',
+};
+
 function PhaseTraceTab({ projectName, stories }: { projectName: string; stories?: Story[] }) {
   const [traceData, setTraceData] = useState<PhaseTraceData | null>(null);
   const [selectedIter, setSelectedIter] = useState<number | null>(null);
@@ -1046,6 +1104,7 @@ function PhaseTraceTab({ projectName, stories }: { projectName: string; stories?
   const [loading, setLoading] = useState(true);
   const [phaseEnabled, setPhaseEnabled] = useState<Record<string, boolean>>(PHASE_ENABLED_DEFAULTS);
   const [savingPhase, setSavingPhase] = useState<string | null>(null);
+  const [selectedOutputFile, setSelectedOutputFile] = useState<keyof PhaseOutputs | null>(null);
   const userSelectedRef = useRef(false);
 
   useEffect(() => {
@@ -1256,19 +1315,25 @@ function PhaseTraceTab({ projectName, stories }: { projectName: string; stories?
 
           return (
             <div key={key} className={`rounded-xl border ${isSkipped ? 'border-slate-200 bg-slate-50/50' : `${colors.border} ${colors.bg}`} overflow-hidden ${isSkipped ? 'opacity-50' : ''}`}>
-              {/* Phase header */}
-              <button
-                onClick={() => !isSkipped && togglePhase(key)}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-opacity ${isSkipped ? 'cursor-default' : 'hover:opacity-90'}`}
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className={`w-2.5 h-2.5 rounded-full ${colors.dot} flex-shrink-0`} />
-                  <span className={`text-xs font-bold ${colors.text} font-mono`}>Phase {phase.phase}</span>
-                  <span className={`text-xs font-semibold ${colors.text}`}>{phaseName}</span>
+              {/* Phase header — outer div so the ON/OFF toggle button is not nested inside another button */}
+              <div className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-opacity ${isSkipped ? 'cursor-default' : ''}`}>
+                {/* Clickable expand area */}
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => !isSkipped && togglePhase(key)}
+                  onKeyDown={e => e.key === 'Enter' && !isSkipped && togglePhase(key)}
+                  className={`flex items-center gap-3 flex-1 min-w-0 ${isSkipped ? '' : 'cursor-pointer hover:opacity-80'}`}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className={`w-2.5 h-2.5 rounded-full ${colors.dot} flex-shrink-0`} />
+                    <span className={`text-xs font-bold ${colors.text} font-mono`}>Phase {phase.phase}</span>
+                    <span className={`text-xs font-semibold ${colors.text}`}>{phaseName}</span>
+                  </div>
+                  {phase.label && phase.label !== phaseName && !isSkipped && (
+                    <span className="text-xs text-slate-500 truncate">{phase.label}</span>
+                  )}
                 </div>
-                {phase.label && phase.label !== phaseName && !isSkipped && (
-                  <span className="text-xs text-slate-500 truncate">{phase.label}</span>
-                )}
                 <div className="ml-auto flex items-center gap-3 flex-shrink-0">
                   {isBypassed && <span className="text-[10px] text-slate-500 bg-slate-200 px-2 py-0.5 rounded-full font-medium">BYPASSED</span>}
                   {isNotYetRun && <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full font-medium">NOT YET RUN</span>}
@@ -1285,7 +1350,15 @@ function PhaseTraceTab({ projectName, stories }: { projectName: string; stories?
                     </span>
                   )}
                   {!isSkipped && <span className="text-[10px] text-slate-400">{lineCount} lines</span>}
-                  {!isSkipped && <span className={`text-xs text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}>▼</span>}
+                  {!isSkipped && (
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => !isSkipped && togglePhase(key)}
+                      onKeyDown={e => e.key === 'Enter' && !isSkipped && togglePhase(key)}
+                      className={`text-xs text-slate-400 transition-transform cursor-pointer ${isExpanded ? 'rotate-180' : ''}`}
+                    >▼</span>
+                  )}
                   {/* Phase enable/disable toggle */}
                   <button
                     onClick={(e) => { void togglePhaseEnabled(phase.phase, e); }}
@@ -1302,7 +1375,7 @@ function PhaseTraceTab({ projectName, stories }: { projectName: string; stories?
                     {phaseEnabled[phase.phase] !== false ? 'ON' : 'OFF'}
                   </button>
                 </div>
-              </button>
+              </div>
 
               {/* Phase detail (expanded) */}
               {isExpanded && (
@@ -1415,19 +1488,106 @@ function PhaseTraceTab({ projectName, stories }: { projectName: string; stories?
             const data = traceData.phaseOutputs[item.key];
             const count = (data as { stories?: unknown[] } | null)?.stories?.length ?? 0;
             const colors = PHASE_COLORS[item.phase] ?? { bg: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-700', dot: 'bg-slate-400' };
+            const isSelected = selectedOutputFile === item.key;
+            const isClickable = !!data;
             return (
-              <div key={item.key} className={`rounded-lg border ${colors.border} ${colors.bg} px-3 py-2 flex items-center justify-between`}>
+              <button
+                key={item.key}
+                disabled={!isClickable}
+                onClick={() => setSelectedOutputFile(isSelected ? null : item.key)}
+                className={`rounded-lg border px-3 py-2 flex items-center justify-between text-left w-full transition-all
+                  ${colors.border} ${colors.bg}
+                  ${isClickable ? 'cursor-pointer hover:brightness-95 active:scale-[0.99]' : 'cursor-default opacity-60'}
+                  ${isSelected ? 'ring-2 ring-offset-1 ring-blue-400' : ''}
+                `}
+              >
                 <div className="flex items-center gap-2">
                   <div className={`w-2 h-2 rounded-full ${colors.dot}`} />
                   <span className={`text-xs font-medium ${colors.text}`}>{item.label}</span>
                 </div>
-                <span className={`text-xs font-mono ${count > 0 ? colors.text : 'text-slate-400'}`}>
-                  {data ? `${count} stories` : 'N/A'}
-                </span>
-              </div>
+                <div className="flex items-center gap-1.5">
+                  <span className={`text-xs font-mono ${count > 0 ? colors.text : 'text-slate-400'}`}>
+                    {data ? `${count} stories` : 'N/A'}
+                  </span>
+                  {isClickable && (
+                    <span className={`text-[10px] text-slate-400 transition-transform ${isSelected ? 'rotate-180' : ''}`}>▼</span>
+                  )}
+                </div>
+              </button>
             );
           })}
         </div>
+
+        {/* Expandable detail panel */}
+        {selectedOutputFile && (() => {
+          const panelKey = selectedOutputFile;
+          const panelData = traceData.phaseOutputs[panelKey] as { stories?: OutputFileStory[] } | null;
+          const panelStories = panelData?.stories ?? [];
+          const filePath = OUTPUT_FILE_PATHS[panelKey as string] ?? panelKey;
+          return (
+            <div className="mt-3 rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+              {/* Panel header */}
+              <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50 border-b border-slate-200">
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="text-xs font-semibold text-slate-700">{panelStories.length} {panelStories.length === 1 ? 'story' : 'stories'}</span>
+                  <code className="text-[11px] font-mono text-slate-500 truncate">{filePath}</code>
+                </div>
+                <button
+                  onClick={() => setSelectedOutputFile(null)}
+                  className="text-slate-400 hover:text-slate-600 text-xs leading-none ml-3 flex-shrink-0"
+                  aria-label="Close panel"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {panelStories.length === 0 ? (
+                <div className="px-4 py-4 text-xs text-slate-400 italic">No stories in this file.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 text-left text-[11px] text-slate-500 uppercase tracking-wide">
+                        <th className="px-3 py-2 font-semibold w-[100px]">ID</th>
+                        <th className="px-3 py-2 font-semibold">Title</th>
+                        <th className="px-3 py-2 font-semibold w-[90px]">Priority</th>
+                        <th className="px-3 py-2 font-semibold w-[110px]">Source</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {panelStories.map((s, idx) => {
+                        const sid = s.id ?? `#${idx + 1}`;
+                        const title = s.title ?? '—';
+                        const priority = typeof s.priority === 'string' ? s.priority : null;
+                        const source = typeof s._source === 'string' ? s._source : null;
+                        return (
+                          <tr key={sid} className="border-t border-slate-100 hover:bg-slate-50 transition-colors">
+                            <td className="px-3 py-2 font-mono text-[11px] text-blue-700 whitespace-nowrap">{sid}</td>
+                            <td className="px-3 py-2 text-slate-700 leading-snug">{title}</td>
+                            <td className="px-3 py-2">
+                              {priority ? (
+                                <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${PRIORITY_BADGE[priority] ?? 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+                                  {priority}
+                                </span>
+                              ) : <span className="text-slate-300">—</span>}
+                            </td>
+                            <td className="px-3 py-2">
+                              {source ? (
+                                <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${SOURCE_COLORS[source] ?? 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+                                  {source}
+                                </span>
+                              ) : <span className="text-slate-300">—</span>}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
     </div>
   );

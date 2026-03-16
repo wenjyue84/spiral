@@ -17,10 +17,17 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 
 const PROJECTS_FILE = path.join(os.homedir(), '.spiral', 'ui-projects.json');
 
+/** Normalize MSYS2/Git-Bash paths (/c/Users/...) to Windows paths (C:/Users/...). */
+function normalizePath(p: string): string {
+  return p.replace(/^\/([a-zA-Z])\//, (_: string, d: string) => `${d.toUpperCase()}:/`);
+}
+
 function readRegistry(): Record<string, string> {
   try {
     if (fs.existsSync(PROJECTS_FILE)) {
-      return JSON.parse(fs.readFileSync(PROJECTS_FILE, 'utf8')) as Record<string, string>;
+      const raw = JSON.parse(fs.readFileSync(PROJECTS_FILE, 'utf8')) as Record<string, string>;
+      // Normalize any MSYS2-style paths so Node.js fs calls resolve correctly on Windows
+      return Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, normalizePath(v)]));
     }
   } catch { /* ignore */ }
   return {};
@@ -126,8 +133,9 @@ function spiralApiPlugin() {
         req.on('data', (chunk: Buffer) => { body += chunk.toString(); });
         req.on('end', () => {
           try {
-            const { content } = JSON.parse(body) as { content: string };
-            const configPath = path.join(PROJECT_ROOT, 'spiral.config.sh');
+            const { content, name: saveProjectName } = JSON.parse(body) as { content: string; name?: string };
+            const saveRoot = saveProjectName ? (readRegistry()[saveProjectName] ?? PROJECT_ROOT) : PROJECT_ROOT;
+            const configPath = path.join(saveRoot, 'spiral.config.sh');
             fs.writeFileSync(configPath, content, 'utf8');
             res.setHeader('Content-Type', 'application/json');
             res.setHeader('Access-Control-Allow-Origin', '*');
@@ -178,6 +186,77 @@ function spiralApiPlugin() {
         });
       });
 
+      // ── GET/POST /api/phase-config?name=X — per-project phase enable/disable toggles ──
+      // Stored in <projectRoot>/.spiral/ui-phase-config.json
+      // Default: Research (R) is OFF, all other phases are ON.
+      server.middlewares.use('/api/phase-config', (req, res, next) => {
+        const url = new URL(req.url ?? '', 'http://localhost');
+        const name = url.searchParams.get('name') ?? '';
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Content-Type', 'application/json');
+        if (!name) { res.statusCode = 400; res.end(JSON.stringify({ error: 'name required' })); return; }
+        const reg = readRegistry();
+        const root = reg[name];
+        if (!root) { res.statusCode = 404; res.end(JSON.stringify({ error: 'Project not found' })); return; }
+
+        const configPath = path.join(root, '.spiral', 'ui-phase-config.json');
+        const PHASE_DEFAULTS: Record<string, boolean> = {
+          A: true, R: false, T: true, S: true, M: true, I: true, V: true, P: true, C: true,
+        };
+
+        if (req.method === 'GET') {
+          try {
+            const saved = fs.existsSync(configPath)
+              ? JSON.parse(fs.readFileSync(configPath, 'utf8')) as Record<string, boolean>
+              : {};
+            res.end(JSON.stringify({ ...PHASE_DEFAULTS, ...saved }));
+          } catch { res.end(JSON.stringify(PHASE_DEFAULTS)); }
+          return;
+        }
+
+        if (req.method === 'POST') {
+          let body = '';
+          req.on('data', (chunk: Buffer) => { body += chunk.toString(); });
+          req.on('end', () => {
+            try {
+              const { config } = JSON.parse(body) as { config: Record<string, boolean> };
+              const spiralDir = path.join(root, '.spiral');
+              if (!fs.existsSync(spiralDir)) fs.mkdirSync(spiralDir, { recursive: true });
+              fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
+
+              // Also update spiral.config.sh: write SKIP_RESEARCH and SPIRAL_SKIP_PHASES
+              const skipPhases = Object.entries(config)
+                .filter(([, enabled]) => !enabled)
+                .map(([phase]) => phase)
+                .join(',');
+              const configSh = path.join(root, 'spiral.config.sh');
+              let shContent = fs.existsSync(configSh) ? fs.readFileSync(configSh, 'utf8') : '';
+
+              // Helper: set/add a shell variable in the config string
+              const patchShVar = (content: string, key: string, value: string): string => {
+                const re = new RegExp(`^(\\s*(?:export\\s+)?${key}=).*$`, 'm');
+                const line = `${key}="${value}"`;
+                return re.test(content) ? content.replace(re, line) : content + (content.endsWith('\n') ? '' : '\n') + line + '\n';
+              };
+
+              shContent = patchShVar(shContent, 'SPIRAL_SKIP_PHASES', skipPhases);
+              shContent = patchShVar(shContent, 'SKIP_RESEARCH', config['R'] === false ? '1' : '0');
+              if (fs.existsSync(configSh)) {
+                fs.writeFileSync(configSh, shContent, 'utf8');
+              }
+
+              res.end(JSON.stringify({ ok: true }));
+            } catch (e) {
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: String(e) }));
+            }
+          });
+          return;
+        }
+
+        next();
+      });
+
       // ── GET /api/phase-trace?name=X — phase trace data for Phase Trace tab ──
       server.middlewares.use('/api/phase-trace', (req, res, next) => {
         if (req.method !== 'GET') { next(); return; }
@@ -218,11 +297,20 @@ function spiralApiPlugin() {
           const eventsPath = path.join(root, '.spiral', 'spiral_events.jsonl');
           const rawEvents = readJsonl(eventsPath);
 
-          type PhaseEvent = { event?: string; type?: string; phase?: string; iteration?: number; duration_s?: number; ts?: string; [k: string]: unknown };
-          const phaseEvents = (rawEvents as PhaseEvent[]).filter(
-            e => e.event === 'phase_start' || e.event === 'phase_end' ||
-                 e.type === 'phase_start' || e.type === 'phase_end'
-          );
+          type PhaseEvent = { event?: string; type?: string; phase?: string; iteration?: number; duration_s?: number; ts?: string; run_id?: string; [k: string]: unknown };
+
+          // Determine the latest run_id so we don't mix events from different runs.
+          // Old runs sharing the same iteration numbers produce wildly wrong durations.
+          const latestRunId = ([...(rawEvents as PhaseEvent[])].reverse().find(e => e.run_id))?.run_id ?? null;
+
+          const phaseEvents = (rawEvents as PhaseEvent[]).filter(e => {
+            const isPhaseEvent = e.event === 'phase_start' || e.event === 'phase_end' ||
+                                 e.type === 'phase_start' || e.type === 'phase_end';
+            if (!isPhaseEvent) return false;
+            // If we know the latest run_id, discard events from older runs
+            if (latestRunId && e.run_id && e.run_id !== latestRunId) return false;
+            return true;
+          });
 
           // Parse iterations from the log
           type IterPhase = { phase: string; label: string; lines: string[]; lineStart: number; lineEnd: number; substeps: { id: string; label: string; lines: string[]; lineStart: number; lineEnd: number }[] };
@@ -350,6 +438,12 @@ function spiralApiPlugin() {
             // Full phase marker: [Phase X] LABEL
             const phaseMatch = line.match(phaseRe);
             if (phaseMatch) {
+              // If we're already inside this phase, just accumulate the line
+              // instead of creating a duplicate phase entry
+              if (currentPhase && currentPhase.phase === phaseMatch[1]) {
+                currentPhase.lines.push(line);
+                continue;
+              }
               pushPhase(i - 1);
               currentPhase = {
                 phase: phaseMatch[1],
@@ -408,24 +502,63 @@ function spiralApiPlugin() {
           }
           const dedupedIterations = [...iterMap.values()].sort((a, b) => a.iter - b.iter);
 
+          // Deduplicate phases within each iteration (same phase letter → merge lines/substeps)
+          // Handles edge cases where the log emits multiple [Phase X] banners for the same phase
+          for (const iter of dedupedIterations) {
+            const phaseMap = new Map<string, IterPhase>();
+            for (const phase of iter.phases) {
+              if (phaseMap.has(phase.phase)) {
+                const existing = phaseMap.get(phase.phase)!;
+                existing.lines.push(...phase.lines);
+                existing.substeps.push(...phase.substeps);
+                existing.lineEnd = phase.lineEnd;
+              } else {
+                phaseMap.set(phase.phase, phase);
+              }
+            }
+            iter.phases = [...phaseMap.values()];
+          }
+
           // Inject placeholder phases for the full pipeline so every iteration shows all stages
           const FULL_PIPELINE = ['A', 'R', 'T', 'S', 'M', 'I', 'V', 'P', 'C'];
           const PIPELINE_LABELS: Record<string, string> = {
             A: 'AI Suggestions', R: 'Research', T: 'Test Synthesis', S: 'Story Validate',
             M: 'Merge', I: 'Implement', V: 'Validate', P: 'Push', C: 'Check Done',
           };
+
+          // Phases that have EVER fired a phase_start event across all iterations.
+          // A phase absent from this set is intentionally bypassed (e.g. Phase A disabled in config).
+          const phasesEverStarted = new Set(
+            phaseEvents
+              .filter(e => e.event === 'phase_start' || e.type === 'phase_start')
+              .map(e => e.phase)
+              .filter(Boolean)
+          );
+          // Also count phases seen in the parsed log lines as "ever started"
+          for (const iter of dedupedIterations) {
+            for (const p of iter.phases) {
+              if (p.lineStart !== -1) phasesEverStarted.add(p.phase);
+            }
+          }
+
           for (const iter of dedupedIterations) {
             const existingPhases = new Set(iter.phases.map(p => p.phase));
             for (const phaseId of FULL_PIPELINE) {
               if (!existingPhases.has(phaseId)) {
+                const bypassed = !phasesEverStarted.has(phaseId);
                 iter.phases.push({
                   phase: phaseId,
-                  label: `${PIPELINE_LABELS[phaseId] ?? phaseId} (not run)`,
-                  lines: [`(Phase ${phaseId} was skipped this iteration)`],
+                  label: bypassed
+                    ? `${PIPELINE_LABELS[phaseId] ?? phaseId} (bypassed)`
+                    : `${PIPELINE_LABELS[phaseId] ?? phaseId} (not run)`,
+                  lines: [bypassed
+                    ? `(Phase ${phaseId} is not enabled in this Spiral config)`
+                    : `(Phase ${phaseId} has not run yet this iteration)`],
                   lineStart: -1,
                   lineEnd: -1,
                   substeps: [],
-                });
+                  bypassed,
+                } as typeof iter.phases[0] & { bypassed: boolean });
               }
             }
           }
@@ -493,17 +626,22 @@ function spiralApiPlugin() {
               const prd = JSON.parse(fs.readFileSync(prdPath, 'utf8')) as {
                 productName?: string;
                 overview?: string;
-                userStories?: Array<{ id: string; title: string; passes: boolean; priority?: string; complexity?: string; _failureReason?: string; dependencies?: string[]; _status?: string }>;
+                userStories?: Array<{ id: string; title: string; description?: string; passes: boolean; priority?: string; complexity?: string; _failureReason?: string; dependencies?: string[]; _status?: string; _source?: string; retryCount?: number; acceptanceCriteria?: string[]; filesTouch?: string[] }>;
               };
               const stories = (prd.userStories ?? []).map(s => ({
                 id: s.id,
                 title: s.title,
+                description: s.description,
                 passes: s.passes,
                 priority: s.priority,
                 complexity: s.complexity,
                 failureReason: s._failureReason,
                 dependencies: s.dependencies,
                 status: s._status,
+                source: s._source,
+                retryCount: s.retryCount,
+                acceptanceCriteria: s.acceptanceCriteria,
+                filesTouch: s.filesTouch,
                 completedAt: s.passes ? completionTimes[s.id] ?? null : null,
               }));
               const done = stories.filter(s => s.passes).length;
@@ -615,12 +753,20 @@ function spiralApiPlugin() {
             }
           } catch { /* ignore */ }
 
+          const configRaw = (() => {
+            try {
+              const p = path.join(root, 'spiral.config.sh');
+              return fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : '';
+            } catch { return ''; }
+          })();
+
           res.end(JSON.stringify({
             name,
             root,
             lastSeen,
             progress,
             config,
+            configRaw,
             constitution,
             activity,
             progressHistory,
@@ -633,6 +779,37 @@ function spiralApiPlugin() {
         } catch (e) {
           res.statusCode = 500;
           res.end(JSON.stringify({ error: String(e) }));
+        }
+      });
+
+      // ── DELETE /api/story?name=X&id=Y — remove a story from prd.json ───────
+      server.middlewares.use('/api/story', (req, res, next) => {
+        if (req.method !== 'DELETE' && req.method !== 'OPTIONS') { next(); return; }
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'DELETE, OPTIONS');
+        res.setHeader('Content-Type', 'application/json');
+        if (req.method === 'OPTIONS') { res.statusCode = 204; res.end(); return; }
+        const url = new URL(req.url ?? '', 'http://localhost');
+        const name = url.searchParams.get('name') ?? '';
+        const storyId = url.searchParams.get('id') ?? '';
+        if (!storyId) { res.statusCode = 400; res.end(JSON.stringify({ error: 'id required' })); return; }
+        const reg = readRegistry();
+        const root = name ? (reg[name] ?? null) : PROJECT_ROOT;
+        if (!root) { res.statusCode = 404; res.end(JSON.stringify({ error: `Project "${name}" not found` })); return; }
+        const prdPath = path.join(root, 'prd.json');
+        try {
+          const prd = JSON.parse(fs.readFileSync(prdPath, 'utf8')) as { userStories?: { id: string }[] };
+          const before = (prd.userStories ?? []).length;
+          prd.userStories = (prd.userStories ?? []).filter(s => s.id !== storyId);
+          if (prd.userStories.length === before) {
+            res.statusCode = 404; res.end(JSON.stringify({ error: `Story "${storyId}" not found` })); return;
+          }
+          const tmp = prdPath + '.tmp';
+          fs.writeFileSync(tmp, JSON.stringify(prd, null, 2), 'utf8');
+          fs.renameSync(tmp, prdPath);
+          res.end(JSON.stringify({ ok: true, deleted: storyId }));
+        } catch (e) {
+          res.statusCode = 500; res.end(JSON.stringify({ error: String(e) }));
         }
       });
 
@@ -654,21 +831,25 @@ function spiralApiPlugin() {
         }
 
         const workersDir = path.join(root, '.spiral', 'workers');
-        const workers: { id: number; hasLog: boolean; hasHeartbeat: boolean }[] = [];
+        const workerMap = new Map<number, { id: number; hasLog: boolean; hasHeartbeat: boolean; hasJson: boolean }>();
         try {
           if (fs.existsSync(workersDir)) {
             for (const f of fs.readdirSync(workersDir)) {
-              const m = f.match(/^worker_(\d+)\.log$/);
-              if (!m) continue;
-              const id = parseInt(m[1]);
-              workers.push({
-                id,
-                hasLog: true,
-                hasHeartbeat: fs.existsSync(path.join(workersDir, `worker_${id}.heartbeat`)),
-              });
+              const mLog  = f.match(/^worker_(\d+)\.log$/);
+              const mJson = f.match(/^worker_(\d+)\.json$/);
+              if (mLog) {
+                const id = parseInt(mLog[1]);
+                const existing = workerMap.get(id);
+                workerMap.set(id, { id, hasLog: true, hasHeartbeat: fs.existsSync(path.join(workersDir, `worker_${id}.heartbeat`)), hasJson: existing?.hasJson ?? false });
+              } else if (mJson) {
+                const id = parseInt(mJson[1]);
+                const existing = workerMap.get(id);
+                workerMap.set(id, { id, hasLog: existing?.hasLog ?? false, hasHeartbeat: existing?.hasHeartbeat ?? fs.existsSync(path.join(workersDir, `worker_${id}.heartbeat`)), hasJson: true });
+              }
             }
           }
         } catch { /* ignore */ }
+        const workers = [...workerMap.values()];
 
         workers.sort((a, b) => a.id - b.id);
         res.end(JSON.stringify({ workers }));

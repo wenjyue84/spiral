@@ -1,2 +1,4 @@
 timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	retry_num	commit_sha
 2026-03-13T18:20:10Z	0	1	US-073	Add --version flag to spiral.sh showing installed git version	reject	1720	haiku	2	
+2026-03-16T01:35:01Z	1	2	US-199	Export dependency graph as Graphviz DOT file for advanced rendering	reject	1102	claude-sonnet-4-6
+claude-sonnet-4-6			69b7578f2a32	true	2586566	0	0	0	0	0

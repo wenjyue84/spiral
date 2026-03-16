@@ -93,6 +93,12 @@ def validate(schema_path: Path) -> int:
 
         value = os.environ.get(name)
 
+        # Allow CLAUDE_CODE_SESSION_ACCESS_TOKEN as an alternative to ANTHROPIC_API_KEY.
+        # The Claude CLI authenticates via OAuth session when the API key is absent.
+        or_env: str | None = spec.get("or_env")
+        if (value is None or value == "") and or_env:
+            value = os.environ.get(or_env) or value
+
         if value is None or value == "":
             if required:
                 missing_required.append(name)

@@ -169,6 +169,9 @@ SPIRAL_HOME="${SPIRAL_HOME:-.}"
 # ── Source context injection library (US-280) ────────────────────────────────
 [[ -f "$SPIRAL_HOME/lib/context_injection.sh" ]] && source "$SPIRAL_HOME/lib/context_injection.sh"
 
+# ── Source tool parameter validator (US-249) ──────────────────────────────────
+[[ -f "$SPIRAL_HOME/lib/tool_param_validator.sh" ]] && source "$SPIRAL_HOME/lib/tool_param_validator.sh"
+
 # ── Helper: append a JSONL event to spiral_events.jsonl ─────────────────────
 SPIRAL_SCRATCH_DIR="${SPIRAL_SCRATCH_DIR:-.spiral}"
 log_ralph_event() {
@@ -315,6 +318,11 @@ echo "  ║  Max iters:  $MAX_ITERATIONS"
   echo "  ║  Time budget: ${STORY_TIME_BUDGET}s per story"
 echo "  ╚══════════════════════════════════════╝"
 echo ""
+
+# ── Tool schema init (US-249) ────────────────────────────────────
+if declare -f tool_schema_init >/dev/null 2>&1; then
+  tool_schema_init >/dev/null 2>&1 || true
+fi
 
 # ── Branch management ────────────────────────────────────────────
 CURRENT_BRANCH=$(git branch --show-current)
@@ -2621,6 +2629,18 @@ DIAG_EXTRACTOR_EOF
           echo "  [allowlist] ${_AL_VIOLATIONS} policy violation(s) logged for phase I (see .spiral/security-events.log)"
           log_ralph_event "allowlist_violation" \
             "\"story_id\":\"${NEXT_STORY:-}\",\"phase\":\"I\",\"count\":${_AL_VIOLATIONS}"
+        fi
+      fi
+
+      # ── Tool param validation: semantic check of LLM bash tool_use args (US-249) ─
+      # Validates parameters for git/python/bats/jq/curl against .spiral/tool-schema.json.
+      # Invalid parameters are logged to checkpoint _toolErrors (non-blocking audit).
+      if declare -f scan_stream_json_tool_params >/dev/null 2>&1; then
+        _TP_ERRORS=$(scan_stream_json_tool_params "$_RL_TMP" "${NEXT_STORY:-}" 2>/dev/null || echo 0)
+        if [[ "${_TP_ERRORS:-0}" -gt 0 ]]; then
+          echo "  [tool-validate] ${_TP_ERRORS} tool parameter error(s) logged for phase I (see checkpoint _toolErrors)"
+          log_ralph_event "tool_param_errors" \
+            "\"storyId\":\"${NEXT_STORY:-}\",\"phase\":\"I\",\"count\":${_TP_ERRORS}"
         fi
       fi
     fi

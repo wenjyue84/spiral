@@ -87,6 +87,11 @@
           "type": "string",
           "enum": ["small", "medium", "large"]
         },
+        "model": {
+          "type": "string",
+          "enum": ["haiku", "sonnet", "opus"],
+          "description": "Preferred model for implementing this story (assigned by route_stories.py or set manually)"
+        },
         "technicalNotes": {
           "type": "array",
           "items": { "type": "string" }
@@ -124,7 +129,7 @@
           "type": "array",
           "items": {
             "type": "string",
-            "pattern": "^[a-z0-9_-]+$",
+            "pattern": "^[a-z0-9_.:-]+$",
             "minLength": 1
           }
         },

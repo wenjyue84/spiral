@@ -329,7 +329,7 @@ source "$SPIRAL_HOME/lib/crash_capture.sh"
 # ── Resolve spiral-core binary (Rust hot-path) ────────────────────────────────
 _SC_BIN=""
 for _sc in "$SPIRAL_HOME/lib/spiral-core" "$SPIRAL_HOME/lib/spiral-core.exe"; do
-  [[ -x "$_sc" ]] && {
+  [[ -f "$_sc" && -x "$_sc" ]] && {
     _SC_BIN="$_sc"
     break
   }

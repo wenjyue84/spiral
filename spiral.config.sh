@@ -34,7 +34,12 @@ SPIRAL_STORY_PREFIX="US"
 
 # ── Capacity limit: skip Phase R when pending stories exceed this ─────────────
 # Prevents flooding prd.json during aggressive non-stop runs
-SPIRAL_MAX_PENDING=30
+SPIRAL_MAX_PENDING=50
+
+# ── Total story count assertion ceiling ───────────────────────────────────────
+# Spiral has 264 total stories (243 done + 21 pending + room for research).
+# Override the default of 200 to prevent abort on assert.
+SPIRAL_MAX_TOTAL_STORIES=300
 
 # ── Stale git lock-file cleanup (US-225) ─────────────────────────────────────
 # Lock files in worktrees older than this many minutes are removed (if no live
@@ -87,7 +92,9 @@ SPIRAL_RESEARCH_SPECIALIST_PROMPT=""
 # ── Manual story exclusion ─────────────────────────────────────────────────
 # Comma-separated story IDs to permanently skip without penalty (no retry
 # increment). Use for stories that are blocked externally or descoped mid-run.
-# Example: SPIRAL_SKIP_STORY_IDS="US-042,US-099"
+# US-318 to US-335: Tier 4 stories (OTel spans, DeepEval, RAGAS, HMAC, etc.)
+# requiring external dependencies not available in this environment.
+SPIRAL_SKIP_STORY_IDS="US-318,US-319,US-320,US-321,US-322,US-323,US-324,US-325,US-326,US-327,US-328,US-329,US-330,US-331,US-332,US-333,US-334,US-335"
 # SPIRAL_SKIP_STORY_IDS=""
 
 # ── Dashboard auto-refresh interval (seconds) ─────────────────────────────
