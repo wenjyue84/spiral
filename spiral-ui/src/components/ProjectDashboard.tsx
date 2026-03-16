@@ -84,6 +84,7 @@ interface ProjectData {
   tokenBurn?: TokenBurnEntry[];
   cacheStats?: CachePhaseEntry[];
   lastCompletedStory?: LastCompletedStory | null;
+  recentlyCompleted?: LastCompletedStory[];
   checkpointTs?: string | null;
   lastLogModified?: string | null;
 }
@@ -234,6 +235,62 @@ function StoryDetailModal({ story, onClose }: { story: Story; onClose: () => voi
   );
 }
 
+function RecentlyCompletedFeed({ entries }: { entries?: LastCompletedStory[] }) {
+  const MODEL_COLOR: Record<string, string> = {
+    haiku:  'bg-sky-100 text-sky-700 border-sky-200',
+    sonnet: 'bg-violet-100 text-violet-700 border-violet-200',
+    opus:   'bg-amber-100 text-amber-700 border-amber-200',
+  };
+
+  const modelLabel = (model: string) => {
+    if (!model) return null;
+    const lower = model.toLowerCase();
+    if (lower.includes('haiku'))  return { label: 'haiku',  cls: MODEL_COLOR['haiku'] };
+    if (lower.includes('sonnet')) return { label: 'sonnet', cls: MODEL_COLOR['sonnet'] };
+    if (lower.includes('opus'))   return { label: 'opus',   cls: MODEL_COLOR['opus'] };
+    return { label: model.split('-').slice(-1)[0] ?? model, cls: 'bg-slate-100 text-slate-500 border-slate-200' };
+  };
+
+  if (!entries || entries.length === 0) {
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white px-4 py-6 text-center text-xs text-slate-400 italic">
+        No stories completed yet.
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+      <ul className="divide-y divide-slate-100">
+        {entries.map((e, i) => {
+          const badge = modelLabel(e.model ?? '');
+          const truncTitle = (e.title ?? '').length > 60 ? (e.title ?? '').slice(0, 60) + '…' : (e.title ?? '');
+          return (
+            <li key={i} className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50">
+              <span className="text-emerald-500 flex-shrink-0 text-sm">✓</span>
+              <span className="font-mono text-[11px] font-semibold text-blue-700 flex-shrink-0 w-16">{e.id}</span>
+              <span className="flex-1 min-w-0 text-xs text-slate-700 truncate" title={e.title}>{truncTitle}</span>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {badge && (
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${badge.cls}`}>
+                    {badge.label}
+                  </span>
+                )}
+                {(e.duration ?? 0) > 0 && (
+                  <span className="text-[10px] text-slate-400">{e.duration}s</span>
+                )}
+                <span className="text-[10px] text-slate-400" title={formatMYT(e.timestamp)}>
+                  {timeAgo(e.timestamp)}
+                </span>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 function ProgressTab({ data, projectName, onRefresh }: { data: ProjectData; projectName: string; onRefresh: () => void }) {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [selectedStory, setSelectedStory] = useState<Story | null>(null);
@@ -337,6 +394,12 @@ function ProgressTab({ data, projectName, onRefresh }: { data: ProjectData; proj
             style={{ width: `${donePct}%` }}
           />
         </div>
+      </div>
+
+      {/* Recently Completed feed (US-314) */}
+      <div>
+        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Recently Completed</div>
+        <RecentlyCompletedFeed entries={data.recentlyCompleted} />
       </div>
 
       {/* Progress history sparkline */}

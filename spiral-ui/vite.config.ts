@@ -273,11 +273,32 @@ function spiralApiPlugin() {
         if (!root) { res.statusCode = 404; res.end(JSON.stringify({ error: 'Project not found' })); return; }
 
         try {
-          // Parse _last_run.log into iterations and phases
-          const logPath = path.join(root, '.spiral', '_last_run.log');
-          const logText = fs.existsSync(logPath)
-            ? fs.readFileSync(logPath, 'utf8').replace(/\0/g, '')
-            : '';
+          // Parse _last_run.log into iterations and phases.
+          // Helper: read a log candidate and return its text (null bytes stripped).
+          const readLogCandidate = (p: string): string =>
+            fs.existsSync(p) ? fs.readFileSync(p, 'utf8').replace(/\0/g, '') : '';
+
+          // Quick check: does the text contain at least one iteration banner?
+          const hasIterations = (text: string): boolean =>
+            /SPIRAL Iteration \d+/.test(text);
+
+          // Try _last_run.log first, then rotated logs (.1, .2, .3) as fallbacks
+          // when the primary log has no parsed iterations (e.g. mid-run / crashed).
+          const spiralDir = path.join(root, '.spiral');
+          const logCandidates = [
+            path.join(spiralDir, '_last_run.log'),
+            path.join(spiralDir, '_last_run.log.1'),
+            path.join(spiralDir, '_last_run.log.2'),
+            path.join(spiralDir, '_last_run.log.3'),
+          ];
+          let logText = '';
+          for (const candidate of logCandidates) {
+            const text = readLogCandidate(candidate);
+            if (hasIterations(text)) { logText = text; break; }
+            // If primary log exists but has no iterations yet, keep it for
+            // display purposes but continue trying rotated logs.
+            if (candidate === logCandidates[0] && text) logText = text;
+          }
 
           // Parse phase output files
           const readJsonSafe = (p: string) => {
@@ -707,8 +728,9 @@ function spiralApiPlugin() {
           // Last-seen from registry metadata (we just use now since we read files live)
           const lastSeen = new Date().toISOString();
 
-          // Last completed story from results.tsv (last row with status=pass)
+          // Last completed story + recently completed feed from results.tsv
           let lastCompletedStory: { id: string; title: string; timestamp: string; model: string; duration: number } | null = null;
+          const recentlyCompleted: { id: string; title: string; timestamp: string; model: string; duration: number }[] = [];
           const tsvPath = path.join(root, 'results.tsv');
           if (fs.existsSync(tsvPath)) {
             try {
@@ -716,9 +738,14 @@ function spiralApiPlugin() {
               for (let i = 1; i < tsvLines.length; i++) {
                 const cols = tsvLines[i].split('\t');
                 if (cols[5] === 'pass') {
-                  lastCompletedStory = { id: cols[3], title: cols[4], timestamp: cols[0], model: cols[7] ?? '', duration: parseInt(cols[6]) || 0 };
+                  const entry = { id: cols[3], title: cols[4], timestamp: cols[0], model: cols[7] ?? '', duration: parseInt(cols[6]) || 0 };
+                  lastCompletedStory = entry;
+                  recentlyCompleted.push(entry);
                 }
               }
+              // Sort descending by timestamp, keep top 10
+              recentlyCompleted.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+              recentlyCompleted.splice(10);
             } catch { /* ignore */ }
           }
 
@@ -773,6 +800,7 @@ function spiralApiPlugin() {
             tokenBurn,
             cacheStats,
             lastCompletedStory,
+            recentlyCompleted,
             checkpointTs,
             lastLogModified,
           }));
