@@ -239,9 +239,10 @@ jobs:
         run: |
           uv run pytest tests/ -v --tb=short \
             --cov=lib \
+            --cov-branch \
             --cov-report=xml:coverage.xml \
             --cov-report=html:htmlcov \
-            --cov-fail-under=48
+            --cov-fail-under=38
 
       - name: Append coverage summary to step summary
         if: always()

@@ -39,10 +39,12 @@ dev = [
 
 [tool.coverage.run]
 source = ["lib"]
+branch = true
+omit = ["tests/*", "*/__pycache__/*"]
 
 [tool.coverage.report]
 show_missing = true
-fail_under = 48
+fail_under = 38
 
 [tool.mypy]
 python_version = "3.13"
