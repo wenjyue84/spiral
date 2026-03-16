@@ -2006,6 +2006,61 @@ if [[ -d "$REPO_ROOT/.spiral-workers" ]]; then
   fi
 fi
 
+# ── US-370: Worktree prune audit at startup ──────────────────────────────────
+# Run `git worktree prune --dry-run --verbose` to discover stale entries,
+# auto-prune only those under .spiral-workers/, and warn about the rest.
+# Note: --dry-run output uses internal admin names (e.g. "Removing worktrees/worker-1")
+# so we resolve actual worktree paths via .git/worktrees/<name>/gitdir.
+_WT_AUDIT_LOG="$SCRATCH_DIR/worktree_audit.log"
+_WT_PRUNE_DRY=$(git -C "$REPO_ROOT" worktree prune --dry-run --verbose 2>&1 || true)
+printf '%s\n' "$_WT_PRUNE_DRY" >"$_WT_AUDIT_LOG" 2>/dev/null || true
+
+if [[ -n "$_WT_PRUNE_DRY" ]]; then
+  echo "  [startup] Worktree prune dry-run found stale entries — see .spiral/worktree_audit.log"
+  log_spiral_event "worktree_prune_audit" \
+    "\"stale_count\":$(echo "$_WT_PRUNE_DRY" | grep -c '.' || echo 0),\"action\":\"dry_run\""
+
+  # Classify stale entries as SPIRAL-owned or external by resolving admin gitdir
+  _WT_AUTO_PRUNED=0
+  _WT_EXTERNAL_WARN=0
+  while IFS= read -r _wt_line; do
+    [[ -z "$_wt_line" ]] && continue
+    # Extract admin record name: "Removing worktrees/<name>: ..." → <name>
+    _wt_admin_name=""
+    if [[ "$_wt_line" =~ Removing\ worktrees/([^:]+): ]]; then
+      _wt_admin_name="${BASH_REMATCH[1]}"
+    fi
+    if [[ -n "$_wt_admin_name" ]]; then
+      # Resolve actual worktree path from .git/worktrees/<name>/gitdir
+      _wt_gitdir_file="$REPO_ROOT/.git/worktrees/$_wt_admin_name/gitdir"
+      _wt_actual_path=""
+      [[ -f "$_wt_gitdir_file" ]] && _wt_actual_path=$(cat "$_wt_gitdir_file" 2>/dev/null || true)
+      if echo "$_wt_actual_path" | grep -qF ".spiral-workers/"; then
+        _WT_AUTO_PRUNED=$((_WT_AUTO_PRUNED + 1))
+      else
+        _WT_EXTERNAL_WARN=$((_WT_EXTERNAL_WARN + 1))
+      fi
+    else
+      # Unparseable line — treat as external to be safe
+      _WT_EXTERNAL_WARN=$((_WT_EXTERNAL_WARN + 1))
+    fi
+  done <<<"$_WT_PRUNE_DRY"
+
+  if [[ "$_WT_AUTO_PRUNED" -gt 0 ]]; then
+    # Safe to auto-prune: stale entries belong to SPIRAL's own worktree dir
+    git -C "$REPO_ROOT" worktree prune 2>/dev/null || true
+    echo "  [startup] Auto-pruned ${_WT_AUTO_PRUNED} stale SPIRAL worktree record(s)"
+    log_spiral_event "worktree_prune_auto" \
+      "\"pruned_count\":${_WT_AUTO_PRUNED}"
+  fi
+
+  if [[ "$_WT_EXTERNAL_WARN" -gt 0 ]]; then
+    echo "  [startup] WARN: ${_WT_EXTERNAL_WARN} stale worktree(s) outside .spiral-workers/ — manual review recommended"
+    log_spiral_event "worktree_prune_external_warn" \
+      "\"external_count\":${_WT_EXTERNAL_WARN}"
+  fi
+fi
+
 # ── US-302: Research cache invalidation on constitution.md change ──────────
 # When constitution.md changes between runs, cached research may be misaligned
 # with updated project goals. Detect hash change and clear the cache if needed.

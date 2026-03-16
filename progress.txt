@@ -1294,3 +1294,28 @@ Completed: Add pre-flight Claude API token count check before story prompt submi
 - The hook must handle both `jq` and no-jq environments (fallback grep extraction)
 - Windows paths may arrive with backslashes from Claude Code — normalize before matching
 - shellcheck not installed locally but script follows strict mode (set -euo pipefail)
+
+
+## Iteration N - Story: US-370 Add git worktree prune --dry-run audit log at SPIRAL startup and post-worker cleanup
+
+### What was implemented
+- Added startup worktree audit in spiral.sh (after dirty worktree reset, before constitution hash check)
+- Runs `git worktree prune --dry-run --verbose` and writes output to .spiral/worktree_audit.log
+- Classifies stale entries by resolving actual worktree paths from .git/worktrees/<name>/gitdir
+- Auto-prunes only SPIRAL-owned entries (paths under .spiral-workers/); warns for external worktrees
+- Emits structured JSONL events: worktree_prune_audit, worktree_prune_auto, worktree_prune_external_warn
+- Added post-worker mini-audit in lib/run_parallel_ralph.sh — logs `git worktree list --porcelain` to .spiral/worktree_post_worker_N.log after each worker completes
+- Emits worktree_post_worker_audit JSONL event with worktree count
+
+### Files modified
+- spiral.sh — startup worktree prune audit block (after line ~2007)
+- lib/run_parallel_ralph.sh — post-worker mini-audit (after OTel span logging)
+- tests/worktree_prune_audit.bats — new: 5 bats tests
+
+### Patterns discovered
+- `git worktree prune --dry-run --verbose` outputs internal admin names ("Removing worktrees/<name>:") not actual worktree paths — must resolve via .git/worktrees/<name>/gitdir
+- The gitdir file in the admin record contains the full path to the worktree's .git file, which includes the original directory (e.g., .spiral-workers/worker-2/.git)
+- On Windows/MSYS, the gitdir path uses Windows-style drive letters (C:/Users/...) but grep -F still matches partial path fragments correctly
+
+### Gotchas
+- Do NOT match stale entries by their dry-run output text — the output uses internal worktree admin names, not filesystem paths

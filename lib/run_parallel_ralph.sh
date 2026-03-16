@@ -981,6 +981,15 @@ while [[ "$_ALL_DONE" -eq 0 ]]; do
           --conversation-id "${SPIRAL_RUN_ID:-}" \
           --cache-read-tokens "${_IA_CACHE_READ:-0}" \
           --cache-creation-tokens "${_IA_CACHE_CREATE:-0}" 2>/dev/null || true
+        # US-370: Post-worker mini-audit — log worktree state after each worker completes
+        _WT_POST_AUDIT=$(git -C "$REPO_ROOT" worktree list --porcelain 2>/dev/null || true)
+        _WT_POST_AUDIT_FILE="${SPIRAL_SCRATCH_DIR}/worktree_post_worker_${WORKER_NUM}.log"
+        printf '%s\n' "$_WT_POST_AUDIT" >"$_WT_POST_AUDIT_FILE" 2>/dev/null || true
+        _WT_POST_COUNT=$(echo "$_WT_POST_AUDIT" | grep -c '^worktree ' || echo 0)
+        echo "  [parallel] Worker $WORKER_NUM: post-completion worktree audit — ${_WT_POST_COUNT} worktree(s) active"
+        printf '{"ts":"%s","event":"worktree_post_worker_audit","run_id":"%s","worker":%d,"worktree_count":%d}\n' \
+          "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${SPIRAL_RUN_ID:-}" "$WORKER_NUM" "$_WT_POST_COUNT" \
+          >>"$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || true
         # Remove pause file if it exists
         rm -f "${SPIRAL_SCRATCH_DIR}/_worker_pause_${WORKER_NUM}" 2>/dev/null || true
       else
