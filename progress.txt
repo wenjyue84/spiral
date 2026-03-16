@@ -314,3 +314,32 @@ Incomplete: Validate MCP server integrity via signed checksum manifest before Ph
 - `&>/dev/null` is a redirect pattern, not a background operator — safe to ignore in audit
 - `command -v setsid &>/dev/null` is also a redirect, not a background spawn
 
+## Iteration 2 - Mon, Mar 16, 2026  1:50:20 PM
+Incomplete: Validate MCP server integrity via signed checksum manifest before Phase I (ID: US-320) — attempt /3
+
+
+## Iteration N - Story: US-353 Implement Agentic Plan Cache to reuse decomposition plans across similar stories
+
+### What was implemented
+- Created `lib/plan_cache.py` with store/lookup/prune/inject CLI commands
+- Cache key: sha256(story_type + estimatedComplexity + primary_file_ext) — uses keyword-based matching per APC paper
+- Similarity fallback: SequenceMatcher on key_source strings (threshold 0.6) when exact key miss
+- TTL-based expiry via SPIRAL_PLAN_CACHE_TTL_HOURS (default 168 = 7 days)
+- Added plan cache store in spiral.sh after successful story (both parallel single-story and sequential paths)
+- Added plan cache inject in ralph.sh user prompt between focus and file context sections
+- Cache hit/miss logged to spiral_events.jsonl via log_spiral_event / log_ralph_event
+- Added SPIRAL_PLAN_CACHE_ENABLED and SPIRAL_PLAN_CACHE_TTL_HOURS env vars to spiral.sh
+- Updated templates/spiral.config.example.sh with documented plan cache settings
+- Added 27 tests in tests/test_plan_cache.py covering key generation, store, lookup (exact + similarity), prune, inject, and event logging
+- mypy --strict passes with zero errors
+
+### Patterns discovered
+- research_cache.py is the closest existing module — followed its CLI and caching patterns
+- SPIRAL_PYTHON is not exported from spiral.sh; ralph.sh uses `${SPIRAL_PYTHON:-python3}` fallback
+- Plan is stored as a simple JSON with story_id, duration, model — decompose.sh is a stub, so plan content is minimal for now
+- `_key_source` field stored in each cache entry enables similarity matching without re-deriving from the story
+
+### Gotchas
+- mypy strict requires `dict[str, Any]` not bare `dict`; `max(dict, key=dict.get)` needs lambda wrapper for type safety
+- Plan cache inject goes into user prompt (not system prompt) to preserve cache prefix stability per US-338
+- The plan cache dir is `.spiral/plan_cache/` (under SCRATCH_DIR) which is gitignored

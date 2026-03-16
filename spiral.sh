@@ -522,6 +522,8 @@ SPIRAL_WORKSPACE_CLEANUP="${SPIRAL_WORKSPACE_CLEANUP:-false}"            # true 
 SPIRAL_CACHE_TTL="${SPIRAL_CACHE_TTL:-7}"                                # days; research_cache entries older than this are pruned (US-136)
 SPIRAL_INVALIDATE_CACHE_ON_CONSTITUTION_CHANGE="${SPIRAL_INVALIDATE_CACHE_ON_CONSTITUTION_CHANGE:-true}"  # US-302: clear research_cache when constitution.md SHA-256 changes
 SPIRAL_AUTO_RELEASE="${SPIRAL_AUTO_RELEASE:-false}"                      # true = auto SemVer bump from conventional commits on run completion (US-190)
+SPIRAL_PLAN_CACHE_ENABLED="${SPIRAL_PLAN_CACHE_ENABLED:-true}"            # US-353: true = cache/reuse decomposition plans across similar stories
+SPIRAL_PLAN_CACHE_TTL_HOURS="${SPIRAL_PLAN_CACHE_TTL_HOURS:-168}"         # US-353: hours before cached plans expire (default 168 = 7 days)
 SPIRAL_GIT_PUSH="${SPIRAL_GIT_PUSH:-false}"                              # true = push vX.Y.Z tag to origin after auto-release (US-190)
 SPIRAL_GIT_AUTHOR="${SPIRAL_GIT_AUTHOR:-}"                               # fallback git identity "Name <email>" when git config user.name/email is missing (US-211)
 SPIRAL_SAST_ENABLED="${SPIRAL_SAST_ENABLED:-true}"                        # US-262: run Semgrep SAST scan in Phase G; false = disabled
@@ -3624,6 +3626,22 @@ $INJECTED_PROMPT"
                     --passed true \
                     --output calibration.jsonl 2>/dev/null || true
                 fi
+                # ── US-353: Store plan in cache on success ──────────────────────
+                if [[ "$_STORY_PASSES" == "true" && "${SPIRAL_PLAN_CACHE_ENABLED:-true}" == "true" ]]; then
+                  _PLAN_CACHE_DIR="$SCRATCH_DIR/plan_cache"
+                  _STORY_TMP=$(mktemp -p "$SCRATCH_DIR" _story_XXXXXX.json 2>/dev/null || echo "$SCRATCH_DIR/_story_$$.json")
+                  "$JQ" --arg id "$_NEXT_SID" '.userStories[] | select(.id == $id)' "$PRD_FILE" > "$_STORY_TMP" 2>/dev/null || true
+                  _PLAN_JSON="{\"story_id\":\"$_NEXT_SID\",\"duration_s\":$_I_ELAPSED,\"model\":\"${EFFECTIVE_MODEL:-unknown}\"}"
+                  _PLAN_TMP=$(mktemp -p "$SCRATCH_DIR" _plan_XXXXXX.json 2>/dev/null || echo "$SCRATCH_DIR/_plan_$$.json")
+                  printf '%s' "$_PLAN_JSON" > "$_PLAN_TMP"
+                  _PC_RESULT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/plan_cache.py" store "$_PLAN_CACHE_DIR" \
+                    --story-json "$_STORY_TMP" --plan-json "$_PLAN_TMP" 2>/dev/null || echo "")
+                  if [[ -n "$_PC_RESULT" ]]; then
+                    log_spiral_event "plan_cache_store" \
+                      "\"story_id\":\"$_NEXT_SID\",\"plan_key\":\"$(basename "$_PC_RESULT" .json)\""
+                  fi
+                  rm -f "$_STORY_TMP" "$_PLAN_TMP" 2>/dev/null || true
+                fi
                 # ── US-260: Post-Phase-I drift check ──────────────────────────
                 if [[ "${SPIRAL_DRIFT_CHECK:-false}" != "false" && -n "${_NEXT_SID:-}" ]]; then
                   echo "  [drift] Checking implementation drift for $_NEXT_SID..."
@@ -3793,6 +3811,22 @@ $INJECTED_PROMPT"
                 --phase-retries 0 \
                 --passed true \
                 --output calibration.jsonl 2>/dev/null || true
+            fi
+            # ── US-353: Store plan in cache on success ──────────────────────
+            if [[ "$_STORY_PASSES" == "true" && "${SPIRAL_PLAN_CACHE_ENABLED:-true}" == "true" ]]; then
+              _PLAN_CACHE_DIR="$SCRATCH_DIR/plan_cache"
+              _STORY_TMP=$(mktemp -p "$SCRATCH_DIR" _story_XXXXXX.json 2>/dev/null || echo "$SCRATCH_DIR/_story_$$.json")
+              "$JQ" --arg id "$_NEXT_SID" '.userStories[] | select(.id == $id)' "$PRD_FILE" > "$_STORY_TMP" 2>/dev/null || true
+              _PLAN_JSON="{\"story_id\":\"$_NEXT_SID\",\"duration_s\":$_I_ELAPSED,\"model\":\"${EFFECTIVE_MODEL:-unknown}\"}"
+              _PLAN_TMP=$(mktemp -p "$SCRATCH_DIR" _plan_XXXXXX.json 2>/dev/null || echo "$SCRATCH_DIR/_plan_$$.json")
+              printf '%s' "$_PLAN_JSON" > "$_PLAN_TMP"
+              _PC_RESULT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/plan_cache.py" store "$_PLAN_CACHE_DIR" \
+                --story-json "$_STORY_TMP" --plan-json "$_PLAN_TMP" 2>/dev/null || echo "")
+              if [[ -n "$_PC_RESULT" ]]; then
+                log_spiral_event "plan_cache_store" \
+                  "\"story_id\":\"$_NEXT_SID\",\"plan_key\":\"$(basename "$_PC_RESULT" .json)\""
+              fi
+              rm -f "$_STORY_TMP" "$_PLAN_TMP" 2>/dev/null || true
             fi
             # ── US-260: Post-Phase-I drift check (parallel path) ──────────
             if [[ "${SPIRAL_DRIFT_CHECK:-false}" != "false" && -n "${_NEXT_SID:-}" ]]; then

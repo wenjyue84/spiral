@@ -2261,6 +2261,30 @@ This SPIRAL iteration is focused on **$RALPH_FOCUS**. Keep this theme in mind wh
         echo "  [focus] Focus context injected into user prompt: \"$RALPH_FOCUS\""
       fi
 
+      # ── US-353: Plan cache injection (suggested_approach) ──────────────────
+      if [[ "${SPIRAL_PLAN_CACHE_ENABLED:-true}" == "true" && -n "${NEXT_STORY:-}" ]]; then
+        _PLAN_CACHE_DIR="${SPIRAL_SCRATCH_DIR:-.spiral}/plan_cache"
+        if [[ -d "$_PLAN_CACHE_DIR" ]]; then
+          _PC_STORY_TMP=$(mktemp -p "${SPIRAL_SCRATCH_DIR:-.spiral}" _pc_story_XXXXXX.json 2>/dev/null || echo "${SPIRAL_SCRATCH_DIR:-.spiral}/_pc_story_$$.json")
+          printf '%s' "${STORY_JSON:-{}}" > "$_PC_STORY_TMP"
+          _PC_INJECT=$("${SPIRAL_PYTHON:-python3}" "$SPIRAL_HOME/lib/plan_cache.py" inject "$_PLAN_CACHE_DIR" \
+            --story-json "$_PC_STORY_TMP" \
+            --ttl-hours "${SPIRAL_PLAN_CACHE_TTL_HOURS:-168}" 2>/dev/null || true)
+          if [[ -n "$_PC_INJECT" ]]; then
+            RALPH_USER_PROMPT="$RALPH_USER_PROMPT
+
+---
+
+$_PC_INJECT"
+            echo "  [plan-cache] HIT: suggested approach injected for $NEXT_STORY"
+            log_ralph_event "plan_cache_hit" "\"story_id\":\"$NEXT_STORY\""
+          else
+            log_ralph_event "plan_cache_miss" "\"story_id\":\"$NEXT_STORY\""
+          fi
+          rm -f "$_PC_STORY_TMP" 2>/dev/null || true
+        fi
+      fi
+
       # ── US-280: File context injection (diff or full) ────────────────────────
       if [[ -n "${STORY_JSON:-}" && "${STORY_JSON:-}" != "{}" ]]; then
         _FILE_CTX=$(build_files_context "$STORY_JSON" 2>/dev/null || true)

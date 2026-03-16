@@ -192,6 +192,18 @@
 # Default: true
 # SPIRAL_INVALIDATE_CACHE_ON_CONSTITUTION_CHANGE=false
 
+# ── Agentic Plan Cache (US-353) ───────────────────────────────────────────
+# Caches successful story implementation plans in .spiral/plan_cache/.
+# On Phase I entry, retrieves the closest cached plan by keyword similarity
+# and injects it as a suggested_approach in the Ralph user prompt.
+# Based on NeurIPS 2025 APC research: 50% cost reduction, 27% latency reduction.
+# Default: true (enabled)
+# SPIRAL_PLAN_CACHE_ENABLED=true
+
+# Hours before cached plans expire. Default: 168 (7 days).
+# Set to 0 to disable plan cache entirely.
+# SPIRAL_PLAN_CACHE_TTL_HOURS=168
+
 # ── Max research stories per iteration ────────────────────────────────────
 # Caps how many NEW research candidates Phase R can inject per iteration.
 # Applied BEFORE deduplication in Phase M merge. Prevents a single research
