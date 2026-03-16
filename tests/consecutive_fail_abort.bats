@@ -102,6 +102,7 @@ _simulate_consecutive_abort() {
     # Diagnostic output
     echo "CONSECUTIVE_FAIL_ABORT: $ZERO_PROGRESS_COUNT zero-progress iterations (limit: $_ZP_ABORT_LIMIT)"
     while IFS= read -r _ZP_DIAG_SID; do
+      _ZP_DIAG_SID="${_ZP_DIAG_SID//$'\r'/}"
       [[ -z "$_ZP_DIAG_SID" ]] && continue
       local _ZP_DIAG_RETRIES
       _ZP_DIAG_RETRIES=$("$JQ" -r --arg id "$_ZP_DIAG_SID" '.[$id] // 0' "$retry_file" 2>/dev/null || echo "0")

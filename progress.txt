@@ -1,3 +1,28 @@
+## Iteration N - Story: US-400 Add SPIRAL_CONSECUTIVE_FAIL_ABORT to stop loop after N zero-pass iterations
+
+### What was implemented
+- Fixed CRLF bug in the US-400 diagnostic while-loop in spiral.sh (line ~4242) and tests/consecutive_fail_abort.bats
+- On Windows, jq outputs CRLF line endings; `read -r` does not strip `\r`, causing story ID lookups to silently fail (e.g., `US-101\r` != `US-101`)
+- Added `_ZP_DIAG_SID="${_ZP_DIAG_SID//$'\r'/}"` after `read` in both spiral.sh and the bats test simulation function
+- All 11 bats tests in consecutive_fail_abort.bats now pass (previously 9/11)
+
+### What was already implemented (prior iterations)
+- SPIRAL_CONSECUTIVE_FAIL_ABORT config var in spiral.config.sh (default: 3)
+- ZERO_PROGRESS_COUNT counter in spiral.sh, reset on progress, incremented on zero-pass
+- Graduated recovery: decompose (streak=1), halve batch (streak=2), abort (streak>=limit)
+- Diagnostic output listing stuck story IDs, retry counts, failure reasons
+- Checkpoint written with abort_reason: consecutive_failures
+- Event logged to spiral_events.jsonl
+- Exit via spiral_exit E401 (ERR_ZERO_PROGRESS, exit code 9)
+
+### Patterns discovered
+- Windows CRLF in jq output is a recurring issue in while-read loops with process substitution
+- The `2>/dev/null || echo "fallback"` error suppression pattern hides these failures silently
+
+### Gotchas
+- Any while-read loop consuming jq output on Windows needs `\r` stripping
+- Pre-existing test failures: test_field_similarity_lists, test_infer_dependencies (4), test_route_stories (2) — unrelated
+
 ## Iteration N - Story: US-364 Add bats_require_minimum_version guard and bats-assert library to SPIRAL bats tests
 
 ### What was implemented
@@ -1121,3 +1146,4 @@ Completed: Add pre-flight Claude API token count check before story prompt submi
 ### Gotchas
 - Pre-existing test failures: test_field_similarity_lists (consistency_check), test_auto_complex/simple_story (route_stories) — unrelated to this change
 - Hypothesis tests timeout locally on Windows due to 10s per-test limit — CI uses a dedicated hypothesis profile
+

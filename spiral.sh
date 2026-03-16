@@ -4240,6 +4240,7 @@ with open('$RESEARCH_OUTPUT', 'rb') as f:
               # US-400: Diagnostic — list stuck story IDs, retry counts, and last failure reason
               echo "  ── Stuck Story Diagnostic ──────────────────────────────────"
               while IFS= read -r _ZP_DIAG_SID; do
+                _ZP_DIAG_SID="${_ZP_DIAG_SID//$'\r'/}"
                 [[ -z "$_ZP_DIAG_SID" ]] && continue
                 _ZP_DIAG_RETRIES=$("$JQ" -r --arg id "$_ZP_DIAG_SID" '.[$id] // 0' "$REPO_ROOT/retry-counts.json" 2>/dev/null || echo "0")
                 _ZP_DIAG_REASON=$("$JQ" -r --arg id "$_ZP_DIAG_SID" '.userStories[] | select(.id == $id) | ._failureReason // "unknown"' "$PRD_FILE" 2>/dev/null || echo "unknown")
