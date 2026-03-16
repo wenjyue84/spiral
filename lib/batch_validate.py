@@ -38,6 +38,7 @@ __all__ = [
     "build_batch_requests",
     "submit_batch",
     "poll_batch",
+    "poll_batch_until_complete",
     "parse_batch_results",
     "validate_story_sync",
 ]
@@ -275,6 +276,51 @@ def poll_batch(
             return _get_batch_results(batch_id, api_key, base_url)
         time.sleep(sleep_sec)
         sleep_sec = min(sleep_sec * _POLL_BACKOFF, _POLL_MAX_SLEEP)
+    raise TimeoutError(
+        f"Batch {batch_id!r} did not complete within {max_wait_sec:.0f}s"
+    )
+
+
+def poll_batch_until_complete(
+    batch_id: str,
+    client: Any,
+    max_wait_sec: float = 3600.0,
+) -> Any:
+    """Poll the batch using the Anthropic SDK client until ``processing_status == "ended"``.
+
+    Uses exponential backoff starting at 2 seconds, doubling each attempt,
+    capped at 60 seconds.
+
+    Parameters
+    ----------
+    batch_id:
+        The batch ID returned by the Message Batches API.
+    client:
+        Anthropic SDK client with a ``beta.messages.batches`` interface.
+        Must support ``retrieve(batch_id)`` and ``results(batch_id)`` methods.
+    max_wait_sec:
+        Maximum seconds to wait before raising :class:`TimeoutError`
+        (default 3600s).
+
+    Returns
+    -------
+    Any
+        The completed batch results iterable from
+        ``client.beta.messages.batches.results(batch_id)``.
+
+    Raises
+    ------
+    TimeoutError
+        If the batch does not complete within ``max_wait_sec``.
+    """
+    sleep_sec: float = 2.0
+    deadline = time.monotonic() + max_wait_sec
+    while time.monotonic() < deadline:
+        batch = client.beta.messages.batches.retrieve(batch_id)
+        if getattr(batch, "processing_status", None) == "ended":
+            return client.beta.messages.batches.results(batch_id)
+        time.sleep(sleep_sec)
+        sleep_sec = min(sleep_sec * 2.0, 60.0)
     raise TimeoutError(
         f"Batch {batch_id!r} did not complete within {max_wait_sec:.0f}s"
     )

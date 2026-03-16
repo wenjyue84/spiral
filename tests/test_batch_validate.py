@@ -276,6 +276,108 @@ class TestPollBatch:
 
 
 # ---------------------------------------------------------------------------
+# TestPollBatchUntilComplete
+# ---------------------------------------------------------------------------
+
+
+class TestPollBatchUntilComplete:
+    """Tests for poll_batch_until_complete() — uses mock Anthropic SDK client."""
+
+    def _make_batch(self, status: str) -> MagicMock:
+        """Return a mock batch object with the given processing_status."""
+        batch = MagicMock()
+        batch.processing_status = status
+        return batch
+
+    def test_returns_results_when_ended_immediately(self) -> None:
+        client = MagicMock()
+        client.beta.messages.batches.retrieve.return_value = self._make_batch("ended")
+        results = MagicMock()
+        client.beta.messages.batches.results.return_value = results
+
+        out = bv.poll_batch_until_complete("batch_1", client)
+
+        assert out is results
+        client.beta.messages.batches.retrieve.assert_called_once_with("batch_1")
+        client.beta.messages.batches.results.assert_called_once_with("batch_1")
+
+    def test_polls_until_ended(self) -> None:
+        client = MagicMock()
+        statuses = ["in_progress", "in_progress", "ended"]
+        client.beta.messages.batches.retrieve.side_effect = [
+            self._make_batch(s) for s in statuses
+        ]
+        results = MagicMock()
+        client.beta.messages.batches.results.return_value = results
+
+        with patch("time.sleep"):
+            out = bv.poll_batch_until_complete("batch_1", client)
+
+        assert out is results
+        assert client.beta.messages.batches.retrieve.call_count == 3
+
+    def test_raises_timeout_if_never_ends(self) -> None:
+        client = MagicMock()
+        client.beta.messages.batches.retrieve.return_value = self._make_batch("in_progress")
+
+        with (
+            patch("time.sleep"),
+            patch("time.monotonic", side_effect=[0.0, 0.5, 999.0]),
+        ):
+            with pytest.raises(TimeoutError, match="did not complete"):
+                bv.poll_batch_until_complete("batch_1", client, max_wait_sec=1.0)
+
+    def test_backoff_starts_at_2s_and_doubles(self) -> None:
+        client = MagicMock()
+        # 6 in_progress then ended → 6 sleeps recorded
+        statuses = ["in_progress"] * 6 + ["ended"]
+        client.beta.messages.batches.retrieve.side_effect = [
+            self._make_batch(s) for s in statuses
+        ]
+        client.beta.messages.batches.results.return_value = MagicMock()
+
+        sleep_calls: list[float] = []
+        with patch("time.sleep", side_effect=lambda s: sleep_calls.append(s)):
+            bv.poll_batch_until_complete("batch_1", client)
+
+        # Expected: 2, 4, 8, 16, 32, 60 (capped)
+        assert sleep_calls[0] == 2.0
+        assert sleep_calls[1] == 4.0
+        assert sleep_calls[2] == 8.0
+        assert sleep_calls[3] == 16.0
+        assert sleep_calls[4] == 32.0
+        assert sleep_calls[5] == 60.0
+
+    def test_backoff_stays_capped_at_60(self) -> None:
+        client = MagicMock()
+        # Enough in_progress to confirm cap persists
+        statuses = ["in_progress"] * 9 + ["ended"]
+        client.beta.messages.batches.retrieve.side_effect = [
+            self._make_batch(s) for s in statuses
+        ]
+        client.beta.messages.batches.results.return_value = MagicMock()
+
+        sleep_calls: list[float] = []
+        with patch("time.sleep", side_effect=lambda s: sleep_calls.append(s)):
+            bv.poll_batch_until_complete("batch_1", client)
+
+        # After hitting 60s cap (at index 5), all subsequent sleeps are 60s
+        assert sleep_calls[5] == 60.0
+        assert sleep_calls[6] == 60.0
+        assert sleep_calls[7] == 60.0
+        assert sleep_calls[8] == 60.0
+
+    def test_default_max_wait_is_3600(self) -> None:
+        """Verifies the function signature default without actually waiting."""
+        client = MagicMock()
+        client.beta.messages.batches.retrieve.return_value = self._make_batch("ended")
+        client.beta.messages.batches.results.return_value = MagicMock()
+        import inspect
+        sig = inspect.signature(bv.poll_batch_until_complete)
+        assert sig.parameters["max_wait_sec"].default == 3600.0
+
+
+# ---------------------------------------------------------------------------
 # TestValidateStorySync
 # ---------------------------------------------------------------------------
 
