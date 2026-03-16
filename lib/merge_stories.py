@@ -146,6 +146,9 @@ def story_to_prd_entry(story: dict[str, Any], story_id: str) -> dict[str, Any]:
     }
     if "_source" in story:
         entry["_source"] = story["_source"]
+    # Carry over batch_id from Phase S batch validation (US-406)
+    if "_batch_id" in story:
+        entry["_batch_id"] = story["_batch_id"]
     # Enhancement 7: flag test-synthesis stories for audit trail + future ralph prioritisation
     if story.get("_isTestFix"):
         entry["isTestFix"] = True

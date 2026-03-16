@@ -1138,14 +1138,15 @@ append_result() {
   local duration_sec=$((STORY_END - STORY_START))
   local model_col="${EFFECTIVE_MODEL:-${EFFECTIVE_TOOL:-unknown}}"
   if [[ ! -f "$RESULTS_FILE" ]]; then
-    printf 'timestamp\tspiral_iter\tralph_iter\tstory_id\tstory_title\tstatus\tduration_sec\tmodel\tretry_num\tcommit_sha\trun_id\tcache_hit\tcache_read_tokens\tcache_creation_tokens\treview_tokens\twall_seconds\tuser_cpu_s\tsys_cpu_s\tpeak_rss_kb\n' >"$RESULTS_FILE"
+    printf 'timestamp\tspiral_iter\tralph_iter\tstory_id\tstory_title\tstatus\tduration_sec\tmodel\tretry_num\tcommit_sha\trun_id\tcache_hit\tcache_read_tokens\tcache_creation_tokens\treview_tokens\twall_seconds\tuser_cpu_s\tsys_cpu_s\tpeak_rss_kb\tbatch_id\n' >"$RESULTS_FILE"
   fi
   local safe_title="${STORY_TITLE//$'\t'/ }"
-  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
     "$ts" "${SPIRAL_ITER:-0}" "$ITERATION" "$NEXT_STORY" "$safe_title" \
     "$status" "$duration_sec" "$model_col" "$RETRY_NOW" "$commit_sha" "${SPIRAL_RUN_ID:-}" \
     "${_CACHE_HIT:-false}" "${_CACHE_READ_TOKENS:-0}" "${_CACHE_CREATION_TOKENS:-0}" "${_REVIEW_TOKENS:-0}" \
     "${_WALL_SEC:-0}" "${_USER_CPU_S:-0}" "${_SYS_CPU_S:-0}" "${_PEAK_RSS_KB:-0}" \
+    "${STORY_BATCH_ID:-}" \
     >>"$RESULTS_FILE"
 }
 
@@ -2090,6 +2091,7 @@ while [[ $ITERATION -lt $MAX_ITERATIONS ]]; do
   STORY_DEPS=$($JQ -r ".userStories[] | select(.id == \"$NEXT_STORY\") | .dependencies // [] | join(\", \")" "$PRD_FILE" | tr -d '\r')
   STORY_TAGS=$($JQ -r ".userStories[] | select(.id == \"$NEXT_STORY\") | .tags // [] | join(\",\")" "$PRD_FILE" | tr -d '\r')
   STORY_FIRST_FILE=$($JQ -r ".userStories[] | select(.id == \"$NEXT_STORY\") | .filesTouch // [] | first // empty" "$PRD_FILE" | tr -d '\r')
+  STORY_BATCH_ID=$($JQ -r ".userStories[] | select(.id == \"$NEXT_STORY\") | ._batch_id // empty" "$PRD_FILE" 2>/dev/null | tr -d '\r' || true)
   RETRY_NOW=$(get_retry_count "$NEXT_STORY")
 
   # ── Retrieval completeness check (US-250) ────────────────────────

@@ -470,11 +470,29 @@ def main() -> int:
         default="",
         help="Override Anthropic API base URL (default: https://api.anthropic.com).",
     )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=0,
+        help=(
+            "Max stories per batch request (0 = no cap, send all in one batch). "
+            "Overrides SPIRAL_STORY_BATCH_SIZE env var. "
+            "When > 1 and ANTHROPIC_API_KEY is set, batch API is auto-enabled."
+        ),
+    )
     args = parser.parse_args()
 
+    # --batch-size from env var fallback
+    batch_size: int = args.batch_size or int(
+        os.environ.get("SPIRAL_STORY_BATCH_SIZE", "0") or "0"
+    )
+
     # --batch-api can also be enabled via env var SPIRAL_BATCH_VALIDATE=1
-    use_batch_api: bool = args.batch_api or (
-        os.environ.get("SPIRAL_BATCH_VALIDATE", "0").strip() == "1"
+    # or auto-triggered when batch_size > 1 and ANTHROPIC_API_KEY is set
+    use_batch_api: bool = (
+        args.batch_api
+        or (os.environ.get("SPIRAL_BATCH_VALIDATE", "0").strip() == "1")
+        or (batch_size > 1 and bool(os.environ.get("ANTHROPIC_API_KEY", "").strip()))
     )
 
     accepted, rejected = validate_stories(
@@ -490,6 +508,7 @@ def main() -> int:
         use_batch_api=use_batch_api,
         batch_out=args.batch_out,
         batch_base_url=args.batch_base_url,
+        batch_size=batch_size,
     )
 
     total = len(accepted) + len(rejected)

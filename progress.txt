@@ -879,3 +879,23 @@ Completed: Build Message Batches request builder and response parser (ID: US-404
 ## Iteration 5 - Mon, Mar 16, 2026  7:18:57 PM
 Completed: Implement batch polling with exponential backoff (ID: US-405) in 9m
 
+
+## Iteration N - Story: US-406 Integrate batch validation into Phase S with sync fallback and results.tsv tracking
+
+### What was implemented
+- Added `--batch-size` CLI argument to `lib/validate_stories.py` main() with env var fallback (`SPIRAL_STORY_BATCH_SIZE`)
+- Auto-trigger batch API in `validate_stories.py` when `batch_size > 1` AND `ANTHROPIC_API_KEY` is set (in addition to explicit `SPIRAL_BATCH_VALIDATE=1`)
+- Updated `lib/phases/phase_s_story_validate.sh` to auto-enable batch when `SPIRAL_STORY_BATCH_SIZE > 1` and `ANTHROPIC_API_KEY` is set, and to pass `--batch-size $_batch_size` to the Python caller
+- Added `_batch_id` field carry-over in `lib/merge_stories.py` `story_to_prd_entry()` so stories validated via batch API keep their batch_id in prd.json
+- Added `STORY_BATCH_ID` read from prd.json `._batch_id` field in `ralph/ralph.sh` story loading section
+- Added `batch_id` column to results.tsv header and row in `ralph/ralph.sh` `append_result()` — empty string for sync path rows
+- Added `batch_id` to the HEADER list in `lib/merge_results_tsv.py` for proper column handling during parallel worker merge
+
+### Patterns discovered
+- All results.tsv readers use `csv.DictReader` (not positional index), so adding a new column at end is backwards-compatible
+- The `story_to_prd_entry()` in merge_stories.py explicitly picks fields — new `_` fields must be explicitly added to propagate through Phase M
+- mypy: validate_stories.py is NOT in the relaxed overrides list but has many pre-existing type-arg errors; no new errors from this story
+
+### Gotchas
+- `merge_results_tsv.py` HEADER constant drives the output column order; add there too when adding to results.tsv
+- Pre-existing test failure: `test_field_similarity_lists` (similarity assertion mismatch) — unrelated

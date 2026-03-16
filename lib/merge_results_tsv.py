@@ -23,6 +23,7 @@ HEADER = [
     "status", "duration_sec", "model", "retry_num", "commit_sha", "run_id",
     "cache_hit", "cache_read_tokens", "cache_creation_tokens", "review_tokens",
     "wall_seconds", "user_cpu_s", "sys_cpu_s", "peak_rss_kb",
+    "batch_id",  # US-406: Phase S batch validation ID (empty string for sync path rows)
 ]
 
 
