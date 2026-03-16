@@ -534,6 +534,7 @@ SPIRAL_PR_DRAFT="${SPIRAL_PR_DRAFT:-false}"                              # true 
 export SPIRAL_CREATE_PRS SPIRAL_PR_BASE_BRANCH SPIRAL_PR_DRAFT
 SPIRAL_AUTO_STASH="${SPIRAL_AUTO_STASH:-false}"                          # true = auto-stash dirty working tree before Phase I and pop after (US-177)
 SPIRAL_CASCADE_FAN_OUT_LIMIT="${SPIRAL_CASCADE_FAN_OUT_LIMIT:-5}"        # US-322: max consecutive story failures before Phase I aborts; 0 = disabled
+SPIRAL_CONSECUTIVE_FAIL_ABORT="${SPIRAL_CONSECUTIVE_FAIL_ABORT:-3}"      # US-400: stop loop after N zero-progress iterations; 0 = disabled
 SPIRAL_QUALITY_THRESHOLD="${SPIRAL_QUALITY_THRESHOLD:-3}"               # US-248: LLM-as-Judge score threshold (1-5); below this emits a warning (non-blocking)
 SPIRAL_QUALITY_JUDGE_DISABLE="${SPIRAL_QUALITY_JUDGE_DISABLE:-0}"       # US-248: set to 1 to skip all LLM quality judge calls
 export SPIRAL_QUALITY_THRESHOLD SPIRAL_QUALITY_JUDGE_DISABLE
@@ -4199,9 +4200,11 @@ with open('$RESEARCH_OUTPUT', 'rb') as f:
             # Strategy 8: Zero-progress auto-tune — graduated recovery before halting.
             # Count 1: force-decompose stuck stories (retries > 1) to unlock the backlog.
             # Count 2: halve SPIRAL_STORY_BATCH_SIZE to expose different stories.
-            # Count 3: halt with ERR_ZERO_PROGRESS (was previously at count 2).
+            # Count N (SPIRAL_CONSECUTIVE_FAIL_ABORT): halt with ERR_ZERO_PROGRESS.
+            # US-400: threshold is configurable; 0 = disabled (recovery strategies still apply cyclically).
+            _ZP_ABORT_LIMIT="${SPIRAL_CONSECUTIVE_FAIL_ABORT:-3}"
             if [[ "$ZERO_PROGRESS_COUNT" -eq 1 ]]; then
-              echo "  [zero-progress] Recovery 1/3: force-decomposing stuck stories (retries > 1)..."
+              echo "  [zero-progress] Recovery 1: force-decomposing stuck stories (retries > 1)..."
               log_spiral_event "zero_progress_recovery" "\"action\":\"force_decompose\",\"streak\":$ZERO_PROGRESS_COUNT"
               _ZP_DECOMPOSED=0
               while IFS= read -r _ZP_SID; do
@@ -4221,19 +4224,41 @@ with open('$RESEARCH_OUTPUT', 'rb') as f:
               _ZP_OLD_BATCH="${SPIRAL_STORY_BATCH_SIZE:-20}"
               _ZP_NEW_BATCH=$(( ${SPIRAL_STORY_BATCH_SIZE:-20} > 10 ? ${SPIRAL_STORY_BATCH_SIZE:-20} / 2 : 5 ))
               SPIRAL_STORY_BATCH_SIZE="$_ZP_NEW_BATCH"
-              echo "  [zero-progress] Recovery 2/3: batch size reduced $_ZP_OLD_BATCH → $SPIRAL_STORY_BATCH_SIZE (exposes different stories)"
+              echo "  [zero-progress] Recovery 2: batch size reduced $_ZP_OLD_BATCH → $SPIRAL_STORY_BATCH_SIZE (exposes different stories)"
               log_spiral_event "zero_progress_recovery" "\"action\":\"halve_batch_size\",\"streak\":$ZERO_PROGRESS_COUNT,\"old_batch\":$_ZP_OLD_BATCH,\"new_batch\":$SPIRAL_STORY_BATCH_SIZE"
-            elif [[ "$ZERO_PROGRESS_COUNT" -ge 3 ]]; then
+            fi
+            # US-400: Check configurable abort threshold (0 = disabled)
+            if [[ "$_ZP_ABORT_LIMIT" -gt 0 && "$ZERO_PROGRESS_COUNT" -ge "$_ZP_ABORT_LIMIT" ]]; then
               echo ""
               echo "  ╔══════════════════════════════════════════════════════╗"
-              echo "  ║  SPIRAL HALTED — 3 consecutive zero-progress iters  ║"
+              printf "  ║  SPIRAL HALTED — %d consecutive zero-progress iters  ║\n" "$ZERO_PROGRESS_COUNT"
               echo "  ║  Pending stories may be blocked or require manual   ║"
               echo "  ║  intervention. Review prd.json and re-run.          ║"
               echo "  ╚══════════════════════════════════════════════════════╝"
               prd_stats
               echo ""
-              "$JQ" -r '.userStories[] | select(.passes != true) | "  [PENDING] [\(.id)] \(.title)"' "$PRD_FILE" 2>/dev/null || true
-              rm -f "$CHECKPOINT_FILE"
+              # US-400: Diagnostic — list stuck story IDs, retry counts, and last failure reason
+              echo "  ── Stuck Story Diagnostic ──────────────────────────────────"
+              while IFS= read -r _ZP_DIAG_SID; do
+                [[ -z "$_ZP_DIAG_SID" ]] && continue
+                _ZP_DIAG_RETRIES=$("$JQ" -r --arg id "$_ZP_DIAG_SID" '.[$id] // 0' "$REPO_ROOT/retry-counts.json" 2>/dev/null || echo "0")
+                _ZP_DIAG_REASON=$("$JQ" -r --arg id "$_ZP_DIAG_SID" '.userStories[] | select(.id == $id) | ._failureReason // "unknown"' "$PRD_FILE" 2>/dev/null || echo "unknown")
+                _ZP_DIAG_TITLE=$("$JQ" -r --arg id "$_ZP_DIAG_SID" '.userStories[] | select(.id == $id) | .title // "?"' "$PRD_FILE" 2>/dev/null || echo "?")
+                printf "  [STUCK] %-8s retries=%-2s  %s\n" "$_ZP_DIAG_SID" "$_ZP_DIAG_RETRIES" "$_ZP_DIAG_TITLE"
+                [[ "$_ZP_DIAG_REASON" != "unknown" && "$_ZP_DIAG_REASON" != "null" ]] && \
+                  echo "          └─ reason: ${_ZP_DIAG_REASON:0:120}"
+              done < <("$JQ" -r '[.userStories[] | select(.passes != true and ._skipped != true)] | .[].id' "$PRD_FILE" 2>/dev/null || true)
+              echo ""
+              # US-400: Collect stuck IDs for event logging
+              _ZP_STUCK_IDS=$("$JQ" -r '[.userStories[] | select(.passes != true and ._skipped != true)] | map(.id) | join(",")' "$PRD_FILE" 2>/dev/null || echo "")
+              log_spiral_event "consecutive_fail_abort" \
+                "\"iteration\":$SPIRAL_ITER,\"consecutive_zero_pass\":$ZERO_PROGRESS_COUNT,\"limit\":$_ZP_ABORT_LIMIT,\"stuck_ids\":\"$_ZP_STUCK_IDS\""
+              # US-400: Record abort_reason in _checkpoint.json before exit
+              _ZP_CKPT_TMP="${CHECKPOINT_FILE}.tmp.$$"
+              printf '{"iter":%d,"phase":"I","ts":"%s","run_id":"%s","abort_reason":"consecutive_failures","consecutive_zero_pass":%d,"limit":%d,"stuck_ids":"%s"}\n' \
+                "$SPIRAL_ITER" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${SPIRAL_RUN_ID:-}" \
+                "$ZERO_PROGRESS_COUNT" "$_ZP_ABORT_LIMIT" "$_ZP_STUCK_IDS" \
+                >"$_ZP_CKPT_TMP" 2>/dev/null && mv "$_ZP_CKPT_TMP" "$CHECKPOINT_FILE" 2>/dev/null || true
               spiral_exit E401
             fi
             echo "  [I] Continuing to check-done phase..."
@@ -4754,7 +4779,7 @@ PYEOF
   # ── Tier 2: Full re-validation between iterations ──────────────────────
   spiral_assert_prd_valid "$PRD_FILE"
   spiral_assert_no_orphan_tmpfiles
-  spiral_assert_iteration_progress "${ZERO_PROGRESS_COUNT:-0}" "${SPIRAL_MAX_ZERO_PROGRESS:-3}"
+  spiral_assert_iteration_progress "${ZERO_PROGRESS_COUNT:-0}" "${SPIRAL_CONSECUTIVE_FAIL_ABORT:-3}"
   spiral_assert_checkpoint_coherent "$SPIRAL_ITER"
   spiral_assert_pending_bounded "$PRD_FILE"
 

@@ -81,6 +81,14 @@ SPIRAL_WORKER_ENV_ALLOWLIST="${SPIRAL_WORKER_ENV_ALLOWLIST:-ANTHROPIC_API_KEY,PA
 # 0 = disabled (never abort on consecutive failures).
 SPIRAL_CASCADE_FAN_OUT_LIMIT="${SPIRAL_CASCADE_FAN_OUT_LIMIT:-5}"
 
+# ── Consecutive zero-progress abort (US-400) ────────────────────────────────
+# Stop the loop after N consecutive iterations where no story passes.
+# Prints a diagnostic listing stuck story IDs, retry counts, and last failure
+# reasons, then exits with ERR_ZERO_PROGRESS (exit code 9).
+# 0 = disabled (unlimited retries; recovery strategies still apply).
+# Default 3 matches the existing graduated recovery (decompose → halve batch → halt).
+SPIRAL_CONSECUTIVE_FAIL_ABORT="${SPIRAL_CONSECUTIVE_FAIL_ABORT:-3}"
+
 # ── Cost ceiling: abort when cumulative API spend exceeds budget ──────────────
 # Set to a USD amount (e.g., 50.0) to cap spending. Empty = disabled.
 # SPIRAL_COST_CEILING=""
