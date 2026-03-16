@@ -4797,7 +4797,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false
+      "passes": false,
+      "model": "sonnet"
     },
     {
       "id": "US-253",
@@ -4818,7 +4819,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false
+      "passes": false,
+      "model": "sonnet"
     },
     {
       "id": "US-254",
@@ -4839,7 +4841,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false
+      "passes": false,
+      "model": "sonnet"
     },
     {
       "id": "US-259",
@@ -5047,7 +5050,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "large",
-      "passes": false
+      "passes": false,
+      "model": "sonnet"
     },
     {
       "id": "US-273",
@@ -5070,7 +5074,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false
+      "passes": false,
+      "model": "sonnet"
     },
     {
       "id": "US-277",
@@ -5181,7 +5186,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false
+      "passes": false,
+      "model": "sonnet"
     },
     {
       "id": "US-283",
@@ -5203,7 +5209,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false
+      "passes": false,
+      "model": "sonnet"
     },
     {
       "id": "US-286",
@@ -5247,7 +5254,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false
+      "passes": false,
+      "model": "sonnet"
     },
     {
       "id": "US-291",
@@ -5351,7 +5359,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false
+      "passes": false,
+      "model": "sonnet"
     },
     {
       "id": "US-298",
@@ -5372,7 +5381,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false
+      "passes": false,
+      "model": "sonnet"
     },
     {
       "id": "US-299",
@@ -5393,7 +5403,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false
+      "passes": false,
+      "model": "sonnet"
     },
     {
       "id": "US-300",
@@ -5414,7 +5425,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false
+      "passes": false,
+      "model": "sonnet"
     },
     {
       "id": "US-301",
@@ -5478,14 +5490,15 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false
+      "passes": false,
+      "model": "sonnet"
     },
     {
       "id": "US-310",
       "title": "ProjectDashboard: searchable story table with live status badges",
       "description": "The /Spiral dashboard currently shows only aggregate numbers. Replace with a full story table showing each story as a row: ID, title, priority, status badge (PASS/PENDING/FAILED/SKIPPED) with color coding, and a search/filter bar. Clicking a row opens a detail slide-in panel. This is the primary upgrade that makes the dashboard actually useful for understanding what spiral has built.",
       "priority": "high",
-      "passes": false,
+      "passes": true,
       "retryCount": 0,
       "filesTouch": [
         "spiral-ui/src/components/ProjectDashboard.tsx"
@@ -5499,7 +5512,8 @@
         "Table is paginated (50 rows per page) to handle large PRDs without UI lag"
       ],
       "dependencies": [],
-      "estimatedComplexity": "medium"
+      "estimatedComplexity": "medium",
+      "model": "sonnet"
     },
     {
       "id": "US-311",
@@ -5540,7 +5554,8 @@
         "Auto-detection: colors enabled when [ -t 1 ] (stdout is a TTY), disabled when piped"
       ],
       "dependencies": [],
-      "estimatedComplexity": "small"
+      "estimatedComplexity": "small",
+      "model": "sonnet"
     },
     {
       "id": "US-313",
@@ -5563,7 +5578,8 @@
       "dependencies": [
         "US-312"
       ],
-      "estimatedComplexity": "small"
+      "estimatedComplexity": "small",
+      "model": "sonnet"
     },
     {
       "id": "US-314",
@@ -5584,7 +5600,8 @@
         "Stories are sorted by timestamp descending (most recent first)"
       ],
       "dependencies": [],
-      "estimatedComplexity": "medium"
+      "estimatedComplexity": "medium",
+      "model": "sonnet"
     },
     {
       "id": "US-315",
@@ -5608,7 +5625,8 @@
       "dependencies": [
         "US-311"
       ],
-      "estimatedComplexity": "medium"
+      "estimatedComplexity": "medium",
+      "model": "sonnet"
     },
     {
       "id": "US-316",
@@ -5630,7 +5648,8 @@
         "Panel has an X close button and closes on Escape key or clicking outside"
       ],
       "dependencies": [],
-      "estimatedComplexity": "medium"
+      "estimatedComplexity": "medium",
+      "model": "sonnet"
     },
     {
       "id": "US-317",
@@ -5650,7 +5669,8 @@
         "If no project is registered, the card shows instructions to register via POST /api/register-project"
       ],
       "dependencies": [],
-      "estimatedComplexity": "small"
+      "estimatedComplexity": "small",
+      "model": "sonnet"
     },
     {
       "id": "US-318",
@@ -5673,7 +5693,8 @@
         "US-253"
       ],
       "estimatedComplexity": "medium",
-      "passes": false
+      "passes": false,
+      "model": "sonnet"
     },
     {
       "id": "US-319",
@@ -5697,7 +5718,8 @@
         "US-318"
       ],
       "estimatedComplexity": "medium",
-      "passes": false
+      "passes": false,
+      "model": "sonnet"
     },
     {
       "id": "US-320",
@@ -5722,7 +5744,8 @@
         "US-265"
       ],
       "estimatedComplexity": "medium",
-      "passes": false
+      "passes": false,
+      "model": "sonnet"
     },
     {
       "id": "US-321",
@@ -5746,7 +5769,8 @@
         "US-229"
       ],
       "estimatedComplexity": "medium",
-      "passes": false
+      "passes": false,
+      "model": "sonnet"
     },
     {
       "id": "US-322",
@@ -5772,7 +5796,8 @@
         "US-233"
       ],
       "estimatedComplexity": "small",
-      "passes": false
+      "passes": false,
+      "model": "sonnet"
     },
     {
       "id": "US-323",
@@ -5797,7 +5822,8 @@
         "US-298"
       ],
       "estimatedComplexity": "small",
-      "passes": false
+      "passes": false,
+      "model": "sonnet"
     },
     {
       "id": "US-324",
@@ -5823,7 +5849,8 @@
         "US-323"
       ],
       "estimatedComplexity": "medium",
-      "passes": false
+      "passes": false,
+      "model": "sonnet"
     },
     {
       "id": "US-325",
@@ -5847,7 +5874,8 @@
         "US-047"
       ],
       "estimatedComplexity": "small",
-      "passes": false
+      "passes": false,
+      "model": "sonnet"
     },
     {
       "id": "US-326",
@@ -5872,7 +5900,8 @@
         "US-150"
       ],
       "estimatedComplexity": "medium",
-      "passes": false
+      "passes": false,
+      "model": "sonnet"
     },
     {
       "id": "US-327",
@@ -5895,7 +5924,8 @@
         "US-117"
       ],
       "estimatedComplexity": "small",
-      "passes": false
+      "passes": false,
+      "model": "sonnet"
     },
     {
       "id": "US-328",
@@ -5920,7 +5950,8 @@
         "US-058"
       ],
       "estimatedComplexity": "medium",
-      "passes": false
+      "passes": false,
+      "model": "sonnet"
     },
     {
       "id": "US-329",
@@ -5945,7 +5976,8 @@
         "US-012"
       ],
       "estimatedComplexity": "medium",
-      "passes": false
+      "passes": false,
+      "model": "sonnet"
     },
     {
       "id": "US-330",
@@ -5970,7 +6002,8 @@
         "US-327"
       ],
       "estimatedComplexity": "medium",
-      "passes": false
+      "passes": false,
+      "model": "sonnet"
     },
     {
       "id": "US-331",
@@ -5996,7 +6029,8 @@
         "US-295"
       ],
       "estimatedComplexity": "small",
-      "passes": false
+      "passes": false,
+      "model": "sonnet"
     },
     {
       "id": "US-332",
@@ -6020,7 +6054,8 @@
         "US-248"
       ],
       "estimatedComplexity": "small",
-      "passes": false
+      "passes": false,
+      "model": "sonnet"
     },
     {
       "id": "US-333",
@@ -6046,7 +6081,8 @@
         "US-030"
       ],
       "estimatedComplexity": "medium",
-      "passes": false
+      "passes": false,
+      "model": "sonnet"
     },
     {
       "id": "US-334",
@@ -6072,7 +6108,8 @@
         "US-150"
       ],
       "estimatedComplexity": "large",
-      "passes": false
+      "passes": false,
+      "model": "sonnet"
     },
     {
       "id": "US-335",
@@ -6097,7 +6134,8 @@
         "US-232"
       ],
       "estimatedComplexity": "small",
-      "passes": false
+      "passes": false,
+      "model": "sonnet"
     }
   ]
 }

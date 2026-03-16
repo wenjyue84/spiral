@@ -7,18 +7,24 @@ import { CONFIG_FIELDS } from '../data/configSchema';
 const CONFIG_DESCRIPTIONS: Record<string, { label: string; description: string }> = Object.fromEntries(
   CONFIG_FIELDS.map(f => [f.key, { label: f.label, description: f.description }])
 );
+void CONFIG_DESCRIPTIONS; // used for future tooltip integration
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
 interface Story {
   id: string;
   title: string;
+  description?: string;
   passes: boolean;
   priority?: string;
   complexity?: string;
   failureReason?: string;
   dependencies?: string[];
   status?: string;
+  source?: string;
+  retryCount?: number;
+  acceptanceCriteria?: string[];
+  filesTouch?: string[];
   completedAt?: string | null;
 }
 
@@ -71,6 +77,7 @@ interface ProjectData {
   lastSeen: string;
   progress: ProgressData | null;
   config: Record<string, string>;
+  configRaw: string;
   constitution: string;
   activity: string;
   progressHistory: ProgressSnapshot[];
@@ -103,15 +110,174 @@ function pct(done: number, total: number) {
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function ProgressTab({ data }: { data: ProjectData }) {
+function StoryDetailModal({ story, onClose }: { story: Story; onClose: () => void }) {
+  const PRIORITY_COLOR: Record<string, string> = {
+    critical: 'bg-red-100 text-red-700 border-red-200',
+    high: 'bg-orange-100 text-orange-700 border-orange-200',
+    medium: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+    low: 'bg-slate-100 text-slate-500 border-slate-200',
+  };
+  const SOURCE_COLOR: Record<string, string> = {
+    'test-fix': 'bg-rose-100 text-rose-700',
+    research: 'bg-blue-100 text-blue-700',
+    seed: 'bg-purple-100 text-purple-700',
+    'ai-example': 'bg-slate-100 text-slate-500',
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+      <div
+        className="relative z-10 bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-2xl mx-4 max-h-[85vh] flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-start gap-3 px-6 py-4 border-b border-slate-100">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-mono font-bold text-slate-500">{story.id}</span>
+              {story.passes
+                ? <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 font-medium">✓ Complete</span>
+                : <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200 font-medium">○ Pending</span>}
+              {story.priority && (
+                <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${PRIORITY_COLOR[story.priority] ?? 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+                  {story.priority}
+                </span>
+              )}
+              {story.complexity && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200 font-medium">{story.complexity}</span>
+              )}
+              {story.source && (
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${SOURCE_COLOR[story.source] ?? 'bg-slate-100 text-slate-500'}`}>{story.source}</span>
+              )}
+              {(story.retryCount ?? 0) > 0 && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-100 font-medium">{story.retryCount} retr{story.retryCount === 1 ? 'y' : 'ies'}</span>
+              )}
+            </div>
+            <h2 className="mt-1.5 text-base font-semibold text-slate-800 leading-snug">{story.title}</h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-700 transition-colors p-1 rounded-lg hover:bg-slate-100 flex-shrink-0"
+          >✕</button>
+        </div>
+
+        {/* Body (scrollable) */}
+        <div className="overflow-y-auto px-6 py-4 space-y-5 text-sm">
+          {/* Description */}
+          {story.description ? (
+            <div>
+              <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">Description</div>
+              <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">{story.description}</p>
+            </div>
+          ) : (
+            <div className="text-slate-400 italic text-xs">No description provided.</div>
+          )}
+
+          {/* Acceptance Criteria */}
+          {story.acceptanceCriteria && story.acceptanceCriteria.length > 0 && (
+            <div>
+              <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">Acceptance Criteria</div>
+              <ul className="space-y-1.5">
+                {story.acceptanceCriteria.map((c, i) => (
+                  <li key={i} className="flex items-start gap-2 text-slate-700">
+                    <span className="text-emerald-500 mt-0.5 flex-shrink-0">✓</span>
+                    <span className="leading-snug">{c}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Files to touch */}
+          {story.filesTouch && story.filesTouch.length > 0 && (
+            <div>
+              <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">Files</div>
+              <div className="flex flex-wrap gap-1.5">
+                {story.filesTouch.map((f, i) => (
+                  <span key={i} className="font-mono text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded">{f}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Dependencies */}
+          {story.dependencies && story.dependencies.length > 0 && (
+            <div>
+              <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">Dependencies</div>
+              <div className="flex flex-wrap gap-1.5">
+                {story.dependencies.map(d => (
+                  <span key={d} className="font-mono text-[11px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-100">{d}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Failure reason */}
+          {story.failureReason && (
+            <div>
+              <div className="text-[10px] font-semibold text-rose-400 uppercase tracking-widest mb-1.5">Failure Reason</div>
+              <p className="text-rose-700 bg-rose-50 rounded-lg px-3 py-2 text-xs leading-relaxed font-mono whitespace-pre-wrap">{story.failureReason}</p>
+            </div>
+          )}
+
+          {/* Completion time */}
+          {story.completedAt && (
+            <div>
+              <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Completed</div>
+              <span className="text-xs text-emerald-700">{formatMYT(story.completedAt)}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProgressTab({ data, projectName, onRefresh }: { data: ProjectData; projectName: string; onRefresh: () => void }) {
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [selectedStory, setSelectedStory] = useState<Story | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [priorityFilter, setPriorityFilter] = useState('all');
+  const [storyPage, setStoryPage] = useState(0);
+  const PAGE_SIZE = 50;
   const p = data.progress;
   if (!p) return <div className="p-6 text-slate-500">No prd.json found in project root.</div>;
 
+  const deleteStory = async (id: string) => {
+    if (!confirm(`Delete story ${id} from prd.json? This cannot be undone.`)) return;
+    setDeleting(id);
+    try {
+      const res = await fetch(`/api/story?name=${encodeURIComponent(projectName)}&id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+      if (!res.ok) { const d = await res.json() as { error?: string }; alert(d.error ?? 'Delete failed'); }
+      else onRefresh();
+    } catch (e) { alert(String(e)); }
+    finally { setDeleting(null); }
+  };
+
   const PRIORITY_RANK: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
-  const done = p.stories.filter(s => s.passes);
-  const pending = [...p.stories.filter(s => !s.passes)]
-    .sort((a, b) => (PRIORITY_RANK[a.priority ?? 'low'] ?? 99) - (PRIORITY_RANK[b.priority ?? 'low'] ?? 99));
   const donePct = pct(p.done, p.total);
+
+  const storyStatusOf = (s: Story): 'pass' | 'pending' | 'failed' | 'skipped' => {
+    if (s.passes) return 'pass';
+    if (s.status === 'skipped' || (s.retryCount ?? 0) >= 3) return 'skipped';
+    if (s.failureReason) return 'failed';
+    return 'pending';
+  };
+
+  const filteredStories = p.stories
+    .filter(s => {
+      const q = searchQuery.trim().toLowerCase();
+      if (q && !s.id.toLowerCase().includes(q) && !s.title.toLowerCase().includes(q)) return false;
+      if (priorityFilter !== 'all' && s.priority !== priorityFilter) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      if (a.passes !== b.passes) return a.passes ? 1 : -1;
+      return (PRIORITY_RANK[a.priority ?? 'low'] ?? 99) - (PRIORITY_RANK[b.priority ?? 'low'] ?? 99);
+    });
+  const totalPages = Math.ceil(filteredStories.length / PAGE_SIZE);
+  const pagedStories = filteredStories.slice(storyPage * PAGE_SIZE, (storyPage + 1) * PAGE_SIZE);
 
   return (
     <div className="p-6 space-y-6">
@@ -220,50 +386,139 @@ function ProgressTab({ data }: { data: ProjectData }) {
         </div>
       )}
 
-      {/* Story lists */}
-      {pending.length > 0 && (
-        <div>
-          <div className="text-xs font-semibold text-amber-600 uppercase tracking-wide mb-2">Pending ({pending.length})</div>
-          <div className="space-y-1">
-            {pending.map(s => (
-              <div key={s.id} className="flex items-start gap-2 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2">
-                <span className="text-amber-400 mt-0.5">○</span>
-                <div className="flex-1 min-w-0">
-                  <span className="text-xs font-mono text-amber-700">{s.id}</span>
-                  <span className="ml-2 text-xs text-slate-700">{s.title}</span>
-                </div>
-                {s.priority && (
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
-                    s.priority === 'critical' ? 'bg-red-100 text-red-700' :
-                    s.priority === 'high' ? 'bg-orange-100 text-orange-700' :
-                    s.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                    'bg-slate-100 text-slate-500'
-                  }`}>{s.priority}</span>
-                )}
-              </div>
+      {/* Unified Story Table */}
+      <div>
+        {/* Search + Filter bar */}
+        <div className="flex flex-wrap items-center gap-2 mb-3">
+          <input
+            type="text"
+            placeholder="Search by ID or title…"
+            value={searchQuery}
+            onChange={e => { setSearchQuery(e.target.value); setStoryPage(0); }}
+            className="flex-1 min-w-[180px] rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
+          />
+          <div className="flex gap-1">
+            {(['all', 'critical', 'high', 'medium', 'low'] as const).map(prio => (
+              <button
+                key={prio}
+                onClick={() => { setPriorityFilter(prio); setStoryPage(0); }}
+                className={`px-2.5 py-1 text-[11px] font-medium rounded-full border transition-colors ${
+                  priorityFilter === prio
+                    ? prio === 'all'      ? 'bg-slate-700 text-white border-slate-700'
+                    : prio === 'critical' ? 'bg-red-600 text-white border-red-600'
+                    : prio === 'high'     ? 'bg-orange-500 text-white border-orange-500'
+                    : prio === 'medium'   ? 'bg-yellow-500 text-white border-yellow-500'
+                    :                      'bg-slate-400 text-white border-slate-400'
+                    : 'bg-white text-slate-500 border-slate-300 hover:border-slate-400'
+                }`}
+              >
+                {prio === 'all' ? 'All' : prio.charAt(0).toUpperCase() + prio.slice(1)}
+              </button>
             ))}
           </div>
         </div>
-      )}
 
-      {done.length > 0 && (
-        <div>
-          <div className="text-xs font-semibold text-emerald-600 uppercase tracking-wide mb-2">Complete ({done.length})</div>
-          <div className="space-y-1">
-            {done.map(s => (
-              <div key={s.id} className="flex items-start gap-2 rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2">
-                <span className="text-emerald-500 mt-0.5">✓</span>
-                <span className="text-xs font-mono text-emerald-700">{s.id}</span>
-                <span className="ml-1 text-xs text-slate-600 flex-1 min-w-0">{s.title}</span>
-                {s.completedAt && (
-                  <span className="text-[10px] text-slate-400 flex-shrink-0 whitespace-nowrap" title={formatMYT(s.completedAt)}>
-                    {formatMYT(s.completedAt)}
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
+        {/* Count summary */}
+        <div className="text-xs text-slate-500 mb-2">
+          <span className="font-semibold text-slate-700">{p.done} / {p.total} stories complete ({donePct}%)</span>
+          {filteredStories.length < p.total && (
+            <span className="ml-2 text-slate-400">— showing {filteredStories.length} matching</span>
+          )}
         </div>
+
+        {/* Table */}
+        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+          <table className="w-full text-xs">
+            <thead className="bg-slate-50 text-slate-500">
+              <tr>
+                <th className="px-3 py-2.5 text-left font-medium w-24">ID</th>
+                <th className="px-3 py-2.5 text-left font-medium">Title</th>
+                <th className="px-3 py-2.5 text-left font-medium w-20">Priority</th>
+                <th className="px-3 py-2.5 text-left font-medium w-28">Status</th>
+                <th className="px-3 py-2.5 w-8"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {pagedStories.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-3 py-6 text-center text-slate-400 italic">No stories match your filter.</td>
+                </tr>
+              ) : pagedStories.map(s => {
+                const status = storyStatusOf(s);
+                const statusBadge = {
+                  pass:    { cls: 'bg-emerald-100 text-emerald-700 border-emerald-200', label: '✓ PASS' },
+                  pending: { cls: 'bg-amber-100 text-amber-700 border-amber-200',       label: '○ PENDING' },
+                  failed:  { cls: 'bg-red-100 text-red-700 border-red-200',             label: '✗ FAILED' },
+                  skipped: { cls: 'bg-slate-100 text-slate-500 border-slate-200',       label: '— SKIPPED' },
+                }[status];
+                const priorityBadgeCls = s.priority ? (
+                  s.priority === 'critical' ? 'bg-red-100 text-red-700' :
+                  s.priority === 'high'     ? 'bg-orange-100 text-orange-700' :
+                  s.priority === 'medium'   ? 'bg-yellow-100 text-yellow-700' :
+                                              'bg-slate-100 text-slate-500'
+                ) : null;
+                return (
+                  <tr
+                    key={s.id}
+                    className="border-t border-slate-100 hover:bg-slate-50 cursor-pointer group"
+                    onClick={() => setSelectedStory(s)}
+                  >
+                    <td className="px-3 py-2 font-mono font-semibold text-blue-700 whitespace-nowrap">{s.id}</td>
+                    <td className="px-3 py-2 text-slate-700 leading-snug">{s.title}</td>
+                    <td className="px-3 py-2">
+                      {priorityBadgeCls && (
+                        <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded-full font-medium ${priorityBadgeCls}`}>
+                          {s.priority}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2">
+                      <span className={`inline-block text-[10px] px-2 py-0.5 rounded-full border font-medium whitespace-nowrap ${statusBadge.cls}`}>
+                        {statusBadge.label}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2">
+                      <button
+                        onClick={e => { e.stopPropagation(); deleteStory(s.id); }}
+                        disabled={deleting === s.id}
+                        title={`Delete ${s.id}`}
+                        className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-opacity text-xs px-1 py-0.5 rounded hover:bg-red-50 disabled:opacity-50"
+                      >
+                        {deleting === s.id ? '…' : '✕'}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-3">
+            <span className="text-xs text-slate-400">
+              Page {storyPage + 1} of {totalPages} · {filteredStories.length} stories
+            </span>
+            <div className="flex gap-1">
+              <button
+                onClick={() => setStoryPage(prev => Math.max(0, prev - 1))}
+                disabled={storyPage === 0}
+                className="px-2.5 py-1 text-xs rounded border border-slate-300 text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >← Prev</button>
+              <button
+                onClick={() => setStoryPage(prev => Math.min(totalPages - 1, prev + 1))}
+                disabled={storyPage >= totalPages - 1}
+                className="px-2.5 py-1 text-xs rounded border border-slate-300 text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >Next →</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Story detail modal */}
+      {selectedStory && (
+        <StoryDetailModal story={selectedStory} onClose={() => setSelectedStory(null)} />
       )}
     </div>
   );
@@ -377,41 +632,143 @@ function CacheStatsTable({ entries }: { entries: CachePhaseEntry[] }) {
   );
 }
 
-function SettingsTab({ config }: { config: Record<string, string> }) {
-  const entries = Object.entries(config).filter(([, v]) => v !== '' && v !== '0' && v !== 'false');
-  if (entries.length === 0) {
-    return <div className="p-6 text-slate-500">No active settings found in spiral.config.sh.</div>;
+/** Update key=value lines in raw config content, preserving comments. */
+function buildUpdatedConfig(rawContent: string, updates: Record<string, string>): string {
+  const handled = new Set<string>();
+  const result = rawContent.split('\n').map(line => {
+    const m = line.match(/^(\s*(?:export\s+)?)([A-Z_][A-Z0-9_]*)=(["']?)([^#\n]*?)\3(\s*#.*)?$/);
+    if (m) {
+      const key = m[2];
+      if (key in updates) {
+        handled.add(key);
+        const val = updates[key].replace(/"/g, '\\"');
+        return `${m[1]}${key}="${val}"${m[5] ? '  ' + m[5].trim() : ''}`;
+      }
+    }
+    return line;
+  });
+  const newKeys = Object.entries(updates).filter(([k]) => !handled.has(k));
+  if (newKeys.length > 0) {
+    result.push('');
+    result.push('# Added via SPIRAL UI');
+    for (const [k, v] of newKeys) result.push(`export ${k}="${v.replace(/"/g, '\\"')}"`);
   }
+  return result.join('\n');
+}
+
+function SettingsTab({ config, configRaw, projectName, onConfigSaved }: {
+  config: Record<string, string>;
+  configRaw: string;
+  projectName: string;
+  onConfigSaved?: () => void;
+}) {
+  const [edited, setEdited] = useState<Record<string, string>>(() => ({ ...config }));
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  // Reset edited state when config changes (e.g. after save + refresh)
+  useEffect(() => { setEdited({ ...config }); }, [JSON.stringify(config)]); // eslint-disable-line
+
+  const knownKeys = new Set(CONFIG_FIELDS.map(f => f.key));
+  const unknownKeys = Object.keys(config).filter(k => !knownKeys.has(k));
+
+  // All rows: known CONFIG_FIELDS that exist in config, plus unknown raw keys
+  const rows = [
+    ...CONFIG_FIELDS.filter(f => f.key in config),
+    ...unknownKeys.map(k => ({ key: k, label: k, description: '', type: 'text' as const, options: undefined })),
+  ];
+
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveMsg(null);
+    try {
+      const newContent = buildUpdatedConfig(configRaw, edited);
+      const res = await fetch('/api/save-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: newContent, name: projectName }),
+      });
+      const d = await res.json() as { ok?: boolean; error?: string };
+      if (d.ok) { setSaveMsg({ ok: true, text: 'Saved!' }); onConfigSaved?.(); }
+      else setSaveMsg({ ok: false, text: d.error ?? 'Save failed' });
+    } catch (e) {
+      setSaveMsg({ ok: false, text: String(e) });
+    } finally { setSaving(false); }
+  };
+
+  if (rows.length === 0) {
+    return <div className="p-6 text-slate-500">No spiral.config.sh found for this project.</div>;
+  }
+
   return (
-    <div className="p-6">
+    <div className="p-6 space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-700">spiral.config.sh</h3>
+          <p className="text-xs text-slate-400 mt-0.5">Edit values and click Save to write to disk.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          {saveMsg && (
+            <span className={`text-xs font-medium ${saveMsg.ok ? 'text-emerald-600' : 'text-red-600'}`}>{saveMsg.text}</span>
+          )}
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="px-4 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50"
+          >
+            {saving ? 'Saving…' : 'Save Config'}
+          </button>
+        </div>
+      </div>
+
       <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
         <table className="w-full text-xs">
           <thead className="bg-slate-50 text-slate-500">
             <tr>
-              <th className="px-4 py-2.5 text-left font-medium">Variable</th>
+              <th className="px-4 py-2.5 text-left font-medium w-2/5">Variable</th>
               <th className="px-4 py-2.5 text-left font-medium">Value</th>
             </tr>
           </thead>
           <tbody>
-            {entries.map(([k, v]) => {
-              const meta = CONFIG_DESCRIPTIONS[k];
+            {rows.map(f => {
+              const val = edited[f.key] ?? '';
               return (
-                <tr key={k} className="border-t border-slate-100 hover:bg-slate-50">
-                  <td className="px-4 py-2">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-mono text-blue-700 whitespace-nowrap">{k}</span>
-                      {meta && (
-                        <span
-                          className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-slate-200 text-slate-500 text-[9px] font-bold cursor-help flex-shrink-0"
-                          title={`${meta.label}\n\n${meta.description}`}
-                        >
-                          ?
-                        </span>
-                      )}
-                    </div>
-                    {meta && <div className="text-[10px] text-slate-400 mt-0.5">{meta.label}</div>}
+                <tr key={f.key} className="border-t border-slate-100 hover:bg-slate-50">
+                  <td className="px-4 py-2.5 align-top">
+                    <div className="font-mono text-blue-700 whitespace-nowrap">{f.key}</div>
+                    {f.label !== f.key && <div className="text-[10px] text-slate-400 mt-0.5">{f.label}</div>}
+                    {f.description && (
+                      <div className="text-[10px] text-slate-400 mt-0.5 max-w-xs leading-tight">
+                        {f.description.length > 100 ? f.description.slice(0, 100) + '…' : f.description}
+                      </div>
+                    )}
                   </td>
-                  <td className="px-4 py-2 font-mono text-slate-700 break-all">{v}</td>
+                  <td className="px-4 py-2 align-middle">
+                    {f.type === 'select' && f.options ? (
+                      <select
+                        className="w-full rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        value={val}
+                        onChange={e => setEdited(p => ({ ...p, [f.key]: e.target.value }))}
+                      >
+                        {f.options.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                      </select>
+                    ) : f.type === 'toggle' ? (
+                      <button
+                        type="button"
+                        onClick={() => setEdited(p => ({ ...p, [f.key]: val === 'true' ? 'false' : 'true' }))}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${val === 'true' ? 'bg-blue-600' : 'bg-slate-300'}`}
+                      >
+                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${val === 'true' ? 'translate-x-6' : 'translate-x-1'}`} />
+                      </button>
+                    ) : (
+                      <input
+                        type={f.type === 'number' ? 'number' : 'text'}
+                        className="w-full rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        value={val}
+                        onChange={e => setEdited(p => ({ ...p, [f.key]: e.target.value }))}
+                      />
+                    )}
+                  </td>
                 </tr>
               );
             })}
@@ -431,8 +788,18 @@ function ConstitutionTab({ text }: { text: string }) {
       </div>
     );
   }
+  const lineCount = text.split('\n').length;
+  const isTooLong = lineCount > 150;
   return (
     <div className="p-6">
+      <div className="flex items-center gap-3 mb-3">
+        <span className="text-xs text-slate-500 font-mono">{lineCount} lines</span>
+        {isTooLong && (
+          <span className="flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-0.5">
+            ⚠ Constitution is long ({lineCount} lines). Consider trimming — LLMs may not reliably follow rules past ~150 lines.
+          </span>
+        )}
+      </div>
       <div className="rounded-xl border border-slate-200 bg-white p-5 prose prose-sm max-w-none">
         <pre className="whitespace-pre-wrap text-xs text-slate-700 font-mono leading-relaxed">{text}</pre>
       </div>
@@ -456,6 +823,7 @@ interface WorkerInfo {
   id: number;
   hasLog: boolean;
   hasHeartbeat: boolean;
+  hasJson?: boolean;
 }
 
 type WorkerStatus = 'running' | 'passed' | 'failed' | 'unknown' | 'error';
@@ -541,9 +909,9 @@ function WorkersTab({ projectName }: { projectName: string }) {
     return (
       <div className="p-6 text-center text-slate-500">
         <div className="text-2xl mb-2">👷</div>
-        <div className="text-sm font-medium">No active workers</div>
+        <div className="text-sm font-medium">No workers found</div>
         <div className="text-xs mt-1 text-slate-400">
-          Run <code className="bg-slate-100 px-1 rounded">bash spiral.sh 5 --ralph-workers 2</code> to see live worker output here.
+          Run <code className="bg-slate-100 px-1 rounded">bash spiral.sh 5 --ralph-workers 2</code> to launch parallel workers and see live output here.
         </div>
       </div>
     );
@@ -552,7 +920,21 @@ function WorkersTab({ projectName }: { projectName: string }) {
   return (
     <div className="p-4 grid grid-cols-1 xl:grid-cols-2 gap-4">
       {workers.map(w => (
-        <WorkerConsole key={w.id} workerId={w.id} projectName={projectName} />
+        w.hasLog
+          ? <WorkerConsole key={w.id} workerId={w.id} projectName={projectName} />
+          : (
+            <div key={w.id} className="flex flex-col border border-slate-700 rounded-lg overflow-hidden">
+              <div className="flex items-center justify-between px-3 py-1.5 bg-slate-800 border-b border-slate-700">
+                <span className="text-xs font-mono font-semibold text-slate-200">Worker {w.id}</span>
+                <span className="text-xs font-mono text-slate-400">○ Completed (no log)</span>
+              </div>
+              <div className="h-32 flex items-center justify-center bg-slate-950 p-2">
+                <span className="text-xs font-mono text-slate-600">
+                  PRD slice assigned — log not available.{w.hasHeartbeat ? ' Heartbeat active.' : ''}
+                </span>
+              </div>
+            </div>
+          )
       ))}
     </div>
   );
@@ -596,6 +978,7 @@ interface IterPhase {
   lineStart: number;
   lineEnd: number;
   substeps?: Substep[];
+  bypassed?: boolean;
 }
 
 interface Iteration {
@@ -652,24 +1035,37 @@ const PHASE_ORDER: Record<string, number> = {
   '0': 0, A: 1, R: 2, T: 3, S: 4, M: 5, I: 6, V: 7, P: 8, C: 9, D: 10,
 };
 
-function PhaseTraceTab({ projectName }: { projectName: string }) {
+const PHASE_ENABLED_DEFAULTS: Record<string, boolean> = {
+  A: true, R: false, T: true, S: true, M: true, I: true, V: true, P: true, C: true,
+};
+
+function PhaseTraceTab({ projectName, stories }: { projectName: string; stories?: Story[] }) {
   const [traceData, setTraceData] = useState<PhaseTraceData | null>(null);
   const [selectedIter, setSelectedIter] = useState<number | null>(null);
   const [expandedPhases, setExpandedPhases] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  const [phaseEnabled, setPhaseEnabled] = useState<Record<string, boolean>>(PHASE_ENABLED_DEFAULTS);
+  const [savingPhase, setSavingPhase] = useState<string | null>(null);
   const userSelectedRef = useRef(false);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch(`/api/phase-trace?name=${encodeURIComponent(projectName)}`);
-        if (res.ok) {
-          const data = await res.json() as PhaseTraceData;
+        const [traceRes, cfgRes] = await Promise.all([
+          fetch(`/api/phase-trace?name=${encodeURIComponent(projectName)}`),
+          fetch(`/api/phase-config?name=${encodeURIComponent(projectName)}`),
+        ]);
+        if (traceRes.ok) {
+          const data = await traceRes.json() as PhaseTraceData;
           setTraceData(data);
           // Auto-select latest iteration only on first load (before user clicks)
           if (data.iterations.length > 0 && !userSelectedRef.current) {
             setSelectedIter(data.iterations[data.iterations.length - 1].iter);
           }
+        }
+        if (cfgRes.ok) {
+          const cfg = await cfgRes.json() as Record<string, boolean>;
+          setPhaseEnabled(cfg);
         }
       } catch { /* ignore */ }
       setLoading(false);
@@ -678,6 +1074,21 @@ function PhaseTraceTab({ projectName }: { projectName: string }) {
     const interval = setInterval(load, 15_000);
     return () => clearInterval(interval);
   }, [projectName]);
+
+  const togglePhaseEnabled = async (phaseId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const next = { ...phaseEnabled, [phaseId]: !phaseEnabled[phaseId] };
+    setPhaseEnabled(next);
+    setSavingPhase(phaseId);
+    try {
+      await fetch(`/api/phase-config?name=${encodeURIComponent(projectName)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ config: next }),
+      });
+    } catch { /* ignore */ }
+    setSavingPhase(null);
+  };
 
   if (loading) return <div className="p-6 text-slate-500">Loading phase trace data...</div>;
   if (!traceData || traceData.iterations.length === 0) {
@@ -839,7 +1250,9 @@ function PhaseTraceTab({ projectName }: { projectName: string }) {
           const lineCount = phase.lines.length;
           const substeps: Substep[] = (phase as IterPhase & { substeps?: Substep[] }).substeps ?? [];
           const hasSubsteps = substeps.length > 0;
-          const isSkipped = phase.label.endsWith('(not run)') || phase.lineStart === -1;
+          const isBypassed = phase.bypassed === true;
+          const isNotYetRun = !isBypassed && (phase.label.endsWith('(not run)') || phase.lineStart === -1);
+          const isSkipped = isBypassed || isNotYetRun;
 
           return (
             <div key={key} className={`rounded-xl border ${isSkipped ? 'border-slate-200 bg-slate-50/50' : `${colors.border} ${colors.bg}`} overflow-hidden ${isSkipped ? 'opacity-50' : ''}`}>
@@ -853,11 +1266,12 @@ function PhaseTraceTab({ projectName }: { projectName: string }) {
                   <span className={`text-xs font-bold ${colors.text} font-mono`}>Phase {phase.phase}</span>
                   <span className={`text-xs font-semibold ${colors.text}`}>{phaseName}</span>
                 </div>
-                {phase.label && phase.label !== phaseName && (
+                {phase.label && phase.label !== phaseName && !isSkipped && (
                   <span className="text-xs text-slate-500 truncate">{phase.label}</span>
                 )}
                 <div className="ml-auto flex items-center gap-3 flex-shrink-0">
-                  {isSkipped && <span className="text-[10px] text-slate-400 bg-slate-200 px-2 py-0.5 rounded-full font-medium">SKIPPED</span>}
+                  {isBypassed && <span className="text-[10px] text-slate-500 bg-slate-200 px-2 py-0.5 rounded-full font-medium">BYPASSED</span>}
+                  {isNotYetRun && <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full font-medium">NOT YET RUN</span>}
                   {!isSkipped && summary && <span className="text-[10px] text-slate-500 bg-white/60 px-2 py-0.5 rounded-full">{summary}</span>}
                   {!isSkipped && hasSubsteps && <span className="text-[10px] text-slate-500 bg-white/60 px-2 py-0.5 rounded-full">{substeps.length} steps</span>}
                   {!isSkipped && duration !== null && (
@@ -872,12 +1286,64 @@ function PhaseTraceTab({ projectName }: { projectName: string }) {
                   )}
                   {!isSkipped && <span className="text-[10px] text-slate-400">{lineCount} lines</span>}
                   {!isSkipped && <span className={`text-xs text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}>▼</span>}
+                  {/* Phase enable/disable toggle */}
+                  <button
+                    onClick={(e) => { void togglePhaseEnabled(phase.phase, e); }}
+                    title={phaseEnabled[phase.phase] !== false ? 'Phase enabled — click to disable for future runs' : 'Phase disabled — click to enable for future runs'}
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-semibold transition-all ${
+                      savingPhase === phase.phase
+                        ? 'opacity-50 cursor-wait bg-slate-100 border-slate-300 text-slate-400'
+                        : phaseEnabled[phase.phase] !== false
+                          ? 'bg-emerald-50 border-emerald-300 text-emerald-700 hover:bg-emerald-100'
+                          : 'bg-slate-100 border-slate-300 text-slate-400 hover:bg-slate-200'
+                    }`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${phaseEnabled[phase.phase] !== false ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                    {phaseEnabled[phase.phase] !== false ? 'ON' : 'OFF'}
+                  </button>
                 </div>
               </button>
 
               {/* Phase detail (expanded) */}
               {isExpanded && (
                 <div className="border-t border-slate-200/50">
+                  {/* Story IDs mentioned in this phase */}
+                  {(() => {
+                    if (!stories || stories.length === 0) return null;
+                    const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;]*[mGKHFJ]/g, '').replace(/\u001b\[[0-9;]*[mGKHFJ]/g, '');
+                    const ids = new Set<string>();
+                    for (const line of phase.lines) {
+                      const m = stripAnsi(line).match(/(?:US|UT)-\d+/gi) ?? [];
+                      for (const id of m) ids.add(id.toUpperCase());
+                    }
+                    if (ids.size === 0) return null;
+                    const passed = [...ids].filter(id => stories.find(s => s.id === id)?.passes === true);
+                    const pending = [...ids].filter(id => {
+                      const s = stories.find(st => st.id === id);
+                      return s && s.passes !== true;
+                    });
+                    const unknown = [...ids].filter(id => !stories.find(s => s.id === id));
+                    return (
+                      <div className="px-4 py-2 border-b border-slate-200/50 bg-white/40 flex flex-wrap items-center gap-1.5">
+                        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mr-1">Stories:</span>
+                        {passed.map(id => (
+                          <span key={id} className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-emerald-100 text-emerald-700 border border-emerald-200">
+                            ✓ {id}
+                          </span>
+                        ))}
+                        {pending.map(id => (
+                          <span key={id} className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                            ○ {id}
+                          </span>
+                        ))}
+                        {unknown.map(id => (
+                          <span key={id} className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-mono text-slate-400 bg-slate-50 border border-slate-200">
+                            {id}
+                          </span>
+                        ))}
+                      </div>
+                    );
+                  })()}
                   {/* Timing detail */}
                   {(startTs || endTs || duration !== null) && (
                     <div className="flex items-center gap-4 px-4 py-2 text-[11px] text-slate-500 bg-white/50 border-b border-slate-200/50">
@@ -1134,15 +1600,15 @@ export default function ProjectDashboard() {
 
       {/* Tab content */}
       <main className="flex-1 overflow-hidden">
-        {activeTab === 'progress'     && <div className="h-full overflow-y-auto"><ProgressTab data={data} /></div>}
-        {activeTab === 'phase-trace'  && <div className="h-full overflow-y-auto"><PhaseTraceTab projectName={projectName ?? ''} /></div>}
+        {activeTab === 'progress'     && <div className="h-full overflow-y-auto"><ProgressTab data={data} projectName={projectName ?? ''} onRefresh={load} /></div>}
+        {activeTab === 'phase-trace'  && <div className="h-full overflow-y-auto"><PhaseTraceTab projectName={projectName ?? ''} stories={data.progress?.stories ?? []} /></div>}
         {activeTab === 'workers'      && <div className="h-full overflow-y-auto"><WorkersTab projectName={projectName ?? ''} /></div>}
         {activeTab === 'graph'        && (
           <div className="h-full overflow-hidden">
             <DependencyGraph stories={data.progress?.stories ?? []} />
           </div>
         )}
-        {activeTab === 'settings'     && <div className="h-full overflow-y-auto"><SettingsTab config={data.config} /></div>}
+        {activeTab === 'settings'     && <div className="h-full overflow-y-auto"><SettingsTab config={data.config} configRaw={data.configRaw ?? ''} projectName={projectName ?? ''} onConfigSaved={() => load()} /></div>}
         {activeTab === 'constitution' && <div className="h-full overflow-y-auto"><ConstitutionTab text={data.constitution} /></div>}
         {activeTab === 'activity'     && <div className="h-full overflow-y-auto"><ActivityTab log={data.activity} /></div>}
       </main>
