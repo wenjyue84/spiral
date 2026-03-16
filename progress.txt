@@ -1,3 +1,26 @@
+## Iteration N - Story: US-345 Scan uv.lock for known vulnerabilities in CI using uv-secure
+
+### What was implemented
+- Added `uv-secure>=0.2.0` to `[dependency-groups] dev` in pyproject.toml
+- Updated uv.lock with `uv lock` (pulled in uv-secure v0.17.0 + deps)
+- Added uv-secure step to dep-audit job in .github/workflows/ci.yml before pip-audit
+- uv-secure scans uv.lock natively via OSV database (no venv needed)
+- JSON output redirected to uv-secure-results.json, uploaded as CI artifact
+- Python inline script parses JSON: fails build on HIGH/CRITICAL, emits GitHub warnings for MEDIUM/LOW
+- Consolidated `uv sync --frozen` + `uv sync --frozen --group dev` into single dev group install
+- Used `--no-check-uv-tool --no-check-uv-secure` flags to scope scan to project deps only
+
+### Patterns discovered
+- uv-secure v0.17.0 uses `--format json` (not `--output-format`), and has no `--output-file` flag — must redirect stdout
+- JSON structure: `{files: [{file_path, dependencies: [{name, version, vulns: [{id, severity, fix_versions, aliases}]}]}]}`
+- Severity field is lowercase ("high", "medium", "low") in JSON output
+- By default uv-secure also scans the global uv tool installation — use `--no-check-uv-tool` to restrict to project
+
+### Gotchas
+- pip-audit is still kept as secondary check (GHSA coverage) per story tech notes
+- Pre-existing test failure: test_field_similarity_lists (similarity assertion mismatch) — unrelated
+- Pre-existing mypy error: semantic_chunker.py line 33 unterminated string literal — unrelated
+
 ## Iteration 1 - Mon, Mar 16, 2026 10:40:16 AM
 Incomplete: ProjectDashboard: searchable story table with live status badges (ID: US-310) — attempt /3
 
@@ -718,3 +741,6 @@ Incomplete: Add episodic memory store for Ralph workers to recall past implement
 ### Gotchas
 - Pre-existing test failure: `test_field_similarity_lists` in `test_consistency_check.py` — unrelated to this story
 - grype `--fail-on high` catches both HIGH and CRITICAL severity levels
+## Iteration 5 - Mon, Mar 16, 2026  5:54:56 PM
+Incomplete: Add episodic memory store for Ralph workers to recall past implementation patterns (ID: US-350) — attempt /3
+

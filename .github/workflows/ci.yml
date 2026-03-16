@@ -282,8 +282,45 @@ jobs:
           enable-cache: true
           python-version: "3.13"
 
-      - name: Install dependencies
-        run: uv sync --frozen
+      - name: Install dependencies (includes uv-secure from dev group)
+        run: uv sync --frozen --group dev
+
+      - name: Run uv-secure (uv.lock vulnerability scan via OSV)
+        run: |
+          uv run uv-secure uv.lock \
+            --format json \
+            --no-check-uv-tool \
+            --no-check-uv-secure \
+            > uv-secure-results.json \
+            || true
+          # Fail on HIGH or CRITICAL; warn on lower severities
+          python3 - <<'PYEOF'
+          import json, sys, pathlib
+          report = pathlib.Path("uv-secure-results.json")
+          if not report.exists() or report.stat().st_size == 0:
+              print("::warning::uv-secure did not produce a report")
+              sys.exit(0)
+          data = json.loads(report.read_text())
+          high_crit = []
+          warnings = []
+          for f in data.get("files", []):
+              for dep in f.get("dependencies", []):
+                  for v in dep.get("vulns", []):
+                      sev = (v.get("severity") or "").upper()
+                      entry = {"package": dep["name"], "version": dep["version"], **v}
+                      if sev in ("HIGH", "CRITICAL"):
+                          high_crit.append(entry)
+                      else:
+                          warnings.append(entry)
+          for w in warnings:
+              print(f"::warning::uv-secure: {w['package']}=={w['version']} — {w.get('id','?')} ({w.get('severity','unknown')})")
+          if high_crit:
+              for h in high_crit:
+                  print(f"::error::uv-secure: {h['package']}=={h['version']} — {h.get('id','?')} ({h.get('severity','?')})")
+              print(f"::error::uv-secure found {len(high_crit)} HIGH/CRITICAL vulnerabilities — see uv-secure-results.json artifact")
+              sys.exit(1)
+          print(f"uv-secure: {len(warnings)} low/medium warnings, 0 high/critical — OK")
+          PYEOF
 
       - name: Install pip-audit
         run: uv pip install "pip-audit==2.7.3"
@@ -323,6 +360,7 @@ jobs:
         with:
           name: dep-audit-results
           path: |
+            uv-secure-results.json
             pip-audit-results.json
             npm-audit-results.json
           retention-days: 7
