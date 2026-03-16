@@ -1210,3 +1210,22 @@ Completed: Add pre-flight Claude API token count check before story prompt submi
 
 
 
+
+
+## Iteration N - Story: US-425 Create lib/episodic_memory.py with SQLite FTS5 schema and read/write API
+
+### What was implemented
+- Created lib/episodic_memory.py with SQLite FTS5 virtual table: story_id, story_type, approach_summary, outcome, iteration (UNINDEXED), timestamp (UNINDEXED)
+- Functions: init_db(), write_memory(), query_similar() (FTS5 MATCH + BM25 ranking), list_recent() (ORDER BY timestamp DESC)
+- CLI entry point with write/query/list subcommands
+- Created tests/test_episodic_memory.py with 8 tests covering init, write+query, ranking, list ordering, limit, empty db, and short-token edge case
+- Zero external dependencies (stdlib sqlite3 only), passes mypy --strict
+
+### Patterns discovered
+- FTS5 MATCH with BM25 ranking (ORDER BY rank) gives relevance-sorted results out of the box
+- FTS5 UNINDEXED columns still store data but aren't indexed for search — perfect for metadata like timestamps
+- Tokenizing query into "term1 OR term2" provides broad keyword matching without complex query parsing
+
+### Gotchas
+- FTS5 MATCH raises sqlite3.OperationalError on empty or malformed queries — need try/except guard
+- Short tokens (<=2 chars) should be filtered before building the FTS query to avoid noise
