@@ -79,7 +79,7 @@ _run_dedup_check() {
   local prd
   prd="$(make_prd '[{"id":"US-001","title":"A","passes":false},{"id":"US-001","title":"A-dup","passes":false}]')"
   SPIRAL_DEDUP_IDS=strict run _run_dedup_check "$prd"
-  [ "$status" -ne 0 ]
+  assert_failure
   assert_output --partial "FATAL"
   assert_output --partial "US-001"
   assert_output --partial "SPIRAL_DEDUP_IDS=lenient"
@@ -90,7 +90,7 @@ _run_dedup_check() {
   prd="$(make_prd '[{"id":"US-005","title":"X","passes":false},{"id":"US-005","title":"X-dup","passes":false}]')"
   unset SPIRAL_DEDUP_IDS
   run _run_dedup_check "$prd"
-  [ "$status" -ne 0 ]
+  assert_failure
   assert_output --partial "FATAL"
 }
 
@@ -100,7 +100,7 @@ _run_dedup_check() {
   SPIRAL_DEDUP_IDS=lenient run _run_dedup_check "$prd"
   assert_success
   assert_output --partial "WARNING"
-  assert_output --partial "Resolved"* || "$output" == *"resolved"
+  assert_output --regexp "[Rr]esolved"
   # The file should now have only 1 entry with passes:true
   local remaining
   remaining=$("$JQ" '[.userStories[] | select(.id == "US-010")] | length' "$prd")
@@ -140,7 +140,7 @@ _run_dedup_check() {
   local prd
   prd="$(make_prd '[{"id":"US-001","title":"A","passes":false},{"id":"US-001","title":"A2","passes":false},{"id":"US-002","title":"B","passes":false},{"id":"US-002","title":"B2","passes":false}]')"
   SPIRAL_DEDUP_IDS=strict run _run_dedup_check "$prd"
-  [ "$status" -ne 0 ]
+  assert_failure
   assert_output --partial "US-001"
   assert_output --partial "US-002"
 }

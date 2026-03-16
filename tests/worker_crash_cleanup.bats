@@ -154,7 +154,7 @@ teardown() {
   sleep 0.2
   # Parent should no longer be alive
   run kill -0 "$parent_pid" 2>/dev/null
-  [ "$status" -ne 0 ]
+  assert_failure
 }
 
 # ── Sibling worker isolation test ─────────────────────────────────────────────

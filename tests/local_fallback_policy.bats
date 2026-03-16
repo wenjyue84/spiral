@@ -60,7 +60,7 @@ source_policy_fn() {
 @test "SPIRAL_LOCAL_FALLBACK_POLICY default is empty (disabled)" {
   run grep 'SPIRAL_LOCAL_FALLBACK_POLICY.*:-' ralph/ralph.sh
   # Default must be empty string (feature off by default)
-  echo "$output" | grep -qE 'SPIRAL_LOCAL_FALLBACK_POLICY.*:-["}]'
+  assert_output --regexp 'SPIRAL_LOCAL_FALLBACK_POLICY.*:-["}]'
 }
 
 @test "SPIRAL_OLLAMA_BASE_URL defaults to http://localhost:11434" {

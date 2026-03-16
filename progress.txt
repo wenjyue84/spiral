@@ -1,3 +1,34 @@
+## Iteration N - Story: US-364 Add bats_require_minimum_version guard and bats-assert library to SPIRAL bats tests
+
+### What was implemented
+- Verified all 69 SPIRAL bats test files already have `bats_require_minimum_version 1.7.0`
+- Verified bats-support and bats-assert git submodules already exist (at tests/bats-support/ and tests/bats-assert/)
+- Verified all setup() functions load bats-support and bats-assert via `load test_helper/common-setup`
+- Verified CI workflow already has bats version >= 1.7.0 pre-check step
+- Replaced 28 raw `[ "$status" -ne 0 ]` assertions with `assert_failure` across 11 test files
+- Replaced 4 raw `[ "$status" -eq "$expected" ]` assertions with `assert_failure "$expected"` in exit_codes.bats
+- Replaced 12 `echo "$output" | grep -q "..."` patterns with `assert_output --partial "..."` across 5 test files
+- Replaced 1 `! echo "$output" | grep -q "..."` pattern with `refute_output --partial "..."`
+- Replaced 1 regex grep with `assert_output --regexp` in local_fallback_policy.bats
+- Fixed 4 malformed hybrid assertions (broken syntax mixing bats-assert and bash conditionals) in prd_schema_validation.bats, worker_launch_audit.bats, duplicate_story_ids.bats
+
+### Files modified
+- tests/duplicate_story_ids.bats, tests/overload_detection.bats, tests/prd_schema_validation.bats
+- tests/story_count_health.bats, tests/worker_launch_audit.bats, tests/worker_heartbeat.bats
+- tests/tool_param_validation.bats, tests/worker_crash_cleanup.bats, tests/git_rerere.bats
+- tests/lib/validate_preflight.bats, tests/lib/spiral_assert.bats
+- tests/exit_codes.bats, tests/error_taxonomy.bats, tests/flaky_tests.bats
+- tests/local_fallback_policy.bats
+
+### Patterns discovered
+- bats-support/bats-assert submodules already at tests/ level (not tests/test_helper/ as story suggested), loaded via common-setup.bash
+- 4 tests had malformed syntax from a partial bats-assert migration (e.g., `assert_output --partial "X"* ]] || [[ "$output" == *"Y"`)
+- 6 pre-existing test failures in spiral_assert.bats: warn mode functions return 0 but tests expect non-zero
+
+### Gotchas
+- Some `echo "$output" | grep` patterns use local variables (not bats $output), so can't use assert_output — left as-is
+- Pre-existing failures in spiral_assert.bats are NOT caused by this change (verified by stash/pop test)
+
 ## Iteration N - Story: US-395 Add `uv sync --frozen` assertion in CI to detect uncommitted lockfile drift
 
 ### What was implemented
@@ -1063,3 +1094,6 @@ Completed: Add pytest-timeout plugin to prevent indefinitely hanging CI tests (I
 - `truncate_context.py` has 3 pre-existing mypy errors (dict type params, unused ignore) — not introduced by this story
 - ralph.sh token_guard block runs BEFORE the existing truncate_context block; both use independent budget settings (SPIRAL_CONTEXT_BUDGET_TOKENS=150k vs SPIRAL_CONTEXT_LIMIT=180k)
 - The existing truncate_context block in ralph.sh computed _TRUNC_JSON but never updated STORY_JSON (pre-existing bug); token_guard block correctly updates STORY_JSON with trimmed output
+## Iteration 2 - Mon, Mar 16, 2026 10:21:31 PM
+Completed: Add pre-flight Claude API token count check before story prompt submission (ID: US-408) in 16m
+

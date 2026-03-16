@@ -137,7 +137,7 @@ teardown() {
 @test "spiral_assert_ids_unique returns 1 with duplicate story IDs" {
   export SPIRAL_ASSERT_MODE="warn"
   run spiral_assert_ids_unique "$FIXTURE_DIR/prd_duplicate_ids.json"
-  [ "$status" -ne 0 ]
+  assert_failure
 }
 
 @test "spiral_assert_ids_unique logs violation when duplicates found" {
@@ -160,7 +160,7 @@ teardown() {
   export SPIRAL_MAX_TOTAL_STORIES=3
   export SPIRAL_ASSERT_MODE="warn"
   run spiral_assert_story_count_bounded "$FIXTURE_DIR/prd_5stories.json"
-  [ "$status" -ne 0 ]
+  assert_failure
   unset SPIRAL_MAX_TOTAL_STORIES
 }
 
@@ -190,7 +190,7 @@ teardown() {
   echo "2" > "$SCRATCH_DIR/_passes_baseline"
   # prd_unique.json has only 1 passing story — regression detected
   run spiral_assert_passes_monotonic "$FIXTURE_DIR/prd_unique.json"
-  [ "$status" -ne 0 ]
+  assert_failure
 }
 
 @test "spiral_assert_passes_monotonic skips check when no baseline file" {
@@ -223,7 +223,7 @@ teardown() {
 @test "spiral_assert_merge_no_story_loss returns 1 when count decreases" {
   export SPIRAL_ASSERT_MODE="warn"
   run spiral_assert_merge_no_story_loss 10 8
-  [ "$status" -ne 0 ]
+  assert_failure
 }
 
 # ── Test: spiral_assert_iteration_progress ────────────────────────────────────
@@ -236,13 +236,13 @@ teardown() {
 @test "spiral_assert_iteration_progress returns 1 when zero_count reaches max" {
   export SPIRAL_ASSERT_MODE="warn"
   run spiral_assert_iteration_progress 3 3
-  [ "$status" -ne 0 ]
+  assert_failure
 }
 
 @test "spiral_assert_iteration_progress returns 1 when zero_count exceeds max" {
   export SPIRAL_ASSERT_MODE="warn"
   run spiral_assert_iteration_progress 5 3
-  [ "$status" -ne 0 ]
+  assert_failure
 }
 
 # ── Test: assert_file_exists (using bats built-in check) ─────────────────────

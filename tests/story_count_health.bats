@@ -95,7 +95,7 @@ _run_story_count_check() {
   local prd
   prd="$(make_prd 201)"
   SPIRAL_MAX_STORIES=200 SPIRAL_MAX_STORIES_ABORT=1 run _run_story_count_check "$prd"
-  [ "$status" -ne 0 ]
+  assert_failure
   assert_output --partial "FATAL"
   assert_output --partial "SPIRAL_MAX_STORIES_ABORT"
 }

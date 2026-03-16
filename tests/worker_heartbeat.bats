@@ -177,7 +177,7 @@ JSON
 
 @test "requeue_stale_stories: returns non-zero for missing prd file" {
   run requeue_stale_stories "/nonexistent_$$.json" "US-001" "$JQ"
-  [ "$status" -ne 0 ]
+  assert_failure
 }
 
 # ── worker_heartbeat_start / stop ─────────────────────────────────────────────

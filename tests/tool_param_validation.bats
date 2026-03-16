@@ -69,7 +69,7 @@ teardown() {
 
 @test "python with non-.py file extension is caught" {
   run validate_tool_params python script.sh
-  [ "$status" -ne 0 ]
+  assert_failure
 }
 
 # ── bats file extension validation ───────────────────────────────────────────
@@ -106,12 +106,12 @@ teardown() {
 
 @test "jq without filter is caught" {
   run validate_tool_params jq
-  [ "$status" -ne 0 ]
+  assert_failure
 }
 
 @test "jq with only flags and no filter is caught" {
   run validate_tool_params jq -r -c
-  [ "$status" -ne 0 ]
+  assert_failure
 }
 
 # ── curl URL scheme validation ────────────────────────────────────────────────
@@ -141,7 +141,7 @@ teardown() {
 
 @test "curl with file:// scheme is caught" {
   run validate_tool_params curl file:///etc/passwd
-  [ "$status" -ne 0 ]
+  assert_failure
 }
 
 # ── uv subcommand validation ──────────────────────────────────────────────────
@@ -153,7 +153,7 @@ teardown() {
 
 @test "uv invalid subcommand is caught" {
   run validate_tool_params uv foobar
-  [ "$status" -ne 0 ]
+  assert_failure
 }
 
 # ── unknown tools pass through (no false positives) ──────────────────────────

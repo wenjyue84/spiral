@@ -100,9 +100,9 @@ constant_value() {
 @test "--help lists exit codes section" {
   run bash "$SPIRAL_SH" --help
   assert_success
-  echo "$output" | grep -q 'Exit Codes'
-  echo "$output" | grep -q 'ERR_MAX_ITERS'
-  echo "$output" | grep -q 'ERR_API_DOWN'
+  assert_output --partial 'Exit Codes'
+  assert_output --partial 'ERR_MAX_ITERS'
+  assert_output --partial 'ERR_API_DOWN'
 }
 
 @test "max-iters path uses ERR_MAX_ITERS not bare exit 0" {
@@ -117,7 +117,7 @@ constant_value() {
   local expected
   expected=$(constant_value ERR_BAD_USAGE)
   run bash "$SPIRAL_SH" --unknown-flag-xyz-test-121
-  [ "$status" -eq "$expected" ]
+  assert_failure "$expected"
 }
 
 @test "non-integer max_iters produces ERR_BAD_USAGE (exit 2)" {
@@ -125,7 +125,7 @@ constant_value() {
   expected=$(constant_value ERR_BAD_USAGE)
   # "notanumber" hits _validate_pos_int before any config/file checks
   run bash "$SPIRAL_SH" notanumber
-  [ "$status" -eq "$expected" ]
+  assert_failure "$expected"
 }
 
 setup() {
@@ -153,7 +153,7 @@ teardown() {
   # /nonexistent/path/prd.json — directory does not exist
   run bash "$SPIRAL_SH" --config "$SPIRAL_TEST_DIR/spiral.config.sh" \
     --prd /nonexistent/path/that/does/not/exist/prd.json
-  [ "$status" -eq "$expected" ]
+  assert_failure "$expected"
 }
 
 @test "prd.json with schemaVersion > 1 produces ERR_SCHEMA_VERSION (exit 7)" {
@@ -163,5 +163,5 @@ teardown() {
   printf '{"schemaVersion":99,"userStories":[]}\n' >"$SPIRAL_TEST_DIR/prd.json"
   run bash "$SPIRAL_SH" --config "$SPIRAL_TEST_DIR/spiral.config.sh" \
     --prd "$SPIRAL_TEST_DIR/prd.json"
-  [ "$status" -eq "$expected" ]
+  assert_failure "$expected"
 }

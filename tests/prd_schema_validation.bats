@@ -63,15 +63,15 @@ teardown() {
   local prd="$TMPDIR_TEST/prd.json"
   make_prd "$prd" '[{"id":"US-001","title":"My story","priority":"urgent","passes":false,"acceptanceCriteria":["AC1"],"dependencies":[]}]'
   run "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/prd_schema.py" "$prd" 2>&1
-  [ "$status" -ne 0 ]
+  assert_failure
 }
 
 @test "invalid priority error message contains SCHEMA ERROR" {
   local prd="$TMPDIR_TEST/prd.json"
   make_prd "$prd" '[{"id":"US-001","title":"My story","priority":"urgent","passes":false,"acceptanceCriteria":["AC1"],"dependencies":[]}]'
   run "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/prd_schema.py" "$prd" 2>&1
-  [ "$status" -ne 0 ]
-  assert_output --partial "SCHEMA ERROR"* ]] || [[ "$output" == *"urgent"
+  assert_failure
+  assert_output --partial "SCHEMA ERROR"
 }
 
 @test "invalid priority error contains JSON Pointer path (requires jsonschema)" {
@@ -81,7 +81,7 @@ teardown() {
   local prd="$TMPDIR_TEST/prd.json"
   make_prd "$prd" '[{"id":"US-002","title":"Story two","priority":"INVALID","passes":false,"acceptanceCriteria":["AC1"],"dependencies":[]}]'
   run "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/prd_schema.py" "$prd" 2>&1
-  [ "$status" -ne 0 ]
+  assert_failure
   # JSON Pointer format: /userStories/0/priority
   assert_output --partial "/userStories/0/priority"
   assert_output --partial "SCHEMA ERROR"
@@ -110,9 +110,9 @@ assert any(s['id'] == 'US-010' for s in prd['userStories']), 'US-010 not found a
   make_prd "$prd" '[]'
   make_prd "$new_prd" '[{"id":"US-011","title":"Bad story","priority":"bogus","passes":false,"acceptanceCriteria":["AC1"],"dependencies":[]}]'
   run "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/prd_schema.py" "$prd" --validate-write "$new_prd" 2>&1
-  [ "$status" -ne 0 ]
+  assert_failure
   # SCHEMA ERROR must appear in combined output
-  assert_output --partial "SCHEMA ERROR"* ]] || [[ "$output" == *"bogus"
+  assert_output --partial "SCHEMA ERROR"
   # Backup must have been created â€” pass path as arg
   "$SPIRAL_PYTHON" -c "import sys, os; assert os.path.isfile(sys.argv[1]+'.bak'), f'{sys.argv[1]}.bak missing'" "$prd"
 }
@@ -145,7 +145,7 @@ assert any(s['id'] == 'US-001' for s in prd['userStories']), 'US-001 not found â
   long_title="$("$SPIRAL_PYTHON" -c "print('A' * 101)")"
   make_prd "$prd" "[{\"id\":\"US-020\",\"title\":\"$long_title\",\"priority\":\"low\",\"passes\":false,\"acceptanceCriteria\":[\"AC1\"],\"dependencies\":[]}]"
   run "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/prd_schema.py" "$prd" 2>&1
-  [ "$status" -ne 0 ]
+  assert_failure
   assert_output --partial "SCHEMA ERROR"
 }
 
@@ -156,5 +156,5 @@ assert any(s['id'] == 'US-001' for s in prd['userStories']), 'US-001 not found â
   local prd="$TMPDIR_TEST/prd.json"
   make_prd "$prd" '[{"id":"US-030","title":"No AC","priority":"low","passes":false,"acceptanceCriteria":[],"dependencies":[]}]'
   run "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/prd_schema.py" "$prd" 2>&1
-  [ "$status" -ne 0 ]
+  assert_failure
 }

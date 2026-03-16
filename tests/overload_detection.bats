@@ -113,7 +113,7 @@ export -f detect_overload
 CLEANEOF
 
   run detect_overload "$tmp"
-  [ "$status" -ne 0 ]
+  assert_failure
 }
 
 @test "literal 529 string in output triggers overload detection" {

@@ -230,7 +230,7 @@ record_fails() {
 @test "flaky_report prints without error on empty registry" {
   run flaky_report
   assert_success
-  echo "$output" | grep -q "Flaky Test Registry"
+  assert_output --partial "Flaky Test Registry"
 }
 
 @test "flaky_report shows quarantined test in output" {
@@ -239,7 +239,7 @@ record_fails() {
 
   run flaky_report
   assert_success
-  echo "$output" | grep -q "noisy_test"
+  assert_output --partial "noisy_test"
 }
 
 @test "flaky_report shows failure rate for quarantined tests" {
@@ -249,7 +249,7 @@ record_fails() {
   run flaky_report
   assert_success
   # Should include a percentage
-  echo "$output" | grep -q "%"
+  assert_output --partial "%"
 }
 
 # ── Tests: flaky_list_quarantined ─────────────────────────────────────────────
@@ -268,8 +268,8 @@ record_fails() {
 
   run flaky_list_quarantined
   assert_success
-  echo "$output" | grep -q "noisy1"
-  ! echo "$output" | grep -q "clean1"
+  assert_output --partial "noisy1"
+  refute_output --partial "clean1"
 }
 
 # ── Tests: persistence ────────────────────────────────────────────────────────

@@ -75,7 +75,7 @@ teardown() {
 @test "spiral_preflight_check exits non-zero when prd_schema.py exits 1" {
   export SPIRAL_PYTHON="$MOCK_BIN/mock_python_fail.sh"
   run spiral_preflight_check "$PRD_FILE" "$SCRATCH_DIR"
-  [ "$status" -ne 0 ]
+  assert_failure
 }
 
 @test "spiral_preflight_check prints FATAL message on schema failure" {

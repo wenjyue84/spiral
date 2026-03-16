@@ -66,7 +66,7 @@ teardown() {
 
   # Merge branch-a into branch-b — will conflict
   run git merge branch-a
-  [ "$status" -ne 0 ]
+  assert_failure
 
   # Resolve the conflict manually
   printf '{"stories":["A","B"]}\n' > prd.json

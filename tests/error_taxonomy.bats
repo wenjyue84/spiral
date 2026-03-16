@@ -102,7 +102,7 @@ run_spiral_exit() {
   run_spiral_exit E501 "/path/to/missing/prd.json"
   assert_failure 5
   assert_error_format "E501" "$output"
-  echo "$output" | grep -q "/path/to/missing/prd.json"
+  assert_output --partial "/path/to/missing/prd.json"
 }
 
 # ── Test: E503 — prd.json schema version too new (Schema category) ────────
@@ -111,7 +111,7 @@ run_spiral_exit() {
   run_spiral_exit E503 "99"
   assert_failure 7
   assert_error_format "E503" "$output"
-  echo "$output" | grep -q "99"
+  assert_output --partial "99"
 }
 
 # ── Test: E103 — Required tool not found (Config category) ────────────────
@@ -120,7 +120,7 @@ run_spiral_exit() {
   run_spiral_exit E103 "ralph.sh not found at /nonexistent/ralph.sh"
   assert_failure 4
   assert_error_format "E103" "$output"
-  echo "$output" | grep -q "ralph.sh"
+  assert_output --partial "ralph.sh"
 }
 
 # ── Test: E401 — Zero-progress stall (Worker category) ────────────────────
@@ -129,7 +129,7 @@ run_spiral_exit() {
   run_spiral_exit E401
   assert_failure 9
   assert_error_format "E401" "$output"
-  echo "$output" | grep -q "Zero-progress"
+  assert_output --partial "Zero-progress"
 }
 
 # ── Test: E201 — API unreachable (API category) ───────────────────────────
@@ -138,7 +138,7 @@ run_spiral_exit() {
   run_spiral_exit E201 "connection timeout"
   assert_failure 14
   assert_error_format "E201" "$output"
-  echo "$output" | grep -q "connection timeout"
+  assert_output --partial "connection timeout"
 }
 
 # ── Test: spiral_exit writes structured JSON to spiral_events.jsonl ───────
@@ -216,7 +216,7 @@ CONF
     --config "$TEST_DIR/spiral.config.sh" \
     --prd "$TEST_DIR/project/prd.json" 2>&1
   assert_failure 5
-  echo "$output" | grep -q "\[SPIRAL-E-E501\]"
+  assert_output --partial "[SPIRAL-E-E501]"
 }
 
 # ── Test: E503 fires via real spiral.sh when schema version too new ───────
@@ -232,5 +232,5 @@ CONF
     --config "$TEST_DIR/spiral.config.sh" \
     --prd "$TEST_DIR/project/prd.json" 2>&1
   assert_failure 7
-  echo "$output" | grep -q "\[SPIRAL-E-E503\]"
+  assert_output --partial "[SPIRAL-E-E503]"
 }

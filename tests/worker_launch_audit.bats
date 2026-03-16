@@ -216,8 +216,8 @@ EOF
   cp "$PRD_FILE" "$wtree/prd.json"
 
   run _audit_worker_launch 1 "$wtree"
-  [ "$status" -ne 0 ]
-  assert_output --partial "FATAL"* ]] || [[ "$output" == *"aborting"
+  assert_failure
+  assert_output --partial "FATAL"
 }
 
 # ── Test: LOG_FILE session log leak is detected ──────────────────────────────
