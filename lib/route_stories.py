@@ -60,7 +60,9 @@ def route_stories(prd_path, profile):
         print(f"[router] ERROR: Could not decode JSON from {prd_path}")
         return
 
-    router = _try_load_semantic_router() if profile == "auto" else None
+    # Semantic router disabled: sentence-transformers/OpenBLAS causes OOM in constrained envs.
+    # Keyword-based fallback is fast, reliable, and good enough for complexity classification.
+    router = None
     stories_to_update = 0
 
     for story in prd.get("userStories", []):

@@ -36,7 +36,7 @@ def _complexity_score(story: dict[str, Any]) -> int:
     return _COMPLEXITY_ORDER.get(c, 3)  # unset = treated like high
 
 
-def importance_key(idx_story: tuple[int, dict[str, Any]]) -> tuple:
+def importance_key(idx_story: tuple[int, dict[str, Any]]) -> tuple[int, int, int]:
     """Lower = more important. Sort ascending to get most important first."""
     idx, story = idx_story
     return (priority_key(story), _complexity_score(story), idx)
