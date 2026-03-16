@@ -264,3 +264,25 @@ Incomplete: Validate MCP server integrity via signed checksum manifest before Ph
 ## Iteration 6 - Mon, Mar 16, 2026  1:15:43 PM
 Incomplete: Validate MCP server integrity via signed checksum manifest before Phase I (ID: US-320) — attempt /3
 
+## Iteration N - Story: US-354 Assign haiku as default model for Phases R, S, and M; preserve sonnet/opus for Phase I
+
+### What was implemented
+- Changed SPIRAL_RESEARCH_MODEL default from "sonnet" to "haiku" in all three locations: main defaults (line 456), validate_config defense-in-depth (line 549), and Phase R execution block (line 2873)
+- Added SPIRAL_VALIDATION_MODEL (haiku default) and SPIRAL_MERGE_MODEL (haiku default) env vars
+- Added SPIRAL_PHASE_MODEL_OVERRIDE parsing (R:model,S:model,M:model format) after validate_env
+- Updated startup banner to show "Phase models: R=... S=... M=..."
+- Added model field to phase_end log events for R, S, and M phases
+- Updated spiral.config.sh with all new vars documented
+- Updated templates/spiral.config.example.sh with full documentation
+- Added 17 tests in tests/test_phase_model_defaults.py covering all acceptance criteria
+
+### Patterns discovered
+- Phase S (story validation) and Phase M (merge) are pure Python — no Claude API calls — so model vars are future-proofing
+- Only Phase R actually invokes Claude among non-I phases; the cost savings come from switching R from sonnet to haiku
+- Three separate locations set SPIRAL_RESEARCH_MODEL defaults: main var block, validate_config, Phase R execution
+- SPIRAL_PHASE_MODEL_OVERRIDE uses IFS comma splitting + case statement for clean parsing
+
+### Gotchas
+- Template config still had old comment "sonnet is recommended" for research model — updated to reflect haiku default
+- Phase end event log uses escaped quotes (\\\"model\\\") — regex tests need to avoid matching literal quote chars
+

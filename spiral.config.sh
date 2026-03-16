@@ -18,8 +18,14 @@ SPIRAL_MODEL_ROUTING="auto"
 # Default 0.85 = upgrade when prompt > 85% of the 200k context window (~170k tokens)
 SPIRAL_CONTEXT_WINDOW_MARGIN="${SPIRAL_CONTEXT_WINDOW_MARGIN:-0.85}"
 
-# Research phase uses sonnet by default (better synthesis than haiku)
-SPIRAL_RESEARCH_MODEL="sonnet"
+# ── Phase-specific model defaults ────────────────────────────────────────────
+# Each non-implementation phase can use a cheaper model (haiku is ~15x cheaper
+# than sonnet). Phase I continues to use SPIRAL_MODEL_ROUTING for escalation.
+SPIRAL_RESEARCH_MODEL="haiku"       # Phase R: research synthesis
+SPIRAL_VALIDATION_MODEL="haiku"     # Phase S: story validation (future — currently Python-only)
+SPIRAL_MERGE_MODEL="haiku"          # Phase M: merge decisions (future — currently Python-only)
+# Bulk override format: SPIRAL_PHASE_MODEL_OVERRIDE=R:haiku,S:haiku,M:haiku
+# SPIRAL_PHASE_MODEL_OVERRIDE=""
 
 # ── Research focus prompt ────────────────────────────────────────────────────
 # Guides Gemini + Claude in Phase R toward relevant context

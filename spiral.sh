@@ -453,7 +453,9 @@ SPIRAL_VERSION="${SPIRAL_VERSION:-$(git -C "$SPIRAL_HOME" describe --tags --alwa
 export SPIRAL_VERSION
 STREAM_FMT="${SPIRAL_STREAM_FMT:-$SPIRAL_HOME/ralph/stream-formatter.mjs}"
 SPIRAL_MODEL_ROUTING="${SPIRAL_MODEL_ROUTING:-auto}"
-SPIRAL_RESEARCH_MODEL="${SPIRAL_RESEARCH_MODEL:-sonnet}"
+SPIRAL_RESEARCH_MODEL="${SPIRAL_RESEARCH_MODEL:-haiku}"
+SPIRAL_VALIDATION_MODEL="${SPIRAL_VALIDATION_MODEL:-haiku}"
+SPIRAL_MERGE_MODEL="${SPIRAL_MERGE_MODEL:-haiku}"
 SPIRAL_FIRECRAWL_ENABLED="${SPIRAL_FIRECRAWL_ENABLED:-0}"
 SPIRAL_SPECKIT_CONSTITUTION="${SPIRAL_SPECKIT_CONSTITUTION:-}"
 SPIRAL_SPECKIT_SPECS_DIR="${SPIRAL_SPECKIT_SPECS_DIR:-}"
@@ -544,7 +546,9 @@ validate_config() {
 
   # Defaults for optional keys (defense-in-depth)
   : "${SPIRAL_MODEL_ROUTING:=auto}"
-  : "${SPIRAL_RESEARCH_MODEL:=sonnet}"
+  : "${SPIRAL_RESEARCH_MODEL:=haiku}"
+  : "${SPIRAL_VALIDATION_MODEL:=haiku}"
+  : "${SPIRAL_MERGE_MODEL:=haiku}"
   : "${SPIRAL_MAX_PENDING:=50}"
   : "${SPIRAL_MEMORY_LIMIT:=1024}"
 
@@ -568,6 +572,23 @@ validate_env() {
   fi
 }
 validate_env
+
+# ── US-354: Phase-specific model override parsing ────────────────────────────
+# SPIRAL_PHASE_MODEL_OVERRIDE=R:haiku,S:haiku,M:sonnet  → per-phase overrides
+if [[ -n "${SPIRAL_PHASE_MODEL_OVERRIDE:-}" ]]; then
+  IFS=',' read -ra _PMO_ENTRIES <<< "$SPIRAL_PHASE_MODEL_OVERRIDE"
+  for _pmo in "${_PMO_ENTRIES[@]}"; do
+    _pmo_phase="${_pmo%%:*}"
+    _pmo_model="${_pmo#*:}"
+    case "$_pmo_phase" in
+      R) SPIRAL_RESEARCH_MODEL="$_pmo_model" ;;
+      S) SPIRAL_VALIDATION_MODEL="$_pmo_model" ;;
+      M) SPIRAL_MERGE_MODEL="$_pmo_model" ;;
+      *) echo "[config] WARNING: unknown phase '$_pmo_phase' in SPIRAL_PHASE_MODEL_OVERRIDE — ignored" ;;
+    esac
+  done
+  echo "[config] Phase model overrides applied: $SPIRAL_PHASE_MODEL_OVERRIDE"
+fi
 
 # ── US-312: ANSI color output for phase section banners ──────────────────────
 # SPIRAL_COLOR_OUTPUT: auto (default) | 1 (force on) | 0 (force off)
@@ -1975,6 +1996,7 @@ elif [[ "$SPIRAL_MODEL_ROUTING" == "auto" ]]; then
 else
   echo "  ║  Model:       $SPIRAL_MODEL_ROUTING (config fixed)"
 fi
+echo "  ║  Phase models: R=$SPIRAL_RESEARCH_MODEL  S=$SPIRAL_VALIDATION_MODEL  M=$SPIRAL_MERGE_MODEL"
 if [[ "$SPIRAL_FIRECRAWL_ENABLED" -eq 1 ]]; then
   echo "  ║  Research:    $SPIRAL_RESEARCH_MODEL model + Firecrawl MCP"
 else
@@ -2848,7 +2870,7 @@ $INJECTED_PROMPT"
       fi
 
       # Resolve research model: CLI override > config
-      RESEARCH_MODEL="${SPIRAL_RESEARCH_MODEL:-sonnet}"
+      RESEARCH_MODEL="${SPIRAL_RESEARCH_MODEL:-haiku}"
       [[ -n "$SPIRAL_CLI_MODEL" ]] && RESEARCH_MODEL="$SPIRAL_CLI_MODEL"
 
       # Build allowed tools: prefer Firecrawl MCP when configured
@@ -3091,7 +3113,7 @@ $INJECTED_PROMPT"
   _PHASE_DUR_T=$((_T_END - _PHASE_TS_RT))
   _PHASE_DUR_RT_WALL=$((_NOW - _PHASE_TS_RT))  # actual wall time = max(R,T)
 
-  log_spiral_event "phase_end" "\"phase\":\"R\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_R"
+  log_spiral_event "phase_end" "\"phase\":\"R\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_R,\"model\":\"$SPIRAL_RESEARCH_MODEL\""
   log_spiral_event "phase_end" "\"phase\":\"T\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_T"
   "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" end-phase --phase R --duration-s "$_PHASE_DUR_R" --iteration "$SPIRAL_ITER" 2>/dev/null || true
   "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" end-phase --phase T --duration-s "$_PHASE_DUR_T" --iteration "$SPIRAL_ITER" 2>/dev/null || true
@@ -3146,7 +3168,7 @@ $INJECTED_PROMPT"
 
   run_phase_hook POST "S" || true
   _PHASE_DUR_S=$(($(date +%s) - _PHASE_TS_S))
-  log_spiral_event "phase_end" "\"phase\":\"S\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_S"
+  log_spiral_event "phase_end" "\"phase\":\"S\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_S,\"model\":\"$SPIRAL_VALIDATION_MODEL\""
   "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" end-phase --phase S --duration-s "$_PHASE_DUR_S" --iteration "$SPIRAL_ITER" 2>/dev/null || true
   notify_webhook "S" "end"
 
@@ -3262,7 +3284,7 @@ $INJECTED_PROMPT"
 
   run_phase_hook POST "M" || true
   _PHASE_DUR_M=$(($(date +%s) - _PHASE_TS_M))
-  log_spiral_event "phase_end" "\"phase\":\"M\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_M"
+  log_spiral_event "phase_end" "\"phase\":\"M\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_M,\"model\":\"$SPIRAL_MERGE_MODEL\""
   "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" end-phase --phase M --duration-s "$_PHASE_DUR_M" --iteration "$SPIRAL_ITER" 2>/dev/null || true
   notify_webhook "M" "end"
 

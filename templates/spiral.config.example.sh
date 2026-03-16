@@ -300,12 +300,24 @@
 # Default: empty (no fallback — original circuit breaker behavior)
 # SPIRAL_MODEL_FALLBACK_CHAIN=""
 
-# ── Research model (Phase R) ────────────────────────────────────────────────
-# Which Claude model to use for Phase R (web research agent).
-# Research benefits from good reasoning — sonnet is recommended.
-# CLI --model flag overrides this setting.
-# Default: sonnet
-# SPIRAL_RESEARCH_MODEL="sonnet"
+# ── Phase-specific model defaults (US-354) ──────────────────────────────────
+# Each non-implementation phase can use a cheaper model. Haiku is ~15x cheaper
+# than sonnet. Phase I continues to use SPIRAL_MODEL_ROUTING for escalation.
+#
+# Phase R (research synthesis): Claude agent for web research.
+# Default: haiku
+# SPIRAL_RESEARCH_MODEL="haiku"
+#
+# Phase S (story validation): reserved for future LLM-based validation.
+# Default: haiku
+# SPIRAL_VALIDATION_MODEL="haiku"
+#
+# Phase M (merge decisions): reserved for future LLM-based merge decisions.
+# Default: haiku
+# SPIRAL_MERGE_MODEL="haiku"
+#
+# Bulk override format (takes precedence over individual vars):
+# SPIRAL_PHASE_MODEL_OVERRIDE="R:sonnet,S:haiku,M:haiku"
 
 # ── GitNexus knowledge graph (hints + partition quality) ──────────────────
 # When set, populate_hints.py uses the GitNexus knowledge graph to find
