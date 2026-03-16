@@ -1,3 +1,24 @@
+## Iteration N - Story: US-368 Add Hypothesis settings profiles for CI vs dev test execution in conftest.py
+
+### What was implemented
+- Profiles (ci, dev, thorough) were already registered in conftest.py; CI already sets HYPOTHESIS_PROFILE=ci
+- Removed hardcoded `max_examples` from 10 per-test `@settings` decorators across test_check_dag.py (2), test_partition.py (6), and test_prd_schema.py (4) so they inherit from the loaded profile
+- Added `suppress_health_check=[HealthCheck.too_slow]` to all 6 Hypothesis tests in test_partition.py that use the composite `valid_prd()` strategy (previously missing)
+- Added `HealthCheck` to test_partition.py imports
+
+### Files modified
+- tests/test_check_dag.py — removed max_examples=200 and max_examples=100 from @settings
+- tests/test_partition.py — replaced @settings(max_examples=N) with @settings(suppress_health_check=[HealthCheck.too_slow])
+- tests/test_prd_schema.py — removed max_examples from 4 @settings decorators
+
+### Patterns discovered
+- Per-test @settings(max_examples=N) overrides profile max_examples, defeating the purpose of the profile system
+- Tests using composite strategies (@st.composite like valid_prd) need suppress_health_check=[HealthCheck.too_slow] because generation is inherently slow
+- Tests using simple strategies (st.integers, st.text) don't need health check suppression
+
+### Gotchas
+- Full test suite runs ~48s locally with dev profile due to subprocess-based integration tests in test_merge.py (not Hypothesis-related)
+
 ## Iteration N - Story: US-400 Add SPIRAL_CONSECUTIVE_FAIL_ABORT to stop loop after N zero-pass iterations
 
 ### What was implemented
@@ -1146,4 +1167,5 @@ Completed: Add pre-flight Claude API token count check before story prompt submi
 ### Gotchas
 - Pre-existing test failures: test_field_similarity_lists (consistency_check), test_auto_complex/simple_story (route_stories) — unrelated to this change
 - Hypothesis tests timeout locally on Windows due to 10s per-test limit — CI uses a dedicated hypothesis profile
+
 

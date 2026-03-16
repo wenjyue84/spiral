@@ -4,7 +4,7 @@ import os
 import sys
 
 from conftest import valid_prd
-from hypothesis import assume, given, settings
+from hypothesis import HealthCheck, assume, given, settings
 from hypothesis import strategies as st
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
@@ -15,7 +15,7 @@ class TestAssignStories:
     """Properties of the story partitioning algorithm."""
 
     @given(prd=valid_prd(min_stories=2, max_stories=20), n_workers=st.integers(min_value=2, max_value=5))
-    @settings(max_examples=100)
+    @settings(suppress_health_check=[HealthCheck.too_slow])
     def test_all_pending_stories_assigned(self, prd, n_workers):
         """Every pending story must appear in exactly one bucket."""
         pending = [s for s in prd["userStories"] if not s.get("passes")]
@@ -31,7 +31,7 @@ class TestAssignStories:
         assert set(assigned_ids) == pending_ids, "All pending stories must be assigned"
 
     @given(prd=valid_prd(min_stories=2, max_stories=20), n_workers=st.integers(min_value=2, max_value=5))
-    @settings(max_examples=100)
+    @settings(suppress_health_check=[HealthCheck.too_slow])
     def test_no_story_assigned_twice(self, prd, n_workers):
         """No story may appear in more than one bucket."""
         pending = [s for s in prd["userStories"] if not s.get("passes")]
@@ -46,7 +46,7 @@ class TestAssignStories:
         assert len(all_ids) == len(set(all_ids)), "No story should be assigned to multiple workers"
 
     @given(prd=valid_prd(min_stories=4, max_stories=20), n_workers=st.integers(min_value=2, max_value=4))
-    @settings(max_examples=50)
+    @settings(suppress_health_check=[HealthCheck.too_slow])
     def test_bucket_count_matches_workers(self, prd, n_workers):
         """Always produces exactly n_workers buckets."""
         pending = [s for s in prd["userStories"] if not s.get("passes")]
@@ -65,7 +65,7 @@ class TestComputeLevels:
     """Properties of the topological level computation."""
 
     @given(prd=valid_prd(min_stories=1, max_stories=15))
-    @settings(max_examples=100)
+    @settings(suppress_health_check=[HealthCheck.too_slow])
     def test_all_pending_get_a_level(self, prd):
         """Every pending story must be assigned a topological level."""
         pending = [s for s in prd["userStories"] if not s.get("passes")]
@@ -76,7 +76,7 @@ class TestComputeLevels:
             assert s["id"] in levels, f"{s['id']} missing from levels"
 
     @given(prd=valid_prd(min_stories=1, max_stories=15))
-    @settings(max_examples=100)
+    @settings(suppress_health_check=[HealthCheck.too_slow])
     def test_level_zero_has_no_pending_deps(self, prd):
         """Stories at level 0 have no pending dependencies."""
         pending = [s for s in prd["userStories"] if not s.get("passes")]
@@ -91,7 +91,7 @@ class TestComputeLevels:
                 assert len(pending_deps) == 0, f"{s['id']} at level 0 but has pending deps: {pending_deps}"
 
     @given(prd=valid_prd(min_stories=2, max_stories=15))
-    @settings(max_examples=100)
+    @settings(suppress_health_check=[HealthCheck.too_slow])
     def test_deps_at_lower_level(self, prd):
         """A story's pending dependencies must be at a strictly lower level."""
         pending = [s for s in prd["userStories"] if not s.get("passes")]

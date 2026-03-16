@@ -6514,7 +6514,19 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "large",
-      "passes": false
+      "passes": false,
+      "_decomposed": true,
+      "_decomposedInto": [
+        "US-425",
+        "US-426",
+        "US-427",
+        "US-428"
+      ],
+      "_failureReason": "story_too_large_for_single_invocation — manually decomposed into 4 sub-stories after 7+ failed attempts across haiku/sonnet/opus; each sub-story is scoped to 1-2 files",
+      "_antiPatterns": [
+        "Attempting all 4 components in one invocation — always exceeds 100 tool call budget",
+        "Reading full ralph.sh (2800+ lines) without a grep anchor — burns 10+ tool calls on navigation alone"
+      ]
     },
     {
       "id": "US-351",
@@ -6909,7 +6921,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-369",
@@ -8091,6 +8103,81 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
+      "passes": false
+    },
+    {
+      "id": "US-425",
+      "title": "Create lib/episodic_memory.py with SQLite FTS5 schema and read/write API",
+      "priority": "low",
+      "description": "Create a self-contained module lib/episodic_memory.py with: init_db(db_path) — creates FTS5 virtual table: story_id, story_type, approach_summary, outcome, iteration UNINDEXED, timestamp UNINDEXED. write_memory(story_id, story_type, approach_summary, outcome, iteration, db_path=DB_PATH). query_similar(story_title, top_k=3, db_path=DB_PATH) — FTS5 match query. list_recent(limit=20, db_path=DB_PATH) — ORDER BY timestamp DESC. CLI entry point: if __name__ == '__main__' accepting write, query, list subcommands. 4 unit tests in tests/test_episodic_memory.py: init creates db, write+query returns result, list works, empty query returns empty list.",
+      "acceptanceCriteria": [
+        "lib/episodic_memory.py importable with no deps beyond stdlib sqlite3",
+        "uv run pytest tests/test_episodic_memory.py -v passes"
+      ],
+      "filesTouch": [
+        "lib/episodic_memory.py",
+        "tests/test_episodic_memory.py"
+      ],
+      "estimatedComplexity": "small",
+      "dependencies": [],
+      "_decomposedFrom": "US-350",
+      "passes": false
+    },
+    {
+      "id": "US-426",
+      "title": "Write episodic memory record after each successful story commit in commit_revert.sh",
+      "priority": "low",
+      "description": "Edit lib/impl/commit_revert.sh. In the passes==true branch, add a non-fatal call to the Python module: _approach=$(git log -1 --format='%s %b' | head -c 300) then call lib/episodic_memory.py write with --story-id, --story-type unknown, --approach-summary, --outcome pass, --iteration, all wrapped in 2>/dev/null || true. The || true is mandatory — episodic writes must never block the commit path.",
+      "acceptanceCriteria": [
+        "lib/impl/commit_revert.sh calls episodic_memory.py in the passes==true branch",
+        "Call is wrapped in || true"
+      ],
+      "filesTouch": [
+        "lib/impl/commit_revert.sh"
+      ],
+      "estimatedComplexity": "small",
+      "dependencies": [
+        "US-425"
+      ],
+      "_decomposedFrom": "US-350",
+      "passes": false
+    },
+    {
+      "id": "US-427",
+      "title": "Inject top-3 episodic memory records into RALPH_USER_PROMPT before claude invocation",
+      "priority": "low",
+      "description": "Edit ralph/ralph.sh. Search for 'US-353: Plan cache injection' as an anchor. Immediately after the closing fi of that block, insert a block that: checks if $SPIRAL_HOME/lib/episodic_memory.py exists, calls it with query --title \"$STORY_TITLE\", and if non-empty appends to RALPH_USER_PROMPT (NOT RALPH_SYSTEM_PROMPT) with a '## Episodic Memory — Top 3 Similar Past Implementations' header and a '(Reference only — do not copy verbatim.)' footer. Also calls log_ralph_event episodic_memory_injected. The block must be non-fatal if db does not exist.",
+      "acceptanceCriteria": [
+        "ralph/ralph.sh contains an episodic memory injection block appending to RALPH_USER_PROMPT",
+        "Block is non-fatal if db does not exist"
+      ],
+      "filesTouch": [
+        "ralph/ralph.sh"
+      ],
+      "estimatedComplexity": "small",
+      "dependencies": [
+        "US-425"
+      ],
+      "_decomposedFrom": "US-350",
+      "passes": false
+    },
+    {
+      "id": "US-428",
+      "title": "Add 'spiral memory list' CLI subcommand to main.py",
+      "priority": "low",
+      "description": "Follow the pattern of the existing dlq subcommand in main.py. Read lines ~2260-2355 (the dlq block) to understand the pattern, then: add cmd_memory_list(args) function that calls list_recent(20) from lib/episodic_memory and prints a table (columns: story_id, story_type, outcome, iteration, timestamp, approach truncated to 60 chars). Wire into argparse: memory parser -> list sub-parser. Add elif args.command == 'memory' dispatch.",
+      "acceptanceCriteria": [
+        "python main.py memory list runs without error",
+        "python main.py --help shows memory in subcommands"
+      ],
+      "filesTouch": [
+        "main.py"
+      ],
+      "estimatedComplexity": "small",
+      "dependencies": [
+        "US-425"
+      ],
+      "_decomposedFrom": "US-350",
       "passes": false
     }
   ]
