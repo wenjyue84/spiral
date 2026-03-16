@@ -605,3 +605,6 @@ Incomplete: Implement per-worker short-lived credential context with lifecycle a
 - The counter must be initialized BEFORE the wave loop but AFTER the parallel mode branch (not in sequential mode, where it's not needed)
 - The abort removes checkpoint file to prevent crash-recovery from re-entering a broken Phase I
 
+## Iteration 3 - Mon, Mar 16, 2026  4:38:45 PM
+Incomplete: Emit create_agent and invoke_agent OTel spans per worker lifecycle (ID: US-318) — attempt /3
+

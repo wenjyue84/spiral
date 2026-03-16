@@ -496,6 +496,8 @@ SPIRAL_EVENT_LOG_MAX_LINES="${SPIRAL_EVENT_LOG_MAX_LINES:-10000}"        # 0 = d
 SPIRAL_LOG_MAX_MB="${SPIRAL_LOG_MAX_MB:-50}"                             # 0 = disabled; rotate _last_run.log when size exceeds this value in MB
 SPIRAL_LOG_KEEP_ROTATIONS="${SPIRAL_LOG_KEEP_ROTATIONS:-3}"             # number of rotated _last_run.log files to keep (.log.1 ... .log.N)
 SPIRAL_RESEARCH_CACHE_TTL_HOURS="${SPIRAL_RESEARCH_CACHE_TTL_HOURS:-0}"  # 0 = disabled; cache TTL for Phase R URL responses AND Phase R output file reuse across iterations
+SPIRAL_RESEARCH_SUMMARY_THRESHOLD="${SPIRAL_RESEARCH_SUMMARY_THRESHOLD:-4000}"  # US-254: token threshold for hierarchical summarization of Phase R output (0 = disabled)
+SPIRAL_USE_FULL_RESEARCH="${SPIRAL_USE_FULL_RESEARCH:-0}"                       # US-254: 1 = pass full research to downstream phases (skip summarization)
 SPIRAL_INJECTION_THRESHOLD="${SPIRAL_INJECTION_THRESHOLD:-0.8}"          # US-198: LLM Guard PromptInjection scan threshold for Phase R web content (0.0–1.0)
 RESEARCH_CACHE_DIR=""                                                    # set after SCRATCH_DIR is known
 SPIRAL_RESEARCH_TIMEOUT="${SPIRAL_RESEARCH_TIMEOUT:-300}"                # seconds; 0 = disabled (unlimited); Phase R LLM call
@@ -3198,6 +3200,51 @@ $INJECTED_PROMPT"
       --checkpoint "$CHECKPOINT_FILE" \
       --iteration "$SPIRAL_ITER" \
       --threshold "${SPIRAL_QUALITY_THRESHOLD:-3}" 2>&1 | grep -v "^\s*$" || true
+  fi
+
+  # ── US-254: Hierarchical summarization of oversized Phase R output ──────────
+  if [[ -f "$RESEARCH_OUTPUT" ]] \
+     && [[ "${SPIRAL_RESEARCH_SUMMARY_THRESHOLD:-4000}" -gt 0 ]] \
+     && [[ "${SPIRAL_USE_FULL_RESEARCH:-0}" -ne 1 ]]; then
+    _SUMM_STATUS=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/summarize_research.py" \
+      --input "$RESEARCH_OUTPUT" --check-only \
+      --threshold "${SPIRAL_RESEARCH_SUMMARY_THRESHOLD:-4000}" 2>/dev/null; echo $?)
+    if [[ "$_SUMM_STATUS" -eq 2 ]]; then
+      # Over threshold — run summarization
+      _RESEARCH_FULL="$SCRATCH_DIR/_research_full.json"
+      cp "$RESEARCH_OUTPUT" "$_RESEARCH_FULL"
+      _SUMM_ERR=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/summarize_research.py" \
+        --input "$_RESEARCH_FULL" \
+        --output "$RESEARCH_OUTPUT" \
+        --threshold "${SPIRAL_RESEARCH_SUMMARY_THRESHOLD:-4000}" 2>&1 >/dev/null || true)
+      if [[ -n "$_SUMM_ERR" ]]; then
+        # Parse reduction info from stderr JSON
+        _SUMM_ORIG=$(echo "$_SUMM_ERR" | "$JQ" -r '.original_tokens // "?"' 2>/dev/null || echo "?")
+        _SUMM_FINAL=$(echo "$_SUMM_ERR" | "$JQ" -r '.summary_tokens // "?"' 2>/dev/null || echo "?")
+        _SUMM_PCT=$(echo "$_SUMM_ERR" | "$JQ" -r '.reduction_pct // "?"' 2>/dev/null || echo "?")
+        echo "  [R] Summarized research: ${_SUMM_ORIG} → ${_SUMM_FINAL} tokens (${_SUMM_PCT}% reduction)"
+        log_spiral_event "research_summarized" \
+          "\"iteration\":$SPIRAL_ITER,\"original_tokens\":${_SUMM_ORIG},\"summary_tokens\":${_SUMM_FINAL},\"reduction_pct\":${_SUMM_PCT}"
+      fi
+      # Store both in checkpoint
+      if [[ -f "$CHECKPOINT_FILE" ]] && [[ -n "$JQ" ]]; then
+        _FULL_B64=$("$SPIRAL_PYTHON" -c "
+import base64, sys
+with open('$_RESEARCH_FULL', 'rb') as f:
+    sys.stdout.write(base64.b64encode(f.read()).decode())" 2>/dev/null || true)
+        _SUMM_B64=$("$SPIRAL_PYTHON" -c "
+import base64, sys
+with open('$RESEARCH_OUTPUT', 'rb') as f:
+    sys.stdout.write(base64.b64encode(f.read()).decode())" 2>/dev/null || true)
+        if [[ -n "$_FULL_B64" && -n "$_SUMM_B64" ]]; then
+          _CKPT_TMP="${CHECKPOINT_FILE}.summ.$$"
+          "$JQ" --arg full "$_FULL_B64" --arg summ "$_SUMM_B64" \
+            '._phaseR = {"full": $full, "summary": $summ}' \
+            "$CHECKPOINT_FILE" >"$_CKPT_TMP" 2>/dev/null \
+            && mv "$_CKPT_TMP" "$CHECKPOINT_FILE" 2>/dev/null || true
+        fi
+      fi
+    fi
   fi
 
   # ── Phase S: STORY VALIDATE ──────────────────────────────────────────────────

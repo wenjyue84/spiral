@@ -184,6 +184,14 @@
 # 0 = disabled (no caching). Default: 24 (hours)
 # SPIRAL_RESEARCH_CACHE_TTL_HOURS=24
 
+# ── Hierarchical summarization of Phase R output (US-254) ─────────────────
+# When Phase R research output exceeds this token threshold, a summarization
+# pass compresses story descriptions while preserving acceptance criteria,
+# technical notes, and source URLs.  0 = disabled.
+# SPIRAL_RESEARCH_SUMMARY_THRESHOLD=4000
+# Set to 1 to pass full (unsummarized) research to downstream phases.
+# SPIRAL_USE_FULL_RESEARCH=0
+
 # ── Research cache invalidation on constitution change (US-302) ──────────
 # When constitution.md is modified, cached research may be misaligned with
 # updated project goals. SPIRAL computes a SHA-256 of constitution.md at startup

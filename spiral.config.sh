@@ -140,6 +140,15 @@ SPIRAL_DASHBOARD_REFRESH_SECS=30
 # Example: SPIRAL_RESEARCH_CACHE_TTL_HOURS=6  # reuse research for up to 6h
 # SPIRAL_RESEARCH_CACHE_TTL_HOURS=0
 
+# ── Hierarchical summarization of Phase R output (US-254) ─────────────────
+# When Phase R research output exceeds this token threshold, a summarization
+# pass compresses story descriptions while preserving acceptance criteria,
+# technical notes, and source URLs.  0 = disabled (no summarization).
+# SPIRAL_RESEARCH_SUMMARY_THRESHOLD=4000
+#
+# Set to 1 to bypass summarization and pass full research to downstream phases.
+# SPIRAL_USE_FULL_RESEARCH=0
+
 # ── Spec-Kit constitution file ────────────────────────────────────────────
 # Path (relative to repo root) to a constitution.md file that defines what
 # this project IS, what it must never sacrifice, and what stories are out of
