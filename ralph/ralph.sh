@@ -1581,7 +1581,7 @@ Review the diff against the story specification above. Output ONLY the JSON obje
       --max-turns 1 \
       --output-format stream-json \
       --dangerously-skip-permissions \
-      2>/dev/null
+      < /dev/null 2>/dev/null
   ) >"$_review_tmp" 2>/dev/null || true
 
   # Extract token counts from stream-json result line
@@ -2666,7 +2666,7 @@ ${_FT_CONTEXT_BODY}"
             --verbose \
             --output-format stream-json \
             --dangerously-skip-permissions \
-            2>&1 | tee "$_CLAUDE_TMP" | node "$SCRIPT_DIR/stream-formatter.mjs"
+            < /dev/null 2>&1 | tee "$_CLAUDE_TMP" | node "$SCRIPT_DIR/stream-formatter.mjs"
         ) || true
         # ── Connection failure detection for Ollama fallback (US-144) ──────────────
         # Detect curl exit 7 (ECONNREFUSED) / exit 28 (ETIMEDOUT) patterns in output.

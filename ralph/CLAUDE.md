@@ -190,6 +190,13 @@ Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 - Make changes outside the scope of the current story
 - Skip quality checks
 
+## Worker Isolation
+
+The `claude` CLI invocation in `ralph.sh` redirects stdin from `/dev/null` (`< /dev/null`).
+This is an intentional worker isolation measure: any tool or credential helper that attempts
+to read from stdin will receive immediate EOF rather than hanging indefinitely. Do not remove
+this redirect — backgrounded worker subprocesses must never block on terminal input.
+
 ## Remember
 
 - You are ONE iteration in an autonomous loop

@@ -770,3 +770,27 @@ Incomplete: Add episodic memory store for Ralph workers to recall past implement
 - Disabling `enable-cache` in setup-uv means the Python interpreter itself is not cached (acceptable since Python download is fast)
 - Do NOT add explicit cache steps alongside `enable-cache: true` — it causes double-caching the same path
 - `actions/cache` SHA `0057852bfaa89a56745cba8c7296529d2fc39830` was already in use in the test job for hypothesis db
+## Iteration 1 - Mon, Mar 16, 2026  6:39:04 PM
+Incomplete: Use Claude Message Batches API for Phase S multi-story validation (ID: US-390) — attempt /3
+
+
+## Iteration N - Story: US-391 Redirect ralph.sh worker stdin from /dev/null to prevent interactive prompt hangs
+
+### What was implemented
+- Added `< /dev/null` to main claude CLI invocation in ralph.sh (before `2>&1`, inside subshell at ~line 2669)
+- Added `< /dev/null` to self-review claude invocation in ralph.sh (~line 1584) for consistency
+- Created `tests/stdin_isolation.bats` with 3 tests:
+  1. Mock worker reading stdin gets EOF within 100ms when launched with `< /dev/null`
+  2. ralph.sh source contains the `/dev/null` redirect string
+  3. The redirect appears on the line following `--dangerously-skip-permissions`
+- Added "## Worker Isolation" section to ralph/CLAUDE.md documenting the measure
+
+### Patterns discovered
+- In a Bash pipeline like `cmd < /dev/null 2>&1 | tee | node`, the `< /dev/null` applies to `cmd` only
+- `read -t 1 line` returns non-zero immediately when stdin is `/dev/null` (EOF, no wait)
+- Nanosecond timestamps via `date +%s%N` are available in Git Bash on Windows MINGW64
+- Both claude invocations in ralph.sh (worker + review) needed the redirect for full coverage
+
+### Gotchas
+- The `< /dev/null` must come BEFORE `2>&1` in the pipeline (shell parses redirections left-to-right for the first pipeline member)
+- On Windows/Git Bash, `< /dev/null` maps to the NUL device — works correctly with MINGW
