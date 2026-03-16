@@ -130,12 +130,12 @@ else
   exit 1
 fi
 
-# ── 2. Python 3.10+ ───────────────────────────────────────────────────────
+# ── 2. Python 3.13+ ───────────────────────────────────────────────────────
 PYTHON_CMD=""
 for cmd in python3 python; do
   if command -v "$cmd" &>/dev/null; then
     ver=$(get_python_version "$cmd")
-    if version_gte "$ver" "3.10"; then
+    if version_gte "$ver" "3.13"; then
       PYTHON_CMD="$cmd"
       break
     fi
@@ -159,7 +159,7 @@ else
   for cmd in python3 python; do
     if command -v "$cmd" &>/dev/null; then
       ver=$(get_python_version "$cmd")
-      if version_gte "$ver" "3.10"; then
+      if version_gte "$ver" "3.13"; then
         PYTHON_CMD="$cmd"
         break
       fi
@@ -169,21 +169,44 @@ else
     ok "python $(get_python_version "$PYTHON_CMD") (just installed)"
     track "python" "ok" "$(get_python_version "$PYTHON_CMD")"
   else
-    fail "python 3.10+ — could not install automatically"
+    fail "python 3.13+ — could not install automatically"
     echo "       Install manually: https://www.python.org/downloads/"
     track "python" "fail" "not found"
   fi
 fi
 
-# ── 3. Node.js 16+ ────────────────────────────────────────────────────────
+# ── 2b. uv (Python package manager — required for uv run pytest, uv sync) ─
+if command -v uv &>/dev/null; then
+  UV_VER=$(uv --version 2>/dev/null | head -1)
+  ok "uv $UV_VER"
+  track "uv" "ok" "$UV_VER"
+else
+  info "Installing uv (Python package manager)..."
+  if command -v pip3 &>/dev/null; then
+    pip3 install uv --quiet 2>/dev/null && ok "uv installed" || true
+  elif command -v pip &>/dev/null; then
+    pip install uv --quiet 2>/dev/null && ok "uv installed" || true
+  fi
+  if command -v uv &>/dev/null; then
+    UV_VER=$(uv --version 2>/dev/null | head -1)
+    track "uv" "ok" "$UV_VER"
+  else
+    warn "uv — not found"
+    echo "       Install manually: pip install uv"
+    echo "       Or: curl -LsSf https://astral.sh/uv/install.sh | sh"
+    track "uv" "warn" "not found"
+  fi
+fi
+
+# ── 3. Node.js 18+ ────────────────────────────────────────────────────────
 if command -v node &>/dev/null; then
   NODE_VER=$(get_node_version)
-  if version_gte "$NODE_VER" "16.0"; then
+  if version_gte "$NODE_VER" "18.0"; then
     ok "node $NODE_VER"
     track "node" "ok" "$NODE_VER"
   else
-    warn "node $NODE_VER — version 16+ recommended"
-    track "node" "warn" "$NODE_VER (upgrade recommended)"
+    warn "node $NODE_VER — version 18+ required (Claude CLI needs Node 18+)"
+    track "node" "warn" "$NODE_VER (upgrade required)"
   fi
 else
   info "Installing Node.js..."
@@ -316,6 +339,15 @@ else
   fi
 fi
 
+# ── Initialize git submodules (bats-core, bats-assert, bats-support) ───────
+info "Initializing git submodules..."
+if git -C "$SPIRAL_DIR" submodule update --init --recursive --quiet 2>/dev/null; then
+  ok "git submodules initialized"
+else
+  warn "submodule init failed — bash tests (bats) may not work"
+  echo "       Fix: git -C $SPIRAL_DIR submodule update --init --recursive"
+fi
+
 # ── Summary ────────────────────────────────────────────────────────────────
 echo ""
 echo -e "  ${BOLD}${CYAN}Setup Summary${RESET}"
@@ -330,7 +362,7 @@ for entry in "${RESULTS[@]}"; do
     fail)
       printf "  ${RED}[FAIL]${RESET} %-12s %s\n" "$name" "$detail"
       # Check if required
-      if [[ "$name" == "git" || "$name" == "python" || "$name" == "claude" ]]; then
+      if [[ "$name" == "git" || "$name" == "python" || "$name" == "node" || "$name" == "claude" ]]; then
         REQUIRED_OK=false
       fi
       ;;
@@ -379,7 +411,10 @@ echo "    # Option A: Setup wizard (recommended — in Claude Code)"
 echo "    /spiral-init"
 echo ""
 echo "    # Option B: Manual setup"
-echo "    cp $SPIRAL_DIR/templates/spiral.config.example.sh spiral.config.sh"
+echo "    cp $SPIRAL_DIR/templates/spiral.config.starter.sh spiral.config.sh"
 echo "    cp $SPIRAL_DIR/templates/prd.example.json prd.json"
 echo "    bash $SPIRAL_DIR/spiral.sh 1 --gate skip"
+echo ""
+echo "    # Pre-flight check (verify all dependencies)"
+echo "    bash $SPIRAL_DIR/spiral.sh --doctor"
 echo ""

@@ -23,24 +23,24 @@ bash ~/.ai/Skills/spiral/setup.sh
 
 ## Prerequisites
 
-| Tool | Required? | Install |
-|------|-----------|---------|
-| **git** | Yes | [git-scm.com](https://git-scm.com/downloads) |
-| **bash** | Yes | Git Bash / MSYS2 (Windows), native (Mac/Linux) |
-| **Python 3.10+** | Yes | `choco install python3` / `brew install python3` / `apt install python3` |
-| **Node.js 16+** | Yes | `choco install nodejs` / `brew install node` / `apt install nodejs` |
-| **jq** | Windows: bundled | `brew install jq` / `apt install jq` |
-| **Claude CLI** | Yes | `npm install -g @anthropic-ai/claude-code` |
-| **Gemini CLI** | Optional | `npm install -g @google/gemini-cli` |
-| **Codex CLI** | Optional | `npm install -g @openai/codex` |
+| Tool | Required | Notes |
+|------|----------|-------|
+| **git 2.28+** | ✅ | Any modern version |
+| **bash 4+** | ✅ | Pre-installed on macOS/Linux; Git Bash on Windows |
+| **Python 3.13+** | ✅ | `python --version` to check |
+| **uv** | ✅ | `pip install uv` or `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
+| **Node.js 18+** | ✅ | `node --version` to check |
+| **jq** | ✅ | Bundled for Windows; `brew install jq` / `apt install jq` otherwise |
+| **Claude CLI** | ✅ | Installed by setup.sh; log in with `claude` after install |
+| **Gemini CLI** | Optional | `npm install -g @google/gemini-cli` — token saver for Phase R |
+| **Codex CLI** | Optional | `npm install -g @openai/codex` — token saver for UT-* stories |
 | **Firecrawl MCP** | Optional | See [Firecrawl setup](#firecrawl-mcp-optional) below |
 | **Chrome DevTools MCP** | Optional | `npm i -g chrome-devtools-mcp` — see [Browser Testing](#browser-testing-optional) below |
-| **agent-browser skill** | Optional | See [Browser Testing](#browser-testing-optional) below |
-| **Pinchtab** | Optional | `npm i -g pinchtab` — shell-driven Phase V E2E assertions, see [Browser Testing](#browser-testing-optional) |
-| **Lightpanda** | Optional | [lightpanda.io](https://lightpanda.io) — fast headless browser (Zig-based), drop-in Chrome alternative |
-| **Peon Ping** | Optional | Claude Code skill — plays audio when Ralph finishes a story so you know when to check in |
+| **Pinchtab** | Optional | `npm i -g pinchtab` — shell-driven Phase V E2E assertions |
+| **Lightpanda** | Optional | [lightpanda.io](https://lightpanda.io) — fast headless browser (Zig-based) |
+| **Peon Ping** | Optional | Claude Code skill — plays audio when Ralph finishes a story |
 
-`setup.sh` auto-installs everything except git.
+`setup.sh` auto-installs everything except git. Having trouble? See [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
 
 ## AI Model Strategy
 
@@ -61,6 +61,29 @@ SPIRAL uses multiple AI models to optimize cost, speed, and quality:
 2. **Phase R scraping:** Firecrawl (optional) converts raw HTML → clean markdown before Claude reads it
 3. **Phase I routing:** `--tool auto` sends simple stories to Qwen/Codex first; escalates to Claude on retry
 4. **Model routing:** Ralph auto-selects haiku/sonnet/opus per story complexity; escalates on retry
+
+## Quick Config
+
+The `templates/spiral.config.example.sh` is an exhaustive 720-line reference. For a first run, copy the starter template instead — it has only the 5 vars that matter:
+
+```bash
+cp templates/spiral.config.starter.sh spiral.config.sh
+```
+
+Then edit these 3 lines:
+
+```bash
+# spiral.config.sh — minimum viable config
+SPIRAL_PYTHON="python3"                          # or full path on Windows
+SPIRAL_VALIDATE_CMD="uv run pytest tests/ -v"   # your test command
+SPIRAL_STORY_PREFIX="US"                         # story ID prefix
+
+# recommended caps (safe defaults)
+SPIRAL_MAX_PENDING=50
+SPIRAL_STORY_BATCH_SIZE=10
+```
+
+Everything else has safe defaults. Run `bash spiral.sh --doctor` to verify your setup.
 
 ## Quickstart
 
