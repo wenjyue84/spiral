@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\auto_release.py
+# hypothesis_version: 6.151.9
+
+['!', '# Changelog', '### Stories\n\n', '%Y-%m-%d', '---END---', '--dry-run', '--list', '--prd', '--push', '--repo', '-a', '-m', '.', '0.0.1', '0.1.0', '1.0.0', 'Bug Fixes', 'CHANGELOG.md', 'Commits:', 'Features', 'HEAD', 'Path to prd.json', 'Performance', 'Refactoring', 'Repository root', 'Reverts', 'Stories:', '^BREAKING[- ]CHANGE:', '__main__', 'breaking', 'feat', 'fix', 'git', 'log', 'major', 'minor', 'origin', 'passes', 'patch', 'perf', 'push', 'refactor', 'revert', 'store_true', 'tag', 'title', 'type', 'userStories', 'utf-8', 'v']

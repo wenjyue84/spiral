@@ -1019,3 +1019,4 @@ Incomplete: Add episodic memory store for Ralph workers to recall past implement
 - Pre-existing test failures unchanged: test_consistency_check, test_infer_dependencies, test_route_stories, test_worker_timeout
 - semantic_chunker.py also fails mypy (pre-existing syntax error) — separate fix needed
 
+
