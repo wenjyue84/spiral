@@ -778,7 +778,8 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
                 orphaned_worktrees: list[dict] | None = None,
                 token_forecast: dict | None = None,
                 resource_usage: list[dict] | None = None,
-                iter_summary: dict | None = None) -> str:
+                iter_summary: dict | None = None,
+                quality_scores: dict | None = None) -> str:
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     max_vel = max((v["kept"] for v in velocity), default=1) or 1
 
@@ -1073,6 +1074,43 @@ def render_html(overview: dict, velocity: list[dict], status: dict,
             f'</section>\n'
         )
 
+    # ── Quality scores widget (US-248) ───────────────────────────────────────
+    quality_html = ""
+    qs = quality_scores or {}
+    if qs:
+        phase_rows = ""
+        for phase in sorted(qs.keys()):
+            records = qs[phase]
+            if not records:
+                continue
+            scores = [r.get("score", 0) for r in records if isinstance(r.get("score"), (int, float))]
+            avg = sum(scores) / len(scores) if scores else 0
+            latest = records[-1]
+            latest_score = latest.get("score", 0)
+            rationale = escape(str(latest.get("rationale", "")))
+            ts = escape(str(latest.get("timestamp", "")))
+            color = "#6bcb77" if avg >= 4 else ("#ffd93d" if avg >= 3 else "#ff6b6b")
+            phase_rows += (
+                f'<tr>'
+                f'<td>Phase {escape(phase)}</td>'
+                f'<td style="color:{color};font-weight:bold">{avg:.1f}</td>'
+                f'<td>{latest_score}</td>'
+                f'<td>{len(scores)}</td>'
+                f'<td style="font-size:11px;color:#aaa" title="{ts}">{rationale}</td>'
+                f'</tr>\n'
+            )
+        if phase_rows:
+            quality_html = (
+                f'<section>\n'
+                f'<h2>&#127919; LLM Quality Scores</h2>\n'
+                f'<p style="font-size:12px;color:#aaa;margin-bottom:10px">'
+                f'Average 1-5 scores from LLM-as-Judge evaluation per phase.</p>\n'
+                f'<table>\n'
+                f'<tr><th>Phase</th><th>Avg Score</th><th>Latest</th><th>N</th><th>Latest Rationale</th></tr>\n'
+                f'{phase_rows}</table>\n'
+                f'</section>\n'
+            )
+
     refresh_meta = f'<meta http-equiv="refresh" content="{refresh_secs}">\n' if refresh_secs > 0 else ""
     refresh_footer = f" &middot; Auto-refreshing every {refresh_secs}s" if refresh_secs > 0 else ""
 
@@ -1167,6 +1205,7 @@ footer{{text-align:center;color:#444;font-size:10px;margin-top:16px;padding-top:
 
 {orphaned_html}
 {token_forecast_html}{f'<div>{insights_html}</div>' if insights_html else ''}
+{quality_html}
 
 {stories_html}
 
@@ -1277,6 +1316,11 @@ def main() -> int:
     iter_summary_path = os.path.join(args.scratch_dir, "_iteration_summary.json")
     iter_summary = load_iter_summary(iter_summary_path)
 
+    # Load quality scores from checkpoint (US-248)
+    checkpoint_path = os.path.join(args.scratch_dir, "_checkpoint.json")
+    _ckpt = load_iter_summary(checkpoint_path)  # returns {} on missing/invalid
+    quality_scores: dict = _ckpt.get("_qualityScores", {}) if _ckpt else {}
+
     # Compute metrics
     overview = compute_overview(prd, results)
 
@@ -1305,7 +1349,7 @@ def main() -> int:
         velocity = [{"iter": 0, "kept": 0, "total": 0, "duration_hours": 0.001, "velocity": 0}]
 
     # Render
-    html = render_html(overview, velocity, status, model_perf, retry_analysis, bottle, decomposition, insights, screenshot, iteration_velocity=iter_vel, epics=epics, activity_sections=activity, failure_reasons=failure_reasons, story_attempts=story_attempts, refresh_secs=args.refresh_secs, orphaned_worktrees=orphans, token_forecast=token_forecast, resource_usage=resource_usage, iter_summary=iter_summary)
+    html = render_html(overview, velocity, status, model_perf, retry_analysis, bottle, decomposition, insights, screenshot, iteration_velocity=iter_vel, epics=epics, activity_sections=activity, failure_reasons=failure_reasons, story_attempts=story_attempts, refresh_secs=args.refresh_secs, orphaned_worktrees=orphans, token_forecast=token_forecast, resource_usage=resource_usage, iter_summary=iter_summary, quality_scores=quality_scores)
 
     # Write
     output_path = os.path.abspath(args.output)

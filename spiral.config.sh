@@ -122,6 +122,15 @@ SPIRAL_SPECKIT_CONSTITUTION=".specify/memory/constitution.md"
 # instead of sitting idle. Default: false (opt-in).
 SPIRAL_WORK_STEALING="${SPIRAL_WORK_STEALING:-false}"
 
+# ── LLM-as-Judge quality evaluation (US-248) ─────────────────────────────
+# Score threshold (1-5) below which a quality warning is emitted.
+# Warnings are non-blocking — they log to stderr but do not stop the run.
+# Set to 0 to disable warnings. Default: 3.
+# SPIRAL_QUALITY_THRESHOLD=3
+#
+# Set to 1 to disable the quality judge entirely (skips all LLM judge calls).
+# SPIRAL_QUALITY_JUDGE_DISABLE=0
+
 # ── Post-completion hook ───────────────────────────────────────────────────
 # Shell command to run when ALL stories pass (check_done exits 0).
 # Not run on iteration-limit exits, SIGINT, or errors.

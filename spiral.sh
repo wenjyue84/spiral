@@ -510,6 +510,9 @@ SPIRAL_PR_BASE_BRANCH="${SPIRAL_PR_BASE_BRANCH:-main}"                   # base 
 SPIRAL_PR_DRAFT="${SPIRAL_PR_DRAFT:-false}"                              # true = create draft PRs (prevents auto-merge triggers)
 export SPIRAL_CREATE_PRS SPIRAL_PR_BASE_BRANCH SPIRAL_PR_DRAFT
 SPIRAL_AUTO_STASH="${SPIRAL_AUTO_STASH:-false}"                          # true = auto-stash dirty working tree before Phase I and pop after (US-177)
+SPIRAL_QUALITY_THRESHOLD="${SPIRAL_QUALITY_THRESHOLD:-3}"               # US-248: LLM-as-Judge score threshold (1-5); below this emits a warning (non-blocking)
+SPIRAL_QUALITY_JUDGE_DISABLE="${SPIRAL_QUALITY_JUDGE_DISABLE:-0}"       # US-248: set to 1 to skip all LLM quality judge calls
+export SPIRAL_QUALITY_THRESHOLD SPIRAL_QUALITY_JUDGE_DISABLE
 SPIRAL_CREATE_TAGS="${SPIRAL_CREATE_TAGS:-false}"                        # true = create annotated git tag on successful run completion (US-137)
 SPIRAL_AUTO_PUSH_TAGS="${SPIRAL_AUTO_PUSH_TAGS:-false}"                  # true = push run-complete tag to origin after creation (US-137)
 SPIRAL_WORKSPACE_CLEANUP="${SPIRAL_WORKSPACE_CLEANUP:-false}"            # true = prune transient artifacts after 100% completion (US-136)
@@ -2911,6 +2914,15 @@ $INJECTED_PROMPT"
   # POST hook for R (runs after both phases complete)
   run_phase_hook POST "R" || true
 
+  # ── LLM-as-Judge: score Phase R output (US-248) ──────────────────────────
+  if [[ -f "$RESEARCH_OUTPUT" ]]; then
+    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/quality_judge.py" judge-phase-r \
+      --research-output "$RESEARCH_OUTPUT" \
+      --checkpoint "$CHECKPOINT_FILE" \
+      --iteration "$SPIRAL_ITER" \
+      --threshold "${SPIRAL_QUALITY_THRESHOLD:-3}" 2>&1 | grep -v "^\s*$" || true
+  fi
+
   # ── Phase S: STORY VALIDATE ──────────────────────────────────────────────────
   PHASE="S"
   echo ""
@@ -3760,6 +3772,13 @@ $INJECTED_PROMPT"
   log_spiral_event "phase_end" "\"phase\":\"G\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_I"
   "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" end-phase --phase G --duration-s "$_PHASE_DUR_I" --iteration "$SPIRAL_ITER" 2>/dev/null || true
   notify_webhook "G" "end"
+
+  # ── LLM-as-Judge: score Phase I output (US-248) ──────────────────────────
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/quality_judge.py" judge-phase-i \
+    --prd "$PRD_FILE" \
+    --checkpoint "$CHECKPOINT_FILE" \
+    --iteration "$SPIRAL_ITER" \
+    --threshold "${SPIRAL_QUALITY_THRESHOLD:-3}" 2>&1 | grep -v "^\s*$" || true
 
   # ── Snapshot passes count after Phase I (US-183) ──────────────────────────
   _PASSES_AFTER_I=$("$JQ" '[.userStories[] | select(.passes == true)] | length' "$PRD_FILE" 2>/dev/null || echo "${_PASSES_BEFORE_I}")

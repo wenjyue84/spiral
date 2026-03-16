@@ -7898,3 +7898,46 @@ This brief outlines the implementation plan for adding Graphviz DOT file export 
 - [x] spiral diagnose --run <run-id> prints causal failure chain
 - [x] Failure attribution data stored in failures section of checkpoint JSON
 - [x] Test scenario with intentional worker conflict verifies cascade attribution (test_intentional_worker_conflict_scenario)
+## Iteration 2 - Mon, Mar 16, 2026  9:35:02 AM
+COST CEILING: Export dependency graph as Graphviz DOT file for advanced rendering (US-199) — $2.20514 exceeded hard limit $2.00
+
+
+## Iteration N - Story: US-248 - Implement LLM-as-Judge continuous quality evaluation for phase outputs
+
+### What was implemented
+- Created `lib/quality_judge.py` with `QualityJudge` logic:
+  - `judge-phase-r` subcommand: scores Phase R research output (1-5) for relevance and completeness
+  - `judge-phase-i` subcommand: scores Phase I implementation output (1-5) for criteria coverage and quality
+  - `show` subcommand: displays stored quality scores from checkpoint
+  - Scores stored in checkpoint `_qualityScores.{phase}` as list of records with score, rationale, timestamp
+  - `SPIRAL_QUALITY_JUDGE_DISABLE=1` env var silently disables all judge calls
+  - Uses claude-haiku-4-5-20251001 (cheap/fast) via Claude CLI subprocess
+- Modified `spiral.sh`:
+  - Added `SPIRAL_QUALITY_THRESHOLD` (default 3) and `SPIRAL_QUALITY_JUDGE_DISABLE` (default 0) env vars
+  - After Phase R completes: calls `quality_judge.py judge-phase-r` (non-blocking, || true)
+  - After Phase I completes: calls `quality_judge.py judge-phase-i` (non-blocking, || true)
+  - Both calls pass `--threshold "${SPIRAL_QUALITY_THRESHOLD:-3}"`
+- Modified `spiral.config.sh`: added SPIRAL_QUALITY_THRESHOLD and SPIRAL_QUALITY_JUDGE_DISABLE documentation
+- Modified `lib/spiral_dashboard.py`:
+  - Added `quality_scores` parameter to `render_html()`
+  - Builds quality scores HTML table in `quality_html` variable
+  - Loads `_qualityScores` from checkpoint in `main()`
+  - Inserts `{quality_html}` in the HTML template after token forecast
+- Created `tests/test_quality_judge.py` with 18 tests: all pass
+
+### Patterns discovered
+- LLM judge integration follows same pattern as `lib/benchmark_judge.py` (subprocess claude CLI)
+- Checkpoint updates use `spiral_io.atomic_write_json` + `safe_read_json`
+- Dashboard: render_html accepts optional kwargs; load_iter_summary() handles missing/invalid JSON gracefully
+
+### Gotchas
+- mypy --strict: `json.loads()` returns `Any`, must assign to typed variable before returning
+- pre-existing failure in test_consistency_check.py (unrelated to this story)
+- test_route_stories.py has pre-existing import error (relative import issue in route_stories.py)
+
+### Acceptance criteria status
+- [x] After Phase R completes, LLM-as-Judge scores research output on 1-5 scale for relevance and completeness
+- [x] After Phase I completes, judge scores implementation quality: criteria coverage and quality
+- [x] Scores stored in checkpoint under _qualityScores.{phase}: {score, rationale, timestamp}
+- [x] Dashboard displays average quality scores per phase across the current iteration
+- [x] Low scores (below SPIRAL_QUALITY_THRESHOLD) emit a warning but do not block progression
