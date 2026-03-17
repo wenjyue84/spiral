@@ -6549,11 +6549,11 @@
       "passes": true,
       "last_attempted": "2026-03-17T02:19:13Z",
       "_phaseI": {
-        "diagnosisBlock": "## Current State\nUS-351 is already fully implemented in `lib/run_parallel_ralph.sh` (Step 1.9, committed as `96acd23`). All 7 bats tests pass. The `prd.json` has `passes: false` in the working tree only because the Spiral orchestrator reset it.\n\n## Problem Identified\nJust need to mark `passes: true` and commit.\n\n## Planned Changes\n- Update `prd.json`: set US-351 `passes: true`\nUS-351 is done. The shared git fetch implementation was already in place from commit `96acd23`  all 7 bats tests pass. The prd.json just needed `passes: true` restored."
+        "diagnosisBlock": "## Current State\nUS-351's shared git fetch is fully implemented in `lib/run_parallel_ralph.sh` (Step 1.9, lines 398-460). Code includes `SPIRAL_SKIP_SHARED_FETCH` env var, `shared_fetch_complete` JSONL event, and per-worker `git diff-index` check.\n\n## Problem Identified\nThe story was implemented in a prior iteration but keeps getting unmarked because subsequent iterations exceed the cost ceiling before committing the `passes: true` update.\n\n## Planned Changes\n- Verify bats tests pass for shared_fetch_optimization\n- Mark US-351 `passes: true` in prd.json\n- Commit\nAll 7 tests pass. Now mark it done.\nNow append to progress.txt and commit.\nUS-351 is complete. The implementation was already in place from a prior iteration  all 7 bats tests pass. The story kept failing only because the cost ceiling was hit before `passes: true` could be committed. This attempt was minimal: verify tests, mark done, commit."
       },
       "_contextStats": {
-        "tokensBeforeMasking": 457,
-        "tokensAfterMasking": 456,
+        "tokensBeforeMasking": 508,
+        "tokensAfterMasking": 506,
         "reductionPct": 0,
         "contextWindow": 10
       },
@@ -6577,7 +6577,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false
+      "passes": false,
+      "last_attempted": "2026-03-17T02:21:56Z"
     },
     {
       "id": "US-353",
