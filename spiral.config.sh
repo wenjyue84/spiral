@@ -155,7 +155,7 @@ SPIRAL_DASHBOARD_REFRESH_SECS=30
 # to avoid loading the entire document into memory. Default 512 KB covers
 # ~1000-story PRDs comfortably. Set to 0 to always use streaming (useful for
 # testing). Requires jq 1.6+ for --stream support.
-# SPIRAL_PRD_STREAM_THRESHOLD_KB=512
+SPIRAL_PRD_STREAM_THRESHOLD_KB=2048  # streaming jq path has a bug; keep on in-memory path until prd.json > 2MB
 
 # ── Research output cache TTL (US-170) ───────────────────────────────────
 # When set to a positive integer, Phase R is skipped entirely if
