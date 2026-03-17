@@ -12,6 +12,7 @@ dependencies = [
     "mypy==1.11.2",
     "pre-commit>=4.0.0",
     "pytest>=9.0.2",
+    "pytest-benchmark>=5.0.0",
     "pytest-cov>=7.0.0",
     "pytest-timeout>=2.4.0",
     "pytest-xdist>=3.5.0",
@@ -26,7 +27,10 @@ spiral = { workspace = true }
 [tool.pytest.ini_options]
 timeout = 60
 timeout_method = "thread"
-addopts = "-n auto --dist loadscope"
+addopts = "-n auto --dist loadscope -m 'not benchmark'"
+markers = [
+    "benchmark: marks tests as benchmark suite (deselect with '-m \"not benchmark\"')",
+]
 
 [tool.coverage.run]
 source = ["spiral"]

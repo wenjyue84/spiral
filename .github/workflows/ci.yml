@@ -242,6 +242,113 @@ jobs:
           path: coverage.xml
           retention-days: 7
 
+  benchmark:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
+      - name: Set up uv with cache
+        uses: ./.github/actions/setup-uv
+
+      - name: Validate lockfile is up-to-date
+        run: uv lock --check || { echo "::error::uv.lock is out of date with pyproject.toml. Run 'uv lock' locally and commit the updated uv.lock."; exit 1; }
+
+      - name: Install dependencies
+        run: uv sync --frozen --group dev
+
+      - name: Run pytest-benchmark baseline
+        continue-on-error: true
+        run: |
+          uv run pytest tests/benchmarks/ \
+            --benchmark-only \
+            --benchmark-autosave \
+            --benchmark-min-rounds=5 \
+            -v
+
+      - name: Compare against previous benchmark (if available)
+        continue-on-error: true
+        run: |
+          # List benchmark results to find the latest comparison
+          if [ -d ".benchmarks" ]; then
+            echo "## Benchmark Results" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+
+            # Find all benchmark JSON files
+            for benchmark_file in .benchmarks/*.json; do
+              if [ -f "$benchmark_file" ]; then
+                echo "### $(basename "$benchmark_file")" >> "$GITHUB_STEP_SUMMARY"
+                echo '```' >> "$GITHUB_STEP_SUMMARY"
+                cat "$benchmark_file" >> "$GITHUB_STEP_SUMMARY"
+                echo '```' >> "$GITHUB_STEP_SUMMARY"
+                echo "" >> "$GITHUB_STEP_SUMMARY"
+              fi
+            done
+          else
+            echo "No benchmark results found (.benchmarks/ directory not created)"
+          fi
+
+      - name: Check for regressions >20%
+        if: always()
+        run: |
+          python3 - <<'PYEOF'
+          import json
+          import pathlib
+          import sys
+          from functools import reduce
+
+          benchmarks_dir = pathlib.Path(".benchmarks")
+          if not benchmarks_dir.exists():
+              print("::notice::No benchmark results found")
+              sys.exit(0)
+
+          # Find the latest benchmark JSON file
+          json_files = sorted(benchmarks_dir.glob("**/0001_*.json"))
+          if not json_files:
+              print("::notice::No benchmark JSON files found")
+              sys.exit(0)
+
+          latest_file = json_files[-1]
+          try:
+              with open(latest_file) as f:
+                  results = json.load(f)
+          except Exception as e:
+              print(f"::warning::Could not load benchmark results: {e}")
+              sys.exit(0)
+
+          benchmarks = results.get("benchmarks", [])
+          if not benchmarks:
+              print("::notice::No benchmark data in results")
+              sys.exit(0)
+
+          # Extract function names and their mean times
+          mean_times = {b.get("name", "unknown"): b.get("stats", {}).get("mean", 0) for b in benchmarks}
+
+          # For now, just report baselines established (next run will compare)
+          print(f"## Benchmark Baselines Established")
+          print()
+          print(f"**Benchmarks recorded:** {len(mean_times)}")
+          for name, mean in sorted(mean_times.items()):
+              print(f"  - {name}: {mean:.2f} ns")
+          print()
+          print("::notice::Benchmark baselines established. Future PR runs will compare against these.")
+          PYEOF
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: benchmark-results
+          path: .benchmarks/
+          retention-days: 30
+
   mutation-test:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'

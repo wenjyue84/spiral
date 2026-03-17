@@ -33,11 +33,22 @@ validate_story_sync_votes(story, goal_text, forbidden_phrases, api_key, base_url
 from __future__ import annotations
 
 import json
+import os
 import time
 import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
+
+try:
+    from anthropic import Anthropic  # type: ignore[import-untyped]
+except ImportError:
+    Anthropic = None  # type: ignore[assignment,misc]
+
+try:
+    from llm_client import stream_completion
+except ImportError:
+    stream_completion = None  # type: ignore[assignment,misc]
 
 __all__ = [
     "build_batch_requests",
@@ -370,10 +381,12 @@ def validate_story_sync(
     forbidden_phrases: list[str],
     api_key: str,
     base_url: str = DEFAULT_BASE_URL,
+    use_streaming: bool = True,
 ) -> tuple[bool, str]:
-    """Single-story synchronous fallback via direct ``/v1/messages`` call.
+    """Single-story synchronous validation via streaming or blocking API call (US-416).
 
-    Used when batch_size == 1 or when the caller opts out of batching.
+    Attempts to use the streaming SDK client (stream_completion) when available.
+    Falls back to direct /v1/messages HTTP call if streaming is unavailable or disabled.
 
     Parameters
     ----------
@@ -387,12 +400,36 @@ def validate_story_sync(
         Anthropic API key.
     base_url:
         API base URL (override for testing).
+    use_streaming:
+        If True, attempt streaming via Anthropic SDK. Defaults to True.
 
     Returns
     -------
     tuple[bool, str]
         ``(accepted, reason)`` pair.
     """
+    # Try streaming approach first (US-416)
+    if use_streaming and Anthropic is not None and stream_completion is not None:
+        try:
+            client = Anthropic(api_key=api_key)
+            validation_prompt = _story_validation_prompt(story, goal_text, forbidden_phrases)
+            messages = [{"role": "user", "content": validation_prompt}]
+
+            events_file = os.environ.get("SPIRAL_EVENTS_FILE") or ".spiral/spiral_events.jsonl"
+            text, usage = stream_completion(
+                client=client,
+                messages=messages,
+                model=_BATCH_MODEL,
+                max_tokens=_MAX_TOKENS,
+                events_file=events_file,
+                phase="S",
+            )
+            return _parse_llm_json(text)
+        except Exception:
+            # Fall through to blocking HTTP call on any error
+            pass
+
+    # Fallback: blocking HTTP call via urllib
     url = f"{base_url}/v1/messages"
     payload = json.dumps(
         {

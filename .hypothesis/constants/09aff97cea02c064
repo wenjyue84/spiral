@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\llm_models.py
+# hypothesis_version: 6.151.9
+
+[200, 2000, ' -> ', '%Y-%m-%dT%H:%M:%SZ', '.', '...(truncated)', '/tmp', 'DecompositionResult', 'FailingTestStory', 'ResearchOutput', 'RouteStoriesResult', 'RoutedStory', 'SCRATCH_DIR', 'SPIRAL_LOG_LEVEL', 'SPIRAL_RUN_ID', 'StoryCandidate', 'SubStory', 'TestSynthesisReport', 'WARN', 'a', 'allow', 'context', 'error_count', 'errors', 'event', 'field_path', 'input', 'level', 'loc', 'log_validation_error', 'medium', 'message', 'msg', 'raw_output', 'received_value', 'run_id', 'small', 'spiral_events.jsonl', 'ts', 'type', 'utf-8', 'validate_llm_json', 'validation_error']

@@ -79,3 +79,25 @@
 {"event_type": "prd_io_error", "timestamp": "2026-03-17T09:51:18.337626+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-791\\\\popen-gw0\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
 {"ts":"2026-03-17T09:52:10Z","event":"rollback_stash_restore_failed","story_id":"US-888","run_id":"","elapsed_ms":2000,"details":"test error"}
 {"ts":"2026-03-17T09:52:11Z","event":"rollback_success","story_id":"US-999","run_id":"","elapsed_ms":1500}
+{"event_type": "prd_io_error", "timestamp": "2026-03-17T10:01:10.877152+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-798\\\\popen-gw0\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
+{"ts":"2026-03-17T10:01:59Z","event":"rollback_success","story_id":"US-999","run_id":"","elapsed_ms":1500}
+{"ts":"2026-03-17T10:02:01Z","event":"rollback_stash_restore_failed","story_id":"US-888","run_id":"","elapsed_ms":2000,"details":"test error"}
+{"event_type": "prd_io_error", "timestamp": "2026-03-17T10:03:30.816912+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-801\\\\popen-gw0\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
+{"ts":"2026-03-17T10:04:27Z","event":"rollback_success","story_id":"US-999","run_id":"","elapsed_ms":1500}
+{"ts":"2026-03-17T10:04:28Z","event":"rollback_stash_restore_failed","story_id":"US-888","run_id":"","elapsed_ms":2000,"details":"test error"}
+{"event_type": "prd_io_error", "timestamp": "2026-03-17T10:09:37.194997+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-809\\\\popen-gw0\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
+{"ts":"2026-03-17T10:10:25Z","event":"rollback_success","story_id":"US-999","run_id":"","elapsed_ms":1500}
+{"ts":"2026-03-17T10:10:27Z","event":"rollback_stash_restore_failed","story_id":"US-888","run_id":"","elapsed_ms":2000,"details":"test error"}
+{"event_type": "prd_io_error", "timestamp": "2026-03-17T10:12:33.868774+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-814\\\\popen-gw0\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
+{"ts":"2026-03-17T10:13:15Z","event":"rollback_success","story_id":"US-999","run_id":"","elapsed_ms":1500}
+{"ts":"2026-03-17T10:13:16Z","event":"rollback_stash_restore_failed","story_id":"US-888","run_id":"","elapsed_ms":2000,"details":"test error"}
+{"event_type": "prd_io_error", "timestamp": "2026-03-17T10:15:17.655121+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-816\\\\popen-gw0\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
+{"ts":"2026-03-17T10:16:03Z","event":"rollback_success","story_id":"US-999","run_id":"","elapsed_ms":1500}
+{"ts":"2026-03-17T10:16:05Z","event":"rollback_stash_restore_failed","story_id":"US-888","run_id":"","elapsed_ms":2000,"details":"test error"}
+{"event_type": "prd_io_error", "timestamp": "2026-03-17T10:24:00.034738+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-818\\\\popen-gw0\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
+{"ts":"2026-03-17T10:24:44Z","event":"rollback_success","story_id":"US-999","run_id":"","elapsed_ms":1500}
+{"ts":"2026-03-17T10:24:48Z","event":"rollback_stash_restore_failed","story_id":"US-888","run_id":"","elapsed_ms":2000,"details":"test error"}
+{"event_type": "prd_io_error", "timestamp": "2026-03-17T10:26:00.658961+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-822\\\\popen-gw0\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
+{"ts":"2026-03-17T10:26:45Z","event":"rollback_success","story_id":"US-999","run_id":"","elapsed_ms":1500}
+{"ts":"2026-03-17T10:26:48Z","event":"rollback_stash_restore_failed","story_id":"US-888","run_id":"","elapsed_ms":2000,"details":"test error"}
+{"event_type": "prd_io_error", "timestamp": "2026-03-17T10:27:23.927944+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-825\\\\popen-gw0\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
