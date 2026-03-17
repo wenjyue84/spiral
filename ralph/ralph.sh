@@ -1991,8 +1991,8 @@ get_pending_story_ids() {
     # Streaming path: reconstruct individual userStories objects using fromstream,
     # then filter and sort in a second pass to avoid full document parse.
     $JQ -rn --stream \
-      'fromstream(1|truncate_stream(inputs|select(.[0][0]=="userStories")))
-       | select(type == "object" and .passes == false and (._decomposed | not))
+      'fromstream(2|truncate_stream(inputs|select(.[0][:1]==["userStories"])))
+       | select(.passes == false and (._decomposed | not))
        | [.priority // "zzz", .id]
        | @tsv' "$prd_file" \
       | sort \
