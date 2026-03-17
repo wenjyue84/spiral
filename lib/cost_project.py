@@ -33,8 +33,7 @@ from constants import (
     TOKENS_PER_SEC_OUTPUT,
 )
 from velocity_model import (
-    build_velocity_model,
-    save_velocity_model,
+    load_or_build_velocity_model,
 )
 from velocity_model import (
     format_report as velocity_format_report,
@@ -174,10 +173,9 @@ def run_projection(
         print(f"  [cost-project] ERROR reading prd.json: {exc}", file=sys.stderr)
         return 3
 
-    # Build velocity model from results.tsv and save it (US-352)
+    # Build velocity model from results.tsv and save it (US-352, US-438)
     try:
-        vel_model = build_velocity_model(results_path)
-        save_velocity_model(vel_model, velocity_model_path)
+        vel_model = load_or_build_velocity_model(results_path, velocity_model_path)
     except OSError as exc:
         print(f"  [cost-project] WARNING: could not build velocity model: {exc}", file=sys.stderr)
         vel_model = {"story_types": {}, "total_rows": 0, "source": results_path}

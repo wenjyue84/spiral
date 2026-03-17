@@ -235,6 +235,32 @@ def load_velocity_model(path: str) -> dict[str, Any]:
         return {"story_types": {}, "total_rows": 0, "source": path}
 
 
+def load_or_build_velocity_model(results_path: str, output_path: str) -> dict[str, Any]:
+    """Return cached velocity model if results.tsv mtime is unchanged, else rebuild and save.
+
+    The saved JSON includes a ``results_tsv_mtime`` field.  On the next call,
+    if the mtime matches the file on disk the cached JSON is returned directly
+    without re-parsing results.tsv.
+    """
+    results_mtime: float | None = None
+    if os.path.isfile(results_path):
+        results_mtime = os.path.getmtime(results_path)
+
+    # Attempt cache hit: JSON must already contain a matching mtime
+    cached = load_velocity_model(output_path)
+    if "results_tsv_mtime" in cached:
+        cached_mtime = cached["results_tsv_mtime"]
+        if results_mtime is not None and abs(float(cached_mtime) - results_mtime) < 0.001:
+            return cached  # Cache hit — TSV unchanged
+
+    # Cache miss: rebuild from TSV and persist
+    model = build_velocity_model(results_path)
+    if results_mtime is not None:
+        model["results_tsv_mtime"] = results_mtime
+    save_velocity_model(model, output_path)
+    return model
+
+
 def format_report(model: dict[str, Any]) -> str:
     """Return a plain-text table of the velocity model."""
     types = model.get("story_types", {})

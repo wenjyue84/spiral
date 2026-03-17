@@ -694,7 +694,10 @@ def cmd_estimate(args):
         vm_mod = _ilu.module_from_spec(spec)
         spec.loader.exec_module(vm_mod)  # type: ignore[union-attr]
 
-        velocity_model = vm_mod.build_velocity_model(str(RESULTS_TSV))
+        SCRATCH_DIR.mkdir(parents=True, exist_ok=True)
+        velocity_model = vm_mod.load_or_build_velocity_model(
+            str(RESULTS_TSV), str(SCRATCH_DIR / "velocity_model.json")
+        )
         report = _format_velocity_report(velocity_model)
         print(report)
         _sys.exit(0)

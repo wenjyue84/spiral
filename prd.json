@@ -8501,9 +8501,10 @@
         "US-436",
         "US-437"
       ],
-      "passes": false,
+      "passes": true,
       "_decomposedFrom": "US-352",
-      "model": "sonnet"
+      "model": "sonnet",
+      "last_attempted": "2026-03-17T16:22:19Z"
     },
     {
       "id": "US-439",

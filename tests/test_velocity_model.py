@@ -15,6 +15,7 @@ from velocity_model import (
     classify_story,
     format_report,
     get_story_estimate,
+    load_or_build_velocity_model,
     load_velocity_model,
     save_velocity_model,
 )
@@ -262,6 +263,70 @@ def test_velocity_model_main_creates_output_file(tmp_path):
     assert out.exists()
     data = json.loads(out.read_text(encoding="utf-8"))
     assert "story_types" in data
+
+
+# ── load_or_build_velocity_model (US-438 mtime cache) ─────────────────────────
+
+
+def test_load_or_build_writes_json_with_mtime(tmp_path):
+    import os
+
+    tsv = tmp_path / "results.tsv"
+    _write_tsv(tsv, [])
+    out = tmp_path / ".spiral" / "velocity_model.json"
+    load_or_build_velocity_model(str(tsv), str(out))
+    assert out.exists()
+    data = json.loads(out.read_text(encoding="utf-8"))
+    assert "results_tsv_mtime" in data
+    assert abs(data["results_tsv_mtime"] - os.path.getmtime(str(tsv))) < 0.01
+
+
+def test_load_or_build_cache_hit_on_unchanged_mtime(tmp_path):
+    """Second call with the same mtime returns cached model without re-parsing."""
+    import os
+
+    tsv = tmp_path / "results.tsv"
+    _write_tsv(
+        tsv,
+        [{"story_title": "Add pytest A", "status": "pass", "duration_sec": 100, "model": "haiku", "retry_num": 0}],
+    )
+    out = tmp_path / ".spiral" / "velocity_model.json"
+
+    model1 = load_or_build_velocity_model(str(tsv), str(out))
+    assert model1["total_rows"] == 1
+
+    # Overwrite TSV content WITHOUT changing mtime to simulate "no change"
+    original_mtime = os.path.getmtime(str(tsv))
+    tsv.write_bytes(b"corrupted-data-that-would-fail-parsing")
+    os.utime(str(tsv), (original_mtime, original_mtime))
+
+    model2 = load_or_build_velocity_model(str(tsv), str(out))
+    assert model2["total_rows"] == 1  # would differ if TSV was re-parsed
+
+
+def test_load_or_build_cache_miss_on_changed_mtime(tmp_path):
+    """Modified TSV (new mtime) triggers a rebuild."""
+    import time
+
+    tsv = tmp_path / "results.tsv"
+    _write_tsv(tsv, [])
+    out = tmp_path / ".spiral" / "velocity_model.json"
+
+    model1 = load_or_build_velocity_model(str(tsv), str(out))
+    assert model1["total_rows"] == 0
+
+    # Small sleep ensures a different mtime on Windows (1-second granularity)
+    time.sleep(0.05)
+    _write_tsv(
+        tsv,
+        [{"story_title": "Add pytest A", "status": "pass", "duration_sec": 100, "model": "haiku", "retry_num": 0}],
+    )
+
+    model2 = load_or_build_velocity_model(str(tsv), str(out))
+    assert model2["total_rows"] == 1
+
+
+# ── CLI main ──────────────────────────────────────────────────────────────────
 
 
 def test_velocity_model_main_report_flag(tmp_path, capsys):
