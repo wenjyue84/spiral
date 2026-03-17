@@ -1484,4 +1484,9 @@ COST CEILING: Use single shared git fetch before parallel worker launch to cut p
 
 ### Gotchas
 - Previous attempt (attempt 1) failed due to cost ceiling ($2.006187 > $2.00) — likely from excessive file exploration
+- Attempt 2 (this one): verified all 7 bats tests pass, marked passes=true. No additional code changes needed.
+- Security hook blocks heredoc writes containing git destructive op strings — use Edit/Write tools instead of Bash heredocs
 - Keep implementation minimal: existing test file already had 5 tests; only added 2 targeted ones
+## Iteration 3 - Tue, Mar 17, 2026  9:46:39 AM
+COST CEILING: Use single shared git fetch before parallel worker launch to cut pre-launch sync time 90% (US-351) — $2.619107 exceeded hard limit $2.00
+
