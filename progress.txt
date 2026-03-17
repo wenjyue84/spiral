@@ -60,3 +60,33 @@
 
 ### Tests passing
 - All 26 velocity_model tests pass (23 existing + 3 new)
+
+## Iteration 5 - Story: US-446 - Fix memory-watchdog.ps1 PowerShell syntax error
+
+### What was implemented
+- Identified and fixed 3 instances of Unicode em-dash characters (—, U+2014) in lib/memory-watchdog.ps1
+- Replaced em-dashes with regular hyphens (-) in Write-Log statements on lines 217, 245, and 305
+- Verified the file now parses without "TerminatorExpectedAtEndOfString" or "Missing closing }" errors
+
+### Root cause analysis
+PowerShell's string parser could not handle the Unicode em-dash (U+2014) character inside 
+double-quoted strings. The em-dashes were causing the parser to enter an invalid state where
+it thought the double-quoted string was still open, leading to cascading parse errors and
+preventing the memory-watchdog process from starting.
+
+### Key findings
+- The file was UTF-8 encoded with CRLF line endings
+- `od -c` revealed the em-dash bytes (342 200 224 = UTF-8 for U+2014)
+- Lines 217, 245, and 305 each had one em-dash in a Write-Log message
+- The error manifested at line 353 as a cascading error from earlier unterminated strings
+
+### Acceptance criteria verification
+✓ powershell -NoProfile -File lib/memory-watchdog.ps1 exits without parse errors
+✓ No TerminatorExpectedAtEndOfString or Missing closing } errors
+✓ [memory] Watchdog started log line appears in .spiral/_memory_watchdog.log without subsequent PS errors
+✓ Manual testing confirms script parses and runs correctly
+
+### Patterns discovered
+- Unicode em-dashes in double-quoted PowerShell strings cause parser failures
+- Use regular hyphens (-) instead of em-dashes (—) in PowerShell strings
+- PowerShell errors can cascade from earlier lines (line 353 error traced to lines 217/245/305)
