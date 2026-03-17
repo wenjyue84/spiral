@@ -2099,3 +2099,21 @@ COST CEILING: Add WorktreeCreate and WorktreeRemove Claude Code hooks to emit st
 ### Gotchas
 - Previous attempt hit cost ceiling ($2.44) due to over-reading files; this attempt was kept minimal (3 file writes, no exploratory reads)
 - `.spiral/` is already gitignored so worktree-audit.jsonl needs no extra gitignore entry
+## Iteration 6 - Tue, Mar 17, 2026  3:06:18 PM
+COST CEILING: Add WorktreeCreate and WorktreeRemove Claude Code hooks to emit structured worker lifecycle audit log (US-388) — $2.862698 exceeded hard limit $2.00
+
+
+## Iteration 7 (final) - Story: US-388 - Add WorktreeCreate/WorktreeRemove audit log hooks (COMPLETED)
+
+### What was implemented
+- `.claude/hooks/worktree_audit.sh` — reads hook stdin JSON via jq, appends structured entry to `.spiral/worktree-audit.jsonl`
+- `.claude/settings.json` — WorktreeCreate and WorktreeRemove hooks registered
+- `tests/test_worktree_audit.bats` — 2 bats tests verify JSON format and multi-event append
+
+### Patterns discovered
+- Implementation was already complete from attempt 2 but cost ceiling prevented commit
+- On attempt 3 (opus model), verified existing files + tests pass, then committed — no re-implementation needed
+
+### Gotchas
+- Git Bash on Windows transforms absolute paths; bats tests use relative paths to avoid this
+- `.spiral/` is already gitignored so worktree-audit.jsonl needs no extra gitignore entry
