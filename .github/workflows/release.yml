@@ -61,6 +61,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write  # needed to upload release assets
+      id-token: write  # needed for SLSA provenance attestation
+      attestations: write  # needed to create and upload attestations
 
     steps:
       - name: Harden runner
@@ -88,3 +90,8 @@ jobs:
         run: |
           gh release upload "${{ github.ref_name }}" sbom.json \
             --clobber
+
+      - name: Attest SBOM provenance (SLSA v1.0 Build Level 2)
+        uses: actions/attest-build-provenance@5e9cb68e95676991667494285c405ad3af61edf9  # v2
+        with:
+          subject-path: sbom.json
