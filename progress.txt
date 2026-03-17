@@ -1829,3 +1829,25 @@ COST CEILING: Add pytest-xdist parallel execution to SPIRAL test suite with --di
 ## Iteration 12 - Tue, Mar 17, 2026 11:59:49 AM
 COST CEILING: Add pytest-xdist parallel execution to SPIRAL test suite with --dist loadscope (US-383) — $3.65676 exceeded hard limit $2.00
 
+## Iteration 13 - Tue, Mar 17, 2026 12:02:34 PM
+COST CEILING: Add pytest-xdist parallel execution to SPIRAL test suite with --dist loadscope (US-383) — $3.89763 exceeded hard limit $2.00
+
+## Iteration 14 - Tue, Mar 17, 2026 12:16:41 PM
+COST CEILING: Migrate prd.schema.json to JSON Schema Draft 2020-12 with prefixItems and pattern constraints (US-385) — $2.714168 exceeded hard limit $2.00
+
+
+## Iteration 15 - Story: US-385 - Migrate prd.schema.json to JSON Schema Draft 2020-12
+
+### What was implemented
+- prd.schema.json already had `"$schema": "https://json-schema.org/draft/2020-12/schema"`, story ID pattern, and no tuple-style items arrays
+- prd_schema.py already used Draft202012Validator
+- Fixed validation failures by: (1) adding 5 missing runtime properties (`completedAt`, `_antiPatterns`, `_phaseI`, `_contextStats`, `last_attempted`) to userStory schema, (2) increasing title.maxLength from 100 to 120 to match stdlib validation
+
+### Patterns discovered
+- SPIRAL runtime adds properties to prd.json stories that weren't in the schema: `completedAt` (null|string), `_antiPatterns` (array), `_phaseI` (object), `_contextStats` (object), `last_attempted` (string)
+- The schema had `"additionalProperties": false` on userStory, so any new runtime field immediately causes validation failure
+- title.maxLength was inconsistent between JSON schema (100) and Python stdlib check (120)
+
+### Gotchas
+- Previous attempt failed by implementing the WRONG story (US-349 eval harness) instead of US-385 (schema migration)
+- The schema migration was mostly complete — main work was identifying and adding missing runtime properties
