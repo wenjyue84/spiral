@@ -2557,3 +2557,21 @@ COST CEILING: Add cosine-similarity Phase R research cache lookup using sentence
 - Full test suite: 1756 passing, 10 pre-existing failures (unrelated)
 - shellcheck: no new errors in modified code
 - All acceptance criteria verified
+
+## Iteration - Story: US-379 - Add PostCompact Claude Code hook (COMPLETED)
+
+### What was implemented
+- Created ralph/CONTEXT_REFRESH.md with key conventions (uv, rtk, diagnosis block, trust levels, validation cmd)
+- Added SessionStart hook with matcher "compact" to .claude/settings.json
+- Created tests/post_compact_hook.bats with 7 tests (all pass)
+
+### Files created/modified
+- ralph/CONTEXT_REFRESH.md — new file, post-compaction context refresh (~900 chars, under 500 token limit)
+- .claude/settings.json — added SessionStart hook entry
+- tests/post_compact_hook.bats — 7 bats tests verifying hook behavior
+
+### Acceptance criteria mapping
+- [x] .claude/settings.json defines SessionStart hook with matcher: 'compact' → settings.json line 3-8
+- [x] ralph/CONTEXT_REFRESH.md created with story ID placeholder, key conventions, validation command → file created
+- [x] Hook stdout added to Claude's context automatically → inherent to SessionStart hooks
+- [x] Bats test verifies hook command exits 0 and produces non-empty stdout → 7 tests pass
