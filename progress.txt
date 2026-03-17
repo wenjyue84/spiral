@@ -2857,3 +2857,30 @@ COST CEILING: Add vulture dead code detector for lib/ Python modules in CI (US-4
 ### Patterns discovered
 - `pinned-actions-check` job greps for `uses: ...@...` lines — YAML comments are correctly excluded by its `grep -Ev '^[^:]+:[0-9]+:[[:space:]]*#'` filter
 - Two patterns existed: Pattern-A (had existing TODO comment), Pattern-B (no TODO) — both needed `# allowed-endpoints:` added
+## Iteration 6 - Tue, Mar 17, 2026  7:13:33 PM
+COST CEILING: Add GitHub Actions PR comment with prd.json story status diff on PRD changes (US-420) — $2.577844 exceeded hard limit $2.00
+
+## Iteration 14 - Tue, Mar 17, 2026  7:19:38 PM
+COST CEILING: Add GitHub Actions PR comment with prd.json story status diff on PRD changes (US-420) — $5.261724 exceeded hard limit $2.00
+
+
+## Iteration (Attempt 2, Opus) - Story: US-420 - Add GitHub Actions PR comment with prd.json story status diff (PASSES)
+
+### What was implemented
+- `main.py`: Added `--format markdown` option to `status` subcommand with `_render_markdown()` function
+  - Outputs CommonMark table with GitHub emoji shortcodes (`:white_check_mark:` etc.) for cross-platform compat
+  - Story count table: Status | Count | Percentage | Avg Retries
+- `.github/workflows/ci.yml`: Added `prd-status-comment` job
+  - Only runs on `pull_request` events
+  - Detects prd.json changes via `git diff --name-only origin/$base_ref...HEAD`
+  - Generates markdown via `uv run python main.py status --format markdown`
+  - Posts/updates PR comment using `actions/github-script@v7.0.1` (SHA-pinned)
+  - Dedup via `<!-- spiral-prd-status -->` HTML marker comment
+
+### Patterns discovered
+- GitHub emoji shortcodes (`:white_check_mark:`) are safer than Unicode emojis for cross-platform (Windows cp1252 breaks on Unicode emojis in print())
+- `actions/github-script@v7.0.1` SHA: `60a0d83039c74a4aee543508d2ffcb1c3799cdea`
+
+### Gotchas
+- Previous attempt hit cost ceiling at $2.58 — was actually implementing US-399 (diagnosisBlock mismatch)
+- Windows `print()` with Unicode emojis fails with `UnicodeEncodeError` on cp1252 — use shortcodes instead
