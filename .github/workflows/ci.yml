@@ -192,6 +192,15 @@ jobs:
             --cov-fail-under=38 \
             --randomly-seed=last
 
+      - name: Check differential coverage (new lines)
+        # Only run on pull requests to compare against main branch
+        if: always() && (github.event_name == 'pull_request' || github.ref != 'refs/heads/main')
+        continue-on-error: true
+        run: |
+          uv run diff-cover coverage.xml --compare-branch=origin/main --fail-under=80 \
+            --markdown-report /dev/stdout | tee -a "$GITHUB_STEP_SUMMARY" || \
+            echo "::warning::diff-cover: New/modified lines have coverage below 80% threshold"
+
       - name: Generate comprehensive test summary
         if: always()
         run: |

@@ -48,6 +48,10 @@ paths_to_mutate = ["lib/"]
 tests_dir = ["tests/"]
 runner = "uv run pytest -x -q"
 
+[tool.diff_cover]
+compare_branch = "origin/main"
+fail_under = 80
+
 [dependency-groups]
 dev = [
     "vulture>=2.15",
