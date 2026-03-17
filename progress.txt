@@ -1789,3 +1789,25 @@ COST CEILING: Extract repeated spiral CI steps into composite actions in .github
 - All 27 new tests pass
 - 186 existing tests still pass (1 pre-existing failure in test_consistency_check unrelated to this story)
 - Type checking: mypy lib/privacy_scrubber.py --strict passes
+## Iteration 11 - Tue, Mar 17, 2026 11:40:18 AM
+COST CEILING: Add pytest-xdist parallel execution to SPIRAL test suite with --dist loadscope (US-383) — $2.506495 exceeded hard limit $2.00
+
+
+## Iteration N - Story: US-383 Add pytest-xdist parallel execution to SPIRAL test suite with --dist loadscope
+
+### What was implemented
+- Added `pytest-xdist>=3.5.0` to `[dependency-groups] dev` in pyproject.toml (installed: pytest-xdist 3.8.0 + execnet 2.1.2)
+- Added `addopts = "-n auto --dist loadscope"` to `[tool.pytest.ini_options]` in pyproject.toml
+- Fixed `test_commit_revert.py::test_manifest_generation_idempotent` — added `deadline=None, suppress_health_check=[HealthCheck.too_slow]` to @settings to prevent FlakyFailure under parallel system load (git subprocess calls are slow when 12 workers compete for resources)
+- Added HealthCheck import to test_commit_revert.py
+
+### Patterns discovered
+- `HYPOTHESIS_DATABASE_FILE` env var no longer works in modern Hypothesis (6.x) — throws HypothesisException. Per-worker DB isolation must use settings API. But with `--dist loadscope`, same module tests run on same worker so concurrent DB access is not an issue anyway.
+- With `--dist loadscope`, all tests from the same Python module run on the same worker = safe for module-level shared state.
+- Hypothesis deadline (default 500ms) causes FlakyFailure when tests spawn git subprocesses under 12-worker parallel load. Fix: add `deadline=None` to affected tests.
+- Speed improvement: 119s sequential → 41s parallel = 66% reduction (3x speedup) on Windows with 12 cores.
+
+### Gotchas
+- Attempt 1 hit cost ceiling: had excessive file exploration. Fixed by planning first, then reading only essential files.
+- 7 pre-existing failures exist in both sequential and parallel modes: test_consistency_check (1), test_infer_dependencies (4), test_route_stories (2) — not related to xdist.
+- `pytest_configure` hook for Hypothesis worker DB path must NOT use `HYPOTHESIS_DATABASE_FILE` env var — use Hypothesis settings profiles API instead if isolation is needed.

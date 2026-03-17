@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Callable, List
 
 import pytest
-from hypothesis import assume, given, settings
+from hypothesis import HealthCheck, assume, given, settings
 from hypothesis import strategies as st
 
 
@@ -95,7 +95,7 @@ class TestManifestGeneration:
             unique=True,
         )
     )
-    @settings(max_examples=50)
+    @settings(max_examples=50, deadline=None, suppress_health_check=[HealthCheck.too_slow])
     def test_manifest_generation_idempotent(self, filenames: List[str]) -> None:
         """Manifest generation should be idempotent."""
         assume(all(f and f not in [".", ".."] for f in filenames))  # Skip empty/dot filenames

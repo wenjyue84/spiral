@@ -11,6 +11,7 @@ from hypothesis import strategies as st
 # Ensure lib/ is importable
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 
+
 # ── Common settings for suppressing slow-generation health checks ──────────
 # The PRD strategy is inherently composite; suppress slow/large warnings.
 HEALTH_SUPPRESSED = [HealthCheck.too_slow, HealthCheck.large_base_example]
