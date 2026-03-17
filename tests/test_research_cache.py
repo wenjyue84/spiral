@@ -4,15 +4,21 @@ import json
 import os
 import sys
 import time
+from unittest.mock import MagicMock, patch
+
+import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 
 from research_cache import (
     _cache_key,
+    _cosine_similarity,
+    _embedding_path,
     cache_inject_context,
     cache_list_valid,
     cache_lookup,
     cache_prune,
+    cache_similarity_lookup,
     cache_store,
 )
 
@@ -276,3 +282,142 @@ class TestCLI:
         cache_store(cache_dir, "https://example.com", "version 2")
         result = cache_lookup(cache_dir, "https://example.com", ttl_hours=24)
         assert result == "version 2"
+
+
+# ── Embedding / similarity tests (US-403) ───────────────────────────────────
+
+
+class TestCosine:
+    def test_identical_vectors(self):
+        a = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+        assert _cosine_similarity(a, a) == 1.0
+
+    def test_orthogonal_vectors(self):
+        a = np.array([1.0, 0.0], dtype=np.float32)
+        b = np.array([0.0, 1.0], dtype=np.float32)
+        assert abs(_cosine_similarity(a, b)) < 1e-6
+
+    def test_zero_vector(self):
+        a = np.array([0.0, 0.0], dtype=np.float32)
+        b = np.array([1.0, 0.0], dtype=np.float32)
+        assert _cosine_similarity(a, b) == 0.0
+
+
+class TestEmbeddingPath:
+    def test_uses_sha256(self):
+        import hashlib
+
+        p = _embedding_path("/tmp/cache", "hello world")
+        expected_hash = hashlib.sha256("hello world".encode()).hexdigest()
+        assert expected_hash in p
+        assert p.endswith(".npy")
+
+    def test_strips_whitespace(self):
+        assert _embedding_path("/d", "  hello  ") == _embedding_path("/d", "hello")
+
+
+def _make_mock_model():
+    """Return a mock SentenceTransformer that returns deterministic embeddings."""
+    model = MagicMock()
+    # Map known strings to specific vectors
+    _vectors = {
+        "https://example.com": np.array([1.0, 0.0, 0.0], dtype=np.float32),
+        "https://similar.com": np.array([0.99, 0.1, 0.0], dtype=np.float32),
+        "https://different.com": np.array([0.0, 0.0, 1.0], dtype=np.float32),
+    }
+
+    def encode(text, **kwargs):
+        return _vectors.get(text, np.array([0.5, 0.5, 0.5], dtype=np.float32))
+
+    model.encode = encode
+    return model
+
+
+class TestCacheStoreEmbedding:
+    @patch("research_cache._get_model", return_value=_make_mock_model())
+    def test_creates_npy_file(self, mock_model, tmp_path):
+        cache_dir = str(tmp_path / "cache")
+        cache_store(cache_dir, "https://example.com", "content", store_embedding=True)
+        npy = _embedding_path(cache_dir, "https://example.com")
+        assert os.path.exists(npy)
+
+    @patch("research_cache._get_model", return_value=_make_mock_model())
+    def test_creates_key_mapping_file(self, mock_model, tmp_path):
+        cache_dir = str(tmp_path / "cache")
+        cache_store(cache_dir, "https://example.com", "content", store_embedding=True)
+        npy = _embedding_path(cache_dir, "https://example.com")
+        key_file = npy + ".key"
+        assert os.path.exists(key_file)
+        with open(key_file) as f:
+            assert f.read().strip() == _cache_key("https://example.com")
+
+    def test_store_without_embedding(self, tmp_path):
+        cache_dir = str(tmp_path / "cache")
+        cache_store(cache_dir, "https://example.com", "content", store_embedding=False)
+        npy = _embedding_path(cache_dir, "https://example.com")
+        assert not os.path.exists(npy)
+
+
+class TestCacheSimilarityLookup:
+    @patch("research_cache._get_model", return_value=_make_mock_model())
+    def test_returns_none_when_threshold_is_1(self, mock_model, tmp_path):
+        cache_dir = str(tmp_path / "cache")
+        cache_store(cache_dir, "https://example.com", "content")
+        result = cache_similarity_lookup(cache_dir, "https://example.com", 24, threshold=1.0)
+        assert result is None
+
+    @patch("research_cache._get_model", return_value=_make_mock_model())
+    def test_returns_none_when_ttl_zero(self, mock_model, tmp_path):
+        cache_dir = str(tmp_path / "cache")
+        cache_store(cache_dir, "https://example.com", "content")
+        result = cache_similarity_lookup(cache_dir, "https://example.com", 0, threshold=0.9)
+        assert result is None
+
+    @patch("research_cache._get_model", return_value=_make_mock_model())
+    def test_returns_none_for_missing_dir(self, mock_model, tmp_path):
+        result = cache_similarity_lookup(str(tmp_path / "nope"), "query", 24, threshold=0.9)
+        assert result is None
+
+    @patch("research_cache._get_model", return_value=_make_mock_model())
+    def test_exact_embedding_match(self, mock_model, tmp_path):
+        cache_dir = str(tmp_path / "cache")
+        cache_store(cache_dir, "https://example.com", "cached content")
+        result = cache_similarity_lookup(
+            cache_dir, "https://example.com", 24, threshold=0.9
+        )
+        assert result == "cached content"
+
+    @patch("research_cache._get_model", return_value=_make_mock_model())
+    def test_similar_query_hits(self, mock_model, tmp_path):
+        cache_dir = str(tmp_path / "cache")
+        cache_store(cache_dir, "https://example.com", "original content")
+        # https://similar.com has cosine similarity ~0.995 with https://example.com
+        result = cache_similarity_lookup(
+            cache_dir, "https://similar.com", 24, threshold=0.9
+        )
+        assert result == "original content"
+
+    @patch("research_cache._get_model", return_value=_make_mock_model())
+    def test_dissimilar_query_misses(self, mock_model, tmp_path):
+        cache_dir = str(tmp_path / "cache")
+        cache_store(cache_dir, "https://example.com", "content")
+        # https://different.com has cosine similarity ~0.0 with https://example.com
+        result = cache_similarity_lookup(
+            cache_dir, "https://different.com", 24, threshold=0.9
+        )
+        assert result is None
+
+    @patch("research_cache._get_model", return_value=_make_mock_model())
+    def test_expired_entry_not_returned(self, mock_model, tmp_path):
+        cache_dir = str(tmp_path / "cache")
+        path = cache_store(cache_dir, "https://example.com", "old content")
+        # Expire the entry
+        with open(path, encoding="utf-8") as f:
+            entry = json.load(f)
+        entry["fetched_ts"] = time.time() - (25 * 3600)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(entry, f)
+        result = cache_similarity_lookup(
+            cache_dir, "https://example.com", 24, threshold=0.9
+        )
+        assert result is None

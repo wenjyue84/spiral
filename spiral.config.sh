@@ -204,6 +204,12 @@ SPIRAL_PRD_STREAM_THRESHOLD_KB=2048 # streaming jq path has a bug; keep on in-me
 # Example: SPIRAL_RESEARCH_CACHE_TTL_HOURS=6  # reuse research for up to 6h
 # SPIRAL_RESEARCH_CACHE_TTL_HOURS=0
 
+# ── Cosine-similarity research cache threshold (US-403) ───────────────────
+# When a Phase R query misses the exact-match cache, sentence embeddings
+# (MiniLM) are compared. Hits above this threshold return the cached result.
+# Set to 1.0 to disable similarity lookup (exact match only).
+# SPIRAL_CACHE_SIM_THRESHOLD=0.92
+
 # ── Hierarchical summarization of Phase R output (US-254) ─────────────────
 # When Phase R research output exceeds this token threshold, a summarization
 # pass compresses story descriptions while preserving acceptance criteria,

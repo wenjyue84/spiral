@@ -496,6 +496,7 @@ SPIRAL_EVENT_LOG_MAX_LINES="${SPIRAL_EVENT_LOG_MAX_LINES:-10000}"               
 SPIRAL_LOG_MAX_MB="${SPIRAL_LOG_MAX_MB:-50}"                                              # 0 = disabled; rotate _last_run.log when size exceeds this value in MB
 SPIRAL_LOG_KEEP_ROTATIONS="${SPIRAL_LOG_KEEP_ROTATIONS:-3}"                               # number of rotated _last_run.log files to keep (.log.1 ... .log.N)
 SPIRAL_RESEARCH_CACHE_TTL_HOURS="${SPIRAL_RESEARCH_CACHE_TTL_HOURS:-0}"                   # 0 = disabled; cache TTL for Phase R URL responses AND Phase R output file reuse across iterations
+SPIRAL_CACHE_SIM_THRESHOLD="${SPIRAL_CACHE_SIM_THRESHOLD:-0.92}"                          # US-403: cosine-similarity threshold for embedding-based cache lookup (1.0 = exact match only)
 SPIRAL_RESEARCH_SUMMARY_THRESHOLD="${SPIRAL_RESEARCH_SUMMARY_THRESHOLD:-4000}"            # US-254: token threshold for hierarchical summarization of Phase R output (0 = disabled)
 SPIRAL_USE_FULL_RESEARCH="${SPIRAL_USE_FULL_RESEARCH:-0}"                                 # US-254: 1 = pass full research to downstream phases (skip summarization)
 SPIRAL_INJECTION_THRESHOLD="${SPIRAL_INJECTION_THRESHOLD:-0.8}"                           # US-198: LLM Guard PromptInjection scan threshold for Phase R web content (0.0–1.0)
@@ -544,6 +545,7 @@ SPIRAL_AUTO_PUSH_TAGS="${SPIRAL_AUTO_PUSH_TAGS:-false}"                         
 SPIRAL_WORKSPACE_CLEANUP="${SPIRAL_WORKSPACE_CLEANUP:-false}"                                            # true = prune transient artifacts after 100% completion (US-136)
 SPIRAL_CACHE_TTL="${SPIRAL_CACHE_TTL:-7}"                                                                # days; research_cache entries older than this are pruned (US-136)
 SPIRAL_INVALIDATE_CACHE_ON_CONSTITUTION_CHANGE="${SPIRAL_INVALIDATE_CACHE_ON_CONSTITUTION_CHANGE:-true}" # US-302: clear research_cache when constitution.md SHA-256 changes
+SPIRAL_CACHE_SIM_THRESHOLD="${SPIRAL_CACHE_SIM_THRESHOLD:-0.92}"                                        # US-403: cosine similarity threshold for Phase R query cache (1.0 = exact match only)
 SPIRAL_AUTO_RELEASE="${SPIRAL_AUTO_RELEASE:-false}"                                                      # true = auto SemVer bump from conventional commits on run completion (US-190)
 SPIRAL_PLAN_CACHE_ENABLED="${SPIRAL_PLAN_CACHE_ENABLED:-true}"                                           # US-353: true = cache/reuse decomposition plans across similar stories
 SPIRAL_PLAN_CACHE_TTL_HOURS="${SPIRAL_PLAN_CACHE_TTL_HOURS:-168}"                                        # US-353: hours before cached plans expire (default 168 = 7 days)
@@ -2915,6 +2917,26 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
     fi
   fi
 
+  # ── US-403: Query-embedding cache lookup ───────────────────────────────────
+  # When a semantically similar SPIRAL_GEMINI_PROMPT was used in a prior run
+  # (cosine similarity >= SPIRAL_CACHE_SIM_THRESHOLD), reuse its research output.
+  if [[ "$_R_SKIP" -eq 0 ]] && [[ -n "$SPIRAL_GEMINI_PROMPT" ]] && [[ "$SPIRAL_RESEARCH_CACHE_TTL_HOURS" -gt 0 ]]; then
+    mkdir -p "$RESEARCH_CACHE_DIR"
+    _Q_CACHE_RESULT=$(
+      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/query_embed_cache.py" lookup \
+        "$RESEARCH_CACHE_DIR" "$SPIRAL_GEMINI_PROMPT" \
+        --threshold "$SPIRAL_CACHE_SIM_THRESHOLD" \
+        --ttl-hours "$SPIRAL_RESEARCH_CACHE_TTL_HOURS" 2>/dev/null || true
+    )
+    if [[ -n "$_Q_CACHE_RESULT" ]]; then
+      echo ""
+      echo "  [Phase R] query-similarity cache hit (threshold: $SPIRAL_CACHE_SIM_THRESHOLD) — reusing cached research output"
+      echo "$_Q_CACHE_RESULT" >"$RESEARCH_OUTPUT"
+      touch "$_phase_r_ckpt"
+      _R_SKIP=1
+    fi
+  fi
+
   if checkpoint_phase_done "T"; then
     echo "  [T] Skipping Phase T (checkpoint: already done this iter)"
     _T_SKIP=1
@@ -3055,6 +3077,17 @@ $INJECTED_PROMPT"
 ---
 
 $INJECTED_PROMPT"
+        fi
+
+        # ── US-403: Cosine-similarity cache lookup for near-duplicate queries ──
+        if [[ "${SPIRAL_CACHE_SIM_THRESHOLD}" != "1.0" ]]; then
+          SIM_RESULT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/research_cache.py" sim-lookup \
+            "$RESEARCH_CACHE_DIR" "iteration ${SPIRAL_ITER} research" \
+            --ttl-hours "$SPIRAL_RESEARCH_CACHE_TTL_HOURS" \
+            --threshold "$SPIRAL_CACHE_SIM_THRESHOLD" 2>/dev/null || true)
+          if [[ -n "$SIM_RESULT" ]]; then
+            echo "  [R] Cache: similarity hit (threshold=${SPIRAL_CACHE_SIM_THRESHOLD})"
+          fi
         fi
       fi
 
@@ -3219,6 +3252,12 @@ $INJECTED_PROMPT"
             fi
           done < <("$JQ" -r '[.stories[].source // empty] | unique | .[]' "$RESEARCH_OUTPUT" 2>/dev/null || true)
           [[ "$CACHED_URLS" -gt 0 ]] && echo "  [R] Cache: stored $CACHED_URLS source URLs for future iterations"
+        fi
+
+        # ── US-403: Store query embedding so future similar queries hit cache ──
+        if [[ -n "$SPIRAL_GEMINI_PROMPT" ]] && [[ "$SPIRAL_RESEARCH_CACHE_TTL_HOURS" -gt 0 ]]; then
+          "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/query_embed_cache.py" store \
+            "$RESEARCH_CACHE_DIR" "$SPIRAL_GEMINI_PROMPT" "$RESEARCH_OUTPUT" >/dev/null 2>&1 || true
         fi
       fi
 

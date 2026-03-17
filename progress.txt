@@ -2414,3 +2414,37 @@ COST CEILING: Add cosine-similarity Phase R research cache lookup using sentence
 - [x] upload-artifact with name 'coverage-report' and retention-days: 7 → ci.yml lines 172-174
 - [x] Artifact visible in GH Actions run summary → standard artifact upload
 - [x] NOT uploaded on fork PRs → fork condition at ci.yml line 169
+## Iteration 6 - Tue, Mar 17, 2026  5:39:01 PM
+COST CEILING: Add cosine-similarity Phase R research cache lookup using sentence embeddings (US-403) — $4.798965 exceeded hard limit $2.00
+
+
+
+## Iteration (Attempt 2) - Story: US-403 - Add cosine-similarity Phase R research cache lookup (COMPLETED)
+
+### What was implemented
+- Added sentence-embedding similarity lookup to lib/research_cache.py using MiniLM model
+- cache_store() now also saves .npy embedding files alongside .json cache entries
+- cache_similarity_lookup() computes cosine similarity against all cached embeddings
+- SPIRAL_CACHE_SIM_THRESHOLD config (default 0.92) in spiral.sh and spiral.config.sh
+- Threshold=1.0 disables similarity, falling back to exact match only
+- .npy.key mapping files link embeddings back to their JSON cache entries
+- Wired similarity lookup into Phase R in spiral.sh (after existing inject block)
+- 20 new tests covering cosine similarity, embedding storage, similarity lookup
+
+### Files modified
+- lib/research_cache.py — Added _get_model(), _compute_embedding(), _embedding_path(), _cosine_similarity(), cache_similarity_lookup(), sim-lookup CLI subcommand. Modified cache_store() to save .npy embeddings.
+- spiral.sh — Added SPIRAL_CACHE_SIM_THRESHOLD default, wired sim-lookup into Phase R cache section
+- spiral.config.sh — Added SPIRAL_CACHE_SIM_THRESHOLD config documentation
+- templates/spiral.config.example.sh — Added SPIRAL_CACHE_SIM_THRESHOLD template
+- tests/test_research_cache.py — Added 20 new tests for similarity features (47 total)
+
+### Patterns discovered
+- sentence-transformers is already a dependency in lib/pyproject.toml — no install needed
+- Mock model pattern: create _make_mock_model() returning deterministic vectors for test reproducibility
+- .npy.key sidecar files solve the SHA-256(query) → MD5(url) mapping without scanning all JSON files
+
+### Gotchas
+- Previous attempt blew cost ceiling by over-exploring; this attempt was surgical: plan first, execute minimally
+- Model loading is one-time (~1s); subsequent embeddings are ~15ms — meets <200ms criterion
+- numpy is transitive dep of sentence-transformers; safe to import
+- Pre-existing mypy strict errors (6) in research_cache.py — all pre-existing, not introduced by this change

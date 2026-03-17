@@ -195,6 +195,12 @@
 # 0 = disabled (no caching). Default: 24 (hours)
 # SPIRAL_RESEARCH_CACHE_TTL_HOURS=24
 
+# ── Cosine-similarity research cache threshold (US-403) ───────────────────
+# Sentence-embedding similarity threshold for fuzzy cache hits in Phase R.
+# When a query misses exact match, MiniLM embeddings are compared.
+# 1.0 = disabled (exact match only). Default: 0.92
+# SPIRAL_CACHE_SIM_THRESHOLD=0.92
+
 # ── Hierarchical summarization of Phase R output (US-254) ─────────────────
 # When Phase R research output exceeds this token threshold, a summarization
 # pass compresses story descriptions while preserving acceptance criteria,
