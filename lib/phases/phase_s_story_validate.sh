@@ -100,3 +100,54 @@ run_phase_story_validate() {
     echo '{"stories":[]}' >"$rejected_out"
   fi
 }
+
+# run_phase_s — Phase S orchestration wrapper
+#
+# Contains the full Phase S lifecycle: banner, event logging, webhook
+# notifications, checkpoint handling, dry-run guard, story validation,
+# acceptance-rate logging, and phase hooks.
+#
+# Called from the main SPIRAL loop:
+#   run_phase_s || continue
+#
+# Returns 1 if the PRE phase hook requests an abort (so the loop can
+# `continue` to the next iteration), 0 on all other paths.
+run_phase_s() {
+  PHASE="S"
+  write_active_status "S" 30 # US-311
+  print_phase_banner "S" "STORY VALIDATE — filtering candidates against project goals..."
+  log_spiral_event "phase_start" "\"phase\":\"S\",\"iteration\":$SPIRAL_ITER"
+  notify_webhook "S" "start"
+  _PHASE_TS_S=$(date +%s)
+  run_phase_hook PRE "S" || return 1
+
+  VALIDATED_OUTPUT="$SCRATCH_DIR/_validated_stories.json"
+
+  if checkpoint_phase_done "S"; then
+    echo "  [S] Skipping (checkpoint: already done this iter)"
+  elif [[ "$DRY_RUN" -eq 1 ]]; then
+    echo "  [dry-run] skipping story validation"
+    echo '{"stories":[]}' >"$VALIDATED_OUTPUT"
+    write_checkpoint "$SPIRAL_ITER" "S"
+  else
+    run_phase_story_validate "$SPIRAL_ITER" \
+      "$RESEARCH_OUTPUT" "$TEST_OUTPUT" \
+      "$PRD_FILE" "$SCRATCH_DIR" \
+      "$SPIRAL_PYTHON" "$SPIRAL_HOME" \
+      "$AI_SUGGEST_OUTPUT" "$TEST_STORY_CANDIDATES"
+
+    # Log acceptance rate to spiral_events.jsonl
+    _S_ACCEPTED=$("$JQ" '.stories | length' "$VALIDATED_OUTPUT" 2>/dev/null || echo "0")
+    _S_REJECTED=$("$JQ" '.stories | length' "$SCRATCH_DIR/_story_rejected.json" 2>/dev/null || echo "0")
+    _S_TOTAL=$((_S_ACCEPTED + _S_REJECTED))
+    log_spiral_event "phase_s_result" "\"iteration\":$SPIRAL_ITER,\"accepted\":$_S_ACCEPTED,\"rejected\":$_S_REJECTED,\"total\":$_S_TOTAL"
+
+    write_checkpoint "$SPIRAL_ITER" "S"
+  fi
+
+  run_phase_hook POST "S" || true
+  _PHASE_DUR_S=$(($(date +%s) - _PHASE_TS_S))
+  log_spiral_event "phase_end" "\"phase\":\"S\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_S,\"model\":\"$SPIRAL_VALIDATION_MODEL\""
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" end-phase --phase S --duration-s "$_PHASE_DUR_S" --iteration "$SPIRAL_ITER" 2>/dev/null || true
+  notify_webhook "S" "end"
+}
