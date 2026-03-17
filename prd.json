@@ -7262,8 +7262,14 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "last_attempted": "2026-03-17T03:40:19Z",
-      "_failureReason": "story_cost_ceiling"
+      "last_attempted": "2026-03-17T03:59:50Z",
+      "_failureReason": "story_cost_ceiling",
+      "_contextStats": {
+        "tokensBeforeMasking": 78,
+        "tokensAfterMasking": 78,
+        "reductionPct": 0,
+        "contextWindow": 10
+      }
     },
     {
       "id": "US-384",
