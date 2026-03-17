@@ -7393,7 +7393,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false
+      "passes": false,
+      "last_attempted": "2026-03-17T06:56:50Z"
     },
     {
       "id": "US-389",
@@ -8278,7 +8279,7 @@
         "keep under 120 lines"
       ],
       "dependencies": [],
-      "passes": false,
+      "passes": true,
       "_decomposedFrom": "US-350"
     },
     {

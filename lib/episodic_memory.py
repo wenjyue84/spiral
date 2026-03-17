@@ -42,7 +42,7 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> sqlite3.Connection:
     return conn
 
 
-def write_memory(
+def write_record(
     story_id: str,
     story_type: str,
     approach_summary: str,
@@ -71,7 +71,7 @@ def write_memory(
         conn.close()
 
 
-def query_similar(
+def query_top3(
     story_title: str,
     top_k: int = 3,
     db_path: str = DEFAULT_DB_PATH,
@@ -181,7 +181,7 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.command == "write":
-        write_memory(
+        write_record(
             args.story_id,
             args.story_type,
             args.approach_summary,
@@ -192,7 +192,7 @@ def main() -> None:
         print(f"Stored episodic record for {args.story_id}")
 
     elif args.command == "query":
-        results = query_similar(args.query_text, top_k=args.top_k, db_path=args.db_path)
+        results = query_top3(args.query_text, top_k=args.top_k, db_path=args.db_path)
         print(json.dumps(results, indent=2))
 
     elif args.command == "list":
