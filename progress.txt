@@ -1,3 +1,62 @@
+## Iteration 19 - Story: US-383 Add pytest-xdist parallel execution (RE-MARKED COMPLETE)
+
+### What was implemented
+- All xdist changes already in place from prior iterations (pyproject.toml: pytest-xdist>=3.5.0, addopts = "-n auto --dist loadscope")
+- prd.json was reset to passes=false by a later commit (US-381 worker read stale prd.json state)
+- Re-marked passes=true after verifying 1671 tests pass in 37s parallel
+
+### Patterns discovered
+- CRITICAL: When multiple Ralph workers run sequentially, each reads prd.json at worker-start time. If Worker B reads prd.json while Worker A's pass-marking has already committed, but the merge resolves to an older state, passes can be lost. Always check prior story statuses before marking new ones.
+
+## Iteration 14 - Story: US-381 Add property-based tests for merge_stories.py deduplication (COMPLETED)
+
+### What was implemented
+- Created tests/test_merge_stories_property.py with Hypothesis-based property tests
+- `story_strategy()` composite strategy generates valid story dicts:
+  - Alphanumeric + space titles (3-50 chars, avoids control characters)
+  - Priority values: critical, high, medium, low
+  - Description: text with common characters
+  - Acceptance criteria: lists of valid strings
+  - Complexity: small, medium, large
+- TestMergeStoriesProperty class with 4 @given tests:
+  - test_no_duplicate_ids_in_output(): verifies merged output never has duplicate IDs
+  - test_output_length_less_equal_input(): verifies len(merged) ≤ len(input) after dedup
+  - test_all_stories_have_valid_priority(): verifies all output stories have valid priorities
+  - test_dedup_against_existing_stories(): property test for is_duplicate() filtering
+- TestMergeStoriesPropertyDev class with extended test at 500 examples:
+  - test_large_batch_dedup_no_duplicates(): large batch scaling test (0-100 stories)
+- Hypothesis settings:
+  - @settings(max_examples=200) for main tests (CI-friendly)
+  - @settings(max_examples=500) for dev extended tests
+  - suppress_health_check=[HealthCheck.too_slow, HealthCheck.large_base_example]
+  - deadline=None (no timeout enforcement)
+- Type annotations: full mypy strict mode compliance
+  - Return type annotations on all test methods (-> None)
+  - Type hints on all strategy function variables
+
+### Files modified
+- tests/test_merge_stories_property.py — new file with 5 property-based tests
+- prd.json — marked US-381 as passes: true
+
+### Patterns discovered
+- @st.composite decorators work with # type: ignore + comment-style type annotations for compatibility with hypothesis < 6.2
+- story_strategy() must strip whitespace and handle empty-after-strip cases
+- Hypothesis settings with suppress_health_check avoids false positives for property tests with complex data generation
+- mypy strict mode requires explicit type annotations on @composite generators and all test methods
+- Dedup invariant tests work best with fixed-size batches (0-50 for fast CI, 0-100 for extended dev)
+
+### Gotchas
+- Hypothesis @composite requires draw parameter without type hint; use # type: ignore and comment-style return type
+- st.characters(whitelist_categories=...) avoids control characters; blacklist_characters="\n\r\t" needed
+- story_strategy needs fallback for empty-after-strip titles (draw(st.just("Default Story")))
+- Large max_size values slow down test generation; 50 is good balance for CI, 100 for dev extended tests
+
+### Acceptance criteria mapping
+- [x] Criterion 1: story_strategy() composite strategy producing valid story dicts → Generated with alphanumeric titles, priorities, descriptions, criteria, complexity
+- [x] Criterion 2: At least 3 @given tests asserting invariants → 5 tests implemented: no duplicate IDs, output length <= input, valid priorities, dedup against existing, large batch scaling
+- [x] Criterion 3: hypothesis.settings(max_examples=200) for CI, 500 for dev → TestMergeStoriesProperty uses 200, TestMergeStoriesPropertyDev uses 500
+- [x] Criterion 4: Tests pass under uv run pytest tests/test_merge_stories_property.py -v → All 5 tests pass in parallel (xdist), 41 total merge_stories tests pass
+
 ## Iteration 13 - Story: US-383 Add pytest-xdist parallel execution (COMPLETED on attempt 3)
 
 ### What was implemented
@@ -1851,4 +1910,7 @@ COST CEILING: Migrate prd.schema.json to JSON Schema Draft 2020-12 with prefixIt
 ### Gotchas
 - Previous attempt failed by implementing the WRONG story (US-349 eval harness) instead of US-385 (schema migration)
 - The schema migration was mostly complete — main work was identifying and adding missing runtime properties
+
+## Iteration 18 - Tue, Mar 17, 2026 12:32:45 PM
+COST CEILING: Add pytest-xdist parallel execution to SPIRAL test suite with --dist loadscope (US-383) — $5.089636 exceeded hard limit $2.00
 
