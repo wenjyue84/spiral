@@ -14,3 +14,6 @@ claude-sonnet-4-6			69b7578f2a32	true	2586566	0	0	0	0	0
 2026-03-17T07:33:29Z	0	9	US-389	Add ConfigChange Claude Code hook to detect and alert on unauthorized SPIRAL settings modifications	reject	984	haiku	1			true	4018282	94181	0	0	0	0	0
 2026-03-17T07:37:24Z	0	10	US-389	Add ConfigChange Claude Code hook to detect and alert on unauthorized SPIRAL settings modifications	reject	233	sonnet	2			true	585115	34420	0	0	0	0	0
 2026-03-17T07:40:17Z	0	11	US-389	Add ConfigChange Claude Code hook to detect and alert on unauthorized SPIRAL settings modifications	reject	169	opus	3			true	298647	28682	0	0	0	0	0
+2026-03-17T09:29:25Z	0	15	US-403	Add cosine-similarity Phase R research cache lookup using sentence embeddings	reject	299	sonnet	1			true	535484	39465	0	0	0	0	0	
+2026-03-17T09:39:01Z	0	6	US-403	Add cosine-similarity Phase R research cache lookup using sentence embeddings	reject	1335	sonnet	2			true	5157986	86907	0	0	0	0	0	
+2026-03-17T09:46:51Z	0	7	US-403	Add cosine-similarity Phase R research cache lookup using sentence embeddings	reject	467	opus	3			true	1326245	64388	0	0	0	0	0	

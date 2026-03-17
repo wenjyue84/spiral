@@ -49,6 +49,13 @@ SPIRAL_PROGRAMMATIC_TOOLS="${SPIRAL_PROGRAMMATIC_TOOLS:-auto}"
 # This doubles token consumption but enables more sophisticated multi-step planning.
 SPIRAL_INTERLEAVED_THINKING="${SPIRAL_INTERLEAVED_THINKING:-false}"
 
+# Enable episodic memory injection into Ralph worker context. When true, queries
+# .spiral/episodic_memory.db for top-3 similar past implementations by story title
+# and injects them as few-shot examples in the user prompt. Requires episodic_memory.db
+# to exist (populated by US-433 after successful story commits).
+# Options: true (enable), false (disabled, default)
+SPIRAL_EPISODIC_MEMORY="${SPIRAL_EPISODIC_MEMORY:-false}"
+
 # ── Phase-specific model defaults ────────────────────────────────────────────
 # Each non-implementation phase can use a cheaper model (haiku is ~15x cheaper
 # than sonnet). Phase I continues to use SPIRAL_MODEL_ROUTING for escalation.

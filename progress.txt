@@ -2525,3 +2525,35 @@ COST CEILING: Add cosine-similarity Phase R research cache lookup using sentence
 ### Gotchas
 - Prior attempts completed the implementation but hit cost ceiling before marking passes=true
 - Key lesson: when implementation is already committed, just verify and mark — don't re-read/re-explore
+
+## Iteration (Current) - Story: US-434 Inject top-3 episodic memory records into Ralph user prompt (PASSES)
+
+### What was implemented
+- Modified ralph/ralph.sh line 2657: Added SPIRAL_EPISODIC_MEMORY=true env var gate to the if condition
+  - Changed: `if [[ -f "$_EPISODIC_SCRIPT" && -f "$_EPISODIC_DB" && -n "${STORY_TITLE:-}" ]]; then`
+  - To: `if [[ "${SPIRAL_EPISODIC_MEMORY:-false}" == "true" && -f "$_EPISODIC_SCRIPT" && -f "$_EPISODIC_DB" && -n "${STORY_TITLE:-}" ]]; then`
+- Added SPIRAL_EPISODIC_MEMORY config variable to spiral.config.sh with default value false
+- Added SPIRAL_EPISODIC_MEMORY documentation to templates/spiral.config.example.sh
+- Verified: episodic memory injection code was already present and functional (lines 2654-2673)
+
+### Files modified
+- ralph/ralph.sh — Line 2657: added env var gate to if condition
+- spiral.config.sh — Added SPIRAL_EPISODIC_MEMORY config with documentation
+- templates/spiral.config.example.sh — Added SPIRAL_EPISODIC_MEMORY example config
+
+### Patterns discovered
+- Episodic memory injection was stub-implemented in prior iterations, just missing the env var gate
+- Pattern: use `"${VAR:-default}"` for optional env vars with default fallback
+- episodic_memory.py `query` subcommand returns JSON array, need to check for both empty and "[]"
+
+### Acceptance criteria mapping
+- [x] Criterion 1: ralph.sh queries lib/episodic_memory.py query with STORY_TITLE → ✓ Line 2658 calls query subcommand
+- [x] Criterion 2: Results appended to RALPH_USER_PROMPT as markdown ## Episodic Memory section → ✓ Lines 2660-2669
+- [x] Criterion 3: Gated by SPIRAL_EPISODIC_MEMORY=true and -f check → ✓ Line 2657 gates on both conditions
+- [x] Criterion 4: Silently omitted when db is empty or missing → ✓ File checks and content checks
+
+### Test results
+- episodic_memory module tests: 8/8 passing
+- Full test suite: 1756 passing, 10 pre-existing failures (unrelated)
+- shellcheck: no new errors in modified code
+- All acceptance criteria verified

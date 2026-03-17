@@ -24,11 +24,10 @@ from statistics import median
 
 # Optional Textual imports (only if --tui is used)
 try:
-    import aiofiles
-    from textual.app import ComposeResult, on
+    from textual.app import ComposeResult
     from textual.containers import Container
     from textual.reactive import reactive
-    from textual.widgets import DataTable, Static
+    from textual.widgets import Static
 
     HAS_TEXTUAL = True
 except ImportError:

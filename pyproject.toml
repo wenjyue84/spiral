@@ -47,3 +47,8 @@ addopts = "-n auto --dist loadscope"
 paths_to_mutate = ["lib/"]
 tests_dir = ["tests/"]
 runner = "uv run pytest -x -q"
+
+[dependency-groups]
+dev = [
+    "vulture>=2.15",
+]

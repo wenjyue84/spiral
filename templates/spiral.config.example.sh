@@ -320,6 +320,14 @@
 # WARNING: Doubles token consumption. Only enable for complex, research-heavy stories.
 # SPIRAL_INTERLEAVED_THINKING=false
 
+# ── Episodic memory injection for Ralph workers (US-434) ────────────────────
+# Enable episodic memory injection into Ralph worker context. When true, queries
+# .spiral/episodic_memory.db for top-3 similar past implementations by story title
+# and injects them as few-shot examples in the user prompt.
+# Default: false
+# Requires: episodic_memory.db to exist (populated by successful story commits)
+# SPIRAL_EPISODIC_MEMORY=false
+
 # ── Model escalation retry thresholds (US-296) ──────────────────────────────
 # Controls when failed story retries escalate to a more capable model.
 # SPIRAL_ESCALATION_RETRY_SONNET: retry count at which haiku escalates to sonnet.

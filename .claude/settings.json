@@ -1,5 +1,11 @@
 {
   "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "compact",
+        "command": "cat ralph/CONTEXT_REFRESH.md"
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Edit|Write",

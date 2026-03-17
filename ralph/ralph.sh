@@ -2654,7 +2654,7 @@ $_PC_INJECT"
       # ── US-427: Episodic memory injection (top-3 similar past implementations) ──
       _EPISODIC_SCRIPT="$SPIRAL_HOME/lib/episodic_memory.py"
       _EPISODIC_DB="${SPIRAL_SCRATCH_DIR:-.spiral}/episodic_memory.db"
-      if [[ -f "$_EPISODIC_SCRIPT" && -f "$_EPISODIC_DB" && -n "${STORY_TITLE:-}" ]]; then
+      if [[ "${SPIRAL_EPISODIC_MEMORY:-false}" == "true" && -f "$_EPISODIC_SCRIPT" && -f "$_EPISODIC_DB" && -n "${STORY_TITLE:-}" ]]; then
         _EPISODIC_RAW=$("${SPIRAL_PYTHON:-python3}" "$_EPISODIC_SCRIPT" query "$_EPISODIC_DB" "$STORY_TITLE" --top-k 3 2>/dev/null || true)
         if [[ -n "$_EPISODIC_RAW" && "$_EPISODIC_RAW" != "[]" ]]; then
           _EPISODIC_BLOCK="## Episodic Memory — Top 3 Similar Past Implementations
