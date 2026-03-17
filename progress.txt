@@ -1914,3 +1914,27 @@ COST CEILING: Migrate prd.schema.json to JSON Schema Draft 2020-12 with prefixIt
 ## Iteration 18 - Tue, Mar 17, 2026 12:32:45 PM
 COST CEILING: Add pytest-xdist parallel execution to SPIRAL test suite with --dist loadscope (US-383) — $5.089636 exceeded hard limit $2.00
 
+
+## Iteration N - Story: US-369 Add @st.composite story strategy generators
+
+### What was implemented
+- Created `tests/strategies.py` with three @st.composite generators:
+  - `story_strategy(available_ids=None)` — generates a single story with US-NNN ID, valid _source, priority, estimatedComplexity, dependencies from available_ids pool
+  - `prd_strategy(min_size, max_size)` — generates a list of stories with sequential IDs (US-001...) for guaranteed uniqueness; forward-only deps for valid DAG
+  - `research_batch_strategy(min_size, max_size)` — generates research candidates without IDs; unique title guard via assume()
+- Refactored 3 tests in `tests/test_merge_stories.py` to use `@given(prd_strategy())`:
+  - `TestFindNextId::test_given_us001_to_us005_next_is_006` → property: find_next_id > all existing IDs
+  - `TestPostMergeSortOrder::test_full_sort_key_active_before_done` → property: active stories sort before done
+  - `TestPostMergeSortOrder::test_full_sort_key_dep_count_tiebreak` → property: fewer deps sorts before more deps (same priority)
+- Added `sys.path.insert(0, os.path.dirname(__file__))` to test_merge_stories.py to allow `from strategies import prd_strategy`
+
+### Patterns discovered
+- `assume()` is in `hypothesis`, NOT `hypothesis.strategies` — `st.assume()` throws AttributeError
+- prd_strategy uses sequential IDs (not random) for guaranteed uniqueness without retry loops
+- `st.assume()` inside @st.composite functions must use `from hypothesis import assume; assume(...)` not `st.assume(...)`
+- Adding `sys.path.insert(0, os.path.dirname(__file__))` in test files ensures local test directory imports work reliably
+
+### Gotchas
+- 7 pre-existing failures remain (test_consistency_check, test_infer_dependencies, test_route_stories) — unrelated to this story
+- Hypothesis settings on @given methods in test classes must be placed as decorator after @given, not before
+- research_batch_strategy unique-title guard may cause Unsatisfied/Flaky if titles collide frequently — kept max_size small (10)

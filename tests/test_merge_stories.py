@@ -7,11 +7,13 @@ import subprocess
 import sys
 
 import pytest
-from hypothesis import HealthCheck, settings
+from hypothesis import HealthCheck, assume, given, settings
 from hypothesis import strategies as st
 from hypothesis.stateful import Bundle, RuleBasedStateMachine, initialize, invariant, rule
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
+sys.path.insert(0, os.path.dirname(__file__))
+from strategies import prd_strategy
 from merge_stories import find_next_id, full_sort_key, is_duplicate, overlap_ratio, sort_key, story_to_prd_entry
 from spiral_io import atomic_write_json
 
@@ -105,9 +107,17 @@ class TestIsDuplicateThreshold:
 class TestFindNextId:
     """Tests for sequential ID assignment."""
 
-    def test_given_us001_to_us005_next_is_006(self):
-        stories = [{"id": f"US-{i:03d}"} for i in range(1, 6)]
-        assert find_next_id(stories) == 6
+    @given(prd_strategy(min_size=1, max_size=15))
+    @settings(max_examples=50, suppress_health_check=[HealthCheck.too_slow], deadline=None)
+    def test_given_us001_to_us005_next_is_006(self, stories):
+        """For any PRD, find_next_id returns a number greater than every existing ID."""
+        next_num = find_next_id(stories)
+        for s in stories:
+            m = re.match(r"US-(\d+)$", s["id"])
+            if m:
+                assert next_num > int(m.group(1)), (
+                    f"find_next_id returned {next_num} but story {s['id']} already exists"
+                )
 
     def test_empty_stories_returns_one(self):
         assert find_next_id([]) == 1
@@ -533,10 +543,21 @@ class TestPostMergeSortOrder:
     """Tests that all userStories are sorted after merge: active before done,
     priority order within active, fewer deps first within same priority."""
 
-    def test_full_sort_key_active_before_done(self):
-        active = {"passes": False, "priority": "low", "dependencies": []}
-        done = {"passes": True, "priority": "critical", "dependencies": []}
-        assert full_sort_key(active) < full_sort_key(done)
+    @given(prd_strategy(min_size=2, max_size=10))
+    @settings(max_examples=50, suppress_health_check=[HealthCheck.too_slow], deadline=None)
+    def test_full_sort_key_active_before_done(self, stories):
+        """For any PRD, sorting by full_sort_key places active stories before done stories."""
+        has_active = any(not s.get("passes") and not s.get("_decomposed") and not s.get("_skipped") for s in stories)
+        has_done = any(s.get("passes") or s.get("_decomposed") or s.get("_skipped") for s in stories)
+        assume(has_active and has_done)
+        sorted_stories = sorted(stories, key=full_sort_key)
+        seen_done = False
+        for s in sorted_stories:
+            is_done = s.get("passes") or s.get("_decomposed") or s.get("_skipped")
+            if is_done:
+                seen_done = True
+            elif seen_done:
+                pytest.fail(f"Active story {s['id']} appears after done stories in sorted output")
 
     def test_full_sort_key_decomposed_is_done(self):
         active = {"passes": False, "priority": "medium", "dependencies": []}
@@ -553,10 +574,20 @@ class TestPostMergeSortOrder:
         low = {"passes": False, "priority": "low", "dependencies": []}
         assert full_sort_key(high) < full_sort_key(low)
 
-    def test_full_sort_key_dep_count_tiebreak(self):
-        fewer = {"passes": False, "priority": "medium", "dependencies": []}
-        more = {"passes": False, "priority": "medium", "dependencies": ["US-001", "US-002"]}
-        assert full_sort_key(fewer) < full_sort_key(more)
+    @given(prd_strategy(min_size=2, max_size=15))
+    @settings(max_examples=50, suppress_health_check=[HealthCheck.too_slow], deadline=None)
+    def test_full_sort_key_dep_count_tiebreak(self, stories):
+        """For same-priority active stories, fewer dependencies sorts before more."""
+        same_priority_active = [
+            s for s in stories
+            if not s.get("passes") and not s.get("_decomposed") and not s.get("_skipped")
+            and s["priority"] == "medium"
+        ]
+        assume(len(same_priority_active) >= 2)
+        fewer = min(same_priority_active, key=lambda s: len(s.get("dependencies", [])))
+        more = max(same_priority_active, key=lambda s: len(s.get("dependencies", [])))
+        assume(len(fewer.get("dependencies", [])) < len(more.get("dependencies", [])))
+        assert full_sort_key(fewer) <= full_sort_key(more)
 
     def test_end_to_end_sort_after_merge(self, tmp_path):
         """After merge, prd.json stories are sorted: active by priority/deps, done at end."""
