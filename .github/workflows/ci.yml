@@ -19,7 +19,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  shellcheck:
+  lint-shell:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -33,54 +33,8 @@ jobs:
 
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
-      - name: Run ShellCheck
-        run: |
-          shellcheck --severity=error --format=gcc \
-            spiral.sh \
-            setup.sh \
-            spiral.config.sh \
-            lib/circuit_breaker.sh \
-            lib/memory-pressure-check.sh \
-            lib/run_parallel_ralph.sh \
-            lib/spiral_assert.sh \
-            lib/spiral_doctor.sh \
-            lib/validate_preflight.sh \
-            lib/worker_heartbeat.sh
-
-  shfmt-check:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
-    steps:
-      - name: Harden runner
-        # TODO: Change egress-policy to block after completing an audit period
-        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
-        with:
-          egress-policy: audit
-
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
-
-      - name: Install shfmt
-        run: go install mvdan.cc/sh/v3/cmd/shfmt@latest
-
-      - name: Check shell script formatting
-        run: |
-          export PATH="$PATH:$(go env GOPATH)/bin"
-          shfmt -d -i 2 -ci \
-            spiral.sh \
-            setup.sh \
-            spiral.config.sh \
-            ralph/ralph.sh \
-            lib/circuit_breaker.sh \
-            lib/memory-pressure-check.sh \
-            lib/memory-watchdog.sh \
-            lib/run_parallel_ralph.sh \
-            lib/spiral_assert.sh \
-            lib/spiral_doctor.sh \
-            lib/spiral_retry.sh \
-            lib/validate_preflight.sh \
-            lib/worker_heartbeat.sh
+      - name: Lint shell scripts
+        uses: ./.github/actions/lint-shell
 
   mypy:
     runs-on: ubuntu-latest
@@ -96,25 +50,8 @@ jobs:
 
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
-      - name: Set up uv
-        uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a  # v4
-        with:
-          enable-cache: false
-          python-version: "3.13"
-
-      - name: Get uv cache directory
-        id: uv-cache-dir
-        shell: bash
-        run: echo "path=$(uv cache dir)" >> "$GITHUB_OUTPUT"
-
-      - name: Cache uv dependencies
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
-        with:
-          path: ${{ steps.uv-cache-dir.outputs.path }}
-          key: ${{ runner.os }}-uv-${{ hashFiles('**/uv.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-uv-
-            ${{ runner.os }}-
+      - name: Set up uv with cache
+        uses: ./.github/actions/setup-uv
 
       - name: Validate lockfile is up-to-date
         # Developers must run 'uv lock' and commit uv.lock after changing pyproject.toml.
@@ -144,25 +81,8 @@ jobs:
 
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
-      - name: Set up uv
-        uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a  # v4
-        with:
-          enable-cache: false
-          python-version: "3.13"
-
-      - name: Get uv cache directory
-        id: uv-cache-dir
-        shell: bash
-        run: echo "path=$(uv cache dir)" >> "$GITHUB_OUTPUT"
-
-      - name: Cache uv dependencies
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
-        with:
-          path: ${{ steps.uv-cache-dir.outputs.path }}
-          key: ${{ runner.os }}-uv-${{ hashFiles('**/uv.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-uv-
-            ${{ runner.os }}-
+      - name: Set up uv with cache
+        uses: ./.github/actions/setup-uv
 
       - name: Validate lockfile is up-to-date
         # Developers must run 'uv lock' and commit uv.lock after changing pyproject.toml.
@@ -193,25 +113,8 @@ jobs:
 
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
-      - name: Set up uv
-        uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a  # v4
-        with:
-          enable-cache: false
-          python-version: "3.13"
-
-      - name: Get uv cache directory
-        id: uv-cache-dir
-        shell: bash
-        run: echo "path=$(uv cache dir)" >> "$GITHUB_OUTPUT"
-
-      - name: Cache uv dependencies
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
-        with:
-          path: ${{ steps.uv-cache-dir.outputs.path }}
-          key: ${{ runner.os }}-uv-${{ hashFiles('**/uv.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-uv-
-            ${{ runner.os }}-
+      - name: Set up uv with cache
+        uses: ./.github/actions/setup-uv
 
       - name: Restore Hypothesis database
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
@@ -278,25 +181,8 @@ jobs:
 
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
-      - name: Set up uv
-        uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a  # v4
-        with:
-          enable-cache: false
-          python-version: "3.13"
-
-      - name: Get uv cache directory
-        id: uv-cache-dir
-        shell: bash
-        run: echo "path=$(uv cache dir)" >> "$GITHUB_OUTPUT"
-
-      - name: Cache uv dependencies
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
-        with:
-          path: ${{ steps.uv-cache-dir.outputs.path }}
-          key: ${{ runner.os }}-uv-${{ hashFiles('**/uv.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-uv-
-            ${{ runner.os }}-
+      - name: Set up uv with cache
+        uses: ./.github/actions/setup-uv
 
       - name: Validate lockfile is up-to-date
         # Developers must run 'uv lock' and commit uv.lock after changing pyproject.toml.
@@ -413,24 +299,8 @@ jobs:
 
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
-      - name: Set up uv
-        uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a  # v4
-        with:
-          enable-cache: false
-
-      - name: Get uv cache directory
-        id: uv-cache-dir
-        shell: bash
-        run: echo "path=$(uv cache dir)" >> "$GITHUB_OUTPUT"
-
-      - name: Cache uv dependencies
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
-        with:
-          path: ${{ steps.uv-cache-dir.outputs.path }}
-          key: ${{ runner.os }}-uv-${{ hashFiles('**/uv.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-uv-
-            ${{ runner.os }}-
+      - name: Set up uv with cache
+        uses: ./.github/actions/setup-uv
 
       - name: Cache shellcheck-sarif cargo binary
         id: cache-shellcheck-sarif
@@ -507,25 +377,8 @@ jobs:
 
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
-      - name: Set up uv
-        uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a  # v4
-        with:
-          enable-cache: false
-          python-version: "3.13"
-
-      - name: Get uv cache directory
-        id: uv-cache-dir
-        shell: bash
-        run: echo "path=$(uv cache dir)" >> "$GITHUB_OUTPUT"
-
-      - name: Cache uv dependencies
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
-        with:
-          path: ${{ steps.uv-cache-dir.outputs.path }}
-          key: ${{ runner.os }}-uv-${{ hashFiles('**/uv.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-uv-
-            ${{ runner.os }}-
+      - name: Set up uv with cache
+        uses: ./.github/actions/setup-uv
 
       - name: Validate lockfile is up-to-date
         # Developers must run 'uv lock' and commit uv.lock after changing pyproject.toml.
@@ -732,25 +585,8 @@ jobs:
 
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
-      - name: Set up uv
-        uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a  # v4
-        with:
-          enable-cache: false
-          python-version: "3.13"
-
-      - name: Get uv cache directory
-        id: uv-cache-dir
-        shell: bash
-        run: echo "path=$(uv cache dir)" >> "$GITHUB_OUTPUT"
-
-      - name: Cache uv dependencies
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
-        with:
-          path: ${{ steps.uv-cache-dir.outputs.path }}
-          key: ${{ runner.os }}-uv-${{ hashFiles('**/uv.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-uv-
-            ${{ runner.os }}-
+      - name: Set up uv with cache
+        uses: ./.github/actions/setup-uv
 
       - name: Validate lockfile is up-to-date
         # Developers must run 'uv lock' and commit uv.lock after changing pyproject.toml.

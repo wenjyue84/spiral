@@ -1692,3 +1692,26 @@ COST CEILING: Derive cross-iteration story velocity model from results.tsv to im
 - Call restore_snapshot() on failure in commit_or_revert() function
 - Wire up rollback_failed event to mark story as requires_manual_review
 - Measure actual overhead against baseline in production runs
+## Iteration 8 - Tue, Mar 17, 2026 11:19:42 AM
+COST CEILING: Extract repeated spiral CI steps into composite actions in .github/actions/ (US-382) — $2.793298 exceeded hard limit $2.00
+
+
+## Iteration 9 - Story: US-382 Extract repeated spiral CI steps into composite actions
+
+### What was implemented
+- Created `.github/actions/setup-uv/action.yml` — composite action encapsulating uv install + manual cache restore (astral-sh/setup-uv + actions/cache SHA pins centralised here)
+- Created `.github/actions/lint-shell/action.yml` — composite action encapsulating shellcheck + shfmt install + shfmt formatting check
+- Updated `ci.yml`: replaced 14-line uv setup blocks in 7 jobs (mypy, ruff, test, mutation-test, sarif, dep-audit, sbom) with `uses: ./.github/actions/setup-uv`; merged `shellcheck` + `shfmt-check` jobs into single `lint-shell` job using `uses: ./.github/actions/lint-shell`
+- Updated `release.yml` sbom job and `spiral.yml` spiral job with composite action
+- Verified pinned-actions-check still passes (local path refs `./github/actions/...` have no `@` so are not scanned)
+
+### Patterns discovered
+- Composite action local refs use `./.github/actions/<name>` — no `@SHA` required (local file reference)
+- `pinned-actions-check` grep pattern only matches `uses:` lines containing `@` — local action refs are safe
+- The sarif job had `setup-uv` without `python-version`; using the composite action default ("3.13") is harmless
+- spiral.yml used `enable-cache: true` (built-in uv caching); switching to the composite action (enable-cache: false + manual cache) is functionally equivalent
+
+### Gotchas
+- Previous attempt hit $2.79 cost ceiling from excessive file exploration — on retry, read only what's needed to plan, then implement directly
+- Always use `uv run python` with `encoding='utf-8'` when reading/writing JSON on Windows (cp1252 default codec fails on non-ASCII)
+- The `actionlint` job scans `.github/workflows/*.yml` — composite action files are not scanned by it

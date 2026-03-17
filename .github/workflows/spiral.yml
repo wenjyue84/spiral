@@ -43,11 +43,8 @@ jobs:
 
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
-      - name: Set up uv
-        uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a  # v4
-        with:
-          enable-cache: true
-          python-version: "3.13"
+      - name: Set up uv with cache
+        uses: ./.github/actions/setup-uv
 
       - name: Install dependencies
         run: uv sync
