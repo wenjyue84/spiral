@@ -515,6 +515,24 @@ for i in $(seq 1 "$RALPH_WORKERS"); do
   cp "$WORKER_DIR/worker_${i}.json" "$WTREE/prd.json"
   "$JQ" --arg b "$BRANCH" '.branchName = $b' "$WTREE/prd.json" >"$WTREE/prd.json.tmp" && mv "$WTREE/prd.json.tmp" "$WTREE/prd.json"
 
+  # US-376: Apply sparse-checkout cone mode to reduce index overhead per worker
+  # Extract unique directories from all stories' filesTouch in the worker's prd.json
+  _SPARSE_DIRS=$("$JQ" -r '[.userStories[].filesTouch[]? // empty] | unique | join("\n")' "$WTREE/prd.json" 2>/dev/null || true)
+  if [[ -n "$_SPARSE_DIRS" ]]; then
+    echo "  [parallel] Worker $i: Configuring sparse-checkout cone mode"
+    if git -C "$WTREE" sparse-checkout init --cone 2>/dev/null; then
+      # Convert directory list to sparse-checkout format: each dir on its own line
+      printf '%s\n' "$_SPARSE_DIRS" | git -C "$WTREE" sparse-checkout set --stdin 2>/dev/null || {
+        echo "  [parallel] Worker $i: WARNING — sparse-checkout set failed, falling back to full checkout"
+        git -C "$WTREE" sparse-checkout disable 2>/dev/null || true
+      }
+    else
+      echo "  [parallel] Worker $i: WARNING — sparse-checkout init failed, using full checkout"
+    fi
+  else
+    echo "  [parallel] Worker $i: No filesTouch defined for any story, using full checkout"
+  fi
+
   # Fresh per-worker state files (avoid cross-worker contamination)
   echo "{}" >"$WTREE/retry-counts.json"
   echo "## Worker $i progress" >"$WTREE/progress.txt"
