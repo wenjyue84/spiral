@@ -392,6 +392,21 @@ if [[ "${SPIRAL_SKIP_DISK_CHECK:-0}" != "1" ]]; then
   fi
 fi
 
+# ── Step 1.9: Shared git fetch (US-351) ──────────────────────────────────────
+# All worktrees share .git/objects, so one fetch populates objects for all.
+# This replaces O(N) per-worker fetches with a single O(1) network transfer.
+if [[ "${SPIRAL_SKIP_SHARED_FETCH:-0}" != "1" ]]; then
+  echo "  [parallel] Shared git fetch before worker launch..."
+  _SHARED_FETCH_START=$(date +%s)
+  git -C "$REPO_ROOT" fetch --all --prune 2>/dev/null || true
+  _SHARED_FETCH_END=$(date +%s)
+  _SHARED_FETCH_ELAPSED_MS=$(((_SHARED_FETCH_END - _SHARED_FETCH_START) * 1000))
+  echo "  [parallel] Shared fetch complete (${_SHARED_FETCH_ELAPSED_MS}ms, synced for $RALPH_WORKERS workers)"
+  printf '{"ts":"%s","event":"shared_fetch_complete","run_id":"%s","worker_count":%d,"elapsed_ms":%d}\n' \
+    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${SPIRAL_RUN_ID:-}" "$RALPH_WORKERS" "$_SHARED_FETCH_ELAPSED_MS" \
+    >>"$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || true
+fi
+
 # ── Step 2: Create git worktrees + docker lock wrapper per worker ─────────────
 declare -a WORKER_DIRS=()
 declare -a WORKER_BRANCHES=()

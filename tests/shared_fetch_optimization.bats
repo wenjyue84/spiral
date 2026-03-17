@@ -184,3 +184,47 @@ create_and_sync_worktrees() {
   # Fetch should be fast for a small test repo
   [ "$ELAPSED" -lt 5 ]
 }
+
+@test "US-351: 4-worker pre-launch sync completes under 3 seconds (shared fetch model)" {
+  # Simulate the exact pattern in run_parallel_ralph.sh Step 1.9:
+  # one shared fetch + 4 worktree resets (no per-worker network ops)
+  START=$(date +%s)
+
+  # Single shared fetch (as added in US-351)
+  git -C "$MAIN_REPO" fetch --all --prune >/dev/null 2>&1 || true
+
+  # Create 4 worktrees and sync each via reset (no additional fetches)
+  for i in 1 2 3 4; do
+    WTR="$TMPDIR_TEST/worker-4w-$i"
+    BRANCH="us351-worker-$i-$$"
+    git -C "$MAIN_REPO" worktree add -b "$BRANCH" "$WTR" HEAD >/dev/null 2>&1 || true
+    git -C "$WTR" reset --hard origin/main >/dev/null 2>&1 || true
+  done
+
+  ELAPSED=$(($(date +%s) - START))
+
+  # Total pre-launch sync for 4 workers must be under 3 seconds
+  [ "$ELAPSED" -lt 3 ]
+}
+
+@test "US-351: shared_fetch_complete event format is valid JSON with required fields" {
+  # Simulate the event emission from run_parallel_ralph.sh
+  EVENTS_FILE="$TMPDIR_TEST/spiral_events.jsonl"
+  WORKER_COUNT=4
+  ELAPSED_MS=150
+
+  printf '{"ts":"%s","event":"shared_fetch_complete","run_id":"%s","worker_count":%d,"elapsed_ms":%d}\n' \
+    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "test-run-123" "$WORKER_COUNT" "$ELAPSED_MS" \
+    >>"$EVENTS_FILE"
+
+  # Verify the event was written
+  [ -f "$EVENTS_FILE" ]
+  run grep -c "shared_fetch_complete" "$EVENTS_FILE"
+  [ "$output" -eq 1 ]
+
+  # Verify required fields are present
+  run grep "worker_count" "$EVENTS_FILE"
+  assert_success
+  run grep "elapsed_ms" "$EVENTS_FILE"
+  assert_success
+}

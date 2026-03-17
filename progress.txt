@@ -1464,3 +1464,24 @@ Completed: Add pre-flight Claude API token count check before story prompt submi
 - 1/12 skipped: test_tui_imports_optional (when Textual is installed)
 - All tests use fixture PRDs with 2 stories, verify rendering includes IDs/titles, verify navigation boundaries
 
+## Iteration 2 - Tue, Mar 17, 2026  9:38:32 AM
+COST CEILING: Use single shared git fetch before parallel worker launch to cut pre-launch sync time 90% (US-351) — $2.006187 exceeded hard limit $2.00
+
+
+## Iteration 2 - Story: US-351 Use single shared git fetch before parallel worker launch
+
+### What was implemented
+- Added Step 1.9 in lib/run_parallel_ralph.sh: single `git fetch --all --prune` before worktree creation loop
+- Emits `shared_fetch_complete` JSONL event with worker_count and elapsed_ms
+- Controlled by `SPIRAL_SKIP_SHARED_FETCH=1` env var for opt-out
+- Per-worker `git diff-index --quiet HEAD` check was already present (US-247, line 407)
+- Added 2 new bats tests to tests/shared_fetch_optimization.bats (7 total, all pass)
+
+### Patterns discovered
+- The per-worker diff-index check (US-247) was already in place — criterion 2 was pre-satisfied
+- `date +%s` (seconds) is the timing primitive used across the file; multiply by 1000 for ms events
+- Step 1.9 sits between disk-space check and Step 2 (worktree creation)
+
+### Gotchas
+- Previous attempt (attempt 1) failed due to cost ceiling ($2.006187 > $2.00) — likely from excessive file exploration
+- Keep implementation minimal: existing test file already had 5 tests; only added 2 targeted ones
