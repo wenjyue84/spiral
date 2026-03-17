@@ -2731,3 +2731,6 @@ COST CEILING: Add vulture dead code detector for lib/ Python modules in CI (US-4
 - semantic_chunker.py has literal newline in a string (line 33) — vulture can't parse it; use --exclude
 - semantic_chunker.py is already excluded by ruff (in pyproject.toml [tool.ruff] exclude)
 - vulture_whitelist.py attribute-chain notation doesn't work for simple function params — used assignment-style instead for py_count
+## Iteration 11 - Tue, Mar 17, 2026  6:40:35 PM
+COST CEILING: Add vulture dead code detector for lib/ Python modules in CI (US-419) — $2.885785 exceeded hard limit $2.00
+

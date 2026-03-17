@@ -23,3 +23,5 @@ claude-sonnet-4-6			69b7578f2a32	true	2586566	0	0	0	0	0
 2026-03-17T10:14:33Z	0	9	US-418	Add Python version matrix CI job to verify 3.11/3.12/3.13 compatibility	reject	451	sonnet	3			true	814636	52709	0	0	0	0	0	
 2026-03-17T10:17:31Z	0	19	US-418	Add Python version matrix CI job to verify 3.11/3.12/3.13 compatibility	reject	241	opus	4			true	370537	29415	0	0	0	0	0	
 2026-03-17T10:18:56Z	0	3	US-418	Add Python version matrix CI job to verify 3.11/3.12/3.13 compatibility	reject	975	haiku	5			true	6844590	120818	0	0	0	0	0	
+2026-03-17T10:35:29Z	0	10	US-419	Add vulture dead code detector for lib/ Python modules in CI	reject	1253	haiku	1			true	5239892	115992	0	0	0	0	0	
+2026-03-17T10:40:35Z	0	11	US-419	Add vulture dead code detector for lib/ Python modules in CI	reject	303	sonnet	2			true	974376	41269	0	0	0	0	0	

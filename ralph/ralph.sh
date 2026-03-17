@@ -2908,6 +2908,14 @@ ${_FT_CONTEXT_BODY}"
           apply_local_fallback_policy "local-only policy: bypassing cloud" "$_RL_TMP" && _OLLAMA_USED=1 || true
           break
         fi
+        # ── US-397: Emit OTel gen_ai.content.prompt Event before API call ────────────
+        if [[ "${SPIRAL_OTEL_ENABLED:-false}" == "true" ]]; then
+          "$SPIRAL_PYTHON" lib/otel_content_events.py emit-prompt \
+            --system-prompt "$RALPH_SYSTEM_PROMPT" \
+            --user-prompt "$RALPH_USER_PROMPT" \
+            --model "${EFFECTIVE_MODEL:-unknown}" \
+            --scratch-dir "$SPIRAL_SCRATCH_DIR" 2>/dev/null || true
+        fi
         (
           unset CLAUDECODE
           "${_GNU_TIME_CMD[@]+"${_GNU_TIME_CMD[@]}"}" claude -p "$RALPH_USER_PROMPT" \
@@ -3099,6 +3107,42 @@ ${_FT_CONTEXT_BODY}"
         --duration-ms "$_DURATION_MS" \
         --model "$_OTEL_MODEL" \
         --scratch-dir "$SPIRAL_SCRATCH_DIR" 2>/dev/null || true
+    fi
+
+    # ── US-397: Emit OTel gen_ai.content.completion Event after API call ────────────
+    # Extract completion text from stream and emit it
+    if [[ "$EFFECTIVE_TOOL" == "claude" && -f "$_RL_TMP" && "${SPIRAL_OTEL_ENABLED:-false}" == "true" ]]; then
+      _COMPLETION_TEXT=$(
+        python3 - "$_RL_TMP" <<'COMPLETION_EXTRACTOR_EOF'
+import sys, json
+parts = []
+try:
+    with open(sys.argv[1], encoding='utf-8', errors='replace') as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                obj = json.loads(line)
+                if obj.get('type') == 'assistant':
+                    msg = obj.get('message', obj)
+                    for block in msg.get('content', []):
+                        if block.get('type') == 'text':
+                            parts.append(block.get('text', ''))
+            except Exception:
+                pass
+except Exception:
+    pass
+print('\n'.join(parts))
+COMPLETION_EXTRACTOR_EOF
+        2>/dev/null || true
+      )
+      if [[ -n "$_COMPLETION_TEXT" ]]; then
+        "$SPIRAL_PYTHON" lib/otel_content_events.py emit-completion \
+          --completion "$_COMPLETION_TEXT" \
+          --model "${EFFECTIVE_MODEL:-unknown}" \
+          --scratch-dir "$SPIRAL_SCRATCH_DIR" 2>/dev/null || true
+      fi
     fi
 
     # ── Extract Phase I diagnosis block (US-244) ─────────────────────────────
