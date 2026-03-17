@@ -3,6 +3,15 @@
 #
 # Applied after each ralph worker invocation to either land or discard changes.
 #
+# TRANSACTIONAL SNAPSHOTS (US-343):
+#   Before Ralph executes:
+#     1. Create a git stash of all staged/unstaged changes
+#     2. Record a manifest of non-git-tracked files in the project root and /tmp
+#   After Ralph completes:
+#     - On SUCCESS: Commit changes (stash is preserved but not applied)
+#     - On FAILURE: Restore the stash + delete newly-created non-git files
+#     - Log rollback outcome (success_rate, timing) to spiral_events.jsonl
+#
 # On SUCCESS (story marked passes: true by ralph):
 #   1. Merge worker's git worktree branch into main (or current) branch
 #   2. Verify merge produced no conflicts (abort + revert if it does)
@@ -10,10 +19,11 @@
 #   4. Commit with standardised message: "feat: {story_id} - {title}"
 #
 # On FAILURE (story still passes: false after ralph exits):
-#   1. Discard all uncommitted changes in the worktree (git checkout .)
-#   2. Drop the worktree branch — do NOT merge into main
-#   3. Log failure reason to progress.txt
-#   4. Hand control back to retry.sh for counter increment
+#   1. Restore transactional snapshot (apply stash + delete new non-git files)
+#   2. Discard all uncommitted changes in the worktree (git checkout .)
+#   3. Drop the worktree branch — do NOT merge into main
+#   4. Log failure reason to progress.txt
+#   5. Hand control back to retry.sh for counter increment
 #
 # Parallel workers use git worktrees, so revert = drop the worktree branch.
 # Sequential (single worker) mode: revert = git reset --hard HEAD.
@@ -22,6 +32,7 @@
 #   story_id        — story just attempted
 #   worker_branch   — git branch created by the worker (parallel mode)
 #   passes          — "true" or "false" (from prd.json after ralph exits)
+#   SNAPSHOT_*      — env vars set by create_snapshot() before ralph runs
 #
 # Outputs:
 #   Merged commit on main (success) OR clean state with no new commits (failure)
@@ -29,6 +40,115 @@
 # Used by: phase_i_implement.sh after each worker completes
 
 [[ "${BASH_SOURCE[0]}" == "${0}" ]] && echo "Source this file, do not execute it directly." && exit 1
+
+# ── SNAPSHOT & RESTORE (US-343) ──────────────────────────────────────────────
+
+# create_snapshot <snapshot_dir> <repo_root>
+# Records git stash and non-git file manifest before Ralph execution.
+# Returns: 0 on success, non-zero on error
+# Exports: SNAPSHOT_STASH_SHA (git stash ref), SNAPSHOT_MANIFEST (file path)
+create_snapshot() {
+  local snapshot_dir="$1"
+  local repo_root="$2"
+  mkdir -p "$snapshot_dir" 2>/dev/null || return 1
+
+  # Step 1: Create git stash of uncommitted changes
+  local stash_output
+  stash_output=$(cd "$repo_root" && git stash create 2>&1)
+  SNAPSHOT_STASH_SHA="$stash_output"
+  if [[ -z "$SNAPSHOT_STASH_SHA" ]]; then
+    # No changes to stash; use a sentinel value
+    SNAPSHOT_STASH_SHA="NONE"
+  fi
+  export SNAPSHOT_STASH_SHA
+
+  # Step 2: Record manifest of non-git-tracked files
+  SNAPSHOT_MANIFEST="$snapshot_dir/manifest-$$.txt"
+  {
+    # Files in project root (excluding .git and common ignore patterns)
+    cd "$repo_root" && git ls-files --others --exclude-standard 2>/dev/null | sort || true
+    # Files in /tmp matching SPIRAL patterns
+    if [[ -d /tmp ]]; then
+      find /tmp -name "*spiral*" -o -name "*ralph*" -o -name "*worker*" 2>/dev/null | sort || true
+    fi
+  } > "$SNAPSHOT_MANIFEST"
+  export SNAPSHOT_MANIFEST
+
+  return 0
+}
+
+# restore_snapshot <snapshot_dir> <repo_root>
+# Restores git stash and deletes non-git files created after snapshot.
+# Returns: 0 on full success, 1 if stash restore failed, 2 if file cleanup failed
+restore_snapshot() {
+  local snapshot_dir="$1"
+  local repo_root="$2"
+  local _restore_status=0
+
+  # Step 1: Restore git stash (if one was created)
+  # Note: We use --index to restore both staged and unstaged changes, but fall back to plain apply on failure
+  if [[ -n "$SNAPSHOT_STASH_SHA" && "$SNAPSHOT_STASH_SHA" != "NONE" ]]; then
+    cd "$repo_root" || return 1
+    if ! git stash apply --index "$SNAPSHOT_STASH_SHA" 2>&1; then
+      # Fallback: try without --index flag (on older git or Windows)
+      if ! git stash apply "$SNAPSHOT_STASH_SHA" 2>&1; then
+        _restore_status=1
+        echo "[ERROR] Failed to restore git stash $SNAPSHOT_STASH_SHA" >&2
+      fi
+    fi
+  fi
+
+  # Step 2: Delete non-git files that were created after snapshot
+  if [[ -f "$SNAPSHOT_MANIFEST" ]]; then
+    local _old_files
+    _old_files=$(cat "$SNAPSHOT_MANIFEST" | sort)
+
+    # Get current non-git files
+    local _current_files
+    _current_files=$(cd "$repo_root" && {
+      git ls-files --others --exclude-standard 2>/dev/null | sort || true
+    })
+
+    # Files to delete = current - old (new files)
+    local _to_delete
+    _to_delete=$(comm -13 <(echo "$_old_files") <(echo "$_current_files") 2>/dev/null)
+
+    if [[ -n "$_to_delete" ]]; then
+      while IFS= read -r _file; do
+        if [[ -n "$_file" ]]; then
+          rm -rf "$repo_root/$_file" 2>/dev/null || {
+            _restore_status=2
+            echo "[WARNING] Failed to delete $repo_root/$_file" >&2
+          }
+        fi
+      done <<< "$_to_delete"
+    fi
+
+    rm -f "$SNAPSHOT_MANIFEST" 2>/dev/null || true
+  fi
+
+  return $_restore_status
+}
+
+# log_rollback_event <story_id> <status> <elapsed_ms> [details]
+# Logs a rollback event to spiral_events.jsonl
+log_rollback_event() {
+  local story_id="$1"
+  local status="$2"  # 'success', 'stash_restore_failed', 'file_cleanup_failed'
+  local elapsed_ms="$3"
+  local details="${4:-}"
+
+  local _ts
+  _ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+  # shellcheck disable=SC2059
+  printf '{"ts":"%s","event":"rollback_%s","story_id":"%s","run_id":"%s","elapsed_ms":%d%s}\n' \
+    "$_ts" "$status" "$story_id" "${SPIRAL_RUN_ID:-}" "$elapsed_ms" \
+    "${details:+,\"details\":\"$details\"}" \
+    >>"${SPIRAL_SCRATCH_DIR:-./}/spiral_events.jsonl" 2>/dev/null || true
+}
+
+# ── COMMIT OR REVERT ─────────────────────────────────────────────────────────
 
 # commit_or_revert <story_id> <worker_branch> <passes>
 commit_or_revert() {
