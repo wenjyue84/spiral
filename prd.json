@@ -35,7 +35,10 @@
       "passes": true,
       "_source": "seed",
       "model": "haiku",
-      "_passedCommit": "1736b74fe87c452b0bdb7bf602d545ceffacfb06"
+      "_passedCommit": "1736b74fe87c452b0bdb7bf602d545ceffacfb06",
+      "tags": [
+        "module-lib"
+      ]
     },
     {
       "id": "US-446",
@@ -61,7 +64,10 @@
       "dependencies": [],
       "passes": false,
       "_source": "seed",
-      "model": "haiku"
+      "model": "haiku",
+      "tags": [
+        "module-lib"
+      ]
     },
     {
       "id": "US-447",
@@ -90,7 +96,8 @@
       "dependencies": [],
       "passes": false,
       "_source": "seed",
-      "model": "haiku"
+      "model": "haiku",
+      "tags": []
     },
     {
       "id": "US-448",
@@ -120,7 +127,8 @@
       "dependencies": [],
       "passes": false,
       "_source": "seed",
-      "model": "haiku"
+      "model": "haiku",
+      "tags": []
     },
     {
       "id": "US-449",
@@ -149,7 +157,10 @@
       "dependencies": [],
       "passes": false,
       "_source": "seed",
-      "model": "haiku"
+      "model": "haiku",
+      "tags": [
+        "module-ralph"
+      ]
     },
     {
       "id": "US-450",
@@ -175,7 +186,10 @@
       "dependencies": [],
       "passes": false,
       "_source": "seed",
-      "model": "haiku"
+      "model": "haiku",
+      "tags": [
+        "module-tests"
+      ]
     },
     {
       "id": "US-451",
@@ -190,7 +204,23 @@
       "estimatedComplexity": "medium",
       "passes": false,
       "_source": "ai-example",
-      "model": "haiku"
+      "model": "haiku",
+      "filesTouch": [
+        ".claude/hooks/protect-spiral-files.sh",
+        ".claude/settings.json",
+        ".claude/worktrees/exciting-bell",
+        ".coverage",
+        ".github/actions/lint-shell/action.yml",
+        ".github/actions/setup-uv/action.yml",
+        ".github/workflows/ci.yml",
+        ".github/workflows/release.yml",
+        ".github/workflows/spiral.yml",
+        ".gitignore"
+      ],
+      "tags": [
+        "module-claude",
+        "module-github"
+      ]
     },
     {
       "id": "US-452",
@@ -205,7 +235,24 @@
       "estimatedComplexity": "medium",
       "passes": false,
       "_source": "ai-example",
-      "model": "haiku"
+      "model": "haiku",
+      "filesTouch": [
+        ".claude/worktrees/exciting-bell",
+        ".github/workflows/spiral.yml",
+        ".hypothesis/constants/4b347f702e221fb5",
+        ".hypothesis/constants/503de5831ce705a4",
+        ".hypothesis/constants/7ede122ec306750c",
+        ".hypothesis/constants/8f591210653abb8d",
+        ".hypothesis/constants/d1656c97d673c23d",
+        ".hypothesis/constants/df1f882f4a0e6882",
+        ".hypothesis/tmp/tmp0d_6qa3f",
+        ".hypothesis/tmp/tmp0e2cnr_5"
+      ],
+      "tags": [
+        "module-claude",
+        "module-github",
+        "module-hypothesis"
+      ]
     },
     {
       "id": "US-218",
@@ -223,6 +270,7 @@
       ],
       "dependencies": [],
       "tags": [
+        "module-lib",
         "module-lib"
       ]
     },
@@ -241,6 +289,7 @@
       ],
       "dependencies": [],
       "tags": [
+        "module-lib",
         "module-lib"
       ]
     },
@@ -259,6 +308,7 @@
       ],
       "dependencies": [],
       "tags": [
+        "module-lib",
         "module-lib"
       ]
     },
@@ -309,6 +359,7 @@
       ],
       "dependencies": [],
       "tags": [
+        "module-lib",
         "module-lib"
       ]
     },
@@ -327,6 +378,7 @@
       ],
       "dependencies": [],
       "tags": [
+        "module-lib",
         "module-lib"
       ]
     },
@@ -346,6 +398,7 @@
       ],
       "dependencies": [],
       "tags": [
+        "module-lib",
         "module-lib"
       ]
     },
@@ -364,6 +417,7 @@
       ],
       "dependencies": [],
       "tags": [
+        "module-lib",
         "module-lib"
       ]
     },
@@ -382,6 +436,7 @@
       ],
       "dependencies": [],
       "tags": [
+        "module-lib",
         "module-lib"
       ]
     },
@@ -400,6 +455,7 @@
       ],
       "dependencies": [],
       "tags": [
+        "module-lib",
         "module-lib"
       ]
     },
@@ -2163,6 +2219,7 @@
       "estimatedComplexity": "medium",
       "model": "sonnet",
       "tags": [
+        "module-spiral-ui",
         "module-spiral-ui"
       ]
     },
@@ -2232,6 +2289,7 @@
       "estimatedComplexity": "medium",
       "model": "haiku",
       "tags": [
+        "module-spiral-ui",
         "module-spiral-ui"
       ]
     },
@@ -2258,6 +2316,7 @@
       "estimatedComplexity": "medium",
       "model": "haiku",
       "tags": [
+        "module-spiral-ui",
         "module-spiral-ui"
       ]
     },
@@ -2347,7 +2406,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "large",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-354",
@@ -2370,7 +2430,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-355",
@@ -2391,7 +2452,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-356",
@@ -2413,7 +2475,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-357",
@@ -2434,7 +2497,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-358",
@@ -2455,7 +2519,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-359",
@@ -2483,6 +2548,11 @@
         "spiral.config.sh",
         "templates/spiral.config.example.sh",
         "tests/worker_env_restrict.bats"
+      ],
+      "tags": [
+        "module-lib",
+        "module-templates",
+        "module-tests"
       ]
     },
     {
@@ -2504,7 +2574,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-373",
@@ -2523,7 +2594,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-374",
@@ -2542,7 +2614,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-390",
@@ -2570,7 +2643,8 @@
         "US-404",
         "US-405",
         "US-406"
-      ]
+      ],
+      "tags": []
     },
     {
       "id": "US-391",
@@ -2590,7 +2664,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-404",
@@ -2613,7 +2688,8 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "_decomposedFrom": "US-390"
+      "_decomposedFrom": "US-390",
+      "tags": []
     },
     {
       "id": "US-407",
@@ -2636,7 +2712,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-408",
@@ -2658,7 +2735,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-441",
@@ -2677,7 +2755,8 @@
       ],
       "dependencies": [],
       "passes": true,
-      "_source": "seed"
+      "_source": "seed",
+      "tags": []
     },
     {
       "id": "US-442",
@@ -2697,7 +2776,8 @@
       ],
       "dependencies": [],
       "passes": true,
-      "_source": "seed"
+      "_source": "seed",
+      "tags": []
     },
     {
       "id": "US-444",
@@ -2718,7 +2798,8 @@
       ],
       "dependencies": [],
       "passes": true,
-      "_source": "seed"
+      "_source": "seed",
+      "tags": []
     },
     {
       "id": "US-002",
@@ -2820,6 +2901,7 @@
       "estimatedComplexity": "medium",
       "model": "haiku",
       "tags": [
+        "module-spiral-ui",
         "module-spiral-ui"
       ]
     },
@@ -2861,6 +2943,9 @@
         ".hypothesis/tmp/tmp57eso8et"
       ],
       "tags": [
+        "module-claude",
+        "module-github",
+        "module-hypothesis",
         "module-claude",
         "module-github",
         "module-hypothesis"
@@ -2907,6 +2992,9 @@
       "tags": [
         "module-claude",
         "module-github",
+        "module-hypothesis",
+        "module-claude",
+        "module-github",
         "module-hypothesis"
       ],
       "status": "skipped"
@@ -2951,6 +3039,9 @@
       "tags": [
         "module-claude",
         "module-github",
+        "module-hypothesis",
+        "module-claude",
+        "module-github",
         "module-hypothesis"
       ]
     },
@@ -2975,7 +3066,8 @@
       ],
       "estimatedComplexity": "small",
       "passes": true,
-      "_decomposedFrom": "US-390"
+      "_decomposedFrom": "US-390",
+      "tags": []
     },
     {
       "id": "US-406",
@@ -2998,7 +3090,8 @@
       ],
       "estimatedComplexity": "small",
       "passes": true,
-      "_decomposedFrom": "US-390"
+      "_decomposedFrom": "US-390",
+      "tags": []
     },
     {
       "id": "US-318",
@@ -3033,7 +3126,9 @@
       "tags": [
         "module-claude",
         "module-github",
-        "module-hypothesis"
+        "module-hypothesis",
+        "module-lib",
+        "module-tests"
       ]
     },
     {
@@ -3075,6 +3170,8 @@
       ],
       "tags": [
         "module-claude",
+        "module-hypothesis",
+        "module-claude",
         "module-hypothesis"
       ],
       "status": "skipped"
@@ -3112,7 +3209,9 @@
       ],
       "tags": [
         "module-claude",
-        "module-hypothesis"
+        "module-hypothesis",
+        "module-spiral",
+        "module-tests"
       ],
       "status": "skipped",
       "completedAt": null
@@ -3156,6 +3255,9 @@
         ".hypothesis/tmp/tmp34aze7rh"
       ],
       "tags": [
+        "module-claude",
+        "module-github",
+        "module-hypothesis",
         "module-claude",
         "module-github",
         "module-hypothesis"
@@ -3203,6 +3305,8 @@
       ],
       "tags": [
         "module-claude",
+        "module-hypothesis",
+        "module-claude",
         "module-hypothesis"
       ]
     },
@@ -3246,6 +3350,8 @@
         ".hypothesis/tmp/tmp57eso8et"
       ],
       "tags": [
+        "module-claude",
+        "module-hypothesis",
         "module-claude",
         "module-hypothesis"
       ],
@@ -5797,6 +5903,9 @@
       "tags": [
         "module-claude",
         "module-github",
+        "module-hypothesis",
+        "module-claude",
+        "module-github",
         "module-hypothesis"
       ]
     },
@@ -5836,6 +5945,9 @@
       "tags": [
         "module-claude",
         "module-github",
+        "module-hypothesis",
+        "module-claude",
+        "module-github",
         "module-hypothesis"
       ]
     },
@@ -5869,7 +5981,10 @@
       ],
       "tags": [
         "module-research",
-        "module-summarization"
+        "module-summarization",
+        "module-lib",
+        "module-templates",
+        "module-tests"
       ]
     },
     {
@@ -5908,6 +6023,9 @@
         ".hypothesis/tmp/tmp13ka9jes"
       ],
       "tags": [
+        "module-claude",
+        "module-github",
+        "module-hypothesis",
         "module-claude",
         "module-github",
         "module-hypothesis"
@@ -5949,6 +6067,9 @@
         ".hypothesis/tmp/tmpzkl8osty"
       ],
       "tags": [
+        "module-claude",
+        "module-github",
+        "module-hypothesis",
         "module-claude",
         "module-github",
         "module-hypothesis"
@@ -6085,7 +6206,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-340",
@@ -6105,7 +6227,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-341",
@@ -6125,7 +6248,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-342",
@@ -6145,7 +6269,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-343",
@@ -6165,7 +6290,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-344",
@@ -6185,7 +6311,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-345",
@@ -6205,7 +6332,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-346",
@@ -6225,7 +6353,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-347",
@@ -6245,7 +6374,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-348",
@@ -6265,7 +6395,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-349",
@@ -6285,7 +6416,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "large",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-361",
@@ -6307,7 +6439,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-362",
@@ -6329,7 +6462,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-363",
@@ -6351,7 +6485,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-364",
@@ -6373,7 +6508,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-365",
@@ -6395,7 +6531,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-366",
@@ -6417,7 +6554,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-367",
@@ -6439,7 +6577,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-368",
@@ -6461,7 +6600,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-369",
@@ -6483,7 +6623,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-370",
@@ -6505,7 +6646,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-371",
@@ -6527,7 +6669,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-372",
@@ -6548,7 +6691,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-375",
@@ -6567,7 +6711,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-376",
@@ -6586,7 +6731,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-377",
@@ -6605,7 +6751,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-378",
@@ -6624,7 +6771,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-379",
@@ -6643,7 +6791,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-380",
@@ -6662,7 +6811,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "large",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-381",
@@ -6681,7 +6831,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-392",
@@ -6702,7 +6853,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-393",
@@ -6724,7 +6876,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-394",
@@ -6746,7 +6899,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-395",
@@ -6766,7 +6920,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-396",
@@ -6788,7 +6943,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-397",
@@ -6810,7 +6966,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-398",
@@ -6832,7 +6989,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-399",
@@ -6854,7 +7012,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-400",
@@ -6875,7 +7034,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-401",
@@ -6897,7 +7057,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-409",
@@ -6919,7 +7080,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-410",
@@ -6941,7 +7103,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-411",
@@ -6963,7 +7126,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-412",
@@ -6985,7 +7149,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-413",
@@ -7007,7 +7172,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-414",
@@ -7030,7 +7196,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-415",
@@ -7052,7 +7219,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-416",
@@ -7074,7 +7242,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-417",
@@ -7096,7 +7265,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-432",
@@ -7116,7 +7286,8 @@
       ],
       "dependencies": [],
       "passes": true,
-      "_decomposedFrom": "US-350"
+      "_decomposedFrom": "US-350",
+      "tags": []
     },
     {
       "id": "US-443",
@@ -7137,7 +7308,8 @@
       ],
       "dependencies": [],
       "passes": true,
-      "_source": "seed"
+      "_source": "seed",
+      "tags": []
     },
     {
       "id": "US-003",
@@ -7359,7 +7531,8 @@
         "US-432"
       ],
       "passes": true,
-      "_decomposedFrom": "US-350"
+      "_decomposedFrom": "US-350",
+      "tags": []
     },
     {
       "id": "US-434",
@@ -7380,7 +7553,8 @@
         "US-432"
       ],
       "passes": true,
-      "_decomposedFrom": "US-350"
+      "_decomposedFrom": "US-350",
+      "tags": []
     },
     {
       "id": "US-020",
@@ -8003,7 +8177,8 @@
       "_antiPatterns": [
         "Attempting all 4 components in one invocation â€” always exceeds 100 tool call budget",
         "Reading full ralph.sh (2800+ lines) without a grep anchor â€” burns 10+ tool calls on navigation alone"
-      ]
+      ],
+      "tags": []
     },
     {
       "id": "US-351",
@@ -8034,7 +8209,8 @@
         "reductionPct": 0,
         "contextWindow": 10
       },
-      "_failureReason": "story_cost_ceiling"
+      "_failureReason": "story_cost_ceiling",
+      "tags": []
     },
     {
       "id": "US-352",
@@ -8073,7 +8249,8 @@
         "US-438"
       ],
       "model": "haiku",
-      "_passedCommit": "7302434d4b28ef89925fb7a4d5f18565b86bb42d"
+      "_passedCommit": "7302434d4b28ef89925fb7a4d5f18565b86bb42d",
+      "tags": []
     },
     {
       "id": "US-382",
@@ -8108,7 +8285,8 @@
       "_decomposedInto": [
         "US-439",
         "US-440"
-      ]
+      ],
+      "tags": []
     },
     {
       "id": "US-383",
@@ -8138,7 +8316,8 @@
         "diagnosisBlock": "## Current State\n- `pytest-xdist>=3.5.0` already in dev-dependencies\n- `addopts = \"-n auto --dist loadscope\"` already configured\n- Previous attempts hit cost ceiling before marking passes=true\n\n## Problem Identified\nStory US-383 is already implemented but not marked as complete due to cost ceiling hits.\n\n## Planned Changes\n- Verify tests pass under parallel execution\n- Mark US-383 as `passes: true` in prd.json\n- Update progress.txt\n- Commit\nTests run in parallel (35s). 1635 passed. The 12 failures are all pre-existing (documented in progress.txt from prior iterations). No new failures from xdist.\n\nLet me check if the test_commit_revert Hypothesis fix from the previous attempt is also in place.\nAll changes from previous attempts are in place. Now mark the story as complete and commit.\nUS-383 is complete. The implementation was already done by previous attempts  they just hit cost ceiling before marking `passes: true`. \n\nResults:\n- **1635 tests pass** in parallel (35s vs 119s sequential = 70% wall-clock reduction)\n- 12 pre-existing failures unchanged (not caused by xdist)\n- Story marked `passes: true` and committed"
       },
       "_failureReason": "story_cost_ceiling",
-      "last_attempted": "2026-03-17T04:49:25Z"
+      "last_attempted": "2026-03-17T04:49:25Z",
+      "tags": []
     },
     {
       "id": "US-384",
@@ -8157,7 +8336,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-385",
@@ -8187,7 +8367,8 @@
         "tokensAfterMasking": 66,
         "reductionPct": 1,
         "contextWindow": 10
-      }
+      },
+      "tags": []
     },
     {
       "id": "US-386",
@@ -8210,7 +8391,8 @@
       "last_attempted": "2026-03-17T04:57:58Z",
       "_phaseI": {
         "diagnosisBlock": "## Current State\n`spiral_live_server.py` has one `asyncio.gather(stdout_task, stderr_task)` call at line 147 inside `_drain_and_wait()`, with tasks pre-created before the function.\n\n## Problem Identified\nReplace `asyncio.gather()` with `asyncio.TaskGroup` so that a failing pipe-reader cancels the sibling within the group, using `except*` syntax for ExceptionGroup handling.\n\n## Planned Changes\n1. **`lib/spiral_live_server.py`**: Move task creation inside `_drain_and_wait()` using `async with asyncio.TaskGroup()`, add `except* Exception` handler around it\n2. **`tests/test_spiral_live_server.py`**: Add `TestTaskGroupCancellation` class with a test verifying sibling cancellation within 100ms\nActually, let me refine the implementation to avoid the `type: ignore` by capturing the narrowed streams in local variables:\nNow add the cancellation test to the test file:\nNow run the tests to verify:\nAll 21 tests pass (including the new cancellation test). Now run mypy on the modified file:\nAll checks pass. Update prd.json and commit:\nNow document learnings in progress.txt:\nUS-386 is complete. Summary:\n\n- **Changed**: `lib/spiral_live_server.py`  replaced `asyncio.gather()` inside `_drain_and_wait()` with `async with asyncio.TaskGroup()` pattern; added `except* Exception` handler; captured narrowed stream refs in typed locals to satisfy mypy\n- **Added**: `TestTaskGroupCancellation` test in `tests/test_spiral_live_server.py`  verifies sibling cancellation within 100ms when one task fails\n- All 21 tests pass; `mypy --strict` passes; `prd.json` marked `passes: true`"
-      }
+      },
+      "tags": []
     },
     {
       "id": "US-387",
@@ -8240,7 +8422,8 @@
         "tokensAfterMasking": 88,
         "reductionPct": 1,
         "contextWindow": 10
-      }
+      },
+      "tags": []
     },
     {
       "id": "US-388",
@@ -8270,7 +8453,8 @@
         "tokensAfterMasking": 68,
         "reductionPct": 0,
         "contextWindow": 10
-      }
+      },
+      "tags": []
     },
     {
       "id": "US-389",
@@ -8300,7 +8484,8 @@
         "tokensAfterMasking": 322,
         "reductionPct": 0,
         "contextWindow": 10
-      }
+      },
+      "tags": []
     },
     {
       "id": "US-402",
@@ -8331,7 +8516,8 @@
         "tokensAfterMasking": 59,
         "reductionPct": 1,
         "contextWindow": 10
-      }
+      },
+      "tags": []
     },
     {
       "id": "US-403",
@@ -8364,7 +8550,8 @@
         "tokensAfterMasking": 274,
         "reductionPct": 1,
         "contextWindow": 10
-      }
+      },
+      "tags": []
     },
     {
       "id": "US-418",
@@ -8397,7 +8584,8 @@
         "tokensAfterMasking": 106,
         "reductionPct": 0,
         "contextWindow": 10
-      }
+      },
+      "tags": []
     },
     {
       "id": "US-419",
@@ -8429,7 +8617,8 @@
         "tokensAfterMasking": 277,
         "reductionPct": 0,
         "contextWindow": 10
-      }
+      },
+      "tags": []
     },
     {
       "id": "US-420",
@@ -8462,7 +8651,8 @@
         "tokensAfterMasking": 93,
         "reductionPct": 1,
         "contextWindow": 10
-      }
+      },
+      "tags": []
     },
     {
       "id": "US-421",
@@ -8484,7 +8674,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-422",
@@ -8505,7 +8696,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-423",
@@ -8528,7 +8720,8 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "last_attempted": "2026-03-17T11:21:29Z"
+      "last_attempted": "2026-03-17T11:21:29Z",
+      "tags": []
     },
     {
       "id": "US-424",
@@ -8562,7 +8755,8 @@
         "tokensAfterMasking": 81,
         "reductionPct": 0,
         "contextWindow": 10
-      }
+      },
+      "tags": []
     },
     {
       "id": "US-425",
@@ -8580,7 +8774,11 @@
       "estimatedComplexity": "small",
       "dependencies": [],
       "_decomposedFrom": "US-350",
-      "passes": true
+      "passes": true,
+      "tags": [
+        "module-lib",
+        "module-tests"
+      ]
     },
     {
       "id": "US-436",
@@ -8602,7 +8800,8 @@
       "passes": true,
       "_decomposedFrom": "US-352",
       "model": "haiku",
-      "_passedCommit": "7302434d4b28ef89925fb7a4d5f18565b86bb42d"
+      "_passedCommit": "7302434d4b28ef89925fb7a4d5f18565b86bb42d",
+      "tags": []
     },
     {
       "id": "US-439",
@@ -8622,7 +8821,8 @@
       ],
       "dependencies": [],
       "passes": true,
-      "_decomposedFrom": "US-382"
+      "_decomposedFrom": "US-382",
+      "tags": []
     },
     {
       "id": "US-009",
@@ -8667,7 +8867,10 @@
         "US-425"
       ],
       "_decomposedFrom": "US-350",
-      "passes": true
+      "passes": true,
+      "tags": [
+        "module-lib"
+      ]
     },
     {
       "id": "US-427",
@@ -8686,7 +8889,10 @@
         "US-425"
       ],
       "_decomposedFrom": "US-350",
-      "passes": true
+      "passes": true,
+      "tags": [
+        "module-ralph"
+      ]
     },
     {
       "id": "US-428",
@@ -8705,7 +8911,8 @@
         "US-425"
       ],
       "_decomposedFrom": "US-350",
-      "passes": true
+      "passes": true,
+      "tags": []
     },
     {
       "id": "US-435",
@@ -8726,7 +8933,8 @@
         "US-432"
       ],
       "passes": true,
-      "_decomposedFrom": "US-350"
+      "_decomposedFrom": "US-350",
+      "tags": []
     },
     {
       "id": "US-437",
@@ -8749,7 +8957,8 @@
       "passes": true,
       "_decomposedFrom": "US-352",
       "model": "haiku",
-      "last_attempted": "2026-03-17T16:11:55Z"
+      "last_attempted": "2026-03-17T16:11:55Z",
+      "tags": []
     },
     {
       "id": "US-440",
@@ -8771,7 +8980,8 @@
         "US-439"
       ],
       "passes": true,
-      "_decomposedFrom": "US-382"
+      "_decomposedFrom": "US-382",
+      "tags": []
     },
     {
       "id": "US-010",
@@ -8824,7 +9034,8 @@
       "passes": true,
       "_decomposedFrom": "US-352",
       "model": "sonnet",
-      "last_attempted": "2026-03-17T16:22:19Z"
+      "last_attempted": "2026-03-17T16:22:19Z",
+      "tags": []
     }
   ]
 }
