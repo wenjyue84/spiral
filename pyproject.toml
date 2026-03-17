@@ -60,6 +60,7 @@ dev = [
     "vulture>=2.15",
     "pytest-benchmark>=5.0.0",
     "import-linter>=2.1",
+    "py-spy>=0.3",
 ]
 
 [tool.importlinter]

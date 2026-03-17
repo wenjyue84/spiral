@@ -8262,8 +8262,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
-      "last_attempted": "2026-03-17T11:32:10Z"
+      "passes": true,
+      "last_attempted": "2026-03-17T11:42:59Z",
+      "_failureReason": "story_cost_ceiling"
     },
     {
       "id": "US-425",

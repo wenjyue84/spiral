@@ -128,6 +128,26 @@ Each worker gets an isolated git worktree, a PRD slice (`lib/slice_prd.py`), and
 - **Testing**: pytest + hypothesis (Python), bats-core (Bash)
 - **CI**: GitHub Actions — shellcheck, shfmt, mypy --strict, pytest with coverage, SARIF (semgrep + shellcheck), pip-audit, bats
 
+## CPU Profiling (py-spy)
+
+To profile a slow SPIRAL Python phase without modifying source code:
+
+1. Start a SPIRAL run in one terminal.
+2. Find the Python PID:
+   ```bash
+   ps aux | grep spiral   # Linux/macOS
+   Get-Process python     # Windows PowerShell
+   ```
+3. In a second terminal, capture a 30-second flamegraph:
+   ```bash
+   task profile PID=<pid>
+   # or directly:
+   py-spy record --pid <pid> --duration 30 --output flamegraph.svg --format speedscope
+   ```
+4. Open `flamegraph.svg` via [speedscope.app](https://www.speedscope.app/) (drag-and-drop) to explore call stacks interactively.
+
+> `flamegraph.svg` is gitignored. py-spy attaches non-invasively with no application restart required.
+
 ## Important Conventions
 
 - Python deps managed via `uv` exclusively (never raw pip)

@@ -56,6 +56,12 @@ tasks:
       - find . -type f -name "*.pyc" -delete
     silent: false
 
+  profile:
+    desc: "Capture a 30-second CPU flamegraph for a running SPIRAL process (requires PID=<pid>)"
+    cmds:
+      - py-spy record --pid {{.PID}} --duration 30 --output flamegraph.svg --format speedscope
+    silent: false
+
   all:
     desc: "Run all quality checks: test, lint, bats, doctor"
     cmds:
