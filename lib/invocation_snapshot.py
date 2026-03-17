@@ -234,7 +234,7 @@ def main(argv: list[str] | None = None) -> None:
 
     elif args.command == "prune":
         removed = prune_snapshots(args.dir, args.iteration, args.retention)
-        print(f"Pruned {removed} snapshot(s)")
+        print(removed)
 
     elif args.command == "list":
         snaps = list_snapshots(args.dir)

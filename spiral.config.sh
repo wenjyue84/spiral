@@ -76,7 +76,7 @@ SPIRAL_STORY_ENRICHMENT_MODEL="${SPIRAL_STORY_ENRICHMENT_MODEL:-sonnet}"
 
 # ── Research focus prompt ────────────────────────────────────────────────────
 # Guides Gemini + Claude in Phase R toward relevant context
-SPIRAL_GEMINI_PROMPT="Focus on: achieving a delicate balance between token saving and quality of output code. Research token-efficient AI patterns, model routing strategies, dynamic complexity assessment, cost vs quality tradeoffs in LLM-powered coding agents, and best practices for setup wizards that educate users about configuration options. Provide actionable implementation context."
+SPIRAL_GEMINI_PROMPT="Focus on: (1) preventing stories from getting stuck — DLQ patterns, smarter auto-decomposition triggers, circuit breaker improvements, stuck-detection heuristics; (2) token efficiency without quality loss — prompt compression, response caching, batch API usage, selective model routing by story complexity; (3) execution speed — parallel phase pipelines, incremental test selection, worker heartbeat optimizations; (4) test coverage gaps — missing edge cases in lib/*.py and spiral.sh, property-based testing opportunities, regression test patterns for known failure modes. Provide actionable implementation context with concrete code examples."
 
 # ── Story prefix ─────────────────────────────────────────────────────────────
 SPIRAL_STORY_PREFIX="US"
@@ -98,7 +98,12 @@ SPIRAL_MAX_PENDING=50
 # ── Total story count assertion ceiling ───────────────────────────────────────
 # Spiral has 264 total stories (243 done + 21 pending + room for research).
 # Override the default of 200 to prevent abort on assert.
-SPIRAL_MAX_TOTAL_STORIES=300
+SPIRAL_MAX_TOTAL_STORIES=450
+
+# ── Auto-stash dirty working tree before Phase I (US-177) ────────────────────
+# Stashes uncommitted changes before ralph runs, pops them after.
+# Required when running SPIRAL on itself (prd.json, config, etc. are always dirty).
+SPIRAL_AUTO_STASH=true
 
 # ── Stale git lock-file cleanup (US-225) ─────────────────────────────────────
 # Lock files in worktrees older than this many minutes are removed (if no live
@@ -115,7 +120,13 @@ SPIRAL_STORY_BATCH_SIZE=20
 # Batches API (50% cost reduction vs sequential, async up to 10k stories).
 # Requires ANTHROPIC_API_KEY. Single-story runs fall back to synchronous path.
 # Batch summary is written to .spiral/_phase_s_batch.json.
-SPIRAL_BATCH_VALIDATE="${SPIRAL_BATCH_VALIDATE:-0}"
+SPIRAL_BATCH_VALIDATE="${SPIRAL_BATCH_VALIDATE:-1}"
+
+# ── Auto-generate paired test stories for new feature stories ─────────────
+# When set to 1, Phase R automatically generates a paired UT- test story for
+# each new feature story discovered. Ensures test coverage keeps pace with
+# feature discovery. 0 = disabled (default).
+SPIRAL_SYNTHESIZE_TESTS_FOR_NEW="${SPIRAL_SYNTHESIZE_TESTS_FOR_NEW:-1}"
 
 # ── Phase S: Majority-voting consensus for story validation (US-342) ─────────
 # Number of independent LLM validation calls per story. Results are aggregated
@@ -218,7 +229,7 @@ SPIRAL_PRD_STREAM_THRESHOLD_KB=2048 # streaming jq path has a bug; keep on in-me
 # Also controls URL-level cache expiry in lib/research_cache.py.
 # 0 = disabled (Phase R always runs). Default: 0.
 # Example: SPIRAL_RESEARCH_CACHE_TTL_HOURS=6  # reuse research for up to 6h
-# SPIRAL_RESEARCH_CACHE_TTL_HOURS=0
+SPIRAL_RESEARCH_CACHE_TTL_HOURS=4
 
 # ── Cosine-similarity research cache threshold (US-403) ───────────────────
 # When a Phase R query misses the exact-match cache, sentence embeddings
@@ -273,7 +284,7 @@ SPIRAL_ANTI_PATTERN_INJECT="${SPIRAL_ANTI_PATTERN_INJECT:-true}"
 # if its complexity is >= SPIRAL_DECOMPOSE_FIRST_FAIL_COMPLEXITY (or its title
 # word count > 12). This avoids wasting sonnet/opus calls on stories that
 # should have been split from the start.
-SPIRAL_DECOMPOSE_ON_FIRST_FAIL="${SPIRAL_DECOMPOSE_ON_FIRST_FAIL:-false}"
+SPIRAL_DECOMPOSE_ON_FIRST_FAIL="${SPIRAL_DECOMPOSE_ON_FIRST_FAIL:-true}"
 # Complexity threshold (small | medium | large) for first-fail decomposition.
 SPIRAL_DECOMPOSE_FIRST_FAIL_COMPLEXITY="${SPIRAL_DECOMPOSE_FIRST_FAIL_COMPLEXITY:-medium}"
 
