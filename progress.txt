@@ -2907,3 +2907,61 @@ COST CEILING: Add GitHub Actions PR comment with prd.json story status diff on P
 - [x] independence contract for import adapters
 - [x] No existing violations (3 kept, 0 broken)
 
+
+## Iteration N - Story: US-435 - Add spiral memory list CLI subcommand for episodic records (COMPLETED)
+
+### What was implemented
+- main.py: Added `cmd_memory_list()` function (lines 1233-1280)
+  - Calls `list_recent(limit=20)` from lib.episodic_memory
+  - Formats output as table with columns: story_id, outcome, timestamp, approach_summary
+  - Truncates approach_summary to 60 characters (as per acceptance criteria)
+  - Shows records in descending order by timestamp (newest first)
+  - Gracefully handles missing database with "No episodic memory found" message
+  
+- main.py: Updated docstring (lines 1-18)
+  - Added "memory" subcommand entry: "Episodic memory management (US-350)"
+  - Added "list" sub-entry: "Show 20 most recent episodic records with pass/fail outcomes"
+  
+- main.py: Added imports (line 32)
+  - `sys.path.insert(0, str(Path(__file__).parent / "lib"))`
+  - `from episodic_memory import list_recent`
+  
+- main.py: Added argparse setup (lines 2414-2425)
+  - `memory_parser = subparsers.add_parser("memory", help="...")`
+  - `memory_subs = memory_parser.add_subparsers(dest="memory_command", metavar="COMMAND")`
+  - `memory_list_parser = memory_subs.add_parser("list", help="...")`
+  
+- main.py: Added dispatch logic (lines 2469-2476)
+  - Handles memory command with check for memory_command sub-dispatch
+  - Calls `cmd_memory_list(args)` on "list" subcommand
+  - Prints help and exits 0 if no subcommand provided
+
+### Patterns discovered
+- Subcommand pattern: Nested parsers (memory → list) mirrors dlq/worktree structure
+- Table formatting: Column widths defined upfront, ANSI color for headers, separator line
+- Graceful missing-resource pattern: Check if resource exists, print user-friendly message if not
+- Database default path: Uses SCRATCH_DIR / "episodic_memory.db" (consistent with other spiral features)
+- Timestamp formatting: Truncate to 19 chars and replace 'T' with space (ISO 8601 → human readable)
+
+### Acceptance criteria mapping
+- [x] Criterion 1: python main.py memory list prints table of up to 20 records
+  → cmd_memory_list calls list_recent(limit=20) and formats as table
+- [x] Criterion 2: If db missing prints 'No episodic memory found'
+  → list_recent returns [] if db doesn't exist; cmd_memory_list checks for empty list
+- [x] Criterion 3: Columns: story_id, outcome, timestamp, approach_summary (60 char truncated)
+  → Table has 4 columns with correct field mapping; approach_summary sliced to 60 chars
+- [x] Criterion 4: python main.py --help shows memory subcommand
+  → Updated docstring and argparse setup ensures memory appears in main help
+
+### Test results
+- test_main.py: 36 tests all passing (no regressions)
+- Full test suite: 1884 passed, 13 pre-existing failures (unrelated)
+- Manual testing: Verified with empty db, single record, multiple records
+- Type checking: episodic_memory.py passes mypy --strict; main.py has pre-existing type issues
+- Help output: memory subcommand appears correctly with description
+
+### Gotchas
+- episodic_memory.py must be imported from lib/ using sys.path manipulation since main.py is in project root
+- story_type field in episodic records is not displayed (only story_id, outcome, timestamp, approach_summary)
+- Column widths are fixed (col_id=10, col_outcome=10, col_timestamp=26, col_approach=60)
+  - Long story IDs or outcomes will be truncated but won't break formatting
