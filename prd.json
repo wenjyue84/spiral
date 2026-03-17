@@ -7188,7 +7188,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "large",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-381",
@@ -7751,7 +7751,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": true,
+      "passes": false,
       "last_attempted": "2026-03-17T09:39:03Z",
       "_failureReason": "story_cost_ceiling",
       "_phaseI": {
@@ -8098,7 +8098,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
-      "last_attempted": "2026-03-17T09:58:59Z"
+      "last_attempted": "2026-03-17T10:02:39Z"
     },
     {
       "id": "US-419",
@@ -8495,6 +8495,87 @@
       ],
       "passes": false,
       "_decomposedFrom": "US-382"
+    },
+    {
+      "id": "US-441",
+      "title": "Add atomicity and implementation-recipe rules to research_prompt.example.md",
+      "priority": "high",
+      "estimatedComplexity": "small",
+      "description": "Phase R prompt had no constraints on story scope or AC quality, causing 2-3 retry cycles. Added mandatory Atomicity and Implementability Rules section enforcing: max 2 files, 15-min duration, no large complexity, implementation recipe in technicalNotes, max 4 ACs.",
+      "acceptanceCriteria": [
+        "templates/research_prompt.example.md contains Atomicity and Implementability Rules section",
+        "Section includes all 5 constraints A-E including file scope, duration, complexity, recipe, and AC quality",
+        "grep -q Atomicity templates/research_prompt.example.md exits 0"
+      ],
+      "technicalNotes": [
+        "File to edit: templates/research_prompt.example.md (between Output Rules and Output Schema)",
+        "Test command: grep -q Atomicity templates/research_prompt.example.md && echo PASS"
+      ],
+      "dependencies": [],
+      "passes": true,
+      "_source": "seed"
+    },
+    {
+      "id": "US-442",
+      "title": "Add complexity gate to validate_stories.py rejecting large stories",
+      "priority": "high",
+      "estimatedComplexity": "small",
+      "description": "Phase S validated goal alignment but not story implementability. Added complexity gate rejecting estimatedComplexity=large stories with reason complexity_too_large. Added non-blocking warnings for AC>4 and empty technicalNotes.",
+      "acceptanceCriteria": [
+        "Stories with estimatedComplexity=large are rejected with complexity_too_large reason",
+        "Stories with 5+ ACs emit WARNING to stdout but are not rejected",
+        "Stories with empty technicalNotes emit WARNING to stdout but are not rejected",
+        "uv run pytest tests/test_validate_stories_complexity.py -v exits 0"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/validate_stories.py (after goal alignment check at line 556)",
+        "Test command: uv run pytest tests/test_validate_stories_complexity.py -v --tb=short"
+      ],
+      "dependencies": [],
+      "passes": true,
+      "_source": "seed"
+    },
+    {
+      "id": "US-443",
+      "title": "Create lib/enrich_stories.py and wire into spiral.sh as Phase E",
+      "priority": "medium",
+      "estimatedComplexity": "medium",
+      "description": "Created optional Phase E enrichment pass between Phase S and Phase M. For medium/sparse stories, calls Claude to rewrite vague ACs, add exact file paths and test commands, and split 3+-file stories. Gated by SPIRAL_STORY_ENRICHMENT=true.",
+      "acceptanceCriteria": [
+        "lib/enrich_stories.py exists with --validated-in, --enriched-out, --model, --dry-run flags",
+        "spiral.sh Phase E block runs after Phase S and before Phase M when SPIRAL_STORY_ENRICHMENT=true",
+        "On failure, Phase M falls back to _validated_stories.json unchanged",
+        "uv run pytest tests/test_enrich_stories.py -v exits 0"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/enrich_stories.py (new file, mirror decompose_story.py pattern)",
+        "File to edit: spiral.sh (Phase E block after notify_webhook S end)",
+        "Test command: uv run pytest tests/test_enrich_stories.py -v --tb=short"
+      ],
+      "dependencies": [],
+      "passes": true,
+      "_source": "seed"
+    },
+    {
+      "id": "US-444",
+      "title": "Upgrade SPIRAL_RESEARCH_MODEL default from haiku to sonnet",
+      "priority": "high",
+      "estimatedComplexity": "small",
+      "description": "Phase R was using haiku which generates vague, under-specified stories. Changed default to sonnet in spiral.config.sh and all fallback sites in spiral.sh. Added SPIRAL_STORY_ENRICHMENT and SPIRAL_STORY_ENRICHMENT_MODEL config vars.",
+      "acceptanceCriteria": [
+        "spiral.config.sh SPIRAL_RESEARCH_MODEL=sonnet",
+        "spiral.sh line 471 default is sonnet",
+        "spiral.sh validate_spiral_config default is sonnet",
+        "SPIRAL_STORY_ENRICHMENT and SPIRAL_STORY_ENRICHMENT_MODEL vars added to spiral.config.sh"
+      ],
+      "technicalNotes": [
+        "File to edit: spiral.config.sh (line 62: haiku->sonnet, add enrichment vars)",
+        "File to edit: spiral.sh (lines 471, 577, 3101: haiku->sonnet)",
+        "Test command: grep SPIRAL_RESEARCH_MODEL spiral.config.sh | grep -q sonnet && echo PASS"
+      ],
+      "dependencies": [],
+      "passes": true,
+      "_source": "seed"
     }
   ]
 }
