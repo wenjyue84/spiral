@@ -2575,3 +2575,4 @@ COST CEILING: Add cosine-similarity Phase R research cache lookup using sentence
 - [x] ralph/CONTEXT_REFRESH.md created with story ID placeholder, key conventions, validation command → file created
 - [x] Hook stdout added to Claude's context automatically → inherent to SessionStart hooks
 - [x] Bats test verifies hook command exits 0 and produces non-empty stdout → 7 tests pass
+

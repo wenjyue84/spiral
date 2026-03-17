@@ -1,0 +1,36 @@
+{
+  "name": "Spiral Dev",
+  "image": "mcr.microsoft.com/devcontainers/python:3.13",
+
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "20"
+    },
+    "ghcr.io/devcontainers-contrib/features/shfmt:1": {},
+    "ghcr.io/devcontainers-contrib/features/shellcheck:1": {}
+  },
+
+  "postCreateCommand": "curl -LsSf https://astral.sh/uv/install.sh | sh && export PATH=\"$HOME/.local/bin:$PATH\" && uv sync --frozen && sudo apt-get install -y jq && git submodule update --init --recursive",
+
+  "remoteEnv": {
+    "PATH": "${containerEnv:PATH}:/root/.local/bin"
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "charliermarsh.ruff",
+        "ms-python.mypy-type-checker",
+        "timonwong.shellcheck",
+        "EditorConfig.EditorConfig"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "[python]": {
+          "editor.defaultFormatter": "charliermarsh.ruff",
+          "editor.formatOnSave": true
+        }
+      }
+    }
+  }
+}
