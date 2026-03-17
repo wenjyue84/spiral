@@ -6,6 +6,12 @@ resolution-markers = [
     "python_full_version < '3.14'",
 ]
 
+[manifest]
+members = [
+    "spiral",
+    "spiral-tests",
+]
+
 [[package]]
 name = "aiofiles"
 version = "25.1.0"
@@ -2175,7 +2181,7 @@ wheels = [
 [[package]]
 name = "spiral"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "lib" }
 dependencies = [
     { name = "aiofiles" },
     { name = "jsonschema" },
@@ -2196,20 +2202,6 @@ llm-guard = [
     { name = "llm-guard" },
 ]
 
-[package.dev-dependencies]
-dev = [
-    { name = "coverage" },
-    { name = "hypothesis" },
-    { name = "mutmut" },
-    { name = "mypy" },
-    { name = "pytest" },
-    { name = "pytest-cov" },
-    { name = "pytest-timeout" },
-    { name = "pytest-xdist" },
-    { name = "ruff" },
-    { name = "uv-secure" },
-]
-
 [package.metadata]
 requires-dist = [
     { name = "aiofiles", specifier = ">=24.1.0" },
@@ -2228,8 +2220,26 @@ requires-dist = [
 ]
 provides-extras = ["llm-guard"]
 
-[package.metadata.requires-dev]
-dev = [
+[[package]]
+name = "spiral-tests"
+version = "0.1.0"
+source = { virtual = "tests" }
+dependencies = [
+    { name = "coverage" },
+    { name = "hypothesis" },
+    { name = "mutmut" },
+    { name = "mypy" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-timeout" },
+    { name = "pytest-xdist" },
+    { name = "ruff" },
+    { name = "spiral" },
+    { name = "uv-secure" },
+]
+
+[package.metadata]
+requires-dist = [
     { name = "coverage", extras = ["toml"], specifier = ">=7.13.4" },
     { name = "hypothesis", specifier = ">=6.151.9" },
     { name = "mutmut", specifier = ">=3.2.0" },
@@ -2239,6 +2249,7 @@ dev = [
     { name = "pytest-timeout", specifier = ">=2.4.0" },
     { name = "pytest-xdist", specifier = ">=3.5.0" },
     { name = "ruff", specifier = ">=0.11.0" },
+    { name = "spiral", editable = "lib" },
     { name = "uv-secure", specifier = ">=0.2.0" },
 ]
 

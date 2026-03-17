@@ -1,0 +1,35 @@
+[project]
+name = "spiral-tests"
+version = "0.1.0"
+description = "Test suite for SPIRAL"
+requires-python = ">=3.13"
+dependencies = [
+    "spiral",
+    "coverage[toml]>=7.13.4",
+    "hypothesis>=6.151.9",
+    "mutmut>=3.2.0",
+    "mypy==1.11.2",
+    "pytest>=9.0.2",
+    "pytest-cov>=7.0.0",
+    "pytest-timeout>=2.4.0",
+    "pytest-xdist>=3.5.0",
+    "ruff>=0.11.0",
+    "uv-secure>=0.2.0",
+]
+
+[tool.uv.sources]
+spiral = { workspace = true }
+
+[tool.pytest.ini_options]
+timeout = 60
+timeout_method = "thread"
+addopts = "-n auto --dist loadscope"
+
+[tool.coverage.run]
+source = ["spiral"]
+branch = true
+omit = ["tests/*", "*/__pycache__/*"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 38
