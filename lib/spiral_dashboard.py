@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
-"""spiral_dashboard.py — Generate HTML metrics dashboard for SPIRAL sessions.
+"""spiral_dashboard.py — Generate HTML metrics dashboard or interactive TUI for SPIRAL sessions.
 
-Reads prd.json, results.tsv, and retry-counts.json to produce a self-contained
-HTML dashboard with velocity trends, model performance, retry analysis,
-bottlenecks, and decomposition effectiveness.
-
-stdlib-only — no external dependencies.
+Reads prd.json, results.tsv, and retry-counts.json to produce either:
+- A self-contained HTML dashboard (default) with velocity trends, model performance, etc.
+- An interactive Textual TUI (--tui flag) with stories table, live log streaming, keyboard navigation
 
 Usage:
     python lib/spiral_dashboard.py --prd prd.json --results results.tsv --open
+    python lib/spiral_dashboard.py --tui --prd prd.json
 """
 
 import argparse
+import asyncio
 import csv
 import json
 import os
@@ -22,6 +22,17 @@ from collections import defaultdict
 from datetime import datetime
 from html import escape
 from statistics import median
+
+# Optional Textual imports (only if --tui is used)
+try:
+    from textual.app import ComposeResult, on
+    from textual.containers import Container
+    from textual.widgets import Static, DataTable
+    from textual.reactive import reactive
+    import aiofiles
+    HAS_TEXTUAL = True
+except ImportError:
+    HAS_TEXTUAL = False
 
 sys.path.insert(0, os.path.dirname(__file__))
 from constants import COST_PER_HOUR
@@ -1404,11 +1415,171 @@ footer{{text-align:center;color:#444;font-size:10px;margin-top:16px;padding-top:
 </html>"""
 
 
+# ── Textual TUI Components ────────────────────────────────────────────────────
+
+
+if HAS_TEXTUAL:
+    from textual.app import App
+    from textual.binding import Binding
+
+    class LogPanel(Static):
+        """Live log tail panel showing ralph-run.log from selected worker."""
+
+        log_path = reactive("")
+        auto_refresh = reactive(True)
+        refresh_interval = reactive(2.0)
+
+        def __init__(self, log_path: str = ""):
+            super().__init__()
+            self.log_path = log_path
+            self.auto_refresh = True
+
+        def render(self) -> str:
+            """Render the current log content."""
+            if not self.log_path or not os.path.isfile(self.log_path):
+                return "[dim]No log file selected[/dim]"
+            try:
+                with open(self.log_path, encoding="utf-8", errors="replace") as f:
+                    lines = f.readlines()
+                    # Show last 20 lines
+                    tail = lines[-20:] if len(lines) > 20 else lines
+                    return "".join(tail)
+            except OSError:
+                return "[dim]Could not read log file[/dim]"
+
+    class StoriesTable(Static):
+        """Text widget showing SPIRAL stories with navigation."""
+
+        selected_index = reactive(0)
+        stories: list[dict] = []
+
+        def __init__(self, stories: list[dict]):
+            super().__init__()
+            self.stories = stories
+            self.selected_index = 0
+
+        def render(self) -> str:
+            """Render a simple text table of stories."""
+            if not self.stories:
+                return "[dim]No stories loaded[/dim]"
+            # Build a simple text table
+            lines = []
+            lines.append(f"{'ID':<10} {'Title':<45} {'Pass':<6}")
+            lines.append("─" * 65)
+            for i, story in enumerate(self.stories):
+                marker = "►" if i == self.selected_index else " "
+                story_id = story.get("id", "???")
+                title = story.get("title", "")[:43]
+                passes = "[green]✓[/green]" if story.get("passes") else "[red]✗[/red]" if story.get("_skipped") else "[yellow]⏳[/yellow]"
+                lines.append(f"{marker} {story_id:<8} {title:<45} {passes:<6}")
+            return "\n".join(lines)
+
+        def action_next_story(self) -> None:
+            """Move to next story."""
+            if self.stories and self.selected_index < len(self.stories) - 1:
+                self.selected_index += 1
+                self.refresh()
+
+        def action_prev_story(self) -> None:
+            """Move to previous story."""
+            if self.selected_index > 0:
+                self.selected_index -= 1
+                self.refresh()
+
+        def get_selected_story(self) -> dict | None:
+            """Get currently selected story."""
+            if 0 <= self.selected_index < len(self.stories):
+                return self.stories[self.selected_index]
+            return None
+
+    class SpiralDashboardApp(App):
+        """Interactive Textual TUI for monitoring SPIRAL runs."""
+
+        BINDINGS = [
+            Binding("q", "quit", "Quit"),
+            Binding("r", "refresh", "Refresh"),
+            Binding("p", "toggle_pause", "Pause"),
+            Binding("up", "prev_story", "Previous"),
+            Binding("down", "next_story", "Next"),
+            Binding("enter", "show_detail", "Detail"),
+        ]
+
+        def __init__(self, prd: dict, scratch_dir: str = ".spiral"):
+            super().__init__()
+            self.prd = prd
+            self.scratch_dir = scratch_dir
+            self.stories: list[dict] = prd.get("userStories", [])
+            self.selected_worker_id = ""
+            self.paused = False
+
+        def compose(self) -> ComposeResult:
+            """Create child widgets for the TUI."""
+            yield Container(
+                StoriesTable(self.stories),
+                LogPanel(""),
+                id="main-container",
+            )
+
+        def action_prev_story(self) -> None:
+            """Move to previous story."""
+            table = self.query_one(StoriesTable)
+            table.action_prev_story()
+            self._update_log_panel()
+
+        def action_next_story(self) -> None:
+            """Move to next story."""
+            table = self.query_one(StoriesTable)
+            table.action_next_story()
+            self._update_log_panel()
+
+        def action_toggle_pause(self) -> None:
+            """Pause/resume auto-refresh."""
+            self.paused = not self.paused
+            title = f"SPIRAL Dashboard [{'PAUSED' if self.paused else 'LIVE'}]"
+            self.title = title
+
+        def action_refresh(self) -> None:
+            """Force refresh data."""
+            table = self.query_one(StoriesTable)
+            table.refresh()
+            self._update_log_panel()
+
+        def action_show_detail(self) -> None:
+            """Show details of selected story."""
+            table = self.query_one(StoriesTable)
+            story = table.get_selected_story()
+            if story:
+                detail_msg = f"\n  ID: {story.get('id')}\n  Title: {story.get('title')}\n"
+                detail_msg += f"  Passes: {story.get('passes')}\n"
+                detail_msg += f"  Priority: {story.get('priority')}\n"
+                if story.get("acceptanceCriteria"):
+                    detail_msg += "  Acceptance Criteria:\n"
+                    for ac in story.get("acceptanceCriteria", []):
+                        detail_msg += f"    - {ac}\n"
+                self.notify(detail_msg, title="Story Details")
+
+        def _update_log_panel(self) -> None:
+            """Update log panel for selected story's worker."""
+            table = self.query_one(StoriesTable)
+            story = table.get_selected_story()
+            log_panel = self.query_one(LogPanel)
+            if story:
+                story_id = story.get("id", "")
+                # Construct log path (assume worker-0 for now)
+                log_path = os.path.join(self.scratch_dir, "workers", "worker-0", "ralph-run.log")
+                if os.path.isfile(log_path):
+                    log_panel.log_path = log_path
+                    log_panel.refresh()
+            else:
+                log_panel.log_path = ""
+                log_panel.refresh()
+
+
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="SPIRAL metrics dashboard generator")
+    parser = argparse.ArgumentParser(description="SPIRAL metrics dashboard generator or TUI")
     parser.add_argument("--prd", default="prd.json", help="Path to prd.json")
     parser.add_argument("--results", default="results.tsv", help="Path to results.tsv")
     parser.add_argument("--retries", default="retry-counts.json", help="Path to retry-counts.json")
@@ -1423,7 +1594,42 @@ def main() -> int:
         default=int(os.environ.get("SPIRAL_DASHBOARD_REFRESH_SECS", "30")),
         help="Auto-refresh interval in seconds (0 to disable)",
     )
+    parser.add_argument("--tui", action="store_true", help="Launch interactive Textual TUI instead of HTML")
     args = parser.parse_args()
+
+    # Handle TUI mode (US-271)
+    if args.tui:
+        if not HAS_TEXTUAL:
+            print("[error] Textual TUI requires 'textual' and 'aiofiles' packages. Install with: uv add textual aiofiles")
+            return 1
+        prd = load_prd(args.prd)
+        if not sys.stdout.isatty() or os.environ.get("TERM") == "dumb":
+            # Degrade gracefully to Rich table mode (AC5)
+            print("[dashboard] Non-TTY detected, degrading to Rich table mode")
+            stories = prd.get("userStories", [])
+            if stories:
+                from rich.console import Console
+                from rich.table import Table
+                console = Console()
+                table = Table(title="SPIRAL Stories")
+                table.add_column("ID", style="cyan")
+                table.add_column("Title", style="magenta")
+                table.add_column("Priority", style="yellow")
+                table.add_column("Status", style="green")
+                for story in stories:
+                    status = "✓" if story.get("passes") else "✗" if story.get("_skipped") else "⏳"
+                    table.add_row(
+                        story.get("id", "?"),
+                        story.get("title", "")[:50],
+                        story.get("priority", "?"),
+                        status,
+                    )
+                console.print(table)
+            return 0
+        # Launch Textual TUI (AC1)
+        app = SpiralDashboardApp(prd, args.scratch_dir)
+        app.run()
+        return 0
 
     # Orphan check runs at startup (US-087)
     orphans = detect_orphaned_worktrees()

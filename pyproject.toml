@@ -13,6 +13,8 @@ dependencies = [
     "opentelemetry-sdk>=1.30.0",
     "opentelemetry-exporter-otlp-proto-http>=1.30.0",
     "pydantic>=2.0",
+    "textual>=0.85.0",
+    "aiofiles>=24.1.0",
 ]
 
 [project.optional-dependencies]
