@@ -59,4 +59,31 @@ fail_under = 80
 dev = [
     "vulture>=2.15",
     "pytest-benchmark>=5.0.0",
+    "import-linter>=2.1",
+]
+
+[tool.importlinter]
+root_packages = ["lib"]
+
+[[tool.importlinter.contracts]]
+name = "constants is a leaf module (no intra-lib imports)"
+type = "layers"
+layers = [
+    "lib.story_helpers",
+    "lib.constants",
+]
+
+[[tool.importlinter.contracts]]
+name = "llm_router does not import from story pipeline modules"
+type = "forbidden"
+source_modules = ["lib.llm_router"]
+forbidden_modules = ["lib.validate_stories", "lib.merge_stories", "lib.route_stories"]
+
+[[tool.importlinter.contracts]]
+name = "import adapters are independent of each other"
+type = "independence"
+modules = [
+    "lib.import_csv",
+    "lib.import_github",
+    "lib.import_jira",
 ]
