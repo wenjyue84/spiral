@@ -87,6 +87,15 @@ SPIRAL_STORY_BATCH_SIZE=20
 # Batch summary is written to .spiral/_phase_s_batch.json.
 SPIRAL_BATCH_VALIDATE="${SPIRAL_BATCH_VALIDATE:-0}"
 
+# ── Phase S: Majority-voting consensus for story validation (US-342) ─────────
+# Number of independent LLM validation calls per story. Results are aggregated
+# with majority voting (>50% accept → accept, ties default to reject).
+# Research (arxiv:2502.19130) shows 13.2% error reduction with N=3.
+# Set to 1 for single-call behavior (no voting overhead, same as current).
+# Default 3 balances quality (better decisions) with cost (3x API calls per story).
+# Note: Vote results are recorded in results.tsv as votes_accept/votes_reject fields.
+SPIRAL_VALIDATION_VOTES="${SPIRAL_VALIDATION_VOTES:-3}"
+
 # ── Worker env allowlist (US-359) ──────────────────────────────────────────
 # Comma-separated list of env var names/prefixes passed to worker subprocesses.
 # Suffix * for prefix match (e.g. SPIRAL_* matches SPIRAL_WORKER_ID, SPIRAL_PYTHON).

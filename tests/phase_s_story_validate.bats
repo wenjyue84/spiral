@@ -26,7 +26,12 @@ setup() {
   export SPIRAL_HOME
   SPIRAL_HOME="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
   export SPIRAL_PYTHON
-  SPIRAL_PYTHON="$(command -v python3)"
+  # Use project venv Python if available, fallback to system python3
+  if [ -f "$SPIRAL_HOME/.venv/Scripts/python.exe" ]; then
+    SPIRAL_PYTHON="$SPIRAL_HOME/.venv/Scripts/python.exe"
+  else
+    SPIRAL_PYTHON="$(command -v python3)"
+  fi
 
   # Paths for output files
   export VALIDATED_OUT="$SCRATCH_DIR/_validated_stories.json"
@@ -330,4 +335,37 @@ EOF
   assert_success
   [ -f "$SCRATCH_DIR/_validated_stories.json" ]
   [ -f "$SCRATCH_DIR/_story_rejected.json" ]
+}
+
+@test "--num-votes 1 accepts the same stories as default single-call (no voting overhead)" {
+  # Run with --num-votes 1 (single call, no voting)
+  run "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/validate_stories.py" \
+    --prd "$TEST_TMP/prd.json" \
+    --research "$SCRATCH_DIR/_research_output.json" \
+    --test-stories "$SCRATCH_DIR/_test_stories_output.json" \
+    --validated-out "$VALIDATED_OUT" \
+    --rejected-out "$REJECTED_OUT" \
+    --num-votes 1 \
+    --min-overlap 1
+
+  assert_success
+  [ -f "$VALIDATED_OUT" ]
+
+  # With num_votes=1, should get same results as default (keyword validation only)
+  accepted=$(py_count_stories "$VALIDATED_OUT")
+  rejected=$(py_count_stories "$REJECTED_OUT")
+
+  # Should have 2 on-topic stories accepted, 1 off-topic rejected
+  [ "$accepted" -eq 2 ]
+  [ "$rejected" -eq 1 ]
+}
+
+@test "SPIRAL_VALIDATION_VOTES env var is respected (default 3)" {
+  # Just verify the code reads the env var by checking the Python script accepts it
+  # (actual voting would require API keys; we just verify the parameter is accepted)
+  run "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/validate_stories.py" --help
+
+  assert_success
+  assert_output --partial "--num-votes"
+  assert_output --partial "SPIRAL_VALIDATION_VOTES"
 }

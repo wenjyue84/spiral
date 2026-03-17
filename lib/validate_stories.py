@@ -430,6 +430,7 @@ def validate_stories(
                         batch_out,
                         _base,
                         batch_size=batch_size,
+                        num_votes=num_votes,
                     )
                     accepted.extend(_accepted)
                     rejected.extend(_rejected)
@@ -546,10 +547,23 @@ def main() -> int:
             "When > 1 and ANTHROPIC_API_KEY is set, batch API is auto-enabled."
         ),
     )
+    parser.add_argument(
+        "--num-votes",
+        type=int,
+        default=0,
+        help=(
+            "Number of independent validation calls per story for majority voting (US-342). "
+            "Default 0 reads from SPIRAL_VALIDATION_VOTES env var (default 3). "
+            "Set to 1 for single-call behavior (no voting overhead)."
+        ),
+    )
     args = parser.parse_args()
 
     # --batch-size from env var fallback
     batch_size: int = args.batch_size or int(os.environ.get("SPIRAL_STORY_BATCH_SIZE", "0") or "0")
+
+    # --num-votes from env var fallback (US-342)
+    num_votes: int = args.num_votes or int(os.environ.get("SPIRAL_VALIDATION_VOTES", "3") or "3")
 
     # --batch-api can also be enabled via env var SPIRAL_BATCH_VALIDATE=1
     # or auto-triggered when batch_size > 1 and ANTHROPIC_API_KEY is set
@@ -573,6 +587,7 @@ def main() -> int:
         batch_out=args.batch_out,
         batch_base_url=args.batch_base_url,
         batch_size=batch_size,
+        num_votes=num_votes,
     )
 
     total = len(accepted) + len(rejected)

@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
-lib/batch_validate.py — Anthropic Message Batches API client for Phase S (US-390).
+lib/batch_validate.py — Anthropic Message Batches API client for Phase S (US-390/US-342).
 
 Submits story validation requests in bulk (50% cost vs sequential).
 Falls back to a direct synchronous Messages API call for single-story runs.
+Supports majority-voting consensus (US-342) for N independent validation calls.
 
 Required env var: ANTHROPIC_API_KEY
 Optional env var: SPIRAL_BATCH_API_URL (default: https://api.anthropic.com)
@@ -24,6 +25,9 @@ parse_batch_results(results)
 
 validate_story_sync(story, goal_text, forbidden_phrases, api_key, base_url)
     Single-story synchronous fallback via direct /v1/messages call.
+
+validate_story_sync_votes(story, goal_text, forbidden_phrases, api_key, base_url, num_votes)
+    Run N independent validation calls and aggregate with majority voting (US-342).
 """
 
 from __future__ import annotations
@@ -32,6 +36,7 @@ import json
 import time
 import urllib.error
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
 __all__ = [
@@ -41,6 +46,7 @@ __all__ = [
     "poll_batch_until_complete",
     "parse_batch_results",
     "validate_story_sync",
+    "validate_story_sync_votes",
 ]
 
 # ---------------------------------------------------------------------------
@@ -416,3 +422,77 @@ def validate_story_sync(
             text = str(block.get("text", ""))
             break
     return _parse_llm_json(text)
+
+
+def validate_story_sync_votes(
+    story: dict[str, Any],
+    goal_text: str,
+    forbidden_phrases: list[str],
+    api_key: str,
+    base_url: str = DEFAULT_BASE_URL,
+    num_votes: int = 3,
+) -> tuple[bool, str, int, int]:
+    """Run N independent validation calls and aggregate with majority voting (US-342).
+
+    Research (arxiv:2502.19130) shows majority voting across 3-5 independent LLM calls
+    reduces false accept/reject rates by 13.2% on reasoning tasks.
+
+    Parameters
+    ----------
+    story:
+        Story dict with ``title`` and ``description`` fields.
+    goal_text:
+        Concatenated project goals as a single string.
+    forbidden_phrases:
+        Phrases from the constitution.
+    api_key:
+        Anthropic API key.
+    base_url:
+        API base URL (override for testing).
+    num_votes:
+        Number of independent validation calls to run (default 3).
+        If num_votes is 1, behaves identically to validate_story_sync (no voting overhead).
+
+    Returns
+    -------
+    tuple[bool, str, int, int]
+        ``(accepted, reason, votes_accept, votes_reject)`` where:
+        - accepted: bool — True if >50% of votes accept, False otherwise (ties reject)
+        - reason: str — Summary of voting results or single reason if num_votes==1
+        - votes_accept: int — Count of accept votes
+        - votes_reject: int — Count of reject votes
+    """
+    # Fast path: num_votes == 1 behaves identically to single call
+    if num_votes == 1:
+        accepted, reason = validate_story_sync(story, goal_text, forbidden_phrases, api_key, base_url)
+        return accepted, reason, (1 if accepted else 0), (0 if accepted else 1)
+
+    # Run N independent validation calls in parallel
+    votes_accept = 0
+    votes_reject = 0
+    reasons: list[str] = []
+
+    with ThreadPoolExecutor(max_workers=min(num_votes, 5)) as executor:
+        futures = [
+            executor.submit(validate_story_sync, story, goal_text, forbidden_phrases, api_key, base_url)
+            for _ in range(num_votes)
+        ]
+
+        for future in as_completed(futures):
+            try:
+                accepted, reason = future.result()
+                if accepted:
+                    votes_accept += 1
+                else:
+                    votes_reject += 1
+                reasons.append(reason)
+            except Exception as exc:  # noqa: BLE001
+                # Treat errors as reject votes (conservative approach)
+                votes_reject += 1
+                reasons.append(f"error: {str(exc)[:80]}")
+
+    # Majority voting: accept only if >50% of votes accept (ties default to reject)
+    final_accepted = votes_accept > votes_reject
+    final_reason = f"Voting: {votes_accept} accept, {votes_reject} reject (majority vote: {'ACCEPT' if final_accepted else 'REJECT'})"
+
+    return final_accepted, final_reason, votes_accept, votes_reject

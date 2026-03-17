@@ -398,3 +398,99 @@ class TestValidateStorySync:
             bv.validate_story_sync(_story(), "goals", [], "key", "https://api.example")
         req = mock_open.call_args[0][0]
         assert req.full_url == "https://api.example/v1/messages"
+
+
+# ---------------------------------------------------------------------------
+# TestValidateStorySyncVotes
+# ---------------------------------------------------------------------------
+
+
+class TestValidateStorySyncVotes:
+    """Tests for validate_story_sync_votes() — majority voting with mocked urlopen."""
+
+    def test_single_vote_behaves_like_sync(self) -> None:
+        """With num_votes=1, should behave identically to validate_story_sync (no voting overhead)."""
+        body = {"content": [{"type": "text", "text": '{"accepted": true, "reason": "fits goals"}'}]}
+        response = _make_fake_response(body)
+        with patch("urllib.request.urlopen", return_value=response):
+            ok, reason, votes_accept, votes_reject = bv.validate_story_sync_votes(
+                _story(), "goals", [], "sk-test", num_votes=1
+            )
+        assert ok is True
+        assert votes_accept == 1
+        assert votes_reject == 0
+
+    def test_three_votes_majority_accept(self) -> None:
+        """With 3 votes: 2 accept, 1 reject → final decision is accept."""
+        body_accept = {"content": [{"type": "text", "text": '{"accepted": true, "reason": "ok"}'}]}
+        body_reject = {"content": [{"type": "text", "text": '{"accepted": false, "reason": "no"}'}]}
+        responses = [
+            _make_fake_response(body_accept),
+            _make_fake_response(body_accept),
+            _make_fake_response(body_reject),
+        ]
+
+        with patch("urllib.request.urlopen", side_effect=responses):
+            ok, reason, votes_accept, votes_reject = bv.validate_story_sync_votes(
+                _story(), "goals", [], "sk-test", num_votes=3
+            )
+        assert ok is True
+        assert votes_accept == 2
+        assert votes_reject == 1
+        assert "Voting" in reason
+
+    def test_three_votes_majority_reject(self) -> None:
+        """With 3 votes: 1 accept, 2 reject → final decision is reject."""
+        body_accept = {"content": [{"type": "text", "text": '{"accepted": true, "reason": "ok"}'}]}
+        body_reject = {"content": [{"type": "text", "text": '{"accepted": false, "reason": "no"}'}]}
+        responses = [
+            _make_fake_response(body_accept),
+            _make_fake_response(body_reject),
+            _make_fake_response(body_reject),
+        ]
+
+        with patch("urllib.request.urlopen", side_effect=responses):
+            ok, reason, votes_accept, votes_reject = bv.validate_story_sync_votes(
+                _story(), "goals", [], "sk-test", num_votes=3
+            )
+        assert ok is False
+        assert votes_accept == 1
+        assert votes_reject == 2
+        assert "Voting" in reason
+
+    def test_tie_defaults_to_reject(self) -> None:
+        """With 2 votes: 1 accept, 1 reject → tie defaults to reject."""
+        body_accept = {"content": [{"type": "text", "text": '{"accepted": true, "reason": "ok"}'}]}
+        body_reject = {"content": [{"type": "text", "text": '{"accepted": false, "reason": "no"}'}]}
+        responses = [
+            _make_fake_response(body_accept),
+            _make_fake_response(body_reject),
+        ]
+
+        with patch("urllib.request.urlopen", side_effect=responses):
+            ok, reason, votes_accept, votes_reject = bv.validate_story_sync_votes(
+                _story(), "goals", [], "sk-test", num_votes=2
+            )
+        assert ok is False
+        assert votes_accept == 1
+        assert votes_reject == 1
+
+    def test_five_votes_mixed(self) -> None:
+        """With 5 votes: 3 accept, 2 reject → final decision is accept."""
+        body_accept = {"content": [{"type": "text", "text": '{"accepted": true, "reason": "ok"}'}]}
+        body_reject = {"content": [{"type": "text", "text": '{"accepted": false, "reason": "no"}'}]}
+        responses = [
+            _make_fake_response(body_accept),
+            _make_fake_response(body_accept),
+            _make_fake_response(body_accept),
+            _make_fake_response(body_reject),
+            _make_fake_response(body_reject),
+        ]
+
+        with patch("urllib.request.urlopen", side_effect=responses):
+            ok, reason, votes_accept, votes_reject = bv.validate_story_sync_votes(
+                _story(), "goals", [], "sk-test", num_votes=5
+            )
+        assert ok is True
+        assert votes_accept == 3
+        assert votes_reject == 2

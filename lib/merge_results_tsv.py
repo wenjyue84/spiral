@@ -40,6 +40,8 @@ HEADER = [
     "sys_cpu_s",
     "peak_rss_kb",
     "batch_id",  # US-406: Phase S batch validation ID (empty string for sync path rows)
+    "votes_accept",  # US-342: Phase S majority voting accept count (0 if not from validation)
+    "votes_reject",  # US-342: Phase S majority voting reject count (0 if not from validation)
 ]
 
 
