@@ -115,12 +115,24 @@ def matches_focus(story: dict[str, Any], focus: str) -> bool:
     return focus_lower in searchable
 
 
+def _load_raw(path: str) -> dict[str, Any]:
+    """Load a JSON or YAML file by extension, returning the parsed dict."""
+    with open(path, encoding="utf-8") as f:
+        if path.endswith(".yaml") or path.endswith(".yml"):
+            try:
+                import yaml
+
+                return yaml.safe_load(f) or {}
+            except ImportError:
+                raise ImportError(f"pyyaml required to read {path} — install with: uv add pyyaml")
+        return json.load(f)
+
+
 def load_candidates(path: str) -> list[dict[str, Any]]:
     if not os.path.isfile(path):
         print(f"[merge] WARNING: {path} not found — treating as empty")
         return []
-    with open(path, encoding="utf-8") as f:
-        data = json.load(f)
+    data = _load_raw(path)
     # Validate with Pydantic model (US-203)
     try:
         validated = ResearchOutput.model_validate(data)

@@ -5,10 +5,13 @@ import os
 import sys
 
 import pytest
+import yaml
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 from synthesize_tests import (
     PRIORITY_MAP,
+    _atomic_write_yaml,
+    _filter_none,
     aggregate_failures,
     find_recent_reports,
     is_duplicate,
@@ -302,3 +305,77 @@ class TestResultToStory:
         story = result_to_story(result)
         ac_text = " ".join(story["acceptanceCriteria"])
         assert "AssertionError" in ac_text
+
+
+# ── YAML output (US-367) ─────────────────────────────────────────────────
+
+
+class TestYamlOutput:
+    """Tests for YAML serialization: _filter_none and _atomic_write_yaml."""
+
+    def test_filter_none_removes_null_fields(self):
+        d = {"title": "Fix test", "description": None, "priority": "medium", "filesTouched": None}
+        result = _filter_none(d)
+        assert "description" not in result
+        assert "filesTouched" not in result
+        assert result["title"] == "Fix test"
+        assert result["priority"] == "medium"
+
+    def test_filter_none_preserves_falsy_non_none(self):
+        d = {"count": 0, "empty_list": [], "flag": False, "none_val": None}
+        result = _filter_none(d)
+        assert "none_val" not in result
+        assert result["count"] == 0
+        assert result["empty_list"] == []
+        assert result["flag"] is False
+
+    def test_atomic_write_yaml_produces_valid_yaml(self, tmp_path):
+        stories = [
+            {"title": "Fix login", "priority": "high", "acceptanceCriteria": ["test passes"]},
+            {"title": "Fix signup", "priority": "medium", "acceptanceCriteria": ["no errors"]},
+        ]
+        data = {"stories": stories}
+        output_path = str(tmp_path / "output.yaml")
+        _atomic_write_yaml(output_path, data)
+        assert os.path.isfile(output_path)
+        with open(output_path, encoding="utf-8") as f:
+            parsed = yaml.safe_load(f)
+        assert isinstance(parsed, dict)
+        assert "stories" in parsed
+        assert len(parsed["stories"]) == 2
+        assert parsed["stories"][0]["title"] == "Fix login"
+
+    def test_atomic_write_yaml_block_style_for_long_strings(self, tmp_path):
+        """Long strings should use block scalar style, reducing token cost vs JSON escaping."""
+        long_error = "A" * 200 + "\nwith newline"
+        data = {"stories": [{"title": "test", "description": long_error}]}
+        output_path = str(tmp_path / "output.yaml")
+        _atomic_write_yaml(output_path, data)
+        with open(output_path, encoding="utf-8") as f:
+            raw = f.read()
+        # Block scalar indicator '|' or '>' should appear for long/multiline strings
+        assert "|" in raw or ">" in raw
+
+    def test_yaml_output_parseable_by_pyyaml(self, tmp_path):
+        """AC5: YAML output is valid and parseable by PyYAML."""
+        result = {
+            "id": "tests.unit.module.TestFoo.test_bar",
+            "name": "test_bar",
+            "status": "FAIL",
+            "category": "unit",
+            "error": {"message": "ValueError: unexpected value\nline 2", "type": "ValueError"},
+        }
+        story = result_to_story(result)
+        filtered = _filter_none(story)
+        output_path = str(tmp_path / "test_stories.yaml")
+        _atomic_write_yaml(output_path, {"stories": [filtered]})
+
+        with open(output_path, encoding="utf-8") as f:
+            parsed = yaml.safe_load(f)
+
+        assert isinstance(parsed, dict)
+        assert "stories" in parsed
+        assert len(parsed["stories"]) == 1
+        parsed_story = parsed["stories"][0]
+        assert parsed_story["title"] == story["title"]
+        assert isinstance(parsed_story["acceptanceCriteria"], list)

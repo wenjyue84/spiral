@@ -61,6 +61,7 @@ SPIRAL_WORKER_NETWORK_ISOLATION="${SPIRAL_WORKER_NETWORK_ISOLATION:-false}" # tr
 SPIRAL_STRICT_SCOPE_GUARD="${SPIRAL_STRICT_SCOPE_GUARD:-false}"          # true = abort commit when changed files exceed story filesTouch scope (US-356)
 SPIRAL_THINKING_EFFORT="${SPIRAL_THINKING_EFFORT:-high}"               # US-373: adaptive thinking effort for 4.6 models (low/medium/high/max)
 SPIRAL_THINKING_BUDGET_TOKENS="${SPIRAL_THINKING_BUDGET_TOKENS:-10000}" # US-398: max thinking tokens per story (0=disable thinking, min 1024)
+SPIRAL_PROGRAMMATIC_TOOLS="${SPIRAL_PROGRAMMATIC_TOOLS:-auto}"           # US-339: enable code_execution_20250825 tool (auto/true/false)
 PRD_FILE="prd.json"
 PROGRESS_FILE="progress.txt"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -198,6 +199,18 @@ log_ralph_event() {
     line="{\"ts\":\"$ts\",\"event\":\"$event\"}"
   fi
   printf '%s\n' "$line" >>"$log_file" 2>/dev/null || true
+}
+
+# ── Helper: log a tool call originating from code execution (US-339) ────────
+# log_tool_call_from_code <tool_name> <story_id> [extra_fields_json]
+log_tool_call_from_code() {
+  local tool_name="$1"
+  local story_id="${2:-}"
+  local extra="${3:-}"
+  local caller_field="\"caller\":\"code_execution_20250825\",\"tool\":\"$tool_name\""
+  [[ -n "$story_id" ]] && caller_field="$caller_field,\"story_id\":\"$story_id\""
+  [[ -n "$extra" ]] && caller_field="$caller_field,$extra"
+  log_ralph_event "tool_call_from_code" "$caller_field"
 }
 
 # ── Per-story token cost accumulation ────────────────────────────────────────
@@ -2828,6 +2841,27 @@ ${_FT_CONTEXT_BODY}"
             _DEFERRED_TOOLS_FLAG="--tools $_CORE_TOOLS"
             echo "  [tools] Deferred loading: core=${_CORE_TOOLS} (ToolSearch for others)"
           fi
+        fi
+      fi
+      # ── US-339: Programmatic tool calling (code_execution_20250825) ──────────
+      # Check if model supports programmatic tool calling and user enabled it.
+      # Sonnet 4.6+ and Opus 4.6+ support code_execution. Haiku does not.
+      _PROG_TOOLS_ENABLED=false
+      if [[ "${SPIRAL_PROGRAMMATIC_TOOLS:-auto}" != "false" ]]; then
+        _supports_code_exec=false
+        if [[ -n "$EFFECTIVE_MODEL" ]]; then
+          # Check if model is Sonnet 4.6+, Opus 4.6+, or claude-4-6
+          if [[ "$EFFECTIVE_MODEL" =~ (sonnet-4\.6|opus-4\.6|claude-4\.6|claude-4-6) ]]; then
+            _supports_code_exec=true
+          fi
+        fi
+        if [[ "$_supports_code_exec" == "true" ]]; then
+          _PROG_TOOLS_ENABLED=true
+          echo "  [prog-tools] Enabled: code_execution_20250825 (model=$EFFECTIVE_MODEL supports programmatic tool calling)"
+          log_ralph_event "programmatic_tools_enabled" "\"story_id\":\"$NEXT_STORY\",\"model\":\"$EFFECTIVE_MODEL\""
+        elif [[ "${SPIRAL_PROGRAMMATIC_TOOLS:-auto}" == "true" ]]; then
+          echo "  [prog-tools] WARN: Requested but model=$EFFECTIVE_MODEL does not support code_execution (requires Sonnet/Opus 4.6+)"
+          log_ralph_event "programmatic_tools_unsupported" "\"story_id\":\"$NEXT_STORY\",\"model\":\"$EFFECTIVE_MODEL\",\"reason\":\"model_not_compatible\""
         fi
       fi
       # ── US-253: emit R→I phase transition telemetry ─────────────────────────

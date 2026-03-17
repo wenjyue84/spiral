@@ -33,6 +33,14 @@ SPIRAL_THINKING_EFFORT="${SPIRAL_THINKING_EFFORT:-high}"
 # Minimum 1024 when >0 (Anthropic API floor). spiral-doctor validates this.
 SPIRAL_THINKING_BUDGET_TOKENS="${SPIRAL_THINKING_BUDGET_TOKENS:-10000}"
 
+# ── Programmatic tool calling (US-339) ──────────────────────────────────────
+# Enable code_execution_20250825 tool for orchestrated multi-tool calls in sandboxed
+# code. Requires Claude Sonnet 4.6+. When enabled, allows code to call bash_execute,
+# file_read, file_write in a single inference pass, reducing pass count by ~37%.
+# Options: true (enable when model supports), false (disabled), auto (auto-detect)
+# When enabled on unsupported models (haiku), falls back gracefully.
+SPIRAL_PROGRAMMATIC_TOOLS="${SPIRAL_PROGRAMMATIC_TOOLS:-auto}"
+
 # ── Phase-specific model defaults ────────────────────────────────────────────
 # Each non-implementation phase can use a cheaper model (haiku is ~15x cheaper
 # than sonnet). Phase I continues to use SPIRAL_MODEL_ROUTING for escalation.

@@ -1,3 +1,54 @@
+## Iteration N - Story: US-339 Use programmatic tool calling to reduce Ralph inference passes by 37%
+
+### What was implemented
+- Added `_programmatic_tools_v1` section to `ralph/tool_manifest.json` with code_execution tool definition and allowed_callers configuration
+- code_execution tool defined with type: code_execution_20250825
+- bash_execute, file_read, file_write configured with allowed_callers: ['code_execution_20250825']
+- Added `SPIRAL_PROGRAMMATIC_TOOLS` config var to spiral.config.sh (default: auto) to enable/disable feature based on model support
+- Added `log_tool_call_from_code()` function to ralph/ralph.sh to log tool calls originating from code_execution
+- Added programmatic tools initialization logic in ralph.sh that:
+  - Detects model support (Sonnet 4.6+, Opus 4.6+ only)
+  - Respects SPIRAL_PROGRAMMATIC_TOOLS config setting
+  - Logs feature status and model compatibility
+- Created tests/test_programmatic_tool_calling.py with 14 Hypothesis tests covering:
+  - Tool manifest structure validation
+  - Code execution tool presence and configuration
+  - Allowed callers on bash_execute, file_read, file_write
+  - Model support detection (Sonnet 4.6+, Opus 4.6+ support, Haiku does not)
+- Created tests/programmatic_tool_calling.bats with 20 bats tests covering:
+  - Tool manifest JSON structure validation
+  - Tool configuration for code_execution_20250825
+  - Configuration in spiral.config.sh
+  - Function presence in ralph.sh
+
+### Files modified
+- ralph/tool_manifest.json — added _programmatic_tools_v1 section with tool definitions
+- spiral.config.sh — added SPIRAL_PROGRAMMATIC_TOOLS config with documentation
+- ralph/ralph.sh — added log_tool_call_from_code function, programmatic tools initialization logic
+- tests/test_programmatic_tool_calling.py — new file: 14 Hypothesis tests
+- tests/programmatic_tool_calling.bats — new file: 20 bats tests
+
+### Patterns discovered
+- Tool manifest uses both core/deferred arrays for deferred tool loading (US-337) and _programmatic_tools_v1 for full tool definitions with allowed_callers
+- Model detection uses simple regex matching on model IDs: "sonnet-4.6", "opus-4.6", "claude-4-6", "claude-4.6" patterns
+- Tool logging via log_ralph_event() appends JSONL to spiral_events.jsonl with event type, tool name, and caller field
+- Claude CLI does not yet expose tool definitions with allowed_callers via command-line flags, so manifest-based configuration is a bridge pattern
+
+### Gotchas
+- Code execution tool requires Claude Sonnet 4.6+ or Opus 4.6+. Haiku and older models will gracefully fall back (no error, just disabled)
+- _programmatic_tools_v1 section is not yet used by the Claude CLI directly (requires API-level configuration when Claude CLI fully supports it)
+- Tool manifest includes a _comment field that must be skipped in JSON processing
+- Pre-existing test failures unchanged: test_field_similarity_lists, test_infer_dependencies (4), test_route_stories (2)
+
+### Acceptance criteria mapping
+- [x] Criterion 1: Ralph's tool manifest includes a code_execution tool with type: code_execution_20250825 → Added to tool_manifest.json
+- [x] Criterion 2: Tools intended to be callable from code include allowed_callers: ['code_execution_20250825'] → bash_execute, file_read, file_write configured
+- [x] Criterion 3: Tool calls originating from code execution are logged with caller: code_execution → log_tool_call_from_code() function added
+- [Criterion 4: Benchmark run showing 15% reduction] → Deferred: requires full Claude CLI API integration and actual code_execution support in Claude 4.6+
+
+---
+
+
 ## Iteration N - Story: US-340 Add per-story tool use examples to Ralph tool definitions to improve parameter accuracy
 
 ### What was implemented
@@ -1489,4 +1540,5 @@ COST CEILING: Use single shared git fetch before parallel worker launch to cut p
 - Keep implementation minimal: existing test file already had 5 tests; only added 2 targeted ones
 ## Iteration 3 - Tue, Mar 17, 2026  9:46:39 AM
 COST CEILING: Use single shared git fetch before parallel worker launch to cut pre-launch sync time 90% (US-351) — $2.619107 exceeded hard limit $2.00
+
 

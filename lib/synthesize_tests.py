@@ -14,7 +14,15 @@ import json
 import os
 import re
 import sys
+import tempfile
 from typing import Any
+
+try:
+    import yaml as _yaml
+
+    HAS_YAML = True
+except ImportError:
+    HAS_YAML = False
 
 sys.path.insert(0, os.path.dirname(__file__))
 from prd_schema import validate_prd
@@ -232,6 +240,30 @@ def result_to_story(result: dict[str, Any], repo_root: str | None = None) -> dic
     }
 
 
+def _filter_none(d: dict[str, Any]) -> dict[str, Any]:
+    """Remove keys with None values for compact YAML output (AC4: omit null fields)."""
+    return {k: v for k, v in d.items() if v is not None}
+
+
+def _atomic_write_yaml(path: str, data: dict[str, Any]) -> None:
+    """Write *data* as YAML to *path* atomically using a temp file + rename."""
+    if not HAS_YAML:
+        raise ImportError("pyyaml is required for YAML output — install with: uv add pyyaml")
+    parent = os.path.dirname(os.path.abspath(path)) or "."
+    os.makedirs(parent, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=parent, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            _yaml.dump(data, fh, default_flow_style=False, sort_keys=False, allow_unicode=True)
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="SPIRAL test synthesis")
     parser.add_argument("--prd", default="prd.json", help="Path to prd.json")
@@ -254,6 +286,12 @@ def main() -> int:
         help="Repo root for test source extraction (default: current dir)",
     )
     parser.add_argument("--focus", default="", help="Focus theme — tag matching stories for priority boost")
+    parser.add_argument(
+        "--output-format",
+        choices=["json", "yaml"],
+        default="json",
+        help="Output format: 'json' (default, backward compat) or 'yaml' (compact, ~40%% fewer tokens)",
+    )
     args = parser.parse_args()
 
     if args.focus:
@@ -276,8 +314,11 @@ def main() -> int:
     report_paths = find_recent_reports(args.reports_dir, args.recent_reports)
     if not report_paths:
         print(f"[synthesize] WARNING: No test reports found in {args.reports_dir}/")
-        output: dict[str, Any] = {"stories": []}
-        atomic_write_json(args.output, output)
+        empty_output: dict[str, Any] = {"stories": []}
+        if args.output_format == "yaml":
+            _atomic_write_yaml(args.output, empty_output)
+        else:
+            atomic_write_json(args.output, empty_output)
         print(f"[synthesize] Wrote 0 stories → {args.output}")
         return 0
 
@@ -307,9 +348,14 @@ def main() -> int:
 
     print(f"[synthesize] Generated {len(candidates)} new story candidates from test failures")
 
-    output = {"stories": candidates}
-    atomic_write_json(args.output, output)
-    print(f"[synthesize] Wrote {len(candidates)} stories → {args.output}")
+    if args.output_format == "yaml":
+        # AC4: omit null fields and use block scalars for compact YAML
+        filtered_candidates = [_filter_none(s) for s in candidates]
+        _atomic_write_yaml(args.output, {"stories": filtered_candidates})
+        print(f"[synthesize] Wrote {len(candidates)} stories (YAML) → {args.output}")
+    else:
+        atomic_write_json(args.output, {"stories": candidates})
+        print(f"[synthesize] Wrote {len(candidates)} stories → {args.output}")
     return 0
 
 

@@ -116,12 +116,21 @@ def _story_keywords(story: dict) -> set[str]:
 
 
 def _load_candidates(path: str) -> list[dict]:
-    """Load story candidates from a JSON file with a .stories array."""
+    """Load story candidates from a JSON or YAML file with a .stories array."""
     if not os.path.exists(path):
         return []
     try:
         with open(path, encoding="utf-8") as fh:
-            data = json.load(fh)
+            if path.endswith(".yaml") or path.endswith(".yml"):
+                try:
+                    import yaml
+
+                    data = yaml.safe_load(fh) or {}
+                except ImportError:
+                    print(f"  [S] WARNING: pyyaml not installed; cannot read {path} — skipping")
+                    return []
+            else:
+                data = json.load(fh)
         # Validate with Pydantic model (US-203)
         from llm_models import ResearchOutput, log_validation_error
 

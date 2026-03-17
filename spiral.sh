@@ -513,6 +513,7 @@ SPIRAL_PARALLEL_TESTS="${SPIRAL_PARALLEL_TESTS:-false}"                  # true 
 SPIRAL_TEST_WORKERS="${SPIRAL_TEST_WORKERS:-}"                           # parallelism level; empty = nproc/2 (minimum 1)
 SPIRAL_TEST_PREFIX="${SPIRAL_TEST_PREFIX:-tests/test_}"                  # pytest: prefix for deriving test file from filesTouch entry basename
 SPIRAL_TEST_SYNTH_TIMEOUT="${SPIRAL_TEST_SYNTH_TIMEOUT:-60}"             # seconds; 0 = disabled (unlimited); Phase T synthesize_tests timeout
+SPIRAL_TEST_OUTPUT_FORMAT="${SPIRAL_TEST_OUTPUT_FORMAT:-json}"            # 'json' (default) or 'yaml'; YAML output is ~40% more token-efficient for Phase T (US-367)
 SPIRAL_PREEMPTIVE_PRESSURE_MB="${SPIRAL_PREEMPTIVE_PRESSURE_MB:-0}"      # MB; 0 = disabled; free RAM below this triggers preemptive pressure level 1
 SPIRAL_NOTIFY_WEBHOOK="${SPIRAL_NOTIFY_WEBHOOK:-}"                       # HTTPS URL; empty = disabled; POST JSON at each phase start/end
 SPIRAL_NOTIFY_WEBHOOK_TIMEOUT="${SPIRAL_NOTIFY_WEBHOOK_TIMEOUT:-5}"      # seconds; max wait per POST (default 5)
@@ -1616,6 +1617,16 @@ with open(sys.argv[9], 'w') as f:
 }
 
 # ── Helper: write checkpoint ────────────────────────────────────────────────
+# ── Helper: write empty test output in the configured format (US-367) ────────
+# Uses $TEST_OUTPUT and $SPIRAL_TEST_OUTPUT_FORMAT (set before Phase T runs).
+_write_empty_test_output() {
+  if [[ "${SPIRAL_TEST_OUTPUT_FORMAT:-json}" == "yaml" ]]; then
+    printf 'stories: []\n' >"$TEST_OUTPUT"
+  else
+    printf '{"stories":[]}\n' >"$TEST_OUTPUT"
+  fi
+}
+
 write_checkpoint() {
   local iter="$1" phase="$2"
   # Atomic write via tmp + mv to prevent corruption if SIGINT fires mid-write
@@ -2834,7 +2845,11 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
   _ACTIVE_STORY_ID=""; _ACTIVE_STORY_TITLE=""  # US-311: clear story context at phase start
   write_active_status "R" 10
   RESEARCH_OUTPUT="$SCRATCH_DIR/_research_output.json"
-  TEST_OUTPUT="$SCRATCH_DIR/_test_stories_output.json"
+  if [[ "${SPIRAL_TEST_OUTPUT_FORMAT:-json}" == "yaml" ]]; then
+    TEST_OUTPUT="$SCRATCH_DIR/_test_stories_output.yaml"
+  else
+    TEST_OUTPUT="$SCRATCH_DIR/_test_stories_output.json"
+  fi
   _phase_r_ckpt="$SCRATCH_DIR/_phase_R_${SPIRAL_ITER}.ckpt"
   _phase_t_ckpt="$SCRATCH_DIR/_phase_T_${SPIRAL_ITER}.ckpt"
 
@@ -2897,20 +2912,20 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
     _T_SKIP=1
   elif [[ "$DRY_RUN" -eq 1 ]]; then
     echo "  [dry-run] skipping test synthesis"
-    echo '{"stories":[]}' >"$TEST_OUTPUT"
+    _write_empty_test_output
     touch "$_phase_t_ckpt"
     _T_SKIP=1
   elif [[ "${SPIRAL_SKIP_PHASES:-}" == *"T"* ]]; then
     echo ""
     echo "  [T] Skipping Phase T (SPIRAL_SKIP_PHASES)"
-    echo '{"stories":[]}' >"$TEST_OUTPUT"
+    _write_empty_test_output
     touch "$_phase_t_ckpt"
     _T_SKIP=1
   elif [[ "$SPIRAL_LOW_POWER_MODE" -eq 1 ]] && spiral_should_skip_phase "T"; then
     _P_LVL=$(spiral_pressure_level)
     echo "  [T] Skipping Phase T (memory pressure: level $_P_LVL)"
     spiral_log_low_power "Phase T skipped (pressure level $_P_LVL, iter $SPIRAL_ITER)"
-    echo '{"stories":[]}' >"$TEST_OUTPUT"
+    _write_empty_test_output
     touch "$_phase_t_ckpt"
     _T_SKIP=1
   fi
@@ -3218,6 +3233,7 @@ $INJECTED_PROMPT"
             --reports-dir "$REPO_ROOT/$SPIRAL_REPORTS_DIR" \
             --output "$TEST_OUTPUT" \
             --repo-root "$REPO_ROOT" \
+            ${SPIRAL_TEST_OUTPUT_FORMAT:+--output-format "$SPIRAL_TEST_OUTPUT_FORMAT"} \
             ${SPIRAL_FOCUS:+--focus "$SPIRAL_FOCUS"} || _T_EXIT=$?
         else
           "$SPIRAL_CORE_BIN" synthesize \
@@ -3225,6 +3241,7 @@ $INJECTED_PROMPT"
             --reports-dir "$REPO_ROOT/$SPIRAL_REPORTS_DIR" \
             --output "$TEST_OUTPUT" \
             --repo-root "$REPO_ROOT" \
+            ${SPIRAL_TEST_OUTPUT_FORMAT:+--output-format "$SPIRAL_TEST_OUTPUT_FORMAT"} \
             ${SPIRAL_FOCUS:+--focus "$SPIRAL_FOCUS"} || _T_EXIT=$?
         fi
       else
@@ -3235,6 +3252,7 @@ $INJECTED_PROMPT"
             --reports-dir "$REPO_ROOT/$SPIRAL_REPORTS_DIR" \
             --output "$TEST_OUTPUT" \
             --repo-root "$REPO_ROOT" \
+            --output-format "${SPIRAL_TEST_OUTPUT_FORMAT:-json}" \
             ${SPIRAL_FOCUS:+--focus "$SPIRAL_FOCUS"} || _T_EXIT=$?
         else
           "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/synthesize_tests.py" \
@@ -3242,6 +3260,7 @@ $INJECTED_PROMPT"
             --reports-dir "$REPO_ROOT/$SPIRAL_REPORTS_DIR" \
             --output "$TEST_OUTPUT" \
             --repo-root "$REPO_ROOT" \
+            --output-format "${SPIRAL_TEST_OUTPUT_FORMAT:-json}" \
             ${SPIRAL_FOCUS:+--focus "$SPIRAL_FOCUS"} || _T_EXIT=$?
         fi
       fi
@@ -3249,12 +3268,23 @@ $INJECTED_PROMPT"
       if [[ "$_T_EXIT" -eq 124 ]]; then
         echo "  [Phase T] WARNING: Test synthesis timed out after ${_T_ELAPSED}s (limit: ${SPIRAL_TEST_SYNTH_TIMEOUT}s) — using empty output"
         log_spiral_event "phase_timeout" "\"phase\":\"T\",\"iteration\":$SPIRAL_ITER,\"duration_ms\":$((_T_ELAPSED * 1000)),\"timeout_s\":${SPIRAL_TEST_SYNTH_TIMEOUT}"
-        echo '{"stories":[]}' >"$TEST_OUTPUT"
+        _write_empty_test_output
       elif [[ "$_T_EXIT" -ne 0 ]]; then
         echo "  [Phase T] WARNING: Test synthesis exited with status $_T_EXIT — continuing with partial/empty output"
       fi
 
-      TEST_COUNT=$("$JQ" '.stories | length' "$TEST_OUTPUT" 2>/dev/null || echo "0")
+      if [[ "${SPIRAL_TEST_OUTPUT_FORMAT:-json}" == "yaml" ]]; then
+        TEST_COUNT=$("$SPIRAL_PYTHON" -c "
+import yaml, sys
+try:
+    d = yaml.safe_load(open(sys.argv[1]))
+    print(len(d.get('stories', [])) if isinstance(d, dict) else 0)
+except Exception:
+    print(0)
+" "$TEST_OUTPUT" 2>/dev/null || echo "0")
+      else
+        TEST_COUNT=$("$JQ" '.stories | length' "$TEST_OUTPUT" 2>/dev/null || echo "0")
+      fi
       echo "  [T] Test synthesis complete — $TEST_COUNT story candidates from failures"
 
       # Mark Phase T complete and record end time
@@ -3281,7 +3311,7 @@ $INJECTED_PROMPT"
   fi
   if [[ "$RC_T" -ne 0 && ! -f "$TEST_OUTPUT" ]]; then
     echo "  [T] Phase T background job failed (exit $RC_T) — using empty test output"
-    echo '{"stories":[]}' >"$TEST_OUTPUT"
+    _write_empty_test_output
   fi
 
   # ── Write main checkpoint (T = last parallel phase in ordering) ───────────

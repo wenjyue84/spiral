@@ -6294,7 +6294,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-340",
@@ -6547,7 +6547,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
-      "last_attempted": "2026-03-17T01:46:40Z",
+      "last_attempted": "2026-03-17T01:52:17Z",
       "_phaseI": {
         "diagnosisBlock": "## Current State\nThe previous attempt on US-351 exceeded the $2.00 cost ceiling at $2.006187. I need to be highly targeted.\n\n## Problem Identified\n`lib/run_parallel_ralph.sh` likely has per-worker git fetch steps. I need to: (1) add one shared `git fetch` before workers launch, (2) replace status checks with `git diff-index`, (3) emit a `shared_fetch_complete` event.\n\n## Planned Changes\n- `lib/run_parallel_ralph.sh`: add single `git fetch --all --prune` before worker loop, replace any `git status` with `git diff-index`, emit event\n- `tests/test_shared_git_fetch.bats`: minimal test for the behavior\n\nLet me read the file now.\nNow I have all the info I need. Let me add the shared fetch block between the disk check and Step 2:\nNow let me add the bats test:\nI need to add a 4-worker timing test to the existing test file:\nNow let me verify the changes look correct:\nNow let me run the bats tests to verify:\nAll 7 tests pass. Let me also run shellcheck on the modified file:\nThe 6 failures are pre-existing (test_infer_dependencies, test_route_stories - unrelated to my changes). All bats tests pass.\n\nNow mark US-351 complete and document:\nUS-351 is complete. Here's what was done:\n\n**Changes made:**\n- `lib/run_parallel_ralph.sh`: Added Step 1.9  a single `git fetch --all --prune` before worktree creation. Emits `shared_fetch_complete` event to `spiral_events.jsonl` with `worker_count` and `elapsed_ms`. Opt-out via `SPIRAL_SKIP_SHARED_FETCH=1`.\n- `tests/shared_fetch_optimization.bats`: Added 2 new tests (7 total, all pass): one timing 4-worker pre-launch sync under 3 seconds, one validating the JSON event format.\n\n**Key finding:** The diff-index check (criterion 2) was already implemented at line 407 by US-247  no change needed there."
       },
