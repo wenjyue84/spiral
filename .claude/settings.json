@@ -21,6 +21,13 @@
       {
         "command": "bash .claude/hooks/worktree_audit.sh"
       }
+    ],
+    "Stop": [
+      {
+        "type": "agent",
+        "timeout": 120,
+        "command": "python .claude/hooks/verify_story_acceptance.py"
+      }
     ]
   }
 }
