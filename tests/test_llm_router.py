@@ -20,6 +20,7 @@ from llm_router import (
     ModelTier,
     TaskContext,
     estimate_tokens,
+    get_thinking_budget,
     main,
 )
 
@@ -475,3 +476,94 @@ class TestContextWindowUpgrade:
         r = LlmRouter()
         model = r.route(self._s("small"), prompt_tokens=171_000)
         assert model == _SONNET  # upgraded from haiku
+
+
+# ---------------------------------------------------------------------------
+# Per-phase extended thinking budget (US-415)
+# ---------------------------------------------------------------------------
+
+_PHASE_BUDGET_VARS = [
+    "SPIRAL_THINKING_BUDGET_PHASE_I",
+    "SPIRAL_THINKING_BUDGET_PHASE_S",
+    "SPIRAL_THINKING_BUDGET_PHASE_R",
+    "SPIRAL_THINKING_BUDGET_PHASE_M",
+    "SPIRAL_THINKING_BUDGET_TOKENS",
+]
+
+
+class TestThinkingBudget:
+    def setup_method(self):
+        for k in _PHASE_BUDGET_VARS:
+            os.environ.pop(k, None)
+
+    def teardown_method(self):
+        for k in _PHASE_BUDGET_VARS:
+            os.environ.pop(k, None)
+
+    def test_no_env_returns_empty(self):
+        result = get_thinking_budget("I")
+        assert result == {}
+
+    def test_fallback_to_global_budget(self):
+        os.environ["SPIRAL_THINKING_BUDGET_TOKENS"] = "5000"
+        result = get_thinking_budget("I")
+        assert result == {"type": "enabled", "budget_tokens": 5000}
+
+    def test_phase_specific_overrides_global(self):
+        os.environ["SPIRAL_THINKING_BUDGET_TOKENS"] = "5000"
+        os.environ["SPIRAL_THINKING_BUDGET_PHASE_I"] = "8000"
+        result = get_thinking_budget("I")
+        assert result == {"type": "enabled", "budget_tokens": 8000}
+
+    def test_zero_disables_thinking(self):
+        os.environ["SPIRAL_THINKING_BUDGET_TOKENS"] = "0"
+        result = get_thinking_budget("S")
+        assert result == {"type": "disabled"}
+
+    def test_phase_zero_disables_thinking(self):
+        os.environ["SPIRAL_THINKING_BUDGET_TOKENS"] = "5000"
+        os.environ["SPIRAL_THINKING_BUDGET_PHASE_R"] = "0"
+        result = get_thinking_budget("R")
+        assert result == {"type": "disabled"}
+
+    def test_minimum_budget_enforced_global(self):
+        os.environ["SPIRAL_THINKING_BUDGET_TOKENS"] = "500"
+        result = get_thinking_budget("M")
+        assert result == {"type": "enabled", "budget_tokens": 1024}
+
+    def test_minimum_budget_enforced_phase(self):
+        os.environ["SPIRAL_THINKING_BUDGET_PHASE_I"] = "100"
+        result = get_thinking_budget("I")
+        assert result == {"type": "enabled", "budget_tokens": 1024}
+
+    def test_minimum_budget_exactly_1024(self):
+        os.environ["SPIRAL_THINKING_BUDGET_TOKENS"] = "1024"
+        result = get_thinking_budget("S")
+        assert result == {"type": "enabled", "budget_tokens": 1024}
+
+    @pytest.mark.parametrize("phase", ["I", "S", "R", "M"])
+    def test_each_phase_reads_own_var(self, phase):
+        os.environ[f"SPIRAL_THINKING_BUDGET_PHASE_{phase}"] = "2000"
+        result = get_thinking_budget(phase)
+        assert result == {"type": "enabled", "budget_tokens": 2000}
+
+    def test_lowercase_phase_normalized(self):
+        os.environ["SPIRAL_THINKING_BUDGET_PHASE_I"] = "3000"
+        result = get_thinking_budget("i")
+        assert result == {"type": "enabled", "budget_tokens": 3000}
+
+    def test_empty_phase_uses_global_only(self):
+        os.environ["SPIRAL_THINKING_BUDGET_TOKENS"] = "4000"
+        result = get_thinking_budget("")
+        assert result == {"type": "enabled", "budget_tokens": 4000}
+
+    def test_phase_takes_precedence_over_global_zero(self):
+        os.environ["SPIRAL_THINKING_BUDGET_TOKENS"] = "0"
+        os.environ["SPIRAL_THINKING_BUDGET_PHASE_I"] = "5000"
+        result = get_thinking_budget("I")
+        assert result == {"type": "enabled", "budget_tokens": 5000}
+
+    def test_malformed_value_returns_empty(self):
+        os.environ["SPIRAL_THINKING_BUDGET_TOKENS"] = "not_a_number"
+        result = get_thinking_budget("I")
+        assert result == {}

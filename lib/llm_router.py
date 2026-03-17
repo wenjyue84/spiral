@@ -42,6 +42,7 @@ __all__ = [
     "SHORT_TO_TIER",
     "MODEL_CONTEXT_LIMITS",
     "estimate_tokens",
+    "get_thinking_budget",
 ]
 
 # ---------------------------------------------------------------------------
@@ -102,6 +103,64 @@ MODEL_CONTEXT_LIMITS: dict[str, int] = {
 
 # Default safety margin: upgrade if prompt exceeds 85% of the context window
 _DEFAULT_CONTEXT_WINDOW_MARGIN = 0.85
+
+
+# Minimum thinking budget when extended thinking is enabled (Anthropic API floor)
+_MIN_THINKING_BUDGET = 1024
+
+# ---------------------------------------------------------------------------
+# Per-phase extended thinking budget (US-415)
+# ---------------------------------------------------------------------------
+
+
+def get_thinking_budget(phase: str = "") -> dict[str, Any]:
+    """Return a ``thinking`` parameter dict for the Anthropic Messages API.
+
+    Reads the phase-specific env var ``SPIRAL_THINKING_BUDGET_PHASE_<PHASE>``
+    (where PHASE is one of I, S, R, M) with fallback to
+    ``SPIRAL_THINKING_BUDGET_TOKENS``.
+
+    Parameters
+    ----------
+    phase:
+        Single-letter SPIRAL phase key (I, S, R, or M).  Case-insensitive.
+        Pass an empty string to use only the global fallback.
+
+    Returns
+    -------
+    dict
+        ``{"type": "enabled", "budget_tokens": N}`` when budget > 0,
+        ``{"type": "disabled"}`` when budget == 0,
+        ``{}`` when neither env var is set (no thinking preference expressed).
+
+    Notes
+    -----
+    Budget values between 1 and 1023 are clamped to the Anthropic API
+    minimum of 1024 tokens.  Pass 0 to explicitly disable thinking.
+    """
+    phase_upper = phase.upper()
+    phase_var = f"SPIRAL_THINKING_BUDGET_PHASE_{phase_upper}" if phase_upper else ""
+
+    raw: str | None = None
+    if phase_var:
+        raw = os.environ.get(phase_var)
+    if raw is None:
+        raw = os.environ.get("SPIRAL_THINKING_BUDGET_TOKENS")
+
+    if raw is None:
+        return {}  # No preference expressed; caller decides
+
+    try:
+        budget = int(raw)
+    except (ValueError, TypeError):
+        return {}  # Malformed value; ignore silently
+
+    if budget == 0:
+        return {"type": "disabled"}
+
+    # Enforce the Anthropic API minimum of 1024 tokens when enabled
+    budget = max(budget, _MIN_THINKING_BUDGET)
+    return {"type": "enabled", "budget_tokens": budget}
 
 
 # ---------------------------------------------------------------------------

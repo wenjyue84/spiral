@@ -312,6 +312,18 @@
 # Default: 10000
 # SPIRAL_THINKING_BUDGET_TOKENS=10000
 
+# ── Per-phase extended thinking budget (US-415) ──────────────────────────────
+# Override the global thinking budget for a specific SPIRAL phase.
+# Phase keys: I=implement, S=story-validate, R=research, M=merge
+# Each var falls back to SPIRAL_THINKING_BUDGET_TOKENS when not set.
+# Budget 0 explicitly disables thinking for that phase (fastest).
+# Budget 1-1023 is clamped to the Anthropic API floor (1024).
+# Recommended defaults shown below; tune based on cost vs quality trade-off.
+# SPIRAL_THINKING_BUDGET_PHASE_I=16000   # Implement: more budget for complex code
+# SPIRAL_THINKING_BUDGET_PHASE_S=4000    # Story-validate: fast constitution checks
+# SPIRAL_THINKING_BUDGET_PHASE_R=8000    # Research: moderate for synthesis
+# SPIRAL_THINKING_BUDGET_PHASE_M=0       # Merge: disable thinking (pure JSON patching)
+
 # ── Interleaved thinking for claude-4 models (US-392) ────────────────────────
 # Enable interleaved-thinking-2025-05-14 beta for iterative reasoning throughout
 # the implementation workflow. Supported on claude-opus-4-6 and claude-sonnet-4-6.

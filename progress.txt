@@ -2811,3 +2811,29 @@ COST CEILING: Add vulture dead code detector for lib/ Python modules in CI (US-4
 - [x] Events contain gen_ai.prompt and gen_ai.completion attributes per spec
 - [x] Content events suppressed when SPIRAL_OTEL_REDACT_CONTENT=true
 - [x] 24 unit tests verify event presence and attribute schema
+## Iteration 12 - Tue, Mar 17, 2026  6:46:40 PM
+COST CEILING: Add vulture dead code detector for lib/ Python modules in CI (US-419) — $6.32748 exceeded hard limit $2.00
+
+
+## Iteration - Story: US-415 - Add per-phase extended thinking budget configuration (PASSES)
+
+### What was implemented
+- `lib/llm_router.py`: Added `get_thinking_budget(phase)` function + exported from `__all__`
+  - Reads `SPIRAL_THINKING_BUDGET_PHASE_{I,S,R,M}` with fallback to `SPIRAL_THINKING_BUDGET_TOKENS`
+  - Returns `{"type": "enabled", "budget_tokens": N}` when budget > 0
+  - Returns `{"type": "disabled"}` when budget == 0
+  - Returns `{}` when no env var is set (no preference)
+  - Clamps budget to minimum 1024 (Anthropic API floor)
+- `tests/test_llm_router.py`: Added `TestThinkingBudget` class with 13 tests
+- `templates/spiral.config.example.sh`: Documented 4 new per-phase env vars
+
+### Acceptance criteria mapping
+- [x] llm_router.py reads SPIRAL_THINKING_BUDGET_PHASE_{I,S,R,M} with fallback to SPIRAL_THINKING_BUDGET_TOKENS
+- [x] Phase-specific budgets returned as thinking={'type':'enabled','budget_tokens':N}
+- [x] Budget 0 returns thinking={'type':'disabled'}
+- [x] Unit tests verify correct budget selection per phase and that 0 disables thinking
+- [x] spiral.config.example.sh documents the per-phase budget env vars with recommended defaults
+
+### Gotchas
+- 4 pre-existing mypy errors in llm_router.py (unused-ignore, no-any-return) — not introduced by this change
+- `get_thinking_budget` only computes the thinking parameter dict; callers (ralph.sh, llm phases) must pass it to the API — no spiral.sh wiring needed for this story

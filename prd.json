@@ -8031,7 +8031,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-416",
@@ -8129,9 +8129,18 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true,
+      "passes": false,
       "last_attempted": "2026-03-17T10:35:30Z",
-      "_failureReason": "story_cost_ceiling"
+      "_failureReason": "story_cost_ceiling",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n- `lib/otel_content_events.py` exists (untracked)  full implementation of gen_ai.content.prompt and gen_ai.content.completion events\n- `tests/test_otel_content_events.py` exists (untracked)  comprehensive tests\n- `ralph/ralph.sh` already has the integration calls (lines 2912-2917 and 3141-3144)\n- Previous attempts hit cost ceiling before committing\n\n## Problem Identified\nFiles exist but were never committed. Need to verify quality gates pass and commit.\n\n## Planned Changes\n- Run tests on the existing implementation\n- Run mypy on the module\n- Add to pyproject.toml mypy overrides if needed\n- Fix any issues found\n- Mark US-397 as passes: true in prd.json\n- Commit everything\nAll 24 tests pass and mypy strict mode is clean. Let me also check the `--scratch-dir` argument  looking at the CLI, the emit-prompt/emit-completion commands don't have `--scratch-dir` but ralph.sh passes it. Let me check.\nThe CLI doesn't accept `--scratch-dir` but ralph.sh passes it. Let me check the exact ralph.sh call.\nThe ralph.sh calls pass `--scratch-dir` but the CLI doesn't accept it. This would cause the `argparse` to fail, but it's wrapped in `2>/dev/null || true` so the error is silently swallowed. I need to fix this  the scratch-dir flag is being passed but ignored, and the module uses `SPIRAL_SCRATCH_DIR` env var instead. The simplest fix is to accept but ignore `--scratch-dir` in the CLI so the invocation works cleanly.\n\nLet me also check the `vulture_whitelist.py` to see if `otel_content_events` needs whitelisting.\nGood  vulture doesn't flag anything in otel_content_events. Now let me fix the `--scratch-dir` argument issue so the CLI actually works when called from ralph.sh.\nNow make the module use `--scratch-dir` if provided, falling back to env var.\nNow re-run the tests and mypy to confirm everything still passes.\nAll 24 tests pass, mypy strict clean. Now mark the story as complete and commit.\nNow append learnings to progress.txt and commit.\nWait, only 2 files changed  prd.json and progress.txt should be there, plus the two new files. Let me verify.\nThe new Python files were already committed in the prior commit `dc2b25e`. My commit added the `--scratch-dir` fix to prd.json and progress.txt. Let me verify the files are tracked.\nBoth commits are in place  the Python module/tests in `dc2b25e`, and the `--scratch-dir` fix + prd.json marking in `cc5f307`. But wait  the `--scratch-dir` fix wasn't included because git add saw no diff on the Python file. Let me check.\nThe prior commit already had `--scratch-dir`. My edit was a no-op  the file was already correct. Everything is committed and clean. \n\nUS-397 is complete:\n- **24/24 tests passing**, mypy strict clean\n- `lib/otel_content_events.py`  emits `gen_ai.content.prompt` and `gen_ai.content.completion` events\n- `ralph/ralph.sh`  integration hooks before/after API call\n- `SPIRAL_OTEL_REDACT_CONTENT=true` suppresses content bodies\n- Local JSONL audit trail + optional OTLP export\n- Story marked `passes: true` in prd.json"
+      },
+      "_contextStats": {
+        "tokensBeforeMasking": 278,
+        "tokensAfterMasking": 277,
+        "reductionPct": 0,
+        "contextWindow": 10
+      }
     },
     {
       "id": "US-420",
@@ -8153,7 +8162,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false
+      "passes": false,
+      "last_attempted": "2026-03-17T10:46:42Z"
     },
     {
       "id": "US-421",
