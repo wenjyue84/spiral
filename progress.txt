@@ -2015,3 +2015,23 @@ COST CEILING: Add pytest-xdist parallel execution to SPIRAL test suite with --di
 ### Gotchas
 - Only one asyncio.gather() call existed in lib/ (in spiral_live_server.py) — scope was narrow
 - mypy --strict passes cleanly with the typed local variable approach (no `type: ignore` needed)
+## Iteration 1 - Tue, Mar 17, 2026  2:30:31 PM
+COST CEILING: Add uv workspace-aware CI cache with hashFiles('uv.lock') key for exact-match restores (US-387) — $2.482269 exceeded hard limit $2.00
+
+
+## Iteration N - Story: US-387 - Add uv workspace-aware CI cache
+
+### What was implemented
+- Updated `.github/actions/setup-uv/action.yml`:
+  - Cache key changed from `${{ runner.os }}-uv-${{ hashFiles('**/uv.lock') }}` to `uv-${{ runner.os }}-${{ hashFiles('uv.lock') }}`
+  - Restore-keys changed from two entries to single `uv-${{ runner.os }}-`
+  - Cache paths expanded to include both uv cache dir AND `.venv`
+
+### Patterns discovered
+- The composite action is the single place to update cache config — all CI jobs use `setup-uv`
+- `uv sync --frozen` was already present in all CI jobs — no ci.yml changes needed
+- Previous attempt failed at cost ceiling ($2.48 > $2.00) due to over-engineering; correct approach is a minimal 3-line YAML change
+
+### Gotchas
+- hashFiles('uv.lock') uses exact path (not glob) for deterministic cache keys
+- Cache key prefix order matters for story spec: `uv-${{ runner.os }}-` not `${{ runner.os }}-uv-`
