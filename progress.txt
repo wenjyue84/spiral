@@ -2154,3 +2154,21 @@ COST CEILING: Add WorktreeCreate and WorktreeRemove Claude Code hooks to emit st
 - Git Bash on Windows transforms absolute paths; bats tests use relative paths to avoid this
 - `.spiral/` is already gitignored so worktree-audit.jsonl needs no extra gitignore entry
 
+## Iteration 9 - Tue, Mar 17, 2026  3:33:29 PM
+COST CEILING: Add ConfigChange Claude Code hook to detect and alert on unauthorized SPIRAL settings modifications (US-389) — $3.85236 exceeded hard limit $2.00
+
+
+## Iteration 10 - Story: US-389 - Add ConfigChange Claude Code hook (COMPLETED)
+
+### What was implemented
+- Created `~/.claude/hooks/config_audit.sh` — reads stdin JSON, appends audit entry to `~/.spiral/config-audit.jsonl`, exits 2 if file_path matches `.claude/settings*.json`
+- Added `ConfigChange` hook with `matcher: project_settings` to `~/.claude/settings.json`
+- Created `tests/test_config_audit.bats` — 4 tests: audit fields, block settings.json, block settings.local.json, allow others
+
+### Patterns discovered
+- Bats HOOK_SCRIPT path must use absolute Windows-compatible path (e.g. `/c/Users/Jyue/...`) — relative `../../../` doesn't resolve correctly from tests/ dir in Git Bash on Windows
+- Setting `HOME` in bats `setup()` redirects `~/.spiral/` writes for test isolation
+
+### Gotchas
+- Previous attempts hit cost ceiling due to over-reading files; this attempt was minimal (2 new files + 1 settings.json edit)
+- Python `open('prd.json')` requires `encoding='utf-8'` on Windows or it fails with cp1252 codec error
