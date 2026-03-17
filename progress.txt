@@ -1542,3 +1542,24 @@ COST CEILING: Use single shared git fetch before parallel worker launch to cut p
 COST CEILING: Use single shared git fetch before parallel worker launch to cut pre-launch sync time 90% (US-351) — $2.619107 exceeded hard limit $2.00
 
 
+
+## Iteration N - Story: US-367 Use compact YAML serialization for _test_stories_output.json
+
+### What was implemented
+- pyproject.toml: added pyyaml>=6.0 dependency
+- lib/synthesize_tests.py: added --output-format flag (json|yaml), _filter_none() helper, _atomic_write_yaml() with custom block-scalar representer for multiline strings, conditional output path
+- lib/merge_stories.py: added _load_raw() helper that detects .yaml/.yml extension and uses yaml.safe_load; load_candidates() updated to use it
+- lib/validate_stories.py: updated _load_candidates() to detect .yaml/.yml extension and use yaml.safe_load
+- spiral.sh: added SPIRAL_TEST_OUTPUT_FORMAT config var (default: json), _write_empty_test_output() helper function, conditional TEST_OUTPUT path, --output-format flag passed to all synthesize_tests.py calls, updated TEST_COUNT check to use Python yaml for YAML mode
+- tests/test_synthesize_tests.py: added TestYamlOutput class with 5 tests (43 total, all pass)
+
+### Patterns discovered
+- PyYAML uses quoted style for strings containing \n unless you register a custom representer — must use Dumper.add_representer(str, ...) to force block scalars (|)
+- yaml.Dumper (not SafeDumper) supports add_representer() but mutates the class globally; acceptable for CLI tool but not library code
+- try/except import for optional yaml dep at module level; HAS_YAML flag used to guard functions
+- spiral.sh _write_empty_test_output() is called from background subshell contexts — make sure TEST_OUTPUT is exported/in scope (it's a local var in the main loop, works because subshell inherits)
+
+### Gotchas
+- mypy needs `# type: ignore[import-untyped]` for yaml import (no bundled stubs); types-PyYAML would be cleaner but adds another dep
+- The Dumper representer mutation affects the class globally — fine for CLI scripts but would be wrong for importable library modules
+- merge_stories.py and validate_stories.py both needed updating to read .yaml files; otherwise Phase S and Phase M would silently fail with empty story lists

@@ -177,6 +177,7 @@ def _validate_via_batch_api(
     batch_out: str,
     base_url: str,
     batch_size: int = 0,
+    num_votes: int = 1,
 ) -> tuple[list[dict], list[dict]]:
     """Validate story candidates using the Anthropic Message Batches API.
 
@@ -186,7 +187,8 @@ def _validate_via_batch_api(
     The batch_id is written to *batch_out* and stamped onto each story as
     ``_batch_id``.
 
-    Single-story runs use the synchronous /v1/messages fallback.
+    Single-story runs use the synchronous /v1/messages fallback with optional
+    majority-voting consensus (US-342) when num_votes > 1.
 
     Parameters
     ----------
@@ -194,6 +196,9 @@ def _validate_via_batch_api(
         Maximum number of stories per batch request (0 = no cap, send all
         in one batch). When > 0, candidates are split into chunks of this
         size and submitted as separate batch requests.
+    num_votes:
+        Number of independent validation calls per story (default 1).
+        When > 1, results are aggregated with majority voting. Requires ANTHROPIC_API_KEY.
     """
     import batch_validate as _bv  # lazy import so the module is optional
 
@@ -209,9 +214,19 @@ def _validate_via_batch_api(
     all_batch_ids: list[str] = []
 
     if len(all_candidates) == 1:
-        # --- Synchronous fallback for single story ---
+        # --- Synchronous fallback for single story (with optional voting) ---
         story = all_candidates[0]
-        ok, reason = _bv.validate_story_sync(story, goal_text, forbidden_phrases, api_key, base_url)
+        if num_votes > 1:
+            ok, reason, votes_accept, votes_reject = _bv.validate_story_sync_votes(
+                story, goal_text, forbidden_phrases, api_key, base_url, num_votes
+            )
+            story["_votes_accept"] = votes_accept
+            story["_votes_reject"] = votes_reject
+        else:
+            ok, reason = _bv.validate_story_sync(story, goal_text, forbidden_phrases, api_key, base_url)
+            story["_votes_accept"] = 1 if ok else 0
+            story["_votes_reject"] = 0 if ok else 1
+
         if ok:
             accepted.append(story)
         else:
@@ -320,8 +335,17 @@ def validate_stories(
     batch_out: str = "",
     batch_base_url: str = "",
     batch_size: int = 0,
+    num_votes: int = 1,
 ) -> tuple[list[dict], list[dict]]:
-    """Core validation logic. Returns (accepted, rejected) lists."""
+    """Core validation logic. Returns (accepted, rejected) lists.
+
+    Parameters
+    ----------
+    num_votes:
+        Number of independent validation calls per story (default 1, no voting).
+        When > 1, results are aggregated with majority voting (US-342).
+        Requires ANTHROPIC_API_KEY and only applies to LLM validation paths.
+    """
 
     # Load prd.json goals
     try:

@@ -18,7 +18,7 @@ import tempfile
 from typing import Any
 
 try:
-    import yaml as _yaml
+    import yaml as _yaml  # type: ignore[import-untyped]
 
     HAS_YAML = True
 except ImportError:
@@ -246,15 +246,29 @@ def _filter_none(d: dict[str, Any]) -> dict[str, Any]:
 
 
 def _atomic_write_yaml(path: str, data: dict[str, Any]) -> None:
-    """Write *data* as YAML to *path* atomically using a temp file + rename."""
+    """Write *data* as YAML to *path* atomically using a temp file + rename.
+
+    Uses block scalars (|) for multiline strings (AC4) to reduce token cost
+    compared to JSON-escaped newlines.
+    """
     if not HAS_YAML:
         raise ImportError("pyyaml is required for YAML output — install with: uv add pyyaml")
+
+    # Custom representer: use block scalar style (|) for multiline strings
+    def _block_str(dumper: _yaml.Dumper, data: str) -> _yaml.Node:
+        if "\n" in data:
+            return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
+        return dumper.represent_scalar("tag:yaml.org,2002:str", data)
+
+    dumper = _yaml.Dumper
+    dumper.add_representer(str, _block_str)
+
     parent = os.path.dirname(os.path.abspath(path)) or "."
     os.makedirs(parent, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=parent, suffix=".tmp")
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            _yaml.dump(data, fh, default_flow_style=False, sort_keys=False, allow_unicode=True)
+            _yaml.dump(data, fh, Dumper=dumper, default_flow_style=False, sort_keys=False, allow_unicode=True)
         os.replace(tmp, path)
     except BaseException:
         try:
