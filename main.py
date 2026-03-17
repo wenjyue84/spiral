@@ -353,6 +353,39 @@ def _render_plain(
     print(f"\n  Total: {total} stories\n")
 
 
+# ── Markdown rendering (US-420) ───────────────────────────────────────────────
+
+_STATUS_MD_ICON = {
+    "passed": ":white_check_mark:",
+    "in_progress": ":arrows_counterclockwise:",
+    "skipped": ":next_track_button:",
+    "dlq": ":x:",
+    "pending": ":hourglass_flowing_sand:",
+}
+
+
+def _render_markdown(
+    buckets: dict[str, list[dict]],
+    retry_counts: dict[str, int],
+    total: int,
+    run_id: str,
+    iteration: int,
+) -> None:
+    """Render a CommonMark table for PR comments."""
+    print(f"**SPIRAL Status** - Run `{run_id or 'unknown'}` | Iteration {iteration}\n")
+    print("| Status | Count | Percentage | Avg Retries |")
+    print("|--------|------:|-----------:|------------:|")
+    for status in ("passed", "in_progress", "skipped", "dlq", "pending"):
+        group = buckets[status]
+        count = len(group)
+        pct = f"{count / total * 100:.1f}%" if total else "0.0%"
+        avg = f"{_avg_retries(group, retry_counts):.1f}"
+        icon = _STATUS_MD_ICON[status]
+        label = _STATUS_LABEL[status]
+        print(f"| {icon} {label} | {count} | {pct} | {avg} |")
+    print(f"\n**Total:** {total} stories")
+
+
 # ── SAST indicator rendering (US-262) ─────────────────────────────────────────
 
 _SAST_COLOUR = {"pass": "green", "warn": "yellow", "fail": "red", "blocked-by-sast": "red"}
@@ -1499,6 +1532,11 @@ def cmd_status(args):
         print(json.dumps(output, indent=2))
         return
 
+    # ── US-420: --format markdown → CommonMark table for PR comments ─────
+    if getattr(args, "format", "table") == "markdown":
+        _render_markdown(buckets, retry_counts, total, run_id, iteration)
+        return
+
     # Rich table (if available), else plain fallback
     try:
         import rich  # noqa: F401
@@ -2026,6 +2064,12 @@ def main():
         "--quiet",
         action="store_true",
         help="With --tree: show only story IDs (no titles or status icons)",
+    )
+    status_parser.add_argument(
+        "--format",
+        choices=["table", "markdown"],
+        default="table",
+        help="Output format: table (default, with color) or markdown (CommonMark for CI comments)",
     )
 
     estimate_parser = subparsers.add_parser(
