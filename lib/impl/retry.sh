@@ -53,7 +53,7 @@ handle_story_failure() {
     if [[ -n "$truncated" ]]; then
       "$jq_bin" --arg sid "$story_id" --arg note "$truncated" \
         '(.userStories[] | select(.id == $sid) | ._antiPatterns) |= (. // []) + [$note]' \
-        "$prd_file" > "${prd_file}.tmp" && mv "${prd_file}.tmp" "$prd_file" || true
+        "$prd_file" >"${prd_file}.tmp" && mv "${prd_file}.tmp" "$prd_file" || true
       echo "[Phase I / retry] Anti-pattern recorded for $story_id: ${truncated:0:60}..."
     fi
   fi

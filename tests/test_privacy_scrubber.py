@@ -8,16 +8,13 @@ before telemetry export.
 
 import os
 import sys
-from pathlib import Path
 from unittest.mock import MagicMock
 
-import pytest
-from hypothesis import given, strategies as st
+from hypothesis import given
+from hypothesis import strategies as st
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from lib.privacy_scrubber import (
-    DEFAULT_SCRUB_FIELDS,
-    DEFAULT_SCRUB_PATTERNS,
     PrivacyScrubber,
 )
 

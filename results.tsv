@@ -1,13 +1,16 @@
 timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	retry_num	commit_sha
-2026-03-13T18:20:10Z	0	1	US-073	Add --version flag to spiral.sh showing installed git version	reject	1720	haiku	2	
+2026-03-13T18:20:10Z	0	1	US-073	Add --version flag to spiral.sh showing installed git version	reject	1720	haiku	2
 2026-03-16T01:35:01Z	1	2	US-199	Export dependency graph as Graphviz DOT file for advanced rendering	reject	1102	claude-sonnet-4-6
 claude-sonnet-4-6			69b7578f2a32	true	2586566	0	0	0	0	0
-2026-03-17T02:16:02Z	0	3	US-351	Use single shared git fetch before parallel worker launch to cut pre-launch sync time 90%	reject	1424	haiku	1			true	6892042	93059	0	0	0	0	0	
-2026-03-17T02:19:12Z	0	4	US-351	Use single shared git fetch before parallel worker launch to cut pre-launch sync time 90%	reject	188	sonnet	2			true	301033	29782	0	0	0	0	0	
-2026-03-17T02:21:55Z	0	5	US-351	Use single shared git fetch before parallel worker launch to cut pre-launch sync time 90%	reject	161	opus	3			true	226587	27295	0	0	0	0	0	
-2026-03-17T02:28:28Z	0	5	US-352	Derive cross-iteration story velocity model from results.tsv to improve cost estimates	reject	2355	sonnet	1			true	2393884	79472	0	0	0	0	0	
-2026-03-17T02:38:31Z	0	6	US-352	Derive cross-iteration story velocity model from results.tsv to improve cost estimates	reject	993	sonnet	2			true	4529524	86105	0	0	0	0	0	
-2026-03-17T02:41:24Z	0	7	US-352	Derive cross-iteration story velocity model from results.tsv to improve cost estimates	reject	171	opus	3			true	191834	26733	0	0	0	0	0	
-2026-03-17T03:19:42Z	0	8	US-382	Extract repeated spiral CI steps into composite actions in .github/actions/	reject	2296	haiku	1			true	6450292	113756	0	0	0	0	0	
-2026-03-17T03:26:37Z	0	9	US-382	Extract repeated spiral CI steps into composite actions in .github/actions/	reject	412	sonnet	2			true	1935192	68973	0	0	0	0	0	
-2026-03-17T03:29:38Z	0	10	US-382	Extract repeated spiral CI steps into composite actions in .github/actions/	reject	178	opus	3			true	599545	31158	0	0	0	0	0	
+2026-03-17T02:16:02Z	0	3	US-351	Use single shared git fetch before parallel worker launch to cut pre-launch sync time 90%	reject	1424	haiku	1			true	6892042	93059	0	0	0	0	0
+2026-03-17T02:19:12Z	0	4	US-351	Use single shared git fetch before parallel worker launch to cut pre-launch sync time 90%	reject	188	sonnet	2			true	301033	29782	0	0	0	0	0
+2026-03-17T02:21:55Z	0	5	US-351	Use single shared git fetch before parallel worker launch to cut pre-launch sync time 90%	reject	161	opus	3			true	226587	27295	0	0	0	0	0
+2026-03-17T02:28:28Z	0	5	US-352	Derive cross-iteration story velocity model from results.tsv to improve cost estimates	reject	2355	sonnet	1			true	2393884	79472	0	0	0	0	0
+2026-03-17T02:38:31Z	0	6	US-352	Derive cross-iteration story velocity model from results.tsv to improve cost estimates	reject	993	sonnet	2			true	4529524	86105	0	0	0	0	0
+2026-03-17T02:41:24Z	0	7	US-352	Derive cross-iteration story velocity model from results.tsv to improve cost estimates	reject	171	opus	3			true	191834	26733	0	0	0	0	0
+2026-03-17T03:19:42Z	0	8	US-382	Extract repeated spiral CI steps into composite actions in .github/actions/	reject	2296	haiku	1			true	6450292	113756	0	0	0	0	0
+2026-03-17T03:26:37Z	0	9	US-382	Extract repeated spiral CI steps into composite actions in .github/actions/	reject	412	sonnet	2			true	1935192	68973	0	0	0	0	0
+2026-03-17T03:29:38Z	0	10	US-382	Extract repeated spiral CI steps into composite actions in .github/actions/	reject	178	opus	3			true	599545	31158	0	0	0	0	0
+2026-03-17T07:33:29Z	0	9	US-389	Add ConfigChange Claude Code hook to detect and alert on unauthorized SPIRAL settings modifications	reject	984	haiku	1			true	4018282	94181	0	0	0	0	0
+2026-03-17T07:37:24Z	0	10	US-389	Add ConfigChange Claude Code hook to detect and alert on unauthorized SPIRAL settings modifications	reject	233	sonnet	2			true	585115	34420	0	0	0	0	0
+2026-03-17T07:40:17Z	0	11	US-389	Add ConfigChange Claude Code hook to detect and alert on unauthorized SPIRAL settings modifications	reject	169	opus	3			true	298647	28682	0	0	0	0	0

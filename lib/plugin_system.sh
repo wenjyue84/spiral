@@ -120,9 +120,9 @@ load_plugins() {
     local hooks="${PLUGIN_MANIFEST[hooks]:-}"
     if [[ -n "$hooks" ]]; then
       # Split by comma and space
-      IFS=', ' read -ra hook_array <<< "$hooks"
+      IFS=', ' read -ra hook_array <<<"$hooks"
       for hook in "${hook_array[@]}"; do
-        hook=$(echo "$hook" | xargs)  # trim whitespace
+        hook=$(echo "$hook" | xargs) # trim whitespace
         PLUGIN_HOOKS["$hook"]+="$plugin_name "
       done
     fi
@@ -154,7 +154,7 @@ list_plugins() {
 # EXTRA_FIELDS: optional comma-separated JSON field string, e.g. '"key":"val","n":42'
 build_hook_context() {
   local story_id="${1:-}"
-  local extra_fields="${2:-}"  # optional: extra JSON fields to append
+  local extra_fields="${2:-}" # optional: extra JSON fields to append
 
   local extra_part=""
   [[ -n "$extra_fields" ]] && extra_part=", $extra_fields"
@@ -175,10 +175,10 @@ EOF
 # HOOK_TYPE: PRE (abort on failure) or POST (warn on failure)
 # EXTRA_CONTEXT: optional extra JSON field string, e.g. '"key":"val","n":42'
 run_plugin_hooks() {
-  local hook_point="$1"  # pre-phase, post-phase, post-story, etc.
-  local hook_type="$2"   # PRE or POST
+  local hook_point="$1" # pre-phase, post-phase, post-story, etc.
+  local hook_type="$2"  # PRE or POST
   local story_id="${3:-}"
-  local extra_context="${4:-}"  # optional: extra JSON fields merged into hook context
+  local extra_context="${4:-}" # optional: extra JSON fields merged into hook context
 
   local plugins_for_hook="${PLUGIN_HOOKS[$hook_point]:-}"
   [[ -z "$plugins_for_hook" ]] && return 0
@@ -200,12 +200,12 @@ run_plugin_hooks() {
     local hook_rc=0
     local hook_ts
     hook_ts=$(date +%s)
-    if ! timeout "${SPIRAL_HOOK_TIMEOUT:-30}" bash "$hook_script" <<< "$context" 2>&1; then
+    if ! timeout "${SPIRAL_HOOK_TIMEOUT:-30}" bash "$hook_script" <<<"$context" 2>&1; then
       hook_rc=$?
     else
       hook_rc=0
     fi
-    local hook_dur=$(( $(date +%s) - hook_ts ))
+    local hook_dur=$(($(date +%s) - hook_ts))
 
     # Log result
     log_spiral_event "plugin_hook" \
@@ -236,12 +236,12 @@ validate_plugin_env() {
   allowed_env_str=$(grep "^allowed_env = " "$plugin_toml" | sed 's/^allowed_env = \[\(.*\)\]$/\1/' || true)
 
   if [[ -z "$allowed_env_str" ]]; then
-    return 0  # No env requirements
+    return 0 # No env requirements
   fi
 
   # Check each required env var
   local missing=0
-  IFS=', ' read -ra env_array <<< "$allowed_env_str"
+  IFS=', ' read -ra env_array <<<"$allowed_env_str"
   for env_var in "${env_array[@]}"; do
     env_var=$(echo "$env_var" | sed 's/"//g' | xargs)
     if [[ -z "${!env_var:-}" ]]; then

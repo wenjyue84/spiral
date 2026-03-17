@@ -41,7 +41,8 @@ _setup_env() {
 # Returns: 15 (ERR_CASCADE_ABORT) if limit exceeded, 0 otherwise.
 # Writes cascade_abort event to SCRATCH_DIR/spiral_events.jsonl on abort.
 _simulate_cascade() {
-  local limit="$1"; shift
+  local limit="$1"
+  shift
   local _CASCADE_FAIL_COUNT=0
   local _CASCADE_FAIL_IDS=""
   local SPIRAL_CASCADE_FAN_OUT_LIMIT="$limit"
@@ -88,8 +89,8 @@ teardown() {
 @test "SPIRAL_CASCADE_FAN_OUT_LIMIT defaults to 5 in spiral.sh" {
   SPIRAL_HOME="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
   # Extract the default value from the variable declaration
-  default=$(grep 'SPIRAL_CASCADE_FAN_OUT_LIMIT=' "$SPIRAL_HOME/spiral.sh" \
-    | head -1 | sed -nE 's/.*:-([0-9]+)\}.*/\1/p')
+  default=$(grep 'SPIRAL_CASCADE_FAN_OUT_LIMIT=' "$SPIRAL_HOME/spiral.sh" |
+    head -1 | sed -nE 's/.*:-([0-9]+)\}.*/\1/p')
   [ "$default" = "5" ]
 }
 

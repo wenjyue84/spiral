@@ -26,7 +26,7 @@ setup() {
   log_spiral_event() {
     local event_type="$1"
     local extra="${2:-}"
-    printf '{"type":"%s",%s}\n' "$event_type" "$extra" >> "$TMPDIR_PC/events.jsonl"
+    printf '{"type":"%s",%s}\n' "$event_type" "$extra" >>"$TMPDIR_PC/events.jsonl"
   }
   export -f log_spiral_event
 }
@@ -40,8 +40,8 @@ teardown() {
 # Parse cache fields from a mock result line (mirrors ralph.sh token parsing logic)
 parse_cache_fields() {
   local result_line="$1"
-  _CACHE_CREATION_TOKENS=$($JQ -r '.usage.cache_creation_input_tokens // 0' <<< "$result_line" 2>/dev/null || echo 0)
-  _CACHE_READ_TOKENS=$($JQ -r '.usage.cache_read_input_tokens // 0' <<< "$result_line" 2>/dev/null || echo 0)
+  _CACHE_CREATION_TOKENS=$($JQ -r '.usage.cache_creation_input_tokens // 0' <<<"$result_line" 2>/dev/null || echo 0)
+  _CACHE_READ_TOKENS=$($JQ -r '.usage.cache_read_input_tokens // 0' <<<"$result_line" 2>/dev/null || echo 0)
   _CACHE_HIT=false
   [[ "$_CACHE_CREATION_TOKENS" =~ ^[0-9]+$ ]] || _CACHE_CREATION_TOKENS=0
   [[ "$_CACHE_READ_TOKENS" =~ ^[0-9]+$ ]] || _CACHE_READ_TOKENS=0
@@ -126,7 +126,7 @@ export -f parse_cache_fields
   local results_file="$TMPDIR_PC/results.tsv"
 
   # Simulate the header creation from ralph.sh
-  printf 'timestamp\tspiral_iter\tralph_iter\tstory_id\tstory_title\tstatus\tduration_sec\tmodel\tretry_num\tcommit_sha\trun_id\tcache_hit\tcache_read_tokens\n' > "$results_file"
+  printf 'timestamp\tspiral_iter\tralph_iter\tstory_id\tstory_title\tstatus\tduration_sec\tmodel\tretry_num\tcommit_sha\trun_id\tcache_hit\tcache_read_tokens\n' >"$results_file"
 
   run head -1 "$results_file"
   assert_output --partial "cache_hit"
@@ -136,8 +136,8 @@ export -f parse_cache_fields
 @test "results.tsv data row includes cache fields" {
   local results_file="$TMPDIR_PC/results.tsv"
 
-  printf 'timestamp\tspiral_iter\tralph_iter\tstory_id\tstory_title\tstatus\tduration_sec\tmodel\tretry_num\tcommit_sha\trun_id\tcache_hit\tcache_read_tokens\n' > "$results_file"
-  printf '2026-03-14T00:00:00Z\t0\t1\tUS-139\tEnable prompt caching\tkeep\t120\tsonnet\t0\tabc123\trun-1\ttrue\t4500\n' >> "$results_file"
+  printf 'timestamp\tspiral_iter\tralph_iter\tstory_id\tstory_title\tstatus\tduration_sec\tmodel\tretry_num\tcommit_sha\trun_id\tcache_hit\tcache_read_tokens\n' >"$results_file"
+  printf '2026-03-14T00:00:00Z\t0\t1\tUS-139\tEnable prompt caching\tkeep\t120\tsonnet\t0\tabc123\trun-1\ttrue\t4500\n' >>"$results_file"
 
   # Verify the data row has the cache fields
   local data_row

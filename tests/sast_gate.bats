@@ -21,7 +21,7 @@ setup() {
 
   # Minimal PRD file with one pending story
   export PRD_FILE="$TMPDIR_SAST/prd.json"
-  cat > "$PRD_FILE" <<'EOF'
+  cat >"$PRD_FILE" <<'EOF'
 {
   "userStories": [
     {"id": "US-999", "title": "Test story", "passes": false}
@@ -80,14 +80,14 @@ _source_sast_fn() {
   cd "$TMPDIR_SAST"
   git init -q
   git checkout -b main -q 2>/dev/null || true
-  echo "test" > file.txt
+  echo "test" >file.txt
   git add file.txt
   git commit -q -m "init"
   # No remote so git diff --name-only origin/main will fail → empty
   _source_sast_fn
   run run_sast_gate_check
   assert_success
-  assert_output --partial "No changed files"* || "$output" == *"skipping"
+  [[ "$output" == *"No changed files"* ]] || [[ "$output" == *"skipping"* ]]
 }
 
 # ── Tests: planted SQL injection triggers HIGH finding ───────────────────────
@@ -104,7 +104,7 @@ _source_sast_fn() {
   cd "$TMPDIR_SAST"
   git init -q
   git checkout -b main -q 2>/dev/null || true
-  echo "clean = True" > app.py
+  echo "clean = True" >app.py
   git add app.py
   git commit -q -m "init"
 
@@ -113,7 +113,7 @@ _source_sast_fn() {
 
   # Make a branch with SQL injection vulnerability
   git checkout -b feature -q
-  cat > app.py <<'PYEOF'
+  cat >app.py <<'PYEOF'
 import sqlite3
 
 def get_user(username):
@@ -133,7 +133,7 @@ PYEOF
   # Semgrep should detect the SQL injection and return non-zero
   # Note: semgrep may or may not flag this depending on ruleset availability
   # The function should at least run and produce output
-  assert_output --partial "Scanning"* || "$output" == *"SAST"
+  [[ "$output" == *"Scanning"* ]] || [[ "$output" == *"SAST"* ]]
 }
 
 # ── Tests: report file creation ──────────────────────────────────────────────
@@ -148,13 +148,13 @@ PYEOF
   cd "$TMPDIR_SAST"
   git init -q
   git checkout -b main -q 2>/dev/null || true
-  echo "clean = True" > app.py
+  echo "clean = True" >app.py
   git add app.py
   git commit -q -m "init"
   git remote add origin . 2>/dev/null || true
 
   git checkout -b feature -q
-  echo "x = 1" >> app.py
+  echo "x = 1" >>app.py
   git add app.py
   git commit -q -m "change"
 

@@ -26,7 +26,7 @@ import json, sys
 n = int(sys.argv[1])
 stories = [{'id': f'US-{i:03}', 'title': f'Story {i}', 'passes': False} for i in range(1, n+1)]
 print(json.dumps({'schemaVersion': '1', 'userStories': stories}))
-" "$n" > "$file"
+" "$n" >"$file"
     echo "$file"
   }
   export -f make_prd
@@ -119,7 +119,7 @@ _run_story_count_check() {
 
 @test "empty prd (0 stories): no warning" {
   local prd="$TMPDIR_TEST/empty.json"
-  echo '{"schemaVersion":"1","userStories":[]}' > "$prd"
+  echo '{"schemaVersion":"1","userStories":[]}' >"$prd"
   SPIRAL_MAX_STORIES=200 run _run_story_count_check "$prd"
   assert_success
   refute_output --partial "WARNING"

@@ -38,7 +38,7 @@ setup() {
     local _cleaned=0
     [[ -d "$wtree" ]] || return 0
     while IFS= read -r -d '' _lf; do
-      rm -f "$_lf" 2>/dev/null && _cleaned=1 && \
+      rm -f "$_lf" 2>/dev/null && _cleaned=1 &&
         echo "  [parallel] Worker $worker_num crash-clean: removed stale lock $_lf"
     done < <(find "$wtree/.git" -name "*.lock" -print0 2>/dev/null)
     if [[ -f "$wtree/prd.json.tmp" ]]; then
@@ -76,7 +76,7 @@ teardown() {
 
 @test "_inspect_crashed_worktree: removes prd.json.tmp" {
   local wtree="$WORKTREE_BASE/worker-1"
-  echo '{}' > "$wtree/prd.json.tmp"
+  echo '{}' >"$wtree/prd.json.tmp"
   _inspect_crashed_worktree "$wtree" "1"
   [ ! -f "$wtree/prd.json.tmp" ]
 }
@@ -98,7 +98,7 @@ teardown() {
 @test "_inspect_crashed_worktree: removes both lock files and prd.json.tmp together" {
   local wtree="$WORKTREE_BASE/worker-1"
   touch "$wtree/.git/MERGE_HEAD.lock"
-  echo '{}' > "$wtree/prd.json.tmp"
+  echo '{}' >"$wtree/prd.json.tmp"
   _inspect_crashed_worktree "$wtree" "1"
   [ ! -f "$wtree/.git/MERGE_HEAD.lock" ]
   [ ! -f "$wtree/prd.json.tmp" ]
@@ -144,7 +144,7 @@ teardown() {
   # Launch a setsid'd process that writes its PGID then spawns a child sleep
   setsid bash -c "echo \"\$\$\" > \"$pgid_file\"; sleep 300" 3>&- &
   local parent_pid=$!
-  sleep 0.3  # allow PGID file to be written
+  sleep 0.3 # allow PGID file to be written
   [ -f "$pgid_file" ]
   local pgid
   pgid=$(cat "$pgid_file" | tr -d '[:space:]')

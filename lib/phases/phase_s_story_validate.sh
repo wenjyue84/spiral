@@ -34,8 +34,8 @@ run_phase_story_validate() {
   local scratch_dir="${5:-$SCRATCH_DIR}"
   local spiral_python="${6:-$SPIRAL_PYTHON}"
   local spiral_home="${7:-$SPIRAL_HOME}"
-  local ai_suggest_output="${8:-}"          # Phase A: Source 2 (ai-example) candidates
-  local test_story_candidates="${9:-}"      # Source 5 (test-story) candidates
+  local ai_suggest_output="${8:-}"     # Phase A: Source 2 (ai-example) candidates
+  local test_story_candidates="${9:-}" # Source 5 (test-story) candidates
 
   local validated_out="$scratch_dir/_validated_stories.json"
   local rejected_out="$scratch_dir/_story_rejected.json"

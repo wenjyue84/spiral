@@ -65,7 +65,7 @@ tool_schema_init() {
   local schema_file="${SPIRAL_SCRATCH_DIR:-.spiral}/tool-schema.json"
   if [[ ! -f "$schema_file" ]]; then
     mkdir -p "$(dirname "$schema_file")" 2>/dev/null || true
-    printf '%s\n' "$_TOOL_SCHEMA_DEFAULTS" > "$schema_file" 2>/dev/null || true
+    printf '%s\n' "$_TOOL_SCHEMA_DEFAULTS" >"$schema_file" 2>/dev/null || true
   fi
   echo "$schema_file"
 }
@@ -76,7 +76,8 @@ tool_schema_init() {
 # Returns 0 if valid, 1 if invalid.
 # Sets global _tool_param_last_error="<param>|<expected>|<received>" on failure.
 validate_tool_params() {
-  local tool="$1"; shift
+  local tool="$1"
+  shift
   _tool_param_last_error=""
 
   case "$tool" in
@@ -97,11 +98,14 @@ validate_tool_params() {
       fi
       ;;
 
-    python|python3)
+    python | python3)
       # First positional argument must be -m/-c flag OR a .py file
       local first_pos=""
       for arg in "$@"; do
-        [[ "$arg" == -* ]] && { first_pos="$arg"; break; }
+        [[ "$arg" == -* ]] && {
+          first_pos="$arg"
+          break
+        }
         first_pos="$arg"
         break
       done
@@ -143,7 +147,7 @@ validate_tool_params() {
           continue
         fi
         case "$arg" in
-          --arg|--argjson|--rawfile|--slurpfile|--args|--jsonargs)
+          --arg | --argjson | --rawfile | --slurpfile | --args | --jsonargs)
             skip_count=2
             continue
             ;;
@@ -166,7 +170,7 @@ validate_tool_params() {
       for arg in "$@"; do
         if [[ "$arg" == *"://"* ]]; then
           local scheme="${arg%%://*}"
-          scheme="${scheme,,}"  # lowercase
+          scheme="${scheme,,}" # lowercase
           if [[ " $valid_schemes " != *" $scheme "* ]]; then
             _tool_param_last_error="url|http|https|ftp scheme|${scheme}://"
             return 1
@@ -228,7 +232,7 @@ log_tool_error() {
   local log_file="${SPIRAL_SCRATCH_DIR:-.spiral}/spiral_events.jsonl"
   printf '{"ts":"%s","event":"tool_param_error","tool":"%s","parameter":"%s","expected":"%s","received":"%s","storyId":"%s"}\n' \
     "$ts" "$tool" "$parameter" "$expected" "$received" "$story_id" \
-    >> "$log_file" 2>/dev/null || true
+    >>"$log_file" 2>/dev/null || true
 
   # Append to checkpoint _toolErrors (non-blocking)
   local ckpt="${SPIRAL_SCRATCH_DIR:-.spiral}/_checkpoint.json"
@@ -280,7 +284,8 @@ scan_stream_json_tool_params() {
 
   # Extract bash commands from LLM stream-json
   local commands
-  commands=$(python3 - "$stream_file" 2>/dev/null <<'EXTRACT_PY'
+  commands=$(
+    python3 - "$stream_file" 2>/dev/null <<'EXTRACT_PY'
 import sys, json
 
 stream_file = sys.argv[1]
@@ -315,7 +320,7 @@ EXTRACT_PY
 
     # Extract tool and arguments from command line
     local -a tokens
-    read -ra tokens <<< "$cmd"
+    read -ra tokens <<<"$cmd"
     local tool="${tokens[0]}"
     local args=("${tokens[@]:1}")
 
@@ -325,12 +330,12 @@ EXTRACT_PY
     if ! validate_tool_params "$tool" "${args[@]}"; then
       # Parse error info from _tool_param_last_error (format: param|expected|received)
       local err_param err_expected err_received
-      IFS='|' read -r err_param err_expected err_received <<< "$_tool_param_last_error"
+      IFS='|' read -r err_param err_expected err_received <<<"$_tool_param_last_error"
       log_tool_error "$tool" "${err_param:-unknown}" "${err_expected:-unknown}" "${err_received:-unknown}" "$story_id"
       echo "  [tool-validate] WARN $tool: invalid '$err_param' — expected '$err_expected', got '$err_received'" >&2
       error_count=$((error_count + 1))
     fi
-  done <<< "$commands"
+  done <<<"$commands"
 
   echo "$error_count"
 }

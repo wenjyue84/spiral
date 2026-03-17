@@ -172,7 +172,7 @@ teardown() {
 
 @test "tool_schema_init creates .spiral/tool-schema.json" {
   local schema_file="${SPIRAL_SCRATCH_DIR}/tool-schema.json"
-  [ ! -f "$schema_file" ]  # Ensure it doesn't exist yet
+  [ ! -f "$schema_file" ] # Ensure it doesn't exist yet
   run tool_schema_init
   assert_success
   [ -f "$schema_file" ]
@@ -182,6 +182,6 @@ teardown() {
   local schema_file
   schema_file=$(tool_schema_init)
   [ -f "$schema_file" ]
-  run python3 -c "import json,sys; json.load(sys.stdin)" < "$schema_file"
+  run python3 -c "import json,sys; json.load(sys.stdin)" <"$schema_file"
   assert_success
 }

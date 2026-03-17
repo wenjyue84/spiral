@@ -16,7 +16,7 @@ setup() {
   git init -q
   git config user.email "test@example.com"
   git config user.name "Test User"
-  echo "initial" > README.md
+  echo "initial" >README.md
   git add README.md
   git commit -qm "Initial commit"
 }
@@ -38,7 +38,7 @@ teardown() {
 
 @test "create_snapshot records git stash when changes exist" {
   cd "$TEST_REPO_TEMP"
-  echo "modified" >> README.md
+  echo "modified" >>README.md
   git add README.md
   create_snapshot "$TEST_SNAPSHOT_DIR" "$TEST_REPO_TEMP"
   [[ "$SNAPSHOT_STASH_SHA" != "NONE" ]]
@@ -47,7 +47,7 @@ teardown() {
 
 @test "create_snapshot records non-git files in manifest" {
   cd "$TEST_REPO_TEMP"
-  echo "untracked" > untracked.txt
+  echo "untracked" >untracked.txt
   git status --short
   create_snapshot "$TEST_SNAPSHOT_DIR" "$TEST_REPO_TEMP"
   grep -q "untracked.txt" "$SNAPSHOT_MANIFEST"
@@ -61,7 +61,7 @@ teardown() {
 
 @test "restore_snapshot restores stash when SNAPSHOT_STASH_SHA is set" {
   cd "$TEST_REPO_TEMP"
-  echo "modified" >> README.md
+  echo "modified" >>README.md
   git add README.md
   create_snapshot "$TEST_SNAPSHOT_DIR" "$TEST_REPO_TEMP"
 
@@ -83,7 +83,7 @@ teardown() {
   create_snapshot "$TEST_SNAPSHOT_DIR" "$TEST_REPO_TEMP"
 
   # Create new files after snapshot
-  echo "new" > newfile.txt
+  echo "new" >newfile.txt
   touch another_file.log
 
   # Restore snapshot

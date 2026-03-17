@@ -102,37 +102,37 @@ MAX_SPIRAL_ITERS=20
 GATE_DEFAULT="" # empty = interactive; "proceed"|"skip"|"quit" = auto
 STATUS_ONLY=0   # 1 = print session state and exit (--status)
 RALPH_MAX_ITERS=120
-SKIP_RESEARCH=1       # 1 = skip Phase R (Claude web research); T and M still run (default off; enable via UI toggle or SKIP_RESEARCH=0 in spiral.config.sh)
-RALPH_WORKERS=1       # >1 = parallel mode (git worktrees + docker lock)
-WORKERS_EXPLICIT=0    # 1 = user passed --ralph-workers explicitly
-CAPACITY_LIMIT=50     # Phase R is skipped when PENDING exceeds this threshold
-MONITOR_TERMINALS=1   # 1 = open a terminal window per worker to tail logs
-SPIRAL_CONFIG_PATH="" # explicit --config path
-SPIRAL_CLI_PRD=""     # explicit --prd path override
-SPIRAL_CLI_MODEL=""   # explicit --model override (haiku|sonnet|opus)
-SPIRAL_CLI_FOCUS=""   # explicit --focus override
-SPIRAL_FOCUS_TAGS=""  # comma-separated tags filter (--focus-tags)
-TIME_LIMIT_MINS=0     # 0 = no limit; >0 = stop after N minutes (--time-limit or --until)
-DRY_RUN=0             # 1 = dry-run mode: skip API calls (R, T, I, V) but run control flow
-SKIP_CONFLICT_PREFLIGHT=0 # 1 = bypass pre-flight cross-story conflict detection (--skip-conflict-preflight)
-ALLOW_UNSAFE_STORIES=0    # 1 = log injection warnings but do not block stories (--allow-unsafe-stories)
-ALLOW_EXEC_WRITES=0       # 1 = allow LLM to write executable files outside src/ and tests/ (--allow-exec-writes)
-NO_CASCADE_SKIP=0     # 1 = disable dependency cascade skip (--no-cascade-skip)
-DOCTOR_MODE=0         # 1 = run dependency check and exit (--doctor)
-REPLAY_STORY_ID=""    # "" = normal mode; "US-XXX" = replay that story only (--replay)
-REPLAY_FROM_PHASE=""  # "" = start from Phase I; "V" = skip Phase I (--from-phase)
-REPLAY_HINT=""        # extra context injected into Phase I system prompt (--hint)
-ROLLBACK_STORY_ID=""  # "" = normal mode; "US-XXX" = rollback that story's commit (--rollback)
-UNDO_STORY_ID=""      # "" = normal mode; "US-XXX" = replay undo log for that story (--undo)
-BENCHMARK_STORY_ID="" # "" = normal mode; "US-XXX" = benchmark that story (--benchmark)
-BENCHMARK_MODELS=""   # comma-separated model names for --models (e.g., "claude-opus-4-6,claude-sonnet-4-6")
-RESET_CHECKPOINT=0    # 1 = remove _checkpoint.json and start fresh (--reset)
-MIGRATE_MODE=0        # 1 = run prd.json schema migration and exit (--migrate)
-ARCHIVE_MODE=0        # 1 = archive completed stories and exit (--archive-done)
-CHANGELOG_MODE=0      # 1 = generate CHANGELOG.md via git-cliff and exit (--changelog)
-STALE_REPORT_MODE=0   # 1 = print stale stories and exit (--stale-report)
-FLAKY_REPORT_MODE=0   # 1 = print flaky test quarantine report and exit (--flaky-tests report)
-CALIBRATION_REPORT_MODE=0 # 1 = print calibration report and exit (--calibration-report)
+SKIP_RESEARCH=1                              # 1 = skip Phase R (Claude web research); T and M still run (default off; enable via UI toggle or SKIP_RESEARCH=0 in spiral.config.sh)
+RALPH_WORKERS=1                              # >1 = parallel mode (git worktrees + docker lock)
+WORKERS_EXPLICIT=0                           # 1 = user passed --ralph-workers explicitly
+CAPACITY_LIMIT=50                            # Phase R is skipped when PENDING exceeds this threshold
+MONITOR_TERMINALS=1                          # 1 = open a terminal window per worker to tail logs
+SPIRAL_CONFIG_PATH=""                        # explicit --config path
+SPIRAL_CLI_PRD=""                            # explicit --prd path override
+SPIRAL_CLI_MODEL=""                          # explicit --model override (haiku|sonnet|opus)
+SPIRAL_CLI_FOCUS=""                          # explicit --focus override
+SPIRAL_FOCUS_TAGS=""                         # comma-separated tags filter (--focus-tags)
+TIME_LIMIT_MINS=0                            # 0 = no limit; >0 = stop after N minutes (--time-limit or --until)
+DRY_RUN=0                                    # 1 = dry-run mode: skip API calls (R, T, I, V) but run control flow
+SKIP_CONFLICT_PREFLIGHT=0                    # 1 = bypass pre-flight cross-story conflict detection (--skip-conflict-preflight)
+ALLOW_UNSAFE_STORIES=0                       # 1 = log injection warnings but do not block stories (--allow-unsafe-stories)
+ALLOW_EXEC_WRITES=0                          # 1 = allow LLM to write executable files outside src/ and tests/ (--allow-exec-writes)
+NO_CASCADE_SKIP=0                            # 1 = disable dependency cascade skip (--no-cascade-skip)
+DOCTOR_MODE=0                                # 1 = run dependency check and exit (--doctor)
+REPLAY_STORY_ID=""                           # "" = normal mode; "US-XXX" = replay that story only (--replay)
+REPLAY_FROM_PHASE=""                         # "" = start from Phase I; "V" = skip Phase I (--from-phase)
+REPLAY_HINT=""                               # extra context injected into Phase I system prompt (--hint)
+ROLLBACK_STORY_ID=""                         # "" = normal mode; "US-XXX" = rollback that story's commit (--rollback)
+UNDO_STORY_ID=""                             # "" = normal mode; "US-XXX" = replay undo log for that story (--undo)
+BENCHMARK_STORY_ID=""                        # "" = normal mode; "US-XXX" = benchmark that story (--benchmark)
+BENCHMARK_MODELS=""                          # comma-separated model names for --models (e.g., "claude-opus-4-6,claude-sonnet-4-6")
+RESET_CHECKPOINT=0                           # 1 = remove _checkpoint.json and start fresh (--reset)
+MIGRATE_MODE=0                               # 1 = run prd.json schema migration and exit (--migrate)
+ARCHIVE_MODE=0                               # 1 = archive completed stories and exit (--archive-done)
+CHANGELOG_MODE=0                             # 1 = generate CHANGELOG.md via git-cliff and exit (--changelog)
+STALE_REPORT_MODE=0                          # 1 = print stale stories and exit (--stale-report)
+FLAKY_REPORT_MODE=0                          # 1 = print flaky test quarantine report and exit (--flaky-tests report)
+CALIBRATION_REPORT_MODE=0                    # 1 = print calibration report and exit (--calibration-report)
 SPIRAL_LOG_LEVEL="${SPIRAL_LOG_LEVEL:-INFO}" # DEBUG|INFO|WARN|ERROR (case-insensitive)
 
 while [[ $# -gt 0 ]]; do
@@ -460,8 +460,8 @@ SPIRAL_RALPH="${SPIRAL_RALPH:-$SPIRAL_HOME/ralph/ralph.sh}"
 SPIRAL_RESEARCH_PROMPT="${SPIRAL_RESEARCH_PROMPT:-$SPIRAL_HOME/templates/research_prompt.example.md}"
 SPIRAL_GEMINI_PROMPT="${SPIRAL_GEMINI_PROMPT:-}"
 SPIRAL_VALIDATE_CMD="${SPIRAL_VALIDATE_CMD:-$SPIRAL_PYTHON tests/run_tests.py --report-dir test-reports}"
-SPIRAL_MAX_AI_SUGGEST="${SPIRAL_MAX_AI_SUGGEST:-5}"                       # Phase A: max AI-generated story suggestions per iteration (gap analysis)
-SPIRAL_TEST_STORY_MIN_COMPLEXITY="${SPIRAL_TEST_STORY_MIN_COMPLEXITY:-medium}"  # Source 5: min story complexity to generate test stories
+SPIRAL_MAX_AI_SUGGEST="${SPIRAL_MAX_AI_SUGGEST:-5}"                            # Phase A: max AI-generated story suggestions per iteration (gap analysis)
+SPIRAL_TEST_STORY_MIN_COMPLEXITY="${SPIRAL_TEST_STORY_MIN_COMPLEXITY:-medium}" # Source 5: min story complexity to generate test stories
 SPIRAL_REPORTS_DIR="${SPIRAL_REPORTS_DIR:-test-reports}"
 SPIRAL_STORY_PREFIX="${SPIRAL_STORY_PREFIX:-US}"
 SPIRAL_VERSION="${SPIRAL_VERSION:-$(git -C "$SPIRAL_HOME" describe --tags --always --dirty=+ 2>/dev/null || echo "unknown")}"
@@ -490,68 +490,68 @@ SPIRAL_MEMORY_POLL_INTERVAL="${SPIRAL_MEMORY_POLL_INTERVAL:-15}"
 SPIRAL_MEMORY_WAIT_MAX_MINS="${SPIRAL_MEMORY_WAIT_MAX_MINS:-0}" # 0 = unlimited while workers active
 export SPIRAL_MEMORY_WAIT_MAX_MINS
 SPIRAL_PRESSURE_HYSTERESIS="${SPIRAL_PRESSURE_HYSTERESIS:-2}"
-SPIRAL_DEV_URL="${SPIRAL_DEV_URL:-}"                                     # empty = disabled; URL for Phase V screenshot
-SPIRAL_PROGRESS_MAX_LINES="${SPIRAL_PROGRESS_MAX_LINES:-2000}"           # 0 = disabled; rotate progress.txt when over this limit
-SPIRAL_EVENT_LOG_MAX_LINES="${SPIRAL_EVENT_LOG_MAX_LINES:-10000}"        # 0 = disabled; rotate spiral_events.jsonl when over this limit
-SPIRAL_LOG_MAX_MB="${SPIRAL_LOG_MAX_MB:-50}"                             # 0 = disabled; rotate _last_run.log when size exceeds this value in MB
-SPIRAL_LOG_KEEP_ROTATIONS="${SPIRAL_LOG_KEEP_ROTATIONS:-3}"             # number of rotated _last_run.log files to keep (.log.1 ... .log.N)
-SPIRAL_RESEARCH_CACHE_TTL_HOURS="${SPIRAL_RESEARCH_CACHE_TTL_HOURS:-0}"  # 0 = disabled; cache TTL for Phase R URL responses AND Phase R output file reuse across iterations
-SPIRAL_RESEARCH_SUMMARY_THRESHOLD="${SPIRAL_RESEARCH_SUMMARY_THRESHOLD:-4000}"  # US-254: token threshold for hierarchical summarization of Phase R output (0 = disabled)
-SPIRAL_USE_FULL_RESEARCH="${SPIRAL_USE_FULL_RESEARCH:-0}"                       # US-254: 1 = pass full research to downstream phases (skip summarization)
-SPIRAL_INJECTION_THRESHOLD="${SPIRAL_INJECTION_THRESHOLD:-0.8}"          # US-198: LLM Guard PromptInjection scan threshold for Phase R web content (0.0–1.0)
-RESEARCH_CACHE_DIR=""                                                    # set after SCRATCH_DIR is known
-SPIRAL_RESEARCH_TIMEOUT="${SPIRAL_RESEARCH_TIMEOUT:-300}"                # seconds; 0 = disabled (unlimited); Phase R LLM call
-SPIRAL_RESEARCH_RETRIES="${SPIRAL_RESEARCH_RETRIES:-2}"                  # retries when _research_output.json missing/invalid after Phase R
-SPIRAL_GEMINI_FALLBACK_MODEL="${SPIRAL_GEMINI_FALLBACK_MODEL:-claude-haiku-4-5-20251001}"  # Claude model for Gemini 503 fallback (US-206)
-SPIRAL_IMPL_TIMEOUT="${SPIRAL_IMPL_TIMEOUT:-600}"                        # seconds; 0 = disabled (unlimited); Phase I ralph call (fallback when complexity unknown)
-SPIRAL_STORY_TIMEOUT_SMALL="${SPIRAL_STORY_TIMEOUT_SMALL:-300}"          # seconds; per-story timeout for small complexity  (~5 min)
-SPIRAL_STORY_TIMEOUT_MEDIUM="${SPIRAL_STORY_TIMEOUT_MEDIUM:-600}"        # seconds; per-story timeout for medium complexity (~10 min)
-SPIRAL_STORY_TIMEOUT_LARGE="${SPIRAL_STORY_TIMEOUT_LARGE:-1200}"         # seconds; per-story timeout for large complexity  (~20 min)
-SPIRAL_VALIDATE_TIMEOUT="${SPIRAL_VALIDATE_TIMEOUT:-300}"                # seconds; 0 = disabled (unlimited)
-SPIRAL_INCREMENTAL_VALIDATE="${SPIRAL_INCREMENTAL_VALIDATE:-false}"      # true = run only tests covering files touched by current story (Phase V)
-SPIRAL_PARALLEL_TESTS="${SPIRAL_PARALLEL_TESTS:-false}"                  # true = run Phase V tests in parallel (pytest-xdist or bats --jobs)
-SPIRAL_TEST_WORKERS="${SPIRAL_TEST_WORKERS:-}"                           # parallelism level; empty = nproc/2 (minimum 1)
-SPIRAL_TEST_PREFIX="${SPIRAL_TEST_PREFIX:-tests/test_}"                  # pytest: prefix for deriving test file from filesTouch entry basename
-SPIRAL_TEST_SYNTH_TIMEOUT="${SPIRAL_TEST_SYNTH_TIMEOUT:-60}"             # seconds; 0 = disabled (unlimited); Phase T synthesize_tests timeout
-SPIRAL_TEST_OUTPUT_FORMAT="${SPIRAL_TEST_OUTPUT_FORMAT:-json}"            # 'json' (default) or 'yaml'; YAML output is ~40% more token-efficient for Phase T (US-367)
-SPIRAL_PREEMPTIVE_PRESSURE_MB="${SPIRAL_PREEMPTIVE_PRESSURE_MB:-0}"      # MB; 0 = disabled; free RAM below this triggers preemptive pressure level 1
-SPIRAL_NOTIFY_WEBHOOK="${SPIRAL_NOTIFY_WEBHOOK:-}"                       # HTTPS URL; empty = disabled; POST JSON at each phase start/end
-SPIRAL_NOTIFY_WEBHOOK_TIMEOUT="${SPIRAL_NOTIFY_WEBHOOK_TIMEOUT:-5}"      # seconds; max wait per POST (default 5)
-SPIRAL_NOTIFY_WEBHOOK_HEADERS="${SPIRAL_NOTIFY_WEBHOOK_HEADERS:-}"       # optional HTTP header, e.g. "Authorization: Bearer TOKEN"
-SPIRAL_NOTIFY_WEBHOOK_SECRET="${SPIRAL_NOTIFY_WEBHOOK_SECRET:-}"         # HMAC-SHA256 signing key; adds X-Spiral-Signature-256 header when set (US-207)
-SPIRAL_PRE_PHASE_HOOK="${SPIRAL_PRE_PHASE_HOOK:-}"                       # path to executable; called before each phase; non-zero exit aborts story attempt
-SPIRAL_POST_PHASE_HOOK="${SPIRAL_POST_PHASE_HOOK:-}"                     # path to executable; called after each phase; non-zero exit is logged as warning (non-fatal)
-SPIRAL_HOOK_TIMEOUT="${SPIRAL_HOOK_TIMEOUT:-30}"                         # seconds; wall-clock limit per hook execution (default 30)
-SPIRAL_MAX_FILES_PER_STORY="${SPIRAL_MAX_FILES_PER_STORY:-10}"           # warn/abort when Phase I touches more files than this; 0 = disabled
-SPIRAL_SCOPE_CREEP_ACTION="${SPIRAL_SCOPE_CREEP_ACTION:-warn}"           # warn (default) = log only; abort = mark _failureReason and skip Phase V
-SPIRAL_DRIFT_CHECK="${SPIRAL_DRIFT_CHECK:-false}"                        # US-260: true = run post-Phase-I drift check against acceptance criteria
-SPIRAL_DRIFT_PASS_THRESHOLD="${SPIRAL_DRIFT_PASS_THRESHOLD:-70}"         # US-260: drift score >= this → pass (0-100, default 70)
-SPIRAL_DRIFT_FAIL_THRESHOLD="${SPIRAL_DRIFT_FAIL_THRESHOLD:-40}"         # US-260: drift score <  this → fail; 40-69 = warn (default 40)
+SPIRAL_DEV_URL="${SPIRAL_DEV_URL:-}"                                                      # empty = disabled; URL for Phase V screenshot
+SPIRAL_PROGRESS_MAX_LINES="${SPIRAL_PROGRESS_MAX_LINES:-2000}"                            # 0 = disabled; rotate progress.txt when over this limit
+SPIRAL_EVENT_LOG_MAX_LINES="${SPIRAL_EVENT_LOG_MAX_LINES:-10000}"                         # 0 = disabled; rotate spiral_events.jsonl when over this limit
+SPIRAL_LOG_MAX_MB="${SPIRAL_LOG_MAX_MB:-50}"                                              # 0 = disabled; rotate _last_run.log when size exceeds this value in MB
+SPIRAL_LOG_KEEP_ROTATIONS="${SPIRAL_LOG_KEEP_ROTATIONS:-3}"                               # number of rotated _last_run.log files to keep (.log.1 ... .log.N)
+SPIRAL_RESEARCH_CACHE_TTL_HOURS="${SPIRAL_RESEARCH_CACHE_TTL_HOURS:-0}"                   # 0 = disabled; cache TTL for Phase R URL responses AND Phase R output file reuse across iterations
+SPIRAL_RESEARCH_SUMMARY_THRESHOLD="${SPIRAL_RESEARCH_SUMMARY_THRESHOLD:-4000}"            # US-254: token threshold for hierarchical summarization of Phase R output (0 = disabled)
+SPIRAL_USE_FULL_RESEARCH="${SPIRAL_USE_FULL_RESEARCH:-0}"                                 # US-254: 1 = pass full research to downstream phases (skip summarization)
+SPIRAL_INJECTION_THRESHOLD="${SPIRAL_INJECTION_THRESHOLD:-0.8}"                           # US-198: LLM Guard PromptInjection scan threshold for Phase R web content (0.0–1.0)
+RESEARCH_CACHE_DIR=""                                                                     # set after SCRATCH_DIR is known
+SPIRAL_RESEARCH_TIMEOUT="${SPIRAL_RESEARCH_TIMEOUT:-300}"                                 # seconds; 0 = disabled (unlimited); Phase R LLM call
+SPIRAL_RESEARCH_RETRIES="${SPIRAL_RESEARCH_RETRIES:-2}"                                   # retries when _research_output.json missing/invalid after Phase R
+SPIRAL_GEMINI_FALLBACK_MODEL="${SPIRAL_GEMINI_FALLBACK_MODEL:-claude-haiku-4-5-20251001}" # Claude model for Gemini 503 fallback (US-206)
+SPIRAL_IMPL_TIMEOUT="${SPIRAL_IMPL_TIMEOUT:-600}"                                         # seconds; 0 = disabled (unlimited); Phase I ralph call (fallback when complexity unknown)
+SPIRAL_STORY_TIMEOUT_SMALL="${SPIRAL_STORY_TIMEOUT_SMALL:-300}"                           # seconds; per-story timeout for small complexity  (~5 min)
+SPIRAL_STORY_TIMEOUT_MEDIUM="${SPIRAL_STORY_TIMEOUT_MEDIUM:-600}"                         # seconds; per-story timeout for medium complexity (~10 min)
+SPIRAL_STORY_TIMEOUT_LARGE="${SPIRAL_STORY_TIMEOUT_LARGE:-1200}"                          # seconds; per-story timeout for large complexity  (~20 min)
+SPIRAL_VALIDATE_TIMEOUT="${SPIRAL_VALIDATE_TIMEOUT:-300}"                                 # seconds; 0 = disabled (unlimited)
+SPIRAL_INCREMENTAL_VALIDATE="${SPIRAL_INCREMENTAL_VALIDATE:-false}"                       # true = run only tests covering files touched by current story (Phase V)
+SPIRAL_PARALLEL_TESTS="${SPIRAL_PARALLEL_TESTS:-false}"                                   # true = run Phase V tests in parallel (pytest-xdist or bats --jobs)
+SPIRAL_TEST_WORKERS="${SPIRAL_TEST_WORKERS:-}"                                            # parallelism level; empty = nproc/2 (minimum 1)
+SPIRAL_TEST_PREFIX="${SPIRAL_TEST_PREFIX:-tests/test_}"                                   # pytest: prefix for deriving test file from filesTouch entry basename
+SPIRAL_TEST_SYNTH_TIMEOUT="${SPIRAL_TEST_SYNTH_TIMEOUT:-60}"                              # seconds; 0 = disabled (unlimited); Phase T synthesize_tests timeout
+SPIRAL_TEST_OUTPUT_FORMAT="${SPIRAL_TEST_OUTPUT_FORMAT:-json}"                            # 'json' (default) or 'yaml'; YAML output is ~40% more token-efficient for Phase T (US-367)
+SPIRAL_PREEMPTIVE_PRESSURE_MB="${SPIRAL_PREEMPTIVE_PRESSURE_MB:-0}"                       # MB; 0 = disabled; free RAM below this triggers preemptive pressure level 1
+SPIRAL_NOTIFY_WEBHOOK="${SPIRAL_NOTIFY_WEBHOOK:-}"                                        # HTTPS URL; empty = disabled; POST JSON at each phase start/end
+SPIRAL_NOTIFY_WEBHOOK_TIMEOUT="${SPIRAL_NOTIFY_WEBHOOK_TIMEOUT:-5}"                       # seconds; max wait per POST (default 5)
+SPIRAL_NOTIFY_WEBHOOK_HEADERS="${SPIRAL_NOTIFY_WEBHOOK_HEADERS:-}"                        # optional HTTP header, e.g. "Authorization: Bearer TOKEN"
+SPIRAL_NOTIFY_WEBHOOK_SECRET="${SPIRAL_NOTIFY_WEBHOOK_SECRET:-}"                          # HMAC-SHA256 signing key; adds X-Spiral-Signature-256 header when set (US-207)
+SPIRAL_PRE_PHASE_HOOK="${SPIRAL_PRE_PHASE_HOOK:-}"                                        # path to executable; called before each phase; non-zero exit aborts story attempt
+SPIRAL_POST_PHASE_HOOK="${SPIRAL_POST_PHASE_HOOK:-}"                                      # path to executable; called after each phase; non-zero exit is logged as warning (non-fatal)
+SPIRAL_HOOK_TIMEOUT="${SPIRAL_HOOK_TIMEOUT:-30}"                                          # seconds; wall-clock limit per hook execution (default 30)
+SPIRAL_MAX_FILES_PER_STORY="${SPIRAL_MAX_FILES_PER_STORY:-10}"                            # warn/abort when Phase I touches more files than this; 0 = disabled
+SPIRAL_SCOPE_CREEP_ACTION="${SPIRAL_SCOPE_CREEP_ACTION:-warn}"                            # warn (default) = log only; abort = mark _failureReason and skip Phase V
+SPIRAL_DRIFT_CHECK="${SPIRAL_DRIFT_CHECK:-false}"                                         # US-260: true = run post-Phase-I drift check against acceptance criteria
+SPIRAL_DRIFT_PASS_THRESHOLD="${SPIRAL_DRIFT_PASS_THRESHOLD:-70}"                          # US-260: drift score >= this → pass (0-100, default 70)
+SPIRAL_DRIFT_FAIL_THRESHOLD="${SPIRAL_DRIFT_FAIL_THRESHOLD:-40}"                          # US-260: drift score <  this → fail; 40-69 = warn (default 40)
 export SPIRAL_DRIFT_PASS_THRESHOLD SPIRAL_DRIFT_FAIL_THRESHOLD
-SPIRAL_FORCE_VALIDATE="${SPIRAL_FORCE_VALIDATE:-false}"                  # true = always run Phase V even when Phase I produced no new passes (CI bypass)
-SPIRAL_CREATE_PRS="${SPIRAL_CREATE_PRS:-false}"                          # true = push story commit to spiral/<ID> branch and open GitHub PR via gh CLI
-SPIRAL_PR_BASE_BRANCH="${SPIRAL_PR_BASE_BRANCH:-main}"                   # base branch for PRs created by SPIRAL_CREATE_PRS (default: main)
-SPIRAL_PR_DRAFT="${SPIRAL_PR_DRAFT:-false}"                              # true = create draft PRs (prevents auto-merge triggers)
+SPIRAL_FORCE_VALIDATE="${SPIRAL_FORCE_VALIDATE:-false}" # true = always run Phase V even when Phase I produced no new passes (CI bypass)
+SPIRAL_CREATE_PRS="${SPIRAL_CREATE_PRS:-false}"         # true = push story commit to spiral/<ID> branch and open GitHub PR via gh CLI
+SPIRAL_PR_BASE_BRANCH="${SPIRAL_PR_BASE_BRANCH:-main}"  # base branch for PRs created by SPIRAL_CREATE_PRS (default: main)
+SPIRAL_PR_DRAFT="${SPIRAL_PR_DRAFT:-false}"             # true = create draft PRs (prevents auto-merge triggers)
 export SPIRAL_CREATE_PRS SPIRAL_PR_BASE_BRANCH SPIRAL_PR_DRAFT
-SPIRAL_AUTO_STASH="${SPIRAL_AUTO_STASH:-false}"                          # true = auto-stash dirty working tree before Phase I and pop after (US-177)
-SPIRAL_CASCADE_FAN_OUT_LIMIT="${SPIRAL_CASCADE_FAN_OUT_LIMIT:-5}"        # US-322: max consecutive story failures before Phase I aborts; 0 = disabled
-SPIRAL_CONSECUTIVE_FAIL_ABORT="${SPIRAL_CONSECUTIVE_FAIL_ABORT:-3}"      # US-400: stop loop after N zero-progress iterations; 0 = disabled
-SPIRAL_QUALITY_THRESHOLD="${SPIRAL_QUALITY_THRESHOLD:-3}"               # US-248: LLM-as-Judge score threshold (1-5); below this emits a warning (non-blocking)
-SPIRAL_QUALITY_JUDGE_DISABLE="${SPIRAL_QUALITY_JUDGE_DISABLE:-0}"       # US-248: set to 1 to skip all LLM quality judge calls
+SPIRAL_AUTO_STASH="${SPIRAL_AUTO_STASH:-false}"                     # true = auto-stash dirty working tree before Phase I and pop after (US-177)
+SPIRAL_CASCADE_FAN_OUT_LIMIT="${SPIRAL_CASCADE_FAN_OUT_LIMIT:-5}"   # US-322: max consecutive story failures before Phase I aborts; 0 = disabled
+SPIRAL_CONSECUTIVE_FAIL_ABORT="${SPIRAL_CONSECUTIVE_FAIL_ABORT:-3}" # US-400: stop loop after N zero-progress iterations; 0 = disabled
+SPIRAL_QUALITY_THRESHOLD="${SPIRAL_QUALITY_THRESHOLD:-3}"           # US-248: LLM-as-Judge score threshold (1-5); below this emits a warning (non-blocking)
+SPIRAL_QUALITY_JUDGE_DISABLE="${SPIRAL_QUALITY_JUDGE_DISABLE:-0}"   # US-248: set to 1 to skip all LLM quality judge calls
 export SPIRAL_QUALITY_THRESHOLD SPIRAL_QUALITY_JUDGE_DISABLE
-SPIRAL_CREATE_TAGS="${SPIRAL_CREATE_TAGS:-false}"                        # true = create annotated git tag on successful run completion (US-137)
-SPIRAL_AUTO_PUSH_TAGS="${SPIRAL_AUTO_PUSH_TAGS:-false}"                  # true = push run-complete tag to origin after creation (US-137)
-SPIRAL_WORKSPACE_CLEANUP="${SPIRAL_WORKSPACE_CLEANUP:-false}"            # true = prune transient artifacts after 100% completion (US-136)
-SPIRAL_CACHE_TTL="${SPIRAL_CACHE_TTL:-7}"                                # days; research_cache entries older than this are pruned (US-136)
-SPIRAL_INVALIDATE_CACHE_ON_CONSTITUTION_CHANGE="${SPIRAL_INVALIDATE_CACHE_ON_CONSTITUTION_CHANGE:-true}"  # US-302: clear research_cache when constitution.md SHA-256 changes
-SPIRAL_AUTO_RELEASE="${SPIRAL_AUTO_RELEASE:-false}"                      # true = auto SemVer bump from conventional commits on run completion (US-190)
-SPIRAL_PLAN_CACHE_ENABLED="${SPIRAL_PLAN_CACHE_ENABLED:-true}"            # US-353: true = cache/reuse decomposition plans across similar stories
-SPIRAL_PLAN_CACHE_TTL_HOURS="${SPIRAL_PLAN_CACHE_TTL_HOURS:-168}"         # US-353: hours before cached plans expire (default 168 = 7 days)
-SPIRAL_GIT_PUSH="${SPIRAL_GIT_PUSH:-false}"                              # true = push vX.Y.Z tag to origin after auto-release (US-190)
-SPIRAL_GIT_AUTHOR="${SPIRAL_GIT_AUTHOR:-}"                               # fallback git identity "Name <email>" when git config user.name/email is missing (US-211)
-SPIRAL_SAST_ENABLED="${SPIRAL_SAST_ENABLED:-true}"                        # US-262: run Semgrep SAST scan in Phase G; false = disabled
-SPIRAL_SNAPSHOT_RETENTION="${SPIRAL_SNAPSHOT_RETENTION:-7}"                # US-362: prune invocation snapshots older than N iterations; 0 = keep all
-SPIRAL_COMPRESS_ARTIFACTS="${SPIRAL_COMPRESS_ARTIFACTS:-false}"            # US-362: gzip-compress invocation snapshots after completion
+SPIRAL_CREATE_TAGS="${SPIRAL_CREATE_TAGS:-false}"                                                        # true = create annotated git tag on successful run completion (US-137)
+SPIRAL_AUTO_PUSH_TAGS="${SPIRAL_AUTO_PUSH_TAGS:-false}"                                                  # true = push run-complete tag to origin after creation (US-137)
+SPIRAL_WORKSPACE_CLEANUP="${SPIRAL_WORKSPACE_CLEANUP:-false}"                                            # true = prune transient artifacts after 100% completion (US-136)
+SPIRAL_CACHE_TTL="${SPIRAL_CACHE_TTL:-7}"                                                                # days; research_cache entries older than this are pruned (US-136)
+SPIRAL_INVALIDATE_CACHE_ON_CONSTITUTION_CHANGE="${SPIRAL_INVALIDATE_CACHE_ON_CONSTITUTION_CHANGE:-true}" # US-302: clear research_cache when constitution.md SHA-256 changes
+SPIRAL_AUTO_RELEASE="${SPIRAL_AUTO_RELEASE:-false}"                                                      # true = auto SemVer bump from conventional commits on run completion (US-190)
+SPIRAL_PLAN_CACHE_ENABLED="${SPIRAL_PLAN_CACHE_ENABLED:-true}"                                           # US-353: true = cache/reuse decomposition plans across similar stories
+SPIRAL_PLAN_CACHE_TTL_HOURS="${SPIRAL_PLAN_CACHE_TTL_HOURS:-168}"                                        # US-353: hours before cached plans expire (default 168 = 7 days)
+SPIRAL_GIT_PUSH="${SPIRAL_GIT_PUSH:-false}"                                                              # true = push vX.Y.Z tag to origin after auto-release (US-190)
+SPIRAL_GIT_AUTHOR="${SPIRAL_GIT_AUTHOR:-}"                                                               # fallback git identity "Name <email>" when git config user.name/email is missing (US-211)
+SPIRAL_SAST_ENABLED="${SPIRAL_SAST_ENABLED:-true}"                                                       # US-262: run Semgrep SAST scan in Phase G; false = disabled
+SPIRAL_SNAPSHOT_RETENTION="${SPIRAL_SNAPSHOT_RETENTION:-7}"                                              # US-362: prune invocation snapshots older than N iterations; 0 = keep all
+SPIRAL_COMPRESS_ARTIFACTS="${SPIRAL_COMPRESS_ARTIFACTS:-false}"                                          # US-362: gzip-compress invocation snapshots after completion
 
 # ── Propagate SPIRAL_SKIP_PHASES to phase-specific flags ──────────────────────
 # SPIRAL_SKIP_PHASES is written by the Spiral UI phase toggles (.spiral/ui-phase-config.json).
@@ -603,7 +603,7 @@ validate_env
 # ── US-354: Phase-specific model override parsing ────────────────────────────
 # SPIRAL_PHASE_MODEL_OVERRIDE=R:haiku,S:haiku,M:sonnet  → per-phase overrides
 if [[ -n "${SPIRAL_PHASE_MODEL_OVERRIDE:-}" ]]; then
-  IFS=',' read -ra _PMO_ENTRIES <<< "$SPIRAL_PHASE_MODEL_OVERRIDE"
+  IFS=',' read -ra _PMO_ENTRIES <<<"$SPIRAL_PHASE_MODEL_OVERRIDE"
   for _pmo in "${_PMO_ENTRIES[@]}"; do
     _pmo_phase="${_pmo%%:*}"
     _pmo_model="${_pmo#*:}"
@@ -643,11 +643,11 @@ print_phase_banner() {
   local phase="$1" label="$2"
   local color=""
   case "$phase" in
-    R|T) color="$_C_BLUE" ;;
-    I)   color="$_C_YELLOW" ;;
-    V)   color="$_C_GREEN" ;;
-    S|M|C|A|G) color="$_C_CYAN" ;;
-    *)   color="" ;;
+    R | T) color="$_C_BLUE" ;;
+    I) color="$_C_YELLOW" ;;
+    V) color="$_C_GREEN" ;;
+    S | M | C | A | G) color="$_C_CYAN" ;;
+    *) color="" ;;
   esac
   if [[ "$_USE_COLOR" -eq 1 ]]; then
     printf "\n  ${color}▓▓ Phase %s: %s ▓▓${_C_RESET}\n" "$phase" "$label"
@@ -956,8 +956,8 @@ except Exception:
   # Report orphaned spiral-worker worktrees (US-176)
   _WT_BASE="$REPO_ROOT/.spiral-workers"
   if [[ -d "$_WT_BASE" ]]; then
-    _ORPHAN_COUNT=$(git -C "$REPO_ROOT" worktree list --porcelain 2>/dev/null \
-      | grep "^worktree " | grep -c "spiral-workers" 2>/dev/null || echo "0")
+    _ORPHAN_COUNT=$(git -C "$REPO_ROOT" worktree list --porcelain 2>/dev/null |
+      grep "^worktree " | grep -c "spiral-workers" 2>/dev/null || echo "0")
     if [[ "$_ORPHAN_COUNT" -gt 0 ]]; then
       echo "  Worktrees : $_ORPHAN_COUNT orphaned spiral-worker worktree(s) in $_WT_BASE"
     else
@@ -1047,14 +1047,14 @@ _LOG_FILE="$SCRATCH_DIR/_last_run.log"
 _LOG_ROTATED=0
 if [[ "${SPIRAL_LOG_MAX_MB:-50}" -gt 0 && -f "$_LOG_FILE" ]]; then
   _LOG_SIZE_BYTES=$(python3 -c "import os; print(os.path.getsize('$_LOG_FILE'))" 2>/dev/null || echo 0)
-  _LOG_MAX_BYTES=$(( ${SPIRAL_LOG_MAX_MB:-50} * 1024 * 1024 ))
+  _LOG_MAX_BYTES=$((${SPIRAL_LOG_MAX_MB:-50} * 1024 * 1024))
   if [[ "$_LOG_SIZE_BYTES" -gt "$_LOG_MAX_BYTES" ]]; then
     _KEEP="${SPIRAL_LOG_KEEP_ROTATIONS:-3}"
     # Delete oldest rotation (makes room for the shift)
     rm -f "${_LOG_FILE}.${_KEEP}"
     # Shift existing rotations upward: .log.N-1 → .log.N ... .log.1 → .log.2
-    for (( _ri = _KEEP - 1; _ri >= 1; _ri-- )); do
-      [[ -f "${_LOG_FILE}.${_ri}" ]] && mv "${_LOG_FILE}.${_ri}" "${_LOG_FILE}.$(( _ri + 1 ))"
+    for ((_ri = _KEEP - 1; _ri >= 1; _ri--)); do
+      [[ -f "${_LOG_FILE}.${_ri}" ]] && mv "${_LOG_FILE}.${_ri}" "${_LOG_FILE}.$((_ri + 1))"
     done
     # Rotate current log to .log.1
     mv "$_LOG_FILE" "${_LOG_FILE}.1"
@@ -1131,27 +1131,27 @@ check_idempotency_guard() {
   existing_sha=$(git -C "$REPO_ROOT" log --grep="$story_id" --max-count=1 --format=%H 2>/dev/null || echo "")
 
   if [[ -z "$existing_sha" ]]; then
-    return 1  # No matching commit — proceed with ralph
+    return 1 # No matching commit — proceed with ralph
   fi
 
   # Skip if the matching commit is a revert (avoid false positives)
   local commit_subject
   commit_subject=$(git -C "$REPO_ROOT" log -1 --format=%s "$existing_sha" 2>/dev/null || echo "")
   if [[ "$commit_subject" == Revert* ]]; then
-    return 1  # Revert commit — proceed with ralph
+    return 1 # Revert commit — proceed with ralph
   fi
 
   # Mark story as passed with _passedCommit
   echo "  [idempotency] Story $story_id already implemented in commit ${existing_sha:0:8} — skipping"
   "$JQ" --arg id "$story_id" --arg sha "$existing_sha" \
     '(.userStories[] | select(.id == $id)) |= (.passes = true | ._passedCommit = $sha)' \
-    "$prd_file" > "${prd_file}.tmp" && mv "${prd_file}.tmp" "$prd_file"
+    "$prd_file" >"${prd_file}.tmp" && mv "${prd_file}.tmp" "$prd_file"
 
   # Log to spiral_events.jsonl
   log_spiral_event "idempotency_skip" \
     "\"story_id\":\"$story_id\",\"commit_sha\":\"$existing_sha\",\"iteration\":${SPIRAL_ITER:-0}"
 
-  return 0  # Story already implemented — skip ralph
+  return 0 # Story already implemented — skip ralph
 }
 
 # ── Checkpoint state machine coherence check ──────────────────────────────
@@ -1182,10 +1182,10 @@ fi
 
 # ── Signal trap state ─────────────────────────────────────────────────────────
 WATCHDOG_PID=""
-PHASE=""      # Current phase (R, T, M, G, I, V, C)
+PHASE=""               # Current phase (R, T, M, G, I, V, C)
 _ACTIVE_STORY_ID=""    # US-311: story currently being implemented (populated in Phase I)
 _ACTIVE_STORY_TITLE="" # US-311: title of the active story
-CHILD_PIDS=() # Track explicitly spawned child processes
+CHILD_PIDS=()          # Track explicitly spawned child processes
 
 # Signal handler for graceful interrupt (SIGINT/SIGTERM)
 _spiral_cleanup() {
@@ -1362,9 +1362,9 @@ get_story_timeout() {
     '.userStories[] | select(.id == $id) | .estimatedComplexity // "medium"' \
     "$prd" 2>/dev/null | tr -d '\r' || echo "medium")
   case "$complexity" in
-    small)  echo "${SPIRAL_STORY_TIMEOUT_SMALL:-300}" ;;
-    large)  echo "${SPIRAL_STORY_TIMEOUT_LARGE:-1200}" ;;
-    *)      echo "${SPIRAL_STORY_TIMEOUT_MEDIUM:-600}" ;;
+    small) echo "${SPIRAL_STORY_TIMEOUT_SMALL:-300}" ;;
+    large) echo "${SPIRAL_STORY_TIMEOUT_LARGE:-1200}" ;;
+    *) echo "${SPIRAL_STORY_TIMEOUT_MEDIUM:-600}" ;;
   esac
 }
 
@@ -1465,7 +1465,7 @@ cleanup_workspace() {
   if command -v du &>/dev/null; then
     bytes_after=$(du -sb "$spiral_dir" 2>/dev/null | awk '{print $1}' || echo 0)
   fi
-  local bytes_freed=$(( bytes_before - bytes_after ))
+  local bytes_freed=$((bytes_before - bytes_after))
   [[ $bytes_freed -lt 0 ]] && bytes_freed=0
 
   echo "  [cleanup] Workspace cleanup complete. Freed: ${bytes_freed} bytes"
@@ -1492,7 +1492,7 @@ compress_old_artifacts() {
     return 0
   fi
 
-  local threshold=$(( current_iter - 2 ))
+  local threshold=$((current_iter - 2))
   local compressed=0
 
   for iter_n in $(seq 1 "$threshold"); do
@@ -1707,7 +1707,7 @@ print('sha256=' + hmac.new(key, body, hashlib.sha256).hexdigest())
 # POST hooks: non-zero exit = warning logged; execution continues.
 # Returns the hook's exit code (0 if hook is unset or not executable).
 run_phase_hook() {
-  local hook_type="$1"  # PRE or POST
+  local hook_type="$1" # PRE or POST
   local phase="$2"
   local hook_path event_type
   if [[ "$hook_type" == "PRE" ]]; then
@@ -1729,7 +1729,7 @@ run_phase_hook() {
   local _hook_ts _hook_rc=0
   _hook_ts=$(date +%s)
   timeout "${SPIRAL_HOOK_TIMEOUT:-30}" "$hook_path" || _hook_rc=$?
-  local _hook_dur=$(( $(date +%s) - _hook_ts ))
+  local _hook_dur=$(($(date +%s) - _hook_ts))
   log_spiral_event "$event_type" \
     "\"phase\":\"$phase\",\"hook\":\"$hook_path\",\"exit_code\":$_hook_rc,\"duration_s\":$_hook_dur,\"iteration\":${SPIRAL_ITER:-0}"
   if [[ "$_hook_rc" -ne 0 ]]; then
@@ -1828,7 +1828,7 @@ run_sast_gate_check() {
       # Set story status to blocked-by-sast
       "$JQ" --arg sid "$sid" \
         '(.userStories[] | select(.id == $sid)) |= . + {"_sast_status": "blocked-by-sast"}' \
-        "$PRD_FILE" > "${PRD_FILE}.sast.tmp" && mv "${PRD_FILE}.sast.tmp" "$PRD_FILE"
+        "$PRD_FILE" >"${PRD_FILE}.sast.tmp" && mv "${PRD_FILE}.sast.tmp" "$PRD_FILE"
       any_blocked=1
     elif [[ "${medium_count:-0}" -gt 0 ]]; then
       echo "  [SAST] WARN: $medium_count MEDIUM finding(s) for story $sid (non-blocking)"
@@ -1837,14 +1837,14 @@ run_sast_gate_check() {
       warnings=$("$JQ" '[.results[] | select(.extra.severity == "WARNING") | {rule: .check_id, file: .path, line: .start.line, message: .extra.message}]' "$scan_report" 2>/dev/null || echo "[]")
       "$JQ" --arg sid "$sid" --argjson warnings "$warnings" \
         '(.userStories[] | select(.id == $sid)) |= . + {"_sast_warnings": $warnings, "_sast_status": "warn"}' \
-        "$PRD_FILE" > "${PRD_FILE}.sast.tmp" && mv "${PRD_FILE}.sast.tmp" "$PRD_FILE"
+        "$PRD_FILE" >"${PRD_FILE}.sast.tmp" && mv "${PRD_FILE}.sast.tmp" "$PRD_FILE"
     else
       echo "  [SAST] PASS: No findings for story $sid"
       "$JQ" --arg sid "$sid" \
         '(.userStories[] | select(.id == $sid)) |= . + {"_sast_status": "pass"}' \
-        "$PRD_FILE" > "${PRD_FILE}.sast.tmp" && mv "${PRD_FILE}.sast.tmp" "$PRD_FILE"
+        "$PRD_FILE" >"${PRD_FILE}.sast.tmp" && mv "${PRD_FILE}.sast.tmp" "$PRD_FILE"
     fi
-  done <<< "$pending_ids"
+  done <<<"$pending_ids"
 
   log_spiral_event "sast_gate_check" "\"iteration\":$SPIRAL_ITER,\"high\":${high_count:-0},\"medium\":${medium_count:-0},\"blocked\":$any_blocked"
 
@@ -1866,7 +1866,7 @@ scan_web_content() {
   local scan_result scan_json
   scan_result=$(
     export SPIRAL_INJECTION_THRESHOLD
-    printf '%s' "$content" | \
+    printf '%s' "$content" |
       "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/llm_guard_scanner.py" \
         --source "$source_label" \
         --threshold "$SPIRAL_INJECTION_THRESHOLD" \
@@ -1890,7 +1890,7 @@ scan_web_content() {
   fi
 
   # Log the scan event
-  scan_json=$(printf '%s' "$scan_result" | \
+  scan_json=$(printf '%s' "$scan_result" |
     "$JQ" -c '{score:.score,threshold:.threshold,truncated:.truncated,source:.source,duration_ms:.duration_ms}' 2>/dev/null || true)
   log_spiral_event "phase_r_injection_scan" \
     "\"source\":\"$source_label\",\"score\":$score,\"threshold\":\"${SPIRAL_INJECTION_THRESHOLD}\",\"truncated\":$truncated,\"iteration\":$SPIRAL_ITER"
@@ -2012,7 +2012,10 @@ if [[ -d "$REPO_ROOT/.spiral-workers" ]]; then
     echo "  [startup] Worktree status: Skipped full status on ${_DIFFIDX_SKIPPED}/${_DIFFIDX_TOTAL} worktrees (clean)"
   fi
   if [[ ${#_DIRTY_WORKERS_CLEANED[@]} -gt 0 ]]; then
-    _cleaned_list=$(IFS=,; echo "${_DIRTY_WORKERS_CLEANED[*]}")
+    _cleaned_list=$(
+      IFS=,
+      echo "${_DIRTY_WORKERS_CLEANED[*]}"
+    )
     echo "  [startup] Reset ${#_DIRTY_WORKERS_CLEANED[@]} dirty worktree(s): $_cleaned_list"
     log_spiral_event "worker_reset_dirty_worktree" \
       "\"worktrees\":[$(printf '"%s",' "${_DIRTY_WORKERS_CLEANED[@]}" | sed 's/,$//')],\"count\":${#_DIRTY_WORKERS_CLEANED[@]}"
@@ -2089,7 +2092,7 @@ if [[ "${SPIRAL_INVALIDATE_CACHE_ON_CONSTITUTION_CHANGE:-true}" != "false" ]]; t
   fi
   if [[ -n "$_CONSTITUTION_FILE" ]]; then
     # Compute SHA-256; prefer sha256sum (coreutils), fall back to Python
-    _NEW_CONST_HASH=$(sha256sum "$_CONSTITUTION_FILE" 2>/dev/null | cut -d' ' -f1 || \
+    _NEW_CONST_HASH=$(sha256sum "$_CONSTITUTION_FILE" 2>/dev/null | cut -d' ' -f1 ||
       "$SPIRAL_PYTHON" -c "import hashlib,sys; print(hashlib.sha256(open(sys.argv[1],'rb').read()).hexdigest())" \
         "$_CONSTITUTION_FILE" 2>/dev/null || echo "")
     if [[ -n "$_NEW_CONST_HASH" ]]; then
@@ -2213,7 +2216,7 @@ if [[ -n "$REPLAY_STORY_ID" ]]; then
   # Validate --from-phase letter (only I and V are valid for replay mode)
   if [[ -n "$REPLAY_FROM_PHASE" ]]; then
     case "$REPLAY_FROM_PHASE" in
-      I|V) ;;  # valid
+      I | V) ;; # valid
       *)
         echo "[replay] ERROR: --from-phase '$REPLAY_FROM_PHASE' is invalid for replay mode."
         echo "[replay]   Valid phase letters: I (Phase I: Implement), V (Phase V: Validate)"
@@ -2565,7 +2568,7 @@ if [[ -n "$ROLLBACK_STORY_ID" ]]; then
     '(.userStories[] | select(.id == $id)) |= (
       .passes = false | del(._passedCommit) | del(._passedAt) | del(._adrPath) | del(._prUrl)
     )' "$PRD_FILE")
-  echo "$_RB_UPDATED" > "$PRD_FILE"
+  echo "$_RB_UPDATED" >"$PRD_FILE"
 
   log_spiral_event "rollback_complete" \
     "\"storyId\":\"$ROLLBACK_STORY_ID\",\"sha\":\"$_RB_SHA\""
@@ -2688,7 +2691,8 @@ fi
 # ── Stale story detection at loop startup (US-129) ───────────────────────────
 # Warn for any pending story with last_attempted older than SPIRAL_STALE_DAYS
 _STALE_DAYS_CHECK="${SPIRAL_STALE_DAYS:-7}"
-_STALE_STORIES=$("$SPIRAL_PYTHON" - "$PRD_FILE" "$_STALE_DAYS_CHECK" 2>/dev/null <<'_STALE_PY'
+_STALE_STORIES=$(
+  "$SPIRAL_PYTHON" - "$PRD_FILE" "$_STALE_DAYS_CHECK" 2>/dev/null <<'_STALE_PY'
 import json, sys
 from datetime import datetime, timedelta, timezone
 
@@ -2765,10 +2769,10 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
   fi
 
   prd_stats
-  ADDED=0          # new stories added this iter (set in Phase M; default 0 if skipped)
-  RALPH_RAN=0      # set to 1 if ralph actually executed this iter (controls Phase V)
-  RALPH_PROGRESS=0 # stories completed this iter; reset each iter for accurate velocity
-  PRE_RALPH_PRD_JSON=""  # snapshot of prd.json before Phase I; used by Phase V incremental (US-131)
+  ADDED=0               # new stories added this iter (set in Phase M; default 0 if skipped)
+  RALPH_RAN=0           # set to 1 if ralph actually executed this iter (controls Phase V)
+  RALPH_PROGRESS=0      # stories completed this iter; reset each iter for accurate velocity
+  PRE_RALPH_PRD_JSON="" # snapshot of prd.json before Phase I; used by Phase V incremental (US-131)
   _PASSES_BEFORE_I=-1   # passed-story count snapshot before Phase I (US-183)
   _PASSES_AFTER_I=-1    # passed-story count snapshot after Phase I (US-183)
   _PHASE_V_SKIPPED=0    # 1 when Phase V is skipped due to no new passes (US-183)
@@ -2835,14 +2839,15 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
   _GOALS_SNAPSHOT_FILE="$SCRATCH_DIR/_goals_before.json"
   _GOALS_HIJACK_ABORT=0
   if [[ -f "$PRD_FILE" ]]; then
-    "$JQ" -S '.goals // []' "$PRD_FILE" > "$_GOALS_SNAPSHOT_FILE" 2>/dev/null
-    sha256sum "$_GOALS_SNAPSHOT_FILE" | awk '{print $1}' > "$_GOALS_HASH_FILE"
+    "$JQ" -S '.goals // []' "$PRD_FILE" >"$_GOALS_SNAPSHOT_FILE" 2>/dev/null
+    sha256sum "$_GOALS_SNAPSHOT_FILE" | awk '{print $1}' >"$_GOALS_HASH_FILE"
   fi
 
   # ── Phase R + T: RESEARCH and TEST SYNTHESIS (parallel) ──────────────────
   # US-182: R and T are independent — launch as background jobs and await both.
   PHASE="R"
-  _ACTIVE_STORY_ID=""; _ACTIVE_STORY_TITLE=""  # US-311: clear story context at phase start
+  _ACTIVE_STORY_ID=""
+  _ACTIVE_STORY_TITLE="" # US-311: clear story context at phase start
   write_active_status "R" 10
   RESEARCH_OUTPUT="$SCRATCH_DIR/_research_output.json"
   if [[ "${SPIRAL_TEST_OUTPUT_FORMAT:-json}" == "yaml" ]]; then
@@ -2897,7 +2902,10 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
     _R_SKIP=1
   elif [[ "$SPIRAL_RESEARCH_CACHE_TTL_HOURS" -gt 0 ]] && [[ -f "$RESEARCH_OUTPUT" ]]; then
     _R_CACHE_AGE_H=$("$SPIRAL_PYTHON" -c "import os,time; m=os.path.getmtime('$RESEARCH_OUTPUT'); print((time.time()-m)/3600)" 2>/dev/null || echo "9999")
-    _R_CACHE_HIT=$("$SPIRAL_PYTHON" -c "exit(0 if float('$_R_CACHE_AGE_H') < $SPIRAL_RESEARCH_CACHE_TTL_HOURS else 1)" 2>/dev/null; echo $?)
+    _R_CACHE_HIT=$(
+      "$SPIRAL_PYTHON" -c "exit(0 if float('$_R_CACHE_AGE_H') < $SPIRAL_RESEARCH_CACHE_TTL_HOURS else 1)" 2>/dev/null
+      echo $?
+    )
     if [[ "$_R_CACHE_HIT" -eq 0 ]]; then
       _R_CACHE_AGE_DISPLAY=$("$SPIRAL_PYTHON" -c "h=float('$_R_CACHE_AGE_H'); print(f'{h:.1f}h')" 2>/dev/null || echo "${_R_CACHE_AGE_H}h")
       echo ""
@@ -2949,7 +2957,7 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
 
       # ── Gemini web research (optional, configured via SPIRAL_GEMINI_PROMPT) ──
       GEMINI_RESEARCH=""
-      _PHASE_R_PRE_MODEL="none"  # US-206: track which model served Phase R pre-research
+      _PHASE_R_PRE_MODEL="none" # US-206: track which model served Phase R pre-research
       if command -v gemini &>/dev/null && [[ -n "$SPIRAL_GEMINI_PROMPT" ]]; then
         echo "  [R] Running Gemini 2.5 Pro web research (-y web search enabled)..."
         GEMINI_ERR_TMP=$(mktemp)
@@ -2966,7 +2974,8 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
             # ── US-206: Gemini 503 — retry once after backoff, then fall back to Claude ──
             echo "  [R] Gemini returned 503 — retrying once after 10s backoff..."
             sleep 10
-            rm -f "$GEMINI_ERR_TMP"; GEMINI_ERR_TMP=$(mktemp)
+            rm -f "$GEMINI_ERR_TMP"
+            GEMINI_ERR_TMP=$(mktemp)
             GEMINI_RESEARCH=$(gemini \
               -m gemini-2.5-pro \
               -p "$SPIRAL_GEMINI_PROMPT" \
@@ -3297,8 +3306,14 @@ except Exception:
   # ── Await both background jobs ─────────────────────────────────────────────
   RC_R=0
   RC_T=0
-  [[ -n "$PID_R" ]] && { wait "$PID_R"; RC_R=$?; }
-  [[ -n "$PID_T" ]] && { wait "$PID_T"; RC_T=$?; }
+  [[ -n "$PID_R" ]] && {
+    wait "$PID_R"
+    RC_R=$?
+  }
+  [[ -n "$PID_T" ]] && {
+    wait "$PID_T"
+    RC_T=$?
+  }
 
   # ── Print buffered output (R first, then T) ────────────────────────────────
   [[ -n "$PID_R" && -f "$SCRATCH_DIR/_phase_r_bg.log" ]] && cat "$SCRATCH_DIR/_phase_r_bg.log"
@@ -3323,7 +3338,7 @@ except Exception:
   _T_END=$(cat "$SCRATCH_DIR/_phase_T_${SPIRAL_ITER}.endtime" 2>/dev/null || echo "$_NOW")
   _PHASE_DUR_R=$((_R_END - _PHASE_TS_RT))
   _PHASE_DUR_T=$((_T_END - _PHASE_TS_RT))
-  _PHASE_DUR_RT_WALL=$((_NOW - _PHASE_TS_RT))  # actual wall time = max(R,T)
+  _PHASE_DUR_RT_WALL=$((_NOW - _PHASE_TS_RT)) # actual wall time = max(R,T)
 
   log_spiral_event "phase_end" "\"phase\":\"R\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_R,\"model\":\"$SPIRAL_RESEARCH_MODEL\""
   log_spiral_event "phase_end" "\"phase\":\"T\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_T"
@@ -3346,12 +3361,15 @@ except Exception:
   fi
 
   # ── US-254: Hierarchical summarization of oversized Phase R output ──────────
-  if [[ -f "$RESEARCH_OUTPUT" ]] \
-     && [[ "${SPIRAL_RESEARCH_SUMMARY_THRESHOLD:-4000}" -gt 0 ]] \
-     && [[ "${SPIRAL_USE_FULL_RESEARCH:-0}" -ne 1 ]]; then
-    _SUMM_STATUS=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/summarize_research.py" \
-      --input "$RESEARCH_OUTPUT" --check-only \
-      --threshold "${SPIRAL_RESEARCH_SUMMARY_THRESHOLD:-4000}" 2>/dev/null; echo $?)
+  if [[ -f "$RESEARCH_OUTPUT" ]] &&
+    [[ "${SPIRAL_RESEARCH_SUMMARY_THRESHOLD:-4000}" -gt 0 ]] &&
+    [[ "${SPIRAL_USE_FULL_RESEARCH:-0}" -ne 1 ]]; then
+    _SUMM_STATUS=$(
+      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/summarize_research.py" \
+        --input "$RESEARCH_OUTPUT" --check-only \
+        --threshold "${SPIRAL_RESEARCH_SUMMARY_THRESHOLD:-4000}" 2>/dev/null
+      echo $?
+    )
     if [[ "$_SUMM_STATUS" -eq 2 ]]; then
       # Over threshold — run summarization
       _RESEARCH_FULL="$SCRATCH_DIR/_research_full.json"
@@ -3383,8 +3401,8 @@ with open('$RESEARCH_OUTPUT', 'rb') as f:
           _CKPT_TMP="${CHECKPOINT_FILE}.summ.$$"
           "$JQ" --arg full "$_FULL_B64" --arg summ "$_SUMM_B64" \
             '._phaseR = {"full": $full, "summary": $summ}' \
-            "$CHECKPOINT_FILE" >"$_CKPT_TMP" 2>/dev/null \
-            && mv "$_CKPT_TMP" "$CHECKPOINT_FILE" 2>/dev/null || true
+            "$CHECKPOINT_FILE" >"$_CKPT_TMP" 2>/dev/null &&
+            mv "$_CKPT_TMP" "$CHECKPOINT_FILE" 2>/dev/null || true
         fi
       fi
     fi
@@ -3392,7 +3410,7 @@ with open('$RESEARCH_OUTPUT', 'rb') as f:
 
   # ── Phase S: STORY VALIDATE ──────────────────────────────────────────────────
   PHASE="S"
-  write_active_status "S" 30  # US-311
+  write_active_status "S" 30 # US-311
   print_phase_banner "S" "STORY VALIDATE — filtering candidates against project goals..."
   log_spiral_event "phase_start" "\"phase\":\"S\",\"iteration\":$SPIRAL_ITER"
   notify_webhook "S" "start"
@@ -3440,7 +3458,7 @@ with open('$RESEARCH_OUTPUT', 'rb') as f:
       echo "  [SECURITY] Actual hash:   $_GOALS_HASH_AFTER"
       # Compute diff for human review using the pre-Phase-R snapshot
       _GOALS_DIFF_AFTER="$SCRATCH_DIR/_goals_after.json"
-      "$JQ" -S '.goals // []' "$PRD_FILE" > "$_GOALS_DIFF_AFTER" 2>/dev/null
+      "$JQ" -S '.goals // []' "$PRD_FILE" >"$_GOALS_DIFF_AFTER" 2>/dev/null
       _GOALS_DIFF=$(diff "$_GOALS_SNAPSHOT_FILE" "$_GOALS_DIFF_AFTER" 2>/dev/null || true)
       echo "  [SECURITY] Goals diff:"
       echo "$_GOALS_DIFF" | head -20
@@ -3450,7 +3468,7 @@ with open('$RESEARCH_OUTPUT', 'rb') as f:
       _GOALS_DIFF_ESC=$(echo "$_GOALS_DIFF" | head -20 | "$JQ" -Rs '.' 2>/dev/null || echo '""')
       printf '{"ts":"%s","event":"goal_hijack_detected","iteration":%d,"hash_before":"%s","hash_after":"%s","diff":%s}\n' \
         "$_HIJACK_TS" "$SPIRAL_ITER" "$_GOALS_HASH_BEFORE" "$_GOALS_HASH_AFTER" "$_GOALS_DIFF_ESC" \
-        >> "$_SECURITY_AUDIT" 2>/dev/null || true
+        >>"$_SECURITY_AUDIT" 2>/dev/null || true
       log_spiral_event "goal_hijack_detected" \
         "\"iteration\":$SPIRAL_ITER,\"hash_before\":\"$_GOALS_HASH_BEFORE\",\"hash_after\":\"$_GOALS_HASH_AFTER\""
       echo "  [SECURITY] Phase M ABORTED — goals integrity compromised. Review security-audit.jsonl"
@@ -3463,7 +3481,7 @@ with open('$RESEARCH_OUTPUT', 'rb') as f:
 
   # ── Phase M: MERGE ──────────────────────────────────────────────────────────
   PHASE="M"
-  write_active_status "M" 40  # US-311
+  write_active_status "M" 40 # US-311
   print_phase_banner "M" "MERGE — deduplicating and patching prd.json..."
   log_spiral_event "phase_start" "\"phase\":\"M\",\"iteration\":$SPIRAL_ITER"
   notify_webhook "M" "start"
@@ -3579,7 +3597,7 @@ with open('$RESEARCH_OUTPUT', 'rb') as f:
 
   # ── Phase G: HUMAN GATE + Phase I: IMPLEMENT ───────────────────────────────
   PHASE="G"
-  write_active_status "G" 50  # US-311
+  write_active_status "G" 50 # US-311
   log_spiral_event "phase_start" "\"phase\":\"G\",\"iteration\":$SPIRAL_ITER"
   notify_webhook "G" "start"
   _PHASE_TS_I=$(date +%s)
@@ -3667,8 +3685,9 @@ with open('$RESEARCH_OUTPUT', 'rb') as f:
 
         # ── Phase I: IMPLEMENT (Ralph) ──────────────────────────────────
         PHASE="I"
-        _ACTIVE_STORY_ID=""; _ACTIVE_STORY_TITLE=""  # US-311: reset story context
-        write_active_status "I" 60  # US-311
+        _ACTIVE_STORY_ID=""
+        _ACTIVE_STORY_TITLE=""     # US-311: reset story context
+        write_active_status "I" 60 # US-311
         log_spiral_event "phase_start" "\"phase\":\"I\",\"iteration\":$SPIRAL_ITER"
         notify_webhook "I" "start"
         echo ""
@@ -3772,8 +3791,8 @@ with open('$RESEARCH_OUTPUT', 'rb') as f:
               _STASH_MSG="spiral-auto-stash-iter-${SPIRAL_ITER}"
               echo "  [Phase I] Dirty working tree detected — auto-stashing (iter ${SPIRAL_ITER})..."
               if git -C "$REPO_ROOT" stash push --include-untracked -m "$_STASH_MSG" 2>/dev/null; then
-                _AUTO_STASH_REF=$(git -C "$REPO_ROOT" stash list --format="%gd %gs" 2>/dev/null \
-                  | grep "$_STASH_MSG" | head -1 | awk '{print $1}')
+                _AUTO_STASH_REF=$(git -C "$REPO_ROOT" stash list --format="%gd %gs" 2>/dev/null |
+                  grep "$_STASH_MSG" | head -1 | awk '{print $1}')
                 echo "  [Phase I] Stash created: ${_AUTO_STASH_REF:-stash@{0}}"
               else
                 echo "  [Phase I] WARNING: Auto-stash failed — proceeding with dirty tree"
@@ -3798,145 +3817,392 @@ with open('$RESEARCH_OUTPUT', 'rb') as f:
           # ── End dirty working tree guard ─────────────────────────────────
 
           if [[ "$_DIRTY_SKIP_RALPH" -eq 0 ]]; then
-          RALPH_RAN=1
-          PRE_RALPH_PRD_JSON=$(cat "$PRD_FILE")
-          DONE_BEFORE=$("$JQ" '[.userStories[] | select(.passes == true)] | length' "$PRD_FILE")
-          _PASSES_BEFORE_I="$DONE_BEFORE"
+            RALPH_RAN=1
+            PRE_RALPH_PRD_JSON=$(cat "$PRD_FILE")
+            DONE_BEFORE=$("$JQ" '[.userStories[] | select(.passes == true)] | length' "$PRD_FILE")
+            _PASSES_BEFORE_I="$DONE_BEFORE"
 
-          if [[ "$RALPH_WORKERS" -gt 1 ]]; then
-            # ── Parallel mode with wave dispatch ───────────────────────────────
-            # US-246: Shared-fetch optimization — single coordinated fetch in main repo
-            # All worktrees share one object database, so one fetch satisfies all workers
-            echo "  [I] US-246: Performing shared git fetch (one fetch for all $RALPH_WORKERS workers)..."
-            _FETCH_START=$(date +%s%N)
-            if git -C "$REPO_ROOT" fetch origin 2>&1 | grep -q "fetch\|Already"; then
-              _FETCH_ELAPSED=$((( $(date +%s%N) - _FETCH_START ) / 1000000))
-              _FETCH_SECS=$(echo "scale=2; $_FETCH_ELAPSED / 1000" | bc 2>/dev/null || echo "$_FETCH_ELAPSED")
-              _ESTIMATED_PER_WORKER_TOTAL=$((${_FETCH_ELAPSED} * ${RALPH_WORKERS} / 1000))
-              echo "  [I]   Shared fetch completed in ${_FETCH_SECS}ms (vs estimated ${_ESTIMATED_PER_WORKER_TOTAL}ms if per-worker)"
-              printf '{"ts":"%s","event":"shared_fetch_completed","run_id":"%s","shared_fetch_ms":%d,"workers":%d,"estimated_per_worker_total_ms":%d}\n' \
-                "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${SPIRAL_RUN_ID:-}" "${_FETCH_ELAPSED}" "$RALPH_WORKERS" "$_ESTIMATED_PER_WORKER_TOTAL" \
-                >>"$SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || true
-            else
-              echo "  [I]   Shared fetch skipped (no remote updates needed)"
-              printf '{"ts":"%s","event":"shared_fetch_skipped","run_id":"%s","reason":"no_updates","workers":%d}\n' \
-                "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${SPIRAL_RUN_ID:-}" "$RALPH_WORKERS" \
-                >>"$SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || true
-            fi
-
-            # Pre-populate filesTouch hints from git history (best-effort)
-            "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/populate_hints.py" \
-              --prd "$PRD_FILE" --repo-root "$REPO_ROOT" 2>/dev/null || true
-
-            _PARTITION_CMD="${SPIRAL_CORE_BIN:+$SPIRAL_CORE_BIN partition}"
-            _PARTITION_CMD="${_PARTITION_CMD:-$SPIRAL_PYTHON $SPIRAL_HOME/lib/partition_prd.py}"
-            TOTAL_WAVES=$($_PARTITION_CMD \
-              --prd "$PRD_FILE" --list-waves 2>/dev/null || echo "1")
-            echo "  [I] Parallel mode: $RALPH_WORKERS workers, $TOTAL_WAVES wave(s)"
-
-            # ── US-322: Cascade fan-out counter (reset per Phase I) ──────────
-            _CASCADE_FAIL_COUNT=0
-            _CASCADE_FAIL_IDS=""
-
-            WAVE=0
-            while true; do
-              # Get story count for this wave level (recomputed from current prd.json)
-              WAVE_STORY_COUNT=$($_PARTITION_CMD \
-                --prd "$PRD_FILE" --wave-count "$WAVE" 2>/dev/null || echo "0")
-
-              # No stories at this level — check if higher levels exist
-              if [[ "$WAVE_STORY_COUNT" -eq 0 ]]; then
-                REMAINING=$($_PARTITION_CMD \
-                  --prd "$PRD_FILE" --list-waves 2>/dev/null || echo "0")
-                if [[ "$WAVE" -ge "$REMAINING" ]]; then
-                  echo "  [I] All waves processed — no more actionable stories"
-                  break
-                fi
-                echo "  [I] Wave $((WAVE + 1)): 0 stories — skipping"
-                WAVE=$((WAVE + 1))
-                continue
+            if [[ "$RALPH_WORKERS" -gt 1 ]]; then
+              # ── Parallel mode with wave dispatch ───────────────────────────────
+              # US-246: Shared-fetch optimization — single coordinated fetch in main repo
+              # All worktrees share one object database, so one fetch satisfies all workers
+              echo "  [I] US-246: Performing shared git fetch (one fetch for all $RALPH_WORKERS workers)..."
+              _FETCH_START=$(date +%s%N)
+              if git -C "$REPO_ROOT" fetch origin 2>&1 | grep -q "fetch\|Already"; then
+                _FETCH_ELAPSED=$((($(date +%s%N) - _FETCH_START) / 1000000))
+                _FETCH_SECS=$(echo "scale=2; $_FETCH_ELAPSED / 1000" | bc 2>/dev/null || echo "$_FETCH_ELAPSED")
+                _ESTIMATED_PER_WORKER_TOTAL=$((${_FETCH_ELAPSED} * ${RALPH_WORKERS} / 1000))
+                echo "  [I]   Shared fetch completed in ${_FETCH_SECS}ms (vs estimated ${_ESTIMATED_PER_WORKER_TOTAL}ms if per-worker)"
+                printf '{"ts":"%s","event":"shared_fetch_completed","run_id":"%s","shared_fetch_ms":%d,"workers":%d,"estimated_per_worker_total_ms":%d}\n' \
+                  "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${SPIRAL_RUN_ID:-}" "${_FETCH_ELAPSED}" "$RALPH_WORKERS" "$_ESTIMATED_PER_WORKER_TOTAL" \
+                  >>"$SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || true
+              else
+                echo "  [I]   Shared fetch skipped (no remote updates needed)"
+                printf '{"ts":"%s","event":"shared_fetch_skipped","run_id":"%s","reason":"no_updates","workers":%d}\n' \
+                  "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${SPIRAL_RUN_ID:-}" "$RALPH_WORKERS" \
+                  >>"$SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || true
               fi
 
-              echo "  [I] ── Wave $((WAVE + 1)): $WAVE_STORY_COUNT stories ──"
+              # Pre-populate filesTouch hints from git history (best-effort)
+              "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/populate_hints.py" \
+                --prd "$PRD_FILE" --repo-root "$REPO_ROOT" 2>/dev/null || true
 
-              if [[ "$WAVE_STORY_COUNT" -eq 1 ]]; then
-                # Single story — sequential fallback, skip worktree overhead entirely
-                echo "  [I] Wave $((WAVE + 1)): 1 story — sequential fallback (no worktrees)"
-                # Auto-detect tool: UT-* test stories → Codex; others → Claude
-                _NEXT_SID=$("$JQ" -r '[.userStories[] | select(.passes != true)] | sort_by(if .priorityScore != null then (100 - .priorityScore) elif .priority == "critical" then 20 elif .priority == "high" then 40 elif .priority == "medium" then 60 else 80 end) | first | .id // ""' "$PRD_FILE" 2>/dev/null || echo "")
-                if [[ "$_NEXT_SID" == UT-* ]]; then
-                  _RALPH_TOOL="codex"
-                  echo "  [I] Story $_NEXT_SID is a test story → routing to Codex"
-                else
-                  _RALPH_TOOL="claude"
-                fi
-                # US-311: update active status with story context
-                if [[ -n "$_NEXT_SID" ]]; then
-                  _ACTIVE_STORY_ID="$_NEXT_SID"
-                  _ACTIVE_STORY_TITLE=$("$JQ" -r --arg id "$_NEXT_SID" '.userStories[] | select(.id == $id) | .title // ""' "$PRD_FILE" 2>/dev/null || echo "")
-                  write_active_status "I" 60
-                fi
-                # US-325: Idempotency guard — skip if matching commit already exists
-                if [[ -n "$_NEXT_SID" ]] && check_idempotency_guard "$_NEXT_SID" "$PRD_FILE"; then
+              _PARTITION_CMD="${SPIRAL_CORE_BIN:+$SPIRAL_CORE_BIN partition}"
+              _PARTITION_CMD="${_PARTITION_CMD:-$SPIRAL_PYTHON $SPIRAL_HOME/lib/partition_prd.py}"
+              TOTAL_WAVES=$($_PARTITION_CMD \
+                --prd "$PRD_FILE" --list-waves 2>/dev/null || echo "1")
+              echo "  [I] Parallel mode: $RALPH_WORKERS workers, $TOTAL_WAVES wave(s)"
+
+              # ── US-322: Cascade fan-out counter (reset per Phase I) ──────────
+              _CASCADE_FAIL_COUNT=0
+              _CASCADE_FAIL_IDS=""
+
+              WAVE=0
+              while true; do
+                # Get story count for this wave level (recomputed from current prd.json)
+                WAVE_STORY_COUNT=$($_PARTITION_CMD \
+                  --prd "$PRD_FILE" --wave-count "$WAVE" 2>/dev/null || echo "0")
+
+                # No stories at this level — check if higher levels exist
+                if [[ "$WAVE_STORY_COUNT" -eq 0 ]]; then
+                  REMAINING=$($_PARTITION_CMD \
+                    --prd "$PRD_FILE" --list-waves 2>/dev/null || echo "0")
+                  if [[ "$WAVE" -ge "$REMAINING" ]]; then
+                    echo "  [I] All waves processed — no more actionable stories"
+                    break
+                  fi
+                  echo "  [I] Wave $((WAVE + 1)): 0 stories — skipping"
                   WAVE=$((WAVE + 1))
                   continue
+                fi
+
+                echo "  [I] ── Wave $((WAVE + 1)): $WAVE_STORY_COUNT stories ──"
+
+                if [[ "$WAVE_STORY_COUNT" -eq 1 ]]; then
+                  # Single story — sequential fallback, skip worktree overhead entirely
+                  echo "  [I] Wave $((WAVE + 1)): 1 story — sequential fallback (no worktrees)"
+                  # Auto-detect tool: UT-* test stories → Codex; others → Claude
+                  _NEXT_SID=$("$JQ" -r '[.userStories[] | select(.passes != true)] | sort_by(if .priorityScore != null then (100 - .priorityScore) elif .priority == "critical" then 20 elif .priority == "high" then 40 elif .priority == "medium" then 60 else 80 end) | first | .id // ""' "$PRD_FILE" 2>/dev/null || echo "")
+                  if [[ "$_NEXT_SID" == UT-* ]]; then
+                    _RALPH_TOOL="codex"
+                    echo "  [I] Story $_NEXT_SID is a test story → routing to Codex"
+                  else
+                    _RALPH_TOOL="claude"
+                  fi
+                  # US-311: update active status with story context
+                  if [[ -n "$_NEXT_SID" ]]; then
+                    _ACTIVE_STORY_ID="$_NEXT_SID"
+                    _ACTIVE_STORY_TITLE=$("$JQ" -r --arg id "$_NEXT_SID" '.userStories[] | select(.id == $id) | .title // ""' "$PRD_FILE" 2>/dev/null || echo "")
+                    write_active_status "I" 60
+                  fi
+                  # US-325: Idempotency guard — skip if matching commit already exists
+                  if [[ -n "$_NEXT_SID" ]] && check_idempotency_guard "$_NEXT_SID" "$PRD_FILE"; then
+                    WAVE=$((WAVE + 1))
+                    continue
+                  fi
+                  # US-219: begin story task span; prints story-scoped TRACEPARENT for child action spans
+                  _STORY_TP=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" begin-story \
+                    --story-id "$_NEXT_SID" --scratch-dir "$SCRATCH_DIR" 2>/dev/null || true)
+                  # US-362: Write pre-invocation snapshot for post-mortem replay
+                  _SNAP_STORY_TMP=$(mktemp -p "$SCRATCH_DIR" _snap_story_XXXXXX.json 2>/dev/null || echo "$SCRATCH_DIR/_snap_story_$$.json")
+                  "$JQ" --arg id "$_NEXT_SID" '.userStories[] | select(.id == $id)' "$PRD_FILE" >"$_SNAP_STORY_TMP" 2>/dev/null || true
+                  _SNAP_RALPH_FLAGS="$RALPH_MAX_ITERS --prd $PRD_FILE --tool $_RALPH_TOOL $_DRY_RUN_FLAG"
+                  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/invocation_snapshot.py" write "$SCRATCH_DIR" \
+                    --story-id "$_NEXT_SID" \
+                    --story-json "$_SNAP_STORY_TMP" \
+                    --model "${EFFECTIVE_MODEL:-unknown}" \
+                    --ralph-flags "$_SNAP_RALPH_FLAGS" \
+                    --iteration "$SPIRAL_ITER" \
+                    --phase "I" 2>/dev/null || true
+                  rm -f "$_SNAP_STORY_TMP" 2>/dev/null || true
+                  _I_EXIT=0
+                  _I_START=$(date +%s)
+                  _STORY_BUDGET=$(get_story_timeout "$_NEXT_SID")
+                  _I_STDOUT_FILE=$(mktemp -p "$SCRATCH_DIR" _ralph_out_XXXXXX.log 2>/dev/null || echo "$SCRATCH_DIR/_ralph_out_$$.log")
+                  if [[ "${_STORY_BUDGET:-0}" -gt 0 ]] && command -v timeout &>/dev/null; then
+                    echo "  [I] Budget: ${_STORY_BUDGET}s for $_NEXT_SID"
+                    timeout --kill-after=30 "${_STORY_BUDGET}" bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $_DRY_RUN_FLAG 2>&1 | tee "$_I_STDOUT_FILE" || _I_EXIT=$?
+                  else
+                    bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $_DRY_RUN_FLAG 2>&1 | tee "$_I_STDOUT_FILE" || _I_EXIT=$?
+                  fi
+                  _I_ELAPSED=$(($(date +%s) - _I_START))
+                  # US-362: Finish snapshot with returncode and stdout head
+                  _SNAP_STDOUT_HEAD=$(head -c 2000 "$_I_STDOUT_FILE" 2>/dev/null || true)
+                  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/invocation_snapshot.py" finish "$SCRATCH_DIR" \
+                    --story-id "$_NEXT_SID" \
+                    --returncode "$_I_EXIT" \
+                    --stdout-head "${_SNAP_STDOUT_HEAD:-}" 2>/dev/null || true
+                  rm -f "$_I_STDOUT_FILE" 2>/dev/null || true
+                  if [[ "$_I_EXIT" -eq 124 ]]; then
+                    echo "  [I] WARNING: Ralph timed out after ${_I_ELAPSED}s (budget: ${_STORY_BUDGET}s)"
+                    log_spiral_event "phase_timeout" "\"phase\":\"I\",\"story_id\":\"$_NEXT_SID\",\"iteration\":$SPIRAL_ITER,\"duration_ms\":$((_I_ELAPSED * 1000)),\"timeout_s\":${_STORY_BUDGET}"
+                  fi
+                  # US-219: emit action span for the LLM implementation call
+                  STORY_TRACEPARENT="$_STORY_TP" "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" emit-action \
+                    --type llm_query --duration-s "$_I_ELAPSED" --story-id "$_NEXT_SID" 2>/dev/null || true
+                  # US-219: close story task span with pass/fail
+                  _STORY_PASSES=$("$JQ" -r --arg id "$_NEXT_SID" \
+                    '.userStories[] | select(.id == $id) | .passes // false' "$PRD_FILE" 2>/dev/null || echo "false")
+                  _STORY_STATUS="failed"
+                  [[ "$_STORY_PASSES" == "true" ]] && _STORY_STATUS="passed"
+                  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" end-story \
+                    --story-id "$_NEXT_SID" --status "$_STORY_STATUS" --scratch-dir "$SCRATCH_DIR" 2>/dev/null || true
+                  # US-318/US-341: emit invoke_agent span for worker lifecycle with cache token attributes
+                  _IA_CACHE_READ=$(awk -F'\t' -v sid="$_NEXT_SID" '$4 == sid { cr=$13 } END { print cr+0 }' "$RESULTS_FILE" 2>/dev/null || echo 0)
+                  _IA_CACHE_CREATE=$(awk -F'\t' -v sid="$_NEXT_SID" '$4 == sid { cc=$14 } END { print cc+0 }' "$RESULTS_FILE" 2>/dev/null || echo 0)
+                  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" invoke-agent \
+                    --story-id "$_NEXT_SID" --worker-id "0" \
+                    --duration-s "$_I_ELAPSED" --status "$_STORY_STATUS" \
+                    --agent-version "${SPIRAL_VERSION:-unknown}" \
+                    --conversation-id "${SPIRAL_RUN_ID:-}" \
+                    --cache-read-tokens "${_IA_CACHE_READ:-0}" \
+                    --cache-creation-tokens "${_IA_CACHE_CREATE:-0}" 2>/dev/null || true
+                  # US-189: record per-story token metrics after Phase I
+                  _TOK_IN=$("$JQ" -r --arg id "$_NEXT_SID" '.[$id].tokens_input // 0' "$SCRATCH_DIR/story_costs.json" 2>/dev/null || echo 0)
+                  _TOK_OUT=$("$JQ" -r --arg id "$_NEXT_SID" '.[$id].tokens_output // 0' "$SCRATCH_DIR/story_costs.json" 2>/dev/null || echo 0)
+                  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_metrics.py" record-tokens \
+                    --story-id "$_NEXT_SID" --phase I \
+                    --input-tokens "${_TOK_IN:-0}" --output-tokens "${_TOK_OUT:-0}" \
+                    --duration-ms "$((_I_ELAPSED * 1000))" \
+                    --scratch-dir "$SCRATCH_DIR" 2>/dev/null || true
+                  # US-192: record calibration data (actual vs estimated complexity) if story passed
+                  if [[ "$_STORY_PASSES" == "true" ]]; then
+                    _EST_COMPLEXITY=$("$JQ" -r --arg id "$_NEXT_SID" '.userStories[] | select(.id == $id) | .estimatedComplexity // "medium"' "$PRD_FILE" 2>/dev/null || echo "medium")
+                    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/calibration_tracker.py" record \
+                      --story-id "$_NEXT_SID" \
+                      --estimated-complexity "$_EST_COMPLEXITY" \
+                      --actual-duration-s "$_I_ELAPSED" \
+                      --phase-retries 0 \
+                      --passed true \
+                      --output calibration.jsonl 2>/dev/null || true
+                  fi
+                  # ── US-353: Store plan in cache on success ──────────────────────
+                  if [[ "$_STORY_PASSES" == "true" && "${SPIRAL_PLAN_CACHE_ENABLED:-true}" == "true" ]]; then
+                    _PLAN_CACHE_DIR="$SCRATCH_DIR/plan_cache"
+                    _STORY_TMP=$(mktemp -p "$SCRATCH_DIR" _story_XXXXXX.json 2>/dev/null || echo "$SCRATCH_DIR/_story_$$.json")
+                    "$JQ" --arg id "$_NEXT_SID" '.userStories[] | select(.id == $id)' "$PRD_FILE" >"$_STORY_TMP" 2>/dev/null || true
+                    _PLAN_JSON="{\"story_id\":\"$_NEXT_SID\",\"duration_s\":$_I_ELAPSED,\"model\":\"${EFFECTIVE_MODEL:-unknown}\"}"
+                    _PLAN_TMP=$(mktemp -p "$SCRATCH_DIR" _plan_XXXXXX.json 2>/dev/null || echo "$SCRATCH_DIR/_plan_$$.json")
+                    printf '%s' "$_PLAN_JSON" >"$_PLAN_TMP"
+                    _PC_RESULT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/plan_cache.py" store "$_PLAN_CACHE_DIR" \
+                      --story-json "$_STORY_TMP" --plan-json "$_PLAN_TMP" 2>/dev/null || echo "")
+                    if [[ -n "$_PC_RESULT" ]]; then
+                      log_spiral_event "plan_cache_store" \
+                        "\"story_id\":\"$_NEXT_SID\",\"plan_key\":\"$(basename "$_PC_RESULT" .json)\""
+                    fi
+                    rm -f "$_STORY_TMP" "$_PLAN_TMP" 2>/dev/null || true
+                  fi
+                  # ── US-260: Post-Phase-I drift check ──────────────────────────
+                  if [[ "${SPIRAL_DRIFT_CHECK:-false}" != "false" && -n "${_NEXT_SID:-}" ]]; then
+                    echo "  [drift] Checking implementation drift for $_NEXT_SID..."
+                    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/drift_check.py" \
+                      --story-id "$_NEXT_SID" \
+                      --prd "$PRD_FILE" \
+                      --scratch-dir "$SCRATCH_DIR" \
+                      --repo-root "$REPO_ROOT" \
+                      --pass-threshold "${SPIRAL_DRIFT_PASS_THRESHOLD:-70}" \
+                      --fail-threshold "${SPIRAL_DRIFT_FAIL_THRESHOLD:-40}" \
+                      --iteration "$SPIRAL_ITER" 2>/dev/null || true
+                  fi
+                  # ── End drift check ───────────────────────────────────────────
+                  # US-194: post-story plugin hooks (e.g. Slack notifications)
+                  if [[ -n "${PLUGIN_HOOKS[post-story]:-}" ]]; then
+                    _PS_TITLE=$("$JQ" -r --arg id "$_NEXT_SID" '.userStories[] | select(.id == $id) | .title // ""' "$PRD_FILE" 2>/dev/null || echo "")
+                    _PS_RETRY=$("$JQ" -r --arg id "$_NEXT_SID" '.[$id] // 0' "$REPO_ROOT/retry-counts.json" 2>/dev/null || echo "0")
+                    run_plugin_hooks "post-story" "POST" "$_NEXT_SID" \
+                      "\"story_title\":\"${_PS_TITLE//\"/\\\"}\",\"story_passes\":$_STORY_PASSES,\"retry_count\":${_PS_RETRY:-0}" 2>/dev/null || true
+                  fi
+                  # ── US-322: Update cascade fan-out counter ────────────────────
+                  if [[ "$_STORY_PASSES" == "true" ]]; then
+                    _CASCADE_FAIL_COUNT=0
+                    _CASCADE_FAIL_IDS=""
+                  else
+                    _CASCADE_FAIL_COUNT=$((_CASCADE_FAIL_COUNT + 1))
+                    _CASCADE_FAIL_IDS="${_CASCADE_FAIL_IDS:+$_CASCADE_FAIL_IDS,}$_NEXT_SID"
+                    if [[ "${SPIRAL_CASCADE_FAN_OUT_LIMIT:-5}" -gt 0 && "$_CASCADE_FAIL_COUNT" -ge "${SPIRAL_CASCADE_FAN_OUT_LIMIT:-5}" ]]; then
+                      echo ""
+                      echo "  ╔══════════════════════════════════════════════════════════════╗"
+                      echo "  ║  CASCADE ABORT — $_CASCADE_FAIL_COUNT consecutive story failures        ║"
+                      echo "  ║  Failing stories: ${_CASCADE_FAIL_IDS}"
+                      echo "  ║  Inspect the first failure and fix the root cause.          ║"
+                      echo "  ╚══════════════════════════════════════════════════════════════╝"
+                      echo ""
+                      log_spiral_event "cascade_abort" \
+                        "\"iteration\":$SPIRAL_ITER,\"consecutive_failures\":$_CASCADE_FAIL_COUNT,\"failing_ids\":\"$_CASCADE_FAIL_IDS\",\"limit\":${SPIRAL_CASCADE_FAN_OUT_LIMIT:-5}"
+                      rm -f "$CHECKPOINT_FILE"
+                      spiral_exit E405 "${SPIRAL_CASCADE_FAN_OUT_LIMIT:-5}"
+                    fi
+                  fi
+                else
+                  # Cap workers to story count so no worker sits idle
+                  WAVE_WORKERS="$RALPH_WORKERS"
+                  if [[ "$WAVE_STORY_COUNT" -lt "$RALPH_WORKERS" ]]; then
+                    WAVE_WORKERS="$WAVE_STORY_COUNT"
+                    echo "  [I] Wave $((WAVE + 1)): capping to $WAVE_WORKERS workers (only $WAVE_STORY_COUNT stories)"
+                  fi
+
+                  # ── Pre-flight: cross-story conflict detection (US-186) ─────────
+                  # Before launching workers, detect stories that would produce merge
+                  # conflicts and defer lower-priority ones to the next batch.
+                  if [[ "${SKIP_CONFLICT_PREFLIGHT:-0}" -ne 1 ]]; then
+                    _WAVE_STORY_IDS=($("$JQ" -r \
+                      '[.userStories[] | select(.passes != true and ._skipped != true and ._decomposed != true)] | sort_by(if .priorityScore != null then (100 - .priorityScore) elif .priority == "critical" then 20 elif .priority == "high" then 40 elif .priority == "medium" then 60 else 80 end) | .[0:'"$WAVE_STORY_COUNT"'] | .[].id' \
+                      "$PRD_FILE" 2>/dev/null || true))
+                    if [[ ${#_WAVE_STORY_IDS[@]} -ge 2 ]]; then
+                      _CF_LOG="$SCRATCH_DIR/conflict-log.jsonl"
+                      _CF_RESULT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/conflict_preflight.py" \
+                        --prd "$PRD_FILE" \
+                        --story-ids "${_WAVE_STORY_IDS[@]}" \
+                        --repo-root "$REPO_ROOT" \
+                        --conflict-log "$_CF_LOG" \
+                        --batch-number "$((WAVE + 1))" \
+                        --update-prd 2>&1) || true
+                      _CF_DEFERRED=$(echo "$_CF_RESULT" | "$JQ" -r '.deferred | length' 2>/dev/null || echo "0")
+                      if [[ "$_CF_DEFERRED" -gt 0 ]]; then
+                        _CF_IDS=$(echo "$_CF_RESULT" | "$JQ" -r '.deferred | join(", ")' 2>/dev/null || echo "")
+                        echo "  [conflict-preflight] Deferred $_CF_DEFERRED story/stories to next batch: $_CF_IDS"
+                        log_spiral_event "conflict_preflight_deferred" "\"batch\":$((WAVE + 1)),\"deferred\":$_CF_DEFERRED,\"ids\":\"${_CF_IDS}\""
+                        # Recompute wave story count after deferral
+                        WAVE_STORY_COUNT=$($_PARTITION_CMD \
+                          --prd "$PRD_FILE" --wave-count "$WAVE" 2>/dev/null || echo "0")
+                        if [[ "$WAVE_STORY_COUNT" -le 1 ]]; then
+                          echo "  [I] Wave $((WAVE + 1)): only $WAVE_STORY_COUNT story after deferral — sequential fallback"
+                          WAVE=$((WAVE + 1))
+                          continue
+                        fi
+                        # Recompute WAVE_WORKERS after deferral
+                        if [[ "$WAVE_STORY_COUNT" -lt "$WAVE_WORKERS" ]]; then
+                          WAVE_WORKERS="$WAVE_STORY_COUNT"
+                        fi
+                      fi
+                    fi
+                  fi
+
+                  bash "$SPIRAL_HOME/lib/run_parallel_ralph.sh" \
+                    "$WAVE_WORKERS" "$RALPH_MAX_ITERS" "$REPO_ROOT" "$PRD_FILE" \
+                    "$SCRATCH_DIR" "$SPIRAL_RALPH" "$JQ" "$SPIRAL_PYTHON" \
+                    "$MONITOR_TERMINALS" "$SPIRAL_HOME" "" || true
+                  # ── US-322: Check cascade fan-out after parallel wave ────────
+                  # Count how many stories from this wave passed vs failed
+                  _WAVE_PASSED=0
+                  _WAVE_FAILED_IDS=""
+                  for _WS_ID in "${_WAVE_STORY_IDS[@]:0:$WAVE_WORKERS}"; do
+                    [[ -z "$_WS_ID" ]] && continue
+                    _WS_PASSES=$("$JQ" -r --arg id "$_WS_ID" \
+                      '.userStories[] | select(.id == $id) | .passes // false' "$PRD_FILE" 2>/dev/null || echo "false")
+                    if [[ "$_WS_PASSES" == "true" ]]; then
+                      _WAVE_PASSED=$((_WAVE_PASSED + 1))
+                    else
+                      _WAVE_FAILED_IDS="${_WAVE_FAILED_IDS:+$_WAVE_FAILED_IDS,}$_WS_ID"
+                    fi
+                  done
+                  if [[ "$_WAVE_PASSED" -gt 0 ]]; then
+                    _CASCADE_FAIL_COUNT=0
+                    _CASCADE_FAIL_IDS=""
+                  elif [[ -n "$_WAVE_FAILED_IDS" ]]; then
+                    # All stories in this wave failed — count them as consecutive
+                    IFS=',' read -ra _WF_ARR <<<"$_WAVE_FAILED_IDS"
+                    _CASCADE_FAIL_COUNT=$((_CASCADE_FAIL_COUNT + ${#_WF_ARR[@]}))
+                    _CASCADE_FAIL_IDS="${_CASCADE_FAIL_IDS:+$_CASCADE_FAIL_IDS,}$_WAVE_FAILED_IDS"
+                    if [[ "${SPIRAL_CASCADE_FAN_OUT_LIMIT:-5}" -gt 0 && "$_CASCADE_FAIL_COUNT" -ge "${SPIRAL_CASCADE_FAN_OUT_LIMIT:-5}" ]]; then
+                      echo ""
+                      echo "  ╔══════════════════════════════════════════════════════════════╗"
+                      echo "  ║  CASCADE ABORT — $_CASCADE_FAIL_COUNT consecutive story failures        ║"
+                      echo "  ║  Failing stories: ${_CASCADE_FAIL_IDS}"
+                      echo "  ║  Inspect the first failure and fix the root cause.          ║"
+                      echo "  ╚══════════════════════════════════════════════════════════════╝"
+                      echo ""
+                      log_spiral_event "cascade_abort" \
+                        "\"iteration\":$SPIRAL_ITER,\"consecutive_failures\":$_CASCADE_FAIL_COUNT,\"failing_ids\":\"$_CASCADE_FAIL_IDS\",\"limit\":${SPIRAL_CASCADE_FAN_OUT_LIMIT:-5}"
+                      rm -f "$CHECKPOINT_FILE"
+                      spiral_exit E405 "${SPIRAL_CASCADE_FAN_OUT_LIMIT:-5}"
+                    fi
+                  fi
+                fi
+
+                WAVE=$((WAVE + 1))
+              done
+            else
+              # ── Sequential mode (default) ────────────────────────────────────
+              # Auto-detect tool: UT-* test stories → Codex; others → Claude
+              _NEXT_SID=$("$JQ" -r '[.userStories[] | select(.passes != true)] | sort_by(if .priorityScore != null then (100 - .priorityScore) elif .priority == "critical" then 20 elif .priority == "high" then 40 elif .priority == "medium" then 60 else 80 end) | first | .id // ""' "$PRD_FILE" 2>/dev/null || echo "")
+              if [[ "$_NEXT_SID" == UT-* ]]; then
+                _RALPH_TOOL="codex"
+                echo "  [I] Story $_NEXT_SID is a test story → routing to Codex"
+              else
+                _RALPH_TOOL="claude"
+              fi
+              # US-311: update active status with story context
+              if [[ -n "$_NEXT_SID" ]]; then
+                _ACTIVE_STORY_ID="$_NEXT_SID"
+                _ACTIVE_STORY_TITLE=$("$JQ" -r --arg id "$_NEXT_SID" '.userStories[] | select(.id == $id) | .title // ""' "$PRD_FILE" 2>/dev/null || echo "")
+                write_active_status "I" 60
+              fi
+              # US-325: Idempotency guard — skip if matching commit already exists
+              if [[ -n "$_NEXT_SID" ]] && check_idempotency_guard "$_NEXT_SID" "$PRD_FILE"; then
+                # Story already implemented — skip entire sequential ralph invocation
+                :
+              else
+                # US-295: context-window-aware model selection before ralph.sh dispatch
+                # Estimate prompt tokens (ralph CLAUDE.md + story JSON) and upgrade model if needed
+                RALPH_MODEL_FLAG=""
+                if [[ -n "$_NEXT_SID" ]]; then
+                  _RALPH_PROMPT_TEXT=""
+                  if [[ -f "$SPIRAL_HOME/ralph/CLAUDE.md" ]]; then
+                    _RALPH_PROMPT_TEXT+=$(cat "$SPIRAL_HOME/ralph/CLAUDE.md" 2>/dev/null || true)
+                  fi
+                  _STORY_JSON=$("$JQ" -r --arg id "$_NEXT_SID" '.userStories[] | select(.id == $id)' "$PRD_FILE" 2>/dev/null || echo "")
+                  _RALPH_PROMPT_TEXT+="$_STORY_JSON"
+                  _PROMPT_TOKEN_EST=$(((${#_RALPH_PROMPT_TEXT} + 3) / 4))
+                  _ROUTER_JSON=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/llm_router.py" \
+                    --story "$_NEXT_SID" --prd "$PRD_FILE" \
+                    --prompt-tokens "$_PROMPT_TOKEN_EST" \
+                    --events-file "$SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || echo "")
+                  if [[ -n "$_ROUTER_JSON" ]]; then
+                    _CHOSEN_MODEL=$("$JQ" -r '.model // ""' <<<"$_ROUTER_JSON" 2>/dev/null || echo "")
+                    _CW_UPGRADED=$("$JQ" -r '.context_window_upgrade // false' <<<"$_ROUTER_JSON" 2>/dev/null || echo "false")
+                    if [[ -n "$_CHOSEN_MODEL" ]]; then
+                      RALPH_MODEL_FLAG="--model $_CHOSEN_MODEL"
+                      if [[ "$_CW_UPGRADED" == "true" ]]; then
+                        echo "  [I] Context-window upgrade: $_NEXT_SID → $_CHOSEN_MODEL (est. ${_PROMPT_TOKEN_EST} tokens)"
+                      fi
+                    fi
+                  fi
                 fi
                 # US-219: begin story task span; prints story-scoped TRACEPARENT for child action spans
                 _STORY_TP=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" begin-story \
                   --story-id "$_NEXT_SID" --scratch-dir "$SCRATCH_DIR" 2>/dev/null || true)
-                # US-362: Write pre-invocation snapshot for post-mortem replay
-                _SNAP_STORY_TMP=$(mktemp -p "$SCRATCH_DIR" _snap_story_XXXXXX.json 2>/dev/null || echo "$SCRATCH_DIR/_snap_story_$$.json")
-                "$JQ" --arg id "$_NEXT_SID" '.userStories[] | select(.id == $id)' "$PRD_FILE" > "$_SNAP_STORY_TMP" 2>/dev/null || true
-                _SNAP_RALPH_FLAGS="$RALPH_MAX_ITERS --prd $PRD_FILE --tool $_RALPH_TOOL $_DRY_RUN_FLAG"
-                "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/invocation_snapshot.py" write "$SCRATCH_DIR" \
-                  --story-id "$_NEXT_SID" \
-                  --story-json "$_SNAP_STORY_TMP" \
-                  --model "${EFFECTIVE_MODEL:-unknown}" \
-                  --ralph-flags "$_SNAP_RALPH_FLAGS" \
-                  --iteration "$SPIRAL_ITER" \
-                  --phase "I" 2>/dev/null || true
-                rm -f "$_SNAP_STORY_TMP" 2>/dev/null || true
                 _I_EXIT=0
                 _I_START=$(date +%s)
                 _STORY_BUDGET=$(get_story_timeout "$_NEXT_SID")
-                _I_STDOUT_FILE=$(mktemp -p "$SCRATCH_DIR" _ralph_out_XXXXXX.log 2>/dev/null || echo "$SCRATCH_DIR/_ralph_out_$$.log")
+                # US-279: capture stderr to temp file for crash persistence
+                _STDERR_CAPTURE=$(mktemp -p "$SCRATCH_DIR" _ralph_stderr_XXXXXX.txt 2>/dev/null || echo "$SCRATCH_DIR/_ralph_stderr_$$.txt")
                 if [[ "${_STORY_BUDGET:-0}" -gt 0 ]] && command -v timeout &>/dev/null; then
                   echo "  [I] Budget: ${_STORY_BUDGET}s for $_NEXT_SID"
-                  timeout --kill-after=30 "${_STORY_BUDGET}" bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $_DRY_RUN_FLAG 2>&1 | tee "$_I_STDOUT_FILE" || _I_EXIT=$?
+                  timeout --kill-after=30 "${_STORY_BUDGET}" bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $RALPH_MODEL_FLAG $_DRY_RUN_FLAG 2>"$_STDERR_CAPTURE" || _I_EXIT=$?
                 else
-                  bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $_DRY_RUN_FLAG 2>&1 | tee "$_I_STDOUT_FILE" || _I_EXIT=$?
+                  bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $RALPH_MODEL_FLAG $_DRY_RUN_FLAG 2>"$_STDERR_CAPTURE" || _I_EXIT=$?
                 fi
                 _I_ELAPSED=$(($(date +%s) - _I_START))
-                # US-362: Finish snapshot with returncode and stdout head
-                _SNAP_STDOUT_HEAD=$(head -c 2000 "$_I_STDOUT_FILE" 2>/dev/null || true)
-                "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/invocation_snapshot.py" finish "$SCRATCH_DIR" \
-                  --story-id "$_NEXT_SID" \
-                  --returncode "$_I_EXIT" \
-                  --stdout-head "${_SNAP_STDOUT_HEAD:-}" 2>/dev/null || true
-                rm -f "$_I_STDOUT_FILE" 2>/dev/null || true
                 if [[ "$_I_EXIT" -eq 124 ]]; then
-                  echo "  [I] WARNING: Ralph timed out after ${_I_ELAPSED}s (budget: ${_STORY_BUDGET}s)"
+                  echo "  [I] WARNING: Ralph timed out after ${_I_ELAPSED}s (budget: ${_STORY_BUDGET}s) — partial progress saved"
                   log_spiral_event "phase_timeout" "\"phase\":\"I\",\"story_id\":\"$_NEXT_SID\",\"iteration\":$SPIRAL_ITER,\"duration_ms\":$((_I_ELAPSED * 1000)),\"timeout_s\":${_STORY_BUDGET}"
                 fi
+                # US-279: capture crash traceback on non-zero exit
+                if [[ "$_I_EXIT" -ne 0 ]]; then
+                  capture_crash "$_NEXT_SID" "$_I_EXIT" "sequential" "$_STDERR_CAPTURE"
+                fi
+                rm -f "$_STDERR_CAPTURE" 2>/dev/null || true
                 # US-219: emit action span for the LLM implementation call
                 STORY_TRACEPARENT="$_STORY_TP" "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" emit-action \
                   --type llm_query --duration-s "$_I_ELAPSED" --story-id "$_NEXT_SID" 2>/dev/null || true
                 # US-219: close story task span with pass/fail
                 _STORY_PASSES=$("$JQ" -r --arg id "$_NEXT_SID" \
                   '.userStories[] | select(.id == $id) | .passes // false' "$PRD_FILE" 2>/dev/null || echo "false")
-                _STORY_STATUS="failed"; [[ "$_STORY_PASSES" == "true" ]] && _STORY_STATUS="passed"
+                _STORY_STATUS="failed"
+                [[ "$_STORY_PASSES" == "true" ]] && _STORY_STATUS="passed"
                 "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" end-story \
                   --story-id "$_NEXT_SID" --status "$_STORY_STATUS" --scratch-dir "$SCRATCH_DIR" 2>/dev/null || true
-                # US-318/US-341: emit invoke_agent span for worker lifecycle with cache token attributes
-                _IA_CACHE_READ=$(awk -F'\t' -v sid="$_NEXT_SID" '$4 == sid { cr=$13 } END { print cr+0 }' "$RESULTS_FILE" 2>/dev/null || echo 0)
-                _IA_CACHE_CREATE=$(awk -F'\t' -v sid="$_NEXT_SID" '$4 == sid { cc=$14 } END { print cc+0 }' "$RESULTS_FILE" 2>/dev/null || echo 0)
-                "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" invoke-agent \
-                  --story-id "$_NEXT_SID" --worker-id "0" \
-                  --duration-s "$_I_ELAPSED" --status "$_STORY_STATUS" \
-                  --agent-version "${SPIRAL_VERSION:-unknown}" \
-                  --conversation-id "${SPIRAL_RUN_ID:-}" \
-                  --cache-read-tokens "${_IA_CACHE_READ:-0}" \
-                  --cache-creation-tokens "${_IA_CACHE_CREATE:-0}" 2>/dev/null || true
                 # US-189: record per-story token metrics after Phase I
                 _TOK_IN=$("$JQ" -r --arg id "$_NEXT_SID" '.[$id].tokens_input // 0' "$SCRATCH_DIR/story_costs.json" 2>/dev/null || echo 0)
                 _TOK_OUT=$("$JQ" -r --arg id "$_NEXT_SID" '.[$id].tokens_output // 0' "$SCRATCH_DIR/story_costs.json" 2>/dev/null || echo 0)
@@ -3960,10 +4226,10 @@ with open('$RESEARCH_OUTPUT', 'rb') as f:
                 if [[ "$_STORY_PASSES" == "true" && "${SPIRAL_PLAN_CACHE_ENABLED:-true}" == "true" ]]; then
                   _PLAN_CACHE_DIR="$SCRATCH_DIR/plan_cache"
                   _STORY_TMP=$(mktemp -p "$SCRATCH_DIR" _story_XXXXXX.json 2>/dev/null || echo "$SCRATCH_DIR/_story_$$.json")
-                  "$JQ" --arg id "$_NEXT_SID" '.userStories[] | select(.id == $id)' "$PRD_FILE" > "$_STORY_TMP" 2>/dev/null || true
+                  "$JQ" --arg id "$_NEXT_SID" '.userStories[] | select(.id == $id)' "$PRD_FILE" >"$_STORY_TMP" 2>/dev/null || true
                   _PLAN_JSON="{\"story_id\":\"$_NEXT_SID\",\"duration_s\":$_I_ELAPSED,\"model\":\"${EFFECTIVE_MODEL:-unknown}\"}"
                   _PLAN_TMP=$(mktemp -p "$SCRATCH_DIR" _plan_XXXXXX.json 2>/dev/null || echo "$SCRATCH_DIR/_plan_$$.json")
-                  printf '%s' "$_PLAN_JSON" > "$_PLAN_TMP"
+                  printf '%s' "$_PLAN_JSON" >"$_PLAN_TMP"
                   _PC_RESULT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/plan_cache.py" store "$_PLAN_CACHE_DIR" \
                     --story-json "$_STORY_TMP" --plan-json "$_PLAN_TMP" 2>/dev/null || echo "")
                   if [[ -n "$_PC_RESULT" ]]; then
@@ -3972,7 +4238,7 @@ with open('$RESEARCH_OUTPUT', 'rb') as f:
                   fi
                   rm -f "$_STORY_TMP" "$_PLAN_TMP" 2>/dev/null || true
                 fi
-                # ── US-260: Post-Phase-I drift check ──────────────────────────
+                # ── US-260: Post-Phase-I drift check (parallel path) ──────────
                 if [[ "${SPIRAL_DRIFT_CHECK:-false}" != "false" && -n "${_NEXT_SID:-}" ]]; then
                   echo "  [drift] Checking implementation drift for $_NEXT_SID..."
                   "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/drift_check.py" \
@@ -3992,453 +4258,208 @@ with open('$RESEARCH_OUTPUT', 'rb') as f:
                   run_plugin_hooks "post-story" "POST" "$_NEXT_SID" \
                     "\"story_title\":\"${_PS_TITLE//\"/\\\"}\",\"story_passes\":$_STORY_PASSES,\"retry_count\":${_PS_RETRY:-0}" 2>/dev/null || true
                 fi
-                # ── US-322: Update cascade fan-out counter ────────────────────
-                if [[ "$_STORY_PASSES" == "true" ]]; then
-                  _CASCADE_FAIL_COUNT=0
-                  _CASCADE_FAIL_IDS=""
-                else
-                  _CASCADE_FAIL_COUNT=$((_CASCADE_FAIL_COUNT + 1))
-                  _CASCADE_FAIL_IDS="${_CASCADE_FAIL_IDS:+$_CASCADE_FAIL_IDS,}$_NEXT_SID"
-                  if [[ "${SPIRAL_CASCADE_FAN_OUT_LIMIT:-5}" -gt 0 && "$_CASCADE_FAIL_COUNT" -ge "${SPIRAL_CASCADE_FAN_OUT_LIMIT:-5}" ]]; then
-                    echo ""
-                    echo "  ╔══════════════════════════════════════════════════════════════╗"
-                    echo "  ║  CASCADE ABORT — $_CASCADE_FAIL_COUNT consecutive story failures        ║"
-                    echo "  ║  Failing stories: ${_CASCADE_FAIL_IDS}"
-                    echo "  ║  Inspect the first failure and fix the root cause.          ║"
-                    echo "  ╚══════════════════════════════════════════════════════════════╝"
-                    echo ""
-                    log_spiral_event "cascade_abort" \
-                      "\"iteration\":$SPIRAL_ITER,\"consecutive_failures\":$_CASCADE_FAIL_COUNT,\"failing_ids\":\"$_CASCADE_FAIL_IDS\",\"limit\":${SPIRAL_CASCADE_FAN_OUT_LIMIT:-5}"
-                    rm -f "$CHECKPOINT_FILE"
-                    spiral_exit E405 "${SPIRAL_CASCADE_FAN_OUT_LIMIT:-5}"
-                  fi
-                fi
+              fi # US-325: close idempotency guard else
+            fi
+
+            # ── Batch merge: restore full PRD with ralph's updates ─────────
+            if [[ "$_BATCH_ACTIVE" -eq 1 && -f "$_FULL_PRD_BACKUP" ]]; then
+              "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/slice_prd.py" merge \
+                "$_FULL_PRD_BACKUP" "$PRD_FILE" -o "$PRD_FILE" 2>/dev/null && {
+                echo "  [I] Batch: merged results back into full PRD"
+              } || {
+                echo "  [I] Batch: merge failed — keeping ralph's PRD as-is"
+              }
+              rm -f "$_FULL_PRD_BACKUP"
+            fi
+
+            DONE_AFTER=$("$JQ" '[.userStories[] | select(.passes == true)] | length' "$PRD_FILE")
+            RALPH_PROGRESS=$((DONE_AFTER - DONE_BEFORE))
+
+            if [[ "$RALPH_PROGRESS" -gt 0 ]]; then
+              if [[ "$RALPH_WORKERS" -gt 1 ]]; then
+                # run_parallel_ralph.sh already committed prd.json + per-worker code patches
+                echo "  [I] Git: parallel mode — commits already applied by run_parallel_ralph.sh"
               else
-                # Cap workers to story count so no worker sits idle
-                WAVE_WORKERS="$RALPH_WORKERS"
-                if [[ "$WAVE_STORY_COUNT" -lt "$RALPH_WORKERS" ]]; then
-                  WAVE_WORKERS="$WAVE_STORY_COUNT"
-                  echo "  [I] Wave $((WAVE + 1)): capping to $WAVE_WORKERS workers (only $WAVE_STORY_COUNT stories)"
-                fi
+                # Sequential mode: atomic commit per completed story
+                POST_RALPH_PRD="$SCRATCH_DIR/_prd_post_ralph.json"
+                cp "$PRD_FILE" "$POST_RALPH_PRD"
 
-                # ── Pre-flight: cross-story conflict detection (US-186) ─────────
-                # Before launching workers, detect stories that would produce merge
-                # conflicts and defer lower-priority ones to the next batch.
-                if [[ "${SKIP_CONFLICT_PREFLIGHT:-0}" -ne 1 ]]; then
-                  _WAVE_STORY_IDS=($("$JQ" -r \
-                    '[.userStories[] | select(.passes != true and ._skipped != true and ._decomposed != true)] | sort_by(if .priorityScore != null then (100 - .priorityScore) elif .priority == "critical" then 20 elif .priority == "high" then 40 elif .priority == "medium" then 60 else 80 end) | .[0:'"$WAVE_STORY_COUNT"'] | .[].id' \
-                    "$PRD_FILE" 2>/dev/null || true))
-                  if [[ ${#_WAVE_STORY_IDS[@]} -ge 2 ]]; then
-                    _CF_LOG="$SCRATCH_DIR/conflict-log.jsonl"
-                    _CF_RESULT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/conflict_preflight.py" \
-                      --prd "$PRD_FILE" \
-                      --story-ids "${_WAVE_STORY_IDS[@]}" \
-                      --repo-root "$REPO_ROOT" \
-                      --conflict-log "$_CF_LOG" \
-                      --batch-number "$((WAVE + 1))" \
-                      --update-prd 2>&1) || true
-                    _CF_DEFERRED=$(echo "$_CF_RESULT" | "$JQ" -r '.deferred | length' 2>/dev/null || echo "0")
-                    if [[ "$_CF_DEFERRED" -gt 0 ]]; then
-                      _CF_IDS=$(echo "$_CF_RESULT" | "$JQ" -r '.deferred | join(", ")' 2>/dev/null || echo "")
-                      echo "  [conflict-preflight] Deferred $_CF_DEFERRED story/stories to next batch: $_CF_IDS"
-                      log_spiral_event "conflict_preflight_deferred" "\"batch\":$((WAVE + 1)),\"deferred\":$_CF_DEFERRED,\"ids\":\"${_CF_IDS}\""
-                      # Recompute wave story count after deferral
-                      WAVE_STORY_COUNT=$($_PARTITION_CMD \
-                        --prd "$PRD_FILE" --wave-count "$WAVE" 2>/dev/null || echo "0")
-                      if [[ "$WAVE_STORY_COUNT" -le 1 ]]; then
-                        echo "  [I] Wave $((WAVE + 1)): only $WAVE_STORY_COUNT story after deferral — sequential fallback"
-                        WAVE=$((WAVE + 1))
-                        continue
-                      fi
-                      # Recompute WAVE_WORKERS after deferral
-                      if [[ "$WAVE_STORY_COUNT" -lt "$WAVE_WORKERS" ]]; then
-                        WAVE_WORKERS="$WAVE_STORY_COUNT"
-                      fi
-                    fi
-                  fi
-                fi
-
-                bash "$SPIRAL_HOME/lib/run_parallel_ralph.sh" \
-                  "$WAVE_WORKERS" "$RALPH_MAX_ITERS" "$REPO_ROOT" "$PRD_FILE" \
-                  "$SCRATCH_DIR" "$SPIRAL_RALPH" "$JQ" "$SPIRAL_PYTHON" \
-                  "$MONITOR_TERMINALS" "$SPIRAL_HOME" "" || true
-                # ── US-322: Check cascade fan-out after parallel wave ────────
-                # Count how many stories from this wave passed vs failed
-                _WAVE_PASSED=0
-                _WAVE_FAILED_IDS=""
-                for _WS_ID in "${_WAVE_STORY_IDS[@]:0:$WAVE_WORKERS}"; do
-                  [[ -z "$_WS_ID" ]] && continue
-                  _WS_PASSES=$("$JQ" -r --arg id "$_WS_ID" \
-                    '.userStories[] | select(.id == $id) | .passes // false' "$PRD_FILE" 2>/dev/null || echo "false")
-                  if [[ "$_WS_PASSES" == "true" ]]; then
-                    _WAVE_PASSED=$((_WAVE_PASSED + 1))
-                  else
-                    _WAVE_FAILED_IDS="${_WAVE_FAILED_IDS:+$_WAVE_FAILED_IDS,}$_WS_ID"
-                  fi
-                done
-                if [[ "$_WAVE_PASSED" -gt 0 ]]; then
-                  _CASCADE_FAIL_COUNT=0
-                  _CASCADE_FAIL_IDS=""
-                elif [[ -n "$_WAVE_FAILED_IDS" ]]; then
-                  # All stories in this wave failed — count them as consecutive
-                  IFS=',' read -ra _WF_ARR <<< "$_WAVE_FAILED_IDS"
-                  _CASCADE_FAIL_COUNT=$((_CASCADE_FAIL_COUNT + ${#_WF_ARR[@]}))
-                  _CASCADE_FAIL_IDS="${_CASCADE_FAIL_IDS:+$_CASCADE_FAIL_IDS,}$_WAVE_FAILED_IDS"
-                  if [[ "${SPIRAL_CASCADE_FAN_OUT_LIMIT:-5}" -gt 0 && "$_CASCADE_FAIL_COUNT" -ge "${SPIRAL_CASCADE_FAN_OUT_LIMIT:-5}" ]]; then
-                    echo ""
-                    echo "  ╔══════════════════════════════════════════════════════════════╗"
-                    echo "  ║  CASCADE ABORT — $_CASCADE_FAIL_COUNT consecutive story failures        ║"
-                    echo "  ║  Failing stories: ${_CASCADE_FAIL_IDS}"
-                    echo "  ║  Inspect the first failure and fix the root cause.          ║"
-                    echo "  ╚══════════════════════════════════════════════════════════════╝"
-                    echo ""
-                    log_spiral_event "cascade_abort" \
-                      "\"iteration\":$SPIRAL_ITER,\"consecutive_failures\":$_CASCADE_FAIL_COUNT,\"failing_ids\":\"$_CASCADE_FAIL_IDS\",\"limit\":${SPIRAL_CASCADE_FAN_OUT_LIMIT:-5}"
-                    rm -f "$CHECKPOINT_FILE"
-                    spiral_exit E405 "${SPIRAL_CASCADE_FAN_OUT_LIMIT:-5}"
-                  fi
-                fi
-              fi
-
-              WAVE=$((WAVE + 1))
-            done
-          else
-            # ── Sequential mode (default) ────────────────────────────────────
-            # Auto-detect tool: UT-* test stories → Codex; others → Claude
-            _NEXT_SID=$("$JQ" -r '[.userStories[] | select(.passes != true)] | sort_by(if .priorityScore != null then (100 - .priorityScore) elif .priority == "critical" then 20 elif .priority == "high" then 40 elif .priority == "medium" then 60 else 80 end) | first | .id // ""' "$PRD_FILE" 2>/dev/null || echo "")
-            if [[ "$_NEXT_SID" == UT-* ]]; then
-              _RALPH_TOOL="codex"
-              echo "  [I] Story $_NEXT_SID is a test story → routing to Codex"
-            else
-              _RALPH_TOOL="claude"
-            fi
-            # US-311: update active status with story context
-            if [[ -n "$_NEXT_SID" ]]; then
-              _ACTIVE_STORY_ID="$_NEXT_SID"
-              _ACTIVE_STORY_TITLE=$("$JQ" -r --arg id "$_NEXT_SID" '.userStories[] | select(.id == $id) | .title // ""' "$PRD_FILE" 2>/dev/null || echo "")
-              write_active_status "I" 60
-            fi
-            # US-325: Idempotency guard — skip if matching commit already exists
-            if [[ -n "$_NEXT_SID" ]] && check_idempotency_guard "$_NEXT_SID" "$PRD_FILE"; then
-              # Story already implemented — skip entire sequential ralph invocation
-              :
-            else
-            # US-295: context-window-aware model selection before ralph.sh dispatch
-            # Estimate prompt tokens (ralph CLAUDE.md + story JSON) and upgrade model if needed
-            RALPH_MODEL_FLAG=""
-            if [[ -n "$_NEXT_SID" ]]; then
-              _RALPH_PROMPT_TEXT=""
-              if [[ -f "$SPIRAL_HOME/ralph/CLAUDE.md" ]]; then
-                _RALPH_PROMPT_TEXT+=$(cat "$SPIRAL_HOME/ralph/CLAUDE.md" 2>/dev/null || true)
-              fi
-              _STORY_JSON=$("$JQ" -r --arg id "$_NEXT_SID" '.userStories[] | select(.id == $id)' "$PRD_FILE" 2>/dev/null || echo "")
-              _RALPH_PROMPT_TEXT+="$_STORY_JSON"
-              _PROMPT_TOKEN_EST=$(( (${#_RALPH_PROMPT_TEXT} + 3) / 4 ))
-              _ROUTER_JSON=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/llm_router.py" \
-                --story "$_NEXT_SID" --prd "$PRD_FILE" \
-                --prompt-tokens "$_PROMPT_TOKEN_EST" \
-                --events-file "$SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || echo "")
-              if [[ -n "$_ROUTER_JSON" ]]; then
-                _CHOSEN_MODEL=$("$JQ" -r '.model // ""' <<< "$_ROUTER_JSON" 2>/dev/null || echo "")
-                _CW_UPGRADED=$("$JQ" -r '.context_window_upgrade // false' <<< "$_ROUTER_JSON" 2>/dev/null || echo "false")
-                if [[ -n "$_CHOSEN_MODEL" ]]; then
-                  RALPH_MODEL_FLAG="--model $_CHOSEN_MODEL"
-                  if [[ "$_CW_UPGRADED" == "true" ]]; then
-                    echo "  [I] Context-window upgrade: $_NEXT_SID → $_CHOSEN_MODEL (est. ${_PROMPT_TOKEN_EST} tokens)"
-                  fi
-                fi
-              fi
-            fi
-            # US-219: begin story task span; prints story-scoped TRACEPARENT for child action spans
-            _STORY_TP=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" begin-story \
-              --story-id "$_NEXT_SID" --scratch-dir "$SCRATCH_DIR" 2>/dev/null || true)
-            _I_EXIT=0
-            _I_START=$(date +%s)
-            _STORY_BUDGET=$(get_story_timeout "$_NEXT_SID")
-            # US-279: capture stderr to temp file for crash persistence
-            _STDERR_CAPTURE=$(mktemp -p "$SCRATCH_DIR" _ralph_stderr_XXXXXX.txt 2>/dev/null || echo "$SCRATCH_DIR/_ralph_stderr_$$.txt")
-            if [[ "${_STORY_BUDGET:-0}" -gt 0 ]] && command -v timeout &>/dev/null; then
-              echo "  [I] Budget: ${_STORY_BUDGET}s for $_NEXT_SID"
-              timeout --kill-after=30 "${_STORY_BUDGET}" bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $RALPH_MODEL_FLAG $_DRY_RUN_FLAG 2>"$_STDERR_CAPTURE" || _I_EXIT=$?
-            else
-              bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $RALPH_MODEL_FLAG $_DRY_RUN_FLAG 2>"$_STDERR_CAPTURE" || _I_EXIT=$?
-            fi
-            _I_ELAPSED=$(($(date +%s) - _I_START))
-            if [[ "$_I_EXIT" -eq 124 ]]; then
-              echo "  [I] WARNING: Ralph timed out after ${_I_ELAPSED}s (budget: ${_STORY_BUDGET}s) — partial progress saved"
-              log_spiral_event "phase_timeout" "\"phase\":\"I\",\"story_id\":\"$_NEXT_SID\",\"iteration\":$SPIRAL_ITER,\"duration_ms\":$((_I_ELAPSED * 1000)),\"timeout_s\":${_STORY_BUDGET}"
-            fi
-            # US-279: capture crash traceback on non-zero exit
-            if [[ "$_I_EXIT" -ne 0 ]]; then
-              capture_crash "$_NEXT_SID" "$_I_EXIT" "sequential" "$_STDERR_CAPTURE"
-            fi
-            rm -f "$_STDERR_CAPTURE" 2>/dev/null || true
-            # US-219: emit action span for the LLM implementation call
-            STORY_TRACEPARENT="$_STORY_TP" "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" emit-action \
-              --type llm_query --duration-s "$_I_ELAPSED" --story-id "$_NEXT_SID" 2>/dev/null || true
-            # US-219: close story task span with pass/fail
-            _STORY_PASSES=$("$JQ" -r --arg id "$_NEXT_SID" \
-              '.userStories[] | select(.id == $id) | .passes // false' "$PRD_FILE" 2>/dev/null || echo "false")
-            _STORY_STATUS="failed"; [[ "$_STORY_PASSES" == "true" ]] && _STORY_STATUS="passed"
-            "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" end-story \
-              --story-id "$_NEXT_SID" --status "$_STORY_STATUS" --scratch-dir "$SCRATCH_DIR" 2>/dev/null || true
-            # US-189: record per-story token metrics after Phase I
-            _TOK_IN=$("$JQ" -r --arg id "$_NEXT_SID" '.[$id].tokens_input // 0' "$SCRATCH_DIR/story_costs.json" 2>/dev/null || echo 0)
-            _TOK_OUT=$("$JQ" -r --arg id "$_NEXT_SID" '.[$id].tokens_output // 0' "$SCRATCH_DIR/story_costs.json" 2>/dev/null || echo 0)
-            "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_metrics.py" record-tokens \
-              --story-id "$_NEXT_SID" --phase I \
-              --input-tokens "${_TOK_IN:-0}" --output-tokens "${_TOK_OUT:-0}" \
-              --duration-ms "$((_I_ELAPSED * 1000))" \
-              --scratch-dir "$SCRATCH_DIR" 2>/dev/null || true
-            # US-192: record calibration data (actual vs estimated complexity) if story passed
-            if [[ "$_STORY_PASSES" == "true" ]]; then
-              _EST_COMPLEXITY=$("$JQ" -r --arg id "$_NEXT_SID" '.userStories[] | select(.id == $id) | .estimatedComplexity // "medium"' "$PRD_FILE" 2>/dev/null || echo "medium")
-              "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/calibration_tracker.py" record \
-                --story-id "$_NEXT_SID" \
-                --estimated-complexity "$_EST_COMPLEXITY" \
-                --actual-duration-s "$_I_ELAPSED" \
-                --phase-retries 0 \
-                --passed true \
-                --output calibration.jsonl 2>/dev/null || true
-            fi
-            # ── US-353: Store plan in cache on success ──────────────────────
-            if [[ "$_STORY_PASSES" == "true" && "${SPIRAL_PLAN_CACHE_ENABLED:-true}" == "true" ]]; then
-              _PLAN_CACHE_DIR="$SCRATCH_DIR/plan_cache"
-              _STORY_TMP=$(mktemp -p "$SCRATCH_DIR" _story_XXXXXX.json 2>/dev/null || echo "$SCRATCH_DIR/_story_$$.json")
-              "$JQ" --arg id "$_NEXT_SID" '.userStories[] | select(.id == $id)' "$PRD_FILE" > "$_STORY_TMP" 2>/dev/null || true
-              _PLAN_JSON="{\"story_id\":\"$_NEXT_SID\",\"duration_s\":$_I_ELAPSED,\"model\":\"${EFFECTIVE_MODEL:-unknown}\"}"
-              _PLAN_TMP=$(mktemp -p "$SCRATCH_DIR" _plan_XXXXXX.json 2>/dev/null || echo "$SCRATCH_DIR/_plan_$$.json")
-              printf '%s' "$_PLAN_JSON" > "$_PLAN_TMP"
-              _PC_RESULT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/plan_cache.py" store "$_PLAN_CACHE_DIR" \
-                --story-json "$_STORY_TMP" --plan-json "$_PLAN_TMP" 2>/dev/null || echo "")
-              if [[ -n "$_PC_RESULT" ]]; then
-                log_spiral_event "plan_cache_store" \
-                  "\"story_id\":\"$_NEXT_SID\",\"plan_key\":\"$(basename "$_PC_RESULT" .json)\""
-              fi
-              rm -f "$_STORY_TMP" "$_PLAN_TMP" 2>/dev/null || true
-            fi
-            # ── US-260: Post-Phase-I drift check (parallel path) ──────────
-            if [[ "${SPIRAL_DRIFT_CHECK:-false}" != "false" && -n "${_NEXT_SID:-}" ]]; then
-              echo "  [drift] Checking implementation drift for $_NEXT_SID..."
-              "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/drift_check.py" \
-                --story-id "$_NEXT_SID" \
-                --prd "$PRD_FILE" \
-                --scratch-dir "$SCRATCH_DIR" \
-                --repo-root "$REPO_ROOT" \
-                --pass-threshold "${SPIRAL_DRIFT_PASS_THRESHOLD:-70}" \
-                --fail-threshold "${SPIRAL_DRIFT_FAIL_THRESHOLD:-40}" \
-                --iteration "$SPIRAL_ITER" 2>/dev/null || true
-            fi
-            # ── End drift check ───────────────────────────────────────────
-            # US-194: post-story plugin hooks (e.g. Slack notifications)
-            if [[ -n "${PLUGIN_HOOKS[post-story]:-}" ]]; then
-              _PS_TITLE=$("$JQ" -r --arg id "$_NEXT_SID" '.userStories[] | select(.id == $id) | .title // ""' "$PRD_FILE" 2>/dev/null || echo "")
-              _PS_RETRY=$("$JQ" -r --arg id "$_NEXT_SID" '.[$id] // 0' "$REPO_ROOT/retry-counts.json" 2>/dev/null || echo "0")
-              run_plugin_hooks "post-story" "POST" "$_NEXT_SID" \
-                "\"story_title\":\"${_PS_TITLE//\"/\\\"}\",\"story_passes\":$_STORY_PASSES,\"retry_count\":${_PS_RETRY:-0}" 2>/dev/null || true
-            fi
-            fi  # US-325: close idempotency guard else
-          fi
-
-          # ── Batch merge: restore full PRD with ralph's updates ─────────
-          if [[ "$_BATCH_ACTIVE" -eq 1 && -f "$_FULL_PRD_BACKUP" ]]; then
-            "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/slice_prd.py" merge \
-              "$_FULL_PRD_BACKUP" "$PRD_FILE" -o "$PRD_FILE" 2>/dev/null && {
-              echo "  [I] Batch: merged results back into full PRD"
-            } || {
-              echo "  [I] Batch: merge failed — keeping ralph's PRD as-is"
-            }
-            rm -f "$_FULL_PRD_BACKUP"
-          fi
-
-          DONE_AFTER=$("$JQ" '[.userStories[] | select(.passes == true)] | length' "$PRD_FILE")
-          RALPH_PROGRESS=$((DONE_AFTER - DONE_BEFORE))
-
-          if [[ "$RALPH_PROGRESS" -gt 0 ]]; then
-            if [[ "$RALPH_WORKERS" -gt 1 ]]; then
-              # run_parallel_ralph.sh already committed prd.json + per-worker code patches
-              echo "  [I] Git: parallel mode — commits already applied by run_parallel_ralph.sh"
-            else
-              # Sequential mode: atomic commit per completed story
-              POST_RALPH_PRD="$SCRATCH_DIR/_prd_post_ralph.json"
-              cp "$PRD_FILE" "$POST_RALPH_PRD"
-
-              # Identify newly completed stories vs pre-ralph baseline
-              mapfile -t NEW_STORY_RECORDS < <(
-                "$JQ" -r --argjson before "$PRE_RALPH_PRD_JSON" \
-                  '[.userStories[] | . as $s |
+                # Identify newly completed stories vs pre-ralph baseline
+                mapfile -t NEW_STORY_RECORDS < <(
+                  "$JQ" -r --argjson before "$PRE_RALPH_PRD_JSON" \
+                    '[.userStories[] | . as $s |
                   select(.passes == true) |
                   select(($before.userStories | map(select(.id == $s.id and (.passes // false) == true)) | length) == 0)
                 ] | .[] | "\(.id)|\(.title)"' "$PRD_FILE" 2>/dev/null
-              ) || true
+                ) || true
 
-              if [[ ${#NEW_STORY_RECORDS[@]} -eq 0 ]]; then
-                # Fallback: no story breakdown available — single bulk commit
-                if git -C "$REPO_ROOT" add -A 2>/dev/null &&
-                  git -C "$REPO_ROOT" commit -m "feat(spiral): complete $RALPH_PROGRESS stories (iter $SPIRAL_ITER)" 2>/dev/null; then
-                  echo "  [I] Git: committed $RALPH_PROGRESS stories (fallback single commit)"
-                else
-                  echo "  [I] Git: commit skipped (nothing staged or git unavailable)"
-                fi
-              else
-                # Restore prd.json to pre-ralph state; code changes remain as unstaged diffs
-                # Use atomic temp+mv to avoid corruption if interrupted mid-write (Idea 3)
-                printf '%s\n' "$PRE_RALPH_PRD_JSON" >"${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE"
-
-                # Stage all code changes except prd.json (goes into first story's commit)
-                git -C "$REPO_ROOT" add -A 2>/dev/null || true
-                git -C "$REPO_ROOT" restore --staged "$PRD_FILE" 2>/dev/null ||
-                  git -C "$REPO_ROOT" reset HEAD "$PRD_FILE" 2>/dev/null || true
-
-                ATOMIC_COUNT=0
-                for record in "${NEW_STORY_RECORDS[@]}"; do
-                  STORY_ID="${record%%|*}"
-                  STORY_TITLE="${record#*|}"
-
-                  # Merge this story's final record from post-ralph into current prd.json
-                  UPDATED=$("$JQ" --arg id "$STORY_ID" \
-                    --slurpfile full "$POST_RALPH_PRD" \
-                    '(.userStories[] | select(.id == $id)) |= ([$full[0].userStories[] | select(.id == $id)] | .[0] // .)' \
-                    "$PRD_FILE" 2>/dev/null) || true
-                  # Use atomic temp+mv to avoid corruption if interrupted mid-write (Idea 3)
-                  [[ -n "$UPDATED" ]] && { printf '%s\n' "$UPDATED" >"${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE"; } || true
-
-                  git -C "$REPO_ROOT" add "$PRD_FILE" 2>/dev/null || true
-                  if git -C "$REPO_ROOT" commit -m "feat: $STORY_ID - $STORY_TITLE" 2>/dev/null; then
-                    echo "  [I] Git: feat: $STORY_ID - $STORY_TITLE"
-                    ATOMIC_COUNT=$((ATOMIC_COUNT + 1))
+                if [[ ${#NEW_STORY_RECORDS[@]} -eq 0 ]]; then
+                  # Fallback: no story breakdown available — single bulk commit
+                  if git -C "$REPO_ROOT" add -A 2>/dev/null &&
+                    git -C "$REPO_ROOT" commit -m "feat(spiral): complete $RALPH_PROGRESS stories (iter $SPIRAL_ITER)" 2>/dev/null; then
+                    echo "  [I] Git: committed $RALPH_PROGRESS stories (fallback single commit)"
+                  else
+                    echo "  [I] Git: commit skipped (nothing staged or git unavailable)"
                   fi
-                done
+                else
+                  # Restore prd.json to pre-ralph state; code changes remain as unstaged diffs
+                  # Use atomic temp+mv to avoid corruption if interrupted mid-write (Idea 3)
+                  printf '%s\n' "$PRE_RALPH_PRD_JSON" >"${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE"
 
-                # Ensure prd.json is fully synced to post-ralph final state
-                cp "$POST_RALPH_PRD" "$PRD_FILE"
-                git -C "$REPO_ROOT" add "$PRD_FILE" 2>/dev/null || true
-                git -C "$REPO_ROOT" diff --cached --quiet 2>/dev/null ||
-                  git -C "$REPO_ROOT" commit -m "chore: sync prd.json final state (spiral iter $SPIRAL_ITER)" 2>/dev/null || true
+                  # Stage all code changes except prd.json (goes into first story's commit)
+                  git -C "$REPO_ROOT" add -A 2>/dev/null || true
+                  git -C "$REPO_ROOT" restore --staged "$PRD_FILE" 2>/dev/null ||
+                    git -C "$REPO_ROOT" reset HEAD "$PRD_FILE" 2>/dev/null || true
 
-                echo "  [I] Git: $ATOMIC_COUNT atomic commits created"
-              fi
-            fi
-            ZERO_PROGRESS_COUNT=0
-            echo "  [I] Ralph completed $RALPH_PROGRESS new stories"
-          else
-            ZERO_PROGRESS_COUNT=$((ZERO_PROGRESS_COUNT + 1))
-            echo "  [I] WARNING: Ralph made zero progress (streak: $ZERO_PROGRESS_COUNT)"
-            # Strategy 8: Zero-progress auto-tune — graduated recovery before halting.
-            # Count 1: force-decompose stuck stories (retries > 1) to unlock the backlog.
-            # Count 2: halve SPIRAL_STORY_BATCH_SIZE to expose different stories.
-            # Count N (SPIRAL_CONSECUTIVE_FAIL_ABORT): halt with ERR_ZERO_PROGRESS.
-            # US-400: threshold is configurable; 0 = disabled (recovery strategies still apply cyclically).
-            _ZP_ABORT_LIMIT="${SPIRAL_CONSECUTIVE_FAIL_ABORT:-3}"
-            if [[ "$ZERO_PROGRESS_COUNT" -eq 1 ]]; then
-              echo "  [zero-progress] Recovery 1: force-decomposing stuck stories (retries > 1)..."
-              log_spiral_event "zero_progress_recovery" "\"action\":\"force_decompose\",\"streak\":$ZERO_PROGRESS_COUNT"
-              _ZP_DECOMPOSED=0
-              while IFS= read -r _ZP_SID; do
-                [[ -z "$_ZP_SID" ]] && continue
-                _ZP_RETRIES=$("$JQ" -r --arg id "$_ZP_SID" '.[$id] // 0' "$REPO_ROOT/retry-counts.json" 2>/dev/null || echo "0")
-                if [[ "$_ZP_RETRIES" -gt 1 ]]; then
-                  echo "  [zero-progress] Force-decomposing $_ZP_SID (retries=$_ZP_RETRIES)..."
-                  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/decompose_story.py" \
-                    --story-id "$_ZP_SID" --prd "$PRD_FILE" \
-                    --progress "$REPO_ROOT/progress.txt" --model sonnet 2>/dev/null && \
-                    _ZP_DECOMPOSED=$((_ZP_DECOMPOSED + 1)) || \
-                    echo "  [zero-progress] Decompose failed for $_ZP_SID — skipping"
-                fi
-              done < <("$JQ" -r '[.userStories[] | select(.passes != true and ._skipped != true and ._decomposed != true)] | .[].id' "$PRD_FILE" 2>/dev/null || true)
-              echo "  [zero-progress] Force-decomposed $_ZP_DECOMPOSED stuck stories"
-            elif [[ "$ZERO_PROGRESS_COUNT" -eq 2 ]]; then
-              _ZP_OLD_BATCH="${SPIRAL_STORY_BATCH_SIZE:-20}"
-              _ZP_NEW_BATCH=$(( ${SPIRAL_STORY_BATCH_SIZE:-20} > 10 ? ${SPIRAL_STORY_BATCH_SIZE:-20} / 2 : 5 ))
-              SPIRAL_STORY_BATCH_SIZE="$_ZP_NEW_BATCH"
-              echo "  [zero-progress] Recovery 2: batch size reduced $_ZP_OLD_BATCH → $SPIRAL_STORY_BATCH_SIZE (exposes different stories)"
-              log_spiral_event "zero_progress_recovery" "\"action\":\"halve_batch_size\",\"streak\":$ZERO_PROGRESS_COUNT,\"old_batch\":$_ZP_OLD_BATCH,\"new_batch\":$SPIRAL_STORY_BATCH_SIZE"
-            fi
-            # US-400: Check configurable abort threshold (0 = disabled)
-            if [[ "$_ZP_ABORT_LIMIT" -gt 0 && "$ZERO_PROGRESS_COUNT" -ge "$_ZP_ABORT_LIMIT" ]]; then
-              echo ""
-              echo "  ╔══════════════════════════════════════════════════════╗"
-              printf "  ║  SPIRAL HALTED — %d consecutive zero-progress iters  ║\n" "$ZERO_PROGRESS_COUNT"
-              echo "  ║  Pending stories may be blocked or require manual   ║"
-              echo "  ║  intervention. Review prd.json and re-run.          ║"
-              echo "  ╚══════════════════════════════════════════════════════╝"
-              prd_stats
-              echo ""
-              # US-400: Diagnostic — list stuck story IDs, retry counts, and last failure reason
-              echo "  ── Stuck Story Diagnostic ──────────────────────────────────"
-              while IFS= read -r _ZP_DIAG_SID; do
-                _ZP_DIAG_SID="${_ZP_DIAG_SID//$'\r'/}"
-                [[ -z "$_ZP_DIAG_SID" ]] && continue
-                _ZP_DIAG_RETRIES=$("$JQ" -r --arg id "$_ZP_DIAG_SID" '.[$id] // 0' "$REPO_ROOT/retry-counts.json" 2>/dev/null || echo "0")
-                _ZP_DIAG_REASON=$("$JQ" -r --arg id "$_ZP_DIAG_SID" '.userStories[] | select(.id == $id) | ._failureReason // "unknown"' "$PRD_FILE" 2>/dev/null || echo "unknown")
-                _ZP_DIAG_TITLE=$("$JQ" -r --arg id "$_ZP_DIAG_SID" '.userStories[] | select(.id == $id) | .title // "?"' "$PRD_FILE" 2>/dev/null || echo "?")
-                printf "  [STUCK] %-8s retries=%-2s  %s\n" "$_ZP_DIAG_SID" "$_ZP_DIAG_RETRIES" "$_ZP_DIAG_TITLE"
-                [[ "$_ZP_DIAG_REASON" != "unknown" && "$_ZP_DIAG_REASON" != "null" ]] && \
-                  echo "          └─ reason: ${_ZP_DIAG_REASON:0:120}"
-              done < <("$JQ" -r '[.userStories[] | select(.passes != true and ._skipped != true)] | .[].id' "$PRD_FILE" 2>/dev/null || true)
-              echo ""
-              # US-400: Collect stuck IDs for event logging
-              _ZP_STUCK_IDS=$("$JQ" -r '[.userStories[] | select(.passes != true and ._skipped != true)] | map(.id) | join(",")' "$PRD_FILE" 2>/dev/null || echo "")
-              log_spiral_event "consecutive_fail_abort" \
-                "\"iteration\":$SPIRAL_ITER,\"consecutive_zero_pass\":$ZERO_PROGRESS_COUNT,\"limit\":$_ZP_ABORT_LIMIT,\"stuck_ids\":\"$_ZP_STUCK_IDS\""
-              # US-400: Record abort_reason in _checkpoint.json before exit
-              _ZP_CKPT_TMP="${CHECKPOINT_FILE}.tmp.$$"
-              printf '{"iter":%d,"phase":"I","ts":"%s","run_id":"%s","abort_reason":"consecutive_failures","consecutive_zero_pass":%d,"limit":%d,"stuck_ids":"%s"}\n' \
-                "$SPIRAL_ITER" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${SPIRAL_RUN_ID:-}" \
-                "$ZERO_PROGRESS_COUNT" "$_ZP_ABORT_LIMIT" "$_ZP_STUCK_IDS" \
-                >"$_ZP_CKPT_TMP" 2>/dev/null && mv "$_ZP_CKPT_TMP" "$CHECKPOINT_FILE" 2>/dev/null || true
-              spiral_exit E401
-            fi
-            echo "  [I] Continuing to check-done phase..."
-          fi
-          # ── Adaptive ralph budget based on velocity ─────────────────────────────
-          if [[ "$RALPH_PROGRESS" -ge 5 ]]; then
-            RALPH_MAX_ITERS=$((RALPH_MAX_ITERS + 20))
-            echo "  [velocity] High ($RALPH_PROGRESS stories/iter) — ralph budget → $RALPH_MAX_ITERS"
-          elif [[ "$RALPH_PROGRESS" -eq 0 ]]; then
-            NEW_BUDGET=$((RALPH_MAX_ITERS / 2))
-            [[ "$NEW_BUDGET" -lt 30 ]] && NEW_BUDGET=30
-            RALPH_MAX_ITERS="$NEW_BUDGET"
-            echo "  [velocity] Zero — ralph budget → $RALPH_MAX_ITERS"
-          fi
+                  ATOMIC_COUNT=0
+                  for record in "${NEW_STORY_RECORDS[@]}"; do
+                    STORY_ID="${record%%|*}"
+                    STORY_TITLE="${record#*|}"
 
-          # ── Scope-creep guard (US-150) ──────────────────────────────────────
-          if [[ "$RALPH_PROGRESS" -gt 0 && "${SPIRAL_MAX_FILES_PER_STORY:-10}" -gt 0 ]]; then
-            # Count files changed in the last commit, excluding .spiralignore patterns
-            _SC_FILES_RAW=$(git -C "$REPO_ROOT" diff --name-only HEAD~1 2>/dev/null || echo "")
-            _SC_DEFAULT_EXCLUDES='\.lock$|_generated\.|\.pb\.go$'
-            _SC_FILE_LIST=$(echo "$_SC_FILES_RAW" | grep -Ev "$_SC_DEFAULT_EXCLUDES" || true)
-            _SC_COUNT=$(echo "$_SC_FILE_LIST" | grep -c '.' 2>/dev/null || echo "0")
-            # grep -c on empty string returns 0 lines but exits 1; guard with || true
-            [[ -z "$_SC_FILE_LIST" ]] && _SC_COUNT=0
+                    # Merge this story's final record from post-ralph into current prd.json
+                    UPDATED=$("$JQ" --arg id "$STORY_ID" \
+                      --slurpfile full "$POST_RALPH_PRD" \
+                      '(.userStories[] | select(.id == $id)) |= ([$full[0].userStories[] | select(.id == $id)] | .[0] // .)' \
+                      "$PRD_FILE" 2>/dev/null) || true
+                    # Use atomic temp+mv to avoid corruption if interrupted mid-write (Idea 3)
+                    [[ -n "$UPDATED" ]] && { printf '%s\n' "$UPDATED" >"${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE"; } || true
 
-            if [[ "$_SC_COUNT" -gt "${SPIRAL_MAX_FILES_PER_STORY:-10}" ]]; then
-              _SC_FILE_JSON=$(echo "$_SC_FILE_LIST" | "$JQ" -Rsc 'split("\n") | map(select(. != ""))' 2>/dev/null || echo "[]")
-              echo ""
-              echo "  [scope-creep] WARNING: Phase I touched $_SC_COUNT files (limit: ${SPIRAL_MAX_FILES_PER_STORY:-10})"
-              echo "  [scope-creep] This story may be too large — consider decomposing it."
-              log_spiral_event "scope_creep" \
-                "\"story_id\":\"${_NEXT_SID:-unknown}\",\"files_touched\":$_SC_COUNT,\"limit\":${SPIRAL_MAX_FILES_PER_STORY:-10},\"files\":$_SC_FILE_JSON,\"action\":\"${SPIRAL_SCOPE_CREEP_ACTION:-warn}\""
+                    git -C "$REPO_ROOT" add "$PRD_FILE" 2>/dev/null || true
+                    if git -C "$REPO_ROOT" commit -m "feat: $STORY_ID - $STORY_TITLE" 2>/dev/null; then
+                      echo "  [I] Git: feat: $STORY_ID - $STORY_TITLE"
+                      ATOMIC_COUNT=$((ATOMIC_COUNT + 1))
+                    fi
+                  done
 
-              if [[ "${SPIRAL_SCOPE_CREEP_ACTION:-warn}" == "abort" ]]; then
-                echo "  [scope-creep] SPIRAL_SCOPE_CREEP_ACTION=abort — marking story as failed and flagging for decomposition"
-                if [[ -n "${_NEXT_SID:-}" ]]; then
-                  _SC_UPDATED=$("$JQ" --arg id "$_NEXT_SID" \
-                    '(.userStories[] | select(.id == $id)) |= (. + {"passes": false, "_failureReason": "scope_creep: touched '"$_SC_COUNT"' files (limit '"${SPIRAL_MAX_FILES_PER_STORY:-10}"')", "_scopeCreep": true})' \
-                    "$PRD_FILE" 2>/dev/null) || true
-                  [[ -n "$_SC_UPDATED" ]] && { printf '%s\n' "$_SC_UPDATED" >"${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE"; }
-                fi
-              else
-                # warn mode: stamp _scopeCreep on the story without failing it
-                if [[ -n "${_NEXT_SID:-}" ]]; then
-                  _SC_UPDATED=$("$JQ" --arg id "$_NEXT_SID" \
-                    '(.userStories[] | select(.id == $id)) |= (. + {"_scopeCreep": true})' \
-                    "$PRD_FILE" 2>/dev/null) || true
-                  [[ -n "$_SC_UPDATED" ]] && { printf '%s\n' "$_SC_UPDATED" >"${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE"; }
+                  # Ensure prd.json is fully synced to post-ralph final state
+                  cp "$POST_RALPH_PRD" "$PRD_FILE"
+                  git -C "$REPO_ROOT" add "$PRD_FILE" 2>/dev/null || true
+                  git -C "$REPO_ROOT" diff --cached --quiet 2>/dev/null ||
+                    git -C "$REPO_ROOT" commit -m "chore: sync prd.json final state (spiral iter $SPIRAL_ITER)" 2>/dev/null || true
+
+                  echo "  [I] Git: $ATOMIC_COUNT atomic commits created"
                 fi
               fi
+              ZERO_PROGRESS_COUNT=0
+              echo "  [I] Ralph completed $RALPH_PROGRESS new stories"
+            else
+              ZERO_PROGRESS_COUNT=$((ZERO_PROGRESS_COUNT + 1))
+              echo "  [I] WARNING: Ralph made zero progress (streak: $ZERO_PROGRESS_COUNT)"
+              # Strategy 8: Zero-progress auto-tune — graduated recovery before halting.
+              # Count 1: force-decompose stuck stories (retries > 1) to unlock the backlog.
+              # Count 2: halve SPIRAL_STORY_BATCH_SIZE to expose different stories.
+              # Count N (SPIRAL_CONSECUTIVE_FAIL_ABORT): halt with ERR_ZERO_PROGRESS.
+              # US-400: threshold is configurable; 0 = disabled (recovery strategies still apply cyclically).
+              _ZP_ABORT_LIMIT="${SPIRAL_CONSECUTIVE_FAIL_ABORT:-3}"
+              if [[ "$ZERO_PROGRESS_COUNT" -eq 1 ]]; then
+                echo "  [zero-progress] Recovery 1: force-decomposing stuck stories (retries > 1)..."
+                log_spiral_event "zero_progress_recovery" "\"action\":\"force_decompose\",\"streak\":$ZERO_PROGRESS_COUNT"
+                _ZP_DECOMPOSED=0
+                while IFS= read -r _ZP_SID; do
+                  [[ -z "$_ZP_SID" ]] && continue
+                  _ZP_RETRIES=$("$JQ" -r --arg id "$_ZP_SID" '.[$id] // 0' "$REPO_ROOT/retry-counts.json" 2>/dev/null || echo "0")
+                  if [[ "$_ZP_RETRIES" -gt 1 ]]; then
+                    echo "  [zero-progress] Force-decomposing $_ZP_SID (retries=$_ZP_RETRIES)..."
+                    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/decompose_story.py" \
+                      --story-id "$_ZP_SID" --prd "$PRD_FILE" \
+                      --progress "$REPO_ROOT/progress.txt" --model sonnet 2>/dev/null &&
+                      _ZP_DECOMPOSED=$((_ZP_DECOMPOSED + 1)) ||
+                      echo "  [zero-progress] Decompose failed for $_ZP_SID — skipping"
+                  fi
+                done < <("$JQ" -r '[.userStories[] | select(.passes != true and ._skipped != true and ._decomposed != true)] | .[].id' "$PRD_FILE" 2>/dev/null || true)
+                echo "  [zero-progress] Force-decomposed $_ZP_DECOMPOSED stuck stories"
+              elif [[ "$ZERO_PROGRESS_COUNT" -eq 2 ]]; then
+                _ZP_OLD_BATCH="${SPIRAL_STORY_BATCH_SIZE:-20}"
+                _ZP_NEW_BATCH=$((${SPIRAL_STORY_BATCH_SIZE:-20} > 10 ? ${SPIRAL_STORY_BATCH_SIZE:-20} / 2 : 5))
+                SPIRAL_STORY_BATCH_SIZE="$_ZP_NEW_BATCH"
+                echo "  [zero-progress] Recovery 2: batch size reduced $_ZP_OLD_BATCH → $SPIRAL_STORY_BATCH_SIZE (exposes different stories)"
+                log_spiral_event "zero_progress_recovery" "\"action\":\"halve_batch_size\",\"streak\":$ZERO_PROGRESS_COUNT,\"old_batch\":$_ZP_OLD_BATCH,\"new_batch\":$SPIRAL_STORY_BATCH_SIZE"
+              fi
+              # US-400: Check configurable abort threshold (0 = disabled)
+              if [[ "$_ZP_ABORT_LIMIT" -gt 0 && "$ZERO_PROGRESS_COUNT" -ge "$_ZP_ABORT_LIMIT" ]]; then
+                echo ""
+                echo "  ╔══════════════════════════════════════════════════════╗"
+                printf "  ║  SPIRAL HALTED — %d consecutive zero-progress iters  ║\n" "$ZERO_PROGRESS_COUNT"
+                echo "  ║  Pending stories may be blocked or require manual   ║"
+                echo "  ║  intervention. Review prd.json and re-run.          ║"
+                echo "  ╚══════════════════════════════════════════════════════╝"
+                prd_stats
+                echo ""
+                # US-400: Diagnostic — list stuck story IDs, retry counts, and last failure reason
+                echo "  ── Stuck Story Diagnostic ──────────────────────────────────"
+                while IFS= read -r _ZP_DIAG_SID; do
+                  _ZP_DIAG_SID="${_ZP_DIAG_SID//$'\r'/}"
+                  [[ -z "$_ZP_DIAG_SID" ]] && continue
+                  _ZP_DIAG_RETRIES=$("$JQ" -r --arg id "$_ZP_DIAG_SID" '.[$id] // 0' "$REPO_ROOT/retry-counts.json" 2>/dev/null || echo "0")
+                  _ZP_DIAG_REASON=$("$JQ" -r --arg id "$_ZP_DIAG_SID" '.userStories[] | select(.id == $id) | ._failureReason // "unknown"' "$PRD_FILE" 2>/dev/null || echo "unknown")
+                  _ZP_DIAG_TITLE=$("$JQ" -r --arg id "$_ZP_DIAG_SID" '.userStories[] | select(.id == $id) | .title // "?"' "$PRD_FILE" 2>/dev/null || echo "?")
+                  printf "  [STUCK] %-8s retries=%-2s  %s\n" "$_ZP_DIAG_SID" "$_ZP_DIAG_RETRIES" "$_ZP_DIAG_TITLE"
+                  [[ "$_ZP_DIAG_REASON" != "unknown" && "$_ZP_DIAG_REASON" != "null" ]] &&
+                    echo "          └─ reason: ${_ZP_DIAG_REASON:0:120}"
+                done < <("$JQ" -r '[.userStories[] | select(.passes != true and ._skipped != true)] | .[].id' "$PRD_FILE" 2>/dev/null || true)
+                echo ""
+                # US-400: Collect stuck IDs for event logging
+                _ZP_STUCK_IDS=$("$JQ" -r '[.userStories[] | select(.passes != true and ._skipped != true)] | map(.id) | join(",")' "$PRD_FILE" 2>/dev/null || echo "")
+                log_spiral_event "consecutive_fail_abort" \
+                  "\"iteration\":$SPIRAL_ITER,\"consecutive_zero_pass\":$ZERO_PROGRESS_COUNT,\"limit\":$_ZP_ABORT_LIMIT,\"stuck_ids\":\"$_ZP_STUCK_IDS\""
+                # US-400: Record abort_reason in _checkpoint.json before exit
+                _ZP_CKPT_TMP="${CHECKPOINT_FILE}.tmp.$$"
+                printf '{"iter":%d,"phase":"I","ts":"%s","run_id":"%s","abort_reason":"consecutive_failures","consecutive_zero_pass":%d,"limit":%d,"stuck_ids":"%s"}\n' \
+                  "$SPIRAL_ITER" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${SPIRAL_RUN_ID:-}" \
+                  "$ZERO_PROGRESS_COUNT" "$_ZP_ABORT_LIMIT" "$_ZP_STUCK_IDS" \
+                  >"$_ZP_CKPT_TMP" 2>/dev/null && mv "$_ZP_CKPT_TMP" "$CHECKPOINT_FILE" 2>/dev/null || true
+                spiral_exit E401
+              fi
+              echo "  [I] Continuing to check-done phase..."
             fi
-          fi
+            # ── Adaptive ralph budget based on velocity ─────────────────────────────
+            if [[ "$RALPH_PROGRESS" -ge 5 ]]; then
+              RALPH_MAX_ITERS=$((RALPH_MAX_ITERS + 20))
+              echo "  [velocity] High ($RALPH_PROGRESS stories/iter) — ralph budget → $RALPH_MAX_ITERS"
+            elif [[ "$RALPH_PROGRESS" -eq 0 ]]; then
+              NEW_BUDGET=$((RALPH_MAX_ITERS / 2))
+              [[ "$NEW_BUDGET" -lt 30 ]] && NEW_BUDGET=30
+              RALPH_MAX_ITERS="$NEW_BUDGET"
+              echo "  [velocity] Zero — ralph budget → $RALPH_MAX_ITERS"
+            fi
+
+            # ── Scope-creep guard (US-150) ──────────────────────────────────────
+            if [[ "$RALPH_PROGRESS" -gt 0 && "${SPIRAL_MAX_FILES_PER_STORY:-10}" -gt 0 ]]; then
+              # Count files changed in the last commit, excluding .spiralignore patterns
+              _SC_FILES_RAW=$(git -C "$REPO_ROOT" diff --name-only HEAD~1 2>/dev/null || echo "")
+              _SC_DEFAULT_EXCLUDES='\.lock$|_generated\.|\.pb\.go$'
+              _SC_FILE_LIST=$(echo "$_SC_FILES_RAW" | grep -Ev "$_SC_DEFAULT_EXCLUDES" || true)
+              _SC_COUNT=$(echo "$_SC_FILE_LIST" | grep -c '.' 2>/dev/null || echo "0")
+              # grep -c on empty string returns 0 lines but exits 1; guard with || true
+              [[ -z "$_SC_FILE_LIST" ]] && _SC_COUNT=0
+
+              if [[ "$_SC_COUNT" -gt "${SPIRAL_MAX_FILES_PER_STORY:-10}" ]]; then
+                _SC_FILE_JSON=$(echo "$_SC_FILE_LIST" | "$JQ" -Rsc 'split("\n") | map(select(. != ""))' 2>/dev/null || echo "[]")
+                echo ""
+                echo "  [scope-creep] WARNING: Phase I touched $_SC_COUNT files (limit: ${SPIRAL_MAX_FILES_PER_STORY:-10})"
+                echo "  [scope-creep] This story may be too large — consider decomposing it."
+                log_spiral_event "scope_creep" \
+                  "\"story_id\":\"${_NEXT_SID:-unknown}\",\"files_touched\":$_SC_COUNT,\"limit\":${SPIRAL_MAX_FILES_PER_STORY:-10},\"files\":$_SC_FILE_JSON,\"action\":\"${SPIRAL_SCOPE_CREEP_ACTION:-warn}\""
+
+                if [[ "${SPIRAL_SCOPE_CREEP_ACTION:-warn}" == "abort" ]]; then
+                  echo "  [scope-creep] SPIRAL_SCOPE_CREEP_ACTION=abort — marking story as failed and flagging for decomposition"
+                  if [[ -n "${_NEXT_SID:-}" ]]; then
+                    _SC_UPDATED=$("$JQ" --arg id "$_NEXT_SID" \
+                      '(.userStories[] | select(.id == $id)) |= (. + {"passes": false, "_failureReason": "scope_creep: touched '"$_SC_COUNT"' files (limit '"${SPIRAL_MAX_FILES_PER_STORY:-10}"')", "_scopeCreep": true})' \
+                      "$PRD_FILE" 2>/dev/null) || true
+                    [[ -n "$_SC_UPDATED" ]] && { printf '%s\n' "$_SC_UPDATED" >"${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE"; }
+                  fi
+                else
+                  # warn mode: stamp _scopeCreep on the story without failing it
+                  if [[ -n "${_NEXT_SID:-}" ]]; then
+                    _SC_UPDATED=$("$JQ" --arg id "$_NEXT_SID" \
+                      '(.userStories[] | select(.id == $id)) |= (. + {"_scopeCreep": true})' \
+                      "$PRD_FILE" 2>/dev/null) || true
+                    [[ -n "$_SC_UPDATED" ]] && { printf '%s\n' "$_SC_UPDATED" >"${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE"; }
+                  fi
+                fi
+              fi
+            fi
           # ── End scope-creep guard ────────────────────────────────────────────
           fi # end _DIRTY_SKIP_RALPH=0 guard (US-177)
 
@@ -4496,8 +4517,9 @@ with open('$RESEARCH_OUTPUT', 'rb') as f:
 
   # ── Phase V: VALIDATE (test suite) ────────────────────────────────────────
   PHASE="V"
-  _ACTIVE_STORY_ID=""; _ACTIVE_STORY_TITLE=""  # US-311: clear story context after Phase I
-  write_active_status "V" 80  # US-311
+  _ACTIVE_STORY_ID=""
+  _ACTIVE_STORY_TITLE=""     # US-311: clear story context after Phase I
+  write_active_status "V" 80 # US-311
   print_phase_banner "V" "VALIDATE — running test suite..."
   log_spiral_event "phase_start" "\"phase\":\"V\",\"iteration\":$SPIRAL_ITER"
   notify_webhook "V" "start"
@@ -4580,7 +4602,7 @@ with open('$RESEARCH_OUTPUT', 'rb') as f:
         _TEST_WORKERS="$SPIRAL_TEST_WORKERS"
       else
         _NPROC=$(nproc 2>/dev/null || echo 2)
-        _TEST_WORKERS=$(( _NPROC / 2 ))
+        _TEST_WORKERS=$((_NPROC / 2))
         [[ "$_TEST_WORKERS" -lt 1 ]] && _TEST_WORKERS=1
       fi
       if echo "$_EFFECTIVE_VALIDATE_CMD" | grep -q "pytest"; then
@@ -4775,7 +4797,7 @@ PYEOF
 
   # ── Phase C: CHECK DONE ─────────────────────────────────────────────────────
   PHASE="C"
-  write_active_status "C" 95  # US-311
+  write_active_status "C" 95 # US-311
   print_phase_banner "C" "CHECK DONE..."
   log_spiral_event "phase_start" "\"phase\":\"C\",\"iteration\":$SPIRAL_ITER"
   notify_webhook "C" "start"
@@ -4924,7 +4946,7 @@ PYEOF
   _SNAP_TOTAL=$("$JQ" '.userStories | length' "$PRD_FILE" 2>/dev/null || echo "$TOTAL")
   printf '{"ts":"%s","iter":%d,"done":%s,"pending":%s,"total":%s,"added":%d}\n' \
     "$_SNAP_TS" "$SPIRAL_ITER" "$_SNAP_DONE" "$_SNAP_PENDING" "$_SNAP_TOTAL" "${ADDED:-0}" \
-    >> "$SCRATCH_DIR/ui-progress-history.jsonl" 2>/dev/null || true
+    >>"$SCRATCH_DIR/ui-progress-history.jsonl" 2>/dev/null || true
 
   # Also re-register with UI (keeps lastSeen fresh and handles UI restart)
   if command -v curl &>/dev/null && [[ -n "${_UI_PROJECT_NAME:-}" ]]; then

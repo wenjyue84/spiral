@@ -45,7 +45,7 @@ source_check_claude_api() {
 # ── check_claude_api unit tests ───────────────────────────────────────────────
 
 @test "check_claude_api returns OK when curl succeeds" {
-  cat > "$MOCK_BIN/curl" <<'EOF'
+  cat >"$MOCK_BIN/curl" <<'EOF'
 #!/usr/bin/env bash
 echo '{"models":[]}'
 exit 0
@@ -60,7 +60,7 @@ EOF
 }
 
 @test "check_claude_api returns ERROR when curl fails (network error)" {
-  cat > "$MOCK_BIN/curl" <<'EOF'
+  cat >"$MOCK_BIN/curl" <<'EOF'
 #!/usr/bin/env bash
 exit 7
 EOF
@@ -74,7 +74,7 @@ EOF
 }
 
 @test "check_claude_api returns ERROR when curl times out" {
-  cat > "$MOCK_BIN/curl" <<'EOF'
+  cat >"$MOCK_BIN/curl" <<'EOF'
 #!/usr/bin/env bash
 exit 28
 EOF
@@ -106,7 +106,7 @@ EOF
 }
 
 @test "check_claude_api hint mentions SPIRAL_SKIP_API_CHECK on failure" {
-  cat > "$MOCK_BIN/curl" <<'EOF'
+  cat >"$MOCK_BIN/curl" <<'EOF'
 #!/usr/bin/env bash
 exit 7
 EOF
@@ -169,7 +169,7 @@ source_preflight() {
 }
 
 @test "preflight exits 14 (ERR_API_DOWN) when curl fails" {
-  cat > "$MOCK_BIN/curl" <<'EOF'
+  cat >"$MOCK_BIN/curl" <<'EOF'
 #!/usr/bin/env bash
 exit 7
 EOF

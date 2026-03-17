@@ -77,7 +77,7 @@ except Exception:
           echo "  [preflight] Removed stale git lock (${age_mins}m old): $lock_file"
           printf '{"ts":"%s","event":"stale_lock_removed","file":"%s","age_minutes":%d}\n' \
             "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$lock_file" "$age_mins" \
-            >> "${scratch_dir}/spiral_events.jsonl" 2>/dev/null || true
+            >>"${scratch_dir}/spiral_events.jsonl" 2>/dev/null || true
           _locks_removed=$((_locks_removed + 1))
         fi
       done < <(find "$wt_git_dir" -maxdepth 2 -name "*.lock" -print0 2>/dev/null)
@@ -122,20 +122,20 @@ os.utime(r'''${_win_path}''', (mtime, mtime))
 
 @test "fresh lock (< timeout): not removed" {
   local lock="$WORKTREE_BASE/worker-1/.git/index.lock"
-  _make_lock_aged "$lock" 2   # 2 minutes old, timeout is 5
+  _make_lock_aged "$lock" 2 # 2 minutes old, timeout is 5
   run _check_stale_worktree_locks "$WORKTREE_BASE" "$SCRATCH_DIR" 5
   assert_success
-  [ -f "$lock" ]              # file still exists
+  [ -f "$lock" ] # file still exists
   refute_output --partial "Removed"
 }
 
 @test "stale lock (>= timeout, no live git): removed" {
   local lock="$WORKTREE_BASE/worker-1/.git/index.lock"
-  _make_lock_aged "$lock" 10  # 10 minutes old, timeout is 5
+  _make_lock_aged "$lock" 10 # 10 minutes old, timeout is 5
   export TEST_LIVE_GIT_COUNT=0
   run _check_stale_worktree_locks "$WORKTREE_BASE" "$SCRATCH_DIR" 5
   assert_success
-  [ ! -f "$lock" ]            # file removed
+  [ ! -f "$lock" ] # file removed
   assert_output --partial "Removed stale git lock"
 }
 
@@ -151,11 +151,11 @@ os.utime(r'''${_win_path}''', (mtime, mtime))
 
 @test "stale lock with live git PID: skipped (not removed)" {
   local lock="$WORKTREE_BASE/worker-2/.git/index.lock"
-  _make_lock_aged "$lock" 10  # 10 minutes old
-  export TEST_LIVE_GIT_COUNT=1  # simulate live git process
+  _make_lock_aged "$lock" 10   # 10 minutes old
+  export TEST_LIVE_GIT_COUNT=1 # simulate live git process
   run _check_stale_worktree_locks "$WORKTREE_BASE" "$SCRATCH_DIR" 5
   assert_success
-  [ -f "$lock" ]              # file NOT removed
+  [ -f "$lock" ] # file NOT removed
   assert_output --partial "live git process found"
 }
 

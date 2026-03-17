@@ -25,7 +25,7 @@ setup() {
 _run_hook() {
   local file_path="$1"
   local input="{\"tool_input\":{\"file_path\":\"$file_path\"}}"
-  run bash "$HOOK_SCRIPT" <<< "$input"
+  run bash "$HOOK_SCRIPT" <<<"$input"
 }
 
 # ── Tests: Protected files (should block with exit 2) ───────────────────────
@@ -107,12 +107,12 @@ _run_hook() {
 # ── Tests: Edge cases ───────────────────────────────────────────────────────
 
 @test "protect-spiral-files: empty file_path allows" {
-  run bash "$HOOK_SCRIPT" <<< '{"tool_input":{"file_path":""}}'
+  run bash "$HOOK_SCRIPT" <<<'{"tool_input":{"file_path":""}}'
   assert_success
 }
 
 @test "protect-spiral-files: missing file_path allows" {
-  run bash "$HOOK_SCRIPT" <<< '{"tool_input":{}}'
+  run bash "$HOOK_SCRIPT" <<<'{"tool_input":{}}'
   assert_success
 }
 
@@ -124,7 +124,7 @@ _run_hook() {
 
 @test "protect-spiral-files: normalizes backslashes for Windows paths" {
   local input='{"tool_input":{"file_path":".spiral\\_checkpoint.json"}}'
-  run bash "$HOOK_SCRIPT" <<< "$input"
+  run bash "$HOOK_SCRIPT" <<<"$input"
   assert_failure 2
   assert_output --partial "BLOCKED"
 }

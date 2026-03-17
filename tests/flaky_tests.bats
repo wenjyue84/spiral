@@ -46,7 +46,7 @@ setup() {
 
 # Read a field from the registry using jq (works on Windows — path via arg, not -c string)
 reg_get() {
-  local field="$1"     # jq filter, e.g. '.my_test.passes'
+  local field="$1" # jq filter, e.g. '.my_test.passes'
   local reg_path="${SPIRAL_SCRATCH_DIR}/flaky-tests.json"
   "$JQ" -r "$field" "$reg_path"
 }

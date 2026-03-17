@@ -24,7 +24,7 @@ teardown() {
   ENTRY=$(cat "$AUDIT_FILE")
 
   # Verify it is valid JSON
-  echo "$ENTRY" | jq . > /dev/null
+  echo "$ENTRY" | jq . >/dev/null
 
   # Verify required fields
   [ "$(echo "$ENTRY" | jq -r '.event')" = "WorktreeCreate" ]
@@ -39,7 +39,7 @@ teardown() {
   echo '{"hook_event_name":"WorktreeCreate","worktree_path":"w1","session_id":"s1"}' | bash "$HOOK_SCRIPT"
   echo '{"hook_event_name":"WorktreeRemove","worktree_path":"w1","session_id":"s1"}' | bash "$HOOK_SCRIPT"
 
-  LINE_COUNT=$(wc -l < "$AUDIT_FILE")
+  LINE_COUNT=$(wc -l <"$AUDIT_FILE")
   [ "$LINE_COUNT" -eq 2 ]
 
   FIRST=$(sed -n '1p' "$AUDIT_FILE")

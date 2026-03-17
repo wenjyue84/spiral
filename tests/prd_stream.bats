@@ -34,7 +34,7 @@ teardown() {
 # ── Helper: write a minimal PRD JSON ──────────────────────────────────────────
 
 _write_prd() {
-  cat > "$PRD_FILE"
+  cat >"$PRD_FILE"
 }
 
 # ── Small-file (non-streaming) path ──────────────────────────────────────────
@@ -168,7 +168,7 @@ EOF
 
 @test "both paths produce identical output on a 50-story synthetic PRD" {
   # Generate a 50-story synthetic prd.json with mixed pass/fail states
-  python3 - <<'PYEOF' > "$PRD_FILE"
+  python3 - <<'PYEOF' >"$PRD_FILE"
 import json, random
 random.seed(42)
 priorities = ["critical", "high", "medium", "low"]

@@ -42,7 +42,7 @@ teardown() {
 
 @test "check_checkpoint_completeness: complete checkpoint returns 0" {
   local ckpt_file="$SPIRAL_SCRATCH_DIR/complete-checkpoint.json"
-  $JQ -n '{phase: "I", storyId: "US-123", retryCount: 0}' > "$ckpt_file"
+  $JQ -n '{phase: "I", storyId: "US-123", retryCount: 0}' >"$ckpt_file"
 
   run check_checkpoint_completeness "$ckpt_file"
   assert_success
@@ -50,7 +50,7 @@ teardown() {
 
 @test "check_checkpoint_completeness: missing phase returns 1" {
   local ckpt_file="$SPIRAL_SCRATCH_DIR/missing-phase.json"
-  $JQ -n '{storyId: "US-123", retryCount: 0}' > "$ckpt_file"
+  $JQ -n '{storyId: "US-123", retryCount: 0}' >"$ckpt_file"
 
   run check_checkpoint_completeness "$ckpt_file"
   assert_failure 1
@@ -59,7 +59,7 @@ teardown() {
 
 @test "check_checkpoint_completeness: missing storyId returns 1" {
   local ckpt_file="$SPIRAL_SCRATCH_DIR/missing-storyid.json"
-  $JQ -n '{phase: "I", retryCount: 0}' > "$ckpt_file"
+  $JQ -n '{phase: "I", retryCount: 0}' >"$ckpt_file"
 
   run check_checkpoint_completeness "$ckpt_file"
   assert_failure 1
@@ -68,7 +68,7 @@ teardown() {
 
 @test "check_checkpoint_completeness: missing retryCount returns 1" {
   local ckpt_file="$SPIRAL_SCRATCH_DIR/missing-retrycount.json"
-  $JQ -n '{phase: "I", storyId: "US-123"}' > "$ckpt_file"
+  $JQ -n '{phase: "I", storyId: "US-123"}' >"$ckpt_file"
 
   run check_checkpoint_completeness "$ckpt_file"
   assert_failure 1
@@ -77,7 +77,7 @@ teardown() {
 
 @test "check_checkpoint_completeness: empty checkpoint returns 1" {
   local ckpt_file="$SPIRAL_SCRATCH_DIR/empty-checkpoint.json"
-  $JQ -n '{}' > "$ckpt_file"
+  $JQ -n '{}' >"$ckpt_file"
 
   run check_checkpoint_completeness "$ckpt_file"
   assert_failure 1
@@ -86,7 +86,7 @@ teardown() {
 @test "check_checkpoint_completeness: truncated checkpoint returns 1" {
   local ckpt_file="$SPIRAL_SCRATCH_DIR/truncated-checkpoint.json"
   # Simulate a truncated checkpoint (missing closing brace)
-  echo '{"phase":"R","storyId":"US-456"' > "$ckpt_file"
+  echo '{"phase":"R","storyId":"US-456"' >"$ckpt_file"
 
   run check_checkpoint_completeness "$ckpt_file"
   assert_failure 1
@@ -94,7 +94,7 @@ teardown() {
 
 @test "check_checkpoint_completeness: checkpoint with null values returns 1" {
   local ckpt_file="$SPIRAL_SCRATCH_DIR/null-values-checkpoint.json"
-  $JQ -n '{phase: null, storyId: null, retryCount: null}' > "$ckpt_file"
+  $JQ -n '{phase: null, storyId: null, retryCount: null}' >"$ckpt_file"
 
   run check_checkpoint_completeness "$ckpt_file"
   assert_failure 1
@@ -102,7 +102,7 @@ teardown() {
 
 @test "check_checkpoint_completeness: checkpoint with extra fields returns 0" {
   local ckpt_file="$SPIRAL_SCRATCH_DIR/extra-fields-checkpoint.json"
-  $JQ -n '{phase: "V", storyId: "US-789", retryCount: 2, timestamp: "2026-03-16T10:00:00Z", extra: "data"}' > "$ckpt_file"
+  $JQ -n '{phase: "V", storyId: "US-789", retryCount: 2, timestamp: "2026-03-16T10:00:00Z", extra: "data"}' >"$ckpt_file"
 
   run check_checkpoint_completeness "$ckpt_file"
   assert_success

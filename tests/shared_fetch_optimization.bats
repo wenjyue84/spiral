@@ -27,7 +27,7 @@ setup() {
   git -C "$TEMP_INIT" config user.name "Spiral Test"
 
   # Create initial commit
-  echo "initial" > "$TEMP_INIT/README.md"
+  echo "initial" >"$TEMP_INIT/README.md"
   git -C "$TEMP_INIT" add README.md
   git -C "$TEMP_INIT" commit -q -m "init"
 
@@ -43,7 +43,7 @@ setup() {
   git -C "$MAIN_REPO" config user.name "Spiral Test"
 
   # Create a remote update to simulate changes
-  echo "updated" >> "$MAIN_REPO/README.md"
+  echo "updated" >>"$MAIN_REPO/README.md"
   git -C "$MAIN_REPO" commit -q -am "update"
   git -C "$MAIN_REPO" push -q origin main
 

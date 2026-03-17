@@ -1,3 +1,41 @@
+## Iteration N - Story: US-392 Enable interleaved thinking in ralph.sh for claude-4 models via beta header (COMPLETED)
+
+### What was implemented
+- Added SPIRAL_INTERLEAVED_THINKING env var to ralph.sh (default: false) for gradual adoption
+- Added model compatibility check for claude-opus-4-6 and claude-sonnet-4-6 (haiku not supported)
+- Implemented beta header injection: appends "interleaved-thinking-2025-05-14" to _CACHE_BETAS when conditions met
+- Added logging/telemetry when interleaved thinking is enabled or when unsupported model is detected
+- Added configuration to spiral.config.sh with documentation
+- Added template documentation to templates/spiral.config.example.sh with usage warnings
+- Created comprehensive test suite: tests/interleaved_thinking.bats with 13 passing tests
+
+### Files modified
+- ralph/ralph.sh — Added env var default at line 65, model check + beta header logic at lines 2869-2888
+- spiral.config.sh — Added SPIRAL_INTERLEAVED_THINKING config section with documentation
+- templates/spiral.config.example.sh — Added template entry with usage warnings and defaults
+- tests/interleaved_thinking.bats — New: 13 unit tests covering env vars, config, model checks, beta header injection
+
+### Patterns discovered
+- Beta header injection pattern: append to existing _CACHE_BETAS string with comma separator (matches existing --betas "$_CACHE_BETAS" pattern)
+- Model compatibility checks reuse same regex pattern as programmatic tools (sonnet-4\.6|opus-4\.6)
+- Test grep patterns for escaped regex in bash need unescaped versions for grep matching
+
+### Gotchas
+- grep -q searches literal strings, not regex patterns with escaped dots — test patterns must use simpler search terms
+- The interleaved thinking beta requires both SPIRAL_INTERLEAVED_THINKING=true AND the model must be Sonnet/Opus 4.6+
+- Token budget with interleaved thinking respects SPIRAL_THINKING_BUDGET_TOKENS (used for budget_to_effort mapping)
+
+### Acceptance criteria mapping
+- [x] Criterion 1: ralph.sh passes the `anthropic-beta: interleaved-thinking-2025-05-14` header when model is claude-opus-4-6 or claude-sonnet-4-6 → ✓ Lines 2875-2878 append header to _CACHE_BETAS
+- [x] Criterion 2: Interleaved thinking is gated on SPIRAL_INTERLEAVED_THINKING=true (default: false) → ✓ Line 2873 checks env var, default at line 65
+- [x] Criterion 3: Token budget for interleaved thinking respects SPIRAL_THINKING_BUDGET_TOKENS env var → ✓ Line 2877 logs budget tokens
+- [x] Criterion 4: A bats test verifies the beta header is injected correctly → ✓ tests/interleaved_thinking.bats with 13 passing tests
+
+### Test results
+- 13 new bats tests: all passing
+- Existing test suite: 1699 passing (9 pre-existing failures unrelated to this feature)
+- No shellcheck errors, no shfmt formatting issues
+
 ## Iteration 21 - Story: US-375 Migrate spiral Python packages to uv workspace with shared requires-python constraint (COMPLETED)
 
 ### What was implemented
@@ -2189,3 +2227,5 @@ COST CEILING: Add ConfigChange Claude Code hook to detect and alert on unauthori
 
 ### Gotchas
 - Previous 2 attempts hit cost ceiling due to over-reading files; this attempt verified existing state and committed
+## Iteration 11 - Tue, Mar 17, 2026  3:40:17 PM
+COST CEILING: Add ConfigChange Claude Code hook to detect and alert on unauthorized SPIRAL settings modifications (US-389) — $4.496321 exceeded hard limit $2.00

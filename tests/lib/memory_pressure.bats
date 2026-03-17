@@ -40,7 +40,7 @@ write_pressure_file() {
   local model="${4:-}"
   local skip_phases="${5:-[]}"
 
-  cat > "$_SPIRAL_PRESSURE_FILE" <<EOF
+  cat >"$_SPIRAL_PRESSURE_FILE" <<EOF
 {
   "level": $level,
   "free_mb": $free_mb,
@@ -158,16 +158,16 @@ EOF
 @test "spiral_pressure_level returns 0 when pressure file is stale (>120s)" {
   write_pressure_file 3 1024 1 "haiku" '["R"]'
   # Backdate the file by 300 seconds to make it stale
-  touch -d "300 seconds ago" "$_SPIRAL_PRESSURE_FILE" 2>/dev/null || \
-    touch -A "-000500" "$_SPIRAL_PRESSURE_FILE" 2>/dev/null || \
-    python3 -c "import os,time; os.utime('$_SPIRAL_PRESSURE_FILE', (time.time()-300, time.time()-300))" 2>/dev/null || \
+  touch -d "300 seconds ago" "$_SPIRAL_PRESSURE_FILE" 2>/dev/null ||
+    touch -A "-000500" "$_SPIRAL_PRESSURE_FILE" 2>/dev/null ||
+    python3 -c "import os,time; os.utime('$_SPIRAL_PRESSURE_FILE', (time.time()-300, time.time()-300))" 2>/dev/null ||
     true
   # Only run the stale check if we could backdate the file
   local file_age
   local now_ts file_ts
   now_ts=$(date +%s)
   file_ts=$(stat -c %Y "$_SPIRAL_PRESSURE_FILE" 2>/dev/null || stat -f %m "$_SPIRAL_PRESSURE_FILE" 2>/dev/null || echo "$now_ts")
-  file_age=$(( now_ts - file_ts ))
+  file_age=$((now_ts - file_ts))
   if [[ "$file_age" -gt 120 ]]; then
     run spiral_pressure_level
     [ "$output" = "0" ]

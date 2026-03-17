@@ -1,5 +1,4 @@
-"""Metadata generation logic for legacy source distributions.
-"""
+"""Metadata generation logic for legacy source distributions."""
 
 import logging
 import os
@@ -26,9 +25,7 @@ def _find_egg_info(directory: str) -> str:
         raise InstallationError(f"No .egg-info directory found in {directory}")
 
     if len(filenames) > 1:
-        raise InstallationError(
-            "More than one .egg-info directory found in {}".format(directory)
-        )
+        raise InstallationError("More than one .egg-info directory found in {}".format(directory))
 
     return os.path.join(directory, filenames[0])
 

@@ -23,9 +23,9 @@ capture_crash() {
   # Write crash content: from source file (stderr capture or worker log)
   if [[ -n "$source_file" && -f "$source_file" ]]; then
     # Extract last 200 lines (likely contains traceback + context)
-    tail -200 "$source_file" > "$crash_file" 2>/dev/null || true
+    tail -200 "$source_file" >"$crash_file" 2>/dev/null || true
   else
-    echo "No stderr capture available (exit_code=$exit_code)" > "$crash_file"
+    echo "No stderr capture available (exit_code=$exit_code)" >"$crash_file"
   fi
 
   # Prepend header
@@ -38,7 +38,10 @@ capture_crash() {
 # ─────────────────────────────────────────
 "
   local tmp_crash="${crash_file}.tmp"
-  { printf '%s\n' "$header"; cat "$crash_file"; } > "$tmp_crash" 2>/dev/null && \
+  {
+    printf '%s\n' "$header"
+    cat "$crash_file"
+  } >"$tmp_crash" 2>/dev/null &&
     mv "$tmp_crash" "$crash_file" || true
 
   # Update index.json atomically (temp-file rename)
@@ -81,11 +84,11 @@ _update_crash_index() {
     '{story_id: $sid, timestamp: $ts, exit_code: ($ec | tonumber), worker_id: $wid, crash_file: $cf}')
 
   echo "$existing" | "$JQ" --argjson entry "$new_entry" '. + [$entry]' \
-    > "$tmp_index" 2>/dev/null && \
+    >"$tmp_index" 2>/dev/null &&
     mv "$tmp_index" "$index_file" || {
-      rm -f "$tmp_index" 2>/dev/null
-      return 1
-    }
+    rm -f "$tmp_index" 2>/dev/null
+    return 1
+  }
 }
 
 # ── prune_old_crashes — remove crash files older than retention period ────────
@@ -112,7 +115,7 @@ prune_old_crashes() {
       # Keep only entries whose crash_file still exists
       "$JQ" --arg dir "$crash_dir" \
         '[.[] | select(($dir + "/" + .crash_file) as $path | $path | test(".*"))]' \
-        "$index_file" > "$tmp_index" 2>/dev/null || true
+        "$index_file" >"$tmp_index" 2>/dev/null || true
       # Re-filter to only existing files (jq can't check filesystem)
       local rebuilt="[]"
       if [[ -f "$tmp_index" ]]; then
@@ -123,7 +126,7 @@ prune_old_crashes() {
             rebuilt=$(echo "$rebuilt" | "$JQ" --argjson e "$entry" '. + [$e]')
           fi
         done < <("$JQ" -c '.[]' "$tmp_index" 2>/dev/null)
-        echo "$rebuilt" > "$tmp_index" && mv "$tmp_index" "$index_file"
+        echo "$rebuilt" >"$tmp_index" && mv "$tmp_index" "$index_file"
       fi
       rm -f "$tmp_index" 2>/dev/null
     fi

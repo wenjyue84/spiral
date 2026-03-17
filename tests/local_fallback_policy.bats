@@ -96,7 +96,7 @@ source_policy_fn() {
 
 @test "ollama_prewarm logs warning when Ollama unreachable (non-fatal)" {
   # Mock curl that always fails (connection refused)
-  cat > "$MOCK_BIN/curl" << 'EOF'
+  cat >"$MOCK_BIN/curl" <<'EOF'
 #!/usr/bin/env bash
 exit 7
 EOF
@@ -117,7 +117,7 @@ EOF
 
 @test "ollama_prewarm logs [OK] when model found in /api/tags" {
   # Mock curl returning tags with the expected model
-  cat > "$MOCK_BIN/curl" << 'EOF'
+  cat >"$MOCK_BIN/curl" <<'EOF'
 #!/usr/bin/env bash
 echo '{"models":[{"name":"llama3.2","size":1234}]}'
 exit 0
@@ -138,7 +138,7 @@ EOF
 
 @test "ollama_prewarm warns when model absent from /api/tags (non-fatal)" {
   # Mock curl returning tags WITHOUT the expected model
-  cat > "$MOCK_BIN/curl" << 'EOF'
+  cat >"$MOCK_BIN/curl" <<'EOF'
 #!/usr/bin/env bash
 echo '{"models":[{"name":"other-model:latest"}]}'
 exit 0
@@ -190,7 +190,7 @@ EOF
 
 @test "allow policy calls Ollama and returns 0 on success" {
   # Mock curl returning valid OpenAI-compat response
-  cat > "$MOCK_BIN/curl" << 'EOF'
+  cat >"$MOCK_BIN/curl" <<'EOF'
 #!/usr/bin/env bash
 echo '{"choices":[{"message":{"role":"assistant","content":"Story implemented"}}]}'
 exit 0
@@ -216,7 +216,7 @@ EOF
 
 @test "allow policy returns 1 when Ollama call fails" {
   # Mock curl that always fails
-  cat > "$MOCK_BIN/curl" << 'EOF'
+  cat >"$MOCK_BIN/curl" <<'EOF'
 #!/usr/bin/env bash
 exit 7
 EOF
@@ -241,7 +241,7 @@ EOF
 
 @test "local-only policy calls Ollama (behaves like allow)" {
   # Mock curl returning valid response
-  cat > "$MOCK_BIN/curl" << 'EOF'
+  cat >"$MOCK_BIN/curl" <<'EOF'
 #!/usr/bin/env bash
 echo '{"choices":[{"message":{"role":"assistant","content":"Local model output"}}]}'
 exit 0
@@ -287,7 +287,7 @@ EOF
 
 @test "spiral_events.jsonl receives structured local_fallback_used event on allow" {
   # Mock curl returning valid response
-  cat > "$MOCK_BIN/curl" << 'EOF'
+  cat >"$MOCK_BIN/curl" <<'EOF'
 #!/usr/bin/env bash
 echo '{"choices":[{"message":{"role":"assistant","content":"done"}}]}'
 exit 0
@@ -300,9 +300,9 @@ EOF
     local evt="$1" extra="${2:-}"
     local ts="2026-01-01T00:00:00Z"
     if [[ -n "$extra" ]]; then
-      printf '{"event_type":"%s",%s}\n' "$evt" "$extra" >> "$events_file"
+      printf '{"event_type":"%s",%s}\n' "$evt" "$extra" >>"$events_file"
     else
-      printf '{"event_type":"%s"}\n' "$evt" >> "$events_file"
+      printf '{"event_type":"%s"}\n' "$evt" >>"$events_file"
     fi
   }
   export -f log_spiral_event

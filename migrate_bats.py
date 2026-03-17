@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Migrate SPIRAL bats test files to use bats_require_minimum_version + common-setup + bats-assert."""
+
 import os
 import re
 import sys

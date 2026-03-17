@@ -37,12 +37,13 @@ EOF
 }
 
 @test "env_schema.json contains at least one required var" {
-  count=$("$SPIRAL_PYTHON" - "$SCHEMA" <<'EOF'
+  count=$(
+    "$SPIRAL_PYTHON" - "$SCHEMA" <<'EOF'
 import json, sys
 data = json.load(open(sys.argv[1], encoding="utf-8"))
 print(sum(1 for v in data["vars"] if v.get("required", False)))
 EOF
-)
+  )
   [[ "$count" -gt 0 ]]
 }
 

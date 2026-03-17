@@ -147,7 +147,7 @@ PYEOF
 
 @test "passing a string instead of list raises TypeError" {
   local tmpscript="$TMPDIR_INJ/test_str_cmd.py"
-  cat > "$tmpscript" << 'PYEOF'
+  cat >"$tmpscript" <<'PYEOF'
 import sys
 sys.path.insert(0, '.')
 from lib.subprocess_policy import safe_run

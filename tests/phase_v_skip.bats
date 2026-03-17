@@ -22,7 +22,7 @@ setup() {
   TMPDIR_PVS="$(mktemp -d)"
 
   # Stub helpers used in the Phase V decision block
-  log_spiral_event() { printf '{"type":"%s"}\n' "$1" >> "$TMPDIR_PVS/events.jsonl"; }
+  log_spiral_event() { printf '{"type":"%s"}\n' "$1" >>"$TMPDIR_PVS/events.jsonl"; }
   export -f log_spiral_event
   write_checkpoint() { true; }
   export -f write_checkpoint

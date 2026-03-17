@@ -116,7 +116,8 @@ assert d.get('span_id') == '00f067aa0ba902b7', f'span_id wrong: {d}'
   log_spiral_event "event.three"
   local log_path="$SCRATCH_DIR/spiral_events.jsonl"
   local count
-  count=$(python3 - "$log_path" <<'PYEOF'
+  count=$(
+    python3 - "$log_path" <<'PYEOF'
 import json, sys
 count = 0
 with open(sys.argv[1]) as f:
@@ -129,7 +130,7 @@ with open(sys.argv[1]) as f:
             count += 1
 print(count)
 PYEOF
-)
+  )
   [[ "$count" -eq 3 ]]
 }
 

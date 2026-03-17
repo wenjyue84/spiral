@@ -71,7 +71,7 @@ create_snapshot() {
     if [[ -d /tmp ]]; then
       find /tmp -name "*spiral*" -o -name "*ralph*" -o -name "*worker*" 2>/dev/null | sort || true
     fi
-  } > "$SNAPSHOT_MANIFEST"
+  } >"$SNAPSHOT_MANIFEST"
   export SNAPSHOT_MANIFEST
 
   return 0
@@ -121,7 +121,7 @@ restore_snapshot() {
             echo "[WARNING] Failed to delete $repo_root/$_file" >&2
           }
         fi
-      done <<< "$_to_delete"
+      done <<<"$_to_delete"
     fi
 
     rm -f "$SNAPSHOT_MANIFEST" 2>/dev/null || true
@@ -134,7 +134,7 @@ restore_snapshot() {
 # Logs a rollback event to spiral_events.jsonl
 log_rollback_event() {
   local story_id="$1"
-  local status="$2"  # 'success', 'stash_restore_failed', 'file_cleanup_failed'
+  local status="$2" # 'success', 'stash_restore_failed', 'file_cleanup_failed'
   local elapsed_ms="$3"
   local details="${4:-}"
 

@@ -3,6 +3,7 @@
 Add stuck-story resolution stories and reprioritize backlog.
 Run from the repo root: uv run python scripts/add_stuck_stories.py
 """
+
 import json
 import shutil
 from pathlib import Path
@@ -147,8 +148,7 @@ NEW_STORIES = [
         "tags": ["stuck-recovery", "telemetry", "phase-r"],
         "acceptanceCriteria": [
             "results.tsv gains a stuck_category column populated when a story fails",
-            "Categories: oversized_diff, turn_limit, context_overflow, "
-            "test_regression, quality_gate, unknown",
+            "Categories: oversized_diff, turn_limit, context_overflow, test_regression, quality_gate, unknown",
             "Phase R prompt includes: Most frequent stuck category in recent runs: X (N occurrences) "
             "when category count > 2",
             "A Python helper lib/stuck_analysis.py reads results.tsv and returns the top stuck_category",
@@ -261,4 +261,4 @@ with open(PRD, "w", encoding="utf-8") as f:
     json.dump(prd, f, indent=2, ensure_ascii=False)
     f.write("\n")
 
-print(f"\nprd.json updated. Backup at prd.json.bak")
+print("\nprd.json updated. Backup at prd.json.bak")

@@ -46,7 +46,7 @@ teardown() {
   # (confirming the leak vector is real)
   local fd3_exists="$TEST_TMPDIR/fd3_exists.txt"
   # Use /dev/fd/3 check instead of writing to it (to avoid interfering with bats)
-  bash -c '[ -e /dev/fd/3 ] && echo yes || echo no' > "$fd3_exists" 2>/dev/null
+  bash -c '[ -e /dev/fd/3 ] && echo yes || echo no' >"$fd3_exists" 2>/dev/null
   local result
   result=$(cat "$fd3_exists" | tr -d '[:space:]')
   # In bats, FD 3 should exist
@@ -59,7 +59,7 @@ teardown() {
   # Scan all .bats files in tests/ (excluding bats-core submodule)
   # for lines matching '&' at end of line without '3>&-' before it
   local violations="$TEST_TMPDIR/violations.txt"
-  : > "$violations"
+  : >"$violations"
 
   # Find all .bats files excluding bats-core vendored submodule
   while IFS= read -r -d '' batsfile; do
@@ -70,7 +70,7 @@ teardown() {
     grep -nE '\s&\s*$' "$batsfile" 2>/dev/null | while IFS= read -r match; do
       # Check if 3>&- is present on the same line
       if ! echo "$match" | grep -q '3>&-'; then
-        echo "$batsfile:$match" >> "$violations"
+        echo "$batsfile:$match" >>"$violations"
       fi
     done || true
   done < <(find tests/ -name '*.bats' -print0 2>/dev/null)

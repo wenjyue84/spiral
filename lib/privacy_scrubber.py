@@ -14,7 +14,6 @@ from typing import Any, Optional, Sequence
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanProcessor  # type: ignore[attr-defined]
 
-
 # ── Default sensitive data patterns ──────────────────────────────────────────
 # These patterns match common secret formats and should be kept up-to-date.
 DEFAULT_SCRUB_PATTERNS: dict[str, str] = {
@@ -104,10 +103,7 @@ class PrivacyScrubber(SpanProcessor):
                     span.attributes[key] = redacted  # type: ignore[index]
             elif isinstance(value, (list, tuple)):
                 # Handle lists/tuples of strings (e.g., in structured messages)
-                redacted_list = [
-                    self._redact_value(str(item)) if isinstance(item, str) else item
-                    for item in value
-                ]
+                redacted_list = [self._redact_value(str(item)) if isinstance(item, str) else item for item in value]
                 if redacted_list != list(value):
                     span.attributes[key] = redacted_list  # type: ignore[index]
             elif isinstance(value, dict):

@@ -21,7 +21,7 @@ setup() {
   git config user.email "test@spiral.dev"
   git config user.name "SPIRAL Test"
   git config core.autocrlf false
-  printf '{"stories":[]}\n' > prd.json
+  printf '{"stories":[]}\n' >prd.json
   git add prd.json
   git commit -m "init" >/dev/null 2>&1
 }
@@ -53,14 +53,14 @@ teardown() {
 
   # Create branch A: modify prd.json
   git checkout -b branch-a 2>/dev/null
-  printf '{"stories":["A"]}\n' > prd.json
+  printf '{"stories":["A"]}\n' >prd.json
   git add prd.json
   git commit -m "branch-a change" >/dev/null 2>&1
 
   # Go back to main and create branch B with a different change
   git checkout main 2>/dev/null
   git checkout -b branch-b 2>/dev/null
-  printf '{"stories":["B"]}\n' > prd.json
+  printf '{"stories":["B"]}\n' >prd.json
   git add prd.json
   git commit -m "branch-b change" >/dev/null 2>&1
 
@@ -69,7 +69,7 @@ teardown() {
   assert_failure
 
   # Resolve the conflict manually
-  printf '{"stories":["A","B"]}\n' > prd.json
+  printf '{"stories":["A","B"]}\n' >prd.json
   git add prd.json
   git commit -m "resolved conflict" >/dev/null 2>&1
 
@@ -86,19 +86,19 @@ teardown() {
 
   # Create the same conflict scenario and resolve it
   git checkout -b branch-a 2>/dev/null
-  printf '{"stories":["A"]}\n' > prd.json
+  printf '{"stories":["A"]}\n' >prd.json
   git add prd.json
   git commit -m "branch-a" >/dev/null 2>&1
 
   git checkout main 2>/dev/null
   git checkout -b branch-b 2>/dev/null
-  printf '{"stories":["B"]}\n' > prd.json
+  printf '{"stories":["B"]}\n' >prd.json
   git add prd.json
   git commit -m "branch-b" >/dev/null 2>&1
 
   # First merge — conflict, resolve manually
   git merge branch-a 2>/dev/null || true
-  printf '{"stories":["A","B"]}\n' > prd.json
+  printf '{"stories":["A","B"]}\n' >prd.json
   git add prd.json
   git commit -m "resolved" >/dev/null 2>&1
 
@@ -136,18 +136,18 @@ teardown() {
 
   # Create conflicting branches
   git checkout -b feat-a 2>/dev/null
-  printf '{"stories":["X"]}\n' > prd.json
+  printf '{"stories":["X"]}\n' >prd.json
   git add prd.json
   git commit -m "feat-a" >/dev/null 2>&1
 
   git checkout main 2>/dev/null
-  printf '{"stories":["Y"]}\n' > prd.json
+  printf '{"stories":["Y"]}\n' >prd.json
   git add prd.json
   git commit -m "main change" >/dev/null 2>&1
 
   # Merge — will conflict, resolve
   git merge feat-a 2>/dev/null || true
-  printf '{"stories":["X","Y"]}\n' > prd.json
+  printf '{"stories":["X","Y"]}\n' >prd.json
   git add prd.json
   git commit -m "resolved" >/dev/null 2>&1
 
@@ -172,7 +172,7 @@ teardown() {
 
   # Create a non-conflicting merge
   git checkout -b feat-c 2>/dev/null
-  printf 'extra\n' > extra.txt
+  printf 'extra\n' >extra.txt
   git add extra.txt
   git commit -m "feat-c" >/dev/null 2>&1
 

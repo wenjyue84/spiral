@@ -46,7 +46,7 @@ _setup_scope_env() {
   git config user.email "test@test.com"
   git config user.name "Test"
   git config core.autocrlf false
-  echo "initial" > README.md
+  echo "initial" >README.md
   git add README.md
   git commit -m "init" >/dev/null 2>&1
 
@@ -56,7 +56,7 @@ _setup_scope_env() {
 
 _write_prd_with_scope() {
   local files_touch="$1"
-  cat > "$PRD_FILE" <<EOFPRD
+  cat >"$PRD_FILE" <<EOFPRD
 {
   "userStories": [
     {
@@ -75,7 +75,8 @@ EOFPRD
 _source_scope_guard() {
   # We define the functions inline to avoid sourcing the entire ralph.sh
   # which has many side effects.
-  eval "$(cat <<'EOFUNC'
+  eval "$(
+    cat <<'EOFUNC'
 log_ralph_event() {
   local event="$1"
   local extra="${2:-}"
@@ -90,7 +91,7 @@ log_ralph_event() {
   printf '%s\n' "$line" >>"$log_file" 2>/dev/null || true
 }
 EOFUNC
-)"
+  )"
 
   # Source check_scope_guard from ralph.sh by extracting it
   local ralph_sh
@@ -113,7 +114,7 @@ _teardown_scope_env() {
 
   # Create and stage an in-scope file
   mkdir -p src
-  echo "code" > src/main.py
+  echo "code" >src/main.py
   git add src/main.py
 
   run check_scope_guard "US-TEST"
@@ -135,7 +136,7 @@ _teardown_scope_env() {
 
   # Create and stage an out-of-scope file
   mkdir -p config
-  echo "secret" > config/settings.yaml
+  echo "secret" >config/settings.yaml
   git add config/settings.yaml
 
   run check_scope_guard "US-TEST"
@@ -160,7 +161,7 @@ _teardown_scope_env() {
 
   # Create and stage an out-of-scope file
   mkdir -p lib
-  echo "rogue" > lib/rogue.py
+  echo "rogue" >lib/rogue.py
   git add lib/rogue.py
 
   run check_scope_guard "US-TEST"
@@ -181,7 +182,7 @@ _teardown_scope_env() {
   _write_prd_with_scope '[]'
 
   # Stage any file
-  echo "anything" > newfile.txt
+  echo "anything" >newfile.txt
   git add newfile.txt
 
   run check_scope_guard "US-TEST"
@@ -201,7 +202,7 @@ _teardown_scope_env() {
 
   # Create and stage a file under src/ (should match via prefix)
   mkdir -p src/utils
-  echo "helper" > src/utils/helper.py
+  echo "helper" >src/utils/helper.py
   git add src/utils/helper.py
 
   run check_scope_guard "US-TEST"
@@ -220,7 +221,7 @@ _teardown_scope_env() {
   _write_prd_with_scope '["src/main.py"]'
 
   # Stage an out-of-scope file
-  echo "rogue" > rogue.txt
+  echo "rogue" >rogue.txt
   git add rogue.txt
 
   run check_scope_guard "US-TEST"

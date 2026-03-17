@@ -49,7 +49,7 @@ teardown() {
         acceptanceCriteria: ["Criterion 1", "Criterion 2"]
       }
     ]
-  }' > "$prd_file"
+  }' >"$prd_file"
 
   run check_story_completeness "US-100" "$prd_file"
   assert_success
@@ -65,7 +65,7 @@ teardown() {
         acceptanceCriteria: ["Criterion 1"]
       }
     ]
-  }' > "$prd_file"
+  }' >"$prd_file"
 
   run check_story_completeness "US-101" "$prd_file"
   assert_failure 1
@@ -82,7 +82,7 @@ teardown() {
         acceptanceCriteria: ["Criterion 1"]
       }
     ]
-  }' > "$prd_file"
+  }' >"$prd_file"
 
   run check_story_completeness "US-102" "$prd_file"
   assert_failure 1
@@ -99,7 +99,7 @@ teardown() {
         description: "A test story description"
       }
     ]
-  }' > "$prd_file"
+  }' >"$prd_file"
 
   run check_story_completeness "US-103" "$prd_file"
   assert_failure 1
@@ -117,7 +117,7 @@ teardown() {
         acceptanceCriteria: []
       }
     ]
-  }' > "$prd_file"
+  }' >"$prd_file"
 
   run check_story_completeness "US-104" "$prd_file"
   assert_failure 1
@@ -141,7 +141,7 @@ teardown() {
         ]
       }
     ]
-  }' > "$prd_file"
+  }' >"$prd_file"
 
   run check_story_completeness "US-105" "$prd_file"
   assert_success
@@ -149,7 +149,7 @@ teardown() {
 
 @test "check_story_completeness: nonexistent story returns 1" {
   local prd_file="$SPIRAL_SCRATCH_DIR/prd.json"
-  $JQ -n '{userStories: []}' > "$prd_file"
+  $JQ -n '{userStories: []}' >"$prd_file"
 
   run check_story_completeness "US-999" "$prd_file"
   assert_failure 1

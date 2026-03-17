@@ -113,7 +113,9 @@ def main() -> int:
 
     parser = argparse.ArgumentParser(description="Check prd.json dependencies for cycles")
     parser.add_argument("prd", help="Path to prd.json")
-    parser.add_argument("--tiers", action="store_true", help="Output tier assignments as JSON instead of validation result")
+    parser.add_argument(
+        "--tiers", action="store_true", help="Output tier assignments as JSON instead of validation result"
+    )
     args = parser.parse_args()
 
     if not os.path.isfile(args.prd):

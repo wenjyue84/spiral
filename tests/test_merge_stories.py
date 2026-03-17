@@ -9,13 +9,13 @@ import sys
 import pytest
 from hypothesis import HealthCheck, assume, given, settings
 from hypothesis import strategies as st
-from hypothesis.stateful import Bundle, RuleBasedStateMachine, initialize, invariant, rule
+from hypothesis.stateful import RuleBasedStateMachine, initialize, invariant, rule
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 sys.path.insert(0, os.path.dirname(__file__))
-from strategies import prd_strategy
 from merge_stories import find_next_id, full_sort_key, is_duplicate, overlap_ratio, sort_key, story_to_prd_entry
 from spiral_io import atomic_write_json
+from strategies import prd_strategy
 
 # ── overlap_ratio ────────────────────────────────────────────────────────
 
@@ -579,9 +579,9 @@ class TestPostMergeSortOrder:
     def test_full_sort_key_dep_count_tiebreak(self, stories):
         """For same-priority active stories, fewer dependencies sorts before more."""
         same_priority_active = [
-            s for s in stories
-            if not s.get("passes") and not s.get("_decomposed") and not s.get("_skipped")
-            and s["priority"] == "medium"
+            s
+            for s in stories
+            if not s.get("passes") and not s.get("_decomposed") and not s.get("_skipped") and s["priority"] == "medium"
         ]
         assume(len(same_priority_active) >= 2)
         fewer = min(same_priority_active, key=lambda s: len(s.get("dependencies", [])))
@@ -801,11 +801,7 @@ class PRDMergeStateMachine(RuleBasedStateMachine):
         if len(self.stories) < 2:
             return
         src_idx = data.draw(st.integers(min_value=0, max_value=len(self.stories) - 1))
-        tgt_idx = data.draw(
-            st.integers(min_value=0, max_value=len(self.stories) - 1).filter(
-                lambda i: i != src_idx
-            )
-        )
+        tgt_idx = data.draw(st.integers(min_value=0, max_value=len(self.stories) - 1).filter(lambda i: i != src_idx))
         dep_id = self.stories[tgt_idx]["id"]
         deps = self.stories[src_idx].get("dependencies", [])
         if dep_id not in deps:
@@ -820,9 +816,7 @@ class PRDMergeStateMachine(RuleBasedStateMachine):
     @invariant()
     def count_within_cap(self):
         """Story count must never exceed the cap."""
-        assert len(self.stories) <= self.MAX_CAP, (
-            f"Story count {len(self.stories)} exceeds cap {self.MAX_CAP}"
-        )
+        assert len(self.stories) <= self.MAX_CAP, f"Story count {len(self.stories)} exceeds cap {self.MAX_CAP}"
 
     @invariant()
     def no_zombie_deps(self):
@@ -830,10 +824,7 @@ class PRDMergeStateMachine(RuleBasedStateMachine):
         live_ids = {s["id"] for s in self.stories}
         for s in self.stories:
             for dep in s.get("dependencies", []):
-                assert dep in live_ids, (
-                    f"Story {s['id']} depends on {dep} which does not exist. "
-                    f"Live IDs: {live_ids}"
-                )
+                assert dep in live_ids, f"Story {s['id']} depends on {dep} which does not exist. Live IDs: {live_ids}"
 
     @invariant()
     def ids_have_valid_format(self):

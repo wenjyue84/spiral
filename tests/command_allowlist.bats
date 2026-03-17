@@ -55,7 +55,8 @@ PYEOF
 @test "allowlist_load default has R phase" {
   rm -f "$SPIRAL_ALLOWLIST_FILE"
   allowlist_load
-  result=$(python3 - "$SPIRAL_ALLOWLIST_FILE" <<'PYEOF'
+  result=$(
+    python3 - "$SPIRAL_ALLOWLIST_FILE" <<'PYEOF'
 import sys, json
 d = json.load(open(sys.argv[1], encoding='utf-8'))
 print('R' in d)
@@ -67,7 +68,8 @@ PYEOF
 @test "allowlist_load default has I phase" {
   rm -f "$SPIRAL_ALLOWLIST_FILE"
   allowlist_load
-  result=$(python3 - "$SPIRAL_ALLOWLIST_FILE" <<'PYEOF'
+  result=$(
+    python3 - "$SPIRAL_ALLOWLIST_FILE" <<'PYEOF'
 import sys, json
 d = json.load(open(sys.argv[1], encoding='utf-8'))
 print('I' in d)
@@ -79,7 +81,8 @@ PYEOF
 @test "allowlist_load default has V phase" {
   rm -f "$SPIRAL_ALLOWLIST_FILE"
   allowlist_load
-  result=$(python3 - "$SPIRAL_ALLOWLIST_FILE" <<'PYEOF'
+  result=$(
+    python3 - "$SPIRAL_ALLOWLIST_FILE" <<'PYEOF'
 import sys, json
 d = json.load(open(sys.argv[1], encoding='utf-8'))
 print('V' in d)
@@ -91,7 +94,8 @@ PYEOF
 @test "allowlist_load default has M phase" {
   rm -f "$SPIRAL_ALLOWLIST_FILE"
   allowlist_load
-  result=$(python3 - "$SPIRAL_ALLOWLIST_FILE" <<'PYEOF'
+  result=$(
+    python3 - "$SPIRAL_ALLOWLIST_FILE" <<'PYEOF'
 import sys, json
 d = json.load(open(sys.argv[1], encoding='utf-8'))
 print('M' in d)
@@ -101,9 +105,10 @@ PYEOF
 }
 
 @test "allowlist_load does not overwrite existing allow-list file" {
-  printf '%s\n' '{"global":{"allow":["custom_cmd"],"deny":[]}}' > "$SPIRAL_ALLOWLIST_FILE"
+  printf '%s\n' '{"global":{"allow":["custom_cmd"],"deny":[]}}' >"$SPIRAL_ALLOWLIST_FILE"
   allowlist_load
-  result=$(python3 - "$SPIRAL_ALLOWLIST_FILE" <<'PYEOF'
+  result=$(
+    python3 - "$SPIRAL_ALLOWLIST_FILE" <<'PYEOF'
 import sys, json
 d = json.load(open(sys.argv[1], encoding='utf-8'))
 print(d['global']['allow'][0])
@@ -115,13 +120,13 @@ PYEOF
 # ── Tests: cmd_allowed — allow ────────────────────────────────────────────────
 
 @test "cmd_allowed allows command when deny list is empty" {
-  printf '%s\n' '{"global":{"allow":["*"],"deny":[]},"I":{"allow":[],"deny":[]}}' > "$SPIRAL_ALLOWLIST_FILE"
+  printf '%s\n' '{"global":{"allow":["*"],"deny":[]},"I":{"allow":[],"deny":[]}}' >"$SPIRAL_ALLOWLIST_FILE"
   run cmd_allowed "git commit -m test" "I"
   assert_success
 }
 
 @test "cmd_allowed allows command not in any deny list" {
-  printf '%s\n' '{"global":{"allow":[],"deny":["rm -rf"]},"I":{"allow":[],"deny":[]}}' > "$SPIRAL_ALLOWLIST_FILE"
+  printf '%s\n' '{"global":{"allow":[],"deny":["rm -rf"]},"I":{"allow":[],"deny":[]}}' >"$SPIRAL_ALLOWLIST_FILE"
   run cmd_allowed "git commit -m msg" "I"
   assert_success
 }
@@ -144,13 +149,13 @@ PYEOF
 # ── Tests: cmd_allowed — deny ─────────────────────────────────────────────────
 
 @test "cmd_allowed blocks command matching global deny list" {
-  printf '%s\n' '{"global":{"allow":[],"deny":["rm -rf"]}}' > "$SPIRAL_ALLOWLIST_FILE"
+  printf '%s\n' '{"global":{"allow":[],"deny":["rm -rf"]}}' >"$SPIRAL_ALLOWLIST_FILE"
   run cmd_allowed "rm -rf /important" "I"
   assert_failure 1
 }
 
 @test "cmd_allowed blocks command matching phase-specific deny list" {
-  printf '%s\n' '{"global":{"allow":["*"],"deny":[]},"I":{"allow":[],"deny":["git push"]}}' > "$SPIRAL_ALLOWLIST_FILE"
+  printf '%s\n' '{"global":{"allow":["*"],"deny":[]},"I":{"allow":[],"deny":["git push"]}}' >"$SPIRAL_ALLOWLIST_FILE"
   run cmd_allowed "git push origin main" "I"
   assert_failure 1
 }
@@ -170,7 +175,7 @@ PYEOF
 }
 
 @test "phase-specific deny blocks in that phase only" {
-  printf '%s\n' '{"global":{"allow":["*"],"deny":[]},"I":{"allow":[],"deny":["git push"]}}' > "$SPIRAL_ALLOWLIST_FILE"
+  printf '%s\n' '{"global":{"allow":["*"],"deny":[]},"I":{"allow":[],"deny":["git push"]}}' >"$SPIRAL_ALLOWLIST_FILE"
   # In phase I: git push is denied
   run cmd_allowed "git push origin main" "I"
   assert_failure 1
@@ -180,7 +185,7 @@ PYEOF
 }
 
 @test "global deny blocks across all phases" {
-  printf '%s\n' '{"global":{"allow":[],"deny":["rm -rf"]},"I":{"allow":["*"],"deny":[]}}' > "$SPIRAL_ALLOWLIST_FILE"
+  printf '%s\n' '{"global":{"allow":[],"deny":["rm -rf"]},"I":{"allow":["*"],"deny":[]}}' >"$SPIRAL_ALLOWLIST_FILE"
   run cmd_allowed "rm -rf /var" "I"
   assert_failure 1
 }
@@ -226,14 +231,14 @@ PYEOF
 # ── Tests: safe_run ───────────────────────────────────────────────────────────
 
 @test "safe_run executes allowed command" {
-  printf '%s\n' '{"global":{"allow":["*"],"deny":[]}}' > "$SPIRAL_ALLOWLIST_FILE"
+  printf '%s\n' '{"global":{"allow":["*"],"deny":[]}}' >"$SPIRAL_ALLOWLIST_FILE"
   run safe_run "I" "echo hello_safe"
   assert_success
   assert_output "hello_safe"
 }
 
 @test "safe_run blocks forbidden command and does not execute it" {
-  printf '%s\n' '{"global":{"allow":[],"deny":["echo bad"]}}' > "$SPIRAL_ALLOWLIST_FILE"
+  printf '%s\n' '{"global":{"allow":[],"deny":["echo bad"]}}' >"$SPIRAL_ALLOWLIST_FILE"
   MARKER_FILE="$TMPDIR_AL/should_not_exist.txt"
   run safe_run "I" "echo bad && touch $MARKER_FILE"
   assert_failure 1
@@ -241,7 +246,7 @@ PYEOF
 }
 
 @test "safe_run logs blocked command to security-events.log" {
-  printf '%s\n' '{"global":{"allow":[],"deny":["rm -rf"]}}' > "$SPIRAL_ALLOWLIST_FILE"
+  printf '%s\n' '{"global":{"allow":[],"deny":["rm -rf"]}}' >"$SPIRAL_ALLOWLIST_FILE"
   safe_run "I" "rm -rf /tmp/nonexistent" 2>/dev/null || true
   run grep -q "rm -rf" "$TMPDIR_AL/security-events.log"
   assert_success
@@ -255,17 +260,17 @@ PYEOF
 }
 
 @test "allowlist_scan_stream_json detects denied bash command in stream-json" {
-  printf '%s\n' '{"global":{"allow":[],"deny":["rm -rf"]},"I":{"allow":[],"deny":[]}}' > "$SPIRAL_ALLOWLIST_FILE"
+  printf '%s\n' '{"global":{"allow":[],"deny":["rm -rf"]},"I":{"allow":[],"deny":[]}}' >"$SPIRAL_ALLOWLIST_FILE"
   STREAM_FILE="$TMPDIR_AL/test_stream.jsonl"
-  printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash","input":{"command":"rm -rf /important"}}]}}' > "$STREAM_FILE"
+  printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash","input":{"command":"rm -rf /important"}}]}}' >"$STREAM_FILE"
   result=$(allowlist_scan_stream_json "$STREAM_FILE" "I" "US-TEST")
   [ "$result" -eq 1 ]
 }
 
 @test "allowlist_scan_stream_json logs denied command to security-events.log" {
-  printf '%s\n' '{"global":{"allow":[],"deny":["rm -rf"]}}' > "$SPIRAL_ALLOWLIST_FILE"
+  printf '%s\n' '{"global":{"allow":[],"deny":["rm -rf"]}}' >"$SPIRAL_ALLOWLIST_FILE"
   STREAM_FILE="$TMPDIR_AL/test_stream2.jsonl"
-  printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash","input":{"command":"rm -rf /var"}}]}}' > "$STREAM_FILE"
+  printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash","input":{"command":"rm -rf /var"}}]}}' >"$STREAM_FILE"
   # allowlist_scan_stream_json exits with violation count (non-zero when violations found)
   allowlist_scan_stream_json "$STREAM_FILE" "I" "US-TEST" >/dev/null || true
   run grep -q "rm -rf" "$TMPDIR_AL/security-events.log"
@@ -273,9 +278,9 @@ PYEOF
 }
 
 @test "allowlist_scan_stream_json ignores non-bash tool_use" {
-  printf '%s\n' '{"global":{"allow":[],"deny":["rm -rf"]}}' > "$SPIRAL_ALLOWLIST_FILE"
+  printf '%s\n' '{"global":{"allow":[],"deny":["rm -rf"]}}' >"$SPIRAL_ALLOWLIST_FILE"
   STREAM_FILE="$TMPDIR_AL/test_stream3.jsonl"
-  printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Edit","input":{"command":"rm -rf /var"}}]}}' > "$STREAM_FILE"
+  printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Edit","input":{"command":"rm -rf /var"}}]}}' >"$STREAM_FILE"
   result=$(allowlist_scan_stream_json "$STREAM_FILE" "I" "US-TEST")
   [ "$result" -eq 0 ]
 }
@@ -284,7 +289,7 @@ PYEOF
   rm -f "$SPIRAL_ALLOWLIST_FILE"
   allowlist_load
   STREAM_FILE="$TMPDIR_AL/test_stream4.jsonl"
-  printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash","input":{"command":"ls -la"}}]}}' > "$STREAM_FILE"
+  printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash","input":{"command":"ls -la"}}]}}' >"$STREAM_FILE"
   result=$(allowlist_scan_stream_json "$STREAM_FILE" "R" "US-TEST")
   [ "$result" -eq 0 ]
 }

@@ -106,14 +106,16 @@ def list_snapshots(base_dir: str) -> list[dict[str, Any]]:
         try:
             with open(path, "r", encoding="utf-8") as f:
                 snap = json.load(f)
-            results.append({
-                "story_id": snap.get("story_id", fname.replace(".json", "")),
-                "iteration": snap.get("iteration", 0),
-                "model": snap.get("model", ""),
-                "rc": snap.get("rc"),
-                "ts_start": snap.get("ts_start", ""),
-                "ts_end": snap.get("ts_end", ""),
-            })
+            results.append(
+                {
+                    "story_id": snap.get("story_id", fname.replace(".json", "")),
+                    "iteration": snap.get("iteration", 0),
+                    "model": snap.get("model", ""),
+                    "rc": snap.get("rc"),
+                    "ts_start": snap.get("ts_start", ""),
+                    "ts_end": snap.get("ts_end", ""),
+                }
+            )
         except (json.JSONDecodeError, OSError):
             continue
     return results

@@ -20,7 +20,7 @@ setup() {
   # function definitions without executing the main loop.
   export SPIRAL_SCRATCH_DIR="$(mktemp -d)"
   export SPIRAL_MAX_DIFF_LINES=500
-  export PRD_FILE="/dev/null"   # won't be read — just needs to be set
+  export PRD_FILE="/dev/null" # won't be read — just needs to be set
   export PROGRESS_FILE="/dev/null"
 
   # Source only the relevant functions from ralph.sh by extracting and evaling

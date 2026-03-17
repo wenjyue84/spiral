@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 """Tests for DAG tier assignment (US-361)."""
 
-import json
 import sys
-import os
-import tempfile
 from pathlib import Path
 
 # Add lib to path

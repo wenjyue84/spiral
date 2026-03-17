@@ -116,8 +116,8 @@ print('OK')
   assert_success
   # Output should be smaller than input
   local input_size output_size
-  input_size=$(wc -c < "$TEST_DIR/large_research.json")
-  output_size=$(wc -c < "$TEST_DIR/output.json")
+  input_size=$(wc -c <"$TEST_DIR/large_research.json")
+  output_size=$(wc -c <"$TEST_DIR/output.json")
   [ "$output_size" -lt "$input_size" ]
 }
 

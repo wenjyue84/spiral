@@ -187,7 +187,7 @@ teardown() {
 
 @test "checkpoint preserves other fields during update" {
   # Create checkpoint with initial state
-  echo '{"iter":5,"phase":"I"}' > "$CHECKPOINT_FILE"
+  echo '{"iter":5,"phase":"I"}' >"$CHECKPOINT_FILE"
 
   "$PYTHON" lib/failure_attribution.py register-worker \
     --checkpoint "$CHECKPOINT_FILE" \

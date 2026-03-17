@@ -7,11 +7,10 @@ Uses Hypothesis for property-based testing of manifest generation and cleanup lo
 
 import json
 import os
-import shutil
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Callable, List
+from typing import List
 
 import pytest
 from hypothesis import HealthCheck, assume, given, settings
@@ -71,9 +70,7 @@ class TestManifestGeneration:
 
             # Create .gitignore
             (repo / ".gitignore").write_text("*.tmp\n__pycache__/\n")
-            subprocess.run(
-                ["git", "add", ".gitignore"], cwd=repo, check=True
-            )
+            subprocess.run(["git", "add", ".gitignore"], cwd=repo, check=True)
 
             # Create gitignored files
             (repo / "test.tmp").touch()
@@ -86,10 +83,7 @@ class TestManifestGeneration:
 
     @given(
         st.lists(
-            st.from_regex(
-                r"[a-zA-Z0-9_\-\.]{1,30}(\.[a-z]{2,4})?",
-                fullmatch=True
-            ),
+            st.from_regex(r"[a-zA-Z0-9_\-\.]{1,30}(\.[a-z]{2,4})?", fullmatch=True),
             min_size=0,
             max_size=20,
             unique=True,
@@ -130,7 +124,7 @@ class TestRollbackLogEvent:
             [
                 "bash",
                 "-c",
-                f"""
+                """
                 source lib/impl/commit_revert.sh
                 log_rollback_event "US-999" "success" "1500"
                 """,
@@ -165,7 +159,7 @@ class TestRollbackLogEvent:
             [
                 "bash",
                 "-c",
-                f"""
+                """
                 source lib/impl/commit_revert.sh
                 log_rollback_event "US-888" "stash_restore_failed" "2000" "test error"
                 """,
@@ -258,14 +252,10 @@ def _init_git_repo(repo: Path) -> None:
         cwd=repo,
         check=True,
     )
-    subprocess.run(
-        ["git", "config", "user.name", "Test User"], cwd=repo, check=True
-    )
+    subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo, check=True)
     (repo / "README.md").write_text("initial")
     subprocess.run(["git", "add", "README.md"], cwd=repo, check=True)
-    subprocess.run(
-        ["git", "commit", "-qm", "Initial commit"], cwd=repo, check=True
-    )
+    subprocess.run(["git", "commit", "-qm", "Initial commit"], cwd=repo, check=True)
 
 
 def _get_manifest_lines(repo: Path) -> List[str]:

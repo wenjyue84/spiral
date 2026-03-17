@@ -4,12 +4,10 @@ Tests for SPIRAL Evals Runner.
 Comprehensive test suite for evals_runner.py functionality.
 """
 
+import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
-
-import sys
 
 # Add lib to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
@@ -27,9 +25,7 @@ class TestDeterministicCheckResult:
 
     def test_create_passing_check(self) -> None:
         """Test creating a passing check result."""
-        result = DeterministicCheckResult(
-            name="test_check", passed=True, score=1.0, reason="All good"
-        )
+        result = DeterministicCheckResult(name="test_check", passed=True, score=1.0, reason="All good")
         assert result.name == "test_check"
         assert result.passed is True
         assert result.score == 1.0
@@ -37,9 +33,7 @@ class TestDeterministicCheckResult:
 
     def test_create_failing_check(self) -> None:
         """Test creating a failing check result."""
-        result = DeterministicCheckResult(
-            name="test_check", passed=False, score=0.0, reason="Failed validation"
-        )
+        result = DeterministicCheckResult(name="test_check", passed=False, score=0.0, reason="Failed validation")
         assert result.passed is False
         assert result.score == 0.0
 
@@ -49,9 +43,7 @@ class TestModelGradedResult:
 
     def test_create_model_result(self) -> None:
         """Test creating a model-graded result."""
-        result = ModelGradedResult(
-            name="quality_check", score=0.75, reason="Good quality"
-        )
+        result = ModelGradedResult(name="quality_check", score=0.75, reason="Good quality")
         assert result.name == "quality_check"
         assert result.score == 0.75
         assert result.reason == "Good quality"

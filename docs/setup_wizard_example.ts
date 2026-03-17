@@ -103,7 +103,7 @@ async function setupWizard() {
       if (!value) return 'Please enter an API key.';
     },
   });
-  
+
   p.note(
     'You can find pricing information for these models on their respective websites.
 Manage your API keys and spending limits in your provider dashboard.',

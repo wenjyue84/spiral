@@ -27,7 +27,7 @@ setup_file() {
   mkdir -p "$TEST_SCRATCH_DIR"
 
   # Create minimal prd.json with two stories
-  cat > "$TEST_REPO_ROOT/prd.json" <<'EOF'
+  cat >"$TEST_REPO_ROOT/prd.json" <<'EOF'
 {
   "schemaVersion": 1,
   "projectName": "Test Project",
@@ -62,7 +62,7 @@ setup_file() {
 EOF
 
   # Create minimal spiral.config.sh
-  cat > "$TEST_REPO_ROOT/spiral.config.sh" <<'EOF'
+  cat >"$TEST_REPO_ROOT/spiral.config.sh" <<'EOF'
 #!/bin/bash
 # Test spiral.config.sh
 export SPIRAL_PYTHON="python3"
@@ -78,7 +78,7 @@ EOF
 
   # Create mocked `claude` binary that returns canned research output
   mkdir -p "$TEST_REPO_ROOT/bin"
-  cat > "$TEST_REPO_ROOT/bin/claude" <<'EOF'
+  cat >"$TEST_REPO_ROOT/bin/claude" <<'EOF'
 #!/bin/bash
 # Mocked claude binary for testing — returns canned research output
 cat <<'RESEARCH'
@@ -96,7 +96,7 @@ EOF
   chmod +x "$TEST_REPO_ROOT/bin/claude"
 
   # Create mocked `ralph` script (no-op implementation runner)
-  cat > "$TEST_REPO_ROOT/bin/ralph" <<'EOF'
+  cat >"$TEST_REPO_ROOT/bin/ralph" <<'EOF'
 #!/bin/bash
 # Mocked ralph script — marks story as passing
 exit 0
@@ -107,7 +107,7 @@ EOF
   mkdir -p "$TEST_REPO_ROOT/lib"
 
   # Create lib/check_dag.py stub
-  cat > "$TEST_REPO_ROOT/lib/check_dag.py" <<'EOF'
+  cat >"$TEST_REPO_ROOT/lib/check_dag.py" <<'EOF'
 #!/usr/bin/env python3
 import sys
 sys.exit(0)
@@ -115,7 +115,7 @@ EOF
   chmod +x "$TEST_REPO_ROOT/lib/check_dag.py"
 
   # Create lib/validate_preflight.sh stub
-  cat > "$TEST_REPO_ROOT/lib/validate_preflight.sh" <<'EOF'
+  cat >"$TEST_REPO_ROOT/lib/validate_preflight.sh" <<'EOF'
 #!/bin/bash
 spiral_preflight_check() {
   return 0
@@ -124,7 +124,7 @@ EOF
   chmod +x "$TEST_REPO_ROOT/lib/validate_preflight.sh"
 
   # Create lib/check_done.py stub
-  cat > "$TEST_REPO_ROOT/lib/check_done.py" <<'EOF'
+  cat >"$TEST_REPO_ROOT/lib/check_done.py" <<'EOF'
 #!/usr/bin/env python3
 import sys
 sys.exit(1)  # Not done (return 1 to continue looping)
@@ -132,7 +132,7 @@ EOF
   chmod +x "$TEST_REPO_ROOT/lib/check_done.py"
 
   # Create lib/route_stories.py stub
-  cat > "$TEST_REPO_ROOT/lib/route_stories.py" <<'EOF'
+  cat >"$TEST_REPO_ROOT/lib/route_stories.py" <<'EOF'
 #!/usr/bin/env python3
 import sys
 sys.exit(0)
@@ -155,7 +155,7 @@ setup() {
   mkdir -p "$TEST_SCRATCH_DIR"
 
   # Create checkpoint file for test
-  cat > "$TEST_SCRATCH_DIR/_checkpoint.json" <<'EOF'
+  cat >"$TEST_SCRATCH_DIR/_checkpoint.json" <<'EOF'
 {
   "phase": "R",
   "iteration": 1,
@@ -185,8 +185,8 @@ EOF
 
   # ralph should not have run, so no _ralph_output.json
   # (or it should be empty)
-  [[ ! -f "$TEST_SCRATCH_DIR/_ralph_output.json" ]] || \
-    [[ $(wc -l < "$TEST_SCRATCH_DIR/_ralph_output.json") -eq 0 ]]
+  [[ ! -f "$TEST_SCRATCH_DIR/_ralph_output.json" ]] ||
+    [[ $(wc -l <"$TEST_SCRATCH_DIR/_ralph_output.json") -eq 0 ]]
 }
 
 # ── Test: --gate quit exits 0 ─────────────────────────────────────────────────
@@ -286,7 +286,7 @@ EOF
 
   # Create a post-phase hook that logs SPIRAL_CURRENT_PHASE
   local hook="$TEST_REPO_ROOT/bin/post-hook.sh"
-  cat > "$hook" <<'HOOKEOF'
+  cat >"$hook" <<'HOOKEOF'
 #!/bin/bash
 echo "$SPIRAL_CURRENT_PHASE" >> "$HOOK_LOG"
 exit 0
@@ -298,7 +298,7 @@ HOOKEOF
 
   # Hook should have been called for at least one phase
   [ -f "$hook_log" ]
-  [ "$(wc -l < "$hook_log")" -ge 1 ]
+  [ "$(wc -l <"$hook_log")" -ge 1 ]
 }
 
 @test "SPIRAL_PRE_PHASE_HOOK returning 0 allows spiral to continue" {
@@ -306,7 +306,7 @@ HOOKEOF
 
   # Create a pre-phase hook that always succeeds
   local hook="$TEST_REPO_ROOT/bin/pre-hook-ok.sh"
-  cat > "$hook" <<'HOOKEOF'
+  cat >"$hook" <<'HOOKEOF'
 #!/bin/bash
 exit 0
 HOOKEOF
@@ -325,7 +325,7 @@ HOOKEOF
 
   # Create a pre-phase hook that logs the phase
   local hook="$TEST_REPO_ROOT/bin/pre-hook-log.sh"
-  cat > "$hook" <<'HOOKEOF'
+  cat >"$hook" <<'HOOKEOF'
 #!/bin/bash
 echo "$SPIRAL_CURRENT_PHASE" >> "$HOOK_LOG"
 exit 0
@@ -345,7 +345,7 @@ HOOKEOF
 
   # Create a non-executable hook file
   local hook="$TEST_REPO_ROOT/bin/non-exec-hook.sh"
-  echo '#!/bin/bash' > "$hook"
+  echo '#!/bin/bash' >"$hook"
   # Deliberately NOT chmod +x
 
   # spiral.sh should still succeed (non-executable hook is a warning, not fatal)
@@ -360,7 +360,7 @@ HOOKEOF
 
   # Create a post-phase hook that exits immediately (should complete within 1s timeout)
   local hook="$TEST_REPO_ROOT/bin/fast-hook.sh"
-  cat > "$hook" <<'HOOKEOF'
+  cat >"$hook" <<'HOOKEOF'
 #!/bin/bash
 exit 0
 HOOKEOF

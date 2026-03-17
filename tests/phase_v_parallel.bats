@@ -23,7 +23,7 @@ setup() {
   TMPDIR_PV="$(mktemp -d)"
 
   # Stub helpers
-  log_spiral_event() { printf '{"type":"%s"}\n' "$1" >> "$TMPDIR_PV/events.jsonl"; }
+  log_spiral_event() { printf '{"type":"%s"}\n' "$1" >>"$TMPDIR_PV/events.jsonl"; }
   export -f log_spiral_event
 
   # Default env
@@ -51,9 +51,9 @@ run_parallel_injection() {
   # Mock SPIRAL_PYTHON: stub that either succeeds or fails import xdist
   local SPIRAL_PYTHON="${TMPDIR_PV}/mock_python.sh"
   if [[ "${SPIRAL_PYTHON_HAS_XDIST:-false}" == "true" ]]; then
-    printf '#!/bin/bash\nif [[ "$*" == *"import xdist"* ]]; then exit 0; fi\necho "0.1.0"\n' > "$SPIRAL_PYTHON"
+    printf '#!/bin/bash\nif [[ "$*" == *"import xdist"* ]]; then exit 0; fi\necho "0.1.0"\n' >"$SPIRAL_PYTHON"
   else
-    printf '#!/bin/bash\nif [[ "$*" == *"import xdist"* ]]; then exit 1; fi\n' > "$SPIRAL_PYTHON"
+    printf '#!/bin/bash\nif [[ "$*" == *"import xdist"* ]]; then exit 1; fi\n' >"$SPIRAL_PYTHON"
   fi
   chmod +x "$SPIRAL_PYTHON"
 
@@ -61,7 +61,7 @@ run_parallel_injection() {
   if [[ "${PARALLEL_AVAILABLE:-false}" == "true" ]]; then
     local _parallel_dir="${TMPDIR_PV}/bin"
     mkdir -p "$_parallel_dir"
-    printf '#!/bin/bash\nexit 0\n' > "$_parallel_dir/parallel"
+    printf '#!/bin/bash\nexit 0\n' >"$_parallel_dir/parallel"
     chmod +x "$_parallel_dir/parallel"
     export PATH="$_parallel_dir:$PATH"
   else
@@ -75,7 +75,7 @@ run_parallel_injection() {
       _TEST_WORKERS="$SPIRAL_TEST_WORKERS"
     else
       _NPROC=$(nproc 2>/dev/null || echo 2)
-      _TEST_WORKERS=$(( _NPROC / 2 ))
+      _TEST_WORKERS=$((_NPROC / 2))
       [[ "$_TEST_WORKERS" -lt 1 ]] && _TEST_WORKERS=1
     fi
     if echo "$_EFFECTIVE_VALIDATE_CMD" | grep -q "pytest"; then
@@ -172,7 +172,7 @@ run_parallel_injection() {
   export SPIRAL_PARALLEL_TESTS="true"
   export SPIRAL_PYTHON_HAS_XDIST="true"
   export SPIRAL_TEST_WORKERS="2"
-  run_parallel_injection "uv run pytest tests/" > /dev/null
+  run_parallel_injection "uv run pytest tests/" >/dev/null
   [ -f "$TMPDIR_PV/events.jsonl" ]
   grep -q "phase_v_parallel" "$TMPDIR_PV/events.jsonl"
 }
@@ -181,7 +181,7 @@ run_parallel_injection() {
   export SPIRAL_PARALLEL_TESTS="true"
   export PARALLEL_AVAILABLE="true"
   export SPIRAL_TEST_WORKERS="2"
-  run_parallel_injection "bats tests/foo.bats" > /dev/null
+  run_parallel_injection "bats tests/foo.bats" >/dev/null
   [ -f "$TMPDIR_PV/events.jsonl" ]
   grep -q "phase_v_parallel" "$TMPDIR_PV/events.jsonl"
 }

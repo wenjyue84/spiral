@@ -21,7 +21,7 @@ bats_require_minimum_version 1.7.0
 run_compress() {
   local current_iter="$1"
   local scratch="$2"
-  local gzip_cmd="${3:-gzip}"   # pass "false" to simulate gzip unavailable
+  local gzip_cmd="${3:-gzip}" # pass "false" to simulate gzip unavailable
 
   bash -c '
     set -euo pipefail
@@ -95,7 +95,7 @@ teardown() {
 # ── Tests ─────────────────────────────────────────────────────────────────────
 
 @test "no-op when current_iter < 3 (iter=1)" {
-  echo '{}' > "$TMP_SCRATCH/prd-backups/prd-iter1.json"
+  echo '{}' >"$TMP_SCRATCH/prd-backups/prd-iter1.json"
   touch "$TMP_SCRATCH/_phase_R_1.ckpt"
 
   run run_compress 1 "$TMP_SCRATCH"
@@ -107,7 +107,7 @@ teardown() {
 }
 
 @test "no-op when current_iter < 3 (iter=2)" {
-  echo '{}' > "$TMP_SCRATCH/prd-backups/prd-iter1.json"
+  echo '{}' >"$TMP_SCRATCH/prd-backups/prd-iter1.json"
 
   run run_compress 2 "$TMP_SCRATCH"
   assert_success
@@ -117,7 +117,7 @@ teardown() {
 }
 
 @test "iter 1 prd-backup is compressed when current_iter=3" {
-  echo '{"iter":1}' > "$TMP_SCRATCH/prd-backups/prd-iter1.json"
+  echo '{"iter":1}' >"$TMP_SCRATCH/prd-backups/prd-iter1.json"
 
   run run_compress 3 "$TMP_SCRATCH"
   assert_success
@@ -128,18 +128,18 @@ teardown() {
 }
 
 @test "iter N-1 and N prd-backups remain uncompressed" {
-  echo '{"iter":1}' > "$TMP_SCRATCH/prd-backups/prd-iter1.json"
-  echo '{"iter":2}' > "$TMP_SCRATCH/prd-backups/prd-iter2.json"
-  echo '{"iter":3}' > "$TMP_SCRATCH/prd-backups/prd-iter3.json"
+  echo '{"iter":1}' >"$TMP_SCRATCH/prd-backups/prd-iter1.json"
+  echo '{"iter":2}' >"$TMP_SCRATCH/prd-backups/prd-iter2.json"
+  echo '{"iter":3}' >"$TMP_SCRATCH/prd-backups/prd-iter3.json"
 
   # At iter=3: threshold=1, so only iter1 is compressed; iter2 and iter3 stay
   run run_compress 3 "$TMP_SCRATCH"
   assert_success
 
   [ ! -f "$TMP_SCRATCH/prd-backups/prd-iter1.json" ]
-  [ -f  "$TMP_SCRATCH/prd-backups/prd-iter1.json.gz" ]
-  [ -f  "$TMP_SCRATCH/prd-backups/prd-iter2.json" ]
-  [ -f  "$TMP_SCRATCH/prd-backups/prd-iter3.json" ]
+  [ -f "$TMP_SCRATCH/prd-backups/prd-iter1.json.gz" ]
+  [ -f "$TMP_SCRATCH/prd-backups/prd-iter2.json" ]
+  [ -f "$TMP_SCRATCH/prd-backups/prd-iter3.json" ]
 }
 
 @test "phase ckpt files from old iters are compressed" {
@@ -150,26 +150,26 @@ teardown() {
   assert_success
 
   [ ! -f "$TMP_SCRATCH/_phase_R_1.ckpt" ]
-  [ -f  "$TMP_SCRATCH/_phase_R_1.ckpt.gz" ]
+  [ -f "$TMP_SCRATCH/_phase_R_1.ckpt.gz" ]
   [ ! -f "$TMP_SCRATCH/_phase_T_1.ckpt" ]
-  [ -f  "$TMP_SCRATCH/_phase_T_1.ckpt.gz" ]
+  [ -f "$TMP_SCRATCH/_phase_T_1.ckpt.gz" ]
 }
 
 @test "endtime files from old iters are compressed" {
-  echo "1741234567" > "$TMP_SCRATCH/_phase_R_1.endtime"
-  echo "1741234568" > "$TMP_SCRATCH/_phase_T_1.endtime"
+  echo "1741234567" >"$TMP_SCRATCH/_phase_R_1.endtime"
+  echo "1741234568" >"$TMP_SCRATCH/_phase_T_1.endtime"
 
   run run_compress 3 "$TMP_SCRATCH"
   assert_success
 
   [ ! -f "$TMP_SCRATCH/_phase_R_1.endtime" ]
-  [ -f  "$TMP_SCRATCH/_phase_R_1.endtime.gz" ]
+  [ -f "$TMP_SCRATCH/_phase_R_1.endtime.gz" ]
   [ ! -f "$TMP_SCRATCH/_phase_T_1.endtime" ]
-  [ -f  "$TMP_SCRATCH/_phase_T_1.endtime.gz" ]
+  [ -f "$TMP_SCRATCH/_phase_T_1.endtime.gz" ]
 }
 
 @test "already-compressed .gz files are not double-compressed" {
-  echo '{"iter":1}' > "$TMP_SCRATCH/prd-backups/prd-iter1.json"
+  echo '{"iter":1}' >"$TMP_SCRATCH/prd-backups/prd-iter1.json"
   gzip "$TMP_SCRATCH/prd-backups/prd-iter1.json"
   # .gz exists, original is gone
 
@@ -177,12 +177,12 @@ teardown() {
   assert_success
 
   # .gz still present, no .gz.gz
-  [ -f  "$TMP_SCRATCH/prd-backups/prd-iter1.json.gz" ]
+  [ -f "$TMP_SCRATCH/prd-backups/prd-iter1.json.gz" ]
   [ ! -f "$TMP_SCRATCH/prd-backups/prd-iter1.json.gz.gz" ]
 }
 
 @test "_checkpoint.json is never compressed" {
-  echo '{"iter":1,"phase":"C"}' > "$TMP_SCRATCH/_checkpoint.json"
+  echo '{"iter":1,"phase":"C"}' >"$TMP_SCRATCH/_checkpoint.json"
 
   run run_compress 5 "$TMP_SCRATCH"
   assert_success
@@ -192,7 +192,7 @@ teardown() {
 }
 
 @test "gate-reports/latest-review.html is never compressed" {
-  echo "<html></html>" > "$TMP_SCRATCH/gate-reports/latest-review.html"
+  echo "<html></html>" >"$TMP_SCRATCH/gate-reports/latest-review.html"
 
   run run_compress 5 "$TMP_SCRATCH"
   assert_success
@@ -202,7 +202,7 @@ teardown() {
 }
 
 @test "debug log line is emitted when SPIRAL_LOG_LEVEL=DEBUG" {
-  echo '{"iter":1}' > "$TMP_SCRATCH/prd-backups/prd-iter1.json"
+  echo '{"iter":1}' >"$TMP_SCRATCH/prd-backups/prd-iter1.json"
 
   run run_compress 3 "$TMP_SCRATCH"
   assert_success
@@ -211,7 +211,7 @@ teardown() {
 }
 
 @test "skips gracefully when gzip is unavailable" {
-  echo '{"iter":1}' > "$TMP_SCRATCH/prd-backups/prd-iter1.json"
+  echo '{"iter":1}' >"$TMP_SCRATCH/prd-backups/prd-iter1.json"
 
   run run_compress 3 "$TMP_SCRATCH" "false"
   assert_success

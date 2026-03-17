@@ -17,7 +17,6 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-import math
 import os
 import sys
 from pathlib import Path
@@ -271,10 +270,10 @@ def format_report(model: dict[str, Any]) -> str:
         mean_retries = entry.get("mean_retries", 0.0)
         marker = "" if samples >= MIN_HISTORY_ROWS else "*"
         rows_out.append(
-            f"  {story_type+marker:<{col_w[0]}} "
+            f"  {story_type + marker:<{col_w[0]}} "
             f"{samples:>{col_w[1]}} "
             f"{int(mean_tokens):>{col_w[2]},} "
-            f"${mean_cost:>{col_w[3]-1}.4f} "
+            f"${mean_cost:>{col_w[3] - 1}.4f} "
             f"{pass_rate:>{col_w[4]}.1%} "
             f"{mean_retries:>{col_w[5]}.2f}"
         )

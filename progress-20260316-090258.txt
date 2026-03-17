@@ -2137,7 +2137,7 @@ Completed: Add model fallback chain with per-model circuit breaker state (ID: US
 ### What was implemented
 - Added `SPIRAL_RESEARCH_RETRIES` config var (default 2) at line ~253 of spiral.sh alongside other timeout configs
 - Wrapped the Claude Phase R invocation in a retry loop: up to `SPIRAL_RESEARCH_RETRIES + 1` total attempts
-- After each attempt, validates `_research_output.json` exists and is valid JSON using `python3 -c "import json; json.load(open(...))"` 
+- After each attempt, validates `_research_output.json` exists and is valid JSON using `python3 -c "import json; json.load(open(...))"`
 - On validation success: break out of loop with `_R_SUCCESS=1`
 - On all retries exhausted: print warning and write empty `{"stories":[]}` fallback
 - Each retry prints: `[R] Research output missing or invalid — retrying (attempt N/TOTAL)`
@@ -5655,7 +5655,7 @@ Completed: Replace GitHub Actions long-lived secrets with OIDC short-lived token
 
 ### Gotchas
 - `test_route_stories.py` has a pre-existing ImportError (relative import issue) — always ignore it
-- Tests take ~3 minutes to run (957 tests); use `--ignore=tests/test_route_stories.py` 
+- Tests take ~3 minutes to run (957 tests); use `--ignore=tests/test_route_stories.py`
 ## Iteration 3 - Sun, Mar 15, 2026  7:32:07 PM
 Incomplete: Implement explicit prompt cache breakpoints for system prompts and PRD context (ID: US-223) — attempt /3
 
@@ -7978,4 +7978,3 @@ Here is the technical brief for implementing story US-199.
 *   **Uncategorized Stories**: Stories without a `priority` should be placed at the root of the graph, outside any cluster.
 *   **Invalid Status**: If a story has an unrecognized status, default to a neutral color (e.g., white or gray) to prevent rendering errors.
 *   **Node/Graph Labels**: Ensure story titles or IDs used as node labels are properly escaped to avoid syntax errors in the DOT file. The `graphviz` library typically handles this automatically.
-

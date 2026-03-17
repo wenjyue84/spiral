@@ -19,6 +19,7 @@ import yaml  # type: ignore[import-untyped]
 @dataclass
 class DeterministicCheckResult:
     """Result of a deterministic check."""
+
     name: str
     passed: bool
     score: float  # 0-1
@@ -28,6 +29,7 @@ class DeterministicCheckResult:
 @dataclass
 class ModelGradedResult:
     """Result of a model-graded check."""
+
     name: str
     score: float  # 0-10, normalized to 0-1
     reason: str
@@ -36,6 +38,7 @@ class ModelGradedResult:
 @dataclass
 class EvalResult:
     """Aggregated result for an eval."""
+
     eval_name: str
     passed: bool
     deterministic_score: float
@@ -66,9 +69,7 @@ class EvalRunner:
         """Load a single eval.yaml file."""
         with open(eval_file, "r") as f:
             eval_def_raw = yaml.safe_load(f)
-        eval_def: Dict[str, Any] = (
-            eval_def_raw if isinstance(eval_def_raw, dict) else {}
-        )
+        eval_def: Dict[str, Any] = eval_def_raw if isinstance(eval_def_raw, dict) else {}
         eval_def["_path"] = eval_file
         return eval_def
 
@@ -80,9 +81,7 @@ class EvalRunner:
 
         # Resolve relative paths from the eval.yaml file's directory
         eval_path: Any = eval_def.get("_path", self.eval_dir / "eval.yaml")
-        eval_file_dir = (
-            Path(eval_path).parent if eval_path else self.eval_dir
-        )
+        eval_file_dir = Path(eval_path).parent if eval_path else self.eval_dir
 
         # Resolve data_source path relative to eval file location
         data_source_str = str(data_source)
@@ -99,9 +98,7 @@ class EvalRunner:
                     rows.append(row)
         return rows
 
-    def run_deterministic_check(
-        self, check: Dict[str, Any], data_row: Dict[str, Any]
-    ) -> DeterministicCheckResult:
+    def run_deterministic_check(self, check: Dict[str, Any], data_row: Dict[str, Any]) -> DeterministicCheckResult:
         """Execute a single deterministic check."""
         name = check.get("name", "unknown")
         check_type = check.get("check_type")
@@ -148,9 +145,7 @@ class EvalRunner:
 
         return DeterministicCheckResult(name=name, passed=passed, score=score, reason=reason)
 
-    def run_model_graded_check(
-        self, check: Dict[str, Any], data_row: Dict[str, Any]
-    ) -> ModelGradedResult:
+    def run_model_graded_check(self, check: Dict[str, Any], data_row: Dict[str, Any]) -> ModelGradedResult:
         """
         Execute a model-graded check.
 

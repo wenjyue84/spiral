@@ -52,7 +52,7 @@ def create_chunks(lines: List[str], size: int, overlap: int) -> List[str]:
     """Splits a list of lines into overlapping chunks."""
     if not lines:
         return []
-    
+
     chunks = []
     for i in range(0, len(lines), size - overlap):
         chunk = lines[i:i + size]
@@ -102,7 +102,7 @@ def main():
 
     # 4. Select the best chunks
     top_results = torch.topk(cosine_scores, k=min(MAX_CHUNKS, len(chunks)), sorted=True)
-    
+
     selected_chunks = []
     print(f"--- Relevant chunks from {args.file} ---
 ", file=sys.stderr)
@@ -111,10 +111,10 @@ def main():
         if score >= SIMILARITY_THRESHOLD:
             chunk_index = idx.item()
             start_line = max(0, chunk_index * (CHUNK_SIZE - CHUNK_OVERLAP))
-            
+
             # To avoid printing overlapping chunks multiple times, we can add a check here,
             # but for now, we will just print them for simplicity.
-            
+
             selected_chunks.append(chunks[chunk_index])
             print(f"Chunk {i+1} (score: {score:.2f}, lines ~{start_line+1}-{start_line+CHUNK_SIZE}):
 {chunks[chunk_index]}

@@ -407,6 +407,3 @@ Generated automatically by [git-cliff](https://git-cliff.org/).
 - US-120 - Harden GitHub Actions with SHA-pinned actions and least-privilege permissions ([e48162a](e48162a135fe6149a7bca0b0623b471866ca1f36))
 
 - US-121 - Add named exit code constants to spiral.sh ([f60b282](f60b282ea5099813752556cc25deb67889d39702))
-
-
-

@@ -70,7 +70,7 @@ setup() {
   git -C "$REPO" config user.name "Spiral Test"
 
   # Initial commit so the repo has a HEAD
-  echo "initial" > "$REPO/README.md"
+  echo "initial" >"$REPO/README.md"
   git -C "$REPO" add README.md
   git -C "$REPO" commit -q -m "init"
 
@@ -99,8 +99,8 @@ teardown() {
 
 @test "dirty tree + SPIRAL_AUTO_STASH=false: DIRTY_SKIP_RALPH=1 (abort path)" {
   # Create an uncommitted file
-  echo "dirty" > "$REPO/dirty.txt"
-  git -C "$REPO" add dirty.txt   # staged but not committed
+  echo "dirty" >"$REPO/dirty.txt"
+  git -C "$REPO" add dirty.txt # staged but not committed
 
   run run_dirty_guard "$REPO" "false"
   assert_failure 1
@@ -110,7 +110,7 @@ teardown() {
 
 @test "dirty tree + SPIRAL_AUTO_STASH=false: untracked file also triggers abort" {
   # Untracked file (not staged)
-  echo "untracked" > "$REPO/untracked.txt"
+  echo "untracked" >"$REPO/untracked.txt"
 
   run run_dirty_guard "$REPO" "false"
   assert_failure 1
@@ -118,7 +118,7 @@ teardown() {
 }
 
 @test "dirty tree + SPIRAL_AUTO_STASH=true: stash is created, DIRTY_SKIP_RALPH=0" {
-  echo "dirty" > "$REPO/dirty.txt"
+  echo "dirty" >"$REPO/dirty.txt"
   git -C "$REPO" add dirty.txt
 
   run run_dirty_guard "$REPO" "true"
@@ -132,7 +132,7 @@ teardown() {
 }
 
 @test "dirty tree + SPIRAL_AUTO_STASH=true: stash ref is reported" {
-  echo "modified content" >> "$REPO/README.md"
+  echo "modified content" >>"$REPO/README.md"
 
   run run_dirty_guard "$REPO" "true"
   assert_success
@@ -140,7 +140,7 @@ teardown() {
 }
 
 @test "dirty tree + SPIRAL_AUTO_STASH=true: stash pop restores changes" {
-  echo "important work" > "$REPO/work.txt"
+  echo "important work" >"$REPO/work.txt"
   git -C "$REPO" add work.txt
 
   # Stash the changes
@@ -160,7 +160,7 @@ teardown() {
 }
 
 @test "stash message contains iter number" {
-  echo "change" >> "$REPO/README.md"
+  echo "change" >>"$REPO/README.md"
   git -C "$REPO" add README.md
 
   run run_dirty_guard "$REPO" "true"

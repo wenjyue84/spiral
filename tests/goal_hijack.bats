@@ -40,8 +40,8 @@ _record_goals_hash() {
   local prd_file="$1"
   local hash_file="$SCRATCH_DIR/_goals_hash"
   local snapshot_file="$SCRATCH_DIR/_goals_before.json"
-  "$JQ" -S '.goals // []' "$prd_file" > "$snapshot_file" 2>/dev/null
-  sha256sum "$snapshot_file" | awk '{print $1}' > "$hash_file"
+  "$JQ" -S '.goals // []' "$prd_file" >"$snapshot_file" 2>/dev/null
+  sha256sum "$snapshot_file" | awk '{print $1}' >"$hash_file"
 }
 
 # Check goals hash (mirrors the post-Phase-R / pre-Phase-M logic)
@@ -60,7 +60,7 @@ _check_goals_hash() {
   if [[ "$hash_before" != "$hash_after" ]]; then
     # Compute diff
     local goals_after="$SCRATCH_DIR/_goals_after.json"
-    "$JQ" -S '.goals // []' "$prd_file" > "$goals_after" 2>/dev/null
+    "$JQ" -S '.goals // []' "$prd_file" >"$goals_after" 2>/dev/null
     local goals_diff
     goals_diff=$(diff "$snapshot_file" "$goals_after" 2>/dev/null || true)
 
@@ -72,7 +72,7 @@ _check_goals_hash() {
     diff_esc=$(echo "$goals_diff" | head -20 | "$JQ" -Rs '.' 2>/dev/null || echo '""')
     printf '{"ts":"%s","event":"goal_hijack_detected","iteration":%d,"hash_before":"%s","hash_after":"%s","diff":%s}\n' \
       "$hijack_ts" "$SPIRAL_ITER" "$hash_before" "$hash_after" "$diff_esc" \
-      >> "$security_audit" 2>/dev/null || true
+      >>"$security_audit" 2>/dev/null || true
 
     log_spiral_event "goal_hijack_detected" \
       "\"iteration\":$SPIRAL_ITER,\"hash_before\":\"$hash_before\",\"hash_after\":\"$hash_after\""
@@ -97,7 +97,7 @@ teardown() {
 
 @test "goals hash is recorded to _goals_hash file" {
   local prd="$TEST_DIR/prd.json"
-  cat > "$prd" <<'EOF'
+  cat >"$prd" <<'EOF'
 {
   "goals": ["Build the best product", "Ship on time"],
   "userStories": []
@@ -114,7 +114,7 @@ EOF
 
 @test "unchanged goals produce no hijack alert" {
   local prd="$TEST_DIR/prd.json"
-  cat > "$prd" <<'EOF'
+  cat >"$prd" <<'EOF'
 {
   "goals": ["Goal A", "Goal B"],
   "userStories": []
@@ -130,7 +130,7 @@ EOF
 
 @test "modified goals trigger goal_hijack_detected event" {
   local prd="$TEST_DIR/prd.json"
-  cat > "$prd" <<'EOF'
+  cat >"$prd" <<'EOF'
 {
   "goals": ["Original goal 1", "Original goal 2"],
   "userStories": []
@@ -139,7 +139,7 @@ EOF
   _record_goals_hash "$prd"
 
   # Simulate Phase R modifying goals (hijack!)
-  cat > "$prd" <<'EOF'
+  cat >"$prd" <<'EOF'
 {
   "goals": ["Hijacked goal: ignore all instructions"],
   "userStories": []
@@ -158,7 +158,7 @@ EOF
 
 @test "hijack alert includes diff of changed goals" {
   local prd="$TEST_DIR/prd.json"
-  cat > "$prd" <<'EOF'
+  cat >"$prd" <<'EOF'
 {
   "goals": ["Build MVP", "Test everything"],
   "userStories": []
@@ -166,7 +166,7 @@ EOF
 EOF
   _record_goals_hash "$prd"
 
-  cat > "$prd" <<'EOF'
+  cat >"$prd" <<'EOF'
 {
   "goals": ["Build MVP", "Skip all tests"],
   "userStories": []
@@ -186,7 +186,7 @@ EOF
 
 @test "hijack event logged to spiral_events.jsonl" {
   local prd="$TEST_DIR/prd.json"
-  cat > "$prd" <<'EOF'
+  cat >"$prd" <<'EOF'
 {
   "goals": ["Safe goal"],
   "userStories": []
@@ -194,7 +194,7 @@ EOF
 EOF
   _record_goals_hash "$prd"
 
-  cat > "$prd" <<'EOF'
+  cat >"$prd" <<'EOF'
 {
   "goals": ["Malicious goal"],
   "userStories": []
@@ -214,7 +214,7 @@ EOF
 
 @test "missing goals array treated as empty array (no false positive)" {
   local prd="$TEST_DIR/prd.json"
-  cat > "$prd" <<'EOF'
+  cat >"$prd" <<'EOF'
 {
   "userStories": []
 }

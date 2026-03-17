@@ -28,9 +28,9 @@ check_claude_api() {
   # Probe the Anthropic API with a 5-second timeout.
   # Any HTTP response (even 401) means the network path is open.
   if curl -sf --connect-timeout 5 --max-time 5 \
-      -H "x-api-key: ${ANTHROPIC_API_KEY}" \
-      -H "anthropic-version: 2023-06-01" \
-      "https://api.anthropic.com/v1/models" >/dev/null 2>&1; then
+    -H "x-api-key: ${ANTHROPIC_API_KEY}" \
+    -H "anthropic-version: 2023-06-01" \
+    "https://api.anthropic.com/v1/models" >/dev/null 2>&1; then
     echo "  [doctor] [OK] Claude API reachable"
     return 0
   else
@@ -50,7 +50,7 @@ check_git_author() {
   # If SPIRAL_GIT_AUTHOR is set, parse it and auto-configure git identity.
   if [[ -n "${SPIRAL_GIT_AUTHOR:-}" ]]; then
     git_name="${SPIRAL_GIT_AUTHOR%%<*}"
-    git_name="${git_name%% }"   # strip trailing space
+    git_name="${git_name%% }" # strip trailing space
     git_email="${SPIRAL_GIT_AUTHOR#*<}"
     git_email="${git_email%>*}"
     if [[ -n "$git_name" && -n "$git_email" ]]; then
@@ -69,7 +69,7 @@ check_git_author() {
 
   if [[ -z "$git_name" || -z "$git_email" ]]; then
     local missing=""
-    [[ -z "$git_name" ]]  && missing+=" user.name"
+    [[ -z "$git_name" ]] && missing+=" user.name"
     [[ -z "$git_email" ]] && missing+=" user.email"
     echo "  [doctor] [ERROR] git identity not configured (missing:${missing})"
     echo "           → Fix: git config --global user.name  \"Your Name\""
@@ -106,7 +106,7 @@ spiral_doctor() {
     local jq_major jq_minor
     jq_major=$(echo "$jq_version" | cut -d. -f1)
     jq_minor=$(echo "$jq_version" | cut -d. -f2 | grep -o '^[0-9]*')
-    if [[ "$jq_major" -gt 1 || ( "$jq_major" -eq 1 && "${jq_minor:-0}" -ge 6 ) ]]; then
+    if [[ "$jq_major" -gt 1 || ("$jq_major" -eq 1 && "${jq_minor:-0}" -ge 6) ]]; then
       echo "  [doctor] [OK] jq found in PATH (version: ${jq_version}, --stream supported)"
     else
       echo "  [doctor] [WARN] jq ${jq_version} found but 1.6+ is required for SPIRAL_PRD_STREAM_THRESHOLD_KB (--stream support)"
@@ -169,9 +169,9 @@ spiral_doctor() {
   # ── Check prd.json file size (US-156) ───────────────────────────────────────
   if [[ -f "${PRD_FILE:-prd.json}" ]]; then
     local _prd_size_bytes
-    _prd_size_bytes=$(wc -c < "${PRD_FILE:-prd.json}" 2>/dev/null || echo "0")
+    _prd_size_bytes=$(wc -c <"${PRD_FILE:-prd.json}" 2>/dev/null || echo "0")
     if [[ "$_prd_size_bytes" -gt 1048576 ]]; then
-      local _prd_size_kb=$(( _prd_size_bytes / 1024 ))
+      local _prd_size_kb=$((_prd_size_bytes / 1024))
       echo "  [doctor] [WARN] prd.json is ${_prd_size_kb} KB (>1 MB) — consider running 'spiral compact-prd'"
       echo "           → Info: Transient runtime fields accumulate over many runs and inflate file size."
       warn_count=$((warn_count + 1))
@@ -282,7 +282,7 @@ spiral_doctor() {
   # ── Check Ollama reachability (when SPIRAL_OLLAMA_FALLBACK_MODEL is set) ────
   if [[ -n "${SPIRAL_OLLAMA_FALLBACK_MODEL:-}" ]]; then
     local ollama_base="${SPIRAL_OLLAMA_HOST:-http://localhost:11434/v1}"
-    ollama_base="${ollama_base%/v1}"  # strip /v1 suffix to get base URL
+    ollama_base="${ollama_base%/v1}" # strip /v1 suffix to get base URL
     if curl -sf --connect-timeout 3 --max-time 5 "${ollama_base}/api/tags" >/dev/null 2>&1; then
       echo "  [doctor] [OK] Ollama reachable at $ollama_base (model: $SPIRAL_OLLAMA_FALLBACK_MODEL)"
     else

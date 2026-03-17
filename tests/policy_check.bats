@@ -24,7 +24,7 @@ setup() {
   export NEXT_STORY="US-TEST"
 
   # Minimal prd.json
-  printf '%s\n' '{"userStories":[{"id":"US-TEST","title":"Test Story","passes":false}]}' > "$PRD_FILE"
+  printf '%s\n' '{"userStories":[{"id":"US-TEST","title":"Test Story","passes":false}]}' >"$PRD_FILE"
 
   # Source the policy library
   source lib/policy_check.sh
@@ -64,7 +64,7 @@ teardown() {
 }
 
 @test "policy_load does not overwrite existing policy file" {
-  printf '%s\n' '{"global":{"allow":[],"deny":["git_commit"]}}' > "$SPIRAL_POLICY_FILE"
+  printf '%s\n' '{"global":{"allow":[],"deny":["git_commit"]}}' >"$SPIRAL_POLICY_FILE"
   policy_load
   result=$("$JQ" -r '.global.deny[0]' "$SPIRAL_POLICY_FILE")
   [ "$result" = "git_commit" ]
@@ -73,13 +73,13 @@ teardown() {
 # ── Tests: policy_check — allow ───────────────────────────────────────────────
 
 @test "policy_check allows operation when deny list is empty" {
-  printf '%s\n' '{"global":{"allow":["*"],"deny":[]}}' > "$SPIRAL_POLICY_FILE"
+  printf '%s\n' '{"global":{"allow":["*"],"deny":[]}}' >"$SPIRAL_POLICY_FILE"
   run policy_check "git_commit" "I"
   assert_success
 }
 
 @test "policy_check allows operation not in deny list" {
-  printf '%s\n' '{"global":{"allow":[],"deny":["git_push"]}}' > "$SPIRAL_POLICY_FILE"
+  printf '%s\n' '{"global":{"allow":[],"deny":["git_push"]}}' >"$SPIRAL_POLICY_FILE"
   run policy_check "git_commit" "I"
   assert_success
 }
@@ -94,31 +94,31 @@ teardown() {
 # ── Tests: policy_check — deny ────────────────────────────────────────────────
 
 @test "policy_check blocks operation matching global deny list" {
-  printf '%s\n' '{"global":{"allow":[],"deny":["git_push"]}}' > "$SPIRAL_POLICY_FILE"
+  printf '%s\n' '{"global":{"allow":[],"deny":["git_push"]}}' >"$SPIRAL_POLICY_FILE"
   run policy_check "git_push" "I"
   assert_failure 1
 }
 
 @test "policy_check blocks operation matching phase-specific deny list" {
-  printf '%s\n' '{"global":{"allow":["*"],"deny":[]},"I":{"allow":[],"deny":["story_reset"]}}' > "$SPIRAL_POLICY_FILE"
+  printf '%s\n' '{"global":{"allow":["*"],"deny":[]},"I":{"allow":[],"deny":["story_reset"]}}' >"$SPIRAL_POLICY_FILE"
   run policy_check "story_reset" "I"
   assert_failure 1
 }
 
 @test "policy_check blocks operation matching wildcard deny pattern" {
-  printf '%s\n' '{"global":{"allow":[],"deny":["git_*"]}}' > "$SPIRAL_POLICY_FILE"
+  printf '%s\n' '{"global":{"allow":[],"deny":["git_*"]}}' >"$SPIRAL_POLICY_FILE"
   run policy_check "git_push" "I"
   assert_failure 1
 }
 
 @test "policy_check blocks git_merge matching wildcard" {
-  printf '%s\n' '{"global":{"allow":[],"deny":["git_*"]}}' > "$SPIRAL_POLICY_FILE"
+  printf '%s\n' '{"global":{"allow":[],"deny":["git_*"]}}' >"$SPIRAL_POLICY_FILE"
   run policy_check "git_merge" "M"
   assert_failure 1
 }
 
 @test "phase-specific deny blocks in that phase but not other phases" {
-  printf '%s\n' '{"global":{"allow":["*"],"deny":[]},"I":{"allow":[],"deny":["git_commit"]}}' > "$SPIRAL_POLICY_FILE"
+  printf '%s\n' '{"global":{"allow":["*"],"deny":[]},"I":{"allow":[],"deny":["git_commit"]}}' >"$SPIRAL_POLICY_FILE"
   # In phase I: git_commit is denied
   run policy_check "git_commit" "I"
   assert_failure 1
@@ -128,7 +128,7 @@ teardown() {
 }
 
 @test "policy_check global deny blocks across all phases" {
-  printf '%s\n' '{"global":{"allow":[],"deny":["git_push_force"]},"I":{"allow":["*"],"deny":[]}}' > "$SPIRAL_POLICY_FILE"
+  printf '%s\n' '{"global":{"allow":[],"deny":["git_push_force"]},"I":{"allow":["*"],"deny":[]}}' >"$SPIRAL_POLICY_FILE"
   run policy_check "git_push_force" "I"
   assert_failure 1
 }

@@ -62,7 +62,7 @@ source_watchdog_functions() {
   export LOG_FILE="$TMPDIR_WD/scratch/_memory_watchdog.log"
 
   # Manually replicate the THRESHOLDS array (IFS split from script)
-  IFS=',' read -r -a THRESHOLDS <<< "$THRESHOLD_PCT"
+  IFS=',' read -r -a THRESHOLDS <<<"$THRESHOLD_PCT"
   export THRESHOLDS
 
   # Source just the function definitions (not the main loop) from the script
@@ -219,7 +219,7 @@ source_watchdog_functions() {
   # Check the file was created at the custom location OR default (platform may vary)
   # Accept either to keep the test portable
   local signal_file="${SPIRAL_MEMORY_SIGNAL_FILE:-${SCRATCH_DIR}/_memory_pressure.json}"
-  true  # Accept: the override env var path is set correctly
+  true # Accept: the override env var path is set correctly
   unset SPIRAL_MEMORY_SIGNAL_FILE
 }
 

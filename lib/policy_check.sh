@@ -34,7 +34,7 @@ policy_load() {
   local policy_file="${SPIRAL_POLICY_FILE:-${SPIRAL_SCRATCH_DIR:-.spiral}/policy.json}"
   if [[ ! -f "$policy_file" ]]; then
     mkdir -p "$(dirname "$policy_file")" 2>/dev/null || true
-    printf '%s\n' "$SPIRAL_POLICY_DEFAULTS" > "$policy_file" 2>/dev/null || true
+    printf '%s\n' "$SPIRAL_POLICY_DEFAULTS" >"$policy_file" 2>/dev/null || true
   fi
   echo "$policy_file"
 }
@@ -51,12 +51,13 @@ policy_check() {
   policy_file=$(policy_load)
 
   if [[ ! -f "$policy_file" ]]; then
-    return 0  # No policy file → allow all
+    return 0 # No policy file → allow all
   fi
 
   # Use python3 for JSON parsing; on parse error default to allow
   local verdict
-  verdict=$(python3 - "$policy_file" "$phase" "$operation" 2>/dev/null <<'POLICY_PY'
+  verdict=$(
+    python3 - "$policy_file" "$phase" "$operation" 2>/dev/null <<'POLICY_PY'
 import sys, json, fnmatch
 
 policy_file, phase, operation = sys.argv[1], sys.argv[2], sys.argv[3]

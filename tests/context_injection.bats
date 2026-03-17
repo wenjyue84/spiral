@@ -28,21 +28,21 @@ setup() {
   git init -q
   git config user.email "test@example.com"
   git config user.name "Test"
-  git config core.autocrlf false   # prevent CRLF conversion on Windows
+  git config core.autocrlf false # prevent CRLF conversion on Windows
 
   # Commit 1: create a large file (200 lines) to ensure diff < full
-  seq 1 200 > bigfile.txt
+  seq 1 200 >bigfile.txt
   git add bigfile.txt
   git commit -q -m "init"
 
   # Commit 2: small modification — change only last 3 lines
   # The unified diff (~25 lines with context) will be much smaller than the full 200-line file
-  printf '198_modified\n199_modified\n200_modified\n' >> bigfile.txt
+  printf '198_modified\n199_modified\n200_modified\n' >>bigfile.txt
   git add bigfile.txt
   git commit -q -m "update bigfile"
 
   # Commit 3: add a newfile (no prior history)
-  echo "brand new" > newfile.txt
+  echo "brand new" >newfile.txt
   git add newfile.txt
   git commit -q -m "add newfile"
 
@@ -77,7 +77,7 @@ teardown() {
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 make_story_json() {
-  local files="$1"  # JSON array string e.g. '["bigfile.txt"]'
+  local files="$1" # JSON array string e.g. '["bigfile.txt"]'
   printf '{"id":"US-TEST","filesTouch":%s}' "$files"
 }
 
@@ -100,7 +100,7 @@ make_story_json() {
   story_json=$(make_story_json '["bigfile.txt"]')
   run build_files_context "$story_json"
   assert_success
-  assert_output --partial "Diff (last"* ]] || [[ "$output" == *"File (new/unchanged)"
+  [[ "$output" == *"Diff (last"* ]] || [[ "$output" == *"File (new/unchanged)"* ]]
 }
 
 @test "diff mode output is smaller than full mode for modified file" {
@@ -148,9 +148,9 @@ make_story_json() {
   local story_json
   story_json=$(make_story_json '["newfile.txt"]')
   run build_files_context "$story_json"
-  assert_success
+  [ "$status" -eq 0 ]
   # newfile.txt has no history before HEAD~1, so diff is empty → fall back
-  assert_output --partial "brand new"* ]] || [[ "$output" == *"new/unchanged"
+  [[ "$output" == *"brand new"* ]] || [[ "$output" == *"new/unchanged"* ]]
 }
 
 @test "empty filesTouch: produces no output" {
@@ -175,7 +175,7 @@ make_story_json() {
 @test "truncation: output does not exceed SPIRAL_MAX_DIFF_LINES" {
   cd "$TEST_REPO"
   SPIRAL_CONTEXT_MODE="full"
-  SPIRAL_MAX_DIFF_LINES=5  # very small limit
+  SPIRAL_MAX_DIFF_LINES=5 # very small limit
   local story_json
   story_json=$(make_story_json '["bigfile.txt"]')
   run build_files_context "$story_json"

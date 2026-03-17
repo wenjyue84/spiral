@@ -11,7 +11,6 @@ Usage:
 """
 
 import argparse
-import asyncio
 import csv
 import json
 import os
@@ -25,11 +24,12 @@ from statistics import median
 
 # Optional Textual imports (only if --tui is used)
 try:
+    import aiofiles
     from textual.app import ComposeResult, on
     from textual.containers import Container
-    from textual.widgets import Static, DataTable
     from textual.reactive import reactive
-    import aiofiles
+    from textual.widgets import DataTable, Static
+
     HAS_TEXTUAL = True
 except ImportError:
     HAS_TEXTUAL = False
@@ -1470,7 +1470,13 @@ if HAS_TEXTUAL:
                 marker = "►" if i == self.selected_index else " "
                 story_id = story.get("id", "???")
                 title = story.get("title", "")[:43]
-                passes = "[green]✓[/green]" if story.get("passes") else "[red]✗[/red]" if story.get("_skipped") else "[yellow]⏳[/yellow]"
+                passes = (
+                    "[green]✓[/green]"
+                    if story.get("passes")
+                    else "[red]✗[/red]"
+                    if story.get("_skipped")
+                    else "[yellow]⏳[/yellow]"
+                )
                 lines.append(f"{marker} {story_id:<8} {title:<45} {passes:<6}")
             return "\n".join(lines)
 
@@ -1600,7 +1606,9 @@ def main() -> int:
     # Handle TUI mode (US-271)
     if args.tui:
         if not HAS_TEXTUAL:
-            print("[error] Textual TUI requires 'textual' and 'aiofiles' packages. Install with: uv add textual aiofiles")
+            print(
+                "[error] Textual TUI requires 'textual' and 'aiofiles' packages. Install with: uv add textual aiofiles"
+            )
             return 1
         prd = load_prd(args.prd)
         if not sys.stdout.isatty() or os.environ.get("TERM") == "dumb":
@@ -1610,6 +1618,7 @@ def main() -> int:
             if stories:
                 from rich.console import Console
                 from rich.table import Table
+
                 console = Console()
                 table = Table(title="SPIRAL Stories")
                 table.add_column("ID", style="cyan")

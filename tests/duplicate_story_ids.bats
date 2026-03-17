@@ -21,7 +21,7 @@ setup() {
 import json, sys
 stories = json.loads(sys.argv[1])
 print(json.dumps({'schemaVersion': '1', 'userStories': stories}))
-" "$1" > "$file"
+" "$1" >"$file"
     echo "$file"
   }
   export -f make_prd
@@ -46,10 +46,10 @@ _run_dedup_check() {
       local _dup_tmp
       _dup_tmp=$(mktemp)
       "$JQ" '.userStories |= (group_by(.id) | map((map(select(.passes == true)) | first) // first))' \
-        "$prd_file" > "$_dup_tmp" && mv "$_dup_tmp" "$prd_file"
+        "$prd_file" >"$_dup_tmp" && mv "$_dup_tmp" "$prd_file"
       printf '{"ts":"%s","event":"duplicate_ids_deduped","ids":"%s","mode":"lenient"}\n' \
         "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$dup_ids" \
-        >> "${scratch_dir}/spiral_events.jsonl" 2>/dev/null || true
+        >>"${scratch_dir}/spiral_events.jsonl" 2>/dev/null || true
       echo "  [preflight] Duplicate IDs resolved (lenient)."
     else
       echo "  [preflight] FATAL: Duplicate story IDs detected — aborting."
@@ -57,7 +57,7 @@ _run_dedup_check() {
       echo "  [preflight]   Run with SPIRAL_DEDUP_IDS=lenient to auto-deduplicate."
       printf '{"ts":"%s","event":"duplicate_ids_fatal","ids":"%s","mode":"strict"}\n' \
         "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$dup_ids" \
-        >> "${scratch_dir}/spiral_events.jsonl" 2>/dev/null || true
+        >>"${scratch_dir}/spiral_events.jsonl" 2>/dev/null || true
       return 1
     fi
   fi

@@ -95,8 +95,8 @@ _phase_i_decision() {
 _validate_from_phase() {
   local phase="$1"
   case "$phase" in
-    I|V) echo "valid" ;;
-    *)   echo "invalid" ;;
+    I | V) echo "valid" ;;
+    *) echo "invalid" ;;
   esac
 }
 
@@ -196,7 +196,7 @@ _validate_from_phase() {
 # Simulate the worktree decision: "reuse" if --from-phase set AND dir exists, else "recreate"
 _worktree_decision() {
   local from_phase="$1"
-  local worktree_exists="$2"   # "1" or "0"
+  local worktree_exists="$2" # "1" or "0"
   if [[ -n "$from_phase" && "$worktree_exists" -eq 1 ]]; then
     echo "reuse"
   else

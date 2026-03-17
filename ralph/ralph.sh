@@ -35,33 +35,34 @@ SPIRAL_DIFF_DEPTH="${SPIRAL_DIFF_DEPTH:-3}"                                 # US
 SPIRAL_GIT_AUTHOR="${SPIRAL_GIT_AUTHOR:-}"                                  # optional: AI commit author name (e.g. "SPIRAL Agent")
 SPIRAL_GIT_EMAIL="${SPIRAL_GIT_EMAIL:-}"                                    # optional: AI commit author email (e.g. "spiral@noreply.local")
 SPIRAL_DECOMPOSE_THRESHOLD="${SPIRAL_DECOMPOSE_THRESHOLD:-2}"               # auto-decompose story at this retry count; 0 = disabled
-SPIRAL_ESCALATION_RETRY_SONNET="${SPIRAL_ESCALATION_RETRY_SONNET:-1}"      # retry count at which haiku escalates to sonnet (US-296)
-SPIRAL_ESCALATION_RETRY_OPUS="${SPIRAL_ESCALATION_RETRY_OPUS:-2}"          # retry count at which sonnet escalates to opus (US-296)
+SPIRAL_ESCALATION_RETRY_SONNET="${SPIRAL_ESCALATION_RETRY_SONNET:-1}"       # retry count at which haiku escalates to sonnet (US-296)
+SPIRAL_ESCALATION_RETRY_OPUS="${SPIRAL_ESCALATION_RETRY_OPUS:-2}"           # retry count at which sonnet escalates to opus (US-296)
 SPIRAL_SECURITY_SCAN="${SPIRAL_SECURITY_SCAN:-false}"                       # true = enable Phase S security scan gate
 SPIRAL_SECURITY_SCAN_TOOL="${SPIRAL_SECURITY_SCAN_TOOL:-semgrep}"           # 'semgrep' (default) or 'bandit'
 SPIRAL_SECURITY_SCAN_ARGS="${SPIRAL_SECURITY_SCAN_ARGS:-}"                  # extra flags passed to the scanner binary
 SPIRAL_PRD_STREAM_THRESHOLD_KB="${SPIRAL_PRD_STREAM_THRESHOLD_KB:-512}"     # switch to jq --stream when prd.json exceeds this size (KB); 0 = always stream
-SPIRAL_OLLAMA_FALLBACK_MODEL="${SPIRAL_OLLAMA_FALLBACK_MODEL:-}"        # Ollama model for Claude API fallback (e.g. qwen2.5-coder:32b); empty = disabled
-SPIRAL_OLLAMA_HOST="${SPIRAL_OLLAMA_HOST:-http://localhost:11434/v1}"   # Ollama OpenAI-compat base URL (default: local Ollama)
-SPIRAL_LOCAL_FALLBACK_POLICY="${SPIRAL_LOCAL_FALLBACK_POLICY:-}"           # US-261: allow|deny|local-only; empty = disabled
+SPIRAL_OLLAMA_FALLBACK_MODEL="${SPIRAL_OLLAMA_FALLBACK_MODEL:-}"            # Ollama model for Claude API fallback (e.g. qwen2.5-coder:32b); empty = disabled
+SPIRAL_OLLAMA_HOST="${SPIRAL_OLLAMA_HOST:-http://localhost:11434/v1}"       # Ollama OpenAI-compat base URL (default: local Ollama)
+SPIRAL_LOCAL_FALLBACK_POLICY="${SPIRAL_LOCAL_FALLBACK_POLICY:-}"            # US-261: allow|deny|local-only; empty = disabled
 SPIRAL_OLLAMA_BASE_URL="${SPIRAL_OLLAMA_BASE_URL:-http://localhost:11434}"  # US-261: Ollama native base URL (no /v1 suffix)
 SPIRAL_OLLAMA_MODEL="${SPIRAL_OLLAMA_MODEL:-llama3.2}"                      # US-261: local model for policy-based fallback
-SPIRAL_CACHE_TTL="${SPIRAL_CACHE_TTL:-}"                               # US-336: prompt cache TTL (e.g. "1h") — extends cache lifetime at 2x cost
-SPIRAL_DEFERRED_TOOLS="${SPIRAL_DEFERRED_TOOLS:-true}"                 # US-337: true = use --tools flag with core tools only; deferred tools via ToolSearch
-SPIRAL_SKIP_SELF_REVIEW="${SPIRAL_SKIP_SELF_REVIEW:-false}"             # true = disable Phase I.5 LLM self-review gate (US-145)
-SPIRAL_SELF_REVIEW_MODEL="${SPIRAL_SELF_REVIEW_MODEL:-haiku}"           # Claude model for self-review; haiku to minimise cost (US-145)
-SPIRAL_GEMINI_SKIP_SMALL="${SPIRAL_GEMINI_SKIP_SMALL:-true}"           # true = skip Gemini pre-analysis for small stories with <=2 filesTouch (US-171)
-SPIRAL_SKIP_ADR="${SPIRAL_SKIP_ADR:-false}"                             # true = disable ADR generation after story passes (US-155)
-SPIRAL_ADR_MODEL="${SPIRAL_ADR_MODEL:-haiku}"                           # Claude model for ADR generation; haiku to minimise cost (US-155)
-SPIRAL_WORKER_MEMORY_LIMIT="${SPIRAL_WORKER_MEMORY_LIMIT:-0}"           # 0 = disabled; KB — peak RSS after story triggers OOM guard (US-158)
-SPIRAL_CONTEXT_WINDOW="${SPIRAL_CONTEXT_WINDOW:-10}"                    # rolling window depth for observation masking (US-241)
-SPIRAL_CONTEXT_MODE="${SPIRAL_CONTEXT_MODE:-diff}"                     # diff|full — context injection mode for filesTouch files (US-280)
-SPIRAL_DIFF_DEPTH="${SPIRAL_DIFF_DEPTH:-3}"                            # number of commits to look back for git diff context injection (US-280)
+SPIRAL_CACHE_TTL="${SPIRAL_CACHE_TTL:-}"                                    # US-336: prompt cache TTL (e.g. "1h") — extends cache lifetime at 2x cost
+SPIRAL_DEFERRED_TOOLS="${SPIRAL_DEFERRED_TOOLS:-true}"                      # US-337: true = use --tools flag with core tools only; deferred tools via ToolSearch
+SPIRAL_SKIP_SELF_REVIEW="${SPIRAL_SKIP_SELF_REVIEW:-false}"                 # true = disable Phase I.5 LLM self-review gate (US-145)
+SPIRAL_SELF_REVIEW_MODEL="${SPIRAL_SELF_REVIEW_MODEL:-haiku}"               # Claude model for self-review; haiku to minimise cost (US-145)
+SPIRAL_GEMINI_SKIP_SMALL="${SPIRAL_GEMINI_SKIP_SMALL:-true}"                # true = skip Gemini pre-analysis for small stories with <=2 filesTouch (US-171)
+SPIRAL_SKIP_ADR="${SPIRAL_SKIP_ADR:-false}"                                 # true = disable ADR generation after story passes (US-155)
+SPIRAL_ADR_MODEL="${SPIRAL_ADR_MODEL:-haiku}"                               # Claude model for ADR generation; haiku to minimise cost (US-155)
+SPIRAL_WORKER_MEMORY_LIMIT="${SPIRAL_WORKER_MEMORY_LIMIT:-0}"               # 0 = disabled; KB — peak RSS after story triggers OOM guard (US-158)
+SPIRAL_CONTEXT_WINDOW="${SPIRAL_CONTEXT_WINDOW:-10}"                        # rolling window depth for observation masking (US-241)
+SPIRAL_CONTEXT_MODE="${SPIRAL_CONTEXT_MODE:-diff}"                          # diff|full — context injection mode for filesTouch files (US-280)
+SPIRAL_DIFF_DEPTH="${SPIRAL_DIFF_DEPTH:-3}"                                 # number of commits to look back for git diff context injection (US-280)
 SPIRAL_WORKER_NETWORK_ISOLATION="${SPIRAL_WORKER_NETWORK_ISOLATION:-false}" # true = wrap worker in Linux network namespace via unshare --net (US-278)
-SPIRAL_STRICT_SCOPE_GUARD="${SPIRAL_STRICT_SCOPE_GUARD:-false}"          # true = abort commit when changed files exceed story filesTouch scope (US-356)
-SPIRAL_THINKING_EFFORT="${SPIRAL_THINKING_EFFORT:-high}"               # US-373: adaptive thinking effort for 4.6 models (low/medium/high/max)
-SPIRAL_THINKING_BUDGET_TOKENS="${SPIRAL_THINKING_BUDGET_TOKENS:-10000}" # US-398: max thinking tokens per story (0=disable thinking, min 1024)
-SPIRAL_PROGRAMMATIC_TOOLS="${SPIRAL_PROGRAMMATIC_TOOLS:-auto}"           # US-339: enable code_execution_20250825 tool (auto/true/false)
+SPIRAL_STRICT_SCOPE_GUARD="${SPIRAL_STRICT_SCOPE_GUARD:-false}"             # true = abort commit when changed files exceed story filesTouch scope (US-356)
+SPIRAL_THINKING_EFFORT="${SPIRAL_THINKING_EFFORT:-high}"                    # US-373: adaptive thinking effort for 4.6 models (low/medium/high/max)
+SPIRAL_THINKING_BUDGET_TOKENS="${SPIRAL_THINKING_BUDGET_TOKENS:-10000}"     # US-398: max thinking tokens per story (0=disable thinking, min 1024)
+SPIRAL_PROGRAMMATIC_TOOLS="${SPIRAL_PROGRAMMATIC_TOOLS:-auto}"              # US-339: enable code_execution_20250825 tool (auto/true/false)
+SPIRAL_INTERLEAVED_THINKING="${SPIRAL_INTERLEAVED_THINKING:-false}"         # US-392: enable interleaved-thinking-2025-05-14 beta for claude-4 models
 PRD_FILE="prd.json"
 PROGRESS_FILE="progress.txt"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -350,7 +351,7 @@ fi
 CURRENT_BRANCH=$(git branch --show-current)
 # Capture base branch once at startup for per-story feature branching (US-157)
 SPIRAL_BASE_BRANCH="${SPIRAL_BASE_BRANCH:-$CURRENT_BRANCH}"
-STORY_BRANCH=""  # tracks current story feature branch; set by create_story_branch
+STORY_BRANCH="" # tracks current story feature branch; set by create_story_branch
 if [[ "$CURRENT_BRANCH" != "$BRANCH_NAME" && "$BRANCH_NAME" != "main" && "$BRANCH_NAME" != "master" ]]; then
   if git show-ref --verify --quiet "refs/heads/$BRANCH_NAME"; then
     echo "[branch] Switching to existing branch: $BRANCH_NAME"
@@ -407,7 +408,7 @@ do_git_commit() {
   # ── Policy gate (US-242): check git_commit ───────────────────────────────
   if declare -f policy_check >/dev/null 2>&1 && ! policy_check "git_commit" "I"; then
     echo "  [policy] BLOCKED: git_commit denied by .spiral/policy.json"
-    declare -f policy_log_violation >/dev/null 2>&1 && \
+    declare -f policy_log_violation >/dev/null 2>&1 &&
       policy_log_violation "$PRD_FILE" "${NEXT_STORY:-}" "git_commit" "I" "${JQ:-jq}"
     log_ralph_event "policy_violation" \
       "\"story_id\":\"${NEXT_STORY:-}\",\"operation\":\"git_commit\",\"phase\":\"I\"" 2>/dev/null || true
@@ -432,7 +433,7 @@ do_story_reset() {
   if declare -f policy_check >/dev/null 2>&1; then
     if ! policy_check "story_reset" "I"; then
       echo "  [policy] BLOCKED: story_reset denied by .spiral/policy.json"
-      declare -f policy_log_violation >/dev/null 2>&1 && \
+      declare -f policy_log_violation >/dev/null 2>&1 &&
         policy_log_violation "$PRD_FILE" "${NEXT_STORY:-}" "story_reset" "I" "${JQ:-jq}"
       log_ralph_event "policy_violation" \
         "\"story_id\":\"${NEXT_STORY:-}\",\"operation\":\"story_reset\",\"phase\":\"I\"" 2>/dev/null || true
@@ -479,11 +480,11 @@ build_commit_msg() {
   # Derive type from first recognised tag; default to "feat"
   local commit_type="feat"
   local tag
-  IFS=',' read -ra _tags <<< "$story_tags_csv"
+  IFS=',' read -ra _tags <<<"$story_tags_csv"
   for tag in "${_tags[@]}"; do
-    tag="${tag// /}"   # strip whitespace
+    tag="${tag// /}" # strip whitespace
     case "$tag" in
-      feat|fix|chore|refactor|test|docs|perf|ci|build|style)
+      feat | fix | chore | refactor | test | docs | perf | ci | build | style)
         commit_type="$tag"
         break
         ;;
@@ -631,7 +632,7 @@ check_scope_guard() {
     if [[ "$matched" == "false" ]]; then
       out_of_scope+=("$changed")
     fi
-  done <<< "$changed_files"
+  done <<<"$changed_files"
 
   # Build JSON array of out-of-scope files for event logging
   local oos_json="[]"
@@ -921,7 +922,7 @@ capture_test_baseline() {
     echo "${n:-0}"
     return
   fi
-  echo "-1"  # -1 = unknown, gate will be skipped
+  echo "-1" # -1 = unknown, gate will be skipped
 }
 
 check_test_ratchet() {
@@ -1205,7 +1206,7 @@ save_candidate_experience() {
       echo "Stories listed here hit MAX_RETRIES without passing. Each entry captures"
       echo "what was tried and why it failed, so future attempts start with better context."
       echo ""
-    } > "$candidate_file"
+    } >"$candidate_file"
   fi
 
   {
@@ -1238,7 +1239,7 @@ save_candidate_experience() {
     echo "$ac_list"
     echo ""
     echo "---"
-  } >> "$candidate_file"
+  } >>"$candidate_file"
 
   echo "  [candidate] [$story_id] experience saved → $candidate_file"
   log_ralph_event "candidate_saved" \
@@ -1361,8 +1362,8 @@ create_story_branch() {
 
   # Guard: check if branch is already checked out in another worktree (parallel mode)
   local worktree_branches
-  worktree_branches=$(git worktree list --porcelain 2>/dev/null \
-    | grep '^branch ' | sed 's|^branch refs/heads/||' || true)
+  worktree_branches=$(git worktree list --porcelain 2>/dev/null |
+    grep '^branch ' | sed 's|^branch refs/heads/||' || true)
   if echo "$worktree_branches" | grep -qx "$branch_name" 2>/dev/null; then
     echo "  [branch] WARNING: $branch_name already checked out in another worktree — skipping"
     return 0
@@ -1407,7 +1408,7 @@ finalize_story_branch() {
     # ── Policy gate (US-242): check git_push ─────────────────────────────────
     if declare -f policy_check >/dev/null 2>&1 && ! policy_check "git_push" "M"; then
       echo "  [policy] BLOCKED: git_push denied by .spiral/policy.json — branch kept locally"
-      declare -f policy_log_violation >/dev/null 2>&1 && \
+      declare -f policy_log_violation >/dev/null 2>&1 &&
         policy_log_violation "$PRD_FILE" "$story_id" "git_push" "M" "${JQ:-jq}"
       log_ralph_event "policy_violation" \
         "\"story_id\":\"$story_id\",\"operation\":\"git_push\",\"phase\":\"M\"" 2>/dev/null || true
@@ -1426,7 +1427,7 @@ finalize_story_branch() {
   # ── Policy gate (US-242): check git_merge ────────────────────────────────
   if declare -f policy_check >/dev/null 2>&1 && ! policy_check "git_merge" "M"; then
     echo "  [policy] BLOCKED: git_merge denied by .spiral/policy.json — branch kept locally"
-    declare -f policy_log_violation >/dev/null 2>&1 && \
+    declare -f policy_log_violation >/dev/null 2>&1 &&
       policy_log_violation "$PRD_FILE" "$story_id" "git_merge" "M" "${JQ:-jq}"
     log_ralph_event "policy_violation" \
       "\"story_id\":\"$story_id\",\"operation\":\"git_merge\",\"phase\":\"M\"" 2>/dev/null || true
@@ -1576,12 +1577,12 @@ apply_local_fallback_policy() {
         "\"story_id\":\"${NEXT_STORY:-}\",\"reason\":\"${reason}\",\"model_used\":\"none\",\"original_error\":\"${reason}\",\"policy\":\"deny\""
       exit 2
       ;;
-    allow|local-only)
+    allow | local-only)
       mkdir -p "${SPIRAL_SCRATCH_DIR}"
       local sys_tmp="${SPIRAL_SCRATCH_DIR}/_ol261_sys_$$.tmp"
       local usr_tmp="${SPIRAL_SCRATCH_DIR}/_ol261_usr_$$.tmp"
-      printf '%s' "${RALPH_SYSTEM_PROMPT:-}" > "$sys_tmp"
-      printf '%s' "${RALPH_USER_PROMPT:-}" > "$usr_tmp"
+      printf '%s' "${RALPH_SYSTEM_PROMPT:-}" >"$sys_tmp"
+      printf '%s' "${RALPH_USER_PROMPT:-}" >"$usr_tmp"
       echo "  [ollama] '${policy}' policy: invoking local model ${model} at ${base_url}"
       echo "  ─────── Ollama Output Start (${policy}) ───────"
       # Temporarily override US-144 vars so call_ollama_fallback uses US-261 settings
@@ -1589,14 +1590,14 @@ apply_local_fallback_policy() {
       SPIRAL_OLLAMA_FALLBACK_MODEL="${model}"
       SPIRAL_OLLAMA_HOST="${base_url}/v1"
       local _rc=0
-      if call_ollama_fallback "$sys_tmp" "$usr_tmp" > "$rl_out"; then
+      if call_ollama_fallback "$sys_tmp" "$usr_tmp" >"$rl_out"; then
         _OLLAMA_USED=1
         log_spiral_event "local_fallback_used" \
           "\"story_id\":\"${NEXT_STORY:-}\",\"reason\":\"${reason}\",\"model_used\":\"${model}\",\"original_error\":\"${reason}\",\"policy\":\"${policy}\""
         echo "  [ollama] Local fallback succeeded"
       else
         _rc=1
-        > "$rl_out"
+        >"$rl_out"
         log_spiral_event "local_fallback_failed" \
           "\"story_id\":\"${NEXT_STORY:-}\",\"reason\":\"${reason}\",\"model_used\":\"${model}\",\"original_error\":\"${reason}\",\"policy\":\"${policy}\""
         echo "  [ollama] Local fallback failed — story will be retried later"
@@ -1680,7 +1681,7 @@ Review the diff against the story specification above. Output ONLY the JSON obje
       --max-turns 1 \
       --output-format stream-json \
       --dangerously-skip-permissions \
-      < /dev/null 2>/dev/null
+      </dev/null 2>/dev/null
   ) >"$_review_tmp" 2>/dev/null || true
 
   # Extract token counts from stream-json result line
@@ -1872,9 +1873,9 @@ escalate_model_by_quality_failure() {
 supports_adaptive_thinking() {
   local model="$1"
   case "$model" in
-    opus|sonnet) return 0 ;;            # short aliases → latest (4.6)
-    *opus-4-6*|*sonnet-4-6*) return 0 ;; # full model IDs
-    *) return 1 ;;                       # haiku, older models
+    opus | sonnet) return 0 ;;             # short aliases → latest (4.6)
+    *opus-4-6* | *sonnet-4-6*) return 0 ;; # full model IDs
+    *) return 1 ;;                         # haiku, older models
   esac
 }
 
@@ -1998,7 +1999,7 @@ get_pending_story_ids() {
   local prd_file="${1:-$PRD_FILE}"
   local threshold_kb="${SPIRAL_PRD_STREAM_THRESHOLD_KB:-512}"
   local file_kb
-  file_kb=$(( $(wc -c < "$prd_file") / 1024 ))
+  file_kb=$(($(wc -c <"$prd_file") / 1024))
 
   if [[ "$threshold_kb" -gt 0 && "$file_kb" -ge "$threshold_kb" ]]; then
     # Streaming path: reconstruct individual userStories objects using fromstream,
@@ -2007,16 +2008,16 @@ get_pending_story_ids() {
       'fromstream(2|truncate_stream(inputs|select(.[0][:1]==["userStories"])))
        | select(.passes == false and (._decomposed | not))
        | [.priority // "zzz", .id]
-       | @tsv' "$prd_file" \
-      | sort \
-      | cut -f2 \
-      | tr -d '\r'
+       | @tsv' "$prd_file" |
+      sort |
+      cut -f2 |
+      tr -d '\r'
   else
     # Normal path: full in-memory parse (default for prd.json files under threshold)
     $JQ -r '[.userStories[] | select(.passes == false and (._decomposed | not))]
              | sort_by(.priority)
-             | .[].id' "$prd_file" \
-      | tr -d '\r'
+             | .[].id' "$prd_file" |
+      tr -d '\r'
   fi
 }
 
@@ -2098,10 +2099,8 @@ while [[ $ITERATION -lt $MAX_ITERATIONS ]]; do
       for sid in $ALL_INCOMPLETE; do
         retries=$(get_retry_count "$sid")
         stitle=$($JQ -r ".userStories[] | select(.id == \"$sid\") | .title" "$PRD_FILE")
-        local is_decomposed_parent
         is_decomposed_parent=$($JQ -r ".userStories[] | select(.id == \"$sid\") | ._decomposed // false" "$PRD_FILE" | tr -d '\r')
         if [[ "$is_decomposed_parent" == "true" ]]; then
-          local children
           children=$($JQ -r ".userStories[] | select(.id == \"$sid\") | ._decomposedInto // [] | join(\", \")" "$PRD_FILE" | tr -d '\r')
           echo "    DECOMPOSED:            [$sid] $stitle → [$children]"
         elif [[ "$retries" -ge "$MAX_RETRIES" ]]; then
@@ -2148,7 +2147,7 @@ while [[ $ITERATION -lt $MAX_ITERATIONS ]]; do
         $JQ "(.userStories[] | select(.id == \"$NEXT_STORY\") | ._failureReason) = \"incomplete_context\"" "$PRD_FILE" >"${PRD_FILE}.tmp"
         mv "${PRD_FILE}.tmp" "$PRD_FILE"
         echo "BLOCKED incomplete_context: $NEXT_STORY (ID: $NEXT_STORY) — context incomplete after 3 checks" >>"$PROGRESS_FILE"
-        continue 2  # Skip to next story in outer loop
+        continue 2 # Skip to next story in outer loop
       fi
     fi
   done
@@ -2294,12 +2293,15 @@ while [[ $ITERATION -lt $MAX_ITERATIONS ]]; do
 
   # Spawn fresh AI instance with real-time stream output
   STORY_START=$(date +%s)
-  _TELEM_R_START_MS=$(date +%s%3N 2>/dev/null || echo 0)  # US-253: Phase R start timestamp (ms)
-  _TELEM_I_START_MS=0  # set right before AI invocation
-  _TELEM_V_START_MS=0  # set right after AI invocation
-  _OLLAMA_USED=0      # reset per-story; set to 1 if Ollama fallback fires (US-144)
-  _REVIEW_TOKENS=0    # reset per-story; set by run_self_review Phase I.5 (US-145)
-  _WALL_SEC=0; _USER_CPU_S=0; _SYS_CPU_S=0; _PEAK_RSS_KB=0  # reset per-story resource stats (US-158)
+  _TELEM_R_START_MS=$(date +%s%3N 2>/dev/null || echo 0) # US-253: Phase R start timestamp (ms)
+  _TELEM_I_START_MS=0                                    # set right before AI invocation
+  _TELEM_V_START_MS=0                                    # set right after AI invocation
+  _OLLAMA_USED=0                                         # reset per-story; set to 1 if Ollama fallback fires (US-144)
+  _REVIEW_TOKENS=0                                       # reset per-story; set by run_self_review Phase I.5 (US-145)
+  _WALL_SEC=0
+  _USER_CPU_S=0
+  _SYS_CPU_S=0
+  _PEAK_RSS_KB=0 # reset per-story resource stats (US-158)
 
   # ── Per-story feature branch (US-157): create branch before Phase I ──────────
   create_story_branch "$NEXT_STORY"
@@ -2379,9 +2381,9 @@ while [[ $ITERATION -lt $MAX_ITERATIONS ]]; do
   # Override: SPIRAL_GEMINI_SKIP_SMALL=false to disable; does not apply when
   # SPIRAL_GEMINI_ANNOTATE_PROMPT is set (explicit annotation requested).
   _GEMINI_FAST_SKIP=0
-  if [[ "${SPIRAL_GEMINI_SKIP_SMALL:-true}" != "false" && \
-        -z "${SPIRAL_GEMINI_ANNOTATE_PROMPT:-}" && \
-        -n "$STORY_JSON" && "$STORY_JSON" != "{}" ]]; then
+  if [[ "${SPIRAL_GEMINI_SKIP_SMALL:-true}" != "false" &&
+    -z "${SPIRAL_GEMINI_ANNOTATE_PROMPT:-}" &&
+    -n "$STORY_JSON" && "$STORY_JSON" != "{}" ]]; then
     _FP_COMPLEXITY=$($JQ -r '.estimatedComplexity // ""' <<<"$STORY_JSON" 2>/dev/null || echo "")
     _FP_FILES_COUNT=$($JQ '(.filesTouch // []) | length' <<<"$STORY_JSON" 2>/dev/null || echo "99")
     if [[ "$_FP_COMPLEXITY" == "small" && "$_FP_FILES_COUNT" -le 2 ]]; then
@@ -2514,10 +2516,10 @@ Story JSON: $STORY_JSON"
   _RL_ATTEMPT=0
   _RL_MAX=5
   _RL_TMP="${SPIRAL_SCRATCH_DIR}/_rate_limit_check_$$.tmp"
-  _PHASE_I_DIAGNOSIS_BLOCK=""  # US-244: populated if worker outputs a diagnosis block
-  _OBS_HISTORY=()              # US-241: rolling observation buffer (one entry per retry attempt)
-  _OBS_TOKENS_BEFORE=0         # US-241: cumulative raw context chars/4 estimate (all retries)
-  _OBS_TOKENS_AFTER=0          # US-241: cumulative masked context chars/4 estimate (all retries)
+  _PHASE_I_DIAGNOSIS_BLOCK="" # US-244: populated if worker outputs a diagnosis block
+  _OBS_HISTORY=()             # US-241: rolling observation buffer (one entry per retry attempt)
+  _OBS_TOKENS_BEFORE=0        # US-241: cumulative raw context chars/4 estimate (all retries)
+  _OBS_TOKENS_AFTER=0         # US-241: cumulative masked context chars/4 estimate (all retries)
 
   while true; do
     echo "  ─────── AI Output Start ($EFFECTIVE_TOOL) ───────"
@@ -2630,7 +2632,7 @@ This SPIRAL iteration is focused on **$RALPH_FOCUS**. Keep this theme in mind wh
         _PLAN_CACHE_DIR="${SPIRAL_SCRATCH_DIR:-.spiral}/plan_cache"
         if [[ -d "$_PLAN_CACHE_DIR" ]]; then
           _PC_STORY_TMP=$(mktemp -p "${SPIRAL_SCRATCH_DIR:-.spiral}" _pc_story_XXXXXX.json 2>/dev/null || echo "${SPIRAL_SCRATCH_DIR:-.spiral}/_pc_story_$$.json")
-          printf '%s' "${STORY_JSON:-{}}" > "$_PC_STORY_TMP"
+          printf '%s' "${STORY_JSON:-{}}" >"$_PC_STORY_TMP"
           _PC_INJECT=$("${SPIRAL_PYTHON:-python3}" "$SPIRAL_HOME/lib/plan_cache.py" inject "$_PLAN_CACHE_DIR" \
             --story-json "$_PC_STORY_TMP" \
             --ttl-hours "${SPIRAL_PLAN_CACHE_TTL_HOURS:-168}" 2>/dev/null || true)
@@ -2709,15 +2711,15 @@ ${_RETRY_NOTES:-  (none found)}"
         # Apply rolling window: mask observations older than SPIRAL_CONTEXT_WINDOW
         _WINDOW=${SPIRAL_CONTEXT_WINDOW:-10}
         _OBS_COUNT=${#_OBS_HISTORY[@]}
-        _MASK_COUNT=$(( _OBS_COUNT > _WINDOW ? _OBS_COUNT - _WINDOW : 0 ))
+        _MASK_COUNT=$((_OBS_COUNT > _WINDOW ? _OBS_COUNT - _WINDOW : 0))
 
         # Build the (possibly masked) context string
         _MASKED_CONTEXT=""
-        for (( _oi=0; _oi < _OBS_COUNT; _oi++ )); do
-          if (( _oi < _MASK_COUNT )); then
+        for ((_oi = 0; _oi < _OBS_COUNT; _oi++)); do
+          if ((_oi < _MASK_COUNT)); then
             # Replace with one-line placeholder — extract just the failure reason
             _SHORT_REASON=$(printf '%s' "${_OBS_HISTORY[$_oi]}" | grep "^Failure reason:" | head -1 | cut -c 1-100)
-            _MASKED_CONTEXT="${_MASKED_CONTEXT}[Attempt $((_oi+1)): omitted for brevity — ${_SHORT_REASON:-reason not recorded}]
+            _MASKED_CONTEXT="${_MASKED_CONTEXT}[Attempt $((_oi + 1)): omitted for brevity — ${_SHORT_REASON:-reason not recorded}]
 "
           else
             _MASKED_CONTEXT="${_MASKED_CONTEXT}${_OBS_HISTORY[$_oi]}
@@ -2728,16 +2730,16 @@ ${_RETRY_NOTES:-  (none found)}"
         # Estimate tokens (chars ÷ 4) and accumulate stats
         _FULL_CHARS=$(printf '%s' "${_OBS_HISTORY[*]}" | wc -c 2>/dev/null || echo 0)
         _MASKED_CHARS=${#_MASKED_CONTEXT}
-        _FULL_TOKENS=$(( (_FULL_CHARS + 3) / 4 ))
-        _MASKED_TOKENS=$(( (_MASKED_CHARS + 3) / 4 ))
-        _OBS_TOKENS_BEFORE=$(( _OBS_TOKENS_BEFORE + _FULL_TOKENS ))
-        _OBS_TOKENS_AFTER=$(( _OBS_TOKENS_AFTER + _MASKED_TOKENS ))
+        _FULL_TOKENS=$(((_FULL_CHARS + 3) / 4))
+        _MASKED_TOKENS=$(((_MASKED_CHARS + 3) / 4))
+        _OBS_TOKENS_BEFORE=$((_OBS_TOKENS_BEFORE + _FULL_TOKENS))
+        _OBS_TOKENS_AFTER=$((_OBS_TOKENS_AFTER + _MASKED_TOKENS))
 
         # US-338: Masking note goes into user prompt (not system prompt) to preserve
         # prompt cache stability — the system prompt must be identical across stories.
         _MASKING_NOTE=""
-        if (( _MASK_COUNT > 0 )); then
-          _REDUCTION_PCT=$(( (_FULL_TOKENS - _MASKED_TOKENS) * 100 / (_FULL_TOKENS + 1) ))
+        if ((_MASK_COUNT > 0)); then
+          _REDUCTION_PCT=$(((_FULL_TOKENS - _MASKED_TOKENS) * 100 / (_FULL_TOKENS + 1)))
           _MASKING_NOTE="NOTE: ${_MASK_COUNT} earlier phase output(s) omitted for brevity (kept last ${_WINDOW} of ${_OBS_COUNT}).
 "
           _CONTEXT_MGMT_NOTE="
@@ -2762,7 +2764,7 @@ Earlier phase outputs omitted for brevity (${_MASK_COUNT} of ${_OBS_COUNT} attem
           _CTX_STATS_TMP="${_CTX_STATS_FILE}.tmp.$$"
           printf '{"tokensBeforeMasking":%d,"tokensAfterMasking":%d,"reductionPct":%d,"contextWindow":%d}\n' \
             "$_OBS_TOKENS_BEFORE" "$_OBS_TOKENS_AFTER" "$_REDUCTION_PCT" "$_WINDOW" \
-            > "$_CTX_STATS_TMP" && mv "$_CTX_STATS_TMP" "$_CTX_STATS_FILE" 2>/dev/null || true
+            >"$_CTX_STATS_TMP" && mv "$_CTX_STATS_TMP" "$_CTX_STATS_FILE" 2>/dev/null || true
         fi
 
         _RETRY_BRIEF="RETRY CONTEXT — ATTEMPT $((RETRY_NOW + 1)) of $MAX_RETRIES
@@ -2864,12 +2866,33 @@ ${_FT_CONTEXT_BODY}"
           log_ralph_event "programmatic_tools_unsupported" "\"story_id\":\"$NEXT_STORY\",\"model\":\"$EFFECTIVE_MODEL\",\"reason\":\"model_not_compatible\""
         fi
       fi
+      # ── US-392: Interleaved thinking beta header for claude-4 models ─────────
+      # When enabled, add anthropic-beta: interleaved-thinking-2025-05-14 header.
+      # This enables iterative reasoning throughout the implementation workflow.
+      # Supported on claude-opus-4-6 and claude-sonnet-4-6 only.
+      if [[ "${SPIRAL_INTERLEAVED_THINKING:-false}" == "true" ]]; then
+        _supports_interleaved=false
+        if [[ -n "$EFFECTIVE_MODEL" ]]; then
+          # Check if model is Sonnet 4.6+ or Opus 4.6+
+          if [[ "$EFFECTIVE_MODEL" =~ (sonnet-4\.6|opus-4\.6) ]]; then
+            _supports_interleaved=true
+          fi
+        fi
+        if [[ "$_supports_interleaved" == "true" ]]; then
+          _CACHE_BETAS="$_CACHE_BETAS,interleaved-thinking-2025-05-14"
+          echo "  [thinking] Interleaved thinking enabled (model=$EFFECTIVE_MODEL, budget=${SPIRAL_THINKING_BUDGET_TOKENS} tokens)"
+          log_ralph_event "interleaved_thinking_enabled" "\"story_id\":\"$NEXT_STORY\",\"model\":\"$EFFECTIVE_MODEL\",\"budget_tokens\":${SPIRAL_THINKING_BUDGET_TOKENS}"
+        else
+          echo "  [thinking] WARN: Interleaved thinking requested but model=$EFFECTIVE_MODEL does not support it (requires Sonnet/Opus 4.6+)"
+          log_ralph_event "interleaved_thinking_unsupported" "\"story_id\":\"$NEXT_STORY\",\"model\":\"$EFFECTIVE_MODEL\",\"reason\":\"model_not_compatible\""
+        fi
+      fi
       # ── US-253: emit R→I phase transition telemetry ─────────────────────────
       _TELEM_I_START_MS=$(date +%s%3N 2>/dev/null || echo 0)
       _TELEM_R_DUR=0
-      [[ "$_TELEM_I_START_MS" -gt 0 && "$_TELEM_R_START_MS" -gt 0 ]] && \
-        _TELEM_R_DUR=$(( _TELEM_I_START_MS - _TELEM_R_START_MS ))
-      declare -f emit_agent_telemetry >/dev/null 2>&1 && \
+      [[ "$_TELEM_I_START_MS" -gt 0 && "$_TELEM_R_START_MS" -gt 0 ]] &&
+        _TELEM_R_DUR=$((_TELEM_I_START_MS - _TELEM_R_START_MS))
+      declare -f emit_agent_telemetry >/dev/null 2>&1 &&
         emit_agent_telemetry "R" "I" "$_TELEM_R_DUR" 0
       # Unset CLAUDECODE to allow nested Claude Code invocation from within an active session
       # Wrap with 529 overloaded_error retry loop (separate from 429 rate-limit handling)
@@ -2899,7 +2922,7 @@ ${_FT_CONTEXT_BODY}"
             --verbose \
             --output-format stream-json \
             --dangerously-skip-permissions \
-            < /dev/null 2>&1 | tee "$_CLAUDE_TMP" | node "$SCRIPT_DIR/stream-formatter.mjs"
+            </dev/null 2>&1 | tee "$_CLAUDE_TMP" | node "$SCRIPT_DIR/stream-formatter.mjs"
         ) || true
         # ── Connection failure detection for Ollama fallback (US-144) ──────────────
         # Detect curl exit 7 (ECONNREFUSED) / exit 28 (ETIMEDOUT) patterns in output.
@@ -2907,12 +2930,12 @@ ${_FT_CONTEXT_BODY}"
         # After _CLAUDE_API_FAIL_STREAK >= 3, switch to Ollama for the current story.
         if [[ -n "${SPIRAL_OLLAMA_FALLBACK_MODEL:-}" ]]; then
           _TMP_SIZE=0
-          [[ -f "$_CLAUDE_TMP" ]] && _TMP_SIZE=$(wc -c < "$_CLAUDE_TMP" 2>/dev/null || echo 0)
+          [[ -f "$_CLAUDE_TMP" ]] && _TMP_SIZE=$(wc -c <"$_CLAUDE_TMP" 2>/dev/null || echo 0)
           _IS_CONN_FAIL=0
           if [[ "${_TMP_SIZE:-0}" -eq 0 ]]; then
             _IS_CONN_FAIL=1
           elif grep -qiE 'ECONNREFUSED|ETIMEDOUT|connection refused|failed to connect|could not resolve host' \
-              "$_CLAUDE_TMP" 2>/dev/null; then
+            "$_CLAUDE_TMP" 2>/dev/null; then
             _IS_CONN_FAIL=1
           fi
           if [[ "$_IS_CONN_FAIL" -eq 1 ]]; then
@@ -2926,8 +2949,8 @@ ${_FT_CONTEXT_BODY}"
               mkdir -p "${SPIRAL_SCRATCH_DIR}"
               _OLLAMA_SYS_TMP="${SPIRAL_SCRATCH_DIR}/_ollama_sys_$$.tmp"
               _OLLAMA_USR_TMP="${SPIRAL_SCRATCH_DIR}/_ollama_usr_$$.tmp"
-              printf '%s' "$RALPH_SYSTEM_PROMPT" > "$_OLLAMA_SYS_TMP"
-              printf '%s' "$RALPH_USER_PROMPT" > "$_OLLAMA_USR_TMP"
+              printf '%s' "$RALPH_SYSTEM_PROMPT" >"$_OLLAMA_SYS_TMP"
+              printf '%s' "$RALPH_USER_PROMPT" >"$_OLLAMA_USR_TMP"
               echo "  ─────── Ollama Output Start ───────"
               if call_ollama_fallback "$_OLLAMA_SYS_TMP" "$_OLLAMA_USR_TMP" | tee "$_RL_TMP"; then
                 _OLLAMA_USED=1
@@ -2935,13 +2958,13 @@ ${_FT_CONTEXT_BODY}"
                 echo "  [ollama] Ollama fallback succeeded"
               else
                 _OLLAMA_USED=0
-                > "$_RL_TMP"
+                >"$_RL_TMP"
                 echo "  [ollama] Ollama fallback also failed — story will be retried later"
               fi
               echo "  ─────── Ollama Output End ─────────"
               rm -f "$_OLLAMA_SYS_TMP" "$_OLLAMA_USR_TMP"
             fi
-            break  # exit _529_ATTEMPT loop — no benefit retrying a connection failure
+            break # exit _529_ATTEMPT loop — no benefit retrying a connection failure
           else
             # Successful connection — reset fail streak
             _CLAUDE_API_FAIL_STREAK=0
@@ -2952,19 +2975,19 @@ ${_FT_CONTEXT_BODY}"
         # when SPIRAL_LOCAL_FALLBACK_POLICY is set and US-144 did not already handle it.
         if [[ -n "${SPIRAL_LOCAL_FALLBACK_POLICY:-}" ]]; then
           _261_TMP_SIZE=0
-          [[ -f "$_CLAUDE_TMP" ]] && _261_TMP_SIZE=$(wc -c < "$_CLAUDE_TMP" 2>/dev/null || echo 0)
+          [[ -f "$_CLAUDE_TMP" ]] && _261_TMP_SIZE=$(wc -c <"$_CLAUDE_TMP" 2>/dev/null || echo 0)
           _261_CONN_FAIL=0
           if [[ "${_261_TMP_SIZE:-0}" -eq 0 ]]; then
             _261_CONN_FAIL=1
           elif grep -qiE 'ECONNREFUSED|ETIMEDOUT|connection refused|failed to connect|could not resolve host' \
-              "$_CLAUDE_TMP" 2>/dev/null; then
+            "$_CLAUDE_TMP" 2>/dev/null; then
             _261_CONN_FAIL=1
           fi
           if [[ "$_261_CONN_FAIL" -eq 1 ]]; then
             _261_ORIG_ERR="Claude API unreachable (empty or connection-refused response)"
             rm -f "$_CLAUDE_TMP"
             apply_local_fallback_policy "${_261_ORIG_ERR}" "$_RL_TMP"
-            break  # exit 529 loop — connection failure handled by policy
+            break # exit 529 loop — connection failure handled by policy
           fi
         fi
         # Detect HTTP 529 overloaded_error — separate handler from 429 rate-limit
@@ -3082,7 +3105,8 @@ ${_FT_CONTEXT_BODY}"
     # Parse assistant text messages from stream-json; look for the required
     # ## Current State / ## Problem Identified / ## Planned Changes headers.
     if [[ "$EFFECTIVE_TOOL" == "claude" && -f "$_RL_TMP" ]]; then
-      _DIAG_TEXT=$(python3 - "$_RL_TMP" <<'DIAG_EXTRACTOR_EOF'
+      _DIAG_TEXT=$(
+        python3 - "$_RL_TMP" <<'DIAG_EXTRACTOR_EOF'
 import sys, json
 parts = []
 try:
@@ -3104,13 +3128,14 @@ except Exception:
     pass
 print('\n'.join(parts))
 DIAG_EXTRACTOR_EOF
-      2>/dev/null || true)
-      if echo "$_DIAG_TEXT" | grep -q "## Current State" && \
-         echo "$_DIAG_TEXT" | grep -qiE "## Problem( Identified)?$|## Problem Identified" && \
-         echo "$_DIAG_TEXT" | grep -q "## Planned Changes"; then
+        2>/dev/null || true
+      )
+      if echo "$_DIAG_TEXT" | grep -q "## Current State" &&
+        echo "$_DIAG_TEXT" | grep -qiE "## Problem( Identified)?$|## Problem Identified" &&
+        echo "$_DIAG_TEXT" | grep -q "## Planned Changes"; then
         # Capture the diagnosis block (from ## Current State through ## Planned Changes section)
-        _PHASE_I_DIAGNOSIS_BLOCK=$(echo "$_DIAG_TEXT" | \
-          awk '/## Current State/{found=1} found{print} /## Planned Changes/{p=1} p && /^##/ && !/## Planned Changes/{exit}' | \
+        _PHASE_I_DIAGNOSIS_BLOCK=$(echo "$_DIAG_TEXT" |
+          awk '/## Current State/{found=1} found{print} /## Planned Changes/{p=1} p && /^##/ && !/## Planned Changes/{exit}' |
           head -80)
         echo "  [diagnosis] Diagnosis block found ($(echo "$_PHASE_I_DIAGNOSIS_BLOCK" | wc -l) lines)"
       else
@@ -3146,9 +3171,9 @@ DIAG_EXTRACTOR_EOF
     # ── US-253: emit I→V phase transition telemetry ─────────────────────────
     _TELEM_V_START_MS=$(date +%s%3N 2>/dev/null || echo 0)
     _TELEM_I_DUR=0
-    [[ "$_TELEM_V_START_MS" -gt 0 && "$_TELEM_I_START_MS" -gt 0 ]] && \
-      _TELEM_I_DUR=$(( _TELEM_V_START_MS - _TELEM_I_START_MS ))
-    declare -f emit_agent_telemetry >/dev/null 2>&1 && \
+    [[ "$_TELEM_V_START_MS" -gt 0 && "$_TELEM_I_START_MS" -gt 0 ]] &&
+      _TELEM_I_DUR=$((_TELEM_V_START_MS - _TELEM_I_START_MS))
+    declare -f emit_agent_telemetry >/dev/null 2>&1 &&
       emit_agent_telemetry "I" "V" "$_TELEM_I_DUR" 0
     break
   done # end rate-limit retry loop
@@ -3165,7 +3190,7 @@ DIAG_EXTRACTOR_EOF
   # _OBS_TOKENS_BEFORE/AFTER are cumulative token estimates across all retries.
   # Only write when masking was active (i.e., at least one retry occurred).
   if [[ "${_OBS_TOKENS_BEFORE:-0}" -gt 0 ]]; then
-    _ctx_reduction_pct=$(( (_OBS_TOKENS_BEFORE - _OBS_TOKENS_AFTER) * 100 / (_OBS_TOKENS_BEFORE + 1) ))
+    _ctx_reduction_pct=$(((_OBS_TOKENS_BEFORE - _OBS_TOKENS_AFTER) * 100 / (_OBS_TOKENS_BEFORE + 1)))
     $JQ --argjson ctxstats \
       "{\"tokensBeforeMasking\":${_OBS_TOKENS_BEFORE},\"tokensAfterMasking\":${_OBS_TOKENS_AFTER},\"reductionPct\":${_ctx_reduction_pct},\"contextWindow\":${SPIRAL_CONTEXT_WINDOW:-10}}" \
       '(.userStories[] | select(.id == "'"$NEXT_STORY"'") | ._contextStats) = $ctxstats' \
@@ -3178,17 +3203,19 @@ DIAG_EXTRACTOR_EOF
     read _WALL_SEC _USER_CPU_S _SYS_CPU_S _PEAK_RSS_KB 2>/dev/null <"$_RESOURCE_TMP" || true
     rm -f "$_RESOURCE_TMP"
   fi
-  _WALL_SEC="${_WALL_SEC:-0}"; _USER_CPU_S="${_USER_CPU_S:-0}"
-  _SYS_CPU_S="${_SYS_CPU_S:-0}"; _PEAK_RSS_KB="${_PEAK_RSS_KB:-0}"
+  _WALL_SEC="${_WALL_SEC:-0}"
+  _USER_CPU_S="${_USER_CPU_S:-0}"
+  _SYS_CPU_S="${_SYS_CPU_S:-0}"
+  _PEAK_RSS_KB="${_PEAK_RSS_KB:-0}"
 
   # ── Post-story OOM guard (US-158) ───────────────────────────────────────────
-  if [[ "${SPIRAL_WORKER_MEMORY_LIMIT:-0}" -gt 0 && \
-        "${_PEAK_RSS_KB:-0}" -gt 0 ]] 2>/dev/null; then
+  if [[ "${SPIRAL_WORKER_MEMORY_LIMIT:-0}" -gt 0 &&
+    "${_PEAK_RSS_KB:-0}" -gt 0 ]] 2>/dev/null; then
     if [[ "${_PEAK_RSS_KB}" -gt "${SPIRAL_WORKER_MEMORY_LIMIT}" ]] 2>/dev/null; then
       echo "  [memory] WARNING: Story $NEXT_STORY peak RSS ${_PEAK_RSS_KB} KB exceeded limit ${SPIRAL_WORKER_MEMORY_LIMIT} KB"
       log_spiral_event "oom_threshold_exceeded" \
         "\"story_id\":\"${NEXT_STORY}\",\"peak_rss_kb\":${_PEAK_RSS_KB},\"limit_kb\":${SPIRAL_WORKER_MEMORY_LIMIT}" 2>/dev/null || true
-      type spiral_log_low_power &>/dev/null && \
+      type spiral_log_low_power &>/dev/null &&
         spiral_log_low_power "ralph: OOM threshold exceeded for $NEXT_STORY (${_PEAK_RSS_KB}KB > ${SPIRAL_WORKER_MEMORY_LIMIT}KB)"
     fi
   fi
@@ -3311,8 +3338,8 @@ except Exception:
     if declare -f emit_agent_telemetry >/dev/null 2>&1; then
       _TELEM_C_MS=$(date +%s%3N 2>/dev/null || echo 0)
       _TELEM_V_DUR=0
-      [[ "$_TELEM_C_MS" -gt 0 && "$_TELEM_V_START_MS" -gt 0 ]] && \
-        _TELEM_V_DUR=$(( _TELEM_C_MS - _TELEM_V_START_MS ))
+      [[ "$_TELEM_C_MS" -gt 0 && "$_TELEM_V_START_MS" -gt 0 ]] &&
+        _TELEM_V_DUR=$((_TELEM_C_MS - _TELEM_V_START_MS))
       emit_agent_telemetry "V" "C" "$_TELEM_V_DUR" 1
     fi
     echo ""
@@ -3350,7 +3377,7 @@ Output this block as plain text BEFORE calling Edit, Write, or any Bash command 
       echo "## Iteration $ITERATION - $(date)" >>"$PROGRESS_FILE"
       echo "FAILED diagnosis-block gate: $STORY_TITLE (ID: $NEXT_STORY) — no diagnosis block found — attempt $RETRY_NOW/$MAX_RETRIES" >>"$PROGRESS_FILE"
       echo "" >>"$PROGRESS_FILE"
-      STORIES_COMPLETED=$((STORIES_COMPLETED - 1))  # undo the increment above
+      STORIES_COMPLETED=$((STORIES_COMPLETED - 1)) # undo the increment above
       continue
     fi
     # ── End diagnosis block gate ───────────────────────────────────────────────
@@ -3360,7 +3387,7 @@ Output this block as plain text BEFORE calling Edit, Write, or any Bash command 
     # Skip when SPIRAL_SKIP_SELF_REVIEW=true or when retries exceed MAX_RETRIES/2
     # (to avoid burning tokens on stories already deep in retry chain).
     if [[ "${SPIRAL_SKIP_SELF_REVIEW:-false}" != "true" ]]; then
-      _REVIEW_SKIP_THRESHOLD=$(( MAX_RETRIES / 2 ))
+      _REVIEW_SKIP_THRESHOLD=$((MAX_RETRIES / 2))
       if [[ "$RETRY_NOW" -le "$_REVIEW_SKIP_THRESHOLD" ]]; then
         if ! run_self_review "$NEXT_STORY"; then
           # Critical issues found — re-queue for Phase I with issue list injected
@@ -3486,12 +3513,10 @@ ACTION: Fix the critical issues listed above before marking passes=true."
       # so it is included in the story commit.  Non-blocking: a failure only
       # logs a warning and does not prevent the commit from proceeding.
       if [[ "${SPIRAL_SKIP_ADR:-false}" != "true" ]]; then
-        local _adr_script
         _adr_script="$(cd "$SCRIPT_DIR/.." 2>/dev/null && pwd)/lib/generate_adr.py"
-        local _python_cmd="${SPIRAL_PYTHON:-python3}"
+        _python_cmd="${SPIRAL_PYTHON:-python3}"
         if [[ -f "$_adr_script" ]] && command -v "$_python_cmd" &>/dev/null; then
           echo "  [adr] Generating ADR for $NEXT_STORY..."
-          local _adr_out
           _adr_out=$("$_python_cmd" "$_adr_script" \
             --story-id "$NEXT_STORY" \
             --prd "$PRD_FILE" \
@@ -3499,7 +3524,7 @@ ACTION: Fix the critical issues listed above before marking passes=true."
             --model "${SPIRAL_ADR_MODEL:-haiku}" \
             2>&1) || true
           # _adr_out last line is the file path when exit 0; warn on empty
-          local _adr_path
+          _adr_path
           _adr_path=$(echo "$_adr_out" | tail -1 | tr -d '\r\n' || true)
           if [[ -n "$_adr_path" && -f "$_adr_path" ]]; then
             git add "$_adr_path" 2>/dev/null || true
@@ -3579,7 +3604,7 @@ Co-Authored-By: Claude ${COAUTHOR_LABEL} 4.6 <noreply@anthropic.com>"
         if [[ -n "$_AP_FAIL_REASON" ]]; then
           $JQ --arg sid "$NEXT_STORY" --arg note "$_AP_FAIL_REASON" \
             '(.userStories[] | select(.id == $sid) | ._antiPatterns) |= (. // []) + [$note]' \
-            "$PRD_FILE" > "${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE" || true
+            "$PRD_FILE" >"${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE" || true
         fi
       fi
 
@@ -3622,7 +3647,7 @@ Co-Authored-By: Claude ${COAUTHOR_LABEL} 4.6 <noreply@anthropic.com>"
       if [[ -n "$_AP_FAIL_REASON" ]]; then
         $JQ --arg sid "$NEXT_STORY" --arg note "$_AP_FAIL_REASON" \
           '(.userStories[] | select(.id == $sid) | ._antiPatterns) |= (. // []) + [$note]' \
-          "$PRD_FILE" > "${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE" || true
+          "$PRD_FILE" >"${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE" || true
       fi
     fi
 

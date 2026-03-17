@@ -1,6 +1,5 @@
 """Unit tests for lib/invocation_snapshot.py — Per-story invocation snapshots (US-362)."""
 
-import json
 import os
 import sys
 

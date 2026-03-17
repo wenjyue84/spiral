@@ -35,7 +35,7 @@ build_files_context() {
   local files_list
   files_list=$(printf '%s' "$story_json" | "$jq_bin" -r '(.filesTouch // []) | .[]' 2>/dev/null | tr -d '\r' || true)
   if [[ -z "$files_list" ]]; then
-    return 0  # nothing to inject
+    return 0 # nothing to inject
   fi
 
   local output=""
@@ -90,9 +90,9 @@ ${full_out}
     local section_lines
     section_lines=$(printf '%s\n' "$file_section" | wc -l)
 
-    if [[ "$max_lines" -gt 0 && $(( total_lines + section_lines )) -gt "$max_lines" ]]; then
+    if [[ "$max_lines" -gt 0 && $((total_lines + section_lines)) -gt "$max_lines" ]]; then
       # Truncate: take only the remaining budget
-      local remaining=$(( max_lines - total_lines ))
+      local remaining=$((max_lines - total_lines))
       if [[ "$remaining" -gt 0 ]]; then
         file_section=$(printf '%s\n' "$file_section" | head -n "$remaining")
         file_section="${file_section}
@@ -106,7 +106,7 @@ ${full_out}
     output="${output}${file_section}
 
 "
-    total_lines=$(( total_lines + section_lines ))
+    total_lines=$((total_lines + section_lines))
     [[ "$truncated" -eq 1 ]] && break
   done <<<"$files_list"
 

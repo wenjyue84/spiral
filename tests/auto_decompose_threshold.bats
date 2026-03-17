@@ -28,10 +28,10 @@ setup() {
   export MAX_RETRIES=3
 
   touch "$PROGRESS_FILE"
-  echo '{}' > "$RETRY_FILE"
+  echo '{}' >"$RETRY_FILE"
 
   # Minimal prd.json with one story
-  cat > "$PRD_FILE" <<'JSON'
+  cat >"$PRD_FILE" <<'JSON'
 {
   "productName": "Test",
   "branchName": "main",
@@ -53,17 +53,17 @@ JSON
 
   # Stub decompose_story: succeeds and writes _decomposed/_decomposedInto on parent
   decompose_story() {
-    printf 'decompose_story called\n' > "$TMPDIR_AD/decompose_called"
+    printf 'decompose_story called\n' >"$TMPDIR_AD/decompose_called"
     "$JQ" '(.userStories[] | select(.id == "US-001") | ._decomposed) = true |
            (.userStories[] | select(.id == "US-001") | ._decomposedInto) = ["US-002","US-003"]' \
-      "$PRD_FILE" > "${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE"
+      "$PRD_FILE" >"${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE"
     return 0
   }
   export -f decompose_story
 
   # Stub helpers to avoid real side-effects
   log_ralph_event() {
-    printf '%s %s\n' "$1" "${2:-}" >> "$TMPDIR_AD/events.log"
+    printf '%s %s\n' "$1" "${2:-}" >>"$TMPDIR_AD/events.log"
   }
   reset_retry() { true; }
   export -f log_ralph_event reset_retry

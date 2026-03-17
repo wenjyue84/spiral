@@ -118,7 +118,7 @@ class TestDeterministicGrader:
 
     def test_grade_unknown_checker(self):
         """Test grading with unknown checker type."""
-        result = DeterministicGrader.grade('{}', {"type": "unknown_checker"})
+        result = DeterministicGrader.grade("{}", {"type": "unknown_checker"})
         assert result.passed is False
 
 

@@ -41,12 +41,20 @@ SPIRAL_THINKING_BUDGET_TOKENS="${SPIRAL_THINKING_BUDGET_TOKENS:-10000}"
 # When enabled on unsupported models (haiku), falls back gracefully.
 SPIRAL_PROGRAMMATIC_TOOLS="${SPIRAL_PROGRAMMATIC_TOOLS:-auto}"
 
+# ── Interleaved thinking (US-392) ───────────────────────────────────────────────
+# Enable interleaved-thinking-2025-05-14 beta for iterative reasoning throughout
+# the implementation workflow. Supported on claude-opus-4-6 and claude-sonnet-4-6.
+# When enabled, Claude reasons between tool calls rather than only before the first one.
+# Options: true (enable), false (disabled, default)
+# This doubles token consumption but enables more sophisticated multi-step planning.
+SPIRAL_INTERLEAVED_THINKING="${SPIRAL_INTERLEAVED_THINKING:-false}"
+
 # ── Phase-specific model defaults ────────────────────────────────────────────
 # Each non-implementation phase can use a cheaper model (haiku is ~15x cheaper
 # than sonnet). Phase I continues to use SPIRAL_MODEL_ROUTING for escalation.
-SPIRAL_RESEARCH_MODEL="haiku"       # Phase R: research synthesis
-SPIRAL_VALIDATION_MODEL="haiku"     # Phase S: story validation (future — currently Python-only)
-SPIRAL_MERGE_MODEL="haiku"          # Phase M: merge decisions (future — currently Python-only)
+SPIRAL_RESEARCH_MODEL="haiku"   # Phase R: research synthesis
+SPIRAL_VALIDATION_MODEL="haiku" # Phase S: story validation (future — currently Python-only)
+SPIRAL_MERGE_MODEL="haiku"      # Phase M: merge decisions (future — currently Python-only)
 # Bulk override format: SPIRAL_PHASE_MODEL_OVERRIDE=R:haiku,S:haiku,M:haiku
 # SPIRAL_PHASE_MODEL_OVERRIDE=""
 
@@ -186,7 +194,7 @@ SPIRAL_DASHBOARD_REFRESH_SECS=30
 # to avoid loading the entire document into memory. Default 512 KB covers
 # ~1000-story PRDs comfortably. Set to 0 to always use streaming (useful for
 # testing). Requires jq 1.6+ for --stream support.
-SPIRAL_PRD_STREAM_THRESHOLD_KB=2048  # streaming jq path has a bug; keep on in-memory path until prd.json > 2MB
+SPIRAL_PRD_STREAM_THRESHOLD_KB=2048 # streaming jq path has a bug; keep on in-memory path until prd.json > 2MB
 
 # ── Research output cache TTL (US-170) ───────────────────────────────────
 # When set to a positive integer, Phase R is skipped entirely if

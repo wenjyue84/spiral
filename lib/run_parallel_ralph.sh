@@ -61,7 +61,7 @@ PATCH_DIRS="${SPIRAL_PATCH_DIRS:-}"
 DEPLOY_CMD="${SPIRAL_DEPLOY_CMD:-}"
 TERMINAL_EMU="${SPIRAL_TERMINAL:-}"
 GEMINI_ANNOTATE="${SPIRAL_GEMINI_ANNOTATE_PROMPT:-}"
-WORKER_TIMEOUT="${SPIRAL_WORKER_TIMEOUT:-600}" # per-worker wall-clock limit (0 = unlimited)
+WORKER_TIMEOUT="${SPIRAL_WORKER_TIMEOUT:-600}"                     # per-worker wall-clock limit (0 = unlimited)
 STRICT_WORKER_ISOLATION="${SPIRAL_STRICT_WORKER_ISOLATION:-false}" # US-355: abort on policy violation
 
 # US-359: Worker env allowlist — convert comma-separated config to grep regex
@@ -73,7 +73,7 @@ _WORKER_ENV_ALLOWLIST_RE=$(echo "$_WORKER_ENV_ALLOWLIST_CFG" | sed 's/\*/.\*/g; 
 # Per-worker memory and CPU hard limits enforced by the kernel.
 # Falls back gracefully when cgroups v2 is unavailable (Windows, macOS, older kernels).
 SPIRAL_WORKER_MEM_LIMIT_MB="${SPIRAL_WORKER_MEM_LIMIT_MB:-2048}"
-SPIRAL_WORKER_CPU_QUOTA="${SPIRAL_WORKER_CPU_QUOTA:-80}"  # percentage of one CPU (1–100)
+SPIRAL_WORKER_CPU_QUOTA="${SPIRAL_WORKER_CPU_QUOTA:-80}" # percentage of one CPU (1–100)
 _CGROUP_BASE="/sys/fs/cgroup/spiral"
 _CGROUPS_V2_AVAILABLE=0
 if [[ -f /sys/fs/cgroup/cgroup.controllers ]] && grep -q memory /sys/fs/cgroup/cgroup.controllers 2>/dev/null; then
@@ -98,18 +98,18 @@ _cgroup_setup() {
     return 1
   fi
   # Ensure subtree_control enables memory and cpu for children
-  echo "+memory +cpu" > "${_CGROUP_BASE}/cgroup.subtree_control" 2>/dev/null || true
+  echo "+memory +cpu" >"${_CGROUP_BASE}/cgroup.subtree_control" 2>/dev/null || true
   # memory.max: convert MB → bytes
-  local mem_bytes=$(( SPIRAL_WORKER_MEM_LIMIT_MB * 1024 * 1024 ))
-  echo "$mem_bytes" > "$cg_path/memory.max" 2>/dev/null || {
+  local mem_bytes=$((SPIRAL_WORKER_MEM_LIMIT_MB * 1024 * 1024))
+  echo "$mem_bytes" >"$cg_path/memory.max" 2>/dev/null || {
     echo "  [cgroup] WARNING: failed to set memory.max for worker $worker_num" >&2
   }
   # memory.high (soft reclaim at 80% of hard limit)
-  local mem_high=$(( mem_bytes * 4 / 5 ))
-  echo "$mem_high" > "$cg_path/memory.high" 2>/dev/null || true
+  local mem_high=$((mem_bytes * 4 / 5))
+  echo "$mem_high" >"$cg_path/memory.high" 2>/dev/null || true
   # cpu.max: quota period; 80% = "80000 100000"
-  local cpu_quota=$(( SPIRAL_WORKER_CPU_QUOTA * 1000 ))
-  echo "${cpu_quota} 100000" > "$cg_path/cpu.max" 2>/dev/null || {
+  local cpu_quota=$((SPIRAL_WORKER_CPU_QUOTA * 1000))
+  echo "${cpu_quota} 100000" >"$cg_path/cpu.max" 2>/dev/null || {
     echo "  [cgroup] WARNING: failed to set cpu.max for worker $worker_num" >&2
   }
   _WORKER_CGROUP_PATHS[$((worker_num - 1))]="$cg_path"
@@ -123,7 +123,7 @@ _cgroup_assign() {
   local pid="$2"
   local cg_path="${_WORKER_CGROUP_PATHS[$((worker_num - 1))]:-}"
   [[ -z "$cg_path" || ! -d "$cg_path" ]] && return 0
-  echo "$pid" > "$cg_path/cgroup.procs" 2>/dev/null || {
+  echo "$pid" >"$cg_path/cgroup.procs" 2>/dev/null || {
     echo "  [cgroup] WARNING: failed to assign PID $pid to cgroup for worker $worker_num" >&2
   }
 }
@@ -137,7 +137,7 @@ _cgroup_cleanup() {
   if [[ -f "$cg_path/cgroup.procs" ]]; then
     while read -r _pid; do
       [[ -n "$_pid" ]] && kill "$_pid" 2>/dev/null || true
-    done < "$cg_path/cgroup.procs"
+    done <"$cg_path/cgroup.procs"
     sleep 0.2
   fi
   rmdir "$cg_path" 2>/dev/null || true
@@ -149,7 +149,7 @@ declare -a WORKER_PIDS=()
 declare -a WORKER_FINISHED=()
 declare -a WORKER_EXIT_CODES=()
 declare -a WORKER_PGID_FILES=()  # US-245: path to per-worker PGID file
-declare -a WORKER_START_TIMES=()  # US-318: epoch seconds per worker for invoke_agent span
+declare -a WORKER_START_TIMES=() # US-318: epoch seconds per worker for invoke_agent span
 
 # ── Graceful cleanup trap — kill orphaned workers on exit/interrupt ─────────
 _CLEANUP_RUNNING=0
@@ -370,7 +370,7 @@ spiral_assert_worker_disjoint "$WORKER_DIR" "${WORKER_PRD_FILES[@]}"
 # Only if SPIRAL_DISPATCH_MODE is not 'parallel' (default is 'dag')
 DISPATCH_MODE="${SPIRAL_DISPATCH_MODE:-dag}"
 _TIER_DISPATCH_ENABLED=0
-declare -A TIER_WORKERS=()  # tier_num → space-separated worker list
+declare -A TIER_WORKERS=() # tier_num → space-separated worker list
 TOTAL_TIERS=0
 
 if [[ "$DISPATCH_MODE" != "parallel" ]]; then
@@ -384,7 +384,7 @@ if [[ "$DISPATCH_MODE" != "parallel" ]]; then
       WORKER_FILE="$WORKER_DIR/worker_${i}.json"
       if [[ -f "$WORKER_FILE" ]]; then
         # Get max tier in this worker: extract story IDs, look up in TIER_JSON, find max
-        MAX_TIER=$("$JQ" -r '.userStories[].id' "$WORKER_FILE" 2>/dev/null | \
+        MAX_TIER=$("$JQ" -r '.userStories[].id' "$WORKER_FILE" 2>/dev/null |
           while read -r sid; do
             [[ -z "$sid" ]] && continue
             echo "$TIER_JSON" | "$JQ" --arg id "$sid" '.[$id] // 0' 2>/dev/null || echo "0"
@@ -692,7 +692,7 @@ _inspect_crashed_worktree() {
   [[ -d "$wtree" ]] || return 0
   # Remove stale git lock files (left behind when ralph was killed mid-operation)
   while IFS= read -r -d '' _lf; do
-    rm -f "$_lf" 2>/dev/null && _cleaned=1 && \
+    rm -f "$_lf" 2>/dev/null && _cleaned=1 &&
       echo "  [parallel] Worker $worker_num crash-clean: removed stale lock $_lf"
   done < <(find "$wtree/.git" -name "*.lock" -print0 2>/dev/null)
   # Remove incomplete atomic prd.json write
@@ -850,7 +850,7 @@ _launch_worker_i() {
   local _EXIT_CODE_FILE="$WORKTREE_BASE/worker-${i}/exit_code"
   # US-245: PGID file — the setsid'd bash writes its own PID (= its PGID) here on startup
   local _PGID_FILE="$WORKTREE_BASE/worker-${i}/worker.pgid"
-  : >"$_PGID_FILE"  # initialise empty
+  : >"$_PGID_FILE" # initialise empty
   # US-259: Create cgroup slice before spawning (no-op + warning if unavailable)
   _cgroup_setup "$i" || true
   (
@@ -902,7 +902,7 @@ _launch_worker_i() {
   WORKER_FINISHED+=("0")
   WORKER_EXIT_CODES+=("0")
   WORKER_PGID_FILES+=("$_PGID_FILE")  # US-245: track PGID file for crash cleanup
-  WORKER_START_TIMES+=("$(date +%s)")  # US-318: record launch time for invoke_agent span
+  WORKER_START_TIMES+=("$(date +%s)") # US-318: record launch time for invoke_agent span
   echo "$_wpid" >"$WORKTREE_BASE/worker-${i}/worker.pid"
   disown "$_wpid"
 }
@@ -948,7 +948,7 @@ if [[ "$_TIER_DISPATCH_ENABLED" -eq 1 ]]; then
     _TIER_COMPLETE=0
     while [[ "$_TIER_COMPLETE" -eq 0 ]]; do
       _TIER_COMPLETE=1
-      for worker_id in ${_CURRENT_TIER_WORKERS_LAUNCHED[@]}; do
+      for worker_id in "${_CURRENT_TIER_WORKERS_LAUNCHED[@]}"; do
         worker_idx=$((worker_id - 1))
         if [[ "${WORKER_FINISHED[$worker_idx]}" -eq 0 ]]; then
           if kill -0 "${WORKER_PIDS[$worker_idx]}" 2>/dev/null; then
@@ -1066,7 +1066,7 @@ while [[ "$_ALL_DONE" -eq 0 ]]; do
           if [[ -n "$_CRASH_PGID_FILE" && -f "$_CRASH_PGID_FILE" ]]; then
             _CRASH_PGID=$(cat "$_CRASH_PGID_FILE" 2>/dev/null | tr -d '[:space:]')
             if [[ -n "$_CRASH_PGID" && "$_CRASH_PGID" =~ ^[0-9]+$ ]]; then
-              kill -- -"$_CRASH_PGID" 2>/dev/null && \
+              kill -- -"$_CRASH_PGID" 2>/dev/null &&
                 echo "  [parallel] Worker $WORKER_NUM: killed process group $CRASH_PGID (crash cleanup)" || true
             fi
           fi
@@ -1084,14 +1084,14 @@ while [[ "$_ALL_DONE" -eq 0 ]]; do
           echo "  [parallel] Worker $WORKER_NUM finished: $DONE_W/$TOTAL_W stories passed"
         fi
         # US-318: emit invoke_agent span for worker lifecycle
-        _IA_DURATION=$(( $(date +%s) - ${WORKER_START_TIMES[$i]:-$(date +%s)} ))
+        _IA_DURATION=$(($(date +%s) - ${WORKER_START_TIMES[$i]:-$(date +%s)}))
         _IA_STATUS="failed"
         [[ "$WORKER_EXIT" -eq 0 ]] && _IA_STATUS="passed"
         [[ "$WORKER_EXIT" -eq 124 ]] && _IA_STATUS="timeout"
         # Get first story ID from worker's prd.json for gen_ai.agent.id
         _IA_SID=$("$JQ" -r '[.userStories[] | select(.passes != true)] | first | .id // "unknown"' \
           "${WORKER_DIRS[$i]}/prd.json" 2>/dev/null || echo "unknown")
-        [[ "$_IA_STATUS" == "passed" ]] && \
+        [[ "$_IA_STATUS" == "passed" ]] &&
           _IA_SID=$("$JQ" -r '[.userStories[] | select(.passes == true)] | last | .id // "unknown"' \
             "${WORKER_DIRS[$i]}/prd.json" 2>/dev/null || echo "unknown")
         # US-341: extract cache tokens from worker's results.tsv for the story
@@ -1234,7 +1234,7 @@ while [[ "$_ALL_DONE" -eq 0 ]]; do
     fi
   fi
 
-  sleep 5  # US-245: 5s poll interval ensures crash detection within 5 seconds
+  sleep 5 # US-245: 5s poll interval ensures crash detection within 5 seconds
 done
 
 # Resume all paused workers before returning (safety net)

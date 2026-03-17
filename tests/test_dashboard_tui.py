@@ -3,8 +3,6 @@
 import json
 import os
 import sys
-import tempfile
-from pathlib import Path
 
 import pytest
 
@@ -13,6 +11,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 
 # Import after path setup
 from spiral_dashboard import HAS_TEXTUAL, load_prd
+
 
 # Fixtures for PRD data
 @pytest.fixture
@@ -56,7 +55,8 @@ class TestSpiralDashboardTUI:
 
     def test_tui_module_imports(self):
         """Verify Textual components are available when HAS_TEXTUAL is True."""
-        from spiral_dashboard import SpiralDashboardApp, StoriesTable, LogPanel
+        from spiral_dashboard import LogPanel, SpiralDashboardApp, StoriesTable
+
         assert SpiralDashboardApp is not None
         assert StoriesTable is not None
         assert LogPanel is not None
@@ -64,6 +64,7 @@ class TestSpiralDashboardTUI:
     def test_stories_table_widget_creation(self, fixture_prd):
         """Test StoriesTable widget can be instantiated with stories."""
         from spiral_dashboard import StoriesTable
+
         stories = fixture_prd["userStories"]
         table = StoriesTable(stories)
         assert table.stories == stories
@@ -73,6 +74,7 @@ class TestSpiralDashboardTUI:
     def test_stories_table_population_from_fixture(self, fixture_prd):
         """Test StoriesTable is properly populated from fixture prd.json."""
         from spiral_dashboard import StoriesTable
+
         stories = fixture_prd["userStories"]
         table = StoriesTable(stories)
         # Verify stories are loaded
@@ -87,6 +89,7 @@ class TestSpiralDashboardTUI:
     def test_stories_table_navigation(self, fixture_prd):
         """Test StoriesTable arrow key navigation."""
         from spiral_dashboard import StoriesTable
+
         stories = fixture_prd["userStories"]
         table = StoriesTable(stories)
         assert table.selected_index == 0
@@ -103,6 +106,7 @@ class TestSpiralDashboardTUI:
     def test_stories_table_get_selected_story(self, fixture_prd):
         """Test getting the currently selected story."""
         from spiral_dashboard import StoriesTable
+
         stories = fixture_prd["userStories"]
         table = StoriesTable(stories)
         # First story
@@ -116,6 +120,7 @@ class TestSpiralDashboardTUI:
     def test_log_panel_widget_creation(self):
         """Test LogPanel widget can be instantiated."""
         from spiral_dashboard import LogPanel
+
         panel = LogPanel("")
         assert panel.log_path == ""
         assert panel.auto_refresh is True
@@ -123,6 +128,7 @@ class TestSpiralDashboardTUI:
     def test_log_panel_with_missing_file(self):
         """Test LogPanel gracefully handles missing log files."""
         from spiral_dashboard import LogPanel
+
         panel = LogPanel("/nonexistent/path/to/log.txt")
         rendered = panel.render()
         assert "No log file" in rendered or "Could not read" in rendered
@@ -130,6 +136,7 @@ class TestSpiralDashboardTUI:
     def test_spiral_dashboard_app_creation(self, fixture_prd):
         """Test SpiralDashboardApp can be instantiated."""
         from spiral_dashboard import SpiralDashboardApp
+
         app = SpiralDashboardApp(fixture_prd, ".spiral")
         assert app.prd == fixture_prd
         assert app.scratch_dir == ".spiral"
@@ -138,6 +145,7 @@ class TestSpiralDashboardTUI:
     def test_spiral_dashboard_app_with_empty_prd(self):
         """Test SpiralDashboardApp handles empty PRD gracefully."""
         from spiral_dashboard import SpiralDashboardApp
+
         empty_prd = {"userStories": []}
         app = SpiralDashboardApp(empty_prd)
         assert app.stories == []
@@ -162,4 +170,5 @@ class TestTUIGracefulDegradation:
         """Verify TUI imports are optional."""
         # HAS_TEXTUAL should be False in this test group
         from spiral_dashboard import HAS_TEXTUAL as textual_available
+
         assert textual_available is False

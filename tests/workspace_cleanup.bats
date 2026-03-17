@@ -37,7 +37,10 @@ run_cleanup() {
       printf '{\"event\":\"%s\",%s}\n' \"\$event_type\" \"\$extra\" >> \"\$SCRATCH_DIR/spiral_events.jsonl\"
     }
 
-    $(declare -f cleanup_workspace 2>/dev/null || cat lib/spiral_events.sh; cat lib/spiral_events.sh 2>/dev/null || true)
+    $(
+    declare -f cleanup_workspace 2>/dev/null || cat lib/spiral_events.sh
+    cat lib/spiral_events.sh 2>/dev/null || true
+  )
 
     # Re-define cleanup_workspace from spiral.sh inline
     cleanup_workspace() {
@@ -124,7 +127,7 @@ teardown() {
 @test "cleanup_workspace removes zero-byte log files" {
   touch "$TMP_SCRATCH/empty1.log"
   touch "$TMP_SCRATCH/empty2.log"
-  echo "content" > "$TMP_SCRATCH/nonempty.log"
+  echo "content" >"$TMP_SCRATCH/nonempty.log"
 
   run run_cleanup "true" "7" "$TMP_SCRATCH"
   assert_success
@@ -148,7 +151,7 @@ teardown() {
   # Create 8 iteration summary files
   for i in $(seq 1 8); do
     touch "$TMP_SCRATCH/_iteration_summary_iter${i}.json"
-    sleep 0.01  # ensure different mtime ordering
+    sleep 0.01 # ensure different mtime ordering
   done
 
   run run_cleanup "true" "7" "$TMP_SCRATCH"
@@ -168,7 +171,7 @@ teardown() {
 
 @test "cleanup_workspace preserves fewer than 5 iteration summaries untouched" {
   for i in $(seq 1 3); do
-    echo "{}" > "$TMP_SCRATCH/_iteration_summary_iter${i}.json"
+    echo "{}" >"$TMP_SCRATCH/_iteration_summary_iter${i}.json"
   done
 
   run run_cleanup "true" "7" "$TMP_SCRATCH"

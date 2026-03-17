@@ -27,7 +27,7 @@ teardown() {
   # Write a worker script that reads from stdin and exits 0 on EOF, 1 on timeout
   worker="$TMPDIR_SI/mock_worker.sh"
   result_file="$TMPDIR_SI/result"
-  cat > "$worker" << 'EOF'
+  cat >"$worker" <<'EOF'
 #!/usr/bin/env bash
 # Attempt to read from stdin with a 1-second timeout.
 # If stdin is /dev/null, read returns immediately with EOF (exit code 1 from read).
@@ -45,7 +45,7 @@ EOF
   chmod +x "$worker"
 
   # Launch worker with stdin redirected from /dev/null (simulating ralph.sh pattern)
-  bash "$worker" "$result_file" < /dev/null
+  bash "$worker" "$result_file" </dev/null
 
   # Verify result: should be "eof" (not "got_input")
   result_line=$(head -1 "$result_file")

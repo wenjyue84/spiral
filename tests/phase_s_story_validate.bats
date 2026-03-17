@@ -38,7 +38,7 @@ setup() {
   export REJECTED_OUT="$SCRATCH_DIR/_story_rejected.json"
 
   # Minimal prd.json with goals[]
-  cat > "$TEST_TMP/prd.json" <<'EOF'
+  cat >"$TEST_TMP/prd.json" <<'EOF'
 {
   "schemaVersion": 1,
   "projectName": "Spiral",
@@ -54,7 +54,7 @@ setup() {
 EOF
 
   # Research output with on-topic and off-topic stories
-  cat > "$SCRATCH_DIR/_research_output.json" <<'EOF'
+  cat >"$SCRATCH_DIR/_research_output.json" <<'EOF'
 {
   "stories": [
     {
@@ -92,7 +92,7 @@ EOF
 EOF
 
   # Empty test-stories output
-  echo '{"stories":[]}' > "$SCRATCH_DIR/_test_stories_output.json"
+  echo '{"stories":[]}' >"$SCRATCH_DIR/_test_stories_output.json"
 }
 
 teardown() {
@@ -217,7 +217,7 @@ except Exception:
 }
 
 @test "empty goals list causes all stories to be accepted" {
-  cat > "$TEST_TMP/prd.json" <<'EOF'
+  cat >"$TEST_TMP/prd.json" <<'EOF'
 {
   "schemaVersion": 1,
   "projectName": "Spiral",
@@ -242,7 +242,7 @@ EOF
 
 @test "constitution violations are rejected when constitution file is set" {
   local constitution="$TEST_TMP/constitution.md"
-  cat > "$constitution" <<'EOF'
+  cat >"$constitution" <<'EOF'
 # Project Constitution
 
 NOT: cafe
@@ -288,7 +288,7 @@ EOF
 }
 
 @test "stories from test-stories file are also validated" {
-  cat > "$SCRATCH_DIR/_test_stories_output.json" <<'EOF'
+  cat >"$SCRATCH_DIR/_test_stories_output.json" <<'EOF'
 {
   "stories": [
     {

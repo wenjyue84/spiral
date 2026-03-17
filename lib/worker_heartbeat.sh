@@ -54,8 +54,8 @@ worker_heartbeat_start() {
       # Write heartbeat JSON atomically (temp + mv prevents partial reads by monitor)
       local hb_tmp="${hb_file}.tmp"
       printf '{"pid":%s,"storyId":"%s","ts":%s,"completed":%s,"phase":"%s","memMb":%s}\n' \
-        "$pid" "$current_story_id" "$ts" "$completed" "$phase" "${mem_mb:-0}" >"$hb_tmp" 2>/dev/null \
-        && mv "$hb_tmp" "$hb_file" 2>/dev/null || true
+        "$pid" "$current_story_id" "$ts" "$completed" "$phase" "${mem_mb:-0}" >"$hb_tmp" 2>/dev/null &&
+        mv "$hb_tmp" "$hb_file" 2>/dev/null || true
     done
   ) &
   _HEARTBEAT_PID=$!

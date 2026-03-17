@@ -29,7 +29,7 @@ setup() {
   git -C "$REPO" init -q
   git -C "$REPO" config user.email "test@spiral.test"
   git -C "$REPO" config user.name "Spiral Test"
-  echo "initial" > "$REPO/README.md"
+  echo "initial" >"$REPO/README.md"
   git -C "$REPO" add README.md
   git -C "$REPO" commit -q -m "init"
 }
@@ -51,10 +51,10 @@ teardown() {
 }
 
 @test "undo_log_record appends multiple entries" {
-  undo_log_record "US-042" "checkpoint"    "HEAD:abc" "git reset --hard abc"
+  undo_log_record "US-042" "checkpoint" "HEAD:abc" "git reset --hard abc"
   undo_log_record "US-042" "branch_create" "feature/US-042" "git branch -D feature/US-042"
-  undo_log_record "US-042" "git_commit"    "pre-commit:abc" "git reset --hard abc"
-  line_count=$(wc -l < "$SPIRAL_SCRATCH_DIR/undo/US-042.jsonl")
+  undo_log_record "US-042" "git_commit" "pre-commit:abc" "git reset --hard abc"
+  line_count=$(wc -l <"$SPIRAL_SCRATCH_DIR/undo/US-042.jsonl")
   [ "$line_count" -eq 3 ]
 }
 
@@ -75,7 +75,7 @@ teardown() {
   [ -f "$SPIRAL_SCRATCH_DIR/undo/US-001.jsonl" ]
   [ -f "$SPIRAL_SCRATCH_DIR/undo/US-002.jsonl" ]
   # US-001 log has only one line
-  line_count=$(wc -l < "$SPIRAL_SCRATCH_DIR/undo/US-001.jsonl")
+  line_count=$(wc -l <"$SPIRAL_SCRATCH_DIR/undo/US-001.jsonl")
   [ "$line_count" -eq 1 ]
 }
 
@@ -133,9 +133,9 @@ teardown() {
   # Record ordering via a shared state file
   local order_file="$SPIRAL_SCRATCH_DIR/order.txt"
 
-  undo_log_record "US-100" "checkpoint"    "first"  "echo first  >> $order_file"
+  undo_log_record "US-100" "checkpoint" "first" "echo first  >> $order_file"
   undo_log_record "US-100" "branch_create" "second" "echo second >> $order_file"
-  undo_log_record "US-100" "git_commit"    "third"  "echo third  >> $order_file"
+  undo_log_record "US-100" "git_commit" "third" "echo third  >> $order_file"
 
   undo_log_replay "US-100"
 
@@ -158,7 +158,7 @@ teardown() {
   undo_log_record "US-SIM" "checkpoint" "HEAD:$baseline" "$undo_cmd"
 
   # Simulate a story that writes a file and commits
-  echo "story work" > "$REPO/story.txt"
+  echo "story work" >"$REPO/story.txt"
   git -C "$REPO" add story.txt
   git -C "$REPO" commit -q -m "story commit"
 

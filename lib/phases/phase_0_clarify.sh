@@ -35,13 +35,13 @@
 _open_editor() {
   local file="$1"
   local editor="${EDITOR:-}"
-  if [[ -n "$editor" ]] && command -v "$editor" > /dev/null 2>&1; then
+  if [[ -n "$editor" ]] && command -v "$editor" >/dev/null 2>&1; then
     "$editor" "$file"
-  elif command -v nano > /dev/null 2>&1; then
+  elif command -v nano >/dev/null 2>&1; then
     nano "$file"
-  elif command -v vi > /dev/null 2>&1; then
+  elif command -v vi >/dev/null 2>&1; then
     vi "$file"
-  elif command -v notepad > /dev/null 2>&1; then
+  elif command -v notepad >/dev/null 2>&1; then
     notepad "$file" 2>/dev/null || true
   else
     echo "  │  No editor found. Edit manually at: $file"
@@ -64,7 +64,8 @@ _generate_constitution() {
   local prd_file="${PRD_FILE:-prd.json}"
 
   local _suggested
-  _suggested=$("$SPIRAL_PYTHON" - "$prd_file" "${SPIRAL_FOCUS:-}" 2>/dev/null <<'_PY'
+  _suggested=$(
+    "$SPIRAL_PYTHON" - "$prd_file" "${SPIRAL_FOCUS:-}" 2>/dev/null <<'_PY'
 import json, sys
 
 prd_file, focus = sys.argv[1], sys.argv[2]
@@ -118,7 +119,7 @@ print(f"""# {product} — Spiral Constitution
 - Expanding test coverage
 - Improving documentation and onboarding""".strip())
 _PY
-)
+  )
 
   if [[ -z "$_suggested" ]]; then
     _suggested="# Project Constitution
@@ -150,20 +151,20 @@ _PY
   read -r _choice 2>/dev/null || _choice="a"
 
   case "${_choice:-a}" in
-    s|skip)
+    s | skip)
       echo "  │  [0-A] Skipped — no constitution created."
       return 1
       ;;
-    e|edit)
+    e | edit)
       mkdir -p "$(dirname "$const_path")"
-      printf '%s\n' "$_suggested" > "$const_path"
+      printf '%s\n' "$_suggested" >"$const_path"
       _open_editor "$const_path"
       echo "  │  [0-A] Constitution saved (edited): $const_path"
       return 0
       ;;
     *)
       mkdir -p "$(dirname "$const_path")"
-      printf '%s\n' "$_suggested" > "$const_path"
+      printf '%s\n' "$_suggested" >"$const_path"
       echo "  │  [0-A] Constitution saved: $const_path"
       return 0
       ;;
@@ -188,12 +189,12 @@ _phase_0a_constitution() {
     local _choice
     read -r _choice 2>/dev/null || _choice="r"
     case "${_choice:-r}" in
-      e|edit)
+      e | edit)
         _open_editor "$const_path"
         echo "  │  [0-A] Constitution updated."
         _PHASE0_CONSTITUTION_CREATED=1
         ;;
-      R|replace)
+      R | replace)
         echo "  │  Generating new constitution..."
         if _generate_constitution "$const_path"; then
           _PHASE0_CONSTITUTION_CREATED=1
@@ -272,9 +273,18 @@ _phase_0c_questions() {
 
   # Append meaningful answers to SPIRAL_FOCUS so Phase R receives the context
   local _extra=""
-  [[ -n "$_q1" ]] && { _extra="${_extra:+$_extra | }Goal: $_q1"; _any_answered=1; }
-  [[ -n "$_q2" ]] && { _extra="${_extra:+$_extra | }Avoid: $_q2"; _any_answered=1; }
-  [[ -n "$_q3" ]] && { _extra="${_extra:+$_extra | }Constraint: $_q3"; _any_answered=1; }
+  [[ -n "$_q1" ]] && {
+    _extra="${_extra:+$_extra | }Goal: $_q1"
+    _any_answered=1
+  }
+  [[ -n "$_q2" ]] && {
+    _extra="${_extra:+$_extra | }Avoid: $_q2"
+    _any_answered=1
+  }
+  [[ -n "$_q3" ]] && {
+    _extra="${_extra:+$_extra | }Constraint: $_q3"
+    _any_answered=1
+  }
 
   if [[ "$_any_answered" -eq 1 ]]; then
     if [[ -n "${SPIRAL_FOCUS:-}" ]]; then
@@ -312,7 +322,8 @@ _phase_0d_stories() {
 
   # Generate story suggestions based on prd.json + focus
   local _suggestions
-  _suggestions=$("$SPIRAL_PYTHON" - "$prd_file" "${SPIRAL_FOCUS:-}" 2>/dev/null <<'_PY'
+  _suggestions=$(
+    "$SPIRAL_PYTHON" - "$prd_file" "${SPIRAL_FOCUS:-}" 2>/dev/null <<'_PY'
 import json, sys
 
 prd_file, focus = sys.argv[1], sys.argv[2]
@@ -350,7 +361,7 @@ if focus and len(results) < 5:
 for i, s in enumerate(results[:5], 1):
     print(f"    [{i}] {s}")
 _PY
-)
+  )
 
   if [[ -n "$_suggestions" ]]; then
     echo "  │  Suggested seeds based on your goals & focus:"
@@ -370,7 +381,7 @@ _PY
       local _text
       _text=$(echo "$_sline" | sed 's/.*\[[0-9]\] //')
       _sug_arr+=("$_text")
-    done <<< "$_suggestions"
+    done <<<"$_suggestions"
   fi
 
   local _seeds=()
@@ -382,10 +393,10 @@ _PY
     [[ -z "$_seed_line" ]] && break
     # Numeric pick → Source 2 (ai-example); free text → Source 1 (seed)
     local _src="seed"
-    if [[ "$_seed_line" =~ ^[0-9]+$ ]] && \
-       [[ "$_seed_line" -ge 1 ]] && \
-       [[ "$_seed_line" -le "${#_sug_arr[@]}" ]]; then
-      local _idx=$(( _seed_line - 1 ))
+    if [[ "$_seed_line" =~ ^[0-9]+$ ]] &&
+      [[ "$_seed_line" -ge 1 ]] &&
+      [[ "$_seed_line" -le "${#_sug_arr[@]}" ]]; then
+      local _idx=$((_seed_line - 1))
       _seed_line="${_sug_arr[$_idx]}"
       _src="ai-example"
       echo "  │    → $_seed_line"
@@ -411,7 +422,8 @@ _PY
       echo "  │  [0-D] Adding seed stories (Source 1) to prd.json..."
 
       local _max_id
-      _max_id=$("$SPIRAL_PYTHON" - "$prd_file" 2>/dev/null <<'_PY'
+      _max_id=$(
+        "$SPIRAL_PYTHON" - "$prd_file" 2>/dev/null <<'_PY'
 import json, sys, re
 with open(sys.argv[1], encoding="utf-8") as f:
     prd = json.load(f)
@@ -423,9 +435,9 @@ for s in prd.get("userStories", []):
         max_n = max(max_n, int(m.group(1)))
 print(max_n)
 _PY
-) || _max_id=0
+      ) || _max_id=0
 
-      local _next_id=$(( _max_id + 1 ))
+      local _next_id=$((_max_id + 1))
       local _story_prefix
       _story_prefix=$("$SPIRAL_PYTHON" -c "
 import json, sys
@@ -440,8 +452,7 @@ print(prd.get('storyIdPrefix', 'US'))
         local _story_id="${_story_prefix}-${_next_id}"
         local _ts
         _ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-        "$SPIRAL_PYTHON" - "$prd_file" "$_story_id" "$_seed" "$_ts" 2>/dev/null <<'_PY' \
-          || { echo "  │  WARNING: Failed to add '$_seed'" >&2; continue; }
+        "$SPIRAL_PYTHON" - "$prd_file" "$_story_id" "$_seed" "$_ts" 2>/dev/null <<'_PY' ||
 import json, sys
 prd_file, story_id, title, ts = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
 with open(prd_file, encoding="utf-8") as f:
@@ -462,9 +473,13 @@ prd["userStories"].append(new_story)
 with open(prd_file, "w", encoding="utf-8") as f:
     json.dump(prd, f, indent=2, ensure_ascii=False)
 _PY
+          {
+            echo "  │  WARNING: Failed to add '$_seed'" >&2
+            continue
+          }
         echo "  │  [0-D]   Added [$_story_id] [seed] $_seed"
-        _next_id=$(( _next_id + 1 ))
-        _seeds_added=$(( _seeds_added + 1 ))
+        _next_id=$((_next_id + 1))
+        _seeds_added=$((_seeds_added + 1))
       done
     fi
 
@@ -477,8 +492,7 @@ _PY
         local _seed="${_seeds[$_sidx]}"
         local _ts
         _ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-        "$SPIRAL_PYTHON" - "$_queue_file" "$_seed" "$_ts" 2>/dev/null <<'_PY' \
-          || { echo "  │  WARNING: Failed to queue '$_seed'" >&2; continue; }
+        "$SPIRAL_PYTHON" - "$_queue_file" "$_seed" "$_ts" 2>/dev/null <<'_PY' ||
 import json, sys, os
 queue_file, title, ts = sys.argv[1], sys.argv[2], sys.argv[3]
 if os.path.exists(queue_file):
@@ -504,8 +518,12 @@ with open(tmp, "w", encoding="utf-8") as f:
     json.dump(queue, f, indent=2, ensure_ascii=False)
 os.replace(tmp, queue_file)
 _PY
+          {
+            echo "  │  WARNING: Failed to queue '$_seed'" >&2
+            continue
+          }
         echo "  │  [0-D]   Queued [ai-example] $_seed → will enter pipeline in Phase A"
-        _queued_added=$(( _queued_added + 1 ))
+        _queued_added=$((_queued_added + 1))
       done
     fi
   else
@@ -535,8 +553,8 @@ _phase_0e_options() {
     read -r _hours_input 2>/dev/null || _hours_input=""
     if [[ -n "$_hours_input" ]]; then
       if [[ "$_hours_input" =~ ^[0-9]+(\.[0-9]+)?$ ]] && [[ "$_hours_input" != "0" ]]; then
-        TIME_LIMIT_MINS=$(python3 -c "import math; print(math.ceil(float('$_hours_input') * 60))" 2>/dev/null || \
-          echo $(( ${_hours_input%%.*} * 60 )))
+        TIME_LIMIT_MINS=$(python3 -c "import math; print(math.ceil(float('$_hours_input') * 60))" 2>/dev/null ||
+          echo $((${_hours_input%%.*} * 60)))
         export TIME_LIMIT_MINS
         echo "  │  [0-E] Time limit: ${TIME_LIMIT_MINS}m (~${_hours_input}h)"
       else
@@ -597,11 +615,11 @@ run_phase_clarify() {
   local _detected_lang="" _detected_validate_cmd="" _detected_pkg_mgr=""
   while IFS= read -r _line; do
     case "$_line" in
-      __DETECTED_LANG=*)       _detected_lang="${_line#__DETECTED_LANG=}" ;;
+      __DETECTED_LANG=*) _detected_lang="${_line#__DETECTED_LANG=}" ;;
       __DETECTED_VALIDATE_CMD=*) _detected_validate_cmd="${_line#__DETECTED_VALIDATE_CMD=}" ;;
-      __DETECTED_PKG_MGR=*)    _detected_pkg_mgr="${_line#__DETECTED_PKG_MGR=}" ;;
+      __DETECTED_PKG_MGR=*) _detected_pkg_mgr="${_line#__DETECTED_PKG_MGR=}" ;;
     esac
-  done <<< "$_detect_out"
+  done <<<"$_detect_out"
 
   # Print the human-readable summary lines (those without __)
   echo "$_detect_out" | grep -v "^__" | sed 's/^//' || true
@@ -622,11 +640,11 @@ run_phase_clarify() {
   _PHASE0_Q3=""
 
   # ── Sub-phases ─────────────────────────────────────────────────────────────
-  _phase_0a_constitution   # Establish ground rules (prevents drift)
-  _phase_0b_focus          # Set this session's theme
-  _phase_0c_questions      # Refine scope with 3 targeted questions
-  _phase_0d_stories        # Add initial story seeds (with AI suggestions)
-  _phase_0e_options        # Time limit & other session knobs
+  _phase_0a_constitution # Establish ground rules (prevents drift)
+  _phase_0b_focus        # Set this session's theme
+  _phase_0c_questions    # Refine scope with 3 targeted questions
+  _phase_0d_stories      # Add initial story seeds (with AI suggestions)
+  _phase_0e_options      # Time limit & other session knobs
 
   # ── Write audit log ────────────────────────────────────────────────────────
   local _ts_now
@@ -671,17 +689,17 @@ with open(out_file, "w", encoding="utf-8") as f:
 _PY
 
   # ── Mark Phase 0 complete (skipped on resume) ──────────────────────────────
-  echo "phase_0_complete" > "$done_marker"
+  echo "phase_0_complete" >"$done_marker"
 
   echo ""
   echo "  [Phase 0] Complete — session configured"
-  [[ -n "${_PHASE0_CONSTITUTION_PATH:-}" ]] && \
+  [[ -n "${_PHASE0_CONSTITUTION_PATH:-}" ]] &&
     echo "  [Phase 0]   Constitution : ${_PHASE0_CONSTITUTION_PATH}"
-  [[ -n "${SPIRAL_FOCUS:-}" ]] && \
+  [[ -n "${SPIRAL_FOCUS:-}" ]] &&
     echo "  [Phase 0]   Focus        : ${SPIRAL_FOCUS:0:72}"
-  [[ "${TIME_LIMIT_MINS:-0}" -gt 0 ]] && \
+  [[ "${TIME_LIMIT_MINS:-0}" -gt 0 ]] &&
     echo "  [Phase 0]   Time limit   : ${TIME_LIMIT_MINS}m"
-  [[ "${_PHASE0_SEEDS_ADDED:-0}" -gt 0 ]] && \
+  [[ "${_PHASE0_SEEDS_ADDED:-0}" -gt 0 ]] &&
     echo "  [Phase 0]   Seeds added  : ${_PHASE0_SEEDS_ADDED}"
   echo ""
 }

@@ -54,7 +54,7 @@ run_invoke_agent() {
     --duration-s 30 --status passed
   [[ -f "$(events_file)" ]]
   local count
-  count=$(wc -l < "$(events_file)")
+  count=$(wc -l <"$(events_file)")
   [[ "$count" -ge 1 ]]
 }
 
@@ -222,7 +222,7 @@ assert d['gen_ai.usage.cache_creation.input_tokens'] == 0, \
   run_invoke_agent --story-id "US-C" --worker-id "3" \
     --duration-s 30 --status timeout
   local count
-  count=$(wc -l < "$(events_file)")
+  count=$(wc -l <"$(events_file)")
   [[ "$count" -eq 3 ]]
   # Verify each has a different story ID
   local ids

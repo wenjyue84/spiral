@@ -37,7 +37,7 @@ _setup_audit_env() {
   export SPIRAL_HOME
 
   # Create a full PRD with 3 stories
-  cat > "$PRD_FILE" <<'EOF'
+  cat >"$PRD_FILE" <<'EOF'
 {
   "userStories": [
     {"id": "US-001", "title": "Story one", "passes": false, "priority": "high"},
@@ -136,7 +136,7 @@ teardown() {
   # Create a worker worktree dir with a 1-story slice (vs 3-story full PRD)
   local wtree="$TEST_DIR/worker-1"
   mkdir -p "$wtree"
-  cat > "$wtree/prd.json" <<'EOF'
+  cat >"$wtree/prd.json" <<'EOF'
 {
   "userStories": [
     {"id": "US-001", "title": "Story one", "passes": false, "priority": "high"}
@@ -150,7 +150,7 @@ EOF
   # Verify event was logged
   [ -f "$SCRATCH_DIR/spiral_events.jsonl" ]
   grep -q '"event":"worker_launch_audit"' "$SCRATCH_DIR/spiral_events.jsonl"
-  grep -q '"status":"pass"' "$SCRATCH_DIR/spiral_events.jsonl" || \
+  grep -q '"status":"pass"' "$SCRATCH_DIR/spiral_events.jsonl" ||
     grep -q '"status":"warn"' "$SCRATCH_DIR/spiral_events.jsonl"
 }
 
@@ -180,7 +180,7 @@ EOF
 @test "audit logs worker_launch_audit event with required fields" {
   local wtree="$TEST_DIR/worker-3"
   mkdir -p "$wtree"
-  cat > "$wtree/prd.json" <<'EOF'
+  cat >"$wtree/prd.json" <<'EOF'
 {
   "userStories": [
     {"id": "US-002", "title": "Story two", "passes": true, "priority": "medium"}
@@ -225,7 +225,7 @@ EOF
 @test "audit detects session log leakage via LOG_FILE env" {
   local wtree="$TEST_DIR/worker-log"
   mkdir -p "$wtree"
-  cat > "$wtree/prd.json" <<'EOF'
+  cat >"$wtree/prd.json" <<'EOF'
 {
   "userStories": [
     {"id": "US-001", "title": "Story one", "passes": false, "priority": "high"}
@@ -234,7 +234,7 @@ EOF
 EOF
 
   # Create a fake session log and export LOG_FILE
-  echo "session log content with sensitive data" > "$TEST_DIR/session.log"
+  echo "session log content with sensitive data" >"$TEST_DIR/session.log"
   export LOG_FILE="$TEST_DIR/session.log"
 
   _audit_worker_launch 5 "$wtree"

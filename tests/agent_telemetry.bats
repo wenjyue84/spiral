@@ -128,23 +128,24 @@ assert d['toPhase']   == 'I', f\"expected toPhase=I, got {d['toPhase']}\"
   emit_agent_telemetry "I" "V" 300 0
 
   local count
-  count=$(python3 - "$(telem_file)" <<'PYEOF'
+  count=$(
+    python3 - "$(telem_file)" <<'PYEOF'
 import json, sys
 with open(sys.argv[1]) as f:
     rows = [json.loads(l) for l in f if l.strip()]
 us001 = [r for r in rows if r['storyId'] == 'US-001']
 print(len(us001))
 PYEOF
-)
+  )
   [[ "$count" -eq 2 ]]
 }
 
 @test "multiple events are append-only (line count grows)" {
   emit_agent_telemetry "R" "I" 100 0
   emit_agent_telemetry "I" "V" 200 0
-  emit_agent_telemetry "V" "C" 50  1
+  emit_agent_telemetry "V" "C" 50 1
   local count
-  count=$(wc -l < "$(telem_file)")
+  count=$(wc -l <"$(telem_file)")
   [[ "$count" -eq 3 ]]
 }
 

@@ -68,8 +68,8 @@ export -f run_ollama_doctor_check
 @test "SPIRAL_OLLAMA_FALLBACK_MODEL default is empty (disabled)" {
   # Verify the default is empty string in ralph.sh
   run grep 'SPIRAL_OLLAMA_FALLBACK_MODEL.*:-' ralph/ralph.sh
-  [[ "$output" == *'SPIRAL_OLLAMA_FALLBACK_MODEL:-}'* ]] || \
-    [[ "$output" == *'SPIRAL_OLLAMA_FALLBACK_MODEL:-""}'* ]] || \
+  [[ "$output" == *'SPIRAL_OLLAMA_FALLBACK_MODEL:-}'* ]] ||
+    [[ "$output" == *'SPIRAL_OLLAMA_FALLBACK_MODEL:-""}'* ]] ||
     echo "$output" | grep -qE 'SPIRAL_OLLAMA_FALLBACK_MODEL.*:-["}]'
 }
 
@@ -80,7 +80,7 @@ export -f run_ollama_doctor_check
 
 @test "call_ollama_fallback returns 1 on curl exit 7 (connection refused)" {
   # Mock curl that exits 7 (ECONNREFUSED)
-  cat > "$MOCK_BIN/curl" <<'EOF'
+  cat >"$MOCK_BIN/curl" <<'EOF'
 #!/usr/bin/env bash
 exit 7
 EOF
@@ -90,20 +90,20 @@ EOF
 
   local sys_file="$TMPDIR_OL/sys.txt"
   local usr_file="$TMPDIR_OL/usr.txt"
-  printf 'system prompt' > "$sys_file"
-  printf 'user prompt' > "$usr_file"
+  printf 'system prompt' >"$sys_file"
+  printf 'user prompt' >"$usr_file"
 
   export SPIRAL_OLLAMA_FALLBACK_MODEL="qwen2.5-coder:32b"
   export SPIRAL_OLLAMA_HOST="http://localhost:11434/v1"
 
   run call_ollama_fallback "$sys_file" "$usr_file"
-  assert_failure 1
-  assert_output --partial "connection refused"* ]] || [[ "$output" == *"curl exit 7"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"connection refused"* ]] || [[ "$output" == *"curl exit 7"* ]]
 }
 
 @test "call_ollama_fallback returns 1 on curl exit 28 (timeout)" {
   # Mock curl that exits 28 (ETIMEDOUT)
-  cat > "$MOCK_BIN/curl" <<'EOF'
+  cat >"$MOCK_BIN/curl" <<'EOF'
 #!/usr/bin/env bash
 exit 28
 EOF
@@ -113,20 +113,20 @@ EOF
 
   local sys_file="$TMPDIR_OL/sys.txt"
   local usr_file="$TMPDIR_OL/usr.txt"
-  printf 'system' > "$sys_file"
-  printf 'user' > "$usr_file"
+  printf 'system' >"$sys_file"
+  printf 'user' >"$usr_file"
 
   export SPIRAL_OLLAMA_FALLBACK_MODEL="codellama:34b"
   export SPIRAL_OLLAMA_HOST="http://localhost:11434/v1"
 
   run call_ollama_fallback "$sys_file" "$usr_file"
-  assert_failure 1
-  assert_output --partial "timed out"* ]] || [[ "$output" == *"curl exit 28"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"timed out"* ]] || [[ "$output" == *"curl exit 28"* ]]
 }
 
 @test "call_ollama_fallback returns 0 and prints content on success" {
   # Mock curl that returns a valid OpenAI-compat response
-  cat > "$MOCK_BIN/curl" <<'EOF'
+  cat >"$MOCK_BIN/curl" <<'EOF'
 #!/usr/bin/env bash
 echo '{"choices":[{"message":{"role":"assistant","content":"Hello from Ollama!"}}]}'
 exit 0
@@ -137,8 +137,8 @@ EOF
 
   local sys_file="$TMPDIR_OL/sys.txt"
   local usr_file="$TMPDIR_OL/usr.txt"
-  printf 'system prompt' > "$sys_file"
-  printf 'user prompt' > "$usr_file"
+  printf 'system prompt' >"$sys_file"
+  printf 'user prompt' >"$usr_file"
 
   export SPIRAL_OLLAMA_FALLBACK_MODEL="qwen2.5-coder:32b"
   export SPIRAL_OLLAMA_HOST="http://localhost:11434/v1"
@@ -151,7 +151,7 @@ EOF
 @test "call_ollama_fallback uses SPIRAL_OLLAMA_HOST in initial log message" {
   # The function echoes "Calling Ollama model: <model> at <host>" to stdout.
   # This verifies SPIRAL_OLLAMA_HOST is picked up correctly.
-  cat > "$MOCK_BIN/curl" <<'EOF'
+  cat >"$MOCK_BIN/curl" <<'EOF'
 #!/usr/bin/env bash
 exit 7
 EOF
@@ -161,7 +161,8 @@ EOF
 
   local sys_file="$TMPDIR_OL/sys.txt"
   local usr_file="$TMPDIR_OL/usr.txt"
-  printf 'sys' > "$sys_file"; printf 'usr' > "$usr_file"
+  printf 'sys' >"$sys_file"
+  printf 'usr' >"$usr_file"
 
   export SPIRAL_OLLAMA_FALLBACK_MODEL="qwen2.5-coder:32b"
   export SPIRAL_OLLAMA_HOST="http://custom-host:11434/v1"
@@ -172,7 +173,7 @@ EOF
 
 @test "spiral-doctor warns when Ollama unreachable and model is configured" {
   # Mock curl that always fails (Ollama not running)
-  cat > "$MOCK_BIN/curl" <<'EOF'
+  cat >"$MOCK_BIN/curl" <<'EOF'
 #!/usr/bin/env bash
 exit 7
 EOF
@@ -186,7 +187,7 @@ EOF
 
 @test "spiral-doctor passes OK when Ollama is reachable" {
   # Mock curl that succeeds (Ollama running)
-  cat > "$MOCK_BIN/curl" <<'EOF'
+  cat >"$MOCK_BIN/curl" <<'EOF'
 #!/usr/bin/env bash
 echo '{"models":[]}'
 exit 0

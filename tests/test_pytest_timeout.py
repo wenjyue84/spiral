@@ -8,8 +8,8 @@ Tests that:
 
 import subprocess
 import sys
-import time
 import textwrap
+import time
 
 import pytest
 

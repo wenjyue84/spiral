@@ -25,7 +25,7 @@ setup() {
   source "lib/circuit_breaker.sh"
 
   # Create a minimal prd.json for tests
-  cat > "$TMPDIR_FB/prd.json" <<'PRDEOF'
+  cat >"$TMPDIR_FB/prd.json" <<'PRDEOF'
 {
   "userStories": [
     {"id": "US-TEST-001", "title": "Test story", "priority": "high", "passes": false}
@@ -44,7 +44,7 @@ teardown() {
 trip_breaker() {
   local model="$1"
   local threshold="${SPIRAL_CB_FAILURE_THRESHOLD:-3}"
-  for ((i=1; i<=threshold; i++)); do
+  for ((i = 1; i <= threshold; i++)); do
     cb_record_failure "$model" 429
   done
 }
@@ -94,7 +94,7 @@ trip_breaker() {
 
 @test "fallback chain: colon-separated parsing works" {
   local chain="sonnet:haiku:opus"
-  IFS=':' read -ra models <<< "$chain"
+  IFS=':' read -ra models <<<"$chain"
   [ "${#models[@]}" -eq 3 ]
   [ "${models[0]}" = "sonnet" ]
   [ "${models[1]}" = "haiku" ]
@@ -103,7 +103,7 @@ trip_breaker() {
 
 @test "fallback chain: single model chain parses correctly" {
   local chain="haiku"
-  IFS=':' read -ra models <<< "$chain"
+  IFS=':' read -ra models <<<"$chain"
   [ "${#models[@]}" -eq 1 ]
   [ "${models[0]}" = "haiku" ]
 }
@@ -119,7 +119,7 @@ trip_breaker() {
   # Simulate the fallback chain logic from ralph.sh
   local primary="sonnet"
   local chain="sonnet:haiku:opus"
-  IFS=':' read -ra fallback_models <<< "$chain"
+  IFS=':' read -ra fallback_models <<<"$chain"
 
   found_fallback=0
   for fb_model in "${fallback_models[@]}"; do
@@ -134,7 +134,7 @@ trip_breaker() {
 
   # Write _failureReason (same jq pattern as ralph.sh)
   $JQ '(.userStories[] | select(.id == "US-TEST-001") | ._failureReason) = "all_models_unavailable"' \
-    "$prd" > "${prd}.tmp" && mv "${prd}.tmp" "$prd"
+    "$prd" >"${prd}.tmp" && mv "${prd}.tmp" "$prd"
 
   # Verify
   run $JQ -r '.userStories[0]._failureReason' "$prd"
@@ -168,7 +168,7 @@ trip_breaker() {
     ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
     if [[ -n "$extra_json" ]]; then
       printf '{"type":"%s","ts":"%s","story_id":"",%s}\n' \
-        "$event_type" "$ts" "$extra_json" >> "$events_file"
+        "$event_type" "$ts" "$extra_json" >>"$events_file"
     fi
   }
 
@@ -196,7 +196,7 @@ trip_breaker() {
     ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
     if [[ -n "$extra_json" ]]; then
       printf '{"type":"%s","ts":"%s",%s}\n' \
-        "$event_type" "$ts" "$extra_json" >> "$events_file"
+        "$event_type" "$ts" "$extra_json" >>"$events_file"
     fi
   }
 
@@ -205,7 +205,7 @@ trip_breaker() {
   trip_breaker "haiku"
 
   local chain="sonnet:haiku"
-  IFS=':' read -ra models <<< "$chain"
+  IFS=':' read -ra models <<<"$chain"
 
   all_open=1
   for m in "${models[@]}"; do

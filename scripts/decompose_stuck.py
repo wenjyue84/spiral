@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Decompose stuck stories into atomic sub-stories."""
+
 import json
 
 with open("prd.json", encoding="utf-8") as f:

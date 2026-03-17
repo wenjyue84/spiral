@@ -26,7 +26,7 @@ setup() {
   _resolve_jq
   export TMPDIR_HB="$(mktemp -d)"
   export HEARTBEAT_DIR="$TMPDIR_HB/workers"
-  export HEARTBEAT_INTERVAL=2    # Fast interval for testing
+  export HEARTBEAT_INTERVAL=2 # Fast interval for testing
   export STALE_THRESHOLD=120
 
   mkdir -p "$HEARTBEAT_DIR"
@@ -49,8 +49,8 @@ make_old_heartbeat() {
   local story_id="${2:-US-001}"
   local age_secs="${3:-200}"
   local hb_file="$HEARTBEAT_DIR/worker_${worker_id}.heartbeat"
-  local ts=$(( $(date +%s) - age_secs ))
-  printf '{"pid":9999,"storyId":"%s","ts":%s}\n' "$story_id" "$ts" > "$hb_file"
+  local ts=$(($(date +%s) - age_secs))
+  printf '{"pid":9999,"storyId":"%s","ts":%s}\n' "$story_id" "$ts" >"$hb_file"
   # Back-date the mtime so stat-based detection works
   touch -t "$(date -d "@$ts" +%Y%m%d%H%M.%S 2>/dev/null || date -r "$ts" +%Y%m%d%H%M.%S 2>/dev/null)" \
     "$hb_file" 2>/dev/null || true
@@ -60,12 +60,12 @@ make_fresh_heartbeat() {
   local worker_id="$1"
   local story_id="${2:-US-002}"
   local hb_file="$HEARTBEAT_DIR/worker_${worker_id}.heartbeat"
-  printf '{"pid":1234,"storyId":"%s","ts":%s}\n' "$story_id" "$(date +%s)" > "$hb_file"
+  printf '{"pid":1234,"storyId":"%s","ts":%s}\n' "$story_id" "$(date +%s)" >"$hb_file"
 }
 
 make_prd() {
   local prd_file="$1"
-  cat > "$prd_file" << 'JSON'
+  cat >"$prd_file" <<'JSON'
 {
   "userStories": [
     {"id": "US-001", "title": "Story one", "passes": true, "retryCount": 2},
@@ -143,7 +143,7 @@ JSON
   passes=$("$JQ" -r '.userStories[] | select(.id=="US-001") | .passes' "$prd")
   retry=$("$JQ" -r '.userStories[] | select(.id=="US-001") | .retryCount' "$prd")
   [ "$passes" = "false" ]
-  [ "$retry" -eq 2 ]   # retryCount NOT incremented
+  [ "$retry" -eq 2 ] # retryCount NOT incremented
 }
 
 @test "requeue_stale_stories: JSON stale_info extracts storyId correctly" {
@@ -227,7 +227,7 @@ JSON
 
   # Re-queue the story
   prd="$TMPDIR_HB/prd.json"
-  cat > "$prd" << 'JSON'
+  cat >"$prd" <<'JSON'
 {"userStories": [{"id": "US-042", "title": "Test", "passes": true, "retryCount": 1}]}
 JSON
   requeue_stale_stories "$prd" "US-042" "$JQ"
@@ -235,5 +235,5 @@ JSON
   passes=$("$JQ" -r '.userStories[] | select(.id=="US-042") | .passes' "$prd")
   retry=$("$JQ" -r '.userStories[] | select(.id=="US-042") | .retryCount' "$prd")
   [ "$passes" = "false" ]
-  [ "$retry" -eq 1 ]   # retryCount NOT incremented
+  [ "$retry" -eq 1 ] # retryCount NOT incremented
 }

@@ -32,7 +32,7 @@ setup() {
   touch "$PROGRESS_FILE"
 
   # Minimal prd.json with a single test story (passes: true, simulating agent success)
-  cat > "$PRD_FILE" <<'EOF'
+  cat >"$PRD_FILE" <<'EOF'
 {
   "userStories": [
     {"id": "US-TEST", "title": "Test Story", "passes": true, "_retryCount": 0}
@@ -57,17 +57,17 @@ EOF
   export -f get_retry_count
 
   log_ralph_event() {
-    printf '%s %s\n' "$1" "${2:-}" >> "$TMPDIR_DB/events.log"
+    printf '%s %s\n' "$1" "${2:-}" >>"$TMPDIR_DB/events.log"
   }
   export -f log_ralph_event
 
   log_spiral_event() {
-    printf '%s %s\n' "$1" "${2:-}" >> "$TMPDIR_DB/spiral_events.log"
+    printf '%s %s\n' "$1" "${2:-}" >>"$TMPDIR_DB/spiral_events.log"
   }
   export -f log_spiral_event
 
   append_result() {
-    printf '%s\n' "$1" >> "$TMPDIR_DB/results.log"
+    printf '%s\n' "$1" >>"$TMPDIR_DB/results.log"
   }
   export -f append_result
 
@@ -90,7 +90,7 @@ import json, sys
 text = sys.argv[1]
 line = json.dumps({'type': 'assistant', 'message': {'role': 'assistant', 'content': [{'type': 'text', 'text': text}]}})
 print(line)
-" "$text" > "$outfile"
+" "$text" >"$outfile"
 }
 
 # ── Helper: run the diagnosis block extraction logic (mirrors ralph.sh code) ──
@@ -100,7 +100,8 @@ extract_diagnosis() {
   _PHASE_I_DIAGNOSIS_BLOCK=""
   if [[ -f "$stream_file" ]]; then
     local _DIAG_TEXT
-    _DIAG_TEXT=$(python3 - "$stream_file" <<'DIAG_EXTRACTOR_EOF'
+    _DIAG_TEXT=$(
+      python3 - "$stream_file" <<'DIAG_EXTRACTOR_EOF'
 import sys, json
 parts = []
 try:
@@ -122,12 +123,13 @@ except Exception:
     pass
 print('\n'.join(parts))
 DIAG_EXTRACTOR_EOF
-    2>/dev/null || true)
-    if echo "$_DIAG_TEXT" | grep -q "## Current State" && \
-       echo "$_DIAG_TEXT" | grep -qiE "## Problem( Identified)?$|## Problem Identified" && \
-       echo "$_DIAG_TEXT" | grep -q "## Planned Changes"; then
-      _PHASE_I_DIAGNOSIS_BLOCK=$(echo "$_DIAG_TEXT" | \
-        awk '/## Current State/{found=1} found{print} /## Planned Changes/{p=1} p && /^##/ && !/## Planned Changes/{exit}' | \
+      2>/dev/null || true
+    )
+    if echo "$_DIAG_TEXT" | grep -q "## Current State" &&
+      echo "$_DIAG_TEXT" | grep -qiE "## Problem( Identified)?$|## Problem Identified" &&
+      echo "$_DIAG_TEXT" | grep -q "## Planned Changes"; then
+      _PHASE_I_DIAGNOSIS_BLOCK=$(echo "$_DIAG_TEXT" |
+        awk '/## Current State/{found=1} found{print} /## Planned Changes/{p=1} p && /^##/ && !/## Planned Changes/{exit}' |
         head -80)
     fi
   fi

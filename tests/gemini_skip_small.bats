@@ -30,10 +30,10 @@ setup() {
 
   # Gemini call counter — records invocations into a file
   GEMINI_CALLS_FILE="$TMPDIR_GS/gemini_calls"
-  echo "0" > "$GEMINI_CALLS_FILE"
+  echo "0" >"$GEMINI_CALLS_FILE"
 
   # Default: gemini mock increments counter and returns empty (simulates not installed)
-  cat > "$MOCK_BIN/gemini" <<GEMEOF
+  cat >"$MOCK_BIN/gemini" <<GEMEOF
 #!/usr/bin/env bash
 count=\$(cat "$GEMINI_CALLS_FILE")
 echo \$((count + 1)) > "$GEMINI_CALLS_FILE"
@@ -94,7 +94,7 @@ _run_gemini_fastpath() {
   unset SPIRAL_GEMINI_ANNOTATE_PROMPT
 
   _fp_out="$TMPDIR_GS/fp_out.txt"
-  _run_gemini_fastpath "$STORY_JSON" > "$_fp_out" 2>&1
+  _run_gemini_fastpath "$STORY_JSON" >"$_fp_out" 2>&1
   grep -q "\[precontext\] skipped -- small story with <= 2 file hints" "$_fp_out"
   [ "$_GEMINI_FAST_SKIP" -eq 1 ]
 }
@@ -106,7 +106,7 @@ _run_gemini_fastpath() {
   unset SPIRAL_GEMINI_ANNOTATE_PROMPT
 
   _fp_out="$TMPDIR_GS/fp_out.txt"
-  _run_gemini_fastpath "$STORY_JSON" > "$_fp_out" 2>&1
+  _run_gemini_fastpath "$STORY_JSON" >"$_fp_out" 2>&1
   grep -q "\[precontext\] skipped -- small story with <= 2 file hints" "$_fp_out"
   [ "$_GEMINI_FAST_SKIP" -eq 1 ]
 }
@@ -118,7 +118,7 @@ _run_gemini_fastpath() {
   unset SPIRAL_GEMINI_ANNOTATE_PROMPT
 
   _fp_out="$TMPDIR_GS/fp_out.txt"
-  _run_gemini_fastpath "$STORY_JSON" > "$_fp_out" 2>&1
+  _run_gemini_fastpath "$STORY_JSON" >"$_fp_out" 2>&1
   grep -q "\[precontext\] skipped -- small story with <= 2 file hints" "$_fp_out"
   [ "$_GEMINI_FAST_SKIP" -eq 1 ]
 }
@@ -130,7 +130,7 @@ _run_gemini_fastpath() {
   unset SPIRAL_GEMINI_ANNOTATE_PROMPT
 
   _fp_out="$TMPDIR_GS/fp_out.txt"
-  _run_gemini_fastpath "$STORY_JSON" > "$_fp_out" 2>&1
+  _run_gemini_fastpath "$STORY_JSON" >"$_fp_out" 2>&1
   grep -q "\[precontext\] skipped" "$_fp_out"
   [ "$_GEMINI_FAST_SKIP" -eq 1 ]
 }
@@ -205,7 +205,7 @@ _run_gemini_fastpath() {
   unset SPIRAL_GEMINI_ANNOTATE_PROMPT
 
   _fp_out="$TMPDIR_GS/fp_out.txt"
-  _run_gemini_fastpath "$STORY_JSON" > "$_fp_out" 2>&1
+  _run_gemini_fastpath "$STORY_JSON" >"$_fp_out" 2>&1
   # No filesTouch key → treated as 0 → fast-path fires
   grep -q "\[precontext\] skipped" "$_fp_out"
   [ "$_GEMINI_FAST_SKIP" -eq 1 ]

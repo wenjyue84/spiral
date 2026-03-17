@@ -3,17 +3,19 @@
 Patch spiral.sh to parallelize Phase R and Phase T (US-182).
 Replaces lines 1506-1834 (1-indexed) with parallel execution block.
 """
-import sys, os
-sys.stdout.reconfigure(encoding='utf-8')
 
-with open('spiral.sh', 'r', encoding='utf-8') as f:
+import sys
+
+sys.stdout.reconfigure(encoding="utf-8")
+
+with open("spiral.sh", "r", encoding="utf-8") as f:
     lines = f.readlines()
 
 # 0-indexed range to replace: 1505..1833 (inclusive)
 START_IDX = 1505
-END_IDX   = 1833
+END_IDX = 1833
 
-print(f"Replacing lines {START_IDX+1}..{END_IDX+1} ({END_IDX-START_IDX+1} lines)")
+print(f"Replacing lines {START_IDX + 1}..{END_IDX + 1} ({END_IDX - START_IDX + 1} lines)")
 print("  Starts with:", repr(lines[START_IDX][:60]))
 print("  Ends with  :", repr(lines[END_IDX][:60]))
 
@@ -421,10 +423,10 @@ $INJECTED_PROMPT"
 
 new_lines = NEW_SECTION.splitlines(keepends=True)
 
-result = lines[:START_IDX] + new_lines + lines[END_IDX+1:]
+result = lines[:START_IDX] + new_lines + lines[END_IDX + 1 :]
 
-with open('spiral.sh', 'w', encoding='utf-8') as f:
+with open("spiral.sh", "w", encoding="utf-8") as f:
     f.writelines(result)
 
 print(f"Done. New total lines: {len(result)} (was {len(lines)})")
-print(f"Inserted {len(new_lines)} lines, removed {END_IDX-START_IDX+1} lines")
+print(f"Inserted {len(new_lines)} lines, removed {END_IDX - START_IDX + 1} lines")

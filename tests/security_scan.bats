@@ -35,7 +35,7 @@ setup() {
 
   # Stub log_ralph_event to avoid real file writes
   log_ralph_event() {
-    printf '%s %s\n' "$1" "${2:-}" >> "$TMPDIR_SS/events.log"
+    printf '%s %s\n' "$1" "${2:-}" >>"$TMPDIR_SS/events.log"
   }
   export -f log_ralph_event
 
@@ -112,7 +112,7 @@ teardown() {
   local report_path="$TMPDIR_SS/security_scan_US-TEST.json"
   semgrep() {
     # Write HIGH-severity semgrep JSON output
-    cat > "$report_path" <<'JSON'
+    cat >"$report_path" <<'JSON'
 {"results":[{"check_id":"r1","path":"src/main.py","extra":{"severity":"ERROR","message":"SQL injection"}}],"errors":[]}
 JSON
     return 1
@@ -130,7 +130,7 @@ JSON
 @test "semgrep: MEDIUM-only findings returns 0 (warning only)" {
   local report_path="$TMPDIR_SS/security_scan_US-TEST.json"
   semgrep() {
-    cat > "$report_path" <<'JSON'
+    cat >"$report_path" <<'JSON'
 {"results":[{"check_id":"r1","path":"src/main.py","extra":{"severity":"WARNING","message":"Hardcoded password"}}],"errors":[]}
 JSON
     return 0
@@ -148,7 +148,7 @@ JSON
 @test "semgrep: no findings returns 0 (passed)" {
   local report_path="$TMPDIR_SS/security_scan_US-TEST.json"
   semgrep() {
-    cat > "$report_path" <<'JSON'
+    cat >"$report_path" <<'JSON'
 {"results":[],"errors":[]}
 JSON
     return 0
@@ -166,7 +166,7 @@ JSON
 @test "semgrep: report written to SPIRAL_SCRATCH_DIR/security_scan_STORY_ID.json" {
   local report_path="$TMPDIR_SS/security_scan_US-TEST.json"
   semgrep() {
-    cat > "$report_path" <<'JSON'
+    cat >"$report_path" <<'JSON'
 {"results":[],"errors":[]}
 JSON
     return 0
@@ -191,7 +191,7 @@ JSON
   }
   export -f git
   bandit() {
-    cat > "$report_path" <<'JSON'
+    cat >"$report_path" <<'JSON'
 {"results":[{"test_id":"B608","issue_text":"SQL injection","issue_severity":"HIGH","issue_confidence":"HIGH","filename":"src/main.py","line_number":10}],"errors":[]}
 JSON
     return 1

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Fix bats_require_minimum_version position — move it to right after the initial file header."""
-import re
-import sys
+
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent
@@ -86,7 +85,7 @@ def fix_file(filepath: Path) -> bool:
     # Remove the version line from its current position
     # Also remove surrounding blank lines if they create a gap
     removed_lines = lines[:version_idx]
-    rest = lines[version_idx + 1:]
+    rest = lines[version_idx + 1 :]
     # Clean up blank line before the removed line if one exists
     if removed_lines and removed_lines[-1].strip() == "" and rest and rest[0].strip() == "":
         removed_lines.pop()

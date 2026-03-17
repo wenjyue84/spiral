@@ -22,7 +22,7 @@ setup() {
   # Mock SPIRAL_PYTHON (needed by prd_valid and deps_dag assertions)
   export MOCK_BIN="$TMPDIR_SA/bin"
   mkdir -p "$MOCK_BIN"
-  cat > "$MOCK_BIN/mock_python_pass.sh" <<'EOF'
+  cat >"$MOCK_BIN/mock_python_pass.sh" <<'EOF'
 #!/bin/bash
 exit 0
 EOF
@@ -44,7 +44,7 @@ EOF
   mkdir -p "$FIXTURE_DIR"
 
   # Valid PRD: 3 unique story IDs
-  cat > "$FIXTURE_DIR/prd_unique.json" <<'EOF'
+  cat >"$FIXTURE_DIR/prd_unique.json" <<'EOF'
 {
   "schemaVersion": 1,
   "projectName": "Test",
@@ -60,7 +60,7 @@ EOF
 EOF
 
   # PRD with duplicate IDs
-  cat > "$FIXTURE_DIR/prd_duplicate_ids.json" <<'EOF'
+  cat >"$FIXTURE_DIR/prd_duplicate_ids.json" <<'EOF'
 {
   "schemaVersion": 1,
   "projectName": "Test",
@@ -84,7 +84,7 @@ stories = [{'id': f'US-{i:03d}', 'title': f'Story {i}', 'priority': 'low',
 prd = {'schemaVersion': 1, 'projectName': 'T', 'productName': 'T', 'branchName': 'main',
        'description': 'T', 'userStories': stories}
 print(json.dumps(prd))
-" > "$FIXTURE_DIR/prd_5stories.json"
+" >"$FIXTURE_DIR/prd_5stories.json"
 
   export PRD_FILE="$FIXTURE_DIR/prd_unique.json"
 }
@@ -178,7 +178,7 @@ teardown() {
 
 @test "spiral_assert_passes_monotonic passes when count increases" {
   # Baseline: 1 passing story
-  echo "1" > "$SCRATCH_DIR/_passes_baseline"
+  echo "1" >"$SCRATCH_DIR/_passes_baseline"
   # prd_unique.json has 1 passing story (US-003)
   run spiral_assert_passes_monotonic "$FIXTURE_DIR/prd_unique.json"
   assert_success
@@ -187,7 +187,7 @@ teardown() {
 @test "spiral_assert_passes_monotonic returns 1 when passes count decreases" {
   export SPIRAL_ASSERT_MODE="warn"
   # Baseline: 2 passing stories
-  echo "2" > "$SCRATCH_DIR/_passes_baseline"
+  echo "2" >"$SCRATCH_DIR/_passes_baseline"
   # prd_unique.json has only 1 passing story — regression detected
   run spiral_assert_passes_monotonic "$FIXTURE_DIR/prd_unique.json"
   assert_failure

@@ -18,12 +18,12 @@ VIOLATIONS=$(
     --exclude-dir=.venv \
     --exclude-dir=.spiral-workers \
     --exclude-dir=__pycache__ \
-    "$SEARCH_ROOT" \
-    | grep -v "# spiral-allow-shell" \
-    | grep -v "^Binary" \
-    | grep -v "test_shell_injection_prevention.py" \
-    | grep "subprocess\|Popen\|run(\|call(\|check_output" \
-    || true
+    "$SEARCH_ROOT" |
+    grep -v "# spiral-allow-shell" |
+    grep -v "^Binary" |
+    grep -v "test_shell_injection_prevention.py" |
+    grep "subprocess\|Popen\|run(\|call(\|check_output" ||
+    true
 )
 
 if [[ -n "$VIOLATIONS" ]]; then

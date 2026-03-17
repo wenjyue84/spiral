@@ -30,7 +30,7 @@ setup() {
   log_spiral_event() {
     local event_type="$1"
     local extra="${2:-}"
-    printf '{"type":"%s",%s}\n' "$event_type" "$extra" >> "$TMPDIR_OD/events.jsonl"
+    printf '{"type":"%s",%s}\n' "$event_type" "$extra" >>"$TMPDIR_OD/events.jsonl"
   }
   export -f log_spiral_event
 }
@@ -45,7 +45,7 @@ teardown() {
 make_mock_claude() {
   local body="$1"
   # Use printf to avoid shell interpolation issues with quotes
-  printf '#!/usr/bin/env bash\nprintf %%s\\n %s\nexit 0\n' "'$body'" > "$MOCK_BIN/claude"
+  printf '#!/usr/bin/env bash\nprintf %%s\\n %s\nexit 0\n' "'$body'" >"$MOCK_BIN/claude"
   chmod +x "$MOCK_BIN/claude"
 }
 
@@ -55,8 +55,8 @@ detect_overload() {
   local tmp_file="$1"
   local _FIRST_LINE
   _FIRST_LINE=$(head -1 "$tmp_file" 2>/dev/null || true)
-  if grep -qE 'overloaded_error|"529"' "$tmp_file" 2>/dev/null || \
-     echo "$_FIRST_LINE" | grep -qF '"type":"error"' 2>/dev/null; then
+  if grep -qE 'overloaded_error|"529"' "$tmp_file" 2>/dev/null ||
+    echo "$_FIRST_LINE" | grep -qF '"type":"error"' 2>/dev/null; then
     return 0
   fi
   return 1
@@ -76,7 +76,7 @@ export -f detect_overload
 
 @test "detect overloaded_error keyword in captured output" {
   local tmp="$TMPDIR_OD/claude_out.tmp"
-  echo '{"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}}' > "$tmp"
+  echo '{"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}}' >"$tmp"
 
   run detect_overload "$tmp"
   assert_success
@@ -85,7 +85,7 @@ export -f detect_overload
 @test "detect type:error pattern in first NDJSON chunk" {
   # The "type":"error" in first line is the primary streaming error signal
   local tmp="$TMPDIR_OD/stream.tmp"
-  echo '{"type":"error","error":{"type":"overloaded_error","message":"API unavailable"}}' > "$tmp"
+  echo '{"type":"error","error":{"type":"overloaded_error","message":"API unavailable"}}' >"$tmp"
 
   # Verify first-line detection specifically
   local first_line
@@ -98,7 +98,7 @@ export -f detect_overload
   make_mock_claude '{"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}}'
 
   local tmp="$TMPDIR_OD/claude_out.tmp"
-  claude -p "test" > "$tmp" 2>&1 || true
+  claude -p "test" >"$tmp" 2>&1 || true
 
   run detect_overload "$tmp"
   assert_success
@@ -106,7 +106,7 @@ export -f detect_overload
 
 @test "clean successful output is not flagged as overload" {
   local tmp="$TMPDIR_OD/clean.tmp"
-  cat > "$tmp" <<'CLEANEOF'
+  cat >"$tmp" <<'CLEANEOF'
 {"type":"system","subtype":"init","session_id":"abc123"}
 {"type":"assistant","message":{"role":"assistant","content":"Done"}}
 {"type":"result","subtype":"success","duration_ms":1234}
@@ -119,7 +119,7 @@ CLEANEOF
 @test "literal 529 string in output triggers overload detection" {
   local tmp="$TMPDIR_OD/529.tmp"
   # Use printf to write literal "529" with surrounding quotes (matches grep pattern '"529"')
-  printf '{"status":"529","message":"Too Many Requests"}\n' > "$tmp"
+  printf '{"status":"529","message":"Too Many Requests"}\n' >"$tmp"
 
   run detect_overload "$tmp"
   assert_success

@@ -61,7 +61,7 @@ _source_guard() {
     echo "  [idempotency] Story $story_id already implemented in commit ${existing_sha:0:8} — skipping"
     "$JQ" --arg id "$story_id" --arg sha "$existing_sha" \
       '(.userStories[] | select(.id == $id)) |= (.passes = true | ._passedCommit = $sha)' \
-      "$prd_file" > "${prd_file}.tmp" && mv "${prd_file}.tmp" "$prd_file"
+      "$prd_file" >"${prd_file}.tmp" && mv "${prd_file}.tmp" "$prd_file"
 
     log_spiral_event "idempotency_skip" \
       "\"story_id\":\"$story_id\",\"commit_sha\":\"$existing_sha\",\"iteration\":${SPIRAL_ITER:-0}"
@@ -83,7 +83,7 @@ setup() {
   git config core.autocrlf false
 
   # Create initial prd.json with one pending story
-  cat > prd.json <<'EOF'
+  cat >prd.json <<'EOF'
 {
   "userStories": [
     {
@@ -112,7 +112,7 @@ teardown() {
   cd "$TEST_DIR/repo"
 
   # Create a commit that mentions the story ID
-  echo "implementation" > feature.txt
+  echo "implementation" >feature.txt
   git add feature.txt
   git commit -m "feat: US-999 implement test story" >/dev/null 2>&1
 
@@ -128,7 +128,7 @@ teardown() {
 @test "idempotency guard sets passes=true and _passedCommit SHA" {
   cd "$TEST_DIR/repo"
 
-  echo "implementation" > feature.txt
+  echo "implementation" >feature.txt
   git add feature.txt
   git commit -m "feat: US-999 implement test story" >/dev/null 2>&1
   EXPECTED_SHA=$(git rev-parse HEAD)
@@ -150,7 +150,7 @@ teardown() {
   cd "$TEST_DIR/repo"
 
   # Create a feature commit and then revert it
-  echo "implementation" > feature.txt
+  echo "implementation" >feature.txt
   git add feature.txt
   git commit -m "feat: US-999 implement test story" >/dev/null 2>&1
   git revert --no-edit HEAD >/dev/null 2>&1
@@ -183,7 +183,7 @@ teardown() {
 @test "idempotency guard logs idempotency_skip event to spiral_events.jsonl" {
   cd "$TEST_DIR/repo"
 
-  echo "implementation" > feature.txt
+  echo "implementation" >feature.txt
   git add feature.txt
   git commit -m "feat: US-999 implement test story" >/dev/null 2>&1
 

@@ -167,7 +167,7 @@ setup() {
 
   # R sleeps 2s; T sleeps 1s. If sequential: T starts after R finishes (r_start + 2 <= t_start).
   # If parallel: T starts at approximately the same time as R (|t_start - r_start| < 2).
-  diff=$(( t_start - r_start ))
+  diff=$((t_start - r_start))
   [ "$diff" -lt 2 ] || {
     echo "FAIL: T started $diff seconds after R — expected parallel start (diff < 2s)"
     echo "  R start: $r_start"
@@ -201,7 +201,7 @@ setup() {
   [ ! -f "$TEST_SCRATCH_DIR/_mock_r_start.txt" ]
 
   # T should have run (recorded start time) OR its output file exists
-  [ -f "$TEST_SCRATCH_DIR/_mock_t_start.txt" ] || \
+  [ -f "$TEST_SCRATCH_DIR/_mock_t_start.txt" ] ||
     [ -f "$TEST_SCRATCH_DIR/_test_stories_output.json" ]
 }
 
@@ -214,6 +214,6 @@ setup() {
     bash "$(dirname "${BATS_TEST_DIRNAME}")/spiral.sh" 1 --gate skip --skip-research --dry-run 2>/dev/null || true
 
   # In dry-run mode, both marker files should be written immediately
-  [ -f "$TEST_SCRATCH_DIR/_phase_R_1.ckpt" ] || \
+  [ -f "$TEST_SCRATCH_DIR/_phase_R_1.ckpt" ] ||
     [ -f "$TEST_SCRATCH_DIR/_phase_T_1.ckpt" ]
 }

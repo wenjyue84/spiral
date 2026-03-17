@@ -4,12 +4,12 @@ US-339: Programmatic tool calling (code_execution_20250825) test suite.
 Tests for tool manifest structure, allowed_callers configuration, and
 programmatic tools feature detection.
 """
+
 import json
-import os
 from pathlib import Path
 
 import pytest
-from hypothesis import given, settings, HealthCheck
+from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
 
@@ -46,9 +46,7 @@ class TestProgrammaticToolsManifest:
     def test_programmatic_tools_v1_section(self):
         """Manifest should have _programmatic_tools_v1 section for US-339."""
         manifest = load_tool_manifest()
-        assert (
-            "_programmatic_tools_v1" in manifest
-        ), "Missing '_programmatic_tools_v1' key (US-339 feature)"
+        assert "_programmatic_tools_v1" in manifest, "Missing '_programmatic_tools_v1' key (US-339 feature)"
 
     def test_code_execution_tool_defined(self):
         """Code execution tool should be defined with correct type."""
@@ -58,9 +56,9 @@ class TestProgrammaticToolsManifest:
         assert "code_execution" in prog_tools, "Missing 'code_execution' tool definition"
 
         code_exec = prog_tools["code_execution"]
-        assert (
-            code_exec.get("type") == "code_execution_20250825"
-        ), "code_execution should have type='code_execution_20250825'"
+        assert code_exec.get("type") == "code_execution_20250825", (
+            "code_execution should have type='code_execution_20250825'"
+        )
         assert "description" in code_exec, "code_execution should have description"
 
     def test_bash_execute_has_allowed_callers(self):
@@ -70,12 +68,10 @@ class TestProgrammaticToolsManifest:
         assert "bash_execute" in prog_tools, "Missing 'bash_execute' in programmatic tools"
 
         bash_exec = prog_tools["bash_execute"]
-        assert (
-            "allowed_callers" in bash_exec
-        ), "bash_execute should have 'allowed_callers'"
-        assert (
-            "code_execution_20250825" in bash_exec["allowed_callers"]
-        ), "bash_execute.allowed_callers should include 'code_execution_20250825'"
+        assert "allowed_callers" in bash_exec, "bash_execute should have 'allowed_callers'"
+        assert "code_execution_20250825" in bash_exec["allowed_callers"], (
+            "bash_execute.allowed_callers should include 'code_execution_20250825'"
+        )
 
     def test_file_read_has_allowed_callers(self):
         """file_read tool should have allowed_callers for code_execution."""
@@ -84,12 +80,10 @@ class TestProgrammaticToolsManifest:
         assert "file_read" in prog_tools, "Missing 'file_read' in programmatic tools"
 
         file_read = prog_tools["file_read"]
-        assert (
-            "allowed_callers" in file_read
-        ), "file_read should have 'allowed_callers'"
-        assert (
-            "code_execution_20250825" in file_read["allowed_callers"]
-        ), "file_read.allowed_callers should include 'code_execution_20250825'"
+        assert "allowed_callers" in file_read, "file_read should have 'allowed_callers'"
+        assert "code_execution_20250825" in file_read["allowed_callers"], (
+            "file_read.allowed_callers should include 'code_execution_20250825'"
+        )
 
     def test_file_write_has_allowed_callers(self):
         """file_write tool should have allowed_callers for code_execution."""
@@ -98,12 +92,10 @@ class TestProgrammaticToolsManifest:
         assert "file_write" in prog_tools, "Missing 'file_write' in programmatic tools"
 
         file_write = prog_tools["file_write"]
-        assert (
-            "allowed_callers" in file_write
-        ), "file_write should have 'allowed_callers'"
-        assert (
-            "code_execution_20250825" in file_write["allowed_callers"]
-        ), "file_write.allowed_callers should include 'code_execution_20250825'"
+        assert "allowed_callers" in file_write, "file_write should have 'allowed_callers'"
+        assert "code_execution_20250825" in file_write["allowed_callers"], (
+            "file_write.allowed_callers should include 'code_execution_20250825'"
+        )
 
     def test_no_duplicate_tools_in_core_and_deferred(self):
         """Core and deferred tools should not overlap."""
@@ -125,13 +117,9 @@ class TestProgrammaticToolsManifest:
             if not isinstance(tool_config, dict):
                 continue
             if "allowed_callers" in tool_config:
-                assert isinstance(
-                    tool_config["allowed_callers"], list
-                ), f"{tool_name}.allowed_callers should be a list"
+                assert isinstance(tool_config["allowed_callers"], list), f"{tool_name}.allowed_callers should be a list"
                 for caller in tool_config["allowed_callers"]:
-                    assert isinstance(
-                        caller, str
-                    ), f"{tool_name}.allowed_callers should contain strings"
+                    assert isinstance(caller, str), f"{tool_name}.allowed_callers should contain strings"
 
     @given(st.just(None))
     @settings(suppress_health_check=[HealthCheck.filter_too_much])
@@ -170,10 +158,7 @@ class TestProgrammaticToolsConfig:
         """Sonnet 4.6+ and Opus 4.6+ models should support code_execution."""
         # Simple regex check matching ralph.sh logic
         supports = bool(
-            model_name
-            and any(
-                x in model_name for x in ["sonnet-4.6", "opus-4.6", "claude-4-6", "claude-4.6"]
-            )
+            model_name and any(x in model_name for x in ["sonnet-4.6", "opus-4.6", "claude-4-6", "claude-4.6"])
         )
         # For test models, check if they're in the supported list
         if "sonnet-4.6" in model_name or "opus-4.6" in model_name:
@@ -187,12 +172,7 @@ class TestProgrammaticToolsConfig:
             "claude-haiku-1",
         ]
         for model in haiku_models:
-            supports = bool(
-                model
-                and any(
-                    x in model for x in ["sonnet-4.6", "opus-4.6", "claude-4-6", "claude-4.6"]
-                )
-            )
+            supports = bool(model and any(x in model for x in ["sonnet-4.6", "opus-4.6", "claude-4-6", "claude-4.6"]))
             assert not supports, f"{model} should NOT support code_execution"
 
 

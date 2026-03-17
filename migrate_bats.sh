@@ -47,7 +47,7 @@ for f in "${FILES[@]}"; do
         ((insert_after--))
         break
       fi
-    done < "$f"
+    done <"$f"
 
     # Insert bats_require_minimum_version after the comment block
     sed -i "${insert_after}a\\

@@ -37,13 +37,13 @@ mask_observations() {
   shift
   local obs=("$@")
   local count=${#obs[@]}
-  local mask_count=$(( count > window ? count - window : 0 ))
+  local mask_count=$((count > window ? count - window : 0))
   local masked_context=""
-  for (( i=0; i < count; i++ )); do
-    if (( i < mask_count )); then
+  for ((i = 0; i < count; i++)); do
+    if ((i < mask_count)); then
       local short_reason
       short_reason=$(printf '%s' "${obs[$i]}" | grep "^Failure reason:" | head -1 | cut -c 1-100)
-      masked_context="${masked_context}[Attempt $((i+1)): omitted for brevity — ${short_reason:-reason not recorded}]
+      masked_context="${masked_context}[Attempt $((i + 1)): omitted for brevity — ${short_reason:-reason not recorded}]
 "
     else
       masked_context="${masked_context}${obs[$i]}
@@ -57,7 +57,7 @@ estimate_tokens() {
   # estimate_tokens <string>
   # Returns chars/4 (floor)
   local chars=${#1}
-  echo $(( (chars + 3) / 4 ))
+  echo $(((chars + 3) / 4))
 }
 
 # ── Tests: SPIRAL_CONTEXT_WINDOW default ─────────────────────────────────────
@@ -193,9 +193,9 @@ Notes: The implementation tried several approaches including modifying lib/foo.p
   done
   local masked_ctx
   masked_ctx=$(mask_observations "$window" "${obs[@]}")
-  local full_tokens=$(( (${#full_ctx} + 3) / 4 ))
-  local masked_tokens=$(( (${#masked_ctx} + 3) / 4 ))
-  local reduction_pct=$(( (full_tokens - masked_tokens) * 100 / (full_tokens + 1) ))
+  local full_tokens=$(((${#full_ctx} + 3) / 4))
+  local masked_tokens=$(((${#masked_ctx} + 3) / 4))
+  local reduction_pct=$(((full_tokens - masked_tokens) * 100 / (full_tokens + 1)))
   [ "$reduction_pct" -ge 40 ]
 }
 
@@ -213,7 +213,8 @@ Notes: second notes")
   local output
   output=$(mask_observations "$window" "${obs[@]}")
   # The long notes of attempt 1 should not appear verbatim
-  ! echo "$output" | grep -q "detailed notes that should not appear in masked output"
+  run ! echo "$output" | grep -q "detailed notes that should not appear in masked output"
+  assert_success
   # But the failure reason should appear in the placeholder
   echo "$output" | grep -q "UNIQUE_FAILURE_STRING_XYZ"
 }
@@ -221,14 +222,14 @@ Notes: second notes")
 # ── Tests: token estimation ───────────────────────────────────────────────────
 
 @test "token estimation returns chars divided by 4" {
-  local text="Hello world 1234"  # 16 chars → 4 tokens
+  local text="Hello world 1234" # 16 chars → 4 tokens
   local tokens
   tokens=$(estimate_tokens "$text")
   [ "$tokens" -eq 4 ]
 }
 
 @test "token estimation rounds up (ceiling)" {
-  local text="Hello"  # 5 chars → ceil(5/4) = 2 tokens
+  local text="Hello" # 5 chars → ceil(5/4) = 2 tokens
   local tokens
   tokens=$(estimate_tokens "$text")
   [ "$tokens" -eq 2 ]
@@ -239,18 +240,18 @@ Notes: second notes")
 @test "_contextStats written to prd.json with tokensBeforeMasking" {
   local prd_file
   prd_file=$(mktemp)
-  cat > "$prd_file" <<'PRDJSON'
+  cat >"$prd_file" <<'PRDJSON'
 {"userStories":[{"id":"US-TEST","title":"Test","passes":false}]}
 PRDJSON
   local jq_bin="jq"
   [[ -f "ralph/jq.exe" ]] && jq_bin="ralph/jq.exe"
   # Simulate the ralph.sh _contextStats write
   local tokens_before=200 tokens_after=80 window=3
-  local reduction=$(( (tokens_before - tokens_after) * 100 / (tokens_before + 1) ))
+  local reduction=$(((tokens_before - tokens_after) * 100 / (tokens_before + 1)))
   "$jq_bin" --argjson ctxstats \
     "{\"tokensBeforeMasking\":${tokens_before},\"tokensAfterMasking\":${tokens_after},\"reductionPct\":${reduction},\"contextWindow\":${window}}" \
     '(.userStories[] | select(.id == "US-TEST") | ._contextStats) = $ctxstats' \
-    "$prd_file" > "${prd_file}.tmp" && mv "${prd_file}.tmp" "$prd_file"
+    "$prd_file" >"${prd_file}.tmp" && mv "${prd_file}.tmp" "$prd_file"
   local result
   result=$("$jq_bin" -r '.userStories[] | select(.id=="US-TEST") | ._contextStats.tokensBeforeMasking' "$prd_file")
   rm -f "$prd_file"
@@ -260,17 +261,17 @@ PRDJSON
 @test "_contextStats written to prd.json with tokensAfterMasking" {
   local prd_file
   prd_file=$(mktemp)
-  cat > "$prd_file" <<'PRDJSON'
+  cat >"$prd_file" <<'PRDJSON'
 {"userStories":[{"id":"US-TEST","title":"Test","passes":false}]}
 PRDJSON
   local jq_bin="jq"
   [[ -f "ralph/jq.exe" ]] && jq_bin="ralph/jq.exe"
   local tokens_before=200 tokens_after=80 window=3
-  local reduction=$(( (tokens_before - tokens_after) * 100 / (tokens_before + 1) ))
+  local reduction=$(((tokens_before - tokens_after) * 100 / (tokens_before + 1)))
   "$jq_bin" --argjson ctxstats \
     "{\"tokensBeforeMasking\":${tokens_before},\"tokensAfterMasking\":${tokens_after},\"reductionPct\":${reduction},\"contextWindow\":${window}}" \
     '(.userStories[] | select(.id == "US-TEST") | ._contextStats) = $ctxstats' \
-    "$prd_file" > "${prd_file}.tmp" && mv "${prd_file}.tmp" "$prd_file"
+    "$prd_file" >"${prd_file}.tmp" && mv "${prd_file}.tmp" "$prd_file"
   local result
   result=$("$jq_bin" -r '.userStories[] | select(.id=="US-TEST") | ._contextStats.tokensAfterMasking' "$prd_file")
   rm -f "$prd_file"
@@ -280,17 +281,17 @@ PRDJSON
 @test "_contextStats reductionPct is computed as (before-after)*100/before" {
   local prd_file
   prd_file=$(mktemp)
-  cat > "$prd_file" <<'PRDJSON'
+  cat >"$prd_file" <<'PRDJSON'
 {"userStories":[{"id":"US-TEST","title":"Test","passes":false}]}
 PRDJSON
   local jq_bin="jq"
   [[ -f "ralph/jq.exe" ]] && jq_bin="ralph/jq.exe"
   local tokens_before=200 tokens_after=80 window=3
-  local reduction=$(( (tokens_before - tokens_after) * 100 / (tokens_before + 1) ))
+  local reduction=$(((tokens_before - tokens_after) * 100 / (tokens_before + 1)))
   "$jq_bin" --argjson ctxstats \
     "{\"tokensBeforeMasking\":${tokens_before},\"tokensAfterMasking\":${tokens_after},\"reductionPct\":${reduction},\"contextWindow\":${window}}" \
     '(.userStories[] | select(.id == "US-TEST") | ._contextStats) = $ctxstats' \
-    "$prd_file" > "${prd_file}.tmp" && mv "${prd_file}.tmp" "$prd_file"
+    "$prd_file" >"${prd_file}.tmp" && mv "${prd_file}.tmp" "$prd_file"
   local result
   result=$("$jq_bin" -r '.userStories[] | select(.id=="US-TEST") | ._contextStats.reductionPct' "$prd_file")
   rm -f "$prd_file"
@@ -301,17 +302,17 @@ PRDJSON
 @test "_contextStats contextWindow stored correctly" {
   local prd_file
   prd_file=$(mktemp)
-  cat > "$prd_file" <<'PRDJSON'
+  cat >"$prd_file" <<'PRDJSON'
 {"userStories":[{"id":"US-TEST","title":"Test","passes":false}]}
 PRDJSON
   local jq_bin="jq"
   [[ -f "ralph/jq.exe" ]] && jq_bin="ralph/jq.exe"
   local tokens_before=100 tokens_after=60 window=5
-  local reduction=$(( (tokens_before - tokens_after) * 100 / (tokens_before + 1) ))
+  local reduction=$(((tokens_before - tokens_after) * 100 / (tokens_before + 1)))
   "$jq_bin" --argjson ctxstats \
     "{\"tokensBeforeMasking\":${tokens_before},\"tokensAfterMasking\":${tokens_after},\"reductionPct\":${reduction},\"contextWindow\":${window}}" \
     '(.userStories[] | select(.id == "US-TEST") | ._contextStats) = $ctxstats' \
-    "$prd_file" > "${prd_file}.tmp" && mv "${prd_file}.tmp" "$prd_file"
+    "$prd_file" >"${prd_file}.tmp" && mv "${prd_file}.tmp" "$prd_file"
   local result
   result=$("$jq_bin" -r '.userStories[] | select(.id=="US-TEST") | ._contextStats.contextWindow' "$prd_file")
   rm -f "$prd_file"

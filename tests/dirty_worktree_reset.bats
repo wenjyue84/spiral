@@ -95,7 +95,7 @@ setup() {
   git -C "$REPO" config user.name "Spiral Test"
 
   # Initial commit so the repo has a HEAD
-  echo "initial" > "$REPO/README.md"
+  echo "initial" >"$REPO/README.md"
   git -C "$REPO" add README.md
   git -C "$REPO" commit -q -m "init"
 
@@ -129,7 +129,7 @@ teardown() {
   assert_output --partial "All worktrees clean"
 
   # No event logged
-  [ ! -f "$REPO/.spiral/spiral_events.jsonl" ] || \
+  [ ! -f "$REPO/.spiral/spiral_events.jsonl" ] ||
     ! grep -q "worker_reset_dirty_worktree" "$REPO/.spiral/spiral_events.jsonl"
 }
 
@@ -138,7 +138,7 @@ teardown() {
   create_worker_worktree "$REPO" "worker-1"
 
   # Stage a change in the worktree
-  echo "dirty" > "$REPO/.spiral-workers/worker-1/dirty.txt"
+  echo "dirty" >"$REPO/.spiral-workers/worker-1/dirty.txt"
   git -C "$REPO/.spiral-workers/worker-1" add dirty.txt
 
   run run_dirty_reset "$REPO"
@@ -156,7 +156,7 @@ teardown() {
   create_worker_worktree "$REPO" "worker-1"
 
   # Modify a tracked file without staging
-  echo "modified" >> "$REPO/.spiral-workers/worker-1/README.md"
+  echo "modified" >>"$REPO/.spiral-workers/worker-1/README.md"
 
   run run_dirty_reset "$REPO"
   assert_success
@@ -172,7 +172,7 @@ teardown() {
   create_worker_worktree "$REPO" "worker-1"
 
   # Add an untracked file
-  echo "untracked" > "$REPO/.spiral-workers/worker-1/leftover.txt"
+  echo "untracked" >"$REPO/.spiral-workers/worker-1/leftover.txt"
 
   run run_dirty_reset "$REPO"
   assert_success
@@ -186,7 +186,7 @@ teardown() {
   mkdir -p "$REPO/.spiral-workers"
   create_worker_worktree "$REPO" "worker-1"
 
-  echo "dirty" > "$REPO/.spiral-workers/worker-1/dirty.txt"
+  echo "dirty" >"$REPO/.spiral-workers/worker-1/dirty.txt"
   git -C "$REPO/.spiral-workers/worker-1" add dirty.txt
 
   run run_dirty_reset "$REPO"
@@ -205,10 +205,10 @@ teardown() {
   create_worker_worktree "$REPO" "worker-2"
 
   # Dirty both worktrees
-  echo "dirty1" > "$REPO/.spiral-workers/worker-1/dirty.txt"
+  echo "dirty1" >"$REPO/.spiral-workers/worker-1/dirty.txt"
   git -C "$REPO/.spiral-workers/worker-1" add dirty.txt
 
-  echo "dirty2" >> "$REPO/.spiral-workers/worker-2/README.md"
+  echo "dirty2" >>"$REPO/.spiral-workers/worker-2/README.md"
 
   run run_dirty_reset "$REPO"
   assert_success
@@ -232,7 +232,7 @@ teardown() {
   create_worker_worktree "$REPO" "worker-2"
 
   # Only dirty worker-2
-  echo "dirty" > "$REPO/.spiral-workers/worker-2/dirty.txt"
+  echo "dirty" >"$REPO/.spiral-workers/worker-2/dirty.txt"
   git -C "$REPO/.spiral-workers/worker-2" add dirty.txt
 
   run run_dirty_reset "$REPO"

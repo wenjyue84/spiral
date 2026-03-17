@@ -35,7 +35,7 @@ _flaky_ensure_py_helper() {
     return 0
   fi
   _FLAKY_PY_HELPER=$(mktemp /tmp/flaky_helper_XXXXXX.py)
-  cat > "$_FLAKY_PY_HELPER" <<'PYEOF'
+  cat >"$_FLAKY_PY_HELPER" <<'PYEOF'
 #!/usr/bin/env python3
 """
 Flaky test registry helper.

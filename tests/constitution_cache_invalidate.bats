@@ -94,7 +94,7 @@ teardown() {
 # ── Tests ─────────────────────────────────────────────────────────────────────
 
 @test "first run: hash is recorded and first-run message printed" {
-  echo "# Project goals: be fast" > "$TMPDIR_T/constitution.md"
+  echo "# Project goals: be fast" >"$TMPDIR_T/constitution.md"
   mkdir -p "$TMPDIR_T/.spiral/research_cache"
 
   run run_cache_invalidate "$TMPDIR_T" "true" ""
@@ -107,7 +107,7 @@ teardown() {
 }
 
 @test "second run with unchanged constitution: no clearing" {
-  echo "# Project goals: be fast" > "$TMPDIR_T/constitution.md"
+  echo "# Project goals: be fast" >"$TMPDIR_T/constitution.md"
   mkdir -p "$TMPDIR_T/.spiral/research_cache"
   touch "$TMPDIR_T/.spiral/research_cache/cache1.json"
 
@@ -126,23 +126,23 @@ teardown() {
 }
 
 @test "modified constitution: cache entries cleared and event emitted" {
-  echo "# Version 1" > "$TMPDIR_T/constitution.md"
+  echo "# Version 1" >"$TMPDIR_T/constitution.md"
   mkdir -p "$TMPDIR_T/.spiral/research_cache"
 
   # Simulate a previously completed first run by writing the hash directly
-  sha256sum "$TMPDIR_T/constitution.md" | cut -d' ' -f1 > "$TMPDIR_T/.spiral/_constitution_hash"
+  sha256sum "$TMPDIR_T/constitution.md" | cut -d' ' -f1 >"$TMPDIR_T/.spiral/_constitution_hash"
 
   # Place cache entries (simulating research that ran during prior iterations)
   touch "$TMPDIR_T/.spiral/research_cache/entry_a.json"
   touch "$TMPDIR_T/.spiral/research_cache/entry_b.json"
 
   # Modify constitution (triggers hash mismatch)
-  echo "# Version 2 — new goals added" > "$TMPDIR_T/constitution.md"
+  echo "# Version 2 — new goals added" >"$TMPDIR_T/constitution.md"
 
   run run_cache_invalidate "$TMPDIR_T" "true" ""
   assert_success
   assert_output --partial "changed"
-  [[ "$output" == *"2"* ]]  # cleared 2 entries
+  [[ "$output" == *"2"* ]] # cleared 2 entries
   # Cache files must be gone
   [ ! -f "$TMPDIR_T/.spiral/research_cache/entry_a.json" ]
   [ ! -f "$TMPDIR_T/.spiral/research_cache/entry_b.json" ]
@@ -151,12 +151,12 @@ teardown() {
 }
 
 @test "event emitted with old_hash, new_hash, cleared_count fields" {
-  echo "# Version 1" > "$TMPDIR_T/constitution.md"
+  echo "# Version 1" >"$TMPDIR_T/constitution.md"
   mkdir -p "$TMPDIR_T/.spiral/research_cache"
   touch "$TMPDIR_T/.spiral/research_cache/item.json"
 
   run run_cache_invalidate "$TMPDIR_T" "true" ""
-  echo "# Version 2" > "$TMPDIR_T/constitution.md"
+  echo "# Version 2" >"$TMPDIR_T/constitution.md"
 
   run run_cache_invalidate "$TMPDIR_T" "true" ""
   assert_success
@@ -172,12 +172,12 @@ teardown() {
 }
 
 @test "SPIRAL_INVALIDATE_CACHE_ON_CONSTITUTION_CHANGE=false disables behavior" {
-  echo "# Version 1" > "$TMPDIR_T/constitution.md"
+  echo "# Version 1" >"$TMPDIR_T/constitution.md"
   mkdir -p "$TMPDIR_T/.spiral/research_cache"
   touch "$TMPDIR_T/.spiral/research_cache/keep_me.json"
 
   # Write a stale hash to simulate hash mismatch
-  printf 'deadbeef\n' > "$TMPDIR_T/.spiral/_constitution_hash"
+  printf 'deadbeef\n' >"$TMPDIR_T/.spiral/_constitution_hash"
 
   run run_cache_invalidate "$TMPDIR_T" "false" ""
   assert_success
@@ -201,8 +201,8 @@ teardown() {
 
 @test "SPIRAL_SPECKIT_CONSTITUTION path takes precedence over constitution.md" {
   mkdir -p "$TMPDIR_T/.specify/memory"
-  echo "# Spec-Kit constitution v1" > "$TMPDIR_T/.specify/memory/constitution.md"
-  echo "# Root constitution (should be ignored)" > "$TMPDIR_T/constitution.md"
+  echo "# Spec-Kit constitution v1" >"$TMPDIR_T/.specify/memory/constitution.md"
+  echo "# Root constitution (should be ignored)" >"$TMPDIR_T/constitution.md"
   mkdir -p "$TMPDIR_T/.spiral/research_cache"
   touch "$TMPDIR_T/.spiral/research_cache/entry.json"
 
@@ -215,7 +215,7 @@ teardown() {
   hash1=$(cat "$TMPDIR_T/.spiral/_constitution_hash")
 
   # Modify speckit file
-  echo "# Spec-Kit constitution v2" > "$TMPDIR_T/.specify/memory/constitution.md"
+  echo "# Spec-Kit constitution v2" >"$TMPDIR_T/.specify/memory/constitution.md"
 
   run run_cache_invalidate "$TMPDIR_T" "true" ".specify/memory/constitution.md"
   assert_success
@@ -225,14 +225,14 @@ teardown() {
 }
 
 @test "new hash is written to _constitution_hash after invalidation" {
-  echo "# Version 1" > "$TMPDIR_T/constitution.md"
+  echo "# Version 1" >"$TMPDIR_T/constitution.md"
   mkdir -p "$TMPDIR_T/.spiral"
 
   run run_cache_invalidate "$TMPDIR_T" "true" ""
   local hash_v1
   hash_v1=$(cat "$TMPDIR_T/.spiral/_constitution_hash")
 
-  echo "# Version 2 — changed" > "$TMPDIR_T/constitution.md"
+  echo "# Version 2 — changed" >"$TMPDIR_T/constitution.md"
   run run_cache_invalidate "$TMPDIR_T" "true" ""
 
   local hash_v2

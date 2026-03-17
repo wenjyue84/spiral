@@ -22,4 +22,4 @@ jq -cn \
   --arg wp "$WORKTREE_PATH" \
   --arg sid "$SESSION_ID" \
   '{timestamp: $ts, event: $ev, worktree_path: $wp, session_id: $sid}' \
-  >> "$AUDIT_FILE"
+  >>"$AUDIT_FILE"

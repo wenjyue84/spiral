@@ -15,7 +15,6 @@ from __future__ import annotations
 import argparse
 import json
 import sqlite3
-import sys
 from datetime import datetime, timezone
 
 DEFAULT_DB_PATH = ".spiral/episodic_memory.db"

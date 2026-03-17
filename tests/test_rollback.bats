@@ -25,12 +25,12 @@ setup() {
   git -C "$TEST_REPO" config user.name "Spiral Test"
 
   # Create an initial commit so HEAD exists
-  echo "initial" > "$TEST_REPO/README.md"
+  echo "initial" >"$TEST_REPO/README.md"
   git -C "$TEST_REPO" add README.md
   git -C "$TEST_REPO" commit -m "Initial commit" -q
 
   # Create a second commit to be reverted (this is _passedCommit)
-  echo "story impl" > "$TEST_REPO/story.md"
+  echo "story impl" >"$TEST_REPO/story.md"
   git -C "$TEST_REPO" add story.md
   git -C "$TEST_REPO" commit -m "feat: implement US-001" -q
   STORY_SHA=$(git -C "$TEST_REPO" rev-parse HEAD)
@@ -51,7 +51,7 @@ setup() {
   export WIN_TEST_REPO
 
   # Create prd.json with one passed story (with _passedCommit)
-  cat > "$TEST_REPO/prd.json" <<PRDJSON
+  cat >"$TEST_REPO/prd.json" <<PRDJSON
 {
   "schemaVersion": 1,
   "projectName": "Test Project",
@@ -76,7 +76,7 @@ setup() {
 PRDJSON
 
   # Create spiral.config.sh — do NOT set SPIRAL_HOME so spiral.sh keeps its own lib/
-  cat > "$TEST_REPO/spiral.config.sh" <<CONFEOF
+  cat >"$TEST_REPO/spiral.config.sh" <<CONFEOF
 #!/bin/bash
 export REPO_ROOT="$TEST_REPO"
 export PRD_FILE="$TEST_REPO/prd.json"
@@ -159,7 +159,7 @@ with open(path, 'w', encoding='utf-8') as f:
 
   # Create an uncommitted TRACKED change (stage and unstage to make it modified)
   git -C "$TEST_REPO" add README.md
-  echo "dirty change" >> "$TEST_REPO/README.md"
+  echo "dirty change" >>"$TEST_REPO/README.md"
 
   run bash "$SPIRAL_SH" --rollback US-001
 

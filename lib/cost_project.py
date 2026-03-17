@@ -34,9 +34,10 @@ from constants import (
 )
 from velocity_model import (
     build_velocity_model,
-    format_report as velocity_format_report,
-    get_story_estimate,
     save_velocity_model,
+)
+from velocity_model import (
+    format_report as velocity_format_report,
 )
 
 DEFAULT_MODEL = "sonnet"

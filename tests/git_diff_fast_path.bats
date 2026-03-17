@@ -96,7 +96,7 @@ setup() {
   git -C "$REPO" config user.email "test@spiral.test"
   git -C "$REPO" config user.name "Spiral Test"
 
-  echo "initial" > "$REPO/README.md"
+  echo "initial" >"$REPO/README.md"
   git -C "$REPO" add README.md
   git -C "$REPO" commit -q -m "init"
 
@@ -137,7 +137,7 @@ teardown() {
 @test "dirty worktree (staged): full status runs, not skipped" {
   create_worker_worktree "$REPO" "worker-1"
 
-  echo "staged change" > "$REPO/.spiral-workers/worker-1/staged.txt"
+  echo "staged change" >"$REPO/.spiral-workers/worker-1/staged.txt"
   git -C "$REPO/.spiral-workers/worker-1" add staged.txt
 
   run run_fast_path_check "$REPO"
@@ -154,12 +154,12 @@ teardown() {
   create_worker_worktree "$REPO" "worker-1"
 
   # Commit a file first, then modify it without staging
-  echo "original" > "$REPO/.spiral-workers/worker-1/tracked.txt"
+  echo "original" >"$REPO/.spiral-workers/worker-1/tracked.txt"
   git -C "$REPO/.spiral-workers/worker-1" add tracked.txt
   git -C "$REPO/.spiral-workers/worker-1" commit -q -m "add tracked"
 
   # Now modify without staging — diff-index should catch this
-  echo "modified" > "$REPO/.spiral-workers/worker-1/tracked.txt"
+  echo "modified" >"$REPO/.spiral-workers/worker-1/tracked.txt"
 
   run run_fast_path_check "$REPO"
   assert_success
@@ -172,7 +172,7 @@ teardown() {
   create_worker_worktree "$REPO" "worker-3"
 
   # Make worker-2 dirty (staged change)
-  echo "dirty" > "$REPO/.spiral-workers/worker-2/dirty.txt"
+  echo "dirty" >"$REPO/.spiral-workers/worker-2/dirty.txt"
   git -C "$REPO/.spiral-workers/worker-2" add dirty.txt
 
   run run_fast_path_check "$REPO"

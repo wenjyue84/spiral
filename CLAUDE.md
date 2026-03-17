@@ -39,6 +39,33 @@ shfmt -d -i 2 -ci spiral.sh ralph/ralph.sh lib/*.sh
 uv run python lib/prd_schema.py prd.json
 ```
 
+## Development Setup
+
+### Local Quality Gate Enforcement (Pre-commit)
+
+To catch linting, formatting, and type errors **before** push to CI:
+
+```bash
+# One-time setup
+uv run pre-commit install
+
+# Hooks run automatically on every commit
+# To run manually on all files:
+uv run pre-commit run --all-files
+
+# To skip pre-commit (not recommended):
+git commit --no-verify
+```
+
+Hooks installed:
+- **Ruff**: lint (`--fix`) and format
+- **MyPy**: static type checking (`--strict`)
+- **Shellcheck**: shell script linting (`--severity=error`)
+- **Shfmt**: shell script formatting (`-i 2 -ci`)
+- **Trailing whitespace** and **EOF fixer**
+
+This mirrors the same checks run in CI (`.github/workflows/`), shifting feedback from CI minutes to sub-second local iteration.
+
 ## Architecture
 
 ### Phase Loop (per iteration)

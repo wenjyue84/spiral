@@ -41,7 +41,8 @@ _setup_env() {
 # Create a minimal prd.json with pending stories
 # Args: PRD_FILE  "SID|TITLE|REASON" ...
 _create_test_prd() {
-  local prd_file="$1"; shift
+  local prd_file="$1"
+  shift
   local stories="[]"
   for entry in "$@"; do
     local sid title reason
@@ -53,27 +54,28 @@ _create_test_prd() {
     [[ "$reason" == "$title" || "$reason" == "null" || -z "$reason" ]] && reason=""
     if [[ -n "$reason" ]]; then
       stories=$("$JQ" --arg id "$sid" --arg t "$title" --arg r "$reason" \
-        '. + [{"id": $id, "title": $t, "passes": false, "_failureReason": $r}]' <<< "$stories")
+        '. + [{"id": $id, "title": $t, "passes": false, "_failureReason": $r}]' <<<"$stories")
     else
       stories=$("$JQ" --arg id "$sid" --arg t "$title" \
-        '. + [{"id": $id, "title": $t, "passes": false, "_failureReason": null}]' <<< "$stories")
+        '. + [{"id": $id, "title": $t, "passes": false, "_failureReason": null}]' <<<"$stories")
     fi
   done
-  "$JQ" -n --argjson s "$stories" '{"userStories": $s}' > "$prd_file"
+  "$JQ" -n --argjson s "$stories" '{"userStories": $s}' >"$prd_file"
 }
 
 # Create a minimal retry-counts.json
 # Args: RETRIES_FILE  "SID:COUNT" ...
 _create_test_retries() {
-  local retries_file="$1"; shift
+  local retries_file="$1"
+  shift
   local obj="{}"
   for entry in "$@"; do
     local sid count
     sid="${entry%%:*}"
     count="${entry##*:}"
-    obj=$("$JQ" --arg id "$sid" --argjson c "$count" '.[$id] = $c' <<< "$obj")
+    obj=$("$JQ" --arg id "$sid" --argjson c "$count" '.[$id] = $c' <<<"$obj")
   done
-  echo "$obj" > "$retries_file"
+  echo "$obj" >"$retries_file"
 }
 
 # Simulates the US-400 consecutive-fail-abort logic from spiral.sh.
@@ -119,7 +121,7 @@ _simulate_consecutive_abort() {
     printf '{"iter":%d,"phase":"I","ts":"%s","run_id":"%s","abort_reason":"consecutive_failures","consecutive_zero_pass":%d,"limit":%d,"stuck_ids":"%s"}\n' \
       "$SPIRAL_ITER" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${SPIRAL_RUN_ID:-}" \
       "$ZERO_PROGRESS_COUNT" "$_ZP_ABORT_LIMIT" "$_ZP_STUCK_IDS" \
-      > "$CHECKPOINT_FILE" 2>/dev/null
+      >"$CHECKPOINT_FILE" 2>/dev/null
 
     return 9
   fi
@@ -150,8 +152,8 @@ teardown() {
 
 @test "SPIRAL_CONSECUTIVE_FAIL_ABORT defaults to 3 in spiral.sh" {
   SPIRAL_HOME="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)"
-  default=$(grep 'SPIRAL_CONSECUTIVE_FAIL_ABORT=' "$SPIRAL_HOME/spiral.sh" \
-    | head -1 | sed -nE 's/.*:-([0-9]+)\}.*/\1/p')
+  default=$(grep 'SPIRAL_CONSECUTIVE_FAIL_ABORT=' "$SPIRAL_HOME/spiral.sh" |
+    head -1 | sed -nE 's/.*:-([0-9]+)\}.*/\1/p')
   [ "$default" = "3" ]
 }
 

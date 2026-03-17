@@ -23,14 +23,14 @@ setup() {
   mkdir -p "$MOCK_BIN"
 
   # Default: mock SPIRAL_PYTHON that succeeds when running prd_schema.py
-  cat > "$MOCK_BIN/mock_python_pass.sh" <<'EOF'
+  cat >"$MOCK_BIN/mock_python_pass.sh" <<'EOF'
 #!/bin/bash
 # Mock SPIRAL_PYTHON: always exits 0 (schema valid)
 exit 0
 EOF
   chmod +x "$MOCK_BIN/mock_python_pass.sh"
 
-  cat > "$MOCK_BIN/mock_python_fail.sh" <<'EOF'
+  cat >"$MOCK_BIN/mock_python_fail.sh" <<'EOF'
 #!/bin/bash
 # Mock SPIRAL_PYTHON: always exits 1 (schema invalid)
 echo "Schema validation error" >&2
@@ -43,7 +43,7 @@ EOF
   export SPIRAL_PYTHON="$MOCK_BIN/mock_python_pass.sh"
 
   # Create a minimal valid prd.json
-  cat > "$PRD_FILE" <<'EOF'
+  cat >"$PRD_FILE" <<'EOF'
 {
   "schemaVersion": 1,
   "projectName": "Test",
@@ -88,7 +88,7 @@ teardown() {
 
 @test "corrupt checkpoint (invalid JSON) is removed by preflight" {
   local ckpt="$SCRATCH_DIR/_checkpoint.json"
-  echo "NOT VALID JSON" > "$ckpt"
+  echo "NOT VALID JSON" >"$ckpt"
   run spiral_preflight_check "$PRD_FILE" "$SCRATCH_DIR"
   assert_success
   [ ! -f "$ckpt" ]
@@ -96,7 +96,7 @@ teardown() {
 
 @test "checkpoint missing required fields is removed by preflight" {
   local ckpt="$SCRATCH_DIR/_checkpoint.json"
-  echo '{"iter": 1}' > "$ckpt"
+  echo '{"iter": 1}' >"$ckpt"
   run spiral_preflight_check "$PRD_FILE" "$SCRATCH_DIR"
   assert_success
   [ ! -f "$ckpt" ]
@@ -104,7 +104,7 @@ teardown() {
 
 @test "checkpoint with invalid phase is removed by preflight" {
   local ckpt="$SCRATCH_DIR/_checkpoint.json"
-  echo '{"iter": 1, "phase": "X", "ts": 1000}' > "$ckpt"
+  echo '{"iter": 1, "phase": "X", "ts": 1000}' >"$ckpt"
   run spiral_preflight_check "$PRD_FILE" "$SCRATCH_DIR"
   assert_success
   [ ! -f "$ckpt" ]
@@ -114,7 +114,7 @@ teardown() {
 
 @test "valid checkpoint with phase R is preserved by preflight" {
   local ckpt="$SCRATCH_DIR/_checkpoint.json"
-  echo '{"iter": 1, "phase": "R", "ts": 1000}' > "$ckpt"
+  echo '{"iter": 1, "phase": "R", "ts": 1000}' >"$ckpt"
   run spiral_preflight_check "$PRD_FILE" "$SCRATCH_DIR"
   assert_success
   [ -f "$ckpt" ]
@@ -122,7 +122,7 @@ teardown() {
 
 @test "valid checkpoint with phase I is preserved by preflight" {
   local ckpt="$SCRATCH_DIR/_checkpoint.json"
-  echo '{"iter": 2, "phase": "I", "ts": 9999}' > "$ckpt"
+  echo '{"iter": 2, "phase": "I", "ts": 9999}' >"$ckpt"
   run spiral_preflight_check "$PRD_FILE" "$SCRATCH_DIR"
   assert_success
   [ -f "$ckpt" ]

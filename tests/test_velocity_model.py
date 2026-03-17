@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import csv
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -55,8 +54,18 @@ def test_classify_story_case_insensitive():
 
 
 def _write_tsv(path: Path, rows: list[dict]) -> None:
-    fieldnames = ["timestamp", "spiral_iter", "ralph_iter", "story_id",
-                  "story_title", "status", "duration_sec", "model", "retry_num", "commit_sha"]
+    fieldnames = [
+        "timestamp",
+        "spiral_iter",
+        "ralph_iter",
+        "story_id",
+        "story_title",
+        "status",
+        "duration_sec",
+        "model",
+        "retry_num",
+        "commit_sha",
+    ]
     with open(path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames, delimiter="\t", extrasaction="ignore")
         writer.writeheader()
@@ -81,12 +90,27 @@ def test_build_velocity_model_missing_file(tmp_path):
 def test_build_velocity_model_groups_by_type(tmp_path):
     tsv = tmp_path / "results.tsv"
     rows = [
-        {"story_title": "Add pytest coverage A", "status": "pass", "duration_sec": 100,
-         "model": "haiku", "retry_num": 0},
-        {"story_title": "Add pytest coverage B", "status": "pass", "duration_sec": 200,
-         "model": "haiku", "retry_num": 1},
-        {"story_title": "Add TUI dashboard widget", "status": "reject", "duration_sec": 500,
-         "model": "sonnet", "retry_num": 2},
+        {
+            "story_title": "Add pytest coverage A",
+            "status": "pass",
+            "duration_sec": 100,
+            "model": "haiku",
+            "retry_num": 0,
+        },
+        {
+            "story_title": "Add pytest coverage B",
+            "status": "pass",
+            "duration_sec": 200,
+            "model": "haiku",
+            "retry_num": 1,
+        },
+        {
+            "story_title": "Add TUI dashboard widget",
+            "status": "reject",
+            "duration_sec": 500,
+            "model": "sonnet",
+            "retry_num": 2,
+        },
     ]
     _write_tsv(tsv, rows)
     model = build_velocity_model(str(tsv))
@@ -114,8 +138,7 @@ def test_build_velocity_model_pass_rate(tmp_path):
 def test_build_velocity_model_mean_tokens_positive(tmp_path):
     tsv = tmp_path / "results.tsv"
     rows = [
-        {"story_title": "Add pytest coverage", "status": "pass", "duration_sec": 60,
-         "model": "haiku", "retry_num": 0},
+        {"story_title": "Add pytest coverage", "status": "pass", "duration_sec": 60, "model": "haiku", "retry_num": 0},
     ]
     _write_tsv(tsv, rows)
     model = build_velocity_model(str(tsv))
@@ -152,8 +175,7 @@ def test_get_story_estimate_returns_none_below_threshold(tmp_path):
 def test_get_story_estimate_returns_data_above_threshold(tmp_path):
     tsv = tmp_path / "results.tsv"
     rows = [
-        {"story_title": f"Add pytest row {i}", "status": "pass", "duration_sec": 100,
-         "model": "haiku", "retry_num": 0}
+        {"story_title": f"Add pytest row {i}", "status": "pass", "duration_sec": 100, "model": "haiku", "retry_num": 0}
         for i in range(6)
     ]
     _write_tsv(tsv, rows)

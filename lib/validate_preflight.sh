@@ -102,10 +102,10 @@ spiral_preflight_check() {
       local _dup_tmp
       _dup_tmp=$(mktemp)
       "$JQ" '.userStories |= (group_by(.id) | map((map(select(.passes == true)) | first) // first))' \
-        "$prd_file" > "$_dup_tmp" && mv "$_dup_tmp" "$prd_file"
+        "$prd_file" >"$_dup_tmp" && mv "$_dup_tmp" "$prd_file"
       printf '{"ts":"%s","event":"duplicate_ids_deduped","ids":"%s","mode":"lenient"}\n' \
         "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$dup_ids" \
-        >> "${scratch_dir}/spiral_events.jsonl" 2>/dev/null || true
+        >>"${scratch_dir}/spiral_events.jsonl" 2>/dev/null || true
       echo "  [preflight] Duplicate IDs resolved (lenient)."
     else
       echo "  [preflight] FATAL: Duplicate story IDs detected — aborting."
@@ -113,7 +113,7 @@ spiral_preflight_check() {
       echo "  [preflight]   Run with SPIRAL_DEDUP_IDS=lenient to auto-deduplicate."
       printf '{"ts":"%s","event":"duplicate_ids_fatal","ids":"%s","mode":"strict"}\n' \
         "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$dup_ids" \
-        >> "${scratch_dir}/spiral_events.jsonl" 2>/dev/null || true
+        >>"${scratch_dir}/spiral_events.jsonl" 2>/dev/null || true
       exit 1
     fi
   fi
@@ -164,9 +164,9 @@ spiral_preflight_check() {
     fi
     local _api_probe_ok=0
     if curl -sf --connect-timeout 5 --max-time 5 \
-        -H "x-api-key: ${ANTHROPIC_API_KEY}" \
-        -H "anthropic-version: 2023-06-01" \
-        "https://api.anthropic.com/v1/models" >/dev/null 2>&1; then
+      -H "x-api-key: ${ANTHROPIC_API_KEY}" \
+      -H "anthropic-version: 2023-06-01" \
+      "https://api.anthropic.com/v1/models" >/dev/null 2>&1; then
       _api_probe_ok=1
     fi
     if [[ "$_api_probe_ok" -eq 1 ]]; then
@@ -184,7 +184,7 @@ spiral_preflight_check() {
   # If SPIRAL_GIT_AUTHOR is set, parse it and auto-configure git identity.
   if [[ -n "${SPIRAL_GIT_AUTHOR:-}" ]]; then
     _git_name="${SPIRAL_GIT_AUTHOR%%<*}"
-    _git_name="${_git_name%% }"   # strip trailing space
+    _git_name="${_git_name%% }" # strip trailing space
     _git_email="${SPIRAL_GIT_AUTHOR#*<}"
     _git_email="${_git_email%>*}"
     if [[ -n "$_git_name" && -n "$_git_email" ]]; then
@@ -201,7 +201,7 @@ spiral_preflight_check() {
 
   if [[ -z "$_git_name" || -z "$_git_email" ]]; then
     local _missing=""
-    [[ -z "$_git_name" ]]  && _missing+=" user.name"
+    [[ -z "$_git_name" ]] && _missing+=" user.name"
     [[ -z "$_git_email" ]] && _missing+=" user.email"
     echo "  [preflight] FATAL: git identity not configured (missing:${_missing})"
     echo "  [preflight]   → Fix: git config --global user.name  \"Your Name\""
@@ -209,7 +209,7 @@ spiral_preflight_check() {
     echo "  [preflight]   → Alt: set SPIRAL_GIT_AUTHOR=\"Your Name <you@example.com>\" to auto-configure"
     printf '{"ts":"%s","event":"preflight_git_author_missing","missing":"%s"}\n' \
       "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${_missing# }" \
-      >> "${scratch_dir}/spiral_events.jsonl" 2>/dev/null || true
+      >>"${scratch_dir}/spiral_events.jsonl" 2>/dev/null || true
     exit "${ERR_CONFIG:-3}"
   fi
 
@@ -263,7 +263,7 @@ except Exception:
 " 2>/dev/null || echo "-1")
 
       if [[ "$age_mins" -lt 0 ]]; then
-        continue  # stat failed; skip
+        continue # stat failed; skip
       fi
 
       if [[ "$age_mins" -lt "$lock_timeout" ]]; then
@@ -288,7 +288,7 @@ except Exception:
         echo "  [preflight] Removed stale git lock (${age_mins}m old): $lock_file"
         printf '{"ts":"%s","event":"stale_lock_removed","file":"%s","age_minutes":%d}\n' \
           "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$lock_file" "$age_mins" \
-          >> "${scratch_dir}/spiral_events.jsonl" 2>/dev/null || true
+          >>"${scratch_dir}/spiral_events.jsonl" 2>/dev/null || true
         _locks_removed=$((_locks_removed + 1))
       fi
     done < <(find "$wt_git_dir" -maxdepth 2 -name "*.lock" -print0 2>/dev/null)

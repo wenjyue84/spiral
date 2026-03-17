@@ -50,7 +50,7 @@ allowlist_load() {
   local al_file="${SPIRAL_ALLOWLIST_FILE:-${SPIRAL_SCRATCH_DIR:-.spiral}/command-allowlist.json}"
   if [[ ! -f "$al_file" ]]; then
     mkdir -p "$(dirname "$al_file")" 2>/dev/null || true
-    printf '%s\n' "$SPIRAL_ALLOWLIST_DEFAULTS" > "$al_file" 2>/dev/null || true
+    printf '%s\n' "$SPIRAL_ALLOWLIST_DEFAULTS" >"$al_file" 2>/dev/null || true
   fi
   echo "$al_file"
 }
@@ -67,12 +67,13 @@ cmd_allowed() {
   al_file=$(allowlist_load)
 
   if [[ ! -f "$al_file" ]]; then
-    return 0  # No allow-list file → allow all
+    return 0 # No allow-list file → allow all
   fi
 
   # Use python3 for JSON parsing; on parse error default to allow
   local verdict
-  verdict=$(python3 - "$al_file" "$phase" "$command" 2>/dev/null <<'ALLOWLIST_PY'
+  verdict=$(
+    python3 - "$al_file" "$phase" "$command" 2>/dev/null <<'ALLOWLIST_PY'
 import sys, json
 
 al_file, phase, command = sys.argv[1], sys.argv[2], sys.argv[3]
@@ -120,7 +121,7 @@ cmd_log_blocked() {
 
   mkdir -p "$(dirname "$log_file")" 2>/dev/null || true
   printf '[%s] BLOCKED phase=%s worker=%s cmd=%s\n' \
-    "$timestamp" "$phase" "$worker_id" "$command" >> "$log_file" 2>/dev/null || true
+    "$timestamp" "$phase" "$worker_id" "$command" >>"$log_file" 2>/dev/null || true
 }
 
 # ── safe_run ──────────────────────────────────────────────────────────────────
@@ -161,7 +162,8 @@ allowlist_scan_stream_json() {
   al_file=$(allowlist_load)
 
   local violations
-  violations=$(python3 - "$stream_file" "$al_file" "$phase" "$story_id" 2>/dev/null <<'SCAN_PY'
+  violations=$(
+    python3 - "$stream_file" "$al_file" "$phase" "$story_id" 2>/dev/null <<'SCAN_PY'
 import sys, json
 
 stream_file, al_file, phase, story_id = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
@@ -217,7 +219,7 @@ SCAN_PY
         cmd_log_blocked "$blocked_cmd" "$phase" "llm-scan:$story_id"
         vcount=$((vcount + 1))
       fi
-    done <<< "$violations"
+    done <<<"$violations"
   fi
 
   echo "$vcount"

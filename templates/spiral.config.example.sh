@@ -306,6 +306,14 @@
 # Default: 10000
 # SPIRAL_THINKING_BUDGET_TOKENS=10000
 
+# ── Interleaved thinking for claude-4 models (US-392) ────────────────────────
+# Enable interleaved-thinking-2025-05-14 beta for iterative reasoning throughout
+# the implementation workflow. Supported on claude-opus-4-6 and claude-sonnet-4-6.
+# When enabled, Claude reasons between tool calls rather than only before the first one.
+# Default: false
+# WARNING: Doubles token consumption. Only enable for complex, research-heavy stories.
+# SPIRAL_INTERLEAVED_THINKING=false
+
 # ── Model escalation retry thresholds (US-296) ──────────────────────────────
 # Controls when failed story retries escalate to a more capable model.
 # SPIRAL_ESCALATION_RETRY_SONNET: retry count at which haiku escalates to sonnet.

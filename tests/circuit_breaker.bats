@@ -101,20 +101,20 @@ cb_failures() {
 
 @test "cb_check transitions OPEN to HALF_OPEN after cooldown expires" {
   # Write OPEN state with a last_failure_ts far in the past
-  local past=$(( $(date +%s) - 120 ))   # 120s ago, cooldown is 60s
+  local past=$(($(date +%s) - 120)) # 120s ago, cooldown is 60s
   cb_write "ep_hopen" "OPEN" 5 "$past" 60
 
   run cb_check "ep_hopen"
-  assert_success  # allowed (probe)
+  assert_success # allowed (probe)
 
   run cb_state "ep_hopen"
   assert_output "HALF_OPEN"
 }
 
 @test "success in HALF_OPEN resets to CLOSED" {
-  local past=$(( $(date +%s) - 120 ))
+  local past=$(($(date +%s) - 120))
   cb_write "ep_probe" "OPEN" 5 "$past" 60
-  cb_check "ep_probe"   # triggers OPEN → HALF_OPEN
+  cb_check "ep_probe" # triggers OPEN → HALF_OPEN
 
   cb_record_success "ep_probe"
   run cb_state "ep_probe"
@@ -124,9 +124,9 @@ cb_failures() {
 }
 
 @test "failure in HALF_OPEN re-trips to OPEN" {
-  local past=$(( $(date +%s) - 120 ))
+  local past=$(($(date +%s) - 120))
   cb_write "ep_reprobe" "OPEN" 5 "$past" 60
-  cb_check "ep_reprobe"   # OPEN → HALF_OPEN
+  cb_check "ep_reprobe" # OPEN → HALF_OPEN
 
   cb_record_failure "ep_reprobe" 429
   run cb_state "ep_reprobe"
@@ -177,10 +177,14 @@ cb_failures() {
   cb_record_failure "ep_fields" 429
   local f="${SPIRAL_SCRATCH_DIR}/circuit_breaker_ep_fields.json"
   [ -f "$f" ]
-  run $JQ -r '.state' "$f";          [ "$output" = "CLOSED" ]
-  run $JQ -r '.failure_count' "$f";  [ "$output" = "1" ]
-  run $JQ '.last_failure_ts' "$f";   [[ "$output" =~ ^[0-9]+$ ]]
-  run $JQ '.cooldown_secs' "$f";     [ "$output" = "60" ]
+  run $JQ -r '.state' "$f"
+  [ "$output" = "CLOSED" ]
+  run $JQ -r '.failure_count' "$f"
+  [ "$output" = "1" ]
+  run $JQ '.last_failure_ts' "$f"
+  [[ "$output" =~ ^[0-9]+$ ]]
+  run $JQ '.cooldown_secs' "$f"
+  [ "$output" = "60" ]
 }
 
 @test "SPIRAL_CB_FAILURE_THRESHOLD is respected (custom threshold=3)" {

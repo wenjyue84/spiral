@@ -3,8 +3,6 @@
 import os
 import sys
 
-import pytest
-
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 from validate_stories import _semantic_dedup_pass, _story_text
 

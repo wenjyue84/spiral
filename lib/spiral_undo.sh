@@ -48,7 +48,7 @@ undo_log_record() {
 
   printf '{"operation":"%s","target":"%s","inverse_command":"%s","timestamp":"%s"}\n' \
     "$operation" "$safe_target" "$safe_inverse" "$ts" \
-    >> "$log_path"
+    >>"$log_path"
 }
 
 # ── undo_log_replay ───────────────────────────────────────────────────────────
@@ -74,7 +74,7 @@ undo_log_replay() {
   local -a entries=()
   while IFS= read -r line; do
     [[ -n "$line" ]] && entries+=("$line")
-  done < "$log_path"
+  done <"$log_path"
 
   local count="${#entries[@]}"
   if [[ "$count" -eq 0 ]]; then
@@ -83,7 +83,7 @@ undo_log_replay() {
   fi
 
   local failed=0
-  for (( i = count - 1; i >= 0; i-- )); do
+  for ((i = count - 1; i >= 0; i--)); do
     local entry="${entries[$i]}"
     # Extract fields with simple parameter expansion (no jq dependency)
     local op inv_cmd
