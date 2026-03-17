@@ -41,13 +41,13 @@ def _now_ts() -> float:
     return time.time()
 
 
-def _is_valid(entry: dict, ttl_hours: float) -> bool:
+def _is_valid(entry: dict[str, Any], ttl_hours: float) -> bool:
     """Return True if the cache entry is within TTL."""
     if ttl_hours <= 0:
         return False  # cache disabled
     fetched_ts = entry.get("fetched_ts", 0)
     age_hours = (_now_ts() - fetched_ts) / 3600
-    return age_hours < ttl_hours
+    return bool(age_hours < ttl_hours)
 
 
 # ── Embedding helpers (US-403) ───────────────────────────────────────────────
@@ -203,7 +203,7 @@ def cache_lookup(cache_dir: str, url: str, ttl_hours: float) -> str | None:
         with open(path, "r", encoding="utf-8") as f:
             entry = json.load(f)
         if _is_valid(entry, ttl_hours):
-            return entry.get("content")
+            return str(entry.get("content", ""))
     except (json.JSONDecodeError, OSError):
         pass
     return None
@@ -236,7 +236,7 @@ def cache_prune(cache_dir: str, ttl_hours: float) -> int:
     return pruned
 
 
-def cache_list_valid(cache_dir: str, ttl_hours: float) -> list[dict]:
+def cache_list_valid(cache_dir: str, ttl_hours: float) -> list[dict[str, Any]]:
     """Return list of valid cache entries [{url, fetched_ts, key}, ...]."""
     if not os.path.isdir(cache_dir) or ttl_hours <= 0:
         return []
@@ -296,7 +296,7 @@ def cache_inject_context(cache_dir: str, ttl_hours: float) -> str:
 
 
 # ── CLI ──────────────────────────────────────────────────────────────────────
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="SPIRAL research cache manager")
     sub = parser.add_subparsers(dest="command", required=True)
 

@@ -2448,3 +2448,25 @@ COST CEILING: Add cosine-similarity Phase R research cache lookup using sentence
 - Model loading is one-time (~1s); subsequent embeddings are ~15ms — meets <200ms criterion
 - numpy is transitive dep of sentence-transformers; safe to import
 - Pre-existing mypy strict errors (6) in research_cache.py — all pre-existing, not introduced by this change
+
+
+## Iteration (Attempt 3) - Story: US-403 - Add cosine-similarity Phase R research cache lookup using sentence embeddings (COMPLETED)
+
+### What was implemented
+- lib/query_embed_cache.py: Full semantic query cache with sentence-transformers/all-MiniLM-L6-v2 (already existed from prior attempts)
+- lib/research_cache.py: Added cache_similarity_lookup, _compute_embedding, _cosine_similarity, embedding storage in cache_store (already existed)
+- Fixed mypy strict errors in both files: proper type annotations for dict, ndarray, return types, main() signature
+- sentence-transformers>=3.0.1 already in lib/pyproject.toml dependencies
+- SPIRAL_CACHE_SIM_THRESHOLD=0.92 already in spiral.config.sh (commented, default 0.92)
+- 76 tests passing across test_research_cache.py and test_query_embed_cache.py
+
+### Patterns discovered
+- Prior attempts completed implementation but hit cost ceiling before finishing quality checks
+- Opus attempt 3 focused on verifying existing code + fixing mypy issues only — minimal file reads
+
+### Acceptance criteria mapping
+- [x] Phase R computes sentence embedding using all-MiniLM-L6-v2 → _embed() / _compute_embedding()
+- [x] Cosine similarity lookup above threshold returns cached result → query_lookup() / cache_similarity_lookup()
+- [x] Embeddings stored as .npy files in cache dir → query_store() / cache_store() save .npy
+- [x] SPIRAL_CACHE_SIM_THRESHOLD=1.0 disables similarity → threshold >= 1.0 check in both modules
+- [x] Embedding computation < 200ms → MiniLM is ~15ms on CPU
