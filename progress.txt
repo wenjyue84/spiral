@@ -1,3 +1,45 @@
+## Iteration N - Story: US-377 Add OTel subprocess span instrumentation to ralph worker launches (COMPLETED)
+
+### What was implemented
+- Created lib/otel_worker_inject.py: New module for emitting ralph_worker spans with subprocess attributes
+- Implemented TRACEPARENT W3C trace context parsing and injection into worker subprocess environment
+- Added subprocess semantic convention attributes: subprocess.command, subprocess.pid, subprocess.returncode
+- Implemented ERROR status setting when subprocess returns non-zero exit code
+- Added privacy scrubbing integration for sensitive data in spans
+- Modified lib/run_parallel_ralph.sh to call otel_worker_inject.py emit-worker after each worker subprocess completes
+- Created comprehensive pytest test suite with 16 tests covering all span scenarios
+
+### Files modified
+- lib/otel_worker_inject.py — NEW: 288 lines, core subprocess span emission logic
+- lib/run_parallel_ralph.sh — 12 lines added: OTel span emission call in worker completion handler
+- tests/test_otel_worker_spans.py — NEW: 363 lines with 16 comprehensive unit tests
+
+### Patterns discovered
+- W3C TRACEPARENT format: "00-<trace_id>-<span_id>-01" for trace context propagation
+- OTel subprocess spans use SpanKind.INTERNAL for in-process worker execution
+- Privacy scrubber is optional; wrapped in try-except to handle import/instantiation failures gracefully
+- Span status (OK vs ERROR) determined by subprocess.returncode != 0
+- Executable name extracted as first token of command string for semantic convention
+
+### Gotchas
+- subprocess.executable attribute only set if command is non-empty (avoids empty string pollution)
+- Must use type: ignore[name-defined] for SpanProcessor forward reference at type level
+- PrivacyScrubber is optional dependency; import wrapped in function to avoid hard dependency
+- TRACEPARENT parsing returns (trace_id, span_id) as strings, must convert to int for SDK
+
+### Acceptance criteria mapping
+- [x] Criterion 1: TRACEPARENT serialization via OTel inject() W3C format → W3C traceparent format with hex IDs
+- [x] Criterion 2: ralph_worker span with subprocess attributes (command, pid, story_id, worker_num, returncode) → all 5 attributes set
+- [x] Criterion 3: ERROR status when returncode != 0, exception recording → span.set_status(ERROR) on non-zero exit
+- [x] Criterion 4: pytest tests verifying span attributes and TRACEPARENT propagation → 16 tests all passing
+
+### Test results
+- 16 new tests in test_otel_worker_spans.py: all passing
+- Full test suite: 1708 passing (14 pre-existing failures, unrelated)
+- mypy --strict: 0 errors (with appropriate type: ignore comments)
+- shellcheck: 0 errors
+- shfmt: 0 formatting issues
+
 ## Iteration N - Story: US-392 Enable interleaved thinking in ralph.sh for claude-4 models via beta header (COMPLETED)
 
 ### What was implemented
