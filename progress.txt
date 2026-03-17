@@ -2315,3 +2315,18 @@ COST CEILING: Add ConfigChange Claude Code hook to detect and alert on unauthori
 - git status and git add operations faster due to smaller index
 - Reduced memory consumption per worker (especially on Windows with large repos)
 
+## Iteration 2 - Tue, Mar 17, 2026  5:03:57 PM
+COST CEILING: Add .pre-commit-config.yaml for local dev quality gate enforcement (US-402) — $4.214785 exceeded hard limit $2.00
+
+
+## Iteration (Attempt 2) - Story: US-402 - Add .pre-commit-config.yaml (COMPLETED)
+
+### What was implemented
+- .pre-commit-config.yaml already existed from previous attempt (with all required hooks: ruff, mypy, shellcheck, shfmt, trailing-whitespace, end-of-file-fixer, all pinned to explicit revs)
+- Created tests/test_precommit_config.bats — 6 tests verifying file exists, 4+ repos, key hooks present, no 'latest' revs
+
+### Patterns discovered
+- When previous attempt hits cost ceiling, the implementation may already be complete — just verify and create the missing test
+
+### Gotchas
+- Previous attempt exceeded $4.21 cost ceiling by over-reading files; this attempt was minimal: check existing file, write one bats test

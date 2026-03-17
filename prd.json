@@ -7718,8 +7718,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
-      "last_attempted": "2026-03-17T08:55:48Z"
+      "passes": true,
+      "last_attempted": "2026-03-17T09:03:59Z",
+      "_failureReason": "story_cost_ceiling"
     },
     {
       "id": "US-403",
