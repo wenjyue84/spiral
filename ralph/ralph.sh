@@ -287,9 +287,6 @@ if [[ -f "./ralph-config.sh" ]]; then
   source "./ralph-config.sh"
 fi
 
-# ── Ollama pre-warm at worker startup (US-261) ──────────────────────────────
-ollama_prewarm
-
 # ── Progress file initialization ──────────────────────────────────
 if [[ ! -f "$PROGRESS_FILE" ]]; then
   echo "## Codebase Patterns" >"$PROGRESS_FILE"
@@ -1540,6 +1537,9 @@ ollama_prewarm() {
   fi
 }
 
+# ── Ollama pre-warm at worker startup (US-261) ──────────────────────────────
+ollama_prewarm
+
 # ── US-261: Policy-based local fallback ──────────────────────────────────────
 # apply_local_fallback_policy <conn_fail_reason> <rl_tmp_output_file>
 # Enforces SPIRAL_LOCAL_FALLBACK_POLICY when a cloud API connection failure is
@@ -1992,7 +1992,7 @@ get_pending_story_ids() {
     # then filter and sort in a second pass to avoid full document parse.
     $JQ -rn --stream \
       'fromstream(1|truncate_stream(inputs|select(.[0][0]=="userStories")))
-       | select(.passes == false and (._decomposed | not))
+       | select(type == "object" and .passes == false and (._decomposed | not))
        | [.priority // "zzz", .id]
        | @tsv' "$prd_file" \
       | sort \
