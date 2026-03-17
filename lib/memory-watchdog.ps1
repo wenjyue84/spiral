@@ -214,7 +214,7 @@ function Stop-TargetedNodeProcess {
     $protectedPIDs = Get-ProtectedPIDs
 
     if ($workerPIDs.Count -eq 0) {
-        Write-Log "EMERGENCY: No worker PIDs found in '$WorkerPIDDir' — skipping kill to protect Claude Code"
+        Write-Log "EMERGENCY: No worker PIDs found in '$WorkerPIDDir' - skipping kill to protect Claude Code"
         return
     }
 
@@ -242,7 +242,7 @@ function Stop-TargetedNodeProcess {
             Write-Log "KILL FAILED: PID=$($candidate.Id) - $($_.Exception.Message)"
         }
     } else {
-        Write-Log "EMERGENCY: No killable worker processes found — memory critical but cannot safely kill"
+        Write-Log "EMERGENCY: No killable worker processes found - memory critical but cannot safely kill"
     }
 }
 
@@ -302,7 +302,7 @@ while ($true) {
         $EffectiveLevel = $ReportedLevel
         if ($PreemptivePressureMB -gt 0 -and $EffectiveLevel -eq 0 -and $mem.FreeMB -lt $PreemptivePressureMB) {
             $EffectiveLevel = 1
-            Write-Log "Predictive preemptive pressure: free=${mem.FreeMB}MB < threshold=${PreemptivePressureMB}MB — reporting level 1 (was 0)"
+            Write-Log "Predictive preemptive pressure: free=${mem.FreeMB}MB < threshold=${PreemptivePressureMB}MB - reporting level 1 (was 0)"
         }
 
         $recommendations = Get-Recommendations -Level $EffectiveLevel -FreeMB $mem.FreeMB -NodeProcs $nodeProcs
