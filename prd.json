@@ -95,10 +95,15 @@
         "spiral.config.sh"
       ],
       "dependencies": [],
-      "passes": false,
+      "passes": true,
       "_source": "seed",
       "model": "haiku",
-      "tags": []
+      "tags": [],
+      "last_attempted": "2026-03-17T19:55:23Z",
+      "_antiPatterns": [
+        "story_incomplete"
+      ],
+      "_passedCommit": "f00aab208cc9eea3cce7d42ca4bd356833f0e521"
     },
     {
       "id": "US-448",
