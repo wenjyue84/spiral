@@ -32,6 +32,12 @@ from constants import (
     PRICING,
     TOKENS_PER_SEC_OUTPUT,
 )
+from velocity_model import (
+    build_velocity_model,
+    format_report as velocity_format_report,
+    get_story_estimate,
+    save_velocity_model,
+)
 
 DEFAULT_MODEL = "sonnet"
 
@@ -154,6 +160,8 @@ def run_projection(
     threshold: float,
     yes: bool,
     default_tokens: int,
+    report: bool = False,
+    velocity_model_path: str = ".spiral/velocity_model.json",
 ) -> int:
     """
     Core projection logic.  Returns an exit code (0 / 1 / 2 / 3).
@@ -164,6 +172,18 @@ def run_projection(
     except (OSError, json.JSONDecodeError) as exc:
         print(f"  [cost-project] ERROR reading prd.json: {exc}", file=sys.stderr)
         return 3
+
+    # Build velocity model from results.tsv and save it (US-352)
+    try:
+        vel_model = build_velocity_model(results_path)
+        save_velocity_model(vel_model, velocity_model_path)
+    except OSError as exc:
+        print(f"  [cost-project] WARNING: could not build velocity model: {exc}", file=sys.stderr)
+        vel_model = {"story_types": {}, "total_rows": 0, "source": results_path}
+
+    # Print velocity report if requested (US-352)
+    if report:
+        print(velocity_format_report(vel_model))
 
     if pending_count == 0:
         return 0
@@ -232,6 +252,17 @@ def main(argv: list[str] | None = None) -> int:
         default=DEFAULT_TOKENS_PER_STORY,
         help=f"Fallback tokens/story when history is unavailable (default: {DEFAULT_TOKENS_PER_STORY})",
     )
+    parser.add_argument(
+        "--report",
+        action="store_true",
+        help="Print velocity model report table (story_type stats from results.tsv)",
+    )
+    parser.add_argument(
+        "--velocity-model",
+        default=".spiral/velocity_model.json",
+        dest="velocity_model",
+        help="Path to save/load velocity model JSON (default: .spiral/velocity_model.json)",
+    )
     args = parser.parse_args(argv)
 
     return run_projection(
@@ -241,6 +272,8 @@ def main(argv: list[str] | None = None) -> int:
         threshold=args.threshold,
         yes=args.yes,
         default_tokens=args.default_tokens,
+        report=args.report,
+        velocity_model_path=args.velocity_model,
     )
 
 

@@ -1608,3 +1608,20 @@ COST CEILING: Use single shared git fetch before parallel worker launch to cut p
 - US-351 prd.json passes status was reset by US-339 commit — re-marked passes=true alongside US-371
 
 Also marked US-351 passes=True (implementation was already present at lib/run_parallel_ralph.sh line 395 but prd.json was reset by a later commit that updated prd.json without preserving the passes=true state).
+## Iteration 5 - Tue, Mar 17, 2026 10:28:28 AM
+COST CEILING: Derive cross-iteration story velocity model from results.tsv to improve cost estimates (US-352) — $2.061173 exceeded hard limit $2.00
+
+## Iteration 6 - Story: US-352 (attempt 2 - opus)
+
+### What was implemented
+- No code changes needed — full implementation persisted from attempt 1 (lib/velocity_model.py, tests/test_velocity_model.py, cost_project.py integration)
+- Verified all 23 tests pass, mypy strict passes on both modules
+- Marked passes=true in prd.json
+
+### Patterns discovered
+- Previous attempt hit cost ceiling from excessive file exploration — on retry, always check if prior work persists before re-implementing
+- velocity_model.py is a standalone module imported by cost_project.py; main.py wires --report flag through cmd_estimate
+
+### Gotchas
+- prd.json passes status gets reset between iterations by orchestrator commits
+
