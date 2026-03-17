@@ -611,10 +611,93 @@ def _render_drift_plain(stories: list[dict], drift_reports: dict[str, dict]) -> 
 # ── Commands ──────────────────────────────────────────────────────────────────
 
 
+def _format_velocity_report(velocity_model: dict) -> str:
+    """
+    Format velocity model as a table with columns:
+    story_type, samples, mean_cost, mean_duration_s, empirical_pass_rate
+
+    For types with <5 samples, show n/a instead of values.
+    """
+    import sys as _sys
+    from lib.constants import MIN_HISTORY_ROWS, INPUT_OUTPUT_RATIO, TOKENS_PER_SEC_OUTPUT
+
+    types = velocity_model.get("story_types", {})
+    if not types:
+        return "No historical data available.\n"
+
+    # Column widths
+    col_w = [20, 10, 14, 16, 18]
+
+    # Header
+    header = (
+        f"{'story_type':<{col_w[0]}} "
+        f"{'samples':>{col_w[1]}} "
+        f"{'mean_cost':>{col_w[2]}} "
+        f"{'mean_duration_s':>{col_w[3]}} "
+        f"{'empirical_pass_rate':>{col_w[4]}}"
+    )
+    sep = "-" * (sum(col_w) + len(col_w) - 1)
+
+    rows = [header, sep]
+
+    for story_type in sorted(types.keys()):
+        entry = types[story_type]
+        samples = entry.get("samples", 0)
+
+        # Check if we have enough samples
+        if samples >= MIN_HISTORY_ROWS:
+            mean_cost_usd = entry.get("mean_cost_usd", 0.0)
+            mean_tokens = entry.get("mean_tokens", 0.0)
+            pass_rate = entry.get("pass_rate", 0.0)
+
+            # Convert mean_tokens to mean_duration_s
+            # mean_tokens = mean_duration_s * TOKENS_PER_SEC_OUTPUT * (1 + INPUT_OUTPUT_RATIO)
+            mean_duration_s = mean_tokens / (TOKENS_PER_SEC_OUTPUT * (1 + INPUT_OUTPUT_RATIO))
+
+            row = (
+                f"{story_type:<{col_w[0]}} "
+                f"{samples:>{col_w[1]}} "
+                f"${mean_cost_usd:>{col_w[2] - 1}.4f} "
+                f"{mean_duration_s:>{col_w[3]}.2f} "
+                f"{pass_rate:>{col_w[4]}.1%}"
+            )
+        else:
+            # Not enough samples - show n/a
+            row = (
+                f"{story_type:<{col_w[0]}} "
+                f"{samples:>{col_w[1]}} "
+                f"{'n/a':>{col_w[2]}} "
+                f"{'n/a':>{col_w[3]}} "
+                f"{'n/a':>{col_w[4]}}"
+            )
+
+        rows.append(row)
+
+    rows.append(sep)
+    rows.append(f"Total rows in results.tsv: {velocity_model.get('total_rows', 0)}")
+
+    return "\n".join(rows) + "\n"
+
+
 def cmd_estimate(args):
     """Show pre-flight API cost projection for pending stories."""
     import importlib.util as _ilu
     import sys as _sys
+
+    # ── Handle --report flag (US-437): print velocity model table and exit ────
+    if getattr(args, "report", False):
+        vm_path = Path(__file__).parent / "lib" / "velocity_model.py"
+        spec = _ilu.spec_from_file_location("velocity_model", vm_path)
+        if spec is None or spec.loader is None:
+            print("ERROR: lib/velocity_model.py not found.")
+            _sys.exit(3)
+        vm_mod = _ilu.module_from_spec(spec)
+        spec.loader.exec_module(vm_mod)  # type: ignore[union-attr]
+
+        velocity_model = vm_mod.build_velocity_model(str(RESULTS_TSV))
+        report = _format_velocity_report(velocity_model)
+        print(report)
+        _sys.exit(0)
 
     cost_project_path = Path(__file__).parent / "lib" / "cost_project.py"
     spec = _ilu.spec_from_file_location("cost_project", cost_project_path)
@@ -638,8 +721,6 @@ def cmd_estimate(args):
         argv += ["--model", args.model]
     if getattr(args, "yes", False):
         argv.append("--yes")
-    if getattr(args, "report", False):
-        argv.append("--report")
     argv += ["--velocity-model", str(SCRATCH_DIR / "velocity_model.json")]
 
     rc = mod.main(argv)

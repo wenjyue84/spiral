@@ -1183,6 +1183,72 @@ function toMYT(line: string): string {
   });
 }
 
+/** Strip ANSI escape sequences from a string. */
+function stripAnsi(s: string): string {
+  return s.replace(/\x1b\[[0-9;]*[mGKHFJ]/g, '').replace(/\u001b\[[0-9;]*[mGKHFJ]/g, '');
+}
+
+/**
+ * Process a log line for display:
+ *   1. Strip ANSI escape codes
+ *   2. Convert ISO timestamps → MYT
+ *   3. Convert elapsed [M:SS] / [H:MM:SS] → absolute MYT using phaseStart as T=0
+ */
+function processLogLine(line: string, phaseStart: Date | null = null): string {
+  let out = stripAnsi(line);
+  // ISO timestamps → MYT
+  out = out.replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})/g, (match) => {
+    try {
+      return new Date(match).toLocaleString('en-MY', { timeZone: 'Asia/Kuala_Lumpur', hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    } catch { return match; }
+  });
+  // Elapsed [M:SS] or [H:MM:SS] → absolute MYT
+  if (phaseStart) {
+    out = out.replace(/\[(\d+):(\d{2})(?::(\d{2}))?\]/g, (_m, p1, p2, p3) => {
+      const secs = p3 !== undefined
+        ? parseInt(p1) * 3600 + parseInt(p2) * 60 + parseInt(p3)
+        : parseInt(p1) * 60 + parseInt(p2);
+      const abs = new Date(phaseStart.getTime() + secs * 1000);
+      const myt = abs.toLocaleString('en-MY', { timeZone: 'Asia/Kuala_Lumpur', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      return `[${myt}]`;
+    });
+  }
+  return out;
+}
+
+interface PhaseIMetrics {
+  storyBudgets: { id: string; budget: number }[];
+  spawnCount: number;
+  undoCount: number;
+  baselineTests: string | null;
+  latestTests: string | null;
+  latestFailing: string | null;
+  lastAction: string | null;
+  stashed: boolean;
+}
+
+/** Parse Phase I log lines into key operational metrics. */
+function extractPhaseIMetrics(lines: string[]): PhaseIMetrics {
+  const clean = lines.map(stripAnsi);
+  const storyBudgets: { id: string; budget: number }[] = [];
+  for (const l of clean) {
+    const m = l.match(/\[I\]\s+Budget:\s+(\d+)s\s+for\s+((?:US|UT)-\d+)/);
+    if (m) storyBudgets.push({ id: m[2], budget: parseInt(m[1]) });
+  }
+  const spawnCount = clean.filter(l => /\[spawn\]\s+Fresh claude instance/.test(l)).length;
+  const undoCount  = clean.filter(l => /\[undo\]\s+Worktree reset/.test(l)).length;
+  const baselineMatch = clean.find(l => /\[baseline\].*pre-story.*passing/.test(l));
+  const baselineTests = baselineMatch?.match(/(\d+)\s+passing/)?.[1] ?? null;
+  const testLines     = clean.filter(l => /\d+\s+passing/.test(l));
+  const latestTests   = testLines[testLines.length - 1]?.match(/(\d+)\s+passing/)?.[1] ?? null;
+  const failLines     = clean.filter(l => /\d+\s+failing/.test(l));
+  const latestFailing = failLines[failLines.length - 1]?.match(/(\d+)\s+failing/)?.[1] ?? null;
+  const actionLines   = clean.filter(l => /^\s*\[(spawn|baseline|undo|model|completeness|precontext|cache|speckit)\]/.test(l));
+  const lastAction    = actionLines[actionLines.length - 1]?.trim() ?? null;
+  const stashed       = clean.some(l => /Stash created/.test(l));
+  return { storyBudgets, spawnCount, undoCount, baselineTests, latestTests, latestFailing, lastAction, stashed };
+}
+
 // ── Workers tab (SSE live console) ────────────────────────────────────────────
 
 interface WorkerInfo {
@@ -1455,6 +1521,7 @@ function PhaseTraceTab({ projectName, stories, activeStory }: { projectName: str
   const [savingPhase, setSavingPhase] = useState<string | null>(null);
   const [phaseChanged, setPhaseChanged] = useState(false);
   const [selectedOutputFile, setSelectedOutputFile] = useState<keyof PhaseOutputs | null>(null);
+  const [maximizedPhase, setMaximizedPhase] = useState<string | null>(null);
   const userSelectedRef = useRef(false);
 
   useEffect(() => {
@@ -1793,6 +1860,67 @@ function PhaseTraceTab({ projectName, stories, activeStory }: { projectName: str
                       {duration !== null && <span>Duration: <span className="font-mono font-semibold text-blue-700">{fmtDuration(duration)}</span></span>}
                     </div>
                   )}
+                  {/* Phase I — Metrics Dashboard */}
+                  {phase.phase === 'I' && (() => {
+                    const m = extractPhaseIMetrics(phase.lines);
+                    const hasData = m.storyBudgets.length > 0 || m.spawnCount > 0 || m.lastAction;
+                    if (!hasData) return null;
+                    const baseNum   = m.baselineTests ? parseInt(m.baselineTests) : null;
+                    const latestNum = m.latestTests   ? parseInt(m.latestTests)   : null;
+                    const testColor = baseNum !== null && latestNum !== null
+                      ? (latestNum >= baseNum ? 'text-emerald-600' : 'text-red-600')
+                      : 'text-slate-700';
+                    return (
+                      <div className="px-4 py-3 border-b border-emerald-200/60 bg-emerald-50/70">
+                        <div className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wider mb-2.5">Phase I — Live Metrics</div>
+                        <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-[11px]">
+                          {/* Spawns / Undos */}
+                          <div className="flex items-center gap-2">
+                            <span className="text-slate-500 w-20 flex-shrink-0">Spawns:</span>
+                            <span className="font-mono font-bold text-slate-700">{m.spawnCount}</span>
+                            {m.undoCount > 0 && <span className="text-amber-600 font-mono text-[10px] bg-amber-50 border border-amber-200 rounded px-1">{m.undoCount} undo</span>}
+                          </div>
+                          {/* Tests */}
+                          <div className="flex items-center gap-2">
+                            <span className="text-slate-500 w-20 flex-shrink-0">Tests:</span>
+                            {m.baselineTests && <span className="font-mono text-slate-400">{m.baselineTests} →</span>}
+                            {latestNum !== null && <span className={`font-mono font-bold ${testColor}`}>{latestNum}</span>}
+                            {m.latestFailing && parseInt(m.latestFailing) > 0 && (
+                              <span className="font-mono font-bold text-red-600 bg-red-50 border border-red-200 rounded px-1">⚠ {m.latestFailing} failing</span>
+                            )}
+                            {!m.latestTests && <span className="text-slate-400">—</span>}
+                          </div>
+                          {/* Stories attempted */}
+                          {m.storyBudgets.length > 0 && (
+                            <div className="col-span-2 flex items-start gap-2">
+                              <span className="text-slate-500 w-20 flex-shrink-0 pt-0.5">Stories:</span>
+                              <div className="flex flex-wrap gap-1">
+                                {m.storyBudgets.map((s, i) => (
+                                  <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono bg-emerald-100 text-emerald-700 border border-emerald-200">
+                                    {s.id} <span className="text-emerald-500">{s.budget}s</span>
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {/* Last action */}
+                          {m.lastAction && (
+                            <div className="col-span-2 flex items-start gap-2">
+                              <span className="text-slate-500 w-20 flex-shrink-0 pt-0.5">Last action:</span>
+                              <span className="font-mono text-slate-600 text-[10px] break-all">{m.lastAction}</span>
+                            </div>
+                          )}
+                          {/* Stash warning */}
+                          {m.stashed && (
+                            <div className="col-span-2 flex items-center gap-1.5 text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                              ⚠ Working tree was auto-stashed before implementation
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   {/* Sub-steps list */}
                   {hasSubsteps && (
                     <div className="px-4 py-3 space-y-1.5 border-b border-slate-200/50 bg-white/40">
@@ -1817,10 +1945,21 @@ function PhaseTraceTab({ projectName, stories, activeStory }: { projectName: str
                               <span className={`text-[10px] text-slate-400 transition-transform ${subExpanded ? 'rotate-180' : ''}`}>▼</span>
                             </button>
                             {subExpanded && (
-                              <div className="border-t border-slate-100 bg-slate-950 overflow-auto max-h-[250px]">
-                                <pre className="p-2.5 text-[10px] text-slate-300 font-mono leading-relaxed whitespace-pre-wrap">
-                                  {sub.lines.map(toMYT).join('\n')}
-                                </pre>
+                              <div className="border-t border-slate-800 bg-slate-950">
+                                <div className="flex items-center justify-end px-2 py-1 bg-slate-900 border-b border-slate-800">
+                                  <button
+                                    onClick={() => { void navigator.clipboard.writeText(sub.lines.map(l => processLogLine(l, startTs ? new Date(startTs) : null)).join('\n')); }}
+                                    title="Copy log to clipboard"
+                                    className="flex items-center gap-1 px-2 py-0.5 rounded bg-slate-700 hover:bg-slate-600 text-[10px] text-slate-300 font-mono transition-colors"
+                                  >
+                                    ⎘ Copy
+                                  </button>
+                                </div>
+                                <div className="overflow-auto max-h-[250px]">
+                                  <pre className="p-2.5 text-[10px] text-slate-300 font-mono leading-relaxed whitespace-pre-wrap">
+                                    {sub.lines.map(l => processLogLine(l, startTs ? new Date(startTs) : null)).join('\n')}
+                                  </pre>
+                                </div>
                               </div>
                             )}
                           </div>
@@ -1830,11 +1969,41 @@ function PhaseTraceTab({ projectName, stories, activeStory }: { projectName: str
                   )}
 
                   {/* Full phase log output */}
-                  <div className="bg-slate-950 overflow-auto max-h-[400px]">
-                    <pre className="p-3 text-[11px] text-slate-300 font-mono leading-relaxed whitespace-pre-wrap">
-                      {phase.lines.map(toMYT).join('\n')}
-                    </pre>
-                  </div>
+                  {(() => {
+                    const phaseBaseDate = startTs ? new Date(startTs) : null;
+                    const isMaximized = maximizedPhase === key;
+                    const processed = phase.lines.map(l => processLogLine(l, phaseBaseDate));
+                    return (
+                      <div className="bg-slate-950">
+                        {/* Toolbar */}
+                        <div className="flex items-center justify-between px-3 py-1.5 border-b border-slate-800 bg-slate-900">
+                          <span className="text-[10px] text-slate-500 font-mono">{phase.lines.length} lines{phase.phase === 'I' ? ' · elapsed→MYT' : ''}</span>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => setMaximizedPhase(prev => prev === key ? null : key)}
+                              title={isMaximized ? 'Restore' : 'Maximize'}
+                              className="flex items-center gap-1 px-2 py-0.5 rounded bg-slate-700 hover:bg-slate-600 text-[10px] text-slate-300 font-mono transition-colors"
+                            >
+                              {isMaximized ? '⊡ Restore' : '⊞ Max'}
+                            </button>
+                            <button
+                              onClick={() => { void navigator.clipboard.writeText(processed.join('\n')); }}
+                              title="Copy log to clipboard"
+                              className="flex items-center gap-1 px-2 py-0.5 rounded bg-slate-700 hover:bg-slate-600 text-[10px] text-slate-300 font-mono transition-colors"
+                            >
+                              ⎘ Copy
+                            </button>
+                          </div>
+                        </div>
+                        {/* Log body */}
+                        <div className={`overflow-auto transition-all ${isMaximized ? 'max-h-[80vh]' : 'max-h-[400px]'}`}>
+                          <pre className="p-3 text-[11px] text-slate-300 font-mono leading-relaxed whitespace-pre-wrap">
+                            {processed.join('\n')}
+                          </pre>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
             </div>

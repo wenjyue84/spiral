@@ -8476,9 +8476,10 @@
       "dependencies": [
         "US-436"
       ],
-      "passes": false,
+      "passes": true,
       "_decomposedFrom": "US-352",
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-03-17T16:11:55Z"
     },
     {
       "id": "US-438",
