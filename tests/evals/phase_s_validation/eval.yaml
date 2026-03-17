@@ -1,0 +1,48 @@
+# SPIRAL Phase S: Story Validation Eval
+# Tests story acceptance and validation logic
+name: phase_s_story_validation
+description: Evaluates SPIRAL Phase S story validation against constitution and format rules
+data_source: dataset.csv
+
+testing_criteria:
+  deterministic:
+    - name: valid_id_format
+      description: Story ID matches US-NNN or UT-NNN pattern
+      check_type: regex
+      pattern: '^(US|UT)-[0-9]{3}$'
+      field: input_story.id
+
+    - name: title_not_empty
+      description: Title field is non-empty string
+      check_type: field_nonempty
+      field: input_story.title
+
+    - name: valid_priority
+      description: Priority is one of critical, high, medium, low
+      check_type: enum
+      field: input_story.priority
+      allowed_values: ['critical', 'high', 'medium', 'low']
+
+  model_graded:
+    - name: overall_validity
+      description: Story is valid according to SPIRAL constitution
+      rubric: |
+        Score 0-10:
+        - 10: Story is well-formed, clear intent, follows all SPIRAL conventions
+        - 8: Story is valid but minor clarity issues
+        - 6: Story is acceptable but could be clearer
+        - 4: Story has issues but could be fixed
+        - 0: Story is invalid or malformed
+      field: input_story
+      expected_field: expected_valid
+
+score_aggregation:
+  deterministic_weight: 0.6
+  model_weight: 0.4
+  pass_threshold: 0.75
+
+metadata:
+  phase: S
+  phase_description: Story Validation
+  golden_cases: 10
+  estimated_runtime_ms: 5000

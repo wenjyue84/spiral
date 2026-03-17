@@ -1,0 +1,53 @@
+# SPIRAL Phase R: Research Quality Eval
+# Tests research synthesis output quality
+name: phase_r_research_quality
+description: Evaluates SPIRAL Phase R research synthesis quality and synthesis pattern recognition
+data_source: dataset.csv
+
+testing_criteria:
+  deterministic:
+    - name: has_content
+      description: Research output is non-empty
+      check_type: field_nonempty
+      field: research_output
+
+    - name: minimum_length
+      description: Research output has sufficient detail (> 20 chars)
+      check_type: min_length
+      field: research_output
+      min_chars: 20
+
+  model_graded:
+    - name: research_quality
+      description: Quality of research synthesis
+      rubric: |
+        Score 0-10:
+        - 10: Well-sourced, specific patterns/recommendations, actionable insights
+        - 8: Good research with clear findings
+        - 6: Acceptable research but could be more specific
+        - 4: Vague or generic research findings
+        - 0: No useful content or purely generic statements
+      field: research_output
+      expected_field: expected_quality
+
+    - name: specificity
+      description: Research contains specific patterns, tools, or references
+      rubric: |
+        Score 0-10:
+        - 10: Cites specific tools, patterns, and references (e.g., openai/evals, G-Eval)
+        - 8: References specific existing patterns
+        - 6: Mentions some details but mostly generic
+        - 4: Very few specific references
+        - 0: Entirely generic without specifics
+      field: research_output
+
+score_aggregation:
+  deterministic_weight: 0.3
+  model_weight: 0.7
+  pass_threshold: 0.70
+
+metadata:
+  phase: R
+  phase_description: Research Synthesis
+  golden_cases: 8
+  estimated_runtime_ms: 8000

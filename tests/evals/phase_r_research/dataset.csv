@@ -1,0 +1,9 @@
+research_output,expected_quality,expected_reason
+"Research findings: Evals framework enables behavioral regression testing. Reference: openai/evals GitHub repo. Recommendation: Implement YAML-based harness with deterministic and model-graded checks.",high,well_sourced_structured
+"Some research about testing. It might be useful. Not sure what to do with it.",low,vague_unstructured
+"Evals pattern from OpenAI: YAML definitions with dataset + testing_criteria. Each eval specifies data_source (CSV) and graders (deterministic and model-graded). Proven in production at OpenAI. Recommend using lm-evaluation-harness for lightweight backend.",high,specific_patterns_cited
+"Testing is good. We should test more.",low,generic_platitude
+"Alternative approach: Property-based testing with Hypothesis. Can generate test cases dynamically. Works well for invariant testing. Reference: tests/test_merge_stories_property.py (existing implementation).",medium,valid_but_narrow
+"Let's use AI to test AI. It's meta. Very innovative. Everyone will love it.",low,buzzword_without_substance
+"Research synthesis: Three patterns for test harnesses in SPIRAL: (1) Unit tests for atomic functions, (2) Property-based for invariants, (3) Behavioral evals for phase-level regression. Evals fills gap for #3. Tools: lm-evaluation-harness (open-source, vendor-agnostic), G-Eval pattern (rubric scoring).",high,comprehensive_actionable
+"Nothing found. Search didn't work.",low,empty_result

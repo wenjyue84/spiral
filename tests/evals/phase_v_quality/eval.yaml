@@ -1,0 +1,64 @@
+# SPIRAL Phase V: Output Quality Eval
+# Tests LLM-as-judge validation of implementation outputs
+name: phase_v_output_quality
+description: Evaluates SPIRAL Phase V output quality assessment and implementation completeness
+data_source: dataset.csv
+
+testing_criteria:
+  deterministic:
+    - name: output_not_empty
+      description: Output to judge is non-empty
+      check_type: field_nonempty
+      field: output_to_judge
+
+    - name: output_length_minimum
+      description: Output has sufficient length for evaluation (> 10 chars)
+      check_type: min_length
+      field: output_to_judge
+      min_chars: 10
+
+  model_graded:
+    - name: implementation_completeness
+      description: Implementation fulfills acceptance criteria
+      rubric: |
+        Score 0-10:
+        - 10: All acceptance criteria clearly met, implementation is complete
+        - 8: Most criteria met, very complete
+        - 6: Core criteria met but some gaps
+        - 4: Partial implementation with significant gaps
+        - 0: Incomplete or does not meet criteria
+      field: output_to_judge
+      expected_field: quality_category
+
+    - name: code_quality
+      description: Code quality and best practices
+      rubric: |
+        Score 0-10:
+        - 10: Clean, well-tested, follows conventions
+        - 8: Good quality code with minor issues
+        - 6: Acceptable code quality
+        - 4: Code works but needs improvement
+        - 0: Poor quality or broken
+      field: output_to_judge
+
+    - name: documentation
+      description: Code includes appropriate documentation
+      rubric: |
+        Score 0-10:
+        - 10: Well-documented with clear examples
+        - 8: Good documentation
+        - 6: Adequate documentation
+        - 4: Minimal documentation
+        - 0: No documentation
+      field: output_to_judge
+
+score_aggregation:
+  deterministic_weight: 0.25
+  model_weight: 0.75
+  pass_threshold: 0.65
+
+metadata:
+  phase: V
+  phase_description: Validation (Output Quality)
+  golden_cases: 5
+  estimated_runtime_ms: 10000

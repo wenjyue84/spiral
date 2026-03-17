@@ -1,0 +1,6 @@
+output_to_judge,quality_category,expected_score_range
+"Implemented feature X with comprehensive tests. All acceptance criteria met.",high,0.8-1.0
+"Did something. Not sure if it works.",low,0.1-0.3
+"Added YAML eval definitions for Phase S, R, V. Each with 15-20 golden test cases. Deterministic checks + LLM-graded rubrics. Python runner with __main__.py entry point. CI integration conditional on ralph/CLAUDE.md changes.",high,0.8-1.0
+"Code compiles.",low,0.2-0.4
+"Implemented comprehensive evals harness covering story validation, research quality, and output quality. Includes dataset generation, YAML schema, Python runner with score aggregation.",medium,0.5-0.7

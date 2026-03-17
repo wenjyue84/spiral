@@ -66,6 +66,7 @@ module = [
     "llm_models",
     "cost_check",
     "decompose_story",
+    "evals_runner",
     "merge_results_tsv",
     "merge_stories",
     "merge_worker_results",

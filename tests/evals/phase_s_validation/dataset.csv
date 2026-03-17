@@ -1,0 +1,11 @@
+input_story,expected_valid,expected_reason
+"{""id"":""US-001"",""title"":""Add feature X"",""priority"":""high"",""description"":""Implement feature"",""acceptanceCriteria"":[""Can do X""],""passes"":false}",true,valid_story
+"{""id"":""INVALID-001"",""title"":""Bad ID"",""priority"":""high"",""description"":""Test"",""acceptanceCriteria"":[],""passes"":false}",false,invalid_id_format
+"{""id"":""US-002"",""title"":"""",""priority"":""high"",""description"":""Missing title"",""acceptanceCriteria"":[],""passes"":false}",false,empty_title
+"{""id"":""US-003"",""title"":""Feature"",""priority"":""invalid"",""description"":""Bad priority"",""acceptanceCriteria"":[],""passes"":false}",false,invalid_priority
+"{""id"":""US-004"",""title"":""Feature"",""priority"":""critical"",""description"":"""",""acceptanceCriteria"":[],""passes"":false}",true,valid_despite_empty_description
+"{""id"":""US-005"",""title"":""Feature"",""priority"":""medium"",""description"":""Valid"",""acceptanceCriteria"":[],""passes"":false}",true,valid_minimal
+"{""id"":""US-006"",""title"":""Feature X"",""priority"":""low"",""description"":""Test"",""acceptanceCriteria"":[""Criterion 1"",""Criterion 2""],""passes"":false}",true,valid_with_criteria
+"{""id"":""UT-001"",""title"":""Test story"",""priority"":""high"",""description"":""Valid test ID"",""acceptanceCriteria"":[],""passes"":false}",true,valid_test_id
+"{""id"":""US-007"",""title"":""Feature"",""priority"":""high"",""description"":""Has dependency"",""acceptanceCriteria"":[],""dependencies"":[""US-001""],""passes"":false}",true,valid_with_dependency
+"{""id"":""US-008"",""title"":""Oversized"",""priority"":""high"",""description"":""This story is way too large and should be rejected because it tries to do too many things at once without clear separation of concerns which violates the atomicity principle"",""acceptanceCriteria"":[""Very long criterion that goes on and on"",""Another very long criterion"",""Yet another criterion""],""estimatedComplexity"":""large"",""passes"":false}",true,valid_large_story

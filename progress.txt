@@ -1951,3 +1951,23 @@ COST CEILING: Add pytest-xdist parallel execution to SPIRAL test suite with --di
 ## Iteration 19 - Tue, Mar 17, 2026 12:49:24 PM
 COST CEILING: Add pytest-xdist parallel execution to SPIRAL test suite with --dist loadscope (US-383) — $6.384365 exceeded hard limit $2.00
 
+
+
+## Iteration N - Story: US-386 - Add asyncio.TaskGroup structured concurrency
+
+### What was implemented
+- Replaced `asyncio.gather(stdout_task, stderr_task)` in `lib/spiral_live_server.py::_drain_and_wait` with `async with asyncio.TaskGroup()` pattern
+- Moved task creation inside `_drain_and_wait` (removed pre-created `stdout_task`/`stderr_task` variables)
+- Added `except* Exception` handler around the TaskGroup block for ExceptionGroup handling (pipe errors are non-fatal)
+- Captured narrowed stream references into `stdout_stream`/`stderr_stream` locals before the closure to avoid mypy Optional type errors
+- Added `TestTaskGroupCancellation::test_failing_task_cancels_sibling_within_100ms` to verify cancellation behavior
+
+### Patterns discovered
+- `asyncio.TaskGroup` cannot accept pre-created tasks — tasks must be created via `tg.create_task()` inside the `async with` block
+- When asserts narrow Optional types before a nested `async def` closure, mypy may not carry the narrowing inside the closure — capture into a typed local variable to fix
+- `except*` and regular `except` cannot coexist in the same try block — keep ExceptionGroup handling inside `_drain_and_wait` so outer handlers can remain regular `except`
+- `_stream_pipe` already swallows its own exceptions via `except Exception: break`, so the TaskGroup `except*` block is a defensive guard rather than active error handling
+
+### Gotchas
+- Only one asyncio.gather() call existed in lib/ (in spiral_live_server.py) — scope was narrow
+- mypy --strict passes cleanly with the typed local variable approach (no `type: ignore` needed)
