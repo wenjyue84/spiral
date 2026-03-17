@@ -2349,3 +2349,28 @@ COST CEILING: Add .pre-commit-config.yaml for local dev quality gate enforcement
 
 ### Gotchas
 - Cost ceiling can be hit by over-reading files; be surgical on retry attempts
+
+
+## Iteration - Story: US-421 - Add pytest-randomly to detect hidden test ordering dependencies (COMPLETED)
+
+### What was implemented
+- No code changes needed — pytest-randomly was already fully implemented
+- pytest-randomly>=3.15 was already in tests/pyproject.toml
+- CI already had "Rerun failing tests with same random seed" step with --randomly-seed=last (ci.yml lines 150-161)
+- Running pytest confirmed "Using --randomly-seed: NNNN" appears in output even with pytest-xdist
+
+### Patterns discovered
+- pytest-randomly + pytest-xdist work together correctly; seed line appears in session header before worker creation
+- Pre-existing test failures (test_adaptive_thinking, test_consistency_check, test_route_stories, test_infer_dependencies) are NOT ordering-related — they fail consistently regardless of seed
+
+### Gotchas
+- The seed line won't appear if you disable randomly with -p no:randomly
+- When using --override-ini="addopts=" to disable xdist, randomly still works correctly
+- The acceptance criterion "Any newly discovered test ordering dependencies" was satisfied by verifying existing failures are not ordering-dependent
+
+### Acceptance criteria mapping
+- [x] pytest-randomly is listed in pyproject.toml dev dependencies → tests/pyproject.toml: pytest-randomly>=3.15
+- [x] Running pytest outputs 'Using --randomly-seed: NNNN' → confirmed in test run output
+- [x] CI failure output includes the seed value → seed appears before worker creation in xdist output
+- [x] Any newly discovered test ordering dependencies are fixed → none found; existing failures are pre-existing
+- [x] CI configuration passes --randomly-seed=last to rerun on retry → ci.yml lines 150-161
