@@ -1037,6 +1037,18 @@ while [[ "$_ALL_DONE" -eq 0 ]]; do
         DONE_W=$("$JQ" '[.userStories[] | select(.passes == true)] | length' "$WTREE/prd.json" 2>/dev/null || echo "?")
         TOTAL_W=$("$JQ" '[.userStories | length] | .[0]' "$WTREE/prd.json" 2>/dev/null || echo "?")
         WORKER_EXIT_CODES[$i]="$WORKER_EXIT"
+        # US-377: Emit OTel ralph_worker span with subprocess attributes
+        if [[ -n "${PYTHON:-}" && -f "$SPIRAL_HOME/lib/otel_worker_inject.py" ]]; then
+          _WORKER_COMMAND="bash $RALPH_SKILL $ITER_PER_WORKER --prd prd.json"
+          [[ -n "$RALPH_MODEL" ]] && _WORKER_COMMAND="$_WORKER_COMMAND --model $RALPH_MODEL"
+          TRACEPARENT="${TRACEPARENT:-}" "$PYTHON" "$SPIRAL_HOME/lib/otel_worker_inject.py" emit-worker \
+            --story-id "WORKER-$WORKER_NUM" \
+            --worker-num "$WORKER_NUM" \
+            --subprocess-command "$_WORKER_COMMAND" \
+            --subprocess-pid "${WORKER_PIDS[$i]}" \
+            --subprocess-returncode "$WORKER_EXIT" \
+            2>/dev/null || true
+        fi
         if [[ "$WORKER_EXIT" -eq 124 ]]; then
           echo "  [parallel] Worker $WORKER_NUM TIMED OUT after ${WORKER_TIMEOUT}s — $DONE_W/$TOTAL_W stories passed before timeout"
           # Log a 'timeout' failure row in results.tsv for each still-pending story

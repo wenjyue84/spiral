@@ -2272,3 +2272,4 @@ COST CEILING: Add ConfigChange Claude Code hook to detect and alert on unauthori
 - Per-worker git index size reduced to only directories needed for that worker's stories
 - git status and git add operations faster due to smaller index
 - Reduced memory consumption per worker (especially on Windows with large repos)
+
