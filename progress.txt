@@ -1563,3 +1563,6 @@ COST CEILING: Use single shared git fetch before parallel worker launch to cut p
 - mypy needs `# type: ignore[import-untyped]` for yaml import (no bundled stubs); types-PyYAML would be cleaner but adds another dep
 - The Dumper representer mutation affects the class globally — fine for CLI scripts but would be wrong for importable library modules
 - merge_stories.py and validate_stories.py both needed updating to read .yaml files; otherwise Phase S and Phase M would silently fail with empty story lists
+## Iteration 3 - Tue, Mar 17, 2026 10:16:02 AM
+COST CEILING: Use single shared git fetch before parallel worker launch to cut pre-launch sync time 90% (US-351) — $5.995969 exceeded hard limit $2.00
+
