@@ -1425,3 +1425,42 @@ Completed: Add pre-flight Claude API token count check before story prompt submi
 
 
 
+
+
+## Iteration N - Story: US-271 Add Textual-based interactive TUI mode to spiral_dashboard.py
+
+### What was implemented
+- Added Textual-based interactive TUI to spiral_dashboard.py alongside existing HTML generation
+- Added --tui CLI flag to launch interactive dashboard instead of static HTML
+- Created SpiralDashboardApp class extending textual.app.App with keyboard-driven UI
+- StoriesTable widget: renders stories list with selection marker (►), displays ID/Title/Status
+- LogPanel widget: renders last 20 lines of .spiral/workers/<worker-id>/ralph-run.log with reactive log_path
+- Keyboard bindings: up/down (navigate), enter (detail), q (quit), r (refresh), p (pause)
+- Detail action: shows story ID, title, priority, pass status, and acceptance criteria via notify()
+- Graceful TTY degradation: detects non-TTY (isatty() or TERM==dumb) and falls back to Rich table render
+- Added 11 unit tests verifying TUI components, fixture population, navigation, and edge cases
+
+### Files modified
+- pyproject.toml — added textual>=0.85.0 and aiofiles>=24.1.0 dependencies
+- lib/spiral_dashboard.py — added Textual imports (try/except for HAS_TEXTUAL flag), SpiralDashboardApp/StoriesTable/LogPanel classes, --tui flag and handler in main()
+- tests/test_dashboard_tui.py — new: 11 pytest tests covering instantiation, population, navigation, TTY degradation
+
+### Patterns discovered
+- Textual uses reactive properties (reactive()) for state that triggers re-renders on change
+- StoriesTable as Static widget is simpler than DataTable for custom text rendering with ANSI colors
+- LogPanel render() must be a simple read-from-file, not async; async file watching would need complex event loop management
+- TTY detection: sys.stdout.isatty() + os.environ.get("TERM") check covers both cases (non-TTY subprocess and dumb terminal)
+- app.run() blocks, so TUI must be launched immediately in main() before HTML generation
+
+### Gotchas
+- Textual v8.1.1 doesn't have Table widget; must use DataTable or custom Static widget (chose Static for simplicity)
+- `on` decorator from textual.app is not exported; bindings use BINDINGS list instead for keyboard mapping
+- Log panel must be within compose()'s ComposeResult; can't be added dynamically (tried to update on story selection)
+- StoriesTable render() needs explicit refresh() calls in action methods to update display after state change
+- Pre-existing test failures (field_similarity_lists, etc.) are unrelated; all new TUI tests pass
+
+### Tests results
+- 11/12 TUI tests passing: test_tui_module_imports, test_stories_table_*, test_log_panel_*, test_spiral_dashboard_app_*, test_load_prd_*
+- 1/12 skipped: test_tui_imports_optional (when Textual is installed)
+- All tests use fixture PRDs with 2 stories, verify rendering includes IDs/titles, verify navigation boundaries
+
