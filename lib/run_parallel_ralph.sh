@@ -366,6 +366,55 @@ for i in $(seq 1 "$RALPH_WORKERS"); do
 done
 spiral_assert_worker_disjoint "$WORKER_DIR" "${WORKER_PRD_FILES[@]}"
 
+# ── Step 1.7: Compute tier assignments for DAG-aware dispatch (US-361) ─────────
+# Only if SPIRAL_DISPATCH_MODE is not 'parallel' (default is 'dag')
+DISPATCH_MODE="${SPIRAL_DISPATCH_MODE:-dag}"
+_TIER_DISPATCH_ENABLED=0
+declare -A TIER_WORKERS=()  # tier_num → space-separated worker list
+TOTAL_TIERS=0
+
+if [[ "$DISPATCH_MODE" != "parallel" ]]; then
+  # Compute tier assignments: which tier each story belongs to
+  TIER_JSON=$("$PYTHON" "$SPIRAL_HOME/lib/check_dag.py" "$PRD_FILE" --tiers 2>/dev/null || echo "{}")
+
+  if [[ -n "$TIER_JSON" && "$TIER_JSON" != "{}" ]]; then
+    # Parse tier JSON and build tier→workers mapping using jq
+    # For each worker, find the max tier among its stories
+    for i in $(seq 1 "$RALPH_WORKERS"); do
+      WORKER_FILE="$WORKER_DIR/worker_${i}.json"
+      if [[ -f "$WORKER_FILE" ]]; then
+        # Get max tier in this worker: extract story IDs, look up in TIER_JSON, find max
+        MAX_TIER=$("$JQ" -r '.userStories[].id' "$WORKER_FILE" 2>/dev/null | \
+          while read -r sid; do
+            [[ -z "$sid" ]] && continue
+            echo "$TIER_JSON" | "$JQ" --arg id "$sid" '.[$id] // 0' 2>/dev/null || echo "0"
+          done | sort -rn | head -1 || echo "0")
+        [[ -z "$MAX_TIER" ]] && MAX_TIER=0
+
+        # Add this worker to all tier buckets up to its max tier
+        for tier in $(seq 0 "$MAX_TIER"); do
+          TIER_WORKERS[$tier]="${TIER_WORKERS[$tier]:-} $i"
+          [[ "$tier" -ge "$TOTAL_TIERS" ]] && TOTAL_TIERS=$((tier + 1))
+        done
+      fi
+    done
+
+    if [[ "$TOTAL_TIERS" -gt 0 ]]; then
+      _TIER_DISPATCH_ENABLED=1
+      echo "  [parallel] DAG dispatch enabled: $TOTAL_TIERS tier(s) detected"
+      for tier in $(seq 0 $((TOTAL_TIERS - 1))); do
+        WORKERS_IN_TIER=$(echo "${TIER_WORKERS[$tier]:-}" | tr ' ' '\n' | sort -u | tr '\n' ' ' | xargs)
+        echo "  [parallel]   Tier $tier: workers [$WORKERS_IN_TIER]"
+      done
+    fi
+  fi
+fi
+
+if [[ "$_TIER_DISPATCH_ENABLED" -ne 1 ]]; then
+  echo "  [parallel] Dispatch mode: parallel (legacy all-parallel)"
+  DISPATCH_MODE="parallel"
+fi
+
 # ── Disk space preflight check ────────────────────────────────────────────────
 # Estimates working-tree size × workers; aborts if > 90% of available space.
 # Git worktrees share .git objects, so actual use ≈ working tree size per worker.
@@ -858,18 +907,77 @@ _launch_worker_i() {
   disown "$_wpid"
 }
 
-for i in $(seq 1 "$_INITIAL_LAUNCH_COUNT"); do
-  _MIN_FREE_MB=$(((RALPH_WORKERS - i + 1) * _PER_WORKER_MB + 512))
-  [[ "$_MIN_FREE_MB" -lt 2048 ]] && _MIN_FREE_MB=2048
-  wait_for_memory "$_MIN_FREE_MB"
-  _launch_worker_i "$i"
-  if [[ "$i" -lt "$_INITIAL_LAUNCH_COUNT" ]]; then
-    echo "  [parallel] Waiting ${STAGGER_DELAY}s before next worker (V8 init cooldown)..."
-    sleep "$STAGGER_DELAY"
+# ── Step 3: Launch workers: tier-aware or all-parallel depending on DISPATCH_MODE ──
+if [[ "$_TIER_DISPATCH_ENABLED" -eq 1 ]]; then
+  # DAG-aware tier-by-tier dispatch
+  echo "  [parallel] Launching workers tier-by-tier..."
+  _CURRENT_TIER_WORKERS_LAUNCHED=()
+
+  for tier in $(seq 0 $((TOTAL_TIERS - 1))); do
+    WORKERS_IN_TIER=$(echo "${TIER_WORKERS[$tier]:-}" | xargs)
+    if [[ -z "$WORKERS_IN_TIER" ]]; then
+      continue
+    fi
+
+    echo "  [parallel] Tier $tier: launching workers [$WORKERS_IN_TIER]..."
+    _CURRENT_TIER_WORKERS_LAUNCHED=()
+
+    # Launch all workers in this tier
+    for worker_id in $WORKERS_IN_TIER; do
+      _MIN_FREE_MB=$(((RALPH_WORKERS - worker_id + 1) * _PER_WORKER_MB + 512))
+      [[ "$_MIN_FREE_MB" -lt 2048 ]] && _MIN_FREE_MB=2048
+      wait_for_memory "$_MIN_FREE_MB"
+      _launch_worker_i "$worker_id"
+      _CURRENT_TIER_WORKERS_LAUNCHED+=("$worker_id")
+
+      # Stagger within tier
+      if [[ ${#_CURRENT_TIER_WORKERS_LAUNCHED[@]} -lt $(echo "$WORKERS_IN_TIER" | wc -w) ]]; then
+        echo "  [parallel] Waiting ${STAGGER_DELAY}s before next worker in tier $tier..."
+        sleep "$STAGGER_DELAY"
+      fi
+    done
+
+    # Log tier dispatch event
+    printf '{"ts":"%s","event":"tier_dispatched","run_id":"%s","tier":%d,"worker_count":%d,"workers":"%s"}\n' \
+      "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${SPIRAL_RUN_ID:-}" "$tier" \
+      "${#_CURRENT_TIER_WORKERS_LAUNCHED[@]}" "$WORKERS_IN_TIER" \
+      >>"$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || true
+
+    # Wait for all workers in this tier to finish before launching next tier
+    echo "  [parallel] Tier $tier: waiting for all workers to complete before launching tier $((tier + 1))..."
+    _TIER_COMPLETE=0
+    while [[ "$_TIER_COMPLETE" -eq 0 ]]; do
+      _TIER_COMPLETE=1
+      for worker_id in ${_CURRENT_TIER_WORKERS_LAUNCHED[@]}; do
+        worker_idx=$((worker_id - 1))
+        if [[ "${WORKER_FINISHED[$worker_idx]}" -eq 0 ]]; then
+          if kill -0 "${WORKER_PIDS[$worker_idx]}" 2>/dev/null; then
+            _TIER_COMPLETE=0
+            break
+          fi
+        fi
+      done
+      [[ "$_TIER_COMPLETE" -eq 0 ]] && sleep 5
+    done
+    echo "  [parallel] Tier $tier: all workers completed."
+  done
+
+  echo "  [parallel] All tiers dispatched — entering adaptive wait loop..."
+else
+  # Legacy parallel dispatch (all workers launched immediately)
+  for i in $(seq 1 "$_INITIAL_LAUNCH_COUNT"); do
+    _MIN_FREE_MB=$(((RALPH_WORKERS - i + 1) * _PER_WORKER_MB + 512))
+    [[ "$_MIN_FREE_MB" -lt 2048 ]] && _MIN_FREE_MB=2048
+    wait_for_memory "$_MIN_FREE_MB"
+    _launch_worker_i "$i"
+    if [[ "$i" -lt "$_INITIAL_LAUNCH_COUNT" ]]; then
+      echo "  [parallel] Waiting ${STAGGER_DELAY}s before next worker (V8 init cooldown)..."
+      sleep "$STAGGER_DELAY"
+    fi
+  done
+  if [[ ${#_WORKER_LAUNCH_QUEUE[@]} -gt 0 ]]; then
+    echo "  [parallel] ${#_WORKER_LAUNCH_QUEUE[@]} worker(s) queued: will launch when memory allows"
   fi
-done
-if [[ ${#_WORKER_LAUNCH_QUEUE[@]} -gt 0 ]]; then
-  echo "  [parallel] ${#_WORKER_LAUNCH_QUEUE[@]} worker(s) queued: will launch when memory allows"
 fi
 
 echo ""

@@ -154,6 +154,17 @@
 # Default: $SPIRAL_HOME/ralph/stream-formatter.mjs (bundled with spiral)
 # SPIRAL_STREAM_FMT="$SPIRAL_HOME/ralph/stream-formatter.mjs"
 
+# ── Worker dispatch mode (US-361) ───────────────────────────────────────────
+# Controls how parallel workers are scheduled across dependency tiers:
+#   "dag"      — Dependency-aware: tier 0 stories run in parallel,
+#                tier N+1 waits for all tier N workers to finish.
+#                Uses lib/check_dag.py to partition stories by dependencies.
+#                Reduces wall-clock time by up to 36% on complex DAGs.
+#   "parallel" — Legacy mode: all workers launch simultaneously regardless
+#                of dependencies. May be faster on simple (acyclic) PRDs.
+# Default: dag (new default from US-361)
+# SPIRAL_DISPATCH_MODE="dag"
+
 # ── Firecrawl MCP (Phase R — web scraping) ──────────────────────────────────
 # When enabled, Phase R uses Firecrawl MCP instead of WebFetch for scraping URLs.
 # Firecrawl returns clean LLM-optimized markdown, handles JS-rendered pages better,

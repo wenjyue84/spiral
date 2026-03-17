@@ -60,11 +60,60 @@ def find_cycles(stories: list[dict]) -> list[str]:
     return cycle_members
 
 
+def compute_tiers(stories: list[dict], passed_stories: set[str]) -> dict[str, int]:
+    """
+    Compute tier assignments for stories based on dependency DAG.
+
+    Tier N stories have all their dependencies in tiers 0..N-1.
+    Tier 0 stories have no pending dependencies (deps already passed or no deps).
+
+    Args:
+        stories: List of story dicts
+        passed_stories: Set of story IDs that have already passed (already completed)
+
+    Returns:
+        Dict[story_id: tier_number]
+    """
+    story_ids = {s["id"] for s in stories if isinstance(s, dict) and "id" in s}
+
+    # Build dependency map: id → set of deps that are also in story_ids and not passed
+    deps: dict[str, set[str]] = {}
+    for s in stories:
+        if not isinstance(s, dict):
+            continue
+        sid = s.get("id", "")
+        if sid:
+            pending_deps = {d for d in s.get("dependencies", []) if d in story_ids and d not in passed_stories}
+            deps[sid] = pending_deps
+
+    # Assign tiers using BFS from stories with no pending deps
+    tier_map: dict[str, int] = {}
+    current_tier = 0
+    remaining = set(story_ids)
+
+    while remaining:
+        # Stories with no pending dependencies in remaining set become current tier
+        tier_stories = [sid for sid in remaining if not deps.get(sid, set()).intersection(remaining)]
+
+        if not tier_stories:
+            # Circular dependency detected (shouldn't happen if find_cycles passes)
+            break
+
+        for sid in tier_stories:
+            tier_map[sid] = current_tier
+
+        remaining -= set(tier_stories)
+        current_tier += 1
+
+    return tier_map
+
+
 def main() -> int:
     import argparse
 
     parser = argparse.ArgumentParser(description="Check prd.json dependencies for cycles")
     parser.add_argument("prd", help="Path to prd.json")
+    parser.add_argument("--tiers", action="store_true", help="Output tier assignments as JSON instead of validation result")
     args = parser.parse_args()
 
     if not os.path.isfile(args.prd):
@@ -92,6 +141,17 @@ def main() -> int:
                     break
             print(f"  - {sid}: {title} (deps: {deps_str})", file=sys.stderr)
         return 1
+
+    if args.tiers:
+        # Compute and output tier assignments for pending stories
+        passed_stories = {s["id"] for s in stories if isinstance(s, dict) and s.get("passes") is True}
+        pending_stories = {s["id"] for s in stories if isinstance(s, dict) and s.get("passes") is not True}
+        tier_map = compute_tiers(stories, passed_stories)
+
+        # Filter to pending stories only and output as JSON
+        pending_tiers = {sid: tier_map[sid] for sid in pending_stories if sid in tier_map}
+        print(json.dumps(pending_tiers))
+        return 0
 
     print(f"[dag] {args.prd} — no cycles ({len(stories)} stories)")
     return 0

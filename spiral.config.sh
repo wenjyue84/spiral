@@ -61,6 +61,12 @@ SPIRAL_STORY_PREFIX="US"
 # Dynamic worker count (1-3) will be auto-selected once US-009 is implemented.
 # Until then, leave unset and pass --ralph-workers on the command line.
 
+# ── Dispatch mode: control worker scheduling strategy (US-361) ──────────────────
+# Options: dag (new default) | parallel (legacy all-parallel)
+# dag = tier-aware dispatch: tier 0 stories run in parallel, tier N+1 waits for tier N
+# parallel = legacy mode: all workers run simultaneously regardless of dependencies
+SPIRAL_DISPATCH_MODE="${SPIRAL_DISPATCH_MODE:-dag}"
+
 # ── Capacity limit: skip Phase R when pending stories exceed this ─────────────
 # Prevents flooding prd.json during aggressive non-stop runs
 SPIRAL_MAX_PENDING=50
