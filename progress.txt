@@ -1,3 +1,54 @@
+## Iteration N - Story: US-380 Add Stop agent-based Claude Code hook to verify story acceptance criteria (COMPLETED)
+
+### What was implemented
+- Created .claude/hooks/verify_story_acceptance.py: NEW agent hook (167 lines) for Stop event to verify acceptance criteria
+- Updated .claude/settings.json: Added "Stop" hook with type: 'agent', timeout: 120, command pointing to verification hook
+- Created tests/test_verify_story_acceptance.py: NEW comprehensive test suite with 28 unit tests
+
+### Hook functionality
+- Reads SPIRAL_CURRENT_STORY_ID from environment to locate story in prd.json
+- Checks stop_hook_active flag in hook input to prevent infinite re-entry loops
+- Verifies all filesTouch files exist relative to repo root
+- Verifies all filesTouch files were modified in the last git commit (via git diff HEAD~1 HEAD)
+- Runs targeted pytest on any test files in filesTouch list
+- Returns {ok: true} if all checks pass, allowing agent to stop
+- Returns {ok: false, reason: '...'} if any check fails, causing agent to continue working
+
+### Files modified
+- .claude/settings.json — Added "Stop" hook definition (lines 25-31)
+- .claude/hooks/verify_story_acceptance.py — NEW: Complete agent hook implementation
+- tests/test_verify_story_acceptance.py — NEW: 28 tests covering all verification logic
+
+### Patterns discovered
+- Agent hooks use stdin/stdout JSON protocol: read input JSON, output {ok: bool, reason?: str}
+- sys.exit(0) is called after every output path (prevents double output)
+- File paths in prd.json are relative to repo root; must use Path() to construct absolute paths
+- git diff HEAD~1 HEAD shows files changed in last commit; returns code 128 on first commit (skip check gracefully)
+- subprocess.TimeoutExpired and FileNotFoundError should be handled gracefully (skip check, return True)
+- Type narrowing needed for mypy strict mode: isinstance(data, dict) after json.load/json.loads returns Any
+
+### Gotchas
+- mypy --strict mode rejects returning Any from functions declared to return dict[str, Any]
+  - Solution: Add isinstance(data, dict) checks after json.load() calls
+- sys.exit() raises SystemExit which must be caught with pytest.raises(SystemExit) in unit tests
+- pytest xdist parallel execution requires capturing output before sys.exit() is called
+- Empty filesTouch list should skip all file checks (return ok: true)
+- First commit in repo has no HEAD~1; git diff returns code 128 — gracefully skip check (return True)
+
+### Acceptance criteria mapping
+- [x] Criterion 1: .claude/settings.json defines Stop hook with type: 'agent', timeout: 120 → Lines 25-31 in settings.json
+- [x] Criterion 2: Agent hook reads SPIRAL_CURRENT_STORY_ID from env and locates story → read_hook_input() + get_current_story()
+- [x] Criterion 3: Checks file existence and modification in last commit → check_files_exist() + check_files_modified_in_last_commit()
+- [x] Criterion 4: Runs targeted pytest on test files → run_targeted_pytest()
+- [x] Criterion 5: Returns {ok: false, reason: '...'} when unmet → Multiple return points in main()
+- [x] Criterion 6: Checks stop_hook_active to prevent loops → Line 147 in main()
+
+### Test results
+- 28 new tests in test_verify_story_acceptance.py: all passing
+- Full test suite: 1780 passing (14 pre-existing failures unrelated to this feature)
+- mypy --strict: 0 errors
+- No shell linting issues (Python script only)
+
 ## Iteration N - Story: US-377 Add OTel subprocess span instrumentation to ralph worker launches (COMPLETED)
 
 ### What was implemented
@@ -2575,4 +2626,7 @@ COST CEILING: Add cosine-similarity Phase R research cache lookup using sentence
 - [x] ralph/CONTEXT_REFRESH.md created with story ID placeholder, key conventions, validation command → file created
 - [x] Hook stdout added to Claude's context automatically → inherent to SessionStart hooks
 - [x] Bats test verifies hook command exits 0 and produces non-empty stdout → 7 tests pass
+
+## Iteration 2 - Tue, Mar 17, 2026  6:02:37 PM
+COST CEILING: Add cosine-similarity Phase R research cache lookup using sentence embeddings (US-403) — $7.163173 exceeded hard limit $2.00
 
