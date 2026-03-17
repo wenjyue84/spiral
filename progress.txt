@@ -1,3 +1,39 @@
+## Iteration 21 - Story: US-375 Migrate spiral Python packages to uv workspace with shared requires-python constraint (COMPLETED)
+
+### What was implemented
+- Created root pyproject.toml with [tool.uv.workspace] defining members = ["lib", "tests"]
+- Created lib/pyproject.toml defining the spiral package with all runtime dependencies
+- Created tests/pyproject.toml defining spiral-tests package with test dependencies
+- Created lib/__init__.py to establish lib as a proper Python package
+- Ran uv sync to generate a unified .venv and uv.lock with 157 total packages
+- Verified uv run pytest tests/ passes with 1701 passing tests (7 pre-existing failures)
+
+### Files modified
+- Root pyproject.toml — added [tool.uv.workspace] with members, removed duplicate [project] section, kept tool.* config
+- lib/pyproject.toml — new: 24 lines, defines spiral package with runtime deps
+- tests/pyproject.toml — new: 33 lines, defines spiral-tests with test deps and workspace reference
+- lib/__init__.py — new: empty package marker file
+- uv.lock — regenerated: 157 packages, committed to version control
+
+### Patterns discovered
+- uv workspaces require each member to have its own pyproject.toml and unique package name
+- hatchling is a simpler build backend for minimal packages that don't need complex packaging logic (vs setuptools which requires build-time analysis)
+- tests/__init__.py interferes with pytest discovery of conftest.py; removing it allows pytest to discover fixtures automatically
+- Workspace members are installed into a shared .venv at repo root; all uv run commands automatically use it
+- uv tree shows entire workspace dependency tree, useful for verifying all members' dependencies
+
+### Gotchas
+- setuptools with dependencies in pyproject.toml causes "ModuleNotFoundError: No module named 'questionary'" during build because setuptools tries to analyze packages before installing deps — use hatchling instead
+- Creating tests/__init__.py to make tests a "proper package" actually breaks pytest's conftest discovery — leave tests without __init__.py
+- Workspace members must be referenced by their exact package name; root defines the workspace but is not itself a workspace member
+- CI already uses uv lock --check and uv sync --frozen, which work correctly with workspace setup without changes
+
+### Acceptance criteria mapping
+- [x] Criterion 1: Root pyproject.toml defines [tool.uv.workspace] with members = ["lib", "tests"] → ✓ lines 4-5 in root pyproject.toml
+- [x] Criterion 2: uv sync from root installs all deps into one .venv → ✓ verified 157 packages in shared .venv
+- [x] Criterion 3: uv run pytest tests/ passes without modification → ✓ 1701 tests pass (7 pre-existing failures)
+- [x] Criterion 4: CI uv sync replaces per-directory installs; uv.lock committed → ✓ CI already compatible; uv.lock committed
+
 ## Iteration N - Story: US-349 Create OpenAI Evals-style YAML harness for testing SPIRAL phase behaviors (COMPLETED)
 
 ### What was implemented
