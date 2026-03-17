@@ -1732,3 +1732,60 @@ COST CEILING: Extract repeated spiral CI steps into composite actions in .github
 ## Iteration 10 - Tue, Mar 17, 2026 11:29:38 AM
 COST CEILING: Extract repeated spiral CI steps into composite actions in .github/actions/ (US-382) — $4.29647 exceeded hard limit $2.00
 
+
+## Iteration N - Story: US-348 Add privacy-scrubbing OTel span processor to redact secrets before telemetry export
+
+### What was implemented
+- Created lib/privacy_scrubber.py with PrivacyScrubber OpenTelemetry SpanProcessor
+  - Detects and redacts Anthropic/GitHub/OpenAI API keys, emails, AWS secrets, credential paths
+  - Pattern-based redaction using compiled regex (no LLM in critical path)
+  - Recursive redaction for nested dict/list structures
+  - Configurable via patterns dict and scrub_fields list
+  - gen_ai.input.messages and gen_ai.output.messages are disabled by default (opt-in)
+
+- Integrated privacy scrubber into lib/otel_spans.py
+  - Added _create_privacy_scrubber() factory function with env var configuration
+  - Applied scrubber before OTLP exporter in both _make_tracer() and _emit_completed_span()
+  - Respects SPIRAL_OTEL_EMIT_MESSAGES env var for opt-in message emission
+
+- Added configuration options to spiral.config.sh
+  - SPIRAL_OTEL_EMIT_MESSAGES: Enable/disable message field emission (default: false)
+  - SPIRAL_OTEL_SCRUB_PATTERNS: Comma-separated pattern names to enable
+  - SPIRAL_OTEL_SCRUB_FIELDS: Comma-separated attribute names for full redaction
+
+- Created comprehensive test suite (27 tests, all passing)
+  - Pattern-based redaction tests for API keys, emails, file paths
+  - Data structure tests (dicts, lists, nested structures)
+  - OTel span processor integration tests
+  - Configuration and custom pattern tests
+  - Property-based tests with Hypothesis for robustness
+  - Acceptance criteria validation tests
+
+### Files modified
+- lib/privacy_scrubber.py — new: PrivacyScrubber SpanProcessor class
+- lib/otel_spans.py — added _create_privacy_scrubber() and integrated scrubber
+- spiral.config.sh — added three new configuration options
+- tests/test_privacy_scrubber.py — new: comprehensive test suite
+- prd.json — marked US-348 as passes=true
+
+### Patterns discovered
+- OTel SDK span attributes are read-only (Mapping), but can be modified with type: ignore comments
+- SpanProcessors are chained (scrubber → OTLP exporter) so redaction happens before export
+- Pattern minimum lengths must account for real-world API key lengths (not too restrictive)
+- Configuration via environment variables follows SPIRAL_* convention
+
+### Gotchas
+- ReadableSpan.attributes is immutable (type-checking wise), required type: ignore[index] and [attr-defined]
+- Pre-existing test failure: test_consistency_check.py::test_field_similarity_lists (unrelated to US-348)
+- Pre-existing mypy error: otel_spans.py line 249 set_attribute type mismatch (existed before changes)
+
+### Acceptance criteria mapping
+- [x] Criterion 1: sk-ant-* redacted to [REDACTED_ANTHROPIC_API_KEY] → Pattern tests verify
+- [x] Criterion 2: gen_ai.input/output.messages disabled by default, opt-in with SPIRAL_OTEL_EMIT_MESSAGES → Implementation and tests
+- [x] Criterion 3: Configurable via patterns and fields in spiral.config.sh → Configuration options added
+- [x] Criterion 4: Unit test for prompt redaction → test_privacy_scrubber.py::test_criterion_api_key_redaction passes
+
+### Testing
+- All 27 new tests pass
+- 186 existing tests still pass (1 pre-existing failure in test_consistency_check unrelated to this story)
+- Type checking: mypy lib/privacy_scrubber.py --strict passes
