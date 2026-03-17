@@ -240,3 +240,23 @@ SPIRAL_ANTI_PATTERN_INJECT="${SPIRAL_ANTI_PATTERN_INJECT:-true}"
 SPIRAL_DECOMPOSE_ON_FIRST_FAIL="${SPIRAL_DECOMPOSE_ON_FIRST_FAIL:-false}"
 # Complexity threshold (small | medium | large) for first-fail decomposition.
 SPIRAL_DECOMPOSE_FIRST_FAIL_COMPLEXITY="${SPIRAL_DECOMPOSE_FIRST_FAIL_COMPLEXITY:-medium}"
+
+# ── OpenTelemetry privacy scrubbing (US-348) ────────────────────────────────
+# Enable privacy-scrubbing span processor to redact sensitive data before
+# telemetry export. See lib/privacy_scrubber.py for pattern definitions.
+#
+# SPIRAL_OTEL_EMIT_MESSAGES: Enable/disable gen_ai.input.messages and
+#   gen_ai.output.messages attributes (default: false — opt-in for privacy).
+#   Sensitive data in these fields will be redacted before export.
+SPIRAL_OTEL_EMIT_MESSAGES="${SPIRAL_OTEL_EMIT_MESSAGES:-false}"
+#
+# SPIRAL_OTEL_SCRUB_PATTERNS: Comma-separated list of pattern names to enable.
+#   Available patterns: anthropic_api_key, github_token, openai_api_key,
+#   aws_secret, email, credential_path
+#   Default: all patterns enabled (see lib/privacy_scrubber.py)
+# SPIRAL_OTEL_SCRUB_PATTERNS="anthropic_api_key,github_token,openai_api_key,aws_secret,email,credential_path"
+#
+# SPIRAL_OTEL_SCRUB_FIELDS: Comma-separated list of attribute names to fully
+#   redact (entire field removed, not pattern-matched).
+#   Default: gen_ai.input.messages,gen_ai.output.messages
+# SPIRAL_OTEL_SCRUB_FIELDS="gen_ai.input.messages,gen_ai.output.messages"

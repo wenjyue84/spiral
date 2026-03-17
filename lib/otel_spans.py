@@ -104,10 +104,39 @@ def _otlp_endpoint() -> Optional[str]:
     return ep if ep else None
 
 
+def _create_privacy_scrubber(emit_messages: bool = False) -> "SpanProcessor":  # type: ignore[name-defined]
+    """
+    Create a PrivacyScrubber span processor with configuration from environment.
+
+    Configuration via env vars (US-348):
+    - SPIRAL_OTEL_EMIT_MESSAGES: Enable/disable message fields (default: false)
+    - SPIRAL_OTEL_SCRUB_PATTERNS: Comma-separated list of pattern names to enable
+    - SPIRAL_OTEL_SCRUB_FIELDS: Comma-separated list of attribute names to fully redact
+    """
+    from lib.privacy_scrubber import DEFAULT_SCRUB_FIELDS, DEFAULT_SCRUB_PATTERNS, PrivacyScrubber
+
+    patterns = DEFAULT_SCRUB_PATTERNS.copy()
+    scrub_fields = list(DEFAULT_SCRUB_FIELDS)
+
+    # Allow customization via env vars
+    custom_patterns_str = os.environ.get("SPIRAL_OTEL_SCRUB_PATTERNS", "").strip()
+    if custom_patterns_str:
+        enabled_names = {p.strip() for p in custom_patterns_str.split(",")}
+        patterns = {k: v for k, v in patterns.items() if k in enabled_names}
+
+    custom_fields_str = os.environ.get("SPIRAL_OTEL_SCRUB_FIELDS", "").strip()
+    if custom_fields_str:
+        scrub_fields = [f.strip() for f in custom_fields_str.split(",")]
+
+    return PrivacyScrubber(patterns=patterns, scrub_fields=scrub_fields, emit_messages=emit_messages)
+
+
 def _make_tracer() -> tuple[object, object]:
     """
     Configure and return (tracer, provider).
     If OTEL_EXPORTER_OTLP_ENDPOINT is not set, returns a no-op tracer.
+
+    Privacy scrubbing is applied before export (US-348).
     """
     from opentelemetry import trace
     from opentelemetry.sdk.resources import SERVICE_NAME, Resource
@@ -120,6 +149,11 @@ def _make_tracer() -> tuple[object, object]:
     endpoint = _otlp_endpoint()
     if endpoint:
         from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+
+        # Apply privacy scrubbing before export (US-348)
+        emit_messages = os.environ.get("SPIRAL_OTEL_EMIT_MESSAGES", "").lower() in ("true", "1", "yes")
+        scrubber = _create_privacy_scrubber(emit_messages=emit_messages)
+        provider.add_span_processor(scrubber)
 
         exporter = OTLPSpanExporter(endpoint=endpoint)
         provider.add_span_processor(BatchSpanProcessor(exporter))
@@ -160,6 +194,11 @@ def _emit_completed_span(
     if endpoint:
         from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
         from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+
+        # Apply privacy scrubbing before export (US-348)
+        emit_messages = os.environ.get("SPIRAL_OTEL_EMIT_MESSAGES", "").lower() in ("true", "1", "yes")
+        scrubber = _create_privacy_scrubber(emit_messages=emit_messages)
+        provider.add_span_processor(scrubber)
 
         exporter = OTLPSpanExporter(endpoint=endpoint)
         provider.add_span_processor(SimpleSpanProcessor(exporter))

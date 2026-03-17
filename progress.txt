@@ -1729,3 +1729,6 @@ COST CEILING: Extract repeated spiral CI steps into composite actions in .github
 ### Gotchas
 - Story failed 2x on cost ceiling only — implementation was correct from attempt 2. On attempt 3 (opus), just validated and marked complete instead of re-implementing.
 
+## Iteration 10 - Tue, Mar 17, 2026 11:29:38 AM
+COST CEILING: Extract repeated spiral CI steps into composite actions in .github/actions/ (US-382) — $4.29647 exceeded hard limit $2.00
+

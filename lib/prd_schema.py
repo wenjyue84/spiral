@@ -34,7 +34,7 @@ STORY_PREFIX = os.environ.get("SPIRAL_STORY_PREFIX", "US")
 
 VALID_PRIORITIES = {"critical", "high", "medium", "low"}
 VALID_COMPLEXITIES = {"small", "medium", "large"}
-STORY_ID_PATTERN = re.compile(r"^(US|UT)-\d{3,4}$")
+STORY_ID_PATTERN = re.compile(r"^(US|UT)-[0-9]{3,}$")
 
 # Current PRD schema version — bump when schema changes
 CURRENT_SCHEMA_VERSION = 1
@@ -268,10 +268,41 @@ def validate_jsonschema(prd: dict, schema_path: str) -> list[str]:
     return errors
 
 
+def validate_jsonschema_draft2020(prd: dict, schema_path: str) -> list[str]:
+    """
+    Validate prd against prd.schema.json using jsonschema's Draft202012Validator.
+
+    Returns list of error strings in 'SCHEMA ERROR: /pointer — message' format.
+    Raises ImportError if the jsonschema package is not installed.
+    """
+    from jsonschema import Draft202012Validator, FormatChecker
+
+    with open(schema_path, encoding="utf-8") as f:
+        schema = json.load(f)
+
+    validator = Draft202012Validator(schema, format_checker=FormatChecker())
+    errors: list[str] = []
+    for err in sorted(validator.iter_errors(prd), key=lambda e: list(e.absolute_path)):
+        parts = list(err.absolute_path)
+        pointer = "/" + "/".join(str(p) for p in parts) if parts else "/"
+        errors.append(f"SCHEMA ERROR: {pointer} \u2014 {err.message}")
+    return errors
+
+
 def has_jsonschema() -> bool:
     """Return True if the jsonschema-rs package is importable."""
     try:
         import jsonschema_rs  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
+def has_draft202012validator() -> bool:
+    """Return True if the jsonschema package with Draft202012Validator is importable."""
+    try:
+        from jsonschema import Draft202012Validator  # noqa: F401
 
         return True
     except ImportError:
@@ -324,7 +355,9 @@ def write_prd_validated(prd_path: str, new_content_path: str) -> int:
 
     all_errors: list[str] = []
     schema_file = _find_schema_file(prd_path)
-    if schema_file and has_jsonschema():
+    if schema_file and has_draft202012validator():
+        all_errors = validate_jsonschema_draft2020(new_prd, schema_file)
+    elif schema_file and has_jsonschema():
         all_errors = validate_jsonschema(new_prd, schema_file)
     # Always run stdlib cross-story checks; errors are already in /pointer — message format
     stdlib_errors = validate_prd(new_prd)
@@ -380,18 +413,24 @@ def main() -> int:
         print(f"[schema] ERROR: Invalid JSON in {args.prd}: {e}", file=sys.stderr)
         return 1
 
-    # Try formal JSON Schema validation first
+    # Try formal JSON Schema validation first (Draft202012Validator preferred, jsonschema_rs fallback)
     schema_file = _find_schema_file(args.prd)
-    if schema_file and has_jsonschema():
+    js_errors: list[str] = []
+    method_used = "stdlib"
+    if schema_file and has_draft202012validator():
+        js_errors = validate_jsonschema_draft2020(prd, schema_file)
+        method_used = "Draft202012Validator + stdlib"
+    elif schema_file and has_jsonschema():
         js_errors = validate_jsonschema(prd, schema_file)
-        if js_errors:
-            print(
-                f"[schema] {args.prd} \u2014 JSON Schema validation failed ({len(js_errors)} error(s)):",
-                file=sys.stderr,
-            )
-            for err in js_errors:
-                print(err, file=sys.stderr)
-            return 2
+        method_used = "jsonschema-rs + stdlib"
+    if js_errors:
+        print(
+            f"[schema] {args.prd} \u2014 JSON Schema validation failed ({len(js_errors)} error(s)):",
+            file=sys.stderr,
+        )
+        for err in js_errors:
+            print(err, file=sys.stderr)
+        return 2
 
     # Always run stdlib validation for cross-story checks (duplicates, dangling deps)
     errors = validate_prd(prd)
@@ -403,8 +442,7 @@ def main() -> int:
 
     if not args.quiet:
         story_count = len(prd.get("userStories", []))
-        method = "JSON Schema + stdlib" if (schema_file and has_jsonschema()) else "stdlib"
-        print(f"[schema] {args.prd} \u2014 valid ({story_count} stories, {method})")
+        print(f"[schema] {args.prd} \u2014 valid ({story_count} stories, {method_used})")
     return 0
 
 

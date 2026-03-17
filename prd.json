@@ -6474,7 +6474,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-349",
@@ -7220,15 +7220,15 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true,
+      "passes": false,
       "last_attempted": "2026-03-17T03:26:38Z",
       "_failureReason": "story_cost_ceiling",
       "_phaseI": {
-        "diagnosisBlock": "## Current State\nThe CI workflows have 7+ jobs in ci.yml, plus release.yml and spiral.yml, each with a repeated 14-line uv setup block. The `shellcheck` and `shfmt-check` jobs also contain duplicate shell linting steps.\n\n## Problem Identified\nDuplicate uv setup steps across all Python jobs and separate shellcheck/shfmt jobs need to be consolidated into composite actions.\n\n## Planned Changes\n- Create `.github/actions/setup-uv/action.yml`  uv install + manual cache restore\n- Create `.github/actions/lint-shell/action.yml`  shellcheck + shfmt steps\n- Update `ci.yml`: replace uv blocks in 7 jobs, merge shellcheck+shfmt-check into one `lint-shell` job\n- Update `release.yml` and `spiral.yml`: replace uv blocks\nNow update ci.yml. I'll replace the repeated uv setup blocks and merge the two shell lint jobs:\nNow replace the uv setup blocks in each job. The `mypy` job first:\nNow the `ruff` job's uv block (it has the same pattern + lockfile validate + install dev):\nNow update the `test` job's uv block:\nNow read the mutation-test, sarif, dep-audit, sbom jobs to update them:\nNow read the sarif job area:\nNow read the dep-audit job area:\nNow find the sbom job:\nNow update release.yml and spiral.yml:\nNow let me verify there are no remaining raw uv setup blocks in the workflow files:\nAll raw uv blocks removed. Now check that composite action references are correct and no old shellcheck/shfmt-check references remain:\nAll 9 jobs now use the composite actions. The old `shellcheck` and `shfmt-check` jobs are gone, replaced by a single `lint-shell` job.\n\nNow check if the `pinned-actions-check` grep pattern would pick up the composite action calls (it shouldn't since they have no `@`):\nThe pinned-actions-check passes. Now update prd.json to mark US-382 as passes:\nNow document learnings and commit:\nUS-382 is complete. Here's what was done:\n\n**Created:**\n- `.github/actions/setup-uv/action.yml`  composite action with `astral-sh/setup-uv`, cache dir lookup, and `actions/cache` (SHA pins centralized here)\n- `.github/actions/lint-shell/action.yml`  composite action running shellcheck + shfmt on all SPIRAL shell scripts\n\n**Updated:**\n- `ci.yml`: 7 jobs now use `uses: ./.github/actions/setup-uv`; the old `shellcheck` + `shfmt-check` jobs merged into a single `lint-shell` job using `uses: ./.github/actions/lint-shell`\n- `release.yml` + `spiral.yml`: uv setup blocks replaced with the composite action\n\nThe `pinned-actions-check` job still passes  local composite action refs (`./.github/actions/...`) don't contain `@` so they aren't caught by the SHA-pin grep pattern."
+        "diagnosisBlock": "## Current State\nUS-382's implementation was fully committed in b3e27bb. Composite actions exist and all workflows reference them.\n\n## Problem Identified\nThe story was marked `passes: false` only because the previous agent exceeded the cost ceiling  not because the implementation was incorrect.\n\n## Planned Changes\n- Mark US-382 `passes: true` in prd.json\n- Document in progress.txt\nNow append the completion note and commit.\nUS-382 is complete. The implementation was already done in commit b3e27bb (attempt 2)  it only failed due to cost ceiling, not incorrect work. Validated and marked `passes: true`."
       },
       "_contextStats": {
-        "tokensBeforeMasking": 77,
-        "tokensAfterMasking": 77,
+        "tokensBeforeMasking": 377,
+        "tokensAfterMasking": 375,
         "reductionPct": 0,
         "contextWindow": 10
       }
@@ -7250,7 +7250,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false
+      "passes": false,
+      "last_attempted": "2026-03-17T03:29:39Z"
     },
     {
       "id": "US-384",
