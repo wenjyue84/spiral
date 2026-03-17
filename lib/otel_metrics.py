@@ -33,6 +33,9 @@ import time
 from pathlib import Path
 from typing import Optional
 
+# Ensure lib/ is on the import path (for direct script execution)
+sys.path.insert(0, str(Path(__file__).parent))
+
 # ── GenAI semconv metric names (semconv 0.61+) ────────────────────────────────
 _METRIC_TOKEN_USAGE = "gen_ai.client.token.usage"
 _METRIC_OPERATION_DURATION = "gen_ai.client.operation.duration"
@@ -98,9 +101,10 @@ def cmd_record_tokens(args: argparse.Namespace) -> None:
         from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
         from opentelemetry.sdk.metrics import MeterProvider
         from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
-        from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 
-        resource = Resource.create({SERVICE_NAME: "spiral"})
+        from otel_resource_builder import build_otel_resource
+
+        resource = build_otel_resource()
         exporter = OTLPMetricExporter(endpoint=endpoint)
         # Short export interval so force_flush sends immediately
         reader = PeriodicExportingMetricReader(exporter, export_interval_millis=100)
@@ -178,10 +182,10 @@ def _build_prometheus_text(scratch_dir: str) -> str:
                     "calls": 0,
                     "duration_ms": 0.0,
                 }
-            totals[key]["input"] = totals[key]["input"] + rec.get("input_tokens", 0)  # type: ignore[operator]
-            totals[key]["output"] = totals[key]["output"] + rec.get("output_tokens", 0)  # type: ignore[operator]
+            totals[key]["input"] = totals[key]["input"] + rec.get("input_tokens", 0)
+            totals[key]["output"] = totals[key]["output"] + rec.get("output_tokens", 0)
             totals[key]["calls"] = totals[key]["calls"] + 1  # type: ignore[operator]
-            totals[key]["duration_ms"] = totals[key]["duration_ms"] + rec.get("duration_ms", 0.0)  # type: ignore[operator]
+            totals[key]["duration_ms"] = totals[key]["duration_ms"] + rec.get("duration_ms", 0.0)
     except OSError:
         return "# Error reading token_metrics.jsonl\n"
 

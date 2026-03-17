@@ -36,6 +36,9 @@ import time
 from pathlib import Path
 from typing import Optional
 
+# Ensure lib/ is on the import path (for direct script execution)
+sys.path.insert(0, str(Path(__file__).parent))
+
 # ── GenAI semantic convention attributes for content events ──────────────────
 _GEN_AI_SYSTEM = "gen_ai.system"
 _GEN_AI_REQUEST_MODEL = "gen_ai.request.model"
@@ -73,7 +76,10 @@ def cmd_emit_prompt(args: argparse.Namespace) -> None:
       - gen_ai.system: "anthropic"
       - gen_ai.request.model
       - timestamp
+      - resource: OTel Resource attributes (US-401)
     """
+    from otel_resource_builder import resource_to_dict
+
     system_prompt: str = args.system_prompt or ""
     user_prompt: str = args.user_prompt or ""
     model: str = args.model or "unknown"
@@ -97,6 +103,7 @@ def cmd_emit_prompt(args: argparse.Namespace) -> None:
         "prompt_length_chars": len(combined_prompt),
         "system_prompt_length": len(system_prompt),
         "user_prompt_length": len(user_prompt),
+        "resource": resource_to_dict(),
     }
     if not redact:
         event_record["prompt"] = combined_prompt
@@ -114,11 +121,12 @@ def cmd_emit_prompt(args: argparse.Namespace) -> None:
 
     try:
         from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-        from opentelemetry.sdk.resources import SERVICE_NAME, Resource
         from opentelemetry.sdk.trace import TracerProvider
         from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
-        resource = Resource.create({SERVICE_NAME: "spiral"})
+        from otel_resource_builder import build_otel_resource
+
+        resource = build_otel_resource()
         exporter = OTLPSpanExporter(endpoint=endpoint)
         provider = TracerProvider(resource=resource)
         provider.add_span_processor(SimpleSpanProcessor(exporter))
@@ -155,7 +163,10 @@ def cmd_emit_completion(args: argparse.Namespace) -> None:
       - gen_ai.system: "anthropic"
       - gen_ai.request.model
       - timestamp
+      - resource: OTel Resource attributes (US-401)
     """
+    from otel_resource_builder import resource_to_dict
+
     completion: str = args.completion or ""
     model: str = args.model or "unknown"
     redact: bool = _should_redact()
@@ -168,6 +179,7 @@ def cmd_emit_completion(args: argparse.Namespace) -> None:
         "model": model,
         "redacted": redact,
         "completion_length_chars": len(completion),
+        "resource": resource_to_dict(),
     }
     if not redact:
         event_record["completion"] = completion
@@ -185,11 +197,12 @@ def cmd_emit_completion(args: argparse.Namespace) -> None:
 
     try:
         from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-        from opentelemetry.sdk.resources import SERVICE_NAME, Resource
         from opentelemetry.sdk.trace import TracerProvider
         from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
-        resource = Resource.create({SERVICE_NAME: "spiral"})
+        from otel_resource_builder import build_otel_resource
+
+        resource = build_otel_resource()
         exporter = OTLPSpanExporter(endpoint=endpoint)
         provider = TracerProvider(resource=resource)
         provider.add_span_processor(SimpleSpanProcessor(exporter))

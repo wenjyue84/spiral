@@ -48,6 +48,9 @@ import time
 from pathlib import Path
 from typing import Optional
 
+# Ensure lib/ is on the import path (for direct script execution)
+sys.path.insert(0, str(Path(__file__).parent))
+
 # ── GenAI semantic convention attribute names (semconv 0.61+) ─────────────────
 _GEN_AI_AGENT_ID = "gen_ai.agent.id"
 _GEN_AI_AGENT_NAME = "gen_ai.agent.name"
@@ -137,13 +140,15 @@ def _make_tracer() -> tuple[object, object]:
     If OTEL_EXPORTER_OTLP_ENDPOINT is not set, returns a no-op tracer.
 
     Privacy scrubbing is applied before export (US-348).
+    Resource attributes include service.name, service.version, service.namespace, host.name (US-401).
     """
     from opentelemetry import trace
-    from opentelemetry.sdk.resources import SERVICE_NAME, Resource
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
-    resource = Resource.create({SERVICE_NAME: "spiral"})
+    from otel_resource_builder import build_otel_resource
+
+    resource = build_otel_resource()
     provider = TracerProvider(resource=resource)
 
     endpoint = _otlp_endpoint()
@@ -180,14 +185,16 @@ def _emit_completed_span(
 
     Uses the NonRecordingSpan context trick to set parent_span_id without
     requiring the parent span to be alive in this process.
+    Resource attributes include service.name, service.version, service.namespace, host.name (US-401).
     """
     from opentelemetry import trace
-    from opentelemetry.sdk.resources import SERVICE_NAME, Resource
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import SimpleSpanProcessor
     from opentelemetry.trace import SpanContext, SpanKind, TraceFlags
 
-    resource = Resource.create({SERVICE_NAME: "spiral"})
+    from otel_resource_builder import build_otel_resource
+
+    resource = build_otel_resource()
     provider = TracerProvider(resource=resource)
 
     endpoint = _otlp_endpoint()
@@ -246,7 +253,7 @@ def _emit_completed_span(
     # directly; we use the context object already set above.
     # Set attributes
     for k, v in attributes.items():
-        span.set_attribute(k, v)
+        span.set_attribute(k, v)  # type: ignore[arg-type]
 
     # End the span with the historical timestamp
     span.end(end_time=end_time_ns)
@@ -532,7 +539,9 @@ def _log_invoke_agent_event(
     cache_read_tokens: int = 0,
     cache_creation_tokens: int = 0,
 ) -> None:
-    """Append an invoke_agent span event to spiral_events.jsonl."""
+    """Append an invoke_agent span event to spiral_events.jsonl with Resource attributes (US-401)."""
+    from otel_resource_builder import resource_to_dict
+
     scratch = os.environ.get("SCRATCH_DIR", os.environ.get("SPIRAL_SCRATCH_DIR", ".spiral"))
     log_file = os.path.join(scratch, "spiral_events.jsonl")
     ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
@@ -554,6 +563,7 @@ def _log_invoke_agent_event(
         "status": status,
         "gen_ai.usage.cache_read.input_tokens": cache_read_tokens,
         "gen_ai.usage.cache_creation.input_tokens": cache_creation_tokens,
+        "resource": resource_to_dict(),
     }
     tp = os.environ.get("TRACEPARENT", "")
     if tp:
