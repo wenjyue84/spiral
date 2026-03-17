@@ -2374,3 +2374,25 @@ COST CEILING: Add .pre-commit-config.yaml for local dev quality gate enforcement
 - [x] CI failure output includes the seed value → seed appears before worker creation in xdist output
 - [x] Any newly discovered test ordering dependencies are fixed → none found; existing failures are pre-existing
 - [x] CI configuration passes --randomly-seed=last to rerun on retry → ci.yml lines 150-161
+
+## Iteration - Story: US-433 - Write episodic record after successful Ralph story in commit_revert.sh (COMPLETED)
+
+### What was implemented
+- Replaced ungated episodic memory block in lib/impl/commit_revert.sh with properly gated version
+- Added `[[ "${SPIRAL_EPISODIC_MEMORY:-false}" == "true" ]]` gate so the call is opt-in
+- Extracts approach_summary from last 15 lines of progress.txt section matching story_id
+- Silences all errors with `2>/dev/null || true` so commit flow is never broken
+
+### Files modified
+- lib/impl/commit_revert.sh — lines 163-170: replaced ungated block with gated if/fi (5 lines)
+
+### Patterns discovered
+- The partial implementation already existed from a prior attempt but lacked the SPIRAL_EPISODIC_MEMORY gate
+- `grep -A 15 "Story:.*${story_id}" progress.txt | tail -15` gives the last section's body — sufficient for approach_summary
+- `cut -c1-300` cleanly caps the summary length without subprocess overhead
+
+### Acceptance criteria mapping
+- [x] commit_revert.sh calls episodic_memory.py write after a successful commit → line 166-169
+- [x] Call is gated by SPIRAL_EPISODIC_MEMORY check → line 164
+- [x] approach_summary extracted from last progress.txt section matching story_id → line 165
+- [x] Errors from episodic_memory.py are silently ignored with || true → line 169
