@@ -2117,3 +2117,4 @@ COST CEILING: Add WorktreeCreate and WorktreeRemove Claude Code hooks to emit st
 ### Gotchas
 - Git Bash on Windows transforms absolute paths; bats tests use relative paths to avoid this
 - `.spiral/` is already gitignored so worktree-audit.jsonl needs no extra gitignore entry
+
