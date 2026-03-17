@@ -1,0 +1,6 @@
+input,expected_output,phase
+Story validation test 1,"{""id"":""US-001"",""passes"":true,""errors"":[]}",phase_s
+Story validation test 2,"{""id"":""US-002"",""validation"":""passed"",""checksum"":""abc123""}",phase_s
+Story validation test 3,"{""id"":""US-003"",""passes"":false,""errors"":[""Missing required field""]}",phase_s
+Story validation test 4,"{""id"":""US-004"",""stories"":[{""valid"":true}],""summary"":""Validated 1 story""}",phase_s
+Story validation test 5,"{""id"":""US-005"",""validated_count"":5,""failed_count"":0,""total"":5}",phase_s

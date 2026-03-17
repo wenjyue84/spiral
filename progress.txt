@@ -1851,3 +1851,4 @@ COST CEILING: Migrate prd.schema.json to JSON Schema Draft 2020-12 with prefixIt
 ### Gotchas
 - Previous attempt failed by implementing the WRONG story (US-349 eval harness) instead of US-385 (schema migration)
 - The schema migration was mostly complete — main work was identifying and adding missing runtime properties
+

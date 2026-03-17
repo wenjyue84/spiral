@@ -1,0 +1,6 @@
+input,expected_output,phase
+Research synthesis test 1,"{""stories"":[{""id"":""US-101"",""source"":""web""}],""count"":1}",phase_r
+Research synthesis test 2,"{""candidates"":[{""title"":""Feature A"",""evidence"":""From website docs""}],""total"":1}",phase_r
+Research synthesis test 3,"{""stories"":[],""quality_score"":0.75,""status"":""partial""}",phase_r
+Research synthesis test 4,"{""candidates"":[{""title"":""Finding 1"",""source"":""research""}],""summary"":""Research complete""}",phase_r
+Research synthesis test 5,"{""stories"":[{""id"":""US-105""}],""deduped"":1,""final_count"":2}",phase_r

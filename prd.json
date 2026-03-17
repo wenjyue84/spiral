@@ -7207,7 +7207,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-382",
@@ -7262,7 +7262,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
-      "last_attempted": "2026-03-17T03:59:50Z",
+      "last_attempted": "2026-03-17T04:28:01Z",
       "_failureReason": "story_cost_ceiling",
       "_contextStats": {
         "tokensBeforeMasking": 348,

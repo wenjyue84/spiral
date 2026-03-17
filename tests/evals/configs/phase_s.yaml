@@ -1,0 +1,30 @@
+id: phase_s
+name: Phase S — Story Validation
+description: Evaluates Phase S story validation logic against known test cases
+data_source: phase_s_validation.csv
+testing_criteria:
+  - name: Valid JSON Output
+    type: deterministic
+    params:
+      type: valid_json
+  - name: Contains ID Field
+    type: deterministic
+    params:
+      type: required_fields
+      required_fields:
+        - id
+  - name: No Validation Errors
+    type: deterministic
+    params:
+      type: no_errors
+      error_keywords:
+        - exception
+        - traceback
+        - failed validation
+  - name: Validation Quality Rubric
+    type: model_graded
+    rubric:
+      criteria:
+        - Validation output clearly indicates pass/fail status
+        - All story IDs are properly formatted as US-NNN
+        - Error messages are descriptive when validation fails

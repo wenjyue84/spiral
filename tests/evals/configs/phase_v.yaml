@@ -1,0 +1,32 @@
+id: phase_v
+name: Phase V — Validation & Quality
+description: Evaluates Phase V validation and code quality checks
+data_source: phase_v_quality.csv
+testing_criteria:
+  - name: Valid JSON Output
+    type: deterministic
+    params:
+      type: valid_json
+  - name: Contains Status or Validation Field
+    type: deterministic
+    params:
+      type: string_contains
+      substrings:
+        - status
+        - validated
+      all_required: false
+  - name: No Critical Errors
+    type: deterministic
+    params:
+      type: no_errors
+      error_keywords:
+        - exception
+        - traceback
+        - failed
+  - name: Code Quality Assessment Rubric
+    type: model_graded
+    rubric:
+      criteria:
+        - Diff size is reasonable (not excessively large)
+        - Test coverage percentage is clearly reported
+        - Commit message follows conventional format

@@ -1,0 +1,32 @@
+id: phase_r
+name: Phase R — Research Synthesis
+description: Evaluates Phase R research synthesis quality
+data_source: phase_r_research.csv
+testing_criteria:
+  - name: Valid JSON Output
+    type: deterministic
+    params:
+      type: valid_json
+  - name: Contains Story or Candidate Data
+    type: deterministic
+    params:
+      type: string_contains
+      substrings:
+        - stories
+        - candidates
+      all_required: false
+  - name: No Research Errors
+    type: deterministic
+    params:
+      type: no_errors
+      error_keywords:
+        - exception
+        - traceback
+        - failed
+  - name: Research Synthesis Quality Rubric
+    type: model_graded
+    rubric:
+      criteria:
+        - Research output includes evidence sources and citations
+        - Story candidates are distinct and non-redundant
+        - Quality assessment scores are consistent with content

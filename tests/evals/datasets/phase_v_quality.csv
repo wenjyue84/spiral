@@ -1,0 +1,6 @@
+input,expected_output,phase
+Output quality test 1,"{""validated"":true,""issues"":0,""warnings"":1,""status"":""pass""}",phase_v
+Output quality test 2,"{""diff_size"":500,""complexity_score"":0.6,""tests_added"":3,""quality"":""good"",""status"":""valid""}",phase_v
+Output quality test 3,"{""commits"":1,""message"":""feat: US-201"",""breaking_changes"":false,""status"":""valid""}",phase_v
+Output quality test 4,"{""test_coverage"":85,""lint_warnings"":0,""type_checks"":0,""status"":""approved""}",phase_v
+Output quality test 5,"{""acceptance_criteria_met"":[true,true,true],""all_passed"":true,""status"":""validated""}",phase_v
