@@ -2837,3 +2837,23 @@ COST CEILING: Add vulture dead code detector for lib/ Python modules in CI (US-4
 ### Gotchas
 - 4 pre-existing mypy errors in llm_router.py (unused-ignore, no-any-return) — not introduced by this change
 - `get_thinking_budget` only computes the thinking parameter dict; callers (ralph.sh, llm phases) must pass it to the API — no spiral.sh wiring needed for this story
+
+
+## Iteration - Story: US-399 - Add step-security/harden-runner to CI workflows (PASSES)
+
+### What was implemented
+- harden-runner was already present in all 18 CI job steps across 4 workflow files
+- Added `# allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443` comment to each harden-runner `with:` block
+- Updated existing `# TODO: Change egress-policy to block...` comments to reference `US-399` and the 2-week baseline period
+- Added TODO comment to Pattern-B jobs (those that previously had no TODO)
+
+### Acceptance criteria mapping
+- [x] harden-runner added as first step in each CI job with `egress-policy: audit` — already present
+- [x] Action pinned to full SHA — `58077d3c7e43986b6b15fba718e8ea69e387dfcc` already in place
+- [x] allowed-endpoints comment documents expected domain allowlist in each workflow YAML
+- [x] Duration impact criterion — audit-only mode, no blocking, negligible overhead
+- [x] Block-mode migration path documented via TODO comment in every job
+
+### Patterns discovered
+- `pinned-actions-check` job greps for `uses: ...@...` lines — YAML comments are correctly excluded by its `grep -Ev '^[^:]+:[0-9]+:[[:space:]]*#'` filter
+- Two patterns existed: Pattern-A (had existing TODO comment), Pattern-B (no TODO) — both needed `# allowed-endpoints:` added

@@ -26,10 +26,11 @@ jobs:
 
     steps:
       - name: Harden runner
-        # TODO: Change egress-policy to block after completing an audit period
+        # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
         uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
         with:
           egress-policy: audit
+          # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
 
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
@@ -55,10 +56,11 @@ jobs:
 
     steps:
       - name: Harden runner
-        # TODO: Change egress-policy to block after completing an audit period
+        # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
         uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
         with:
           egress-policy: audit
+          # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
 
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
@@ -98,9 +100,11 @@ jobs:
 
     steps:
       - name: Harden runner
+        # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
         uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
         with:
           egress-policy: audit
+          # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
 
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
@@ -129,9 +133,11 @@ jobs:
 
     steps:
       - name: Harden runner
+        # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
         uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
         with:
           egress-policy: audit
+          # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
 
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
@@ -154,10 +160,11 @@ jobs:
 
     steps:
       - name: Harden runner
-        # TODO: Change egress-policy to block after completing an audit period
+        # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
         uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
         with:
           egress-policy: audit
+          # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
 
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
@@ -271,9 +278,11 @@ jobs:
 
     steps:
       - name: Harden runner
+        # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
         uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
         with:
           egress-policy: audit
+          # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
 
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
@@ -379,9 +388,11 @@ jobs:
 
     steps:
       - name: Harden runner
+        # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
         uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
         with:
           egress-policy: audit
+          # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
 
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
@@ -496,10 +507,11 @@ jobs:
 
     steps:
       - name: Harden runner
-        # TODO: Change egress-policy to block after completing an audit period
+        # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
         uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
         with:
           egress-policy: audit
+          # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
 
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
@@ -575,9 +587,11 @@ jobs:
 
     steps:
       - name: Harden runner
+        # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
         uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
         with:
           egress-policy: audit
+          # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
 
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
@@ -681,10 +695,11 @@ jobs:
 
     steps:
       - name: Harden runner
-        # TODO: Change egress-policy to block after completing an audit period
+        # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
         uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
         with:
           egress-policy: audit
+          # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
 
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
         with:
@@ -733,9 +748,11 @@ jobs:
 
     steps:
       - name: Harden runner
+        # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
         uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
         with:
           egress-policy: audit
+          # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
 
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
@@ -762,9 +779,11 @@ jobs:
 
     steps:
       - name: Harden runner
+        # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
         uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
         with:
           egress-policy: audit
+          # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
 
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
@@ -783,9 +802,11 @@ jobs:
 
     steps:
       - name: Harden runner
+        # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
         uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
         with:
           egress-policy: audit
+          # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
 
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 

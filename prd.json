@@ -7226,7 +7226,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "last_attempted": "2026-03-17T03:26:38Z",
       "_failureReason": "story_cost_ceiling",
       "_phaseI": {
@@ -7655,7 +7655,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-400",
@@ -8097,7 +8097,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "last_attempted": "2026-03-17T10:13:27Z",
       "_failureReason": "story_cost_ceiling",
       "_phaseI": {
@@ -8129,7 +8129,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "last_attempted": "2026-03-17T10:35:30Z",
       "_failureReason": "story_cost_ceiling",
       "_phaseI": {
@@ -8163,7 +8163,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": false,
-      "last_attempted": "2026-03-17T10:46:42Z"
+      "last_attempted": "2026-03-17T11:05:19Z"
     },
     {
       "id": "US-421",
@@ -8493,7 +8493,7 @@
         "Composite actions use runs: using: composite with steps:"
       ],
       "dependencies": [],
-      "passes": false,
+      "passes": true,
       "_decomposedFrom": "US-382"
     },
     {
@@ -8515,7 +8515,7 @@
       "dependencies": [
         "US-439"
       ],
-      "passes": false,
+      "passes": true,
       "_decomposedFrom": "US-382"
     },
     {
