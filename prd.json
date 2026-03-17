@@ -7942,7 +7942,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-412",
@@ -8097,8 +8097,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
-      "last_attempted": "2026-03-17T10:07:01Z",
+      "passes": true,
+      "last_attempted": "2026-03-17T10:13:27Z",
       "_failureReason": "story_cost_ceiling"
     },
     {

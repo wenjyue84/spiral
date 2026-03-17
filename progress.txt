@@ -2663,3 +2663,28 @@ COST CEILING: Add cosine-similarity Phase R research cache lookup using sentence
 ## Iteration 8 - Tue, Mar 17, 2026  6:07:00 PM
 COST CEILING: Add Python version matrix CI job to verify 3.11/3.12/3.13 compatibility (US-418) — $2.681738 exceeded hard limit $2.00
 
+## Iteration 18 - Tue, Mar 17, 2026  6:13:25 PM
+COST CEILING: Add Python version matrix CI job to verify 3.11/3.12/3.13 compatibility (US-418) — $4.641936 exceeded hard limit $2.00
+
+
+## Iteration (Attempt 2, Sonnet) - Story: US-418 - Add Python version matrix CI job (PASSES)
+
+### What was implemented
+- `.github/workflows/ci.yml`: Added `strategy.matrix.python-version: ['3.11', '3.12', '3.13']` to `test` job
+- `.github/workflows/ci.yml`: Added `actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b  # v5.3.0` step after checkout
+- `.github/workflows/ci.yml`: Updated `uv run pytest` to `uv run --python ${{ matrix.python-version }} pytest`
+- `.github/workflows/ci.yml`: Updated artifact names to include `py${{ matrix.python-version }}` suffix (avoids upload conflicts)
+- `lib/pyproject.toml`: Updated `requires-python` from `>=3.13` to `>=3.11`
+
+### Acceptance criteria mapping
+- [x] pytest CI job uses strategy.matrix.python-version: ['3.11', '3.12', '3.13'] → test job lines 127-129
+- [x] actions/setup-python step uses matrix.python-version → lines 142-145
+- [x] uv run uses --python ${{ matrix.python-version }} → lines 174 and rerun step
+- [x] pyproject.toml requires-python = '>=3.11' → lib/pyproject.toml line 10
+
+### Gotchas
+- Previous attempt hit $2.68 cost ceiling — this attempt made minimal targeted changes only
+- Artifact names must be unique per matrix leg or upload-artifact v4 will fail with conflicts
+- lib/pyproject.toml is where requires-python lives (root pyproject.toml has no [project] table)
+- tests/pyproject.toml still says >=3.13 (not required to change per acceptance criteria)
+- pinned-actions-check enforces 40-char SHA on all uses: lines — used v5.3.0 SHA

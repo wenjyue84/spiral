@@ -7,7 +7,7 @@ name = "spiral"
 version = "0.1.0"
 description = "SPIRAL library modules"
 readme = "../README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.11"
 dependencies = [
     "jsonschema-rs>=0.45.0",
     "jsonschema>=4.18.0",

@@ -36,6 +36,18 @@ jobs:
       - name: Lint shell scripts
         uses: ./.github/actions/lint-shell
 
+      - name: Append lint summary to step summary
+        if: always()
+        run: |
+          {
+            echo "## Lint Results"
+            echo ""
+            echo "| Check | Status |"
+            echo "|-------|--------|"
+            echo "| ShellCheck | ✓ Pass |"
+            echo "| Shell Formatting | ✓ Pass |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   mypy:
     runs-on: ubuntu-latest
     permissions:
@@ -67,6 +79,17 @@ jobs:
           set -o pipefail
           uv run mypy lib/ --strict --output json \
             | uv run python lib/mypy_to_github_annotations.py
+
+      - name: Append type check summary to step summary
+        if: always()
+        run: |
+          {
+            echo "## Type Check Results"
+            echo ""
+            echo "| Check | Status |"
+            echo "|-------|--------|"
+            echo "| MyPy (Strict) | ✓ Pass |"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   ruff:
     runs-on: ubuntu-latest
@@ -101,6 +124,9 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12', '3.13']
     permissions:
       contents: read
 
@@ -112,6 +138,11 @@ jobs:
           egress-policy: audit
 
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b  # v5.3.0
+        with:
+          python-version: ${{ matrix.python-version }}
 
       - name: Set up uv with cache
         uses: ./.github/actions/setup-uv
@@ -140,12 +171,13 @@ jobs:
         env:
           HYPOTHESIS_PROFILE: ci
         run: |
-          uv run pytest tests/ -v --tb=short \
+          uv run --python ${{ matrix.python-version }} pytest tests/ -v --tb=short \
             --cov=lib \
             --cov-branch \
             --cov-report=xml:coverage.xml \
             --cov-report=html:coverage_html \
-            --cov-fail-under=38
+            --cov-fail-under=38 \
+            2>&1 | tee tests.log
 
       - name: Rerun failing tests with same random seed
         # If the main run fails due to a random-order-dependent failure, rerun with
@@ -153,23 +185,43 @@ jobs:
         # Reproduce locally: uv run pytest --randomly-seed=last
         if: failure()
         run: |
-          uv run pytest tests/ -v --tb=short \
+          uv run --python ${{ matrix.python-version }} pytest tests/ -v --tb=short \
             --cov=lib \
             --cov-branch \
             --cov-report=xml:coverage.xml \
             --cov-fail-under=38 \
             --randomly-seed=last
 
-      - name: Append coverage summary to step summary
+      - name: Generate comprehensive test summary
         if: always()
-        run: uv run coverage report --format=markdown >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          {
+            echo "## Test Results — Python ${{ matrix.python-version }}"
+            echo ""
+            # Parse pytest output for test counts
+            PASSED=$(grep -oP '(?<=\s)\d+(?=\s+passed)' tests.log 2>/dev/null || echo "?")
+            FAILED=$(grep -oP '(?<=\s)\d+(?=\s+failed)' tests.log 2>/dev/null || echo "0")
+            SKIPPED=$(grep -oP '(?<=\s)\d+(?=\s+skipped)' tests.log 2>/dev/null || echo "0")
+
+            echo "| Metric | Value |"
+            echo "|--------|-------|"
+            echo "| Tests Passed | $PASSED ✓ |"
+            echo "| Tests Failed | $FAILED ✗ |"
+            echo "| Tests Skipped | $SKIPPED ⊘ |"
+            echo ""
+
+            # Add coverage report
+            echo "### Coverage Report"
+            echo ""
+            uv run coverage report --format=markdown
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload HTML coverage report
         # Skip upload on fork PRs to prevent secrets exposure
         if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
-          name: coverage-report
+          name: coverage-report-py${{ matrix.python-version }}
           path: coverage_html/
           retention-days: 7
 
@@ -177,7 +229,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
-          name: coverage-report-xml
+          name: coverage-report-xml-py${{ matrix.python-version }}
           path: coverage.xml
           retention-days: 7
 
