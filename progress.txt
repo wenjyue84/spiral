@@ -1715,3 +1715,17 @@ COST CEILING: Extract repeated spiral CI steps into composite actions in .github
 - Previous attempt hit $2.79 cost ceiling from excessive file exploration — on retry, read only what's needed to plan, then implement directly
 - Always use `uv run python` with `encoding='utf-8'` when reading/writing JSON on Windows (cp1252 default codec fails on non-ASCII)
 - The `actionlint` job scans `.github/workflows/*.yml` — composite action files are not scanned by it
+## Iteration 9 - Tue, Mar 17, 2026 11:26:37 AM
+COST CEILING: Extract repeated spiral CI steps into composite actions in .github/actions/ (US-382) — $3.948569 exceeded hard limit $2.00
+
+## Iteration 10 - Story: US-382 (finalization)
+
+### What was implemented
+- Verified commit b3e27bb already contains all composite action work from attempt 2
+- Confirmed no raw `astral-sh/setup-uv` references remain in workflow files (all centralized)
+- 10 composite action references across ci.yml, release.yml, spiral.yml
+- Marked US-382 passes=true
+
+### Gotchas
+- Story failed 2x on cost ceiling only — implementation was correct from attempt 2. On attempt 3 (opus), just validated and marked complete instead of re-implementing.
+
