@@ -96,6 +96,14 @@ SPIRAL_BATCH_VALIDATE="${SPIRAL_BATCH_VALIDATE:-0}"
 # Note: Vote results are recorded in results.tsv as votes_accept/votes_reject fields.
 SPIRAL_VALIDATION_VOTES="${SPIRAL_VALIDATION_VOTES:-3}"
 
+# ── Semantic dedup threshold (US-371) ───────────────────────────────────────
+# TF-IDF cosine similarity threshold for near-duplicate story detection in Phase S.
+# Stories from 'research' or 'ai-example' sources with similarity >= threshold to
+# an existing prd.json story are rejected as semantic duplicates.
+# 0.85 is conservative to avoid false positives on related-but-distinct stories.
+# Set to 0 to disable semantic dedup entirely.
+SPIRAL_SEMANTIC_DEDUP_THRESHOLD="${SPIRAL_SEMANTIC_DEDUP_THRESHOLD:-0.85}"
+
 # ── Worker env allowlist (US-359) ──────────────────────────────────────────
 # Comma-separated list of env var names/prefixes passed to worker subprocesses.
 # Suffix * for prefix match (e.g. SPIRAL_* matches SPIRAL_WORKER_ID, SPIRAL_PYTHON).

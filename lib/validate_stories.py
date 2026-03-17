@@ -22,6 +22,7 @@ import json
 import os
 import re
 import sys
+from typing import Any
 
 from pydantic import ValidationError
 
@@ -94,6 +95,78 @@ _STOPWORDS = {
     "log",
     "key",
 }
+
+
+def _story_text(story: dict[str, Any]) -> str:
+    """Combine title + description + first 2 acceptance criteria for TF-IDF."""
+    parts: list[str] = [
+        story.get("title", ""),
+        story.get("description", ""),
+    ]
+    acs = story.get("acceptanceCriteria", [])
+    if isinstance(acs, list):
+        parts.extend(str(a) for a in acs[:2])
+    return " ".join(p for p in parts if p)
+
+
+def _semantic_dedup_pass(
+    candidates: list[dict[str, Any]],
+    existing_stories: list[dict[str, Any]],
+    threshold: float,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Return (kept_candidates, semantic_rejected) using TF-IDF cosine similarity.
+
+    Only stories with _source in ['research', 'ai-example'] are checked.
+    Compares each candidate against existing prd.json stories.
+    """
+    if threshold <= 0.0 or not existing_stories:
+        return candidates, []
+
+    to_check = [(i, c) for i, c in enumerate(candidates) if c.get("_source") in ("research", "ai-example")]
+    if not to_check:
+        return candidates, []
+
+    try:
+        from sklearn.feature_extraction.text import TfidfVectorizer
+        from sklearn.metrics.pairwise import cosine_similarity
+    except ImportError:
+        return candidates, []
+
+    existing_pairs = [(s, _story_text(s)) for s in existing_stories if _story_text(s).strip()]
+    if not existing_pairs:
+        return candidates, []
+
+    f_existing_stories_seq, f_existing_texts_seq = zip(*existing_pairs)
+    f_existing_stories: tuple[dict[str, Any], ...] = f_existing_stories_seq
+    f_existing_texts: tuple[str, ...] = f_existing_texts_seq
+
+    kept_indices: set[int] = set(range(len(candidates)))
+    semantic_rejected: list[dict[str, Any]] = []
+
+    for i, candidate in to_check:
+        candidate_text = _story_text(candidate)
+        if not candidate_text.strip():
+            continue
+        all_texts: list[str] = list(f_existing_texts) + [candidate_text]
+        try:
+            vectorizer = TfidfVectorizer(min_df=1, stop_words="english")
+            tfidf_matrix = vectorizer.fit_transform(all_texts)
+        except ValueError:
+            continue
+        candidate_vec = tfidf_matrix[-1]
+        existing_vecs = tfidf_matrix[:-1]
+        sims = cosine_similarity(candidate_vec, existing_vecs)[0]
+        max_idx = int(sims.argmax())
+        max_sim = float(sims[max_idx])
+        if max_sim >= threshold:
+            duplicate_of = f_existing_stories[max_idx].get("id", "unknown")
+            reason = f"semantic_duplicate_of: {duplicate_of}"
+            semantic_rejected.append({**candidate, "_rejected": True, "_rejection_reason": reason})
+            kept_indices.discard(i)
+            print(f"  [S] REJECTED (semantic_dup): {candidate.get('title', '')[:70]!r} — {reason}")
+
+    kept = [candidates[i] for i in range(len(candidates)) if i in kept_indices]
+    return kept, semantic_rejected
 
 
 def _normalize(text: str) -> set[str]:
@@ -390,8 +463,13 @@ def validate_stories(
             seen_titles.add(t)
             all_candidates.append(story)
 
+    # ── Semantic dedup pass (US-371) ─────────────────────────────────────────
+    sem_threshold = float(os.environ.get("SPIRAL_SEMANTIC_DEDUP_THRESHOLD", "0.85"))
+    existing_stories = prd.get("userStories", [])
+    all_candidates, pre_rejected = _semantic_dedup_pass(all_candidates, existing_stories, sem_threshold)
+
     accepted: list[dict] = []
-    rejected: list[dict] = []
+    rejected: list[dict] = list(pre_rejected)
 
     # ── Batch API path (US-390) ───────────────────────────────────────────
     if use_batch_api:
