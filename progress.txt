@@ -2396,3 +2396,21 @@ COST CEILING: Add .pre-commit-config.yaml for local dev quality gate enforcement
 - [x] Call is gated by SPIRAL_EPISODIC_MEMORY check → line 164
 - [x] approach_summary extracted from last progress.txt section matching story_id → line 165
 - [x] Errors from episodic_memory.py are silently ignored with || true → line 169
+## Iteration 15 - Tue, Mar 17, 2026  5:29:25 PM
+COST CEILING: Add cosine-similarity Phase R research cache lookup using sentence embeddings (US-403) — $2.384438 exceeded hard limit $2.00
+
+
+## Iteration - Story: US-422 - Add pytest-cov HTML report as downloadable GitHub Actions artifact (COMPLETED)
+
+### What was implemented
+- Changed --cov-report=html:htmlcov → --cov-report=html:coverage_html in ci.yml test step
+- Updated "Upload HTML coverage report" step: name coverage-report-html → coverage-report, path htmlcov/ → coverage_html/
+- Added fork protection condition: "if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)"
+- Added "Rerun failing tests with same random seed" step with --randomly-seed=last (was missing from ci.yml, needed for US-421 criterion 5)
+- Added coverage_html/ and htmlcov/ to .gitignore
+
+### Acceptance criteria mapping
+- [x] pytest CI step generates --cov-report=html:coverage_html → ci.yml line 147
+- [x] upload-artifact with name 'coverage-report' and retention-days: 7 → ci.yml lines 172-174
+- [x] Artifact visible in GH Actions run summary → standard artifact upload
+- [x] NOT uploaded on fork PRs → fork condition at ci.yml line 169

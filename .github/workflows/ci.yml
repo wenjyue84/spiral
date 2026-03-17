@@ -144,19 +144,33 @@ jobs:
             --cov=lib \
             --cov-branch \
             --cov-report=xml:coverage.xml \
-            --cov-report=html:htmlcov \
+            --cov-report=html:coverage_html \
             --cov-fail-under=38
+
+      - name: Rerun failing tests with same random seed
+        # If the main run fails due to a random-order-dependent failure, rerun with
+        # the same seed so the ordering is deterministic and reproducible locally.
+        # Reproduce locally: uv run pytest --randomly-seed=last
+        if: failure()
+        run: |
+          uv run pytest tests/ -v --tb=short \
+            --cov=lib \
+            --cov-branch \
+            --cov-report=xml:coverage.xml \
+            --cov-fail-under=38 \
+            --randomly-seed=last
 
       - name: Append coverage summary to step summary
         if: always()
         run: uv run coverage report --format=markdown >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload HTML coverage report
-        if: always()
+        # Skip upload on fork PRs to prevent secrets exposure
+        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
-          name: coverage-report-html
-          path: htmlcov/
+          name: coverage-report
+          path: coverage_html/
           retention-days: 7
 
       - name: Upload coverage XML
