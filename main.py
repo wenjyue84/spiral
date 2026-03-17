@@ -598,6 +598,9 @@ def cmd_estimate(args):
         argv += ["--model", args.model]
     if getattr(args, "yes", False):
         argv.append("--yes")
+    if getattr(args, "report", False):
+        argv.append("--report")
+    argv += ["--velocity-model", str(SCRATCH_DIR / "velocity_model.json")]
 
     rc = mod.main(argv)
 
@@ -2046,6 +2049,11 @@ def main():
         "--yes",
         action="store_true",
         help="Skip confirmation prompt (CI mode)",
+    )
+    estimate_parser.add_argument(
+        "--report",
+        action="store_true",
+        help="Print velocity model report table (story_type stats from results.tsv)",
     )
 
     search_parser = subparsers.add_parser(
