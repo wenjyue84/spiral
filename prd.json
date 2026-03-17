@@ -8009,7 +8009,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-415",
@@ -8098,7 +8098,8 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
-      "last_attempted": "2026-03-17T10:02:39Z"
+      "last_attempted": "2026-03-17T10:07:01Z",
+      "_failureReason": "story_cost_ceiling"
     },
     {
       "id": "US-419",

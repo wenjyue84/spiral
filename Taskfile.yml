@@ -1,0 +1,66 @@
+version: '3'
+
+tasks:
+  test:
+    desc: "Run all unit tests with coverage"
+    cmds:
+      - uv run pytest tests/ -v --tb=short
+    silent: false
+
+  lint:
+    desc: "Run all linters: shellcheck, shfmt, ruff, mypy"
+    cmds:
+      - cmd: shellcheck --severity=error spiral.sh setup.sh lib/*.sh ralph/ralph.sh
+        desc: "Lint shell scripts"
+      - cmd: shfmt -d -i 2 -ci spiral.sh setup.sh lib/*.sh ralph/ralph.sh
+        desc: "Check shell script formatting"
+      - cmd: uv run ruff check lib/ tests/
+        desc: "Lint Python code"
+      - cmd: uv run mypy lib/ --strict
+        desc: "Type check Python code"
+    silent: false
+
+  bats:
+    desc: "Run all bats integration tests"
+    cmds:
+      - tests/bats-core/bin/bats tests/*.bats tests/lib/*.bats
+    silent: false
+
+  doctor:
+    desc: "Verify all dependencies and environment"
+    cmds:
+      - bash lib/spiral_doctor.sh
+    silent: false
+
+  fmt:
+    desc: "Format all code (shell and Python)"
+    cmds:
+      - cmd: shfmt -i 2 -ci -w spiral.sh setup.sh lib/*.sh ralph/ralph.sh
+        desc: "Format shell scripts"
+      - cmd: uv run ruff format lib/ tests/
+        desc: "Format Python code"
+    silent: false
+
+  check:
+    desc: "Run all type checks without modifications"
+    cmds:
+      - uv run mypy lib/ --strict
+    silent: false
+
+  clean:
+    desc: "Remove build artifacts and cache directories"
+    cmds:
+      - rm -rf .venv build dist __pycache__ .pytest_cache .mypy_cache
+      - find . -type d -name "__pycache__" -exec rm -rf {} +
+      - find . -type d -name ".mypy_cache" -exec rm -rf {} +
+      - find . -type f -name "*.pyc" -delete
+    silent: false
+
+  all:
+    desc: "Run all quality checks: test, lint, bats, doctor"
+    cmds:
+      - task: test
+      - task: lint
+      - task: bats
+      - task: doctor
+    silent: false
