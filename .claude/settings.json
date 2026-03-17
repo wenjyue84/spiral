@@ -5,6 +5,16 @@
         "matcher": "Edit|Write",
         "command": "bash .claude/hooks/protect-spiral-files.sh"
       }
+    ],
+    "WorktreeCreate": [
+      {
+        "command": "bash .claude/hooks/worktree_audit.sh"
+      }
+    ],
+    "WorktreeRemove": [
+      {
+        "command": "bash .claude/hooks/worktree_audit.sh"
+      }
     ]
   }
 }

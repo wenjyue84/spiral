@@ -2081,3 +2081,21 @@ COST CEILING: Add uv workspace-aware CI cache with hashFiles('uv.lock') key for 
 - mypy strict mode: pass
 - Overall: story complete, ready for next sub-story (US-433)
 
+## Iteration 5 - Tue, Mar 17, 2026  3:00:57 PM
+COST CEILING: Add WorktreeCreate and WorktreeRemove Claude Code hooks to emit structured worker lifecycle audit log (US-388) — $2.440205 exceeded hard limit $2.00
+
+
+## Iteration 6 - Story: US-388 - Add WorktreeCreate and WorktreeRemove Claude Code hooks
+
+### What was implemented
+- Created `.claude/hooks/worktree_audit.sh` — minimal bash script that reads hook JSON from stdin, extracts fields via jq, and appends a JSON entry to `.spiral/worktree-audit.jsonl`
+- Updated `.claude/settings.json` to register WorktreeCreate and WorktreeRemove hooks pointing to the new script
+- Created `tests/test_worktree_audit.bats` with 2 bats tests verifying JSON output format and multi-event append
+
+### Patterns discovered
+- Git Bash on Windows transforms absolute paths like `/work/...` to `C:/Program Files/Git/work/...` — bats tests must use relative paths in test JSON payloads to avoid this
+- The hook script uses `date -u +"%Y-%m-%dT%H:%M:%SZ"` instead of `now | todate` (jq syntax) since the shell `date` command is simpler and avoids jq version compatibility issues
+
+### Gotchas
+- Previous attempt hit cost ceiling ($2.44) due to over-reading files; this attempt was kept minimal (3 file writes, no exploratory reads)
+- `.spiral/` is already gitignored so worktree-audit.jsonl needs no extra gitignore entry
