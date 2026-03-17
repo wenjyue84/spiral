@@ -7427,12 +7427,12 @@
       "last_attempted": "2026-03-17T07:37:25Z",
       "_failureReason": "story_cost_ceiling",
       "_phaseI": {
-        "diagnosisBlock": "## Current State\nNo hook script or ConfigChange hook exists yet. The user-level `~/.claude/settings.json` has many hooks but no `ConfigChange` hook.\n\n## Problem Identified\nNeed to add a `ConfigChange` hook to block modifications to `.claude/settings.json` and `.claude/settings.local.json`, with audit logging.\n\n## Planned Changes\n1. Create `~/.claude/hooks/config_audit.sh`  reads stdin JSON, logs audit entry, exits 2 if settings.json is being changed\n2. Add `ConfigChange` hook to `~/.claude/settings.json` \n3. Create `tests/test_config_audit.bats`  tests blocking behavior\n\nLet me check the bats test pattern quickly:\nNow I have everything I need. Let me implement the 3 pieces:\nNow add the ConfigChange hook to `~/.claude/settings.json`. I need to read it first and add the hook:\nNow create the bats test:\nThe path resolution doesn't work on Windows with Git Bash. Fix the hook script path in the test:\nAll 4 tests pass. Now mark the story complete and commit:\nThe `~/.claude/` files are outside the Spiral repo - I can only commit the project files:\nUS-389 is complete. Summary:\n\n- **`~/.claude/hooks/config_audit.sh`**  reads stdin JSON, appends `{timestamp, source, file_path, session_id}` to `~/.spiral/config-audit.jsonl`, exits 2 with BLOCKED message if `file_path` matches `.claude/settings.json` or `.claude/settings.local.json`\n- **`~/.claude/settings.json`**  `ConfigChange` hook registered with `matcher: project_settings`\n- **`tests/test_config_audit.bats`**  4 tests all passing: audit fields, block settings.json, block settings.local.json, allow others\n- **`prd.json`**  US-389 marked `passes: true`"
+        "diagnosisBlock": "## Current State\nThe implementation from iteration 10 is fully in place:\n- `~/.claude/hooks/config_audit.sh`  reads stdin JSON, appends audit, blocks settings.json with exit 2\n- `~/.claude/settings.json`  ConfigChange hook registered with `matcher: project_settings`\n- `tests/test_config_audit.bats`  4 tests, all passing\n\n## Problem Identified\nStory US-389 was fully implemented in prior attempts but hit cost ceiling before prd.json could be committed as `passes: true`.\n\n## Planned Changes\n1. Mark US-389 as `passes: true` in prd.json\n2. Commit the change\n3. Update progress.txt\nNow append the progress entry and commit.\nUS-389 is complete. The implementation was already in place from prior attempts  verified all 4 bats tests pass, marked `passes: true`, and committed."
       },
       "_contextStats": {
-        "tokensBeforeMasking": 68,
-        "tokensAfterMasking": 67,
-        "reductionPct": 1,
+        "tokensBeforeMasking": 324,
+        "tokensAfterMasking": 322,
+        "reductionPct": 0,
         "contextWindow": 10
       }
     },
@@ -7718,7 +7718,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false
+      "passes": false,
+      "last_attempted": "2026-03-17T07:40:18Z"
     },
     {
       "id": "US-403",
