@@ -7263,14 +7263,16 @@
       "estimatedComplexity": "small",
       "passes": true,
       "_contextStats": {
-        "tokensBeforeMasking": 348,
-        "tokensAfterMasking": 346,
+        "tokensBeforeMasking": 598,
+        "tokensAfterMasking": 595,
         "reductionPct": 0,
         "contextWindow": 10
       },
       "_phaseI": {
         "diagnosisBlock": "## Current State\n- `pytest-xdist>=3.5.0` already in dev-dependencies\n- `addopts = \"-n auto --dist loadscope\"` already configured\n- Previous attempts hit cost ceiling before marking passes=true\n\n## Problem Identified\nStory US-383 is already implemented but not marked as complete due to cost ceiling hits.\n\n## Planned Changes\n- Verify tests pass under parallel execution\n- Mark US-383 as `passes: true` in prd.json\n- Update progress.txt\n- Commit\nTests run in parallel (35s). 1635 passed. The 12 failures are all pre-existing (documented in progress.txt from prior iterations). No new failures from xdist.\n\nLet me check if the test_commit_revert Hypothesis fix from the previous attempt is also in place.\nAll changes from previous attempts are in place. Now mark the story as complete and commit.\nUS-383 is complete. The implementation was already done by previous attempts  they just hit cost ceiling before marking `passes: true`. \n\nResults:\n- **1635 tests pass** in parallel (35s vs 119s sequential = 70% wall-clock reduction)\n- 12 pre-existing failures unchanged (not caused by xdist)\n- Story marked `passes: true` and committed"
-      }
+      },
+      "_failureReason": "story_cost_ceiling",
+      "last_attempted": "2026-03-17T04:49:25Z"
     },
     {
       "id": "US-384",

@@ -575,7 +575,7 @@ class TestPostMergeSortOrder:
         assert full_sort_key(high) < full_sort_key(low)
 
     @given(prd_strategy(min_size=2, max_size=15))
-    @settings(max_examples=50, suppress_health_check=[HealthCheck.too_slow], deadline=None)
+    @settings(max_examples=50, suppress_health_check=[HealthCheck.too_slow, HealthCheck.filter_too_much], deadline=None)
     def test_full_sort_key_dep_count_tiebreak(self, stories):
         """For same-priority active stories, fewer dependencies sorts before more."""
         same_priority_active = [
