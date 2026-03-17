@@ -165,6 +165,9 @@ SPIRAL_CASCADE_FAN_OUT_LIMIT="${SPIRAL_CASCADE_FAN_OUT_LIMIT:-5}"
 # Default 3 matches the existing graduated recovery (decompose → halve batch → halt).
 SPIRAL_CONSECUTIVE_FAIL_ABORT="${SPIRAL_CONSECUTIVE_FAIL_ABORT:-3}"
 
+# ── Skip disk space preflight check (slow on Windows NTFS) ──────────────────
+export SPIRAL_SKIP_DISK_CHECK=1
+
 # ── Cost ceiling: abort when cumulative API spend exceeds budget ──────────────
 # Set to a USD amount (e.g., 50.0) to cap spending. Empty = disabled.
 # SPIRAL_COST_CEILING=""
