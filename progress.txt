@@ -2035,3 +2035,16 @@ COST CEILING: Add uv workspace-aware CI cache with hashFiles('uv.lock') key for 
 ### Gotchas
 - hashFiles('uv.lock') uses exact path (not glob) for deterministic cache keys
 - Cache key prefix order matters for story spec: `uv-${{ runner.os }}-` not `${{ runner.os }}-uv-`
+## Iteration 2 - Tue, Mar 17, 2026  2:34:34 PM
+COST CEILING: Add uv workspace-aware CI cache with hashFiles('uv.lock') key for exact-match restores (US-387) — $2.93491 exceeded hard limit $2.00
+
+
+## Iteration 3 (final) - Story: US-387 - Add uv workspace-aware CI cache
+
+### What was implemented
+- Changes were already in place from attempt 2 (cost ceiling prevented commit)
+- `.github/actions/setup-uv/action.yml`: cache key `uv-${{ runner.os }}-${{ hashFiles('uv.lock') }}`, restore-keys `uv-${{ runner.os }}-`, paths include uv cache + .venv
+- `uv sync --frozen` confirmed in all CI jobs
+
+### Gotchas
+- Previous attempts hit cost ceiling by over-reading files; the fix was a 3-line YAML change already committed to working tree
