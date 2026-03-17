@@ -2906,3 +2906,4 @@ COST CEILING: Add GitHub Actions PR comment with prd.json story status diff on P
 - [x] CI runs uv run lint-imports
 - [x] independence contract for import adapters
 - [x] No existing violations (3 kept, 0 broken)
+

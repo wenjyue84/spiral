@@ -10,6 +10,8 @@ Subcommands:
     export-env  Export spiral.config.sh SPIRAL_* variables as a .env file
   worktree      Git worktree management utilities
     audit       Audit all spiral worker worktrees for health anomalies
+  memory        Episodic memory management (US-350)
+    list        Show 20 most recent episodic records with pass/fail outcomes
   dlq           Dead-letter queue management (US-227)
     promote     Move exhausted stories (retry >= SPIRAL_MAX_RETRIES) to DLQ state
     list        Show all dead-lettered stories with failure reason and timestamp
@@ -25,6 +27,10 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+
+# Add lib/ to path for local imports
+sys.path.insert(0, str(Path(__file__).parent / "lib"))
+from episodic_memory import list_recent  # noqa: E402
 
 SPIRAL_SH = Path(__file__).parent / "spiral.sh"
 PRD_FILE = Path(__file__).parent / "prd.json"
@@ -1222,6 +1228,55 @@ def cmd_dlq_promote(args) -> None:  # noqa: ARG001
         print("[dlq] No stories eligible for DLQ promotion.")
 
 
+def cmd_memory_list(args) -> None:
+    """List the 20 most recent episodic memory records."""
+    episodic_db = SCRATCH_DIR / "episodic_memory.db"
+
+    # Get records from the database
+    records = list_recent(limit=20, db_path=str(episodic_db))
+
+    if not records:
+        print("No episodic memory found")
+        return
+
+    # Print table header
+    print(f"\n{_c('Episodic Memory', 'bold')} — {len(records)} record(s)\n")
+
+    col_id = 10
+    col_outcome = 10
+    col_timestamp = 26
+    col_approach = 60
+
+    header = (
+        _c("Story ID".ljust(col_id), "bold")
+        + "  "
+        + _c("Outcome".ljust(col_outcome), "bold")
+        + "  "
+        + _c("Timestamp".ljust(col_timestamp), "bold")
+        + "  "
+        + _c("Approach Summary".ljust(col_approach), "bold")
+    )
+    sep = "-" * (col_id + col_outcome + col_timestamp + col_approach + 6)
+
+    print(f"  {header}")
+    print(f"  {sep}")
+
+    for record in records:
+        story_id = record.get("story_id", "")[:col_id]
+        outcome = record.get("outcome", "")[:col_outcome]
+        timestamp = record.get("timestamp", "")[:19].replace("T", " ")
+        approach = record.get("approach_summary", "")[:col_approach]
+
+        print(
+            f"  {story_id.ljust(col_id)}  "
+            f"{outcome.ljust(col_outcome)}  "
+            f"{timestamp.ljust(col_timestamp)}  "
+            f"{approach.ljust(col_approach)}"
+        )
+
+    print()
+
+
 def cmd_dlq_list(args) -> None:
     """List all stories currently in DLQ state."""
     json_out = getattr(args, "json_output", False)
@@ -2355,6 +2410,18 @@ def main():
         help="Show what would change without modifying any files",
     )
 
+    # ── memory subcommand (US-350) ──────────────────────────────────────────────
+    memory_parser = subparsers.add_parser(
+        "memory",
+        help="Episodic memory management for implementation history",
+    )
+    memory_subs = memory_parser.add_subparsers(dest="memory_command", metavar="COMMAND")
+
+    memory_list_parser = memory_subs.add_parser(
+        "list",
+        help="Show the 20 most recent episodic records with pass/fail outcomes",
+    )
+
     args = parser.parse_args()
 
     if args.command == "init":
@@ -2394,6 +2461,13 @@ def main():
             cmd_worktree_audit(args)
         else:
             worktree_parser.print_help()
+            sys.exit(0)
+    elif args.command == "memory":
+        memory_command = getattr(args, "memory_command", None)
+        if memory_command == "list":
+            cmd_memory_list(args)
+        else:
+            memory_parser.print_help()
             sys.exit(0)
     elif args.command == "dlq":
         dlq_command = getattr(args, "dlq_command", None)
