@@ -545,7 +545,6 @@ SPIRAL_AUTO_PUSH_TAGS="${SPIRAL_AUTO_PUSH_TAGS:-false}"                         
 SPIRAL_WORKSPACE_CLEANUP="${SPIRAL_WORKSPACE_CLEANUP:-false}"                                            # true = prune transient artifacts after 100% completion (US-136)
 SPIRAL_CACHE_TTL="${SPIRAL_CACHE_TTL:-7}"                                                                # days; research_cache entries older than this are pruned (US-136)
 SPIRAL_INVALIDATE_CACHE_ON_CONSTITUTION_CHANGE="${SPIRAL_INVALIDATE_CACHE_ON_CONSTITUTION_CHANGE:-true}" # US-302: clear research_cache when constitution.md SHA-256 changes
-SPIRAL_CACHE_SIM_THRESHOLD="${SPIRAL_CACHE_SIM_THRESHOLD:-0.92}"                                        # US-403: cosine similarity threshold for Phase R query cache (1.0 = exact match only)
 SPIRAL_AUTO_RELEASE="${SPIRAL_AUTO_RELEASE:-false}"                                                      # true = auto SemVer bump from conventional commits on run completion (US-190)
 SPIRAL_PLAN_CACHE_ENABLED="${SPIRAL_PLAN_CACHE_ENABLED:-true}"                                           # US-353: true = cache/reuse decomposition plans across similar stories
 SPIRAL_PLAN_CACHE_TTL_HOURS="${SPIRAL_PLAN_CACHE_TTL_HOURS:-168}"                                        # US-353: hours before cached plans expire (default 168 = 7 days)
@@ -3079,16 +3078,6 @@ $INJECTED_PROMPT"
 $INJECTED_PROMPT"
         fi
 
-        # ── US-403: Cosine-similarity cache lookup for near-duplicate queries ──
-        if [[ "${SPIRAL_CACHE_SIM_THRESHOLD}" != "1.0" ]]; then
-          SIM_RESULT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/research_cache.py" sim-lookup \
-            "$RESEARCH_CACHE_DIR" "iteration ${SPIRAL_ITER} research" \
-            --ttl-hours "$SPIRAL_RESEARCH_CACHE_TTL_HOURS" \
-            --threshold "$SPIRAL_CACHE_SIM_THRESHOLD" 2>/dev/null || true)
-          if [[ -n "$SIM_RESULT" ]]; then
-            echo "  [R] Cache: similarity hit (threshold=${SPIRAL_CACHE_SIM_THRESHOLD})"
-          fi
-        fi
       fi
 
       # Inject spec-kit constitution so research respects project standards
