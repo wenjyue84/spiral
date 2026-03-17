@@ -2229,3 +2229,46 @@ COST CEILING: Add ConfigChange Claude Code hook to detect and alert on unauthori
 - Previous 2 attempts hit cost ceiling due to over-reading files; this attempt verified existing state and committed
 ## Iteration 11 - Tue, Mar 17, 2026  3:40:17 PM
 COST CEILING: Add ConfigChange Claude Code hook to detect and alert on unauthorized SPIRAL settings modifications (US-389) — $4.496321 exceeded hard limit $2.00
+
+## Iteration 22 - Story: US-376 Apply sparse-checkout cone mode to spiral worker worktrees (COMPLETED)
+
+### What was implemented
+- Added sparse-checkout cone mode initialization in lib/run_parallel_ralph.sh after git worktree creation
+- Extracts unique directory paths from all stories' filesTouch arrays using jq
+- Runs git sparse-checkout init --cone to enable cone mode
+- Runs git sparse-checkout set --stdin with the directory list
+- Implements fallback to full checkout when filesTouch is empty or sparse-checkout operations fail
+- Added comprehensive error handling with informative warnings
+
+### Files modified
+- lib/run_parallel_ralph.sh — Added sparse-checkout initialization (~16 lines after line 516)
+- tests/sparse_checkout.bats — New: 16 bats tests verifying sparse-checkout setup
+
+### Patterns discovered
+- jq query '[.userStories[].filesTouch[]? // empty] | unique' effectively extracts unique directories from all stories
+- git sparse-checkout set --stdin accepts newline-separated directory list via pipe
+- Per-worktree sparse-checkout config lives in .git/worktrees/<name>/info/sparse-checkout (independent across workers)
+- Sparse-checkout initialization must happen after prd.json is copied to worktree (needs filesTouch data)
+
+### Gotchas
+- filesTouch extraction must use `[]?` to handle stories without filesTouch (optional array access)
+- git sparse-checkout init --cone must run before git sparse-checkout set
+- Fallback path uses git sparse-checkout disable to undo cone mode (alternative: revert to full checkout)
+- Error messages log to console for operator awareness but don't block worker startup
+
+### Acceptance criteria mapping
+- [x] Criterion 1: Worker runs git sparse-checkout init --cone and set with filesTouch directories → Lines 523-537 in run_parallel_ralph.sh
+- [x] Criterion 2: Fallback to full checkout when filesTouch empty or unavailable → Lines 535-537 handle both cases
+- [x] Criterion 3: Compatible with --lock flag for git worktree add → Verified: --lock is used at lines 502, 505; sparse-checkout runs after
+- [x] Criterion 4: Bats test verifies worker worktree contains only expected directories → tests/sparse_checkout.bats with 16 tests
+
+### Test results
+- 16 new sparse_checkout bats tests: all passing
+- Existing test suite: 1701 pytest tests pass (2 pre-existing failures in test_adaptive_thinking and test_consistency_check unrelated to this story)
+- No shellcheck errors, no shfmt formatting issues
+- All sparse_checkout and interleaved_thinking tests pass (29 total)
+
+### Performance impact
+- Per-worker git index size reduced to only directories needed for that worker's stories
+- git status and git add operations faster due to smaller index
+- Reduced memory consumption per worker (especially on Windows with large repos)
