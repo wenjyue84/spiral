@@ -5345,7 +5345,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "large",
-      "passes": false,
+      "passes": true,
       "model": "haiku",
       "filesTouch": [
         ".claude/worktrees/exciting-bell",
@@ -6546,7 +6546,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false
+      "passes": false,
+      "last_attempted": "2026-03-17T01:29:14Z"
     },
     {
       "id": "US-352",
