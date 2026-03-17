@@ -6514,7 +6514,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "large",
-      "passes": false,
+      "passes": true,
       "_decomposed": true,
       "_decomposedInto": [
         "US-432",
@@ -7751,7 +7751,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "last_attempted": "2026-03-17T09:39:03Z",
       "_failureReason": "story_cost_ceiling",
       "_phaseI": {
@@ -8348,7 +8348,7 @@
         "US-425"
       ],
       "_decomposedFrom": "US-350",
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-432",

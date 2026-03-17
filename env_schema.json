@@ -4,12 +4,12 @@
   "vars": [
     {
       "name": "ANTHROPIC_API_KEY",
-      "required": true,
+      "required": false,
       "or_env": "CLAUDE_CODE_SESSION_ACCESS_TOKEN",
       "type": "string",
       "default": "",
-      "description": "Anthropic API key used by Claude CLI workers to make LLM calls",
-      "fix_hint": "export ANTHROPIC_API_KEY=sk-ant-..."
+      "description": "Anthropic API key — NOT required when using Claude subscription (claude CLI handles auth automatically)",
+      "fix_hint": "Not needed for Claude subscription users. Only set if using the Anthropic API directly: export ANTHROPIC_API_KEY=sk-ant-..."
     },
     {
       "name": "SPIRAL_PYTHON",
