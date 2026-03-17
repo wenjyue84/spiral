@@ -2048,3 +2048,36 @@ COST CEILING: Add uv workspace-aware CI cache with hashFiles('uv.lock') key for 
 
 ### Gotchas
 - Previous attempts hit cost ceiling by over-reading files; the fix was a 3-line YAML change already committed to working tree
+
+
+## Iteration N - Story: US-432 Create lib/episodic_memory.py with SQLite FTS5 schema and CRUD (COMPLETED)
+
+### What was implemented
+- Fixed function names in lib/episodic_memory.py: write_memory → write_record, query_similar → query_top3
+- Updated tests/test_episodic_memory.py imports and all test calls to use new function names
+- All acceptance criteria verified and passing
+
+### Files modified
+- lib/episodic_memory.py — renamed functions to match spec
+- tests/test_episodic_memory.py — updated imports and function calls
+- prd.json — marked US-432 as passes: true
+
+### Patterns discovered
+- Episodic memory module was already 90% complete; only naming fixes needed
+- SQLite FTS5 implementation is clean with stdlib-only deps, under 120 lines
+- FTS5 ranking (BM25) works well for story type/approach matching via OR-joined tokens
+
+### Gotchas
+- None; implementation was solid, just needed naming alignment with acceptance criteria
+
+### Acceptance criteria mapping
+- [x] Criterion 1: lib/episodic_memory.py exists with init_db, write_record, query_top3 → Renamed correctly
+- [x] Criterion 2: init_db() creates .spiral/episodic_memory.db with FTS5 virtual table → Verified via test_creates_database_file
+- [x] Criterion 3: query_top3() returns up to 3 rows ordered by FTS5 rank → Verified via test_write_then_query_returns_result, test_query_ranks_relevant_higher
+- [x] Criterion 4: uv run pytest tests/test_episodic_memory.py -v passes with write+query round-trip → 8/8 tests pass
+
+### Test results
+- 8 new/updated tests: all passing
+- mypy strict mode: pass
+- Overall: story complete, ready for next sub-story (US-433)
+
