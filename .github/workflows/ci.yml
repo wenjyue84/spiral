@@ -122,6 +122,28 @@ jobs:
       - name: Run ruff format check
         run: uv run ruff format --check lib/ tests/
 
+  vulture:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
+      - name: Set up uv with cache
+        uses: ./.github/actions/setup-uv
+
+      - name: Install dependencies
+        run: uv sync --frozen --group dev
+
+      - name: Run vulture dead code check
+        run: uv run vulture lib/ main.py vulture_whitelist.py --min-confidence 80 --exclude "lib/semantic_chunker.py"
+
   test:
     runs-on: ubuntu-latest
     strategy:

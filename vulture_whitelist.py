@@ -26,3 +26,7 @@ privacy_scrubber.PrivacyScrubberExporter.on_start.parent_context  # type: ignore
 
 # privacy_scrubber: SpanExporter.force_flush(timeout_millis) — interface contract
 privacy_scrubber.PrivacyScrubberExporter.force_flush.timeout_millis  # type: ignore[attr-defined]
+
+# generate_job_summary: generate_lint_summary(py_count=0) — accepted for API compat, body uses py_lint_ok
+from lib import generate_job_summary  # noqa: F401
+generate_job_summary.generate_lint_summary.py_count  # type: ignore[attr-defined]

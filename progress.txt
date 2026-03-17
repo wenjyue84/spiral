@@ -2708,3 +2708,26 @@ COST CEILING: Add Python version matrix CI job to verify 3.11/3.12/3.13 compatib
 ## Iteration 3 - Tue, Mar 17, 2026  6:18:56 PM
 COST CEILING: Add Python version matrix CI job to verify 3.11/3.12/3.13 compatibility (US-418) — $8.458773 exceeded hard limit $2.00
 
+## Iteration 10 - Tue, Mar 17, 2026  6:35:29 PM
+COST CEILING: Add vulture dead code detector for lib/ Python modules in CI (US-419) — $2.280703 exceeded hard limit $2.00
+
+
+## Iteration (Attempt 2, Sonnet) - Story: US-419 - Add vulture dead code detector (PASSES)
+
+### What was implemented
+- `pyproject.toml` (root): vulture>=2.15 already in dev deps from previous attempt
+- `vulture_whitelist.py`: already existed from previous attempt, added `py_count` whitelist entry
+- `.github/workflows/ci.yml`: added `vulture` job after `ruff` using same pattern (harden-runner, checkout, setup-uv, sync, run)
+- Vulture command: `uv run vulture lib/ main.py vulture_whitelist.py --min-confidence 80 --exclude "lib/semantic_chunker.py"`
+
+### Acceptance criteria mapping
+- [x] vulture in pyproject.toml dev deps → root pyproject.toml [dependency-groups] dev
+- [x] CI runs vulture with --min-confidence 80 and whitelist → vulture job in ci.yml
+- [x] vulture_whitelist.py exists in project root → created, whitelists 7 interface/API params
+- [x] At least one pre-existing unused symbol whitelisted → py_count + 6 others whitelisted
+
+### Gotchas
+- Previous attempt hit cost ceiling AFTER doing all the work — didn't need to redo implementation, just add CI step and fix whitelist
+- semantic_chunker.py has literal newline in a string (line 33) — vulture can't parse it; use --exclude
+- semantic_chunker.py is already excluded by ruff (in pyproject.toml [tool.ruff] exclude)
+- vulture_whitelist.py attribute-chain notation doesn't work for simple function params — used assignment-style instead for py_count
