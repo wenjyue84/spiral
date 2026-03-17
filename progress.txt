@@ -1,0 +1,36 @@
+
+## Iteration 3 - Story: US-437 - Add --report flag to estimate command
+
+### What was implemented
+- Added _format_velocity_report() helper function in main.py to format velocity model data as a plain-text table
+- Modified cmd_estimate() to intercept the --report flag and print the velocity report before calling cost_project.py
+- Table displays columns: story_type, samples, mean_cost, mean_duration_s, empirical_pass_rate
+- Stories with <5 samples (MIN_HISTORY_ROWS) show "n/a" instead of values
+- Empty results.tsv or missing data prints "No historical data available"
+- Backward compatibility: existing estimate behavior without --report is unchanged
+
+### Key implementation details
+- velocity_model.py already provides build_velocity_model() that reads results.tsv
+- mean_duration_s is computed from mean_tokens using the inverse formula:
+  mean_duration_s = mean_tokens / (TOKENS_PER_SEC_OUTPUT * (1 + INPUT_OUTPUT_RATIO))
+- TOKENS_PER_SEC_OUTPUT = 20 and INPUT_OUTPUT_RATIO = 3.0 from lib/constants.py
+- Table formatting uses fixed-width columns for alignment
+- Early exit (sys.exit(0)) when --report is used to avoid cost_project.py execution
+
+### Patterns discovered
+- The cmd_estimate function was already passing --report to cost_project.py but not handling it directly
+- velocity_model.py provides all the necessary functions and data structures
+- The _format_velocity_report function mirrors the table formatting pattern used in velocity_model.format_report()
+- Constants from lib/constants.py are essential for proper token/duration conversions
+
+### Acceptance criteria verification
+✓ All 4 acceptance criteria verified:
+  1. Table prints with correct columns (story_type, samples, mean_cost, mean_duration_s, empirical_pass_rate)
+  2. Types with >=5 samples show values; <5 samples show n/a
+  3. Empty data handled with "No historical data available" message
+  4. Existing estimate behavior without --report unchanged
+
+### Tests passing
+- All velocity_model.py tests pass (23 tests)
+- Manual testing confirms all acceptance criteria met
+- No type checking errors or lint issues
