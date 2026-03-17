@@ -42,6 +42,31 @@ These stories are already queued for implementation (not yet complete). Do NOT s
 4. **Skip if uncertain** — better to omit than add noise
 5. **Prefer simplicity** — do NOT suggest stories that add unnecessary abstraction or complexity. Prefer stories that simplify, remove dead code, or consolidate duplicated logic.
 
+## Atomicity and Implementability Rules
+
+Every story MUST satisfy ALL of these constraints before you write it to the JSON:
+
+**A. File scope — max 2 files per story**
+A story may touch at most 2 source files. If a change needs 3+ files, split into 2 stories.
+Do NOT write stories that say "update X and Y and Z".
+
+**B. Duration — completable in one 15-minute agent turn**
+If a senior engineer needs more than 15 minutes to implement cleanly, split it.
+One story = one function, one endpoint, one config key, or one test file.
+
+**C. No large complexity — only small or medium**
+`estimatedComplexity` MUST be "small" or "medium". NEVER "large".
+If the work feels "large", it is two or more medium stories. Split it.
+
+**D. Mandatory implementation recipe in technicalNotes**
+Every story MUST include at least 2 `technicalNotes` items in this format:
+- `"File to edit: path/to/file.py (function_name or section)"` — exact path relative to repo root
+- `"Test command: uv run pytest tests/test_X.py::test_name -v"` — exact runnable test command
+
+**E. AC quality — max 4 items, each independently runnable**
+Maximum 4 acceptance criteria per story. Each AC must be independently verifiable by running a single command.
+Bad: "The system works correctly." Good: "uv run pytest tests/test_X.py::test_ac -v exits 0."
+
 ## Output Schema
 
 Write the following JSON to `__OUTPUT_PATH__` using the Write tool:

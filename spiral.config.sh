@@ -59,11 +59,20 @@ SPIRAL_EPISODIC_MEMORY="${SPIRAL_EPISODIC_MEMORY:-false}"
 # ── Phase-specific model defaults ────────────────────────────────────────────
 # Each non-implementation phase can use a cheaper model (haiku is ~15x cheaper
 # than sonnet). Phase I continues to use SPIRAL_MODEL_ROUTING for escalation.
-SPIRAL_RESEARCH_MODEL="haiku"   # Phase R: research synthesis
+SPIRAL_RESEARCH_MODEL="sonnet"  # Phase R: research synthesis — sonnet writes better-specified ACs than haiku
 SPIRAL_VALIDATION_MODEL="haiku" # Phase S: story validation (future — currently Python-only)
 SPIRAL_MERGE_MODEL="haiku"      # Phase M: merge decisions (future — currently Python-only)
 # Bulk override format: SPIRAL_PHASE_MODEL_OVERRIDE=R:haiku,S:haiku,M:haiku
 # SPIRAL_PHASE_MODEL_OVERRIDE=""
+
+# ── Story enrichment pass (US-443) ────────────────────────────────────────────
+# After Phase S validation, optionally refine medium/sparse stories: rewrite
+# vague ACs, add exact file paths + test commands, split stories touching 3+
+# files. Costs one extra Claude call per eligible story but prevents 2-3 retry
+# cycles in Phase I. Set to true to opt in.
+SPIRAL_STORY_ENRICHMENT="${SPIRAL_STORY_ENRICHMENT:-false}"
+# Model for enrichment pass. sonnet is default; set to opus for maximum quality.
+SPIRAL_STORY_ENRICHMENT_MODEL="${SPIRAL_STORY_ENRICHMENT_MODEL:-sonnet}"
 
 # ── Research focus prompt ────────────────────────────────────────────────────
 # Guides Gemini + Claude in Phase R toward relevant context

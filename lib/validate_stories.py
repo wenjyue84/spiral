@@ -555,6 +555,25 @@ def validate_stories(
                     f"No connection to project goals (keyword overlap={overlap}, required>={min_overlap})"
                 )
 
+        # 3. Complexity gate — reject "large" stories before PRD merge (US-442)
+        # Large stories consistently hit cost ceilings and require late decomposition.
+        # Forcing split at creation time avoids wasting retry budget.
+        if rejection_reason is None:
+            complexity = story.get("estimatedComplexity", "")
+            if complexity == "large":
+                rejection_reason = (
+                    "complexity_too_large: split into small/medium stories before submitting"
+                )
+
+        # 4. AC and technicalNotes quality warnings (non-blocking — logged but do not reject)
+        if rejection_reason is None:
+            ac_list = story.get("acceptanceCriteria", [])
+            if isinstance(ac_list, list) and len(ac_list) > 4:
+                print(f"  [S] WARNING: {title[:60]!r} has {len(ac_list)} ACs (recommended <=4)")
+            tech_notes = story.get("technicalNotes", [])
+            if not tech_notes:
+                print(f"  [S] WARNING: {title[:60]!r} has empty technicalNotes (no implementation guidance)")
+
         if rejection_reason:
             rejected.append({**story, "_rejection_reason": rejection_reason})
             print(f"  [S] REJECTED: {title[:70]!r} — {rejection_reason}")
