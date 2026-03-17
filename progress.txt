@@ -2884,3 +2884,25 @@ COST CEILING: Add GitHub Actions PR comment with prd.json story status diff on P
 ### Gotchas
 - Previous attempt hit cost ceiling at $2.58 — was actually implementing US-399 (diagnosisBlock mismatch)
 - Windows `print()` with Unicode emojis fails with `UnicodeEncodeError` on cp1252 — use shortcodes instead
+## Iteration 7 - Tue, Mar 17, 2026  7:21:28 PM
+COST CEILING: Add GitHub Actions PR comment with prd.json story status diff on PRD changes (US-420) — $6.110323 exceeded hard limit $2.00
+
+
+## Iteration (Attempt 3, Opus) - Story: US-423 - Add import-linter to enforce module dependency boundaries in lib/ (PASSES)
+
+### What was implemented
+- `.github/workflows/ci.yml`: Added `import-linter` CI job (harden-runner, checkout, setup-uv, sync, lint-imports)
+- `pyproject.toml`: Added `independence` contract for `import_csv`, `import_github`, `import_jira` modules
+- Also fixed US-420 prd.json mark (was implemented but not marked due to cost ceiling)
+
+### Patterns discovered
+- import-linter was already partially configured (dev dep + 2 contracts) from a prior attempt
+- Import adapter modules (import_csv/github/jira) have zero cross-imports — ideal independence candidates
+- OTel modules import from `lib.privacy_scrubber` but not from each other
+
+### Acceptance criteria mapping
+- [x] import-linter in pyproject.toml dev dependencies (pre-existing)
+- [x] [tool.importlinter] with root_packages = ['lib'] and 3 contracts
+- [x] CI runs uv run lint-imports
+- [x] independence contract for import adapters
+- [x] No existing violations (3 kept, 0 broken)
