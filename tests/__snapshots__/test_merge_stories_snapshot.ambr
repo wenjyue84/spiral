@@ -1,0 +1,86 @@
+# serializer version: 1
+# name: TestMergeStoriesSnapshot.test_full_sort_key_deterministic_snapshot
+  tuple(
+    0,
+    80,
+    2,
+  )
+# ---
+# name: TestMergeStoriesSnapshot.test_full_sort_key_multiple_stories_snapshot
+  list([
+    tuple(
+      0,
+      20,
+      0,
+    ),
+    tuple(
+      0,
+      80,
+      0,
+    ),
+    tuple(
+      0,
+      60,
+      0,
+    ),
+  ])
+# ---
+# name: TestMergeStoriesSnapshot.test_story_to_prd_entry_minimal_snapshot
+  dict({
+    'acceptanceCriteria': list([
+    ]),
+    'dependencies': list([
+    ]),
+    'description': '',
+    'estimatedComplexity': 'medium',
+    'id': 'US-101',
+    'passes': False,
+    'priority': 'critical',
+    'technicalNotes': list([
+    ]),
+    'title': 'Fix bug in parser',
+  })
+# ---
+# name: TestMergeStoriesSnapshot.test_story_to_prd_entry_snapshot
+  dict({
+    'acceptanceCriteria': list([
+      'Feature X is implemented',
+      'Tests pass',
+    ]),
+    'dependencies': list([
+      'US-99',
+    ]),
+    'description': 'Implement feature X for improved UX',
+    'estimatedComplexity': 'medium',
+    'id': 'US-100',
+    'passes': False,
+    'priority': 'high',
+    'technicalNotes': list([
+    ]),
+    'title': 'Add feature X to dashboard',
+  })
+# ---
+# name: TestMergeStoriesSnapshot.test_story_to_prd_entry_with_all_fields_snapshot
+  dict({
+    '_source': 'seed',
+    'acceptanceCriteria': list([
+      'User can perform action A',
+      'System logs all events',
+      'Performance < 100ms',
+    ]),
+    'dependencies': list([
+      'US-998',
+      'US-997',
+    ]),
+    'description': 'A detailed description of what needs to be implemented',
+    'estimatedComplexity': 'large',
+    'id': 'US-999',
+    'passes': False,
+    'priority': 'high',
+    'technicalNotes': list([
+      'Use the new API',
+      'Deploy to staging first',
+    ]),
+    'title': 'Comprehensive feature implementation with all fields',
+  })
+# ---
