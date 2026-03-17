@@ -245,14 +245,18 @@ def query_gitnexus_files(title: str, repo_root: str) -> list[str]:
 
 def derive_module_tags(files_touch: list[str]) -> list[str]:
     """
-    Derive 'module:<dir>' tags from a list of file paths.
+    Derive 'module-<dir>' tags from a list of file paths.
 
     Extracts the top-level directory prefix (depth 1) from each path and
-    returns a sorted, deduplicated list of 'module:<name>' tags.
+    returns a sorted, deduplicated list of 'module-<name>' tags.
+    Tags are normalised to satisfy the schema pattern /^[a-z0-9_-]+$/:
+    leading dots are stripped and any remaining invalid characters are
+    replaced with hyphens.
 
     Examples:
-        ['lib/phases/phase_r.sh', 'lib/merge_stories.py'] -> ['module:lib']
-        ['ralph/ralph.sh', 'lib/run_parallel_ralph.sh']   -> ['module:lib', 'module:ralph']
+        ['lib/phases/phase_r.sh', 'lib/merge_stories.py'] -> ['module-lib']
+        ['ralph/ralph.sh', 'lib/run_parallel_ralph.sh']   -> ['module-lib', 'module-ralph']
+        ['.claude/settings.json']                         -> ['module-claude']
     """
     tags: set[str] = set()
     for f in files_touch:
@@ -260,7 +264,12 @@ def derive_module_tags(files_touch: list[str]) -> list[str]:
         parts = f.replace("\\", "/").split("/")
         # Require at least two parts (dir/file) so root-level files are excluded
         if len(parts) >= 2 and parts[0]:
-            tags.add(f"module:{parts[0]}")
+            # Strip leading dots (e.g. ".claude" -> "claude") and replace
+            # any characters not in [a-z0-9_-] with hyphens
+            dir_name = parts[0].lstrip(".").lower()
+            dir_name = re.sub(r"[^a-z0-9_-]", "-", dir_name)
+            if dir_name:
+                tags.add(f"module-{dir_name}")
     return sorted(tags)
 
 
