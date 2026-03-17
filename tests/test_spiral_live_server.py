@@ -395,3 +395,39 @@ class TestWorkerSubprocess:
             assert timeout_lines, "Expected a TIMEOUT log line broadcast to subscribers"
 
         arun(_run())
+
+
+# ── TaskGroup structured concurrency tests ────────────────────────────────────
+
+
+class TestTaskGroupCancellation:
+    def test_failing_task_cancels_sibling_within_100ms(self) -> None:
+        """When one TaskGroup task fails, sibling tasks are cancelled within 100ms."""
+
+        async def _run() -> None:
+            cancelled = asyncio.Event()
+
+            async def _slow_task() -> None:
+                try:
+                    await asyncio.sleep(10)  # would take 10s without cancellation
+                except asyncio.CancelledError:
+                    cancelled.set()
+                    raise
+
+            async def _failing_task() -> None:
+                await asyncio.sleep(0.01)  # brief delay so slow_task starts
+                raise ValueError("intentional failure to trigger cancellation")
+
+            start = asyncio.get_event_loop().time()
+            try:
+                async with asyncio.TaskGroup() as tg:
+                    tg.create_task(_slow_task())
+                    tg.create_task(_failing_task())
+            except* ValueError:
+                pass
+            elapsed = asyncio.get_event_loop().time() - start
+
+            assert cancelled.is_set(), "Slow task should have been cancelled by TaskGroup"
+            assert elapsed < 0.1, f"Cancellation took {elapsed:.3f}s — expected < 0.1s"
+
+        arun(_run())

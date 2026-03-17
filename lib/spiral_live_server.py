@@ -137,14 +137,22 @@ class SpiralLiveServer:
 
             assert proc.stdout is not None
             assert proc.stderr is not None
+            # Capture narrowed stream references so the closure sees StreamReader, not Optional.
+            stdout_stream: asyncio.StreamReader = proc.stdout
+            stderr_stream: asyncio.StreamReader = proc.stderr
 
             # Read both streams concurrently to prevent OS pipe-buffer deadlock,
             # then wait for the process to exit — all under a hard timeout.
-            stdout_task = asyncio.create_task(self._stream_pipe(worker, proc.stdout, "stdout"))
-            stderr_task = asyncio.create_task(self._stream_pipe(worker, proc.stderr, "stderr"))
-
+            # asyncio.TaskGroup enforces structured concurrency: if one pipe-reader
+            # fails, the sibling is cancelled immediately rather than left dangling.
             async def _drain_and_wait() -> int:
-                await asyncio.gather(stdout_task, stderr_task)
+                try:
+                    async with asyncio.TaskGroup() as tg:
+                        tg.create_task(self._stream_pipe(worker, stdout_stream, "stdout"))
+                        tg.create_task(self._stream_pipe(worker, stderr_stream, "stderr"))
+                except* Exception:
+                    # Pipe-reading errors are non-fatal; the process exit code is authoritative.
+                    pass
                 return await proc.wait()
 
             timeout = _SUBPROCESS_TIMEOUT if _SUBPROCESS_TIMEOUT > 0 else None
