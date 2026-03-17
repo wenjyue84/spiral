@@ -2172,3 +2172,20 @@ COST CEILING: Add ConfigChange Claude Code hook to detect and alert on unauthori
 ### Gotchas
 - Previous attempts hit cost ceiling due to over-reading files; this attempt was minimal (2 new files + 1 settings.json edit)
 - Python `open('prd.json')` requires `encoding='utf-8'` on Windows or it fails with cp1252 codec error
+## Iteration 10 - Tue, Mar 17, 2026  3:37:24 PM
+COST CEILING: Add ConfigChange Claude Code hook to detect and alert on unauthorized SPIRAL settings modifications (US-389) — $4.257919 exceeded hard limit $2.00
+
+
+## Iteration 11 (final) - Story: US-389 - Add ConfigChange Claude Code hook (COMPLETED)
+
+### What was implemented
+- Verified existing implementation from attempt 2 was fully in place and working
+- `~/.claude/hooks/config_audit.sh` — reads stdin JSON, appends audit entry to `~/.spiral/config-audit.jsonl`, exits 2 if file_path matches `.claude/settings*.json`
+- `~/.claude/settings.json` — ConfigChange hook registered with `matcher: project_settings`
+- `tests/test_config_audit.bats` — 4 tests all passing
+
+### Patterns discovered
+- When prior attempts complete implementation but hit cost ceiling, opus escalation only needs to verify + commit (no re-implementation)
+
+### Gotchas
+- Previous 2 attempts hit cost ceiling due to over-reading files; this attempt verified existing state and committed
