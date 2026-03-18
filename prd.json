@@ -209,7 +209,7 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "haiku",
       "filesTouch": [
@@ -229,7 +229,8 @@
         "module-github"
       ],
       "last_attempted": "2026-03-18T13:08:34Z",
-      "_failureReason": "story_cost_ceiling"
+      "_failureReason": "story_cost_ceiling",
+      "_passedCommit": "1e01859ab6170bf897e2aa5c0ef9c4fd6191ac5a"
     },
     {
       "id": "US-452",
