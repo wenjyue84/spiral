@@ -298,14 +298,15 @@
       "dependencies": [
         "US-452"
       ],
-      "passes": false,
+      "passes": true,
       "_source": "research",
       "_decomposedFrom": "US-452",
-      "model": "haiku",
+      "model": "opus",
       "tags": [
         "module-lib",
         "feature-routing"
-      ]
+      ],
+      "_passedCommit": "a90cc408b0f8e2df2735e23984b6c4e7a31ee633"
     },
     {
       "id": "US-454",
@@ -336,7 +337,7 @@
       "passes": false,
       "_source": "research",
       "_decomposedFrom": "US-452",
-      "model": "haiku",
+      "model": "sonnet",
       "tags": [
         "module-ralph",
         "feature-routing"
@@ -370,7 +371,7 @@
       "passes": false,
       "_source": "research",
       "_decomposedFrom": "US-452",
-      "model": "haiku",
+      "model": "sonnet",
       "tags": [
         "module-lib",
         "feature-observability"
@@ -3087,7 +3088,6 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "haiku",
-      "_skipped": true,
       "filesTouch": [
         ".claude/scheduled_tasks.lock",
         ".claude/worktrees/exciting-bell",
@@ -3134,7 +3134,6 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "haiku",
-      "_skipped": true,
       "filesTouch": [
         ".claude/scheduled_tasks.lock",
         ".claude/worktrees/exciting-bell",
@@ -3313,7 +3312,6 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "haiku",
-      "_skipped": true,
       "filesTouch": [
         ".claude/scheduled_tasks.lock",
         ".claude/worktrees/exciting-bell",
@@ -3359,7 +3357,6 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "haiku",
-      "_skipped": true,
       "filesTouch": [
         ".spiral/tool-schema.json",
         "spiral.sh",
@@ -3399,7 +3396,6 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "haiku",
-      "_skipped": true,
       "filesTouch": [
         ".claude/scheduled_tasks.lock",
         ".claude/worktrees/exciting-bell",
@@ -3448,7 +3444,6 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "haiku",
-      "_skipped": true,
       "filesTouch": [
         ".claude/scheduled_tasks.lock",
         ".claude/worktrees/exciting-bell",
@@ -3494,7 +3489,6 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "haiku",
-      "_skipped": true,
       "filesTouch": [
         ".claude/scheduled_tasks.lock",
         ".claude/worktrees/exciting-bell",
