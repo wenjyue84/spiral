@@ -13,6 +13,44 @@ _COMPLEX_PATTERNS = re.compile(
     re.IGNORECASE,
 )
 
+# US-453: Regex-based complexity scoring patterns applied to acceptance criteria.
+# Each tuple: (pattern, score_delta).  Matched against the concatenated AC text.
+_SCORING_PATTERNS: list[tuple[re.Pattern[str], int]] = [
+    (re.compile(r"\bimplement as described\b", re.IGNORECASE), -20),
+    (re.compile(r"\b(?:refactor|redesign)\b", re.IGNORECASE), 30),
+    (re.compile(r"\badd tests?\b", re.IGNORECASE), 10),
+    (re.compile(r"\bintegrat", re.IGNORECASE), 20),
+    (re.compile(r"\bmultiple\b", re.IGNORECASE), 15),
+    (re.compile(r"\b(?:parallel|concurrent|async)\b", re.IGNORECASE), 20),
+    (re.compile(r"\b(?:security|auth|oauth)\b", re.IGNORECASE), 15),
+    (re.compile(r"\b(?:migration|schema)\b", re.IGNORECASE), 15),
+]
+
+
+def score_story_complexity(story: dict) -> int:
+    """Score a story's complexity (0-100) via regex on acceptance criteria.
+
+    Base score is 30 (medium).  Each pattern match adds/subtracts points.
+    Result is clamped to [0, 100].
+    """
+    ac_list = story.get("acceptanceCriteria", [])
+    text = " ".join(ac_list) if ac_list else ""
+    score = 30  # base
+    for pattern, delta in _SCORING_PATTERNS:
+        if pattern.search(text):
+            score += delta
+    return max(0, min(100, score))
+
+
+def map_complexity_to_model(score: int) -> str:
+    """Map a 0-100 complexity score to a model tier."""
+    if score <= 40:
+        return "haiku"
+    elif score <= 75:
+        return "sonnet"
+    else:
+        return "opus"
+
 
 def _keyword_complexity(title: str) -> str:
     return "complex" if _COMPLEX_PATTERNS.search(title) else "simple"
@@ -39,10 +77,10 @@ def _try_load_semantic_router():
     t.start()
     t.join(timeout=10)
     if t.is_alive():
-        print("[router] WARNING: SemanticRouter load timed out (>10s) — using keyword fallback")
+        print("[router] WARNING: SemanticRouter load timed out (>10s) -- using keyword fallback")
         return None
     if error[0]:
-        print(f"[router] WARNING: SemanticRouter unavailable ({error[0]}) — using keyword fallback")
+        print(f"[router] WARNING: SemanticRouter unavailable ({error[0]}) -- using keyword fallback")
         return None
     return result[0]
 
@@ -50,7 +88,7 @@ def _try_load_semantic_router():
 def route_stories(prd_path, profile):
     """
     Analyzes each pending story in the PRD file and annotates it with a recommended model.
-    Uses a semantic router when available, falls back to keyword-based classification.
+    Uses regex-based complexity scoring on acceptance criteria (US-453).
     """
     if not os.path.exists(prd_path):
         raise FileNotFoundError(f"[router] ERROR: PRD file not found at {prd_path}")
@@ -62,28 +100,30 @@ def route_stories(prd_path, profile):
         print(f"[router] ERROR: Could not decode JSON from {prd_path}")
         return
 
-    # Semantic router disabled: sentence-transformers/OpenBLAS causes OOM in constrained envs.
-    # Keyword-based fallback is fast, reliable, and good enough for complexity classification.
-    router = None
     stories_to_update = 0
+    telemetry_events: list[dict] = []
 
     for story in prd.get("userStories", []):
         # Only route stories that are not yet done
         if story.get("passes") is not True:
             assigned_model = None
+            complexity_score = score_story_complexity(story)
             if profile == "auto":
-                story_title = story.get("title", "")
-                if router is not None:
-                    complexity = router.route(story_title) or "complex"
-                else:
-                    complexity = _keyword_complexity(story_title)
-
-                assigned_model = "sonnet" if complexity == "complex" else "haiku"
-                print(f"  [router] Story '{story.get('id')}' -> complexity: {complexity} -> model: {assigned_model}")
+                # US-453: Use regex-based complexity scoring on acceptance criteria
+                assigned_model = map_complexity_to_model(complexity_score)
+                print(f"  [router] Story '{story.get('id')}' -> score: {complexity_score} -> model: {assigned_model}")
             else:
                 # User forced a specific model (e.g., "opus", "sonnet", "haiku")
                 assigned_model = profile
                 print(f"  [router] Story '{story.get('id')}' -> profile: {profile} -> model: {assigned_model}")
+
+            # US-455: Collect telemetry for emission after write
+            telemetry_events.append({
+                "story_id": story.get("id", "unknown"),
+                "complexity_score": complexity_score,
+                "model_tier": assigned_model,
+                "estimated_tokens": 0,
+            })
 
             if assigned_model and story.get("model") != assigned_model:
                 story["model"] = assigned_model
@@ -103,6 +143,15 @@ def route_stories(prd_path, profile):
                 os.remove(temp_path)
     else:
         print("[router] No story models needed updating.")
+
+    # US-455: Emit routing telemetry events
+    if telemetry_events:
+        events_path = os.path.join(os.path.dirname(prd_path), "spiral_events.jsonl")
+        try:
+            from routing_telemetry import emit_routing_events
+            emit_routing_events(events_path, telemetry_events)
+        except ImportError:
+            pass  # telemetry module not available -- skip silently
 
 
 def main():

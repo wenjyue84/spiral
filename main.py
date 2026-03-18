@@ -1781,6 +1781,16 @@ def cmd_calibration_report(args):
                 print(f"  {complexity:8} | median: {median:6}s | count: {count:4} | ✓ {passed:3} ✗ {failed:3}")
 
 
+def cmd_analyze_routing(args) -> None:
+    """Print routing metrics table (US-456)."""
+    from analyze_routing_metrics import analyze, format_table
+
+    metrics = analyze(args.events, args.results)
+    print(format_table(metrics))
+    if getattr(args, "dashboard", False):
+        print("\n[analyze-routing] HTML dashboard generation not yet implemented.")
+
+
 def cmd_worktree_audit(args) -> None:
     """Audit git worktrees for health anomalies (US-231).
 
@@ -2494,6 +2504,24 @@ def main():
         help="Show what would change without modifying any files",
     )
 
+    # ── analyze-routing subcommand (US-456) ─────────────────────────────────────
+    analyze_routing_parser = subparsers.add_parser(
+        "analyze-routing",
+        help="Analyze routing metrics: token savings vs quality per model tier",
+    )
+    analyze_routing_parser.add_argument(
+        "--events", default="spiral_events.jsonl",
+        help="Path to spiral_events.jsonl (default: spiral_events.jsonl)",
+    )
+    analyze_routing_parser.add_argument(
+        "--results", default="results.tsv",
+        help="Path to results.tsv (default: results.tsv)",
+    )
+    analyze_routing_parser.add_argument(
+        "--dashboard", action="store_true",
+        help="Generate HTML dashboard for visual analysis",
+    )
+
     # ── memory subcommand (US-350) ──────────────────────────────────────────────
     memory_parser = subparsers.add_parser(
         "memory",
@@ -2553,6 +2581,8 @@ def main():
         else:
             memory_parser.print_help()
             sys.exit(0)
+    elif args.command == "analyze-routing":
+        cmd_analyze_routing(args)
     elif args.command == "dlq":
         dlq_command = getattr(args, "dlq_command", None)
         if dlq_command == "promote":

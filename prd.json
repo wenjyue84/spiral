@@ -295,9 +295,7 @@
       "filesTouch": [
         "lib/route_stories.py"
       ],
-      "dependencies": [
-        "US-452"
-      ],
+      "dependencies": [],
       "passes": true,
       "_source": "research",
       "_decomposedFrom": "US-452",
@@ -334,7 +332,7 @@
       "dependencies": [
         "US-453"
       ],
-      "passes": false,
+      "passes": true,
       "_source": "research",
       "_decomposedFrom": "US-452",
       "model": "sonnet",
@@ -368,7 +366,7 @@
       "dependencies": [
         "US-454"
       ],
-      "passes": false,
+      "passes": true,
       "_source": "research",
       "_decomposedFrom": "US-452",
       "model": "sonnet",
@@ -404,14 +402,16 @@
       "dependencies": [
         "US-455"
       ],
-      "passes": false,
+      "passes": true,
       "_source": "research",
       "_decomposedFrom": "US-452",
       "model": "haiku",
       "tags": [
         "module-lib",
         "feature-observability"
-      ]
+      ],
+      "_skipped": true,
+      "_failureReason": "dependency US-455 was skipped"
     },
     {
       "id": "US-218",
