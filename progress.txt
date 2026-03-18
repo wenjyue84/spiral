@@ -130,3 +130,39 @@ The implementation was already complete in lib/archive_prd.py and wired into spi
 - Decomposed parents are intentionally kept to maintain referential integrity for _decomposedFrom
 - Append-only archive allows historical tracking of completed work
 - The --dry-run flag reuses the same code path for safe previewing
+
+## Iteration 7 - Story: US-449 - Fix ralph.sh Windows CRLF line endings
+
+### What was implemented
+- Converted ralph/ralph.sh from Windows CRLF (\r\n) to Unix LF (\n) line endings using sed
+- Created new .gitattributes file with rule: ralph/ralph.sh text eol=lf
+- Verified ShellCheck produces zero SC1017 errors after conversion
+- Confirmed file command reports "ASCII text" without CRLF terminators
+
+### Root cause analysis
+ralph/ralph.sh had Windows-style CRLF line terminators that caused ShellCheck SC1017 
+(literal carriage return) errors on every line, making Preflight report 3 error-level issues.
+
+### Key implementation details
+- Used sed -i 's/\r$//' to strip carriage returns from every line
+- Created .gitattributes to enforce LF for ralph/ralph.sh and prevent re-introduction
+- The conversion was done before any other modifications (isolated change)
+- No functional changes to the script logic
+
+### Acceptance criteria verification
+✓ shellcheck --severity=error ralph/ralph.sh produces zero SC1017 errors
+✓ file ralph/ralph.sh reports "ASCII text" (not CRLF line terminators)
+✓ ralph.sh still executes correctly after conversion (structure preserved)
+✓ .gitattributes contains: ralph/ralph.sh text eol=lf
+✓ Existing tests pass (1877 passed; 23 failures are pre-existing)
+✓ Preflight no longer reports ShellCheck errors for ralph.sh
+
+### Patterns discovered
+- Windows files in git repos need .gitattributes rules to maintain LF on all platforms
+- sed -i 's/\r$//' is the standard way to strip CRLF on Unix systems
+- ShellCheck SC1017 errors indicate CRLF issues in bash scripts
+- Line ending conversion is transparent to bash script execution
+
+### Tests passing
+- All 1877 existing tests pass (23 pre-existing failures unrelated to this change)
+- ShellCheck passes with --severity=error flag
