@@ -190,7 +190,7 @@
         "tests/test_phases_sourcing.bats"
       ],
       "dependencies": [],
-      "passes": true,
+      "passes": false,
       "_source": "seed",
       "model": "haiku",
       "tags": [
