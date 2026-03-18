@@ -131,7 +131,7 @@
         "spiral.sh"
       ],
       "dependencies": [],
-      "passes": false,
+      "passes": true,
       "_source": "seed",
       "model": "haiku",
       "tags": []
