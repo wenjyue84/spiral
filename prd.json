@@ -301,10 +301,9 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": true,
+      "passes": false,
       "_source": "ai-example",
-      "model": "haiku",
-      "_passedCommit": "a4b0413d8e92e3a469044904522e07366350962d"
+      "model": "haiku"
     },
     {
       "id": "US-462",
