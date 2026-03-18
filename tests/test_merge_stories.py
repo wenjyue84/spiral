@@ -13,7 +13,7 @@ from hypothesis.stateful import RuleBasedStateMachine, initialize, invariant, ru
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 sys.path.insert(0, os.path.dirname(__file__))
-from merge_stories import find_next_id, full_sort_key, is_duplicate, overlap_ratio, sort_key, story_to_prd_entry
+from merge_stories import find_next_id, full_sort_key, is_duplicate, jaccard_similarity, overlap_ratio, sort_key, story_to_prd_entry
 from spiral_io import atomic_write_json
 from strategies import prd_strategy
 
@@ -71,26 +71,27 @@ class TestIsDuplicateThreshold:
         assert not is_duplicate(candidate, existing, threshold=0.59)
 
     def test_at_60_percent_is_duplicate(self):
-        """At exactly 60% threshold → duplicate (>=)."""
-        # 5 words in candidate, 3 overlap → 0.6
-        candidate = "alpha beta gamma delta epsilon"
-        existing = ["alpha beta gamma zeta eta"]
-        # overlap: {"alpha","beta","gamma"} / {"alpha","beta","gamma","delta","epsilon"} = 3/5 = 0.6
+        """At exactly 60% Jaccard threshold → duplicate (>=)."""
+        # Jaccard("alpha beta gamma delta", "alpha beta gamma eta")
+        # intersection={alpha,beta,gamma}=3, union={alpha,beta,gamma,delta,eta}=5 → 3/5=0.6
+        candidate = "alpha beta gamma delta"
+        existing = ["alpha beta gamma eta"]
         assert is_duplicate(candidate, existing, threshold=0.6)
 
     def test_at_61_percent_not_duplicate(self):
-        """Below 61% threshold → not duplicate."""
-        candidate = "alpha beta gamma delta epsilon"
-        existing = ["alpha beta gamma zeta eta"]
-        # same 3/5 = 0.6 < 0.61 → not duplicate
+        """Below 61% Jaccard threshold → not duplicate."""
+        # same titles → Jaccard=3/5=0.6 < 0.61 → not duplicate
+        candidate = "alpha beta gamma delta"
+        existing = ["alpha beta gamma eta"]
         assert not is_duplicate(candidate, existing, threshold=0.61)
 
-    def test_bidirectional_check(self):
-        """is_duplicate checks overlap in both directions."""
-        # a→b: 2/2=1.0, b→a: 2/5=0.4 — should be dup because a→b ≥ threshold
+    def test_short_title_not_false_positive(self):
+        """Jaccard fix: short candidate no longer falsely matches long existing title."""
+        # Old overlap_ratio("alpha beta", "alpha beta gamma delta epsilon") = 2/2 = 1.0 (false positive)
+        # New Jaccard = |{alpha,beta}| / |{alpha,beta,gamma,delta,epsilon}| = 2/5 = 0.4 < 0.6
         candidate = "alpha beta"
         existing = ["alpha beta gamma delta epsilon"]
-        assert is_duplicate(candidate, existing, threshold=0.6)
+        assert not is_duplicate(candidate, existing, threshold=0.6)
 
     def test_empty_existing_list(self):
         assert not is_duplicate("any title", [])
@@ -99,6 +100,59 @@ class TestIsDuplicateThreshold:
         existing = ["add dashboard widget for metrics"]
         candidate = "fix login regression test"
         assert not is_duplicate(candidate, existing, threshold=0.6)
+
+
+# ── jaccard_similarity ────────────────────────────────────────────────────
+
+
+class TestJaccardSimilarity:
+    """Unit tests for jaccard_similarity — symmetric, bounded, and correct."""
+
+    def test_identical_strings(self):
+        assert jaccard_similarity("fix failing test", "fix failing test") == 1.0
+
+    def test_partial_overlap(self):
+        # intersection={alpha,beta,gamma}=3, union={alpha,beta,gamma,delta,eta}=5 → 0.6
+        score = jaccard_similarity("alpha beta gamma delta", "alpha beta gamma eta")
+        assert abs(score - 3 / 5) < 0.01
+
+    def test_disjoint_strings(self):
+        assert jaccard_similarity("alpha beta", "gamma delta") == 0.0
+
+    def test_both_empty_returns_zero(self):
+        assert jaccard_similarity("", "") == 0.0
+
+    def test_symmetric(self):
+        a = "add unit tests for merge stories"
+        b = "add unit tests"
+        assert jaccard_similarity(a, b) == jaccard_similarity(b, a)
+
+    def test_short_candidate_not_inflated(self):
+        # Short candidate should NOT score 1.0 against a long title
+        score = jaccard_similarity("alpha beta", "alpha beta gamma delta epsilon")
+        assert score < 1.0
+        assert abs(score - 2 / 5) < 0.01
+
+
+# ── false-positive regression ─────────────────────────────────────────────
+
+
+class TestFalsePositiveRegression:
+    """Regression guard: short titles should not be falsely flagged as duplicates."""
+
+    def test_short_title_not_false_positive(self):
+        """'Improve test coverage' is NOT a duplicate of the longer title."""
+        candidate = "Improve test coverage"
+        existing = ["Improve test coverage for Phase R research module"]
+        # Jaccard = |{improve,test,coverage}| / |{improve,test,coverage,phase,research,module}| = 3/7 ≈ 0.43
+        assert not is_duplicate(candidate, existing, threshold=0.6)
+
+    def test_genuine_duplicate_still_caught(self):
+        """Real duplicates (high word overlap) are still detected."""
+        candidate = "Add unit tests merge stories"
+        existing = ["Add unit tests for merge stories pipeline"]
+        # Jaccard = |{add,unit,tests,merge,stories}| / |{add,unit,tests,for,merge,stories,pipeline}| = 5/7
+        assert is_duplicate(candidate, existing, threshold=0.5)
 
 
 # ── find_next_id (ID assignment) ─────────────────────────────────────────

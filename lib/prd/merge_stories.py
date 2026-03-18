@@ -44,6 +44,20 @@ def overlap_ratio(a: str, b: str) -> float:
     return len(wa & wb) / len(wa)
 
 
+def jaccard_similarity(a: str, b: str) -> float:
+    """Symmetric Jaccard similarity: |intersection| / |union|.
+
+    Eliminates false positives from short candidates matching long existing titles.
+    Returns 0.0 when both strings are empty.
+    """
+    wa = normalize(a)
+    wb = normalize(b)
+    union = wa | wb
+    if not union:
+        return 0.0
+    return len(wa & wb) / len(union)
+
+
 def is_duplicate(
     candidate_title: str,
     existing_titles: list[str],
@@ -53,6 +67,8 @@ def is_duplicate(
 ) -> bool:
     """Check if candidate is duplicate of any existing title.
 
+    Uses symmetric Jaccard similarity to avoid false positives where short
+    candidate titles match long existing titles via asymmetric overlap_ratio.
     When both candidate and existing share the same non-empty epicId, the
     threshold is lowered (0.45) to catch near-duplicates within the same epic.
     """
@@ -65,9 +81,7 @@ def is_duplicate(
             and existing_epics[i] == candidate_epic
         )
         t = epic_threshold if same_epic else threshold
-        if overlap_ratio(candidate_title, existing) >= t:
-            return True
-        if overlap_ratio(existing, candidate_title) >= t:
+        if jaccard_similarity(candidate_title, existing) >= t:
             return True
     return False
 
