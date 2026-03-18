@@ -221,10 +221,18 @@ run_phase_gate_and_implement() {
             if [[ "$SPIRAL_AUTO_STASH" == "true" ]]; then
               _STASH_MSG="spiral-auto-stash-iter-${SPIRAL_ITER}"
               echo "  [Phase I] Dirty working tree detected — auto-stashing (iter ${SPIRAL_ITER})..."
+              # Backup prd.json before stash — Phase M changes (new stories) must survive
+              _PRD_STASH_BACKUP="${SCRATCH_DIR:-/tmp}/_prd_prestash_${SPIRAL_ITER}.json"
+              cp "$PRD_FILE" "$_PRD_STASH_BACKUP" 2>/dev/null || _PRD_STASH_BACKUP=""
               if git -C "$REPO_ROOT" stash push --include-untracked -m "$_STASH_MSG" 2>/dev/null; then
                 _AUTO_STASH_REF=$(git -C "$REPO_ROOT" stash list --format="%gd %gs" 2>/dev/null |
                   grep "$_STASH_MSG" | head -1 | awk '{print $1}')
                 echo "  [Phase I] Stash created: ${_AUTO_STASH_REF:-stash@{0}}"
+                # Restore prd.json immediately so workers see Phase M's story additions
+                if [[ -n "$_PRD_STASH_BACKUP" && -f "$_PRD_STASH_BACKUP" ]]; then
+                  cp "$_PRD_STASH_BACKUP" "$PRD_FILE"
+                  echo "  [Phase I] Restored prd.json from pre-stash backup (Phase M stories preserved)"
+                fi
               else
                 echo "  [Phase I] WARNING: Auto-stash failed — proceeding with dirty tree"
               fi
@@ -900,11 +908,19 @@ run_phase_gate_and_implement() {
           # ── US-177: Pop auto-stash if one was created ─────────────────────
           if [[ -n "$_AUTO_STASH_REF" ]]; then
             echo "  [Phase I] Popping auto-stash ${_AUTO_STASH_REF}..."
+            # Preserve workers' prd.json — stash pop may have an older version
+            _PRD_AFTER_WORKERS=""
+            [[ -f "$PRD_FILE" ]] && _PRD_AFTER_WORKERS=$(cat "$PRD_FILE")
             if ! git -C "$REPO_ROOT" stash pop "${_AUTO_STASH_REF}" 2>/dev/null; then
               echo "  [Phase I] WARNING: Auto-stash pop failed for ${_AUTO_STASH_REF} — stash preserved (recover manually)" >&2
               log_spiral_event "stash_pop_failed" "\"iteration\":$SPIRAL_ITER,\"stash_ref\":\"${_AUTO_STASH_REF}\""
             fi
+            # Restore workers' prd.json (stash pop may have reverted it)
+            if [[ -n "$_PRD_AFTER_WORKERS" ]]; then
+              printf '%s' "$_PRD_AFTER_WORKERS" > "$PRD_FILE"
+            fi
           fi
+          [[ -n "${_PRD_STASH_BACKUP:-}" ]] && rm -f "$_PRD_STASH_BACKUP" 2>/dev/null || true
           # ── End auto-stash pop ───────────────────────────────────────────
         fi # end PENDING > 0 block
         ;;
