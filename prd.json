@@ -243,7 +243,7 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "haiku",
       "filesTouch": [
@@ -263,7 +263,154 @@
         "module-github",
         "module-hypothesis"
       ],
-      "last_attempted": "2026-03-18T13:11:48Z"
+      "last_attempted": "2026-03-18T13:38:04Z",
+      "_decomposed": true,
+      "_decomposedInto": [
+        "US-453",
+        "US-454",
+        "US-455",
+        "US-456"
+      ],
+      "_skipped": true
+    },
+    {
+      "id": "US-453",
+      "title": "Add story complexity scoring via regex pattern matching on acceptance criteria",
+      "priority": "high",
+      "estimatedComplexity": "small",
+      "description": "Add a simple complexity scoring function to route_stories.py that analyzes each story's acceptance criteria using regex patterns to detect low/medium/high complexity indicators (e.g., 'implement as described' = low, multiple subsystems = high, integration tests = medium). Score range 0-100, mapped to model tier (haiku <40, sonnet 40-75, opus >75).",
+      "acceptanceCriteria": [
+        "lib/route_stories.py has score_story_complexity() function that returns 0-100 integer",
+        "Patterns detected: 'implement as described' → low (10), 'refactor/redesign' → high (80+), 'add tests' → +10, 'integrate' → +20, 'multiple' → +15",
+        "model field in prd.json is set based on score: 0-40=haiku, 41-75=sonnet, 76-100=opus",
+        "All existing tests pass (51/51)",
+        "Token cost is flat regardless of story complexity (proof-of-concept only)"
+      ],
+      "technicalNotes": [
+        "Add score_story_complexity(story: dict) → int in lib/route_stories.py",
+        "Called from route_stories() before annotating .model field",
+        "Use re.findall() to count pattern occurrences",
+        "Mapping: score → tier is local function map_complexity_to_model(score) → str"
+      ],
+      "filesTouch": [
+        "lib/route_stories.py"
+      ],
+      "dependencies": [
+        "US-452"
+      ],
+      "passes": false,
+      "_source": "research",
+      "_decomposedFrom": "US-452",
+      "model": "haiku",
+      "tags": [
+        "module-lib",
+        "feature-routing"
+      ]
+    },
+    {
+      "id": "US-454",
+      "title": "Route models based on estimated complexity in ralph worker selection",
+      "priority": "high",
+      "estimatedComplexity": "small",
+      "description": "Wire the complexity-based .model field from route_stories.py into ralph.sh worker model selection. When ralph.sh processes a story, read the .model field from prd.json and override --model CLI flag / RALPH_MODEL env var. Enable per-story model routing in parallel worker mode.",
+      "acceptanceCriteria": [
+        "ralph.sh reads .model field from prd.json for each story using jq",
+        "If .model is set, passes --model <value> to the claude CLI invocation (overrides RALPH_MODEL)",
+        "If .model is unset/empty, falls back to RALPH_MODEL env var",
+        "Applies to both sequential and parallel (worktree) worker modes",
+        "A complex story (model=opus) is invoked with --model opus; simple story (model=haiku) with --model haiku",
+        "All existing tests pass (51/51)"
+      ],
+      "technicalNotes": [
+        "File: ralph/ralph.sh, read .model field after story ID selection",
+        "Extract: STORY_MODEL=$(jq -r --arg id \"$STORY_ID\" '.userStories[] | select(.id==$id) | .model // empty' \"$PRD_FILE\")",
+        "Build model arg: [ -n \"$STORY_MODEL\" ] && MODEL_ARG=\"--model $STORY_MODEL\" || MODEL_ARG=\"${RALPH_MODEL:+--model $RALPH_MODEL}\"",
+        "Pass MODEL_ARG to claude CLI invocation"
+      ],
+      "filesTouch": [
+        "ralph/ralph.sh"
+      ],
+      "dependencies": [
+        "US-453"
+      ],
+      "passes": false,
+      "_source": "research",
+      "_decomposedFrom": "US-452",
+      "model": "haiku",
+      "tags": [
+        "module-ralph",
+        "feature-routing"
+      ]
+    },
+    {
+      "id": "US-455",
+      "title": "Emit routing telemetry (complexity score, model tier, estimated tokens) to spiral_events.jsonl",
+      "priority": "medium",
+      "estimatedComplexity": "small",
+      "description": "After route_stories.py assigns complexity scores and model tiers, emit telemetry events to spiral_events.jsonl (or new routing_metrics.jsonl) capturing: story_id, estimated_complexity (0-100), assigned_model_tier (haiku/sonnet/opus), estimated_tokens. Use these metrics to validate that high-complexity stories are routed to opus and low-complexity to haiku, enabling future quality/cost analysis.",
+      "acceptanceCriteria": [
+        "route_stories.py emits route_story_assigned event to spiral_events.jsonl after model assignment",
+        "Event structure: {ts, type: 'route_story_assigned', story_id, complexity_score, model_tier, estimated_tokens}",
+        "All stories in results.tsv show their assigned model (from .model field)",
+        "Integration test verifies event JSON is valid and contains required fields",
+        "All existing tests pass (51/51)"
+      ],
+      "technicalNotes": [
+        "Add emit_routing_event(story_id, complexity, model, tokens) to lib/routing_telemetry.py (new module)",
+        "Called from route_stories() after complexity scoring and model assignment",
+        "Write to spiral_events.jsonl using atomic_write_jsonl() pattern from spiral_io"
+      ],
+      "filesTouch": [
+        "lib/route_stories.py",
+        "lib/routing_telemetry.py"
+      ],
+      "dependencies": [
+        "US-454"
+      ],
+      "passes": false,
+      "_source": "research",
+      "_decomposedFrom": "US-452",
+      "model": "haiku",
+      "tags": [
+        "module-lib",
+        "feature-observability"
+      ]
+    },
+    {
+      "id": "US-456",
+      "title": "Build routing metrics analysis: token savings vs quality per model tier",
+      "priority": "low",
+      "estimatedComplexity": "medium",
+      "description": "After 5+ iterations with routing telemetry, add a python analysis script (lib/analyze_routing_metrics.py) that reads routing_telemetry from spiral_events.jsonl and results.tsv, computing: (1) mean token cost by model tier, (2) success rate by tier, (3) token savings vs baseline (all-sonnet), (4) quality loss (pass rate delta). Prints a summary table to stdout and optionally renders a dashboard HTML.",
+      "acceptanceCriteria": [
+        "lib/analyze_routing_metrics.py reads routing telemetry from spiral_events.jsonl",
+        "Computes: mean tokens (haiku/sonnet/opus), success rate by tier, estimated savings vs all-sonnet baseline",
+        "Outputs plain-text table with columns: model_tier, samples, mean_tokens, success_rate, savings_pct",
+        "python main.py analyze-routing prints the metrics table",
+        "Optional HTML dashboard (--dashboard flag) for visual analysis",
+        "All existing tests pass (51/51)"
+      ],
+      "technicalNotes": [
+        "Read spiral_events.jsonl lines matching type='route_story_assigned'",
+        "Group by model_tier, compute statistics",
+        "Baseline: if all stories used sonnet, est. total tokens = SUM(model_tokens['sonnet'])",
+        "Savings % = (baseline_tokens - actual_tokens) / baseline_tokens * 100"
+      ],
+      "filesTouch": [
+        "lib/analyze_routing_metrics.py",
+        "main.py"
+      ],
+      "dependencies": [
+        "US-455"
+      ],
+      "passes": false,
+      "_source": "research",
+      "_decomposedFrom": "US-452",
+      "model": "haiku",
+      "tags": [
+        "module-lib",
+        "feature-observability"
+      ]
     },
     {
       "id": "US-218",

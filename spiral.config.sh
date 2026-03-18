@@ -163,7 +163,7 @@ SPIRAL_CASCADE_FAN_OUT_LIMIT="${SPIRAL_CASCADE_FAN_OUT_LIMIT:-5}"
 # reasons, then exits with ERR_ZERO_PROGRESS (exit code 9).
 # 0 = disabled (unlimited retries; recovery strategies still apply).
 # Default 3 matches the existing graduated recovery (decompose → halve batch → halt).
-SPIRAL_CONSECUTIVE_FAIL_ABORT="${SPIRAL_CONSECUTIVE_FAIL_ABORT:-3}"
+SPIRAL_CONSECUTIVE_FAIL_ABORT=0  # disabled — allow retries on difficult sub-stories
 
 # ── Skip disk space preflight check (slow on Windows NTFS) ──────────────────
 export SPIRAL_SKIP_DISK_CHECK=1
