@@ -421,7 +421,170 @@
       "estimatedComplexity": "medium",
       "passes": false,
       "_source": "ai-example",
+      "model": "haiku",
+      "filesTouch": [
+        ".hypothesis/tmp/tmpa0loy8rd",
+        ".hypothesis/tmp/tmpkjx6vf78",
+        ".hypothesis/tmp/tmpqtpjy8hn",
+        "bash.exe.stackdump",
+        "lib/batch_validate.py",
+        "lib/cost_project.py",
+        "lib/phases/phase_s_story_validate.sh",
+        "lib/validate_stories.py",
+        "lib/velocity_model.py",
+        "prd.json"
+      ],
+      "tags": [
+        "module-hypothesis",
+        "module-lib"
+      ]
+    },
+    {
+      "id": "US-466",
+      "title": "Add integration test for Phase M story merge logic with deduplication",
+      "priority": "high",
+      "description": "Write end-to-end test covering Phase M merge behavior: deduplication by overlap, source priority ordering (test-fix > research > ai-example), and prd.json patching. Validate merge produces correct final state.",
+      "acceptanceCriteria": [
+        "tests/test_phase_m_integration.py::test_merge_duplicate_stories_different_sources merges 2 identical stories from different sources and asserts kept story has _source='test-fix'",
+        "tests/test_phase_m_integration.py::test_merge_respects_source_priority validates stories sorted by priority: test-fix > research > ai-example in final prd.json",
+        "Test assertion `assert len(prd['stories']) == 3` after merging 5 stories with 2 duplicates confirms deduplication worked"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku",
+      "filesTouch": [
+        ".hypothesis/constants/19b92a82c7a5fbb7",
+        ".hypothesis/constants/be82d7f330748f87",
+        ".hypothesis/examples/04e6b3400353b141/2786903576343a97",
+        ".hypothesis/examples/04e6b3400353b141/d16a108f0ffe00c6",
+        ".hypothesis/examples/04e6b3400353b141/d7017880e970832b",
+        ".hypothesis/examples/04e6b3400353b141/f803b9c7972945f2",
+        ".hypothesis/examples/2786903576343a97/b8e62a5f48c3ded1",
+        ".hypothesis/examples/d16a108f0ffe00c6/6e1139ecd06edebb",
+        ".hypothesis/examples/d7017880e970832b/a0f33084b8dbe4ad",
+        ".hypothesis/examples/d7017880e970832b/d5de667a725a0ce8"
+      ],
+      "tags": [
+        "module-hypothesis"
+      ]
+    },
+    {
+      "id": "US-467",
+      "title": "Add git-cliff template for story-scoped changelog entries",
+      "priority": "medium",
+      "description": "Create cliff.toml configuration that groups commit history by story ID (US-XXX, UT-XXX) for automated CHANGELOG.md generation. Enable Phase G to produce story-scoped changelog sections with commit hashes and authors.",
+      "acceptanceCriteria": [
+        "cliff.toml exists in root with [changelog] section matching commits by regex ^(US|UT)-\\d+",
+        "Running `bash spiral.sh --generate-changelog` writes CHANGELOG.md with sections grouped by story ID, each containing commit hash, author, and timestamp",
+        "CHANGELOG.md includes entry like '## US-460: Add monitoring dashboard' with 2+ commits listed below it"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku",
+      "filesTouch": [
+        ".hypothesis/tmp/tmpa0loy8rd",
+        ".hypothesis/tmp/tmpkjx6vf78",
+        ".hypothesis/tmp/tmpqtpjy8hn",
+        "bash.exe.stackdump",
+        "lib/batch_validate.py",
+        "lib/cost_project.py",
+        "lib/phases/phase_s_story_validate.sh",
+        "lib/validate_stories.py",
+        "lib/velocity_model.py",
+        "prd.json"
+      ],
+      "tags": [
+        "module-hypothesis",
+        "module-lib"
+      ]
+    },
+    {
+      "id": "US-468",
+      "title": "Implement mock Claude API response fixtures for Phase R research",
+      "priority": "medium",
+      "description": "Create reusable mock Gemini API response fixtures (tests/fixtures/mock_gemini_responses.json) for testing Phase R research without consuming real API quota. Enable SPIRAL_MOCK_RESEARCH environment variable to inject fixtures.",
+      "acceptanceCriteria": [
+        "tests/fixtures/mock_gemini_responses.json contains 3+ realistic payloads: zero results, 5 search results, error response with status code",
+        "Phase R checks SPIRAL_MOCK_RESEARCH env var; if set, reads fixtures instead of calling real API",
+        "Integration test runs full Phase R with mock fixtures and validates _research_output.json contains expected story suggestions"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
       "model": "sonnet",
+      "filesTouch": [
+        ".hypothesis/constants/19b92a82c7a5fbb7",
+        ".hypothesis/constants/be82d7f330748f87",
+        ".hypothesis/examples/04e6b3400353b141/2786903576343a97",
+        ".hypothesis/examples/04e6b3400353b141/d16a108f0ffe00c6",
+        ".hypothesis/examples/04e6b3400353b141/d7017880e970832b",
+        ".hypothesis/examples/04e6b3400353b141/f803b9c7972945f2",
+        ".hypothesis/examples/2786903576343a97/b8e62a5f48c3ded1",
+        ".hypothesis/examples/d16a108f0ffe00c6/6e1139ecd06edebb",
+        ".hypothesis/examples/d7017880e970832b/a0f33084b8dbe4ad",
+        ".hypothesis/examples/d7017880e970832b/d5de667a725a0ce8"
+      ],
+      "tags": [
+        "module-hypothesis"
+      ]
+    },
+    {
+      "id": "US-469",
+      "title": "Build story throughput chart: stories completed per hour in dashboard",
+      "priority": "medium",
+      "description": "Add real-time throughput visualization to SPIRAL dashboard showing stories completed per hour over last 24h. Extract timestamps from results.tsv and aggregate into hourly buckets for time-series chart.",
+      "acceptanceCriteria": [
+        "Dashboard page includes new section 'Story Throughput (24h)' with bar chart showing count of completed stories per hour",
+        "API endpoint GET /api/metrics/throughput returns {\"buckets\": [{\"hour\": \"2026-03-19T14:00Z\", \"count\": 3}, ...]}",
+        "Chart updates on each new story completion without page refresh (via WebSocket or polling interval ≤5s)"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku",
+      "filesTouch": [
+        ".hypothesis/tmp/tmpa0loy8rd",
+        ".hypothesis/tmp/tmpkjx6vf78",
+        ".hypothesis/tmp/tmpqtpjy8hn",
+        "bash.exe.stackdump",
+        "lib/batch_validate.py",
+        "lib/cost_project.py",
+        "lib/phases/phase_s_story_validate.sh",
+        "lib/validate_stories.py",
+        "lib/velocity_model.py",
+        "prd.json"
+      ],
+      "tags": [
+        "module-hypothesis",
+        "module-lib"
+      ]
+    },
+    {
+      "id": "US-470",
+      "title": "Implement story namespace validation for federated prd.json",
+      "priority": "medium",
+      "description": "Add namespace validation to Phase S to enforce story ID pattern REPONAME-US/UT-\\d+ in federated multi-repo scenarios. Detect and reject collisions where same story ID appears in multiple sub-projects.",
+      "acceptanceCriteria": [
+        "lib/spiral/validate_namespace.py contains function validate_story_namespaces() that checks all stories match pattern (REPO|ROOT)-(US|UT)-\\d+",
+        "Phase S validation includes namespace check; logs error and fails story validation if duplicate ID found across repos",
+        "CLI command `uv run python lib/spiral/validate_namespace.py prd.json sub-projects/*/prd.json` returns exit code 1 if collision detected"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku",
       "filesTouch": [
         ".hypothesis/tmp/tmpa0loy8rd",
         ".hypothesis/tmp/tmpkjx6vf78",
