@@ -190,12 +190,13 @@
         "tests/test_phases_sourcing.bats"
       ],
       "dependencies": [],
-      "passes": false,
+      "passes": true,
       "_source": "seed",
       "model": "haiku",
       "tags": [
         "module-tests"
-      ]
+      ],
+      "_passedCommit": "c301a6ccec61a620f9618b4467308caa1c788167"
     },
     {
       "id": "US-451",
