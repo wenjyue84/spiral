@@ -278,9 +278,12 @@ run_phase_gate_and_implement() {
               "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/research/populate_hints.py" \
                 --prd "$PRD_FILE" --repo-root "$REPO_ROOT" 2>/dev/null || true
 
-              _PARTITION_CMD="${SPIRAL_CORE_BIN:+$SPIRAL_CORE_BIN partition}"
-              _PARTITION_CMD="${_PARTITION_CMD:-$SPIRAL_PYTHON $SPIRAL_HOME/lib/prd/partition_prd.py}"
-              TOTAL_WAVES=$($_PARTITION_CMD \
+              if [[ -n "$SPIRAL_CORE_BIN" ]]; then
+                _PARTITION_CMD=("$SPIRAL_CORE_BIN" partition)
+              else
+                _PARTITION_CMD=("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/prd/partition_prd.py")
+              fi
+              TOTAL_WAVES=$("${_PARTITION_CMD[@]}" \
                 --prd "$PRD_FILE" --list-waves 2>/dev/null || echo "1")
               echo "  [I] Parallel mode: $RALPH_WORKERS workers, $TOTAL_WAVES wave(s)"
 
@@ -291,12 +294,12 @@ run_phase_gate_and_implement() {
               WAVE=0
               while true; do
                 # Get story count for this wave level (recomputed from current prd.json)
-                WAVE_STORY_COUNT=$($_PARTITION_CMD \
+                WAVE_STORY_COUNT=$("${_PARTITION_CMD[@]}" \
                   --prd "$PRD_FILE" --wave-count "$WAVE" 2>/dev/null || echo "0")
 
                 # No stories at this level — check if higher levels exist
                 if [[ "$WAVE_STORY_COUNT" -eq 0 ]]; then
-                  REMAINING=$($_PARTITION_CMD \
+                  REMAINING=$("${_PARTITION_CMD[@]}" \
                     --prd "$PRD_FILE" --list-waves 2>/dev/null || echo "0")
                   if [[ "$WAVE" -ge "$REMAINING" ]]; then
                     echo "  [I] All waves processed — no more actionable stories"
@@ -494,7 +497,7 @@ run_phase_gate_and_implement() {
                         echo "  [conflict-preflight] Deferred $_CF_DEFERRED story/stories to next batch: $_CF_IDS"
                         log_spiral_event "conflict_preflight_deferred" "\"batch\":$((WAVE + 1)),\"deferred\":$_CF_DEFERRED,\"ids\":\"${_CF_IDS}\""
                         # Recompute wave story count after deferral
-                        WAVE_STORY_COUNT=$($_PARTITION_CMD \
+                        WAVE_STORY_COUNT=$("${_PARTITION_CMD[@]}" \
                           --prd "$PRD_FILE" --wave-count "$WAVE" 2>/dev/null || echo "0")
                         if [[ "$WAVE_STORY_COUNT" -le 1 ]]; then
                           echo "  [I] Wave $((WAVE + 1)): only $WAVE_STORY_COUNT story after deferral — sequential fallback"
