@@ -41,7 +41,7 @@ run_phase_gate_and_implement() {
     # ── Generate story review report for human gate (skip in auto-proceed mode) ──
     GATE_REPORTS_DIR="$SCRATCH_DIR/gate-reports"
     if [[ "$GATE_DEFAULT" != "proceed" ]]; then
-      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/story_review_report.py" \
+      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/observability/story_review_report.py" \
         --prd "$PRD_FILE" \
         --iter "$SPIRAL_ITER" \
         --added "$ADDED" \
@@ -104,11 +104,11 @@ run_phase_gate_and_implement() {
 
         # NEW ROUTING STEP
         echo "  [I-Pre] Routing stories to optimal models..."
-        "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/route_stories.py" --prd "$PRD_FILE" --profile "$SPIRAL_MODEL_ROUTING"
+        "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/routing/route_stories.py" --prd "$PRD_FILE" --profile "$SPIRAL_MODEL_ROUTING"
 
         # ── DAG cycle detection ──────────────────────────────────────────
         DAG_SKIP_IMPL=0
-        DAG_OUTPUT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/check_dag.py" "$PRD_FILE" 2>&1) || {
+        DAG_OUTPUT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/prd/check_dag.py" "$PRD_FILE" 2>&1) || {
           echo "  [Phase I] WARNING: Dependency cycle detected — skipping implementation" >&2
           echo "$DAG_OUTPUT" >&2
           DAG_SKIP_IMPL=1
@@ -152,7 +152,7 @@ run_phase_gate_and_implement() {
 
           # ── Dynamic worker recommendation (if not explicitly set) ─────────
           if [[ "$WORKERS_EXPLICIT" -eq 0 ]]; then
-            _REC_OUTPUT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/recommend_workers.py" "$PRD_FILE" 2>/dev/null) || true
+            _REC_OUTPUT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/routing/recommend_workers.py" "$PRD_FILE" 2>/dev/null) || true
             if [[ -n "$_REC_OUTPUT" ]]; then
               # Log line is first, recommended count is last line
               echo "  $_REC_OUTPUT" | head -1
@@ -173,7 +173,7 @@ run_phase_gate_and_implement() {
 
           # ── US-362: Prune old invocation snapshots ────────────────────────
           if [[ "${SPIRAL_SNAPSHOT_RETENTION:-7}" -gt 0 ]]; then
-            _SNAP_PRUNED=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/invocation_snapshot.py" prune "$SCRATCH_DIR" \
+            _SNAP_PRUNED=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/resilience/invocation_snapshot.py" prune "$SCRATCH_DIR" \
               --iteration "$SPIRAL_ITER" --retention "${SPIRAL_SNAPSHOT_RETENTION:-7}" 2>/dev/null || echo "0")
             [[ "${_SNAP_PRUNED:-0}" -gt 0 ]] && echo "  [I] Pruned $_SNAP_PRUNED old invocation snapshot(s)"
           fi
@@ -183,7 +183,7 @@ run_phase_gate_and_implement() {
           _FULL_PRD_BACKUP="$SCRATCH_DIR/_full_prd_backup.json"
           if [[ "$SPIRAL_STORY_BATCH_SIZE" -gt 0 && "$PENDING" -gt "$SPIRAL_STORY_BATCH_SIZE" ]]; then
             cp "$PRD_FILE" "$_FULL_PRD_BACKUP"
-            "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/slice_prd.py" slice \
+            "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/prd/slice_prd.py" slice \
               "$PRD_FILE" "$SPIRAL_STORY_BATCH_SIZE" -o "$PRD_FILE" 2>/dev/null && {
               _BATCH_ACTIVE=1
               _SLICED_PENDING=$("$JQ" '[.userStories[] | select(.passes != true)] | length' "$PRD_FILE" 2>/dev/null || echo "?")
@@ -207,7 +207,7 @@ run_phase_gate_and_implement() {
           [[ "$PENDING_SHOWN" -gt 20 ]] && echo "    ... and $((PENDING_SHOWN - 20)) more"
           echo ""
 
-          # Note: model is now assigned per-story by lib/route_stories.py
+          # Note: model is now assigned per-story by lib/routing/route_stories.py
 
           # Build --dry-run flag for ralph invocations
           _DRY_RUN_FLAG=""
@@ -275,11 +275,11 @@ run_phase_gate_and_implement() {
               fi
 
               # Pre-populate filesTouch hints from git history (best-effort)
-              "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/populate_hints.py" \
+              "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/research/populate_hints.py" \
                 --prd "$PRD_FILE" --repo-root "$REPO_ROOT" 2>/dev/null || true
 
               _PARTITION_CMD="${SPIRAL_CORE_BIN:+$SPIRAL_CORE_BIN partition}"
-              _PARTITION_CMD="${_PARTITION_CMD:-$SPIRAL_PYTHON $SPIRAL_HOME/lib/partition_prd.py}"
+              _PARTITION_CMD="${_PARTITION_CMD:-$SPIRAL_PYTHON $SPIRAL_HOME/lib/prd/partition_prd.py}"
               TOTAL_WAVES=$($_PARTITION_CMD \
                 --prd "$PRD_FILE" --list-waves 2>/dev/null || echo "1")
               echo "  [I] Parallel mode: $RALPH_WORKERS workers, $TOTAL_WAVES wave(s)"
@@ -332,13 +332,13 @@ run_phase_gate_and_implement() {
                     continue
                   fi
                   # US-219: begin story task span; prints story-scoped TRACEPARENT for child action spans
-                  _STORY_TP=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" begin-story \
+                  _STORY_TP=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/observability/otel_spans.py" begin-story \
                     --story-id "$_NEXT_SID" --scratch-dir "$SCRATCH_DIR" 2>/dev/null || true)
                   # US-362: Write pre-invocation snapshot for post-mortem replay
                   _SNAP_STORY_TMP=$(mktemp -p "$SCRATCH_DIR" _snap_story_XXXXXX.json 2>/dev/null || echo "$SCRATCH_DIR/_snap_story_$$.json")
                   "$JQ" --arg id "$_NEXT_SID" '.userStories[] | select(.id == $id)' "$PRD_FILE" >"$_SNAP_STORY_TMP" 2>/dev/null || true
                   _SNAP_RALPH_FLAGS="$RALPH_MAX_ITERS --prd $PRD_FILE --tool $_RALPH_TOOL $_DRY_RUN_FLAG"
-                  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/invocation_snapshot.py" write "$SCRATCH_DIR" \
+                  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/resilience/invocation_snapshot.py" write "$SCRATCH_DIR" \
                     --story-id "$_NEXT_SID" \
                     --story-json "$_SNAP_STORY_TMP" \
                     --model "${EFFECTIVE_MODEL:-unknown}" \
@@ -359,7 +359,7 @@ run_phase_gate_and_implement() {
                   _I_ELAPSED=$(($(date +%s) - _I_START))
                   # US-362: Finish snapshot with returncode and stdout head
                   _SNAP_STDOUT_HEAD=$(head -c 2000 "$_I_STDOUT_FILE" 2>/dev/null || true)
-                  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/invocation_snapshot.py" finish "$SCRATCH_DIR" \
+                  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/resilience/invocation_snapshot.py" finish "$SCRATCH_DIR" \
                     --story-id "$_NEXT_SID" \
                     --returncode "$_I_EXIT" \
                     --stdout-head "${_SNAP_STDOUT_HEAD:-}" 2>/dev/null || true
@@ -369,19 +369,19 @@ run_phase_gate_and_implement() {
                     log_spiral_event "phase_timeout" "\"phase\":\"I\",\"story_id\":\"$_NEXT_SID\",\"iteration\":$SPIRAL_ITER,\"duration_ms\":$((_I_ELAPSED * 1000)),\"timeout_s\":${_STORY_BUDGET}"
                   fi
                   # US-219: emit action span for the LLM implementation call
-                  STORY_TRACEPARENT="$_STORY_TP" "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" emit-action \
+                  STORY_TRACEPARENT="$_STORY_TP" "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/observability/otel_spans.py" emit-action \
                     --type llm_query --duration-s "$_I_ELAPSED" --story-id "$_NEXT_SID" 2>/dev/null || true
                   # US-219: close story task span with pass/fail
                   _STORY_PASSES=$("$JQ" -r --arg id "$_NEXT_SID" \
                     '.userStories[] | select(.id == $id) | .passes // false' "$PRD_FILE" 2>/dev/null || echo "false")
                   _STORY_STATUS="failed"
                   [[ "$_STORY_PASSES" == "true" ]] && _STORY_STATUS="passed"
-                  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" end-story \
+                  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/observability/otel_spans.py" end-story \
                     --story-id "$_NEXT_SID" --status "$_STORY_STATUS" --scratch-dir "$SCRATCH_DIR" 2>/dev/null || true
                   # US-318/US-341: emit invoke_agent span for worker lifecycle with cache token attributes
                   _IA_CACHE_READ=$(awk -F'\t' -v sid="$_NEXT_SID" '$4 == sid { cr=$13 } END { print cr+0 }' "$RESULTS_FILE" 2>/dev/null || echo 0)
                   _IA_CACHE_CREATE=$(awk -F'\t' -v sid="$_NEXT_SID" '$4 == sid { cc=$14 } END { print cc+0 }' "$RESULTS_FILE" 2>/dev/null || echo 0)
-                  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" invoke-agent \
+                  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/observability/otel_spans.py" invoke-agent \
                     --story-id "$_NEXT_SID" --worker-id "0" \
                     --duration-s "$_I_ELAPSED" --status "$_STORY_STATUS" \
                     --agent-version "${SPIRAL_VERSION:-unknown}" \
@@ -391,7 +391,7 @@ run_phase_gate_and_implement() {
                   # US-189: record per-story token metrics after Phase I
                   _TOK_IN=$("$JQ" -r --arg id "$_NEXT_SID" '.[$id].tokens_input // 0' "$SCRATCH_DIR/story_costs.json" 2>/dev/null || echo 0)
                   _TOK_OUT=$("$JQ" -r --arg id "$_NEXT_SID" '.[$id].tokens_output // 0' "$SCRATCH_DIR/story_costs.json" 2>/dev/null || echo 0)
-                  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_metrics.py" record-tokens \
+                  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/observability/otel_metrics.py" record-tokens \
                     --story-id "$_NEXT_SID" --phase I \
                     --input-tokens "${_TOK_IN:-0}" --output-tokens "${_TOK_OUT:-0}" \
                     --duration-ms "$((_I_ELAPSED * 1000))" \
@@ -399,7 +399,7 @@ run_phase_gate_and_implement() {
                   # US-192: record calibration data (actual vs estimated complexity) if story passed
                   if [[ "$_STORY_PASSES" == "true" ]]; then
                     _EST_COMPLEXITY=$("$JQ" -r --arg id "$_NEXT_SID" '.userStories[] | select(.id == $id) | .estimatedComplexity // "medium"' "$PRD_FILE" 2>/dev/null || echo "medium")
-                    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/calibration_tracker.py" record \
+                    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/routing/calibration_tracker.py" record \
                       --story-id "$_NEXT_SID" \
                       --estimated-complexity "$_EST_COMPLEXITY" \
                       --actual-duration-s "$_I_ELAPSED" \
@@ -415,7 +415,7 @@ run_phase_gate_and_implement() {
                     _PLAN_JSON="{\"story_id\":\"$_NEXT_SID\",\"duration_s\":$_I_ELAPSED,\"model\":\"${EFFECTIVE_MODEL:-unknown}\"}"
                     _PLAN_TMP=$(mktemp -p "$SCRATCH_DIR" _plan_XXXXXX.json 2>/dev/null || echo "$SCRATCH_DIR/_plan_$$.json")
                     printf '%s' "$_PLAN_JSON" >"$_PLAN_TMP"
-                    _PC_RESULT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/plan_cache.py" store "$_PLAN_CACHE_DIR" \
+                    _PC_RESULT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/resilience/plan_cache.py" store "$_PLAN_CACHE_DIR" \
                       --story-json "$_STORY_TMP" --plan-json "$_PLAN_TMP" 2>/dev/null || echo "")
                     if [[ -n "$_PC_RESULT" ]]; then
                       log_spiral_event "plan_cache_store" \
@@ -426,7 +426,7 @@ run_phase_gate_and_implement() {
                   # ── US-260: Post-Phase-I drift check ──────────────────────────
                   if [[ "${SPIRAL_DRIFT_CHECK:-false}" != "false" && -n "${_NEXT_SID:-}" ]]; then
                     echo "  [drift] Checking implementation drift for $_NEXT_SID..."
-                    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/drift_check.py" \
+                    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/prd/drift_check.py" \
                       --story-id "$_NEXT_SID" \
                       --prd "$PRD_FILE" \
                       --scratch-dir "$SCRATCH_DIR" \
@@ -481,7 +481,7 @@ run_phase_gate_and_implement() {
                       "$PRD_FILE" 2>/dev/null || true))
                     if [[ ${#_WAVE_STORY_IDS[@]} -ge 2 ]]; then
                       _CF_LOG="$SCRATCH_DIR/conflict-log.jsonl"
-                      _CF_RESULT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/conflict_preflight.py" \
+                      _CF_RESULT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/workers/conflict_preflight.py" \
                         --prd "$PRD_FILE" \
                         --story-ids "${_WAVE_STORY_IDS[@]}" \
                         --repo-root "$REPO_ROOT" \
@@ -585,7 +585,7 @@ run_phase_gate_and_implement() {
                   _STORY_JSON=$("$JQ" -r --arg id "$_NEXT_SID" '.userStories[] | select(.id == $id)' "$PRD_FILE" 2>/dev/null || echo "")
                   _RALPH_PROMPT_TEXT+="$_STORY_JSON"
                   _PROMPT_TOKEN_EST=$(((${#_RALPH_PROMPT_TEXT} + 3) / 4))
-                  _ROUTER_JSON=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/llm_router.py" \
+                  _ROUTER_JSON=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/routing/llm_router.py" \
                     --story "$_NEXT_SID" --prd "$PRD_FILE" \
                     --prompt-tokens "$_PROMPT_TOKEN_EST" \
                     --events-file "$SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || echo "")
@@ -601,7 +601,7 @@ run_phase_gate_and_implement() {
                   fi
                 fi
                 # US-219: begin story task span; prints story-scoped TRACEPARENT for child action spans
-                _STORY_TP=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" begin-story \
+                _STORY_TP=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/observability/otel_spans.py" begin-story \
                   --story-id "$_NEXT_SID" --scratch-dir "$SCRATCH_DIR" 2>/dev/null || true)
                 _I_EXIT=0
                 _I_START=$(date +%s)
@@ -625,19 +625,19 @@ run_phase_gate_and_implement() {
                 fi
                 rm -f "$_STDERR_CAPTURE" 2>/dev/null || true
                 # US-219: emit action span for the LLM implementation call
-                STORY_TRACEPARENT="$_STORY_TP" "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" emit-action \
+                STORY_TRACEPARENT="$_STORY_TP" "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/observability/otel_spans.py" emit-action \
                   --type llm_query --duration-s "$_I_ELAPSED" --story-id "$_NEXT_SID" 2>/dev/null || true
                 # US-219: close story task span with pass/fail
                 _STORY_PASSES=$("$JQ" -r --arg id "$_NEXT_SID" \
                   '.userStories[] | select(.id == $id) | .passes // false' "$PRD_FILE" 2>/dev/null || echo "false")
                 _STORY_STATUS="failed"
                 [[ "$_STORY_PASSES" == "true" ]] && _STORY_STATUS="passed"
-                "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" end-story \
+                "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/observability/otel_spans.py" end-story \
                   --story-id "$_NEXT_SID" --status "$_STORY_STATUS" --scratch-dir "$SCRATCH_DIR" 2>/dev/null || true
                 # US-189: record per-story token metrics after Phase I
                 _TOK_IN=$("$JQ" -r --arg id "$_NEXT_SID" '.[$id].tokens_input // 0' "$SCRATCH_DIR/story_costs.json" 2>/dev/null || echo 0)
                 _TOK_OUT=$("$JQ" -r --arg id "$_NEXT_SID" '.[$id].tokens_output // 0' "$SCRATCH_DIR/story_costs.json" 2>/dev/null || echo 0)
-                "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_metrics.py" record-tokens \
+                "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/observability/otel_metrics.py" record-tokens \
                   --story-id "$_NEXT_SID" --phase I \
                   --input-tokens "${_TOK_IN:-0}" --output-tokens "${_TOK_OUT:-0}" \
                   --duration-ms "$((_I_ELAPSED * 1000))" \
@@ -645,7 +645,7 @@ run_phase_gate_and_implement() {
                 # US-192: record calibration data (actual vs estimated complexity) if story passed
                 if [[ "$_STORY_PASSES" == "true" ]]; then
                   _EST_COMPLEXITY=$("$JQ" -r --arg id "$_NEXT_SID" '.userStories[] | select(.id == $id) | .estimatedComplexity // "medium"' "$PRD_FILE" 2>/dev/null || echo "medium")
-                  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/calibration_tracker.py" record \
+                  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/routing/calibration_tracker.py" record \
                     --story-id "$_NEXT_SID" \
                     --estimated-complexity "$_EST_COMPLEXITY" \
                     --actual-duration-s "$_I_ELAPSED" \
@@ -661,7 +661,7 @@ run_phase_gate_and_implement() {
                   _PLAN_JSON="{\"story_id\":\"$_NEXT_SID\",\"duration_s\":$_I_ELAPSED,\"model\":\"${EFFECTIVE_MODEL:-unknown}\"}"
                   _PLAN_TMP=$(mktemp -p "$SCRATCH_DIR" _plan_XXXXXX.json 2>/dev/null || echo "$SCRATCH_DIR/_plan_$$.json")
                   printf '%s' "$_PLAN_JSON" >"$_PLAN_TMP"
-                  _PC_RESULT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/plan_cache.py" store "$_PLAN_CACHE_DIR" \
+                  _PC_RESULT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/resilience/plan_cache.py" store "$_PLAN_CACHE_DIR" \
                     --story-json "$_STORY_TMP" --plan-json "$_PLAN_TMP" 2>/dev/null || echo "")
                   if [[ -n "$_PC_RESULT" ]]; then
                     log_spiral_event "plan_cache_store" \
@@ -672,7 +672,7 @@ run_phase_gate_and_implement() {
                 # ── US-260: Post-Phase-I drift check (parallel path) ──────────
                 if [[ "${SPIRAL_DRIFT_CHECK:-false}" != "false" && -n "${_NEXT_SID:-}" ]]; then
                   echo "  [drift] Checking implementation drift for $_NEXT_SID..."
-                  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/drift_check.py" \
+                  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/prd/drift_check.py" \
                     --story-id "$_NEXT_SID" \
                     --prd "$PRD_FILE" \
                     --scratch-dir "$SCRATCH_DIR" \
@@ -694,7 +694,7 @@ run_phase_gate_and_implement() {
 
             # ── Batch merge: restore full PRD with ralph's updates ─────────
             if [[ "$_BATCH_ACTIVE" -eq 1 && -f "$_FULL_PRD_BACKUP" ]]; then
-              "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/slice_prd.py" merge \
+              "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/prd/slice_prd.py" merge \
                 "$_FULL_PRD_BACKUP" "$PRD_FILE" -o "$PRD_FILE" 2>/dev/null && {
                 echo "  [I] Batch: merged results back into full PRD"
               } || {
@@ -791,7 +791,7 @@ run_phase_gate_and_implement() {
                   _ZP_RETRIES=$("$JQ" -r --arg id "$_ZP_SID" '.[$id] // 0' "$REPO_ROOT/retry-counts.json" 2>/dev/null || echo "0")
                   if [[ "$_ZP_RETRIES" -gt 1 ]]; then
                     echo "  [zero-progress] Force-decomposing $_ZP_SID (retries=$_ZP_RETRIES)..."
-                    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/decompose_story.py" \
+                    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/workers/decompose_story.py" \
                       --story-id "$_ZP_SID" --prd "$PRD_FILE" \
                       --progress "$REPO_ROOT/progress.txt" --model sonnet 2>/dev/null &&
                       _ZP_DECOMPOSED=$((_ZP_DECOMPOSED + 1)) ||
@@ -914,7 +914,7 @@ run_phase_gate_and_implement() {
 
     # ── US-204: Cascade skip status through dependency chain ──────────────
     if [[ "${NO_CASCADE_SKIP:-0}" -eq 0 ]]; then
-      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/cascade_skip.py" \
+      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/resilience/cascade_skip.py" \
         --prd "$PRD_FILE" \
         --events "${SCRATCH_DIR}/spiral_events.jsonl" \
         --iteration "$SPIRAL_ITER" \
@@ -930,14 +930,14 @@ run_phase_gate_and_implement() {
   run_phase_hook POST "G" || true
   _PHASE_DUR_I=$(($(date +%s) - _PHASE_TS_I))
   log_spiral_event "phase_end" "\"phase\":\"I\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_I"
-  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" end-phase --phase I --duration-s "$_PHASE_DUR_I" --iteration "$SPIRAL_ITER" 2>/dev/null || true
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/observability/otel_spans.py" end-phase --phase I --duration-s "$_PHASE_DUR_I" --iteration "$SPIRAL_ITER" 2>/dev/null || true
   notify_webhook "I" "end"
   log_spiral_event "phase_end" "\"phase\":\"G\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_I"
-  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" end-phase --phase G --duration-s "$_PHASE_DUR_I" --iteration "$SPIRAL_ITER" 2>/dev/null || true
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/observability/otel_spans.py" end-phase --phase G --duration-s "$_PHASE_DUR_I" --iteration "$SPIRAL_ITER" 2>/dev/null || true
   notify_webhook "G" "end"
 
   # ── LLM-as-Judge: score Phase I output (US-248) ──────────────────────────
-  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/quality_judge.py" judge-phase-i \
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/quality/quality_judge.py" judge-phase-i \
     --prd "$PRD_FILE" \
     --checkpoint "$CHECKPOINT_FILE" \
     --iteration "$SPIRAL_ITER" \

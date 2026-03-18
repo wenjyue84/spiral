@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from lib.enrich_stories import _enrich_one, _should_enrich, enrich_stories
+from lib.research.enrich_stories import _enrich_one, _should_enrich, enrich_stories
 
 
 def _story(**overrides) -> dict:

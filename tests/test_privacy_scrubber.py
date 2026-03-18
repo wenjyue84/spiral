@@ -14,7 +14,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from lib.privacy_scrubber import (
+from lib.security.privacy_scrubber import (
     PrivacyScrubber,
 )
 

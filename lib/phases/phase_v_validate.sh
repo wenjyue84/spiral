@@ -281,13 +281,13 @@ PYEOF
     # Tests grow over time; results saved per-iteration in .spiral/test-suites/.
     _SUITE_ROOT="$SCRATCH_DIR/test-suites"
     echo "  [V] Updating persistent test suites from passed stories..."
-    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/test_suite_manager.py" add-from-prd \
+    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/quality/test_suite_manager.py" add-from-prd \
       --prd "$PRD_FILE" \
       --suite-root "$_SUITE_ROOT" \
       --suite-types "smoke,regression,security,performance" || true
 
     for _suite_type in smoke regression security performance; do
-      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/test_suite_manager.py" run "$_suite_type" \
+      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/quality/test_suite_manager.py" run "$_suite_type" \
         --suite-root "$_SUITE_ROOT" \
         --iteration "$SPIRAL_ITER" \
         --repo-root "$REPO_ROOT" \
@@ -295,7 +295,7 @@ PYEOF
     done
 
     # Print suite status summary
-    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/test_suite_manager.py" status \
+    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/quality/test_suite_manager.py" status \
       --suite-root "$_SUITE_ROOT" || true
 
     write_checkpoint "$SPIRAL_ITER" "V"
@@ -303,6 +303,6 @@ PYEOF
   run_phase_hook POST "V" || true
   _PHASE_DUR_V=$(($(date +%s) - _PHASE_TS_V))
   log_spiral_event "phase_end" "\"phase\":\"V\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_V"
-  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" end-phase --phase V --duration-s "$_PHASE_DUR_V" --iteration "$SPIRAL_ITER" 2>/dev/null || true
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/observability/otel_spans.py" end-phase --phase V --duration-s "$_PHASE_DUR_V" --iteration "$SPIRAL_ITER" 2>/dev/null || true
   notify_webhook "V" "end"
 }

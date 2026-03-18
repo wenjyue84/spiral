@@ -80,7 +80,7 @@ run_phase_test_synth() {
   else
     if [[ "${SPIRAL_TEST_SYNTH_TIMEOUT:-60}" -gt 0 ]] && command -v timeout &>/dev/null; then
       timeout --kill-after=30 "${SPIRAL_TEST_SYNTH_TIMEOUT}" \
-        "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/synthesize_tests.py" \
+        "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/research/synthesize_tests.py" \
         --prd "$PRD_FILE" \
         --reports-dir "$REPO_ROOT/$SPIRAL_REPORTS_DIR" \
         --output "$TEST_OUTPUT" \
@@ -88,7 +88,7 @@ run_phase_test_synth() {
         --output-format "${SPIRAL_TEST_OUTPUT_FORMAT:-json}" \
         ${SPIRAL_FOCUS:+--focus "$SPIRAL_FOCUS"} || _t_exit=$?
     else
-      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/synthesize_tests.py" \
+      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/research/synthesize_tests.py" \
         --prd "$PRD_FILE" \
         --reports-dir "$REPO_ROOT/$SPIRAL_REPORTS_DIR" \
         --output "$TEST_OUTPUT" \

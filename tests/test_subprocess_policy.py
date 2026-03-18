@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from lib.subprocess_policy import (
+from lib.security.subprocess_policy import (
     PHASE_COMMAND_ALLOWLIST,
     SubprocessPolicyViolation,
     check_command,

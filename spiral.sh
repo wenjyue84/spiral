@@ -428,7 +428,7 @@ _SPIRAL_CONFIG="${SPIRAL_CONFIG_PATH:-$REPO_ROOT/spiral.config.sh}"
 if [[ ! -f "$_SPIRAL_CONFIG" ]]; then
   echo "[spiral] No config found. Launching setup wizard..."
   # Use 'uv run python' as a sensible default, since the wizard will configure it.
-  uv run python "$SPIRAL_HOME/lib/setup.py"
+  uv run python "$SPIRAL_HOME/lib/tools/setup.py"
   # Exit after setup so user can inspect config before first run
   exit 0
 fi
@@ -593,7 +593,7 @@ validate_env() {
     echo "[validate_env] WARNING: env_schema.json not found at $_schema — skipping validation" >&2
     return 0
   fi
-  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/validate_env.py" --schema "$_schema"
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/tools/validate_env.py" --schema "$_schema"
   local _rc=$?
   if [[ "$_rc" -ne 0 ]]; then
     exit "$_rc"
@@ -675,7 +675,7 @@ print_iter_summary_banner() {
   local cost_str=""
   if [[ -f "$REPO_ROOT/results.tsv" ]]; then
     local _raw_cost
-    _raw_cost=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/cost_check.py" \
+    _raw_cost=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/routing/cost_check.py" \
       --results "$REPO_ROOT/results.tsv" 2>/dev/null | head -1) || true
     cost_str=$(echo "$_raw_cost" | sed -nE 's/.*(\$[0-9]+\.[0-9]+).*/\1/p') || true
   fi
@@ -776,14 +776,14 @@ export SPIRAL_RUN_ID
 # ── OTel GenAI trace context (US-184) ────────────────────────────────────────
 # Emit root invoke_agent span and set TRACEPARENT for child phase spans.
 # Silently skipped if otel_spans.py is missing or Python unavailable.
-_OTEL_TP=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" begin-run \
+_OTEL_TP=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/observability/otel_spans.py" begin-run \
   --run-id "$SPIRAL_RUN_ID" --scratch-dir "$SCRATCH_DIR" 2>/dev/null || true)
 [[ -n "$_OTEL_TP" ]] && export TRACEPARENT="$_OTEL_TP"
 unset _OTEL_TP
 
 # ── US-189: Start Prometheus metrics scrape endpoint if SPIRAL_PROM_PORT set ──
 if [[ -n "${SPIRAL_PROM_PORT:-}" ]] && [[ "${SPIRAL_PROM_PORT}" =~ ^[0-9]+$ ]]; then
-  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_metrics.py" serve-prometheus \
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/observability/otel_metrics.py" serve-prometheus \
     --port "$SPIRAL_PROM_PORT" --scratch-dir "$SCRATCH_DIR" &>/dev/null &
   _PROM_PID=$!
   disown "$_PROM_PID" 2>/dev/null || true
@@ -819,7 +819,7 @@ fi
 
 # ── --migrate: run prd.json schema migration and exit ────────────────────────
 if [[ "$MIGRATE_MODE" -eq 1 ]]; then
-  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/migrate_prd.py" "$PRD_FILE"
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/prd/migrate_prd.py" "$PRD_FILE"
   exit $?
 fi
 
@@ -827,7 +827,7 @@ fi
 if [[ "$ARCHIVE_MODE" -eq 1 ]]; then
   _ARCHIVE_ARGS=("--prd" "$PRD_FILE")
   [[ "$DRY_RUN" -eq 1 ]] && _ARCHIVE_ARGS+=("--dry-run")
-  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/archive_prd.py" "${_ARCHIVE_ARGS[@]}"
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/prd/archive_prd.py" "${_ARCHIVE_ARGS[@]}"
   exit $?
 fi
 
@@ -912,7 +912,7 @@ if [[ "$CALIBRATION_REPORT_MODE" -eq 1 ]]; then
   fi
   echo "📊 CALIBRATION REPORT — Actual vs Estimated Complexity"
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/calibration_tracker.py" report --calibration-file "$_CALIB_FILE"
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/routing/calibration_tracker.py" report --calibration-file "$_CALIB_FILE"
   exit 0
 fi
 
@@ -1087,7 +1087,7 @@ spiral_preflight_check "$PRD_FILE" "$SCRATCH_DIR"
 # ── PRD acceptance-criteria lint (US-209) ─────────────────────────────────
 echo "  [preflight] Linting prd.json for missing acceptanceCriteria..."
 _PRD_LINT_RC=0
-"$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/prd_lint.py" "$PRD_FILE" \
+"$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/prd/prd_lint.py" "$PRD_FILE" \
   --events-file "${SCRATCH_DIR}/spiral_events.jsonl" 2>&1 || _PRD_LINT_RC=$?
 if [[ "$_PRD_LINT_RC" -ne 0 ]]; then
   echo "  [prd-lint] FATAL: Stories missing acceptanceCriteria (SPIRAL_STRICT_AC=true) — aborting."
@@ -1099,7 +1099,7 @@ echo "  [preflight] Scanning story fields for prompt injection patterns..."
 _INJECTION_FLAGS=("--prd" "$PRD_FILE" "--audit-log" "$SCRATCH_DIR/security-audit.jsonl" "--update-prd")
 [[ "${ALLOW_UNSAFE_STORIES:-0}" -eq 1 ]] && _INJECTION_FLAGS+=("--allow-unsafe")
 _INJECT_RC=0
-"$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/injection_detector.py" "${_INJECTION_FLAGS[@]}" 2>&1 || _INJECT_RC=$?
+"$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/security/injection_detector.py" "${_INJECTION_FLAGS[@]}" 2>&1 || _INJECT_RC=$?
 if [[ "$_INJECT_RC" -eq 2 ]]; then
   echo "  [preflight] FATAL: Prompt injection patterns detected in story fields — aborting."
   echo "  [preflight] Use --allow-unsafe-stories to warn-only and continue (not recommended)."
@@ -1164,7 +1164,7 @@ check_idempotency_guard() {
 
 # ── Checkpoint state machine coherence check ──────────────────────────────
 if [[ -f "$CHECKPOINT_FILE" ]]; then
-  if ! "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/state_machine.py" validate-phases --checkpoint "$CHECKPOINT_FILE"; then
+  if ! "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/core/state_machine.py" validate-phases --checkpoint "$CHECKPOINT_FILE"; then
     echo "  [checkpoint] WARNING: Corrupt checkpoint detected — removing and starting fresh from iter 1"
     rm -f "$CHECKPOINT_FILE"
   elif ! check_checkpoint_completeness "$CHECKPOINT_FILE"; then
@@ -1950,7 +1950,7 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
   compress_old_artifacts "$SPIRAL_ITER"
 
   # Recover incomplete transactions from a prior crash (Phase 3 safety)
-  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/txn_journal.py" recover \
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/resilience/txn_journal.py" recover \
     --journal "$SCRATCH_DIR/_txn_journal.jsonl" 2>/dev/null || true
 
   # Validate prd.json integrity before each iteration (Idea 3)
@@ -1991,7 +1991,7 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
   # ── Cost ceiling guard ─────────────────────────────────────────────────────
   if [[ -n "$SPIRAL_COST_CEILING" && -f "$REPO_ROOT/results.tsv" ]]; then
     _COST_RC=0
-    _COST_OUTPUT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/cost_check.py" \
+    _COST_OUTPUT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/routing/cost_check.py" \
       --results "$REPO_ROOT/results.tsv" --ceiling "$SPIRAL_COST_CEILING" 2>&1) || _COST_RC=$?
     echo "$_COST_OUTPUT"
     if [[ "$_COST_RC" -eq 2 ]]; then
@@ -2020,14 +2020,14 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
   TEST_STORY_CANDIDATES="$SCRATCH_DIR/_test_story_candidates.json"
   AI_QUEUE_FILE="$SCRATCH_DIR/_ai_example_queue.json"
   print_phase_banner "A" "AI SUGGESTIONS — generating per-iteration story candidates..."
-  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/ai_suggest.py" \
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/research/ai_suggest.py" \
     --prd "$PRD_FILE" \
     --queue "$AI_QUEUE_FILE" \
     --out "$AI_SUGGEST_OUTPUT" \
     --focus "${SPIRAL_FOCUS:-}" \
     --max-suggest "$SPIRAL_MAX_AI_SUGGEST" \
     --clear-queue || true
-  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/generate_test_stories.py" \
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/research/generate_test_stories.py" \
     --prd "$PRD_FILE" \
     --out "$TEST_STORY_CANDIDATES" \
     --min-complexity "$SPIRAL_TEST_STORY_MIN_COMPLEXITY" || true
@@ -2119,7 +2119,7 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
   if [[ "$_R_SKIP" -eq 0 ]] && [[ -n "$SPIRAL_GEMINI_PROMPT" ]] && [[ "$SPIRAL_RESEARCH_CACHE_TTL_HOURS" -gt 0 ]]; then
     mkdir -p "$RESEARCH_CACHE_DIR"
     _Q_CACHE_RESULT=$(
-      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/query_embed_cache.py" lookup \
+      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/resilience/query_embed_cache.py" lookup \
         "$RESEARCH_CACHE_DIR" "$SPIRAL_GEMINI_PROMPT" \
         --threshold "$SPIRAL_CACHE_SIM_THRESHOLD" \
         --ttl-hours "$SPIRAL_RESEARCH_CACHE_TTL_HOURS" 2>/dev/null || true
@@ -2169,7 +2169,7 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
       # ── Research cache: prune expired entries ──────────────────────────────
       if [[ "$SPIRAL_RESEARCH_CACHE_TTL_HOURS" -gt 0 ]]; then
         mkdir -p "$RESEARCH_CACHE_DIR"
-        PRUNED=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/research_cache.py" prune "$RESEARCH_CACHE_DIR" --ttl-hours "$SPIRAL_RESEARCH_CACHE_TTL_HOURS" 2>/dev/null | grep -oP '\d+' || echo "0")
+        PRUNED=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/research/research_cache.py" prune "$RESEARCH_CACHE_DIR" --ttl-hours "$SPIRAL_RESEARCH_CACHE_TTL_HOURS" 2>/dev/null | grep -oP '\d+' || echo "0")
         [[ "$PRUNED" -gt 0 ]] && echo "  [R] Cache: pruned $PRUNED expired entries (TTL=${SPIRAL_RESEARCH_CACHE_TTL_HOURS}h)"
       fi
 
@@ -2262,7 +2262,7 @@ $INJECTED_PROMPT"
 
       # ── Inject cached URL content so agent skips re-fetching ──────────────
       if [[ "$SPIRAL_RESEARCH_CACHE_TTL_HOURS" -gt 0 ]]; then
-        CACHE_CONTEXT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/research_cache.py" inject "$RESEARCH_CACHE_DIR" --ttl-hours "$SPIRAL_RESEARCH_CACHE_TTL_HOURS" 2>/dev/null || true)
+        CACHE_CONTEXT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/research/research_cache.py" inject "$RESEARCH_CACHE_DIR" --ttl-hours "$SPIRAL_RESEARCH_CACHE_TTL_HOURS" 2>/dev/null || true)
         if [[ -n "$CACHE_CONTEXT" ]]; then
           # ── US-198: LLM Guard scan of cached URL content ──────────────────
           scan_web_content CACHE_CONTEXT "research_cache"
@@ -2434,7 +2434,7 @@ $INJECTED_PROMPT"
               '[.stories[] | select(.source == $url)] | map(.title + ": " + .description) | join("\n")' \
               "$RESEARCH_OUTPUT" 2>/dev/null || true)
             if [[ -n "$STORY_CONTENT" ]]; then
-              echo "$STORY_CONTENT" | "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/research_cache.py" store "$RESEARCH_CACHE_DIR" "$src_url" - >/dev/null 2>&1 && ((CACHED_URLS++)) || true
+              echo "$STORY_CONTENT" | "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/research/research_cache.py" store "$RESEARCH_CACHE_DIR" "$src_url" - >/dev/null 2>&1 && ((CACHED_URLS++)) || true
             fi
           done < <("$JQ" -r '[.stories[].source // empty] | unique | .[]' "$RESEARCH_OUTPUT" 2>/dev/null || true)
           [[ "$CACHED_URLS" -gt 0 ]] && echo "  [R] Cache: stored $CACHED_URLS source URLs for future iterations"
@@ -2442,7 +2442,7 @@ $INJECTED_PROMPT"
 
         # ── US-403: Store query embedding so future similar queries hit cache ──
         if [[ -n "$SPIRAL_GEMINI_PROMPT" ]] && [[ "$SPIRAL_RESEARCH_CACHE_TTL_HOURS" -gt 0 ]]; then
-          "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/query_embed_cache.py" store \
+          "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/resilience/query_embed_cache.py" store \
             "$RESEARCH_CACHE_DIR" "$SPIRAL_GEMINI_PROMPT" "$RESEARCH_OUTPUT" >/dev/null 2>&1 || true
         fi
       fi
@@ -2481,7 +2481,7 @@ $INJECTED_PROMPT"
       else
         if [[ "${SPIRAL_TEST_SYNTH_TIMEOUT:-60}" -gt 0 ]] && command -v timeout &>/dev/null; then
           timeout --kill-after=30 "${SPIRAL_TEST_SYNTH_TIMEOUT}" \
-            "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/synthesize_tests.py" \
+            "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/research/synthesize_tests.py" \
             --prd "$PRD_FILE" \
             --reports-dir "$REPO_ROOT/$SPIRAL_REPORTS_DIR" \
             --output "$TEST_OUTPUT" \
@@ -2489,7 +2489,7 @@ $INJECTED_PROMPT"
             --output-format "${SPIRAL_TEST_OUTPUT_FORMAT:-json}" \
             ${SPIRAL_FOCUS:+--focus "$SPIRAL_FOCUS"} || _T_EXIT=$?
         else
-          "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/synthesize_tests.py" \
+          "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/research/synthesize_tests.py" \
             --prd "$PRD_FILE" \
             --reports-dir "$REPO_ROOT/$SPIRAL_REPORTS_DIR" \
             --output "$TEST_OUTPUT" \
@@ -2567,8 +2567,8 @@ except Exception:
 
   log_spiral_event "phase_end" "\"phase\":\"R\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_R,\"model\":\"$SPIRAL_RESEARCH_MODEL\""
   log_spiral_event "phase_end" "\"phase\":\"T\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_T"
-  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" end-phase --phase R --duration-s "$_PHASE_DUR_R" --iteration "$SPIRAL_ITER" 2>/dev/null || true
-  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" end-phase --phase T --duration-s "$_PHASE_DUR_T" --iteration "$SPIRAL_ITER" 2>/dev/null || true
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/observability/otel_spans.py" end-phase --phase R --duration-s "$_PHASE_DUR_R" --iteration "$SPIRAL_ITER" 2>/dev/null || true
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/observability/otel_spans.py" end-phase --phase T --duration-s "$_PHASE_DUR_T" --iteration "$SPIRAL_ITER" 2>/dev/null || true
   notify_webhook "R" "end"
   notify_webhook "T" "end"
   PHASE="T"
@@ -2578,7 +2578,7 @@ except Exception:
 
   # ── LLM-as-Judge: score Phase R output (US-248) ──────────────────────────
   if [[ -f "$RESEARCH_OUTPUT" ]]; then
-    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/quality_judge.py" judge-phase-r \
+    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/quality/quality_judge.py" judge-phase-r \
       --research-output "$RESEARCH_OUTPUT" \
       --checkpoint "$CHECKPOINT_FILE" \
       --iteration "$SPIRAL_ITER" \
@@ -2590,7 +2590,7 @@ except Exception:
     [[ "${SPIRAL_RESEARCH_SUMMARY_THRESHOLD:-4000}" -gt 0 ]] &&
     [[ "${SPIRAL_USE_FULL_RESEARCH:-0}" -ne 1 ]]; then
     _SUMM_STATUS=$(
-      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/summarize_research.py" \
+      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/research/summarize_research.py" \
         --input "$RESEARCH_OUTPUT" --check-only \
         --threshold "${SPIRAL_RESEARCH_SUMMARY_THRESHOLD:-4000}" 2>/dev/null
       echo $?
@@ -2599,7 +2599,7 @@ except Exception:
       # Over threshold — run summarization
       _RESEARCH_FULL="$SCRATCH_DIR/_research_full.json"
       cp "$RESEARCH_OUTPUT" "$_RESEARCH_FULL"
-      _SUMM_ERR=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/summarize_research.py" \
+      _SUMM_ERR=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/research/summarize_research.py" \
         --input "$_RESEARCH_FULL" \
         --output "$RESEARCH_OUTPUT" \
         --threshold "${SPIRAL_RESEARCH_SUMMARY_THRESHOLD:-4000}" 2>&1 >/dev/null || true)
@@ -2658,8 +2658,8 @@ echo "  ╚═══════════════════════
 
 if [[ -f "$REPO_ROOT/results.tsv" ]]; then
   echo ""
-  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/spiral_report.py" --results "$REPO_ROOT/results.tsv" 2>/dev/null || true
-  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/spiral_dashboard.py" \
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/observability/spiral_report.py" --results "$REPO_ROOT/results.tsv" 2>/dev/null || true
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/ui/spiral_dashboard.py" \
     --prd "$PRD_FILE" --results "$REPO_ROOT/results.tsv" \
     --retries "$REPO_ROOT/retry-counts.json" --progress "$REPO_ROOT/progress.txt" \
     --output "$SCRATCH_DIR/dashboard.html" --open 2>/dev/null || true
@@ -2670,7 +2670,7 @@ SESSION_MINUTES=$(((SESSION_END - SESSION_START) / 60))
 echo "  Session: ${SESSION_MINUTES}m total, $SPIRAL_ITER iterations"
 
 # ── Emit OTel root span on max-iters exit (US-184) ───────────────────────────
-"$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" end-run \
+"$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/observability/otel_spans.py" end-run \
   --passes "${DONE:-0}" --story-count "${TOTAL:-0}" 2>/dev/null || true
 
 spiral_exit E404 "$MAX_SPIRAL_ITERS"

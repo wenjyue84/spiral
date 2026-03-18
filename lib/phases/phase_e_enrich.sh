@@ -44,7 +44,7 @@ run_phase_enrichment() {
     echo ""
     echo "  [E] STORY ENRICHMENT — refining medium/sparse stories (model: $_ENRICH_MODEL)..."
     _ENRICH_RC=0
-    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/enrich_stories.py" \
+    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/research/enrich_stories.py" \
       --validated-in "$VALIDATED_OUTPUT" \
       --enriched-out "$ENRICHED_OUTPUT" \
       --model "$_ENRICH_MODEL" || _ENRICH_RC=$?

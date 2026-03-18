@@ -100,7 +100,7 @@ handle_benchmark_mode() {
 
   # Call benchmark judge script
   _BJ_RC=0
-  if [[ -f "$SPIRAL_HOME/lib/benchmark_judge.py" ]]; then
+  if [[ -f "$SPIRAL_HOME/lib/observability/benchmark_judge.py" ]]; then
     # Build model results JSON
     _MODEL_RESULTS_JSON='{'
     _FIRST=1
@@ -117,7 +117,7 @@ handle_benchmark_mode() {
     _MODEL_RESULTS_JSON+='}'
 
     # Call judge with results
-    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/benchmark_judge.py" \
+    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/observability/benchmark_judge.py" \
       --story-id "$BENCHMARK_STORY_ID" \
       --prd "$PRD_FILE" \
       --benchmark-dir "$BENCHMARK_DIR" \

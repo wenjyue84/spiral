@@ -353,7 +353,7 @@ if [[ -n "$_SC_BIN" ]]; then
     --workers "$RALPH_WORKERS" \
     --outdir "$WORKER_DIR"
 else
-  "$PYTHON" "$SPIRAL_HOME/lib/partition_prd.py" \
+  "$PYTHON" "$SPIRAL_HOME/lib/prd/partition_prd.py" \
     --prd "$PRD_FILE" \
     --workers "$RALPH_WORKERS" \
     --outdir "$WORKER_DIR"
@@ -375,7 +375,7 @@ TOTAL_TIERS=0
 
 if [[ "$DISPATCH_MODE" != "parallel" ]]; then
   # Compute tier assignments: which tier each story belongs to
-  TIER_JSON=$("$PYTHON" "$SPIRAL_HOME/lib/check_dag.py" "$PRD_FILE" --tiers 2>/dev/null || echo "{}")
+  TIER_JSON=$("$PYTHON" "$SPIRAL_HOME/lib/prd/check_dag.py" "$PRD_FILE" --tiers 2>/dev/null || echo "{}")
 
   if [[ -n "$TIER_JSON" && "$TIER_JSON" != "{}" ]]; then
     # Parse tier JSON and build tier→workers mapping using jq
@@ -1038,10 +1038,10 @@ while [[ "$_ALL_DONE" -eq 0 ]]; do
         TOTAL_W=$("$JQ" '[.userStories | length] | .[0]' "$WTREE/prd.json" 2>/dev/null || echo "?")
         WORKER_EXIT_CODES[$i]="$WORKER_EXIT"
         # US-377: Emit OTel ralph_worker span with subprocess attributes
-        if [[ -n "${PYTHON:-}" && -f "$SPIRAL_HOME/lib/otel_worker_inject.py" ]]; then
+        if [[ -n "${PYTHON:-}" && -f "$SPIRAL_HOME/lib/observability/otel_worker_inject.py" ]]; then
           _WORKER_COMMAND="bash $RALPH_SKILL $ITER_PER_WORKER --prd prd.json"
           [[ -n "$RALPH_MODEL" ]] && _WORKER_COMMAND="$_WORKER_COMMAND --model $RALPH_MODEL"
-          TRACEPARENT="${TRACEPARENT:-}" "$PYTHON" "$SPIRAL_HOME/lib/otel_worker_inject.py" emit-worker \
+          TRACEPARENT="${TRACEPARENT:-}" "$PYTHON" "$SPIRAL_HOME/lib/observability/otel_worker_inject.py" emit-worker \
             --story-id "WORKER-$WORKER_NUM" \
             --worker-num "$WORKER_NUM" \
             --subprocess-command "$_WORKER_COMMAND" \
@@ -1127,7 +1127,7 @@ while [[ "$_ALL_DONE" -eq 0 ]]; do
         # US-341: extract cache tokens from worker's results.tsv for the story
         _IA_CACHE_READ=$(awk -F'\t' -v sid="$_IA_SID" '$4 == sid { cr=$13 } END { print cr+0 }' "${WORKER_DIRS[$i]}/results.tsv" 2>/dev/null || echo 0)
         _IA_CACHE_CREATE=$(awk -F'\t' -v sid="$_IA_SID" '$4 == sid { cc=$14 } END { print cc+0 }' "${WORKER_DIRS[$i]}/results.tsv" 2>/dev/null || echo 0)
-        "${SPIRAL_PYTHON:-python3}" "${SPIRAL_HOME:-$(dirname "${BASH_SOURCE[0]}")/..}/lib/otel_spans.py" invoke-agent \
+        "${SPIRAL_PYTHON:-python3}" "${SPIRAL_HOME:-$(dirname "${BASH_SOURCE[0]}")/..}/lib/observability/otel_spans.py" invoke-agent \
           --story-id "$_IA_SID" --worker-id "$WORKER_NUM" \
           --duration-s "$_IA_DURATION" --status "$_IA_STATUS" \
           --agent-version "${SPIRAL_VERSION:-unknown}" \
@@ -1311,7 +1311,7 @@ if [[ -n "$_SC_BIN" ]]; then
     --main "$PRD_FILE" \
     --workers "${WORKER_PRDS[@]}"
 else
-  "$PYTHON" "$SPIRAL_HOME/lib/merge_worker_results.py" \
+  "$PYTHON" "$SPIRAL_HOME/lib/workers/merge_worker_results.py" \
     --main "$PRD_FILE" \
     --workers "${WORKER_PRDS[@]}"
 fi
@@ -1588,7 +1588,7 @@ for wtree in "${WORKER_DIRS[@]}"; do
 done
 if [[ ${#WORKER_RESULTS[@]} -gt 0 ]]; then
   echo "  [parallel] Merging ${#WORKER_RESULTS[@]} worker results.tsv files..."
-  "$PYTHON" "$SPIRAL_HOME/lib/merge_results_tsv.py" \
+  "$PYTHON" "$SPIRAL_HOME/lib/observability/merge_results_tsv.py" \
     --main "$REPO_ROOT/results.tsv" \
     --workers "${WORKER_RESULTS[@]}"
 fi

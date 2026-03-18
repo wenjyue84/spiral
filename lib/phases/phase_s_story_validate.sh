@@ -77,7 +77,7 @@ run_phase_story_validate() {
   fi
 
   # Run Python validation script
-  if "$spiral_python" "$spiral_home/lib/validate_stories.py" \
+  if "$spiral_python" "$spiral_home/lib/prd/validate_stories.py" \
     --prd "$prd_file" \
     --research "${research_output:-/dev/null}" \
     --test-stories "${test_output:-/dev/null}" \
@@ -148,6 +148,6 @@ run_phase_s() {
   run_phase_hook POST "S" || true
   _PHASE_DUR_S=$(($(date +%s) - _PHASE_TS_S))
   log_spiral_event "phase_end" "\"phase\":\"S\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_S,\"model\":\"$SPIRAL_VALIDATION_MODEL\""
-  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" end-phase --phase S --duration-s "$_PHASE_DUR_S" --iteration "$SPIRAL_ITER" 2>/dev/null || true
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/observability/otel_spans.py" end-phase --phase S --duration-s "$_PHASE_DUR_S" --iteration "$SPIRAL_ITER" 2>/dev/null || true
   notify_webhook "S" "end"
 }

@@ -606,7 +606,7 @@ run_phase_clarify() {
   local _detect_root="${SPIRAL_PROJECT_ROOT:-.}"
   local _detect_cache="${scratch}"
   local _detect_out
-  _detect_out=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/detect_stack.py" \
+  _detect_out=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/tools/detect_stack.py" \
     --root "$_detect_root" \
     --cache-dir "$_detect_cache" \
     2>/dev/null) || _detect_out=""

@@ -7,7 +7,7 @@
 #
 # Steps:
 #   1. Phase P: push to origin/main (best-effort)
-#   2. Phase C: Call lib/check_done.py — returns 0 if all stories pass, 1 otherwise
+#   2. Phase C: Call lib/prd/check_done.py — returns 0 if all stories pass, 1 otherwise
 #   3. If done: print velocity summary, run SPIRAL_ON_COMPLETE hook, exit 0
 #   4. If not done: print remaining story count + velocity estimate, loop
 #
@@ -52,7 +52,7 @@ run_phase_check_done() {
       --prd "$PRD_FILE" \
       --reports-dir "$REPO_ROOT/$SPIRAL_REPORTS_DIR" || _CHECK_DONE_RC=$?
   else
-    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/check_done.py" \
+    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/prd/check_done.py" \
       --prd "$PRD_FILE" \
       --reports-dir "$REPO_ROOT/$SPIRAL_REPORTS_DIR" \
       --skip-ids "${SPIRAL_SKIP_STORY_IDS:-}" || _CHECK_DONE_RC=$?
@@ -79,8 +79,8 @@ run_phase_check_done() {
 
     if [[ -f "$REPO_ROOT/results.tsv" ]]; then
       echo ""
-      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/spiral_report.py" --results "$REPO_ROOT/results.tsv" 2>/dev/null || true
-      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/spiral_dashboard.py" \
+      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/observability/spiral_report.py" --results "$REPO_ROOT/results.tsv" 2>/dev/null || true
+      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/ui/spiral_dashboard.py" \
         --prd "$PRD_FILE" --results "$REPO_ROOT/results.tsv" \
         --retries "$REPO_ROOT/retry-counts.json" --progress "$REPO_ROOT/progress.txt" \
         --output "$SCRATCH_DIR/dashboard.html" --open 2>/dev/null || true
@@ -92,7 +92,7 @@ run_phase_check_done() {
       echo "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
       echo "  📊 CALIBRATION SUMMARY (Actual vs Estimated Complexity)"
       echo "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/calibration_tracker.py" report --calibration-file "calibration.jsonl" 2>/dev/null || true
+      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/routing/calibration_tracker.py" report --calibration-file "calibration.jsonl" 2>/dev/null || true
     fi
 
     SESSION_END=$(date +%s)
@@ -120,7 +120,7 @@ run_phase_check_done() {
     fi
 
     # ── Emit OTel root span for completed run (US-184) ─────────────────────
-    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" end-run \
+    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/observability/otel_spans.py" end-run \
       --passes "$DONE" --story-count "$TOTAL" 2>/dev/null || true
 
     # ── Auto SemVer release from conventional commits (US-190) ───────────
@@ -130,7 +130,7 @@ run_phase_check_done() {
       _RELEASE_FLAGS=""
       [[ "${SPIRAL_GIT_PUSH:-false}" == "true" ]] && _RELEASE_FLAGS="--push"
       _RELEASE_RC=0
-      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/auto_release.py" \
+      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/observability/auto_release.py" \
         --prd "$PRD_FILE" \
         --repo "$REPO_ROOT" \
         ${_RELEASE_FLAGS} || _RELEASE_RC=$?
@@ -239,7 +239,7 @@ open(path, 'w', encoding='utf-8').write(text)
 
   # ── Generate & open iteration dashboard ─────────────────────────────────────
   if [[ -f "$REPO_ROOT/results.tsv" ]]; then
-    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/spiral_dashboard.py" \
+    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/ui/spiral_dashboard.py" \
       --prd "$PRD_FILE" --results "$REPO_ROOT/results.tsv" \
       --retries "$REPO_ROOT/retry-counts.json" --progress "$REPO_ROOT/progress.txt" \
       --output "$SCRATCH_DIR/dashboard.html" --open 2>/dev/null || true
@@ -273,8 +273,8 @@ open(path, 'w', encoding='utf-8').write(text)
       echo "  ║  Session: ${SESSION_MINUTES}m, $SPIRAL_ITER iterations              ║"
       echo "  ╚══════════════════════════════════════════════════════╝"
       if [[ -f "$REPO_ROOT/results.tsv" ]]; then
-        "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/spiral_report.py" --results "$REPO_ROOT/results.tsv" 2>/dev/null || true
-        "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/spiral_dashboard.py" \
+        "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/observability/spiral_report.py" --results "$REPO_ROOT/results.tsv" 2>/dev/null || true
+        "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/ui/spiral_dashboard.py" \
           --prd "$PRD_FILE" --results "$REPO_ROOT/results.tsv" \
           --retries "$REPO_ROOT/retry-counts.json" --progress "$REPO_ROOT/progress.txt" \
           --output "$SCRATCH_DIR/dashboard.html" --open 2>/dev/null || true
@@ -288,6 +288,6 @@ open(path, 'w', encoding='utf-8').write(text)
 
   _PHASE_DUR_C=$(($(date +%s) - _PHASE_TS_C))
   log_spiral_event "phase_end" "\"phase\":\"C\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_C"
-  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" end-phase --phase C --duration-s "$_PHASE_DUR_C" --iteration "$SPIRAL_ITER" 2>/dev/null || true
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/observability/otel_spans.py" end-phase --phase C --duration-s "$_PHASE_DUR_C" --iteration "$SPIRAL_ITER" 2>/dev/null || true
   notify_webhook "C" "end"
 }

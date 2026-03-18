@@ -6,7 +6,7 @@
 # Steps:
 #   1. US-323: Goal-hijack detection (verify goals hash unchanged after Phase R)
 #   2. Snapshot prd.json (backup before write)
-#   3. Call lib/merge_stories.py with validated candidates
+#   3. Call lib/prd/merge_stories.py with validated candidates
 #   4. Overflow: candidates that would push pending > SPIRAL_MAX_PENDING
 #      are written to .spiral/_research_overflow.json for the next iteration
 #   5. Post-merge assertions (IDs unique, DAG valid, story count bounded)
@@ -110,7 +110,7 @@ run_phase_merge() {
           --max-pending "$SPIRAL_MAX_PENDING" \
           ${SPIRAL_FOCUS:+--focus "$SPIRAL_FOCUS"} || true
       else
-        "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/merge_stories.py" \
+        "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/prd/merge_stories.py" \
           --prd "$PRD_FILE" \
           --research "$_M_RESEARCH_INPUT" \
           --test-stories "$TEST_OUTPUT" \
@@ -138,7 +138,7 @@ run_phase_merge() {
       # ── Phase M: Enforce pending story cap (evict to candidate_us.json) ──────
       _CANDIDATE_US="$SCRATCH_DIR/candidate_us.json"
       if [[ "${SPIRAL_PRD_PENDING_CAP:-50}" -gt 0 ]]; then
-        "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/rebalance_pending.py" \
+        "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/prd/rebalance_pending.py" \
           --prd "$PRD_FILE" \
           --candidate-out "$_CANDIDATE_US" \
           --overflow-out "$OVERFLOW_FILE" \
@@ -149,7 +149,7 @@ run_phase_merge() {
       _HINTS_FILE="$SCRATCH_DIR/_dependency_hints.json"
       echo "  [M] Inferring dependencies from filesTouch overlap..."
       SPIRAL_AUTO_INFER_DEPS="$SPIRAL_AUTO_INFER_DEPS" \
-        "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/infer_dependencies.py" \
+        "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/tools/infer_dependencies.py" \
         --prd "$PRD_FILE" \
         --out-hints "$_HINTS_FILE" || true
 
@@ -170,6 +170,6 @@ run_phase_merge() {
   run_phase_hook POST "M" || true
   _PHASE_DUR_M=$(($(date +%s) - _PHASE_TS_M))
   log_spiral_event "phase_end" "\"phase\":\"M\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_M,\"model\":\"$SPIRAL_MERGE_MODEL\""
-  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/otel_spans.py" end-phase --phase M --duration-s "$_PHASE_DUR_M" --iteration "$SPIRAL_ITER" 2>/dev/null || true
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/observability/otel_spans.py" end-phase --phase M --duration-s "$_PHASE_DUR_M" --iteration "$SPIRAL_ITER" 2>/dev/null || true
   notify_webhook "M" "end"
 }

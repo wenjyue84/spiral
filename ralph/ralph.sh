@@ -702,7 +702,7 @@ build_filestouch_context() {
     local _story_desc
     _story_desc=$("$_jq_bin" -r '.title + ": " + .description' <<<"$story_json" 2>/dev/null)
     local _chunker_py
-    _chunker_py="$(cd "$SCRIPT_DIR/.." 2>/dev/null && pwd)/lib/semantic_chunker.py"
+    _chunker_py="$(cd "$SCRIPT_DIR/.." 2>/dev/null && pwd)/lib/resilience/semantic_chunker.py"
 
     echo "  [context] filesTouch: diff empty — using semantic chunker for ${#_ft_files[@]} file(s)" >&2
 
@@ -1112,7 +1112,7 @@ decompose_story() {
 
   local python_cmd="${SPIRAL_PYTHON:-python3}"
   local decompose_script
-  decompose_script="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd)/lib/decompose_story.py"
+  decompose_script="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd)/lib/workers/decompose_story.py"
 
   if [[ ! -f "$decompose_script" ]]; then
     echo "  [decompose] decompose_story.py not found — skipping"
@@ -2316,7 +2316,7 @@ while [[ $ITERATION -lt $MAX_ITERATIONS ]]; do
   # Uses count_tokens API (free, no quota) for accurate pre-flight check.
   # Falls back to tiktoken/approx when API key is absent or SDK not installed.
   # Emits token_budget_exceeded event to spiral_events.jsonl if over budget.
-  _TOKEN_GUARD_PY="$(cd "$SCRIPT_DIR/.." 2>/dev/null && pwd)/lib/token_guard.py"
+  _TOKEN_GUARD_PY="$(cd "$SCRIPT_DIR/.." 2>/dev/null && pwd)/lib/resilience/token_guard.py"
   if [[ -f "$_TOKEN_GUARD_PY" ]] && command -v python3 &>/dev/null &&
     [[ -n "$STORY_JSON" && "$STORY_JSON" != "{}" ]]; then
     _TG_WARN=$(echo "$STORY_JSON" |
@@ -2350,7 +2350,7 @@ while [[ $ITERATION -lt $MAX_ITERATIONS ]]; do
 
   # ── Context truncation gate (US-141) ─────────────────────────────────────
   # Measure story token count before spawning AI; strip over-budget fields.
-  _TRUNCATE_PY="$(cd "$SCRIPT_DIR/.." 2>/dev/null && pwd)/lib/truncate_context.py"
+  _TRUNCATE_PY="$(cd "$SCRIPT_DIR/.." 2>/dev/null && pwd)/lib/resilience/truncate_context.py"
   if [[ -f "$_TRUNCATE_PY" ]] && command -v python3 &>/dev/null &&
     [[ -n "$STORY_JSON" && "$STORY_JSON" != "{}" ]]; then
     _TRUNC_WARN=$(echo "$STORY_JSON" |
@@ -2633,7 +2633,7 @@ This SPIRAL iteration is focused on **$RALPH_FOCUS**. Keep this theme in mind wh
         if [[ -d "$_PLAN_CACHE_DIR" ]]; then
           _PC_STORY_TMP=$(mktemp -p "${SPIRAL_SCRATCH_DIR:-.spiral}" _pc_story_XXXXXX.json 2>/dev/null || echo "${SPIRAL_SCRATCH_DIR:-.spiral}/_pc_story_$$.json")
           printf '%s' "${STORY_JSON:-{}}" >"$_PC_STORY_TMP"
-          _PC_INJECT=$("${SPIRAL_PYTHON:-python3}" "$SPIRAL_HOME/lib/plan_cache.py" inject "$_PLAN_CACHE_DIR" \
+          _PC_INJECT=$("${SPIRAL_PYTHON:-python3}" "$SPIRAL_HOME/lib/resilience/plan_cache.py" inject "$_PLAN_CACHE_DIR" \
             --story-json "$_PC_STORY_TMP" \
             --ttl-hours "${SPIRAL_PLAN_CACHE_TTL_HOURS:-168}" 2>/dev/null || true)
           if [[ -n "$_PC_INJECT" ]]; then
@@ -2652,7 +2652,7 @@ $_PC_INJECT"
       fi
 
       # ── US-427: Episodic memory injection (top-3 similar past implementations) ──
-      _EPISODIC_SCRIPT="$SPIRAL_HOME/lib/episodic_memory.py"
+      _EPISODIC_SCRIPT="$SPIRAL_HOME/lib/resilience/episodic_memory.py"
       _EPISODIC_DB="${SPIRAL_SCRATCH_DIR:-.spiral}/episodic_memory.db"
       if [[ "${SPIRAL_EPISODIC_MEMORY:-false}" == "true" && -f "$_EPISODIC_SCRIPT" && -f "$_EPISODIC_DB" && -n "${STORY_TITLE:-}" ]]; then
         _EPISODIC_RAW=$("${SPIRAL_PYTHON:-python3}" "$_EPISODIC_SCRIPT" query "$_EPISODIC_DB" "$STORY_TITLE" --top-k 3 2>/dev/null || true)
@@ -2910,7 +2910,7 @@ ${_FT_CONTEXT_BODY}"
         fi
         # ── US-397: Emit OTel gen_ai.content.prompt Event before API call ────────────
         if [[ "${SPIRAL_OTEL_ENABLED:-false}" == "true" ]]; then
-          "$SPIRAL_PYTHON" lib/otel_content_events.py emit-prompt \
+          "$SPIRAL_PYTHON" lib/observability/otel_content_events.py emit-prompt \
             --system-prompt "$RALPH_SYSTEM_PROMPT" \
             --user-prompt "$RALPH_USER_PROMPT" \
             --model "${EFFECTIVE_MODEL:-unknown}" \
@@ -3099,7 +3099,7 @@ ${_FT_CONTEXT_BODY}"
     if [[ "$EFFECTIVE_TOOL" == "claude" && ("$_CALL_TOKENS_INPUT" -gt 0 || "$_CALL_TOKENS_OUTPUT" -gt 0) ]]; then
       _DURATION_MS=$(printf "%.0f" "$(echo "$_WALL_SEC * 1000" | bc 2>/dev/null || echo 0)")
       _OTEL_MODEL="${EFFECTIVE_MODEL:-unknown}"
-      "$SPIRAL_PYTHON" lib/otel_metrics.py record-tokens \
+      "$SPIRAL_PYTHON" lib/observability/otel_metrics.py record-tokens \
         --story-id "$NEXT_STORY" \
         --phase I \
         --input-tokens "$_CALL_TOKENS_INPUT" \
@@ -3138,7 +3138,7 @@ COMPLETION_EXTRACTOR_EOF
         2>/dev/null || true
       )
       if [[ -n "$_COMPLETION_TEXT" ]]; then
-        "$SPIRAL_PYTHON" lib/otel_content_events.py emit-completion \
+        "$SPIRAL_PYTHON" lib/observability/otel_content_events.py emit-completion \
           --completion "$_COMPLETION_TEXT" \
           --model "${EFFECTIVE_MODEL:-unknown}" \
           --scratch-dir "$SPIRAL_SCRATCH_DIR" 2>/dev/null || true
@@ -3557,7 +3557,7 @@ ACTION: Fix the critical issues listed above before marking passes=true."
       # so it is included in the story commit.  Non-blocking: a failure only
       # logs a warning and does not prevent the commit from proceeding.
       if [[ "${SPIRAL_SKIP_ADR:-false}" != "true" ]]; then
-        _adr_script="$(cd "$SCRIPT_DIR/.." 2>/dev/null && pwd)/lib/generate_adr.py"
+        _adr_script="$(cd "$SCRIPT_DIR/.." 2>/dev/null && pwd)/lib/observability/generate_adr.py"
         _python_cmd="${SPIRAL_PYTHON:-python3}"
         if [[ -f "$_adr_script" ]] && command -v "$_python_cmd" &>/dev/null; then
           echo "  [adr] Generating ADR for $NEXT_STORY..."

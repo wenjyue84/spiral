@@ -53,7 +53,7 @@ handle_replay_mode() {
   [[ -n "$REPLAY_FROM_PHASE" ]] && echo "  ║  From phase: $REPLAY_FROM_PHASE"
   [[ -n "$REPLAY_HINT" ]] && echo "  ║  Hint:       ${REPLAY_HINT:0:60}..."
   # US-362: Show previous invocation snapshot context if available
-  _SNAP_JSON=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/invocation_snapshot.py" read "$SCRATCH_DIR" \
+  _SNAP_JSON=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/resilience/invocation_snapshot.py" read "$SCRATCH_DIR" \
     --story-id "$REPLAY_STORY_ID" 2>/dev/null || true)
   if [[ -n "$_SNAP_JSON" && "$_SNAP_JSON" != "null" ]]; then
     _SNAP_MODEL=$(echo "$_SNAP_JSON" | "$JQ" -r '.model // "unknown"' 2>/dev/null || echo "unknown")

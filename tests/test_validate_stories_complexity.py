@@ -9,7 +9,7 @@ import tempfile
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from lib.validate_stories import validate_stories
+from lib.prd.validate_stories import validate_stories
 
 
 def _make_prd(goals: list[str] | None = None) -> dict:

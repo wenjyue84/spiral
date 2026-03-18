@@ -163,7 +163,7 @@ commit_or_revert() {
     # ── Episodic memory write (non-fatal) ────────────────────────────
     if [[ "${SPIRAL_EPISODIC_MEMORY:-false}" == "true" ]]; then
       _approach="$(grep -A 15 "Story:.*${story_id}" "${SPIRAL_ROOT:-./}/progress.txt" 2>/dev/null | tail -15 | tr '\n' ' ' | cut -c1-300)"
-      uv run python lib/episodic_memory.py write \
+      uv run python lib/resilience/episodic_memory.py write \
         "${SPIRAL_EPISODIC_DB:-.spiral/episodic_memory.db}" \
         "$story_id" "unknown" "${_approach:-no summary}" "pass" "${SPIRAL_ITERATION:-0}" \
         2>/dev/null || true

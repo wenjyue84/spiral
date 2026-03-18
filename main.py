@@ -619,7 +619,7 @@ def _format_velocity_report(velocity_model: dict) -> str:
     For types with <5 samples, show n/a instead of values.
     """
     import sys as _sys
-    from lib.constants import MIN_HISTORY_ROWS, INPUT_OUTPUT_RATIO, TOKENS_PER_SEC_OUTPUT
+    from lib.core.constants import MIN_HISTORY_ROWS, INPUT_OUTPUT_RATIO, TOKENS_PER_SEC_OUTPUT
 
     types = velocity_model.get("story_types", {})
     if not types:
