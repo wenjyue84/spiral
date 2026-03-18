@@ -170,6 +170,10 @@ SPIRAL_CONSECUTIVE_FAIL_ABORT=0  # disabled — allow retries on difficult sub-s
 # ── Skip disk space preflight check (slow on Windows NTFS) ──────────────────
 export SPIRAL_SKIP_DISK_CHECK=1
 
+# ── Implementation timeout per story ─────────────────────────────────────
+SPIRAL_IMPL_TIMEOUT=1200
+SPIRAL_WORKER_TIMEOUT=1200
+
 # ── Cost ceiling: abort when cumulative API spend exceeds budget ──────────────
 # Set to a USD amount (e.g., 50.0) to cap spending. Empty = disabled.
 # SPIRAL_COST_CEILING=""
@@ -213,9 +217,10 @@ SPIRAL_RESEARCH_SPECIALIST_PROMPT=""
 # increment). Use for stories that are blocked externally or descoped mid-run.
 # US-318 to US-335: Tier 4 stories (OTel spans, DeepEval, RAGAS, HMAC, etc.)
 # requiring external dependencies not available in this environment.
-SPIRAL_SKIP_STORY_IDS="US-318,US-319,US-320,US-321,US-322,US-323,US-324,US-325,US-326,US-327,US-328,US-329,US-330,US-331,US-332,US-333,US-334,US-335,US-447"
+SPIRAL_SKIP_STORY_IDS="US-318,US-319,US-320,US-321,US-322,US-323,US-324,US-325,US-326,US-327,US-328,US-329,US-330,US-331,US-332,US-333,US-334,US-335,US-447,US-461"
 # US-447 skipped: claude CLI hits "Argument list too long" (Windows E2BIG) every attempt
 # — Node.js can't start because PATH+env exceeds OS limit. Requeue after shortening PATH.
+# US-461 skipped: baseline test counting consumes entire budget before implementation starts
 # SPIRAL_SKIP_STORY_IDS=""
 
 # ── Dashboard auto-refresh interval (seconds) ─────────────────────────────
