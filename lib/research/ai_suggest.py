@@ -132,16 +132,43 @@ def _suggest_via_llm(
             raw = re.sub(r"^```[a-z]*\n?", "", raw)
             raw = re.sub(r"\n?```$", "", raw)
         data = json.loads(raw)
-        stories: list[dict[str, Any]] = data.get("stories", [])
+
+        # Handle both {"stories": [...]} and bare [...] array responses
+        if isinstance(data, list):
+            stories: list[dict[str, Any]] = data
+        else:
+            stories = data.get("stories", [])
+
+        # Normalize snake_case fields to camelCase PRD schema
+        _field_map = {
+            "acceptance_criteria": "acceptanceCriteria",
+            "estimated_complexity": "estimatedComplexity",
+            "technical_notes": "technicalNotes",
+            "files_to_touch": "filesTouch",
+        }
         for s in stories:
+            for snake, camel in _field_map.items():
+                if snake in s and camel not in s:
+                    s[camel] = s.pop(snake)
+            for drop in ("id", "status"):
+                s.pop(drop, None)
             s.setdefault("_source", "ai-example")
+            s.setdefault("passes", False)
+            s.setdefault("priority", "medium")
+            s.setdefault("dependencies", [])
+            if not s.get("acceptanceCriteria"):
+                s["acceptanceCriteria"] = []
+
         print(f"[A] LLM generated {len(stories)} story candidates")
         return stories
     except subprocess.TimeoutExpired:
-        print(f"[A] WARNING: Claude CLI timed out after {_DEFAULT_TIMEOUT}s — returning empty")
+        print(
+            f"[A] WARNING: Claude CLI timed out after {_DEFAULT_TIMEOUT}s"
+            " -- returning empty"
+        )
         return []
     except Exception as exc:
-        print(f"[A] WARNING: LLM story generation failed ({exc}) — returning empty")
+        print(f"[A] WARNING: LLM story generation failed ({exc}) -- returning empty")
         return []
 
 
