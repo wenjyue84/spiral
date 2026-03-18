@@ -121,3 +121,4 @@
 {"ts":"2026-03-17T16:12:49Z","event":"rollback_success","story_id":"US-999","run_id":"","elapsed_ms":1500}
 {"ts":"2026-03-17T16:12:49Z","event":"rollback_stash_restore_failed","story_id":"US-888","run_id":"","elapsed_ms":2000,"details":"test error"}
 {"event_type": "prd_io_error", "timestamp": "2026-03-17T16:17:42.826222+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-887\\\\popen-gw0\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
+{"event_type": "prd_io_error", "timestamp": "2026-03-18T13:11:59.918387+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-1081\\\\popen-gw0\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}

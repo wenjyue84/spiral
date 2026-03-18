@@ -1,3 +1,4 @@
 {"story_id": "US-233", "estimated_complexity": "medium", "actual_duration_s": 3601, "phase_retries": 0, "passed": true}
 {"story_id": "US-446", "estimated_complexity": "small", "actual_duration_s": 301, "phase_retries": 0, "passed": true}
 {"story_id": "US-446", "estimated_complexity": "small", "actual_duration_s": 300, "phase_retries": 0, "passed": true}
+{"story_id": "US-451", "estimated_complexity": "medium", "actual_duration_s": 600, "phase_retries": 0, "passed": true}
