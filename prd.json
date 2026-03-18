@@ -4,12 +4,51 @@
   "branchName": "main",
   "overview": "SPIRAL is a self-iterating autonomous development loop (Research Ã¢â€ â€™ Implement Ã¢â€ â€™ Validate). This PRD drives Spiral to improve itself: integrating newly-written lib modules into the main loop, enhancing the setup wizard to educate users about every configurable option, and adding Chrome DevTools-powered visual validation.",
   "goals": [
-    "Wire the four new lib modules (preflight, DAG, state machine, story review) into the live spiral.sh loop",
-    "Enhance /spiral-init wizard to ask about ALL configurable options, educating users about what exists",
-    "Achieve dynamic token-saving without sacrificing output quality via smarter model routing",
-    "Enable Chrome DevTools MCP as a first-class visual validation tool in Phase V"
+    "Implement SPIRAL Phase G: auto-generate CHANGELOG.md and API docs from story commits using git-cliff and pdoc",
+    "Add comprehensive integration test suite that runs SPIRAL end-to-end with mock Claude API responses",
+    "Build SPIRAL self-monitoring dashboard: live token burn rate, story throughput, model escalation heatmap",
+    "Enable SPIRAL to support multi-repo projects: federated prd.json with sub-project story namespacing"
   ],
   "userStories": [
+    {
+      "id": "US-457",
+      "title": "Enhance: Enable SPIRAL to support multi-repo projects: federated prd.json with sub-projec",
+      "priority": "low",
+      "description": "Continuous-improvement story for goal: Enable SPIRAL to support multi-repo projects: federated prd.json with sub-project story namespacing. All current stories pass — pushing coverage higher (54% → target 70%).",
+      "acceptanceCriteria": [
+        "Further improves coverage of goal: Enable SPIRAL to support multi-repo projects: federated prd.json with sub-project story namespacing"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku",
+      "filesTouch": [
+        ".claude/hooks/protect-spiral-files.sh",
+        ".claude/hooks/worktree_audit.sh",
+        ".claude/scheduled_tasks.lock",
+        ".claude/settings.json",
+        ".claude/worktrees/exciting-bell",
+        ".coverage",
+        ".devcontainer/devcontainer.json",
+        ".github/actions/lint-shell/action.yml",
+        ".github/actions/setup-uv/action.yml",
+        ".github/workflows/ci.yml"
+      ],
+      "tags": [
+        "module-claude",
+        "module-devcontainer",
+        "module-github"
+      ],
+      "last_attempted": "2026-03-18T16:56:51Z",
+      "_decomposed": true,
+      "_decomposedInto": [
+        "US-458",
+        "US-459",
+        "US-460"
+      ]
+    },
     {
       "id": "US-445",
       "title": "Fix quality_judge.py [WinError 2] — resolve claude CLI path on Windows",
@@ -106,174 +145,6 @@
       "_passedCommit": "f00aab208cc9eea3cce7d42ca4bd356833f0e521"
     },
     {
-      "id": "US-448",
-      "title": "Implement spiral.sh --archive-done to move completed stories to prd-archive.json",
-      "priority": "medium",
-      "estimatedComplexity": "medium",
-      "description": "prd.json has 370 stories (all passes:true), triggering preflight threshold warnings and slowing every phase. The --archive-done flag should move all passes:true stories to prd-archive.json (appending if it already exists), rewrite prd.json with only pending/failed stories, and print a summary. Operation must be atomic.",
-      "acceptanceCriteria": [
-        "bash spiral.sh --archive-done moves all passes:true stories to prd-archive.json",
-        "prd.json after archive contains only stories where passes!=true",
-        "prd-archive.json is created if missing; existing entries are preserved (append-only)",
-        "Archive operation is atomic: uses temp file + rename",
-        "Summary printed: N stories archived, M stories remain",
-        "Preflight threshold warning no longer fires after archiving",
-        "Existing tests pass: uv run pytest tests/ -v --tb=short"
-      ],
-      "technicalNotes": [
-        "File: spiral.sh — add --archive-done to CLI arg parsing and implement handler before main loop",
-        "Read prd.json, partition into done/pending lists",
-        "Write prd-archive.json: merge archived stories with any existing prd-archive.json",
-        "Write lean prd.json: same header fields + only pending stories",
-        "Both writes use atomic temp+rename pattern"
-      ],
-      "filesTouch": [
-        "spiral.sh"
-      ],
-      "dependencies": [],
-      "passes": true,
-      "_source": "seed",
-      "model": "haiku",
-      "tags": []
-    },
-    {
-      "id": "US-449",
-      "title": "Fix ralph.sh Windows CRLF line endings causing SC1017 ShellCheck errors",
-      "priority": "medium",
-      "estimatedComplexity": "small",
-      "description": "ralph/ralph.sh has Windows-style CRLF (\\r\\n) line endings. ShellCheck reports SC1017 (literal carriage return) on every line. Preflight reports 3 error-level issues in ralph.sh every run. Fix by converting to Unix LF endings and adding a .gitattributes rule to prevent re-introduction.",
-      "acceptanceCriteria": [
-        "shellcheck --severity=error ralph/ralph.sh produces zero SC1017 errors",
-        "file ralph/ralph.sh reports ASCII text (not CRLF line terminators)",
-        "ralph.sh still executes correctly after conversion",
-        "Preflight no longer reports ShellCheck errors for ralph.sh",
-        ".gitattributes contains: ralph/ralph.sh text eol=lf",
-        "Existing tests pass: uv run pytest tests/ -v --tb=short"
-      ],
-      "technicalNotes": [
-        "File: ralph/ralph.sh",
-        "Fix: sed -i 's/\\r//' ralph/ralph.sh  OR  dos2unix ralph/ralph.sh",
-        "Verify: file ralph/ralph.sh shows 'ASCII text' not 'with CRLF'",
-        "Add to .gitattributes: ralph/ralph.sh text eol=lf"
-      ],
-      "filesTouch": [
-        "ralph/ralph.sh",
-        ".gitattributes"
-      ],
-      "dependencies": [],
-      "passes": true,
-      "_source": "seed",
-      "model": "haiku",
-      "tags": [
-        "module-ralph"
-      ]
-    },
-    {
-      "id": "US-450",
-      "title": "Add bats regression tests for lib/phases/ sourcing — verify each phase defines its function",
-      "priority": "medium",
-      "estimatedComplexity": "small",
-      "description": "The spiral.sh refactoring extracted 8 phase blocks into lib/phases/ with no regression tests. Add a bats test file that sources each phase file with minimal stubs and asserts the expected run_phase_* function is defined.",
-      "acceptanceCriteria": [
-        "tests/test_phases_sourcing.bats exists and passes: tests/bats-core/bin/bats tests/test_phases_sourcing.bats",
-        "One @test per phase file: phase_a, phase_r, phase_e, phase_m, phase_i, phase_v, phase_c",
-        "Each test sources the file and asserts declare -f run_phase_<name> succeeds",
-        "Minimal stubs for SPIRAL_HOME, SCRATCH_DIR, SPIRAL_PYTHON, JQ prevent source-time errors",
-        "All existing tests still pass: uv run pytest tests/ -v --tb=short"
-      ],
-      "technicalNotes": [
-        "File: tests/test_phases_sourcing.bats (new)",
-        "Pattern: @test 'phase_a defines run_phase_ai_suggest' { SPIRAL_HOME=. source lib/phases/phase_a_ai_suggest.sh; declare -f run_phase_ai_suggest > /dev/null; }",
-        "Export minimal stubs before sourcing: export JQ=jq SPIRAL_PYTHON=python SCRATCH_DIR=/tmp"
-      ],
-      "filesTouch": [
-        "tests/test_phases_sourcing.bats"
-      ],
-      "dependencies": [],
-      "passes": true,
-      "_source": "seed",
-      "model": "haiku",
-      "tags": [
-        "module-tests"
-      ],
-      "_passedCommit": "c301a6ccec61a620f9618b4467308caa1c788167"
-    },
-    {
-      "id": "US-451",
-      "title": "Enhance: Enhance /spiral-init wizard to ask about ALL configurable options, educating use",
-      "priority": "low",
-      "description": "Continuous-improvement story for goal: Enhance /spiral-init wizard to ask about ALL configurable options, educating users about what exists. All current stories pass — pushing coverage higher (58% → target 70%).",
-      "acceptanceCriteria": [
-        "Further improves coverage of goal: Enhance /spiral-init wizard to ask about ALL configurable options, educating users about what exists"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": true,
-      "_source": "ai-example",
-      "model": "haiku",
-      "filesTouch": [
-        ".claude/hooks/protect-spiral-files.sh",
-        ".claude/settings.json",
-        ".claude/worktrees/exciting-bell",
-        ".coverage",
-        ".github/actions/lint-shell/action.yml",
-        ".github/actions/setup-uv/action.yml",
-        ".github/workflows/ci.yml",
-        ".github/workflows/release.yml",
-        ".github/workflows/spiral.yml",
-        ".gitignore"
-      ],
-      "tags": [
-        "module-claude",
-        "module-github"
-      ],
-      "last_attempted": "2026-03-18T13:08:34Z",
-      "_failureReason": "story_cost_ceiling",
-      "_passedCommit": "1e01859ab6170bf897e2aa5c0ef9c4fd6191ac5a"
-    },
-    {
-      "id": "US-452",
-      "title": "Enhance: Achieve dynamic token-saving without sacrificing output quality via smarter mode",
-      "priority": "low",
-      "description": "Continuous-improvement story for goal: Achieve dynamic token-saving without sacrificing output quality via smarter model routing. All current stories pass — pushing coverage higher (64% → target 70%).",
-      "acceptanceCriteria": [
-        "Further improves coverage of goal: Achieve dynamic token-saving without sacrificing output quality via smarter model routing"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": true,
-      "_source": "ai-example",
-      "model": "haiku",
-      "filesTouch": [
-        ".claude/worktrees/exciting-bell",
-        ".github/workflows/spiral.yml",
-        ".hypothesis/constants/4b347f702e221fb5",
-        ".hypothesis/constants/503de5831ce705a4",
-        ".hypothesis/constants/7ede122ec306750c",
-        ".hypothesis/constants/8f591210653abb8d",
-        ".hypothesis/constants/d1656c97d673c23d",
-        ".hypothesis/constants/df1f882f4a0e6882",
-        ".hypothesis/tmp/tmp0d_6qa3f",
-        ".hypothesis/tmp/tmp0e2cnr_5"
-      ],
-      "tags": [
-        "module-claude",
-        "module-github",
-        "module-hypothesis"
-      ],
-      "last_attempted": "2026-03-18T13:38:04Z",
-      "_decomposed": true,
-      "_decomposedInto": [
-        "US-453",
-        "US-454",
-        "US-455",
-        "US-456"
-      ],
-      "_skipped": true
-    },
-    {
       "id": "US-453",
       "title": "Add story complexity scoring via regex pattern matching on acceptance criteria",
       "priority": "high",
@@ -305,113 +176,6 @@
         "feature-routing"
       ],
       "_passedCommit": "a90cc408b0f8e2df2735e23984b6c4e7a31ee633"
-    },
-    {
-      "id": "US-454",
-      "title": "Route models based on estimated complexity in ralph worker selection",
-      "priority": "high",
-      "estimatedComplexity": "small",
-      "description": "Wire the complexity-based .model field from route_stories.py into ralph.sh worker model selection. When ralph.sh processes a story, read the .model field from prd.json and override --model CLI flag / RALPH_MODEL env var. Enable per-story model routing in parallel worker mode.",
-      "acceptanceCriteria": [
-        "ralph.sh reads .model field from prd.json for each story using jq",
-        "If .model is set, passes --model <value> to the claude CLI invocation (overrides RALPH_MODEL)",
-        "If .model is unset/empty, falls back to RALPH_MODEL env var",
-        "Applies to both sequential and parallel (worktree) worker modes",
-        "A complex story (model=opus) is invoked with --model opus; simple story (model=haiku) with --model haiku",
-        "All existing tests pass (51/51)"
-      ],
-      "technicalNotes": [
-        "File: ralph/ralph.sh, read .model field after story ID selection",
-        "Extract: STORY_MODEL=$(jq -r --arg id \"$STORY_ID\" '.userStories[] | select(.id==$id) | .model // empty' \"$PRD_FILE\")",
-        "Build model arg: [ -n \"$STORY_MODEL\" ] && MODEL_ARG=\"--model $STORY_MODEL\" || MODEL_ARG=\"${RALPH_MODEL:+--model $RALPH_MODEL}\"",
-        "Pass MODEL_ARG to claude CLI invocation"
-      ],
-      "filesTouch": [
-        "ralph/ralph.sh"
-      ],
-      "dependencies": [
-        "US-453"
-      ],
-      "passes": true,
-      "_source": "research",
-      "_decomposedFrom": "US-452",
-      "model": "sonnet",
-      "tags": [
-        "module-ralph",
-        "feature-routing"
-      ]
-    },
-    {
-      "id": "US-455",
-      "title": "Emit routing telemetry (complexity score, model tier, estimated tokens) to spiral_events.jsonl",
-      "priority": "medium",
-      "estimatedComplexity": "small",
-      "description": "After route_stories.py assigns complexity scores and model tiers, emit telemetry events to spiral_events.jsonl (or new routing_metrics.jsonl) capturing: story_id, estimated_complexity (0-100), assigned_model_tier (haiku/sonnet/opus), estimated_tokens. Use these metrics to validate that high-complexity stories are routed to opus and low-complexity to haiku, enabling future quality/cost analysis.",
-      "acceptanceCriteria": [
-        "route_stories.py emits route_story_assigned event to spiral_events.jsonl after model assignment",
-        "Event structure: {ts, type: 'route_story_assigned', story_id, complexity_score, model_tier, estimated_tokens}",
-        "All stories in results.tsv show their assigned model (from .model field)",
-        "Integration test verifies event JSON is valid and contains required fields",
-        "All existing tests pass (51/51)"
-      ],
-      "technicalNotes": [
-        "Add emit_routing_event(story_id, complexity, model, tokens) to lib/routing_telemetry.py (new module)",
-        "Called from route_stories() after complexity scoring and model assignment",
-        "Write to spiral_events.jsonl using atomic_write_jsonl() pattern from spiral_io"
-      ],
-      "filesTouch": [
-        "lib/route_stories.py",
-        "lib/routing_telemetry.py"
-      ],
-      "dependencies": [
-        "US-454"
-      ],
-      "passes": true,
-      "_source": "research",
-      "_decomposedFrom": "US-452",
-      "model": "sonnet",
-      "tags": [
-        "module-lib",
-        "feature-observability"
-      ]
-    },
-    {
-      "id": "US-456",
-      "title": "Build routing metrics analysis: token savings vs quality per model tier",
-      "priority": "low",
-      "estimatedComplexity": "medium",
-      "description": "After 5+ iterations with routing telemetry, add a python analysis script (lib/analyze_routing_metrics.py) that reads routing_telemetry from spiral_events.jsonl and results.tsv, computing: (1) mean token cost by model tier, (2) success rate by tier, (3) token savings vs baseline (all-sonnet), (4) quality loss (pass rate delta). Prints a summary table to stdout and optionally renders a dashboard HTML.",
-      "acceptanceCriteria": [
-        "lib/analyze_routing_metrics.py reads routing telemetry from spiral_events.jsonl",
-        "Computes: mean tokens (haiku/sonnet/opus), success rate by tier, estimated savings vs all-sonnet baseline",
-        "Outputs plain-text table with columns: model_tier, samples, mean_tokens, success_rate, savings_pct",
-        "python main.py analyze-routing prints the metrics table",
-        "Optional HTML dashboard (--dashboard flag) for visual analysis",
-        "All existing tests pass (51/51)"
-      ],
-      "technicalNotes": [
-        "Read spiral_events.jsonl lines matching type='route_story_assigned'",
-        "Group by model_tier, compute statistics",
-        "Baseline: if all stories used sonnet, est. total tokens = SUM(model_tokens['sonnet'])",
-        "Savings % = (baseline_tokens - actual_tokens) / baseline_tokens * 100"
-      ],
-      "filesTouch": [
-        "lib/analyze_routing_metrics.py",
-        "main.py"
-      ],
-      "dependencies": [
-        "US-455"
-      ],
-      "passes": true,
-      "_source": "research",
-      "_decomposedFrom": "US-452",
-      "model": "haiku",
-      "tags": [
-        "module-lib",
-        "feature-observability"
-      ],
-      "_skipped": true,
-      "_failureReason": "dependency US-455 was skipped"
     },
     {
       "id": "US-218",
@@ -2961,6 +2725,41 @@
       "tags": []
     },
     {
+      "id": "US-454",
+      "title": "Route models based on estimated complexity in ralph worker selection",
+      "priority": "high",
+      "estimatedComplexity": "small",
+      "description": "Wire the complexity-based .model field from route_stories.py into ralph.sh worker model selection. When ralph.sh processes a story, read the .model field from prd.json and override --model CLI flag / RALPH_MODEL env var. Enable per-story model routing in parallel worker mode.",
+      "acceptanceCriteria": [
+        "ralph.sh reads .model field from prd.json for each story using jq",
+        "If .model is set, passes --model <value> to the claude CLI invocation (overrides RALPH_MODEL)",
+        "If .model is unset/empty, falls back to RALPH_MODEL env var",
+        "Applies to both sequential and parallel (worktree) worker modes",
+        "A complex story (model=opus) is invoked with --model opus; simple story (model=haiku) with --model haiku",
+        "All existing tests pass (51/51)"
+      ],
+      "technicalNotes": [
+        "File: ralph/ralph.sh, read .model field after story ID selection",
+        "Extract: STORY_MODEL=$(jq -r --arg id \"$STORY_ID\" '.userStories[] | select(.id==$id) | .model // empty' \"$PRD_FILE\")",
+        "Build model arg: [ -n \"$STORY_MODEL\" ] && MODEL_ARG=\"--model $STORY_MODEL\" || MODEL_ARG=\"${RALPH_MODEL:+--model $RALPH_MODEL}\"",
+        "Pass MODEL_ARG to claude CLI invocation"
+      ],
+      "filesTouch": [
+        "ralph/ralph.sh"
+      ],
+      "dependencies": [
+        "US-453"
+      ],
+      "passes": true,
+      "_source": "research",
+      "_decomposedFrom": "US-452",
+      "model": "sonnet",
+      "tags": [
+        "module-ralph",
+        "feature-routing"
+      ]
+    },
+    {
       "id": "US-002",
       "title": "Run DAG cycle detection before Phase I implementation",
       "priority": "high",
@@ -3508,6 +3307,99 @@
         "module-hypothesis"
       ],
       "status": "skipped"
+    },
+    {
+      "id": "US-448",
+      "title": "Implement spiral.sh --archive-done to move completed stories to prd-archive.json",
+      "priority": "medium",
+      "estimatedComplexity": "medium",
+      "description": "prd.json has 370 stories (all passes:true), triggering preflight threshold warnings and slowing every phase. The --archive-done flag should move all passes:true stories to prd-archive.json (appending if it already exists), rewrite prd.json with only pending/failed stories, and print a summary. Operation must be atomic.",
+      "acceptanceCriteria": [
+        "bash spiral.sh --archive-done moves all passes:true stories to prd-archive.json",
+        "prd.json after archive contains only stories where passes!=true",
+        "prd-archive.json is created if missing; existing entries are preserved (append-only)",
+        "Archive operation is atomic: uses temp file + rename",
+        "Summary printed: N stories archived, M stories remain",
+        "Preflight threshold warning no longer fires after archiving",
+        "Existing tests pass: uv run pytest tests/ -v --tb=short"
+      ],
+      "technicalNotes": [
+        "File: spiral.sh — add --archive-done to CLI arg parsing and implement handler before main loop",
+        "Read prd.json, partition into done/pending lists",
+        "Write prd-archive.json: merge archived stories with any existing prd-archive.json",
+        "Write lean prd.json: same header fields + only pending stories",
+        "Both writes use atomic temp+rename pattern"
+      ],
+      "filesTouch": [
+        "spiral.sh"
+      ],
+      "dependencies": [],
+      "passes": true,
+      "_source": "seed",
+      "model": "haiku",
+      "tags": []
+    },
+    {
+      "id": "US-449",
+      "title": "Fix ralph.sh Windows CRLF line endings causing SC1017 ShellCheck errors",
+      "priority": "medium",
+      "estimatedComplexity": "small",
+      "description": "ralph/ralph.sh has Windows-style CRLF (\\r\\n) line endings. ShellCheck reports SC1017 (literal carriage return) on every line. Preflight reports 3 error-level issues in ralph.sh every run. Fix by converting to Unix LF endings and adding a .gitattributes rule to prevent re-introduction.",
+      "acceptanceCriteria": [
+        "shellcheck --severity=error ralph/ralph.sh produces zero SC1017 errors",
+        "file ralph/ralph.sh reports ASCII text (not CRLF line terminators)",
+        "ralph.sh still executes correctly after conversion",
+        "Preflight no longer reports ShellCheck errors for ralph.sh",
+        ".gitattributes contains: ralph/ralph.sh text eol=lf",
+        "Existing tests pass: uv run pytest tests/ -v --tb=short"
+      ],
+      "technicalNotes": [
+        "File: ralph/ralph.sh",
+        "Fix: sed -i 's/\\r//' ralph/ralph.sh  OR  dos2unix ralph/ralph.sh",
+        "Verify: file ralph/ralph.sh shows 'ASCII text' not 'with CRLF'",
+        "Add to .gitattributes: ralph/ralph.sh text eol=lf"
+      ],
+      "filesTouch": [
+        "ralph/ralph.sh",
+        ".gitattributes"
+      ],
+      "dependencies": [],
+      "passes": true,
+      "_source": "seed",
+      "model": "haiku",
+      "tags": [
+        "module-ralph"
+      ]
+    },
+    {
+      "id": "US-450",
+      "title": "Add bats regression tests for lib/phases/ sourcing — verify each phase defines its function",
+      "priority": "medium",
+      "estimatedComplexity": "small",
+      "description": "The spiral.sh refactoring extracted 8 phase blocks into lib/phases/ with no regression tests. Add a bats test file that sources each phase file with minimal stubs and asserts the expected run_phase_* function is defined.",
+      "acceptanceCriteria": [
+        "tests/test_phases_sourcing.bats exists and passes: tests/bats-core/bin/bats tests/test_phases_sourcing.bats",
+        "One @test per phase file: phase_a, phase_r, phase_e, phase_m, phase_i, phase_v, phase_c",
+        "Each test sources the file and asserts declare -f run_phase_<name> succeeds",
+        "Minimal stubs for SPIRAL_HOME, SCRATCH_DIR, SPIRAL_PYTHON, JQ prevent source-time errors",
+        "All existing tests still pass: uv run pytest tests/ -v --tb=short"
+      ],
+      "technicalNotes": [
+        "File: tests/test_phases_sourcing.bats (new)",
+        "Pattern: @test 'phase_a defines run_phase_ai_suggest' { SPIRAL_HOME=. source lib/phases/phase_a_ai_suggest.sh; declare -f run_phase_ai_suggest > /dev/null; }",
+        "Export minimal stubs before sourcing: export JQ=jq SPIRAL_PYTHON=python SCRATCH_DIR=/tmp"
+      ],
+      "filesTouch": [
+        "tests/test_phases_sourcing.bats"
+      ],
+      "dependencies": [],
+      "passes": true,
+      "_source": "seed",
+      "model": "haiku",
+      "tags": [
+        "module-tests"
+      ],
+      "_passedCommit": "c301a6ccec61a620f9618b4467308caa1c788167"
     },
     {
       "id": "US-015",
@@ -7464,6 +7356,40 @@
       "tags": []
     },
     {
+      "id": "US-455",
+      "title": "Emit routing telemetry (complexity score, model tier, estimated tokens) to spiral_events.jsonl",
+      "priority": "medium",
+      "estimatedComplexity": "small",
+      "description": "After route_stories.py assigns complexity scores and model tiers, emit telemetry events to spiral_events.jsonl (or new routing_metrics.jsonl) capturing: story_id, estimated_complexity (0-100), assigned_model_tier (haiku/sonnet/opus), estimated_tokens. Use these metrics to validate that high-complexity stories are routed to opus and low-complexity to haiku, enabling future quality/cost analysis.",
+      "acceptanceCriteria": [
+        "route_stories.py emits route_story_assigned event to spiral_events.jsonl after model assignment",
+        "Event structure: {ts, type: 'route_story_assigned', story_id, complexity_score, model_tier, estimated_tokens}",
+        "All stories in results.tsv show their assigned model (from .model field)",
+        "Integration test verifies event JSON is valid and contains required fields",
+        "All existing tests pass (51/51)"
+      ],
+      "technicalNotes": [
+        "Add emit_routing_event(story_id, complexity, model, tokens) to lib/routing_telemetry.py (new module)",
+        "Called from route_stories() after complexity scoring and model assignment",
+        "Write to spiral_events.jsonl using atomic_write_jsonl() pattern from spiral_io"
+      ],
+      "filesTouch": [
+        "lib/route_stories.py",
+        "lib/routing_telemetry.py"
+      ],
+      "dependencies": [
+        "US-454"
+      ],
+      "passes": true,
+      "_source": "research",
+      "_decomposedFrom": "US-452",
+      "model": "sonnet",
+      "tags": [
+        "module-lib",
+        "feature-observability"
+      ]
+    },
+    {
       "id": "US-003",
       "title": "Validate checkpoint state machine coherence at startup",
       "priority": "medium",
@@ -7707,6 +7633,81 @@
       "passes": true,
       "_decomposedFrom": "US-350",
       "tags": []
+    },
+    {
+      "id": "US-451",
+      "title": "Enhance: Enhance /spiral-init wizard to ask about ALL configurable options, educating use",
+      "priority": "low",
+      "description": "Continuous-improvement story for goal: Enhance /spiral-init wizard to ask about ALL configurable options, educating users about what exists. All current stories pass — pushing coverage higher (58% → target 70%).",
+      "acceptanceCriteria": [
+        "Further improves coverage of goal: Enhance /spiral-init wizard to ask about ALL configurable options, educating users about what exists"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "haiku",
+      "filesTouch": [
+        ".claude/hooks/protect-spiral-files.sh",
+        ".claude/settings.json",
+        ".claude/worktrees/exciting-bell",
+        ".coverage",
+        ".github/actions/lint-shell/action.yml",
+        ".github/actions/setup-uv/action.yml",
+        ".github/workflows/ci.yml",
+        ".github/workflows/release.yml",
+        ".github/workflows/spiral.yml",
+        ".gitignore"
+      ],
+      "tags": [
+        "module-claude",
+        "module-github"
+      ],
+      "last_attempted": "2026-03-18T13:08:34Z",
+      "_failureReason": "story_cost_ceiling",
+      "_passedCommit": "1e01859ab6170bf897e2aa5c0ef9c4fd6191ac5a"
+    },
+    {
+      "id": "US-452",
+      "title": "Enhance: Achieve dynamic token-saving without sacrificing output quality via smarter mode",
+      "priority": "low",
+      "description": "Continuous-improvement story for goal: Achieve dynamic token-saving without sacrificing output quality via smarter model routing. All current stories pass — pushing coverage higher (64% → target 70%).",
+      "acceptanceCriteria": [
+        "Further improves coverage of goal: Achieve dynamic token-saving without sacrificing output quality via smarter model routing"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "haiku",
+      "filesTouch": [
+        ".claude/worktrees/exciting-bell",
+        ".github/workflows/spiral.yml",
+        ".hypothesis/constants/4b347f702e221fb5",
+        ".hypothesis/constants/503de5831ce705a4",
+        ".hypothesis/constants/7ede122ec306750c",
+        ".hypothesis/constants/8f591210653abb8d",
+        ".hypothesis/constants/d1656c97d673c23d",
+        ".hypothesis/constants/df1f882f4a0e6882",
+        ".hypothesis/tmp/tmp0d_6qa3f",
+        ".hypothesis/tmp/tmp0e2cnr_5"
+      ],
+      "tags": [
+        "module-claude",
+        "module-github",
+        "module-hypothesis"
+      ],
+      "last_attempted": "2026-03-18T13:38:04Z",
+      "_decomposed": true,
+      "_decomposedInto": [
+        "US-453",
+        "US-454",
+        "US-455",
+        "US-456"
+      ],
+      "_skipped": true
     },
     {
       "id": "US-020",
@@ -8977,6 +8978,42 @@
       "tags": []
     },
     {
+      "id": "US-456",
+      "title": "Build routing metrics analysis: token savings vs quality per model tier",
+      "priority": "low",
+      "estimatedComplexity": "medium",
+      "description": "After 5+ iterations with routing telemetry, add a python analysis script (lib/analyze_routing_metrics.py) that reads routing_telemetry from spiral_events.jsonl and results.tsv, computing: (1) mean token cost by model tier, (2) success rate by tier, (3) token savings vs baseline (all-sonnet), (4) quality loss (pass rate delta). Prints a summary table to stdout and optionally renders a dashboard HTML.",
+      "acceptanceCriteria": [
+        "lib/analyze_routing_metrics.py reads routing telemetry from spiral_events.jsonl",
+        "Computes: mean tokens (haiku/sonnet/opus), success rate by tier, estimated savings vs all-sonnet baseline",
+        "Outputs plain-text table with columns: model_tier, samples, mean_tokens, success_rate, savings_pct",
+        "python main.py analyze-routing prints the metrics table",
+        "Optional HTML dashboard (--dashboard flag) for visual analysis",
+        "All existing tests pass (51/51)"
+      ],
+      "technicalNotes": [
+        "Read spiral_events.jsonl lines matching type='route_story_assigned'",
+        "Group by model_tier, compute statistics",
+        "Baseline: if all stories used sonnet, est. total tokens = SUM(model_tokens['sonnet'])",
+        "Savings % = (baseline_tokens - actual_tokens) / baseline_tokens * 100"
+      ],
+      "filesTouch": [
+        "lib/analyze_routing_metrics.py",
+        "main.py"
+      ],
+      "dependencies": [
+        "US-455"
+      ],
+      "passes": true,
+      "_source": "research",
+      "_decomposedFrom": "US-452",
+      "model": "haiku",
+      "tags": [
+        "module-lib",
+        "feature-observability"
+      ]
+    },
+    {
       "id": "US-009",
       "title": "Dynamic worker count: auto-select 1-3 workers based on story independence",
       "priority": "low",
@@ -9188,6 +9225,80 @@
       "model": "sonnet",
       "last_attempted": "2026-03-17T16:22:19Z",
       "tags": []
+    },
+    {
+      "id": "US-458",
+      "title": "Add story namespacing support to prd.json schema",
+      "priority": "low",
+      "description": "Extend prd.json story schema to support optional namespace field (e.g., 'repo-a', 'repo-b'). Update story ID validation in prd_schema.py to accept both single-repo format ('US-001') and namespaced format ('repo-a:US-001'). Ensure backward compatibility—existing single-repo prd.json files must still validate correctly.",
+      "acceptanceCriteria": [
+        "prd.json schema accepts optional 'namespace' field on stories",
+        "Story ID regex accepts both 'US-001' and 'repo-a:US-001' formats",
+        "Validation passes for existing single-repo prd.json files",
+        "Unit tests for namespaced story ID validation"
+      ],
+      "technicalNotes": [
+        "Modify lib/prd_schema.py StoryID pattern to include optional namespace prefix",
+        "Add 'namespace' as optional field in story schema",
+        "Backward compatible—namespace field is optional",
+        "Include regex tests for both formats"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_decomposedFrom": "US-457"
+    },
+    {
+      "id": "US-459",
+      "title": "Implement federated prd.json loading and conflict resolution",
+      "priority": "low",
+      "description": "Add load_federated_prd() function to load and merge prd.json files from multiple repository paths. Auto-assign namespace to stories based on source repo (e.g., 'repo-a:US-001'). Merge stories into single in-memory dict with conflict detection—flag duplicate story IDs across namespaces and apply precedence rules (local > research > ai-example).",
+      "acceptanceCriteria": [
+        "load_federated_prd(repo_paths: list[str]) loads and merges multiple prd.json files",
+        "Stories auto-namespaced by source repo path",
+        "Conflict detection identifies and logs duplicates",
+        "Merged PRD maintains story uniqueness",
+        "Unit tests for multi-repo loading and conflict scenarios"
+      ],
+      "technicalNotes": [
+        "Create lib/federated_prd.py module",
+        "Merge strategy: iterate repos, assign namespace, deduplicate by namespaced ID",
+        "Log conflicts to _conflict_log.json with resolution suggestions",
+        "Handle missing/malformed prd.json gracefully (skip repo)",
+        "Depends on namespacing support (US-457a)"
+      ],
+      "dependencies": [
+        "US-458"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_decomposedFrom": "US-457"
+    },
+    {
+      "id": "US-460",
+      "title": "Add multi-repo test coverage to reach 70% target",
+      "priority": "low",
+      "description": "Write comprehensive pytest tests for story namespacing, federated prd.json loading, and conflict resolution. Create 2-3 mock repository fixtures with overlapping and unique stories. Test happy-path, edge cases, and error scenarios (missing repos, malformed prd.json, namespace collisions). Run with --cov to verify coverage increase from 54% to 70%.",
+      "acceptanceCriteria": [
+        "Code coverage reaches 70% (measured via --cov, min 48% maintained)",
+        "Test suite covers all namespacing functions",
+        "Test suite covers federated loading happy path and error cases",
+        "Test suite covers conflict detection and resolution",
+        "All tests pass with CI quality gates"
+      ],
+      "technicalNotes": [
+        "Create tests/test_federated_prd.py with fixtures for multi-repo scenarios",
+        "Use pytest parametrize for testing multiple conflict cases",
+        "Include error scenarios: missing repo, malformed JSON, ID collisions",
+        "Run pytest with --cov=lib --cov-report=html to verify coverage",
+        "Depends on federated loading implementation (US-457b)"
+      ],
+      "dependencies": [
+        "US-459"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_decomposedFrom": "US-457"
     }
   ]
 }

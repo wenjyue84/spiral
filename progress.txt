@@ -1,3 +1,27 @@
+## Iteration 9 - Story: US-457 - Decompose federated prd.json story
+
+### What was implemented
+- **Decomposed** US-457 (vague, unmeasurable) into 3 atomic sub-stories using lib/decompose_story.py
+- Marked parent US-457 as _decomposed=true to prevent re-implementation
+- Created sub-stories with measurable acceptance criteria:
+  - **US-458**: Add story namespacing support to prd.json schema (small)
+  - **US-459**: Implement federated prd.json loading and conflict resolution (small)
+  - **US-460**: Add multi-repo test coverage to reach 70% target (small)
+
+### Why decomposition was necessary
+- **Vague acceptance criteria**: "Further improves coverage of goal" is not testable
+- **Oversized scope**: filesTouch list included unrelated modules (.github/workflows, .devcontainer, etc.)
+- **No measurable success metric**: Original story had no way to determine when it "passes"
+- **Violates Ralph critical rule**: Stories must be completable in one iteration (~15 mins)
+
+### Sub-story priorities
+All 3 sub-stories are marked:
+- **ordered=false** (can be done in any order)
+- **complexity=small** (estimated 30-45 mins each)
+- **_decomposedFrom="US-457"** (for referential integrity)
+
+### Next iteration
+Pick **US-458** (schema changes) as highest-priority sub-story, as it unblocks US-459 (loading logic).
 
 ## Iteration 3 - Story: US-437 - Add --report flag to estimate command
 
@@ -254,4 +278,41 @@ Based on the user story, this is a request to enhance the Spiral project's own s
 - No config migration path for users with existing spiral.config.sh
 ## Iteration 1 - Wed, Mar 18, 2026  9:08:33 PM
 COST CEILING: Enhance: Enhance /spiral-init wizard to ask about ALL configurable options, educating use (US-451) — $7.152275 exceeded hard limit $2.00
+
+
+## Pre-analysis for US-457 (Gemini 2.5 Pro)
+Based on the provided story JSON (US-457), the request appears to concern the SPIRAL project's multi-repo capabilities, not a Frappe/Python payroll application. Here is a technical brief based on that understanding for the Claude agent.
+
+---
+
+### **Technical Brief: US-457 - Federated `prd.json`**
+
+This brief outlines the implementation strategy for enabling multi-repo support in SPIRAL by federating the `prd.json` file and namespacing stories.
+
+**1. Python Files to Modify:**
+The core logic for project definition file (`prd.json`) processing will need modification. The most likely candidates are:
+*   `lib/partition_prd.py`: May need updates to recognize and partition work from federated sources.
+*   `lib/infer_dependencies.py`: Must be enhanced to resolve dependencies across different project namespaces.
+*   `lib/merge_stories.py`: Central file for implementing the merge logic of multiple `prd.json` files.
+*   `lib/compact_prd.py`: Needs to be aware of the new federated structure.
+*   `main.py`: The entry point may require changes to initiate the federated loading sequence.
+*   `tests/`: New unit/integration tests are critical to validate federation, namespacing, and cross-repo dependency resolution.
+
+**2. Involved "DocTypes" & Hooks:**
+This is not a Frappe project. The analogous concepts are:
+*   **Configuration File (`DocType`):** The `prd.json` file is the central data structure. Its schema is defined in `prd.schema.json`.
+*   **Hooks:** While no Frappe hooks are involved, shell scripts in `.claude/hooks/` may need to be updated to correctly audit or interact with the new multi-repo worktree structure.
+
+**3. Recommended Implementation Approach:**
+1.  **Extend Schema:** Modify `prd.schema.json` to define a structure for referencing sub-projects (e.g., a `subProjects` array with path/URL and a namespace prefix).
+2.  **Federated Loading:** In the primary data loading sequence (likely originating from `main.py`), detect the new `subProjects` configuration.
+3.  **Recursive Merge:** Implement logic in `lib/merge_stories.py` to recursively fetch and parse each sub-project's `prd.json`.
+4.  **Namespacing:** As stories from a sub-project are loaded, prefix their `id` and any internal references with the defined namespace (e.g., `sub-proj-A:US-123`).
+5.  **Test-Driven Development:** The story's goal is to increase test coverage. Begin by writing tests that assert correct behavior for circular dependency detection, cross-project dependency resolution, and accurate namespacing.
+
+**4. Edge Cases & Gotchas:**
+*   **Circular Dependencies:** The loading mechanism must detect and raise an error if a circular reference between projects is found (e.g., `proj-A -> proj-B -> proj-A`).
+*   **Path Resolution:** The system needs a robust method for resolving paths to sub-project `prd.json` files, whether they are local relative paths or remote git URLs.
+*   **Dependency Graph:** `infer_dependencies.py` must correctly build a single, cohesive dependency graph from the namespaced stories of all federated projects.
+*   **Performance:** Loading and parsing multiple large `prd.json` files could be a bottleneck. Profile the process.
 
