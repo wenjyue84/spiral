@@ -227,7 +227,9 @@
       "tags": [
         "module-claude",
         "module-github"
-      ]
+      ],
+      "last_attempted": "2026-03-18T13:08:34Z",
+      "_failureReason": "story_cost_ceiling"
     },
     {
       "id": "US-452",
