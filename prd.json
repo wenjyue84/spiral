@@ -59,7 +59,7 @@
       "estimatedComplexity": "medium",
       "passes": false,
       "_source": "ai-example",
-      "model": "sonnet",
+      "model": "haiku",
       "filesTouch": [
         ".github/actions/lint-shell/action.yml",
         ".github/actions/setup-uv/action.yml",
@@ -300,9 +300,10 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
-      "model": "haiku"
+      "model": "haiku",
+      "_passedCommit": "a4b0413d8e92e3a469044904522e07366350962d"
     },
     {
       "id": "US-462",
@@ -418,7 +419,7 @@
       "estimatedComplexity": "medium",
       "passes": false,
       "_source": "ai-example",
-      "model": "haiku",
+      "model": "sonnet",
       "filesTouch": [
         ".hypothesis/tmp/tmpa0loy8rd",
         ".hypothesis/tmp/tmpkjx6vf78",
