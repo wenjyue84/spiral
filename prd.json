@@ -407,21 +407,21 @@
       ]
     },
     {
-      "id": "US-465",
-      "title": "Add automated story priority re-ranking based on dependency graph",
-      "priority": "low",
-      "description": "Detect story dependencies from description keywords (e.g., 'depends on US-123') and auto-reorder Phase M pending stories to minimize rework and implement dependencies first",
+      "id": "US-466",
+      "title": "Phase-wise token breakdown report: CLI command shows tokens/cost per phase with model distribution",
+      "priority": "high",
+      "description": "Add `python main.py cost-analysis` command that parses results.tsv to show total tokens/cost grouped by phase (R, T, S, M, I, V), model used, and worker. Helps identify which phase is burning tokens fastest for optimization.",
       "acceptanceCriteria": [
-        "lib/dependency_optimizer.py implements build_story_dag(stories: List[dict]) -> Graph parsing 'depends on US-NNN' pattern from story descriptions, detects cycles",
-        "Phase M calls optimizer when SPIRAL_AUTO_RERANK=true and reorders pending stories in prd.json using topological sort before Phase I",
-        "tests/test_dependency_optimizer.py::test_topological_sort verifies no story implemented before its dependencies, test_cycle_detection catches circular references"
+        "CLI command `uv run python main.py cost-analysis` reads results.tsv and outputs table: Phase | Total Tokens | Cost | Avg Model | Worker Count",
+        "Implement `lib/cost_analyzer.py:analyze_by_phase()` returning dict with phase breakdown and model distribution per phase",
+        "Add test in `tests/test_cost_analyzer.py` with 50-row mock results.tsv, verify phase totals and model counts are correct"
       ],
       "technicalNotes": [],
       "dependencies": [],
-      "estimatedComplexity": "medium",
+      "estimatedComplexity": "small",
       "passes": false,
       "_source": "ai-example",
-      "model": "sonnet",
+      "model": "haiku",
       "filesTouch": [
         ".hypothesis/tmp/tmpa0loy8rd",
         ".hypothesis/tmp/tmpkjx6vf78",
@@ -437,6 +437,202 @@
       "tags": [
         "module-hypothesis",
         "module-lib"
+      ]
+    },
+    {
+      "id": "US-467",
+      "title": "Integration test: Phase M merge with duplicate story deduplication and ordering constraints",
+      "priority": "high",
+      "description": "Add parametrized integration test for `lib/merge_stories.py` covering 5 conflict scenarios: exact duplicates, near-duplicates (diff > 95%), ordering dependencies, source priority conflicts, and max_pending cap enforcement.",
+      "acceptanceCriteria": [
+        "Add test file `tests/test_phase_m_integration.py` with 5 parametrized test cases (exact_dupe, near_dupe, ordering, priority_conflict, max_pending_cap)",
+        "Each test creates fake prd.json with conflicting stories, calls `merge_stories.merge()`, asserts final story list has correct order and dedup applied",
+        "Verify test coverage for `lib/merge_stories.py` reaches 85%+ (minimum 5 new assertions)"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku",
+      "filesTouch": [
+        ".hypothesis/constants/19b92a82c7a5fbb7",
+        ".hypothesis/constants/be82d7f330748f87",
+        ".hypothesis/examples/04e6b3400353b141/2786903576343a97",
+        ".hypothesis/examples/04e6b3400353b141/d16a108f0ffe00c6",
+        ".hypothesis/examples/04e6b3400353b141/d7017880e970832b",
+        ".hypothesis/examples/04e6b3400353b141/f803b9c7972945f2",
+        ".hypothesis/examples/2786903576343a97/b8e62a5f48c3ded1",
+        ".hypothesis/examples/d16a108f0ffe00c6/6e1139ecd06edebb",
+        ".hypothesis/examples/d7017880e970832b/a0f33084b8dbe4ad",
+        ".hypothesis/examples/d7017880e970832b/d5de667a725a0ce8"
+      ],
+      "tags": [
+        "module-hypothesis"
+      ]
+    },
+    {
+      "id": "US-468",
+      "title": "Real-time cost ceiling warning system: trigger alerts at 50/80/95% of SPIRAL_COST_CEILING during iteration",
+      "priority": "medium",
+      "description": "Add cost gate to Phase V validation: after each story implementation, check current iteration spend against SPIRAL_COST_CEILING. Emit warning levels (info/warn/error) and optionally pause iteration if 95% exceeded.",
+      "acceptanceCriteria": [
+        "Implement `lib/cost_gate.py:check_cost_ceiling(iteration_num, results_tsv)` returning (current_cost, ceiling, percent, alert_level)",
+        "Add to Phase V after story validation; log warnings to stderr and `.spiral/_cost_alerts.jsonl` with timestamp, percent, and story that triggered threshold",
+        "Test in `tests/test_cost_gate.py`: verify alerts fire at 50%, 80%, 95% of ceiling; verify pause-on-95% behavior with SPIRAL_COST_CEILING_STRICT flag"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku",
+      "filesTouch": [
+        ".github/actions/lint-shell/action.yml",
+        ".github/actions/setup-uv/action.yml",
+        ".github/workflows/ci.yml",
+        ".github/workflows/release.yml",
+        ".github/workflows/spiral.yml",
+        ".hypothesis/constants/19b92a82c7a5fbb7",
+        ".hypothesis/constants/be82d7f330748f87",
+        ".hypothesis/examples/04e6b3400353b141/2786903576343a97",
+        ".hypothesis/examples/04e6b3400353b141/d16a108f0ffe00c6",
+        ".hypothesis/examples/04e6b3400353b141/d7017880e970832b"
+      ],
+      "tags": [
+        "module-github",
+        "module-hypothesis"
+      ]
+    },
+    {
+      "id": "US-469",
+      "title": "Worker performance dashboard: per-worker success rate, token efficiency (tokens/story), and specialization tracking",
+      "priority": "medium",
+      "description": "Extend dashboard to show metrics per worker: success rate (stories completed / stories attempted), average tokens per story, and specialization (which story types each worker completed most). Help identify high-performing workers and load-balance effectively.",
+      "acceptanceCriteria": [
+        "Dashboard route `/api/workers/metrics` returns JSON with worker ID, success_rate, avg_tokens_per_story, top_3_story_types, total_stories_completed",
+        "Implement `lib/worker_analytics.py:compute_worker_metrics(results_tsv)` parsing results.tsv grouped by worker, calculating aggregates",
+        "Dashboard UI card displays top-3 workers by success_rate, shows avg_tokens as bar chart, highlights specialist workers (e.g., 'Ralph-1: 80% ML/AI stories')"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku",
+      "filesTouch": [
+        ".hypothesis/tmp/tmpa0loy8rd",
+        ".hypothesis/tmp/tmpkjx6vf78",
+        ".hypothesis/tmp/tmpqtpjy8hn",
+        "bash.exe.stackdump",
+        "lib/batch_validate.py",
+        "lib/cost_project.py",
+        "lib/phases/phase_s_story_validate.sh",
+        "lib/validate_stories.py",
+        "lib/velocity_model.py",
+        "prd.json"
+      ],
+      "tags": [
+        "module-hypothesis",
+        "module-lib"
+      ]
+    },
+    {
+      "id": "US-471",
+      "title": "Per-phase budget tracking with granular spend alerts",
+      "priority": "high",
+      "description": "Allocate token/cost budgets to each SPIRAL phase (R, T, S, M, I, V); track cumulative spend and emit warnings at 80% consumption. Enables cost-aware iteration planning and prevents budget overruns.",
+      "acceptanceCriteria": [
+        "spiral.config.sh supports SPIRAL_PHASE_BUDGETS with JSON object mapping phases to token limits (e.g., {I: 500000, R: 100000, M: 50000})",
+        "lib/phase_budget_tracker.py updates after each phase, logging cumulative spend vs. budget; warns if phase exceeds 80% of allocation",
+        "CLI: spiral.sh phase-budget-report outputs JSON with per-phase breakdown: {phases: [{name: 'I', budget: 500000, spent: 420000, remaining: 80000, percent: 84}]}"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku",
+      "filesTouch": [
+        ".hypothesis/tmp/tmpa0loy8rd",
+        ".hypothesis/tmp/tmpkjx6vf78",
+        ".hypothesis/tmp/tmpqtpjy8hn",
+        "bash.exe.stackdump",
+        "lib/batch_validate.py",
+        "lib/phases/phase_s_story_validate.sh",
+        "lib/validate_stories.py",
+        "prd.json",
+        "progress.txt",
+        "retry-counts.json"
+      ],
+      "tags": [
+        "module-hypothesis",
+        "module-lib"
+      ]
+    },
+    {
+      "id": "US-472",
+      "title": "Health check diagnostic CLI with pre-flight validation",
+      "priority": "high",
+      "description": "Comprehensive pre-flight diagnostics for environment, dependencies, and configuration. Fail-fast before Phase 0 with clear error messages for missing or misconfigured requirements.",
+      "acceptanceCriteria": [
+        "spiral.sh health-check validates: Python ≥3.13, git repo initialized, jq binary exists, Claude CLI installed, prd.json schema valid, spiral.config.sh syntax valid",
+        "Outputs JSON {status: 'healthy'|'degraded'|'failed', timestamp: '...', checks: {python: {version: '3.13.0', required: '3.13', ok: true}, git: {...}}}",
+        "Exit code 0 if all checks pass, 1 if critical check fails; integrates as GitHub Actions pre-flight step"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet",
+      "filesTouch": [
+        ".hypothesis/tmp/tmpa0loy8rd",
+        ".hypothesis/tmp/tmpkjx6vf78",
+        ".hypothesis/tmp/tmpqtpjy8hn",
+        "bash.exe.stackdump",
+        "lib/batch_validate.py",
+        "lib/phases/phase_s_story_validate.sh",
+        "lib/validate_stories.py",
+        "prd.json",
+        "progress.txt",
+        "retry-counts.json"
+      ],
+      "tags": [
+        "module-hypothesis",
+        "module-lib"
+      ]
+    },
+    {
+      "id": "US-476",
+      "title": "Build mock Claude API response fixture library for phase-level integration testing",
+      "priority": "high",
+      "description": "Create reusable mock Claude client and pre-recorded API responses to enable full Phase R/S/I integration tests without external API calls, enabling fast CI feedback.",
+      "acceptanceCriteria": [
+        "tests/mocks/claude_client.py exports MockClaudeClient class with chat_completion() method returning pre-recorded Phase R research responses and Phase S validation responses",
+        "tests/test_integration_phase_r.py uses MockClaudeClient to execute full Phase R workflow and verifies prd.json._pending is updated with research stories",
+        "tests/test_integration_phase_i.py replays 5+ captured Ralph implementation responses and validates story commits are created; test runs in <10s"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku",
+      "filesTouch": [
+        ".hypothesis/constants/19b92a82c7a5fbb7",
+        ".hypothesis/constants/be82d7f330748f87",
+        ".hypothesis/examples/04e6b3400353b141/2786903576343a97",
+        ".hypothesis/examples/04e6b3400353b141/d16a108f0ffe00c6",
+        ".hypothesis/examples/04e6b3400353b141/d7017880e970832b",
+        ".hypothesis/examples/04e6b3400353b141/f803b9c7972945f2",
+        ".hypothesis/examples/2786903576343a97/b8e62a5f48c3ded1",
+        ".hypothesis/examples/d16a108f0ffe00c6/6e1139ecd06edebb",
+        ".hypothesis/examples/d7017880e970832b/a0f33084b8dbe4ad",
+        ".hypothesis/examples/d7017880e970832b/d5de667a725a0ce8"
+      ],
+      "tags": [
+        "module-hypothesis"
       ]
     }
   ]
