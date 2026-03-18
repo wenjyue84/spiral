@@ -602,8 +602,8 @@ if [[ "$MONITOR_TERMINALS" -eq 1 ]]; then
   # Auto-detect terminal emulator
   if [[ -n "$TERMINAL_EMU" ]]; then
     WT_EXE="$TERMINAL_EMU"
-  elif [[ -f "/c/Users/$USER/AppData/Local/Microsoft/WindowsApps/wt.exe" ]]; then
-    WT_EXE="/c/Users/$USER/AppData/Local/Microsoft/WindowsApps/wt.exe"
+  elif [[ -f "/c/Users/${USER:-${USERNAME:-}}/AppData/Local/Microsoft/WindowsApps/wt.exe" ]]; then
+    WT_EXE="/c/Users/${USER:-${USERNAME:-}}/AppData/Local/Microsoft/WindowsApps/wt.exe"
   else
     WT_EXE=""
   fi
