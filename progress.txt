@@ -1,3 +1,52 @@
+## Iteration 28 - US-516: Integration Tests for Phase G CHANGELOG.md Generation
+
+### What was completed
+- Created tests/test_phase_g_changelog.py with 14 comprehensive integration tests
+- Tests cover happy path: CHANGELOG.md generation via mocked git-cliff
+- Tests cover error cases: missing git-cliff binary, no commits found
+- All tests use unittest.mock to avoid external dependencies
+- Added 3 module-level test functions matching acceptance criteria
+- Full mypy --strict type checking passes (no type errors)
+- Tests run in 0.13 seconds with 100% pass rate
+
+### Test structure
+- **TestChangelogGenerationHappyPath** (3 tests): Basic generation, default params, full workflow
+- **TestChangelogGenerationErrors** (5 tests): RuntimeError handling, git-cliff missing, no commits, main() error handling
+- **TestChangelogIntegration** (3 tests): Full workflow success, output path handling, directory creation
+- **Module-level tests** (3 tests): Acceptance criteria wrappers for changelog generation and error cases
+
+### Acceptance criteria verification
+✓ uv run pytest tests/test_phase_g_changelog.py -v passes with no external service calls (14 tests pass in 0.13s)
+✓ Tests verify CHANGELOG.md is created/updated after Phase G runs
+✓ Tests cover error cases: git-cliff missing (exit 127) and no commits (exit 1)
+✓ All tests use subprocess.run mocking to avoid external tool dependency
+✓ All 14 tests pass, mypy --strict passes, pre-commit hooks pass
+
+### Key implementation details
+- Mocks subprocess.run to simulate successful and failed git-cliff invocations
+- Tests verify correct command arguments passed to git-cliff
+- Error handling tests verify RuntimeError raised on subprocess failure
+- main() orchestration test verifies both changelog and API docs generation called
+- No external services or network calls required
+
+### Patterns discovered
+- unittest.mock.patch is effective for subprocess call isolation in tests
+- MagicMock(returncode=X) simulates subprocess exit codes
+- pytest.raises context manager for exception testing
+- tempfile.TemporaryDirectory for isolated test environments
+
+### Quality gates
+✓ All 14 tests pass
+✓ mypy --strict passes
+✓ Pre-commit hooks pass
+✓ No external dependencies or services
+✓ Full acceptance criteria coverage
+
+### Commit: 75a5337
+feat: US-516 - Integration tests for Phase G CHANGELOG.md generation
+
+---
+
 ## Iteration 27 - US-515: Circular Dependency Detection with Cycle Paths
 
 ### What was completed
@@ -998,4 +1047,32 @@ This brief outlines the implementation of a circular dependency check for a CLI 
 *   **Report Format:** Cycle paths in the report must show the full traversal, starting and ending with the same node (e.g., `["repo-a:US-001", "repo-b:US-005", "repo-a:US-001"]`).
 *   **No Cycles:** If the validation passes, the report must contain `"cycles": []`.
 *   **Task Dependency:** This story is blocked by `US-514`; ensure its changes are integrated first.
+
+
+## Pre-analysis for US-516 (Gemini 2.5 Pro)
+Here is the technical brief for user story US-516.
+
+**Subject: Technical Brief for US-516: Integration Tests for `git-cliff` Changelog Generation**
+
+**Overview:**
+This task involves creating integration tests for the automated `CHANGELOG.md` generation process, which is part of the "Phase G" release step. The tests must validate that the `git-cliff` tool is correctly invoked and handles both success and failure scenarios. The implementation should be self-contained, avoiding dependencies on network access or a pre-installed `git-cliff` binary.
+
+**1. Files to Modify:**
+*   `tests/test_phase_g_changelog.py`: A new file to house the integration tests.
+*   `lib/auto_release.py`: The existing module that contains the core logic for invoking the `git-cliff` command-line tool. This file might require minor refactoring to improve testability (e.g., dependency injection for the repo path).
+
+**2. Frappe DocTypes/Hooks:**
+*   This is a standard Python project, not a Frappe application. No Frappe DocTypes or hooks are involved. The key mechanism is a Python function in `lib/auto_release.py` that runs `git-cliff` using the `subprocess` module.
+
+**3. Recommended Implementation Approach:**
+1.  In `tests/test_phase_g_changelog.py`, use `pytest` fixtures to create a temporary, local Git repository for each test run.
+2.  Within the fixture, programmatically create a series of dummy commits to simulate a repository's history.
+3.  The test should call the changelog generation function located in `lib/auto_release.py`.
+4.  Use `unittest.mock.patch` to mock the `subprocess.run` call inside the `auto_release` module. This isolates the test from the actual `git-cliff` binary and the host system's state.
+5.  Verify the `CHANGELOG.md` file is created correctly in the temporary directory.
+
+**4. Edge Cases & Gotchas:**
+*   **Test Isolation:** Ensure tests are hermetic by exclusively using the temporary git repository fixture.
+*   **Mocking `subprocess`:** The mock must target `subprocess.run` specifically where it is imported and used within the `lib.auto_release` module.
+*   **Error Conditions:** Create specific tests for failure modes, such as mocking a `FileNotFoundError` (simulating a missing `git-cliff` binary) and a non-zero exit code from the subprocess (simulating a `git-cliff` error, like no commits found).
 
