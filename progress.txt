@@ -1,3 +1,46 @@
+## Iteration 25 - US-503: Wire spiral namespace-check CLI command with JSON output
+
+### What was completed
+- Implemented lib/namespace_check.py with full namespace validation logic
+- Added namespace-check subcommand to main.py with proper argparse integration
+- Validates story ID namespacing rules for federated prd.json files
+- Writes validation results to .spiral/namespace-validation.json with structured output
+- Full error handling for missing files and malformed JSON
+
+### Acceptance criteria verification
+✓ CLI command: `python main.py namespace-check prd.json` works correctly
+✓ Exits 0 on valid prd.json, exits 1 on errors/violations
+✓ Prints summary to stdout with story counts per namespace
+✓ Creates .spiral/namespace-validation.json with schema: {pass, sub_projects, violations}
+✓ Tested with: valid prd.json, missing files, malformed JSON, federated namespaces
+✓ mypy --strict passes for all new code
+
+### Implementation details
+- **lib/namespace_check.py** (120+ lines):
+  - load_federated_slices(prd_path) - groups stories by namespace prefix
+  - validate_namespaces(prd_dict) - validates story ID namespacing rules
+  - check_namespaces(prd_path) - wrapper that loads and validates prd.json
+
+- **main.py** changes:
+  - Added namespace-check subparser with prd_file argument (optional, defaults to prd.json)
+  - Added cmd_namespace_check() function that validates and writes JSON output
+  - Integrated into command dispatch (elif args.command == "namespace-check")
+
+### Test results
+- Valid prd.json: exits 0, creates output file, prints summary
+- Missing file: exits 1, prints error
+- Malformed JSON: exits 1, prints JSON parse error
+- Federated prd.json: correctly groups stories by namespace
+- Main namespace: correctly handles non-prefixed stories
+
+### Patterns discovered
+- argparse.REMAINDER pattern used for story arguments
+- atomic_write_json from spiral_io ensures atomic file writes
+- Error messages go to stderr via print(..., file=sys.stderr)
+- Namespace prefix format: `<namespace>/<story-id>`
+
+---
+
 ## Iteration 23 - US-491: Integration Test Phase R Research with Mocked Gemini Responses
 
 ### What was completed
