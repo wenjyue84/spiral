@@ -59,9 +59,11 @@ run_phase_story_validate() {
   local min_overlap="${SPIRAL_STORY_VALIDATE_MIN_OVERLAP:-1}"
 
   # Build optional batch API args (US-390/US-406)
-  # Auto-trigger when: SPIRAL_BATCH_VALIDATE=1 OR (SPIRAL_STORY_BATCH_SIZE > 1 AND ANTHROPIC_API_KEY set)
+  # Auto-trigger when: SPIRAL_BATCH_VALIDATE=1 OR (SPIRAL_PHASE_S_BATCH_SIZE > 1 AND ANTHROPIC_API_KEY set)
+  # NOTE: SPIRAL_STORY_BATCH_SIZE controls Phase I slicing only — not Phase S.
+  #       Use SPIRAL_PHASE_S_BATCH_SIZE to opt-in to Phase S Anthropic Batch API.
   local batch_api_arg=()
-  local _batch_size="${SPIRAL_STORY_BATCH_SIZE:-0}"
+  local _batch_size="${SPIRAL_PHASE_S_BATCH_SIZE:-0}"
   local _auto_batch=0
   if [[ "${SPIRAL_BATCH_VALIDATE:-0}" == "1" ]]; then
     _auto_batch=1
