@@ -1148,9 +1148,7 @@
       ],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-03-19T16:25:58Z",
-      "_failureReason": "DIAGNOSIS_BLOCK_MISSING: Diagnosis block required before making changes. Please output your diagnosis first.\n\nBefore making ANY file edits, output a diagnosis block with these exact headers:\n\n## Current State\n[describe the relevant current state of the code]\n\n## Problem Identified\n[what you are solving for this story]\n\n## Planned Changes\n[bullet list of specific files and changes you will make]\n\nOutput this block as plain text BEFORE calling Edit, Write, or any Bash command that modifies files."
+      "model": "haiku"
     },
     {
       "id": "US-519",
@@ -1212,6 +1210,207 @@
       "estimatedComplexity": "small",
       "passes": false,
       "model": "haiku"
+    },
+    {
+      "id": "US-522",
+      "title": "Dashboard /profile endpoint for phase duration analytics",
+      "priority": "medium",
+      "description": "Add a /profile route to lib/dashboard/api.py that reads results.tsv and returns JSON with mean phase durations by story, the five slowest stories, and an escalation frequency count per story. This enables the dashboard UI to surface performance bottlenecks.",
+      "acceptanceCriteria": [
+        "GET /profile returns HTTP 200 with JSON keys: mean_phase_durations, slowest_stories (list of 5), escalation_frequency",
+        "mean_phase_durations contains keys decompose_secs, impl_secs, verify_secs each with a numeric mean value",
+        "uv run pytest tests/test_dashboard_profile.py -v exits 0 with at least one passing test covering the /profile route"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/dashboard/api.py (add /profile Flask/FastAPI route that parses results.tsv with csv.DictReader)",
+        "File to edit: tests/test_dashboard_profile.py (new test file — fixture writes a minimal results.tsv with new columns, asserts response shape)",
+        "Test command: uv run pytest tests/test_dashboard_profile.py -v"
+      ],
+      "dependencies": [
+        "US-521"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-523",
+      "title": "[E2E Test] Dashboard: assert token burn rate, throughput, and heatmap visible",
+      "priority": "medium",
+      "description": "Write a Playwright E2E test covering the self-monitoring dashboard introduced by US-460. The test navigates to the dashboard page and asserts that token burn rate, story throughput, and model escalation heatmap sections are all visible in headless mode. This gates US-460 from being considered done without a passing browser-level smoke check.",
+      "acceptanceCriteria": [
+        "npx playwright test tests/e2e/test_dashboard.spec.ts -g \"shows token burn rate\" --reporter=line exits 0",
+        "npx playwright test tests/e2e/test_dashboard.spec.ts -g \"shows story throughput\" --reporter=line exits 0",
+        "npx playwright test tests/e2e/test_dashboard.spec.ts -g \"shows model escalation heatmap\" --reporter=line exits 0",
+        "npx playwright test tests/e2e/test_dashboard.spec.ts --reporter=line exits 0 in headless CI mode (PWDEBUG unset)"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/e2e/test_dashboard.spec.ts (new file — three named test cases, one per visible metric section)",
+        "Test command: npx playwright test tests/e2e/test_dashboard.spec.ts --reporter=line",
+        "Dashboard is served at http://localhost:5299 (see SPIRAL_DASHBOARD_PORT in spiral.config.sh); add a baseURL in playwright.config.ts pointing there",
+        "Use page.getByRole('heading', { name: /token burn rate/i }) etc. and waitFor({state:'visible'}) with a 5000 ms timeout to handle live-data polling",
+        "If the project uses pytest-playwright instead: File to edit: tests/e2e/test_dashboard.py; Test command: uv run pytest tests/e2e/test_dashboard.py -v -k dashboard"
+      ],
+      "dependencies": [
+        "US-460"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-524",
+      "title": "[Performance Test] Benchmark Phase S batch validation vs sequential",
+      "priority": "medium",
+      "description": "Write a performance benchmark that measures Phase S story validation throughput using the Message Batches API (US-390) against the sequential baseline. The benchmark must capture latency and cost metrics, and fail if throughput degrades more than 20% from the established baseline.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_phase_s_batch_perf.py::test_batch_vs_sequential_latency -v exits 0 when batch mode is at least as fast as sequential baseline",
+        "uv run pytest tests/test_phase_s_batch_perf.py::test_throughput_regression -v fails if stories-per-second drops more than 20% below baseline constant defined in the test file",
+        "uv run pytest tests/test_phase_s_batch_perf.py -v --tb=short exits 0 with all tests passing after US-390 is implemented"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_phase_s_batch_perf.py (new file — create performance benchmark module)",
+        "File to edit: lib/prd/consistency_check.py (import or stub batch validation entry point for benchmarking)",
+        "Test command: uv run pytest tests/test_phase_s_batch_perf.py -v --tb=short",
+        "Baseline constant: define SEQUENTIAL_BASELINE_STORIES_PER_SEC = 1.0 at top of test file; batch mode must meet or exceed this",
+        "Use unittest.mock to stub actual API calls so the benchmark measures orchestration overhead, not network latency; add a separate integration marker for live API tests"
+      ],
+      "dependencies": [
+        "US-390"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-525",
+      "title": "[Regression Test] Velocity model reads results.tsv for data-driven estimates",
+      "priority": "medium",
+      "description": "Write a regression test that verifies `python main.py estimate` reads results.tsv and produces data-driven cost/duration projections via linear regression on story_type. The test must fail if the velocity model feature introduced in US-352 is removed or its results.tsv integration is broken.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_velocity_model.py -v exits 0 with all assertions passing",
+        "Test creates a synthetic results.tsv fixture and asserts estimate output contains per-type mean_tokens, mean_duration, and pass_rate derived from that fixture",
+        "Test asserts estimate output differs between an empty results.tsv and a populated one (static fallback vs. data-driven)",
+        "Test fails with a clear assertion error if linear regression or results.tsv parsing is removed from the estimate path"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_velocity_model.py (new file — create regression test for US-352 velocity model)",
+        "File to edit: lib/cost_tracker.py or lib/velocity_model.py (locate the function called by `main.py estimate` that parses results.tsv and fits regression)",
+        "Test command: uv run pytest tests/test_velocity_model.py -v",
+        "Fixture pattern: use tmp_path to write a results.tsv with 5+ rows covering columns story_type, model, tokens, cost, duration, status; invoke the estimate function directly (not via subprocess) and assert on returned dict keys/values",
+        "If the estimate logic lives inside main.py, extract or import it; do not test via subprocess as that prevents assertion on internal state"
+      ],
+      "dependencies": [
+        "US-352"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-526",
+      "title": "[Regression Test] Worker crash recovery reverts worktree to main on detached HEAD",
+      "priority": "medium",
+      "description": "Write a regression test for US-461's crash recovery logic. The test creates a scratch git worktree, simulates a Ralph worker crash (detached HEAD or partial commit), invokes the recovery routine, and asserts the worktree is back on main with a clean working tree. The test must fail if the recovery logic is removed or bypassed.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_crash_recovery.py::test_detached_head_triggers_recovery -v exits 0",
+        "uv run pytest tests/test_crash_recovery.py::test_recovery_leaves_clean_worktree -v exits 0",
+        "Deleting or stubbing out the recovery call in lib/impl/commit_revert.sh causes at least one test to fail",
+        "uv run pytest tests/test_crash_recovery.py -v exits 0 with all cases passing"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_crash_recovery.py (new file — regression suite for US-461; use pytest tmp_path + subprocess to create an isolated bare repo and worktree)",
+        "File to edit: lib/impl/commit_revert.sh (locate the detached-HEAD detection and revert logic; import path or shell call this from the test via subprocess)",
+        "Test command: uv run pytest tests/test_crash_recovery.py -v",
+        "Pattern: tmp_path → git init → commit → git checkout --detach HEAD → call recovery shell function via subprocess.run(['bash', 'lib/impl/commit_revert.sh', worktree_path]) → assert git -C worktree rev-parse --abbrev-ref HEAD == 'main' and git -C worktree status --porcelain is empty",
+        "Check lib/run_parallel_ralph.sh for the worktree setup flow to understand what 'known-good state' means in context"
+      ],
+      "dependencies": [
+        "US-461"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-527",
+      "title": "Add Real-Time Worker Task Queue HTTP Endpoint: GET /api/workers/<id>/queue",
+      "priority": "medium",
+      "description": "Expose worker task queue state via HTTP to enable dashboard visualization of parallel worker progress. Returns current task, queued tasks, and worker uptime per worktree.",
+      "acceptanceCriteria": [
+        "Endpoint GET /api/workers/{worker_id}/queue returns JSON: {\"worker_id\": \"worker-0\", \"current_task\": {\"story_id\": \"US-123\", \"started_at\": \"ISO8601\"}, \"queue\": [{\"story_id\": \"US-124\"}]} with <100ms latency",
+        "GET /api/workers lists all active workers with queue_depth and status; returns HTTP 404 with error_code if worker not found",
+        "Integration test verifies queue endpoint reflects lib/worker_heartbeat.sh state updates within 1 second; dashboard UI test confirms real-time updates via WebSocket subscribe to /api/workers/<id>/queue"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-528",
+      "title": "Cost Predictor CLI: Estimate Pre-Phase I Story Costs Using results.tsv Historical Model",
+      "priority": "medium",
+      "description": "Add a predictive cost estimation CLI that analyzes historical results.tsv data to predict token consumption and cost for stories before Phase I implementation. Uses K-nearest neighbors on story attributes (complexity domain, total lines changed) to estimate costs for similar stories. Enables fast failure when cost would exceed remaining SPIRAL_COST_CEILING budget, reducing wasted tokens on oversized stories.",
+      "acceptanceCriteria": [
+        "CLI: `spiral predict-cost --story-id US-123 --prd prd.json --history results.tsv` outputs JSON with {estimated_tokens: int, estimated_cost: float, confidence_pct: float, similar_stories: []}",
+        "Phase I calls predict-cost before decomposition; fails with clear error if estimated_cost > remaining budget (from .spiral/_checkpoint.json) and prevents story launch",
+        "Unit tests in tests/test_predict_cost.py: test_similar_story_lookup, test_confidence_calculation, test_budget_check_integration with >=48% coverage"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-529",
+      "title": "Phase R Novelty Detector: Flag Research Findings That Duplicate Existing prd.json Stories",
+      "priority": "medium",
+      "description": "Add a novelty checking module to Phase R that cross-references _research_output.json findings against existing prd.json stories to detect potential duplicates. Uses semantic similarity scoring on story titles/descriptions to identify research findings that may have already been converted to stories. Prevents duplicate story creation and improves research phase quality.",
+      "acceptanceCriteria": [
+        "New module lib/research/novelty_checker.py with function check_novelty(research_findings: List[dict], prd_stories: List[dict]) -> List[dict] returning {finding_id, duplicate_story_id, similarity_score: float, recommendation: 'skip|review|add'}",
+        "Phase R post-phase hook calls novelty_checker, stores results in _research_output_with_novelty.json; findings with similarity_score >= 0.8 marked as potential duplicates and excluded from Phase M merge",
+        "Integration test tests/test_phase_r_novelty.py verifies: exact title match returns 1.0 similarity, unrelated findings return <0.3, partial matches fall in 0.3-0.8 range with >=48% coverage"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-530",
+      "title": "Integration Test: Phase G Resilience to Missing/Failing Tools",
+      "priority": "medium",
+      "description": "Verify Phase G (CHANGELOG.md and API doc generation) gracefully degrades when git-cliff or pdoc tools are unavailable or crash, preventing Phase G failures from blocking entire SPIRAL run.",
+      "acceptanceCriteria": [
+        "When git-cliff binary not found, Phase G logs warning, skips CHANGELOG generation, sets results.tsv phase_g_mode=degraded, and completes successfully",
+        "When pdoc crashes (e.g., import cycle in source code), Phase G logs error, skips API docs, sets phase_g_mode=degraded, and Phase G completes successfully",
+        "Integration test tests/test_phase_g_resilience.py verifies both failure paths using mock tool binaries and subprocess exception simulation"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-531",
+      "title": "Phase C: Iteration Summary Report Generation with Phase Cost Breakdown",
+      "priority": "medium",
+      "description": "After each Phase C (check done) completion, generate structured iteration summary showing token spend per phase, story pass/fail counts, and cumulative progress rate; include in commit message for transparency.",
+      "acceptanceCriteria": [
+        "Phase C generates spiral/reports/iteration_NNNN.json containing {phase_r: {tokens, cost}, phase_i: {tokens, cost}, ..., passed_stories: N, failed_stories: N, cumulative_pass_rate: %}",
+        "Iteration summary committed to git with message: 'Iteration 5: 12/15 stories passing (80%), Phase R $10.23, Phase I $8.45'",
+        "Integration test tests/test_iteration_summary.py: run 2-iteration SPIRAL, verify 2 report files exist, cumulative_pass_rate increases or holds steady"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
     }
   ]
 }
