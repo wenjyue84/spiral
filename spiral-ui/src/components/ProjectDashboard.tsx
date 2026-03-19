@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import DependencyGraph from './DependencyGraph';
 import { CONFIG_FIELDS } from '../data/configSchema';
@@ -1522,7 +1523,15 @@ function PhaseTraceTab({ projectName, stories, activeStory }: { projectName: str
   const [phaseChanged, setPhaseChanged] = useState(false);
   const [selectedOutputFile, setSelectedOutputFile] = useState<keyof PhaseOutputs | null>(null);
   const [maximizedPhase, setMaximizedPhase] = useState<string | null>(null);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const userSelectedRef = useRef(false);
+
+  useEffect(() => {
+    if (!maximizedPhase) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setMaximizedPhase(null); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [maximizedPhase]);
 
   useEffect(() => {
     const load = async () => {
@@ -1947,13 +1956,25 @@ function PhaseTraceTab({ projectName, stories, activeStory }: { projectName: str
                             {subExpanded && (
                               <div className="border-t border-slate-800 bg-slate-950">
                                 <div className="flex items-center justify-end px-2 py-1 bg-slate-900 border-b border-slate-800">
-                                  <button
-                                    onClick={() => { void navigator.clipboard.writeText(sub.lines.map(l => processLogLine(l, startTs ? new Date(startTs) : null)).join('\n')); }}
-                                    title="Copy log to clipboard"
-                                    className="flex items-center gap-1 px-2 py-0.5 rounded bg-slate-700 hover:bg-slate-600 text-[10px] text-slate-300 font-mono transition-colors"
-                                  >
-                                    ⎘ Copy
-                                  </button>
+                                  {(() => {
+                                    const subCopyKey = `sub-${key}-${si}`;
+                                    const subCopied = copiedKey === subCopyKey;
+                                    return (
+                                      <button
+                                        onClick={() => {
+                                          void navigator.clipboard.writeText(sub.lines.map(l => processLogLine(l, startTs ? new Date(startTs) : null)).join('\n'));
+                                          setCopiedKey(subCopyKey);
+                                          setTimeout(() => setCopiedKey(prev => prev === subCopyKey ? null : prev), 2000);
+                                        }}
+                                        title="Copy log to clipboard"
+                                        className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono transition-all ${
+                                          subCopied ? 'bg-emerald-600 text-white' : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+                                        }`}
+                                      >
+                                        {subCopied ? '✓ Copied' : '⎘ Copy'}
+                                      </button>
+                                    );
+                                  })()}
                                 </div>
                                 <div className="overflow-auto max-h-[250px]">
                                   <pre className="p-2.5 text-[10px] text-slate-300 font-mono leading-relaxed whitespace-pre-wrap">
@@ -1973,34 +1994,60 @@ function PhaseTraceTab({ projectName, stories, activeStory }: { projectName: str
                     const phaseBaseDate = startTs ? new Date(startTs) : null;
                     const isMaximized = maximizedPhase === key;
                     const processed = phase.lines.map(l => processLogLine(l, phaseBaseDate));
+                    const phaseCopyKey = `phase-${key}`;
+                    const phaseCopied = copiedKey === phaseCopyKey;
+                    const toolbar = (
+                      <div className="flex items-center justify-between px-3 py-1.5 border-b border-slate-800 bg-slate-900">
+                        <span className="text-[10px] text-slate-500 font-mono">
+                          {phase.lines.length} lines{phase.phase === 'I' ? ' · elapsed→MYT' : ''}
+                          {isMaximized && <span className="ml-2 text-blue-400">Phase {phase.phase} — {PHASE_NAMES[phase.phase] ?? phase.phase}</span>}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => setMaximizedPhase(prev => prev === key ? null : key)}
+                            title={isMaximized ? 'Restore to inline (Esc)' : 'Maximize to fullscreen'}
+                            className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono transition-all ${
+                              isMaximized ? 'bg-blue-600 text-white' : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+                            }`}
+                          >
+                            {isMaximized ? '⊡ Restore' : '⊞ Max'}
+                          </button>
+                          <button
+                            onClick={() => {
+                              void navigator.clipboard.writeText(processed.join('\n'));
+                              setCopiedKey(phaseCopyKey);
+                              setTimeout(() => setCopiedKey(prev => prev === phaseCopyKey ? null : prev), 2000);
+                            }}
+                            title="Copy log to clipboard"
+                            className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono transition-all ${
+                              phaseCopied ? 'bg-emerald-600 text-white' : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+                            }`}
+                          >
+                            {phaseCopied ? '✓ Copied' : '⎘ Copy'}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                    const logBody = (
+                      <div className={`overflow-auto ${isMaximized ? 'flex-1' : 'max-h-[400px]'}`}>
+                        <pre className="p-3 text-[11px] text-slate-300 font-mono leading-relaxed whitespace-pre-wrap">
+                          {processed.join('\n')}
+                        </pre>
+                      </div>
+                    );
+                    if (isMaximized) {
+                      return createPortal(
+                        <div className="fixed inset-0 z-[9999] bg-slate-950 flex flex-col">
+                          {toolbar}
+                          {logBody}
+                        </div>,
+                        document.body
+                      );
+                    }
                     return (
                       <div className="bg-slate-950">
-                        {/* Toolbar */}
-                        <div className="flex items-center justify-between px-3 py-1.5 border-b border-slate-800 bg-slate-900">
-                          <span className="text-[10px] text-slate-500 font-mono">{phase.lines.length} lines{phase.phase === 'I' ? ' · elapsed→MYT' : ''}</span>
-                          <div className="flex items-center gap-1">
-                            <button
-                              onClick={() => setMaximizedPhase(prev => prev === key ? null : key)}
-                              title={isMaximized ? 'Restore' : 'Maximize'}
-                              className="flex items-center gap-1 px-2 py-0.5 rounded bg-slate-700 hover:bg-slate-600 text-[10px] text-slate-300 font-mono transition-colors"
-                            >
-                              {isMaximized ? '⊡ Restore' : '⊞ Max'}
-                            </button>
-                            <button
-                              onClick={() => { void navigator.clipboard.writeText(processed.join('\n')); }}
-                              title="Copy log to clipboard"
-                              className="flex items-center gap-1 px-2 py-0.5 rounded bg-slate-700 hover:bg-slate-600 text-[10px] text-slate-300 font-mono transition-colors"
-                            >
-                              ⎘ Copy
-                            </button>
-                          </div>
-                        </div>
-                        {/* Log body */}
-                        <div className={`overflow-auto transition-all ${isMaximized ? 'max-h-[80vh]' : 'max-h-[400px]'}`}>
-                          <pre className="p-3 text-[11px] text-slate-300 font-mono leading-relaxed whitespace-pre-wrap">
-                            {processed.join('\n')}
-                          </pre>
-                        </div>
+                        {toolbar}
+                        {logBody}
                       </div>
                     );
                   })()}
