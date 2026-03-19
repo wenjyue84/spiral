@@ -373,7 +373,8 @@
         "module-hypothesis"
       ],
       "last_attempted": "2026-03-19T02:49:03Z",
-      "_passedCommit": "8270f68efbe6a577266c4063cb8ccaab03d3e8af"
+      "_passedCommit": "8270f68efbe6a577266c4063cb8ccaab03d3e8af",
+      "_scopeCreep": true
     },
     {
       "id": "US-471",
@@ -388,7 +389,7 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true,
+      "passes": false,
       "_source": "ai-example",
       "model": "haiku",
       "filesTouch": [
@@ -407,8 +408,7 @@
         "module-hypothesis",
         "module-lib"
       ],
-      "last_attempted": "2026-03-19T03:31:26Z",
-      "_passedCommit": "df8d0149b07fba31d7d07d9631a80087370cf7a0"
+      "last_attempted": "2026-03-19T03:21:31Z"
     },
     {
       "id": "US-472",
