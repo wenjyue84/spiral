@@ -1,3 +1,45 @@
+## Iteration 33 - US-522: Dashboard /profile endpoint for phase duration analytics
+
+### What was implemented
+- Added GET /profile endpoint to lib/dashboard/api.py that reads results.tsv and returns phase duration analytics
+- Endpoint returns JSON with three metrics:
+  - mean_phase_durations: dict with mean values for decompose_secs, impl_secs, verify_secs
+  - slowest_stories: list of top 5 stories sorted by total duration (decompose + impl + verify)
+  - escalation_frequency: dict mapping story_id to cumulative escalation count
+- Gracefully handles missing/empty results.tsv (returns default zeros and empty collections)
+- Skips rows with non-numeric duration values instead of crashing
+- Created tests/test_dashboard_profile.py with 3 acceptance criteria tests (all passing)
+
+### Acceptance criteria verification
+✓ GET /profile returns HTTP 200 with JSON keys: mean_phase_durations, slowest_stories, escalation_frequency
+✓ mean_phase_durations contains keys decompose_secs, impl_secs, verify_secs each with numeric values
+✓ uv run pytest tests/test_dashboard_profile.py -v exits 0 (3/3 tests pass)
+
+### Implementation details
+- **lib/dashboard/api.py**: Added /profile endpoint with 80 lines of code
+  - Uses csv.DictReader with tab delimiter to parse results.tsv
+  - Accumulates story durations and escalation counts
+  - Handles missing columns gracefully using dict.get() with defaults
+  - Returns empty defaults if results.tsv doesn't exist
+- **tests/test_dashboard_profile.py**: Simple module-level tests
+  - test_profile_endpoint_returns_200: Verifies HTTP 200
+  - test_profile_returns_correct_json_structure: Checks required keys
+  - test_profile_mean_phase_durations_has_required_keys: Validates numeric types
+
+### Patterns discovered
+- FastAPI async endpoints don't require await for I/O in simple cases (Path.exists() is synchronous)
+- csv.DictReader is effective for tab-separated values with delimiter="\t"
+- TestClient(app).get() works seamlessly for sync endpoints
+- Graceful degradation (returning defaults) is better than raising exceptions for missing data files
+
+### Quality gates
+✓ All 3 tests pass
+✓ mypy --strict passes (no type errors)
+✓ No pre-commit hook issues
+✓ Code follows existing FastAPI pattern in cost_broadcaster.py
+
+---
+
 ## Iteration 32 - US-521: Add per-phase timing columns to results.tsv
 
 ### What was implemented
