@@ -726,7 +726,7 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "haiku",
       "filesTouch": [
@@ -743,7 +743,8 @@
       ],
       "tags": [
         "module-hypothesis"
-      ]
+      ],
+      "_scopeCreep": true
     },
     {
       "id": "US-497",
@@ -1257,6 +1258,311 @@
       ],
       "dependencies": [
         "US-352"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "test-story",
+      "model": "haiku"
+    },
+    {
+      "id": "US-518",
+      "title": "[Integration Test] Episodic memory store: store, retrieve, and inject patterns",
+      "priority": "high",
+      "description": "Write integration tests for the SQLite FTS5 episodic memory store introduced in US-350. Tests must cover the happy path (write a story record and retrieve it via FTS5 query) and at least one error/edge case (e.g. empty store or corrupt record). No external services or manual setup may be required.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_episodic_memory_integration.py::test_store_and_retrieve_happy_path -v exits 0",
+        "uv run pytest tests/test_episodic_memory_integration.py::test_retrieve_returns_empty_on_missing_store -v exits 0",
+        "uv run pytest tests/test_episodic_memory_integration.py::test_top3_relevant_patterns_returned -v exits 0",
+        "uv run pytest tests/test_episodic_memory_integration.py -v passes with no external services required (uses tmp_path fixture or in-memory SQLite)"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_episodic_memory_integration.py (create new integration test module)",
+        "File to edit: lib/episodic_memory.py (import store/retrieve/inject functions under test — added in US-350)",
+        "Test command: uv run pytest tests/test_episodic_memory_integration.py -v --tb=short",
+        "Use pytest tmp_path fixture to create a throwaway SQLite DB so tests are hermetic and require no setup",
+        "Each test should instantiate EpisodicMemoryStore(db_path=tmp_path/\"mem.db\"), call store_pattern(), then assert retrieve_top_k() returns expected results"
+      ],
+      "dependencies": [
+        "US-350"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "test-story",
+      "model": "haiku"
+    },
+    {
+      "id": "US-519",
+      "title": "Integration Test: Mock Claude client loads fixtures and responds correctly",
+      "priority": "high",
+      "description": "Verify that the mock Claude client and pre-recorded API response fixtures introduced in US-476 can be instantiated, loaded, and return deterministic responses. This tests the fixture infrastructure itself before higher-level phase tests depend on it.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_mock_claude_client.py -v exits 0 with all tests passing",
+        "Mock client returns a pre-recorded fixture response when given a matching prompt key",
+        "Mock client raises a clear error (not hangs) when given an unrecognised prompt key"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_mock_claude_client.py (new file — create integration tests for the mock client class)",
+        "File to edit: tests/conftest.py (fixture_dir or mock_client pytest fixtures)",
+        "Test command: uv run pytest tests/test_mock_claude_client.py -v --tb=short"
+      ],
+      "dependencies": [
+        "US-476"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "test-story",
+      "model": "haiku"
+    },
+    {
+      "id": "US-520",
+      "title": "Add Phase G incremental CHANGELOG filtering: exclude unchanged stories by iteration",
+      "priority": "medium",
+      "description": "Extend lib/phases/phase_g.sh to read SPIRAL_CHANGELOG_SINCE_ITERATION and pass --since-tag to git-cliff, so CHANGELOG.md only includes commits from iteration N onwards. Defaults to 0 (all history) when unset. This prevents CHANGELOG bloat across many SPIRAL runs.",
+      "acceptanceCriteria": [
+        "grep -q 'SPIRAL_CHANGELOG_SINCE_ITERATION' lib/phases/phase_g.sh && echo PASS — env var is referenced in the phase script",
+        "SPIRAL_CHANGELOG_SINCE_ITERATION=5 bash -x lib/phases/phase_g.sh 2>&1 | grep -q 'since-tag' && echo PASS — --since-tag flag is passed to git-cliff when var is set to a non-zero value",
+        "bash lib/phases/phase_g.sh; test $? -eq 0 — phase exits 0 with default behavior when SPIRAL_CHANGELOG_SINCE_ITERATION is unset",
+        "SPIRAL_CHANGELOG_SINCE_ITERATION=999 bash lib/phases/phase_g.sh && wc -l CHANGELOG.md — high iteration value produces empty or near-empty CHANGELOG without error"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/phases/phase_g.sh (git-cliff invocation block — add env var read and conditional --since-tag argument)",
+        "Implementation pattern: SINCE_ITER=${SPIRAL_CHANGELOG_SINCE_ITERATION:-0}; if [[ \"$SINCE_ITER\" -gt 0 ]]; then CLIFF_ARGS+=(--since-tag \"iter-${SINCE_ITER}\"); fi",
+        "Test command: grep -q 'SPIRAL_CHANGELOG_SINCE_ITERATION' lib/phases/phase_g.sh && echo PASS",
+        "Test command: SPIRAL_CHANGELOG_SINCE_ITERATION=5 bash -x lib/phases/phase_g.sh 2>&1 | grep -q 'since-tag' && echo PASS"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-521",
+      "title": "Create anomaly_detector module: compute high-retry outliers from results.tsv",
+      "priority": "medium",
+      "description": "Implement lib/dashboard/anomaly_detector.py that reads results.tsv, computes per-story retry counts, calculates median and std dev, and returns a list of story IDs whose retry count exceeds median + 1.5*std_dev. This is pure data logic with no HTTP concerns.",
+      "acceptanceCriteria": [
+        "uv run python -c \"from lib.dashboard.anomaly_detector import detect_anomalies; print(detect_anomalies('results.tsv'))\" exits 0 and returns a list",
+        "detect_anomalies on retries=[1,1,4,1,5] returns exactly the story IDs for the two high-retry entries (median=1, std_dev~1.9, threshold~3.8)",
+        "uv run pytest tests/test_anomaly_detector.py -v passes with retries=[1,1,4,1,5] fixture asserting US-459 and US-462 are flagged"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/dashboard/anomaly_detector.py (new file — detect_anomalies(tsv_path, multiplier=1.5) -> list[dict])",
+        "File to edit: tests/test_anomaly_detector.py (new file — test_detects_outliers, test_empty_tsv, test_no_outliers)",
+        "Test command: uv run pytest tests/test_anomaly_detector.py -v",
+        "results.tsv columns: story_id, model, tokens, cost, duration, status, retries — read with csv.DictReader; group rows by story_id and sum retries field"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-522",
+      "title": "Add GET /api/v1/stories/anomalies dashboard endpoint using anomaly_detector",
+      "priority": "medium",
+      "description": "Register a new route in the dashboard API that calls detect_anomalies() and returns a JSON list of high-retry story objects. Accepts an optional ?threshold query param (float, default 1.5) that overrides the std_dev multiplier.",
+      "acceptanceCriteria": [
+        "curl -s http://localhost:5299/api/v1/stories/anomalies | python -m json.tool exits 0 and returns a JSON array",
+        "curl -s 'http://localhost:5299/api/v1/stories/anomalies?threshold=3' with seeded results.tsv containing retries=[1,1,4,1,5] returns [{\"story_id\":\"US-459\",\"retries\":4,...},{\"story_id\":\"US-462\",\"retries\":5,...}]",
+        "uv run pytest tests/test_dashboard_routes.py::test_anomalies_endpoint -v passes"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/dashboard/routes.py or app.py (register GET /api/v1/stories/anomalies route)",
+        "File to edit: tests/test_dashboard_routes.py (test_anomalies_endpoint — mock results.tsv, assert JSON shape and story IDs)",
+        "Test command: uv run pytest tests/test_dashboard_routes.py::test_anomalies_endpoint -v",
+        "Depends on anomaly_detector story being merged first; import: from lib.dashboard.anomaly_detector import detect_anomalies",
+        "Parse threshold query param as float; pass as multiplier= kwarg; default 1.5 if absent or invalid"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-523",
+      "title": "Implement namespace conflict detection module for federated prd.json files",
+      "priority": "medium",
+      "description": "Create lib/multirepo/detect_namespace_conflicts.py with a function that scans a glob of prd.json files, aggregates all story IDs, and returns a list of conflict dicts. This is the pure logic layer with no CLI concerns.",
+      "acceptanceCriteria": [
+        "uv run python -c \"from lib.multirepo.detect_namespace_conflicts import detect_conflicts; print(detect_conflicts(['tests/fixtures/proj_a/prd.json', 'tests/fixtures/proj_b/prd.json']))\" prints a list containing {\"story_id\": \"US-123\", \"projects\": [\"proj_a\", \"proj_b\"]} when both fixtures contain US-123",
+        "uv run pytest tests/test_detect_namespace_conflicts.py::test_no_conflicts_returns_empty_list -v exits 0",
+        "uv run pytest tests/test_detect_namespace_conflicts.py::test_duplicate_id_detected -v exits 0"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/multirepo/detect_namespace_conflicts.py (new file — create detect_conflicts(prd_paths: list[str]) -> list[dict] function)",
+        "File to edit: tests/test_detect_namespace_conflicts.py (new file — add fixtures tests/fixtures/proj_a/prd.json and tests/fixtures/proj_b/prd.json with overlapping US-123)",
+        "Test command: uv run pytest tests/test_detect_namespace_conflicts.py -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-524",
+      "title": "Add `spiral namespace-conflicts` CLI subcommand using conflict detector",
+      "priority": "medium",
+      "description": "Wire the detect_conflicts function into the spiral CLI as `spiral namespace-conflicts --repos <dir> --output=json`. Command must exit 1 when conflicts are found and print JSON to stdout.",
+      "acceptanceCriteria": [
+        "python main.py namespace-conflicts --repos tests/fixtures/ --output=json exits code 1 and stdout contains {\"conflicts\": [{\"story_id\": \"US-123\", \"projects\": [\"proj_a\", \"proj_b\"]}]} when proj_a and proj_b both contain US-123",
+        "python main.py namespace-conflicts --repos tests/fixtures/no_conflicts/ --output=json exits code 0 and stdout is {\"conflicts\": []}",
+        "uv run pytest tests/test_cli_namespace_conflicts.py -v exits 0"
+      ],
+      "technicalNotes": [
+        "File to edit: main.py (add namespace-conflicts subcommand to argparse/click entry point, call detect_conflicts from lib.multirepo.detect_namespace_conflicts)",
+        "File to edit: tests/test_cli_namespace_conflicts.py (new file — use subprocess.run to invoke the CLI and assert exit codes and stdout JSON)",
+        "Test command: uv run pytest tests/test_cli_namespace_conflicts.py -v",
+        "Dependency: this story depends on the detect_namespace_conflicts module story being complete first"
+      ],
+      "dependencies": [
+        "US-523"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-525",
+      "title": "Add per-worker busy/idle timeline bucketing to lib/worker_metrics.py",
+      "priority": "medium",
+      "description": "Extend lib/worker_metrics.py to aggregate heartbeat events into 30-second buckets, producing a JSON timeline of per-worker active/idle state. This is the data layer that the dashboard heatmap endpoint will consume.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_worker_metrics.py::test_bucket_timeline_30s -v passes: given 3 simulated workers with staggered heartbeats over 2 minutes, bucket_timeline() returns exactly 4 buckets each with keys ts, worker_1, worker_2, worker_3 set to 'active' or 'idle'",
+        "uv run pytest tests/test_worker_metrics.py::test_bucket_empty_range -v passes: calling bucket_timeline(start, end) where no heartbeats exist returns an empty list []",
+        "uv run python -c \"from lib.worker_metrics import bucket_timeline; print(bucket_timeline(1700000000, 1700000060, []))\" exits with code 0 and prints a JSON-serialisable list"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/worker_metrics.py (add function bucket_timeline(start_ts: int, end_ts: int, heartbeat_log: list[dict]) -> list[dict])",
+        "File to edit: tests/test_worker_metrics.py (new test module; create if absent)",
+        "Test command: uv run pytest tests/test_worker_metrics.py -v --tb=short",
+        "Bucket boundary: floor(ts / 30) * 30; mark worker 'active' if any heartbeat falls in bucket, else 'idle'"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-526",
+      "title": "Add GET /api/v1/workers/heatmap dashboard endpoint returning bucketed timeline",
+      "priority": "medium",
+      "description": "Add a dashboard API endpoint that accepts start/end Unix timestamps and returns the per-worker busy/idle heatmap JSON produced by lib/worker_metrics.bucket_timeline(). This exposes the bucketed timeline for frontend visualization.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_dashboard_heatmap.py::test_heatmap_endpoint_valid_range -v passes: GET /api/v1/workers/heatmap?start=1700000000&end=1700003600 returns HTTP 200 with Content-Type application/json and a list of bucket objects",
+        "uv run pytest tests/test_dashboard_heatmap.py::test_heatmap_endpoint_bad_params -v passes: omitting start or end query params returns HTTP 400 with a JSON error field",
+        "uv run pytest tests/test_dashboard_heatmap.py::test_heatmap_endpoint_empty_range -v passes: valid but data-free range returns HTTP 200 with body []"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/dashboard_server.py or equivalent API router (add route GET /api/v1/workers/heatmap)",
+        "File to edit: tests/test_dashboard_heatmap.py (new test module; create if absent, use Flask/FastAPI test client)",
+        "Test command: uv run pytest tests/test_dashboard_heatmap.py -v --tb=short",
+        "Import and call lib.worker_metrics.bucket_timeline() inside the route handler; pass parsed start/end as ints"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-527",
+      "title": "Add per-phase timing capture to results.tsv",
+      "priority": "medium",
+      "description": "Create lib/metrics/phase_timer.sh with start/stop timing hooks and instrument spiral.sh to wrap each phase. Append a phase_timings JSON column to every results.tsv row containing millisecond durations for Phase R, Phase T, and Phase I.",
+      "acceptanceCriteria": [
+        "File lib/metrics/phase_timer.sh exists and exports phase_timer_start / phase_timer_stop functions that record wall-clock ms",
+        "After any SPIRAL run, the last row of results.tsv contains a phase_timings column with valid JSON, e.g. {\"phase_r\":5000,\"phase_t\":2000,\"phase_i\":45000}",
+        "python -c \"import json,csv; row=list(csv.DictReader(open('results.tsv','r',newline=''),delimiter='\\t'))[-1]; json.loads(row['phase_timings'])\" exits 0",
+        "uv run pytest tests/test_phase_timer.py -v passes (test verifies JSON structure of captured timings)"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/metrics/phase_timer.sh (new file — phase_timer_start, phase_timer_stop, phase_timer_json helpers)",
+        "File to edit: spiral.sh (wrap Phase R/T/I blocks with phase_timer_start <name> / phase_timer_stop <name>; inject phase_timings JSON into results.tsv append logic)",
+        "File to edit: tests/test_phase_timer.py (new — unit test that sources phase_timer.sh via bash and asserts JSON output format)",
+        "Test command: uv run pytest tests/test_phase_timer.py -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-528",
+      "title": "Add spiral analyze-phases CLI command for duration percentiles",
+      "priority": "medium",
+      "description": "Add a new subcommand to main.py that reads the phase_timings column from results.tsv, groups phase durations by percentile, and prints the slowest 3 phases with their call count and total time. Depends on the phase_timings column being present (Story 1).",
+      "acceptanceCriteria": [
+        "python main.py analyze-phases --since-iteration=5 exits 0 and prints a table listing phase name, count, and total_ms for the 3 slowest phases",
+        "python main.py analyze-phases --since-iteration=5 exits with code 1 and a clear error message when results.tsv has no phase_timings column",
+        "uv run pytest tests/test_analyze_phases.py -v passes (test uses a fixture results.tsv with synthetic phase_timings rows)"
+      ],
+      "technicalNotes": [
+        "File to edit: main.py (add analyze-phases subcommand under existing argparse setup)",
+        "File to edit: lib/analyze_phases.py (new module — parse_phase_timings(rows), compute_percentiles(timings), format_report(stats))",
+        "File to edit: tests/test_analyze_phases.py (new — fixture with 10 synthetic results.tsv rows; assert top-3 slowest phases match expected)",
+        "Test command: uv run pytest tests/test_analyze_phases.py -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-529",
+      "title": "[Perf Test] Benchmark SPIRAL self-monitoring dashboard metrics computation",
+      "priority": "medium",
+      "description": "Write a performance benchmark test for the self-monitoring dashboard introduced in US-460. The test captures a baseline for token burn rate aggregation, story throughput calculation, and model escalation heatmap rendering, then asserts that none regress more than 20% from that baseline.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_perf_dashboard.py::test_token_burn_rate_benchmark -v exits 0 within 5 s",
+        "uv run pytest tests/test_perf_dashboard.py::test_story_throughput_benchmark -v exits 0 within 5 s",
+        "uv run pytest tests/test_perf_dashboard.py -v --tb=short exits 0 with all benchmarks passing",
+        "uv run pytest tests/test_perf_dashboard.py -v fails (non-zero exit) when a monkey-patched slow path exceeds the 20% threshold"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_perf_dashboard.py (new file — create performance benchmark suite)",
+        "File to edit: lib/dashboard.py or lib/monitor.py (import the functions under test; confirm exact module path after US-460 merges)",
+        "Test command: uv run pytest tests/test_perf_dashboard.py -v --tb=short",
+        "Baseline pattern: record wall-clock time with time.perf_counter() around the function call, assert elapsed < BASELINE_SECONDS * 1.20",
+        "Use pytest fixtures to build a minimal synthetic results.tsv (50 rows) and prd.json snapshot as test input — do not read live project files",
+        "If US-460 has not yet merged, skip the test with pytest.importorskip on the dashboard module"
+      ],
+      "dependencies": [
+        "US-460"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "test-story",
+      "model": "haiku"
+    },
+    {
+      "id": "US-530",
+      "title": "[Regression Test] Worker crash recovery reverts detached HEAD to main",
+      "priority": "medium",
+      "description": "Write a regression test that verifies US-461 crash recovery: when a Ralph worker exits in a detached HEAD or with an incomplete commit, the orchestrator detects it and reverts the worktree to the last known-good state on main. The test must fail if the recovery logic is removed or bypassed.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_worker_crash_recovery.py -v exits 0 with all tests passing",
+        "uv run pytest tests/test_worker_crash_recovery.py::test_detached_head_triggers_recovery -v passes and asserts git branch is restored to main after recovery",
+        "uv run pytest tests/test_worker_crash_recovery.py::test_incomplete_commit_reverted -v passes and asserts worktree HEAD matches main branch tip",
+        "grep -c 'detach\\|DETACHED' tests/test_worker_crash_recovery.py returns ≥1 (test actually simulates detached HEAD state)"
+      ],
+      "technicalNotes": [
+        "File to create: tests/test_worker_crash_recovery.py (regression test for US-461 crash recovery)",
+        "File to read: lib/run_parallel_ralph.sh (locate detached HEAD detection and revert-to-main logic added in US-461)",
+        "File to read: lib/worker_heartbeat.sh (may contain recovery trigger hook)",
+        "Test command: uv run pytest tests/test_worker_crash_recovery.py -v",
+        "Pattern: use a tmp_path pytest fixture to init a bare git repo + worktree, manually put the worktree into detached HEAD (git checkout HEAD~1 or git checkout --detach), invoke the recovery shell function via subprocess, then assert `git -C <worktree> branch --show-current` == 'main'",
+        "If recovery logic lives in bash, import it via subprocess.run(['bash', '-c', 'source lib/run_parallel_ralph.sh && recover_worker <path>']) and assert exit code 0 plus branch name"
+      ],
+      "dependencies": [
+        "US-461"
       ],
       "estimatedComplexity": "small",
       "passes": false,

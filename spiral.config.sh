@@ -99,8 +99,10 @@ SPIRAL_STORY_PREFIX="US"
 SPIRAL_DISPATCH_MODE="${SPIRAL_DISPATCH_MODE:-dag}"
 
 # ── Capacity limit: skip Phase R when pending stories exceed this ─────────────
-# Prevents flooding prd.json during aggressive non-stop runs
-SPIRAL_MAX_PENDING=50
+# Prevents flooding prd.json during aggressive non-stop runs.
+# Tightened to 15: at ~3-5 completions/iter, Phase R only runs when backlog is
+# nearly clear, keeping the pending gap under control.
+SPIRAL_MAX_PENDING=15
 
 # ── Total story count assertion ceiling ───────────────────────────────────────
 # Spiral has 264 total stories (243 done + 21 pending + room for research).
@@ -120,7 +122,17 @@ SPIRAL_LOCK_TIMEOUT_MINUTES=5
 # ── Batch size: cap stories visible to ralph per iteration ────────────────
 # Only the N highest-priority pending stories are included in the PRD slice
 # passed to ralph. 0 = disabled (all pending stories visible, current behavior).
-SPIRAL_STORY_BATCH_SIZE=20
+SPIRAL_STORY_BATCH_SIZE=10
+
+# ── Research story cap: max new stories Phase R may add per iteration ─────────
+# Prevents Phase R from flooding prd.json each cycle. Matches the implementation
+# rate (~3-5 completions/iter) so pending count stays roughly flat.
+SPIRAL_MAX_RESEARCH_STORIES=5
+
+# ── AI suggestion cap: max Phase A stories generated per iteration ────────────
+# Phase A runs after Phase R and adds AI-generated story candidates.
+# Lowered from default 5 to 2 to limit backlog inflation.
+SPIRAL_MAX_AI_SUGGEST=2
 
 # ── Phase S: Message Batches API validation (US-390) ──────────────────────
 # Set to 1 to submit Phase S validation requests to the Anthropic Message
