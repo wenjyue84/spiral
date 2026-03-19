@@ -318,16 +318,25 @@ function spiralApiPlugin() {
 
           type PhaseEvent = { event?: string; type?: string; phase?: string; iteration?: number; duration_s?: number; ts?: string; run_id?: string; [k: string]: unknown };
 
-          // Determine the latest run_id so we don't mix events from different runs.
-          // Old runs sharing the same iteration numbers produce wildly wrong durations.
-          const latestRunId = ([...(rawEvents as PhaseEvent[])].reverse().find(e => e.run_id))?.run_id ?? null;
+          // Collect recent run_ids so we don't mix events from very old runs
+          // but still keep events across restarts within the same session.
+          // Strategy: keep the last 5 unique run_ids (covers recent restarts).
+          const recentRunIds = new Set<string>();
+          const allRunIds: string[] = [];
+          for (const e of rawEvents as PhaseEvent[]) {
+            if (e.run_id && !recentRunIds.has(e.run_id)) {
+              allRunIds.push(e.run_id);
+              recentRunIds.add(e.run_id);
+            }
+          }
+          const keepRunIds = new Set(allRunIds.slice(-5));
 
           const phaseEvents = (rawEvents as PhaseEvent[]).filter(e => {
             const isPhaseEvent = e.event === 'phase_start' || e.event === 'phase_end' ||
                                  e.type === 'phase_start' || e.type === 'phase_end';
             if (!isPhaseEvent) return false;
-            // If we know the latest run_id, discard events from older runs
-            if (latestRunId && e.run_id && e.run_id !== latestRunId) return false;
+            // Discard events from very old runs (keep last 5 run_ids)
+            if (keepRunIds.size > 0 && e.run_id && !keepRunIds.has(e.run_id)) return false;
             return true;
           });
 
@@ -519,6 +528,21 @@ function spiralApiPlugin() {
           for (const iter of iterations) {
             iterMap.set(iter.iter, iter);
           }
+
+          // Synthesize iteration stubs from phase events for iterations not found in the log.
+          // This happens when the log is rotated mid-run but events persist.
+          for (const evt of phaseEvents) {
+            const iterNum = evt.iteration;
+            if (iterNum != null && !iterMap.has(iterNum)) {
+              iterMap.set(iterNum, {
+                iter: iterNum,
+                phases: [],
+                lineStart: -1,
+                lineEnd: -1,
+              });
+            }
+          }
+
           const dedupedIterations = [...iterMap.values()].sort((a, b) => a.iter - b.iter);
 
           // Deduplicate phases within each iteration (same phase letter → merge lines/substeps)
