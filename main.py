@@ -973,6 +973,55 @@ def _diagnose_cache_hit_rate() -> dict:
     return analyze_cache_hit_rate(rows)
 
 
+def cmd_namespace_check(args) -> None:
+    """Validate story ID namespacing in federated prd.json (US-503)."""
+    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    from namespace_check import check_namespaces  # type: ignore[import]
+    from spiral_io import atomic_write_json  # type: ignore[import]
+
+    # Determine prd.json path
+    prd_path = Path(getattr(args, "prd_file", None) or "prd.json")
+    if not prd_path.is_absolute():
+        prd_path = Path.cwd() / prd_path
+
+    # Run validation
+    result = check_namespaces(prd_path)
+
+    # Create .spiral directory if needed
+    output_dir = SCRATCH_DIR
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_file = output_dir / "namespace-validation.json"
+
+    # Write results to .spiral/namespace-validation.json
+    try:
+        atomic_write_json(output_file, result)
+    except Exception as e:
+        print(f"Error writing validation results: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Print summary to stdout
+    if result.get("error"):
+        print(f"Error: {result['error']}", file=sys.stderr)
+        sys.exit(1)
+
+    if result.get("pass"):
+        print("[ok] Namespace validation passed")
+        for ns_name, ns_data in result.get("sub_projects", {}).items():
+            story_count = ns_data.get("story_count", 0)
+            print(f"  {ns_name}: {story_count} stories")
+        sys.exit(0)
+    else:
+        print("[fail] Namespace validation failed")
+        violations = result.get("violations", [])
+        for violation in violations:
+            v_type = violation.get("type", "unknown")
+            v_ns = violation.get("namespace", "unknown")
+            story_id = violation.get("story_id", "")
+            message = violation.get("message", "No details")
+            print(f"  [{v_type}] {v_ns}: {message}")
+        sys.exit(1)
+
+
 def cmd_diagnose(args) -> None:
     """Print a causal failure chain for a spiral run (uses failure_attribution.py)."""
     sys.path.insert(0, str(Path(__file__).parent / "lib"))
@@ -2416,6 +2465,18 @@ def main():
         help="Output format: markdown (default) or json for CI artifact ingestion",
     )
 
+    namespace_check_parser = subparsers.add_parser(
+        "namespace-check",
+        help="Validate story ID namespacing in federated prd.json",
+    )
+    namespace_check_parser.add_argument(
+        "prd_file",
+        metavar="PRD_FILE",
+        nargs="?",
+        default=None,
+        help="Path to prd.json file (default: ./prd.json)",
+    )
+
     config_parser = subparsers.add_parser(
         "config",
         help="Configuration utilities",
@@ -2560,6 +2621,8 @@ def main():
         cmd_diagnose(args)
     elif args.command == "export-report":
         cmd_export_report(args)
+    elif args.command == "namespace-check":
+        cmd_namespace_check(args)
     elif args.command == "config":
         config_command = getattr(args, "config_command", None)
         if config_command == "export-env":

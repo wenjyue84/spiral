@@ -697,3 +697,33 @@ This is not a Frappe user story. The provided JSON describes an integration test
 - Cannot run uv from worker worktree — must use python -m pytest with --override-ini=addopts= 
 ## Worker 2 crashed (exit 1) — 2026-03-19 14:52:57
 ## Worker 3 crashed (exit 1) — 2026-03-19 14:52:58
+
+## Pre-analysis for US-497 (Gemini 2.5 Pro)
+This user story is for a Python-based application, not a Frappe app. The context provided in the prompt about Frappe/lhdn_payroll_integration is incorrect and should be disregarded. The brief below is based on the technical requirements from the JSON data.
+
+**Project:** SPIRAL Self-Monitoring Dashboard
+**Goal:** Implement a real-time cost streaming WebSocket endpoint.
+
+**1. Files to Modify/Create:**
+*   **`lib/dashboard/api.py` (Create):** This new file will contain the FastAPI application and the WebSocket endpoint logic.
+*   **`lib/cost_broadcaster.py` (Create):** A new module to manage active WebSocket connections and broadcast messages. This decouples connection management from the API logic.
+*   **`lib/some_process_that_writes_results.py` (Modify):** The existing script that appends data to `results.tsv` must be identified and modified to call the cost broadcaster after a successful file write.
+*   **`tests/test_dashboard_websocket.py` (Create):** A new test suite to validate the WebSocket functionality, including connection, message reception, and performance under load as per the acceptance criteria.
+
+**2. Key Components (SPIRAL-equivalent of DocTypes/Hooks):**
+*   **WebSocket Endpoint:** `/ws/cost` within the FastAPI app defined in `lib/dashboard/api.py`.
+*   **Triggering Event:** The file modification event on `results.tsv`. This will act as the "hook" to trigger the broadcast.
+
+**3. Implementation Approach:**
+1.  In `lib/dashboard/api.py`, set up a FastAPI app. Implement the `/ws/cost` endpoint using `WebSocket` from `fastapi`.
+2.  In `lib/cost_broadcaster.py`, create a `ConnectionManager` class to maintain a list of active WebSocket connections. Include a `broadcast` method to send data to all clients.
+3.  On new connection to `/ws/cost`, add the client to the `ConnectionManager`.
+4.  Locate the code that writes to `results.tsv`. After the write operation, calculate the cost delta and invoke the `ConnectionManager.broadcast` method with the new data.
+5.  Develop tests in `tests/test_dashboard_websocket.py` using FastAPI's `TestClient` and its WebSocket testing capabilities.
+
+**4. Edge Cases & Gotchas:**
+*   **Concurrency:** Ensure the `ConnectionManager`'s list of active connections is thread-safe to prevent race conditions during connect/disconnect/broadcast actions.
+*   **Connection Handling:** Implement robust error handling for disconnected clients to ensure the broadcaster doesn't fail if a client drops unexpectedly.
+*   **Data Parsing:** The logic reading `results.tsv` must be resilient to potential file lock issues or partial writes.
+*   **Performance:** The 2-second requirement means the file-watching/triggering mechanism and broadcast must be highly efficient. Avoid any blocking I/O in the broadcast loop.
+
