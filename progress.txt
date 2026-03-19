@@ -1,3 +1,35 @@
+## Iteration 37 - US-530: Phase I Budget Guard: fail-fast before decomposition using predict-cost
+
+### What was implemented
+- Enhanced lib/predict_cost.py with --budget-remaining CLI flag and exit code 2 for budget exceeded
+- Added check_story_budget() function to lib/impl/decompose.sh that:
+  - Calculates remaining budget from results.tsv total spend and SPIRAL_COST_CEILING
+  - Calls predict-cost with --budget-remaining flag before story decomposition
+  - Returns exit code 2 when estimated_cost > remaining_budget
+  - Logs `BUDGET_EXCEEDED: estimated $X.XX > remaining $Y.YY` to stderr
+  - Gracefully skips check if SPIRAL_COST_CEILING is unset or zero
+- Added 2 integration tests to tests/test_predict_cost.py:
+  - test_budget_check_integration: Verifies exit code 2 and budget_exceeded flag when over budget
+  - test_budget_check_under_limit: Verifies exit code 0 and no flag when within budget
+
+### Acceptance criteria verification
+✓ Phase I can skip stories when predict-cost returns estimated_cost > remaining budget
+✓ CLI accepts --budget-remaining flag and exits with code 2 when over budget
+✓ Budget check gracefully skips if SPIRAL_COST_CEILING unset or zero
+✓ uv run pytest tests/test_predict_cost.py::test_budget_check_integration passes
+✓ All 11 predict_cost tests pass (9 original + 2 new integration tests)
+✓ mypy --strict passes on lib/predict_cost.py
+✓ shellcheck and shfmt pass on lib/impl/decompose.sh
+
+### Patterns discovered
+- Budget check logic fits cleanly into decompose.sh as a pre-decomposition guard
+- Exit code 2 is a good signal for "budget exceeded" vs other errors (code 1)
+- Integration tests using subprocess.run() can verify CLI behavior including exit codes
+
+### Commit: feat: US-530 - Phase I Budget Guard
+
+---
+
 ## Iteration 36 - US-529: Cost Predictor CLI: KNN-based token/cost estimation from results.tsv
 
 ### What was implemented
