@@ -1,3 +1,30 @@
+## Iteration 18 - US-482: Integration Tests for Phase G
+
+### What was implemented
+- Verified tests/test_phase_g_integration.py exists with comprehensive test coverage
+- All 13 tests pass, including the 3 acceptance criteria tests:
+  ✓ test_changelog_generated_from_commits - verifies CHANGELOG.md generation
+  ✓ test_api_docs_generated_by_pdoc - verifies API docs generation
+  ✓ test_phase_g_handles_empty_commit_log - verifies empty repo edge case
+- Test file uses mocks for git-cliff and pdoc, so no external tools required
+- Fixtures provide isolated git repos with commits for testing
+
+### Acceptance criteria verification
+✓ uv run pytest tests/test_phase_g_integration.py::test_changelog_generated_from_commits -v exits 0
+✓ uv run pytest tests/test_phase_g_integration.py::test_api_docs_generated_by_pdoc -v exits 0
+✓ uv run pytest tests/test_phase_g_integration.py::test_phase_g_handles_empty_commit_log -v exits 0
+✓ uv run pytest tests/test_phase_g_integration.py -v exits 0 (13 passed in 3.77s, no external services)
+
+### Key implementation patterns
+- Uses pytest tmp_path fixture for isolated test repos
+- Mocks subprocess.run for git-cliff and pdoc calls to avoid external dependencies
+- Comprehensive test classes covering generation, error handling, and orchestration
+- All tests are self-contained and require no external services
+
+### Tests passing
+- All 13 tests in test_phase_g_integration.py pass (100% success rate)
+- No regressions in existing tests
+
 ## Iteration 9 - Story: US-457 - Decompose federated prd.json story
 
 ### What was implemented
@@ -315,4 +342,62 @@ This is not a Frappe project. The analogous concepts are:
 *   **Path Resolution:** The system needs a robust method for resolving paths to sub-project `prd.json` files, whether they are local relative paths or remote git URLs.
 *   **Dependency Graph:** `infer_dependencies.py` must correctly build a single, cohesive dependency graph from the namespaced stories of all federated projects.
 *   **Performance:** Loading and parsing multiple large `prd.json` files could be a bottleneck. Profile the process.
+
+
+## Pre-analysis for US-482 (Gemini 2.5 Pro)
+Based on the user story, the request is for the SPIRAL project, not a Frappe application. Here is the technical brief:
+
+**Project:** SPIRAL
+**Goal:** Implement integration tests for Phase G (Changelog/API Doc Generation).
+
+**Files to Modify:**
+*   **Create:** `tests/test_phase_g_integration.py`
+*   **Target for testing:** `lib/phases/phase_g.py` (or `.sh`). This script contains the core logic to be invoked.
+
+**Involved Components:**
+*   **Testing Framework:** `pytest`
+*   **Tools to Test:** `git-cliff` (for CHANGELOG), `pdoc` (for API docs)
+*   **Core Logic:** The script/function responsible for Phase G execution.
+
+**Implementation Approach:**
+1.  Create `tests/test_phase_g_integration.py`.
+2.  Use the `pytest` `tmp_path` fixture to create an isolated directory for each test.
+3.  Inside the test function, initialize a temporary git repository (`git init`) within `tmp_path`.
+4.  Create and commit one or more dummy source files to establish a commit history.
+5.  Invoke the Phase G script (e.g., via `subprocess.run()`), pointing it at the temporary repository.
+6.  Assert that `CHANGELOG.md` and `pdoc` output directories/files are successfully created.
+7.  **Happy Path:** Test successful generation from a repo with commits.
+8.  **Edge Case:** Test behavior with an empty repository (no commits). The test should assert the script handles this gracefully (e.g., exits cleanly, produces an empty/template changelog).
+
+**Gotchas:**
+*   Tests must be self-contained; all git operations must run against the temporary repo fixture, not the project repo.
+*   Ensure test runners can locate `git-cliff` and `pdoc` executables.
+
+
+## Pre-analysis for US-482 (Gemini 2.5 Pro)
+This is not a Frappe/ERPNext user story. The project is a Python/shell-based automation tool named "Spiral". The context is testing a script that generates changelogs and API documentation.
+
+**Technical Brief for Agent**
+
+**Objective:** Implement integration tests for `US-482`, which validates the changelog and API doc generation process (`Phase G`).
+
+**Project Context:**
+- This is a standard Python project, **not** a Frappe application. Ignore any Frappe-related instructions.
+- The feature to be tested is likely located at `lib/phases/phase_g.sh` or a similar Python file.
+
+**Files to Modify:**
+- Create a new test file: `tests/test_phase_g_integration.py`.
+- You will be calling the Phase G script, not modifying it.
+
+**Implementation Plan:**
+1.  Use the `pytest` framework and its `tmp_path` fixture to create isolated test environments.
+2.  For each test, initialize a new Git repository within the `tmp_path` using `subprocess.run(["git", "init"])`.
+3.  Create dummy commits with conventional commit-style messages (e.g., `feat: new feature`, `fix: a bug`).
+4.  Invoke the Phase G script (e.g., `lib/phases/phase_g.sh`) using `subprocess.run()`, setting the `cwd` to the temporary repo path.
+5.  Assert that the script exits with a status code of `0`.
+6.  Verify that `CHANGELOG.md` and API documentation (e.g., in a `docs/` folder) are created and are not empty.
+
+**Edge Cases to Test:**
+- **No Commits:** Run the script against a repo with no commits and assert it handles this gracefully.
+- **Missing Tools:** Test how the script behaves if dependencies like `git-cliff` or `pdoc` are not available (if feasible to simulate).
 

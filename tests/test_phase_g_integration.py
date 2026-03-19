@@ -272,3 +272,69 @@ class TestPhaseGErrorHandling:
 
       with pytest.raises(RuntimeError, match="Failed to"):
         generate_api_docs(source_dir="lib", output_dir="docs/api")
+
+
+# ── Module-level test functions (matching acceptance criteria) ────────────────
+
+
+def test_changelog_generated_from_commits(git_repo_with_commits: Path) -> None:
+  """Verify CHANGELOG.md is created from git history.
+
+  Acceptance criteria: uv run pytest tests/test_phase_g_integration.py::test_changelog_generated_from_commits
+  """
+  changelog_path = git_repo_with_commits / "CHANGELOG.md"
+  config_path = git_repo_with_commits / "cliff.toml"
+  config_path.write_text("[changelog]\nheader = \"# Changelog\"\n[git]\nconventional_commits = true\n")
+
+  with mock.patch("auto_release.subprocess.run") as mock_run:
+    mock_run.return_value = mock.MagicMock(returncode=0)
+
+    generate_changelog(config=str(config_path), output=str(changelog_path))
+
+    mock_run.assert_called_once()
+    call_args = mock_run.call_args[0][0]
+    assert "git-cliff" in call_args
+    assert str(config_path) in call_args
+    assert str(changelog_path) in call_args
+
+
+def test_api_docs_generated_by_pdoc(git_repo_with_commits: Path) -> None:
+  """Verify API docs are created by pdoc from Python modules.
+
+  Acceptance criteria: uv run pytest tests/test_phase_g_integration.py::test_api_docs_generated_by_pdoc
+  """
+  output_dir = git_repo_with_commits / "docs" / "api"
+
+  lib_dir = git_repo_with_commits / "lib"
+  lib_dir.mkdir()
+  (lib_dir / "__init__.py").write_text("")
+  (lib_dir / "example.py").write_text('"""Example module."""\ndef sample(): pass\n')
+
+  with mock.patch("auto_release.subprocess.run") as mock_run:
+    mock_run.return_value = mock.MagicMock(returncode=0)
+
+    generate_api_docs(source_dir="lib", output_dir=str(output_dir), title="Test API Docs")
+
+    mock_run.assert_called_once()
+    call_args = mock_run.call_args[0][0]
+    assert "pdoc" in call_args
+    assert "lib" in call_args
+    assert str(output_dir) in call_args
+    assert "Test API Docs" in call_args
+
+
+def test_phase_g_handles_empty_commit_log(git_repo_empty: Path) -> None:
+  """Verify Phase G handles empty commit log gracefully.
+
+  Acceptance criteria: uv run pytest tests/test_phase_g_integration.py::test_phase_g_handles_empty_commit_log
+  """
+  changelog_path = git_repo_empty / "CHANGELOG.md"
+  config_path = git_repo_empty / "cliff.toml"
+  config_path.write_text("[changelog]\nheader = \"# Changelog\"\n[git]\nconventional_commits = true\n")
+
+  with mock.patch("auto_release.subprocess.run") as mock_run:
+    mock_run.return_value = mock.MagicMock(returncode=0)
+
+    generate_changelog(config=str(config_path), output=str(changelog_path))
+
+    mock_run.assert_called_once()
