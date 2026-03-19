@@ -551,8 +551,9 @@
       "passes": true,
       "_source": "test-story",
       "model": "haiku",
-      "last_attempted": "2026-03-19T04:54:37Z",
-      "_scopeCreep": true
+      "last_attempted": "2026-03-19T05:07:58Z",
+      "_scopeCreep": true,
+      "_failureReason": "story_cost_ceiling"
     },
     {
       "id": "US-483",
@@ -577,7 +578,8 @@
       "estimatedComplexity": "medium",
       "passes": false,
       "_source": "test-story",
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-03-19T05:06:13Z"
     },
     {
       "id": "US-484",
@@ -662,6 +664,57 @@
         "Use argparse for CLI; accept prd.json path as positional arg; parse stories list from top-level 'stories' key",
         "Return value: exit(1) if len(violations) > 0, else exit(0)"
       ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-493",
+      "title": "Build phase contract validator test harness for input/output schema enforcement",
+      "priority": "high",
+      "description": "Define JSON schemas for each SPIRAL phase's input/output contracts. Generate validators and create integration tests that verify each phase accepts previous phase output, catching contract violations before they cascade.",
+      "acceptanceCriteria": [
+        "lib/phase_schemas.json: Schema definitions matching Phase R/T/S/M/I/V outputs (_research_output.json, _test_stories_output.json, _validated_stories.json structures)",
+        "tests/test_phase_contracts.py: Load schemas, mock phase outputs, validate 6 critical phase boundaries (R→T, T→S, S→M, M→I, I→V, V→C)",
+        "CI integration: .github/workflows/test.yml runs phase contract tests before full SPIRAL suite; SARIF output for violations"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-494",
+      "title": "Implement CPU throttling for worker launches under high system load",
+      "priority": "medium",
+      "description": "Monitor system CPU usage before launching parallel Ralph workers. If CPU exceeds configurable threshold, stagger worker launches with adaptive delays and emit metric to dashboard.",
+      "acceptanceCriteria": [
+        "lib/worker_launch.sh: Check system CPU usage before each worker spawn; if > SPIRAL_CPU_THRESHOLD (default 75%), delay launch by 5s; log decision to .spiral/worker_throttle.log",
+        "spiral.config.sh: Add SPIRAL_CPU_THRESHOLD variable (0-100 range), SPIRAL_STAGGER_DELAY_SEC for launch spacing",
+        "tests/test_worker_throttling.py: Mock high/low CPU scenarios, verify stagger delays applied and metrics emitted correctly (min 3 scenarios)"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-495",
+      "title": "Build federated sub-project health check REST API endpoint for dashboard",
+      "priority": "medium",
+      "description": "Extend SPIRAL self-monitoring dashboard with /api/sub-projects endpoint exposing health metrics for all federated projects (pending/failed stories, cost, worker count) aggregated from results.tsv and .spiral/federated.json.",
+      "acceptanceCriteria": [
+        "New endpoint GET /api/sub-projects returns JSON: [{project_id, pending_count, failed_count, cost_usd, worker_count, last_updated_iso}]; supports ?project_id=filter query param",
+        "CLI command 'spiral sub-projects [--filter PROJECT_ID]' calls dashboard API, renders table output; adds to spiral status reporting",
+        "tests/test_federated_health.py: Mock results.tsv/federated.json, verify API response correctness, filtering, aggregation logic (min 4 test cases including edge cases)"
+      ],
+      "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
