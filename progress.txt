@@ -888,3 +888,32 @@ This is a Python/Shell-based CLI application, not a Frappe application. The core
 ## Iteration 1 - Thu, Mar 19, 2026 11:17:36 PM
 COST CEILING: [Integration Test] Add integration tests for US-452 smart model routing (US-505) — $11.52719 exceeded hard limit $10.00
 
+
+## Pre-analysis for US-515 (Gemini 2.5 Pro)
+Here is the technical brief for the Claude agent, based on the user story provided.
+
+**Subject: Technical Brief for US-515: Circular Dependency Detection in `validate-federated`**
+
+This brief outlines the implementation of a circular dependency check for a CLI tool.
+
+**1. Files to Modify:**
+*   **Primary Logic:** `lib/commands/validate_federated.py`
+*   **Testing:** `tests/test_validate_federated.py` (to add/verify the `test_cycle_detection` test case)
+
+**2. Involved Frappe Components:**
+*   None. This task concerns a standalone Python CLI script, not a Frappe application.
+
+**3. Implementation Approach:**
+*   In `lib/commands/validate_federated.py`, create a new method `_detect_cycles()`.
+*   This method should first build a directed graph (as a `dict[str, list[str]]`) from the `depends_on` relationships between all stories.
+*   Use an iterative Depth-First Search (DFS) algorithm with a path-tracking stack to traverse the graph and identify back-edges, which signify a cycle.
+*   Collect all unique cycle paths. Append them to the JSON report under a new top-level key: `"cycles"`.
+*   The main function should exit with a status code of 1 if any cycles are found.
+*   Constraint: Use only the Python standard library (no `networkx` or other graph libraries).
+
+**4. Edge Cases & Gotchas:**
+*   **Cycle De-duplication:** A cycle can be detected from any node within it. Ensure that each unique cycle is reported only once (e.g., `A->B->A` is the same as `B->A->B`). Canonicalize the representation of a cycle before storing it.
+*   **Report Format:** Cycle paths in the report must show the full traversal, starting and ending with the same node (e.g., `["repo-a:US-001", "repo-b:US-005", "repo-a:US-001"]`).
+*   **No Cycles:** If the validation passes, the report must contain `"cycles": []`.
+*   **Task Dependency:** This story is blocked by `US-514`; ensure its changes are integrated first.
+

@@ -117,6 +117,96 @@ def unresolved_deps_prd(tmp_path: Path) -> Path:
 # ── Module-level test functions (acceptance criteria) ────────────────────────
 
 
+def test_cycle_detection(tmp_path: Path) -> None:
+    """Test circular dependency detection (acceptance criteria #2 and #3 for US-515)."""
+    sys.path.insert(0, str(Path(__file__).parent.parent / "lib" / "commands"))
+    from validate_federated import validate_federated
+
+    # Test 1: Simple 2-node cycle
+    cycle_prd_data = {
+        "schemaVersion": 1,
+        "userStories": [
+            {
+                "id": "repo-a:US-001",
+                "title": "Story A",
+                "dependencies": ["repo-b:US-005"],
+            },
+            {
+                "id": "repo-b:US-005",
+                "title": "Story B",
+                "dependencies": ["repo-a:US-001"],
+            },
+        ],
+    }
+    cycle_file = tmp_path / "cycle.json"
+    cycle_file.write_text(json.dumps(cycle_prd_data))
+    report = validate_federated(cycle_file)
+    assert report["valid"] is False, "Cycle should make validation fail"
+    assert len(report["cycles"]) > 0, "Should detect at least one cycle"
+    # Check cycle format: should contain both nodes
+    cycle = report["cycles"][0]
+    assert len(cycle) == 3, "Cycle path should be [start, mid, start]"
+    assert cycle[0] == cycle[-1], "Cycle should start and end with same node"
+    assert set(cycle[:-1]) == {"repo-a:US-001", "repo-b:US-005"}, "Cycle should contain both nodes"
+
+    # Test 2: Acyclic PRD (no cycles)
+    acyclic_prd_data = {
+        "schemaVersion": 1,
+        "userStories": [
+            {
+                "id": "repo-a:US-001",
+                "title": "Story A",
+                "dependencies": ["repo-b:US-002"],
+            },
+            {
+                "id": "repo-b:US-002",
+                "title": "Story B",
+                "dependencies": [],
+            },
+        ],
+    }
+    acyclic_file = tmp_path / "acyclic.json"
+    acyclic_file.write_text(json.dumps(acyclic_prd_data))
+    report = validate_federated(acyclic_file)
+    assert report["valid"] is True, "No errors or cycles, should be valid"
+    assert report["cycles"] == [], "No cycles in acyclic PRD"
+    assert report["errors"] == [], "No other errors"
+
+    # Test 3: Cycle deduplication (same cycle detected from different start points)
+    triangle_prd_data = {
+        "schemaVersion": 1,
+        "userStories": [
+            {
+                "id": "repo-a:US-001",
+                "title": "Story A",
+                "dependencies": ["repo-b:US-002"],
+            },
+            {
+                "id": "repo-b:US-002",
+                "title": "Story B",
+                "dependencies": ["repo-c:US-003"],
+            },
+            {
+                "id": "repo-c:US-003",
+                "title": "Story C",
+                "dependencies": ["repo-a:US-001"],
+            },
+        ],
+    }
+    triangle_file = tmp_path / "triangle.json"
+    triangle_file.write_text(json.dumps(triangle_prd_data))
+    report = validate_federated(triangle_file)
+    assert len(report["cycles"]) >= 1, "Should detect at least one cycle"
+    # The same 3-node cycle should be reported exactly once (deduped)
+    # Check all cycles are canonical (start with min ID)
+    for cycle in report["cycles"]:
+        assert cycle[0] == cycle[-1], "Each cycle should start and end with same node"
+        # Find the minimum ID in the cycle (excluding the repeated end)
+        cycle_nodes = cycle[:-1]
+        if cycle_nodes:
+            assert cycle[0] == min(cycle_nodes), "Cycles should be canonical (start with min ID)"
+
+
 def test_id_format_and_duplicates(tmp_path: Path) -> None:
     """Test ID format validation and duplicate detection (acceptance criteria #1)."""
     sys.path.insert(0, str(Path(__file__).parent.parent / "lib" / "commands"))
@@ -322,6 +412,72 @@ class TestValidateFederatedModule:
         prd_file.write_text(json.dumps(prd_data))
         report = validate_federated(prd_file)
         assert report["valid"] is True
+
+    def test_self_loop_cycle_detection(self, tmp_path: Path) -> None:
+        """Test that a story depending on itself is detected as a cycle."""
+        sys.path.insert(0, str(Path(__file__).parent.parent / "lib" / "commands"))
+        from validate_federated import validate_federated
+
+        prd_data = {
+            "schemaVersion": 1,
+            "userStories": [
+                {
+                    "id": "repo-a:US-001",
+                    "title": "Self-referencing story",
+                    "dependencies": ["repo-a:US-001"],
+                },
+            ],
+        }
+        prd_file = tmp_path / "self_loop.json"
+        prd_file.write_text(json.dumps(prd_data))
+        report = validate_federated(prd_file)
+        assert report["valid"] is False
+        assert len(report["cycles"]) > 0
+
+    def test_long_cycle_detection(self, tmp_path: Path) -> None:
+        """Test detection of longer cycles (4+ nodes)."""
+        sys.path.insert(0, str(Path(__file__).parent.parent / "lib" / "commands"))
+        from validate_federated import validate_federated
+
+        prd_data = {
+            "schemaVersion": 1,
+            "userStories": [
+                {"id": "US-001", "title": "Story 1", "dependencies": ["US-002"]},
+                {"id": "US-002", "title": "Story 2", "dependencies": ["US-003"]},
+                {"id": "US-003", "title": "Story 3", "dependencies": ["US-004"]},
+                {"id": "US-004", "title": "Story 4", "dependencies": ["US-001"]},
+            ],
+        }
+        prd_file = tmp_path / "long_cycle.json"
+        prd_file.write_text(json.dumps(prd_data))
+        report = validate_federated(prd_file)
+        assert report["valid"] is False
+        assert len(report["cycles"]) >= 1
+        # Verify the cycle length
+        cycle = report["cycles"][0]
+        assert len(cycle) == 5, "4-node cycle should have 5 elements (start to start)"
+
+    def test_multiple_independent_cycles(self, tmp_path: Path) -> None:
+        """Test detection of multiple independent cycles in same PRD."""
+        sys.path.insert(0, str(Path(__file__).parent.parent / "lib" / "commands"))
+        from validate_federated import validate_federated
+
+        prd_data = {
+            "schemaVersion": 1,
+            "userStories": [
+                # Cycle 1: US-001 -> US-002 -> US-001
+                {"id": "US-001", "title": "Cycle 1A", "dependencies": ["US-002"]},
+                {"id": "US-002", "title": "Cycle 1B", "dependencies": ["US-001"]},
+                # Cycle 2: US-003 -> US-004 -> US-003 (independent)
+                {"id": "US-003", "title": "Cycle 2A", "dependencies": ["US-004"]},
+                {"id": "US-004", "title": "Cycle 2B", "dependencies": ["US-003"]},
+            ],
+        }
+        prd_file = tmp_path / "multi_cycles.json"
+        prd_file.write_text(json.dumps(prd_data))
+        report = validate_federated(prd_file)
+        assert report["valid"] is False
+        assert len(report["cycles"]) >= 2, "Should detect both cycles"
 
 
 class TestValidateFederatedCLI:
