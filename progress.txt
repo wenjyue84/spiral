@@ -1809,3 +1809,20 @@ Here is a technical brief for the user story.
 ### Gotchas
 - results.tsv today has no `research_source` column; the code handles this gracefully
 - CACHE_SECONDS_PER_HIT=30 is a constant estimate for time saved per cache hit
+
+## Iteration N - Story: US-538 - CLI: spiral show-blockers
+
+### What was implemented
+- `lib/show_blockers.py`: `get_story_blockers()` and `build_dot_graph()` functions
+- `tests/test_show_blockers.py`: 25 tests (all passing), mypy --strict clean
+- `main.py`: `show-blockers` subcommand with `story_id` positional arg, `--prd`, `--format {json,dot}`
+- Both files existed as untracked; only CLI wiring in main.py was missing
+
+### Patterns discovered
+- CLI subcommand pattern: add parser after existing ones, add `cmd_*` function, dispatch in router
+- `_load_prd()` helper handles file-not-found gracefully
+- spiral_events.jsonl had a git merge conflict (<<<); resolve by keeping both sides (all entries are append-only events)
+
+### Gotchas
+- spiral_events.jsonl can accumulate merge conflicts — always check before committing when UU status is present
+- `dest="fmt"` needed for `--format` arg to avoid shadowing Python built-in `format`
