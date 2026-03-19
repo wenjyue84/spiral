@@ -953,7 +953,7 @@
         "US-452"
       ],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "test-story",
       "model": "haiku",
       "_skipped": true,
@@ -1345,6 +1345,22 @@
       "estimatedComplexity": "small",
       "passes": false,
       "model": "sonnet"
+    },
+    {
+      "id": "US-528",
+      "title": "Cost Predictor CLI: Estimate Pre-Phase I Story Costs Using results.tsv Historical Model",
+      "priority": "medium",
+      "description": "Add a predictive cost estimation CLI that analyzes historical results.tsv data to predict token consumption and cost for stories before Phase I implementation. Uses K-nearest neighbors on story attributes (complexity domain, total lines changed) to estimate costs for similar stories. Enables fast failure when cost would exceed remaining SPIRAL_COST_CEILING budget, reducing wasted tokens on oversized stories.",
+      "acceptanceCriteria": [
+        "CLI: `spiral predict-cost --story-id US-123 --prd prd.json --history results.tsv` outputs JSON with {estimated_tokens: int, estimated_cost: float, confidence_pct: float, similar_stories: []}",
+        "Phase I calls predict-cost before decomposition; fails with clear error if estimated_cost > remaining budget (from .spiral/_checkpoint.json) and prevents story launch",
+        "Unit tests in tests/test_predict_cost.py: test_similar_story_lookup, test_confidence_calculation, test_budget_check_integration with >=48% coverage"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
     }
   ]
 }
