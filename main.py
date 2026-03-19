@@ -18,6 +18,7 @@ Subcommands:
     list                  Show all dead-lettered stories with failure reason and timestamp
     replay                Re-enqueue a DLQ story after human review
   diagnose                Print causal failure chain for a run (multi-agent failure attribution)
+  analyze-batch-potential Show Phase S batch grouping potential: API call reduction % and token savings
 """
 
 import argparse
@@ -1866,6 +1867,33 @@ def cmd_calibration_report(args):
                 print(f"  {complexity:8} | median: {median:6}s | count: {count:4} | ✓ {passed:3} ✗ {failed:3}")
 
 
+def cmd_analyze_batch_potential(args) -> None:
+    """Print Phase S batch grouping potential as JSON (US-535).
+
+    Usage: spiral analyze-batch-potential [prd.json] [--pending-only] [--max-batch-size N]
+    """
+    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    from batch_optimizer import batch_potential  # type: ignore[import-untyped]
+
+    prd_path = Path(getattr(args, "prd_file", None) or "prd.json")
+    if not prd_path.is_absolute():
+        prd_path = Path.cwd() / prd_path
+
+    if not prd_path.exists():
+        print(f"Error: {prd_path} not found", file=sys.stderr)
+        sys.exit(1)
+
+    stories = _load_prd(prd_path)
+
+    pending_only = getattr(args, "pending_only", False)
+    if pending_only:
+        stories = [s for s in stories if not s.get("passes")]
+
+    max_batch_size = getattr(args, "max_batch_size", 10)
+    result = batch_potential(stories, max_batch_size=max_batch_size)
+    print(json.dumps(result, indent=2))
+
+
 def cmd_analyze_routing(args) -> None:
     """Print routing metrics table (US-456)."""
     from analyze_routing_metrics import analyze, format_table
@@ -2642,6 +2670,30 @@ def main():
         help="Generate HTML dashboard for visual analysis",
     )
 
+    # ── analyze-batch-potential subcommand (US-535) ─────────────────────────────
+    analyze_batch_parser = subparsers.add_parser(
+        "analyze-batch-potential",
+        help="Show Phase S batch grouping potential: API call reduction % and token savings",
+    )
+    analyze_batch_parser.add_argument(
+        "prd_file",
+        nargs="?",
+        default="prd.json",
+        help="Path to prd.json (default: prd.json)",
+    )
+    analyze_batch_parser.add_argument(
+        "--pending-only",
+        action="store_true",
+        help="Analyse only pending (passes=false) stories (default: all stories)",
+    )
+    analyze_batch_parser.add_argument(
+        "--max-batch-size",
+        type=int,
+        default=10,
+        metavar="N",
+        help="Max stories per batch group (default: 10)",
+    )
+
     # ── memory subcommand (US-350) ──────────────────────────────────────────────
     memory_parser = subparsers.add_parser(
         "memory",
@@ -2705,6 +2757,8 @@ def main():
         else:
             memory_parser.print_help()
             sys.exit(0)
+    elif args.command == "analyze-batch-potential":
+        cmd_analyze_batch_potential(args)
     elif args.command == "analyze-routing":
         cmd_analyze_routing(args)
     elif args.command == "dlq":

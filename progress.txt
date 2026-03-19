@@ -1,3 +1,37 @@
+## Iteration 31 - US-535: Phase S Batch Request Optimizer
+
+### What was implemented
+- Created `lib/batch_optimizer.py` with `group_stories_by_rules()` and `batch_potential()`
+- Created `tests/test_batch_optimizer.py` with 20 tests (3 test classes)
+- Added `analyze-batch-potential` subcommand to `main.py`
+
+### Acceptance criteria verification
+✓ `lib/batch_optimizer.py` contains `group_stories_by_rules()` function
+✓ ≥30% API call reduction on 20+ story batches (verified by mock API fixtures)
+✓ `spiral analyze-batch-potential prd.json` outputs JSON with groups, reduction %, token savings
+✓ All 20 tests pass in 1.94s
+✓ `uv run mypy lib/batch_optimizer.py --strict` passes (zero type errors)
+
+### Implementation details
+- **Bucket key:** `(source, priority)` tuple — stories sharing same `_source` and `priority` get same validation prompt template
+- **Batch size:** default 10 per group; configurable via `--max-batch-size N`
+- **Reduction:** 4 distinct sources × 5 stories = 4 API calls (80% reduction from 20)
+- **Token model:** solo=800 tokens/story, batched=400 tokens/story → 50% savings estimate
+- **CLI:** `uv run python main.py analyze-batch-potential [prd.json] [--pending-only] [--max-batch-size N]`
+
+### Patterns discovered
+- `_source` field values: research, ai-example, test-fix, seed, None (None → "seed")
+- Priority normalisation: unrecognised values → "medium" (safe fallback)
+- mypy strict: `from __future__ import annotations` needed for `list[dict]` hints on Python <3.9
+
+### Quality gates
+✓ 20/20 tests pass
+✓ mypy --strict: zero errors
+✓ CLI produces valid JSON output
+✓ No regressions in full test suite (2 pre-existing failures unrelated to this story)
+
+---
+
 ## Iteration 30 - US-519: Topic-level Research Cache with 24-hour TTL
 
 ### What was completed

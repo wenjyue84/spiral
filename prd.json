@@ -1170,7 +1170,8 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku"
+      "model": "haiku",
+      "_scopeCreep": true
     },
     {
       "id": "US-520",
@@ -1344,7 +1345,11 @@
         "GET /api/workers lists all active workers with queue_depth and status; returns HTTP 404 with error_code if worker not found",
         "Integration test verifies queue endpoint reflects lib/worker_heartbeat.sh state updates within 1 second; dashboard UI test confirms real-time updates via WebSocket subscribe to /api/workers/<id>/queue"
       ],
-      "technicalNotes": [],
+      "technicalNotes": [
+        "File to edit: spiral-ui/vite.config.ts (spiralApiPlugin — add GET /api/workers/:id/queue middleware after /api/worker-stream block; read .spiral/workers/worker_N.json; return {worker_id, current_task, queue, uptime} JSON)",
+        "File to edit: lib/worker_heartbeat.sh (write current_task and queued_tasks to .spiral/workers/worker_N.json on each heartbeat so the endpoint has live data)",
+        "Test command: uv run pytest tests/test_worker_queue_endpoint.py -v  # create this test file; mock the .spiral/workers/worker_0.json file and assert GET /api/workers/0/queue returns expected shape"
+      ],
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
@@ -1364,103 +1369,78 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
-      "model": "haiku"
+      "model": "haiku",
+      "_decomposed": true,
+      "_decomposedInto": [
+        "US-529",
+        "US-530"
+      ]
     },
     {
       "id": "US-529",
-      "title": "Phase R Novelty Detector: Flag Research Findings That Duplicate Existing prd.json Stories",
+      "title": "Cost Predictor CLI: KNN-based token/cost estimation from results.tsv",
       "priority": "medium",
-      "description": "Add a novelty checking module to Phase R that cross-references _research_output.json findings against existing prd.json stories to detect potential duplicates. Uses semantic similarity scoring on story titles/descriptions to identify research findings that may have already been converted to stories. Prevents duplicate story creation and improves research phase quality.",
+      "description": "Create lib/predict_cost.py implementing a K-nearest-neighbors estimator over results.tsv. The CLI `spiral predict-cost` parses story attributes, finds similar historical stories, and outputs a JSON estimate with tokens, cost, confidence, and matched stories.",
       "acceptanceCriteria": [
-        "New module lib/research/novelty_checker.py with function check_novelty(research_findings: List[dict], prd_stories: List[dict]) -> List[dict] returning {finding_id, duplicate_story_id, similarity_score: float, recommendation: 'skip|review|add'}",
-        "Phase R post-phase hook calls novelty_checker, stores results in _research_output_with_novelty.json; findings with similarity_score >= 0.8 marked as potential duplicates and excluded from Phase M merge",
-        "Integration test tests/test_phase_r_novelty.py verifies: exact title match returns 1.0 similarity, unrelated findings return <0.3, partial matches fall in 0.3-0.8 range with >=48% coverage"
+        "Running `uv run python lib/predict_cost.py --story-id US-001 --prd prd.json --history results.tsv` exits 0 and prints JSON with keys: estimated_tokens, estimated_cost, confidence_pct, similar_stories",
+        "`uv run pytest tests/test_predict_cost.py::test_similar_story_lookup tests/test_predict_cost.py::test_confidence_calculation -v` passes",
+        "When results.tsv has fewer than 3 rows, confidence_pct is 0.0 and similar_stories is []"
       ],
-      "technicalNotes": [],
+      "technicalNotes": [
+        "File to edit: lib/predict_cost.py (new file — KNNEstimator class with fit(tsv_path) and predict(story) methods)",
+        "File to edit: tests/test_predict_cost.py (new file — test_similar_story_lookup, test_confidence_calculation)",
+        "Test command: uv run pytest tests/test_predict_cost.py -v --tb=short",
+        "results.tsv columns: story_id, model, tokens_in, tokens_out, cost_usd, duration_s, status — parse with csv.DictReader"
+      ],
       "dependencies": [],
-      "estimatedComplexity": "small",
+      "estimatedComplexity": "medium",
+      "_source": "research",
       "passes": false,
-      "model": "sonnet"
+      "_decomposedFrom": "US-528",
+      "model": "haiku"
     },
     {
       "id": "US-530",
-      "title": "Integration Test: Phase G Resilience to Missing/Failing Tools",
+      "title": "Phase I Budget Guard: fail-fast before decomposition using predict-cost",
       "priority": "medium",
-      "description": "Verify Phase G (CHANGELOG.md and API doc generation) gracefully degrades when git-cliff or pdoc tools are unavailable or crash, preventing Phase G failures from blocking entire SPIRAL run.",
+      "description": "Wire predict-cost into Phase I so that before any story is decomposed, SPIRAL calls lib/predict_cost.py and aborts with a clear error if the estimated cost would exceed the remaining SPIRAL_COST_CEILING budget (derived from .spiral/_checkpoint.json).",
       "acceptanceCriteria": [
-        "When git-cliff binary not found, Phase G logs warning, skips CHANGELOG generation, sets results.tsv phase_g_mode=degraded, and completes successfully",
-        "When pdoc crashes (e.g., import cycle in source code), Phase G logs error, skips API docs, sets phase_g_mode=degraded, and Phase G completes successfully",
-        "Integration test tests/test_phase_g_resilience.py verifies both failure paths using mock tool binaries and subprocess exception simulation"
+        "Phase I skips a story and logs `BUDGET_EXCEEDED: estimated $X.XX > remaining $Y.YY` when predict-cost returns estimated_cost above remaining ceiling",
+        "`uv run pytest tests/test_predict_cost.py::test_budget_check_integration -v` passes with a mock results.tsv that triggers the budget guard",
+        "When SPIRAL_COST_CEILING is unset or remaining budget is unknown, predict-cost check is skipped and Phase I proceeds normally"
       ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-531",
-      "title": "Phase C: Iteration Summary Report Generation with Phase Cost Breakdown",
-      "priority": "medium",
-      "description": "After each Phase C (check done) completion, generate structured iteration summary showing token spend per phase, story pass/fail counts, and cumulative progress rate; include in commit message for transparency.",
-      "acceptanceCriteria": [
-        "Phase C generates spiral/reports/iteration_NNNN.json containing {phase_r: {tokens, cost}, phase_i: {tokens, cost}, ..., passed_stories: N, failed_stories: N, cumulative_pass_rate: %}",
-        "Iteration summary committed to git with message: 'Iteration 5: 12/15 stories passing (80%), Phase R $10.23, Phase I $8.45'",
-        "Integration test tests/test_iteration_summary.py: run 2-iteration SPIRAL, verify 2 report files exist, cumulative_pass_rate increases or holds steady"
+      "technicalNotes": [
+        "File to edit: spiral.sh or lib/impl/decompose.sh (phase I story launch block — add predict-cost call before decompose step)",
+        "File to edit: lib/predict_cost.py (add --budget-remaining flag; exit code 2 when over budget)",
+        "File to edit: tests/test_predict_cost.py (test_budget_check_integration — patch checkpoint JSON to set spent amount)",
+        "Test command: uv run pytest tests/test_predict_cost.py::test_budget_check_integration -v --tb=short",
+        "Remaining budget = SPIRAL_COST_CEILING minus total_cost_usd from .spiral/_checkpoint.json"
       ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-532",
-      "title": "CLI Command: spiral cost-forecast — Predict Iteration Costs Using Velocity Model",
-      "priority": "medium",
-      "description": "Forecast upcoming SPIRAL iteration costs using the historical velocity model. Users can project budget requirements for N iterations, enabling better cost planning and proactive budget ceiling management.",
-      "acceptanceCriteria": [
-        "CLI: `spiral cost-forecast --iterations 5` outputs JSON with fields: total_projected_cost, per_iteration_avg, model_distribution (haiku%, sonnet%, opus%), variance_confidence_interval",
-        "Implementation: lib/forecast_costs.py reads results.tsv, computes mean/variance from prior 10+ iterations, projects forward with ±10% confidence bands",
-        "Integration test: given 15 historical iterations, run cost-forecast --iterations 5, then execute actual SPIRAL run; verify forecast within 15% of realized total cost"
+      "dependencies": [
+        "US-529"
       ],
-      "technicalNotes": [],
-      "dependencies": [],
       "estimatedComplexity": "small",
+      "_source": "research",
       "passes": false,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-533",
-      "title": "Phase V: Parallel Pytest Execution — Reduce Validation Time via ThreadPoolExecutor",
-      "priority": "medium",
-      "description": "Optimize Phase V by running pytest test files in parallel using a configurable worker pool. Reduces validation cycle time for faster feedback and improved iteration throughput.",
-      "acceptanceCriteria": [
-        "SPIRAL_PYTEST_WORKERS env var (default: 4) controls concurrency; lib/phases/phase_v.py refactored to use concurrent.futures.ThreadPoolExecutor instead of sequential subprocess calls",
-        "Integration test: benchmark 4-file pytest suite — sequential baseline vs parallel execution; verify parallel achieves ≥1.5x speedup with same pass/fail output",
-        "Graceful fallback: if worker pool initialization fails, Phase V logs warning and continues sequentially without raising exception"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-534",
-      "title": "Real-Time Cost Breakdown by Model in Dashboard",
-      "priority": "medium",
-      "description": "Add per-model cost tracking to results.tsv and expose via dashboard /api/cost-breakdown endpoint, showing cost distribution (haiku/sonnet/opus) across iterations and cumulative spend by model across full SPIRAL run.",
-      "acceptanceCriteria": [
-        "results.tsv includes _model_used column; populated during Phase I by parsing Claude CLI stderr logs to extract model name (haiku/sonnet/opus)",
-        "CLI: spiral.py cost-breakdown outputs JSON with per-model cost/token counts per iteration and cumulative totals",
-        "Dashboard GET /api/cost-breakdown endpoint returns JSON; dashboard renders pie chart + table of spend by model"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
+      "_decomposedFrom": "US-528",
       "model": "haiku"
+    },
+    {
+      "id": "US-535",
+      "title": "Phase S Batch Request Optimizer: Group Similar Stories for Single API Call",
+      "priority": "high",
+      "description": "Instead of validating each story individually in Phase S, detect stories with compatible validation rules and batch them into single API call, reducing token overhead and API costs by 30-50% on multi-story runs.",
+      "acceptanceCriteria": [
+        "lib/batch_optimizer.py contains function group_stories_by_rules() that clusters stories with identical constitution checks and returns batch groups",
+        "Phase S integration reduces API calls by ≥30% on 20+ story batches (verified via test fixtures in tests/test_batch_optimizer.py with mock API responses)",
+        "CLI command 'spiral analyze-batch-potential prd.json' outputs JSON with batch groups, call count reduction %, and estimated token savings"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "sonnet",
+      "last_attempted": "2026-03-19T17:35:15Z"
     }
   ]
 }
