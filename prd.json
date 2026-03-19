@@ -372,8 +372,7 @@
       ],
       "tags": [
         "module-hypothesis"
-      ],
-      "last_attempted": "2026-03-19T02:07:31Z"
+      ]
     },
     {
       "id": "US-471",
@@ -811,6 +810,23 @@
         ".cliff.toml created at project root with commit-pattern regex matching US-NNN/UT-NNN/BUG-NNN story IDs and group-prefix extraction",
         "Changelog sections ordered by story _source priority: test-fix → Features, research → Enhancements, ai-example → Internal",
         "Verify: git cliff -c .cliff.toml generates CHANGELOG.md from last 20 commits with stories grouped and formatted correctly"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-503",
+      "title": "Add per-phase token usage breakdown report to Phase C checkpoint",
+      "priority": "medium",
+      "description": "Write phase_tokens.json in Phase C (CHECK DONE) containing token/cost aggregates per phase and model. Add python main.py status --tokens CLI option to display formatted table.",
+      "acceptanceCriteria": [
+        "Phase C writes .spiral/phase_tokens.json with structure {phase_name: {model_name: {tokens: int, cost_usd: float}}}",
+        "CLI command: python main.py status --tokens outputs formatted ASCII table with phase names, model distribution, row/column totals",
+        "Test: 3-phase iteration (R→T→S) writes accurate phase_tokens.json; status --tokens parses and formats output correctly"
       ],
       "technicalNotes": [],
       "dependencies": [],
