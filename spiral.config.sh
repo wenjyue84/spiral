@@ -174,6 +174,11 @@ export SPIRAL_SKIP_DISK_CHECK=1
 SPIRAL_IMPL_TIMEOUT=1200
 SPIRAL_WORKER_TIMEOUT=1200
 
+# ── Per-complexity timeouts (defaults: small=300, medium=600, large=1200) ──
+# Raised small/medium to give Ralph enough runway after baseline counting + exploration
+SPIRAL_STORY_TIMEOUT_SMALL=600
+SPIRAL_STORY_TIMEOUT_MEDIUM=900
+
 # ── Cost ceiling: abort when cumulative API spend exceeds budget ──────────────
 # Set to a USD amount (e.g., 50.0) to cap spending. Empty = disabled.
 # SPIRAL_COST_CEILING=""
