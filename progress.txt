@@ -1179,3 +1179,47 @@ This task involves creating integration tests for the automated `CHANGELOG.md` g
 *   **FTS5 Ranking Predictability:** Carefully design the seed data for the ranking test to ensure the relevance order is deterministic and testable.
 *   **Self-Containment:** The entire test suite must run without any external services or manual setup.
 
+## Iteration 1 - Fri, Mar 20, 2026 12:25:56 AM
+FAILED diagnosis-block gate: [Integration Test] Episodic memory store: write, retrieve, and inject past patterns (ID: US-518) — no diagnosis block found — attempt 1/3
+
+
+## Pre-analysis for US-518 (Gemini 2.5 Pro)
+### Technical Brief for Claude: US-518
+
+**Objective:** Implement `pytest` integration tests for the `EpisodicMemoryStore` class to verify the write, retrieve, and context injection cycle.
+
+**Files to Modify:**
+*   **Create:** `tests/test_episodic_memory.py`
+*   **Reference:** `lib/episodic_memory.py` (for method signatures: `__init__`, `record`, `retrieve_relevant_patterns`)
+
+**Frappe/Framework Involvement:**
+*   This is a pure Python/pytest task, not a Frappe DocType modification.
+*   Utilize the `pytest` framework, especially the `tmp_path` fixture for test isolation.
+
+**Implementation Approach:**
+1.  Define a new test module: `tests/test_episodic_memory.py`.
+2.  For each test function, use the `tmp_path` fixture to create an isolated SQLite database file.
+3.  Instantiate `EpisodicMemoryStore` from `lib/episodic_memory.py`, passing the path to the temporary DB.
+4.  **Happy Path Test:** `record()` a single story outcome, then call `retrieve_relevant_patterns()` and assert that the returned context snippet is a correctly formatted string containing the original story's data.
+5.  **FTS5 Ranking Test:** Seed the store with at least five varied story records. Execute a targeted query using `retrieve_relevant_patterns()` and assert that the top 3 most relevant stories are returned in the correct, relevance-ranked order.
+6.  **Edge Case Test:** Initialize an empty store, call `retrieve_relevant_patterns()`, and assert that the result is empty and no exception is raised.
+
+**Gotchas to Watch For:**
+*   **State Contamination:** Do NOT reuse the same database file across tests. A new DB must be created per-test via `tmp_path` to ensure isolation.
+*   **FTS5 Ranking Predictability:** Carefully design the seed data for the ranking test to ensure the relevance order is deterministic and testable.
+*   **Self-Containment:** The entire test suite must run without any external services or manual setup.
+
+
+## Iteration 29 - US-518: Integration tests for episodic memory store
+
+### What was completed
+- Test file tests/test_episodic_memory.py already existed from previous commit (f796072)
+- Previous attempt failed only due to missing diagnosis block (not code failure)
+- All 11 tests pass: TestInitDb (2), TestWriteAndQuery (2), TestListRecent (2), TestEmptyQuery (2), plus 3 module-level AC tests
+
+### Patterns discovered
+- The story references `EpisodicMemoryStore.record()` / `retrieve_relevant_patterns()` class API but actual implementation uses module-level functions `write_record()` / `query_top3()` in lib/resilience/episodic_memory.py
+- lib/episodic_memory.py is a backward-compat stub delegating via exec() to lib/resilience/episodic_memory.py
+
+### Gotchas
+- Ralph diagnosis block gate is strict — must output ## Current State / ## Problem Identified / ## Planned Changes as plain text BEFORE any tool call that modifies files
