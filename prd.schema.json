@@ -4,7 +4,11 @@
   "title": "SPIRAL PRD",
   "description": "Schema for SPIRAL Product Requirements Document (prd.json)",
   "type": "object",
-  "required": ["productName", "branchName", "userStories"],
+  "required": [
+    "productName",
+    "branchName",
+    "userStories"
+  ],
   "properties": {
     "productName": {
       "type": "string",
@@ -19,17 +23,28 @@
     },
     "goals": {
       "type": "array",
-      "items": { "type": "string" }
+      "items": {
+        "type": "string"
+      }
     },
     "epics": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id"],
+        "required": [
+          "id"
+        ],
         "properties": {
-          "id": { "type": "string", "minLength": 1 },
-          "title": { "type": "string" },
-          "description": { "type": "string" }
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
         }
       }
     },
@@ -40,14 +55,23 @@
     },
     "userStories": {
       "type": "array",
-      "items": { "$ref": "#/$defs/userStory" }
+      "items": {
+        "$ref": "#/$defs/userStory"
+      }
     }
   },
   "additionalProperties": true,
   "$defs": {
     "userStory": {
       "type": "object",
-      "required": ["id", "title", "priority", "acceptanceCriteria", "passes", "dependencies"],
+      "required": [
+        "id",
+        "title",
+        "priority",
+        "acceptanceCriteria",
+        "passes",
+        "dependencies"
+      ],
       "properties": {
         "id": {
           "type": "string",
@@ -61,12 +85,24 @@
         },
         "status": {
           "type": "string",
-          "enum": ["pending", "in-progress", "done", "blocked", "blocked-by-sast", "skipped"],
+          "enum": [
+            "pending",
+            "in-progress",
+            "done",
+            "blocked",
+            "blocked-by-sast",
+            "skipped"
+          ],
           "description": "Optional story lifecycle status"
         },
         "priority": {
           "type": "string",
-          "enum": ["critical", "high", "medium", "low"]
+          "enum": [
+            "critical",
+            "high",
+            "medium",
+            "low"
+          ]
         },
         "priorityScore": {
           "type": "integer",
@@ -79,7 +115,9 @@
         },
         "acceptanceCriteria": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "minItems": 1
         },
         "passes": {
@@ -87,20 +125,32 @@
         },
         "dependencies": {
           "type": "array",
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         },
         "estimatedComplexity": {
           "type": "string",
-          "enum": ["small", "medium", "large"]
+          "enum": [
+            "small",
+            "medium",
+            "large"
+          ]
         },
         "model": {
           "type": "string",
-          "enum": ["haiku", "sonnet", "opus"],
+          "enum": [
+            "haiku",
+            "sonnet",
+            "opus"
+          ],
           "description": "Preferred model for implementing this story (assigned by route_stories.py or set manually)"
         },
         "technicalNotes": {
           "type": "array",
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         },
         "_passedCommit": {
           "type": "string",
@@ -115,14 +165,18 @@
         },
         "_decomposedInto": {
           "type": "array",
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         },
         "_failureReason": {
           "type": "string"
         },
         "filesTouch": {
           "type": "array",
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         },
         "isTestFix": {
           "type": "boolean"
@@ -141,12 +195,24 @@
         },
         "_source": {
           "type": "string",
-          "enum": ["seed", "ai-example", "research", "test-fix", "test-story"],
+          "enum": [
+            "seed",
+            "ai-example",
+            "research",
+            "test-fix",
+            "test-story"
+          ],
           "description": "Where this story originated"
         },
         "_testType": {
           "type": "string",
-          "enum": ["integration", "e2e", "security", "performance", "regression"],
+          "enum": [
+            "integration",
+            "e2e",
+            "security",
+            "performance",
+            "regression"
+          ],
           "description": "Type of test story (Source 5 only)"
         },
         "_forStoryId": {
@@ -168,7 +234,9 @@
         },
         "_low_confidence_fields": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "Fields flagged as low-confidence by consistency check (US-228)"
         },
         "_consistency_check_confidence": {
@@ -191,12 +259,17 @@
           "description": "API cost of running consistency checks (separate from implementation cost)"
         },
         "completedAt": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "description": "ISO 8601 timestamp when the story was marked complete (null if not yet completed)"
         },
         "_antiPatterns": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "Implementation approaches that previously failed — Ralph must avoid these"
         },
         "_phaseI": {
@@ -212,6 +285,10 @@
         "last_attempted": {
           "type": "string",
           "description": "ISO 8601 timestamp of the most recent implementation attempt"
+        },
+        "_scopeCreep": {
+          "type": "boolean",
+          "description": "Flagged by scope-creep guard"
         }
       },
       "additionalProperties": false
