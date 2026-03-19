@@ -1211,9 +1211,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-03-19T18:43:11Z"
+      "last_attempted": "2026-03-19T17:49:51Z"
     },
     {
       "id": "US-522",
@@ -1234,7 +1234,7 @@
         "US-521"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -1259,8 +1259,9 @@
         "US-460"
       ],
       "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "_scopeCreep": true
     },
     {
       "id": "US-524",
@@ -1283,7 +1284,7 @@
         "US-390"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -1308,8 +1309,9 @@
         "US-352"
       ],
       "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "_scopeCreep": true
     },
     {
       "id": "US-526",
@@ -1457,6 +1459,134 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "sonnet"
+    },
+    {
+      "id": "US-536",
+      "title": "Dashboard Endpoint: GET /api/dashboard/research-cache — Cache Hit Rate Trends with Time Savings",
+      "priority": "medium",
+      "description": "Add new dashboard backend endpoint that tracks Phase R research cache effectiveness. Parse results.tsv to extract cache hit/miss events and compute cumulative time saved per iteration. Return trend data for frontend visualization as cache hit % chart and time savings breakdown by query category.",
+      "acceptanceCriteria": [
+        "Endpoint GET /api/dashboard/research-cache?start_iteration=0&end_iteration=10 returns JSON: {hit_rate: 0.65, total_queries: 142, cached: 92, time_saved_seconds: 3240, trend: [{iteration: 0, hit_rate: 0.55}, ...]}",
+        "Integrate with lib/analyze_results.py to parse research cache markers in results.tsv (queries marked with source:cache vs source:gemini_api)",
+        "Integration test in tests/test_dashboard_research_cache.py mocks results.tsv with 50 queries (30 cache hits, 20 API calls), verifies endpoint returns hit_rate: 0.6 and time_saved > 0"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-537",
+      "title": "CLI Command: spiral complexity-trend — Analyze Story Retry & Duration Patterns Across Iterations",
+      "priority": "medium",
+      "description": "Add new CLI subcommand that analyzes results.tsv to extract story completion patterns: average retry count per phase, time-to-completion distributions, model escalation frequency. Output CSV and JSON reports for trend graphing and cost estimation refinement.",
+      "acceptanceCriteria": [
+        "Command `spiral complexity-trend --phase I --output trend-report.csv` scans results.tsv, groups by phase, outputs: story_id, avg_retries, p50_duration_seconds, model_escalations, tokens_per_retry",
+        "JSON output mode `--format json` returns {phase: 'I', stories: [{id: 'US-123', retries: [1, 2, 1], duration_seconds: 240, escalations: 1}, ...], phase_avg_retries: 1.3}",
+        "Integration test tests/test_spiral_complexity_trend.py creates mock results.tsv with 10 stories (3 with 3+ retries), runs command, asserts escalation_count matches expected pattern"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-538",
+      "title": "CLI: spiral show-blockers — Analyze Story Dependency Graph and Critical Paths",
+      "priority": "medium",
+      "description": "Add CLI command to compute story dependency graph from prd.json and identify blocking chains. Helps multi-repo projects understand sequential vs. parallel story execution and detect circular dependencies. Outputs JSON with transitive closure or Graphviz DOT format.",
+      "acceptanceCriteria": [
+        "Command `spiral show-blockers <story_id>` outputs JSON with: blocked_by (array of IDs), blocks (array of IDs), transitive_closure_depth (int), circular_path (if exists, null otherwise)",
+        "Subcommand `--format=dot` outputs Graphviz DOT for entire prd.json dependency graph, usable with `dot -Tpng graph.dot -o graph.png`",
+        "Integration test: verify circular dependency detection on prd.json with 12+ interdependent stories, assert transitive closure computed correctly"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-539",
+      "title": "Phase Replay Mode — Re-run Failed Phase with Full State Capture and Diff Logging",
+      "priority": "medium",
+      "description": "Add replay mode to re-execute a specific failed phase from saved checkpoint with verbose logging and pre/post state snapshots. Enables offline root-cause debugging without full SPIRAL re-run. Captures API calls, token counts, file diffs, and validates output determinism.",
+      "acceptanceCriteria": [
+        "Command `spiral replay --phase R --iteration 3` re-runs Phase R from .spiral/_checkpoint.json with DEBUG=1, writes logs to .spiral/replay-R-iter3.log and pre/post state to .spiral/replay-state-R-iter3.json",
+        "State JSON includes: prd_snapshot (JSON before/after), git_head (commit hash), api_calls_count (int), tokens_used (int), output_files (array of generated files with checksums)",
+        "Integration test: execute Phase R replay on fixture prd.json, verify output JSON matches original _research_output.json byte-for-byte, assert token count variance < 5%"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-540",
+      "title": "Dashboard: Story Status Timeline Endpoint with Phase Swimlanes for iteration bottleneck detection",
+      "priority": "medium",
+      "description": "Add `/api/timeline?iterations=N` dashboard endpoint that streams story attempt history grouped by iteration and phase, enabling real-time swimlane visualization and automated bottleneck detection.",
+      "acceptanceCriteria": [
+        "Implement `GET /api/timeline?iterations=3` endpoint that parses results.tsv and returns JSON: [{storyId, phase, iteration, status, startTime, endTime, durationMs, modelUsed}]",
+        "Extend with WebSocket `GET /ws/timeline` that emits story phase transition events in real-time (e.g., `{event: 'phase_change', storyId: 'US-123', phase: 'Phase I', status: 'running'}`)",
+        "Dashboard UI renders phase swimlane chart (iterations as rows, phases as columns) with story progress bars color-coded by status (pending=gray, running=blue, passed=green, failed=red)"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-541",
+      "title": "Compute story complexity score from description and dependency graph for worker load balancing",
+      "priority": "medium",
+      "description": "Implement auto-complexity scoring for stories to enable even load distribution across parallel workers. Score ranges 1-10 based on description length, dependency count, and retry history. Phase I worker launcher uses scores to assign complex stories to different workers, preventing one worker from becoming a bottleneck.",
+      "acceptanceCriteria": [
+        "Function compute_story_complexity(story: dict, prd: dict) in lib/story_complexity.py returns 1-10 score weighted: 40% description tokens, 30% dependency_count, 20% changed_files (from last attempt), 10% past_retry_count",
+        "Integration test: load prd.json with 3 stories (short desc + 0 deps → score ~2; long desc + 5 deps → score ~8), verify expected ranges match historical difficulty",
+        "Phase I worker launcher (lib/run_parallel_ralph.sh) uses score to distribute stories round-robin by complexity band: worker-0 gets [1-3,7-10], worker-1 gets [4-6], preventing any worker from bottlenecking"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-542",
+      "title": "Phase I: generate retry exhaustion analysis report when story reaches max attempts",
+      "priority": "medium",
+      "description": "When a story exhausts max retries (haiku→sonnet→opus→fail), automatically generate detailed analysis report identifying root cause: timeout patterns, token limit hits, assertion failures, parse errors, or API errors. Report saved to .spiral/exhausted_stories/{story_id}_analysis.json for post-mortem investigation and Ralph pattern learning.",
+      "acceptanceCriteria": [
+        "lib/impl/exhaustion_analyzer.py function analyze_exhausted_story(story_id: str, attempts: list[dict]) returns {root_cause: str, error_pattern: str, suggestion: str, model_sequence: list}, categorizing final error as timeout|token_limit|assertion|parse|api_error",
+        "Phase I retry.sh invokes analyzer after 3rd attempt fails; writes JSON report to .spiral/exhausted_stories/{story_id}_analysis.json with error_counts per attempt, most_common_tokens_in_failures, model_sequence attempted",
+        "Integration test: mock Phase I with story failing 3x with identical assertion error; verify analyzer detects assertion_error root cause, computes confidence score, suggests _decomposed antiPattern"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-543",
+      "title": "Phase Output Audit Trail: Track Story Status Changes Between Iterations",
+      "priority": "medium",
+      "description": "Add CLI command to compare phase output files (_validated_stories.json, _research_output.json) across consecutive iterations, generating a structured diff showing which stories transitioned, changed scope, or became 'stuck' (unchanged for 3+ phases). Helps diagnose why stories are validated then invalidated or why implementation stalls.",
+      "acceptanceCriteria": [
+        "CLI command `spiral phase-audit --compare-last [--phase=PHASE]` reads phase output from current and previous iterations, outputs JSON with { 'added': [...], 'removed': [...], 'modified': [{'storyId': 'US-123', 'changedFields': ['scope', 'estimatedComplexity']}], 'stuck': [{'storyId': 'US-456', 'stuckSince': 3}] }",
+        "Detects stories present in same phase for 3+ consecutive iterations and includes 'stuckSince' count in output to flag stalled stories",
+        "Test assertion: given two _validated_stories.json files where US-123 changes status from 'pending' to 'validated', the diff output shows this transition with before/after values"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
     }
   ]
 }

@@ -1,3 +1,26 @@
+## Iteration 36 - US-529: Cost Predictor CLI: KNN-based token/cost estimation from results.tsv
+
+### What was implemented
+- Created lib/predict_cost.py with KNNEstimator class (fit/predict methods) and CLI entry point
+- Created tests/test_predict_cost.py with 9 tests covering lookup, confidence, edge cases, CLI
+
+### Acceptance criteria verification
+✓ `uv run python lib/predict_cost.py --story-id US-527 --prd prd.json --history results.tsv` exits 0, prints JSON with required keys
+✓ `uv run pytest tests/test_predict_cost.py::test_similar_story_lookup tests/test_predict_cost.py::test_confidence_calculation -v` passes
+✓ When results.tsv has fewer than 3 (MIN_HISTORY_ROWS=5) rows, confidence_pct=0.0 and similar_stories=[]
+✓ mypy --strict passes on lib/predict_cost.py
+
+### Patterns discovered
+- results.tsv actual columns: timestamp, spiral_iter, ralph_iter, story_id, story_title, status, duration_sec, model, retry_num, commit_sha
+- Technical notes listed different columns (tokens_in/out, cost_usd, duration_s) — implemented fallback to support both
+- KNN similarity via story_type (keyword-based classifier from velocity_model.py) works cleanly
+- Confidence formula: 40% consistency (low CV) + 30% history size + 30% type match rate
+
+### Commit: (this iteration)
+feat: US-529 - Cost Predictor CLI: KNN-based token/cost estimation
+
+---
+
 ## Iteration 35 - US-526: [Regression Test] Worker crash recovery reverts worktree to main on detached HEAD
 
 ### What was implemented
