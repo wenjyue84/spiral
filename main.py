@@ -1,22 +1,23 @@
 """main.py — Spiral CLI entrypoint.
 
 Subcommands:
-  init          Run the interactive setup wizard (lib/setup.py)
-  run           Execute spiral.sh with forwarded arguments
-  status        Show PRD completion summary
-  estimate      Show pre-flight API cost projection for pending stories
-  graph         Generate Mermaid dependency graph from prd.json
-  config        Configuration utilities
-    export-env  Export spiral.config.sh SPIRAL_* variables as a .env file
-  worktree      Git worktree management utilities
-    audit       Audit all spiral worker worktrees for health anomalies
-  memory        Episodic memory management (US-350)
-    list        Show 20 most recent episodic records with pass/fail outcomes
-  dlq           Dead-letter queue management (US-227)
-    promote     Move exhausted stories (retry >= SPIRAL_MAX_RETRIES) to DLQ state
-    list        Show all dead-lettered stories with failure reason and timestamp
-    replay      Re-enqueue a DLQ story after human review
-  diagnose      Print causal failure chain for a run (multi-agent failure attribution)
+  init                    Run the interactive setup wizard (lib/setup.py)
+  run                     Execute spiral.sh with forwarded arguments
+  status                  Show PRD completion summary
+  estimate                Show pre-flight API cost projection for pending stories
+  graph                   Generate Mermaid dependency graph from prd.json
+  validate-federated      Validate federated prd.json structure (US-514)
+  config                  Configuration utilities
+    export-env            Export spiral.config.sh SPIRAL_* variables as a .env file
+  worktree                Git worktree management utilities
+    audit                 Audit all spiral worker worktrees for health anomalies
+  memory                  Episodic memory management (US-350)
+    list                  Show 20 most recent episodic records with pass/fail outcomes
+  dlq                     Dead-letter queue management (US-227)
+    promote               Move exhausted stories (retry >= SPIRAL_MAX_RETRIES) to DLQ state
+    list                  Show all dead-lettered stories with failure reason and timestamp
+    replay                Re-enqueue a DLQ story after human review
+  diagnose                Print causal failure chain for a run (multi-agent failure attribution)
 """
 
 import argparse
@@ -1019,6 +1020,41 @@ def cmd_namespace_check(args) -> None:
             story_id = violation.get("story_id", "")
             message = violation.get("message", "No details")
             print(f"  [{v_type}] {v_ns}: {message}")
+        sys.exit(1)
+
+
+def cmd_validate_federated(args) -> None:
+    """Validate federated prd.json structure (US-514)."""
+    sys.path.insert(0, str(Path(__file__).parent / "lib" / "commands"))
+    from validate_federated import validate_federated  # type: ignore[import]
+
+    prd_path = Path(getattr(args, "prd", "prd.json"))
+    if not prd_path.is_absolute():
+        prd_path = Path.cwd() / prd_path
+
+    output_path = getattr(args, "output", "")
+
+    report = validate_federated(prd_path)
+
+    # Write report to file if specified
+    if output_path:
+        output_file = Path(output_path)
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(report, f, indent=2)
+        print(f"Report written to {output_path}")
+
+    # Always print to stdout
+    print(json.dumps(report, indent=2))
+
+    # Exit with appropriate code
+    if report["valid"]:
+        print("[ok] Validation passed", file=sys.stderr)
+        sys.exit(0)
+    else:
+        print(f"[fail] Validation failed: {len(report['errors'])} error(s)", file=sys.stderr)
+        for error in report["errors"]:
+            print(f"  - {error}", file=sys.stderr)
         sys.exit(1)
 
 
@@ -2477,6 +2513,29 @@ def main():
         help="Path to prd.json file (default: ./prd.json)",
     )
 
+    validate_fed_parser = subparsers.add_parser(
+        "validate-federated",
+        help="Validate federated prd.json structure (ID format, duplicates, dependencies)",
+    )
+    validate_fed_parser.add_argument(
+        "--prd",
+        type=str,
+        default="prd.json",
+        help="Path to prd.json (default: prd.json)",
+    )
+    validate_fed_parser.add_argument(
+        "--sub-projects",
+        type=str,
+        default="",
+        help="Comma-separated list of sub-project names (optional, for documentation)",
+    )
+    validate_fed_parser.add_argument(
+        "--output",
+        type=str,
+        default="",
+        help="Path to write JSON report (optional; prints to stdout if omitted)",
+    )
+
     config_parser = subparsers.add_parser(
         "config",
         help="Configuration utilities",
@@ -2623,6 +2682,8 @@ def main():
         cmd_export_report(args)
     elif args.command == "namespace-check":
         cmd_namespace_check(args)
+    elif args.command == "validate-federated":
+        cmd_validate_federated(args)
     elif args.command == "config":
         config_command = getattr(args, "config_command", None)
         if config_command == "export-env":

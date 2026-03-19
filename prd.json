@@ -958,7 +958,8 @@
       "model": "haiku",
       "_skipped": true,
       "_failureReason": "dependency US-452 was skipped",
-      "_scopeCreep": true
+      "_scopeCreep": true,
+      "last_attempted": "2026-03-19T15:08:56Z"
     },
     {
       "id": "US-506",
@@ -1099,30 +1100,6 @@
       "model": "haiku"
     },
     {
-      "id": "US-517",
-      "title": "Integration test: parallel workers produce consistent prd.json and results.tsv",
-      "priority": "medium",
-      "description": "Write an integration test that launches 2 concurrent workers via lib/run_parallel_ralph.sh against isolated git worktrees in .spiral-workers/ and asserts that prd.json and results.tsv are not corrupted after both workers finish. This validates the worker state isolation guarantee introduced in US-494.",
-      "acceptanceCriteria": [
-        "uv run pytest tests/test_worker_isolation.py::test_parallel_workers_no_prd_conflict -v exits 0",
-        "uv run pytest tests/test_worker_isolation.py::test_results_tsv_no_duplicate_story_rows -v exits 0",
-        "uv run pytest tests/test_worker_isolation.py -v completes in under 90 seconds on a standard dev machine",
-        "grep -c 'worker' .spiral-workers/worker-1/prd.json returns 0 (no cross-worker prd.json bleed)"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_worker_isolation.py (new file — test_parallel_workers_no_prd_conflict, test_results_tsv_no_duplicate_story_rows)",
-        "File to read: lib/run_parallel_ralph.sh (understand worker launch, worktree creation, and mutex logic before writing the test)",
-        "Test command: uv run pytest tests/test_worker_isolation.py -v --tb=short",
-        "Use pytest tmp_path fixture and subprocess to simulate two workers; assert prd.json parses as valid JSON after both exit and results.tsv has no duplicate US-NNN rows"
-      ],
-      "dependencies": [
-        "US-494"
-      ],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
       "id": "US-518",
       "title": "[Integration Test] Episodic memory store: write, retrieve, and inject past patterns",
       "priority": "high",
@@ -1143,188 +1120,6 @@
       ],
       "dependencies": [
         "US-350"
-      ],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-519",
-      "title": "US-519",
-      "priority": "medium",
-      "description": "Create lib/phases/research_cache.py backed by .spiral/research_cache.json. Implement lookup_cached_research(), cache_research_result(), and cache_init() with 24-hour TTL expiry keyed by a sha256 hash of the story topic. Include a --clear-expired CLI subcommand for stale-entry pruning.",
-      "acceptanceCriteria": [
-        "uv run pytest tests/test_research_cache.py -v passes, covering: cache miss returns None, cache hit returns stored dict, entry older than 24 h returns None",
-        "uv run python lib/phases/research_cache.py --clear-expired exits 0 and prints an integer count of pruned entries to stdout",
-        "uv run python -c \"from lib.phases.research_cache import cache_research_result, lookup_cached_research; cache_research_result('t', {'x':1}); assert lookup_cached_research('t') == {'x':1}\" exits 0"
-      ],
-      "technicalNotes": [
-        "File to edit: lib/phases/research_cache.py (new file — lookup_cached_research(topic: str) -> dict | None; cache_research_result(topic: str, result: dict) -> None; cache_init() prunes on import; backing store: .spiral/research_cache.json; key: hashlib.sha256(topic.strip().lower().encode()).hexdigest()[:16]; entry shape: {\"result\": dict, \"expires_at\": float}; expires_at = time.time() + 86400)",
-        "File to edit: tests/test_research_cache.py (new test file — parametrize miss/hit/expired; freeze time with freezegun or monkeypatch time.time)",
-        "Test command: uv run pytest tests/test_research_cache.py -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-520",
-      "title": "Integrate research cache into Phase R to skip duplicate Gemini calls",
-      "priority": "medium",
-      "description": "Modify Phase R in spiral.sh to call lookup_cached_research() before invoking Gemini. On a cache hit, write the cached JSON to _research_output.json with _cached:true and skip the Gemini call. On a miss, run Gemini as normal and store the result via cache_research_result(). Depends on the research_cache.py module being present.",
-      "acceptanceCriteria": [
-        "After a cache-hit run, _research_output.json contains the key _cached with value true — verify with: python -c \"import json,sys; d=json.load(open('_research_output.json')); sys.exit(0 if d.get('_cached') else 1)\"",
-        "On a cache miss (first run), _research_output.json does NOT contain _cached:true and the result is written to .spiral/research_cache.json — verify with: python -c \"import json; d=json.load(open('.spiral/research_cache.json')); assert len(d) > 0\"",
-        "uv run pytest tests/test_phase_r_cache.py -v passes (mock Gemini; assert Gemini called once on miss, zero times on subsequent hit for same topic)"
-      ],
-      "technicalNotes": [
-        "File to edit: spiral.sh (Phase R section — before the gemini_search call insert: cached=$(uv run python lib/phases/research_cache.py --lookup \"$story_topic\") && echo \"$cached\" | python -c \"import json,sys; d=json.load(sys.stdin); d['_cached']=True; print(json.dumps(d))\" > \"$RESEARCH_OUTPUT\" && continue; after Gemini call insert: uv run python lib/phases/research_cache.py --store \"$story_topic\" \"$(cat $RESEARCH_OUTPUT)\")",
-        "Test command: uv run pytest tests/test_phase_r_cache.py -v"
-      ],
-      "dependencies": [
-        "US-519"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-521",
-      "title": "US-521",
-      "priority": "medium",
-      "description": "Create lib/workers/profiler.sh to measure wall-clock time for decompose, impl, and verify sub-phases. Append four new columns to results.tsv: decompose_secs, impl_secs, verify_secs, and retry_escalation_count so downstream tools can read raw telemetry.",
-      "acceptanceCriteria": [
-        "results.tsv header contains exactly the four new columns: decompose_secs, impl_secs, verify_secs, retry_escalation_count",
-        "Running a dry-run story (bash spiral.sh 1 --gate proceed --dry-run) produces a results.tsv row where all four new columns are non-empty integers or zero",
-        "uv run python -c \"import csv; rows=list(csv.DictReader(open('results.tsv'), delimiter='\\t')); assert 'decompose_secs' in rows[0]\" exits 0"
-      ],
-      "technicalNotes": [
-        "File to edit: lib/workers/profiler.sh (new file — wrap each sub-phase call with $SECONDS before/after, emit tab-delimited fields)",
-        "File to edit: spiral.sh (append_result function — add four new tab-separated fields to the TSV write call)",
-        "Test command: bash spiral.sh 1 --gate proceed --dry-run && python -c \"import csv; r=list(csv.DictReader(open('results.tsv'),delimiter='\\t')); assert 'decompose_secs' in r[-1], r[-1].keys()\""
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-522",
-      "title": "Dashboard /profile endpoint for phase duration analytics",
-      "priority": "medium",
-      "description": "Add a /profile route to lib/dashboard/api.py that reads results.tsv and returns JSON with mean phase durations by story, the five slowest stories, and an escalation frequency count per story. This enables the dashboard UI to surface performance bottlenecks.",
-      "acceptanceCriteria": [
-        "GET /profile returns HTTP 200 with JSON keys: mean_phase_durations, slowest_stories (list of 5), escalation_frequency",
-        "mean_phase_durations contains keys decompose_secs, impl_secs, verify_secs each with a numeric mean value",
-        "uv run pytest tests/test_dashboard_profile.py -v exits 0 with at least one passing test covering the /profile route"
-      ],
-      "technicalNotes": [
-        "File to edit: lib/dashboard/api.py (add /profile Flask/FastAPI route that parses results.tsv with csv.DictReader)",
-        "File to edit: tests/test_dashboard_profile.py (new test file — fixture writes a minimal results.tsv with new columns, asserts response shape)",
-        "Test command: uv run pytest tests/test_dashboard_profile.py -v"
-      ],
-      "dependencies": [
-        "US-521"
-      ],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-523",
-      "title": "[E2E Test] Dashboard: assert token burn rate, throughput, and heatmap visible",
-      "priority": "medium",
-      "description": "Write a Playwright E2E test covering the self-monitoring dashboard introduced by US-460. The test navigates to the dashboard page and asserts that token burn rate, story throughput, and model escalation heatmap sections are all visible in headless mode. This gates US-460 from being considered done without a passing browser-level smoke check.",
-      "acceptanceCriteria": [
-        "npx playwright test tests/e2e/test_dashboard.spec.ts -g \"shows token burn rate\" --reporter=line exits 0",
-        "npx playwright test tests/e2e/test_dashboard.spec.ts -g \"shows story throughput\" --reporter=line exits 0",
-        "npx playwright test tests/e2e/test_dashboard.spec.ts -g \"shows model escalation heatmap\" --reporter=line exits 0",
-        "npx playwright test tests/e2e/test_dashboard.spec.ts --reporter=line exits 0 in headless CI mode (PWDEBUG unset)"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/e2e/test_dashboard.spec.ts (new file — three named test cases, one per visible metric section)",
-        "Test command: npx playwright test tests/e2e/test_dashboard.spec.ts --reporter=line",
-        "Dashboard is served at http://localhost:5299 (see SPIRAL_DASHBOARD_PORT in spiral.config.sh); add a baseURL in playwright.config.ts pointing there",
-        "Use page.getByRole('heading', { name: /token burn rate/i }) etc. and waitFor({state:'visible'}) with a 5000 ms timeout to handle live-data polling",
-        "If the project uses pytest-playwright instead: File to edit: tests/e2e/test_dashboard.py; Test command: uv run pytest tests/e2e/test_dashboard.py -v -k dashboard"
-      ],
-      "dependencies": [
-        "US-460"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-524",
-      "title": "[Performance Test] Benchmark Phase S batch validation vs sequential",
-      "priority": "medium",
-      "description": "Write a performance benchmark that measures Phase S story validation throughput using the Message Batches API (US-390) against the sequential baseline. The benchmark must capture latency and cost metrics, and fail if throughput degrades more than 20% from the established baseline.",
-      "acceptanceCriteria": [
-        "uv run pytest tests/test_phase_s_batch_perf.py::test_batch_vs_sequential_latency -v exits 0 when batch mode is at least as fast as sequential baseline",
-        "uv run pytest tests/test_phase_s_batch_perf.py::test_throughput_regression -v fails if stories-per-second drops more than 20% below baseline constant defined in the test file",
-        "uv run pytest tests/test_phase_s_batch_perf.py -v --tb=short exits 0 with all tests passing after US-390 is implemented"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_phase_s_batch_perf.py (new file — create performance benchmark module)",
-        "File to edit: lib/prd/consistency_check.py (import or stub batch validation entry point for benchmarking)",
-        "Test command: uv run pytest tests/test_phase_s_batch_perf.py -v --tb=short",
-        "Baseline constant: define SEQUENTIAL_BASELINE_STORIES_PER_SEC = 1.0 at top of test file; batch mode must meet or exceed this",
-        "Use unittest.mock to stub actual API calls so the benchmark measures orchestration overhead, not network latency; add a separate integration marker for live API tests"
-      ],
-      "dependencies": [
-        "US-390"
-      ],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-525",
-      "title": "[Regression Test] Velocity model reads results.tsv for data-driven estimates",
-      "priority": "medium",
-      "description": "Write a regression test that verifies `python main.py estimate` reads results.tsv and produces data-driven cost/duration projections via linear regression on story_type. The test must fail if the velocity model feature introduced in US-352 is removed or its results.tsv integration is broken.",
-      "acceptanceCriteria": [
-        "uv run pytest tests/test_velocity_model.py -v exits 0 with all assertions passing",
-        "Test creates a synthetic results.tsv fixture and asserts estimate output contains per-type mean_tokens, mean_duration, and pass_rate derived from that fixture",
-        "Test asserts estimate output differs between an empty results.tsv and a populated one (static fallback vs. data-driven)",
-        "Test fails with a clear assertion error if linear regression or results.tsv parsing is removed from the estimate path"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_velocity_model.py (new file — create regression test for US-352 velocity model)",
-        "File to edit: lib/cost_tracker.py or lib/velocity_model.py (locate the function called by `main.py estimate` that parses results.tsv and fits regression)",
-        "Test command: uv run pytest tests/test_velocity_model.py -v",
-        "Fixture pattern: use tmp_path to write a results.tsv with 5+ rows covering columns story_type, model, tokens, cost, duration, status; invoke the estimate function directly (not via subprocess) and assert on returned dict keys/values",
-        "If the estimate logic lives inside main.py, extract or import it; do not test via subprocess as that prevents assertion on internal state"
-      ],
-      "dependencies": [
-        "US-352"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-526",
-      "title": "[Regression Test] Worker crash recovery reverts worktree to main on detached HEAD",
-      "priority": "medium",
-      "description": "Write a regression test for US-461's crash recovery logic. The test creates a scratch git worktree, simulates a Ralph worker crash (detached HEAD or partial commit), invokes the recovery routine, and asserts the worktree is back on main with a clean working tree. The test must fail if the recovery logic is removed or bypassed.",
-      "acceptanceCriteria": [
-        "uv run pytest tests/test_crash_recovery.py::test_detached_head_triggers_recovery -v exits 0",
-        "uv run pytest tests/test_crash_recovery.py::test_recovery_leaves_clean_worktree -v exits 0",
-        "Deleting or stubbing out the recovery call in lib/impl/commit_revert.sh causes at least one test to fail",
-        "uv run pytest tests/test_crash_recovery.py -v exits 0 with all cases passing"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_crash_recovery.py (new file — regression suite for US-461; use pytest tmp_path + subprocess to create an isolated bare repo and worktree)",
-        "File to edit: lib/impl/commit_revert.sh (locate the detached-HEAD detection and revert logic; import path or shell call this from the test via subprocess)",
-        "Test command: uv run pytest tests/test_crash_recovery.py -v",
-        "Pattern: tmp_path → git init → commit → git checkout --detach HEAD → call recovery shell function via subprocess.run(['bash', 'lib/impl/commit_revert.sh', worktree_path]) → assert git -C worktree rev-parse --abbrev-ref HEAD == 'main' and git -C worktree status --porcelain is empty",
-        "Check lib/run_parallel_ralph.sh for the worktree setup flow to understand what 'known-good state' means in context"
-      ],
-      "dependencies": [
-        "US-461"
       ],
       "estimatedComplexity": "medium",
       "passes": false,
