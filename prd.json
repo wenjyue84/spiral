@@ -579,8 +579,7 @@
       "passes": true,
       "_source": "test-story",
       "model": "haiku",
-      "last_attempted": "2026-03-19T05:32:22Z",
-      "_passedCommit": "daa371fceddc243cdf7f5116fbc4bfe6c2399807"
+      "last_attempted": "2026-03-19T05:27:29Z"
     },
     {
       "id": "US-484",
@@ -673,30 +672,13 @@
     },
     {
       "id": "US-493",
-      "title": "Build phase contract validator test harness for input/output schema enforcement",
+      "title": "Phase G Output Validation Test Suite",
       "priority": "high",
-      "description": "Define JSON schemas for each SPIRAL phase's input/output contracts. Generate validators and create integration tests that verify each phase accepts previous phase output, catching contract violations before they cascade.",
+      "description": "Create integration tests that validate Phase G outputs (CHANGELOG.md and API docs) match story commits and code completeness.",
       "acceptanceCriteria": [
-        "lib/phase_schemas.json: Schema definitions matching Phase R/T/S/M/I/V outputs (_research_output.json, _test_stories_output.json, _validated_stories.json structures)",
-        "tests/test_phase_contracts.py: Load schemas, mock phase outputs, validate 6 critical phase boundaries (R→T, T→S, S→M, M→I, I→V, V→C)",
-        "CI integration: .github/workflows/test.yml runs phase contract tests before full SPIRAL suite; SARIF output for violations"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "sonnet"
-    },
-    {
-      "id": "US-494",
-      "title": "Implement CPU throttling for worker launches under high system load",
-      "priority": "medium",
-      "description": "Monitor system CPU usage before launching parallel Ralph workers. If CPU exceeds configurable threshold, stagger worker launches with adaptive delays and emit metric to dashboard.",
-      "acceptanceCriteria": [
-        "lib/worker_launch.sh: Check system CPU usage before each worker spawn; if > SPIRAL_CPU_THRESHOLD (default 75%), delay launch by 5s; log decision to .spiral/worker_throttle.log",
-        "spiral.config.sh: Add SPIRAL_CPU_THRESHOLD variable (0-100 range), SPIRAL_STAGGER_DELAY_SEC for launch spacing",
-        "tests/test_worker_throttling.py: Mock high/low CPU scenarios, verify stagger delays applied and metrics emitted correctly (min 3 scenarios)"
+        "Test: CHANGELOG.md entries match story commit hashes and _source fields in tests/test_phase_g_validation.py",
+        "Test: API docs coverage >= 95% of public functions in lib/ and ralph/ via pdoc output scanning",
+        "Test: Validate git-cliff configuration generates story-aware sections with commit grouping by story ID"
       ],
       "technicalNotes": [],
       "dependencies": [],
@@ -706,14 +688,150 @@
       "model": "haiku"
     },
     {
-      "id": "US-495",
-      "title": "Build federated sub-project health check REST API endpoint for dashboard",
-      "priority": "medium",
-      "description": "Extend SPIRAL self-monitoring dashboard with /api/sub-projects endpoint exposing health metrics for all federated projects (pending/failed stories, cost, worker count) aggregated from results.tsv and .spiral/federated.json.",
+      "id": "US-494",
+      "title": "Multi-Repo Story Dependency Graph Validator",
+      "priority": "high",
+      "description": "Detect and validate cross-repository story dependencies in federated prd.json (e.g., repo-A/US-100 depends on repo-B/US-200).",
       "acceptanceCriteria": [
-        "New endpoint GET /api/sub-projects returns JSON: [{project_id, pending_count, failed_count, cost_usd, worker_count, last_updated_iso}]; supports ?project_id=filter query param",
-        "CLI command 'spiral sub-projects [--filter PROJECT_ID]' calls dashboard API, renders table output; adds to spiral status reporting",
-        "tests/test_federated_health.py: Mock results.tsv/federated.json, verify API response correctness, filtering, aggregation logic (min 4 test cases including edge cases)"
+        "Implement lib/multi_repo_deps.py to parse _dependencies field with repo-prefixed story IDs and build dependency DAG",
+        "CLI: spiral validate-cross-repo-deps prd.json returns {valid: bool, cycles: [...], unmet_deps: [...], execution_order: [...]}",
+        "Integration test in tests/test_multi_repo_deps.py with 3-repo fixture demonstrating cycle detection and topological sort"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-495",
+      "title": "Ralph Tool Selection Router by Story Classification",
+      "priority": "medium",
+      "description": "Route Ralph agent to use optimized tools and modes (test-first, architecture-first, template-first) based on story type classification.",
+      "acceptanceCriteria": [
+        "Implement lib/ralph/tool_router.py to classify story types (bugfix, feature, refactor, docs) and route to appropriate Ralph mode in ralph/CLAUDE.md templates",
+        "CLI command: spiral route-tools --story-id US-100 outputs {suggested_mode, rationale, expected_token_savings}",
+        "Integration test in tests/test_ralph_tool_router.py validates routing accuracy across all 4 story types with mock stories"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "opus"
+    },
+    {
+      "id": "US-496",
+      "title": "Cost Anomaly Detection CLI from results.tsv",
+      "priority": "medium",
+      "description": "Scan results.tsv to identify outlier token costs (stories exceeding 2 sigma from model-specific mean) and flag for investigation.",
+      "acceptanceCriteria": [
+        "CLI: spiral detect-anomalies --threshold 2.0 outputs {anomalies: [{story_id, model, tokens_actual, tokens_expected, zscore, percent_over}]}",
+        "Calculate per-model baseline (haiku, sonnet, opus) separately to prevent false positives from model-specific token distributions",
+        "Persist anomaly log to .spiral/anomalies.json for multi-iteration trend analysis and Phase I cost forecasting"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-497",
+      "title": "Worker Pool Dynamic Scaling by Queue Depth",
+      "priority": "medium",
+      "description": "Auto-scale Ralph worker count during Phase I based on pending story queue depth and available system RAM to minimize idle time.",
+      "acceptanceCriteria": [
+        "Implement lib/worker_auto_scaler.py: scale_workers(queue_depth, free_ram_mb) returns target_count (1 worker per 3 pending stories, min 1, max constrained by 2GB RAM per worker)",
+        "Config: SPIRAL_AUTO_SCALE=true in spiral.config.sh with SPIRAL_WORKER_MIN/SPIRAL_WORKER_MAX overrides",
+        "Test in tests/test_worker_auto_scaler.py validates scaling math and prevents OOM with low RAM scenarios"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-498",
+      "title": "Implement exponential backoff for Claude API 429 rate limit responses in Ralph worker",
+      "priority": "high",
+      "description": "Handle rate limiting gracefully when Claude API returns 429. Implement exponential backoff (1s, 2s, 4s, 8s) in ralph/ralph.sh and log retry metrics to results.tsv for dashboard observability.",
+      "acceptanceCriteria": [
+        "ralph/ralph.sh catches HTTP 429 responses and retries with exponential backoff capped at 8s",
+        "Retry count and backoff duration added to results.tsv columns: retry_rate_limit_count, retry_backoff_total_ms",
+        "Integration test tests/test_rate_limit_recovery.py simulates 429 → 200 sequence, verifies exponential timing, confirms story succeeds"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-499",
+      "title": "Implement worker timeout detection and automatic story requeue in Phase I",
+      "priority": "high",
+      "description": "Detect stalled workers via heartbeat timeout in lib/worker_heartbeat.sh and automatically requeue failed stories with model escalation (haiku→sonnet→opus) to prevent infinite hangs.",
+      "acceptanceCriteria": [
+        "lib/worker_heartbeat.sh detects missing heartbeat for >SPIRAL_WORKER_TIMEOUT (default 600s), sets worker status to timed_out",
+        "lib/impl/retry.sh detects timed_out status and requeues story with automatic model escalation, updates retry-counts.json",
+        "Integration test tests/test_phase_i_worker_timeout.py simulates timeout, verifies story requeue with escalated model, confirms new attempt logged in results.tsv"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-500",
+      "title": "Add real-time token threshold alerts per phase with configurable limits",
+      "priority": "medium",
+      "description": "Monitor token spend per phase and alert when exceeding configured thresholds. Alerts fire during execution and log phase/model/token context to spiral.log for dashboard integration.",
+      "acceptanceCriteria": [
+        "spiral.config.sh adds SPIRAL_TOKEN_PHASE_ALERTS config with phase:limit pairs (e.g., 'phase_i:50000,phase_m:10000')",
+        "lib/alerts/token_alert.py reads results.tsv periodically and fires alerts when phase token count exceeds limit, logs to spiral.log with phase/model/actual_tokens/threshold",
+        "Integration test tests/test_token_alerts.py injects high-token story into results.tsv, verifies alert fires with correct phase/model info and doesn't fire below threshold"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-501",
+      "title": "Detect story requirement conflicts in federated multi-repo prd.json before Phase M merge",
+      "priority": "medium",
+      "description": "Scan pending stories across repos for overlapping file paths and function targets. Block conflicting merges and suggest decomposition to prevent integration failures.",
+      "acceptanceCriteria": [
+        "lib/validate/conflict_detector.py parses story descriptions/acceptance_criteria for file paths and function names, identifies overlaps across repo namespaces",
+        "Phase M merge loop calls conflict_detector.check_conflicts(pending_stories) before prd.json update, blocks merge if conflicts found, returns suggested story splits",
+        "Integration test tests/test_federated_conflicts.py creates 2-repo prd.json with overlapping stories (same file from repo-ui and repo-api), verifies conflict detected and merge blocked"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-502",
+      "title": "Add worker pool memory usage monitoring and OOM prevention alerts",
+      "priority": "medium",
+      "description": "Provide CLI visibility into worker memory consumption and alert when approaching limits. Complements existing OOM prevention by enabling proactive worker scaling decisions.",
+      "acceptanceCriteria": [
+        "spiral memory-report CLI command shows per-worker RSS/peak/trend via ps, calculates total pool usage and headroom vs SPIRAL_WORKER_MEMORY_LIMIT config",
+        "Alerts when any worker exceeds 80% of memory limit, logs worker ID / current usage / limit to spiral.log for dashboard consumption",
+        "Test tests/test_worker_memory_monitor.py mocks worker processes with varying memory, verifies CLI output format (worker_id, rss_mb, peak_mb, pct_used), confirms alert fires at 80% threshold"
       ],
       "technicalNotes": [],
       "dependencies": [],
