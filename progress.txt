@@ -1,3 +1,43 @@
+## Iteration 22 - US-485: Integration tests for federated prd.json sub-project namespacing
+
+### What was completed
+- Verified tests/test_federated_prd.py contains 10 comprehensive tests (all passing)
+- Confirmed acceptance criteria tests work correctly:
+  1. ✓ test_federated_prd_happy_path - loads federated PRD with namespaced IDs (subproj/US-NNN format)
+  2. ✓ test_federated_prd_missing_subproject - raises descriptive FileNotFoundError for missing files
+  3. ✓ Full suite: 10/10 tests passing with no external network calls
+- Fixed pre-existing schema error in US-510 (dependency was title string, not ID reference)
+- Validated prd.json schema: 46 stories, all valid
+
+### Implementation details
+- Test file: tests/test_federated_prd.py (2 module-level functions + 8 class-based tests)
+- Uses tmp_path pytest fixture for self-contained, isolated test environments
+- load_federated_prd() function implements the federated loading logic:
+  - Detects subProjects array in prd_dict
+  - Loads sub-project prd.json files from relative paths
+  - Namespaces story IDs with prefix: {namespace}/{original_id}
+  - Adds metadata: _federated_from, _original_id
+
+### Quality gates
+- ✓ All 10 tests pass (uv run pytest tests/test_federated_prd.py)
+- ✓ mypy --strict passes (no type errors)
+- ✓ Schema validation: valid (46 stories)
+- ✓ No external services or network calls
+- ✓ No skipped tests
+
+### Acceptance criteria verification
+✓ uv run pytest tests/test_federated_prd.py::test_federated_prd_happy_path -v exits 0
+✓ uv run pytest tests/test_federated_prd.py::test_federated_prd_missing_subproject -v exits 0
+✓ uv run pytest tests/test_federated_prd.py -v --tb=short exits 0 (10 passed, no skips)
+
+### Test coverage breakdown
+1. **Happy path tests (2)**: Basic loading, multiple sub-projects
+2. **Error handling tests (5)**: Missing file, malformed JSON, missing namespace, missing path, invalid structure
+3. **Integration tests (1)**: Full workflow with nested sub-projects
+4. **Module-level functions (2)**: Acceptance criteria wrappers
+
+---
+
 ## Iteration 20 - US-482: Validation and schema fixes
 
 ### What was completed
