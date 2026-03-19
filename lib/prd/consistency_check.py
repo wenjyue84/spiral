@@ -134,9 +134,9 @@ class ConsistencyChecker:
             str_v2 = set(str(v).strip().lower() for v in val2)
 
             intersection = len(str_v1 & str_v2)
-            union = len(str_v1 | str_v2)
+            total = len(str_v1) + len(str_v2)
 
-            return intersection / union if union > 0 else 0.0
+            return (2 * intersection) / total if total > 0 else 0.0
 
         # Dict comparison: recursive element-by-element
         if isinstance(val1, dict) and isinstance(val2, dict):

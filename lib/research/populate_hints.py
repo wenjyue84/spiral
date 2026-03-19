@@ -269,7 +269,7 @@ def derive_module_tags(files_touch: list[str]) -> list[str]:
             dir_name = parts[0].lstrip(".").lower()
             dir_name = re.sub(r"[^a-z0-9_-]", "-", dir_name)
             if dir_name:
-                tags.add(f"module-{dir_name}")
+                tags.add(f"module:{dir_name}")
     return sorted(tags)
 
 

@@ -17,6 +17,21 @@ import time
 
 import pytest
 
+
+def _find_git_bash() -> str:
+    for candidate in [
+        r"C:\Program Files\Git\usr\bin\bash.exe",
+        r"C:\Program Files\Git\bin\bash.exe",
+        os.path.expandvars(r"%LOCALAPPDATA%\Programs\Git\usr\bin\bash.exe"),
+        r"C:\Program Files (x86)\Git\usr\bin\bash.exe",
+    ]:
+        if os.path.isfile(candidate):
+            return candidate
+    return shutil.which("bash") or "bash"
+
+
+_BASH = _find_git_bash()
+
 # ---------------------------------------------------------------------------
 # Availability guard
 # ---------------------------------------------------------------------------
@@ -266,7 +281,7 @@ def test_timeout_cleanup_warns_on_removal_failure(tmp_path):
         "fi; "
         "exit 0"
     )
-    result = subprocess.run(["bash", "-c", script], capture_output=True, text=True)
+    result = subprocess.run([_BASH, "-c", script], capture_output=True, text=True)
     assert result.returncode == 0, "Cleanup block must not abort the run on removal failure"
     assert "WARNING" in result.stdout, "Warning message must be emitted on failure"
 

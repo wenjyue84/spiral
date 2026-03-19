@@ -26,7 +26,7 @@ def _story(sid, files=None, passes=False, deps=None, **kwargs):
         "priority": "medium",
         "passes": passes,
         "dependencies": deps or [],
-        "acceptanceCriteria": [],
+        "acceptanceCriteria": ["AC1"],
     }
     if files is not None:
         s["filesTouch"] = list(files)

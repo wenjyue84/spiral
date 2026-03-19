@@ -78,10 +78,7 @@ class WorkerPoolAPI:
                 # Determine state based on elapsed time
                 if elapsed_time_sec > self.TIMEOUT_THRESHOLD_SECONDS:
                     state = "timeout"
-                elif elapsed_time_sec == 0:
-                    state = "idle"
                 else:
-                    # 0 < elapsed_time_sec <= 300 seconds
                     state = "alive"
 
                 workers.append(

@@ -64,7 +64,7 @@ SPIRAL_EPISODIC_MEMORY="${SPIRAL_EPISODIC_MEMORY:-false}"
 # ── Phase-specific model defaults ────────────────────────────────────────────
 # Each non-implementation phase can use a cheaper model (haiku is ~15x cheaper
 # than sonnet). Phase I continues to use SPIRAL_MODEL_ROUTING for escalation.
-SPIRAL_RESEARCH_MODEL="sonnet"  # Phase R: research synthesis — sonnet writes better-specified ACs than haiku
+SPIRAL_RESEARCH_MODEL="haiku"   # Phase R: research synthesis model
 # Model for Phase A LLM story generation. Defaults to haiku (cheapest).
 # SPIRAL_AI_SUGGEST_MODEL="claude-haiku-4-5-20251001"
 SPIRAL_VALIDATION_MODEL="haiku" # Phase S: story validation (future — currently Python-only)

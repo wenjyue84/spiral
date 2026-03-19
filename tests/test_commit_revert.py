@@ -7,6 +7,7 @@ Uses Hypothesis for property-based testing of manifest generation and cleanup lo
 
 import json
 import os
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -15,6 +16,21 @@ from typing import List
 import pytest
 from hypothesis import HealthCheck, assume, given, settings
 from hypothesis import strategies as st
+
+
+def _find_git_bash() -> str:
+    for candidate in [
+        r"C:\Program Files\Git\usr\bin\bash.exe",
+        r"C:\Program Files\Git\bin\bash.exe",
+        os.path.expandvars(r"%LOCALAPPDATA%\Programs\Git\usr\bin\bash.exe"),
+        r"C:\Program Files (x86)\Git\usr\bin\bash.exe",
+    ]:
+        if os.path.isfile(candidate):
+            return candidate
+    return shutil.which("bash") or "bash"
+
+
+_BASH = _find_git_bash()
 
 
 class TestManifestGeneration:
@@ -122,7 +138,7 @@ class TestRollbackLogEvent:
         # Source and call log_rollback_event via bash
         result = subprocess.run(
             [
-                "bash",
+                _BASH,
                 "-c",
                 """
                 source lib/impl/commit_revert.sh
@@ -157,7 +173,7 @@ class TestRollbackLogEvent:
 
         result = subprocess.run(
             [
-                "bash",
+                _BASH,
                 "-c",
                 """
                 source lib/impl/commit_revert.sh
@@ -197,7 +213,7 @@ class TestSnapshotShellIntegration:
 
             result = subprocess.run(
                 [
-                    "bash",
+                    _BASH,
                     "-c",
                     f"""
                     source lib/impl/commit_revert.sh
@@ -220,7 +236,7 @@ class TestSnapshotShellIntegration:
         """restore_snapshot function should be sourced without error."""
         result = subprocess.run(
             [
-                "bash",
+                _BASH,
                 "-c",
                 """
                 source lib/impl/commit_revert.sh

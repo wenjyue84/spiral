@@ -51,7 +51,7 @@ SPIRAL_DEFERRED_TOOLS="${SPIRAL_DEFERRED_TOOLS:-true}"                      # US
 SPIRAL_SKIP_SELF_REVIEW="${SPIRAL_SKIP_SELF_REVIEW:-false}"                 # true = disable Phase I.5 LLM self-review gate (US-145)
 SPIRAL_SELF_REVIEW_MODEL="${SPIRAL_SELF_REVIEW_MODEL:-haiku}"               # Claude model for self-review; haiku to minimise cost (US-145)
 SPIRAL_GEMINI_SKIP_SMALL="${SPIRAL_GEMINI_SKIP_SMALL:-true}"                # true = skip Gemini pre-analysis for small stories with <=2 filesTouch (US-171)
-SPIRAL_SKIP_ADR="${SPIRAL_SKIP_ADR:-false}"                                 # true = disable ADR generation after story passes (US-155)
+SPIRAL_SKIP_ADR="${SPIRAL_SKIP_ADR:-false}"                                 # true = disable ADR generation via generate_adr.py after story passes (US-155)
 SPIRAL_ADR_MODEL="${SPIRAL_ADR_MODEL:-haiku}"                               # Claude model for ADR generation; haiku to minimise cost (US-155)
 SPIRAL_WORKER_MEMORY_LIMIT="${SPIRAL_WORKER_MEMORY_LIMIT:-0}"               # 0 = disabled; KB — peak RSS after story triggers OOM guard (US-158)
 SPIRAL_CONTEXT_WINDOW="${SPIRAL_CONTEXT_WINDOW:-10}"                        # rolling window depth for observation masking (US-241)

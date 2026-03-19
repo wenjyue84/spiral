@@ -69,7 +69,7 @@ create_snapshot() {
     cd "$repo_root" && git ls-files --others --exclude-standard 2>/dev/null | sort || true
     # Files in /tmp matching SPIRAL patterns
     if [[ -d /tmp ]]; then
-      find /tmp -name "*spiral*" -o -name "*ralph*" -o -name "*worker*" 2>/dev/null | sort || true
+      find /tmp -maxdepth 2 \( -name "*spiral*" -o -name "*ralph*" -o -name "*worker*" \) 2>/dev/null | sort || true
     fi
   } >"$SNAPSHOT_MANIFEST"
   export SNAPSHOT_MANIFEST

@@ -79,7 +79,7 @@ class TestEnrichOne:
         story = _story(estimatedComplexity="medium", technicalNotes=[])
         mock_response = self._mock_enrich_response(story)
 
-        with patch("lib.enrich_stories.call_claude", return_value=mock_response):
+        with patch("lib.research.enrich_stories.call_claude", return_value=mock_response):
             result = _enrich_one(story, model="sonnet")
 
         assert len(result) == 1
@@ -89,7 +89,7 @@ class TestEnrichOne:
         story = _story(estimatedComplexity="medium")
         mock_response = self._mock_split_response(story)
 
-        with patch("lib.enrich_stories.call_claude", return_value=mock_response):
+        with patch("lib.research.enrich_stories.call_claude", return_value=mock_response):
             result = _enrich_one(story, model="sonnet")
 
         assert len(result) == 2
@@ -100,7 +100,7 @@ class TestEnrichOne:
         """When Claude call fails, original story passes through unchanged."""
         story = _story(estimatedComplexity="medium")
 
-        with patch("lib.enrich_stories.call_claude", side_effect=RuntimeError("timeout")):
+        with patch("lib.research.enrich_stories.call_claude", side_effect=RuntimeError("timeout")):
             result = _enrich_one(story, model="sonnet")
 
         assert len(result) == 1
@@ -156,7 +156,7 @@ class TestEnrichStoriesIntegration:
             with open(validated, "w", encoding="utf-8") as f:
                 json.dump({"stories": [story]}, f)
 
-            with patch("lib.enrich_stories.call_claude", return_value=mock_response):
+            with patch("lib.research.enrich_stories.call_claude", return_value=mock_response):
                 enrich_count, split_count = enrich_stories(validated, enriched_out, model="sonnet")
 
             with open(enriched_out, encoding="utf-8") as f:
