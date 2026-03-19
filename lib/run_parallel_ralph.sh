@@ -61,7 +61,9 @@ PATCH_DIRS="${SPIRAL_PATCH_DIRS:-}"
 DEPLOY_CMD="${SPIRAL_DEPLOY_CMD:-}"
 TERMINAL_EMU="${SPIRAL_TERMINAL:-}"
 GEMINI_ANNOTATE="${SPIRAL_GEMINI_ANNOTATE_PROMPT:-}"
-WORKER_TIMEOUT="${SPIRAL_WORKER_TIMEOUT:-600}"                     # per-worker wall-clock limit (0 = unlimited)
+WORKER_TIMEOUT="${SPIRAL_WORKER_TIMEOUT:-900}"                     # per-worker wall-clock limit (0 = unlimited)
+# Floor: never less than 600s per worker
+[[ "$WORKER_TIMEOUT" -lt 600 ]] && WORKER_TIMEOUT=600
 STRICT_WORKER_ISOLATION="${SPIRAL_STRICT_WORKER_ISOLATION:-false}" # US-355: abort on policy violation
 
 # US-359: Worker env allowlist — convert comma-separated config to grep regex
