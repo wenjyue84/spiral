@@ -1260,7 +1260,8 @@
       ],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku"
+      "model": "haiku",
+      "_scopeCreep": true
     },
     {
       "id": "US-524",
@@ -1283,7 +1284,7 @@
         "US-390"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -1547,6 +1548,22 @@
         "Function compute_story_complexity(story: dict, prd: dict) in lib/story_complexity.py returns 1-10 score weighted: 40% description tokens, 30% dependency_count, 20% changed_files (from last attempt), 10% past_retry_count",
         "Integration test: load prd.json with 3 stories (short desc + 0 deps → score ~2; long desc + 5 deps → score ~8), verify expected ranges match historical difficulty",
         "Phase I worker launcher (lib/run_parallel_ralph.sh) uses score to distribute stories round-robin by complexity band: worker-0 gets [1-3,7-10], worker-1 gets [4-6], preventing any worker from bottlenecking"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-542",
+      "title": "Phase I: generate retry exhaustion analysis report when story reaches max attempts",
+      "priority": "medium",
+      "description": "When a story exhausts max retries (haiku→sonnet→opus→fail), automatically generate detailed analysis report identifying root cause: timeout patterns, token limit hits, assertion failures, parse errors, or API errors. Report saved to .spiral/exhausted_stories/{story_id}_analysis.json for post-mortem investigation and Ralph pattern learning.",
+      "acceptanceCriteria": [
+        "lib/impl/exhaustion_analyzer.py function analyze_exhausted_story(story_id: str, attempts: list[dict]) returns {root_cause: str, error_pattern: str, suggestion: str, model_sequence: list}, categorizing final error as timeout|token_limit|assertion|parse|api_error",
+        "Phase I retry.sh invokes analyzer after 3rd attempt fails; writes JSON report to .spiral/exhausted_stories/{story_id}_analysis.json with error_counts per attempt, most_common_tokens_in_failures, model_sequence attempted",
+        "Integration test: mock Phase I with story failing 3x with identical assertion error; verify analyzer detects assertion_error root cause, computes confidence score, suggests _decomposed antiPattern"
       ],
       "technicalNotes": [],
       "dependencies": [],
