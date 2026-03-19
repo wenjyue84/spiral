@@ -1570,6 +1570,22 @@
       "estimatedComplexity": "small",
       "passes": false,
       "model": "sonnet"
+    },
+    {
+      "id": "US-543",
+      "title": "Phase Output Audit Trail: Track Story Status Changes Between Iterations",
+      "priority": "medium",
+      "description": "Add CLI command to compare phase output files (_validated_stories.json, _research_output.json) across consecutive iterations, generating a structured diff showing which stories transitioned, changed scope, or became 'stuck' (unchanged for 3+ phases). Helps diagnose why stories are validated then invalidated or why implementation stalls.",
+      "acceptanceCriteria": [
+        "CLI command `spiral phase-audit --compare-last [--phase=PHASE]` reads phase output from current and previous iterations, outputs JSON with { 'added': [...], 'removed': [...], 'modified': [{'storyId': 'US-123', 'changedFields': ['scope', 'estimatedComplexity']}], 'stuck': [{'storyId': 'US-456', 'stuckSince': 3}] }",
+        "Detects stories present in same phase for 3+ consecutive iterations and includes 'stuckSince' count in output to flag stalled stories",
+        "Test assertion: given two _validated_stories.json files where US-123 changes status from 'pending' to 'validated', the diff output shows this transition with before/after values"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
     }
   ]
 }
