@@ -819,7 +819,8 @@
       ],
       "estimatedComplexity": "small",
       "passes": false,
-      "_source": "test-story"
+      "_source": "test-story",
+      "model": "haiku"
     },
     {
       "id": "US-497",
@@ -843,7 +844,9 @@
       ],
       "estimatedComplexity": "small",
       "passes": false,
-      "_source": "test-story"
+      "_source": "test-story",
+      "model": "haiku",
+      "_skipped": true
     },
     {
       "id": "US-498",
@@ -869,7 +872,8 @@
       ],
       "estimatedComplexity": "medium",
       "passes": false,
-      "_source": "test-story"
+      "_source": "test-story",
+      "model": "haiku"
     },
     {
       "id": "US-499",
@@ -894,7 +898,8 @@
       ],
       "estimatedComplexity": "medium",
       "passes": false,
-      "_source": "test-story"
+      "_source": "test-story",
+      "model": "haiku"
     },
     {
       "id": "US-500",
@@ -919,7 +924,8 @@
       ],
       "estimatedComplexity": "small",
       "passes": false,
-      "_source": "test-story"
+      "_source": "test-story",
+      "model": "haiku"
     },
     {
       "id": "US-501",
@@ -944,7 +950,8 @@
       ],
       "estimatedComplexity": "small",
       "passes": false,
-      "_source": "test-story"
+      "_source": "test-story",
+      "model": "haiku"
     },
     {
       "id": "US-502",
@@ -969,7 +976,8 @@
       ],
       "estimatedComplexity": "medium",
       "passes": false,
-      "_source": "test-story"
+      "_source": "test-story",
+      "model": "haiku"
     },
     {
       "id": "US-503",
@@ -995,7 +1003,8 @@
       ],
       "estimatedComplexity": "small",
       "passes": false,
-      "_source": "test-story"
+      "_source": "test-story",
+      "model": "haiku"
     },
     {
       "id": "US-504",
@@ -1019,7 +1028,8 @@
       ],
       "estimatedComplexity": "medium",
       "passes": false,
-      "_source": "test-story"
+      "_source": "test-story",
+      "model": "haiku"
     }
   ]
 }
