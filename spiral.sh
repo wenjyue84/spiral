@@ -2185,10 +2185,24 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
         [[ "$PRUNED" -gt 0 ]] && echo "  [R] Cache: pruned $PRUNED expired entries (TTL=${SPIRAL_RESEARCH_CACHE_TTL_HOURS}h)"
       fi
 
-      # ── Gemini web research (optional, configured via SPIRAL_GEMINI_PROMPT) ──
+      # ── Topic-level research cache (US-520): lookup cached result for this topic ──
       GEMINI_RESEARCH=""
       _PHASE_R_PRE_MODEL="none" # US-206: track which model served Phase R pre-research
-      if command -v gemini &>/dev/null && [[ -n "$SPIRAL_GEMINI_PROMPT" ]]; then
+      _RESEARCH_TOPIC_CACHED=""
+      if [[ -n "$SPIRAL_GEMINI_PROMPT" ]]; then
+        # Derive research topic from SPIRAL_GEMINI_PROMPT (or use a default)
+        _RESEARCH_TOPIC="${SPIRAL_GEMINI_PROMPT:0:100}"  # First 100 chars as topic identifier
+        _TOPIC_CACHE_RESULT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/phases/research_cache.py" --lookup "$_RESEARCH_TOPIC" 2>/dev/null || echo "")
+        if [[ -n "$_TOPIC_CACHE_RESULT" ]]; then
+          # Cache hit: extract gemini_research from cached dict
+          echo "  [R] Topic-level cache hit — reusing cached Gemini research (US-520)"
+          GEMINI_RESEARCH=$("$JQ" -r '.gemini_research // .content // .' <<< "$_TOPIC_CACHE_RESULT" 2>/dev/null || echo "$_TOPIC_CACHE_RESULT")
+          _RESEARCH_TOPIC_CACHED=1
+        fi
+      fi
+
+      # ── Gemini web research (optional, configured via SPIRAL_GEMINI_PROMPT) ──
+      if command -v gemini &>/dev/null && [[ -n "$SPIRAL_GEMINI_PROMPT" ]] && [[ -z "$_RESEARCH_TOPIC_CACHED" ]]; then
         echo "  [R] Running Gemini 2.5 Pro web research (-y web search enabled)..."
         GEMINI_ERR_TMP=$(mktemp)
         GEMINI_RESEARCH=$(gemini \
@@ -2252,6 +2266,14 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
           fi
         fi
         rm -f "$GEMINI_ERR_TMP"
+
+        # ── Topic-level cache store (US-520): cache the research result if successful ──
+        if [[ -n "$GEMINI_RESEARCH" ]] && [[ -z "$_RESEARCH_TOPIC_CACHED" ]]; then
+          # Wrap GEMINI_RESEARCH in a dict for caching
+          _RESEARCH_RESULT_JSON=$("$JQ" -n --arg content "$GEMINI_RESEARCH" '{gemini_research: $content}')
+          "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/phases/research_cache.py" --store "$_RESEARCH_TOPIC" --result "$_RESEARCH_RESULT_JSON" 2>/dev/null || true
+          echo "  [R] Cached Gemini research result for topic (US-520)"
+        fi
       fi
 
       INJECTED_PROMPT=$(build_research_prompt "$SPIRAL_ITER" "$RESEARCH_OUTPUT")
@@ -2435,6 +2457,17 @@ $INJECTED_PROMPT"
       else
         RESEARCH_COUNT=$("$JQ" '.stories | length' "$RESEARCH_OUTPUT" 2>/dev/null || echo "?")
         echo "  [R] Research complete — $RESEARCH_COUNT story candidates found"
+
+        # ── US-520: Add _cached marker if we used topic-level cache ──────────
+        if [[ -n "$_RESEARCH_TOPIC_CACHED" && "$_RESEARCH_TOPIC_CACHED" -eq 1 ]]; then
+          _R_CACHED_OUTPUT=$(mktemp)
+          "$JQ" '. + {_cached: true}' "$RESEARCH_OUTPUT" >"$_R_CACHED_OUTPUT" 2>/dev/null || true
+          if [[ -f "$_R_CACHED_OUTPUT" ]] && "$SPIRAL_PYTHON" -c "import json; json.load(open('$_R_CACHED_OUTPUT'))" 2>/dev/null; then
+            mv "$_R_CACHED_OUTPUT" "$RESEARCH_OUTPUT"
+            echo "  [R] Marked research output as cached (topic-level cache hit, US-520)"
+          fi
+          rm -f "$_R_CACHED_OUTPUT"
+        fi
 
         # ── Cache source URLs from research output ─────────────────────────
         if [[ "$SPIRAL_RESEARCH_CACHE_TTL_HOURS" -gt 0 ]]; then

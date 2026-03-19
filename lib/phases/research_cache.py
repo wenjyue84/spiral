@@ -157,12 +157,27 @@ def main() -> None:
     """CLI entry point."""
     parser = argparse.ArgumentParser(description="SPIRAL topic research cache manager")
     parser.add_argument("--clear-expired", action="store_true", help="Prune expired entries")
+    parser.add_argument("--lookup", type=str, help="Lookup cached result by topic (outputs JSON or empty)")
+    parser.add_argument("--store", type=str, help="Store research result (requires --result parameter with JSON)")
+    parser.add_argument("--result", type=str, help="JSON result to store (used with --store)")
 
     args = parser.parse_args()
 
     if args.clear_expired:
         count = cache_clear_expired()
         print(count)
+    elif args.lookup:
+        result = lookup_cached_research(args.lookup)
+        if result:
+            print(json.dumps(result))
+        # else: print nothing (empty output means cache miss)
+    elif args.store and args.result:
+        try:
+            result_dict = json.loads(args.result)
+            cache_research_result(args.store, result_dict)
+        except json.JSONDecodeError as e:
+            print(f"Error: invalid JSON in --result: {e}", file=sys.stderr)
+            sys.exit(1)
     else:
         parser.print_help()
 
