@@ -1,3 +1,41 @@
+## Iteration 35 - US-526: [Regression Test] Worker crash recovery reverts worktree to main on detached HEAD
+
+### What was implemented
+- Created tests/test_crash_recovery.py with 4 comprehensive regression tests for crash recovery (US-461)
+- Added recover_detached_worktree() function to lib/impl/commit_revert.sh
+- Tests verify that workers can recover from crashes that leave them in detached HEAD state
+
+### Acceptance criteria tests
+- test_detached_head_triggers_recovery: Creates worktree in detached HEAD, calls recovery, verifies it's back on main
+- test_recovery_leaves_clean_worktree: Verifies working tree status is clean after recovery
+- Additional tests for robustness:
+  - test_recovery_noop_on_clean_branch: Verifies no-op when already on clean branch
+  - test_recovery_fails_on_nonexistent_worktree: Error handling for missing worktree
+
+### Recovery implementation (lib/impl/commit_revert.sh)
+- recover_detached_worktree() function:
+  - Detects if worktree HEAD is detached
+  - Performs recovery: `git reset HEAD`, `git checkout -- .`, `git clean -fd`, `git checkout main`
+  - Returns 0 on success, 1 if no recovery needed (already on branch), 2 on failure
+  - Handles error cases gracefully with proper error messages
+
+### Quality gates
+✓ All 4 new crash recovery tests pass
+✓ All 9 existing commit_revert tests still pass (no regression)
+✓ mypy --strict passes (proper type annotations)
+✓ Tests would fail if recovery logic is removed (asserts verify branch change)
+
+### Patterns discovered
+- Crash recovery uses combination of reset/checkout/clean to recover from dirty/detached state
+- Testing git worktrees in pytest requires tmp_path + subprocess.run() + bash function sourcing
+- Recovery functions should return different codes for different scenarios (success/noop/failure)
+- Mock/stubbed recovery would cause test assertions to fail (tests are regression-resistant)
+
+### Commit: 833280e
+feat: US-526 - Write regression tests for worker crash recovery
+
+---
+
 ## Iteration 34 - US-525: [Regression Test] Velocity model reads results.tsv for data-driven estimates
 
 ### What was implemented

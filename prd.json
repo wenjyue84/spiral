@@ -1336,8 +1336,7 @@
       ],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-03-19T19:32:51Z"
+      "model": "haiku"
     },
     {
       "id": "US-527",
@@ -1538,6 +1537,70 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-541",
+      "title": "Compute story complexity score from description and dependency graph for worker load balancing",
+      "priority": "medium",
+      "description": "Implement auto-complexity scoring for stories to enable even load distribution across parallel workers. Score ranges 1-10 based on description length, dependency count, and retry history. Phase I worker launcher uses scores to assign complex stories to different workers, preventing one worker from becoming a bottleneck.",
+      "acceptanceCriteria": [
+        "Function compute_story_complexity(story: dict, prd: dict) in lib/story_complexity.py returns 1-10 score weighted: 40% description tokens, 30% dependency_count, 20% changed_files (from last attempt), 10% past_retry_count",
+        "Integration test: load prd.json with 3 stories (short desc + 0 deps → score ~2; long desc + 5 deps → score ~8), verify expected ranges match historical difficulty",
+        "Phase I worker launcher (lib/run_parallel_ralph.sh) uses score to distribute stories round-robin by complexity band: worker-0 gets [1-3,7-10], worker-1 gets [4-6], preventing any worker from bottlenecking"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-542",
+      "title": "Phase I: generate retry exhaustion analysis report when story reaches max attempts",
+      "priority": "medium",
+      "description": "When a story exhausts max retries (haiku→sonnet→opus→fail), automatically generate detailed analysis report identifying root cause: timeout patterns, token limit hits, assertion failures, parse errors, or API errors. Report saved to .spiral/exhausted_stories/{story_id}_analysis.json for post-mortem investigation and Ralph pattern learning.",
+      "acceptanceCriteria": [
+        "lib/impl/exhaustion_analyzer.py function analyze_exhausted_story(story_id: str, attempts: list[dict]) returns {root_cause: str, error_pattern: str, suggestion: str, model_sequence: list}, categorizing final error as timeout|token_limit|assertion|parse|api_error",
+        "Phase I retry.sh invokes analyzer after 3rd attempt fails; writes JSON report to .spiral/exhausted_stories/{story_id}_analysis.json with error_counts per attempt, most_common_tokens_in_failures, model_sequence attempted",
+        "Integration test: mock Phase I with story failing 3x with identical assertion error; verify analyzer detects assertion_error root cause, computes confidence score, suggests _decomposed antiPattern"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-543",
+      "title": "Phase Output Audit Trail: Track Story Status Changes Between Iterations",
+      "priority": "medium",
+      "description": "Add CLI command to compare phase output files (_validated_stories.json, _research_output.json) across consecutive iterations, generating a structured diff showing which stories transitioned, changed scope, or became 'stuck' (unchanged for 3+ phases). Helps diagnose why stories are validated then invalidated or why implementation stalls.",
+      "acceptanceCriteria": [
+        "CLI command `spiral phase-audit --compare-last [--phase=PHASE]` reads phase output from current and previous iterations, outputs JSON with { 'added': [...], 'removed': [...], 'modified': [{'storyId': 'US-123', 'changedFields': ['scope', 'estimatedComplexity']}], 'stuck': [{'storyId': 'US-456', 'stuckSince': 3}] }",
+        "Detects stories present in same phase for 3+ consecutive iterations and includes 'stuckSince' count in output to flag stalled stories",
+        "Test assertion: given two _validated_stories.json files where US-123 changes status from 'pending' to 'validated', the diff output shows this transition with before/after values"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-544",
+      "title": "Cost Anomaly Detector: Flag Stories with Unusual Token Spend Patterns",
+      "priority": "medium",
+      "description": "Add CLI command to analyze results.tsv and detect stories whose implementation costs deviate significantly from their historical median, enabling early warnings for scope creep or inefficient implementations. Uses statistical anomaly detection (z-score > 2) to identify problematic stories.",
+      "acceptanceCriteria": [
+        "CLI command `spiral detect-anomalies` reads results.tsv, groups by story_id, calculates median and stddev for each story, flags entries where cost > (median + 2*stddev), outputs JSON with { 'anomalies': [{'storyId': 'US-123', 'iteration': 5, 'cost': 45000, 'median': 12000, 'zscore': 2.1, 'model': 'opus'}], 'summary': {'totalAnomalies': 3, 'affectedStories': 2} }",
+        "Output includes model used for each anomaly to identify if cost overruns correlate with model escalation (e.g., haiku→sonnet promotions)",
+        "Test assertion: given a story with costs [10000, 11000, 9000, 50000] in results.tsv, the detector should flag 50000 as anomaly with zscore ≥ 2.0"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
       "passes": false,
       "model": "haiku"
     }
