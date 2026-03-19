@@ -811,7 +811,8 @@
         "module-github",
         "module-hypothesis"
       ],
-      "last_attempted": "2026-03-19T13:20:57Z"
+      "last_attempted": "2026-03-19T13:31:03Z",
+      "_scopeCreep": true
     },
     {
       "id": "US-502",
@@ -1098,93 +1099,49 @@
     },
     {
       "id": "US-517",
-      "title": "[Security Test] Verify auth/access control for SPIRAL dashboard (US-460)",
-      "priority": "high",
-      "description": "Write security tests confirming that the SPIRAL self-monitoring dashboard (US-460) enforces access control on all routes. Tests must verify unauthenticated requests receive 401 or 403 responses and that error responses contain no sensitive data such as API keys or tokens.",
+      "title": "Integration test: parallel workers produce consistent prd.json and results.tsv",
+      "priority": "medium",
+      "description": "Write an integration test that launches 2 concurrent workers via lib/run_parallel_ralph.sh against isolated git worktrees in .spiral-workers/ and asserts that prd.json and results.tsv are not corrupted after both workers finish. This validates the worker state isolation guarantee introduced in US-494.",
       "acceptanceCriteria": [
-        "uv run pytest tests/test_dashboard_security.py::test_unauthenticated_request_is_blocked -v exits 0",
-        "uv run pytest tests/test_dashboard_security.py::test_error_response_contains_no_secrets -v exits 0",
-        "uv run pytest tests/test_dashboard_security.py -v --tb=short shows all collected tests passing"
+        "uv run pytest tests/test_worker_isolation.py::test_parallel_workers_no_prd_conflict -v exits 0",
+        "uv run pytest tests/test_worker_isolation.py::test_results_tsv_no_duplicate_story_rows -v exits 0",
+        "uv run pytest tests/test_worker_isolation.py -v completes in under 90 seconds on a standard dev machine",
+        "grep -c 'worker' .spiral-workers/worker-1/prd.json returns 0 (no cross-worker prd.json bleed)"
       ],
       "technicalNotes": [
-        "File to edit: tests/test_dashboard_security.py (new file — create security test suite targeting US-460 dashboard routes)",
-        "File to edit: lib/ui/dashboard_html.py (confirm auth guard is applied before reading metrics or token data)",
-        "Test command: uv run pytest tests/test_dashboard_security.py -v --tb=short",
-        "Use a fixture that creates an unauthenticated HTTP test client; assert response.status_code in (401, 403) for each protected route",
-        "In the secrets-leak test, assert none of ('api_key', 'token', 'password', 'secret') appear in response.text for error payloads"
+        "File to edit: tests/test_worker_isolation.py (new file — test_parallel_workers_no_prd_conflict, test_results_tsv_no_duplicate_story_rows)",
+        "File to read: lib/run_parallel_ralph.sh (understand worker launch, worktree creation, and mutex logic before writing the test)",
+        "Test command: uv run pytest tests/test_worker_isolation.py -v --tb=short",
+        "Use pytest tmp_path fixture and subprocess to simulate two workers; assert prd.json parses as valid JSON after both exit and results.tsv has no duplicate US-NNN rows"
       ],
       "dependencies": [
-        "US-460"
+        "US-494"
       ],
-      "estimatedComplexity": "small",
+      "estimatedComplexity": "medium",
       "passes": false,
       "model": "haiku"
     },
     {
       "id": "US-518",
-      "title": "[Integration Test] Worker Isolation Happy Path: 2 concurrent workers produce consistent outputs",
+      "title": "[Integration Test] Episodic memory store: write, retrieve, and inject past patterns",
       "priority": "high",
-      "description": "Write an integration test that spins up 2 parallel workers in isolated git worktrees, runs them concurrently with separate PRD slices, and asserts that prd.json and results.tsv are consistent and conflict-free after both workers finish. This covers the core happy-path scenario from US-494.",
+      "description": "Write integration tests for the SQLite FTS5 episodic memory store introduced in US-350. Tests must cover the full round-trip: recording a story outcome, retrieving the top-3 relevant past implementations via FTS5 ranking, and verifying the injected context snippet Ralph receives. No external services or manual setup required — the store must be created in a temp directory per test.",
       "acceptanceCriteria": [
-        "uv run pytest tests/test_worker_state_isolation.py::test_two_workers_consistent_output -v passes",
-        "Test creates 2 temp git worktrees under a tmp dir, each with a distinct PRD slice, and verifies merged prd.json story statuses are non-overlapping",
-        "results.tsv rows from both workers are present and unique (no duplicate story IDs) after the run"
+        "uv run pytest tests/test_episodic_memory.py::test_record_and_retrieve_happy_path -v exits 0",
+        "uv run pytest tests/test_episodic_memory.py::test_top3_fts5_ranking -v exits 0 and asserts the correct 3 stories are returned in relevance order",
+        "uv run pytest tests/test_episodic_memory.py::test_empty_store_returns_empty_context -v exits 0 with no exception raised",
+        "uv run pytest tests/test_episodic_memory.py -v exits 0 (full suite, no external services)"
       ],
       "technicalNotes": [
-        "File to edit: tests/test_worker_state_isolation.py (new file — test_two_workers_consistent_output)",
-        "File to edit: lib/run_parallel_ralph.sh (read to understand worktree naming and PRD slice contract)",
-        "File to edit: lib/slice_prd.py (read to understand how slices are produced per worker)",
-        "Test command: uv run pytest tests/test_worker_state_isolation.py::test_two_workers_consistent_output -v"
+        "File to edit: tests/test_episodic_memory.py (new file — create integration test module)",
+        "File to edit: lib/episodic_memory.py (EpisodicMemoryStore class — reference for constructor signature and method names)",
+        "Test command: uv run pytest tests/test_episodic_memory.py -v",
+        "Use tmp_path pytest fixture to create an isolated SQLite DB per test (avoids shared state)",
+        "Seed the store with 5+ records of varying types before asserting top-3 ranking to exercise FTS5 scoring",
+        "Assert context injection output is a non-empty string containing the story title and outcome fields"
       ],
       "dependencies": [
-        "US-494"
-      ],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-519",
-      "title": "[Integration Test] Worker Isolation Edge Case: failed worker does not corrupt shared state",
-      "priority": "high",
-      "description": "Write an integration test that simulates one of two parallel workers crashing mid-write (e.g., raises an exception after partially writing prd.json) and asserts that the surviving worker's output and the shared prd.json remain uncorrupted. This covers the error-path from US-494.",
-      "acceptanceCriteria": [
-        "uv run pytest tests/test_worker_state_isolation.py::test_failed_worker_no_corruption -v passes",
-        "Test verifies prd.json is valid JSON and contains no partial or malformed story entries after a simulated worker crash",
-        "Test verifies results.tsv contains only the surviving worker's rows and no truncated lines"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_worker_state_isolation.py (new function — test_failed_worker_no_corruption)",
-        "File to edit: lib/impl/commit_revert.sh (read to understand rollback behaviour on worker failure)",
-        "Test command: uv run pytest tests/test_worker_state_isolation.py::test_failed_worker_no_corruption -v"
-      ],
-      "dependencies": [
-        "US-494"
-      ],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-520",
-      "title": "Perf benchmark: SPIRAL dashboard metrics computation latency",
-      "priority": "medium",
-      "description": "Write a performance benchmark test for the SPIRAL self-monitoring dashboard (US-460). The test measures latency for token burn rate, story throughput, and model escalation heatmap computations, and fails if any metric degrades more than 20% from a defined baseline.",
-      "acceptanceCriteria": [
-        "uv run pytest tests/test_perf_dashboard.py -v exits 0 with all benchmark assertions passing",
-        "Baseline thresholds are defined as named constants (e.g. BASELINE_TOKEN_BURN_MS) at the top of the test file",
-        "Each metric computation is asserted to complete within 120% of its baseline threshold using time.perf_counter()",
-        "Test prints a timing summary to stdout showing actual vs baseline for each of the three metrics"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_perf_dashboard.py (new file — add benchmark functions for token_burn_rate, story_throughput, model_escalation_heatmap)",
-        "File to edit: lib/ui/dashboard_metrics.py (functions under benchmark — import and call directly from test)",
-        "Test command: uv run pytest tests/test_perf_dashboard.py -v --tb=short",
-        "Seed test data by reading results.tsv or generating 50-100 synthetic rows inline; avoid hitting live API",
-        "Define BASELINE_TOKEN_BURN_MS, BASELINE_THROUGHPUT_MS, BASELINE_HEATMAP_MS as module-level constants; assert actual < baseline * 1.2"
-      ],
-      "dependencies": [
-        "US-460"
+        "US-350"
       ],
       "estimatedComplexity": "medium",
       "passes": false,

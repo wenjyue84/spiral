@@ -770,3 +770,36 @@ This user story is for a Python-based application, not a Frappe app. The context
 *   **Data Parsing:** The logic reading `results.tsv` must be resilient to potential file lock issues or partial writes.
 *   **Performance:** The 2-second requirement means the file-watching/triggering mechanism and broadcast must be highly efficient. Avoid any blocking I/O in the broadcast loop.
 
+
+## Pre-analysis for US-498 (Gemini 2.5 Pro)
+This is a Python/Shell-based CLI application, not a Frappe application. The core logic will be in shell scripts orchestrating Python files that manipulate a central `prd.json` file.
+
+**Technical Brief for US-498**
+
+1.  **Primary Files to Modify:**
+    *   `lib/phases/impl.sh`: This is the entry point. A new gate function must be added here to orchestrate the budget check before Phase I execution.
+    *   `lib/cost_project.py`: This file likely calculates `estimated_cost`. It will be called by `impl.sh` to get the total projected cost for pending stories.
+    *   A **new Python script** (e.g., `lib/rollback_story.py`): This script will be responsible for reading `prd.json`, identifying and removing the lowest-priority "pending" story, and writing the updated data back.
+    *   `tests/test_phase_i_budget_gate.py`: A **new test file** to unit-test the new gate's logic, including mocking user input and verifying the `prd.json` rollback is correct.
+
+2.  **Involved "DocTypes"/Data Structures:**
+    *   No Frappe DocTypes are involved.
+    *   The primary data structure is `prd.json`, which contains the list of user stories, each with fields like `id`, `priority`, and `status` (or equivalent).
+    *   Environment Variable: `SPIRAL_COST_CEILING`.
+
+3.  **Recommended Implementation Approach:**
+    *   In `lib/phases/impl.sh`, add a function that runs before the main Phase I logic.
+    *   This function should call `python lib/cost_project.py` to get the estimated cost of all pending stories.
+    *   The shell script will compare this cost against the `$SPIRAL_COST_CEILING` environment variable.
+    *   If the cost exceeds the ceiling, use a `read` command to prompt the user with `[continue/skip/rollback-story]`.
+    *   Use a `case` statement to handle the user's choice:
+        *   `continue`: Log a warning and proceed.
+        *   `skip`: Exit the phase gracefully.
+        *   `rollback-story`: Execute the new Python script to modify `prd.json` and then loop back to re-run the cost estimation.
+
+4.  **Edge Cases & Gotchas:**
+    *   **Determining "lowest-priority":** The rollback script must correctly interpret the `priority` field (e.g., 'low', 'medium', 'high') and filter for only "pending" stories.
+    *   **`current_spend` source:** The shell script must determine the source of `current_spend` to accurately calculate the remaining budget. This value may need to be calculated from `results.tsv` or a similar metrics file.
+    *   **Atomic writes:** The script modifying `prd.json` should use an atomic write pattern (write to temp file, then rename) to prevent data corruption.
+    *   **User Input Handling:** The shell script must be robust in handling user input from the prompt.
+

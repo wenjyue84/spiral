@@ -101,10 +101,94 @@ run_phase_gate_and_implement() {
         ;;
       proceed | p | "")
         echo "  [G] Proceeding to implementation..."
+        _BUDGET_GATE_SKIP=0
 
         # NEW ROUTING STEP
         echo "  [I-Pre] Routing stories to optimal models..."
         "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/routing/route_stories.py" --prd "$PRD_FILE" --profile "$SPIRAL_MODEL_ROUTING"
+
+        # ── US-498: Phase I budget gate (check cost ceiling) ─────────────────
+        if [[ -n "$SPIRAL_COST_CEILING" && "$SPIRAL_COST_CEILING" != "0" ]]; then
+          _BUDGET_RESULT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/budget_analyzer.py" \
+            --prd "$PRD_FILE" \
+            --results "results.tsv" \
+            --ceiling "$SPIRAL_COST_CEILING" \
+            2>/dev/null || echo '{}')
+
+          _WOULD_EXCEED=$(echo "$_BUDGET_RESULT" | "$JQ" -r '.would_exceed // false' 2>/dev/null || echo "false")
+          _CURRENT_SPEND=$(echo "$_BUDGET_RESULT" | "$JQ" -r '.current_spend_usd // 0' 2>/dev/null || echo "0")
+          _PENDING_COST=$(echo "$_BUDGET_RESULT" | "$JQ" -r '.estimated_pending_usd // 0' 2>/dev/null || echo "0")
+          _TOTAL_PROJECTED=$(echo "$_BUDGET_RESULT" | "$JQ" -r '.total_projected_usd // 0' 2>/dev/null || echo "0")
+
+          if [[ "$_WOULD_EXCEED" == "true" ]]; then
+            echo ""
+            echo "  ╔════════════════════════════════════════════════════════════════╗"
+            echo "  ║  [US-498] BUDGET GATE — Cost would exceed ceiling              ║"
+            echo "  ╠════════════════════════════════════════════════════════════════╣"
+            printf '  ║  Current spend:     $%.2f USD\n' "$_CURRENT_SPEND"
+            printf '  ║  Pending stories:   $%.2f USD\n' "$_PENDING_COST"
+            printf '  ║  Total projected:   $%.2f USD\n' "$_TOTAL_PROJECTED"
+            printf '  ║  Ceiling:           $%.2f USD\n' "$SPIRAL_COST_CEILING"
+            echo "  ╠════════════════════════════════════════════════════════════════╣"
+            echo "  ║  Options:"
+            echo "  ║    continue       — proceed with warning"
+            echo "  ║    skip           — skip Phase I"
+            echo "  ║    rollback-story — remove lowest-priority pending story"
+            echo "  ╚════════════════════════════════════════════════════════════════╝"
+            echo ""
+            printf "  Enter choice: "
+            if [[ -t 0 ]]; then
+              read -r _BUDGET_INPUT || _BUDGET_INPUT="skip"
+            else
+              read -r _BUDGET_INPUT </dev/tty 2>/dev/null || read -r _BUDGET_INPUT || _BUDGET_INPUT="skip"
+            fi
+
+            _BUDGET_INPUT=$(echo "$_BUDGET_INPUT" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')
+
+            case "$_BUDGET_INPUT" in
+              continue | c)
+                echo "  [US-498] Proceeding with cost warning — may exceed ceiling"
+                printf '{"ts":"%s","event":"budget_gate_continued","current_spend":%.2f,"pending_cost":%.2f}\n' \
+                  "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$_CURRENT_SPEND" "$_PENDING_COST" \
+                  >>"$SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || true
+                ;;
+              skip | s)
+                echo "  [US-498] Skipping Phase I due to budget constraint"
+                _BUDGET_GATE_SKIP=1
+                ;;
+              rollback-story | rollback | r)
+                echo "  [US-498] Rolling back lowest-priority pending story..."
+                _ROLLBACK=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/rollback_story.py" --prd "$PRD_FILE" 2>&1)
+                _ROLLBACK_SUCCESS=$(echo "$_ROLLBACK" | "$JQ" -r '.success // false' 2>/dev/null || echo "false")
+                if [[ "$_ROLLBACK_SUCCESS" == "true" ]]; then
+                  _REMOVED_ID=$(echo "$_ROLLBACK" | "$JQ" -r '.removed_story_id // "unknown"' 2>/dev/null || echo "unknown")
+                  _REMOVED_TITLE=$(echo "$_ROLLBACK" | "$JQ" -r '.removed_story_title // ""' 2>/dev/null || echo "")
+                  _REMAINING=$(echo "$_ROLLBACK" | "$JQ" -r '.remaining_pending // 0' 2>/dev/null || echo "0")
+                  echo "  [US-498] Rolled back: $_REMOVED_ID ($_REMOVED_TITLE)"
+                  echo "  [US-498] Remaining pending: $_REMAINING stories"
+                  # Re-run the gate check with the updated PRD
+                  echo "  [US-498] Re-checking budget gate..."
+                  exec bash -c "
+                    source '$SPIRAL_HOME/spiral.sh'
+                    SPIRAL_ITER='$SPIRAL_ITER'
+                    GATE_INPUT='proceed'
+                    GATE_DEFAULT='proceed'
+                    run_phase_gate_and_implement
+                  "
+                else
+                  _ERROR=$(echo "$_ROLLBACK" | "$JQ" -r '.error // "unknown error"' 2>/dev/null || echo "unknown error")
+                  echo "  [US-498] Rollback failed: $_ERROR"
+                  _BUDGET_GATE_SKIP=1
+                fi
+                return
+                ;;
+              *)
+                echo "  [US-498] Invalid choice — skipping Phase I"
+                _BUDGET_GATE_SKIP=1
+                ;;
+            esac
+          fi
+        fi
 
         # ── DAG cycle detection ──────────────────────────────────────────
         DAG_SKIP_IMPL=0
@@ -128,6 +212,8 @@ run_phase_gate_and_implement() {
         prd_stats
         if [[ "$PENDING" -eq 0 ]]; then
           echo "  [Phase I] IMPLEMENT — skipping (no pending stories)"
+        elif [[ "$_BUDGET_GATE_SKIP" -eq 1 ]]; then
+          echo "  [Phase I] IMPLEMENT — skipping (budget ceiling constraint)"
         elif [[ "$DAG_SKIP_IMPL" -eq 1 ]]; then
           echo "  [Phase I] IMPLEMENT — skipping (dependency cycles detected — fix prd.json dependencies)"
         else
