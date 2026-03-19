@@ -360,6 +360,8 @@ run_phase_gate_and_implement() {
                   _I_EXIT=0
                   _I_START=$(date +%s)
                   _STORY_BUDGET=$(get_story_timeout "$_NEXT_SID")
+                  # Floor: never less than 600s per story
+                  [[ "${_STORY_BUDGET:-0}" -lt 600 ]] && _STORY_BUDGET=600
                   _I_STDOUT_FILE=$(mktemp -p "$SCRATCH_DIR" _ralph_out_XXXXXX.log 2>/dev/null || echo "$SCRATCH_DIR/_ralph_out_$$.log")
                   if [[ "${_STORY_BUDGET:-0}" -gt 0 ]] && command -v timeout &>/dev/null; then
                     echo "  [I] Budget: ${_STORY_BUDGET}s for $_NEXT_SID"
@@ -617,6 +619,8 @@ run_phase_gate_and_implement() {
                 _I_EXIT=0
                 _I_START=$(date +%s)
                 _STORY_BUDGET=$(get_story_timeout "$_NEXT_SID")
+                # Floor: never less than 600s per story
+                [[ "${_STORY_BUDGET:-0}" -lt 600 ]] && _STORY_BUDGET=600
                 # US-279: capture stderr to temp file for crash persistence
                 _STDERR_CAPTURE=$(mktemp -p "$SCRATCH_DIR" _ralph_stderr_XXXXXX.txt 2>/dev/null || echo "$SCRATCH_DIR/_ralph_stderr_$$.txt")
                 if [[ "${_STORY_BUDGET:-0}" -gt 0 ]] && command -v timeout &>/dev/null; then
