@@ -19,6 +19,7 @@ Subcommands:
     replay                Re-enqueue a DLQ story after human review
   diagnose                Print causal failure chain for a run (multi-agent failure attribution)
   analyze-batch-potential Show Phase S batch grouping potential: API call reduction % and token savings
+  complexity-trend        Analyze story retry & duration patterns across iterations (US-537)
 """
 
 import argparse
@@ -1867,6 +1868,23 @@ def cmd_calibration_report(args):
                 print(f"  {complexity:8} | median: {median:6}s | count: {count:4} | ✓ {passed:3} ✗ {failed:3}")
 
 
+def cmd_complexity_trend(args) -> None:
+    """Analyze story retry & duration patterns from results.tsv (US-537).
+
+    Usage: spiral complexity-trend --phase I --output trend-report.csv
+           spiral complexity-trend --phase I --format json
+    """
+    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    from complexity_trend import run_trend  # type: ignore[import-untyped]
+
+    history = getattr(args, "history", "results.tsv")
+    phase = getattr(args, "phase", "I")
+    output = getattr(args, "output", None)
+    fmt = getattr(args, "fmt", "csv")
+
+    run_trend(tsv_path=history, phase=phase, output_path=output, fmt=fmt)
+
+
 def cmd_analyze_batch_potential(args) -> None:
     """Print Phase S batch grouping potential as JSON (US-535).
 
@@ -2670,6 +2688,37 @@ def main():
         help="Generate HTML dashboard for visual analysis",
     )
 
+    # ── complexity-trend subcommand (US-537) ─────────────────────────────────────
+    complexity_trend_parser = subparsers.add_parser(
+        "complexity-trend",
+        help="Analyze story retry & duration patterns across iterations (US-537)",
+    )
+    complexity_trend_parser.add_argument(
+        "--phase",
+        default="I",
+        metavar="PHASE",
+        help="Phase to analyze (default: I)",
+    )
+    complexity_trend_parser.add_argument(
+        "--history",
+        default="results.tsv",
+        metavar="TSV",
+        help="Path to results.tsv (default: results.tsv)",
+    )
+    complexity_trend_parser.add_argument(
+        "--output",
+        default=None,
+        metavar="FILE",
+        help="Output file path (default: stdout)",
+    )
+    complexity_trend_parser.add_argument(
+        "--format",
+        dest="fmt",
+        choices=["csv", "json"],
+        default="csv",
+        help="Output format: csv or json (default: csv)",
+    )
+
     # ── analyze-batch-potential subcommand (US-535) ─────────────────────────────
     analyze_batch_parser = subparsers.add_parser(
         "analyze-batch-potential",
@@ -2757,6 +2806,8 @@ def main():
         else:
             memory_parser.print_help()
             sys.exit(0)
+    elif args.command == "complexity-trend":
+        cmd_complexity_trend(args)
     elif args.command == "analyze-batch-potential":
         cmd_analyze_batch_potential(args)
     elif args.command == "analyze-routing":
