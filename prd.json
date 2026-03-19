@@ -373,8 +373,7 @@
         "module-hypothesis"
       ],
       "last_attempted": "2026-03-19T02:49:03Z",
-      "_passedCommit": "8270f68efbe6a577266c4063cb8ccaab03d3e8af",
-      "_scopeCreep": true
+      "_passedCommit": "8270f68efbe6a577266c4063cb8ccaab03d3e8af"
     },
     {
       "id": "US-471",
@@ -424,7 +423,7 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "sonnet",
       "filesTouch": [
@@ -442,7 +441,8 @@
       "tags": [
         "module-hypothesis",
         "module-lib"
-      ]
+      ],
+      "_passedCommit": "df8d0149b07fba31d7d07d9631a80087370cf7a0"
     },
     {
       "id": "US-476",
