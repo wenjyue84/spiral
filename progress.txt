@@ -1,3 +1,53 @@
+## Iteration 27 - US-515: Circular Dependency Detection with Cycle Paths
+
+### What was completed
+- Implemented cycle detection in lib/commands/validate_federated.py
+- Added _detect_cycles() using recursive DFS algorithm
+- Builds directed graph from story depends_on fields
+- Reports cycles with full traversal paths (e.g., ["repo-a:US-001", "repo-b:US-005", "repo-a:US-001"])
+- Deduplicates cycles by canonicalizing to start with minimum ID
+- Updated validate_federated() to include cycles in JSON report
+- Updated run() to exit 1 when cycles are found and print cycle details to stderr
+- Added comprehensive test coverage in test_validate_federated.py
+
+### Acceptance criteria verification
+✓ Simple 2-node cycle detection and reporting with full paths
+✓ Acyclic PRD produces cycles: [] and valid: true
+✓ Cycle deduplication (same cycle reported once, canonicalized)
+✓ Self-loop detection (story depending on itself)
+✓ Long cycle detection (4+ node cycles)
+✓ Multiple independent cycles detected
+
+### Implementation details
+- **_detect_cycles()** (65 lines):
+  - Builds adjacency list graph from all stories
+  - Uses recursive DFS with recursion stack to detect back edges
+  - Canonicalizes cycles to start with minimum ID for deduplication
+  - Returns list of cycles as path lists
+- **validate_federated()**: Calls _detect_cycles() and includes results in report
+- **run()**: Enhanced to report cycles and exit 1 if any found
+- **Tests**: 1 module-level + 4 class-based tests (18 total passing)
+
+### Test results
+- ✓ test_cycle_detection - Module-level acceptance criteria test
+- ✓ test_self_loop_cycle_detection - Self-referencing story
+- ✓ test_long_cycle_detection - 4-node cycle (5-element path)
+- ✓ test_multiple_independent_cycles - 2 separate cycles
+- ✓ All 18 validate_federated tests pass
+- ✓ mypy --strict passes (no type errors)
+- ✓ CLI integration verified: python main.py validate-federated --prd=prd.json
+
+### Key patterns discovered
+- Recursive DFS with recursion stack is clearer than iterative approach for cycle detection
+- Canonicalization (start with min ID) is key to cycle deduplication
+- Graph must be built from string IDs first to handle both namespaced and non-namespaced IDs
+- Dependency objects can have both string and dict formats - must handle both
+
+### Commit: d1a0b2c
+mark: US-515 complete (passes: true)
+
+---
+
 ## Iteration 26 - US-506: Write Phase R integration test using mock Claude API fixtures
 
 ### What was completed
