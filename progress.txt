@@ -1393,3 +1393,31 @@ FAILED diagnosis-block gate: US-519 (ID: US-519) — no diagnosis block found �
 ## Iteration 1 - Fri, Mar 20, 2026  1:44:12 AM
 FAILED diagnosis-block gate: Phase S Batch Request Optimizer: Group Similar Stories for Single API Call (ID: US-535) — no diagnosis block found — attempt 1/3
 
+
+## Pre-analysis for US-522 (Gemini 2.5 Pro)
+**Subject: Technical Brief for US-522: Dashboard /profile Endpoint**
+
+**Objective:** Implement a `/profile` GET endpoint in a Python web service to provide performance analytics by parsing a `results.tsv` file.
+
+**Affected Files:**
+*   `lib/dashboard/api.py`: Add the new Flask/FastAPI route here.
+*   `tests/test_dashboard_profile.py`: Create this new file for Pytest.
+
+**Frappe Context:**
+*   This is a standard Python web service task. No Frappe DocTypes or hooks are involved. The implementation will use Flask or FastAPI conventions.
+
+**Implementation Plan:**
+1.  In `lib/dashboard/api.py`, define a `/profile` route that accepts GET requests.
+2.  The route's handler should read `results.tsv` using Python's `csv.DictReader`.
+3.  Calculate three metrics from the TSV data:
+    *   Mean duration for `decompose_secs`, `impl_secs`, `verify_secs` across all stories.
+    *   A list of the 5 slowest stories based on their total combined duration.
+    *   A frequency count of escalations per story.
+4.  Return these metrics in a single JSON object with keys: `mean_phase_durations`, `slowest_stories`, and `escalation_frequency`.
+5.  Create a test in `tests/test_dashboard_profile.py` that uses a fixture to mock `results.tsv` and asserts the `/profile` endpoint returns a 200 status and the correct JSON structure.
+
+**Gotchas & Edge Cases:**
+*   Ensure the endpoint handles a missing or empty `results.tsv` file gracefully.
+*   Parsing logic should be robust to non-numeric or missing values in duration columns.
+*   The definition of an "escalation" must be inferred from the `results.tsv` data columns.
+

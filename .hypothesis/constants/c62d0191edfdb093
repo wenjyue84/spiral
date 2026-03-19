@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\AppData\Roaming\Python\Python312\site-packages\python_multipart\__init__.py
+# hypothesis_version: 6.151.9
+
+['0.0.20', 'Andrew Dunham', 'Apache', 'BaseParser', 'FormParser', 'MultipartParser', 'OctetStreamParser', 'QuerystringParser', 'create_form_parser', 'parse_form']
