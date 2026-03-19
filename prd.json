@@ -811,7 +811,7 @@
         "module-github",
         "module-hypothesis"
       ],
-      "last_attempted": "2026-03-19T13:31:03Z",
+      "last_attempted": "2026-03-19T13:06:38Z",
       "_scopeCreep": true
     },
     {
@@ -958,7 +958,8 @@
       "model": "haiku",
       "_skipped": true,
       "_failureReason": "dependency US-452 was skipped",
-      "last_attempted": "2026-03-19T13:54:17Z"
+      "_scopeCreep": true,
+      "last_attempted": "2026-03-19T14:01:33Z"
     },
     {
       "id": "US-506",
@@ -983,8 +984,7 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "_source": "test-story",
-      "model": "haiku",
-      "last_attempted": "2026-03-19T21:57:51.379505Z"
+      "model": "haiku"
     },
     {
       "id": "US-512",
@@ -1004,7 +1004,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "haiku"
     },
@@ -1146,6 +1146,47 @@
         "US-350"
       ],
       "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-519",
+      "title": "Add research_cache.py module with 24-hour TTL",
+      "priority": "medium",
+      "description": "Create lib/phases/research_cache.py backed by .spiral/research_cache.json. Implement lookup_cached_research(), cache_research_result(), and cache_init() with 24-hour TTL expiry keyed by a sha256 hash of the story topic. Include a --clear-expired CLI subcommand for stale-entry pruning.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_research_cache.py -v passes, covering: cache miss returns None, cache hit returns stored dict, entry older than 24 h returns None",
+        "uv run python lib/phases/research_cache.py --clear-expired exits 0 and prints an integer count of pruned entries to stdout",
+        "uv run python -c \"from lib.phases.research_cache import cache_research_result, lookup_cached_research; cache_research_result('t', {'x':1}); assert lookup_cached_research('t') == {'x':1}\" exits 0"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/phases/research_cache.py (new file \u2014 lookup_cached_research(topic: str) -> dict | None; cache_research_result(topic: str, result: dict) -> None; cache_init() prunes on import; backing store: .spiral/research_cache.json; key: hashlib.sha256(topic.strip().lower().encode()).hexdigest()[:16]; entry shape: {\"result\": dict, \"expires_at\": float}; expires_at = time.time() + 86400)",
+        "File to edit: tests/test_research_cache.py (new test file \u2014 parametrize miss/hit/expired; freeze time with freezegun or monkeypatch time.time)",
+        "Test command: uv run pytest tests/test_research_cache.py -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-520",
+      "title": "Integrate research cache into Phase R to skip duplicate Gemini calls",
+      "priority": "medium",
+      "description": "Modify Phase R in spiral.sh to call lookup_cached_research() before invoking Gemini. On a cache hit, write the cached JSON to _research_output.json with _cached:true and skip the Gemini call. On a miss, run Gemini as normal and store the result via cache_research_result(). Depends on the research_cache.py module being present.",
+      "acceptanceCriteria": [
+        "After a cache-hit run, _research_output.json contains the key _cached with value true \u2014 verify with: python -c \"import json,sys; d=json.load(open('_research_output.json')); sys.exit(0 if d.get('_cached') else 1)\"",
+        "On a cache miss (first run), _research_output.json does NOT contain _cached:true and the result is written to .spiral/research_cache.json \u2014 verify with: python -c \"import json; d=json.load(open('.spiral/research_cache.json')); assert len(d) > 0\"",
+        "uv run pytest tests/test_phase_r_cache.py -v passes (mock Gemini; assert Gemini called once on miss, zero times on subsequent hit for same topic)"
+      ],
+      "technicalNotes": [
+        "File to edit: spiral.sh (Phase R section \u2014 before the gemini_search call insert: cached=$(uv run python lib/phases/research_cache.py --lookup \"$story_topic\") && echo \"$cached\" | python -c \"import json,sys; d=json.load(sys.stdin); d['_cached']=True; print(json.dumps(d))\" > \"$RESEARCH_OUTPUT\" && continue; after Gemini call insert: uv run python lib/phases/research_cache.py --store \"$story_topic\" \"$(cat $RESEARCH_OUTPUT)\")",
+        "Test command: uv run pytest tests/test_phase_r_cache.py -v"
+      ],
+      "dependencies": [
+        "US-519"
+      ],
+      "estimatedComplexity": "small",
       "passes": false,
       "model": "haiku"
     }
