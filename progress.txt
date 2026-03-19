@@ -648,3 +648,52 @@ This user story is for a Python project, not a Frappe application. Based on the 
 ## Worker 1 crashed (exit 2) — 2026-03-19 14:34:53
 ## Worker 2 crashed (exit 1) — 2026-03-19 14:34:54
 ## Worker 3 crashed (exit 1) — 2026-03-19 14:34:55
+
+## Pre-analysis for US-494 (Gemini 2.5 Pro)
+This is not a Frappe user story. The provided JSON describes an integration test for a Python-based worker management system called "Spiral".
+
+**Technical Brief for Claude**
+
+**Objective:** Implement an integration test (`tests/test_worker_isolation.py`) to verify that parallel workers do not cause race conditions or corrupt shared state files (`prd.json`, `results.tsv`).
+
+**Key Files & Modules:**
+*   **Create:** `tests/test_worker_isolation.py`
+*   **Core Logic to Test (Likely Candidates):**
+    *   `main.py`: The main application entry point that likely orchestrates the workers.
+    *   `lib/merge_worker_results.py`: Logic for consolidating results from different workers.
+    *   Any modules responsible for managing the worker pool, git worktrees, and file I/O for `prd.json`.
+
+**DocTypes & Hooks:**
+*   None. This is a standard Python project, not a Frappe application.
+
+**Implementation Approach:**
+1.  Use the `pytest` framework. Create fixtures to handle setup and teardown of the test environment (e.g., creating a temporary `.spiral-workers` directory, a mock `prd.json` with 10 stories, and ensuring cleanup).
+2.  Use Python's `subprocess` module to launch and manage at least two concurrent worker processes from within the test.
+3.  After workers complete, read `results.tsv` to assert that all 10 stories are present and unique.
+4.  Read the final `prd.json` to verify its integrity and check `_status` fields.
+5.  For the crash simulation, use `os.kill(worker_pid, signal.SIGKILL)` to terminate one worker abruptly. Verify the second worker completes its tasks successfully and that the `.spiral/_checkpoint.json` file is valid.
+
+**Gotchas & Edge Cases:**
+*   **Race Conditions:** The core of the test. Ensure the production code uses a reliable file locking mechanism (e.g., `fcntl` or a similar library) when accessing shared `prd.json` and `results.tsv`.
+*   **Stateful Cleanup:** Tests are stateful and modify the filesystem. Use `pytest` fixtures with `yield` to guarantee that all temporary directories and files are removed, even if assertions fail.
+*   **Platform Differences:** `kill` is POSIX-specific. Use portable signals like `signal.SIGKILL`. Be mindful of path differences between Windows and Unix.
+*   **Zombie Processes:** Ensure worker subprocesses are properly terminated and cleaned up to prevent zombies.
+
+
+## Iteration 24 - Story: US-494 Worker State Isolation Integration Test
+
+### What was implemented
+- Verified tests/test_worker_isolation.py already exists with full coverage
+- 7 tests passing across 3 classes: TestWorkerIsolationHappyPath, TestWorkerCrashRecovery, TestWorkerDecomposition
+- Tests use merge_worker_results.main() and atomic_write_json directly (no subprocess)
+- Coverage: 10-story PRD, results.tsv uniqueness, _status field integrity, crash recovery, checkpoint validity
+
+### Patterns discovered
+- tests/pyproject.toml sets addopts=-n 4 --dist loadscope; override with --override-ini=addopts= when running directly
+- Worker isolation is tested at the Python merge layer (merge_worker_results) rather than bash script layer
+- atomic_write_json from lib/spiral_io is used for prd writes in tests
+
+### Gotchas
+- Cannot run uv from worker worktree — must use python -m pytest with --override-ini=addopts= 
+## Worker 2 crashed (exit 1) — 2026-03-19 14:52:57
+## Worker 3 crashed (exit 1) — 2026-03-19 14:52:58
