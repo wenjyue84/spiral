@@ -694,7 +694,7 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "haiku",
       "filesTouch": [
@@ -1012,6 +1012,256 @@
       "tags": [
         "module-hypothesis"
       ]
+    },
+    {
+      "id": "US-507",
+      "title": "CLI: Add `configure set-budget --phase --budget` subcommand",
+      "priority": "high",
+      "description": "Add a `spiral configure set-budget --phase=I --budget=5.00` subcommand to main.py. The command reads spiral.config.sh, upserts or appends a SPIRAL_PHASE_BUDGETS_I variable with the supplied float value, and prints a confirmation. This gives operators a CLI-safe way to set per-phase cost caps without hand-editing the config file.",
+      "acceptanceCriteria": [
+        "Running `python main.py configure set-budget --phase=I --budget=5.00` exits 0 and prints a confirmation line containing 'SPIRAL_PHASE_BUDGETS_I=5.00'",
+        "After the command, `grep SPIRAL_PHASE_BUDGETS_I spiral.config.sh` returns the updated value",
+        "Running the command a second time with a different value overwrites the previous value (idempotent upsert)",
+        "Running with `--budget=-1` exits non-zero and prints an error about invalid budget"
+      ],
+      "technicalNotes": [
+        "File to edit: main.py (add subparser under `config` subcommand group, e.g. `config_sub.add_parser('set-budget')`; implement handler that regex-upserts `SPIRAL_PHASE_BUDGETS_<PHASE>=<value>` in spiral.config.sh)",
+        "File to edit: spiral.config.sh (add placeholder comment block `# Per-phase cost budgets (USD); 0 = unlimited` so upsert has a predictable anchor)",
+        "Test command: uv run pytest tests/test_configure_budget.py -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-508",
+      "title": "Phase I: Pre-flight abort when story batch exceeds phase budget",
+      "priority": "high",
+      "description": "Before Phase I dispatches stories to Ralph workers, compute the projected cost of the pending batch using lib/routing/cost_project.py and compare it against SPIRAL_PHASE_BUDGETS_I from spiral.config.sh. If the projected cost exceeds the budget (and the budget is non-zero), log a warning and skip stories that push the total over the cap, processing only stories that fit within the budget.",
+      "acceptanceCriteria": [
+        "When `SPIRAL_PHASE_BUDGETS_I=0.50` is set and the pending batch projects over $0.50, Phase I logs 'budget cap reached' and skips overflow stories",
+        "Stories skipped by the budget cap retain their `passes=false` state and are NOT marked as failed/retried",
+        "When `SPIRAL_PHASE_BUDGETS_I=0` (default/unlimited), Phase I runs without any skipping",
+        "Integration: `uv run pytest tests/test_phase_budget.py -v` passes with a mocked cost projector returning $1.00 against a $0.50 cap"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/routing/cost_project.py (expose a `project_batch_cost(stories: list[dict]) -> float` function if not already present)",
+        "File to edit: spiral.sh (Phase I block — read `SPIRAL_PHASE_BUDGETS_I` env var; call `python lib/routing/cost_project.py --batch` before dispatching; filter stories list)",
+        "Test command: uv run pytest tests/test_phase_budget.py -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-509",
+      "title": "Add lib/worker_health.sh: Per-Worker CPU, Memory, Temp File Metrics",
+      "priority": "high",
+      "description": "Create lib/worker_health.sh that samples CPU %, RSS memory bytes, and /tmp file count for each active worker PID every 30 seconds. Write results to a JSON metrics file in .spiral/ so other components can consume them.",
+      "acceptanceCriteria": [
+        "lib/worker_health.sh exists and is executable (chmod +x)",
+        "Running lib/worker_health.sh <pid> outputs valid JSON with keys: pid, cpu_pct, rss_bytes, tmp_file_count",
+        "uv run pytest tests/test_worker_health.py -v passes with at least one test validating JSON output schema"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/worker_health.sh (new file — shell script using ps -o %cpu,rss and ls /tmp | wc -l)",
+        "File to edit: tests/test_worker_health.py (new file — spawn worker_health.sh against current PID, assert JSON schema)",
+        "Test command: bash lib/worker_health.sh $$ && echo 'OK'",
+        "Test command: uv run pytest tests/test_worker_health.py -v",
+        "Output path: .spiral/worker_metrics.json (newline-delimited JSON, one record per sample)"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-510",
+      "title": "Dashboard API: GET /api/workers/metrics Returns Pool Health Summary",
+      "priority": "high",
+      "description": "Add a GET /api/workers/metrics endpoint to the dashboard server that reads .spiral/worker_metrics.json and returns a JSON response with pool summary (avg CPU, total RAM used, free RAM) and per-worker breakdown. Include an alert flag when any worker exceeds 80% RAM for over 2 minutes.",
+      "acceptanceCriteria": [
+        "curl http://localhost:5299/api/workers/metrics returns HTTP 200 with JSON keys: summary.avg_cpu, summary.total_ram_bytes, summary.free_ram_bytes, workers[]",
+        "workers[] entries include alert:true when rss_bytes has exceeded 80% of total RAM for >2 minutes continuously",
+        "uv run pytest tests/test_worker_metrics_api.py -v passes, mocking .spiral/worker_metrics.json with fixture data"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/dashboard_server.py or equivalent dashboard entry point (add route handler for /api/workers/metrics)",
+        "File to edit: tests/test_worker_metrics_api.py (new file — use httpx or requests to hit the endpoint with mocked metrics file)",
+        "Test command: curl -s http://localhost:5299/api/workers/metrics | python -m json.tool",
+        "Test command: uv run pytest tests/test_worker_metrics_api.py -v",
+        "Alert logic: track per-worker timestamps when rss_pct > 80; if latest_timestamp - first_over_threshold > 120s, set alert:true"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-511",
+      "title": "Phase S Test: DAG Cycle Detection in Federated Multi-Repo PRDs",
+      "priority": "medium",
+      "description": "Add integration test for Phase S validation of story dependency cycles in federated multi-repo prd.json. Test that self-referential dependencies and cross-repo circular dependencies are detected and fail validation with clear error messages.",
+      "acceptanceCriteria": [
+        "lib/tests/test_validate_cycles.py detects self-referential story dependencies (A→A) and reports error",
+        "Cross-repo dependencies (US-001@repo-a → US-002@repo-b) are resolved and validated without error",
+        "Circular cross-repo dependencies (US-001@repo-a → US-002@repo-b → US-001@repo-a) cause Phase S to fail with error message suggesting story reordering"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-512",
+      "title": "Ralph: Write LLM Invocation Trace to .spiral/traces/{story-id}.jsonl",
+      "priority": "medium",
+      "description": "Instrument ralph.sh to append a JSONL record after every Claude CLI invocation. Each record captures the fields needed for post-mortem debugging of failed stories without re-running SPIRAL.",
+      "acceptanceCriteria": [
+        "After any ralph.sh run, `.spiral/traces/{story-id}.jsonl` exists and each line is valid JSON with keys: prompt_prefix (str, ≤500 chars), model (str), input_tokens (int), output_tokens (int), latency_ms (int), final_status (str)",
+        "Running `uv run python -c \"import json,pathlib; [json.loads(l) for l in pathlib.Path('.spiral/traces/US-001.jsonl').read_text().splitlines()]\"` exits 0 (all lines parse without error)",
+        "Integration test `uv run pytest tests/test_trace_logger.py::test_trace_file_created -v` passes, asserting the file is created and schema-valid after a mocked ralph invocation"
+      ],
+      "technicalNotes": [
+        "File to edit: ralph/ralph.sh (section that calls `claude` CLI — capture $SECONDS before/after, parse token counts from JSON output, append jq-constructed record to .spiral/traces/${STORY_ID}.jsonl)",
+        "File to edit: lib/spiral/ or lib/ — create lib/trace_schema.py with a dataclass/TypedDict for the JSONL record to be reused by the CLI renderer story",
+        "Test command: uv run pytest tests/test_trace_logger.py -v",
+        "Ensure `.spiral/traces/` is created with `mkdir -p` before first write; directory is already gitignored via `.spiral/`"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-513",
+      "title": "Spiral CLI: `spiral trace --story` Renders Trace as Human-Readable Timeline",
+      "priority": "medium",
+      "description": "Add a `trace` subcommand to main.py that reads a `.spiral/traces/{story-id}.jsonl` file and prints a human-readable timeline showing each LLM call with model, token counts, latency, and final status. Depends on the trace logger story producing the JSONL files.",
+      "acceptanceCriteria": [
+        "Running `uv run python main.py trace --story=US-001 --format=pretty` exits 0 and prints ≥1 line containing the model name and token counts from the trace file",
+        "Running `uv run python main.py trace --story=MISSING --format=pretty` exits non-zero and prints a descriptive error message to stderr",
+        "Unit test `uv run pytest tests/test_trace_cli.py::test_pretty_render -v` passes using a fixture JSONL file"
+      ],
+      "technicalNotes": [
+        "File to edit: main.py (add `trace` subparser under existing argparse/click structure, alongside existing `status` and `estimate` subcommands)",
+        "File to edit: lib/trace.py (create; implement `render_pretty(story_id: str) -> None` that reads `.spiral/traces/{story_id}.jsonl` and formats output)",
+        "Test command: uv run pytest tests/test_trace_cli.py -v",
+        "Reuse the TraceRecord TypedDict/dataclass from lib/trace_schema.py introduced in the logger story; import and deserialize with json.loads per line"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-514",
+      "title": "Create Pre-Phase-I Snapshot in lib/snapshot.sh",
+      "priority": "medium",
+      "description": "Before Phase I executes, capture a point-in-time archive of prd.json, .spiral/_checkpoint.json, and story state into .spiral/snapshots/iteration-{N}.tar.gz. Prune the directory to keep only the 5 most recent snapshots. This ensures a restore point exists before any worker mutates project state.",
+      "acceptanceCriteria": [
+        "lib/snapshot.sh create_snapshot <N> produces .spiral/snapshots/iteration-{N}.tar.gz containing prd.json and .spiral/_checkpoint.json",
+        "Running lib/snapshot.sh create_snapshot 99 six times leaves exactly 5 files under .spiral/snapshots/ (oldest pruned)",
+        "spiral.sh calls lib/snapshot.sh create_snapshot before Phase I entry point (grep confirms call site)"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/snapshot.sh (create_snapshot — new file, bash function)",
+        "File to edit: spiral.sh (phase_i entry — add source lib/snapshot.sh && create_snapshot \"$ITERATION\" before worker launch)",
+        "Test command: bash tests/test_snapshot.bats (bats test verifying archive contents and 5-snapshot cap)",
+        "Snapshot dir: .spiral/snapshots/ — create if missing; tar flags: -czf for portability"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-515",
+      "title": "Perf test: SPIRAL dashboard data-load within 200ms baseline",
+      "priority": "medium",
+      "description": "Benchmark the core data-loading path introduced in US-460 (token burn rate, story throughput, model escalation heatmap). Capture a baseline from results.tsv parsing and assert that repeated calls stay within 120% of that baseline, catching regressions before they reach CI.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_perf_dashboard.py::test_dashboard_load_baseline -v exits 0 and prints a baseline_ms value",
+        "uv run pytest tests/test_perf_dashboard.py::test_dashboard_load_regression -v exits 0 when data-load time is within 20% of baseline",
+        "uv run pytest tests/test_perf_dashboard.py::test_dashboard_load_regression -v exits non-zero (FAILED) when a 2x sleep is injected into the loader",
+        "uv run pytest tests/test_perf_dashboard.py -v --tb=short reports 3 passed with no warnings"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_perf_dashboard.py (new file — create performance suite for US-460 dashboard loader)",
+        "File to edit: lib/dashboard.py or equivalent module introduced by US-460 (load_dashboard_data function)",
+        "Test command: uv run pytest tests/test_perf_dashboard.py -v --tb=short",
+        "Use time.perf_counter() to measure wall-clock seconds; store baseline in a module-level fixture; threshold = baseline * 1.20",
+        "If lib/dashboard.py does not yet exist, mock the data path using a small synthetic results.tsv (≤50 rows) written to tmp_path"
+      ],
+      "dependencies": [
+        "US-460"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "test-story",
+      "model": "haiku"
+    },
+    {
+      "id": "US-516",
+      "title": "[Performance Test] Benchmark Phase S batch validation vs sequential",
+      "priority": "medium",
+      "description": "Write a performance benchmark that measures Phase S story validation throughput when using the Message Batches API (implemented in US-390) versus the prior sequential baseline. The test stubs Anthropic API calls so it measures orchestration overhead, captures wall-clock timing, and asserts the batch path does not regress by more than 20% from a stored baseline.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_perf_phase_s_batch.py -v exits 0 and prints wall-clock seconds for validating 50 stories via batch and sequential paths",
+        "On first run the test writes a baseline JSON to tests/fixtures/perf_baseline_phase_s.json; on subsequent runs it loads and compares against it",
+        "Test fails with a clear AssertionError if batch validation wall-clock time exceeds 120% of the stored baseline",
+        "Batch validation of 50 mocked stories asserts completion in under 30 seconds via an explicit time.time() assertion"
+      ],
+      "technicalNotes": [
+        "File to create: tests/test_perf_phase_s_batch.py (functions: test_batch_validation_performance, test_sequential_validation_baseline)",
+        "File to create: tests/fixtures/perf_baseline_phase_s.json (auto-created on first run; commit the initial values after first passing run)",
+        "Test command: uv run pytest tests/test_perf_phase_s_batch.py -v --tb=short",
+        "Stub all Anthropic client calls with unittest.mock.patch so the benchmark is deterministic and free; import the batch validation entry point from lib/phases/phase_s.py once US-390 lands",
+        "Baseline file path must be relative so tests pass in CI without path changes"
+      ],
+      "dependencies": [
+        "US-390"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "test-story",
+      "model": "haiku"
+    },
+    {
+      "id": "US-517",
+      "title": "[Regression Test] Guard US-352: velocity model derived from results.tsv",
+      "priority": "medium",
+      "description": "Write regression tests that verify the story velocity model (US-352) correctly fits per-story telemetry from results.tsv to produce data-driven cost and duration estimates. Tests must exercise both the happy path (populated results.tsv) and the fallback path (empty/missing file), and must fail if the regression fitting logic is removed or broken.",
+      "acceptanceCriteria": [
+        "With a synthetic results.tsv containing 3+ rows per story_type, the estimate output reflects computed mean_tokens/mean_duration rather than static defaults",
+        "With an empty or missing results.tsv, the estimate command exits 0 and falls back to static defaults without raising an exception",
+        "uv run pytest tests/test_velocity_model.py -v exits 0 with all tests green",
+        "Deleting or stubbing out the regression-fitting call inside the velocity model causes at least one test to fail"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_velocity_model.py (new file — regression tests for US-352; use pytest tmp_path fixture to write synthetic results.tsv without touching real data)",
+        "File to edit: lib/cost_tracker.py or lib/velocity_model.py (locate the function that reads results.tsv and fits the regression — grep for 'results.tsv' to find it)",
+        "Test command: uv run pytest tests/test_velocity_model.py -v",
+        "Fixture pattern: write a CSV with columns model,tokens,cost,duration,status and at least two story_type groups so the linear fit has variance to test against"
+      ],
+      "dependencies": [
+        "US-352"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "test-story",
+      "model": "haiku"
     }
   ]
 }
