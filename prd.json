@@ -579,7 +579,8 @@
       "passes": true,
       "_source": "test-story",
       "model": "haiku",
-      "last_attempted": "2026-03-19T05:27:29Z"
+      "last_attempted": "2026-03-19T05:27:29Z",
+      "_scopeCreep": true
     },
     {
       "id": "US-484",
