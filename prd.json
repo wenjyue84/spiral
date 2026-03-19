@@ -339,7 +339,8 @@
         "module-hypothesis",
         "module-lib"
       ],
-      "last_attempted": "2026-03-19T02:00:58Z"
+      "last_attempted": "2026-03-19T02:00:58Z",
+      "_scopeCreep": true
     },
     {
       "id": "US-467",
