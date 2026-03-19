@@ -307,3 +307,168 @@ def test_predict_story_raises_on_missing_story_id(tmp_path: object) -> None:
 
     with pytest.raises(ValueError, match="US-999"):
         predict_story("US-999", str(prd_path), str(tsv))
+
+
+# ── Budget integration tests ─────────────────────────────────────────────
+
+
+def test_budget_check_integration(tmp_path: object) -> None:
+    """CLI exits with code 2 when estimated cost exceeds budget-remaining."""
+    import subprocess
+
+    tsv = tmp_path / "results.tsv"  # type: ignore[operator]
+    _write_results(
+        tsv,
+        [
+            _make_row(f"US-{i:03d}", f"Run pytest tests #{i}", "500", "sonnet")
+            for i in range(1, 10)
+        ],
+    )
+
+    prd_path = tmp_path / "prd.json"  # type: ignore[operator]
+    _write_prd(
+        prd_path,
+        [
+            {
+                "id": "US-001",
+                "title": "Run pytest tests for large test suite",
+                "passes": False,
+            }
+        ],
+    )
+
+    # Get the predict_cost.py path relative to this test file
+    import os
+    import sys
+
+    lib_dir = os.path.join(os.path.dirname(__file__), "..", "lib")
+    predict_cost_py = os.path.join(lib_dir, "predict_cost.py")
+
+    # Estimate the cost for this story first (to verify it's reasonable)
+    result = subprocess.run(
+        [
+            sys.executable,
+            predict_cost_py,
+            "--story-id",
+            "US-001",
+            "--prd",
+            str(prd_path),
+            "--history",
+            str(tsv),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, f"predict_cost failed: {result.stderr}"
+    estimated = json.loads(result.stdout)
+    estimated_cost = estimated["estimated_cost"]
+
+    # Now run with a budget that's LESS than the estimated cost
+    budget_remaining = estimated_cost * 0.5  # 50% of estimated cost
+    result_over_budget = subprocess.run(
+        [
+            sys.executable,
+            predict_cost_py,
+            "--story-id",
+            "US-001",
+            "--prd",
+            str(prd_path),
+            "--history",
+            str(tsv),
+            "--budget-remaining",
+            str(budget_remaining),
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    # Should exit with code 2 (budget exceeded)
+    assert result_over_budget.returncode == 2, (
+        f"Expected exit code 2, got {result_over_budget.returncode}. "
+        f"stderr: {result_over_budget.stderr}"
+    )
+
+    # Output should still be valid JSON with budget_exceeded flag
+    output = json.loads(result_over_budget.stdout)
+    assert output.get("budget_exceeded") is True
+    assert output.get("budget_remaining") == budget_remaining
+    assert output.get("estimated_cost") > budget_remaining
+
+
+def test_budget_check_under_limit(tmp_path: object) -> None:
+    """CLI exits with code 0 when estimated cost is within budget."""
+    import subprocess
+
+    tsv = tmp_path / "results.tsv"  # type: ignore[operator]
+    _write_results(
+        tsv,
+        [
+            _make_row(f"US-{i:03d}", f"Run pytest tests #{i}", "200", "haiku")
+            for i in range(1, 10)
+        ],
+    )
+
+    prd_path = tmp_path / "prd.json"  # type: ignore[operator]
+    _write_prd(
+        prd_path,
+        [
+            {
+                "id": "US-001",
+                "title": "Run pytest tests for small feature",
+                "passes": False,
+            }
+        ],
+    )
+
+    import os
+    import sys
+
+    lib_dir = os.path.join(os.path.dirname(__file__), "..", "lib")
+    predict_cost_py = os.path.join(lib_dir, "predict_cost.py")
+
+    # Estimate the cost
+    result = subprocess.run(
+        [
+            sys.executable,
+            predict_cost_py,
+            "--story-id",
+            "US-001",
+            "--prd",
+            str(prd_path),
+            "--history",
+            str(tsv),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    estimated = json.loads(result.stdout)
+    estimated_cost = estimated["estimated_cost"]
+
+    # Now run with a budget that's MORE than the estimated cost
+    budget_remaining = estimated_cost * 2.0  # 200% of estimated cost
+    result_under_budget = subprocess.run(
+        [
+            sys.executable,
+            predict_cost_py,
+            "--story-id",
+            "US-001",
+            "--prd",
+            str(prd_path),
+            "--history",
+            str(tsv),
+            "--budget-remaining",
+            str(budget_remaining),
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    # Should exit with code 0 (within budget)
+    assert result_under_budget.returncode == 0, (
+        f"Expected exit code 0, got {result_under_budget.returncode}. "
+        f"stderr: {result_under_budget.stderr}"
+    )
+
+    # Output should not have budget_exceeded flag
+    output = json.loads(result_under_budget.stdout)
+    assert output.get("budget_exceeded") is not True

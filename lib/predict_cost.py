@@ -224,9 +224,25 @@ def main(argv: list[str] | None = None) -> None:
     )
     parser.add_argument("--prd", required=True, help="Path to prd.json")
     parser.add_argument("--history", required=True, help="Path to results.tsv")
+    parser.add_argument(
+        "--budget-remaining",
+        type=float,
+        default=None,
+        help="Remaining budget in USD; exit 2 if estimated cost exceeds this",
+    )
     args = parser.parse_args(argv)
 
     result = predict_story(args.story_id, args.prd, args.history)
+
+    # Budget check: exit code 2 if over budget
+    if args.budget_remaining is not None:
+        estimated_cost = result.get("estimated_cost", 0.0)
+        if estimated_cost > args.budget_remaining:
+            result["budget_exceeded"] = True
+            result["budget_remaining"] = args.budget_remaining
+            print(json.dumps(result, indent=2))
+            sys.exit(2)
+
     print(json.dumps(result, indent=2))
 
 

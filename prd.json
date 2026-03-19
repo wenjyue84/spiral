@@ -1427,7 +1427,8 @@
       "_source": "research",
       "passes": false,
       "_decomposedFrom": "US-528",
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-03-19T20:06:57Z"
     },
     {
       "id": "US-531",
@@ -1588,54 +1589,6 @@
       "estimatedComplexity": "small",
       "passes": false,
       "model": "haiku"
-    },
-    {
-      "id": "US-544",
-      "title": "Cost Anomaly Detector: Flag Stories with Unusual Token Spend Patterns",
-      "priority": "medium",
-      "description": "Add CLI command to analyze results.tsv and detect stories whose implementation costs deviate significantly from their historical median, enabling early warnings for scope creep or inefficient implementations. Uses statistical anomaly detection (z-score > 2) to identify problematic stories.",
-      "acceptanceCriteria": [
-        "CLI command `spiral detect-anomalies` reads results.tsv, groups by story_id, calculates median and stddev for each story, flags entries where cost > (median + 2*stddev), outputs JSON with { 'anomalies': [{'storyId': 'US-123', 'iteration': 5, 'cost': 45000, 'median': 12000, 'zscore': 2.1, 'model': 'opus'}], 'summary': {'totalAnomalies': 3, 'affectedStories': 2} }",
-        "Output includes model used for each anomaly to identify if cost overruns correlate with model escalation (e.g., haiku→sonnet promotions)",
-        "Test assertion: given a story with costs [10000, 11000, 9000, 50000] in results.tsv, the detector should flag 50000 as anomaly with zscore ≥ 2.0"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-545",
-      "title": "Phase M: Detect and Report Story File Conflicts",
-      "priority": "medium",
-      "description": "When merging multiple stories, detect if they modify overlapping files/functions to prevent hidden merge conflicts during Phase I implementation.",
-      "acceptanceCriteria": [
-        "lib/conflict_detector.py compares implementation diffs from each story and identifies file overlaps (same file path modified by multiple stories)",
-        "Phase M logs conflicts to results.tsv with new conflict_files column containing pipe-separated file paths that conflict",
-        "Integration test merges US-501 (modifying src/auth.ts) and US-502 (also modifying src/auth.ts), verifies conflict is detected and logged"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "opus"
-    },
-    {
-      "id": "US-546",
-      "title": "CLI: spiral phase-timing-report — SLA Breach Analysis",
-      "priority": "medium",
-      "description": "Generate report from results.tsv showing which phases exceed SLA thresholds (median/p95 duration vs expected), helping identify iteration bottlenecks.",
-      "acceptanceCriteria": [
-        "CLI spiral phase-timing-report --format json outputs array of {phase, median_duration_sec, p95_duration_sec, sla_threshold_sec, breach_count} from results.tsv",
-        "lib/perf_analyzer.py computes p95_duration for each phase by reading duration_sec column grouped by phase_name",
-        "Integration test verifies p95 calculation: given 100 Phase R runs with durations [1,2,...100], p95 is correctly computed as 95th percentile"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "sonnet"
     }
   ]
 }
