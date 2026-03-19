@@ -1425,7 +1425,7 @@
       ],
       "estimatedComplexity": "small",
       "_source": "research",
-      "passes": false,
+      "passes": true,
       "_decomposedFrom": "US-528",
       "model": "haiku",
       "last_attempted": "2026-03-19T20:06:57Z"
