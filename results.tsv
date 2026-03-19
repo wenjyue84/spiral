@@ -27,3 +27,4 @@ claude-sonnet-4-6			69b7578f2a32	true	2586566	0	0	0	0	0
 2026-03-17T10:40:35Z	0	11	US-419	Add vulture dead code detector for lib/ Python modules in CI	reject	303	sonnet	2			true	974376	41269	0	0	0	0	0	
 2026-03-17T10:46:40Z	0	12	US-419	Add vulture dead code detector for lib/ Python modules in CI	reject	363	opus	3			true	1680779	68487	0	0	0	0	0	
 2026-03-19T05:01:54Z	15	1	US-482	Integration Tests for Phase G: CHANGELOG and API Doc Generation	reject	326	haiku	1		69bb50616427	true	2932458	82792	0	0	0	0	0	
+2026-03-19T05:07:46Z	2	1	US-482	Integration Tests for Phase G: CHANGELOG and API Doc Generation	reject	541	haiku	2		69bb6f3262af	true	3595948	111751	0	0	0	0	0	
