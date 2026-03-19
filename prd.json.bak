@@ -388,7 +388,7 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "haiku",
       "filesTouch": [
@@ -406,7 +406,9 @@
       "tags": [
         "module-hypothesis",
         "module-lib"
-      ]
+      ],
+      "last_attempted": "2026-03-19T03:31:26Z",
+      "_passedCommit": "df8d0149b07fba31d7d07d9631a80087370cf7a0"
     },
     {
       "id": "US-472",
@@ -500,6 +502,24 @@
         "module-lib",
         "module-tests"
       ]
+    },
+    {
+      "id": "US-481",
+      "title": "Real-time worker pool status HTTP API for dashboard",
+      "priority": "high",
+      "description": "Expose live worker heartbeat and current story via GET /api/workers endpoint to enable dashboard to display worker health, active stories, and elapsed time without polling filesystem.",
+      "acceptanceCriteria": [
+        "GET /api/workers endpoint returns JSON array: [{worker_id, current_story, elapsed_time_sec, state (alive|timeout|idle)}]",
+        "Worker heartbeat tracked via .spiral-workers/worker-N/.heartbeat timestamp file; workers marked timeout if stale >5min",
+        "Test: verify endpoint gracefully handles no workers running; test worker timeout detection after 5min without heartbeat update",
+        "HTTP server configured via SPIRAL_DASHBOARD_PORT env var (default 5300)"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
     }
   ]
 }

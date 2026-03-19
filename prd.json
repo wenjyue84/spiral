@@ -408,7 +408,8 @@
         "module-lib"
       ],
       "last_attempted": "2026-03-19T03:31:26Z",
-      "_passedCommit": "df8d0149b07fba31d7d07d9631a80087370cf7a0"
+      "_passedCommit": "df8d0149b07fba31d7d07d9631a80087370cf7a0",
+      "_scopeCreep": true
     },
     {
       "id": "US-472",
@@ -457,7 +458,7 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "haiku",
       "filesTouch": [
@@ -474,7 +475,8 @@
       ],
       "tags": [
         "module-hypothesis"
-      ]
+      ],
+      "_passedCommit": "df8d0149b07fba31d7d07d9631a80087370cf7a0"
     },
     {
       "id": "US-480",
