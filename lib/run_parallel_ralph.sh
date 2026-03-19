@@ -50,7 +50,8 @@ fi
 
 WORKER_DIR="$SCRATCH_DIR/workers"
 WORKTREE_BASE="$REPO_ROOT/.spiral-workers"
-HEARTBEAT_DIR="$SCRATCH_DIR/workers" # Heartbeat files written here
+# Note: HEARTBEAT_DIR is set per-worker in _launch_worker_i() to $WORKTREE_BASE/worker-${i}
+# This allows worker_heartbeat.sh to write .heartbeat directly in the worker's directory
 # Unique lock dir per invocation (using PID avoids collisions if SPIRAL is re-run)
 LOCK_DIR="/tmp/spiral-docker-lock-$$"
 TIMESTAMP=$(date +%s)
@@ -212,8 +213,10 @@ cleanup_parallel() {
       find "$_wt" -name "index.lock" -delete 2>/dev/null || true
     fi
   done
-  # Clean up heartbeat files
-  rm -f "$HEARTBEAT_DIR"/worker_*.heartbeat 2>/dev/null || true
+  # Clean up old heartbeat files (US-481: now stored in .spiral-workers/worker-N/.heartbeat)
+  # Worktrees removed above, so .heartbeat files are cleaned automatically
+  # Keep this for backward compatibility with any remaining old-style heartbeat files
+  [[ -d "$HEARTBEAT_DIR" ]] && rm -f "$HEARTBEAT_DIR"/worker_*.heartbeat 2>/dev/null || true
   # Clean up cgroup slices (US-259)
   for _cg_i in $(seq 1 "$RALPH_WORKERS"); do
     _cgroup_cleanup "$_cg_i" 2>/dev/null || true
@@ -873,7 +876,7 @@ _launch_worker_i() {
     trap "$_HB_CLEANUP" EXIT
     cd "$WTREE"
     export PATH="$WTREE/.spiral-bin:$PATH"
-    export SPIRAL_WORKER_ID=$i HEARTBEAT_DIR="$HEARTBEAT_DIR"
+    export SPIRAL_WORKER_ID=$i HEARTBEAT_DIR="$WORKTREE_BASE/worker-${i}"
     export SPIRAL_MEMORY_LIMIT="${SPIRAL_WORKER_MEMORY_LIMIT:-$SPIRAL_MEMORY_LIMIT}"
     # US-224: Propagate W3C trace context to worker for distributed tracing
     [[ -n "${TRACEPARENT:-}" ]] && export TRACEPARENT
@@ -1157,8 +1160,8 @@ while [[ "$_ALL_DONE" -eq 0 ]]; do
           _WID=$("$JQ" -r ".[$idx].workerId" <<<"$_STALE_JSON")
           _SID=$("$JQ" -r ".[$idx].storyId" <<<"$_STALE_JSON")
           _AGED=$("$JQ" -r ".[$idx].staledSinceSeconds" <<<"$_STALE_JSON")
-          # Read completed count from heartbeat file if available
-          _HB_FILE="$HEARTBEAT_DIR/worker_${_WID}.heartbeat"
+          # Read completed count from heartbeat file if available (US-481: new location)
+          _HB_FILE="$WORKTREE_BASE/worker-${_WID}/.heartbeat"
           _COMPLETED=0
           if [[ -f "$_HB_FILE" ]]; then
             _COMPLETED=$("$JQ" -r '.completed // 0' "$_HB_FILE" 2>/dev/null || echo "0")

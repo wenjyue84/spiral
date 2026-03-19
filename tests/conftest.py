@@ -8,7 +8,8 @@ import pytest
 from hypothesis import HealthCheck, settings
 from hypothesis import strategies as st
 
-# Ensure lib/ is importable
+# Ensure lib/ and project root are importable
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 
 

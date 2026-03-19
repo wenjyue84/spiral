@@ -41,7 +41,9 @@ worker_heartbeat_start() {
       local current_story_id="${SPIRAL_CURRENT_STORY:-unknown}"
       local completed="${SPIRAL_STORIES_COMPLETED:-0}"
       local phase="${SPIRAL_WORKER_PHASE:-unknown}"
-      local hb_file="$HEARTBEAT_DIR/worker_${worker_id}.heartbeat"
+      # US-481: Write .heartbeat directly in HEARTBEAT_DIR (typically .spiral-workers/worker-N)
+      # This allows the GET /api/workers endpoint to read it without needing worker_id
+      local hb_file="$HEARTBEAT_DIR/.heartbeat"
       local ts=$(date +%s)
       local pid=$$
       # Get memory usage in MB (cross-platform)
@@ -75,8 +77,8 @@ worker_heartbeat_stop() {
   kill "$_HEARTBEAT_PID" 2>/dev/null || true
   wait "$_HEARTBEAT_PID" 2>/dev/null || true
 
-  # Clean up heartbeat file
-  local hb_file="$HEARTBEAT_DIR/worker_${worker_id}.heartbeat"
+  # Clean up heartbeat file (US-481: write directly to HEARTBEAT_DIR/.heartbeat)
+  local hb_file="$HEARTBEAT_DIR/.heartbeat"
   rm -f "$hb_file" 2>/dev/null || true
 
   echo "[heartbeat] Worker $worker_id: heartbeat loop stopped, cleanup done"

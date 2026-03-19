@@ -14,3 +14,4 @@
 {"story_id": "US-471", "estimated_complexity": "small", "actual_duration_s": 601, "phase_retries": 0, "passed": true}
 {"story_id": "US-471", "estimated_complexity": "small", "actual_duration_s": 602, "phase_retries": 0, "passed": true}
 {"story_id": "US-471", "estimated_complexity": "small", "actual_duration_s": 602, "phase_retries": 0, "passed": true}
+{"story_id": "US-481", "estimated_complexity": "small", "actual_duration_s": 601, "phase_retries": 0, "passed": true}

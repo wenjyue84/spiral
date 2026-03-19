@@ -294,6 +294,11 @@ class SpiralLiveServer:
             await self._handle_workers_status(path, writer)
             return
 
+        # --- Worker pool (US-481: /api/workers endpoint) ---
+        if path == "/api/workers" and method == "GET":
+            await self._handle_api_workers(writer)
+            return
+
         # --- Project dashboard ---
         m2 = re.match(r"^/([^/?]+)$", path)
         if m2 and method == "GET":
@@ -395,6 +400,64 @@ class SpiralLiveServer:
 
         workers.sort(key=lambda w: w.get("worker_id", "0"))
         await self._send_json(writer, 200, {"workers": workers, "ts": now})
+
+    async def _handle_api_workers(self, writer: asyncio.StreamWriter) -> None:
+        """Return JSON array of worker pool status from heartbeat files (US-481).
+
+        Returns: [{worker_id, current_story, elapsed_time_sec, state}]
+        where state is one of: 'alive' (heartbeat fresh), 'timeout' (>5min stale), 'idle' (no heartbeat)
+        """
+        workers_dir = ".spiral-workers"
+        now = time.time()
+        timeout_threshold_sec = 300  # 5 minutes
+        workers = []
+
+        # Scan .spiral-workers/ directory for worker-N subdirectories
+        if not os.path.isdir(workers_dir):
+            await self._send_json(writer, 200, workers)
+            return
+
+        try:
+            worker_subdirs = [
+                d for d in os.listdir(workers_dir)
+                if os.path.isdir(os.path.join(workers_dir, d))
+            ]
+        except OSError:
+            await self._send_json(writer, 200, workers)
+            return
+
+        for worker_subdir in worker_subdirs:
+            heartbeat_file = os.path.join(workers_dir, worker_subdir, ".heartbeat")
+
+            try:
+                with open(heartbeat_file, encoding="utf-8") as f:
+                    hb_data = json.load(f)
+            except (OSError, json.JSONDecodeError):
+                # Gracefully skip malformed or missing heartbeat files
+                continue
+
+            # Extract fields from heartbeat JSON
+            ts = hb_data.get("ts")
+            if ts is None:
+                continue
+
+            elapsed_time_sec = int(now - ts)
+            story_id = hb_data.get("storyId", "unknown")
+
+            # Determine state: alive or timeout (based on 5-min threshold)
+            state = "timeout" if elapsed_time_sec > timeout_threshold_sec else "alive"
+
+            worker_entry = {
+                "worker_id": worker_subdir,
+                "current_story": story_id,
+                "elapsed_time_sec": elapsed_time_sec,
+                "state": state,
+            }
+            workers.append(worker_entry)
+
+        # Sort by worker_id for consistent ordering
+        workers.sort(key=lambda w: w.get("worker_id", ""))
+        await self._send_json(writer, 200, workers)
 
     async def _handle_index(self, writer: asyncio.StreamWriter) -> None:
         """Return HTML index listing registered projects."""
@@ -643,15 +706,22 @@ h1{color:#58a6ff;margin-bottom:1rem;font-size:1.2rem}
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="SPIRAL live SSE streaming server (US-277)",
+        description="SPIRAL live SSE streaming server (US-277, US-481)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("--host", default="0.0.0.0", help="Bind address (default: 0.0.0.0)")
+
+    # Support both SPIRAL_DASHBOARD_PORT (5300) and SPIRAL_UI_PORT (5299) for port configuration
+    # SPIRAL_DASHBOARD_PORT takes precedence (US-481 spec), falls back to SPIRAL_UI_PORT for compatibility
+    default_port_str = (
+        __import__("os").environ.get("SPIRAL_DASHBOARD_PORT")
+        or __import__("os").environ.get("SPIRAL_UI_PORT", "5300")
+    )
     parser.add_argument(
         "--port",
         type=int,
-        default=int(__import__("os").environ.get("SPIRAL_UI_PORT", "5299")),
-        help="Port to listen on (default: $SPIRAL_UI_PORT or 5299)",
+        default=int(default_port_str),
+        help="Port to listen on (default: $SPIRAL_DASHBOARD_PORT, $SPIRAL_UI_PORT, or 5300)",
     )
     args = parser.parse_args()
 
