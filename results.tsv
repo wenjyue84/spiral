@@ -32,3 +32,4 @@ claude-sonnet-4-6			69b7578f2a32	true	2586566	0	0	0	0	0
 2026-03-19T05:35:15Z	19	1	US-483	Integration Tests for SPIRAL Self-Monitoring Dashboard (US-460)	reject	359	haiku	2		69bb4d1f70bc	true	3780399	90670	0	0	0	0	0	
 2026-03-19T15:17:36Z	5	1	US-505	[Integration Test] Add integration tests for US-452 smart model routing	reject	454	haiku	1		69bc05e46769	true	6631583	104011	0	0	0	0	0	
 2026-03-19T15:40:19Z	7	1	US-515	CLI: validate-federated — Circular Dependency Detection with Cycle Paths	reject	303	haiku	1		69bc05e46769	true	2767107	87331	0	0	0	0	0	
+2026-03-19T15:55:37Z	8	1	US-516	[Integration Test] Phase G: CHANGELOG.md generation via git-cliff	reject	343	haiku	1		69bc05e46769	true	4243572	84670	0	0	0	0	0	
