@@ -1492,8 +1492,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "sonnet",
-      "last_attempted": "2026-03-19T21:43:35Z"
+      "model": "sonnet"
     },
     {
       "id": "US-538",
@@ -1648,6 +1647,70 @@
         "Add lib/analyze_failures.py with FailureAnalyzer class: reads .spiral/logs/ and results.tsv, regex-matches failure patterns (e.g., 'exceeds.*max_tokens' → scope_exceeded, 'rate_limit' → api_rate_limit), categorizes each retry",
         "CLI: spiral analyze-failures --format json outputs {\"by_category\": {\"scope_exceeded\": int, ...}, \"by_phase\": {...}, \"recommendation\": string}; phases with >30% scope_exceeded failures recommend SPIRAL_DECOMPOSE_THRESHOLD tuning",
         "Add `failure_root_cause` column to results.tsv for each story attempt; Phase I logs structured reason to `.spiral/logs/phase-i-<iteration>.log` on retry"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-548",
+      "title": "Dashboard Endpoint - Research Source Authority Tracking",
+      "priority": "medium",
+      "description": "Add dashboard endpoint that extracts and scores research URLs by domain authority and mention frequency across iterations. Returns credibility report to identify if Phase R research comes from reputable sources. Advances self-monitoring dashboard observability (goal 3).",
+      "acceptanceCriteria": [
+        "GET /api/dashboard/research-sources parses _research_output.json and returns JSON array: [{url, domain, credibility_score (0-100), mention_count}]",
+        "Credibility scoring: .gov/.edu domains =90+, news sites =75-85, blogs/forums =50-60; score stored per iteration in .spiral/research_sources.json",
+        "Integration test verifies endpoint correctly scores 2 URLs (one .gov, one .com blog) with expected mention counts from sample _research_output.json"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-549",
+      "title": "Dashboard Endpoint: GET /api/dashboard/story-phase-costs Returns Per-Story Cost by Phase",
+      "priority": "medium",
+      "description": "Implement dashboard endpoint that aggregates results.tsv to expose cost/tokens/duration per story per phase (R, T, S, I, V). Enables identification of expensive phases and cost bottlenecks at story granularity.",
+      "acceptanceCriteria": [
+        "GET /api/dashboard/story-phase-costs returns JSON: {data: [{story_id: 'US-101', phases: [{name: 'R', tokens: 2000, cost: 0.02, duration_sec: 5.2}, {name: 'I', tokens: 45000, cost: 0.45, duration_sec: 120}]}]}",
+        "Endpoint parses results.tsv (columns: story_id, phase, tokens, cost, duration_sec) and groups by (story_id, phase), handling retries by summing tokens",
+        "Test in tests/test_dashboard_story_costs.py validates endpoint with mock results.tsv fixture and asserts cost totals match aggregation logic"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-550",
+      "title": "Iteration Performance Summary CLI: Compare token burn, velocity, and quality metrics across iterations",
+      "priority": "medium",
+      "description": "Add a CLI command to query results.tsv and _checkpoint.json to compute per-iteration statistics: total stories passed, token burn, cost per story, average phase duration. Output a formatted table with iteration-over-iteration deltas to identify trends (improving or degrading quality/efficiency). Advances Goal 3 (self-monitoring dashboard) by providing historical trend visibility without dashboard overhead.",
+      "acceptanceCriteria": [
+        "CLI command: spiral iteration-summary outputs TSV table with columns: iteration | stories_passed | stories_failed | total_tokens | total_cost | avg_cost_per_story | median_phase_duration_sec",
+        "Support --compare flag to show iteration-over-iteration deltas (e.g., Δtokens +5%, Δpass_rate -2%)",
+        "Parse iteration boundaries from .spiral/_checkpoint.json and group results.tsv rows by iteration number"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-551",
+      "title": "Phase Bottleneck Analysis CLI: Identify failure-prone phases and token cost outliers by model and iteration",
+      "priority": "medium",
+      "description": "Add a CLI command to analyze results.tsv and identify phases with low pass rates, high token variance, or excessive duration. Output phase-level statistics grouped by model (haiku/sonnet/opus) to pinpoint where SPIRAL consistently struggles and where escalations occur. Advances Goal 1 (monitoring) by enabling targeted optimization of high-cost or low-reliability phases.",
+      "acceptanceCriteria": [
+        "CLI command: spiral phase-analysis outputs TSV table sorted by pass_rate (ascending): phase | model | story_count | pass_rate | median_tokens | p95_tokens | median_duration_sec | max_duration_sec",
+        "Support --phase R filter to drill into single phase and show per-model breakdown (e.g., haiku pass_rate vs sonnet escalation rate)",
+        "Compute pass_rate = passed_stories / total_stories per phase; flag phases with <80% pass rate in summary output"
       ],
       "technicalNotes": [],
       "dependencies": [],

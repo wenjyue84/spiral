@@ -1,3 +1,28 @@
+## Iteration 40 - US-537: CLI Command: spiral complexity-trend
+
+### What was implemented
+- lib/complexity_trend.py: new module with load_results, compute_story_metrics, build_phase_report, write_csv, run_trend, _cli functions
+  - Reads results.tsv (columns: timestamp, spiral_iter, ralph_iter, story_id, story_title, status, duration_sec, model, retry_num, commit_sha)
+  - Groups rows by story_id, detects model escalations (haiku→sonnet→opus tier increases between retries)
+  - Computes: avg_retries, p50_duration_seconds, model_escalations, tokens_per_retry
+  - Outputs CSV or JSON (--format flag)
+  - Standalone CLI via python lib/complexity_trend.py --phase I --format json --history results.tsv
+- main.py: added cmd_complexity_trend(), registered complexity-trend subparser with --phase/--history/--output/--format flags
+- tests/test_spiral_complexity_trend.py: 21 tests — unit (p50, escalation detection), integration (mock 10-story TSV), CLI subprocess
+
+### Acceptance criteria verification
+✓ CSV output: story_id, avg_retries, p50_duration_seconds, model_escalations, tokens_per_retry
+✓ JSON output: {phase, stories: [{id, retries, duration_seconds, escalations}], phase_avg_retries, total_escalations}
+✓ Integration test: 10 stories (3 with haiku→sonnet→opus = 2 escalations each), asserts escalation_count=2 per story
+✓ All 21 tests pass, mypy --strict clean
+
+### Patterns discovered
+- results.tsv has no explicit "phase" column; all rows are Phase I (implementation). --phase flag is label/filter only.
+- Model tier matching uses substring: "haiku" in model string → tier 0, "sonnet" → 1, "opus" → 2
+- p50 of empty list = 0.0 (safe default)
+
+---
+
 ## Iteration 39 - US-531: Automatic Worker Lag Detection & Restart on Heartbeat Timeout
 
 ### What was implemented
