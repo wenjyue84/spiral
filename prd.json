@@ -1686,7 +1686,8 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "sonnet",
-      "last_attempted": "2026-03-19T23:04:22Z"
+      "last_attempted": "2026-03-19T23:04:22Z",
+      "_scopeCreep": true
     },
     {
       "id": "US-554",
