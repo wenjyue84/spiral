@@ -24,3 +24,4 @@
 {"story_id": "US-482", "estimated_complexity": "medium", "actual_duration_s": 902, "phase_retries": 0, "passed": true}
 {"story_id": "US-483", "estimated_complexity": "medium", "actual_duration_s": 901, "phase_retries": 0, "passed": true}
 {"story_id": "US-483", "estimated_complexity": "medium", "actual_duration_s": 900, "phase_retries": 0, "passed": true}
+{"story_id": "US-485", "estimated_complexity": "medium", "actual_duration_s": 900, "phase_retries": 0, "passed": true}
