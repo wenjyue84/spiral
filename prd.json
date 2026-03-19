@@ -1426,6 +1426,70 @@
       "model": "haiku"
     },
     {
+      "id": "US-531",
+      "title": "Automatic Worker Lag Detection & Restart on Heartbeat Timeout",
+      "priority": "medium",
+      "description": "Monitor worker heartbeat intervals. If a worker reports no progress for >SPIRAL_WORKER_TIMEOUT (default 300s), auto-terminate and restart it with the same story to recover from silent hangs or network stalls in parallel worker pool.",
+      "acceptanceCriteria": [
+        "lib/worker_heartbeat.sh includes _last_progress_time on each heartbeat; if current_time - _last_progress_time > SPIRAL_WORKER_TIMEOUT, log WARNING with worker ID",
+        "lib/run_parallel_ralph.sh detects stalled workers via heartbeat file mtime, sends SIGTERM to worktree bash process, restarts Phase I on same story in new worktree",
+        "Integration test: mock Phase I hang (sleep 600s), verify worker restarts after 300s timeout and story eventually completes"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-532",
+      "title": "CLI: federated-health — Sub-Project Validation Report with Dependency Analysis",
+      "priority": "medium",
+      "description": "Add CLI command to validate all sub-projects in federated prd.json setup. Checks each sub-project's prd.json validity, story ID uniqueness, required files, and cross-project dependency resolution. Generates JSON health report.",
+      "acceptanceCriteria": [
+        "New command: uv run python main.py federated-health --root . --output .spiral/federated-health.json scans all prd.json files and outputs JSON with per-project validation status (valid|invalid), validation errors list, missing files list, and unresolved dependencies",
+        "Report includes aggregate metrics: total_projects, projects_healthy_count, projects_with_errors_count, cross_project_dependencies_resolved_count, orphaned_dependency_list",
+        "Integration test: lib/tests/test_federated_health.py creates mock federated structure with 2 projects (one valid, one with missing prd.json and broken dependency), verify report correctly identifies all validation failures"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-533",
+      "title": "Phase Timing Bottleneck Detection: spiral analyze-phases Command",
+      "priority": "medium",
+      "description": "Build CLI command that reads results.tsv to identify which phases consume the most time per story type and model, enabling targeted optimization. Output ranked phase list with median/p95 durations and flags slow phases (>2min).",
+      "acceptanceCriteria": [
+        "lib/cli/analyze_phases.py computes phase duration statistics by (story_type, model) from results.tsv; outputs JSON with per-phase median_sec, p95_sec, and slow_flag",
+        "spiral analyze-phases command runs analysis and prints ranked phases by duration; flags any phase >120sec with optimization suggestions",
+        "Integration test verifies analysis correctly identifies bottlenecks when Phase I stories have high token counts (>5000 tokens); assert Phase I median_sec > Phase R median_sec"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-534",
+      "title": "Integration Test: Ralph Episodic Memory Pattern Injection Validation",
+      "priority": "medium",
+      "description": "Add test that verifies episodic memory patterns load, format, and inject into ralph/CLAUDE.md prompts without corruption. Ensures memory integration doesn't break prompt syntax or exceed token limits.",
+      "acceptanceCriteria": [
+        "tests/integration/test_ralph_memory_injection.py mocks episodic memory with 3 test patterns, invokes ralph with test story, parses rendered prompt file and asserts all 3 patterns present in correct order with no duplicates",
+        "Assertion: final prompt is valid markdown, contains no syntax errors, and rendered prompt token count ≤ 90% of Claude context window (prevents context overflow)",
+        "Regression test: verify memory injection with empty store (0 patterns) doesn't break prompt generation; ralph still runs successfully"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
       "id": "US-535",
       "title": "Phase S Batch Request Optimizer: Group Similar Stories for Single API Call",
       "priority": "high",
@@ -1439,8 +1503,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "sonnet",
-      "last_attempted": "2026-03-19T17:35:15Z"
+      "model": "sonnet"
     }
   ]
 }
