@@ -373,3 +373,30 @@ class TestWorkerDecomposition:
         # Verify: sub-stories are present with correct _decomposedFrom
         us003 = [s for s in merged_prd["userStories"] if s["id"] == "US-003"][0]
         assert us003.get("_decomposedFrom") == "US-002"
+
+
+# ─────────────────────────────────────────────────────────────────
+# Acceptance Criteria Tests (Module-level, per US-517)
+# ─────────────────────────────────────────────────────────────────
+
+
+def test_parallel_workers_no_prd_conflict(tmp_path: Path) -> None:
+    """
+    Acceptance criterion 1:
+    uv run pytest tests/test_worker_isolation.py::test_parallel_workers_no_prd_conflict -v exits 0
+
+    Validates that 2 concurrent workers produce valid, non-corrupted prd.json.
+    """
+    test = TestWorkerIsolationHappyPath()
+    test.test_worker_isolation_happy_path(tmp_path)
+
+
+def test_results_tsv_no_duplicate_story_rows(tmp_path: Path) -> None:
+    """
+    Acceptance criterion 2:
+    uv run pytest tests/test_worker_isolation.py::test_results_tsv_no_duplicate_story_rows -v exits 0
+
+    Validates that results.tsv merged from 2 workers has no duplicate story IDs.
+    """
+    test = TestWorkerIsolationHappyPath()
+    test.test_worker_results_tsv_uniqueness(tmp_path)

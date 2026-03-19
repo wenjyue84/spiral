@@ -1121,7 +1121,7 @@
         "US-494"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -1148,7 +1148,8 @@
       ],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku"
+      "model": "haiku",
+      "_scopeCreep": true
     },
     {
       "id": "US-519",
@@ -1405,6 +1406,22 @@
         "Phase C generates spiral/reports/iteration_NNNN.json containing {phase_r: {tokens, cost}, phase_i: {tokens, cost}, ..., passed_stories: N, failed_stories: N, cumulative_pass_rate: %}",
         "Iteration summary committed to git with message: 'Iteration 5: 12/15 stories passing (80%), Phase R $10.23, Phase I $8.45'",
         "Integration test tests/test_iteration_summary.py: run 2-iteration SPIRAL, verify 2 report files exist, cumulative_pass_rate increases or holds steady"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-532",
+      "title": "CLI Command: spiral cost-forecast — Predict Iteration Costs Using Velocity Model",
+      "priority": "medium",
+      "description": "Forecast upcoming SPIRAL iteration costs using the historical velocity model. Users can project budget requirements for N iterations, enabling better cost planning and proactive budget ceiling management.",
+      "acceptanceCriteria": [
+        "CLI: `spiral cost-forecast --iterations 5` outputs JSON with fields: total_projected_cost, per_iteration_avg, model_distribution (haiku%, sonnet%, opus%), variance_confidence_interval",
+        "Implementation: lib/forecast_costs.py reads results.tsv, computes mean/variance from prior 10+ iterations, projects forward with ±10% confidence bands",
+        "Integration test: given 15 historical iterations, run cost-forecast --iterations 5, then execute actual SPIRAL run; verify forecast within 15% of realized total cost"
       ],
       "technicalNotes": [],
       "dependencies": [],

@@ -1223,3 +1223,33 @@ FAILED diagnosis-block gate: [Integration Test] Episodic memory store: write, re
 
 ### Gotchas
 - Ralph diagnosis block gate is strict — must output ## Current State / ## Problem Identified / ## Planned Changes as plain text BEFORE any tool call that modifies files
+
+
+## Pre-analysis for US-517 (Gemini 2.5 Pro)
+Here is a technical brief for implementing the integration test based on the user story provided.
+
+**Subject: Technical Brief for US-517: Parallel Worker Integration Test**
+
+**1. Files to Modify/Create:**
+*   **Create:** `tests/test_worker_isolation.py`.
+*   **Implement Functions:** `test_parallel_workers_no_prd_conflict` and `test_results_tsv_no_duplicate_story_rows` within the new file.
+*   **Reference:** Read and understand `lib/run_parallel_ralph.sh` to see how workers are launched and isolated.
+
+**2. Key Components Involved:**
+*   This is a `pytest` integration test, not a Frappe/DocType task.
+*   Utilize Python's `subprocess` module to simulate launching two concurrent worker processes.
+*   The test will validate the integrity of two key artifacts: `prd.json` and `results.tsv`.
+
+**3. Recommended Implementation Approach:**
+*   Use the `pytest` `tmp_path` fixture to create a temporary, isolated environment for the test.
+*   Create two separate subdirectories within `tmp_path` to simulate the isolated worker worktrees.
+*   Use `subprocess.Popen` to launch two parallel processes, each running a helper script that simulates modifying `prd.json` and appending a unique row to `results.tsv`.
+*   Use `process.wait()` to ensure both workers have finished.
+*   Assert that the final `prd.json` file is valid JSON and contains the expected content.
+*   Read `results.tsv` and assert that no duplicate story IDs are present, confirming that file locking prevented race conditions.
+
+**4. Edge Cases & Gotchas:**
+*   Ensure the subprocesses run in their own isolated directories to correctly simulate the git worktrees mentioned in the story.
+*   The goal is to test the locking mechanism. The test must trigger near-simultaneous writes to create the potential for a race condition that the production lock should prevent.
+*   Rely on `pytest`'s `tmp_path` fixture for automatic cleanup of test artifacts.
+

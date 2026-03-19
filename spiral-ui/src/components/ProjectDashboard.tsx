@@ -1146,8 +1146,15 @@ function SettingsTab({ config, configRaw, projectName, onConfigSaved }: {
   );
 }
 
-function ConstitutionTab({ text }: { text: string }) {
-  if (!text) {
+function ConstitutionTab({ text, projectName }: { text: string; projectName?: string }) {
+  const [draft, setDraft] = useState(text);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => { setDraft(text); }, [text]);
+
+  if (!text && draft === '') {
     return (
       <div className="p-6 text-slate-500">
         No constitution found. Set <code className="bg-slate-100 px-1 rounded">SPIRAL_SPECKIT_CONSTITUTION</code> in your config,
@@ -1155,21 +1162,63 @@ function ConstitutionTab({ text }: { text: string }) {
       </div>
     );
   }
-  const lineCount = text.split('\n').length;
+
+  const lineCount = draft.split('\n').length;
   const isTooLong = lineCount > 150;
+  const isDirty = draft !== text;
+
+  async function handleSave() {
+    setSaving(true);
+    setError('');
+    try {
+      const res = await fetch('/api/save-constitution', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: draft, name: projectName }),
+      });
+      const data = await res.json() as { ok?: boolean; error?: string };
+      if (!data.ok) throw new Error(data.error ?? 'Save failed');
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
-    <div className="p-6">
-      <div className="flex items-center gap-3 mb-3">
+    <div className="p-6 flex flex-col gap-3 h-full">
+      <div className="flex items-center gap-3">
         <span className="text-xs text-slate-500 font-mono">{lineCount} lines</span>
         {isTooLong && (
           <span className="flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-0.5">
             ⚠ Constitution is long ({lineCount} lines). Consider trimming — LLMs may not reliably follow rules past ~150 lines.
           </span>
         )}
+        <div className="ml-auto flex items-center gap-2">
+          {error && <span className="text-xs text-red-600">{error}</span>}
+          {saved && <span className="text-xs text-green-600 font-medium">✓ Saved</span>}
+          <button
+            onClick={handleSave}
+            disabled={saving || !isDirty}
+            className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+              isDirty
+                ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+            }`}
+          >
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
       </div>
-      <div className="rounded-xl border border-slate-200 bg-white p-5 prose prose-sm max-w-none">
-        <pre className="whitespace-pre-wrap text-xs text-slate-700 font-mono leading-relaxed">{text}</pre>
-      </div>
+      <textarea
+        value={draft}
+        onChange={e => setDraft(e.target.value)}
+        className="flex-1 w-full rounded-xl border border-slate-200 bg-white p-5 text-xs text-slate-700 font-mono leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-blue-300"
+        spellCheck={false}
+        style={{ minHeight: '400px' }}
+      />
     </div>
   );
 }
@@ -1381,25 +1430,122 @@ function WorkersTab({ projectName, activeStory }: { projectName: string; activeS
 }
 
 function ActivityTab({ log, activeStory }: { log: string; activeStory: ActiveStoryInfo | null }) {
+  const [maximized, setMaximized] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [autoScroll, setAutoScroll] = useState(true);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!maximized) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setMaximized(false); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [maximized]);
+
+  useEffect(() => {
+    if (autoScroll && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [log, autoScroll, maximized]);
+
   if (!log) {
     return <div className="p-6 text-slate-500">No activity log yet. Start SPIRAL to see live output here.</div>;
   }
+
   const lines = log.split('\n').filter(Boolean);
+  const processed = lines.map(toMYT).join('\n');
   const now = new Date().toLocaleString('en-MY', { timeZone: 'Asia/Kuala_Lumpur', hour12: false });
+
+  const handleCopy = () => {
+    void navigator.clipboard.writeText(processed);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+    if (!atBottom) setAutoScroll(false);
+  };
+
+  const toolbar = (
+    <div className="flex items-center justify-between px-3 py-1.5 bg-slate-900 border-b border-slate-800">
+      <span className="text-[10px] text-slate-500 font-mono">
+        {lines.length} lines · elapsed→MYT
+        {maximized && <span className="ml-2 text-blue-400">Activity Log</span>}
+      </span>
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => { setAutoScroll(true); if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }}
+          title="Scroll to bottom"
+          className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono transition-all ${
+            autoScroll ? 'bg-emerald-700 text-white' : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+          }`}
+        >
+          ↓ Bottom
+        </button>
+        <button
+          onClick={() => setMaximized(prev => !prev)}
+          title={maximized ? 'Restore (Esc)' : 'Maximize to fullscreen'}
+          className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono transition-all ${
+            maximized ? 'bg-blue-600 text-white' : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+          }`}
+        >
+          {maximized ? '⊡ Restore' : '⊞ Max'}
+        </button>
+        <button
+          onClick={handleCopy}
+          title="Copy log to clipboard"
+          className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono transition-all ${
+            copied ? 'bg-emerald-600 text-white' : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+          }`}
+        >
+          {copied ? '✓ Copied' : '⎘ Copy'}
+        </button>
+      </div>
+    </div>
+  );
+
+  const logBody = (
+    <div
+      ref={scrollRef}
+      onScroll={handleScroll}
+      className={`overflow-auto ${maximized ? 'flex-1' : 'max-h-[600px]'}`}
+    >
+      <pre className="p-4 text-[11px] text-slate-300 font-mono leading-relaxed whitespace-pre-wrap">
+        {processed}
+      </pre>
+    </div>
+  );
+
+  const inner = (
+    <div className={`rounded-xl bg-slate-950 overflow-hidden ${maximized ? 'flex flex-col h-full' : ''}`}>
+      {toolbar}
+      {logBody}
+    </div>
+  );
+
   return (
     <div className="p-6 space-y-3">
-      {/* Active story banner at top of activity log */}
       <ActiveStoryBanner activeStory={activeStory} />
-
       <div className="flex items-center justify-between">
         <div className="text-[10px] text-slate-400">Timestamps shown in Malaysia Time (MYT, UTC+8)</div>
         <div className="text-[10px] text-slate-400">Now: {now}</div>
       </div>
-      <div className="rounded-xl bg-slate-950 overflow-auto max-h-[600px]">
-        <pre className="p-4 text-[11px] text-slate-300 font-mono leading-relaxed whitespace-pre-wrap">
-          {lines.map(toMYT).join('\n')}
-        </pre>
-      </div>
+      {maximized
+        ? createPortal(
+            <div className="fixed inset-0 z-[9999] bg-slate-950 flex flex-col p-4">
+              <ActiveStoryBanner activeStory={activeStory} className="mb-2" />
+              <div className="flex-1 flex flex-col min-h-0 rounded-xl overflow-hidden">
+                {toolbar}
+                {logBody}
+              </div>
+            </div>,
+            document.body
+          )
+        : inner
+      }
     </div>
   );
 }
@@ -3127,7 +3273,7 @@ export default function ProjectDashboard() {
           </div>
         )}
         {activeTab === 'settings'     && <div className="h-full overflow-y-auto"><SettingsTab config={data.config} configRaw={data.configRaw ?? ''} projectName={projectName ?? ''} onConfigSaved={() => load()} /></div>}
-        {activeTab === 'constitution' && <div className="h-full overflow-y-auto"><ConstitutionTab text={data.constitution} /></div>}
+        {activeTab === 'constitution' && <div className="h-full overflow-y-auto flex flex-col"><ConstitutionTab text={data.constitution} projectName={projectName ?? undefined} /></div>}
         {activeTab === 'activity'     && <div className="h-full overflow-y-auto"><ActivityTab log={data.activity} activeStory={activeStory} /></div>}
         {activeTab === 'tests'        && <div className="h-full overflow-hidden"><TestsTab projectName={projectName ?? ''} /></div>}
       </main>

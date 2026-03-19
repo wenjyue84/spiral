@@ -148,6 +148,37 @@ function spiralApiPlugin() {
         });
       });
 
+      // ── POST /api/save-constitution — writes constitution.md ─────────────
+      server.middlewares.use('/api/save-constitution', (req, res, next) => {
+        if (req.method !== 'POST') { next(); return; }
+        let body = '';
+        req.on('data', (chunk: Buffer) => { body += chunk.toString(); });
+        req.on('end', () => {
+          try {
+            const { content, name: saveProjectName } = JSON.parse(body) as { content: string; name?: string };
+            const saveRoot = saveProjectName ? (readRegistry()[saveProjectName] ?? PROJECT_ROOT) : PROJECT_ROOT;
+            const saveConfig = parseConfigSh(path.join(saveRoot, 'spiral.config.sh'));
+            const candidates = [
+              saveConfig['SPIRAL_SPECKIT_CONSTITUTION'] ? path.join(saveRoot, saveConfig['SPIRAL_SPECKIT_CONSTITUTION']) : '',
+              path.join(saveRoot, '.specify', 'memory', 'constitution.md'),
+              path.join(saveRoot, 'constitution.md'),
+            ].filter(Boolean);
+            // Use first existing path, or fallback to default
+            let savePath = candidates.find(p => fs.existsSync(p)) ?? candidates[1];
+            const dir = path.dirname(savePath);
+            if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+            fs.writeFileSync(savePath, content, 'utf8');
+            res.setHeader('Content-Type', 'application/json');
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            res.end(JSON.stringify({ ok: true, path: savePath }));
+          } catch (e) {
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ error: String(e) }));
+          }
+        });
+      });
+
       // ── GET /api/projects — list registered projects ─────────────────────
       server.middlewares.use('/api/projects', (req, res, next) => {
         if (req.method !== 'GET') { next(); return; }
@@ -529,17 +560,23 @@ function spiralApiPlugin() {
             iterMap.set(iter.iter, iter);
           }
 
-          // Synthesize iteration stubs from phase events for iterations not found in the log.
-          // This happens when the log is rotated mid-run but events persist.
-          for (const evt of phaseEvents) {
-            const iterNum = evt.iteration;
-            if (iterNum != null && !iterMap.has(iterNum)) {
-              iterMap.set(iterNum, {
-                iter: iterNum,
-                phases: [],
-                lineStart: -1,
-                lineEnd: -1,
-              });
+          // Synthesize iteration stubs from phase events ONLY when the log has no
+          // iteration data at all (e.g. log was rotated away mid-run).
+          // Guard: if the log already has iterations, skip stub synthesis — old
+          // spiral_events.jsonl entries from previous runs would otherwise create
+          // empty greyed-out iterations 2-N for iterations that haven't happened
+          // yet in the current run.
+          if (iterMap.size === 0) {
+            for (const evt of phaseEvents) {
+              const iterNum = evt.iteration;
+              if (iterNum != null && !iterMap.has(iterNum)) {
+                iterMap.set(iterNum, {
+                  iter: iterNum,
+                  phases: [],
+                  lineStart: -1,
+                  lineEnd: -1,
+                });
+              }
             }
           }
 
