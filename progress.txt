@@ -449,3 +449,63 @@ COST CEILING: Integration Tests for Phase G: CHANGELOG and API Doc Generation (U
 ## Iteration 1 - Thu, Mar 19, 2026  1:07:46 PM
 COST CEILING: Integration Tests for Phase G: CHANGELOG and API Doc Generation (US-482) — $5.479618 exceeded hard limit $2.00
 
+
+## Iteration 1 - Thu, Mar 19, 2026  1:35:00 PM
+COST CEILING: Integration Tests for SPIRAL Self-Monitoring Dashboard (US-460) (US-483) — $3.048553 exceeded hard limit $2.00
+
+## Iteration 1 - Thu, Mar 19, 2026  1:35:15 PM
+COST CEILING: Integration Tests for SPIRAL Self-Monitoring Dashboard (US-460) (US-483) — $4.722245 exceeded hard limit $2.00
+
+
+## Pre-analysis for US-483 (Gemini 2.5 Pro)
+Here is a technical brief for implementing story US-483.
+
+**Project:** SPIRAL (Python Application)
+**Objective:** Create self-contained integration tests for the monitoring dashboard (US-460).
+
+**Files to Modify:**
+*   **Create:** `tests/test_dashboard_integration.py` - This new file will contain all the integration tests for the dashboard.
+*   **Reference:** `lib/dashboard.py` (or the actual module for the dashboard) - Analyze its functions to understand the API that processes data for the dashboard components.
+
+**Frappe Context:**
+*   **DocTypes/Hooks:** None. The story is for a standard Python project, not a Frappe app. The request context was incorrect.
+
+**Implementation Approach:**
+1.  Use the `pytest` framework to write the tests.
+2.  Implement separate test functions for the three key data endpoints: token burn rate, story throughput metrics, and the model escalation heatmap.
+3.  Use `pytest` fixtures or monkeypatching to stub the file system reads for `results.tsv` and `spiral_events.jsonl`. The tests must not depend on these files actually existing or having live data.
+4.  The tests should call the public functions in the dashboard module and assert that the data structures returned are correct based on the mocked file content.
+
+**Edge Cases & Gotchas:**
+*   A specific test for the heatmap must cover the edge case where the input data is empty or missing.
+*   Ensure that all file I/O is properly mocked so that tests can run in isolation without external service or file dependencies.
+*   The goal is to test the data processing logic, not the UI rendering. Focus on the inputs and outputs of the data functions.
+
+
+## Pre-analysis for US-483 (Gemini 2.5 Pro)
+This user story is for a Python project, not a Frappe application. Based on the JSON, here is the technical brief:
+
+**Project:** SPIRAL (Python Application)
+**Goal:** Implement `pytest` integration tests for the self-monitoring dashboard.
+
+**1. Files to Modify:**
+*   `tests/test_dashboard_integration.py`: Create this new file for the integration tests.
+*   `lib/dashboard.py` (or equivalent): Reference this file to understand the API of the dashboard components being tested.
+
+**2. Involved Components:**
+*   This story does not involve Frappe DocTypes or hooks.
+*   It targets Python-based dashboard data endpoints for:
+    *   Token burn rate
+    *   Story throughput metrics
+    *   Model escalation heatmap
+
+**3. Implementation Approach:**
+*   Use the `pytest` framework to write end-to-end tests for the dashboard's data endpoints.
+*   Implement `pytest` fixtures or use monkeypatching to simulate reading from data sources like `results.tsv` and `spiral_events.jsonl`.
+*   This ensures tests are self-contained and have no external dependencies on a live SPIRAL session.
+
+**4. Edge Cases & Gotchas:**
+*   A specific test case must cover how endpoints behave when data sources are empty or non-existent.
+*   Ensure the test runner (`uv run pytest`) is configured correctly.
+*   Stubs/fixtures must accurately represent the data format of the real files to be effective.
+

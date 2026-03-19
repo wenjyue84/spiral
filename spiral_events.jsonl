@@ -241,3 +241,22 @@
 {"ts": "2026-03-19T05:08:48.468740+00:00", "type": "route_story_assigned", "story_id": "US-493", "complexity_score": 65, "model_tier": "sonnet", "estimated_tokens": 0}
 {"ts": "2026-03-19T05:08:48.469240+00:00", "type": "route_story_assigned", "story_id": "US-494", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
 {"ts": "2026-03-19T05:08:48.469780+00:00", "type": "route_story_assigned", "story_id": "US-495", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"event_type": "prd_io_error", "timestamp": "2026-03-19T05:32:29.844557+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-1550\\\\popen-gw0\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
+{"event_type": "prd_io_error", "timestamp": "2026-03-19T05:35:13.246302+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-1554\\\\popen-gw0\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
+{"event_type": "prd_io_error", "timestamp": "2026-03-19T05:35:24.808497+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-1555\\\\popen-gw0\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
+{"ts": "2026-03-19T05:39:19.067239+00:00", "type": "route_story_assigned", "story_id": "US-483", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-19T05:39:19.067824+00:00", "type": "route_story_assigned", "story_id": "US-484", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-19T05:39:19.068262+00:00", "type": "route_story_assigned", "story_id": "US-485", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-19T05:39:19.068724+00:00", "type": "route_story_assigned", "story_id": "US-491", "complexity_score": 45, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-19T05:39:19.069107+00:00", "type": "route_story_assigned", "story_id": "US-492", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-19T05:39:19.069577+00:00", "type": "route_story_assigned", "story_id": "US-493", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-19T05:39:19.070040+00:00", "type": "route_story_assigned", "story_id": "US-494", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-19T05:39:19.070428+00:00", "type": "route_story_assigned", "story_id": "US-495", "complexity_score": 80, "model_tier": "opus", "estimated_tokens": 0}
+{"ts": "2026-03-19T05:39:19.070873+00:00", "type": "route_story_assigned", "story_id": "US-496", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-19T05:39:19.071313+00:00", "type": "route_story_assigned", "story_id": "US-497", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-19T05:39:19.071794+00:00", "type": "route_story_assigned", "story_id": "US-498", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-19T05:39:19.072195+00:00", "type": "route_story_assigned", "story_id": "US-499", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-19T05:39:19.072636+00:00", "type": "route_story_assigned", "story_id": "US-500", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-19T05:39:19.073088+00:00", "type": "route_story_assigned", "story_id": "US-501", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-19T05:39:19.073576+00:00", "type": "route_story_assigned", "story_id": "US-502", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"event_type": "prd_io_error", "timestamp": "2026-03-19T05:39:34.217462+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-1558\\\\popen-gw0\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
