@@ -1024,14 +1024,103 @@ function spiralApiPlugin() {
         }
       });
 
+      // ── GET /api/workers/:id/queue — task queue for a specific worker ────────
       // ── GET /api/workers?name=X — list worker log files for a project ──────
+      // Both handled by the same middleware (connect strips /api/workers prefix from req.url)
       server.middlewares.use('/api/workers', (req, res, next) => {
         if (req.method !== 'GET') { next(); return; }
-        const url = new URL(req.url ?? '', 'http://localhost');
-        const name = url.searchParams.get('name') ?? '';
 
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Content-Type', 'application/json');
+
+        // Detect /api/workers/:id/queue requests (req.url = "/<id>/queue" after prefix strip)
+        const queueMatch = (req.url ?? '').match(/^\/(\d+)\/queue(?:\?|$)/);
+        if (queueMatch) {
+          const workerId = parseInt(queueMatch[1]);
+          const urlParsed = new URL(req.url ?? '', 'http://localhost');
+          const name = urlParsed.searchParams.get('name') ?? '';
+          const reg = readRegistry();
+          const root = name ? (reg[name] ?? PROJECT_ROOT) : PROJECT_ROOT;
+          const workersDir = path.join(root, '.spiral', 'workers');
+          const jsonFile = path.join(workersDir, `worker_${workerId}.json`);
+
+          if (!fs.existsSync(jsonFile)) {
+            res.statusCode = 404;
+            res.end(JSON.stringify({ error: `Worker ${workerId} not found`, error_code: 'WORKER_NOT_FOUND' }));
+            return;
+          }
+
+          try {
+            const raw = JSON.parse(fs.readFileSync(jsonFile, 'utf8')) as {
+              current_task?: { story_id: string; started_at: string };
+              queue?: { story_id: string }[];
+              uptime?: number;
+              worker_id?: string | number;
+            };
+            res.end(JSON.stringify({
+              worker_id: `worker-${workerId}`,
+              current_task: raw.current_task ?? null,
+              queue: raw.queue ?? [],
+              uptime: raw.uptime ?? 0,
+            }));
+          } catch (e) {
+            res.statusCode = 500;
+            res.end(JSON.stringify({ error: String(e), error_code: 'READ_ERROR' }));
+          }
+          return;
+        }
+
+        // Detect /api/workers/:id (worker details without /queue)
+        const workerIdMatch = (req.url ?? '').match(/^\/(\d+)(?:\?|$)/);
+        if (workerIdMatch) {
+          const workerId = parseInt(workerIdMatch[1]);
+          const urlParsed = new URL(req.url ?? '', 'http://localhost');
+          const name = urlParsed.searchParams.get('name') ?? '';
+          const reg = readRegistry();
+          const root = name ? (reg[name] ?? PROJECT_ROOT) : PROJECT_ROOT;
+          const workersDir = path.join(root, '.spiral', 'workers');
+          const jsonFile = path.join(workersDir, `worker_${workerId}.json`);
+
+          if (!fs.existsSync(jsonFile) && !fs.existsSync(path.join(workersDir, `worker_${workerId}.log`))) {
+            res.statusCode = 404;
+            res.end(JSON.stringify({ error: `Worker ${workerId} not found`, error_code: 'WORKER_NOT_FOUND' }));
+            return;
+          }
+
+          try {
+            let queueDepth = 0;
+            let status = 'unknown';
+            let currentTask: { story_id: string; started_at: string } | null = null;
+            if (fs.existsSync(jsonFile)) {
+              const raw = JSON.parse(fs.readFileSync(jsonFile, 'utf8')) as {
+                current_task?: { story_id: string; started_at: string };
+                queue?: unknown[];
+                status?: string;
+              };
+              queueDepth = (raw.queue ?? []).length;
+              status = raw.current_task ? 'running' : (raw.status ?? 'idle');
+              currentTask = raw.current_task ?? null;
+            }
+            res.end(JSON.stringify({
+              id: workerId,
+              worker_id: `worker-${workerId}`,
+              hasLog: fs.existsSync(path.join(workersDir, `worker_${workerId}.log`)),
+              hasHeartbeat: fs.existsSync(path.join(workersDir, `worker_${workerId}.heartbeat`)),
+              hasJson: fs.existsSync(jsonFile),
+              queue_depth: queueDepth,
+              status,
+              current_task: currentTask,
+            }));
+          } catch (e) {
+            res.statusCode = 500;
+            res.end(JSON.stringify({ error: String(e) }));
+          }
+          return;
+        }
+
+        // Default: list all workers
+        const url = new URL(req.url ?? '', 'http://localhost');
+        const name = url.searchParams.get('name') ?? '';
 
         const reg = readRegistry();
         const root = name ? (reg[name] ?? null) : PROJECT_ROOT;
@@ -1042,7 +1131,7 @@ function spiralApiPlugin() {
         }
 
         const workersDir = path.join(root, '.spiral', 'workers');
-        const workerMap = new Map<number, { id: number; hasLog: boolean; hasHeartbeat: boolean; hasJson: boolean }>();
+        const workerMap = new Map<number, { id: number; hasLog: boolean; hasHeartbeat: boolean; hasJson: boolean; queue_depth: number; status: string }>();
         try {
           if (fs.existsSync(workersDir)) {
             for (const f of fs.readdirSync(workersDir)) {
@@ -1051,11 +1140,22 @@ function spiralApiPlugin() {
               if (mLog) {
                 const id = parseInt(mLog[1]);
                 const existing = workerMap.get(id);
-                workerMap.set(id, { id, hasLog: true, hasHeartbeat: fs.existsSync(path.join(workersDir, `worker_${id}.heartbeat`)), hasJson: existing?.hasJson ?? false });
+                workerMap.set(id, { id, hasLog: true, hasHeartbeat: fs.existsSync(path.join(workersDir, `worker_${id}.heartbeat`)), hasJson: existing?.hasJson ?? false, queue_depth: existing?.queue_depth ?? 0, status: existing?.status ?? 'unknown' });
               } else if (mJson) {
                 const id = parseInt(mJson[1]);
                 const existing = workerMap.get(id);
-                workerMap.set(id, { id, hasLog: existing?.hasLog ?? false, hasHeartbeat: existing?.hasHeartbeat ?? fs.existsSync(path.join(workersDir, `worker_${id}.heartbeat`)), hasJson: true });
+                let queueDepth = existing?.queue_depth ?? 0;
+                let status = existing?.status ?? 'unknown';
+                try {
+                  const raw = JSON.parse(fs.readFileSync(path.join(workersDir, f), 'utf8')) as {
+                    current_task?: unknown;
+                    queue?: unknown[];
+                    status?: string;
+                  };
+                  queueDepth = (raw.queue ?? []).length;
+                  status = raw.current_task ? 'running' : (raw.status ?? 'idle');
+                } catch { /* ignore malformed JSON */ }
+                workerMap.set(id, { id, hasLog: existing?.hasLog ?? false, hasHeartbeat: existing?.hasHeartbeat ?? fs.existsSync(path.join(workersDir, `worker_${id}.heartbeat`)), hasJson: true, queue_depth: queueDepth, status });
               }
             }
           }

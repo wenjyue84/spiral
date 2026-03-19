@@ -20,6 +20,8 @@ STALE_THRESHOLD="${STALE_THRESHOLD:-120}"
 
 # Global variable to track heartbeat background job
 _HEARTBEAT_PID=""
+# Track worker start time for uptime calculation
+_WORKER_START_TS=""
 
 # ── Worker-side: Start periodic heartbeat writes ────────────────────────────────
 worker_heartbeat_start() {
@@ -32,9 +34,12 @@ worker_heartbeat_start() {
   fi
 
   mkdir -p "$HEARTBEAT_DIR" 2>/dev/null || true
+  _WORKER_START_TS=$(date +%s)
 
   # Start background loop that writes heartbeat every N seconds
   (
+    local start_ts
+    start_ts=$(date +%s)
     while true; do
       sleep "$interval"
       # Get current story ID if available (from _current_story_id file in worker root)
@@ -44,7 +49,8 @@ worker_heartbeat_start() {
       # US-481: Write .heartbeat directly in HEARTBEAT_DIR (typically .spiral-workers/worker-N)
       # This allows the GET /api/workers endpoint to read it without needing worker_id
       local hb_file="$HEARTBEAT_DIR/.heartbeat"
-      local ts=$(date +%s)
+      local ts
+      ts=$(date +%s)
       local pid=$$
       # Get memory usage in MB (cross-platform)
       local mem_mb=0
@@ -58,6 +64,24 @@ worker_heartbeat_start() {
       printf '{"pid":%s,"storyId":"%s","ts":%s,"completed":%s,"phase":"%s","memMb":%s}\n' \
         "$pid" "$current_story_id" "$ts" "$completed" "$phase" "${mem_mb:-0}" >"$hb_tmp" 2>/dev/null &&
         mv "$hb_tmp" "$hb_file" 2>/dev/null || true
+
+      # US-527: Write per-worker queue JSON to .spiral/workers/worker_N.json
+      # This allows GET /api/workers/<id>/queue to return live task state
+      local uptime=$((ts - start_ts))
+      local started_at
+      started_at=$(date -u +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || date -u +"%Y-%m-%dT%H:%M:%SZ")
+      local wq_file="${HEARTBEAT_DIR}/worker_${worker_id}.json"
+      local wq_tmp="${wq_file}.tmp"
+      # Build current_task JSON (null if no story is running)
+      local current_task_json="null"
+      if [[ "$current_story_id" != "unknown" && -n "$current_story_id" ]]; then
+        current_task_json="{\"story_id\":\"$current_story_id\",\"started_at\":\"$started_at\"}"
+      fi
+      # SPIRAL_QUEUED_TASKS can be set to a JSON array string by the worker coordinator
+      local queue_json="${SPIRAL_QUEUED_TASKS:-[]}"
+      printf '{"worker_id":"worker-%s","current_task":%s,"queue":%s,"uptime":%s,"phase":"%s"}\n' \
+        "$worker_id" "$current_task_json" "$queue_json" "$uptime" "$phase" >"$wq_tmp" 2>/dev/null &&
+        mv "$wq_tmp" "$wq_file" 2>/dev/null || true
     done
   ) &
   _HEARTBEAT_PID=$!
@@ -80,6 +104,10 @@ worker_heartbeat_stop() {
   # Clean up heartbeat file (US-481: write directly to HEARTBEAT_DIR/.heartbeat)
   local hb_file="$HEARTBEAT_DIR/.heartbeat"
   rm -f "$hb_file" 2>/dev/null || true
+
+  # US-527: Clean up per-worker queue JSON
+  local wq_file="${HEARTBEAT_DIR}/worker_${worker_id}.json"
+  rm -f "$wq_file" 2>/dev/null || true
 
   echo "[heartbeat] Worker $worker_id: heartbeat loop stopped, cleanup done"
 }
