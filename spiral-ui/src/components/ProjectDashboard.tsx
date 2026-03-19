@@ -404,8 +404,8 @@ function RecentlyCompletedFeed({ entries }: { entries?: LastCompletedStory[] }) 
                 {(e.duration ?? 0) > 0 && (
                   <span className="text-[10px] text-slate-400">{e.duration}s</span>
                 )}
-                <span className="text-[10px] text-slate-400" title={formatMYT(e.timestamp)}>
-                  {timeAgo(e.timestamp)}
+                <span className="text-[10px] text-slate-400" title={timeAgo(e.timestamp)}>
+                  {formatMYT(e.timestamp)}
                 </span>
               </div>
             </li>

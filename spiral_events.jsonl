@@ -426,3 +426,20 @@
 {"ts": "2026-03-19T17:17:02.847037+00:00", "type": "route_story_assigned", "story_id": "US-531", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
 {"ts": "2026-03-19T17:17:02.847381+00:00", "type": "route_story_assigned", "story_id": "US-532", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
 {"ts": "2026-03-19T17:17:02.847708+00:00", "type": "route_story_assigned", "story_id": "US-533", "complexity_score": 70, "model_tier": "sonnet", "estimated_tokens": 0}
+{"event_type": "prd_io_error", "timestamp": "2026-03-19T17:17:16.343634+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-1930\\\\popen-gw2\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
+{"ts": "2026-03-19T17:19:45.887014+00:00", "type": "route_story_assigned", "story_id": "US-520", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-19T17:19:45.887539+00:00", "type": "route_story_assigned", "story_id": "US-521", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-19T17:19:45.887970+00:00", "type": "route_story_assigned", "story_id": "US-522", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-19T17:19:45.888339+00:00", "type": "route_story_assigned", "story_id": "US-523", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-19T17:19:45.888698+00:00", "type": "route_story_assigned", "story_id": "US-524", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-19T17:19:45.889049+00:00", "type": "route_story_assigned", "story_id": "US-525", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-19T17:19:45.889393+00:00", "type": "route_story_assigned", "story_id": "US-526", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-19T17:19:45.889730+00:00", "type": "route_story_assigned", "story_id": "US-527", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-19T17:19:45.890088+00:00", "type": "route_story_assigned", "story_id": "US-528", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-19T17:19:45.890419+00:00", "type": "route_story_assigned", "story_id": "US-529", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-19T17:19:45.890748+00:00", "type": "route_story_assigned", "story_id": "US-530", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-19T17:19:45.891076+00:00", "type": "route_story_assigned", "story_id": "US-531", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-19T17:19:45.891419+00:00", "type": "route_story_assigned", "story_id": "US-532", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-19T17:19:45.891772+00:00", "type": "route_story_assigned", "story_id": "US-533", "complexity_score": 70, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-19T17:19:45.892103+00:00", "type": "route_story_assigned", "story_id": "US-534", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"event_type": "prd_io_error", "timestamp": "2026-03-19T17:19:57.810599+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-1932\\\\popen-gw2\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
