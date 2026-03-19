@@ -1170,8 +1170,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-03-19T17:05:45Z"
+      "model": "haiku"
     },
     {
       "id": "US-520",
@@ -1366,6 +1365,86 @@
       "estimatedComplexity": "small",
       "passes": false,
       "model": "haiku"
+    },
+    {
+      "id": "US-529",
+      "title": "Phase R Novelty Detector: Flag Research Findings That Duplicate Existing prd.json Stories",
+      "priority": "medium",
+      "description": "Add a novelty checking module to Phase R that cross-references _research_output.json findings against existing prd.json stories to detect potential duplicates. Uses semantic similarity scoring on story titles/descriptions to identify research findings that may have already been converted to stories. Prevents duplicate story creation and improves research phase quality.",
+      "acceptanceCriteria": [
+        "New module lib/research/novelty_checker.py with function check_novelty(research_findings: List[dict], prd_stories: List[dict]) -> List[dict] returning {finding_id, duplicate_story_id, similarity_score: float, recommendation: 'skip|review|add'}",
+        "Phase R post-phase hook calls novelty_checker, stores results in _research_output_with_novelty.json; findings with similarity_score >= 0.8 marked as potential duplicates and excluded from Phase M merge",
+        "Integration test tests/test_phase_r_novelty.py verifies: exact title match returns 1.0 similarity, unrelated findings return <0.3, partial matches fall in 0.3-0.8 range with >=48% coverage"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-530",
+      "title": "Integration Test: Phase G Resilience to Missing/Failing Tools",
+      "priority": "medium",
+      "description": "Verify Phase G (CHANGELOG.md and API doc generation) gracefully degrades when git-cliff or pdoc tools are unavailable or crash, preventing Phase G failures from blocking entire SPIRAL run.",
+      "acceptanceCriteria": [
+        "When git-cliff binary not found, Phase G logs warning, skips CHANGELOG generation, sets results.tsv phase_g_mode=degraded, and completes successfully",
+        "When pdoc crashes (e.g., import cycle in source code), Phase G logs error, skips API docs, sets phase_g_mode=degraded, and Phase G completes successfully",
+        "Integration test tests/test_phase_g_resilience.py verifies both failure paths using mock tool binaries and subprocess exception simulation"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-531",
+      "title": "Phase C: Iteration Summary Report Generation with Phase Cost Breakdown",
+      "priority": "medium",
+      "description": "After each Phase C (check done) completion, generate structured iteration summary showing token spend per phase, story pass/fail counts, and cumulative progress rate; include in commit message for transparency.",
+      "acceptanceCriteria": [
+        "Phase C generates spiral/reports/iteration_NNNN.json containing {phase_r: {tokens, cost}, phase_i: {tokens, cost}, ..., passed_stories: N, failed_stories: N, cumulative_pass_rate: %}",
+        "Iteration summary committed to git with message: 'Iteration 5: 12/15 stories passing (80%), Phase R $10.23, Phase I $8.45'",
+        "Integration test tests/test_iteration_summary.py: run 2-iteration SPIRAL, verify 2 report files exist, cumulative_pass_rate increases or holds steady"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-532",
+      "title": "CLI Command: spiral cost-forecast — Predict Iteration Costs Using Velocity Model",
+      "priority": "medium",
+      "description": "Forecast upcoming SPIRAL iteration costs using the historical velocity model. Users can project budget requirements for N iterations, enabling better cost planning and proactive budget ceiling management.",
+      "acceptanceCriteria": [
+        "CLI: `spiral cost-forecast --iterations 5` outputs JSON with fields: total_projected_cost, per_iteration_avg, model_distribution (haiku%, sonnet%, opus%), variance_confidence_interval",
+        "Implementation: lib/forecast_costs.py reads results.tsv, computes mean/variance from prior 10+ iterations, projects forward with ±10% confidence bands",
+        "Integration test: given 15 historical iterations, run cost-forecast --iterations 5, then execute actual SPIRAL run; verify forecast within 15% of realized total cost"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-533",
+      "title": "Phase V: Parallel Pytest Execution — Reduce Validation Time via ThreadPoolExecutor",
+      "priority": "medium",
+      "description": "Optimize Phase V by running pytest test files in parallel using a configurable worker pool. Reduces validation cycle time for faster feedback and improved iteration throughput.",
+      "acceptanceCriteria": [
+        "SPIRAL_PYTEST_WORKERS env var (default: 4) controls concurrency; lib/phases/phase_v.py refactored to use concurrent.futures.ThreadPoolExecutor instead of sequential subprocess calls",
+        "Integration test: benchmark 4-file pytest suite — sequential baseline vs parallel execution; verify parallel achieves ≥1.5x speedup with same pass/fail output",
+        "Graceful fallback: if worker pool initialization fails, Phase V logs warning and continues sequentially without raising exception"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
     }
   ]
 }
