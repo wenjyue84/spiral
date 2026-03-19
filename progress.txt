@@ -1,3 +1,29 @@
+## Iteration 41 - US-553: Integration Test: SPIRAL Happy Path
+
+### What was implemented
+- Created tests/integration/test_spiral_happy_path.py with 19 tests covering all 3 ACs:
+  - AC1 (TestSeedPRDSetup): 5 tests — seed prd.json structure + mock retry subprocess
+  - AC2 (TestPhaseSequence): 7 tests — SpiralPhaseStateMachine R→T→S→M→I→V→C traversal, checkpoint validation
+  - AC3 (TestStoryCompletion): 7 tests — story passes=True, results.tsv rows, worker process cleanup
+- Added 'S' (Story Validate) phase to lib/core/state_machine.py PHASE_ORDER between T and M
+  - PHASE_ORDER: R=0, T=1, S=2, M=3, G=4, I=5, V=6, C=7
+  - PHASE_NAMES: added "S": "Story Validate"
+
+### Patterns discovered
+- Phase 'S' (Story Validate) was missing from the state machine despite being documented in CLAUDE.md
+- Git Bash on Windows fails with "Catastrophic failure/E_UNEXPECTED" when given temp-dir paths
+  even with proper /c/Users/... POSIX conversion — use sys.executable for subprocess tests instead
+- The test file existed only as .pyc cache (was created in prior iteration) — needed full re-creation
+- _to_bash_path() helper converts Windows paths for Git Bash but temp-dir scripts still fail in xdist workers
+
+### Acceptance criteria verification
+✓ AC1: test_seed_prd_contains_exactly_three_stories, test_seed_prd_has_required_story_ids, test_seed_stories_start_with_passes_false, test_seed_stories_have_required_fields, test_mock_retry_script_exits_success (Python stand-in)
+✓ AC2: state machine traverses all 7 phases R→T→S→M→I→V→C, backward transitions raise InvalidTransition, checkpoint validated
+✓ AC3: all 3 stories passes=True, results.tsv 3 accept rows, no orphan worker processes after wait()
+✓ All 19 integration tests pass; existing 56 state_machine+cascade_skip tests still pass
+
+---
+
 ## Iteration 40 - US-537: CLI Command: spiral complexity-trend
 
 ### What was implemented
@@ -1826,3 +1852,31 @@ Here is a technical brief for the user story.
 ### Gotchas
 - spiral_events.jsonl can accumulate merge conflicts — always check before committing when UU status is present
 - `dest="fmt"` needed for `--format` arg to avoid shadowing Python built-in `format`
+
+## Pre-analysis for US-553 (Gemini 2.5 Pro)
+### **Technical Brief: SPIRAL Integration Test (US-553)**
+
+**Objective:** Implement an end-to-end "happy path" integration test for the SPIRAL command-line tool, verifying a full execution loop.
+
+**1. Files to Modify:**
+*   **Create:** `tests/integration/test_spiral_happy_path.py`. This new `pytest` file will house the test logic.
+*   **Reference/Mock:** The test will likely invoke logic from `main.py` (the application's orchestrator) and mock calls made from within it or its submodules, such as `lib/llm_client.py` (for Claude API calls) and wherever `lib/impl/retry.sh` is called.
+
+**2. Frappe Context:**
+*   This is a standalone Python/shell application. **No Frappe DocTypes or hooks are involved.**
+
+**3. Recommended Implementation Approach:**
+*   Use the `pytest` framework. Create a test function within the new file.
+*   Use a `pytest` fixture (`tmp_path` is ideal) to create an isolated directory for the test run.
+*   The fixture should seed this directory with a `prd.json` file containing the 3 specified stories.
+*   Use `pytest.monkeypatch` to mock external dependencies:
+    *   Patch `subprocess.run` (or a similar call) to intercept the execution of `lib/impl/retry.sh` and simulate a successful exit code.
+    *   Patch the HTTP request/client responsible for calling the Claude API to return a predictable, successful response.
+*   Invoke the main spiral process (`subprocess.run(["bash", "spiral.sh", ...])`) from the test.
+*   After completion, read and assert the contents of `prd.json`, `results.tsv`, and `.spiral/_checkpoint.json`.
+
+**4. Edge Cases & Gotchas:**
+*   **Test Isolation:** All file operations (creation, reading, assertion) must be scoped to the temporary directory created by `pytest` to prevent side effects.
+*   **Process Verification:** Checking that no worker processes remain may require the `psutil` library to list and inspect running processes by name after the main script finishes.
+*   **State Files:** The assertions must be precise, checking not just for story completion but also the exact phase sequence in `_checkpoint.json` and the `success=true` status in `results.tsv`.
+

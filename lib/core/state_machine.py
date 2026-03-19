@@ -34,10 +34,11 @@ class InvalidTransition(Exception):
 
 # -- Phase State Machine ------------------------------------------------------
 
-PHASE_ORDER = {"R": 0, "T": 1, "M": 2, "G": 3, "I": 4, "V": 5, "C": 6}
+PHASE_ORDER = {"R": 0, "T": 1, "S": 2, "M": 3, "G": 4, "I": 5, "V": 6, "C": 7}
 PHASE_NAMES = {
     "R": "Research",
     "T": "Test Synthesis",
+    "S": "Story Validate",
     "M": "Merge",
     "G": "Gate",
     "I": "Implement",
