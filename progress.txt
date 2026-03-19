@@ -1,3 +1,34 @@
+## Iteration 20 - US-482: Validation and schema fixes
+
+### What was completed
+- Verified all 13 integration tests pass (3 acceptance criteria + 10 comprehensive tests)
+- Fixed prd.json schema validation errors:
+  - US-493: Changed invalid title dependency to "US-492"
+  - US-500: Changed invalid title dependency to "US-499"
+  - US-502: Changed invalid title dependency to "US-501"
+  - US-503: Removed non-existent dependency reference
+- Confirmed all acceptance criteria met:
+  1. ✓ test_changelog_generated_from_commits
+  2. ✓ test_api_docs_generated_by_pdoc
+  3. ✓ test_phase_g_handles_empty_commit_log
+  4. ✓ Full suite: 13/13 tests passing
+
+### Problem solved
+Schema validation was failing due to story dependencies using titles instead of IDs.
+Fixed by replacing all invalid dependencies with proper US-NNN identifiers.
+
+### Quality gates
+- ✓ All 13 tests pass
+- ✓ mypy --strict passes (no type errors)
+- ✓ Schema validation: valid (45 stories)
+- ✓ No external services required (all mocked)
+
+### Key insight
+The test file tests/test_phase_g_integration.py was already fully implemented from iteration 19.
+This iteration focused on validating the schema and ensuring the prd.json structure is correct.
+
+---
+
 ## Iteration 19 - US-482: Add module-level test functions for acceptance criteria
 
 ### What was implemented
