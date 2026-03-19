@@ -670,9 +670,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
-      "model": "sonnet",
+      "model": "haiku",
       "filesTouch": [
         "prd.json",
         "tests/test_federated_prd.py"
@@ -728,7 +728,7 @@
       "estimatedComplexity": "medium",
       "passes": false,
       "_source": "ai-example",
-      "model": "sonnet",
+      "model": "haiku",
       "filesTouch": [
         ".coverage",
         ".hypothesis/constants/19b92a82c7a5fbb7",
@@ -831,7 +831,7 @@
       "estimatedComplexity": "medium",
       "passes": false,
       "_source": "ai-example",
-      "model": "sonnet",
+      "model": "haiku",
       "filesTouch": [
         ".coverage",
         ".hypothesis/constants/19b92a82c7a5fbb7",
@@ -994,7 +994,7 @@
       "estimatedComplexity": "small",
       "passes": false,
       "_source": "test-story",
-      "model": "sonnet",
+      "model": "haiku",
       "_skipped": true,
       "_failureReason": "dependency US-452 was skipped",
       "filesTouch": [
