@@ -885,3 +885,6 @@ This is a Python/Shell-based CLI application, not a Frappe application. The core
 
 
 
+## Iteration 1 - Thu, Mar 19, 2026 11:17:36 PM
+COST CEILING: [Integration Test] Add integration tests for US-452 smart model routing (US-505) — $11.52719 exceeded hard limit $10.00
+
