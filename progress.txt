@@ -1,3 +1,48 @@
+## Iteration 34 - US-525: [Regression Test] Velocity model reads results.tsv for data-driven estimates
+
+### What was implemented
+- Created tests/test_velocity_model_regression.py with 6 comprehensive regression tests
+- Tests verify that `python main.py estimate` reads results.tsv and uses velocity model for data-driven cost projections
+- Acceptance criteria tests:
+  - test_estimate_reads_results_tsv_creates_datadriven_model: Verifies velocity model builds from results.tsv data
+  - test_estimate_output_differs_empty_vs_populated_tsv: Compares output between empty and populated results.tsv
+  - test_estimate_includes_per_type_metrics: Validates per-type mean_tokens, mean_duration, pass_rate metrics
+  - test_estimate_fails_if_velocity_model_parsing_broken: Negative test to catch removal of velocity model feature
+  - test_velocity_model_integration_full_workflow: Full integration test of results.tsv → model → estimate
+  - test_load_or_build_velocity_model_caches_result: Validates caching behavior (US-438)
+
+### Acceptance criteria verification
+✓ uv run pytest tests/test_velocity_model_regression.py -v exits 0 (6/6 tests pass)
+✓ Test creates synthetic results.tsv fixture and verifies velocity model contains per-type metrics
+✓ Tests show difference between empty and populated results.tsv outputs
+✓ Tests would fail if velocity model parsing is removed from estimate path
+
+### Implementation details
+- **tests/test_velocity_model_regression.py** (340 lines):
+  - _write_results() / _make_row() / _write_prd(): Helper functions for test fixtures
+  - Uses tmp_path fixture for isolated test environments
+  - Synthetic results.tsv with 6 rows for testing (above MIN_HISTORY_ROWS = 5)
+  - Tests call build_velocity_model() and cost_project.main() directly (simulates cmd_estimate)
+  - Validates model structure: total_rows, story_types, per-type metrics
+
+### Patterns discovered
+- Regression tests can verify integration points without subprocess (direct function calls)
+- Mock fixtures with synthetic TSV data are effective for velocity model testing
+- Comparing empty vs populated models provides evidence that feature is actually being used
+- Negative tests (test would fail if feature removed) are valuable for catching regressions
+
+### Quality gates
+✓ All 6 new tests pass
+✓ All 26 existing velocity_model tests still pass
+✓ All 39 cost_project tests still pass (71 total)
+✓ mypy --strict passes (proper type annotations added)
+✓ No regressions in velocity model or cost projection functionality
+
+### Commit: 98ccd69
+mark: US-525 complete (passes: true)
+
+---
+
 ## Iteration 33 - US-522: Dashboard /profile endpoint for phase duration analytics
 
 ### What was implemented
