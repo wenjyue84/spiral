@@ -1765,3 +1765,22 @@ Here is a technical brief for the user story.
     *   **Race Conditions**: The supervisor's check-and-kill operation should be swift to minimize killing a worker that recovers just before termination.
     *   **Stateful Workers**: The restart logic assumes workers are stateless. If a worker writes partial results, the restart might need a cleanup/rollback mechanism for the failed worktree.
 
+
+## Iteration N - Story: US-536 Dashboard Endpoint: GET /api/dashboard/research-cache
+
+### What was implemented
+- Created `lib/analyze_results.py` with `parse_research_cache()` function
+  - Reads results.tsv, filters rows by `research_source` column (cache|gemini_api)
+  - Computes hit_rate, total_queries, cached, time_saved_seconds, per-iteration trend
+  - Gracefully returns zero-state if file/column missing
+- Added `GET /api/dashboard/research-cache?start_iteration=&end_iteration=` endpoint to `lib/dashboard/api.py`
+- Created `tests/test_dashboard_research_cache.py` with 13 tests (all passing)
+
+### Patterns discovered
+- Dashboard api.py uses relative imports (`from ..analyze_results import ...`)
+- TestClient(app) pattern for FastAPI endpoint tests (no monkeypatching needed for zero-state tests)
+- parse_research_cache() is directly testable with tmp_path, so endpoint tests test structure only
+
+### Gotchas
+- results.tsv today has no `research_source` column; the code handles this gracefully
+- CACHE_SECONDS_PER_HIT=30 is a constant estimate for time saved per cache hit

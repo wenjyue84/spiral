@@ -10,11 +10,12 @@ Exposes:
 import csv
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
 from .cost_broadcaster import get_manager
+from ..analyze_results import parse_research_cache
 
 logger = logging.getLogger(__name__)
 
@@ -117,6 +118,24 @@ async def profile() -> dict[str, Any]:
         # Return defaults on error
 
     return response
+
+
+@app.get("/api/dashboard/research-cache")
+async def research_cache_endpoint(
+    start_iteration: int = 0,
+    end_iteration: Optional[int] = None,
+) -> dict[str, Any]:
+    """Research cache hit rate trends and time savings endpoint.
+
+    Returns JSON with:
+    - hit_rate: fraction of queries served from cache
+    - total_queries: total research queries parsed
+    - cached: number of cache hits
+    - time_saved_seconds: estimated seconds saved by cache hits
+    - trend: list of {iteration, hit_rate} per iteration
+    """
+    results_path = Path(".spiral/results.tsv")
+    return parse_research_cache(results_path, start_iteration, end_iteration)
 
 
 @app.websocket("/ws/cost")
