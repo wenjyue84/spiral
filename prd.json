@@ -1309,7 +1309,7 @@
         "US-352"
       ],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
