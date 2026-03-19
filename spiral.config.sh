@@ -227,7 +227,7 @@ SPIRAL_RESEARCH_SPECIALIST_PROMPT=""
 # increment). Use for stories that are blocked externally or descoped mid-run.
 # US-318 to US-335: Tier 4 stories (OTel spans, DeepEval, RAGAS, HMAC, etc.)
 # requiring external dependencies not available in this environment.
-SPIRAL_SKIP_STORY_IDS="US-318,US-319,US-320,US-321,US-322,US-323,US-324,US-325,US-326,US-327,US-328,US-329,US-330,US-331,US-332,US-333,US-334,US-335,US-447,US-461,US-466"
+SPIRAL_SKIP_STORY_IDS="US-318,US-319,US-320,US-321,US-322,US-323,US-324,US-325,US-326,US-327,US-328,US-329,US-330,US-331,US-332,US-333,US-334,US-335,US-447,US-461,US-466,US-467"
 # US-466 skipped: timed out 17+ times across all models — Claude spends entire 600s
 # exploring codebase without implementing. Needs manual decomposition.
 # US-447 skipped: claude CLI hits "Argument list too long" (Windows E2BIG) every attempt
