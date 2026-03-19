@@ -9,6 +9,11 @@ SPIRAL_PYTHON="/c/Users/Jyue/Documents/1-projects/Software Projects/Spiral/.venv
 # ── Test / validation command ────────────────────────────────────────────────
 SPIRAL_VALIDATE_CMD="uv run pytest tests/ -v --tb=short"
 
+# ── Baseline test count (for test ratchet in ralph) ──────────────────────────
+# Use venv Python via uv (~15s collect-only) instead of system python3 (~51s,
+# Windows Store Python with 8 collection errors from missing venv deps).
+SPIRAL_TEST_BASELINE_CMD='n=$(uv run python -m pytest --collect-only -q 2>/dev/null | grep -oP "^\d+(?= tests? collected)" | head -1); echo "${n:-0}"'
+
 # ── Model routing: auto routes haiku→sonnet→opus by story complexity ─────────
 # Options: auto | haiku | sonnet | opus
 # auto = cheapest model that can handle the story; escalates on retry
@@ -72,7 +77,7 @@ SPIRAL_MERGE_MODEL="haiku"      # Phase M: merge decisions (future — currently
 # vague ACs, add exact file paths + test commands, split stories touching 3+
 # files. Costs one extra Claude call per eligible story but prevents 2-3 retry
 # cycles in Phase I. Set to true to opt in.
-SPIRAL_STORY_ENRICHMENT="${SPIRAL_STORY_ENRICHMENT:-false}"
+SPIRAL_STORY_ENRICHMENT="${SPIRAL_STORY_ENRICHMENT:-true}"
 # Model for enrichment pass. sonnet is default; set to opus for maximum quality.
 SPIRAL_STORY_ENRICHMENT_MODEL="${SPIRAL_STORY_ENRICHMENT_MODEL:-sonnet}"
 
@@ -176,8 +181,8 @@ SPIRAL_WORKER_TIMEOUT=1200
 
 # ── Per-complexity timeouts (defaults: small=300, medium=600, large=1200) ──
 # Raised small/medium to give Ralph enough runway after baseline counting + exploration
-SPIRAL_STORY_TIMEOUT_SMALL=600
-SPIRAL_STORY_TIMEOUT_MEDIUM=900
+SPIRAL_STORY_TIMEOUT_SMALL=900
+SPIRAL_STORY_TIMEOUT_MEDIUM=1200
 
 # ── Cost ceiling: abort when cumulative API spend exceeds budget ──────────────
 # Set to a USD amount (e.g., 50.0) to cap spending. Empty = disabled.
