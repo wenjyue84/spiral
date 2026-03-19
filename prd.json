@@ -551,7 +551,9 @@
       "passes": true,
       "_source": "test-story",
       "model": "haiku",
-      "last_attempted": "2026-03-19T05:00:00Z"
+      "last_attempted": "2026-03-19T05:01:56Z",
+      "_failureReason": "story_cost_ceiling",
+      "_passedCommit": "f3f7516d74bf847ee47e952a591a339d10101750"
     },
     {
       "id": "US-483",
