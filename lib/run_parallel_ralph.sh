@@ -604,6 +604,18 @@ done
 
 # ── Step 2.5: Spawn live monitor terminal per worker (if --monitor) ───────────
 if [[ "$MONITOR_TERMINALS" -eq 1 ]]; then
+  # Kill stale monitor terminals from previous iterations to prevent accumulation
+  if command -v wmic &>/dev/null; then
+    _stale_pids=$(wmic process where "name like '%mintty%' and commandline like '%SPIRAL Worker%'" get processid 2>/dev/null | grep -oE '[0-9]+' || true)
+    if [[ -n "$_stale_pids" ]]; then
+      echo "  [parallel] Cleaning up $(echo "$_stale_pids" | wc -l | tr -d ' ') stale monitor window(s)..."
+      for _pid in $_stale_pids; do
+        taskkill //PID "$_pid" //F &>/dev/null || true
+      done
+      sleep 0.3
+    fi
+  fi
+
   # Auto-detect terminal emulator
   if [[ -n "$TERMINAL_EMU" ]]; then
     WT_EXE="$TERMINAL_EMU"
