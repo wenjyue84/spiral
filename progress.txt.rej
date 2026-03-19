@@ -1,0 +1,34 @@
+diff a/progress.txt b/progress.txt	(rejected hunks)
+@@ -551,32 +509,3 @@ This user story is for a Python project, not a Frappe application. Based on the
+ *   Ensure the test runner (`uv run pytest`) is configured correctly.
+ *   Stubs/fixtures must accurately represent the data format of the real files to be effective.
+ 
+-
+-## Pre-analysis for US-485 (Gemini 2.5 Pro)
+-### Technical Brief: US-485 Integration Tests for Federated `prd.json`
+-
+-**Objective:** Implement integration tests for the federated `prd.json` loading mechanism as per US-457.
+-
+-**Files to Modify:**
+-*   **Create:** `tests/test_federated_prd.py`. This is a new test file.
+-*   **Reference:** `lib/prd_schema.py`. Review the existing `FederatedPrd` loader or equivalent class/function to understand the API that needs to be tested.
+-
+-**Frappe Context:**
+-*   This is not a Frappe project. No DocTypes or hooks are involved. The implementation is pure Python.
+-
+-**Implementation Plan:**
+-1.  Use the `pytest` framework and its `tmp_path` fixture to create self-contained tests.
+-2.  **Happy Path Test (`test_federated_prd_happy_path`):**
+-    *   In `tmp_path`, create a root `prd.json` referencing a sub-project file (e.g., `subprojects/proj_a/prd.json`).
+-    *   Create the corresponding sub-project `prd.json` with a few stories.
+-    *   Load the root `prd.json` using the API from `lib/prd_schema.py`.
+-    *   Assert that stories from the sub-project are loaded and their IDs are correctly namespaced (e.g., `proj_a/US-1`).
+-3.  **Failure Path Test (`test_federated_prd_missing_subproject`):**
+-    *   Create a root `prd.json` that references a non-existent sub-project file.
+-    *   Use `pytest.raises` to assert that a specific, descriptive error (e.g., `FileNotFoundError` or a custom exception) is raised when loading.
+-
+-**Edge Cases & Gotchas:**
+-*   Ensure tests require no network access or external services.
+-*   The namespace format `<subproject-prefix>/US-NNN` must be strictly checked.
+-*   Consider testing for malformed JSON in the sub-project file as an additional failure case.
+-

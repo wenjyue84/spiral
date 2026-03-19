@@ -1,45 +1,3 @@
-## Iteration 21 - US-485: Integration tests for federated prd.json
-
-### What was completed
-- Created tests/test_federated_prd.py with 7 comprehensive integration tests
-- Implemented load_federated_prd() function for merging sub-project PRDs with namespacing
-- Module-level test functions matching acceptance criteria exactly:
-  - `test_federated_prd_happy_path()` - verifies sub-project stories load with namespace prefix (e.g., "subproj/US-100")
-  - `test_federated_prd_missing_subproject()` - verifies FileNotFoundError with descriptive message for missing files
-- Additional comprehensive tests:
-  - Multiple sub-projects with different namespaces
-  - Malformed JSON error handling
-  - Missing namespace/path key validation
-  - Invalid subProjects structure validation
-
-### Acceptance criteria verification (all PASS)
-✓ test_federated_prd_happy_path() - story IDs carry sub-project namespace prefix
-✓ test_federated_prd_missing_subproject() - raises descriptive FileNotFoundError
-✓ All 7 tests pass with no external services (using tmp_path fixtures)
-✓ mypy --strict validation passes
-✓ No network calls required (fully self-contained)
-
-### Implementation details
-- Base PRD can reference sub-projects via `subProjects` array with `namespace` and `path`
-- Sub-project stories get ID prefix: `{namespace}/{story_id}` (e.g., "subproj/US-100")
-- Each story tagged with `_federated_from` and `_original_id` for traceability
-- Comprehensive error handling for missing files, malformed JSON, invalid structure
-- Tests use pytest tmp_path fixture for isolated, self-contained environments
-
-### Quality gates
-- ✓ All 7 tests pass
-- ✓ mypy --strict: no type errors
-- ✓ Self-contained: no external services
-- ✓ No network calls required
-
-### Key patterns
-- Federated prd.json structure: `{..., "subProjects": [{"namespace": "X", "path": "Y"}]}`
-- Story namespace format: `{namespace}/{story_id}` (e.g., "sub1/US-100", "sub2/US-200")
-- Error messages include both relative path and resolved absolute path for clarity
-- Metadata fields (_federated_from, _original_id) preserve origin information
-
----
-
 ## Iteration 20 - US-482: Validation and schema fixes
 
 ### What was completed
@@ -580,3 +538,6 @@ This user story is for a Python project, not a Frappe application. Based on the 
 *   The namespace format `<subproject-prefix>/US-NNN` must be strictly checked.
 *   Consider testing for malformed JSON in the sub-project file as an additional failure case.
 
+## Worker 1 crashed (exit 2) — 2026-03-19 14:25:53
+## Worker 2 crashed (exit 1) — 2026-03-19 14:25:55
+## Worker 3 crashed (exit 1) — 2026-03-19 14:25:56
