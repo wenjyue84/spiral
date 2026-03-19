@@ -810,7 +810,8 @@
       "tags": [
         "module-github",
         "module-hypothesis"
-      ]
+      ],
+      "last_attempted": "2026-03-19T13:20:57Z"
     },
     {
       "id": "US-502",
@@ -831,7 +832,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "haiku",
       "filesTouch": [
@@ -909,7 +910,7 @@
         "US-459"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "test-story",
       "model": "haiku",
       "filesTouch": [
