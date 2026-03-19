@@ -548,9 +548,10 @@
         "US-458"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "test-story",
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-03-19T05:00:00Z"
     },
     {
       "id": "US-483",
