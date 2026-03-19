@@ -1508,3 +1508,30 @@ FAILED diagnosis-block gate: Phase S Batch Request Optimizer: Group Similar Stor
 *   Parsing logic should be robust to non-numeric or missing values in duration columns.
 *   The definition of an "escalation" must be inferred from the `results.tsv` data columns.
 
+
+## Pre-analysis for US-526 (Gemini 2.5 Pro)
+Here is the technical brief for user story US-526.
+
+**Project:** Regression Test for Worker Crash Recovery (US-526)
+**Context:** This is a Python/Shell scripting task to test git worktree recovery, not a Frappe/ERPNext feature.
+
+**1. Python Files to Modify:**
+*   `tests/test_crash_recovery.py`: A new `pytest` test suite to implement the regression test.
+*   `lib/impl/commit_revert.sh`: The target shell script containing the recovery logic to be invoked and verified.
+
+**2. Frappe DocTypes/Hooks Involved:**
+*   None. This story does not involve Frappe DocTypes or hooks.
+
+**3. Recommended Implementation Approach:**
+*   Use `pytest` with the `tmp_path` fixture to create an isolated test environment.
+*   In a test function, use `subprocess` to initialize a bare git repo and a worktree within `tmp_path`.
+*   Create a commit on the `main` branch.
+*   Simulate the failure condition by detaching HEAD (`git checkout --detach HEAD`).
+*   Invoke the recovery logic from the Python test via `subprocess.run(['bash', 'lib/impl/commit_revert.sh', worktree_path])`.
+*   Assert that the HEAD is back on `main` and that the git worktree is clean (`git status --porcelain` is empty).
+
+**4. Edge Cases & Gotchas:**
+*   The test must call the *actual* `commit_revert.sh` script to be a valid regression test; do not mock this call.
+*   Verify the test fails if the core recovery logic in the shell script is commented out.
+*   Consult `lib/run_parallel_ralph.sh` to understand the "known-good state" for a worktree.
+

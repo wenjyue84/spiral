@@ -148,6 +148,56 @@ log_rollback_event() {
     >>"${SPIRAL_SCRATCH_DIR:-./}/spiral_events.jsonl" 2>/dev/null || true
 }
 
+# ── DETACHED HEAD RECOVERY (US-461) ──────────────────────────────────────────
+
+# recover_detached_worktree <worktree_path>
+# Detects if a worktree is in detached HEAD state and resets it to main.
+# Used to recover from worker crashes that leave the worktree in a bad state.
+# Returns: 0 on success, 1 if already on a branch, 2 if reset fails
+recover_detached_worktree() {
+  local worktree_path="$1"
+
+  if [[ ! -d "$worktree_path" ]]; then
+    echo "[ERROR] Worktree does not exist: $worktree_path" >&2
+    return 2
+  fi
+
+  # Check if HEAD is detached
+  local _current_branch
+  _current_branch=$(git -C "$worktree_path" rev-parse --abbrev-ref HEAD 2>/dev/null) || true
+
+  if [[ "$_current_branch" == "HEAD" ]]; then
+    # HEAD is detached — perform recovery
+    echo "[recovery] Worktree $worktree_path is in detached HEAD state — recovering to main"
+
+    # Reset worktree to main with staged and unstaged changes discarded
+    git -C "$worktree_path" reset HEAD 2>/dev/null || true
+    git -C "$worktree_path" checkout -- . 2>/dev/null || true
+    git -C "$worktree_path" clean -fd 2>/dev/null || true
+
+    # Attempt to checkout main branch
+    if ! git -C "$worktree_path" checkout main 2>/dev/null; then
+      if ! git -C "$worktree_path" checkout -b main origin/main 2>/dev/null; then
+        echo "[ERROR] Failed to checkout main branch in $worktree_path" >&2
+        return 2
+      fi
+    fi
+
+    # Verify we're back on main
+    _current_branch=$(git -C "$worktree_path" rev-parse --abbrev-ref HEAD 2>/dev/null) || true
+    if [[ "$_current_branch" == "main" ]]; then
+      echo "[recovery] Successfully recovered worktree to main branch"
+      return 0
+    else
+      echo "[ERROR] Recovery failed — worktree still on $(_current_branch)" >&2
+      return 2
+    fi
+  else
+    # Already on a branch — no recovery needed
+    return 1
+  fi
+}
+
 # ── COMMIT OR REVERT ─────────────────────────────────────────────────────────
 
 # commit_or_revert <story_id> <worker_branch> <passes>
