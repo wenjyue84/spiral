@@ -408,8 +408,7 @@
         "module-lib"
       ],
       "last_attempted": "2026-03-19T03:31:26Z",
-      "_passedCommit": "df8d0149b07fba31d7d07d9631a80087370cf7a0",
-      "_scopeCreep": true
+      "_passedCommit": "df8d0149b07fba31d7d07d9631a80087370cf7a0"
     },
     {
       "id": "US-472",
@@ -476,8 +475,7 @@
       "tags": [
         "module-hypothesis"
       ],
-      "_passedCommit": "df8d0149b07fba31d7d07d9631a80087370cf7a0",
-      "_scopeCreep": true
+      "_passedCommit": "df8d0149b07fba31d7d07d9631a80087370cf7a0"
     },
     {
       "id": "US-480",
@@ -522,6 +520,277 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "haiku",
+      "last_attempted": "2026-03-19T04:28:19Z"
+    },
+    {
+      "id": "US-482",
+      "title": "Integration Tests for Phase G: CHANGELOG and API Doc Generation",
+      "priority": "high",
+      "description": "Write integration tests for US-458 which implements SPIRAL Phase G: auto-generating CHANGELOG.md and API docs from story commits using git-cliff and pdoc. Tests must cover the happy path (successful generation) and at least one error/edge case (e.g., no commits, missing tool).",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_phase_g_integration.py::test_changelog_generated_from_commits -v exits 0",
+        "uv run pytest tests/test_phase_g_integration.py::test_api_docs_generated_by_pdoc -v exits 0",
+        "uv run pytest tests/test_phase_g_integration.py::test_phase_g_handles_empty_commit_log -v exits 0",
+        "uv run pytest tests/test_phase_g_integration.py -v exits 0 with no external services required (all git ops use a tmp repo fixture)"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_phase_g_integration.py (new file — create integration test module for Phase G)",
+        "File to edit: lib/phases/phase_g.sh or lib/phases/phase_g.py (identify the Phase G entry point from US-458 to know what to call)",
+        "Test command: uv run pytest tests/test_phase_g_integration.py -v --tb=short",
+        "Use pytest tmp_path fixture or tempfile.mkdtemp() to create an isolated git repo; run git init + git commit inside it so tests need no external services",
+        "If Phase G is a shell script, invoke it via subprocess.run() and assert on exit code and presence of CHANGELOG.md / docs/ output files"
+      ],
+      "dependencies": [
+        "US-458"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "test-story",
+      "model": "haiku"
+    },
+    {
+      "id": "US-483",
+      "title": "Integration Tests for SPIRAL Self-Monitoring Dashboard (US-460)",
+      "priority": "high",
+      "description": "Write integration tests covering the SPIRAL self-monitoring dashboard implemented in US-460. Tests verify live token burn rate display, story throughput metrics, and model escalation heatmap data endpoints work correctly end-to-end. Tests must be self-contained with no external service dependencies.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_dashboard_integration.py::test_token_burn_rate_endpoint -v exits 0",
+        "uv run pytest tests/test_dashboard_integration.py::test_story_throughput_metrics -v exits 0",
+        "uv run pytest tests/test_dashboard_integration.py::test_model_escalation_heatmap_edge_case -v exits 0 (covers empty/no-data case)",
+        "uv run pytest tests/test_dashboard_integration.py -v --tb=short exits 0 with no external services required"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_dashboard_integration.py (new file — create integration test module for US-460 dashboard)",
+        "File to edit: lib/dashboard.py or equivalent US-460 dashboard module (verify public API surface to test against)",
+        "Test command: uv run pytest tests/test_dashboard_integration.py -v --tb=short",
+        "Use fixtures or monkeypatching to stub results.tsv / spiral_events.jsonl reads so tests run without a live SPIRAL session"
+      ],
+      "dependencies": [
+        "US-460"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "test-story",
+      "model": "haiku"
+    },
+    {
+      "id": "US-484",
+      "title": "Security tests: US-460 dashboard auth and data-leak checks",
+      "priority": "high",
+      "description": "Write pytest security tests verifying that the self-monitoring dashboard introduced in US-460 enforces access control on all endpoints and does not leak sensitive data (tokens, API keys) in error responses. Tests must be runnable independently of a live server by using the app test client.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_security_us460.py::test_unauthenticated_dashboard_returns_401_or_403 -v exits 0",
+        "uv run pytest tests/test_security_us460.py::test_error_response_contains_no_secrets -v exits 0 (response body must not match regex for API keys or bearer tokens)",
+        "uv run pytest tests/test_security_us460.py -v --tb=short exits 0 with all tests collected and passing"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_security_us460.py (new module — create if absent; import app fixture from tests/conftest.py)",
+        "File to edit: tests/conftest.py (add or reuse app/client fixture that mounts the dashboard routes from US-460)",
+        "Test command: uv run pytest tests/test_security_us460.py -v --tb=short",
+        "Use Flask/FastAPI test client (or equivalent) so no live server is required; mock token store if auth reads from env"
+      ],
+      "dependencies": [
+        "US-460"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "test-story",
+      "model": "haiku"
+    },
+    {
+      "id": "US-485",
+      "title": "Integration tests for federated prd.json sub-project namespacing (US-457)",
+      "priority": "high",
+      "description": "Write integration tests covering the federated prd.json feature introduced in US-457. Tests must exercise the happy path (sub-project stories loaded and namespaced correctly) and at least one failure path (missing sub-project file or malformed namespace). No external services or manual setup required.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_federated_prd.py::test_federated_prd_happy_path -v exits 0 and story IDs carry sub-project namespace prefix",
+        "uv run pytest tests/test_federated_prd.py::test_federated_prd_missing_subproject -v exits 0 and asserts a descriptive error is raised",
+        "uv run pytest tests/test_federated_prd.py -v --tb=short exits 0 with no skips and no external network calls"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_federated_prd.py (new file — integration tests for US-457 federated prd.json)",
+        "File to edit: lib/prd_schema.py (review FederatedPrd or sub-project loader to understand the API under test)",
+        "Test command: uv run pytest tests/test_federated_prd.py -v --tb=short",
+        "Use tmp_path pytest fixture to create ephemeral prd.json + sub-project prd.json fixtures so tests are self-contained",
+        "Story namespace format expected: '<subproject-prefix>/US-NNN' — verify this in the happy path assertion"
+      ],
+      "dependencies": [
+        "US-457"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "test-story",
+      "model": "haiku"
+    },
+    {
+      "id": "US-486",
+      "title": "Implement cost trend analyzer to detect spending inflation across iterations",
+      "priority": "medium",
+      "description": "Parse results.tsv to compute rolling 3-iteration cost average and alert when current iteration exceeds baseline by >20%. Enables early detection of token burn rate increases.",
+      "acceptanceCriteria": [
+        "CLI command: `python main.py cost-trend` outputs JSON with {current_iteration_cost, avg_3iter_cost, pct_increase, threshold_exceeded}",
+        "Parses results.tsv cost column, computes per-iteration totals, calculates 3-iteration rolling average",
+        "Writes alert to stderr and exits with code 1 if pct_increase > 20%, code 0 otherwise"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-487",
+      "title": "Add Phase G artifact diff reporter: CLI to show CHANGELOG and API docs changes",
+      "priority": "medium",
+      "description": "Generate structured diff of CHANGELOG.md and API documentation between two SPIRAL iterations. Enables tracking what documentation was updated and why.",
+      "acceptanceCriteria": [
+        "CLI: `python main.py phase-g-diff <iter-A> <iter-B>` outputs JSON with {added_sections, modified_sections, deleted_entries, line_diffs}",
+        "Reads CHANGELOG.md and doc/ folder, computes unified diff, extracts section headers and story IDs",
+        "Stores results in .spiral/<iter>/phase-g-diff.json for audit trail"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-488",
+      "title": "Implement cost breakdown by user story from results.tsv",
+      "priority": "medium",
+      "description": "Analyze which stories consume the most tokens and cost. Identify expensive outliers and opportunities for decomposition tuning.",
+      "acceptanceCriteria": [
+        "CLI: `python main.py story-costs` outputs JSON sorted by total_cost with top 15 stories and summary",
+        "Breakdown per story: {story_id, total_cost, token_count, attempt_count, by_model: {haiku: cost, sonnet: cost, opus: cost}}",
+        "Include pivot view: {story_id: {phase_R: cost, phase_I: cost, phase_V: cost, ...}}"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-489",
+      "title": "Add Phase S validation error categorizer: bucket failures by root cause",
+      "priority": "medium",
+      "description": "Analyze Phase S validation failures and categorize by type (constitution-violation, goal-misalignment, scope-too-large). Enables targeted story design improvement.",
+      "acceptanceCriteria": [
+        "CLI: `python main.py validation-error-summary` outputs JSON with {constitution_violation: int, goal_misalignment: int, scope_too_large: int, other: int}",
+        "Parses _validated_stories.json rejection reasons, maps to categories via keyword matching in lib/prd_validation.py",
+        "Includes sample story IDs for each category and top 3 most common error messages per category"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-490",
+      "title": "Implement worker incident logger: detect heartbeat failures and log with recovery context",
+      "priority": "medium",
+      "description": "Monitor worker heartbeat logs, detect timeouts and crashes, log incidents with timing and context. Supports incident post-mortems and crash recovery debugging.",
+      "acceptanceCriteria": [
+        "Function `log_worker_incident(worker_id, failure_type, context)` in lib/worker_heartbeat.py writes incident to .spiral/worker-incidents.jsonl",
+        "Detects and categorizes: heartbeat timeout (>60s), git worktree lock failure, signal crash (SIGKILL/SIGTERM), OOM killer",
+        "CLI: `python main.py worker-incidents --iteration=<N>` outputs summary with timing, worker PID, last git state, and auto-recovery recommendations"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-491",
+      "title": "Integration Test Phase R Research with Mocked Gemini Responses",
+      "priority": "high",
+      "description": "Add end-to-end integration test for Phase R that mocks Gemini web search API and validates _research_output.json schema compliance",
+      "acceptanceCriteria": [
+        "tests/test_phase_r_integration.py exists with fixtures for 5 domain-specific searches (weather, finance, tech news, product, legal); mocks lib.research.gemini_web_search()",
+        "Test runs Phase R orchestration with SPIRAL_RESEARCH_PROVIDER=mock env var, validates _research_output.json matches prd.schema.json research section",
+        "CI workflow step 'uv run pytest tests/test_phase_r_integration.py -v' passes with >75% coverage on lib/research.py"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-492",
+      "title": "Story Cost Distribution Metrics Endpoint for Dashboard",
+      "priority": "high",
+      "description": "Parse results.tsv to generate cost statistics (box plot data), expose via /api/metrics/cost-distribution with date range filtering for dashboard visualization",
+      "acceptanceCriteria": [
+        "lib/metrics/cost_distribution.py parses results.tsv, computes {min, q1, median, q3, max, outlier_ids} for given date range",
+        "Flask endpoint GET /api/metrics/cost-distribution?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD returns JSON with cost_stats and story_count",
+        "Dashboard renders d3 box plot at http://localhost:5299/metrics/cost; outliers highlighted with story IDs and cost values"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-493",
+      "title": "Budget Forecast Alert - Predict Iteration Cost Before Completion",
+      "priority": "high",
+      "description": "Fit linear regression model on current iteration's story costs to forecast final cost; alert dashboard if predicted total exceeds 1.2x SPIRAL_COST_CEILING",
+      "acceptanceCriteria": [
+        "lib/metrics/cost_forecast.py fits polyfit(degree=1) on {story_index: cost} from current iteration results.tsv, predicts final_cost",
+        "Endpoint GET /api/metrics/forecast?iteration=N returns {predicted_total_cost, budget_ceiling, alert, margin_pct}",
+        "Dashboard shows real-time budget burn gauge; turns red if predicted_total_cost > SPIRAL_COST_CEILING, displays margin warning"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-494",
+      "title": "Phase G Docstring Validator - Undocumented Public Functions Detector",
+      "priority": "medium",
+      "description": "Scan lib/ Python modules for public functions missing docstrings, integrate into Phase V validation pipeline to enforce API doc completeness",
+      "acceptanceCriteria": [
+        "lib/validators/docstring_check.py uses ast module to parse *.py files in lib/, flags functions matching pattern ^[a-z_].*[^_]$ with no docstring",
+        "Phase V calls docstring_check.py, logs {status, undocumented_count}, fails iteration if count >5",
+        "CI workflow runs 'uv run python lib/validators/docstring_check.py lib/' in pre-commit hooks"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-495",
+      "title": "Worker Utilization Heatmap - Idle vs Active Time Metrics",
+      "priority": "medium",
+      "description": "Parse worker heartbeat logs to compute idle percentage per worker per iteration, render as interactive heatmap on self-monitoring dashboard",
+      "acceptanceCriteria": [
+        "lib/metrics/worker_utilization.py reads .spiral-workers/worker-*/heartbeat.log, computes idle_seconds / total_seconds for each worker",
+        "Endpoint GET /api/metrics/worker-utilization?iteration=N returns JSON {workers: [{id, idle_pct, active_pct}], timestamp}",
+        "Dashboard renders d3 heatmap with worker IDs as rows, iterations as columns; cell intensity = idle_pct, tooltip shows worker_id, iteration, task breakdown"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
       "passes": false,
       "_source": "ai-example",
       "model": "haiku"
