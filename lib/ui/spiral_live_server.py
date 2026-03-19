@@ -41,6 +41,10 @@ from typing import List, Optional
 # never terminate. Set SPIRAL_SUBPROCESS_TIMEOUT=0 to disable (not recommended).
 _SUBPROCESS_TIMEOUT: float = float(os.environ.get("SPIRAL_SUBPROCESS_TIMEOUT", "300"))
 
+# Optional auth token for dashboard access. If set, all requests must include
+# Authorization: Bearer <token> header. Set SPIRAL_DASHBOARD_AUTH_TOKEN to enable.
+_AUTH_TOKEN: Optional[str] = os.environ.get("SPIRAL_DASHBOARD_AUTH_TOKEN")
+
 # ── Data Structures ───────────────────────────────────────────────────────────
 
 _DONE_SENTINEL = object()  # Marks end of a worker's output queue
@@ -93,6 +97,26 @@ class SpiralLiveServer:
         self.port = port
         self._workers: dict[str, WorkerState] = {}
         self._projects: dict[str, dict] = {}  # type: ignore[type-arg]
+
+    def _check_auth(self, headers: dict[str, str]) -> tuple[bool, str]:
+        """Validate Authorization header if auth is enabled.
+
+        Returns: (is_valid, error_message)
+        - If auth not enabled: (True, "")
+        - If auth enabled but header missing/invalid: (False, "Unauthorized")
+        """
+        if not _AUTH_TOKEN:
+            return True, ""
+
+        auth_header = headers.get("authorization", "")
+        if not auth_header.startswith("Bearer "):
+            return False, "Unauthorized"
+
+        token = auth_header[7:]  # Strip "Bearer "
+        if token != _AUTH_TOKEN:
+            return False, "Unauthorized"
+
+        return True, ""
 
     # ── Worker management ────────────────────────────────────────────────────
 
@@ -268,6 +292,14 @@ class SpiralLiveServer:
         writer: asyncio.StreamWriter,
     ) -> None:
         """Route request to the correct handler."""
+        # Check auth for protected endpoints (dashboard, API)
+        auth_required = not (path == "/health" and method == "GET")
+        if auth_required:
+            is_valid, error_msg = self._check_auth(headers)
+            if not is_valid:
+                await self._send_error(writer, 401, error_msg)
+                return
+
         # --- SSE stream ---
         m = re.match(r"^/api/worker-stream/([^/?]+)$", path)
         if m and method == "GET":

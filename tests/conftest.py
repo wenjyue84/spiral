@@ -159,3 +159,110 @@ def tmp_prd(tmp_path):
         return str(path)
 
     return _write
+
+
+# ── Dashboard security testing fixtures ─────────────────────────────────────
+
+
+class MockStreamWriter:
+    """Mock asyncio.StreamWriter for testing HTTP responses."""
+
+    def __init__(self) -> None:
+        self.data: bytearray = bytearray()
+        self.closed = False
+
+    def write(self, data: bytes) -> None:
+        """Write data to buffer."""
+        self.data.extend(data)
+
+    async def drain(self) -> None:
+        """No-op drain."""
+        pass
+
+    def close(self) -> None:
+        """Mark as closed."""
+        self.closed = True
+
+    async def wait_closed(self) -> None:
+        """No-op wait_closed."""
+        pass
+
+    def get_response_body(self) -> dict:
+        """Parse response body as JSON."""
+        response_str = self.data.decode("utf-8", errors="replace")
+        # Split headers and body by \r\n\r\n
+        parts = response_str.split("\r\n\r\n", 1)
+        if len(parts) < 2:
+            return {}
+        body_str = parts[1]
+        if not body_str:
+            return {}
+        try:
+            return json.loads(body_str)
+        except json.JSONDecodeError:
+            return {}
+
+    def get_status_code(self) -> int:
+        """Extract HTTP status code from response."""
+        response_str = self.data.decode("utf-8", errors="replace")
+        # First line is "HTTP/1.1 <code> <message>"
+        first_line = response_str.split("\r\n")[0]
+        parts = first_line.split(" ")
+        if len(parts) >= 2:
+            try:
+                return int(parts[1])
+            except ValueError:
+                return 0
+        return 0
+
+
+@pytest.fixture
+def spiral_server():
+    """Provide a SpiralLiveServer instance for testing."""
+    from lib.ui.spiral_live_server import SpiralLiveServer
+
+    return SpiralLiveServer(host="127.0.0.1", port=5300)
+
+
+@pytest.fixture
+def mock_writer():
+    """Provide a mock StreamWriter for testing."""
+    return MockStreamWriter()
+
+
+@pytest.fixture
+def auth_token():
+    """Provide a test auth token."""
+    return "test-token-secret-123"
+
+
+@pytest.fixture
+def with_auth(auth_token):
+    """Set up environment with auth token enabled."""
+    old_value = os.environ.get("SPIRAL_DASHBOARD_AUTH_TOKEN")
+    os.environ["SPIRAL_DASHBOARD_AUTH_TOKEN"] = auth_token
+    # Re-import to reload the _AUTH_TOKEN global
+    import importlib
+    from lib.ui import spiral_live_server
+    importlib.reload(spiral_live_server)
+    yield
+    if old_value is None:
+        os.environ.pop("SPIRAL_DASHBOARD_AUTH_TOKEN", None)
+    else:
+        os.environ["SPIRAL_DASHBOARD_AUTH_TOKEN"] = old_value
+    importlib.reload(spiral_live_server)
+
+
+@pytest.fixture
+def without_auth():
+    """Ensure auth token is not set."""
+    old_value = os.environ.get("SPIRAL_DASHBOARD_AUTH_TOKEN")
+    os.environ.pop("SPIRAL_DASHBOARD_AUTH_TOKEN", None)
+    # Re-import to reload the _AUTH_TOKEN global
+    import importlib
+    from lib.ui import spiral_live_server
+    importlib.reload(spiral_live_server)
+    yield
+    if old_value is not None:
+        os.environ["SPIRAL_DASHBOARD_AUTH_TOKEN"] = old_value
+    importlib.reload(spiral_live_server)
