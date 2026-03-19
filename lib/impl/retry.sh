@@ -29,6 +29,39 @@
 
 [[ "${BASH_SOURCE[0]}" == "${0}" ]] && echo "Source this file, do not execute it directly." && exit 1
 
+# invoke_exhaustion_analyzer <story_id> <attempts_json_file>
+# Runs lib/impl/exhaustion_analyzer.py and writes the JSON report to
+# .spiral/exhausted_stories/<story_id>_analysis.json.
+# Silently skips if Python or the analyzer script is unavailable.
+invoke_exhaustion_analyzer() {
+  local story_id="$1"
+  local attempts_file="${2:-}"
+  local analyzer_script
+  analyzer_script="$(dirname "${BASH_SOURCE[0]}")/exhaustion_analyzer.py"
+  local output_dir=".spiral/exhausted_stories"
+  local output_file="${output_dir}/${story_id}_analysis.json"
+
+  if [[ ! -f "$analyzer_script" ]]; then
+    echo "[Phase I / retry] exhaustion_analyzer.py not found, skipping report" >&2
+    return 0
+  fi
+  if [[ -z "$attempts_file" || ! -f "$attempts_file" ]]; then
+    echo "[Phase I / retry] No attempts file provided for $story_id, skipping exhaustion report" >&2
+    return 0
+  fi
+
+  mkdir -p "$output_dir"
+  if uv run python "$analyzer_script" \
+       --story-id "$story_id" \
+       --attempts "$attempts_file" \
+       --output "$output_file" 2>&1; then
+    echo "[Phase I / retry] Exhaustion report written: $output_file"
+  else
+    echo "[Phase I / retry] Exhaustion analyzer failed for $story_id (non-fatal)" >&2
+  fi
+  return 0
+}
+
 # handle_story_failure <story_id> <current_retries> [failure_reason]
 # Records the failure reason as an anti-pattern on the story (Strategy 1).
 # Returns 0 always (non-fatal — caller decides skip vs retry).

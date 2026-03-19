@@ -1,3 +1,31 @@
+## Iteration 38 - US-542: Phase I retry exhaustion analysis report
+
+### What was implemented
+- Created lib/impl/exhaustion_analyzer.py with analyze_exhausted_story(story_id, attempts) function
+  - Classifies errors into: timeout|token_limit|assertion|parse|api_error|unknown
+  - Returns root_cause, error_pattern, suggestion, model_sequence, error_counts, confidence_score
+  - Actionable suggestion per root cause; detection of repeated assertion errors → suggests _decomposed antiPattern
+  - CLI: python lib/impl/exhaustion_analyzer.py --story-id US-123 --attempts file.json [--output path]
+- Added invoke_exhaustion_analyzer() to lib/impl/retry.sh
+  - Called after 3rd attempt fails; writes JSON to .spiral/exhausted_stories/{story_id}_analysis.json
+  - Gracefully skips if analyzer unavailable or no attempts file provided
+- Created tests/test_exhaustion_analyzer.py with 14 tests (unit + integration + CLI)
+
+### Acceptance criteria verification
+✓ analyze_exhausted_story() returns {root_cause, error_pattern, suggestion, model_sequence}
+✓ Categorizes errors as timeout|token_limit|assertion|parse|api_error
+✓ retry.sh invoke_exhaustion_analyzer writes JSON to .spiral/exhausted_stories/
+✓ Integration test: 3x identical assertion error → root_cause=assertion, confidence>=0.9, suggests _decomposed antiPattern
+✓ mypy --strict passes on lib/impl/exhaustion_analyzer.py
+✓ All 14 tests pass
+
+### Patterns discovered
+- Error classification via keyword matching is simple but effective for the ~5 major categories
+- Confidence score = fraction of attempts sharing the same root_cause (clean and interpretable)
+- Pre-existing CRLF issue in lib/impl/retry.sh (shellcheck SC1017) — not introduced by this story
+
+---
+
 ## Iteration 37 - US-530: Phase I Budget Guard: fail-fast before decomposition using predict-cost
 
 ### What was implemented
@@ -1627,4 +1655,34 @@ Here is the technical brief for user story US-526.
 *   The test must call the *actual* `commit_revert.sh` script to be a valid regression test; do not mock this call.
 *   Verify the test fails if the core recovery logic in the shell script is commented out.
 *   Consult `lib/run_parallel_ralph.sh` to understand the "known-good state" for a worktree.
+
+
+## Pre-analysis for US-531 (Gemini 2.5 Pro)
+Here is a technical brief for the user story.
+
+**Technical Brief: US-531 - Automatic Worker Lag Detection & Restart**
+
+*   **Objective**: Implement a watchdog mechanism within the Spiral framework to automatically detect, terminate, and restart workers that have become unresponsive or stalled.
+
+*   **Project Context**: Analysis indicates this is a shell-script-based implementation for the "Spiral" project. The "Frappe/Python" context appears to be incorrect for this specific story. No Frappe DocTypes or hooks are involved.
+
+*   **Files to Modify**:
+    *   `lib/run_parallel_ralph.sh`: The supervisor script responsible for monitoring the worker pool.
+    *   `lib/worker_heartbeat.sh`: The script run by each worker to report its status.
+    *   A new integration test file (e.g., `tests/integration/test_worker_restart.sh`).
+
+*   **Implementation Approach**:
+    1.  In `lib/worker_heartbeat.sh`, track a `_last_progress_time` timestamp. This script should update a heartbeat file, including this timestamp, at regular intervals.
+    2.  In `lib/run_parallel_ralph.sh`, add a monitoring loop that periodically checks the modification time (`mtime`) of each worker's heartbeat file.
+    3.  If `current_time - mtime > SPIRAL_WORKER_TIMEOUT`, the supervisor should:
+        a. Identify the worker's process ID (PID), likely from a `.pid` file in its worktree.
+        b. Send `SIGTERM` to the worker's bash process to terminate it.
+        c. Re-initiate Phase I for the same story in a new, clean worktree.
+    4.  Create an integration test that uses a mocked story with a `sleep` command longer than the timeout to verify that the worker is correctly terminated and restarted.
+
+*   **Gotchas & Edge Cases**:
+    *   **PID Management**: Ensure the worker PID is captured reliably and the PID file is cleaned up on normal exit to prevent killing incorrect processes.
+    *   **Process Cleanup**: Use `kill` on the process group ID (PGID) if possible to ensure all child processes of the stalled worker are terminated, preventing zombies.
+    *   **Race Conditions**: The supervisor's check-and-kill operation should be swift to minimize killing a worker that recovers just before termination.
+    *   **Stateful Workers**: The restart logic assumes workers are stateless. If a worker writes partial results, the restart might need a cleanup/rollback mechanism for the failed worktree.
 
