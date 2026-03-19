@@ -20,6 +20,7 @@ Subcommands:
   diagnose                Print causal failure chain for a run (multi-agent failure attribution)
   analyze-batch-potential Show Phase S batch grouping potential: API call reduction % and token savings
   complexity-trend        Analyze story retry & duration patterns across iterations (US-537)
+  show-blockers           Analyze story dependency graph and critical paths (US-538)
 """
 
 import argparse
@@ -1885,6 +1886,42 @@ def cmd_complexity_trend(args) -> None:
     run_trend(tsv_path=history, phase=phase, output_path=output, fmt=fmt)
 
 
+def cmd_show_blockers(args) -> None:
+    """Analyze story dependency graph and critical paths (US-538).
+
+    Usage: spiral show-blockers <story_id> [--prd prd.json] [--format dot|json]
+    """
+    from show_blockers import build_dot_graph, get_story_blockers  # type: ignore[import-untyped]
+
+    prd_path = Path(getattr(args, "prd_file", None) or "prd.json")
+    if not prd_path.is_absolute():
+        prd_path = Path.cwd() / prd_path
+
+    if not prd_path.exists():
+        print(f"Error: {prd_path} not found", file=sys.stderr)
+        sys.exit(1)
+
+    stories = _load_prd(prd_path)
+    fmt = getattr(args, "fmt", "json")
+
+    if fmt == "dot":
+        print(build_dot_graph(stories))
+        return
+
+    story_id = getattr(args, "story_id", None)
+    if not story_id:
+        print("Error: story_id is required for JSON output", file=sys.stderr)
+        sys.exit(1)
+
+    all_ids = {s["id"] for s in stories}
+    if story_id not in all_ids:
+        print(f"Error: story '{story_id}' not found in {prd_path}", file=sys.stderr)
+        sys.exit(1)
+
+    result = get_story_blockers(story_id, stories)
+    print(json.dumps(result, indent=2))
+
+
 def cmd_analyze_batch_potential(args) -> None:
     """Print Phase S batch grouping potential as JSON (US-535).
 
@@ -2719,6 +2756,33 @@ def main():
         help="Output format: csv or json (default: csv)",
     )
 
+    # ── show-blockers subcommand (US-538) ────────────────────────────────────────
+    show_blockers_parser = subparsers.add_parser(
+        "show-blockers",
+        help="Analyze story dependency graph and critical paths (US-538)",
+    )
+    show_blockers_parser.add_argument(
+        "story_id",
+        nargs="?",
+        default=None,
+        metavar="STORY_ID",
+        help="Story ID to analyze (e.g. US-123); omit when --format=dot",
+    )
+    show_blockers_parser.add_argument(
+        "--prd",
+        dest="prd_file",
+        default="prd.json",
+        metavar="FILE",
+        help="Path to prd.json (default: prd.json)",
+    )
+    show_blockers_parser.add_argument(
+        "--format",
+        dest="fmt",
+        choices=["json", "dot"],
+        default="json",
+        help="Output format: json (single story) or dot (full graph, default: json)",
+    )
+
     # ── analyze-batch-potential subcommand (US-535) ─────────────────────────────
     analyze_batch_parser = subparsers.add_parser(
         "analyze-batch-potential",
@@ -2808,6 +2872,8 @@ def main():
             sys.exit(0)
     elif args.command == "complexity-trend":
         cmd_complexity_trend(args)
+    elif args.command == "show-blockers":
+        cmd_show_blockers(args)
     elif args.command == "analyze-batch-potential":
         cmd_analyze_batch_potential(args)
     elif args.command == "analyze-routing":
