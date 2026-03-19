@@ -1592,6 +1592,86 @@
       "model": "haiku"
     },
     {
+      "id": "US-544",
+      "title": "Cost Anomaly Detector: Flag Stories with Unusual Token Spend Patterns",
+      "priority": "medium",
+      "description": "Add CLI command to analyze results.tsv and detect stories whose implementation costs deviate significantly from their historical median, enabling early warnings for scope creep or inefficient implementations. Uses statistical anomaly detection (z-score > 2) to identify problematic stories.",
+      "acceptanceCriteria": [
+        "CLI command `spiral detect-anomalies` reads results.tsv, groups by story_id, calculates median and stddev for each story, flags entries where cost > (median + 2*stddev), outputs JSON with { 'anomalies': [{'storyId': 'US-123', 'iteration': 5, 'cost': 45000, 'median': 12000, 'zscore': 2.1, 'model': 'opus'}], 'summary': {'totalAnomalies': 3, 'affectedStories': 2} }",
+        "Output includes model used for each anomaly to identify if cost overruns correlate with model escalation (e.g., haiku→sonnet promotions)",
+        "Test assertion: given a story with costs [10000, 11000, 9000, 50000] in results.tsv, the detector should flag 50000 as anomaly with zscore ≥ 2.0"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-545",
+      "title": "Phase M: Detect and Report Story File Conflicts",
+      "priority": "medium",
+      "description": "When merging multiple stories, detect if they modify overlapping files/functions to prevent hidden merge conflicts during Phase I implementation.",
+      "acceptanceCriteria": [
+        "lib/conflict_detector.py compares implementation diffs from each story and identifies file overlaps (same file path modified by multiple stories)",
+        "Phase M logs conflicts to results.tsv with new conflict_files column containing pipe-separated file paths that conflict",
+        "Integration test merges US-501 (modifying src/auth.ts) and US-502 (also modifying src/auth.ts), verifies conflict is detected and logged"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "opus"
+    },
+    {
+      "id": "US-546",
+      "title": "CLI: spiral phase-timing-report — SLA Breach Analysis",
+      "priority": "medium",
+      "description": "Generate report from results.tsv showing which phases exceed SLA thresholds (median/p95 duration vs expected), helping identify iteration bottlenecks.",
+      "acceptanceCriteria": [
+        "CLI spiral phase-timing-report --format json outputs array of {phase, median_duration_sec, p95_duration_sec, sla_threshold_sec, breach_count} from results.tsv",
+        "lib/perf_analyzer.py computes p95_duration for each phase by reading duration_sec column grouped by phase_name",
+        "Integration test verifies p95 calculation: given 100 Phase R runs with durations [1,2,...100], p95 is correctly computed as 95th percentile"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-547",
+      "title": "Story Failure Root-Cause Analyzer: Categorize Retry Patterns",
+      "priority": "medium",
+      "description": "Parse Phase V validation logs and retry metadata to categorize failures into root causes: scope_exceeded (token limits), api_rate_limit, type_error, validation_timeout, model_capability_gap. Generate per-phase failure distribution and recommend tuning (e.g., increase decompose granularity, escalate model, increase timeout). Output CLI report for cost optimization decisions.",
+      "acceptanceCriteria": [
+        "Add lib/analyze_failures.py with FailureAnalyzer class: reads .spiral/logs/ and results.tsv, regex-matches failure patterns (e.g., 'exceeds.*max_tokens' → scope_exceeded, 'rate_limit' → api_rate_limit), categorizes each retry",
+        "CLI: spiral analyze-failures --format json outputs {\"by_category\": {\"scope_exceeded\": int, ...}, \"by_phase\": {...}, \"recommendation\": string}; phases with >30% scope_exceeded failures recommend SPIRAL_DECOMPOSE_THRESHOLD tuning",
+        "Add `failure_root_cause` column to results.tsv for each story attempt; Phase I logs structured reason to `.spiral/logs/phase-i-<iteration>.log` on retry"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-548",
+      "title": "Dashboard Endpoint - Research Source Authority Tracking",
+      "priority": "medium",
+      "description": "Add dashboard endpoint that extracts and scores research URLs by domain authority and mention frequency across iterations. Returns credibility report to identify if Phase R research comes from reputable sources. Advances self-monitoring dashboard observability (goal 3).",
+      "acceptanceCriteria": [
+        "GET /api/dashboard/research-sources parses _research_output.json and returns JSON array: [{url, domain, credibility_score (0-100), mention_count}]",
+        "Credibility scoring: .gov/.edu domains =90+, news sites =75-85, blogs/forums =50-60; score stored per iteration in .spiral/research_sources.json",
+        "Integration test verifies endpoint correctly scores 2 URLs (one .gov, one .com blog) with expected mention counts from sample _research_output.json"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
       "id": "US-553",
       "title": "Integration Test: SPIRAL Happy Path - Complete Loop from Phase R to C",
       "priority": "high",
@@ -1606,7 +1686,71 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "sonnet",
-      "last_attempted": "2026-03-19T23:09:10Z"
+      "last_attempted": "2026-03-19T23:04:22Z"
+    },
+    {
+      "id": "US-554",
+      "title": "CLI: spiral validate-commits — Detect Orphan Stories and Squash-Commit Patterns",
+      "priority": "medium",
+      "description": "Add validation subcommand that scans git log for story ID patterns (US-NNN), identifies orphan stories in prd.json with no matching commits, and detects squash-commit patterns where multiple stories land in a single commit. Outputs structured JSON with remediation suggestions for git-cliff config. Advances Phase G edge-case handling.",
+      "acceptanceCriteria": [
+        "spiral validate-commits --json outputs {orphans: [\"US-123\"], squash_patterns: [{commit: \"abc123\", stories: [\"US-1\", \"US-2\"]}]}",
+        "Command exits 0 if all stories have commits, 1 if orphans detected",
+        "Suggests git-cliff config adjustments based on commit message format analysis (e.g., multi-line story references)"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-555",
+      "title": "Phase G Semantic Version Calculator: Auto-Bump Version from Story Complexity Scores",
+      "priority": "medium",
+      "description": "Generate the next semantic version for a release based on story complexity scores (breaking/feature/fix counts). Parses previous git tag, increments semver per SemVer 2.0.0, and outputs changelog entries grouped by tier.",
+      "acceptanceCriteria": [
+        "CLI command: spiral next-version --complexity-file=story-complexity.json --previous-tag=v1.2.3 reads JSON array of {story_id, score, type} and increments version: breaking→major, feature→minor, fix→patch",
+        "Generate CHANGELOG-segment.md with stories grouped by semver tier (breaking, features, fixes), including story IDs and descriptions extracted from prd.json",
+        "Test suite: tests/test_semver_calculator.py validates edge cases (v0.0.1→v0.1.0, v1.0.0→v2.0.0, pre-release preservation) with 10+ scenarios"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-556",
+      "title": "Federated Story Router CLI: Auto-Assign Stories to Sub-Projects by File Path Pattern",
+      "priority": "medium",
+      "description": "Automatically categorize stories into sub-project namespaces based on file path patterns in commits. Analyzes git refs, matches against namespace glob patterns, and assigns stories with high-frequency match counting.",
+      "acceptanceCriteria": [
+        "CLI command: spiral route-stories --namespaces=namespaces.json --prd=prd.json parses namespace config with {namespace: string, patterns: [string]} and updates prd.json stories with _namespace field",
+        "For each story, extract commit file paths from git refs, compute match frequency per namespace pattern, assign to highest-match namespace; output JSON report: {assigned: N, unassigned: N, assignments: [{story_id, namespace, match_count}]}",
+        "Test suite: tests/test_route_stories.py validates assignment accuracy on 3+ multi-namespace prd.json files with overlapping patterns, edge cases (no-match, multi-match tie-breaking)"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-557",
+      "title": "Worker Performance Profiler CLI: Analyze Per-Worker Success Rate and Token Efficiency",
+      "priority": "medium",
+      "description": "Extract performance metrics from results.tsv grouped by worker ID: compute per-worker success rate, average story duration, tokens per story, and model escalation distribution. Expose via CLI to inform load balancing and detect underperforming workers.",
+      "acceptanceCriteria": [
+        "lib/worker_profiler.py aggregates results.tsv by worker_id with success/failure counts, avg duration, and tokens-per-story calculations (≥90% accuracy)",
+        "CLI command 'spiral worker-profile --iteration N --output json' returns JSON with success_rate, avg_duration_seconds, tokens_per_story, and model_distribution per worker",
+        "tests/test_worker_profiler.py validates metric calculations against mock results.tsv with 3+ workers across haiku/sonnet/opus models"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
     }
   ]
 }
