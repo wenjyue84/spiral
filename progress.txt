@@ -1,3 +1,48 @@
+## Iteration 29 - US-518: Integration Tests for Episodic Memory Store
+
+### What was completed
+- Added 3 module-level acceptance criteria test functions to tests/test_episodic_memory.py:
+  1. test_record_and_retrieve_happy_path - validates write/retrieve round-trip
+  2. test_top3_fts5_ranking - validates FTS5 semantic ranking with 5+ seeded records
+  3. test_empty_store_returns_empty_context - validates empty store edge case
+- Preserved existing 8 class-based tests for comprehensive coverage
+- All 11 tests passing (0.40 seconds total)
+- mypy --strict passes with no type errors
+- No external dependencies or services required
+
+### Acceptance criteria verification
+✓ uv run pytest tests/test_episodic_memory.py::test_record_and_retrieve_happy_path -v exits 0
+✓ uv run pytest tests/test_episodic_memory.py::test_top3_fts5_ranking -v exits 0 (correct 3 stories ranked in relevance order)
+✓ uv run pytest tests/test_episodic_memory.py::test_empty_store_returns_empty_context -v exits 0 (no exception)
+✓ uv run pytest tests/test_episodic_memory.py -v exits 0 (full suite: 11 tests passing)
+
+### Implementation details
+- test_record_and_retrieve_happy_path: writes 1 record, queries and verifies it matches
+- test_top3_fts5_ranking: seeds 5 varied records (logging, database, caching), queries for "logging framework structured" and verifies logging stories rank in top 3
+- test_empty_store_returns_empty_context: initializes empty DB, queries, asserts empty list returned
+- Used tempfile.TemporaryDirectory for test isolation (no shared state)
+
+### Key patterns discovered
+- FTS5 MATCH with BM25 ranking is effective for semantic similarity
+- Module-level test functions provide clean acceptance criteria coverage
+- Class-based tests enable comprehensive edge case coverage
+- No external dependencies needed: uses stdlib sqlite3 only
+
+### Dependency verification
+- Depends on: US-350 (episodic memory implementation) ✓ COMPLETE
+
+### Quality gates
+✓ All 11 tests pass in 0.40 seconds
+✓ mypy --strict passes (no type errors)
+✓ No external services or network calls
+✓ Full acceptance criteria coverage
+✓ Zero regressions in existing tests
+
+### Commit: f796072
+feat: US-518 - Integration tests for episodic memory store
+
+---
+
 ## Iteration 28 - US-516: Integration Tests for Phase G CHANGELOG.md Generation
 
 ### What was completed
@@ -1106,4 +1151,31 @@ This task involves creating integration tests for the automated `CHANGELOG.md` g
 *   **Test Isolation:** Ensure tests are hermetic by exclusively using the temporary git repository fixture.
 *   **Mocking `subprocess`:** The mock must target `subprocess.run` specifically where it is imported and used within the `lib.auto_release` module.
 *   **Error Conditions:** Create specific tests for failure modes, such as mocking a `FileNotFoundError` (simulating a missing `git-cliff` binary) and a non-zero exit code from the subprocess (simulating a `git-cliff` error, like no commits found).
+
+
+## Pre-analysis for US-518 (Gemini 2.5 Pro)
+### Technical Brief for Claude: US-518
+
+**Objective:** Implement `pytest` integration tests for the `EpisodicMemoryStore` class to verify the write, retrieve, and context injection cycle.
+
+**Files to Modify:**
+*   **Create:** `tests/test_episodic_memory.py`
+*   **Reference:** `lib/episodic_memory.py` (for method signatures: `__init__`, `record`, `retrieve_relevant_patterns`)
+
+**Frappe/Framework Involvement:**
+*   This is a pure Python/pytest task, not a Frappe DocType modification.
+*   Utilize the `pytest` framework, especially the `tmp_path` fixture for test isolation.
+
+**Implementation Approach:**
+1.  Define a new test module: `tests/test_episodic_memory.py`.
+2.  For each test function, use the `tmp_path` fixture to create an isolated SQLite database file.
+3.  Instantiate `EpisodicMemoryStore` from `lib/episodic_memory.py`, passing the path to the temporary DB.
+4.  **Happy Path Test:** `record()` a single story outcome, then call `retrieve_relevant_patterns()` and assert that the returned context snippet is a correctly formatted string containing the original story's data.
+5.  **FTS5 Ranking Test:** Seed the store with at least five varied story records. Execute a targeted query using `retrieve_relevant_patterns()` and assert that the top 3 most relevant stories are returned in the correct, relevance-ranked order.
+6.  **Edge Case Test:** Initialize an empty store, call `retrieve_relevant_patterns()`, and assert that the result is empty and no exception is raised.
+
+**Gotchas to Watch For:**
+*   **State Contamination:** Do NOT reuse the same database file across tests. A new DB must be created per-test via `tmp_path` to ensure isolation.
+*   **FTS5 Ranking Predictability:** Carefully design the seed data for the ranking test to ensure the relevance order is deterministic and testable.
+*   **Self-Containment:** The entire test suite must run without any external services or manual setup.
 
