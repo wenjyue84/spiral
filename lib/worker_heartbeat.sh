@@ -40,12 +40,21 @@ worker_heartbeat_start() {
   (
     local start_ts
     start_ts=$(date +%s)
+    # US-531: Track last time worker made progress (completed count changed)
+    local _last_progress_ts _prev_completed
+    _last_progress_ts=$(date +%s)
+    _prev_completed=0
     while true; do
       sleep "$interval"
       # Get current story ID if available (from _current_story_id file in worker root)
       local current_story_id="${SPIRAL_CURRENT_STORY:-unknown}"
       local completed="${SPIRAL_STORIES_COMPLETED:-0}"
       local phase="${SPIRAL_WORKER_PHASE:-unknown}"
+      # US-531: Update _last_progress_ts when completed count changes
+      if [[ "$completed" != "$_prev_completed" ]]; then
+        _last_progress_ts=$(date +%s)
+        _prev_completed="$completed"
+      fi
       # US-481: Write .heartbeat directly in HEARTBEAT_DIR (typically .spiral-workers/worker-N)
       # This allows the GET /api/workers endpoint to read it without needing worker_id
       local hb_file="$HEARTBEAT_DIR/.heartbeat"
@@ -61,9 +70,17 @@ worker_heartbeat_start() {
       fi
       # Write heartbeat JSON atomically (temp + mv prevents partial reads by monitor)
       local hb_tmp="${hb_file}.tmp"
-      printf '{"pid":%s,"storyId":"%s","ts":%s,"completed":%s,"phase":"%s","memMb":%s}\n' \
-        "$pid" "$current_story_id" "$ts" "$completed" "$phase" "${mem_mb:-0}" >"$hb_tmp" 2>/dev/null &&
+      printf '{"pid":%s,"storyId":"%s","ts":%s,"completed":%s,"phase":"%s","memMb":%s,"last_progress_time":%s}\n' \
+        "$pid" "$current_story_id" "$ts" "$completed" "$phase" "${mem_mb:-0}" "$_last_progress_ts" >"$hb_tmp" 2>/dev/null &&
         mv "$hb_tmp" "$hb_file" 2>/dev/null || true
+      # US-531: Warn if worker has made no progress for longer than SPIRAL_WORKER_TIMEOUT
+      local _wt_timeout="${SPIRAL_WORKER_TIMEOUT:-300}"
+      if [[ "$_wt_timeout" -gt 0 ]]; then
+        local _stall_secs=$(( ts - _last_progress_ts ))
+        if [[ "$_stall_secs" -gt "$_wt_timeout" ]]; then
+          echo "[heartbeat] WARNING: Worker $worker_id: no progress for ${_stall_secs}s (timeout=${_wt_timeout}s)" >&2
+        fi
+      fi
 
       # US-527: Write per-worker queue JSON to .spiral/workers/worker_N.json
       # This allows GET /api/workers/<id>/queue to return live task state

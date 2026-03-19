@@ -1,3 +1,22 @@
+## Iteration 39 - US-531: Automatic Worker Lag Detection & Restart on Heartbeat Timeout
+
+### What was implemented
+- lib/worker_heartbeat.sh: heartbeat JSON field renamed to `last_progress_time` (from `last_progress_ts`) to match AC spec; updated when SPIRAL_STORIES_COMPLETED changes; WARNING logged when stall exceeds SPIRAL_WORKER_TIMEOUT
+- lib/run_parallel_ralph.sh: added `declare -a WORKER_STALL_RESTARTS=()` array; added `_restart_stalled_worker(worker_num, stall_secs)` function that: kills old PID (SIGTERM then SIGKILL), logs `worker_stall_restart` event to spiral_events.jsonl, relaunches ralph in same worktree with same PID arrays updated in-place; added stall detection loop in monitoring section that reads `last_progress_time` from `.heartbeat` JSON and calls `_restart_stalled_worker` when stall > SPIRAL_WORKER_TIMEOUT
+- tests/worker_stall_restart.bats: 10 bats tests covering AC1 (heartbeat field), AC2 (stall detection logic), AC3 (event logging + WORKER_STALL_RESTARTS guard)
+
+### Acceptance criteria verification
+✓ AC1: lib/worker_heartbeat.sh includes last_progress_time on each heartbeat; WARNING logged when stall > SPIRAL_WORKER_TIMEOUT
+✓ AC2: lib/run_parallel_ralph.sh reads last_progress_time from .heartbeat, calls _restart_stalled_worker when elapsed > timeout
+✓ AC3: worker_stall_restart event written to spiral_events.jsonl; WORKER_STALL_RESTARTS guard prevents double-restart
+✓ All 10 bats tests pass
+
+### Patterns discovered
+- CRLF line endings on Windows cause pre-existing shellcheck SC1017 errors — not introduced here, CI runs on Linux
+- The implementation was already present in the working tree from a previous partial attempt; resolved merge conflict in prd.json and spiral_events.jsonl before committing
+
+---
+
 ## Iteration 38 - US-542: Phase I retry exhaustion analysis report
 
 ### What was implemented
@@ -1655,6 +1674,66 @@ Here is the technical brief for user story US-526.
 *   The test must call the *actual* `commit_revert.sh` script to be a valid regression test; do not mock this call.
 *   Verify the test fails if the core recovery logic in the shell script is commented out.
 *   Consult `lib/run_parallel_ralph.sh` to understand the "known-good state" for a worktree.
+
+
+## Pre-analysis for US-531 (Gemini 2.5 Pro)
+Here is a technical brief for the user story.
+
+**Technical Brief: US-531 - Automatic Worker Lag Detection & Restart**
+
+*   **Objective**: Implement a watchdog mechanism within the Spiral framework to automatically detect, terminate, and restart workers that have become unresponsive or stalled.
+
+*   **Project Context**: Analysis indicates this is a shell-script-based implementation for the "Spiral" project. The "Frappe/Python" context appears to be incorrect for this specific story. No Frappe DocTypes or hooks are involved.
+
+*   **Files to Modify**:
+    *   `lib/run_parallel_ralph.sh`: The supervisor script responsible for monitoring the worker pool.
+    *   `lib/worker_heartbeat.sh`: The script run by each worker to report its status.
+    *   A new integration test file (e.g., `tests/integration/test_worker_restart.sh`).
+
+*   **Implementation Approach**:
+    1.  In `lib/worker_heartbeat.sh`, track a `_last_progress_time` timestamp. This script should update a heartbeat file, including this timestamp, at regular intervals.
+    2.  In `lib/run_parallel_ralph.sh`, add a monitoring loop that periodically checks the modification time (`mtime`) of each worker's heartbeat file.
+    3.  If `current_time - mtime > SPIRAL_WORKER_TIMEOUT`, the supervisor should:
+        a. Identify the worker's process ID (PID), likely from a `.pid` file in its worktree.
+        b. Send `SIGTERM` to the worker's bash process to terminate it.
+        c. Re-initiate Phase I for the same story in a new, clean worktree.
+    4.  Create an integration test that uses a mocked story with a `sleep` command longer than the timeout to verify that the worker is correctly terminated and restarted.
+
+*   **Gotchas & Edge Cases**:
+    *   **PID Management**: Ensure the worker PID is captured reliably and the PID file is cleaned up on normal exit to prevent killing incorrect processes.
+    *   **Process Cleanup**: Use `kill` on the process group ID (PGID) if possible to ensure all child processes of the stalled worker are terminated, preventing zombies.
+    *   **Race Conditions**: The supervisor's check-and-kill operation should be swift to minimize killing a worker that recovers just before termination.
+    *   **Stateful Workers**: The restart logic assumes workers are stateless. If a worker writes partial results, the restart might need a cleanup/rollback mechanism for the failed worktree.
+
+
+## Pre-analysis for US-531 (Gemini 2.5 Pro)
+Here is a technical brief for the user story.
+
+**Technical Brief: US-531 - Automatic Worker Lag Detection & Restart**
+
+*   **Objective**: Implement a watchdog mechanism within the Spiral framework to automatically detect, terminate, and restart workers that have become unresponsive or stalled.
+
+*   **Project Context**: Analysis indicates this is a shell-script-based implementation for the "Spiral" project. The "Frappe/Python" context appears to be incorrect for this specific story. No Frappe DocTypes or hooks are involved.
+
+*   **Files to Modify**:
+    *   `lib/run_parallel_ralph.sh`: The supervisor script responsible for monitoring the worker pool.
+    *   `lib/worker_heartbeat.sh`: The script run by each worker to report its status.
+    *   A new integration test file (e.g., `tests/integration/test_worker_restart.sh`).
+
+*   **Implementation Approach**:
+    1.  In `lib/worker_heartbeat.sh`, track a `_last_progress_time` timestamp. This script should update a heartbeat file, including this timestamp, at regular intervals.
+    2.  In `lib/run_parallel_ralph.sh`, add a monitoring loop that periodically checks the modification time (`mtime`) of each worker's heartbeat file.
+    3.  If `current_time - mtime > SPIRAL_WORKER_TIMEOUT`, the supervisor should:
+        a. Identify the worker's process ID (PID), likely from a `.pid` file in its worktree.
+        b. Send `SIGTERM` to the worker's bash process to terminate it.
+        c. Re-initiate Phase I for the same story in a new, clean worktree.
+    4.  Create an integration test that uses a mocked story with a `sleep` command longer than the timeout to verify that the worker is correctly terminated and restarted.
+
+*   **Gotchas & Edge Cases**:
+    *   **PID Management**: Ensure the worker PID is captured reliably and the PID file is cleaned up on normal exit to prevent killing incorrect processes.
+    *   **Process Cleanup**: Use `kill` on the process group ID (PGID) if possible to ensure all child processes of the stalled worker are terminated, preventing zombies.
+    *   **Race Conditions**: The supervisor's check-and-kill operation should be swift to minimize killing a worker that recovers just before termination.
+    *   **Stateful Workers**: The restart logic assumes workers are stateless. If a worker writes partial results, the restart might need a cleanup/rollback mechanism for the failed worktree.
 
 
 ## Pre-analysis for US-531 (Gemini 2.5 Pro)

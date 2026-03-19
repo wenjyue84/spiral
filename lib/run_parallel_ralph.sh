@@ -152,7 +152,8 @@ declare -a WORKER_PIDS=()
 declare -a WORKER_FINISHED=()
 declare -a WORKER_EXIT_CODES=()
 declare -a WORKER_PGID_FILES=()  # US-245: path to per-worker PGID file
-declare -a WORKER_START_TIMES=() # US-318: epoch seconds per worker for invoke_agent span
+declare -a WORKER_START_TIMES=()       # US-318: epoch seconds per worker for invoke_agent span
+declare -a WORKER_STALL_RESTARTS=()    # US-531: stall-restart attempts per worker (max 1)
 
 # ── Graceful cleanup trap — kill orphaned workers on exit/interrupt ─────────
 _CLEANUP_RUNNING=0
@@ -929,6 +930,102 @@ _launch_worker_i() {
   disown "$_wpid"
 }
 
+# ── US-531: Restart a stalled worker (no progress > SPIRAL_WORKER_TIMEOUT) ───
+# Kills the current worker process and relaunches ralph in the same worktree,
+# updating WORKER_PIDS/WORKER_FINISHED/etc. in-place (not appending).
+# Only called once per worker (WORKER_STALL_RESTARTS[i] guards re-entry).
+_restart_stalled_worker() {
+  local worker_num="$1"
+  local stall_secs="${2:-0}"
+  local i=$((worker_num - 1))
+  local WTREE="${WORKER_DIRS[$i]}"
+  local LOG="$WORKER_DIR/worker_${worker_num}.log"
+  local old_pid="${WORKER_PIDS[$i]:-}"
+
+  echo "  [parallel] Worker $worker_num: stall restart (no progress for ${stall_secs}s) — sending SIGTERM"
+
+  # Phase 1: terminate stalled process
+  [[ -n "$old_pid" ]] && kill "$old_pid" 2>/dev/null || true
+  # Kill via PGID file (cleans up bash + ralph child processes)
+  local pgid_f="${WORKER_PGID_FILES[$i]:-}"
+  if [[ -n "$pgid_f" && -f "$pgid_f" ]]; then
+    local pg
+    pg=$(cat "$pgid_f" 2>/dev/null | tr -d '[:space:]')
+    [[ -n "$pg" && "$pg" =~ ^[0-9]+$ ]] && kill -- -"$pg" 2>/dev/null || true
+  fi
+  sleep 2
+  [[ -n "$old_pid" ]] && kill -9 "$old_pid" 2>/dev/null || true
+
+  # Mark restart — only restart once per worker
+  WORKER_STALL_RESTARTS[$i]=1
+
+  # Log stall restart event to spiral_events.jsonl
+  printf '{"ts":"%s","event":"worker_stall_restart","run_id":"%s","worker":%d,"stall_secs":%d}\n' \
+    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${SPIRAL_RUN_ID:-}" "$worker_num" "$stall_secs" \
+    >>"$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || true
+
+  # Phase 2: fresh tracking files for the new process
+  local new_pgid_file="$WORKTREE_BASE/worker-${worker_num}/worker.pgid"
+  : >"$new_pgid_file"
+  local _rst_exit_file="$WORKTREE_BASE/worker-${worker_num}/exit_code"
+  local _rst_model_flag=""
+  [[ -n "$RALPH_MODEL" ]] && _rst_model_flag="--model $RALPH_MODEL"
+
+  echo "  [parallel] Worker $worker_num: restarting ralph in same worktree → log: $LOG"
+  _audit_worker_launch "$worker_num" "$WTREE"
+
+  # Phase 3: relaunch worker subshell (same logic as _launch_worker_i, in-place update)
+  (
+    _UNLOCK_REPO="$REPO_ROOT"
+    _UNLOCK_WTREE="$WTREE"
+    _WORKER_NUM=$worker_num
+    _EXIT_FILE="$_rst_exit_file"
+    _HB_CLEANUP='
+      if type worker_heartbeat_stop &>/dev/null; then worker_heartbeat_stop "$_WORKER_NUM" 2>/dev/null || true; fi
+      git -C "$_UNLOCK_REPO" worktree unlock "$_UNLOCK_WTREE" 2>/dev/null || true
+      _cgroup_cleanup "$_WORKER_NUM" 2>/dev/null || true
+    '
+    trap "$_HB_CLEANUP" EXIT
+    cd "$WTREE"
+    export PATH="$WTREE/.spiral-bin:$PATH"
+    export SPIRAL_WORKER_ID=$worker_num HEARTBEAT_DIR="$WORKTREE_BASE/worker-${worker_num}"
+    export SPIRAL_MEMORY_LIMIT="${SPIRAL_WORKER_MEMORY_LIMIT:-$SPIRAL_MEMORY_LIMIT}"
+    [[ -n "${TRACEPARENT:-}" ]] && export TRACEPARENT
+    [[ -n "${TRACESTATE:-}" ]] && export TRACESTATE
+    if type worker_heartbeat_start &>/dev/null; then worker_heartbeat_start "$worker_num" 30 2>/dev/null || true; fi
+    _restrict_worker_env "$worker_num"
+    _RC=0
+    if [[ "$WORKER_TIMEOUT" -gt 0 ]] && command -v timeout &>/dev/null; then
+      if [[ "$_USE_SETSID" -eq 1 ]]; then
+        timeout --kill-after=60 "${WORKER_TIMEOUT}" \
+          setsid bash -c 'echo "$$" > "'"$new_pgid_file"'"; exec bash "'"$RALPH_SKILL"'" "'"$ITER_PER_WORKER"'" --prd prd.json '"$_rst_model_flag" >>"$LOG" 2>&1 || _RC=$?
+      else
+        timeout --kill-after=60 "${WORKER_TIMEOUT}" bash "$RALPH_SKILL" "$ITER_PER_WORKER" --prd prd.json $_rst_model_flag >>"$LOG" 2>&1 || _RC=$?
+      fi
+    else
+      if [[ "$_USE_SETSID" -eq 1 ]]; then
+        setsid bash -c 'echo "$$" > "'"$new_pgid_file"'"; exec bash "'"$RALPH_SKILL"'" "'"$ITER_PER_WORKER"'" --prd prd.json '"$_rst_model_flag" >>"$LOG" 2>&1 || _RC=$?
+      else
+        bash "$RALPH_SKILL" "$ITER_PER_WORKER" --prd prd.json $_rst_model_flag >>"$LOG" 2>&1 || _RC=$?
+      fi
+    fi
+    echo "$_RC" >"$_EXIT_FILE" 2>/dev/null || true
+    exit "$_RC"
+  ) &
+  local new_pid=$!
+  _cgroup_assign "$worker_num" "$new_pid" || true
+
+  # Update specific array slot in-place (do NOT append — slot already exists)
+  WORKER_PIDS[$i]=$new_pid
+  WORKER_FINISHED[$i]=0
+  WORKER_EXIT_CODES[$i]=0
+  WORKER_PGID_FILES[$i]="$new_pgid_file"
+  WORKER_START_TIMES[$i]=$(date +%s)
+
+  echo "$new_pid" >"$WORKTREE_BASE/worker-${worker_num}/worker.pid"
+  disown "$new_pid"
+}
+
 # ── Step 3: Launch workers: tier-aware or all-parallel depending on DISPATCH_MODE ──
 if [[ "$_TIER_DISPATCH_ENABLED" -eq 1 ]]; then
   # DAG-aware tier-by-tier dispatch
@@ -1197,6 +1294,31 @@ while [[ "$_ALL_DONE" -eq 0 ]]; do
         done
       fi
     fi
+  fi
+
+  # ── US-531: Progress-based stall detection — restart worker if no progress ──
+  # Reads last_progress_time from the new .heartbeat JSON (per-worker worktree).
+  # Only restarts once per worker (WORKER_STALL_RESTARTS guards re-entry).
+  _STALL_TIMEOUT="${SPIRAL_WORKER_TIMEOUT:-300}"
+  if [[ "$_STALL_TIMEOUT" -gt 0 ]]; then
+    _STALL_NOW=$(date +%s)
+    for _si in "${!WORKER_PIDS[@]}"; do
+      [[ "${WORKER_FINISHED[$_si]}" -ne 0 ]] && continue
+      [[ "${WORKER_STALL_RESTARTS[$_si]:-0}" -gt 0 ]] && continue
+      ! kill -0 "${WORKER_PIDS[$_si]}" 2>/dev/null && continue
+      _stall_wn=$((_si + 1))
+      _stall_hb="$WORKTREE_BASE/worker-${_stall_wn}/.heartbeat"
+      if [[ -f "$_stall_hb" ]]; then
+        _stall_lpt=$("$JQ" -r '.last_progress_time // 0' "$_stall_hb" 2>/dev/null || echo "0")
+        if [[ "$_stall_lpt" =~ ^[0-9]+$ && "$_stall_lpt" -gt 0 ]]; then
+          _stall_elapsed=$((_STALL_NOW - _stall_lpt))
+          if [[ "$_stall_elapsed" -gt "$_STALL_TIMEOUT" ]]; then
+            echo "  [parallel] WARNING: Worker $_stall_wn: no progress for ${_stall_elapsed}s (> ${_STALL_TIMEOUT}s) — restarting"
+            _restart_stalled_worker "$_stall_wn" "$_stall_elapsed"
+          fi
+        fi
+      fi
+    done
   fi
 
   # ── Adaptive pressure management: pause/resume workers ─────────────────────
