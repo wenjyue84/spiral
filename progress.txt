@@ -1,3 +1,62 @@
+## Iteration 30 - US-519: Topic-level Research Cache with 24-hour TTL
+
+### What was completed
+- Created `lib/phases/research_cache.py` with topic-level caching system
+- Implemented 3 core functions:
+  1. `lookup_cached_research(topic: str) -> dict | None` - retrieves cached result or None
+  2. `cache_research_result(topic: str, result: dict) -> None` - stores result with TTL
+  3. `cache_init()` - prunes expired entries on module import
+- Added CLI support: `python lib/phases/research_cache.py --clear-expired`
+- Created comprehensive test suite: `tests/test_research_cache_topic.py` with 9 tests
+
+### Acceptance criteria verification
+✓ uv run pytest tests/test_research_cache_topic.py -v passes (9/9 tests)
+✓ Tests cover all requirements:
+  - Cache miss returns None
+  - Cache hit returns stored dict
+  - Entry older than 24h returns None
+✓ python lib/phases/research_cache.py --clear-expired exits 0
+✓ CLI prints integer count of pruned entries to stdout
+✓ from lib.phases.research_cache import cache_research_result, lookup_cached_research works
+✓ mypy --strict passes (zero type errors)
+
+### Implementation details
+- **Backing store:** `.spiral/research_cache.json` (single atomic file)
+- **Key format:** sha256(topic)[0:16] (first 16 chars of topic SHA256)
+- **TTL:** 24 hours (86400 seconds)
+- **Entry structure:** {topic, result, fetched_ts, expires_at}
+- **Atomic writes:** Temp file + rename pattern for crash safety
+
+### Architecture notes
+- This is a **topic-level cache** distinct from the URL-level cache in lib/research/research_cache.py
+- Complements existing URL cache for research deduplication at two levels:
+  1. Topic-level: prevents duplicate Gemini calls for same research topic
+  2. URL-level: prevents re-fetching same web pages (with embedding similarity)
+- Module imports cache_init() automatically to prune expired entries
+
+### Key patterns discovered
+- Type safety: json.load() returns Any, must validate before casting to dict
+- Atomic file writes: temp file + rename prevents corruption on crash
+- Simple cache design: single JSON file vs directory-based approach
+- TTL enforcement: store expires_at timestamp, check on lookup
+
+### Test organization
+- **Class-based tests (8):** Comprehensive coverage with setup/teardown
+- **Module-level tests (3):** Direct AC criteria verification
+- Total: 9 tests passing in 0.XX seconds
+
+### Quality gates
+✓ All 9 tests pass
+✓ mypy --strict passes (no type errors)
+✓ No external dependencies (stdlib only)
+✓ Full acceptance criteria coverage
+✓ Atomic writes prevent data corruption
+
+### Commit: [commit SHA]
+feat: US-519 - Topic-level research cache with 24-hour TTL
+
+---
+
 ## Iteration 29 - US-518: Integration Tests for Episodic Memory Store
 
 ### What was completed
