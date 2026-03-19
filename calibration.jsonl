@@ -7,3 +7,4 @@
 {"story_id": "US-466", "estimated_complexity": "small", "actual_duration_s": 602, "phase_retries": 0, "passed": true}
 {"story_id": "US-466", "estimated_complexity": "small", "actual_duration_s": 601, "phase_retries": 0, "passed": true}
 {"story_id": "US-466", "estimated_complexity": "small", "actual_duration_s": 601, "phase_retries": 0, "passed": true}
+{"story_id": "US-467", "estimated_complexity": "small", "actual_duration_s": 600, "phase_retries": 0, "passed": true}
