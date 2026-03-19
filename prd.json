@@ -795,6 +795,231 @@
       "passes": false,
       "_source": "ai-example",
       "model": "haiku"
+    },
+    {
+      "id": "US-496",
+      "title": "Security tests: block unauthorized access to SPIRAL dashboard (US-460)",
+      "priority": "high",
+      "description": "Write pytest security tests that verify the US-460 self-monitoring dashboard enforces access control correctly. Tests must confirm that unauthenticated and unauthorised requests receive 401/403 responses and that no sensitive data (API tokens, passwords) appears in error bodies.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_dashboard_security.py::test_unauthenticated_returns_401_or_403 -v exits 0",
+        "uv run pytest tests/test_dashboard_security.py::test_error_response_contains_no_secrets -v exits 0",
+        "uv run pytest tests/test_dashboard_security.py -v --tb=short exits 0 with all tests passing",
+        "uv run grep -r 'ANTHROPIC_API_KEY\\|password\\|token' tests/test_dashboard_security.py returns no matches in assertion strings"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_dashboard_security.py (new file — security test suite for dashboard endpoints)",
+        "File to edit: lib/spiral/dashboard.py or lib/dashboard.py (locate auth guard introduced by US-460 to understand what to test against)",
+        "Test command: uv run pytest tests/test_dashboard_security.py -v --tb=short",
+        "Use the dashboard's test client or httpx/requests to hit each endpoint without auth credentials; assert status in {401, 403}",
+        "Inspect error response JSON keys and values — assert none equal known secret env-var names (ANTHROPIC_API_KEY, SPIRAL_API_KEY, etc.)"
+      ],
+      "dependencies": [
+        "US-460"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "test-story"
+    },
+    {
+      "id": "US-497",
+      "title": "[Security Test] Auth/permission access control tests for US-452 model routing",
+      "priority": "high",
+      "description": "Write security tests covering the auth and permission logic introduced by US-452 (dynamic model routing). Verifies that unauthorized callers are rejected with correct HTTP status codes and that no sensitive data (tokens, API keys) is leaked in error response bodies.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_security_us452.py::test_unauthorized_returns_401_or_403 -v exits 0",
+        "uv run pytest tests/test_security_us452.py::test_error_response_contains_no_secrets -v exits 0",
+        "uv run pytest tests/test_security_us452.py -v --tb=short exits 0 with all tests passing"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_security_us452.py (new file — create security test module for US-452 auth logic)",
+        "File to edit: lib/model_router.py (or equivalent module changed by US-452 — locate the auth/permission guard being tested)",
+        "Test command: uv run pytest tests/test_security_us452.py -v --tb=short",
+        "Use pytest's monkeypatch or a fake request fixture to call the guarded entry point without valid credentials; assert response status in {401, 403}",
+        "Assert that error response body (str) does not contain any of: 'token', 'password', 'secret', 'key', 'Bearer' (case-insensitive check)"
+      ],
+      "dependencies": [
+        "US-452"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "test-story"
+    },
+    {
+      "id": "US-498",
+      "title": "Integration tests for episodic memory store (US-350)",
+      "priority": "high",
+      "description": "Write integration tests covering the SQLite FTS5 episodic memory store introduced in US-350. Tests must verify that story-type/approach/outcome records are written correctly and that top-3 relevant past implementations are retrieved and injected into Ralph's context. No external services required.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_episodic_memory_integration.py -v exits 0 with all tests passing",
+        "uv run pytest tests/test_episodic_memory_integration.py -v -k 'happy' covers write-then-retrieve round-trip returning ranked top-3 results",
+        "uv run pytest tests/test_episodic_memory_integration.py -v -k 'error' covers at least one edge case (empty store query returns empty list, not an exception)",
+        "uv run pytest tests/test_episodic_memory_integration.py -v --tb=short completes without any network calls or manual setup (uses tmp_path fixture for isolated DB)"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_episodic_memory_integration.py (new file — all integration tests for US-350 episodic store)",
+        "File to edit: lib/episodic_memory.py (or equivalent US-350 module — import the public write/query API under test)",
+        "Test command: uv run pytest tests/test_episodic_memory_integration.py -v --tb=short",
+        "Test command: uv run pytest tests/test_episodic_memory_integration.py -v -k 'error or edge' --tb=short",
+        "Use pytest tmp_path fixture to create a throwaway SQLite DB path; patch any Ralph context-injection calls with monkeypatch so no real Ralph invocations occur",
+        "Query the FTS5 store with a known story-type string and assert the returned list length is <= 3 and each item contains keys: story_type, approach, outcome"
+      ],
+      "dependencies": [
+        "US-350"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "test-story"
+    },
+    {
+      "id": "US-499",
+      "title": "Write phase-level integration tests using US-476 mock Claude fixture library",
+      "priority": "high",
+      "description": "Create integration tests for Phase R (research), Phase S (story validation), and Phase I (implementation) using the mock Claude client and pre-recorded API response fixtures from US-476. Tests must run fully offline with no live API calls, providing fast CI feedback.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_phase_integration.py -v exits 0 with at least 3 collected tests (one per phase R, S, I)",
+        "uv run pytest tests/test_phase_integration.py::test_phase_r_happy_path -v exits 0 and asserts _research_output.json is written with expected keys",
+        "uv run pytest tests/test_phase_integration.py -v -k 'error or edge' exits 0 with at least 1 test collected covering a non-happy-path case",
+        "uv run pytest tests/ --tb=short -q exits 0 with no regressions in existing tests"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_phase_integration.py (new file — write all phase-level integration tests here)",
+        "File to edit: tests/conftest.py (add shared mock_claude_client pytest fixture that injects the US-476 MockClaudeClient)",
+        "Test command: uv run pytest tests/test_phase_integration.py -v --tb=short",
+        "Locate the MockClaudeClient class from US-476 (likely in tests/fixtures/mock_claude.py or lib/) before writing tests",
+        "Each phase test pattern: (1) instantiate MockClaudeClient with a pre-recorded fixture response, (2) call the phase function under test, (3) assert output file/return value shape and that no real HTTP calls were made"
+      ],
+      "dependencies": [
+        "US-476"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "test-story"
+    },
+    {
+      "id": "US-500",
+      "title": "[E2E Test] Dashboard: token burn rate, throughput, escalation heatmap",
+      "priority": "medium",
+      "description": "Write a Playwright E2E test covering the SPIRAL self-monitoring dashboard introduced in US-460. The test navigates to the dashboard, asserts that the token burn rate, story throughput, and model escalation heatmap panels all render with real numeric data. This guards the dashboard against regressions as SPIRAL evolves.",
+      "acceptanceCriteria": [
+        "Dashboard page loads at http://localhost:5299 with HTTP 200 (asserted via Playwright page.goto status)",
+        "Token burn rate widget contains a numeric value matching /\\d+(\\.\\d+)?/ within 10 s of page load",
+        "Story throughput panel displays a non-zero integer count of completed stories",
+        "Model escalation heatmap renders at least one row containing the text 'haiku', 'sonnet', or 'opus'"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/e2e/test_dashboard.py (create new; add Playwright page fixture via pytest-playwright conftest)",
+        "Locate element selectors from US-460 implementation — prefer data-testid attributes; fall back to ARIA roles",
+        "Add a session-scoped pytest fixture in tests/e2e/conftest.py that skips the suite with pytest.skip() when localhost:5299 is unreachable (requests.get timeout=2)",
+        "Test command: uv run pytest tests/e2e/test_dashboard.py -v --headed=false",
+        "Use page.wait_for_selector('[data-testid=\"burn-rate\"]', timeout=10000) for async widgets"
+      ],
+      "dependencies": [
+        "US-460"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "test-story"
+    },
+    {
+      "id": "US-501",
+      "title": "Perf benchmark: SPIRAL dashboard token/throughput metrics (US-460)",
+      "priority": "medium",
+      "description": "Write a performance benchmark that exercises the US-460 self-monitoring dashboard's core data-aggregation path (token burn rate, story throughput, model escalation heatmap). The benchmark captures a baseline from results.tsv parsing and fails if any measured operation regresses more than 20% from that baseline.",
+      "acceptanceCriteria": [
+        "Running `uv run pytest tests/test_perf_dashboard.py -v` exits 0 with all benchmark assertions passing",
+        "Benchmark asserts that aggregating 1000 rows from results.tsv completes in under 200 ms (baseline threshold hardcoded in test)",
+        "Test fails with a clear message if measured duration exceeds baseline × 1.20",
+        "A baseline fixture file `tests/fixtures/perf_baseline_dashboard.json` is created and committed alongside the test"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_perf_dashboard.py (new file — create benchmark using pytest-benchmark or time.perf_counter)",
+        "File to edit: tests/fixtures/perf_baseline_dashboard.json (new fixture — seed with {\"aggregate_1k_rows_ms\": 150})",
+        "File to edit: lib/dashboard.py or equivalent US-460 module (identify the main aggregation function to benchmark)",
+        "Test command: uv run pytest tests/test_perf_dashboard.py -v --tb=short",
+        "Use `time.perf_counter()` around the aggregation call; no external benchmark library required to keep deps minimal"
+      ],
+      "dependencies": [
+        "US-460"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "test-story"
+    },
+    {
+      "id": "US-502",
+      "title": "[Performance Test] Benchmark batch vs sequential Phase S story validation",
+      "priority": "medium",
+      "description": "Write a performance benchmark comparing the Claude Message Batches API approach (US-390) against the original sequential Phase S validation. The test measures wall-clock time for validating a fixed set of 10 stories, captures a baseline, and enforces a 20% regression guard so future changes cannot silently degrade throughput.",
+      "acceptanceCriteria": [
+        "Running `uv run pytest tests/test_batch_validation_perf.py -v -s` exits 0 and prints batch vs sequential elapsed time",
+        "Benchmark stores baseline seconds in `tests/fixtures/perf_baseline_us390.json` and asserts measured time is within 120% of that baseline on re-run",
+        "Test imports the real batch-validation function used by Phase S (not a stub or mock of the function under test)",
+        "API calls are intercepted via the mock fixture library from US-476 so the test runs in CI without real Anthropic credentials"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_batch_validation_perf.py (create new — performance benchmark module)",
+        "File to edit: lib/story_validator.py or the Phase S module that owns batch validation (import target; read first to find exact path)",
+        "Test command: uv run pytest tests/test_batch_validation_perf.py -v -s",
+        "Use Python timeit or time.perf_counter around the validation call; write baseline JSON only when the file is absent so CI reuses the committed value",
+        "Reference US-476 mock fixture library for Claude API response stubs to avoid real API costs"
+      ],
+      "dependencies": [
+        "US-390"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "test-story"
+    },
+    {
+      "id": "US-503",
+      "title": "Regression test: velocity model fit from results.tsv (US-352)",
+      "priority": "medium",
+      "description": "Write a pytest regression test that guards the US-352 velocity model feature. The test must verify that `main.py estimate` reads results.tsv, fits a per-story-type linear regression, and returns data-driven projections instead of static defaults. If the regression model code is removed or broken, the test must fail.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_velocity_model.py -v exits 0 with at least 2 passing test functions",
+        "Commenting out the regression-fit call in the estimate path causes `uv run pytest tests/test_velocity_model.py::test_estimate_uses_empirical_data -v` to fail",
+        "uv run pytest tests/test_velocity_model.py::test_regression_fit_returns_per_type_stats -v passes when a synthetic results.tsv with 5 completed rows is provided",
+        "uv run pytest tests/test_velocity_model.py -v --tb=short produces no collection errors"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_velocity_model.py (new file — regression tests for US-352)",
+        "File to read first: main.py (estimate command entrypoint and velocity model call site)",
+        "File to read first: lib/velocity_model.py or equivalent module introduced by US-352 (locate with: grep -r 'def.*velocity\\|def.*regression\\|def.*fit' lib/)",
+        "Test command: uv run pytest tests/test_velocity_model.py -v --tb=short",
+        "Use pytest tmp_path fixture to write a synthetic results.tsv (5 rows, columns: story_id, model, tokens, cost, duration, status) so the test is hermetic and needs no real run data",
+        "Assert that the returned estimate dict contains keys mean_tokens, mean_duration, pass_rate keyed by story_type (or whatever schema US-352 defined)"
+      ],
+      "dependencies": [
+        "US-352"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "test-story"
+    },
+    {
+      "id": "US-504",
+      "title": "Regression test: worker crash recovery reverts to main on detached HEAD",
+      "priority": "medium",
+      "description": "Write a pytest regression test that simulates a Ralph worker entering a detached HEAD / incomplete-commit state inside a git worktree and verifies that the recovery logic introduced in US-461 resets that worktree back to the last known-good state on main. The test must fail if the recovery code is removed or skipped.",
+      "acceptanceCriteria": [
+        "Running `uv run pytest tests/test_worker_crash_recovery.py::test_detached_head_recovery -v` exits 0 and prints PASSED",
+        "The test creates a temporary git worktree, sets it to a detached HEAD state, invokes the recovery function/script, then asserts the worktree HEAD matches main branch tip via `git rev-parse HEAD`",
+        "Removing or commenting out the recovery call inside the production code causes the test to fail with a clear assertion error",
+        "Test cleans up the temporary worktree so it leaves no side-effects in `.spiral-workers/`"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_worker_crash_recovery.py (new file — create regression test module)",
+        "File to edit: lib/run_parallel_ralph.sh (locate recovery logic introduced by US-461 to know exact function/line to call or mock)",
+        "Test command: uv run pytest tests/test_worker_crash_recovery.py::test_detached_head_recovery -v",
+        "Use Python `subprocess` + `tempfile.TemporaryDirectory` to create an isolated bare repo and a worktree; drive detached HEAD with `git checkout --detach HEAD~1`; call the recovery entrypoint; assert `git -C <worktree> symbolic-ref --short HEAD` returns `main`"
+      ],
+      "dependencies": [
+        "US-461"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "test-story"
     }
   ]
 }
