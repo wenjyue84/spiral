@@ -523,7 +523,8 @@
       "passes": true,
       "_source": "ai-example",
       "model": "haiku",
-      "last_attempted": "2026-03-19T04:28:19Z"
+      "last_attempted": "2026-03-19T04:28:19Z",
+      "_scopeCreep": true
     },
     {
       "id": "US-482",
