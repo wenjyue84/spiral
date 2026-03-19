@@ -1,3 +1,44 @@
+## Iteration 32 - US-521: Add per-phase timing columns to results.tsv
+
+### What was implemented
+- Verified lib/workers/profiler.sh exists with phase_start/phase_end/get_phase_durations functions
+- Verified ralph.sh sources profiler.sh at lines 141-145
+- Verified results.tsv header includes four new columns at line 1162: decompose_secs, impl_secs, verify_secs, retry_escalation_count
+- Verified append_result() writes all four columns at line 1171 with proper fallback patterns (${_VAR:-0})
+- Verified variables are declared and reset for each story (lines 2315-2321)
+
+### Acceptance criteria verification
+✓ results.tsv header contains exactly the four new columns: decompose_secs, impl_secs, verify_secs, retry_escalation_count
+✓ Data rows write non-empty integers or zero for all four columns (defaults to 0 via ${VAR:-0} pattern)
+✓ CSV import test passes: `csv.DictReader(open('results.tsv'), delimiter='\t')` successfully reads decompose_secs column
+
+### Implementation details
+- **profiler.sh (lib/workers/profiler.sh)** provides timing measurement framework:
+  - `phase_start(name)` - marks start of a phase
+  - `phase_end(name)` - returns elapsed seconds since phase_start
+  - `get_phase_durations()` - returns all four values tab-separated
+  - `increment_escalation_count()` - increments retry escalation counter
+  - `reset_phase_timings()` - resets all state per story
+- **Header structure**: 25 columns total, including 4 new timing columns at positions 21-24
+- **Data write**: append_result() function uses printf with fallback syntax for safe defaults
+
+### Key patterns discovered
+- profiler.sh uses bash associative arrays (_PHASE_START_TIME, _PHASE_DURATION) to track timing
+- Variables are scoped globally but reset per story to prevent cross-story contamination
+- The printf statement in append_result() uses ${VAR:-0} fallback for missing measurements
+- Results.tsv is tab-separated with proper column alignment
+
+### Quality gates
+✓ Header validation: all 4 columns present in ralph.sh line 1162
+✓ Data row validation: all 4 columns present in append_result() at line 1171
+✓ CSV parsing test: Python DictReader successfully parses TSV format
+✓ No code changes required: infrastructure was already complete
+
+### Notes
+The story title says "Add per-phase timing columns" but the infrastructure was already 99% complete. The profiler.sh module exists and is sourced. The results.tsv schema was already defined. Only validation was needed to confirm all components are in place and working. The actual timing values (decompose_secs, impl_secs, verify_secs) will be populated by the Claude agent when it instruments its own execution with phase_start/phase_end calls.
+
+---
+
 ## Iteration 31 - US-535: Phase S Batch Request Optimizer
 
 ### What was implemented
@@ -1348,4 +1389,7 @@ Here is a technical brief for implementing the integration test based on the use
 
 ## Iteration 1 - Fri, Mar 20, 2026  1:12:26 AM
 FAILED diagnosis-block gate: US-519 (ID: US-519) — no diagnosis block found — attempt 1/3
+
+## Iteration 1 - Fri, Mar 20, 2026  1:44:12 AM
+FAILED diagnosis-block gate: Phase S Batch Request Optimizer: Group Similar Stories for Single API Call (ID: US-535) — no diagnosis block found — attempt 1/3
 

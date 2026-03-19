@@ -1,0 +1,57 @@
+  [memory] WARNING: Global NODE_OPTIONS had --max-old-space-size=8192
+  [memory]   → This gives your main Claude Code session up to ~10649MB RSS
+  [memory]   → Consider reducing to 4096 in your shell profile to free RAM for workers
+[spiral] Loading config: /c/Users/Jyue/Documents/1-projects/Software Projects/Spiral/spiral.config.sh
+[spiral] spiral-core: /c/Users/Jyue/Documents/1-projects/Software Projects/Spiral/lib/spiral-core.exe (Rust hot-path active)
+[config] OK — SPIRAL_PYTHON=/c/Users/Jyue/Documents/1-projects/Software Projects/Spiral/.venv/Scripts/python.exe SPIRAL_VALIDATE_CMD=uv run pytest tests/ -v --tb=short
+
+SPIRAL env validation � 24 vars checked
+  OK: 17  MISSING required: 0  INVALID: 0  absent optional: 7
+[validate_env] WARN � 7 optional var(s) absent (features using them are disabled).
+[validate_env] OK � all required vars present.
+  [preflight] Validating prd.json schema...
+  [preflight] prd.json schema: OK
+  [preflight] Validating checkpoint...
+  [preflight] ShellCheck: 2 error-level issue(s) in spiral.sh (non-blocking)
+  [preflight] Skipping Claude API check (--dry-run mode)
+  [preflight] git identity: OK (Claude Haiku 4.5 <noreply@anthropic.com>)
+  [preflight] All checks passed
+  [preflight] Linting prd.json for missing acceptanceCriteria...
+  [preflight] Scanning story fields for prompt injection patterns...
+  [preflight] Injection scan: OK
+[state_machine] Checkpoint validation errors:
+  - phaseDurations['T'] must be non-negative, got -168395
+  [checkpoint] WARNING: Corrupt checkpoint detected — removing and starting fresh from iter 1
+  [plugin] Loading SPIRAL plugin system...
+  [plugin] Loaded: notify-slack (version 1.0.0)
+  [plugin] Loaded 1 plugin(s)
+[spiral] Backup: /c/Users/Jyue/Documents/1-projects/Software Projects/Spiral/prd.json.bak
+
+  ╔══════════════════════════════════════════════╗
+  ║   SPIRAL — Self-iterating PRD Loop            ║
+  ╠══════════════════════════════════════════════╣
+  ║  PRD:         /c/Users/Jyue/Documents/1-projects/Software Projects/Spiral/prd.json
+  ║  Stories:     42/53 complete (11 pending)
+  ║  Max iters:   1
+  ║  Ralph iters: 120 per phase
+  ║  Model:       auto (haiku/sonnet/opus by complexity)
+  ║  Phase models: R=haiku  S=haiku  M=haiku
+  ║  Research:    haiku model (WebFetch fallback)
+  ║  Mode:        --skip-research (Phase R skipped)
+  ║  Mode:        --dry-run (no API calls)
+  ║  Monitor:     terminal per worker (--monitor)
+  ║  Spec-Kit:    constitution loaded
+  ║  Max pending: 15 incomplete stories
+  ║  Max research: 5 stories per iteration
+  ║  Batch size:  10 stories per iteration
+  ║  Low power:   adaptive memory management enabled
+  ║  Cache TTL:   4h (research URL responses + Phase R output reuse)
+  ║  Capacity:    Phase R skipped when pending > 50
+  ║  Scratch:     /c/Users/Jyue/Documents/1-projects/Software Projects/Spiral/.spiral
+  ╚══════════════════════════════════════════════╝
+
+  [UI] Dashboard: http://localhost:5299/Spiral
+Microsoft Windows [Version 10.0.19045.6466]
+(c) Microsoft Corporation. All rights reserved.
+
+C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral>

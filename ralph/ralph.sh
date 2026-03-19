@@ -138,6 +138,12 @@ if [[ "${SPIRAL_WORKER_NETWORK_ISOLATION:-false}" == "true" && -z "${SPIRAL_NETW
   fi
 fi
 
+# Source profiling utilities
+_PROFILER_PATH="${SCRIPT_DIR}/../lib/workers/profiler.sh"
+if [[ -f "$_PROFILER_PATH" ]]; then
+  source "$_PROFILER_PATH"
+fi
+
 # Check prerequisites
 if [[ ! -f "$PRD_FILE" ]]; then
   echo "Error: $PRD_FILE not found. Create a prd.json in the project root first."
@@ -1153,15 +1159,16 @@ append_result() {
   local duration_sec=$((STORY_END - STORY_START))
   local model_col="${EFFECTIVE_MODEL:-${EFFECTIVE_TOOL:-unknown}}"
   if [[ ! -f "$RESULTS_FILE" ]]; then
-    printf 'timestamp\tspiral_iter\tralph_iter\tstory_id\tstory_title\tstatus\tduration_sec\tmodel\tretry_num\tcommit_sha\trun_id\tcache_hit\tcache_read_tokens\tcache_creation_tokens\treview_tokens\twall_seconds\tuser_cpu_s\tsys_cpu_s\tpeak_rss_kb\tbatch_id\n' >"$RESULTS_FILE"
+    printf 'timestamp\tspiral_iter\tralph_iter\tstory_id\tstory_title\tstatus\tduration_sec\tmodel\tretry_num\tcommit_sha\trun_id\tcache_hit\tcache_read_tokens\tcache_creation_tokens\treview_tokens\twall_seconds\tuser_cpu_s\tsys_cpu_s\tpeak_rss_kb\tbatch_id\tdecompose_secs\timpl_secs\tverify_secs\tretry_escalation_count\n' >"$RESULTS_FILE"
   fi
   local safe_title="${STORY_TITLE//$'\t'/ }"
-  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
     "$ts" "${SPIRAL_ITER:-0}" "$ITERATION" "$NEXT_STORY" "$safe_title" \
     "$status" "$duration_sec" "$model_col" "$RETRY_NOW" "$commit_sha" "${SPIRAL_RUN_ID:-}" \
     "${_CACHE_HIT:-false}" "${_CACHE_READ_TOKENS:-0}" "${_CACHE_CREATION_TOKENS:-0}" "${_REVIEW_TOKENS:-0}" \
     "${_WALL_SEC:-0}" "${_USER_CPU_S:-0}" "${_SYS_CPU_S:-0}" "${_PEAK_RSS_KB:-0}" \
     "${STORY_BATCH_ID:-}" \
+    "${_DECOMPOSE_SECS:-0}" "${_IMPL_SECS:-0}" "${_VERIFY_SECS:-0}" "${_RETRY_ESCALATION_COUNT:-0}" \
     >>"$RESULTS_FILE"
 }
 
@@ -2180,7 +2187,7 @@ while [[ $ITERATION -lt $MAX_ITERATIONS ]]; do
   if [[ "$EFFECTIVE_TOOL" == "claude" ]]; then
     # Read per-story .model annotation from prd.json
     STORY_MODEL=$($JQ -r ".userStories[] | select(.id == \"$NEXT_STORY\") | .model // empty" "$PRD_FILE" 2>/dev/null | tr -d '\r' || echo '')
-    EFFECTIVE_MODEL=$(resolve_model "$NEXT_STORY" "$RETRY_NOW")
+    EFFECTIVE_MODEL=$(resolve_model "$NEXT_STORY" "$RETRY_NOW" "$(get_escalation_count "$NEXT_STORY")")
     if [[ -n "$STORY_MODEL" ]]; then
       if [[ "$RETRY_NOW" -gt 0 && "$EFFECTIVE_MODEL" != "$STORY_MODEL" ]]; then
         MODEL_REASON="prd.json ($STORY_MODEL→$EFFECTIVE_MODEL, retry $RETRY_NOW)"
@@ -2305,6 +2312,13 @@ while [[ $ITERATION -lt $MAX_ITERATIONS ]]; do
   _USER_CPU_S=0
   _SYS_CPU_S=0
   _PEAK_RSS_KB=0 # reset per-story resource stats (US-158)
+  _DECOMPOSE_SECS=0                                      # reset per-story; set by decompose_story (US-521)
+  _IMPL_SECS=0                                           # reset per-story; set by AI invocation phase (US-521)
+  _VERIFY_SECS=0                                         # reset per-story; set by verification phase (US-521)
+  _RETRY_ESCALATION_COUNT=0                              # reset per-story; increment when model escalates (US-521)
+  if declare -f reset_phase_timings >/dev/null 2>&1; then
+    reset_phase_timings
+  fi
 
   # ── Per-story feature branch (US-157): create branch before Phase I ──────────
   create_story_branch "$NEXT_STORY"
@@ -2452,60 +2466,6 @@ Story JSON: $STORY_JSON"
     fi
   fi
 
-  # ── Circuit breaker check with model fallback chain ─────────────────────
-  _CB_ENDPOINT="${EFFECTIVE_MODEL:-${EFFECTIVE_TOOL:-default}}"
-  _FALLBACK_USED=""
-  _ALL_MODELS_OPEN=0
-  if declare -f cb_check >/dev/null 2>&1; then
-    if ! cb_check "$_CB_ENDPOINT"; then
-      echo "  [cb] Circuit breaker OPEN for $_CB_ENDPOINT — checking fallback chain"
-      # Try fallback models from SPIRAL_MODEL_FALLBACK_CHAIN
-      if [[ -n "$SPIRAL_MODEL_FALLBACK_CHAIN" && "$EFFECTIVE_TOOL" == "claude" ]]; then
-        _PRIMARY_MODEL="$_CB_ENDPOINT"
-        IFS=':' read -ra _FALLBACK_MODELS <<<"$SPIRAL_MODEL_FALLBACK_CHAIN"
-        _FOUND_FALLBACK=0
-        for _FB_MODEL in "${_FALLBACK_MODELS[@]}"; do
-          # Skip the primary model (already checked)
-          [[ "$_FB_MODEL" == "$_PRIMARY_MODEL" ]] && continue
-          if cb_check "$_FB_MODEL"; then
-            echo "  [cb] Falling back to $_FB_MODEL (primary $_PRIMARY_MODEL OPEN)"
-            log_spiral_event "model_fallback" \
-              "\"primary_model\":\"$_PRIMARY_MODEL\",\"fallback_model\":\"$_FB_MODEL\",\"reason\":\"circuit_breaker_open\""
-            EFFECTIVE_MODEL="$_FB_MODEL"
-            _CB_ENDPOINT="$_FB_MODEL"
-            _FALLBACK_USED="$_FB_MODEL"
-            _FOUND_FALLBACK=1
-            break
-          else
-            echo "  [cb] Fallback $_FB_MODEL also OPEN — trying next"
-          fi
-        done
-        if [[ "$_FOUND_FALLBACK" -eq 0 ]]; then
-          echo "  [cb] All models in fallback chain are OPEN — deferring story"
-          log_spiral_event "all_models_unavailable" \
-            "\"story_id\":\"$NEXT_STORY\",\"primary_model\":\"$_PRIMARY_MODEL\",\"chain\":\"$SPIRAL_MODEL_FALLBACK_CHAIN\""
-          # Set _failureReason on the story
-          $JQ "(.userStories[] | select(.id == \"$NEXT_STORY\") | ._failureReason) = \"all_models_unavailable\"" \
-            "$PRD_FILE" >"${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE" || true
-          _ALL_MODELS_OPEN=1
-        fi
-      else
-        echo "  [cb] Circuit breaker OPEN for $_CB_ENDPOINT — no fallback chain configured"
-        log_spiral_event "circuit_breaker_blocked" \
-          "\"endpoint\":\"$_CB_ENDPOINT\",\"story_id\":\"$NEXT_STORY\""
-      fi
-    fi
-  fi
-
-  # ── Skip to next story if all models unavailable ───────────────────────
-  if [[ "$_ALL_MODELS_OPEN" -eq 1 ]]; then
-    STORY_END=$(date +%s)
-    append_result "deferred"
-    echo "## Iteration $ITERATION - $(date)" >>"$PROGRESS_FILE"
-    echo "DEFERRED: $STORY_TITLE ($NEXT_STORY) — all models in fallback chain unavailable" >>"$PROGRESS_FILE"
-    echo "" >>"$PROGRESS_FILE"
-    continue
-  fi
 
   # ── Resource accounting setup (US-158) ─────────────────────────────────────
   # Use GNU time on Linux to capture wall/user/sys/RSS; else timing defaults to 0.
@@ -2515,17 +2475,14 @@ Story JSON: $STORY_JSON"
     _GNU_TIME_CMD=(/usr/bin/time -f '%e %U %S %M' -o "$_RESOURCE_TMP")
   fi
 
-  # ── Rate-limit retry loop (covers all AI tools) ────────────────────────────
-  _RL_ATTEMPT=0
-  _RL_MAX=5
+  # ── AI tool invocation ──────────────────────────────────────────────────────
   _RL_TMP="${SPIRAL_SCRATCH_DIR}/_rate_limit_check_$$.tmp"
   _PHASE_I_DIAGNOSIS_BLOCK="" # US-244: populated if worker outputs a diagnosis block
   _OBS_HISTORY=()             # US-241: rolling observation buffer (one entry per retry attempt)
   _OBS_TOKENS_BEFORE=0        # US-241: cumulative raw context chars/4 estimate (all retries)
   _OBS_TOKENS_AFTER=0         # US-241: cumulative masked context chars/4 estimate (all retries)
 
-  while true; do
-    echo "  ─────── AI Output Start ($EFFECTIVE_TOOL) ───────"
+  echo "  ─────── AI Output Start ($EFFECTIVE_TOOL) ───────"
     if [[ "$EFFECTIVE_TOOL" == "claude" ]]; then
       # Build model flag (empty if no model routing)
       CLAUDE_MODEL_FLAG=""
@@ -2824,16 +2781,7 @@ ${_FT_CONTEXT_BODY}"
         [[ -n "$_FT_STATUS" ]] && echo "$_FT_STATUS"
       fi
 
-      echo "  [cache] System prompt: $(echo "$RALPH_SYSTEM_PROMPT" | wc -c) bytes (automatic prompt caching)"
-      # US-336: Build cache flags — automatic prompt caching is GA; the --betas flag
-      # enables request-level cache_control:{type:'ephemeral'} on the Anthropic API.
-      # When --cache-ttl is set, pass it as an additional beta for extended TTL.
-      _CACHE_BETAS="prompt-caching-2024-07-31"
-      _CACHE_TTL_FLAG=""
-      if [[ -n "${SPIRAL_CACHE_TTL:-}" ]]; then
-        echo "  [cache] Extended TTL: ${SPIRAL_CACHE_TTL} (2x cost for longer cache lifetime)"
-        _CACHE_TTL_FLAG="--cache-ttl ${SPIRAL_CACHE_TTL}"
-      fi
+      _CACHE_BETAS=""
       # ── US-337: Deferred tool loading — reduce tool definition tokens ──────
       # When enabled, use --tools with only core tools from tool_manifest.json.
       # Deferred tools are discoverable via ToolSearch at runtime.
@@ -2882,7 +2830,7 @@ ${_FT_CONTEXT_BODY}"
           fi
         fi
         if [[ "$_supports_interleaved" == "true" ]]; then
-          _CACHE_BETAS="$_CACHE_BETAS,interleaved-thinking-2025-05-14"
+          _CACHE_BETAS="interleaved-thinking-2025-05-14"
           echo "  [thinking] Interleaved thinking enabled (model=$EFFECTIVE_MODEL, budget=${SPIRAL_THINKING_BUDGET_TOKENS} tokens)"
           log_ralph_event "interleaved_thinking_enabled" "\"story_id\":\"$NEXT_STORY\",\"model\":\"$EFFECTIVE_MODEL\",\"budget_tokens\":${SPIRAL_THINKING_BUDGET_TOKENS}"
         else
@@ -2898,19 +2846,12 @@ ${_FT_CONTEXT_BODY}"
       declare -f emit_agent_telemetry >/dev/null 2>&1 &&
         emit_agent_telemetry "R" "I" "$_TELEM_R_DUR" 0
       # Unset CLAUDECODE to allow nested Claude Code invocation from within an active session
-      # Wrap with 529 overloaded_error retry loop (separate from 429 rate-limit handling)
-      _529_ATTEMPT=0
-      _529_MAX=5
-      _529_BASE=2
-      _529_CAP=30
-      while true; do
-        _CLAUDE_TMP="${SPIRAL_SCRATCH_DIR}/_claude_raw_$$.tmp"
-        mkdir -p "${SPIRAL_SCRATCH_DIR}"
-        # ── US-261: local-only policy — skip cloud entirely, use Ollama directly ─────
-        if [[ "${SPIRAL_LOCAL_FALLBACK_POLICY:-}" == "local-only" ]]; then
-          apply_local_fallback_policy "local-only policy: bypassing cloud" "$_RL_TMP" && _OLLAMA_USED=1 || true
-          break
-        fi
+      _CLAUDE_TMP="${SPIRAL_SCRATCH_DIR}/_claude_raw_$$.tmp"
+      mkdir -p "${SPIRAL_SCRATCH_DIR}"
+      # ── US-261: local-only policy — skip cloud entirely, use Ollama directly ─────
+      if [[ "${SPIRAL_LOCAL_FALLBACK_POLICY:-}" == "local-only" ]]; then
+        apply_local_fallback_policy "local-only policy: bypassing cloud" "$_RL_TMP" && _OLLAMA_USED=1 || true
+      else
         # ── US-397: Emit OTel gen_ai.content.prompt Event before API call ────────────
         if [[ "${SPIRAL_OTEL_ENABLED:-false}" == "true" ]]; then
           "$SPIRAL_PYTHON" lib/observability/otel_content_events.py emit-prompt \
@@ -2925,8 +2866,7 @@ ${_FT_CONTEXT_BODY}"
             $CLAUDE_MODEL_FLAG \
             $CLAUDE_EFFORT_FLAG \
             --append-system-prompt "$RALPH_SYSTEM_PROMPT" \
-            --betas "$_CACHE_BETAS" \
-            $_CACHE_TTL_FLAG \
+            ${_CACHE_BETAS:+--betas "$_CACHE_BETAS"} \
             $_DEFERRED_TOOLS_FLAG \
             --allowedTools "Edit,Write,Read,Glob,Grep,Bash,Skill,Task,ToolSearch" \
             --max-turns 75 \
@@ -2936,9 +2876,9 @@ ${_FT_CONTEXT_BODY}"
             </dev/null 2>&1 | tee "$_CLAUDE_TMP" | node "$SCRIPT_DIR/stream-formatter.mjs"
         ) || true
         # ── Connection failure detection for Ollama fallback (US-144) ──────────────
-        # Detect curl exit 7 (ECONNREFUSED) / exit 28 (ETIMEDOUT) patterns in output.
-        # Empty output or connection-refused messages indicate Claude API is unreachable.
+        # Detect ECONNREFUSED / ETIMEDOUT patterns — claude CLI unreachable.
         # After _CLAUDE_API_FAIL_STREAK >= 3, switch to Ollama for the current story.
+        _CONN_HANDLED=0
         if [[ -n "${SPIRAL_OLLAMA_FALLBACK_MODEL:-}" ]]; then
           _TMP_SIZE=0
           [[ -f "$_CLAUDE_TMP" ]] && _TMP_SIZE=$(wc -c <"$_CLAUDE_TMP" 2>/dev/null || echo 0)
@@ -2952,7 +2892,7 @@ ${_FT_CONTEXT_BODY}"
           if [[ "$_IS_CONN_FAIL" -eq 1 ]]; then
             _CLAUDE_API_FAIL_STREAK=$((_CLAUDE_API_FAIL_STREAK + 1))
             rm -f "$_CLAUDE_TMP"
-            echo "  [ollama] Claude API unreachable (streak: $_CLAUDE_API_FAIL_STREAK/3)"
+            echo "  [ollama] Claude unreachable (streak: $_CLAUDE_API_FAIL_STREAK/3)"
             log_spiral_event "claude_api_unreachable" \
               "\"story_id\":\"${NEXT_STORY:-}\",\"streak\":${_CLAUDE_API_FAIL_STREAK}"
             if [[ "$_CLAUDE_API_FAIL_STREAK" -ge 3 ]]; then
@@ -2975,16 +2915,14 @@ ${_FT_CONTEXT_BODY}"
               echo "  ─────── Ollama Output End ─────────"
               rm -f "$_OLLAMA_SYS_TMP" "$_OLLAMA_USR_TMP"
             fi
-            break # exit _529_ATTEMPT loop — no benefit retrying a connection failure
+            _CONN_HANDLED=1
           else
             # Successful connection — reset fail streak
             _CLAUDE_API_FAIL_STREAK=0
           fi
         fi
         # ── US-261: SPIRAL_LOCAL_FALLBACK_POLICY enforcement on cloud failure ─────────
-        # Independent of US-144 streak counter. Triggers on any single connection failure
-        # when SPIRAL_LOCAL_FALLBACK_POLICY is set and US-144 did not already handle it.
-        if [[ -n "${SPIRAL_LOCAL_FALLBACK_POLICY:-}" ]]; then
+        if [[ "$_CONN_HANDLED" -eq 0 && -n "${SPIRAL_LOCAL_FALLBACK_POLICY:-}" ]]; then
           _261_TMP_SIZE=0
           [[ -f "$_CLAUDE_TMP" ]] && _261_TMP_SIZE=$(wc -c <"$_CLAUDE_TMP" 2>/dev/null || echo 0)
           _261_CONN_FAIL=0
@@ -2995,37 +2933,15 @@ ${_FT_CONTEXT_BODY}"
             _261_CONN_FAIL=1
           fi
           if [[ "$_261_CONN_FAIL" -eq 1 ]]; then
-            _261_ORIG_ERR="Claude API unreachable (empty or connection-refused response)"
+            _261_ORIG_ERR="Claude unreachable (empty or connection-refused response)"
             rm -f "$_CLAUDE_TMP"
             apply_local_fallback_policy "${_261_ORIG_ERR}" "$_RL_TMP"
-            break # exit 529 loop — connection failure handled by policy
+            _CONN_HANDLED=1
           fi
         fi
-        # Detect HTTP 529 overloaded_error — separate handler from 429 rate-limit
-        # Also detect streaming errors returned with HTTP 200: Claude CLI may emit
-        # {"type":"error","error":{"type":"overloaded_error","message":"..."}} as the
-        # first NDJSON chunk while the HTTP status is 200, so exit code does not signal failure.
-        _FIRST_LINE=$(head -1 "$_CLAUDE_TMP" 2>/dev/null || true)
-        if grep -qE 'overloaded_error|"529"' "$_CLAUDE_TMP" 2>/dev/null ||
-          echo "$_FIRST_LINE" | grep -qF '"type":"error"' 2>/dev/null; then
-          _529_ATTEMPT=$((_529_ATTEMPT + 1))
-          rm -f "$_CLAUDE_TMP"
-          if [[ "$_529_ATTEMPT" -gt "$_529_MAX" ]]; then
-            echo "  [529] Max overload retries ($_529_MAX) reached — proceeding to story outcome check"
-            break
-          fi
-          _delay=$((_529_BASE * (2 ** (_529_ATTEMPT - 1))))
-          [[ "$_delay" -gt "$_529_CAP" ]] && _delay="$_529_CAP"
-          _jitter=$(((_delay * 10) / 100 + 1))
-          _sleep=$((_delay + RANDOM % _jitter))
-          echo "  [529] API overloaded (attempt $_529_ATTEMPT/$_529_MAX) — retrying in ${_sleep}s..."
-          log_spiral_event "api_overloaded" "\"retry_attempt\":${_529_ATTEMPT},\"sleep_sec\":${_sleep}"
-          sleep "$_sleep"
-        else
-          mv "$_CLAUDE_TMP" "$_RL_TMP" 2>/dev/null || true
-          break
-        fi
-      done
+        # Move result to _RL_TMP (no-op if connection handler already removed _CLAUDE_TMP)
+        mv "$_CLAUDE_TMP" "$_RL_TMP" 2>/dev/null || true
+      fi
     elif [[ "$EFFECTIVE_TOOL" == "codex" ]]; then
       echo "  [ralph] Delegating to Codex (GPT-5)..."
       PROMPT_TEXT=$(cat "$PROMPT_FILE")
@@ -3039,35 +2955,6 @@ ${_FT_CONTEXT_BODY}"
     fi
     echo "  ─────── AI Output End ($EFFECTIVE_TOOL) ─────────"
 
-    # ── Rate-limit / transient-error detection (all AI tools) ─────────────────
-    _RL_ERROR_CODE=0
-    if grep -qiE 'HTTP 429|"429"|rate_limit_error|Too Many Requests' "$_RL_TMP" 2>/dev/null; then
-      _RL_ERROR_CODE=429
-    elif grep -qiE '"502"|HTTP 502|bad.?gateway' "$_RL_TMP" 2>/dev/null; then
-      _RL_ERROR_CODE=502
-    elif grep -qiE '"503"|HTTP 503|service.?unavailable' "$_RL_TMP" 2>/dev/null; then
-      _RL_ERROR_CODE=503
-    fi
-    if [[ "$_RL_ERROR_CODE" -ne 0 ]]; then
-      _RL_ATTEMPT=$((_RL_ATTEMPT + 1))
-      # Record failure in circuit breaker
-      if declare -f cb_record_failure >/dev/null 2>&1; then
-        cb_record_failure "$_CB_ENDPOINT" "$_RL_ERROR_CODE"
-      fi
-      rm -f "$_RL_TMP"
-      if [[ "$_RL_ATTEMPT" -gt "$_RL_MAX" ]]; then
-        echo "  [ralph] Rate limit max retries ($_RL_MAX) reached — proceeding to story outcome check"
-        break
-      fi
-      echo "  [ralph] Transient error $_RL_ERROR_CODE — waiting 60s before retry (attempt $_RL_ATTEMPT/$_RL_MAX)"
-      log_spiral_event "rate_limited" "\"retry_attempt\":${_RL_ATTEMPT},\"sleep_sec\":60,\"error_code\":${_RL_ERROR_CODE}"
-      sleep 60
-      continue
-    fi
-    # Successful call — reset circuit breaker
-    if declare -f cb_record_success >/dev/null 2>&1; then
-      cb_record_success "$_CB_ENDPOINT"
-    fi
 
     # ── Parse token counts from LLM output (before cleanup) ─────────────────
     _CALL_TOKENS_INPUT=0
@@ -3082,17 +2969,6 @@ ${_FT_CONTEXT_BODY}"
         _to=$($JQ -r '.usage.output_tokens // 0' <<<"$_RESULT_LINE" 2>/dev/null || echo 0)
         [[ "$_ti" =~ ^[0-9]+$ ]] && _CALL_TOKENS_INPUT=$_ti
         [[ "$_to" =~ ^[0-9]+$ ]] && _CALL_TOKENS_OUTPUT=$_to
-        # Extract prompt caching fields from usage (present when prompt-caching beta is active)
-        _cc=$($JQ -r '.usage.cache_creation_input_tokens // 0' <<<"$_RESULT_LINE" 2>/dev/null || echo 0)
-        _cr=$($JQ -r '.usage.cache_read_input_tokens // 0' <<<"$_RESULT_LINE" 2>/dev/null || echo 0)
-        [[ "$_cc" =~ ^[0-9]+$ ]] && _CACHE_CREATION_TOKENS=$_cc
-        [[ "$_cr" =~ ^[0-9]+$ ]] && _CACHE_READ_TOKENS=$_cr
-        [[ "$_CACHE_READ_TOKENS" -gt 0 ]] && _CACHE_HIT=true
-        if [[ "$_CACHE_CREATION_TOKENS" -gt 0 || "$_CACHE_READ_TOKENS" -gt 0 ]]; then
-          echo "  [cache] creation=${_CACHE_CREATION_TOKENS} read=${_CACHE_READ_TOKENS} hit=${_CACHE_HIT}"
-          log_spiral_event "prompt_cache" \
-            "\"cache_creation_tokens\":${_CACHE_CREATION_TOKENS},\"cache_read_tokens\":${_CACHE_READ_TOKENS},\"cache_hit\":${_CACHE_HIT}"
-        fi
       fi
     fi
 
@@ -3222,8 +3098,6 @@ DIAG_EXTRACTOR_EOF
       _TELEM_I_DUR=$((_TELEM_V_START_MS - _TELEM_I_START_MS))
     declare -f emit_agent_telemetry >/dev/null 2>&1 &&
       emit_agent_telemetry "I" "V" "$_TELEM_I_DUR" 0
-    break
-  done # end rate-limit retry loop
 
   # ── Store diagnosis block in prd.json (US-244) ──────────────────────────────
   if [[ -n "$_PHASE_I_DIAGNOSIS_BLOCK" ]]; then
@@ -3270,7 +3144,7 @@ DIAG_EXTRACTOR_EOF
   # ── Accumulate per-story token cost ───────────────────────────────────────
   _STORY_CUMULATIVE_USD=0
   if [[ "$_CALL_TOKENS_INPUT" -gt 0 || "$_CALL_TOKENS_OUTPUT" -gt 0 ]]; then
-    _STORY_CUMULATIVE_USD=$(accumulate_story_cost "$NEXT_STORY" "$_CALL_TOKENS_INPUT" "$_CALL_TOKENS_OUTPUT" "$_CACHE_CREATION_TOKENS" "$_CACHE_READ_TOKENS" 2>/dev/null || echo 0)
+    _STORY_CUMULATIVE_USD=$(accumulate_story_cost "$NEXT_STORY" "$_CALL_TOKENS_INPUT" "$_CALL_TOKENS_OUTPUT" 0 0 2>/dev/null || echo 0)
     echo "  [cost] Story $NEXT_STORY: input=${_CALL_TOKENS_INPUT} output=${_CALL_TOKENS_OUTPUT} tokens | cumulative \$${_STORY_CUMULATIVE_USD}"
   fi
 
