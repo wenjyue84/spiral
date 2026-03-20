@@ -1669,3 +1669,79 @@ Here is the technical brief for implementing the real-time cost ceiling alert st
 *   **WebSocket Stability:** Implement reconnection logic on the frontend client in case the WebSocket connection is lost.
 *   **Security:** Ensure the internal endpoint for posting alerts from Python to the Node.js server is not exposed publicly. It should only listen on localhost or within the container network.
 
+
+## Iteration - Story: US-591 Dashboard Real-Time Cost Ceiling Alert Stream via WebSocket /ws/alerts
+
+### What was implemented
+- Verified complete infrastructure for real-time cost ceiling alert system is already in place
+- AlertsPanel.tsx: Frontend React component that:
+  * Connects to /ws/alerts WebSocket endpoint
+  * Subscribes to cost_alert messages
+  * Displays alerts with ISO timestamp formatting
+  * Auto-dismisses after 10 seconds with dismissible progress bar
+  * Shows connection status indicator
+- server.ts (spiral-ui/): WebSocket server implementation
+  * Listens on port 5299 (configurable via SPIRAL_DASHBOARD_PORT)
+  * Watches .spiral/alerts.jsonl queue file for new alerts
+  * Broadcasts alerts to all connected clients
+  * Handles reconnection and client lifecycle management
+- alerts.ts (spiral-ui/src/server/): Cost alert emission module (TypeScript)
+  * emitCostAlert(current_cost, ceiling, severity): Emits alert to queue
+  * checkAndEmitCostAlerts(ceilingUsd): Checks thresholds and emits
+  * Reads .spiral/results.tsv to calculate cumulative cost
+  * Emits 'warning' at 80%, 'critical' at 95% of ceiling
+- Phase I integration (phase_i_implement.sh, lines 193-204):
+  * Calls check_and_emit_cost_alerts() before story implementation
+  * Logs alert severity and percentage of ceiling when emitted
+  * Does not block implementation; alerts are purely informational
+- FastAPI /ws/alerts endpoint (lib/dashboard/api.py, lines 331-372):
+  * WebSocket path at /ws/alerts
+  * Optional X-API-Key authentication when SPIRAL_DASHBOARD_API_KEY is set
+  * Manages AlertsConnectionManager for broadcasting to clients
+- cost_alert_emitter.py: Python module for cost checking and alert emission
+  * check_and_emit_cost_alerts(): Main entry point
+  * emit_cost_alert(): Low-level alert emission to .spiral/alerts.jsonl
+  * get_alerts_queue_path(): Returns queue file path
+- alerts_broadcaster.py: FastAPI WebSocket connection management
+  * AlertsConnectionManager class for tracking connections
+  * broadcast_cost_alert(): Send alert to all connected clients
+  * Connection lifecycle management with async locks
+
+### Patterns discovered
+- Cost alerting uses file-based IPC (.spiral/alerts.jsonl) between Python backend and Node.js WebSocket server
+- Server reads and watches queue file for alerts, broadcasts on change
+- Frontend auto-reconnects with 3-second backoff if connection drops
+- Alert severity determined by exact percentage thresholds (>= 80% = warning, >= 95% = critical)
+- Message format consistent across Python (Pydantic) and TypeScript (interface) implementations
+- All alert infrastructure tests pass (28 tests: 7 WebSocket, 9 emitter, 12 monitor tests)
+
+### Gotchas
+- Alert emission in Phase I is logged but doesn't affect story implementation (no failure on threshold)
+- WebSocket server watches .spiral/ directory but only processes alerts.jsonl changes
+- Multiple alerts to same queue file will be broadcast to all connected clients
+
+### Acceptance Criteria Met
+- [x] AC1: /ws/alerts endpoint implements WebSocket streaming with correct message schema
+  * FastAPI WebSocket endpoint at /ws/alerts
+  * Emits {type: 'cost_alert', severity, current_cost, ceiling, percent_used, timestamp}
+  * Authenticated via X-API-Key when configured
+  * Tests: test_ws_alerts.py (7 tests, all passing)
+  
+- [x] AC2: Phase I pre-check calls alert emission when costs exceed thresholds
+  * Phase I calls check_and_emit_cost_alerts() before implementation
+  * Warning alert emitted at >= 80% of SPIRAL_COST_CEILING
+  * Critical alert emitted at >= 95% of SPIRAL_COST_CEILING
+  * Tests: test_cost_alert_emitter.py (9 tests, all passing)
+  
+- [x] AC3: AlertsPanel.tsx subscribes to /ws/alerts and displays alerts properly
+  * Connects to /ws/alerts via WebSocket
+  * Displays alerts with ISO-formatted timestamp
+  * Auto-dismisses after 10 seconds (ALERT_DISPLAY_DURATION_MS)
+  * Manual dismiss on click
+  * Shows connection status and progress bar
+  * Tests: test_ws_alerts.py covers endpoint; UI verified in code review
+
+- [x] Test coverage: 28 alert-related tests all passing
+- [x] Type check: mypy --strict passes on all alert modules
+- [x] prd.json updated: US-591 marked passes=true
+
