@@ -29,7 +29,7 @@
           {
             "type": "command",
             "timeout": 120,
-            "command": "python .claude/hooks/verify_story_acceptance.py"
+            "command": "python \"C:/Users/Jyue/Documents/1-projects/Software Projects/Spiral/.claude/hooks/verify_story_acceptance.py\""
           }
         ]
       }

@@ -48,6 +48,20 @@ function ProjectsTab() {
       .catch(() => setLoading(false));
   }, []);
 
+  // Compute summary stats across all projects
+  const summary = Object.values(live).reduce(
+    (acc, l) => {
+      if (l.progress) {
+        acc.done += l.progress.done;
+        acc.pending += l.progress.pending;
+        acc.total += l.progress.total;
+      }
+      return acc;
+    },
+    { done: 0, pending: 0, total: 0 },
+  );
+  const hasStats = summary.total > 0;
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full text-slate-400 text-sm">
@@ -58,10 +72,29 @@ function ProjectsTab() {
 
   if (projects.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-3 text-slate-400">
-        <span className="text-4xl">📭</span>
-        <p className="text-sm">No projects registered yet.</p>
-        <p className="text-xs text-slate-300">Run <code className="bg-slate-100 px-1 rounded">curl -X POST /api/register-project</code> to add one.</p>
+      <div className="flex flex-col items-center justify-center h-full gap-4 text-slate-500 max-w-md mx-auto text-center px-4">
+        <span className="text-5xl">📭</span>
+        <div>
+          <p className="text-base font-medium text-slate-700 mb-1">No projects registered yet</p>
+          <p className="text-sm text-slate-400">Get started by running SPIRAL on any project directory:</p>
+        </div>
+        <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 w-full text-left space-y-3">
+          <div>
+            <p className="text-xs font-semibold text-slate-500 mb-1">Option 1 — Run SPIRAL</p>
+            <code className="text-xs bg-white px-2 py-1 rounded border border-slate-200 block text-slate-700">
+              bash spiral.sh 5 --gate proceed
+            </code>
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-slate-500 mb-1">Option 2 — Register manually</p>
+            <code className="text-xs bg-white px-2 py-1 rounded border border-slate-200 block text-slate-700 break-all">
+              curl -X POST localhost:5299/api/register-project -H "Content-Type: application/json" -d '{`{"name":"MyProject","root":"/path/to/project"}`}'
+            </code>
+          </div>
+        </div>
+        <p className="text-xs text-slate-400">
+          Switch to the <span className="font-medium">Workflow</span> tab to explore the SPIRAL phase loop.
+        </p>
       </div>
     );
   }
@@ -69,9 +102,18 @@ function ProjectsTab() {
   return (
     <div className="h-full overflow-y-auto px-6 py-5">
       <div className="max-w-5xl mx-auto">
-        <div className="mb-5">
-          <h2 className="text-lg font-semibold text-slate-800">Active Projects</h2>
-          <p className="text-sm text-slate-500 mt-0.5">{projects.length} project{projects.length !== 1 ? 's' : ''} registered — click to open dashboard</p>
+        <div className="mb-5 flex items-end justify-between gap-4 flex-wrap">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-800">Active Projects</h2>
+            <p className="text-sm text-slate-500 mt-0.5">{projects.length} project{projects.length !== 1 ? 's' : ''} registered — click to open dashboard</p>
+          </div>
+          {hasStats && (
+            <div className="flex gap-4 text-xs font-medium">
+              <span className="bg-green-50 text-green-700 px-2.5 py-1 rounded-full">{summary.done} done</span>
+              <span className="bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full">{summary.pending} pending</span>
+              <span className="bg-slate-50 text-slate-500 px-2.5 py-1 rounded-full">{summary.total} total stories</span>
+            </div>
+          )}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {projects.map(p => {
@@ -135,10 +177,26 @@ interface SelectedNode {
   zone: string;
 }
 
+type SpiralStatus = 'idle' | 'running' | 'unknown';
+
+function useSystemStatus(): SpiralStatus {
+  const [status, setStatus] = useState<SpiralStatus>('unknown');
+  useEffect(() => {
+    fetch('/api/workers-status')
+      .then(r => r.json())
+      .then((data: { workers?: unknown[] }) => {
+        setStatus(data.workers && data.workers.length > 0 ? 'running' : 'idle');
+      })
+      .catch(() => setStatus('idle'));
+  }, []);
+  return status;
+}
+
 function SpiralHome() {
   const [activeTab, setActiveTab] = useState<Tab>('projects');
   const [values, setValues] = useState<ConfigValues>(defaultValues());
   const [selectedNode, setSelectedNode] = useState<SelectedNode | null>(null);
+  const systemStatus = useSystemStatus();
 
   const handleChange = (key: string, value: string | number | boolean) => {
     setValues(prev => ({ ...prev, [key]: value }));
@@ -155,6 +213,18 @@ function SpiralHome() {
         <div className="flex items-center gap-2.5">
           <span className="text-xl font-bold text-blue-700 tracking-tight">SPIRAL</span>
           <span className="text-xs text-slate-400 font-medium">Autonomous Dev Loop</span>
+          {systemStatus !== 'unknown' && (
+            <span className={`ml-1 flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${
+              systemStatus === 'running'
+                ? 'bg-green-100 text-green-700'
+                : 'bg-slate-100 text-slate-500'
+            }`}>
+              <span className={`inline-block w-1.5 h-1.5 rounded-full ${
+                systemStatus === 'running' ? 'bg-green-500 animate-pulse' : 'bg-slate-400'
+              }`} />
+              {systemStatus === 'running' ? 'Running' : 'Idle'}
+            </span>
+          )}
         </div>
 
         <nav className="flex gap-1 ml-4">

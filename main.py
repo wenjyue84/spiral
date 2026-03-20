@@ -23,6 +23,7 @@ Subcommands:
   show-blockers           Analyze story dependency graph and critical paths (US-538)
   replay                  Re-run a failed phase with DEBUG=1 and full state capture (US-539)
   phase-timing-report     Generate phase timing report with SLA breach analysis (US-546)
+  monitor                 Unified monitoring snapshot for progress checks
 """
 
 import argparse
@@ -3008,6 +3009,16 @@ def main():
         help="Show the 20 most recent episodic records with pass/fail outcomes",
     )
 
+    # ── monitor subcommand ──────────────────────────────────────────────────────
+    monitor_parser = subparsers.add_parser(
+        "monitor",
+        help="Unified monitoring snapshot for progress checks",
+    )
+    monitor_parser.add_argument("--port", type=int, default=5299)
+    monitor_parser.add_argument(
+        "--no-json", dest="json", action="store_false", default=True,
+    )
+
     args = parser.parse_args()
 
     if args.command == "init":
@@ -3086,9 +3097,40 @@ def main():
         cmd_detect_anomalies(args)
     elif args.command == "phase-timing-report":
         cmd_phase_timing_report(args)
+    elif args.command == "monitor":
+        cmd_monitor(args)
     else:
         parser.print_help()
         sys.exit(0)
+
+
+def cmd_monitor(args: argparse.Namespace) -> None:
+    """Run unified monitoring snapshot and print results."""
+    from monitor import run_monitor
+
+    project_root = Path(__file__).parent
+    port = getattr(args, "port", 5299)
+    use_json = getattr(args, "json", True)
+
+    result = run_monitor(project_root=project_root, ui_port=port)
+
+    if use_json:
+        print(json.dumps(result, indent=2))
+    else:
+        status = result.get("status", {})
+        delta = result.get("delta", {})
+        attn = "YES" if result.get("needs_attention") else "no"
+        print(f"SPIRAL Monitor — {result.get('timestamp', '?')}")
+        print(f"  Passed: {status.get('passed', 0)} / {status.get('total', 0)}"
+              f" ({status.get('pass_pct', 0)}%)")
+        print(f"  New since last check: +{delta.get('new_passed', 0)}"
+              f" (was {delta.get('previous', 0)})")
+        print(f"  Stalled: {delta.get('stalled', False)}")
+        print(f"  Run health: {'running' if result.get('run_health', {}).get('running') else 'STOPPED'}")
+        print(f"  UI: {'up' if result.get('ui_health', {}).get('reachable') else 'DOWN'}")
+        print(f"  Needs attention: {attn}")
+        for d in result.get("diagnostics", []):
+            print(f"  [{d.get('severity', '?')}] {d.get('message', '')}")
 
 
 if __name__ == "__main__":
