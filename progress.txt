@@ -1,3 +1,25 @@
+
+## Iteration 42 - US-539: Phase Replay Mode
+
+### What was implemented
+- lib/phase_replay.py: run_phase_replay() with pre/post prd_snapshot, git_head, api_calls_count, tokens_used, output_files (SHA-256 checksums)
+- Writes .spiral/replay-{phase}-iter{N}.log and replay-state-{phase}-iter{N}.json
+- PhaseRunner protocol for injectable test doubles (avoids real bash subprocess in tests)
+- tests/test_phase_replay.py: 23 tests covering AC1 (log/state file paths), AC2 (state schema), AC3 (checksum match + token variance < 5%)
+- main.py cmd_replay already wired to phase_replay.run_phase_replay
+
+### Patterns discovered
+- Implementation was complete in prior iteration but passes=false — just needed verification run
+- PhaseRunner = Callable[(phase, iteration, env, cwd) -> (stdout, stderr, returncode)] is reusable injectable pattern
+
+### Acceptance criteria verification
+AC1: replay-R-iter3.log and replay-state-R-iter3.json written to .spiral/ ✓
+AC2: state JSON has prd_snapshot.before/after, git_head, api_calls_count, tokens_used, output_files with checksums ✓
+AC3: checksum matches fixture byte-for-byte; token variance test passes ✓
+All 23 tests pass; mypy --strict clean
+
+---
+
 ## Iteration 41 - US-553: Integration Test: SPIRAL Happy Path
 
 ### What was implemented
