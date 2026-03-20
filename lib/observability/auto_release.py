@@ -3,13 +3,17 @@
 Coordinates generation of:
 1. CHANGELOG.md via git-cliff (conventional commits parsing)
 2. API docs via pdoc (Python docstring extraction)
+3. Detects and logs orphan commits (without US-*/UT-* story IDs)
 
 Both artifacts are generated during the release workflow when a semver tag is pushed.
 """
 
+import json
+import re
 import subprocess
 import sys
 from pathlib import Path
+from typing import TypedDict
 
 
 def run_command(cmd: list[str], description: str) -> None:
@@ -63,10 +67,85 @@ def generate_api_docs(
     )
 
 
+class OrphanCommit(TypedDict):
+    """Schema for an orphan commit record."""
+
+    commit_sha: str
+    message: str
+    timestamp: str
+    reason: str
+
+
+def detect_orphan_commits() -> list[OrphanCommit]:
+    """Detect commits without US-*/UT-* story IDs in their messages.
+
+    Returns:
+      List of OrphanCommit records for commits without story IDs
+
+    Raises:
+      RuntimeError: If git log command fails
+    """
+    # Get all commits with sha, message, and author date
+    result = subprocess.run(
+        ["git", "log", "--format=%H%n%s%n%aI"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    if result.returncode != 0:
+        raise RuntimeError(f"Failed to get git log: {result.stderr}")
+
+    orphans: list[OrphanCommit] = []
+    lines = result.stdout.strip().split("\n")
+
+    i = 0
+    while i < len(lines):
+        if i + 2 >= len(lines):
+            break
+
+        commit_sha = lines[i].strip()
+        message = lines[i + 1].strip()
+        timestamp = lines[i + 2].strip()
+        i += 3
+
+        # Check if commit message contains US-### or UT-### pattern
+        if not re.search(r"(US-\d+|UT-\d+)", message):
+            orphans.append(
+                OrphanCommit(
+                    commit_sha=commit_sha,
+                    message=message,
+                    timestamp=timestamp,
+                    reason="Missing story ID (US-*/UT-*) in commit message",
+                )
+            )
+
+    return orphans
+
+
+def log_orphan_commits(orphans: list[OrphanCommit]) -> None:
+    """Write orphan commits to .spiral/_phase_g_orphans.json.
+
+    Args:
+      orphans: List of orphan commit records to log
+    """
+    spiral_dir = Path(".spiral")
+    spiral_dir.mkdir(exist_ok=True)
+
+    orphan_file = spiral_dir / "_phase_g_orphans.json"
+
+    with open(orphan_file, "w") as f:
+        json.dump(orphans, f, indent=2)
+
+
 def main() -> None:
     """Orchestrate Phase G: auto-generate CHANGELOG.md and API docs."""
     try:
         print("\n📋 SPIRAL Phase G: Auto-generate release artifacts\n")
+
+        # Detect and log orphan commits (commits without story IDs)
+        orphans = detect_orphan_commits()
+        log_orphan_commits(orphans)
 
         # Generate changelog from git history
         generate_changelog()
@@ -74,7 +153,10 @@ def main() -> None:
         # Generate API documentation from Python modules
         generate_api_docs()
 
-        print("\n✅ Phase G complete: CHANGELOG.md and API docs generated\n")
+        # Print summary with orphan count
+        orphan_count = len(orphans)
+        orphan_msg = f" ({orphan_count} orphan commits detected)" if orphan_count > 0 else ""
+        print(f"\n✅ Phase G complete: CHANGELOG.md and API docs generated{orphan_msg}\n")
     except RuntimeError as e:
         print(f"\n❌ Phase G failed: {e}\n", file=sys.stderr)
         sys.exit(1)

@@ -690,3 +690,34 @@ FAILED diagnosis-block gate: [Security Test] Auth/Permission Access Control for 
 - [x] test_cli_detects_duplicate_and_anomaly passes with subprocess.run and assertions
 - [x] All tests passing (4/4)
 - [x] Story marked as passes: true in prd.json
+
+## Iteration - Story: US-580 Phase G: Detect and Log Orphan Commits Without Story IDs
+
+### What was implemented
+- Enhanced lib/observability/auto_release.py with orphan commit detection:
+  - Added detect_orphan_commits() function: parses git log, finds commits without (US-\d+|UT-\d+) pattern
+  - Added log_orphan_commits() function: writes orphan records to .spiral/_phase_g_orphans.json
+  - Updated main() to call orphan detection, log results, and include orphan count in exit summary
+- Created tests/test_phase_g_orphan_detection.py with 5 passing integration tests:
+  - test_detect_orphans_5_commits_3_orphans: synthetic repo with 5 commits (2 valid, 3 orphans) — verifies detection
+  - test_orphan_log_schema: validates JSON schema {commit_sha, message, timestamp, reason}
+  - test_changelog_generation_with_orphans: CHANGELOG generation succeeds with orphans present
+  - test_orphan_count_in_summary: exit message includes orphan count
+  - test_no_orphans_on_valid_commits: no false positives on properly formatted commits
+
+### Patterns discovered
+- Use TypedDict for structured return types (OrphanCommit)
+- Git log format: %H (SHA), %s (subject), %aI (author date ISO8601) — separator \n
+- Create .spiral/ directory with Path.mkdir(exist_ok=True) before writing logs
+- Orphan schema: commit_sha, message, timestamp, reason (JSON serializable)
+
+### Gotchas
+- None — straightforward implementation with clear acceptance criteria
+
+### Acceptance Criteria Met
+- [x] detect_orphan_commits() parses commits against (US-\d+|UT-\d+) pattern
+- [x] Orphans written to .spiral/_phase_g_orphans.json with schema {commit_sha, message, timestamp, reason}
+- [x] CHANGELOG.md generation continues uninterrupted when orphans present
+- [x] Orphan count printed in Phase G exit summary (e.g., "(3 orphan commits detected)")
+- [x] All 5 tests pass; mypy --strict clean; ruff clean
+- [x] Story marked as passes: true in prd.json
