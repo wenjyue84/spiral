@@ -188,13 +188,14 @@ SPIRAL_CONSECUTIVE_FAIL_ABORT=0  # disabled — allow retries on difficult sub-s
 export SPIRAL_SKIP_DISK_CHECK=1
 
 # ── Implementation timeout per story ─────────────────────────────────────
-SPIRAL_IMPL_TIMEOUT=1200
-SPIRAL_WORKER_TIMEOUT=1200
+SPIRAL_IMPL_TIMEOUT=1800
+SPIRAL_WORKER_TIMEOUT=1800
 
 # ── Per-complexity timeouts (defaults: small=300, medium=600, large=1200) ──
-# Raised small/medium to give Ralph enough runway after baseline counting + exploration
-SPIRAL_STORY_TIMEOUT_SMALL=900
-SPIRAL_STORY_TIMEOUT_MEDIUM=1200
+# Doubled to give Ralph enough runway for complex stories (integration tests, CLI tools)
+SPIRAL_STORY_TIMEOUT_SMALL=1200
+SPIRAL_STORY_TIMEOUT_MEDIUM=1800
+SPIRAL_STORY_TIMEOUT_LARGE=2400
 
 # ── Cost ceiling: abort when cumulative API spend exceeds budget ──────────────
 # Set to a USD amount (e.g., 50.0) to cap spending. Empty = disabled.
