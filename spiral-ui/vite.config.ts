@@ -271,7 +271,13 @@ function spiralApiPlugin() {
         res.setHeader('Content-Type', 'application/json');
         res.setHeader('Access-Control-Allow-Origin', '*');
         const reg = readRegistry();
-        const projects = Object.entries(reg).map(([name, root]) => ({ name, root }));
+        // Deduplicate by normalized root path (keep first occurrence)
+        const seen = new Map<string, string>();
+        for (const [name, root] of Object.entries(reg)) {
+          const nr = normalizePath(root).toLowerCase().replace(/\\/g, '/').replace(/\/$/, '');
+          if (!seen.has(nr)) seen.set(nr, name);
+        }
+        const projects = [...seen.entries()].map(([, name]) => ({ name, root: reg[name] }));
         res.end(JSON.stringify({ projects }));
       });
 
@@ -290,6 +296,11 @@ function spiralApiPlugin() {
               return;
             }
             const reg = readRegistry();
+            // Remove case-insensitive duplicates — keep latest registration
+            const nameLower = name.toLowerCase();
+            for (const key of Object.keys(reg)) {
+              if (key.toLowerCase() === nameLower) delete reg[key];
+            }
             reg[name] = root;
             writeRegistry(reg);
             res.setHeader('Content-Type', 'application/json');
