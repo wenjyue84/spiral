@@ -317,6 +317,15 @@ PYEOF
     "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/quality/test_suite_manager.py" status \
       --suite-root "$_SUITE_ROOT" || true
 
+    # ── CodeQL deep semantic analysis (complements Semgrep pattern-matching) ──
+    # Runs after tests pass as the "serious judge" for data-flow vulnerabilities.
+    if [[ "${SPIRAL_CODEQL_ENABLED:-false}" == "true" ]]; then
+      local _codeql_mode="${SPIRAL_CODEQL_MODE:-validate}"
+      if [[ "$_codeql_mode" == "validate" || "$_codeql_mode" == "gate" ]]; then
+        run_codeql_scan || echo "  [CodeQL] Findings detected — see gate-reports/codeql-*.sarif"
+      fi
+    fi
+
     write_checkpoint "$SPIRAL_ITER" "V"
   fi
   run_phase_hook POST "V" || true

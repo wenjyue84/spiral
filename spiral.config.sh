@@ -79,6 +79,18 @@ SPIRAL_MERGE_MODEL="haiku"      # Phase M: merge decisions (future — currently
 # Bulk override format: SPIRAL_PHASE_MODEL_OVERRIDE=R:haiku,S:haiku,M:haiku
 # SPIRAL_PHASE_MODEL_OVERRIDE=""
 
+# ── CodeQL deep semantic analysis ──────────────────────────────────────────────
+# Second security lens alongside Semgrep. Semgrep catches patterns quickly;
+# CodeQL finds deeper data-flow and variant-style vulnerabilities.
+# Runs in Phase V after tests pass (the "serious judge").
+# Requires: codeql CLI (install: gh extension install github/gh-codeql)
+# SPIRAL_CODEQL_ENABLED="false"              # true to enable
+# SPIRAL_CODEQL_MODE="validate"              # validate | gate | nightly
+# SPIRAL_CODEQL_LANGUAGES="python"           # space-separated: python javascript
+# SPIRAL_CODEQL_QUERY_SUITE="security-and-quality"  # or security-extended
+# SPIRAL_CODEQL_BLOCKING="false"             # true = block on HIGH/CRITICAL
+# SPIRAL_CODEQL_KEEP_DB="false"              # true = keep DB for debugging
+
 # ── Story enrichment pass (US-443) ────────────────────────────────────────────
 # After Phase S validation, optionally refine medium/sparse stories: rewrite
 # vague ACs, add exact file paths + test commands, split stories touching 3+

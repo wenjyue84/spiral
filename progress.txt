@@ -214,3 +214,30 @@ Based on the user story, this is a standalone Python CLI tool, not a Frappe appl
     *   Add error handling for malformed rows or missing columns in the TSV file.
     *   The logic to detect "exponential token growth" and "token drift" needs to be clearly defined and implemented.
 
+
+## Pre-analysis for US-617 (Gemini 2.5 Pro)
+**Technical Brief for US-617: Federated Story Dependency Sorting**
+
+This user story concerns a Python CLI tool, not a Frappe application. The implementation should focus on the specified Python files, ignoring any Frappe-related context.
+
+**1. Primary Files for Modification:**
+*   **New File:** `lib/impl/phase_m_federated_order.py` (for the core sorting logic).
+*   **New File:** `tests/test_phase_m_federated_order.py` (for the integration test).
+*   **Modify:** `lib/spiral/phase_m.py` (to integrate the call to the new ordering function).
+*   **Modify:** A CLI-related file (e.g., `lib/spiral/cli.py`) to add the new `validate-federated-order` command.
+
+**2. Involved Frappe DocTypes / Hooks:**
+*   None. This is a pure Python project. No Frappe elements are involved.
+
+**3. Recommended Implementation Approach:**
+*   In `phase_m_federated_order.py`, implement `order_federated_stories_by_dependency`.
+*   Use Python's standard `graphlib.TopologicalSorter` (for Python 3.9+) to build a dependency graph and perform the sort. This class has built-in cycle detection.
+*   Use a regular expression like `r"depends on ([\w-]+)"` to parse story descriptions and identify dependencies.
+*   In `lib/spiral/phase_m.py`, call this new function before `prd_merge()` and handle the potential `CycleError` from the topological sort.
+*   The test in `test_phase_m_federated_order.py` must validate both a correct dependency-based sort and that a circular dependency correctly raises an exception.
+
+**4. Edge Cases & Gotchas:**
+*   **Circular Dependencies:** The topological sort must raise a specific, user-friendly error (e.g., "Circular dependency detected: US-A1 -> US-B1 -> US-A1").
+*   **Missing/Dangling Dependencies:** Handle cases where a story depends on an ID that is not present in the input list.
+*   **Dependency Parsing:** The regex for finding dependencies must be robust enough for minor variations in phrasing if they exist.
+

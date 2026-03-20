@@ -334,6 +334,132 @@ run_sast_gate_check() {
   return "$any_blocked"
 }
 
+# ── Helper: CodeQL deep semantic analysis ────────────────────────────────────
+# Runs CodeQL CLI as a "serious judge" scan after Phase V tests pass.
+# Complements Semgrep (fast pattern-matching) with deeper data-flow analysis
+# that catches variant-style vulnerabilities autonomous code may generate.
+#
+# Modes:
+#   SPIRAL_CODEQL_MODE=validate  — run every iteration in Phase V (default)
+#   SPIRAL_CODEQL_MODE=gate      — run only in Phase G gate check
+#   SPIRAL_CODEQL_MODE=nightly   — skip unless SPIRAL_CODEQL_FORCE=true
+#
+# Returns: 0 = pass/warn, 1 = HIGH/CRITICAL findings (blocks if SPIRAL_CODEQL_BLOCKING=true)
+run_codeql_scan() {
+  if [[ "${SPIRAL_CODEQL_ENABLED:-false}" == "false" ]]; then
+    return 0
+  fi
+
+  if ! command -v codeql >/dev/null 2>&1; then
+    echo "  [CodeQL] codeql CLI not found in PATH — skipping (install: gh extension install github/gh-codeql)"
+    return 0
+  fi
+
+  local mode="${SPIRAL_CODEQL_MODE:-validate}"
+  if [[ "$mode" == "nightly" && "${SPIRAL_CODEQL_FORCE:-false}" != "true" ]]; then
+    echo "  [CodeQL] Skipping (mode=nightly, set SPIRAL_CODEQL_FORCE=true to run)"
+    return 0
+  fi
+
+  # Determine languages to scan
+  local languages="${SPIRAL_CODEQL_LANGUAGES:-python}"
+  local query_suite="${SPIRAL_CODEQL_QUERY_SUITE:-security-and-quality}"
+  local severity_threshold="${SPIRAL_CODEQL_SEVERITY:-error}"
+  local codeql_db_dir="$SCRATCH_DIR/codeql-db"
+  local codeql_results="$SCRATCH_DIR/gate-reports/codeql-results.sarif"
+  local codeql_csv="$SCRATCH_DIR/gate-reports/codeql-results.csv"
+
+  mkdir -p "$SCRATCH_DIR/gate-reports"
+
+  # Get changed files for targeted scan
+  local changed_files
+  changed_files=$(git diff --name-only HEAD~1 2>/dev/null || git diff --name-only origin/main 2>/dev/null || true)
+  if [[ -z "$changed_files" ]]; then
+    echo "  [CodeQL] No changed files — skipping"
+    return 0
+  fi
+
+  local file_count
+  file_count=$(echo "$changed_files" | wc -l | tr -d ' ')
+  echo "  [CodeQL] Scanning $file_count changed files (suite: $query_suite, languages: $languages)..."
+
+  local _codeql_start
+  _codeql_start=$(date +%s)
+  local any_critical=0
+
+  # Process each language
+  local lang
+  for lang in $languages; do
+    local db_path="$codeql_db_dir/$lang"
+    local sarif_path="$SCRATCH_DIR/gate-reports/codeql-${lang}.sarif"
+
+    # Create CodeQL database
+    echo "  [CodeQL] Creating $lang database..."
+    rm -rf "$db_path" 2>/dev/null || true
+    if ! codeql database create "$db_path" \
+      --language="$lang" \
+      --source-root="$REPO_ROOT" \
+      --overwrite \
+      --threads=0 2>/dev/null; then
+      echo "  [CodeQL] WARNING: Database creation failed for $lang — skipping"
+      continue
+    fi
+
+    # Run analysis
+    echo "  [CodeQL] Analyzing $lang with $query_suite queries..."
+    if ! codeql database analyze "$db_path" \
+      --format=sarifv2.1.0 \
+      --output="$sarif_path" \
+      --threads=0 \
+      "codeql/${lang}-queries:codeql-suites/${lang}-${query_suite}.qls" 2>/dev/null; then
+      echo "  [CodeQL] WARNING: Analysis failed for $lang — skipping"
+      continue
+    fi
+
+    if [[ ! -f "$sarif_path" ]]; then
+      echo "  [CodeQL] No SARIF output for $lang — skipping"
+      continue
+    fi
+
+    # Parse results
+    local high_count medium_count low_count total_count
+    high_count=$("$JQ" '[.runs[].results[] | select(.level == "error")] | length' "$sarif_path" 2>/dev/null || echo "0")
+    medium_count=$("$JQ" '[.runs[].results[] | select(.level == "warning")] | length' "$sarif_path" 2>/dev/null || echo "0")
+    low_count=$("$JQ" '[.runs[].results[] | select(.level == "note")] | length' "$sarif_path" 2>/dev/null || echo "0")
+    total_count=$("$JQ" '[.runs[].results[]] | length' "$sarif_path" 2>/dev/null || echo "0")
+
+    if [[ "${high_count:-0}" -gt 0 ]]; then
+      echo "  [CodeQL] FAIL ($lang): $high_count error(s), $medium_count warning(s), $low_count note(s)"
+      # Extract top findings for log
+      "$JQ" -r '.runs[].results[] | select(.level == "error") | "    → \(.ruleId): \(.message.text[0:120]) (\(.locations[0].physicalLocation.artifactLocation.uri // "unknown"):\(.locations[0].physicalLocation.region.startLine // "?"))"' \
+        "$sarif_path" 2>/dev/null | head -5
+      any_critical=1
+    elif [[ "${medium_count:-0}" -gt 0 ]]; then
+      echo "  [CodeQL] WARN ($lang): $medium_count warning(s), $low_count note(s) (non-blocking)"
+    else
+      echo "  [CodeQL] PASS ($lang): No findings ($total_count results at note level)"
+    fi
+  done
+
+  local _codeql_dur=$(( $(date +%s) - _codeql_start ))
+  echo "  [CodeQL] Scan completed in ${_codeql_dur}s"
+
+  log_spiral_event "codeql_scan" "\"iteration\":$SPIRAL_ITER,\"duration_s\":$_codeql_dur,\"critical\":$any_critical,\"languages\":\"$languages\",\"suite\":\"$query_suite\""
+
+  # Block if critical findings and blocking mode is on
+  if [[ "$any_critical" -eq 1 && "${SPIRAL_CODEQL_BLOCKING:-false}" == "true" ]]; then
+    echo "  [CodeQL] BLOCKED: HIGH/CRITICAL findings detected (set SPIRAL_CODEQL_BLOCKING=false to warn-only)"
+    return 1
+  fi
+
+  # Clean up database (can be large)
+  if [[ "${SPIRAL_CODEQL_KEEP_DB:-false}" != "true" ]]; then
+    rm -rf "$codeql_db_dir" 2>/dev/null || true
+  fi
+
+  return 0
+}
+
 # ── Helper: scan text for prompt injection via LLM Guard (US-198) ────────────
 # Usage: scan_web_content <text_var_name> <source_label>
 # Reads the named variable, scans it, and updates the variable in-place.

@@ -569,6 +569,13 @@ SPIRAL_PLAN_CACHE_TTL_HOURS="${SPIRAL_PLAN_CACHE_TTL_HOURS:-168}"               
 SPIRAL_GIT_PUSH="${SPIRAL_GIT_PUSH:-false}"                                                              # true = push vX.Y.Z tag to origin after auto-release (US-190)
 SPIRAL_GIT_AUTHOR="${SPIRAL_GIT_AUTHOR:-}"                                                               # fallback git identity "Name <email>" when git config user.name/email is missing (US-211)
 SPIRAL_SAST_ENABLED="${SPIRAL_SAST_ENABLED:-true}"                                                       # US-262: run Semgrep SAST scan in Phase G; false = disabled
+SPIRAL_CODEQL_ENABLED="${SPIRAL_CODEQL_ENABLED:-false}"                                                # CodeQL deep semantic analysis in Phase V; false = disabled (requires codeql CLI)
+SPIRAL_CODEQL_MODE="${SPIRAL_CODEQL_MODE:-validate}"                                                   # validate = every iter, gate = Phase G only, nightly = manual only
+SPIRAL_CODEQL_LANGUAGES="${SPIRAL_CODEQL_LANGUAGES:-python}"                                           # space-separated: python javascript
+SPIRAL_CODEQL_QUERY_SUITE="${SPIRAL_CODEQL_QUERY_SUITE:-security-and-quality}"                          # CodeQL query suite (security-extended, security-and-quality)
+SPIRAL_CODEQL_BLOCKING="${SPIRAL_CODEQL_BLOCKING:-false}"                                              # true = HIGH/CRITICAL findings block story merge
+SPIRAL_CODEQL_SEVERITY="${SPIRAL_CODEQL_SEVERITY:-error}"                                              # minimum severity to report: error, warning, note
+SPIRAL_CODEQL_KEEP_DB="${SPIRAL_CODEQL_KEEP_DB:-false}"                                                # true = keep CodeQL database after scan (for debugging)
 SPIRAL_SNAPSHOT_RETENTION="${SPIRAL_SNAPSHOT_RETENTION:-7}"                                              # US-362: prune invocation snapshots older than N iterations; 0 = keep all
 SPIRAL_COMPRESS_ARTIFACTS="${SPIRAL_COMPRESS_ARTIFACTS:-false}"                                          # US-362: gzip-compress invocation snapshots after completion
 
