@@ -18,7 +18,7 @@ SPIRAL_VALIDATE_TIMEOUT=600
 # inside the Claude CLI session, causing every story to time out during baseline
 # counting. Hardcoded to last known passing count (~2900) as instant fallback.
 # Re-enable once baseline counting is moved outside the Claude CLI session.
-SPIRAL_TEST_BASELINE_CMD='echo 2900'
+export SPIRAL_TEST_BASELINE_CMD='echo 2900'
 
 # ── Model routing: auto routes haiku→sonnet→opus by story complexity ─────────
 # Options: auto | haiku | sonnet | opus
