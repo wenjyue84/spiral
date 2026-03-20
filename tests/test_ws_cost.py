@@ -4,6 +4,8 @@
 Tests:
 - Happy path: client connects and receives cost-delta message within 2s after story completion
 - Edge case: client disconnection doesn't block subsequent broadcasts to other clients
+- Security: auth enforcement on unauthenticated requests
+- Security: no sensitive data leakage in error responses
 """
 
 import time
@@ -11,7 +13,9 @@ from datetime import datetime
 from typing import Any, Protocol
 
 import pytest
+from fastapi.testclient import TestClient
 
+from lib.dashboard.api import app
 from lib.dashboard.cost_broadcaster import broadcast_cost_delta, get_manager
 
 
@@ -274,3 +278,64 @@ async def test_websocket_message_schema_validation() -> None:
     finally:
         # Cleanup
         await manager.disconnect(ws)  # type: ignore[arg-type]
+
+
+# ---------------------------------------------------------------------------
+# Security Tests: Authentication & Data Sanitization
+# ---------------------------------------------------------------------------
+
+
+def test_ws_security_unauthenticated_rejected(monkeypatch: Any) -> None:
+    """Test that unauthenticated WebSocket upgrade is rejected (security test).
+
+    When SPIRAL_DASHBOARD_API_KEY is set, clients without X-API-Key header
+    should be rejected before handshake completes.
+    """
+    # Enable auth by setting the API key env var
+    monkeypatch.setenv("SPIRAL_DASHBOARD_API_KEY", "test-secret-key")
+
+    client = TestClient(app)
+
+    # Test 1: No API key header → connection fails
+    with pytest.raises(Exception):  # WebSocket rejection raises
+        with client.websocket_connect("/ws/cost"):
+            pass
+
+    # Test 2: Invalid API key → connection fails
+    with pytest.raises(Exception):
+        with client.websocket_connect("/ws/cost", headers={"x-api-key": "wrong-key"}):
+            pass
+
+    # Test 3: Valid API key → connection succeeds (sanity check)
+    try:
+        with client.websocket_connect("/ws/cost", headers={"x-api-key": "test-secret-key"}) as ws:
+            # Connection accepted; no error
+            assert ws is not None
+    except Exception as e:
+        pytest.fail(f"Valid API key should allow connection, but got: {e}")
+
+
+def test_ws_security_no_sensitive_data_in_error(monkeypatch: Any) -> None:
+    """Test that auth rejection doesn't leak sensitive data (security test).
+
+    Error responses should not contain fields like: token, password, key, secret, api_key.
+    """
+    # Enable auth
+    monkeypatch.setenv("SPIRAL_DASHBOARD_API_KEY", "super-secret-api-key-12345")
+
+    client = TestClient(app)
+
+    # Try to connect without auth
+    try:
+        with client.websocket_connect("/ws/cost"):
+            pass
+    except Exception as e:
+        # Capture the exception message/details
+        error_msg = str(e).lower()
+
+        # Verify no sensitive keys appear in the error
+        sensitive_keys = ["token", "password", "key", "secret", "api_key"]
+        for key in sensitive_keys:
+            assert key not in error_msg, (
+                f"Error message leaked sensitive key '{key}': {error_msg}"
+            )

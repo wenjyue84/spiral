@@ -262,8 +262,20 @@ async def websocket_cost_endpoint(websocket: WebSocket) -> None:
     Clients connect to /ws/cost and receive JSON messages of the form:
         {"story_id": "US-123", "cost_delta": 0.25, "timestamp": "2026-03-19T..."}
 
+    Requires X-API-Key header if SPIRAL_DASHBOARD_API_KEY is set.
     Connection is maintained until client disconnects or an error occurs.
     """
+    # Check authentication if enabled
+    api_key = os.environ.get("SPIRAL_DASHBOARD_API_KEY")
+    if api_key:
+        provided = websocket.headers.get("x-api-key", "")
+        if not provided:
+            await websocket.close(code=1008, reason="Authentication required")
+            return
+        if provided != api_key:
+            await websocket.close(code=1008, reason="Forbidden")
+            return
+
     manager = get_manager()
     await manager.connect(websocket)
     try:
