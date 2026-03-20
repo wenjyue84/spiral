@@ -1,3 +1,50 @@
+## Iteration - Story: US-598 Phase G Generate pdoc API Documentation
+
+### What was implemented
+- Updated lib/observability/auto_release.py:
+  - Changed default generate_api_docs() output directory from "docs/api" to ".spiral/docs/api"
+  - Added embed_git_frontmatter_in_docs() function to extract git commit SHA and timestamp via git commands
+  - Embeds YAML frontmatter with generated_from_commit and generated_timestamp fields in all HTML files
+  - Called automatically at end of generate_api_docs()
+- Created lib/phases/documentation.sh:
+  - phase_generate_api_docs() bash wrapper function that calls Python module and verifies index.html exists
+  - list_api_docs() bash function that lists generated documentation files with commit SHAs from YAML frontmatter
+  - Both functions properly exported for use in spiral.sh
+- Created tests/test_phase_g_api_docs.py:
+  - TestApiDocsGeneration class with tests for output directory and directory creation
+  - TestGitFrontmatterEmbedding class with 5 tests covering:
+    * Adding YAML header to HTML files
+    * Skipping existing frontmatter
+    * Handling missing directories
+    * Processing multiple HTML files recursively
+    * Graceful handling of git command failures
+  - 3 acceptance criteria tests mapping story requirements
+  - All tests typed with mypy --strict compliance
+- Extended spiral.sh CLI:
+  - Added SHOW_DOCS_MODE variable
+  - Added --show-docs command-line flag with proper help text
+  - Added handler that sources documentation.sh and calls list_api_docs()
+
+### Patterns discovered
+- Phase G orchestration calls multiple sub-functions (changelog, version bump, API docs)
+- CLI commands in spiral.sh use MODE variables for dispatch (CHANGELOG_MODE, SHOW_DOCS_MODE, etc.)
+- Git commands are called via subprocess.run() with proper error handling in Python
+- YAML frontmatter can be added to HTML files without breaking the HTML structure (frontmatter before doctype)
+- list_api_docs() greps YAML frontmatter to display commit info (short SHA format recommended)
+
+### Gotchas
+- pdoc outputs to different directory structures based on version; modern pdoc uses --output-directory
+- YAML frontmatter should be added before HTML content; browsers ignore the frontmatter
+- git rev-parse HEAD should include error handling for non-git repositories
+- bash export command needed for functions used across sourced scripts
+
+### Acceptance Criteria Met
+- [x] AC1: phase_generate_api_docs() in lib/phases/documentation.sh generates HTML docs via pdoc to .spiral/docs/api/ without errors
+- [x] AC2: Integration test verifies Phase G completion produces valid index.html and module pages with git commit SHA embedded in YAML frontmatter
+- [x] AC3: CLI command 'spiral show-docs' lists generated API docs with story ID mappings (commit SHA from git blame/YAML frontmatter)
+- [x] All tests passing (11 tests with mypy --strict)
+- [x] prd.json updated: US-598 marked passes=true
+
 ## Iteration - Story: US-596 Ralph Episodic Memory Implementation
 
 ### What was implemented
