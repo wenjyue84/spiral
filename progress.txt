@@ -1,3 +1,11 @@
+## Iteration (verification session) - Story: US-613 CLI: spiral extract-failed-stories
+
+### Verification result
+- All 14 tests pass: pytest tests/test_extract_failed_stories.py -v (14 passed in 26.70s)
+- mypy lib/extract_failed_stories.py --strict: no issues found
+- US-613 marked passes=true and committed in HEAD (b013a0b)
+- spiral_events.jsonl conflict markers are a pre-existing issue in HEAD, not introduced here
+
 ## Iteration - Story: US-613 CLI: spiral extract-failed-stories
 
 ### What was implemented
@@ -179,4 +187,30 @@ This project is a standalone Python CLI, not a Frappe application. Therefore, th
 *   **Malformed Data**: Guard against errors if `results.tsv` has missing columns, non-numeric values for retries/tokens, or is empty.
 *   **Token Growth Logic**: "Exponential token growth" and "increasing token drift" are subjective. Define a clear, simple heuristic for the initial implementation (e.g., if total tokens more than double on the last attempt).
 *   **Performance**: For a very large `results.tsv`, consider processing the file in chunks if memory becomes an issue, though `pandas` is generally efficient.
+
+
+## Pre-analysis for US-613 (Gemini 2.5 Pro)
+Based on the user story, this is a standalone Python CLI tool, not a Frappe application feature.
+
+**Technical Brief: US-613 `spiral extract-failed-stories`**
+
+*   **Python Files to Modify:**
+    *   `main.py`: Register the new `extract-failed-stories` CLI command, likely using `argparse` or `click`.
+    *   `lib/failed_story_analyzer.py` (New File): Implement the core logic for parsing `results.tsv`, analyzing failures, and generating the report.
+    *   `tests/test_failed_story_analyzer.py` (New File): Add integration tests using a mock `results.tsv` to validate the CLI output and recommendations.
+
+*   **Frappe DocTypes / Hooks Involved:**
+    *   None. This is a command-line script. Frappe concepts are not applicable.
+
+*   **Recommended Implementation Approach:**
+    1.  Use Python's `argparse` to add the `extract-failed-stories` subcommand and its options (`--min-retries`, `--format`) to `main.py`.
+    2.  In `lib/failed_story_analyzer.py`, use the `pandas` library to read `results.tsv` into a DataFrame for easier data manipulation.
+    3.  Group the DataFrame by story ID to analyze retry counts, failure reasons, and token growth patterns across attempts.
+    4.  Create a separate function that applies the recommendation logic from the acceptance criteria (e.g., suggest 'decompose' if retries > 3).
+    5.  Implement simple JSON and Markdown formatters for the output.
+
+*   **Edge Cases & Gotchas:**
+    *   The script must gracefully handle `FileNotFoundError` if `results.tsv` doesn't exist.
+    *   Add error handling for malformed rows or missing columns in the TSV file.
+    *   The logic to detect "exponential token growth" and "token drift" needs to be clearly defined and implemented.
 

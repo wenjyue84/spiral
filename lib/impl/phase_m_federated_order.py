@@ -146,6 +146,7 @@ def order_federated_stories_by_dependency(stories: list[dict[str, Any]]) -> list
 
     Returns:
         Stories in topological order (dependency stories first).
+        Stories without an 'id' field are appended at the end unchanged.
 
     Raises:
         ValueError: If a circular dependency is detected, with message like
@@ -154,5 +155,13 @@ def order_federated_stories_by_dependency(stories: list[dict[str, Any]]) -> list
     if not stories:
         return []
 
-    graph = _build_dep_graph(stories)
-    return _topological_sort(stories, graph)
+    # Separate stories with and without IDs; only sort those with IDs.
+    id_stories = [s for s in stories if s.get("id")]
+    no_id_stories = [s for s in stories if not s.get("id")]
+
+    if not id_stories:
+        return list(stories)
+
+    graph = _build_dep_graph(id_stories)
+    sorted_stories = _topological_sort(id_stories, graph)
+    return sorted_stories + no_id_stories
