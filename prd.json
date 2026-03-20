@@ -1589,8 +1589,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-03-20T00:30:35Z"
+      "model": "haiku"
     },
     {
       "id": "US-544",
@@ -1753,6 +1752,70 @@
       "estimatedComplexity": "small",
       "passes": false,
       "model": "haiku"
+    },
+    {
+      "id": "US-558",
+      "title": "Dashboard Endpoint: GET /api/dashboard/iteration-forecast — Cost ceiling projection with burn-rate analysis",
+      "priority": "medium",
+      "description": "Add HTTP endpoint to dashboard API that projects current iteration's final spend against SPIRAL_COST_CEILING using historical burn rate from results.tsv. Returns JSON with currentSpend, projectedFinalSpend, costCeiling, daysRemaining, and recommendedAction (proceed/throttle/stop). Enables real-time cost governance and prevents budget overruns mid-iteration.",
+      "acceptanceCriteria": [
+        "Endpoint GET /api/dashboard/iteration-forecast returns JSON: {currentSpend, projectedFinalSpend, costCeiling, daysRemaining, percentOfBudget, recommendedAction}",
+        "Function lib/spiral/cost_forecast.py::forecast_iteration_spend() reads results.tsv last 5 iterations, calculates avg tokens-per-story and escalation frequency, projects remaining stories",
+        "Test tests/integration/test_dashboard_forecast.py::test_cost_ceiling_alert_at_90_percent mocks results.tsv with 90% spend history and asserts recommendedAction='throttle'"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-559",
+      "title": "CLI Command: spiral story-success-rate — Phase-level pass rate trends across iterations",
+      "priority": "medium",
+      "description": "Add CLI command that calculates and displays story success rate grouped by phase, showing quality trends across iterations. Reads results.tsv to compute pass counts, total attempts, and success percentage per phase. Identifies healthy phases (>80% pass rate) vs problem phases requiring investigation, supporting Phase I optimization and failure pattern analysis.",
+      "acceptanceCriteria": [
+        "Command spiral story-success-rate [--iterations N] [--phase NAME] reads results.tsv and outputs table: {phase, passCount, totalCount, passRate%, trend(↑↓→)}",
+        "Function lib/spiral/success_metrics.py::calculate_phase_success_rate() filters results.tsv by phase, computes stats, detects >5% rate changes as trend indicator",
+        "Test tests/test_success_metrics.py::test_phase_success_rate_calculation asserts Phase-I with 10 passes / 12 attempts returns 83% and Phase-R with declining trend returns ↓ indicator"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-560",
+      "title": "Phase G Output Publishing - Auto-Deploy Generated Docs to GitHub Pages",
+      "priority": "medium",
+      "description": "After Phase G generates CHANGELOG.md and API docs via git-cliff and pdoc, automatically commit docs to a docs/ folder and deploy to GitHub Pages. This makes generated documentation discoverable and version-tracked alongside the code, advancing Goal 1 (Phase G automation).",
+      "acceptanceCriteria": [
+        "Phase G success commits docs/CHANGELOG.md and docs/api/ (pdoc HTML output) to a docs/ branch with message 'docs: update from iteration N'",
+        "GitHub Actions workflow .github/workflows/deploy-docs.yml publishes docs/ to GitHub Pages on main branch push",
+        "Integration test: run SPIRAL single iteration, verify docs/ contains CHANGELOG.md with at least 2 story entries and api/index.html is valid HTML"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-561",
+      "title": "Dashboard Cost Alert System - Slack Notifications on Anomalous Story Spend",
+      "priority": "medium",
+      "description": "After Phase I completes, detect stories with unusual token costs (>2x median or >5% of iteration budget) and send Slack notification with story details, cost breakdown, and dashboard link. Include override flag to proceed despite anomalies. Advances Goal 3 (dashboard observability).",
+      "acceptanceCriteria": [
+        "New config vars in spiral.config.sh: SPIRAL_ALERT_SLACK_WEBHOOK (optional URL), SPIRAL_COST_ANOMALY_THRESHOLD (default 2.0x median)",
+        "lib/alert_cost_anomalies.sh queries results.tsv, compares current story costs against historical median, POSTs to Slack webhook if threshold exceeded with fields: story_id, token_count, cost_usd, model_used, median_cost",
+        "Integration test: mock Slack endpoint, run SPIRAL with one artificially expensive story (100k tokens), verify webhook called with correct payload and story_id in message"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
     }
   ]
 }

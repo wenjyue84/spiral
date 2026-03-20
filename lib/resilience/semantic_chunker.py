@@ -103,8 +103,7 @@ def main():
     top_results = torch.topk(cosine_scores, k=min(MAX_CHUNKS, len(chunks)), sorted=True)
 
     selected_chunks = []
-    print(f"--- Relevant chunks from {args.file} ---
-", file=sys.stderr)
+    print(f"--- Relevant chunks from {args.file} ---", file=sys.stderr)
 
     for i, (score, idx) in enumerate(zip(top_results.values, top_results.indices)):
         if score >= SIMILARITY_THRESHOLD:
@@ -115,16 +114,16 @@ def main():
             # but for now, we will just print them for simplicity.
 
             selected_chunks.append(chunks[chunk_index])
-            print(f"Chunk {i+1} (score: {score:.2f}, lines ~{start_line+1}-{start_line+CHUNK_SIZE}):
-{chunks[chunk_index]}
-", file=sys.stderr)
+            print(
+                f"Chunk {i+1} (score: {score:.2f}, lines ~{start_line+1}-{start_line+CHUNK_SIZE}):\n"
+                f"{chunks[chunk_index]}",
+                file=sys.stderr,
+            )
 
     # 5. Print the selected chunks to stdout for capture by the shell script
     # We print them concatenated to form a coherent context block.
     if selected_chunks:
-        print("
-...
-".join(selected_chunks))
+        print("\n...\n".join(selected_chunks))
     else:
         # If no chunks meet the threshold, maybe return the top one anyway?
         # For now, we return nothing, letting the process provide no context.
