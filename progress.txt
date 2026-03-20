@@ -441,3 +441,29 @@ This story focuses on testing, not feature implementation. The goal is to valida
 ## Iteration 1 - Fri, Mar 20, 2026 12:47:20 PM
 FAILED diagnosis-block gate: [Security Test] Auth/Permission Access Control for US-516 (ID: US-567) — no diagnosis block found — attempt 1/3
 
+
+## Iteration - Story: US-568 Security Tests for Cost Predictor CLI
+
+### What was implemented
+- Converted class-based test structure to top-level pytest functions
+- Three acceptance criteria functions now discoverable by pytest:
+  - test_path_traversal_rejected (5 assertions: path traversal rejection + validation)
+  - test_output_schema_only (output schema + type validation)
+  - test_malformed_input_no_traceback (error handling for nonexistent IDs, malformed JSON, null attributes)
+- Fixed import sorting: ruff I001 auto-fixed via --fix
+- All 3 tests passing; mypy --strict passing; ruff clean
+
+### Patterns discovered
+- Module-level variable aliases (test_class = TestClass) don't work with pytest discovery
+- Top-level functions matching acceptance criteria names must be actual functions, not aliases
+- Consolidating multiple test methods into single functions reduces pytest node count but keeps all assertions
+
+### Gotchas
+- Initial class-based approach with aliases worked for test execution but failed pytest node discovery
+- Acceptance criteria in story JSON expect specific pytest node IDs (::test_name format)
+
+### Acceptance Criteria Met
+- [x] test_path_traversal_rejected passes
+- [x] test_output_schema_only passes
+- [x] test_malformed_input_no_traceback passes
+- [x] All tests exit with code 0

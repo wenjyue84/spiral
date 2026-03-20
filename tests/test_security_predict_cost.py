@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 import tempfile
 from io import StringIO
@@ -199,3 +200,69 @@ def test_malformed_input_no_traceback() -> None:
     # Should return zero-confidence result, not crash
     assert result["confidence_pct"] == 0.0
     assert result["estimated_tokens"] == 0
+
+
+# ---------------------------------------------------------------------------
+# US-579: test_no_path_traversal
+# ---------------------------------------------------------------------------
+
+
+def test_no_path_traversal(tmp_path: pytest.TempPathFactory) -> None:
+    """CLI rejects paths containing '../' and exits non-zero."""
+    prd = _make_prd(str(tmp_path))
+    with pytest.raises(SystemExit) as exc_info:
+        main(["--story-id", "US-001", "--prd", prd, "--history", "../../etc/passwd"])
+    assert exc_info.value.code != 0
+
+
+# ---------------------------------------------------------------------------
+# US-579: test_no_secret_leak
+# ---------------------------------------------------------------------------
+
+
+def test_no_secret_leak(tmp_path: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Stdout contains no strings matching injected fake API-key pattern 'sk-[A-Za-z0-9]{20}'."""
+    fake_secret = "sk-FAKEKEYFAKEKEYFAKEKE"  # exactly 20 alphanum chars after 'sk-'
+    monkeypatch.setenv("ANTHROPIC_API_KEY", fake_secret)
+
+    prd = _make_prd(str(tmp_path))
+    history = _make_history(str(tmp_path))
+
+    old_stdout = sys.stdout
+    sys.stdout = captured = StringIO()
+    try:
+        try:
+            main(["--story-id", "US-001", "--prd", prd, "--history", history])
+        except SystemExit:
+            pass
+    finally:
+        sys.stdout = old_stdout
+
+    stdout_text = captured.getvalue()
+    assert not re.search(r"sk-[A-Za-z0-9]{20}", stdout_text), (
+        f"Secret pattern leaked in stdout: {stdout_text[:200]}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# US-579: test_malformed_tsv
+# ---------------------------------------------------------------------------
+
+
+def test_malformed_tsv(tmp_path: pytest.TempPathFactory) -> None:
+    """Corrupted results.tsv (missing required columns) causes clean non-zero exit, no traceback on stdout."""
+    # Write a TSV with garbage headers — no 'story_id' column
+    tsv = tmp_path / "results.tsv"
+    tsv.write_text("garbage_col1\tgarbage_col2\nbadval\tother\n", encoding="utf-8")
+    prd = _make_prd(str(tmp_path))
+
+    old_stdout = sys.stdout
+    sys.stdout = captured = StringIO()
+    try:
+        with pytest.raises(SystemExit) as exc_info:
+            main(["--story-id", "US-001", "--prd", prd, "--history", str(tsv)])
+    finally:
+        sys.stdout = old_stdout
+
+    assert exc_info.value.code != 0, "CLI should exit non-zero on malformed TSV"
+    assert "Traceback" not in captured.getvalue(), "Python traceback must not appear on stdout"

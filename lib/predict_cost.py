@@ -47,6 +47,12 @@ def _load_history(tsv_path: str) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     with open(tsv_path, encoding="utf-8", errors="replace") as f:
         reader = csv.DictReader(f, delimiter="\t")
+        fieldnames = reader.fieldnames  # None if file is empty
+        if fieldnames is not None and "story_id" not in fieldnames:
+            raise ValueError(
+                f"results.tsv is malformed: missing required 'story_id' column "
+                f"(found: {list(fieldnames)!r})"
+            )
         for row in reader:
             rows.append(dict(row))
     return rows
