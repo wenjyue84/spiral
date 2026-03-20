@@ -380,6 +380,10 @@ done
 
 # ── Step 1: Partition pending stories into worker prd files ───────────────────
 mkdir -p "$WORKER_DIR"
+# Clear stale worker logs from previous runs so the UI doesn't show old errors
+for _i in $(seq 1 "$RALPH_WORKERS"); do
+  : >"$WORKER_DIR/worker_${_i}.log"
+done
 if [[ -n "$_SC_BIN" ]]; then
   "$_SC_BIN" partition \
     --prd "$PRD_FILE" \

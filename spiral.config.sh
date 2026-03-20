@@ -96,11 +96,11 @@ SPIRAL_STORY_PREFIX="US"
 # (remaining_workers * this + 512) MB free before launching each worker.
 # Default 1536 = V8 heap (1024) + typical non-heap overhead (512).
 # Set lower (1024) on machines with limited free RAM.
-# SPIRAL_MEMORY_GATE_MB=1536
+SPIRAL_MEMORY_GATE_MB=1024
 
 # Hard timeout (minutes) for memory gate. 0 = wait forever (old behavior).
 # Default 2 = wait up to 2 min, then launch anyway (watchdog handles runtime).
-# SPIRAL_MEMORY_WAIT_MAX_MINS=2
+SPIRAL_MEMORY_WAIT_MAX_MINS=2
 
 # ── Dispatch mode: control worker scheduling strategy (US-361) ──────────────────
 # Options: dag (new default) | parallel (legacy all-parallel)

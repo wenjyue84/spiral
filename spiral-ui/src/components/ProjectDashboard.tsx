@@ -1741,6 +1741,7 @@ function PhaseTraceTab({ projectName, stories, activeStory }: { projectName: str
   const [selectedOutputFile, setSelectedOutputFile] = useState<keyof PhaseOutputs | null>(null);
   const [maximizedPhase, setMaximizedPhase] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [selectedPhaseNavKey, setSelectedPhaseNavKey] = useState<string | null>(null);
   const userSelectedRef = useRef(false);
 
   useEffect(() => {
@@ -1889,78 +1890,180 @@ function PhaseTraceTab({ projectName, stories, activeStory }: { projectName: str
   };
 
   return (
-    <div className="p-6 space-y-4">
-      {phaseChanged && (
-        <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 text-xs font-medium">
-          <span>⚠️ Phase settings saved. Restart Spiral for changes to take effect.</span>
-          <button onClick={() => setPhaseChanged(false)} className="text-amber-500 hover:text-amber-700 font-bold text-sm leading-none">✕</button>
-        </div>
-      )}
-      {/* Timestamp indicator + Checkpoint status */}
-      <div className="flex items-center justify-between">
-        <div className="text-[10px] text-slate-400">Timestamps shown in Malaysia Time (MYT, UTC+8)</div>
-        <div className="text-[10px] text-slate-400">Now: {new Date().toLocaleString('en-MY', { timeZone: 'Asia/Kuala_Lumpur', hour12: false })}</div>
-      </div>
-      {traceData.phaseOutputs.checkpoint && (
-        <div className="flex items-center gap-2 text-xs text-slate-500">
-          <span className="font-medium">Checkpoint:</span>
-          <span>Iteration {traceData.phaseOutputs.checkpoint.iter}, Phase {traceData.phaseOutputs.checkpoint.phase}</span>
-          {traceData.phaseOutputs.checkpoint.ts && (
-            <span className="text-slate-400">({formatMYT(traceData.phaseOutputs.checkpoint.ts)} · {timeAgo(traceData.phaseOutputs.checkpoint.ts)})</span>
-          )}
-        </div>
-      )}
+    <div className="flex min-h-full">
 
-      {/* Iteration selector */}
-      <div className="flex items-center gap-2">
-        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Iteration:</span>
-        <div className="flex gap-1 flex-wrap">
-          {traceData.iterations.map(iter => (
-            <button
-              key={iter.iter}
-              onClick={() => { userSelectedRef.current = true; setSelectedIter(iter.iter); setExpandedPhases(new Set()); }}
-              className={`px-2.5 py-1 text-xs font-mono rounded-lg border transition-colors ${
-                iter.iter === currentIter.iter
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300 hover:bg-blue-50'
-              }`}
-            >
-              #{iter.iter}
-            </button>
-          ))}
+      {/* ── Left navigation sidebar ─────────────────────────────────────── */}
+      <aside className="w-52 shrink-0 sticky top-0 h-screen overflow-y-auto border-r border-slate-200 bg-white z-10">
+        <div className="pt-4 pb-6 px-2">
+
+          {/* Iteration selector */}
+          <div className="mb-4 px-1">
+            <div className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest mb-2 px-2">Iteration</div>
+            <div className="flex flex-wrap gap-1 px-1">
+              {traceData.iterations.map(iter => (
+                <button
+                  key={iter.iter}
+                  onClick={() => { userSelectedRef.current = true; setSelectedIter(iter.iter); setExpandedPhases(new Set()); setSelectedPhaseNavKey(null); }}
+                  className={`px-2 py-0.5 text-xs font-mono rounded-md border transition-colors ${
+                    iter.iter === currentIter.iter
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300 hover:bg-blue-50'
+                  }`}
+                >
+                  #{iter.iter}
+                </button>
+              ))}
+            </div>
+            {iterTotalDuration !== null && (
+              <div className="mt-2 px-2 text-[10px] font-mono text-slate-500">
+                Total: <span className="font-semibold text-blue-700">{fmtDuration(iterTotalDuration)}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Phase list */}
+          <div className="mb-1.5 px-3 text-[9px] font-semibold text-slate-400 uppercase tracking-widest">
+            Phases
+            <span className="ml-1 normal-case font-normal text-slate-300">
+              ({currentIter.phases.filter(p => p.phase !== 'G').length})
+            </span>
+          </div>
+          {currentIter.phases
+            .filter(p => p.phase !== 'G')
+            .sort((a, b) => (PHASE_ORDER[a.phase] ?? 99) - (PHASE_ORDER[b.phase] ?? 99))
+            .map(phase => {
+              const colors = PHASE_COLORS[phase.phase] ?? { bg: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-700', dot: 'bg-slate-400' };
+              const phaseName = PHASE_NAMES[phase.phase] ?? `Phase ${phase.phase}`;
+              const duration = getDuration(phase.phase);
+              const isBypassed = phase.bypassed === true;
+              const isNotYetRun = !isBypassed && (phase.label.endsWith('(not run)') || phase.lineStart === -1);
+              const isSkipped = isBypassed || isNotYetRun;
+              const isSelected = selectedPhaseNavKey === phase.phase;
+              const isActive = phase.phase === 'I' && activeStory?.storyId != null;
+              return (
+                <button
+                  key={phase.phase}
+                  onClick={() => !isSkipped && setSelectedPhaseNavKey(isSelected ? null : phase.phase)}
+                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-colors mb-0.5 ${
+                    isSkipped
+                      ? 'opacity-40 cursor-default'
+                      : isSelected
+                        ? `${colors.bg} border ${colors.border}`
+                        : 'hover:bg-slate-50 border border-transparent text-slate-600'
+                  }`}
+                >
+                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isSkipped ? 'bg-slate-300' : colors.dot}`} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className={`text-[11px] font-mono font-bold ${isSelected ? colors.text : 'text-slate-700'}`}>
+                        {phase.phase}
+                      </span>
+                      {isActive && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse flex-shrink-0" />
+                      )}
+                      {isSelected && (
+                        <span className="ml-auto w-1 h-1 rounded-full bg-blue-500 flex-shrink-0" />
+                      )}
+                    </div>
+                    <div className={`text-[10px] truncate leading-tight ${isSelected ? colors.text : 'text-slate-500'}`}>
+                      {phaseName}
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-0.5 ml-1 flex-shrink-0">
+                    {isSkipped ? (
+                      <span className="text-[9px] text-slate-400 bg-slate-100 px-1 rounded">
+                        {isBypassed ? 'SKIP' : 'N/A'}
+                      </span>
+                    ) : duration !== null ? (
+                      <span className={`text-[9px] font-mono font-semibold ${isSelected ? colors.text : 'text-blue-700'}`}>
+                        {fmtDuration(duration)}
+                      </span>
+                    ) : null}
+                    {!isSkipped && (
+                      <button
+                        onClick={(e) => { void togglePhaseEnabled(phase.phase, e); }}
+                        title={phaseEnabled[phase.phase] !== false ? 'Phase enabled — click to disable' : 'Phase disabled — click to enable'}
+                        className={`flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] font-semibold transition-all ${
+                          savingPhase === phase.phase
+                            ? 'opacity-50 bg-slate-100 text-slate-400'
+                            : phaseEnabled[phase.phase] !== false
+                              ? 'bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100'
+                              : 'bg-slate-100 border border-slate-200 text-slate-400 hover:bg-slate-200'
+                        }`}
+                      >
+                        <span className={`w-1 h-1 rounded-full ${phaseEnabled[phase.phase] !== false ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                        {phaseEnabled[phase.phase] !== false ? 'ON' : 'OFF'}
+                      </button>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
         </div>
-        <span className="text-xs text-slate-400 ml-2">{currentIter.phases.filter(p => p.phase !== 'G').length} phases</span>
-        {iterTotalDuration !== null && (
-          <span className="text-xs text-slate-500 ml-2 font-mono bg-slate-100 px-2 py-0.5 rounded-full">
-            Total: {fmtDuration(iterTotalDuration)}
-          </span>
+      </aside>
+
+      {/* ── Main content ────────────────────────────────────────────────── */}
+      <div className="flex-1 min-w-0 p-6 space-y-4">
+
+        {phaseChanged && (
+          <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 text-xs font-medium">
+            <span>⚠️ Phase settings saved. Restart Spiral for changes to take effect.</span>
+            <button onClick={() => setPhaseChanged(false)} className="text-amber-500 hover:text-amber-700 font-bold text-sm leading-none">✕</button>
+          </div>
         )}
-      </div>
 
-      {/* Iteration timing summary */}
-      {(iterStartTs || iterEndTs) && (
-        <div className="flex items-center gap-4 text-[11px] text-slate-500 bg-white/60 rounded-lg border border-slate-200 px-3 py-2">
-          {iterStartTs && <span>Started: <span className="font-mono font-medium text-slate-700">{formatMYT(iterStartTs)}</span></span>}
-          {iterEndTs && <span>Finished: <span className="font-mono font-medium text-slate-700">{formatMYT(iterEndTs)}</span></span>}
-          {iterTotalDuration !== null && <span>Duration: <span className="font-mono font-semibold text-blue-700">{fmtDuration(iterTotalDuration)}</span></span>}
+        {/* Timestamps */}
+        <div className="flex items-center justify-between">
+          <div className="text-[10px] text-slate-400">Timestamps shown in Malaysia Time (MYT, UTC+8)</div>
+          <div className="text-[10px] text-slate-400">Now: {new Date().toLocaleString('en-MY', { timeZone: 'Asia/Kuala_Lumpur', hour12: false })}</div>
         </div>
-      )}
 
-      {/* Phase timeline */}
-      <div className="space-y-2">
-        {currentIter.phases
-        .filter(p => p.phase !== 'G')
-        .sort((a, b) => (PHASE_ORDER[a.phase] ?? 99) - (PHASE_ORDER[b.phase] ?? 99))
-        .map((phase, idx) => {
-          const colors = PHASE_COLORS[phase.phase] ?? { bg: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-700', dot: 'bg-slate-500' };
+        {traceData.phaseOutputs.checkpoint && (
+          <div className="flex items-center gap-2 text-xs text-slate-500">
+            <span className="font-medium">Checkpoint:</span>
+            <span>Iteration {traceData.phaseOutputs.checkpoint.iter}, Phase {traceData.phaseOutputs.checkpoint.phase}</span>
+            {traceData.phaseOutputs.checkpoint.ts && (
+              <span className="text-slate-400">({formatMYT(traceData.phaseOutputs.checkpoint.ts)} · {timeAgo(traceData.phaseOutputs.checkpoint.ts)})</span>
+            )}
+          </div>
+        )}
+
+        {/* Iteration timing summary */}
+        {(iterStartTs || iterEndTs) && (
+          <div className="flex items-center gap-4 text-[11px] text-slate-500 bg-white/60 rounded-lg border border-slate-200 px-3 py-2">
+            {iterStartTs && <span>Started: <span className="font-mono font-medium text-slate-700">{formatMYT(iterStartTs)}</span></span>}
+            {iterEndTs && <span>Finished: <span className="font-mono font-medium text-slate-700">{formatMYT(iterEndTs)}</span></span>}
+            {iterTotalDuration !== null && <span>Duration: <span className="font-mono font-semibold text-blue-700">{fmtDuration(iterTotalDuration)}</span></span>}
+          </div>
+        )}
+
+        {/* ── Phase detail panel or empty state ── */}
+        {(() => {
+          if (!selectedPhaseNavKey) {
+            return (
+              <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+                <span className="text-4xl">🔬</span>
+                <div>
+                  <div className="text-sm font-medium text-slate-500">Select a phase</div>
+                  <div className="text-xs text-slate-400 mt-1">Click any phase in the left sidebar to view its details and logs</div>
+                </div>
+              </div>
+            );
+          }
+
+          const sortedPhases = currentIter.phases
+            .filter(p => p.phase !== 'G')
+            .sort((a, b) => (PHASE_ORDER[a.phase] ?? 99) - (PHASE_ORDER[b.phase] ?? 99));
+          const phase = sortedPhases.find(p => p.phase === selectedPhaseNavKey);
+          if (!phase) return <div className="text-sm text-slate-400">Phase not found</div>;
+
+          const colors = PHASE_COLORS[phase.phase] ?? { bg: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-700', dot: 'bg-slate-400' };
           const phaseName = PHASE_NAMES[phase.phase] ?? `Phase ${phase.phase}`;
           const duration = getDuration(phase.phase);
           const startTs = getStartTs(phase.phase);
           const endTs = getEndTs(phase.phase);
           const summary = outputSummary(phase.phase);
-          const key = `${currentIter.iter}-${phase.phase}-${idx}`;
-          const isExpanded = expandedPhases.has(key);
-          const lineCount = phase.lines.length;
+          const key = selectedPhaseNavKey;
           const substeps: Substep[] = (phase as IterPhase & { substeps?: Substep[] }).substeps ?? [];
           const hasSubsteps = substeps.length > 0;
           const isBypassed = phase.bypassed === true;
@@ -1968,35 +2071,23 @@ function PhaseTraceTab({ projectName, stories, activeStory }: { projectName: str
           const isSkipped = isBypassed || isNotYetRun;
 
           return (
-            <div key={key} className={`rounded-xl border ${isSkipped ? 'border-slate-200 bg-slate-50/50' : `${colors.border} ${colors.bg}`} overflow-hidden ${isSkipped ? 'opacity-50' : ''}`}>
-              {/* Phase header — outer div so the ON/OFF toggle button is not nested inside another button */}
-              <div className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-opacity ${isSkipped ? 'cursor-default' : ''}`}>
-                {/* Clickable expand area */}
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => !isSkipped && togglePhase(key)}
-                  onKeyDown={e => e.key === 'Enter' && !isSkipped && togglePhase(key)}
-                  className={`flex items-center gap-3 flex-1 min-w-0 ${isSkipped ? '' : 'cursor-pointer hover:opacity-80'}`}
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className={`w-2.5 h-2.5 rounded-full ${colors.dot} flex-shrink-0`} />
-                    <span className={`text-xs font-bold ${colors.text} font-mono`}>Phase {phase.phase}</span>
-                    <span className={`text-xs font-semibold ${colors.text}`}>{phaseName}</span>
-                  </div>
-                  {phase.label && phase.label !== phaseName && !isSkipped && (
-                    <span className="text-xs text-slate-500 truncate">{phase.label}</span>
-                  )}
-                  {/* Active story inline badge for Phase I */}
-                  {phase.phase === 'I' && !isSkipped && activeStory?.storyId && (
-                    <span className="flex items-center gap-1.5 text-[10px] font-medium bg-amber-50 border border-amber-200 text-amber-700 px-2 py-0.5 rounded-full flex-shrink-0">
-                      <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                      {activeStory.storyId}
-                      {activeStory.title && <span className="text-amber-600 truncate max-w-[140px]">{activeStory.title}</span>}
-                    </span>
-                  )}
-                </div>
-                <div className="ml-auto flex items-center gap-3 flex-shrink-0">
+            <div className={`rounded-xl border ${isSkipped ? 'border-slate-200 bg-slate-50/50' : `${colors.border} ${colors.bg}`} overflow-hidden`}>
+              {/* Phase header */}
+              <div className={`flex items-center gap-3 px-4 py-3 border-b ${isSkipped ? 'border-slate-200' : `${colors.border} bg-white/30`}`}>
+                <div className={`w-3 h-3 rounded-full ${colors.dot} flex-shrink-0`} />
+                <span className={`text-sm font-bold font-mono ${colors.text}`}>Phase {phase.phase}</span>
+                <span className={`text-sm font-semibold ${colors.text}`}>{phaseName}</span>
+                {phase.label && phase.label !== phaseName && !isSkipped && (
+                  <span className="text-xs text-slate-500 truncate">{phase.label}</span>
+                )}
+                {phase.phase === 'I' && !isSkipped && activeStory?.storyId && (
+                  <span className="flex items-center gap-1.5 text-[10px] font-medium bg-amber-50 border border-amber-200 text-amber-700 px-2 py-0.5 rounded-full flex-shrink-0">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                    {activeStory.storyId}
+                    {activeStory.title && <span className="text-amber-600 truncate max-w-[140px]">{activeStory.title}</span>}
+                  </span>
+                )}
+                <div className="ml-auto flex items-center gap-2 flex-shrink-0">
                   {isBypassed && <span className="text-[10px] text-slate-500 bg-slate-200 px-2 py-0.5 rounded-full font-medium">BYPASSED</span>}
                   {isNotYetRun && <span className="text-[10px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full font-medium">NOT YET RUN</span>}
                   {!isSkipped && summary && <span className="text-[10px] text-slate-500 bg-white/60 px-2 py-0.5 rounded-full">{summary}</span>}
@@ -2011,37 +2102,13 @@ function PhaseTraceTab({ projectName, stories, activeStory }: { projectName: str
                       {fmtTime(endTs)}
                     </span>
                   )}
-                  {!isSkipped && <span className="text-[10px] text-slate-400">{lineCount} lines</span>}
-                  {!isSkipped && (
-                    <span
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => !isSkipped && togglePhase(key)}
-                      onKeyDown={e => e.key === 'Enter' && !isSkipped && togglePhase(key)}
-                      className={`text-xs text-slate-400 transition-transform cursor-pointer ${isExpanded ? 'rotate-180' : ''}`}
-                    >▼</span>
-                  )}
-                  {/* Phase enable/disable toggle */}
-                  <button
-                    onClick={(e) => { void togglePhaseEnabled(phase.phase, e); }}
-                    title={phaseEnabled[phase.phase] !== false ? 'Phase enabled — click to disable for future runs' : 'Phase disabled — click to enable for future runs'}
-                    className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-semibold transition-all ${
-                      savingPhase === phase.phase
-                        ? 'opacity-50 cursor-wait bg-slate-100 border-slate-300 text-slate-400'
-                        : phaseEnabled[phase.phase] !== false
-                          ? 'bg-emerald-50 border-emerald-300 text-emerald-700 hover:bg-emerald-100'
-                          : 'bg-slate-100 border-slate-300 text-slate-400 hover:bg-slate-200'
-                    }`}
-                  >
-                    <span className={`w-1.5 h-1.5 rounded-full ${phaseEnabled[phase.phase] !== false ? 'bg-emerald-500' : 'bg-slate-400'}`} />
-                    {phaseEnabled[phase.phase] !== false ? 'ON' : 'OFF'}
-                  </button>
+                  {!isSkipped && <span className="text-[10px] text-slate-400">{phase.lines.length} lines</span>}
                 </div>
               </div>
 
-              {/* Phase detail (expanded) */}
-              {isExpanded && (
-                <div className="border-t border-slate-200/50">
+              {/* Phase detail body */}
+              {!isSkipped && (
+                <div>
                   {/* Story IDs mentioned in this phase */}
                   {(() => {
                     if (!stories || stories.length === 0) return null;
@@ -2247,7 +2314,7 @@ function PhaseTraceTab({ projectName, stories, activeStory }: { projectName: str
                       </div>
                     );
                     const logBody = (
-                      <div className={`overflow-auto ${isMaximized ? 'flex-1' : 'max-h-[400px]'}`}>
+                      <div className={`overflow-auto ${isMaximized ? 'flex-1' : 'max-h-[500px]'}`}>
                         <pre className="p-3 text-[11px] text-slate-300 font-mono leading-relaxed whitespace-pre-wrap">
                           {processed.join('\n')}
                         </pre>
@@ -2273,123 +2340,123 @@ function PhaseTraceTab({ projectName, stories, activeStory }: { projectName: str
               )}
             </div>
           );
-        })}
-      </div>
-
-      {/* Phase output files summary */}
-      <div>
-        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Phase Output Files (Current)</div>
-        <div className="grid grid-cols-2 gap-2">
-          {[
-            { label: 'AI Suggestions', key: 'aiSuggestions' as const, phase: 'A' },
-            { label: 'Research Output', key: 'research' as const, phase: 'R' },
-            { label: 'Test Stories', key: 'testStories' as const, phase: 'T' },
-            { label: 'Validated Stories', key: 'validated' as const, phase: 'S' },
-            { label: 'Overflow Queue', key: 'overflow' as const, phase: 'M' },
-          ].map(item => {
-            const data = traceData.phaseOutputs[item.key];
-            const count = (data as { stories?: unknown[] } | null)?.stories?.length ?? 0;
-            const colors = PHASE_COLORS[item.phase] ?? { bg: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-700', dot: 'bg-slate-400' };
-            const isSelected = selectedOutputFile === item.key;
-            const isClickable = !!data;
-            return (
-              <button
-                key={item.key}
-                disabled={!isClickable}
-                onClick={() => setSelectedOutputFile(isSelected ? null : item.key)}
-                className={`rounded-lg border px-3 py-2 flex items-center justify-between text-left w-full transition-all
-                  ${colors.border} ${colors.bg}
-                  ${isClickable ? 'cursor-pointer hover:brightness-95 active:scale-[0.99]' : 'cursor-default opacity-60'}
-                  ${isSelected ? 'ring-2 ring-offset-1 ring-blue-400' : ''}
-                `}
-              >
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${colors.dot}`} />
-                  <span className={`text-xs font-medium ${colors.text}`}>{item.label}</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className={`text-xs font-mono ${count > 0 ? colors.text : 'text-slate-400'}`}>
-                    {data ? `${count} stories` : 'N/A'}
-                  </span>
-                  {isClickable && (
-                    <span className={`text-[10px] text-slate-400 transition-transform ${isSelected ? 'rotate-180' : ''}`}>▼</span>
-                  )}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Expandable detail panel */}
-        {selectedOutputFile && (() => {
-          const panelKey = selectedOutputFile;
-          const panelData = traceData.phaseOutputs[panelKey] as { stories?: OutputFileStory[] } | null;
-          const panelStories = panelData?.stories ?? [];
-          const filePath = OUTPUT_FILE_PATHS[panelKey as string] ?? panelKey;
-          return (
-            <div className="mt-3 rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-              {/* Panel header */}
-              <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50 border-b border-slate-200">
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className="text-xs font-semibold text-slate-700">{panelStories.length} {panelStories.length === 1 ? 'story' : 'stories'}</span>
-                  <code className="text-[11px] font-mono text-slate-500 truncate">{filePath}</code>
-                </div>
-                <button
-                  onClick={() => setSelectedOutputFile(null)}
-                  className="text-slate-400 hover:text-slate-600 text-xs leading-none ml-3 flex-shrink-0"
-                  aria-label="Close panel"
-                >
-                  ✕
-                </button>
-              </div>
-
-              {panelStories.length === 0 ? (
-                <div className="px-4 py-4 text-xs text-slate-400 italic">No stories in this file.</div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs border-collapse">
-                    <thead>
-                      <tr className="bg-slate-50 text-left text-[11px] text-slate-500 uppercase tracking-wide">
-                        <th className="px-3 py-2 font-semibold w-[100px]">ID</th>
-                        <th className="px-3 py-2 font-semibold">Title</th>
-                        <th className="px-3 py-2 font-semibold w-[90px]">Priority</th>
-                        <th className="px-3 py-2 font-semibold w-[110px]">Source</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {panelStories.map((s, idx) => {
-                        const sid = s.id ?? `#${idx + 1}`;
-                        const title = s.title ?? '—';
-                        const priority = typeof s.priority === 'string' ? s.priority : null;
-                        const source = typeof s._source === 'string' ? s._source : null;
-                        return (
-                          <tr key={sid} className="border-t border-slate-100 hover:bg-slate-50 transition-colors">
-                            <td className="px-3 py-2 font-mono text-[11px] text-blue-700 whitespace-nowrap">{sid}</td>
-                            <td className="px-3 py-2 text-slate-700 leading-snug">{title}</td>
-                            <td className="px-3 py-2">
-                              {priority ? (
-                                <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${PRIORITY_BADGE[priority] ?? 'bg-slate-100 text-slate-500 border-slate-200'}`}>
-                                  {priority}
-                                </span>
-                              ) : <span className="text-slate-300">—</span>}
-                            </td>
-                            <td className="px-3 py-2">
-                              {source ? (
-                                <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${SOURCE_COLORS[source] ?? 'bg-slate-100 text-slate-500 border-slate-200'}`}>
-                                  {source}
-                                </span>
-                              ) : <span className="text-slate-300">—</span>}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          );
         })()}
+
+        {/* Phase output files summary */}
+        <div>
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Phase Output Files (Current)</div>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { label: 'AI Suggestions', key: 'aiSuggestions' as const, phase: 'A' },
+              { label: 'Research Output', key: 'research' as const, phase: 'R' },
+              { label: 'Test Stories', key: 'testStories' as const, phase: 'T' },
+              { label: 'Validated Stories', key: 'validated' as const, phase: 'S' },
+              { label: 'Overflow Queue', key: 'overflow' as const, phase: 'M' },
+            ].map(item => {
+              const data = traceData.phaseOutputs[item.key];
+              const count = (data as { stories?: unknown[] } | null)?.stories?.length ?? 0;
+              const colors = PHASE_COLORS[item.phase] ?? { bg: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-700', dot: 'bg-slate-400' };
+              const isSelected = selectedOutputFile === item.key;
+              const isClickable = !!data;
+              return (
+                <button
+                  key={item.key}
+                  disabled={!isClickable}
+                  onClick={() => setSelectedOutputFile(isSelected ? null : item.key)}
+                  className={`rounded-lg border px-3 py-2 flex items-center justify-between text-left w-full transition-all
+                    ${colors.border} ${colors.bg}
+                    ${isClickable ? 'cursor-pointer hover:brightness-95 active:scale-[0.99]' : 'cursor-default opacity-60'}
+                    ${isSelected ? 'ring-2 ring-offset-1 ring-blue-400' : ''}
+                  `}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${colors.dot}`} />
+                    <span className={`text-xs font-medium ${colors.text}`}>{item.label}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`text-xs font-mono ${count > 0 ? colors.text : 'text-slate-400'}`}>
+                      {data ? `${count} stories` : 'N/A'}
+                    </span>
+                    {isClickable && (
+                      <span className={`text-[10px] text-slate-400 transition-transform ${isSelected ? 'rotate-180' : ''}`}>▼</span>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Expandable detail panel */}
+          {selectedOutputFile && (() => {
+            const panelKey = selectedOutputFile;
+            const panelData = traceData.phaseOutputs[panelKey] as { stories?: OutputFileStory[] } | null;
+            const panelStories = panelData?.stories ?? [];
+            const filePath = OUTPUT_FILE_PATHS[panelKey as string] ?? panelKey;
+            return (
+              <div className="mt-3 rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                {/* Panel header */}
+                <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50 border-b border-slate-200">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-xs font-semibold text-slate-700">{panelStories.length} {panelStories.length === 1 ? 'story' : 'stories'}</span>
+                    <code className="text-[11px] font-mono text-slate-500 truncate">{filePath}</code>
+                  </div>
+                  <button
+                    onClick={() => setSelectedOutputFile(null)}
+                    className="text-slate-400 hover:text-slate-600 text-xs leading-none ml-3 flex-shrink-0"
+                    aria-label="Close panel"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {panelStories.length === 0 ? (
+                  <div className="px-4 py-4 text-xs text-slate-400 italic">No stories in this file.</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50 text-left text-[11px] text-slate-500 uppercase tracking-wide">
+                          <th className="px-3 py-2 font-semibold w-[100px]">ID</th>
+                          <th className="px-3 py-2 font-semibold">Title</th>
+                          <th className="px-3 py-2 font-semibold w-[90px]">Priority</th>
+                          <th className="px-3 py-2 font-semibold w-[110px]">Source</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {panelStories.map((s, idx) => {
+                          const sid = s.id ?? `#${idx + 1}`;
+                          const title = s.title ?? '—';
+                          const priority = typeof s.priority === 'string' ? s.priority : null;
+                          const source = typeof s._source === 'string' ? s._source : null;
+                          return (
+                            <tr key={sid} className="border-t border-slate-100 hover:bg-slate-50 transition-colors">
+                              <td className="px-3 py-2 font-mono text-[11px] text-blue-700 whitespace-nowrap">{sid}</td>
+                              <td className="px-3 py-2 text-slate-700 leading-snug">{title}</td>
+                              <td className="px-3 py-2">
+                                {priority ? (
+                                  <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${PRIORITY_BADGE[priority] ?? 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+                                    {priority}
+                                  </span>
+                                ) : <span className="text-slate-300">—</span>}
+                              </td>
+                              <td className="px-3 py-2">
+                                {source ? (
+                                  <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${SOURCE_COLORS[source] ?? 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+                                    {source}
+                                  </span>
+                                ) : <span className="text-slate-300">—</span>}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </div>
       </div>
     </div>
   );

@@ -1234,3 +1234,6 @@ Here is the technical brief for the Claude agent.
 *   **Failure Condition Testing:** The test must verify that mocking a phase to fail causes the Pytest run itself to be marked as `FAILED`, not `ERROR`, as specified in the acceptance criteria. This may involve using `pytest.raises` or asserting a non-zero exit code from a test variation.
 *   **Log Brittleness:** Assertions on logged output should be specific enough to confirm the phase but general enough to not break on minor text changes.
 
+## Worker 1 crashed (exit 2) — 2026-03-20 17:35:13
+## Worker 2 crashed (exit 1) — 2026-03-20 17:35:14
+## Worker 3 crashed (exit 1) — 2026-03-20 17:35:15
