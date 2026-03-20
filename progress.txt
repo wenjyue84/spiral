@@ -1003,3 +1003,33 @@ COST CEILING: [Performance Test] Worker Heartbeat Timeout Detection Latency (US-
 
 ### Gotchas
 - Cost ceiling can kill the agent after implementation is complete but before prd.json is updated — always check if tests already pass before re-implementing
+
+
+## Pre-analysis for US-582 (Gemini 2.5 Pro)
+This brief is based on the provided story JSON. It outlines a task for a standard Python web application (Flask/FastAPI), not a Frappe application, as it involves reading a TSV file to create a new API endpoint.
+
+---
+
+**Subject: Technical Brief for US-582: Dashboard Cost Aggregation Endpoint**
+
+**1. Python Files to Modify:**
+*   **Modify:** `lib/dashboard.py` (or equivalent). This is where the new API route `/api/dashboard/costs-by-project` will be implemented.
+*   **Create:** `tests/test_dashboard_costs_by_project.py` to house Pytest assertions for the new endpoint.
+
+**2. Frappe DocTypes / Hooks Involved:**
+*   None. The data source is `results.tsv`, a file on disk. The implementation will not interact with the Frappe framework or its database DocTypes.
+
+**3. Recommended Implementation Approach:**
+*   In `lib/dashboard.py`, add a new Flask/FastAPI route for `GET /api/dashboard/costs-by-project`.
+*   The route's handler function should read and parse the tab-delimited `results.tsv`.
+*   Use `collections.defaultdict` to group rows by the `sub_project` column.
+*   Rows with a null or empty `sub_project` should be aggregated under a special key, `'(unknown)'`.
+*   For each group, sum `total_tokens` and `total_cost`, count the number of stories, and create a `model_distribution` dictionary by counting values from the `model` column.
+*   Return an HTTP 200 response with a JSON body matching the specified structure.
+
+**4. Edge Cases & Gotchas:**
+*   The `results.tsv` file may not exist, be empty, or have malformed rows; handle these file I/O errors gracefully.
+*   The `sub_project` column may be missing from the file; the code should handle this `KeyError` without crashing.
+*   Be mindful of floating-point precision when summing cost values.
+*   The test file needs to cover cases with missing data and verify the model distribution counting logic.
+

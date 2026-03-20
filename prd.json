@@ -313,7 +313,8 @@
       ],
       "estimatedComplexity": "medium",
       "passes": false,
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-03-20T07:19:55Z"
     },
     {
       "id": "US-583",
