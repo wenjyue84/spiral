@@ -591,3 +591,37 @@ FAILED diagnosis-block gate: [Security Test] Auth/Permission Access Control for 
 *   Be mindful of memory usage when loading `prd.json` if the file can become extremely large.
 *   The duplicate check requires tracking seen `(story_id, iteration, attempt)` tuples, for instance, by using a set.
 
+
+## Iteration - Story: US-570 Implement validate_results_tsv Core Validator Module
+
+### What was implemented
+- Created lib/spiral/validate_results_tsv.py with validate(tsv_path, prd_path) function
+- Detects all 5 required validation checks:
+  1. Missing story_ids from prd.json in results.tsv
+  2. Duplicate (story_id, iteration, attempt) tuples
+  3. token_count outside [50, 500000]
+  4. phase_duration_ms outside [100, 600000]
+  5. model not in {haiku, sonnet, opus}
+- Returns TypedDict ValidationResult with {errors, warnings, passed_checks, total_rows_checked}
+- Created tests/test_validate_results_tsv.py with 5 comprehensive tests:
+  - test_validate_detects_all_anomalies: In-memory TSV with all 5 error types
+  - test_validate_empty_tsv: Empty TSV handling
+  - test_validate_missing_files: Missing file handling
+  - test_validate_malformed_prd: Malformed JSON handling
+  - test_validate_valid_tsv: Happy-path validation
+- All tests passing (5/5); mypy --strict passing; ruff clean
+
+### Patterns discovered
+- ValidationResult TypedDict pattern for structured return values
+- csv.DictReader with delimiter='\t' for TSV parsing
+- tempfile.TemporaryDirectory fixture for isolated test file creation
+- Graceful error handling for missing/malformed input files (warnings vs errors)
+
+### Gotchas
+- None—straightforward implementation with clear acceptance criteria
+
+### Acceptance Criteria Met
+- [x] Function validate(tsv_path, prd_path) returns dict matching {errors, warnings, passed_checks, total_rows_checked}
+- [x] Detects all 5 checks: missing story_ids, duplicates, token_count range, phase_duration_ms range, valid models
+- [x] test_validate_detects_all_anomalies passes with mock corrupted TSV triggering all 5 error types
+
