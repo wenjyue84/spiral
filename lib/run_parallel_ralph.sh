@@ -663,6 +663,17 @@ if [[ "$MONITOR_TERMINALS" -eq 1 ]]; then
   fi
 
   for i in $(seq 1 "$RALPH_WORKERS"); do
+    # Skip monitor for workers with no pending stories
+    _mon_slice="$WORKER_DIR/worker_${i}.json"
+    _mon_pending=0
+    if [[ -f "$_mon_slice" ]]; then
+      _mon_pending=$("$JQ" '[.userStories[] | select(.passes != true)] | length' "$_mon_slice" 2>/dev/null || echo "0")
+    fi
+    if [[ "$_mon_pending" -eq 0 ]]; then
+      echo "  [parallel] Worker $i has 0 pending stories — skipping monitor"
+      continue
+    fi
+
     LOG="$WORKER_DIR/worker_${i}.log"
     touch "$LOG" # ensure file exists before tail -f attaches
 
@@ -942,11 +953,11 @@ _launch_worker_i() {
         echo "  [parallel] Worker $i: pool reserved ${_reserve_mb}MB (tier=$_tier, v8_heap=${_v8_heap}MB)"
       else
         # Pool full — fall back to static limit
-        export SPIRAL_MEMORY_LIMIT="${SPIRAL_WORKER_MEMORY_LIMIT:-$SPIRAL_MEMORY_LIMIT}"
+        export SPIRAL_MEMORY_LIMIT="${SPIRAL_WORKER_MEMORY_LIMIT:-${SPIRAL_MEMORY_LIMIT:-2048}}"
         echo "  [parallel] Worker $i: pool reserve failed — using static ${SPIRAL_MEMORY_LIMIT}MB"
       fi
     else
-      export SPIRAL_MEMORY_LIMIT="${SPIRAL_WORKER_MEMORY_LIMIT:-$SPIRAL_MEMORY_LIMIT}"
+      export SPIRAL_MEMORY_LIMIT="${SPIRAL_WORKER_MEMORY_LIMIT:-${SPIRAL_MEMORY_LIMIT:-2048}}"
     fi
     # US-224: Propagate W3C trace context to worker for distributed tracing
     [[ -n "${TRACEPARENT:-}" ]] && export TRACEPARENT
@@ -1047,7 +1058,7 @@ _restart_stalled_worker() {
     cd "$WTREE"
     export PATH="$WTREE/.spiral-bin:$PATH"
     export SPIRAL_WORKER_ID=$worker_num HEARTBEAT_DIR="$WORKTREE_BASE/worker-${worker_num}"
-    export SPIRAL_MEMORY_LIMIT="${SPIRAL_WORKER_MEMORY_LIMIT:-$SPIRAL_MEMORY_LIMIT}"
+    export SPIRAL_MEMORY_LIMIT="${SPIRAL_WORKER_MEMORY_LIMIT:-${SPIRAL_MEMORY_LIMIT:-2048}}"
     [[ -n "${TRACEPARENT:-}" ]] && export TRACEPARENT
     [[ -n "${TRACESTATE:-}" ]] && export TRACESTATE
     if type worker_heartbeat_start &>/dev/null; then worker_heartbeat_start "$worker_num" 30 2>/dev/null || true; fi
@@ -1154,8 +1165,8 @@ else
   # Legacy parallel dispatch (all workers launched immediately)
   for i in $(seq 1 "$_INITIAL_LAUNCH_COUNT"); do
     # Skip memory gate for workers with 0 pending stories
-    local _w_slice="$WORKER_DIR/worker_${i}.json"
-    local _w_pending=0
+    _w_slice="$WORKER_DIR/worker_${i}.json"
+    _w_pending=0
     if [[ -f "$_w_slice" ]]; then
       _w_pending=$("$JQ" '[.userStories[] | select(.passes != true)] | length' "$_w_slice" 2>/dev/null || echo "0")
     fi
