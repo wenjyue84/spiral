@@ -1435,11 +1435,111 @@ interface WorkerInfo {
   hasLog: boolean;
   hasHeartbeat: boolean;
   hasJson?: boolean;
+  mem_mb?: number | null;
+  phase?: string | null;
+  completed?: number;
+  pid?: number | null;
+  paused?: boolean;
+  status_reason?: string;
+  state?: string;
+}
+
+interface SystemMemoryInfo {
+  watchdog_running: boolean;
+  level: number | null;
+  level_label: string | null;
+  free_mb: number | null;
+  total_mb: number | null;
+  used_mb: number | null;
+  free_pct: number | null;
+  recommended_workers: number | null;
+  per_worker_budget_mb: number;
+  config_hints: string[];
 }
 
 type WorkerStatus = 'running' | 'passed' | 'failed' | 'unknown' | 'error';
 
-function WorkerConsole({ workerId, projectName }: { workerId: number; projectName: string }) {
+function SystemMemoryPanel({ memory }: { memory: SystemMemoryInfo | null }) {
+  if (!memory) return null;
+
+  const { watchdog_running, level, level_label, free_mb, total_mb, used_mb, free_pct, recommended_workers, per_worker_budget_mb, config_hints } = memory;
+  const [hintsExpanded, setHintsExpanded] = useState(false);
+
+  if (!watchdog_running && level == null) {
+    return (
+      <div className="rounded-lg border border-slate-700 bg-slate-800/50 px-4 py-3 text-xs text-slate-400 flex items-center gap-2">
+        <span className="text-slate-500">◯</span>
+        Memory monitoring inactive — start SPIRAL with watchdog to enable
+      </div>
+    );
+  }
+
+  // Color for pressure level
+  const levelColors: Record<number, { bg: string; text: string; bar: string }> = {
+    0: { bg: 'bg-emerald-900/30', text: 'text-emerald-400', bar: 'bg-emerald-500' },
+    1: { bg: 'bg-yellow-900/30', text: 'text-yellow-400', bar: 'bg-yellow-500' },
+    2: { bg: 'bg-orange-900/30', text: 'text-orange-400', bar: 'bg-orange-500' },
+    3: { bg: 'bg-red-900/30', text: 'text-red-400', bar: 'bg-red-500' },
+    4: { bg: 'bg-red-900/50', text: 'text-red-300', bar: 'bg-red-600' },
+  };
+  const colors = levelColors[level ?? 0] ?? levelColors[0];
+  const usedPct = free_pct != null ? 100 - free_pct : null;
+
+  return (
+    <div className={`rounded-lg border border-slate-700 ${colors.bg} px-4 py-3 space-y-2`}>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        {/* Memory bar */}
+        <div className="flex items-center gap-3 flex-1 min-w-[200px]">
+          <span className="text-xs font-semibold text-slate-300 whitespace-nowrap">RAM</span>
+          <div className="flex-1 h-2.5 bg-slate-700 rounded-full overflow-hidden">
+            {usedPct != null && (
+              <div className={`h-full ${colors.bar} rounded-full transition-all duration-500`} style={{ width: `${Math.min(usedPct, 100)}%` }} />
+            )}
+          </div>
+          <span className="text-[11px] font-mono text-slate-400 whitespace-nowrap">
+            {used_mb != null && total_mb != null
+              ? `${used_mb.toLocaleString()} / ${total_mb.toLocaleString()} MB (${free_pct}% free)`
+              : free_mb != null ? `${free_mb.toLocaleString()} MB free` : '—'}
+          </span>
+        </div>
+
+        {/* Pressure badge */}
+        <span className={`text-[11px] font-mono font-semibold px-2 py-0.5 rounded-full ${colors.bg} ${colors.text} border border-current/20`}>
+          {!watchdog_running && <span className="mr-1 opacity-60">STALE</span>}
+          Level {level}: {level_label}
+        </span>
+
+        {/* Worker capacity */}
+        {recommended_workers != null && (
+          <span className="text-[11px] font-mono text-slate-400">
+            Recommended: {recommended_workers} worker{recommended_workers !== 1 ? 's' : ''} ({per_worker_budget_mb} MB each)
+          </span>
+        )}
+      </div>
+
+      {/* Config hints */}
+      {config_hints.length > 0 && (
+        <div>
+          <button
+            onClick={() => setHintsExpanded(!hintsExpanded)}
+            className="text-[11px] text-slate-500 hover:text-slate-300 transition-colors"
+          >
+            {hintsExpanded ? '▾' : '▸'} {config_hints.length} tuning hint{config_hints.length !== 1 ? 's' : ''}
+          </button>
+          {hintsExpanded && (
+            <ul className="mt-1 space-y-0.5">
+              {config_hints.map((hint, i) => (
+                <li key={i} className="text-[11px] font-mono text-slate-400 pl-3">• {hint}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function WorkerConsole({ workerId, projectName, workerMeta }: { workerId: number; projectName: string; workerMeta?: WorkerInfo }) {
   const [lines, setLines] = useState<string[]>([]);
   const [status, setStatus] = useState<WorkerStatus>('running');
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -1484,7 +1584,21 @@ function WorkerConsole({ workerId, projectName }: { workerId: number; projectNam
     <div className="flex flex-col border border-slate-700 rounded-lg overflow-hidden">
       <div className="flex items-center justify-between px-3 py-1.5 bg-slate-800 border-b border-slate-700">
         <span className="text-xs font-mono font-semibold text-slate-200">Worker {workerId}</span>
-        <span className={`text-xs font-mono ${cls}`}>{label}</span>
+        <div className="flex items-center gap-2">
+          {workerMeta?.mem_mb != null && (
+            <span className="text-[11px] font-mono text-slate-500">{workerMeta.mem_mb} MB</span>
+          )}
+          {workerMeta?.phase && (
+            <span className="text-[11px] font-mono text-purple-400 bg-purple-900/30 px-1.5 py-0.5 rounded-full">{workerMeta.phase}</span>
+          )}
+          {workerMeta?.completed != null && workerMeta.completed > 0 && (
+            <span className="text-[11px] font-mono text-emerald-400">{workerMeta.completed} done</span>
+          )}
+          {workerMeta?.paused && (
+            <span className="text-[11px] font-mono text-amber-400 bg-amber-900/30 px-1.5 py-0.5 rounded-full">PAUSED</span>
+          )}
+          <span className={`text-xs font-mono ${cls}`}>{label}</span>
+        </div>
       </div>
       <div className="h-72 overflow-y-auto bg-slate-950 p-2">
         {lines.length === 0 ? (

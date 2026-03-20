@@ -327,8 +327,13 @@ class SpiralLiveServer:
             return
 
         # --- Worker pool (US-481: /api/workers endpoint) ---
-        if path == "/api/workers" and method == "GET":
-            await self._handle_api_workers(writer)
+        if path.split("?")[0] == "/api/workers" and method == "GET":
+            await self._handle_api_workers(path, writer)
+            return
+
+        # --- System memory (memory pressure / watchdog status) ---
+        if path.split("?")[0] == "/api/system-memory" and method == "GET":
+            await self._handle_system_memory(writer)
             return
 
         # --- Project dashboard ---
@@ -433,13 +438,14 @@ class SpiralLiveServer:
         workers.sort(key=lambda w: w.get("worker_id", "0"))
         await self._send_json(writer, 200, {"workers": workers, "ts": now})
 
-    async def _handle_api_workers(self, writer: asyncio.StreamWriter) -> None:
+    async def _handle_api_workers(self, path: str, writer: asyncio.StreamWriter) -> None:
         """Return JSON array of worker pool status from heartbeat files (US-481).
 
-        Returns: [{worker_id, current_story, elapsed_time_sec, state}]
-        where state is one of: 'alive' (heartbeat fresh), 'timeout' (>5min stale), 'idle' (no heartbeat)
+        Returns: [{worker_id, current_story, elapsed_time_sec, state, mem_mb, phase, completed, pid, paused, status_reason}]
+        where state is one of: 'alive' (heartbeat fresh), 'timeout' (>5min stale), 'queued' (worktree exists but no heartbeat)
         """
         workers_dir = ".spiral-workers"
+        scratch_dir = ".spiral"
         now = time.time()
         timeout_threshold_sec = 300  # 5 minutes
         workers = []
@@ -458,11 +464,32 @@ class SpiralLiveServer:
         for worker_subdir in worker_subdirs:
             heartbeat_file = os.path.join(workers_dir, worker_subdir, ".heartbeat")
 
+            # Extract worker number for pause file detection
+            worker_num = worker_subdir.replace("worker-", "").replace("worker_", "")
+
+            # Check for pause file
+            pause_file = os.path.join(scratch_dir, f"_worker_pause_{worker_num}")
+            is_paused = os.path.exists(pause_file)
+
             try:
                 with open(heartbeat_file, encoding="utf-8") as f:
                     hb_data = json.load(f)
             except (OSError, json.JSONDecodeError):
-                # Gracefully skip malformed or missing heartbeat files
+                # Worktree exists but no heartbeat — mark as queued
+                status_reason = "Paused — memory pressure" if is_paused else "Waiting for resources to launch"
+                worker_entry = {
+                    "worker_id": worker_subdir,
+                    "current_story": None,
+                    "elapsed_time_sec": 0,
+                    "state": "paused" if is_paused else "queued",
+                    "mem_mb": None,
+                    "phase": None,
+                    "completed": 0,
+                    "pid": None,
+                    "paused": is_paused,
+                    "status_reason": status_reason,
+                }
+                workers.append(worker_entry)
                 continue
 
             # Extract fields from heartbeat JSON
@@ -474,19 +501,133 @@ class SpiralLiveServer:
             story_id = hb_data.get("storyId", "unknown")
 
             # Determine state: alive or timeout (based on 5-min threshold)
-            state = "timeout" if elapsed_time_sec > timeout_threshold_sec else "alive"
+            if is_paused:
+                state = "paused"
+            elif elapsed_time_sec > timeout_threshold_sec:
+                state = "timeout"
+            else:
+                state = "alive"
+
+            # Build status reason
+            status_reason = ""
+            if is_paused:
+                status_reason = "Paused — memory pressure"
+            elif state == "timeout":
+                status_reason = f"No heartbeat for {elapsed_time_sec}s"
 
             worker_entry = {
                 "worker_id": worker_subdir,
                 "current_story": story_id,
                 "elapsed_time_sec": elapsed_time_sec,
                 "state": state,
+                "mem_mb": hb_data.get("memMb"),
+                "phase": hb_data.get("phase"),
+                "completed": hb_data.get("completed", 0),
+                "pid": hb_data.get("pid"),
+                "paused": is_paused,
+                "status_reason": status_reason,
             }
             workers.append(worker_entry)
 
         # Sort by worker_id for consistent ordering
         workers.sort(key=lambda w: w.get("worker_id", ""))
         await self._send_json(writer, 200, workers)
+
+    async def _handle_system_memory(self, writer: asyncio.StreamWriter) -> None:
+        """Return system memory status from the watchdog pressure file.
+
+        Reads .spiral/_memory_pressure.json and enriches with derived fields.
+        Returns watchdog_running: false when pressure file is missing or stale (>120s).
+        """
+        pressure_file = os.path.join(".spiral", "_memory_pressure.json")
+        level_labels = {0: "Normal", 1: "Elevated", 2: "High", 3: "Critical", 4: "Emergency"}
+
+        try:
+            with open(pressure_file, encoding="utf-8") as f:
+                data = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            await self._send_json(writer, 200, {
+                "watchdog_running": False,
+                "level": None,
+                "level_label": None,
+                "free_mb": None,
+                "total_mb": None,
+                "used_mb": None,
+                "free_pct": None,
+                "recommended_workers": None,
+                "per_worker_budget_mb": 1536,
+                "config_hints": ["Memory watchdog not running — start SPIRAL to enable monitoring"],
+            })
+            return
+
+        # Check staleness via ts field
+        ts_str = data.get("ts", "")
+        stale = False
+        if ts_str:
+            try:
+                from datetime import datetime, timezone
+
+                ts_dt = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+                age_sec = (datetime.now(timezone.utc) - ts_dt).total_seconds()
+                stale = age_sec > 120
+            except (ValueError, TypeError):
+                stale = True
+        else:
+            stale = True
+
+        if stale:
+            await self._send_json(writer, 200, {
+                "watchdog_running": False,
+                "level": data.get("level"),
+                "level_label": level_labels.get(data.get("level", -1)),
+                "free_mb": data.get("free_mb"),
+                "total_mb": data.get("total_mb"),
+                "used_mb": None,
+                "free_pct": None,
+                "recommended_workers": data.get("recommended_workers"),
+                "per_worker_budget_mb": 1536,
+                "config_hints": ["Memory watchdog data is stale (>120s) — watchdog may have stopped"],
+            })
+            return
+
+        level = data.get("level", 0)
+        free_mb = data.get("free_mb", 0)
+        total_mb = data.get("total_mb")
+        recommended_workers = data.get("recommended_workers", 0)
+
+        # Compute derived fields
+        used_mb = (total_mb - free_mb) if total_mb else None
+        free_pct = int((free_mb / total_mb) * 100) if total_mb and total_mb > 0 else None
+
+        # Build config hints
+        hints = []
+        per_worker_budget = 1536
+        if free_mb and free_mb > 0:
+            capacity = max(1, free_mb // per_worker_budget)
+            hints.append(f"Free RAM supports ~{capacity} workers at {per_worker_budget} MB each")
+        if level >= 2:
+            hints.append("Consider reducing SPIRAL_RALPH_WORKERS or closing other applications")
+        if level >= 3:
+            hints.append("Model routing forced to haiku — reduce memory pressure for better models")
+        rec_model = data.get("recommended_model", "")
+        if rec_model:
+            hints.append(f"Recommended model: {rec_model}")
+        skip = data.get("skip_phases", [])
+        if skip:
+            hints.append(f"Phases skipped due to pressure: {', '.join(skip)}")
+
+        await self._send_json(writer, 200, {
+            "watchdog_running": True,
+            "level": level,
+            "level_label": level_labels.get(level, "Unknown"),
+            "free_mb": free_mb,
+            "total_mb": total_mb,
+            "used_mb": used_mb,
+            "free_pct": free_pct,
+            "recommended_workers": recommended_workers,
+            "per_worker_budget_mb": per_worker_budget,
+            "config_hints": hints,
+        })
 
     async def _handle_index(self, writer: asyncio.StreamWriter) -> None:
         """Return HTML index listing registered projects."""

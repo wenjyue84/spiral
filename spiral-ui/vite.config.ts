@@ -1121,6 +1121,73 @@ function spiralApiPlugin() {
         }
       });
 
+      // ── GET /api/system-memory — memory pressure / watchdog status ──────────
+      server.middlewares.use('/api/system-memory', (req, res, next) => {
+        if (req.method !== 'GET') { next(); return; }
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+
+        const url = new URL(req.url ?? '/', 'http://localhost');
+        const projName = url.searchParams.get('name');
+        const root = projName ? (readRegistry()[projName] ?? PROJECT_ROOT) : PROJECT_ROOT;
+        const pressureFile = path.join(root, '.spiral', '_memory_pressure.json');
+
+        const levelLabels: Record<number, string> = { 0: 'Normal', 1: 'Elevated', 2: 'High', 3: 'Critical', 4: 'Emergency' };
+        const perWorkerBudget = 1536;
+
+        if (!fs.existsSync(pressureFile)) {
+          res.end(JSON.stringify({
+            watchdog_running: false, level: null, level_label: null,
+            free_mb: null, total_mb: null, used_mb: null, free_pct: null,
+            recommended_workers: null, per_worker_budget_mb: perWorkerBudget,
+            config_hints: ['Memory watchdog not running — start SPIRAL to enable monitoring'],
+          }));
+          return;
+        }
+
+        try {
+          const raw = JSON.parse(fs.readFileSync(pressureFile, 'utf8')) as {
+            level?: number; free_mb?: number; total_mb?: number; node_procs?: number;
+            recommended_workers?: number; recommended_model?: string; skip_phases?: string[]; ts?: string;
+          };
+
+          // Check staleness
+          let stale = true;
+          if (raw.ts) {
+            const tsMs = new Date(raw.ts).getTime();
+            stale = isNaN(tsMs) || (Date.now() - tsMs > 120_000);
+          }
+
+          const level = raw.level ?? 0;
+          const freeMb = raw.free_mb ?? 0;
+          const totalMb = raw.total_mb ?? null;
+          const usedMb = totalMb != null ? totalMb - freeMb : null;
+          const freePct = totalMb && totalMb > 0 ? Math.floor((freeMb / totalMb) * 100) : null;
+          const recWorkers = raw.recommended_workers ?? 0;
+
+          const hints: string[] = [];
+          if (freeMb > 0) {
+            const capacity = Math.max(1, Math.floor(freeMb / perWorkerBudget));
+            hints.push(`Free RAM supports ~${capacity} workers at ${perWorkerBudget} MB each`);
+          }
+          if (level >= 2) hints.push('Consider reducing SPIRAL_RALPH_WORKERS or closing other applications');
+          if (level >= 3) hints.push('Model routing forced to haiku — reduce memory pressure for better models');
+          if (raw.recommended_model) hints.push(`Recommended model: ${raw.recommended_model}`);
+          if (raw.skip_phases?.length) hints.push(`Phases skipped due to pressure: ${raw.skip_phases.join(', ')}`);
+          if (stale) hints.unshift('Memory watchdog data is stale (>120s) — watchdog may have stopped');
+
+          res.end(JSON.stringify({
+            watchdog_running: !stale, level, level_label: levelLabels[level] ?? 'Unknown',
+            free_mb: freeMb, total_mb: totalMb, used_mb: usedMb, free_pct: freePct,
+            recommended_workers: recWorkers, per_worker_budget_mb: perWorkerBudget,
+            config_hints: hints,
+          }));
+        } catch (e) {
+          res.statusCode = 500;
+          res.end(JSON.stringify({ error: String(e) }));
+        }
+      });
+
       // ── GET /api/workers/:id/queue — task queue for a specific worker ────────
       // ── GET /api/workers?name=X — list worker log files for a project ──────
       // Both handled by the same middleware (connect strips /api/workers prefix from req.url)

@@ -3120,7 +3120,7 @@ def cmd_monitor(args: argparse.Namespace) -> None:
         status = result.get("status", {})
         delta = result.get("delta", {})
         attn = "YES" if result.get("needs_attention") else "no"
-        print(f"SPIRAL Monitor — {result.get('timestamp', '?')}")
+        print(f"SPIRAL Monitor - {result.get('timestamp', '?')}")
         print(f"  Passed: {status.get('passed', 0)} / {status.get('total', 0)}"
               f" ({status.get('pass_pct', 0)}%)")
         print(f"  New since last check: +{delta.get('new_passed', 0)}"

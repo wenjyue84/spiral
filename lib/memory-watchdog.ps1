@@ -161,10 +161,14 @@ function Write-PressureFile {
     }
     $skipJson = $skipItems -join ", "
 
+    $memInfo = Get-SystemMemoryInfo
+    $totalMB = $memInfo.TotalMB
+
     $json = @"
 {
   "level": $Level,
   "free_mb": $FreeMB,
+  "total_mb": $totalMB,
   "node_procs": $NodeProcs,
   "recommended_workers": $($Recommendations.recommended_workers),
   "recommended_model": "$($Recommendations.recommended_model)",

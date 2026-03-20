@@ -21,7 +21,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-
 # ── Data loaders (duplicated from main.py — see module docstring) ────────────
 
 
@@ -30,7 +29,9 @@ def _load_prd(path: Path) -> list[dict[str, Any]]:
         return []
     try:
         with open(path, encoding="utf-8") as f:
-            return json.load(f).get("userStories", [])
+            data: dict[str, Any] = json.load(f)
+            result: list[dict[str, Any]] = data.get("userStories", [])
+            return result
     except (json.JSONDecodeError, OSError):
         return []
 
@@ -78,7 +79,8 @@ def _load_checkpoint(path: Path) -> dict[str, Any]:
         return {}
     try:
         with open(path, encoding="utf-8") as f:
-            return json.load(f)
+            result: dict[str, Any] = json.load(f)
+            return result
     except (json.JSONDecodeError, OSError):
         return {}
 
@@ -92,7 +94,8 @@ def _load_state(state_path: Path) -> dict[str, Any]:
         return {}
     try:
         with open(state_path, encoding="utf-8") as f:
-            return json.load(f)
+            result: dict[str, Any] = json.load(f)
+            return result
     except (json.JSONDecodeError, OSError):
         return {}
 
@@ -234,7 +237,7 @@ def _diagnose(project_root: Path, scratch_dir: Path) -> list[dict[str, Any]]:
                 "severity": "warning",
                 "check": "stale_locks",
                 "message": f"Lock file found: {lf.name}{pid_info}",
-                "remediation": f"Delete {lf}" if "dead" in pid_info or not pid_info else f"Wait for PID to finish",
+                "remediation": f"Delete {lf}" if "dead" in pid_info or not pid_info else "Wait for PID to finish",
             })
 
     # 2. Recent crash logs
