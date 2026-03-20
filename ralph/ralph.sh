@@ -1884,7 +1884,7 @@ supports_adaptive_thinking() {
   local model="$1"
   case "$model" in
     opus|sonnet) return 0 ;;               # short aliases → latest (4.6)
-    *opus-4-6* | *sonnet-4-6*) return 0 ;; # full model IDs
+    *opus-4-6*|*sonnet-4-6*) return 0 ;;   # full model IDs
     *) return 1 ;;                         # haiku, older models
   esac
 }
