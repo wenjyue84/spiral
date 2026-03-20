@@ -3141,7 +3141,8 @@
       "passes": true,
       "_source": "ai-example",
       "model": "haiku",
-      "last_attempted": "2026-03-20T17:53:42Z"
+      "last_attempted": "2026-03-20T17:53:42Z",
+      "_scopeCreep": true
     },
     {
       "id": "US-629",
@@ -3178,40 +3179,6 @@
       "model": "haiku"
     },
     {
-      "id": "US-631",
-      "title": "Phase R: Deduplicate Gemini Queries and Expose Cache Hit Rate via Dashboard",
-      "priority": "medium",
-      "description": "Implement research query caching in Phase R to skip duplicate Gemini API calls, reducing Phase R token spend and latency. Expose cache metrics via dashboard endpoint for cost visibility and efficiency tracking.",
-      "acceptanceCriteria": [
-        "Phase R caches Gemini queries by hash in .spiral/research-cache.json; skips API call if cache hit with age < 7 days; increments research_cache_hits column in results.tsv",
-        "Dashboard API endpoint GET /api/dashboard/research-cache returns JSON: {total_queries, cache_hits, cache_hit_rate: 0.XX, estimated_cost_saved_usd: X.XX, time_saved_sec: Y}",
-        "Integration test: verify cache deduplication skips 40%+ of duplicate queries; estimates cost savings matches actual token reduction in results.tsv for same 5-story batch run"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "sonnet"
-    },
-    {
-      "id": "US-632",
-      "title": "Dashboard Metrics Aggregation: Compute Phase Duration and Token Burn Rate Trends",
-      "priority": "medium",
-      "description": "Dashboard endpoints exist but lack central aggregation logic. Build MetricsAggregator that reads results.tsv and exposes rolling averages (1h, 24h windows) for phase duration, token burn rate, and model escalation frequency.",
-      "acceptanceCriteria": [
-        "lib/dashboard/metrics_aggregator.py: class MetricsAggregator computes phase_duration_avg, story_retry_rate, token_burn_rate_per_phase, model_escalation_frequency from results.tsv with 1-hour and 24-hour rolling windows",
-        "GET /api/dashboard/metrics-aggregated endpoint returns JSON with rolling metrics, trend direction (↑/↓), and phase attribution for each metric",
-        "Integration test: metrics_aggregator processes 50 results.tsv records across 5 phases and produces valid rolling averages matching manual computation"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "sonnet"
-    },
-    {
       "id": "US-633",
       "title": "Integration Test: SPIRAL Phase Loop Orchestration R→T→S→M→I→V→C with State Validation",
       "priority": "high",
@@ -3226,75 +3193,8 @@
       "estimatedComplexity": "medium",
       "passes": false,
       "_source": "ai-example",
-      "model": "haiku"
-    },
-    {
-      "id": "US-634",
-      "title": "Dashboard Endpoint: Real-Time Worker Process Resource Utilization (CPU/Memory/Disk)",
-      "priority": "medium",
-      "description": "Add HTTP endpoint GET /api/dashboard/worker-utilization that streams real-time CPU, memory, and disk usage per parallel worker process, enabling dashboard to detect resource contention, predict OOM before Phase I crashes, and optimize worker pool size.",
-      "acceptanceCriteria": [
-        "Implement lib/spiral/worker_metrics.py::sample_worker_resources() that reads .spiral/worker-pids.json, uses psutil.Process() to sample CPU% / memory_info().rss / disk_usage() for each worker PID, returns list[{worker_id: str, cpu_percent: float, memory_mb: int, disk_mb: int, status: str}]; handle dead PIDs with status='offline'",
-        "Add HTTP endpoint GET /api/dashboard/worker-utilization in lib/spiral/dashboard_server.py that calls sample_worker_resources(), returns JSON array with timestamp and current metrics; include alert flag if any worker exceeds 80% CPU or 1024 MB memory",
-        "Test tests/test_worker_metrics.py::test_worker_resource_sampling_format() mocks psutil and .spiral/worker-pids.json with 2 workers, asserts endpoint returns correct metric format and order; test_worker_offline_handling() verifies graceful skip of missing PIDs without HTTP 500 error"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "haiku"
-    },
-    {
-      "id": "US-635",
-      "title": "Dashboard Endpoint: GET /api/dashboard/story/{id}/attempts — Ralph Implementation Log Viewer",
-      "priority": "medium",
-      "description": "Add dashboard HTTP endpoint that retrieves story attempt history with Ralph subprocess errors and model escalation trace from results.tsv. Exposes Ralph stderr/stdout logged during Phase I to enable debugging of failed story implementations.",
-      "acceptanceCriteria": [
-        "Endpoint GET /api/dashboard/story/US-123/attempts returns JSON: {story_id, attempts: [{retry_count, model, tokens, error_summary, duration_ms}]}",
-        "Ralph Phase I subprocess stderr captured to .spiral/attempt-logs/US-{ID}-retry-{N}.log (first 2KB of output); populated in lib/impl/retry.sh around line 80",
-        "Dashboard story detail view shows attempt history with error previews; click to expand full Ralph error log for each retry"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "haiku"
-    },
-    {
-      "id": "US-636",
-      "title": "Phase G: Auto-Generate Iteration Metrics Report (Velocity, Token Burn, Forecast)",
-      "priority": "medium",
-      "description": "At end of Phase C, auto-generate a markdown metrics report showing iteration velocity, token burn rate, phase durations, and estimated project completion date. Report includes velocity trend (last 3 iterations) and cost forecast based on current burn rate.",
-      "acceptanceCriteria": [
-        "Generate `.spiral/metrics-report.md` at end of Phase C with: iteration number, stories passed, total tokens spent, per-phase duration breakdown (R/T/S/M/I/V/C in seconds), model distribution (haiku/sonnet/opus %)",
-        "Calculate iteration velocity (stories/hour) with 3-iteration moving average; include cost forecast to project completion date based on current burn rate",
-        "Wire CLI: `python main.py metrics-report --iteration 5` reads results.tsv/prd.json, writes to `.spiral/metrics-report.md`. Add integration test verifying calculations match results.tsv data."
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "sonnet"
-    },
-    {
-      "id": "US-637",
-      "title": "Dashboard Endpoint: GET /api/dashboard/story-lifecycle — Track Complete Story Journey Across Phases",
-      "priority": "medium",
-      "description": "Wire dashboard HTTP endpoint that reconstructs and returns the complete lifecycle of a story: source, phases traversed, retry attempts with failure reasons, model escalations, implementation details. Enables triage of stuck stories and debugging retry patterns.",
-      "acceptanceCriteria": [
-        "GET `/api/dashboard/story-lifecycle?story_id=US-123` returns JSON with: source, first_seen_iteration, phase_timeline (timestamps for R/T/S/M/I/V/C), retry_attempts (error message, model used, tokens spent), final_status, total_implementation_duration_sec",
-        "Parse results.tsv and prd.json to reconstruct timeline; display model escalation chain (haiku→sonnet→opus) with token costs per attempt",
-        "Integration test: mock SPIRAL with 3-retry story (haiku fail→sonnet fail→opus pass), assert lifecycle endpoint reconstructs full timeline including all retries and model progression"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "sonnet"
+      "model": "haiku",
+      "last_attempted": "2026-03-20T18:35:23Z"
     }
   ]
 }
