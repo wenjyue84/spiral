@@ -1,3 +1,26 @@
+## Iteration - Story: US-606 Dashboard Endpoint: GET /api/dashboard/error-breakdown
+
+### What was implemented
+- Verified existing endpoint at /api/dashboard/error-breakdown in lib/dashboard/api.py (lines 260-395)
+- Verified existing UI widget ErrorBreakdownChart.tsx with stacked bar chart and drill-down
+- Fixed mypy --strict error: replaced JSONResponse returns with HTTPException raises for validation
+- Added HTTPException import to fastapi imports
+- All 9 tests in tests/test_dashboard_error_breakdown.py pass
+- mypy --strict: Success on both api.py and test file
+
+### Patterns discovered
+- FastAPI endpoints returning Response union types cause Pydantic validation errors; use HTTPException for error responses
+- ErrorBreakdownChart uses CATEGORY_COLORS mapping and PHASE_ORDER for consistent UI rendering
+
+### Gotchas
+- FastAPI does not allow `dict[str, Any] | Response` as return type annotation; raises FastAPIError at import time
+- Use `raise HTTPException(status_code=422, detail=...)` instead of `return JSONResponse({...}, status_code=422)`
+
+### Acceptance Criteria Met
+- [x] AC1: GET /api/dashboard/error-breakdown?iterations=5 returns JSON with phases, total_errors, story_ids aggregated from results.tsv
+- [x] AC2: UI widget renders stacked bar chart with drill-down into error categories with story IDs
+- [x] AC3: Supports ?iteration=N filter, defaults to last 5, validates N >= 1 (returns 422)
+
 ## Iteration - Story: US-598 Phase G Generate pdoc API Documentation
 
 ### What was implemented
@@ -1851,4 +1874,36 @@ Based on the user story JSON for **US-604**, here is the technical brief.
 *   **Orphan Commits:** The definition of an "orphan" is a commit *without* a story ID. Merges and other automated commits should be handled gracefully.
 *   **Multiple IDs:** A single commit could reference multiple story IDs. The parsing logic should accommodate this.
 *   **Error Handling:** The shell script must be robust against failures, such as `git-cliff` not being found or failing during execution.
+
+
+## Pre-analysis for US-604 (Gemini 2.5 Pro)
+Based on the story JSON, here is the technical brief for the implementation agent.
+
+**Note:** The user story describes a `git-cliff` integration for a "Spiral" project workflow. It does not pertain to the Frappe framework, `lhdn_payroll_integration`, or any DocTypes. The following plan is based exclusively on the provided JSON.
+
+### Technical Brief: US-604 CHANGELOG Generator
+
+*   **Python/Shell Files to Modify:**
+    *   **Create `lib/phases/gen_changelog.sh`:** This is the primary execution script. It will orchestrate the entire process.
+    *   **Create `scripts/process_changelog.py` (Recommended):** A new Python script to handle the complex logic of parsing, grouping by story ID, and separating orphan commits, which is difficult to do in `git-cliff` templates alone.
+    *   **Create `config/cliff.toml`:** The `git-cliff` configuration file to define commit parsing rules and point to the template.
+    *   **Create `config/changelog.hbs`:** A `git-cliff` template to format the initial, raw markdown output for easy parsing by the Python script.
+
+*   **Involved Hooks/Configuration:**
+    *   Environment Variable: `SPIRAL_GIT_CLIFF_BIN` must be read to locate the `git-cliff` executable.
+    *   Git Commits: The script will parse the history of conventional commits.
+
+*   **Recommended Implementation Approach:**
+    1.  In `lib/phases/gen_changelog.sh`, first validate that the `$SPIRAL_GIT_CLIFF_BIN` variable is set and the binary is executable.
+    2.  Use `git-cliff` with a custom configuration (`config/cliff.toml`) and template (`config/changelog.hbs`) to generate an intermediate changelog. The template should format each commit line with a parsable structure, e.g., `<!-- type: feat, story: US-123 --> - Commit message (#hash)`.
+    3.  Pipe this intermediate output to `scripts/process_changelog.py`.
+    4.  The Python script will read the intermediate log, use regex to parse the metadata, and build two lists: commits with story IDs and "orphan" commits.
+    5.  The script will write orphan commits to `.spiral/phase_g_warnings.log`.
+    6.  Finally, it will generate the final `CHANGELOG.md` by grouping the valid commits under their respective story IDs within `feat`, `fix`, etc., sections.
+
+*   **Edge Cases & Gotchas:**
+    *   The story ID regex in the Python script must correctly capture both `US-NNN` and `UT-NNN` patterns.
+    *   The `gen_changelog.sh` script must handle file I/O safely, creating the `.spiral/` directory if it doesn't exist.
+    *   Ensure the `git-cliff` `commit_parsers` in `cliff.toml` are robust enough to handle commits that may not perfectly follow the conventional commit standard.
+    *   The final `CHANGELOG.md` generation logic should gracefully handle cases where there are no commits for a given type (e.g., no "feat" commits).
 

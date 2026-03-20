@@ -2876,7 +2876,7 @@
         "module:claude",
         "module:hypothesis"
       ],
-      "last_attempted": "2026-03-20T15:15:05Z"
+      "last_attempted": "2026-03-20T15:24:21Z"
     },
     {
       "id": "US-605",
@@ -2926,7 +2926,7 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "haiku",
       "filesTouch": [
@@ -3028,6 +3028,23 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-611",
+      "title": "Worker Result Aggregation for Federated Projects",
+      "priority": "medium",
+      "description": "Implement result aggregator that merges results.tsv from parallel worker worktrees (.spiral-workers/worker-*/results.tsv) into unified results file with sub_project column tracking which namespace each story was executed in. Enables proper cost/throughput reporting and worker load balancing insights across federated multi-repo SPIRAL runs.",
+      "acceptanceCriteria": [
+        "lib/impl/result_aggregator.py implements aggregate_results(worker_dirs: List[str]) that merges N results.tsv files, adds sub_project column from worker root prd.json namespace field, sorts by completion_timestamp DESC",
+        "CLI command spiral aggregate-results generates unified results.tsv and prints summary report: stories_per_namespace, total_cost_by_model, avg_tokens_by_phase, worker_heartbeat_failures",
+        "Integration test: run Phase I with 2 federated workers on different namespaces, verify aggregated results contains correct story-to-namespace assignments with no duplicate story IDs or timestamp collisions"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
       "passes": false,
       "_source": "ai-example",
       "model": "sonnet"

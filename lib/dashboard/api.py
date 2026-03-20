@@ -17,7 +17,7 @@ import os
 from pathlib import Path
 from typing import Any, Optional
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
@@ -284,9 +284,9 @@ async def error_breakdown(
     """
     # Validate parameters
     if iteration is not None and iteration < 1:
-        return JSONResponse({"detail": "iteration must be an integer >= 1"}, status_code=422)
+        raise HTTPException(status_code=422, detail="iteration must be an integer >= 1")
     if iterations < 1:
-        return JSONResponse({"detail": "iterations must be an integer >= 1"}, status_code=422)
+        raise HTTPException(status_code=422, detail="iterations must be an integer >= 1")
 
     results_path = Path(".spiral/results.tsv")
     response: dict[str, Any] = {
