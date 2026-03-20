@@ -774,6 +774,7 @@ Here is the technical brief for implementing the integration test:
 - Token efficiency: All pure Python simulation, no external API calls
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 ## Pre-analysis for US-636 (Gemini 2.5 Pro)
 Here is a technical brief for implementing user story US-636.
 
@@ -799,6 +800,8 @@ Here is a technical brief for implementing user story US-636.
 *   A configurable mapping (e.g., in `spiral.config.sh`) from `sub_project` to its corresponding file path patterns is preferable to hardcoding.
 *   Prevent race conditions when multiple worker types are creating worktrees simultaneously.
 =======
+=======
+>>>>>>> Stashed changes
 ## Iteration - Story: US-634 Integration Test: SPIRAL End-to-End with Federated prd.json and Phase M Merge
 
 ### What was implemented
@@ -836,6 +839,7 @@ Here is a technical brief for implementing user story US-636.
 - All 13 tests pass (13/13)
 - mypy --strict: no issues found
 - No pre-commit violations
+<<<<<<< Updated upstream
 >>>>>>> Stashed changes
 
 
@@ -1000,4 +1004,6 @@ Based on the user story JSON for the SPIRAL project, here is a technical brief f
 *   **Worktree Cleanup:** The cleanup logic in `run_parallel_ralph_federated.sh` must be updated to correctly remove the new, namespaced worktree directories.
 *   **Cross-Project Dependencies:** The design assumes sub-projects are independent. If stories can have dependencies across sub-projects, the entire model may be invalid. This is a critical assumption to validate.
 *   **File Path Validation:** The acceptance criteria require verifying no cross-project file changes. The worker should enforce path restrictions during file operations, not just rely on post-run `git diff`.
+=======
+>>>>>>> Stashed changes
 
