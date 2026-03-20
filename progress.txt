@@ -94,3 +94,104 @@ Based on the user story JSON, here is the technical brief for the implementation
 - ralph.sh and merge_results_tsv.py have separate header definitions that evolved independently; both need updates for new columns
 ## Worker 2 crashed (exit 1) — 2026-03-20 11:15:28
 ## Worker 3 crashed (exit 1) — 2026-03-20 11:15:30
+
+## Pre-analysis for US-548 (Gemini 2.5 Pro)
+Based on the user story JSON for US-548 and the provided file listing for the "Spiral" project, here is a concise technical brief for the implementation agent.
+
+***
+
+**Technical Brief: US-548 Dashboard Research Source Endpoint**
+
+This plan proceeds assuming the target is the Python-based "Spiral" project, as all evidence from the story and file system points there, overriding the "Frappe" context in the prompt.
+
+**1. Python Files to Modify:**
+*   **New File:** `spiral/dashboards.py` to contain the core logic for the new endpoint.
+*   **New File:** `tests/test_dashboards.py` to house the required integration test.
+*   **Existing File:** The main application file (likely `main.py` or an API router configuration) will need modification to register the new endpoint.
+
+**2. Framework Components Involved:**
+*   **API Route:** A new `GET` endpoint at `/api/dashboard/research-sources`.
+*   **File I/O:** The implementation will read from a `_research_output.json` file and write its analysis to `.spiral/research_sources.json`.
+
+**3. Recommended Implementation Approach:**
+*   In `spiral/dashboards.py`, create a function that handles the API request.
+*   This function should locate and parse the `_research_output.json` file to extract all research URLs.
+*   Use `urllib.parse.urlparse` to extract the TLD/domain from each URL.
+*   Create a helper function to implement the credibility scoring logic based on domain (e.g., `.gov`/.`edu` = 90).
+*   Aggregate the data, counting mentions for each unique URL.
+*   Write the final list of `[{url, domain, credibility_score, mention_count}]` to `.spiral/research_sources.json` and return it as the API response.
+
+**4. Edge Cases & Gotchas:**
+*   The location and structure of `_research_output.json` are undefined and must be confirmed. The implementation must handle its potential absence gracefully.
+*   URL canonicalization (handling http/https, www, trailing slashes) should be performed to ensure accurate `mention_count`.
+*   The definition of "news sites" vs. "blogs" for scoring is ambiguous; a simple keyword-in-domain check will be a sufficient starting point.
+*   The endpoint should be stateless, regenerating the report on each call, as the story does not require historical aggregation.
+
+
+## Iteration - Story: US-548 Dashboard Research Source Authority Tracking
+
+### What was implemented
+- Added GET /api/dashboard/research-sources to lib/dashboard/api.py
+- Endpoint calls extract_sources() from existing lib/research_source_scorer.py
+- Persists scored results to .spiral/research_sources.json after each call
+- Created tests/test_dashboard_research_sources.py with 7 integration tests using FastAPI TestClient
+
+### Patterns discovered
+- lib/research_source_scorer.py already existed (complete) from a prior partial attempt
+- lib/dashboard/api.py uses relative imports (from ..research_source_scorer import extract_sources)
+- TestClient from fastapi.testclient + monkeypatch.chdir(tmp_path) is the pattern for endpoint tests that read local files
+
+### Gotchas
+- prd.json filesTouch for US-548 listed .hypothesis/constants/* (unrelated); actual files were lib/dashboard/api.py + tests/
+- The scorer was pre-existing; only the endpoint and integration test were missing
+
+## Pre-analysis for US-548 (Gemini 2.5 Pro)
+Based on the user story JSON for US-548 and the provided file listing for the "Spiral" project, here is a concise technical brief for the implementation agent.
+
+***
+
+**Technical Brief: US-548 Dashboard Research Source Endpoint**
+
+This plan proceeds assuming the target is the Python-based "Spiral" project, as all evidence from the story and file system points there, overriding the "Frappe" context in the prompt.
+
+**1. Python Files to Modify:**
+*   **New File:** `spiral/dashboards.py` to contain the core logic for the new endpoint.
+*   **New File:** `tests/test_dashboards.py` to house the required integration test.
+*   **Existing File:** The main application file (likely `main.py` or an API router configuration) will need modification to register the new endpoint.
+
+**2. Framework Components Involved:**
+*   **API Route:** A new `GET` endpoint at `/api/dashboard/research-sources`.
+*   **File I/O:** The implementation will read from a `_research_output.json` file and write its analysis to `.spiral/research_sources.json`.
+
+**3. Recommended Implementation Approach:**
+*   In `spiral/dashboards.py`, create a function that handles the API request.
+*   This function should locate and parse the `_research_output.json` file to extract all research URLs.
+*   Use `urllib.parse.urlparse` to extract the TLD/domain from each URL.
+*   Create a helper function to implement the credibility scoring logic based on domain (e.g., `.gov`/.`edu` = 90).
+*   Aggregate the data, counting mentions for each unique URL.
+*   Write the final list of `[{url, domain, credibility_score, mention_count}]` to `.spiral/research_sources.json` and return it as the API response.
+
+**4. Edge Cases & Gotchas:**
+*   The location and structure of `_research_output.json` are undefined and must be confirmed. The implementation must handle its potential absence gracefully.
+*   URL canonicalization (handling http/https, www, trailing slashes) should be performed to ensure accurate `mention_count`.
+*   The definition of "news sites" vs. "blogs" for scoring is ambiguous; a simple keyword-in-domain check will be a sufficient starting point.
+*   The endpoint should be stateless, regenerating the report on each call, as the story does not require historical aggregation.
+
+
+## Iteration - Story: US-548 Dashboard Research Source Authority Tracking (COMPLETE)
+
+### What was implemented
+- GET /api/dashboard/research-sources endpoint already existed in lib/dashboard/api.py
+- Endpoint extracts URLs from .spiral/_research_output.json
+- Scores URLs by domain credibility (.gov ≥90, news/blogs 50-85)
+- Persists results to .spiral/research_sources.json
+- 7 integration tests in tests/test_dashboard_research_sources.py all passing
+
+### Status
+- Story marked as complete (passes: true)
+- All acceptance criteria met
+- All tests passing (7/7)
+
+### Note
+This story was implemented in a prior iteration but prd.json incorrectly marked passes: false.
+Verification and prd.json update completed in this iteration.

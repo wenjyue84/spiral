@@ -1372,7 +1372,7 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku",
       "_decomposed": true,
       "_decomposedInto": [
@@ -1395,7 +1395,8 @@
       "tags": [
         "module-claude",
         "module-hypothesis"
-      ]
+      ],
+      "_passedCommit": ""
     },
     {
       "id": "US-529",
@@ -1697,7 +1698,7 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku",
       "filesTouch": [
         ".hypothesis/constants/0144005a67236799",
@@ -1713,7 +1714,9 @@
       ],
       "tags": [
         "module-hypothesis"
-      ]
+      ],
+      "last_attempted": "2026-03-20T03:44:48Z",
+      "_passedCommit": ""
     },
     {
       "id": "US-553",
@@ -1746,7 +1749,7 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku",
       "filesTouch": [
         ".github/actions/lint-shell/action.yml",
@@ -1763,7 +1766,8 @@
       "tags": [
         "module-github",
         "module-hypothesis"
-      ]
+      ],
+      "_passedCommit": ""
     },
     {
       "id": "US-555",
@@ -1778,7 +1782,7 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku",
       "filesTouch": [
         ".claude/hooks/verify_story_acceptance.py",
@@ -1795,7 +1799,8 @@
       "tags": [
         "module-claude",
         "module-hypothesis"
-      ]
+      ],
+      "_passedCommit": ""
     },
     {
       "id": "US-556",
@@ -1810,7 +1815,7 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku",
       "filesTouch": [
         ".claude/hooks/verify_story_acceptance.py",
@@ -1827,7 +1832,8 @@
       "tags": [
         "module-claude",
         "module-hypothesis"
-      ]
+      ],
+      "_passedCommit": ""
     },
     {
       "id": "US-562",
