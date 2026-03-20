@@ -33,7 +33,10 @@
       "estimatedComplexity": "small",
       "passes": true,
       "_source": "test-story",
-      "model": "sonnet"
+      "model": "sonnet",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\nNo `tests/test_cost_ceiling_security.py` file exists. The US-498 budget gate is implemented in `lib/budget_analyzer.py` (Python) and wired into `lib/phases/phase_i_implement.sh` (shell). The `lib/rollback_story.py` module handles story rollback.\n\n## Problem Identified\nUS-577 requires security tests that verify: (1) `check_budget_gate()` correctly blocks Phase I when cost exceeds `SPIRAL_COST_CEILING`, (2) `rollback_story()` removes the lowest-priority pending story and persists the change, and (3) no stories execute when ceiling is hit and skip is chosen.\n\n## Planned Changes\n- **Create `tests/test_cost_ceiling_security.py`**  three test classes covering budget gate blocking, rollback behavior, and skip path; uses `tmp_path` fixtures and `monkeypatch` to force ceiling breach; directly imports `check_budget_gate` and `rollback_story` from the lib modules.\nAll 14 tests pass. Now mark US-577 as complete:\nDone. US-577 is complete.\n\n**Summary:** Created `tests/test_cost_ceiling_security.py` with 14 tests across 3 classes:\n- **TestBudgetGateBlocking** (6 tests)  verifies `check_budget_gate()` correctly returns `would_exceed=True` when projected cost exceeds the `SPIRAL_COST_CEILING` sentinel, including a monkeypatched estimator test with `SPIRAL_COST_CEILING=0.01`\n- **TestRollbackBehavior** (5 tests)  verifies `rollback_story()` removes the lowest-priority pending story, persists the change to disk, and handles edge cases (no pending, dry run, insertion-order independence)\n- **TestSkipPathBlocksImplementation** (3 tests)  verifies the `would_exceed` flag correctly signals Phase I should skip when the ceiling is hit\n\nAll 14 tests pass in 1.73s."
+      }
     },
     {
       "id": "US-577",
