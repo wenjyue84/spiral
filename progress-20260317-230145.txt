@@ -2917,20 +2917,20 @@ COST CEILING: Add GitHub Actions PR comment with prd.json story status diff on P
   - Truncates approach_summary to 60 characters (as per acceptance criteria)
   - Shows records in descending order by timestamp (newest first)
   - Gracefully handles missing database with "No episodic memory found" message
-  
+
 - main.py: Updated docstring (lines 1-18)
   - Added "memory" subcommand entry: "Episodic memory management (US-350)"
   - Added "list" sub-entry: "Show 20 most recent episodic records with pass/fail outcomes"
-  
+
 - main.py: Added imports (line 32)
   - `sys.path.insert(0, str(Path(__file__).parent / "lib"))`
   - `from episodic_memory import list_recent`
-  
+
 - main.py: Added argparse setup (lines 2414-2425)
   - `memory_parser = subparsers.add_parser("memory", help="...")`
   - `memory_subs = memory_parser.add_subparsers(dest="memory_command", metavar="COMMAND")`
   - `memory_list_parser = memory_subs.add_parser("list", help="...")`
-  
+
 - main.py: Added dispatch logic (lines 2469-2476)
   - Handles memory command with check for memory_command sub-dispatch
   - Calls `cmd_memory_list(args)` on "list" subcommand
@@ -3006,4 +3006,3 @@ COST CEILING: Add py-spy CPU flamegraph generation for profiling slow SPIRAL Pyt
 ### Gotchas
 - Cost ceiling can cause a fully-implemented story to remain passes: false
 - Always check git log to see if prior implementation was committed before re-implementing
-

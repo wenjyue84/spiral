@@ -54,12 +54,12 @@ run_phase_research() {
   _RESEARCH_TOPIC_CACHED=""
   if [[ -n "$SPIRAL_GEMINI_PROMPT" ]]; then
     # Derive research topic from SPIRAL_GEMINI_PROMPT (or use a default)
-    _RESEARCH_TOPIC="${SPIRAL_GEMINI_PROMPT:0:100}"  # First 100 chars as topic identifier
+    _RESEARCH_TOPIC="${SPIRAL_GEMINI_PROMPT:0:100}" # First 100 chars as topic identifier
     _TOPIC_CACHE_RESULT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/phases/research_cache.py" --lookup "$_RESEARCH_TOPIC" 2>/dev/null || echo "")
     if [[ -n "$_TOPIC_CACHE_RESULT" ]]; then
       # Cache hit: extract gemini_research from cached dict
       echo "  [R] Topic-level cache hit — reusing cached Gemini research (US-520)"
-      GEMINI_RESEARCH=$("$JQ" -r '.gemini_research // .content // .' <<< "$_TOPIC_CACHE_RESULT" 2>/dev/null || echo "$_TOPIC_CACHE_RESULT")
+      GEMINI_RESEARCH=$("$JQ" -r '.gemini_research // .content // .' <<<"$_TOPIC_CACHE_RESULT" 2>/dev/null || echo "$_TOPIC_CACHE_RESULT")
       _RESEARCH_TOPIC_CACHED=1
     fi
   fi

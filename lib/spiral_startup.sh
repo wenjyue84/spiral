@@ -267,7 +267,6 @@ handle_benchmark_mode
 handle_rollback_mode
 handle_undo_mode
 
-
 # ── Startup: initialize counters and resume from checkpoint if available ────
 ZERO_PROGRESS_COUNT=0
 SPIRAL_ITER=0
@@ -387,4 +386,3 @@ if [[ -n "$_STALE_STORIES" ]]; then
   done <<<"$_STALE_STORIES"
   echo ""
 fi
-

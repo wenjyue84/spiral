@@ -1044,7 +1044,7 @@ Pick **US-458** (schema changes) as highest-priority sub-story, as it unblocks U
 - Verified the file now parses without "TerminatorExpectedAtEndOfString" or "Missing closing }" errors
 
 ### Root cause analysis
-PowerShell's string parser could not handle the Unicode em-dash (U+2014) character inside 
+PowerShell's string parser could not handle the Unicode em-dash (U+2014) character inside
 double-quoted strings. The em-dashes were causing the parser to enter an invalid state where
 it thought the double-quoted string was still open, leading to cascading parse errors and
 preventing the memory-watchdog process from starting.
@@ -1115,7 +1115,7 @@ The implementation was already complete in lib/archive_prd.py and wired into spi
 - Confirmed file command reports "ASCII text" without CRLF terminators
 
 ### Root cause analysis
-ralph/ralph.sh had Windows-style CRLF line terminators that caused ShellCheck SC1017 
+ralph/ralph.sh had Windows-style CRLF line terminators that caused ShellCheck SC1017
 (literal carriage return) errors on every line, making Preflight report 3 error-level issues.
 
 ### Key implementation details
@@ -1472,7 +1472,7 @@ This is not a Frappe user story. The provided JSON describes an integration test
 - atomic_write_json from lib/spiral_io is used for prd writes in tests
 
 ### Gotchas
-- Cannot run uv from worker worktree — must use python -m pytest with --override-ini=addopts= 
+- Cannot run uv from worker worktree — must use python -m pytest with --override-ini=addopts=
 ## Worker 2 crashed (exit 1) — 2026-03-19 14:52:57
 ## Worker 3 crashed (exit 1) — 2026-03-19 14:52:58
 
@@ -2011,4 +2011,3 @@ This story requires creating a new REST API endpoint and a WebSocket stream to v
 *   **File I/O:** `results.tsv` could be large or locked. Use a safe, read-only approach and handle potential `FileNotFoundError`.
 *   **Performance:** Parsing the full TSV on every API call may be slow. Consider caching the parsed data in memory with a file-watcher to reload on change.
 *   **Concurrency:** Ensure the WebSocket broadcasting mechanism is safe to call from potentially multiple concurrent story workers.
-

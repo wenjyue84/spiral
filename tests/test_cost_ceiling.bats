@@ -49,7 +49,7 @@ EOF
 
   # Set cost ceiling to $0.001 (very low, will definitely be exceeded)
   cd "$SPIRAL_ROOT"
-  run python3 << 'PYEOF'
+  run python3 <<'PYEOF'
 import json, sys, os
 sys.path.insert(0, './lib')
 from budget_analyzer import check_budget_gate
@@ -84,7 +84,7 @@ story_id	model	tokens	duration_sec	cost_usd
 EOF
 
   cd "$SPIRAL_ROOT"
-  run python3 << 'PYEOF'
+  run python3 <<'PYEOF'
 import json, sys, os
 sys.path.insert(0, './lib')
 from budget_analyzer import check_budget_gate
@@ -116,7 +116,7 @@ PRDJSON
 
   # Call rollback_story.py
   cd "$SPIRAL_ROOT"
-  run python3 << 'PYEOF'
+  run python3 <<'PYEOF'
 import json, sys, os
 sys.path.insert(0, './lib')
 from rollback_story import rollback_story
@@ -133,13 +133,14 @@ PYEOF
 
   # Verify prd.json was modified
   cd "$SPIRAL_ROOT"
-  remaining=$(python3 << 'PYEOF2'
+  remaining=$(
+    python3 <<'PYEOF2'
 import json, os
 with open(os.path.join(os.environ['TEST_WORK'], 'prd.json')) as f:
     d = json.load(f)
 print(len([s for s in d['userStories'] if not s.get('passes')]))
 PYEOF2
-)
+  )
   [ "$remaining" -eq 2 ]
 }
 
@@ -159,7 +160,7 @@ PYEOF2
 PRDJSON
 
   cd "$SPIRAL_ROOT"
-  run python3 << 'PYEOF'
+  run python3 <<'PYEOF'
 import json, sys, os
 sys.path.insert(0, './lib')
 from rollback_story import rollback_story
@@ -189,7 +190,7 @@ story_id	model	tokens	duration_sec	cost_usd
 EOF
 
   cd "$SPIRAL_ROOT"
-  run python3 << 'PYEOF'
+  run python3 <<'PYEOF'
 import json, sys, os
 sys.path.insert(0, './lib')
 from budget_analyzer import check_budget_gate
@@ -223,7 +224,7 @@ EOF
 
   # Very high ceiling ($10,000) — cost should be within budget
   cd "$SPIRAL_ROOT"
-  run python3 << 'PYEOF'
+  run python3 <<'PYEOF'
 import json, sys, os
 sys.path.insert(0, './lib')
 from budget_analyzer import check_budget_gate
@@ -253,7 +254,7 @@ PYEOF
 PRDJSON
 
   cd "$SPIRAL_ROOT"
-  run python3 << 'PYEOF'
+  run python3 <<'PYEOF'
 import json, sys, os
 sys.path.insert(0, './lib')
 from rollback_story import rollback_story

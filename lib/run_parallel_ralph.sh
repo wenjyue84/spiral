@@ -70,7 +70,7 @@ PATCH_DIRS="${SPIRAL_PATCH_DIRS:-}"
 DEPLOY_CMD="${SPIRAL_DEPLOY_CMD:-}"
 TERMINAL_EMU="${SPIRAL_TERMINAL:-}"
 GEMINI_ANNOTATE="${SPIRAL_GEMINI_ANNOTATE_PROMPT:-}"
-WORKER_TIMEOUT="${SPIRAL_WORKER_TIMEOUT:-900}"                     # per-worker wall-clock limit (0 = unlimited)
+WORKER_TIMEOUT="${SPIRAL_WORKER_TIMEOUT:-900}" # per-worker wall-clock limit (0 = unlimited)
 # Floor: never less than 600s per worker
 [[ "$WORKER_TIMEOUT" -lt 600 ]] && WORKER_TIMEOUT=600
 STRICT_WORKER_ISOLATION="${SPIRAL_STRICT_WORKER_ISOLATION:-false}" # US-355: abort on policy violation
@@ -159,9 +159,9 @@ _cgroup_cleanup() {
 declare -a WORKER_PIDS=()
 declare -a WORKER_FINISHED=()
 declare -a WORKER_EXIT_CODES=()
-declare -a WORKER_PGID_FILES=()  # US-245: path to per-worker PGID file
-declare -a WORKER_START_TIMES=()       # US-318: epoch seconds per worker for invoke_agent span
-declare -a WORKER_STALL_RESTARTS=()    # US-531: stall-restart attempts per worker (max 1)
+declare -a WORKER_PGID_FILES=()     # US-245: path to per-worker PGID file
+declare -a WORKER_START_TIMES=()    # US-318: epoch seconds per worker for invoke_agent span
+declare -a WORKER_STALL_RESTARTS=() # US-531: stall-restart attempts per worker (max 1)
 
 # ── Graceful cleanup trap — kill orphaned workers on exit/interrupt ─────────
 _CLEANUP_RUNNING=0
@@ -1448,7 +1448,7 @@ while [[ "$_ALL_DONE" -eq 0 ]]; do
 
   # ── Periodic pool reclaim — return memory from dead workers ──────────────────
   if [[ "$_POOL_ENABLED" -eq 1 ]]; then
-    _POOL_RECLAIM_COUNTER=$(( ${_POOL_RECLAIM_COUNTER:-0} + 5 ))
+    _POOL_RECLAIM_COUNTER=$((${_POOL_RECLAIM_COUNTER:-0} + 5))
     if [[ "$_POOL_RECLAIM_COUNTER" -ge "${_POOL_RECLAIM_INTERVAL:-30}" ]]; then
       pool_reclaim_stale 2>/dev/null || true
       _POOL_RECLAIM_COUNTER=0

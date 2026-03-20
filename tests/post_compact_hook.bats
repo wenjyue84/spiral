@@ -51,7 +51,7 @@ setup() {
 
 @test "post-compact-hook: CONTEXT_REFRESH.md is under 500 tokens (approx 2000 chars)" {
   local size
-  size=$(wc -c < "$PROJECT_ROOT/ralph/CONTEXT_REFRESH.md")
+  size=$(wc -c <"$PROJECT_ROOT/ralph/CONTEXT_REFRESH.md")
   [ "$size" -lt 2000 ]
 }
 

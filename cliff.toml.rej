@@ -1,6 +1,6 @@
 diff a/cliff.toml b/cliff.toml	(rejected hunks)
 @@ -41,11 +41,6 @@ split_commits = false
- 
+
  # Preprocessing patterns applied to commit messages before parsing
  commit_preprocessors = [
 -  # Extract story ID (US-NNN, UT-NNN) from subject into scope for grouping

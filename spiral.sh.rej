@@ -12,7 +12,7 @@ diff a/spiral.sh b/spiral.sh	(rejected hunks)
 @@ -1257,8 +1256,7 @@ if [[ "${SPIRAL_MEMORY_WATCHDOG:-1}" -eq 1 ]] && command -v powershell.exe &>/de
      _check_pid="$_ppid"
    done
- 
+
 -  _SPIRAL_WIN_PID=$(cat /proc/$$/winpid 2>/dev/null || echo "$$")
 -  _WATCHDOG_ARGS="-ThresholdMB ${SPIRAL_MEMORY_THRESHOLD:-1536} -ParentPID $_SPIRAL_WIN_PID -IntervalSec ${SPIRAL_MEMORY_POLL_INTERVAL}"
 +  _WATCHDOG_ARGS="-ThresholdMB ${SPIRAL_MEMORY_THRESHOLD:-1536} -ParentPID $$ -IntervalSec ${SPIRAL_MEMORY_POLL_INTERVAL}"

@@ -1014,7 +1014,7 @@ run_phase_gate_and_implement() {
             fi
             # Restore workers' prd.json (stash pop may have reverted it)
             if [[ -n "$_PRD_AFTER_WORKERS" ]]; then
-              printf '%s' "$_PRD_AFTER_WORKERS" > "$PRD_FILE"
+              printf '%s' "$_PRD_AFTER_WORKERS" >"$PRD_FILE"
             fi
           fi
           [[ -n "${_PRD_STASH_BACKUP:-}" ]] && rm -f "$_PRD_STASH_BACKUP" 2>/dev/null || true

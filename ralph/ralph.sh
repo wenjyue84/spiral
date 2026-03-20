@@ -29,8 +29,8 @@ AI_TOOL="claude"
 RALPH_MODEL=""
 RALPH_FOCUS="${SPIRAL_FOCUS:-}"
 STORY_TIME_BUDGET="${SPIRAL_STORY_TIME_BUDGET:-0}"                          # 0 = disabled
-SPIRAL_STORY_COST_WARN_USD="${SPIRAL_STORY_COST_WARN_USD:-9999.00}"          # warn when story exceeds this
-SPIRAL_STORY_COST_HARD_USD="${SPIRAL_STORY_COST_HARD_USD:-9999.00}"          # abandon story when it exceeds this
+SPIRAL_STORY_COST_WARN_USD="${SPIRAL_STORY_COST_WARN_USD:-9999.00}"         # warn when story exceeds this
+SPIRAL_STORY_COST_HARD_USD="${SPIRAL_STORY_COST_HARD_USD:-9999.00}"         # abandon story when it exceeds this
 SPIRAL_MODEL_INPUT_PRICE_PER_M="${SPIRAL_MODEL_INPUT_PRICE_PER_M:-3.00}"    # $/1M input tokens (sonnet default)
 SPIRAL_MODEL_OUTPUT_PRICE_PER_M="${SPIRAL_MODEL_OUTPUT_PRICE_PER_M:-15.00}" # $/1M output tokens (sonnet default)
 SPIRAL_MODEL_FALLBACK_CHAIN="${SPIRAL_MODEL_FALLBACK_CHAIN:-}"              # colon-separated fallback models (e.g. sonnet:haiku:gemini-2.0-flash)
@@ -1984,8 +1984,8 @@ escalate_model_by_quality_failure() {
 supports_adaptive_thinking() {
   local model="$1"
   case "$model" in
-    opus|sonnet) return 0 ;;               # short aliases → latest (4.6)
-    *opus-4-6*|*sonnet-4-6*) return 0 ;;   # full model IDs
+    opus | sonnet) return 0 ;;             # short aliases → latest (4.6)
+    *opus-4-6* | *sonnet-4-6*) return 0 ;; # full model IDs
     *) return 1 ;;                         # haiku, older models
   esac
 }
@@ -2412,11 +2412,11 @@ while [[ $ITERATION -lt $MAX_ITERATIONS ]]; do
   _WALL_SEC=0
   _USER_CPU_S=0
   _SYS_CPU_S=0
-  _PEAK_RSS_KB=0 # reset per-story resource stats (US-158)
-  _DECOMPOSE_SECS=0                                      # reset per-story; set by decompose_story (US-521)
-  _IMPL_SECS=0                                           # reset per-story; set by AI invocation phase (US-521)
-  _VERIFY_SECS=0                                         # reset per-story; set by verification phase (US-521)
-  _RETRY_ESCALATION_COUNT=0                              # reset per-story; increment when model escalates (US-521)
+  _PEAK_RSS_KB=0            # reset per-story resource stats (US-158)
+  _DECOMPOSE_SECS=0         # reset per-story; set by decompose_story (US-521)
+  _IMPL_SECS=0              # reset per-story; set by AI invocation phase (US-521)
+  _VERIFY_SECS=0            # reset per-story; set by verification phase (US-521)
+  _RETRY_ESCALATION_COUNT=0 # reset per-story; increment when model escalates (US-521)
   if declare -f reset_phase_timings >/dev/null 2>&1; then
     reset_phase_timings
   fi
@@ -2567,7 +2567,6 @@ Story JSON: $STORY_JSON"
     fi
   fi
 
-
   # ── Resource accounting setup (US-158) ─────────────────────────────────────
   # Use GNU time on Linux to capture wall/user/sys/RSS; else timing defaults to 0.
   _RESOURCE_TMP="${SPIRAL_SCRATCH_DIR}/_res_$$.tmp"
@@ -2584,33 +2583,33 @@ Story JSON: $STORY_JSON"
   _OBS_TOKENS_AFTER=0         # US-241: cumulative masked context chars/4 estimate (all retries)
 
   echo "  ─────── AI Output Start ($EFFECTIVE_TOOL) ───────"
-    if [[ "$EFFECTIVE_TOOL" == "claude" ]]; then
-      # Build model flag (empty if no model routing)
-      CLAUDE_MODEL_FLAG=""
-      [[ -n "$EFFECTIVE_MODEL" ]] && CLAUDE_MODEL_FLAG="--model $EFFECTIVE_MODEL"
-      # US-373 + US-398: Build effort flag for adaptive thinking on 4.6 models.
-      # When SPIRAL_THINKING_BUDGET_TOKENS is set, it overrides SPIRAL_THINKING_EFFORT
-      # by mapping the budget to an effort level. When =0, thinking is disabled entirely.
-      CLAUDE_EFFORT_FLAG=""
-      if [[ -n "$EFFECTIVE_MODEL" ]] && supports_adaptive_thinking "$EFFECTIVE_MODEL"; then
-        if [[ "${SPIRAL_THINKING_BUDGET_TOKENS:-10000}" -eq 0 ]]; then
-          echo "  [thinking] Disabled: SPIRAL_THINKING_BUDGET_TOKENS=0 (model=$EFFECTIVE_MODEL)"
-        else
-          _BUDGET_EFFORT=$(budget_to_effort "${SPIRAL_THINKING_BUDGET_TOKENS:-10000}")
-          if [[ -n "$_BUDGET_EFFORT" ]]; then
-            CLAUDE_EFFORT_FLAG="--effort $_BUDGET_EFFORT"
-            echo "  [thinking] Adaptive thinking: effort=$_BUDGET_EFFORT (budget=${SPIRAL_THINKING_BUDGET_TOKENS:-10000} tokens, model=$EFFECTIVE_MODEL)"
-          fi
+  if [[ "$EFFECTIVE_TOOL" == "claude" ]]; then
+    # Build model flag (empty if no model routing)
+    CLAUDE_MODEL_FLAG=""
+    [[ -n "$EFFECTIVE_MODEL" ]] && CLAUDE_MODEL_FLAG="--model $EFFECTIVE_MODEL"
+    # US-373 + US-398: Build effort flag for adaptive thinking on 4.6 models.
+    # When SPIRAL_THINKING_BUDGET_TOKENS is set, it overrides SPIRAL_THINKING_EFFORT
+    # by mapping the budget to an effort level. When =0, thinking is disabled entirely.
+    CLAUDE_EFFORT_FLAG=""
+    if [[ -n "$EFFECTIVE_MODEL" ]] && supports_adaptive_thinking "$EFFECTIVE_MODEL"; then
+      if [[ "${SPIRAL_THINKING_BUDGET_TOKENS:-10000}" -eq 0 ]]; then
+        echo "  [thinking] Disabled: SPIRAL_THINKING_BUDGET_TOKENS=0 (model=$EFFECTIVE_MODEL)"
+      else
+        _BUDGET_EFFORT=$(budget_to_effort "${SPIRAL_THINKING_BUDGET_TOKENS:-10000}")
+        if [[ -n "$_BUDGET_EFFORT" ]]; then
+          CLAUDE_EFFORT_FLAG="--effort $_BUDGET_EFFORT"
+          echo "  [thinking] Adaptive thinking: effort=$_BUDGET_EFFORT (budget=${SPIRAL_THINKING_BUDGET_TOKENS:-10000} tokens, model=$EFFECTIVE_MODEL)"
         fi
       fi
-      # Build prompt content — split into system prompt (cacheable) and user prompt (dynamic)
-      # US-338: Cache-aware prompt structure. The system prompt MUST be identical across
-      # stories/retries so Anthropic prompt caching preserves the prefix. All dynamic
-      # values (story IDs, iteration numbers, masking stats) go into user prompt ONLY.
-      RALPH_SYSTEM_PROMPT="$(cat "$PROMPT_FILE")"
-      SPECKIT_CONST=".specify/memory/constitution.md"
-      if [[ -f "$SPECKIT_CONST" ]]; then
-        RALPH_SYSTEM_PROMPT="$RALPH_SYSTEM_PROMPT
+    fi
+    # Build prompt content — split into system prompt (cacheable) and user prompt (dynamic)
+    # US-338: Cache-aware prompt structure. The system prompt MUST be identical across
+    # stories/retries so Anthropic prompt caching preserves the prefix. All dynamic
+    # values (story IDs, iteration numbers, masking stats) go into user prompt ONLY.
+    RALPH_SYSTEM_PROMPT="$(cat "$PROMPT_FILE")"
+    SPECKIT_CONST=".specify/memory/constitution.md"
+    if [[ -f "$SPECKIT_CONST" ]]; then
+      RALPH_SYSTEM_PROMPT="$RALPH_SYSTEM_PROMPT
 
 ---
 
@@ -2618,232 +2617,232 @@ Story JSON: $STORY_JSON"
 
 $(cat "$SPECKIT_CONST")
 "
-        echo "  [speckit] Constitution loaded ($(wc -l <"$SPECKIT_CONST") lines)"
-      fi
-      # US-338: RALPH_FOCUS moved to user prompt to preserve cache prefix stability.
-      # The system prompt must be identical across stories/retries for prompt caching.
-      # Detect Chrome DevTools MCP availability
-      BROWSER_TOOLS_HINT=""
-      if claude --help 2>&1 | grep -q "chrome-devtools" 2>/dev/null || [[ -n "${CHROME_DEVTOOLS_MCP:-}" ]]; then
-        BROWSER_TOOLS_HINT="Chrome DevTools MCP is available. Use visual verification for UI stories."
-      fi
-      if [[ -n "$BROWSER_TOOLS_HINT" ]]; then
-        RALPH_SYSTEM_PROMPT="$RALPH_SYSTEM_PROMPT
+      echo "  [speckit] Constitution loaded ($(wc -l <"$SPECKIT_CONST") lines)"
+    fi
+    # US-338: RALPH_FOCUS moved to user prompt to preserve cache prefix stability.
+    # The system prompt must be identical across stories/retries for prompt caching.
+    # Detect Chrome DevTools MCP availability
+    BROWSER_TOOLS_HINT=""
+    if claude --help 2>&1 | grep -q "chrome-devtools" 2>/dev/null || [[ -n "${CHROME_DEVTOOLS_MCP:-}" ]]; then
+      BROWSER_TOOLS_HINT="Chrome DevTools MCP is available. Use visual verification for UI stories."
+    fi
+    if [[ -n "$BROWSER_TOOLS_HINT" ]]; then
+      RALPH_SYSTEM_PROMPT="$RALPH_SYSTEM_PROMPT
 
 ---
 
 ## Browser Tools
 
 $BROWSER_TOOLS_HINT"
-        echo "  [browser] Chrome DevTools MCP detected — visual verification enabled"
-      fi
-      # ── US-340: Load per-tool usage examples into system prompt ──────────
-      _TOOL_EXAMPLES_FILE="${SCRIPT_DIR}/tool_examples.json"
-      if [[ -f "$_TOOL_EXAMPLES_FILE" ]]; then
-        _TOOL_EXAMPLES_MD=$("$JQ" -r '
+      echo "  [browser] Chrome DevTools MCP detected — visual verification enabled"
+    fi
+    # ── US-340: Load per-tool usage examples into system prompt ──────────
+    _TOOL_EXAMPLES_FILE="${SCRIPT_DIR}/tool_examples.json"
+    if [[ -f "$_TOOL_EXAMPLES_FILE" ]]; then
+      _TOOL_EXAMPLES_MD=$("$JQ" -r '
           .tools | to_entries[] |
           "### " + .value.description + " (" + .key + ")\n" +
           ([.value.input_examples[] |
             "- **" + .description + "**\n  ```json\n  " + (.input | tojson) + "\n  ```"
           ] | join("\n"))
         ' "$_TOOL_EXAMPLES_FILE" 2>/dev/null || true)
-        if [[ -n "$_TOOL_EXAMPLES_MD" ]]; then
-          RALPH_SYSTEM_PROMPT="$RALPH_SYSTEM_PROMPT
+      if [[ -n "$_TOOL_EXAMPLES_MD" ]]; then
+        RALPH_SYSTEM_PROMPT="$RALPH_SYSTEM_PROMPT
 
 ---
 
 ## Tool Usage Examples
 
 $_TOOL_EXAMPLES_MD"
-          echo "  [tools] Tool examples loaded ($("$JQ" '[.tools[].input_examples | length] | add' "$_TOOL_EXAMPLES_FILE") examples from $_TOOL_EXAMPLES_FILE)"
-        fi
+        echo "  [tools] Tool examples loaded ($("$JQ" '[.tools[].input_examples | length] | add' "$_TOOL_EXAMPLES_FILE") examples from $_TOOL_EXAMPLES_FILE)"
       fi
+    fi
 
-      # Minimal user prompt — the system prompt has all instructions
-      RALPH_USER_PROMPT="Implement the next incomplete story from prd.json now. Read prd.json and progress.txt, pick the highest priority story where passes is false, and implement it."
+    # Minimal user prompt — the system prompt has all instructions
+    RALPH_USER_PROMPT="Implement the next incomplete story from prd.json now. Read prd.json and progress.txt, pick the highest priority story where passes is false, and implement it."
 
-      # ── US-251: Replay hint injected into system prompt (not user prompt) ────
-      # SPIRAL_REPLAY_HINT is set by spiral.sh --hint during --replay mode.
-      # Placed in system prompt (not user prompt) to reduce prompt injection risk.
-      if [[ -n "${SPIRAL_REPLAY_HINT:-}" ]]; then
-        RALPH_SYSTEM_PROMPT="$RALPH_SYSTEM_PROMPT
+    # ── US-251: Replay hint injected into system prompt (not user prompt) ────
+    # SPIRAL_REPLAY_HINT is set by spiral.sh --hint during --replay mode.
+    # Placed in system prompt (not user prompt) to reduce prompt injection risk.
+    if [[ -n "${SPIRAL_REPLAY_HINT:-}" ]]; then
+      RALPH_SYSTEM_PROMPT="$RALPH_SYSTEM_PROMPT
 
 ---
 
 ## Operator Replay Hint
 
 $SPIRAL_REPLAY_HINT"
-        echo "  [replay-hint] Extra context injected into system prompt"
-      fi
+      echo "  [replay-hint] Extra context injected into system prompt"
+    fi
 
-      # ── US-338: Focus hint injected into user prompt (not system prompt) ────
-      if [[ -n "$RALPH_FOCUS" ]]; then
-        RALPH_USER_PROMPT="$RALPH_USER_PROMPT
+    # ── US-338: Focus hint injected into user prompt (not system prompt) ────
+    if [[ -n "$RALPH_FOCUS" ]]; then
+      RALPH_USER_PROMPT="$RALPH_USER_PROMPT
 
 ---
 
 ## Iteration Focus: $RALPH_FOCUS
 
 This SPIRAL iteration is focused on **$RALPH_FOCUS**. Keep this theme in mind while implementing the assigned story. Prioritize approaches that align with this focus area."
-        echo "  [focus] Focus context injected into user prompt: \"$RALPH_FOCUS\""
-      fi
+      echo "  [focus] Focus context injected into user prompt: \"$RALPH_FOCUS\""
+    fi
 
-      # ── US-353: Plan cache injection (suggested_approach) ──────────────────
-      if [[ "${SPIRAL_PLAN_CACHE_ENABLED:-true}" == "true" && -n "${NEXT_STORY:-}" ]]; then
-        _PLAN_CACHE_DIR="${SPIRAL_SCRATCH_DIR:-.spiral}/plan_cache"
-        if [[ -d "$_PLAN_CACHE_DIR" ]]; then
-          _PC_STORY_TMP=$(mktemp -p "${SPIRAL_SCRATCH_DIR:-.spiral}" _pc_story_XXXXXX.json 2>/dev/null || echo "${SPIRAL_SCRATCH_DIR:-.spiral}/_pc_story_$$.json")
-          printf '%s' "${STORY_JSON:-{}}" >"$_PC_STORY_TMP"
-          _PC_INJECT=$("${SPIRAL_PYTHON:-python3}" "$SPIRAL_HOME/lib/resilience/plan_cache.py" inject "$_PLAN_CACHE_DIR" \
-            --story-json "$_PC_STORY_TMP" \
-            --ttl-hours "${SPIRAL_PLAN_CACHE_TTL_HOURS:-168}" 2>/dev/null || true)
-          if [[ -n "$_PC_INJECT" ]]; then
-            RALPH_USER_PROMPT="$RALPH_USER_PROMPT
+    # ── US-353: Plan cache injection (suggested_approach) ──────────────────
+    if [[ "${SPIRAL_PLAN_CACHE_ENABLED:-true}" == "true" && -n "${NEXT_STORY:-}" ]]; then
+      _PLAN_CACHE_DIR="${SPIRAL_SCRATCH_DIR:-.spiral}/plan_cache"
+      if [[ -d "$_PLAN_CACHE_DIR" ]]; then
+        _PC_STORY_TMP=$(mktemp -p "${SPIRAL_SCRATCH_DIR:-.spiral}" _pc_story_XXXXXX.json 2>/dev/null || echo "${SPIRAL_SCRATCH_DIR:-.spiral}/_pc_story_$$.json")
+        printf '%s' "${STORY_JSON:-{}}" >"$_PC_STORY_TMP"
+        _PC_INJECT=$("${SPIRAL_PYTHON:-python3}" "$SPIRAL_HOME/lib/resilience/plan_cache.py" inject "$_PLAN_CACHE_DIR" \
+          --story-json "$_PC_STORY_TMP" \
+          --ttl-hours "${SPIRAL_PLAN_CACHE_TTL_HOURS:-168}" 2>/dev/null || true)
+        if [[ -n "$_PC_INJECT" ]]; then
+          RALPH_USER_PROMPT="$RALPH_USER_PROMPT
 
 ---
 
 $_PC_INJECT"
-            echo "  [plan-cache] HIT: suggested approach injected for $NEXT_STORY"
-            log_ralph_event "plan_cache_hit" "\"story_id\":\"$NEXT_STORY\""
-          else
-            log_ralph_event "plan_cache_miss" "\"story_id\":\"$NEXT_STORY\""
-          fi
-          rm -f "$_PC_STORY_TMP" 2>/dev/null || true
+          echo "  [plan-cache] HIT: suggested approach injected for $NEXT_STORY"
+          log_ralph_event "plan_cache_hit" "\"story_id\":\"$NEXT_STORY\""
+        else
+          log_ralph_event "plan_cache_miss" "\"story_id\":\"$NEXT_STORY\""
         fi
+        rm -f "$_PC_STORY_TMP" 2>/dev/null || true
       fi
+    fi
 
-      # ── US-427: Episodic memory injection (top-3 similar past implementations) ──
-      _EPISODIC_SCRIPT="$SPIRAL_HOME/lib/resilience/episodic_memory.py"
-      _EPISODIC_DB="${SPIRAL_SCRATCH_DIR:-.spiral}/episodic_memory.db"
-      if [[ "${SPIRAL_EPISODIC_MEMORY:-false}" == "true" && -f "$_EPISODIC_SCRIPT" && -f "$_EPISODIC_DB" && -n "${STORY_TITLE:-}" ]]; then
-        _EPISODIC_RAW=$("${SPIRAL_PYTHON:-python3}" "$_EPISODIC_SCRIPT" query "$_EPISODIC_DB" "$STORY_TITLE" --top-k 3 2>/dev/null || true)
-        if [[ -n "$_EPISODIC_RAW" && "$_EPISODIC_RAW" != "[]" ]]; then
-          _EPISODIC_BLOCK="## Episodic Memory — Top 3 Similar Past Implementations
+    # ── US-427: Episodic memory injection (top-3 similar past implementations) ──
+    _EPISODIC_SCRIPT="$SPIRAL_HOME/lib/resilience/episodic_memory.py"
+    _EPISODIC_DB="${SPIRAL_SCRATCH_DIR:-.spiral}/episodic_memory.db"
+    if [[ "${SPIRAL_EPISODIC_MEMORY:-false}" == "true" && -f "$_EPISODIC_SCRIPT" && -f "$_EPISODIC_DB" && -n "${STORY_TITLE:-}" ]]; then
+      _EPISODIC_RAW=$("${SPIRAL_PYTHON:-python3}" "$_EPISODIC_SCRIPT" query "$_EPISODIC_DB" "$STORY_TITLE" --top-k 3 2>/dev/null || true)
+      if [[ -n "$_EPISODIC_RAW" && "$_EPISODIC_RAW" != "[]" ]]; then
+        _EPISODIC_BLOCK="## Episodic Memory — Top 3 Similar Past Implementations
 
 $_EPISODIC_RAW
 
 (Reference only — do not copy verbatim.)"
-          RALPH_USER_PROMPT="$RALPH_USER_PROMPT
+        RALPH_USER_PROMPT="$RALPH_USER_PROMPT
 
 ---
 
 $_EPISODIC_BLOCK"
-          echo "  [episodic] Top-3 similar past implementations injected for $NEXT_STORY"
-          log_ralph_event "episodic_memory_injected" "\"story_id\":\"$NEXT_STORY\""
-        fi
+        echo "  [episodic] Top-3 similar past implementations injected for $NEXT_STORY"
+        log_ralph_event "episodic_memory_injected" "\"story_id\":\"$NEXT_STORY\""
       fi
+    fi
 
-      # ── US-280: File context injection (diff or full) ────────────────────────
-      if [[ -n "${STORY_JSON:-}" && "${STORY_JSON:-}" != "{}" ]]; then
-        _FILE_CTX=$(build_files_context "$STORY_JSON" 2>/dev/null || true)
-        if [[ -n "$_FILE_CTX" ]]; then
-          _FC_LINES=$(printf '%s\n' "$_FILE_CTX" | wc -l)
-          echo "  [context] File context injected (${SPIRAL_CONTEXT_MODE:-diff} mode, ${_FC_LINES} lines)"
-          RALPH_USER_PROMPT="$RALPH_USER_PROMPT
+    # ── US-280: File context injection (diff or full) ────────────────────────
+    if [[ -n "${STORY_JSON:-}" && "${STORY_JSON:-}" != "{}" ]]; then
+      _FILE_CTX=$(build_files_context "$STORY_JSON" 2>/dev/null || true)
+      if [[ -n "$_FILE_CTX" ]]; then
+        _FC_LINES=$(printf '%s\n' "$_FILE_CTX" | wc -l)
+        echo "  [context] File context injected (${SPIRAL_CONTEXT_MODE:-diff} mode, ${_FC_LINES} lines)"
+        RALPH_USER_PROMPT="$RALPH_USER_PROMPT
 
 ---
 
 $_FILE_CTX"
-        fi
       fi
+    fi
 
-      # ── Phase X: Repo map / symbol map injection ────────────────────────────
-      _REPO_MAP_FILE="${SPIRAL_SCRATCH_DIR:-.spiral}/_repo_map_${NEXT_STORY}.md"
-      if [[ "${SPIRAL_REPO_MAP:-false}" == "true" && -f "$_REPO_MAP_FILE" ]]; then
-        _REPO_MAP_CONTENT=$(cat "$_REPO_MAP_FILE" 2>/dev/null || true)
-        if [[ -n "$_REPO_MAP_CONTENT" ]]; then
-          RALPH_USER_PROMPT="$RALPH_USER_PROMPT
+    # ── Phase X: Repo map / symbol map injection ────────────────────────────
+    _REPO_MAP_FILE="${SPIRAL_SCRATCH_DIR:-.spiral}/_repo_map_${NEXT_STORY}.md"
+    if [[ "${SPIRAL_REPO_MAP:-false}" == "true" && -f "$_REPO_MAP_FILE" ]]; then
+      _REPO_MAP_CONTENT=$(cat "$_REPO_MAP_FILE" 2>/dev/null || true)
+      if [[ -n "$_REPO_MAP_CONTENT" ]]; then
+        RALPH_USER_PROMPT="$RALPH_USER_PROMPT
 
 ---
 
 $_REPO_MAP_CONTENT"
-          echo "  [repo-map] Symbol map injected for $NEXT_STORY"
-          log_ralph_event "repo_map_injected" "\"story_id\":\"$NEXT_STORY\""
-        fi
+        echo "  [repo-map] Symbol map injected for $NEXT_STORY"
+        log_ralph_event "repo_map_injected" "\"story_id\":\"$NEXT_STORY\""
+      fi
+    fi
+
+    # ── Retry context injection with observation masking (US-241) ────────────
+    # On attempt 2+, prepend a concise brief so the agent doesn't need to hunt
+    # through progress.txt to find what the previous attempt learned.
+    # Observation masking: keep only the last SPIRAL_CONTEXT_WINDOW attempts in
+    # full; replace older ones with one-line placeholders to reduce token cost.
+    if [[ "${RETRY_NOW:-0}" -ge 1 ]]; then
+      _PREV_ATTEMPT=$((RETRY_NOW))
+      _FAIL_REASON=$($JQ -r ".userStories[] | select(.id == \"$NEXT_STORY\") | ._failureReason // \"(not recorded)\"" "$PRD_FILE" 2>/dev/null | tr -d '\r' || echo "(not recorded)")
+      # Extract the last progress.txt section(s) mentioning this story
+      _RETRY_NOTES=""
+      if [[ -f "$PROGRESS_FILE" ]]; then
+        # Grab up to 40 lines from the end of progress.txt that mention the story
+        _RETRY_NOTES=$(grep -A 8 -B 2 "$NEXT_STORY" "$PROGRESS_FILE" 2>/dev/null | tail -40 || true)
       fi
 
-      # ── Retry context injection with observation masking (US-241) ────────────
-      # On attempt 2+, prepend a concise brief so the agent doesn't need to hunt
-      # through progress.txt to find what the previous attempt learned.
-      # Observation masking: keep only the last SPIRAL_CONTEXT_WINDOW attempts in
-      # full; replace older ones with one-line placeholders to reduce token cost.
-      if [[ "${RETRY_NOW:-0}" -ge 1 ]]; then
-        _PREV_ATTEMPT=$((RETRY_NOW))
-        _FAIL_REASON=$($JQ -r ".userStories[] | select(.id == \"$NEXT_STORY\") | ._failureReason // \"(not recorded)\"" "$PRD_FILE" 2>/dev/null | tr -d '\r' || echo "(not recorded)")
-        # Extract the last progress.txt section(s) mentioning this story
-        _RETRY_NOTES=""
-        if [[ -f "$PROGRESS_FILE" ]]; then
-          # Grab up to 40 lines from the end of progress.txt that mention the story
-          _RETRY_NOTES=$(grep -A 8 -B 2 "$NEXT_STORY" "$PROGRESS_FILE" 2>/dev/null | tail -40 || true)
-        fi
-
-        # US-241: Record this attempt as an observation in the rolling buffer
-        _CUR_OBS="=== Attempt ${RETRY_NOW} ===
+      # US-241: Record this attempt as an observation in the rolling buffer
+      _CUR_OBS="=== Attempt ${RETRY_NOW} ===
 Failure reason: ${_FAIL_REASON}
 Notes:
 ${_RETRY_NOTES:-  (none found)}"
-        _OBS_HISTORY+=("$_CUR_OBS")
+      _OBS_HISTORY+=("$_CUR_OBS")
 
-        # Apply rolling window: mask observations older than SPIRAL_CONTEXT_WINDOW
-        _WINDOW=${SPIRAL_CONTEXT_WINDOW:-10}
-        _OBS_COUNT=${#_OBS_HISTORY[@]}
-        _MASK_COUNT=$((_OBS_COUNT > _WINDOW ? _OBS_COUNT - _WINDOW : 0))
+      # Apply rolling window: mask observations older than SPIRAL_CONTEXT_WINDOW
+      _WINDOW=${SPIRAL_CONTEXT_WINDOW:-10}
+      _OBS_COUNT=${#_OBS_HISTORY[@]}
+      _MASK_COUNT=$((_OBS_COUNT > _WINDOW ? _OBS_COUNT - _WINDOW : 0))
 
-        # Build the (possibly masked) context string
-        _MASKED_CONTEXT=""
-        for ((_oi = 0; _oi < _OBS_COUNT; _oi++)); do
-          if ((_oi < _MASK_COUNT)); then
-            # Replace with one-line placeholder — extract just the failure reason
-            _SHORT_REASON=$(printf '%s' "${_OBS_HISTORY[$_oi]}" | grep "^Failure reason:" | head -1 | cut -c 1-100)
-            _MASKED_CONTEXT="${_MASKED_CONTEXT}[Attempt $((_oi + 1)): omitted for brevity — ${_SHORT_REASON:-reason not recorded}]
+      # Build the (possibly masked) context string
+      _MASKED_CONTEXT=""
+      for ((_oi = 0; _oi < _OBS_COUNT; _oi++)); do
+        if ((_oi < _MASK_COUNT)); then
+          # Replace with one-line placeholder — extract just the failure reason
+          _SHORT_REASON=$(printf '%s' "${_OBS_HISTORY[$_oi]}" | grep "^Failure reason:" | head -1 | cut -c 1-100)
+          _MASKED_CONTEXT="${_MASKED_CONTEXT}[Attempt $((_oi + 1)): omitted for brevity — ${_SHORT_REASON:-reason not recorded}]
 "
-          else
-            _MASKED_CONTEXT="${_MASKED_CONTEXT}${_OBS_HISTORY[$_oi]}
+        else
+          _MASKED_CONTEXT="${_MASKED_CONTEXT}${_OBS_HISTORY[$_oi]}
 "
-          fi
-        done
+        fi
+      done
 
-        # Estimate tokens (chars ÷ 4) and accumulate stats
-        _FULL_CHARS=$(printf '%s' "${_OBS_HISTORY[*]}" | wc -c 2>/dev/null || echo 0)
-        _MASKED_CHARS=${#_MASKED_CONTEXT}
-        _FULL_TOKENS=$(((_FULL_CHARS + 3) / 4))
-        _MASKED_TOKENS=$(((_MASKED_CHARS + 3) / 4))
-        _OBS_TOKENS_BEFORE=$((_OBS_TOKENS_BEFORE + _FULL_TOKENS))
-        _OBS_TOKENS_AFTER=$((_OBS_TOKENS_AFTER + _MASKED_TOKENS))
+      # Estimate tokens (chars ÷ 4) and accumulate stats
+      _FULL_CHARS=$(printf '%s' "${_OBS_HISTORY[*]}" | wc -c 2>/dev/null || echo 0)
+      _MASKED_CHARS=${#_MASKED_CONTEXT}
+      _FULL_TOKENS=$(((_FULL_CHARS + 3) / 4))
+      _MASKED_TOKENS=$(((_MASKED_CHARS + 3) / 4))
+      _OBS_TOKENS_BEFORE=$((_OBS_TOKENS_BEFORE + _FULL_TOKENS))
+      _OBS_TOKENS_AFTER=$((_OBS_TOKENS_AFTER + _MASKED_TOKENS))
 
-        # US-338: Masking note goes into user prompt (not system prompt) to preserve
-        # prompt cache stability — the system prompt must be identical across stories.
-        _MASKING_NOTE=""
-        if ((_MASK_COUNT > 0)); then
-          _REDUCTION_PCT=$(((_FULL_TOKENS - _MASKED_TOKENS) * 100 / (_FULL_TOKENS + 1)))
-          _MASKING_NOTE="NOTE: ${_MASK_COUNT} earlier phase output(s) omitted for brevity (kept last ${_WINDOW} of ${_OBS_COUNT}).
+      # US-338: Masking note goes into user prompt (not system prompt) to preserve
+      # prompt cache stability — the system prompt must be identical across stories.
+      _MASKING_NOTE=""
+      if ((_MASK_COUNT > 0)); then
+        _REDUCTION_PCT=$(((_FULL_TOKENS - _MASKED_TOKENS) * 100 / (_FULL_TOKENS + 1)))
+        _MASKING_NOTE="NOTE: ${_MASK_COUNT} earlier phase output(s) omitted for brevity (kept last ${_WINDOW} of ${_OBS_COUNT}).
 "
-          _CONTEXT_MGMT_NOTE="
+        _CONTEXT_MGMT_NOTE="
 
 ---
 
 ## Context Management
 
 Earlier phase outputs omitted for brevity (${_MASK_COUNT} of ${_OBS_COUNT} attempt(s) masked; ${_REDUCTION_PCT}% token reduction)."
-          echo "  [context] Observation masking: ${_MASK_COUNT}/${_OBS_COUNT} attempts masked (${_REDUCTION_PCT}% reduction, ${_FULL_TOKENS}→${_MASKED_TOKENS} tokens)"
-          log_ralph_event "context_mask" \
-            "\"story_id\":\"$NEXT_STORY\",\"attempts\":$_OBS_COUNT,\"masked\":$_MASK_COUNT,\"tokens_before\":$_FULL_TOKENS,\"tokens_after\":$_MASKED_TOKENS,\"reduction_pct\":$_REDUCTION_PCT"
-          # Write _contextStats to prd.json per story (US-241)
-          if [[ "${_OBS_TOKENS_BEFORE:-0}" -gt 0 ]]; then
-            $JQ --argjson ctxstats \
-              "{\"tokensBeforeMasking\":${_OBS_TOKENS_BEFORE},\"tokensAfterMasking\":${_OBS_TOKENS_AFTER},\"reductionPct\":${_REDUCTION_PCT},\"contextWindow\":${_WINDOW}}" \
-              '(.userStories[] | select(.id == "'"$NEXT_STORY"'") | ._contextStats) = $ctxstats' \
-              "$PRD_FILE" >"${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE" || true
-          fi
-          # Write _context_stats.json for spiral.sh write_iter_summary to merge
-          _CTX_STATS_FILE="${SPIRAL_SCRATCH_DIR}/_context_stats.json"
-          _CTX_STATS_TMP="${_CTX_STATS_FILE}.tmp.$$"
-          printf '{"tokensBeforeMasking":%d,"tokensAfterMasking":%d,"reductionPct":%d,"contextWindow":%d}\n' \
-            "$_OBS_TOKENS_BEFORE" "$_OBS_TOKENS_AFTER" "$_REDUCTION_PCT" "$_WINDOW" \
-            >"$_CTX_STATS_TMP" && mv "$_CTX_STATS_TMP" "$_CTX_STATS_FILE" 2>/dev/null || true
+        echo "  [context] Observation masking: ${_MASK_COUNT}/${_OBS_COUNT} attempts masked (${_REDUCTION_PCT}% reduction, ${_FULL_TOKENS}→${_MASKED_TOKENS} tokens)"
+        log_ralph_event "context_mask" \
+          "\"story_id\":\"$NEXT_STORY\",\"attempts\":$_OBS_COUNT,\"masked\":$_MASK_COUNT,\"tokens_before\":$_FULL_TOKENS,\"tokens_after\":$_MASKED_TOKENS,\"reduction_pct\":$_REDUCTION_PCT"
+        # Write _contextStats to prd.json per story (US-241)
+        if [[ "${_OBS_TOKENS_BEFORE:-0}" -gt 0 ]]; then
+          $JQ --argjson ctxstats \
+            "{\"tokensBeforeMasking\":${_OBS_TOKENS_BEFORE},\"tokensAfterMasking\":${_OBS_TOKENS_AFTER},\"reductionPct\":${_REDUCTION_PCT},\"contextWindow\":${_WINDOW}}" \
+            '(.userStories[] | select(.id == "'"$NEXT_STORY"'") | ._contextStats) = $ctxstats' \
+            "$PRD_FILE" >"${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE" || true
         fi
+        # Write _context_stats.json for spiral.sh write_iter_summary to merge
+        _CTX_STATS_FILE="${SPIRAL_SCRATCH_DIR}/_context_stats.json"
+        _CTX_STATS_TMP="${_CTX_STATS_FILE}.tmp.$$"
+        printf '{"tokensBeforeMasking":%d,"tokensAfterMasking":%d,"reductionPct":%d,"contextWindow":%d}\n' \
+          "$_OBS_TOKENS_BEFORE" "$_OBS_TOKENS_AFTER" "$_REDUCTION_PCT" "$_WINDOW" \
+          >"$_CTX_STATS_TMP" && mv "$_CTX_STATS_TMP" "$_CTX_STATS_FILE" 2>/dev/null || true
+      fi
 
-        _RETRY_BRIEF="RETRY CONTEXT — ATTEMPT $((RETRY_NOW + 1)) of $MAX_RETRIES
+      _RETRY_BRIEF="RETRY CONTEXT — ATTEMPT $((RETRY_NOW + 1)) of $MAX_RETRIES
 
 Story $NEXT_STORY (\"$STORY_TITLE\") was attempted $RETRY_NOW time(s) and did NOT pass.
 ${_MASKING_NOTE}Previous attempt observations:
@@ -2852,263 +2851,262 @@ ACTION: Do NOT repeat the same approach that failed. Read progress.txt carefully
 was tried, then implement the story differently. You are using a more powerful model this
 attempt ($EFFECTIVE_MODEL) — use it."
 
-        # Strategy 1: Anti-pattern injection — list every previously-tried approach that
-        # failed so the agent cannot accidentally repeat it. Reads _antiPatterns[] from
-        # prd.json (accumulated by ralph after each failed attempt).
-        if [[ "${SPIRAL_ANTI_PATTERN_INJECT:-true}" == "true" ]]; then
-          _AP_LIST=$($JQ -r \
-            ".userStories[] | select(.id == \"$NEXT_STORY\") | ._antiPatterns // [] | to_entries[] | \"  \(.key+1). \(.value[:150])\"" \
-            "$PRD_FILE" 2>/dev/null | head -5 | tr -d '\r' || true)
-          if [[ -n "$_AP_LIST" ]]; then
-            _AP_COUNT=$(printf '%s\n' "$_AP_LIST" | wc -l | tr -d ' ')
-            _RETRY_BRIEF="${_RETRY_BRIEF}
+      # Strategy 1: Anti-pattern injection — list every previously-tried approach that
+      # failed so the agent cannot accidentally repeat it. Reads _antiPatterns[] from
+      # prd.json (accumulated by ralph after each failed attempt).
+      if [[ "${SPIRAL_ANTI_PATTERN_INJECT:-true}" == "true" ]]; then
+        _AP_LIST=$($JQ -r \
+          ".userStories[] | select(.id == \"$NEXT_STORY\") | ._antiPatterns // [] | to_entries[] | \"  \(.key+1). \(.value[:150])\"" \
+          "$PRD_FILE" 2>/dev/null | head -5 | tr -d '\r' || true)
+        if [[ -n "$_AP_LIST" ]]; then
+          _AP_COUNT=$(printf '%s\n' "$_AP_LIST" | wc -l | tr -d ' ')
+          _RETRY_BRIEF="${_RETRY_BRIEF}
 
 FORBIDDEN APPROACHES — DO NOT TRY any of these (all previously failed):
 ${_AP_LIST}
 
 Choose a COMPLETELY DIFFERENT implementation strategy from the ones listed above."
-            echo "  [anti-pattern] $_AP_COUNT anti-pattern(s) injected for $NEXT_STORY"
-            log_ralph_event "anti_pattern_injected" \
-              "\"story_id\":\"$NEXT_STORY\",\"retry\":$RETRY_NOW,\"count\":$_AP_COUNT"
-          fi
+          echo "  [anti-pattern] $_AP_COUNT anti-pattern(s) injected for $NEXT_STORY"
+          log_ralph_event "anti_pattern_injected" \
+            "\"story_id\":\"$NEXT_STORY\",\"retry\":$RETRY_NOW,\"count\":$_AP_COUNT"
         fi
+      fi
 
-        RALPH_USER_PROMPT="$_RETRY_BRIEF${_CONTEXT_MGMT_NOTE:-}
+      RALPH_USER_PROMPT="$_RETRY_BRIEF${_CONTEXT_MGMT_NOTE:-}
 
 ---
 
 $RALPH_USER_PROMPT"
-        echo "  [retry] Attempt $((RETRY_NOW + 1))/$MAX_RETRIES — injected failure context ($RETRY_NOW prior attempt(s), reason: ${_FAIL_REASON:0:60})"
-      fi
+      echo "  [retry] Attempt $((RETRY_NOW + 1))/$MAX_RETRIES — injected failure context ($RETRY_NOW prior attempt(s), reason: ${_FAIL_REASON:0:60})"
+    fi
 
-      # ── filesTouch diff context injection (US-280) ────────────────────────────
-      # Inject a unified diff of the story's filesTouch paths so the agent has
-      # precise delta context without reading full files from disk.
-      _FT_BODY_TMP="${SPIRAL_SCRATCH_DIR}/_ft_ctx_$$.tmp"
-      _FT_STATUS=$(build_filestouch_context "$STORY_JSON" 2>&1 1>"$_FT_BODY_TMP" || true)
-      _FT_CONTEXT_BODY=$(cat "$_FT_BODY_TMP" 2>/dev/null || true)
-      rm -f "$_FT_BODY_TMP"
-      if [[ -n "$_FT_CONTEXT_BODY" ]]; then
-        RALPH_USER_PROMPT="${RALPH_USER_PROMPT}
+    # ── filesTouch diff context injection (US-280) ────────────────────────────
+    # Inject a unified diff of the story's filesTouch paths so the agent has
+    # precise delta context without reading full files from disk.
+    _FT_BODY_TMP="${SPIRAL_SCRATCH_DIR}/_ft_ctx_$$.tmp"
+    _FT_STATUS=$(build_filestouch_context "$STORY_JSON" 2>&1 1>"$_FT_BODY_TMP" || true)
+    _FT_CONTEXT_BODY=$(cat "$_FT_BODY_TMP" 2>/dev/null || true)
+    rm -f "$_FT_BODY_TMP"
+    if [[ -n "$_FT_CONTEXT_BODY" ]]; then
+      RALPH_USER_PROMPT="${RALPH_USER_PROMPT}
 
 ---
 
 ${_FT_CONTEXT_BODY}"
-        [[ -n "$_FT_STATUS" ]] && echo "$_FT_STATUS"
-      fi
+      [[ -n "$_FT_STATUS" ]] && echo "$_FT_STATUS"
+    fi
 
-      _CACHE_BETAS=""
-      # ── US-337: Deferred tool loading — reduce tool definition tokens ──────
-      # When enabled, use --tools with only core tools from tool_manifest.json.
-      # Deferred tools are discoverable via ToolSearch at runtime.
-      _DEFERRED_TOOLS_FLAG=""
-      if [[ "${SPIRAL_DEFERRED_TOOLS:-true}" == "true" ]]; then
-        _TOOL_MANIFEST="${SCRIPT_DIR}/tool_manifest.json"
-        if [[ -f "$_TOOL_MANIFEST" ]]; then
-          _CORE_TOOLS=$("$JQ" -r '.core | join(",")' "$_TOOL_MANIFEST" 2>/dev/null || echo "")
-          if [[ -n "$_CORE_TOOLS" ]]; then
-            _DEFERRED_TOOLS_FLAG="--tools $_CORE_TOOLS"
-            echo "  [tools] Deferred loading: core=${_CORE_TOOLS} (ToolSearch for others)"
-          fi
+    _CACHE_BETAS=""
+    # ── US-337: Deferred tool loading — reduce tool definition tokens ──────
+    # When enabled, use --tools with only core tools from tool_manifest.json.
+    # Deferred tools are discoverable via ToolSearch at runtime.
+    _DEFERRED_TOOLS_FLAG=""
+    if [[ "${SPIRAL_DEFERRED_TOOLS:-true}" == "true" ]]; then
+      _TOOL_MANIFEST="${SCRIPT_DIR}/tool_manifest.json"
+      if [[ -f "$_TOOL_MANIFEST" ]]; then
+        _CORE_TOOLS=$("$JQ" -r '.core | join(",")' "$_TOOL_MANIFEST" 2>/dev/null || echo "")
+        if [[ -n "$_CORE_TOOLS" ]]; then
+          _DEFERRED_TOOLS_FLAG="--tools $_CORE_TOOLS"
+          echo "  [tools] Deferred loading: core=${_CORE_TOOLS} (ToolSearch for others)"
         fi
       fi
-      # ── US-339: Programmatic tool calling (code_execution_20250825) ──────────
-      # Check if model supports programmatic tool calling and user enabled it.
-      # Sonnet 4.6+ and Opus 4.6+ support code_execution. Haiku does not.
-      _PROG_TOOLS_ENABLED=false
-      if [[ "${SPIRAL_PROGRAMMATIC_TOOLS:-auto}" != "false" ]]; then
-        _supports_code_exec=false
-        if [[ -n "$EFFECTIVE_MODEL" ]]; then
-          # Check if model is Sonnet 4.6+, Opus 4.6+, or claude-4-6
-          if [[ "$EFFECTIVE_MODEL" =~ (sonnet-4\.6|opus-4\.6|claude-4\.6|claude-4-6) ]]; then
-            _supports_code_exec=true
-          fi
-        fi
-        if [[ "$_supports_code_exec" == "true" ]]; then
-          _PROG_TOOLS_ENABLED=true
-          echo "  [prog-tools] Enabled: code_execution_20250825 (model=$EFFECTIVE_MODEL supports programmatic tool calling)"
-          log_ralph_event "programmatic_tools_enabled" "\"story_id\":\"$NEXT_STORY\",\"model\":\"$EFFECTIVE_MODEL\""
-        elif [[ "${SPIRAL_PROGRAMMATIC_TOOLS:-auto}" == "true" ]]; then
-          echo "  [prog-tools] WARN: Requested but model=$EFFECTIVE_MODEL does not support code_execution (requires Sonnet/Opus 4.6+)"
-          log_ralph_event "programmatic_tools_unsupported" "\"story_id\":\"$NEXT_STORY\",\"model\":\"$EFFECTIVE_MODEL\",\"reason\":\"model_not_compatible\""
+    fi
+    # ── US-339: Programmatic tool calling (code_execution_20250825) ──────────
+    # Check if model supports programmatic tool calling and user enabled it.
+    # Sonnet 4.6+ and Opus 4.6+ support code_execution. Haiku does not.
+    _PROG_TOOLS_ENABLED=false
+    if [[ "${SPIRAL_PROGRAMMATIC_TOOLS:-auto}" != "false" ]]; then
+      _supports_code_exec=false
+      if [[ -n "$EFFECTIVE_MODEL" ]]; then
+        # Check if model is Sonnet 4.6+, Opus 4.6+, or claude-4-6
+        if [[ "$EFFECTIVE_MODEL" =~ (sonnet-4\.6|opus-4\.6|claude-4\.6|claude-4-6) ]]; then
+          _supports_code_exec=true
         fi
       fi
-      # ── US-392: Interleaved thinking beta header for claude-4 models ─────────
-      # When enabled, add anthropic-beta: interleaved-thinking-2025-05-14 header.
-      # This enables iterative reasoning throughout the implementation workflow.
-      # Supported on claude-opus-4-6 and claude-sonnet-4-6 only.
-      if [[ "${SPIRAL_INTERLEAVED_THINKING:-false}" == "true" ]]; then
-        _supports_interleaved=false
-        if [[ -n "$EFFECTIVE_MODEL" ]]; then
-          # Check if model is Sonnet 4.6+ or Opus 4.6+
-          if [[ "$EFFECTIVE_MODEL" =~ (sonnet-4\.6|opus-4\.6) ]]; then
-            _supports_interleaved=true
-          fi
-        fi
-        if [[ "$_supports_interleaved" == "true" ]]; then
-          _CACHE_BETAS="interleaved-thinking-2025-05-14"
-          echo "  [thinking] Interleaved thinking enabled (model=$EFFECTIVE_MODEL, budget=${SPIRAL_THINKING_BUDGET_TOKENS} tokens)"
-          log_ralph_event "interleaved_thinking_enabled" "\"story_id\":\"$NEXT_STORY\",\"model\":\"$EFFECTIVE_MODEL\",\"budget_tokens\":${SPIRAL_THINKING_BUDGET_TOKENS}"
-        else
-          echo "  [thinking] WARN: Interleaved thinking requested but model=$EFFECTIVE_MODEL does not support it (requires Sonnet/Opus 4.6+)"
-          log_ralph_event "interleaved_thinking_unsupported" "\"story_id\":\"$NEXT_STORY\",\"model\":\"$EFFECTIVE_MODEL\",\"reason\":\"model_not_compatible\""
+      if [[ "$_supports_code_exec" == "true" ]]; then
+        _PROG_TOOLS_ENABLED=true
+        echo "  [prog-tools] Enabled: code_execution_20250825 (model=$EFFECTIVE_MODEL supports programmatic tool calling)"
+        log_ralph_event "programmatic_tools_enabled" "\"story_id\":\"$NEXT_STORY\",\"model\":\"$EFFECTIVE_MODEL\""
+      elif [[ "${SPIRAL_PROGRAMMATIC_TOOLS:-auto}" == "true" ]]; then
+        echo "  [prog-tools] WARN: Requested but model=$EFFECTIVE_MODEL does not support code_execution (requires Sonnet/Opus 4.6+)"
+        log_ralph_event "programmatic_tools_unsupported" "\"story_id\":\"$NEXT_STORY\",\"model\":\"$EFFECTIVE_MODEL\",\"reason\":\"model_not_compatible\""
+      fi
+    fi
+    # ── US-392: Interleaved thinking beta header for claude-4 models ─────────
+    # When enabled, add anthropic-beta: interleaved-thinking-2025-05-14 header.
+    # This enables iterative reasoning throughout the implementation workflow.
+    # Supported on claude-opus-4-6 and claude-sonnet-4-6 only.
+    if [[ "${SPIRAL_INTERLEAVED_THINKING:-false}" == "true" ]]; then
+      _supports_interleaved=false
+      if [[ -n "$EFFECTIVE_MODEL" ]]; then
+        # Check if model is Sonnet 4.6+ or Opus 4.6+
+        if [[ "$EFFECTIVE_MODEL" =~ (sonnet-4\.6|opus-4\.6) ]]; then
+          _supports_interleaved=true
         fi
       fi
-      # ── US-253: emit R→I phase transition telemetry ─────────────────────────
-      _TELEM_I_START_MS=$(date +%s%3N 2>/dev/null || echo 0)
-      _TELEM_R_DUR=0
-      [[ "$_TELEM_I_START_MS" -gt 0 && "$_TELEM_R_START_MS" -gt 0 ]] &&
-        _TELEM_R_DUR=$((_TELEM_I_START_MS - _TELEM_R_START_MS))
-      declare -f emit_agent_telemetry >/dev/null 2>&1 &&
-        emit_agent_telemetry "R" "I" "$_TELEM_R_DUR" 0
-      # Unset CLAUDECODE to allow nested Claude Code invocation from within an active session
-      _CLAUDE_TMP="${SPIRAL_SCRATCH_DIR}/_claude_raw_$$.tmp"
-      mkdir -p "${SPIRAL_SCRATCH_DIR}"
-      # ── US-261: local-only policy — skip cloud entirely, use Ollama directly ─────
-      if [[ "${SPIRAL_LOCAL_FALLBACK_POLICY:-}" == "local-only" ]]; then
-        apply_local_fallback_policy "local-only policy: bypassing cloud" "$_RL_TMP" && _OLLAMA_USED=1 || true
+      if [[ "$_supports_interleaved" == "true" ]]; then
+        _CACHE_BETAS="interleaved-thinking-2025-05-14"
+        echo "  [thinking] Interleaved thinking enabled (model=$EFFECTIVE_MODEL, budget=${SPIRAL_THINKING_BUDGET_TOKENS} tokens)"
+        log_ralph_event "interleaved_thinking_enabled" "\"story_id\":\"$NEXT_STORY\",\"model\":\"$EFFECTIVE_MODEL\",\"budget_tokens\":${SPIRAL_THINKING_BUDGET_TOKENS}"
       else
-        # ── US-397: Emit OTel gen_ai.content.prompt Event before API call ────────────
-        if [[ "${SPIRAL_OTEL_ENABLED:-false}" == "true" ]]; then
-          "$SPIRAL_PYTHON" lib/observability/otel_content_events.py emit-prompt \
-            --system-prompt "$RALPH_SYSTEM_PROMPT" \
-            --user-prompt "$RALPH_USER_PROMPT" \
-            --model "${EFFECTIVE_MODEL:-unknown}" \
-            --scratch-dir "$SPIRAL_SCRATCH_DIR" 2>/dev/null || true
-        fi
-        (
-          unset CLAUDECODE
-          "${_GNU_TIME_CMD[@]+"${_GNU_TIME_CMD[@]}"}" claude -p "$RALPH_USER_PROMPT" \
-            $CLAUDE_MODEL_FLAG \
-            $CLAUDE_EFFORT_FLAG \
-            --append-system-prompt "$RALPH_SYSTEM_PROMPT" \
-            ${_CACHE_BETAS:+--betas "$_CACHE_BETAS"} \
-            $_DEFERRED_TOOLS_FLAG \
-            --allowedTools "Edit,Write,Read,Glob,Grep,Bash,Skill,Task,ToolSearch" \
-            --max-turns 75 \
-            --verbose \
-            --output-format stream-json \
-            --dangerously-skip-permissions \
-            </dev/null 2>&1 | tee "$_CLAUDE_TMP" | node "$SCRIPT_DIR/stream-formatter.mjs"
-        ) || true
-        # ── Connection failure detection for Ollama fallback (US-144) ──────────────
-        # Detect ECONNREFUSED / ETIMEDOUT patterns — claude CLI unreachable.
-        # After _CLAUDE_API_FAIL_STREAK >= 3, switch to Ollama for the current story.
-        _CONN_HANDLED=0
-        if [[ -n "${SPIRAL_OLLAMA_FALLBACK_MODEL:-}" ]]; then
-          _TMP_SIZE=0
-          [[ -f "$_CLAUDE_TMP" ]] && _TMP_SIZE=$(wc -c <"$_CLAUDE_TMP" 2>/dev/null || echo 0)
-          _IS_CONN_FAIL=0
-          if [[ "${_TMP_SIZE:-0}" -eq 0 ]]; then
-            _IS_CONN_FAIL=1
-          elif grep -qiE 'ECONNREFUSED|ETIMEDOUT|connection refused|failed to connect|could not resolve host' \
-            "$_CLAUDE_TMP" 2>/dev/null; then
-            _IS_CONN_FAIL=1
-          fi
-          if [[ "$_IS_CONN_FAIL" -eq 1 ]]; then
-            _CLAUDE_API_FAIL_STREAK=$((_CLAUDE_API_FAIL_STREAK + 1))
-            rm -f "$_CLAUDE_TMP"
-            echo "  [ollama] Claude unreachable (streak: $_CLAUDE_API_FAIL_STREAK/3)"
-            log_spiral_event "claude_api_unreachable" \
-              "\"story_id\":\"${NEXT_STORY:-}\",\"streak\":${_CLAUDE_API_FAIL_STREAK}"
-            if [[ "$_CLAUDE_API_FAIL_STREAK" -ge 3 ]]; then
-              echo "  [ollama] Streak >= 3 — switching to Ollama for ${NEXT_STORY:-}"
-              mkdir -p "${SPIRAL_SCRATCH_DIR}"
-              _OLLAMA_SYS_TMP="${SPIRAL_SCRATCH_DIR}/_ollama_sys_$$.tmp"
-              _OLLAMA_USR_TMP="${SPIRAL_SCRATCH_DIR}/_ollama_usr_$$.tmp"
-              printf '%s' "$RALPH_SYSTEM_PROMPT" >"$_OLLAMA_SYS_TMP"
-              printf '%s' "$RALPH_USER_PROMPT" >"$_OLLAMA_USR_TMP"
-              echo "  ─────── Ollama Output Start ───────"
-              if call_ollama_fallback "$_OLLAMA_SYS_TMP" "$_OLLAMA_USR_TMP" | tee "$_RL_TMP"; then
-                _OLLAMA_USED=1
-                _CLAUDE_API_FAIL_STREAK=0
-                echo "  [ollama] Ollama fallback succeeded"
-              else
-                _OLLAMA_USED=0
-                >"$_RL_TMP"
-                echo "  [ollama] Ollama fallback also failed — story will be retried later"
-              fi
-              echo "  ─────── Ollama Output End ─────────"
-              rm -f "$_OLLAMA_SYS_TMP" "$_OLLAMA_USR_TMP"
-            fi
-            _CONN_HANDLED=1
-          else
-            # Successful connection — reset fail streak
-            _CLAUDE_API_FAIL_STREAK=0
-          fi
-        fi
-        # ── US-261: SPIRAL_LOCAL_FALLBACK_POLICY enforcement on cloud failure ─────────
-        if [[ "$_CONN_HANDLED" -eq 0 && -n "${SPIRAL_LOCAL_FALLBACK_POLICY:-}" ]]; then
-          _261_TMP_SIZE=0
-          [[ -f "$_CLAUDE_TMP" ]] && _261_TMP_SIZE=$(wc -c <"$_CLAUDE_TMP" 2>/dev/null || echo 0)
-          _261_CONN_FAIL=0
-          if [[ "${_261_TMP_SIZE:-0}" -eq 0 ]]; then
-            _261_CONN_FAIL=1
-          elif grep -qiE 'ECONNREFUSED|ETIMEDOUT|connection refused|failed to connect|could not resolve host' \
-            "$_CLAUDE_TMP" 2>/dev/null; then
-            _261_CONN_FAIL=1
-          fi
-          if [[ "$_261_CONN_FAIL" -eq 1 ]]; then
-            _261_ORIG_ERR="Claude unreachable (empty or connection-refused response)"
-            rm -f "$_CLAUDE_TMP"
-            apply_local_fallback_policy "${_261_ORIG_ERR}" "$_RL_TMP"
-            _CONN_HANDLED=1
-          fi
-        fi
-        # Move result to _RL_TMP (no-op if connection handler already removed _CLAUDE_TMP)
-        mv "$_CLAUDE_TMP" "$_RL_TMP" 2>/dev/null || true
+        echo "  [thinking] WARN: Interleaved thinking requested but model=$EFFECTIVE_MODEL does not support it (requires Sonnet/Opus 4.6+)"
+        log_ralph_event "interleaved_thinking_unsupported" "\"story_id\":\"$NEXT_STORY\",\"model\":\"$EFFECTIVE_MODEL\",\"reason\":\"model_not_compatible\""
       fi
-    elif [[ "$EFFECTIVE_TOOL" == "codex" ]]; then
-      echo "  [ralph] Delegating to Codex (GPT-5)..."
-      PROMPT_TEXT=$(cat "$PROMPT_FILE")
-      codex exec --full-auto -C "$(pwd)" "$PROMPT_TEXT" 2>&1 | tee "$_RL_TMP" | tail -60
-    elif [[ "$EFFECTIVE_TOOL" == "qwen" ]]; then
-      echo "  [ralph] Delegating to Qwen Code (free quota)..."
-      PROMPT_TEXT=$(cat "$PROMPT_FILE")
-      qwen "$PROMPT_TEXT" --approval-mode yolo 2>&1 | tee "$_RL_TMP" | tail -200
+    fi
+    # ── US-253: emit R→I phase transition telemetry ─────────────────────────
+    _TELEM_I_START_MS=$(date +%s%3N 2>/dev/null || echo 0)
+    _TELEM_R_DUR=0
+    [[ "$_TELEM_I_START_MS" -gt 0 && "$_TELEM_R_START_MS" -gt 0 ]] &&
+      _TELEM_R_DUR=$((_TELEM_I_START_MS - _TELEM_R_START_MS))
+    declare -f emit_agent_telemetry >/dev/null 2>&1 &&
+      emit_agent_telemetry "R" "I" "$_TELEM_R_DUR" 0
+    # Unset CLAUDECODE to allow nested Claude Code invocation from within an active session
+    _CLAUDE_TMP="${SPIRAL_SCRATCH_DIR}/_claude_raw_$$.tmp"
+    mkdir -p "${SPIRAL_SCRATCH_DIR}"
+    # ── US-261: local-only policy — skip cloud entirely, use Ollama directly ─────
+    if [[ "${SPIRAL_LOCAL_FALLBACK_POLICY:-}" == "local-only" ]]; then
+      apply_local_fallback_policy "local-only policy: bypassing cloud" "$_RL_TMP" && _OLLAMA_USED=1 || true
     else
-      amp --prompt-file "$PROMPT_FILE" 2>&1 | tee "$_RL_TMP"
-    fi
-    echo "  ─────── AI Output End ($EFFECTIVE_TOOL) ─────────"
-
-
-    # ── Parse token counts from LLM output (before cleanup) ─────────────────
-    _CALL_TOKENS_INPUT=0
-    _CALL_TOKENS_OUTPUT=0
-    _CACHE_CREATION_TOKENS=0
-    _CACHE_READ_TOKENS=0
-    _CACHE_HIT=false
-    if [[ "$EFFECTIVE_TOOL" == "claude" && -f "$_RL_TMP" ]]; then
-      _RESULT_LINE=$(grep -m1 '"type":"result"' "$_RL_TMP" 2>/dev/null || true)
-      if [[ -n "$_RESULT_LINE" ]]; then
-        _ti=$($JQ -r '.usage.input_tokens // 0' <<<"$_RESULT_LINE" 2>/dev/null || echo 0)
-        _to=$($JQ -r '.usage.output_tokens // 0' <<<"$_RESULT_LINE" 2>/dev/null || echo 0)
-        [[ "$_ti" =~ ^[0-9]+$ ]] && _CALL_TOKENS_INPUT=$_ti
-        [[ "$_to" =~ ^[0-9]+$ ]] && _CALL_TOKENS_OUTPUT=$_to
+      # ── US-397: Emit OTel gen_ai.content.prompt Event before API call ────────────
+      if [[ "${SPIRAL_OTEL_ENABLED:-false}" == "true" ]]; then
+        "$SPIRAL_PYTHON" lib/observability/otel_content_events.py emit-prompt \
+          --system-prompt "$RALPH_SYSTEM_PROMPT" \
+          --user-prompt "$RALPH_USER_PROMPT" \
+          --model "${EFFECTIVE_MODEL:-unknown}" \
+          --scratch-dir "$SPIRAL_SCRATCH_DIR" 2>/dev/null || true
       fi
+      (
+        unset CLAUDECODE
+        "${_GNU_TIME_CMD[@]+"${_GNU_TIME_CMD[@]}"}" claude -p "$RALPH_USER_PROMPT" \
+          $CLAUDE_MODEL_FLAG \
+          $CLAUDE_EFFORT_FLAG \
+          --append-system-prompt "$RALPH_SYSTEM_PROMPT" \
+          ${_CACHE_BETAS:+--betas "$_CACHE_BETAS"} \
+          $_DEFERRED_TOOLS_FLAG \
+          --allowedTools "Edit,Write,Read,Glob,Grep,Bash,Skill,Task,ToolSearch" \
+          --max-turns 75 \
+          --verbose \
+          --output-format stream-json \
+          --dangerously-skip-permissions \
+          </dev/null 2>&1 | tee "$_CLAUDE_TMP" | node "$SCRIPT_DIR/stream-formatter.mjs"
+      ) || true
+      # ── Connection failure detection for Ollama fallback (US-144) ──────────────
+      # Detect ECONNREFUSED / ETIMEDOUT patterns — claude CLI unreachable.
+      # After _CLAUDE_API_FAIL_STREAK >= 3, switch to Ollama for the current story.
+      _CONN_HANDLED=0
+      if [[ -n "${SPIRAL_OLLAMA_FALLBACK_MODEL:-}" ]]; then
+        _TMP_SIZE=0
+        [[ -f "$_CLAUDE_TMP" ]] && _TMP_SIZE=$(wc -c <"$_CLAUDE_TMP" 2>/dev/null || echo 0)
+        _IS_CONN_FAIL=0
+        if [[ "${_TMP_SIZE:-0}" -eq 0 ]]; then
+          _IS_CONN_FAIL=1
+        elif grep -qiE 'ECONNREFUSED|ETIMEDOUT|connection refused|failed to connect|could not resolve host' \
+          "$_CLAUDE_TMP" 2>/dev/null; then
+          _IS_CONN_FAIL=1
+        fi
+        if [[ "$_IS_CONN_FAIL" -eq 1 ]]; then
+          _CLAUDE_API_FAIL_STREAK=$((_CLAUDE_API_FAIL_STREAK + 1))
+          rm -f "$_CLAUDE_TMP"
+          echo "  [ollama] Claude unreachable (streak: $_CLAUDE_API_FAIL_STREAK/3)"
+          log_spiral_event "claude_api_unreachable" \
+            "\"story_id\":\"${NEXT_STORY:-}\",\"streak\":${_CLAUDE_API_FAIL_STREAK}"
+          if [[ "$_CLAUDE_API_FAIL_STREAK" -ge 3 ]]; then
+            echo "  [ollama] Streak >= 3 — switching to Ollama for ${NEXT_STORY:-}"
+            mkdir -p "${SPIRAL_SCRATCH_DIR}"
+            _OLLAMA_SYS_TMP="${SPIRAL_SCRATCH_DIR}/_ollama_sys_$$.tmp"
+            _OLLAMA_USR_TMP="${SPIRAL_SCRATCH_DIR}/_ollama_usr_$$.tmp"
+            printf '%s' "$RALPH_SYSTEM_PROMPT" >"$_OLLAMA_SYS_TMP"
+            printf '%s' "$RALPH_USER_PROMPT" >"$_OLLAMA_USR_TMP"
+            echo "  ─────── Ollama Output Start ───────"
+            if call_ollama_fallback "$_OLLAMA_SYS_TMP" "$_OLLAMA_USR_TMP" | tee "$_RL_TMP"; then
+              _OLLAMA_USED=1
+              _CLAUDE_API_FAIL_STREAK=0
+              echo "  [ollama] Ollama fallback succeeded"
+            else
+              _OLLAMA_USED=0
+              >"$_RL_TMP"
+              echo "  [ollama] Ollama fallback also failed — story will be retried later"
+            fi
+            echo "  ─────── Ollama Output End ─────────"
+            rm -f "$_OLLAMA_SYS_TMP" "$_OLLAMA_USR_TMP"
+          fi
+          _CONN_HANDLED=1
+        else
+          # Successful connection — reset fail streak
+          _CLAUDE_API_FAIL_STREAK=0
+        fi
+      fi
+      # ── US-261: SPIRAL_LOCAL_FALLBACK_POLICY enforcement on cloud failure ─────────
+      if [[ "$_CONN_HANDLED" -eq 0 && -n "${SPIRAL_LOCAL_FALLBACK_POLICY:-}" ]]; then
+        _261_TMP_SIZE=0
+        [[ -f "$_CLAUDE_TMP" ]] && _261_TMP_SIZE=$(wc -c <"$_CLAUDE_TMP" 2>/dev/null || echo 0)
+        _261_CONN_FAIL=0
+        if [[ "${_261_TMP_SIZE:-0}" -eq 0 ]]; then
+          _261_CONN_FAIL=1
+        elif grep -qiE 'ECONNREFUSED|ETIMEDOUT|connection refused|failed to connect|could not resolve host' \
+          "$_CLAUDE_TMP" 2>/dev/null; then
+          _261_CONN_FAIL=1
+        fi
+        if [[ "$_261_CONN_FAIL" -eq 1 ]]; then
+          _261_ORIG_ERR="Claude unreachable (empty or connection-refused response)"
+          rm -f "$_CLAUDE_TMP"
+          apply_local_fallback_policy "${_261_ORIG_ERR}" "$_RL_TMP"
+          _CONN_HANDLED=1
+        fi
+      fi
+      # Move result to _RL_TMP (no-op if connection handler already removed _CLAUDE_TMP)
+      mv "$_CLAUDE_TMP" "$_RL_TMP" 2>/dev/null || true
     fi
+  elif [[ "$EFFECTIVE_TOOL" == "codex" ]]; then
+    echo "  [ralph] Delegating to Codex (GPT-5)..."
+    PROMPT_TEXT=$(cat "$PROMPT_FILE")
+    codex exec --full-auto -C "$(pwd)" "$PROMPT_TEXT" 2>&1 | tee "$_RL_TMP" | tail -60
+  elif [[ "$EFFECTIVE_TOOL" == "qwen" ]]; then
+    echo "  [ralph] Delegating to Qwen Code (free quota)..."
+    PROMPT_TEXT=$(cat "$PROMPT_FILE")
+    qwen "$PROMPT_TEXT" --approval-mode yolo 2>&1 | tee "$_RL_TMP" | tail -200
+  else
+    amp --prompt-file "$PROMPT_FILE" 2>&1 | tee "$_RL_TMP"
+  fi
+  echo "  ─────── AI Output End ($EFFECTIVE_TOOL) ─────────"
 
-    # ── Record OTel metrics for token usage (US-232) ──────────────────────────
-    # Record gen_ai.client.token.usage and gen_ai.client.operation.duration metrics
-    # Includes model as an attribute for per-model analytics
-    if [[ "$EFFECTIVE_TOOL" == "claude" && ("$_CALL_TOKENS_INPUT" -gt 0 || "$_CALL_TOKENS_OUTPUT" -gt 0) ]]; then
-      _DURATION_MS=$(printf "%.0f" "$(echo "$_WALL_SEC * 1000" | bc 2>/dev/null || echo 0)")
-      _OTEL_MODEL="${EFFECTIVE_MODEL:-unknown}"
-      "$SPIRAL_PYTHON" lib/observability/otel_metrics.py record-tokens \
-        --story-id "$NEXT_STORY" \
-        --phase I \
-        --input-tokens "$_CALL_TOKENS_INPUT" \
-        --output-tokens "$_CALL_TOKENS_OUTPUT" \
-        --duration-ms "$_DURATION_MS" \
-        --model "$_OTEL_MODEL" \
-        --scratch-dir "$SPIRAL_SCRATCH_DIR" 2>/dev/null || true
+  # ── Parse token counts from LLM output (before cleanup) ─────────────────
+  _CALL_TOKENS_INPUT=0
+  _CALL_TOKENS_OUTPUT=0
+  _CACHE_CREATION_TOKENS=0
+  _CACHE_READ_TOKENS=0
+  _CACHE_HIT=false
+  if [[ "$EFFECTIVE_TOOL" == "claude" && -f "$_RL_TMP" ]]; then
+    _RESULT_LINE=$(grep -m1 '"type":"result"' "$_RL_TMP" 2>/dev/null || true)
+    if [[ -n "$_RESULT_LINE" ]]; then
+      _ti=$($JQ -r '.usage.input_tokens // 0' <<<"$_RESULT_LINE" 2>/dev/null || echo 0)
+      _to=$($JQ -r '.usage.output_tokens // 0' <<<"$_RESULT_LINE" 2>/dev/null || echo 0)
+      [[ "$_ti" =~ ^[0-9]+$ ]] && _CALL_TOKENS_INPUT=$_ti
+      [[ "$_to" =~ ^[0-9]+$ ]] && _CALL_TOKENS_OUTPUT=$_to
     fi
+  fi
 
-    # ── US-397: Emit OTel gen_ai.content.completion Event after API call ────────────
-    # Extract completion text from stream and emit it
-    if [[ "$EFFECTIVE_TOOL" == "claude" && -f "$_RL_TMP" && "${SPIRAL_OTEL_ENABLED:-false}" == "true" ]]; then
-      _COMPLETION_TEXT=$(
-        python3 - "$_RL_TMP" <<'COMPLETION_EXTRACTOR_EOF'
+  # ── Record OTel metrics for token usage (US-232) ──────────────────────────
+  # Record gen_ai.client.token.usage and gen_ai.client.operation.duration metrics
+  # Includes model as an attribute for per-model analytics
+  if [[ "$EFFECTIVE_TOOL" == "claude" && ("$_CALL_TOKENS_INPUT" -gt 0 || "$_CALL_TOKENS_OUTPUT" -gt 0) ]]; then
+    _DURATION_MS=$(printf "%.0f" "$(echo "$_WALL_SEC * 1000" | bc 2>/dev/null || echo 0)")
+    _OTEL_MODEL="${EFFECTIVE_MODEL:-unknown}"
+    "$SPIRAL_PYTHON" lib/observability/otel_metrics.py record-tokens \
+      --story-id "$NEXT_STORY" \
+      --phase I \
+      --input-tokens "$_CALL_TOKENS_INPUT" \
+      --output-tokens "$_CALL_TOKENS_OUTPUT" \
+      --duration-ms "$_DURATION_MS" \
+      --model "$_OTEL_MODEL" \
+      --scratch-dir "$SPIRAL_SCRATCH_DIR" 2>/dev/null || true
+  fi
+
+  # ── US-397: Emit OTel gen_ai.content.completion Event after API call ────────────
+  # Extract completion text from stream and emit it
+  if [[ "$EFFECTIVE_TOOL" == "claude" && -f "$_RL_TMP" && "${SPIRAL_OTEL_ENABLED:-false}" == "true" ]]; then
+    _COMPLETION_TEXT=$(
+      python3 - "$_RL_TMP" <<'COMPLETION_EXTRACTOR_EOF'
 import sys, json
 parts = []
 try:
@@ -3130,22 +3128,22 @@ except Exception:
     pass
 print('\n'.join(parts))
 COMPLETION_EXTRACTOR_EOF
-        2>/dev/null || true
-      )
-      if [[ -n "$_COMPLETION_TEXT" ]]; then
-        "$SPIRAL_PYTHON" lib/observability/otel_content_events.py emit-completion \
-          --completion "$_COMPLETION_TEXT" \
-          --model "${EFFECTIVE_MODEL:-unknown}" \
-          --scratch-dir "$SPIRAL_SCRATCH_DIR" 2>/dev/null || true
-      fi
+      2>/dev/null || true
+    )
+    if [[ -n "$_COMPLETION_TEXT" ]]; then
+      "$SPIRAL_PYTHON" lib/observability/otel_content_events.py emit-completion \
+        --completion "$_COMPLETION_TEXT" \
+        --model "${EFFECTIVE_MODEL:-unknown}" \
+        --scratch-dir "$SPIRAL_SCRATCH_DIR" 2>/dev/null || true
     fi
+  fi
 
-    # ── Extract Phase I diagnosis block (US-244) ─────────────────────────────
-    # Parse assistant text messages from stream-json; look for the required
-    # ## Current State / ## Problem Identified / ## Planned Changes headers.
-    if [[ "$EFFECTIVE_TOOL" == "claude" && -f "$_RL_TMP" ]]; then
-      _DIAG_TEXT=$(
-        python3 - "$_RL_TMP" <<'DIAG_EXTRACTOR_EOF'
+  # ── Extract Phase I diagnosis block (US-244) ─────────────────────────────
+  # Parse assistant text messages from stream-json; look for the required
+  # ## Current State / ## Problem Identified / ## Planned Changes headers.
+  if [[ "$EFFECTIVE_TOOL" == "claude" && -f "$_RL_TMP" ]]; then
+    _DIAG_TEXT=$(
+      python3 - "$_RL_TMP" <<'DIAG_EXTRACTOR_EOF'
 import sys, json
 parts = []
 try:
@@ -3167,53 +3165,53 @@ except Exception:
     pass
 print('\n'.join(parts))
 DIAG_EXTRACTOR_EOF
-        2>/dev/null || true
-      )
-      if echo "$_DIAG_TEXT" | grep -q "## Current State" &&
-        echo "$_DIAG_TEXT" | grep -qiE "## Problem( Identified)?$|## Problem Identified" &&
-        echo "$_DIAG_TEXT" | grep -q "## Planned Changes"; then
-        # Capture the diagnosis block (from ## Current State through ## Planned Changes section)
-        _PHASE_I_DIAGNOSIS_BLOCK=$(echo "$_DIAG_TEXT" |
-          awk '/## Current State/{found=1} found{print} /## Planned Changes/{p=1} p && /^##/ && !/## Planned Changes/{exit}' |
-          head -80)
-        echo "  [diagnosis] Diagnosis block found ($(echo "$_PHASE_I_DIAGNOSIS_BLOCK" | wc -l) lines)"
-      else
-        echo "  [diagnosis] No diagnosis block in Phase I output"
-      fi
+      2>/dev/null || true
+    )
+    if echo "$_DIAG_TEXT" | grep -q "## Current State" &&
+      echo "$_DIAG_TEXT" | grep -qiE "## Problem( Identified)?$|## Problem Identified" &&
+      echo "$_DIAG_TEXT" | grep -q "## Planned Changes"; then
+      # Capture the diagnosis block (from ## Current State through ## Planned Changes section)
+      _PHASE_I_DIAGNOSIS_BLOCK=$(echo "$_DIAG_TEXT" |
+        awk '/## Current State/{found=1} found{print} /## Planned Changes/{p=1} p && /^##/ && !/## Planned Changes/{exit}' |
+        head -80)
+      echo "  [diagnosis] Diagnosis block found ($(echo "$_PHASE_I_DIAGNOSIS_BLOCK" | wc -l) lines)"
+    else
+      echo "  [diagnosis] No diagnosis block in Phase I output"
+    fi
 
-      # ── Allowlist scan: check LLM bash tool_use for violations (US-243) ─────
-      # Scan stream-json for Bash tool_use commands matching the deny list.
-      # Violations are logged to .spiral/security-events.log (non-blocking audit).
-      if declare -f allowlist_scan_stream_json >/dev/null 2>&1; then
-        _AL_VIOLATIONS=$(allowlist_scan_stream_json "$_RL_TMP" "I" "${NEXT_STORY:-}" 2>/dev/null || echo 0)
-        if [[ "${_AL_VIOLATIONS:-0}" -gt 0 ]]; then
-          echo "  [allowlist] ${_AL_VIOLATIONS} policy violation(s) logged for phase I (see .spiral/security-events.log)"
-          log_ralph_event "allowlist_violation" \
-            "\"story_id\":\"${NEXT_STORY:-}\",\"phase\":\"I\",\"count\":${_AL_VIOLATIONS}"
-        fi
-      fi
-
-      # ── Tool param validation: semantic check of LLM bash tool_use args (US-249) ─
-      # Validates parameters for git/python/bats/jq/curl against .spiral/tool-schema.json.
-      # Invalid parameters are logged to checkpoint _toolErrors (non-blocking audit).
-      if declare -f scan_stream_json_tool_params >/dev/null 2>&1; then
-        _TP_ERRORS=$(scan_stream_json_tool_params "$_RL_TMP" "${NEXT_STORY:-}" 2>/dev/null || echo 0)
-        if [[ "${_TP_ERRORS:-0}" -gt 0 ]]; then
-          echo "  [tool-validate] ${_TP_ERRORS} tool parameter error(s) logged for phase I (see checkpoint _toolErrors)"
-          log_ralph_event "tool_param_errors" \
-            "\"storyId\":\"${NEXT_STORY:-}\",\"phase\":\"I\",\"count\":${_TP_ERRORS}"
-        fi
+    # ── Allowlist scan: check LLM bash tool_use for violations (US-243) ─────
+    # Scan stream-json for Bash tool_use commands matching the deny list.
+    # Violations are logged to .spiral/security-events.log (non-blocking audit).
+    if declare -f allowlist_scan_stream_json >/dev/null 2>&1; then
+      _AL_VIOLATIONS=$(allowlist_scan_stream_json "$_RL_TMP" "I" "${NEXT_STORY:-}" 2>/dev/null || echo 0)
+      if [[ "${_AL_VIOLATIONS:-0}" -gt 0 ]]; then
+        echo "  [allowlist] ${_AL_VIOLATIONS} policy violation(s) logged for phase I (see .spiral/security-events.log)"
+        log_ralph_event "allowlist_violation" \
+          "\"story_id\":\"${NEXT_STORY:-}\",\"phase\":\"I\",\"count\":${_AL_VIOLATIONS}"
       fi
     fi
 
-    rm -f "$_RL_TMP"
-    # ── US-253: emit I→V phase transition telemetry ─────────────────────────
-    _TELEM_V_START_MS=$(date +%s%3N 2>/dev/null || echo 0)
-    _TELEM_I_DUR=0
-    [[ "$_TELEM_V_START_MS" -gt 0 && "$_TELEM_I_START_MS" -gt 0 ]] &&
-      _TELEM_I_DUR=$((_TELEM_V_START_MS - _TELEM_I_START_MS))
-    declare -f emit_agent_telemetry >/dev/null 2>&1 &&
-      emit_agent_telemetry "I" "V" "$_TELEM_I_DUR" 0
+    # ── Tool param validation: semantic check of LLM bash tool_use args (US-249) ─
+    # Validates parameters for git/python/bats/jq/curl against .spiral/tool-schema.json.
+    # Invalid parameters are logged to checkpoint _toolErrors (non-blocking audit).
+    if declare -f scan_stream_json_tool_params >/dev/null 2>&1; then
+      _TP_ERRORS=$(scan_stream_json_tool_params "$_RL_TMP" "${NEXT_STORY:-}" 2>/dev/null || echo 0)
+      if [[ "${_TP_ERRORS:-0}" -gt 0 ]]; then
+        echo "  [tool-validate] ${_TP_ERRORS} tool parameter error(s) logged for phase I (see checkpoint _toolErrors)"
+        log_ralph_event "tool_param_errors" \
+          "\"storyId\":\"${NEXT_STORY:-}\",\"phase\":\"I\",\"count\":${_TP_ERRORS}"
+      fi
+    fi
+  fi
+
+  rm -f "$_RL_TMP"
+  # ── US-253: emit I→V phase transition telemetry ─────────────────────────
+  _TELEM_V_START_MS=$(date +%s%3N 2>/dev/null || echo 0)
+  _TELEM_I_DUR=0
+  [[ "$_TELEM_V_START_MS" -gt 0 && "$_TELEM_I_START_MS" -gt 0 ]] &&
+    _TELEM_I_DUR=$((_TELEM_V_START_MS - _TELEM_I_START_MS))
+  declare -f emit_agent_telemetry >/dev/null 2>&1 &&
+    emit_agent_telemetry "I" "V" "$_TELEM_I_DUR" 0
 
   # ── Store diagnosis block in prd.json (US-244) ──────────────────────────────
   if [[ -n "$_PHASE_I_DIAGNOSIS_BLOCK" ]]; then

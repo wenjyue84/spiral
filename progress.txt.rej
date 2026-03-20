@@ -2,7 +2,7 @@ diff a/progress.txt b/progress.txt	(rejected hunks)
 @@ -1953,31 +1953,3 @@ This technical brief is for a Claude agent tasked with implementing story US-604
  *   **Multi-ID Commits:** Decide how to handle commits referencing multiple stories (e.g., list the commit under each story).
  *   **Log Directory:** Ensure the `.spiral/` directory is created before attempting to write the warning log file.
- 
+
 -
 -## Pre-analysis for US-604 (Gemini 2.5 Pro)
 -This is a technical brief for story US-604. Note: The user story concerns a shell-based Git workflow, not a Frappe/Python implementation. The following plan is based on the story's actual content.

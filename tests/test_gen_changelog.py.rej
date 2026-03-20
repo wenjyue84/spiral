@@ -2,11 +2,11 @@ diff a/tests/test_gen_changelog.py b/tests/test_gen_changelog.py	(rejected hunks
 @@ -1,4 +1,4 @@
 -"""Tests for lib/gen_changelog.py — Phase G changelog generation.
 +"""Tests for lib/phases/gen_changelog.sh — Phase G changelog generation.
- 
+
  Verifies:
  - AC1: git-cliff binary validation via SPIRAL_GIT_CLIFF_BIN
 @@ -10,61 +10,166 @@ from __future__ import annotations
- 
+
  import os
  import subprocess
 +import textwrap
@@ -117,11 +117,11 @@ diff a/tests/test_gen_changelog.py b/tests/test_gen_changelog.py	(rejected hunks
 +        capture_output=True,
 +        check=True,
 +    )
- 
- 
+
+
  # ── AC1: Binary validation tests ────────────────────────────────────────────
- 
- 
+
+
  class TestAC1BinaryValidation:
 -    """AC1: gen_changelog validates git-cliff binary exists via SPIRAL_GIT_CLIFF_BIN."""
 -
@@ -156,7 +156,7 @@ diff a/tests/test_gen_changelog.py b/tests/test_gen_changelog.py	(rejected hunks
 +            env_overrides={"SPIRAL_GIT_CLIFF_BIN": "/nonexistent/git-cliff-fake"},
          )
 -        assert result == 1
- 
+
 -    def test_run_fails_when_cliff_toml_missing(self, tmp_path: Path) -> None:
 -        """run() returns 1 when cliff.toml is not found."""
 -        with patch("lib.gen_changelog.validate_git_cliff", return_value=True):
@@ -164,7 +164,7 @@ diff a/tests/test_gen_changelog.py b/tests/test_gen_changelog.py	(rejected hunks
 -        assert result == 1
 +        assert result.returncode != 0
 +        assert "not found" in result.stderr.lower() or "error" in result.stderr.lower()
- 
+
 -    def test_run_uses_spiral_git_cliff_bin_env(self, tmp_path: Path) -> None:
 -        """run() reads SPIRAL_GIT_CLIFF_BIN from environment."""
 -        (tmp_path / "cliff.toml").write_text("[changelog]\n", encoding="utf-8")
@@ -172,7 +172,7 @@ diff a/tests/test_gen_changelog.py b/tests/test_gen_changelog.py	(rejected hunks
 +        """Uses SPIRAL_GIT_CLIFF_BIN path when set."""
 +        repo = _init_git_repo(tmp_path)
 +        _add_commit(repo, "feat: initial commit\n\nStory ID: US-001")
- 
+
 -        with patch.dict(os.environ, {"SPIRAL_GIT_CLIFF_BIN": "/custom/git-cliff"}):
 -            with patch("lib.gen_changelog.validate_git_cliff", return_value=False):
 -                result = run(spiral_home=str(tmp_path))
@@ -183,7 +183,7 @@ diff a/tests/test_gen_changelog.py b/tests/test_gen_changelog.py	(rejected hunks
 +            encoding="utf-8",
 +        )
 +        subprocess.run(["chmod", "+x", str(fake_bin)], capture_output=True)
- 
+
 -        assert result == 1
 +        result = _run_gen_changelog(
 +            repo,
@@ -212,13 +212,13 @@ diff a/tests/test_gen_changelog.py b/tests/test_gen_changelog.py	(rejected hunks
 +
 +        assert result.returncode != 0
 +        assert "cliff.toml" in result.stderr
- 
- 
+
+
  # ── AC2: CHANGELOG.md generation tests ──────────────────────────────────────
 @@ -73,115 +178,100 @@ class TestAC1BinaryValidation:
  class TestAC2ChangelogGeneration:
      """AC2: CHANGELOG.md generated with sections for feat/fix/docs/refactor."""
- 
+
 -    def test_run_generates_changelog(self, tmp_path: Path) -> None:
 -        """run() creates CHANGELOG.md when git-cliff succeeds."""
 -        (tmp_path / "cliff.toml").write_text("[changelog]\n", encoding="utf-8")
@@ -304,7 +304,7 @@ diff a/tests/test_gen_changelog.py b/tests/test_gen_changelog.py	(rejected hunks
          assert "Bug Fixes" in changelog
          assert "Documentation" in changelog
          assert "Refactoring" in changelog
- 
+
 -    def test_run_fails_when_changelog_not_created(self, tmp_path: Path) -> None:
 -        """run() returns 1 when git-cliff fails to create CHANGELOG.md."""
 -        (tmp_path / "cliff.toml").write_text("[changelog]\n", encoding="utf-8")
@@ -416,13 +416,13 @@ diff a/tests/test_gen_changelog.py b/tests/test_gen_changelog.py	(rejected hunks
 -        changelog = (tmp_path / "CHANGELOG.md").read_text(encoding="utf-8")
 -        assert "**US-042**" in changelog
 -        assert "**US-043**" in changelog
- 
- 
+
+
  # ── AC3: Orphan commit detection tests ──────────────────────────────────────
 @@ -190,144 +280,140 @@ class TestAC2ChangelogGeneration:
  class TestAC3OrphanCommitDetection:
      """AC3: Orphan commits logged to .spiral/phase_g_warnings.log."""
- 
+
 -    def test_story_id_pattern_matches_us_prefix(self) -> None:
 -        """Pattern matches US-NNN story IDs."""
 -        assert STORY_ID_PATTERN.search("Story ID: US-100") is not None

@@ -3106,17 +3106,34 @@
     },
     {
       "id": "US-620",
-      "title": "Integration Test: Quick-Test Mode — Full Phase Loop in <30 Seconds",
-      "priority": "medium",
-      "description": "Provide rapid feedback loop for engineers modifying SPIRAL core phases (M, I, S). Single pytest command runs R→T→S→M→I→V→C with 2-story minimal prd.json and full mock Claude API fixtures, enabling <30s regression testing.",
+      "title": "Dashboard Endpoint: GET /api/dashboard/cross-project-dependency-graph — Visualize Federated Sub-Project Dependencies",
+      "priority": "high",
+      "description": "Implement dashboard endpoint that visualizes inter-project dependencies in federated SPIRAL projects. Scans prd.json for story.sub_project and story.dependencies fields to build and return a dependency graph showing which sub-projects depend on each other, enabling bottleneck detection and critical-path analysis in multi-repo workflows.",
       "acceptanceCriteria": [
-        "Run `pytest tests/integration/quick.py::test_full_loop_happy_path -v` executes all 7 phases with minimal prd.json (2 stories), completes in <30 seconds, all phases report pass status",
-        "Mock fixtures auto-inject Claude API responses for Phase R (Gemini research), Phase S (story validation), and Phase I (code generation); no external API calls",
-        "Assert final state: prd.json has both stories with status='pass', results.tsv has 2 rows with story_id matching input, commit_sha populated from Phase I"
+        "GET /api/dashboard/cross-project-dependency-graph reads federated prd.json, extracts story.sub_project and story.dependencies, returns JSON with { sub_projects: [name], edges: [{ from_project, to_project, num_stories, stories: [US-X, ...] }], critical_path: [project_chain] }",
+        "Computes critical path using topological sort; handles missing sub_project field gracefully; edge counts reflect number of distinct story dependencies between projects",
+        "Integration test tests/integration/test_federated_dependency_graph.py mocks federated prd.json with 3 sub-projects and known inter-project deps, asserts critical path and edge counts match expected topology"
       ],
       "technicalNotes": [],
       "dependencies": [],
-      "estimatedComplexity": "medium",
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-621",
+      "title": "Phase G: Generate Performance Regression Report from Results.tsv Historical Timeline",
+      "priority": "medium",
+      "description": "Implement Phase G report that detects regressions in SPIRAL phase performance over iterations. Calculates moving averages of phase duration and identifies phases exceeding 120% of baseline, with root-cause analysis pointing to problematic stories and remediation suggestions.",
+      "acceptanceCriteria": [
+        "lib/phases/phase_g_performance_report.sh reads results.tsv, groups by (iteration, phase), computes 5-iteration moving average of duration_ms per phase, flags phases exceeding 120% baseline as regression",
+        "Outputs PERFORMANCE_REGRESSION.md with markdown table: Phase | Iteration | Baseline (ms) | Current (ms) | Regression % | Top 3 Slow Stories | Recommendation (retry escalation / decompose / model choice); omit rows with zero regressions",
+        "Integration test tests/integration/test_phase_g_performance_report.py mocks results.tsv with synthetic per-phase timings including intentional Phase I regression, asserts report correctly identifies it and suggests remediation hints"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
       "passes": false,
       "_source": "ai-example",
       "model": "sonnet"

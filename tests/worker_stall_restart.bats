@@ -44,7 +44,7 @@ make_stale_new_heartbeat() {
   local story_id="${2:-US-001}"
   local stale_secs="${3:-400}"
   mkdir -p "$worker_dir"
-  local old_ts=$(( $(date +%s) - stale_secs ))
+  local old_ts=$(($(date +%s) - stale_secs))
   printf '{"pid":9999,"storyId":"%s","ts":%s,"completed":0,"phase":"running","memMb":0,"last_progress_time":%s}\n' \
     "$story_id" "$(date +%s)" "$old_ts" >"$worker_dir/.heartbeat"
 }
@@ -132,7 +132,7 @@ make_fresh_new_heartbeat() {
 
   now=$(date +%s)
   lpt=$("$JQ" -r '.last_progress_time // 0' "$hb_file")
-  stall_secs=$(( now - lpt ))
+  stall_secs=$((now - lpt))
 
   # stale by 400s, timeout is 300s → should detect stall
   [ "$stall_secs" -gt 300 ]
@@ -145,7 +145,7 @@ make_fresh_new_heartbeat() {
   hb_file="$worktree_dir/.heartbeat"
   now=$(date +%s)
   lpt=$("$JQ" -r '.last_progress_time // 0' "$hb_file")
-  stall_secs=$(( now - lpt ))
+  stall_secs=$((now - lpt))
 
   # Fresh heartbeat: stall should be < 10s
   [ "$stall_secs" -lt 10 ]
@@ -172,7 +172,7 @@ make_fresh_new_heartbeat() {
   hb_file="$worktree_dir/.heartbeat"
   now=$(date +%s)
   lpt=$("$JQ" -r '.last_progress_time // 0' "$hb_file")
-  stall_secs=$(( now - lpt ))
+  stall_secs=$((now - lpt))
   timeout=300
 
   # Should NOT trigger restart (250s < 300s timeout)
@@ -193,7 +193,7 @@ make_fresh_new_heartbeat() {
   hb_file="$worktree_dir/.heartbeat"
   now=$(date +%s)
   lpt=$("$JQ" -r '.last_progress_time // 0' "$hb_file")
-  stall_secs=$(( now - lpt ))
+  stall_secs=$((now - lpt))
 
   printf '{"ts":"%s","event":"worker_stall_restart","run_id":"%s","worker":1,"stall_secs":%d}\n' \
     "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${SPIRAL_RUN_ID}" "$stall_secs" \
@@ -243,7 +243,7 @@ make_fresh_new_heartbeat() {
   hb_file="$worktree_dir/.heartbeat"
   lpt=$("$JQ" -r '.last_progress_time // 0' "$hb_file")
 
-  stall_secs=$(( now - lpt ))
+  stall_secs=$((now - lpt))
   [ "$stall_secs" -gt "$stall_timeout" ]
 
   # Would trigger restart — log event

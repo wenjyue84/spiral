@@ -23,8 +23,8 @@
 set -euo pipefail
 
 # ── Phase timing state ──────────────────────────────────────────────────────
-declare -gA _PHASE_START_TIME=()  # map: phase_name -> seconds since epoch
-declare -gA _PHASE_DURATION=()    # map: phase_name -> elapsed seconds
+declare -gA _PHASE_START_TIME=() # map: phase_name -> seconds since epoch
+declare -gA _PHASE_DURATION=()   # map: phase_name -> elapsed seconds
 
 # Start measuring a named phase
 # Arguments: phase_name (e.g., "decompose", "impl", "verify")
@@ -48,11 +48,11 @@ phase_end() {
   # Handle both millisecond and second precision
   if [[ "$end_time" =~ [0-9]+[0-9]{3}$ ]]; then
     # Millisecond precision (ms)
-    elapsed_ms=$(( end_time - _PHASE_START_TIME["$phase_name"] ))
-    elapsed_sec=$(( elapsed_ms / 1000 ))
+    elapsed_ms=$((end_time - _PHASE_START_TIME["$phase_name"]))
+    elapsed_sec=$((elapsed_ms / 1000))
   else
     # Second precision
-    elapsed_sec=$(( end_time - _PHASE_START_TIME["$phase_name"] ))
+    elapsed_sec=$((end_time - _PHASE_START_TIME["$phase_name"]))
   fi
 
   _PHASE_DURATION["$phase_name"]=$elapsed_sec
@@ -74,7 +74,7 @@ get_phase_durations() {
 # Increment retry escalation counter when model escalates (haiku→sonnet, sonnet→opus, etc)
 # Called by ralph.sh when EFFECTIVE_MODEL changes
 increment_escalation_count() {
-  _PHASE_ESCALATION_COUNT=$(( ${_PHASE_ESCALATION_COUNT:-0} + 1 ))
+  _PHASE_ESCALATION_COUNT=$((${_PHASE_ESCALATION_COUNT:-0} + 1))
 }
 
 # Reset all phase timings for a new story

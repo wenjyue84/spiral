@@ -69,8 +69,8 @@ log_spiral_event() {
   fi
   printf '%s\n' "$line" >>"$log_file" 2>/dev/null || true
   # Rotate if over max lines limit (only for shared main file, not workers)
-  if [[ -z "${SPIRAL_WORKER_ID:-}" \
-    && "${SPIRAL_EVENT_LOG_MAX_LINES:-10000}" -gt 0 ]]; then
+  if [[ -z "${SPIRAL_WORKER_ID:-}" &&
+    "${SPIRAL_EVENT_LOG_MAX_LINES:-10000}" -gt 0 ]]; then
     local count
     count=$(wc -l <"$log_file" 2>/dev/null || echo 0)
     if [[ "$count" -gt "${SPIRAL_EVENT_LOG_MAX_LINES:-10000}" ]]; then

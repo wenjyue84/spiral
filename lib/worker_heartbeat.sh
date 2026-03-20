@@ -99,7 +99,7 @@ worker_heartbeat_start() {
       # US-531: Warn if worker has made no progress for longer than SPIRAL_WORKER_TIMEOUT
       local _wt_timeout="${SPIRAL_WORKER_TIMEOUT:-300}"
       if [[ "$_wt_timeout" -gt 0 ]]; then
-        local _stall_secs=$(( ts - _last_progress_ts ))
+        local _stall_secs=$((ts - _last_progress_ts))
         if [[ "$_stall_secs" -gt "$_wt_timeout" ]]; then
           echo "[heartbeat] WARNING: Worker $worker_id: no progress for ${_stall_secs}s (timeout=${_wt_timeout}s)" >&2
         fi

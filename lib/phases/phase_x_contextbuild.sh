@@ -36,7 +36,7 @@ run_phase_context_build() {
     --repo-root "$REPO_ROOT" \
     --max-lines "$_max_lines" || _x_rc=$?
 
-  local _x_dur=$(( $(date +%s) - _x_ts ))
+  local _x_dur=$(($(date +%s) - _x_ts))
   _PHASE_DUR_X=$_x_dur
 
   if [[ "$_x_rc" -eq 0 && -f "$_repo_map_out" ]]; then

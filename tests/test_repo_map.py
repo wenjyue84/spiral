@@ -343,7 +343,6 @@ class TestCLI:
         }
         prd_path = repo / "prd.json"
         prd_path.write_text(json.dumps(prd), encoding="utf-8")
-        output_path = repo / ".spiral" / "_repo_map.json"
 
         result = build_repo_map(str(prd_path), str(repo))
         assert "US-001" in result.stories

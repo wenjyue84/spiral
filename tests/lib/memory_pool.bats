@@ -75,7 +75,7 @@ write_ledger() {
 }
 
 @test "pool_init fails when pool too small after reserve" {
-  _pool_free_ram_mb() { echo "1200"; }  # 1200 - 1024 = 176 < 768 (TIER_SMALL)
+  _pool_free_ram_mb() { echo "1200"; } # 1200 - 1024 = 176 < 768 (TIER_SMALL)
   export -f _pool_free_ram_mb
 
   run pool_init

@@ -11,6 +11,6 @@ diff a/lib/prd/prd_schema.py b/lib/prd/prd_schema.py	(rejected hunks)
                      elif not tag_pattern.match(tag):
 -                        errors.append(f"{sp}/tags/{ti} — '{tag}' must match /^[a-z0-9_.:-]+$/")
 +                        errors.append(f"{sp}/tags/{ti} — '{tag}' must match /^[a-z0-9_-]+$/")
- 
+
          if "epicId" in story:
              if not isinstance(story["epicId"], str) or not story["epicId"].strip():

@@ -4,13 +4,13 @@ diff a/lib/dashboard/api.py b/lib/dashboard/api.py	(rejected hunks)
  from .cost_broadcaster import get_manager
  from .timeline import get_timeline_manager, parse_timeline
 -from .timeseries_store import query_timeseries
- 
+
  logger = logging.getLogger(__name__)
- 
+
 @@ -257,42 +256,6 @@ async def research_sources_endpoint() -> dict[str, Any]:
          }
- 
- 
+
+
 -@app.get("/api/dashboard/timeseries")
 -async def timeseries_endpoint(
 -    metric: str = "phase_duration",

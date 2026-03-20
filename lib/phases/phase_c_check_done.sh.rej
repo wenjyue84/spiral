@@ -2,7 +2,7 @@ diff a/lib/phases/phase_c_check_done.sh b/lib/phases/phase_c_check_done.sh	(reje
 @@ -181,19 +181,6 @@ run_phase_check_done() {
    # ── Write iteration summary (US-039) ──────────────────────────────────
    write_iter_summary
- 
+
 -  # ── US-602: Record iteration metrics to SQLite time-series store ──────
 -  "$SPIRAL_PYTHON" - <<PYEOF 2>/dev/null || true
 -import sys

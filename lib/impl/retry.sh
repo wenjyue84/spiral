@@ -52,9 +52,9 @@ invoke_exhaustion_analyzer() {
 
   mkdir -p "$output_dir"
   if uv run python "$analyzer_script" \
-       --story-id "$story_id" \
-       --attempts "$attempts_file" \
-       --output "$output_file" 2>&1; then
+    --story-id "$story_id" \
+    --attempts "$attempts_file" \
+    --output "$output_file" 2>&1; then
     echo "[Phase I / retry] Exhaustion report written: $output_file"
   else
     echo "[Phase I / retry] Exhaustion analyzer failed for $story_id (non-fatal)" >&2

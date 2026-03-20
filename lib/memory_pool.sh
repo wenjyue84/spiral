@@ -55,7 +55,7 @@ _pool_free_ram_mb() {
 
 # ── Internal: mkdir-based mutex ──────────────────────────────────────────────
 _pool_lock() {
-  local max_wait="${1:-10}"  # seconds
+  local max_wait="${1:-10}" # seconds
   local waited=0
   while ! mkdir "$_POOL_LOCK" 2>/dev/null; do
     # Check if lock is stale (holder crashed)
@@ -74,7 +74,7 @@ _pool_lock() {
       if command -v stat &>/dev/null; then
         local lock_mtime
         lock_mtime=$(stat -c %Y "$_POOL_LOCK" 2>/dev/null || stat -f %m "$_POOL_LOCK" 2>/dev/null || echo "0")
-        lock_age=$(( $(date +%s) - lock_mtime ))
+        lock_age=$(($(date +%s) - lock_mtime))
       fi
       if [[ "$lock_age" -gt 5 ]]; then
         echo "[pool] WARNING: forcing stale lock removal (age ${lock_age}s)" >&2
@@ -169,10 +169,10 @@ pool_reserve() {
 
   # Compute V8 heap
   local v8_heap
-  v8_heap=$(( reserve_mb * _POOL_V8_FRACTION / 100 ))
+  v8_heap=$((reserve_mb * _POOL_V8_FRACTION / 100))
 
   # Update ledger atomically
-  local new_reserved=$(($(  "$_POOL_JQ" -r '.reserved_mb' "$_POOL_LEDGER") + reserve_mb))
+  local new_reserved=$(($("$_POOL_JQ" -r '.reserved_mb' "$_POOL_LEDGER") + reserve_mb))
   local new_available=$((available - reserve_mb))
   local pid=$$
 
@@ -288,7 +288,7 @@ pool_classify_budget() {
 # ── pool_compute_v8_heap(reservation_mb) — Compute V8 heap from reservation ──
 pool_compute_v8_heap() {
   local reservation_mb="${1:-0}"
-  echo $(( reservation_mb * _POOL_V8_FRACTION / 100 ))
+  echo $((reservation_mb * _POOL_V8_FRACTION / 100))
 }
 
 # ── pool_reclaim_stale() — Scan for dead PIDs, reclaim their reservations ────

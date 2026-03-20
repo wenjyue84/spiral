@@ -65,7 +65,7 @@ _log_orphan_commits() {
   mkdir -p "$(dirname "$warnings_file")"
 
   # Clear previous warnings
-  : > "$warnings_file"
+  : >"$warnings_file"
 
   local orphan_count=0
 
@@ -80,7 +80,7 @@ _log_orphan_commits() {
     full_message=$(git log -1 --format="%B" "$hash" 2>/dev/null || echo "")
 
     if ! echo "$full_message" | grep -qE '(US|UT)-[0-9]+'; then
-      echo "${hash} ${subject}" >> "$warnings_file"
+      echo "${hash} ${subject}" >>"$warnings_file"
       orphan_count=$((orphan_count + 1))
     fi
   done < <(git log --oneline --no-merges 2>/dev/null || true)

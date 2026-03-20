@@ -258,3 +258,19 @@ This user story concerns a Python CLI tool, not a Frappe application. The implem
 ### Gotchas
 - mypy strict requires explicit type annotation on `order_federated_stories_by_dependency()` return before assignment to typed variable
 - The Kahn's algorithm `len(result) != len(stories)` check must only compare stories WITH IDs (stories without IDs are excluded from the graph)
+
+## Iteration - Story: Phase M: Optimize Merge Order for Federated Stories with Cross-Project Dependencies (US-617)
+
+### What was implemented
+- lib/impl/phase_m_federated_order.py: order_federated_stories_by_dependency() with topological sort (Kahn's) and cycle detection
+- lib/spiral/phase_m.py: prd_merge() calls ordering before merge
+- main.py: validate-federated-order CLI command reports merge order + violations as JSON
+- tests/test_phase_m_federated_order.py: comprehensive tests covering order, cycle detection, CLI
+
+### Patterns discovered
+- All 3 files were already implemented correctly from a prior iteration
+- uv run pytest fails with Windows temp file permission errors; use python -m pytest or direct python test invocation
+- Tests required running manually due to pytest xdist config in tests/pyproject.toml
+
+### Gotchas
+- tests/pyproject.toml sets --dist loadscope -n auto which requires xdist; run individual tests with python -m pytest -p no:xdist or invoke directly

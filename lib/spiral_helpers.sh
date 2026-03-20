@@ -441,7 +441,7 @@ run_codeql_scan() {
     fi
   done
 
-  local _codeql_dur=$(( $(date +%s) - _codeql_start ))
+  local _codeql_dur=$(($(date +%s) - _codeql_start))
   echo "  [CodeQL] Scan completed in ${_codeql_dur}s"
 
   log_spiral_event "codeql_scan" "\"iteration\":$SPIRAL_ITER,\"duration_s\":$_codeql_dur,\"critical\":$any_critical,\"languages\":\"$languages\",\"suite\":\"$query_suite\""
@@ -735,4 +735,3 @@ compress_old_artifacts() {
     echo "  [compress] Compressed ${compressed} artifact(s) from iters 1-${threshold}; .spiral/ total: ${total_kb}K"
   fi
 }
-

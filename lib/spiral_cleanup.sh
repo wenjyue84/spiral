@@ -102,4 +102,3 @@ write_active_status() {
   fi
   mv "$tmp_file" "$SCRATCH_DIR/_active_status.json" 2>/dev/null || true
 }
-

@@ -71,7 +71,7 @@ SPIRAL_REPO_MAP_MAX_LINES="${SPIRAL_REPO_MAP_MAX_LINES:-150}"
 # ── Phase-specific model defaults ────────────────────────────────────────────
 # Each non-implementation phase can use a cheaper model (haiku is ~15x cheaper
 # than sonnet). Phase I continues to use SPIRAL_MODEL_ROUTING for escalation.
-SPIRAL_RESEARCH_MODEL="haiku"   # Phase R: research synthesis model
+SPIRAL_RESEARCH_MODEL="haiku" # Phase R: research synthesis model
 # Model for Phase A LLM story generation. Defaults to haiku (cheapest).
 # SPIRAL_AI_SUGGEST_MODEL="claude-haiku-4-5-20251001"
 SPIRAL_VALIDATION_MODEL="haiku" # Phase S: story validation (future — currently Python-only)
@@ -135,9 +135,9 @@ SPIRAL_MEMORY_POOL="${SPIRAL_MEMORY_POOL:-true}"
 # RAM excluded from pool for OS + orchestrator overhead (MB)
 SPIRAL_POOL_RESERVE_MB="${SPIRAL_POOL_RESERVE_MB:-1024}"
 # Per-tier reservation sizes (MB)
-SPIRAL_POOL_TIER_SMALL="${SPIRAL_POOL_TIER_SMALL:-768}"     # haiku, score 0-1
-SPIRAL_POOL_TIER_MEDIUM="${SPIRAL_POOL_TIER_MEDIUM:-1536}"  # sonnet, score 2-4
-SPIRAL_POOL_TIER_LARGE="${SPIRAL_POOL_TIER_LARGE:-2560}"    # opus, score 5+, retries >= 2
+SPIRAL_POOL_TIER_SMALL="${SPIRAL_POOL_TIER_SMALL:-768}"    # haiku, score 0-1
+SPIRAL_POOL_TIER_MEDIUM="${SPIRAL_POOL_TIER_MEDIUM:-1536}" # sonnet, score 2-4
+SPIRAL_POOL_TIER_LARGE="${SPIRAL_POOL_TIER_LARGE:-2560}"   # opus, score 5+, retries >= 2
 # V8 heap as percentage of reservation (remainder = non-heap overhead)
 SPIRAL_POOL_V8_HEAP_FRACTION="${SPIRAL_POOL_V8_HEAP_FRACTION:-65}"
 # Interval (seconds) for reclaiming reservations from dead worker PIDs
@@ -227,7 +227,7 @@ SPIRAL_CASCADE_FAN_OUT_LIMIT="${SPIRAL_CASCADE_FAN_OUT_LIMIT:-5}"
 # reasons, then exits with ERR_ZERO_PROGRESS (exit code 9).
 # 0 = disabled (unlimited retries; recovery strategies still apply).
 # Default 3 matches the existing graduated recovery (decompose → halve batch → halt).
-SPIRAL_CONSECUTIVE_FAIL_ABORT=0  # disabled — allow retries on difficult sub-stories
+SPIRAL_CONSECUTIVE_FAIL_ABORT=0 # disabled — allow retries on difficult sub-stories
 
 # ── Skip disk space preflight check (slow on Windows NTFS) ──────────────────
 export SPIRAL_SKIP_DISK_CHECK=1

@@ -6,11 +6,11 @@ diff a/main.py b/main.py	(rejected hunks)
 -  extract-failed-stories  Generate triage report from results.tsv for stuck stories (US-613)
    monitor                 Unified monitoring snapshot for progress checks
  """
- 
+
 @@ -2469,29 +2468,6 @@ def cmd_analyze_failures(args) -> None:
          print(f"Recommendation: {result['recommendation']}")
- 
- 
+
+
 -def cmd_extract_failed_stories(args: argparse.Namespace) -> None:
 -    """Generate triage report from results.tsv for stuck stories (US-613).
 -
@@ -36,11 +36,11 @@ diff a/main.py b/main.py	(rejected hunks)
 -
  def cmd_detect_anomalies(args) -> None:
      """Detect stories with unusual token-spend patterns (US-544).
- 
+
 @@ -3131,32 +3107,6 @@ def main():
          help="Repo root directory (default: .)",
      )
- 
+
 -    # ── extract-failed-stories subcommand (US-613) ──────────────────────────────
 -    extract_failed_parser = subparsers.add_parser(
 -        "extract-failed-stories",

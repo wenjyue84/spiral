@@ -1812,13 +1812,13 @@ Here is the technical brief for implementing the real-time cost ceiling alert st
   * Emits {type: 'cost_alert', severity, current_cost, ceiling, percent_used, timestamp}
   * Authenticated via X-API-Key when configured
   * Tests: test_ws_alerts.py (7 tests, all passing)
-  
+
 - [x] AC2: Phase I pre-check calls alert emission when costs exceed thresholds
   * Phase I calls check_and_emit_cost_alerts() before implementation
   * Warning alert emitted at >= 80% of SPIRAL_COST_CEILING
   * Critical alert emitted at >= 95% of SPIRAL_COST_CEILING
   * Tests: test_cost_alert_emitter.py (9 tests, all passing)
-  
+
 - [x] AC3: AlertsPanel.tsx subscribes to /ws/alerts and displays alerts properly
   * Connects to /ws/alerts via WebSocket
   * Displays alerts with ISO-formatted timestamp
@@ -2035,4 +2035,3 @@ This task involves creating a Python script and shell wrapper to automate `CHANG
 *   The script must handle the case where `SPIRAL_GIT_CLIFF_BIN` is not set or points to a non-existent file.
 *   The system needs to ensure the `.spiral/` directory exists before attempting to write the warning log file.
 *   Consider how to handle commits associated with multiple story IDs. The simplest approach is to capture the first one found.
-
