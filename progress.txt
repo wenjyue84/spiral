@@ -1,4 +1,49 @@
 
+## Iteration 43 - US-540: Dashboard Story Status Timeline Endpoint with Phase Swimlanes
+
+### What was implemented
+- lib/dashboard/timeline.py: New module with:
+  - TimelineEvent dataclass for story attempt records
+  - TimelineManager class to manage WebSocket connections and broadcast phase events
+  - parse_timeline(results_path, iterations_limit) to parse results.tsv and group by iteration/phase
+  - PHASE_ORDER and PHASE_NAMES constants for swimlane rendering
+  - get_timeline_manager() singleton accessor
+- lib/dashboard/api.py: Added two new endpoints:
+  - GET /api/timeline?iterations=N (default=3) returns {iterations_requested, events[], total_events}
+  - WebSocket GET /ws/timeline for real-time phase transition event streaming
+- lib/ui/timeline_chart.html: Interactive dashboard UI with:
+  - Phase swimlane chart (iterations as rows, 8 phase columns: R/T/S/M/G/I/V/C)
+  - Color-coded story bars (pending=gray, running=blue, passed=green, failed=red)
+  - Real-time WebSocket updates with 3s auto-reconnect on disconnect
+  - 5s auto-refresh of timeline data
+  - Stats display (total events, passed count, failed count)
+  - Responsive design with Tailwind-like styling
+- tests/test_timeline_endpoint.py: 16 comprehensive tests covering:
+  - TimelineEvent creation and serialization
+  - parse_timeline() with empty, single, multiple stories, iteration filtering, sorting
+  - TimelineManager async connect/disconnect/broadcast
+  - API endpoint responses with/without data
+  - Phase constants validation
+
+### Acceptance criteria verification
+✓ AC1: GET /api/timeline?iterations=3 returns JSON array with timeline events including storyId, phase, iteration, status, timing, modelUsed
+✓ AC2: WebSocket /ws/timeline emits phase_change events in real-time with event, story_id, iteration, phase, status, timing fields
+✓ AC3: Dashboard UI renders phase swimlane chart with iterations as rows, phases as columns, color-coded status bars
+
+### Patterns discovered
+- Phase data is not stored in results.tsv yet; timeline currently infers all Phase I (implementation) since that's what's recorded
+- TimelineManager follows the same pattern as existing CostBroadcaster for WebSocket management
+- Results.tsv has columns: timestamp, spiral_iter, story_id, story_title, status, duration_sec, model, retry_num, commit_sha
+- Status mapping: "accept" → "passed", "reject" → "failed", other → "unknown"
+
+### Quality gates
+- All 16 new tests pass
+- All 104 existing dashboard tests still pass (no regression)
+- mypy --strict clean on timeline.py and api.py
+- Timeline HTML is static/frontend-only, tested via browser DevTools when dashboard is live
+
+---
+
 ## Iteration 42 - US-539: Phase Replay Mode
 
 ### What was implemented
