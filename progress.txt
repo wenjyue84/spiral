@@ -1,3 +1,23 @@
+## Iteration - Story: US-628 Integration Test: Ralph Subprocess Timeout with Partial Output Capture
+
+### What was implemented
+- lib/impl/retry.py: New Python module with execute_ralph() function handling subprocess.TimeoutExpired
+  - Catches TimeoutExpired, captures partial stdout/stderr (str and bytes), writes JSON annotation to output_file
+  - Model escalation: haiku→sonnet→opus→exhausted via _next_model() helper
+  - Returns status='retry_escalated' (or 'exhausted' if opus times out), next_model, timeout_seconds
+  - Logs structured error with story_id, model, timeout, and SPIRAL_TIMEOUT_RALPH hint
+  - Reads SPIRAL_TIMEOUT_RALPH env var for default timeout (300s fallback)
+- tests/test_ralph_timeout.py: 15 tests covering AC1 (output capture), AC2 (model escalation), AC3 (error log content)
+
+### Patterns discovered
+- lib/impl/ is a namespace package (no __init__.py) — importable via lib.impl.module_name
+- subprocess.TimeoutExpired.stdout/stderr can be str or bytes; always normalize to str
+- mypy --strict passes for lib/impl/retry.py without any relaxation needed
+
+### Gotchas
+- Tests use unittest.mock.patch("subprocess.run") at the lib.impl.retry call site
+- _capture_log context manager needed to capture logger.error() calls in tests (no caplog fixture in non-pytest-fixture class methods)
+
 ## Iteration (verification session) - Story: US-625 Dashboard Aggregation Layer
 
 ### What was implemented
