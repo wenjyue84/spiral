@@ -40,7 +40,8 @@
       ],
       "tags": [
         "module-hypothesis",
-        "module-hypothesis"
+        "module-hypothesis",
+        "module:hypothesis"
       ]
     },
     {
@@ -75,7 +76,9 @@
         "module-claude",
         "module-hypothesis",
         "module-claude",
-        "module-hypothesis"
+        "module-hypothesis",
+        "module:claude",
+        "module:hypothesis"
       ],
       "last_attempted": "2026-03-20T12:48:47Z",
       "_scopeCreep": true
@@ -110,7 +113,8 @@
       ],
       "tags": [
         "module-hypothesis",
-        "module-hypothesis"
+        "module-hypothesis",
+        "module:hypothesis"
       ],
       "_scopeCreep": true
     },
@@ -146,7 +150,9 @@
         "module-claude",
         "module-hypothesis",
         "module-claude",
-        "module-hypothesis"
+        "module-hypothesis",
+        "module:claude",
+        "module:hypothesis"
       ],
       "last_attempted": "2026-03-20T13:23:57Z"
     },
@@ -182,7 +188,9 @@
         "module-claude",
         "module-hypothesis",
         "module-claude",
-        "module-hypothesis"
+        "module-hypothesis",
+        "module:claude",
+        "module:hypothesis"
       ]
     },
     {
@@ -258,7 +266,9 @@
         "module-hypothesis",
         "module-lib",
         "module-hypothesis",
-        "module-lib"
+        "module-lib",
+        "module:hypothesis",
+        "module:lib"
       ],
       "last_attempted": "2026-03-19T02:00:58Z"
     },
@@ -292,7 +302,8 @@
       ],
       "tags": [
         "module-hypothesis",
-        "module-hypothesis"
+        "module-hypothesis",
+        "module:hypothesis"
       ],
       "last_attempted": "2026-03-19T02:49:03Z",
       "_passedCommit": "8270f68efbe6a577266c4063cb8ccaab03d3e8af"
@@ -329,7 +340,9 @@
         "module-hypothesis",
         "module-lib",
         "module-hypothesis",
-        "module-lib"
+        "module-lib",
+        "module:hypothesis",
+        "module:lib"
       ],
       "last_attempted": "2026-03-19T03:31:26Z",
       "_passedCommit": "df8d0149b07fba31d7d07d9631a80087370cf7a0"
@@ -366,7 +379,9 @@
         "module-hypothesis",
         "module-lib",
         "module-hypothesis",
-        "module-lib"
+        "module-lib",
+        "module:hypothesis",
+        "module:lib"
       ],
       "_passedCommit": "df8d0149b07fba31d7d07d9631a80087370cf7a0"
     },
@@ -400,7 +415,8 @@
       ],
       "tags": [
         "module-hypothesis",
-        "module-hypothesis"
+        "module-hypothesis",
+        "module:hypothesis"
       ],
       "_passedCommit": "df8d0149b07fba31d7d07d9631a80087370cf7a0"
     },
@@ -431,7 +447,9 @@
         "module-lib",
         "module-tests",
         "module-lib",
-        "module-tests"
+        "module-tests",
+        "module:lib",
+        "module:tests"
       ],
       "_passedCommit": "df8d0149b07fba31d7d07d9631a80087370cf7a0"
     },
@@ -500,7 +518,8 @@
       ],
       "tags": [
         "module-tests",
-        "module-tests"
+        "module-tests",
+        "module:tests"
       ]
     },
     {
@@ -533,7 +552,8 @@
       ],
       "tags": [
         "module-hypothesis",
-        "module-hypothesis"
+        "module-hypothesis",
+        "module:hypothesis"
       ]
     },
     {
@@ -566,7 +586,8 @@
       ],
       "tags": [
         "module-hypothesis",
-        "module-hypothesis"
+        "module-hypothesis",
+        "module:hypothesis"
       ],
       "_scopeCreep": true
     },
@@ -600,7 +621,8 @@
       ],
       "tags": [
         "module-hypothesis",
-        "module-hypothesis"
+        "module-hypothesis",
+        "module:hypothesis"
       ],
       "last_attempted": "2026-03-19T12:47:04Z"
     },
@@ -636,7 +658,9 @@
         "module-github",
         "module-hypothesis",
         "module-github",
-        "module-hypothesis"
+        "module-hypothesis",
+        "module:github",
+        "module:hypothesis"
       ],
       "last_attempted": "2026-03-19T13:06:38Z",
       "_scopeCreep": true
@@ -677,7 +701,8 @@
       ],
       "tags": [
         "module-hypothesis",
-        "module-hypothesis"
+        "module-hypothesis",
+        "module:hypothesis"
       ]
     },
     {
@@ -716,7 +741,9 @@
         "module-github",
         "module-hypothesis",
         "module-github",
-        "module-hypothesis"
+        "module-hypothesis",
+        "module:github",
+        "module:hypothesis"
       ]
     },
     {
@@ -859,7 +886,8 @@
       ],
       "tags": [
         "module-tests",
-        "module-tests"
+        "module-tests",
+        "module:tests"
       ],
       "_passedCommit": "052f0e49a93abe005d353b5b850c17ec27b17b84"
     },
@@ -1252,7 +1280,9 @@
         "module-github",
         "module-hypothesis",
         "module-github",
-        "module-hypothesis"
+        "module-hypothesis",
+        "module:github",
+        "module:hypothesis"
       ]
     },
     {
@@ -1440,7 +1470,8 @@
       ],
       "tags": [
         "module-hypothesis",
-        "module-hypothesis"
+        "module-hypothesis",
+        "module:hypothesis"
       ],
       "last_attempted": "2026-03-20T03:53:38Z",
       "_passedCommit": "",
@@ -1592,7 +1623,10 @@
         "module-lib",
         "module-github",
         "module-hypothesis",
-        "module-lib"
+        "module-lib",
+        "module:github",
+        "module:hypothesis",
+        "module:lib"
       ]
     },
     {
@@ -1620,7 +1654,8 @@
       ],
       "tags": [
         "module-github",
-        "module-github"
+        "module-github",
+        "module:github"
       ],
       "_passedCommit": "9fb5999af9697ec44d825c3e6fde4afbe4966bb6"
     },
@@ -1656,7 +1691,10 @@
         "module-lib",
         "module-github",
         "module-hypothesis",
-        "module-lib"
+        "module-lib",
+        "module:github",
+        "module:hypothesis",
+        "module:lib"
       ],
       "_passedCommit": "9fb5999af9697ec44d825c3e6fde4afbe4966bb6"
     },
@@ -1760,7 +1798,9 @@
         "module-claude",
         "module-hypothesis",
         "module-claude",
-        "module-hypothesis"
+        "module-hypothesis",
+        "module:claude",
+        "module:hypothesis"
       ],
       "_passedCommit": ""
     },
@@ -2012,7 +2052,10 @@
         "module-tests",
         "module-lib",
         "module-ralph",
-        "module-tests"
+        "module-tests",
+        "module:lib",
+        "module:ralph",
+        "module:tests"
       ]
     },
     {
@@ -2046,7 +2089,9 @@
         "module-github",
         "module-hypothesis",
         "module-github",
-        "module-hypothesis"
+        "module-hypothesis",
+        "module:github",
+        "module:hypothesis"
       ],
       "_passedCommit": ""
     },
@@ -2081,7 +2126,9 @@
         "module-claude",
         "module-hypothesis",
         "module-claude",
-        "module-hypothesis"
+        "module-hypothesis",
+        "module:claude",
+        "module:hypothesis"
       ],
       "_passedCommit": ""
     },
@@ -2116,7 +2163,9 @@
         "module-claude",
         "module-hypothesis",
         "module-claude",
-        "module-hypothesis"
+        "module-hypothesis",
+        "module:claude",
+        "module:hypothesis"
       ],
       "_passedCommit": ""
     },
@@ -2619,7 +2668,10 @@
         "module-github",
         "module-claude",
         "module-devcontainer",
-        "module-github"
+        "module-github",
+        "module:claude",
+        "module:devcontainer",
+        "module:github"
       ],
       "last_attempted": "2026-03-18T16:56:51Z",
       "_passedCommit": "9fb5999af9697ec44d825c3e6fde4afbe4966bb6"
@@ -2656,7 +2708,10 @@
         "module-hypothesis",
         "module-claude",
         "module-github",
-        "module-hypothesis"
+        "module-hypothesis",
+        "module:claude",
+        "module:github",
+        "module:hypothesis"
       ],
       "last_attempted": "2026-03-18T13:38:04Z",
       "_skipped": true
@@ -2782,8 +2837,10 @@
         ".hypothesis/constants/15647f5536a392c4"
       ],
       "tags": [
-        "module-hypothesis"
-      ]
+        "module-hypothesis",
+        "module:hypothesis"
+      ],
+      "_scopeCreep": true
     },
     {
       "id": "US-604",
@@ -2815,7 +2872,9 @@
       ],
       "tags": [
         "module-claude",
-        "module-hypothesis"
+        "module-hypothesis",
+        "module:claude",
+        "module:hypothesis"
       ]
     },
     {
@@ -2848,7 +2907,9 @@
       ],
       "tags": [
         "module-claude",
-        "module-hypothesis"
+        "module-hypothesis",
+        "module:claude",
+        "module:hypothesis"
       ]
     },
     {
@@ -2866,7 +2927,23 @@
       "estimatedComplexity": "small",
       "passes": false,
       "_source": "ai-example",
-      "model": "haiku"
+      "model": "haiku",
+      "filesTouch": [
+        ".claude/hooks/verify_story_acceptance.py",
+        ".coverage",
+        ".hypothesis/constants/0144005a67236799",
+        ".hypothesis/constants/016af87f794a90e9",
+        ".hypothesis/constants/01831d6f995783ed",
+        ".hypothesis/constants/044aa4a97dd3204b",
+        ".hypothesis/constants/06ee3234b07f7d66",
+        ".hypothesis/constants/087180ea5c6680fc",
+        ".hypothesis/constants/0ad243c8c6e11ffb",
+        ".hypothesis/constants/0dcb44a91ae6f1ae"
+      ],
+      "tags": [
+        "module:claude",
+        "module:hypothesis"
+      ]
     },
     {
       "id": "US-607",
@@ -2883,24 +2960,23 @@
       "estimatedComplexity": "small",
       "passes": false,
       "_source": "ai-example",
-      "model": "sonnet"
-    },
-    {
-      "id": "US-608",
-      "title": "Ralph Context Manager: Auto-Truncate Memory Patterns When Approaching Token Limit",
-      "priority": "medium",
-      "description": "Ralph's episodic memory grows over iterations; implement smart context window manager to keep prompt+memory+story under model token limits while retaining most-relevant historical patterns.",
-      "acceptanceCriteria": [
-        "lib/memory/context_manager.py exports trim_memory_patterns(patterns: list[dict], story_tokens: int, model_name: str) -> list[dict]; triggers truncation when (prompt_tokens + memory_tokens + story_tokens) > 0.80 * model_limit (haiku: 6144, sonnet: 100000)",
-        "Truncation keeps patterns with similarity > 0.65 to current story plus 5 most-recent; log memory_truncation_count and patterns_discarded to results.tsv as new columns",
-        "Integration test: verify Ralph successfully implements story with truncated memory; assert final_context_tokens < 0.85 * model_limit and memory_truncation_count matches expected floor(total_patterns * discard_ratio)"
+      "model": "sonnet",
+      "filesTouch": [
+        ".claude/scheduled_tasks.lock",
+        ".coverage",
+        ".hypothesis/constants/006b559781a41f7f",
+        ".hypothesis/constants/0175637d9e298755",
+        ".hypothesis/constants/02fb3c1b426206d7",
+        ".hypothesis/constants/031f85f1c11bb00b",
+        ".hypothesis/constants/03d65cf548ce3b23",
+        ".hypothesis/constants/0628f2618034526e",
+        ".hypothesis/constants/0799a57e5d15899f",
+        ".hypothesis/constants/07b8446a052edf99"
       ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "sonnet"
+      "tags": [
+        "module:claude",
+        "module:hypothesis"
+      ]
     }
   ]
 }
