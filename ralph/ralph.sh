@@ -970,10 +970,16 @@ capture_test_baseline() {
     fi
     return
   fi
+  # Fast path: if a cached baseline file exists (written by Phase V), use it.
+  # This avoids running pytest --collect-only which can hang for 1800s on Windows.
+  if [[ -f "${SCRATCH_DIR:-/tmp}/_test_baseline_count" ]]; then
+    cat "${SCRATCH_DIR:-/tmp}/_test_baseline_count"
+    return
+  fi
   # Auto-detect: pytest (uses --collect-only for speed: ~8s vs ~300s for full run)
   if command -v python3 &>/dev/null && [[ -f "pytest.ini" || -f "pyproject.toml" || -f "setup.cfg" || -d "tests" ]]; then
     local out n
-    out=$(python3 -m pytest --co -q 2>/dev/null) || true
+    out=$(timeout 30 python3 -m pytest --co -q 2>/dev/null) || true
     n=$(echo "$out" | grep -oP '^\d+(?= tests? collected)' | head -1)
     if [[ -z "$n" ]]; then
       # Fallback: count test lines (each line = one test item)
