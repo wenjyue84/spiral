@@ -13,10 +13,10 @@ Subcommands:
     audit                 Audit all spiral worker worktrees for health anomalies
   memory                  Episodic memory management (US-350)
     list                  Show 20 most recent episodic records with pass/fail outcomes
-  dlq                     Dead-letter queue management (US-227)
-    promote               Move exhausted stories (retry >= SPIRAL_MAX_RETRIES) to DLQ state
-    list                  Show all dead-lettered stories with failure reason and timestamp
-    replay                Re-enqueue a DLQ story after human review
+  dlq                     Manage permanently failed stories (US-227)
+    promote               Mark stories as permanently failed after exhausting retries
+    list                  Show all permanently failed stories with failure reason
+    replay                Retry a permanently failed story after human review
   diagnose                Print causal failure chain for a run (multi-agent failure attribution)
   analyze-batch-potential Show Phase S batch grouping potential: API call reduction % and token savings
   complexity-trend        Analyze story retry & duration patterns across iterations (US-537)
@@ -275,7 +275,7 @@ _STATUS_LABEL = {
     "passed": "passed",
     "in_progress": "in_progress",
     "skipped": "skipped",
-    "dlq": "dlq",
+    "dlq": "gave up",
     "pending": "pending",
 }
 
@@ -326,7 +326,7 @@ def _render_rich(
     dlq_count = len(buckets.get("dlq", []))
     if dlq_count:
         console.print(
-            f"[magenta bold]⚠ DLQ: {dlq_count} story/stories dead-lettered — run 'spiral dlq list' to review[/magenta bold]"
+            f"[magenta bold]⚠ {dlq_count} story/stories permanently failed — run 'spiral dlq list' to review[/magenta bold]"
         )
     console.print(f"[dim]Total: {total} stories[/dim]\n")
 
@@ -364,7 +364,7 @@ def _render_plain(
 
     dlq_count = len(buckets.get("dlq", []))
     if dlq_count:
-        print(f"\n  {_c(f'WARNING: {dlq_count} story/stories dead-lettered — run spiral dlq list', 'red')}")
+        print(f"\n  {_c(f'WARNING: {dlq_count} story/stories permanently failed — run spiral dlq list', 'red')}")
     print(f"\n  Total: {total} stories\n")
 
 
@@ -1511,10 +1511,10 @@ def cmd_dlq_list(args) -> None:
         return
 
     if not dlq_stories:
-        print("[dlq] No stories in dead-letter queue.")
+        print("[dlq] No permanently failed stories.")
         return
 
-    print(f"\n{_c('Dead-Letter Queue', 'bold')} — {len(dlq_stories)} story/stories\n")
+    print(f"\n{_c('Permanently Failed Stories', 'bold')} — {len(dlq_stories)} story/stories\n")
     col_id = 10
     col_title = 45
     col_ts = 26
@@ -1524,7 +1524,7 @@ def cmd_dlq_list(args) -> None:
         + "  "
         + _c("Title".ljust(col_title), "bold")
         + "  "
-        + _c("DLQ Timestamp".ljust(col_ts), "bold")
+        + _c("Failed At".ljust(col_ts), "bold")
         + "  "
         + _c("Retries".rjust(col_retries), "bold")
     )
@@ -2858,13 +2858,13 @@ def main():
     # ── dlq subcommand (US-227) ───────────────────────────────────────────────
     dlq_parser = subparsers.add_parser(
         "dlq",
-        help="Dead-letter queue management for permanently failed stories",
+        help="Manage permanently failed stories (gave up after max retries)",
     )
     dlq_subs = dlq_parser.add_subparsers(dest="dlq_command", metavar="COMMAND")
 
     dlq_promote_parser = dlq_subs.add_parser(
         "promote",
-        help="Move exhausted stories (retry >= SPIRAL_MAX_RETRIES) to DLQ state",
+        help="Mark stories as permanently failed after exhausting all retries",
     )
     dlq_promote_parser.add_argument(
         "--dry-run",
@@ -2875,7 +2875,7 @@ def main():
 
     dlq_list_parser = dlq_subs.add_parser(
         "list",
-        help="Show all dead-lettered stories with failure reason and timestamp",
+        help="Show all permanently failed stories with failure reason and timestamp",
     )
     dlq_list_parser.add_argument(
         "--json",
@@ -2886,7 +2886,7 @@ def main():
 
     dlq_replay_parser = dlq_subs.add_parser(
         "replay",
-        help="Re-enqueue a DLQ story after human review (resets retry count)",
+        help="Retry a permanently failed story after human review (resets retry count)",
     )
     dlq_replay_parser.add_argument(
         "--story",
