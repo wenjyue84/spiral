@@ -30,17 +30,9 @@ handle_oneshot_modes() {
 
   # ── --changelog: generate CHANGELOG.md via git-cliff and exit ──────────
   if [[ "$CHANGELOG_MODE" -eq 1 ]]; then
-    if ! command -v git-cliff &>/dev/null; then
-      spiral_exit E103 "git-cliff not found. Install with: cargo install git-cliff"
-    fi
-    _CLIFF_CONFIG="$SPIRAL_HOME/cliff.toml"
-    if [[ ! -f "$_CLIFF_CONFIG" ]]; then
-      spiral_exit E102 "cliff.toml not found at $_CLIFF_CONFIG"
-    fi
-    echo "[spiral] Generating CHANGELOG.md via git-cliff..."
-    git-cliff --config "$_CLIFF_CONFIG" --output "$SPIRAL_HOME/CHANGELOG.md"
-    echo "[spiral] CHANGELOG.md updated at $SPIRAL_HOME/CHANGELOG.md"
-    exit 0
+    source "$SPIRAL_HOME/lib/phases/gen_changelog.sh"
+    phase_gen_changelog
+    exit $?
   fi
 
   # ── --stale-report: print stories inactive beyond SPIRAL_STALE_DAYS ────

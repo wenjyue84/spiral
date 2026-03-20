@@ -320,6 +320,11 @@ SPIRAL_RESEARCH_CACHE_TTL_HOURS=4
 # Set to 1 to bypass summarization and pass full research to downstream phases.
 # SPIRAL_USE_FULL_RESEARCH=0
 
+# ── git-cliff binary path (Phase G changelog generation) ──────────────────
+# Path to git-cliff executable. Defaults to "git-cliff" (found via PATH).
+# Override to use a specific binary location.
+SPIRAL_GIT_CLIFF_BIN="${SPIRAL_GIT_CLIFF_BIN:-git-cliff}"
+
 # ── Spec-Kit constitution file ────────────────────────────────────────────
 # Path (relative to repo root) to a constitution.md file that defines what
 # this project IS, what it must never sacrifice, and what stories are out of
