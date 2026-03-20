@@ -227,6 +227,12 @@ SPIRAL_STORY_TIMEOUT_LARGE=2400
 # Set to a USD amount (e.g., 50.0) to cap spending. Empty = disabled.
 # SPIRAL_COST_CEILING=""
 
+# ── Per-story cost limits ────────────────────────────────────────────────────
+# Prevent stories from being abandoned prematurely. Default $2 is too low for
+# multi-retry stories using sonnet/opus models.
+export SPIRAL_STORY_COST_HARD_USD=10.00
+export SPIRAL_STORY_COST_WARN_USD=5.00
+
 # ── Specialist prompt file (optional) ────────────────────────────────────────
 # Path to a static prompt file used as fallback when Gemini is unavailable.
 # Leave empty unless you have a domain-specific specialist prompt.

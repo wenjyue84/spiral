@@ -12,6 +12,11 @@
 
 set -e
 
+# ── Windows encoding guard — prevent cp1252 UnicodeEncodeError on emoji ─────
+# Claude output often contains emoji (✅ ✓ etc.) which crashes inline Python
+# scripts when stdout defaults to cp1252 on Windows.
+export PYTHONIOENCODING=utf-8
+
 # ── Memory guard — cap V8 heap to prevent OOM ───────────────────────────────
 # --max-old-space-size caps old generation. --max-semi-space-size=4 tightens new space
 # (smaller = more frequent but shorter GC, less total RSS per process).
