@@ -1211,3 +1211,16 @@
 {"ts": "2026-03-20T15:23:06.841303+00:00", "type": "route_story_assigned", "story_id": "US-608", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
 {"ts": "2026-03-20T15:23:06.841818+00:00", "type": "route_story_assigned", "story_id": "US-609", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
 {"ts": "2026-03-20T15:23:06.842393+00:00", "type": "route_story_assigned", "story_id": "US-610", "complexity_score": 65, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-20T15:24:00.848533+00:00", "type": "route_story_assigned", "story_id": "US-597", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-20T15:24:00.849395+00:00", "type": "route_story_assigned", "story_id": "US-604", "complexity_score": 80, "model_tier": "opus", "estimated_tokens": 0}
+{"ts": "2026-03-20T15:24:00.849932+00:00", "type": "route_story_assigned", "story_id": "US-605", "complexity_score": 65, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-20T15:24:00.850449+00:00", "type": "route_story_assigned", "story_id": "US-606", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-20T15:24:00.850941+00:00", "type": "route_story_assigned", "story_id": "US-607", "complexity_score": 70, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-20T15:24:00.851487+00:00", "type": "route_story_assigned", "story_id": "US-608", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-20T15:24:00.852224+00:00", "type": "route_story_assigned", "story_id": "US-609", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-20T15:24:00.852837+00:00", "type": "route_story_assigned", "story_id": "US-610", "complexity_score": 65, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-20T15:24:00.853430+00:00", "type": "route_story_assigned", "story_id": "US-611", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
+{"event_type": "prd_io_error", "timestamp": "2026-03-20T15:24:03.596463+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-2734\\\\popen-gw1\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
+{"event_type": "prd_io_error", "timestamp": "2026-03-20T15:24:31.080733+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-2732\\\\popen-gw0\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
+{"event_type": "prd_io_error", "timestamp": "2026-03-20T15:24:53.443135+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-2736\\\\popen-gw1\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
+{"event_type": "prd_io_error", "timestamp": "2026-03-20T15:25:00.223359+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-2735\\\\popen-gw0\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}

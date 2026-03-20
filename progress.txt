@@ -1907,3 +1907,4 @@ Based on the story JSON, here is the technical brief for the implementation agen
     *   Ensure the `git-cliff` `commit_parsers` in `cliff.toml` are robust enough to handle commits that may not perfectly follow the conventional commit standard.
     *   The final `CHANGELOG.md` generation logic should gracefully handle cases where there are no commits for a given type (e.g., no "feat" commits).
 
+## Worker 1 crashed (exit 2) — 2026-03-20 23:30:13

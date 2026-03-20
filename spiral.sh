@@ -522,10 +522,10 @@ RESEARCH_CACHE_DIR=""                                                           
 SPIRAL_RESEARCH_TIMEOUT="${SPIRAL_RESEARCH_TIMEOUT:-300}"                                 # seconds; 0 = disabled (unlimited); Phase R LLM call
 SPIRAL_RESEARCH_RETRIES="${SPIRAL_RESEARCH_RETRIES:-2}"                                   # retries when _research_output.json missing/invalid after Phase R
 SPIRAL_GEMINI_FALLBACK_MODEL="${SPIRAL_GEMINI_FALLBACK_MODEL:-claude-haiku-4-5-20251001}" # Claude model for Gemini 503 fallback (US-206)
-SPIRAL_IMPL_TIMEOUT="${SPIRAL_IMPL_TIMEOUT:-600}"                                         # seconds; 0 = disabled (unlimited); Phase I ralph call (fallback when complexity unknown)
-SPIRAL_STORY_TIMEOUT_SMALL="${SPIRAL_STORY_TIMEOUT_SMALL:-600}"                           # seconds; per-story timeout for small complexity  (~10 min)
-SPIRAL_STORY_TIMEOUT_MEDIUM="${SPIRAL_STORY_TIMEOUT_MEDIUM:-900}"                         # seconds; per-story timeout for medium complexity (~15 min)
-SPIRAL_STORY_TIMEOUT_LARGE="${SPIRAL_STORY_TIMEOUT_LARGE:-1200}"                          # seconds; per-story timeout for large complexity  (~20 min)
+export SPIRAL_IMPL_TIMEOUT="${SPIRAL_IMPL_TIMEOUT:-600}"                                  # seconds; 0 = disabled (unlimited); Phase I ralph call (fallback when complexity unknown)
+export SPIRAL_STORY_TIMEOUT_SMALL="${SPIRAL_STORY_TIMEOUT_SMALL:-600}"                    # seconds; per-story timeout for small complexity  (~10 min)
+export SPIRAL_STORY_TIMEOUT_MEDIUM="${SPIRAL_STORY_TIMEOUT_MEDIUM:-900}"                  # seconds; per-story timeout for medium complexity (~15 min)
+export SPIRAL_STORY_TIMEOUT_LARGE="${SPIRAL_STORY_TIMEOUT_LARGE:-1200}"                   # seconds; per-story timeout for large complexity  (~20 min)
 SPIRAL_VALIDATE_TIMEOUT="${SPIRAL_VALIDATE_TIMEOUT:-300}"                                 # seconds; 0 = disabled (unlimited)
 SPIRAL_INCREMENTAL_VALIDATE="${SPIRAL_INCREMENTAL_VALIDATE:-false}"                       # true = run only tests covering files touched by current story (Phase V)
 SPIRAL_PARALLEL_TESTS="${SPIRAL_PARALLEL_TESTS:-false}"                                   # true = run Phase V tests in parallel (pytest-xdist or bats --jobs)
