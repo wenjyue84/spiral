@@ -2855,7 +2855,7 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "opus",
       "filesTouch": [
@@ -2877,7 +2877,13 @@
         "module:hypothesis"
       ],
       "last_attempted": "2026-03-20T15:45:47Z",
-      "_scopeCreep": true
+      "_scopeCreep": true,
+      "filesToTouch": [
+        "lib/gen_changelog.py",
+        "lib/phases/gen_changelog.sh",
+        "cliff.toml",
+        "tests/test_gen_changelog.py"
+      ]
     },
     {
       "id": "US-605",
@@ -2953,7 +2959,6 @@
       "priority": "medium",
       "description": "Add a CLI command to aggregate logs from all parallel worker worktrees (.spiral-workers/worker-*/) into a unified, time-sorted report. Enables debugging of worker failures, race conditions, and inconsistent prd.json output across workers.",
       "acceptanceCriteria": [
-        "Implement `spiral show-worker-logs [--worker-id ID] [--phase PHASE]` CLI in lib/spiral/cli.py; reads .spiral-workers/worker-*/logs/*.log and merges by ISO timestamp",
         "Output format: tab-separated [worker_id|timestamp|phase|log_level|message]; support --worker-id and --phase filters; stream to stdout with optional --output file.log",
         "Integration test: spawn 2 parallel workers via run_parallel_ralph.sh, verify logs from both workers merge without duplicates in time order, --worker-id=worker-1 filter returns only that worker"
       ],
