@@ -21,6 +21,7 @@ Subcommands:
   analyze-batch-potential Show Phase S batch grouping potential: API call reduction % and token savings
   complexity-trend        Analyze story retry & duration patterns across iterations (US-537)
   show-blockers           Analyze story dependency graph and critical paths (US-538)
+  replay                  Re-run a failed phase with DEBUG=1 and full state capture (US-539)
 """
 
 import argparse
@@ -1922,6 +1923,43 @@ def cmd_show_blockers(args) -> None:
     print(json.dumps(result, indent=2))
 
 
+def cmd_replay(args) -> None:
+    """Re-run a SPIRAL phase with DEBUG=1 and full state capture (US-539).
+
+    Usage: spiral replay --phase R --iteration 3 [--prd prd.json] [--scratch-dir .spiral]
+    """
+    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    from phase_replay import run_phase_replay  # type: ignore[import-untyped]
+
+    phase: str = args.phase
+    iteration: int = args.iteration
+
+    prd_path = Path(getattr(args, "prd_file", None) or "prd.json")
+    if not prd_path.is_absolute():
+        prd_path = Path.cwd() / prd_path
+
+    scratch_dir_arg = getattr(args, "scratch_dir", None) or str(SCRATCH_DIR)
+    scratch_dir = Path(scratch_dir_arg)
+    if not scratch_dir.is_absolute():
+        scratch_dir = Path.cwd() / scratch_dir
+
+    repo_dir = Path(__file__).parent
+
+    state = run_phase_replay(
+        phase=phase,
+        iteration=iteration,
+        prd_path=prd_path,
+        scratch_dir=scratch_dir,
+        repo_dir=repo_dir,
+    )
+
+    p = state["phase"]
+    it = state["iteration"]
+    print(f"[replay] Log written:   {scratch_dir / f'replay-{p}-iter{it}.log'}")
+    print(f"[replay] State written: {scratch_dir / f'replay-state-{p}-iter{it}.json'}")
+    print(f"[replay] tokens_used={state['tokens_used']} api_calls={state['api_calls_count']}")
+
+
 def cmd_analyze_batch_potential(args) -> None:
     """Print Phase S batch grouping potential as JSON (US-535).
 
@@ -2783,6 +2821,39 @@ def main():
         help="Output format: json (single story) or dot (full graph, default: json)",
     )
 
+    # ── replay subcommand (US-539) ───────────────────────────────────────────────
+    replay_parser = subparsers.add_parser(
+        "replay",
+        help="Re-run a failed phase with DEBUG=1 and full state capture (US-539)",
+    )
+    replay_parser.add_argument(
+        "--phase",
+        required=True,
+        metavar="PHASE",
+        help="Phase letter to replay, e.g. R, T, S",
+    )
+    replay_parser.add_argument(
+        "--iteration",
+        required=True,
+        type=int,
+        metavar="N",
+        help="Iteration number from the original run",
+    )
+    replay_parser.add_argument(
+        "--prd",
+        dest="prd_file",
+        default="prd.json",
+        metavar="FILE",
+        help="Path to prd.json (default: prd.json)",
+    )
+    replay_parser.add_argument(
+        "--scratch-dir",
+        dest="scratch_dir",
+        default=None,
+        metavar="DIR",
+        help="Scratch directory (default: .spiral)",
+    )
+
     # ── analyze-batch-potential subcommand (US-535) ─────────────────────────────
     analyze_batch_parser = subparsers.add_parser(
         "analyze-batch-potential",
@@ -2874,6 +2945,8 @@ def main():
         cmd_complexity_trend(args)
     elif args.command == "show-blockers":
         cmd_show_blockers(args)
+    elif args.command == "replay":
+        cmd_replay(args)
     elif args.command == "analyze-batch-potential":
         cmd_analyze_batch_potential(args)
     elif args.command == "analyze-routing":

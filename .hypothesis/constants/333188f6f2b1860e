@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\research\enrich_stories.py
+# hypothesis_version: 6.151.9
+
+[300, '--dry-run', '--enriched-out', '--max-turns', '--model', '--output-format', '--validated-in', '-p', '3', '?', 'SPIRAL_STORY_PREFIX', 'US', '__main__', '_enriched', '_enrichedFrom', '_source', '```\\s*\\n(.*?)```', '```json\\s*\\n(.*?)```', 'action', 'claude', 'claude.cmd', 'dependencies', 'enrich', 'estimatedComplexity', 'large', 'medium', 'passes', 'priority', 'replace', 'research', 'sonnet', 'split', 'store_true', 'stories', 'story', 'technicalNotes', 'text', 'title', 'utf-8', 'win32']
