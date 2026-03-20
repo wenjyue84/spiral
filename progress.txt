@@ -1,3 +1,18 @@
+## Iteration (verification session) - Story: US-617 Phase M Federated Story Ordering
+
+### What was implemented
+- lib/impl/phase_m_federated_order.py: order_federated_stories_by_dependency() with Kahn's algorithm topo sort + cycle detection
+- lib/spiral/phase_m.py: Phase M Python wrapper that calls ordering before prd_merge()
+- tests/test_phase_m_federated_order.py: 13 tests all pass
+- main.py: validate-federated-order CLI command (line 3371)
+
+### Patterns discovered
+- Implementation was already complete; story just not marked passes=true
+- When verifying a story, always run the tests first before assuming passes=false means unimplemented
+
+### Gotchas
+- _DEP_PATTERN in phase_m_federated_order.py only matches explicit keywords (depends on, requires, after, needs); bare "US-XYZ" refs in descriptions are NOT treated as deps
+
 ## Iteration (verification session) - Story: US-613 CLI: spiral extract-failed-stories
 
 ### Verification result
