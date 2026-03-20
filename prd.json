@@ -1698,8 +1698,8 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true,
-      "model": "haiku",
+      "passes": false,
+      "model": "sonnet",
       "filesTouch": [
         ".hypothesis/constants/0144005a67236799",
         ".hypothesis/constants/016af87f794a90e9",
@@ -1715,8 +1715,9 @@
       "tags": [
         "module-hypothesis"
       ],
-      "last_attempted": "2026-03-20T03:44:48Z",
-      "_passedCommit": ""
+      "last_attempted": "2026-03-20T03:53:38Z",
+      "_passedCommit": "",
+      "_failureReason": "story_cost_ceiling"
     },
     {
       "id": "US-553",
@@ -1851,6 +1852,228 @@
       "passes": true,
       "_source": "ai-example",
       "model": "sonnet"
+    },
+    {
+      "id": "US-563",
+      "title": "[Security Test] Verify auth/access control on SPIRAL dashboard endpoints",
+      "priority": "high",
+      "description": "Write security tests confirming the SPIRAL self-monitoring dashboard (US-460) enforces access control. Unauthenticated and unauthorized requests must be rejected with 401/403 status codes, and error responses must not leak sensitive data such as API tokens or passwords.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_dashboard_security.py::test_unauthenticated_returns_401_or_403 -v exits 0",
+        "uv run pytest tests/test_dashboard_security.py::test_no_sensitive_data_in_error_response -v exits 0",
+        "uv run pytest tests/test_dashboard_security.py -v --tb=short exits 0 with all tests passing"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_dashboard_security.py (new file — security test suite covering US-460 dashboard routes)",
+        "File to edit: lib/dashboard.py or equivalent dashboard module introduced by US-460 (identify auth middleware/decorator in use)",
+        "Test command: uv run pytest tests/test_dashboard_security.py -v --tb=short",
+        "Use httpx or requests test client to call each dashboard endpoint with no credentials; assert response.status_code in (401, 403)",
+        "In test_no_sensitive_data_in_error_response: parse error JSON body and assert none of ('token','password','secret','api_key','ANTHROPIC') appear as keys or values"
+      ],
+      "dependencies": [
+        "US-460"
+      ],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "_source": "test-story",
+      "model": "haiku",
+      "last_attempted": "2026-03-20T03:57:09Z"
+    },
+    {
+      "id": "US-564",
+      "title": "Integration Tests: Mock Claude Client Fixture Library (US-476)",
+      "priority": "high",
+      "description": "Write integration tests that exercise the mock Claude client and pre-recorded API response fixtures delivered by US-476. Tests must confirm that Phase R and Phase S invocations complete end-to-end using only the fixture library — no live Claude API calls — and that the library handles both valid and error responses correctly.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_us476_integration.py::test_mock_research_phase_happy_path -v exits 0",
+        "uv run pytest tests/test_us476_integration.py::test_mock_client_error_response -v exits 0",
+        "uv run pytest tests/test_us476_integration.py -v exits 0 with no external network services required",
+        "uv run pytest tests/test_us476_integration.py -v --tb=short completes in under 10 seconds"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_us476_integration.py (create new — integration test module for US-476 mock fixtures)",
+        "File to edit: tests/conftest.py (add mock_claude_client pytest fixture that injects the pre-recorded response library from US-476)",
+        "Test command: uv run pytest tests/test_us476_integration.py -v",
+        "Happy path: load a pre-recorded Phase R response fixture and assert the parsed output matches expected story fields",
+        "Error case: configure the mock client to return a 429 / malformed JSON payload and assert the calling code raises or logs gracefully without hitting a real endpoint",
+        "Use unittest.mock.patch or pytest monkeypatch to intercept all outbound HTTP at the transport layer so tests are hermetic"
+      ],
+      "dependencies": [
+        "US-476"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "test-story",
+      "model": "haiku"
+    },
+    {
+      "id": "US-565",
+      "title": "Integration tests: WebSocket /ws/cost streams cost deltas in real-time",
+      "priority": "high",
+      "description": "Write integration tests verifying the /ws/cost WebSocket endpoint (implemented in US-497) broadcasts cost deltas to connected clients within 2s of a Phase I story completion event. Tests must cover the happy path and at least one error/edge case, running entirely in-process without external services.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_ws_cost.py -v exits 0 with all tests passing",
+        "Happy-path test: a test client connects to /ws/cost and receives a cost-delta JSON message within 2s after a mock story-complete event is triggered programmatically",
+        "Edge-case test: a client that disconnects mid-stream does not raise an unhandled exception or block subsequent broadcasts to other connected clients",
+        "All tests use an in-process server fixture — no manual server startup or external services required"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_ws_cost.py (new file — integration tests for the /ws/cost WebSocket endpoint)",
+        "File to edit: lib/dashboard.py or equivalent dashboard server module (import app/server for in-process test fixture)",
+        "Test command: uv run pytest tests/test_ws_cost.py -v",
+        "Use pytest-asyncio + websockets (or httpx[ws]) for async WebSocket client; mock the broadcast trigger by calling the server's broadcast function directly rather than running a full SPIRAL loop",
+        "Assert message schema: received JSON must contain keys 'story_id', 'cost_delta', and 'timestamp'"
+      ],
+      "dependencies": [
+        "US-497"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "test-story",
+      "model": "haiku"
+    },
+    {
+      "id": "US-566",
+      "title": "[Security Test] validate-federated: safe output, no sensitive data leakage",
+      "priority": "high",
+      "description": "Write security-focused tests for `lib/commands/validate_federated.py` (introduced in US-514). Verify the command never leaks env vars, tokens, or internal paths in its JSON report, and that malformed/adversarial inputs are rejected with safe error messages. This guards against accidental credential exposure in CI logs.",
+      "acceptanceCriteria": [
+        "Running `spiral validate-federated` with a malformed repo ID exits non-zero and the stderr output contains no env var values or filesystem paths beyond the CWD",
+        "The JSON report written by validate_federated() contains no keys named 'token', 'password', 'secret', or 'key' (case-insensitive)",
+        "Passing a path-traversal string (e.g. `../../etc/passwd`) as a repo argument raises ValueError and exits 1 without traceback on stdout",
+        "uv run pytest tests/test_security_validate_federated.py -v exits 0 with all tests passing"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_security_validate_federated.py (new file — security test module)",
+        "File to read: lib/commands/validate_federated.py (validate_federated, build_report functions)",
+        "Test command: uv run pytest tests/test_security_validate_federated.py -v",
+        "Use subprocess.run(['spiral', 'validate-federated', ...], capture_output=True) to test CLI surface; inspect stdout/stderr as strings",
+        "Check report dict recursively for forbidden keys: `assert not any(k.lower() in {'token','password','secret','key'} for k in flatten_keys(report))`"
+      ],
+      "dependencies": [
+        "US-514"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "test-story",
+      "model": "haiku"
+    },
+    {
+      "id": "US-567",
+      "title": "[Security Test] Auth/Permission Access Control for US-516",
+      "priority": "high",
+      "description": "Write security tests for the auth/permission logic introduced in US-516. Tests must verify that unauthorized requests are blocked with correct HTTP status codes and that no sensitive data is leaked in error responses. These tests run in isolation without requiring external services.",
+      "acceptanceCriteria": [
+        "Unauthorized request returns 401 or 403: `uv run pytest tests/test_security_us516.py::test_unauthorized_access_blocked -v` exits 0",
+        "Error response body contains no tokens or passwords: `uv run pytest tests/test_security_us516.py::test_no_sensitive_data_in_error -v` exits 0",
+        "All security tests pass: `uv run pytest tests/test_security_us516.py -v` exits 0"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_security_us516.py (new file — create security test module)",
+        "Reference: inspect the auth/permission code added in US-516 to identify the entry points under test",
+        "Test command: uv run pytest tests/test_security_us516.py -v",
+        "Use pytest fixtures to construct requests with missing/invalid credentials; assert response.status_code in (401, 403)",
+        "Assert no field in response JSON contains substrings matching token/password/secret patterns"
+      ],
+      "dependencies": [
+        "US-516"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "test-story",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-568",
+      "title": "[Security Test] Cost Predictor CLI: input validation and data safety",
+      "priority": "high",
+      "description": "Write security tests for lib/predict_cost.py (US-529). Verify the CLI rejects malicious file paths, sanitizes story attribute inputs, and never leaks sensitive data in output or error messages.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_security_predict_cost.py::test_path_traversal_rejected -v passes — CLI rejects path traversal (e.g. ../../etc/passwd) for --results-file and exits non-zero",
+        "uv run pytest tests/test_security_predict_cost.py::test_output_schema_only -v passes — JSON stdout contains only the keys: tokens, cost, confidence, matched_stories",
+        "uv run pytest tests/test_security_predict_cost.py::test_malformed_input_no_traceback -v passes — empty/null story attributes produce a clean error message with no Python traceback",
+        "uv run pytest tests/test_security_predict_cost.py -v passes with exit code 0"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_security_predict_cost.py (new file — create this security test suite)",
+        "File to edit: lib/predict_cost.py (validate_results_path, parse_story_attributes — add input sanitization if absent)",
+        "Test command: uv run pytest tests/test_security_predict_cost.py -v",
+        "Path traversal test: invoke CLI with --results-file '../../etc/passwd' and assert SystemExit or stderr contains 'invalid' (not a Python traceback)",
+        "Output schema test: capture stdout JSON, assert set(output.keys()) == {'tokens', 'cost', 'confidence', 'matched_stories'}",
+        "Do NOT reimplement KNN logic — this story adds security regression tests only; US-529 must already be merged"
+      ],
+      "dependencies": [
+        "US-529"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "test-story",
+      "model": "haiku"
+    },
+    {
+      "id": "US-569",
+      "title": "Integration Test: Auto-Decompose on Phase I Triple Failure",
+      "priority": "medium",
+      "description": "Create an integration test in tests/test_phase_i_decompose.py that verifies the auto-decompose feature triggers correctly after 3 Phase I failures on an oversized story. The test mocks Ralph subprocess failures and validates that prd.json and results.tsv are updated consistently with proper sub-story dependency chains and state tracking.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_phase_i_decompose.py::test_decompose_creates_dependency_chain -v passes: asserts 4 sub-stories exist in prd.json with depends_on chain US-100-2→US-100-1, US-100-3→US-100-2, US-100-4→US-100-3",
+        "uv run pytest tests/test_phase_i_decompose.py::test_decompose_marks_parent_status -v passes: asserts parent row in results.tsv has status=DECOMPOSED and decomposed_child_ids=[US-100-1,US-100-2,US-100-3,US-100-4]",
+        "uv run pytest tests/test_phase_i_decompose.py::test_decompose_children_state -v passes: asserts all 4 child stories in prd.json have _source=decomposed and status=PENDING in results.tsv"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_phase_i_decompose.py (new file — test_decompose_creates_dependency_chain, test_decompose_marks_parent_status, test_decompose_children_state)",
+        "File to edit: lib/impl/decompose.sh (understand decompose output format to write correct assertions)",
+        "Test command: uv run pytest tests/test_phase_i_decompose.py -v",
+        "Use unittest.mock.patch to simulate Ralph subprocess returning exit code 1 three consecutive times for story US-100",
+        "Fixture: write a minimal prd.json with one story US-100 (oversized) to a tmp_path, set retry-counts.json to {\"US-100\": 2} before calling the decompose logic so the third failure triggers decompose"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-570",
+      "title": "Implement validate_results_tsv core validator module",
+      "priority": "medium",
+      "description": "Create lib/spiral/validate_results_tsv.py with a validate() function that checks results.tsv for data quality issues: missing story_ids, duplicate rows, out-of-range token counts, invalid phase durations, and unknown model names. Returns a structured dict with errors, warnings, and check counts.",
+      "acceptanceCriteria": [
+        "Function validate(tsv_path, prd_path) returns dict matching {errors: list[str], warnings: list[str], passed_checks: int, total_rows_checked: int}",
+        "Detects all 5 checks: story_ids in prd.json missing from tsv; duplicate (story_id, iteration, attempt) tuples; token_count outside [50, 500000]; phase_duration_ms outside [100, 600000]; model not in {haiku, sonnet, opus}",
+        "uv run pytest tests/test_validate_results_tsv.py::test_validate_detects_all_anomalies -v passes with a mock corrupted TSV that triggers all 5 error types"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/spiral/validate_results_tsv.py (new file — validate(tsv_path, prd_path) function; use csv.DictReader with delimiter='\\t' for parsing)",
+        "File to edit: tests/test_validate_results_tsv.py (new unit test — build in-memory StringIO TSV fixture with known violations, assert each error message substring)",
+        "Test command: uv run pytest tests/test_validate_results_tsv.py -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-571",
+      "title": "Wire validate-results-tsv CLI command and integration test",
+      "priority": "medium",
+      "description": "Register the validate-results-tsv subcommand in main.py, wiring it to lib/spiral/validate_results_tsv.validate(). Write an integration test that invokes the CLI via subprocess against a corrupted TSV fixture and asserts exit code and output JSON structure.",
+      "acceptanceCriteria": [
+        "python main.py validate-results-tsv --output report.json exits 0 on clean data and exits 1 when errors are detected",
+        "report.json always contains keys errors, warnings, passed_checks, total_rows_checked regardless of outcome",
+        "uv run pytest tests/test_validate_results_tsv_cli.py::test_cli_detects_duplicate_and_anomaly -v passes; test uses subprocess.run and asserts returncode==1 and errors list is non-empty"
+      ],
+      "technicalNotes": [
+        "File to edit: main.py (add validate-results-tsv subparser to existing argparse setup; call validate() with --tsv and --prd args, write JSON to --output path)",
+        "File to edit: tests/test_validate_results_tsv_cli.py (new integration test — write corrupted TSV fixture to tmp_path, invoke CLI via subprocess.run([sys.executable, 'main.py', ...]))",
+        "Test command: uv run pytest tests/test_validate_results_tsv_cli.py -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
     }
   ]
 }

@@ -216,3 +216,20 @@ Story US-548 marked as complete in this iteration. All prior iterations had succ
 
 ---
 END OF PROGRESS LOG
+
+## Iteration - Story: US-563 Security Tests for Dashboard Endpoints
+
+### What was implemented
+- Added `_APIKeyMiddleware` to `lib/dashboard/api.py` (Starlette BaseHTTPMiddleware)
+- Middleware reads `SPIRAL_DASHBOARD_API_KEY` env var at request time (not import time)
+- Returns 401 if header missing, 403 if wrong key; /health is always open
+- Created `tests/test_dashboard_security.py` with 5 passing tests
+
+### Patterns discovered
+- Use `monkeypatch.setenv` fixture to control env vars per test without breaking other tests
+- Middleware reads env var at request dispatch time so no module reload needed
+- Existing tests (test_dashboard_profile.py etc.) unaffected because they don't set SPIRAL_DASHBOARD_API_KEY
+
+### Gotchas
+- `SPIRAL_DASHBOARD_API_KEY` must NOT be set in normal CI/dev env or test_dashboard_profile.py breaks
+- Test `enable_auth` fixture uses `autouse=True` so all tests in security file get auth enabled automatically

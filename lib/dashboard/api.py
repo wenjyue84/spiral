@@ -11,10 +11,14 @@ Exposes:
 
 import csv
 import logging
+import os
 from pathlib import Path
 from typing import Any, Optional
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from starlette.requests import Request
+from starlette.responses import JSONResponse, Response
 
 from ..analyze_results import parse_research_cache
 from .cost_broadcaster import get_manager
@@ -24,6 +28,27 @@ logger = logging.getLogger(__name__)
 
 # Create FastAPI app
 app = FastAPI(title="SPIRAL Dashboard API", version="1.0.0")
+
+
+class _APIKeyMiddleware(BaseHTTPMiddleware):
+    """Optional API key auth activated when SPIRAL_DASHBOARD_API_KEY env var is set."""
+
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
+        api_key = os.environ.get("SPIRAL_DASHBOARD_API_KEY")
+        if api_key and request.url.path != "/health":
+            provided = request.headers.get("X-API-Key", "")
+            if not provided:
+                return JSONResponse(
+                    {"detail": "Authentication required"}, status_code=401
+                )
+            if provided != api_key:
+                return JSONResponse({"detail": "Forbidden"}, status_code=403)
+        return await call_next(request)
+
+
+app.add_middleware(_APIKeyMiddleware)
 
 
 @app.get("/health")
