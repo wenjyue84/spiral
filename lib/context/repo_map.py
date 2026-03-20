@@ -21,10 +21,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-
 # ---------------------------------------------------------------------------
 # Data structures
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class SymbolMap:
@@ -60,6 +60,7 @@ class RepoMapResult:
 # ---------------------------------------------------------------------------
 # Parsers
 # ---------------------------------------------------------------------------
+
 
 def parse_python_file(path: str) -> SymbolMap:
     """Parse a Python file using stdlib ast."""
@@ -161,6 +162,7 @@ def parse_file(path: str) -> SymbolMap:
 # Neighbor / caller / boundary helpers
 # ---------------------------------------------------------------------------
 
+
 def find_test_neighbors(path: str, repo_root: str) -> list[str]:
     """Heuristic: find test files that likely cover *path*."""
     stem = Path(path).stem
@@ -217,7 +219,9 @@ def find_callers(path: str, repo_root: str, all_files: list[str], *, cap: int = 
             continue
         for pat in patterns:
             if pat in content:
-                f_rel = str(Path(f).relative_to(repo_root)).replace("\\", "/") if os.path.isabs(f) else f.replace("\\", "/")
+                f_rel = (
+                    str(Path(f).relative_to(repo_root)).replace("\\", "/") if os.path.isabs(f) else f.replace("\\", "/")
+                )
                 if f_rel not in callers:
                     callers.append(f_rel)
                 break
@@ -227,7 +231,8 @@ def find_callers(path: str, repo_root: str, all_files: list[str], *, cap: int = 
 
 
 def classify_boundary(
-    files_to_touch: list[str], file_imports: list[str],
+    files_to_touch: list[str],
+    file_imports: list[str],
 ) -> dict[str, str]:
     """Classify each import as internal (in filesTouch) or external."""
     touch_set = {f.replace("\\", "/") for f in files_to_touch}
@@ -235,8 +240,8 @@ def classify_boundary(
     touch_stems: set[str] = set()
     for f in touch_set:
         no_ext = f.rsplit(".", 1)[0] if "." in f else f
-        touch_stems.add(no_ext)                       # lib/foo
-        touch_stems.add(no_ext.replace("/", "."))      # lib.foo
+        touch_stems.add(no_ext)  # lib/foo
+        touch_stems.add(no_ext.replace("/", "."))  # lib.foo
 
     result: dict[str, str] = {}
     for imp in file_imports:
@@ -256,6 +261,7 @@ def classify_boundary(
 # ---------------------------------------------------------------------------
 # Builders
 # ---------------------------------------------------------------------------
+
 
 def _collect_source_files(repo_root: str) -> list[str]:
     """Collect all parseable source files in the repo."""
@@ -325,6 +331,7 @@ def build_repo_map(
 # ---------------------------------------------------------------------------
 # Formatter
 # ---------------------------------------------------------------------------
+
 
 def _symbol_map_to_dict(sm: SymbolMap) -> dict[str, Any]:
     return {
@@ -398,6 +405,7 @@ def format_story_map_markdown(story_map: StoryMap) -> str:
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Phase X: build repo symbol map for pending stories")

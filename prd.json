@@ -3067,23 +3067,7 @@
       "estimatedComplexity": "medium",
       "passes": false,
       "_source": "ai-example",
-      "model": "sonnet",
-      "filesTouch": [
-        ".claude/hooks/verify_story_acceptance.py",
-        ".coverage",
-        ".hypothesis/constants/0144005a67236799",
-        ".hypothesis/constants/0158f9921b55208e",
-        ".hypothesis/constants/016af87f794a90e9",
-        ".hypothesis/constants/01831d6f995783ed",
-        ".hypothesis/constants/044aa4a97dd3204b",
-        ".hypothesis/constants/06ee3234b07f7d66",
-        ".hypothesis/constants/087180ea5c6680fc",
-        ".hypothesis/constants/0ad243c8c6e11ffb"
-      ],
-      "tags": [
-        "module:claude",
-        "module:hypothesis"
-      ]
+      "model": "sonnet"
     },
     {
       "id": "US-618",
@@ -3100,23 +3084,7 @@
       "estimatedComplexity": "small",
       "passes": false,
       "_source": "ai-example",
-      "model": "sonnet",
-      "filesTouch": [
-        ".claude/scheduled_tasks.lock",
-        ".coverage",
-        ".hypothesis/constants/19b92a82c7a5fbb7",
-        ".hypothesis/constants/be82d7f330748f87",
-        ".hypothesis/examples/04e6b3400353b141/2786903576343a97",
-        ".hypothesis/examples/04e6b3400353b141/d16a108f0ffe00c6",
-        ".hypothesis/examples/04e6b3400353b141/d7017880e970832b",
-        ".hypothesis/examples/04e6b3400353b141/f803b9c7972945f2",
-        ".hypothesis/examples/2786903576343a97/b8e62a5f48c3ded1",
-        ".hypothesis/examples/d16a108f0ffe00c6/6e1139ecd06edebb"
-      ],
-      "tags": [
-        "module:claude",
-        "module:hypothesis"
-      ]
+      "model": "sonnet"
     },
     {
       "id": "US-619",
@@ -3133,22 +3101,7 @@
       "estimatedComplexity": "small",
       "passes": false,
       "_source": "ai-example",
-      "filesTouch": [
-        ".github/actions/lint-shell/action.yml",
-        ".github/actions/setup-uv/action.yml",
-        ".github/workflows/ci.yml",
-        ".github/workflows/release.yml",
-        ".github/workflows/spiral.yml",
-        ".hypothesis/constants/006b559781a41f7f",
-        ".hypothesis/constants/0158f9921b55208e",
-        ".hypothesis/constants/0175637d9e298755",
-        ".hypothesis/constants/02fb3c1b426206d7",
-        ".hypothesis/constants/031f85f1c11bb00b"
-      ],
-      "tags": [
-        "module:github",
-        "module:hypothesis"
-      ]
+      "model": "haiku"
     },
     {
       "id": "US-620",
@@ -3165,22 +3118,7 @@
       "estimatedComplexity": "medium",
       "passes": false,
       "_source": "ai-example",
-      "filesTouch": [
-        ".claude/hooks/verify_story_acceptance.py",
-        ".claude/scheduled_tasks.lock",
-        ".coverage",
-        ".hypothesis/constants/0144005a67236799",
-        ".hypothesis/constants/016af87f794a90e9",
-        ".hypothesis/constants/01831d6f995783ed",
-        ".hypothesis/constants/044aa4a97dd3204b",
-        ".hypothesis/constants/06ee3234b07f7d66",
-        ".hypothesis/constants/087180ea5c6680fc",
-        ".hypothesis/constants/0ad243c8c6e11ffb"
-      ],
-      "tags": [
-        "module:claude",
-        "module:hypothesis"
-      ]
+      "model": "sonnet"
     }
   ]
 }

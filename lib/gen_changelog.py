@@ -36,9 +36,7 @@ def validate_git_cliff(cliff_bin: str) -> bool:
         return False
 
 
-def generate_changelog(
-    cliff_bin: str, cliff_config: str, output_file: str
-) -> bool:
+def generate_changelog(cliff_bin: str, cliff_config: str, output_file: str) -> bool:
     """Run git-cliff to produce CHANGELOG.md.
 
     Returns True if the output file was created, False otherwise.
@@ -113,9 +111,7 @@ def find_orphan_commits(repo_path: str) -> list[dict[str, str]]:
     return orphans
 
 
-def write_orphan_warnings(
-    orphans: list[dict[str, str]], warnings_file: str
-) -> None:
+def write_orphan_warnings(orphans: list[dict[str, str]], warnings_file: str) -> None:
     """Write orphan commit warnings to the specified log file."""
     path = Path(warnings_file)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -137,9 +133,7 @@ def run(
 
     cliff_config = os.path.join(spiral_home, "cliff.toml")
     output_file = os.path.join(spiral_home, "CHANGELOG.md")
-    warnings_file = os.path.join(
-        spiral_home, ".spiral", "phase_g_warnings.log"
-    )
+    warnings_file = os.path.join(spiral_home, ".spiral", "phase_g_warnings.log")
 
     # Validate git-cliff binary
     if not validate_git_cliff(cliff_bin):
@@ -171,10 +165,7 @@ def run(
 
     if orphans:
         write_orphan_warnings(orphans, warnings_file)
-        print(
-            f"[phase-g] WARNING: {len(orphans)} orphan commits "
-            f"(no story ID) logged to {warnings_file}"
-        )
+        print(f"[phase-g] WARNING: {len(orphans)} orphan commits (no story ID) logged to {warnings_file}")
     else:
         print("[phase-g] All commits have story IDs")
 

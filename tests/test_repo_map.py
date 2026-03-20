@@ -3,14 +3,12 @@
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 from typing import Any
 
 import pytest
 
 from lib.context.repo_map import (
-    SymbolMap,
     build_repo_map,
     build_story_map,
     classify_boundary,
@@ -23,10 +21,10 @@ from lib.context.repo_map import (
     parse_ts_js_file,
 )
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture()
 def repo(tmp_path: Path) -> Path:
@@ -47,9 +45,12 @@ def _write(path: Path, content: str) -> str:
 # TestParsePythonFile
 # ---------------------------------------------------------------------------
 
+
 class TestParsePythonFile:
     def test_basic_extraction(self, repo: Path) -> None:
-        src = _write(repo / "lib" / "foo.py", """\
+        src = _write(
+            repo / "lib" / "foo.py",
+            """\
 import os
 from pathlib import Path
 
@@ -63,7 +64,8 @@ def do_something():
 
 async def do_async():
     pass
-""")
+""",
+        )
         sm = parse_python_file(src)
         assert sm.path == src
         assert "do_something" in sm.functions
@@ -91,9 +93,12 @@ async def do_async():
 # TestParseShellFile
 # ---------------------------------------------------------------------------
 
+
 class TestParseShellFile:
     def test_function_detection(self, repo: Path) -> None:
-        src = _write(repo / "lib" / "helper.sh", """\
+        src = _write(
+            repo / "lib" / "helper.sh",
+            """\
 #!/bin/bash
 export MY_VAR=42
 
@@ -107,7 +112,8 @@ function cleanup() {
 
 source "$HOME/lib/utils.sh"
 . ./other.sh
-""")
+""",
+        )
         sm = parse_shell_file(src)
         assert "run_phase" in sm.functions
         assert "cleanup" in sm.functions
@@ -125,9 +131,12 @@ source "$HOME/lib/utils.sh"
 # TestParseTsJsFile
 # ---------------------------------------------------------------------------
 
+
 class TestParseTsJsFile:
     def test_exports_and_imports(self, repo: Path) -> None:
-        src = _write(repo / "src" / "app.ts", """\
+        src = _write(
+            repo / "src" / "app.ts",
+            """\
 import { useState } from 'react'
 import type { Config } from './types'
 
@@ -144,7 +153,8 @@ export interface AppConfig {
 }
 
 export type Status = 'ok' | 'err'
-""")
+""",
+        )
         sm = parse_ts_js_file(src)
         assert "App" in sm.exports
         assert "API_URL" in sm.exports
@@ -162,6 +172,7 @@ export type Status = 'ok' | 'err'
 # ---------------------------------------------------------------------------
 # TestParseFile
 # ---------------------------------------------------------------------------
+
 
 class TestParseFile:
     def test_dispatch_python(self, repo: Path) -> None:
@@ -190,6 +201,7 @@ class TestParseFile:
 # TestFindTestNeighbors
 # ---------------------------------------------------------------------------
 
+
 class TestFindTestNeighbors:
     def test_python_test_neighbor(self, repo: Path) -> None:
         _write(repo / "lib" / "merge.py", "def merge(): pass")
@@ -213,6 +225,7 @@ class TestFindTestNeighbors:
 # TestFindCallers
 # ---------------------------------------------------------------------------
 
+
 class TestFindCallers:
     def test_python_callers(self, repo: Path) -> None:
         target = _write(repo / "lib" / "utils.py", "def helper(): pass")
@@ -234,6 +247,7 @@ class TestFindCallers:
 # TestClassifyBoundary
 # ---------------------------------------------------------------------------
 
+
 class TestClassifyBoundary:
     def test_internal_and_external(self) -> None:
         files_to_touch = ["lib/foo.py", "lib/bar.py"]
@@ -251,15 +265,19 @@ class TestClassifyBoundary:
 # TestBuildStoryMap
 # ---------------------------------------------------------------------------
 
+
 class TestBuildStoryMap:
     def test_basic_build(self, repo: Path) -> None:
-        _write(repo / "lib" / "worker.py", """\
+        _write(
+            repo / "lib" / "worker.py",
+            """\
 import os
 def run_worker():
     pass
 class Worker:
     pass
-""")
+""",
+        )
         _write(repo / "tests" / "test_worker.py", "def test_worker(): pass")
         story: dict[str, Any] = {
             "id": "US-100",
@@ -286,6 +304,7 @@ class Worker:
 # TestFormatStoryMapMarkdown
 # ---------------------------------------------------------------------------
 
+
 class TestFormatStoryMapMarkdown:
     def test_basic_format(self, repo: Path) -> None:
         _write(repo / "lib" / "foo.py", "def bar(): pass\ndef baz(): pass")
@@ -302,6 +321,7 @@ class TestFormatStoryMapMarkdown:
 
     def test_empty_story(self) -> None:
         from lib.context.repo_map import StoryMap
+
         sm = StoryMap(story_id="US-EMPTY")
         md = format_story_map_markdown(sm)
         assert "US-EMPTY" in md
@@ -310,6 +330,7 @@ class TestFormatStoryMapMarkdown:
 # ---------------------------------------------------------------------------
 # TestCLI
 # ---------------------------------------------------------------------------
+
 
 class TestCLI:
     def test_full_build(self, repo: Path) -> None:
@@ -340,6 +361,7 @@ class TestCLI:
 
         # Use build_story_map directly for single-story
         from lib.context.repo_map import _collect_source_files
+
         all_files = _collect_source_files(str(repo))
         story = prd["userStories"][0]
         sm = build_story_map(story, str(repo), all_files)
