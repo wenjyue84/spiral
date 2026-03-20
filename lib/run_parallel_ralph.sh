@@ -48,6 +48,14 @@ if [[ -f "$_HEARTBEAT_HELPER" ]]; then
   source "$_HEARTBEAT_HELPER"
 fi
 
+# ── Source dynamic memory pool (if available) ──────────────────────────────────
+_POOL_HELPER="$SPIRAL_HOME/lib/memory_pool.sh"
+_POOL_ENABLED=0
+if [[ "${SPIRAL_MEMORY_POOL:-false}" == "true" && -f "$_POOL_HELPER" ]]; then
+  source "$_POOL_HELPER"
+  _POOL_ENABLED=1
+fi
+
 WORKER_DIR="$SCRATCH_DIR/workers"
 WORKTREE_BASE="$REPO_ROOT/.spiral-workers"
 # Note: HEARTBEAT_DIR is set per-worker in _launch_worker_i() to $WORKTREE_BASE/worker-${i}
@@ -224,6 +232,8 @@ cleanup_parallel() {
   done
   # Remove spiral cgroup parent dir if empty
   rmdir "${_CGROUP_BASE}" 2>/dev/null || true
+  # Clean up memory pool ledger and lock
+  if type pool_cleanup &>/dev/null; then pool_cleanup 2>/dev/null || true; fi
   echo "  [parallel] Cleanup done."
 }
 trap cleanup_parallel EXIT INT TERM
@@ -252,7 +262,24 @@ git -C "$REPO_ROOT" worktree prune 2>/dev/null || true
 # Only the number of workers launched immediately may be less than N; the rest are queued.
 _PER_WORKER_MB=2048
 _INITIAL_LAUNCH_COUNT="$RALPH_WORKERS" # default: launch all workers immediately
-if command -v powershell.exe &>/dev/null; then
+
+# Dynamic memory pool: initialize shared pool from free RAM
+if [[ "$_POOL_ENABLED" -eq 1 ]]; then
+  if pool_init; then
+    _POOL_AVAIL=$(pool_available)
+    # Estimate initial launch count: smallest tier budget * N <= available
+    _POOL_MIN_TIER="${SPIRAL_POOL_TIER_SMALL:-768}"
+    MAX_SAFE=$((_POOL_AVAIL / _POOL_MIN_TIER))
+    [[ "$MAX_SAFE" -lt 1 ]] && MAX_SAFE=1
+    if [[ "$MAX_SAFE" -lt "$RALPH_WORKERS" ]]; then
+      echo "  [parallel] Pool: ${_POOL_AVAIL}MB available — launching $MAX_SAFE/$RALPH_WORKERS workers now, queueing rest"
+      _INITIAL_LAUNCH_COUNT="$MAX_SAFE"
+    fi
+  else
+    echo "  [parallel] Pool init failed — falling back to static ${_PER_WORKER_MB}MB budget"
+    _POOL_ENABLED=0
+  fi
+elif command -v powershell.exe &>/dev/null; then
   FREE_MB=$(powershell.exe -Command \
     "[math]::Floor((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory / 1024)" 2>/dev/null | tr -d '\r')
   if [[ -n "$FREE_MB" && "$FREE_MB" =~ ^[0-9]+$ ]]; then
@@ -883,6 +910,7 @@ _launch_worker_i() {
     _EXIT_FILE="$_EXIT_CODE_FILE"
     _HB_CLEANUP='
       if type worker_heartbeat_stop &>/dev/null; then worker_heartbeat_stop "$_WORKER_NUM" 2>/dev/null || true; fi
+      if type pool_release &>/dev/null; then pool_release "$_WORKER_NUM" 2>/dev/null || true; fi
       git -C "$_UNLOCK_REPO" worktree unlock "$_UNLOCK_WTREE" 2>/dev/null || true
       _cgroup_cleanup "$_WORKER_NUM" 2>/dev/null || true
     '
@@ -890,7 +918,27 @@ _launch_worker_i() {
     cd "$WTREE"
     export PATH="$WTREE/.spiral-bin:$PATH"
     export SPIRAL_WORKER_ID=$i HEARTBEAT_DIR="$WORKTREE_BASE/worker-${i}"
-    export SPIRAL_MEMORY_LIMIT="${SPIRAL_WORKER_MEMORY_LIMIT:-$SPIRAL_MEMORY_LIMIT}"
+    # Dynamic pool: reserve memory based on story complexity; static: use fixed limit
+    if [[ "${_POOL_ENABLED:-0}" -eq 1 ]]; then
+      # Classify first story in this worker's PRD slice
+      local _story_json
+      _story_json=$("$JQ" -c '[.userStories[] | select(.passes != true)] | first // {}' "$WTREE/prd.json" 2>/dev/null || echo "{}")
+      local _tier_info _tier _reserve_mb _v8_heap
+      _tier_info=$(pool_classify_budget "$_story_json")
+      _tier="${_tier_info%% *}"
+      _reserve_mb="${_tier_info##* }"
+      if pool_reserve "$i" "$_reserve_mb" "$_tier" >/dev/null 2>&1; then
+        _v8_heap=$(pool_compute_v8_heap "$_reserve_mb")
+        export SPIRAL_MEMORY_LIMIT="$_v8_heap"
+        echo "  [parallel] Worker $i: pool reserved ${_reserve_mb}MB (tier=$_tier, v8_heap=${_v8_heap}MB)"
+      else
+        # Pool full — fall back to static limit
+        export SPIRAL_MEMORY_LIMIT="${SPIRAL_WORKER_MEMORY_LIMIT:-$SPIRAL_MEMORY_LIMIT}"
+        echo "  [parallel] Worker $i: pool reserve failed — using static ${SPIRAL_MEMORY_LIMIT}MB"
+      fi
+    else
+      export SPIRAL_MEMORY_LIMIT="${SPIRAL_WORKER_MEMORY_LIMIT:-$SPIRAL_MEMORY_LIMIT}"
+    fi
     # US-224: Propagate W3C trace context to worker for distributed tracing
     [[ -n "${TRACEPARENT:-}" ]] && export TRACEPARENT
     [[ -n "${TRACESTATE:-}" ]] && export TRACESTATE
@@ -982,6 +1030,7 @@ _restart_stalled_worker() {
     _EXIT_FILE="$_rst_exit_file"
     _HB_CLEANUP='
       if type worker_heartbeat_stop &>/dev/null; then worker_heartbeat_stop "$_WORKER_NUM" 2>/dev/null || true; fi
+      if type pool_release &>/dev/null; then pool_release "$_WORKER_NUM" 2>/dev/null || true; fi
       git -C "$_UNLOCK_REPO" worktree unlock "$_UNLOCK_WTREE" 2>/dev/null || true
       _cgroup_cleanup "$_WORKER_NUM" 2>/dev/null || true
     '
@@ -1377,6 +1426,15 @@ while [[ "$_ALL_DONE" -eq 0 ]]; do
     fi
   fi
 
+  # ── Periodic pool reclaim — return memory from dead workers ──────────────────
+  if [[ "$_POOL_ENABLED" -eq 1 ]]; then
+    _POOL_RECLAIM_COUNTER=$(( ${_POOL_RECLAIM_COUNTER:-0} + 5 ))
+    if [[ "$_POOL_RECLAIM_COUNTER" -ge "${_POOL_RECLAIM_INTERVAL:-30}" ]]; then
+      pool_reclaim_stale 2>/dev/null || true
+      _POOL_RECLAIM_COUNTER=0
+    fi
+  fi
+
   # ── Deferred queue — launch queued workers when pressure eases ──────────────
   # Track how long the queue has been stalled (Idea 8)
   if [[ ${#_WORKER_LAUNCH_QUEUE[@]} -eq 0 ]]; then
@@ -1386,18 +1444,33 @@ while [[ "$_ALL_DONE" -eq 0 ]]; do
     _QUEUE_PRESSURE=$(spiral_pressure_level 2>/dev/null || echo "2")
     _QUEUE_REC_W=$(spiral_recommended_workers 2>/dev/null || echo "$RALPH_WORKERS")
     if [[ "$_QUEUE_PRESSURE" -le 1 && "$_ACTIVE_COUNT" -lt "${_QUEUE_REC_W:-$RALPH_WORKERS}" ]]; then
-      # Quick non-blocking memory check before launching
-      _QUEUE_FREE_MB=$(powershell.exe -NoProfile -Command \
-        "[math]::Floor((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory / 1024)" \
-        2>/dev/null | tr -d '\r')
-      if [[ -n "$_QUEUE_FREE_MB" && "$_QUEUE_FREE_MB" =~ ^[0-9]+$ && "$_QUEUE_FREE_MB" -ge 2048 ]]; then
-        _NEXT_WORKER="${_WORKER_LAUNCH_QUEUE[0]}"
-        _WORKER_LAUNCH_QUEUE=("${_WORKER_LAUNCH_QUEUE[@]:1}")
-        echo "  [parallel] Queue: launching deferred worker $_NEXT_WORKER (${#_WORKER_LAUNCH_QUEUE[@]} remaining)"
-        _launch_worker_i "$_NEXT_WORKER"
-        [[ ${#_WORKER_LAUNCH_QUEUE[@]} -gt 0 ]] && sleep "$STAGGER_DELAY"
+      if [[ "$_POOL_ENABLED" -eq 1 ]]; then
+        # Pool mode: check pool has enough for the smallest tier
+        _QUEUE_AVAIL=$(pool_available 2>/dev/null || echo "0")
+        _QUEUE_MIN_TIER="${SPIRAL_POOL_TIER_SMALL:-768}"
+        if [[ "$_QUEUE_AVAIL" -ge "$_QUEUE_MIN_TIER" ]]; then
+          _NEXT_WORKER="${_WORKER_LAUNCH_QUEUE[0]}"
+          _WORKER_LAUNCH_QUEUE=("${_WORKER_LAUNCH_QUEUE[@]:1}")
+          echo "  [parallel] Queue: launching deferred worker $_NEXT_WORKER (pool: ${_QUEUE_AVAIL}MB avail, ${#_WORKER_LAUNCH_QUEUE[@]} remaining)"
+          _launch_worker_i "$_NEXT_WORKER"
+          [[ ${#_WORKER_LAUNCH_QUEUE[@]} -gt 0 ]] && sleep "$STAGGER_DELAY"
+        else
+          echo "  [parallel] Queue: worker(s) waiting — pool only ${_QUEUE_AVAIL}MB (need ${_QUEUE_MIN_TIER}MB)"
+        fi
       else
-        echo "  [parallel] Queue: worker(s) waiting — RAM only ${_QUEUE_FREE_MB:-?}MB (need 2048MB)"
+        # Static mode: quick non-blocking memory check before launching
+        _QUEUE_FREE_MB=$(powershell.exe -NoProfile -Command \
+          "[math]::Floor((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory / 1024)" \
+          2>/dev/null | tr -d '\r')
+        if [[ -n "$_QUEUE_FREE_MB" && "$_QUEUE_FREE_MB" =~ ^[0-9]+$ && "$_QUEUE_FREE_MB" -ge 2048 ]]; then
+          _NEXT_WORKER="${_WORKER_LAUNCH_QUEUE[0]}"
+          _WORKER_LAUNCH_QUEUE=("${_WORKER_LAUNCH_QUEUE[@]:1}")
+          echo "  [parallel] Queue: launching deferred worker $_NEXT_WORKER (${#_WORKER_LAUNCH_QUEUE[@]} remaining)"
+          _launch_worker_i "$_NEXT_WORKER"
+          [[ ${#_WORKER_LAUNCH_QUEUE[@]} -gt 0 ]] && sleep "$STAGGER_DELAY"
+        else
+          echo "  [parallel] Queue: worker(s) waiting — RAM only ${_QUEUE_FREE_MB:-?}MB (need 2048MB)"
+        fi
       fi
     else
       _QUEUE_STALL_SECS=$((${_QUEUE_STALL_SECS:-0} + 5))
