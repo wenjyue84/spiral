@@ -1622,7 +1622,8 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
-      "model": "opus"
+      "model": "opus",
+      "last_attempted": "2026-03-20T01:16:03Z"
     },
     {
       "id": "US-546",
@@ -1637,7 +1638,7 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "sonnet"
     },
     {
@@ -1785,54 +1786,6 @@
       "estimatedComplexity": "small",
       "passes": false,
       "model": "haiku"
-    },
-    {
-      "id": "US-560",
-      "title": "Phase Output Regression Detector: spiral phase-diff CLI with Status Transition Analysis",
-      "priority": "medium",
-      "description": "Compare Phase S/V outputs between consecutive iterations to detect regressions (stories that PASS→FAIL), unchanged failures, and newly resolved stories. Helps identify phase-level quality drift and implementation consistency issues.",
-      "acceptanceCriteria": [
-        "CLI spiral phase-diff S 1 2 parses .spiral/iteration-{1,2}/_validated_stories.json and outputs JSON with {added_stories: [], regressed_stories: [{id, status_transition}], newly_resolved: [], unchanged_failures: []}",
-        "Regressed stories include story ID, last known status, current status, and iteration range (e.g. 'US-501: PASS in iter 1 → FAIL in iter 2')",
-        "Optional --show-diffs flag outputs unified diff of validation error messages between iterations to root-cause regressions"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-561",
-      "title": "Dashboard Endpoint - Iteration Velocity Trend Chart Data",
-      "priority": "medium",
-      "description": "Add GET /api/dashboard/velocity-trend endpoint that returns iteration-over-iteration efficiency metrics: stories completed, tokens spent, average tokens per story for last 10 iterations. Parses results.tsv, groups by iteration column, and returns time-series data to visualize SPIRAL performance degradation or improvement across iterations.",
-      "acceptanceCriteria": [
-        "GET /api/dashboard/velocity-trend returns JSON array with objects: {iteration: int, stories_completed: int, tokens_spent: int, avg_tokens_per_story: float, duration_minutes: float}",
-        "Endpoint reads results.tsv and aggregates rows grouped by iteration; accurate within 1% of raw data",
-        "Handles missing iterations gracefully (no gaps in returned data); returns last 10 completed iterations or fewer if project has <10 iterations"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-562",
-      "title": "CLI: spiral worker-summary — Real-time worker pool status with heartbeat monitoring",
-      "priority": "medium",
-      "description": "Add CLI command 'spiral worker-summary' that displays live worker pool status: active worker count, current stories being implemented per worker, tokens burned, and heartbeat-based health status (running/stalled/crashed). Parses .spiral-workers/worker-N/state.json and .spiral-workers/worker-N/.heartbeat files to detect stalled workers for immediate iteration progress visibility.",
-      "acceptanceCriteria": [
-        "CLI outputs formatted table with columns: worker_id | current_story | tokens_burned | elapsed_time | status; reads from .spiral-workers/ directory structure",
-        "Status field shows 'running' (heartbeat mtime ≤30s old), 'stalled' (>30s, recoverable), 'crashed' (no heartbeat file); status derived from lib/worker_heartbeat.sh monitoring mechanism",
-        "Command exits 0 with empty table if no workers active; integrates with existing run_parallel_ralph.sh worker startup and integrates into Phase I logging for debugging"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "sonnet"
     }
   ]
 }

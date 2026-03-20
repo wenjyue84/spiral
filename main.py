@@ -22,6 +22,7 @@ Subcommands:
   complexity-trend        Analyze story retry & duration patterns across iterations (US-537)
   show-blockers           Analyze story dependency graph and critical paths (US-538)
   replay                  Re-run a failed phase with DEBUG=1 and full state capture (US-539)
+  phase-timing-report     Generate phase timing report with SLA breach analysis (US-546)
 """
 
 import argparse
@@ -2394,6 +2395,21 @@ def cmd_config_export_env(args) -> None:
     print("\n[ok] .env is compatible with 'docker run --env-file' and GitHub Actions env-file syntax.")
 
 
+def cmd_phase_timing_report(args) -> None:
+    """Generate phase timing report with SLA breach analysis (US-546).
+
+    Usage: spiral phase-timing-report --format json [--history results.tsv] [--sla 300]
+    """
+    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    from perf_analyzer import analyze_phase_timings  # type: ignore[import-untyped]
+
+    history_path = getattr(args, "history", "results.tsv")
+    sla_threshold = getattr(args, "sla", 300.0)
+
+    result = analyze_phase_timings(history_path, sla_threshold_sec=sla_threshold)
+    print(json.dumps(result, indent=2))
+
+
 def cmd_detect_anomalies(args) -> None:
     """Detect stories with unusual token-spend patterns (US-544).
 
@@ -2935,6 +2951,32 @@ def main():
         help="Scratch directory (default: .spiral)",
     )
 
+    # ── phase-timing-report subcommand (US-546) ────────────────────────────────
+    phase_timing_parser = subparsers.add_parser(
+        "phase-timing-report",
+        help="Generate phase timing report with SLA breach analysis (US-546)",
+    )
+    phase_timing_parser.add_argument(
+        "--format",
+        dest="output_format",
+        choices=["json"],
+        default="json",
+        help="Output format (default: json)",
+    )
+    phase_timing_parser.add_argument(
+        "--history",
+        default="results.tsv",
+        metavar="TSV",
+        help="Path to results.tsv (default: results.tsv)",
+    )
+    phase_timing_parser.add_argument(
+        "--sla",
+        type=float,
+        default=300.0,
+        metavar="SEC",
+        help="SLA threshold in seconds (default: 300)",
+    )
+
     # ── detect-anomalies subcommand (US-544) ─────────────────────────────────────
     detect_anomalies_parser = subparsers.add_parser(
         "detect-anomalies",
@@ -3042,6 +3084,8 @@ def main():
         cmd_phase_audit(args)
     elif args.command == "detect-anomalies":
         cmd_detect_anomalies(args)
+    elif args.command == "phase-timing-report":
+        cmd_phase_timing_report(args)
     else:
         parser.print_help()
         sys.exit(0)
