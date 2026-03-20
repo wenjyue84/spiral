@@ -92,6 +92,16 @@ SPIRAL_STORY_PREFIX="US"
 # Dynamic worker count (1-3) will be auto-selected once US-009 is implemented.
 # Until then, leave unset and pass --ralph-workers on the command line.
 
+# Per-worker memory budget (MB) for pre-spawn gate. Gate requires
+# (remaining_workers * this + 512) MB free before launching each worker.
+# Default 1536 = V8 heap (1024) + typical non-heap overhead (512).
+# Set lower (1024) on machines with limited free RAM.
+# SPIRAL_MEMORY_GATE_MB=1536
+
+# Hard timeout (minutes) for memory gate. 0 = wait forever (old behavior).
+# Default 2 = wait up to 2 min, then launch anyway (watchdog handles runtime).
+# SPIRAL_MEMORY_WAIT_MAX_MINS=2
+
 # ── Dispatch mode: control worker scheduling strategy (US-361) ──────────────────
 # Options: dag (new default) | parallel (legacy all-parallel)
 # dag = tier-aware dispatch: tier 0 stories run in parallel, tier N+1 waits for tier N

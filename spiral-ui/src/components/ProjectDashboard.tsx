@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import DependencyGraph from './DependencyGraph';
+import AnalyticsTab from './AnalyticsTab';
 import { CONFIG_FIELDS } from '../data/configSchema';
 import { useSSE, type SSEEvent } from '../hooks/useSSE';
 
@@ -28,6 +29,8 @@ interface Story {
   acceptanceCriteria?: string[];
   filesTouch?: string[];
   completedAt?: string | null;
+  scopeCreep?: boolean;
+  lastAttempted?: string | null;
 }
 
 interface ProgressData {
@@ -831,6 +834,15 @@ function ProgressTab({ data, projectName, onRefresh, activeStory }: { data: Proj
                       <span className={`inline-block text-[10px] px-2 py-0.5 rounded-full border font-medium whitespace-nowrap ${statusBadge.cls}`}>
                         {statusBadge.label}
                       </span>
+                      {s.scopeCreep && (
+                        <span className="inline-block text-[9px] px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 border border-purple-200 font-medium ml-1" title="Scope creep detected">SCOPE</span>
+                      )}
+                      {!s.passes && s.lastAttempted && (() => {
+                        const age = Date.now() - new Date(s.lastAttempted).getTime();
+                        return age > 7 * 86400000 ? (
+                          <span className="inline-block text-[9px] px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700 border border-orange-200 font-medium ml-1" title={`Last attempted ${Math.floor(age / 86400000)}d ago`}>STALE</span>
+                        ) : null;
+                      })()}
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap">
                       {s.passes
@@ -2054,7 +2066,8 @@ function PhaseTraceTab({ projectName, stories, activeStory }: { projectName: str
 
   const getDuration = (phase: string): number | null => {
     const ev = phaseEndEvents.find(e => e.phase === phase);
-    return ev?.duration_s ?? null;
+    if (ev?.duration_s == null) return null;
+    return Math.max(0, ev.duration_s);
   };
 
   const getStartTs = (phase: string): string | null => {
@@ -2089,7 +2102,7 @@ function PhaseTraceTab({ projectName, stories, activeStory }: { projectName: str
     ? phaseEndEvents.reduce((latest, e) => (!latest || (e.ts && e.ts > latest) ? e.ts! : latest), '')
     : null;
   const iterTotalDuration = iterStartTs && iterEndTs
-    ? Math.round((new Date(iterEndTs).getTime() - new Date(iterStartTs).getTime()) / 1000)
+    ? Math.max(0, Math.round((new Date(iterEndTs).getTime() - new Date(iterStartTs).getTime()) / 1000))
     : null;
 
   // Phase output file summary
@@ -3332,7 +3345,7 @@ function TestsTab({ projectName }: { projectName: string }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-type DashTab = 'progress' | 'settings' | 'constitution' | 'skills' | 'activity' | 'graph' | 'phase-trace' | 'workers' | 'tokens' | 'tests';
+type DashTab = 'progress' | 'settings' | 'constitution' | 'skills' | 'activity' | 'graph' | 'phase-trace' | 'workers' | 'tokens' | 'tests' | 'analytics';
 
 const DASH_TABS: { id: DashTab; slug: string; label: string; icon: string }[] = [
   { id: 'progress',     slug: 'progress',     label: 'Progress',     icon: '📊' },
@@ -3345,6 +3358,7 @@ const DASH_TABS: { id: DashTab; slug: string; label: string; icon: string }[] = 
   { id: 'constitution', slug: 'constitution', label: 'Constitution', icon: '📜' },
   { id: 'skills',       slug: 'skills',       label: 'Skills',       icon: '🎯' },
   { id: 'activity',     slug: 'activity',     label: 'Activity Log', icon: '📝' },
+  { id: 'analytics',    slug: 'analytics',    label: 'Analytics',    icon: '📈' },
 ];
 
 const VALID_TABS = new Set(DASH_TABS.map(t => t.slug));
@@ -3575,6 +3589,7 @@ export default function ProjectDashboard() {
         {activeTab === 'skills'       && <div className="h-full overflow-hidden"><SkillsTab projectName={projectName ?? undefined} /></div>}
         {activeTab === 'activity'     && <div className="h-full overflow-y-auto"><ActivityTab log={data.activity} activeStory={activeStory} /></div>}
         {activeTab === 'tests'        && <div className="h-full overflow-hidden"><TestsTab projectName={projectName ?? ''} /></div>}
+        {activeTab === 'analytics'    && <div className="h-full overflow-y-auto"><AnalyticsTab projectName={projectName ?? ''} /></div>}
       </main>
     </div>
   );

@@ -256,6 +256,11 @@ except Exception:
   _PHASE_DUR_T=$((_T_END - _PHASE_TS_RT))
   _PHASE_DUR_RT_WALL=$((_NOW - _PHASE_TS_RT)) # actual wall time = max(R,T)
 
+  # Clamp to non-negative (stale endtime files from prior runs could cause negative values)
+  [[ "$_PHASE_DUR_R" -lt 0 ]] && _PHASE_DUR_R=0
+  [[ "$_PHASE_DUR_T" -lt 0 ]] && _PHASE_DUR_T=0
+  [[ "$_PHASE_DUR_RT_WALL" -lt 0 ]] && _PHASE_DUR_RT_WALL=0
+
   log_spiral_event "phase_end" "\"phase\":\"R\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_R,\"model\":\"$SPIRAL_RESEARCH_MODEL\""
   log_spiral_event "phase_end" "\"phase\":\"T\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_T"
   "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/observability/otel_spans.py" end-phase --phase R --duration-s "$_PHASE_DUR_R" --iteration "$SPIRAL_ITER" 2>/dev/null || true

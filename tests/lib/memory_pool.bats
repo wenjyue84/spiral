@@ -34,15 +34,11 @@ write_ledger() {
   local total="${1:-8192}"
   local reserved="${2:-0}"
   local available="${3:-$total}"
-  local workers="${4:-{}}"
-  cat >"$_POOL_LEDGER" <<EOF
-{
-  "total_mb": $total,
-  "reserved_mb": $reserved,
-  "available_mb": $available,
-  "workers": $workers
-}
-EOF
+  local workers="${4:-"{}"}"
+  # Use jq to construct valid JSON (avoids heredoc shell escaping issues)
+  echo "$workers" | "$JQ" \
+    --argjson t "$total" --argjson r "$reserved" --argjson a "$available" \
+    '{total_mb: $t, reserved_mb: $r, available_mb: $a, workers: .}' >"$_POOL_LEDGER"
 }
 
 # ── pool_init tests ─────────────────────────────────────────────────────────
@@ -144,7 +140,7 @@ EOF
 # ── pool_release tests ──────────────────────────────────────────────────────
 
 @test "pool_release returns memory to pool" {
-  write_ledger 8192 768 7424 "{\"1\":{\"reserved_mb\":768,\"v8_heap_mb\":499,\"pid\":$$,\"tier\":\"small\"}}"
+  write_ledger 8192 768 7424 '{"1":{"reserved_mb":768,"v8_heap_mb":499,"pid":'$$',"tier":"small"}}'
   run pool_release "1"
   assert_success
 
@@ -163,7 +159,7 @@ EOF
 }
 
 @test "pool_release is no-op for unknown worker" {
-  write_ledger 8192 768 7424 "{\"1\":{\"reserved_mb\":768,\"v8_heap_mb\":499,\"pid\":$$,\"tier\":\"small\"}}"
+  write_ledger 8192 768 7424 '{"1":{"reserved_mb":768,"v8_heap_mb":499,"pid":'$$',"tier":"small"}}'
   run pool_release "99"
   assert_success
 
@@ -240,7 +236,7 @@ EOF
 
 @test "pool_reclaim_stale reclaims dead PID reservations" {
   # Use a PID that definitely doesn't exist (99999999)
-  write_ledger 8192 768 7424 "{\"1\":{\"reserved_mb\":768,\"v8_heap_mb\":499,\"pid\":99999999,\"tier\":\"small\"}}"
+  write_ledger 8192 768 7424 '{"1":{"reserved_mb":768,"v8_heap_mb":499,"pid":99999999,"tier":"small"}}'
 
   run pool_reclaim_stale
   assert_success
@@ -256,7 +252,7 @@ EOF
 
 @test "pool_reclaim_stale leaves live PID reservations" {
   # Use our own PID (guaranteed alive)
-  write_ledger 8192 768 7424 "{\"1\":{\"reserved_mb\":768,\"v8_heap_mb\":499,\"pid\":$$,\"tier\":\"small\"}}"
+  write_ledger 8192 768 7424 '{"1":{"reserved_mb":768,"v8_heap_mb":499,"pid":'$$',"tier":"small"}}'
 
   run pool_reclaim_stale
   assert_success

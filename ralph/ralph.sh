@@ -24,8 +24,8 @@ AI_TOOL="claude"
 RALPH_MODEL=""
 RALPH_FOCUS="${SPIRAL_FOCUS:-}"
 STORY_TIME_BUDGET="${SPIRAL_STORY_TIME_BUDGET:-0}"                          # 0 = disabled
-SPIRAL_STORY_COST_WARN_USD="${SPIRAL_STORY_COST_WARN_USD:-0.50}"            # warn when story exceeds this
-SPIRAL_STORY_COST_HARD_USD="${SPIRAL_STORY_COST_HARD_USD:-2.00}"            # abandon story when it exceeds this
+SPIRAL_STORY_COST_WARN_USD="${SPIRAL_STORY_COST_WARN_USD:-9999.00}"          # warn when story exceeds this
+SPIRAL_STORY_COST_HARD_USD="${SPIRAL_STORY_COST_HARD_USD:-9999.00}"          # abandon story when it exceeds this
 SPIRAL_MODEL_INPUT_PRICE_PER_M="${SPIRAL_MODEL_INPUT_PRICE_PER_M:-3.00}"    # $/1M input tokens (sonnet default)
 SPIRAL_MODEL_OUTPUT_PRICE_PER_M="${SPIRAL_MODEL_OUTPUT_PRICE_PER_M:-15.00}" # $/1M output tokens (sonnet default)
 SPIRAL_MODEL_FALLBACK_CHAIN="${SPIRAL_MODEL_FALLBACK_CHAIN:-}"              # colon-separated fallback models (e.g. sonnet:haiku:gemini-2.0-flash)

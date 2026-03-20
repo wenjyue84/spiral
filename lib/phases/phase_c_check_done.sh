@@ -80,10 +80,12 @@ run_phase_check_done() {
     if [[ -f "$REPO_ROOT/results.tsv" ]]; then
       echo ""
       "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/observability/spiral_report.py" --results "$REPO_ROOT/results.tsv" 2>/dev/null || true
-      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/ui/spiral_dashboard.py" \
-        --prd "$PRD_FILE" --results "$REPO_ROOT/results.tsv" \
-        --retries "$REPO_ROOT/retry-counts.json" --progress "$REPO_ROOT/progress.txt" \
-        --output "$SCRATCH_DIR/dashboard.html" --open 2>/dev/null || true
+      if [[ "${SPIRAL_DASHBOARD_HTML:-false}" == "true" ]]; then
+        "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/ui/spiral_dashboard.py" \
+          --prd "$PRD_FILE" --results "$REPO_ROOT/results.tsv" \
+          --retries "$REPO_ROOT/retry-counts.json" --progress "$REPO_ROOT/progress.txt" \
+          --output "$SCRATCH_DIR/dashboard.html" --open 2>/dev/null || true
+      fi
     fi
 
     # ── US-192: Print calibration summary if calibration data exists ──────────
@@ -238,7 +240,7 @@ open(path, 'w', encoding='utf-8').write(text)
   print_iter_summary_banner "$SPIRAL_ITER" "$DONE" "$PENDING" "$TOTAL" "$ITER_MINUTES" "$ITER_DURATION"
 
   # ── Generate & open iteration dashboard ─────────────────────────────────────
-  if [[ -f "$REPO_ROOT/results.tsv" ]]; then
+  if [[ -f "$REPO_ROOT/results.tsv" ]] && [[ "${SPIRAL_DASHBOARD_HTML:-false}" == "true" ]]; then
     "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/ui/spiral_dashboard.py" \
       --prd "$PRD_FILE" --results "$REPO_ROOT/results.tsv" \
       --retries "$REPO_ROOT/retry-counts.json" --progress "$REPO_ROOT/progress.txt" \
@@ -274,10 +276,12 @@ open(path, 'w', encoding='utf-8').write(text)
       echo "  ╚══════════════════════════════════════════════════════╝"
       if [[ -f "$REPO_ROOT/results.tsv" ]]; then
         "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/observability/spiral_report.py" --results "$REPO_ROOT/results.tsv" 2>/dev/null || true
-        "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/ui/spiral_dashboard.py" \
-          --prd "$PRD_FILE" --results "$REPO_ROOT/results.tsv" \
-          --retries "$REPO_ROOT/retry-counts.json" --progress "$REPO_ROOT/progress.txt" \
-          --output "$SCRATCH_DIR/dashboard.html" --open 2>/dev/null || true
+        if [[ "${SPIRAL_DASHBOARD_HTML:-false}" == "true" ]]; then
+          "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/ui/spiral_dashboard.py" \
+            --prd "$PRD_FILE" --results "$REPO_ROOT/results.tsv" \
+            --retries "$REPO_ROOT/retry-counts.json" --progress "$REPO_ROOT/progress.txt" \
+            --output "$SCRATCH_DIR/dashboard.html" --open 2>/dev/null || true
+        fi
       fi
       exit 0
     else
