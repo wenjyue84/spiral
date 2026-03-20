@@ -350,6 +350,7 @@ async def error_breakdown(
 
         # Aggregate
         phases: dict[str, dict[str, int]] = {}
+        story_ids: dict[str, dict[str, list[str]]] = {}
         total = 0
         for row in rows:
             row_iter = row.get("spiral_iter", "")
@@ -371,9 +372,21 @@ async def error_breakdown(
             if phase not in phases:
                 phases[phase] = {}
             phases[phase][category] = phases[phase].get(category, 0) + 1
+
+            # Track story IDs per phase/category for drill-down
+            sid = row.get("story_id", "")
+            if sid:
+                if phase not in story_ids:
+                    story_ids[phase] = {}
+                if category not in story_ids[phase]:
+                    story_ids[phase][category] = []
+                if sid not in story_ids[phase][category]:
+                    story_ids[phase][category].append(sid)
+
             total += 1
 
         response["phases"] = phases
+        response["story_ids"] = story_ids
         response["total_errors"] = total
 
     except Exception as e:

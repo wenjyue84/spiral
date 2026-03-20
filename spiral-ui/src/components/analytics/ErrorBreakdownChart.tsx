@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 
 interface ErrorBreakdownData {
   phases: Record<string, Record<string, number>>;
+  story_ids?: Record<string, Record<string, string[]>>;
   total_errors: number;
   iterations_filter: { mode: string; n?: number; iteration?: number };
 }
@@ -163,20 +164,32 @@ export default function ErrorBreakdownChart() {
                 const colors = CATEGORY_COLORS[cat] ?? DEFAULT_COLOR;
                 const total = Object.values(phases[selectedPhase]).reduce((a, b) => a + b, 0);
                 const pct = Math.round((count / total) * 100);
+                const catStoryIds = data?.story_ids?.[selectedPhase]?.[cat] ?? [];
                 return (
-                  <div key={cat} className="flex items-center gap-2">
-                    <span className={`text-[10px] w-28 shrink-0 ${colors.text}`}>
-                      {colors.label || cat}
-                    </span>
-                    <div className="flex-1 h-3 bg-white/60 rounded-full overflow-hidden border border-violet-100">
-                      <div
-                        className={`h-full rounded-full ${colors.bg}`}
-                        style={{ width: `${pct}%` }}
-                      />
+                  <div key={cat}>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[10px] w-28 shrink-0 ${colors.text}`}>
+                        {colors.label || cat}
+                      </span>
+                      <div className="flex-1 h-3 bg-white/60 rounded-full overflow-hidden border border-violet-100">
+                        <div
+                          className={`h-full rounded-full ${colors.bg}`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <span className="text-[10px] text-slate-600 w-12 text-right shrink-0">
+                        {count} ({pct}%)
+                      </span>
                     </div>
-                    <span className="text-[10px] text-slate-600 w-12 text-right shrink-0">
-                      {count} ({pct}%)
-                    </span>
+                    {catStoryIds.length > 0 && (
+                      <div className="ml-28 pl-2 mt-0.5 flex gap-1 flex-wrap">
+                        {catStoryIds.map(sid => (
+                          <span key={sid} className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white border border-violet-100 text-violet-600">
+                            {sid}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}

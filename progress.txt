@@ -1824,3 +1824,31 @@ Based on the user story JSON for **US-604**, here is the technical brief.
     *   Ensure the `git-cliff` templating engine can support the required nested grouping (commits within stories within change types).
     *   The script must gracefully handle the absence of the `git-cliff` binary.
 
+
+## Pre-analysis for US-604 (Gemini 2.5 Pro)
+### Technical Brief for Claude: US-604 CHANGELOG Generation
+
+**Objective:** Implement a changelog generator using `git-cliff` that parses commit messages for story IDs, categorizes them, and groups them in the output `CHANGELOG.md`.
+
+**1. Primary Files to Modify/Create:**
+*   **`lib/phases/gen_changelog.sh` (New/Modify):** The main shell script orchestrator. It will source configuration, validate the `git-cliff` binary, and execute the generation process.
+*   **`lib/changelog_parser.py` (New):** A Python script to handle the complex logic of parsing `git-cliff`'s output, grouping commits by story ID, and formatting the final Markdown.
+*   **`cliff.toml` (Modify):** The `git-cliff` configuration file. This will need to be adjusted to define commit parsers and potentially set the output to a raw format like JSON for easier processing by the Python script.
+
+**2. Frappe Context:**
+*   **None.** The user story pertains to a Python/shell-based command-line automation tool, not a Frappe application. All Frappe-related context should be disregarded.
+
+**3. Implementation Approach:**
+1.  In `gen_changelog.sh`, read the `SPIRAL_GIT_CLIFF_BIN` path from the config.
+2.  Execute `git-cliff` with a configuration that outputs structured data (like JSON) instead of formatted Markdown.
+3.  Pipe the JSON output from `git-cliff` to the new `lib/changelog_parser.py` script.
+4.  The Python script will parse the JSON, use regex (`(US|UT)-\d+`) to identify story IDs in commit messages, and build a nested dictionary to group commits by type (feat, fix) and then by story ID.
+5.  Iterate through the structured data to generate `CHANGELOG.md` with the required sections and groupings.
+6.  Log any commits that do not match the story ID pattern to `.spiral/phase_g_warnings.log`.
+
+**4. Edge Cases & Gotchas:**
+*   **Commit Range:** Ensure `git-cliff` operates on the correct commit range (e.g., since the last tag) to avoid regenerating the entire history.
+*   **Orphan Commits:** The definition of an "orphan" is a commit *without* a story ID. Merges and other automated commits should be handled gracefully.
+*   **Multiple IDs:** A single commit could reference multiple story IDs. The parsing logic should accommodate this.
+*   **Error Handling:** The shell script must be robust against failures, such as `git-cliff` not being found or failing during execution.
+

@@ -339,6 +339,9 @@ export default function AnalyticsTab({ projectName }: { projectName: string }) {
         </div>
       )}
 
+      {/* ── Error Breakdown by Phase ──────────────────────────────────────── */}
+      <ErrorBreakdownChart />
+
       {/* ── 3. Story Status Stacked Bar ───────────────────────────────────── */}
       <div>
         <div className="text-xs font-medium text-slate-500 mb-2 uppercase tracking-wide">Story Status</div>

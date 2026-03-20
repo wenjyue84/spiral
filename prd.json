@@ -2875,7 +2875,8 @@
         "module-hypothesis",
         "module:claude",
         "module:hypothesis"
-      ]
+      ],
+      "last_attempted": "2026-03-20T15:15:05Z"
     },
     {
       "id": "US-605",
@@ -2977,6 +2978,23 @@
         "module:claude",
         "module:hypothesis"
       ]
+    },
+    {
+      "id": "US-608",
+      "title": "Phase I Retry Failure Categorizer CLI",
+      "priority": "medium",
+      "description": "Analyze retry failures from results.tsv and categorize root causes (test-failure, compilation-error, missing-dependency, timeout, token-limit, other). Helps identify patterns and tune decomposition strategy.",
+      "acceptanceCriteria": [
+        "CLI: spiral categorize-failures <iteration> parses results.tsv and outputs JSON: [{\"story\": \"US-123\", \"retry1\": \"test-failure\", \"retry2\": \"token-limit\"}]",
+        "Categorizer recognizes 6+ failure types from error message keywords (e.g., 'AssertionError' → test-failure, 'out of memory' → token-limit)",
+        "tests/test_failure_categorizer.py validates 10 sample error messages categorized with >80% accuracy"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
     }
   ]
 }
