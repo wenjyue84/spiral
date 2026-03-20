@@ -380,3 +380,33 @@ Here is the technical brief for implementing story US-597.
 *   **Schema Changes:** Any other scripts that consume `results.tsv` may need to be updated to handle the new `failed_files` column.
 *   **Empty `failed_files`:** The `retry.sh` script must gracefully handle cases where `failed_files` is empty (`[]`) and default to the original, full re-implementation logic.
 
+
+## Pre-analysis for US-629 (Gemini 2.5 Pro)
+Based on the user story, this is a Python CLI task, not a Frappe app integration. No Frappe DocTypes or hooks are involved.
+
+Here is the technical brief for the `spiral federated-status` command:
+
+**1. Python Files to Modify:**
+*   **`main.py`**: Add the `federated-status` command endpoint, likely using a CLI framework like Click or Typer.
+*   **`lib/federated_status.py` (New File)**: Create this file to house the core logic for reading the PRD, finding `results.tsv` files, and aggregating the data.
+*   **`tests/test_federated_status.py` (New File)**: Implement the integration test as specified in the acceptance criteria.
+*   **`lib/constants.py`**: Potentially add cost-per-token constants for the cost estimation logic.
+
+**2. Frappe DocTypes / Hooks:**
+*   None. This project is a Python command-line tool.
+
+**3. Recommended Implementation Approach:**
+*   In `main.py`, define a `federated_status` function decorated with `@click.command()` or an equivalent.
+*   The function should read `.spiral/prd.json`, extract the `sub_project_path` list from the `federated` key.
+*   For each path, use `glob` to find the corresponding `.spiral-workers/worker-*/results.tsv` file(s).
+*   Use the `pandas` library to read each TSV into a DataFrame, which simplifies grouping and aggregation.
+*   Calculate sums for token usage and counts for story statuses (`passed`, `failed`, `pending`).
+*   Implement the `Estimated Cost` calculation based on a predefined token cost model.
+*   Use the `rich` library to render the final aggregated data in a formatted table, or `json.dumps` for the `--json` output.
+
+**4. Edge Cases & Gotchas:**
+*   Gracefully handle missing or malformed `prd.json` and `results.tsv` files for any given sub-project.
+*   Ensure path resolution is robust, combining the main project path with the relative `sub_project_path` entries.
+*   The `results.tsv` parsing must be resilient to empty files or rows with missing data.
+*   The cost calculation is an estimate; the underlying cost-per-token assumption should be clearly documented.
+

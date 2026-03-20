@@ -3314,6 +3314,8 @@ def main():
         cmd_namespace_check(args)
     elif args.command == "validate-federated":
         cmd_validate_federated(args)
+    elif args.command == "federated-status":
+        cmd_federated_status(args)
     elif args.command == "validate-results-tsv":
         cmd_validate_results_tsv(args)
     elif args.command == "config":
@@ -3406,6 +3408,24 @@ def cmd_monitor(args: argparse.Namespace) -> None:
         print(f"  Needs attention: {attn}")
         for d in result.get("diagnostics", []):
             print(f"  [{d.get('severity', '?')}] {d.get('message', '')}")
+
+
+def cmd_federated_status(args: argparse.Namespace) -> None:
+    """Show aggregated story status across federated sub-projects (US-629).
+
+    Usage: spiral federated-status [--json] [--prd prd.json]
+    """
+    from lib.federated_status import aggregate_federated_status, format_table
+
+    prd_path = Path(getattr(args, "prd", "prd.json"))
+    json_output = getattr(args, "json_output", False)
+
+    result = aggregate_federated_status(prd_path)
+
+    if json_output:
+        print(json.dumps(result, indent=2))
+    else:
+        print(format_table(result))
 
 
 def cmd_federated_merge_prd(args: argparse.Namespace) -> None:
