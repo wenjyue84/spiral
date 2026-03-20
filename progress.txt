@@ -1,3 +1,18 @@
+## Iteration - Story: US-568 [Security Test] Cost Predictor CLI: input validation and data safety
+
+### What was implemented
+- Created `tests/test_security_predict_cost.py` with 10 security tests (all pass)
+- Added `_validate_path()` to `lib/predict_cost.py` — rejects path traversal (`..`) in --history and --prd args
+- Added try/except in `main()` to catch ValueError/FileNotFoundError/JSONDecodeError and emit clean JSON error to stderr (no Python traceback leak)
+- Wired `_validate_path()` calls in `_load_history()` and `predict_story()`
+
+### Patterns discovered
+- CLI output keys are `estimated_tokens`, `estimated_cost`, `confidence_pct`, `similar_stories` (not the shortened names in the AC)
+- Linters may revert edits silently — always re-verify changes after editing
+
+### Gotchas
+- Pre-existing test failures in `test_phase_g_integration.py`, `test_research_cache_topic.py` (import errors), and `test_analyze_failures.py::test_recommendation_healthy_when_evenly_distributed` — none related to this story
+
 ## Iteration - Story: US-567 [Security Test] Auth/Permission Access Control for US-516
 
 ### What was implemented

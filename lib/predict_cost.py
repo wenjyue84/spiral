@@ -32,8 +32,16 @@ from routing.velocity_model import classify_story
 K_NEIGHBORS = 5  # Number of nearest neighbors to use
 
 
+def _validate_path(path: str, label: str) -> None:
+    """Reject path traversal attempts."""
+    normalised = os.path.normpath(path)
+    if ".." in normalised.split(os.sep):
+        raise ValueError(f"Invalid {label}: path traversal not allowed")
+
+
 def _load_history(tsv_path: str) -> list[dict[str, Any]]:
     """Load results.tsv and return list of row dicts."""
+    _validate_path(tsv_path, "history path")
     if not os.path.isfile(tsv_path):
         return []
     rows: list[dict[str, Any]] = []
@@ -199,6 +207,8 @@ class KNNEstimator:
 
 def predict_story(story_id: str, prd_path: str, history_path: str) -> dict[str, Any]:
     """Load story from prd.json, fit estimator, return prediction."""
+    _validate_path(prd_path, "PRD path")
+    _validate_path(history_path, "history path")
     if not os.path.isfile(prd_path):
         raise FileNotFoundError(f"PRD file not found: {prd_path}")
 
@@ -228,7 +238,11 @@ def main(argv: list[str] | None = None) -> None:
     )
     args = parser.parse_args(argv)
 
-    result = predict_story(args.story_id, args.prd, args.history)
+    try:
+        result = predict_story(args.story_id, args.prd, args.history)
+    except (ValueError, FileNotFoundError, json.JSONDecodeError) as exc:
+        print(json.dumps({"error": str(exc)}), file=sys.stderr)
+        sys.exit(1)
 
     # Budget check: exit code 2 if over budget
     if args.budget_remaining is not None:

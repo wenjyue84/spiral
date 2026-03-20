@@ -140,9 +140,10 @@
         "US-529"
       ],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "test-story",
-      "model": "sonnet"
+      "model": "haiku",
+      "last_attempted": "2026-03-20T04:56:04Z"
     },
     {
       "id": "US-548",
@@ -158,7 +159,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
-      "model": "haiku",
+      "model": "sonnet",
       "filesTouch": [
         ".hypothesis/constants/0144005a67236799",
         ".hypothesis/constants/016af87f794a90e9",
@@ -263,84 +264,6 @@
       ],
       "dependencies": [
         "US-460"
-      ],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "_source": "test-story",
-      "model": "haiku"
-    },
-    {
-      "id": "US-573",
-      "title": "[Performance Test] Benchmark SPIRAL self-monitoring dashboard data aggregation",
-      "priority": "medium",
-      "description": "Write a performance benchmark that measures the data aggregation pipeline used by the US-460 self-monitoring dashboard (token burn rate, story throughput, model escalation heatmap). The test captures a baseline from results.tsv and fails if any metric degrades more than 20% from that baseline.",
-      "acceptanceCriteria": [
-        "uv run pytest tests/test_perf_dashboard.py::test_dashboard_aggregation_baseline -v exits 0 and prints baseline latency in ms",
-        "uv run pytest tests/test_perf_dashboard.py::test_dashboard_aggregation_threshold -v fails when synthetic results.tsv with 10x row count causes >20% latency increase",
-        "uv run pytest tests/test_perf_dashboard.py -v completes in under 30 seconds on a cold run",
-        "uv run pytest tests/test_perf_dashboard.py -v reports token_burn_rate, story_throughput, and escalation_count as numeric outputs"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_perf_dashboard.py (new file — create perf benchmark using pytest-benchmark or time.perf_counter)",
-        "File to edit: lib/dashboard.py or lib/cost_tracker.py (whichever aggregates results.tsv for the dashboard — confirm with grep before editing)",
-        "Test command: uv run pytest tests/test_perf_dashboard.py -v --tb=short",
-        "Use a fixture that writes a synthetic results.tsv with 100 rows to a tmp_path; measure wall time for the aggregation call; assert duration < baseline * 1.2",
-        "Baseline value should be stored as a constant in the test file, not read from disk, so the threshold is deterministic across machines"
-      ],
-      "dependencies": [
-        "US-460"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "test-story",
-      "model": "haiku"
-    },
-    {
-      "id": "US-574",
-      "title": "[Regression Test] Guard velocity model derivation from results.tsv in estimate command",
-      "priority": "medium",
-      "description": "Write a pytest regression test that verifies US-352's linear regression on results.tsv produces data-driven cost/duration estimates. The test must fail if the velocity model code is removed or broken, protecting the feature from future regressions.",
-      "acceptanceCriteria": [
-        "uv run pytest tests/test_estimate.py -k 'velocity' -v exits 0 with at least one passing test",
-        "Test creates a synthetic results.tsv fixture with ≥3 rows of known (model, tokens, cost, duration, status) data and asserts the returned estimate differs from the static fallback",
-        "Test asserts that removing or monkey-patching the regression fitting step causes the assertion to fail (i.e., test is sensitive to the feature being present)",
-        "uv run pytest tests/test_estimate.py -v --tb=short exits 0 with no errors"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_estimate.py (add test_velocity_model_from_results_tsv function)",
-        "Locate the estimate command implementation: grep -r 'def estimate' lib/ main.py to find the function under test",
-        "Use tmp_path pytest fixture to write a synthetic results.tsv; call the estimate function directly rather than via subprocess for faster feedback",
-        "Test command: uv run pytest tests/test_estimate.py -k 'velocity' -v",
-        "Assert that estimate output contains numeric values derived from the synthetic TSV mean tokens/cost, not hardcoded static defaults"
-      ],
-      "dependencies": [
-        "US-352"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "test-story",
-      "model": "haiku"
-    },
-    {
-      "id": "US-575",
-      "title": "[Performance Test] Worker Heartbeat Timeout Detection Latency",
-      "priority": "medium",
-      "description": "Benchmark the heartbeat monitoring loop in US-531 to verify that a silently-hung worker is detected and restarted within SPIRAL_WORKER_TIMEOUT (default 300s). The test artificially stalls a mock worker's heartbeat file and measures wall-clock time from stall to restart trigger, asserting no more than 10% overhead above the configured timeout.",
-      "acceptanceCriteria": [
-        "Running `uv run pytest tests/test_worker_heartbeat_perf.py -v` exits 0 and prints a measured detection latency in seconds",
-        "Test fails (non-zero exit) if measured detection latency exceeds SPIRAL_WORKER_TIMEOUT * 1.1 (i.e. >330s for default 300s)",
-        "Test records baseline latency to a local file (`results.tsv` or test output) so regressions can be compared across runs",
-        "Re-running the test a second time produces a latency within 20% of the first run (stability check)"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_worker_heartbeat_perf.py (new file — create performance benchmark here)",
-        "File to edit: lib/worker_heartbeat.sh (reference for timeout constant SPIRAL_WORKER_TIMEOUT and heartbeat file path pattern .spiral-workers/worker-N/heartbeat)",
-        "Test command: uv run pytest tests/test_worker_heartbeat_perf.py -v",
-        "Simulate stall by writing a heartbeat timestamp >SPIRAL_WORKER_TIMEOUT seconds in the past to a temp heartbeat file, then invoke the detection logic and time the response",
-        "Read SPIRAL_WORKER_TIMEOUT from environment (default 300); use a shortened value (e.g. 5s) in tests via monkeypatching or env override to keep CI fast"
-      ],
-      "dependencies": [
-        "US-531"
       ],
       "estimatedComplexity": "medium",
       "passes": false,
@@ -2181,6 +2104,109 @@
         "contextWindow": 10
       },
       "tags": []
+    },
+    {
+      "id": "US-576",
+      "title": "[Security Test] Verify auth enforcement on WebSocket /ws/cost endpoint",
+      "priority": "high",
+      "description": "Write security tests for the /ws/cost WebSocket endpoint introduced in US-497. Verify that unauthenticated clients are rejected before the connection upgrades, and that error responses contain no sensitive fields (tokens, passwords, API keys). This ensures the real-time cost broadcast channel is not an open information leak.",
+      "acceptanceCriteria": [
+        "Unauthenticated WebSocket upgrade to /ws/cost returns HTTP 401 or 403 before handshake completes",
+        "Rejected-connection response body contains no fields matching: token, password, key, secret, or api_key",
+        "All security tests pass: uv run pytest tests/test_ws_cost.py -k 'security or auth' -v"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_ws_cost.py (add test_unauthenticated_ws_rejected and test_no_sensitive_data_in_error_response)",
+        "File to read: lib/dashboard/api.py (locate auth middleware or decorator applied to the /ws/cost route)",
+        "Test command: uv run pytest tests/test_ws_cost.py -k 'security or auth' -v",
+        "Use the websockets or httpx library to attempt a WebSocket upgrade without credentials and assert the HTTP response status is 401 or 403",
+        "Assert no sensitive keys in error body: assert not any(k in err for k in ['token','password','key','secret','api_key'])"
+      ],
+      "dependencies": [
+        "US-497"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "test-story",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-577",
+      "title": "[Security Test] Verify SPIRAL_COST_CEILING blocks Phase I without bypass",
+      "priority": "high",
+      "description": "Write security/integrity tests for the pre-Phase I budget gate introduced by US-498. Verify that when estimated token costs exceed SPIRAL_COST_CEILING, Phase I is blocked and cannot silently proceed. Ensure rollback correctly removes the lowest-priority story from the pending queue and that no stories are executed without user confirmation when the ceiling is hit.",
+      "acceptanceCriteria": [
+        "Test verifies Phase I is blocked when mock cost estimate exceeds SPIRAL_COST_CEILING (env var set to a low sentinel value)",
+        "Test verifies rollback removes the lowest-priority story from prd.json pending list and the change is persisted",
+        "Test verifies no story implementation runs when ceiling is hit and user selects 'skip'",
+        "All tests pass: uv run pytest tests/test_cost_ceiling_security.py -v"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_cost_ceiling_security.py (create new — security test suite targeting US-498 budget gate logic)",
+        "File to edit: lib/cost_tracker.py or spiral.sh (locate the pre-Phase I budget check function added by US-498)",
+        "Test command: uv run pytest tests/test_cost_ceiling_security.py -v",
+        "Mock token cost estimates using monkeypatch on the estimator function; set SPIRAL_COST_CEILING=0.01 to force ceiling breach",
+        "Check prd.json pending list before and after rollback path to assert lowest-priority story is removed"
+      ],
+      "dependencies": [
+        "US-498"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "test-story",
+      "model": "haiku"
+    },
+    {
+      "id": "US-578",
+      "title": "[Security Test] CLI: validate-federated — Input Safety & Output Sanitization",
+      "priority": "high",
+      "description": "Write security-focused tests for the `spiral validate-federated` CLI command (US-514). Verify that malicious inputs are safely rejected without leaking stack traces, and that the JSON report output never exposes environment secrets or raw exception details.",
+      "acceptanceCriteria": [
+        "Running `uv run pytest tests/test_validate_federated_security.py -v` exits 0 with all tests passing",
+        "Test confirms validate-federated exits 1 and returns a JSON `{\"error\": \"...\"}` (not a raw traceback) when given a path-traversal ID like `../../etc/passwd:(US)-001`",
+        "Test confirms stdout JSON report contains no strings matching secret-like patterns (`ANTHROPIC_API_KEY`, `GITHUB_TOKEN`, or any value from `os.environ` that contains 'KEY' or 'TOKEN')",
+        "Test confirms validate-federated exits 1 with a structured JSON error when a cross-repo dependency file is unreadable (permissions denied)"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_validate_federated_security.py (create — invoke CLI via subprocess with adversarial inputs, assert returncode + JSON shape)",
+        "File to edit: lib/commands/validate_federated.py (wrap all exception paths to return JSON error dict, never bare tracebacks)",
+        "Test command: uv run pytest tests/test_validate_federated_security.py -v",
+        "Use `subprocess.run(['python', '-m', 'lib.commands.validate_federated', '--id', '<adversarial>'], capture_output=True)` pattern in tests",
+        "US-514 must be merged first; skip tests with `pytest.importorskip` if module is absent"
+      ],
+      "dependencies": [
+        "US-514"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "test-story",
+      "model": "haiku"
+    },
+    {
+      "id": "US-579",
+      "title": "[Security Test] predict-cost CLI: path traversal and secret-leak prevention",
+      "priority": "high",
+      "description": "Write security tests for lib/predict_cost.py (US-529). The CLI reads results.tsv to build a KNN estimator; tests must verify it rejects path traversal in any file-path arguments, does not echo API keys or tokens present in results.tsv into stdout/stderr, and exits cleanly on malformed input without exposing internal state.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_security_predict_cost.py::test_no_path_traversal -v passes: CLI rejects paths containing '../' and exits non-zero",
+        "uv run pytest tests/test_security_predict_cost.py::test_no_secret_leak -v passes: error output contains no strings matching injected fake API-key pattern 'sk-[A-Za-z0-9]{20}'",
+        "uv run pytest tests/test_security_predict_cost.py::test_malformed_tsv -v passes: corrupted results.tsv causes clean non-zero exit, no Python traceback on stdout",
+        "uv run pytest tests/test_security_predict_cost.py -v exits 0 (all three security tests pass)"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_security_predict_cost.py (new file — create security test suite)",
+        "File to edit: lib/predict_cost.py (add path sanitisation in load_results() if missing)",
+        "Test command: uv run pytest tests/test_security_predict_cost.py -v",
+        "Use pytest tmp_path fixture to create a results.tsv containing a fake secret ('sk-FAKEKEYFAKEKEYFAKEKE') for the leak test",
+        "Path traversal test: invoke CLI with --results-file ../../../etc/passwd (or equivalent) and assert SystemExit or non-zero returncode"
+      ],
+      "dependencies": [
+        "US-529"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "test-story",
+      "model": "sonnet"
     }
   ]
 }
