@@ -26,8 +26,8 @@ import sys
 from typing import List
 
 try:
-    from sentence_transformers import SentenceTransformer, util
     import torch
+    from sentence_transformers import SentenceTransformer, util
 except ImportError:
     print(
         "Error: Semantic chunking requires 'sentence-transformers' and 'torch'.\n"
