@@ -3050,7 +3050,8 @@
         "module:github",
         "module:hypothesis"
       ],
-      "last_attempted": "2026-03-20T16:06:46Z"
+      "last_attempted": "2026-03-20T16:06:46Z",
+      "_scopeCreep": true
     },
     {
       "id": "US-617",

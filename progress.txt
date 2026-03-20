@@ -241,3 +241,20 @@ This user story concerns a Python CLI tool, not a Frappe application. The implem
 *   **Missing/Dangling Dependencies:** Handle cases where a story depends on an ID that is not present in the input list.
 *   **Dependency Parsing:** The regex for finding dependencies must be robust enough for minor variations in phrasing if they exist.
 
+
+## Iteration - Story: Phase M: Optimize Merge Order for Federated Stories with Cross-Project Dependencies (US-617)
+
+### What was implemented
+- Created `lib/impl/phase_m_federated_order.py`: `order_federated_stories_by_dependency()` using Kahn's topological sort, scans story `description` and `dependencies` fields for cross-project story ID references
+- Created `lib/spiral/phase_m.py`: Phase M Python orchestration layer that calls the ordering function before merge (`prd_merge()` wraps order step)
+- Added `validate-federated-order <prd.json>` CLI command to `main.py` (outputs JSON with merge_order and violations, exits non-zero on cycle)
+- Created `tests/test_phase_m_federated_order.py`: 13 tests covering ordering, cycle detection, CLI integration
+
+### Patterns discovered
+- Stories without `id` field must be filtered before topological sort (handled by separating them and appending after sorted results)
+- Cycle detection uses DFS on the unprocessed nodes; arrow character (→) is used in error messages per spec
+- lib/impl/ is used for implementation-layer modules; lib/spiral/ for orchestration wrappers
+
+### Gotchas
+- mypy strict requires explicit type annotation on `order_federated_stories_by_dependency()` return before assignment to typed variable
+- The Kahn's algorithm `len(result) != len(stories)` check must only compare stories WITH IDs (stories without IDs are excluded from the graph)
