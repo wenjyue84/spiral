@@ -1,3 +1,37 @@
+## Iteration - Story: US-596 Ralph Episodic Memory Implementation
+
+### What was implemented
+- Verified lib/resilience/episodic_memory.py already contains complete SQLite FTS5 implementation
+- lib/episodic_memory.py is a backward-compatibility stub that re-exports from resilience module
+- Implementation provides four functions:
+  - init_db(db_path): Create/initialize FTS5 database
+  - write_record(story_id, story_type, approach_summary, outcome, iteration, db_path): Write records
+  - query_top3(query_text, top_k, db_path): FTS5 full-text search with BM25 ranking
+  - list_recent(limit, db_path): List records by timestamp descending (newest first)
+- All 11 tests in tests/test_episodic_memory.py pass
+- mypy --strict type checking passes
+
+### Patterns discovered
+- Backward-compatibility stubs (lib/*.py → lib/*/*.py) are used throughout the codebase
+- FTS5 full-text search with MATCH and BM25 ranking for relevance
+- Token filtering: only tokens >= 3 chars included in FTS query
+- Empty database and malformed queries gracefully return empty list instead of raising
+- Records use ISO format timestamps for TTL expiration (clear_expired logic in tests)
+
+### Gotchas
+- Story AC mentioned "embedding distance" but test file expects "FTS5" ranking
+- Test file was written first (spec-first approach); implementation matches test expectations
+- db_path parameter defaults to ".spiral/episodic_memory.db" in production code
+- Query tokens joined with " OR " for broad matching (any token match returns result)
+
+### Acceptance Criteria Met
+- [x] AC1: Pattern write/retrieve happy path - test_record_and_retrieve_happy_path PASSED
+- [x] AC2: FTS5 ranking of relevant stories higher - test_top3_fts5_ranking PASSED
+- [x] AC3: Empty store returns empty list - test_empty_store_returns_empty_context PASSED
+- [x] Test coverage: 11 tests, all passed in 3.62s
+- [x] Type check: mypy --strict passes
+- [x] prd.json updated: US-596 marked passes=true
+
 ## Iteration - Story: US-586 [Regression] Full SPIRAL Loop R->C Execution
 
 ### What was implemented
@@ -1240,3 +1274,38 @@ Here is the technical brief for the Claude agent.
 ## Worker 1 crashed (exit 2) — 2026-03-20 18:10:51
 ## Worker 1 crashed (exit 2) — 2026-03-20 18:20:03
 ## Worker 3 crashed (exit 1) — 2026-03-20 18:20:07
+
+## Pre-analysis for US-596 (Gemini 2.5 Pro)
+Here is the technical brief for implementing the episodic memory feature.
+
+**Project:** Spiral (Local Python Application)
+**User Story:** US-596: Ralph Episodic Memory Implementation
+
+### **1. Files to Modify:**
+
+*   **`lib/episodic_memory.py`**: (Primary) Implement the `EpisodicMemory` class here. This file will contain the core logic for storage, retrieval, and similarity search.
+*   **`spiral/worker.py` or similar**: (Candidate) The "Ralph worker" logic that executes implementation attempts needs to be modified to call `EpisodicMemory.write()` on retries.
+*   **`spiral/prompts.py` or similar**: (Candidate) The "Phase I" retry prompt generation logic needs modification to call a new `get_similar_patterns()` function and inject the results.
+*   **`tests/test_ralph_episodic_memory_store.py`**: Implement the acceptance tests as described.
+
+### **2. Frappe Components Involved:**
+
+*   None. Despite the prompt's mention of Frappe, the story details and project structure confirm this is a standard Python project, not a Frappe application. No DocTypes or Frappe hooks are relevant.
+
+### **3. Implementation Approach:**
+
+1.  **`EpisodicMemory` Class**: In `lib/episodic_memory.py`, create the `EpisodicMemory` class.
+2.  **Storage (`write`)**: Implement the `write` method to append a JSON object (containing the pattern, story ID, and a timestamp) to `.spiral/episodic_memory.jsonl`.
+3.  **Similarity Search (`get_similar`)**:
+    *   Use a library like `scikit-learn`'s `TfidfVectorizer` and `cosine_similarity` for the initial implementation.
+    *   The method should read the `.jsonl` file, transform the text of all stored patterns into vectors, and compute their cosine similarity against the target pattern.
+    *   Return the top `k` patterns with the highest similarity scores.
+4.  **Worker Integration**: Locate the Ralph worker's retry loop and add a call to `EpisodicMemory.write()` to persist the outcome of the failed attempt.
+
+### **4. Edge Cases & Gotchas:**
+
+*   **Embeddings**: The choice of embedding model is key. A simple TF-IDF is a good start, but a more sophisticated sentence-transformer model would yield better results.
+*   **Concurrency**: The use of a flat `.jsonl` file implies a risk of race conditions if multiple workers can write simultaneously. Implement file locking to prevent data corruption.
+*   **Performance**: Reading and vectorizing the entire memory file on every query will be slow. For this story, it's acceptable, but note that a vector database (e.g., ChromaDB, FAISS) would be a necessary optimization for larger-scale use.
+*   **Empty State**: The `get_similar` function must handle cases where the memory file is empty or does not exist, returning an empty list without error.
+
