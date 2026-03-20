@@ -3151,6 +3151,26 @@ def main():
         default=True,
     )
 
+    fed_merge_parser = subparsers.add_parser(
+        "federated-merge-prd",
+        help="Merge sub-project PRD files with namespace validation",
+    )
+    fed_merge_parser.add_argument(
+        "--projects",
+        required=True,
+        help="Comma-separated list of sub-project directory names (e.g. auth,api,payments)",
+    )
+    fed_merge_parser.add_argument(
+        "--output",
+        default="merged-prd.json",
+        help="Output path for merged PRD (default: merged-prd.json)",
+    )
+    fed_merge_parser.add_argument(
+        "--base-dir",
+        default=None,
+        help="Base directory containing sub-project dirs (default: current directory)",
+    )
+
     args = parser.parse_args()
 
     if args.command == "init":
@@ -3235,6 +3255,8 @@ def main():
         cmd_analyze_failures(args)
     elif args.command == "monitor":
         cmd_monitor(args)
+    elif args.command == "federated-merge-prd":
+        cmd_federated_merge_prd(args)
     else:
         parser.print_help()
         sys.exit(0)
@@ -3265,6 +3287,21 @@ def cmd_monitor(args: argparse.Namespace) -> None:
         print(f"  Needs attention: {attn}")
         for d in result.get("diagnostics", []):
             print(f"  [{d.get('severity', '?')}] {d.get('message', '')}")
+
+
+def cmd_federated_merge_prd(args: argparse.Namespace) -> None:
+    """Merge sub-project PRD files with namespace validation."""
+    from lib.federated_merge_prd import run_federated_merge
+
+    projects = [p.strip() for p in args.projects.split(",") if p.strip()]
+    if not projects:
+        print("Error: --projects must specify at least one project name", file=sys.stderr)
+        sys.exit(1)
+
+    output_path = Path(args.output)
+    base_dir = Path(args.base_dir) if args.base_dir else None
+    exit_code = run_federated_merge(projects, output_path, base_dir)
+    sys.exit(exit_code)
 
 
 if __name__ == "__main__":
