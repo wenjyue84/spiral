@@ -9,14 +9,9 @@ Validates that Phase R correctly:
 from __future__ import annotations
 
 import json
-import os
-import shutil
-import tempfile
 from pathlib import Path
 from typing import Any
 from unittest import mock
-
-import pytest
 
 from lib.phases.research_cache import (
     cache_research_result,

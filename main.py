@@ -1997,6 +1997,23 @@ def cmd_analyze_routing(args) -> None:
         print("\n[analyze-routing] HTML dashboard generation not yet implemented.")
 
 
+def cmd_phase_audit(args) -> None:
+    """Track story status changes between iterations (US-543).
+
+    Usage: spiral phase-audit --compare-last [--phase=PHASE] [--scratch-dir .spiral]
+    """
+    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    from phase_audit import run_phase_audit  # type: ignore[import-untyped]
+
+    phase = getattr(args, "phase", "S")
+    scratch_dir_arg = getattr(args, "scratch_dir", None) or ".spiral"
+    scratch_dir = Path(scratch_dir_arg)
+    if not scratch_dir.is_absolute():
+        scratch_dir = Path.cwd() / scratch_dir
+
+    run_phase_audit(phase=phase, scratch_dir=scratch_dir)
+
+
 def cmd_worktree_audit(args) -> None:
     """Audit git worktrees for health anomalies (US-231).
 
@@ -2878,6 +2895,31 @@ def main():
         help="Max stories per batch group (default: 10)",
     )
 
+    # ── phase-audit subcommand (US-543) ──────────────────────────────────────────
+    phase_audit_parser = subparsers.add_parser(
+        "phase-audit",
+        help="Track story status changes between iterations (US-543)",
+    )
+    phase_audit_parser.add_argument(
+        "--compare-last",
+        action="store_true",
+        dest="compare_last",
+        help="Compare current iteration with previous (default behavior)",
+    )
+    phase_audit_parser.add_argument(
+        "--phase",
+        default="S",
+        metavar="PHASE",
+        help="Phase to audit: R, T, S, M, G, I, V, or C (default: S)",
+    )
+    phase_audit_parser.add_argument(
+        "--scratch-dir",
+        dest="scratch_dir",
+        default=".spiral",
+        metavar="DIR",
+        help="Scratch directory (default: .spiral)",
+    )
+
     # ── memory subcommand (US-350) ──────────────────────────────────────────────
     memory_parser = subparsers.add_parser(
         "memory",
@@ -2962,6 +3004,8 @@ def main():
         else:
             dlq_parser.print_help()
             sys.exit(0)
+    elif args.command == "phase-audit":
+        cmd_phase_audit(args)
     else:
         parser.print_help()
         sys.exit(0)

@@ -27,7 +27,6 @@ import sys
 import time
 from typing import Any
 
-
 # Configuration
 CACHE_FILE = os.path.join(".spiral", "research_cache.json")
 TTL_SECONDS = 24 * 3600  # 24 hours

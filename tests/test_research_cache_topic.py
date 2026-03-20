@@ -21,24 +21,24 @@ from research_cache import (
 class TestTopicLevelCache:
     """Tests for topic-level research cache."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Create temporary .spiral directory for each test."""
         self.test_dir = tempfile.mkdtemp()
         self.original_cwd = os.getcwd()
         os.chdir(self.test_dir)
         os.makedirs(".spiral", exist_ok=True)
 
-    def teardown_method(self):
+    def teardown_method(self) -> None:
         """Clean up temporary directory after each test."""
         os.chdir(self.original_cwd)
         shutil.rmtree(self.test_dir, ignore_errors=True)
 
-    def test_cache_miss_returns_none(self):
+    def test_cache_miss_returns_none(self) -> None:
         """Cache miss: looking up non-existent topic returns None."""
         result = lookup_cached_research("nonexistent_topic")
         assert result is None
 
-    def test_cache_hit_returns_dict(self):
+    def test_cache_hit_returns_dict(self) -> None:
         """Cache hit: stored result is returned unchanged."""
         topic = "test_topic"
         stored_result = {"data": "value", "count": 42}
@@ -48,7 +48,7 @@ class TestTopicLevelCache:
 
         assert retrieved == stored_result
 
-    def test_expired_entry_returns_none(self):
+    def test_expired_entry_returns_none(self) -> None:
         """Expired entry: lookup returns None for entries older than 24 hours."""
         topic = "old_topic"
         result = {"old": "data"}
@@ -71,7 +71,7 @@ class TestTopicLevelCache:
         retrieved = lookup_cached_research(topic)
         assert retrieved is None
 
-    def test_clear_expired_returns_count(self):
+    def test_clear_expired_returns_count(self) -> None:
         """Cache clear: --clear-expired returns count of pruned entries."""
         # Add some entries
         cache_research_result("topic1", {"a": 1})
@@ -99,7 +99,7 @@ class TestTopicLevelCache:
             cache = json.load(f)
         assert len(cache) == 2
 
-    def test_multiple_topics_independent(self):
+    def test_multiple_topics_independent(self) -> None:
         """Multiple topics: entries for different topics are independent."""
         topic1_result = {"topic": "1", "value": "a"}
         topic2_result = {"topic": "2", "value": "b"}
@@ -110,7 +110,7 @@ class TestTopicLevelCache:
         assert lookup_cached_research("topic_1") == topic1_result
         assert lookup_cached_research("topic_2") == topic2_result
 
-    def test_cache_init_prunes_expired(self):
+    def test_cache_init_prunes_expired(self) -> None:
         """cache_init: pruning works correctly on module initialization."""
         # Add entries
         cache_research_result("fresh", {"status": "new"})
@@ -136,7 +136,7 @@ class TestTopicLevelCache:
 
 
 # Module-level test functions matching AC criteria
-def test_cache_miss_returns_none():
+def test_cache_miss_returns_none() -> None:
     """AC: Cache miss returns None."""
     test = TestTopicLevelCache()
     test.setup_method()
@@ -146,7 +146,7 @@ def test_cache_miss_returns_none():
         test.teardown_method()
 
 
-def test_cache_hit_returns_dict():
+def test_cache_hit_returns_dict() -> None:
     """AC: Cache hit returns stored dict."""
     test = TestTopicLevelCache()
     test.setup_method()
@@ -156,7 +156,7 @@ def test_cache_hit_returns_dict():
         test.teardown_method()
 
 
-def test_expired_entry_returns_none():
+def test_expired_entry_returns_none() -> None:
     """AC: Entry older than 24h returns None."""
     test = TestTopicLevelCache()
     test.setup_method()

@@ -7,12 +7,9 @@ worktree and PRD slice, and results are merged atomically.
 
 import json
 import os
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any
-
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 from merge_worker_results import main as merge_main

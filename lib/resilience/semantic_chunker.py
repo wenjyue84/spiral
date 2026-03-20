@@ -30,10 +30,9 @@ try:
     import torch
 except ImportError:
     print(
-        "Error: Semantic chunking requires 'sentence-transformers' and 'torch'.
-"
+        "Error: Semantic chunking requires 'sentence-transformers' and 'torch'.\n"
         "Please install them: pip install sentence-transformers torch",
-        file=sys.stderr
+        file=sys.stderr,
     )
     sys.exit(1)
 
