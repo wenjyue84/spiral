@@ -15,7 +15,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -35,8 +35,7 @@ def _load_federated_prd(sub_project: str) -> dict[str, Any]:
         / "prd.json"
     )
     with open(fixture_path, encoding="utf-8") as f:
-        data: dict[str, Any] = json.load(f)
-        return data
+        return cast(dict[str, Any], json.load(f))
 
 
 def _make_merged_prd(webapp: dict[str, Any], api: dict[str, Any]) -> dict[str, Any]:
@@ -75,7 +74,7 @@ def _check_circular_dependencies(stories: list[dict[str, Any]]) -> bool:
 
     Returns True if a cycle is found.
     """
-    story_by_id = {s["id"]: s for s in stories}
+    story_by_id: dict[str, dict[str, Any]] = {s["id"]: s for s in stories}
     visited: set[str] = set()
     rec_stack: set[str] = set()
 
@@ -83,7 +82,7 @@ def _check_circular_dependencies(stories: list[dict[str, Any]]) -> bool:
         visited.add(story_id)
         rec_stack.add(story_id)
 
-        deps = story_by_id.get(story_id, {}).get("dependencies", [])
+        deps = story_by_id.get(story_id, cast(dict[str, Any], {})).get("dependencies", [])
         for dep_id in deps:
             if dep_id not in story_by_id:
                 # Cross-project dependency to non-existent story (valid during federated merge)
