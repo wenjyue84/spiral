@@ -527,6 +527,7 @@ def validate_stories(
                 rejected = []
 
     # ── Keyword / constitution path (default) ────────────────────────────
+    _empty_tech_notes_count = 0
     for story in all_candidates:
         title = story.get("title", "").strip()
         if not title:
@@ -570,13 +571,17 @@ def validate_stories(
                 print(f"  [S] WARNING: {title[:60]!r} has {len(ac_list)} ACs (recommended <=4)")
             tech_notes = story.get("technicalNotes", [])
             if not tech_notes:
-                print(f"  [S] WARNING: {title[:60]!r} has empty technicalNotes (no implementation guidance)")
+                _empty_tech_notes_count += 1
 
         if rejection_reason:
             rejected.append({**story, "_rejection_reason": rejection_reason})
             print(f"  [S] REJECTED: {title[:70]!r} — {rejection_reason}")
         else:
             accepted.append(story)
+
+    # Batch summary for empty technicalNotes (instead of per-story spam)
+    if _empty_tech_notes_count > 0:
+        print(f"  [S] WARNING: {_empty_tech_notes_count} stories have empty technicalNotes (Phase E enrichment will fill these)")
 
     # Write outputs
     atomic_write_json(validated_out, {"stories": accepted})

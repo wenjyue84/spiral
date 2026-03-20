@@ -77,7 +77,7 @@ SPIRAL_MERGE_MODEL="haiku"      # Phase M: merge decisions (future — currently
 # vague ACs, add exact file paths + test commands, split stories touching 3+
 # files. Costs one extra Claude call per eligible story but prevents 2-3 retry
 # cycles in Phase I. Set to true to opt in.
-SPIRAL_STORY_ENRICHMENT="${SPIRAL_STORY_ENRICHMENT:-true}"
+SPIRAL_STORY_ENRICHMENT="${SPIRAL_STORY_ENRICHMENT:-false}"
 # Model for enrichment pass. sonnet is default; set to opus for maximum quality.
 SPIRAL_STORY_ENRICHMENT_MODEL="${SPIRAL_STORY_ENRICHMENT_MODEL:-sonnet}"
 

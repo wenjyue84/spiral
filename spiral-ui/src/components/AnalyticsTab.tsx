@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
+import { AgentTelemetryTable, PhaseTimingBars, StoriesListAccordion } from './analytics';
+import StoryDetailPanel, { type StoryForPanel, type StoryAttempt } from './StoryDetailPanel';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -36,8 +38,32 @@ interface AnalyticsData {
     category: string; retryCount: number; model: string; source: string;
     resolvedAs: 'passed' | 'skipped' | 'decomposed';
   }>;
+  prdVelocity: {
+    storiesPerHour: number; totalStories: number; elapsedHours: number;
+    isProjected: boolean; label: string;
+    sessions: Array<{ date: string; stories: number; hours: number; velocity: number }>;
+    latestSessionVelocity: number;
+  };
   insights: string[];
   latestScreenshot: string | null;
+  agentTelemetry: Array<{
+    ts: string; workerId: string; storyId: string;
+    fromPhase: string; toPhase: string;
+    durationMs: number; qualityScore: number; retryCount: number;
+  }>;
+  phaseTimings: Array<{ phase: string; durationSec: number; label: string }>;
+  storiesList: Array<{
+    id: string; title: string; passes: boolean;
+    _decomposed: boolean; _skipped: boolean; _failureReason: string;
+    epicId: string; priority: string; source: string;
+    attempts: Array<{
+      timestamp: string; model: string; status: string;
+      durationSec: number; retryNum: number; commitSha: string;
+      runId: string; inputTokens: number; outputTokens: number;
+    }>;
+  }>;
+  storyDetails?: Record<string, StoryForPanel>;
+  storyAttempts?: Record<string, StoryAttempt[]>;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -78,11 +104,14 @@ export default function AnalyticsTab({ projectName }: { projectName: string }) {
   if (error) return <div className="p-6 text-sm text-red-500">Error: {error}</div>;
   if (!data) return <div className="p-6 text-sm text-slate-400">No analytics data available</div>;
 
+  const [selectedStoryId, setSelectedStoryId] = useState<string | null>(null);
+
   const { overview: ov, statusBreakdown: sb, insights, velocity, modelPerformance, retryAnalysis,
     resourceUsage, bottlenecks, iterationVelocity, qualityScores, tokenForecast,
-    epics, decomposition, failureReasons, resolvedFailures, latestScreenshot } = data;
+    epics, decomposition, failureReasons, resolvedFailures, latestScreenshot, prdVelocity,
+    agentTelemetry, phaseTimings, storiesList, storyDetails, storyAttempts } = data;
 
-  const hasData = ov.totalAttempts > 0;
+  const hasData = ov.totalAttempts > 0 || ov.passed > 0;
   if (!hasData) {
     return (
       <div className="p-6 flex flex-col items-center justify-center gap-3 text-center">
@@ -122,9 +151,14 @@ export default function AnalyticsTab({ projectName }: { projectName: string }) {
         </div>
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
           <div className="text-2xl font-bold text-amber-700">
-            {velocity.length > 0 ? velocity[velocity.length - 1].velocityPerHr : 0}
+            {prdVelocity.latestSessionVelocity > 0
+              ? prdVelocity.latestSessionVelocity
+              : velocity.length > 0 ? velocity[velocity.length - 1].velocityPerHr : 0}
           </div>
-          <div className="text-xs text-amber-600 mt-0.5">Stories/hr (latest)</div>
+          <div className="text-xs text-amber-600 mt-0.5">Stories/hr ({prdVelocity.label || 'latest'})</div>
+          {prdVelocity.totalStories > 0 && (
+            <div className="text-[10px] text-amber-400 mt-0.5">{prdVelocity.totalStories} stories / {prdVelocity.elapsedHours}h</div>
+          )}
         </div>
       </div>
 
@@ -352,6 +386,51 @@ export default function AnalyticsTab({ projectName }: { projectName: string }) {
         </div>
       )}
 
+      {/* ── 4a. Phase Timings (Last Iteration) ────────────────────────── */}
+      <PhaseTimingBars data={phaseTimings} />
+
+      {/* ── 4a2. Agent Phase Telemetry ────────────────────────────────── */}
+      <AgentTelemetryTable data={agentTelemetry} />
+
+      {/* ── 4b. Session Velocity (from prd.json) ───────────────────────── */}
+      {prdVelocity.sessions.length > 0 && (() => {
+        const maxVel = Math.max(1, ...prdVelocity.sessions.map(s => s.velocity));
+        return (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-xs font-medium text-slate-500 uppercase tracking-wide">Session Velocity</div>
+              <div className="text-[10px] text-slate-400">
+                Overall: {prdVelocity.storiesPerHour} stories/hr
+                {prdVelocity.isProjected && ' (latest session projected)'}
+              </div>
+            </div>
+            <div className="flex items-end gap-2 h-36 border-b border-l border-slate-200 px-2 pb-1">
+              {prdVelocity.sessions.map((s, i) => (
+                <div key={i} className="flex flex-col items-center flex-1 min-w-0">
+                  <div className="text-[9px] text-slate-400 mb-0.5">{s.velocity > 0 ? s.velocity : ''}</div>
+                  <div
+                    className={`w-full max-w-[36px] rounded-t transition-all ${
+                      i === prdVelocity.sessions.length - 1 && prdVelocity.isProjected
+                        ? 'bg-amber-400 bg-opacity-70'
+                        : 'bg-emerald-500'
+                    }`}
+                    style={{ height: `${Math.max(4, (s.velocity / maxVel) * 100)}%` }}
+                    title={`${s.stories} stories in ${s.hours}h = ${s.velocity}/hr`}
+                  />
+                  <div className="text-[8px] text-slate-400 mt-0.5 truncate w-full text-center">{s.date.slice(5)}</div>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-3 mt-1.5 text-[10px] text-slate-400">
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" /> Actual</span>
+              {prdVelocity.isProjected && (
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" /> Projected (&lt;1hr)</span>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ── 5. Model Performance + Retry Analysis (2-col) ─────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Model Performance */}
@@ -452,7 +531,11 @@ export default function AnalyticsTab({ projectName }: { projectName: string }) {
               <div className="text-xs font-medium text-slate-500 mb-2 uppercase tracking-wide">Most Retried</div>
               <div className="space-y-1">
                 {bottlenecks.mostRetried.map(b => (
-                  <div key={b.id} className="flex items-center justify-between rounded-lg border border-red-100 bg-red-50 px-3 py-2">
+                  <div
+                    key={b.id}
+                    className="flex items-center justify-between rounded-lg border border-red-100 bg-red-50 px-3 py-2 cursor-pointer hover:bg-red-100 transition-colors"
+                    onClick={() => setSelectedStoryId(b.id)}
+                  >
                     <div className="text-xs">
                       <span className="font-mono text-red-700">{b.id}</span>
                       {b.title && <span className="text-slate-500 ml-1.5">{b.title}</span>}
@@ -468,7 +551,11 @@ export default function AnalyticsTab({ projectName }: { projectName: string }) {
               <div className="text-xs font-medium text-slate-500 mb-2 uppercase tracking-wide">Longest Implementations</div>
               <div className="space-y-1">
                 {bottlenecks.longest.map(b => (
-                  <div key={b.id} className="flex items-center justify-between rounded-lg border border-orange-100 bg-orange-50 px-3 py-2">
+                  <div
+                    key={b.id}
+                    className="flex items-center justify-between rounded-lg border border-orange-100 bg-orange-50 px-3 py-2 cursor-pointer hover:bg-orange-100 transition-colors"
+                    onClick={() => setSelectedStoryId(b.id)}
+                  >
                     <div className="text-xs">
                       <span className="font-mono text-orange-700">{b.id}</span>
                       {b.title && <span className="text-slate-500 ml-1.5">{b.title}</span>}
@@ -584,7 +671,8 @@ export default function AnalyticsTab({ projectName }: { projectName: string }) {
         </div>
       )}
 
-      {/* ── Failure Reasons moved to top (after overview) ────────────────── */}
+      {/* ── 12. Stories List (expandable attempt history) ─────────────────── */}
+      {storiesList.length > 0 && <StoriesListAccordion data={storiesList} />}
 
       {/* ── 13. Latest Screenshot ─────────────────────────────────────────── */}
       {latestScreenshot && (
@@ -598,6 +686,16 @@ export default function AnalyticsTab({ projectName }: { projectName: string }) {
             />
           </div>
         </div>
+      )}
+
+      {/* ── Story Detail Panel (slide-in from bottleneck clicks) ──────── */}
+      {selectedStoryId && storyDetails?.[selectedStoryId] && (
+        <StoryDetailPanel
+          story={storyDetails[selectedStoryId]}
+          allStories={Object.values(storyDetails)}
+          attempts={storyAttempts?.[selectedStoryId]}
+          onClose={() => setSelectedStoryId(null)}
+        />
       )}
     </div>
   );

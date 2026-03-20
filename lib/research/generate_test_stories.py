@@ -151,6 +151,7 @@ def _make_test_story(source: dict, test_type: str) -> dict:
     sid = source.get("id", "")
     title = source.get("title", "")
     description = source.get("description", "")
+    source_files = source.get("filesTouch", [])
 
     configs: dict[str, dict] = {
         "integration": {
@@ -215,10 +216,21 @@ def _make_test_story(source: dict, test_type: str) -> dict:
     }
 
     cfg = configs.get(test_type, configs["regression"])
+
+    # Derive technicalNotes from parent story's files so Phase S doesn't warn
+    tech_notes: list[str] = []
+    if source_files:
+        test_dirs = {f"tests/test_{os.path.basename(f)}" for f in source_files if f.endswith(".py")}
+        tech_notes.append(f"Source files from {sid}: {', '.join(source_files[:5])}")
+        if test_dirs:
+            tech_notes.append(f"Suggested test files: {', '.join(sorted(test_dirs)[:3])}")
+    tech_notes.append(f"Run: uv run pytest tests/ -k {sid.lower().replace('-', '_')} -v")
+
     return {
         "title": cfg["title"][:100],
         "description": cfg["description"],
         "acceptanceCriteria": cfg["criteria"],
+        "technicalNotes": tech_notes,
         "priority": cfg["priority"],
         "dependencies": [sid],
         "_source": "test-story",
