@@ -11,60 +11,6 @@
   ],
   "userStories": [
     {
-      "id": "US-576",
-      "title": "[Security Test] Verify auth enforcement on WebSocket /ws/cost endpoint",
-      "priority": "high",
-      "description": "Write security tests for the /ws/cost WebSocket endpoint introduced in US-497. Verify that unauthenticated clients are rejected before the connection upgrades, and that error responses contain no sensitive fields (tokens, passwords, API keys). This ensures the real-time cost broadcast channel is not an open information leak.",
-      "acceptanceCriteria": [
-        "Unauthenticated WebSocket upgrade to /ws/cost returns HTTP 401 or 403 before handshake completes",
-        "Rejected-connection response body contains no fields matching: token, password, key, secret, or api_key",
-        "All security tests pass: uv run pytest tests/test_ws_cost.py -k 'security or auth' -v"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_ws_cost.py (add test_unauthenticated_ws_rejected and test_no_sensitive_data_in_error_response)",
-        "File to read: lib/dashboard/api.py (locate auth middleware or decorator applied to the /ws/cost route)",
-        "Test command: uv run pytest tests/test_ws_cost.py -k 'security or auth' -v",
-        "Use the websockets or httpx library to attempt a WebSocket upgrade without credentials and assert the HTTP response status is 401 or 403",
-        "Assert no sensitive keys in error body: assert not any(k in err for k in ['token','password','key','secret','api_key'])"
-      ],
-      "dependencies": [
-        "US-497"
-      ],
-      "estimatedComplexity": "small",
-      "passes": true,
-      "_source": "test-story",
-      "model": "sonnet",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\nNo `tests/test_cost_ceiling_security.py` file exists. The US-498 budget gate is implemented in `lib/budget_analyzer.py` (Python) and wired into `lib/phases/phase_i_implement.sh` (shell). The `lib/rollback_story.py` module handles story rollback.\n\n## Problem Identified\nUS-577 requires security tests that verify: (1) `check_budget_gate()` correctly blocks Phase I when cost exceeds `SPIRAL_COST_CEILING`, (2) `rollback_story()` removes the lowest-priority pending story and persists the change, and (3) no stories execute when ceiling is hit and skip is chosen.\n\n## Planned Changes\n- **Create `tests/test_cost_ceiling_security.py`**  three test classes covering budget gate blocking, rollback behavior, and skip path; uses `tmp_path` fixtures and `monkeypatch` to force ceiling breach; directly imports `check_budget_gate` and `rollback_story` from the lib modules.\nAll 14 tests pass. Now mark US-577 as complete:\nDone. US-577 is complete.\n\n**Summary:** Created `tests/test_cost_ceiling_security.py` with 14 tests across 3 classes:\n- **TestBudgetGateBlocking** (6 tests)  verifies `check_budget_gate()` correctly returns `would_exceed=True` when projected cost exceeds the `SPIRAL_COST_CEILING` sentinel, including a monkeypatched estimator test with `SPIRAL_COST_CEILING=0.01`\n- **TestRollbackBehavior** (5 tests)  verifies `rollback_story()` removes the lowest-priority pending story, persists the change to disk, and handles edge cases (no pending, dry run, insertion-order independence)\n- **TestSkipPathBlocksImplementation** (3 tests)  verifies the `would_exceed` flag correctly signals Phase I should skip when the ceiling is hit\n\nAll 14 tests pass in 1.73s."
-      }
-    },
-    {
-      "id": "US-577",
-      "title": "[Security Test] Verify SPIRAL_COST_CEILING blocks Phase I without bypass",
-      "priority": "high",
-      "description": "Write security/integrity tests for the pre-Phase I budget gate introduced by US-498. Verify that when estimated token costs exceed SPIRAL_COST_CEILING, Phase I is blocked and cannot silently proceed. Ensure rollback correctly removes the lowest-priority story from the pending queue and that no stories are executed without user confirmation when the ceiling is hit.",
-      "acceptanceCriteria": [
-        "Test verifies Phase I is blocked when mock cost estimate exceeds SPIRAL_COST_CEILING (env var set to a low sentinel value)",
-        "Test verifies rollback removes the lowest-priority story from prd.json pending list and the change is persisted",
-        "Test verifies no story implementation runs when ceiling is hit and user selects 'skip'",
-        "All tests pass: uv run pytest tests/test_cost_ceiling_security.py -v"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_cost_ceiling_security.py (create new — security test suite targeting US-498 budget gate logic)",
-        "File to edit: lib/cost_tracker.py or spiral.sh (locate the pre-Phase I budget check function added by US-498)",
-        "Test command: uv run pytest tests/test_cost_ceiling_security.py -v",
-        "Mock token cost estimates using monkeypatch on the estimator function; set SPIRAL_COST_CEILING=0.01 to force ceiling breach",
-        "Check prd.json pending list before and after rollback path to assert lowest-priority story is removed"
-      ],
-      "dependencies": [
-        "US-498"
-      ],
-      "estimatedComplexity": "small",
-      "passes": true,
-      "_source": "test-story",
-      "model": "sonnet"
-    },
-    {
       "id": "US-578",
       "title": "[Security Test] CLI: validate-federated — Input Safety & Output Sanitization",
       "priority": "high",
@@ -86,35 +32,10 @@
         "US-514"
       ],
       "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "test-story",
-      "model": "sonnet"
-    },
-    {
-      "id": "US-579",
-      "title": "[Security Test] predict-cost CLI: path traversal and secret-leak prevention",
-      "priority": "high",
-      "description": "Write security tests for lib/predict_cost.py (US-529). The CLI reads results.tsv to build a KNN estimator; tests must verify it rejects path traversal in any file-path arguments, does not echo API keys or tokens present in results.tsv into stdout/stderr, and exits cleanly on malformed input without exposing internal state.",
-      "acceptanceCriteria": [
-        "uv run pytest tests/test_security_predict_cost.py::test_no_path_traversal -v passes: CLI rejects paths containing '../' and exits non-zero",
-        "uv run pytest tests/test_security_predict_cost.py::test_no_secret_leak -v passes: error output contains no strings matching injected fake API-key pattern 'sk-[A-Za-z0-9]{20}'",
-        "uv run pytest tests/test_security_predict_cost.py::test_malformed_tsv -v passes: corrupted results.tsv causes clean non-zero exit, no Python traceback on stdout",
-        "uv run pytest tests/test_security_predict_cost.py -v exits 0 (all three security tests pass)"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_security_predict_cost.py (new file — create security test suite)",
-        "File to edit: lib/predict_cost.py (add path sanitisation in load_results() if missing)",
-        "Test command: uv run pytest tests/test_security_predict_cost.py -v",
-        "Use pytest tmp_path fixture to create a results.tsv containing a fake secret ('sk-FAKEKEYFAKEKEYFAKEKE') for the leak test",
-        "Path traversal test: invoke CLI with --results-file ../../../etc/passwd (or equivalent) and assert SystemExit or non-zero returncode"
-      ],
-      "dependencies": [
-        "US-529"
-      ],
-      "estimatedComplexity": "small",
       "passes": true,
       "_source": "test-story",
-      "model": "sonnet"
+      "model": "sonnet",
+      "last_attempted": "2026-03-20T05:25:26Z"
     },
     {
       "id": "US-548",
@@ -335,55 +256,6 @@
       "estimatedComplexity": "small",
       "passes": false,
       "_source": "test-story",
-      "model": "haiku"
-    },
-    {
-      "id": "US-575",
-      "title": "[Performance Test] Worker Heartbeat Timeout Detection Latency",
-      "priority": "medium",
-      "description": "Benchmark the heartbeat monitoring loop in US-531 to verify that a silently-hung worker is detected and restarted within SPIRAL_WORKER_TIMEOUT (default 300s). The test artificially stalls a mock worker's heartbeat file and measures wall-clock time from stall to restart trigger, asserting no more than 10% overhead above the configured timeout.",
-      "acceptanceCriteria": [
-        "Running `uv run pytest tests/test_worker_heartbeat_perf.py -v` exits 0 and prints a measured detection latency in seconds",
-        "Test fails (non-zero exit) if measured detection latency exceeds SPIRAL_WORKER_TIMEOUT * 1.1 (i.e. >330s for default 300s)",
-        "Test records baseline latency to a local file (`results.tsv` or test output) so regressions can be compared across runs",
-        "Re-running the test a second time produces a latency within 20% of the first run (stability check)"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_worker_heartbeat_perf.py (new file — create performance benchmark here)",
-        "File to edit: lib/worker_heartbeat.sh (reference for timeout constant SPIRAL_WORKER_TIMEOUT and heartbeat file path pattern .spiral-workers/worker-N/heartbeat)",
-        "Test command: uv run pytest tests/test_worker_heartbeat_perf.py -v",
-        "Simulate stall by writing a heartbeat timestamp >SPIRAL_WORKER_TIMEOUT seconds in the past to a temp heartbeat file, then invoke the detection logic and time the response",
-        "Read SPIRAL_WORKER_TIMEOUT from environment (default 300); use a shortened value (e.g. 5s) in tests via monkeypatching or env override to keep CI fast"
-      ],
-      "dependencies": [
-        "US-531"
-      ],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "_source": "test-story",
-      "model": "haiku"
-    },
-    {
-      "id": "US-582",
-      "title": "Dashboard endpoint GET /api/dashboard/costs-by-project aggregating results.tsv",
-      "priority": "medium",
-      "description": "Add a Flask/FastAPI route that reads results.tsv and returns per-sub-project cost aggregates including total tokens, total cost, story count, and model distribution. Depends on sub_project column being present in results.tsv.",
-      "acceptanceCriteria": [
-        "GET /api/dashboard/costs-by-project returns HTTP 200 with JSON body {projects: [{name, total_tokens, total_cost, story_count, model_distribution: {haiku, sonnet, opus}}]}",
-        "Rows with null/empty sub_project are grouped under name='(unknown)'",
-        "uv run pytest tests/test_dashboard_costs_by_project.py -v passes all assertions including missing-field and model-distribution accuracy cases"
-      ],
-      "technicalNotes": [
-        "File to edit: lib/dashboard.py (or equivalent dashboard server module — locate with: grep -r 'costs-by' lib/ or grep -r '/api/dashboard' lib/)",
-        "File to create: tests/test_dashboard_costs_by_project.py",
-        "Aggregate using collections.defaultdict over parsed ResultsRecord rows; count model field values for distribution",
-        "Test command: uv run pytest tests/test_dashboard_costs_by_project.py -v"
-      ],
-      "dependencies": [
-        "US-581"
-      ],
-      "estimatedComplexity": "medium",
-      "passes": false,
       "model": "haiku"
     },
     {
@@ -1016,6 +888,86 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-576",
+      "title": "[Security Test] Verify auth enforcement on WebSocket /ws/cost endpoint",
+      "priority": "high",
+      "description": "Write security tests for the /ws/cost WebSocket endpoint introduced in US-497. Verify that unauthenticated clients are rejected before the connection upgrades, and that error responses contain no sensitive fields (tokens, passwords, API keys). This ensures the real-time cost broadcast channel is not an open information leak.",
+      "acceptanceCriteria": [
+        "Unauthenticated WebSocket upgrade to /ws/cost returns HTTP 401 or 403 before handshake completes",
+        "Rejected-connection response body contains no fields matching: token, password, key, secret, or api_key",
+        "All security tests pass: uv run pytest tests/test_ws_cost.py -k 'security or auth' -v"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_ws_cost.py (add test_unauthenticated_ws_rejected and test_no_sensitive_data_in_error_response)",
+        "File to read: lib/dashboard/api.py (locate auth middleware or decorator applied to the /ws/cost route)",
+        "Test command: uv run pytest tests/test_ws_cost.py -k 'security or auth' -v",
+        "Use the websockets or httpx library to attempt a WebSocket upgrade without credentials and assert the HTTP response status is 401 or 403",
+        "Assert no sensitive keys in error body: assert not any(k in err for k in ['token','password','key','secret','api_key'])"
+      ],
+      "dependencies": [
+        "US-497"
+      ],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "_source": "test-story",
+      "model": "sonnet",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\nNo `tests/test_cost_ceiling_security.py` file exists. The US-498 budget gate is implemented in `lib/budget_analyzer.py` (Python) and wired into `lib/phases/phase_i_implement.sh` (shell). The `lib/rollback_story.py` module handles story rollback.\n\n## Problem Identified\nUS-577 requires security tests that verify: (1) `check_budget_gate()` correctly blocks Phase I when cost exceeds `SPIRAL_COST_CEILING`, (2) `rollback_story()` removes the lowest-priority pending story and persists the change, and (3) no stories execute when ceiling is hit and skip is chosen.\n\n## Planned Changes\n- **Create `tests/test_cost_ceiling_security.py`**  three test classes covering budget gate blocking, rollback behavior, and skip path; uses `tmp_path` fixtures and `monkeypatch` to force ceiling breach; directly imports `check_budget_gate` and `rollback_story` from the lib modules.\nAll 14 tests pass. Now mark US-577 as complete:\nDone. US-577 is complete.\n\n**Summary:** Created `tests/test_cost_ceiling_security.py` with 14 tests across 3 classes:\n- **TestBudgetGateBlocking** (6 tests)  verifies `check_budget_gate()` correctly returns `would_exceed=True` when projected cost exceeds the `SPIRAL_COST_CEILING` sentinel, including a monkeypatched estimator test with `SPIRAL_COST_CEILING=0.01`\n- **TestRollbackBehavior** (5 tests)  verifies `rollback_story()` removes the lowest-priority pending story, persists the change to disk, and handles edge cases (no pending, dry run, insertion-order independence)\n- **TestSkipPathBlocksImplementation** (3 tests)  verifies the `would_exceed` flag correctly signals Phase I should skip when the ceiling is hit\n\nAll 14 tests pass in 1.73s."
+      }
+    },
+    {
+      "id": "US-577",
+      "title": "[Security Test] Verify SPIRAL_COST_CEILING blocks Phase I without bypass",
+      "priority": "high",
+      "description": "Write security/integrity tests for the pre-Phase I budget gate introduced by US-498. Verify that when estimated token costs exceed SPIRAL_COST_CEILING, Phase I is blocked and cannot silently proceed. Ensure rollback correctly removes the lowest-priority story from the pending queue and that no stories are executed without user confirmation when the ceiling is hit.",
+      "acceptanceCriteria": [
+        "Test verifies Phase I is blocked when mock cost estimate exceeds SPIRAL_COST_CEILING (env var set to a low sentinel value)",
+        "Test verifies rollback removes the lowest-priority story from prd.json pending list and the change is persisted",
+        "Test verifies no story implementation runs when ceiling is hit and user selects 'skip'",
+        "All tests pass: uv run pytest tests/test_cost_ceiling_security.py -v"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_cost_ceiling_security.py (create new — security test suite targeting US-498 budget gate logic)",
+        "File to edit: lib/cost_tracker.py or spiral.sh (locate the pre-Phase I budget check function added by US-498)",
+        "Test command: uv run pytest tests/test_cost_ceiling_security.py -v",
+        "Mock token cost estimates using monkeypatch on the estimator function; set SPIRAL_COST_CEILING=0.01 to force ceiling breach",
+        "Check prd.json pending list before and after rollback path to assert lowest-priority story is removed"
+      ],
+      "dependencies": [
+        "US-498"
+      ],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "_source": "test-story",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-579",
+      "title": "[Security Test] predict-cost CLI: path traversal and secret-leak prevention",
+      "priority": "high",
+      "description": "Write security tests for lib/predict_cost.py (US-529). The CLI reads results.tsv to build a KNN estimator; tests must verify it rejects path traversal in any file-path arguments, does not echo API keys or tokens present in results.tsv into stdout/stderr, and exits cleanly on malformed input without exposing internal state.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_security_predict_cost.py::test_no_path_traversal -v passes: CLI rejects paths containing '../' and exits non-zero",
+        "uv run pytest tests/test_security_predict_cost.py::test_no_secret_leak -v passes: error output contains no strings matching injected fake API-key pattern 'sk-[A-Za-z0-9]{20}'",
+        "uv run pytest tests/test_security_predict_cost.py::test_malformed_tsv -v passes: corrupted results.tsv causes clean non-zero exit, no Python traceback on stdout",
+        "uv run pytest tests/test_security_predict_cost.py -v exits 0 (all three security tests pass)"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_security_predict_cost.py (new file — create security test suite)",
+        "File to edit: lib/predict_cost.py (add path sanitisation in load_results() if missing)",
+        "Test command: uv run pytest tests/test_security_predict_cost.py -v",
+        "Use pytest tmp_path fixture to create a results.tsv containing a fake secret ('sk-FAKEKEYFAKEKEYFAKEKE') for the leak test",
+        "Path traversal test: invoke CLI with --results-file ../../../etc/passwd (or equivalent) and assert SystemExit or non-zero returncode"
+      ],
+      "dependencies": [
+        "US-529"
+      ],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "_source": "test-story",
       "model": "sonnet"
     },
     {

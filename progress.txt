@@ -500,3 +500,21 @@ FAILED diagnosis-block gate: [Security Test] Auth/Permission Access Control for 
 ### Gotchas
 - monkeypatch.setattr(ba, "estimate_pending_story_cost", mock) — must import module as `ba` before patching
 - results.tsv rows with duration_sec field are used by calculate_current_spend(); empty TSV = zero spend
+
+## Iteration - Story: US-578 Security tests for validate-federated CLI
+
+### What was implemented
+- Added PermissionError and OSError handling to validate_federated() in lib/commands/validate_federated.py
+- Created tests/test_validate_federated_security.py with 5 security tests (all pass):
+  - TestPathTraversalRejection: path-traversal ID exits 1 with JSON, no traceback in error message
+  - TestNoSecretLeakage: output never leaks ANTHROPIC_API_KEY, GITHUB_TOKEN, or *KEY/*TOKEN env vars
+  - TestPermissionDeniedHandling: mocked PermissionError returns structured {valid: false, errors: [...]} dict
+
+### Patterns discovered
+- validate_federated.py uses subprocess pattern for CLI tests; function-level mock for PermissionError unit tests
+- pytest.importorskip("validate_federated") at module level skips all tests if US-514 is not merged
+- PermissionError is a subclass of OSError; catch PermissionError first for clearer error messages
+
+### Gotchas
+- Cannot mock builtins.open in a subprocess test (different process); use direct function call + mock.patch for PermissionError tests
+- Path-traversal ID (../../etc/passwd:(US)-001) is already safely rejected by _validate_ids() format check — no additional sanitization needed

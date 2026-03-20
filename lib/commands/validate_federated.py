@@ -210,6 +210,18 @@ def validate_federated(prd_path: Path) -> dict[str, Any]:
     try:
         with open(prd_path, "r", encoding="utf-8") as f:
             prd_dict = json.load(f)
+    except PermissionError:
+        return {
+            "valid": False,
+            "errors": [f"Permission denied: cannot read {prd_path}"],
+            "cycles": [],
+        }
+    except OSError as e:
+        return {
+            "valid": False,
+            "errors": [f"Cannot read file: {e}"],
+            "cycles": [],
+        }
     except json.JSONDecodeError as e:
         return {
             "valid": False,
