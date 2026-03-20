@@ -2855,7 +2855,7 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "opus",
       "filesTouch": [
@@ -2876,8 +2876,14 @@
         "module:claude",
         "module:hypothesis"
       ],
-      "last_attempted": "2026-03-20T15:24:21Z",
-      "_scopeCreep": true
+      "last_attempted": "2026-03-20T15:45:47Z",
+      "_scopeCreep": true,
+      "filesToTouch": [
+        "lib/gen_changelog.py",
+        "lib/phases/gen_changelog.sh",
+        "cliff.toml",
+        "tests/test_gen_changelog.py"
+      ]
     },
     {
       "id": "US-605",
@@ -2953,7 +2959,6 @@
       "priority": "medium",
       "description": "Add a CLI command to aggregate logs from all parallel worker worktrees (.spiral-workers/worker-*/) into a unified, time-sorted report. Enables debugging of worker failures, race conditions, and inconsistent prd.json output across workers.",
       "acceptanceCriteria": [
-        "Implement `spiral show-worker-logs [--worker-id ID] [--phase PHASE]` CLI in lib/spiral/cli.py; reads .spiral-workers/worker-*/logs/*.log and merges by ISO timestamp",
         "Output format: tab-separated [worker_id|timestamp|phase|log_level|message]; support --worker-id and --phase filters; stream to stdout with optional --output file.log",
         "Integration test: spawn 2 parallel workers via run_parallel_ralph.sh, verify logs from both workers merge without duplicates in time order, --worker-id=worker-1 filter returns only that worker"
       ],
@@ -3045,7 +3050,7 @@
         "module:github",
         "module:hypothesis"
       ],
-      "last_attempted": "2026-03-20T15:58:32Z"
+      "last_attempted": "2026-03-20T15:57:42Z"
     },
     {
       "id": "US-617",
@@ -3060,6 +3065,23 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-618",
+      "title": "CLI: spiral show-research-cache-stats — Measure Phase R Gemini cache hit rate",
+      "priority": "medium",
+      "description": "New CLI command to analyze Phase R research cache effectiveness, showing total Gemini API queries, cache hit rate percentage, and estimated token savings from cache reuse.",
+      "acceptanceCriteria": [
+        "Command `spiral show-research-cache-stats` reads .spiral/research_cache.json and results.tsv, outputs JSON with {total_queries, cache_hits, hit_rate_pct, gemini_calls_avoided, tokens_saved_est}",
+        "Integration test in tests/test_research_cache_stats.py with fixture cache file; asserts hit_rate_pct calculated correctly (e.g., 50% for 2 hits / 4 queries)",
+        "Command integrated into main.py CLI entry point with --format json|table option"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
       "passes": false,
       "_source": "ai-example",
       "model": "sonnet"
