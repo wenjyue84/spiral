@@ -2394,6 +2394,21 @@ def cmd_config_export_env(args) -> None:
     print("\n[ok] .env is compatible with 'docker run --env-file' and GitHub Actions env-file syntax.")
 
 
+def cmd_detect_anomalies(args) -> None:
+    """Detect stories with unusual token-spend patterns (US-544).
+
+    Usage: spiral detect-anomalies [--history results.tsv] [--zscore 2.0]
+    """
+    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    from cost_anomaly_detector import detect_anomalies  # type: ignore[import-untyped]
+
+    history_path = getattr(args, "history", "results.tsv")
+    zscore_threshold = getattr(args, "zscore", 2.0)
+
+    result = detect_anomalies(history_path, zscore_threshold=zscore_threshold)
+    print(json.dumps(result, indent=2))
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="spiral",
@@ -2920,6 +2935,25 @@ def main():
         help="Scratch directory (default: .spiral)",
     )
 
+    # ── detect-anomalies subcommand (US-544) ─────────────────────────────────────
+    detect_anomalies_parser = subparsers.add_parser(
+        "detect-anomalies",
+        help="Detect stories with unusual token-spend patterns (US-544)",
+    )
+    detect_anomalies_parser.add_argument(
+        "--history",
+        default="results.tsv",
+        metavar="TSV",
+        help="Path to results.tsv (default: results.tsv)",
+    )
+    detect_anomalies_parser.add_argument(
+        "--zscore",
+        type=float,
+        default=2.0,
+        metavar="N",
+        help="Z-score threshold for anomaly detection (default: 2.0)",
+    )
+
     # ── memory subcommand (US-350) ──────────────────────────────────────────────
     memory_parser = subparsers.add_parser(
         "memory",
@@ -3006,6 +3040,8 @@ def main():
             sys.exit(0)
     elif args.command == "phase-audit":
         cmd_phase_audit(args)
+    elif args.command == "detect-anomalies":
+        cmd_detect_anomalies(args)
     else:
         parser.print_help()
         sys.exit(0)
