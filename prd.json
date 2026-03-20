@@ -1717,7 +1717,13 @@
       ],
       "last_attempted": "2026-03-20T03:53:38Z",
       "_passedCommit": "",
-      "_failureReason": "story_cost_ceiling"
+      "_failureReason": "story_cost_ceiling",
+      "_contextStats": {
+        "tokensBeforeMasking": 479,
+        "tokensAfterMasking": 479,
+        "reductionPct": 0,
+        "contextWindow": 10
+      }
     },
     {
       "id": "US-553",
@@ -1904,7 +1910,8 @@
       "estimatedComplexity": "medium",
       "passes": false,
       "_source": "test-story",
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-03-20T04:00:43Z"
     },
     {
       "id": "US-565",

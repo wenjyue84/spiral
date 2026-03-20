@@ -233,3 +233,27 @@ END OF PROGRESS LOG
 ### Gotchas
 - `SPIRAL_DASHBOARD_API_KEY` must NOT be set in normal CI/dev env or test_dashboard_profile.py breaks
 - Test `enable_auth` fixture uses `autouse=True` so all tests in security file get auth enabled automatically
+## Iteration 2 - Fri, Mar 20, 2026 12:00:40 PM
+COST CEILING: Dashboard Endpoint - Research Source Authority Tracking (US-548) — $6.07111 exceeded hard limit $2.00
+
+
+## Iteration - Story: US-563 Security Tests for Dashboard Access Control
+
+### What was implemented
+- Verified existing test file: `tests/test_dashboard_security.py` (5 tests, all passing)
+- Tests cover auth middleware validation:
+  - `test_unauthenticated_returns_401_or_403()` - enforces auth on protected endpoints
+  - `test_no_sensitive_data_in_error_response()` - verifies error responses sanitize secrets
+  - `test_health_endpoint_requires_no_auth()` - health endpoint stays open
+  - `test_valid_api_key_grants_access()` - valid keys allowed through
+  - `test_wrong_api_key_returns_403()` - invalid keys rejected
+- All acceptance criteria met
+
+### Patterns discovered
+- Dashboard auth implemented via `_APIKeyMiddleware` in `lib/dashboard/api.py`
+- Middleware checks `SPIRAL_DASHBOARD_API_KEY` env var; if set, enforces auth on all paths except `/health`
+- Protected paths: `/profile`, `/api/timeline`, `/api/dashboard/research-cache`, `/ws/cost`, `/ws/timeline`
+- FastAPI TestClient pattern for testing protected endpoints
+
+### Gotchas
+- Story implementation was already complete in a prior iteration; this iteration only verified and marked as passing
