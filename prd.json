@@ -3160,7 +3160,8 @@
       "passes": true,
       "_source": "ai-example",
       "model": "haiku",
-      "last_attempted": "2026-03-20T18:35:23Z"
+      "last_attempted": "2026-03-20T18:35:23Z",
+      "_scopeCreep": true
     },
     {
       "id": "US-634",

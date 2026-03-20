@@ -299,31 +299,85 @@ def main() -> int:
         print("[partition] No pending stories — nothing to partition")
         return 0
 
-    buckets = assign_stories(pending, args.workers, prd=prd)
-
+    # ── Federated partitioning (group by sub_project) ──────────────────────
     os.makedirs(args.outdir, exist_ok=True)
 
-    for i, bucket in enumerate(buckets):
-        worker_num = i + 1
-        worker_prd = dict(prd)
-        # All completed stories (for dependency resolution) + this worker's pending stories
-        worker_prd["userStories"] = completed + bucket
-        out_path = os.path.join(args.outdir, f"worker_{worker_num}.json")
-        tmp = out_path + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(worker_prd, f, indent=2, ensure_ascii=False)
-            f.write("\n")
-        os.replace(tmp, out_path)
-        story_ids = [s["id"] for s in bucket]
-        id_list = ", ".join(story_ids[:5]) + ("..." if len(story_ids) > 5 else "")
-        priority_counts: dict[str, int] = {}
-        for s in bucket:
-            p = s.get("priority", "medium")
-            priority_counts[p] = priority_counts.get(p, 0) + 1
-        pcount_str = " ".join(
-            f"{p}:{c}" for p, c in sorted(priority_counts.items(), key=lambda kv: PRIORITY_RANK.get(kv[0], 2))
-        )
-        print(f"[partition] Worker {worker_num}: {len(bucket)} stories [{id_list}] ({pcount_str}) → {out_path}")
+    if args.federated:
+        # Extract unique sub_projects from pending stories
+        sub_projects = set()
+        for s in pending:
+            sp = s.get("sub_project", "default")
+            if sp and sp != "default":
+                sub_projects.add(sp)
+
+        if not sub_projects:
+            print("[partition] WARNING: --federated specified but no sub_project fields found in pending stories")
+            sub_projects = {"default"}
+
+        sub_projects = sorted(list(sub_projects))
+        print(f"[partition] Federated mode: detected sub_projects: {sub_projects}")
+
+        # Partition each sub_project independently
+        for sub_proj in sub_projects:
+            proj_pending = [s for s in pending if s.get("sub_project", "default") == sub_proj]
+            proj_completed = [s for s in completed if s.get("sub_project", "default") == sub_proj]
+
+            if not proj_pending:
+                print(f"[partition] Sub-project '{sub_proj}': no pending stories")
+                continue
+
+            print(f"[partition] Sub-project '{sub_proj}': {len(proj_completed)} completed, {len(proj_pending)} pending → {args.workers} workers")
+
+            # Partition this sub_project's stories
+            buckets = assign_stories(proj_pending, args.workers, prd=prd)
+
+            # Write worker files for this sub_project
+            for i, bucket in enumerate(buckets):
+                worker_num = i + 1
+                worker_prd = dict(prd)
+                # Include completed stories from this sub_project + this worker's pending stories
+                worker_prd["userStories"] = proj_completed + bucket
+                out_path = os.path.join(args.outdir, f"worker-{sub_proj}-{worker_num}.json")
+                tmp = out_path + ".tmp"
+                with open(tmp, "w", encoding="utf-8") as f:
+                    json.dump(worker_prd, f, indent=2, ensure_ascii=False)
+                    f.write("\n")
+                os.replace(tmp, out_path)
+                story_ids = [s["id"] for s in bucket]
+                id_list = ", ".join(story_ids[:5]) + ("..." if len(story_ids) > 5 else "")
+                priority_counts: dict[str, int] = {}
+                for s in bucket:
+                    p = s.get("priority", "medium")
+                    priority_counts[p] = priority_counts.get(p, 0) + 1
+                pcount_str = " ".join(
+                    f"{p}:{c}" for p, c in sorted(priority_counts.items(), key=lambda kv: PRIORITY_RANK.get(kv[0], 2))
+                )
+                print(f"[partition] Worker-{sub_proj}-{worker_num}: {len(bucket)} stories [{id_list}] ({pcount_str}) → {out_path}")
+    else:
+        # Standard partitioning (non-federated)
+        buckets = assign_stories(pending, args.workers, prd=prd)
+
+        for i, bucket in enumerate(buckets):
+            worker_num = i + 1
+            worker_prd = dict(prd)
+            # All completed stories (for dependency resolution) + this worker's pending stories
+            worker_prd["userStories"] = completed + bucket
+            out_path = os.path.join(args.outdir, f"worker_{worker_num}.json")
+            tmp = out_path + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(worker_prd, f, indent=2, ensure_ascii=False)
+                f.write("\n")
+            os.replace(tmp, out_path)
+            story_ids = [s["id"] for s in bucket]
+            id_list = ", ".join(story_ids[:5]) + ("..." if len(story_ids) > 5 else "")
+            priority_counts: dict[str, int] = {}
+            for s in bucket:
+                p = s.get("priority", "medium")
+                priority_counts[p] = priority_counts.get(p, 0) + 1
+            pcount_str = " ".join(
+                f"{p}:{c}" for p, c in sorted(priority_counts.items(), key=lambda kv: PRIORITY_RANK.get(kv[0], 2))
+            )
+            print(f"[partition] Worker {worker_num}: {len(bucket)} stories [{id_list}] ({pcount_str}) → {out_path}")
 
     return 0
 
