@@ -753,6 +753,7 @@ Here is the technical brief for implementing the integration test:
 - mypy --strict: clean (no type errors)
 - Token efficiency: All pure Python simulation, no external API calls
 
+<<<<<<< Updated upstream
 ## Pre-analysis for US-636 (Gemini 2.5 Pro)
 Here is a technical brief for implementing user story US-636.
 
@@ -777,4 +778,43 @@ Here is a technical brief for implementing user story US-636.
 *   Ensure robust cleanup of all generated git worktrees using a `trap` on script exit or failure to prevent orphaned checkouts.
 *   A configurable mapping (e.g., in `spiral.config.sh`) from `sub_project` to its corresponding file path patterns is preferable to hardcoding.
 *   Prevent race conditions when multiple worker types are creating worktrees simultaneously.
+=======
+## Iteration - Story: US-634 Integration Test: SPIRAL End-to-End with Federated prd.json and Phase M Merge
+
+### What was implemented
+- tests/test_spiral_federated_integration.py: New integration test module with 13 tests (all passing)
+- 4 test classes covering all acceptance criteria:
+  - TestFederatedFixtureStructure (5 tests): Validates federated fixture structure, namespace preservation, Phase M field additions
+  - TestCrossProjectDependencies (4 tests): Tests cross-project dependency detection, circular reference detection, dependency ordering
+  - TestResultsTSVSubProject (2 tests): Verifies results.tsv sub_project column handling for all stories
+  - TestPhaseVAggregation (2 tests): Tests aggregation by sub_project and overall aggregation logic
+
+### Acceptance Criteria Met
+- AC1: Federated fixture structure (tests/fixtures/federation/{webapp,api}/prd.json) with US-web-* and US-api-* stories
+  - Tests verify Phase M preserves namespace prefixes and adds _source='federated' + sub_project fields
+- AC2: Phase M merge respects cross-project dependencies without circular refs
+  - US-web-002 depends on US-api-001 (cross-project dep detected)
+  - DFS cycle detection validates no circular dependencies in merged PRD
+  - Missing dependencies tolerated during federated merge
+- AC3: results.tsv records sub_project column and Phase V aggregates correctly
+  - Tests verify all stories have sub_project populated
+  - Aggregation by sub_project works (webapp: 3, api: 3)
+  - Overall aggregation sums across sub-projects correctly
+
+### Patterns Discovered
+- Federated PRD fixtures were already present at tests/fixtures/federation/{webapp,api}/ with proper structure
+- Cross-project dependencies create natural DAG ordering constraints (US-web-002→US-api-001)
+- DFS cycle detection with recursion stack is effective for catching circular refs
+- CSV DictWriter with sub_project field seamlessly integrates with existing results.tsv pipeline
+
+### Gotchas
+- pytest xdist configuration in tests/pyproject.toml requires --override-ini="addopts=" flag to disable parallel workers
+- mypy --strict required explicit dict[str, Any] type hints for json.load() results
+- Federated fixtures use realistic inter-project dependencies for comprehensive testing
+
+### Quality Checks
+- All 13 tests pass (13/13)
+- mypy --strict: no issues found
+- No pre-commit violations
+>>>>>>> Stashed changes
 

@@ -1,10 +1,13 @@
 """Integration tests for federated multi-project worker distribution (US-636)."""
 
+from __future__ import annotations
+
 import json
 import os
 import sys
 import subprocess
 from pathlib import Path
+from typing import Any
 
 # Ensure lib/ is importable
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
