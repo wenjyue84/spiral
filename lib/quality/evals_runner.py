@@ -152,7 +152,7 @@ class EvalRunner:
         For now, returns a placeholder. In production, would call Claude API.
         """
         name = check.get("name", "unknown")
-        rubric = check.get("rubric", "")
+        check.get("rubric", "")
         field_path = check.get("field", "")
 
         field_value = self._extract_field(data_row, field_path)

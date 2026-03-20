@@ -1569,7 +1569,7 @@ if HAS_TEXTUAL:
             story = table.get_selected_story()
             log_panel = self.query_one(LogPanel)
             if story:
-                story_id = story.get("id", "")
+                story.get("id", "")
                 # Construct log path (assume worker-0 for now)
                 log_path = os.path.join(self.scratch_dir, "workers", "worker-0", "ralph-run.log")
                 if os.path.isfile(log_path):

@@ -342,7 +342,6 @@ class TestDashboardIntegrationEdgeCases:
 
     def test_all_computation_functions_with_empty_prd(self) -> None:
         """Verify all dashboard functions handle empty PRD gracefully."""
-        prd: dict[str, Any] = {"userStories": []}
         results: list[dict[str, Any]] = []
 
         # All these should handle empty data without exceptions

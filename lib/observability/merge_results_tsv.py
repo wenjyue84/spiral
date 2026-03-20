@@ -42,6 +42,7 @@ HEADER = [
     "batch_id",  # US-406: Phase S batch validation ID (empty string for sync path rows)
     "votes_accept",  # US-342: Phase S majority voting accept count (0 if not from validation)
     "votes_reject",  # US-342: Phase S majority voting reject count (0 if not from validation)
+    "conflict_files",  # US-545: Phase M pipe-separated file paths that conflict (empty if no conflict)
 ]
 
 

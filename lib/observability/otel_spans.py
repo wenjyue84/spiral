@@ -107,7 +107,7 @@ def _otlp_endpoint() -> Optional[str]:
     return ep if ep else None
 
 
-def _create_privacy_scrubber(emit_messages: bool = False) -> "SpanProcessor":  # type: ignore[name-defined]
+def _create_privacy_scrubber(emit_messages: bool = False) -> object:
     """
     Create a PrivacyScrubber span processor with configuration from environment.
 

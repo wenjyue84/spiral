@@ -365,7 +365,7 @@ def test_phase_r_with_mock_provider_env():
     """Test: Phase R respects SPIRAL_RESEARCH_PROVIDER=mock env var."""
     # This would be set in spiral.sh to use mock Gemini responses
     # For now, we test that the mock provider can be instantiated
-    provider = os.environ.get("SPIRAL_RESEARCH_PROVIDER", "default")
+    os.environ.get("SPIRAL_RESEARCH_PROVIDER", "default")
     mock_provider = "mock"
 
     # When SPIRAL_RESEARCH_PROVIDER=mock, use gemini_web_search mock

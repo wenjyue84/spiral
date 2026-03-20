@@ -30,7 +30,7 @@ def find_lowest_priority_pending_story(prd_dict: Dict[str, Any]) -> Optional[Tup
     Returns:
         tuple of (index_in_userstories, story_dict) or None if no pending stories
     """
-    pending_stories = [(i, s) for i, s in enumerate(prd_dict.get("userStories", [])) if s.get("passes") != True]
+    pending_stories = [(i, s) for i, s in enumerate(prd_dict.get("userStories", [])) if not s.get("passes")]
 
     if not pending_stories:
         return None
@@ -108,7 +108,7 @@ def rollback_story(prd_file: Path, dry_run: bool = False) -> Dict[str, Any]:
     removed_title = story.get("title", "")
 
     if dry_run:
-        remaining = sum(1 for s in prd_dict.get("userStories", []) if s.get("passes") != True) - 1
+        remaining = sum(1 for s in prd_dict.get("userStories", []) if not s.get("passes")) - 1
         return {
             "success": True,
             "removed_story_id": removed_id,
@@ -133,7 +133,7 @@ def rollback_story(prd_file: Path, dry_run: bool = False) -> Dict[str, Any]:
             "error": f"Failed to write prd.json: {e}",
         }
 
-    remaining = sum(1 for s in prd_dict.get("userStories", []) if s.get("passes") != True)
+    remaining = sum(1 for s in prd_dict.get("userStories", []) if not s.get("passes"))
     return {
         "success": True,
         "removed_story_id": removed_id,

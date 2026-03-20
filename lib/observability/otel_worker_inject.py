@@ -61,7 +61,7 @@ def _otlp_endpoint() -> Optional[str]:
     return ep if ep else None
 
 
-def _create_privacy_scrubber(emit_messages: bool = False) -> "SpanProcessor":  # type: ignore[name-defined]
+def _create_privacy_scrubber(emit_messages: bool = False) -> object:
     """
     Create a PrivacyScrubber span processor with configuration from environment.
     """
@@ -131,7 +131,7 @@ def _emit_completed_span(
 
     # Build trace and span IDs as integers (OTel SDK expects int)
     trace_id_int = int(trace_id_hex, 16)
-    span_id_int = int(span_id_hex, 16)
+    int(span_id_hex, 16)
 
     # If we have a parent, set the parent context
     if parent_span_id_hex:

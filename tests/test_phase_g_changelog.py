@@ -119,8 +119,8 @@ class TestChangelogIntegration:
             tmpdir_path = Path(tmpdir)
 
             # Setup mock files/dirs
-            changelog_file = tmpdir_path / "CHANGELOG.md"
-            docs_dir = tmpdir_path / "docs" / "api"
+            tmpdir_path / "CHANGELOG.md"
+            tmpdir_path / "docs" / "api"
 
             with patch("subprocess.run") as mock_run:
                 mock_run.return_value = MagicMock(returncode=0)

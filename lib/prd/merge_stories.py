@@ -11,16 +11,19 @@ Cap: --max-new 50 total additions per SPIRAL iteration.
 """
 
 import argparse
+import csv
 import json
 import os
 import re
 import sys
+from datetime import datetime, timezone
 from typing import Any
 
 from pydantic import ValidationError
 
 sys.path.insert(0, os.path.dirname(__file__))
 from llm_models import ResearchOutput, log_validation_error
+from merge_results_tsv import HEADER as RESULTS_HEADER
 from prd_schema import validate_prd
 from spiral_io import atomic_write_json, configure_utf8_stdout
 from story_helpers import priority_key
@@ -30,6 +33,31 @@ configure_utf8_stdout()
 
 # Story ID prefix from env
 STORY_PREFIX = os.environ.get("SPIRAL_STORY_PREFIX", "US")
+
+
+def _log_conflicts_to_results(results_tsv: str, conflicts: list[dict[str, Any]]) -> None:
+    """Append one conflict-detected row per conflict pair to results.tsv."""
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    write_header = not os.path.isfile(results_tsv)
+    with open(results_tsv, "a", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=RESULTS_HEADER,
+            delimiter="\t",
+            extrasaction="ignore",
+            lineterminator="\n",
+        )
+        if write_header:
+            writer.writeheader()
+        for c in conflicts:
+            writer.writerow(
+                {
+                    "timestamp": ts,
+                    "story_id": c["storyA"],
+                    "status": "conflict_detected",
+                    "conflict_files": c["conflict_files"],
+                }
+            )
 
 
 def normalize(text: str) -> set[str]:
@@ -243,6 +271,15 @@ def main() -> int:
 
     current_pending = sum(1 for s in existing_stories if not s.get("passes"))
     print(f"[merge] prd.json: {len(existing_stories)} existing stories ({current_pending} pending)")
+
+    # ── US-545: Detect file conflicts among pending stories ───────────────────
+    _file_conflicts = detect_conflicts(existing_stories)
+    if _file_conflicts:
+        _results_tsv = os.path.join(os.path.dirname(os.path.abspath(args.prd)), "results.tsv")
+        _log_conflicts_to_results(_results_tsv, _file_conflicts)
+        print(f"[merge] File conflicts detected: {len(_file_conflicts)} pair(s) share implementation files")
+        for _c in _file_conflicts:
+            print(f"[merge]   {_c['storyA']} <-> {_c['storyB']}: {_c['conflict_files']}")
 
     # Compute effective cap: min(max_new, remaining room under max_pending)
     effective_cap = args.max_new

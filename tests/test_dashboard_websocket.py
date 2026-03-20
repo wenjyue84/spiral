@@ -31,7 +31,7 @@ class TestWebSocketCostEndpoint:
     def test_websocket_disconnection_is_clean(self) -> None:
         """Test that disconnection is handled gracefully."""
         client = TestClient(app)
-        with client.websocket_connect("/ws/cost") as websocket:
+        with client.websocket_connect("/ws/cost"):
             pass  # Exit context manager to disconnect
         # No exception should be raised
 

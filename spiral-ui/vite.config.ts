@@ -179,6 +179,92 @@ function spiralApiPlugin() {
         });
       });
 
+      // ── GET /api/skills — list skill .md files from ralph/skills/ ──────────
+      server.middlewares.use('/api/skills', (req, res, next) => {
+        if (req.method !== 'GET') { next(); return; }
+        try {
+          const url = new URL(req.url ?? '/', 'http://localhost');
+          const projName = url.searchParams.get('name');
+          const saveRoot = projName ? (readRegistry()[projName] ?? PROJECT_ROOT) : PROJECT_ROOT;
+          const skillsDir = path.join(saveRoot, 'ralph', 'skills');
+          let skills: { name: string }[] = [];
+          if (fs.existsSync(skillsDir)) {
+            skills = fs.readdirSync(skillsDir)
+              .filter((f: string) => f.endsWith('.md'))
+              .map((f: string) => ({ name: f.replace(/\.md$/, '') }));
+          }
+          res.setHeader('Content-Type', 'application/json');
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          res.end(JSON.stringify({ skills }));
+        } catch (e) {
+          res.statusCode = 500;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ error: String(e) }));
+        }
+      });
+
+      // ── GET /api/skill?skill=<name> — read a single skill file ───────────
+      server.middlewares.use('/api/skill', (req, res, next) => {
+        if (req.method !== 'GET') { next(); return; }
+        try {
+          const url = new URL(req.url ?? '/', 'http://localhost');
+          const skillName = url.searchParams.get('skill');
+          const projName = url.searchParams.get('name');
+          if (!skillName) {
+            res.statusCode = 400;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ error: 'skill param required' }));
+            return;
+          }
+          const saveRoot = projName ? (readRegistry()[projName] ?? PROJECT_ROOT) : PROJECT_ROOT;
+          const skillPath = path.join(saveRoot, 'ralph', 'skills', `${skillName}.md`);
+          if (!fs.existsSync(skillPath)) {
+            res.statusCode = 404;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ error: 'skill not found' }));
+            return;
+          }
+          const content = fs.readFileSync(skillPath, 'utf8');
+          res.setHeader('Content-Type', 'application/json');
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          res.end(JSON.stringify({ name: skillName, content }));
+        } catch (e) {
+          res.statusCode = 500;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ error: String(e) }));
+        }
+      });
+
+      // ── POST /api/save-skill — writes ralph/skills/<name>.md ─────────────
+      server.middlewares.use('/api/save-skill', (req, res, next) => {
+        if (req.method !== 'POST') { next(); return; }
+        let body = '';
+        req.on('data', (chunk: Buffer) => { body += chunk.toString(); });
+        req.on('end', () => {
+          try {
+            const { content, skillName, name: projName } = JSON.parse(body) as { content: string; skillName: string; name?: string };
+            if (!skillName) {
+              res.statusCode = 400;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ error: 'skillName required' }));
+              return;
+            }
+            const saveRoot = projName ? (readRegistry()[projName] ?? PROJECT_ROOT) : PROJECT_ROOT;
+            const skillsDir = path.join(saveRoot, 'ralph', 'skills');
+            if (!fs.existsSync(skillsDir)) fs.mkdirSync(skillsDir, { recursive: true });
+            const skillPath = path.join(skillsDir, `${skillName}.md`);
+            fs.writeFileSync(skillPath, content, 'utf8');
+            res.setHeader('Content-Type', 'application/json');
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            res.end(JSON.stringify({ ok: true, path: skillPath }));
+          } catch (e) {
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ error: String(e) }));
+          }
+        });
+      });
+
       // ── GET /api/projects — list registered projects ─────────────────────
       server.middlewares.use('/api/projects', (req, res, next) => {
         if (req.method !== 'GET') { next(); return; }

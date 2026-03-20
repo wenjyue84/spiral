@@ -229,7 +229,7 @@ class TestSpiralRunnerWithMocks:
                 prd_after["userStories"][0]["passes"] = True
 
             # Execute story 2 (fails) - calls mock_run() again (side_effect[1])
-            result2 = mock_run()
+            mock_run()
             # Story 2 remains unpassed due to failure (returncode == 1)
 
             _write_prd(prd_path, prd_after)

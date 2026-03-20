@@ -33,3 +33,9 @@ privacy_scrubber.PrivacyScrubberExporter.force_flush.timeout_millis  # type: ign
 from lib import generate_job_summary  # noqa: F401
 
 generate_job_summary.generate_lint_summary.py_count  # type: ignore[attr-defined]
+
+# phase_audit: compare_iterations(min_prev_iters=1) — public API param reserved for future
+# stuck-window widening; body currently hard-codes 1-step look-back via _detect_stuck_stories
+from lib import phase_audit  # noqa: F401
+
+phase_audit.compare_iterations.min_prev_iters  # type: ignore[attr-defined]

@@ -160,7 +160,7 @@ def estimate_pending_story_cost(
           - story_count: number of pending stories counted
           - by_story: list of (story_id, estimated_cost) tuples
     """
-    pending_stories = [s for s in prd_dict.get("userStories", []) if s.get("passes") != True]
+    pending_stories = [s for s in prd_dict.get("userStories", []) if not s.get("passes")]
 
     total_cost = 0.0
     total_tokens = 0.0

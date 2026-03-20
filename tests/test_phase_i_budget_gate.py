@@ -180,7 +180,7 @@ class TestEstimatePendingCost:
 
     def test_estimate_pending_all_completed(self, sample_prd: Dict) -> None:
         """Test estimation with no pending stories."""
-        sample_prd["userStories"] = [s for s in sample_prd["userStories"] if s.get("passes") == True]
+        sample_prd["userStories"] = [s for s in sample_prd["userStories"] if s.get("passes")]
 
         result = estimate_pending_story_cost(sample_prd)
 
@@ -203,7 +203,7 @@ class TestBudgetGateCheck:
 
         result = check_budget_gate(prd_file, sample_results_tsv, cost_ceiling_usd=100.0)
 
-        assert result["would_exceed"] == False
+        assert not result["would_exceed"]
         assert result["total_projected_usd"] < 100.0
         assert result["remaining_budget_usd"] > 0.0
         assert result["pending_count"] == 5
@@ -215,7 +215,7 @@ class TestBudgetGateCheck:
 
         result = check_budget_gate(prd_file, sample_results_tsv, cost_ceiling_usd=1.0)
 
-        assert result["would_exceed"] == True
+        assert result["would_exceed"]
         assert result["total_projected_usd"] > 1.0
         assert result["pending_count"] == 5
 
@@ -226,7 +226,7 @@ class TestBudgetGateCheck:
 
         result = check_budget_gate(prd_file, sample_results_tsv, cost_ceiling_usd=None)
 
-        assert result["would_exceed"] == False
+        assert not result["would_exceed"]
         assert result["ceiling_usd"] is None
 
     def test_budget_gate_missing_prd(self, tmp_path: Path) -> None:
@@ -272,7 +272,7 @@ class TestFindLowestPriorityStory:
     def test_find_lowest_priority_all_same(self, sample_prd: Dict) -> None:
         """Test when all pending stories have same priority."""
         for story in sample_prd["userStories"]:
-            if story.get("passes") != True:
+            if not story.get("passes"):
                 story["priority"] = "medium"
 
         result = find_lowest_priority_pending_story(sample_prd)
@@ -323,7 +323,7 @@ class TestRollbackStory:
 
         result = rollback_story(prd_file)
 
-        assert result["success"] == True
+        assert result["success"]
         assert result["removed_story_id"] in ["US-004", "US-005"]
         assert result["remaining_pending"] == 4
 
@@ -340,8 +340,8 @@ class TestRollbackStory:
         original_content = prd_file.read_text()
         result = rollback_story(prd_file, dry_run=True)
 
-        assert result["success"] == True
-        assert result["dry_run"] == True
+        assert result["success"]
+        assert result["dry_run"]
         assert result["remaining_pending"] == 4
         assert prd_file.read_text() == original_content
 
@@ -355,14 +355,14 @@ class TestRollbackStory:
 
         result = rollback_story(prd_file)
 
-        assert result["success"] == False
+        assert not result["success"]
         assert result["error"] == "No pending stories to rollback"
 
     def test_rollback_story_missing_file(self, tmp_path: Path) -> None:
         """Test rollback handles missing prd.json."""
         result = rollback_story(tmp_path / "missing.json")
 
-        assert result["success"] == False
+        assert not result["success"]
         assert "not found" in result["error"]
 
     def test_rollback_story_invalid_json(self, tmp_path: Path) -> None:
@@ -372,7 +372,7 @@ class TestRollbackStory:
 
         result = rollback_story(prd_file)
 
-        assert result["success"] == False
+        assert not result["success"]
         assert "Invalid JSON" in result["error"]
 
     def test_rollback_story_multiple_times(self, tmp_path: Path, sample_prd: Dict) -> None:
@@ -382,18 +382,18 @@ class TestRollbackStory:
 
         # First rollback
         result1 = rollback_story(prd_file)
-        assert result1["success"] == True
+        assert result1["success"]
         assert result1["remaining_pending"] == 4
 
         # Second rollback
         result2 = rollback_story(prd_file)
-        assert result2["success"] == True
+        assert result2["success"]
         assert result2["remaining_pending"] == 3
         assert result1["removed_story_id"] != result2["removed_story_id"]
 
         # Third rollback
         result3 = rollback_story(prd_file)
-        assert result3["success"] == True
+        assert result3["success"]
         assert result3["remaining_pending"] == 2
 
 
@@ -414,12 +414,12 @@ class TestBudgetGateIntegration:
 
         # Initial check: would exceed
         check1 = check_budget_gate(prd_file, sample_results_tsv, cost_ceiling_usd=1.0)
-        assert check1["would_exceed"] == True
+        assert check1["would_exceed"]
         assert check1["pending_count"] == 5
 
         # Rollback lowest-priority story
         rollback1 = rollback_story(prd_file)
-        assert rollback1["success"] == True
+        assert rollback1["success"]
 
         # Re-check: might still exceed
         check2 = check_budget_gate(prd_file, sample_results_tsv, cost_ceiling_usd=1.0)
@@ -434,7 +434,7 @@ class TestBudgetGateIntegration:
 
         tight_ceiling = 0.5  # Very tight ceiling
         initial_check = check_budget_gate(prd_file, sample_results_tsv, cost_ceiling_usd=tight_ceiling)
-        assert initial_check["would_exceed"] == True
+        assert initial_check["would_exceed"]
 
         # Keep rolling back until within budget
         rollback_count = 0
@@ -454,7 +454,7 @@ class TestBudgetGateIntegration:
         assert rollback_count >= 1
         # Final check should be within budget or no pending stories
         final_check = check_budget_gate(prd_file, sample_results_tsv, cost_ceiling_usd=tight_ceiling)
-        assert final_check["would_exceed"] == False or final_check["pending_count"] == 0
+        assert not final_check["would_exceed"] or final_check["pending_count"] == 0
 
 
 if __name__ == "__main__":

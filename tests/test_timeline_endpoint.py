@@ -406,7 +406,7 @@ class TestTimelineEndpoint:
 
         try:
             # Mock the results.tsv path
-            original_path = Path(".spiral/results.tsv")
+            Path(".spiral/results.tsv")
             temp_path = Path(f.name)
 
             # Use the temp file path directly
