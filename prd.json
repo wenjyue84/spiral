@@ -34,8 +34,7 @@
       "estimatedComplexity": "small",
       "passes": true,
       "_source": "test-story",
-      "model": "sonnet",
-      "last_attempted": "2026-03-20T05:25:26Z"
+      "model": "sonnet"
     },
     {
       "id": "US-548",
@@ -256,6 +255,115 @@
       "estimatedComplexity": "small",
       "passes": false,
       "_source": "test-story",
+      "model": "haiku"
+    },
+    {
+      "id": "US-575",
+      "title": "[Performance Test] Worker Heartbeat Timeout Detection Latency",
+      "priority": "medium",
+      "description": "Benchmark the heartbeat monitoring loop in US-531 to verify that a silently-hung worker is detected and restarted within SPIRAL_WORKER_TIMEOUT (default 300s). The test artificially stalls a mock worker's heartbeat file and measures wall-clock time from stall to restart trigger, asserting no more than 10% overhead above the configured timeout.",
+      "acceptanceCriteria": [
+        "Running `uv run pytest tests/test_worker_heartbeat_perf.py -v` exits 0 and prints a measured detection latency in seconds",
+        "Test fails (non-zero exit) if measured detection latency exceeds SPIRAL_WORKER_TIMEOUT * 1.1 (i.e. >330s for default 300s)",
+        "Test records baseline latency to a local file (`results.tsv` or test output) so regressions can be compared across runs",
+        "Re-running the test a second time produces a latency within 20% of the first run (stability check)"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_worker_heartbeat_perf.py (new file — create performance benchmark here)",
+        "File to edit: lib/worker_heartbeat.sh (reference for timeout constant SPIRAL_WORKER_TIMEOUT and heartbeat file path pattern .spiral-workers/worker-N/heartbeat)",
+        "Test command: uv run pytest tests/test_worker_heartbeat_perf.py -v",
+        "Simulate stall by writing a heartbeat timestamp >SPIRAL_WORKER_TIMEOUT seconds in the past to a temp heartbeat file, then invoke the detection logic and time the response",
+        "Read SPIRAL_WORKER_TIMEOUT from environment (default 300); use a shortened value (e.g. 5s) in tests via monkeypatching or env override to keep CI fast"
+      ],
+      "dependencies": [
+        "US-531"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "test-story",
+      "model": "haiku"
+    },
+    {
+      "id": "US-582",
+      "title": "Dashboard endpoint GET /api/dashboard/costs-by-project aggregating results.tsv",
+      "priority": "medium",
+      "description": "Add a Flask/FastAPI route that reads results.tsv and returns per-sub-project cost aggregates including total tokens, total cost, story count, and model distribution. Depends on sub_project column being present in results.tsv.",
+      "acceptanceCriteria": [
+        "GET /api/dashboard/costs-by-project returns HTTP 200 with JSON body {projects: [{name, total_tokens, total_cost, story_count, model_distribution: {haiku, sonnet, opus}}]}",
+        "Rows with null/empty sub_project are grouped under name='(unknown)'",
+        "uv run pytest tests/test_dashboard_costs_by_project.py -v passes all assertions including missing-field and model-distribution accuracy cases"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/dashboard.py (or equivalent dashboard server module — locate with: grep -r 'costs-by' lib/ or grep -r '/api/dashboard' lib/)",
+        "File to create: tests/test_dashboard_costs_by_project.py",
+        "Aggregate using collections.defaultdict over parsed ResultsRecord rows; count model field values for distribution",
+        "Test command: uv run pytest tests/test_dashboard_costs_by_project.py -v"
+      ],
+      "dependencies": [
+        "US-581"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-583",
+      "title": "[E2E Test] WebSocket /ws/cost streams cost deltas to dashboard clients",
+      "priority": "medium",
+      "description": "Write a pytest integration test verifying that the /ws/cost WebSocket endpoint (US-497) broadcasts a JSON cost-delta message to connected clients within 2 seconds of a simulated Phase I completion event. Drive the broadcaster directly via lib/dashboard/cost_broadcaster.py rather than running a full SPIRAL loop, so the test is fast and deterministic.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_ws_cost.py -v exits 0 with at least 2 passing tests",
+        "Test connects to ws://localhost:{PORT}/ws/cost and receives a JSON message containing a numeric 'delta' field within 2 seconds of broadcast",
+        "Test asserts a second concurrent WebSocket client also receives the same broadcast (fan-out)",
+        "Test fails with AssertionError if no message arrives within the 2 s timeout (unhappy-path coverage)"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_ws_cost.py (implement async WebSocket client tests using pytest-asyncio + websockets)",
+        "File to edit: lib/dashboard/cost_broadcaster.py (import broadcast() helper directly to trigger test events without a full run)",
+        "File to edit: lib/dashboard/api.py (verify /ws/cost route registers and accepts upgrade — read-only, no change expected)",
+        "Test command: uv run pytest tests/test_ws_cost.py -v",
+        "Spin up the dashboard server as a pytest fixture (uvicorn/asyncio background task) on a random free port; tear down after each test",
+        "Use asyncio.wait_for(..., timeout=2) around ws.recv() to implement the 2 s deadline assertion"
+      ],
+      "dependencies": [
+        "US-497"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "tags": [
+        "e2e",
+        "auto-generated"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-584",
+      "title": "[Performance Test] lib: Worker Load Balancer — Benchmark Story Assignment Speed",
+      "priority": "medium",
+      "description": "Write a pytest performance benchmark for the story-to-worker assignment logic introduced in US-562. The test distributes a batch of 50 stories across 4 workers, asserts the assignment completes within 100 ms, and fails when a deliberately slow mock exceeds 200 ms. This guards against hot-spot regressions landing silently.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/lib/test_worker_load_balancer_perf.py -v exits 0",
+        "Test asserts wall-clock time for assigning 50 stories to 4 workers is ≤100 ms (measured with time.perf_counter)",
+        "Test raises AssertionError when a mock assign_stories implementation sleeps 200 ms (regression guard)",
+        "uv run pytest tests/lib/test_worker_load_balancer_perf.py --cov=lib/worker_load_balancer --cov-fail-under=60 exits 0"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/lib/test_worker_load_balancer_perf.py (create new — add benchmark test cases)",
+        "File to edit: lib/worker_load_balancer.py (assign_stories — function under test from US-562)",
+        "Test command: uv run pytest tests/lib/test_worker_load_balancer_perf.py -v",
+        "Use time.perf_counter() around the assign_stories() call; assert elapsed < 0.1 for the happy path",
+        "For the regression-guard test, monkeypatch assign_stories with a lambda that calls time.sleep(0.2), then assert elapsed >= 0.2 and the threshold assertion fails",
+        "Complexity score input: build 50 fake story dicts with random forecast_tokens (100–2000) and dep_count (0–3)"
+      ],
+      "dependencies": [
+        "US-562"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "performance",
+        "auto-generated"
+      ],
       "model": "haiku"
     },
     {

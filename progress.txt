@@ -1,3 +1,19 @@
+## Iteration - Story: US-569 Integration Test: Auto-Decompose on Phase I Triple Failure
+
+### What was implemented
+- Created tests/test_phase_i_decompose.py with 3 tests (all pass)
+- Tests call decompose_story.main() with mocked call_claude via patch.object
+- Asserts: 4 sub-stories created, dep chain formed, parent marked _decomposed=True+_decomposedInto, children have _decomposedFrom+passes=False+small
+
+### Patterns discovered
+- decompose_story.py assigns child IDs as max(existing)+1, so with only US-100 → children are US-101..US-104
+- patch.object(decompose_story, "call_claude", ...) correctly intercepts the call since conftest inserts lib/ before import
+- monkeypatch.chdir(tmp_path) + explicit --progress arg ensures decompose finds progress.txt
+
+### Gotchas
+- decompose_story.py inserts lib/workers/ at sys.path[0], but llm_models/prd_schema/spiral_io are in lib/ (found because conftest adds lib/ earlier)
+- The AC used "US-100-2" style notation as pseudocode for child IDs — actual IDs are US-101, US-102 etc.
+
 ## Iteration - Story: US-548 Dashboard Endpoint - Research Source Authority Tracking
 
 ### What was implemented

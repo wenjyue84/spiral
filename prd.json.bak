@@ -11,50 +11,21 @@
   ],
   "userStories": [
     {
-      "id": "US-564",
-      "title": "Integration Tests: Mock Claude Client Fixture Library (US-476)",
+      "id": "US-576",
+      "title": "[Security Test] Verify auth enforcement on WebSocket /ws/cost endpoint",
       "priority": "high",
-      "description": "Write integration tests that exercise the mock Claude client and pre-recorded API response fixtures delivered by US-476. Tests must confirm that Phase R and Phase S invocations complete end-to-end using only the fixture library — no live Claude API calls — and that the library handles both valid and error responses correctly.",
+      "description": "Write security tests for the /ws/cost WebSocket endpoint introduced in US-497. Verify that unauthenticated clients are rejected before the connection upgrades, and that error responses contain no sensitive fields (tokens, passwords, API keys). This ensures the real-time cost broadcast channel is not an open information leak.",
       "acceptanceCriteria": [
-        "uv run pytest tests/test_us476_integration.py::test_mock_research_phase_happy_path -v exits 0",
-        "uv run pytest tests/test_us476_integration.py::test_mock_client_error_response -v exits 0",
-        "uv run pytest tests/test_us476_integration.py -v exits 0 with no external network services required",
-        "uv run pytest tests/test_us476_integration.py -v --tb=short completes in under 10 seconds"
+        "Unauthenticated WebSocket upgrade to /ws/cost returns HTTP 401 or 403 before handshake completes",
+        "Rejected-connection response body contains no fields matching: token, password, key, secret, or api_key",
+        "All security tests pass: uv run pytest tests/test_ws_cost.py -k 'security or auth' -v"
       ],
       "technicalNotes": [
-        "File to edit: tests/test_us476_integration.py (create new — integration test module for US-476 mock fixtures)",
-        "File to edit: tests/conftest.py (add mock_claude_client pytest fixture that injects the pre-recorded response library from US-476)",
-        "Test command: uv run pytest tests/test_us476_integration.py -v",
-        "Happy path: load a pre-recorded Phase R response fixture and assert the parsed output matches expected story fields",
-        "Error case: configure the mock client to return a 429 / malformed JSON payload and assert the calling code raises or logs gracefully without hitting a real endpoint",
-        "Use unittest.mock.patch or pytest monkeypatch to intercept all outbound HTTP at the transport layer so tests are hermetic"
-      ],
-      "dependencies": [
-        "US-476"
-      ],
-      "estimatedComplexity": "medium",
-      "passes": true,
-      "_source": "test-story",
-      "model": "haiku",
-      "_scopeCreep": true
-    },
-    {
-      "id": "US-565",
-      "title": "Integration tests: WebSocket /ws/cost streams cost deltas in real-time",
-      "priority": "high",
-      "description": "Write integration tests verifying the /ws/cost WebSocket endpoint (implemented in US-497) broadcasts cost deltas to connected clients within 2s of a Phase I story completion event. Tests must cover the happy path and at least one error/edge case, running entirely in-process without external services.",
-      "acceptanceCriteria": [
-        "uv run pytest tests/test_ws_cost.py -v exits 0 with all tests passing",
-        "Happy-path test: a test client connects to /ws/cost and receives a cost-delta JSON message within 2s after a mock story-complete event is triggered programmatically",
-        "Edge-case test: a client that disconnects mid-stream does not raise an unhandled exception or block subsequent broadcasts to other connected clients",
-        "All tests use an in-process server fixture — no manual server startup or external services required"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_ws_cost.py (new file — integration tests for the /ws/cost WebSocket endpoint)",
-        "File to edit: lib/dashboard.py or equivalent dashboard server module (import app/server for in-process test fixture)",
-        "Test command: uv run pytest tests/test_ws_cost.py -v",
-        "Use pytest-asyncio + websockets (or httpx[ws]) for async WebSocket client; mock the broadcast trigger by calling the server's broadcast function directly rather than running a full SPIRAL loop",
-        "Assert message schema: received JSON must contain keys 'story_id', 'cost_delta', and 'timestamp'"
+        "File to edit: tests/test_ws_cost.py (add test_unauthenticated_ws_rejected and test_no_sensitive_data_in_error_response)",
+        "File to read: lib/dashboard/api.py (locate auth middleware or decorator applied to the /ws/cost route)",
+        "Test command: uv run pytest tests/test_ws_cost.py -k 'security or auth' -v",
+        "Use the websockets or httpx library to attempt a WebSocket upgrade without credentials and assert the HTTP response status is 401 or 403",
+        "Assert no sensitive keys in error body: assert not any(k in err for k in ['token','password','key','secret','api_key'])"
       ],
       "dependencies": [
         "US-497"
@@ -62,28 +33,31 @@
       "estimatedComplexity": "small",
       "passes": true,
       "_source": "test-story",
-      "model": "haiku"
+      "model": "sonnet",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\nNo `tests/test_cost_ceiling_security.py` file exists. The US-498 budget gate is implemented in `lib/budget_analyzer.py` (Python) and wired into `lib/phases/phase_i_implement.sh` (shell). The `lib/rollback_story.py` module handles story rollback.\n\n## Problem Identified\nUS-577 requires security tests that verify: (1) `check_budget_gate()` correctly blocks Phase I when cost exceeds `SPIRAL_COST_CEILING`, (2) `rollback_story()` removes the lowest-priority pending story and persists the change, and (3) no stories execute when ceiling is hit and skip is chosen.\n\n## Planned Changes\n- **Create `tests/test_cost_ceiling_security.py`**  three test classes covering budget gate blocking, rollback behavior, and skip path; uses `tmp_path` fixtures and `monkeypatch` to force ceiling breach; directly imports `check_budget_gate` and `rollback_story` from the lib modules.\nAll 14 tests pass. Now mark US-577 as complete:\nDone. US-577 is complete.\n\n**Summary:** Created `tests/test_cost_ceiling_security.py` with 14 tests across 3 classes:\n- **TestBudgetGateBlocking** (6 tests)  verifies `check_budget_gate()` correctly returns `would_exceed=True` when projected cost exceeds the `SPIRAL_COST_CEILING` sentinel, including a monkeypatched estimator test with `SPIRAL_COST_CEILING=0.01`\n- **TestRollbackBehavior** (5 tests)  verifies `rollback_story()` removes the lowest-priority pending story, persists the change to disk, and handles edge cases (no pending, dry run, insertion-order independence)\n- **TestSkipPathBlocksImplementation** (3 tests)  verifies the `would_exceed` flag correctly signals Phase I should skip when the ceiling is hit\n\nAll 14 tests pass in 1.73s."
+      }
     },
     {
-      "id": "US-566",
-      "title": "[Security Test] validate-federated: safe output, no sensitive data leakage",
+      "id": "US-577",
+      "title": "[Security Test] Verify SPIRAL_COST_CEILING blocks Phase I without bypass",
       "priority": "high",
-      "description": "Write security-focused tests for `lib/commands/validate_federated.py` (introduced in US-514). Verify the command never leaks env vars, tokens, or internal paths in its JSON report, and that malformed/adversarial inputs are rejected with safe error messages. This guards against accidental credential exposure in CI logs.",
+      "description": "Write security/integrity tests for the pre-Phase I budget gate introduced by US-498. Verify that when estimated token costs exceed SPIRAL_COST_CEILING, Phase I is blocked and cannot silently proceed. Ensure rollback correctly removes the lowest-priority story from the pending queue and that no stories are executed without user confirmation when the ceiling is hit.",
       "acceptanceCriteria": [
-        "Running `spiral validate-federated` with a malformed repo ID exits non-zero and the stderr output contains no env var values or filesystem paths beyond the CWD",
-        "The JSON report written by validate_federated() contains no keys named 'token', 'password', 'secret', or 'key' (case-insensitive)",
-        "Passing a path-traversal string (e.g. `../../etc/passwd`) as a repo argument raises ValueError and exits 1 without traceback on stdout",
-        "uv run pytest tests/test_security_validate_federated.py -v exits 0 with all tests passing"
+        "Test verifies Phase I is blocked when mock cost estimate exceeds SPIRAL_COST_CEILING (env var set to a low sentinel value)",
+        "Test verifies rollback removes the lowest-priority story from prd.json pending list and the change is persisted",
+        "Test verifies no story implementation runs when ceiling is hit and user selects 'skip'",
+        "All tests pass: uv run pytest tests/test_cost_ceiling_security.py -v"
       ],
       "technicalNotes": [
-        "File to edit: tests/test_security_validate_federated.py (new file — security test module)",
-        "File to read: lib/commands/validate_federated.py (validate_federated, build_report functions)",
-        "Test command: uv run pytest tests/test_security_validate_federated.py -v",
-        "Use subprocess.run(['spiral', 'validate-federated', ...], capture_output=True) to test CLI surface; inspect stdout/stderr as strings",
-        "Check report dict recursively for forbidden keys: `assert not any(k.lower() in {'token','password','secret','key'} for k in flatten_keys(report))`"
+        "File to edit: tests/test_cost_ceiling_security.py (create new — security test suite targeting US-498 budget gate logic)",
+        "File to edit: lib/cost_tracker.py or spiral.sh (locate the pre-Phase I budget check function added by US-498)",
+        "Test command: uv run pytest tests/test_cost_ceiling_security.py -v",
+        "Mock token cost estimates using monkeypatch on the estimator function; set SPIRAL_COST_CEILING=0.01 to force ceiling breach",
+        "Check prd.json pending list before and after rollback path to assert lowest-priority story is removed"
       ],
       "dependencies": [
-        "US-514"
+        "US-498"
       ],
       "estimatedComplexity": "small",
       "passes": true,
@@ -91,50 +65,48 @@
       "model": "sonnet"
     },
     {
-      "id": "US-567",
-      "title": "[Security Test] Auth/Permission Access Control for US-516",
+      "id": "US-578",
+      "title": "[Security Test] CLI: validate-federated — Input Safety & Output Sanitization",
       "priority": "high",
-      "description": "Write security tests for the auth/permission logic introduced in US-516. Tests must verify that unauthorized requests are blocked with correct HTTP status codes and that no sensitive data is leaked in error responses. These tests run in isolation without requiring external services.",
+      "description": "Write security-focused tests for the `spiral validate-federated` CLI command (US-514). Verify that malicious inputs are safely rejected without leaking stack traces, and that the JSON report output never exposes environment secrets or raw exception details.",
       "acceptanceCriteria": [
-        "Unauthorized request returns 401 or 403: `uv run pytest tests/test_security_us516.py::test_unauthorized_access_blocked -v` exits 0",
-        "Error response body contains no tokens or passwords: `uv run pytest tests/test_security_us516.py::test_no_sensitive_data_in_error -v` exits 0",
-        "All security tests pass: `uv run pytest tests/test_security_us516.py -v` exits 0"
+        "Running `uv run pytest tests/test_validate_federated_security.py -v` exits 0 with all tests passing",
+        "Test confirms validate-federated exits 1 and returns a JSON `{\"error\": \"...\"}` (not a raw traceback) when given a path-traversal ID like `../../etc/passwd:(US)-001`",
+        "Test confirms stdout JSON report contains no strings matching secret-like patterns (`ANTHROPIC_API_KEY`, `GITHUB_TOKEN`, or any value from `os.environ` that contains 'KEY' or 'TOKEN')",
+        "Test confirms validate-federated exits 1 with a structured JSON error when a cross-repo dependency file is unreadable (permissions denied)"
       ],
       "technicalNotes": [
-        "File to edit: tests/test_security_us516.py (new file — create security test module)",
-        "Reference: inspect the auth/permission code added in US-516 to identify the entry points under test",
-        "Test command: uv run pytest tests/test_security_us516.py -v",
-        "Use pytest fixtures to construct requests with missing/invalid credentials; assert response.status_code in (401, 403)",
-        "Assert no field in response JSON contains substrings matching token/password/secret patterns"
+        "File to edit: tests/test_validate_federated_security.py (create — invoke CLI via subprocess with adversarial inputs, assert returncode + JSON shape)",
+        "File to edit: lib/commands/validate_federated.py (wrap all exception paths to return JSON error dict, never bare tracebacks)",
+        "Test command: uv run pytest tests/test_validate_federated_security.py -v",
+        "Use `subprocess.run(['python', '-m', 'lib.commands.validate_federated', '--id', '<adversarial>'], capture_output=True)` pattern in tests",
+        "US-514 must be merged first; skip tests with `pytest.importorskip` if module is absent"
       ],
       "dependencies": [
-        "US-516"
+        "US-514"
       ],
       "estimatedComplexity": "small",
-      "passes": true,
+      "passes": false,
       "_source": "test-story",
-      "model": "sonnet",
-      "last_attempted": "2026-03-20T04:47:22Z",
-      "_failureReason": "DIAGNOSIS_BLOCK_MISSING: Diagnosis block required before making changes. Please output your diagnosis first.\n\nBefore making ANY file edits, output a diagnosis block with these exact headers:\n\n## Current State\n[describe the relevant current state of the code]\n\n## Problem Identified\n[what you are solving for this story]\n\n## Planned Changes\n[bullet list of specific files and changes you will make]\n\nOutput this block as plain text BEFORE calling Edit, Write, or any Bash command that modifies files."
+      "model": "sonnet"
     },
     {
-      "id": "US-568",
-      "title": "[Security Test] Cost Predictor CLI: input validation and data safety",
+      "id": "US-579",
+      "title": "[Security Test] predict-cost CLI: path traversal and secret-leak prevention",
       "priority": "high",
-      "description": "Write security tests for lib/predict_cost.py (US-529). Verify the CLI rejects malicious file paths, sanitizes story attribute inputs, and never leaks sensitive data in output or error messages.",
+      "description": "Write security tests for lib/predict_cost.py (US-529). The CLI reads results.tsv to build a KNN estimator; tests must verify it rejects path traversal in any file-path arguments, does not echo API keys or tokens present in results.tsv into stdout/stderr, and exits cleanly on malformed input without exposing internal state.",
       "acceptanceCriteria": [
-        "uv run pytest tests/test_security_predict_cost.py::test_path_traversal_rejected -v passes — CLI rejects path traversal (e.g. ../../etc/passwd) for --results-file and exits non-zero",
-        "uv run pytest tests/test_security_predict_cost.py::test_output_schema_only -v passes — JSON stdout contains only the keys: tokens, cost, confidence, matched_stories",
-        "uv run pytest tests/test_security_predict_cost.py::test_malformed_input_no_traceback -v passes — empty/null story attributes produce a clean error message with no Python traceback",
-        "uv run pytest tests/test_security_predict_cost.py -v passes with exit code 0"
+        "uv run pytest tests/test_security_predict_cost.py::test_no_path_traversal -v passes: CLI rejects paths containing '../' and exits non-zero",
+        "uv run pytest tests/test_security_predict_cost.py::test_no_secret_leak -v passes: error output contains no strings matching injected fake API-key pattern 'sk-[A-Za-z0-9]{20}'",
+        "uv run pytest tests/test_security_predict_cost.py::test_malformed_tsv -v passes: corrupted results.tsv causes clean non-zero exit, no Python traceback on stdout",
+        "uv run pytest tests/test_security_predict_cost.py -v exits 0 (all three security tests pass)"
       ],
       "technicalNotes": [
-        "File to edit: tests/test_security_predict_cost.py (new file — create this security test suite)",
-        "File to edit: lib/predict_cost.py (validate_results_path, parse_story_attributes — add input sanitization if absent)",
+        "File to edit: tests/test_security_predict_cost.py (new file — create security test suite)",
+        "File to edit: lib/predict_cost.py (add path sanitisation in load_results() if missing)",
         "Test command: uv run pytest tests/test_security_predict_cost.py -v",
-        "Path traversal test: invoke CLI with --results-file '../../etc/passwd' and assert SystemExit or stderr contains 'invalid' (not a Python traceback)",
-        "Output schema test: capture stdout JSON, assert set(output.keys()) == {'tokens', 'cost', 'confidence', 'matched_stories'}",
-        "Do NOT reimplement KNN logic — this story adds security regression tests only; US-529 must already be merged"
+        "Use pytest tmp_path fixture to create a results.tsv containing a fake secret ('sk-FAKEKEYFAKEKEYFAKEKE') for the leak test",
+        "Path traversal test: invoke CLI with --results-file ../../../etc/passwd (or equivalent) and assert SystemExit or non-zero returncode"
       ],
       "dependencies": [
         "US-529"
@@ -142,7 +114,7 @@
       "estimatedComplexity": "small",
       "passes": true,
       "_source": "test-story",
-      "model": "haiku"
+      "model": "sonnet"
     },
     {
       "id": "US-548",
@@ -158,7 +130,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
-      "model": "sonnet",
+      "model": "haiku",
       "filesTouch": [
         ".hypothesis/constants/0144005a67236799",
         ".hypothesis/constants/016af87f794a90e9",
@@ -236,6 +208,50 @@
         "File to edit: main.py (add validate-results-tsv subparser to existing argparse setup; call validate() with --tsv and --prd args, write JSON to --output path)",
         "File to edit: tests/test_validate_results_tsv_cli.py (new integration test — write corrupted TSV fixture to tmp_path, invoke CLI via subprocess.run([sys.executable, 'main.py', ...]))",
         "Test command: uv run pytest tests/test_validate_results_tsv_cli.py -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-580",
+      "title": "Phase G: Detect and Log Orphan Commits Without Story IDs",
+      "priority": "medium",
+      "description": "Phase G crashes or silently ignores commits without US-*/UT-* identifiers. Add regex-based orphan detection that writes unmatched commits to .spiral/_phase_g_orphans.json and allows CHANGELOG.md and API doc generation to continue uninterrupted.",
+      "acceptanceCriteria": [
+        "Phase G parses each commit message against pattern (US-\\d+|UT-\\d+); commits without a match are written to .spiral/_phase_g_orphans.json as [{commit_sha, message, timestamp, reason}]",
+        "CHANGELOG.md generation and pdoc API doc generation complete successfully when orphan commits are present; orphan count is printed in Phase G exit summary line",
+        "uv run pytest tests/test_phase_g_orphan_detection.py -v passes: 5 synthetic orphan commits detected, orphan log has correct schema, changelog generated without exception"
+      ],
+      "technicalNotes": [
+        "File to edit: spiral.sh (phase_g function — commit-parsing loop, add regex guard before story-ID lookup)",
+        "File to edit: lib/phases/phase_g.sh (if Phase G logic has been extracted — same commit-parsing section)",
+        "Create: tests/test_phase_g_orphan_detection.py (pytest module with 5 synthetic commits, 3 orphans, assert orphan log schema and changelog success)",
+        "Test command: uv run pytest tests/test_phase_g_orphan_detection.py -v",
+        "Orphan log path: .spiral/_phase_g_orphans.json (create .spiral/ dir if absent; append-safe across runs)"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-581",
+      "title": "Add sub_project column to results.tsv ResultsRecord",
+      "priority": "medium",
+      "description": "Extend the results.tsv schema with a sub_project column derived from story.project_scope or auto-detected from the first entry in story.files[].path. This enables downstream aggregation of costs per sub-project in federated SPIRAL runs.",
+      "acceptanceCriteria": [
+        "ResultsRecord dataclass in lib/results_tsv.py has a sub_project field (str, default empty string)",
+        "Existing results.tsv rows without sub_project column parse without error (backward-compatible)",
+        "uv run pytest tests/test_results_tsv.py -v passes with sub_project round-trip: write a record with sub_project='foo', read it back, assert sub_project == 'foo'"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/results_tsv.py (ResultsRecord dataclass and parse_results_tsv / write_results_row functions)",
+        "Add sub_project as the last column so existing TSV files remain valid when read with DictReader (missing key → empty string)",
+        "Test command: uv run pytest tests/test_results_tsv.py -v"
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
@@ -345,6 +361,29 @@
       "estimatedComplexity": "medium",
       "passes": false,
       "_source": "test-story",
+      "model": "haiku"
+    },
+    {
+      "id": "US-582",
+      "title": "Dashboard endpoint GET /api/dashboard/costs-by-project aggregating results.tsv",
+      "priority": "medium",
+      "description": "Add a Flask/FastAPI route that reads results.tsv and returns per-sub-project cost aggregates including total tokens, total cost, story count, and model distribution. Depends on sub_project column being present in results.tsv.",
+      "acceptanceCriteria": [
+        "GET /api/dashboard/costs-by-project returns HTTP 200 with JSON body {projects: [{name, total_tokens, total_cost, story_count, model_distribution: {haiku, sonnet, opus}}]}",
+        "Rows with null/empty sub_project are grouped under name='(unknown)'",
+        "uv run pytest tests/test_dashboard_costs_by_project.py -v passes all assertions including missing-field and model-distribution accuracy cases"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/dashboard.py (or equivalent dashboard server module — locate with: grep -r 'costs-by' lib/ or grep -r '/api/dashboard' lib/)",
+        "File to create: tests/test_dashboard_costs_by_project.py",
+        "Aggregate using collections.defaultdict over parsed ResultsRecord rows; count model field values for distribution",
+        "Test command: uv run pytest tests/test_dashboard_costs_by_project.py -v"
+      ],
+      "dependencies": [
+        "US-581"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
       "model": "haiku"
     },
     {
@@ -978,6 +1017,140 @@
       "passes": true,
       "_source": "ai-example",
       "model": "sonnet"
+    },
+    {
+      "id": "US-564",
+      "title": "Integration Tests: Mock Claude Client Fixture Library (US-476)",
+      "priority": "high",
+      "description": "Write integration tests that exercise the mock Claude client and pre-recorded API response fixtures delivered by US-476. Tests must confirm that Phase R and Phase S invocations complete end-to-end using only the fixture library — no live Claude API calls — and that the library handles both valid and error responses correctly.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_us476_integration.py::test_mock_research_phase_happy_path -v exits 0",
+        "uv run pytest tests/test_us476_integration.py::test_mock_client_error_response -v exits 0",
+        "uv run pytest tests/test_us476_integration.py -v exits 0 with no external network services required",
+        "uv run pytest tests/test_us476_integration.py -v --tb=short completes in under 10 seconds"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_us476_integration.py (create new — integration test module for US-476 mock fixtures)",
+        "File to edit: tests/conftest.py (add mock_claude_client pytest fixture that injects the pre-recorded response library from US-476)",
+        "Test command: uv run pytest tests/test_us476_integration.py -v",
+        "Happy path: load a pre-recorded Phase R response fixture and assert the parsed output matches expected story fields",
+        "Error case: configure the mock client to return a 429 / malformed JSON payload and assert the calling code raises or logs gracefully without hitting a real endpoint",
+        "Use unittest.mock.patch or pytest monkeypatch to intercept all outbound HTTP at the transport layer so tests are hermetic"
+      ],
+      "dependencies": [
+        "US-476"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "_source": "test-story",
+      "model": "haiku",
+      "_scopeCreep": true
+    },
+    {
+      "id": "US-565",
+      "title": "Integration tests: WebSocket /ws/cost streams cost deltas in real-time",
+      "priority": "high",
+      "description": "Write integration tests verifying the /ws/cost WebSocket endpoint (implemented in US-497) broadcasts cost deltas to connected clients within 2s of a Phase I story completion event. Tests must cover the happy path and at least one error/edge case, running entirely in-process without external services.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_ws_cost.py -v exits 0 with all tests passing",
+        "Happy-path test: a test client connects to /ws/cost and receives a cost-delta JSON message within 2s after a mock story-complete event is triggered programmatically",
+        "Edge-case test: a client that disconnects mid-stream does not raise an unhandled exception or block subsequent broadcasts to other connected clients",
+        "All tests use an in-process server fixture — no manual server startup or external services required"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_ws_cost.py (new file — integration tests for the /ws/cost WebSocket endpoint)",
+        "File to edit: lib/dashboard.py or equivalent dashboard server module (import app/server for in-process test fixture)",
+        "Test command: uv run pytest tests/test_ws_cost.py -v",
+        "Use pytest-asyncio + websockets (or httpx[ws]) for async WebSocket client; mock the broadcast trigger by calling the server's broadcast function directly rather than running a full SPIRAL loop",
+        "Assert message schema: received JSON must contain keys 'story_id', 'cost_delta', and 'timestamp'"
+      ],
+      "dependencies": [
+        "US-497"
+      ],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "_source": "test-story",
+      "model": "haiku"
+    },
+    {
+      "id": "US-566",
+      "title": "[Security Test] validate-federated: safe output, no sensitive data leakage",
+      "priority": "high",
+      "description": "Write security-focused tests for `lib/commands/validate_federated.py` (introduced in US-514). Verify the command never leaks env vars, tokens, or internal paths in its JSON report, and that malformed/adversarial inputs are rejected with safe error messages. This guards against accidental credential exposure in CI logs.",
+      "acceptanceCriteria": [
+        "Running `spiral validate-federated` with a malformed repo ID exits non-zero and the stderr output contains no env var values or filesystem paths beyond the CWD",
+        "The JSON report written by validate_federated() contains no keys named 'token', 'password', 'secret', or 'key' (case-insensitive)",
+        "Passing a path-traversal string (e.g. `../../etc/passwd`) as a repo argument raises ValueError and exits 1 without traceback on stdout",
+        "uv run pytest tests/test_security_validate_federated.py -v exits 0 with all tests passing"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_security_validate_federated.py (new file — security test module)",
+        "File to read: lib/commands/validate_federated.py (validate_federated, build_report functions)",
+        "Test command: uv run pytest tests/test_security_validate_federated.py -v",
+        "Use subprocess.run(['spiral', 'validate-federated', ...], capture_output=True) to test CLI surface; inspect stdout/stderr as strings",
+        "Check report dict recursively for forbidden keys: `assert not any(k.lower() in {'token','password','secret','key'} for k in flatten_keys(report))`"
+      ],
+      "dependencies": [
+        "US-514"
+      ],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "_source": "test-story",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-567",
+      "title": "[Security Test] Auth/Permission Access Control for US-516",
+      "priority": "high",
+      "description": "Write security tests for the auth/permission logic introduced in US-516. Tests must verify that unauthorized requests are blocked with correct HTTP status codes and that no sensitive data is leaked in error responses. These tests run in isolation without requiring external services.",
+      "acceptanceCriteria": [
+        "Unauthorized request returns 401 or 403: `uv run pytest tests/test_security_us516.py::test_unauthorized_access_blocked -v` exits 0",
+        "Error response body contains no tokens or passwords: `uv run pytest tests/test_security_us516.py::test_no_sensitive_data_in_error -v` exits 0",
+        "All security tests pass: `uv run pytest tests/test_security_us516.py -v` exits 0"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_security_us516.py (new file — create security test module)",
+        "Reference: inspect the auth/permission code added in US-516 to identify the entry points under test",
+        "Test command: uv run pytest tests/test_security_us516.py -v",
+        "Use pytest fixtures to construct requests with missing/invalid credentials; assert response.status_code in (401, 403)",
+        "Assert no field in response JSON contains substrings matching token/password/secret patterns"
+      ],
+      "dependencies": [
+        "US-516"
+      ],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "_source": "test-story",
+      "model": "sonnet",
+      "last_attempted": "2026-03-20T04:47:22Z",
+      "_failureReason": "DIAGNOSIS_BLOCK_MISSING: Diagnosis block required before making changes. Please output your diagnosis first.\n\nBefore making ANY file edits, output a diagnosis block with these exact headers:\n\n## Current State\n[describe the relevant current state of the code]\n\n## Problem Identified\n[what you are solving for this story]\n\n## Planned Changes\n[bullet list of specific files and changes you will make]\n\nOutput this block as plain text BEFORE calling Edit, Write, or any Bash command that modifies files."
+    },
+    {
+      "id": "US-568",
+      "title": "[Security Test] Cost Predictor CLI: input validation and data safety",
+      "priority": "high",
+      "description": "Write security tests for lib/predict_cost.py (US-529). Verify the CLI rejects malicious file paths, sanitizes story attribute inputs, and never leaks sensitive data in output or error messages.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_security_predict_cost.py::test_path_traversal_rejected -v passes — CLI rejects path traversal (e.g. ../../etc/passwd) for --results-file and exits non-zero",
+        "uv run pytest tests/test_security_predict_cost.py::test_output_schema_only -v passes — JSON stdout contains only the keys: tokens, cost, confidence, matched_stories",
+        "uv run pytest tests/test_security_predict_cost.py::test_malformed_input_no_traceback -v passes — empty/null story attributes produce a clean error message with no Python traceback",
+        "uv run pytest tests/test_security_predict_cost.py -v passes with exit code 0"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_security_predict_cost.py (new file — create this security test suite)",
+        "File to edit: lib/predict_cost.py (validate_results_path, parse_story_attributes — add input sanitization if absent)",
+        "Test command: uv run pytest tests/test_security_predict_cost.py -v",
+        "Path traversal test: invoke CLI with --results-file '../../etc/passwd' and assert SystemExit or stderr contains 'invalid' (not a Python traceback)",
+        "Output schema test: capture stdout JSON, assert set(output.keys()) == {'tokens', 'cost', 'confidence', 'matched_stories'}",
+        "Do NOT reimplement KNN logic — this story adds security regression tests only; US-529 must already be merged"
+      ],
+      "dependencies": [
+        "US-529"
+      ],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "_source": "test-story",
+      "model": "haiku"
     },
     {
       "id": "US-482",
@@ -2181,153 +2354,6 @@
         "contextWindow": 10
       },
       "tags": []
-    },
-    {
-      "id": "US-576",
-      "title": "[Security Test] Verify auth enforcement on WebSocket /ws/cost endpoint",
-      "priority": "high",
-      "description": "Write security tests for the /ws/cost WebSocket endpoint introduced in US-497. Verify that unauthenticated clients are rejected before the connection upgrades, and that error responses contain no sensitive fields (tokens, passwords, API keys). This ensures the real-time cost broadcast channel is not an open information leak.",
-      "acceptanceCriteria": [
-        "Unauthenticated WebSocket upgrade to /ws/cost returns HTTP 401 or 403 before handshake completes",
-        "Rejected-connection response body contains no fields matching: token, password, key, secret, or api_key",
-        "All security tests pass: uv run pytest tests/test_ws_cost.py -k 'security or auth' -v"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_ws_cost.py (add test_unauthenticated_ws_rejected and test_no_sensitive_data_in_error_response)",
-        "File to read: lib/dashboard/api.py (locate auth middleware or decorator applied to the /ws/cost route)",
-        "Test command: uv run pytest tests/test_ws_cost.py -k 'security or auth' -v",
-        "Use the websockets or httpx library to attempt a WebSocket upgrade without credentials and assert the HTTP response status is 401 or 403",
-        "Assert no sensitive keys in error body: assert not any(k in err for k in ['token','password','key','secret','api_key'])"
-      ],
-      "dependencies": [
-        "US-497"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "test-story",
-      "model": "sonnet"
-    },
-    {
-      "id": "US-577",
-      "title": "[Security Test] Verify SPIRAL_COST_CEILING blocks Phase I without bypass",
-      "priority": "high",
-      "description": "Write security/integrity tests for the pre-Phase I budget gate introduced by US-498. Verify that when estimated token costs exceed SPIRAL_COST_CEILING, Phase I is blocked and cannot silently proceed. Ensure rollback correctly removes the lowest-priority story from the pending queue and that no stories are executed without user confirmation when the ceiling is hit.",
-      "acceptanceCriteria": [
-        "Test verifies Phase I is blocked when mock cost estimate exceeds SPIRAL_COST_CEILING (env var set to a low sentinel value)",
-        "Test verifies rollback removes the lowest-priority story from prd.json pending list and the change is persisted",
-        "Test verifies no story implementation runs when ceiling is hit and user selects 'skip'",
-        "All tests pass: uv run pytest tests/test_cost_ceiling_security.py -v"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_cost_ceiling_security.py (create new — security test suite targeting US-498 budget gate logic)",
-        "File to edit: lib/cost_tracker.py or spiral.sh (locate the pre-Phase I budget check function added by US-498)",
-        "Test command: uv run pytest tests/test_cost_ceiling_security.py -v",
-        "Mock token cost estimates using monkeypatch on the estimator function; set SPIRAL_COST_CEILING=0.01 to force ceiling breach",
-        "Check prd.json pending list before and after rollback path to assert lowest-priority story is removed"
-      ],
-      "dependencies": [
-        "US-498"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "test-story",
-      "model": "haiku"
-    },
-    {
-      "id": "US-578",
-      "title": "[Security Test] CLI: validate-federated — Input Safety & Output Sanitization",
-      "priority": "high",
-      "description": "Write security-focused tests for the `spiral validate-federated` CLI command (US-514). Verify that malicious inputs are safely rejected without leaking stack traces, and that the JSON report output never exposes environment secrets or raw exception details.",
-      "acceptanceCriteria": [
-        "Running `uv run pytest tests/test_validate_federated_security.py -v` exits 0 with all tests passing",
-        "Test confirms validate-federated exits 1 and returns a JSON `{\"error\": \"...\"}` (not a raw traceback) when given a path-traversal ID like `../../etc/passwd:(US)-001`",
-        "Test confirms stdout JSON report contains no strings matching secret-like patterns (`ANTHROPIC_API_KEY`, `GITHUB_TOKEN`, or any value from `os.environ` that contains 'KEY' or 'TOKEN')",
-        "Test confirms validate-federated exits 1 with a structured JSON error when a cross-repo dependency file is unreadable (permissions denied)"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_validate_federated_security.py (create — invoke CLI via subprocess with adversarial inputs, assert returncode + JSON shape)",
-        "File to edit: lib/commands/validate_federated.py (wrap all exception paths to return JSON error dict, never bare tracebacks)",
-        "Test command: uv run pytest tests/test_validate_federated_security.py -v",
-        "Use `subprocess.run(['python', '-m', 'lib.commands.validate_federated', '--id', '<adversarial>'], capture_output=True)` pattern in tests",
-        "US-514 must be merged first; skip tests with `pytest.importorskip` if module is absent"
-      ],
-      "dependencies": [
-        "US-514"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "test-story",
-      "model": "haiku"
-    },
-    {
-      "id": "US-579",
-      "title": "[Security Test] predict-cost CLI: path traversal and secret-leak prevention",
-      "priority": "high",
-      "description": "Write security tests for lib/predict_cost.py (US-529). The CLI reads results.tsv to build a KNN estimator; tests must verify it rejects path traversal in any file-path arguments, does not echo API keys or tokens present in results.tsv into stdout/stderr, and exits cleanly on malformed input without exposing internal state.",
-      "acceptanceCriteria": [
-        "uv run pytest tests/test_security_predict_cost.py::test_no_path_traversal -v passes: CLI rejects paths containing '../' and exits non-zero",
-        "uv run pytest tests/test_security_predict_cost.py::test_no_secret_leak -v passes: error output contains no strings matching injected fake API-key pattern 'sk-[A-Za-z0-9]{20}'",
-        "uv run pytest tests/test_security_predict_cost.py::test_malformed_tsv -v passes: corrupted results.tsv causes clean non-zero exit, no Python traceback on stdout",
-        "uv run pytest tests/test_security_predict_cost.py -v exits 0 (all three security tests pass)"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_security_predict_cost.py (new file — create security test suite)",
-        "File to edit: lib/predict_cost.py (add path sanitisation in load_results() if missing)",
-        "Test command: uv run pytest tests/test_security_predict_cost.py -v",
-        "Use pytest tmp_path fixture to create a results.tsv containing a fake secret ('sk-FAKEKEYFAKEKEYFAKEKE') for the leak test",
-        "Path traversal test: invoke CLI with --results-file ../../../etc/passwd (or equivalent) and assert SystemExit or non-zero returncode"
-      ],
-      "dependencies": [
-        "US-529"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "test-story",
-      "model": "sonnet"
-    },
-    {
-      "id": "US-580",
-      "title": "Phase G: Detect and Log Orphan Commits Without Story IDs",
-      "priority": "medium",
-      "description": "Phase G crashes or silently ignores commits without US-*/UT-* identifiers. Add regex-based orphan detection that writes unmatched commits to .spiral/_phase_g_orphans.json and allows CHANGELOG.md and API doc generation to continue uninterrupted.",
-      "acceptanceCriteria": [
-        "Phase G parses each commit message against pattern (US-\\d+|UT-\\d+); commits without a match are written to .spiral/_phase_g_orphans.json as [{commit_sha, message, timestamp, reason}]",
-        "CHANGELOG.md generation and pdoc API doc generation complete successfully when orphan commits are present; orphan count is printed in Phase G exit summary line",
-        "uv run pytest tests/test_phase_g_orphan_detection.py -v passes: 5 synthetic orphan commits detected, orphan log has correct schema, changelog generated without exception"
-      ],
-      "technicalNotes": [
-        "File to edit: spiral.sh (phase_g function — commit-parsing loop, add regex guard before story-ID lookup)",
-        "File to edit: lib/phases/phase_g.sh (if Phase G logic has been extracted — same commit-parsing section)",
-        "Create: tests/test_phase_g_orphan_detection.py (pytest module with 5 synthetic commits, 3 orphans, assert orphan log schema and changelog success)",
-        "Test command: uv run pytest tests/test_phase_g_orphan_detection.py -v",
-        "Orphan log path: .spiral/_phase_g_orphans.json (create .spiral/ dir if absent; append-safe across runs)"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "sonnet"
-    },
-    {
-      "id": "US-581",
-      "title": "Add sub_project column to results.tsv ResultsRecord",
-      "priority": "medium",
-      "description": "Extend the results.tsv schema with a sub_project column derived from story.project_scope or auto-detected from the first entry in story.files[].path. This enables downstream aggregation of costs per sub-project in federated SPIRAL runs.",
-      "acceptanceCriteria": [
-        "ResultsRecord dataclass in lib/results_tsv.py has a sub_project field (str, default empty string)",
-        "Existing results.tsv rows without sub_project column parse without error (backward-compatible)",
-        "uv run pytest tests/test_results_tsv.py -v passes with sub_project round-trip: write a record with sub_project='foo', read it back, assert sub_project == 'foo'"
-      ],
-      "technicalNotes": [
-        "File to edit: lib/results_tsv.py (ResultsRecord dataclass and parse_results_tsv / write_results_row functions)",
-        "Add sub_project as the last column so existing TSV files remain valid when read with DictReader (missing key → empty string)",
-        "Test command: uv run pytest tests/test_results_tsv.py -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "haiku"
     }
   ]
 }
