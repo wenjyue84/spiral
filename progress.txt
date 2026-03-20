@@ -486,3 +486,157 @@ This is a technical brief for implementing story US-628.
 *   Confirm that the timeout logic correctly integrates with any existing concurrency or parallel processing to prevent race conditions.
 >>>>>>> Stashed changes
 
+
+## Pre-analysis for US-633 (Gemini 2.5 Pro)
+**Objective**: Implement a full-cycle integration test for the `spiral.sh` script, covering the R→T→S→M→I→V→C phase loop in a single run with mocked external services.
+
+**1. Primary Files to Modify/Create:**
+*   **Create:** `tests/test_spiral_phase_loop_integration.py`
+*   **Execute:** `spiral.sh` (as a subprocess from the test)
+*   **Mock/Inspect:** Python scripts called by `spiral.sh` that handle external API calls (e.g., to Gemini/Claude).
+
+**2. Frappe DocTypes / Hooks Involved:**
+*   None. The story pertains to a command-line Python application, not a Frappe app. The focus is on files like `prd.json`, not DocTypes.
+
+**3. Recommended Implementation Approach:**
+*   Use `pytest` for the test framework, leveraging fixtures for setup/teardown.
+*   In a setup fixture, create a temporary directory and a seed `prd.json` with 2 initial stories.
+*   Use `unittest.mock.patch` or fixture-based mocking to replace functions responsible for calling Gemini/Claude APIs with mocks that return pre-defined data.
+*   Use the `subprocess` module to execute `spiral.sh` with the required environment variables (`SPIRAL_VALIDATE_CMD=true`) and arguments (`--gate skip`, `--dry-run`).
+*   After execution, assert that intermediate files (`_research_output.json`, `_validated_stories.json`, `.spiral/_checkpoint.json`) are created correctly.
+*   Validate the final `prd.json`: check for updated story statuses and the inclusion of new stories from the mocked research phase.
+*   Ensure the teardown fixture rigorously cleans up all artifacts, including the `.spiral-workers/` directory.
+
+**4. Edge Cases & Gotchas:**
+*   **Mocking Subprocesses:** Mocking API calls within a script launched as a separate shell process can be tricky. The easiest path is to add logic to the main application, triggered by an environment variable (`export SPIRAL_MOCK_APIS=true`), to use a local mock service or function instead of the real one.
+*   **State Integrity:** The test must validate the contents of `prd.json` and checkpoint files at each conceptual phase boundary, not just at the end.
+*   **Resource Cleanup:** The script may create git worktrees or background processes. Ensure the test teardown is robust enough to find and terminate/remove them to prevent state leakage between tests.
+
+
+## Pre-analysis for US-633 (Gemini 2.5 Pro)
+**Subject: Technical Brief for US-633: SPIRAL Phase Loop Integration Test**
+
+This brief outlines the implementation plan for creating a comprehensive integration test for the SPIRAL phase loop.
+
+**1. Files to Modify:**
+*   Create a new test file: `tests/test_spiral_phase_loop_integration.py`.
+*   The test will execute `spiral.sh`, which is the main orchestrator.
+*   Core logic being tested resides in Python scripts invoked by the shell orchestrator, likely within the `spiral/` and `lib/` directories, covering each phase from Research (R) to Check Done (C).
+
+**2. Core Components Involved:**
+*   **Orchestrator:** `spiral.sh`
+*   **State Files:** `prd.json` (input/output), `_research_output.json`, `_validated_stories.json`, `results.tsv` (intermediate outputs).
+*   **Testing Framework:** `pytest`.
+*   **Mocking:** `pytest-mock` or `unittest.mock` to simulate Gemini/Claude API calls.
+
+**3. Implementation Approach:**
+*   Use `pytest` and its `tmp_path` fixture to create an isolated test environment.
+*   In the setup, generate a seed `prd.json` with two user stories.
+*   Patch the external API call functions to return predictable, mocked JSON responses, simulating research and implementation steps.
+*   Invoke `spiral.sh` via `subprocess.run` with the specified flags (`--gate skip`, `--dry-run`) and environment variables.
+*   After each logical phase, assert the existence and integrity of intermediate files (e.g., `_research_output.json`).
+*   Validate the final state of `prd.json` and `results.tsv` against expected outcomes.
+*   Ensure complete cleanup of temporary directories and git worktrees (`.spiral-workers/`).
+
+**4. Gotchas & Edge Cases:**
+*   Ensure robust cleanup of all artifacts, especially the git worktrees created by the script, even if the test fails.
+*   Mocks must precisely match the data structures the application expects from the live APIs.
+*   The test must monitor the `subprocess` for a successful exit code and capture its output for easier debugging.
+
+
+## Pre-analysis for US-633 (Gemini 2.5 Pro)
+This user story is for a Python/Shell-based orchestration tool, not a Frappe application. The technical brief has been adjusted accordingly.
+
+***
+
+**Project:** SPIRAL (Python/Shell Orchestration Tool)
+**User Story:** US-633: Integration Test for Full Phase Loop
+
+This story requires creating an integration test for the core `spiral.sh` script. The test will mock external AI APIs to validate the entire R→T→S→M→I→V→C phase loop and its state transitions locally.
+
+**1. Python files to Modify/Create:**
+*   **Primary Target (New File):** `tests/test_spiral_phase_loop_integration.py`. This will contain the main test case `test_full_phase_sequence_r_through_c`.
+*   **Mocking Targets:** API call functions within the `lib/` directory related to the Research (Gemini) and Implement (Claude) phases must be mocked. The test will need to identify the specific functions that wrap these external calls and patch them using `unittest.mock`.
+
+**2. Frappe DocTypes/Hooks:**
+*   None. This is a standalone Python/shell application; no Frappe components are involved.
+
+**3. Implementation Approach:**
+*   Use `pytest` and the `tmp_path` fixture to create an isolated environment for each test run.
+*   In a setup fixture, create a seed `prd.json` file with sample stories.
+*   Use Python's `subprocess` module to invoke `spiral.sh` with the necessary arguments (`--gate skip`, `--dry-run`) and environment variables (`SPIRAL_VALIDATE_CMD=true`).
+*   After the script completes, perform file-based assertions on the sequence of generated artifacts (`_research_output.json`, `_validated_stories.json`, final `prd.json`, `results.tsv`) to confirm each phase ran and produced the correct output.
+
+**4. Edge Cases & Gotchas:**
+*   **Process Integrity:** The test must ensure the `spiral.sh` subprocess terminates cleanly, capturing all output and cleaning up all temporary worker directories and git worktrees as specified.
+*   **Stateful Assertions:** Assertions must be ordered to follow the phase sequence (R→T→S...). A failure in an early phase will prevent later artifacts from being created.
+*   **Mock Accuracy:** The mocked API responses must be structured correctly to satisfy the expectations of the downstream implementation and validation logic.
+
+
+## Pre-analysis for US-633 (Gemini 2.5 Pro)
+**Technical Brief: SPIRAL Phase Loop Integration Test (US-633)**
+
+This brief outlines the plan for implementing an integration test for the full SPIRAL phase loop, as described in user story US-633.
+
+**1. Files to Modify:**
+*   **Create New File:** `tests/test_spiral_phase_loop_integration.py`. This will contain the integration test.
+*   **Primary Scripts Under Test:** `spiral.sh` is the entry point to be executed. This will implicitly test the core logic likely contained within `main.py` and modules in the `lib/` or `spiral/` directories that orchestrate the R→T→S→M→I→V→C phases.
+
+**2. Frappe DocTypes / Hooks Involved:**
+*   This is not a Frappe application. The core components are shell scripts and Python modules.
+*   **Key Data Artifacts:** The test will interact with several state and output files:
+    *   `prd.json`: The central story definition and state file.
+    *   `_research_output.json`: Output of the Research (R) phase.
+    *   `_validated_stories.json`: Output of the Story Validation (S) phase.
+    *   `.spiral/_checkpoint.json`: Intermediate state file for recovery.
+    *   `results.tsv`: Final summary of processed stories.
+
+**3. Recommended Implementation Approach:**
+1.  Define a new test function `test_full_phase_sequence_r_through_c` within the new test file.
+2.  Use `pytest` fixtures, specifically `tmp_path` for creating an isolated test environment and `monkeypatch` for mocking.
+3.  In the test setup, create a seed `prd.json` file inside `tmp_path` with 2 initial user stories.
+4.  Use `monkeypatch` to replace external API calls (Gemini/Claude) with mock functions that return pre-defined, static data for the Research and Implementation phases.
+5.  Invoke `spiral.sh` from the test using `subprocess.run`. Pass the arguments `--gate skip --dry-run` and set the environment variable `SPIRAL_VALIDATE_CMD=true`.
+6.  After the script execution, load and validate the contents of the intermediate (`_research_output.json`, `_validated_stories.json`) and final (`prd.json`, `results.tsv`) files against expected states.
+7.  Assert that the `.spiral-workers/` directory created during the run is empty or removed upon completion.
+
+**4. Edge Cases & Gotchas:**
+*   **Mocking:** Mocks for API clients must return data with the precise structure and types the Python code expects to prevent schema validation errors.
+*   **State Integrity:** Carefully assert the `status` and `_source` fields in the final `prd.json` to confirm correct state transitions for all stories.
+*   **Atomicity:** The test must be self-contained within `tmp_path` and ensure complete cleanup of all generated files, directories (`.spiral-workers/`), and any potential git worktrees to avoid side effects.
+*   **Process Management:** Ensure the `spiral.sh` process and any of its children terminate cleanly with a zero exit code.
+
+
+## Pre-analysis for US-633 (Gemini 2.5 Pro)
+Based on the user story JSON for **US-633**, here is the technical brief for the agent:
+
+---
+**To:** Claude Code Agent
+**From:** Gemini Assistant
+**Subject:** Technical Brief for US-633: SPIRAL Phase Loop Integration Test
+
+**1. Overview & Goal:**
+Implement a comprehensive integration test for the full R→C SPIRAL phase loop. The test must mock external AI APIs (Gemini/Claude) and validate state transitions and file outputs within a single `spiral.sh` execution, ensuring the system processes stories from research to completion correctly without external dependencies.
+
+**2. Files to Modify:**
+- **Create New File:** `tests/test_spiral_phase_loop_integration.py`
+- **Likely Mocks:** You will need to use `unittest.mock.patch` to intercept and mock API client methods within the Python scripts (located in `lib/`) that are responsible for calling Gemini (for Research) and Claude (for Implementation).
+
+**3. Frappe & DocType Context:**
+- **None.** This is a standalone Python command-line application. The user story does not involve a Frappe/ERPNext environment, DocTypes, or hooks.
+
+**4. Implementation Approach:**
+- Use `pytest` and a temporary directory fixture (e.g., `tmp_path`) for isolation.
+- **Setup:** Programmatically create a seed `prd.json` file with two stories.
+- **Execution:** Use Python's `subprocess` module to invoke `spiral.sh` with the specified arguments (`--gate skip --dry-run`) and environment variables (`SPIRAL_VALIDATE_CMD=true`).
+- **Assertions:**
+  - After the script runs, check for the creation and validate the schemas of `_research_output.json` and `_validated_stories.json`.
+  - Assert the final `prd.json` contains the correctly merged stories with updated statuses.
+  - Verify the `results.tsv` file contains the expected output.
+  - Confirm the test cleans up all worker directories within `.spiral/workers/`.
+
+**5. Gotchas & Edge Cases:**
+- Ensure the `subprocess` call correctly sets the working directory to the temp path where `prd.json` resides.
+- The test must reliably verify the cleanup of all temporary git worktrees and that no orphaned processes remain.
+- Mocked API responses must return data that strictly matches the schema expected by each phase to prevent downstream validation errors.
+

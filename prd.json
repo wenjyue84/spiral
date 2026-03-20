@@ -3191,7 +3191,7 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "haiku",
       "last_attempted": "2026-03-20T18:35:23Z"
@@ -3229,6 +3229,40 @@
       "passes": false,
       "_source": "ai-example",
       "model": "haiku"
+    },
+    {
+      "id": "US-636",
+      "title": "Phase I: Distribute Federated Stories to Workers by Sub-Project with Isolated Worktrees",
+      "priority": "high",
+      "description": "Extend Phase I parallel worker distribution to respect sub_project field in federated prd.json. Route stories to dedicated sub-project workers, prevent cross-project file contamination, ensure each worktree is isolated to its sub-project namespace.",
+      "acceptanceCriteria": [
+        "lib/run_parallel_ralph_federated.sh: parse sub_project from each story, spawn worker-{sub_project}-{N} worktrees (e.g., worker-api-1, worker-frontend-2) instead of generic worker-N, verify worktree paths in .spiral-workers/ are partitioned by sub_project",
+        "Worker file isolation: each sub-project worker only processes stories with matching sub_project value; verify results.tsv includes sub_project column and no worker modified files outside its assigned sub-project path patterns",
+        "Integration test: run full SPIRAL loop with federated prd.json containing 'api' and 'frontend' sub-projects (5 stories each), assert 2 workers created, each processes correct sub_project stories, git diff shows no cross-project file changes"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-637",
+      "title": "Phase R: Parallelize Gemini Research by Sub-Project with Isolated Output Storage",
+      "priority": "high",
+      "description": "Extend Phase R research orchestration to discover stories independently per sub-project in federated prd.json. Launch parallel Gemini calls for each sub-project, aggregate research results keyed by sub_project in _research_output.json, prevent story duplication across sub-project boundaries.",
+      "acceptanceCriteria": [
+        "lib/phases/phase_r_federated.sh: extract sub_projects list from prd.json (via SPIRAL_SUB_PROJECTS), spawn parallel Gemini calls (one per sub-project, 60s timeout each) with scoped research prompts mentioning sub-project context and file patterns",
+        "_research_output.json: add sub_project field to each discovered story object, verify Phase M dedup rules correctly handle cross-sub-project stories (flag as conflicts or merge if matching ID), assert no research story appears in multiple sub-projects unless explicitly marked",
+        "Integration test: mock Gemini responses for 'api' and 'frontend' sub-projects (3 stories each), run Phase R, verify _research_output.json has sub_project field for all stories, Phase M merge produces correct conflict warnings for duplicate IDs across sub-projects"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "opus"
     }
   ]
 }
