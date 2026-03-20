@@ -6,8 +6,10 @@ Exposes:
 - GET /profile — Phase duration analytics endpoint
 - GET /api/timeline — Story timeline endpoint with phase swimlanes
 - GET /api/dashboard/research-sources — Research source credibility tracking endpoint
+- GET /api/dashboard/overview — Unified cross-project metrics endpoint
 - WebSocket /ws/cost — Real-time cost delta streaming endpoint
 - WebSocket /ws/timeline — Real-time phase transition events
+- WebSocket /ws/overview — Real-time cross-project overview updates
 """
 
 import csv
@@ -24,6 +26,7 @@ from starlette.responses import JSONResponse, Response
 
 from ..analyze_results import parse_research_cache
 from ..research_source_scorer import extract_sources
+from ..spiral.dashboard.aggregator import aggregate_overview
 from .alerts_broadcaster import get_alerts_manager
 from .cost_broadcaster import get_manager
 from .timeline import get_timeline_manager, parse_timeline
@@ -543,6 +546,88 @@ async def websocket_alerts_endpoint(websocket: WebSocket) -> None:
     except Exception as e:
         await manager.disconnect(websocket)
         logger.error(f"[ws/alerts] Error: {e}")
+
+
+def _discover_results_paths() -> list[Path]:
+    """Discover all results.tsv files in the current project and known sub-project dirs.
+
+    Looks for:
+    1. .spiral/results.tsv (primary single-project location)
+    2. results.tsv (legacy root location)
+    3. .spiral-workers/*/results.tsv (parallel worker directories)
+    """
+    candidates: list[Path] = [
+        Path(".spiral/results.tsv"),
+        Path("results.tsv"),
+    ]
+    # Include worker worktree results when parallel workers are used
+    for worker_tsv in Path(".spiral-workers").glob("*/results.tsv"):
+        candidates.append(worker_tsv)
+
+    return [p for p in candidates if p.exists()]
+
+
+@app.get("/api/dashboard/overview")
+async def dashboard_overview() -> dict[str, Any]:
+    """Unified cross-project metrics endpoint.
+
+    Aggregates metrics from all discovered results.tsv files (root project and
+    sub-projects / parallel workers). Reads fresh data on each call so the
+    response always reflects the latest state.
+
+    Returns:
+        {
+            "totalCost": float,           # summed estimated cost (USD)
+            "storiesPassed": int,         # keep-status rows across all projects
+            "avgPhaseTime": float,        # mean duration_sec (seconds)
+            "blockerCount": int,          # non-keep rows (failures/rejects)
+            "slowestSubProject": str,     # sub-project directory with highest avg duration
+            "escalationPct": float,       # fraction of rows with retry_num >= 1
+            "subProjectCount": int,       # number of results.tsv files included
+        }
+    """
+    paths = _discover_results_paths()
+    return aggregate_overview(paths)
+
+
+@app.websocket("/ws/overview")
+async def websocket_overview_endpoint(websocket: WebSocket) -> None:
+    """WebSocket endpoint for real-time cross-project overview updates.
+
+    Clients connect to /ws/overview and receive the current overview payload
+    as a JSON message immediately on connect, then on every client ping.
+
+    Message format:
+        {"totalCost": ..., "storiesPassed": ..., "avgPhaseTime": ...,
+         "blockerCount": ..., "slowestSubProject": "...", "escalationPct": ...,
+         "subProjectCount": ...}
+    """
+    # Check auth if enabled
+    api_key = os.environ.get("SPIRAL_DASHBOARD_API_KEY")
+    if api_key:
+        provided = websocket.headers.get("x-api-key", "")
+        if not provided:
+            await websocket.close(code=1008, reason="Authentication required")
+            return
+        if provided != api_key:
+            await websocket.close(code=1008, reason="Forbidden")
+            return
+
+    await websocket.accept()
+    try:
+        # Send current metrics immediately on connect
+        paths = _discover_results_paths()
+        await websocket.send_json(aggregate_overview(paths))
+
+        # Refresh and push on every client message (acts as a poll trigger)
+        while True:
+            await websocket.receive_text()
+            paths = _discover_results_paths()
+            await websocket.send_json(aggregate_overview(paths))
+    except WebSocketDisconnect:
+        logger.debug("[ws/overview] Client disconnected")
+    except Exception as e:
+        logger.error(f"[ws/overview] Error: {e}")
 
 
 # Export for use in tests and main application
