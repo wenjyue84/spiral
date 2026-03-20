@@ -1309,3 +1309,28 @@ Here is the technical brief for implementing the episodic memory feature.
 *   **Performance**: Reading and vectorizing the entire memory file on every query will be slow. For this story, it's acceptable, but note that a vector database (e.g., ChromaDB, FAISS) would be a necessary optimization for larger-scale use.
 *   **Empty State**: The `get_similar` function must handle cases where the memory file is empty or does not exist, returning an empty list without error.
 
+
+## Pre-analysis for US-596 (Gemini 2.5 Pro)
+This is a technical brief for implementing the episodic memory feature (US-596) for the "Ralph" agent.
+
+**1. Files to Modify:**
+*   `lib/episodic_memory.py`: Primary file. Implement the `EpisodicMemory` class here.
+*   `spiral/core/phase1.py` (Likely location): Integrate the call to `get_similar()` to inject patterns into the retry prompts.
+*   `spiral/core/worker.py` (Likely location): Integrate the call to `write()` to persist pattern outcomes after each retry attempt.
+*   `tests/test_ralph_episodic_memory_store.py`: Use this existing test file to drive and validate the implementation.
+
+**2. Frappe DocTypes/Hooks:**
+*   None. Despite the prompt mentioning Frappe, the project structure is a standard Python application. No Frappe elements are involved.
+
+**3. Implementation Approach:**
+*   In `lib/episodic_memory.py`, the `EpisodicMemory` class should manage a `.jsonl` file (`.spiral/episodic_memory.jsonl`).
+*   Use a library like `sentence-transformers` to generate vector embeddings from pattern data.
+*   **`write()`**: Calculate an embedding for the pattern and append the pattern dictionary, its embedding, and a timestamp to the JSONL file.
+*   **`get_similar()`**: Read the JSONL file, calculate cosine similarity between the target pattern's embedding and all stored embeddings, and return the top `k` matches.
+*   **`clear_expired()`**: Filter the JSONL file based on the stored timestamps.
+
+**4. Edge Cases & Gotchas:**
+*   **Concurrency**: Multiple workers writing to the JSONL file will require a file locking mechanism (e.g., the `filelock` library) to prevent data corruption.
+*   **Scalability**: A linear scan for similarity search will be slow as the memory file grows. This is acceptable for V1, but a vector index (FAISS, ChromaDB) should be considered for future iterations.
+*   **Dependencies**: Add `sentence-transformers`, `scikit-learn` (for cosine similarity), and `filelock` to `pyproject.toml`.
+
