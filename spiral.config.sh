@@ -9,6 +9,10 @@ SPIRAL_PYTHON="/c/Users/Jyue/Documents/1-projects/Software Projects/Spiral/.venv
 # ── Test / validation command ────────────────────────────────────────────────
 SPIRAL_VALIDATE_CMD="uv run pytest tests/ -v --tb=short -n 2"
 
+# ── Phase V timeout (seconds) ─────────────────────────────────────────────
+# Default 300s is too short for 2900+ tests. Increased to 600s.
+SPIRAL_VALIDATE_TIMEOUT=600
+
 # ── Baseline test count (for test ratchet in ralph) ──────────────────────────
 # Use venv Python via uv (~15s collect-only) instead of system python3 (~51s,
 # Windows Store Python with 8 collection errors from missing venv deps).
