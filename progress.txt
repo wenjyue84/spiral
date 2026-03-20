@@ -1,3 +1,20 @@
+## Iteration - Story: US-570 Implement validate_results_tsv core validator module
+
+### What was implemented
+- Verified lib/spiral/validate_results_tsv.py is fully implemented with validate(tsv_path, prd_path) function
+- Implementation detects all 5 required checks: missing story_ids, duplicate rows, out-of-range token/duration, unknown models
+- Returns correct dict structure: {errors, warnings, passed_checks, total_rows_checked}
+- All 5 tests passing: test_validate_detects_all_anomalies, test_validate_empty_tsv, test_validate_missing_files, test_validate_malformed_prd, test_validate_valid_tsv
+- mypy --strict: Success, no issues found
+- Marked story as passes: true in prd.json
+
+### Patterns discovered
+- Module was already fully implemented from a prior iteration but prd.json was not updated
+- Always check if code is already in git before re-implementing; just verify tests and mark complete
+
+### Gotchas
+- None—implementation was straightforward and complete
+
 ## Iteration - Story: US-569 Integration Test: Auto-Decompose on Phase I Triple Failure
 
 ### What was implemented
