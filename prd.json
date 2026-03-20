@@ -110,7 +110,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "haiku"
     },
@@ -156,7 +156,7 @@
       "estimatedComplexity": "small",
       "passes": false,
       "_source": "ai-example",
-      "model": "haiku"
+      "model": "sonnet"
     },
     {
       "id": "US-581",
@@ -334,37 +334,7 @@
         "e2e",
         "auto-generated"
       ],
-      "model": "haiku"
-    },
-    {
-      "id": "US-584",
-      "title": "[Performance Test] lib: Worker Load Balancer — Benchmark Story Assignment Speed",
-      "priority": "medium",
-      "description": "Write a pytest performance benchmark for the story-to-worker assignment logic introduced in US-562. The test distributes a batch of 50 stories across 4 workers, asserts the assignment completes within 100 ms, and fails when a deliberately slow mock exceeds 200 ms. This guards against hot-spot regressions landing silently.",
-      "acceptanceCriteria": [
-        "uv run pytest tests/lib/test_worker_load_balancer_perf.py -v exits 0",
-        "Test asserts wall-clock time for assigning 50 stories to 4 workers is ≤100 ms (measured with time.perf_counter)",
-        "Test raises AssertionError when a mock assign_stories implementation sleeps 200 ms (regression guard)",
-        "uv run pytest tests/lib/test_worker_load_balancer_perf.py --cov=lib/worker_load_balancer --cov-fail-under=60 exits 0"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/lib/test_worker_load_balancer_perf.py (create new — add benchmark test cases)",
-        "File to edit: lib/worker_load_balancer.py (assign_stories — function under test from US-562)",
-        "Test command: uv run pytest tests/lib/test_worker_load_balancer_perf.py -v",
-        "Use time.perf_counter() around the assign_stories() call; assert elapsed < 0.1 for the happy path",
-        "For the regression-guard test, monkeypatch assign_stories with a lambda that calls time.sleep(0.2), then assert elapsed >= 0.2 and the threshold assertion fails",
-        "Complexity score input: build 50 fake story dicts with random forecast_tokens (100–2000) and dep_count (0–3)"
-      ],
-      "dependencies": [
-        "US-562"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "tags": [
-        "performance",
-        "auto-generated"
-      ],
-      "model": "haiku"
+      "model": "sonnet"
     },
     {
       "id": "US-390",
