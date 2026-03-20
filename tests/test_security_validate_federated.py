@@ -50,56 +50,35 @@ class TestSecurityNoSensitiveKeys:
     def test_report_json_no_token_key(self, tmp_path: Path) -> None:
         """Report should not contain 'token' key (case-insensitive)."""
         prd_file = tmp_path / "prd.json"
-        prd_file.write_text(
-            json.dumps({
-                "userStories": [
-                    {"id": "US-001", "title": "Test", "passes": False}
-                ]
-            })
-        )
+        prd_file.write_text(json.dumps({"userStories": [{"id": "US-001", "title": "Test", "passes": False}]}))
 
         report = validate_federated(prd_file)
         keys = flatten_keys(report)
         sensitive_keys = [k.lower() for k in keys]
 
-        assert "token" not in sensitive_keys, \
-            f"Report leaked 'token' key. Found keys: {keys}"
+        assert "token" not in sensitive_keys, f"Report leaked 'token' key. Found keys: {keys}"
 
     def test_report_json_no_password_key(self, tmp_path: Path) -> None:
         """Report should not contain 'password' key (case-insensitive)."""
         prd_file = tmp_path / "prd.json"
-        prd_file.write_text(
-            json.dumps({
-                "userStories": [
-                    {"id": "US-001", "title": "Test", "passes": False}
-                ]
-            })
-        )
+        prd_file.write_text(json.dumps({"userStories": [{"id": "US-001", "title": "Test", "passes": False}]}))
 
         report = validate_federated(prd_file)
         keys = flatten_keys(report)
         sensitive_keys = [k.lower() for k in keys]
 
-        assert "password" not in sensitive_keys, \
-            f"Report leaked 'password' key. Found keys: {keys}"
+        assert "password" not in sensitive_keys, f"Report leaked 'password' key. Found keys: {keys}"
 
     def test_report_json_no_secret_key(self, tmp_path: Path) -> None:
         """Report should not contain 'secret' key (case-insensitive)."""
         prd_file = tmp_path / "prd.json"
-        prd_file.write_text(
-            json.dumps({
-                "userStories": [
-                    {"id": "US-001", "title": "Test", "passes": False}
-                ]
-            })
-        )
+        prd_file.write_text(json.dumps({"userStories": [{"id": "US-001", "title": "Test", "passes": False}]}))
 
         report = validate_federated(prd_file)
         keys = flatten_keys(report)
         sensitive_keys = [k.lower() for k in keys]
 
-        assert "secret" not in sensitive_keys, \
-            f"Report leaked 'secret' key. Found keys: {keys}"
+        assert "secret" not in sensitive_keys, f"Report leaked 'secret' key. Found keys: {keys}"
 
     def test_report_json_no_key_key(self, tmp_path: Path) -> None:
         """Report should not contain 'key' key (case-insensitive).
@@ -108,13 +87,7 @@ class TestSecurityNoSensitiveKeys:
         dictionaries may exist. If failure occurs, review context.
         """
         prd_file = tmp_path / "prd.json"
-        prd_file.write_text(
-            json.dumps({
-                "userStories": [
-                    {"id": "US-001", "title": "Test", "passes": False}
-                ]
-            })
-        )
+        prd_file.write_text(json.dumps({"userStories": [{"id": "US-001", "title": "Test", "passes": False}]}))
 
         report = validate_federated(prd_file)
         keys = flatten_keys(report)
@@ -123,8 +96,7 @@ class TestSecurityNoSensitiveKeys:
         # but allow common legitimate uses like dict keys in cycles
         sensitive_matches = [k for k in keys if k.lower() == "key"]
 
-        assert not sensitive_matches, \
-            f"Report leaked sensitive 'key' field. Found: {sensitive_matches}"
+        assert not sensitive_matches, f"Report leaked sensitive 'key' field. Found: {sensitive_matches}"
 
 
 class TestPathTraversalSecurity:
@@ -163,16 +135,14 @@ class TestPathTraversalSecurity:
             )
 
             # Should exit with error code
-            assert result.returncode != 0, \
-                f"Expected non-zero exit code, got {result.returncode}"
+            assert result.returncode != 0, f"Expected non-zero exit code, got {result.returncode}"
 
             # Check stderr for traceback markers
             # A proper error message should not start with Traceback
             stderr_lines = result.stderr.split("\n")
             has_traceback = any("Traceback" in line for line in stderr_lines)
 
-            assert not has_traceback, \
-                f"CLI output contained Python traceback. stderr:\n{result.stderr}"
+            assert not has_traceback, f"CLI output contained Python traceback. stderr:\n{result.stderr}"
 
 
 class TestMalformedInputSafety:
@@ -182,13 +152,7 @@ class TestMalformedInputSafety:
         """Malformed repo ID should cause non-zero exit."""
         prd_file = tmp_path / "prd.json"
         # Invalid story ID format
-        prd_file.write_text(
-            json.dumps({
-                "userStories": [
-                    {"id": "INVALID@ID!", "title": "Test"}
-                ]
-            })
-        )
+        prd_file.write_text(json.dumps({"userStories": [{"id": "INVALID@ID!", "title": "Test"}]}))
 
         report = validate_federated(prd_file)
         assert report["valid"] is False
@@ -201,21 +165,14 @@ class TestMalformedInputSafety:
         monkeypatch.setenv("TEST_API_KEY", test_secret)
 
         prd_file = tmp_path / "prd.json"
-        prd_file.write_text(
-            json.dumps({
-                "userStories": [
-                    {"id": "MALFORMED_ID_123", "title": "Bad"}
-                ]
-            })
-        )
+        prd_file.write_text(json.dumps({"userStories": [{"id": "MALFORMED_ID_123", "title": "Bad"}]}))
 
         report = validate_federated(prd_file)
 
         # Flatten all error messages and check they don't contain the secret
         all_messages = " ".join(str(e) for e in report.get("errors", []))
 
-        assert test_secret not in all_messages, \
-            f"Error messages leaked env var value: {test_secret}"
+        assert test_secret not in all_messages, f"Error messages leaked env var value: {test_secret}"
 
     def test_malformed_input_no_filesystem_path_leak(self, monkeypatch: Any, tmp_path: Path) -> None:
         """Error messages should not leak absolute filesystem paths.
@@ -227,20 +184,13 @@ class TestMalformedInputSafety:
         monkeypatch.setenv("PRIVATE_KEY_PATH", test_path)
 
         prd_file = tmp_path / "prd.json"
-        prd_file.write_text(
-            json.dumps({
-                "userStories": [
-                    {"id": "bad-format", "title": "Test"}
-                ]
-            })
-        )
+        prd_file.write_text(json.dumps({"userStories": [{"id": "bad-format", "title": "Test"}]}))
 
         report = validate_federated(prd_file)
         all_messages = " ".join(str(e) for e in report.get("errors", []))
 
         # Should not contain the private path from env
-        assert "/home/user/.ssh" not in all_messages, \
-            f"Error messages leaked absolute path: {test_path}"
+        assert "/home/user/.ssh" not in all_messages, f"Error messages leaked absolute path: {test_path}"
 
 
 class TestMalformedJSONInput:
@@ -275,13 +225,7 @@ class TestCLIInvocationSafety:
     def test_cli_valid_prd_exits_zero(self, tmp_path: Path) -> None:
         """Valid PRD should exit with code 0."""
         prd_file = tmp_path / "prd.json"
-        prd_file.write_text(
-            json.dumps({
-                "userStories": [
-                    {"id": "US-001", "title": "Test", "passes": False}
-                ]
-            })
-        )
+        prd_file.write_text(json.dumps({"userStories": [{"id": "US-001", "title": "Test", "passes": False}]}))
 
         result = subprocess.run(
             [sys.executable, "main.py", "validate-federated", "--prd", str(prd_file)],
@@ -289,19 +233,12 @@ class TestCLIInvocationSafety:
             text=True,
         )
 
-        assert result.returncode == 0, \
-            f"Expected exit code 0, got {result.returncode}. stderr: {result.stderr}"
+        assert result.returncode == 0, f"Expected exit code 0, got {result.returncode}. stderr: {result.stderr}"
 
     def test_cli_invalid_prd_exits_nonzero(self, tmp_path: Path) -> None:
         """Invalid PRD should exit with non-zero code."""
         prd_file = tmp_path / "prd.json"
-        prd_file.write_text(
-            json.dumps({
-                "userStories": [
-                    {"id": "INVALID", "title": "Bad ID"}
-                ]
-            })
-        )
+        prd_file.write_text(json.dumps({"userStories": [{"id": "INVALID", "title": "Bad ID"}]}))
 
         result = subprocess.run(
             [sys.executable, "main.py", "validate-federated", "--prd", str(prd_file)],
@@ -309,19 +246,12 @@ class TestCLIInvocationSafety:
             text=True,
         )
 
-        assert result.returncode != 0, \
-            f"Expected non-zero exit code, got {result.returncode}"
+        assert result.returncode != 0, f"Expected non-zero exit code, got {result.returncode}"
 
     def test_cli_output_json_valid(self, tmp_path: Path) -> None:
         """CLI JSON output should be parseable."""
         prd_file = tmp_path / "prd.json"
-        prd_file.write_text(
-            json.dumps({
-                "userStories": [
-                    {"id": "US-001", "title": "Test"}
-                ]
-            })
-        )
+        prd_file.write_text(json.dumps({"userStories": [{"id": "US-001", "title": "Test"}]}))
 
         result = subprocess.run(
             [sys.executable, "main.py", "validate-federated", "--prd", str(prd_file)],

@@ -124,23 +124,20 @@ def validate_commits(
 
         # Flag squash-commit patterns (2+ distinct stories in one commit)
         if len(unique_ids) >= 2:
-            squash_patterns.append({
-                "commit": commit_hash,
-                "stories": unique_ids,
-            })
+            squash_patterns.append(
+                {
+                    "commit": commit_hash,
+                    "stories": unique_ids,
+                }
+            )
 
     # Orphans: passed stories with zero matching commits
-    orphans = sorted(
-        sid for sid, commits_list in stories_with_commits.items()
-        if len(commits_list) == 0
-    )
+    orphans = sorted(sid for sid, commits_list in stories_with_commits.items() if len(commits_list) == 0)
 
     return {
         "orphans": orphans,
         "squash_patterns": squash_patterns,
-        "stories_with_commits": {
-            sid: hashes for sid, hashes in stories_with_commits.items() if hashes
-        },
+        "stories_with_commits": {sid: hashes for sid, hashes in stories_with_commits.items() if hashes},
         "total_stories": len(passed_ids),
         "total_commits_scanned": len(commits),
     }

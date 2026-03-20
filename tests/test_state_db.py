@@ -221,13 +221,22 @@ def test_sync_from_files(tmp_path):
     undo_dir = spiral_dir / "undo"
     undo_dir.mkdir()
     (undo_dir / "US-400.jsonl").write_text(
-        json.dumps({"operation": "checkpoint", "target": "HEAD:abc", "inverse_command": "git reset --hard abc", "timestamp": "2026-03-18T11:00:00Z"}) + "\n"
+        json.dumps(
+            {
+                "operation": "checkpoint",
+                "target": "HEAD:abc",
+                "inverse_command": "git reset --hard abc",
+                "timestamp": "2026-03-18T11:00:00Z",
+            }
+        )
+        + "\n"
     )
 
     # calibration
     cal = tmp_path / "calibration.jsonl"
     cal.write_text(
-        json.dumps({"story_id": "US-400", "estimated_complexity": "small", "actual_duration_s": 100, "passed": True}) + "\n"
+        json.dumps({"story_id": "US-400", "estimated_complexity": "small", "actual_duration_s": 100, "passed": True})
+        + "\n"
     )
 
     db = StateDB(str(tmp_path))

@@ -24,9 +24,7 @@ def test_unauthenticated_returns_401_or_403() -> None:
     client = TestClient(app, raise_server_exceptions=False)
     for path in _PROTECTED_PATHS:
         response = client.get(path)
-        assert response.status_code in (401, 403), (
-            f"Expected 401/403 for {path}, got {response.status_code}"
-        )
+        assert response.status_code in (401, 403), f"Expected 401/403 for {path}, got {response.status_code}"
 
 
 def test_no_sensitive_data_in_error_response() -> None:
@@ -36,9 +34,7 @@ def test_no_sensitive_data_in_error_response() -> None:
     assert response.status_code in (401, 403)
     body = response.text.lower()
     for key in ("token", "password", "secret", "api_key", "anthropic"):
-        assert key not in body, (
-            f"Sensitive key '{key}' found in error response body: {body!r}"
-        )
+        assert key not in body, f"Sensitive key '{key}' found in error response body: {body!r}"
 
 
 def test_health_endpoint_requires_no_auth() -> None:

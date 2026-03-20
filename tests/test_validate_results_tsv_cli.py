@@ -118,8 +118,7 @@ def test_cli_output_file_written(tmp_path: Path) -> None:
     # Create a clean TSV
     tsv_file = tmp_path / "results.tsv"
     tsv_file.write_text(
-        "story_id\titeration\tattempt\ttoken_count\tphase_duration_ms\tmodel\n"
-        "US-001\t1\t1\t5000\t30000\thaiku\n",
+        "story_id\titeration\tattempt\ttoken_count\tphase_duration_ms\tmodel\nUS-001\t1\t1\t5000\t30000\thaiku\n",
     )
 
     # Create PRD

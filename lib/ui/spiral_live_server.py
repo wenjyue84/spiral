@@ -555,18 +555,22 @@ class SpiralLiveServer:
             with open(pressure_file, encoding="utf-8") as f:
                 data = json.load(f)
         except (OSError, json.JSONDecodeError):
-            await self._send_json(writer, 200, {
-                "watchdog_running": False,
-                "level": None,
-                "level_label": None,
-                "free_mb": None,
-                "total_mb": None,
-                "used_mb": None,
-                "free_pct": None,
-                "recommended_workers": None,
-                "per_worker_budget_mb": 1536,
-                "config_hints": ["Memory watchdog not running — start SPIRAL to enable monitoring"],
-            })
+            await self._send_json(
+                writer,
+                200,
+                {
+                    "watchdog_running": False,
+                    "level": None,
+                    "level_label": None,
+                    "free_mb": None,
+                    "total_mb": None,
+                    "used_mb": None,
+                    "free_pct": None,
+                    "recommended_workers": None,
+                    "per_worker_budget_mb": 1536,
+                    "config_hints": ["Memory watchdog not running — start SPIRAL to enable monitoring"],
+                },
+            )
             return
 
         # Check staleness via ts field
@@ -585,18 +589,22 @@ class SpiralLiveServer:
             stale = True
 
         if stale:
-            await self._send_json(writer, 200, {
-                "watchdog_running": False,
-                "level": data.get("level"),
-                "level_label": level_labels.get(data.get("level", -1)),
-                "free_mb": data.get("free_mb"),
-                "total_mb": data.get("total_mb"),
-                "used_mb": None,
-                "free_pct": None,
-                "recommended_workers": data.get("recommended_workers"),
-                "per_worker_budget_mb": 1536,
-                "config_hints": ["Memory watchdog data is stale (>120s) — watchdog may have stopped"],
-            })
+            await self._send_json(
+                writer,
+                200,
+                {
+                    "watchdog_running": False,
+                    "level": data.get("level"),
+                    "level_label": level_labels.get(data.get("level", -1)),
+                    "free_mb": data.get("free_mb"),
+                    "total_mb": data.get("total_mb"),
+                    "used_mb": None,
+                    "free_pct": None,
+                    "recommended_workers": data.get("recommended_workers"),
+                    "per_worker_budget_mb": 1536,
+                    "config_hints": ["Memory watchdog data is stale (>120s) — watchdog may have stopped"],
+                },
+            )
             return
 
         level = data.get("level", 0)
@@ -625,18 +633,22 @@ class SpiralLiveServer:
         if skip:
             hints.append(f"Phases skipped due to pressure: {', '.join(skip)}")
 
-        await self._send_json(writer, 200, {
-            "watchdog_running": True,
-            "level": level,
-            "level_label": level_labels.get(level, "Unknown"),
-            "free_mb": free_mb,
-            "total_mb": total_mb,
-            "used_mb": used_mb,
-            "free_pct": free_pct,
-            "recommended_workers": recommended_workers,
-            "per_worker_budget_mb": per_worker_budget,
-            "config_hints": hints,
-        })
+        await self._send_json(
+            writer,
+            200,
+            {
+                "watchdog_running": True,
+                "level": level,
+                "level_label": level_labels.get(level, "Unknown"),
+                "free_mb": free_mb,
+                "total_mb": total_mb,
+                "used_mb": used_mb,
+                "free_pct": free_pct,
+                "recommended_workers": recommended_workers,
+                "per_worker_budget_mb": per_worker_budget,
+                "config_hints": hints,
+            },
+        )
 
     async def _handle_research_sources(self, path: str, writer: asyncio.StreamWriter) -> None:
         """Return scored research sources from _research_output.json (US-548).

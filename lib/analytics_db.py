@@ -105,6 +105,7 @@ class AnalyticsDB:
                 if stories:
                     # Write stories as a temporary JSONL file for DuckDB to read
                     import tempfile
+
                     fd, tmp_jsonl = tempfile.mkstemp(suffix=".jsonl")
                     try:
                         with os.fdopen(fd, "w", encoding="utf-8") as fh:
@@ -205,7 +206,8 @@ class AnalyticsDB:
 
     def bottlenecks(self, top_n: int = 10) -> list[dict[str, Any]]:
         """Most-retried and longest-running stories."""
-        return self.query("""
+        return self.query(
+            """
             SELECT
                 story_id,
                 story_title,
@@ -217,7 +219,9 @@ class AnalyticsDB:
             GROUP BY story_id, story_title
             ORDER BY attempts DESC
             LIMIT ?
-        """, [top_n])
+        """,
+            [top_n],
+        )
 
     def cost_by_model(self) -> list[dict[str, Any]]:
         """Estimated cost breakdown by model tier."""
@@ -292,13 +296,20 @@ class AnalyticsDB:
         """JOIN stories with their latest result attempt."""
         # Check which columns exist in the stories table to handle optional fields
         try:
-            cols = {r[0] for r in self.con.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'stories'").fetchall()}
+            cols = {
+                r[0]
+                for r in self.con.execute(
+                    "SELECT column_name FROM information_schema.columns WHERE table_name = 'stories'"
+                ).fetchall()
+            }
         except Exception:
             cols = set()
 
         decomposed_col = 's."_decomposed" AS decomposed' if "_decomposed" in cols else "NULL AS decomposed"
         skipped_col = 's."_skipped" AS skipped' if "_skipped" in cols else "NULL AS skipped"
-        complexity_col = "s.estimatedComplexity AS complexity" if "estimatedComplexity" in cols else "NULL AS complexity"
+        complexity_col = (
+            "s.estimatedComplexity AS complexity" if "estimatedComplexity" in cols else "NULL AS complexity"
+        )
 
         return self.query(f"""
             WITH latest AS (

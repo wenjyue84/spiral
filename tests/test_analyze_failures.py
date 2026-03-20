@@ -7,11 +7,8 @@ import io
 import json
 import os
 import sys
-import tempfile
 from contextlib import redirect_stdout
 from pathlib import Path
-
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 
@@ -47,7 +44,10 @@ def _make_row(
 def _write_results(path: Path, rows: list[dict[str, str]]) -> None:
     with open(str(path), "w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(
-            f, fieldnames=RESULTS_HEADER, delimiter="\t", extrasaction="ignore",
+            f,
+            fieldnames=RESULTS_HEADER,
+            delimiter="\t",
+            extrasaction="ignore",
         )
         writer.writeheader()
         writer.writerows(rows)
@@ -193,8 +193,7 @@ def test_analyzer_reads_log_files(tmp_path: Path) -> None:
 
     log_file = logs_dir / "phase-i-1.log"
     log_file.write_text(
-        "[2026-01-01T00:00:00Z] FAILURE_ROOT_CAUSE: api_rate_limit\n"
-        "  story_id=US-99 retry=1 reason=rate_limit\n",
+        "[2026-01-01T00:00:00Z] FAILURE_ROOT_CAUSE: api_rate_limit\n  story_id=US-99 retry=1 reason=rate_limit\n",
         encoding="utf-8",
     )
 

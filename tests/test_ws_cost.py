@@ -264,8 +264,9 @@ async def test_websocket_message_schema_validation() -> None:
         for idx, message in enumerate(ws.messages):
             # Validate required fields
             required_fields = {"story_id", "cost_delta", "timestamp"}
-            assert required_fields.issubset(set(message.keys())), \
+            assert required_fields.issubset(set(message.keys())), (
                 f"Message {idx} missing required fields. Got: {message.keys()}"
+            )
 
             # Validate field types
             assert isinstance(message["story_id"], str)
@@ -366,6 +367,4 @@ def test_ws_security_no_sensitive_data_in_error(monkeypatch: Any) -> None:
         # Verify no sensitive keys appear in the error
         sensitive_keys = ["token", "password", "key", "secret", "api_key"]
         for key in sensitive_keys:
-            assert key not in error_msg, (
-                f"Error message leaked sensitive key '{key}': {error_msg}"
-            )
+            assert key not in error_msg, f"Error message leaked sensitive key '{key}': {error_msg}"

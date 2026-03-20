@@ -18,7 +18,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from lib.budget_analyzer import check_budget_gate, estimate_pending_story_cost
+from lib.budget_analyzer import check_budget_gate
 from lib.rollback_story import rollback_story
 
 # ---------------------------------------------------------------------------
@@ -108,9 +108,7 @@ class TestBudgetGateBlocking:
                 results_tsv=results_path,
                 cost_ceiling_usd=float(ceiling),
             )
-            assert result["would_exceed"] is False, (
-                f"ceiling={ceiling} should be treated as disabled, not blocking"
-            )
+            assert result["would_exceed"] is False, f"ceiling={ceiling} should be treated as disabled, not blocking"
 
     def test_monkeypatched_estimator_with_env_ceiling_forces_breach(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -287,9 +285,7 @@ class TestSkipPathBlocksImplementation:
         # The shell translates would_exceed=True + user_input=skip into _BUDGET_GATE_SKIP=1.
         # No story_id is ever passed to the Ralph worker while the skip flag is set.
 
-    def test_no_bypass_when_current_spend_plus_pending_exceeds_ceiling(
-        self, tmp_path: Path
-    ) -> None:
+    def test_no_bypass_when_current_spend_plus_pending_exceeds_ceiling(self, tmp_path: Path) -> None:
         """total_projected = current_spend + pending. Gate must fire when this exceeds ceiling."""
         prd_path = _make_prd(tmp_path)
 

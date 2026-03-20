@@ -74,9 +74,7 @@ def write_conflict_report(
     are included.  An empty list is written when there are no conflicts.
     """
     # Invert matrix: story_id -> {conflicting_story_ids} per conflicting file
-    conflict_files: dict[str, list[str]] = {
-        fpath: owners for fpath, owners in matrix.items() if len(owners) >= 2
-    }
+    conflict_files: dict[str, list[str]] = {fpath: owners for fpath, owners in matrix.items() if len(owners) >= 2}
 
     # Build per-story records
     story_records: dict[str, dict[str, Any]] = {}

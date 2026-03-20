@@ -329,9 +329,7 @@ class MockClaudeClient:
             "id": "msg_12345",
             "type": "message",
             "role": "assistant",
-            "content": [
-                {"type": "text", "text": json.dumps(self.response_data)}
-            ],
+            "content": [{"type": "text", "text": json.dumps(self.response_data)}],
             "model": kwargs.get("model", "claude-3-5-sonnet-20241022"),
             "stop_reason": "end_turn",
             "usage": {"input_tokens": 150, "output_tokens": 200},

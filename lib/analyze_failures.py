@@ -32,11 +32,25 @@ from typing import Any
 # ── Pattern registry ──────────────────────────────────────────────────────────
 
 _PATTERNS: list[tuple[str, re.Pattern[str]]] = [
-    ("scope_exceeded", re.compile(r"exceeds.*max_tokens|max_tokens.*exceed|context.?length|token.?limit|context.?window", re.IGNORECASE)),
+    (
+        "scope_exceeded",
+        re.compile(
+            r"exceeds.*max_tokens|max_tokens.*exceed|context.?length|token.?limit|context.?window", re.IGNORECASE
+        ),
+    ),
     ("api_rate_limit", re.compile(r"rate.?limit|ratelimit|429|quota.?exceeded|too.?many.?requests", re.IGNORECASE)),
-    ("type_error", re.compile(r"\bTypeError\b|\bImportError\b|\bSyntaxError\b|\bAttributeError\b|\bNameError\b", re.IGNORECASE)),
+    (
+        "type_error",
+        re.compile(r"\bTypeError\b|\bImportError\b|\bSyntaxError\b|\bAttributeError\b|\bNameError\b", re.IGNORECASE),
+    ),
     ("validation_timeout", re.compile(r"timed?\s+out|TimeoutError|timeout.*expired|deadline.?exceeded", re.IGNORECASE)),
-    ("model_capability_gap", re.compile(r"model.{0,20}not.{0,20}capable|unsupported.{0,20}model|capability.{0,20}gap|beyond.{0,20}model", re.IGNORECASE)),
+    (
+        "model_capability_gap",
+        re.compile(
+            r"model.{0,20}not.{0,20}capable|unsupported.{0,20}model|capability.{0,20}gap|beyond.{0,20}model",
+            re.IGNORECASE,
+        ),
+    ),
 ]
 
 
@@ -120,10 +134,12 @@ class FailureAnalyzer:
             root_cause = (row.get("failure_root_cause") or "").strip()
             if not root_cause:
                 # Derive from available text fields
-                candidate_text = " ".join([
-                    row.get("story_title", ""),
-                    row.get("status", ""),
-                ])
+                candidate_text = " ".join(
+                    [
+                        row.get("story_title", ""),
+                        row.get("status", ""),
+                    ]
+                )
                 root_cause = categorize_text(candidate_text)
 
             by_category[root_cause] = by_category.get(root_cause, 0) + 1
@@ -171,28 +187,28 @@ class FailureAnalyzer:
         scope = by_category.get("scope_exceeded", 0)
         if scope / total > 0.30:
             recommendations.append(
-                f"scope_exceeded accounts for {scope}/{total} ({scope*100//total}%) failures. "
+                f"scope_exceeded accounts for {scope}/{total} ({scope * 100 // total}%) failures. "
                 "Lower SPIRAL_DECOMPOSE_THRESHOLD to split large stories earlier."
             )
 
         rate = by_category.get("api_rate_limit", 0)
         if rate / total > 0.20:
             recommendations.append(
-                f"api_rate_limit accounts for {rate}/{total} ({rate*100//total}%) failures. "
+                f"api_rate_limit accounts for {rate}/{total} ({rate * 100 // total}%) failures. "
                 "Consider increasing SPIRAL_RETRY_DELAY or adding jitter between API calls."
             )
 
         timeout = by_category.get("validation_timeout", 0)
         if timeout / total > 0.20:
             recommendations.append(
-                f"validation_timeout accounts for {timeout}/{total} ({timeout*100//total}%) failures. "
+                f"validation_timeout accounts for {timeout}/{total} ({timeout * 100 // total}%) failures. "
                 "Increase SPIRAL_VALIDATE_TIMEOUT or simplify SPIRAL_VALIDATE_CMD."
             )
 
         cap_gap = by_category.get("model_capability_gap", 0)
         if cap_gap / total > 0.20:
             recommendations.append(
-                f"model_capability_gap accounts for {cap_gap}/{total} ({cap_gap*100//total}%) failures. "
+                f"model_capability_gap accounts for {cap_gap}/{total} ({cap_gap * 100 // total}%) failures. "
                 "Use SPIRAL_MODEL_ROUTING=auto to escalate to a more capable model on retry."
             )
 

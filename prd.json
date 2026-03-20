@@ -2529,7 +2529,7 @@
       "passes": false,
       "_source": "test-story",
       "model": "haiku",
-      "last_attempted": "2026-03-20T10:19:13Z",
+      "last_attempted": "2026-03-20T10:43:52Z",
       "filesTouch": [
         ".claude/hooks/verify_story_acceptance.py",
         ".coverage",
@@ -2627,7 +2627,7 @@
       "estimatedComplexity": "medium",
       "passes": false,
       "_source": "ai-example",
-      "model": "haiku",
+      "model": "sonnet",
       "filesTouch": [
         ".hypothesis/constants/0144005a67236799",
         ".hypothesis/constants/0158f9921b55208e",
@@ -2669,6 +2669,72 @@
         "module-tests"
       ],
       "_passedCommit": "052f0e49a93abe005d353b5b850c17ec27b17b84"
+    },
+    {
+      "id": "US-597",
+      "title": "Phase I: File-Aware Retry Strategy — Only Re-Implement Failed Files",
+      "priority": "medium",
+      "description": "When a story fails during Phase I, track which files caused the failure. On retry, only re-implement those specific files to reduce token cost and iteration time.",
+      "acceptanceCriteria": [
+        "Phase I captures file-level failures from Ralph stderr via regex patterns, stores JSON array in results.tsv column `failed_files` (e.g., [\"src/main.py\", \"lib/utils.py\"])",
+        "Retry logic in lib/impl/retry.sh reads `failed_files` from previous attempt, passes to Ralph with `--files-only` flag to only re-implement those files",
+        "Integration test: 10-file story with mocked 3-file failures, verify retry processes only 3 files; token cost of retry ~30% of original"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet",
+      "filesTouch": [
+        ".claude/hooks/verify_story_acceptance.py",
+        ".coverage",
+        ".hypothesis/constants/0144005a67236799",
+        ".hypothesis/constants/016af87f794a90e9",
+        ".hypothesis/constants/01831d6f995783ed",
+        ".hypothesis/constants/044aa4a97dd3204b",
+        ".hypothesis/constants/06ee3234b07f7d66",
+        ".hypothesis/constants/087180ea5c6680fc",
+        ".hypothesis/constants/0ad243c8c6e11ffb",
+        ".hypothesis/constants/0dcb44a91ae6f1ae"
+      ],
+      "tags": [
+        "module-claude",
+        "module-hypothesis"
+      ]
+    },
+    {
+      "id": "US-598",
+      "title": "Dashboard: Real-Time Story Completion Throughput Trend — Hourly Metrics",
+      "priority": "medium",
+      "description": "Dashboard endpoint that tracks story completion throughput (stories passed per hour) over time. Identifies whether SPIRAL velocity is accelerating or degrading across iterations.",
+      "acceptanceCriteria": [
+        "GET /api/dashboard/throughput-trend reads results.tsv, groups stories by hour of `timestamp` field, returns JSON: [{\"hour\": \"2026-03-20T14:00Z\", \"stories_passed\": 3, \"avg_tokens_per_story\": 12000}]",
+        "Dashboard renders line chart with X-axis=time (hourly buckets), Y-axis=stories_passed/hour; includes trend baseline",
+        "Integration test: SPIRAL run populating results.tsv across 3 hours with 10 total stories, throughput-trend endpoint returns 3 hourly buckets; verifies counts sum to 10"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku",
+      "filesTouch": [
+        ".claude/hooks/verify_story_acceptance.py",
+        ".coverage",
+        ".hypothesis/constants/0144005a67236799",
+        ".hypothesis/constants/016af87f794a90e9",
+        ".hypothesis/constants/01831d6f995783ed",
+        ".hypothesis/constants/044aa4a97dd3204b",
+        ".hypothesis/constants/06ee3234b07f7d66",
+        ".hypothesis/constants/087180ea5c6680fc",
+        ".hypothesis/constants/0ad243c8c6e11ffb",
+        ".hypothesis/constants/0dcb44a91ae6f1ae"
+      ],
+      "tags": [
+        "module-claude",
+        "module-hypothesis"
+      ]
     }
   ]
 }

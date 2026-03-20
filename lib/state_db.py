@@ -214,9 +214,7 @@ class StateDB:
 
     def undo_exists(self, story_id: str) -> bool:
         """Check if undo entries exist for a story."""
-        row = self.con.execute(
-            "SELECT 1 FROM undo_log WHERE story_id = ? LIMIT 1", (story_id,)
-        ).fetchone()
+        row = self.con.execute("SELECT 1 FROM undo_log WHERE story_id = ? LIMIT 1", (story_id,)).fetchone()
         return row is not None
 
     def undo_story_ids(self) -> list[str]:
@@ -301,16 +299,12 @@ class StateDB:
             (story_id,),
         )
         self.con.commit()
-        row = self.con.execute(
-            "SELECT count FROM retry_counts WHERE story_id = ?", (story_id,)
-        ).fetchone()
+        row = self.con.execute("SELECT count FROM retry_counts WHERE story_id = ?", (story_id,)).fetchone()
         return row[0] if row else 1
 
     def get_retry_count(self, story_id: str) -> int:
         """Get retry count for a single story."""
-        row = self.con.execute(
-            "SELECT count FROM retry_counts WHERE story_id = ?", (story_id,)
-        ).fetchone()
+        row = self.con.execute("SELECT count FROM retry_counts WHERE story_id = ?", (story_id,)).fetchone()
         return row[0] if row else 0
 
     def get_retry_counts(self) -> dict[str, int]:
@@ -428,13 +422,15 @@ class StateDB:
                 (tier, median),
             )
             for row2 in cursor2.fetchall():
-                underestimated.append({
-                    "story_id": row2["story_id"],
-                    "estimated": tier,
-                    "actual_duration_s": row2["actual_duration_s"],
-                    "median_for_tier_s": median,
-                    "ratio": round(row2["actual_duration_s"] / median, 2),
-                })
+                underestimated.append(
+                    {
+                        "story_id": row2["story_id"],
+                        "estimated": tier,
+                        "actual_duration_s": row2["actual_duration_s"],
+                        "median_for_tier_s": median,
+                        "ratio": round(row2["actual_duration_s"] / median, 2),
+                    }
+                )
 
         # Pass rate
         pass_row = self.con.execute(

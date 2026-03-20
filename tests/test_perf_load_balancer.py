@@ -30,9 +30,7 @@ from worker_load_balancer import distribute_stories
 THRESHOLD_MS = 200
 
 
-def _generate_synthetic_stories(
-    count: int, random_seed: int = 42
-) -> list[dict[str, Any]]:
+def _generate_synthetic_stories(count: int, random_seed: int = 42) -> list[dict[str, Any]]:
     """Generate reproducible synthetic story data for benchmarking.
 
     Args:
@@ -61,7 +59,7 @@ def _generate_synthetic_stories(
 
         stories.append(
             {
-                "id": f"US-{i+1:04d}",
+                "id": f"US-{i + 1:04d}",
                 "estimated_tokens": tokens,
                 "dependencies": dep_ids,
             }
@@ -92,15 +90,11 @@ def test_distribute_stories_performance(story_count: int) -> None:
     elapsed_ms = elapsed_sec * 1000
 
     # Print timing for CI logs and analysis
-    print(
-        f"\n[PASS] Distributed {story_count} stories to {num_workers} workers in {elapsed_ms:.2f}ms"
-    )
+    print(f"\n[PASS] Distributed {story_count} stories to {num_workers} workers in {elapsed_ms:.2f}ms")
 
     # Verify assignment completeness
     assigned_story_count = sum(len(ids) for ids in assignment.values())
-    assert assigned_story_count == story_count, (
-        f"Expected {story_count} stories assigned, got {assigned_story_count}"
-    )
+    assert assigned_story_count == story_count, f"Expected {story_count} stories assigned, got {assigned_story_count}"
 
     # Verify all workers received assignments (fairness)
     non_empty_workers = sum(1 for ids in assignment.values() if ids)
@@ -131,10 +125,7 @@ def test_distribute_stories_load_fairness() -> None:
     This test uses a fixed set of story complexities to ensure
     reproducible fairness metrics across test runs.
     """
-    stories = [
-        {"id": f"US-{i:04d}", "estimated_tokens": (i % 10) * 400 + 100, "dependencies": []}
-        for i in range(20)
-    ]
+    stories = [{"id": f"US-{i:04d}", "estimated_tokens": (i % 10) * 400 + 100, "dependencies": []} for i in range(20)]
     num_workers = 4
 
     assignment = distribute_stories(stories, num_workers)
@@ -194,14 +185,10 @@ def test_distribute_stories_edge_cases() -> None:
     assert assignment[0] == ["US-0001"]
 
     # Test: more workers than stories
-    stories = [
-        {"id": f"US-{i:04d}", "estimated_tokens": 500, "dependencies": []} for i in range(3)
-    ]
+    stories = [{"id": f"US-{i:04d}", "estimated_tokens": 500, "dependencies": []} for i in range(3)]
     assignment = distribute_stories(stories, 5)
     assert len(assignment) == 5, "Should have 5 worker slots"
     assigned_count = sum(len(ids) for ids in assignment.values())
     assert assigned_count == 3, "Should have assigned all 3 stories"
 
-    print(
-        "\n[PASS] Edge cases passed: empty list, single story, more workers than stories"
-    )
+    print("\n[PASS] Edge cases passed: empty list, single story, more workers than stories")

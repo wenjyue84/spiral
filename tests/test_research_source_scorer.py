@@ -9,7 +9,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 
 from research_source_scorer import extract_sources, score_domain
 
-
 # ── score_domain tests ────────────────────────────────────────────────────────
 
 

@@ -233,12 +233,14 @@ def _diagnose(project_root: Path, scratch_dir: Path) -> list[dict[str, Any]]:
                     pid_info = ""
             except OSError:
                 pass
-            diags.append({
-                "severity": "warning",
-                "check": "stale_locks",
-                "message": f"Lock file found: {lf.name}{pid_info}",
-                "remediation": f"Delete {lf}" if "dead" in pid_info or not pid_info else "Wait for PID to finish",
-            })
+            diags.append(
+                {
+                    "severity": "warning",
+                    "check": "stale_locks",
+                    "message": f"Lock file found: {lf.name}{pid_info}",
+                    "remediation": f"Delete {lf}" if "dead" in pid_info or not pid_info else "Wait for PID to finish",
+                }
+            )
 
     # 2. Recent crash logs
     crash_dir = scratch_dir / "crashes"
@@ -248,24 +250,28 @@ def _diagnose(project_root: Path, scratch_dir: Path) -> list[dict[str, Any]]:
             latest = crashes[0]
             age_secs = time.time() - latest.stat().st_mtime
             if age_secs < 3600:  # Crashed in last hour
-                diags.append({
-                    "severity": "error",
-                    "check": "recent_crash",
-                    "message": f"Crash log found: {latest.name} ({round(age_secs)}s ago)",
-                    "remediation": f"Read {latest} for error details",
-                })
+                diags.append(
+                    {
+                        "severity": "error",
+                        "check": "recent_crash",
+                        "message": f"Crash log found: {latest.name} ({round(age_secs)}s ago)",
+                        "remediation": f"Read {latest} for error details",
+                    }
+                )
 
     # 3. Corrupt story titles (title == id)
     prd_path = project_root / "prd.json"
     stories = _load_prd(prd_path)
     corrupt_count = sum(1 for s in stories if s.get("title") == s.get("id") and not s.get("passes"))
     if corrupt_count > 0:
-        diags.append({
-            "severity": "warning",
-            "check": "corrupt_titles",
-            "message": f"{corrupt_count} pending stories have title == id",
-            "remediation": "Manually fix story titles in prd.json",
-        })
+        diags.append(
+            {
+                "severity": "warning",
+                "check": "corrupt_titles",
+                "message": f"{corrupt_count} pending stories have title == id",
+                "remediation": "Manually fix story titles in prd.json",
+            }
+        )
 
     # 4. Uncommitted config changes
     config_path = project_root / "spiral.config.sh"
@@ -279,12 +285,14 @@ def _diagnose(project_root: Path, scratch_dir: Path) -> list[dict[str, Any]]:
                 timeout=5,
             )
             if "spiral.config.sh" in result.stdout:
-                diags.append({
-                    "severity": "info",
-                    "check": "uncommitted_config",
-                    "message": "spiral.config.sh has uncommitted changes",
-                    "remediation": "Commit config or auto-stash will keep reverting it",
-                })
+                diags.append(
+                    {
+                        "severity": "info",
+                        "check": "uncommitted_config",
+                        "message": "spiral.config.sh has uncommitted changes",
+                        "remediation": "Commit config or auto-stash will keep reverting it",
+                    }
+                )
         except (subprocess.TimeoutExpired, OSError):
             pass
 
@@ -322,8 +330,14 @@ def run_monitor(*, project_root: Path, ui_port: int = 5299) -> dict[str, Any]:
         status = _check_stories(project_root)
     except Exception:
         status = {
-            "run_id": "", "iteration": 0, "total": 0, "passed": 0,
-            "pending": 0, "in_progress": 0, "skipped": 0, "failed": 0,
+            "run_id": "",
+            "iteration": 0,
+            "total": 0,
+            "passed": 0,
+            "pending": 0,
+            "in_progress": 0,
+            "skipped": 0,
+            "failed": 0,
             "pass_pct": 0.0,
         }
 
@@ -331,8 +345,11 @@ def run_monitor(*, project_root: Path, ui_port: int = 5299) -> dict[str, Any]:
         delta = _check_delta(status["passed"], state_path)
     except Exception:
         delta = {
-            "previous": 0, "current": status.get("passed", 0),
-            "new_passed": 0, "stalled": False, "last_check": "",
+            "previous": 0,
+            "current": status.get("passed", 0),
+            "new_passed": 0,
+            "stalled": False,
+            "last_check": "",
         }
 
     try:

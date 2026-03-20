@@ -3145,7 +3145,10 @@ def main():
     )
     monitor_parser.add_argument("--port", type=int, default=5299)
     monitor_parser.add_argument(
-        "--no-json", dest="json", action="store_false", default=True,
+        "--no-json",
+        dest="json",
+        action="store_false",
+        default=True,
     )
 
     args = parser.parse_args()
@@ -3254,10 +3257,8 @@ def cmd_monitor(args: argparse.Namespace) -> None:
         delta = result.get("delta", {})
         attn = "YES" if result.get("needs_attention") else "no"
         print(f"SPIRAL Monitor - {result.get('timestamp', '?')}")
-        print(f"  Passed: {status.get('passed', 0)} / {status.get('total', 0)}"
-              f" ({status.get('pass_pct', 0)}%)")
-        print(f"  New since last check: +{delta.get('new_passed', 0)}"
-              f" (was {delta.get('previous', 0)})")
+        print(f"  Passed: {status.get('passed', 0)} / {status.get('total', 0)} ({status.get('pass_pct', 0)}%)")
+        print(f"  New since last check: +{delta.get('new_passed', 0)} (was {delta.get('previous', 0)})")
         print(f"  Stalled: {delta.get('stalled', False)}")
         print(f"  Run health: {'running' if result.get('run_health', {}).get('running') else 'STOPPED'}")
         print(f"  UI: {'up' if result.get('ui_health', {}).get('reachable') else 'DOWN'}")

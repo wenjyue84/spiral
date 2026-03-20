@@ -14,17 +14,12 @@ Acceptance Criteria:
 - Re-running test produces latency within 20% of first run (stability check)
 """
 
-import csv
 import json
 import os
 import sys
-import tempfile
 import time
-from datetime import datetime
 from pathlib import Path
 from typing import Any
-
-import pytest
 
 # Add lib/ to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
@@ -284,7 +279,7 @@ def test_heartbeat_multiple_workers_stale_detection(tmp_path: Path, monkeypatch:
     assert workers_by_id["worker-2"]["state"] == "alive", "worker-2 should be alive"
     assert workers_by_id["worker-3"]["state"] == "alive", "worker-3 should be alive (borderline but not past)"
 
-    print(f"\n✓ Mixed state detection correct:")
+    print("\n✓ Mixed state detection correct:")
     print(f"  worker-1: {workers_by_id['worker-1']['state']} (stale)")
     print(f"  worker-2: {workers_by_id['worker-2']['state']} (fresh)")
     print(f"  worker-3: {workers_by_id['worker-3']['state']} (borderline)")

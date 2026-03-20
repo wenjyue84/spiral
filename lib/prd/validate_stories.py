@@ -581,7 +581,9 @@ def validate_stories(
 
     # Batch summary for empty technicalNotes (instead of per-story spam)
     if _empty_tech_notes_count > 0:
-        print(f"  [S] WARNING: {_empty_tech_notes_count} stories have empty technicalNotes (Phase E enrichment will fill these)")
+        print(
+            f"  [S] WARNING: {_empty_tech_notes_count} stories have empty technicalNotes (Phase E enrichment will fill these)"
+        )
 
     # Write outputs
     atomic_write_json(validated_out, {"stories": accepted})

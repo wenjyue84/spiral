@@ -82,19 +82,15 @@ def test_validate_detects_all_anomalies(temp_dir: str):
     assert "Duplicate" in errors_text, f"Expected duplicate detection. Got: {errors_text}"
 
     # Check 3: token_count violations
-    assert ("10" in errors_text or "outside" in errors_text), f"Expected token_count error. Got: {errors_text}"
-    assert ("600000" in errors_text or "outside" in errors_text), f"Expected token_count error. Got: {errors_text}"
+    assert "10" in errors_text or "outside" in errors_text, f"Expected token_count error. Got: {errors_text}"
+    assert "600000" in errors_text or "outside" in errors_text, f"Expected token_count error. Got: {errors_text}"
 
     # Check 4: phase_duration_ms violations
-    assert ("50" in errors_text or "outside" in errors_text), (
-        f"Expected phase_duration_ms error. Got: {errors_text}"
-    )
-    assert ("700000" in errors_text or "outside" in errors_text), (
-        f"Expected phase_duration_ms error. Got: {errors_text}"
-    )
+    assert "50" in errors_text or "outside" in errors_text, f"Expected phase_duration_ms error. Got: {errors_text}"
+    assert "700000" in errors_text or "outside" in errors_text, f"Expected phase_duration_ms error. Got: {errors_text}"
 
     # Check 5: model not in {haiku, sonnet, opus}
-    assert ("unknown_model" in errors_text or "not in" in errors_text), f"Expected model error. Got: {errors_text}"
+    assert "unknown_model" in errors_text or "not in" in errors_text, f"Expected model error. Got: {errors_text}"
 
     # Verify counts
     assert result["total_rows_checked"] == 8

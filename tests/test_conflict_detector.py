@@ -7,7 +7,6 @@ Extended with integration tests for US-545:
 
 from __future__ import annotations
 
-import csv
 import json
 import os
 import subprocess
@@ -45,6 +44,7 @@ def _run_phase_m(prd_path: str, tmp_path: Path) -> subprocess.CompletedProcess:
         text=True,
         env=env,
     )
+
 
 # ── Fixtures ───────────────────────────────────────────────────────────────────
 

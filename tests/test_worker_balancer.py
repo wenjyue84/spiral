@@ -146,16 +146,11 @@ class TestFairnessMetric:
         active_loads = [v for v in loads.values() if v > 0]
         assert len(active_loads) == 4, "All workers should have load > 0"
         ratio = max(active_loads) / min(active_loads)
-        assert ratio < 1.20, (
-            f"Load variance too high: max/min = {ratio:.3f} (loads: {loads})"
-        )
+        assert ratio < 1.20, f"Load variance too high: max/min = {ratio:.3f} (loads: {loads})"
 
     def test_equal_complexity_stories_perfect_balance(self) -> None:
         """Identical stories should be evenly distributed."""
-        stories = [
-            _make_story(f"US-{i:03d}", description="same words same words")
-            for i in range(8)
-        ]
+        stories = [_make_story(f"US-{i:03d}", description="same words same words") for i in range(8)]
         prd = _make_prd(stories)
         result = assign_stories_to_workers(stories, num_workers=4, prd=prd)
 

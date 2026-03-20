@@ -278,52 +278,70 @@ class TestDiagnose:
 
 class TestNeedsAttention:
     def test_all_green(self) -> None:
-        assert monitor._needs_attention(
-            {"stalled": False},
-            {"running": True},
-            {"reachable": True},
-            [],
-        ) is False
+        assert (
+            monitor._needs_attention(
+                {"stalled": False},
+                {"running": True},
+                {"reachable": True},
+                [],
+            )
+            is False
+        )
 
     def test_stalled(self) -> None:
-        assert monitor._needs_attention(
-            {"stalled": True},
-            {"running": True},
-            {"reachable": True},
-            [],
-        ) is True
+        assert (
+            monitor._needs_attention(
+                {"stalled": True},
+                {"running": True},
+                {"reachable": True},
+                [],
+            )
+            is True
+        )
 
     def test_not_running(self) -> None:
-        assert monitor._needs_attention(
-            {"stalled": False},
-            {"running": False},
-            {"reachable": True},
-            [],
-        ) is True
+        assert (
+            monitor._needs_attention(
+                {"stalled": False},
+                {"running": False},
+                {"reachable": True},
+                [],
+            )
+            is True
+        )
 
     def test_ui_down(self) -> None:
-        assert monitor._needs_attention(
-            {"stalled": False},
-            {"running": True},
-            {"reachable": False},
-            [],
-        ) is True
+        assert (
+            monitor._needs_attention(
+                {"stalled": False},
+                {"running": True},
+                {"reachable": False},
+                [],
+            )
+            is True
+        )
 
     def test_error_diagnostic(self) -> None:
-        assert monitor._needs_attention(
-            {"stalled": False},
-            {"running": True},
-            {"reachable": True},
-            [{"severity": "error", "check": "crash", "message": "boom"}],
-        ) is True
+        assert (
+            monitor._needs_attention(
+                {"stalled": False},
+                {"running": True},
+                {"reachable": True},
+                [{"severity": "error", "check": "crash", "message": "boom"}],
+            )
+            is True
+        )
 
     def test_warning_only_ok(self) -> None:
-        assert monitor._needs_attention(
-            {"stalled": False},
-            {"running": True},
-            {"reachable": True},
-            [{"severity": "warning", "check": "stale_locks", "message": "lock"}],
-        ) is False
+        assert (
+            monitor._needs_attention(
+                {"stalled": False},
+                {"running": True},
+                {"reachable": True},
+                [{"severity": "warning", "check": "stale_locks", "message": "lock"}],
+            )
+            is False
+        )
 
 
 # ── TestRunMonitor (integration) ─────────────────────────────────────────
@@ -345,8 +363,10 @@ class TestRunMonitor:
         mock_resp.status = 200
         mock_resp.__enter__ = MagicMock(return_value=mock_resp)
         mock_resp.__exit__ = MagicMock(return_value=False)
-        with patch("monitor.urllib.request.urlopen", return_value=mock_resp), \
-             patch("monitor.subprocess.run") as mock_run:
+        with (
+            patch("monitor.urllib.request.urlopen", return_value=mock_resp),
+            patch("monitor.subprocess.run") as mock_run,
+        ):
             mock_run.return_value = MagicMock(stdout="", returncode=0)
             result = monitor.run_monitor(project_root=tmp_path, ui_port=5299)
 
@@ -370,8 +390,10 @@ class TestRunMonitor:
         mock_resp.status = 200
         mock_resp.__enter__ = MagicMock(return_value=mock_resp)
         mock_resp.__exit__ = MagicMock(return_value=False)
-        with patch("monitor.urllib.request.urlopen", return_value=mock_resp), \
-             patch("monitor.subprocess.run") as mock_run:
+        with (
+            patch("monitor.urllib.request.urlopen", return_value=mock_resp),
+            patch("monitor.subprocess.run") as mock_run,
+        ):
             mock_run.return_value = MagicMock(stdout="", returncode=0)
             monitor.run_monitor(project_root=tmp_path, ui_port=5299)
 
@@ -383,8 +405,7 @@ class TestRunMonitor:
 
     def test_never_raises_on_missing_everything(self, tmp_path: Path) -> None:
         """run_monitor must not raise even with no files at all."""
-        with patch("monitor.urllib.request.urlopen",
-                    side_effect=urllib.error.URLError("nope")):
+        with patch("monitor.urllib.request.urlopen", side_effect=urllib.error.URLError("nope")):
             result = monitor.run_monitor(project_root=tmp_path, ui_port=9999)
         assert result["schema"] == "monitor-v1"
         assert result["status"]["total"] == 0

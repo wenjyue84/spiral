@@ -124,9 +124,7 @@ def validate(tsv_path: str, prd_path: str) -> ValidationResult:
         # Check 2: Detect duplicate (story_id, iteration, attempt) tuples
         tuple_key = (story_id, iteration, attempt)
         if tuple_key in seen_tuples:
-            errors.append(
-                f"Duplicate row: story_id='{story_id}', iteration='{iteration}', attempt='{attempt}'"
-            )
+            errors.append(f"Duplicate row: story_id='{story_id}', iteration='{iteration}', attempt='{attempt}'")
         else:
             if story_id and iteration and attempt:
                 seen_tuples.add(tuple_key)

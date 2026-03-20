@@ -22,12 +22,12 @@ from typing import Any
 from pydantic import ValidationError
 
 sys.path.insert(0, os.path.dirname(__file__))
+from conflict_detector import detect_conflicts
 from llm_models import ResearchOutput, log_validation_error
 from merge_results_tsv import HEADER as RESULTS_HEADER
 from prd_schema import validate_prd
 from spiral_io import atomic_write_json, configure_utf8_stdout
 from story_helpers import priority_key
-from conflict_detector import detect_conflicts
 from txn_journal import TxnJournal
 
 configure_utf8_stdout()

@@ -50,15 +50,13 @@ def test_no_sensitive_data_in_error(auth_client: TestClient) -> None:
     body = response.text.lower()
     sensitive_patterns = [
         r"bearer\s+[a-z0-9_\-]+",  # Bearer tokens
-        r"password",                 # Password references
-        r"api[_\-]?key\s*=",        # API key assignments
-        r"secret",                   # Secret references
-        r"anthropic",                # Provider name (reveals auth system)
+        r"password",  # Password references
+        r"api[_\-]?key\s*=",  # API key assignments
+        r"secret",  # Secret references
+        r"anthropic",  # Provider name (reveals auth system)
     ]
     for pattern in sensitive_patterns:
-        assert not re.search(pattern, body), (
-            f"Error response leaked sensitive pattern '{pattern}': {body!r}"
-        )
+        assert not re.search(pattern, body), f"Error response leaked sensitive pattern '{pattern}': {body!r}"
 
 
 def test_health_endpoint_bypasses_auth(auth_client: TestClient) -> None:
@@ -83,6 +81,4 @@ def test_error_body_no_api_key_value(auth_client: TestClient) -> None:
     """The actual API key value must never appear in any error response."""
     response = auth_client.get("/profile")
     assert response.status_code in (401, 403)
-    assert _TEST_KEY not in response.text, (
-        f"API key value leaked in error response: {response.text!r}"
-    )
+    assert _TEST_KEY not in response.text, f"API key value leaked in error response: {response.text!r}"

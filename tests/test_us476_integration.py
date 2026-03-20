@@ -6,9 +6,8 @@ error handling (rate limits, malformed responses).
 """
 
 import json
-import sys
 import os
-from typing import Dict, Any
+import sys
 
 import pytest
 
@@ -18,7 +17,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 
 # Import MockClaudeClient from conftest
 from conftest import MockClaudeClient
-
 
 # ── Test: Happy Path - Mock Claude Research Phase ──────────────────────────────
 
@@ -101,7 +99,7 @@ def test_mock_research_phase_happy_path(mock_claude_client):
         assert "description" in story, f"Story {story.get('id')} missing 'description' field"
         assert "priority" in story, f"Story {story.get('id')} missing 'priority' field"
         assert "source" in story, f"Story {story.get('id')} missing 'source' field"
-        assert story.get("_source") == "research", f"Story should have _source=research"
+        assert story.get("_source") == "research", "Story should have _source=research"
         assert "acceptanceCriteria" in story, f"Story {story.get('id')} missing 'acceptanceCriteria'"
 
     # Verify stories match what we provided

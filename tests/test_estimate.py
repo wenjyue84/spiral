@@ -99,9 +99,7 @@ def test_velocity_model_from_results_tsv(tmp_path: Path) -> None:
     # TOKENS_PER_SEC_OUTPUT = 20, INPUT_OUTPUT_RATIO = 3.0
     # tokens = 13.0 * 20 * (1 + 3.0) = 260 * 4 = 1040
     assert mean_tokens > 0, "mean_tokens should be derived from synthetic TSV, not zero"
-    assert 900 < mean_tokens < 1200, (
-        f"mean_tokens {mean_tokens} not in expected range for 13s avg duration"
-    )
+    assert 900 < mean_tokens < 1200, f"mean_tokens {mean_tokens} not in expected range for 13s avg duration"
 
     # 3. Verify test is sensitive to velocity model removal
     # We test this by verifying that an empty results.tsv file would fail the row_count assertion

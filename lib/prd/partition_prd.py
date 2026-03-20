@@ -187,7 +187,8 @@ def assign_stories(
                     cid = candidate["id"]
                     # Check pending dependency constraint
                     deps_in_bucket = [
-                        d for d in candidate.get("dependencies", [])
+                        d
+                        for d in candidate.get("dependencies", [])
                         if d in pending_ids and d in {s["id"] for s in buckets[src]} and d != cid
                     ]
                     if deps_in_bucket:

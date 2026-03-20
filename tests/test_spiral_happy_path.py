@@ -13,13 +13,10 @@ import sys
 from pathlib import Path
 from typing import Any
 
-import pytest
-
 # Ensure lib/ is importable
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 
 from state_machine import SpiralPhaseStateMachine
-
 
 # The expected complete SPIRAL phase sequence for one iteration
 EXPECTED_PHASE_SEQUENCE = ["R", "T", "S", "M", "I", "V", "C"]
@@ -108,9 +105,7 @@ class TestFullLoopRtoC:
         # Verify: Story marked as done (passes=true)
         final_prd = json.loads(prd_path.read_text(encoding="utf-8"))
         assert len(final_prd["userStories"]) == 1
-        assert final_prd["userStories"][0]["passes"] is True, (
-            "Story must have passes=true after Phase I completion"
-        )
+        assert final_prd["userStories"][0]["passes"] is True, "Story must have passes=true after Phase I completion"
 
     def test_phase_sequence_validation(self) -> None:
         """AC2: State machine validates phase sequence strictly.
@@ -127,9 +122,7 @@ class TestFullLoopRtoC:
         assert sm.current == "C", "Must reach phase C"
 
         # Verify sequence recorded
-        assert sm.current in set(EXPECTED_PHASE_SEQUENCE), (
-            f"Final phase {sm.current} must be in expected sequence"
-        )
+        assert sm.current in set(EXPECTED_PHASE_SEQUENCE), f"Final phase {sm.current} must be in expected sequence"
 
     def test_full_loop_fails_without_phase_i(self, tmp_path: Path) -> None:
         """AC3: Test fails if Phase I is stubbed/unavailable.

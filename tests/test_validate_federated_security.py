@@ -21,7 +21,9 @@ PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "lib" / "commands"))
 
 # Skip entire test module if validate_federated is not present (US-514 dependency)
-pytest.importorskip("validate_federated", reason="lib/commands/validate_federated.py not found — US-514 must be merged first")
+pytest.importorskip(
+    "validate_federated", reason="lib/commands/validate_federated.py not found — US-514 must be merged first"
+)
 
 
 def _run_cli(prd_path: Path, env: dict | None = None) -> subprocess.CompletedProcess:
@@ -66,9 +68,7 @@ class TestPathTraversalRejection:
         except json.JSONDecodeError:
             pytest.fail(f"stdout is not valid JSON:\n{result.stdout[:500]}")
         # Must report a validation failure (not silently pass)
-        assert report.get("valid") is False or "error" in report, (
-            f"Report must indicate failure, got: {report}"
-        )
+        assert report.get("valid") is False or "error" in report, f"Report must indicate failure, got: {report}"
 
     def test_path_traversal_id_error_message_is_safe(self, tmp_path: Path) -> None:
         """Error message for path-traversal ID must not echo sensitive path components."""
@@ -103,9 +103,7 @@ class TestNoSecretLeakage:
         """JSON report must not contain ANTHROPIC_API_KEY, GITHUB_TOKEN, or secret env vars."""
         prd_data = {
             "schemaVersion": 1,
-            "userStories": [
-                {"id": "repo-a:US-001", "title": "Normal story", "passes": False}
-            ],
+            "userStories": [{"id": "repo-a:US-001", "title": "Normal story", "passes": False}],
         }
         prd_file = tmp_path / "prd.json"
         prd_file.write_text(json.dumps(prd_data), encoding="utf-8")

@@ -181,9 +181,7 @@ def test_dashboard_aggregation_threshold(
     assert isinstance(threshold_metrics["escalation_count"], int)
 
     # FAIL if degradation exceeds 20%
-    assert (
-        degradation_pct <= 20.0
-    ), f"Aggregation latency degraded {degradation_pct:.1f}% (exceeds 20% threshold)"
+    assert degradation_pct <= 20.0, f"Aggregation latency degraded {degradation_pct:.1f}% (exceeds 20% threshold)"
 
 
 def test_dashboard_aggregation_metrics_reported(

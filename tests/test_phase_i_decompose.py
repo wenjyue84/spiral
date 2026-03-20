@@ -154,8 +154,7 @@ def test_decompose_creates_dependency_chain(decompose_setup: Path) -> None:
     sub_stories = [s for s in prd["userStories"] if s.get("_decomposedFrom") == "US-100"]
 
     assert len(sub_stories) == 4, (
-        f"Expected 4 sub-stories decomposed from US-100, got {len(sub_stories)}: "
-        f"{[s['id'] for s in sub_stories]}"
+        f"Expected 4 sub-stories decomposed from US-100, got {len(sub_stories)}: {[s['id'] for s in sub_stories]}"
     )
 
     child_ids = [s["id"] for s in sub_stories]
@@ -168,10 +167,7 @@ def test_decompose_creates_dependency_chain(decompose_setup: Path) -> None:
     # Each subsequent child must depend on the previous one
     for i in range(1, 4):
         deps = sub_stories[i].get("dependencies", [])
-        assert child_ids[i - 1] in deps, (
-            f"{child_ids[i]} must depend on {child_ids[i - 1]}, "
-            f"but dependencies={deps}"
-        )
+        assert child_ids[i - 1] in deps, f"{child_ids[i]} must depend on {child_ids[i - 1]}, but dependencies={deps}"
 
 
 def test_decompose_marks_parent_status(decompose_setup: Path) -> None:
@@ -192,21 +188,15 @@ def test_decompose_marks_parent_status(decompose_setup: Path) -> None:
     assert parent.get("_decomposed") is True, (
         f"Parent US-100 must have _decomposed=True, got: {parent.get('_decomposed')}"
     )
-    assert "_decomposedInto" in parent, (
-        "Parent US-100 must have _decomposedInto field listing child IDs"
-    )
+    assert "_decomposedInto" in parent, "Parent US-100 must have _decomposedInto field listing child IDs"
 
     child_ids = parent["_decomposedInto"]
-    assert len(child_ids) == 4, (
-        f"Expected 4 entries in _decomposedInto, got {len(child_ids)}: {child_ids}"
-    )
+    assert len(child_ids) == 4, f"Expected 4 entries in _decomposedInto, got {len(child_ids)}: {child_ids}"
 
     # Each listed child must actually exist in prd.json
     all_ids = {s["id"] for s in prd["userStories"]}
     for cid in child_ids:
-        assert cid in all_ids, (
-            f"Child ID {cid} listed in _decomposedInto but not found in prd.json"
-        )
+        assert cid in all_ids, f"Child ID {cid} listed in _decomposedInto but not found in prd.json"
 
 
 def test_decompose_children_state(decompose_setup: Path) -> None:
@@ -224,10 +214,7 @@ def test_decompose_children_state(decompose_setup: Path) -> None:
     prd = json.loads(prd_path.read_text(encoding="utf-8"))
     sub_stories = [s for s in prd["userStories"] if s.get("_decomposedFrom") == "US-100"]
 
-    assert len(sub_stories) == 4, (
-        f"Expected 4 sub-stories with _decomposedFrom='US-100', "
-        f"got {len(sub_stories)}"
-    )
+    assert len(sub_stories) == 4, f"Expected 4 sub-stories with _decomposedFrom='US-100', got {len(sub_stories)}"
 
     for story in sub_stories:
         sid = story["id"]
@@ -235,10 +222,7 @@ def test_decompose_children_state(decompose_setup: Path) -> None:
         assert story["_decomposedFrom"] == "US-100", (
             f"{sid}: _decomposedFrom should be 'US-100', got {story['_decomposedFrom']!r}"
         )
-        assert story["passes"] is False, (
-            f"{sid}: passes should be False (story not yet implemented)"
-        )
+        assert story["passes"] is False, f"{sid}: passes should be False (story not yet implemented)"
         assert story["estimatedComplexity"] == "small", (
-            f"{sid}: estimatedComplexity should be 'small', "
-            f"got {story['estimatedComplexity']!r}"
+            f"{sid}: estimatedComplexity should be 'small', got {story['estimatedComplexity']!r}"
         )

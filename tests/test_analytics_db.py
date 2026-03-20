@@ -32,32 +32,48 @@ def project_dir(tmp_path):
     # spiral_events.jsonl
     events = spiral_dir / "spiral_events.jsonl"
     events.write_text(
-        json.dumps({"ts": "2026-03-18T10:00:00Z", "event": "phase_start", "phase": "R"}) + "\n"
-        + json.dumps({"ts": "2026-03-18T10:01:00Z", "event": "phase_end", "phase": "R"}) + "\n"
-        + json.dumps({"ts": "2026-03-18T10:02:00Z", "event": "route_story_assigned", "story_id": "US-001", "model_tier": "sonnet"}) + "\n"
-        + json.dumps({"ts": "2026-03-18T10:03:00Z", "event": "phase_start", "phase": "I"}) + "\n",
+        json.dumps({"ts": "2026-03-18T10:00:00Z", "event": "phase_start", "phase": "R"})
+        + "\n"
+        + json.dumps({"ts": "2026-03-18T10:01:00Z", "event": "phase_end", "phase": "R"})
+        + "\n"
+        + json.dumps(
+            {
+                "ts": "2026-03-18T10:02:00Z",
+                "event": "route_story_assigned",
+                "story_id": "US-001",
+                "model_tier": "sonnet",
+            }
+        )
+        + "\n"
+        + json.dumps({"ts": "2026-03-18T10:03:00Z", "event": "phase_start", "phase": "I"})
+        + "\n",
         encoding="utf-8",
     )
 
     # calibration.jsonl
     cal = tmp_path / "calibration.jsonl"
     cal.write_text(
-        json.dumps({"story_id": "US-001", "estimated_complexity": "small", "actual_duration_s": 120, "passed": True}) + "\n"
-        + json.dumps({"story_id": "US-002", "estimated_complexity": "small", "actual_duration_s": 150, "passed": True}) + "\n"
-        + json.dumps({"story_id": "US-003", "estimated_complexity": "medium", "actual_duration_s": 200, "passed": True}) + "\n",
+        json.dumps({"story_id": "US-001", "estimated_complexity": "small", "actual_duration_s": 120, "passed": True})
+        + "\n"
+        + json.dumps({"story_id": "US-002", "estimated_complexity": "small", "actual_duration_s": 150, "passed": True})
+        + "\n"
+        + json.dumps({"story_id": "US-003", "estimated_complexity": "medium", "actual_duration_s": 200, "passed": True})
+        + "\n",
         encoding="utf-8",
     )
 
     # prd.json
     prd = tmp_path / "prd.json"
     prd.write_text(
-        json.dumps({
-            "userStories": [
-                {"id": "US-001", "title": "Add login", "passes": True, "estimatedComplexity": "small"},
-                {"id": "US-002", "title": "Add logout", "passes": True, "estimatedComplexity": "small"},
-                {"id": "US-003", "title": "Dashboard", "passes": False, "estimatedComplexity": "medium"},
-            ]
-        }),
+        json.dumps(
+            {
+                "userStories": [
+                    {"id": "US-001", "title": "Add login", "passes": True, "estimatedComplexity": "small"},
+                    {"id": "US-002", "title": "Add logout", "passes": True, "estimatedComplexity": "small"},
+                    {"id": "US-003", "title": "Dashboard", "passes": False, "estimatedComplexity": "medium"},
+                ]
+            }
+        ),
         encoding="utf-8",
     )
 
@@ -162,7 +178,9 @@ def test_refresh(project_dir):
 
     # Append a new row
     with open(os.path.join(project_dir, "results.tsv"), "a", encoding="utf-8") as f:
-        f.write("2026-03-18T12:00:00Z\t3\t0\tUS-004\tNew feature\tpass\t100\tclaude-sonnet-4-6\t0\txyz\trun-2\t0\t0\t0\t0\t110\t5\t2\t400000\n")
+        f.write(
+            "2026-03-18T12:00:00Z\t3\t0\tUS-004\tNew feature\tpass\t100\tclaude-sonnet-4-6\t0\txyz\trun-2\t0\t0\t0\t0\t110\t5\t2\t400000\n"
+        )
 
     db.refresh()
     updated = db.overview()

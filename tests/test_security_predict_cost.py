@@ -239,9 +239,7 @@ def test_no_secret_leak(tmp_path: pytest.TempPathFactory, monkeypatch: pytest.Mo
         sys.stdout = old_stdout
 
     stdout_text = captured.getvalue()
-    assert not re.search(r"sk-[A-Za-z0-9]{20}", stdout_text), (
-        f"Secret pattern leaked in stdout: {stdout_text[:200]}"
-    )
+    assert not re.search(r"sk-[A-Za-z0-9]{20}", stdout_text), f"Secret pattern leaked in stdout: {stdout_text[:200]}"
 
 
 # ---------------------------------------------------------------------------
