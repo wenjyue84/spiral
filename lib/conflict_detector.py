@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "core"))
-from story_helpers import get_files_to_touch, priority_key
+from story_helpers import get_files_to_touch
 
 
 def detect_conflicts(stories: list[dict[str, Any]]) -> list[dict[str, Any]]:

@@ -1,3 +1,17 @@
+## Iteration - Story: US-545 Phase M File Conflict Detection
+
+### What was implemented
+- Created `lib/conflict_detector.py` with `detect_conflicts()` and `log_conflicts()` functions
+- Wired conflict detection into Phase M (`lib/phases/phase_m_merge.sh`) after post-merge assertions
+- Created `tests/test_conflict_detector.py` with 10 tests (all pass)
+
+### Patterns discovered
+- `lib/core/story_helpers.py` has `get_files_to_touch()` for extracting filesToTouch from stories
+- Phase M shell script has CRLF line endings (pre-existing; shellcheck warns but not caused by this change)
+- Backward-compat stubs in `lib/` delegate to actual implementations in subdirectories
+
+### Gotchas
+- `conflict_preflight.py` already exists for pre-implementation git merge-tree checks; `conflict_detector.py` is simpler Phase M detection based on filesToTouch overlap only
 
 ## Pre-analysis for US-562 (Gemini 2.5 Pro)
 Here is the technical brief for the Claude agent.
