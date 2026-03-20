@@ -312,9 +312,10 @@
         "US-581"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-03-20T07:19:55Z"
+      "last_attempted": "2026-03-20T07:19:55Z",
+      "_passedCommit": "dfbefc0e03eed673c89be39ab8e69f05f5df8e6d"
     },
     {
       "id": "US-583",

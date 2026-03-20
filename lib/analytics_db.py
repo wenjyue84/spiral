@@ -33,6 +33,25 @@ class AnalyticsDB:
     def _path(self, *parts: str) -> str:
         return os.path.join(self.root, *parts).replace("\\", "/")
 
+    def _register_jsonl_view(self, view_name: str, candidates: list[str], empty_sql: str) -> None:
+        """Register a view over a JSONL file, trying candidates in order.
+        Falls back to empty_sql if no file exists or the file is corrupt."""
+        for path in candidates:
+            if os.path.isfile(path):
+                try:
+                    self.con.execute(f"""
+                        CREATE OR REPLACE VIEW {view_name} AS
+                        SELECT * FROM read_json('{path}',
+                            format='newline_delimited',
+                            ignore_errors=true,
+                            maximum_object_size=1048576)
+                    """)
+                    return
+                except Exception:
+                    # File too corrupt even for ignore_errors — try next candidate
+                    continue
+        self.con.execute(f"CREATE OR REPLACE VIEW {view_name} AS {empty_sql}")
+
     def _register_views(self) -> None:
         """Register SQL views over flat files. Views are lazy — no data is
         loaded until a query actually touches them."""
@@ -58,46 +77,23 @@ class AnalyticsDB:
                 WHERE false
             """)
 
-        events_jsonl = self._path(".spiral", "spiral_events.jsonl")
-        if not os.path.isfile(events_jsonl):
-            events_jsonl = self._path("spiral_events.jsonl")
-        if os.path.isfile(events_jsonl):
-            self.con.execute(f"""
-                CREATE OR REPLACE VIEW events AS
-                SELECT * FROM read_json_auto('{events_jsonl}',
-                    format='newline_delimited', ignore_errors=true)
-            """)
-        else:
-            self.con.execute("""
-                CREATE OR REPLACE VIEW events AS
-                SELECT NULL AS event WHERE false
-            """)
-
-        telemetry_jsonl = self._path(".spiral", "agent-telemetry.jsonl")
-        if os.path.isfile(telemetry_jsonl):
-            self.con.execute(f"""
-                CREATE OR REPLACE VIEW agent_telemetry AS
-                SELECT * FROM read_json_auto('{telemetry_jsonl}',
-                    format='newline_delimited', ignore_errors=true)
-            """)
-        else:
-            self.con.execute("""
-                CREATE OR REPLACE VIEW agent_telemetry AS
-                SELECT NULL AS workerId WHERE false
-            """)
-
-        calibration_jsonl = self._path("calibration.jsonl")
-        if os.path.isfile(calibration_jsonl):
-            self.con.execute(f"""
-                CREATE OR REPLACE VIEW calibration AS
-                SELECT * FROM read_json_auto('{calibration_jsonl}',
-                    format='newline_delimited', ignore_errors=true)
-            """)
-        else:
-            self.con.execute("""
-                CREATE OR REPLACE VIEW calibration AS
-                SELECT NULL AS story_id WHERE false
-            """)
+        # JSONL files: use format='auto' and let DuckDB infer per-line, which
+        # is more tolerant of truncated/malformed lines than 'newline_delimited'.
+        self._register_jsonl_view(
+            "events",
+            [self._path(".spiral", "spiral_events.jsonl"), self._path("spiral_events.jsonl")],
+            "SELECT NULL AS event WHERE false",
+        )
+        self._register_jsonl_view(
+            "agent_telemetry",
+            [self._path(".spiral", "agent-telemetry.jsonl")],
+            "SELECT NULL AS workerId WHERE false",
+        )
+        self._register_jsonl_view(
+            "calibration",
+            [self._path("calibration.jsonl")],
+            "SELECT NULL AS story_id WHERE false",
+        )
 
         # prd.json requires manual loading (nested JSON array, not JSONL)
         prd_path = self._path("prd.json")
