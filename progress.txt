@@ -1792,3 +1792,169 @@ Here is the technical brief for implementing the real-time cost ceiling alert st
 - [x] Type check: mypy --strict passes on all alert modules
 - [x] prd.json updated: US-591 marked passes=true
 
+
+## Pre-analysis for US-602 (Gemini 2.5 Pro)
+### Technical Brief: US-602 Dashboard Time-Series Storage
+
+This user story focuses on implementing local data persistence for the SPIRAL application, not a Frappe/Python project. The goal is to store and retrieve historical metrics using a SQLite database.
+
+**1. Files to Modify/Create:**
+
+*   **Create:** `lib/dashboard/timeseries_store.py`. This new module will encapsulate all SQLite database interactions (connection, schema creation, data insertion, and querying).
+*   **Modify:** `main.py` or a similar central orchestrator script. The logic that executes the main iteration loop ("Phase C") needs to be modified to call the new `timeseries_store` after each run.
+*   **Modify:** An existing API router file (e.g., `spiral/api.py` or wherever the web server endpoints are defined). A new `GET /api/dashboard/timeseries` endpoint must be added here.
+
+**2. Frappe DocTypes/Hooks:**
+
+*   None. This story involves a custom Python application (SPIRAL) and its own data store. Frappe concepts are not applicable.
+
+**3. Implementation Approach:**
+
+*   In `timeseries_store.py`, use Python's `sqlite3` library.
+*   Implement an `init_db()` function to create the `.spiral/dashboard.db` file and the required `iterations`, `stories`, and `workers` tables using `CREATE TABLE IF NOT EXISTS`.
+*   Create a `record_iteration()` function that accepts parsed metrics and executes `INSERT` statements to persist the data for a completed iteration.
+*   Develop a `query_timeseries(metric, window, **filters)` function to execute `SELECT` queries against the database and return results as a list of dictionaries.
+*   The new API endpoint will parse URL query parameters, call `query_timeseries`, and return the data as a JSON response.
+
+**4. Edge Cases & Gotchas:**
+
+*   **DB Concurrency:** SQLite has limited write concurrency. Ensure that database writes are handled sequentially to prevent `database is locked` errors, especially if workers operate in parallel.
+*   **Schema Management:** The initial implementation won't have schema migrations. Future schema changes will require manual handling or a simple migration script.
+*   **Data Integrity:** The data parsing from `results.tsv` and logs should be robust to handle potential formatting errors or missing values gracefully.
+*   **Query Performance:** For large datasets, ensure the `timestamp` columns are indexed to speed up queries using time windows.
+
+
+## Pre-analysis for US-602 (Gemini 2.5 Pro)
+This brief outlines the implementation for the SPIRAL dashboard time-series feature. Note: The request mentions Frappe/lhdn_payroll_integration, but the user story JSON describes a Python/SQLite system named SPIRAL. This plan adheres to the JSON.
+
+**1. Files to Modify/Create:**
+
+*   **Create:** `lib/dashboard/timeseries_store.py`. This new file will contain all logic for SQLite database interaction, including schema creation, data insertion, and querying.
+*   **Modify:** A core orchestrator script, likely `main.py` or `spiral.sh`. The script that executes the main processing loop ("Phase C") needs to be modified to call the new persistence function after each iteration.
+*   **Modify/Create:** A web server file (e.g., `spiral/api.py` or similar). This will host the new HTTP endpoint. If no API server exists, a new lightweight one using Flask or http.server should be created.
+
+**2. Frappe DocTypes/Hooks:**
+
+*   None. The user story is unrelated to the Frappe framework.
+
+**3. Implementation Approach:**
+
+*   **`timeseries_store.py`:**
+    *   Use Python's built-in `sqlite3` library.
+    *   Implement a `TimeSeriesStore` class to manage the database connection and operations.
+    *   On initialization, the class should create the `iterations`, `stories`, and `workers` tables if they don't exist (`CREATE TABLE IF NOT EXISTS`).
+    *   Create a `record_iteration()` method to parse `results.tsv` and relevant phase logs, then `INSERT` the metrics into the SQLite tables.
+    *   Create a `query_timeseries(metric, **filters)` method to construct and execute `SELECT` statements and return data formatted for the API.
+*   **API Endpoint:**
+    *   Add a `GET /api/dashboard/timeseries` route.
+    *   The handler will instantiate `TimeSeriesStore` and call `query_timeseries` with parameters from the request URL, returning the results as JSON.
+
+**4. Edge Cases & Gotchas:**
+
+*   **Concurrency:** SQLite can lock during writes. Ensure the API's read operations have a timeout or use WAL mode (`PRAGMA journal_mode=WAL;`) to prevent "database is locked" errors.
+*   **SQL Injection:** All database queries must be parameterized. Do not use f-strings or string concatenation to build queries with user-supplied input from the API.
+*   **Data Integrity:** The logic for parsing `results.tsv` and phase logs must be robust against malformed or missing data to prevent crashes.
+
+
+## Pre-analysis for US-602 (Gemini 2.5 Pro)
+This is a technical brief for implementing user story US-602. Note: The project is "SPIRAL", not a Frappe application.
+
+### **Technical Implementation Brief: US-602 Dashboard Time-Series**
+
+**1. Python Files to Modify:**
+*   **Create New File:** `lib/dashboard/timeseries_store.py`. This will contain all `sqlite3` logic for schema creation, data insertion (`record_iteration`), and querying.
+*   **Modify Existing:** `spiral/run.py` (or similar main execution loop). The logic that orchestrates phases (likely identified as "Phase C" in logs/code comments) must be modified to call `timeseries_store.record_iteration()` after an iteration finishes.
+*   **Modify Existing:** `spiral/server.py` (or equivalent API router). A new HTTP `GET` endpoint `/api/dashboard/timeseries` needs to be added here to handle data requests from the dashboard frontend.
+
+**2. Frappe DocTypes/Hooks:**
+*   None. This is a standard Python application using a SQLite database, not the Frappe framework.
+
+**3. Recommended Implementation Approach:**
+*   Use Python's standard `sqlite3` library within `timeseries_store.py` for all database interactions.
+*   Implement a function to initialize the database (`.spiral/dashboard.db`) and create the `iterations`, `stories`, and `workers` tables using `CREATE TABLE IF NOT EXISTS`.
+*   The `record_iteration()` function should accept parsed data from `results.tsv` and other log sources, then execute `INSERT` statements.
+*   The new `/api/dashboard/timeseries` endpoint will call a query function in `timeseries_store.py` which executes a `SELECT` query based on the URL parameters (`metric`, `phase`, `window`) and returns the data as JSON.
+
+**4. Edge Cases & Gotchas:**
+*   **Concurrency:** SQLite has limited concurrency. Wrap write operations in a retry mechanism to handle `database is locked` errors during parallel execution.
+*   **Data Integrity:** The code parsing `results.tsv` and phase logs must be resilient to malformed or missing data to prevent crashes.
+*   **SQL Injection:** The API endpoint must strictly validate all query parameters before using them in SQL `WHERE` clauses to prevent injection vulnerabilities.
+*   **Schema Evolution:** For this initial implementation, `CREATE TABLE IF NOT EXISTS` is sufficient. Future schema changes will require a more robust migration strategy.
+
+
+## Pre-analysis for US-602 (Gemini 2.5 Pro)
+Here is a technical brief for implementing the user story.
+
+**Project:** SPIRAL Dashboard Metrics
+**Story:** US-602: Dashboard Time-Series Storage
+
+**1. Python Files to Modify:**
+*   **`lib/dashboard/timeseries_store.py`** (New File): Create this module to encapsulate all `sqlite3` database logic. It will manage the connection, schema creation, and data persistence/querying.
+*   **`spiral/core.py`** (or similar main loop): This file likely orchestrates the execution phases. It needs to be modified to call `timeseries_store.record_iteration()` after each main iteration, passing the required metrics.
+*   **`spiral/api.py` or `main.py`**: The file responsible for the HTTP API server. A new endpoint, `GET /api/dashboard/timeseries`, must be added here to serve the historical data.
+
+**2. Frappe DocTypes / Hooks:**
+*   This user story is for a standalone Python application named SPIRAL, not a Frappe app. No Frappe DocTypes or hooks are involved.
+
+**3. Implementation Approach:**
+*   In `timeseries_store.py`, define a class to manage the `.spiral/dashboard.db` SQLite database. Implement methods to create the `iterations`, `stories`, and `workers` tables as specified.
+*   Create a `record_iteration()` method that takes parsed data from `results.tsv` and logs, and inserts it into the database tables.
+*   Create a `query_timeseries(metric, window, **filters)` method to query the database, handling different metrics and time windows.
+*   The new API endpoint should validate query parameters (`metric`, `phase`, `window`) before calling the query method and returning the data as JSON.
+
+**4. Edge Cases & Gotchas:**
+*   **Concurrency:** Ensure that database writes are handled safely. The current design suggests writes occur sequentially at the end of an iteration, which should prevent race conditions.
+*   **SQL Injection:** The API endpoint must sanitize all user-provided query parameters to prevent SQL injection vulnerabilities.
+*   **Schema Evolution:** The initial schema is fixed. Consider a simple versioning mechanism for future database migrations.
+*   **Data Volume:** Add indexes to the database schema on frequently queried columns (e.g., `timestamp`, `phase`) to ensure query performance over time.
+
+
+## Pre-analysis for US-602 (Gemini 2.5 Pro)
+Here is the technical brief for the Claude agent:
+
+**Objective**: Implement a SQLite-based storage and API for historical SPIRAL metrics to enable trend analysis on the dashboard.
+
+**1. Python Files to Modify**:
+- **Create**: `lib/dashboard/timeseries_store.py` – Will contain all SQLite logic (schema, insertion, querying).
+- **Modify**: `main.py` (or the primary execution orchestrator) – To call the new module to persist metrics after each iteration completes.
+- **Modify**: An existing web API file (e.g., `spiral/api.py`, `spiral-ui/server.py`) – To add the new `/api/dashboard/timeseries` endpoint.
+
+**2. Key Components Involved**:
+- **Database**: A new SQLite database at `.spiral/dashboard.db`.
+- **Schema**: New tables `iterations`, `stories`, and `workers` as defined in the acceptance criteria.
+- **Data Sources**: Metrics will be parsed from `results.tsv` and phase logs.
+
+**3. Recommended Implementation Approach**:
+- In `timeseries_store.py`, use the standard `sqlite3` library. A dedicated class should manage the DB connection, schema creation (`CREATE TABLE IF NOT EXISTS`), and data operations.
+- Create a `record_iteration()` function to parse data sources and execute `INSERT` statements.
+- Create a `query_timeseries(metric, ...)` function to build and execute `SELECT` statements based on API parameters.
+- Add the new `GET /api/dashboard/timeseries` route to the existing web server, linking it to the `query_timeseries` function and formatting the output as JSON.
+
+**4. Edge Cases & Gotchas**:
+- **Performance**: Index the `timestamp` and `phase` columns in the database to ensure fast queries.
+- **Data Integrity**: The `record_iteration` logic should be resilient to parsing errors from `results.tsv` or logs.
+- **API Robustness**: The API endpoint must validate its query parameters and handle cases where no data exists by returning an empty list `[]`.
+- **Concurrency**: While likely not an immediate issue, be mindful of SQLite's write-locking if multiple processes could ever access the DB simultaneously.
+
+
+## Iteration - Story: US-602 Dashboard Time-Series Storage: SQLite Historical Metrics for Trend Analysis
+
+### What was implemented
+- All implementation was already complete from a prior iteration:
+  - lib/dashboard/timeseries_store.py: SQLite schema with iterations/stories/workers tables, record_iteration(), record_iteration_from_results_tsv(), query_timeseries()
+  - lib/dashboard/api.py: GET /api/dashboard/timeseries endpoint
+  - lib/phases/phase_c_check_done.sh: Phase C calls record_iteration_from_results_tsv()
+  - tests/test_timeseries_store.py: 14 tests all passing
+- Marked passes=true after verifying all 14 tests pass
+
+### Patterns discovered
+- When uv run fails with Access Denied on Windows, use .venv/Scripts/python -m pytest directly
+- xdist parallel mode can cause 0 tests to run when passing multiple files; run files separately
+
+### Gotchas
+- uv run fails on Windows with "Access is denied" to C:\Windows\.tmp* — use .venv/Scripts/python instead
+
+### Acceptance Criteria Met
+- [x] AC1: lib/dashboard/timeseries_store.py with SQLite schema in .spiral/dashboard.db
+- [x] AC2: Phase C calls timeseries_store.record_iteration() (phase_c_check_done.sh line 185-195)
+- [x] AC3: GET /api/dashboard/timeseries returns JSON timeseries data

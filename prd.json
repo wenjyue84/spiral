@@ -40,6 +40,7 @@
       ],
       "tags": [
         "module-hypothesis",
+        "module-hypothesis",
         "module-hypothesis"
       ]
     },
@@ -72,6 +73,8 @@
         ".hypothesis/constants/031f85f1c11bb00b"
       ],
       "tags": [
+        "module-claude",
+        "module-hypothesis",
         "module-claude",
         "module-hypothesis",
         "module-claude",
@@ -110,6 +113,7 @@
       ],
       "tags": [
         "module-hypothesis",
+        "module-hypothesis",
         "module-hypothesis"
       ],
       "_scopeCreep": true
@@ -126,7 +130,7 @@
       ],
       "technicalNotes": [],
       "dependencies": [],
-      "estimatedComplexity": "medium",
+      "estimatedComplexity": "large",
       "passes": false,
       "_source": "ai-example",
       "model": "sonnet",
@@ -143,6 +147,8 @@
         ".hypothesis/constants/0dcb44a91ae6f1ae"
       ],
       "tags": [
+        "module-claude",
+        "module-hypothesis",
         "module-claude",
         "module-hypothesis",
         "module-claude",
@@ -179,6 +185,8 @@
         ".hypothesis/constants/0dcb44a91ae6f1ae"
       ],
       "tags": [
+        "module-claude",
+        "module-hypothesis",
         "module-claude",
         "module-hypothesis",
         "module-claude",
@@ -258,6 +266,8 @@
         "module-hypothesis",
         "module-lib",
         "module-hypothesis",
+        "module-lib",
+        "module-hypothesis",
         "module-lib"
       ],
       "last_attempted": "2026-03-19T02:00:58Z"
@@ -291,6 +301,7 @@
         ".hypothesis/examples/d7017880e970832b/d5de667a725a0ce8"
       ],
       "tags": [
+        "module-hypothesis",
         "module-hypothesis",
         "module-hypothesis"
       ],
@@ -326,6 +337,8 @@
         "retry-counts.json"
       ],
       "tags": [
+        "module-hypothesis",
+        "module-lib",
         "module-hypothesis",
         "module-lib",
         "module-hypothesis",
@@ -366,6 +379,8 @@
         "module-hypothesis",
         "module-lib",
         "module-hypothesis",
+        "module-lib",
+        "module-hypothesis",
         "module-lib"
       ],
       "_passedCommit": "df8d0149b07fba31d7d07d9631a80087370cf7a0"
@@ -400,6 +415,7 @@
       ],
       "tags": [
         "module-hypothesis",
+        "module-hypothesis",
         "module-hypothesis"
       ],
       "_passedCommit": "df8d0149b07fba31d7d07d9631a80087370cf7a0"
@@ -428,6 +444,8 @@
         "tests/test_velocity_model.py"
       ],
       "tags": [
+        "module-lib",
+        "module-tests",
         "module-lib",
         "module-tests",
         "module-lib",
@@ -500,6 +518,7 @@
       ],
       "tags": [
         "module-tests",
+        "module-tests",
         "module-tests"
       ]
     },
@@ -533,6 +552,7 @@
       ],
       "tags": [
         "module-hypothesis",
+        "module-hypothesis",
         "module-hypothesis"
       ]
     },
@@ -565,6 +585,7 @@
         ".hypothesis/examples/d7017880e970832b/a0f33084b8dbe4ad"
       ],
       "tags": [
+        "module-hypothesis",
         "module-hypothesis",
         "module-hypothesis"
       ],
@@ -600,6 +621,7 @@
       ],
       "tags": [
         "module-hypothesis",
+        "module-hypothesis",
         "module-hypothesis"
       ],
       "last_attempted": "2026-03-19T12:47:04Z"
@@ -633,6 +655,8 @@
         ".hypothesis/examples/04e6b3400353b141/d16a108f0ffe00c6"
       ],
       "tags": [
+        "module-github",
+        "module-hypothesis",
         "module-github",
         "module-hypothesis",
         "module-github",
@@ -677,6 +701,7 @@
       ],
       "tags": [
         "module-hypothesis",
+        "module-hypothesis",
         "module-hypothesis"
       ]
     },
@@ -713,6 +738,8 @@
         ".hypothesis/examples/04e6b3400353b141/d7017880e970832b"
       ],
       "tags": [
+        "module-github",
+        "module-hypothesis",
         "module-github",
         "module-hypothesis",
         "module-github",
@@ -858,6 +885,7 @@
         "tests/test_episodic_memory.py"
       ],
       "tags": [
+        "module-tests",
         "module-tests",
         "module-tests"
       ],
@@ -1252,6 +1280,8 @@
         "module-github",
         "module-hypothesis",
         "module-github",
+        "module-hypothesis",
+        "module-github",
         "module-hypothesis"
       ]
     },
@@ -1440,6 +1470,7 @@
       ],
       "tags": [
         "module-hypothesis",
+        "module-hypothesis",
         "module-hypothesis"
       ],
       "last_attempted": "2026-03-20T03:53:38Z",
@@ -1592,6 +1623,9 @@
         "module-lib",
         "module-github",
         "module-hypothesis",
+        "module-lib",
+        "module-github",
+        "module-hypothesis",
         "module-lib"
       ]
     },
@@ -1619,6 +1653,7 @@
         "progress.txt"
       ],
       "tags": [
+        "module-github",
         "module-github",
         "module-github"
       ],
@@ -1651,6 +1686,9 @@
         "lib/batch_validate.py"
       ],
       "tags": [
+        "module-github",
+        "module-hypothesis",
+        "module-lib",
         "module-github",
         "module-hypothesis",
         "module-lib",
@@ -1757,6 +1795,8 @@
         ".hypothesis/constants/031f85f1c11bb00b"
       ],
       "tags": [
+        "module-claude",
+        "module-hypothesis",
         "module-claude",
         "module-hypothesis",
         "module-claude",
@@ -2012,6 +2052,9 @@
         "module-tests",
         "module-lib",
         "module-ralph",
+        "module-tests",
+        "module-lib",
+        "module-ralph",
         "module-tests"
       ]
     },
@@ -2043,6 +2086,8 @@
         ".hypothesis/constants/031f85f1c11bb00b"
       ],
       "tags": [
+        "module-github",
+        "module-hypothesis",
         "module-github",
         "module-hypothesis",
         "module-github",
@@ -2081,6 +2126,8 @@
         "module-claude",
         "module-hypothesis",
         "module-claude",
+        "module-hypothesis",
+        "module-claude",
         "module-hypothesis"
       ],
       "_passedCommit": ""
@@ -2113,6 +2160,8 @@
         ".hypothesis/constants/06ee3234b07f7d66"
       ],
       "tags": [
+        "module-claude",
+        "module-hypothesis",
         "module-claude",
         "module-hypothesis",
         "module-claude",
@@ -2619,6 +2668,9 @@
         "module-github",
         "module-claude",
         "module-devcontainer",
+        "module-github",
+        "module-claude",
+        "module-devcontainer",
         "module-github"
       ],
       "last_attempted": "2026-03-18T16:56:51Z",
@@ -2651,6 +2703,9 @@
         ".hypothesis/tmp/tmp0e2cnr_5"
       ],
       "tags": [
+        "module-claude",
+        "module-github",
+        "module-hypothesis",
         "module-claude",
         "module-github",
         "module-hypothesis",
@@ -2764,11 +2819,11 @@
       ],
       "technicalNotes": [],
       "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
+      "estimatedComplexity": "large",
+      "passes": true,
       "_source": "ai-example",
       "model": "sonnet",
-      "last_attempted": "2026-03-20T14:34:27Z",
+      "last_attempted": "2026-03-20T15:02:44Z",
       "filesTouch": [
         ".hypothesis/constants/0144005a67236799",
         ".hypothesis/constants/016af87f794a90e9",
@@ -2782,8 +2837,10 @@
         ".hypothesis/constants/15647f5536a392c4"
       ],
       "tags": [
+        "module-hypothesis",
         "module-hypothesis"
-      ]
+      ],
+      "_scopeCreep": true
     },
     {
       "id": "US-604",
@@ -2797,7 +2854,7 @@
       ],
       "technicalNotes": [],
       "dependencies": [],
-      "estimatedComplexity": "medium",
+      "estimatedComplexity": "large",
       "passes": false,
       "_source": "ai-example",
       "model": "opus",
@@ -2815,6 +2872,8 @@
       ],
       "tags": [
         "module-claude",
+        "module-hypothesis",
+        "module-claude",
         "module-hypothesis"
       ]
     },
@@ -2830,7 +2889,7 @@
       ],
       "technicalNotes": [],
       "dependencies": [],
-      "estimatedComplexity": "small",
+      "estimatedComplexity": "large",
       "passes": false,
       "_source": "ai-example",
       "model": "sonnet",
@@ -2848,6 +2907,8 @@
       ],
       "tags": [
         "module-claude",
+        "module-hypothesis",
+        "module-claude",
         "module-hypothesis"
       ]
     },
@@ -2863,20 +2924,53 @@
       ],
       "technicalNotes": [],
       "dependencies": [],
-      "estimatedComplexity": "small",
+      "estimatedComplexity": "large",
       "passes": false,
       "_source": "ai-example",
-      "model": "haiku"
+      "model": "haiku",
+      "filesTouch": [
+        ".claude/hooks/verify_story_acceptance.py",
+        ".coverage",
+        ".hypothesis/constants/0144005a67236799",
+        ".hypothesis/constants/016af87f794a90e9",
+        ".hypothesis/constants/01831d6f995783ed",
+        ".hypothesis/constants/044aa4a97dd3204b",
+        ".hypothesis/constants/06ee3234b07f7d66",
+        ".hypothesis/constants/087180ea5c6680fc",
+        ".hypothesis/constants/0ad243c8c6e11ffb",
+        ".hypothesis/constants/0dcb44a91ae6f1ae"
+      ],
+      "tags": [
+        "module-claude",
+        "module-hypothesis"
+      ]
     },
     {
       "id": "US-607",
-      "title": "CLI: show-worker-logs — Aggregate and Stream Parallel Worker Worktree Logs",
-      "priority": "medium",
-      "description": "Add a CLI command to aggregate logs from all parallel worker worktrees (.spiral-workers/worker-*/) into a unified, time-sorted report. Enables debugging of worker failures, race conditions, and inconsistent prd.json output across workers.",
+      "title": "Dashboard Memory Usage Endpoint - Track Worker Heap Usage and OOM Risks",
+      "priority": "high",
+      "description": "Add endpoint GET /api/dashboard/worker-memory that returns current heap size, max heap, and OOM risk score (heap % of max) for each parallel worker. Enable proactive detection of memory pressure before workers crash.",
       "acceptanceCriteria": [
-        "Implement `spiral show-worker-logs [--worker-id ID] [--phase PHASE]` CLI in lib/spiral/cli.py; reads .spiral-workers/worker-*/logs/*.log and merges by ISO timestamp",
-        "Output format: tab-separated [worker_id|timestamp|phase|log_level|message]; support --worker-id and --phase filters; stream to stdout with optional --output file.log",
-        "Integration test: spawn 2 parallel workers via run_parallel_ralph.sh, verify logs from both workers merge without duplicates in time order, --worker-id=worker-1 filter returns only that worker"
+        "Endpoint /api/dashboard/worker-memory reads worker process memory stats (via /proc/[pid]/status on Linux or Get-Process on Windows), returns JSON with worker_id, heap_mb, max_heap_mb, oom_risk_percent for each active worker",
+        "OOM risk calculated as (heap_mb / max_heap_mb) * 100; flag entries with risk > 80% as critical_risk",
+        "Integration test: spawn 2 mock worker processes with different heap sizes, verify endpoint returns correct memory stats and correctly classifies OOM risk levels (low, medium, critical)"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-608",
+      "title": "Federated Project Dependency Validator - Detect Cross-Project Story References",
+      "priority": "medium",
+      "description": "Add CLI command spiral analyze-federated-dependencies that scans all sub-project stories for references to other sub-projects (e.g., 'depends on auth-service:US-456'), builds and outputs the cross-project dependency graph.",
+      "acceptanceCriteria": [
+        "CLI command spiral analyze-federated-dependencies --prd prd.json --sub-projects-dir sub-projects parses all story descriptions and outputs JSON: {dependencies: {api-service: [auth-service, db-service], auth-service: [db-service]}}",
+        "Dependency detection uses regex pattern matching for explicit refs like '@sub-project:US-NNN' and infers implicit refs from story description keywords",
+        "Integration test: create federated setup with 3 sub-projects, define cross-project dependencies in story descriptions, verify CLI outputs correct dependency graph with no false positives"
       ],
       "technicalNotes": [],
       "dependencies": [],
