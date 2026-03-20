@@ -270,3 +270,79 @@ def without_auth():
     if old_value is not None:
         os.environ["SPIRAL_DASHBOARD_AUTH_TOKEN"] = old_value
     importlib.reload(spiral_live_server)
+
+
+# ── US-476: Mock Claude Client Fixture ──────────────────────────────────────
+
+
+class MockClaudeClient:
+    """Mock Claude API client for testing Phase R/S without live API calls."""
+
+    def __init__(self, response_data=None, error_mode=None):
+        """Initialize mock client.
+
+        Args:
+            response_data: Pre-recorded API response dict
+            error_mode: "rate_limit" for 429, "malformed" for invalid JSON, None for success
+        """
+        self.response_data = response_data or self._default_response()
+        self.error_mode = error_mode
+        self.call_count = 0
+
+    @staticmethod
+    def _default_response():
+        """Default Phase R research response."""
+        return {
+            "stories": [
+                {
+                    "id": "US-500",
+                    "title": "Research Story 1: Weather Initiative",
+                    "description": "Discovered story candidate from research phase",
+                    "priority": "high",
+                    "source": "https://research.example.com/story1",
+                    "_source": "research",
+                    "acceptanceCriteria": ["Criterion 1", "Criterion 2"],
+                }
+            ]
+        }
+
+    def chat_completion(self, messages, **kwargs):
+        """Simulate Claude chat_completion API call.
+
+        Args:
+            messages: List of message dicts
+            **kwargs: Additional API parameters (model, max_tokens, etc.)
+
+        Returns:
+            Dict with response or raises exception for error modes
+        """
+        self.call_count += 1
+
+        # Simulate error modes
+        if self.error_mode == "rate_limit":
+            raise ValueError("429 Too Many Requests - Rate limited")
+        if self.error_mode == "malformed":
+            raise ValueError("Malformed JSON response from API")
+
+        # Return success response
+        return {
+            "id": "msg_12345",
+            "type": "message",
+            "role": "assistant",
+            "content": [
+                {"type": "text", "text": json.dumps(self.response_data)}
+            ],
+            "model": kwargs.get("model", "claude-3-5-sonnet-20241022"),
+            "stop_reason": "end_turn",
+            "usage": {"input_tokens": 150, "output_tokens": 200},
+        }
+
+
+@pytest.fixture
+def mock_claude_client():
+    """Fixture: Provide a MockClaudeClient for testing.
+
+    Returns a mock client that can be configured with different response modes.
+    Tests can instantiate with custom response data or error modes.
+    """
+    return MockClaudeClient()
