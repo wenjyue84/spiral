@@ -1515,3 +1515,17 @@
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
+{"ts": "2026-03-20T23:49:01.212438+00:00", "type": "route_story_assigned", "story_id": "US-597", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-20T23:49:01.213185+00:00", "type": "route_story_assigned", "story_id": "US-607", "complexity_score": 70, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-20T23:49:01.213777+00:00", "type": "route_story_assigned", "story_id": "US-626", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-20T23:49:01.214685+00:00", "type": "route_story_assigned", "story_id": "US-630", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-20T23:49:01.215226+00:00", "type": "route_story_assigned", "story_id": "US-635", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-20T23:49:01.215788+00:00", "type": "route_story_assigned", "story_id": "US-636", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-20T23:49:01.216324+00:00", "type": "route_story_assigned", "story_id": "US-637", "complexity_score": 85, "model_tier": "opus", "estimated_tokens": 0}
+{"ts": "2026-03-20T23:49:01.904415+00:00", "type": "route_story_assigned", "story_id": "US-597", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-20T23:49:01.905408+00:00", "type": "route_story_assigned", "story_id": "US-607", "complexity_score": 70, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-20T23:49:01.906007+00:00", "type": "route_story_assigned", "story_id": "US-626", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-20T23:49:01.906918+00:00", "type": "route_story_assigned", "story_id": "US-630", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-20T23:49:01.907514+00:00", "type": "route_story_assigned", "story_id": "US-635", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-20T23:49:01.908192+00:00", "type": "route_story_assigned", "story_id": "US-636", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-20T23:49:01.908804+00:00", "type": "route_story_assigned", "story_id": "US-637", "complexity_score": 85, "model_tier": "opus", "estimated_tokens": 0}
