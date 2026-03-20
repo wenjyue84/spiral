@@ -927,3 +927,79 @@ FAILED diagnosis-block gate: [Security Test] Auth/Permission Access Control for 
 - [x] Test fails if latency exceeds SPIRAL_WORKER_TIMEOUT * 1.1 (asserts < 5.5s)
 - [x] Test records baseline latency for regression tracking (via print output)
 - [x] Re-running test produces latency within 20% of first run (stability verified)
+## Iteration 1 - Fri, Mar 20, 2026  3:04:26 PM
+COST CEILING: [Performance Test] Worker Heartbeat Timeout Detection Latency (US-575) — $2.441876 exceeded hard limit $2.00
+
+
+## Pre-analysis for US-575 (Gemini 2.5 Pro)
+### Technical Brief: US-575 Worker Heartbeat Performance Test
+
+**Objective:** Implement a Pytest benchmark to verify that the worker heartbeat monitor detects and flags a stalled worker within the `SPIRAL_WORKER_TIMEOUT` threshold plus 10% overhead.
+
+**1. Files to Modify/Reference:**
+*   **Create New File:** `tests/test_worker_heartbeat_perf.py` will contain the new performance test.
+*   **Core Logic Reference:** The monitoring behavior is described in `lib/worker_heartbeat.sh`. The test will need to invoke the corresponding Python logic that performs the actual check, likely found in a module such as `lib/worker_manager.py` or a related file.
+
+**2. Frappe DocTypes / Hooks:**
+*   This is a pure Python/shell script project. **No Frappe DocTypes or hooks are involved.**
+
+**3. Recommended Implementation Approach:**
+1.  In `tests/test_worker_heartbeat_perf.py`, define a new `pytest` test.
+2.  Use `monkeypatch` to set the `SPIRAL_WORKER_TIMEOUT` environment variable to a small value (e.g., 5s) to ensure the test runs quickly.
+3.  Use the `tmp_path` fixture to create a temporary directory and a mock `heartbeat` file inside it.
+4.  Simulate a worker stall by writing a timestamp to the file that is older than the test's timeout value.
+5.  Record a start time using `time.monotonic()`, then execute the heartbeat monitoring function.
+6.  Measure the wall-clock time until the stale worker is detected.
+7.  Assert that the measured latency is within the acceptable `timeout * 1.1` threshold.
+8.  Print the latency and append the result to a `results.tsv` file.
+
+**4. Edge Cases & Gotchas:**
+*   **CI Speed:** The test *must* override the default 300s timeout to avoid slow CI runs.
+*   **Filesystem Latency:** Use `time.monotonic()` for measuring duration, as it's not subject to system time changes. The 10% assertion overhead accounts for minor I/O timing variations.
+*   **Test Cleanup:** Ensure the temporary directory and mock heartbeat file created during the test are properly removed using `pytest` fixtures.
+
+## Iteration 2 - Fri, Mar 20, 2026  3:09:26 PM
+COST CEILING: [Performance Test] Worker Heartbeat Timeout Detection Latency (US-575) — $2.793249 exceeded hard limit $2.00
+
+
+## Pre-analysis for US-575 (Gemini 2.5 Pro)
+### Technical Brief: US-575 Worker Heartbeat Performance Test
+
+**Objective:** Implement a Pytest benchmark to verify that the worker heartbeat monitor detects and flags a stalled worker within the `SPIRAL_WORKER_TIMEOUT` threshold plus 10% overhead.
+
+**1. Files to Modify/Reference:**
+*   **Create New File:** `tests/test_worker_heartbeat_perf.py` will contain the new performance test.
+*   **Core Logic Reference:** The monitoring behavior is described in `lib/worker_heartbeat.sh`. The test will need to invoke the corresponding Python logic that performs the actual check, likely found in a module such as `lib/worker_manager.py` or a related file.
+
+**2. Frappe DocTypes / Hooks:**
+*   This is a pure Python/shell script project. **No Frappe DocTypes or hooks are involved.**
+
+**3. Recommended Implementation Approach:**
+1.  In `tests/test_worker_heartbeat_perf.py`, define a new `pytest` test.
+2.  Use `monkeypatch` to set the `SPIRAL_WORKER_TIMEOUT` environment variable to a small value (e.g., 5s) to ensure the test runs quickly.
+3.  Use the `tmp_path` fixture to create a temporary directory and a mock `heartbeat` file inside it.
+4.  Simulate a worker stall by writing a timestamp to the file that is older than the test's timeout value.
+5.  Record a start time using `time.monotonic()`, then execute the heartbeat monitoring function.
+6.  Measure the wall-clock time until the stale worker is detected.
+7.  Assert that the measured latency is within the acceptable `timeout * 1.1` threshold.
+8.  Print the latency and append the result to a `results.tsv` file.
+
+**4. Edge Cases & Gotchas:**
+*   **CI Speed:** The test *must* override the default 300s timeout to avoid slow CI runs.
+*   **Filesystem Latency:** Use `time.monotonic()` for measuring duration, as it's not subject to system time changes. The 10% assertion overhead accounts for minor I/O timing variations.
+*   **Test Cleanup:** Ensure the temporary directory and mock heartbeat file created during the test are properly removed using `pytest` fixtures.
+
+
+## Iteration 3 (Opus) - Story: US-575 [Performance Test] Worker Heartbeat Timeout Detection Latency
+
+### What was implemented
+- Tests already existed from attempts 1-2 (both hit cost ceiling before marking passes=true)
+- Verified all 5 tests pass: stall detection, stability, fresh worker, mixed states, malformed files
+- Marked passes=true in prd.json
+
+### Patterns discovered
+- WorkerPoolAPI from lib/worker_api.py is the Python interface for reading .heartbeat files
+- Tests use monkeypatch to set SPIRAL_WORKER_TIMEOUT=5 for fast CI runs
+
+### Gotchas
+- Cost ceiling can kill the agent after implementation is complete but before prd.json is updated — always check if tests already pass before re-implementing
