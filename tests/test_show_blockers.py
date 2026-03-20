@@ -5,12 +5,14 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-import pytest
-
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
-from show_blockers import _build_graph, _find_cycle, _transitive_depth  # noqa: PLC2701
-from show_blockers import build_dot_graph, get_story_blockers
-
+from show_blockers import (  # noqa: PLC2701
+    _build_graph,
+    _find_cycle,
+    _transitive_depth,
+    build_dot_graph,
+    get_story_blockers,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -19,10 +21,7 @@ from show_blockers import build_dot_graph, get_story_blockers
 
 def _make_stories(deps_map: dict[str, list[str]]) -> list[dict]:
     """Build a minimal story list from {story_id: [dep_ids]} mapping."""
-    return [
-        {"id": sid, "title": f"Story {sid}", "dependencies": deps}
-        for sid, deps in deps_map.items()
-    ]
+    return [{"id": sid, "title": f"Story {sid}", "dependencies": deps} for sid, deps in deps_map.items()]
 
 
 # ---------------------------------------------------------------------------
@@ -160,19 +159,23 @@ class TestGetStoryBlockers:
         assert "US-002" in result["blocks"]
 
     def test_circular_path_detected(self) -> None:
-        stories = _make_stories({
-            "US-001": ["US-002"],
-            "US-002": ["US-001"],
-        })
+        stories = _make_stories(
+            {
+                "US-001": ["US-002"],
+                "US-002": ["US-001"],
+            }
+        )
         result = get_story_blockers("US-001", stories)
         assert result["circular_path"] is not None
 
     def test_no_cycle_in_dag(self) -> None:
-        stories = _make_stories({
-            "US-001": [],
-            "US-002": ["US-001"],
-            "US-003": ["US-001", "US-002"],
-        })
+        stories = _make_stories(
+            {
+                "US-001": [],
+                "US-002": ["US-001"],
+                "US-003": ["US-001", "US-002"],
+            }
+        )
         result = get_story_blockers("US-003", stories)
         assert result["circular_path"] is None
 

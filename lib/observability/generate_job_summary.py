@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Generate GitHub Actions job summary with test results, coverage, and lint status."""
 
-import json
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path

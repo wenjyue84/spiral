@@ -9,15 +9,16 @@ Tests cover:
 
 import json
 import os
+
+# Import from lib (parent directory)
+import sys
 import tempfile
 import time
 from pathlib import Path
 
 import pytest
 
-# Import from lib (parent directory)
-import sys
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'lib'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 
 from worker_api import WorkerPoolAPI
 

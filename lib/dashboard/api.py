@@ -16,9 +16,9 @@ from typing import Any, Optional
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
+from ..analyze_results import parse_research_cache
 from .cost_broadcaster import get_manager
 from .timeline import get_timeline_manager, parse_timeline
-from ..analyze_results import parse_research_cache
 
 logger = logging.getLogger(__name__)
 

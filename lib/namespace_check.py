@@ -1,7 +1,6 @@
 """Namespace validation for federated prd.json with sub-project story namespacing."""
 
 import json
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -100,42 +99,27 @@ def validate_namespaces(prd_dict: dict[str, Any]) -> dict[str, Any]:
         for story in ns_stories:
             story_id = story.get("id", "")
             if not story_id.startswith(f"{namespace}/"):
-                ns_violations.append({
-                    "type": "mismatched_namespace",
-                    "story_id": story_id,
-                    "expected_prefix": f"{namespace}/",
-                    "message": f"Story {story_id} has incorrect namespace prefix (expected {namespace}/)"
-                })
+                ns_violations.append(
+                    {
+                        "type": "mismatched_namespace",
+                        "story_id": story_id,
+                        "expected_prefix": f"{namespace}/",
+                        "message": f"Story {story_id} has incorrect namespace prefix (expected {namespace}/)",
+                    }
+                )
 
         ns_pass = len(ns_violations) == 0
-        sub_projects[namespace] = {
-            "pass": ns_pass,
-            "violations": ns_violations,
-            "story_count": len(ns_stories)
-        }
+        sub_projects[namespace] = {"pass": ns_pass, "violations": ns_violations, "story_count": len(ns_stories)}
 
         if not ns_pass:
-            violations.extend([
-                {
-                    "namespace": namespace,
-                    **v
-                } for v in ns_violations
-            ])
+            violations.extend([{"namespace": namespace, **v} for v in ns_violations])
 
     # Check for stories in main namespace (no /)
     main_stories = [s for s in stories if "/" not in s.get("id", "")]
     if main_stories:
-        sub_projects["main"] = {
-            "pass": True,
-            "violations": [],
-            "story_count": len(main_stories)
-        }
+        sub_projects["main"] = {"pass": True, "violations": [], "story_count": len(main_stories)}
 
-    return {
-        "pass": len(violations) == 0,
-        "violations": violations,
-        "sub_projects": sub_projects
-    }
+    return {"pass": len(violations) == 0, "violations": violations, "sub_projects": sub_projects}
 
 
 def check_namespaces(prd_path: Path) -> dict[str, Any]:
@@ -151,16 +135,8 @@ def check_namespaces(prd_path: Path) -> dict[str, Any]:
         with open(prd_path, "r", encoding="utf-8") as f:
             prd_dict = json.load(f)
     except FileNotFoundError:
-        return {
-            "pass": False,
-            "error": f"prd.json not found at {prd_path}",
-            "sub_projects": {}
-        }
+        return {"pass": False, "error": f"prd.json not found at {prd_path}", "sub_projects": {}}
     except json.JSONDecodeError as e:
-        return {
-            "pass": False,
-            "error": f"Invalid JSON in prd.json: {e}",
-            "sub_projects": {}
-        }
+        return {"pass": False, "error": f"Invalid JSON in prd.json: {e}", "sub_projects": {}}
 
     return validate_namespaces(prd_dict)

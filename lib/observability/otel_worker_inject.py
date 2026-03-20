@@ -20,12 +20,10 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import secrets
 import sys
 import time
-from pathlib import Path
 from typing import Optional
 
 # ── Subprocess semantic convention attributes ──────────────────────────────────
@@ -111,7 +109,7 @@ def _emit_completed_span(
     from opentelemetry.sdk.resources import SERVICE_NAME, Resource
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-    from opentelemetry.trace import SpanContext, SpanKind, TraceFlags, Status, StatusCode
+    from opentelemetry.trace import SpanContext, SpanKind, Status, StatusCode, TraceFlags
 
     resource = Resource.create({SERVICE_NAME: "spiral"})
     provider = TracerProvider(resource=resource)

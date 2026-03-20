@@ -11,10 +11,9 @@ Tests confirm:
 7. Resource is inherited by TracerProvider/MeterProvider
 """
 
-import os
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 # Ensure lib/ is on the import path
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
@@ -143,6 +142,7 @@ class TestGetServiceVersion:
         """_get_service_version() returns 'unknown' if git describe fails."""
         with patch("subprocess.check_output") as mock_subprocess:
             import subprocess
+
             mock_subprocess.side_effect = subprocess.CalledProcessError(128, "git")
             version = otel_resource_builder._get_service_version()
             assert version == "unknown"
@@ -206,4 +206,6 @@ class TestResourcePropagation:
         # Both should have the same service.name
         assert r1.attributes[ResourceAttributes.SERVICE_NAME] == r2.attributes[ResourceAttributes.SERVICE_NAME]
         # Both should have the same service.namespace
-        assert r1.attributes[ResourceAttributes.SERVICE_NAMESPACE] == r2.attributes[ResourceAttributes.SERVICE_NAMESPACE]
+        assert (
+            r1.attributes[ResourceAttributes.SERVICE_NAMESPACE] == r2.attributes[ResourceAttributes.SERVICE_NAMESPACE]
+        )

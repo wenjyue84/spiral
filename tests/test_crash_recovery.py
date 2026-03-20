@@ -12,8 +12,6 @@ import tempfile
 from pathlib import Path
 from typing import Tuple
 
-import pytest
-
 
 def _find_git_bash() -> str:
     """Find git bash executable on Windows or return bash."""

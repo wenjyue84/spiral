@@ -1,12 +1,9 @@
 """Tests for the Phase S complexity gate and quality warnings added in US-442."""
 
-import io
 import json
 import os
 import sys
 import tempfile
-
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from lib.prd.validate_stories import validate_stories

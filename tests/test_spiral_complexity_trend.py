@@ -17,7 +17,6 @@ import json
 import os
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -28,11 +27,9 @@ sys.path.insert(0, str(LIB_DIR))
 
 from complexity_trend import (  # noqa: E402
     _p50,
-    build_phase_report,
     compute_story_metrics,
     load_results,
     run_trend,
-    write_csv,
 )
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -151,9 +148,7 @@ def test_escalation_count_per_story(mock_tsv: str) -> None:
     metrics = compute_story_metrics(rows, phase_filter="I")
     escalated = [m for m in metrics if m["avg_retries"] == 3]
     for m in escalated:
-        assert m["model_escalations"] == 2, (
-            f"Expected 2 escalations for {m['id']}, got {m['model_escalations']}"
-        )
+        assert m["model_escalations"] == 2, f"Expected 2 escalations for {m['id']}, got {m['model_escalations']}"
 
 
 def test_no_escalations_for_simple_stories(mock_tsv: str) -> None:
@@ -251,8 +246,16 @@ def test_run_trend_missing_tsv(tmp_path: Path) -> None:
 def test_cli_json_output(mock_tsv: str) -> None:
     """Run CLI via subprocess and parse stdout JSON."""
     result = subprocess.run(
-        [sys.executable, str(LIB_DIR / "complexity_trend.py"),
-         "--phase", "I", "--history", mock_tsv, "--format", "json"],
+        [
+            sys.executable,
+            str(LIB_DIR / "complexity_trend.py"),
+            "--phase",
+            "I",
+            "--history",
+            mock_tsv,
+            "--format",
+            "json",
+        ],
         capture_output=True,
         text=True,
     )
@@ -265,8 +268,7 @@ def test_cli_json_output(mock_tsv: str) -> None:
 def test_cli_csv_output_file(mock_tsv: str, tmp_path: Path) -> None:
     out = str(tmp_path / "out.csv")
     result = subprocess.run(
-        [sys.executable, str(LIB_DIR / "complexity_trend.py"),
-         "--phase", "I", "--history", mock_tsv, "--output", out],
+        [sys.executable, str(LIB_DIR / "complexity_trend.py"), "--phase", "I", "--history", mock_tsv, "--output", out],
         capture_output=True,
         text=True,
     )

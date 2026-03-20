@@ -237,8 +237,10 @@ def enrich_stories(
     for story in stories:
         if _should_enrich(story):
             title = story.get("title", "?")
-            print(f"  [E] Enriching: {title[:70]!r} (complexity={story.get('estimatedComplexity', '?')}, "
-                  f"notes={len(story.get('technicalNotes') or [])})")
+            print(
+                f"  [E] Enriching: {title[:70]!r} (complexity={story.get('estimatedComplexity', '?')}, "
+                f"notes={len(story.get('technicalNotes') or [])})"
+            )
             result = _enrich_one(story, model, dry_run=dry_run)
             if len(result) > 1:
                 split_count += 1
@@ -246,7 +248,7 @@ def enrich_stories(
                 print(f"  [E]   → split into {len(result)} stories")
             elif result and result[0] is not story:
                 enriched_count += 1
-                print(f"  [E]   → enriched")
+                print("  [E]   → enriched")
             output_stories.extend(result)
         else:
             output_stories.append(story)  # passthrough — small + well-specified
@@ -256,9 +258,7 @@ def enrich_stories(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="SPIRAL Phase E: enrich validated stories before Phase M merge"
-    )
+    parser = argparse.ArgumentParser(description="SPIRAL Phase E: enrich validated stories before Phase M merge")
     parser.add_argument("--validated-in", required=True, help="Path to _validated_stories.json")
     parser.add_argument("--enriched-out", required=True, help="Output path for enriched stories")
     parser.add_argument("--model", default="sonnet", help="Claude model (default: sonnet)")

@@ -382,9 +382,7 @@ class TestCacheSimilarityLookup:
     def test_exact_embedding_match(self, mock_model, tmp_path):
         cache_dir = str(tmp_path / "cache")
         cache_store(cache_dir, "https://example.com", "cached content")
-        result = cache_similarity_lookup(
-            cache_dir, "https://example.com", 24, threshold=0.9
-        )
+        result = cache_similarity_lookup(cache_dir, "https://example.com", 24, threshold=0.9)
         assert result == "cached content"
 
     @patch("research_cache._get_model", return_value=_make_mock_model())
@@ -392,9 +390,7 @@ class TestCacheSimilarityLookup:
         cache_dir = str(tmp_path / "cache")
         cache_store(cache_dir, "https://example.com", "original content")
         # https://similar.com has cosine similarity ~0.995 with https://example.com
-        result = cache_similarity_lookup(
-            cache_dir, "https://similar.com", 24, threshold=0.9
-        )
+        result = cache_similarity_lookup(cache_dir, "https://similar.com", 24, threshold=0.9)
         assert result == "original content"
 
     @patch("research_cache._get_model", return_value=_make_mock_model())
@@ -402,9 +398,7 @@ class TestCacheSimilarityLookup:
         cache_dir = str(tmp_path / "cache")
         cache_store(cache_dir, "https://example.com", "content")
         # https://different.com has cosine similarity ~0.0 with https://example.com
-        result = cache_similarity_lookup(
-            cache_dir, "https://different.com", 24, threshold=0.9
-        )
+        result = cache_similarity_lookup(cache_dir, "https://different.com", 24, threshold=0.9)
         assert result is None
 
     @patch("research_cache._get_model", return_value=_make_mock_model())
@@ -417,7 +411,5 @@ class TestCacheSimilarityLookup:
         entry["fetched_ts"] = time.time() - (25 * 3600)
         with open(path, "w", encoding="utf-8") as f:
             json.dump(entry, f)
-        result = cache_similarity_lookup(
-            cache_dir, "https://example.com", 24, threshold=0.9
-        )
+        result = cache_similarity_lookup(cache_dir, "https://example.com", 24, threshold=0.9)
         assert result is None

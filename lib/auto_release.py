@@ -190,9 +190,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Auto-release on SPIRAL completion")
     parser.add_argument("--prd", required=True, help="Path to prd.json")
     parser.add_argument("--repo", default=".", help="Path to git repo")
-    parser.add_argument(
-        "--dry-run", action="store_true", help="Do not create tags or write files"
-    )
+    parser.add_argument("--dry-run", action="store_true", help="Do not create tags or write files")
 
     args = parser.parse_args(argv)
 

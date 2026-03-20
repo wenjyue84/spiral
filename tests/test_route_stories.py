@@ -182,11 +182,13 @@ class TestScoreStoryComplexity:
         assert 0 <= score <= 40
 
     def test_complex_story_high_score(self):
-        story = {"acceptanceCriteria": [
-            "Refactor the entire module",
-            "Integrate with multiple services",
-            "Add security and auth checks",
-        ]}
+        story = {
+            "acceptanceCriteria": [
+                "Refactor the entire module",
+                "Integrate with multiple services",
+                "Add security and auth checks",
+            ]
+        }
         score = score_story_complexity(story)
         assert score > 40
 

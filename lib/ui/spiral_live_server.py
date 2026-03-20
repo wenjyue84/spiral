@@ -450,10 +450,7 @@ class SpiralLiveServer:
             return
 
         try:
-            worker_subdirs = [
-                d for d in os.listdir(workers_dir)
-                if os.path.isdir(os.path.join(workers_dir, d))
-            ]
+            worker_subdirs = [d for d in os.listdir(workers_dir) if os.path.isdir(os.path.join(workers_dir, d))]
         except OSError:
             await self._send_json(writer, 200, workers)
             return
@@ -745,9 +742,8 @@ def main() -> int:
 
     # Support both SPIRAL_DASHBOARD_PORT (5300) and SPIRAL_UI_PORT (5299) for port configuration
     # SPIRAL_DASHBOARD_PORT takes precedence (US-481 spec), falls back to SPIRAL_UI_PORT for compatibility
-    default_port_str = (
-        __import__("os").environ.get("SPIRAL_DASHBOARD_PORT")
-        or __import__("os").environ.get("SPIRAL_UI_PORT", "5300")
+    default_port_str = __import__("os").environ.get("SPIRAL_DASHBOARD_PORT") or __import__("os").environ.get(
+        "SPIRAL_UI_PORT", "5300"
     )
     parser.add_argument(
         "--port",

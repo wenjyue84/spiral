@@ -28,9 +28,7 @@ PHASE_OUTPUT_FILES = {
 }
 
 
-def load_phase_output(
-    iteration: int, phase: Phase, scratch_dir: Path
-) -> dict[str, Any]:
+def load_phase_output(iteration: int, phase: Phase, scratch_dir: Path) -> dict[str, Any]:
     """Load phase output file for a given iteration.
 
     Args:
@@ -150,16 +148,15 @@ def compare_iterations(
             current_fields = get_story_key_fields(current_ids[story_id])
             prev_fields = get_story_key_fields(prev_ids[story_id])
 
-            changed_fields = [
-                field for field in current_fields
-                if current_fields[field] != prev_fields[field]
-            ]
+            changed_fields = [field for field in current_fields if current_fields[field] != prev_fields[field]]
 
             if changed_fields:
-                modified.append({
-                    "id": story_id,
-                    "changedFields": changed_fields,
-                })
+                modified.append(
+                    {
+                        "id": story_id,
+                        "changedFields": changed_fields,
+                    }
+                )
 
     # Detect stuck stories: check if story appears in same phase for 3+ consecutive iterations
     stuck = _detect_stuck_stories(scratch_dir, phase, current_iter, current_ids)
@@ -175,9 +172,7 @@ def compare_iterations(
     }
 
 
-def _load_previous_iteration_stories(
-    scratch_dir: Path, phase: Phase, current_iter: int
-) -> dict[str, Any]:
+def _load_previous_iteration_stories(scratch_dir: Path, phase: Phase, current_iter: int) -> dict[str, Any]:
     """Load previous iteration's phase output.
 
     Currently: Look in prd-backups/ for previous PRD state and infer stories.
@@ -243,10 +238,12 @@ def _detect_stuck_stories(
     # Mark as stuck if appeared in threshold+ iterations
     for story_id, count in story_iteration_count.items():
         if count >= threshold:
-            stuck.append({
-                "id": story_id,
-                "stuckSince": count,
-            })
+            stuck.append(
+                {
+                    "id": story_id,
+                    "stuckSince": count,
+                }
+            )
 
     return stuck
 

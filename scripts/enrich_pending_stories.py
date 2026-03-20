@@ -38,9 +38,7 @@ def _next_id(stories: list[dict]) -> str:  # type: ignore[type-arg]
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Enrich pending prd.json stories that have empty technicalNotes"
-    )
+    parser = argparse.ArgumentParser(description="Enrich pending prd.json stories that have empty technicalNotes")
     parser.add_argument(
         "--dry-run",
         action="store_true",
@@ -58,11 +56,7 @@ def main() -> int:
 
     stories: list[dict] = data["userStories"]  # type: ignore[type-arg]
 
-    targets = [
-        s
-        for s in stories
-        if s.get("passes") is False and not s.get("technicalNotes")
-    ]
+    targets = [s for s in stories if s.get("passes") is False and not s.get("technicalNotes")]
 
     if not targets:
         print("No pending stories with empty technicalNotes — nothing to do.")
@@ -113,12 +107,8 @@ def main() -> int:
             # Enrich: patch only technicalNotes and acceptanceCriteria back into the
             # original story so we don't overwrite id, passes, _source, tags, etc.
             enriched = result[0]
-            story["technicalNotes"] = enriched.get(
-                "technicalNotes", story.get("technicalNotes", [])
-            )
-            story["acceptanceCriteria"] = enriched.get(
-                "acceptanceCriteria", story.get("acceptanceCriteria", [])
-            )
+            story["technicalNotes"] = enriched.get("technicalNotes", story.get("technicalNotes", []))
+            story["acceptanceCriteria"] = enriched.get("acceptanceCriteria", story.get("acceptanceCriteria", []))
             enriched_count += 1
             notes = story["technicalNotes"]
             print(f"  [E]   technicalNotes: {len(notes)} item(s)")

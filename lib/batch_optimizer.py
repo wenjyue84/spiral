@@ -19,8 +19,6 @@ batch_potential(stories, max_batch_size=10) -> dict
 
 from __future__ import annotations
 
-import math
-import re
 from typing import Any
 
 __all__ = ["batch_potential", "group_stories_by_rules"]
@@ -162,9 +160,7 @@ def batch_potential(
     token_savings = solo_tokens - batch_tokens
     token_savings_pct = (token_savings / solo_tokens * 100.0) if solo_tokens else 0.0
 
-    group_ids: list[list[str]] = [
-        [s.get("id", "") for s in g] for g in groups
-    ]
+    group_ids: list[list[str]] = [[s.get("id", "") for s in g] for g in groups]
 
     return {
         "story_count": n,

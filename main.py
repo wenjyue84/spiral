@@ -623,8 +623,7 @@ def _format_velocity_report(velocity_model: dict) -> str:
 
     For types with <5 samples, show n/a instead of values.
     """
-    import sys as _sys
-    from lib.core.constants import MIN_HISTORY_ROWS, INPUT_OUTPUT_RATIO, TOKENS_PER_SEC_OUTPUT
+    from lib.core.constants import INPUT_OUTPUT_RATIO, MIN_HISTORY_ROWS, TOKENS_PER_SEC_OUTPUT
 
     types = velocity_model.get("story_types", {})
     if not types:
@@ -700,9 +699,7 @@ def cmd_estimate(args):
         spec.loader.exec_module(vm_mod)  # type: ignore[union-attr]
 
         SCRATCH_DIR.mkdir(parents=True, exist_ok=True)
-        velocity_model = vm_mod.load_or_build_velocity_model(
-            str(RESULTS_TSV), str(SCRATCH_DIR / "velocity_model.json")
-        )
+        velocity_model = vm_mod.load_or_build_velocity_model(str(RESULTS_TSV), str(SCRATCH_DIR / "velocity_model.json"))
         report = _format_velocity_report(velocity_model)
         print(report)
         _sys.exit(0)
@@ -2768,15 +2765,18 @@ def main():
         help="Analyze routing metrics: token savings vs quality per model tier",
     )
     analyze_routing_parser.add_argument(
-        "--events", default="spiral_events.jsonl",
+        "--events",
+        default="spiral_events.jsonl",
         help="Path to spiral_events.jsonl (default: spiral_events.jsonl)",
     )
     analyze_routing_parser.add_argument(
-        "--results", default="results.tsv",
+        "--results",
+        default="results.tsv",
         help="Path to results.tsv (default: results.tsv)",
     )
     analyze_routing_parser.add_argument(
-        "--dashboard", action="store_true",
+        "--dashboard",
+        action="store_true",
         help="Generate HTML dashboard for visual analysis",
     )
 

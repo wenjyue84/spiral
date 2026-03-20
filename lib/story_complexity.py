@@ -20,11 +20,9 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 import os
 import sys
 from typing import Any
-
 
 # ── Scoring calibration constants ─────────────────────────────────────────────
 # These thresholds are tuned to map typical SPIRAL stories onto the 1-10 scale.
@@ -89,12 +87,7 @@ def compute_story_complexity(story: dict[str, Any], prd: dict[str, Any]) -> floa
     retry_component = min(retry_count / _RETRY_COUNT_MAX, 1.0)
 
     # ── Weighted composite [0.0, 1.0] → rescale to [1.0, 10.0] ──────────────
-    raw = (
-        _W_DESC * desc_component
-        + _W_DEPS * dep_component
-        + _W_FILES * files_component
-        + _W_RETRIES * retry_component
-    )
+    raw = _W_DESC * desc_component + _W_DEPS * dep_component + _W_FILES * files_component + _W_RETRIES * retry_component
     score = 1.0 + raw * 9.0  # maps [0,1] → [1,10]
     return round(min(max(score, 1.0), 10.0), 2)
 

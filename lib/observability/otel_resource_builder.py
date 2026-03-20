@@ -26,6 +26,7 @@ from __future__ import annotations
 import os
 import platform
 import subprocess
+
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.semconv.resource import ResourceAttributes
 
@@ -36,11 +37,15 @@ def _get_service_version() -> str:
     Falls back to 'unknown' if git is unavailable or not in a git repo.
     """
     try:
-        version = subprocess.check_output(
-            ["git", "describe", "--tags", "--always"],
-            stderr=subprocess.DEVNULL,
-            cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-        ).decode("utf-8").strip()
+        version = (
+            subprocess.check_output(
+                ["git", "describe", "--tags", "--always"],
+                stderr=subprocess.DEVNULL,
+                cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            )
+            .decode("utf-8")
+            .strip()
+        )
         return version if version else "unknown"
     except (subprocess.CalledProcessError, FileNotFoundError):
         return "unknown"

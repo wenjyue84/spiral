@@ -145,7 +145,6 @@ def _make_tracer() -> tuple[object, object]:
     from opentelemetry import trace
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
-
     from otel_resource_builder import build_otel_resource
 
     resource = build_otel_resource()
@@ -191,7 +190,6 @@ def _emit_completed_span(
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import SimpleSpanProcessor
     from opentelemetry.trace import SpanContext, SpanKind, TraceFlags
-
     from otel_resource_builder import build_otel_resource
 
     resource = build_otel_resource()

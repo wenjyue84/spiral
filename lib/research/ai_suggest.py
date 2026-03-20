@@ -162,10 +162,7 @@ def _suggest_via_llm(
         print(f"[A] LLM generated {len(stories)} story candidates")
         return stories
     except subprocess.TimeoutExpired:
-        print(
-            f"[A] WARNING: Claude CLI timed out after {_DEFAULT_TIMEOUT}s"
-            " -- returning empty"
-        )
+        print(f"[A] WARNING: Claude CLI timed out after {_DEFAULT_TIMEOUT}s -- returning empty")
         return []
     except Exception as exc:
         print(f"[A] WARNING: LLM story generation failed ({exc}) -- returning empty")

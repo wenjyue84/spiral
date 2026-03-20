@@ -12,14 +12,6 @@ import sys
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
-from merge_stories import (
-    find_next_id,
-    full_sort_key,
-    is_duplicate,
-    load_candidates,
-    matches_focus,
-    story_to_prd_entry,
-)
 
 
 def _write_json(path: str, data: dict) -> None:

@@ -105,9 +105,7 @@ def assign_stories(
     file_to_worker: dict[str, int] = {}  # file_path → bucket index
 
     # Pre-compute complexity scores if available and beneficial
-    _use_complexity_bands = (
-        use_complexity and _COMPLEXITY_AVAILABLE and n_workers >= 2
-    )
+    _use_complexity_bands = use_complexity and _COMPLEXITY_AVAILABLE and n_workers >= 2
     # Band counters for round-robin within each band
     _band_counters: dict[str, int] = {"low": 0, "medium": 0, "high": 0}
 

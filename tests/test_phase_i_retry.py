@@ -9,9 +9,7 @@ import os
 import sys
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import MagicMock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 from spiral_io import atomic_write_json, configure_utf8_stdout
@@ -35,9 +33,7 @@ def _make_story(story_id: str, **extra: Any) -> dict[str, Any]:
     return s
 
 
-def _make_prd(
-    stories: list[dict[str, Any]], name: str = "TestProduct", branch: str = "main"
-) -> dict[str, Any]:
+def _make_prd(stories: list[dict[str, Any]], name: str = "TestProduct", branch: str = "main") -> dict[str, Any]:
     """Create a minimal valid prd.json dict."""
     return {
         "schemaVersion": 1,
@@ -264,6 +260,7 @@ class TestRetryEscalation:
 def test_retry_escalation_increments_counts() -> None:
     """AC1: Verify retry-counts.json shows haiku=1, sonnet=1, opus=1."""
     import tempfile
+
     with tempfile.TemporaryDirectory() as tmp:
         test = TestRetryEscalation()
         test.test_retry_escalation_increments_counts(Path(tmp))
@@ -272,6 +269,7 @@ def test_retry_escalation_increments_counts() -> None:
 def test_retry_escalation_records_opus_in_results() -> None:
     """AC2: Verify results.tsv final row has model=opus and status=completed."""
     import tempfile
+
     with tempfile.TemporaryDirectory() as tmp:
         test = TestRetryEscalation()
         test.test_retry_escalation_records_opus_in_results(Path(tmp))
@@ -280,6 +278,7 @@ def test_retry_escalation_records_opus_in_results() -> None:
 def test_phase_i_retry_full_suite() -> None:
     """AC3: All tests pass; full Phase I retry mechanism verified."""
     import tempfile
+
     with tempfile.TemporaryDirectory() as tmp:
         test = TestRetryEscalation()
         test.test_retry_escalation_full_flow(Path(tmp))

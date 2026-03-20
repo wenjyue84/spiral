@@ -118,12 +118,14 @@ def route_stories(prd_path, profile):
                 print(f"  [router] Story '{story.get('id')}' -> profile: {profile} -> model: {assigned_model}")
 
             # US-455: Collect telemetry for emission after write
-            telemetry_events.append({
-                "story_id": story.get("id", "unknown"),
-                "complexity_score": complexity_score,
-                "model_tier": assigned_model,
-                "estimated_tokens": 0,
-            })
+            telemetry_events.append(
+                {
+                    "story_id": story.get("id", "unknown"),
+                    "complexity_score": complexity_score,
+                    "model_tier": assigned_model,
+                    "estimated_tokens": 0,
+                }
+            )
 
             if assigned_model and story.get("model") != assigned_model:
                 story["model"] = assigned_model
@@ -149,6 +151,7 @@ def route_stories(prd_path, profile):
         events_path = os.path.join(os.path.dirname(prd_path), "spiral_events.jsonl")
         try:
             from routing_telemetry import emit_routing_events
+
             emit_routing_events(events_path, telemetry_events)
         except ImportError:
             pass  # telemetry module not available -- skip silently

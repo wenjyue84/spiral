@@ -13,7 +13,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib", "researc
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 from ai_suggest import _build_prompt, _suggest_via_llm, clear_queue, load_queue
 
-
 # ── Helpers ────────────────────────────────────────────────────────────────
 
 

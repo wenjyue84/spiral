@@ -33,9 +33,7 @@ def _make_story(story_id: str, passes: bool = False, **extra: Any) -> dict[str, 
     return s
 
 
-def _make_prd(
-    stories: list[dict[str, Any]], name: str = "TestProduct", branch: str = "main"
-) -> dict[str, Any]:
+def _make_prd(stories: list[dict[str, Any]], name: str = "TestProduct", branch: str = "main") -> dict[str, Any]:
     """Create a minimal valid prd.json dict."""
     return {
         "schemaVersion": 1,
@@ -61,9 +59,7 @@ def _read_prd(path: Path) -> dict[str, Any]:
         return data
 
 
-def _make_results_tsv_line(
-    story_id: str, model: str = "haiku", tokens: int = 1000, status: str = "completed"
-) -> str:
+def _make_results_tsv_line(story_id: str, model: str = "haiku", tokens: int = 1000, status: str = "completed") -> str:
     """Create a results.tsv line."""
     return f"{story_id}\t{model}\t{tokens}\t{status}\t2026-03-19T00:00:00Z\n"
 
@@ -74,30 +70,29 @@ class TestWorkerIsolationHappyPath:
     def test_worker_isolation_happy_path(self, tmp_path: Path) -> None:
         """Two workers with 10 stories, each completes 5, results merge correctly."""
         # Setup: main prd.json with 10 stories, all pending (passes=false)
-        stories = [_make_story(f"US-{i+1:03d}", passes=False) for i in range(10)]
+        stories = [_make_story(f"US-{i + 1:03d}", passes=False) for i in range(10)]
         main_prd = _make_prd(stories)
         main_prd_path = tmp_path / "prd.json"
         _write_prd(main_prd_path, main_prd)
 
         # Simulate worker-1 processing stories 1-5 (marks them as passed)
-        worker1_stories = [
-            _make_story(f"US-{i+1:03d}", passes=True) for i in range(5)
-        ] + [_make_story(f"US-{i+1:03d}", passes=False) for i in range(5, 10)]
+        worker1_stories = [_make_story(f"US-{i + 1:03d}", passes=True) for i in range(5)] + [
+            _make_story(f"US-{i + 1:03d}", passes=False) for i in range(5, 10)
+        ]
         worker1_prd = _make_prd(worker1_stories)
         worker1_path = tmp_path / "worker1_prd.json"
         _write_prd(worker1_path, worker1_prd)
 
         # Simulate worker-2 processing stories 6-10 (marks them as passed)
-        worker2_stories = [
-            _make_story(f"US-{i+1:03d}", passes=False) for i in range(5)
-        ] + [_make_story(f"US-{i+1:03d}", passes=True) for i in range(5, 10)]
+        worker2_stories = [_make_story(f"US-{i + 1:03d}", passes=False) for i in range(5)] + [
+            _make_story(f"US-{i + 1:03d}", passes=True) for i in range(5, 10)
+        ]
         worker2_prd = _make_prd(worker2_stories)
         worker2_path = tmp_path / "worker2_prd.json"
         _write_prd(worker2_path, worker2_prd)
 
         # Call merge directly instead of via subprocess for test isolation
-        sys.argv = ["merge", "--main", str(main_prd_path), "--workers", str(
-            worker1_path), str(worker2_path)]
+        sys.argv = ["merge", "--main", str(main_prd_path), "--workers", str(worker1_path), str(worker2_path)]
         merge_ret = merge_main()
         assert merge_ret == 0, "merge_main() should succeed"
 
@@ -116,7 +111,7 @@ class TestWorkerIsolationHappyPath:
         # Setup: main prd with stories including _status fields
         stories = []
         for i in range(10):
-            story = _make_story(f"US-{i+1:03d}", passes=False)
+            story = _make_story(f"US-{i + 1:03d}", passes=False)
             story["_status"] = "pending"  # Custom field
             story["model"] = "haiku"  # Track model used
             stories.append(story)
@@ -128,7 +123,7 @@ class TestWorkerIsolationHappyPath:
         # Simulate worker-1: processes stories 1-5, updates _status to "completed"
         worker1_stories = []
         for i in range(10):
-            story = _make_story(f"US-{i+1:03d}", passes=i < 5)
+            story = _make_story(f"US-{i + 1:03d}", passes=i < 5)
             story["_status"] = "completed" if i < 5 else "pending"
             story["model"] = "haiku"
             worker1_stories.append(story)
@@ -140,7 +135,7 @@ class TestWorkerIsolationHappyPath:
         # Simulate worker-2: processes stories 6-10, updates _status
         worker2_stories = []
         for i in range(10):
-            story = _make_story(f"US-{i+1:03d}", passes=i >= 5)
+            story = _make_story(f"US-{i + 1:03d}", passes=i >= 5)
             story["_status"] = "completed" if i >= 5 else "pending"
             story["model"] = "sonnet" if i >= 5 else "haiku"
             worker2_stories.append(story)
@@ -150,8 +145,7 @@ class TestWorkerIsolationHappyPath:
         _write_prd(worker2_path, worker2_prd)
 
         # Merge results
-        sys.argv = ["merge", "--main", str(main_prd_path), "--workers",
-                    str(worker1_path), str(worker2_path)]
+        sys.argv = ["merge", "--main", str(main_prd_path), "--workers", str(worker1_path), str(worker2_path)]
         ret = merge_main()
         assert ret == 0
 
@@ -180,12 +174,12 @@ class TestWorkerIsolationHappyPath:
         # Append worker-1 results
         with open(results_path, "a", encoding="utf-8") as f:
             for i in range(5):
-                f.write(_make_results_tsv_line(f"US-{i+1:03d}", "haiku"))
+                f.write(_make_results_tsv_line(f"US-{i + 1:03d}", "haiku"))
 
         # Append worker-2 results (simulating concurrent write)
         with open(results_path, "a", encoding="utf-8") as f:
             for i in range(5, 10):
-                f.write(_make_results_tsv_line(f"US-{i+1:03d}", "sonnet"))
+                f.write(_make_results_tsv_line(f"US-{i + 1:03d}", "sonnet"))
 
         # Read and verify
         lines = results_path.read_text(encoding="utf-8").strip().split("\n")
@@ -195,9 +189,7 @@ class TestWorkerIsolationHappyPath:
 
         story_ids = [line.split("\t")[0] for line in data_lines]
         assert len(story_ids) == len(set(story_ids)), "All story IDs should be unique"
-        assert set(story_ids) == {
-            f"US-{i+1:03d}" for i in range(10)
-        }, "Should contain all US-001 to US-010"
+        assert set(story_ids) == {f"US-{i + 1:03d}" for i in range(10)}, "Should contain all US-001 to US-010"
 
 
 class TestWorkerCrashRecovery:
@@ -206,31 +198,27 @@ class TestWorkerCrashRecovery:
     def test_worker_crash_other_completes(self, tmp_path: Path) -> None:
         """Worker-1 'crashes' (simulated by incomplete results); worker-2 completes."""
         # Setup: main prd with 10 stories
-        stories = [_make_story(f"US-{i+1:03d}", passes=False) for i in range(10)]
+        stories = [_make_story(f"US-{i + 1:03d}", passes=False) for i in range(10)]
         main_prd = _make_prd(stories)
         main_prd_path = tmp_path / "prd.json"
         _write_prd(main_prd_path, main_prd)
 
         # Simulate worker-1 crash: only processed stories 1-3 before crashing
-        worker1_stories = (
-            [_make_story(f"US-{i+1:03d}", passes=True) for i in range(3)]
-            + [_make_story(f"US-{i+1:03d}", passes=False) for i in range(3, 10)]
-        )
+        worker1_stories = [_make_story(f"US-{i + 1:03d}", passes=True) for i in range(3)] + [
+            _make_story(f"US-{i + 1:03d}", passes=False) for i in range(3, 10)
+        ]
         worker1_prd = _make_prd(worker1_stories)
         worker1_path = tmp_path / "worker1_prd.json"
         _write_prd(worker1_path, worker1_prd)
 
         # Worker-2 continues: processes all 10 stories (including those worker-1 left)
-        worker2_stories = [
-            _make_story(f"US-{i+1:03d}", passes=True) for i in range(10)
-        ]
+        worker2_stories = [_make_story(f"US-{i + 1:03d}", passes=True) for i in range(10)]
         worker2_prd = _make_prd(worker2_stories)
         worker2_path = tmp_path / "worker2_prd.json"
         _write_prd(worker2_path, worker2_prd)
 
         # Merge results
-        sys.argv = ["merge", "--main", str(main_prd_path), "--workers",
-                    str(worker1_path), str(worker2_path)]
+        sys.argv = ["merge", "--main", str(main_prd_path), "--workers", str(worker1_path), str(worker2_path)]
         ret = merge_main()
         assert ret == 0
 
@@ -256,12 +244,12 @@ class TestWorkerCrashRecovery:
         atomic_write_json(str(checkpoint_path), checkpoint)
 
         # Perform a merge operation (unrelated to checkpoint, but simulates concurrent activity)
-        stories = [_make_story(f"US-{i+1:03d}", passes=False) for i in range(10)]
+        stories = [_make_story(f"US-{i + 1:03d}", passes=False) for i in range(10)]
         main_prd = _make_prd(stories)
         main_prd_path = tmp_path / "prd.json"
         _write_prd(main_prd_path, main_prd)
 
-        worker_stories = [_make_story(f"US-{i+1:03d}", passes=True) for i in range(10)]
+        worker_stories = [_make_story(f"US-{i + 1:03d}", passes=True) for i in range(10)]
         worker_prd = _make_prd(worker_stories)
         worker_path = tmp_path / "worker_prd.json"
         _write_prd(worker_path, worker_prd)
@@ -280,16 +268,15 @@ class TestWorkerCrashRecovery:
     def test_partial_worker_failure_recovery(self, tmp_path: Path) -> None:
         """Worker-1 fails on some stories; worker-2 succeeds on all; final state valid."""
         # Setup: 10 stories
-        stories = [_make_story(f"US-{i+1:03d}", passes=False) for i in range(10)]
+        stories = [_make_story(f"US-{i + 1:03d}", passes=False) for i in range(10)]
         main_prd = _make_prd(stories)
         main_prd_path = tmp_path / "prd.json"
         _write_prd(main_prd_path, main_prd)
 
         # Worker-1: succeeds on 1-3, fails on 4-10
-        worker1_stories = (
-            [_make_story(f"US-{i+1:03d}", passes=True) for i in range(3)]
-            + [_make_story(f"US-{i+1:03d}", passes=False) for i in range(3, 10)]
-        )
+        worker1_stories = [_make_story(f"US-{i + 1:03d}", passes=True) for i in range(3)] + [
+            _make_story(f"US-{i + 1:03d}", passes=False) for i in range(3, 10)
+        ]
         worker1_prd = _make_prd(worker1_stories)
         worker1_prd["userStories"][0]["_failureReason"] = "timeout"  # Mark one as failed
         worker1_prd["userStories"][0]["passes"] = False
@@ -297,16 +284,13 @@ class TestWorkerCrashRecovery:
         _write_prd(worker1_path, worker1_prd)
 
         # Worker-2: succeeds on all
-        worker2_stories = [
-            _make_story(f"US-{i+1:03d}", passes=True) for i in range(10)
-        ]
+        worker2_stories = [_make_story(f"US-{i + 1:03d}", passes=True) for i in range(10)]
         worker2_prd = _make_prd(worker2_stories)
         worker2_path = tmp_path / "worker2_prd.json"
         _write_prd(worker2_path, worker2_prd)
 
         # Merge
-        sys.argv = ["merge", "--main", str(main_prd_path), "--workers",
-                    str(worker1_path), str(worker2_path)]
+        sys.argv = ["merge", "--main", str(main_prd_path), "--workers", str(worker1_path), str(worker2_path)]
         ret = merge_main()
         assert ret == 0
 

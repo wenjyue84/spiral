@@ -4,7 +4,6 @@ Tests for lib/otel_worker_inject.py — OTel subprocess span instrumentation (US
 
 from __future__ import annotations
 
-import json
 import os
 from unittest import mock
 
@@ -68,8 +67,9 @@ class TestWorkerSpanEmission:
 
     def test_cmd_emit_worker_without_endpoint(self) -> None:
         """emit_worker should no-op silently when OTEL_EXPORTER_OTLP_ENDPOINT is not set."""
-        from otel_worker_inject import cmd_emit_worker
         import argparse
+
+        from otel_worker_inject import cmd_emit_worker
 
         with mock.patch.dict(os.environ, {}, clear=True):
             args = argparse.Namespace(
@@ -85,12 +85,11 @@ class TestWorkerSpanEmission:
 
     def test_cmd_emit_worker_without_traceparent(self) -> None:
         """emit_worker should no-op when TRACEPARENT env var is not set."""
-        from otel_worker_inject import cmd_emit_worker
         import argparse
 
-        with mock.patch.dict(
-            os.environ, {"OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:4317"}, clear=True
-        ):
+        from otel_worker_inject import cmd_emit_worker
+
+        with mock.patch.dict(os.environ, {"OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:4317"}, clear=True):
             args = argparse.Namespace(
                 story_id="US-123",
                 worker_num=1,
@@ -104,8 +103,9 @@ class TestWorkerSpanEmission:
 
     def test_cmd_emit_worker_invalid_traceparent(self) -> None:
         """emit_worker should no-op when TRACEPARENT is malformed."""
-        from otel_worker_inject import cmd_emit_worker
         import argparse
+
+        from otel_worker_inject import cmd_emit_worker
 
         with mock.patch.dict(
             os.environ,
@@ -128,8 +128,9 @@ class TestWorkerSpanEmission:
     @mock.patch("otel_worker_inject._emit_completed_span")
     def test_cmd_emit_worker_success_span(self, mock_emit: mock.Mock) -> None:
         """emit_worker should emit span with OK status when returncode is 0."""
-        from otel_worker_inject import cmd_emit_worker
         import argparse
+
+        from otel_worker_inject import cmd_emit_worker
 
         # Valid TRACEPARENT format
         tp = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
@@ -180,8 +181,9 @@ class TestWorkerSpanEmission:
     @mock.patch("otel_worker_inject._emit_completed_span")
     def test_cmd_emit_worker_failure_span(self, mock_emit: mock.Mock) -> None:
         """emit_worker should emit span with ERROR status when returncode != 0."""
-        from otel_worker_inject import cmd_emit_worker
         import argparse
+
+        from otel_worker_inject import cmd_emit_worker
 
         tp = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
         with mock.patch.dict(
@@ -214,8 +216,9 @@ class TestWorkerSpanEmission:
     @mock.patch("otel_worker_inject._emit_completed_span")
     def test_cmd_emit_worker_timeout_exit_code(self, mock_emit: mock.Mock) -> None:
         """emit_worker should mark timeout exit code (124) as ERROR."""
-        from otel_worker_inject import cmd_emit_worker
         import argparse
+
+        from otel_worker_inject import cmd_emit_worker
 
         tp = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
         with mock.patch.dict(
@@ -248,8 +251,9 @@ class TestWorkerSpanEmission:
     @mock.patch("otel_worker_inject._emit_completed_span")
     def test_cmd_emit_worker_executable_extraction(self, mock_emit: mock.Mock) -> None:
         """emit_worker should extract executable from command string."""
-        from otel_worker_inject import cmd_emit_worker
         import argparse
+
+        from otel_worker_inject import cmd_emit_worker
 
         tp = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
         with mock.patch.dict(
@@ -277,8 +281,9 @@ class TestWorkerSpanEmission:
     @mock.patch("otel_worker_inject._emit_completed_span")
     def test_cmd_emit_worker_empty_command(self, mock_emit: mock.Mock) -> None:
         """emit_worker should handle empty command gracefully."""
-        from otel_worker_inject import cmd_emit_worker
         import argparse
+
+        from otel_worker_inject import cmd_emit_worker
 
         tp = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
         with mock.patch.dict(
@@ -311,11 +316,13 @@ class TestMainEntryPoint:
     @mock.patch("otel_worker_inject.cmd_emit_worker")
     def test_main_emit_worker_command(self, mock_cmd: mock.Mock) -> None:
         """main() should route emit-worker subcommand correctly."""
-        from otel_worker_inject import main
         import sys
 
+        from otel_worker_inject import main
+
         with mock.patch.object(
-            sys, "argv",
+            sys,
+            "argv",
             [
                 "otel_worker_inject.py",
                 "emit-worker",
@@ -343,12 +350,14 @@ class TestMainEntryPoint:
 
     def test_main_exception_handling(self) -> None:
         """main() should catch exceptions and print to stderr."""
-        from otel_worker_inject import main
         import sys
+
+        from otel_worker_inject import main
 
         # Provide invalid arguments to trigger exception
         with mock.patch.object(
-            sys, "argv",
+            sys,
+            "argv",
             [
                 "otel_worker_inject.py",
                 "emit-worker",

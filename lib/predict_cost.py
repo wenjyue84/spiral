@@ -216,12 +216,8 @@ def predict_story(story_id: str, prd_path: str, history_path: str) -> dict[str, 
 
 
 def main(argv: list[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(
-        description="KNN-based story cost estimator from results.tsv history"
-    )
-    parser.add_argument(
-        "--story-id", required=True, help="Story ID to estimate (e.g. US-001)"
-    )
+    parser = argparse.ArgumentParser(description="KNN-based story cost estimator from results.tsv history")
+    parser.add_argument("--story-id", required=True, help="Story ID to estimate (e.g. US-001)")
     parser.add_argument("--prd", required=True, help="Path to prd.json")
     parser.add_argument("--history", required=True, help="Path to results.tsv")
     parser.add_argument(

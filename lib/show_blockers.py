@@ -13,7 +13,6 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
@@ -70,9 +69,7 @@ def _transitive_depth(story_id: str, forward: dict[str, list[str]]) -> int:
     return dfs(story_id)
 
 
-def _find_cycle(
-    story_id: str, forward: dict[str, list[str]]
-) -> Optional[list[str]]:
+def _find_cycle(story_id: str, forward: dict[str, list[str]]) -> Optional[list[str]]:
     """Return the first cycle path reachable from *story_id*, or None.
 
     The returned list starts and ends with the repeated node so the cycle is

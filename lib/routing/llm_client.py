@@ -28,8 +28,6 @@ Usage:
 from __future__ import annotations
 
 import json
-import os
-import sys
 from datetime import datetime, timezone
 from typing import Any
 
@@ -137,12 +135,8 @@ def stream_completion(
                 usage = {
                     "input_tokens": getattr(usage_obj, "input_tokens", 0),
                     "output_tokens": getattr(usage_obj, "output_tokens", 0),
-                    "cache_creation_input_tokens": getattr(
-                        usage_obj, "cache_creation_input_tokens", 0
-                    ),
-                    "cache_read_input_tokens": getattr(
-                        usage_obj, "cache_read_input_tokens", 0
-                    ),
+                    "cache_creation_input_tokens": getattr(usage_obj, "cache_creation_input_tokens", 0),
+                    "cache_read_input_tokens": getattr(usage_obj, "cache_read_input_tokens", 0),
                 }
             else:
                 usage = {

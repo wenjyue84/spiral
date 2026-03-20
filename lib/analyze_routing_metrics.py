@@ -10,7 +10,6 @@ import argparse
 import csv
 import json
 import os
-import sys
 from collections import defaultdict
 
 
@@ -62,11 +61,13 @@ def analyze(events_path: str, results_path: str) -> dict:
         story_complexity[sid] = ev.get("complexity_score", 0)
 
     # Group results by model tier
-    tier_stats: dict[str, dict] = defaultdict(lambda: {
-        "samples": 0,
-        "total_tokens": 0,
-        "passes": 0,
-    })
+    tier_stats: dict[str, dict] = defaultdict(
+        lambda: {
+            "samples": 0,
+            "total_tokens": 0,
+            "passes": 0,
+        }
+    )
 
     # Token estimates per tier (rough averages for baseline calculation)
     _TIER_TOKEN_ESTIMATE = {"haiku": 5000, "sonnet": 15000, "opus": 40000}
@@ -103,12 +104,14 @@ def analyze(events_path: str, results_path: str) -> dict:
             continue
         mean_tokens = stats["total_tokens"] // stats["samples"]
         success_rate = stats["passes"] / stats["samples"] if stats["samples"] > 0 else 0.0
-        tiers.append({
-            "model_tier": tier_name,
-            "samples": stats["samples"],
-            "mean_tokens": mean_tokens,
-            "success_rate": round(success_rate, 3),
-        })
+        tiers.append(
+            {
+                "model_tier": tier_name,
+                "samples": stats["samples"],
+                "mean_tokens": mean_tokens,
+                "success_rate": round(success_rate, 3),
+            }
+        )
         actual_total += stats["total_tokens"]
         # Baseline: if all stories used sonnet
         baseline_total += stats["samples"] * _TIER_TOKEN_ESTIMATE["sonnet"]

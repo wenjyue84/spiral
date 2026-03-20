@@ -7,7 +7,6 @@ batch API fallback, and end-to-end candidate filtering.
 import json
 import os
 import sys
-import tempfile
 
 import pytest
 

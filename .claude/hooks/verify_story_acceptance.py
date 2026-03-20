@@ -38,9 +38,7 @@ def load_prd_json(repo_root: Path) -> dict[str, Any]:
         return data if isinstance(data, dict) else {}
 
 
-def get_current_story(
-    repo_root: Path, story_id: str
-) -> dict[str, Any] | None:
+def get_current_story(repo_root: Path, story_id: str) -> dict[str, Any] | None:
     """Find story by ID in prd.json."""
     prd = load_prd_json(repo_root)
     for story_data in prd.get("userStories", []):
@@ -58,9 +56,7 @@ def check_files_exist(repo_root: Path, files: list[str]) -> tuple[bool, str]:
     return True, ""
 
 
-def check_files_modified_in_last_commit(
-    repo_root: Path, files: list[str]
-) -> tuple[bool, str]:
+def check_files_modified_in_last_commit(repo_root: Path, files: list[str]) -> tuple[bool, str]:
     """Check that all files were modified in the last git commit."""
     try:
         # Get list of files changed in the last commit
@@ -94,9 +90,7 @@ def check_files_modified_in_last_commit(
         return False, f"Git check failed: {e}"
 
 
-def run_targeted_pytest(
-    repo_root: Path, files: list[str]
-) -> tuple[bool, str]:
+def run_targeted_pytest(repo_root: Path, files: list[str]) -> tuple[bool, str]:
     """Run pytest on story-related test files."""
     if not files:
         return True, ""

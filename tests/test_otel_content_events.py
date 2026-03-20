@@ -10,25 +10,23 @@ from __future__ import annotations
 
 import json
 import os
+
+# Import the module under test
+import sys
 import tempfile
 from pathlib import Path
-from typing import Any
 from unittest import mock
 
 import pytest
 
-# Import the module under test
-import sys
-
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
 
 from otel_content_events import (
-    _should_redact,
     _otlp_endpoint,
     _scratch_dir,
-    _content_events_path,
-    cmd_emit_prompt,
+    _should_redact,
     cmd_emit_completion,
+    cmd_emit_prompt,
 )
 
 

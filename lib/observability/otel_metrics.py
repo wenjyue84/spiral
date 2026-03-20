@@ -101,7 +101,6 @@ def cmd_record_tokens(args: argparse.Namespace) -> None:
         from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
         from opentelemetry.sdk.metrics import MeterProvider
         from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
-
         from otel_resource_builder import build_otel_resource
 
         resource = build_otel_resource()

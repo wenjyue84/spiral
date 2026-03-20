@@ -12,15 +12,13 @@ import os
 import sys
 from typing import Any
 
-import pytest
-
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 from batch_optimizer import batch_potential, group_stories_by_rules
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 def _make_stories(
     n: int,
@@ -62,6 +60,7 @@ def _make_mixed_stories(counts: dict[tuple[str, str], int]) -> list[dict[str, An
 # ---------------------------------------------------------------------------
 # group_stories_by_rules — unit tests
 # ---------------------------------------------------------------------------
+
 
 class TestGroupStoriesByRules:
     """Unit tests for the core clustering function."""
@@ -153,6 +152,7 @@ class TestGroupStoriesByRules:
 # Phase S integration: ≥30% API call reduction on 20+ stories
 # ---------------------------------------------------------------------------
 
+
 class TestPhasesBatchReduction:
     """Verify that batching achieves ≥30% API call reduction on realistic inputs."""
 
@@ -200,6 +200,7 @@ class TestPhasesBatchReduction:
 
         Verify the reduction is ≥30%.
         """
+
         # Mock API: records how many calls were made
         class MockAPI:
             def __init__(self) -> None:
@@ -237,6 +238,7 @@ class TestPhasesBatchReduction:
 # ---------------------------------------------------------------------------
 # batch_potential — CLI helper tests
 # ---------------------------------------------------------------------------
+
 
 class TestBatchPotential:
     """Tests for the batch_potential() summary function."""

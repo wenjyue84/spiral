@@ -6,12 +6,10 @@ Tests story detection, field change detection, and stuck story identification.
 """
 
 import json
-import tempfile
+import sys
 from pathlib import Path
 
 import pytest
-
-import sys
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
 
@@ -130,13 +128,15 @@ class TestCompareIterations:
         # Current iteration has 2 stories
         current_output = tmp_path / "_validated_stories.json"
         current_output.write_text(
-            json.dumps({
-                "stories": [
-                    {"id": "US-100", "title": "Feature A", "status": "validated"},
-                    {"id": "US-101", "title": "Feature B", "status": "validated"},
-                ]
-            }),
-            encoding="utf-8"
+            json.dumps(
+                {
+                    "stories": [
+                        {"id": "US-100", "title": "Feature A", "status": "validated"},
+                        {"id": "US-101", "title": "Feature B", "status": "validated"},
+                    ]
+                }
+            ),
+            encoding="utf-8",
         )
 
         result = compare_iterations(1, "S", tmp_path)
@@ -159,17 +159,19 @@ class TestCompareIterations:
         """Detect field changes on stories."""
         current_output = tmp_path / "_validated_stories.json"
         current_output.write_text(
-            json.dumps({
-                "stories": [
-                    {
-                        "id": "US-200",
-                        "title": "Feature C",
-                        "status": "pending",
-                        "scope": "medium",
-                    },
-                ]
-            }),
-            encoding="utf-8"
+            json.dumps(
+                {
+                    "stories": [
+                        {
+                            "id": "US-200",
+                            "title": "Feature C",
+                            "status": "pending",
+                            "scope": "medium",
+                        },
+                    ]
+                }
+            ),
+            encoding="utf-8",
         )
 
         # Mock previous iteration with different fields
@@ -185,10 +187,7 @@ class TestCompareIterations:
         # Setup a story that "appears" in current and previous iterations
         current_output = tmp_path / "_validated_stories.json"
         story = {"id": "US-300", "title": "Stuck Feature"}
-        current_output.write_text(
-            json.dumps({"stories": [story]}),
-            encoding="utf-8"
-        )
+        current_output.write_text(json.dumps({"stories": [story]}), encoding="utf-8")
 
         result = compare_iterations(2, "S", tmp_path)
 
@@ -200,10 +199,7 @@ class TestCompareIterations:
     def test_result_structure(self, tmp_path):
         """Verify result has expected structure."""
         current_output = tmp_path / "_validated_stories.json"
-        current_output.write_text(
-            json.dumps({"stories": []}),
-            encoding="utf-8"
-        )
+        current_output.write_text(json.dumps({"stories": []}), encoding="utf-8")
 
         result = compare_iterations(1, "S", tmp_path)
 
@@ -245,13 +241,15 @@ class TestIntegration:
         # Current iteration's phase output
         current_output = tmp_path / "_validated_stories.json"
         current_output.write_text(
-            json.dumps({
-                "stories": [
-                    {"id": "US-401", "title": "Changed Feature", "status": "validated", "scope": "medium"},
-                    {"id": "US-402", "title": "New Feature", "status": "validated"},
-                ]
-            }),
-            encoding="utf-8"
+            json.dumps(
+                {
+                    "stories": [
+                        {"id": "US-401", "title": "Changed Feature", "status": "validated", "scope": "medium"},
+                        {"id": "US-402", "title": "New Feature", "status": "validated"},
+                    ]
+                }
+            ),
+            encoding="utf-8",
         )
 
         result = compare_iterations(2, "S", tmp_path)
@@ -275,10 +273,7 @@ class TestRunPhaseAudit:
     def test_run_with_valid_output(self, tmp_path, capsys):
         """run_phase_audit outputs JSON."""
         current_output = tmp_path / "_validated_stories.json"
-        current_output.write_text(
-            json.dumps({"stories": [{"id": "US-500", "title": "Test"}]}),
-            encoding="utf-8"
-        )
+        current_output.write_text(json.dumps({"stories": [{"id": "US-500", "title": "Test"}]}), encoding="utf-8")
 
         exit_code = run_phase_audit(phase="S", scratch_dir=tmp_path)
 
@@ -292,10 +287,7 @@ class TestRunPhaseAudit:
     def test_run_with_missing_checkpoint(self, tmp_path):
         """run_phase_audit defaults to iteration 1 if no checkpoint."""
         current_output = tmp_path / "_validated_stories.json"
-        current_output.write_text(
-            json.dumps({"stories": []}),
-            encoding="utf-8"
-        )
+        current_output.write_text(json.dumps({"stories": []}), encoding="utf-8")
 
         # No checkpoint file exists
         exit_code = run_phase_audit(phase="S", scratch_dir=tmp_path)
@@ -305,17 +297,11 @@ class TestRunPhaseAudit:
         """run_phase_audit reads iteration from checkpoint."""
         # Write checkpoint
         checkpoint_file = tmp_path / "_checkpoint.json"
-        checkpoint_file.write_text(
-            json.dumps({"iteration": 5}),
-            encoding="utf-8"
-        )
+        checkpoint_file.write_text(json.dumps({"iteration": 5}), encoding="utf-8")
 
         # Write current output
         current_output = tmp_path / "_validated_stories.json"
-        current_output.write_text(
-            json.dumps({"stories": []}),
-            encoding="utf-8"
-        )
+        current_output.write_text(json.dumps({"stories": []}), encoding="utf-8")
 
         exit_code = run_phase_audit(phase="S", scratch_dir=tmp_path)
 
@@ -332,12 +318,14 @@ class TestModifiedFieldDetection:
         """Status field change is detected."""
         current_output = tmp_path / "_validated_stories.json"
         current_output.write_text(
-            json.dumps({
-                "stories": [
-                    {"id": "US-600", "status": "validated", "title": "Test"},
-                ]
-            }),
-            encoding="utf-8"
+            json.dumps(
+                {
+                    "stories": [
+                        {"id": "US-600", "status": "validated", "title": "Test"},
+                    ]
+                }
+            ),
+            encoding="utf-8",
         )
 
         # Create a backup with different status
@@ -361,12 +349,14 @@ class TestModifiedFieldDetection:
         """Title field change is detected."""
         current_output = tmp_path / "_validated_stories.json"
         current_output.write_text(
-            json.dumps({
-                "stories": [
-                    {"id": "US-700", "title": "Updated Title", "status": "validated"},
-                ]
-            }),
-            encoding="utf-8"
+            json.dumps(
+                {
+                    "stories": [
+                        {"id": "US-700", "title": "Updated Title", "status": "validated"},
+                    ]
+                }
+            ),
+            encoding="utf-8",
         )
 
         backup_dir = tmp_path / "prd-backups"

@@ -7,10 +7,8 @@ schema compliance. Covers domain-specific research (weather, finance, tech, prod
 import json
 import os
 import sys
-import tempfile
 from pathlib import Path
 from typing import Any, Dict
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -19,7 +17,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from research.gemini_mock import gemini_web_search
-
 
 # ── Fixtures: Domain-specific search contexts ────────────────────────────────
 
@@ -85,10 +82,7 @@ def prd_schema_file(tmp_path: Path) -> Path:
         "properties": {
             "productName": {"type": "string"},
             "branchName": {"type": "string"},
-            "userStories": {
-                "type": "array",
-                "items": {"type": "object"}
-            },
+            "userStories": {"type": "array", "items": {"type": "object"}},
         },
     }
     schema_path = tmp_path / "prd.schema.json"
@@ -155,9 +149,7 @@ class MockClaudeResearchAgent:
                 "priority": ["high", "medium", "low"][i % 3],
                 "source": f"https://research.example.com/story{i + 1}",
                 "_source": "research",
-                "acceptanceCriteria": [
-                    f"Criterion {j + 1} for story {i + 1}" for j in range(2)
-                ],
+                "acceptanceCriteria": [f"Criterion {j + 1} for story {i + 1}" for j in range(2)],
             }
             stories.append(story)
 
@@ -255,9 +247,7 @@ def test_mock_claude_agent_output_matches_schema(research_output_schema):
 def test_phase_r_weather_research(weather_search_context, tmp_research_dir):
     """Test: Phase R research with weather domain."""
     # Simulate Phase R with mocked Gemini
-    gemini_result = gemini_web_search(
-        weather_search_context["query"], weather_search_context["domain"]
-    )
+    gemini_result = gemini_web_search(weather_search_context["query"], weather_search_context["domain"])
     data = json.loads(gemini_result)
 
     # Verify response contains expected structure
@@ -279,9 +269,7 @@ def test_phase_r_weather_research(weather_search_context, tmp_research_dir):
 
 def test_phase_r_finance_research(finance_search_context, tmp_research_dir):
     """Test: Phase R research with finance domain."""
-    gemini_result = gemini_web_search(
-        finance_search_context["query"], finance_search_context["domain"]
-    )
+    gemini_result = gemini_web_search(finance_search_context["query"], finance_search_context["domain"])
     data = json.loads(gemini_result)
     assert "summary" in data
     assert "key_points" in data
@@ -294,9 +282,7 @@ def test_phase_r_finance_research(finance_search_context, tmp_research_dir):
 
 def test_phase_r_tech_research(tech_search_context):
     """Test: Phase R research with tech domain."""
-    gemini_result = gemini_web_search(
-        tech_search_context["query"], tech_search_context["domain"]
-    )
+    gemini_result = gemini_web_search(tech_search_context["query"], tech_search_context["domain"])
     data = json.loads(gemini_result)
     assert "summary" in data
     assert "AI" in data.get("summary", "") or "technology" in str(data).lower()
@@ -304,9 +290,7 @@ def test_phase_r_tech_research(tech_search_context):
 
 def test_phase_r_product_research(product_search_context):
     """Test: Phase R research with product domain."""
-    gemini_result = gemini_web_search(
-        product_search_context["query"], product_search_context["domain"]
-    )
+    gemini_result = gemini_web_search(product_search_context["query"], product_search_context["domain"])
     data = json.loads(gemini_result)
     assert "summary" in data
     assert isinstance(data["summary"], str)
@@ -315,9 +299,7 @@ def test_phase_r_product_research(product_search_context):
 
 def test_phase_r_legal_research(legal_search_context):
     """Test: Phase R research with legal domain."""
-    gemini_result = gemini_web_search(
-        legal_search_context["query"], legal_search_context["domain"]
-    )
+    gemini_result = gemini_web_search(legal_search_context["query"], legal_search_context["domain"])
     data = json.loads(gemini_result)
     assert "summary" in data
     assert "regulation" in data["summary"].lower() or "compliance" in str(data).lower()
@@ -488,6 +470,7 @@ def test_research_cache_module_imported():
     """Test: research_cache module can be imported (coverage check)."""
     try:
         import research.research_cache  # noqa: F401
+
         assert True
     except ImportError:
         pytest.skip("research_cache module not available")
@@ -497,6 +480,7 @@ def test_summarize_research_module_imported():
     """Test: summarize_research module can be imported (coverage check)."""
     try:
         import research.summarize_research  # noqa: F401
+
         assert True
     except ImportError:
         pytest.skip("summarize_research module not available")
@@ -506,6 +490,7 @@ def test_enrich_stories_module_imported():
     """Test: enrich_stories module can be imported (coverage check)."""
     try:
         import research.enrich_stories  # noqa: F401
+
         assert True
     except ImportError:
         pytest.skip("enrich_stories module not available")
@@ -541,9 +526,7 @@ def test_full_phase_r_integration_flow(
     all_stories = []
     for domain_context in domains:
         # Step 1: Gemini web search
-        gemini_result = gemini_web_search(
-            domain_context["query"], domain_context["domain"]
-        )
+        gemini_result = gemini_web_search(domain_context["query"], domain_context["domain"])
         gemini_data = json.loads(gemini_result)
         assert "summary" in gemini_data
 
@@ -574,6 +557,7 @@ def test_enrich_stories_module_has_enrich_story_func():
     """Test: enrich_stories has enrich_story function."""
     try:
         from research.enrich_stories import enrich_story
+
         # Function exists and is callable
         assert callable(enrich_story)
     except ImportError:
@@ -605,6 +589,7 @@ def test_summarize_research_module_has_functions():
     """Test: summarize_research module contains expected functions."""
     try:
         from research import summarize_research
+
         # Module exists
         assert summarize_research is not None
     except ImportError:
@@ -633,11 +618,12 @@ def test_research_cache_module_functions_exist():
     """Test: research_cache module has expected functions."""
     try:
         from research.research_cache import (
-            cache_store,
+            cache_list_valid,
             cache_lookup,
             cache_prune,
-            cache_list_valid,
+            cache_store,
         )
+
         # Functions exist and are callable
         assert callable(cache_store)
         assert callable(cache_lookup)
@@ -668,6 +654,7 @@ def test_ai_suggest_module_present():
     """Test: ai_suggest module can be imported."""
     try:
         from research import ai_suggest  # noqa: F401
+
         assert True
     except ImportError:
         pytest.skip("ai_suggest module not available in this build")
@@ -680,6 +667,7 @@ def test_generate_test_stories_module_present():
     """Test: generate_test_stories module can be imported."""
     try:
         from research import generate_test_stories  # noqa: F401
+
         assert True
     except ImportError:
         pytest.skip("generate_test_stories module not available in this build")
@@ -692,6 +680,7 @@ def test_populate_hints_module_present():
     """Test: populate_hints module can be imported."""
     try:
         from research import populate_hints  # noqa: F401
+
         assert True
     except ImportError:
         pytest.skip("populate_hints module not available in this build")
@@ -704,6 +693,7 @@ def test_synthesize_tests_module_present():
     """Test: synthesize_tests module can be imported."""
     try:
         from research import synthesize_tests  # noqa: F401
+
         assert True
     except ImportError:
         pytest.skip("synthesize_tests module not available in this build")
@@ -751,6 +741,7 @@ def test_ai_suggest_load_queue_empty():
     """Test: ai_suggest.load_queue handles missing queue file."""
     try:
         from research.ai_suggest import load_queue
+
         # Non-existent file should return empty list
         result = load_queue("/nonexistent/queue.json")
         assert result == []
@@ -799,7 +790,7 @@ def test_ai_suggest_load_queue_malformed(tmp_path: Path):
 def test_research_cache_store_and_lookup(tmp_path: Path):
     """Test: research_cache.cache_store and cache_lookup round-trip."""
     try:
-        from research.research_cache import cache_store, cache_lookup
+        from research.research_cache import cache_lookup, cache_store
 
         cache_dir = str(tmp_path / "cache")
         url = "https://example.com/research"
@@ -932,8 +923,7 @@ def test_research_domain_specific_keywords():
         data = json.loads(result)
         content = str(data).lower()
         # At least one keyword should appear
-        assert any(kw.lower() in content for kw in keywords), \
-            f"Domain {domain} missing expected keywords"
+        assert any(kw.lower() in content for kw in keywords), f"Domain {domain} missing expected keywords"
 
 
 # ── Extended Coverage: Phase R mock agent behavior ───────────────────────────

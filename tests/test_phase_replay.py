@@ -16,8 +16,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-import pytest
-
 # Add lib/ to path for direct import
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
 
@@ -157,9 +155,7 @@ def test_prd_snapshot_after_reflects_changes(tmp_path: Path) -> None:
 
     modified_prd: dict[str, Any] = {"userStories": [{"id": "US-NEW", "title": "Added"}]}
 
-    def _mutating_runner(
-        phase: str, iteration: int, env: dict[str, str], cwd: Path
-    ) -> tuple[str, str, int]:
+    def _mutating_runner(phase: str, iteration: int, env: dict[str, str], cwd: Path) -> tuple[str, str, int]:
         # Simulate phase modifying prd.json
         prd_file.write_text(json.dumps(modified_prd), encoding="utf-8")
         return "tokens_used=100\napi_calls=1\n", "", 0
@@ -259,12 +255,8 @@ def test_token_variance_within_5_percent(tmp_path: Path) -> None:
     scratch = tmp_path / ".spiral"
     tokens = 1000
 
-    state1 = run_phase_replay(
-        "R", 1, prd_file, scratch, tmp_path, phase_runner=_fixture_runner(tokens=tokens)
-    )
-    state2 = run_phase_replay(
-        "R", 2, prd_file, scratch, tmp_path, phase_runner=_fixture_runner(tokens=tokens)
-    )
+    state1 = run_phase_replay("R", 1, prd_file, scratch, tmp_path, phase_runner=_fixture_runner(tokens=tokens))
+    state2 = run_phase_replay("R", 2, prd_file, scratch, tmp_path, phase_runner=_fixture_runner(tokens=tokens))
 
     t1, t2 = state1["tokens_used"], state2["tokens_used"]
     if t1 > 0:
@@ -281,21 +273,13 @@ def test_token_variance_5_percent_boundary(tmp_path: Path) -> None:
 
     t1, t2_ok, t2_fail = 1000, 951, 949  # 4.9% and 5.1% off
 
-    state_ok_1 = run_phase_replay(
-        "R", 1, prd_file, scratch, tmp_path, phase_runner=_fixture_runner(tokens=t1)
-    )
-    state_ok_2 = run_phase_replay(
-        "R", 2, prd_file, scratch, tmp_path, phase_runner=_fixture_runner(tokens=t2_ok)
-    )
+    state_ok_1 = run_phase_replay("R", 1, prd_file, scratch, tmp_path, phase_runner=_fixture_runner(tokens=t1))
+    state_ok_2 = run_phase_replay("R", 2, prd_file, scratch, tmp_path, phase_runner=_fixture_runner(tokens=t2_ok))
     var_ok = abs(state_ok_1["tokens_used"] - state_ok_2["tokens_used"]) / t1 * 100.0
     assert var_ok < 5.0
 
-    state_fail_1 = run_phase_replay(
-        "R", 3, prd_file, scratch, tmp_path, phase_runner=_fixture_runner(tokens=t1)
-    )
-    state_fail_2 = run_phase_replay(
-        "R", 4, prd_file, scratch, tmp_path, phase_runner=_fixture_runner(tokens=t2_fail)
-    )
+    state_fail_1 = run_phase_replay("R", 3, prd_file, scratch, tmp_path, phase_runner=_fixture_runner(tokens=t1))
+    state_fail_2 = run_phase_replay("R", 4, prd_file, scratch, tmp_path, phase_runner=_fixture_runner(tokens=t2_fail))
     var_fail = abs(state_fail_1["tokens_used"] - state_fail_2["tokens_used"]) / t1 * 100.0
     assert var_fail >= 5.0
 

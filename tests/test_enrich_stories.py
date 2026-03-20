@@ -4,9 +4,7 @@ import json
 import os
 import sys
 import tempfile
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from lib.research.enrich_stories import _enrich_one, _should_enrich, enrich_stories

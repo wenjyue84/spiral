@@ -9,15 +9,13 @@ Tests:
 """
 
 import asyncio
-import json
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
+import pytest
 from fastapi.testclient import TestClient
-from starlette.websockets import WebSocketState
 
 from lib.dashboard.api import app
-from lib.dashboard.cost_broadcaster import ConnectionManager, get_manager
+from lib.dashboard.cost_broadcaster import ConnectionManager
 
 
 class TestWebSocketCostEndpoint:
@@ -140,7 +138,7 @@ class TestConnectionManager:
                 "story_id": f"US-{i}",
                 "cost_usd": 0.01 * (i + 1),
                 "event_num": i,
-                "timestamp": f"2026-03-19T12:0{i%60}:{i:02d}Z",
+                "timestamp": f"2026-03-19T12:0{i % 60}:{i:02d}Z",
             }
             await manager.broadcast(message)
 

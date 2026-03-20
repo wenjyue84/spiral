@@ -81,9 +81,7 @@ class TestResearchCacheEndpoint:
     def test_endpoint_accepts_iteration_query_params(self) -> None:
         """Endpoint accepts start_iteration and end_iteration query params."""
         client = TestClient(app)
-        response = client.get(
-            "/api/dashboard/research-cache?start_iteration=0&end_iteration=10"
-        )
+        response = client.get("/api/dashboard/research-cache?start_iteration=0&end_iteration=10")
         assert response.status_code == 200
 
 
@@ -184,12 +182,8 @@ class TestParseResearchCache:
         with open(tsv_path, "w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames, delimiter="\t")
             writer.writeheader()
-            writer.writerow(
-                {"timestamp": "T", "spiral_iter": "1", "story_id": "US-1", "research_source": "cache"}
-            )
-            writer.writerow(
-                {"timestamp": "T", "spiral_iter": "1", "story_id": "US-2", "research_source": ""}
-            )
+            writer.writerow({"timestamp": "T", "spiral_iter": "1", "story_id": "US-1", "research_source": "cache"})
+            writer.writerow({"timestamp": "T", "spiral_iter": "1", "story_id": "US-2", "research_source": ""})
             writer.writerow(
                 {"timestamp": "T", "spiral_iter": "1", "story_id": "US-3", "research_source": "unknown_source"}
             )
@@ -212,11 +206,7 @@ class TestResearchCacheBudgetIntegration:
 
         result = parse_research_cache(tsv_path)
 
-        assert result["hit_rate"] == pytest.approx(0.6, abs=1e-4), (
-            f"Expected hit_rate=0.6 but got {result['hit_rate']}"
-        )
-        assert result["time_saved_seconds"] > 0, (
-            f"Expected time_saved>0 but got {result['time_saved_seconds']}"
-        )
+        assert result["hit_rate"] == pytest.approx(0.6, abs=1e-4), f"Expected hit_rate=0.6 but got {result['hit_rate']}"
+        assert result["time_saved_seconds"] > 0, f"Expected time_saved>0 but got {result['time_saved_seconds']}"
         assert result["total_queries"] == 50
         assert result["cached"] == 30

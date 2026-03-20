@@ -12,10 +12,9 @@ import json
 import subprocess
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
-
 
 # Import the verify_story_acceptance module
 sys.path.insert(0, str(Path(__file__).parent.parent / ".claude" / "hooks"))
@@ -114,13 +113,9 @@ class TestCheckFilesModifiedInLastCommit:
     def test_all_files_modified_in_last_commit(self, tmp_path: Path) -> None:
         """Should return True when all files in last commit."""
         with patch("subprocess.run") as mock_run:
-            mock_run.return_value = Mock(
-                returncode=0, stdout="file1.py\nfile2.py\n", stderr=""
-            )
+            mock_run.return_value = Mock(returncode=0, stdout="file1.py\nfile2.py\n", stderr="")
 
-            ok, reason = vsa.check_files_modified_in_last_commit(
-                tmp_path, ["file1.py", "file2.py"]
-            )
+            ok, reason = vsa.check_files_modified_in_last_commit(tmp_path, ["file1.py", "file2.py"])
             assert ok is True
             assert reason == ""
 
@@ -129,9 +124,7 @@ class TestCheckFilesModifiedInLastCommit:
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = Mock(returncode=0, stdout="file1.py\n", stderr="")
 
-            ok, reason = vsa.check_files_modified_in_last_commit(
-                tmp_path, ["file1.py", "missing_file.py"]
-            )
+            ok, reason = vsa.check_files_modified_in_last_commit(tmp_path, ["file1.py", "missing_file.py"])
             assert ok is False
             assert "missing_file.py" in reason
 
@@ -140,9 +133,7 @@ class TestCheckFilesModifiedInLastCommit:
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = Mock(returncode=128, stdout="", stderr="")
 
-            ok, reason = vsa.check_files_modified_in_last_commit(
-                tmp_path, ["file.py"]
-            )
+            ok, reason = vsa.check_files_modified_in_last_commit(tmp_path, ["file.py"])
             assert ok is True  # Skip check on first commit
 
     def test_git_timeout(self, tmp_path: Path) -> None:
@@ -169,9 +160,7 @@ class TestRunTargetedPytest:
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = Mock(returncode=0, stdout="", stderr="")
 
-            ok, reason = vsa.run_targeted_pytest(
-                tmp_path, ["tests/test_file.py"]
-            )
+            ok, reason = vsa.run_targeted_pytest(tmp_path, ["tests/test_file.py"])
             assert ok is True
             assert reason == ""
 
@@ -184,9 +173,7 @@ class TestRunTargetedPytest:
                 stderr="assert False\n",
             )
 
-            ok, reason = vsa.run_targeted_pytest(
-                tmp_path, ["tests/test_file.py"]
-            )
+            ok, reason = vsa.run_targeted_pytest(tmp_path, ["tests/test_file.py"])
             assert ok is False
             assert "Pytest failed" in reason
 
@@ -195,9 +182,7 @@ class TestRunTargetedPytest:
         with patch("subprocess.run") as mock_run:
             mock_run.side_effect = subprocess.TimeoutExpired("pytest", 60)
 
-            ok, reason = vsa.run_targeted_pytest(
-                tmp_path, ["tests/test_file.py"]
-            )
+            ok, reason = vsa.run_targeted_pytest(tmp_path, ["tests/test_file.py"])
             assert ok is False
             assert "timed out" in reason.lower()
 
@@ -218,9 +203,7 @@ class TestRunTargetedPytest:
         with patch("subprocess.run") as mock_run:
             mock_run.side_effect = FileNotFoundError()
 
-            ok, reason = vsa.run_targeted_pytest(
-                tmp_path, ["tests/test_file.py"]
-            )
+            ok, reason = vsa.run_targeted_pytest(tmp_path, ["tests/test_file.py"])
             assert ok is True
 
 
@@ -241,9 +224,7 @@ class TestMainHook:
         output = json.loads(captured.out)
         assert output["ok"] is True
 
-    def test_no_story_id_in_env(
-        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_no_story_id_in_env(self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
         """Should allow completion when SPIRAL_CURRENT_STORY_ID not set."""
         monkeypatch.setattr("sys.stdin", Mock(read=Mock(return_value="{}")))
         monkeypatch.delenv("SPIRAL_CURRENT_STORY_ID", raising=False)

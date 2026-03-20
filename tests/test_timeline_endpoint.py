@@ -1,11 +1,9 @@
 """test_timeline_endpoint.py — Unit and integration tests for timeline endpoint and WebSocket."""
 
-import asyncio
 import csv
-import json
 import tempfile
 from pathlib import Path
-from typing import Any, AsyncGenerator
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -16,7 +14,6 @@ from lib.dashboard.timeline import (
     PHASE_ORDER,
     TimelineEvent,
     TimelineManager,
-    get_timeline_manager,
     parse_timeline,
 )
 
@@ -96,17 +93,19 @@ class TestTimelineParser:
                 delimiter="\t",
             )
             writer.writeheader()
-            writer.writerow({
-                "timestamp": "2026-03-20T10:00:00Z",
-                "spiral_iter": "0",
-                "story_id": "US-123",
-                "story_title": "Test Story",
-                "status": "accept",
-                "duration_sec": "120.5",
-                "model": "haiku",
-                "retry_num": "0",
-                "commit_sha": "abc123",
-            })
+            writer.writerow(
+                {
+                    "timestamp": "2026-03-20T10:00:00Z",
+                    "spiral_iter": "0",
+                    "story_id": "US-123",
+                    "story_title": "Test Story",
+                    "status": "accept",
+                    "duration_sec": "120.5",
+                    "model": "haiku",
+                    "retry_num": "0",
+                    "commit_sha": "abc123",
+                }
+            )
             f.flush()
             path = Path(f.name)
 
@@ -142,28 +141,32 @@ class TestTimelineParser:
                 delimiter="\t",
             )
             writer.writeheader()
-            writer.writerow({
-                "timestamp": "2026-03-20T10:00:00Z",
-                "spiral_iter": "0",
-                "story_id": "US-123",
-                "story_title": "Story 1",
-                "status": "accept",
-                "duration_sec": "100",
-                "model": "haiku",
-                "retry_num": "0",
-                "commit_sha": "abc123",
-            })
-            writer.writerow({
-                "timestamp": "2026-03-20T10:05:00Z",
-                "spiral_iter": "0",
-                "story_id": "US-124",
-                "story_title": "Story 2",
-                "status": "reject",
-                "duration_sec": "50",
-                "model": "sonnet",
-                "retry_num": "1",
-                "commit_sha": "def456",
-            })
+            writer.writerow(
+                {
+                    "timestamp": "2026-03-20T10:00:00Z",
+                    "spiral_iter": "0",
+                    "story_id": "US-123",
+                    "story_title": "Story 1",
+                    "status": "accept",
+                    "duration_sec": "100",
+                    "model": "haiku",
+                    "retry_num": "0",
+                    "commit_sha": "abc123",
+                }
+            )
+            writer.writerow(
+                {
+                    "timestamp": "2026-03-20T10:05:00Z",
+                    "spiral_iter": "0",
+                    "story_id": "US-124",
+                    "story_title": "Story 2",
+                    "status": "reject",
+                    "duration_sec": "50",
+                    "model": "sonnet",
+                    "retry_num": "1",
+                    "commit_sha": "def456",
+                }
+            )
             f.flush()
             path = Path(f.name)
 
@@ -198,17 +201,19 @@ class TestTimelineParser:
             writer.writeheader()
             # Add stories from iterations 0-5
             for iter_num in range(6):
-                writer.writerow({
-                    "timestamp": "2026-03-20T10:00:00Z",
-                    "spiral_iter": str(iter_num),
-                    "story_id": f"US-{iter_num}",
-                    "story_title": f"Story {iter_num}",
-                    "status": "accept",
-                    "duration_sec": "100",
-                    "model": "haiku",
-                    "retry_num": "0",
-                    "commit_sha": "abc123",
-                })
+                writer.writerow(
+                    {
+                        "timestamp": "2026-03-20T10:00:00Z",
+                        "spiral_iter": str(iter_num),
+                        "story_id": f"US-{iter_num}",
+                        "story_title": f"Story {iter_num}",
+                        "status": "accept",
+                        "duration_sec": "100",
+                        "model": "haiku",
+                        "retry_num": "0",
+                        "commit_sha": "abc123",
+                    }
+                )
             f.flush()
             path = Path(f.name)
 
@@ -240,28 +245,32 @@ class TestTimelineParser:
             )
             writer.writeheader()
             # Add out-of-order stories
-            writer.writerow({
-                "timestamp": "2026-03-20T10:00:00Z",
-                "spiral_iter": "0",
-                "story_id": "US-200",
-                "story_title": "Story Z",
-                "status": "accept",
-                "duration_sec": "100",
-                "model": "haiku",
-                "retry_num": "0",
-                "commit_sha": "abc123",
-            })
-            writer.writerow({
-                "timestamp": "2026-03-20T10:00:00Z",
-                "spiral_iter": "0",
-                "story_id": "US-100",
-                "story_title": "Story A",
-                "status": "accept",
-                "duration_sec": "100",
-                "model": "haiku",
-                "retry_num": "0",
-                "commit_sha": "abc123",
-            })
+            writer.writerow(
+                {
+                    "timestamp": "2026-03-20T10:00:00Z",
+                    "spiral_iter": "0",
+                    "story_id": "US-200",
+                    "story_title": "Story Z",
+                    "status": "accept",
+                    "duration_sec": "100",
+                    "model": "haiku",
+                    "retry_num": "0",
+                    "commit_sha": "abc123",
+                }
+            )
+            writer.writerow(
+                {
+                    "timestamp": "2026-03-20T10:00:00Z",
+                    "spiral_iter": "0",
+                    "story_id": "US-100",
+                    "story_title": "Story A",
+                    "status": "accept",
+                    "duration_sec": "100",
+                    "model": "haiku",
+                    "retry_num": "0",
+                    "commit_sha": "abc123",
+                }
+            )
             f.flush()
             path = Path(f.name)
 
@@ -339,6 +348,7 @@ class TestTimelineEndpoint:
 
         # Use a non-existent path
         import lib.dashboard.api as api_module
+
         old_path = api_module.Path
 
         def mock_path(p: str) -> Path:
@@ -379,17 +389,19 @@ class TestTimelineEndpoint:
                 delimiter="\t",
             )
             writer.writeheader()
-            writer.writerow({
-                "timestamp": "2026-03-20T10:00:00Z",
-                "spiral_iter": "0",
-                "story_id": "US-123",
-                "story_title": "Test Story",
-                "status": "accept",
-                "duration_sec": "120",
-                "model": "haiku",
-                "retry_num": "0",
-                "commit_sha": "abc123",
-            })
+            writer.writerow(
+                {
+                    "timestamp": "2026-03-20T10:00:00Z",
+                    "spiral_iter": "0",
+                    "story_id": "US-123",
+                    "story_title": "Test Story",
+                    "status": "accept",
+                    "duration_sec": "120",
+                    "model": "haiku",
+                    "retry_num": "0",
+                    "commit_sha": "abc123",
+                }
+            )
             f.flush()
 
         try:

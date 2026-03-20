@@ -104,9 +104,7 @@ def test_similar_story_lookup(tmp_path: object) -> None:
     similar_ids = {s["story_id"] for s in result["similar_stories"]}
     test_ids = {"US-001", "US-002", "US-003", "US-004", "US-005"}
     # All returned similar stories should be from the test group
-    assert similar_ids.issubset(test_ids), (
-        f"Expected neighbors from test stories, got: {similar_ids}"
-    )
+    assert similar_ids.issubset(test_ids), f"Expected neighbors from test stories, got: {similar_ids}"
 
     assert result["estimated_tokens"] > 0
     assert result["estimated_cost"] > 0.0
@@ -115,10 +113,7 @@ def test_similar_story_lookup(tmp_path: object) -> None:
 def test_similar_story_lookup_returns_k_neighbors(tmp_path: object) -> None:
     """predict() returns at most k similar stories."""
     tsv = tmp_path / "results.tsv"  # type: ignore[operator]
-    rows = [
-        _make_row(f"US-{i:03d}", f"Run pytest test #{i}", "200", "haiku")
-        for i in range(1, 10)
-    ]
+    rows = [_make_row(f"US-{i:03d}", f"Run pytest test #{i}", "200", "haiku") for i in range(1, 10)]
     _write_results(tsv, rows)
 
     estimator = KNNEstimator(k=3)
@@ -139,19 +134,13 @@ def test_confidence_calculation(tmp_path: object) -> None:
     # Small consistent dataset (exactly MIN_HISTORY_ROWS = 5)
     _write_results(
         tsv_small,
-        [
-            _make_row(f"US-{i:03d}", f"Run pytest tests #{i}", "200", "haiku")
-            for i in range(1, 6)
-        ],
+        [_make_row(f"US-{i:03d}", f"Run pytest tests #{i}", "200", "haiku") for i in range(1, 6)],
     )
 
     # Large consistent dataset (20+ rows)
     _write_results(
         tsv_large,
-        [
-            _make_row(f"US-{i:03d}", f"Run pytest tests #{i}", "200", "haiku")
-            for i in range(1, 21)
-        ],
+        [_make_row(f"US-{i:03d}", f"Run pytest tests #{i}", "200", "haiku") for i in range(1, 21)],
     )
 
     story = {"id": "US-999", "title": "Add pytest regression tests"}
@@ -189,12 +178,8 @@ def test_confidence_lower_with_mixed_types(tmp_path: object) -> None:
     estimator = KNNEstimator(k=3)
     estimator.fit(str(tsv))
 
-    result_mismatched = estimator.predict(
-        {"id": "US-999", "title": "Write pytest tests for coverage"}
-    )
-    result_matched = estimator.predict(
-        {"id": "US-998", "title": "Build dashboard UI for real-time metrics"}
-    )
+    result_mismatched = estimator.predict({"id": "US-999", "title": "Write pytest tests for coverage"})
+    result_matched = estimator.predict({"id": "US-998", "title": "Build dashboard UI for real-time metrics"})
 
     # When types don't match, confidence should be lower
     assert result_mismatched["confidence_pct"] <= result_matched["confidence_pct"]
@@ -246,10 +231,7 @@ def test_cli_exits_zero_and_prints_json(tmp_path: object) -> None:
     tsv = tmp_path / "results.tsv"  # type: ignore[operator]
     _write_results(
         tsv,
-        [
-            _make_row(f"US-{i:03d}", f"Run pytest tests #{i}", "200", "haiku")
-            for i in range(1, 10)
-        ],
+        [_make_row(f"US-{i:03d}", f"Run pytest tests #{i}", "200", "haiku") for i in range(1, 10)],
     )
 
     prd_path = tmp_path / "prd.json"  # type: ignore[operator]
@@ -319,10 +301,7 @@ def test_budget_check_integration(tmp_path: object) -> None:
     tsv = tmp_path / "results.tsv"  # type: ignore[operator]
     _write_results(
         tsv,
-        [
-            _make_row(f"US-{i:03d}", f"Run pytest tests #{i}", "500", "sonnet")
-            for i in range(1, 10)
-        ],
+        [_make_row(f"US-{i:03d}", f"Run pytest tests #{i}", "500", "sonnet") for i in range(1, 10)],
     )
 
     prd_path = tmp_path / "prd.json"  # type: ignore[operator]
@@ -384,8 +363,7 @@ def test_budget_check_integration(tmp_path: object) -> None:
 
     # Should exit with code 2 (budget exceeded)
     assert result_over_budget.returncode == 2, (
-        f"Expected exit code 2, got {result_over_budget.returncode}. "
-        f"stderr: {result_over_budget.stderr}"
+        f"Expected exit code 2, got {result_over_budget.returncode}. stderr: {result_over_budget.stderr}"
     )
 
     # Output should still be valid JSON with budget_exceeded flag
@@ -402,10 +380,7 @@ def test_budget_check_under_limit(tmp_path: object) -> None:
     tsv = tmp_path / "results.tsv"  # type: ignore[operator]
     _write_results(
         tsv,
-        [
-            _make_row(f"US-{i:03d}", f"Run pytest tests #{i}", "200", "haiku")
-            for i in range(1, 10)
-        ],
+        [_make_row(f"US-{i:03d}", f"Run pytest tests #{i}", "200", "haiku") for i in range(1, 10)],
     )
 
     prd_path = tmp_path / "prd.json"  # type: ignore[operator]
@@ -465,8 +440,7 @@ def test_budget_check_under_limit(tmp_path: object) -> None:
 
     # Should exit with code 0 (within budget)
     assert result_under_budget.returncode == 0, (
-        f"Expected exit code 0, got {result_under_budget.returncode}. "
-        f"stderr: {result_under_budget.stderr}"
+        f"Expected exit code 0, got {result_under_budget.returncode}. stderr: {result_under_budget.stderr}"
     )
 
     # Output should not have budget_exceeded flag

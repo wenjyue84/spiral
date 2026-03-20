@@ -8,10 +8,7 @@ Tests verify:
 from __future__ import annotations
 
 import asyncio
-import os
 import re
-
-import pytest
 
 from lib.ui.spiral_live_server import SpiralLiveServer
 
@@ -28,9 +25,10 @@ class TestUnauthenticatedDashboard:
         is blocked with 401 (Unauthorized) status code.
         """
         # Reload the server module to pick up the auth token from fixture
-        from lib.ui.spiral_live_server import SpiralLiveServer
         import importlib
+
         import lib.ui.spiral_live_server as dashboard_module
+        from lib.ui.spiral_live_server import SpiralLiveServer
 
         importlib.reload(dashboard_module)
         spiral_server = SpiralLiveServer(host="127.0.0.1", port=5300)
@@ -60,9 +58,10 @@ class TestUnauthenticatedDashboard:
 
         This is a positive test to ensure the auth mechanism works.
         """
-        from lib.ui.spiral_live_server import SpiralLiveServer
         import importlib
+
         import lib.ui.spiral_live_server as dashboard_module
+        from lib.ui.spiral_live_server import SpiralLiveServer
 
         importlib.reload(dashboard_module)
         spiral_server = SpiralLiveServer(host="127.0.0.1", port=5300)
@@ -93,9 +92,10 @@ class TestUnauthenticatedDashboard:
 
         Acceptance criterion: Invalid tokens are treated as unauthorized.
         """
-        from lib.ui.spiral_live_server import SpiralLiveServer
         import importlib
+
         import lib.ui.spiral_live_server as dashboard_module
+        from lib.ui.spiral_live_server import SpiralLiveServer
 
         importlib.reload(dashboard_module)
         spiral_server = SpiralLiveServer(host="127.0.0.1", port=5300)
@@ -160,8 +160,7 @@ class TestErrorResponseLeakage:
 
         for pattern in secret_patterns:
             assert not re.search(pattern, response_str), (
-                f"Error response leaked secret pattern: {pattern}\n"
-                f"Response: {response_body}"
+                f"Error response leaked secret pattern: {pattern}\nResponse: {response_body}"
             )
 
     def test_internal_server_error_sanitized(
@@ -214,8 +213,7 @@ class TestErrorResponseLeakage:
 
         # Verify error response doesn't echo back the malformed input
         assert "incomplete" not in response_str, (
-            "Error response echoed back user input; "
-            "could leak sensitive data from malformed requests"
+            "Error response echoed back user input; could leak sensitive data from malformed requests"
         )
 
     def test_no_auth_token_in_error_when_enabled(
@@ -226,9 +224,10 @@ class TestErrorResponseLeakage:
         Acceptance criterion: Even if a request fails, the auth token
         used should never appear in error response.
         """
-        from lib.ui.spiral_live_server import SpiralLiveServer
         import importlib
+
         import lib.ui.spiral_live_server as dashboard_module
+        from lib.ui.spiral_live_server import SpiralLiveServer
 
         importlib.reload(dashboard_module)
         spiral_server = SpiralLiveServer(host="127.0.0.1", port=5300)
@@ -250,6 +249,4 @@ class TestErrorResponseLeakage:
         response_str = str(response_body)
 
         # Verify the auth token is never in the response
-        assert auth_token not in response_str, (
-            f"Auth token leaked in error response: {auth_token}"
-        )
+        assert auth_token not in response_str, f"Auth token leaked in error response: {auth_token}"

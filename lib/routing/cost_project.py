@@ -33,10 +33,10 @@ from constants import (
     TOKENS_PER_SEC_OUTPUT,
 )
 from velocity_model import (
-    load_or_build_velocity_model,
+    format_report as velocity_format_report,
 )
 from velocity_model import (
-    format_report as velocity_format_report,
+    load_or_build_velocity_model,
 )
 
 DEFAULT_MODEL = "sonnet"

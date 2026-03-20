@@ -156,9 +156,7 @@ def cache_similarity_lookup(
     return best_content
 
 
-def cache_store(
-    cache_dir: str, url: str, content: str, *, store_embedding: bool = True
-) -> str:
+def cache_store(cache_dir: str, url: str, content: str, *, store_embedding: bool = True) -> str:
     """Store URL content in the cache. Returns the cache file path.
 
     When *store_embedding* is True (default), also saves a sentence embedding
@@ -360,9 +358,7 @@ def main() -> None:
         print(json.dumps(entries, indent=2))
 
     elif args.command == "sim-lookup":
-        result = cache_similarity_lookup(
-            args.cache_dir, args.query, args.ttl_hours, args.threshold
-        )
+        result = cache_similarity_lookup(args.cache_dir, args.query, args.ttl_hours, args.threshold)
         if result is None:
             sys.exit(1)
         print(result)

@@ -27,14 +27,20 @@ class TestAnalyze:
         events_path = str(tmp_path / "events.jsonl")
         results_path = str(tmp_path / "results.tsv")
 
-        _write_events(events_path, [
-            {"type": "route_story_assigned", "story_id": "US-001", "complexity_score": 20, "model_tier": "haiku"},
-            {"type": "route_story_assigned", "story_id": "US-002", "complexity_score": 60, "model_tier": "sonnet"},
-        ])
-        _write_results_tsv(results_path, [
-            {"story_id": "US-001", "status": "pass", "model": "haiku"},
-            {"story_id": "US-002", "status": "pass", "model": "sonnet"},
-        ])
+        _write_events(
+            events_path,
+            [
+                {"type": "route_story_assigned", "story_id": "US-001", "complexity_score": 20, "model_tier": "haiku"},
+                {"type": "route_story_assigned", "story_id": "US-002", "complexity_score": 60, "model_tier": "sonnet"},
+            ],
+        )
+        _write_results_tsv(
+            results_path,
+            [
+                {"story_id": "US-001", "status": "pass", "model": "haiku"},
+                {"story_id": "US-002", "status": "pass", "model": "sonnet"},
+            ],
+        )
 
         metrics = analyze(events_path, results_path)
         assert len(metrics["tiers"]) == 2
@@ -52,9 +58,12 @@ class TestAnalyze:
         events_path = str(tmp_path / "events.jsonl")
         results_path = str(tmp_path / "results.tsv")
 
-        _write_events(events_path, [
-            {"type": "route_story_assigned", "story_id": "US-001", "complexity_score": 20, "model_tier": "haiku"},
-        ])
+        _write_events(
+            events_path,
+            [
+                {"type": "route_story_assigned", "story_id": "US-001", "complexity_score": 20, "model_tier": "haiku"},
+            ],
+        )
 
         metrics = analyze(events_path, results_path)
         assert len(metrics["tiers"]) == 1

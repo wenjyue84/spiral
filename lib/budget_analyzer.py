@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, TypedDict
 
 sys.path.insert(0, os.path.dirname(__file__))
-from constants import PRICING, TOKENS_PER_SEC_OUTPUT, INPUT_OUTPUT_RATIO, DEFAULT_TOKENS_PER_STORY
+from constants import DEFAULT_TOKENS_PER_STORY, INPUT_OUTPUT_RATIO, PRICING, TOKENS_PER_SEC_OUTPUT
 
 
 class SpendResult(TypedDict):

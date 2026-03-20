@@ -13,7 +13,15 @@ from hypothesis.stateful import RuleBasedStateMachine, initialize, invariant, ru
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 sys.path.insert(0, os.path.dirname(__file__))
-from merge_stories import find_next_id, full_sort_key, is_duplicate, jaccard_similarity, overlap_ratio, sort_key, story_to_prd_entry
+from merge_stories import (
+    find_next_id,
+    full_sort_key,
+    is_duplicate,
+    jaccard_similarity,
+    overlap_ratio,
+    sort_key,
+    story_to_prd_entry,
+)
 from spiral_io import atomic_write_json
 from strategies import prd_strategy
 

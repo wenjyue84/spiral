@@ -15,7 +15,6 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-import math
 import os
 import sys
 from collections import defaultdict
@@ -93,9 +92,7 @@ def _story_phase(story_id: str) -> str:
     return "I"
 
 
-def compute_story_metrics(
-    rows: list[dict[str, Any]], phase_filter: str | None = None
-) -> list[dict[str, Any]]:
+def compute_story_metrics(rows: list[dict[str, Any]], phase_filter: str | None = None) -> list[dict[str, Any]]:
     """
     Compute per-story metrics from results.tsv rows.
 
@@ -150,9 +147,7 @@ def compute_story_metrics(
                 escalations += 1
 
         num_retries = len(story_rows_sorted)
-        avg_tokens_per_retry = (
-            sum(tokens_list) / len(tokens_list) if tokens_list else 0.0
-        )
+        avg_tokens_per_retry = sum(tokens_list) / len(tokens_list) if tokens_list else 0.0
 
         results.append(
             {
@@ -170,9 +165,7 @@ def compute_story_metrics(
     return results
 
 
-def build_phase_report(
-    metrics: list[dict[str, Any]], phase: str
-) -> dict[str, Any]:
+def build_phase_report(metrics: list[dict[str, Any]], phase: str) -> dict[str, Any]:
     """Build the JSON report structure for a phase."""
     if not metrics:
         return {

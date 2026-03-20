@@ -31,7 +31,8 @@ def emit_routing_event(
 
 
 def emit_routing_events(
-    events_path: str, events: list[dict],
+    events_path: str,
+    events: list[dict],
 ) -> None:
     """Emit multiple routing telemetry events."""
     for ev in events:

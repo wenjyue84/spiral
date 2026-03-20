@@ -8,11 +8,9 @@ from __future__ import annotations
 
 import csv
 import json
-import os
 import sys
 from pathlib import Path
 
-import pytest
 from _pytest.capture import CaptureFixture
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))

@@ -118,8 +118,7 @@ def _build_suggestion(root_cause: str, is_repeated: bool) -> str:
             "Check API key validity, rate limits, and model availability. Retry after cooling off."
         ),
         "unknown": (
-            "Error pattern unclear. "
-            "Inspect .spiral/logs/ for raw ralph output. Consider manual decomposition."
+            "Error pattern unclear. Inspect .spiral/logs/ for raw ralph output. Consider manual decomposition."
         ),
     }
     suggestion = suggestions.get(root_cause, suggestions["unknown"])
@@ -228,9 +227,7 @@ def analyze_exhausted_story(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Analyze exhausted story retry attempts and output root cause JSON."
-    )
+    parser = argparse.ArgumentParser(description="Analyze exhausted story retry attempts and output root cause JSON.")
     parser.add_argument("--story-id", required=True, help="Story ID, e.g. US-123")
     parser.add_argument(
         "--attempts",

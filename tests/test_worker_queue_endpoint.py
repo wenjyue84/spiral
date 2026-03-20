@@ -8,9 +8,6 @@ Tests cover:
 """
 
 import json
-import os
-import tempfile
-import time
 from pathlib import Path
 
 import pytest
@@ -152,19 +149,27 @@ class TestWorkerQueueEndpointBehavior:
         workers_dir = tmp_path / "workers"
 
         # Worker 0: running with 2 items in queue
-        _write_worker_json(workers_dir, 0, {
-            "worker_id": "worker-0",
-            "current_task": {"story_id": "US-100", "started_at": "2026-03-20T10:00:00Z"},
-            "queue": [{"story_id": "US-101"}, {"story_id": "US-102"}],
-            "uptime": 45,
-        })
+        _write_worker_json(
+            workers_dir,
+            0,
+            {
+                "worker_id": "worker-0",
+                "current_task": {"story_id": "US-100", "started_at": "2026-03-20T10:00:00Z"},
+                "queue": [{"story_id": "US-101"}, {"story_id": "US-102"}],
+                "uptime": 45,
+            },
+        )
         # Worker 1: idle, empty queue
-        _write_worker_json(workers_dir, 1, {
-            "worker_id": "worker-1",
-            "current_task": None,
-            "queue": [],
-            "uptime": 120,
-        })
+        _write_worker_json(
+            workers_dir,
+            1,
+            {
+                "worker_id": "worker-1",
+                "current_task": None,
+                "queue": [],
+                "uptime": 120,
+            },
+        )
 
         # Simulate the list endpoint's aggregation logic
         workers = []
@@ -183,20 +188,28 @@ class TestWorkerQueueEndpointBehavior:
     def test_workers_list_status_field(self, tmp_path: Path) -> None:
         """Worker status must be 'running' when current_task is set, 'idle' otherwise."""
         workers_dir = tmp_path / "workers"
-        _write_worker_json(workers_dir, 0, {
-            "current_task": {"story_id": "US-200", "started_at": "2026-03-20T12:00:00Z"},
-            "queue": [],
-            "uptime": 10,
-        })
+        _write_worker_json(
+            workers_dir,
+            0,
+            {
+                "current_task": {"story_id": "US-200", "started_at": "2026-03-20T12:00:00Z"},
+                "queue": [],
+                "uptime": 10,
+            },
+        )
         raw = json.loads((workers_dir / "worker_0.json").read_text(encoding="utf-8"))
         status = "running" if raw.get("current_task") else "idle"
         assert status == "running"
 
-        _write_worker_json(workers_dir, 1, {
-            "current_task": None,
-            "queue": [],
-            "uptime": 0,
-        })
+        _write_worker_json(
+            workers_dir,
+            1,
+            {
+                "current_task": None,
+                "queue": [],
+                "uptime": 0,
+            },
+        )
         raw2 = json.loads((workers_dir / "worker_1.json").read_text(encoding="utf-8"))
         status2 = "running" if raw2.get("current_task") else "idle"
         assert status2 == "idle"
@@ -212,6 +225,7 @@ class TestWorkerQueueEndpointHTTP:
         """Check if Spiral UI server is reachable."""
         try:
             import urllib.request
+
             with urllib.request.urlopen("http://localhost:5299/api/project", timeout=1) as r:
                 return bool(r.status == 200)
         except Exception:
@@ -223,6 +237,7 @@ class TestWorkerQueueEndpointHTTP:
             pytest.skip("Spiral UI server not running on localhost:5299")
 
         import urllib.request
+
         try:
             with urllib.request.urlopen(self.QUEUE_URL, timeout=2) as r:
                 data = json.loads(r.read().decode())
@@ -238,6 +253,7 @@ class TestWorkerQueueEndpointHTTP:
             pytest.skip("Spiral UI server not running on localhost:5299")
 
         import urllib.request
+
         with urllib.request.urlopen(self.LIST_URL, timeout=2) as r:
             data = json.loads(r.read().decode())
             assert "workers" in data

@@ -160,9 +160,7 @@ class TestPhaseRCacheWithGeminiMock:
 
                 assert cached_result is not None, "Cache hit should return data"
                 # Gemini is NOT called again (gemini_call_count stays 1)
-                assert (
-                    gemini_call_count == 1
-                ), "Gemini should NOT be called again on cache hit"
+                assert gemini_call_count == 1, "Gemini should NOT be called again on cache hit"
 
 
 # Module-level test functions matching acceptance criteria
@@ -243,6 +241,4 @@ def test_phase_r_cache_prevents_gemini_calls(tmp_path: Path) -> None:
         second_lookup = lookup_cached_research(topic)
         assert second_lookup is not None
         # gemini_call_count stays 1 because we use the cached result
-        assert (
-            gemini_call_count == 1
-        ), "Gemini NOT called on cache hit (count stays 1)"
+        assert gemini_call_count == 1, "Gemini NOT called on cache hit (count stays 1)"

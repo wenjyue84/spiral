@@ -21,6 +21,7 @@ Requires:
 - sentence-transformers
 - torch
 """
+
 import argparse
 import sys
 from typing import List
@@ -38,11 +39,11 @@ except ImportError:
 
 # Pre-trained model optimized for code retrieval tasks.
 # Lightweight and effective.
-MODEL_NAME = 'all-MiniLM-L6-v2'
+MODEL_NAME = "all-MiniLM-L6-v2"
 
 # Configuration for chunking and selection
 CHUNK_SIZE = 15  # lines per chunk
-CHUNK_OVERLAP = 4 # lines of overlap between chunks
+CHUNK_OVERLAP = 4  # lines of overlap between chunks
 SIMILARITY_THRESHOLD = 0.25  # Minimum similarity score to be considered
 MAX_CHUNKS = 10  # Return at most this many chunks
 
@@ -54,25 +55,20 @@ def create_chunks(lines: List[str], size: int, overlap: int) -> List[str]:
 
     chunks = []
     for i in range(0, len(lines), size - overlap):
-        chunk = lines[i:i + size]
+        chunk = lines[i : i + size]
         if chunk:
             chunks.append("".join(chunk))
     return chunks
 
+
 def main():
-    parser = argparse.ArgumentParser(
-        description="Extract semantically relevant code chunks from a file."
-    )
-    parser.add_argument(
-        "--file", required=True, help="Path to the source code file."
-    )
-    parser.add_argument(
-        "--task", required=True, help="The task description to match against."
-    )
+    parser = argparse.ArgumentParser(description="Extract semantically relevant code chunks from a file.")
+    parser.add_argument("--file", required=True, help="Path to the source code file.")
+    parser.add_argument("--task", required=True, help="The task description to match against.")
     args = parser.parse_args()
 
     try:
-        with open(args.file, 'r', encoding='utf-8', errors='replace') as f:
+        with open(args.file, "r", encoding="utf-8", errors="replace") as f:
             lines = f.readlines()
     except FileNotFoundError:
         # Silently exit if file not found, as it might be a new file hint.
@@ -115,7 +111,7 @@ def main():
 
             selected_chunks.append(chunks[chunk_index])
             print(
-                f"Chunk {i+1} (score: {score:.2f}, lines ~{start_line+1}-{start_line+CHUNK_SIZE}):\n"
+                f"Chunk {i + 1} (score: {score:.2f}, lines ~{start_line + 1}-{start_line + CHUNK_SIZE}):\n"
                 f"{chunks[chunk_index]}",
                 file=sys.stderr,
             )

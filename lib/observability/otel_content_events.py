@@ -123,7 +123,6 @@ def cmd_emit_prompt(args: argparse.Namespace) -> None:
         from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
         from opentelemetry.sdk.trace import TracerProvider
         from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-
         from otel_resource_builder import build_otel_resource
 
         resource = build_otel_resource()
@@ -199,7 +198,6 @@ def cmd_emit_completion(args: argparse.Namespace) -> None:
         from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
         from opentelemetry.sdk.trace import TracerProvider
         from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-
         from otel_resource_builder import build_otel_resource
 
         resource = build_otel_resource()

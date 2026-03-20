@@ -11,7 +11,6 @@ Extended with:
 
 from __future__ import annotations
 
-import json
 import subprocess
 import sys
 from pathlib import Path
@@ -397,9 +396,7 @@ def test_phase_v_identifies_failed_test_names_from_output(
 
     # Extract failed test names (simple pattern matching)
     failed_tests = [
-        line.split("::")[1].split(" ")[0]
-        for line in output.split("\n")
-        if "FAILED" in line and "::" in line
+        line.split("::")[1].split(" ")[0] for line in output.split("\n") if "FAILED" in line and "::" in line
     ]
 
     assert "test_feature_c_basic" in failed_tests
@@ -637,12 +634,8 @@ def test_phase_v_tracks_failure_reason_per_story(
             story["_failure_reason"] = failure_reasons[story["id"]]
 
     # Verify tracking
-    assert sample_prd_with_stories["userStories"][2]["_failure_reason"] == [
-        "test_feature_c_basic - assertion failed"
-    ]
-    assert sample_prd_with_stories["userStories"][4]["_failure_reason"] == [
-        "test_feature_e_basic - assertion failed"
-    ]
+    assert sample_prd_with_stories["userStories"][2]["_failure_reason"] == ["test_feature_c_basic - assertion failed"]
+    assert sample_prd_with_stories["userStories"][4]["_failure_reason"] == ["test_feature_e_basic - assertion failed"]
 
 
 # ── Test: Multi-format output parsing (pytest, vitest, bats) ─────────────────────
@@ -768,8 +761,7 @@ def test_phase_v_extracts_failure_category_per_format(
     # Verify category was extracted
     assert failure_category is not None, f"{format_name}: could not extract failure category"
     assert expected_category.lower() in failure_category.lower(), (
-        f"{format_name}: expected category containing '{expected_category}', "
-        f"got '{failure_category}'"
+        f"{format_name}: expected category containing '{expected_category}', got '{failure_category}'"
     )
 
 
@@ -923,6 +915,5 @@ def test_phase_v_property_failure_lines_equal_tagged_stories(
 
     # Property: failure count in output must equal tagged stories count
     assert failure_count == failure_marker_count, (
-        f"Failure marker count mismatch: generated {failure_marker_count}, "
-        f"found {failure_count} '❯' markers in output"
+        f"Failure marker count mismatch: generated {failure_marker_count}, found {failure_count} '❯' markers in output"
     )

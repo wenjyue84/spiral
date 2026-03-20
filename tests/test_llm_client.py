@@ -13,12 +13,11 @@ Covers:
 
 import json
 import os
+import sys
 import tempfile
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
-
-import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 
@@ -413,7 +412,7 @@ class TestStreamCompletionIntegration:
             '{"accepted": ',
             "true",
             ', "reason": "',
-            'looks good',
+            "looks good",
             '"}',
         ]
         message = MockMessage(text='{"accepted": true, "reason": "looks good"}')

@@ -1588,8 +1588,9 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-03-20T00:47:52Z"
     },
     {
       "id": "US-544",

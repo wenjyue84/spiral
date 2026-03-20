@@ -2,6 +2,7 @@
 """test_dashboard_profile.py — Integration tests for /profile endpoint."""
 
 from fastapi.testclient import TestClient
+
 from lib.dashboard.api import app
 
 

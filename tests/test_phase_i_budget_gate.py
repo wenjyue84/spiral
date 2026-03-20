@@ -11,20 +11,17 @@ Covers:
 """
 
 import json
-import tempfile
 from pathlib import Path
-from typing import Dict, List
-from unittest.mock import MagicMock, patch
+from typing import Dict
 
 import pytest
 
 from lib.budget_analyzer import (
     calculate_current_spend,
-    estimate_pending_story_cost,
     check_budget_gate,
+    estimate_pending_story_cost,
 )
-from lib.rollback_story import rollback_story, find_lowest_priority_pending_story
-
+from lib.rollback_story import find_lowest_priority_pending_story, rollback_story
 
 # ────────────────────────────────────────────────────────────────────────────
 # Fixtures
@@ -183,9 +180,7 @@ class TestEstimatePendingCost:
 
     def test_estimate_pending_all_completed(self, sample_prd: Dict) -> None:
         """Test estimation with no pending stories."""
-        sample_prd["userStories"] = [
-            s for s in sample_prd["userStories"] if s.get("passes") == True
-        ]
+        sample_prd["userStories"] = [s for s in sample_prd["userStories"] if s.get("passes") == True]
 
         result = estimate_pending_story_cost(sample_prd)
 
@@ -201,40 +196,30 @@ class TestEstimatePendingCost:
 class TestBudgetGateCheck:
     """Test the full budget gate check logic."""
 
-    def test_budget_gate_within_ceiling(
-        self, tmp_path: Path, sample_prd: Dict, sample_results_tsv: Path
-    ) -> None:
+    def test_budget_gate_within_ceiling(self, tmp_path: Path, sample_prd: Dict, sample_results_tsv: Path) -> None:
         """Test gate passes when total cost is within ceiling."""
         prd_file = tmp_path / "prd.json"
         prd_file.write_text(json.dumps(sample_prd))
 
-        result = check_budget_gate(
-            prd_file, sample_results_tsv, cost_ceiling_usd=100.0
-        )
+        result = check_budget_gate(prd_file, sample_results_tsv, cost_ceiling_usd=100.0)
 
         assert result["would_exceed"] == False
         assert result["total_projected_usd"] < 100.0
         assert result["remaining_budget_usd"] > 0.0
         assert result["pending_count"] == 5
 
-    def test_budget_gate_exceeds_ceiling(
-        self, tmp_path: Path, sample_prd: Dict, sample_results_tsv: Path
-    ) -> None:
+    def test_budget_gate_exceeds_ceiling(self, tmp_path: Path, sample_prd: Dict, sample_results_tsv: Path) -> None:
         """Test gate blocks when total cost would exceed ceiling."""
         prd_file = tmp_path / "prd.json"
         prd_file.write_text(json.dumps(sample_prd))
 
-        result = check_budget_gate(
-            prd_file, sample_results_tsv, cost_ceiling_usd=1.0
-        )
+        result = check_budget_gate(prd_file, sample_results_tsv, cost_ceiling_usd=1.0)
 
         assert result["would_exceed"] == True
         assert result["total_projected_usd"] > 1.0
         assert result["pending_count"] == 5
 
-    def test_budget_gate_no_ceiling(
-        self, tmp_path: Path, sample_prd: Dict, sample_results_tsv: Path
-    ) -> None:
+    def test_budget_gate_no_ceiling(self, tmp_path: Path, sample_prd: Dict, sample_results_tsv: Path) -> None:
         """Test gate disabled when no ceiling is set."""
         prd_file = tmp_path / "prd.json"
         prd_file.write_text(json.dumps(sample_prd))
@@ -253,16 +238,12 @@ class TestBudgetGateCheck:
                 cost_ceiling_usd=50.0,
             )
 
-    def test_budget_gate_cost_accuracy(
-        self, tmp_path: Path, sample_prd: Dict, sample_results_tsv: Path
-    ) -> None:
+    def test_budget_gate_cost_accuracy(self, tmp_path: Path, sample_prd: Dict, sample_results_tsv: Path) -> None:
         """Test cost calculation is within 5% accuracy."""
         prd_file = tmp_path / "prd.json"
         prd_file.write_text(json.dumps(sample_prd))
 
-        result = check_budget_gate(
-            prd_file, sample_results_tsv, cost_ceiling_usd=50.0
-        )
+        result = check_budget_gate(prd_file, sample_results_tsv, cost_ceiling_usd=50.0)
 
         # Verify components add up
         projected = result["current_spend_usd"] + result["estimated_pending_usd"]
@@ -394,9 +375,7 @@ class TestRollbackStory:
         assert result["success"] == False
         assert "Invalid JSON" in result["error"]
 
-    def test_rollback_story_multiple_times(
-        self, tmp_path: Path, sample_prd: Dict
-    ) -> None:
+    def test_rollback_story_multiple_times(self, tmp_path: Path, sample_prd: Dict) -> None:
         """Test rolling back multiple times in sequence."""
         prd_file = tmp_path / "prd.json"
         prd_file.write_text(json.dumps(sample_prd))
@@ -448,17 +427,13 @@ class TestBudgetGateIntegration:
         # Cost should be lower (one fewer story)
         assert check2["estimated_pending_usd"] < check1["estimated_pending_usd"]
 
-    def test_full_flow_multiple_rollbacks(
-        self, tmp_path: Path, sample_prd: Dict, sample_results_tsv: Path
-    ) -> None:
+    def test_full_flow_multiple_rollbacks(self, tmp_path: Path, sample_prd: Dict, sample_results_tsv: Path) -> None:
         """Test rolling back multiple times until within budget."""
         prd_file = tmp_path / "prd.json"
         prd_file.write_text(json.dumps(sample_prd))
 
         tight_ceiling = 0.5  # Very tight ceiling
-        initial_check = check_budget_gate(
-            prd_file, sample_results_tsv, cost_ceiling_usd=tight_ceiling
-        )
+        initial_check = check_budget_gate(prd_file, sample_results_tsv, cost_ceiling_usd=tight_ceiling)
         assert initial_check["would_exceed"] == True
 
         # Keep rolling back until within budget
@@ -469,9 +444,7 @@ class TestBudgetGateIntegration:
                 break
             rollback_count += 1
 
-            check = check_budget_gate(
-                prd_file, sample_results_tsv, cost_ceiling_usd=tight_ceiling
-            )
+            check = check_budget_gate(prd_file, sample_results_tsv, cost_ceiling_usd=tight_ceiling)
             if not check["would_exceed"]:
                 break
             if rollback_count >= 5:
@@ -480,13 +453,8 @@ class TestBudgetGateIntegration:
         # Should have rolled back at least once
         assert rollback_count >= 1
         # Final check should be within budget or no pending stories
-        final_check = check_budget_gate(
-            prd_file, sample_results_tsv, cost_ceiling_usd=tight_ceiling
-        )
-        assert (
-            final_check["would_exceed"] == False
-            or final_check["pending_count"] == 0
-        )
+        final_check = check_budget_gate(prd_file, sample_results_tsv, cost_ceiling_usd=tight_ceiling)
+        assert final_check["would_exceed"] == False or final_check["pending_count"] == 0
 
 
 if __name__ == "__main__":

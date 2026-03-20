@@ -7,8 +7,6 @@ import shutil
 import tempfile
 import time
 
-import pytest
-
 
 def test_api_workers_empty_when_no_workers(monkeypatch, tmp_path):
     """Test /api/workers returns empty array when no workers running."""
@@ -20,9 +18,7 @@ def test_api_workers_empty_when_no_workers(monkeypatch, tmp_path):
 
         # Mock .spiral-workers to be a non-existent directory
         workers_dir = tmp_path / ".spiral-workers"
-        monkeypatch.setattr(
-            "os.path.isdir", lambda x: str(x) == str(workers_dir) and workers_dir.exists()
-        )
+        monkeypatch.setattr("os.path.isdir", lambda x: str(x) == str(workers_dir) and workers_dir.exists())
 
         # Capture the JSON response
         captured = []

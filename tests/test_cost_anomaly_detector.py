@@ -3,14 +3,10 @@
 from __future__ import annotations
 
 import csv
-import json
-import math
 import os
 import tempfile
 from pathlib import Path
 from typing import Any
-
-import pytest
 
 sys_path_parent = Path(__file__).parent.parent / "lib"
 
@@ -23,9 +19,7 @@ from cost_anomaly_detector import (
     _stddev,
     _tokens_from_row,
     detect_anomalies,
-    load_results,
 )
-
 
 # ── Helper to write a temp results.tsv ────────────────────────────────────────
 
@@ -127,9 +121,7 @@ def test_anomaly_detection_flags_outlier() -> None:
         }
         for i, cost in enumerate(costs)
     ]
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".tsv", delete=False, encoding="utf-8"
-    ) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".tsv", delete=False, encoding="utf-8") as f:
         tmp_path = f.name
 
     try:
@@ -192,9 +184,7 @@ def test_detect_anomalies_output_structure() -> None:
             "commit_sha": "ghi",
         },
     ]
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".tsv", delete=False, encoding="utf-8"
-    ) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".tsv", delete=False, encoding="utf-8") as f:
         tmp_path = f.name
     try:
         _write_tsv(rows, tmp_path)
@@ -243,9 +233,7 @@ def test_anomaly_includes_model() -> None:
         }
         for i in range(4)
     ]
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".tsv", delete=False, encoding="utf-8"
-    ) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".tsv", delete=False, encoding="utf-8") as f:
         tmp_path = f.name
     try:
         _write_tsv(rows, tmp_path)
@@ -279,9 +267,7 @@ def test_no_anomalies_when_costs_uniform() -> None:
         }
         for i in range(5)
     ]
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".tsv", delete=False, encoding="utf-8"
-    ) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".tsv", delete=False, encoding="utf-8") as f:
         tmp_path = f.name
     try:
         _write_tsv(rows, tmp_path)
@@ -302,6 +288,7 @@ def test_missing_tsv_returns_empty() -> None:
 
 def test_summary_affected_stories_count() -> None:
     """affectedStories counts distinct story IDs that have anomalies."""
+
     # Two stories, each with one outlier
     def _make_rows(story_id: str, base_dur: float, spike_dur: float) -> list[dict[str, Any]]:
         return [
@@ -321,9 +308,7 @@ def test_summary_affected_stories_count() -> None:
         ]
 
     rows = _make_rows("US-A", 100, 5000) + _make_rows("US-B", 200, 8000)
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".tsv", delete=False, encoding="utf-8"
-    ) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".tsv", delete=False, encoding="utf-8") as f:
         tmp_path = f.name
     try:
         _write_tsv(rows, tmp_path)

@@ -15,7 +15,6 @@ from typing import Any, Dict, Optional, Tuple
 sys.path.insert(0, os.path.dirname(__file__))
 from core.spiral_io import atomic_write_json
 
-
 PRIORITY_ORDER: Dict[str, int] = {
     "critical": 0,
     "high": 1,
@@ -31,11 +30,7 @@ def find_lowest_priority_pending_story(prd_dict: Dict[str, Any]) -> Optional[Tup
     Returns:
         tuple of (index_in_userstories, story_dict) or None if no pending stories
     """
-    pending_stories = [
-        (i, s)
-        for i, s in enumerate(prd_dict.get("userStories", []))
-        if s.get("passes") != True
-    ]
+    pending_stories = [(i, s) for i, s in enumerate(prd_dict.get("userStories", [])) if s.get("passes") != True]
 
     if not pending_stories:
         return None

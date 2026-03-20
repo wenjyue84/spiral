@@ -22,8 +22,8 @@ import pytest
 # Ensure lib/ is importable from tests/integration/
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "lib"))
 
-from state_machine import InvalidTransition, SpiralPhaseStateMachine
 from spiral_io import configure_utf8_stdout
+from state_machine import InvalidTransition, SpiralPhaseStateMachine
 
 configure_utf8_stdout()
 
@@ -151,9 +151,7 @@ class TestSeedPRDSetup:
         """All seed stories must begin with passes=False."""
         prd = _make_seed_prd()
         for story in prd["userStories"]:
-            assert story["passes"] is False, (
-                f"Story {story['id']} should start with passes=False"
-            )
+            assert story["passes"] is False, f"Story {story['id']} should start with passes=False"
 
     def test_seed_stories_have_required_fields(self) -> None:
         """Each story must have id, title, acceptanceCriteria, and dependencies."""
@@ -172,9 +170,7 @@ class TestSeedPRDSetup:
         retry_dir.mkdir(parents=True)
         mock_retry = retry_dir / "mock_retry.py"
         mock_retry.write_text(
-            "import sys, json\n"
-            'print(json.dumps({"status": "complete", "passes": True}))\n'
-            "sys.exit(0)\n",
+            'import sys, json\nprint(json.dumps({"status": "complete", "passes": True}))\nsys.exit(0)\n',
             encoding="utf-8",
         )
 
@@ -211,9 +207,7 @@ class TestPhaseSequence:
             assert sm.current is not None
             recorded.append(sm.current)
 
-        assert recorded == EXPECTED_PHASE_SEQUENCE, (
-            f"Phase sequence must be {EXPECTED_PHASE_SEQUENCE}, got {recorded}"
-        )
+        assert recorded == EXPECTED_PHASE_SEQUENCE, f"Phase sequence must be {EXPECTED_PHASE_SEQUENCE}, got {recorded}"
 
     def test_checkpoint_written_at_final_phase_c(self, tmp_path: Path) -> None:
         """After a complete iteration, checkpoint must record phase='C'."""
@@ -226,9 +220,7 @@ class TestPhaseSequence:
             ckpt = _make_checkpoint(1, phase)
             checkpoint_path.write_text(json.dumps(ckpt), encoding="utf-8")
 
-        final_ckpt: dict[str, Any] = json.loads(
-            checkpoint_path.read_text(encoding="utf-8")
-        )
+        final_ckpt: dict[str, Any] = json.loads(checkpoint_path.read_text(encoding="utf-8"))
         assert final_ckpt["phase"] == "C"
         assert final_ckpt["iter"] == 1
 
@@ -241,9 +233,7 @@ class TestPhaseSequence:
         for phase in EXPECTED_PHASE_SEQUENCE:
             ckpt = _make_checkpoint(1, phase)
             checkpoint_path.write_text(json.dumps(ckpt), encoding="utf-8")
-            loaded: dict[str, Any] = json.loads(
-                checkpoint_path.read_text(encoding="utf-8")
-            )
+            loaded: dict[str, Any] = json.loads(checkpoint_path.read_text(encoding="utf-8"))
             assert loaded["phase"] in set(EXPECTED_PHASE_SEQUENCE), (
                 f"Phase '{loaded['phase']}' is not a valid SPIRAL phase"
             )
@@ -257,9 +247,7 @@ class TestPhaseSequence:
         ckpt = _make_checkpoint(1, "C")
         checkpoint_path.write_text(json.dumps(ckpt), encoding="utf-8")
 
-        loaded: dict[str, Any] = json.loads(
-            checkpoint_path.read_text(encoding="utf-8")
-        )
+        loaded: dict[str, Any] = json.loads(checkpoint_path.read_text(encoding="utf-8"))
         sm = SpiralPhaseStateMachine()
         errors = sm.validate_checkpoint(loaded)
         assert errors == [], f"Checkpoint validation errors: {errors}"
@@ -272,9 +260,7 @@ class TestPhaseSequence:
         with pytest.raises(InvalidTransition):
             sm.transition("R")  # Cannot go backward
 
-    def test_dry_run_produces_checkpoint_with_valid_phase(
-        self, tmp_path: Path
-    ) -> None:
+    def test_dry_run_produces_checkpoint_with_valid_phase(self, tmp_path: Path) -> None:
         """Simulated dry-run checkpoint must have a valid phase after iteration 1."""
         # Simulate what spiral.sh writes when --dry-run completes an iteration:
         # Phases R, T are skipped (empty output); S, M run; I skips (ralph dry-run);
@@ -288,9 +274,7 @@ class TestPhaseSequence:
         for last_phase in ("M", "V", "C"):
             ckpt = _make_checkpoint(1, last_phase)
             checkpoint_path.write_text(json.dumps(ckpt), encoding="utf-8")
-            loaded: dict[str, Any] = json.loads(
-                checkpoint_path.read_text(encoding="utf-8")
-            )
+            loaded: dict[str, Any] = json.loads(checkpoint_path.read_text(encoding="utf-8"))
             assert loaded["phase"] in set(EXPECTED_PHASE_SEQUENCE)
             errors = SpiralPhaseStateMachine().validate_checkpoint(loaded)
             assert errors == []
@@ -319,9 +303,7 @@ class TestStoryCompletion:
         # Verify
         final: dict[str, Any] = json.loads(prd_path.read_text(encoding="utf-8"))
         for story in final["userStories"]:
-            assert story["passes"] is True, (
-                f"Story {story['id']} must have passes=True after Phase I"
-            )
+            assert story["passes"] is True, f"Story {story['id']} must have passes=True after Phase I"
 
     def test_results_tsv_has_exactly_three_rows(self, tmp_path: Path) -> None:
         """results.tsv must contain exactly 3 data rows, one per story."""
@@ -343,9 +325,7 @@ class TestStoryCompletion:
         rows = [_make_results_row(s["id"], s["title"], True) for s in stories]
 
         buf = io.StringIO()
-        writer = csv.DictWriter(
-            buf, fieldnames=fieldnames, delimiter="\t", extrasaction="ignore"
-        )
+        writer = csv.DictWriter(buf, fieldnames=fieldnames, delimiter="\t", extrasaction="ignore")
         writer.writeheader()
         writer.writerows(rows)
         results_path.write_text(buf.getvalue(), encoding="utf-8")
@@ -376,9 +356,7 @@ class TestStoryCompletion:
         rows = [_make_results_row(s["id"], s["title"], True) for s in stories]
 
         buf = io.StringIO()
-        writer = csv.DictWriter(
-            buf, fieldnames=fieldnames, delimiter="\t", extrasaction="ignore"
-        )
+        writer = csv.DictWriter(buf, fieldnames=fieldnames, delimiter="\t", extrasaction="ignore")
         writer.writeheader()
         writer.writerows(rows)
         results_path.write_text(buf.getvalue(), encoding="utf-8")
@@ -387,8 +365,7 @@ class TestStoryCompletion:
         reader = csv.DictReader(io.StringIO(content), delimiter="\t")
         for row in reader:
             assert row["status"] == "accept", (
-                f"Story {row['story_id']} result status should be 'accept', "
-                f"got '{row['status']}'"
+                f"Story {row['story_id']} result status should be 'accept', got '{row['status']}'"
             )
 
     def test_results_tsv_covers_all_three_story_ids(self, tmp_path: Path) -> None:
@@ -411,9 +388,7 @@ class TestStoryCompletion:
         rows = [_make_results_row(s["id"], s["title"], True) for s in stories]
 
         buf = io.StringIO()
-        writer = csv.DictWriter(
-            buf, fieldnames=fieldnames, delimiter="\t", extrasaction="ignore"
-        )
+        writer = csv.DictWriter(buf, fieldnames=fieldnames, delimiter="\t", extrasaction="ignore")
         writer.writeheader()
         writer.writerows(rows)
         results_path.write_text(buf.getvalue(), encoding="utf-8")
@@ -434,9 +409,7 @@ class TestStoryCompletion:
 
         # After wait(), process must be fully reaped
         assert proc.returncode == 0
-        assert proc.poll() is not None, (
-            f"Worker PID {proc.pid} should have exited after wait()"
-        )
+        assert proc.poll() is not None, f"Worker PID {proc.pid} should have exited after wait()"
 
     def test_three_workers_all_exit_cleanly(self) -> None:
         """Three parallel worker subprocesses must all exit with returncode=0."""
@@ -457,12 +430,8 @@ class TestStoryCompletion:
             p.wait(timeout=5)
 
         for p in procs:
-            assert p.returncode == 0, (
-                f"Worker PID {p.pid} exited with code {p.returncode}"
-            )
-            assert p.poll() is not None, (
-                f"Worker PID {p.pid} should have exited but poll() returned None"
-            )
+            assert p.returncode == 0, f"Worker PID {p.pid} exited with code {p.returncode}"
+            assert p.poll() is not None, f"Worker PID {p.pid} should have exited but poll() returned None"
 
     def test_complete_happy_path_state_consistent(self, tmp_path: Path) -> None:
         """End-to-end state check: prd passes + checkpoint at C + results rows all align."""
@@ -500,14 +469,9 @@ class TestStoryCompletion:
             "retry_num",
             "commit_sha",
         ]
-        rows = [
-            _make_results_row(s["id"], s["title"], True)
-            for s in prd_data["userStories"]
-        ]
+        rows = [_make_results_row(s["id"], s["title"], True) for s in prd_data["userStories"]]
         buf = io.StringIO()
-        writer = csv.DictWriter(
-            buf, fieldnames=fieldnames, delimiter="\t", extrasaction="ignore"
-        )
+        writer = csv.DictWriter(buf, fieldnames=fieldnames, delimiter="\t", extrasaction="ignore")
         writer.writeheader()
         writer.writerows(rows)
         results_path.write_text(buf.getvalue(), encoding="utf-8")
@@ -515,9 +479,7 @@ class TestStoryCompletion:
         # --- Assertions ---
 
         # Checkpoint at C
-        final_ckpt: dict[str, Any] = json.loads(
-            checkpoint_path.read_text(encoding="utf-8")
-        )
+        final_ckpt: dict[str, Any] = json.loads(checkpoint_path.read_text(encoding="utf-8"))
         assert final_ckpt["phase"] == "C"
         assert final_ckpt["iter"] == 1
         sm_errors = SpiralPhaseStateMachine().validate_checkpoint(final_ckpt)

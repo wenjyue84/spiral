@@ -11,8 +11,6 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 from spiral_io import atomic_write_json, configure_utf8_stdout
 
@@ -35,9 +33,7 @@ def _make_story(story_id: str, **extra: Any) -> dict[str, Any]:
     return s
 
 
-def _make_prd(
-    stories: list[dict[str, Any]], name: str = "TestProduct", branch: str = "main"
-) -> dict[str, Any]:
+def _make_prd(stories: list[dict[str, Any]], name: str = "TestProduct", branch: str = "main") -> dict[str, Any]:
     """Create a minimal valid prd.json dict."""
     return {
         "schemaVersion": 1,
@@ -130,9 +126,7 @@ class TestIntegrationUS459:
             prd_final = _read_prd(prd_path)
             assert prd_final["userStories"][0]["passes"] is True
 
-    def test_error_case_mocked_claude_failure_triggers_retry(
-        self, tmp_path: Path
-    ) -> None:
+    def test_error_case_mocked_claude_failure_triggers_retry(self, tmp_path: Path) -> None:
         """Test error case: mock Claude returns failure, retry logic triggered.
 
         Simulate:
@@ -247,6 +241,7 @@ class TestSpiralRunnerWithMocks:
 
 
 # Module-level test functions matching acceptance criteria
+
 
 def test_happy_path_mocked_claude_success(tmp_path: Path) -> None:
     """AC1: Happy path test with mocked Claude success."""

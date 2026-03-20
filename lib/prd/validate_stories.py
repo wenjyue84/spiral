@@ -561,9 +561,7 @@ def validate_stories(
         if rejection_reason is None:
             complexity = story.get("estimatedComplexity", "")
             if complexity == "large":
-                rejection_reason = (
-                    "complexity_too_large: split into small/medium stories before submitting"
-                )
+                rejection_reason = "complexity_too_large: split into small/medium stories before submitting"
 
         # 4. AC and technicalNotes quality warnings (non-blocking — logged but do not reject)
         if rejection_reason is None:

@@ -6,12 +6,9 @@ import json
 import os
 import sys
 
-import pytest
-
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib", "impl"))
 
 from exhaustion_analyzer import analyze_exhausted_story
-
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -176,9 +173,7 @@ class TestCLIEntrypoint:
         attempts_file = tmp_path / "attempts.json"
         attempts_file.write_text(json.dumps(attempts_data))
 
-        script = os.path.join(
-            os.path.dirname(__file__), "..", "lib", "impl", "exhaustion_analyzer.py"
-        )
+        script = os.path.join(os.path.dirname(__file__), "..", "lib", "impl", "exhaustion_analyzer.py")
         result = subprocess.run(
             ["uv", "run", "python", script, "--story-id", "US-777", "--attempts", str(attempts_file)],
             capture_output=True,
@@ -197,15 +192,19 @@ class TestCLIEntrypoint:
         attempts_file.write_text(json.dumps(attempts_data))
         output_file = tmp_path / "report.json"
 
-        script = os.path.join(
-            os.path.dirname(__file__), "..", "lib", "impl", "exhaustion_analyzer.py"
-        )
+        script = os.path.join(os.path.dirname(__file__), "..", "lib", "impl", "exhaustion_analyzer.py")
         result = subprocess.run(
             [
-                "uv", "run", "python", script,
-                "--story-id", "US-888",
-                "--attempts", str(attempts_file),
-                "--output", str(output_file),
+                "uv",
+                "run",
+                "python",
+                script,
+                "--story-id",
+                "US-888",
+                "--attempts",
+                str(attempts_file),
+                "--output",
+                str(output_file),
             ],
             capture_output=True,
             text=True,

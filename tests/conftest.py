@@ -243,7 +243,9 @@ def with_auth(auth_token):
     os.environ["SPIRAL_DASHBOARD_AUTH_TOKEN"] = auth_token
     # Re-import to reload the _AUTH_TOKEN global
     import importlib
+
     from lib.ui import spiral_live_server
+
     importlib.reload(spiral_live_server)
     yield
     if old_value is None:
@@ -260,7 +262,9 @@ def without_auth():
     os.environ.pop("SPIRAL_DASHBOARD_AUTH_TOKEN", None)
     # Re-import to reload the _AUTH_TOKEN global
     import importlib
+
     from lib.ui import spiral_live_server
+
     importlib.reload(spiral_live_server)
     yield
     if old_value is not None:

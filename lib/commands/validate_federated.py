@@ -45,7 +45,9 @@ def _validate_ids(prd_dict: dict[str, Any]) -> list[str]:
             # Non-namespaced ID - validate base format (US-NNN or UT-NNN)
             base_pattern = re.compile(r"^(US|UT)-\d{3}$")
             if not base_pattern.match(story_id):
-                errors.append(f"Invalid ID format: {story_id!r} (expected format: '(US|UT)-NNN' or 'namespace:(US|UT)-NNN')")
+                errors.append(
+                    f"Invalid ID format: {story_id!r} (expected format: '(US|UT)-NNN' or 'namespace:(US|UT)-NNN')"
+                )
 
     return errors
 
@@ -279,7 +281,7 @@ def run(args: argparse.Namespace) -> None:
 
     # Print summary to stderr
     if report["errors"] or report["cycles"]:
-        print(f"\nValidation FAILED:", file=sys.stderr)
+        print("\nValidation FAILED:", file=sys.stderr)
         if report["errors"]:
             print(f"  {len(report['errors'])} error(s):", file=sys.stderr)
             for error in report["errors"]:
