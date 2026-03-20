@@ -3087,6 +3087,23 @@
       "model": "sonnet"
     },
     {
+      "id": "US-619",
+      "title": "CLI: spiral estimate-time-to-completion — Velocity-Based ETA and Cost Projection",
+      "priority": "medium",
+      "description": "Provide operators with real-time estimates of remaining time and cost based on story completion velocity derived from results.tsv. Enables better resource planning and stakeholder communication during long SPIRAL runs.",
+      "acceptanceCriteria": [
+        "Command `spiral estimate-time-to-completion` reads results.tsv and current prd.json, calculates stories-per-hour velocity, and outputs: 'X stories remaining, Y hours to completion (assuming current velocity), $Z projected cost'",
+        "Tested via `pytest tests/test_estimate_time_to_completion.py` using fixture results.tsv with 50+ story attempts; ETA calculation validates against manual velocity computation",
+        "Dashboard home view displays estimated completion time and projected cost in a card, updated every 10s during active SPIRAL runs"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
       "id": "US-620",
       "title": "Dashboard Endpoint: GET /api/dashboard/cross-project-dependency-graph — Visualize Federated Sub-Project Dependencies",
       "priority": "high",
@@ -3103,6 +3120,40 @@
       "_source": "ai-example",
       "model": "sonnet",
       "last_attempted": "2026-03-20T16:29:40Z"
+    },
+    {
+      "id": "US-621",
+      "title": "Phase G: Generate Performance Regression Report from Results.tsv Historical Timeline",
+      "priority": "medium",
+      "description": "Implement Phase G report that detects regressions in SPIRAL phase performance over iterations. Calculates moving averages of phase duration and identifies phases exceeding 120% of baseline, with root-cause analysis pointing to problematic stories and remediation suggestions.",
+      "acceptanceCriteria": [
+        "lib/phases/phase_g_performance_report.sh reads results.tsv, groups by (iteration, phase), computes 5-iteration moving average of duration_ms per phase, flags phases exceeding 120% baseline as regression",
+        "Outputs PERFORMANCE_REGRESSION.md with markdown table: Phase | Iteration | Baseline (ms) | Current (ms) | Regression % | Top 3 Slow Stories | Recommendation (retry escalation / decompose / model choice); omit rows with zero regressions",
+        "Integration test tests/integration/test_phase_g_performance_report.py mocks results.tsv with synthetic per-phase timings including intentional Phase I regression, asserts report correctly identifies it and suggests remediation hints"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-622",
+      "title": "CLI: spiral show-federation-health — Validate Federated prd.json Structure and Report Status",
+      "priority": "medium",
+      "description": "Create a health-check CLI command that validates federated prd.json structure: verifies story ID format per sub-project namespace, detects orphaned stories without a sub_project, finds circular dependencies in the dependency graph, and reports story distribution across projects.",
+      "acceptanceCriteria": [
+        "Command 'spiral show-federation-health' reads prd.json and outputs JSON with {valid: boolean, story_count_by_project: {PROJECT: count}, orphaned_stories: [US-NNN, ...], circular_deps: [[US-1, US-2], ...]}",
+        "lib/spiral/federation_health.py validates story ID format (PROJECT-123), detects circular dependencies using DFS on _depends_on field",
+        "Integration test with 3+ sub-projects (including 1 orphaned story and 1 circular dependency) verifies correct detection and output format"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
     }
   ]
 }
