@@ -90,7 +90,7 @@
       "estimatedComplexity": "medium",
       "passes": false,
       "_source": "ai-example",
-      "model": "sonnet",
+      "model": "haiku",
       "filesTouch": [
         ".hypothesis/constants/0144005a67236799",
         ".hypothesis/constants/0158f9921b55208e",
@@ -155,7 +155,7 @@
       "estimatedComplexity": "small",
       "passes": false,
       "_source": "ai-example",
-      "model": "haiku",
+      "model": "sonnet",
       "filesTouch": [
         ".claude/hooks/verify_story_acceptance.py",
         ".coverage",
@@ -2725,6 +2725,40 @@
         "module-claude",
         "module-hypothesis"
       ]
+    },
+    {
+      "id": "US-600",
+      "title": "Results.tsv Query Interface: Unified DSL for Cross-Iteration Analysis",
+      "priority": "medium",
+      "description": "Create reusable ResultsQuery class providing chainable filters (by_phase, by_model, by_iteration, failed_only) and aggregations for results.tsv; refactor all CLI commands to use this interface for consistent analytics.",
+      "acceptanceCriteria": [
+        "Implement lib/results_query.py with ResultsQuery class: __init__(results_tsv_path), by_phase(name), by_model(name), by_iteration(N), failed_only(), aggregate(['avg_duration_sec', 'sum_tokens', 'count']) returns dict; support method chaining",
+        "Refactor existing CLI commands spiral complexity-trend, spiral phase-timing-report, spiral research-cache-stats to use ResultsQuery instead of custom CSV parsing; verify output unchanged from baseline",
+        "Add unit tests in tests/test_results_query.py: test_filter_chaining, test_aggregate_on_empty, test_by_iteration_range with fixture results.tsv containing 20+ rows across 3 iterations"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-601",
+      "title": "Worker Memory Budgeting: Peak Memory Tracking and OOM Prevention Alerts",
+      "priority": "medium",
+      "description": "Track peak memory usage per worker during Phase I; predict memory requirements before launching stories; alert workers approaching configured memory limits.",
+      "acceptanceCriteria": [
+        "ralph.sh monitors process peak RSS and logs peak_memory_mb to stdout; lib/impl/commit_revert.sh captures peak_memory from ralph output; add 'peak_memory_mb' column to results.tsv ResultsRecord dataclass in lib/results_tsv.py",
+        "Phase I worker launcher lib/run_parallel_ralph.sh checks SPIRAL_WORKER_MEMORY_LIMIT (default 2048 MB); uses lib/token_to_memory_ratio.py to estimate peak_memory from token count before launching; logs warning to .spiral/workers.log if predicted memory exceeds 80% of limit",
+        "Implement CLI command 'spiral memory-usage-report [--by-iteration N] [--alert-threshold 80]' aggregating peak_memory_mb from results.tsv; outputs table with columns: iteration | worker_id | peak_memory_mb | percent_of_limit | status; flags workers trending toward limits"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
     }
   ]
 }
