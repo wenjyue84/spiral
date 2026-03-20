@@ -448,9 +448,9 @@ get_story_timeout() {
     '.userStories[] | select(.id == $id) | .estimatedComplexity // "medium"' \
     "$prd" 2>/dev/null | tr -d '\r' || echo "medium")
   case "$complexity" in
-    small) echo 600 ;;
-    large) echo 1200 ;;
-    *) echo 900 ;;
+    small) echo ${SPIRAL_STORY_TIMEOUT_SMALL:-600} ;;
+    large) echo ${SPIRAL_STORY_TIMEOUT_LARGE:-1200} ;;
+    *) echo ${SPIRAL_STORY_TIMEOUT_MEDIUM:-900} ;;
   esac
 }
 
