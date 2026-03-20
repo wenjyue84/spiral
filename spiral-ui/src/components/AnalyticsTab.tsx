@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { AgentTelemetryTable, PhaseTimingBars, StoriesListAccordion, RecentActivityFeed } from './analytics';
+import { AgentTelemetryTable, PhaseTimingBars, StoriesListAccordion, RecentActivityFeed, ErrorBreakdownChart } from './analytics';
 import StoryDetailPanel, { type StoryForPanel, type StoryAttempt } from './StoryDetailPanel';
 
 // ── Types ────────────────────────────────────────────────────────────────────

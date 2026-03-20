@@ -27,6 +27,7 @@ from ..research_source_scorer import extract_sources
 from .alerts_broadcaster import get_alerts_manager
 from .cost_broadcaster import get_manager
 from .timeline import get_timeline_manager, parse_timeline
+from .timeseries_store import query_timeseries
 
 logger = logging.getLogger(__name__)
 
@@ -254,6 +255,167 @@ async def research_sources_endpoint() -> dict[str, Any]:
             "total_sources": 0,
             "error": f"Error processing research sources: {str(e)}",
         }
+
+
+@app.get("/api/dashboard/error-breakdown")
+async def error_breakdown(
+    iterations: int = 5,
+    iteration: Optional[int] = None,
+) -> dict[str, Any]:
+    """Error breakdown by phase and category endpoint.
+
+    Aggregates results.tsv failures by phase (R/T/S/M/I/V/C) and error
+    category (timeout, oom, validation_error, model_error, file_conflict).
+
+    Query Parameters:
+        iterations: Number of recent iterations to include (default: 5, min: 1).
+                    Ignored when `iteration` is specified.
+        iteration:  Filter to a single specific iteration number (>= 1).
+
+    Returns:
+        {
+            "phases": {
+                "I": {"timeout": 3, "model_error": 1},
+                "R": {"oom": 2}
+            },
+            "total_errors": 6,
+            "iterations_filter": {"mode": "last_n", "n": 5}
+        }
+    """
+    # Validate parameters
+    if iteration is not None and iteration < 1:
+        return JSONResponse({"detail": "iteration must be an integer >= 1"}, status_code=422)
+    if iterations < 1:
+        return JSONResponse({"detail": "iterations must be an integer >= 1"}, status_code=422)
+
+    results_path = Path(".spiral/results.tsv")
+    response: dict[str, Any] = {
+        "phases": {},
+        "total_errors": 0,
+        "iterations_filter": (
+            {"mode": "single", "iteration": iteration}
+            if iteration is not None
+            else {"mode": "last_n", "n": iterations}
+        ),
+    }
+
+    if not results_path.exists():
+        return response
+
+    # Status values that indicate failure
+    failure_statuses = {"failed", "reject", "error", "timeout", "oom", "skip"}
+
+    # Category inference from status when error_type column is absent
+    def _infer_category(status: str, model: str) -> str:
+        s = status.lower()
+        if s in ("timeout",):
+            return "timeout"
+        if s in ("oom",):
+            return "oom"
+        if s in ("skip", "skipped"):
+            return "validation_error"
+        if model:
+            return "model_error"
+        return "model_error"
+
+    try:
+        rows: list[dict[str, str]] = []
+        with open(results_path, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f, delimiter="\t")
+            if reader.fieldnames is None:
+                return response
+            fields = set(reader.fieldnames)
+            has_phase = "phase" in fields
+            has_error_type = "error_type" in fields
+
+            for row in reader:
+                status = (row.get("status") or "").lower()
+                if status not in failure_statuses:
+                    continue
+                rows.append(dict(row))
+
+        if not rows:
+            return response
+
+        # Determine iteration range
+        if iteration is not None:
+            target_iters = {str(iteration)}
+        else:
+            iter_nums = sorted(
+                {int(r["spiral_iter"]) for r in rows if r.get("spiral_iter", "").isdigit()},
+                reverse=True,
+            )
+            cutoff = iter_nums[iterations - 1] if len(iter_nums) >= iterations else (iter_nums[-1] if iter_nums else 0)
+            target_iters = {str(i) for i in iter_nums if i >= cutoff}
+
+        # Aggregate
+        phases: dict[str, dict[str, int]] = {}
+        total = 0
+        for row in rows:
+            row_iter = row.get("spiral_iter", "")
+            if target_iters and row_iter not in target_iters:
+                continue
+
+            phase = row.get("phase", "I") if has_phase else "I"
+            if not phase:
+                phase = "I"
+
+            if has_error_type:
+                category = (row.get("error_type") or "model_error").lower()
+            else:
+                category = _infer_category(
+                    row.get("status", ""),
+                    row.get("model", ""),
+                )
+
+            if phase not in phases:
+                phases[phase] = {}
+            phases[phase][category] = phases[phase].get(category, 0) + 1
+            total += 1
+
+        response["phases"] = phases
+        response["total_errors"] = total
+
+    except Exception as e:
+        logger.error(f"[/api/dashboard/error-breakdown] Error: {e}")
+
+    return response
+
+
+@app.get("/api/dashboard/timeseries")
+async def timeseries_endpoint(
+    metric: str = "phase_duration",
+    phase: Optional[str] = None,
+    window: str = "30d",
+) -> dict[str, Any]:
+    """Time-series metrics endpoint for trend analysis.
+
+    Query Parameters:
+        metric: 'phase_duration' | 'story_throughput' | 'worker_memory'
+        phase: Phase letter filter, e.g. 'R', 'I' (only for phase_duration)
+        window: Lookback window, e.g. '30d', '7d', '1d' (default: '30d')
+
+    Returns:
+        {"metric": "phase_duration", "phase": "R", "window": "30d",
+         "data": [{"timestamp": "...", "value": 12.3}, ...]}
+    """
+    # Parse window string like "30d", "7d" into days
+    window_days = 30
+    if window.endswith("d"):
+        try:
+            window_days = max(1, int(window[:-1]))
+        except ValueError:
+            window_days = 30
+
+    db_path = Path(".spiral/dashboard.db")
+    data = query_timeseries(metric=metric, phase=phase, window_days=window_days, db_path=db_path)
+    return {
+        "metric": metric,
+        "phase": phase,
+        "window": window,
+        "data": data,
+        "total_points": len(data),
+    }
 
 
 @app.websocket("/ws/cost")

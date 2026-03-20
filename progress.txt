@@ -1792,3 +1792,35 @@ Here is the technical brief for implementing the real-time cost ceiling alert st
 - [x] Type check: mypy --strict passes on all alert modules
 - [x] prd.json updated: US-591 marked passes=true
 
+
+## Pre-analysis for US-604 (Gemini 2.5 Pro)
+Based on the user story JSON for **US-604**, here is the technical brief.
+
+**Note:** The provided story relates to the "Spiral" project, a shell-script and Python-based tool, not a Frappe/Python application. The following brief analyzes the story as written.
+
+---
+
+**Technical Brief: US-604 - `git-cliff` CHANGELOG Generation**
+
+1.  **Primary Files to Modify:**
+    *   `lib/phases/gen_changelog.sh`: (New or existing) The main shell script to orchestrate CHANGELOG generation.
+    *   `cliff.toml`: The `git-cliff` configuration file. This will require significant changes to the `[git.commit_parsers]` and `[body]` sections to parse story IDs and format the output.
+    *   `spiral.config.sh`: The likely source for the `SPIRAL_GIT_CLIFF_BIN` environment variable.
+    *   `Taskfile.yml`: The definition for the "Phase G" task runner will likely need to invoke `gen_changelog.sh`.
+
+2.  **Frappe DocTypes / Hooks Involved:**
+    *   None. This story does not involve the Frappe framework.
+
+3.  **Recommended Implementation Approach:**
+    *   In `gen_changelog.sh`, read the `SPIRAL_GIT_CLIFF_BIN` variable from `spiral.config.sh` and validate that the binary is executable.
+    *   Modify `cliff.toml`'s `commit_parsers` to use a regex that captures the story ID (e.g., `(US|UT)-\d+`) as the "scope". This allows `git-cliff` to group commits by story.
+    *   Update the `cliff.toml` `body` template to render commits grouped by `scope` (the story ID) under each change type (`feat`, `fix`, etc.).
+    *   Execute `git-cliff` from the script, directing its output to `CHANGELOG.md`.
+    *   To handle orphan commits, use a separate `git log` command with `--no-merges` and a `grep -vE` filter to find commits lacking the story ID pattern, then append them to `.spiral/phase_g_warnings.log`.
+
+4.  **Edge Cases & Gotchas:**
+    *   The `commit_parsers` regex must be robust enough to handle story IDs appearing anywhere in the commit subject.
+    *   Commits belonging to multiple stories are an unhandled edge case; the regex will likely only capture the first one.
+    *   Ensure the `git-cliff` templating engine can support the required nested grouping (commits within stories within change types).
+    *   The script must gracefully handle the absence of the `git-cliff` binary.
+

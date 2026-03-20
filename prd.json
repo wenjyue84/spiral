@@ -2765,7 +2765,7 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "sonnet",
       "last_attempted": "2026-03-20T14:34:27Z",
@@ -2877,6 +2877,23 @@
         "Implement `spiral show-worker-logs [--worker-id ID] [--phase PHASE]` CLI in lib/spiral/cli.py; reads .spiral-workers/worker-*/logs/*.log and merges by ISO timestamp",
         "Output format: tab-separated [worker_id|timestamp|phase|log_level|message]; support --worker-id and --phase filters; stream to stdout with optional --output file.log",
         "Integration test: spawn 2 parallel workers via run_parallel_ralph.sh, verify logs from both workers merge without duplicates in time order, --worker-id=worker-1 filter returns only that worker"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-608",
+      "title": "Ralph Context Manager: Auto-Truncate Memory Patterns When Approaching Token Limit",
+      "priority": "medium",
+      "description": "Ralph's episodic memory grows over iterations; implement smart context window manager to keep prompt+memory+story under model token limits while retaining most-relevant historical patterns.",
+      "acceptanceCriteria": [
+        "lib/memory/context_manager.py exports trim_memory_patterns(patterns: list[dict], story_tokens: int, model_name: str) -> list[dict]; triggers truncation when (prompt_tokens + memory_tokens + story_tokens) > 0.80 * model_limit (haiku: 6144, sonnet: 100000)",
+        "Truncation keeps patterns with similarity > 0.65 to current story plus 5 most-recent; log memory_truncation_count and patterns_discarded to results.tsv as new columns",
+        "Integration test: verify Ralph successfully implements story with truncated memory; assert final_context_tokens < 0.85 * model_limit and memory_truncation_count matches expected floor(total_patterns * discard_ratio)"
       ],
       "technicalNotes": [],
       "dependencies": [],
