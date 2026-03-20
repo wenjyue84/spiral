@@ -1902,3 +1902,36 @@ Here is a technical brief for the user story.
 *   **Process Verification:** Checking that no worker processes remain may require the `psutil` library to list and inspect running processes by name after the main script finishes.
 *   **State Files:** The assertions must be precise, checking not just for story completion but also the exact phase sequence in `_checkpoint.json` and the `success=true` status in `results.tsv`.
 
+
+## Pre-analysis for US-540 (Gemini 2.5 Pro)
+Based on the user story and project context, here is a technical brief for the implementing agent.
+
+***
+
+**To:** Claude Code Agent
+**From:** Gemini Preparatory Agent
+**Re:** Technical Brief for US-540: Dashboard Timeline Endpoint
+
+This story requires creating a new REST API endpoint and a WebSocket stream to visualize story progress. The project appears to be a custom Python application, not a standard Frappe app.
+
+**1. Primary Files for Modification:**
+*   `main.py`: To register the new API and WebSocket routes (`/api/timeline`, `/ws/timeline`).
+*   `lib/timeline.py` (New File): To contain the core data processing and event broadcasting logic.
+*   Core Logic Files (e.g., `lib/merge_worker_results.py`, `lib/check_done.py`): The file responsible for updating story status needs to be modified to call the new WebSocket broadcast function upon a phase/status change.
+
+**2. Key Application Components (Frappe Analogies):**
+*   **DocTypes:** The data is not in a DocType but in `results.tsv`. This file, with its schema (storyId, phase, etc.), serves as the primary "database" for the historical endpoint.
+*   **Hooks:** The "hook" for real-time events is the point in the code where a story's status is updated. This state change must trigger the WebSocket broadcast.
+
+**3. Recommended Implementation Approach:**
+1.  Create `lib/timeline.py`.
+2.  Implement a `get_historical_data(iterations)` function to read `results.tsv` (using the `csv` module), process it, and return the required JSON.
+3.  Add a WebSocket library like `websockets`. In `lib/timeline.py`, create a handler to manage client connections and a `broadcast_event(data)` function.
+4.  In `main.py`, add routes to connect `/api/timeline` and `/ws/timeline` to the functions in `lib/timeline.py`.
+5.  Locate the existing logic that updates story status and insert a call to `broadcast_event()` there.
+
+**4. Edge Cases & Gotchas:**
+*   **File I/O:** `results.tsv` could be large or locked. Use a safe, read-only approach and handle potential `FileNotFoundError`.
+*   **Performance:** Parsing the full TSV on every API call may be slow. Consider caching the parsed data in memory with a file-watcher to reload on change.
+*   **Concurrency:** Ensure the WebSocket broadcasting mechanism is safe to call from potentially multiple concurrent story workers.
+

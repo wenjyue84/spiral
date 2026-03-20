@@ -1541,7 +1541,8 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": false,
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-03-20T00:07:23Z"
     },
     {
       "id": "US-541",
@@ -1720,54 +1721,6 @@
       "estimatedComplexity": "small",
       "passes": false,
       "model": "haiku"
-    },
-    {
-      "id": "US-556",
-      "title": "Federated Story Router CLI: Auto-Assign Stories to Sub-Projects by File Path Pattern",
-      "priority": "medium",
-      "description": "Automatically categorize stories into sub-project namespaces based on file path patterns in commits. Analyzes git refs, matches against namespace glob patterns, and assigns stories with high-frequency match counting.",
-      "acceptanceCriteria": [
-        "CLI command: spiral route-stories --namespaces=namespaces.json --prd=prd.json parses namespace config with {namespace: string, patterns: [string]} and updates prd.json stories with _namespace field",
-        "For each story, extract commit file paths from git refs, compute match frequency per namespace pattern, assign to highest-match namespace; output JSON report: {assigned: N, unassigned: N, assignments: [{story_id, namespace, match_count}]}",
-        "Test suite: tests/test_route_stories.py validates assignment accuracy on 3+ multi-namespace prd.json files with overlapping patterns, edge cases (no-match, multi-match tie-breaking)"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-557",
-      "title": "Worker Performance Profiler CLI: Analyze Per-Worker Success Rate and Token Efficiency",
-      "priority": "medium",
-      "description": "Extract performance metrics from results.tsv grouped by worker ID: compute per-worker success rate, average story duration, tokens per story, and model escalation distribution. Expose via CLI to inform load balancing and detect underperforming workers.",
-      "acceptanceCriteria": [
-        "lib/worker_profiler.py aggregates results.tsv by worker_id with success/failure counts, avg duration, and tokens-per-story calculations (≥90% accuracy)",
-        "CLI command 'spiral worker-profile --iteration N --output json' returns JSON with success_rate, avg_duration_seconds, tokens_per_story, and model_distribution per worker",
-        "tests/test_worker_profiler.py validates metric calculations against mock results.tsv with 3+ workers across haiku/sonnet/opus models"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-558",
-      "title": "Dashboard Endpoint: GET /api/dashboard/iteration-forecast — Cost ceiling projection with burn-rate analysis",
-      "priority": "medium",
-      "description": "Add HTTP endpoint to dashboard API that projects current iteration's final spend against SPIRAL_COST_CEILING using historical burn rate from results.tsv. Returns JSON with currentSpend, projectedFinalSpend, costCeiling, daysRemaining, and recommendedAction (proceed/throttle/stop). Enables real-time cost governance and prevents budget overruns mid-iteration.",
-      "acceptanceCriteria": [
-        "Endpoint GET /api/dashboard/iteration-forecast returns JSON: {currentSpend, projectedFinalSpend, costCeiling, daysRemaining, percentOfBudget, recommendedAction}",
-        "Function lib/spiral/cost_forecast.py::forecast_iteration_spend() reads results.tsv last 5 iterations, calculates avg tokens-per-story and escalation frequency, projects remaining stories",
-        "Test tests/integration/test_dashboard_forecast.py::test_cost_ceiling_alert_at_90_percent mocks results.tsv with 90% spend history and asserts recommendedAction='throttle'"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "sonnet"
     }
   ]
 }

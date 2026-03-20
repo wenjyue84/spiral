@@ -4,7 +4,9 @@
 Exposes:
 - GET /health — Health check endpoint
 - GET /profile — Phase duration analytics endpoint
+- GET /api/timeline — Story timeline endpoint with phase swimlanes
 - WebSocket /ws/cost — Real-time cost delta streaming endpoint
+- WebSocket /ws/timeline — Real-time phase transition events
 """
 
 import csv
@@ -15,6 +17,7 @@ from typing import Any, Optional
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
 from .cost_broadcaster import get_manager
+from .timeline import get_timeline_manager, parse_timeline
 from ..analyze_results import parse_research_cache
 
 logger = logging.getLogger(__name__)
@@ -120,6 +123,37 @@ async def profile() -> dict[str, Any]:
     return response
 
 
+@app.get("/api/timeline")
+async def timeline(iterations: int = 3) -> dict[str, Any]:
+    """Story Status Timeline Endpoint with Phase Swimlanes.
+
+    Returns story attempt history grouped by iteration and phase.
+
+    Query Parameters:
+        iterations: Number of recent iterations to return (default: 3)
+
+    Returns JSON with array of timeline events:
+        [{
+            "story_id": "US-123",
+            "iteration": 0,
+            "phase": "I",
+            "status": "passed",
+            "start_time": "2026-03-20T...",
+            "end_time": null,
+            "duration_ms": 5000,
+            "model_used": "haiku"
+        }]
+    """
+    results_path = Path(".spiral/results.tsv")
+    events = parse_timeline(results_path, iterations_limit=max(1, iterations))
+
+    return {
+        "iterations_requested": iterations,
+        "events": [e.to_dict() for e in events],
+        "total_events": len(events),
+    }
+
+
 @app.get("/api/dashboard/research-cache")
 async def research_cache_endpoint(
     start_iteration: int = 0,
@@ -163,5 +197,40 @@ async def websocket_cost_endpoint(websocket: WebSocket) -> None:
         logger.error(f"[ws/cost] Error: {e}")
 
 
+@app.websocket("/ws/timeline")
+async def websocket_timeline_endpoint(websocket: WebSocket) -> None:
+    """WebSocket endpoint for real-time phase transition events.
+
+    Clients connect to /ws/timeline and receive JSON messages of the form:
+        {
+            "event": "phase_change",
+            "story_id": "US-123",
+            "iteration": 0,
+            "phase": "I",
+            "status": "running",
+            "start_time": "2026-03-20T...",
+            "end_time": null,
+            "duration_ms": 0,
+            "model_used": "haiku"
+        }
+
+    Connection is maintained until client disconnects or an error occurs.
+    """
+    manager = get_timeline_manager()
+    await manager.connect(websocket)
+    try:
+        # Keep connection alive; receive messages (echo back or ignore)
+        while True:
+            data = await websocket.receive_text()
+            # Echo back or handle client messages if needed
+            logger.debug(f"[ws/timeline] Received from client: {data}")
+    except WebSocketDisconnect:
+        await manager.disconnect(websocket)
+        logger.debug("[ws/timeline] Client disconnected")
+    except Exception as e:
+        await manager.disconnect(websocket)
+        logger.error(f"[ws/timeline] Error: {e}")
+
+
 # Export for use in tests and main application
-__all__ = ["app", "get_manager"]
+__all__ = ["app", "get_manager", "get_timeline_manager"]

@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SPIRAL Timeline - Phase Swimlanes</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1em;
+            opacity: 0.9;
+        }
+
+        .controls {
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .controls label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 500;
+        }
+
+        .controls input {
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1em;
+        }
+
+        .controls button {
+            padding: 8px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.3s;
+        }
+
+        .controls button:hover {
+            background: #5568d3;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            margin-left: 10px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-weight: 500;
+        }
+
+        .status-connected {
+            background: #4caf50;
+            color: white;
+        }
+
+        .status-disconnected {
+            background: #f44336;
+            color: white;
+        }
+
+        .timeline-container {
+            overflow-x: auto;
+            padding: 30px;
+        }
+
+        .swimlane {
+            margin-bottom: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .swimlane-row {
+            display: flex;
+            min-height: 60px;
+        }
+
+        .swimlane-header {
+            flex: 0 0 150px;
+            background: #f0f0f0;
+            padding: 15px;
+            border-right: 1px solid #e0e0e0;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            font-size: 0.9em;
+        }
+
+        .swimlane-phases {
+            display: flex;
+            flex: 1;
+        }
+
+        .phase-cell {
+            flex: 1;
+            padding: 10px;
+            border-right: 1px solid #f0f0f0;
+            min-width: 120px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .phase-cell:last-child {
+            border-right: none;
+        }
+
+        .phase-label {
+            font-size: 0.8em;
+            font-weight: 600;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .story-bar {
+            height: 30px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.75em;
+            font-weight: 600;
+            transition: all 0.3s;
+            cursor: pointer;
+            text-overflow: ellipsis;
+            overflow: hidden;
+            white-space: nowrap;
+            padding: 0 8px;
+            width: 100%;
+        }
+
+        .story-bar:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .status-pending {
+            background: #9e9e9e;
+            opacity: 0.5;
+        }
+
+        .status-running {
+            background: #2196f3;
+            animation: pulse 2s infinite;
+        }
+
+        .status-passed {
+            background: #4caf50;
+        }
+
+        .status-failed {
+            background: #f44336;
+        }
+
+        .status-unknown {
+            background: #9c27b0;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.7;
+            }
+        }
+
+        .phase-column-header {
+            display: flex;
+            padding: 10px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
+            font-weight: 600;
+            font-size: 0.85em;
+            color: #333;
+            flex: 1;
+            justify-content: center;
+            min-width: 120px;
+        }
+
+        .phase-column-header:nth-child(even) {
+            background: #fafbfc;
+        }
+
+        .no-data {
+            padding: 40px;
+            text-align: center;
+            color: #999;
+        }
+
+        .tooltip {
+            position: absolute;
+            background: #333;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            z-index: 1000;
+            white-space: nowrap;
+            display: none;
+        }
+
+        .stats {
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: 600;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>SPIRAL Timeline</h1>
+            <p>Story Status Timeline with Phase Swimlanes for iteration bottleneck detection</p>
+        </div>
+
+        <div class="controls">
+            <label for="iterations-input">
+                Iterations:
+                <input type="number" id="iterations-input" min="1" max="50" value="3">
+            </label>
+            <button id="refresh-btn">Refresh Timeline</button>
+            <div style="margin-left: auto;">
+                WebSocket Status:
+                <span id="ws-status" class="status-indicator status-disconnected">Disconnected</span>
+            </div>
+        </div>
+
+        <div class="timeline-container">
+            <div id="timeline-chart"></div>
+        </div>
+
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-label">Total Events</div>
+                <div class="stat-value" id="stat-total">0</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Passed Stories</div>
+                <div class="stat-value" id="stat-passed">0</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Failed Stories</div>
+                <div class="stat-value" id="stat-failed">0</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const PHASES = ["R", "T", "S", "M", "G", "I", "V", "C"];
+        const PHASE_NAMES = {
+            "R": "Research",
+            "T": "Test Synth",
+            "S": "Story Val",
+            "M": "Merge",
+            "G": "Human Gate",
+            "I": "Implement",
+            "V": "Validate",
+            "C": "Check Done"
+        };
+
+        let timelineData = [];
+        let wsConnection = null;
+
+        // WebSocket connection for real-time updates
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws/timeline`;
+
+            wsConnection = new WebSocket(wsUrl);
+
+            wsConnection.onopen = () => {
+                updateWSStatus(true);
+                console.log("WebSocket connected to /ws/timeline");
+            };
+
+            wsConnection.onmessage = (event) => {
+                const message = JSON.parse(event.data);
+                console.log("Received timeline event:", message);
+                // Update local data with new event
+                const event_obj = {
+                    story_id: message.story_id,
+                    iteration: message.iteration,
+                    phase: message.phase,
+                    status: message.status,
+                    start_time: message.start_time,
+                    end_time: message.end_time,
+                    duration_ms: message.duration_ms,
+                    model_used: message.model_used
+                };
+                // Replace or add event
+                const existingIdx = timelineData.findIndex(
+                    e => e.story_id === event_obj.story_id &&
+                        e.iteration === event_obj.iteration &&
+                        e.phase === event_obj.phase
+                );
+                if (existingIdx !== -1) {
+                    timelineData[existingIdx] = event_obj;
+                } else {
+                    timelineData.push(event_obj);
+                }
+                renderTimeline();
+            };
+
+            wsConnection.onerror = (error) => {
+                console.error("WebSocket error:", error);
+                updateWSStatus(false);
+            };
+
+            wsConnection.onclose = () => {
+                updateWSStatus(false);
+                console.log("WebSocket disconnected");
+                // Retry connection after 3 seconds
+                setTimeout(connectWebSocket, 3000);
+            };
+        }
+
+        function updateWSStatus(connected) {
+            const status = document.getElementById('ws-status');
+            if (connected) {
+                status.textContent = 'Connected';
+                status.className = 'status-indicator status-connected';
+            } else {
+                status.textContent = 'Disconnected';
+                status.className = 'status-indicator status-disconnected';
+            }
+        }
+
+        // Fetch timeline data
+        async function fetchTimeline() {
+            const iterations = document.getElementById('iterations-input').value;
+            try {
+                const response = await fetch(`/api/timeline?iterations=${iterations}`);
+                const data = await response.json();
+                timelineData = data.events;
+                renderTimeline();
+            } catch (error) {
+                console.error("Error fetching timeline:", error);
+                document.getElementById('timeline-chart').innerHTML =
+                    '<div class="no-data">Error loading timeline data</div>';
+            }
+        }
+
+        // Render timeline swimlane chart
+        function renderTimeline() {
+            const chart = document.getElementById('timeline-chart');
+
+            if (!timelineData || timelineData.length === 0) {
+                chart.innerHTML = '<div class="no-data">No timeline data available</div>';
+                updateStats(0, 0, 0);
+                return;
+            }
+
+            // Group by iteration
+            const byIteration = {};
+            timelineData.forEach(event => {
+                if (!byIteration[event.iteration]) {
+                    byIteration[event.iteration] = [];
+                }
+                byIteration[event.iteration].push(event);
+            });
+
+            let html = '';
+            Object.keys(byIteration)
+                .sort((a, b) => parseInt(a) - parseInt(b))
+                .forEach(iter => {
+                    const events = byIteration[iter];
+                    const iterNum = parseInt(iter);
+
+                    html += `<div class="swimlane">
+                        <div class="swimlane-row">
+                            <div class="swimlane-header">Iteration ${iterNum}</div>
+                            <div class="swimlane-phases">
+                                ${renderPhaseColumns(events)}
+                            </div>
+                        </div>
+                    </div>`;
+                });
+
+            chart.innerHTML = html;
+
+            // Update stats
+            const passed = timelineData.filter(e => e.status === 'passed').length;
+            const failed = timelineData.filter(e => e.status === 'failed').length;
+            updateStats(timelineData.length, passed, failed);
+        }
+
+        function renderPhaseColumns(events) {
+            let html = '';
+            PHASES.forEach(phase => {
+                const phaseEvents = events.filter(e => e.phase === phase);
+                html += `<div class="phase-cell">
+                    <div class="phase-label">${PHASE_NAMES[phase]}</div>
+                    <div style="flex: 1; width: 100%; display: flex; flex-direction: column; gap: 5px; justify-content: flex-start;">
+                        ${phaseEvents.map(e => renderStoryBar(e)).join('')}
+                    </div>
+                </div>`;
+            });
+            return html;
+        }
+
+        function renderStoryBar(event) {
+            const statusClass = `status-${event.status}`;
+            const durationLabel = event.duration_ms ? `${(event.duration_ms / 1000).toFixed(1)}s` : '';
+            return `<div class="story-bar ${statusClass}" title="${event.story_id} - ${event.status} (${durationLabel})">
+                ${event.story_id}
+            </div>`;
+        }
+
+        function updateStats(total, passed, failed) {
+            document.getElementById('stat-total').textContent = total;
+            document.getElementById('stat-passed').textContent = passed;
+            document.getElementById('stat-failed').textContent = failed;
+        }
+
+        // Event listeners
+        document.getElementById('refresh-btn').addEventListener('click', fetchTimeline);
+        document.getElementById('iterations-input').addEventListener('change', fetchTimeline);
+
+        // Initial load
+        connectWebSocket();
+        fetchTimeline();
+
+        // Auto-refresh every 5 seconds
+        setInterval(fetchTimeline, 5000);
+    </script>
+</body>
+</html>
