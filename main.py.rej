@@ -1,0 +1,81 @@
+diff a/main.py b/main.py	(rejected hunks)
+@@ -25,7 +25,6 @@ Subcommands:
+   phase-timing-report     Generate phase timing report with SLA breach analysis (US-546)
+   analyze-failures        Categorize retry failure root causes and recommend tuning (US-547)
+   validate-commits        Detect orphan stories and squash-commit patterns (US-554)
+-  extract-failed-stories  Generate triage report from results.tsv for stuck stories (US-613)
+   monitor                 Unified monitoring snapshot for progress checks
+ """
+ 
+@@ -2469,29 +2468,6 @@ def cmd_analyze_failures(args) -> None:
+         print(f"Recommendation: {result['recommendation']}")
+ 
+ 
+-def cmd_extract_failed_stories(args: argparse.Namespace) -> None:
+-    """Generate triage report from results.tsv for stuck stories (US-613).
+-
+-    Usage: spiral extract-failed-stories [--min-retries N] [--format json|markdown]
+-    """
+-    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+-    from extract_failed_stories import (  # type: ignore[import-untyped]
+-        extract_failed_stories,
+-        format_markdown,
+-    )
+-
+-    results_path = getattr(args, "results", "results.tsv")
+-    min_retries = getattr(args, "min_retries", 1)
+-    output_format = getattr(args, "output_format", "json")
+-
+-    report = extract_failed_stories(results_path, min_retries=min_retries)
+-
+-    if output_format == "markdown":
+-        print(format_markdown(report))
+-    else:
+-        print(json.dumps(report, indent=2))
+-
+-
+ def cmd_detect_anomalies(args) -> None:
+     """Detect stories with unusual token-spend patterns (US-544).
+ 
+@@ -3131,32 +3107,6 @@ def main():
+         help="Repo root directory (default: .)",
+     )
+ 
+-    # ── extract-failed-stories subcommand (US-613) ──────────────────────────────
+-    extract_failed_parser = subparsers.add_parser(
+-        "extract-failed-stories",
+-        help="Generate triage report from results.tsv for stuck stories (US-613)",
+-    )
+-    extract_failed_parser.add_argument(
+-        "--min-retries",
+-        type=int,
+-        default=1,
+-        metavar="N",
+-        help="Minimum retry count to include in report (default: 1)",
+-    )
+-    extract_failed_parser.add_argument(
+-        "--format",
+-        dest="output_format",
+-        choices=["json", "markdown"],
+-        default="json",
+-        help="Output format (default: json)",
+-    )
+-    extract_failed_parser.add_argument(
+-        "--results",
+-        default="results.tsv",
+-        metavar="PATH",
+-        help="Path to results.tsv (default: results.tsv)",
+-    )
+-
+     # ── detect-anomalies subcommand (US-544) ─────────────────────────────────────
+     detect_anomalies_parser = subparsers.add_parser(
+         "detect-anomalies",
+@@ -3303,8 +3253,6 @@ def main():
+         cmd_phase_timing_report(args)
+     elif args.command == "analyze-failures":
+         cmd_analyze_failures(args)
+-    elif args.command == "extract-failed-stories":
+-        cmd_extract_failed_stories(args)
+     elif args.command == "monitor":
+         cmd_monitor(args)
+     elif args.command == "federated-merge-prd":
