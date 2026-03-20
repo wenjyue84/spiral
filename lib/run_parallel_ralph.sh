@@ -80,6 +80,18 @@ _WORKER_ENV_ALLOWLIST_CFG="${SPIRAL_WORKER_ENV_ALLOWLIST:-ANTHROPIC_API_KEY,PATH
 # Convert "FOO,BAR_*,BAZ" → "FOO|BAR_.*|BAZ" for grep -E matching
 _WORKER_ENV_ALLOWLIST_RE=$(echo "$_WORKER_ENV_ALLOWLIST_CFG" | sed 's/\*/.\*/g; s/,/|/g')
 
+# ── Detect federated mode (US-636) ──────────────────────────────────────────────
+# Check if any pending story has sub_project field (federated multi-project mode)
+_FEDERATED_MODE=0
+_FEDERATED_SUB_PROJECTS=""
+if [[ -f "$PRD_FILE" ]]; then
+  _FEDERATED_SUB_PROJECTS=$("$JQ" -r '.userStories[] | select(.passes != true and .sub_project != null and .sub_project != "") | .sub_project' "$PRD_FILE" 2>/dev/null | sort -u | tr '\n' ' ')
+  if [[ -n "$_FEDERATED_SUB_PROJECTS" ]]; then
+    _FEDERATED_MODE=1
+    echo "  [parallel] Federated mode detected: sub-projects: $_FEDERATED_SUB_PROJECTS"
+  fi
+fi
+
 # ── cgroups v2 worker isolation (US-259) ─────────────────────────────────────
 # Per-worker memory and CPU hard limits enforced by the kernel.
 # Falls back gracefully when cgroups v2 is unavailable (Windows, macOS, older kernels).
@@ -381,26 +393,63 @@ done
 # ── Step 1: Partition pending stories into worker prd files ───────────────────
 mkdir -p "$WORKER_DIR"
 # Clear stale worker logs from previous runs so the UI doesn't show old errors
-for _i in $(seq 1 "$RALPH_WORKERS"); do
-  : >"$WORKER_DIR/worker_${_i}.log"
-done
-if [[ -n "$_SC_BIN" ]]; then
-  "$_SC_BIN" partition \
-    --prd "$PRD_FILE" \
-    --workers "$RALPH_WORKERS" \
-    --outdir "$WORKER_DIR"
+if [[ "$_FEDERATED_MODE" -eq 1 ]]; then
+  # Federated mode: clear logs for each sub-project worker
+  for _sp in $_FEDERATED_SUB_PROJECTS; do
+    for _i in $(seq 1 "$RALPH_WORKERS"); do
+      : >"$WORKER_DIR/worker-${_sp}-${_i}.log"
+    done
+  done
 else
-  "$PYTHON" "$SPIRAL_HOME/lib/prd/partition_prd.py" \
-    --prd "$PRD_FILE" \
-    --workers "$RALPH_WORKERS" \
-    --outdir "$WORKER_DIR"
+  # Standard mode: clear logs for numeric workers
+  for _i in $(seq 1 "$RALPH_WORKERS"); do
+    : >"$WORKER_DIR/worker_${_i}.log"
+  done
+fi
+
+if [[ -n "$_SC_BIN" ]]; then
+  if [[ "$_FEDERATED_MODE" -eq 1 ]]; then
+    "$_SC_BIN" partition \
+      --prd "$PRD_FILE" \
+      --workers "$RALPH_WORKERS" \
+      --outdir "$WORKER_DIR" \
+      --federated
+  else
+    "$_SC_BIN" partition \
+      --prd "$PRD_FILE" \
+      --workers "$RALPH_WORKERS" \
+      --outdir "$WORKER_DIR"
+  fi
+else
+  if [[ "$_FEDERATED_MODE" -eq 1 ]]; then
+    "$PYTHON" "$SPIRAL_HOME/lib/prd/partition_prd.py" \
+      --prd "$PRD_FILE" \
+      --workers "$RALPH_WORKERS" \
+      --outdir "$WORKER_DIR" \
+      --federated
+  else
+    "$PYTHON" "$SPIRAL_HOME/lib/prd/partition_prd.py" \
+      --prd "$PRD_FILE" \
+      --workers "$RALPH_WORKERS" \
+      --outdir "$WORKER_DIR"
+  fi
 fi
 
 # ── Step 1.5: Verify worker partitions have no overlapping pending stories ────
 WORKER_PRD_FILES=()
-for i in $(seq 1 "$RALPH_WORKERS"); do
-  WORKER_PRD_FILES+=("$WORKER_DIR/worker_${i}.json")
-done
+if [[ "$_FEDERATED_MODE" -eq 1 ]]; then
+  # Federated: discover worker-{sub_project}-{N}.json files
+  for _sp in $_FEDERATED_SUB_PROJECTS; do
+    for i in $(seq 1 "$RALPH_WORKERS"); do
+      [[ -f "$WORKER_DIR/worker-${_sp}-${i}.json" ]] && WORKER_PRD_FILES+=("$WORKER_DIR/worker-${_sp}-${i}.json")
+    done
+  done
+else
+  # Standard: worker_{N}.json files
+  for i in $(seq 1 "$RALPH_WORKERS"); do
+    WORKER_PRD_FILES+=("$WORKER_DIR/worker_${i}.json")
+  done
+fi
 spiral_assert_worker_disjoint "$WORKER_DIR" "${WORKER_PRD_FILES[@]}"
 
 # ── Step 1.7: Compute tier assignments for DAG-aware dispatch (US-361) ─────────
@@ -496,8 +545,27 @@ fi
 # ── Step 2: Create git worktrees + docker lock wrapper per worker ─────────────
 declare -a WORKER_DIRS=()
 declare -a WORKER_BRANCHES=()
+declare -a WORKER_IDENTIFIERS=()  # Maps numeric index to worker ID (federated: "api-1", standard: "1")
 
-for i in $(seq 1 "$RALPH_WORKERS"); do
+# Build list of worker identifiers based on mode
+if [[ "$_FEDERATED_MODE" -eq 1 ]]; then
+  # Federated: generate worker IDs like "{sub_project}-{N}" and flatten into WORKER_IDENTIFIERS
+  for _sp in $_FEDERATED_SUB_PROJECTS; do
+    for _wi in $(seq 1 "$RALPH_WORKERS"); do
+      WORKER_IDENTIFIERS+=("${_sp}-${_wi}")
+    done
+  done
+else
+  # Standard: numeric worker IDs like "1", "2", ...
+  for _wi in $(seq 1 "$RALPH_WORKERS"); do
+    WORKER_IDENTIFIERS+=("$_wi")
+  done
+fi
+
+# Now iterate through the worker identifiers and create worktrees
+for worker_identifier in "${WORKER_IDENTIFIERS[@]}"; do
+  # Use the worker_identifier for all naming; will also track index for launch function
+  i="$worker_identifier"
   BRANCH="spiral-worker-${i}-${TIMESTAMP}"
   WTREE="$WORKTREE_BASE/worker-${i}"
 
@@ -554,7 +622,11 @@ for i in $(seq 1 "$RALPH_WORKERS"); do
   fi
 
   # Overlay worker prd.json + override branchName to match the worker's own branch
-  cp "$WORKER_DIR/worker_${i}.json" "$WTREE/prd.json"
+  if [[ "$_FEDERATED_MODE" -eq 1 ]]; then
+    cp "$WORKER_DIR/worker-${i}.json" "$WTREE/prd.json"
+  else
+    cp "$WORKER_DIR/worker_${i}.json" "$WTREE/prd.json"
+  fi
   "$JQ" --arg b "$BRANCH" '.branchName = $b' "$WTREE/prd.json" >"$WTREE/prd.json.tmp" && mv "$WTREE/prd.json.tmp" "$WTREE/prd.json"
 
   # US-376: Sparse-checkout disabled — it restricts workers to a subset of
