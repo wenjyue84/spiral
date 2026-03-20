@@ -217,36 +217,11 @@ run_phase_gate_and_implement() {
         elif [[ "$DAG_SKIP_IMPL" -eq 1 ]]; then
           echo "  [Phase I] IMPLEMENT — skipping (dependency cycles detected — fix prd.json dependencies)"
         else
-          # ── Adaptive memory: reduce workers and override model under pressure ──
-          if [[ "$SPIRAL_LOW_POWER_MODE" -eq 1 ]]; then
-            _PRESSURE_LVL=$(spiral_pressure_level)
-            if [[ "$_PRESSURE_LVL" -ge 2 ]]; then
-              _REC_WORKERS=$(spiral_recommended_workers)
-              if [[ -n "$_REC_WORKERS" && "$_REC_WORKERS" -lt "$RALPH_WORKERS" ]]; then
-                spiral_log_low_power "Workers reduced: $RALPH_WORKERS -> $_REC_WORKERS (pressure level $_PRESSURE_LVL, iter $SPIRAL_ITER)"
-                echo "  [memory] Pressure level $_PRESSURE_LVL — reducing workers: $RALPH_WORKERS -> $_REC_WORKERS"
-                RALPH_WORKERS="$_REC_WORKERS"
-              fi
-              _REC_MODEL=$(spiral_recommended_model)
-              if [[ -n "$_REC_MODEL" && -z "$SPIRAL_CLI_MODEL" ]]; then
-                spiral_log_low_power "Model capped: $_REC_MODEL (pressure level $_PRESSURE_LVL, iter $SPIRAL_ITER)"
-                echo "  [memory] Pressure level $_PRESSURE_LVL — model cap: $_REC_MODEL"
-                SPIRAL_CLI_MODEL="$_REC_MODEL"
-              fi
-            fi
-          fi
+          # Memory-pressure auto-reduction removed — user controls worker count explicitly.
 
-          # ── Dynamic worker recommendation (if not explicitly set) ─────────
+          # ── Dynamic worker recommendation disabled ─────────────────────
           if [[ "$WORKERS_EXPLICIT" -eq 0 ]]; then
-            _REC_OUTPUT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/routing/recommend_workers.py" "$PRD_FILE" 2>/dev/null) || true
-            if [[ -n "$_REC_OUTPUT" ]]; then
-              # Log line is first, recommended count is last line
-              echo "  $_REC_OUTPUT" | head -1
-              _AUTO_WORKERS=$(echo "$_REC_OUTPUT" | tail -1)
-              if [[ "$_AUTO_WORKERS" =~ ^[1-3]$ ]]; then
-                RALPH_WORKERS="$_AUTO_WORKERS"
-              fi
-            fi
+            echo "  [parallel] Auto-recommendation disabled — using 1 worker (pass --ralph-workers N to override)"
           fi
 
           # ── Tier 2: Save passes baseline before implementation ────────────
@@ -346,6 +321,25 @@ run_phase_gate_and_implement() {
             PRE_RALPH_PRD_JSON=$(cat "$PRD_FILE")
             DONE_BEFORE=$("$JQ" '[.userStories[] | select(.passes == true)] | length' "$PRD_FILE")
             _PASSES_BEFORE_I="$DONE_BEFORE"
+
+            # ── Multi-worker confirmation gate ──────────────────────────────
+            if [[ "$RALPH_WORKERS" -gt 1 ]]; then
+              echo ""
+              echo "  WARNING: Multi-worker mode (${RALPH_WORKERS} workers) adds complexity:"
+              echo "    - Git worktrees, memory pools, wave dispatch, heartbeat monitoring"
+              echo "    - Higher risk of merge conflicts and cascade failures"
+              echo "    - Recommended only for large backlogs (20+ pending stories)"
+              echo ""
+              if [[ "${SPIRAL_GATE:-}" == "proceed" ]]; then
+                echo "  [gate=proceed] Auto-approved multi-worker mode."
+              else
+                read -r -p "  Continue with ${RALPH_WORKERS} workers? [y/N] " _CONFIRM
+                if [[ ! "$_CONFIRM" =~ ^[Yy] ]]; then
+                  echo "  Falling back to 1 worker."
+                  RALPH_WORKERS=1
+                fi
+              fi
+            fi
 
             if [[ "$RALPH_WORKERS" -gt 1 ]]; then
               # ── Parallel mode with wave dispatch ───────────────────────────────
