@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\failure_categorizer.py
+# hypothesis_version: 6.151.9
+
+['--results', '0', '?', 'ITERATION', 'TSV', '__main__', 'compilation-error', 'error', 'fail', 'failed', 'iteration', 'missing-dependency', 'other', 'reject', 'replace', 'results.tsv', 'retry', 'retry_num', 'skip', 'spiral_iter', 'status', 'story', 'story_id', 'story_title', 'test-failure', 'timeout', 'timestamp', 'token-limit', 'type-error', 'utf-8']

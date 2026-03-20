@@ -154,7 +154,7 @@
         "module:claude",
         "module:hypothesis"
       ],
-      "last_attempted": "2026-03-20T13:23:57Z"
+      "last_attempted": "2026-03-20T17:48:57Z"
     },
     {
       "id": "US-598",
@@ -2996,7 +2996,7 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "haiku",
       "filesTouch": [
@@ -3124,32 +3124,32 @@
       "model": "sonnet"
     },
     {
-      "id": "US-627",
-      "title": "Integration Test: Phase M Merge Routes Federated Stories to Sub-Project PRDs by File Path Pattern",
-      "priority": "medium",
-      "description": "End-to-end integration test validates Phase M merge logic correctly assigns stories to sub-project PRD files (e.g., .spiral/prd-proj1.json, .spiral/prd-proj2.json) based on file path patterns in story scope. Verifies cross-project dependency ordering and story ID namespace routing.",
+      "id": "US-628",
+      "title": "Integration Test: Ralph Subprocess Timeout with Partial Output Capture",
+      "priority": "high",
+      "description": "Add integration test for Phase I timeout resilience: verify Ralph subprocess timeout is caught, partial stdout/stderr captured, error logged with story context, and Phase I retry escalation triggers correctly on timeout. Tests recovery behavior under API/network delays.",
       "acceptanceCriteria": [
-        "Test creates mock federated prd.json with namespaced stories (US-proj1-001, US-proj2-002) and file path scope patterns; Phase M merge produces correctly routed outputs where stories with scope: ['src/proj1/*'] go to .spiral/prd-proj1.json and scope: ['src/proj2/*'] go to .spiral/prd-proj2.json",
-        "Assert merge respects cross-project dependency graph: if US-proj2-001 depends on US-proj1-003, proj1-003 appears first in merge order with explicit ordering_reason field in .spiral/merge-metadata.json",
-        "Test located at tests/integration/test_phase_m_federated_routing.py with fixtures: create_federated_prd(), assert_prd_routed_correctly(), verify_dependency_order_respected()"
+        "Test file tests/test_ralph_timeout.py mocks subprocess.TimeoutExpired, verifies partial output is captured and written to _test_stories_output.json with timeout error annotation",
+        "Assert lib.impl.retry.execute_ralph timeout handler invokes next model tier (haiku→sonnet→opus) and story status transitions to 'retry_escalated'",
+        "Error log includes story ID, attempted model, timeout duration (seconds), and suggests SPIRAL_TIMEOUT_RALPH env var adjustment"
       ],
       "technicalNotes": [],
       "dependencies": [],
-      "estimatedComplexity": "small",
+      "estimatedComplexity": "medium",
       "passes": false,
       "_source": "ai-example",
-      "model": "sonnet"
+      "model": "haiku",
+      "last_attempted": "2026-03-20T17:53:42Z"
     },
     {
-      "id": "US-628",
-      "title": "Phase G: Generate Per-Sub-Project CHANGELOG.md Files in Federated Repos",
-      "priority": "medium",
-      "description": "Extend Phase G to generate separate CHANGELOG.md files for each sub-project in federated prd.json. Each CHANGELOG contains only commits/stories tagged with that sub_project, and cross-project dependencies are noted with references. Completes Goal 1 (auto-generate docs) for federated multi-repo workflows.",
+      "id": "US-629",
+      "title": "CLI: spiral federated-status — Unified Multi-Project Story Summary with Cost Breakdown",
+      "priority": "high",
+      "description": "Add CLI command to aggregate story status across federated sub-project PRDs: reads .spiral/prd.json federated structure, iterates sub_project_path entries, aggregates story counts and tokens from sub-project results.tsv files, outputs unified health dashboard in JSON or table format.",
       "acceptanceCriteria": [
-        "lib/phases/phase_g.py detects sub_projects field in prd.json and runs separate git-cliff invocation per sub-project filtered by story.sub_project column",
-        "Each sub-project root directory receives CHANGELOG.md containing only stories where story.sub_project matches that project ID",
-        "Cross-project dependency stories include notation '[depends-on: OTHER_PROJECT#US-123]' in CHANGELOG entry text",
-        "Integration test: federated prd.json with 2 sub-projects; verify sub-project-A/CHANGELOG.md excludes all sub-project-B story IDs"
+        "CLI: spiral federated-status [--json] output includes columns: Sub-Project | Total Stories | Passed | Failed | Pending | Tokens Used | Estimated Cost | Avg Duration (s)",
+        "Reads .spiral/prd.json sub_project entries, loads corresponding .spiral-workers/worker-*/results.tsv, aggregates token sums and story status counts per sub-project",
+        "Integration test tests/test_federated_status.py: mock 3-project PRD with mixed pass/fail/pending stories, assert CLI JSON output cost calculations match results.tsv summation within 2% tolerance"
       ],
       "technicalNotes": [],
       "dependencies": [],
@@ -3157,6 +3157,23 @@
       "passes": false,
       "_source": "ai-example",
       "model": "sonnet"
+    },
+    {
+      "id": "US-630",
+      "title": "Integration Test — Parallel Worker Crash Recovery: Checkpoint State Preservation and Retry Escalation",
+      "priority": "medium",
+      "description": "Verifies worker fault tolerance during parallel Phase I execution. Simulates SIGTERM mid-story, asserts .spiral/.checkpoint.json preserves state, worktree is restored to main, and results.tsv retry counter increments without prd.json corruption. Ensures long-running SPIRAL loops can recover gracefully.",
+      "acceptanceCriteria": [
+        "Test sends SIGTERM to worker subprocess mid-implementation phase, asserts .spiral/.checkpoint.json exists with last_story_id and phase='I' fields preserved",
+        "Simulates worker restart, detects detached HEAD state in worktree, verifies git reset main succeeds and worker branch points to next story",
+        "Asserts results.tsv has retry_count incremented for killed story, prd.json story status unchanged, and no duplicate entries added"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
     }
   ]
 }
