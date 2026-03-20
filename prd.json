@@ -112,7 +112,8 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "_source": "ai-example",
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-03-20T05:47:55Z"
     },
     {
       "id": "US-571",
@@ -2384,6 +2385,130 @@
         "contextWindow": 10
       },
       "tags": []
+    },
+    {
+      "id": "US-584",
+      "title": "Phase M Conflict Detection — Identify File-Level Collisions in Federated Projects",
+      "priority": "medium",
+      "description": "When merging federated sub-project stories, detect file path conflicts where multiple stories claim ownership of the same file to prevent merge conflicts. Adds a conflict detection step to Phase M that writes a structured conflict report and exits 1 to block the merge. Supports Goal 4 (multi-repo federated projects).",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_phase_m_conflicts.py::test_build_conflict_matrix -v passes — build_conflict_matrix([us456_story, us457_story]) returns a matrix showing lib/shared.py owned by both US-456 and US-457",
+        "uv run pytest tests/test_phase_m_conflicts.py::test_conflict_report_written -v passes — running merge phase with conflicting stories creates .spiral/_merge_conflicts.json matching schema {story_id, conflicting_story_ids[], conflicting_files[]}",
+        "uv run pytest tests/test_phase_m_conflicts.py::test_phase_m_exits_1_on_conflict -v passes — merge phase function returns exit code 1 when _merge_conflicts.json is non-empty"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/merge_conflict_detector.py (new module) — implement extract_story_files(story: dict) -> list[str] (parses 'File to edit:' lines from technicalNotes as file path approximation for v1); build_conflict_matrix(stories: list[dict]) -> dict; write_conflict_report(matrix: dict, path: str) -> None",
+        "File to edit: spiral.sh (run_phase_m function) — call python lib/merge_conflict_detector.py before the merge loop; if .spiral/_merge_conflicts.json is non-empty exit 1",
+        "File to edit: tests/test_phase_m_conflicts.py (new test file) — unit tests for build_conflict_matrix and write_conflict_report; integration test loads fixture federated prd.json where US-456 and US-457 both list 'File to edit: lib/shared.py'",
+        "Test command: uv run pytest tests/test_phase_m_conflicts.py -v --tb=short"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-585",
+      "title": "[E2E Test] SPIRAL_COST_CEILING pre-Phase I gate triggers skip/continue/rollback",
+      "priority": "medium",
+      "description": "Write a CLI integration test (bats) for the feature introduced in US-498. SPIRAL is a terminal tool with no browser UI, so the test drives spiral.sh directly with a controlled SPIRAL_COST_CEILING env var and a minimal prd.json, asserting the correct gate behaviour (prompt options and story rollback) at the console level.",
+      "acceptanceCriteria": [
+        "Running `tests/bats-core/bin/bats tests/test_cost_ceiling.bats` exits 0",
+        "When SPIRAL_COST_CEILING is set below the estimated pending-story cost, the test asserts that spiral.sh emits the skip/continue/rollback prompt before Phase I",
+        "When the 'rollback' path is taken, the test asserts that the lowest-priority pending story is removed from prd.json",
+        "When SPIRAL_COST_CEILING is unset or budget is within limit, the test asserts Phase I proceeds without the prompt"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_cost_ceiling.bats (new bats test file — create from scratch)",
+        "Reference implementation: spiral.sh (search for SPIRAL_COST_CEILING to locate the gate logic added by US-498)",
+        "Test command: tests/bats-core/bin/bats tests/test_cost_ceiling.bats",
+        "Seed a minimal fixture prd.json inside the bats @setup with one low-priority story and set SPIRAL_COST_CEILING=0.001 to force the budget-exceeded branch; use `--dry-run` or stub the Phase I command to avoid real API calls",
+        "Rollback assertion: after the test chooses the rollback option, assert with `jq '.stories | length'` that the story count in prd.json decreased by 1"
+      ],
+      "dependencies": [
+        "US-498"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "test-story",
+      "model": "haiku"
+    },
+    {
+      "id": "US-586",
+      "title": "[Regression] Full SPIRAL loop R→C completes with all phases in order",
+      "priority": "medium",
+      "description": "Using the fixtures from the companion story, write a regression test that invokes the SPIRAL orchestrator for one iteration and asserts every phase (R, T, S, M, I, V, C) fires in sequence, the story transitions to 'done', and the exit code is 0. This test guards against future regressions of the core happy-path orchestration introduced in US-553.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_spiral_happy_path.py -v exits 0 with the test marked PASSED",
+        "Test asserts phase sequence log contains markers for R, T, S, M, I, V, C in order (grep on captured output or phase-log file)",
+        "Test asserts the story in prd.json has status 'done' after the run",
+        "Test fails (FAILED, not ERROR) when Phase I is stubbed to skip without completing"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_spiral_happy_path.py (create new; import spiral_workspace and mock_claude_api from conftest)",
+        "File to edit: lib/phases/ or spiral.sh (read to identify the log marker or exit-code contract to assert against)",
+        "Test command: uv run pytest tests/test_spiral_happy_path.py::test_full_loop_r_to_c -v --tb=short"
+      ],
+      "dependencies": [
+        "US-553"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "test-story",
+      "model": "haiku"
+    },
+    {
+      "id": "US-587",
+      "title": "[Perf Test] Load Balancer: Benchmark Story Distribution Across Workers",
+      "priority": "medium",
+      "description": "Write a performance benchmark for the worker load balancer introduced in US-562. The benchmark measures assignment time for varying story counts (10, 100, 500 stories across 8 workers) and asserts distribution completes within a defined latency threshold. This prevents the optimizer from becoming a bottleneck before the worker pool is spawned.",
+      "acceptanceCriteria": [
+        "Running `uv run pytest tests/test_perf_load_balancer.py -v -s` passes and prints per-run timing to stdout",
+        "Benchmark asserts that distributing 500 stories across 8 workers completes in under 200ms on the test host",
+        "Test fails with a descriptive AssertionError if measured elapsed time exceeds the threshold constant by more than 20%",
+        "Benchmark covers at least three input sizes (10, 100, 500 stories) and logs story count, worker count, and elapsed ms for each"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_perf_load_balancer.py (create new file — performance benchmark for distribute_stories)",
+        "File to edit: lib/worker_load_balancer.py (import the public distribute_stories or equivalent function under test from US-562)",
+        "Test command: uv run pytest tests/test_perf_load_balancer.py -v -s",
+        "Use time.perf_counter() for sub-millisecond timing; generate synthetic story fixtures with random token counts (100–4000) and 0–3 dependencies using a fixed random seed for reproducibility",
+        "Define THRESHOLD_MS = 200 as a module-level constant so the limit is easy to adjust without hunting through test logic"
+      ],
+      "dependencies": [
+        "US-562"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "test-story",
+      "model": "haiku"
+    },
+    {
+      "id": "US-588",
+      "title": "[E2E Test] Dashboard: Timeline Endpoint Returns Phase-Grouped Swimlane Data",
+      "priority": "medium",
+      "description": "Write a Playwright E2E test verifying that the `/api/timeline?iterations=N` endpoint introduced by US-540 returns correctly structured phase-swimlane data and that the dashboard renders at least one swimlane row. This ensures the bottleneck detection feature is observable end-to-end via the browser UI.",
+      "acceptanceCriteria": [
+        "GET http://localhost:5299/api/timeline?iterations=3 returns HTTP 200 with JSON body containing a top-level `iterations` array",
+        "Each element in `iterations` contains a `phase` string field and a `stories` array field",
+        "Playwright test navigates to http://localhost:5299, waits for the timeline component, and asserts at least one swimlane row is visible in the DOM",
+        "Test exits 0 when run headlessly: `npx playwright test tests/e2e/timeline.spec.ts --reporter=line`"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/e2e/timeline.spec.ts (new file — create Playwright test using page.goto, page.waitForSelector, and expect(response.json()).toMatchObject checks)",
+        "File to edit: playwright.config.ts (baseURL: 'http://localhost:5299', ensure project is configured)",
+        "Test command: npx playwright test tests/e2e/timeline.spec.ts --reporter=line",
+        "API shape to assert: { iterations: [{ phase: string, stories: [{ id: string, status: string }] }] } — match against US-540 implementation",
+        "Pre-condition: dashboard server must be running on port 5299 before test; use webServer config in playwright.config.ts or a beforeAll hook that polls the health endpoint"
+      ],
+      "dependencies": [
+        "US-540"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "test-story",
+      "model": "haiku"
     }
   ]
 }
