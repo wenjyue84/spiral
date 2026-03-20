@@ -7,6 +7,7 @@ Subcommands:
   estimate                Show pre-flight API cost projection for pending stories
   graph                   Generate Mermaid dependency graph from prd.json
   validate-federated      Validate federated prd.json structure (US-514)
+  federated-status        Aggregate story status across federated sub-projects (US-629)
   config                  Configuration utilities
     export-env            Export spiral.config.sh SPIRAL_* variables as a .env file
   worktree                Git worktree management utilities
@@ -2824,6 +2825,23 @@ def main():
         type=str,
         default="",
         help="Path to write JSON report (optional; prints to stdout if omitted)",
+    )
+
+    federated_status_parser = subparsers.add_parser(
+        "federated-status",
+        help="Aggregate story status across federated sub-projects (US-629)",
+    )
+    federated_status_parser.add_argument(
+        "--prd",
+        type=str,
+        default="prd.json",
+        help="Path to prd.json (default: prd.json)",
+    )
+    federated_status_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="json_output",
+        help="Output machine-readable JSON instead of table",
     )
 
     validate_tsv_parser = subparsers.add_parser(
