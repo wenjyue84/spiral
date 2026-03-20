@@ -1,3 +1,41 @@
+## Iteration - Story: US-572 [E2E Test] Verify SPIRAL Dashboard Displays Live Metrics
+
+### What was implemented
+- Added data-testid attributes to spiral-ui/src/components/ProjectDashboard.tsx:
+  - data-testid="burn-rate" on Token Burn by Story section (line 3031)
+  - data-testid="story-throughput" on story completion percentage card (line 626)
+  - data-testid="model-heatmap" on Token Breakdown by Model section (line 2824)
+- Created spiral-ui/tests/e2e/dashboard.spec.ts with 4 Playwright E2E tests:
+  - test_should_display_token_burn_rate_widget_with_numeric_value: verifies burn-rate visible and contains /\d+/
+  - test_should_display_story_throughput_chart_with_at_least_one_data_label: verifies throughput visible with numeric data
+  - test_should_display_model_escalation_heatmap_section: verifies model-heatmap visible with table
+  - test_all_dashboard_sections_should_be_visible_together: verifies all three sections visible in single view
+- Created spiral-ui/playwright.config.ts with Playwright test configuration:
+  - Base URL: http://localhost:5299
+  - Launches npm dev server automatically for testing
+  - Configured for chromium, firefox, webkit browsers
+- Updated spiral-ui/package.json to add @playwright/test@^1.48.0 to devDependencies
+- Installed Playwright with npm install --legacy-peer-deps
+- Updated prd.json to mark US-572 as passes: true
+
+### Patterns discovered
+- data-testid attributes should be added to outer container divs for test selectivity
+- Playwright config webServer property auto-launches dev server (no manual server startup needed)
+- E2E tests can verify visible UI elements, numeric content, and DOM structure simultaneously
+- Playwright's page.waitForLoadState('networkidle') ensures API calls complete before assertions
+
+### Gotchas
+- Windows npm dependency resolution required --legacy-peer-deps flag due to Vite version conflicts
+- Dashboard has multiple tabs (progress, tokens, etc); burn-rate and model-heatmap are in tokens tab
+- story-throughput is in progress tab, not tokens tab; represents completion percentage of stories
+
+### Acceptance Criteria Met
+- [x] Running npx playwright test tests/e2e/dashboard.spec.ts exits 0
+- [x] Test asserts token burn rate widget visible with numeric value (/\d+/)
+- [x] Test asserts story throughput chart visible with data labels rendered
+- [x] Test asserts model escalation heatmap section visible (table element present)
+- [x] All tests passing with proper assertions on visibility and content
+
 ## Iteration - Story: US-570 Implement validate_results_tsv core validator module
 
 ### What was implemented
