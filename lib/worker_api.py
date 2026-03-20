@@ -7,7 +7,8 @@ for dashboard consumption. Used by GET /api/workers endpoint.
 Features:
 - Reads .spiral-workers/worker-N/.heartbeat files (JSON format)
 - Calculates elapsed time since last heartbeat
-- Detects timeout state when heartbeat is stale >5 minutes (300 seconds)
+- Detects timeout state when heartbeat is stale beyond SPIRAL_WORKER_TIMEOUT (default 300s)
+- Timeout threshold can be overridden via SPIRAL_WORKER_TIMEOUT env var or constructor param
 - Gracefully handles missing workers or heartbeat directory
 - Returns structured response: {worker_id, current_story, elapsed_time_sec, state}
 """
@@ -22,16 +23,22 @@ from typing import Any
 class WorkerPoolAPI:
     """Query and format worker pool status from heartbeat files."""
 
-    # Timeout threshold: 5 minutes (300 seconds)
-    TIMEOUT_THRESHOLD_SECONDS = 300
-
-    def __init__(self, heartbeat_dir: str = ".spiral-workers"):
+    def __init__(self, heartbeat_dir: str = ".spiral-workers", timeout_seconds: int | None = None):
         """Initialize with heartbeat directory path.
 
         Args:
             heartbeat_dir: Base directory containing worker-N subdirs with .heartbeat files
+            timeout_seconds: Timeout threshold in seconds. Defaults to SPIRAL_WORKER_TIMEOUT env var,
+                           or 300 if not set.
         """
         self.heartbeat_dir = heartbeat_dir
+
+        # Allow timeout to be overridden via parameter, env var, or default
+        if timeout_seconds is not None:
+            self.timeout_threshold = timeout_seconds
+        else:
+            env_timeout = os.environ.get("SPIRAL_WORKER_TIMEOUT", "300")
+            self.timeout_threshold = int(env_timeout) if env_timeout else 300
 
     def get_workers(self) -> list[dict[str, Any]]:
         """Return list of worker status dicts from heartbeat files.
@@ -44,9 +51,10 @@ class WorkerPoolAPI:
                 - state (str): "alive", "timeout", or "idle"
 
         Handles missing directory gracefully by returning empty list.
-        Workers are marked "timeout" if stale >300 seconds.
+        Workers are marked "timeout" if stale beyond the timeout threshold
+        (SPIRAL_WORKER_TIMEOUT env var, default 300 seconds).
         """
-        workers = []
+        workers: list[dict[str, Any]] = []
 
         # Check if heartbeat directory exists
         if not os.path.isdir(self.heartbeat_dir):
@@ -76,7 +84,7 @@ class WorkerPoolAPI:
                 elapsed_time_sec = int(now - ts)
 
                 # Determine state based on elapsed time
-                if elapsed_time_sec > self.TIMEOUT_THRESHOLD_SECONDS:
+                if elapsed_time_sec > self.timeout_threshold:
                     state = "timeout"
                 else:
                     state = "alive"

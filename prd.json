@@ -280,9 +280,10 @@
         "US-531"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "test-story",
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-03-20T06:52:35Z"
     },
     {
       "id": "US-582",
