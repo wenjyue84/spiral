@@ -2498,7 +2498,7 @@
       "passes": true,
       "_source": "test-story",
       "model": "haiku",
-      "_passedCommit": "54baab37788bbc048ed82798915db8add5fab32a",
+      "_passedCommit": "6805d1e212ea3590bfd1be0020a47d1418f2731b",
       "_failureReason": "story_cost_ceiling"
     },
     {

@@ -197,6 +197,70 @@ SPIRAL_HOME="${SPIRAL_HOME:-.}"
 # ── Source agent telemetry library (US-253) ──────────────────────────────────
 [[ -f "$SPIRAL_HOME/lib/agent_telemetry.sh" ]] && source "$SPIRAL_HOME/lib/agent_telemetry.sh"
 
+# ── Helper: extract assistant text from claude stream-json output ────────────
+# Parses a stream-json file and prints concatenated text from assistant messages.
+# Usage: extract_stream_text <stream_json_file>
+extract_stream_text() {
+  local _file="$1"
+  python3 - "$_file" <<'STREAM_TEXT_EOF'
+import sys, json
+parts = []
+try:
+    with open(sys.argv[1], encoding='utf-8', errors='replace') as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                obj = json.loads(line)
+                if obj.get('type') == 'assistant':
+                    msg = obj.get('message', obj)
+                    for block in msg.get('content', []):
+                        if block.get('type') == 'text':
+                            parts.append(block.get('text', ''))
+            except Exception:
+                pass
+except Exception:
+    pass
+print('\n'.join(parts))
+STREAM_TEXT_EOF
+}
+
+# ── Helper: accumulate failure approach as anti-pattern in prd.json ──────────
+# Usage: accumulate_anti_pattern <default_reason>
+accumulate_anti_pattern() {
+  local default_reason="${1:-story_incomplete}"
+  if [[ "${SPIRAL_ANTI_PATTERN_INJECT:-true}" == "true" ]]; then
+    _AP_FAIL_REASON=$($JQ -r ".userStories[] | select(.id == \"$NEXT_STORY\") | ._failureReason // \"$default_reason\"" \
+      "$PRD_FILE" 2>/dev/null | tr -d '\r"\\' | head -c 200 || echo "$default_reason")
+    if [[ -n "$_AP_FAIL_REASON" ]]; then
+      $JQ --arg sid "$NEXT_STORY" --arg note "$_AP_FAIL_REASON" \
+        '(.userStories[] | select(.id == $sid) | ._antiPatterns) |= (. // []) + [$note]' \
+        "$PRD_FILE" >"${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE" || true
+    fi
+  fi
+}
+
+# ── Helper: reject story at a gate and continue to next iteration ────────────
+# Usage: reject_story_gate <failure_reason> <gate_name> <progress_msg>
+# Resets worktree, marks story failed, increments retry, logs, and returns 0.
+# Caller must follow with `continue` since bash functions cannot break loops.
+reject_story_gate() {
+  local failure_reason="$1" gate_name="$2" progress_msg="$3"
+  do_story_reset "$PRE_STORY_SHA"
+  $JQ "(.userStories[] | select(.id == \"$NEXT_STORY\") | .passes) = false" "$PRD_FILE" >"${PRD_FILE}.tmp"
+  mv "${PRD_FILE}.tmp" "$PRD_FILE"
+  $JQ "(.userStories[] | select(.id == \"$NEXT_STORY\") | ._failureReason) = \"$failure_reason\"" "$PRD_FILE" >"${PRD_FILE}.tmp"
+  mv "${PRD_FILE}.tmp" "$PRD_FILE"
+  increment_retry "$NEXT_STORY"
+  RETRY_NOW=$(get_retry_count "$NEXT_STORY")
+  echo "[retry] $NEXT_STORY attempt $RETRY_NOW/$MAX_RETRIES ($gate_name gate failed)"
+  append_result "reject"
+  echo "## Iteration $ITERATION - $(date)" >>"$PROGRESS_FILE"
+  echo "FAILED $gate_name: $STORY_TITLE (ID: $NEXT_STORY) — $progress_msg — attempt $RETRY_NOW/$MAX_RETRIES" >>"$PROGRESS_FILE"
+  echo "" >>"$PROGRESS_FILE"
+}
+
 # ── Helper: append a JSONL event to spiral_events.jsonl ─────────────────────
 SPIRAL_SCRATCH_DIR="${SPIRAL_SCRATCH_DIR:-.spiral}"
 log_ralph_event() {

@@ -1238,3 +1238,5 @@ Here is the technical brief for the Claude agent.
 ## Worker 2 crashed (exit 1) — 2026-03-20 17:35:14
 ## Worker 3 crashed (exit 1) — 2026-03-20 17:35:15
 ## Worker 1 crashed (exit 2) — 2026-03-20 18:10:51
+## Worker 1 crashed (exit 2) — 2026-03-20 18:20:03
+## Worker 3 crashed (exit 1) — 2026-03-20 18:20:07
