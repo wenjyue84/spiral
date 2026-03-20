@@ -1,15 +1,50 @@
-"""Tests for lib/conflict_detector.py — Phase M file conflict detection."""
+"""Tests for lib/conflict_detector.py — Phase M file conflict detection.
+
+Extended with integration tests for US-545:
+  - detect_conflicts detects file overlaps between stories
+  - Phase M (merge_stories.py) logs conflicts to results.tsv with conflict_files column
+"""
 
 from __future__ import annotations
 
+import csv
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 
 import conflict_detector as cd
+
+# ── Phase M integration helpers ───────────────────────────────────────────────
+
+_MERGE_SCRIPT = os.path.join(os.path.dirname(__file__), "..", "lib", "prd", "merge_stories.py")
+_PYTHON = sys.executable
+
+
+def _make_phase_m_prd(stories: list[dict]) -> dict:
+    return {
+        "schemaVersion": 1,
+        "productName": "TestProject",
+        "branchName": "main",
+        "goals": ["Test conflict detection"],
+        "userStories": stories,
+    }
+
+
+def _run_phase_m(prd_path: str, tmp_path: Path) -> subprocess.CompletedProcess:
+    research = tmp_path / "_research.json"
+    research.write_text(json.dumps({"stories": []}), encoding="utf-8")
+    env = os.environ.copy()
+    env["SPIRAL_SCRATCH_DIR"] = str(tmp_path)
+    return subprocess.run(
+        [_PYTHON, _MERGE_SCRIPT, "--prd", prd_path, "--research", str(research)],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
 
 # ── Fixtures ───────────────────────────────────────────────────────────────────
 
