@@ -315,6 +315,36 @@ def test_ws_security_unauthenticated_rejected(monkeypatch: Any) -> None:
         pytest.fail(f"Valid API key should allow connection, but got: {e}")
 
 
+@pytest.mark.asyncio
+async def test_no_message_within_timeout_raises() -> None:
+    """Unhappy-path: no message broadcast → TimeoutError raised within timeout.
+
+    Verifies the 2-second timeout detection works: if no broadcast arrives,
+    asyncio.wait_for raises TimeoutError, which the test catches as an assertion.
+    Uses a short 0.1s timeout to keep the test fast while proving the mechanism.
+    """
+    import asyncio
+
+    manager = get_manager()
+    queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
+
+    class MockWebSocket:
+        async def send_json(self, data: dict[str, Any]) -> None:
+            await queue.put(data)
+
+        async def accept(self) -> None:
+            pass
+
+    ws = MockWebSocket()
+    await manager.connect(ws)  # type: ignore[arg-type]
+    try:
+        # Do NOT broadcast anything — verify timeout fires
+        with pytest.raises(asyncio.TimeoutError):
+            await asyncio.wait_for(queue.get(), timeout=0.1)
+    finally:
+        await manager.disconnect(ws)  # type: ignore[arg-type]
+
+
 def test_ws_security_no_sensitive_data_in_error(monkeypatch: Any) -> None:
     """Test that auth rejection doesn't leak sensitive data (security test).
 

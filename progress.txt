@@ -1,3 +1,21 @@
+## Iteration - Story: US-583 [E2E Test] WebSocket /ws/cost streams cost deltas
+
+### What was implemented
+- Found tests/test_ws_cost.py already existed with 6 passing tests (happy path, fan-out, security)
+- Added `test_no_message_within_timeout_raises` to satisfy AC4 (unhappy-path coverage)
+  - Uses asyncio.Queue + asyncio.wait_for(timeout=0.1) to verify TimeoutError fires when no broadcast sent
+  - pytest.raises(asyncio.TimeoutError) acts as the assertion
+- All 7 tests now pass; marked US-583 as passes=true
+
+### Patterns discovered
+- Stories can be "last_attempted" with existing passing code — only missing a single AC test
+- Always run the test file first before re-implementing; check if code already exists
+- Unhappy-path timeout tests: use asyncio.Queue as bridge between mock WS and test, then asyncio.wait_for with short timeout (0.1s) for fast tests
+
+### Gotchas
+- ConnectionManager is a module-level singleton; tests must clean up (disconnect) to avoid cross-test contamination
+- asyncio.wait_for timeout can be short (0.1s) for "no message" tests; no need to wait the full 2s
+
 ## Iteration - Story: US-572 [E2E Test] Verify SPIRAL Dashboard Displays Live Metrics
 
 ### What was implemented
@@ -1032,4 +1050,33 @@ This brief is based on the provided story JSON. It outlines a task for a standar
 *   The `sub_project` column may be missing from the file; the code should handle this `KeyError` without crashing.
 *   Be mindful of floating-point precision when summing cost values.
 *   The test file needs to cover cases with missing data and verify the model distribution counting logic.
+
+
+## Pre-analysis for US-583 (Gemini 2.5 Pro)
+Here is a technical brief for implementing story US-583.
+
+**Objective:** Implement a `pytest` integration test to verify the `/ws/cost` WebSocket endpoint broadcasts cost delta messages to multiple connected clients upon a directly-invoked event.
+
+**Affected Files:**
+*   `tests/test_ws_cost.py`: Primary file to create and implement the test logic.
+*   `lib/dashboard/cost_broadcaster.py`: Source of the `broadcast()` function to be called directly by the test.
+*   `lib/dashboard/api.py`: To be imported by the test fixture to get the FastAPI app instance for the test server.
+
+**Involved Components (Not Frappe):**
+*   **Framework:** FastAPI/Uvicorn, not Frappe.
+*   **Endpoint:** WebSocket route `/ws/cost`.
+*   **Testing:** `pytest`, `pytest-asyncio`, `websockets` client library.
+
+**Implementation Approach:**
+1.  In `tests/test_ws_cost.py`, create a `pytest` fixture to start the FastAPI app from `lib.dashboard.api` as a background Uvicorn server on a random, free port. The fixture must manage server startup and teardown.
+2.  Create an `async` test function using `pytest-asyncio`.
+3.  Inside the test, establish two concurrent WebSocket connections to the test server's `/ws/cost` endpoint.
+4.  Directly import and call the `broadcast()` function from `lib.dashboard.cost_broadcaster`, simulating an event.
+5.  Use `asyncio.wait_for(ws.recv(), timeout=2)` to assert that both clients receive the identical JSON message containing a `delta` field.
+6.  Implement a separate unhappy-path test to confirm an `asyncio.TimeoutError` or `AssertionError` occurs if a message is *not* received within the 2-second window.
+
+**Gotchas & Edge Cases:**
+*   The server fixture must reliably select an unused port and ensure the server is fully running before clients attempt connection.
+*   Use `asyncio.gather` or `asyncio.create_task` to listen for messages on both clients concurrently, not sequentially.
+*   This is an integration test, not a full E2E run; it intentionally bypasses the main SPIRAL loop for speed and determinism.
 

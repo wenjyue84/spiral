@@ -340,12 +340,13 @@
         "US-497"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "tags": [
         "e2e",
         "auto-generated"
       ],
-      "model": "haiku"
+      "model": "sonnet",
+      "last_attempted": "2026-03-20T08:04:15Z"
     },
     {
       "id": "US-390",
@@ -2416,7 +2417,7 @@
       "estimatedComplexity": "medium",
       "passes": false,
       "_source": "ai-example",
-      "model": "haiku"
+      "model": "sonnet"
     },
     {
       "id": "US-585",
@@ -2519,6 +2520,23 @@
       "passes": false,
       "_source": "test-story",
       "model": "haiku"
+    },
+    {
+      "id": "US-589",
+      "title": "Dashboard Endpoint: Model Escalation Heatmap — Analyze haiku→sonnet→opus Retry Patterns from results.tsv",
+      "priority": "medium",
+      "description": "Add HTTP endpoint GET /api/dashboard/model-escalation that aggregates results.tsv to detect and visualize which stories escalate across models. Returns JSON heatmap showing transition counts (haiku→sonnet, sonnet→opus, etc.), escalation frequency by story, and reason codes. Enables dashboard UI to display which stories strain the model-routing system.",
+      "acceptanceCriteria": [
+        "Endpoint returns JSON: {escalations: [{from_model: 'haiku', to_model: 'sonnet', count: 5, stories: ['US-1', 'US-2']}, ...], total_escalations: N, escalation_rate: X%}",
+        "Reads results.tsv and groups by story_id, extracting model field from each attempt; detects transitions where attempt[i].model != attempt[i+1].model",
+        "Integration test: load mock results.tsv with 3 stories (1 haiku-only, 1 haiku→sonnet, 1 sonnet→opus), verify endpoint returns correct transition counts and escalation_rate"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
     }
   ]
 }
