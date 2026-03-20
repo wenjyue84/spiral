@@ -162,7 +162,17 @@ Append to `progress.txt`:
 - [Things to watch out for]
 ```
 
-### 7. Commit Changes
+### 7. Run Pre-commit Checks Before Committing
+
+**Always run pre-commit hooks before committing** to catch lint, type, and shell errors locally:
+```bash
+uv run pre-commit run --all-files
+```
+Fix any failures before proceeding to commit. This prevents CI failures from ruff (I001/F401),
+mypy strict (`-> None` missing on test methods), shellcheck/shfmt, and syntax errors in new files.
+If pre-commit is not installed, run: `uv run pre-commit install`.
+
+### 8. Commit Changes
 ```bash
 rtk git add -A
 rtk git commit -m "feat: [story title]
