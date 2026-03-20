@@ -241,8 +241,8 @@ checkpoint_phase_done() {
   # Guard: if jq failed or returned non-numeric, treat as no checkpoint
   [[ "$ckpt_iter" =~ ^[0-9]+$ ]] || return 1
   [[ "$ckpt_iter" -eq "$SPIRAL_ITER" ]] || return 1
-  # Phase order: R T S M G I V C
-  local -A PHASE_ORDER=([R]=1 [T]=2 [S]=3 [M]=4 [G]=5 [I]=6 [V]=7 [C]=8)
+  # Phase order: A R T S E M X G I V C
+  local -A PHASE_ORDER=([A]=1 [R]=2 [T]=3 [S]=4 [E]=5 [M]=6 [X]=7 [G]=8 [I]=9 [V]=10 [C]=11)
   [[ "${PHASE_ORDER[$ckpt_phase]:-0}" -ge "${PHASE_ORDER[$phase]:-0}" ]]
 }
 
