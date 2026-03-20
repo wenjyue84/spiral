@@ -2627,7 +2627,7 @@
       "estimatedComplexity": "medium",
       "passes": false,
       "_source": "ai-example",
-      "model": "sonnet",
+      "model": "haiku",
       "filesTouch": [
         ".hypothesis/constants/0144005a67236799",
         ".hypothesis/constants/0158f9921b55208e",
@@ -2657,7 +2657,7 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "haiku",
       "last_attempted": "2026-03-20T10:19:25Z",
@@ -2667,7 +2667,8 @@
       ],
       "tags": [
         "module-tests"
-      ]
+      ],
+      "_passedCommit": "052f0e49a93abe005d353b5b850c17ec27b17b84"
     }
   ]
 }
