@@ -7,7 +7,7 @@
 SPIRAL_PYTHON="/c/Users/Jyue/Documents/1-projects/Software Projects/Spiral/.venv/Scripts/python.exe"
 
 # ── Test / validation command ────────────────────────────────────────────────
-SPIRAL_VALIDATE_CMD="uv run pytest tests/ -v --tb=short"
+SPIRAL_VALIDATE_CMD="uv run pytest tests/ -v --tb=short -n 2"
 
 # ── Baseline test count (for test ratchet in ralph) ──────────────────────────
 # Use venv Python via uv (~15s collect-only) instead of system python3 (~51s,
@@ -227,7 +227,7 @@ SPIRAL_RESEARCH_SPECIALIST_PROMPT=""
 # are found, or when all stories are complete (final gate always runs full suite).
 # For pytest: test file derived as <SPIRAL_TEST_PREFIX><basename>.py
 # For vitest: appends --related <filesTouch entries> to SPIRAL_VALIDATE_CMD
-# SPIRAL_INCREMENTAL_VALIDATE=false
+SPIRAL_INCREMENTAL_VALIDATE=true
 # SPIRAL_TEST_PREFIX="tests/test_"
 
 # ── Self-consistency hallucination check (US-228) ──────────────────────────

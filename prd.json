@@ -1788,6 +1788,38 @@
       "model": "haiku"
     },
     {
+      "id": "US-560",
+      "title": "Dashboard Endpoint: GET /api/system/health — Real-Time SPIRAL System Status & Uptime",
+      "priority": "medium",
+      "description": "Add HTTP health check endpoint to dashboard exposing SPIRAL system state: uptime, last iteration timestamp, active worker pool size, and current phase. Used by monitoring systems and UI status indicators to detect dashboard/SPIRAL stalls.",
+      "acceptanceCriteria": [
+        "Endpoint returns JSON: {status: 'healthy'|'degraded', uptime_seconds: N, last_spiral_run_timestamp: ISO8601, worker_count: N, current_phase: string|null}; read _checkpoint.json to populate phase and iteration_id",
+        "Query worker heartbeat lock files from .spiral-workers/worker-*/heartbeat.txt to populate current worker_count; mark status 'degraded' if any worker heartbeat is stale (> 2 min old)",
+        "Add integration test: mock checkpoint and heartbeat files, call GET /api/system/health, verify response matches schema and status logic (healthy if all workers active, degraded if any stale)"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-561",
+      "title": "Phase S Integration Test: Validate Story Consensus with Mocked Claude Batches API",
+      "priority": "medium",
+      "description": "Add integration test for Phase S (story validation consensus) using mocked Claude Message Batches API. Tests batch grouping, request construction, response parsing, and consensus scoring. Validates Phase S logic without consuming API quota and enables fast iteration on validation algorithms.",
+      "acceptanceCriteria": [
+        "New file tests/test_phase_s_batches.py with mock.patch on claude.messages.batches.create; fixture tests/fixtures/batch_responses.json contains 3+ realistic batch request/response pairs",
+        "Test test_phase_s_consensus_scoring: 10 stories → 2 batches (mocked) → _validated_stories.json with consensus scores within expected range (no <0, no >1.0)",
+        "CLI: uv run pytest tests/test_phase_s_batches.py -v passes with ≥85% line coverage of lib/phases/phase_s*.py (no external API calls)"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
       "id": "US-562",
       "title": "lib: Worker Load Balancer — Distribute Stories Across Parallel Workers by Complexity",
       "priority": "high",
@@ -1802,8 +1834,24 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "_source": "ai-example",
-      "model": "sonnet",
-      "last_attempted": "2026-03-20T01:28:51Z"
+      "model": "sonnet"
+    },
+    {
+      "id": "US-563",
+      "title": "CLI: spiral detect-phase-regression — Alert on Phase Timing Deviations from Baseline",
+      "priority": "medium",
+      "description": "Implement phase timing regression detector that tracks phase duration across iterations and alerts when any phase exceeds 120% of rolling 10-iteration average. Stores baseline in .spiral/phase_baselines.json. Runs post-Phase C to flag performance regressions before they compound.",
+      "acceptanceCriteria": [
+        "lib/phase_regression.py::check_phase_regression(phase_name: str, actual_duration_ms: int) reads .spiral/phase_baselines.json, computes rolling avg (last 10), returns (is_regressed: bool, pct_over_baseline: float, previous_avg_ms: int)",
+        "CLI spiral detect-phase-regression outputs JSON {regressions: [{phase, actual_ms, baseline_avg_ms, pct_over, status: 'normal'|'warning'|'critical'}]}. Exit code 0 (ok) or 1 (warning/critical) detected.",
+        "Integration test: run 3 iterations with mock phase timings, verify baselines learned correctly, assert regression detected when Phase S takes 2x rolling average, no false positives on normal variance"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
     }
   ]
 }

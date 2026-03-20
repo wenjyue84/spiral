@@ -1,0 +1,32 @@
+
+## Pre-analysis for US-562 (Gemini 2.5 Pro)
+Here is the technical brief for the Claude agent.
+
+**Subject: Technical Brief for US-562: Worker Load Balancer**
+
+This brief outlines the implementation plan for creating a story load balancer. Note: Despite the prompt mentioning Frappe, the user story pertains to a core Python library within the Spiral project, not a Frappe application.
+
+**1. Files to Modify:**
+*   **Create `spiral/worker_balancer.py`:** This new file will contain the core logic. The main function will be `assign_stories_to_workers()`.
+*   **Create `tests/test_worker_balancer.py`:** A new test file to house the integration and unit tests for the balancer.
+*   **Reference `spiral/story.py`:** The `Story` class, which likely defines complexity dependencies (e.g., tokens, dependencies), will be a key data structure to import and use.
+
+**2. Involved DocTypes & Hooks:**
+*   None. This is a pure Python implementation and does not interact with the Frappe framework, DocTypes, or hooks.
+
+**3. Recommended Implementation Approach:**
+*   **Complexity Metric:** In `spiral/story.py` or within the balancer, define a method or property to calculate a story's complexity score (as `forecast_tokens + dependency_count`).
+*   **Greedy Algorithm:** Implement `assign_stories_to_workers` using a greedy bin-packing (or longest-processing-time) approach:
+    1.  Maintain an array `worker_loads` of size `num_workers`, initialized to zeros.
+    2.  Sort the input `stories` list in descending order by their complexity score.
+    3.  Iterate through the sorted stories. For each story, find the index of the minimum value in `worker_loads` (the least-loaded worker).
+    4.  Assign the story to that worker and add its complexity to `worker_loads[index]`.
+    5.  Return the results as a `Dict[int, List[str]]` mapping worker IDs to story IDs.
+*   **Integration Test:** In `tests/test_worker_balancer.py`, create a test that generates ~20 mock `Story` objects with varied complexities and asserts that for 4 workers, the resulting load distribution meets the `<1.20` fairness metric, all stories are assigned, and no worker is empty.
+
+**4. Edge Cases & Gotchas:**
+*   **Zero Workers:** The function should raise a `ValueError` if `num_workers` is 0.
+*   **Empty Story List:** If the input `stories` list is empty, the function should return an empty assignment dictionary for all workers.
+*   **More Workers than Stories:** The algorithm should handle this gracefully; some workers will receive no stories. The fairness metric calculation must be careful to avoid division by zero if any worker's total complexity is zero.
+*   **Data Model:** The implementation is tightly coupled to the `Story` data model. Ensure you correctly access its properties to calculate complexity.
+

@@ -145,6 +145,25 @@ run_phase_validate() {
     fi
     export _EFFECTIVE_VALIDATE_CMD
 
+    # ── Pre-Phase V memory gate: cap pytest workers under memory pressure ────
+    # Same pattern as lib/run_parallel_ralph.sh:248-279 (Phase I memory check).
+    # If free RAM < 2GB, force -n 1 (single worker) to avoid OOM crash.
+    if command -v powershell.exe &>/dev/null && echo "$_EFFECTIVE_VALIDATE_CMD" | grep -qP -- '-n\s+\d+'; then
+      _V_FREE_MB=$(powershell.exe -Command \
+        "[math]::Floor((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory / 1024)" 2>/dev/null | tr -d '\r')
+      if [[ -n "$_V_FREE_MB" && "$_V_FREE_MB" =~ ^[0-9]+$ ]]; then
+        if [[ "$_V_FREE_MB" -lt 2048 ]]; then
+          # Force single worker to avoid OOM
+          _EFFECTIVE_VALIDATE_CMD=$(echo "$_EFFECTIVE_VALIDATE_CMD" | sed -E 's/-n\s+[0-9]+/-n 1/')
+          echo "  [V] Memory gate: ${_V_FREE_MB}MB free (<2048MB) — forcing -n 1 to prevent OOM"
+          log_spiral_event "phase_v_memory_gate" \
+            "\"free_mb\":$_V_FREE_MB,\"forced_workers\":1,\"iteration\":$SPIRAL_ITER"
+        elif [[ "$_V_FREE_MB" -lt 3072 ]]; then
+          echo "  [V] Memory: ${_V_FREE_MB}MB free — using configured pytest workers"
+        fi
+      fi
+    fi
+
     # Run the project's validation command (with optional timeout)
     _VALIDATE_EXIT=0
     if [[ "${SPIRAL_VALIDATE_TIMEOUT:-300}" -gt 0 ]] && command -v timeout &>/dev/null; then
