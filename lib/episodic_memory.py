@@ -203,6 +203,27 @@ class EpisodicMemory:
         return float(dot_product / (mag1 * mag2))
 
 
+def list_recent(
+    limit: int = 20,
+    db_path: str | None = None,
+    memory_path: str = ".spiral/episodic_memory.jsonl",
+) -> list[dict[str, Any]]:
+    """Return the most recent episodic memory records.
+
+    Args:
+        limit: Maximum number of records to return.
+        db_path: Ignored (legacy compat). Uses memory_path instead.
+        memory_path: Path to episodic memory JSONL file.
+
+    Returns:
+        List of dicts sorted by timestamp descending, up to limit.
+    """
+    mem = EpisodicMemory(memory_path)
+    records = mem._load_all_records()
+    records.sort(key=lambda r: r.get("timestamp", ""), reverse=True)
+    return records[:limit]
+
+
 def get_similar_patterns(
     story_id: str, memory_path: str = ".spiral/episodic_memory.jsonl", k: int = 3
 ) -> list[dict[str, Any]]:
