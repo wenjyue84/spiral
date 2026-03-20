@@ -1717,13 +1717,7 @@
       ],
       "last_attempted": "2026-03-20T03:53:38Z",
       "_passedCommit": "",
-      "_failureReason": "story_cost_ceiling",
-      "_contextStats": {
-        "tokensBeforeMasking": 479,
-        "tokensAfterMasking": 479,
-        "reductionPct": 0,
-        "contextWindow": 10
-      }
+      "_failureReason": "story_cost_ceiling"
     },
     {
       "id": "US-553",
@@ -1882,8 +1876,7 @@
       "estimatedComplexity": "small",
       "passes": true,
       "_source": "test-story",
-      "model": "haiku",
-      "last_attempted": "2026-03-20T03:57:09Z"
+      "model": "haiku"
     },
     {
       "id": "US-564",
@@ -1910,8 +1903,7 @@
       "estimatedComplexity": "medium",
       "passes": false,
       "_source": "test-story",
-      "model": "haiku",
-      "last_attempted": "2026-03-20T04:00:43Z"
+      "model": "haiku"
     },
     {
       "id": "US-565",
@@ -2080,6 +2072,134 @@
       "estimatedComplexity": "small",
       "passes": false,
       "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-572",
+      "title": "[E2E Test] Verify SPIRAL self-monitoring dashboard displays live metrics",
+      "priority": "medium",
+      "description": "Write a Playwright E2E test that exercises the dashboard introduced by US-460. The test must navigate to the dashboard page, wait for live data to load, and assert that token burn rate, story throughput, and model escalation heatmap sections are all visible and non-empty. This ensures the dashboard renders correctly in a headless browser and does not regress.",
+      "acceptanceCriteria": [
+        "Running `npx playwright test tests/e2e/dashboard.spec.ts` exits 0 with all assertions passing",
+        "Test asserts the token burn rate widget is visible and contains a numeric value (e.g. `expect(page.locator('[data-testid=\"burn-rate\"]')).toContainText(/\\d+/)`",
+        "Test asserts the story throughput chart is visible and has at least one data label rendered in the DOM",
+        "Test asserts the model escalation heatmap section is visible (locator present, not hidden)"
+      ],
+      "technicalNotes": [
+        "File to edit: spiral-ui/tests/e2e/dashboard.spec.ts (new file — create Playwright test suite targeting the dashboard route)",
+        "File to edit: spiral-ui/src/components/ProjectDashboard.tsx (add data-testid attributes: burn-rate, story-throughput, model-heatmap if missing)",
+        "Test command: npx playwright test spiral-ui/tests/e2e/dashboard.spec.ts --headed=false",
+        "Test command: npx playwright test spiral-ui/tests/e2e/dashboard.spec.ts --reporter=list (for CI-friendly output)",
+        "Assumption: dev server runs on http://localhost:5299 (matches project default); use `baseURL` in playwright.config.ts or hardcode in test"
+      ],
+      "dependencies": [
+        "US-460"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "test-story",
+      "model": "haiku"
+    },
+    {
+      "id": "US-573",
+      "title": "[Performance Test] Benchmark SPIRAL self-monitoring dashboard data aggregation",
+      "priority": "medium",
+      "description": "Write a performance benchmark that measures the data aggregation pipeline used by the US-460 self-monitoring dashboard (token burn rate, story throughput, model escalation heatmap). The test captures a baseline from results.tsv and fails if any metric degrades more than 20% from that baseline.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_perf_dashboard.py::test_dashboard_aggregation_baseline -v exits 0 and prints baseline latency in ms",
+        "uv run pytest tests/test_perf_dashboard.py::test_dashboard_aggregation_threshold -v fails when synthetic results.tsv with 10x row count causes >20% latency increase",
+        "uv run pytest tests/test_perf_dashboard.py -v completes in under 30 seconds on a cold run",
+        "uv run pytest tests/test_perf_dashboard.py -v reports token_burn_rate, story_throughput, and escalation_count as numeric outputs"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_perf_dashboard.py (new file — create perf benchmark using pytest-benchmark or time.perf_counter)",
+        "File to edit: lib/dashboard.py or lib/cost_tracker.py (whichever aggregates results.tsv for the dashboard — confirm with grep before editing)",
+        "Test command: uv run pytest tests/test_perf_dashboard.py -v --tb=short",
+        "Use a fixture that writes a synthetic results.tsv with 100 rows to a tmp_path; measure wall time for the aggregation call; assert duration < baseline * 1.2",
+        "Baseline value should be stored as a constant in the test file, not read from disk, so the threshold is deterministic across machines"
+      ],
+      "dependencies": [
+        "US-460"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "test-story",
+      "model": "haiku"
+    },
+    {
+      "id": "US-574",
+      "title": "[Regression Test] Guard velocity model derivation from results.tsv in estimate command",
+      "priority": "medium",
+      "description": "Write a pytest regression test that verifies US-352's linear regression on results.tsv produces data-driven cost/duration estimates. The test must fail if the velocity model code is removed or broken, protecting the feature from future regressions.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_estimate.py -k 'velocity' -v exits 0 with at least one passing test",
+        "Test creates a synthetic results.tsv fixture with ≥3 rows of known (model, tokens, cost, duration, status) data and asserts the returned estimate differs from the static fallback",
+        "Test asserts that removing or monkey-patching the regression fitting step causes the assertion to fail (i.e., test is sensitive to the feature being present)",
+        "uv run pytest tests/test_estimate.py -v --tb=short exits 0 with no errors"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_estimate.py (add test_velocity_model_from_results_tsv function)",
+        "Locate the estimate command implementation: grep -r 'def estimate' lib/ main.py to find the function under test",
+        "Use tmp_path pytest fixture to write a synthetic results.tsv; call the estimate function directly rather than via subprocess for faster feedback",
+        "Test command: uv run pytest tests/test_estimate.py -k 'velocity' -v",
+        "Assert that estimate output contains numeric values derived from the synthetic TSV mean tokens/cost, not hardcoded static defaults"
+      ],
+      "dependencies": [
+        "US-352"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "test-story",
+      "model": "haiku"
+    },
+    {
+      "id": "US-575",
+      "title": "[Performance Test] Worker Heartbeat Timeout Detection Latency",
+      "priority": "medium",
+      "description": "Benchmark the heartbeat monitoring loop in US-531 to verify that a silently-hung worker is detected and restarted within SPIRAL_WORKER_TIMEOUT (default 300s). The test artificially stalls a mock worker's heartbeat file and measures wall-clock time from stall to restart trigger, asserting no more than 10% overhead above the configured timeout.",
+      "acceptanceCriteria": [
+        "Running `uv run pytest tests/test_worker_heartbeat_perf.py -v` exits 0 and prints a measured detection latency in seconds",
+        "Test fails (non-zero exit) if measured detection latency exceeds SPIRAL_WORKER_TIMEOUT * 1.1 (i.e. >330s for default 300s)",
+        "Test records baseline latency to a local file (`results.tsv` or test output) so regressions can be compared across runs",
+        "Re-running the test a second time produces a latency within 20% of the first run (stability check)"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_worker_heartbeat_perf.py (new file — create performance benchmark here)",
+        "File to edit: lib/worker_heartbeat.sh (reference for timeout constant SPIRAL_WORKER_TIMEOUT and heartbeat file path pattern .spiral-workers/worker-N/heartbeat)",
+        "Test command: uv run pytest tests/test_worker_heartbeat_perf.py -v",
+        "Simulate stall by writing a heartbeat timestamp >SPIRAL_WORKER_TIMEOUT seconds in the past to a temp heartbeat file, then invoke the detection logic and time the response",
+        "Read SPIRAL_WORKER_TIMEOUT from environment (default 300); use a shortened value (e.g. 5s) in tests via monkeypatching or env override to keep CI fast"
+      ],
+      "dependencies": [
+        "US-531"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "test-story",
+      "model": "haiku"
+    },
+    {
+      "id": "US-576",
+      "title": "Add pytest fixtures and Claude API mock for SPIRAL integration tests",
+      "priority": "medium",
+      "description": "Create reusable pytest fixtures that stub the Claude CLI and provide an isolated temp filesystem for SPIRAL integration tests. These fixtures will be shared by the happy-path test and any future integration tests.",
+      "acceptanceCriteria": [
+        "Running `uv run pytest tests/test_spiral_integration_fixtures.py -v` exits 0 and all fixture smoke-tests pass",
+        "A pytest fixture `mock_claude_cli` is importable from `tests/conftest.py` and returns a callable that records invocations without hitting the real API",
+        "A pytest fixture `spiral_workspace` is importable from `tests/conftest.py` and yields a temp dir pre-populated with minimal `prd.json` and `spiral.config.sh`"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/conftest.py (add fixtures mock_claude_cli and spiral_workspace)",
+        "Test command: uv run pytest tests/test_spiral_integration_fixtures.py -v --tb=short",
+        "mock_claude_cli should write a stub script to PATH that records calls to a list and returns canned JSON matching the Claude CLI stream format",
+        "spiral_workspace should copy templates/prd.example.json and templates/spiral.config.example.sh into a tmp_path directory"
+      ],
+      "dependencies": [
+        "US-553"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "test-story",
       "model": "haiku"
     }
   ]
