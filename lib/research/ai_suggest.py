@@ -35,7 +35,7 @@ from spiral_io import atomic_write_json, configure_utf8_stdout
 configure_utf8_stdout()
 
 _DEFAULT_MODEL = "claude-haiku-4-5-20251001"
-_DEFAULT_TIMEOUT = 120
+_DEFAULT_TIMEOUT = int(os.environ.get("SPIRAL_AI_SUGGEST_TIMEOUT", "300"))
 
 
 def load_queue(queue_path: str) -> list[dict[str, Any]]:

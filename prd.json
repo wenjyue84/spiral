@@ -1623,7 +1623,7 @@
       "estimatedComplexity": "small",
       "passes": false,
       "model": "opus",
-      "last_attempted": "2026-03-20T01:16:03Z"
+      "last_attempted": "2026-03-20T01:15:31Z"
     },
     {
       "id": "US-546",
@@ -1780,6 +1780,70 @@
         "CLI command spiral research-dedup-stats [--iteration N] parses .spiral/iteration-*/phase-research-output.json files and outputs JSON with {total_queries, unique_queries, duplicate_ratio, estimated_tokens_saved}",
         "Generates CSV export with columns: query_text, frequency, iterations_seen, first_seen, last_seen for manual cache strategy review",
         "Identifies queries appearing 3+ times with estimated 30% token reduction per duplicate cache hit"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-560",
+      "title": "Dashboard Endpoint: GET /api/system/health — Real-Time SPIRAL System Status & Uptime",
+      "priority": "medium",
+      "description": "Add HTTP health check endpoint to dashboard exposing SPIRAL system state: uptime, last iteration timestamp, active worker pool size, and current phase. Used by monitoring systems and UI status indicators to detect dashboard/SPIRAL stalls.",
+      "acceptanceCriteria": [
+        "Endpoint returns JSON: {status: 'healthy'|'degraded', uptime_seconds: N, last_spiral_run_timestamp: ISO8601, worker_count: N, current_phase: string|null}; read _checkpoint.json to populate phase and iteration_id",
+        "Query worker heartbeat lock files from .spiral-workers/worker-*/heartbeat.txt to populate current worker_count; mark status 'degraded' if any worker heartbeat is stale (> 2 min old)",
+        "Add integration test: mock checkpoint and heartbeat files, call GET /api/system/health, verify response matches schema and status logic (healthy if all workers active, degraded if any stale)"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-561",
+      "title": "CLI: spiral show-cache — Inspect Research Cache Hit Rate and Invalidation Log",
+      "priority": "medium",
+      "description": "Add operational visibility into Phase R research cache by providing a CLI command to list cached Gemini queries, hit counts, time/cost savings, and freshness status. Flags stale cache entries that no longer match prd.json research requirements. Enables data-driven decisions on cache TTL and invalidation strategy.",
+      "acceptanceCriteria": [
+        "CLI command 'spiral show-cache --format table|json' lists all entries in .spiral/cache/research/ with hit count, age, tokens saved, and validation status against current prd.json",
+        "Cache validation: compares each cached query against active research entries in prd.json; marks entries as 'stale' if no matching story exists",
+        "Summary stats: total hit rate %, aggregate time/cost savings from cache hits vs fresh Gemini calls, oldest/newest cache entries"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-562",
+      "title": "Integration Test: Phase R Research Cache Hit Detection and Token Savings Calculation",
+      "priority": "medium",
+      "description": "Add integration test to verify Phase R research cache correctly detects duplicate queries, returns cached results, and calculates token savings. Test runs Phase R twice with overlapping story research queries to measure cache hit rate and validate token cost reduction.",
+      "acceptanceCriteria": [
+        "Integration test at tests/test_phase_r_cache_integration.py runs Phase R twice with story set overlap >= 30%; verifies cache hit rate >= 20% and SPIRAL_RESEARCH_CACHE_HITS counter incremented per duplicate query",
+        "Test asserts token savings calculated as (cached_tokens × model_cost_per_1k_tokens) and logged to results.tsv with PHASE=R CACHE_HIT=true entry",
+        "End-to-end test with 10 stories in iteration 1, 7 overlapping in iteration 2; assert total cached tokens > 0 and cost savings >= $0.01"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-563",
+      "title": "Dashboard: Story Failure Root Cause Categorization and Fix Recommendation Endpoint",
+      "priority": "medium",
+      "description": "Add dashboard HTTP endpoint to analyze story failures from results.tsv and categorize by root cause (timeout, memory, validation, syntax, rate-limit, unknown). For each category, provide affected story IDs, failure count, and ranked recommendations (e.g., increase timeout, increase batch size, add validation).",
+      "acceptanceCriteria": [
+        "GET /api/dashboard/failure-causes returns JSON with failure_categories array; each category shows {name, story_ids, fail_count, recommendations} ranked by frequency; top recommendation matches failure pattern",
+        "Endpoint parses results.tsv STATUS column for patterns: 'timeout' → timeout category, 'OOM' → memory, validation regex match → validation; unmatched → unknown",
+        "Test at tests/test_dashboard_failure_analysis.py with fixture results.tsv containing 15 failures across 5 categories; assert category counts within ±1 and each top recommendation is actionable"
       ],
       "technicalNotes": [],
       "dependencies": [],
