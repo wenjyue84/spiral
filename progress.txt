@@ -1,3 +1,16 @@
+## Iteration - Story: US-548 Dashboard Endpoint - Research Source Authority Tracking
+
+### What was implemented
+- Implementation was already committed (lib/research_source_scorer.py, lib/dashboard/api.py, tests/)
+- Previous attempt failed due to story_cost_ceiling before prd.json update
+- Verified 27/27 tests pass; marked passes=true in prd.json
+
+### Patterns discovered
+- story_cost_ceiling failures leave code committed but prd.json un-updated — check git history before re-implementing
+
+### Gotchas
+- Always verify if a "failed" story's code is actually already in git before re-implementing
+
 ## Iteration - Story: US-579 [Security Test] predict-cost CLI: path traversal and secret-leak prevention
 
 ### What was implemented
