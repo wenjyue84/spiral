@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\AppData\Roaming\Python\Python312\site-packages\email_validator\syntax.py
+# hypothesis_version: 6.151.9
+
+[126, 128, 159, 173, 8203, 8205, 8208, 8228, 8230, 8232, 8238, 8288, 8292, 65294, 65535, 113824, 113827, '"', '(?!xn)..--', '(["\\\\])', ', ', '-', '-.', '.', '.-', '..', '002E', ':', '<', '>', '@', 'C', 'Cf', 'Cn', 'Co', 'Cs', 'IPv6:', 'L', 'M', 'N', 'NFC', 'P', 'S', 'Z', 'Zl', 'Zp', 'Zs', '\\', '\\\\\\1', '^[0-9\\.]+$', 'after normalization', 'ascii', 'ascii_domain', 'ascii_local_part', 'domain', 'domain_address', 'dot-atom', 'hyphen', 'local_part', 'period', 'quoted', 's', 'smtputf8', 'test', 'utf8', '﹫', '＠']

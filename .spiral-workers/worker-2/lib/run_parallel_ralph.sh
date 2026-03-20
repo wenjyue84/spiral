@@ -1,0 +1,1850 @@
+#!/bin/bash
+# run_parallel_ralph.sh — Orchestrate N parallel Ralph workers via git worktrees
+#
+# Each worker:
+#   - Runs in its own git worktree (isolated source files + git history)
+#   - Uses its own prd.json slice (subset of pending stories)
+#   - Routes docker cp/bench calls through a mkdir lock wrapper (shared container safety)
+#
+# After all workers finish:
+#   - prd.json pass results are merged back into main
+#   - Code diffs are applied via git patch
+#   - Optional deploy command runs
+#   - Worktrees and branches are cleaned up
+#
+# Usage: bash run_parallel_ralph.sh WORKERS MAX_ITERS REPO_ROOT PRD_FILE SCRATCH_DIR RALPH_SKILL JQ PYTHON MONITOR SPIRAL_HOME [RALPH_MODEL]
+#
+# Environment variables (from spiral.config.sh):
+#   SPIRAL_PATCH_DIRS           — space-separated dirs for git diff patches (default: all)
+#   SPIRAL_DEPLOY_CMD           — post-merge deploy command (default: skip)
+#   SPIRAL_TERMINAL             — terminal emulator path (default: auto-detect)
+#   SPIRAL_GEMINI_ANNOTATE_PROMPT — gemini prompt for filesTouch annotation (default: skip)
+
+set -euo pipefail
+
+RALPH_WORKERS="$1"
+RALPH_MAX_ITERS="$2"
+REPO_ROOT="$3"
+PRD_FILE="$4"
+SCRATCH_DIR="$5"
+RALPH_SKILL="$6"
+JQ="$7"
+PYTHON="$8"
+MONITOR_TERMINALS="${9:-0}"
+SPIRAL_HOME="${10:-}"
+RALPH_MODEL="${11:-}"
+
+# ── Source memory pressure helper (if available) ──────────────────────────────
+SPIRAL_SCRATCH_DIR="${SPIRAL_SCRATCH_DIR:-$SCRATCH_DIR}"
+export SPIRAL_SCRATCH_DIR
+_PRESSURE_HELPER="$SPIRAL_HOME/lib/memory-pressure-check.sh"
+if [[ -f "$_PRESSURE_HELPER" ]]; then
+  source "$_PRESSURE_HELPER"
+fi
+
+# ── Source worker heartbeat helper ──────────────────────────────────────────────
+_HEARTBEAT_HELPER="$SPIRAL_HOME/lib/worker_heartbeat.sh"
+if [[ -f "$_HEARTBEAT_HELPER" ]]; then
+  source "$_HEARTBEAT_HELPER"
+fi
+
+# ── Source dynamic memory pool (if available) ──────────────────────────────────
+_POOL_HELPER="$SPIRAL_HOME/lib/memory_pool.sh"
+_POOL_ENABLED=0
+if [[ "${SPIRAL_MEMORY_POOL:-false}" == "true" && -f "$_POOL_HELPER" ]]; then
+  source "$_POOL_HELPER"
+  _POOL_ENABLED=1
+fi
+
+WORKER_DIR="$SCRATCH_DIR/workers"
+WORKTREE_BASE="$REPO_ROOT/.spiral-workers"
+# Note: HEARTBEAT_DIR is set per-worker in _launch_worker_i() to $WORKTREE_BASE/worker-${i}
+# This allows worker_heartbeat.sh to write .heartbeat directly in the worker's directory
+# Unique lock dir per invocation (using PID avoids collisions if SPIRAL is re-run)
+LOCK_DIR="/tmp/spiral-docker-lock-$$"
+TIMESTAMP=$(date +%s)
+ITER_PER_WORKER=$(((RALPH_MAX_ITERS + RALPH_WORKERS - 1) / RALPH_WORKERS))
+
+# Read config from environment (set by spiral.config.sh → sourced by spiral.sh)
+PATCH_DIRS="${SPIRAL_PATCH_DIRS:-}"
+DEPLOY_CMD="${SPIRAL_DEPLOY_CMD:-}"
+TERMINAL_EMU="${SPIRAL_TERMINAL:-}"
+GEMINI_ANNOTATE="${SPIRAL_GEMINI_ANNOTATE_PROMPT:-}"
+WORKER_TIMEOUT="${SPIRAL_WORKER_TIMEOUT:-900}"                     # per-worker wall-clock limit (0 = unlimited)
+# Floor: never less than 600s per worker
+[[ "$WORKER_TIMEOUT" -lt 600 ]] && WORKER_TIMEOUT=600
+STRICT_WORKER_ISOLATION="${SPIRAL_STRICT_WORKER_ISOLATION:-false}" # US-355: abort on policy violation
+
+# US-359: Worker env allowlist — convert comma-separated config to grep regex
+_WORKER_ENV_ALLOWLIST_CFG="${SPIRAL_WORKER_ENV_ALLOWLIST:-ANTHROPIC_API_KEY,PATH,HOME,TMPDIR,TERM,SHELL,USER,LANG,TZ,SPIRAL_*,NODE_*,CLAUDE_*,RALPH_*,HEARTBEAT_DIR,TRACEPARENT,TRACESTATE,JQ,PYTHON,PWD,SHLVL}"
+# Convert "FOO,BAR_*,BAZ" → "FOO|BAR_.*|BAZ" for grep -E matching
+_WORKER_ENV_ALLOWLIST_RE=$(echo "$_WORKER_ENV_ALLOWLIST_CFG" | sed 's/\*/.\*/g; s/,/|/g')
+
+# ── cgroups v2 worker isolation (US-259) ─────────────────────────────────────
+# Per-worker memory and CPU hard limits enforced by the kernel.
+# Falls back gracefully when cgroups v2 is unavailable (Windows, macOS, older kernels).
+SPIRAL_WORKER_MEM_LIMIT_MB="${SPIRAL_WORKER_MEM_LIMIT_MB:-2048}"
+SPIRAL_WORKER_CPU_QUOTA="${SPIRAL_WORKER_CPU_QUOTA:-80}" # percentage of one CPU (1–100)
+_CGROUP_BASE="/sys/fs/cgroup/spiral"
+_CGROUPS_V2_AVAILABLE=0
+if [[ -f /sys/fs/cgroup/cgroup.controllers ]] && grep -q memory /sys/fs/cgroup/cgroup.controllers 2>/dev/null; then
+  _CGROUPS_V2_AVAILABLE=1
+fi
+# Track created cgroup paths for cleanup
+declare -a _WORKER_CGROUP_PATHS=()
+
+# Create a cgroup slice for worker $1 and write limits.
+# Sets _WORKER_CGROUP_PATHS[i-1] on success.
+# Returns 0 on success, 1 if cgroups v2 unavailable (non-fatal).
+_cgroup_setup() {
+  local worker_num="$1"
+  if [[ "$_CGROUPS_V2_AVAILABLE" -eq 0 ]]; then
+    echo "  [cgroup] cgroups v2 unavailable — worker $worker_num runs unconstrained" >&2
+    return 1
+  fi
+  local cg_path="${_CGROUP_BASE}/worker-${worker_num}"
+  # Create the cgroup directory
+  if ! mkdir -p "$cg_path" 2>/dev/null; then
+    echo "  [cgroup] WARNING: cannot create $cg_path (permission denied?) — worker $worker_num runs unconstrained" >&2
+    return 1
+  fi
+  # Ensure subtree_control enables memory and cpu for children
+  echo "+memory +cpu" >"${_CGROUP_BASE}/cgroup.subtree_control" 2>/dev/null || true
+  # memory.max: convert MB → bytes
+  local mem_bytes=$((SPIRAL_WORKER_MEM_LIMIT_MB * 1024 * 1024))
+  echo "$mem_bytes" >"$cg_path/memory.max" 2>/dev/null || {
+    echo "  [cgroup] WARNING: failed to set memory.max for worker $worker_num" >&2
+  }
+  # memory.high (soft reclaim at 80% of hard limit)
+  local mem_high=$((mem_bytes * 4 / 5))
+  echo "$mem_high" >"$cg_path/memory.high" 2>/dev/null || true
+  # cpu.max: quota period; 80% = "80000 100000"
+  local cpu_quota=$((SPIRAL_WORKER_CPU_QUOTA * 1000))
+  echo "${cpu_quota} 100000" >"$cg_path/cpu.max" 2>/dev/null || {
+    echo "  [cgroup] WARNING: failed to set cpu.max for worker $worker_num" >&2
+  }
+  _WORKER_CGROUP_PATHS[$((worker_num - 1))]="$cg_path"
+  echo "  [cgroup] Worker $worker_num: memory.max=${SPIRAL_WORKER_MEM_LIMIT_MB}MB cpu.max=${SPIRAL_WORKER_CPU_QUOTA}%"
+  return 0
+}
+
+# Move PID $2 into the cgroup for worker $1 (no-op if cgroup not set up).
+_cgroup_assign() {
+  local worker_num="$1"
+  local pid="$2"
+  local cg_path="${_WORKER_CGROUP_PATHS[$((worker_num - 1))]:-}"
+  [[ -z "$cg_path" || ! -d "$cg_path" ]] && return 0
+  echo "$pid" >"$cg_path/cgroup.procs" 2>/dev/null || {
+    echo "  [cgroup] WARNING: failed to assign PID $pid to cgroup for worker $worker_num" >&2
+  }
+}
+
+# Remove the cgroup slice for worker $1 (no-op if not created).
+_cgroup_cleanup() {
+  local worker_num="$1"
+  local cg_path="${_WORKER_CGROUP_PATHS[$((worker_num - 1))]:-}"
+  [[ -z "$cg_path" || ! -d "$cg_path" ]] && return 0
+  # Kill any remaining processes in the cgroup before removing it
+  if [[ -f "$cg_path/cgroup.procs" ]]; then
+    while read -r _pid; do
+      [[ -n "$_pid" ]] && kill "$_pid" 2>/dev/null || true
+    done <"$cg_path/cgroup.procs"
+    sleep 0.2
+  fi
+  rmdir "$cg_path" 2>/dev/null || true
+  _WORKER_CGROUP_PATHS[$((worker_num - 1))]=''
+}
+
+# Pre-declare worker tracking arrays so cleanup_parallel and _launch_worker_i can safely reference them
+declare -a WORKER_PIDS=()
+declare -a WORKER_FINISHED=()
+declare -a WORKER_EXIT_CODES=()
+declare -a WORKER_PGID_FILES=()  # US-245: path to per-worker PGID file
+declare -a WORKER_START_TIMES=()       # US-318: epoch seconds per worker for invoke_agent span
+declare -a WORKER_STALL_RESTARTS=()    # US-531: stall-restart attempts per worker (max 1)
+
+# ── Graceful cleanup trap — kill orphaned workers on exit/interrupt ─────────
+_CLEANUP_RUNNING=0
+cleanup_parallel() {
+  # Guard against re-entrant calls (2nd signal during cleanup)
+  if [[ "$_CLEANUP_RUNNING" -eq 1 ]]; then return 0; fi
+  _CLEANUP_RUNNING=1
+  echo ""
+  echo "  [parallel] Cleaning up workers..."
+  # Two-phase kill: SIGTERM first, wait, then SIGKILL stragglers
+  # After disown, jobs -p no longer lists workers — kill via WORKER_PIDS array (US-088)
+  local child_pids=""
+  child_pids="${WORKER_PIDS[*]:-}"
+  local job_pids
+  job_pids=$(jobs -p 2>/dev/null) || true
+  [[ -n "$job_pids" ]] && child_pids="${child_pids:+$child_pids }$job_pids"
+  if [[ -n "$child_pids" ]]; then
+    # shellcheck disable=SC2086
+    echo "$child_pids" | xargs kill 2>/dev/null || true
+    sleep 2
+    # shellcheck disable=SC2086
+    echo "$child_pids" | xargs kill -9 2>/dev/null || true
+  fi
+  # US-245: Also kill any remaining process groups tracked via PGID files
+  for _pgid_f in "${WORKER_PGID_FILES[@]:-}"; do
+    [[ -z "$_pgid_f" || ! -f "$_pgid_f" ]] && continue
+    local _pg
+    _pg=$(cat "$_pgid_f" 2>/dev/null | tr -d '[:space:]')
+    [[ -n "$_pg" && "$_pg" =~ ^[0-9]+$ ]] && kill -- -"$_pg" 2>/dev/null || true
+  done
+  # Clean up prd.json lock files (stale lock prevention)
+  rm -f "$REPO_ROOT/prd.json.lock" 2>/dev/null || true
+  for wtree in "${WORKER_DIRS[@]:-}"; do
+    [[ -n "$wtree" ]] && rm -f "$wtree/prd.json.lock" 2>/dev/null || true
+  done
+  # Clean up lock dir and pause files
+  rm -rf "$LOCK_DIR" 2>/dev/null || true
+  for n in $(seq 1 "$RALPH_WORKERS"); do
+    rm -f "${SPIRAL_SCRATCH_DIR}/_worker_pause_${n}" 2>/dev/null || true
+  done
+  # Clean up worktrees and branches
+  for i in $(seq 1 "$RALPH_WORKERS"); do
+    local branch="${WORKER_BRANCHES[$((i - 1))]:-}"
+    local wtree="${WORKER_DIRS[$((i - 1))]:-}"
+    if [[ -n "$wtree" && -d "$wtree" ]]; then
+      git -C "$REPO_ROOT" worktree unlock "$wtree" 2>/dev/null || true
+      git -C "$REPO_ROOT" worktree remove "$wtree" --force 2>/dev/null || true
+    fi
+    [[ -n "$branch" ]] && git -C "$REPO_ROOT" branch -D "$branch" 2>/dev/null || true
+  done
+  rm -rf "$WORKTREE_BASE" 2>/dev/null || true
+  # Prune stale worktree admin records (US-080)
+  git -C "$REPO_ROOT" worktree prune 2>/dev/null || true
+  # Clean up orphaned index.lock files from OOM-killed workers (Idea 2)
+  for i in $(seq 1 "$RALPH_WORKERS"); do
+    local _wt="${WORKER_DIRS[$((i - 1))]:-}"
+    if [[ -n "$_wt" ]]; then
+      find "$_wt" -name "index.lock" -delete 2>/dev/null || true
+    fi
+  done
+  # Clean up old heartbeat files (US-481: now stored in .spiral-workers/worker-N/.heartbeat)
+  # Worktrees removed above, so .heartbeat files are cleaned automatically
+  # Keep this for backward compatibility with any remaining old-style heartbeat files
+  [[ -d "$HEARTBEAT_DIR" ]] && rm -f "$HEARTBEAT_DIR"/worker_*.heartbeat 2>/dev/null || true
+  # Clean up cgroup slices (US-259)
+  for _cg_i in $(seq 1 "$RALPH_WORKERS"); do
+    _cgroup_cleanup "$_cg_i" 2>/dev/null || true
+  done
+  # Remove spiral cgroup parent dir if empty
+  rmdir "${_CGROUP_BASE}" 2>/dev/null || true
+  # Clean up memory pool ledger and lock
+  if type pool_cleanup &>/dev/null; then pool_cleanup 2>/dev/null || true; fi
+  echo "  [parallel] Cleanup done."
+}
+trap cleanup_parallel EXIT INT TERM
+
+REAL_DOCKER="$(command -v docker 2>/dev/null || echo docker)"
+
+# ── Cleanup: stale /tmp files and orphaned branches from previous runs ────────
+# /tmp cleanup (Idea 10): bench output files and docker lock dirs accumulate across runs
+rm -f /tmp/ralph-bench-output-worker-*.txt 2>/dev/null || true
+rm -rf /tmp/spiral-docker-lock-* 2>/dev/null || true
+# Stale branch cleanup (Idea 1): crashed runs leave orphaned spiral-worker-* branches
+# that git worktree prune cannot remove (only admin records are pruned, not branches).
+for _stale_branch in $(git -C "$REPO_ROOT" branch --format='%(refname:short)' 2>/dev/null | grep '^spiral-worker-' || true); do
+  # Only delete if NOT checked out in any live worktree
+  if ! git -C "$REPO_ROOT" worktree list --porcelain 2>/dev/null | grep -qF "branch refs/heads/${_stale_branch}"; then
+    git -C "$REPO_ROOT" branch -D "$_stale_branch" 2>/dev/null || true
+    echo "  [parallel] Pruned stale branch: $_stale_branch"
+  fi
+done
+git -C "$REPO_ROOT" worktree prune 2>/dev/null || true
+
+# ── Pre-flight memory check — compute initial launch count if RAM is low ──────
+# Per-worker budget: ~2048MB (1024 heap + ~1024 non-heap overhead for Zones, JIT, GC,
+# child processes). Previous 1536MB estimate was too low and caused OOM on Windows.
+# RALPH_WORKERS is never reduced — partitioning and worktree creation use the full N.
+# Only the number of workers launched immediately may be less than N; the rest are queued.
+_PER_WORKER_MB=2048
+_INITIAL_LAUNCH_COUNT="$RALPH_WORKERS" # default: launch all workers immediately
+
+# Dynamic memory pool: initialize shared pool from free RAM
+if [[ "$_POOL_ENABLED" -eq 1 ]]; then
+  if pool_init; then
+    _POOL_AVAIL=$(pool_available)
+    # Estimate initial launch count: smallest tier budget * N <= available
+    _POOL_MIN_TIER="${SPIRAL_POOL_TIER_SMALL:-768}"
+    MAX_SAFE=$((_POOL_AVAIL / _POOL_MIN_TIER))
+    [[ "$MAX_SAFE" -lt 1 ]] && MAX_SAFE=1
+    if [[ "$MAX_SAFE" -lt "$RALPH_WORKERS" ]]; then
+      echo "  [parallel] Pool: ${_POOL_AVAIL}MB available — launching $MAX_SAFE/$RALPH_WORKERS workers now, queueing rest"
+      _INITIAL_LAUNCH_COUNT="$MAX_SAFE"
+    fi
+  else
+    echo "  [parallel] Pool init failed — falling back to static ${_PER_WORKER_MB}MB budget"
+    _POOL_ENABLED=0
+  fi
+elif command -v powershell.exe &>/dev/null; then
+  FREE_MB=$(powershell.exe -Command \
+    "[math]::Floor((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory / 1024)" 2>/dev/null | tr -d '\r')
+  if [[ -n "$FREE_MB" && "$FREE_MB" =~ ^[0-9]+$ ]]; then
+    NEEDED_MB=$((RALPH_WORKERS * _PER_WORKER_MB + 512))
+    if [[ "$RALPH_WORKERS" -gt 1 && "$FREE_MB" -lt "$NEEDED_MB" ]]; then
+      MAX_SAFE=$(((FREE_MB - 512) / _PER_WORKER_MB))
+      [[ "$MAX_SAFE" -lt 1 ]] && MAX_SAFE=1
+      if [[ "$MAX_SAFE" -lt "$RALPH_WORKERS" ]]; then
+        echo "  [parallel] Memory: ${FREE_MB}MB free — launching $MAX_SAFE/$RALPH_WORKERS workers now, queueing rest"
+        _INITIAL_LAUNCH_COUNT="$MAX_SAFE"
+      fi
+    fi
+  fi
+fi
+
+# ── Initial worker cap from pressure file ──────────────────────────────────────
+if type spiral_recommended_workers &>/dev/null && [[ "${SPIRAL_LOW_POWER_MODE:-1}" -eq 1 ]]; then
+  _REC_W=$(spiral_recommended_workers)
+  if [[ -n "$_REC_W" && "$_REC_W" =~ ^[0-9]+$ && "$_REC_W" -lt "$_INITIAL_LAUNCH_COUNT" ]]; then
+    echo "  [parallel] Memory pressure: launching $_REC_W/$RALPH_WORKERS workers initially, queueing rest"
+    spiral_log_low_power "run_parallel: initial worker cap $_INITIAL_LAUNCH_COUNT -> $_REC_W (deferred queue)"
+    _INITIAL_LAUNCH_COUNT="$_REC_W"
+  fi
+fi
+
+# ── Build deferred launch queue ────────────────────────────────────────────────
+# Workers beyond _INITIAL_LAUNCH_COUNT are queued; the adaptive wait loop drains
+# them as memory pressure eases (instead of discarding them entirely).
+declare -a _WORKER_LAUNCH_QUEUE=()
+if [[ "$_INITIAL_LAUNCH_COUNT" -lt "$RALPH_WORKERS" ]]; then
+  for _qi in $(seq $((_INITIAL_LAUNCH_COUNT + 1)) "$RALPH_WORKERS"); do
+    _WORKER_LAUNCH_QUEUE+=("$_qi")
+  done
+  echo "  [parallel] Launch queue: workers ${_WORKER_LAUNCH_QUEUE[*]} deferred until memory allows"
+fi
+
+echo "  [parallel] ═══════════════════════════════════════════════════"
+echo "  [parallel]  PARALLEL RALPH — $RALPH_WORKERS workers"
+echo "  [parallel]  Iters/worker:  $ITER_PER_WORKER (total budget: $RALPH_MAX_ITERS)"
+echo "  [parallel]  Docker lock:   $LOCK_DIR"
+if [[ "$WORKER_TIMEOUT" -gt 0 ]]; then
+  echo "  [parallel]  Worker timeout: ${WORKER_TIMEOUT}s (SIGTERM + 60s SIGKILL)"
+else
+  echo "  [parallel]  Worker timeout: disabled (SPIRAL_WORKER_TIMEOUT=0)"
+fi
+[[ -n "${SPIRAL_FOCUS:-}" ]] && echo "  [parallel]  Focus:         $SPIRAL_FOCUS"
+[[ -n "$PATCH_DIRS" ]] && echo "  [parallel]  Patch dirs:    $PATCH_DIRS"
+[[ -n "$DEPLOY_CMD" ]] && echo "  [parallel]  Deploy cmd:    (configured)"
+echo "  [parallel] ═══════════════════════════════════════════════════"
+
+# ── Step 0: Gemini filesTouch pre-annotation (optional) ─────────────────────
+# Pre-populates filesTouch so partition_prd.py can co-locate related stories,
+# reducing merge conflicts across parallel workers.
+if command -v gemini &>/dev/null && [[ -n "$GEMINI_ANNOTATE" ]]; then
+  echo "  [parallel] Step 0: Gemini filesTouch pre-annotation..."
+  PENDING_IDS=$("$JQ" -r '.userStories[] | select(.passes != true) | .id' "$PRD_FILE" | tr -d '\r')
+  ANNOTATION_COUNT=0
+  for story_id in $PENDING_IDS; do
+    # Skip stories that already have filesTouch populated
+    EXISTING_FILES=$("$JQ" -r ".userStories[] | select(.id == \"$story_id\") | .filesTouch // [] | length" "$PRD_FILE" 2>/dev/null || echo "0")
+    if [[ "$EXISTING_FILES" -gt 0 ]]; then
+      continue
+    fi
+    STORY_TITLE=$("$JQ" -r ".userStories[] | select(.id == \"$story_id\") | .title" "$PRD_FILE" | tr -d '\r')
+    # Ask gemini which files this story touches; extract first JSON array from response
+    PROMPT="${GEMINI_ANNOTATE//__STORY_TITLE__/$STORY_TITLE}"
+    FILES=$(gemini \
+      -m gemini-2.0-flash \
+      -p "$PROMPT" \
+      --output-format text 2>/dev/null | grep -o '\[.*\]' | head -1 || echo "[]")
+    if [[ "$FILES" != "[]" && -n "$FILES" ]]; then
+      UPDATED=$("$JQ" --arg id "$story_id" --argjson files "$FILES" \
+        '(.userStories[] | select(.id == $id) | .filesTouch) = $files' "$PRD_FILE" 2>/dev/null) || true
+      [[ -n "$UPDATED" ]] && echo "$UPDATED" >"$PRD_FILE"
+      ANNOTATION_COUNT=$((ANNOTATION_COUNT + 1))
+    fi
+  done
+  echo "  [parallel] Gemini annotated $ANNOTATION_COUNT stories with filesTouch hints"
+else
+  echo "  [parallel] Step 0: gemini annotation skipped (not configured or gemini not found)"
+fi
+echo ""
+
+# ── Source assertion library (set SPIRAL_PYTHON for compatibility) ────────────
+SPIRAL_PYTHON="${SPIRAL_PYTHON:-$PYTHON}"
+export SPIRAL_PYTHON
+source "$SPIRAL_HOME/lib/spiral_assert.sh"
+source "$SPIRAL_HOME/lib/crash_capture.sh"
+
+# ── Resolve spiral-core binary (Rust hot-path) ────────────────────────────────
+_SC_BIN=""
+for _sc in "$SPIRAL_HOME/lib/spiral-core" "$SPIRAL_HOME/lib/spiral-core.exe"; do
+  [[ -f "$_sc" && -x "$_sc" ]] && {
+    _SC_BIN="$_sc"
+    break
+  }
+done
+
+# ── Step 1: Partition pending stories into worker prd files ───────────────────
+mkdir -p "$WORKER_DIR"
+# Clear stale worker logs from previous runs so the UI doesn't show old errors
+for _i in $(seq 1 "$RALPH_WORKERS"); do
+  : >"$WORKER_DIR/worker_${_i}.log"
+done
+if [[ -n "$_SC_BIN" ]]; then
+  "$_SC_BIN" partition \
+    --prd "$PRD_FILE" \
+    --workers "$RALPH_WORKERS" \
+    --outdir "$WORKER_DIR"
+else
+  "$PYTHON" "$SPIRAL_HOME/lib/prd/partition_prd.py" \
+    --prd "$PRD_FILE" \
+    --workers "$RALPH_WORKERS" \
+    --outdir "$WORKER_DIR"
+fi
+
+# ── Step 1.5: Verify worker partitions have no overlapping pending stories ────
+WORKER_PRD_FILES=()
+for i in $(seq 1 "$RALPH_WORKERS"); do
+  WORKER_PRD_FILES+=("$WORKER_DIR/worker_${i}.json")
+done
+spiral_assert_worker_disjoint "$WORKER_DIR" "${WORKER_PRD_FILES[@]}"
+
+# ── Step 1.7: Compute tier assignments for DAG-aware dispatch (US-361) ─────────
+# Only if SPIRAL_DISPATCH_MODE is not 'parallel' (default is 'dag')
+DISPATCH_MODE="${SPIRAL_DISPATCH_MODE:-dag}"
+_TIER_DISPATCH_ENABLED=0
+declare -A TIER_WORKERS=() # tier_num → space-separated worker list
+TOTAL_TIERS=0
+
+if [[ "$DISPATCH_MODE" != "parallel" ]]; then
+  # Compute tier assignments: which tier each story belongs to
+  TIER_JSON=$("$PYTHON" "$SPIRAL_HOME/lib/prd/check_dag.py" "$PRD_FILE" --tiers 2>/dev/null || echo "{}")
+
+  if [[ -n "$TIER_JSON" && "$TIER_JSON" != "{}" ]]; then
+    # Parse tier JSON and build tier→workers mapping using jq
+    # For each worker, find the max tier among its stories
+    for i in $(seq 1 "$RALPH_WORKERS"); do
+      WORKER_FILE="$WORKER_DIR/worker_${i}.json"
+      if [[ -f "$WORKER_FILE" ]]; then
+        # Get max tier in this worker: extract story IDs, look up in TIER_JSON, find max
+        MAX_TIER=$("$JQ" -r '.userStories[].id' "$WORKER_FILE" 2>/dev/null |
+          while read -r sid; do
+            [[ -z "$sid" ]] && continue
+            echo "$TIER_JSON" | "$JQ" --arg id "$sid" '.[$id] // 0' 2>/dev/null || echo "0"
+          done | sort -rn | head -1 || echo "0")
+        [[ -z "$MAX_TIER" ]] && MAX_TIER=0
+
+        # Add this worker to all tier buckets up to its max tier
+        for tier in $(seq 0 "$MAX_TIER"); do
+          TIER_WORKERS[$tier]="${TIER_WORKERS[$tier]:-} $i"
+          [[ "$tier" -ge "$TOTAL_TIERS" ]] && TOTAL_TIERS=$((tier + 1))
+        done
+      fi
+    done
+
+    if [[ "$TOTAL_TIERS" -gt 0 ]]; then
+      _TIER_DISPATCH_ENABLED=1
+      echo "  [parallel] DAG dispatch enabled: $TOTAL_TIERS tier(s) detected"
+      for tier in $(seq 0 $((TOTAL_TIERS - 1))); do
+        WORKERS_IN_TIER=$(echo "${TIER_WORKERS[$tier]:-}" | tr ' ' '\n' | sort -u | tr '\n' ' ' | xargs)
+        echo "  [parallel]   Tier $tier: workers [$WORKERS_IN_TIER]"
+      done
+    fi
+  fi
+fi
+
+if [[ "$_TIER_DISPATCH_ENABLED" -ne 1 ]]; then
+  echo "  [parallel] Dispatch mode: parallel (legacy all-parallel)"
+  DISPATCH_MODE="parallel"
+fi
+
+# ── Disk space preflight check ────────────────────────────────────────────────
+# Estimates working-tree size × workers; aborts if > 90% of available space.
+# Git worktrees share .git objects, so actual use ≈ working tree size per worker.
+if [[ "${SPIRAL_SKIP_DISK_CHECK:-0}" != "1" ]]; then
+  _REPO_SIZE_KB=$(du -sk "$REPO_ROOT" 2>/dev/null | awk '{print $1}' || echo "0")
+  _AVAIL_KB=$(df -k "$REPO_ROOT" 2>/dev/null | awk 'NR==2 {print $4}' || echo "0")
+  if [[ "$_REPO_SIZE_KB" =~ ^[0-9]+$ && "$_AVAIL_KB" =~ ^[0-9]+$ &&
+    "$_REPO_SIZE_KB" -gt 0 && "$_AVAIL_KB" -gt 0 ]]; then
+    _NEEDED_KB=$((_REPO_SIZE_KB * RALPH_WORKERS))
+    # Abort if estimated need exceeds 90% of available space
+    if ((_NEEDED_KB * 10 > _AVAIL_KB * 9)); then
+      echo "  [parallel] ERROR: Insufficient disk space for $RALPH_WORKERS worktrees."
+      echo "  [parallel]   Repo size:       $((_REPO_SIZE_KB / 1024)) MB"
+      echo "  [parallel]   Workers:         $RALPH_WORKERS"
+      echo "  [parallel]   Estimated need:  $((_NEEDED_KB / 1024)) MB  ($RALPH_WORKERS × $((_REPO_SIZE_KB / 1024)) MB)"
+      echo "  [parallel]   Available:       $((_AVAIL_KB / 1024)) MB"
+      echo "  [parallel]   Set SPIRAL_SKIP_DISK_CHECK=1 to bypass this check."
+      exit 1
+    else
+      echo "  [parallel] Disk OK: need ~$((_NEEDED_KB / 1024))MB, have $((_AVAIL_KB / 1024))MB free"
+    fi
+  else
+    echo "  [parallel] Disk check: could not read disk stats — skipping (graceful degradation)"
+  fi
+fi
+
+# ── Step 1.9: Shared git fetch (US-351) ──────────────────────────────────────
+# All worktrees share .git/objects, so one fetch populates objects for all.
+# This replaces O(N) per-worker fetches with a single O(1) network transfer.
+if [[ "${SPIRAL_SKIP_SHARED_FETCH:-0}" != "1" ]]; then
+  echo "  [parallel] Shared git fetch before worker launch..."
+  _SHARED_FETCH_START=$(date +%s)
+  git -C "$REPO_ROOT" fetch --all --prune 2>/dev/null || true
+  _SHARED_FETCH_END=$(date +%s)
+  _SHARED_FETCH_ELAPSED_MS=$(((_SHARED_FETCH_END - _SHARED_FETCH_START) * 1000))
+  echo "  [parallel] Shared fetch complete (${_SHARED_FETCH_ELAPSED_MS}ms, synced for $RALPH_WORKERS workers)"
+  printf '{"ts":"%s","event":"shared_fetch_complete","run_id":"%s","worker_count":%d,"elapsed_ms":%d}\n' \
+    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${SPIRAL_RUN_ID:-}" "$RALPH_WORKERS" "$_SHARED_FETCH_ELAPSED_MS" \
+    >>"$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || true
+fi
+
+# ── Step 2: Create git worktrees + docker lock wrapper per worker ─────────────
+declare -a WORKER_DIRS=()
+declare -a WORKER_BRANCHES=()
+
+for i in $(seq 1 "$RALPH_WORKERS"); do
+  BRANCH="spiral-worker-${i}-${TIMESTAMP}"
+  WTREE="$WORKTREE_BASE/worker-${i}"
+
+  # Reset dirty worktree before removal to recover from abrupt termination (US-218)
+  # US-247: fast diff-index pre-check before expensive full status
+  if [[ -d "$WTREE" ]]; then
+    _wt_is_dirty=false
+    if ! git -C "$WTREE" diff-index --quiet HEAD -- 2>/dev/null; then
+      # diff-index reports dirty — confirm with full status
+      _wt_dirty=$(git -C "$WTREE" status --porcelain 2>/dev/null) || true
+      [[ -n "$_wt_dirty" ]] && _wt_is_dirty=true
+    fi
+    if [[ "$_wt_is_dirty" == true ]]; then
+      echo "  [parallel] Worker $i: dirty worktree detected — resetting before recreation"
+      git -C "$WTREE" reset HEAD 2>/dev/null || true
+      git -C "$WTREE" checkout -- . 2>/dev/null || true
+      git -C "$WTREE" clean -fd 2>/dev/null || true
+      printf '{"ts":"%s","event":"worker_reset_dirty_worktree","run_id":"%s","worker":%d}\n' \
+        "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${SPIRAL_RUN_ID:-}" "$i" \
+        >>"$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || true
+    fi
+  fi
+  # Remove stale worktree if it exists
+  git -C "$REPO_ROOT" worktree remove "$WTREE" --force 2>/dev/null || rm -rf "$WTREE" 2>/dev/null || true
+  # Clean up orphaned index.lock from OOM-killed previous worker (Idea 2)
+  # index.lock is always safe to remove when the process that created it is dead
+  if [[ -f "$WTREE/.git" ]]; then
+    _GIT_DIR=$(sed 's/^gitdir: //' "$WTREE/.git" 2>/dev/null || true)
+    [[ -n "$_GIT_DIR" && -f "$_GIT_DIR/index.lock" ]] && rm -f "$_GIT_DIR/index.lock" &&
+      echo "  [parallel] Removed stale index.lock for worker $i"
+  elif [[ -f "$WTREE/.git/index.lock" ]]; then
+    rm -f "$WTREE/.git/index.lock"
+    echo "  [parallel] Removed stale index.lock for worker $i"
+  fi
+  # Guard against 'branch already checked out': if the target branch appears in any
+  # existing worktree, fall back to detached HEAD mode to avoid a hard failure.
+  if git -C "$REPO_ROOT" worktree list --porcelain 2>/dev/null | grep -qF "branch refs/heads/${BRANCH}"; then
+    echo "  [parallel] Worker $i: branch '$BRANCH' already checked out in another worktree — falling back to detached HEAD"
+    git -C "$REPO_ROOT" worktree add --detach --lock --reason "spiral-worker-${i}" "$WTREE" HEAD
+    BRANCH="" # No dedicated branch; cleanup and diff steps skip gracefully
+  else
+    git -C "$REPO_ROOT" worktree add --lock --reason "spiral-worker-${i}" "$WTREE" -b "$BRANCH" HEAD
+  fi
+
+  # US-246: Sync worktree with already-fetched origin/main (no per-worker fetch needed)
+  # The main repo performed a single shared fetch before workers were created
+  if ! git -C "$WTREE" reset --hard origin/main 2>/dev/null; then
+    echo "  [parallel] Worker $i: WARNING — git reset --hard origin/main failed (branch may not be synced with latest)"
+  fi
+
+  # Overlay worker prd.json + override branchName to match the worker's own branch
+  cp "$WORKER_DIR/worker_${i}.json" "$WTREE/prd.json"
+  "$JQ" --arg b "$BRANCH" '.branchName = $b' "$WTREE/prd.json" >"$WTREE/prd.json.tmp" && mv "$WTREE/prd.json.tmp" "$WTREE/prd.json"
+
+  # US-376: Sparse-checkout disabled — it restricts workers to a subset of
+  # files, causing Ralph to fail when it needs lib/ modules or other files
+  # outside the filesTouch set. Full checkout is safer for correctness.
+  echo "  [parallel] Worker $i: Full checkout (sparse-checkout disabled)"
+
+  # Fresh per-worker state files (avoid cross-worker contamination)
+  echo "{}" >"$WTREE/retry-counts.json"
+  echo "## Worker $i progress" >"$WTREE/progress.txt"
+
+  # ── Docker lock wrapper ─────────────────────────────────────────────────
+  # Serializes: docker cp  AND  docker exec ... bench (migrate/run-tests)
+  # All other docker commands pass through immediately.
+  mkdir -p "$WTREE/.spiral-bin"
+  WRAPPER="$WTREE/.spiral-bin/docker"
+  cat >"$WRAPPER" <<WRAPPER_SCRIPT
+#!/bin/bash
+# Parallel Ralph docker lock wrapper — serializes container deploy+test ops
+REAL="$REAL_DOCKER"
+LOCK="$LOCK_DIR"
+NEEDS_LOCK=0
+[[ "\$1" == "cp" ]] && NEEDS_LOCK=1
+# Lock only write-mutating bench operations; read-only calls pass through
+[[ "\$*" == *"bench migrate"* ]] && NEEDS_LOCK=1
+[[ "\$*" == *"bench sync_fixtures"* ]] && NEEDS_LOCK=1
+[[ "\$*" == *"bench install-app"* ]] && NEEDS_LOCK=1
+if [[ "\$NEEDS_LOCK" -eq 1 ]]; then
+  # Spin-wait using mkdir atomicity (works on all POSIX + MSYS2 / Git Bash)
+  # Timeout after 120s to prevent infinite deadlock if lock holder crashed
+  _LOCK_WAIT=0
+  while ! mkdir "\$LOCK" 2>/dev/null; do
+    sleep 1
+    _LOCK_WAIT=\$((_LOCK_WAIT + 1))
+    if [[ "\$_LOCK_WAIT" -ge 120 ]]; then
+      echo "[docker-lock] WARNING: Lock held for 120s, assuming stale — breaking lock" >&2
+      rmdir "\$LOCK" 2>/dev/null || rm -rf "\$LOCK" 2>/dev/null || true
+      mkdir "\$LOCK" 2>/dev/null || true
+      break
+    fi
+  done
+  "\$REAL" "\$@"
+  RC=\$?
+  rmdir "\$LOCK" 2>/dev/null || true
+  exit \$RC
+else
+  exec "\$REAL" "\$@"
+fi
+WRAPPER_SCRIPT
+  chmod +x "$WRAPPER"
+
+  # Patch ralph-config.sh: use per-worker bench output file to avoid cross-worker race.
+  WORKER_BENCH_OUT="/tmp/ralph-bench-output-worker-${i}.txt"
+  sed -i "s|/tmp/ralph-bench-output\.txt|${WORKER_BENCH_OUT}|g" "$WTREE/ralph-config.sh" 2>/dev/null || true
+
+  # ── pnpm global virtual store deduplication (US-122) ─────────────────────────
+  # When pnpm is detected, each worktree shares the global store instead of
+  # copying node_modules, reducing per-worktree disk usage by 50-80%.
+  if [[ "${SPIRAL_SKIP_PNPM_DEDUP:-0}" != "1" ]] && command -v pnpm &>/dev/null && [[ -f "$REPO_ROOT/package.json" ]]; then
+    # Copy pnpm-workspace.yaml into worktree if it exists in repo root
+    if [[ -f "$REPO_ROOT/pnpm-workspace.yaml" ]]; then
+      cp "$REPO_ROOT/pnpm-workspace.yaml" "$WTREE/pnpm-workspace.yaml" 2>/dev/null || true
+    fi
+    echo "  [parallel] Worker $i: pnpm detected — running pnpm install --prefer-offline"
+    if (cd "$WTREE" && pnpm install --prefer-offline --ignore-scripts 2>/dev/null); then
+      echo "  [parallel] Worker $i: pnpm install succeeded (global store linked)"
+    else
+      echo "  [parallel] Worker $i: pnpm install failed — falling back to node_modules copy from main worktree"
+      if [[ -d "$REPO_ROOT/node_modules" ]]; then
+        cp -r "$REPO_ROOT/node_modules" "$WTREE/node_modules" 2>/dev/null || true
+        echo "  [parallel] Worker $i: node_modules copy fallback done"
+      else
+        echo "  [parallel] Worker $i: WARNING — no node_modules in repo root to fall back to"
+      fi
+    fi
+  fi
+
+  STORY_COUNT=$("$JQ" '[.userStories[] | select(.passes != true)] | length' "$WTREE/prd.json" 2>/dev/null || echo "?")
+  echo "  [parallel] Worker $i ready — branch: $BRANCH | pending: $STORY_COUNT stories"
+
+  WORKER_DIRS+=("$WTREE")
+  WORKER_BRANCHES+=("$BRANCH")
+done
+
+# ── Step 2.5: Spawn live monitor terminal per worker (if --monitor) ───────────
+if [[ "$MONITOR_TERMINALS" -eq 1 ]]; then
+  # Kill stale monitor terminals from previous iterations to prevent accumulation
+  if command -v wmic &>/dev/null; then
+    _stale_pids=$(wmic process where "name like '%mintty%' and commandline like '%SPIRAL Worker%'" get processid 2>/dev/null | grep -oE '[0-9]+' || true)
+    if [[ -n "$_stale_pids" ]]; then
+      echo "  [parallel] Cleaning up $(echo "$_stale_pids" | wc -l | tr -d ' ') stale monitor window(s)..."
+      for _pid in $_stale_pids; do
+        taskkill //PID "$_pid" //F &>/dev/null || true
+      done
+      sleep 0.3
+    fi
+  fi
+
+  # Auto-detect terminal emulator
+  if [[ -n "$TERMINAL_EMU" ]]; then
+    WT_EXE="$TERMINAL_EMU"
+  elif [[ -f "/c/Users/${USER:-${USERNAME:-}}/AppData/Local/Microsoft/WindowsApps/wt.exe" ]]; then
+    WT_EXE="/c/Users/${USER:-${USERNAME:-}}/AppData/Local/Microsoft/WindowsApps/wt.exe"
+  else
+    WT_EXE=""
+  fi
+
+  for i in $(seq 1 "$RALPH_WORKERS"); do
+    LOG="$WORKER_DIR/worker_${i}.log"
+    touch "$LOG" # ensure file exists before tail -f attaches
+
+    TITLE="SPIRAL Worker $i"
+    INNER="echo '=== $TITLE — live log (ANSI colors ON) ==='; echo; tail -f '$LOG'"
+
+    if [[ -n "$WT_EXE" && -f "$WT_EXE" ]]; then
+      # Escape semicolons for wt.exe — it treats unescaped ';' as its own command separator
+      _WT_INNER="${INNER//;/\\;}"
+      "$WT_EXE" --window 0 new-tab --title "$TITLE" -- bash.exe -c "$_WT_INNER" &
+    elif command -v mintty &>/dev/null; then
+      mintty --title "$TITLE" /bin/bash -c "$INNER" &
+    else
+      echo "  [parallel] WARNING: no terminal emulator found for --monitor"
+      break
+    fi
+
+    echo "  [parallel] Monitor terminal opened for worker $i"
+    sleep 0.3 # brief stagger so wt.exe doesn't race when opening multiple tabs
+  done
+fi
+
+# ── Memory gate helper — wait until enough RAM is free before spawning ────────
+# Prevents all workers launching simultaneously and collectively OOM'ing.
+# Waits indefinitely while active workers can free memory; gives up quickly
+# when no workers are running (nothing will free RAM).
+wait_for_memory() {
+  local min_mb=${1:-2048}
+  if ! command -v powershell.exe &>/dev/null; then
+    return 0 # skip on non-Windows (no CIM)
+  fi
+  local attempts=0
+  local _max_mins="${SPIRAL_MEMORY_WAIT_MAX_MINS:-5}"
+  while true; do
+    local free_mb
+    free_mb=$(powershell.exe -NoProfile -Command \
+      "[math]::Floor((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory / 1024)" \
+      2>/dev/null | tr -d '\r')
+    if [[ -z "$free_mb" || ! "$free_mb" =~ ^[0-9]+$ ]]; then
+      break # can't read memory — don't block forever
+    fi
+    if [[ "$free_mb" -ge "$min_mb" ]]; then
+      break
+    fi
+    echo "  [memory-gate] Only ${free_mb}MB free, waiting for ${min_mb}MB before spawning..."
+    type spiral_log_low_power &>/dev/null &&
+      spiral_log_low_power "memory-gate: ${free_mb}MB free < ${min_mb}MB required, waiting"
+    attempts=$((attempts + 1))
+    # Hard timeout (if configured via SPIRAL_MEMORY_WAIT_MAX_MINS)
+    if [[ "$_max_mins" -gt 0 && "$attempts" -ge $((_max_mins * 6)) ]]; then
+      echo "  [memory-gate] Hard timeout reached (${_max_mins} min) — proceeding anyway"
+      break
+    fi
+    # No workers running = nothing will free memory; give up after brief grace period
+    local _active=0
+    for _pid in "${WORKER_PIDS[@]:-}"; do
+      kill -0 "$_pid" 2>/dev/null && _active=$((_active + 1))
+    done
+    if [[ "$_active" -eq 0 && "$attempts" -ge 3 ]]; then
+      echo "  [memory-gate] No active workers to free memory — proceeding"
+      break
+    fi
+    sleep 10
+  done
+}
+
+# ── Step 3: Launch all workers in background (staggered) ─────────────────────
+# Workers are staggered by 20 seconds to let each process complete its initial
+# V8 compilation (the most memory-intensive phase) before the next one starts.
+# Only _INITIAL_LAUNCH_COUNT workers launch immediately; the rest sit in
+# _WORKER_LAUNCH_QUEUE and are drained by the adaptive wait loop as RAM frees up.
+STAGGER_DELAY=20 # seconds between worker launches
+
+# Detect setsid availability — used to isolate worker processes from terminal SIGINT
+_USE_SETSID=0
+if command -v setsid &>/dev/null; then
+  _USE_SETSID=1
+fi
+
+# ── US-245: Inspect a crashed worker's worktree for corrupted shared resources ─
+# Removes stale git lock files and incomplete atomic writes before the next retry.
+_inspect_crashed_worktree() {
+  local wtree="$1"
+  local worker_num="$2"
+  local _cleaned=0
+  [[ -d "$wtree" ]] || return 0
+  # Remove stale git lock files (left behind when ralph was killed mid-operation)
+  while IFS= read -r -d '' _lf; do
+    rm -f "$_lf" 2>/dev/null && _cleaned=1 &&
+      echo "  [parallel] Worker $worker_num crash-clean: removed stale lock $_lf"
+  done < <(find "$wtree/.git" -name "*.lock" -print0 2>/dev/null)
+  # Remove incomplete atomic prd.json write
+  if [[ -f "$wtree/prd.json.tmp" ]]; then
+    rm -f "$wtree/prd.json.tmp" 2>/dev/null
+    echo "  [parallel] Worker $worker_num crash-clean: removed prd.json.tmp"
+    _cleaned=1
+  fi
+  # Remove incomplete context stats file
+  if [[ -f "$wtree/.spiral/_context_stats.json.tmp" ]]; then
+    rm -f "$wtree/.spiral/_context_stats.json.tmp" 2>/dev/null
+    _cleaned=1
+  fi
+  if [[ "$_cleaned" -eq 0 ]]; then
+    echo "  [parallel] Worker $worker_num crash-clean: worktree appears clean"
+  fi
+  return 0
+}
+
+# ── US-355: Worker launch input audit ────────────────────────────────────────
+# Verifies that each worker receives ONLY the story slice, Ralph system prompt,
+# and prd.json subset — never the full spiral.sh session log or prior worker outputs.
+# Logs worker_launch_audit event to spiral_events.jsonl.
+# In SPIRAL_STRICT_WORKER_ISOLATION=true mode, aborts on any policy violation.
+#
+# Allowed env vars: PATH, HOME, TERM, SHELL, USER, LANG, LC_*, TZ, TMPDIR,
+#   SPIRAL_WORKER_ID, SPIRAL_SCRATCH_DIR, SPIRAL_MEMORY_LIMIT, SPIRAL_PYTHON,
+#   HEARTBEAT_DIR, TRACEPARENT, TRACESTATE, SPIRAL_*, NODE_*, ANTHROPIC_*,
+#   CLAUDE_*, RALPH_*, JQ, PYTHON
+_WORKER_ENV_ALLOWLIST='PATH|HOME|TERM|SHELL|USER|LANG|LC_.*|TZ|TMPDIR|SPIRAL_.*|NODE_.*|ANTHROPIC_.*|CLAUDE_.*|RALPH_.*|HEARTBEAT_DIR|TRACEPARENT|TRACESTATE|JQ|PYTHON|PWD|OLDPWD|SHLVL|_'
+
+_audit_worker_launch() {
+  local worker_num="$1"
+  local wtree="$2"
+  local violations=0
+  local violation_details=""
+
+  # 1. Check prd.json in worktree is a proper slice (not the full PRD)
+  local full_count slice_count
+  full_count=$("$JQ" '[.userStories | length] | .[0]' "$PRD_FILE" 2>/dev/null || echo "0")
+  slice_count=$("$JQ" '[.userStories | length] | .[0]' "$wtree/prd.json" 2>/dev/null || echo "0")
+  local prd_audit="slice:${slice_count}/${full_count}"
+  if [[ "$slice_count" -ge "$full_count" && "$full_count" -gt 0 ]]; then
+    prd_audit="${prd_audit}:WARN_full_prd"
+    violation_details="${violation_details}prd.json is full copy not slice; "
+    violations=$((violations + 1))
+  fi
+
+  # 2. Audit exported environment for unexpected vars
+  #    Collect env vars that will be inherited by the worker subshell
+  local unexpected_vars=""
+  local unexpected_count=0
+  while IFS='=' read -r varname _; do
+    if [[ -n "$varname" ]] && ! echo "$varname" | grep -qE "^(${_WORKER_ENV_ALLOWLIST})$"; then
+      unexpected_vars="${unexpected_vars}${varname},"
+      unexpected_count=$((unexpected_count + 1))
+    fi
+  done < <(env 2>/dev/null)
+
+  if [[ "$unexpected_count" -gt 0 ]]; then
+    violation_details="${violation_details}${unexpected_count} unexpected env vars: ${unexpected_vars%,}; "
+    violations=$((violations + 1))
+  fi
+
+  # 3. Verify no session log file is passed or accessible via env
+  local session_log_leak="false"
+  if [[ -n "${LOG_FILE:-}" && -f "${LOG_FILE:-}" ]]; then
+    local log_size
+    log_size=$(wc -c <"$LOG_FILE" 2>/dev/null || echo "0")
+    if [[ "$log_size" -gt 0 ]]; then
+      session_log_leak="true"
+      violation_details="${violation_details}LOG_FILE env points to ${log_size}-byte session log; "
+      violations=$((violations + 1))
+    fi
+  fi
+
+  # 4. Check that ralph.sh invocation uses only prd.json (not --input-file with session data)
+  #    The launch command is: bash "$RALPH_SKILL" "$ITER_PER_WORKER" --prd prd.json
+  #    This is safe by construction, but log it for audit trail
+  local cmd_audit="ralph_args:${ITER_PER_WORKER}:--prd:prd.json"
+
+  # Build audit result
+  local status="pass"
+  if [[ "$violations" -gt 0 ]]; then
+    status="warn"
+    echo "  [audit] WARN: Worker $worker_num launch has $violations policy violation(s): ${violation_details%%; }" >&2
+  fi
+
+  # Log to spiral_events.jsonl
+  local ts
+  ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  printf '{"ts":"%s","event":"worker_launch_audit","run_id":"%s","worker":%d,"status":"%s","violations":%d,"prd_audit":"%s","session_log_leak":%s,"unexpected_env_count":%d,"cmd_audit":"%s"%s}\n' \
+    "$ts" "${SPIRAL_RUN_ID:-}" "$worker_num" "$status" "$violations" \
+    "$prd_audit" "$session_log_leak" "$unexpected_count" "$cmd_audit" \
+    "${violation_details:+,\"details\":\"${violation_details%%; }\"}" \
+    >>"$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || true
+
+  # Strict mode: abort on any violation
+  if [[ "$STRICT_WORKER_ISOLATION" == "true" && "$violations" -gt 0 ]]; then
+    echo "  [audit] FATAL: SPIRAL_STRICT_WORKER_ISOLATION=true — aborting due to $violations violation(s)" >&2
+    exit 1
+  fi
+
+  return 0
+}
+
+# ── US-359: Restrict worker env to allowlist ─────────────────────────────────
+# Called INSIDE the worker subshell before launching ralph.sh.
+# Unsets all exported env vars not matching _WORKER_ENV_ALLOWLIST_RE.
+# Logs a worker_env_audit event with passed/removed key names (no values).
+_restrict_worker_env() {
+  local worker_num="$1"
+  local _passed=""
+  local _removed=""
+  local _passed_count=0
+  local _removed_count=0
+
+  while IFS='=' read -r _vname _; do
+    if [[ -z "$_vname" ]]; then
+      continue
+    fi
+    if echo "$_vname" | grep -qE "^(${_WORKER_ENV_ALLOWLIST_RE})$"; then
+      _passed="${_passed}${_vname},"
+      _passed_count=$((_passed_count + 1))
+    else
+      _removed="${_removed}${_vname},"
+      _removed_count=$((_removed_count + 1))
+      unset "$_vname" 2>/dev/null || true
+    fi
+  done < <(env 2>/dev/null)
+
+  # Log worker_env_audit event (key names only, never values)
+  local _ts
+  _ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  printf '{"ts":"%s","event":"worker_env_audit","run_id":"%s","worker":%d,"passed_count":%d,"removed_count":%d,"passed_keys":"%s","removed_keys":"%s"}\n' \
+    "$_ts" "${SPIRAL_RUN_ID:-}" "$worker_num" \
+    "$_passed_count" "$_removed_count" \
+    "${_passed%,}" "${_removed%,}" \
+    >>"$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || true
+}
+
+# ── Reusable worker launch function ──────────────────────────────────────────
+# Launches worker $1 in a background subshell, appends to WORKER_PIDS /
+# WORKER_FINISHED / WORKER_EXIT_CODES, writes PID file, and disowns.
+_launch_worker_i() {
+  local i="$1"
+  local WTREE="${WORKER_DIRS[$((i - 1))]}"
+  local LOG="$WORKER_DIR/worker_${i}.log"
+  touch "$LOG"
+  # US-355: Audit worker launch inputs before spawning
+  _audit_worker_launch "$i" "$WTREE"
+  local _WORKER_MODEL_FLAG=""
+  [[ -n "$RALPH_MODEL" ]] && _WORKER_MODEL_FLAG="--model $RALPH_MODEL"
+  echo "  [parallel] Launching worker $i → log: $LOG"
+  local _EXIT_CODE_FILE="$WORKTREE_BASE/worker-${i}/exit_code"
+  # US-245: PGID file — the setsid'd bash writes its own PID (= its PGID) here on startup
+  local _PGID_FILE="$WORKTREE_BASE/worker-${i}/worker.pgid"
+  : >"$_PGID_FILE" # initialise empty
+  # US-259: Create cgroup slice before spawning (no-op + warning if unavailable)
+  _cgroup_setup "$i" || true
+  (
+    _UNLOCK_REPO="$REPO_ROOT"
+    _UNLOCK_WTREE="$WTREE"
+    _WORKER_NUM=$i
+    _EXIT_FILE="$_EXIT_CODE_FILE"
+    _HB_CLEANUP='
+      if type worker_heartbeat_stop &>/dev/null; then worker_heartbeat_stop "$_WORKER_NUM" 2>/dev/null || true; fi
+      if type pool_release &>/dev/null; then pool_release "$_WORKER_NUM" 2>/dev/null || true; fi
+      git -C "$_UNLOCK_REPO" worktree unlock "$_UNLOCK_WTREE" 2>/dev/null || true
+      _cgroup_cleanup "$_WORKER_NUM" 2>/dev/null || true
+    '
+    trap "$_HB_CLEANUP" EXIT
+    cd "$WTREE"
+    export PATH="$WTREE/.spiral-bin:$PATH"
+    export SPIRAL_WORKER_ID=$i HEARTBEAT_DIR="$WORKTREE_BASE/worker-${i}"
+    # Dynamic pool: reserve memory based on story complexity; static: use fixed limit
+    if [[ "${_POOL_ENABLED:-0}" -eq 1 ]]; then
+      # Classify first story in this worker's PRD slice
+      local _story_json
+      _story_json=$("$JQ" -c '[.userStories[] | select(.passes != true)] | first // {}' "$WTREE/prd.json" 2>/dev/null || echo "{}")
+      local _tier_info _tier _reserve_mb _v8_heap
+      _tier_info=$(pool_classify_budget "$_story_json")
+      _tier="${_tier_info%% *}"
+      _reserve_mb="${_tier_info##* }"
+      if pool_reserve "$i" "$_reserve_mb" "$_tier" >/dev/null 2>&1; then
+        _v8_heap=$(pool_compute_v8_heap "$_reserve_mb")
+        export SPIRAL_MEMORY_LIMIT="$_v8_heap"
+        echo "  [parallel] Worker $i: pool reserved ${_reserve_mb}MB (tier=$_tier, v8_heap=${_v8_heap}MB)"
+      else
+        # Pool full — fall back to static limit
+        export SPIRAL_MEMORY_LIMIT="${SPIRAL_WORKER_MEMORY_LIMIT:-$SPIRAL_MEMORY_LIMIT}"
+        echo "  [parallel] Worker $i: pool reserve failed — using static ${SPIRAL_MEMORY_LIMIT}MB"
+      fi
+    else
+      export SPIRAL_MEMORY_LIMIT="${SPIRAL_WORKER_MEMORY_LIMIT:-$SPIRAL_MEMORY_LIMIT}"
+    fi
+    # US-224: Propagate W3C trace context to worker for distributed tracing
+    [[ -n "${TRACEPARENT:-}" ]] && export TRACEPARENT
+    [[ -n "${TRACESTATE:-}" ]] && export TRACESTATE
+    if type worker_heartbeat_start &>/dev/null; then worker_heartbeat_start "$i" 30 2>/dev/null || true; fi
+    # US-359: Restrict env to allowlist (unsets non-allowed vars before ralph runs)
+    _restrict_worker_env "$i"
+    _RC=0
+    if [[ "$WORKER_TIMEOUT" -gt 0 ]] && command -v timeout &>/dev/null; then
+      if [[ "$_USE_SETSID" -eq 1 ]]; then
+        # US-245: wrapper writes PGID (= $$ after setsid) before exec'ing ralph
+        timeout --kill-after=60 "${WORKER_TIMEOUT}" \
+          setsid bash -c 'echo "$$" > "'"$_PGID_FILE"'"; exec bash "'"$RALPH_SKILL"'" "'"$ITER_PER_WORKER"'" --prd prd.json '"$_WORKER_MODEL_FLAG" >"$LOG" 2>&1 || _RC=$?
+      else
+        timeout --kill-after=60 "${WORKER_TIMEOUT}" bash "$RALPH_SKILL" "$ITER_PER_WORKER" --prd prd.json $_WORKER_MODEL_FLAG >"$LOG" 2>&1 || _RC=$?
+      fi
+    else
+      if [[ "$_USE_SETSID" -eq 1 ]]; then
+        # US-245: wrapper writes PGID (= $$ after setsid) before exec'ing ralph
+        setsid bash -c 'echo "$$" > "'"$_PGID_FILE"'"; exec bash "'"$RALPH_SKILL"'" "'"$ITER_PER_WORKER"'" --prd prd.json '"$_WORKER_MODEL_FLAG" >"$LOG" 2>&1 || _RC=$?
+      else
+        bash "$RALPH_SKILL" "$ITER_PER_WORKER" --prd prd.json $_WORKER_MODEL_FLAG >"$LOG" 2>&1 || _RC=$?
+      fi
+    fi
+    # Write exit code to file so parent can read it after disown (wait returns 127 after disown)
+    echo "$_RC" >"$_EXIT_FILE" 2>/dev/null || true
+    exit "$_RC"
+  ) &
+  local _wpid=$!
+  # US-259: Assign worker process to its cgroup (no-op if cgroups v2 unavailable)
+  _cgroup_assign "$i" "$_wpid" || true
+  WORKER_PIDS+=("$_wpid")
+  WORKER_FINISHED+=("0")
+  WORKER_EXIT_CODES+=("0")
+  WORKER_PGID_FILES+=("$_PGID_FILE")  # US-245: track PGID file for crash cleanup
+  WORKER_START_TIMES+=("$(date +%s)") # US-318: record launch time for invoke_agent span
+  echo "$_wpid" >"$WORKTREE_BASE/worker-${i}/worker.pid"
+  disown "$_wpid"
+}
+
+# ── US-531: Restart a stalled worker (no progress > SPIRAL_WORKER_TIMEOUT) ───
+# Kills the current worker process and relaunches ralph in the same worktree,
+# updating WORKER_PIDS/WORKER_FINISHED/etc. in-place (not appending).
+# Only called once per worker (WORKER_STALL_RESTARTS[i] guards re-entry).
+_restart_stalled_worker() {
+  local worker_num="$1"
+  local stall_secs="${2:-0}"
+  local i=$((worker_num - 1))
+  local WTREE="${WORKER_DIRS[$i]}"
+  local LOG="$WORKER_DIR/worker_${worker_num}.log"
+  local old_pid="${WORKER_PIDS[$i]:-}"
+
+  echo "  [parallel] Worker $worker_num: stall restart (no progress for ${stall_secs}s) — sending SIGTERM"
+
+  # Phase 1: terminate stalled process
+  [[ -n "$old_pid" ]] && kill "$old_pid" 2>/dev/null || true
+  # Kill via PGID file (cleans up bash + ralph child processes)
+  local pgid_f="${WORKER_PGID_FILES[$i]:-}"
+  if [[ -n "$pgid_f" && -f "$pgid_f" ]]; then
+    local pg
+    pg=$(cat "$pgid_f" 2>/dev/null | tr -d '[:space:]')
+    [[ -n "$pg" && "$pg" =~ ^[0-9]+$ ]] && kill -- -"$pg" 2>/dev/null || true
+  fi
+  sleep 2
+  [[ -n "$old_pid" ]] && kill -9 "$old_pid" 2>/dev/null || true
+
+  # Mark restart — only restart once per worker
+  WORKER_STALL_RESTARTS[$i]=1
+
+  # Log stall restart event to spiral_events.jsonl
+  printf '{"ts":"%s","event":"worker_stall_restart","run_id":"%s","worker":%d,"stall_secs":%d}\n' \
+    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${SPIRAL_RUN_ID:-}" "$worker_num" "$stall_secs" \
+    >>"$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || true
+
+  # Phase 2: fresh tracking files for the new process
+  local new_pgid_file="$WORKTREE_BASE/worker-${worker_num}/worker.pgid"
+  : >"$new_pgid_file"
+  local _rst_exit_file="$WORKTREE_BASE/worker-${worker_num}/exit_code"
+  local _rst_model_flag=""
+  [[ -n "$RALPH_MODEL" ]] && _rst_model_flag="--model $RALPH_MODEL"
+
+  echo "  [parallel] Worker $worker_num: restarting ralph in same worktree → log: $LOG"
+  _audit_worker_launch "$worker_num" "$WTREE"
+
+  # Phase 3: relaunch worker subshell (same logic as _launch_worker_i, in-place update)
+  (
+    _UNLOCK_REPO="$REPO_ROOT"
+    _UNLOCK_WTREE="$WTREE"
+    _WORKER_NUM=$worker_num
+    _EXIT_FILE="$_rst_exit_file"
+    _HB_CLEANUP='
+      if type worker_heartbeat_stop &>/dev/null; then worker_heartbeat_stop "$_WORKER_NUM" 2>/dev/null || true; fi
+      if type pool_release &>/dev/null; then pool_release "$_WORKER_NUM" 2>/dev/null || true; fi
+      git -C "$_UNLOCK_REPO" worktree unlock "$_UNLOCK_WTREE" 2>/dev/null || true
+      _cgroup_cleanup "$_WORKER_NUM" 2>/dev/null || true
+    '
+    trap "$_HB_CLEANUP" EXIT
+    cd "$WTREE"
+    export PATH="$WTREE/.spiral-bin:$PATH"
+    export SPIRAL_WORKER_ID=$worker_num HEARTBEAT_DIR="$WORKTREE_BASE/worker-${worker_num}"
+    export SPIRAL_MEMORY_LIMIT="${SPIRAL_WORKER_MEMORY_LIMIT:-$SPIRAL_MEMORY_LIMIT}"
+    [[ -n "${TRACEPARENT:-}" ]] && export TRACEPARENT
+    [[ -n "${TRACESTATE:-}" ]] && export TRACESTATE
+    if type worker_heartbeat_start &>/dev/null; then worker_heartbeat_start "$worker_num" 30 2>/dev/null || true; fi
+    _restrict_worker_env "$worker_num"
+    _RC=0
+    if [[ "$WORKER_TIMEOUT" -gt 0 ]] && command -v timeout &>/dev/null; then
+      if [[ "$_USE_SETSID" -eq 1 ]]; then
+        timeout --kill-after=60 "${WORKER_TIMEOUT}" \
+          setsid bash -c 'echo "$$" > "'"$new_pgid_file"'"; exec bash "'"$RALPH_SKILL"'" "'"$ITER_PER_WORKER"'" --prd prd.json '"$_rst_model_flag" >>"$LOG" 2>&1 || _RC=$?
+      else
+        timeout --kill-after=60 "${WORKER_TIMEOUT}" bash "$RALPH_SKILL" "$ITER_PER_WORKER" --prd prd.json $_rst_model_flag >>"$LOG" 2>&1 || _RC=$?
+      fi
+    else
+      if [[ "$_USE_SETSID" -eq 1 ]]; then
+        setsid bash -c 'echo "$$" > "'"$new_pgid_file"'"; exec bash "'"$RALPH_SKILL"'" "'"$ITER_PER_WORKER"'" --prd prd.json '"$_rst_model_flag" >>"$LOG" 2>&1 || _RC=$?
+      else
+        bash "$RALPH_SKILL" "$ITER_PER_WORKER" --prd prd.json $_rst_model_flag >>"$LOG" 2>&1 || _RC=$?
+      fi
+    fi
+    echo "$_RC" >"$_EXIT_FILE" 2>/dev/null || true
+    exit "$_RC"
+  ) &
+  local new_pid=$!
+  _cgroup_assign "$worker_num" "$new_pid" || true
+
+  # Update specific array slot in-place (do NOT append — slot already exists)
+  WORKER_PIDS[$i]=$new_pid
+  WORKER_FINISHED[$i]=0
+  WORKER_EXIT_CODES[$i]=0
+  WORKER_PGID_FILES[$i]="$new_pgid_file"
+  WORKER_START_TIMES[$i]=$(date +%s)
+
+  echo "$new_pid" >"$WORKTREE_BASE/worker-${worker_num}/worker.pid"
+  disown "$new_pid"
+}
+
+# ── Step 3: Launch workers: tier-aware or all-parallel depending on DISPATCH_MODE ──
+if [[ "$_TIER_DISPATCH_ENABLED" -eq 1 ]]; then
+  # DAG-aware tier-by-tier dispatch
+  echo "  [parallel] Launching workers tier-by-tier..."
+  _CURRENT_TIER_WORKERS_LAUNCHED=()
+
+  for tier in $(seq 0 $((TOTAL_TIERS - 1))); do
+    WORKERS_IN_TIER=$(echo "${TIER_WORKERS[$tier]:-}" | xargs)
+    if [[ -z "$WORKERS_IN_TIER" ]]; then
+      continue
+    fi
+
+    echo "  [parallel] Tier $tier: launching workers [$WORKERS_IN_TIER]..."
+    _CURRENT_TIER_WORKERS_LAUNCHED=()
+
+    # Launch all workers in this tier
+    for worker_id in $WORKERS_IN_TIER; do
+      # Skip memory gate for workers with 0 pending stories
+      local _w_slice="$WORKER_DIR/worker_${worker_id}.json"
+      local _w_pending=0
+      if [[ -f "$_w_slice" ]]; then
+        _w_pending=$("$JQ" '[.userStories[] | select(.passes != true)] | length' "$_w_slice" 2>/dev/null || echo "0")
+      fi
+      if [[ "$_w_pending" -eq 0 ]]; then
+        echo "  [parallel] Worker $worker_id has 0 pending stories — skipping memory gate"
+      else
+        _MIN_FREE_MB=$(((RALPH_WORKERS - worker_id + 1) * _PER_WORKER_MB + 512))
+        [[ "$_MIN_FREE_MB" -lt 2048 ]] && _MIN_FREE_MB=2048
+        wait_for_memory "$_MIN_FREE_MB"
+      fi
+      _launch_worker_i "$worker_id"
+      _CURRENT_TIER_WORKERS_LAUNCHED+=("$worker_id")
+
+      # Stagger within tier
+      if [[ ${#_CURRENT_TIER_WORKERS_LAUNCHED[@]} -lt $(echo "$WORKERS_IN_TIER" | wc -w) ]]; then
+        echo "  [parallel] Waiting ${STAGGER_DELAY}s before next worker in tier $tier..."
+        sleep "$STAGGER_DELAY"
+      fi
+    done
+
+    # Log tier dispatch event
+    printf '{"ts":"%s","event":"tier_dispatched","run_id":"%s","tier":%d,"worker_count":%d,"workers":"%s"}\n' \
+      "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${SPIRAL_RUN_ID:-}" "$tier" \
+      "${#_CURRENT_TIER_WORKERS_LAUNCHED[@]}" "$WORKERS_IN_TIER" \
+      >>"$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || true
+
+    # Wait for all workers in this tier to finish before launching next tier
+    echo "  [parallel] Tier $tier: waiting for all workers to complete before launching tier $((tier + 1))..."
+    _TIER_COMPLETE=0
+    while [[ "$_TIER_COMPLETE" -eq 0 ]]; do
+      _TIER_COMPLETE=1
+      for worker_id in "${_CURRENT_TIER_WORKERS_LAUNCHED[@]}"; do
+        worker_idx=$((worker_id - 1))
+        if [[ "${WORKER_FINISHED[$worker_idx]}" -eq 0 ]]; then
+          if kill -0 "${WORKER_PIDS[$worker_idx]}" 2>/dev/null; then
+            _TIER_COMPLETE=0
+            break
+          fi
+        fi
+      done
+      [[ "$_TIER_COMPLETE" -eq 0 ]] && sleep 5
+    done
+    echo "  [parallel] Tier $tier: all workers completed."
+  done
+
+  echo "  [parallel] All tiers dispatched — entering adaptive wait loop..."
+else
+  # Legacy parallel dispatch (all workers launched immediately)
+  for i in $(seq 1 "$_INITIAL_LAUNCH_COUNT"); do
+    # Skip memory gate for workers with 0 pending stories
+    local _w_slice="$WORKER_DIR/worker_${i}.json"
+    local _w_pending=0
+    if [[ -f "$_w_slice" ]]; then
+      _w_pending=$("$JQ" '[.userStories[] | select(.passes != true)] | length' "$_w_slice" 2>/dev/null || echo "0")
+    fi
+    if [[ "$_w_pending" -eq 0 ]]; then
+      echo "  [parallel] Worker $i has 0 pending stories — skipping memory gate"
+    else
+      _MIN_FREE_MB=$(((RALPH_WORKERS - i + 1) * _PER_WORKER_MB + 512))
+      [[ "$_MIN_FREE_MB" -lt 2048 ]] && _MIN_FREE_MB=2048
+      wait_for_memory "$_MIN_FREE_MB"
+    fi
+    _launch_worker_i "$i"
+    if [[ "$i" -lt "$_INITIAL_LAUNCH_COUNT" ]]; then
+      echo "  [parallel] Waiting ${STAGGER_DELAY}s before next worker (V8 init cooldown)..."
+      sleep "$STAGGER_DELAY"
+    fi
+  done
+  if [[ ${#_WORKER_LAUNCH_QUEUE[@]} -gt 0 ]]; then
+    echo "  [parallel] ${#_WORKER_LAUNCH_QUEUE[@]} worker(s) queued: will launch when memory allows"
+  fi
+fi
+
+echo ""
+TAIL_LOGS=$(seq 1 "$RALPH_WORKERS" | while read -r n; do printf "%s " "$WORKER_DIR/worker_${n}.log"; done)
+echo "  [parallel] All $RALPH_WORKERS workers running."
+echo "  [parallel] Monitor single:  tail -f $WORKER_DIR/worker_1.log"
+echo "  [parallel] Monitor all:     tail -f $TAIL_LOGS"
+echo "  [parallel] Waiting for completion..."
+echo ""
+
+# ── Step 4: Adaptive wait loop — monitor workers + manage pressure ────────────
+# WORKER_FINISHED and WORKER_EXIT_CODES are populated by _launch_worker_i() above.
+
+_ALL_DONE=0
+while [[ "$_ALL_DONE" -eq 0 ]]; do
+  _ALL_DONE=1
+  _ACTIVE_COUNT=0
+
+  for i in "${!WORKER_PIDS[@]}"; do
+    if [[ "${WORKER_FINISHED[$i]}" -eq 0 ]]; then
+      if ! kill -0 "${WORKER_PIDS[$i]}" 2>/dev/null; then
+        # Worker finished — capture exit code to distinguish timeout (124) from crash
+        WORKER_FINISHED[$i]=1
+        WORKER_NUM=$((i + 1))
+        WORKER_EXIT=0
+        # Read exit code from file (written by worker subshell) — more reliable than
+        # wait after disown, which returns 127 regardless of actual exit code
+        _ec_file="$WORKTREE_BASE/worker-${WORKER_NUM}/exit_code"
+        if [[ -f "$_ec_file" ]]; then
+          WORKER_EXIT=$(cat "$_ec_file" 2>/dev/null | tr -d '[:space:]')
+          [[ "$WORKER_EXIT" =~ ^[0-9]+$ ]] || WORKER_EXIT=1
+        else
+          # Fallback: try wait (may return 127 after disown)
+          wait "${WORKER_PIDS[$i]}" 2>/dev/null || WORKER_EXIT=$?
+          # 127 from wait means "no such child" (disowned) — not a real crash
+          [[ "$WORKER_EXIT" -eq 127 ]] && WORKER_EXIT=1
+        fi
+        WTREE="${WORKER_DIRS[$i]}"
+        DONE_W=$("$JQ" '[.userStories[] | select(.passes == true)] | length' "$WTREE/prd.json" 2>/dev/null || echo "?")
+        TOTAL_W=$("$JQ" '[.userStories | length] | .[0]' "$WTREE/prd.json" 2>/dev/null || echo "?")
+        WORKER_EXIT_CODES[$i]="$WORKER_EXIT"
+        # US-377: Emit OTel ralph_worker span with subprocess attributes
+        if [[ -n "${PYTHON:-}" && -f "$SPIRAL_HOME/lib/observability/otel_worker_inject.py" ]]; then
+          _WORKER_COMMAND="bash $RALPH_SKILL $ITER_PER_WORKER --prd prd.json"
+          [[ -n "$RALPH_MODEL" ]] && _WORKER_COMMAND="$_WORKER_COMMAND --model $RALPH_MODEL"
+          TRACEPARENT="${TRACEPARENT:-}" "$PYTHON" "$SPIRAL_HOME/lib/observability/otel_worker_inject.py" emit-worker \
+            --story-id "WORKER-$WORKER_NUM" \
+            --worker-num "$WORKER_NUM" \
+            --subprocess-command "$_WORKER_COMMAND" \
+            --subprocess-pid "${WORKER_PIDS[$i]}" \
+            --subprocess-returncode "$WORKER_EXIT" \
+            2>/dev/null || true
+        fi
+        if [[ "$WORKER_EXIT" -eq 124 ]]; then
+          echo "  [parallel] Worker $WORKER_NUM TIMED OUT after ${WORKER_TIMEOUT}s — $DONE_W/$TOTAL_W stories passed before timeout"
+          # Log a 'timeout' failure row in results.tsv for each still-pending story
+          _TIMEOUT_TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          _PENDING_IDS=$("$JQ" -r '.userStories[] | select(.passes != true) | .id' \
+            "$WTREE/prd.json" 2>/dev/null | tr -d '\r' || true)
+          for _sid in $_PENDING_IDS; do
+            _title=$("$JQ" -r ".userStories[] | select(.id == \"$_sid\") | .title" \
+              "$WTREE/prd.json" 2>/dev/null | tr '\t\n' '  ' | tr -d '\r' || echo "unknown")
+            printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+              "$_TIMEOUT_TS" "-" "-" "$_sid" "$_title" "timeout" "-" "-" "-" "-" \
+              >>"$WTREE/results.tsv" 2>/dev/null || true
+          done
+          # Timed-out stories remain passes=false in main prd.json — merge_worker_results.py
+          # only promotes passes=true entries, so no retry_count increment occurs.
+          # US-279: capture timeout crash from worker log
+          _TO_LOG="$WORKER_DIR/worker_${WORKER_NUM}.log"
+          _TO_SID=$("$JQ" -r '[.userStories[] | select(.passes != true)] | first | .id // "unknown"' \
+            "$WTREE/prd.json" 2>/dev/null || echo "unknown")
+          capture_crash "$_TO_SID" "124" "worker-${WORKER_NUM}" "$_TO_LOG"
+          # Force-remove orphaned worktree and branch immediately (US-176)
+          _TO_BRANCH="${WORKER_BRANCHES[$i]:-}"
+          _TO_WTREE="${WORKER_DIRS[$i]:-}"
+          echo "  [parallel] Worker $WORKER_NUM: removing orphaned worktree after timeout..."
+          if [[ -n "$_TO_WTREE" && -d "$_TO_WTREE" ]]; then
+            git -C "$REPO_ROOT" worktree unlock "$_TO_WTREE" 2>/dev/null || true
+            if git -C "$REPO_ROOT" worktree remove "$_TO_WTREE" --force 2>/dev/null; then
+              echo "  [parallel] Worker $WORKER_NUM: worktree removed"
+            else
+              echo "  [parallel] Worker $WORKER_NUM: WARNING — worktree removal failed, continuing"
+            fi
+          fi
+          if [[ -n "$_TO_BRANCH" ]]; then
+            if git -C "$REPO_ROOT" branch -D "$_TO_BRANCH" 2>/dev/null; then
+              echo "  [parallel] Worker $WORKER_NUM: branch '$_TO_BRANCH' deleted"
+            else
+              echo "  [parallel] Worker $WORKER_NUM: WARNING — branch deletion failed, continuing"
+            fi
+          fi
+          git -C "$REPO_ROOT" worktree prune 2>/dev/null || true
+        elif [[ "$WORKER_EXIT" -ne 0 ]]; then
+          echo "  [parallel] Worker $WORKER_NUM exited with status $WORKER_EXIT — continuing remaining workers"
+          # US-245: kill process group to clean up any orphaned children of the crashed worker
+          _CRASH_PGID_FILE="${WORKER_PGID_FILES[$i]:-}"
+          if [[ -n "$_CRASH_PGID_FILE" && -f "$_CRASH_PGID_FILE" ]]; then
+            _CRASH_PGID=$(cat "$_CRASH_PGID_FILE" 2>/dev/null | tr -d '[:space:]')
+            if [[ -n "$_CRASH_PGID" && "$_CRASH_PGID" =~ ^[0-9]+$ ]]; then
+              kill -- -"$_CRASH_PGID" 2>/dev/null &&
+                echo "  [parallel] Worker $WORKER_NUM: killed process group $CRASH_PGID (crash cleanup)" || true
+            fi
+          fi
+          # US-245: inspect worktree for corruption before potential retry
+          _inspect_crashed_worktree "${WORKER_DIRS[$i]}" "$WORKER_NUM"
+          # US-245: log crash to progress.txt
+          echo "## Worker $WORKER_NUM crashed (exit $WORKER_EXIT) — $(date '+%Y-%m-%d %H:%M:%S')" \
+            >>"$SCRATCH_DIR/../progress.txt" 2>/dev/null || true
+          # US-279: capture crash traceback from worker log
+          _CRASH_LOG="$WORKER_DIR/worker_${WORKER_NUM}.log"
+          _CRASH_SID=$("$JQ" -r '[.userStories[] | select(.passes != true)] | first | .id // "unknown"' \
+            "${WORKER_DIRS[$i]}/prd.json" 2>/dev/null || echo "unknown")
+          capture_crash "$_CRASH_SID" "$WORKER_EXIT" "worker-${WORKER_NUM}" "$_CRASH_LOG"
+        else
+          echo "  [parallel] Worker $WORKER_NUM finished: $DONE_W/$TOTAL_W stories passed"
+        fi
+        # US-318: emit invoke_agent span for worker lifecycle
+        _IA_DURATION=$(($(date +%s) - ${WORKER_START_TIMES[$i]:-$(date +%s)}))
+        _IA_STATUS="failed"
+        [[ "$WORKER_EXIT" -eq 0 ]] && _IA_STATUS="passed"
+        [[ "$WORKER_EXIT" -eq 124 ]] && _IA_STATUS="timeout"
+        # Get first story ID from worker's prd.json for gen_ai.agent.id
+        _IA_SID=$("$JQ" -r '[.userStories[] | select(.passes != true)] | first | .id // "unknown"' \
+          "${WORKER_DIRS[$i]}/prd.json" 2>/dev/null || echo "unknown")
+        [[ "$_IA_STATUS" == "passed" ]] &&
+          _IA_SID=$("$JQ" -r '[.userStories[] | select(.passes == true)] | last | .id // "unknown"' \
+            "${WORKER_DIRS[$i]}/prd.json" 2>/dev/null || echo "unknown")
+        # US-341: extract cache tokens from worker's results.tsv for the story
+        _IA_CACHE_READ=$(awk -F'\t' -v sid="$_IA_SID" '$4 == sid { cr=$13 } END { print cr+0 }' "${WORKER_DIRS[$i]}/results.tsv" 2>/dev/null || echo 0)
+        _IA_CACHE_CREATE=$(awk -F'\t' -v sid="$_IA_SID" '$4 == sid { cc=$14 } END { print cc+0 }' "${WORKER_DIRS[$i]}/results.tsv" 2>/dev/null || echo 0)
+        "${SPIRAL_PYTHON:-python3}" "${SPIRAL_HOME:-$(dirname "${BASH_SOURCE[0]}")/..}/lib/observability/otel_spans.py" invoke-agent \
+          --story-id "$_IA_SID" --worker-id "$WORKER_NUM" \
+          --duration-s "$_IA_DURATION" --status "$_IA_STATUS" \
+          --agent-version "${SPIRAL_VERSION:-unknown}" \
+          --conversation-id "${SPIRAL_RUN_ID:-}" \
+          --cache-read-tokens "${_IA_CACHE_READ:-0}" \
+          --cache-creation-tokens "${_IA_CACHE_CREATE:-0}" 2>/dev/null || true
+        # US-370: Post-worker mini-audit — log worktree state after each worker completes
+        _WT_POST_AUDIT=$(git -C "$REPO_ROOT" worktree list --porcelain 2>/dev/null || true)
+        _WT_POST_AUDIT_FILE="${SPIRAL_SCRATCH_DIR}/worktree_post_worker_${WORKER_NUM}.log"
+        printf '%s\n' "$_WT_POST_AUDIT" >"$_WT_POST_AUDIT_FILE" 2>/dev/null || true
+        _WT_POST_COUNT=$(echo "$_WT_POST_AUDIT" | grep -c '^worktree ' || echo 0)
+        echo "  [parallel] Worker $WORKER_NUM: post-completion worktree audit — ${_WT_POST_COUNT} worktree(s) active"
+        printf '{"ts":"%s","event":"worktree_post_worker_audit","run_id":"%s","worker":%d,"worktree_count":%d}\n' \
+          "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${SPIRAL_RUN_ID:-}" "$WORKER_NUM" "$_WT_POST_COUNT" \
+          >>"$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || true
+        # Remove pause file if it exists
+        rm -f "${SPIRAL_SCRATCH_DIR}/_worker_pause_${WORKER_NUM}" 2>/dev/null || true
+      else
+        _ALL_DONE=0
+        _ACTIVE_COUNT=$((_ACTIVE_COUNT + 1))
+      fi
+    fi
+  done
+
+  # Exit only when all launched workers are done AND the deferred queue is empty
+  [[ "$_ALL_DONE" -eq 1 && ${#_WORKER_LAUNCH_QUEUE[@]} -eq 0 ]] && break
+
+  # ── Stale heartbeat detection — re-queue stuck stories ──────────────────────
+  if type check_stale_heartbeats &>/dev/null; then
+    _STALE_JSON=$(check_stale_heartbeats "$HEARTBEAT_DIR" 120)
+    # Parse the JSON array and process each stale worker
+    if [[ "$_STALE_JSON" != "[]" ]]; then
+      # Extract worker IDs and story IDs from stale info
+      stale_count=$("$JQ" 'length' <<<"$_STALE_JSON" 2>/dev/null || echo "0")
+      if [[ "$stale_count" -gt 0 ]]; then
+        echo "  [parallel] WARNING: Detected $stale_count stale heartbeat(s) — re-queueing..."
+        for idx in $(seq 0 $((stale_count - 1))); do
+          _WID=$("$JQ" -r ".[$idx].workerId" <<<"$_STALE_JSON")
+          _SID=$("$JQ" -r ".[$idx].storyId" <<<"$_STALE_JSON")
+          _AGED=$("$JQ" -r ".[$idx].staledSinceSeconds" <<<"$_STALE_JSON")
+          # Read completed count from heartbeat file if available (US-481: new location)
+          _HB_FILE="$WORKTREE_BASE/worker-${_WID}/.heartbeat"
+          _COMPLETED=0
+          if [[ -f "$_HB_FILE" ]]; then
+            _COMPLETED=$("$JQ" -r '.completed // 0' "$_HB_FILE" 2>/dev/null || echo "0")
+          fi
+          echo "    [parallel] Worker $_WID stale ${_AGED}s on $_SID (completed: $_COMPLETED)"
+          # Re-queue the story in the worker's prd.json
+          WTREE="${WORKER_DIRS[$((${_WID:-0} - 1))]}"
+          if [[ -f "$WTREE/prd.json" ]]; then
+            if type requeue_stale_stories &>/dev/null; then
+              requeue_stale_stories "$WTREE/prd.json" "$_SID" "$JQ" 2>/dev/null || true
+              # Verify requeue actually worked — if not, force-reset (Idea 5)
+              _REQUEUE_STATUS=$("$JQ" -r ".userStories[] | select(.id == \"$_SID\") | .passes" \
+                "$WTREE/prd.json" 2>/dev/null || echo "unknown")
+              if [[ "$_REQUEUE_STATUS" != "false" && "$_REQUEUE_STATUS" != "null" ]]; then
+                echo "  [parallel] WARNING: requeue verification failed for story $_SID (status: $_REQUEUE_STATUS) — force-resetting"
+                "$JQ" --arg sid "$_SID" '(.userStories[] | select(.id == $sid) | .passes) = false' \
+                  "$WTREE/prd.json" >"$WTREE/prd.json.tmp" && mv "$WTREE/prd.json.tmp" "$WTREE/prd.json" || true
+              fi
+            fi
+          fi
+        done
+      fi
+    fi
+  fi
+
+  # ── US-531: Progress-based stall detection — restart worker if no progress ──
+  # Reads last_progress_time from the new .heartbeat JSON (per-worker worktree).
+  # Only restarts once per worker (WORKER_STALL_RESTARTS guards re-entry).
+  _STALL_TIMEOUT="${SPIRAL_WORKER_TIMEOUT:-300}"
+  if [[ "$_STALL_TIMEOUT" -gt 0 ]]; then
+    _STALL_NOW=$(date +%s)
+    for _si in "${!WORKER_PIDS[@]}"; do
+      [[ "${WORKER_FINISHED[$_si]}" -ne 0 ]] && continue
+      [[ "${WORKER_STALL_RESTARTS[$_si]:-0}" -gt 0 ]] && continue
+      ! kill -0 "${WORKER_PIDS[$_si]}" 2>/dev/null && continue
+      _stall_wn=$((_si + 1))
+      _stall_hb="$WORKTREE_BASE/worker-${_stall_wn}/.heartbeat"
+      if [[ -f "$_stall_hb" ]]; then
+        _stall_lpt=$("$JQ" -r '.last_progress_time // 0' "$_stall_hb" 2>/dev/null || echo "0")
+        if [[ "$_stall_lpt" =~ ^[0-9]+$ && "$_stall_lpt" -gt 0 ]]; then
+          _stall_elapsed=$((_STALL_NOW - _stall_lpt))
+          if [[ "$_stall_elapsed" -gt "$_STALL_TIMEOUT" ]]; then
+            echo "  [parallel] WARNING: Worker $_stall_wn: no progress for ${_stall_elapsed}s (> ${_STALL_TIMEOUT}s) — restarting"
+            _restart_stalled_worker "$_stall_wn" "$_stall_elapsed"
+          fi
+        fi
+      fi
+    done
+  fi
+
+  # ── Adaptive pressure management: pause/resume workers ─────────────────────
+  if type spiral_recommended_workers &>/dev/null && [[ "${SPIRAL_LOW_POWER_MODE:-1}" -eq 1 ]]; then
+    _REC_W=$(spiral_recommended_workers)
+    if [[ -n "$_REC_W" && "$_REC_W" =~ ^[0-9]+$ ]]; then
+      if [[ "$_REC_W" -lt "$_ACTIVE_COUNT" ]]; then
+        # Need to pause some workers — pause highest-numbered first
+        _RUNNING=0
+        for j in "${!WORKER_PIDS[@]}"; do
+          WORKER_NUM=$((j + 1))
+          if [[ "${WORKER_FINISHED[$j]}" -eq 0 ]]; then
+            _RUNNING=$((_RUNNING + 1))
+            if [[ "$_RUNNING" -gt "$_REC_W" ]]; then
+              _PAUSE_F="${SPIRAL_SCRATCH_DIR}/_worker_pause_${WORKER_NUM}"
+              if [[ ! -f "$_PAUSE_F" ]]; then
+                touch "$_PAUSE_F"
+                echo "  [parallel] Pausing worker $WORKER_NUM (pressure: recommended $_REC_W workers)"
+                spiral_log_low_power "run_parallel: paused worker $WORKER_NUM (recommended $_REC_W)"
+              fi
+            fi
+          fi
+        done
+      else
+        # Pressure eased — resume any paused workers
+        for j in "${!WORKER_PIDS[@]}"; do
+          WORKER_NUM=$((j + 1))
+          _PAUSE_F="${SPIRAL_SCRATCH_DIR}/_worker_pause_${WORKER_NUM}"
+          if [[ -f "$_PAUSE_F" ]]; then
+            rm -f "$_PAUSE_F"
+            echo "  [parallel] Resuming worker $WORKER_NUM (pressure eased)"
+            spiral_log_low_power "run_parallel: resumed worker $WORKER_NUM"
+          fi
+        done
+      fi
+    fi
+  fi
+
+  # ── Periodic pool reclaim — return memory from dead workers ──────────────────
+  if [[ "$_POOL_ENABLED" -eq 1 ]]; then
+    _POOL_RECLAIM_COUNTER=$(( ${_POOL_RECLAIM_COUNTER:-0} + 5 ))
+    if [[ "$_POOL_RECLAIM_COUNTER" -ge "${_POOL_RECLAIM_INTERVAL:-30}" ]]; then
+      pool_reclaim_stale 2>/dev/null || true
+      _POOL_RECLAIM_COUNTER=0
+    fi
+  fi
+
+  # ── Deferred queue — launch queued workers when pressure eases ──────────────
+  # Track how long the queue has been stalled (Idea 8)
+  if [[ ${#_WORKER_LAUNCH_QUEUE[@]} -eq 0 ]]; then
+    _QUEUE_STALL_SECS=0
+  fi
+  if [[ ${#_WORKER_LAUNCH_QUEUE[@]} -gt 0 && "$_ACTIVE_COUNT" -lt "$RALPH_WORKERS" ]]; then
+    _QUEUE_PRESSURE=$(spiral_pressure_level 2>/dev/null || echo "2")
+    _QUEUE_REC_W=$(spiral_recommended_workers 2>/dev/null || echo "$RALPH_WORKERS")
+    if [[ "$_QUEUE_PRESSURE" -le 1 && "$_ACTIVE_COUNT" -lt "${_QUEUE_REC_W:-$RALPH_WORKERS}" ]]; then
+      if [[ "$_POOL_ENABLED" -eq 1 ]]; then
+        # Pool mode: check pool has enough for the smallest tier
+        _QUEUE_AVAIL=$(pool_available 2>/dev/null || echo "0")
+        _QUEUE_MIN_TIER="${SPIRAL_POOL_TIER_SMALL:-768}"
+        if [[ "$_QUEUE_AVAIL" -ge "$_QUEUE_MIN_TIER" ]]; then
+          _NEXT_WORKER="${_WORKER_LAUNCH_QUEUE[0]}"
+          _WORKER_LAUNCH_QUEUE=("${_WORKER_LAUNCH_QUEUE[@]:1}")
+          echo "  [parallel] Queue: launching deferred worker $_NEXT_WORKER (pool: ${_QUEUE_AVAIL}MB avail, ${#_WORKER_LAUNCH_QUEUE[@]} remaining)"
+          _launch_worker_i "$_NEXT_WORKER"
+          [[ ${#_WORKER_LAUNCH_QUEUE[@]} -gt 0 ]] && sleep "$STAGGER_DELAY"
+        else
+          echo "  [parallel] Queue: worker(s) waiting — pool only ${_QUEUE_AVAIL}MB (need ${_QUEUE_MIN_TIER}MB)"
+        fi
+      else
+        # Static mode: quick non-blocking memory check before launching
+        _QUEUE_FREE_MB=$(powershell.exe -NoProfile -Command \
+          "[math]::Floor((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory / 1024)" \
+          2>/dev/null | tr -d '\r')
+        if [[ -n "$_QUEUE_FREE_MB" && "$_QUEUE_FREE_MB" =~ ^[0-9]+$ && "$_QUEUE_FREE_MB" -ge 2048 ]]; then
+          _NEXT_WORKER="${_WORKER_LAUNCH_QUEUE[0]}"
+          _WORKER_LAUNCH_QUEUE=("${_WORKER_LAUNCH_QUEUE[@]:1}")
+          echo "  [parallel] Queue: launching deferred worker $_NEXT_WORKER (${#_WORKER_LAUNCH_QUEUE[@]} remaining)"
+          _launch_worker_i "$_NEXT_WORKER"
+          [[ ${#_WORKER_LAUNCH_QUEUE[@]} -gt 0 ]] && sleep "$STAGGER_DELAY"
+        else
+          echo "  [parallel] Queue: worker(s) waiting — RAM only ${_QUEUE_FREE_MB:-?}MB (need 2048MB)"
+        fi
+      fi
+    else
+      _QUEUE_STALL_SECS=$((${_QUEUE_STALL_SECS:-0} + 5))
+      echo "  [parallel] Queue: ${#_WORKER_LAUNCH_QUEUE[@]} deferred (pressure level ${_QUEUE_PRESSURE:-?})"
+      if [[ "${_QUEUE_STALL_SECS}" -ge "${SPIRAL_QUEUE_STALL_WARN_SECS:-600}" ]]; then
+        echo "  [parallel] ⚠  Queue stalled for $((_QUEUE_STALL_SECS / 60)) min — workers may be holding RAM"
+        echo "  [parallel]    Consider: reduce RALPH_WORKERS or lower SPIRAL_WORKER_MEMORY_LIMIT"
+        _QUEUE_STALL_SECS=0 # reset to warn again after another interval
+      fi
+    fi
+  fi
+
+  sleep 5 # US-245: 5s poll interval ensures crash detection within 5 seconds
+done
+
+# Resume all paused workers before returning (safety net)
+for i in $(seq 1 "$RALPH_WORKERS"); do
+  rm -f "${SPIRAL_SCRATCH_DIR}/_worker_pause_${i}" 2>/dev/null || true
+done
+
+# ── Step 5: Print last 5 lines of each worker log ─────────────────────────────
+echo ""
+for i in $(seq 1 "$RALPH_WORKERS"); do
+  echo "  ─── Worker $i (last 5 lines) ────────────────────────────────────"
+  tail -5 "$WORKER_DIR/worker_${i}.log" 2>/dev/null | sed 's/^/  │ /' || true
+done
+echo ""
+
+# ── Step 6: Merge prd.json pass results into main prd.json ───────────────────
+# Re-encode all worker prd.json files to clean UTF-8 first.
+for wtree in "${WORKER_DIRS[@]}"; do
+  WPRD="$wtree/prd.json"
+  [[ -f "$WPRD" ]] || continue
+  "$PYTHON" - "$WPRD" <<'PYEOF'
+import json, sys
+path = sys.argv[1]
+with open(path, encoding='utf-8', errors='replace') as f:
+    content = f.read()
+try:
+    d = json.loads(content)
+except Exception:
+    with open(path, encoding='cp1252', errors='replace') as f:
+        d = json.load(f)
+with open(path, 'w', encoding='utf-8') as f:
+    json.dump(d, f, indent=2, ensure_ascii=False)
+    f.write('\n')
+PYEOF
+done
+
+WORKER_PRDS=()
+for wtree in "${WORKER_DIRS[@]}"; do
+  WORKER_PRDS+=("$wtree/prd.json")
+done
+
+if [[ -n "$_SC_BIN" ]]; then
+  "$_SC_BIN" merge-workers \
+    --main "$PRD_FILE" \
+    --workers "${WORKER_PRDS[@]}"
+else
+  "$PYTHON" "$SPIRAL_HOME/lib/workers/merge_worker_results.py" \
+    --main "$PRD_FILE" \
+    --workers "${WORKER_PRDS[@]}"
+fi
+
+# Re-encode main prd.json to clean UTF-8 after merge
+"$PYTHON" - "$PRD_FILE" <<'PYEOF'
+import json, sys
+path = sys.argv[1]
+with open(path, encoding='utf-8', errors='replace') as f:
+    content = f.read()
+try:
+    d = json.loads(content)
+except Exception:
+    with open(path, encoding='cp1252', errors='replace') as f:
+        d = json.load(f)
+with open(path, 'w', encoding='utf-8') as f:
+    json.dump(d, f, indent=2, ensure_ascii=False)
+    f.write('\n')
+PYEOF
+
+# Merge per-worker retry-counts.json back into root (Idea 9)
+# Each worker has its own retry-counts.json; merge with max semantics so no count decreases.
+_WORKER_RETRY_FILES=()
+for wtree in "${WORKER_DIRS[@]}"; do
+  [[ -f "$wtree/retry-counts.json" ]] && _WORKER_RETRY_FILES+=("$wtree/retry-counts.json")
+done
+if [[ ${#_WORKER_RETRY_FILES[@]} -gt 0 ]]; then
+  "$PYTHON" - "$REPO_ROOT/retry-counts.json" "${_WORKER_RETRY_FILES[@]}" <<'PYEOF'
+import json, sys
+from pathlib import Path
+main_path = Path(sys.argv[1])
+counts = json.loads(main_path.read_text(encoding='utf-8')) if main_path.exists() else {}
+for p in sys.argv[2:]:
+    try:
+        w = json.loads(Path(p).read_text(encoding='utf-8'))
+        for k, v in w.items():
+            counts[k] = max(counts.get(k, 0), int(v))
+    except Exception:
+        pass
+main_path.write_text(json.dumps(counts, indent=2) + '\n', encoding='utf-8')
+PYEOF
+  echo "  [parallel] Merged retry-counts.json from ${#_WORKER_RETRY_FILES[@]} workers"
+fi
+
+# Commit the merged prd.json as a stable base before code patches
+git -C "$REPO_ROOT" add "$PRD_FILE" 2>/dev/null
+git -C "$REPO_ROOT" commit -m "chore(spiral): merge prd.json from $RALPH_WORKERS parallel workers" \
+  2>/dev/null || true
+
+# ── Step 6.5: Detect merge conflicts via git merge-tree dry-run ──────────────
+# Uses git merge-tree (non-destructive) to detect per-worker branch conflicts
+# before applying any patches. Conflicting workers have their stories reset to
+# pending (not failed) with _failureReason: 'merge_conflict' so they are
+# requeued in the next Spiral run without discarding sibling workers' results.
+echo "  [parallel] Checking worker branches for merge conflicts (git merge-tree)..."
+declare -a CLEAN_WORKERS=()
+declare -a CONFLICT_WORKERS=()
+
+# Build git diff args from SPIRAL_PATCH_DIRS (or diff everything if empty)
+DIFF_PATHS=()
+if [[ -n "$PATCH_DIRS" ]]; then
+  for d in $PATCH_DIRS; do
+    DIFF_PATHS+=("$d")
+  done
+fi
+
+# Detect if git supports the new merge-tree --write-tree API (git 2.38+)
+_GIT_VER=$(git -C "$REPO_ROOT" version 2>/dev/null | grep -oP '[0-9]+\.[0-9]+' | head -1 || echo "0.0")
+_GIT_MAJOR=$(echo "$_GIT_VER" | cut -d. -f1)
+_GIT_MINOR=$(echo "$_GIT_VER" | cut -d. -f2)
+_MERGE_TREE_NEW=0
+if [[ "$_GIT_MAJOR" -gt 2 ]] || [[ "$_GIT_MAJOR" -eq 2 && "$_GIT_MINOR" -ge 38 ]]; then
+  _MERGE_TREE_NEW=1
+fi
+
+_detect_merge_conflicts() {
+  local repo="$1" branch="$2"
+  local rc=0 files=()
+
+  if [[ "$_MERGE_TREE_NEW" -eq 1 ]]; then
+    # New-style: git merge-tree --write-tree HEAD BRANCH
+    # Exits 0 = clean, 1 = conflicts; conflict lines have "CONFLICT" prefix
+    local output
+    output=$(git -C "$repo" merge-tree --write-tree HEAD "$branch" 2>&1) && rc=0 || rc=$?
+    if [[ "$rc" -ne 0 ]]; then
+      while IFS= read -r line; do
+        if [[ "$line" == *"Merge conflict in"* ]]; then
+          files+=("${line#*Merge conflict in }")
+        elif [[ "$line" == CONFLICT* ]]; then
+          files+=("$line")
+        fi
+      done <<<"$output"
+    fi
+  else
+    # Old-style fallback: git merge-tree BASE HEAD BRANCH
+    local base
+    base=$(git -C "$repo" merge-base HEAD "$branch" 2>/dev/null || true)
+    if [[ -n "$base" ]]; then
+      local output
+      output=$(git -C "$repo" merge-tree "$base" HEAD "$branch" 2>/dev/null) || true
+      if echo "$output" | grep -q "^<<<<<<<"; then
+        rc=1
+        # Extract file paths from "changed in both" markers
+        while IFS= read -r line; do
+          [[ "$line" == "changed in both"* ]] && files+=("${line#*: }")
+        done <<<"$output"
+      fi
+    fi
+  fi
+
+  # Print detected files to stdout for caller to capture
+  printf '%s\n' "${files[@]:-}"
+  return "$rc"
+}
+
+for i in $(seq 1 "$RALPH_WORKERS"); do
+  BRANCH="${WORKER_BRANCHES[$((i - 1))]}"
+  PATCH_FILE="$WORKER_DIR/worker_${i}.patch"
+
+  # Extract patch for Step 7 application
+  if [[ -z "$BRANCH" ]]; then
+    echo "  [parallel] Worker $i: detached HEAD — skipping conflict check"
+    CLEAN_WORKERS+=($i)
+    continue
+  fi
+
+  if [[ ${#DIFF_PATHS[@]} -gt 0 ]]; then
+    git -C "$REPO_ROOT" diff "HEAD..$BRANCH" -- \
+      "${DIFF_PATHS[@]}" \
+      >"$PATCH_FILE" 2>/dev/null || true
+  else
+    git -C "$REPO_ROOT" diff "HEAD..$BRANCH" \
+      >"$PATCH_FILE" 2>/dev/null || true
+  fi
+
+  if [[ ! -s "$PATCH_FILE" ]]; then
+    echo "  [parallel] Worker $i: no code changes (skipping)"
+    continue
+  fi
+
+  # Run merge-tree dry-run to check for conflicts
+  _CF_LINES=$(_detect_merge_conflicts "$REPO_ROOT" "$BRANCH") && _MT_CLEAN=1 || _MT_CLEAN=0
+
+  if [[ "$_MT_CLEAN" -eq 1 ]]; then
+    CLEAN_WORKERS+=($i)
+    echo "  [parallel] Worker $i: clean merge ✓"
+  else
+    CONFLICT_WORKERS+=($i)
+    _CF_DISPLAY="${_CF_LINES:-unknown files}"
+    echo "  [parallel] Worker $i: CONFLICT detected — stories will be requeued"
+    [[ -n "$_CF_LINES" ]] && echo "$_CF_LINES" | sed 's/^/  [parallel]   conflict: /'
+
+    # Build JSON array of conflicting file paths
+    _CF_JSON=$(printf '%s\n' "$_CF_LINES" |
+      "$PYTHON" -c "import sys,json; lines=[l.strip() for l in sys.stdin if l.strip()]; print(json.dumps(lines))" \
+        2>/dev/null || echo "[]")
+
+    # Log merge_conflict_detected event to spiral_events.jsonl
+    _EV_TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    printf '%s\n' \
+      "{\"ts\":\"$_EV_TS\",\"event\":\"merge_conflict_detected\",\"workerId\":$i,\"branch\":\"$BRANCH\",\"conflictingFiles\":$_CF_JSON}" \
+      >>"$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || true
+
+    # Reset conflicting worker's passed stories to pending in worker prd.json
+    # (merge_worker_results.py already ran in Step 6, so also reset in main prd.json)
+    WTREE="${WORKER_DIRS[$((i - 1))]}"
+    for _prd_path in "$WTREE/prd.json" "$PRD_FILE"; do
+      [[ ! -f "$_prd_path" ]] && continue
+      # Collect story IDs that this worker passed (to reset in main prd.json)
+      _WORKER_PASSED_IDS=$("$JQ" -r '.userStories[] | select(.passes == true) | .id' \
+        "$WTREE/prd.json" 2>/dev/null | tr -d '\r' || true)
+      if [[ -z "$_WORKER_PASSED_IDS" ]]; then
+        continue
+      fi
+      # Build a jq filter to reset only this worker's stories
+      _JQ_IDS=$(printf '%s\n' "$_WORKER_PASSED_IDS" |
+        "$PYTHON" -c "import sys,json; ids=[l.strip() for l in sys.stdin if l.strip()]; print(json.dumps(ids))" \
+          2>/dev/null || echo "[]")
+      "$JQ" --argjson ids "$_JQ_IDS" \
+        '(.userStories[] | select(.id as $id | $ids | index($id) != null) | (.passes)) = false |
+         (.userStories[] | select(.id as $id | $ids | index($id) != null) | (._failureReason)) = "merge_conflict"' \
+        "$_prd_path" >"${_prd_path}.tmp" && mv "${_prd_path}.tmp" "$_prd_path" || true
+    done
+  fi
+done
+
+# Log conflict summary event to spiral_events.jsonl
+_EV_TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+printf '%s\n' \
+  "{\"ts\":\"$_EV_TS\",\"event\":\"merge_conflict_summary\",\"cleanWorkers\":${#CLEAN_WORKERS[@]},\"conflictWorkers\":${#CONFLICT_WORKERS[@]}}" \
+  >>"$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || true
+
+echo "  [parallel] Pre-check: ${#CLEAN_WORKERS[@]} clean, ${#CONFLICT_WORKERS[@]} conflicting"
+[[ "${#CONFLICT_WORKERS[@]}" -gt 0 ]] &&
+  echo "  [parallel] Conflicting worker stories reset to pending (requeue on next run)"
+
+# ── Step 7: Apply code changes — clean patches only; conflict workers are skipped ──
+# Conflict workers' stories were reset to pending above; they'll be requeued.
+# Non-conflicting workers' patches are applied cleanly.
+PATCHES_APPLIED=0
+PATCHES_SKIPPED_CONFLICT=0
+
+sort_by_patch_size() {
+  for i in "$@"; do
+    SIZE=$(wc -c <"$WORKER_DIR/worker_${i}.patch" 2>/dev/null || echo 0)
+    echo "$SIZE $i"
+  done | sort -rn | awk '{print $2}'
+}
+
+SORTED_CLEAN=$(sort_by_patch_size "${CLEAN_WORKERS[@]}")
+
+for i in $SORTED_CLEAN; do
+  PATCH_FILE="$WORKER_DIR/worker_${i}.patch"
+  LINES=$(wc -l <"$PATCH_FILE")
+  SIZE=$(wc -c <"$PATCH_FILE" 2>/dev/null || echo 0)
+  echo "  [parallel] Worker $i: applying $LINES-line patch (${SIZE} bytes)..."
+
+  if git -C "$REPO_ROOT" apply --3way "$PATCH_FILE" 2>/dev/null; then
+    git -C "$REPO_ROOT" add -A 2>/dev/null
+    git -C "$REPO_ROOT" commit \
+      -m "feat(spiral): worker $i parallel implementation" \
+      2>/dev/null || true
+    PATCHES_APPLIED=$((PATCHES_APPLIED + 1))
+    echo "  [parallel] Worker $i code applied cleanly"
+  else
+    # Unexpected failure (merge-tree said clean but apply failed) — fall back to --reject
+    echo "  [parallel] WARNING: Worker $i unexpected conflict — applying with --reject"
+    git -C "$REPO_ROOT" apply --reject "$PATCH_FILE" 2>/dev/null || true
+    # Detect .rej files created by partial patch application (Idea 6)
+    _REJ_FILES=$(find "$REPO_ROOT" -name "*.rej" 2>/dev/null | grep -v '\.spiral' | head -20 || true)
+    if [[ -n "$_REJ_FILES" ]]; then
+      echo "  [parallel] WARNING: Worker $i has unresolved .rej files:"
+      echo "$_REJ_FILES" | sed 's/^/    /'
+      echo "  [parallel] These indicate partial patch application — manual review needed"
+      printf '%s\n' "{\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"event\":\"patch_rejected\",\"workerId\":$i}" \
+        >>"$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || true
+    fi
+    git -C "$REPO_ROOT" add -A 2>/dev/null
+    git -C "$REPO_ROOT" commit \
+      -m "feat(spiral): worker $i code (partial — .rej files need review)" \
+      2>/dev/null || true
+    PATCHES_APPLIED=$((PATCHES_APPLIED + 1))
+    echo "  [parallel] Worker $i: partial apply done; review *.rej files"
+  fi
+done
+
+# Report skipped conflict workers
+for i in "${CONFLICT_WORKERS[@]:-}"; do
+  PATCH_FILE="$WORKER_DIR/worker_${i}.patch"
+  [[ -f "$PATCH_FILE" ]] || continue
+  SIZE=$(wc -c <"$PATCH_FILE" 2>/dev/null || echo 0)
+  echo "  [parallel] Worker $i: SKIPPED (merge conflict — ${SIZE}B patch, stories requeued)"
+  PATCHES_SKIPPED_CONFLICT=$((PATCHES_SKIPPED_CONFLICT + 1))
+done
+
+echo "  [parallel] Code patches: $PATCHES_APPLIED applied, $PATCHES_SKIPPED_CONFLICT skipped (conflict)"
+
+# ── Step 8: Deploy merged code (optional, configured via SPIRAL_DEPLOY_CMD) ──
+if [[ -n "$DEPLOY_CMD" ]]; then
+  echo "  [parallel] Deploying merged code..."
+  if eval "$DEPLOY_CMD" 2>/dev/null; then
+    echo "  [parallel] Deploy complete"
+  else
+    echo "  [parallel] WARNING: Deploy command failed — code in repo is correct"
+  fi
+else
+  echo "  [parallel] No deploy command configured — skipping container deploy"
+fi
+
+# ── Step 8.5: Merge worker results.tsv files (dedup + sort) ──────────────────
+WORKER_RESULTS=()
+for wtree in "${WORKER_DIRS[@]}"; do
+  [[ -f "$wtree/results.tsv" ]] && WORKER_RESULTS+=("$wtree/results.tsv")
+done
+if [[ ${#WORKER_RESULTS[@]} -gt 0 ]]; then
+  echo "  [parallel] Merging ${#WORKER_RESULTS[@]} worker results.tsv files..."
+  "$PYTHON" "$SPIRAL_HOME/lib/observability/merge_results_tsv.py" \
+    --main "$REPO_ROOT/results.tsv" \
+    --workers "${WORKER_RESULTS[@]}"
+fi
+
+# ── Step 9: Cleanup worktrees, branches, and lock ────────────────────────────
+rm -rf "$LOCK_DIR" 2>/dev/null || true
+
+for i in $(seq 1 "$RALPH_WORKERS"); do
+  BRANCH="${WORKER_BRANCHES[$((i - 1))]}"
+  WTREE="${WORKER_DIRS[$((i - 1))]}"
+  git -C "$REPO_ROOT" worktree unlock "$WTREE" 2>/dev/null || true
+  git -C "$REPO_ROOT" worktree remove "$WTREE" --force 2>/dev/null || true
+  git -C "$REPO_ROOT" branch -D "$BRANCH" 2>/dev/null || true
+done
+rm -rf "$WORKTREE_BASE" 2>/dev/null || true
+
+# Prune stale worktree admin records left by crashed/interrupted workers (US-080)
+git -C "$REPO_ROOT" worktree prune 2>/dev/null || true
+
+echo "  [parallel] Cleanup complete."
+
+# ── Step 10: Exit non-zero if ALL workers failed ─────────────────────────────
+_ALL_WORKERS_FAILED=1
+for _ec in "${WORKER_EXIT_CODES[@]}"; do
+  if [[ "$_ec" -eq 0 ]]; then
+    _ALL_WORKERS_FAILED=0
+    break
+  fi
+done
+if [[ "$_ALL_WORKERS_FAILED" -eq 1 ]]; then
+  echo "  [parallel] ERROR: All $RALPH_WORKERS workers failed — exiting with non-zero status"
+  echo "  [parallel] ═══════════════════════════════════════════════════"
+  exit 1
+fi
+
+echo "  [parallel] ═══════════════════════════════════════════════════"

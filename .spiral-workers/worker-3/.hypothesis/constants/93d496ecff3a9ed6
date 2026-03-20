@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\AppData\Roaming\Python\Python312\site-packages\anyio\pytest_plugin.py
+# hypothesis_version: 6.151.9
+
+['127.0.0.1', '::1', 'anyio', 'anyio_backend', 'hypothesis', 'markers', 'module', 'pytestmark', 'request', 'session']

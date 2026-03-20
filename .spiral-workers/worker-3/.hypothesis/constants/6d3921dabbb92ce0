@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\budget_analyzer.py
+# hypothesis_version: 6.151.9
+
+[0.0, 0.003, 1000000.0, '--ceiling', '--prd', '--results', '--velocity-model', 'Cost ceiling in USD', '__main__', 'add', 'bug', 'bug_fix', 'by_model', 'duration_sec', 'fix', 'id', 'implement', 'implementation', 'input', 'integration', 'mean_cost', 'mean_tokens', 'model', 'other', 'passes', 'prd.json', 'r', 'refactor', 'refactoring', 'results.tsv', 'row_count', 'sonnet', 'story_count', 'story_types', 'test', 'title', 'total_cost_usd', 'total_tokens', 'unknown', 'userStories', 'utf-8']

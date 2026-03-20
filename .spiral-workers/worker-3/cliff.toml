@@ -1,0 +1,77 @@
+# cliff.toml — git-cliff changelog configuration for SPIRAL
+# https://git-cliff.org/docs/configuration
+
+[changelog]
+# Header displayed at the top of the CHANGELOG
+header = """
+# Changelog
+
+All notable changes to SPIRAL are documented in this file.
+Commits follow the [Conventional Commits](https://www.conventionalcommits.org/) specification.
+Generated automatically by [git-cliff](https://git-cliff.org/).
+
+"""
+# Template for each release section (Tera syntax)
+body = """
+{% if version %}\
+## [{{ version | trim_start_matches(pat="v") }}] — {{ timestamp | date(format="%Y-%m-%d") }}
+{% else %}\
+## [Unreleased]
+{% endif %}\
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | upper_first }}
+{% for commit in commits %}
+- {% if commit.scope %}**{{ commit.scope }}**: {% endif %}{{ commit.message | upper_first }} ([{{ commit.id | truncate(length=7, end="") }}]({{ commit.id }}))
+{%- if commit.breaking %} **BREAKING**{% endif %}
+{% endfor %}
+{% endfor %}\n
+"""
+# Footer appended after all release sections
+footer = ""
+# Remove leading/trailing whitespace from each line
+trim = true
+
+[git]
+# Parse commits as Conventional Commits (type(scope): description)
+conventional_commits = true
+# Filter out commits that do not follow conventional commit format
+filter_unconventional = true
+# Split commits on newlines (for commits with multiple messages)
+split_commits = false
+
+# Preprocessing patterns applied to commit messages before parsing
+commit_preprocessors = [
+  # Strip trailing whitespace
+  { pattern = '  +', replace = ' ' },
+]
+
+# Map commit types to changelog group labels
+commit_parsers = [
+  { message = "^feat", group = "Features" },
+  { message = "^fix", group = "Bug Fixes" },
+  { message = "^perf", group = "Performance" },
+  { message = "^refactor", group = "Refactoring" },
+  { message = "^docs", group = "Documentation" },
+  { message = "^test", group = "Testing" },
+  { message = "^ci", group = "CI/CD" },
+  { message = "^chore\\(release\\)", skip = true },
+  { message = "^chore", skip = true },
+  { message = "^build", skip = true },
+  { message = "^style", skip = true },
+  { message = "^revert", group = "Reverts" },
+]
+
+# Protect breaking change detection
+protect_breaking_commits = false
+# Filter commits not matched by any commit_parser
+filter_commits = true
+# Sort tags by version (semver)
+tag_pattern = "v[0-9].*"
+# Skip tags matching this pattern
+skip_tags = ""
+# Ignore tags matching this pattern
+ignore_tags = ""
+# Sort commits within groups by date (newest first)
+date_order = false
+# Reverse sort (oldest first within each release)
+sort_commits = "oldest"

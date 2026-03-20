@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\subprocess_policy.py
+# hypothesis_version: 6.151.9
+
+['.spiral', 'C', 'I', 'M', 'R', 'SPIRAL_SCRATCH_DIR', 'V', 'a', 'bats', 'blocked_executable', 'cargo', 'cat', 'cp', 'curl', 'echo', 'event', 'find', 'full_command', 'git', 'global', 'grep', 'head', 'jq', 'ls', 'make', 'mkdir', 'mv', 'node', 'npm', 'npx', 'phase', 'printf', 'pytest', 'python', 'python3', 'security-audit.jsonl', 'shell', 'sort', 'tail', 'timestamp', 'touch', 'uniq', 'utf-8', 'uv', 'wc', 'wget']

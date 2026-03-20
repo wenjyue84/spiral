@@ -1,0 +1,131 @@
+{
+  "_comment": "US-340: Per-tool usage examples loaded into Ralph system prompt to improve parameter accuracy. Each tool has 2-5 examples showing minimal, partial, and full parameter patterns.",
+  "tools": {
+    "bash_execute": {
+      "description": "Execute shell commands via the Bash tool",
+      "input_examples": [
+        {
+          "description": "Run pytest on a single test file (minimal)",
+          "input": {
+            "command": "uv run pytest tests/test_merge_stories.py -v --tb=short"
+          }
+        },
+        {
+          "description": "Run a command with timeout (partial)",
+          "input": {
+            "command": "uv run pytest tests/ -v --tb=short",
+            "timeout": 120000,
+            "description": "Run all pytest tests with 2-minute timeout"
+          }
+        },
+        {
+          "description": "Chain multiple commands (full)",
+          "input": {
+            "command": "uv run mypy lib/ --strict 2>&1 | head -50",
+            "timeout": 60000,
+            "description": "Type check lib/ with mypy strict mode, limit output"
+          }
+        },
+        {
+          "description": "Run shellcheck on a script",
+          "input": {
+            "command": "shellcheck --severity=error spiral.sh",
+            "description": "Lint spiral.sh for shell errors"
+          }
+        }
+      ]
+    },
+    "file_write": {
+      "description": "Create or overwrite files via the Write tool",
+      "input_examples": [
+        {
+          "description": "Create a new Python test file (minimal)",
+          "input": {
+            "file_path": "tests/test_new_feature.py",
+            "content": "import pytest\n\ndef test_placeholder():\n    assert True\n"
+          }
+        },
+        {
+          "description": "Create a JSON config file",
+          "input": {
+            "file_path": ".spiral/config_override.json",
+            "content": "{\n  \"key\": \"value\"\n}\n"
+          }
+        },
+        {
+          "description": "Create a shell script with proper shebang",
+          "input": {
+            "file_path": "lib/new_helper.sh",
+            "content": "#!/bin/bash\n# lib/new_helper.sh — Description\n\nset -euo pipefail\n\nmain() {\n  echo \"hello\"\n}\n\nmain \"$@\"\n"
+          }
+        }
+      ]
+    },
+    "git_commit": {
+      "description": "Git operations via the Bash tool",
+      "input_examples": [
+        {
+          "description": "Stage and commit specific files (minimal)",
+          "input": {
+            "command": "git add lib/new_module.py tests/test_new_module.py && git commit -m \"feat: add new module\""
+          }
+        },
+        {
+          "description": "Stage all and commit with story ID (partial)",
+          "input": {
+            "command": "git add -A && git commit -m \"feat: US-123 - implement feature X\n\nStory ID: US-123\"",
+            "description": "Stage all changes and commit with conventional commit message"
+          }
+        },
+        {
+          "description": "Multi-line commit with acceptance criteria (full)",
+          "input": {
+            "command": "git add -A && git commit -m \"$(cat <<'EOF'\nfeat: US-123 - implement feature X\n\nAdded new module with tests.\n\nStory ID: US-123\nAcceptance criteria met:\n- [x] Criterion 1\n- [x] Criterion 2\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>\nEOF\n)\"",
+            "description": "Full commit with story tracking and co-author attribution"
+          }
+        }
+      ]
+    },
+    "run_tests": {
+      "description": "Test execution patterns via the Bash tool",
+      "input_examples": [
+        {
+          "description": "Run a single pytest test function (minimal)",
+          "input": {
+            "command": "uv run pytest tests/test_merge_stories.py::test_dedup_by_overlap -v"
+          }
+        },
+        {
+          "description": "Run bats tests for a specific file (minimal)",
+          "input": {
+            "command": "tests/bats-core/bin/bats tests/tool_param_validation.bats"
+          }
+        },
+        {
+          "description": "Run pytest with coverage (partial)",
+          "input": {
+            "command": "uv run pytest tests/ -v --tb=short --cov=lib --cov-report=term-missing",
+            "timeout": 180000,
+            "description": "Run all tests with coverage report"
+          }
+        },
+        {
+          "description": "Run mypy type checking (full)",
+          "input": {
+            "command": "uv run mypy lib/ --strict 2>&1",
+            "timeout": 120000,
+            "description": "Strict type checking on lib/ directory"
+          }
+        },
+        {
+          "description": "Run shellcheck and shfmt linting",
+          "input": {
+            "command": "shellcheck --severity=error spiral.sh ralph/ralph.sh lib/*.sh && shfmt -d -i 2 -ci spiral.sh ralph/ralph.sh lib/*.sh",
+            "timeout": 60000,
+            "description": "Lint all shell scripts for errors and formatting"
+          }
+        }
+      ]
+    }
+  }
+}

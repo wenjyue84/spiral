@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\otel_metrics.py
+# hypothesis_version: 6.151.9
+
+[0.0, 100, 200, 404, 5000, '"', '%Y-%m-%dT%H:%M:%SZ', '--duration-ms', '--input-tokens', '--output-tokens', '--phase', '--port', '--scratch-dir', '--story-id', '/metrics', '0.0.0.0', 'Content-Length', 'Content-Type', 'I', 'Prompt token count', '\\"', '__main__', 'a', 'anthropic', 'calls', 'command', 'duration_ms', 'execute_task', 'gen_ai.system', 'gen_ai.token.type', 'input', 'input_tokens', 'ms', 'output', 'output_tokens', 'phase', 'record-tokens', 'serve-prometheus', 'spiral', 'spiral.genai', 'spiral.phase', 'spiral.story_id', 'story_id', 'token_metrics.jsonl', 'total_tokens', 'ts', 'unknown', 'utf-8', '{token}']

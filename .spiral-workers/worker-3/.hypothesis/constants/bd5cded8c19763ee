@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\otel_content_events.py
+# hypothesis_version: 6.151.9
+
+[5000, '%Y-%m-%dT%H:%M:%SZ', '--completion', '--model', '--scratch-dir', '--system-prompt', '--user-prompt', '.spiral', 'Completion text', 'SPIRAL_SCRATCH_DIR', 'System prompt text', 'User prompt text', '__main__', 'a', 'anthropic', 'command', 'completion', 'content_events.jsonl', 'emit-completion', 'emit-prompt', 'event_type', 'false', 'gen_ai.completion', 'gen_ai.prompt', 'gen_ai.request.model', 'gen_ai.system', 'model', 'prompt', 'prompt_length_chars', 'redacted', 'resource', 'scratch_dir', 'spiral.genai', 'system_prompt_length', 'true', 'ts', 'unknown', 'user_prompt_length', 'utf-8']

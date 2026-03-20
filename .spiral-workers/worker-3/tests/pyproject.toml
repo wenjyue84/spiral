@@ -1,0 +1,43 @@
+[project]
+name = "spiral-tests"
+version = "0.1.0"
+description = "Test suite for SPIRAL"
+requires-python = ">=3.13"
+dependencies = [
+    "spiral",
+    "coverage[toml]>=7.13.4",
+    "diff-cover>=9.1.0",
+    "hypothesis>=6.151.9",
+    "mutmut>=3.2.0",
+    "mypy==1.11.2",
+    "pre-commit>=4.0.0",
+    "pytest>=9.0.2",
+    "pytest-asyncio>=0.25.0",
+    "pytest-benchmark>=5.0.0",
+    "pytest-cov>=7.0.0",
+    "pytest-timeout>=2.4.0",
+    "pytest-xdist>=3.5.0",
+    "ruff>=0.11.0",
+    "syrupy>=4.0.0",
+    "uv-secure>=0.2.0",
+]
+
+[tool.uv.sources]
+spiral = { workspace = true }
+
+[tool.pytest.ini_options]
+timeout = 60
+timeout_method = "thread"
+addopts = "-n 4 --dist loadscope -m 'not benchmark'"
+markers = [
+    "benchmark: marks tests as benchmark suite (deselect with '-m \"not benchmark\"')",
+]
+
+[tool.coverage.run]
+source = ["spiral"]
+branch = true
+omit = ["tests/*", "*/__pycache__/*"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 38

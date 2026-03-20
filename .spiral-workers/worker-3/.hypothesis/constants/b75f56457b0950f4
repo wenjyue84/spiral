@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\privacy_scrubber.py
+# hypothesis_version: 6.151.9
+
+[30000, '[REDACTED]', '[REDACTED_EMAIL]', '[REDACTED_PATH]', 'anthropic_api_key', 'aws_secret', 'credential_path', 'email', 'github_token', 'openai_api_key']

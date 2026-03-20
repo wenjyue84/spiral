@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\AppData\Roaming\Python\Python312\site-packages\httpx\_api.py
+# hypothesis_version: 6.151.9
+
+['DELETE', 'GET', 'HEAD', 'OPTIONS', 'PATCH', 'POST', 'PUT', 'delete', 'get', 'head', 'options', 'patch', 'post', 'put', 'request', 'stream']

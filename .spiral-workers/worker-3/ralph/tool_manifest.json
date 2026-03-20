@@ -1,0 +1,45 @@
+{
+  "_comment": "US-337: Tool manifest for Ralph deferred tool loading. Core tools are always loaded; deferred tools are discoverable via ToolSearch. US-339: code_execution marker indicates programmatic tool calling support.",
+  "core": [
+    "Bash",
+    "Edit",
+    "Read",
+    "Write",
+    "Glob",
+    "Grep",
+    "ToolSearch"
+  ],
+  "deferred": [
+    "Skill",
+    "Task",
+    "Agent",
+    "NotebookEdit",
+    "WebFetch",
+    "WebSearch",
+    "AskUserQuestion",
+    "TodoWrite",
+    "SendMessage"
+  ],
+  "_programmatic_tools_v1": {
+    "_comment": "US-339: Tool definitions with allowed_callers for programmatic tool calling. When Claude 4.6+ is used, this enables code_execution_20250825 which orchestrates bash_execute, file_read, file_write in sandboxed code.",
+    "code_execution": {
+      "type": "code_execution_20250825",
+      "description": "Execute orchestrated tool calls from within Python code in a sandboxed environment"
+    },
+    "bash_execute": {
+      "allowed_callers": [
+        "code_execution_20250825"
+      ]
+    },
+    "file_read": {
+      "allowed_callers": [
+        "code_execution_20250825"
+      ]
+    },
+    "file_write": {
+      "allowed_callers": [
+        "code_execution_20250825"
+      ]
+    }
+  }
+}

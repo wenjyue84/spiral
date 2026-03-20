@@ -1,0 +1,912 @@
+"""Unit tests for merge_stories.py — deduplication, ID assignment, atomic write, and overflow."""
+
+import json
+import os
+import re
+import subprocess
+import sys
+
+import pytest
+from hypothesis import HealthCheck, assume, given, settings
+from hypothesis import strategies as st
+from hypothesis.stateful import RuleBasedStateMachine, initialize, invariant, rule
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
+sys.path.insert(0, os.path.dirname(__file__))
+from merge_stories import (
+    find_next_id,
+    full_sort_key,
+    is_duplicate,
+    jaccard_similarity,
+    overlap_ratio,
+    sort_key,
+    story_to_prd_entry,
+)
+from spiral_io import atomic_write_json
+from strategies import prd_strategy
+
+# ── overlap_ratio ────────────────────────────────────────────────────────
+
+
+class TestOverlapRatioUnit:
+    """Deterministic unit tests for overlap_ratio."""
+
+    def test_identical_strings(self):
+        assert overlap_ratio("fix failing test", "fix failing test") == 1.0
+
+    def test_partial_overlap(self):
+        # "fix" and "test" overlap out of {"fix", "failing", "test"} → 2/3
+        ratio = overlap_ratio("fix failing test", "fix broken test")
+        assert abs(ratio - 2 / 3) < 0.01
+
+    def test_disjoint_strings(self):
+        assert overlap_ratio("alpha beta", "gamma delta") == 0.0
+
+    def test_empty_a_returns_zero(self):
+        assert overlap_ratio("", "anything") == 0.0
+
+    def test_empty_both_returns_zero(self):
+        assert overlap_ratio("", "") == 0.0
+
+    def test_subset_overlap(self):
+        # a = {"add", "unit", "tests"}, b has all three plus more
+        ratio = overlap_ratio("add unit tests", "add unit tests for merge stories")
+        assert ratio == 1.0
+
+    def test_asymmetric(self):
+        # a→b and b→a can differ
+        ratio_ab = overlap_ratio("add unit tests", "add unit tests for merge stories")
+        ratio_ba = overlap_ratio("add unit tests for merge stories", "add unit tests")
+        assert ratio_ab == 1.0
+        assert ratio_ba < 1.0
+
+
+# ── is_duplicate threshold behaviour ─────────────────────────────────────
+
+
+class TestIsDuplicateThreshold:
+    """Tests for is_duplicate at boundary thresholds: 59%, 60%, 61%."""
+
+    def test_at_59_percent_not_duplicate(self):
+        """Below default 60% threshold → not duplicate."""
+        # a = {"a","b","c","d","e"} (5 words), overlap 2 → 0.4
+        # Need exactly 59% overlap: 3 words shared out of ~5 → 0.6 ≥ 0.6 → still dup
+        # Use custom threshold of 0.6; construct titles with exactly 59% overlap
+        # 10 words in candidate, 5 overlap → 50% < 59% → not dup at threshold=0.59
+        candidate = "one two three four five six seven eight nine ten"
+        existing = ["one two three four five alpha bravo charlie delta echo"]
+        # overlap for candidate→existing: 5/10 = 0.5
+        assert not is_duplicate(candidate, existing, threshold=0.59)
+
+    def test_at_60_percent_is_duplicate(self):
+        """At exactly 60% Jaccard threshold → duplicate (>=)."""
+        # Jaccard("alpha beta gamma delta", "alpha beta gamma eta")
+        # intersection={alpha,beta,gamma}=3, union={alpha,beta,gamma,delta,eta}=5 → 3/5=0.6
+        candidate = "alpha beta gamma delta"
+        existing = ["alpha beta gamma eta"]
+        assert is_duplicate(candidate, existing, threshold=0.6)
+
+    def test_at_61_percent_not_duplicate(self):
+        """Below 61% Jaccard threshold → not duplicate."""
+        # same titles → Jaccard=3/5=0.6 < 0.61 → not duplicate
+        candidate = "alpha beta gamma delta"
+        existing = ["alpha beta gamma eta"]
+        assert not is_duplicate(candidate, existing, threshold=0.61)
+
+    def test_short_title_not_false_positive(self):
+        """Jaccard fix: short candidate no longer falsely matches long existing title."""
+        # Old overlap_ratio("alpha beta", "alpha beta gamma delta epsilon") = 2/2 = 1.0 (false positive)
+        # New Jaccard = |{alpha,beta}| / |{alpha,beta,gamma,delta,epsilon}| = 2/5 = 0.4 < 0.6
+        candidate = "alpha beta"
+        existing = ["alpha beta gamma delta epsilon"]
+        assert not is_duplicate(candidate, existing, threshold=0.6)
+
+    def test_empty_existing_list(self):
+        assert not is_duplicate("any title", [])
+
+    def test_duplicate_false_for_completely_different(self):
+        existing = ["add dashboard widget for metrics"]
+        candidate = "fix login regression test"
+        assert not is_duplicate(candidate, existing, threshold=0.6)
+
+
+# ── jaccard_similarity ────────────────────────────────────────────────────
+
+
+class TestJaccardSimilarity:
+    """Unit tests for jaccard_similarity — symmetric, bounded, and correct."""
+
+    def test_identical_strings(self):
+        assert jaccard_similarity("fix failing test", "fix failing test") == 1.0
+
+    def test_partial_overlap(self):
+        # intersection={alpha,beta,gamma}=3, union={alpha,beta,gamma,delta,eta}=5 → 0.6
+        score = jaccard_similarity("alpha beta gamma delta", "alpha beta gamma eta")
+        assert abs(score - 3 / 5) < 0.01
+
+    def test_disjoint_strings(self):
+        assert jaccard_similarity("alpha beta", "gamma delta") == 0.0
+
+    def test_both_empty_returns_zero(self):
+        assert jaccard_similarity("", "") == 0.0
+
+    def test_symmetric(self):
+        a = "add unit tests for merge stories"
+        b = "add unit tests"
+        assert jaccard_similarity(a, b) == jaccard_similarity(b, a)
+
+    def test_short_candidate_not_inflated(self):
+        # Short candidate should NOT score 1.0 against a long title
+        score = jaccard_similarity("alpha beta", "alpha beta gamma delta epsilon")
+        assert score < 1.0
+        assert abs(score - 2 / 5) < 0.01
+
+
+# ── false-positive regression ─────────────────────────────────────────────
+
+
+class TestFalsePositiveRegression:
+    """Regression guard: short titles should not be falsely flagged as duplicates."""
+
+    def test_short_title_not_false_positive(self):
+        """'Improve test coverage' is NOT a duplicate of the longer title."""
+        candidate = "Improve test coverage"
+        existing = ["Improve test coverage for Phase R research module"]
+        # Jaccard = |{improve,test,coverage}| / |{improve,test,coverage,phase,research,module}| = 3/7 ≈ 0.43
+        assert not is_duplicate(candidate, existing, threshold=0.6)
+
+    def test_genuine_duplicate_still_caught(self):
+        """Real duplicates (high word overlap) are still detected."""
+        candidate = "Add unit tests merge stories"
+        existing = ["Add unit tests for merge stories pipeline"]
+        # Jaccard = |{add,unit,tests,merge,stories}| / |{add,unit,tests,for,merge,stories,pipeline}| = 5/7
+        assert is_duplicate(candidate, existing, threshold=0.5)
+
+
+# ── find_next_id (ID assignment) ─────────────────────────────────────────
+
+
+class TestFindNextId:
+    """Tests for sequential ID assignment."""
+
+    @given(prd_strategy(min_size=1, max_size=15))
+    @settings(max_examples=50, suppress_health_check=[HealthCheck.too_slow], deadline=None)
+    def test_given_us001_to_us005_next_is_006(self, stories):
+        """For any PRD, find_next_id returns a number greater than every existing ID."""
+        next_num = find_next_id(stories)
+        for s in stories:
+            m = re.match(r"US-(\d+)$", s["id"])
+            if m:
+                assert next_num > int(m.group(1)), (
+                    f"find_next_id returned {next_num} but story {s['id']} already exists"
+                )
+
+    def test_empty_stories_returns_one(self):
+        assert find_next_id([]) == 1
+
+    def test_handles_gaps(self):
+        stories = [{"id": "US-001"}, {"id": "US-005"}, {"id": "US-003"}]
+        assert find_next_id(stories) == 6
+
+    def test_ignores_non_matching_ids(self):
+        stories = [{"id": "US-003"}, {"id": "TASK-99"}, {"id": ""}]
+        assert find_next_id(stories) == 4
+
+    def test_single_story(self):
+        assert find_next_id([{"id": "US-010"}]) == 11
+
+
+# ── Atomic write (simulated os.replace failure) ─────────────────────────
+
+
+class TestAtomicWrite:
+    """Tests that a failed atomic write leaves original prd.json unchanged."""
+
+    def _make_prd(self, path, stories=None):
+        if stories is None:
+            stories = [
+                {
+                    "id": "US-001",
+                    "title": "existing story",
+                    "passes": True,
+                    "priority": "medium",
+                    "description": "",
+                    "acceptanceCriteria": ["done"],
+                    "dependencies": [],
+                }
+            ]
+        prd = {
+            "productName": "TestApp",
+            "branchName": "main",
+            "userStories": stories,
+        }
+        path.write_text(json.dumps(prd, indent=2), encoding="utf-8")
+
+    def _make_research(self, path, titles):
+        stories = [
+            {"title": t, "priority": "medium", "description": t, "acceptanceCriteria": [f"criterion for {t}"]}
+            for t in titles
+        ]
+        path.write_text(json.dumps({"stories": stories}, indent=2), encoding="utf-8")
+
+    def test_successful_merge_updates_prd(self, tmp_path):
+        """Normal merge: new stories appear in prd.json after merge."""
+        prd_path = tmp_path / "prd.json"
+        research_path = tmp_path / "research.json"
+        test_stories_path = tmp_path / "test_stories.json"
+
+        self._make_prd(prd_path)
+        self._make_research(research_path, ["completely new alpha story"])
+        test_stories_path.write_text('{"stories": []}', encoding="utf-8")
+
+        merge_script = os.path.join(os.path.dirname(__file__), "..", "lib", "merge_stories.py")
+        result = subprocess.run(
+            [
+                sys.executable,
+                merge_script,
+                "--prd",
+                str(prd_path),
+                "--research",
+                str(research_path),
+                "--test-stories",
+                str(test_stories_path),
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, f"merge failed:\n{result.stderr}"
+
+        with open(prd_path, encoding="utf-8") as f:
+            prd = json.load(f)
+        assert len(prd["userStories"]) == 2
+
+    # NOTE: test_original_unchanged_when_tmp_write_blocked was removed because
+    # atomic_write_json now uses tempfile.mkstemp (random names), making the old
+    # "create prd.json.tmp as directory" trick impossible.  The same scenario is
+    # covered by TestAtomicWriteUnit.test_os_replace_raises_leaves_original_unchanged.
+
+
+# ── Atomic write unit — monkeypatch os.replace ───────────────────────────
+
+
+class TestAtomicWriteUnit:
+    """Unit tests for atomic_write_json (now in spiral_io)."""
+
+    def test_os_replace_raises_leaves_original_unchanged(self, tmp_path, monkeypatch):
+        """If os.replace raises, dest file is unchanged and .tmp is cleaned up."""
+        import spiral_io
+
+        dest = tmp_path / "prd.json"
+        original = {"productName": "Test", "branchName": "main", "userStories": []}
+        dest.write_text(json.dumps(original, indent=2), encoding="utf-8")
+        original_content = dest.read_text(encoding="utf-8")
+
+        def _fail_replace(src, dst):
+            raise OSError("simulated replace failure")
+
+        monkeypatch.setattr(spiral_io.os, "replace", _fail_replace)
+
+        with pytest.raises(OSError, match="simulated replace failure"):
+            atomic_write_json(str(dest), {"productName": "Changed", "userStories": []})
+
+        # Original file must be unchanged
+        assert dest.read_text(encoding="utf-8") == original_content
+        # Tmp files must be cleaned up
+        tmp_files = [f for f in tmp_path.iterdir() if f.suffix == ".tmp"]
+        assert tmp_files == []
+
+    def test_successful_write_creates_dest_and_removes_tmp(self, tmp_path):
+        """Successful write produces correct dest file; no .tmp left behind."""
+        dest = tmp_path / "out.json"
+        data = {"key": "value", "items": [1, 2, 3]}
+        atomic_write_json(str(dest), data)
+
+        assert dest.exists()
+        tmp_files = [f for f in tmp_path.iterdir() if f.suffix == ".tmp"]
+        assert tmp_files == []
+        assert json.loads(dest.read_text(encoding="utf-8")) == data
+
+
+# ── Overflow behaviour ───────────────────────────────────────────────────
+
+
+class TestOverflow:
+    """Tests that excess stories go to overflow file when cap is hit."""
+
+    # Each title uses unique words to avoid dedup
+    _TITLES = [
+        "alpha bravo charlie",
+        "delta echo foxtrot",
+        "golf hotel india",
+        "juliet kilo lima",
+        "mike november oscar",
+        "papa quebec romeo",
+        "sierra tango uniform",
+        "victor whiskey xray",
+    ]
+
+    def _make_prd(self, path):
+        prd = {
+            "productName": "TestApp",
+            "branchName": "main",
+            "userStories": [
+                {
+                    "id": "US-001",
+                    "title": "xyzzy plugh plover",
+                    "passes": True,
+                    "priority": "medium",
+                    "description": "",
+                    "acceptanceCriteria": ["done"],
+                    "dependencies": [],
+                }
+            ],
+        }
+        path.write_text(json.dumps(prd, indent=2), encoding="utf-8")
+
+    def _make_research(self, path, count):
+        stories = [
+            {
+                "title": self._TITLES[i],
+                "priority": "medium",
+                "description": self._TITLES[i],
+                "acceptanceCriteria": [f"criterion{i}"],
+            }
+            for i in range(count)
+        ]
+        path.write_text(json.dumps({"stories": stories}, indent=2), encoding="utf-8")
+
+    def test_overflow_written_when_cap_hit(self, tmp_path):
+        """When --max-new is 3 and 5 candidates exist, 2 go to overflow."""
+        prd_path = tmp_path / "prd.json"
+        research_path = tmp_path / "research.json"
+        test_stories_path = tmp_path / "test_stories.json"
+        overflow_path = tmp_path / "overflow.json"
+
+        self._make_prd(prd_path)
+        self._make_research(research_path, 5)
+        test_stories_path.write_text('{"stories": []}', encoding="utf-8")
+
+        merge_script = os.path.join(os.path.dirname(__file__), "..", "lib", "merge_stories.py")
+        result = subprocess.run(
+            [
+                sys.executable,
+                merge_script,
+                "--prd",
+                str(prd_path),
+                "--research",
+                str(research_path),
+                "--test-stories",
+                str(test_stories_path),
+                "--max-new",
+                "3",
+                "--overflow-out",
+                str(overflow_path),
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, f"merge failed:\n{result.stderr}"
+
+        # 3 stories added to prd (+ 1 existing = 4)
+        with open(prd_path, encoding="utf-8") as f:
+            prd = json.load(f)
+        new_stories = [s for s in prd["userStories"] if not s.get("passes")]
+        assert len(new_stories) == 3
+
+        # 2 stories in overflow
+        with open(overflow_path, encoding="utf-8") as f:
+            overflow = json.load(f)
+        assert len(overflow["stories"]) == 2
+
+    def test_no_overflow_when_under_cap(self, tmp_path):
+        """When candidates < cap, overflow file is empty."""
+        prd_path = tmp_path / "prd.json"
+        research_path = tmp_path / "research.json"
+        test_stories_path = tmp_path / "test_stories.json"
+        overflow_path = tmp_path / "overflow.json"
+
+        self._make_prd(prd_path)
+        self._make_research(research_path, 2)
+        test_stories_path.write_text('{"stories": []}', encoding="utf-8")
+
+        merge_script = os.path.join(os.path.dirname(__file__), "..", "lib", "merge_stories.py")
+        result = subprocess.run(
+            [
+                sys.executable,
+                merge_script,
+                "--prd",
+                str(prd_path),
+                "--research",
+                str(research_path),
+                "--test-stories",
+                str(test_stories_path),
+                "--max-new",
+                "10",
+                "--overflow-out",
+                str(overflow_path),
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, f"merge failed:\n{result.stderr}"
+
+        with open(overflow_path, encoding="utf-8") as f:
+            overflow = json.load(f)
+        assert len(overflow["stories"]) == 0
+
+    def test_max_new_zero_adds_nothing(self, tmp_path):
+        """--max-new 0 means nothing gets added, all go to overflow."""
+        prd_path = tmp_path / "prd.json"
+        research_path = tmp_path / "research.json"
+        test_stories_path = tmp_path / "test_stories.json"
+        overflow_path = tmp_path / "overflow.json"
+
+        self._make_prd(prd_path)
+        self._make_research(research_path, 3)
+        test_stories_path.write_text('{"stories": []}', encoding="utf-8")
+
+        merge_script = os.path.join(os.path.dirname(__file__), "..", "lib", "merge_stories.py")
+        result = subprocess.run(
+            [
+                sys.executable,
+                merge_script,
+                "--prd",
+                str(prd_path),
+                "--research",
+                str(research_path),
+                "--test-stories",
+                str(test_stories_path),
+                "--max-new",
+                "0",
+                "--overflow-out",
+                str(overflow_path),
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, f"merge failed:\n{result.stderr}"
+
+        with open(prd_path, encoding="utf-8") as f:
+            prd = json.load(f)
+        new_stories = [s for s in prd["userStories"] if not s.get("passes")]
+        assert len(new_stories) == 0
+
+        with open(overflow_path, encoding="utf-8") as f:
+            overflow = json.load(f)
+        assert len(overflow["stories"]) == 3
+
+    def test_max_new_one_boundary(self, tmp_path):
+        """--max-new 1 adds exactly one story."""
+        prd_path = tmp_path / "prd.json"
+        research_path = tmp_path / "research.json"
+        test_stories_path = tmp_path / "test_stories.json"
+
+        self._make_prd(prd_path)
+        self._make_research(research_path, 5)
+        test_stories_path.write_text('{"stories": []}', encoding="utf-8")
+
+        merge_script = os.path.join(os.path.dirname(__file__), "..", "lib", "merge_stories.py")
+        result = subprocess.run(
+            [
+                sys.executable,
+                merge_script,
+                "--prd",
+                str(prd_path),
+                "--research",
+                str(research_path),
+                "--test-stories",
+                str(test_stories_path),
+                "--max-new",
+                "1",
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, f"merge failed:\n{result.stderr}"
+
+        with open(prd_path, encoding="utf-8") as f:
+            prd = json.load(f)
+        new_stories = [s for s in prd["userStories"] if not s.get("passes")]
+        assert len(new_stories) == 1
+
+
+# ── Priority ordering ────────────────────────────────────────────────────
+
+
+class TestPriorityOrdering:
+    """Tests that critical stories sort before medium in merged output."""
+
+    def test_critical_before_medium(self):
+        assert sort_key({"priority": "critical"}) < sort_key({"priority": "medium"})
+
+    def test_high_before_low(self):
+        assert sort_key({"priority": "high"}) < sort_key({"priority": "low"})
+
+    def test_missing_priority_defaults_medium(self):
+        assert sort_key({}) == sort_key({"priority": "medium"})
+
+    def test_priority_ordering_in_merge(self, tmp_path):
+        """Merged stories within a group appear sorted by priority."""
+        prd_path = tmp_path / "prd.json"
+        research_path = tmp_path / "research.json"
+        test_stories_path = tmp_path / "test_stories.json"
+
+        prd = {
+            "productName": "TestApp",
+            "branchName": "main",
+            "userStories": [
+                {
+                    "id": "US-001",
+                    "title": "xyzzy plugh plover",
+                    "passes": True,
+                    "priority": "medium",
+                    "description": "",
+                    "acceptanceCriteria": ["done"],
+                    "dependencies": [],
+                }
+            ],
+        }
+        prd_path.write_text(json.dumps(prd, indent=2), encoding="utf-8")
+
+        # Research candidates with mixed priorities
+        stories = [
+            {
+                "title": "low priority zephyr quasar nebula",
+                "priority": "low",
+                "description": "low",
+                "acceptanceCriteria": ["c1"],
+            },
+            {
+                "title": "critical priority zenith apex summit",
+                "priority": "critical",
+                "description": "critical",
+                "acceptanceCriteria": ["c2"],
+            },
+            {
+                "title": "medium priority aurora borealis cosmic",
+                "priority": "medium",
+                "description": "medium",
+                "acceptanceCriteria": ["c3"],
+            },
+        ]
+        research_path.write_text(json.dumps({"stories": stories}, indent=2), encoding="utf-8")
+        test_stories_path.write_text('{"stories": []}', encoding="utf-8")
+
+        merge_script = os.path.join(os.path.dirname(__file__), "..", "lib", "merge_stories.py")
+        result = subprocess.run(
+            [
+                sys.executable,
+                merge_script,
+                "--prd",
+                str(prd_path),
+                "--research",
+                str(research_path),
+                "--test-stories",
+                str(test_stories_path),
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, f"merge failed:\n{result.stderr}"
+
+        with open(prd_path, encoding="utf-8") as f:
+            merged = json.load(f)
+
+        # New stories (indices 1, 2, 3) should be sorted: critical, medium, low
+        new_stories = [s for s in merged["userStories"] if not s.get("passes")]
+        priorities = [s["priority"] for s in new_stories]
+        assert priorities == ["critical", "medium", "low"]
+
+
+# ── Post-merge sort order (US-065) ─────────────────────────────────────
+
+
+class TestPostMergeSortOrder:
+    """Tests that all userStories are sorted after merge: active before done,
+    priority order within active, fewer deps first within same priority."""
+
+    @given(prd_strategy(min_size=2, max_size=10))
+    @settings(max_examples=50, suppress_health_check=[HealthCheck.too_slow], deadline=None)
+    def test_full_sort_key_active_before_done(self, stories):
+        """For any PRD, sorting by full_sort_key places active stories before done stories."""
+        has_active = any(not s.get("passes") and not s.get("_decomposed") and not s.get("_skipped") for s in stories)
+        has_done = any(s.get("passes") or s.get("_decomposed") or s.get("_skipped") for s in stories)
+        assume(has_active and has_done)
+        sorted_stories = sorted(stories, key=full_sort_key)
+        seen_done = False
+        for s in sorted_stories:
+            is_done = s.get("passes") or s.get("_decomposed") or s.get("_skipped")
+            if is_done:
+                seen_done = True
+            elif seen_done:
+                pytest.fail(f"Active story {s['id']} appears after done stories in sorted output")
+
+    def test_full_sort_key_decomposed_is_done(self):
+        active = {"passes": False, "priority": "medium", "dependencies": []}
+        decomposed = {"_decomposed": True, "priority": "critical", "dependencies": []}
+        assert full_sort_key(active) < full_sort_key(decomposed)
+
+    def test_full_sort_key_skipped_is_done(self):
+        active = {"passes": False, "priority": "medium", "dependencies": []}
+        skipped = {"_skipped": True, "priority": "critical", "dependencies": []}
+        assert full_sort_key(active) < full_sort_key(skipped)
+
+    def test_full_sort_key_priority_tiebreak(self):
+        high = {"passes": False, "priority": "high", "dependencies": []}
+        low = {"passes": False, "priority": "low", "dependencies": []}
+        assert full_sort_key(high) < full_sort_key(low)
+
+    @given(prd_strategy(min_size=2, max_size=15))
+    @settings(max_examples=50, suppress_health_check=[HealthCheck.too_slow, HealthCheck.filter_too_much], deadline=None)
+    def test_full_sort_key_dep_count_tiebreak(self, stories):
+        """For same-priority active stories, fewer dependencies sorts before more."""
+        same_priority_active = [
+            s
+            for s in stories
+            if not s.get("passes") and not s.get("_decomposed") and not s.get("_skipped") and s["priority"] == "medium"
+        ]
+        assume(len(same_priority_active) >= 2)
+        fewer = min(same_priority_active, key=lambda s: len(s.get("dependencies", [])))
+        more = max(same_priority_active, key=lambda s: len(s.get("dependencies", [])))
+        assume(len(fewer.get("dependencies", [])) < len(more.get("dependencies", [])))
+        assert full_sort_key(fewer) <= full_sort_key(more)
+
+    def test_end_to_end_sort_after_merge(self, tmp_path):
+        """After merge, prd.json stories are sorted: active by priority/deps, done at end."""
+        prd_path = tmp_path / "prd.json"
+        research_path = tmp_path / "research.json"
+        test_stories_path = tmp_path / "test_stories.json"
+
+        # Existing stories: one done (high), two active (low, medium)
+        prd = {
+            "productName": "TestApp",
+            "branchName": "main",
+            "userStories": [
+                {
+                    "id": "US-001",
+                    "title": "done story omega phi psi",
+                    "passes": True,
+                    "priority": "high",
+                    "description": "",
+                    "acceptanceCriteria": ["done"],
+                    "dependencies": [],
+                },
+                {
+                    "id": "US-002",
+                    "title": "active low zephyr quasar nebula",
+                    "passes": False,
+                    "priority": "low",
+                    "description": "",
+                    "acceptanceCriteria": ["c"],
+                    "dependencies": [],
+                },
+                {
+                    "id": "US-003",
+                    "title": "active medium aurora borealis cosmic",
+                    "passes": False,
+                    "priority": "medium",
+                    "description": "",
+                    "acceptanceCriteria": ["c"],
+                    "dependencies": ["US-001", "US-002"],
+                },
+            ],
+        }
+        prd_path.write_text(json.dumps(prd, indent=2), encoding="utf-8")
+
+        # Add one critical research story with no deps
+        stories = [
+            {
+                "title": "critical story zenith apex summit pinnacle",
+                "priority": "critical",
+                "description": "critical",
+                "acceptanceCriteria": ["c1"],
+            },
+            {
+                "title": "medium story gamma delta epsilon zeta",
+                "priority": "medium",
+                "description": "medium",
+                "acceptanceCriteria": ["c2"],
+                "dependencies": [],
+            },
+        ]
+        research_path.write_text(json.dumps({"stories": stories}, indent=2), encoding="utf-8")
+        test_stories_path.write_text('{"stories": []}', encoding="utf-8")
+
+        merge_script = os.path.join(os.path.dirname(__file__), "..", "lib", "merge_stories.py")
+        result = subprocess.run(
+            [
+                sys.executable,
+                merge_script,
+                "--prd",
+                str(prd_path),
+                "--research",
+                str(research_path),
+                "--test-stories",
+                str(test_stories_path),
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, f"merge failed:\n{result.stderr}"
+
+        with open(prd_path, encoding="utf-8") as f:
+            merged = json.load(f)
+
+        all_stories = merged["userStories"]
+        # Active stories should come first, sorted by priority then dep count
+        # Expected order:
+        #   1. critical (active, 0 deps) — US-004
+        #   2. medium (active, 0 deps)  — US-005
+        #   3. medium (active, 2 deps)  — US-003
+        #   4. low (active, 0 deps)     — US-002
+        #   5. high (done)              — US-001
+        active = [s for s in all_stories if not s.get("passes")]
+        _done = [s for s in all_stories if s.get("passes")]
+
+        # All active come before all done
+        active_indices = [i for i, s in enumerate(all_stories) if not s.get("passes")]
+        done_indices = [i for i, s in enumerate(all_stories) if s.get("passes")]
+        assert max(active_indices) < min(done_indices), "Active stories must come before done"
+
+        # Active priority order: critical, medium, medium, low
+        active_priorities = [s["priority"] for s in active]
+        assert active_priorities == ["critical", "medium", "medium", "low"]
+
+        # The two medium stories: fewer deps (0) before more deps (2)
+        medium_stories = [s for s in active if s["priority"] == "medium"]
+        medium_dep_counts = [len(s.get("dependencies", [])) for s in medium_stories]
+        assert medium_dep_counts == [0, 2]
+
+
+# ── US-363: Hypothesis RuleBasedStateMachine for PRD merge invariants ────
+
+
+SOURCES = ["test-fix", "research", "seed", "ai-example"]
+PRIORITIES = ["critical", "high", "medium", "low"]
+COMPLEXITIES = ["small", "medium", "large"]
+
+_title_st = st.from_regex(r"[A-Za-z][A-Za-z0-9 _-]{2,30}", fullmatch=True)
+_desc_st = st.text(
+    alphabet="abcdefghijklmnopqrstuvwxyz 0123456789.,",
+    min_size=0,
+    max_size=60,
+)
+_ac_item_st = st.from_regex(r"[A-Za-z][A-Za-z0-9 ]{2,20}", fullmatch=True)
+
+
+@st.composite
+def valid_story_candidate(draw):
+    """Generate a valid story candidate with correlated source/priority/complexity."""
+    source = draw(st.sampled_from(SOURCES))
+    # test-fix stories tend to be higher priority
+    if source == "test-fix":
+        priority = draw(st.sampled_from(["critical", "high", "medium"]))
+    else:
+        priority = draw(st.sampled_from(PRIORITIES))
+    return {
+        "title": draw(_title_st),
+        "priority": priority,
+        "description": draw(_desc_st),
+        "acceptanceCriteria": draw(st.lists(_ac_item_st, min_size=1, max_size=3)),
+        "dependencies": [],
+        "estimatedComplexity": draw(st.sampled_from(COMPLEXITIES)),
+        "_source": source,
+    }
+
+
+class PRDMergeStateMachine(RuleBasedStateMachine):
+    """Model PRD story list as stateful object and verify merge invariants.
+
+    Rules: add_story, remove_story, merge_batch.
+    Invariants: no_duplicate_ids, count_within_cap, no_zombie_deps.
+    """
+
+    MAX_CAP = 20  # Keep state space small for fast test runs
+
+    def __init__(self):
+        super().__init__()
+        self.stories: list[dict] = []
+        self.next_num: int = 1
+
+    @initialize()
+    def init_prd(self):
+        self.stories = []
+        self.next_num = 1
+
+    @rule(candidate=valid_story_candidate())
+    def add_story(self, candidate):
+        """Add a single story to the PRD, assigning a new ID."""
+        if len(self.stories) >= self.MAX_CAP:
+            return  # cap reached, skip
+        story_id = f"US-{self.next_num:03d}"
+        self.next_num += 1
+        entry = story_to_prd_entry(candidate, story_id)
+        self.stories.append(entry)
+
+    @rule(data=st.data())
+    def remove_story(self, data):
+        """Remove a story and clean up references to its ID from dependencies."""
+        if not self.stories:
+            return
+        idx = data.draw(st.integers(min_value=0, max_value=len(self.stories) - 1))
+        removed_id = self.stories[idx]["id"]
+        del self.stories[idx]
+        # Clean up deps referencing the removed story
+        for s in self.stories:
+            if removed_id in s.get("dependencies", []):
+                s["dependencies"] = [d for d in s["dependencies"] if d != removed_id]
+
+    @rule(batch=st.lists(valid_story_candidate(), min_size=1, max_size=5))
+    def merge_batch(self, batch):
+        """Merge a batch of candidate stories, deduplicating and capping."""
+        existing_titles = [s.get("title", "") for s in self.stories]
+        for candidate in batch:
+            if len(self.stories) >= self.MAX_CAP:
+                break
+            title = candidate.get("title", "")
+            if not title:
+                continue
+            if is_duplicate(title, existing_titles):
+                continue
+            story_id = f"US-{self.next_num:03d}"
+            self.next_num += 1
+            entry = story_to_prd_entry(candidate, story_id)
+            self.stories.append(entry)
+            existing_titles.append(title)
+
+        # Apply the same post-merge sort as the real merge pipeline
+        self.stories.sort(key=full_sort_key)
+
+    @rule(data=st.data())
+    def add_dependency(self, data):
+        """Add a dependency between two existing stories."""
+        if len(self.stories) < 2:
+            return
+        src_idx = data.draw(st.integers(min_value=0, max_value=len(self.stories) - 1))
+        tgt_idx = data.draw(st.integers(min_value=0, max_value=len(self.stories) - 1).filter(lambda i: i != src_idx))
+        dep_id = self.stories[tgt_idx]["id"]
+        deps = self.stories[src_idx].get("dependencies", [])
+        if dep_id not in deps:
+            self.stories[src_idx]["dependencies"] = deps + [dep_id]
+
+    @invariant()
+    def no_duplicate_ids(self):
+        """All story IDs must be unique."""
+        ids = [s["id"] for s in self.stories]
+        assert len(set(ids)) == len(ids), f"Duplicate IDs found: {ids}"
+
+    @invariant()
+    def count_within_cap(self):
+        """Story count must never exceed the cap."""
+        assert len(self.stories) <= self.MAX_CAP, f"Story count {len(self.stories)} exceeds cap {self.MAX_CAP}"
+
+    @invariant()
+    def no_zombie_deps(self):
+        """Every dependency ID must reference an existing story."""
+        live_ids = {s["id"] for s in self.stories}
+        for s in self.stories:
+            for dep in s.get("dependencies", []):
+                assert dep in live_ids, f"Story {s['id']} depends on {dep} which does not exist. Live IDs: {live_ids}"
+
+    @invariant()
+    def ids_have_valid_format(self):
+        """All IDs must match the US-NNN pattern."""
+        for s in self.stories:
+            assert re.match(r"^US-\d{3,}$", s["id"]), f"Invalid ID format: {s['id']}"
+
+    @invariant()
+    def all_stories_have_required_fields(self):
+        """Every story must have id, title, priority, passes fields."""
+        for s in self.stories:
+            for field in ("id", "title", "priority", "passes"):
+                assert field in s, f"Story {s.get('id', '?')} missing required field: {field}"
+
+
+# Hypothesis needs this test class to discover the state machine
+TestPRDMergeInvariants = PRDMergeStateMachine.TestCase
+TestPRDMergeInvariants.settings = settings(
+    max_examples=50,
+    stateful_step_count=20,
+    suppress_health_check=[HealthCheck.too_slow, HealthCheck.large_base_example],
+    deadline=None,
+)

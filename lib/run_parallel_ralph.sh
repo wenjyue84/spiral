@@ -532,6 +532,11 @@ for i in $(seq 1 "$RALPH_WORKERS"); do
     rm -f "$WTREE/.git/index.lock"
     echo "  [parallel] Removed stale index.lock for worker $i"
   fi
+  # Prune stale worktree entries (handles "missing but locked" state from OOM/crash)
+  # When a worker is killed mid-run, the directory may be deleted but git's internal
+  # lock metadata in .git/worktrees/ persists, causing "missing but locked" fatal errors.
+  git -C "$REPO_ROOT" worktree unlock "$WTREE" 2>/dev/null || true
+  git -C "$REPO_ROOT" worktree prune 2>/dev/null || true
   # Guard against 'branch already checked out': if the target branch appears in any
   # existing worktree, fall back to detached HEAD mode to avoid a hard failure.
   if git -C "$REPO_ROOT" worktree list --porcelain 2>/dev/null | grep -qF "branch refs/heads/${BRANCH}"; then

@@ -1,0 +1,15 @@
+# pip-audit suppress list
+# List vulnerability IDs to skip (false positives or accepted risks).
+# Each entry must include an explanation in comments above it.
+#
+# Format:
+#   ignore-vulns = [
+#     "GHSA-xxxx-xxxx-xxxx",  # reason: not applicable — explain why
+#   ]
+#
+# This file is read by the CI dep-audit job and converted to --ignore-vuln flags.
+
+ignore-vulns = [
+  # Example (remove the leading # to activate):
+  # "GHSA-1234-5678-9abc",  # reason: not applicable — we do not use the affected code path
+]

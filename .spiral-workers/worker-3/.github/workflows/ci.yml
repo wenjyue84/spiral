@@ -1,0 +1,948 @@
+name: CI
+
+# SECURITY: pull_request_target with untrusted code checkout is FORBIDDEN.
+# Never use pull_request_target alongside a checkout of the PR branch, as it
+# grants write permissions to untrusted code. See:
+# https://securitylab.github.com/research/github-actions-preventing-pwn-requests/
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Deny all permissions by default; each job grants only what it needs.
+permissions: read-all
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-shell:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Harden runner
+        # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        with:
+          egress-policy: audit
+          # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
+      - name: Lint shell scripts
+        uses: ./.github/actions/lint-shell
+
+      - name: Append lint summary to step summary
+        if: always()
+        run: |
+          {
+            echo "## Lint Results"
+            echo ""
+            echo "| Check | Status |"
+            echo "|-------|--------|"
+            echo "| ShellCheck | ✓ Pass |"
+            echo "| Shell Formatting | ✓ Pass |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  mypy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Harden runner
+        # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        with:
+          egress-policy: audit
+          # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
+      - name: Set up uv with cache
+        uses: ./.github/actions/setup-uv
+
+      - name: Validate lockfile is up-to-date
+        # Developers must run 'uv lock' and commit uv.lock after changing pyproject.toml.
+        # This check fails (without modifying files) if the lockfile would change,
+        # surfacing drift as a CI failure rather than a mysterious import error.
+        run: uv lock --check || { echo "::error::uv.lock is out of date with pyproject.toml. Run 'uv lock' locally and commit the updated uv.lock."; exit 1; }
+
+      - name: Install dependencies
+        run: uv sync --frozen --group dev
+
+      - name: Run mypy strict
+        run: |
+          set -o pipefail
+          uv run mypy lib/ --strict --output json \
+            | uv run python lib/mypy_to_github_annotations.py
+
+      - name: Append type check summary to step summary
+        if: always()
+        run: |
+          {
+            echo "## Type Check Results"
+            echo ""
+            echo "| Check | Status |"
+            echo "|-------|--------|"
+            echo "| MyPy (Strict) | ✓ Pass |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  ruff:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Harden runner
+        # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        with:
+          egress-policy: audit
+          # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
+      - name: Set up uv with cache
+        uses: ./.github/actions/setup-uv
+
+      - name: Validate lockfile is up-to-date
+        # Developers must run 'uv lock' and commit uv.lock after changing pyproject.toml.
+        # This check fails (without modifying files) if the lockfile would change,
+        # surfacing drift as a CI failure rather than a mysterious import error.
+        run: uv lock --check || { echo "::error::uv.lock is out of date with pyproject.toml. Run 'uv lock' locally and commit the updated uv.lock."; exit 1; }
+
+      - name: Install dependencies
+        run: uv sync --frozen --group dev
+
+      - name: Run ruff lint check
+        run: uv run ruff check lib/ tests/
+
+      - name: Run ruff format check
+        run: uv run ruff format --check lib/ tests/
+
+  import-linter:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Harden runner
+        # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        with:
+          egress-policy: audit
+          # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
+      - name: Set up uv with cache
+        uses: ./.github/actions/setup-uv
+
+      - name: Install dependencies
+        run: uv sync --frozen --group dev
+
+      - name: Run import-linter
+        run: uv run lint-imports
+
+  vulture:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Harden runner
+        # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        with:
+          egress-policy: audit
+          # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
+      - name: Set up uv with cache
+        uses: ./.github/actions/setup-uv
+
+      - name: Install dependencies
+        run: uv sync --frozen --group dev
+
+      - name: Run vulture dead code check
+        run: uv run vulture lib/ main.py vulture_whitelist.py --min-confidence 80 --exclude "lib/semantic_chunker.py"
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12', '3.13']
+    permissions:
+      contents: read
+
+    steps:
+      - name: Harden runner
+        # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        with:
+          egress-policy: audit
+          # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b  # v5.3.0
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Set up uv with cache
+        uses: ./.github/actions/setup-uv
+
+      - name: Restore Hypothesis database
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
+        with:
+          path: .hypothesis
+          key: ${{ runner.os }}-hypothesis-${{ hashFiles('**/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-hypothesis-
+
+      - name: Validate lockfile is up-to-date
+        # Developers must run 'uv lock' and commit uv.lock after changing pyproject.toml.
+        # This check fails (without modifying files) if the lockfile would change,
+        # surfacing drift as a CI failure rather than a mysterious import error.
+        run: uv lock --check || { echo "::error::uv.lock is out of date with pyproject.toml. Run 'uv lock' locally and commit the updated uv.lock."; exit 1; }
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Validate prd.json schema
+        run: uv run python lib/prd_schema.py prd.json
+
+      - name: Run tests with coverage
+        env:
+          HYPOTHESIS_PROFILE: ci
+        run: |
+          uv run --python ${{ matrix.python-version }} pytest tests/ -v --tb=short \
+            --cov=lib \
+            --cov-branch \
+            --cov-report=xml:coverage.xml \
+            --cov-report=html:coverage_html \
+            --cov-fail-under=38 \
+            2>&1 | tee tests.log
+
+      - name: Rerun failing tests with same random seed
+        # If the main run fails due to a random-order-dependent failure, rerun with
+        # the same seed so the ordering is deterministic and reproducible locally.
+        # Reproduce locally: uv run pytest --randomly-seed=last
+        if: failure()
+        run: |
+          uv run --python ${{ matrix.python-version }} pytest tests/ -v --tb=short \
+            --cov=lib \
+            --cov-branch \
+            --cov-report=xml:coverage.xml \
+            --cov-fail-under=38 \
+            --randomly-seed=last
+
+      - name: Check differential coverage (new lines)
+        # Only run on pull requests to compare against main branch
+        if: always() && (github.event_name == 'pull_request' || github.ref != 'refs/heads/main')
+        continue-on-error: true
+        run: |
+          uv run diff-cover coverage.xml --compare-branch=origin/main --fail-under=80 \
+            --markdown-report /dev/stdout | tee -a "$GITHUB_STEP_SUMMARY" || \
+            echo "::warning::diff-cover: New/modified lines have coverage below 80% threshold"
+
+      - name: Generate comprehensive test summary
+        if: always()
+        run: |
+          {
+            echo "## Test Results — Python ${{ matrix.python-version }}"
+            echo ""
+            # Parse pytest output for test counts
+            PASSED=$(grep -oP '(?<=\s)\d+(?=\s+passed)' tests.log 2>/dev/null || echo "?")
+            FAILED=$(grep -oP '(?<=\s)\d+(?=\s+failed)' tests.log 2>/dev/null || echo "0")
+            SKIPPED=$(grep -oP '(?<=\s)\d+(?=\s+skipped)' tests.log 2>/dev/null || echo "0")
+
+            echo "| Metric | Value |"
+            echo "|--------|-------|"
+            echo "| Tests Passed | $PASSED ✓ |"
+            echo "| Tests Failed | $FAILED ✗ |"
+            echo "| Tests Skipped | $SKIPPED ⊘ |"
+            echo ""
+
+            # Add coverage report
+            echo "### Coverage Report"
+            echo ""
+            uv run coverage report --format=markdown
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload HTML coverage report
+        # Skip upload on fork PRs to prevent secrets exposure
+        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: coverage-report-py${{ matrix.python-version }}
+          path: coverage_html/
+          retention-days: 7
+
+      - name: Upload coverage XML
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: coverage-report-xml-py${{ matrix.python-version }}
+          path: coverage.xml
+          retention-days: 7
+
+  benchmark:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Harden runner
+        # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        with:
+          egress-policy: audit
+          # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
+      - name: Set up uv with cache
+        uses: ./.github/actions/setup-uv
+
+      - name: Validate lockfile is up-to-date
+        run: uv lock --check || { echo "::error::uv.lock is out of date with pyproject.toml. Run 'uv lock' locally and commit the updated uv.lock."; exit 1; }
+
+      - name: Install dependencies
+        run: uv sync --frozen --group dev
+
+      - name: Run pytest-benchmark baseline
+        continue-on-error: true
+        run: |
+          uv run pytest tests/benchmarks/ \
+            --benchmark-only \
+            --benchmark-autosave \
+            --benchmark-min-rounds=5 \
+            -v
+
+      - name: Compare against previous benchmark (if available)
+        continue-on-error: true
+        run: |
+          # List benchmark results to find the latest comparison
+          if [ -d ".benchmarks" ]; then
+            echo "## Benchmark Results" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+
+            # Find all benchmark JSON files
+            for benchmark_file in .benchmarks/*.json; do
+              if [ -f "$benchmark_file" ]; then
+                echo "### $(basename "$benchmark_file")" >> "$GITHUB_STEP_SUMMARY"
+                echo '```' >> "$GITHUB_STEP_SUMMARY"
+                cat "$benchmark_file" >> "$GITHUB_STEP_SUMMARY"
+                echo '```' >> "$GITHUB_STEP_SUMMARY"
+                echo "" >> "$GITHUB_STEP_SUMMARY"
+              fi
+            done
+          else
+            echo "No benchmark results found (.benchmarks/ directory not created)"
+          fi
+
+      - name: Check for regressions >20%
+        if: always()
+        run: |
+          python3 - <<'PYEOF'
+          import json
+          import pathlib
+          import sys
+          from functools import reduce
+
+          benchmarks_dir = pathlib.Path(".benchmarks")
+          if not benchmarks_dir.exists():
+              print("::notice::No benchmark results found")
+              sys.exit(0)
+
+          # Find the latest benchmark JSON file
+          json_files = sorted(benchmarks_dir.glob("**/0001_*.json"))
+          if not json_files:
+              print("::notice::No benchmark JSON files found")
+              sys.exit(0)
+
+          latest_file = json_files[-1]
+          try:
+              with open(latest_file) as f:
+                  results = json.load(f)
+          except Exception as e:
+              print(f"::warning::Could not load benchmark results: {e}")
+              sys.exit(0)
+
+          benchmarks = results.get("benchmarks", [])
+          if not benchmarks:
+              print("::notice::No benchmark data in results")
+              sys.exit(0)
+
+          # Extract function names and their mean times
+          mean_times = {b.get("name", "unknown"): b.get("stats", {}).get("mean", 0) for b in benchmarks}
+
+          # For now, just report baselines established (next run will compare)
+          print(f"## Benchmark Baselines Established")
+          print()
+          print(f"**Benchmarks recorded:** {len(mean_times)}")
+          for name, mean in sorted(mean_times.items()):
+              print(f"  - {name}: {mean:.2f} ns")
+          print()
+          print("::notice::Benchmark baselines established. Future PR runs will compare against these.")
+          PYEOF
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: benchmark-results
+          path: .benchmarks/
+          retention-days: 30
+
+  mutation-test:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+
+    steps:
+      - name: Harden runner
+        # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        with:
+          egress-policy: audit
+          # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
+      - name: Set up uv with cache
+        uses: ./.github/actions/setup-uv
+
+      - name: Validate lockfile is up-to-date
+        # Developers must run 'uv lock' and commit uv.lock after changing pyproject.toml.
+        # This check fails (without modifying files) if the lockfile would change,
+        # surfacing drift as a CI failure rather than a mysterious import error.
+        run: uv lock --check || { echo "::error::uv.lock is out of date with pyproject.toml. Run 'uv lock' locally and commit the updated uv.lock."; exit 1; }
+
+      - name: Install dependencies
+        run: uv sync --frozen --group dev
+
+      - name: Generate coverage data for mutmut
+        run: |
+          uv run pytest tests/ --cov=lib --cov-report= -x -q || true
+
+      - name: Run mutmut on high-risk modules
+        continue-on-error: true
+        run: |
+          uv run mutmut run \
+            --paths-to-mutate \
+              lib/merge_stories.py \
+              lib/validate_stories.py \
+              lib/route_stories.py \
+            --use-coverage \
+            --no-progress \
+            2>&1 | tee mutmut-output.txt || true
+
+      - name: Generate mutmut HTML report
+        if: always()
+        run: uv run mutmut html || true
+
+      - name: Check mutation score threshold
+        if: always()
+        run: |
+          python3 - <<'PYEOF'
+          import json, sys, pathlib, sqlite3
+
+          cache = pathlib.Path(".mutmut-cache")
+          if not cache.exists():
+              print("::warning::mutmut cache not found — mutation testing may not have run")
+              sys.exit(0)
+
+          db = sqlite3.connect(str(cache))
+          try:
+              rows = db.execute(
+                  "SELECT status, count(*) FROM mutant GROUP BY status"
+              ).fetchall()
+          except Exception as e:
+              print(f"::warning::Could not read mutmut cache: {e}")
+              sys.exit(0)
+          finally:
+              db.close()
+
+          counts = dict(rows)
+          killed = counts.get("killed", 0) + counts.get("timeout", 0)
+          survived = counts.get("survived", 0)
+          suspicious = counts.get("suspicious", 0)
+          skipped = counts.get("skipped", 0)
+          total = killed + survived + suspicious
+
+          if total == 0:
+              print("::warning::No mutations were generated")
+              sys.exit(0)
+
+          score = (killed / total) * 100
+          print(f"## Mutation Testing Results")
+          print(f"- **Killed:** {killed}")
+          print(f"- **Survived:** {survived}")
+          print(f"- **Suspicious:** {suspicious}")
+          print(f"- **Skipped:** {skipped}")
+          print(f"- **Total (scored):** {total}")
+          print(f"- **Mutation score:** {score:.1f}%")
+          print()
+
+          THRESHOLD = 60
+          if score < THRESHOLD:
+              print(f"::error::Mutation score {score:.1f}% is below threshold of {THRESHOLD}%")
+              sys.exit(1)
+          else:
+              print(f"Mutation score {score:.1f}% meets threshold of {THRESHOLD}% — OK")
+          PYEOF
+
+      - name: Append mutation summary to step summary
+        if: always()
+        run: |
+          {
+            echo "## Mutation Testing"
+            if [ -f mutmut-output.txt ]; then
+              echo '```'
+              tail -20 mutmut-output.txt
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload mutmut HTML report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: mutmut-report-html
+          path: html/
+          retention-days: 7
+
+  sarif:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write  # Required to upload SARIF to GitHub Code Scanning
+
+    steps:
+      - name: Harden runner
+        # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        with:
+          egress-policy: audit
+          # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
+      - name: Set up uv with cache
+        uses: ./.github/actions/setup-uv
+
+      - name: Cache shellcheck-sarif cargo binary
+        id: cache-shellcheck-sarif
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
+        with:
+          path: ~/.cargo/bin/shellcheck-sarif
+          key: ${{ runner.os }}-shellcheck-sarif-v1
+
+      - name: Install shellcheck-sarif
+        if: steps.cache-shellcheck-sarif.outputs.cache-hit != 'true'
+        run: cargo install shellcheck-sarif --quiet
+
+      - name: Run ShellCheck and convert to SARIF
+        run: |
+          shellcheck -f json \
+            spiral.sh \
+            setup.sh \
+            spiral.config.sh \
+            lib/circuit_breaker.sh \
+            lib/memory-pressure-check.sh \
+            lib/run_parallel_ralph.sh \
+            lib/spiral_assert.sh \
+            lib/spiral_doctor.sh \
+            lib/validate_preflight.sh \
+            lib/worker_heartbeat.sh \
+          | shellcheck-sarif > shellcheck.sarif || true
+
+      - name: Run semgrep and output SARIF
+        run: |
+          uvx semgrep --config=auto --sarif --output=semgrep.sarif . || \
+            printf '{"version":"2.1.0","$schema":"https://json.schemastore.org/sarif-2.1.0.json","runs":[{"tool":{"driver":{"name":"semgrep","rules":[]}},"results":[]}]}\n' \
+              > semgrep.sarif
+
+      - name: Validate shellcheck SARIF schema
+        run: uvx check-jsonschema --schemafile https://json.schemastore.org/sarif-2.1.0.json shellcheck.sarif
+
+      - name: Validate semgrep SARIF schema
+        run: uvx check-jsonschema --schemafile https://json.schemastore.org/sarif-2.1.0.json semgrep.sarif
+
+      - name: Upload shellcheck SARIF to GitHub Code Scanning
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@4fa2a7953630fd2f3aab3b2c1b7c6eb76a5a5beb  # v3.26.6
+        with:
+          sarif_file: shellcheck.sarif
+          category: shellcheck
+
+      - name: Upload semgrep SARIF to GitHub Code Scanning
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@4fa2a7953630fd2f3aab3b2c1b7c6eb76a5a5beb  # v3.26.6
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep
+
+      - name: Upload SARIF reports as artifacts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: sarif-reports
+          path: |
+            shellcheck.sarif
+            semgrep.sarif
+          retention-days: 7
+
+  dep-audit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Harden runner
+        # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        with:
+          egress-policy: audit
+          # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
+      - name: Set up uv with cache
+        uses: ./.github/actions/setup-uv
+
+      - name: Validate lockfile is up-to-date
+        # Developers must run 'uv lock' and commit uv.lock after changing pyproject.toml.
+        # This check fails (without modifying files) if the lockfile would change,
+        # surfacing drift as a CI failure rather than a mysterious import error.
+        run: uv lock --check || { echo "::error::uv.lock is out of date with pyproject.toml. Run 'uv lock' locally and commit the updated uv.lock."; exit 1; }
+
+      - name: Install dependencies (includes uv-secure from dev group)
+        run: uv sync --frozen --group dev
+
+      - name: Run uv-secure (uv.lock vulnerability scan via OSV)
+        run: |
+          uv run uv-secure uv.lock \
+            --format json \
+            --no-check-uv-tool \
+            --no-check-uv-secure \
+            > uv-secure-results.json \
+            || true
+          # Fail on HIGH or CRITICAL; warn on lower severities
+          python3 - <<'PYEOF'
+          import json, sys, pathlib
+          report = pathlib.Path("uv-secure-results.json")
+          if not report.exists() or report.stat().st_size == 0:
+              print("::warning::uv-secure did not produce a report")
+              sys.exit(0)
+          data = json.loads(report.read_text())
+          high_crit = []
+          warnings = []
+          for f in data.get("files", []):
+              for dep in f.get("dependencies", []):
+                  for v in dep.get("vulns", []):
+                      sev = (v.get("severity") or "").upper()
+                      entry = {"package": dep["name"], "version": dep["version"], **v}
+                      if sev in ("HIGH", "CRITICAL"):
+                          high_crit.append(entry)
+                      else:
+                          warnings.append(entry)
+          for w in warnings:
+              print(f"::warning::uv-secure: {w['package']}=={w['version']} — {w.get('id','?')} ({w.get('severity','unknown')})")
+          if high_crit:
+              for h in high_crit:
+                  print(f"::error::uv-secure: {h['package']}=={h['version']} — {h.get('id','?')} ({h.get('severity','?')})")
+              print(f"::error::uv-secure found {len(high_crit)} HIGH/CRITICAL vulnerabilities — see uv-secure-results.json artifact")
+              sys.exit(1)
+          print(f"uv-secure: {len(warnings)} low/medium warnings, 0 high/critical — OK")
+          PYEOF
+
+      - name: Install pip-audit
+        run: uv pip install "pip-audit==2.7.3"
+
+      - name: Build pip-audit ignore flags from .pip-audit.toml
+        id: audit-ignore
+        run: |
+          # Parse ignore-vulns from .pip-audit.toml and build --ignore-vuln flags
+          python3 - <<'PYEOF'
+          import tomllib, pathlib, os
+          p = pathlib.Path(".pip-audit.toml")
+          flags = ""
+          if p.exists():
+              data = tomllib.loads(p.read_text())
+              for vid in data.get("ignore-vulns", []):
+                  flags += f" --ignore-vuln {vid}"
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"flags={flags}\n")
+          PYEOF
+
+      - name: Run pip-audit (Python dependency CVE scan)
+        run: |
+          uv run pip-audit \
+            -f json \
+            -o pip-audit-results.json \
+            ${{ steps.audit-ignore.outputs.flags }} \
+            || { echo "::error::pip-audit found vulnerabilities — see pip-audit-results.json artifact"; exit 1; }
+
+      - name: Run npm audit (Node dependency CVE scan)
+        if: hashFiles('spiral-ui/package.json') != ''
+        working-directory: spiral-ui
+        run: npm audit --audit-level=high --json > ../npm-audit-results.json || { echo "::error::npm audit found HIGH or CRITICAL vulnerabilities — see npm-audit-results.json artifact"; exit 1; }
+
+      - name: Upload audit results as artifacts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: dep-audit-results
+          path: |
+            uv-secure-results.json
+            pip-audit-results.json
+            npm-audit-results.json
+          retention-days: 7
+
+  bats:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
+
+    steps:
+      - name: Harden runner
+        # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        with:
+          egress-policy: audit
+          # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+        with:
+          submodules: recursive
+
+      - name: Verify bats version >= 1.7.0
+        run: |
+          BATS_VERSION=$(tests/bats-core/bin/bats --version | grep -oP '\d+\.\d+\.\d+')
+          echo "bats version: $BATS_VERSION"
+          MAJOR=$(echo "$BATS_VERSION" | cut -d. -f1)
+          MINOR=$(echo "$BATS_VERSION" | cut -d. -f2)
+          if [ "$MAJOR" -lt 1 ] || { [ "$MAJOR" -eq 1 ] && [ "$MINOR" -lt 7 ]; }; then
+            echo "::error::bats version $BATS_VERSION is too old (need >= 1.7.0)"
+            exit 1
+          fi
+
+      - name: Run bats tests with JUnit output
+        run: |
+          mkdir -p test-reports
+          tests/bats-core/bin/bats \
+            --formatter tap \
+            --report-formatter junit \
+            -o test-reports/ \
+            tests/*.bats tests/lib/*.bats
+
+      - name: Upload bats JUnit results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: bats-junit-results
+          path: test-reports/*.xml
+
+      - name: Publish bats test results
+        if: always()
+        uses: dorny/test-reporter@d61b558e8df85cb60d09ca3e5b09653b4477cea7  # v1
+        with:
+          name: Bats Tests
+          path: test-reports/*.xml
+          reporter: java-junit
+          fail-on-error: false
+
+  pinned-actions-check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Harden runner
+        # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        with:
+          egress-policy: audit
+          # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
+      - name: Check all actions are pinned to full commit SHA
+        run: |
+          # Fail if any action ref is NOT a full 40-character hex SHA.
+          # Strategy: find all uses: lines, strip comment-only lines (false positives
+          # inside run: blocks), then reject any ref that isn't exactly 40 hex chars.
+          # Grep output format: filename:lineno:content
+          violations=$(grep -rEn 'uses:[[:space:]]+\S+@[^[:space:]]' .github/workflows/*.yml \
+            | grep -Ev '^[^:]+:[0-9]+:[[:space:]]*#' \
+            | grep -Pv '@[0-9a-f]{40}([[:space:]]|$)' || true)
+          if [ -n "$violations" ]; then
+            echo "$violations"
+            echo "::error::Unpinned action refs found above. All actions must be pinned to a full 40-character commit SHA with an inline version comment — e.g., '@abc123...def  # v1.2.3'. See CONTRIBUTING.md for the update process."
+            exit 1
+          fi
+          echo "All action refs are SHA-pinned."
+
+  actionlint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Harden runner
+        # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        with:
+          egress-policy: audit
+          # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
+      - name: Install actionlint
+        run: go install github.com/rhysd/actionlint/cmd/actionlint@latest
+
+      - name: Run actionlint
+        run: |
+          export PATH="$PATH:$(go env GOPATH)/bin"
+          actionlint -color .github/workflows/*.yml
+
+  sbom:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Harden runner
+        # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        with:
+          egress-policy: audit
+          # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
+      - name: Set up uv with cache
+        uses: ./.github/actions/setup-uv
+
+      - name: Validate lockfile is up-to-date
+        # Developers must run 'uv lock' and commit uv.lock after changing pyproject.toml.
+        # This check fails (without modifying files) if the lockfile would change,
+        # surfacing drift as a CI failure rather than a mysterious import error.
+        run: uv lock --check || { echo "::error::uv.lock is out of date with pyproject.toml. Run 'uv lock' locally and commit the updated uv.lock."; exit 1; }
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Generate CycloneDX SBOM
+        run: |
+          uvx --from cyclonedx-bom cyclonedx-py environment \
+            --of JSON \
+            --outfile sbom.json
+
+      - name: Install grype
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh \
+            | sh -s -- -b /usr/local/bin
+
+      - name: Scan SBOM for vulnerabilities
+        run: |
+          grype sbom:./sbom.json --fail-on high --output table \
+            || { echo "::error::grype found HIGH or CRITICAL vulnerabilities in SBOM — see sbom-cyclonedx artifact"; exit 1; }
+
+      - name: Upload SBOM artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: sbom-cyclonedx
+          path: sbom.json
+          retention-days: 30
+
+  # ── US-420: PR comment with prd.json story status ──────────────────────────
+  prd-status-comment:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Harden runner
+        # TODO: Promote egress-policy to block after 2-week audit baseline (see US-399)
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc  # v2.15.1
+        with:
+          egress-policy: audit
+          # allowed-endpoints: api.anthropic.com:443 pypi.org:443 files.pythonhosted.org:443 api.github.com:443 registry.npmjs.org:443
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if prd.json changed
+        id: prd-changed
+        run: |
+          if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -q '^prd\.json$'; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup uv
+        if: steps.prd-changed.outputs.changed == 'true'
+        uses: ./.github/actions/setup-uv
+
+      - name: Sync dependencies
+        if: steps.prd-changed.outputs.changed == 'true'
+        run: uv sync --frozen
+
+      - name: Generate status markdown
+        if: steps.prd-changed.outputs.changed == 'true'
+        id: status
+        run: |
+          {
+            echo 'body<<SPIRAL_EOF'
+            echo '<!-- spiral-prd-status -->'
+            uv run python main.py status --format markdown
+            echo 'SPIRAL_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Post or update PR comment
+        if: steps.prd-changed.outputs.changed == 'true'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea  # v7.0.1
+        with:
+          script: |
+            const marker = '<!-- spiral-prd-status -->';
+            const body = `${{ steps.status.outputs.body }}`;
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }

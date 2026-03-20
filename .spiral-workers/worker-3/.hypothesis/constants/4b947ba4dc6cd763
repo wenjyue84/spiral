@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\AppData\Roaming\Python\Python312\site-packages\pycparser\ply\lex.py
+# hypothesis_version: 6.151.9
+
+['#', '(%s,%r,%d,%d)\n', '(?P<%s>%s)', '.', '.py', '0.0', '3.10', 'ANY', "Bad token name '%s'", "Can't build lexer", 'ERROR: ', 'Expected a string', 'INITIAL', 'Undefined state', 'WARNING: ', '\\', '^[a-zA-Z0-9_]+$', '_', '__call__', '__file__', '__module__', '__package__', '_lexliterals  = %s\n', '_lexreflags   = %s\n', '_lexstateeoff = %s\n', '_lexstateinfo = %s\n', '_lexstatere   = %s\n', '_tabversion', '_tabversion   = %s\n', 'eof', 'error', 'exclusive', 'ignore', 'ignore_', 'import %s', 'inclusive', 'lex: literals = %r', 'lex: states   = %r', 'lex: tokens   = %r', 'lextab', 'literals', 'regex', 'states', 't_', 'tokens', 'tokens is empty', 'w', '|']

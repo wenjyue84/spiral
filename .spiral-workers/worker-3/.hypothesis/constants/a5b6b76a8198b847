@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\conflict_detector.py
+# hypothesis_version: 6.151.9
+
+['--log-file', '--prd', 'Path to prd.json', '__main__', '_decomposed', '_skipped', 'a', 'conflict_files', 'conflicts', 'core', 'event', 'id', 'passes', 'storyA', 'storyB', 'total', 'ts', 'userStories', 'utf-8', '|']
