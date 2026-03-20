@@ -970,10 +970,10 @@ capture_test_baseline() {
     fi
     return
   fi
-  # Fast path: if a cached baseline file exists (written by Phase V), use it.
+  # Fast path: if a cached baseline file exists, use it.
   # This avoids running pytest --collect-only which can hang for 1800s on Windows.
-  if [[ -f "${SCRATCH_DIR:-/tmp}/_test_baseline_count" ]]; then
-    cat "${SCRATCH_DIR:-/tmp}/_test_baseline_count"
+  if [[ -f "${SPIRAL_SCRATCH_DIR:-.spiral}/_test_baseline_count" ]]; then
+    cat "${SPIRAL_SCRATCH_DIR:-.spiral}/_test_baseline_count"
     return
   fi
   # Auto-detect: pytest (uses --collect-only for speed: ~8s vs ~300s for full run)
