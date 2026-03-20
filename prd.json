@@ -57,7 +57,7 @@
         "US-498"
       ],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "test-story",
       "model": "sonnet"
     },

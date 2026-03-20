@@ -1,3 +1,18 @@
+## Iteration - Story: US-579 [Security Test] predict-cost CLI: path traversal and secret-leak prevention
+
+### What was implemented
+- Added `test_no_path_traversal`, `test_no_secret_leak`, `test_malformed_tsv` to `tests/test_security_predict_cost.py`
+- Added header validation in `_load_history` (lib/predict_cost.py): raises ValueError when TSV has non-None fieldnames but is missing the required `story_id` column — enables clean non-zero exit on malformed TSV
+- Fixed pre-existing schema error in prd.json: US-582 dependency used title string instead of story ID 'US-581'
+
+### Patterns discovered
+- prd.json pre-commit hook validates all dependency refs as IDs, not titles — dependency must be `["US-NNN"]`, not `["Story Title"]`
+- `csv.DictReader.fieldnames` is `None` for empty files (no rows), or a list for files with at least one row
+- Distinguishing empty-file (graceful: return []) vs malformed-headers (error: raise ValueError) requires checking `fieldnames is not None`
+
+### Gotchas
+- US-579 had same file target as US-568 but required different test function names — existing tests were not renamed, new ones added alongside
+
 ## Iteration - Story: US-568 [Security Test] Cost Predictor CLI: input validation and data safety
 
 ### What was implemented
@@ -467,3 +482,21 @@ FAILED diagnosis-block gate: [Security Test] Auth/Permission Access Control for 
 - [x] test_output_schema_only passes
 - [x] test_malformed_input_no_traceback passes
 - [x] All tests exit with code 0
+
+## Iteration - Story: US-577 Security Test: SPIRAL_COST_CEILING budget gate
+
+### What was implemented
+- Created tests/test_cost_ceiling_security.py with 14 tests across 3 classes
+- TestBudgetGateBlocking: 6 tests for check_budget_gate() ceiling detection
+- TestRollbackBehavior: 5 tests for rollback_story() lowest-priority removal and persistence
+- TestSkipPathBlocksImplementation: 3 tests verifying would_exceed signals Phase I skip
+
+### Patterns discovered
+- budget_analyzer.py::check_budget_gate() returns BudgetCheckResult TypedDict with would_exceed flag
+- rollback_story.py supports dry_run=True parameter; returns success/error dict
+- Both modules are importable directly from lib/ (no sub-package path needed)
+- SPIRAL_COST_CEILING=0 or negative is treated as disabled (check_budget_gate returns would_exceed=False)
+
+### Gotchas
+- monkeypatch.setattr(ba, "estimate_pending_story_cost", mock) — must import module as `ba` before patching
+- results.tsv rows with duration_sec field are used by calculate_current_spend(); empty TSV = zero spend
