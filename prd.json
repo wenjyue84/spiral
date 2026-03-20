@@ -3195,6 +3195,23 @@
       "_source": "ai-example",
       "model": "haiku",
       "last_attempted": "2026-03-20T18:35:23Z"
+    },
+    {
+      "id": "US-634",
+      "title": "Integration Test: SPIRAL End-to-End with Federated prd.json and Phase M Merge",
+      "priority": "high",
+      "description": "Add integration test that runs full SPIRAL loop (Phase R through C) with multiple federated prd.json files in sub-directories. Validates Phase M merge correctly handles story namespacing (US-web-001, US-api-001) and respects cross-project dependencies without circular references. Verifies results.tsv sub_project column accurately records story origin.",
+      "acceptanceCriteria": [
+        "Test creates federated fixture structure: tests/fixtures/federation/{webapp,api}/ with separate prd.json files containing US-web-* and US-api-* stories; Phase M merge preserves namespace prefixes and dependency ordering",
+        "Phase M output prd.json correctly marks stories with _source=federated and sub_project field; validates no circular cross-project refs",
+        "results.tsv records sub_project column for all stories with no missing entries; Phase V aggregates validation results across sub-projects"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
     }
   ]
 }
