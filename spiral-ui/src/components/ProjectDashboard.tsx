@@ -3164,7 +3164,7 @@ function TestsTab({ projectName }: { projectName: string }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-type DashTab = 'progress' | 'settings' | 'constitution' | 'activity' | 'graph' | 'phase-trace' | 'workers' | 'tokens' | 'tests';
+type DashTab = 'progress' | 'settings' | 'constitution' | 'skills' | 'activity' | 'graph' | 'phase-trace' | 'workers' | 'tokens' | 'tests';
 
 const DASH_TABS: { id: DashTab; slug: string; label: string; icon: string }[] = [
   { id: 'progress',     slug: 'progress',     label: 'Progress',     icon: '📊' },
@@ -3175,6 +3175,7 @@ const DASH_TABS: { id: DashTab; slug: string; label: string; icon: string }[] = 
   { id: 'tests',        slug: 'tests',        label: 'Tests',        icon: '🧪' },
   { id: 'settings',     slug: 'settings',     label: 'Settings',     icon: '⚙️' },
   { id: 'constitution', slug: 'constitution', label: 'Constitution', icon: '📜' },
+  { id: 'skills',       slug: 'skills',       label: 'Skills',       icon: '🎯' },
   { id: 'activity',     slug: 'activity',     label: 'Activity Log', icon: '📝' },
 ];
 
@@ -3403,6 +3404,7 @@ export default function ProjectDashboard() {
         )}
         {activeTab === 'settings'     && <div className="h-full overflow-y-auto"><SettingsTab config={data.config} configRaw={data.configRaw ?? ''} projectName={projectName ?? ''} onConfigSaved={() => load()} /></div>}
         {activeTab === 'constitution' && <div className="h-full overflow-y-auto flex flex-col"><ConstitutionTab text={data.constitution} projectName={projectName ?? undefined} /></div>}
+        {activeTab === 'skills'       && <div className="h-full overflow-hidden"><SkillsTab projectName={projectName ?? undefined} /></div>}
         {activeTab === 'activity'     && <div className="h-full overflow-y-auto"><ActivityTab log={data.activity} activeStory={activeStory} /></div>}
         {activeTab === 'tests'        && <div className="h-full overflow-hidden"><TestsTab projectName={projectName ?? ''} /></div>}
       </main>
