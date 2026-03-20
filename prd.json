@@ -35,7 +35,8 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "_source": "test-story",
-      "model": "haiku"
+      "model": "haiku",
+      "_scopeCreep": true
     },
     {
       "id": "US-565",
@@ -110,9 +111,10 @@
         "US-516"
       ],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "test-story",
-      "model": "sonnet"
+      "model": "sonnet",
+      "last_attempted": "2026-03-20T04:40:46Z"
     },
     {
       "id": "US-568",
@@ -342,55 +344,6 @@
       "estimatedComplexity": "medium",
       "passes": false,
       "_source": "test-story",
-      "model": "haiku"
-    },
-    {
-      "id": "US-576",
-      "title": "Add pytest fixtures and Claude API mock for SPIRAL integration tests",
-      "priority": "medium",
-      "description": "Create reusable pytest fixtures that stub the Claude CLI and provide an isolated temp filesystem for SPIRAL integration tests. These fixtures will be shared by the happy-path test and any future integration tests.",
-      "acceptanceCriteria": [
-        "Running `uv run pytest tests/test_spiral_integration_fixtures.py -v` exits 0 and all fixture smoke-tests pass",
-        "A pytest fixture `mock_claude_cli` is importable from `tests/conftest.py` and returns a callable that records invocations without hitting the real API",
-        "A pytest fixture `spiral_workspace` is importable from `tests/conftest.py` and yields a temp dir pre-populated with minimal `prd.json` and `spiral.config.sh`"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/conftest.py (add fixtures mock_claude_cli and spiral_workspace)",
-        "Test command: uv run pytest tests/test_spiral_integration_fixtures.py -v --tb=short",
-        "mock_claude_cli should write a stub script to PATH that records calls to a list and returns canned JSON matching the Claude CLI stream format",
-        "spiral_workspace should copy templates/prd.example.json and templates/spiral.config.example.sh into a tmp_path directory"
-      ],
-      "dependencies": [
-        "US-553"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "test-story",
-      "model": "haiku"
-    },
-    {
-      "id": "US-577",
-      "title": "[Perf Test] Worker Load Balancer: complexity-based story distribution",
-      "priority": "medium",
-      "description": "Write a performance benchmark for the story-to-worker assignment optimizer introduced in US-562. The test captures a baseline distribution time for N stories across 3 workers and asserts that execution variance stays within a 20% threshold, preventing hot-spot regressions.",
-      "acceptanceCriteria": [
-        "uv run pytest tests/test_perf_worker_load_balancer.py -v exits 0 and prints per-worker story counts",
-        "Benchmark asserts assignment of 50 stories across 3 workers completes in under 500 ms",
-        "Test fails (non-zero exit) when simulated token-weighted variance between workers exceeds 20% of the mean worker load",
-        "Baseline threshold constant is defined as a named variable at the top of the test file, not hardcoded inline"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_perf_worker_load_balancer.py (new file — create benchmark module)",
-        "File to read: lib/worker_load_balancer.py (or whichever module US-562 adds) to import the assignment function under test",
-        "Test command: uv run pytest tests/test_perf_worker_load_balancer.py -v",
-        "Use time.perf_counter() to measure wall time; compute per-worker complexity sum from mocked story dicts with 'forecast_tokens' and 'dependency_count' keys",
-        "Variance formula: max_worker_load / mean_worker_load - 1.0; assert this is <= VARIANCE_THRESHOLD = 0.20"
-      ],
-      "dependencies": [
-        "US-562"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
       "model": "haiku"
     },
     {
