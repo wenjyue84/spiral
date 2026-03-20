@@ -3162,23 +3162,6 @@
       "model": "sonnet"
     },
     {
-      "id": "US-630",
-      "title": "Integration Test — Parallel Worker Crash Recovery: Checkpoint State Preservation and Retry Escalation",
-      "priority": "medium",
-      "description": "Verifies worker fault tolerance during parallel Phase I execution. Simulates SIGTERM mid-story, asserts .spiral/.checkpoint.json preserves state, worktree is restored to main, and results.tsv retry counter increments without prd.json corruption. Ensures long-running SPIRAL loops can recover gracefully.",
-      "acceptanceCriteria": [
-        "Test sends SIGTERM to worker subprocess mid-implementation phase, asserts .spiral/.checkpoint.json exists with last_story_id and phase='I' fields preserved",
-        "Simulates worker restart, detects detached HEAD state in worktree, verifies git reset main succeeds and worker branch points to next story",
-        "Asserts results.tsv has retry_count incremented for killed story, prd.json story status unchanged, and no duplicate entries added"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "haiku"
-    },
-    {
       "id": "US-633",
       "title": "Integration Test: SPIRAL Phase Loop Orchestration R→T→S→M→I→V→C with State Validation",
       "priority": "high",
@@ -3194,7 +3177,7 @@
       "passes": false,
       "_source": "ai-example",
       "model": "haiku",
-      "last_attempted": "2026-03-20T18:35:23Z"
+      "last_attempted": "2026-03-20T18:56:19Z"
     },
     {
       "id": "US-634",
