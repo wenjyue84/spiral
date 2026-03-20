@@ -3070,40 +3070,6 @@
       "_scopeCreep": true
     },
     {
-      "id": "US-618",
-      "title": "Integration Test: Research Cache Hit Rate with Sub-Project Namespacing",
-      "priority": "medium",
-      "description": "Verify Phase R research cache correctly deduplicates queries across sub-project boundaries using namespaced cache keys. Test that identical research requests from different sub_projects hit the cache appropriately and that cache invalidation respects sub_project scope.",
-      "acceptanceCriteria": [
-        "Create integration test in tests/ that mocks Gemini API, then executes Phase R twice with identical query strings from different sub_project values; verify second call returns cached result without API invocation",
-        "Verify _research_cache.json keys include sub_project namespace (e.g., cache key format: '{sub_project}:{query_hash}')",
-        "Assert results.tsv records cache hit/miss status in new 'cache_status' column with values: 'miss', 'hit', 'expired'"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "sonnet"
-    },
-    {
-      "id": "US-619",
-      "title": "CLI: spiral estimate-time-to-completion — Velocity-Based ETA and Cost Projection",
-      "priority": "medium",
-      "description": "Provide operators with real-time estimates of remaining time and cost based on story completion velocity derived from results.tsv. Enables better resource planning and stakeholder communication during long SPIRAL runs.",
-      "acceptanceCriteria": [
-        "Command `spiral estimate-time-to-completion` reads results.tsv and current prd.json, calculates stories-per-hour velocity, and outputs: 'X stories remaining, Y hours to completion (assuming current velocity), $Z projected cost'",
-        "Tested via `pytest tests/test_estimate_time_to_completion.py` using fixture results.tsv with 50+ story attempts; ETA calculation validates against manual velocity computation",
-        "Dashboard home view displays estimated completion time and projected cost in a card, updated every 10s during active SPIRAL runs"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "haiku"
-    },
-    {
       "id": "US-620",
       "title": "Dashboard Endpoint: GET /api/dashboard/cross-project-dependency-graph — Visualize Federated Sub-Project Dependencies",
       "priority": "high",
@@ -3116,20 +3082,38 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "sonnet",
+      "last_attempted": "2026-03-20T17:25:17Z"
+    },
+    {
+      "id": "US-625",
+      "title": "Dashboard Aggregation Layer: Unified Cross-Project Metrics Endpoint",
+      "priority": "high",
+      "description": "Implement data aggregation logic that computes unified health metrics across sub-projects: total token burn, story throughput, model escalation distribution, and critical path analysis. Expose via GET /api/dashboard/overview and WebSocket /ws/overview for real-time updates.",
+      "acceptanceCriteria": [
+        "lib/spiral/dashboard/aggregator.py: computes cross-project metrics (sum costs, avg tokens/story, escalation %); filters results.tsv by sub_project column",
+        "GET /api/dashboard/overview returns JSON: {totalCost, storiesPassed, avgPhaseTime, blockerCount, slowestSubProject}; updates when any sub-project's results.tsv changes",
+        "tests/integration/test_dashboard_aggregator.py: verify metrics update correctly when 2 sub-projects have independent Phase I runs; assert slowestSubProject field points to correct sub-project"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
       "passes": false,
       "_source": "ai-example",
       "model": "sonnet",
-      "last_attempted": "2026-03-20T16:29:40Z"
+      "last_attempted": "2026-03-20T17:23:55Z"
     },
     {
-      "id": "US-621",
-      "title": "Phase G: Generate Performance Regression Report from Results.tsv Historical Timeline",
+      "id": "US-626",
+      "title": "[Integration Test] CLI: validate-federated Comprehensive Validation with Actionable Error Reports",
       "priority": "medium",
-      "description": "Implement Phase G report that detects regressions in SPIRAL phase performance over iterations. Calculates moving averages of phase duration and identifies phases exceeding 120% of baseline, with root-cause analysis pointing to problematic stories and remediation suggestions.",
+      "description": "Test validate-federated CLI comprehensively validates federated PRD files: detects malformed story IDs, circular dependencies, missing fields, orphan stories, and reports errors with specific file paths and suggested fixes",
       "acceptanceCriteria": [
-        "lib/phases/phase_g_performance_report.sh reads results.tsv, groups by (iteration, phase), computes 5-iteration moving average of duration_ms per phase, flags phases exceeding 120% baseline as regression",
-        "Outputs PERFORMANCE_REGRESSION.md with markdown table: Phase | Iteration | Baseline (ms) | Current (ms) | Regression % | Top 3 Slow Stories | Recommendation (retry escalation / decompose / model choice); omit rows with zero regressions",
-        "Integration test tests/integration/test_phase_g_performance_report.py mocks results.tsv with synthetic per-phase timings including intentional Phase I regression, asserts report correctly identifies it and suggests remediation hints"
+        "Test with invalid inputs: missing story.description, malformed US-111-xyz ID (invalid namespace), orphan story with no parent; validate-federated reports specific errors with file line numbers and suggestions",
+        "Test circular dependency detection: US-111-a depends on US-201-b which depends on US-111-a; validate-federated outputs error with full cycle path [US-111-a → US-201-b → US-111-a]",
+        "Integration test in tests/test_validate_federated_comprehensive.py verifies all error types are caught and reported; assert error messages are actionable (include story ID, file path, fix suggestion)"
       ],
       "technicalNotes": [],
       "dependencies": [],
@@ -3139,14 +3123,14 @@
       "model": "sonnet"
     },
     {
-      "id": "US-622",
-      "title": "CLI: spiral show-federation-health — Validate Federated prd.json Structure and Report Status",
+      "id": "US-627",
+      "title": "Integration Test: Phase M Merge Routes Federated Stories to Sub-Project PRDs by File Path Pattern",
       "priority": "medium",
-      "description": "Create a health-check CLI command that validates federated prd.json structure: verifies story ID format per sub-project namespace, detects orphaned stories without a sub_project, finds circular dependencies in the dependency graph, and reports story distribution across projects.",
+      "description": "End-to-end integration test validates Phase M merge logic correctly assigns stories to sub-project PRD files (e.g., .spiral/prd-proj1.json, .spiral/prd-proj2.json) based on file path patterns in story scope. Verifies cross-project dependency ordering and story ID namespace routing.",
       "acceptanceCriteria": [
-        "Command 'spiral show-federation-health' reads prd.json and outputs JSON with {valid: boolean, story_count_by_project: {PROJECT: count}, orphaned_stories: [US-NNN, ...], circular_deps: [[US-1, US-2], ...]}",
-        "lib/spiral/federation_health.py validates story ID format (PROJECT-123), detects circular dependencies using DFS on _depends_on field",
-        "Integration test with 3+ sub-projects (including 1 orphaned story and 1 circular dependency) verifies correct detection and output format"
+        "Test creates mock federated prd.json with namespaced stories (US-proj1-001, US-proj2-002) and file path scope patterns; Phase M merge produces correctly routed outputs where stories with scope: ['src/proj1/*'] go to .spiral/prd-proj1.json and scope: ['src/proj2/*'] go to .spiral/prd-proj2.json",
+        "Assert merge respects cross-project dependency graph: if US-proj2-001 depends on US-proj1-003, proj1-003 appears first in merge order with explicit ordering_reason field in .spiral/merge-metadata.json",
+        "Test located at tests/integration/test_phase_m_federated_routing.py with fixtures: create_federated_prd(), assert_prd_routed_correctly(), verify_dependency_order_respected()"
       ],
       "technicalNotes": [],
       "dependencies": [],
