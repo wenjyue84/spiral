@@ -3226,6 +3226,30 @@ def main():
         help="Z-score threshold for anomaly detection (default: 2.0)",
     )
 
+    # ── federated-status subcommand (US-629) ─────────────────────────────────────
+    federated_status_parser = subparsers.add_parser(
+        "federated-status",
+        help="Unified multi-project story summary with cost breakdown (US-629)",
+    )
+    federated_status_parser.add_argument(
+        "--prd",
+        default="prd.json",
+        metavar="PATH",
+        help="Path to prd.json with sub_project entries (default: prd.json)",
+    )
+    federated_status_parser.add_argument(
+        "--worker-base-dir",
+        default=".spiral-workers",
+        metavar="PATH",
+        dest="worker_base_dir",
+        help="Base directory for worker results.tsv files (default: .spiral-workers)",
+    )
+    federated_status_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output machine-readable JSON instead of table format",
+    )
+
     # ── memory subcommand (US-350) ──────────────────────────────────────────────
     memory_parser = subparsers.add_parser(
         "memory",
@@ -3368,6 +3392,8 @@ def main():
         cmd_categorize_failures(args)
     elif args.command == "detect-anomalies":
         cmd_detect_anomalies(args)
+    elif args.command == "federated-status":
+        cmd_federated_status(args)
     elif args.command == "phase-timing-report":
         cmd_phase_timing_report(args)
     elif args.command == "analyze-failures":
@@ -3381,6 +3407,29 @@ def main():
     else:
         parser.print_help()
         sys.exit(0)
+
+
+def cmd_federated_status(args: argparse.Namespace) -> None:
+    """Show unified multi-project story summary with cost breakdown (US-629).
+
+    Usage: spiral federated-status [--prd PATH] [--worker-base-dir PATH] [--json]
+    """
+    from federated_status import aggregate_federated_status, format_table  # type: ignore[import-untyped]
+
+    prd_path = Path(getattr(args, "prd", "prd.json"))
+    worker_base_dir = Path(getattr(args, "worker_base_dir", ".spiral-workers"))
+    use_json = getattr(args, "json", False)
+
+    try:
+        results = aggregate_federated_status(prd_path=prd_path, worker_base_dir=worker_base_dir)
+
+        if use_json:
+            print(json.dumps(results, indent=2))
+        else:
+            print(format_table(results))
+    except FileNotFoundError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 def cmd_monitor(args: argparse.Namespace) -> None:

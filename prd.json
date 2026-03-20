@@ -3158,8 +3158,58 @@
       "estimatedComplexity": "medium",
       "passes": false,
       "_source": "ai-example",
-      "model": "sonnet",
-      "last_attempted": "2026-03-20T18:17:27Z"
+      "model": "sonnet"
+    },
+    {
+      "id": "US-630",
+      "title": "Integration Test — Parallel Worker Crash Recovery: Checkpoint State Preservation and Retry Escalation",
+      "priority": "medium",
+      "description": "Verifies worker fault tolerance during parallel Phase I execution. Simulates SIGTERM mid-story, asserts .spiral/.checkpoint.json preserves state, worktree is restored to main, and results.tsv retry counter increments without prd.json corruption. Ensures long-running SPIRAL loops can recover gracefully.",
+      "acceptanceCriteria": [
+        "Test sends SIGTERM to worker subprocess mid-implementation phase, asserts .spiral/.checkpoint.json exists with last_story_id and phase='I' fields preserved",
+        "Simulates worker restart, detects detached HEAD state in worktree, verifies git reset main succeeds and worker branch points to next story",
+        "Asserts results.tsv has retry_count incremented for killed story, prd.json story status unchanged, and no duplicate entries added"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-631",
+      "title": "Phase R: Deduplicate Gemini Queries and Expose Cache Hit Rate via Dashboard",
+      "priority": "medium",
+      "description": "Implement research query caching in Phase R to skip duplicate Gemini API calls, reducing Phase R token spend and latency. Expose cache metrics via dashboard endpoint for cost visibility and efficiency tracking.",
+      "acceptanceCriteria": [
+        "Phase R caches Gemini queries by hash in .spiral/research-cache.json; skips API call if cache hit with age < 7 days; increments research_cache_hits column in results.tsv",
+        "Dashboard API endpoint GET /api/dashboard/research-cache returns JSON: {total_queries, cache_hits, cache_hit_rate: 0.XX, estimated_cost_saved_usd: X.XX, time_saved_sec: Y}",
+        "Integration test: verify cache deduplication skips 40%+ of duplicate queries; estimates cost savings matches actual token reduction in results.tsv for same 5-story batch run"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-632",
+      "title": "Dashboard Metrics Aggregation: Compute Phase Duration and Token Burn Rate Trends",
+      "priority": "medium",
+      "description": "Dashboard endpoints exist but lack central aggregation logic. Build MetricsAggregator that reads results.tsv and exposes rolling averages (1h, 24h windows) for phase duration, token burn rate, and model escalation frequency.",
+      "acceptanceCriteria": [
+        "lib/dashboard/metrics_aggregator.py: class MetricsAggregator computes phase_duration_avg, story_retry_rate, token_burn_rate_per_phase, model_escalation_frequency from results.tsv with 1-hour and 24-hour rolling windows",
+        "GET /api/dashboard/metrics-aggregated endpoint returns JSON with rolling metrics, trend direction (↑/↓), and phase attribution for each metric",
+        "Integration test: metrics_aggregator processes 50 results.tsv records across 5 phases and produces valid rolling averages matching manual computation"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
     },
     {
       "id": "US-633",
@@ -3174,6 +3224,23 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-634",
+      "title": "Dashboard Endpoint: Real-Time Worker Process Resource Utilization (CPU/Memory/Disk)",
+      "priority": "medium",
+      "description": "Add HTTP endpoint GET /api/dashboard/worker-utilization that streams real-time CPU, memory, and disk usage per parallel worker process, enabling dashboard to detect resource contention, predict OOM before Phase I crashes, and optimize worker pool size.",
+      "acceptanceCriteria": [
+        "Implement lib/spiral/worker_metrics.py::sample_worker_resources() that reads .spiral/worker-pids.json, uses psutil.Process() to sample CPU% / memory_info().rss / disk_usage() for each worker PID, returns list[{worker_id: str, cpu_percent: float, memory_mb: int, disk_mb: int, status: str}]; handle dead PIDs with status='offline'",
+        "Add HTTP endpoint GET /api/dashboard/worker-utilization in lib/spiral/dashboard_server.py that calls sample_worker_resources(), returns JSON array with timestamp and current metrics; include alert flag if any worker exceeds 80% CPU or 1024 MB memory",
+        "Test tests/test_worker_metrics.py::test_worker_resource_sampling_format() mocks psutil and .spiral/worker-pids.json with 2 workers, asserts endpoint returns correct metric format and order; test_worker_offline_handling() verifies graceful skip of missing PIDs without HTTP 500 error"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
       "passes": false,
       "_source": "ai-example",
       "model": "haiku"
