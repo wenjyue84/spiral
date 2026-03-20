@@ -567,6 +567,7 @@ FAILED diagnosis-block gate: [Security Test] Auth/Permission Access Control for 
 
 ## Pre-analysis for US-570 (Gemini 2.5 Pro)
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 ### Technical Brief: `validate_results_tsv` Implementation
 
 **Objective:** Implement a core validator module in Python to check the data quality of `results.tsv`.
@@ -626,6 +627,8 @@ FAILED diagnosis-block gate: [Security Test] Auth/Permission Access Control for 
 - [x] Detects all 5 checks: missing story_ids, duplicates, token_count range, phase_duration_ms range, valid models
 - [x] test_validate_detects_all_anomalies passes with mock corrupted TSV triggering all 5 error types
 =======
+=======
+>>>>>>> Stashed changes
 ### Technical Brief: `validate_results_tsv` Core Validator
 
 **1. Files to Create:**
@@ -653,6 +656,7 @@ FAILED diagnosis-block gate: [Security Test] Auth/Permission Access Control for 
 **5. Gotchas:**
 *   Ensure robust type casting for numeric fields (`token_count`, `phase_duration_ms`) from the TSV, handling potential `ValueError`.
 *   Pay attention to file encodings; assume UTF-8 unless specified otherwise.
+<<<<<<< Updated upstream
 >>>>>>> Stashed changes
 
 
@@ -751,3 +755,35 @@ FAILED diagnosis-block gate: [Security Test] Auth/Permission Access Control for 
 - [x] Round-trip test passes: write sub_project='foo', read back, assert sub_project == 'foo'
 - [x] All 7 tests pass; mypy --strict clean; ruff clean
 - [x] Story marked as passes: true in prd.json
+=======
+
+>>>>>>> Stashed changes
+
+## Pre-analysis for US-572 (Gemini 2.5 Pro)
+**Note:** The user story provided (US-572) describes a Playwright/React E2E test, not a Frappe/Python task. The following technical brief is based on the actual content of the story.
+
+---
+
+**Subject: Technical Brief for US-572: SPIRAL Dashboard E2E Test**
+
+**1. Python Files to Modify:**
+*   None. This is a TypeScript/JavaScript task.
+*   **Create New File:** `spiral-ui/tests/e2e/dashboard.spec.ts`
+*   **Potentially Modify:** `spiral-ui/src/components/ProjectDashboard.tsx`
+
+**2. Frappe DocTypes/Hooks:**
+*   None. The work involves a React component and a Playwright test suite.
+
+**3. Recommended Implementation Approach:**
+1.  First, inspect `spiral-ui/src/components/ProjectDashboard.tsx`. If they don't exist, add `data-testid` attributes for the key dashboard sections: `burn-rate`, `story-throughput`, and `model-heatmap`.
+2.  Create the new test file `dashboard.spec.ts`.
+3.  Write a test that navigates to the main dashboard route.
+4.  Use `page.locator('[data-testid="..."]')` to get references to the three sections.
+5.  Assert that the "burn rate" locator is visible and contains a number (`/\d+/`).
+6.  Assert that the "story throughput" chart locator is visible and contains a child element representing a data point/label.
+7.  Assert that the "model heatmap" locator is visible.
+
+**4. Edge Cases & Gotchas:**
+*   The test must handle asynchronous data loading. Use Playwright's auto-waiting `expect` assertions (e.g., `expect(locator).toBeVisible()`) to prevent flaky tests.
+*   The test will depend on a running dev server. Ensure the `baseURL` in `playwright.config.ts` points to the correct local development URL (e.g., `http://localhost:5299`).
+

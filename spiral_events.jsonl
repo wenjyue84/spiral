@@ -991,8 +991,11 @@
 {"event_type": "prd_io_error", "timestamp": "2026-03-20T05:23:24.320439+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-2349\\\\popen-gw1\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
 {"event_type": "prd_io_error", "timestamp": "2026-03-20T05:25:38.611576+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-2351\\\\popen-gw1\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 {"event_type": "prd_io_error", "timestamp": "2026-03-20T05:51:43.549314+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-2361\\\\popen-gw1\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
 =======
+=======
+>>>>>>> Stashed changes
 {"event_type": "prd_io_error", "timestamp": "2026-03-20T05:48:07.570967+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-2359\\\\popen-gw1\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
 {"ts": "2026-03-20T05:51:26.085660+00:00", "type": "route_story_assigned", "story_id": "US-570", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
 {"ts": "2026-03-20T05:51:26.086125+00:00", "type": "route_story_assigned", "story_id": "US-571", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
@@ -1009,5 +1012,10 @@
 {"ts": "2026-03-20T05:51:26.089958+00:00", "type": "route_story_assigned", "story_id": "US-586", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
 {"ts": "2026-03-20T05:51:26.090309+00:00", "type": "route_story_assigned", "story_id": "US-587", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
 {"ts": "2026-03-20T05:51:26.090644+00:00", "type": "route_story_assigned", "story_id": "US-588", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+<<<<<<< Updated upstream
 >>>>>>> Stashed changes
 {"event_type": "prd_io_error", "timestamp": "2026-03-20T05:57:56.095628+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-2367\\\\popen-gw1\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
+=======
+>>>>>>> Stashed changes
+{"event_type": "prd_io_error", "timestamp": "2026-03-20T06:18:11.671235+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-2380\\\\popen-gw1\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
+{"event_type": "prd_io_error", "timestamp": "2026-03-20T06:20:26.044632+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-2382\\\\popen-gw1\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}

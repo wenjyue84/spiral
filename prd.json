@@ -202,9 +202,10 @@
         "US-460"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "test-story",
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-03-20T06:20:15Z"
     },
     {
       "id": "US-573",
@@ -335,7 +336,7 @@
         "e2e",
         "auto-generated"
       ],
-      "model": "sonnet"
+      "model": "haiku"
     },
     {
       "id": "US-390",
@@ -2406,7 +2407,7 @@
       "estimatedComplexity": "medium",
       "passes": false,
       "_source": "ai-example",
-      "model": "sonnet"
+      "model": "haiku"
     },
     {
       "id": "US-585",
@@ -2478,32 +2479,6 @@
       ],
       "dependencies": [
         "US-562"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "test-story",
-      "model": "haiku"
-    },
-    {
-      "id": "US-588",
-      "title": "[E2E Test] Dashboard: Timeline Endpoint Returns Phase-Grouped Swimlane Data",
-      "priority": "medium",
-      "description": "Write a Playwright E2E test verifying that the `/api/timeline?iterations=N` endpoint introduced by US-540 returns correctly structured phase-swimlane data and that the dashboard renders at least one swimlane row. This ensures the bottleneck detection feature is observable end-to-end via the browser UI.",
-      "acceptanceCriteria": [
-        "GET http://localhost:5299/api/timeline?iterations=3 returns HTTP 200 with JSON body containing a top-level `iterations` array",
-        "Each element in `iterations` contains a `phase` string field and a `stories` array field",
-        "Playwright test navigates to http://localhost:5299, waits for the timeline component, and asserts at least one swimlane row is visible in the DOM",
-        "Test exits 0 when run headlessly: `npx playwright test tests/e2e/timeline.spec.ts --reporter=line`"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/e2e/timeline.spec.ts (new file — create Playwright test using page.goto, page.waitForSelector, and expect(response.json()).toMatchObject checks)",
-        "File to edit: playwright.config.ts (baseURL: 'http://localhost:5299', ensure project is configured)",
-        "Test command: npx playwright test tests/e2e/timeline.spec.ts --reporter=line",
-        "API shape to assert: { iterations: [{ phase: string, stories: [{ id: string, status: string }] }] } — match against US-540 implementation",
-        "Pre-condition: dashboard server must be running on port 5299 before test; use webServer config in playwright.config.ts or a beforeAll hook that polls the health endpoint"
-      ],
-      "dependencies": [
-        "US-540"
       ],
       "estimatedComplexity": "small",
       "passes": false,

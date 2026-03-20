@@ -623,7 +623,7 @@ function ProgressTab({ data, projectName, onRefresh, activeStory }: { data: Proj
 
       {/* Stats cards */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+        <div data-testid="story-throughput" className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
           <div className="text-3xl font-bold text-emerald-700">{donePct}%</div>
           <div className="text-sm text-emerald-600 mt-0.5">{p.done} / {p.total} stories complete</div>
         </div>
@@ -2821,7 +2821,7 @@ function TokenTab({ projectName, tokenBurn }: { projectName: string; tokenBurn?:
 
       {/* ── B) Model Breakdown ───────────────────────────────────────────── */}
       {sortedModels.length > 0 && (
-        <div>
+        <div data-testid="model-heatmap">
           <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Token Breakdown by Model</div>
           <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
             <table className="w-full text-xs">
@@ -3028,7 +3028,7 @@ function TokenTab({ projectName, tokenBurn }: { projectName: string; tokenBurn?:
 
       {/* ── E) Token Burn by Story (from results.tsv, includes cache tokens) ── */}
       {tokenBurn && tokenBurn.length > 0 && (
-        <div>
+        <div data-testid="burn-rate">
           <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Token Burn by Story (detailed)</div>
           <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
             <table className="w-full text-xs">
