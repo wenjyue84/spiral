@@ -129,7 +129,8 @@ BENCHMARK_MODELS=""                          # comma-separated model names for -
 RESET_CHECKPOINT=0                           # 1 = remove _checkpoint.json and start fresh (--reset)
 MIGRATE_MODE=0                               # 1 = run prd.json schema migration and exit (--migrate)
 ARCHIVE_MODE=0                               # 1 = archive completed stories and exit (--archive-done)
-CHANGELOG_MODE=0                             # 1 = generate CHANGELOG.md via git-cliff and exit (--changelog)
+CHANGELOG_MODE=0                             # 1 = generate CHANGELOG.md via git-cliff and exit
+SHOW_DOCS_MODE=0                             # 1 = list generated API docs and exit (--changelog)
 STALE_REPORT_MODE=0                          # 1 = print stale stories and exit (--stale-report)
 FLAKY_REPORT_MODE=0                          # 1 = print flaky test quarantine report and exit (--flaky-tests report)
 CALIBRATION_REPORT_MODE=0                    # 1 = print calibration report and exit (--calibration-report)
@@ -275,6 +276,10 @@ while [[ $# -gt 0 ]]; do
       CHANGELOG_MODE=1
       shift
       ;;
+    --show-docs)
+      SHOW_DOCS_MODE=1
+      shift
+      ;;
     --stale-report)
       STALE_REPORT_MODE=1
       shift
@@ -352,6 +357,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --migrate                  Migrate prd.json to current schema version and exit"
       echo "  --archive-done             Archive completed stories to prd-archive.json and exit"
       echo "  --changelog                Generate CHANGELOG.md via git-cliff and exit"
+      echo "  --show-docs                List generated API documentation with story ID mappings and exit"
       echo "  --stale-report             Print stories inactive beyond SPIRAL_STALE_DAYS (default: 7) and exit"
       echo "  --flaky-tests report       Print quarantined flaky test registry and exit"
       echo "  --calibration-report       Print actual vs estimated complexity calibration data and exit"
@@ -856,6 +862,16 @@ if [[ "$CHANGELOG_MODE" -eq 1 ]]; then
   git-cliff --config "$_CLIFF_CONFIG" --output "$SPIRAL_HOME/CHANGELOG.md"
   echo "[spiral] CHANGELOG.md updated at $SPIRAL_HOME/CHANGELOG.md"
   exit 0
+fi
+
+# ── --show-docs: list generated API documentation and exit ────────────────────
+if [[ "$SHOW_DOCS_MODE" -eq 1 ]]; then
+  source "$SPIRAL_HOME/lib/phases/documentation.sh"
+  if list_api_docs; then
+    exit 0
+  else
+    exit 1
+  fi
 fi
 
 # ── --stale-report: print stories inactive beyond SPIRAL_STALE_DAYS and exit ─
