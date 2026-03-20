@@ -1063,6 +1063,39 @@ def cmd_validate_federated(args) -> None:
         sys.exit(1)
 
 
+def cmd_validate_results_tsv(args) -> None:
+    """Validate results.tsv data quality against prd.json (US-571)."""
+    sys.path.insert(0, str(Path(__file__).parent / "lib" / "spiral"))
+    from validate_results_tsv import validate  # type: ignore[import]
+
+    tsv_path = getattr(args, "tsv", "results.tsv")
+    prd_path = getattr(args, "prd", "prd.json")
+    output_path = getattr(args, "output", "")
+
+    result = validate(tsv_path, prd_path)
+
+    # Write report to file if specified
+    if output_path:
+        output_file = Path(output_path)
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(result, f, indent=2)
+        print(f"Report written to {output_path}")
+
+    # Always print JSON to stdout
+    print(json.dumps(result, indent=2))
+
+    # Exit with code 0 if no errors, 1 if errors exist
+    if result["errors"]:
+        print(f"[fail] Validation failed: {len(result['errors'])} error(s)", file=sys.stderr)
+        for error in result["errors"]:
+            print(f"  - {error}", file=sys.stderr)
+        sys.exit(1)
+    else:
+        print("[ok] Validation passed", file=sys.stderr)
+        sys.exit(0)
+
+
 def cmd_diagnose(args) -> None:
     """Print a causal failure chain for a spiral run (uses failure_attribution.py)."""
     sys.path.insert(0, str(Path(__file__).parent / "lib"))
@@ -2757,6 +2790,29 @@ def main():
         help="Path to write JSON report (optional; prints to stdout if omitted)",
     )
 
+    validate_tsv_parser = subparsers.add_parser(
+        "validate-results-tsv",
+        help="Validate results.tsv data quality against prd.json (US-571)",
+    )
+    validate_tsv_parser.add_argument(
+        "--tsv",
+        type=str,
+        default="results.tsv",
+        help="Path to results.tsv (default: results.tsv)",
+    )
+    validate_tsv_parser.add_argument(
+        "--prd",
+        type=str,
+        default="prd.json",
+        help="Path to prd.json (default: prd.json)",
+    )
+    validate_tsv_parser.add_argument(
+        "--output",
+        type=str,
+        default="",
+        help="Path to write JSON report (optional; prints to stdout if omitted)",
+    )
+
     config_parser = subparsers.add_parser(
         "config",
         help="Configuration utilities",
@@ -3122,6 +3178,8 @@ def main():
         cmd_namespace_check(args)
     elif args.command == "validate-federated":
         cmd_validate_federated(args)
+    elif args.command == "validate-results-tsv":
+        cmd_validate_results_tsv(args)
     elif args.command == "config":
         config_command = getattr(args, "config_command", None)
         if config_command == "export-env":

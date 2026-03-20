@@ -566,6 +566,7 @@ FAILED diagnosis-block gate: [Security Test] Auth/Permission Access Control for 
 - Path-traversal ID (../../etc/passwd:(US)-001) is already safely rejected by _validate_ids() format check — no additional sanitization needed
 
 ## Pre-analysis for US-570 (Gemini 2.5 Pro)
+<<<<<<< Updated upstream
 ### Technical Brief: `validate_results_tsv` Implementation
 
 **Objective:** Implement a core validator module in Python to check the data quality of `results.tsv`.
@@ -624,4 +625,68 @@ FAILED diagnosis-block gate: [Security Test] Auth/Permission Access Control for 
 - [x] Function validate(tsv_path, prd_path) returns dict matching {errors, warnings, passed_checks, total_rows_checked}
 - [x] Detects all 5 checks: missing story_ids, duplicates, token_count range, phase_duration_ms range, valid models
 - [x] test_validate_detects_all_anomalies passes with mock corrupted TSV triggering all 5 error types
+=======
+### Technical Brief: `validate_results_tsv` Core Validator
 
+**1. Files to Create:**
+*   `lib/spiral/validate_results_tsv.py`: The core validation logic module.
+*   `tests/test_validate_results_tsv.py`: Unit tests for the validator.
+
+**2. Core Function:**
+*   Implement `validate(tsv_path: str, prd_path: str) -> dict` inside `lib/spiral/validate_results_tsv.py`.
+
+**3. Implementation Approach:**
+*   Use `csv.DictReader` with `delimiter='\t'` to parse the `results.tsv` file.
+*   Load `prd.json` to get the canonical list of `story_id`s for existence checks.
+*   Iterate through each row, performing these validation checks:
+    1.  **Missing `story_id`**: Ensure every `story_id` from `prd.json` is present in the TSV.
+    2.  **Duplicates**: Use a set to track `(story_id, iteration, attempt)` tuples to find duplicates.
+    3.  **Token/Duration Ranges**: Check `token_count` (50-500,000) and `phase_duration_ms` (100-600,000).
+    4.  **Model Name**: Validate `model` against the allowed set: `{'haiku', 'sonnet', 'opus'}`.
+*   Aggregate findings into a dictionary: `{ "errors": [], "warnings": [], "passed_checks": 0, "total_rows_checked": 0 }`.
+
+**4. Testing:**
+*   In `tests/test_validate_results_tsv.py`, create an in-memory TSV fixture using `io.StringIO`.
+*   This fixture should contain data that methodically triggers all 5 validation error types.
+*   Assert that the `validate` function correctly identifies and reports each specific error.
+
+**5. Gotchas:**
+*   Ensure robust type casting for numeric fields (`token_count`, `phase_duration_ms`) from the TSV, handling potential `ValueError`.
+*   Pay attention to file encodings; assume UTF-8 unless specified otherwise.
+>>>>>>> Stashed changes
+
+
+## Iteration - Story: US-571 Wire validate-results-tsv CLI command and integration test
+
+### What was implemented
+- Added validate-results-tsv subparser to main.py (argparse setup around line 2760)
+  - Arguments: --tsv (default: results.tsv), --prd (default: prd.json), --output (optional)
+- Implemented cmd_validate_results_tsv() function to:
+  - Call validate(tsv_path, prd_path) from lib/spiral/validate_results_tsv
+  - Write JSON report to file if --output specified
+  - Print JSON to stdout
+  - Exit with code 0 if no errors, 1 if errors exist
+- Created tests/test_validate_results_tsv_cli.py with 4 integration tests:
+  - test_cli_clean_data_exits_zero: validates exit code 0 and report structure on clean TSV
+  - test_cli_detects_duplicate_and_anomaly: validates exit code 1 and error detection on corrupted TSV
+  - test_cli_output_file_written: validates --output file creation
+  - test_cli_missing_tsv_file_exits_1: validates error handling for missing files
+- All 4 tests passing; test_cli_detects_duplicate_and_anomaly passes acceptance criteria
+- Linting: ruff clean, mypy no new errors (pre-existing main.py issues not addressed)
+
+### Patterns discovered
+- CLI pattern: subparser.add_parser() → argument registration → command dispatch in if/elif → cmd_* function
+- cmd_validate_federated() provided template for implementation
+- JSON validation reports should always contain {errors, warnings, passed_checks, total_rows_checked}
+- Exit code 0 for clean, 1 for errors is standard convention for validation CLIs
+
+### Gotchas
+- Path.write_text() doesn't accept 'mode' parameter (Python 3.9+ changed API)
+- Unused imports caught by ruff (removed unused tempfile import)
+
+### Acceptance Criteria Met
+- [x] python main.py validate-results-tsv exits 0 on clean data, 1 on errors
+- [x] report.json always contains errors, warnings, passed_checks, total_rows_checked
+- [x] test_cli_detects_duplicate_and_anomaly passes with subprocess.run and assertions
+- [x] All tests passing (4/4)
+- [x] Story marked as passes: true in prd.json
