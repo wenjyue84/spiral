@@ -563,9 +563,10 @@ else
 fi
 
 # Now iterate through the worker identifiers and create worktrees
+_worker_index=0
 for worker_identifier in "${WORKER_IDENTIFIERS[@]}"; do
-  # Use the worker_identifier for all naming; will also track index for launch function
-  i="$worker_identifier"
+  _worker_index=$((_worker_index + 1))
+  i="$worker_identifier"  # i is the actual worker identifier (e.g., "api-1" or "1")
   BRANCH="spiral-worker-${i}-${TIMESTAMP}"
   WTREE="$WORKTREE_BASE/worker-${i}"
 
@@ -734,22 +735,30 @@ if [[ "$MONITOR_TERMINALS" -eq 1 ]]; then
     WT_EXE=""
   fi
 
-  for i in $(seq 1 "$RALPH_WORKERS"); do
+  for worker_identifier in "${WORKER_IDENTIFIERS[@]}"; do
     # Skip monitor for workers with no pending stories
-    _mon_slice="$WORKER_DIR/worker_${i}.json"
+    if [[ "$_FEDERATED_MODE" -eq 1 ]]; then
+      _mon_slice="$WORKER_DIR/worker-${worker_identifier}.json"
+    else
+      _mon_slice="$WORKER_DIR/worker_${worker_identifier}.json"
+    fi
     _mon_pending=0
     if [[ -f "$_mon_slice" ]]; then
       _mon_pending=$("$JQ" '[.userStories[] | select(.passes != true)] | length' "$_mon_slice" 2>/dev/null || echo "0")
     fi
     if [[ "$_mon_pending" -eq 0 ]]; then
-      echo "  [parallel] Worker $i has 0 pending stories — skipping monitor"
+      echo "  [parallel] Worker $worker_identifier has 0 pending stories — skipping monitor"
       continue
     fi
 
-    LOG="$WORKER_DIR/worker_${i}.log"
+    if [[ "$_FEDERATED_MODE" -eq 1 ]]; then
+      LOG="$WORKER_DIR/worker-${worker_identifier}.log"
+    else
+      LOG="$WORKER_DIR/worker_${worker_identifier}.log"
+    fi
     touch "$LOG" # ensure file exists before tail -f attaches
 
-    TITLE="SPIRAL Worker $i"
+    TITLE="SPIRAL Worker $worker_identifier"
     INNER="echo '=== $TITLE — live log (ANSI colors ON) ==='; echo; tail -f '$LOG'"
 
     if [[ -n "$WT_EXE" && -f "$WT_EXE" ]]; then
@@ -763,7 +772,7 @@ if [[ "$MONITOR_TERMINALS" -eq 1 ]]; then
       break
     fi
 
-    echo "  [parallel] Monitor terminal opened for worker $i"
+    echo "  [parallel] Monitor terminal opened for worker $worker_identifier"
     sleep 0.3 # brief stagger so wt.exe doesn't race when opening multiple tabs
   done
 fi

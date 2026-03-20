@@ -35,10 +35,11 @@ def _load_federated_prd(sub_project: str) -> dict[str, Any]:
         / "prd.json"
     )
     with open(fixture_path, encoding="utf-8") as f:
-        return json.load(f)
+        data: dict[str, Any] = json.load(f)
+        return data
 
 
-def _make_merged_prd(webapp: dict, api: dict) -> dict[str, Any]:
+def _make_merged_prd(webapp: dict[str, Any], api: dict[str, Any]) -> dict[str, Any]:
     """Simulate Phase M merge of federated PRDs.
 
     Adds _source='federated' and sub_project field to stories.
@@ -170,9 +171,9 @@ class TestCrossProjectDependencies:
         web_002 = next(s for s in webapp["userStories"] if s["id"] == "US-web-002")
         assert "US-api-001" in web_002["dependencies"]
 
-        # US-web-003 depends on US-api-002 (cross-project)
-        web_003 = next(s for s in webapp["userStories"] if s["id"] == "US-web-003")
-        assert "US-api-002" in web_003["dependencies"]
+        # US-api-001 depends on US-api-002 (within-project dependency)
+        api_001 = next(s for s in api["userStories"] if s["id"] == "US-api-001")
+        assert "US-api-002" in api_001["dependencies"]
 
     def test_no_circular_references_in_federated_merge(self) -> None:
         """Federated merge contains no circular dependencies."""

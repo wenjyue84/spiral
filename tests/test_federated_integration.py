@@ -13,7 +13,6 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -22,6 +21,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 
 from federated_merge_prd import load_sub_project_prd, merge_prds
 from impl.phase_m_federated_order import order_federated_stories_by_dependency
+
 from spiral.phase_m import prd_merge
 
 
@@ -73,8 +73,12 @@ class TestFederatedFixtureSetup:
 
         # All story IDs should be preserved with their namespaces
         expected_ids = {
-            "US-web-001", "US-web-002", "US-web-003",
-            "US-api-001", "US-api-002", "US-api-003",
+            "US-web-001",
+            "US-web-002",
+            "US-web-003",
+            "US-api-001",
+            "US-api-002",
+            "US-api-003",
         }
         assert story_ids == expected_ids, f"Expected {expected_ids}, got {story_ids}"
 
@@ -243,16 +247,18 @@ class TestResultsTsvAggregation:
             writer.writeheader()
 
             for story in stories:
-                writer.writerow({
-                    "story_id": story.get("id"),
-                    "model": "haiku",
-                    "tokens_input": 1000,
-                    "tokens_output": 500,
-                    "cost": 0.01,
-                    "status": "passed",
-                    "sub_project": story.get("sub_project"),
-                    "retries": 0,
-                })
+                writer.writerow(
+                    {
+                        "story_id": story.get("id"),
+                        "model": "haiku",
+                        "tokens_input": 1000,
+                        "tokens_output": 500,
+                        "cost": 0.01,
+                        "status": "passed",
+                        "sub_project": story.get("sub_project"),
+                        "retries": 0,
+                    }
+                )
 
         # Verify results.tsv has all stories with sub_project populated
         with open(results_path, "r", encoding="utf-8") as f:
@@ -310,16 +316,18 @@ class TestResultsTsvAggregation:
             for i, story in enumerate(stories):
                 # Alternate pass/fail for demo
                 status = "passed" if i % 2 == 0 else "failed"
-                writer.writerow({
-                    "story_id": story.get("id"),
-                    "model": "haiku",
-                    "tokens_input": 1000,
-                    "tokens_output": 500,
-                    "cost": 0.01,
-                    "status": status,
-                    "sub_project": story.get("sub_project"),
-                    "retries": 0,
-                })
+                writer.writerow(
+                    {
+                        "story_id": story.get("id"),
+                        "model": "haiku",
+                        "tokens_input": 1000,
+                        "tokens_output": 500,
+                        "cost": 0.01,
+                        "status": status,
+                        "sub_project": story.get("sub_project"),
+                        "retries": 0,
+                    }
+                )
 
         # Aggregate by sub_project
         with open(results_path, "r", encoding="utf-8") as f:
@@ -374,16 +382,18 @@ class TestResultsTsvAggregation:
             writer.writeheader()
 
             for story in stories:
-                writer.writerow({
-                    "story_id": story.get("id"),
-                    "model": "haiku",
-                    "tokens_input": 1000,
-                    "tokens_output": 500,
-                    "cost": 0.01,
-                    "status": "passed",
-                    "sub_project": story.get("sub_project"),
-                    "retries": 0,
-                })
+                writer.writerow(
+                    {
+                        "story_id": story.get("id"),
+                        "model": "haiku",
+                        "tokens_input": 1000,
+                        "tokens_output": 500,
+                        "cost": 0.01,
+                        "status": "passed",
+                        "sub_project": story.get("sub_project"),
+                        "retries": 0,
+                    }
+                )
 
         # Verify all stories are in results.tsv with populated sub_project
         with open(results_path, "r", encoding="utf-8") as f:
@@ -395,6 +405,4 @@ class TestResultsTsvAggregation:
 
         # Verify no empty sub_project entries
         for row in rows:
-            assert row["sub_project"], (
-                f"Story {row['story_id']} has empty sub_project column"
-            )
+            assert row["sub_project"], f"Story {row['story_id']} has empty sub_project column"
