@@ -190,6 +190,19 @@ run_phase_gate_and_implement() {
           fi
         fi
 
+        # ── US-591: Cost alert emission (before implementation) ────────────
+        if [[ -n "$SPIRAL_COST_CEILING" && "$SPIRAL_COST_CEILING" != "0" ]]; then
+          _COST_ALERT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/cost_alert_emitter.py" \
+            2>/dev/null || echo '{}')
+          _COST_PCT=$(echo "$_COST_ALERT" | "$JQ" -r '.percent_used // 0' 2>/dev/null || echo "0")
+          if [[ $(echo "$_COST_PCT > 0" | bc 2>/dev/null || echo "0") -eq 1 ]]; then
+            _ALERT_SEVERITY=$(echo "$_COST_ALERT" | "$JQ" -r '.alerts_emitted[0] // "none"' 2>/dev/null || echo "none")
+            if [[ "$_ALERT_SEVERITY" != "none" ]]; then
+              echo "  [US-591] Cost alert emitted: $_ALERT_SEVERITY ($(printf '%.1f' "$_COST_PCT")% of ceiling)"
+            fi
+          fi
+        fi
+
         # ── DAG cycle detection ──────────────────────────────────────────
         DAG_SKIP_IMPL=0
         DAG_OUTPUT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/prd/check_dag.py" "$PRD_FILE" 2>&1) || {

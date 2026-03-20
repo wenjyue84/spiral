@@ -24,6 +24,7 @@ from starlette.responses import JSONResponse, Response
 
 from ..analyze_results import parse_research_cache
 from ..research_source_scorer import extract_sources
+from .alerts_broadcaster import get_alerts_manager
 from .cost_broadcaster import get_manager
 from .timeline import get_timeline_manager, parse_timeline
 
@@ -327,5 +328,49 @@ async def websocket_timeline_endpoint(websocket: WebSocket) -> None:
         logger.error(f"[ws/timeline] Error: {e}")
 
 
+@app.websocket("/ws/alerts")
+async def websocket_alerts_endpoint(websocket: WebSocket) -> None:
+    """WebSocket endpoint for real-time cost ceiling alerts.
+
+    Clients connect to /ws/alerts and receive JSON messages of the form:
+        {
+            "type": "cost_alert",
+            "severity": "warning"|"critical",
+            "current_cost": 15.5,
+            "ceiling": 20.0,
+            "percent_used": 77.5,
+            "timestamp": "2026-03-20T..."
+        }
+
+    Requires X-API-Key header if SPIRAL_DASHBOARD_API_KEY is set.
+    Connection is maintained until client disconnects or an error occurs.
+    """
+    # Check authentication if enabled
+    api_key = os.environ.get("SPIRAL_DASHBOARD_API_KEY")
+    if api_key:
+        provided = websocket.headers.get("x-api-key", "")
+        if not provided:
+            await websocket.close(code=1008, reason="Authentication required")
+            return
+        if provided != api_key:
+            await websocket.close(code=1008, reason="Forbidden")
+            return
+
+    manager = get_alerts_manager()
+    await manager.connect(websocket)
+    try:
+        # Keep connection alive; receive messages (echo back or ignore)
+        while True:
+            data = await websocket.receive_text()
+            # Echo back or handle client messages if needed
+            logger.debug(f"[ws/alerts] Received from client: {data}")
+    except WebSocketDisconnect:
+        await manager.disconnect(websocket)
+        logger.debug("[ws/alerts] Client disconnected")
+    except Exception as e:
+        await manager.disconnect(websocket)
+        logger.error(f"[ws/alerts] Error: {e}")
+
+
 # Export for use in tests and main application
-__all__ = ["app", "get_manager", "get_timeline_manager"]
+__all__ = ["app", "get_manager", "get_timeline_manager", "get_alerts_manager"]

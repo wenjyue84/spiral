@@ -9,8 +9,6 @@ Tests cover:
 from __future__ import annotations
 
 import json
-import subprocess
-import tempfile
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -48,9 +46,7 @@ class TestParseVersionFromChangelog:
     def test_parse_version_extracts_first_entry(self, tmp_path: Path) -> None:
         """Parse version correctly extracts first version entry."""
         changelog = tmp_path / "CHANGELOG.md"
-        changelog.write_text(
-            "# Changelog\n\n## [1.5.0]\n\n### Features\n\n## [1.4.0]\n\n### Fixes\n"
-        )
+        changelog.write_text("# Changelog\n\n## [1.5.0]\n\n### Features\n\n## [1.4.0]\n\n### Fixes\n")
 
         version = parse_version_from_changelog(str(changelog))
         assert version == "1.5.0"
@@ -118,9 +114,7 @@ class TestUpdatePyprojectToml:
     def test_update_pyproject_toml_adds_version(self, tmp_path: Path) -> None:
         """AC2: Update pyproject.toml version field."""
         pyproject = tmp_path / "pyproject.toml"
-        pyproject.write_text(
-            "[build-system]\nrequires = ['setuptools']\n\n[tool.pytest]\ntimeout = 60\n"
-        )
+        pyproject.write_text("[build-system]\nrequires = ['setuptools']\n\n[tool.pytest]\ntimeout = 60\n")
 
         update_pyproject_toml("1.2.3", str(pyproject))
 
@@ -203,9 +197,7 @@ class TestBumpVersions:
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0, stderr="")
 
-            version = bump_versions(
-                str(changelog), str(package_json), str(pyproject)
-            )
+            version = bump_versions(str(changelog), str(package_json), str(pyproject))
 
         # Verify returned version
         assert version == "3.1.4"
@@ -237,9 +229,7 @@ class TestBumpVersions:
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0)
 
-            result = bump_versions(
-                str(changelog), str(package_json), str(pyproject)
-            )
+            result = bump_versions(str(changelog), str(package_json), str(pyproject))
 
         assert result == "5.2.1"
 
@@ -291,9 +281,7 @@ timeout = 60
         with patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0)
 
-            version = bump_versions(
-                str(changelog), str(package_json), str(pyproject)
-            )
+            version = bump_versions(str(changelog), str(package_json), str(pyproject))
 
         # Verify all updates succeeded
         assert version == "2.1.0"

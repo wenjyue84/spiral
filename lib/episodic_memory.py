@@ -177,9 +177,7 @@ class EpisodicMemory:
         return tokens
 
     @staticmethod
-    def _cosine_similarity(
-        vec1: dict[str, float], vec2: dict[str, float]
-    ) -> float:
+    def _cosine_similarity(vec1: dict[str, float], vec2: dict[str, float]) -> float:
         """Compute cosine similarity between two token-based embeddings.
 
         Returns value in [0, 1].

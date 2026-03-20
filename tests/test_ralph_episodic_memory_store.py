@@ -32,19 +32,25 @@ class TestWriteAndRetrieve:
         with tempfile.TemporaryDirectory() as td:
             jsonl_path = os.path.join(td, "episodic.jsonl")
             mem = EpisodicMemory(jsonl_path)
-            mem.write("US-100", {
-                "approach": "implemented logging framework with winston",
-                "outcome": "pass",
-                "iteration": 1,
-            })
+            mem.write(
+                "US-100",
+                {
+                    "approach": "implemented logging framework with winston",
+                    "outcome": "pass",
+                    "iteration": 1,
+                },
+            )
             results = mem.get_similar("US-100", k=3)
             assert len(results) == 0, "Query for same story should return empty"
 
-            mem.write("US-101", {
-                "approach": "structured logging with JSON output",
-                "outcome": "pass",
-                "iteration": 1,
-            })
+            mem.write(
+                "US-101",
+                {
+                    "approach": "structured logging with JSON output",
+                    "outcome": "pass",
+                    "iteration": 1,
+                },
+            )
             results = mem.get_similar("US-100", k=3)
             assert len(results) >= 1, "Should find similar patterns"
             assert results[0]["story_id"] == "US-101"
@@ -103,21 +109,23 @@ def test_write_and_retrieve() -> None:
     with tempfile.TemporaryDirectory() as td:
         jsonl_path = os.path.join(td, "episodic.jsonl")
         mem = EpisodicMemory(jsonl_path)
-        mem.write("US-100", {
-            "approach": "implemented error handling with custom exceptions",
-            "outcome": "pass",
-            "iteration": 1,
-        })
-        mem.write("US-101", {
-            "approach": "error handling implementation with try-catch",
-            "outcome": "pass",
-            "iteration": 2,
-        })
-        mem.write("US-102", {
-            "approach": "database schema migration",
-            "outcome": "fail",
-            "iteration": 1
-        })
+        mem.write(
+            "US-100",
+            {
+                "approach": "implemented error handling with custom exceptions",
+                "outcome": "pass",
+                "iteration": 1,
+            },
+        )
+        mem.write(
+            "US-101",
+            {
+                "approach": "error handling implementation with try-catch",
+                "outcome": "pass",
+                "iteration": 2,
+            },
+        )
+        mem.write("US-102", {"approach": "database schema migration", "outcome": "fail", "iteration": 1})
         results = mem.get_similar("US-100", k=3)
         assert len(results) >= 1, "Should find at least one similar pattern"
 

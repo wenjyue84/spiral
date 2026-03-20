@@ -1577,3 +1577,95 @@ Based on my analysis of the user story and project structure, here is a technica
 *   **Scalability:** If many clients connect, direct broadcasting from the main process could be a bottleneck. Consider a Redis Pub/Sub channel to decouple alert generation from broadcasting.
 *   **Configuration:** Do not hardcode the 80%/95% thresholds; they should be configurable.
 
+
+## Pre-analysis for US-591 (Gemini 2.5 Pro)
+Here is a technical brief for implementing the real-time cost alert feature.
+
+### **Technical Brief: US-591 Real-Time Cost Alerts**
+
+**1. Python Files to Modify:**
+
+*   `lib/cost_check.py`: Primary candidate. This file should contain the core logic for checking the current cumulative cost against the `SPIRAL_COST_CEILING`.
+*   `lib/monitor.py` or `main.py`: The entry point or monitoring loop where the `cost_check` is invoked during "Phase I". This is where the alert check function will be called.
+*   A new file, e.g., `lib/alert_emitter.py`, or modifications to `lib/llm_client.py` to add a generic pub/sub mechanism (e.g., Redis) for inter-service communication.
+
+**2. Frappe DocTypes / Hooks & Other Components:**
+
+*   This story does not appear to involve Frappe. It points to a Python backend and a `spiral-ui` (likely React/Node.js) frontend.
+*   **WebSocket Server:** A Node.js server at `spiral-ui/src/server/alerts.ts` will manage client connections.
+*   **Communication Bus:** Redis Pub/Sub is the recommended channel. Python will `PUBLISH` alerts, and the Node.js server will `SUBSCRIBE` to forward them to clients.
+
+**3. Recommended Implementation Approach:**
+
+1.  In `lib/cost_check.py`, implement a function `check_and_emit_cost_alert()`.
+2.  This function will read the cumulative cost and compare it to the `SPIRAL_COST_CEILING` environment variable.
+3.  If cost exceeds 95% (critical) or 80% (warning), it will publish a JSON payload to a Redis channel (e.g., `cost-alerts`).
+4.  The Node.js WebSocket server (`alerts.ts`) will listen to this Redis channel and broadcast messages to subscribed UI clients.
+5.  Call this new check function from the main application loop in `lib/monitor.py` or `main.py`.
+
+**4. Edge Cases & Gotchas:**
+
+*   **Alert Fatigue:** Avoid sending alerts on every check once a threshold is breached. Send only on the *first* crossing of each threshold (80%, 95%).
+*   **Configuration:** The system should fail gracefully or log a clear error if `SPIRAL_COST_CEILING` is not set.
+*   **Race Conditions:** Ensure the cumulative cost is read from a centralized, atomic source (like Redis or a database) to prevent inconsistent state from multiple workers.
+*   **Connection Errors:** The Python publisher should handle Redis connection errors without crashing the main cost-checking process.
+
+
+## Pre-analysis for US-591 (Gemini 2.5 Pro)
+This analysis is based on the provided JSON, which describes a feature for a Node.js/React and Python system, not a Frappe application as mentioned in the prompt.
+
+**Subject: Technical Brief for US-591: Real-Time Cost Alerts**
+
+**1. Python & TypeScript Files to Modify/Create:**
+*   **Python Logic:** `lib/cost_check.py` is the most likely candidate. This file should contain the logic for checking costs against the `SPIRAL_COST_CEILING`.
+*   **WebSocket Server (Node.js):** Create `spiral-ui/src/server/alerts.ts`. This will implement the `/ws/alerts` endpoint and an internal API for the Python service to trigger alerts.
+*   **Frontend UI (React):** Create `spiral-ui/src/components/AlertsPanel.tsx`. This component will render the real-time alerts.
+
+**2. Frappe DocTypes / Hooks Involved:**
+*   None. The technical specification points to a custom Python/Node.js architecture, not the Frappe framework.
+
+**3. Recommended Implementation Approach:**
+*   In `lib/cost_check.py`, during the "Phase I pre-check," compare cumulative costs against the `SPIRAL_COST_CEILING` environment variable.
+*   If a threshold (80% or 95%) is breached, the Python script should make an HTTP POST request to an internal endpoint on the Node.js server (e.g., `POST /api/internal/broadcast-alert`).
+*   The `spiral-ui/src/server/alerts.ts` file should create an Express server that handles both the WebSocket upgrade request for `/ws/alerts` and the internal `POST /api/internal/broadcast-alert` route.
+*   When the internal endpoint is called, the server broadcasts the alert payload to all connected WebSocket clients.
+*   The `AlertsPanel.tsx` React component should connect to the `/ws/alerts` endpoint, listen for messages, and display them with a timestamp, including a 10-second auto-dismissal mechanism.
+
+**4. Edge Cases & Gotchas:**
+*   **Alert Storms:** The Python logic should be stateful to only send an alert once when a threshold is first crossed, not continuously.
+*   **IPC Failure:** The Python script must gracefully handle connection errors if the Node.js server is unreachable.
+*   **UI State:** The `AlertsPanel.tsx` component needs to manage a list of active alerts and handle their dismissal correctly (both automatic and manual).
+*   **Security:** Ensure the internal alert-triggering endpoint is not publicly exposed.
+
+
+## Pre-analysis for US-591 (Gemini 2.5 Pro)
+Here is the technical brief for implementing the real-time cost ceiling alert stream.
+
+### Technical Brief: US-591 Dashboard Real-Time Cost Ceiling Alert
+
+**1. Python Files to Modify:**
+*   `lib/cost_check.py`: Primary candidate. This likely contains the logic for checking costs against a ceiling. It should be modified to emit the WebSocket event.
+*   `lib/monitor.py`: Secondary candidate. If cost tracking is centralized here, this file will need to be updated to include the threshold check and event emission.
+*   `lib/llm_client.py`: This file may also be relevant as it's a likely place where API costs are originally calculated and accumulated.
+
+**2. Frappe DocTypes / Hooks Involved:**
+*   Based on the story's technical details (`spiral-ui`, `.ts`/`.tsx` files), this does not appear to be a Frappe/ERPNext implementation. The work is focused on the Python backend and a React/TypeScript frontend. No DocTypes or Frappe hooks are involved.
+
+**3. Recommended Implementation Approach:**
+*   **Backend (Python & Node.js):**
+    1.  In the `spiral-ui` directory, implement the `GET /ws/alerts` endpoint within `spiral-ui/src/server/alerts.ts`. Use a library like `ws` or `socket.io`.
+    2.  The Python backend needs a mechanism to push alerts to this Node.js server. A simple internal HTTP POST from Python to the Node.js server is a robust approach. The Node.js server then broadcasts this to all connected WebSocket clients.
+    3.  In `lib/cost_check.py`, add logic to fetch the cumulative cost and compare it against `SPIRAL_COST_CEILING`.
+    4.  When cost exceeds 80% and 95% thresholds, trigger the internal HTTP call to the Node.js server with the alert payload.
+*   **Frontend (React/TypeScript):**
+    1.  Create the `spiral-ui/src/components/AlertsPanel.tsx` React component.
+    2.  Use a WebSocket client (e.g., `useWebSocket` hook from a library) to connect to the `/ws/alerts` endpoint.
+    3.  On receiving a message, display the alert with its timestamp and severity.
+    4.  Implement a `setTimeout` for the 10-second auto-dismissal and an `onClick` handler to allow manual dismissal.
+
+**4. Edge Cases & Gotchas:**
+*   **Configuration:** The `SPIRAL_COST_CEILING` value must be accessible by the Python cost-checking logic, likely via an environment variable or a configuration file.
+*   **State Management:** The alerting mechanism should be stateful to avoid sending repeated alerts for the same threshold breach. Only send an alert once when the threshold is first crossed.
+*   **WebSocket Stability:** Implement reconnection logic on the frontend client in case the WebSocket connection is lost.
+*   **Security:** Ensure the internal endpoint for posting alerts from Python to the Node.js server is not exposed publicly. It should only listen on localhost or within the container network.
+

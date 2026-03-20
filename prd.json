@@ -90,7 +90,7 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "haiku",
       "filesTouch": [
@@ -107,7 +107,8 @@
       ],
       "tags": [
         "module-hypothesis"
-      ]
+      ],
+      "_scopeCreep": true
     },
     {
       "id": "US-597",
@@ -2747,105 +2748,20 @@
     },
     {
       "id": "US-601",
-      "title": "Phase G: Semantic Story Changelog with Category Tags and Cross-Project Grouping",
+      "title": "CLI: spiral federate-init — Initialize Sub-Project with Namespace and Parent Link",
       "priority": "medium",
-      "description": "Enhance Phase G to parse story descriptions for [FEATURE], [BUGFIX], [BREAKING] markers, generate CHANGELOG.md grouped by sub_project and story category with links to commit hashes, enabling better release communication for federated projects.",
+      "description": "Create CLI command to bootstrap federated sub-project prd.json with namespace prefix validation and parent project linking. Generates pre-configured prd.json with federation metadata for sub-projects in multi-repo SPIRAL setups.",
       "acceptanceCriteria": [
-        "Phase G (lib/phases/generate_changelog.py) parses story._description for regex patterns [FEATURE], [BUGFIX], [BREAKING] and stores matched category in results.tsv as story_category column; stories without markers default to [MISC]",
-        "CLI: spiral generate-changelog --from-iteration N --to-iteration M outputs CHANGELOG.md with H2 headers per sub_project, H3 headers per story_category, entries as '- <story_id>: <description> (<commit_hash>)'; test validates section ordering and commit links exist in git",
-        "Integration test (tests/integration/test_phase_g_semantic_changelog.py) verifies CHANGELOG includes 4+ story categories, correct sub_project grouping for federated prd.json with 2+ sub_projects, and commit links resolve to valid objects in git history"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "sonnet"
-    },
-    {
-      "id": "US-602",
-      "title": "CLI: spiral failure-parser — Extract Error Types from Ralph Worker Logs",
-      "priority": "medium",
-      "description": "Extend results.tsv to include error_category column. Parse Ralph worker stderr outputs and automatically categorize failure types (TimeoutError, OutOfMemoryError, SyntaxError, ModelCapacityExceeded, etc.). Expose via CLI command and dashboard widget for failure trend analysis.",
-      "acceptanceCriteria": [
-        "Add error_category column to ResultsRecord in lib/spiral/results.py. Parser in lib/spiral/error_classifier.py extracts error class from stderr using regex patterns. Supports custom categories via SPIRAL_ERROR_PATTERNS config file.",
-        "CLI command 'spiral show-errors --iteration N' outputs JSON: {error_counts: {TimeoutError: 5, OutOfMemoryError: 2}, top_failures: [{error: 'TimeoutError', stories: ['US-001', 'US-002'], avg_retry_count: 2.1}]}",
-        "Integration test mocks 20 failed stories with diverse error types, asserts parser achieves ≥80% categorization accuracy. Dashboard /api/dashboard/error-summary endpoint returns error histogram for charting."
+        "Implement lib/spiral/commands/federate_init.py accepting `spiral federate-init --namespace myproject --parent ../parent/prd.json`; validate namespace format (alphanumeric+hyphen, max 20 chars); generate ./prd.json with namespace-prefixed story IDs (e.g., MYPROJECT-001)",
+        "Assert generated prd.json has `federation.namespace` and `federation.parent_path` metadata fields; reject invalid namespace with error message: `'Invalid namespace: contains spaces'`",
+        "Add tests/test_federate_init.py with test_valid_namespace_generates_prd(), test_invalid_namespace_rejected(), and test_parent_path_resolution_validates_file_exists()"
       ],
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
       "_source": "ai-example",
-      "model": "sonnet"
-    },
-    {
-      "id": "US-603",
-      "title": "Phase Timing Variance Monitor: Detect Execution Regressions",
-      "priority": "medium",
-      "description": "Background monitor that compares current phase execution times against rolling average and alerts when any phase exceeds 1.5x threshold. Stores variance metrics in .spiral/phase-variance.json and streams alerts to dashboard via WebSocket /ws/alerts for real-time SLA violation detection.",
-      "acceptanceCriteria": [
-        "After each iteration, compute rolling average phase duration (window=5 iterations). Store in .spiral/phase-variance.json: {Phase R: {avg: 120, current: 185, threshold: 180, deviation: 54%}}. Trigger alert if current > 1.5 * avg.",
-        "WebSocket alert message schema: {type: 'phase_variance', phase: 'Phase R', duration: 185, threshold: 180, iteration: 42, recommendation: 'Review Gemini API latency'}",
-        "Integration test configures SPIRAL_VARIANCE_THRESHOLD=1.5, mocks Phase M regressing from 60s avg to 100s, asserts alert published with correct threshold and deviation_percent calculation."
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "sonnet"
-    },
-    {
-      "id": "US-604",
-      "title": "Phase G: Generate story-to-commit mapping index for O(1) changelog lookups",
-      "priority": "medium",
-      "description": "Create `.spiral/changelog_index.json` mapping story IDs to commit hashes during Phase G. Enables fast story-to-commit lookups without parsing git log each time, and supports federated projects with namespaced story IDs (e.g., prj-a:US-001 → [commit1, commit2]).",
-      "acceptanceCriteria": [
-        "Phase G writes `.spiral/changelog_index.json` with schema `{\"US-NNN\": [\"commit_hash\", ...], \"prj-a:US-001\": [...]}` by parsing git log for commit messages containing story IDs",
-        "Integration test `tests/test_phase_g_changelog_index.py` verifies index completeness: every story in prd.json has ≥1 matching commit, and no orphaned commits with untracked story IDs",
-        "CLI command `spiral show-story-commits <story-id>` reads index and returns commits in <2ms; test verifies accuracy against git log"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "sonnet"
-    },
-    {
-      "id": "US-605",
-      "title": "Phase R: Semantic Research Query Deduplication via Vector Similarity",
-      "priority": "medium",
-      "description": "Use Claude embeddings to detect semantically similar research queries and reuse cached results, skipping redundant Gemini calls when new queries are paraphrased variants (cosine similarity ≥0.85).",
-      "acceptanceCriteria": [
-        "lib/semantic_research_cache.py: embed_query(q) uses Claude embeddings API; find_similar_query(q, threshold=0.85) returns cached result if cosine similarity threshold met",
-        "Phase R: before Gemini call, embed query and search cache for similar queries; return cached result if found instead of calling Gemini",
-        "Integration test: two semantically similar queries (e.g., 'React component best practices' vs 'How should React components be structured') verify second is cached, results.tsv includes cache_hit boolean column"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "sonnet"
-    },
-    {
-      "id": "US-606",
-      "title": "Phase M: Critical Path Analyzer — Prioritize Stories by Downstream Impact Chain",
-      "priority": "medium",
-      "description": "Analyze prd.json dependency graph to identify critical paths and reorder Phase M merge queue, prioritizing stories with maximal downstream impact to reduce iteration count when high-impact stories complete first.",
-      "acceptanceCriteria": [
-        "lib/critical_path_analyzer.py: find_critical_path(prd_json) returns [(story_id, downstream_count, critical_rank)] using DAG topological analysis; stories with longer dependency chains rank higher",
-        "Phase M merge: sort story_queue by critical_rank (descending) before inserting into prd.json, log reordering to .spiral/phase-m-ranking.log with before/after order",
-        "Integration test: prd.json with dependency chain (US-A→US-B→US-C) and independent story (US-D) verify critical_path identifies US-A rank=1 downstream_count=2, US-D rank=4 downstream_count=0"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "sonnet"
+      "model": "haiku"
     }
   ]
 }
