@@ -1958,3 +1958,4 @@ Here is the technical brief for the Claude agent:
 - [x] AC1: lib/dashboard/timeseries_store.py with SQLite schema in .spiral/dashboard.db
 - [x] AC2: Phase C calls timeseries_store.record_iteration() (phase_c_check_done.sh line 185-195)
 - [x] AC3: GET /api/dashboard/timeseries returns JSON timeseries data
+## Worker 2 crashed (exit 2) — 2026-03-20 23:07:17
