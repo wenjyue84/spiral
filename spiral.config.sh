@@ -228,10 +228,10 @@ SPIRAL_STORY_TIMEOUT_LARGE=2400
 # SPIRAL_COST_CEILING=""
 
 # ── Per-story cost limits ────────────────────────────────────────────────────
-# Prevent stories from being abandoned prematurely. Default $2 is too low for
-# multi-retry stories using sonnet/opus models.
-export SPIRAL_STORY_COST_HARD_USD=10.00
-export SPIRAL_STORY_COST_WARN_USD=5.00
+# Disabled — user wants no per-story cost ceiling (stories were being abandoned
+# prematurely). ralph.sh defaults to 9999.00 when unset, effectively disabling.
+# export SPIRAL_STORY_COST_HARD_USD=10.00
+# export SPIRAL_STORY_COST_WARN_USD=5.00
 
 # ── Specialist prompt file (optional) ────────────────────────────────────────
 # Path to a static prompt file used as fallback when Gemini is unavailable.
