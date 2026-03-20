@@ -1,4 +1,36 @@
 
+## Iteration 44 - US-541: Story Complexity Scorer for Worker Load Balancing
+
+### What was implemented
+- lib/story_complexity.py: New module with:
+  - compute_story_complexity(story, prd) → float [1.0, 10.0]
+  - Weights: 40% description word count, 30% dependency count, 20% filesTouch count, 10% retry count
+  - complexity_band(score) → "low" / "medium" / "high"
+  - CLI: python lib/story_complexity.py --story-id US-001 --prd prd.json
+- lib/prd/partition_prd.py: Updated assign_stories() to accept prd param and use complexity bands:
+  - low/high band (score 1-3, 7-10) → even-indexed workers (0, 2, 4…)
+  - medium band (score 4-6) → odd-indexed workers (1, 3, 5…)
+  - Graceful fallback: if story_complexity unavailable, uses existing least-loaded logic
+  - Dependency co-location and file-overlap co-location still take priority over band assignment
+- tests/test_story_complexity.py: 17 tests covering:
+  - Score boundary (1.0–10.0), low/high band thresholds
+  - Short desc + no deps → score ~2 (low); long desc + 5 deps → score ~8 (high)
+  - filesTouch in technicalHints, None description, retry count contributions
+  - complexity_band() for all band boundaries
+  - Integration: 3-story PRD spanning all bands with partition_prd round-robin assignment
+
+### Patterns discovered
+- partition_prd.py is in lib/prd/ but story_complexity.py lives in lib/ — required sys.path.insert for parent dir
+- All pre-existing bare `dict` type hints in compute_levels() and assign_stories() needed `dict[str, Any]` for mypy strict
+- A 200-word description alone scores ~8.8 (high) — use 100 words + 3 deps for genuine medium (score ~4.4)
+
+### Acceptance criteria verification
+✓ AC1: compute_story_complexity(story, prd) in lib/story_complexity.py returns 1-10 score with specified weights
+✓ AC2: Integration test: easy(~1.1), medium(~4.4), hard(~8.8) stories verified in correct band order
+✓ AC3: partition_prd.py assign_stories uses complexity band round-robin; worker-0 gets low/high, worker-1 gets medium
+
+---
+
 ## Iteration 43 - US-540: Dashboard Story Status Timeline Endpoint with Phase Swimlanes
 
 ### What was implemented

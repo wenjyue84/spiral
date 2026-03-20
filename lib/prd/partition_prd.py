@@ -18,17 +18,27 @@ import argparse
 import json
 import os
 import sys
+from typing import Any
 
 sys.path.insert(0, os.path.dirname(__file__))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from constants import PRIORITY_RANK
 from prd_schema import validate_prd
 from spiral_io import configure_utf8_stdout
 from story_helpers import get_files_to_touch, priority_key
 
+# story_complexity is in lib/ (one level up from lib/prd/)
+try:
+    from story_complexity import complexity_band, compute_story_complexity
+
+    _COMPLEXITY_AVAILABLE = True
+except ImportError:
+    _COMPLEXITY_AVAILABLE = False
+
 configure_utf8_stdout()
 
 
-def compute_levels(pending: list[dict]) -> dict[str, int]:
+def compute_levels(pending: list[dict[str, Any]]) -> dict[str, int]:
     """
     Compute topological levels for pending stories based on dependencies.
     Level 0 = stories with no pending dependencies (ready to run).
@@ -65,25 +75,58 @@ def compute_levels(pending: list[dict]) -> dict[str, int]:
     return levels
 
 
-def assign_stories(pending: list[dict], n_workers: int) -> list[list[dict]]:
+def assign_stories(
+    pending: list[dict[str, Any]],
+    n_workers: int,
+    prd: dict[str, Any] | None = None,
+    use_complexity: bool = True,
+) -> list[list[dict[str, Any]]]:
     """
     Assign pending stories to n worker buckets:
     1. Sort all pending stories by priority (critical first).
     2. Co-locate a story with its already-assigned pending dependency's worker.
     3. Co-locate a story with a worker that already touches the same files.
-    4. Otherwise assign to the least-loaded worker.
+    4a. If complexity scoring is available and n_workers >= 2: use complexity
+        band round-robin to spread load (low/high bands → even workers,
+        medium band → odd workers).
+    4b. Otherwise fall back to least-loaded worker.
     """
     if not pending:
         return [[] for _ in range(n_workers)]
 
     pending_ids = {s["id"] for s in pending}
+    _prd = prd or {}
 
     # Sort by priority so high-priority stories get bucket assignment before low-priority
     pending_sorted = sorted(pending, key=priority_key)
 
-    buckets: list[list[dict]] = [[] for _ in range(n_workers)]
+    buckets: list[list[dict[str, Any]]] = [[] for _ in range(n_workers)]
     assignments: dict[str, int] = {}  # story_id → bucket index
     file_to_worker: dict[str, int] = {}  # file_path → bucket index
+
+    # Pre-compute complexity scores if available and beneficial
+    _use_complexity_bands = (
+        use_complexity and _COMPLEXITY_AVAILABLE and n_workers >= 2
+    )
+    # Band counters for round-robin within each band
+    _band_counters: dict[str, int] = {"low": 0, "medium": 0, "high": 0}
+
+    def _band_worker(band: str) -> int:
+        """Map complexity band to a worker index using round-robin per band.
+
+        low/high bands (extremes) → even worker indices (0, 2, 4 …)
+        medium band               → odd worker indices  (1, 3, 5 …)
+        Falls back to all workers if only 1 worker of that parity exists.
+        """
+        if band == "medium":
+            eligible = [i for i in range(n_workers) if i % 2 == 1]
+        else:
+            eligible = [i for i in range(n_workers) if i % 2 == 0]
+        if not eligible:
+            eligible = list(range(n_workers))
+        idx = _band_counters[band] % len(eligible)
+        _band_counters[band] += 1
+        return eligible[idx]
 
     for story in pending_sorted:
         sid = story["id"]
@@ -104,7 +147,13 @@ def assign_stories(pending: list[dict], n_workers: int) -> list[list[dict]]:
                     assigned_worker = file_to_worker[f]
                     break
 
-        # 3. Least-loaded fallback
+        # 3. Complexity band assignment (when no co-location constraint applies)
+        if assigned_worker is None and _use_complexity_bands:
+            score = compute_story_complexity(story, _prd)
+            band = complexity_band(score)
+            assigned_worker = _band_worker(band)
+
+        # 4. Least-loaded fallback
         if assigned_worker is None:
             assigned_worker = min(range(n_workers), key=lambda i: len(buckets[i]))
 
@@ -201,7 +250,7 @@ def main() -> int:
         print("[partition] No pending stories — nothing to partition")
         return 0
 
-    buckets = assign_stories(pending, args.workers)
+    buckets = assign_stories(pending, args.workers, prd=prd)
 
     os.makedirs(args.outdir, exist_ok=True)
 
