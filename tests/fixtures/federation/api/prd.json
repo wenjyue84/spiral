@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "productName": "API",
+  "branchName": "main",
+  "overview": "API sub-project",
+  "goals": [],
+  "userStories": [
+    {
+      "id": "US-api-001",
+      "title": "User Authentication Endpoint",
+      "passes": false,
+      "priority": "high",
+      "description": "Implement JWT-based authentication. Requires US-api-002 database schema",
+      "acceptanceCriteria": [
+        "Login endpoint returns JWT token",
+        "Token validation works for protected routes"
+      ],
+      "dependencies": ["US-api-002"],
+      "estimatedComplexity": "medium",
+      "_source": "seed"
+    },
+    {
+      "id": "US-api-002",
+      "title": "Database Schema Design",
+      "passes": false,
+      "priority": "high",
+      "description": "Design and implement PostgreSQL schema for users and sessions",
+      "acceptanceCriteria": [
+        "Schema supports concurrent transactions",
+        "Indexes on hot paths"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "_source": "seed"
+    },
+    {
+      "id": "US-api-003",
+      "title": "Health Check Endpoint",
+      "passes": false,
+      "priority": "low",
+      "description": "Simple health check for orchestration. Depends on US-api-001 for status aggregation",
+      "acceptanceCriteria": [
+        "Returns 200 with status JSON"
+      ],
+      "dependencies": ["US-api-001"],
+      "estimatedComplexity": "small",
+      "_source": "seed"
+    }
+  ]
+}

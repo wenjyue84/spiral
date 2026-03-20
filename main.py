@@ -3502,7 +3502,15 @@ def cmd_validate_federated_order(args: argparse.Namespace) -> None:
 
     prd_path = Path(getattr(args, "prd", "prd.json"))
     if not prd_path.exists():
-        print(json.dumps({"error": f"File not found: {prd_path}", "merge_order": [], "violations": [str(prd_path) + " not found"]}))
+        print(
+            json.dumps(
+                {
+                    "error": f"File not found: {prd_path}",
+                    "merge_order": [],
+                    "violations": [str(prd_path) + " not found"],
+                }
+            )
+        )
         sys.exit(1)
 
     with open(prd_path, encoding="utf-8") as f:

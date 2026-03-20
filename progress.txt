@@ -640,3 +640,32 @@ Implement a comprehensive integration test for the full R→C SPIRAL phase loop.
 - The test must reliably verify the cleanup of all temporary git worktrees and that no orphaned processes remain.
 - Mocked API responses must return data that strictly matches the schema expected by each phase to prevent downstream validation errors.
 
+
+## Pre-analysis for US-634 (Gemini 2.5 Pro)
+This user story is for the SPIRAL project, not a Frappe application. The initial prompt context about Frappe/payroll should be disregarded.
+
+Here is the technical brief for implementing the integration test:
+
+**Project:** SPIRAL
+**Goal:** Add an end-to-end integration test for the federated `prd.json` merge feature.
+
+**1. Primary Files to Modify/Create:**
+*   Create a new test file: `tests/test_federation_e2e.py`.
+*   This test will exercise the main application logic, likely orchestrated by `main.py` and `spiral.sh`.
+*   The core logic being tested is in the "Phase M" merge step. You'll need to investigate files like `lib/dependency_graph.py`, `lib/compact_prd.py`, or a potential `lib/phase_m.py` to understand the merge implementation.
+
+**2. Involved DocTypes/Hooks:**
+*   None. This is a standalone Python application, not a Frappe-based one.
+
+**3. Recommended Implementation Approach:**
+*   Use a `pytest` fixture (e.g., using `tmp_path`) to dynamically create the test directory structure: `tmp/federation/webapp/prd.json` and `tmp/federation/api/prd.json`.
+*   Populate these `prd.json` files with sample stories, including cross-project dependencies (e.g., a story in `webapp` depends on one in `api`).
+*   The test should execute the full SPIRAL pipeline, pointing it to the temporary fixture directory as the root.
+*   After the run, assert the contents of the master `prd.json` to verify correct story namespacing, dependency resolution, and the presence of `_source` and `sub_project` fields.
+*   Parse the final `results.tsv` and assert that the `sub_project` column is accurately populated for all processed stories.
+
+**4. Edge Cases & Gotchas:**
+*   **Circular Dependencies:** The test suite must include a case where a circular dependency is introduced (e.g., webapp->api->webapp) and assert that the application fails with a specific, clear error.
+*   **Test Isolation:** Ensure the test fixture and any generated artifacts are properly cleaned up after execution.
+*   **Configuration:** The SPIRAL execution might require specific configuration or environment variables. The test will need to provide a controlled configuration for the run.
+

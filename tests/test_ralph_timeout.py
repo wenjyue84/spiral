@@ -18,7 +18,6 @@ import logging
 import os
 import sys
 import tempfile
-import unittest
 from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -191,8 +190,10 @@ class TestErrorLogContent:
 
         with patch("subprocess.run", side_effect=exc):
             import logging as _logging
-            with _logging.getLogger("lib.impl.retry").propagate and \
-                    _capture_log("lib.impl.retry", _logging.ERROR) as log_records:
+
+            with _logging.getLogger("lib.impl.retry").propagate and _capture_log(
+                "lib.impl.retry", _logging.ERROR
+            ) as log_records:
                 execute_ralph(
                     story_id="US-628",
                     model="haiku",
@@ -290,8 +291,7 @@ class TestNonTimeoutBehavior:
         exc.stdout = ""
         exc.stderr = ""
 
-        with patch("subprocess.run", side_effect=exc), \
-                patch.dict(os.environ, {"SPIRAL_TIMEOUT_RALPH": "999"}):
+        with patch("subprocess.run", side_effect=exc), patch.dict(os.environ, {"SPIRAL_TIMEOUT_RALPH": "999"}):
             result = execute_ralph(
                 story_id="US-628",
                 model="haiku",
@@ -311,6 +311,7 @@ import subprocess  # noqa: E402 (re-import needed at module level for patching)
 def _capture_log(logger_name: str, level: int) -> "contextlib.AbstractContextManager[list[logging.LogRecord]]":
     """Context manager that captures log records from a named logger."""
     import logging
+
     records: list[logging.LogRecord] = []
 
     class _Handler(logging.Handler):

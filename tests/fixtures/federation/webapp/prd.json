@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "productName": "WebApp",
+  "branchName": "main",
+  "overview": "Web application sub-project",
+  "goals": [],
+  "userStories": [
+    {
+      "id": "US-web-001",
+      "title": "API Integration Layer",
+      "passes": false,
+      "priority": "high",
+      "description": "Build REST API client for frontend consumption",
+      "acceptanceCriteria": [
+        "REST client handles auth tokens",
+        "Retry logic on 5xx errors"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "_source": "seed"
+    },
+    {
+      "id": "US-web-002",
+      "title": "Dashboard UI Components",
+      "passes": false,
+      "priority": "high",
+      "description": "Build React components for dashboard. Requires US-api-001 API contract to be finalized",
+      "acceptanceCriteria": [
+        "Components render without errors",
+        "Props validation with TypeScript"
+      ],
+      "dependencies": ["US-api-001"],
+      "estimatedComplexity": "medium",
+      "_source": "seed"
+    },
+    {
+      "id": "US-web-003",
+      "title": "Form Validation Library",
+      "passes": false,
+      "priority": "medium",
+      "description": "Build reusable form validation utilities",
+      "acceptanceCriteria": [
+        "Supports email, phone, postal code validation"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "_source": "seed"
+    }
+  ]
+}

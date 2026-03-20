@@ -11,7 +11,6 @@ provides the ordering pre-step as required by US-617 AC3.
 from __future__ import annotations
 
 import json
-import os
 import sys
 from pathlib import Path
 from typing import Any

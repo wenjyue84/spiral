@@ -9,8 +9,6 @@ import json
 import sys
 from pathlib import Path
 
-import pytest
-
 # Add lib/ to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "lib"))
 
@@ -20,7 +18,6 @@ from federated_status import (  # noqa: E402
     format_json_output,
     format_table_output,
 )
-
 
 # ── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -142,9 +139,9 @@ def test_aggregate_3_project_cost_accuracy(tmp_path: Path) -> None:
     AC3 for US-629.
     """
     # Cost constants from federated_status.py (COST_PER_MTOK)
-    AVG_HAIKU = (0.80 + 4.00) / 2.0   # 2.40 per MTok
+    AVG_HAIKU = (0.80 + 4.00) / 2.0  # 2.40 per MTok
     AVG_SONNET = (3.00 + 15.00) / 2.0  # 9.00 per MTok
-    AVG_OPUS = (15.00 + 75.00) / 2.0   # 45.00 per MTok
+    AVG_OPUS = (15.00 + 75.00) / 2.0  # 45.00 per MTok
 
     # Create prd.json with 3 sub-projects
     prd = {

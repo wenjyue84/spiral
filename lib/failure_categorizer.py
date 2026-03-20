@@ -29,7 +29,6 @@ import re
 import sys
 from collections import defaultdict
 from pathlib import Path
-from typing import Any
 
 # ── Pattern registry ──────────────────────────────────────────────────────────
 # Ordered: first match wins, most specific patterns first.
@@ -215,9 +214,7 @@ def main(argv: list[str] | None = None) -> None:
     """Standalone CLI: python -m lib.failure_categorizer [iteration] [--results TSV]."""
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Categorize Phase I retry failures by story from results.tsv"
-    )
+    parser = argparse.ArgumentParser(description="Categorize Phase I retry failures by story from results.tsv")
     parser.add_argument(
         "iteration",
         nargs="?",

@@ -54,9 +54,7 @@ def calculate_project_metrics(
 
         tokens = 0
         try:
-            tokens = int(row.get("cache_read_tokens", 0) or 0) + int(
-                row.get("cache_creation_tokens", 0) or 0
-            )
+            tokens = int(row.get("cache_read_tokens", 0) or 0) + int(row.get("cache_creation_tokens", 0) or 0)
         except (ValueError, TypeError):
             pass
 
@@ -224,16 +222,18 @@ def aggregate_federated_status(
     # Convert 'projects' to 'status' format for backward compatibility
     status_rows: list[dict[str, Any]] = []
     for proj in result.get("projects", []):
-        status_rows.append({
-            "sub_project": proj["project"],
-            "total_stories": proj["total_stories"],
-            "passed": proj["passed"],
-            "failed": proj["failed"],
-            "pending": proj["pending"],
-            "tokens_used": proj["tokens_used"],
-            "estimated_cost_usd": round(proj["cost_usd"], 4),
-            "avg_duration_sec": round(proj["avg_duration_s"], 1),
-        })
+        status_rows.append(
+            {
+                "sub_project": proj["project"],
+                "total_stories": proj["total_stories"],
+                "passed": proj["passed"],
+                "failed": proj["failed"],
+                "pending": proj["pending"],
+                "tokens_used": proj["tokens_used"],
+                "estimated_cost_usd": round(proj["cost_usd"], 4),
+                "avg_duration_sec": round(proj["avg_duration_s"], 1),
+            }
+        )
 
     summary = result.get("summary", {})
     return {
@@ -250,9 +250,7 @@ def aggregate_federated_status(
     }
 
 
-def _load_all_results(
-    base_dir: Path, globs: list[str]
-) -> list[dict[str, Any]]:
+def _load_all_results(base_dir: Path, globs: list[str]) -> list[dict[str, Any]]:
     """Load all results.tsv files matching the glob patterns.
 
     Args:

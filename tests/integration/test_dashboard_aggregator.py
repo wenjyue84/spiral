@@ -7,8 +7,8 @@ metrics when 2 sub-projects have independent Phase I runs.
 from __future__ import annotations
 
 import csv
-import sys
 import os
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -17,16 +17,31 @@ import pytest
 # Ensure lib/ is on the path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "lib"))
 
-from spiral.dashboard.aggregator import aggregate_overview, _read_tsv
-
+from spiral.dashboard.aggregator import _read_tsv, aggregate_overview
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 _TSV_HEADERS = [
-    "timestamp", "spiral_iter", "ralph_iter", "story_id", "story_title",
-    "status", "duration_sec", "model", "retry_num", "commit_sha", "run_id",
-    "cache_hit", "cache_read_tokens", "cache_creation_tokens", "review_tokens",
-    "wall_seconds", "user_cpu_s", "sys_cpu_s", "peak_rss_kb", "batch_id",
+    "timestamp",
+    "spiral_iter",
+    "ralph_iter",
+    "story_id",
+    "story_title",
+    "status",
+    "duration_sec",
+    "model",
+    "retry_num",
+    "commit_sha",
+    "run_id",
+    "cache_hit",
+    "cache_read_tokens",
+    "cache_creation_tokens",
+    "review_tokens",
+    "wall_seconds",
+    "user_cpu_s",
+    "sys_cpu_s",
+    "peak_rss_kb",
+    "batch_id",
 ]
 
 
@@ -76,6 +91,7 @@ def _make_row(
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 
+
 class TestAggregateOverview:
     """Tests for aggregate_overview() with two independent sub-projects."""
 
@@ -84,14 +100,20 @@ class TestAggregateOverview:
         proj_a = tmp_path / "project-a" / "results.tsv"
         proj_b = tmp_path / "project-b" / "results.tsv"
 
-        _write_tsv(proj_a, [
-            _make_row("US-001", status="keep"),
-            _make_row("US-002", status="keep"),
-        ])
-        _write_tsv(proj_b, [
-            _make_row("US-003", status="keep"),
-            _make_row("US-004", status="reject"),
-        ])
+        _write_tsv(
+            proj_a,
+            [
+                _make_row("US-001", status="keep"),
+                _make_row("US-002", status="keep"),
+            ],
+        )
+        _write_tsv(
+            proj_b,
+            [
+                _make_row("US-003", status="keep"),
+                _make_row("US-004", status="reject"),
+            ],
+        )
 
         result = aggregate_overview([proj_a, proj_b])
         assert result["storiesPassed"] == 3
@@ -101,14 +123,20 @@ class TestAggregateOverview:
         proj_a = tmp_path / "project-a" / "results.tsv"
         proj_b = tmp_path / "project-b" / "results.tsv"
 
-        _write_tsv(proj_a, [
-            _make_row("US-001", status="keep"),
-            _make_row("US-002", status="failed"),
-        ])
-        _write_tsv(proj_b, [
-            _make_row("US-003", status="reject"),
-            _make_row("US-004", status="keep"),
-        ])
+        _write_tsv(
+            proj_a,
+            [
+                _make_row("US-001", status="keep"),
+                _make_row("US-002", status="failed"),
+            ],
+        )
+        _write_tsv(
+            proj_b,
+            [
+                _make_row("US-003", status="reject"),
+                _make_row("US-004", status="keep"),
+            ],
+        )
 
         result = aggregate_overview([proj_a, proj_b])
         assert result["blockerCount"] == 2
@@ -118,14 +146,20 @@ class TestAggregateOverview:
         proj_a = tmp_path / "fast-project" / "results.tsv"
         proj_b = tmp_path / "slow-project" / "results.tsv"
 
-        _write_tsv(proj_a, [
-            _make_row("US-001", duration_sec=5.0),
-            _make_row("US-002", duration_sec=10.0),
-        ])
-        _write_tsv(proj_b, [
-            _make_row("US-003", duration_sec=200.0),
-            _make_row("US-004", duration_sec=300.0),
-        ])
+        _write_tsv(
+            proj_a,
+            [
+                _make_row("US-001", duration_sec=5.0),
+                _make_row("US-002", duration_sec=10.0),
+            ],
+        )
+        _write_tsv(
+            proj_b,
+            [
+                _make_row("US-003", duration_sec=200.0),
+                _make_row("US-004", duration_sec=300.0),
+            ],
+        )
 
         result = aggregate_overview([proj_a, proj_b])
         assert result["slowestSubProject"] == "slow-project"
@@ -144,9 +178,14 @@ class TestAggregateOverview:
     def test_total_cost_summed_from_tokens(self, tmp_path: Path) -> None:
         """totalCost is a non-negative float derived from token counts."""
         proj_a = tmp_path / "project-a" / "results.tsv"
-        _write_tsv(proj_a, [
-            _make_row("US-001", model="haiku", cache_read_tokens=1_000_000, cache_creation_tokens=0, review_tokens=0),
-        ])
+        _write_tsv(
+            proj_a,
+            [
+                _make_row(
+                    "US-001", model="haiku", cache_read_tokens=1_000_000, cache_creation_tokens=0, review_tokens=0
+                ),
+            ],
+        )
         result = aggregate_overview([proj_a])
         # haiku rate = $0.25/M tokens; 1M tokens => ~$0.25
         assert result["totalCost"] == pytest.approx(0.25, abs=0.01)
@@ -173,12 +212,15 @@ class TestAggregateOverview:
     def test_escalation_pct_reflects_retry_rows(self, tmp_path: Path) -> None:
         """escalationPct is the fraction of rows with retry_num >= 1."""
         proj_a = tmp_path / "project-a" / "results.tsv"
-        _write_tsv(proj_a, [
-            _make_row("US-001", retry_num=0),
-            _make_row("US-002", retry_num=1),
-            _make_row("US-003", retry_num=2),
-            _make_row("US-004", retry_num=0),
-        ])
+        _write_tsv(
+            proj_a,
+            [
+                _make_row("US-001", retry_num=0),
+                _make_row("US-002", retry_num=1),
+                _make_row("US-003", retry_num=2),
+                _make_row("US-004", retry_num=0),
+            ],
+        )
         result = aggregate_overview([proj_a])
         assert result["escalationPct"] == pytest.approx(0.5)
 
@@ -191,10 +233,13 @@ class TestAggregateOverview:
         assert first["storiesPassed"] == 1
 
         # Simulate Phase I completing another story
-        _write_tsv(proj, [
-            _make_row("US-001", status="keep"),
-            _make_row("US-002", status="keep"),
-        ])
+        _write_tsv(
+            proj,
+            [
+                _make_row("US-001", status="keep"),
+                _make_row("US-002", status="keep"),
+            ],
+        )
         second = aggregate_overview([proj])
         assert second["storiesPassed"] == 2
 

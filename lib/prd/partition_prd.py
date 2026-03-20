@@ -220,6 +220,7 @@ def main() -> int:
     parser.add_argument("--prd", required=True, help="Path to main prd.json")
     parser.add_argument("--workers", type=int, default=0, help="Number of workers")
     parser.add_argument("--outdir", default="", help="Output directory for worker prd files")
+    parser.add_argument("--federated", action="store_true", help="Enable federated sub_project-aware partitioning")
 
     # Query modes
     parser.add_argument(

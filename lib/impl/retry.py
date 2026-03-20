@@ -70,8 +70,8 @@ def execute_ralph(
         - A structured log message is emitted that includes story_id, model,
           timeout duration, and a suggestion to adjust SPIRAL_TIMEOUT_RALPH
     """
-    timeout_seconds = timeout if timeout is not None else int(
-        os.environ.get("SPIRAL_TIMEOUT_RALPH", str(_DEFAULT_TIMEOUT))
+    timeout_seconds = (
+        timeout if timeout is not None else int(os.environ.get("SPIRAL_TIMEOUT_RALPH", str(_DEFAULT_TIMEOUT)))
     )
 
     proc_env = os.environ.copy()
@@ -104,11 +104,15 @@ def execute_ralph(
 
     except subprocess.TimeoutExpired as exc:
         # Capture whatever partial output the process produced before timeout
-        partial_stdout: str = exc.stdout if isinstance(exc.stdout, str) else (
-            exc.stdout.decode("utf-8", errors="replace") if exc.stdout else ""
+        partial_stdout: str = (
+            exc.stdout
+            if isinstance(exc.stdout, str)
+            else (exc.stdout.decode("utf-8", errors="replace") if exc.stdout else "")
         )
-        partial_stderr: str = exc.stderr if isinstance(exc.stderr, str) else (
-            exc.stderr.decode("utf-8", errors="replace") if exc.stderr else ""
+        partial_stderr: str = (
+            exc.stderr
+            if isinstance(exc.stderr, str)
+            else (exc.stderr.decode("utf-8", errors="replace") if exc.stderr else "")
         )
 
         escalated_model = _next_model(model)
@@ -159,10 +163,7 @@ def _write_timeout_output(
         "story_id": story_id,
         "model": model,
         "timeout_seconds": timeout_seconds,
-        "suggestion": (
-            f"Increase timeout via SPIRAL_TIMEOUT_RALPH env var "
-            f"(current: {timeout_seconds}s)"
-        ),
+        "suggestion": (f"Increase timeout via SPIRAL_TIMEOUT_RALPH env var (current: {timeout_seconds}s)"),
         "partial_stdout": partial_stdout,
         "partial_stderr": partial_stderr,
     }

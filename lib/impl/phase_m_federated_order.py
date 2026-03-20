@@ -12,7 +12,6 @@ from __future__ import annotations
 import re
 from typing import Any
 
-
 # Pattern to detect cross-project story ID references in description text.
 # Matches: "depends on US-123", "requires US-B5", "after US-42", etc.
 _DEP_PATTERN = re.compile(

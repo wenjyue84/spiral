@@ -16,7 +16,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "lib" / "impl"))
 
 from phase_m_federated_order import order_federated_stories_by_dependency  # noqa: E402
 
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 
@@ -58,9 +57,7 @@ def test_merge_order_respects_dependencies() -> None:
     result = order_federated_stories_by_dependency(stories)
     ids = [s["id"] for s in result]
 
-    assert ids.index("US-B1") < ids.index("US-A1"), (
-        f"US-B1 should appear before US-A1, got order: {ids}"
-    )
+    assert ids.index("US-B1") < ids.index("US-A1"), f"US-B1 should appear before US-A1, got order: {ids}"
 
 
 def test_explicit_dependencies_field_respected() -> None:
