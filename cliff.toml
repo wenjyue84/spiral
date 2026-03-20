@@ -41,6 +41,11 @@ split_commits = false
 
 # Preprocessing patterns applied to commit messages before parsing
 commit_preprocessors = [
+  # Extract story ID (US-NNN, UT-NNN) from subject into scope for grouping
+  # Transforms "feat: US-042 - Add X" → "feat(US-042): Add X"
+  { pattern = '^(\w+):\s+((US|UT)-\d+)\s*[-–—:]\s*', replace = '${1}(${2}): ' },
+  # Also handle "feat(scope): US-042 - ..." → "feat(US-042): ..."
+  { pattern = '^(\w+)\([^)]+\):\s+((US|UT)-\d+)\s*[-–—:]\s*', replace = '${1}(${2}): ' },
   # Strip trailing whitespace
   { pattern = '  +', replace = ' ' },
 ]
