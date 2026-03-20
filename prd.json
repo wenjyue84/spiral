@@ -2468,9 +2468,10 @@
         "US-553"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "test-story",
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-03-20T08:44:23Z"
     },
     {
       "id": "US-587",
@@ -2584,6 +2585,23 @@
         "Endpoint returns JSON array with attempt objects `{phase, model, duration_ms, tokens, status, error_message}` sorted by timestamp, sourced from results.tsv and .spiral/_checkpoint.json",
         "Supports optional query param `?iteration=N` to filter attempts by iteration number",
         "Integration test in tests/integration/test_dashboard_story_timeline.py queries endpoint with fixture data and validates schema + attempt ordering"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-593",
+      "title": "Dashboard Endpoint: Worker Health Score and Performance Metrics",
+      "priority": "medium",
+      "description": "Add HTTP endpoint GET /api/dashboard/workers returning per-worker performance stats aggregated from results.tsv, including completion rate, average token cost, error frequency, and derived health score (0-100).",
+      "acceptanceCriteria": [
+        "Endpoint returns JSON array with {workerId, storiesCompleted, avgTokensPerStory, errorRate, healthScore} grouped from results.tsv sub_project column",
+        "healthScore = 100 * (completionRate * 0.5 + (1-errorRate) * 0.5) where completionRate = storiesPassed / totalStories",
+        "Integration test mocks results.tsv with 3 workers (high/med/low health) and validates endpoint aggregation accuracy and health score calculation"
       ],
       "technicalNotes": [],
       "dependencies": [],

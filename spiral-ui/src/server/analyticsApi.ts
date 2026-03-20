@@ -670,6 +670,22 @@ export function handleAnalytics(root: string, res: ServerResponse): void {
       }
     }
 
+    // ── 19. Recent Activity (last 10 iteration summaries from progress.txt) ─
+    const recentActivity: Array<{ header: string; body: string }> = [];
+    const progressPath = path.join(root, 'progress.txt');
+    if (fs.existsSync(progressPath)) {
+      const progressContent = fs.readFileSync(progressPath, 'utf8');
+      // Split on "## Iteration" headers (keep the header with each section)
+      const parts = progressContent.split(/(?=^## Iteration)/m).filter(s => s.trim());
+      const last10 = parts.slice(-10);
+      for (const section of last10) {
+        const lines = section.split('\n');
+        const header = lines[0]?.trim() ?? '';
+        const body = lines.slice(1).join('\n').trim();
+        if (header) recentActivity.push({ header, body });
+      }
+    }
+
     // ── Response ──────────────────────────────────────────────────────────
     res.end(JSON.stringify({
       overview, velocity, modelPerformance, retryAnalysis,
@@ -678,7 +694,7 @@ export function handleAnalytics(root: string, res: ServerResponse): void {
       epics, decomposition: decompositionData, failureReasons, resolvedFailures,
       insights, latestScreenshot, prdVelocity,
       agentTelemetry, phaseTimings, storiesList,
-      storyDetails, storyAttempts,
+      storyDetails, storyAttempts, recentActivity,
     }));
   } catch (e) {
     res.statusCode = 500;

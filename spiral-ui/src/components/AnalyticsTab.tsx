@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { AgentTelemetryTable, PhaseTimingBars, StoriesListAccordion } from './analytics';
+import { AgentTelemetryTable, PhaseTimingBars, StoriesListAccordion, RecentActivityFeed } from './analytics';
 import StoryDetailPanel, { type StoryForPanel, type StoryAttempt } from './StoryDetailPanel';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -64,6 +64,7 @@ interface AnalyticsData {
   }>;
   storyDetails?: Record<string, StoryForPanel>;
   storyAttempts?: Record<string, StoryAttempt[]>;
+  recentActivity?: Array<{ header: string; body: string }>;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -76,6 +77,7 @@ export default function AnalyticsTab({ projectName }: { projectName: string }) {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedStoryId, setSelectedStoryId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -104,12 +106,11 @@ export default function AnalyticsTab({ projectName }: { projectName: string }) {
   if (error) return <div className="p-6 text-sm text-red-500">Error: {error}</div>;
   if (!data) return <div className="p-6 text-sm text-slate-400">No analytics data available</div>;
 
-  const [selectedStoryId, setSelectedStoryId] = useState<string | null>(null);
-
   const { overview: ov, statusBreakdown: sb, insights, velocity, modelPerformance, retryAnalysis,
     resourceUsage, bottlenecks, iterationVelocity, qualityScores, tokenForecast,
     epics, decomposition, failureReasons, resolvedFailures, latestScreenshot, prdVelocity,
-    agentTelemetry, phaseTimings, storiesList, storyDetails, storyAttempts } = data;
+    agentTelemetry, phaseTimings, storiesList, storyDetails, storyAttempts,
+    recentActivity = [] } = data;
 
   const hasData = ov.totalAttempts > 0 || ov.passed > 0;
   if (!hasData) {
@@ -674,7 +675,10 @@ export default function AnalyticsTab({ projectName }: { projectName: string }) {
       {/* ── 12. Stories List (expandable attempt history) ─────────────────── */}
       {storiesList.length > 0 && <StoriesListAccordion data={storiesList} />}
 
-      {/* ── 13. Latest Screenshot ─────────────────────────────────────────── */}
+      {/* ── 13. Recent Activity (last 10 iteration summaries) ─────────────── */}
+      {recentActivity.length > 0 && <RecentActivityFeed data={recentActivity} />}
+
+      {/* ── 14. Latest Screenshot ─────────────────────────────────────────── */}
       {latestScreenshot && (
         <div>
           <div className="text-xs font-medium text-slate-500 mb-2 uppercase tracking-wide">Latest Screenshot</div>
