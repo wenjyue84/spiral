@@ -3,30 +3,35 @@
     "SessionStart": [
       {
         "matcher": "compact",
-        "command": "cat ralph/CONTEXT_REFRESH.md"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cat ralph/CONTEXT_REFRESH.md"
+          }
+        ]
       }
     ],
     "PreToolUse": [
       {
         "matcher": "Edit|Write",
-        "command": "bash .claude/hooks/protect-spiral-files.sh"
-      }
-    ],
-    "WorktreeCreate": [
-      {
-        "command": "bash .claude/hooks/worktree_audit.sh"
-      }
-    ],
-    "WorktreeRemove": [
-      {
-        "command": "bash .claude/hooks/worktree_audit.sh"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/protect-spiral-files.sh"
+          }
+        ]
       }
     ],
     "Stop": [
       {
-        "type": "agent",
-        "timeout": 120,
-        "command": "python .claude/hooks/verify_story_acceptance.py"
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "timeout": 120,
+            "command": "python .claude/hooks/verify_story_acceptance.py"
+          }
+        ]
       }
     ]
   }

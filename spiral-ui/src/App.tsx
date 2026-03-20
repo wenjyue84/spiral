@@ -1,18 +1,132 @@
-import { useState } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Routes, Route, useNavigate } from 'react-router-dom';
 import WorkflowDiagram from './components/WorkflowDiagram';
 import SettingsPanel, { defaultValues, type ConfigValues } from './components/SettingsPanel';
 import ConfigGenerator from './components/ConfigGenerator';
 import NodePanel from './components/NodePanel';
 import ProjectDashboard from './components/ProjectDashboard';
 
-type Tab = 'workflow' | 'settings' | 'config';
+type Tab = 'projects' | 'workflow' | 'settings' | 'config';
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
+  { id: 'projects', label: 'Projects', icon: '🗂' },
   { id: 'workflow', label: 'Workflow', icon: '⬡' },
   { id: 'settings', label: 'Settings', icon: '⚙' },
   { id: 'config',   label: 'Config Output', icon: '📄' },
 ];
+
+// ── Projects tab ─────────────────────────────────────────────────────────────
+
+interface ProjectEntry { name: string; root: string }
+interface ProjectLive {
+  progress?: { done: number; pending: number; total: number };
+  config?: Record<string, string>;
+}
+
+function ProjectsTab() {
+  const navigate = useNavigate();
+  const [projects, setProjects] = useState<ProjectEntry[]>([]);
+  const [live, setLive] = useState<Record<string, ProjectLive>>({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/projects')
+      .then(r => r.json())
+      .then((data: { projects: ProjectEntry[] }) => {
+        setProjects(data.projects ?? []);
+        setLoading(false);
+        // Fetch live stats for each project in parallel
+        data.projects.forEach(p => {
+          fetch(`/api/project-live?name=${encodeURIComponent(p.name)}`)
+            .then(r => r.json())
+            .then((liveData: ProjectLive) => {
+              setLive(prev => ({ ...prev, [p.name]: liveData }));
+            })
+            .catch(() => {/* ignore */});
+        });
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full text-slate-400 text-sm">
+        Loading projects…
+      </div>
+    );
+  }
+
+  if (projects.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-3 text-slate-400">
+        <span className="text-4xl">📭</span>
+        <p className="text-sm">No projects registered yet.</p>
+        <p className="text-xs text-slate-300">Run <code className="bg-slate-100 px-1 rounded">curl -X POST /api/register-project</code> to add one.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-full overflow-y-auto px-6 py-5">
+      <div className="max-w-5xl mx-auto">
+        <div className="mb-5">
+          <h2 className="text-lg font-semibold text-slate-800">Active Projects</h2>
+          <p className="text-sm text-slate-500 mt-0.5">{projects.length} project{projects.length !== 1 ? 's' : ''} registered — click to open dashboard</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {projects.map(p => {
+            const stats = live[p.name]?.progress;
+            const pct = stats && stats.total > 0 ? Math.round((stats.done / stats.total) * 100) : null;
+            return (
+              <button
+                key={p.name}
+                onClick={() => navigate(`/${encodeURIComponent(p.name)}`)}
+                className="text-left bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:shadow-md hover:border-blue-300 transition-all group"
+              >
+                <div className="flex items-start justify-between gap-2 mb-3">
+                  <span className="font-semibold text-slate-800 group-hover:text-blue-700 transition-colors leading-tight">
+                    {p.name}
+                  </span>
+                  {pct !== null && (
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${
+                      pct === 100 ? 'bg-green-100 text-green-700' :
+                      pct >= 50   ? 'bg-blue-100 text-blue-700' :
+                                    'bg-slate-100 text-slate-500'
+                    }`}>
+                      {pct}%
+                    </span>
+                  )}
+                </div>
+
+                {stats ? (
+                  <>
+                    <div className="w-full bg-slate-100 rounded-full h-1.5 mb-2">
+                      <div
+                        className={`h-1.5 rounded-full transition-all ${pct === 100 ? 'bg-green-500' : 'bg-blue-500'}`}
+                        style={{ width: `${pct ?? 0}%` }}
+                      />
+                    </div>
+                    <div className="flex gap-3 text-xs text-slate-500">
+                      <span>✅ {stats.done} done</span>
+                      <span>⏳ {stats.pending} pending</span>
+                      <span className="text-slate-300">/ {stats.total} total</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-xs text-slate-400 italic">Loading stats…</div>
+                )}
+
+                <div className="mt-3 text-xs text-slate-300 truncate" title={p.root}>
+                  {p.root}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 interface SelectedNode {
   id: string;
@@ -22,7 +136,7 @@ interface SelectedNode {
 }
 
 function SpiralHome() {
-  const [activeTab, setActiveTab] = useState<Tab>('workflow');
+  const [activeTab, setActiveTab] = useState<Tab>('projects');
   const [values, setValues] = useState<ConfigValues>(defaultValues());
   const [selectedNode, setSelectedNode] = useState<SelectedNode | null>(null);
 
@@ -89,6 +203,9 @@ function SpiralHome() {
 
       {/* ── Main content ────────────────────────────────────────────────────── */}
       <main className="flex-1 overflow-hidden">
+
+        {/* Projects tab */}
+        {activeTab === 'projects' && <ProjectsTab />}
 
         {/* Workflow tab — diagram + slide-in panel */}
         {activeTab === 'workflow' && (
