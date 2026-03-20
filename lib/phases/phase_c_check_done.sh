@@ -181,19 +181,6 @@ run_phase_check_done() {
   # ── Write iteration summary (US-039) ──────────────────────────────────
   write_iter_summary
 
-  # ── US-602: Record iteration metrics to SQLite time-series store ──────
-  "$SPIRAL_PYTHON" - <<PYEOF 2>/dev/null || true
-import sys
-sys.path.insert(0, "$SPIRAL_HOME")
-from lib.dashboard.timeseries_store import record_iteration_from_results_tsv
-from pathlib import Path
-record_iteration_from_results_tsv(
-    iteration_n=$SPIRAL_ITER,
-    results_tsv=Path("$REPO_ROOT/.spiral/results.tsv"),
-    db_path=Path("$REPO_ROOT/.spiral/dashboard.db"),
-)
-PYEOF
-
   # ── Write UI progress snapshot ────────────────────────────────────────
   _SNAP_TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
   _SNAP_DONE=$("$JQ" '[.userStories[] | select(.passes == true)] | length' "$PRD_FILE" 2>/dev/null || echo "$DONE")

@@ -205,12 +205,12 @@ def validate_prd(prd: dict) -> list[str]:
             if not isinstance(story["tags"], list):
                 errors.append(f"{sp}/tags — tags must be a list")
             else:
-                tag_pattern = re.compile(r"^[a-z0-9_.:-]+$")
+                tag_pattern = re.compile(r"^[a-z0-9_-]+$")
                 for ti, tag in enumerate(story["tags"]):
                     if not isinstance(tag, str) or not tag:
                         errors.append(f"{sp}/tags/{ti} — must be a non-empty string")
                     elif not tag_pattern.match(tag):
-                        errors.append(f"{sp}/tags/{ti} — '{tag}' must match /^[a-z0-9_.:-]+$/")
+                        errors.append(f"{sp}/tags/{ti} — '{tag}' must match /^[a-z0-9_-]+$/")
 
         if "epicId" in story:
             if not isinstance(story["epicId"], str) or not story["epicId"].strip():

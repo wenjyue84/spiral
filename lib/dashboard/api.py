@@ -27,7 +27,6 @@ from ..research_source_scorer import extract_sources
 from .alerts_broadcaster import get_alerts_manager
 from .cost_broadcaster import get_manager
 from .timeline import get_timeline_manager, parse_timeline
-from .timeseries_store import query_timeseries
 
 logger = logging.getLogger(__name__)
 
@@ -255,42 +254,6 @@ async def research_sources_endpoint() -> dict[str, Any]:
             "total_sources": 0,
             "error": f"Error processing research sources: {str(e)}",
         }
-
-
-@app.get("/api/dashboard/timeseries")
-async def timeseries_endpoint(
-    metric: str = "phase_duration",
-    phase: Optional[str] = None,
-    window: str = "30d",
-) -> dict[str, Any]:
-    """Time-series metrics endpoint for trend analysis.
-
-    Query Parameters:
-        metric: 'phase_duration' | 'story_throughput' | 'worker_memory'
-        phase: Phase letter filter, e.g. 'R', 'I' (only for phase_duration)
-        window: Lookback window, e.g. '30d', '7d', '1d' (default: '30d')
-
-    Returns:
-        {"metric": "phase_duration", "phase": "R", "window": "30d",
-         "data": [{"timestamp": "...", "value": 12.3}, ...]}
-    """
-    # Parse window string like "30d", "7d" into days
-    window_days = 30
-    if window.endswith("d"):
-        try:
-            window_days = max(1, int(window[:-1]))
-        except ValueError:
-            window_days = 30
-
-    db_path = Path(".spiral/dashboard.db")
-    data = query_timeseries(metric=metric, phase=phase, window_days=window_days, db_path=db_path)
-    return {
-        "metric": metric,
-        "phase": phase,
-        "window": window,
-        "data": data,
-        "total_points": len(data),
-    }
 
 
 @app.websocket("/ws/cost")
