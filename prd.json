@@ -90,7 +90,7 @@
       "estimatedComplexity": "medium",
       "passes": false,
       "_source": "ai-example",
-      "model": "haiku",
+      "model": "sonnet",
       "filesTouch": [
         ".hypothesis/constants/0144005a67236799",
         ".hypothesis/constants/0158f9921b55208e",
@@ -155,7 +155,23 @@
       "estimatedComplexity": "small",
       "passes": false,
       "_source": "ai-example",
-      "model": "sonnet"
+      "model": "haiku",
+      "filesTouch": [
+        ".claude/hooks/verify_story_acceptance.py",
+        ".coverage",
+        ".hypothesis/constants/0144005a67236799",
+        ".hypothesis/constants/016af87f794a90e9",
+        ".hypothesis/constants/01831d6f995783ed",
+        ".hypothesis/constants/044aa4a97dd3204b",
+        ".hypothesis/constants/06ee3234b07f7d66",
+        ".hypothesis/constants/087180ea5c6680fc",
+        ".hypothesis/constants/0ad243c8c6e11ffb",
+        ".hypothesis/constants/0dcb44a91ae6f1ae"
+      ],
+      "tags": [
+        "module-claude",
+        "module-hypothesis"
+      ]
     },
     {
       "id": "US-390",
@@ -2692,58 +2708,23 @@
       "estimatedComplexity": "small",
       "passes": false,
       "_source": "ai-example",
-      "model": "haiku"
-    },
-    {
-      "id": "US-600",
-      "title": "CLI: spiral inspect-worker — Deep Diagnostic for Worker Health & Progress",
-      "priority": "medium",
-      "description": "Add diagnostic CLI command to inspect individual worker state: current branch, PRD slice stories, memory usage, heartbeat status, task queue. Enable operators to detect stalled workers and understand why without manually inspecting .spiral-workers/ directories.",
-      "acceptanceCriteria": [
-        "CLI: spiral inspect-worker 1 outputs {branch: str, prd_slice: [US-X, US-Y], memory_mb: int, last_heartbeat: str, current_task: str, status: RUNNING|STALLED|IDLE} from worker directory and heartbeat file",
-        "Detect stalled workers: if last_heartbeat timestamp > 5 minutes old, set status=STALLED and flag in output",
-        "CLI: spiral inspect-all-workers lists table of all workers with status column; highlight any STALLED workers; include total active_stories across pool"
+      "model": "haiku",
+      "filesTouch": [
+        ".claude/hooks/verify_story_acceptance.py",
+        ".coverage",
+        ".hypothesis/constants/1a93c1a1253860b2",
+        ".hypothesis/constants/85d9048f9511202c",
+        ".hypothesis/tmp/tmp0lsloo7l",
+        ".hypothesis/tmp/tmp1z3dns_i",
+        ".hypothesis/tmp/tmp2tr3_0hv",
+        ".hypothesis/tmp/tmp336_s67s",
+        ".hypothesis/tmp/tmp3cxw4tqe",
+        ".hypothesis/tmp/tmp51d95gac"
       ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "haiku"
-    },
-    {
-      "id": "US-601",
-      "title": "CLI: spiral story-history — Show Story Iteration Progression with Model Escalations",
-      "priority": "medium",
-      "description": "Add CLI command to display iteration-by-iteration lifecycle of a story (US-XXX), showing phase, model used, token count, and status. Helps developers debug why stories escalate to expensive models or fail repeatedly. Reads from results.tsv and groups by story_id.",
-      "acceptanceCriteria": [
-        "spiral story-history US-123 outputs JSON array with {iteration, phase, model, tokens, status} per attempt",
-        "spiral story-history US-123 --format table displays ASCII timeline with model escalation arrows (haiku→sonnet→opus)",
-        "Command correctly filters results.tsv by story_id and iteration, failing gracefully if story not found"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "haiku"
-    },
-    {
-      "id": "US-602",
-      "title": "CLI: spiral federated-stats — Aggregate Metrics Across Sub-Projects by Token Spend and Success Rate",
-      "priority": "medium",
-      "description": "Add CLI command to aggregate success rate, token spend, and model distribution across federated sub-projects. Discovers .spiral/results.tsv and sub-project/*/results.tsv files, groups by sub_project column, enabling portfolio-level visibility into token budget distribution and quality metrics across multi-repo SPIRAL runs.",
-      "acceptanceCriteria": [
-        "spiral federated-stats outputs JSON with array of {sub_project, total_stories, passed_count, total_tokens, avg_model_used}",
-        "Command auto-discovers results.tsv files from .spiral/ root and sub-project directories, skips missing files gracefully",
-        "spiral federated-stats --sort by=tokens --limit 5 returns top 5 projects ranked by token spend; --format csv exports aggregation"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "haiku"
+      "tags": [
+        "module-claude",
+        "module-hypothesis"
+      ]
     }
   ]
 }
