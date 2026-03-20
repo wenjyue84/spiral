@@ -23,7 +23,7 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "sonnet",
       "filesTouch": [
@@ -90,7 +90,7 @@
       "estimatedComplexity": "medium",
       "passes": false,
       "_source": "ai-example",
-      "model": "sonnet",
+      "model": "haiku",
       "filesTouch": [
         ".hypothesis/constants/0144005a67236799",
         ".hypothesis/constants/0158f9921b55208e",
@@ -155,7 +155,7 @@
       "estimatedComplexity": "small",
       "passes": false,
       "_source": "ai-example",
-      "model": "haiku"
+      "model": "sonnet"
     },
     {
       "id": "US-390",
@@ -2676,6 +2676,40 @@
         "contextWindow": 10
       },
       "tags": []
+    },
+    {
+      "id": "US-599",
+      "title": "Results.tsv Auto-Archival: Rotate Old Iterations & Aggregate for Trending",
+      "priority": "medium",
+      "description": "Prevent results.tsv unbounded growth by auto-rotating iterations >100 to timestamped archives (.spiral/results.archive/YYYY-MM-DD_iter-N.tsv) during Phase C. Update dashboard trending endpoints to transparently aggregate archived + current results.tsv for 30+ iteration metrics without timeout errors.",
+      "acceptanceCriteria": [
+        "lib/impl/archive_results.py: After Phase C, if results.tsv row count >500, move iterations 1-50 to .spiral/results.archive/YYYY-MM-DD_iter-50.tsv and rewrite results.tsv; log action to .spiral/archival.log",
+        "Dashboard trending endpoints (GET /api/dashboard/trends/cost, /api/dashboard/trends/throughput) aggregate results.tsv + results.archive/*.tsv via pandas; 30-iteration window returns metrics in <1s",
+        "CLI: spiral archive-results [--keep-last N] [--before YYYY-MM-DD] manually triggers archival; output: {rows_moved: int, archive_path: str, freed_mb: float}"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-600",
+      "title": "CLI: spiral inspect-worker — Deep Diagnostic for Worker Health & Progress",
+      "priority": "medium",
+      "description": "Add diagnostic CLI command to inspect individual worker state: current branch, PRD slice stories, memory usage, heartbeat status, task queue. Enable operators to detect stalled workers and understand why without manually inspecting .spiral-workers/ directories.",
+      "acceptanceCriteria": [
+        "CLI: spiral inspect-worker 1 outputs {branch: str, prd_slice: [US-X, US-Y], memory_mb: int, last_heartbeat: str, current_task: str, status: RUNNING|STALLED|IDLE} from worker directory and heartbeat file",
+        "Detect stalled workers: if last_heartbeat timestamp > 5 minutes old, set status=STALLED and flag in output",
+        "CLI: spiral inspect-all-workers lists table of all workers with status column; highlight any STALLED workers; include total active_stories across pool"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
     }
   ]
 }
