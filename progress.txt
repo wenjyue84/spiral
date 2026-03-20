@@ -547,3 +547,30 @@ FAILED diagnosis-block gate: [Security Test] Auth/Permission Access Control for 
 ### Gotchas
 - Cannot mock builtins.open in a subprocess test (different process); use direct function call + mock.patch for PermissionError tests
 - Path-traversal ID (../../etc/passwd:(US)-001) is already safely rejected by _validate_ids() format check — no additional sanitization needed
+
+## Pre-analysis for US-570 (Gemini 2.5 Pro)
+### Technical Brief: `validate_results_tsv` Implementation
+
+**Objective:** Implement a core validator module in Python to check the data quality of `results.tsv`.
+
+**1. Files to Create/Modify:**
+*   **New File:** `lib/spiral/validate_results_tsv.py` - This will contain the main `validate()` function.
+*   **New File:** `tests/test_validate_results_tsv.py` - This will contain unit tests for the validator.
+
+**2. Key Frappe/External Entities:**
+*   No Frappe DocTypes are involved. This is a pure Python backend utility.
+*   It will interact with two file artifacts: `results.tsv` (the primary input) and `prd.json` (for cross-referencing `story_id`s).
+
+**3. Implementation Approach:**
+*   Create a `validate(tsv_path, prd_path)` function in `lib/spiral/validate_results_tsv.py`.
+*   Use Python's built-in `csv` module (`csv.DictReader` with `delimiter='\t'`) to parse the TSV file row by row.
+*   Load `prd.json` to extract a set of all valid `story_id`s for efficient lookup.
+*   Iterate through each row, performing the 5 required checks (missing story_ids, duplicates, token counts, phase durations, model names).
+*   Aggregate findings into a dictionary: `{errors: [], warnings: [], passed_checks: 0, total_rows_checked: 0}`.
+
+**4. Edge Cases & Gotchas:**
+*   Ensure robust handling of potential `FileNotFoundError` for both input paths.
+*   The TSV file might have inconsistent column counts or formatting; handle potential parsing errors gracefully.
+*   Be mindful of memory usage when loading `prd.json` if the file can become extremely large.
+*   The duplicate check requires tracking seen `(story_id, iteration, attempt)` tuples, for instance, by using a set.
+
