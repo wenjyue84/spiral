@@ -53,3 +53,4 @@
 {"story_id": "US-583", "estimated_complexity": "medium", "actual_duration_s": 499, "phase_retries": 0, "passed": true}
 {"story_id": "US-584", "estimated_complexity": "medium", "actual_duration_s": 584, "phase_retries": 0, "passed": true}
 {"story_id": "US-585", "estimated_complexity": "medium", "actual_duration_s": 667, "phase_retries": 0, "passed": true}
+{"story_id": "US-586", "estimated_complexity": "medium", "actual_duration_s": 617, "phase_retries": 0, "passed": true}
