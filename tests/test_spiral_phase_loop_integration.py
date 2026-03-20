@@ -10,8 +10,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-import pytest
-
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 
 from spiral_io import configure_utf8_stdout
@@ -135,7 +133,10 @@ class TestIntermediateFileCreation:
         spiral_dir.mkdir()
 
         research_path = spiral_dir / "_research_output.json"
-        data: dict[str, Any] = {"stories": [{"id": "US-2000", "title": "Research Story", "_source": "research"}], "metadata": {}}
+        data: dict[str, Any] = {
+            "stories": [{"id": "US-2000", "title": "Research Story", "_source": "research"}],
+            "metadata": {},
+        }
         research_path.write_text(json.dumps(data), encoding="utf-8")
 
         assert research_path.exists()
@@ -611,4 +612,3 @@ class TestFullPhaseSequenceWithSpiral:
         assert ckpt["phase"] == "C"
 
         # AC3: No orphan processes or dangling worktrees (verified by cleanup in separate test)
-
