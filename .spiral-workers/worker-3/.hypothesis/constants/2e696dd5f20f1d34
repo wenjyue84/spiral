@@ -1,4 +1,0 @@
-# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\routing\cost_project.py
-# hypothesis_version: 6.151.9
-
-[0.0, 5.0, 1000000, '--default-tokens', '--model', '--prd', '--report', '--results', '--threshold', '--velocity-model', '--yes', 'Path to prd.json', 'Path to results.tsv', 'SPIRAL_MODEL', '__main__', '_decomposed', '_skipped', 'default fallback', 'duration_sec', 'input', 'n', 'output', 'passes', 'prd.json', 'replace', 'results.tsv', 'sonnet', 'source', 'store_true', 'story_types', 'total_rows', 'userStories', 'utf-8', 'velocity_model', 'y', 'yes']

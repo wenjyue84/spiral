@@ -918,7 +918,7 @@ function spiralApiPlugin() {
                   if (!storyAttemptsMap[sid]) storyAttemptsMap[sid] = [];
                   storyAttemptsMap[sid].push(attempt);
                 }
-                if (cols[5] === 'pass') {
+                if (cols[5] === 'keep') {
                   const entry = { id: sid, title: cols[4], timestamp: cols[0], model: cols[7] ?? '', duration: parseInt(cols[6]) || 0 };
                   lastCompletedStory = entry;
                   recentlyCompleted.push(entry);
@@ -933,6 +933,21 @@ function spiralApiPlugin() {
                 storyAttemptsMap[sid].splice(5);
               }
             } catch { /* ignore */ }
+          }
+
+          // Fallback: populate from prd.json passed stories with git completion times
+          if (recentlyCompleted.length === 0 && progress) {
+            const passedStories = (progress as { stories: { id: string; title: string; passes: boolean; completedAt: string | null }[] }).stories
+              .filter((s: { passes: boolean; completedAt: string | null }) => s.passes && s.completedAt)
+              .map((s: { id: string; title: string; completedAt: string | null }) => ({
+                id: s.id, title: s.title, timestamp: s.completedAt!, model: '', duration: 0,
+              }))
+              .sort((a: { timestamp: string }, b: { timestamp: string }) => b.timestamp.localeCompare(a.timestamp))
+              .slice(0, 10);
+            recentlyCompleted.push(...passedStories);
+            if (passedStories.length > 0) {
+              lastCompletedStory = passedStories[0];
+            }
           }
 
           // Fallback: check story_passed events from spiral_events.jsonl

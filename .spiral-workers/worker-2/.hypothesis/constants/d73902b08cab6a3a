@@ -1,4 +1,0 @@
-# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\failure_attribution.py
-# hypothesis_version: 6.151.9
-
-['    -> ', '+00:00', '--branch', '--checkpoint', '--docker-volume', '--error', '--format', '--port', '--resource', '--story-id', '--worker-id', '--worktree', '?', 'Branch name', 'Command', 'Error message', 'Output format', 'Story ID', 'Worker ID', 'Worktree path', 'Z', '__main__', 'cascade', 'cascade_count', 'cascade_failures', 'chains', 'cmd', 'contended_resource', 'diagnose', 'error_message', 'failure_type', 'failures', 'json', 'local', 'local_failures', 'record-failure', 'register-worker', 'root_story', 'root_timestamp', 'root_worker', 'story_id', 'text', 'total_failures', 'unknown', 'utf-8', 'w', 'worker_id', 'worker_resources', 'worktree']

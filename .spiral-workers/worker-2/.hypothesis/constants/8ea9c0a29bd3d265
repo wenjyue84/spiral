@@ -1,4 +1,0 @@
-# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\show_blockers.py
-# hypothesis_version: 6.151.9
-
-['  rankdir="LR";', '"', '\\"', 'blocked_by', 'blocks', 'circular_path', 'dependencies', 'id', 'story_id', '}']

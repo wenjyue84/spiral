@@ -430,3 +430,183 @@ build_research_prompt() {
       '{gsub(/__EXISTING_TITLES__/, existing); gsub(/__PENDING_TITLES__/, pending); gsub(/__SPIRAL_FOCUS_SECTION__/, focus); gsub(/__SPIRAL_GOALS_SECTION__/, goals); print}'
 }
 
+# ── Helper functions (moved from spiral.sh) ──────────────────────────────
+
+# ── Helper: per-story complexity-based timeout ───────────────────────────────
+# Returns the wall-clock timeout (seconds) to use for a single ralph invocation
+# based on the story's estimatedComplexity field in prd.json.
+# Falls back to SPIRAL_IMPL_TIMEOUT when story_id is empty or not found.
+get_story_timeout() {
+  local story_id="${1:-}"
+  local prd="${2:-${PRD_FILE:-prd.json}}"
+  if [[ -z "$story_id" ]]; then
+    echo "${SPIRAL_IMPL_TIMEOUT:-600}"
+    return
+  fi
+  local complexity
+  complexity=$("$JQ" -r --arg id "$story_id" \
+    '.userStories[] | select(.id == $id) | .estimatedComplexity // "medium"' \
+    "$prd" 2>/dev/null | tr -d '\r' || echo "medium")
+  case "$complexity" in
+    small) echo 600 ;;
+    large) echo 1200 ;;
+    *) echo 900 ;;
+  esac
+}
+
+# ── Helper: stats from prd.json ─────────────────────────────────────────────
+prd_stats() {
+  TOTAL=$("$JQ" '[.userStories | length] | .[0]' "$PRD_FILE")
+  DONE=$("$JQ" '[.userStories[] | select(.passes == true)] | length' "$PRD_FILE")
+  # Exclude manually-skipped stories from pending count
+  if [[ -n "$SPIRAL_SKIP_STORY_IDS" ]]; then
+    local _manual_skip_count
+    _manual_skip_count=$("$JQ" --arg ids "$SPIRAL_SKIP_STORY_IDS" \
+      '[.userStories[] | select(.passes != true) | select(.id as $sid | ($ids | split(",") | map(gsub("^\\s+|\\s+$";"")) | any(. == $sid)))] | length' \
+      "$PRD_FILE" 2>/dev/null || echo 0)
+    PENDING=$((TOTAL - DONE - _manual_skip_count))
+  else
+    PENDING=$((TOTAL - DONE))
+  fi
+}
+
+# ── Helper: create annotated git tag on successful run completion (US-137) ──
+# Creates tag spiral/run-{SPIRAL_RUN_ID}-complete with run metadata.
+# Controlled by SPIRAL_CREATE_TAGS=true (default: false).
+create_run_tag() {
+  [[ "${SPIRAL_CREATE_TAGS:-false}" != "true" ]] && return 0
+
+  local tag_name="spiral/run-${SPIRAL_RUN_ID}-complete"
+  local ts story_count commit_sha annotation
+  ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  story_count=$("$JQ" '[.userStories[] | select(.passes == true)] | length' "$PRD_FILE" 2>/dev/null || echo "0")
+  commit_sha=$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || echo "unknown")
+
+  annotation="$(printf 'SPIRAL run complete: %s stories in %s iterations\nRun ID: %s\nDuration: %sm\nFinal commit: %s\nCompleted: %s' \
+    "$story_count" "$SPIRAL_ITER" "$SPIRAL_RUN_ID" "${SESSION_MINUTES:-0}" "$commit_sha" "$ts")"
+
+  echo "  [tag] Creating annotated tag: $tag_name"
+  if git -C "$REPO_ROOT" tag -a "$tag_name" -m "$annotation" --force 2>/dev/null; then
+    echo "  [tag] Tag created: $tag_name"
+    log_spiral_event "run_complete_tagged" \
+      "\"tag\":\"$tag_name\",\"stories\":$story_count,\"iterations\":$SPIRAL_ITER,\"duration_min\":${SESSION_MINUTES:-0},\"commit\":\"$commit_sha\",\"pushed\":false"
+    if [[ "${SPIRAL_AUTO_PUSH_TAGS:-false}" == "true" ]]; then
+      if git -C "$REPO_ROOT" push origin "$tag_name" 2>/dev/null; then
+        echo "  [tag] Tag pushed to origin"
+        log_spiral_event "run_complete_tagged" \
+          "\"tag\":\"$tag_name\",\"stories\":$story_count,\"iterations\":$SPIRAL_ITER,\"duration_min\":${SESSION_MINUTES:-0},\"commit\":\"$commit_sha\",\"pushed\":true"
+      else
+        echo "  [tag] WARNING: Tag push to origin failed"
+      fi
+    fi
+  else
+    echo "  [tag] WARNING: Tag creation failed for $tag_name"
+  fi
+}
+
+# ── Helper: cleanup workspace artifacts after successful run (US-136) ───────
+# Prunes transient .spiral/ artifacts: expired research cache, old iteration
+# summaries (keeps 5 most-recent), and zero-byte log files.
+# Controlled by SPIRAL_WORKSPACE_CLEANUP=true (default: false).
+cleanup_workspace() {
+  [[ "${SPIRAL_WORKSPACE_CLEANUP:-false}" != "true" ]] && return 0
+
+  local spiral_dir="$SCRATCH_DIR"
+  echo "  [cleanup] Running workspace cleanup..."
+
+  # Measure size before
+  local bytes_before=0
+  if command -v du &>/dev/null; then
+    bytes_before=$(du -sb "$spiral_dir" 2>/dev/null | awk '{print $1}' || echo 0)
+  fi
+
+  # 1. Remove research_cache entries older than SPIRAL_CACHE_TTL days
+  local cache_dir="$spiral_dir/research_cache"
+  if [[ -d "$cache_dir" ]]; then
+    find "$cache_dir" -maxdepth 1 -type f -mtime +"${SPIRAL_CACHE_TTL:-7}" -delete 2>/dev/null || true
+    echo "  [cleanup] Pruned research_cache entries older than ${SPIRAL_CACHE_TTL:-7} days"
+  fi
+
+  # 2. Archive iteration summary JSONs, keeping the 5 most recent
+  local summary_files
+  summary_files=$(ls -t "$spiral_dir"/_iteration_summary_*.json 2>/dev/null || true)
+  if [[ -n "$summary_files" ]]; then
+    local old_summaries
+    old_summaries=$(echo "$summary_files" | tail -n +6)
+    if [[ -n "$old_summaries" ]]; then
+      mkdir -p "$spiral_dir/archive"
+      local archive_name="$spiral_dir/archive/iter_summaries_$(date +%Y%m%d_%H%M%S).tar.gz"
+      echo "$old_summaries" | tr '\n' '\0' | xargs -0 tar -czf "$archive_name" 2>/dev/null || true
+      echo "$old_summaries" | tr '\n' '\0' | xargs -0 rm -f 2>/dev/null || true
+      echo "  [cleanup] Archived old iteration summaries to $(basename "$archive_name")"
+    fi
+  fi
+
+  # 3. Remove zero-byte log files
+  find "$spiral_dir" -maxdepth 1 -name "*.log" -size 0 -delete 2>/dev/null || true
+  echo "  [cleanup] Removed zero-byte log files"
+
+  # Measure size after and compute bytes freed
+  local bytes_after=0
+  if command -v du &>/dev/null; then
+    bytes_after=$(du -sb "$spiral_dir" 2>/dev/null | awk '{print $1}' || echo 0)
+  fi
+  local bytes_freed=$((bytes_before - bytes_after))
+  [[ $bytes_freed -lt 0 ]] && bytes_freed=0
+
+  echo "  [cleanup] Workspace cleanup complete. Freed: ${bytes_freed} bytes"
+  log_spiral_event "workspace_cleanup" \
+    "\"bytes_freed\":${bytes_freed},\"cache_ttl_days\":${SPIRAL_CACHE_TTL:-7}"
+}
+
+# ── Helper: compress old iteration artifacts with gzip (US-172) ─────────────
+# At the start of iteration N, gzip-compresses per-iteration files from
+# iterations N-2 and older to reduce .spiral/ disk usage. Keeps the last
+# 2 iterations uncompressed for easy inspection and checkpoint resume.
+#
+# Compressed files are named <original>.gz; originals are removed.
+# Skips: _checkpoint.json, gate-reports/latest-review.html (needed at runtime).
+# Skips silently when gzip is unavailable (logs a warning and returns).
+compress_old_artifacts() {
+  local current_iter="${1:-$SPIRAL_ITER}"
+  # Need at least iteration 3 before there is anything to compress (N-2 >= 1)
+  [[ "$current_iter" -lt 3 ]] && return 0
+
+  # Skip if gzip is unavailable
+  if ! command -v gzip &>/dev/null; then
+    echo "  [compress] WARNING: gzip not available — skipping artifact compression"
+    return 0
+  fi
+
+  local threshold=$((current_iter - 2))
+  local compressed=0
+
+  for iter_n in $(seq 1 "$threshold"); do
+    # Phase R/T checkpoint and endtime files
+    for f in \
+      "$SCRATCH_DIR/_phase_R_${iter_n}.ckpt" \
+      "$SCRATCH_DIR/_phase_T_${iter_n}.ckpt" \
+      "$SCRATCH_DIR/_phase_R_${iter_n}.endtime" \
+      "$SCRATCH_DIR/_phase_T_${iter_n}.endtime"; do
+      if [[ -f "$f" && ! -f "${f}.gz" ]]; then
+        gzip "$f" 2>/dev/null && compressed=$((compressed + 1)) || true
+      fi
+    done
+
+    # prd-backup JSON for this iteration
+    local backup="$SCRATCH_DIR/prd-backups/prd-iter${iter_n}.json"
+    if [[ -f "$backup" && ! -f "${backup}.gz" ]]; then
+      gzip "$backup" 2>/dev/null && compressed=$((compressed + 1)) || true
+    fi
+  done
+
+  # Log disk usage when SPIRAL_LOG_LEVEL=DEBUG
+  if [[ "${SPIRAL_LOG_LEVEL:-}" == "DEBUG" ]]; then
+    local total_kb=0
+    if command -v du &>/dev/null; then
+      total_kb=$(du -sk "$SCRATCH_DIR" 2>/dev/null | awk '{print $1}' || echo 0)
+    fi
+    echo "  [compress] Compressed ${compressed} artifact(s) from iters 1-${threshold}; .spiral/ total: ${total_kb}K"
+  fi
+}
+

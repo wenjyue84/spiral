@@ -1,4 +1,0 @@
-# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\evals_runner.py
-# hypothesis_version: 6.151.9
-
-[0.0, 0.5, 0.75, 1.0, 10.0, '.', '=', 'Field is empty', 'No evals run.', 'SPIRAL EVALS SUMMARY', '[FAIL]', '[PASS]', '_path', 'allowed_values', 'check_type', 'data_source', 'deterministic', 'deterministic_weight', 'enum', 'eval.yaml', 'evals', 'expected_field', 'field', 'field_nonempty', 'high', 'medium', 'min_chars', 'min_length', 'model_graded', 'model_weight', 'name', 'pass_threshold', 'pattern', 'r', 'regex', 'rubric', 'score_aggregation', 'testing_criteria', 'tests', 'unknown', 'utf-8']

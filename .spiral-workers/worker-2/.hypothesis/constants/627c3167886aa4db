@@ -1,4 +1,0 @@
-# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\prompt_cache_analysis.py
-# hypothesis_version: 6.151.9
-
-[0.0, 50.0, 100, 'cache_hit', 'cache_hits', 'cache_misses', 'cache_read_tokens', 'diagnosis', 'false', 'healthy', 'hit_rate_pct', 'total_calls', 'true']

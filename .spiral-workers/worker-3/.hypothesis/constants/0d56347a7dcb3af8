@@ -1,4 +1,0 @@
-# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\cost_anomaly_detector.py
-# hypothesis_version: 6.151.9
-
-[0.0, 2.0, 40.0, '--history', '--zscore', 'N', 'TSV', '__main__', 'affectedStories', 'anomalies', 'cost', 'duration_s', 'duration_sec', 'iteration', 'median', 'model', 'replace', 'results.tsv', 'row', 'spiral_iter', 'storyId', 'story_id', 'summary', 'tokens_in', 'tokens_out', 'totalAnomalies', 'utf-8', 'zscore']

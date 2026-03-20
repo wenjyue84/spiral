@@ -1,4 +1,0 @@
-# file: C:\Users\Jyue\AppData\Roaming\Python\Python312\site-packages\numpy\lib\_ufunclike_impl.py
-# hypothesis_version: 6.151.9
-
-['fix', 'isneginf', 'isposinf', 'numpy']

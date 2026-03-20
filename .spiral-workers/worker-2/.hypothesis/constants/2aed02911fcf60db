@@ -1,4 +1,0 @@
-# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\quality_judge.py
-# hypothesis_version: 6.151.9
-
-[3.0, 100, 2000, '%Y-%m-%dT%H:%M:%SZ', '--checkpoint', '--iteration', '--max-turns', '--model', '--output-format', '--prd', '--research-output', '--threshold', '-p', '0', '1', '?', 'I', 'LOW', 'OK', 'Path to prd.json', 'R', 'SPIRAL_JUDGE_MODEL', '__main__', '_qualityScores', 'acceptanceCriteria', 'claude', 'command', 'completeness', 'criteria_coverage', 'id', 'iteration', 'judge-phase-i', 'judge-phase-r', 'pass_rate', 'passes', 'quality', 'rationale', 'relevance', 'replace', 'score', 'show', 'text', 'timestamp', 'title', 'userStories', 'utf-8', '{', '}']

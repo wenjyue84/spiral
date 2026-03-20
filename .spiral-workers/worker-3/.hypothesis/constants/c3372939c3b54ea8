@@ -1,4 +1,0 @@
-# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\rollback_story.py
-# hypothesis_version: 6.151.9
-
-[999, '--dry-run', '--prd', 'Path to prd.json', '__main__', 'critical', 'dry_run', 'error', 'high', 'id', 'low', 'medium', 'passes', 'prd.json', 'priority', 'r', 'remaining_pending', 'removed_story_id', 'removed_story_title', 'store_true', 'success', 'title', 'unknown', 'userStories', 'utf-8']

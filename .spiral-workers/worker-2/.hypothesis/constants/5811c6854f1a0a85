@@ -1,4 +1,0 @@
-# file: C:\Users\Jyue\AppData\Roaming\Python\Python312\site-packages\anyio\abc\_eventloop.py
-# hypothesis_version: 6.151.9
-
-['PathLike[bytes]', 'PathLike[str]', 'PosArgsT', 'T_Retval']

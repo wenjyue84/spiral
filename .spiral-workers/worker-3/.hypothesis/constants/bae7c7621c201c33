@@ -1,4 +1,0 @@
-# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\perf_analyzer.py
-# hypothesis_version: 6.151.9
-
-[0.0, 0.5, 2.0, 100.0, 300.0, '--format', '--history', '--sla', 'SEC', 'TSV', '__main__', 'breach_count', 'decompose', 'decompose_secs', 'duration_sec', 'impl', 'impl_secs', 'json', 'median_duration_sec', 'output_format', 'p95_duration_sec', 'phase', 'phase_name', 'replace', 'results.tsv', 'sla_threshold_sec', 'total', 'utf-8', 'verify', 'verify_secs']

@@ -60,6 +60,33 @@ class TestAssignStories:
         assert len(buckets) == 3
         assert all(len(b) == 0 for b in buckets)
 
+    def test_rebalance_no_worker_starved(self):
+        """When stories >= workers, no worker should get 0 stories."""
+        # 6 stories all touching the same file → co-location would dump all on worker 0
+        stories = [
+            {"id": f"US-{i}", "priority": "medium", "filesTouch": ["shared.py"]}
+            for i in range(6)
+        ]
+        buckets = assign_stories(stories, 3, use_complexity=False)
+        for i, b in enumerate(buckets):
+            assert len(b) >= 1, f"Worker {i} got 0 stories despite 6 stories / 3 workers"
+
+    def test_rebalance_respects_max_per_worker(self):
+        """No worker should exceed ceil(stories/workers) after rebalancing."""
+        import math
+
+        stories = [
+            {"id": f"US-{i}", "priority": "medium", "filesTouch": ["shared.py"]}
+            for i in range(7)
+        ]
+        n_workers = 3
+        buckets = assign_stories(stories, n_workers, use_complexity=False)
+        max_allowed = math.ceil(len(stories) / n_workers)
+        for i, b in enumerate(buckets):
+            assert len(b) <= max_allowed, (
+                f"Worker {i} has {len(b)} stories, max allowed is {max_allowed}"
+            )
+
 
 class TestComputeLevels:
     """Properties of the topological level computation."""

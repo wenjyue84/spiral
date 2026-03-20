@@ -1,4 +1,0 @@
-# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\token_guard.py
-# hypothesis_version: 6.151.9
-
-[150000, '%Y-%m-%dT%H:%M:%SZ', '--base-prompt-file', '--budget', '--model', '--scratch-dir', '--story', '.', '.spiral', 'ANTHROPIC_API_KEY', 'SCRATCH_DIR', 'SPIRAL_RUN_ID', '__main__', '_decomposed', '_skipped', 'a', 'anthropic_api', 'approx', 'base_prompt_file', 'budget', 'cl100k_base', 'claude-opus-4-6', 'claude-sonnet-4-6', 'content', 'dropped_fields', 'event', 'haiku', 'id', 'method', 'model', 'opus', 'over_budget', 'passes', 'pending', 'replace', 'role', 'run_id', 'scratch_dir', 'sonnet', 'spiral_events.jsonl', 'story_id', 'text', 'token_count', 'truncated_tokens', 'ts', 'unknown', 'user', 'userStories', 'utf-8']

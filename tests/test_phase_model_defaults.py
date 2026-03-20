@@ -17,6 +17,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
 SPIRAL_SH = ROOT / "spiral.sh"
+STARTUP_SH = ROOT / "lib" / "spiral_startup.sh"
 CONFIG_SH = ROOT / "spiral.config.sh"
 TEMPLATE_SH = ROOT / "templates" / "spiral.config.example.sh"
 
@@ -129,7 +130,7 @@ class TestStartupBanner:
     """Phase model info shown in startup banner."""
 
     def test_banner_shows_phase_models(self):
-        content = _read(SPIRAL_SH)
+        content = _read(STARTUP_SH)
         assert "Phase models:" in content
         assert "R=$SPIRAL_RESEARCH_MODEL" in content
         assert "S=$SPIRAL_VALIDATION_MODEL" in content

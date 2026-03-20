@@ -1,4 +1,0 @@
-# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\otel_worker_inject.py
-# hypothesis_version: 6.151.9
-
-[1.0, 5000, 1000000000, ',', '-', '--story-id', '--subprocess-command', '--subprocess-pid', '--worker-num', '1', 'CLIENT', 'ERROR', 'INTERNAL', 'OK', 'SpanProcessor', 'Subprocess PID', 'Subprocess exit code', 'TRACEPARENT', '__main__', 'anthropic', 'command', 'emit-worker', 'gen_ai.agent.name', 'gen_ai.system', 'spiral', 'spiral.story_id', 'spiral.worker_num', 'subprocess.command', 'subprocess.pid', 'true', 'yes']

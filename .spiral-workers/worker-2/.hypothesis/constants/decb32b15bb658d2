@@ -1,4 +1,0 @@
-# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\merge_stories.py
-# hypothesis_version: 6.151.9
-
-[0.0, 0.45, 0.6, ' [testFix]', ', ', '--focus', '--max-new', '--max-pending', '--overflow-in', '--overflow-out', '--prd', '--research', '--test-stories', '.spiral', '.yaml', '.yml', '0', 'PATH', 'Path to prd.json', 'Research output JSON', 'SPIRAL story merger', 'SPIRAL_SCRATCH_DIR', 'SPIRAL_STORY_PREFIX', 'US', '[a-z0-9]+', '_', '__main__', '_batch_id', '_decomposed', '_isTestFix', '_skipped', '_source', '_txn_journal.jsonl', 'acceptanceCriteria', 'bugfix', 'dependencies', 'description', 'epicId', 'estimatedComplexity', 'id', 'isTestFix', 'medium', 'passes', 'phase_m_merge', 'prd.json', 'priority', 'research', 'stories', 'tags', 'technicalNotes', 'test-fix', 'test-story', 'title', 'userStories', 'utf-8']

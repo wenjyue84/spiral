@@ -1,4 +1,0 @@
-# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\txn_journal.py
-# hypothesis_version: 6.151.9
-
-['--journal', '.bak', 'Action to perform', 'Path to journal file', 'TxnWriter', '__main__', 'action', 'backup', 'committed', 'files', 'id', 'label', 'path', 'pending', 'recover', 'status', 'unknown']

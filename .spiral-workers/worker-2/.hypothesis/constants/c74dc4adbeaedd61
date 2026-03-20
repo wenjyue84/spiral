@@ -1,4 +1,0 @@
-# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\.claude\hooks\verify_story_acceptance.py
-# hypothesis_version: 6.151.9
-
-[' | ', '--name-only', '--tb=short', '-m', '-v', '.py', '/', 'Git check timed out', 'HEAD', 'HEAD~1', '\\', '__main__', 'acceptanceCriteria', 'diff', 'filesTouch', 'git', 'id', 'ok', 'prd.json', 'pytest', 'python', 'reason', 'stop_hook_active', 'test', 'userStories']

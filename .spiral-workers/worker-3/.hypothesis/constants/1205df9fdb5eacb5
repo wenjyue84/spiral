@@ -1,4 +1,0 @@
-# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\phases\research_cache.py
-# hypothesis_version: 6.151.9
-
-[3600, '--clear-expired', '--lookup', '--result', '--store', '.spiral', '.tmp', '__main__', 'expires_at', 'fetched_ts', 'r', 'research_cache.json', 'result', 'store_true', 'topic', 'utf-8', 'w']

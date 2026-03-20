@@ -1,4 +1,0 @@
-# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\auto_release.py
-# hypothesis_version: 6.151.9
-
-['\x00', '\x01', '### Bug Fixes\n\n', '### Features\n\n', '### Performance\n\n', '%H%x00%s%x00%b%x01', '--dry-run', '--prd', '--repo', '-C', '-a', '-l', '-m', '.', 'BREAKING CHANGE', 'CHANGELOG.md', 'Path to git repo', 'Path to prd.json', '^\\w+[^:]*!:', '__main__', 'feat', 'fix', 'git', 'id', 'log', 'passes', 'perf', 'refactor', 'store_true', 'tag', 'title', 'userStories', 'utf-8', 'v', 'v*']

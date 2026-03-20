@@ -1,4 +1,0 @@
-# file: C:\Users\Jyue\AppData\Roaming\Python\Python312\site-packages\pydantic\_internal\_fields.py
-# hypothesis_version: 6.151.9
-
-['_', '__', '__annotations__', '__args__', '__pydantic_fields__', 'final', 'model_config', 'origin', 'root']

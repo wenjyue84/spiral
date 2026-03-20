@@ -1,4 +1,0 @@
-# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\dashboard\api.py
-# hypothesis_version: 6.151.9
-
-[0.0, '.spiral/results.tsv', '/health', '/profile', '/ws/cost', '1.0.0', 'SPIRAL Dashboard API', 'app', 'decompose_secs', 'escalation_frequency', 'get_manager', 'healthy', 'impl_secs', 'mean_phase_durations', 'r', 'slowest_stories', 'status', 'story_id', 'total_duration', 'unknown', 'utf-8', 'verify_secs']

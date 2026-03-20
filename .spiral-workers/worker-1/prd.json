@@ -2493,7 +2493,7 @@
         "US-562"
       ],
       "estimatedComplexity": "small",
-      "passes": true,
+      "passes": false,
       "_source": "test-story",
       "model": "haiku",
       "filesTouch": [
@@ -2511,7 +2511,8 @@
       "tags": [
         "module-claude",
         "module-hypothesis"
-      ]
+      ],
+      "_failureReason": "story_cost_ceiling"
     },
     {
       "id": "US-588",

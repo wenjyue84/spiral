@@ -1,4 +1,0 @@
-# file: C:\Users\Jyue\AppData\Roaming\Python\Python312\site-packages\pycparser\c_ast.py
-# hypothesis_version: 6.151.9
-
-['\n]', ' (at %s)', ' <', '%s', '%s=%s', '(', ')', ',', ',\n ', ', ', ': ', '=', '>: ', '[', '__weakref__', 'align', 'alignment', 'args', 'bitsize', 'block_items', 'block_items[%d]', 'body', 'cond', 'coord', 'decl', 'declname', 'decls', 'decls[%d]', 'dim', 'dim_quals', 'enumerators', 'enumerators[%d]', 'expr', 'exprs', 'exprs[%d]', 'ext', 'ext[%d]', 'field', 'funcspec', 'iffalse', 'iftrue', 'init', 'left', 'lvalue', 'message', 'name', 'name[%d]', 'names', 'next', 'op', 'param_decls', 'param_decls[%d]', 'params', 'params[%d]', 'quals', 'right', 'rvalue', 'stmt', 'stmts', 'stmts[%d]', 'storage', 'string', 'subscript', 'to_type', 'type', 'value', 'values', 'visit_']

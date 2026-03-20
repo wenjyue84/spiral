@@ -16,6 +16,7 @@ Query modes (exit after printing):
 
 import argparse
 import json
+import math
 import os
 import sys
 from typing import Any
@@ -161,6 +162,54 @@ def assign_stories(
         # Register all files for this story with the assigned worker
         for f in files_hint:
             file_to_worker.setdefault(f, assigned_worker)
+
+    # ── Rebalance: cap per-worker and redistribute to starving workers ──────
+    max_per_worker = math.ceil(len(pending) / n_workers)
+    if max_per_worker > 0:
+        # Identify overloaded and starving workers
+        overloaded = [i for i in range(n_workers) if len(buckets[i]) > max_per_worker]
+        for src in overloaded:
+            # Try to move excess stories to least-loaded workers
+            while len(buckets[src]) > max_per_worker:
+                dst = min(range(n_workers), key=lambda i: len(buckets[i]))
+                if len(buckets[dst]) >= max_per_worker:
+                    break  # No room anywhere — accept imbalance
+
+                # Pick a story to move: prefer one with no co-location constraint
+                movable = None
+                remaining_ids = {s["id"] for s in buckets[src]} - {buckets[src][-1]["id"]}
+                remaining_files = set()
+                for s in buckets[src][:-1]:
+                    remaining_files.update(get_files_to_touch(s))
+
+                for idx in reversed(range(len(buckets[src]))):
+                    candidate = buckets[src][idx]
+                    cid = candidate["id"]
+                    # Check pending dependency constraint
+                    deps_in_bucket = [
+                        d for d in candidate.get("dependencies", [])
+                        if d in pending_ids and d in {s["id"] for s in buckets[src]} and d != cid
+                    ]
+                    if deps_in_bucket:
+                        continue
+                    # Check file overlap constraint
+                    candidate_files = set(get_files_to_touch(candidate))
+                    other_files = set()
+                    for j, s in enumerate(buckets[src]):
+                        if j != idx:
+                            other_files.update(get_files_to_touch(s))
+                    if candidate_files & other_files:
+                        continue
+                    movable = idx
+                    break
+
+                if movable is None:
+                    # All have constraints — move last one anyway for even distribution
+                    movable = len(buckets[src]) - 1
+
+                story = buckets[src].pop(movable)
+                buckets[dst].append(story)
+                assignments[story["id"]] = dst
 
     return buckets
 

@@ -1,4 +1,0 @@
-# file: C:\Users\Jyue\AppData\Roaming\Python\Python312\site-packages\pycparser\c_parser.py
-# hypothesis_version: 6.151.9
-
-['?', 'AND', 'At end of input', 'DIVIDE', 'EQ', 'F', 'GE', 'GT', 'ID', 'Invalid declaration', 'Invalid typedef', 'L', 'LAND', 'LBRACE', 'LE', 'LOR', 'LSHIFT', 'LT', 'MINUS', 'MOD', 'NE', 'OR', 'PLUS', 'RSHIFT', 'TIMES', 'TYPEID', 'U', 'XOR', '_Atomic', 'abstract_declarator', 'alignment', 'before: %s', 'bitsize', 'block_item_list', 'char', 'coord', 'decl', 'declaration_list', 'designation', 'double', 'expression', 'f', 'float', 'function', 'id', 'identifier_list', 'init', 'init_declarator_list', 'initializer_list', 'int', 'l', 'left', 'long ', 'long double', 'p', 'parameter_type_list', 'pycparser.lextab', 'pycparser.yacctab', 'qual', 'storage', 'string', 'struct', 'type', 'type_qualifier_list', 'typedef', 'typeid', 'typeid_noparen', 'u', 'unsigned ']
