@@ -1589,8 +1589,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-03-20T00:47:52Z"
+      "model": "haiku"
     },
     {
       "id": "US-544",
@@ -1753,6 +1752,70 @@
       "estimatedComplexity": "small",
       "passes": false,
       "model": "haiku"
+    },
+    {
+      "id": "US-558",
+      "title": "CLI: Export Results to CSV with Per-Story and Per-Phase Breakdown",
+      "priority": "medium",
+      "description": "Export results.tsv and prd.json data to CSV format for analysis in Excel/Sheets. Enable non-technical stakeholders to track costs, duration, and retry patterns across iterations.",
+      "acceptanceCriteria": [
+        "Implement lib/export_results.py with export_to_csv(results_tsv, prd_json, output_file) function. Merge results.tsv with prd.json story titles. Output columns: story_id, title, iteration, phase, model, tokens, duration, cost, retry_count, status. Include summary rows for totals per iteration.",
+        "Wire CLI command spiral export-results --format csv --output results.csv (defaults to results_export.csv). Add flags: --per-phase (one CSV per phase) and --per-model (breakdown by model). Validate output file exists and is valid CSV.",
+        "Integration test in tests/test_export_results.py: create mock 10-story results.tsv and prd.json, export to CSV, verify 10 data rows + summary, assert token/cost totals match results.tsv sums, and validate CSV can be parsed by csv.DictReader."
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-559",
+      "title": "Dependency Graph Visualization as Mermaid Flowchart",
+      "priority": "medium",
+      "description": "Generate Mermaid syntax diagrams from story dependencies in prd.json. Visualize story relationships, critical path, and status for project planning and stakeholder communication.",
+      "acceptanceCriteria": [
+        "Implement lib/mermaid_graph.py with graph_to_mermaid(prd_json, highlight_critical_path=False) returning valid Mermaid flowchart syntax. Parse story `dependencies` array and emit: graph TD nodes for each story_id, edges for each dependency, node colors by status (pending=lightgray, in_progress=lightyellow, done=lightgreen).",
+        "Wire CLI command spiral show-graph --format mermaid (outputs to stdout). Add flag --critical-path to mark stories on the critical path with bold red edges. Test: spiral show-graph | grep 'graph TD' validates Mermaid syntax.",
+        "Integration test in tests/test_mermaid_graph.py: create 5-story prd.json with chain US-1→US-2→US-3 and parallel US-4→US-5, assert mermaid output contains all 5 nodes and 4 edges, verify critical path flag highlights longest dependency chain, validate output passes Mermaid syntax validation."
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-560",
+      "title": "Phase G: Validate Generated API Docstring Coverage Against Story Mentions",
+      "priority": "medium",
+      "description": "Add validation step after pdoc generates API docs to ensure all exported functions have docstrings and are referenced in CHANGELOG entries generated from story commits. This prevents orphaned functions and ensures API documentation completeness.",
+      "acceptanceCriteria": [
+        "lib/phase_g_validation.py exports validate_api_coverage(api_docs_path, changelog_path, prd_path) that parses pdoc output and returns {'total_functions': N, 'documented': M, 'coverage_percent': X, 'orphaned_functions': [...]}",
+        "Phase G post-generation calls validation and logs warnings if coverage < 95% or any function appears in prd.json but not in generated API docs",
+        "tests/test_phase_g_validation.py includes test_api_coverage_100_percent() that generates docs from sample stories and asserts coverage_percent == 100"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-561",
+      "title": "Integration Test: Federated Worker Pool Concurrent Merge with Slice Isolation",
+      "priority": "medium",
+      "description": "Add end-to-end test that launches 2+ parallel workers on different federated project slices (US-1xx, US-2xx namespaces), verifies they merge without corruption, and validates results.tsv contains correct story IDs from each worker without race conditions.",
+      "acceptanceCriteria": [
+        "tests/test_federated_worker_isolation.py::test_concurrent_workers_slice_merge launches 2 workers with sliced prd.json files, waits for completion, then asserts final prd.json validates against schema and contains all original stories",
+        "results.tsv contains rows from both workers with correct namespace prefixes (US-1xx and US-2xx) and no duplicate story IDs across iterations",
+        "Test mocks git operations to confirm each worker operates in isolated .spiral-workers/worker-N/ worktree without blocking or corrupting shared prd.json"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
     }
   ]
 }
