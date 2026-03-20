@@ -2489,6 +2489,21 @@ def cmd_extract_failed_stories(args: argparse.Namespace) -> None:
         print(json.dumps(report, indent=2))
 
 
+def cmd_categorize_failures(args: argparse.Namespace) -> None:
+    """Categorize Phase I retry failures by story from results.tsv (US-608).
+
+    Usage: spiral categorize-failures [iteration] [--results results.tsv]
+    """
+    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    from failure_categorizer import categorize_iteration  # type: ignore[import-untyped]
+
+    iteration = getattr(args, "iteration", None)
+    results_path = Path(getattr(args, "results", "results.tsv"))
+
+    result = categorize_iteration(iteration=iteration, results_tsv=results_path)
+    print(json.dumps(result, indent=2))
+
+
 def cmd_detect_anomalies(args) -> None:
     """Detect stories with unusual token-spend patterns (US-544).
 
@@ -3154,6 +3169,26 @@ def main():
         help="Path to results.tsv (default: results.tsv)",
     )
 
+    # ── categorize-failures subcommand (US-608) ──────────────────────────────────
+    categorize_failures_parser = subparsers.add_parser(
+        "categorize-failures",
+        help="Categorize Phase I retry failures by story from results.tsv (US-608)",
+    )
+    categorize_failures_parser.add_argument(
+        "iteration",
+        nargs="?",
+        type=int,
+        default=None,
+        metavar="ITERATION",
+        help="spiral_iter value to filter (omit for all iterations)",
+    )
+    categorize_failures_parser.add_argument(
+        "--results",
+        default="results.tsv",
+        metavar="TSV",
+        help="Path to results.tsv (default: results.tsv)",
+    )
+
     # ── detect-anomalies subcommand (US-544) ─────────────────────────────────────
     detect_anomalies_parser = subparsers.add_parser(
         "detect-anomalies",
@@ -3309,6 +3344,8 @@ def main():
         cmd_phase_audit(args)
     elif args.command == "extract-failed-stories":
         cmd_extract_failed_stories(args)
+    elif args.command == "categorize-failures":
+        cmd_categorize_failures(args)
     elif args.command == "detect-anomalies":
         cmd_detect_anomalies(args)
     elif args.command == "phase-timing-report":
