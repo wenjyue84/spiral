@@ -724,13 +724,13 @@ Here is the technical brief for implementing the integration test:
 - AC1: Full phase sequence R→T→S→M→I→V→C with state transitions
   - _research_output.json → _validated_stories.json → prd.json transitions verified
   - Seed stories merged with research stories in prd.json
-  
+
 - AC2: Intermediate checkpoint files created at phase boundaries
   - _research_output.json created with candidates
   - _validated_stories.json created with all story types
   - results.tsv populated with one row per story processed (2 rows for 2 stories)
   - Worktree cleanup verified
-  
+
 - AC3: Final state verified
   - Final prd.json contains seed + research stories with correct _source fields
   - Phase V passes when all stories complete

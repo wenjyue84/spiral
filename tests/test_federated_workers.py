@@ -201,14 +201,14 @@ class TestFederatedWorkers:
         outdir = tmp_path / "workers"
         outdir.mkdir()
 
-        # Run partition with --federated
+        # Run partition with --federated (need at least 2 workers for partition_prd)
         spiral_home = Path(__file__).parent.parent
         subprocess.run(
             [
                 "python",
                 str(spiral_home / "lib" / "prd" / "partition_prd.py"),
                 "--prd", prd_file,
-                "--workers", "1",
+                "--workers", "2",
                 "--outdir", str(outdir),
                 "--federated",
             ],

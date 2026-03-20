@@ -545,7 +545,7 @@ fi
 # ── Step 2: Create git worktrees + docker lock wrapper per worker ─────────────
 declare -a WORKER_DIRS=()
 declare -a WORKER_BRANCHES=()
-declare -a WORKER_IDENTIFIERS=()  # Maps numeric index to worker ID (federated: "api-1", standard: "1")
+declare -a WORKER_IDENTIFIERS=() # Maps numeric index to worker ID (federated: "api-1", standard: "1")
 
 # Build list of worker identifiers based on mode
 if [[ "$_FEDERATED_MODE" -eq 1 ]]; then
@@ -566,7 +566,7 @@ fi
 _worker_index=0
 for worker_identifier in "${WORKER_IDENTIFIERS[@]}"; do
   _worker_index=$((_worker_index + 1))
-  i="$worker_identifier"  # i is the actual worker identifier (e.g., "api-1" or "1")
+  i="$worker_identifier" # i is the actual worker identifier (e.g., "api-1" or "1")
   BRANCH="spiral-worker-${i}-${TIMESTAMP}"
   WTREE="$WORKTREE_BASE/worker-${i}"
 
