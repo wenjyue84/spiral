@@ -1981,3 +1981,58 @@ This is a technical brief for story US-604. Note: The user story concerns a shel
 *   `git-cliff`'s default behavior is to generate a changelog from the latest tag. The script must handle cases where no Git tags exist.
 *   Ensure the process for logging orphan commits is efficient and doesn't significantly slow down the phase.
 
+
+## Pre-analysis for US-604 (Gemini 2.5 Pro)
+**Technical Brief for US-604: `git-cliff` CHANGELOG Generation**
+
+This task involves creating a Python script and shell wrapper to automate `CHANGELOG.md` creation using `git-cliff`. The implementation is confined to local scripting and file I/O, with no direct interaction with Frappe DocTypes or hooks.
+
+**1. Files to Modify:**
+*   `lib/gen_changelog.py`: Main Python script for orchestration.
+*   `lib/phases/gen_changelog.sh`: Shell wrapper to validate config and execute the Python script.
+*   `cliff.toml`: `git-cliff` configuration for parsing rules and output format.
+*   `tests/test_gen_changelog.py`: Unit and integration tests for the Python script.
+
+**2. Core Components:**
+*   **Executable:** `git-cliff` binary, path sourced from `SPIRAL_GIT_CLIFF_BIN`.
+*   **Input:** `git log` history.
+*   **Outputs:** `CHANGELOG.md` in the project root and `.spiral/phase_g_warnings.log` for commits lacking a story ID.
+
+**3. Implementation Approach:**
+1.  **`gen_changelog.sh`:** Check for the `SPIRAL_GIT_CLIFF_BIN` variable and ensure the specified path is an executable file before running the Python script.
+2.  **`cliff.toml`:** Configure the `commit_parsers` to categorize commits based on conventional commit types (`feat:`, `fix:`, etc.) and define the output sections.
+3.  **`gen_changelog.py`:**
+    *   Use `subprocess` to run `git-cliff`, which will read the repo history and generate the `CHANGELOG.md`.
+    *   Separately, parse the `git log` output to identify commits whose messages do not match the `(US|UT)-\d+` pattern.
+    *   Write the hash and subject of these "orphan" commits to the specified warning log file.
+
+**4. Edge Cases & Gotchas:**
+*   The script must handle cases where `SPIRAL_GIT_CLIFF_BIN` is not set or points to a non-existent file.
+*   Ensure the regex for story ID matching is robust.
+*   The process should gracefully handle an empty repository or a commit range with no matching story IDs.
+*   Implement error handling for `git-cliff` execution failures.
+
+
+## Pre-analysis for US-604 (Gemini 2.5 Pro)
+**Subject: Technical Brief for US-604: `git-cliff` CHANGELOG Generation**
+
+**Context:** The user story refers to a local CI/CD pipeline task, not a Frappe application. No Frappe DocTypes or server-side hooks are involved. The implementation will focus on shell scripting and Python within the "Spiral" project.
+
+**Python/Shell Files to Modify:**
+*   `lib/phases/gen_changelog.sh`: The main executor for Phase G. It will call the `git-cliff` binary.
+*   `lib/gen_changelog.py`: A helper script, likely called by the shell script to pre-process commits or handle logging tasks that are complex for `git-cliff`.
+*   `cliff.toml`: The configuration file for `git-cliff`, defining commit parsing rules and output format.
+*   `tests/test_gen_changelog.py`: To add unit/integration tests for the new logic.
+
+**Implementation Approach:**
+1.  In `gen_changelog.sh`, read the `SPIRAL_GIT_CLIFF_BIN` config variable and verify the executable exists.
+2.  Modify `cliff.toml` to define commit parsers. Use regex to extract scope (e.g., `feat`, `fix`) and a story ID (`(US|UT)-\d+`).
+3.  Configure the `cliff.toml` body to group commits first by type, then by the extracted story ID.
+4.  The `gen_changelog.py` script should handle the logic for finding "orphan" commits (those not matching the story ID regex) and writing them to `.spiral/phase_g_warnings.log`. The shell script can pipe `git log` output to it for this purpose.
+
+**Edge Cases & Gotchas:**
+*   Ensure the regex in `cliff.toml` is robust and handles commits with no story ID gracefully.
+*   The script must handle the case where `SPIRAL_GIT_CLIFF_BIN` is not set or points to a non-existent file.
+*   The system needs to ensure the `.spiral/` directory exists before attempting to write the warning log file.
+*   Consider how to handle commits associated with multiple story IDs. The simplest approach is to capture the first one found.
+

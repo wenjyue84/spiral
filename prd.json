@@ -2855,7 +2855,7 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": true,
+      "passes": false,
       "_source": "ai-example",
       "model": "opus",
       "filesTouch": [
@@ -2876,14 +2876,8 @@
         "module:claude",
         "module:hypothesis"
       ],
-      "last_attempted": "2026-03-20T15:45:47Z",
-      "_scopeCreep": true,
-      "filesToTouch": [
-        "lib/gen_changelog.py",
-        "lib/phases/gen_changelog.sh",
-        "cliff.toml",
-        "tests/test_gen_changelog.py"
-      ]
+      "last_attempted": "2026-03-20T15:24:21Z",
+      "_scopeCreep": true
     },
     {
       "id": "US-605",
@@ -2959,6 +2953,7 @@
       "priority": "medium",
       "description": "Add a CLI command to aggregate logs from all parallel worker worktrees (.spiral-workers/worker-*/) into a unified, time-sorted report. Enables debugging of worker failures, race conditions, and inconsistent prd.json output across workers.",
       "acceptanceCriteria": [
+        "Implement `spiral show-worker-logs [--worker-id ID] [--phase PHASE]` CLI in lib/spiral/cli.py; reads .spiral-workers/worker-*/logs/*.log and merges by ISO timestamp",
         "Output format: tab-separated [worker_id|timestamp|phase|log_level|message]; support --worker-id and --phase filters; stream to stdout with optional --output file.log",
         "Integration test: spawn 2 parallel workers via run_parallel_ralph.sh, verify logs from both workers merge without duplicates in time order, --worker-id=worker-1 filter returns only that worker"
       ],
@@ -3049,34 +3044,18 @@
       "tags": [
         "module:github",
         "module:hypothesis"
-      ]
-    },
-    {
-      "id": "US-614",
-      "title": "CLI: spiral visualize-dependencies -- Export Story Dependency Graph as GraphML/DOT for Analysis Tools",
-      "priority": "medium",
-      "description": "Add CLI command to export prd.json story dependencies as GraphML and DOT graph formats for visualization in Graphviz, yEd, or graph analysis tools. Includes story IDs, titles, status colors, and dependency reasons as node/edge attributes. Essential for debugging complex federated multi-repo projects with cross-project dependencies.",
-      "acceptanceCriteria": [
-        "New module lib/dependency_visualizer.py with export_graph() function; generates DOT and GraphML output with story nodes colored by status (pending/completed/failed) and dependency edges labeled with reason",
-        "CLI command 'spiral visualize-dependencies --format dot|graphml --output <path>' parses prd.json, includes sub_project as node attribute for federated visualization, validates output with 'dot -Tsvg graph.dot'",
-        "Integration test tests/test_dependency_visualizer.py with 10-story fixture containing cycles, cross-project deps, and isolated stories; asserts node/edge counts and GraphML schema validity"
       ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "sonnet"
+      "last_attempted": "2026-03-20T15:58:32Z"
     },
     {
-      "id": "US-615",
-      "title": "Integration Test: SPIRAL Full Loop Snapshot Regression Testing with Mock Claude API",
-      "priority": "medium",
-      "description": "Build deterministic end-to-end regression test running SPIRAL R→T→S→M→I→V→C with fixture-based mock Claude/Gemini responses. Captures golden snapshots of prd.json and results.tsv to detect regressions in phase orchestration, story merging, and worker behavior. Enables safe refactoring without manual testing.",
+      "id": "US-617",
+      "title": "Phase M: Optimize Merge Order for Federated Stories with Cross-Project Dependencies",
+      "priority": "high",
+      "description": "Add topological sorting in Phase M (lib/impl/phase_m_federated_order.py) that orders federated stories before merge so that stories with cross-project dependencies are merged in correct sequence (dependency stories first). Prevents Phase I from attempting to implement stories whose dependencies haven't been merged yet.",
       "acceptanceCriteria": [
-        "Test file tests/test_spiral_full_loop_snapshot.py runs SPIRAL with 8-story fixture (3 test-fix, 3 research, 2 ai-example); uses lib/mock_claude_fixtures.py to return deterministic Phase R and Phase I responses; validates snapshot prd.json merge order and all stories completed",
-        "Captures results.tsv snapshot with assertions on row count, haiku/sonnet/opus distribution, success rate 100%; validates worker state isolation by confirming no prd.json mutations between parallel workers",
-        "Golden snapshots in tests/fixtures/snapshots/full_loop_*/prd.json and results.tsv; CI runs 'pytest test_spiral_full_loop_snapshot.py --snapshot-update' to detect regressions on field/row changes"
+        "New module lib/impl/phase_m_federated_order.py implements order_federated_stories_by_dependency(stories: List[dict]) → List[dict] that scans story descriptions for cross-project story ID references (e.g., 'depends on US-B5') and builds dependency graph, returning topologically sorted list",
+        "Integration test tests/test_phase_m_federated_order.py::test_merge_order_respects_dependencies() creates prd.json where US-A1 depends on US-B1; asserts that after calling order_federated_stories_by_dependency(), US-B1 appears before US-A1 in returned list; test also verifies cycle detection blocks merge with error 'circular dependency: US-A1→US-B1→US-A1'",
+        "Phase M calls this ordering function in lib/spiral/phase_m.py before prd_merge(); CLI command spiral validate-federated-order <prd.json> reports merge order and dependency violations as JSON output"
       ],
       "technicalNotes": [],
       "dependencies": [],
@@ -3084,23 +3063,6 @@
       "passes": false,
       "_source": "ai-example",
       "model": "sonnet"
-    },
-    {
-      "id": "US-616",
-      "title": "CLI: spiral show-complexity-scores — Inspect Story Complexity Scoring and Worker Load Distribution",
-      "priority": "medium",
-      "description": "Debug CLI command to inspect computed story complexity scores used by the worker load balancer. Shows per-story complexity (1-10 scale), estimated tokens, and assigned worker ID. Helps diagnose worker load imbalance and validate complexity scoring logic.",
-      "acceptanceCriteria": [
-        "Command: `spiral show-complexity-scores [prd.json]` parses prd.json and computes complexity_score per story using description length, dependency count, and file path depth",
-        "Output CSV/table with columns: story_id, title_preview, complexity_score (1-10), estimated_tokens, assigned_worker_id, priority. Support `--json` flag for dashboard consumption",
-        "Include `--histogram` flag to display distribution: bucketed by score range (1, 2-3, 4-5, 6-7, 8-10) showing count of stories per bucket"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "haiku"
     }
   ]
 }

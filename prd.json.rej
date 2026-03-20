@@ -1,418 +1,138 @@
 diff a/prd.json b/prd.json	(rejected hunks)
-@@ -39,7 +39,6 @@
-         ".hypothesis/constants/112c210229744ab1"
-       ],
-       "tags": [
--        "module-hypothesis",
-         "module-hypothesis",
-         "module-hypothesis"
-       ]
-@@ -73,8 +72,6 @@
-         ".hypothesis/constants/031f85f1c11bb00b"
-       ],
-       "tags": [
--        "module-claude",
--        "module-hypothesis",
-         "module-claude",
-         "module-hypothesis",
-         "module-claude",
-@@ -112,7 +109,6 @@
-         ".hypothesis/constants/112c210229744ab1"
-       ],
-       "tags": [
--        "module-hypothesis",
-         "module-hypothesis",
-         "module-hypothesis"
-       ],
-@@ -130,7 +126,7 @@
-       ],
-       "technicalNotes": [],
-       "dependencies": [],
--      "estimatedComplexity": "large",
-+      "estimatedComplexity": "medium",
+@@ -3000,66 +2995,36 @@
+       "estimatedComplexity": "small",
        "passes": false,
        "_source": "ai-example",
-       "model": "sonnet",
-@@ -147,8 +143,6 @@
-         ".hypothesis/constants/0dcb44a91ae6f1ae"
-       ],
-       "tags": [
--        "module-claude",
--        "module-hypothesis",
-         "module-claude",
-         "module-hypothesis",
-         "module-claude",
-@@ -185,8 +179,6 @@
-         ".hypothesis/constants/0dcb44a91ae6f1ae"
-       ],
-       "tags": [
--        "module-claude",
--        "module-hypothesis",
-         "module-claude",
-         "module-hypothesis",
-         "module-claude",
-@@ -263,8 +255,6 @@
-         "prd.json"
-       ],
-       "tags": [
--        "module-hypothesis",
--        "module-lib",
-         "module-hypothesis",
-         "module-lib",
-         "module-hypothesis",
-@@ -301,7 +291,6 @@
-         ".hypothesis/examples/d7017880e970832b/d5de667a725a0ce8"
-       ],
-       "tags": [
--        "module-hypothesis",
-         "module-hypothesis",
-         "module-hypothesis"
-       ],
-@@ -337,8 +326,6 @@
-         "retry-counts.json"
-       ],
-       "tags": [
--        "module-hypothesis",
--        "module-lib",
-         "module-hypothesis",
-         "module-lib",
-         "module-hypothesis",
-@@ -376,8 +363,6 @@
-         "retry-counts.json"
-       ],
-       "tags": [
--        "module-hypothesis",
--        "module-lib",
-         "module-hypothesis",
-         "module-lib",
-         "module-hypothesis",
-@@ -414,7 +399,6 @@
-         ".hypothesis/examples/d7017880e970832b/d5de667a725a0ce8"
-       ],
-       "tags": [
--        "module-hypothesis",
-         "module-hypothesis",
-         "module-hypothesis"
-       ],
-@@ -444,8 +428,6 @@
-         "tests/test_velocity_model.py"
-       ],
-       "tags": [
--        "module-lib",
--        "module-tests",
-         "module-lib",
-         "module-tests",
-         "module-lib",
-@@ -517,7 +499,6 @@
-         "tests/test_federated_prd.py"
-       ],
-       "tags": [
--        "module-tests",
-         "module-tests",
-         "module-tests"
-       ]
-@@ -551,7 +532,6 @@
-         ".hypothesis/examples/d7017880e970832b/a0f33084b8dbe4ad"
-       ],
-       "tags": [
--        "module-hypothesis",
-         "module-hypothesis",
-         "module-hypothesis"
-       ]
-@@ -585,7 +565,6 @@
-         ".hypothesis/examples/d7017880e970832b/a0f33084b8dbe4ad"
-       ],
-       "tags": [
--        "module-hypothesis",
-         "module-hypothesis",
-         "module-hypothesis"
-       ],
-@@ -620,7 +599,6 @@
-         ".hypothesis/tmp/tmp41j78ikc"
-       ],
-       "tags": [
--        "module-hypothesis",
-         "module-hypothesis",
-         "module-hypothesis"
-       ],
-@@ -655,8 +633,6 @@
-         ".hypothesis/examples/04e6b3400353b141/d16a108f0ffe00c6"
-       ],
-       "tags": [
--        "module-github",
--        "module-hypothesis",
-         "module-github",
-         "module-hypothesis",
-         "module-github",
-@@ -700,7 +676,6 @@
-         ".hypothesis/examples/d7017880e970832b/a0f33084b8dbe4ad"
-       ],
-       "tags": [
--        "module-hypothesis",
-         "module-hypothesis",
-         "module-hypothesis"
-       ]
-@@ -738,8 +713,6 @@
-         ".hypothesis/examples/04e6b3400353b141/d7017880e970832b"
-       ],
-       "tags": [
--        "module-github",
--        "module-hypothesis",
-         "module-github",
-         "module-hypothesis",
-         "module-github",
-@@ -885,7 +858,6 @@
-         "tests/test_episodic_memory.py"
-       ],
-       "tags": [
--        "module-tests",
-         "module-tests",
-         "module-tests"
-       ],
-@@ -1277,8 +1249,6 @@
-         ".hypothesis/examples/04e6b3400353b141/d16a108f0ffe00c6"
-       ],
-       "tags": [
--        "module-github",
--        "module-hypothesis",
-         "module-github",
-         "module-hypothesis",
-         "module-github",
-@@ -1469,7 +1439,6 @@
-         ".hypothesis/constants/15647f5536a392c4"
-       ],
-       "tags": [
--        "module-hypothesis",
-         "module-hypothesis",
-         "module-hypothesis"
-       ],
-@@ -1623,9 +1592,6 @@
-         "module-lib",
-         "module-github",
-         "module-hypothesis",
--        "module-lib",
--        "module-github",
--        "module-hypothesis",
-         "module-lib"
-       ]
-     },
-@@ -1653,7 +1619,6 @@
-         "progress.txt"
-       ],
-       "tags": [
--        "module-github",
-         "module-github",
-         "module-github"
-       ],
-@@ -1691,9 +1656,6 @@
-         "module-lib",
-         "module-github",
-         "module-hypothesis",
--        "module-lib",
--        "module-github",
--        "module-hypothesis",
-         "module-lib"
-       ],
-       "_passedCommit": "9fb5999af9697ec44d825c3e6fde4afbe4966bb6"
-@@ -1795,8 +1757,6 @@
-         ".hypothesis/constants/031f85f1c11bb00b"
-       ],
-       "tags": [
--        "module-claude",
--        "module-hypothesis",
-         "module-claude",
-         "module-hypothesis",
-         "module-claude",
-@@ -2052,9 +2012,6 @@
-         "module-tests",
-         "module-lib",
-         "module-ralph",
--        "module-tests",
--        "module-lib",
--        "module-ralph",
-         "module-tests"
-       ]
-     },
-@@ -2086,8 +2043,6 @@
-         ".hypothesis/constants/031f85f1c11bb00b"
-       ],
-       "tags": [
--        "module-github",
--        "module-hypothesis",
-         "module-github",
-         "module-hypothesis",
-         "module-github",
-@@ -2123,8 +2078,6 @@
-         ".hypothesis/constants/0dcb44a91ae6f1ae"
-       ],
-       "tags": [
--        "module-claude",
--        "module-hypothesis",
-         "module-claude",
-         "module-hypothesis",
-         "module-claude",
-@@ -2160,8 +2113,6 @@
-         ".hypothesis/constants/06ee3234b07f7d66"
-       ],
-       "tags": [
--        "module-claude",
--        "module-hypothesis",
-         "module-claude",
-         "module-hypothesis",
-         "module-claude",
-@@ -2668,9 +2619,6 @@
-         "module-github",
-         "module-claude",
-         "module-devcontainer",
--        "module-github",
--        "module-claude",
--        "module-devcontainer",
-         "module-github"
-       ],
-       "last_attempted": "2026-03-18T16:56:51Z",
-@@ -2708,9 +2656,6 @@
-         "module-hypothesis",
-         "module-claude",
-         "module-github",
--        "module-hypothesis",
--        "module-claude",
--        "module-github",
-         "module-hypothesis"
-       ],
-       "last_attempted": "2026-03-18T13:38:04Z",
-@@ -2819,11 +2764,11 @@
-       ],
-       "technicalNotes": [],
-       "dependencies": [],
--      "estimatedComplexity": "large",
--      "passes": true,
-+      "estimatedComplexity": "small",
-+      "passes": false,
-       "_source": "ai-example",
-       "model": "sonnet",
--      "last_attempted": "2026-03-20T15:02:44Z",
-+      "last_attempted": "2026-03-20T14:34:27Z",
-       "filesTouch": [
-         ".hypothesis/constants/0144005a67236799",
-         ".hypothesis/constants/016af87f794a90e9",
-@@ -2837,10 +2782,8 @@
-         ".hypothesis/constants/15647f5536a392c4"
-       ],
-       "tags": [
--        "module-hypothesis",
-         "module-hypothesis"
--      ],
--      "_scopeCreep": true
-+      ]
-     },
-     {
-       "id": "US-604",
-@@ -2854,7 +2797,7 @@
-       ],
-       "technicalNotes": [],
-       "dependencies": [],
--      "estimatedComplexity": "large",
-+      "estimatedComplexity": "medium",
-       "passes": false,
-       "_source": "ai-example",
-       "model": "opus",
-@@ -2871,12 +2814,9 @@
-         ".hypothesis/constants/03d65cf548ce3b23"
-       ],
-       "tags": [
--        "module-claude",
--        "module-hypothesis",
-         "module-claude",
-         "module-hypothesis"
--      ],
--      "last_attempted": "2026-03-20T15:07:10Z"
-+      ]
-     },
-     {
-       "id": "US-605",
-@@ -2890,7 +2830,7 @@
-       ],
-       "technicalNotes": [],
-       "dependencies": [],
--      "estimatedComplexity": "large",
-+      "estimatedComplexity": "small",
-       "passes": false,
-       "_source": "ai-example",
-       "model": "sonnet",
-@@ -2907,8 +2847,6 @@
-         ".hypothesis/constants/07b8446a052edf99"
-       ],
-       "tags": [
--        "module-claude",
--        "module-hypothesis",
-         "module-claude",
-         "module-hypothesis"
-       ]
-@@ -2925,53 +2863,20 @@
-       ],
-       "technicalNotes": [],
-       "dependencies": [],
--      "estimatedComplexity": "large",
--      "passes": false,
--      "_source": "ai-example",
 -      "model": "haiku",
 -      "filesTouch": [
 -        ".claude/hooks/verify_story_acceptance.py",
 -        ".coverage",
+-        ".hypothesis/constants/006b559781a41f7f",
 -        ".hypothesis/constants/0144005a67236799",
 -        ".hypothesis/constants/016af87f794a90e9",
+-        ".hypothesis/constants/0175637d9e298755",
 -        ".hypothesis/constants/01831d6f995783ed",
--        ".hypothesis/constants/044aa4a97dd3204b",
--        ".hypothesis/constants/06ee3234b07f7d66",
--        ".hypothesis/constants/087180ea5c6680fc",
--        ".hypothesis/constants/0ad243c8c6e11ffb",
--        ".hypothesis/constants/0dcb44a91ae6f1ae"
+-        ".hypothesis/constants/02fb3c1b426206d7",
+-        ".hypothesis/constants/031f85f1c11bb00b",
+-        ".hypothesis/constants/03d65cf548ce3b23"
 -      ],
 -      "tags": [
--        "module-claude",
--        "module-hypothesis"
+-        "module:claude",
+-        "module:hypothesis"
 -      ]
--    },
--    {
--      "id": "US-607",
--      "title": "Dashboard Memory Usage Endpoint - Track Worker Heap Usage and OOM Risks",
--      "priority": "high",
--      "description": "Add endpoint GET /api/dashboard/worker-memory that returns current heap size, max heap, and OOM risk score (heap % of max) for each parallel worker. Enable proactive detection of memory pressure before workers crash.",
--      "acceptanceCriteria": [
--        "Endpoint /api/dashboard/worker-memory reads worker process memory stats (via /proc/[pid]/status on Linux or Get-Process on Windows), returns JSON with worker_id, heap_mb, max_heap_mb, oom_risk_percent for each active worker",
--        "OOM risk calculated as (heap_mb / max_heap_mb) * 100; flag entries with risk > 80% as critical_risk",
--        "Integration test: spawn 2 mock worker processes with different heap sizes, verify endpoint returns correct memory stats and correctly classifies OOM risk levels (low, medium, critical)"
--      ],
--      "technicalNotes": [],
--      "dependencies": [],
-       "estimatedComplexity": "small",
-       "passes": false,
-       "_source": "ai-example",
--      "model": "sonnet"
 +      "model": "haiku"
      },
      {
--      "id": "US-608",
--      "title": "Federated Project Dependency Validator - Detect Cross-Project Story References",
-+      "id": "US-607",
-+      "title": "CLI: show-worker-logs — Aggregate and Stream Parallel Worker Worktree Logs",
-       "priority": "medium",
--      "description": "Add CLI command spiral analyze-federated-dependencies that scans all sub-project stories for references to other sub-projects (e.g., 'depends on auth-service:US-456'), builds and outputs the cross-project dependency graph.",
-+      "description": "Add a CLI command to aggregate logs from all parallel worker worktrees (.spiral-workers/worker-*/) into a unified, time-sorted report. Enables debugging of worker failures, race conditions, and inconsistent prd.json output across workers.",
+-      "id": "US-613",
+-      "title": "CLI: spiral extract-failed-stories -- Generate Triage Report from results.tsv",
+-      "priority": "high",
+-      "description": "Scan results.tsv to identify stories with high retry counts, extract failure patterns, and generate a markdown triage report with decomposition recommendations. This helps operators understand which stories are stuck and why, advancing self-monitoring and integration test insights.",
++      "id": "US-609",
++      "title": "Dashboard Endpoint: GET /api/dashboard/iteration-status — Real-Time Iteration Progress Snapshot",
++      "priority": "medium",
++      "description": "Add a lightweight HTTP endpoint that streams current SPIRAL iteration status (phase, stories passed/pending/failed, tokens spent, ETA). Complements detailed analytics endpoints by providing a single snapshot for live dashboard polling during runs. Enables 5-second update intervals without time-series overhead.",
        "acceptanceCriteria": [
--        "CLI command spiral analyze-federated-dependencies --prd prd.json --sub-projects-dir sub-projects parses all story descriptions and outputs JSON: {dependencies: {api-service: [auth-service, db-service], auth-service: [db-service]}}",
--        "Dependency detection uses regex pattern matching for explicit refs like '@sub-project:US-NNN' and infers implicit refs from story description keywords",
--        "Integration test: create federated setup with 3 sub-projects, define cross-project dependencies in story descriptions, verify CLI outputs correct dependency graph with no false positives"
-+        "Implement `spiral show-worker-logs [--worker-id ID] [--phase PHASE]` CLI in lib/spiral/cli.py; reads .spiral-workers/worker-*/logs/*.log and merges by ISO timestamp",
-+        "Output format: tab-separated [worker_id|timestamp|phase|log_level|message]; support --worker-id and --phase filters; stream to stdout with optional --output file.log",
-+        "Integration test: spawn 2 parallel workers via run_parallel_ralph.sh, verify logs from both workers merge without duplicates in time order, --worker-id=worker-1 filter returns only that worker"
+-        "Command `spiral extract-failed-stories [--min-retries N] [--format json|markdown]` reads results.tsv and outputs stories sorted by retry count with failure reasons, model escalation patterns, and token burn per attempt",
+-        "Report includes per-story suggestions: 'decompose' for stories with >3 retries and exponential token growth, 'scope' for stories with increasing token drift, 'research' for test-fix stories with persistent failures",
+-        "Integration test: mock results.tsv with 3 stories (0 retries haiku-pass, 2 retries sonnet-fail, 4 retries opus-fail); verify CLI output correctly identifies high-retry stories and suggests 'decompose' for the 4-retry case"
++        "GET /api/dashboard/iteration-status returns JSON: {iteration, phase, passed_count, pending_count, failed_count, total_tokens_this_iteration, estimated_completion_sec}",
++        "Queries results.tsv ResultsRecord for current iteration counts and .spiral/_checkpoint.json for phase/tokens; returns {status: 'idle'} when no run active",
++        "Updates on every story completion and phase transition; response latency < 100ms",
++        "Dashboard frontend polls endpoint every 5 seconds for live progress bar updates during SPIRAL execution"
        ],
        "technicalNotes": [],
        "dependencies": [],
-@@ -2981,4 +2886,4 @@
+-      "estimatedComplexity": "medium",
++      "estimatedComplexity": "small",
+       "passes": false,
+       "_source": "ai-example",
+-      "model": "sonnet",
+-      "filesTouch": [
+-        ".github/actions/lint-shell/action.yml",
+-        ".github/actions/setup-uv/action.yml",
+-        ".github/workflows/ci.yml",
+-        ".github/workflows/release.yml",
+-        ".github/workflows/spiral.yml",
+-        ".hypothesis/constants/006b559781a41f7f",
+-        ".hypothesis/constants/0158f9921b55208e",
+-        ".hypothesis/constants/0175637d9e298755",
+-        ".hypothesis/constants/02fb3c1b426206d7",
+-        ".hypothesis/constants/031f85f1c11bb00b"
+-      ],
+-      "tags": [
+-        "module:github",
+-        "module:hypothesis"
+-      ]
++      "model": "haiku"
+     },
+     {
+-      "id": "US-614",
+-      "title": "CLI: spiral visualize-dependencies -- Export Story Dependency Graph as GraphML/DOT for Analysis Tools",
++      "id": "US-610",
++      "title": "CLI: spiral init-subproject — Auto-Scaffold Federated Sub-Project PRD and Module Structure",
+       "priority": "medium",
+-      "description": "Add CLI command to export prd.json story dependencies as GraphML and DOT graph formats for visualization in Graphviz, yEd, or graph analysis tools. Includes story IDs, titles, status colors, and dependency reasons as node/edge attributes. Essential for debugging complex federated multi-repo projects with cross-project dependencies.",
++      "description": "Add bootstrap CLI that scaffolds new federated sub-projects: generates prd-<name>.json with correct schema, auto-registers namespace in parent prd.json (e.g., 'core:US-XXX'), creates stub lib/<name>/ module directory, and validates integration. Removes manual setup friction for multi-repo adoption.",
+       "acceptanceCriteria": [
+-        "New module lib/dependency_visualizer.py with export_graph() function; generates DOT and GraphML output with story nodes colored by status (pending/completed/failed) and dependency edges labeled with reason",
+-        "CLI command 'spiral visualize-dependencies --format dot|graphml --output <path>' parses prd.json, includes sub_project as node attribute for federated visualization, validates output with 'dot -Tsvg graph.dot'",
+-        "Integration test tests/test_dependency_visualizer.py with 10-story fixture containing cycles, cross-project deps, and isolated stories; asserts node/edge counts and GraphML schema validity"
++        "CLI: spiral init-subproject <name> generates prd-<name>.json matching prd.schema.json with sub_project field set to <name>",
++        "Auto-appends namespace registry entry to parent prd.json; creates lib/<name>/ directory with __init__.py stub; registers 3 seed stories with format '<name>:US-001' etc.",
++        "Runs spiral validate-federated on modified parent prd.json before completing; fails if namespace already exists or schema validation fails",
++        "Exit code 0 on success with summary output; integrates with lib/spiral/validate_federated.py module for consistency"
+       ],
+       "technicalNotes": [],
+       "dependencies": [],
+@@ -3069,14 +3034,14 @@
        "model": "sonnet"
+     },
+     {
+-      "id": "US-615",
+-      "title": "Integration Test: SPIRAL Full Loop Snapshot Regression Testing with Mock Claude API",
++      "id": "US-611",
++      "title": "Worker Result Aggregation for Federated Projects",
+       "priority": "medium",
+-      "description": "Build deterministic end-to-end regression test running SPIRAL R→T→S→M→I→V→C with fixture-based mock Claude/Gemini responses. Captures golden snapshots of prd.json and results.tsv to detect regressions in phase orchestration, story merging, and worker behavior. Enables safe refactoring without manual testing.",
++      "description": "Implement result aggregator that merges results.tsv from parallel worker worktrees (.spiral-workers/worker-*/results.tsv) into unified results file with sub_project column tracking which namespace each story was executed in. Enables proper cost/throughput reporting and worker load balancing insights across federated multi-repo SPIRAL runs.",
+       "acceptanceCriteria": [
+-        "Test file tests/test_spiral_full_loop_snapshot.py runs SPIRAL with 8-story fixture (3 test-fix, 3 research, 2 ai-example); uses lib/mock_claude_fixtures.py to return deterministic Phase R and Phase I responses; validates snapshot prd.json merge order and all stories completed",
+-        "Captures results.tsv snapshot with assertions on row count, haiku/sonnet/opus distribution, success rate 100%; validates worker state isolation by confirming no prd.json mutations between parallel workers",
+-        "Golden snapshots in tests/fixtures/snapshots/full_loop_*/prd.json and results.tsv; CI runs 'pytest test_spiral_full_loop_snapshot.py --snapshot-update' to detect regressions on field/row changes"
++        "lib/impl/result_aggregator.py implements aggregate_results(worker_dirs: List[str]) that merges N results.tsv files, adds sub_project column from worker root prd.json namespace field, sorts by completion_timestamp DESC",
++        "CLI command spiral aggregate-results generates unified results.tsv and prints summary report: stories_per_namespace, total_cost_by_model, avg_tokens_by_phase, worker_heartbeat_failures",
++        "Integration test: run Phase I with 2 federated workers on different namespaces, verify aggregated results contains correct story-to-namespace assignments with no duplicate story IDs or timestamp collisions"
+       ],
+       "technicalNotes": [],
+       "dependencies": [],
+@@ -3086,21 +3051,22 @@
+       "model": "sonnet"
+     },
+     {
+-      "id": "US-616",
+-      "title": "CLI: spiral show-complexity-scores — Inspect Story Complexity Scoring and Worker Load Distribution",
++      "id": "US-612",
++      "title": "Integration Test: End-to-End Federated Multi-Repo SPIRAL Loop with Result Aggregation",
+       "priority": "medium",
+-      "description": "Debug CLI command to inspect computed story complexity scores used by the worker load balancer. Shows per-story complexity (1-10 scale), estimated tokens, and assigned worker ID. Helps diagnose worker load imbalance and validate complexity scoring logic.",
++      "description": "Comprehensive integration test that runs complete SPIRAL R→C loop on federated prd.json spanning two sub-projects (api/, web/). Validates story routing, parallel worker isolation, and results.tsv aggregation with sub_project column.",
+       "acceptanceCriteria": [
+-        "Command: `spiral show-complexity-scores [prd.json]` parses prd.json and computes complexity_score per story using description length, dependency count, and file path depth",
+-        "Output CSV/table with columns: story_id, title_preview, complexity_score (1-10), estimated_tokens, assigned_worker_id, priority. Support `--json` flag for dashboard consumption",
+-        "Include `--histogram` flag to display distribution: bucketed by score range (1, 2-3, 4-5, 6-7, 8-10) showing count of stories per bucket"
++        "Create tests/fixtures/federated_two_repos/ with api/prd.json and web/prd.json (3 stories each) plus root prd.json with federated story references (US-{001,002,003} in api, US-{101,102,103} in web)",
++        "Implement tests/test_integration_federated_full_loop.py that executes full SPIRAL R→C with mock Claude API fixtures, 2 parallel workers, validates Phase R→T→S→M→I→V→C completes with all 6 stories passing and results.tsv contains correct sub_project column values (api, web) for each row",
++        "Assert dashboard endpoint GET /api/dashboard/costs-by-project aggregates costs correctly per sub_project and metrics endpoint returns separate token counts for api and web workers",
++        "Integration test runs in <30s using mock API responses and exits with code 0 when complete, code >0 if any phase fails or results.tsv aggregation is malformed"
+       ],
+       "technicalNotes": [],
+       "dependencies": [],
+-      "estimatedComplexity": "small",
++      "estimatedComplexity": "medium",
+       "passes": false,
+       "_source": "ai-example",
+-      "model": "haiku"
++      "model": "sonnet"
      }
    ]
--}
-+}
-\ No newline at end of file
+ }

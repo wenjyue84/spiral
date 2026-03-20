@@ -127,7 +127,7 @@ def extract_failed_stories(
         model_escalation = " -> ".join(dict.fromkeys(models_used))  # ordered unique
 
         # Token burn per attempt
-        token_burns = [
+        token_burns: list[dict[str, int | str]] = [
             {
                 "retry": _safe_int(a.get("retry_num")),
                 "tokens": _token_burn(a),
@@ -139,7 +139,7 @@ def extract_failed_stories(
         ]
 
         # Total token burn
-        total_tokens = sum(tb["tokens"] for tb in token_burns)
+        total_tokens = sum(_token_burn(a) for a in attempts)
 
         # Determine source from story_id prefix or first attempt
         source = ""
