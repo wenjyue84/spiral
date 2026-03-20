@@ -44,3 +44,53 @@ This brief outlines the implementation plan for creating a story load balancer. 
 *   **More Workers than Stories:** The algorithm should handle this gracefully; some workers will receive no stories. The fairness metric calculation must be careful to avoid division by zero if any worker's total complexity is zero.
 *   **Data Model:** The implementation is tightly coupled to the `Story` data model. Ensure you correctly access its properties to calculate complexity.
 
+
+## Pre-analysis for US-547 (Gemini 2.5 Pro)
+Based on the user story JSON, here is the technical brief for the implementation agent.
+
+**Objective:** Implement a CLI tool `spiral analyze-failures` to parse execution logs, categorize failure root causes, and recommend optimizations.
+
+**File & Module Plan:**
+*   **Create:** `lib/analyze_failures.py`. This will house the core `FailureAnalyzer` class responsible for parsing, categorization, and reporting.
+*   **Modify:** The main CLI entrypoint (likely `main.py` or a script in `scripts/`) to register the new `analyze-failures` command.
+*   **Modify:** The result-logging module (which writes to `results.tsv`) to add a new `failure_root_cause` column.
+*   **Modify:** The Phase I execution/retry logic to write structured failure reasons to `.spiral/logs/phase-i-<iteration>.log`.
+
+**Implementation Approach:**
+1.  **`FailureAnalyzer` Class:** In `lib/analyze_failures.py`, create a class to read log files from `.spiral/logs/` and `results.tsv`.
+2.  **Regex-based Categorization:** Implement a method to match log content against predefined regex patterns to categorize failures (e.g., `exceeds.*max_tokens` -> `scope_exceeded`).
+3.  **CLI Command:** Wire up the `spiral analyze-failures` command. It should instantiate `FailureAnalyzer`, run the analysis, and print the resulting JSON output.
+4.  **Result Augmentation:** Trace the failure handling path to determine the root cause during runtime and pass this value to the function that writes to `results.tsv`.
+
+**Data Structures (No Frappe DocTypes Involved):**
+*   The tool is a standalone Python CLI, not a Frappe app. No DocTypes or hooks are relevant.
+*   **Output:** The CLI should produce a JSON object: `{"by_category": {...}, "by_phase": {...}, "recommendation": "..."}`.
+*   **TSV Modification:** The `results.tsv` file requires the addition of a `failure_root_cause` column.
+
+**Gotchas & Edge Cases:**
+*   Log messages may be inconsistent; regex patterns must be robust.
+*   The logic must gracefully handle missing or partially written log files.
+*   Ensure the recommendation for `SPIRAL_DECOMPOSE_THRESHOLD` is triggered correctly based on the specified >30% threshold for `scope_exceeded` failures.
+
+
+## Iteration - Story: US-547 Story Failure Root-Cause Analyzer
+
+### What was implemented
+- Created lib/analyze_failures.py with FailureAnalyzer class: reads .spiral/logs/phase-i-*.log and results.tsv
+- Regex-based categorization into 5 categories: scope_exceeded, api_rate_limit, type_error, validation_timeout, model_capability_gap
+- Added analyze-failures CLI subcommand to main.py (spiral analyze-failures --format json)
+- Added failure_root_cause column to results.tsv header in lib/observability/merge_results_tsv.py
+- Added classify_failure_root_cause() bash function in ralph/ralph.sh with logging to .spiral/logs/phase-i-<iter>.log
+- Wired classify_failure_root_cause before both append_result reject calls
+- Created tests/test_analyze_failures.py with 18 passing tests
+
+### Patterns discovered
+- ralph/ralph.sh append_result() writes results.tsv rows; add new columns to header printf and data printf in lockstep
+- CLI subcommand pattern: add parser in main(), dispatch elif, implement cmd_<name>() importing from lib/
+- Phase-i log files expected at .spiral/logs/phase-i-<iter>.log
+
+### Gotchas
+- prd.json filesTouch for US-547 was corrupted (listed .coverage + .hypothesis/constants/*); actual files touched were different
+- ralph.sh and merge_results_tsv.py have separate header definitions that evolved independently; both need updates for new columns
+## Worker 2 crashed (exit 1) — 2026-03-20 11:15:28
+## Worker 3 crashed (exit 1) — 2026-03-20 11:15:30

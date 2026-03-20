@@ -1616,16 +1616,33 @@ function WorkerConsole({ workerId, projectName, workerMeta }: { workerId: number
 
 function WorkersTab({ projectName, activeStory }: { projectName: string; activeStory: ActiveStoryInfo | null }) {
   const [workers, setWorkers] = useState<WorkerInfo[]>([]);
+  const [systemMemory, setSystemMemory] = useState<SystemMemoryInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
     const nameParam = projectName ? `?name=${encodeURIComponent(projectName)}` : '';
-    fetch(`/api/workers${nameParam}`)
-      .then(r => r.json() as Promise<{ workers?: WorkerInfo[]; error?: string }>)
-      .then(d => { if (d.error) setFetchError(d.error); else setWorkers(d.workers ?? []); })
-      .catch(e => setFetchError(String(e)))
-      .finally(() => setLoading(false));
+    const fetchAll = () => {
+      Promise.allSettled([
+        fetch(`/api/workers${nameParam}`).then(r => r.json() as Promise<{ workers?: WorkerInfo[]; error?: string }>),
+        fetch(`/api/system-memory${nameParam}`).then(r => r.json() as Promise<SystemMemoryInfo>),
+      ]).then(([workersResult, memoryResult]) => {
+        if (workersResult.status === 'fulfilled') {
+          const d = workersResult.value;
+          if (d.error) setFetchError(d.error);
+          else setWorkers(d.workers ?? []);
+        } else {
+          setFetchError(String(workersResult.reason));
+        }
+        if (memoryResult.status === 'fulfilled') {
+          setSystemMemory(memoryResult.value);
+        }
+        setLoading(false);
+      });
+    };
+    fetchAll();
+    const interval = setInterval(fetchAll, 5000);
+    return () => clearInterval(interval);
   }, [projectName]);
 
   if (loading) return <div className="p-6 text-sm text-slate-500">Loading workers…</div>;
@@ -1634,6 +1651,7 @@ function WorkersTab({ projectName, activeStory }: { projectName: string; activeS
     return (
       <div className="p-6 space-y-4">
         <ActiveStoryBanner activeStory={activeStory} />
+        <SystemMemoryPanel memory={systemMemory} />
         <div className="text-center text-slate-500">
           <div className="text-2xl mb-2">👷</div>
           <div className="text-sm font-medium">No workers found</div>
@@ -1647,17 +1665,53 @@ function WorkersTab({ projectName, activeStory }: { projectName: string; activeS
 
   return (
     <div className="p-4 space-y-4">
-      {/* Active story banner at top of workers tab */}
       <ActiveStoryBanner activeStory={activeStory} />
+      <SystemMemoryPanel memory={systemMemory} />
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        {workers.map(w => (
-          w.hasLog
-            ? <WorkerConsole key={w.id} workerId={w.id} projectName={projectName} />
+        {workers.map(w => {
+          if (w.state === 'queued') {
+            return (
+              <div key={w.id} className="flex flex-col border border-dashed border-slate-600 rounded-lg overflow-hidden opacity-70">
+                <div className="flex items-center justify-between px-3 py-1.5 bg-slate-800/50 border-b border-slate-700">
+                  <span className="text-xs font-mono font-semibold text-slate-400">Worker {w.id}</span>
+                  <span className="text-xs font-mono text-slate-500">◌ Queued</span>
+                </div>
+                <div className="h-24 flex items-center justify-center bg-slate-950/50 p-3">
+                  <span className="text-xs font-mono text-slate-500 text-center">
+                    {w.status_reason || `Waiting for ${systemMemory?.per_worker_budget_mb ?? 1536} MB free RAM to launch`}
+                  </span>
+                </div>
+              </div>
+            );
+          }
+          if (w.paused) {
+            return (
+              <div key={w.id} className="flex flex-col border border-amber-700/50 rounded-lg overflow-hidden">
+                <div className="flex items-center justify-between px-3 py-1.5 bg-amber-900/20 border-b border-amber-700/30">
+                  <span className="text-xs font-mono font-semibold text-slate-200">Worker {w.id}</span>
+                  <div className="flex items-center gap-2">
+                    {w.mem_mb != null && <span className="text-[11px] font-mono text-slate-500">{w.mem_mb} MB</span>}
+                    <span className="text-xs font-mono text-amber-400 bg-amber-900/40 px-1.5 py-0.5 rounded-full">PAUSED</span>
+                  </div>
+                </div>
+                <div className="h-24 flex items-center justify-center bg-slate-950 p-3">
+                  <span className="text-xs font-mono text-amber-400/70 text-center">{w.status_reason || 'Paused — memory pressure'}</span>
+                </div>
+              </div>
+            );
+          }
+          return w.hasLog
+            ? <WorkerConsole key={w.id} workerId={w.id} projectName={projectName} workerMeta={w} />
             : (
               <div key={w.id} className="flex flex-col border border-slate-700 rounded-lg overflow-hidden">
                 <div className="flex items-center justify-between px-3 py-1.5 bg-slate-800 border-b border-slate-700">
                   <span className="text-xs font-mono font-semibold text-slate-200">Worker {w.id}</span>
-                  <span className="text-xs font-mono text-slate-400">○ Completed (no log)</span>
+                  <div className="flex items-center gap-2">
+                    {w.mem_mb != null && <span className="text-[11px] font-mono text-slate-500">{w.mem_mb} MB</span>}
+                    {w.phase && <span className="text-[11px] font-mono text-purple-400 bg-purple-900/30 px-1.5 py-0.5 rounded-full">{w.phase}</span>}
+                    {(w.completed ?? 0) > 0 && <span className="text-[11px] font-mono text-emerald-400">{w.completed} done</span>}
+                    <span className="text-xs font-mono text-slate-400">○ Completed (no log)</span>
+                  </div>
                 </div>
                 <div className="h-32 flex items-center justify-center bg-slate-950 p-2">
                   <span className="text-xs font-mono text-slate-600">
@@ -1665,8 +1719,8 @@ function WorkersTab({ projectName, activeStory }: { projectName: string; activeS
                   </span>
                 </div>
               </div>
-            )
-        ))}
+            );
+        })}
       </div>
     </div>
   );
@@ -3513,7 +3567,7 @@ export default function ProjectDashboard() {
         {activeTab === 'tokens'       && <div className="h-full overflow-y-auto"><TokenTab projectName={projectName ?? ''} tokenBurn={data.tokenBurn} /></div>}
         {activeTab === 'graph'        && (
           <div className="h-full overflow-hidden">
-            <DependencyGraph stories={data.progress?.stories ?? []} />
+            <DependencyGraph stories={data.progress?.stories ?? []} storyAttempts={data.storyAttempts} />
           </div>
         )}
         {activeTab === 'settings'     && <div className="h-full overflow-y-auto"><SettingsTab config={data.config} configRaw={data.configRaw ?? ''} projectName={projectName ?? ''} onConfigSaved={() => load()} /></div>}

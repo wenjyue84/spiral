@@ -1379,7 +1379,23 @@
         "US-529",
         "US-530"
       ],
-      "_scopeCreep": true
+      "_scopeCreep": true,
+      "filesTouch": [
+        ".claude/hooks/verify_story_acceptance.py",
+        ".coverage",
+        ".hypothesis/constants/006b559781a41f7f",
+        ".hypothesis/constants/0144005a67236799",
+        ".hypothesis/constants/0158f9921b55208e",
+        ".hypothesis/constants/016af87f794a90e9",
+        ".hypothesis/constants/0175637d9e298755",
+        ".hypothesis/constants/01831d6f995783ed",
+        ".hypothesis/constants/02fb3c1b426206d7",
+        ".hypothesis/constants/031f85f1c11bb00b"
+      ],
+      "tags": [
+        "module-claude",
+        "module-hypothesis"
+      ]
     },
     {
       "id": "US-529",
@@ -1604,8 +1620,9 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-03-20T01:01:27Z"
     },
     {
       "id": "US-545",
@@ -1620,8 +1637,9 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
-      "model": "opus"
+      "passes": true,
+      "model": "opus",
+      "last_attempted": "2026-03-20T01:26:33Z"
     },
     {
       "id": "US-546",
@@ -1636,7 +1654,7 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "sonnet"
     },
     {
@@ -1653,7 +1671,23 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
-      "model": "haiku"
+      "model": "sonnet",
+      "filesTouch": [
+        ".claude/hooks/verify_story_acceptance.py",
+        ".coverage",
+        ".hypothesis/constants/0158f9921b55208e",
+        ".hypothesis/constants/06ee3234b07f7d66",
+        ".hypothesis/constants/112c210229744ab1",
+        ".hypothesis/constants/1a93c1a1253860b2",
+        ".hypothesis/constants/2cf6891b5730a748",
+        ".hypothesis/constants/3bb7609da5383a57",
+        ".hypothesis/constants/44cff0c791cabb68",
+        ".hypothesis/constants/4a8d40f0348540d7"
+      ],
+      "tags": [
+        "module-claude",
+        "module-hypothesis"
+      ]
     },
     {
       "id": "US-548",
@@ -1669,7 +1703,22 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
-      "model": "sonnet"
+      "model": "haiku",
+      "filesTouch": [
+        ".hypothesis/constants/0144005a67236799",
+        ".hypothesis/constants/016af87f794a90e9",
+        ".hypothesis/constants/01831d6f995783ed",
+        ".hypothesis/constants/044aa4a97dd3204b",
+        ".hypothesis/constants/06ee3234b07f7d66",
+        ".hypothesis/constants/087180ea5c6680fc",
+        ".hypothesis/constants/0ad243c8c6e11ffb",
+        ".hypothesis/constants/0dcb44a91ae6f1ae",
+        ".hypothesis/constants/11806e59ccbb8120",
+        ".hypothesis/constants/15647f5536a392c4"
+      ],
+      "tags": [
+        "module-hypothesis"
+      ]
     },
     {
       "id": "US-553",
@@ -1703,7 +1752,23 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
-      "model": "haiku"
+      "model": "haiku",
+      "filesTouch": [
+        ".github/actions/lint-shell/action.yml",
+        ".github/actions/setup-uv/action.yml",
+        ".github/workflows/ci.yml",
+        ".github/workflows/release.yml",
+        ".github/workflows/spiral.yml",
+        ".hypothesis/constants/006b559781a41f7f",
+        ".hypothesis/constants/0158f9921b55208e",
+        ".hypothesis/constants/0175637d9e298755",
+        ".hypothesis/constants/02fb3c1b426206d7",
+        ".hypothesis/constants/031f85f1c11bb00b"
+      ],
+      "tags": [
+        "module-github",
+        "module-hypothesis"
+      ]
     },
     {
       "id": "US-555",
@@ -1719,7 +1784,23 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
-      "model": "haiku"
+      "model": "haiku",
+      "filesTouch": [
+        ".claude/hooks/verify_story_acceptance.py",
+        ".coverage",
+        ".hypothesis/constants/0144005a67236799",
+        ".hypothesis/constants/016af87f794a90e9",
+        ".hypothesis/constants/01831d6f995783ed",
+        ".hypothesis/constants/044aa4a97dd3204b",
+        ".hypothesis/constants/06ee3234b07f7d66",
+        ".hypothesis/constants/087180ea5c6680fc",
+        ".hypothesis/constants/0ad243c8c6e11ffb",
+        ".hypothesis/constants/0dcb44a91ae6f1ae"
+      ],
+      "tags": [
+        "module-claude",
+        "module-hypothesis"
+      ]
     },
     {
       "id": "US-556",
@@ -1735,86 +1816,39 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
-      "model": "haiku"
+      "model": "haiku",
+      "filesTouch": [
+        ".claude/hooks/verify_story_acceptance.py",
+        ".coverage",
+        ".hypothesis/constants/006b559781a41f7f",
+        ".hypothesis/constants/0158f9921b55208e",
+        ".hypothesis/constants/0175637d9e298755",
+        ".hypothesis/constants/02fb3c1b426206d7",
+        ".hypothesis/constants/031f85f1c11bb00b",
+        ".hypothesis/constants/03d65cf548ce3b23",
+        ".hypothesis/constants/0628f2618034526e",
+        ".hypothesis/constants/06ee3234b07f7d66"
+      ],
+      "tags": [
+        "module-claude",
+        "module-hypothesis"
+      ]
     },
     {
-      "id": "US-557",
-      "title": "Worker Performance Profiler CLI: Analyze Per-Worker Success Rate and Token Efficiency",
-      "priority": "medium",
-      "description": "Extract performance metrics from results.tsv grouped by worker ID: compute per-worker success rate, average story duration, tokens per story, and model escalation distribution. Expose via CLI to inform load balancing and detect underperforming workers.",
+      "id": "US-562",
+      "title": "lib: Worker Load Balancer — Distribute Stories Across Parallel Workers by Complexity",
+      "priority": "high",
+      "description": "Implement story-to-worker assignment optimizer that distributes pending stories across parallel workers to minimize execution variance. Computes story complexity from forecast tokens + dependency count. Used in Phase I before spawning worker pool to prevent hot spots (one worker getting all hard stories).",
       "acceptanceCriteria": [
-        "lib/worker_profiler.py aggregates results.tsv by worker_id with success/failure counts, avg duration, and tokens-per-story calculations (≥90% accuracy)",
-        "CLI command 'spiral worker-profile --iteration N --output json' returns JSON with success_rate, avg_duration_seconds, tokens_per_story, and model_distribution per worker",
-        "tests/test_worker_profiler.py validates metric calculations against mock results.tsv with 3+ workers across haiku/sonnet/opus models"
+        "lib/worker_balancer.py::assign_stories_to_workers(stories: List[Story], num_workers: int) implements greedy bin-packing: sort stories by complexity, assign each to least-loaded worker. Returns Dict[worker_id, story_ids].",
+        "Fairness metric: max_worker_total_complexity / min_worker_total_complexity < 1.20 (load variance <20%) after assignment",
+        "Integration test: assign 20 stories (complexities 1-10) to 4 workers, verify fairness metric holds, assert no story assigned twice, all workers receive >=1 story"
       ],
       "technicalNotes": [],
       "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-558",
-      "title": "CLI: Export Results to CSV with Per-Story and Per-Phase Breakdown",
-      "priority": "medium",
-      "description": "Export results.tsv and prd.json data to CSV format for analysis in Excel/Sheets. Enable non-technical stakeholders to track costs, duration, and retry patterns across iterations.",
-      "acceptanceCriteria": [
-        "Implement lib/export_results.py with export_to_csv(results_tsv, prd_json, output_file) function. Merge results.tsv with prd.json story titles. Output columns: story_id, title, iteration, phase, model, tokens, duration, cost, retry_count, status. Include summary rows for totals per iteration.",
-        "Wire CLI command spiral export-results --format csv --output results.csv (defaults to results_export.csv). Add flags: --per-phase (one CSV per phase) and --per-model (breakdown by model). Validate output file exists and is valid CSV.",
-        "Integration test in tests/test_export_results.py: create mock 10-story results.tsv and prd.json, export to CSV, verify 10 data rows + summary, assert token/cost totals match results.tsv sums, and validate CSV can be parsed by csv.DictReader."
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-559",
-      "title": "Dependency Graph Visualization as Mermaid Flowchart",
-      "priority": "medium",
-      "description": "Generate Mermaid syntax diagrams from story dependencies in prd.json. Visualize story relationships, critical path, and status for project planning and stakeholder communication.",
-      "acceptanceCriteria": [
-        "Implement lib/mermaid_graph.py with graph_to_mermaid(prd_json, highlight_critical_path=False) returning valid Mermaid flowchart syntax. Parse story `dependencies` array and emit: graph TD nodes for each story_id, edges for each dependency, node colors by status (pending=lightgray, in_progress=lightyellow, done=lightgreen).",
-        "Wire CLI command spiral show-graph --format mermaid (outputs to stdout). Add flag --critical-path to mark stories on the critical path with bold red edges. Test: spiral show-graph | grep 'graph TD' validates Mermaid syntax.",
-        "Integration test in tests/test_mermaid_graph.py: create 5-story prd.json with chain US-1→US-2→US-3 and parallel US-4→US-5, assert mermaid output contains all 5 nodes and 4 edges, verify critical path flag highlights longest dependency chain, validate output passes Mermaid syntax validation."
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-560",
-      "title": "Phase G: Validate Generated API Docstring Coverage Against Story Mentions",
-      "priority": "medium",
-      "description": "Add validation step after pdoc generates API docs to ensure all exported functions have docstrings and are referenced in CHANGELOG entries generated from story commits. This prevents orphaned functions and ensures API documentation completeness.",
-      "acceptanceCriteria": [
-        "lib/phase_g_validation.py exports validate_api_coverage(api_docs_path, changelog_path, prd_path) that parses pdoc output and returns {'total_functions': N, 'documented': M, 'coverage_percent': X, 'orphaned_functions': [...]}",
-        "Phase G post-generation calls validation and logs warnings if coverage < 95% or any function appears in prd.json but not in generated API docs",
-        "tests/test_phase_g_validation.py includes test_api_coverage_100_percent() that generates docs from sample stories and asserts coverage_percent == 100"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-561",
-      "title": "Integration Test: Federated Worker Pool Concurrent Merge with Slice Isolation",
-      "priority": "medium",
-      "description": "Add end-to-end test that launches 2+ parallel workers on different federated project slices (US-1xx, US-2xx namespaces), verifies they merge without corruption, and validates results.tsv contains correct story IDs from each worker without race conditions.",
-      "acceptanceCriteria": [
-        "tests/test_federated_worker_isolation.py::test_concurrent_workers_slice_merge launches 2 workers with sliced prd.json files, waits for completion, then asserts final prd.json validates against schema and contains all original stories",
-        "results.tsv contains rows from both workers with correct namespace prefixes (US-1xx and US-2xx) and no duplicate story IDs across iterations",
-        "Test mocks git operations to confirm each worker operates in isolated .spiral-workers/worker-N/ worktree without blocking or corrupting shared prd.json"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "_source": "ai-example",
       "model": "sonnet"
     }
   ]

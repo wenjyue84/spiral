@@ -23,6 +23,7 @@ Subcommands:
   show-blockers           Analyze story dependency graph and critical paths (US-538)
   replay                  Re-run a failed phase with DEBUG=1 and full state capture (US-539)
   phase-timing-report     Generate phase timing report with SLA breach analysis (US-546)
+  analyze-failures        Categorize retry failure root causes and recommend tuning (US-547)
   monitor                 Unified monitoring snapshot for progress checks
 """
 
@@ -2411,6 +2412,28 @@ def cmd_phase_timing_report(args) -> None:
     print(json.dumps(result, indent=2))
 
 
+def cmd_analyze_failures(args) -> None:
+    """Categorize retry failure root causes and recommend tuning (US-547).
+
+    Usage: spiral analyze-failures --format json [--repo .]
+    """
+    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    from analyze_failures import FailureAnalyzer  # type: ignore[import-untyped]
+
+    repo_root = Path(getattr(args, "repo", "."))
+    output_format = getattr(args, "output_format", "json")
+
+    fa = FailureAnalyzer(repo_root=repo_root)
+    result = fa.analyze()
+
+    if output_format == "json":
+        print(json.dumps(result, indent=2))
+    else:
+        print(f"By category: {result['by_category']}")
+        print(f"By phase:    {result['by_phase']}")
+        print(f"Recommendation: {result['recommendation']}")
+
+
 def cmd_detect_anomalies(args) -> None:
     """Detect stories with unusual token-spend patterns (US-544).
 
@@ -2978,6 +3001,25 @@ def main():
         help="SLA threshold in seconds (default: 300)",
     )
 
+    # ── analyze-failures subcommand (US-547) ─────────────────────────────────────
+    analyze_failures_parser = subparsers.add_parser(
+        "analyze-failures",
+        help="Categorize retry failure root causes and recommend tuning (US-547)",
+    )
+    analyze_failures_parser.add_argument(
+        "--format",
+        dest="output_format",
+        choices=["json", "text"],
+        default="json",
+        help="Output format (default: json)",
+    )
+    analyze_failures_parser.add_argument(
+        "--repo",
+        default=".",
+        metavar="PATH",
+        help="Repo root directory (default: .)",
+    )
+
     # ── detect-anomalies subcommand (US-544) ─────────────────────────────────────
     detect_anomalies_parser = subparsers.add_parser(
         "detect-anomalies",
@@ -3097,6 +3139,8 @@ def main():
         cmd_detect_anomalies(args)
     elif args.command == "phase-timing-report":
         cmd_phase_timing_report(args)
+    elif args.command == "analyze-failures":
+        cmd_analyze_failures(args)
     elif args.command == "monitor":
         cmd_monitor(args)
     else:

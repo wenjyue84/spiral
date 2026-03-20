@@ -659,7 +659,7 @@ wait_for_memory() {
     return 0 # skip on non-Windows (no CIM)
   fi
   local attempts=0
-  local _max_mins="${SPIRAL_MEMORY_WAIT_MAX_MINS:-0}"
+  local _max_mins="${SPIRAL_MEMORY_WAIT_MAX_MINS:-5}"
   while true; do
     local free_mb
     free_mb=$(powershell.exe -NoProfile -Command \
@@ -1043,9 +1043,19 @@ if [[ "$_TIER_DISPATCH_ENABLED" -eq 1 ]]; then
 
     # Launch all workers in this tier
     for worker_id in $WORKERS_IN_TIER; do
-      _MIN_FREE_MB=$(((RALPH_WORKERS - worker_id + 1) * _PER_WORKER_MB + 512))
-      [[ "$_MIN_FREE_MB" -lt 2048 ]] && _MIN_FREE_MB=2048
-      wait_for_memory "$_MIN_FREE_MB"
+      # Skip memory gate for workers with 0 pending stories
+      local _w_slice="$WORKER_DIR/worker_${worker_id}.json"
+      local _w_pending=0
+      if [[ -f "$_w_slice" ]]; then
+        _w_pending=$("$JQ" '[.userStories[] | select(.passes != true)] | length' "$_w_slice" 2>/dev/null || echo "0")
+      fi
+      if [[ "$_w_pending" -eq 0 ]]; then
+        echo "  [parallel] Worker $worker_id has 0 pending stories — skipping memory gate"
+      else
+        _MIN_FREE_MB=$(((RALPH_WORKERS - worker_id + 1) * _PER_WORKER_MB + 512))
+        [[ "$_MIN_FREE_MB" -lt 2048 ]] && _MIN_FREE_MB=2048
+        wait_for_memory "$_MIN_FREE_MB"
+      fi
       _launch_worker_i "$worker_id"
       _CURRENT_TIER_WORKERS_LAUNCHED+=("$worker_id")
 
@@ -1085,9 +1095,19 @@ if [[ "$_TIER_DISPATCH_ENABLED" -eq 1 ]]; then
 else
   # Legacy parallel dispatch (all workers launched immediately)
   for i in $(seq 1 "$_INITIAL_LAUNCH_COUNT"); do
-    _MIN_FREE_MB=$(((RALPH_WORKERS - i + 1) * _PER_WORKER_MB + 512))
-    [[ "$_MIN_FREE_MB" -lt 2048 ]] && _MIN_FREE_MB=2048
-    wait_for_memory "$_MIN_FREE_MB"
+    # Skip memory gate for workers with 0 pending stories
+    local _w_slice="$WORKER_DIR/worker_${i}.json"
+    local _w_pending=0
+    if [[ -f "$_w_slice" ]]; then
+      _w_pending=$("$JQ" '[.userStories[] | select(.passes != true)] | length' "$_w_slice" 2>/dev/null || echo "0")
+    fi
+    if [[ "$_w_pending" -eq 0 ]]; then
+      echo "  [parallel] Worker $i has 0 pending stories — skipping memory gate"
+    else
+      _MIN_FREE_MB=$(((RALPH_WORKERS - i + 1) * _PER_WORKER_MB + 512))
+      [[ "$_MIN_FREE_MB" -lt 2048 ]] && _MIN_FREE_MB=2048
+      wait_for_memory "$_MIN_FREE_MB"
+    fi
     _launch_worker_i "$i"
     if [[ "$i" -lt "$_INITIAL_LAUNCH_COUNT" ]]; then
       echo "  [parallel] Waiting ${STAGGER_DELAY}s before next worker (V8 init cooldown)..."

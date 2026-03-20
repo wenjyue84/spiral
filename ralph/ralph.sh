@@ -1159,17 +1159,49 @@ append_result() {
   local duration_sec=$((STORY_END - STORY_START))
   local model_col="${EFFECTIVE_MODEL:-${EFFECTIVE_TOOL:-unknown}}"
   if [[ ! -f "$RESULTS_FILE" ]]; then
-    printf 'timestamp\tspiral_iter\tralph_iter\tstory_id\tstory_title\tstatus\tduration_sec\tmodel\tretry_num\tcommit_sha\trun_id\tcache_hit\tcache_read_tokens\tcache_creation_tokens\treview_tokens\twall_seconds\tuser_cpu_s\tsys_cpu_s\tpeak_rss_kb\tbatch_id\tdecompose_secs\timpl_secs\tverify_secs\tretry_escalation_count\n' >"$RESULTS_FILE"
+    printf 'timestamp\tspiral_iter\tralph_iter\tstory_id\tstory_title\tstatus\tduration_sec\tmodel\tretry_num\tcommit_sha\trun_id\tcache_hit\tcache_read_tokens\tcache_creation_tokens\treview_tokens\twall_seconds\tuser_cpu_s\tsys_cpu_s\tpeak_rss_kb\tbatch_id\tdecompose_secs\timpl_secs\tverify_secs\tretry_escalation_count\tfailure_root_cause\n' >"$RESULTS_FILE"
   fi
   local safe_title="${STORY_TITLE//$'\t'/ }"
-  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
     "$ts" "${SPIRAL_ITER:-0}" "$ITERATION" "$NEXT_STORY" "$safe_title" \
     "$status" "$duration_sec" "$model_col" "$RETRY_NOW" "$commit_sha" "${SPIRAL_RUN_ID:-}" \
     "${_CACHE_HIT:-false}" "${_CACHE_READ_TOKENS:-0}" "${_CACHE_CREATION_TOKENS:-0}" "${_REVIEW_TOKENS:-0}" \
     "${_WALL_SEC:-0}" "${_USER_CPU_S:-0}" "${_SYS_CPU_S:-0}" "${_PEAK_RSS_KB:-0}" \
     "${STORY_BATCH_ID:-}" \
     "${_DECOMPOSE_SECS:-0}" "${_IMPL_SECS:-0}" "${_VERIFY_SECS:-0}" "${_RETRY_ESCALATION_COUNT:-0}" \
+    "${_FAILURE_ROOT_CAUSE:-}" \
     >>"$RESULTS_FILE"
+}
+
+# ── Failure root-cause classifier (US-547) ───────────────────────────────────
+# Sets _FAILURE_ROOT_CAUSE to one of: scope_exceeded, api_rate_limit, type_error,
+# validation_timeout, model_capability_gap, unknown.
+# Also writes a structured FAILURE_ROOT_CAUSE: <category> line to the phase-i log.
+classify_failure_root_cause() {
+  local reason="${1:-}"
+  local category="unknown"
+  # Match patterns in order of specificity
+  if echo "$reason" | grep -qiE 'exceeds.*max_tokens|max_tokens.*exceed|context.?length|token.?limit|context.?window|scope_exceeded|too.?large|time.?budget'; then
+    category="scope_exceeded"
+  elif echo "$reason" | grep -qiE 'rate.?limit|ratelimit|429|quota.?exceeded|too.?many.?requests|api_rate_limit'; then
+    category="api_rate_limit"
+  elif echo "$reason" | grep -qiE 'TypeError|ImportError|SyntaxError|AttributeError|NameError|type_error'; then
+    category="type_error"
+  elif echo "$reason" | grep -qiE 'timed?.?out|TimeoutError|timeout.*expired|deadline.?exceeded|validation_timeout|TIME_BUDGET'; then
+    category="validation_timeout"
+  elif echo "$reason" | grep -qiE 'model.{0,20}not.{0,20}capable|unsupported.{0,20}model|capability.{0,20}gap|model_capability_gap'; then
+    category="model_capability_gap"
+  fi
+  _FAILURE_ROOT_CAUSE="$category"
+  # Log structured entry to .spiral/logs/phase-i-<iter>.log
+  local log_dir="${REPO_ROOT:-.}/.spiral/logs"
+  mkdir -p "$log_dir"
+  local iter_tag="${SPIRAL_ITER:-0}"
+  local log_file="$log_dir/phase-i-${iter_tag}.log"
+  {
+    echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] FAILURE_ROOT_CAUSE: $category"
+    echo "  story_id=${NEXT_STORY:-unknown} retry=${RETRY_NOW:-0} reason=${reason:-none}"
+  } >>"$log_file"
 }
 
 # ── Experience capture: save exhausted-story summary to candidate_us.md ─────
@@ -3531,6 +3563,7 @@ Co-Authored-By: Claude ${COAUTHOR_LABEL} 4.6 <noreply@anthropic.com>"
 
       increment_retry "$NEXT_STORY"
       RETRY_NOW=$(get_retry_count "$NEXT_STORY")
+      classify_failure_root_cause "${_AP_FAIL_REASON:-quality_gate_failed}"
       echo "[retry] $NEXT_STORY attempt $RETRY_NOW/$MAX_RETRIES"
       append_result "reject"
       log_ralph_event "story_failed" "\"storyId\":\"$NEXT_STORY\",\"retryCount\":$RETRY_NOW,\"model\":\"${EFFECTIVE_MODEL:-sonnet}\""
@@ -3574,6 +3607,7 @@ Co-Authored-By: Claude ${COAUTHOR_LABEL} 4.6 <noreply@anthropic.com>"
 
     increment_retry "$NEXT_STORY"
     RETRY_NOW=$(get_retry_count "$NEXT_STORY")
+    classify_failure_root_cause "${_AP_FAIL_REASON:-story_incomplete}"
     echo "[retry] $NEXT_STORY attempt $RETRY_NOW/$MAX_RETRIES"
     append_result "reject"
     log_ralph_event "story_failed" "\"storyId\":\"$NEXT_STORY\",\"retryCount\":$RETRY_NOW,\"model\":\"${EFFECTIVE_MODEL:-sonnet}\""
