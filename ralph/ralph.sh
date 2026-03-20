@@ -2045,7 +2045,7 @@ resolve_model() {
 }
 
 # ── Dry run mode ─────────────────────────────────────────────────
-if [[ "$DRY_RUN" == "true" ]]; then
+if [[ "${DRY_RUN:-false}" == "true" ]]; then
   echo "[dry-run] Would process $INCOMPLETE_STORIES stories"
   echo ""
   $JQ -r '.userStories[] | select(.passes == false) | "  [\(.id)] \(.title) (priority: \(.priority))"' "$PRD_FILE"
