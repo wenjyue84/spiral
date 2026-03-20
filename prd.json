@@ -2710,6 +2710,40 @@
       "passes": false,
       "_source": "ai-example",
       "model": "haiku"
+    },
+    {
+      "id": "US-601",
+      "title": "CLI: spiral story-history — Show Story Iteration Progression with Model Escalations",
+      "priority": "medium",
+      "description": "Add CLI command to display iteration-by-iteration lifecycle of a story (US-XXX), showing phase, model used, token count, and status. Helps developers debug why stories escalate to expensive models or fail repeatedly. Reads from results.tsv and groups by story_id.",
+      "acceptanceCriteria": [
+        "spiral story-history US-123 outputs JSON array with {iteration, phase, model, tokens, status} per attempt",
+        "spiral story-history US-123 --format table displays ASCII timeline with model escalation arrows (haiku→sonnet→opus)",
+        "Command correctly filters results.tsv by story_id and iteration, failing gracefully if story not found"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-602",
+      "title": "CLI: spiral federated-stats — Aggregate Metrics Across Sub-Projects by Token Spend and Success Rate",
+      "priority": "medium",
+      "description": "Add CLI command to aggregate success rate, token spend, and model distribution across federated sub-projects. Discovers .spiral/results.tsv and sub-project/*/results.tsv files, groups by sub_project column, enabling portfolio-level visibility into token budget distribution and quality metrics across multi-repo SPIRAL runs.",
+      "acceptanceCriteria": [
+        "spiral federated-stats outputs JSON with array of {sub_project, total_stories, passed_count, total_tokens, avg_model_used}",
+        "Command auto-discovers results.tsv files from .spiral/ root and sub-project directories, skips missing files gracefully",
+        "spiral federated-stats --sort by=tokens --limit 5 returns top 5 projects ranked by token spend; --format csv exports aggregation"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
     }
   ]
 }
