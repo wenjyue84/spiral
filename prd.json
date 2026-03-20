@@ -3104,7 +3104,8 @@
       "passes": true,
       "_source": "ai-example",
       "model": "sonnet",
-      "last_attempted": "2026-03-20T17:23:55Z"
+      "last_attempted": "2026-03-20T17:23:55Z",
+      "_scopeCreep": true
     },
     {
       "id": "US-626",
@@ -3174,6 +3175,23 @@
       "passes": false,
       "_source": "ai-example",
       "model": "haiku"
+    },
+    {
+      "id": "US-631",
+      "title": "Phase R: Deduplicate Gemini Queries and Expose Cache Hit Rate via Dashboard",
+      "priority": "medium",
+      "description": "Implement research query caching in Phase R to skip duplicate Gemini API calls, reducing Phase R token spend and latency. Expose cache metrics via dashboard endpoint for cost visibility and efficiency tracking.",
+      "acceptanceCriteria": [
+        "Phase R caches Gemini queries by hash in .spiral/research-cache.json; skips API call if cache hit with age < 7 days; increments research_cache_hits column in results.tsv",
+        "Dashboard API endpoint GET /api/dashboard/research-cache returns JSON: {total_queries, cache_hits, cache_hit_rate: 0.XX, estimated_cost_saved_usd: X.XX, time_saved_sec: Y}",
+        "Integration test: verify cache deduplication skips 40%+ of duplicate queries; estimates cost savings matches actual token reduction in results.tsv for same 5-story batch run"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
     }
   ]
 }
