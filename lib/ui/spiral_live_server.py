@@ -33,7 +33,11 @@ import urllib.parse
 from asyncio import Queue
 from dataclasses import dataclass, field
 from html import escape
-from typing import List, Optional
+from typing import Any, List, Optional
+
+# research_source_scorer lives in lib/ (parent of lib/ui/)
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from research_source_scorer import extract_sources
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
@@ -336,6 +340,11 @@ class SpiralLiveServer:
             await self._handle_system_memory(writer)
             return
 
+        # --- Research sources (US-548) ---
+        if path.split("?")[0] == "/api/dashboard/research-sources" and method == "GET":
+            await self._handle_research_sources(path, writer)
+            return
+
         # --- Project dashboard ---
         m2 = re.match(r"^/([^/?]+)$", path)
         if m2 and method == "GET":
@@ -628,6 +637,35 @@ class SpiralLiveServer:
             "per_worker_budget_mb": per_worker_budget,
             "config_hints": hints,
         })
+
+    async def _handle_research_sources(self, path: str, writer: asyncio.StreamWriter) -> None:
+        """Return scored research sources from _research_output.json (US-548).
+
+        Reads .spiral/_research_output.json, extracts all URLs, scores them by
+        domain authority, and returns [{url, domain, credibility_score, mention_count}].
+        Supports ?project_name= to resolve project-specific scratch dir.
+        """
+        qs = path.partition("?")[2]
+        params = urllib.parse.parse_qs(qs)
+        project_name = params.get("project_name", [""])[0]
+
+        scratch_dir = ".spiral"
+        if project_name and project_name in self._projects:
+            root = self._projects[project_name].get("root", "")
+            if root:
+                scratch_dir = os.path.join(root, ".spiral")
+
+        research_file = os.path.join(scratch_dir, "_research_output.json")
+
+        try:
+            with open(research_file, encoding="utf-8") as f:
+                data: dict[str, Any] = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            await self._send_json(writer, 200, {"sources": [], "error": "No research output found"})
+            return
+
+        sources = extract_sources(data)
+        await self._send_json(writer, 200, {"sources": sources})
 
     async def _handle_index(self, writer: asyncio.StreamWriter) -> None:
         """Return HTML index listing registered projects."""

@@ -35,7 +35,7 @@ def test_api_workers_empty_when_no_workers(monkeypatch, tmp_path):
             pass
 
         try:
-            await server._handle_api_workers(MockWriter())
+            await server._handle_api_workers("/api/workers", MockWriter())
             assert len(captured) == 1
             status, data = captured[0]
             assert status == 200
@@ -80,7 +80,7 @@ def test_api_workers_returns_correct_schema(tmp_path):
                 pass
 
             try:
-                await server._handle_api_workers(MockWriter())
+                await server._handle_api_workers("/api/workers", MockWriter())
                 assert len(captured) == 1
                 status, data = captured[0]
                 assert status == 200
@@ -93,7 +93,7 @@ def test_api_workers_returns_correct_schema(tmp_path):
                 assert "current_story" in worker
                 assert "elapsed_time_sec" in worker
                 assert "state" in worker
-                assert worker["state"] in ("alive", "timeout")
+                assert worker["state"] in ("alive", "timeout", "queued")
             finally:
                 server._send_json = original_send_json
         finally:

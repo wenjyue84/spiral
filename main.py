@@ -24,6 +24,7 @@ Subcommands:
   replay                  Re-run a failed phase with DEBUG=1 and full state capture (US-539)
   phase-timing-report     Generate phase timing report with SLA breach analysis (US-546)
   analyze-failures        Categorize retry failure root causes and recommend tuning (US-547)
+  validate-commits        Detect orphan stories and squash-commit patterns (US-554)
   monitor                 Unified monitoring snapshot for progress checks
 """
 
@@ -2447,6 +2448,36 @@ def cmd_detect_anomalies(args) -> None:
 
     result = detect_anomalies(history_path, zscore_threshold=zscore_threshold)
     print(json.dumps(result, indent=2))
+
+
+def cmd_validate_commits(args) -> None:
+    """Detect orphan stories and squash-commit patterns (US-554).
+
+    Usage: spiral validate-commits --json [--prd prd.json] [--repo .]
+    """
+    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    from validate_commits import validate_commits  # type: ignore[import-untyped]
+
+    prd_path = getattr(args, "prd", "prd.json")
+    repo_path = getattr(args, "repo", ".")
+    output_format = getattr(args, "output_format", "json")
+
+    result = validate_commits(prd_path=prd_path, repo_path=repo_path)
+
+    if output_format == "json":
+        print(json.dumps(result, indent=2))
+    else:
+        print(f"Total passed stories: {result['total_stories']}")
+        print(f"Commits scanned: {result['total_commits_scanned']}")
+        print(f"Orphan stories ({len(result['orphans'])}): {', '.join(result['orphans']) or 'none'}")
+        if result["squash_patterns"]:
+            print(f"Squash-commit patterns ({len(result['squash_patterns'])}):")
+            for sp in result["squash_patterns"]:
+                print(f"  {sp['commit'][:12]}: {', '.join(sp['stories'])}")
+        else:
+            print("Squash-commit patterns: none")
+
+    sys.exit(1 if result["orphans"] else 0)
 
 
 def main():

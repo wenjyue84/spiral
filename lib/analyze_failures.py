@@ -224,7 +224,6 @@ class FailureAnalyzer:
         by_category: dict[str, int] = {}
         by_phase: dict[str, int] = {}
 
-        self._analyze_results_rows(rows)
         bc, bp = self._analyze_results_rows(rows)
         by_category.update(bc)
         by_phase.update(bp)
