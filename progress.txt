@@ -1,3 +1,23 @@
+## Iteration (verification session) - Story: US-634 Integration Test: SPIRAL End-to-End with Federated prd.json and Phase M Merge
+
+### What was implemented
+- US-634 was already complete in commit 90189536 with full implementation
+- tests/fixtures/federation/webapp/prd.json: 3 stories (US-web-001, US-web-002, US-web-003) with cross-project dependency on US-api-001
+- tests/fixtures/federation/api/prd.json: 3 stories (US-api-001, US-api-002, US-api-003) with internal dependency chain
+- tests/test_federated_integration.py: 10 comprehensive tests covering all three acceptance criteria
+  - AC1: Fixture loading, namespace prefix preservation (US-web-*, US-api-*)
+  - AC2: Phase M merge with sub_project field assignment, circular dependency detection, cross-project ordering
+  - AC3: results.tsv generation and aggregation with sub_project column
+
+### Verification results
+- All 10 integration tests pass: ✅
+- mypy --strict on test file: ✅ (no issues)
+- Story marked passes=true in prd.json: ✅
+- Pre-commit formatting applied (ruff lint/format): ✅
+
+### Next incomplete story
+- Highest priority incomplete: US-637 (Phase R: Parallelize Gemini Research by Sub-Project with Isolated Output Storage)
+
 ## Iteration - Story: US-629 CLI: spiral federated-status
 
 ### What was implemented
@@ -888,4 +908,96 @@ Commits created:
 - chore: Mark US-633 as passes=true
 - feat: US-634 mark federated integration test complete (13 tests, mypy fixed)
 - feat: US-636 mark federated workers distribution test complete (5 tests)
+
+
+## Pre-analysis for US-636 (Gemini 2.5 Pro)
+This appears to be a Python/Shell automation project, not a Frappe application. The brief is tailored to the provided story and file structure.
+
+**Project:** Spiral CI/Automation Framework
+**Goal:** Implement sub-project based worker isolation for parallel processing.
+
+**1. Primary Files to Modify:**
+*   `lib/run_parallel_ralph_federated.sh`: Core orchestration script for spawning workers. This is the main entry point for the change.
+*   `ralph/main.py` (or similar worker script): The Python script executed by each worker process, which will need to accept and use the sub-project context.
+*   A script responsible for generating `results.tsv` (likely called from the worker script or an aggregation script) needs modification.
+
+**2. Key Concepts (Not Frappe DocTypes):**
+*   **Data Source:** `prd.json`. This is the "document" containing the stories to be processed.
+*   **Trigger/Hook:** The execution of the `run_parallel_ralph_federated.sh` script.
+
+**3. Implementation Approach:**
+*   In `run_parallel_ralph_federated.sh`, use `jq` to parse the `sub_project` field for each story from `prd.json`.
+*   Modify the worker creation loop to construct namespaced `git worktree` paths (e.g., `.spiral/workers/worker-<sub_project>-<N>`).
+*   Pass the extracted `sub_project` value as an argument to the Python worker script it invokes.
+*   The Python worker script must be updated to filter the stories from `prd.json`, processing only those that match its assigned `sub_project`.
+*   Update the result logging logic to include the `sub_project` in the `results.tsv` output for traceability.
+
+**4. Edge Cases & Gotchas:**
+*   Handle stories where `sub_project` is null or missing; assign them to a default worker pool or raise an error.
+*   Ensure the worktree cleanup logic is updated to correctly discover and remove the new namespaced worker directories.
+*   Verify that file system paths used by workers are correctly relative to their isolated worktree to prevent cross-contamination.
+*   Confirm that `git` commands executed by the worker operate only within their designated sub-project's file scope.
+
+
+## Pre-analysis for US-637 (Gemini 2.5 Pro)
+### Technical Brief: US-637 - Parallel Gemini Research
+
+**Objective:** Refactor the Phase R research process to run in parallel for each sub-project defined in `prd.json` and store results with sub-project attribution.
+
+**1. Primary File Candidates:**
+- `lib/phases/phase_r_federated.py`: This is the most likely entry point for orchestration, mirroring the shell script in the acceptance criteria.
+- `lib/research.py` or `lib/gemini_client.py`: The core logic for making Gemini calls that will need to be invoked by the parallel processes.
+- `lib/project_loader.py` or similar: The module responsible for parsing `prd.json`.
+
+**2. Frappe Elements:**
+- No Frappe DocTypes or hooks are involved. This is a standalone Python/shell orchestration task.
+
+**3. Recommended Implementation:**
+1. In the primary orchestration file, load `prd.json` and extract the list of sub-projects.
+2. Use Python's `concurrent.futures.ProcessPoolExecutor` to create a pool of workers.
+3. For each sub-project, submit a task to the pool. This task should encapsulate the existing Gemini research logic.
+4. Pass the sub-project's name and file patterns into each task to create a scoped, contextual prompt.
+5. Each task should return the discovered stories. The main process then aggregates these results.
+6. Before writing to `_research_output.json`, iterate through the aggregated results and inject the `sub_project` field into each story object based on which task it came from.
+
+**4. Edge Cases & Gotchas:**
+- **Concurrency:** Ensure results are aggregated safely. Avoid having worker processes write to the final output file directly. Return results to the parent process for aggregation and a single final write.
+- **Error Handling:** A Gemini call for one sub-project failing should not halt the entire process. The parallel execution logic must gracefully handle exceptions and timeouts for individual tasks.
+- **Deduplication:** While a later phase (Phase M) handles deduplication, this phase is responsible for providing the necessary `sub_project` metadata. The field must be present on every story object in `_research_output.json`.
+- **Configuration:** The process must fail gracefully if the `sub_projects` list is missing or empty in `prd.json`.
+
+
+## Pre-analysis for US-636 (Gemini 2.5 Pro)
+Based on the user story JSON for the SPIRAL project, here is a technical brief for the implementation agent.
+
+**Project:** SPIRAL Worker Distribution
+**User Story:** US-636 - Distribute Federated Stories to Workers by Sub-Project
+
+**1. Primary Files for Modification:**
+
+*   `lib/run_parallel_ralph_federated.sh`: The core orchestrator. This script will need significant changes to parse the `sub_project` field from `prd.json`, group stories accordingly, and spawn workers into namespaced worktrees (e.g., `.spiral/workers/worker-api-N`).
+*   `spiral/worker.py` (Hypothesized): The main Python script defining the worker's execution logic. It must be adapted to accept a filtered set of stories for a single sub-project and ensure its file operations are constrained to that project's scope.
+*   `lib/ralph.py` (Hypothesized): If this contains story processing logic called by the worker, it will need to be aware of the sub-project context to prevent cross-project contamination.
+*   A results aggregation script (TBD): The script that generates `results.tsv` must be located and modified to add the `sub_project` column.
+
+**2. Key Data Structures / Interfaces (Analogous to DocTypes/Hooks):**
+
+*   **Data Structure:** The Story JSON object within the `prd.json` file. The schema is being extended with the `sub_project` field.
+*   **Interfaces:** The contract between `run_parallel_ralph_federated.sh` and the Python worker it executes. This involves how the filtered list of stories is passed (e.g., stdin, temp file) and how sub-project context is provided (e.g., environment variable).
+
+**3. Recommended Implementation Approach:**
+
+1.  In `run_parallel_ralph_federated.sh`, use `jq` to parse `prd.json`, group stories by `sub_project`, and create a list of unique sub-projects.
+2.  Refactor the main execution loop to iterate over each unique sub-project.
+3.  Inside the loop, dynamically create isolated git worktrees using the naming convention `worker-{sub_project}-{N}`.
+4.  Spawn a pool of workers for that sub-project, passing only the corresponding stories.
+5.  Pass the `sub_project` name to the worker process as an environment variable (`SPIRAL_SUB_PROJECT`).
+6.  The worker script should use this variable to tag its output in `results.tsv`.
+
+**4. Edge Cases & Gotchas:**
+
+*   **Nil `sub_project`:** Stories may lack a `sub_project` field. A default behavior is required, such as routing them to a `worker-default-N` pool or raising an error.
+*   **Worktree Cleanup:** The cleanup logic in `run_parallel_ralph_federated.sh` must be updated to correctly remove the new, namespaced worktree directories.
+*   **Cross-Project Dependencies:** The design assumes sub-projects are independent. If stories can have dependencies across sub-projects, the entire model may be invalid. This is a critical assumption to validate.
+*   **File Path Validation:** The acceptance criteria require verifying no cross-project file changes. The worker should enforce path restrictions during file operations, not just rely on post-run `git diff`.
 
