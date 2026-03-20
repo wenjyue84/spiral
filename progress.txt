@@ -303,3 +303,60 @@ This user story concerns a Python CLI tool, not a Frappe application. The implem
 
 ### Gotchas
 - tests/pyproject.toml sets --dist loadscope -n auto which requires xdist; run individual tests with python -m pytest -p no:xdist or invoke directly
+
+## Pre-analysis for US-597 (Gemini 2.5 Pro)
+This technical brief is based on the provided JSON for story `US-597`. Note that the story pertains to a command-line-driven workflow automation tool, not a Frappe/Python application as mentioned in the prompt's preamble.
+
+**Project:** Internal Workflow Automation Tool ("Spiral"/"Ralph")
+**Story:** US-597: File-Aware Retry Strategy
+
+---
+
+### **Technical Implementation Brief**
+
+**1. Python Files to Modify:**
+*   **`lib/analyze_failures.py` (High Confidence):** This is the likely candidate for adding the logic to parse Ralph's `stderr`. It will need a regex to extract failing file paths and then write them as a JSON array into the `results.tsv` `failed_files` column.
+*   **A "Phase I" orchestrator script (e.g., `lib/run_story.py`, `main.py`):** The script that executes the initial Ralph process needs to ensure `stderr` is captured to a log file for `analyze_failures.py` to process.
+
+**2. Involved Hooks/DocTypes:**
+*   **Frappe/ERPNext:** None. This is a shell and Python-based CLI tool.
+*   **Project-Specific:** `lib/impl/retry.sh` is the key shell script hook for implementing the retry logic.
+
+**3. Recommended Approach:**
+1.  In `analyze_failures.py`, add a function to read the Ralph `stderr` log. Use a regex pattern to find and collect all unique file paths associated with failure messages.
+2.  Update the `results.tsv` writing logic to append the collected list of files as a JSON formatted string in a new `failed_files` column.
+3.  In `lib/impl/retry.sh`, read the `failed_files` column from the previous attempt in `results.tsv`.
+4.  Use `jq` (preferred) or shell commands to parse the JSON array. If the array is not empty, invoke Ralph with a `--files-only` flag followed by the list of failed files.
+5.  If `failed_files` is empty or absent, the script should fall back to the existing full retry mechanism.
+
+**4. Edge Cases & Gotchas:**
+*   **JSON in Shell:** Parsing JSON in `retry.sh` can be fragile without `jq`. Verify if `jq` is a project dependency; if not, the shell parsing logic must be simple and robust.
+*   **No File-Specific Failures:** The retry logic must handle cases where a run fails without specific file errors (e.g., timeout). It should gracefully fall back to a full retry.
+*   **Argument Formatting:** The exact syntax for passing files to the `--files-only` flag (e.g., space-delimited, comma-delimited) must be verified.
+
+
+## Pre-analysis for US-597 (Gemini 2.5 Pro)
+Here is the technical brief for implementing story US-597.
+
+### Technical Brief: US-597 File-Aware Retry Strategy
+
+**1. Primary Files to Modify:**
+*   **`lib/implement_story.py`**: This is the likely orchestrator for "Phase I." It will need to be modified to capture `stderr` from the "Ralph" subprocess, parse it for file-level error patterns, and record the findings.
+*   **`lib/impl/retry.sh`**: This shell script contains the core retry logic. It must be updated to read the new `failed_files` data and conditionally add the `--files-only` flag to the new Ralph execution command.
+
+**2. Frappe DocTypes / Hooks:**
+*   None. The project is a Python command-line application, not a Frappe application. No DocTypes or Frappe-specific hooks are involved.
+
+**3. Recommended Implementation Approach:**
+1.  In `lib/implement_story.py`, when invoking the implementation subprocess, capture its `stderr`.
+2.  Use Python's `re` module to parse the `stderr` content for error messages that explicitly name source files. Aggregate these into a Python list.
+3.  Modify the function that writes to `results.tsv` to add a new `failed_files` column. Store the list of failed files as a JSON-formatted string (e.g., `["src/main.py"]`).
+4.  In `lib/impl/retry.sh`, use a tool like `awk` or `cut` to read the `failed_files` column from the last entry in `results.tsv`.
+5.  If the field is not empty, re-invoke the implementation command with a new `--files-only` flag, passing the extracted file paths as arguments.
+
+**4. Edge Cases & Gotchas:**
+*   **Global vs. File-Specific Failures:** The retry logic must differentiate between a global failure (e.g., environment crash, timeout) and failures tied to specific files. The `--files-only` strategy should only be used for the latter.
+*   **Regex Brittleness:** The regex for parsing file paths from `stderr` must be robust enough to handle various error formats and avoid false positives.
+*   **Schema Changes:** Any other scripts that consume `results.tsv` may need to be updated to handle the new `failed_files` column.
+*   **Empty `failed_files`:** The `retry.sh` script must gracefully handle cases where `failed_files` is empty (`[]`) and default to the original, full re-implementation logic.
+
