@@ -61,17 +61,40 @@ worker_heartbeat_start() {
       local ts
       ts=$(date +%s)
       local pid=$$
-      # Get memory usage in MB (cross-platform)
+      # Get memory usage in MB (cross-platform) — bash wrapper process
       local mem_mb=0
       if command -v powershell.exe &>/dev/null; then
         mem_mb=$(powershell.exe -Command "[math]::Floor((Get-Process -Id $pid -ErrorAction SilentlyContinue).WorkingSet64 / 1MB)" 2>/dev/null | tr -d '\r') || mem_mb=0
       elif [[ -f "/proc/$pid/status" ]]; then
         mem_mb=$(awk '/VmRSS/{printf "%d", $2/1024}' "/proc/$pid/status" 2>/dev/null) || mem_mb=0
       fi
+      # Get actual Node.js child process RSS (the Claude CLI uses most of the memory)
+      local node_mem_mb=0
+      local node_pid=0
+      if command -v powershell.exe &>/dev/null; then
+        # Windows: find child node.exe process by parent PID
+        local _node_info
+        _node_info=$(powershell.exe -NoProfile -Command "
+          \$p = Get-WmiObject Win32_Process -Filter \"ParentProcessId=$pid AND Name='node.exe'\" -ErrorAction SilentlyContinue | Select-Object -First 1;
+          if (\$p) { \"{0} {1}\" -f \$p.ProcessId, [math]::Floor(\$p.WorkingSetSize / 1MB) }
+        " 2>/dev/null | tr -d '\r') || _node_info=""
+        if [[ -n "$_node_info" ]]; then
+          node_pid="${_node_info%% *}"
+          node_mem_mb="${_node_info##* }"
+        fi
+      elif [[ -d "/proc/$pid" ]]; then
+        # Linux: find child node process via pgrep
+        local _child_pid
+        _child_pid=$(pgrep -P "$pid" -x node 2>/dev/null | head -1) || _child_pid=""
+        if [[ -n "$_child_pid" && -f "/proc/$_child_pid/status" ]]; then
+          node_pid="$_child_pid"
+          node_mem_mb=$(awk '/VmRSS/{printf "%d", $2/1024}' "/proc/$_child_pid/status" 2>/dev/null) || node_mem_mb=0
+        fi
+      fi
       # Write heartbeat JSON atomically (temp + mv prevents partial reads by monitor)
       local hb_tmp="${hb_file}.tmp"
-      printf '{"pid":%s,"storyId":"%s","ts":%s,"completed":%s,"phase":"%s","memMb":%s,"last_progress_time":%s}\n' \
-        "$pid" "$current_story_id" "$ts" "$completed" "$phase" "${mem_mb:-0}" "$_last_progress_ts" >"$hb_tmp" 2>/dev/null &&
+      printf '{"pid":%s,"storyId":"%s","ts":%s,"completed":%s,"phase":"%s","memMb":%s,"nodeMemMb":%s,"nodePid":%s,"last_progress_time":%s}\n' \
+        "$pid" "$current_story_id" "$ts" "$completed" "$phase" "${mem_mb:-0}" "${node_mem_mb:-0}" "${node_pid:-0}" "$_last_progress_ts" >"$hb_tmp" 2>/dev/null &&
         mv "$hb_tmp" "$hb_file" 2>/dev/null || true
       # US-531: Warn if worker has made no progress for longer than SPIRAL_WORKER_TIMEOUT
       local _wt_timeout="${SPIRAL_WORKER_TIMEOUT:-300}"

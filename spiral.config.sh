@@ -98,6 +98,22 @@ SPIRAL_STORY_PREFIX="US"
 # parallel = legacy mode: all workers run simultaneously regardless of dependencies
 SPIRAL_DISPATCH_MODE="${SPIRAL_DISPATCH_MODE:-dag}"
 
+# ── Dynamic memory pool (per-story reservation) ──────────────────────────────
+# When true, workers dynamically reserve memory from a shared pool based on
+# story complexity (model tier) instead of using a static 2048MB budget.
+# false = legacy static _PER_WORKER_MB=2048 behavior (zero change).
+SPIRAL_MEMORY_POOL="${SPIRAL_MEMORY_POOL:-true}"
+# RAM excluded from pool for OS + orchestrator overhead (MB)
+SPIRAL_POOL_RESERVE_MB="${SPIRAL_POOL_RESERVE_MB:-1024}"
+# Per-tier reservation sizes (MB)
+SPIRAL_POOL_TIER_SMALL="${SPIRAL_POOL_TIER_SMALL:-768}"     # haiku, score 0-1
+SPIRAL_POOL_TIER_MEDIUM="${SPIRAL_POOL_TIER_MEDIUM:-1536}"  # sonnet, score 2-4
+SPIRAL_POOL_TIER_LARGE="${SPIRAL_POOL_TIER_LARGE:-2560}"    # opus, score 5+, retries >= 2
+# V8 heap as percentage of reservation (remainder = non-heap overhead)
+SPIRAL_POOL_V8_HEAP_FRACTION="${SPIRAL_POOL_V8_HEAP_FRACTION:-65}"
+# Interval (seconds) for reclaiming reservations from dead worker PIDs
+SPIRAL_POOL_RECLAIM_INTERVAL="${SPIRAL_POOL_RECLAIM_INTERVAL:-30}"
+
 # ── Capacity limit: skip Phase R when pending stories exceed this ─────────────
 # Prevents flooding prd.json during aggressive non-stop runs.
 # Tightened to 15: at ~3-5 completions/iter, Phase R only runs when backlog is

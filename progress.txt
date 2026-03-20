@@ -257,3 +257,32 @@ COST CEILING: Dashboard Endpoint - Research Source Authority Tracking (US-548) â
 
 ### Gotchas
 - Story implementation was already complete in a prior iteration; this iteration only verified and marked as passing
+
+## Pre-analysis for US-564 (Gemini 2.5 Pro)
+### Claude Code Agent Technical Brief: US-564
+
+**Project:** Spiral Python Application
+**Objective:** Implement integration tests for the mock Claude client fixture library (from US-476).
+
+**Analysis:**
+This story focuses on testing, not feature implementation. The goal is to validate that a previously-built mock client for "Claude" services works correctly for both successful and failed API interactions, ensuring tests that use it are fast and hermetic (no real network calls).
+
+**Files to Modify:**
+1.  `tests/conftest.py`: To add a new `pytest` fixture named `mock_claude_client`. This fixture will be responsible for patching the HTTP transport layer and injecting pre-recorded API responses.
+2.  `tests/test_us476_integration.py`: A new test file to house the integration tests that consume the `mock_claude_client` fixture.
+
+**Frappe/Python Components:**
+*   This user story does not involve the Frappe framework. The context is a pure Python test suite using `pytest`.
+
+**Implementation Approach:**
+1.  In `tests/conftest.py`, create a `mock_claude_client` fixture using `pytest.monkeypatch` to intercept `httpx` or `requests` at a low level.
+2.  The fixture should load mock API responses (JSON) from files delivered by US-476.
+3.  In `tests/test_us476_integration.py`, create at least two tests:
+    *   `test_mock_research_phase_happy_path`: Uses the fixture to simulate a successful "Phase R" API call and asserts that the application correctly parses the response.
+    *   `test_mock_client_error_response`: Configures the mock to return an error (e.g., HTTP 429 or malformed JSON) and asserts the application handles it gracefully.
+
+**Gotchas & Edge Cases:**
+*   **Network Hermeticity:** Ensure tests fail if any real network call is attempted. Patching the transport layer (`socket` or `httpx.Client`) is critical.
+*   **Fixture Scope:** The fixture should be function-scoped to ensure tests are isolated and can configure different mock responses independently.
+*   **Performance:** Tests must complete quickly (<10s), so avoid any `sleep` calls or I/O-heavy operations within the mock setup.
+

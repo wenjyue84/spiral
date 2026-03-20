@@ -5,11 +5,13 @@ Exposes:
 - GET /health — Health check endpoint
 - GET /profile — Phase duration analytics endpoint
 - GET /api/timeline — Story timeline endpoint with phase swimlanes
+- GET /api/dashboard/research-sources — Research source credibility tracking endpoint
 - WebSocket /ws/cost — Real-time cost delta streaming endpoint
 - WebSocket /ws/timeline — Real-time phase transition events
 """
 
 import csv
+import json
 import logging
 import os
 from pathlib import Path
@@ -21,6 +23,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
 from ..analyze_results import parse_research_cache
+from ..research_source_scorer import extract_sources
 from .cost_broadcaster import get_manager
 from .timeline import get_timeline_manager, parse_timeline
 
@@ -33,16 +36,12 @@ app = FastAPI(title="SPIRAL Dashboard API", version="1.0.0")
 class _APIKeyMiddleware(BaseHTTPMiddleware):
     """Optional API key auth activated when SPIRAL_DASHBOARD_API_KEY env var is set."""
 
-    async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         api_key = os.environ.get("SPIRAL_DASHBOARD_API_KEY")
         if api_key and request.url.path != "/health":
             provided = request.headers.get("X-API-Key", "")
             if not provided:
-                return JSONResponse(
-                    {"detail": "Authentication required"}, status_code=401
-                )
+                return JSONResponse({"detail": "Authentication required"}, status_code=401)
             if provided != api_key:
                 return JSONResponse({"detail": "Forbidden"}, status_code=403)
         return await call_next(request)
@@ -195,6 +194,65 @@ async def research_cache_endpoint(
     """
     results_path = Path(".spiral/results.tsv")
     return parse_research_cache(results_path, start_iteration, end_iteration)
+
+
+@app.get("/api/dashboard/research-sources")
+async def research_sources_endpoint() -> dict[str, Any]:
+    """Research Source Authority Tracking Endpoint.
+
+    Extracts research URLs from _research_output.json and scores them by domain credibility.
+    Returns array of sources with credibility scores and mention counts.
+
+    Returns JSON array:
+        [{
+            "url": "https://example.com/article",
+            "domain": "example.com",
+            "credibility_score": 80,
+            "mention_count": 3
+        }]
+
+    Sorting:
+        - By credibility_score descending (then mention_count descending)
+    """
+    research_output_path = Path(".spiral/_research_output.json")
+    results_path = Path(".spiral/research_sources.json")
+
+    # Handle missing research output file
+    if not research_output_path.exists():
+        return {"sources": [], "total_sources": 0, "message": "No research output available"}
+
+    try:
+        # Load research output
+        with open(research_output_path, "r", encoding="utf-8") as f:
+            research_data = json.load(f)
+
+        # Extract and score sources
+        sources = extract_sources(research_data)
+
+        # Persist results
+        results_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(results_path, "w", encoding="utf-8") as f:
+            json.dump(sources, f, indent=2)
+
+        return {
+            "sources": sources,
+            "total_sources": len(sources),
+        }
+
+    except json.JSONDecodeError as e:
+        logger.error(f"[/api/dashboard/research-sources] Malformed JSON in _research_output.json: {e}")
+        return {
+            "sources": [],
+            "total_sources": 0,
+            "error": f"Malformed JSON in research output: {str(e)}",
+        }
+    except Exception as e:
+        logger.error(f"[/api/dashboard/research-sources] Error processing research sources: {e}")
+        return {
+            "sources": [],
+            "total_sources": 0,
+            "error": f"Error processing research sources: {str(e)}",
+        }
 
 
 @app.websocket("/ws/cost")
