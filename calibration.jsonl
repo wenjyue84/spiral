@@ -78,3 +78,4 @@
 {"story_id": "US-620", "estimated_complexity": "small", "actual_duration_s": 1206, "phase_retries": 0, "passed": true}
 {"story_id": "US-620", "estimated_complexity": "small", "actual_duration_s": 1203, "phase_retries": 0, "passed": true}
 {"story_id": "US-620", "estimated_complexity": "small", "actual_duration_s": 605, "phase_retries": 0, "passed": true}
+{"story_id": "US-625", "estimated_complexity": "small", "actual_duration_s": 603, "phase_retries": 0, "passed": true}

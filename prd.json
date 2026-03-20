@@ -3085,7 +3085,8 @@
       "passes": true,
       "_source": "ai-example",
       "model": "sonnet",
-      "last_attempted": "2026-03-20T17:25:17Z"
+      "last_attempted": "2026-03-20T17:25:17Z",
+      "_scopeCreep": true
     },
     {
       "id": "US-625",
