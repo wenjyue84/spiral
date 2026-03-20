@@ -1,3 +1,17 @@
+## Iteration - Story: US-567 [Security Test] Auth/Permission Access Control for US-516
+
+### What was implemented
+- Tests in `tests/test_security_us516.py` already existed and passed (6/6) from attempt 1
+- Previous attempt failed only due to missing diagnosis block in output, not code issues
+- Verified all tests pass, marked story as complete
+
+### Patterns discovered
+- Ralph diagnosis block gate is strict: must output `## Current State`, `## Problem Identified`, `## Planned Changes` BEFORE any file edits
+- When a story's code is already committed and passing, the retry just needs the diagnosis block + prd.json update
+
+### Gotchas
+- The diagnosis block must appear as plain text output, not inside tool calls
+
 ## Iteration - Story: US-545 Phase M File Conflict Detection
 
 ### What was implemented
@@ -409,3 +423,6 @@ This story focuses on testing, not feature implementation. The goal is to valida
 - [x] JSON report never contains sensitive keys (token, password, secret, key)
 - [x] Path-traversal rejected safely without traceback
 - [x] All pytest tests passing (14/14, strict mypy, ruff clean)
+## Iteration 1 - Fri, Mar 20, 2026 12:47:20 PM
+FAILED diagnosis-block gate: [Security Test] Auth/Permission Access Control for US-516 (ID: US-567) — no diagnosis block found — attempt 1/3
+
