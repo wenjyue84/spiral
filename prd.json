@@ -1379,7 +1379,23 @@
         "US-529",
         "US-530"
       ],
-      "_scopeCreep": true
+      "_scopeCreep": true,
+      "filesTouch": [
+        ".claude/hooks/verify_story_acceptance.py",
+        ".coverage",
+        ".hypothesis/constants/006b559781a41f7f",
+        ".hypothesis/constants/0144005a67236799",
+        ".hypothesis/constants/0158f9921b55208e",
+        ".hypothesis/constants/016af87f794a90e9",
+        ".hypothesis/constants/0175637d9e298755",
+        ".hypothesis/constants/01831d6f995783ed",
+        ".hypothesis/constants/02fb3c1b426206d7",
+        ".hypothesis/constants/031f85f1c11bb00b"
+      ],
+      "tags": [
+        "module-claude",
+        "module-hypothesis"
+      ]
     },
     {
       "id": "US-529",
@@ -1654,8 +1670,24 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "sonnet",
+      "filesTouch": [
+        ".claude/hooks/verify_story_acceptance.py",
+        ".coverage",
+        ".hypothesis/constants/0158f9921b55208e",
+        ".hypothesis/constants/06ee3234b07f7d66",
+        ".hypothesis/constants/112c210229744ab1",
+        ".hypothesis/constants/1a93c1a1253860b2",
+        ".hypothesis/constants/2cf6891b5730a748",
+        ".hypothesis/constants/3bb7609da5383a57",
+        ".hypothesis/constants/44cff0c791cabb68",
+        ".hypothesis/constants/4a8d40f0348540d7"
+      ],
+      "tags": [
+        "module-claude",
+        "module-hypothesis"
+      ]
     },
     {
       "id": "US-548",
@@ -1671,7 +1703,22 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
-      "model": "sonnet"
+      "model": "haiku",
+      "filesTouch": [
+        ".hypothesis/constants/0144005a67236799",
+        ".hypothesis/constants/016af87f794a90e9",
+        ".hypothesis/constants/01831d6f995783ed",
+        ".hypothesis/constants/044aa4a97dd3204b",
+        ".hypothesis/constants/06ee3234b07f7d66",
+        ".hypothesis/constants/087180ea5c6680fc",
+        ".hypothesis/constants/0ad243c8c6e11ffb",
+        ".hypothesis/constants/0dcb44a91ae6f1ae",
+        ".hypothesis/constants/11806e59ccbb8120",
+        ".hypothesis/constants/15647f5536a392c4"
+      ],
+      "tags": [
+        "module-hypothesis"
+      ]
     },
     {
       "id": "US-553",
@@ -1705,7 +1752,23 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
-      "model": "haiku"
+      "model": "haiku",
+      "filesTouch": [
+        ".github/actions/lint-shell/action.yml",
+        ".github/actions/setup-uv/action.yml",
+        ".github/workflows/ci.yml",
+        ".github/workflows/release.yml",
+        ".github/workflows/spiral.yml",
+        ".hypothesis/constants/006b559781a41f7f",
+        ".hypothesis/constants/0158f9921b55208e",
+        ".hypothesis/constants/0175637d9e298755",
+        ".hypothesis/constants/02fb3c1b426206d7",
+        ".hypothesis/constants/031f85f1c11bb00b"
+      ],
+      "tags": [
+        "module-github",
+        "module-hypothesis"
+      ]
     },
     {
       "id": "US-555",
@@ -1721,7 +1784,23 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
-      "model": "haiku"
+      "model": "haiku",
+      "filesTouch": [
+        ".claude/hooks/verify_story_acceptance.py",
+        ".coverage",
+        ".hypothesis/constants/0144005a67236799",
+        ".hypothesis/constants/016af87f794a90e9",
+        ".hypothesis/constants/01831d6f995783ed",
+        ".hypothesis/constants/044aa4a97dd3204b",
+        ".hypothesis/constants/06ee3234b07f7d66",
+        ".hypothesis/constants/087180ea5c6680fc",
+        ".hypothesis/constants/0ad243c8c6e11ffb",
+        ".hypothesis/constants/0dcb44a91ae6f1ae"
+      ],
+      "tags": [
+        "module-claude",
+        "module-hypothesis"
+      ]
     },
     {
       "id": "US-556",
@@ -1737,87 +1816,23 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-557",
-      "title": "Worker Performance Profiler CLI: Analyze Per-Worker Success Rate and Token Efficiency",
-      "priority": "medium",
-      "description": "Extract performance metrics from results.tsv grouped by worker ID: compute per-worker success rate, average story duration, tokens per story, and model escalation distribution. Expose via CLI to inform load balancing and detect underperforming workers.",
-      "acceptanceCriteria": [
-        "lib/worker_profiler.py aggregates results.tsv by worker_id with success/failure counts, avg duration, and tokens-per-story calculations (≥90% accuracy)",
-        "CLI command 'spiral worker-profile --iteration N --output json' returns JSON with success_rate, avg_duration_seconds, tokens_per_story, and model_distribution per worker",
-        "tests/test_worker_profiler.py validates metric calculations against mock results.tsv with 3+ workers across haiku/sonnet/opus models"
+      "model": "haiku",
+      "filesTouch": [
+        ".claude/hooks/verify_story_acceptance.py",
+        ".coverage",
+        ".hypothesis/constants/006b559781a41f7f",
+        ".hypothesis/constants/0158f9921b55208e",
+        ".hypothesis/constants/0175637d9e298755",
+        ".hypothesis/constants/02fb3c1b426206d7",
+        ".hypothesis/constants/031f85f1c11bb00b",
+        ".hypothesis/constants/03d65cf548ce3b23",
+        ".hypothesis/constants/0628f2618034526e",
+        ".hypothesis/constants/06ee3234b07f7d66"
       ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-558",
-      "title": "CLI: Export Results to CSV with Per-Story and Per-Phase Breakdown",
-      "priority": "medium",
-      "description": "Export results.tsv and prd.json data to CSV format for analysis in Excel/Sheets. Enable non-technical stakeholders to track costs, duration, and retry patterns across iterations.",
-      "acceptanceCriteria": [
-        "Implement lib/export_results.py with export_to_csv(results_tsv, prd_json, output_file) function. Merge results.tsv with prd.json story titles. Output columns: story_id, title, iteration, phase, model, tokens, duration, cost, retry_count, status. Include summary rows for totals per iteration.",
-        "Wire CLI command spiral export-results --format csv --output results.csv (defaults to results_export.csv). Add flags: --per-phase (one CSV per phase) and --per-model (breakdown by model). Validate output file exists and is valid CSV.",
-        "Integration test in tests/test_export_results.py: create mock 10-story results.tsv and prd.json, export to CSV, verify 10 data rows + summary, assert token/cost totals match results.tsv sums, and validate CSV can be parsed by csv.DictReader."
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-559",
-      "title": "Research Query Deduplication Analyzer: spiral research-dedup-stats CLI",
-      "priority": "medium",
-      "description": "Analyze phase_research_output.json files across iterations to identify duplicate Gemini API queries and quantify cache opportunity. Generates deduplication report with per-query frequency and estimated token savings to optimize Phase R.",
-      "acceptanceCriteria": [
-        "CLI command spiral research-dedup-stats [--iteration N] parses .spiral/iteration-*/phase-research-output.json files and outputs JSON with {total_queries, unique_queries, duplicate_ratio, estimated_tokens_saved}",
-        "Generates CSV export with columns: query_text, frequency, iterations_seen, first_seen, last_seen for manual cache strategy review",
-        "Identifies queries appearing 3+ times with estimated 30% token reduction per duplicate cache hit"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-560",
-      "title": "Dashboard Endpoint: GET /api/system/health — Real-Time SPIRAL System Status & Uptime",
-      "priority": "medium",
-      "description": "Add HTTP health check endpoint to dashboard exposing SPIRAL system state: uptime, last iteration timestamp, active worker pool size, and current phase. Used by monitoring systems and UI status indicators to detect dashboard/SPIRAL stalls.",
-      "acceptanceCriteria": [
-        "Endpoint returns JSON: {status: 'healthy'|'degraded', uptime_seconds: N, last_spiral_run_timestamp: ISO8601, worker_count: N, current_phase: string|null}; read _checkpoint.json to populate phase and iteration_id",
-        "Query worker heartbeat lock files from .spiral-workers/worker-*/heartbeat.txt to populate current worker_count; mark status 'degraded' if any worker heartbeat is stale (> 2 min old)",
-        "Add integration test: mock checkpoint and heartbeat files, call GET /api/system/health, verify response matches schema and status logic (healthy if all workers active, degraded if any stale)"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-561",
-      "title": "Phase S Integration Test: Validate Story Consensus with Mocked Claude Batches API",
-      "priority": "medium",
-      "description": "Add integration test for Phase S (story validation consensus) using mocked Claude Message Batches API. Tests batch grouping, request construction, response parsing, and consensus scoring. Validates Phase S logic without consuming API quota and enables fast iteration on validation algorithms.",
-      "acceptanceCriteria": [
-        "New file tests/test_phase_s_batches.py with mock.patch on claude.messages.batches.create; fixture tests/fixtures/batch_responses.json contains 3+ realistic batch request/response pairs",
-        "Test test_phase_s_consensus_scoring: 10 stories → 2 batches (mocked) → _validated_stories.json with consensus scores within expected range (no <0, no >1.0)",
-        "CLI: uv run pytest tests/test_phase_s_batches.py -v passes with ≥85% line coverage of lib/phases/phase_s*.py (no external API calls)"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
+      "tags": [
+        "module-claude",
+        "module-hypothesis"
+      ]
     },
     {
       "id": "US-562",
@@ -1833,57 +1848,6 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "_source": "ai-example",
-      "model": "sonnet"
-    },
-    {
-      "id": "US-563",
-      "title": "CLI: spiral detect-phase-regression — Alert on Phase Timing Deviations from Baseline",
-      "priority": "medium",
-      "description": "Implement phase timing regression detector that tracks phase duration across iterations and alerts when any phase exceeds 120% of rolling 10-iteration average. Stores baseline in .spiral/phase_baselines.json. Runs post-Phase C to flag performance regressions before they compound.",
-      "acceptanceCriteria": [
-        "lib/phase_regression.py::check_phase_regression(phase_name: str, actual_duration_ms: int) reads .spiral/phase_baselines.json, computes rolling avg (last 10), returns (is_regressed: bool, pct_over_baseline: float, previous_avg_ms: int)",
-        "CLI spiral detect-phase-regression outputs JSON {regressions: [{phase, actual_ms, baseline_avg_ms, pct_over, status: 'normal'|'warning'|'critical'}]}. Exit code 0 (ok) or 1 (warning/critical) detected.",
-        "Integration test: run 3 iterations with mock phase timings, verify baselines learned correctly, assert regression detected when Phase S takes 2x rolling average, no false positives on normal variance"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "sonnet"
-    },
-    {
-      "id": "US-564",
-      "title": "Phase G Artifact Caching: Skip Regeneration on Unchanged Stories",
-      "priority": "medium",
-      "description": "Optimize Phase G by caching git-cliff CHANGELOG.md and pdoc API docs. When a story's git tree hash matches a cached version, Phase G skips regeneration and reuses artifacts. Reduces Phase G latency on projects with hundreds of stories where documentation regeneration is expensive.",
-      "acceptanceCriteria": [
-        "Cache layer at `.spiral/_phase-g-cache/` stores CHANGELOG.md, api.html keyed by (story_id, git_tree_hash); implement cache_key_from_story() and load_phase_g_cache() in lib/phase_g.py",
-        "Phase G checks cache before invoking git-cliff/pdoc; if hit found, loads artifact instead of regenerating",
-        "Integration test verifies cache prevents redundant generation: run Phase G twice with unchanged stories, confirm pdoc/git-cliff skipped on 2nd iteration"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "sonnet"
-    },
-    {
-      "id": "US-565",
-      "title": "Federated Results Aggregation: Global Cost Dashboard Across Sub-Projects",
-      "priority": "medium",
-      "description": "Enable cost visibility across multi-repo SPIRAL projects. Implement CLI command and dashboard endpoint to aggregate results.tsv from all sub-projects, showing consolidated token spend, cost by model, and per-project breakdown. Required for monitoring federated SPIRAL deployments.",
-      "acceptanceCriteria": [
-        "CLI command `spiral aggregate-results <root-prd.json>` scans sub-project paths from prd.json, reads results.tsv from each, outputs JSON with {total_cost, total_tokens, by_model, by_project} to stdout",
-        "Dashboard endpoint `GET /api/metrics/aggregated` returns aggregated metrics; UI renders cost distribution pie chart and per-project cost table in new 'Federated Metrics' tab",
-        "Integration test runs SPIRAL on 2 sub-projects with 10 stories total, verifies aggregated cost equals sum of individual sub-project costs"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
       "_source": "ai-example",
       "model": "sonnet"
     }
