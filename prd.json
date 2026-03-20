@@ -1941,7 +1941,10 @@
       ],
       "tags": [
         "module-claude",
-        "module-hypothesis"
+        "module-hypothesis",
+        "module-lib",
+        "module-ralph",
+        "module-tests"
       ]
     },
     {
@@ -2526,7 +2529,23 @@
       "passes": false,
       "_source": "test-story",
       "model": "haiku",
-      "last_attempted": "2026-03-20T10:19:13Z"
+      "last_attempted": "2026-03-20T10:19:13Z",
+      "filesTouch": [
+        ".claude/hooks/verify_story_acceptance.py",
+        ".coverage",
+        ".hypothesis/constants/0144005a67236799",
+        ".hypothesis/constants/016af87f794a90e9",
+        ".hypothesis/constants/01831d6f995783ed",
+        ".hypothesis/constants/044aa4a97dd3204b",
+        ".hypothesis/constants/06ee3234b07f7d66",
+        ".hypothesis/constants/087180ea5c6680fc",
+        ".hypothesis/constants/0ad243c8c6e11ffb",
+        ".hypothesis/constants/0dcb44a91ae6f1ae"
+      ],
+      "tags": [
+        "module-claude",
+        "module-hypothesis"
+      ]
     },
     {
       "id": "US-589",
@@ -2543,7 +2562,22 @@
       "estimatedComplexity": "small",
       "passes": false,
       "_source": "ai-example",
-      "model": "sonnet"
+      "model": "sonnet",
+      "filesTouch": [
+        ".hypothesis/constants/0144005a67236799",
+        ".hypothesis/constants/0158f9921b55208e",
+        ".hypothesis/constants/016af87f794a90e9",
+        ".hypothesis/constants/01831d6f995783ed",
+        ".hypothesis/constants/044aa4a97dd3204b",
+        ".hypothesis/constants/06ee3234b07f7d66",
+        ".hypothesis/constants/087180ea5c6680fc",
+        ".hypothesis/constants/0ad243c8c6e11ffb",
+        ".hypothesis/constants/0dcb44a91ae6f1ae",
+        ".hypothesis/constants/112c210229744ab1"
+      ],
+      "tags": [
+        "module-hypothesis"
+      ]
     },
     {
       "id": "US-590",
@@ -2560,7 +2594,23 @@
       "estimatedComplexity": "small",
       "passes": false,
       "_source": "ai-example",
-      "model": "haiku"
+      "model": "haiku",
+      "filesTouch": [
+        ".claude/hooks/verify_story_acceptance.py",
+        ".claude/scheduled_tasks.lock",
+        ".coverage",
+        ".hypothesis/constants/006b559781a41f7f",
+        ".hypothesis/constants/0144005a67236799",
+        ".hypothesis/constants/016af87f794a90e9",
+        ".hypothesis/constants/0175637d9e298755",
+        ".hypothesis/constants/01831d6f995783ed",
+        ".hypothesis/constants/02fb3c1b426206d7",
+        ".hypothesis/constants/031f85f1c11bb00b"
+      ],
+      "tags": [
+        "module-claude",
+        "module-hypothesis"
+      ]
     },
     {
       "id": "US-591",
@@ -2577,75 +2627,22 @@
       "estimatedComplexity": "medium",
       "passes": false,
       "_source": "ai-example",
-      "model": "haiku"
-    },
-    {
-      "id": "US-592",
-      "title": "Dashboard Endpoint: GET /api/dashboard/stories/:story_id/timeline Returns Retry Attempt History",
-      "priority": "medium",
-      "description": "Add dashboard API endpoint that returns detailed retry/attempt history for a story, including phase transitions, model escalation path, tokens consumed, and failure reasons. Supports debugging story implementation failures and understanding why certain model routing decisions were made.",
-      "acceptanceCriteria": [
-        "Endpoint returns JSON array with attempt objects `{phase, model, duration_ms, tokens, status, error_message}` sorted by timestamp, sourced from results.tsv and .spiral/_checkpoint.json",
-        "Supports optional query param `?iteration=N` to filter attempts by iteration number",
-        "Integration test in tests/integration/test_dashboard_story_timeline.py queries endpoint with fixture data and validates schema + attempt ordering"
+      "model": "sonnet",
+      "filesTouch": [
+        ".hypothesis/constants/0144005a67236799",
+        ".hypothesis/constants/0158f9921b55208e",
+        ".hypothesis/constants/016af87f794a90e9",
+        ".hypothesis/constants/01831d6f995783ed",
+        ".hypothesis/constants/044aa4a97dd3204b",
+        ".hypothesis/constants/06ee3234b07f7d66",
+        ".hypothesis/constants/087180ea5c6680fc",
+        ".hypothesis/constants/0ad243c8c6e11ffb",
+        ".hypothesis/constants/0dcb44a91ae6f1ae",
+        ".hypothesis/constants/112c210229744ab1"
       ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "sonnet"
-    },
-    {
-      "id": "US-593",
-      "title": "Dashboard Endpoint: Worker Health Score and Performance Metrics",
-      "priority": "medium",
-      "description": "Add HTTP endpoint GET /api/dashboard/workers returning per-worker performance stats aggregated from results.tsv, including completion rate, average token cost, error frequency, and derived health score (0-100).",
-      "acceptanceCriteria": [
-        "Endpoint returns JSON array with {workerId, storiesCompleted, avgTokensPerStory, errorRate, healthScore} grouped from results.tsv sub_project column",
-        "healthScore = 100 * (completionRate * 0.5 + (1-errorRate) * 0.5) where completionRate = storiesPassed / totalStories",
-        "Integration test mocks results.tsv with 3 workers (high/med/low health) and validates endpoint aggregation accuracy and health score calculation"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "sonnet"
-    },
-    {
-      "id": "US-594",
-      "title": "Integration Test: Complete Federated SPIRAL Loop with Cross-Project Story Dependencies",
-      "priority": "medium",
-      "description": "End-to-end integration test that runs full SPIRAL Phase R→C with federated prd.json across 3 mock sub-projects, verifying story dependency routing, parallel worker isolation, and correct sub_project column population in results.tsv. Validates Goal #4 (federated project support) with realistic multi-repo scenario.",
-      "acceptanceCriteria": [
-        "Create `tests/test_federated_spiral_e2e.py` with mock `federation.json` defining ProjectA→ProjectB→ProjectC dependencies; inject mocked Claude API responses via context7 mock fixture library for all phases (R, S, M, I, V)",
-        "Run complete SPIRAL loop, assert: (1) results.tsv has correct sub_project column values, (2) each worker's isolated branch in `.spiral-workers/` contains only assigned stories, (3) final prd.json merges without file conflicts, (4) Phase V validates each sub-project's stories independently",
-        "Test failure case: inject cross-project circular dependency in federation.json, verify Phase 0 or Phase M rejects merge with clear error message naming the cycle"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "haiku"
-    },
-    {
-      "id": "US-595",
-      "title": "Dashboard Cost Estimate Accuracy Trending Endpoint — Predict vs Actual Token Comparison",
-      "priority": "medium",
-      "description": "Build dashboard endpoint that tracks accuracy of cost predictions (from predict-cost CLI) against actual token consumption (from results.tsv). Provides accuracy metrics and trends to help tune cost estimation models.",
-      "acceptanceCriteria": [
-        "GET /api/dashboard/estimate-accuracy returns JSON with story_id, estimated_tokens, actual_tokens, error_pct for all stories in results.tsv; calculate mean_error_pct and p95_error_pct across dataset",
-        "Endpoint aggregates accuracy metrics by phase (R/S/I/V) showing which phases have largest prediction error; assert accuracy > 80% or flag degradation",
-        "Integration test with 20 mocked story runs: populate results.tsv with estimated/actual costs, hit endpoint, verify JSON structure and accuracy calculations match expected thresholds"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "sonnet"
+      "tags": [
+        "module-hypothesis"
+      ]
     },
     {
       "id": "US-596",
@@ -2663,24 +2660,14 @@
       "passes": false,
       "_source": "ai-example",
       "model": "haiku",
-      "last_attempted": "2026-03-20T10:19:25Z"
-    },
-    {
-      "id": "US-597",
-      "title": "Phase G pdoc Integration - Auto-Generate Python API Documentation from Ralph Modules",
-      "priority": "medium",
-      "description": "Wire pdoc into Phase G to auto-generate HTML/markdown API documentation from ralph/ralph.py and lib/spiral/* modules, completing Phase G automation alongside git-cliff CHANGELOG generation. Output docs to .spiral/docs/ with index file for dashboard navigation.",
-      "acceptanceCriteria": [
-        "Phase G Phase Exec calls pdoc.generate(modules=['ralph', 'lib.spiral'], output_dir='.spiral/docs/', html=True) after Phase I completion; updates .spiral/_checkpoint.json with phase_g_pdoc_complete timestamp",
-        "Generated docs include function signatures, docstrings, type hints for ralph.sh wrapper functions and lib/spiral Python modules; index.html links to all modules",
-        "Test: test_phase_g_pdoc_generation.py verifies .spiral/docs contains valid HTML files with correct module signatures and builds without pdoc warnings"
+      "last_attempted": "2026-03-20T10:19:25Z",
+      "filesTouch": [
+        "prd.json",
+        "tests/test_episodic_memory.py"
       ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "haiku"
+      "tags": [
+        "module-tests"
+      ]
     }
   ]
 }
