@@ -1,3 +1,19 @@
+## Iteration - Story: US-605 CLI: federated-merge-prd
+
+### What was implemented
+- Created lib/federated_merge_prd.py with merge_prds() and run_federated_merge() functions
+- Added `federated-merge-prd` subcommand to main.py with --projects, --output, --base-dir args
+- Loads prd.json from each sub-project dir, validates no duplicate story IDs across projects
+- Sets sub_project field on each story, preserves priority and all other fields
+- Created tests/test_federated_merge_prd.py with 6 tests (all passing, mypy --strict clean)
+
+### Patterns discovered
+- CLI subcommand pattern: add_parser in main(), dispatch in elif chain, handler function calls lib/ module
+- Lazy imports in cmd_* handlers keep startup fast
+
+### Gotchas
+- Always set base_dir explicitly in tests (use tmp_path) to avoid touching real filesystem
+
 ## Iteration - Story: US-606 Dashboard Endpoint: GET /api/dashboard/error-breakdown
 
 ### What was implemented
@@ -1908,3 +1924,32 @@ Based on the story JSON, here is the technical brief for the implementation agen
     *   The final `CHANGELOG.md` generation logic should gracefully handle cases where there are no commits for a given type (e.g., no "feat" commits).
 
 ## Worker 1 crashed (exit 2) — 2026-03-20 23:30:13
+
+## Pre-analysis for US-604 (Gemini 2.5 Pro)
+This technical brief is for a Claude agent tasked with implementing story US-604.
+
+**Project Context:** The request mentions Frappe, but the story and codebase relate to the `spiral` Python/shell automation framework. The task is to integrate the `git-cliff` tool for changelog generation.
+
+**1. Primary Files to Modify:**
+*   `lib/phases/gen_changelog.sh`: The main shell script to orchestrate generation.
+*   `cliff.toml`: The `git-cliff` configuration file, to define commit parsing rules and output structure.
+*   `spiral.config.sh`: To define and source the `SPIRAL_GIT_CLIFF_BIN` environment variable.
+*   **Recommendation:** Create `lib/changelog_parser.py` to handle the complex parsing and grouping logic that is difficult in pure shell.
+
+**2. Involved Frappe Components:**
+*   None. This is not a Frappe/ERPNext implementation. The context is a standalone CI/automation project.
+
+**3. Recommended Implementation Approach:**
+1.  Modify `lib/phases/gen_changelog.sh` to read `SPIRAL_GIT_CLIFF_BIN` from the config and validate the binary exists.
+2.  Execute `git-cliff` to process the git history, using `cliff.toml` to specify a structured output format (like JSON or a custom template).
+3.  Pipe the output from `git-cliff` to the new `lib/changelog_parser.py` script.
+4.  In the Python script, parse the structured data. Iterate through commits, using regex `\b(US|UT)-\d+\b` to extract story IDs.
+5.  Group commits first by type (feat, fix), then by story ID, and format them into `CHANGELOG.md`.
+6.  Log any commits that do not match the story ID pattern to `.spiral/phase_g_warnings.log`.
+
+**4. Edge Cases & Gotchas:**
+*   **Dependency:** The project's setup must ensure the `git-cliff` binary is installed and accessible at the configured path.
+*   **Error Handling:** The shell script must fail gracefully if the `git-cliff` binary is not found.
+*   **Multi-ID Commits:** Decide how to handle commits referencing multiple stories (e.g., list the commit under each story).
+*   **Log Directory:** Ensure the `.spiral/` directory is created before attempting to write the warning log file.
+

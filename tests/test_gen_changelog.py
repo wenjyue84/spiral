@@ -28,24 +28,24 @@ def _run_gen_changelog(
     repo_dir: Path,
     env_overrides: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
-    """Source gen_changelog.sh and call phase_gen_changelog in a bash subshell."""
-    env = os.environ.copy()
-    env["SPIRAL_HOME"] = _to_unix_path(repo_dir)
-    if env_overrides:
-        env.update(env_overrides)
+    """Source gen_changelog.sh and call phase_gen_changelog in bash."""
+    spiral_home = _to_unix_path(repo_dir)
+    gen_script = f"{spiral_home}/lib/phases/gen_changelog.sh"
 
-    script = textwrap.dedent("""\
-        set -euo pipefail
-        source "$SPIRAL_HOME/lib/phases/gen_changelog.sh"
-        phase_gen_changelog
-    """)
+    # Build inline exports — env vars don't propagate to Git Bash on Windows
+    env_exports = f"SPIRAL_HOME='{spiral_home}'"
+    if env_overrides:
+        for key, val in env_overrides.items():
+            env_exports += f" {key}='{val}'"
+
+    # Use env command prefix to set vars, then source and call
+    cmd = f"{env_exports} bash -c 'source {gen_script} && phase_gen_changelog'"
 
     return subprocess.run(
-        ["bash", "-c", script],
+        ["bash", "-c", cmd],
         cwd=repo_dir,
         capture_output=True,
         text=True,
-        env=env,
         timeout=30,
     )
 
@@ -60,12 +60,14 @@ def _init_git_repo(tmp_path: Path) -> Path:
     cliff_dst = repo / "cliff.toml"
     cliff_dst.write_text(cliff_src.read_text(encoding="utf-8"), encoding="utf-8")
 
-    # Create gen_changelog.sh stub path
+    # Create gen_changelog.sh stub path (preserve LF line endings for bash)
     phases_dir = repo / "lib" / "phases"
     phases_dir.mkdir(parents=True)
     gen_src = Path(__file__).parent.parent / "lib" / "phases" / "gen_changelog.sh"
     gen_dst = phases_dir / "gen_changelog.sh"
-    gen_dst.write_text(gen_src.read_text(encoding="utf-8"), encoding="utf-8")
+    content = gen_src.read_text(encoding="utf-8")
+    with open(gen_dst, "w", encoding="utf-8", newline="\n") as f:
+        f.write(content)
 
     # Create .spiral dir
     (repo / ".spiral").mkdir()
