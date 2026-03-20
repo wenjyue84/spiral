@@ -196,11 +196,29 @@ def aggregate_federated_stories(
 def aggregate_federated_status(
     prd_path: Path,
     results_globs: list[str] | None = None,
+    worker_base_dir: Path | None = None,
 ) -> dict[str, Any]:
     """Backward compatibility wrapper for aggregate_federated_stories.
 
     Converts output to older 'status' and 'summary' format.
+
+    Args:
+        prd_path: Path to prd.json with sub_project field on stories.
+        results_globs: Optional list of glob patterns to find results.tsv files.
+        worker_base_dir: Deprecated - for backward compatibility. If provided,
+                        constructs glob patterns for worker directories.
+
+    Returns:
+        Dict with 'status' key (status per sub_project) and 'summary' key (totals).
     """
+    # If worker_base_dir is provided, construct appropriate globs
+    if worker_base_dir is not None and results_globs is None:
+        worker_base_dir = Path(worker_base_dir)
+        results_globs = [
+            str(worker_base_dir / "worker-*" / "results.tsv"),
+            str(worker_base_dir / "*" / "results.tsv"),
+        ]
+
     result = aggregate_federated_stories(prd_path, results_globs)
 
     # Convert 'projects' to 'status' format for backward compatibility

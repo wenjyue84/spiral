@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\federated_status.py
+# hypothesis_version: 6.151.9
+
+[0.0, 0.8, 2.0, 3.0, 4.0, 15.0, 75.0, 120, 1000000, '-', 'avg_duration_s', 'avg_duration_sec', 'cache_read_tokens', 'cost_usd', 'default', 'duration_sec', 'estimated_cost_usd', 'failed', 'haiku', 'id', 'input', 'model', 'opus', 'output', 'pass', 'passed', 'pending', 'project', 'projects', 'reject', 'results.tsv', 'sonnet', 'spiral_iter', 'status', 'story_id', 'sub_project', 'summary', 'tokens_used', 'total_cost_usd', 'total_failed', 'total_passed', 'total_pending', 'total_projects', 'total_stories', 'total_tokens', 'userStories', 'utf-8']

@@ -1,3 +1,21 @@
+## Iteration - Story: US-629 CLI: spiral federated-status
+
+### What was implemented
+- lib/federated_status.py was already fully implemented with aggregate_federated_stories(), calculate_project_metrics(), format_json_output(), format_table_output()
+- Added missing AC3 integration test: test_aggregate_3_project_cost_accuracy() to tests/test_federated_status.py
+  - Creates 3-project PRD (project-alpha, project-beta, project-gamma) with mixed pass/fail/pending stories
+  - Writes results.tsv with known token counts, manually computes expected cost, asserts within 2% tolerance
+  - Verifies pass/fail/pending counts per project, JSON round-trip
+
+### Patterns discovered
+- TSV_HEADER and _make_row helpers were defined in test file but unused — clear signal the cost accuracy test was planned but not written
+- aggregate_federated_stories() groups by story's sub_project field; stories with no results.tsv row get status "pending"
+- _calc_cost uses avg of input+output rates: haiku=2.40/MTok, sonnet=9.00/MTok, opus=45.00/MTok
+
+### Gotchas
+- results_globs parameter controls where aggregate_federated_stories searches; in tests use ["results.tsv"] pointing at tmp_path
+- The unused `subprocess` import was removed from test file (unused and would trigger lint)
+
 ## Iteration - Story: US-628 Integration Test: Ralph Subprocess Timeout with Partial Output Capture
 
 ### What was implemented
@@ -381,6 +399,7 @@ Here is the technical brief for implementing story US-597.
 *   **Empty `failed_files`:** The `retry.sh` script must gracefully handle cases where `failed_files` is empty (`[]`) and default to the original, full re-implementation logic.
 
 
+<<<<<<< Updated upstream
 ## Pre-analysis for US-629 (Gemini 2.5 Pro)
 Based on the user story, this is a Python CLI task, not a Frappe app integration. No Frappe DocTypes or hooks are involved.
 
@@ -409,4 +428,61 @@ Here is the technical brief for the `spiral federated-status` command:
 *   Ensure path resolution is robust, combining the main project path with the relative `sub_project_path` entries.
 *   The `results.tsv` parsing must be resilient to empty files or rows with missing data.
 *   The cost calculation is an estimate; the underlying cost-per-token assumption should be clearly documented.
+=======
+## Pre-analysis for US-628 (Gemini 2.5 Pro)
+**Technical Brief: US-628 Ralph Subprocess Timeout Test**
+
+This user story focuses on adding timeout resilience to the 'Ralph' subprocess within the Spiral tool, not a Frappe application. The goal is to test the system's recovery and logging behavior when a subprocess call times out.
+
+**1. Primary Files to Modify:**
+*   `lib/impl/retry.py`: The `execute_ralph` function will need to be modified to catch `subprocess.TimeoutExpired`.
+*   `tests/test_ralph_timeout.py`: A new integration test file to be created.
+
+**2. Involved Components (Not Frappe):**
+*   **Story JSON:** The core data structure, identified by `id`, that tracks state.
+*   **Ralph Subprocess:** The external script executed during Phase I.
+*   **Retry Logic:** The escalation mechanism that cycles through LLM tiers (haiku, sonnet, opus).
+
+**3. Recommended Implementation Approach:**
+1.  In `lib/impl/retry.py`, wrap the `subprocess.run` (or similar) call within a `try...except subprocess.TimeoutExpired as e:` block.
+2.  Inside the `except` block, capture partial output from `e.stdout` and `e.stderr`.
+3.  Log the detailed error message as specified in the acceptance criteria.
+4.  Invoke the model tier escalation logic and update the story's status to `retry_escalated`.
+5.  In `tests/test_ralph_timeout.py`, use `unittest.mock.patch` to simulate `subprocess.run` raising `TimeoutExpired`.
+6.  Assert that the timeout triggers the expected logging, partial output capture, and retry escalation call.
+
+**4. Edge Cases & Gotchas:**
+*   The subprocess `stdout`/`stderr` may be `None` or empty on timeout; handle this gracefully.
+*   The timeout value should be read from the `SPIRAL_TIMEOUT_RALPH` environment variable.
+*   Ensure the retry logic correctly handles exhaustion (i.e., failure after the final 'opus' tier).
+
+
+## Pre-analysis for US-628 (Gemini 2.5 Pro)
+This is a technical brief for implementing story US-628.
+
+**Objective:** Implement an integration test for subprocess timeout handling in the `ralph` module, ensuring partial output is captured and retry escalation is triggered.
+
+**1. Primary Files to Modify:**
+*   `lib/impl/retry.py`: Modify the `execute_ralph` function to catch `subprocess.TimeoutExpired`, capture partial output, and log the specific error details.
+*   `tests/test_ralph_timeout.py`: Create this new file to house the integration test.
+
+**2. Key Components & Concepts:**
+*   **Function:** `lib.impl.retry.execute_ralph` is the core function where the subprocess is invoked and the timeout exception must be handled.
+*   **Exception:** `subprocess.TimeoutExpired` is the specific exception to be caught.
+*   **Retry Logic:** The existing tier-escalation mechanism (`haiku` → `sonnet` → `opus`) must be invoked by the timeout handler.
+*   **Story Status:** The story's state must transition to `'retry_escalated'` upon timeout.
+
+**3. Implementation Approach:**
+1.  In `tests/test_ralph_timeout.py`, use `unittest.mock.patch` to simulate `subprocess.run` (or a similar call) raising `TimeoutExpired`. The mock should include partial `stdout`/`stderr` data.
+2.  Update `lib.impl.retry.execute_ralph` to wrap the subprocess call in a `try...except` block.
+3.  In the `except` block, capture the partial output from the exception object (`e.stdout`, `e.stderr`).
+4.  Log an error message containing the story ID, model, and timeout duration, suggesting the `SPIRAL_TIMEOUT_RALPH` env var.
+5.  Ensure the function's return value or state change triggers the existing retry escalation logic.
+6.  The test must assert that the correct log was written, the next model tier was invoked, and the story status was updated.
+
+**4. Gotchas & Edge Cases:**
+*   Ensure partial byte streams from `stdout`/`stderr` are decoded gracefully (e.g., `utf-8` with `errors='replace'`).
+*   The `subprocess.run` command is recommended as it handles process cleanup on timeout more reliably than `Popen`.
+*   Confirm that the timeout logic correctly integrates with any existing concurrency or parallel processing to prevent race conditions.
+>>>>>>> Stashed changes
 

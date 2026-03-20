@@ -3156,7 +3156,7 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "sonnet"
     },
@@ -3244,6 +3244,57 @@
       "passes": false,
       "_source": "ai-example",
       "model": "haiku"
+    },
+    {
+      "id": "US-635",
+      "title": "Dashboard Endpoint: GET /api/dashboard/story/{id}/attempts — Ralph Implementation Log Viewer",
+      "priority": "medium",
+      "description": "Add dashboard HTTP endpoint that retrieves story attempt history with Ralph subprocess errors and model escalation trace from results.tsv. Exposes Ralph stderr/stdout logged during Phase I to enable debugging of failed story implementations.",
+      "acceptanceCriteria": [
+        "Endpoint GET /api/dashboard/story/US-123/attempts returns JSON: {story_id, attempts: [{retry_count, model, tokens, error_summary, duration_ms}]}",
+        "Ralph Phase I subprocess stderr captured to .spiral/attempt-logs/US-{ID}-retry-{N}.log (first 2KB of output); populated in lib/impl/retry.sh around line 80",
+        "Dashboard story detail view shows attempt history with error previews; click to expand full Ralph error log for each retry"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-636",
+      "title": "Phase G: Auto-Generate Iteration Metrics Report (Velocity, Token Burn, Forecast)",
+      "priority": "medium",
+      "description": "At end of Phase C, auto-generate a markdown metrics report showing iteration velocity, token burn rate, phase durations, and estimated project completion date. Report includes velocity trend (last 3 iterations) and cost forecast based on current burn rate.",
+      "acceptanceCriteria": [
+        "Generate `.spiral/metrics-report.md` at end of Phase C with: iteration number, stories passed, total tokens spent, per-phase duration breakdown (R/T/S/M/I/V/C in seconds), model distribution (haiku/sonnet/opus %)",
+        "Calculate iteration velocity (stories/hour) with 3-iteration moving average; include cost forecast to project completion date based on current burn rate",
+        "Wire CLI: `python main.py metrics-report --iteration 5` reads results.tsv/prd.json, writes to `.spiral/metrics-report.md`. Add integration test verifying calculations match results.tsv data."
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-637",
+      "title": "Dashboard Endpoint: GET /api/dashboard/story-lifecycle — Track Complete Story Journey Across Phases",
+      "priority": "medium",
+      "description": "Wire dashboard HTTP endpoint that reconstructs and returns the complete lifecycle of a story: source, phases traversed, retry attempts with failure reasons, model escalations, implementation details. Enables triage of stuck stories and debugging retry patterns.",
+      "acceptanceCriteria": [
+        "GET `/api/dashboard/story-lifecycle?story_id=US-123` returns JSON with: source, first_seen_iteration, phase_timeline (timestamps for R/T/S/M/I/V/C), retry_attempts (error message, model used, tokens spent), final_status, total_implementation_duration_sec",
+        "Parse results.tsv and prd.json to reconstruct timeline; display model escalation chain (haiku→sonnet→opus) with token costs per attempt",
+        "Integration test: mock SPIRAL with 3-retry story (haiku fail→sonnet fail→opus pass), assert lifecycle endpoint reconstructs full timeline including all retries and model progression"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
     }
   ]
 }

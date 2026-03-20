@@ -7,7 +7,6 @@ Subcommands:
   estimate                Show pre-flight API cost projection for pending stories
   graph                   Generate Mermaid dependency graph from prd.json
   validate-federated      Validate federated prd.json structure (US-514)
-  federated-status        Aggregate story status across federated sub-projects (US-629)
   config                  Configuration utilities
     export-env            Export spiral.config.sh SPIRAL_* variables as a .env file
   worktree                Git worktree management utilities
@@ -28,6 +27,7 @@ Subcommands:
   extract-failed-stories  Generate triage report from results.tsv (US-613)
   validate-commits        Detect orphan stories and squash-commit patterns (US-554)
   validate-federated-order  Report merge order and dependency violations for federated PRD (US-617)
+  federated-status        Aggregate story status across federated sub-projects (US-629)
   monitor                 Unified monitoring snapshot for progress checks
 """
 
@@ -1097,6 +1097,40 @@ def cmd_validate_results_tsv(args) -> None:
     else:
         print("[ok] Validation passed", file=sys.stderr)
         sys.exit(0)
+
+
+def cmd_federated_status(args) -> None:
+    """Aggregate story status across federated sub-projects (US-629)."""
+    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    from federated_status import (  # type: ignore[import]
+        aggregate_federated_stories,
+        format_json_output,
+        format_table_output,
+    )
+
+    prd_path = Path(getattr(args, "prd", ".spiral/prd.json"))
+    if not prd_path.is_absolute():
+        prd_path = Path.cwd() / prd_path
+
+    workers_dir = getattr(args, "workers_dir", "")
+    workers_base = None
+    if workers_dir:
+        workers_base = Path(workers_dir)
+        if not workers_base.is_absolute():
+            workers_base = Path.cwd() / workers_base
+
+    use_json = getattr(args, "json", False)
+
+    # Aggregate data
+    data = aggregate_federated_stories(prd_path, workers_base)
+
+    # Format and output
+    if use_json:
+        output = format_json_output(data)
+    else:
+        output = format_table_output(data)
+
+    print(output)
 
 
 def cmd_diagnose(args) -> None:
@@ -2827,23 +2861,6 @@ def main():
         help="Path to write JSON report (optional; prints to stdout if omitted)",
     )
 
-    federated_status_parser = subparsers.add_parser(
-        "federated-status",
-        help="Aggregate story status across federated sub-projects (US-629)",
-    )
-    federated_status_parser.add_argument(
-        "--prd",
-        type=str,
-        default="prd.json",
-        help="Path to prd.json (default: prd.json)",
-    )
-    federated_status_parser.add_argument(
-        "--json",
-        action="store_true",
-        dest="json_output",
-        help="Output machine-readable JSON instead of table",
-    )
-
     validate_tsv_parser = subparsers.add_parser(
         "validate-results-tsv",
         help="Validate results.tsv data quality against prd.json (US-571)",
@@ -3338,10 +3355,10 @@ def main():
         cmd_namespace_check(args)
     elif args.command == "validate-federated":
         cmd_validate_federated(args)
-    elif args.command == "federated-status":
-        cmd_federated_status(args)
     elif args.command == "validate-results-tsv":
         cmd_validate_results_tsv(args)
+    elif args.command == "federated-status":
+        cmd_federated_status(args)
     elif args.command == "config":
         config_command = getattr(args, "config_command", None)
         if config_command == "export-env":
@@ -3414,6 +3431,7 @@ def cmd_federated_status(args: argparse.Namespace) -> None:
 
     Usage: spiral federated-status [--prd PATH] [--worker-base-dir PATH] [--json]
     """
+    sys.path.insert(0, str(Path(__file__).parent / "lib"))
     from federated_status import aggregate_federated_status, format_table  # type: ignore[import-untyped]
 
     prd_path = Path(getattr(args, "prd", "prd.json"))
@@ -3457,24 +3475,6 @@ def cmd_monitor(args: argparse.Namespace) -> None:
         print(f"  Needs attention: {attn}")
         for d in result.get("diagnostics", []):
             print(f"  [{d.get('severity', '?')}] {d.get('message', '')}")
-
-
-def cmd_federated_status(args: argparse.Namespace) -> None:
-    """Show aggregated story status across federated sub-projects (US-629).
-
-    Usage: spiral federated-status [--json] [--prd prd.json]
-    """
-    from lib.federated_status import aggregate_federated_status, format_table
-
-    prd_path = Path(getattr(args, "prd", "prd.json"))
-    json_output = getattr(args, "json_output", False)
-
-    result = aggregate_federated_status(prd_path)
-
-    if json_output:
-        print(json.dumps(result, indent=2))
-    else:
-        print(format_table(result))
 
 
 def cmd_federated_merge_prd(args: argparse.Namespace) -> None:
