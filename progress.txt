@@ -1,3 +1,18 @@
+## Iteration - Story: US-613 CLI: spiral extract-failed-stories
+
+### What was implemented
+- lib/extract_failed_stories.py already existed from prior attempt; contains extract_failed_stories() and format_markdown()
+- Added extract-failed-stories subparser to main.py with --min-retries, --format, --results flags
+- Added cmd_extract_failed_stories() handler in main.py with lazy import pattern
+- Created tests/test_extract_failed_stories.py with 14 tests (all passing, mypy --strict clean)
+- Tests cover: sorting, filtering, model escalation detection, token burn, decompose suggestion, empty/missing TSV, CLI JSON/markdown output
+
+### Patterns discovered
+- Prior SPIRAL iterations may leave lib/ modules implemented but not wired into CLI or tested
+- filesToTouch in prd.json can get corrupted with unrelated files (.hypothesis/, .coverage); ignore and implement correct files
+
+### Gotchas
+- prd.json must be opened with encoding='utf-8' on Windows to avoid cp1252 decode errors
 
 ## Pre-analysis for US-613 (Gemini 2.5 Pro)
 Based on the user story JSON, here is a technical brief for the implementation task.
