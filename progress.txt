@@ -1,3 +1,21 @@
+## Iteration - Story: US-584 Phase M Conflict Detection
+
+### What was implemented
+- Created lib/merge_conflict_detector.py with extract_story_files(), build_conflict_matrix(), write_conflict_report(), run()
+- extract_story_files() parses 'File to edit:' lines from technicalNotes using regex; falls back to filesTouch
+- build_conflict_matrix() maps file paths to list of story_ids that claim them
+- write_conflict_report() writes .spiral/_merge_conflicts.json as list of {story_id, conflicting_story_ids[], conflicting_files[]}
+- run() returns exit code 1 when conflicts non-empty, 0 otherwise
+- Created tests/test_phase_m_conflicts.py with 8 tests (all pass); 3 named AC tests pass
+
+### Patterns discovered
+- lib/conflict_detector.py already existed using filesTouch; this new module uses technicalNotes parsing
+- lib/ stubs forward to lib/prd/ or lib/core/ via exec() — new top-level modules are fine
+- mypy --strict passes without issue when using from __future__ import annotations + dict[str, Any]
+
+### Gotchas
+- Had pre-existing UU (unmerged) files at session start (progress.txt, spiral_events.jsonl, tests/test_ws_cost.py); resolved by keeping ours
+
 ## Iteration - Story: US-583 [E2E Test] WebSocket /ws/cost streams cost deltas
 
 ### What was implemented
