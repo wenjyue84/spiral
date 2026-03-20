@@ -139,3 +139,44 @@ This brief outlines the implementation plan for a new CLI command in the Spiral 
 -   The parsing logic should be robust against malformed rows or potential missing columns in the TSV file.
 -   The definitions for "exponential token growth" and "increasing token drift" must be explicitly defined as simple, clear heuristics in the code.
 
+
+## Pre-analysis for US-613 (Gemini 2.5 Pro)
+Here is the technical brief for implementing the `extract-failed-stories` CLI feature.
+
+### 1. Files to Modify
+
+*   **`spiral/cli.py`**: This is the likely entry point for adding the new `extract-failed-stories` command, following the pattern of other CLI commands in the project. You'll add a new function decorated with `@app.command()`.
+*   **`lib/story_analyzer.py` (New File)**: Create this new file to house the core logic for parsing `results.tsv`, analyzing story failures, and generating the report content. This keeps the CLI file clean and separates concerns.
+*   **`tests/test_story_analyzer.py` (New File)**: An essential new test file to unit-test the analysis and recommendation logic using a mock `results.tsv` as described in the acceptance criteria.
+
+### 2. Frappe DocTypes / Hooks Involved
+
+This project is a standalone Python CLI, not a Frappe application. Therefore, there are no Frappe DocTypes or hooks. The key integration points are:
+
+*   **CLI Framework**: The project uses `Typer`. The "hook" is the `@app.command()` decorator in `spiral/cli.py` which registers the new command.
+*   **Data Schema**: The primary data structure is the implicit schema of the `results.tsv` file (columns like story\_id, retries, failure\_reason, model, tokens\_used).
+
+### 3. Recommended Implementation Approach
+
+1.  **Define the CLI in `spiral/cli.py`**:
+    *   Add a new function `extract_failed_stories` decorated with `@app.command()`.
+    *   Use `typer.Option` to define the `--min-retries` and `--format` arguments.
+2.  **Implement Logic in `lib/story_analyzer.py`**:
+    *   Use the `pandas` library to read and parse `results.tsv`. It's efficient for tabular data.
+    *   Create a main function, e.g., `analyze(file_path, min_retries)`, that returns a list of analyzed story data (as dicts or dataclasses).
+    *   Filter the DataFrame for stories where retry count >= `min_retries`.
+    *   Group by story ID to analyze trends (token growth, model changes).
+    *   Apply the recommendation logic (`'decompose'`, `'scope'`, `'research'`) based on the criteria.
+    *   Create separate formatter functions (`to_markdown`, `to_json`) that take the analyzed data and produce the final output string.
+3.  **Testing in `tests/test_story_analyzer.py`**:
+    *   Use `pytest`. Create a mock `results.tsv` file in-memory or using a temporary file fixture.
+    *   Write a test to verify that the `analyze` function correctly identifies and processes the high-retry stories.
+    *   Assert that the correct recommendations are generated for the given mock data.
+
+### 4. Edge Cases & Gotchas
+
+*   **`results.tsv` Not Found**: The command should handle a missing file gracefully with a clear error message.
+*   **Malformed Data**: Guard against errors if `results.tsv` has missing columns, non-numeric values for retries/tokens, or is empty.
+*   **Token Growth Logic**: "Exponential token growth" and "increasing token drift" are subjective. Define a clear, simple heuristic for the initial implementation (e.g., if total tokens more than double on the last attempt).
+*   **Performance**: For a very large `results.tsv`, consider processing the file in chunks if memory becomes an issue, though `pandas` is generally efficient.
+

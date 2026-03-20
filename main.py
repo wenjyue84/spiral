@@ -26,6 +26,7 @@ Subcommands:
   analyze-failures        Categorize retry failure root causes and recommend tuning (US-547)
   extract-failed-stories  Generate triage report from results.tsv (US-613)
   validate-commits        Detect orphan stories and squash-commit patterns (US-554)
+  validate-federated-order  Report merge order and dependency violations for federated PRD (US-617)
   monitor                 Unified monitoring snapshot for progress checks
 """
 
@@ -3217,6 +3218,19 @@ def main():
         help="Base directory containing sub-project dirs (default: current directory)",
     )
 
+    # ── validate-federated-order subcommand (US-617) ────────────────────────
+    val_fed_order_parser = subparsers.add_parser(
+        "validate-federated-order",
+        help="Report merge order and dependency violations for federated PRD (US-617)",
+    )
+    val_fed_order_parser.add_argument(
+        "prd",
+        nargs="?",
+        default="prd.json",
+        metavar="PRD",
+        help="Path to prd.json (default: prd.json)",
+    )
+
     args = parser.parse_args()
 
     if args.command == "init":
@@ -3305,6 +3319,8 @@ def main():
         cmd_monitor(args)
     elif args.command == "federated-merge-prd":
         cmd_federated_merge_prd(args)
+    elif args.command == "validate-federated-order":
+        cmd_validate_federated_order(args)
     else:
         parser.print_help()
         sys.exit(0)
@@ -3350,6 +3366,41 @@ def cmd_federated_merge_prd(args: argparse.Namespace) -> None:
     base_dir = Path(args.base_dir) if args.base_dir else None
     exit_code = run_federated_merge(projects, output_path, base_dir)
     sys.exit(exit_code)
+
+
+def cmd_validate_federated_order(args: argparse.Namespace) -> None:
+    """Report merge order and dependency violations for federated PRD (US-617).
+
+    Usage: spiral validate-federated-order [prd.json]
+    """
+    sys.path.insert(0, str(Path(__file__).parent / "lib" / "impl"))
+    from phase_m_federated_order import order_federated_stories_by_dependency  # type: ignore[import-untyped]
+
+    prd_path = Path(getattr(args, "prd", "prd.json"))
+    if not prd_path.exists():
+        print(json.dumps({"error": f"File not found: {prd_path}", "merge_order": [], "violations": [str(prd_path) + " not found"]}))
+        sys.exit(1)
+
+    with open(prd_path, encoding="utf-8") as f:
+        prd_data = json.load(f)
+
+    stories = prd_data.get("userStories", [])
+    violations: list[str] = []
+    merge_order: list[dict] = []
+
+    try:
+        merge_order = order_federated_stories_by_dependency(stories)
+    except ValueError as e:
+        violations.append(str(e))
+        merge_order = stories  # fallback: original order
+
+    result = {
+        "merge_order": [{"id": s.get("id", ""), "title": s.get("title", "")} for s in merge_order],
+        "violations": violations,
+    }
+    print(json.dumps(result, indent=2))
+    if violations:
+        sys.exit(1)
 
 
 if __name__ == "__main__":
