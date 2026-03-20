@@ -1102,8 +1102,8 @@ if [[ "$_TIER_DISPATCH_ENABLED" -eq 1 ]]; then
     # Launch all workers in this tier
     for worker_id in $WORKERS_IN_TIER; do
       # Skip memory gate for workers with 0 pending stories
-      local _w_slice="$WORKER_DIR/worker_${worker_id}.json"
-      local _w_pending=0
+      _w_slice="$WORKER_DIR/worker_${worker_id}.json"
+      _w_pending=0
       if [[ -f "$_w_slice" ]]; then
         _w_pending=$("$JQ" '[.userStories[] | select(.passes != true)] | length' "$_w_slice" 2>/dev/null || echo "0")
       fi
