@@ -260,7 +260,7 @@ async def websocket_cost_endpoint(websocket: WebSocket) -> None:
     """WebSocket endpoint for real-time cost delta streaming.
 
     Clients connect to /ws/cost and receive JSON messages of the form:
-        {"story_id": "US-123", "cost_usd": 0.25, "timestamp": "2026-03-19T..."}
+        {"story_id": "US-123", "cost_delta": 0.25, "timestamp": "2026-03-19T..."}
 
     Connection is maintained until client disconnects or an error occurs.
     """

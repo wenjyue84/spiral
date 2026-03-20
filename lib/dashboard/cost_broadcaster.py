@@ -33,7 +33,8 @@ class ConnectionManager:
         """Broadcast a message to all connected clients.
 
         Args:
-            message: Dictionary with cost delta data (e.g., {"story_id": "US-123", "cost_usd": 0.25})
+            message: Dictionary with cost delta data.
+                     Required keys: story_id, cost_delta, timestamp.
 
         Raises:
             Exception: If any client connection fails (logged but doesn't stop broadcast to others).
@@ -78,7 +79,6 @@ async def broadcast_cost_delta(story_result: dict[str, Any]) -> None:
 
     # Extract key fields
     story_id = story_result.get("story_id", "unknown")
-    status = story_result.get("status", "unknown")
     timestamp = story_result.get("timestamp", "")
 
     # Calculate cost estimate based on model and duration
@@ -88,14 +88,11 @@ async def broadcast_cost_delta(story_result: dict[str, Any]) -> None:
     duration_min = duration_sec / 60.0
 
     cost_per_min = {"haiku": 0.003, "sonnet": 0.015, "opus": 0.075}.get(model, 0.005)
-    cost_usd = cost_per_min * max(duration_min, 0.05)  # Minimum $0.0002.5
+    cost_delta = cost_per_min * max(duration_min, 0.05)  # Minimum $0.0002.5
 
     message = {
         "story_id": story_id,
-        "status": status,
-        "cost_usd": round(cost_usd, 6),
-        "model": model,
-        "duration_sec": duration_sec,
+        "cost_delta": round(cost_delta, 6),
         "timestamp": timestamp,
     }
 
