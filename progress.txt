@@ -1334,3 +1334,210 @@ This is a technical brief for implementing the episodic memory feature (US-596) 
 *   **Scalability**: A linear scan for similarity search will be slow as the memory file grows. This is acceptable for V1, but a vector index (FAISS, ChromaDB) should be considered for future iterations.
 *   **Dependencies**: Add `sentence-transformers`, `scikit-learn` (for cosine similarity), and `filelock` to `pyproject.toml`.
 
+
+## Pre-analysis for US-590 (Gemini 2.5 Pro)
+Here is a technical brief for implementing story US-590.
+
+**Project:** Spiral (Python/JS Monorepo)
+**Story:** US-590: Semantic Version Bumper
+
+**1. Python Files to Modify:**
+*   `lib/phases/phase_g_version_bump.py`: This will contain the core logic for parsing and updating version numbers.
+*   `pyproject.toml`: The project's main Python configuration file to be updated.
+*   `spiral-ui/package.json`: The frontend package configuration file to be updated.
+
+**2. Frappe DocTypes/Hooks:**
+*   None. Despite the prompt's context, the story details relate to a standard Python/JS project structure (`pyproject.toml`, `package.json`) and not a Frappe application.
+
+**3. Recommended Implementation Approach:**
+1.  In `phase_g_version_bump.py`, read the contents of `CHANGELOG.md`.
+2.  Use a regular expression (e.g., `r'## \[v?(\d+\.\d+\.\d+)\]'`) to parse the latest semantic version from the top of the changelog.
+3.  **For `pyproject.toml`:** Read the file, use `re.sub` to find and replace the `version = "..."` string with the new version. This is safer than parsing the whole TOML structure.
+4.  **For `spiral-ui/package.json`:** Read the file, use the `json` module to parse it, update the `version` key, and write the file back, preserving indentation (`indent=2`).
+5.  Use the `subprocess` module to run `git add` for both modified files and then `git commit` with the message `"[skip ci] chore: bump to vX.Y.Z"`.
+
+**4. Edge Cases & Gotchas:**
+*   Ensure the version-parsing regex is flexible (e.g., handles an optional 'v' prefix).
+*   The script must raise an error if no version can be parsed from `CHANGELOG.md`.
+*   Confirm the exact key path for the version in `pyproject.toml` (e.g., under `[project]` or `[tool.poetry]`).
+*   Handle potential `FileNotFoundError` if any of the target files are missing.
+
+
+## Pre-analysis for US-590 (Gemini 2.5 Pro)
+Here is the technical brief for user story US-590.
+
+### Technical Brief: US-590 Version Bumping
+
+**Objective:** Implement a Python script to automate version synchronization from `CHANGELOG.md` to `pyproject.toml` and `spiral-ui/package.json` during the "Phase G" release process.
+
+**Files to Modify:**
+*   **Create:** `lib/phases/phase_g_version_bump.py` (main logic)
+*   **Modify:** `pyproject.toml` (update version)
+*   **Modify:** `spiral-ui/package.json` (update version)
+*   **Modify:** The script that orchestrates Phase G (e.g., `spiral.sh`, `Taskfile.yml`) to call the new Python script.
+
+**DocTypes & Hooks:**
+*   This task is unrelated to Frappe. It concerns the project's internal CI/CD tooling.
+
+**Implementation Approach:**
+1.  In `lib/phases/phase_g_version_bump.py`, read `CHANGELOG.md`.
+2.  Use a regular expression (e.g., `^##\s\[(\d+\.\d+\.\d+)\]`) to parse the top-most semantic version.
+3.  Read `pyproject.toml`, use string manipulation or a TOML library to replace the `version = "..."` string under the `[project]` section.
+4.  Read `spiral-ui/package.json`, use the `json` library to load the data, update the `version` key, and write the file back.
+5.  Use Python's `subprocess` module to run `git add` on the changed files and then `git commit` with the specified message format.
+
+**Edge Cases & Gotchas:**
+*   The version-parsing regex must be robust enough to handle minor whitespace variations in `CHANGELOG.md`.
+*   Ensure file paths are resolved correctly, assuming the script runs from the project root.
+*   The script should include error handling for missing files or if the version parsing fails.
+*   The final `git commit` command should be carefully constructed to avoid CI loops.
+
+
+## Pre-analysis for US-590 (Gemini 2.5 Pro)
+This is a technical brief for implementing story US-590.
+
+**Analysis:** The user story is for a Python-based automation script within the "Spiral" project, not a Frappe application. The references to Frappe/LHDN in the prompt appear to be incorrect based on the project's file structure.
+
+**1. Files to Modify:**
+*   **Create/Implement:** `lib/phases/phase_g_version_bump.py`. This is the core logic file.
+*   **Update:** `pyproject.toml` and `spiral-ui/package.json`. These files will have their version keys updated by the script.
+*   **Read from:** `CHANGELOG.md`. This is the source for the new version string.
+*   **Orchestration:** The new script will likely need to be called from a master script that manages phases, possibly `spiral.sh` or a `Taskfile.yml` target for "Phase G".
+
+**2. Frappe DocTypes/Hooks:**
+*   None. This is a standalone Python project, not a Frappe app.
+
+**3. Recommended Implementation Approach (`phase_g_version_bump.py`):**
+1.  **Parse Version:** Use Python's `re` module to read `CHANGELOG.md` and find the first semantic version (e.g., `## [vX.Y.Z]`). A regex like `^##\s*\[?v?(\d+\.\d+\.\d+)\]?` should be a good starting point.
+2.  **Update `pyproject.toml`:** Use the `tomlkit` library to parse, update the `[project].version` key, and write the file back. This preserves comments and formatting.
+3.  **Update `package.json`:** Use the built-in `json` library to load, update the top-level `version` key, and save the file.
+4.  **Execute Git Commands:** Use the `subprocess` module to run `git add` for the modified files and then `git commit` with the specified message format `[skip ci] chore: bump to vX.Y.Z`.
+
+**4. Edge Cases & Gotchas:**
+*   **Regex Brittleness:** Ensure the regex is flexible enough for prefixes (like `v`) or different header formats in `CHANGELOG.md`.
+*   **TOML Formatting:** Do not use simple string replacement on `pyproject.toml`; it will destroy formatting. Use `tomlkit`.
+*   **Error Handling:** The script must fail gracefully with clear messages if `CHANGELOG.md` is missing or a version cannot be parsed.
+*   **Working Directory:** Assume the script will be executed from the project root, making file paths straightforward (e.g., `./pyproject.toml`).
+
+
+## Pre-analysis for US-590 (Gemini 2.5 Pro)
+Based on the user story JSON, here is a technical brief for the implementing agent.
+
+**Project Context:** The user story describes a task within a Python-based monorepo that includes a `spiral-ui` (likely JavaScript) package. It is **not** a Frappe/ERPNext application. The goal is to automate version bumping in CI/CD Phase G.
+
+**1. Primary Files to Modify:**
+*   `lib/phases/phase_g_version_bump.py`: This is the new or existing script where the core logic will be implemented.
+*   `pyproject.toml`: The script will write the new version to this file.
+*   `spiral-ui/package.json`: The script will also write the new version to this file.
+*   `CHANGELOG.md`: This file will be read to extract the new version number.
+
+**2. Frappe DocTypes / Hooks Involved:**
+*   None. This task is unrelated to the Fraeppe framework.
+
+**3. Recommended Implementation Approach:**
+1.  **Parse Version:** In `phase_g_version_bump.py`, read `CHANGELOG.md` and use a regular expression like `^## \[(\d+\.\d+\.\d+)]` to extract the top-most semantic version.
+2.  **Update `pyproject.toml`:** Use a TOML parsing library (e.g., `tomlkit`) to load `pyproject.toml`, update the `tool.poetry.version` field, and write it back, preserving formatting and comments. Avoid simple string replacement.
+3.  **Update `package.json`:** Use the standard `json` library to load `spiral-ui/package.json`, update the `version` key, and write it back with proper indentation.
+4.  **Execute Git Commands:** Use the `subprocess` module to run `git add pyproject.toml spiral-ui/package.json` and `git commit -m "[skip ci] chore: bump to vX.Y.Z"`, inserting the parsed version into the message.
+
+**4. Edge Cases & Gotchas:**
+*   Ensure the version parsing regex is robust enough to handle minor variations in the `CHANGELOG.md` format.
+*   The script must handle `FileNotFoundError` if any of the target files are missing.
+*   Gracefully handle `KeyError` or attribute errors if the `version` key is unexpectedly missing from the `.toml` or `.json` files.
+*   Confirm that the `tomlkit` library (or an equivalent) is available in the project's environment to prevent corrupting `pyproject.toml`.
+
+
+## Pre-analysis for US-590 (Gemini 2.5 Pro)
+Here is the technical brief for user story US-590.
+
+**Project:** Spiral AI Monorepo
+**Story:** US-590: Semantic Version Bumper
+
+**Overview:**
+Implement a Python script to automate version synchronization. After `git-cliff` updates `CHANGELOG.md`, this script will parse the new version and apply it to `pyproject.toml` and the frontend's `package.json`.
+
+**1. Files to Modify:**
+*   **Create/Implement:** `lib/phases/phase_g_version_bump.py` (main logic file)
+*   **Update:** `pyproject.toml` (update project version)
+*   **Update:** `spiral-ui/package.json` (update package version)
+*   **Read:** `CHANGELOG.md` (source of the new version string)
+
+**2. Involved Frameworks/Hooks:**
+*   This is a pure Python scripting task. No Frappe DocTypes or hooks are involved. The script will be executed in a shell environment as part of a larger process ("Phase G").
+
+**3. Implementation Approach:**
+*   In `lib/phases/phase_g_version_bump.py`:
+    1.  Read `CHANGELOG.md`.
+    2.  Use the `re` module to extract the first semantic version (`X.Y.Z`) from a markdown header (e.g., `## v1.2.3`).
+    3.  Use the `tomli` and `tomli_w` libraries to parse `pyproject.toml`, update `project.version`, and write it back.
+    4.  Use the `json` module to load `spiral-ui/package.json`, update its `version` key, and save it, preserving indentation.
+    5.  Use the `subprocess` module to run `git add` and `git commit` to commit the version bump.
+
+**4. Edge Cases & Gotchas:**
+*   Ensure the version-parsing regex handles an optional "v" prefix (e.g., `v1.2.3` vs. `1.2.3`).
+*   The script must raise an error if a version number cannot be found in the changelog.
+*   Gracefully handle `FileNotFoundError` for all involved files.
+*   The commit message must be `[skip ci] chore: bump to vX.Y.Z` to prevent CI loops.
+
+
+## Pre-analysis for US-590 (Gemini 2.5 Pro)
+Here is the technical brief for implementing story US-590.
+
+**File:** `claude_brief_US-590.md`
+**Contents:**
+
+### Technical Brief: US-590 Semantic Version Bumper
+
+This brief outlines the implementation for automatically updating version numbers in `pyproject.toml` and `spiral-ui/package.json` based on `CHANGELOG.md`.
+
+**1. Primary Files to Modify/Create:**
+
+*   **`lib/phases/phase_g_version_bump.py`**: A new Python script to be created. This will house the core logic for parsing the changelog and updating project files.
+*   **`pyproject.toml`**: The target file for the Python project's version update. The script will modify the `version` key under the `[tool.poetry]` section.
+*   **`spiral-ui/package.json`**: The target file for the frontend project's version update. The script will modify the top-level `version` key.
+*   **`CHANGELOG.md`**: The source file for the new version string. The script will read from, but not write to, this file.
+
+**2. Involved Frappe DocTypes or Hooks:**
+
+*   None. This task is purely a backend scripting operation within the "Spiral" project's CI/CD pipeline and does not involve the Frappe framework.
+
+**3. Recommended Implementation Approach:**
+
+1.  In `lib/phases/phase_g_version_bump.py`, use Python's `re` (regex) module to parse the semantic version from `CHANGELOG.md`. A pattern like `^## \[(\d+\.\d+\.\d+)]` should reliably extract the version from the first heading.
+2.  Use the `toml` library to read, update, and write the version in `pyproject.toml`. The target is `tool.poetry.version`.
+3.  Use the standard `json` library to read, update, and write the `version` key in `spiral-ui/package.json`.
+4.  Use the `subprocess` module to execute the following Git commands after successfully updating the files:
+    *   `git add pyproject.toml spiral-ui/package.json`
+    *   `git commit -m "[skip ci] chore: bump to vX.Y.Z"` (where X.Y.Z is the parsed version).
+
+**4. Edge Cases and Gotchas:**
+
+*   **Regex Failure**: The script should raise a clear error if the version pattern is not found in `CHANGELOG.md` to prevent silent failures.
+*   **File Paths**: Ensure the script correctly resolves relative paths to `pyproject.toml` and `spiral-ui/package.json` from its execution context.
+*   **Dependencies**: The project may need the `toml` library (`pip install toml`). Check `pyproject.toml` to see if a TOML parser is already a dependency.
+*   **Idempotency**: The script should ideally be safe to re-run, although the commit step makes this complex. The primary goal is a single, clean commit as part of the Phase G workflow.
+
+
+## Pre-analysis for US-590 (Gemini 2.5 Pro)
+This user story is for a local repository automation script, not a Frappe application. The context seems mismatched, but the technical requirements from the JSON are clear.
+
+**Technical Brief for US-590: Semantic Version Bumper**
+
+1.  **Python Files to Modify**:
+    *   `lib/phases/phase_g_version_bump.py`: This new or existing file will contain the core logic for the version bump process.
+    *   It will be executed as part of the "Phase G" build/release step.
+
+2.  **Frappe DocTypes / Hooks Involved**:
+    *   None. This task is unrelated to Frappe. It interacts with local files (`pyproject.toml`, `package.json`) and the local Git repository.
+
+3.  **Recommended Implementation Approach**:
+    *   Use the `re` module to parse `CHANGELOG.md`. A regex like `^##\s*\[(\d+\.\d+\.\d+)\]` can extract the latest version from the first matching heading.
+    *   For `pyproject.toml`, read the file and use `re.sub` to find and replace the `version = "..."` string under the `[project]` or `[tool.poetry]` table.
+    *   For `spiral-ui/package.json`, use the standard `json` module to load the file into a dictionary, update the `version` key, and dump it back to the file to preserve its structure.
+    *   Use the `subprocess` module to execute git commands (`git add`, `git commit`) to create the version bump commit with the specified message format.
+
+4.  **Edge Cases & Gotchas**:
+    *   **Changelog Format**: The script should fail gracefully if `CHANGELOG.md` is empty or the top entry doesn't contain a parsable version.
+    *   **File Paths**: Ensure paths to `pyproject.toml` and `spiral-ui/package.json` are correctly resolved from the script's execution location.
+    *   **Idempotency**: If the script runs when versions are already correct, it should ideally do nothing or re-apply the same version without error.
+
