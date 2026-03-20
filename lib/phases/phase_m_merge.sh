@@ -145,6 +145,13 @@ run_phase_merge() {
           --max-pending "${SPIRAL_PRD_PENDING_CAP:-50}" || true
       fi
 
+      # ── Phase M: Detect file conflicts between pending stories ────────────
+      _CONFLICT_LOG="$SCRATCH_DIR/conflict_report.jsonl"
+      echo "  [M] Detecting file conflicts between pending stories..."
+      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/conflict_detector.py" \
+        --prd "$PRD_FILE" \
+        --log-file "$_CONFLICT_LOG" || true
+
       # ── Phase M: Infer dependencies from filesTouch overlap ─────────────────
       _HINTS_FILE="$SCRATCH_DIR/_dependency_hints.json"
       echo "  [M] Inferring dependencies from filesTouch overlap..."
