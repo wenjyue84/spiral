@@ -2131,6 +2131,35 @@ function spiralApiPlugin() {
             return b.retryCount - a.retryCount;
           });
 
+          // ── 12b. Resolved failures (passed/skipped/decomposed but had _failureReason) ──
+          // Preserves history so users can see what went wrong and how it was fixed
+          type ResolvedStatus = 'passed' | 'skipped' | 'decomposed';
+          interface ResolvedFailure {
+            id: string; title: string; reason: string; category: FailureCategory;
+            retryCount: number; model: string; source: string;
+            resolvedAs: ResolvedStatus;
+          }
+          const resolvedFailures: ResolvedFailure[] = stories
+            .filter(s => s._failureReason && (s.passes || s._skipped || s._decomposed))
+            .map(s => {
+              const cat = categorize(s);
+              const resolved: ResolvedStatus = s.passes ? 'passed' : s._decomposed ? 'decomposed' : 'skipped';
+              return {
+                id: s.id,
+                title: s.title ?? '',
+                reason: s._failureReason!,
+                category: cat,
+                retryCount: retryCounts[s.id] ?? 0,
+                model: s.model ?? '',
+                source: s._source ?? '',
+                resolvedAs: resolved,
+              };
+            })
+            .sort((a, b) => {
+              const order: Record<FailureCategory, number> = { cost_ceiling: 0, too_large: 1, dependency_blocked: 2, rejected: 3, pending_retry: 4, never_attempted: 5 };
+              return order[a.category] - order[b.category];
+            });
+
           // ── 13. Insights ───────────────────────────────────────────────────
           const insights: string[] = [];
           if (modelPerformance.length >= 2) {
@@ -2171,7 +2200,7 @@ function spiralApiPlugin() {
             overview, velocity, modelPerformance, retryAnalysis,
             resourceUsage, bottlenecks, iterationVelocity,
             statusBreakdown, tokenForecast, qualityScores,
-            epics, decomposition: decompositionData, failureReasons,
+            epics, decomposition: decompositionData, failureReasons, resolvedFailures,
             insights, latestScreenshot,
           }));
         } catch (e) {

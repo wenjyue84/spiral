@@ -19,8 +19,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from lib.predict_cost import KNNEstimator, _validate_path, main, predict_story
-
+from lib.predict_cost import KNNEstimator, _validate_path, main
 
 # ---------------------------------------------------------------------------
 # Helpers

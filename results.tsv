@@ -1,2 +1,3 @@
 timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	retry_num	commit_sha	run_id	cache_hit	cache_read_tokens	cache_creation_tokens	review_tokens	wall_seconds	user_cpu_s	sys_cpu_s	peak_rss_kb	batch_id
 2026-03-20T04:00:40Z	3	2	US-548	Dashboard Endpoint - Research Source Authority Tracking	reject	292	sonnet	1		69bcb83e3c28	true	894414	56415	0	0	0	0	0	
+2026-03-20T04:47:20Z	5	1	US-567	[Security Test] Auth/Permission Access Control for US-516	reject	247	sonnet	1		69bcb83e3c28	true	888284	57060	0	0	0	0	0	

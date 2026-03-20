@@ -31,6 +31,11 @@ interface AnalyticsData {
     lastModel: string | null; lastStatus: string | null; lastDurationSec: number | null;
     scopeCreep: boolean; recommendation: string;
   }>;
+  resolvedFailures: Array<{
+    id: string; title: string; reason: string;
+    category: string; retryCount: number; model: string; source: string;
+    resolvedAs: 'passed' | 'skipped' | 'decomposed';
+  }>;
   insights: string[];
   latestScreenshot: string | null;
 }
@@ -75,7 +80,7 @@ export default function AnalyticsTab({ projectName }: { projectName: string }) {
 
   const { overview: ov, statusBreakdown: sb, insights, velocity, modelPerformance, retryAnalysis,
     resourceUsage, bottlenecks, iterationVelocity, qualityScores, tokenForecast,
-    epics, decomposition, failureReasons, latestScreenshot } = data;
+    epics, decomposition, failureReasons, resolvedFailures, latestScreenshot } = data;
 
   const hasData = ov.totalAttempts > 0;
   if (!hasData) {
@@ -240,6 +245,64 @@ export default function AnalyticsTab({ projectName }: { projectName: string }) {
           </div>
         );
       })()}
+
+      {/* ── 2b. Resolved Failures (history of what was fixed) ─────────────── */}
+      {resolvedFailures.length > 0 && (
+        <div>
+          <div className="text-xs font-medium text-slate-500 mb-2 uppercase tracking-wide">
+            Resolved Failures ({resolvedFailures.length})
+            <span className="ml-2 text-emerald-500 normal-case">previously blocked, now resolved</span>
+          </div>
+          <div className="rounded-lg border border-slate-200 overflow-hidden">
+            <table className="w-full text-xs">
+              <thead className="bg-slate-50 text-slate-500">
+                <tr>
+                  <th className="text-left px-3 py-2">Story</th>
+                  <th className="text-left px-3 py-2">Title</th>
+                  <th className="text-left px-3 py-2">Failure Reason</th>
+                  <th className="text-center px-3 py-2">Retries</th>
+                  <th className="text-left px-3 py-2">Model</th>
+                  <th className="text-left px-3 py-2">Resolution</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {resolvedFailures.map(f => (
+                  <tr key={f.id} className="hover:bg-slate-50">
+                    <td className="px-3 py-1.5 font-mono text-slate-700">{f.id}</td>
+                    <td className="px-3 py-1.5 text-slate-600 max-w-[200px] truncate" title={f.title}>{f.title}</td>
+                    <td className="px-3 py-1.5 text-slate-500 max-w-[250px]" title={f.reason}>
+                      <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] mr-1.5 ${
+                        f.category === 'cost_ceiling' ? 'bg-red-100 text-red-600' :
+                        f.category === 'too_large' ? 'bg-orange-100 text-orange-600' :
+                        f.category === 'dependency_blocked' ? 'bg-amber-100 text-amber-600' :
+                        'bg-slate-100 text-slate-500'
+                      }`}>
+                        {f.category === 'cost_ceiling' ? 'cost ceiling' :
+                         f.category === 'too_large' ? 'too large' :
+                         f.category === 'dependency_blocked' ? 'dep blocked' : f.category}
+                      </span>
+                      <span className="text-slate-400 truncate">{f.reason}</span>
+                    </td>
+                    <td className="px-3 py-1.5 text-center">
+                      <span className={f.retryCount >= 3 ? 'text-red-600 font-bold' : 'text-slate-500'}>{f.retryCount}</span>
+                    </td>
+                    <td className="px-3 py-1.5 font-mono text-slate-500">{f.model || '?'}</td>
+                    <td className="px-3 py-1.5">
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                        f.resolvedAs === 'passed' ? 'bg-emerald-100 text-emerald-700' :
+                        f.resolvedAs === 'decomposed' ? 'bg-amber-100 text-amber-700' :
+                        'bg-slate-100 text-slate-500'
+                      }`}>
+                        {f.resolvedAs}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* ── 3. Story Status Stacked Bar ───────────────────────────────────── */}
       <div>
