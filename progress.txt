@@ -1,3 +1,17 @@
+## Iteration (verification session) - Story: US-625 Dashboard Aggregation Layer
+
+### What was implemented
+- lib/spiral/dashboard/aggregator.py: aggregate_overview() with cross-project metrics (totalCost, storiesPassed, avgPhaseTime, blockerCount, slowestSubProject, escalationPct, subProjectCount)
+- lib/dashboard/api.py: GET /api/dashboard/overview + WebSocket /ws/overview endpoints wired to aggregate_overview()
+- tests/integration/test_dashboard_aggregator.py: 12 tests all pass (TestAggregateOverview + TestReadTsv)
+
+### Patterns discovered
+- All three components were already fully implemented in a prior iteration; story just needed passes=true
+- Always run tests before assuming passes=false means unimplemented
+
+### Gotchas
+- _read_tsv filters by sub_project column only when the column exists in the TSV header; bare files without that column are included wholesale
+
 ## Iteration (verification session) - Story: US-617 Phase M Federated Story Ordering
 
 ### What was implemented

@@ -1770,6 +1770,99 @@ function spiralApiPlugin() {
         handleAnalytics(root, res);
       });
 
+      // ── GET /api/dashboard/overview — unified cross-project metrics ─────────
+      // Aggregates results.tsv from all registered projects (or a single project
+      // if ?name=X is given). Returns {totalCost, storiesPassed, avgPhaseTime,
+      // blockerCount, slowestSubProject}. Re-reads files on every request so
+      // metrics reflect the latest results.tsv state.
+      server.middlewares.use('/api/dashboard/overview', (req: IncomingMessage, res: ServerResponse, next: () => void) => {
+        if (req.method !== 'GET') { next(); return; }
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Content-Type', 'application/json');
+
+        try {
+          const url = new URL(req.url ?? '', 'http://localhost');
+          const filterName = url.searchParams.get('name') ?? '';
+          const reg = readRegistry();
+
+          // Build list of (projectKey, results.tsv path) pairs
+          const projectPaths: Array<{ key: string; tsvPath: string }> = filterName
+            ? [{ key: filterName, tsvPath: path.join(reg[filterName] ?? PROJECT_ROOT, 'results.tsv') }]
+            : Object.entries(reg).map(([name, root]) => ({ key: name, tsvPath: path.join(root, 'results.tsv') }));
+
+          // Cost rate table (USD per 1M tokens) — mirrors Python aggregator
+          const COST_PER_M: Record<string, number> = { haiku: 0.25, sonnet: 3.0, opus: 15.0 };
+
+          const estimateCost = (row: Record<string, string>): number => {
+            const model = (row['model'] ?? 'sonnet').toLowerCase();
+            const rate = COST_PER_M[model] ?? 3.0;
+            const inputTok = (parseFloat(row['cache_read_tokens'] ?? '0') || 0) + (parseFloat(row['cache_creation_tokens'] ?? '0') || 0);
+            const outputTok = parseFloat(row['review_tokens'] ?? '0') || 0;
+            return (inputTok + outputTok) / 1_000_000 * rate;
+          };
+
+          const readTsv = (tsvPath: string): Array<Record<string, string>> => {
+            if (!fs.existsSync(tsvPath)) return [];
+            try {
+              const lines = fs.readFileSync(tsvPath, 'utf8').split('\n').filter(Boolean);
+              if (lines.length < 2) return [];
+              const headers = lines[0].split('\t');
+              return lines.slice(1).map(line => {
+                const cols = line.split('\t');
+                const row: Record<string, string> = {};
+                for (let j = 0; j < headers.length; j++) row[headers[j]] = cols[j] ?? '';
+                return row;
+              });
+            } catch { return []; }
+          };
+
+          let totalCost = 0.0;
+          let storiesPassed = 0;
+          let blockerCount = 0;
+          const allDurations: number[] = [];
+          const projectAvgDurations: Record<string, number[]> = {};
+          let allRows: Array<Record<string, string>> = [];
+
+          for (const { key, tsvPath } of projectPaths) {
+            const rows = readTsv(tsvPath);
+            projectAvgDurations[key] = [];
+            for (const row of rows) {
+              totalCost += estimateCost(row);
+              const dur = parseFloat(row['duration_sec'] ?? '0') || 0;
+              allDurations.push(dur);
+              projectAvgDurations[key].push(dur);
+              if ((row['status'] ?? '').toLowerCase() === 'keep') storiesPassed++;
+              else blockerCount++;
+            }
+            allRows = allRows.concat(rows);
+          }
+
+          const avgPhaseTime = allDurations.length > 0
+            ? allDurations.reduce((s, d) => s + d, 0) / allDurations.length
+            : 0.0;
+
+          let slowestSubProject = '';
+          let slowestAvg = -1;
+          for (const [key, durs] of Object.entries(projectAvgDurations)) {
+            if (durs.length > 0) {
+              const avg = durs.reduce((s, d) => s + d, 0) / durs.length;
+              if (avg > slowestAvg) { slowestAvg = avg; slowestSubProject = key; }
+            }
+          }
+
+          res.end(JSON.stringify({
+            totalCost: Math.round(totalCost * 1_000_000) / 1_000_000,
+            storiesPassed,
+            avgPhaseTime: Math.round(avgPhaseTime * 1000) / 1000,
+            blockerCount,
+            slowestSubProject,
+          }));
+        } catch (e) {
+          res.statusCode = 500;
+          res.end(JSON.stringify({ error: String(e) }));
+        }
+      });
+
       // ── GET /api/tests?name=X — list all pytest test IDs ────────────────────
       server.middlewares.use('/api/tests', (req: IncomingMessage, res: ServerResponse, next: () => void) => {
         if (req.method !== 'GET') { next(); return; }
