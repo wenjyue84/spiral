@@ -2524,7 +2524,8 @@
       "estimatedComplexity": "small",
       "passes": false,
       "_source": "test-story",
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-03-20T10:19:13Z"
     },
     {
       "id": "US-589",
@@ -2624,6 +2625,58 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-595",
+      "title": "Dashboard Cost Estimate Accuracy Trending Endpoint — Predict vs Actual Token Comparison",
+      "priority": "medium",
+      "description": "Build dashboard endpoint that tracks accuracy of cost predictions (from predict-cost CLI) against actual token consumption (from results.tsv). Provides accuracy metrics and trends to help tune cost estimation models.",
+      "acceptanceCriteria": [
+        "GET /api/dashboard/estimate-accuracy returns JSON with story_id, estimated_tokens, actual_tokens, error_pct for all stories in results.tsv; calculate mean_error_pct and p95_error_pct across dataset",
+        "Endpoint aggregates accuracy metrics by phase (R/S/I/V) showing which phases have largest prediction error; assert accuracy > 80% or flag degradation",
+        "Integration test with 20 mocked story runs: populate results.tsv with estimated/actual costs, hit endpoint, verify JSON structure and accuracy calculations match expected thresholds"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-596",
+      "title": "Ralph Episodic Memory Implementation - Pattern Store with Similarity Search",
+      "priority": "high",
+      "description": "Implement the episodic memory backend that Ralph workers use to recall past implementation patterns and heuristics from prior retry attempts. Currently only an integration test exists; the actual storage and retrieval mechanism is missing. This enables Ralph to inject similar past solutions into prompts during Phase I retries, reducing redundant exploration.",
+      "acceptanceCriteria": [
+        "Implement EpisodicMemory class in lib/episodic_memory.py with methods: write(story_id, pattern_dict) → None, get_similar(story_id, k=3) → List[Dict], clear_expired(ttl_days=7) → int",
+        "Ralph worker persists implementation attempt outcomes to .spiral/episodic_memory.jsonl on each retry; Phase I retry prompt injection calls lib/get_similar_patterns(story_id) and embeds top-3 matches into system context",
+        "Test: test_ralph_episodic_memory_store.py verifies pattern write/retrieve, similarity ranking by embedding distance, and TTL expiration with fixture prd.json stories"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku",
+      "last_attempted": "2026-03-20T10:19:25Z"
+    },
+    {
+      "id": "US-597",
+      "title": "Phase G pdoc Integration - Auto-Generate Python API Documentation from Ralph Modules",
+      "priority": "medium",
+      "description": "Wire pdoc into Phase G to auto-generate HTML/markdown API documentation from ralph/ralph.py and lib/spiral/* modules, completing Phase G automation alongside git-cliff CHANGELOG generation. Output docs to .spiral/docs/ with index file for dashboard navigation.",
+      "acceptanceCriteria": [
+        "Phase G Phase Exec calls pdoc.generate(modules=['ralph', 'lib.spiral'], output_dir='.spiral/docs/', html=True) after Phase I completion; updates .spiral/_checkpoint.json with phase_g_pdoc_complete timestamp",
+        "Generated docs include function signatures, docstrings, type hints for ralph.sh wrapper functions and lib/spiral Python modules; index.html links to all modules",
+        "Test: test_phase_g_pdoc_generation.py verifies .spiral/docs contains valid HTML files with correct module signatures and builds without pdoc warnings"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
       "passes": false,
       "_source": "ai-example",
       "model": "haiku"
