@@ -39,6 +39,7 @@
         ".hypothesis/constants/112c210229744ab1"
       ],
       "tags": [
+        "module-hypothesis",
         "module-hypothesis"
       ]
     },
@@ -71,6 +72,8 @@
         ".hypothesis/constants/031f85f1c11bb00b"
       ],
       "tags": [
+        "module-claude",
+        "module-hypothesis",
         "module-claude",
         "module-hypothesis"
       ],
@@ -106,6 +109,7 @@
         ".hypothesis/constants/112c210229744ab1"
       ],
       "tags": [
+        "module-hypothesis",
         "module-hypothesis"
       ],
       "_scopeCreep": true
@@ -140,6 +144,8 @@
       ],
       "tags": [
         "module-claude",
+        "module-hypothesis",
+        "module-claude",
         "module-hypothesis"
       ],
       "last_attempted": "2026-03-20T13:23:57Z"
@@ -173,6 +179,8 @@
         ".hypothesis/constants/0dcb44a91ae6f1ae"
       ],
       "tags": [
+        "module-claude",
+        "module-hypothesis",
         "module-claude",
         "module-hypothesis"
       ]
@@ -248,6 +256,8 @@
       ],
       "tags": [
         "module-hypothesis",
+        "module-lib",
+        "module-hypothesis",
         "module-lib"
       ],
       "last_attempted": "2026-03-19T02:00:58Z"
@@ -281,6 +291,7 @@
         ".hypothesis/examples/d7017880e970832b/d5de667a725a0ce8"
       ],
       "tags": [
+        "module-hypothesis",
         "module-hypothesis"
       ],
       "last_attempted": "2026-03-19T02:49:03Z",
@@ -315,6 +326,8 @@
         "retry-counts.json"
       ],
       "tags": [
+        "module-hypothesis",
+        "module-lib",
         "module-hypothesis",
         "module-lib"
       ],
@@ -351,6 +364,8 @@
       ],
       "tags": [
         "module-hypothesis",
+        "module-lib",
+        "module-hypothesis",
         "module-lib"
       ],
       "_passedCommit": "df8d0149b07fba31d7d07d9631a80087370cf7a0"
@@ -384,6 +399,7 @@
         ".hypothesis/examples/d7017880e970832b/d5de667a725a0ce8"
       ],
       "tags": [
+        "module-hypothesis",
         "module-hypothesis"
       ],
       "_passedCommit": "df8d0149b07fba31d7d07d9631a80087370cf7a0"
@@ -412,6 +428,8 @@
         "tests/test_velocity_model.py"
       ],
       "tags": [
+        "module-lib",
+        "module-tests",
         "module-lib",
         "module-tests"
       ],
@@ -481,6 +499,7 @@
         "tests/test_federated_prd.py"
       ],
       "tags": [
+        "module-tests",
         "module-tests"
       ]
     },
@@ -513,6 +532,7 @@
         ".hypothesis/examples/d7017880e970832b/a0f33084b8dbe4ad"
       ],
       "tags": [
+        "module-hypothesis",
         "module-hypothesis"
       ]
     },
@@ -545,6 +565,7 @@
         ".hypothesis/examples/d7017880e970832b/a0f33084b8dbe4ad"
       ],
       "tags": [
+        "module-hypothesis",
         "module-hypothesis"
       ],
       "_scopeCreep": true
@@ -578,6 +599,7 @@
         ".hypothesis/tmp/tmp41j78ikc"
       ],
       "tags": [
+        "module-hypothesis",
         "module-hypothesis"
       ],
       "last_attempted": "2026-03-19T12:47:04Z"
@@ -611,6 +633,8 @@
         ".hypothesis/examples/04e6b3400353b141/d16a108f0ffe00c6"
       ],
       "tags": [
+        "module-github",
+        "module-hypothesis",
         "module-github",
         "module-hypothesis"
       ],
@@ -652,6 +676,7 @@
         ".hypothesis/examples/d7017880e970832b/a0f33084b8dbe4ad"
       ],
       "tags": [
+        "module-hypothesis",
         "module-hypothesis"
       ]
     },
@@ -688,6 +713,8 @@
         ".hypothesis/examples/04e6b3400353b141/d7017880e970832b"
       ],
       "tags": [
+        "module-github",
+        "module-hypothesis",
         "module-github",
         "module-hypothesis"
       ]
@@ -831,6 +858,7 @@
         "tests/test_episodic_memory.py"
       ],
       "tags": [
+        "module-tests",
         "module-tests"
       ],
       "_passedCommit": "052f0e49a93abe005d353b5b850c17ec27b17b84"
@@ -1222,6 +1250,8 @@
       ],
       "tags": [
         "module-github",
+        "module-hypothesis",
+        "module-github",
         "module-hypothesis"
       ]
     },
@@ -1409,6 +1439,7 @@
         ".hypothesis/constants/15647f5536a392c4"
       ],
       "tags": [
+        "module-hypothesis",
         "module-hypothesis"
       ],
       "last_attempted": "2026-03-20T03:53:38Z",
@@ -1558,6 +1589,9 @@
       "tags": [
         "module-github",
         "module-hypothesis",
+        "module-lib",
+        "module-github",
+        "module-hypothesis",
         "module-lib"
       ]
     },
@@ -1585,6 +1619,7 @@
         "progress.txt"
       ],
       "tags": [
+        "module-github",
         "module-github"
       ],
       "_passedCommit": "9fb5999af9697ec44d825c3e6fde4afbe4966bb6"
@@ -1616,6 +1651,9 @@
         "lib/batch_validate.py"
       ],
       "tags": [
+        "module-github",
+        "module-hypothesis",
+        "module-lib",
         "module-github",
         "module-hypothesis",
         "module-lib"
@@ -1719,6 +1757,8 @@
         ".hypothesis/constants/031f85f1c11bb00b"
       ],
       "tags": [
+        "module-claude",
+        "module-hypothesis",
         "module-claude",
         "module-hypothesis"
       ],
@@ -1969,6 +2009,9 @@
         "module-hypothesis",
         "module-lib",
         "module-ralph",
+        "module-tests",
+        "module-lib",
+        "module-ralph",
         "module-tests"
       ]
     },
@@ -2000,6 +2043,8 @@
         ".hypothesis/constants/031f85f1c11bb00b"
       ],
       "tags": [
+        "module-github",
+        "module-hypothesis",
         "module-github",
         "module-hypothesis"
       ],
@@ -2034,6 +2079,8 @@
       ],
       "tags": [
         "module-claude",
+        "module-hypothesis",
+        "module-claude",
         "module-hypothesis"
       ],
       "_passedCommit": ""
@@ -2066,6 +2113,8 @@
         ".hypothesis/constants/06ee3234b07f7d66"
       ],
       "tags": [
+        "module-claude",
+        "module-hypothesis",
         "module-claude",
         "module-hypothesis"
       ],
@@ -2567,6 +2616,9 @@
       "tags": [
         "module-claude",
         "module-devcontainer",
+        "module-github",
+        "module-claude",
+        "module-devcontainer",
         "module-github"
       ],
       "last_attempted": "2026-03-18T16:56:51Z",
@@ -2599,6 +2651,9 @@
         ".hypothesis/tmp/tmp0e2cnr_5"
       ],
       "tags": [
+        "module-claude",
+        "module-github",
+        "module-hypothesis",
         "module-claude",
         "module-github",
         "module-hypothesis"
@@ -2698,32 +2753,65 @@
       "tags": []
     },
     {
-      "id": "US-599",
-      "title": "Results.tsv Auto-Archival: Rotate Old Iterations & Aggregate for Trending",
-      "priority": "medium",
-      "description": "Prevent results.tsv unbounded growth by auto-rotating iterations >100 to timestamped archives (.spiral/results.archive/YYYY-MM-DD_iter-N.tsv) during Phase C. Update dashboard trending endpoints to transparently aggregate archived + current results.tsv for 30+ iteration metrics without timeout errors.",
+      "id": "US-602",
+      "title": "Dashboard Time-Series Storage: SQLite Historical Metrics for Trend Analysis",
+      "priority": "high",
+      "description": "Enable SPIRAL dashboard to track historical metrics across iterations for trend analysis, enabling cost forecasting and velocity modeling. Persist phase durations, token spend, story throughput, and worker utilization to SQLite, with HTTP API for querying time-series data.",
       "acceptanceCriteria": [
-        "lib/impl/archive_results.py: After Phase C, if results.tsv row count >500, move iterations 1-50 to .spiral/results.archive/YYYY-MM-DD_iter-50.tsv and rewrite results.tsv; log action to .spiral/archival.log",
-        "Dashboard trending endpoints (GET /api/dashboard/trends/cost, /api/dashboard/trends/throughput) aggregate results.tsv + results.archive/*.tsv via pandas; 30-iteration window returns metrics in <1s",
-        "CLI: spiral archive-results [--keep-last N] [--before YYYY-MM-DD] manually triggers archival; output: {rows_moved: int, archive_path: str, freed_mb: float}"
+        "Implement lib/dashboard/timeseries_store.py with SQLite schema in .spiral/dashboard.db: iterations(iteration_N, timestamp, phase, duration_sec, tokens_spent), stories(story_id, iteration_N, phase, status, retry_count), workers(worker_id, timestamp, memory_mb, lock_wait_ms)",
+        "Phase C calls timeseries_store.record_iteration() after each iteration completes, persisting metrics parsed from results.tsv and phase logs",
+        "HTTP GET /api/dashboard/timeseries?metric=phase_duration&phase=R&window=30d returns JSON with [{timestamp, value}, ...] enabling trend charts; dashboard renders cost/velocity trends across 10+ iterations"
       ],
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
       "_source": "ai-example",
-      "model": "haiku",
+      "model": "sonnet",
+      "last_attempted": "2026-03-20T14:34:27Z",
+      "filesTouch": [
+        ".hypothesis/constants/0144005a67236799",
+        ".hypothesis/constants/016af87f794a90e9",
+        ".hypothesis/constants/01831d6f995783ed",
+        ".hypothesis/constants/044aa4a97dd3204b",
+        ".hypothesis/constants/06ee3234b07f7d66",
+        ".hypothesis/constants/087180ea5c6680fc",
+        ".hypothesis/constants/0ad243c8c6e11ffb",
+        ".hypothesis/constants/0dcb44a91ae6f1ae",
+        ".hypothesis/constants/11806e59ccbb8120",
+        ".hypothesis/constants/15647f5536a392c4"
+      ],
+      "tags": [
+        "module-hypothesis"
+      ]
+    },
+    {
+      "id": "US-604",
+      "title": "Phase G: Wire git-cliff CHANGELOG Generator with Story Commit Parsing",
+      "priority": "high",
+      "description": "Integrate git-cliff into Phase G to automatically generate CHANGELOG.md from story commits. Parse commit messages for story IDs (US-NNN, UT-NNN), categorize by type (feat, fix, docs, refactor), and produce markdown output with sections. Log commits without story IDs as warnings.",
+      "acceptanceCriteria": [
+        "lib/phases/gen_changelog.sh integrates git-cliff executable (path from SPIRAL_GIT_CLIFF_BIN in config), validates it exists before Phase G execution",
+        "CHANGELOG.md generated in project root with sections for feat/fix/docs/refactor, each section lists commits grouped by story ID with commit hash and message",
+        "Orphan commits without story ID pattern (US-NNN, UT-NNN) logged to .spiral/phase_g_warnings.log with hash and subject"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "opus",
       "filesTouch": [
         ".claude/hooks/verify_story_acceptance.py",
         ".coverage",
-        ".hypothesis/constants/1a93c1a1253860b2",
-        ".hypothesis/constants/85d9048f9511202c",
-        ".hypothesis/tmp/tmp0lsloo7l",
-        ".hypothesis/tmp/tmp1z3dns_i",
-        ".hypothesis/tmp/tmp2tr3_0hv",
-        ".hypothesis/tmp/tmp336_s67s",
-        ".hypothesis/tmp/tmp3cxw4tqe",
-        ".hypothesis/tmp/tmp51d95gac"
+        ".hypothesis/constants/006b559781a41f7f",
+        ".hypothesis/constants/0144005a67236799",
+        ".hypothesis/constants/016af87f794a90e9",
+        ".hypothesis/constants/0175637d9e298755",
+        ".hypothesis/constants/01831d6f995783ed",
+        ".hypothesis/constants/02fb3c1b426206d7",
+        ".hypothesis/constants/031f85f1c11bb00b",
+        ".hypothesis/constants/03d65cf548ce3b23"
       ],
       "tags": [
         "module-claude",
@@ -2731,31 +2819,47 @@
       ]
     },
     {
-      "id": "US-600",
-      "title": "Dashboard: Worker Health Status Endpoint with Real-Time WebSocket Stream",
-      "priority": "medium",
-      "description": "Add HTTP API endpoint and WebSocket stream to monitor parallel worker health in real-time, displaying worker status (running/idle/crashed), current story assignment, queue depth, and memory usage on the dashboard.",
+      "id": "US-605",
+      "title": "CLI: federated-merge-prd — Merge Sub-Project PRD Files with Namespace Validation",
+      "priority": "high",
+      "description": "Implement CLI command to merge multiple prd.json files from federated sub-projects (auth, api, payments) into a single master PRD. Validates no duplicate story IDs, preserves sub_project field, and detects namespace conflicts. Prerequisite for multi-repo project support.",
       "acceptanceCriteria": [
-        "GET /api/dashboard/workers returns JSON array with fields: worker_id, status (enum: running|idle|crashed|memory-warning), current_story_id, queue_depth, memory_pct, last_heartbeat_ts; endpoint reads from lib/worker_heartbeat.sh state",
-        "WebSocket /ws/workers broadcasts worker status changes with 5-second update interval; dashboard component renders worker pool as card grid with status badges, progress bars, and current assignment label",
-        "Integration test: spawn 3 workers, verify endpoint returns 3 records, verify WebSocket emits 2+ status changes when story completes and next story starts"
+        "Command `spiral federated-merge-prd --projects=auth,api,payments --output=merged-prd.json` successfully combines 3 sample PRDs from sub-project directories and writes merged JSON with all stories retained",
+        "Merge detects duplicate story IDs across projects and exits with error code 1, reporting conflicting IDs without writing output file",
+        "Integration test creates 3 PRDs (auth with US-1/US-2, api with US-3, payments with US-4), merges them, and verifies all stories have correct sub_project field set and priority preserved"
       ],
       "technicalNotes": [],
       "dependencies": [],
-      "estimatedComplexity": "medium",
+      "estimatedComplexity": "small",
       "passes": false,
       "_source": "ai-example",
-      "model": "sonnet"
+      "model": "sonnet",
+      "filesTouch": [
+        ".claude/scheduled_tasks.lock",
+        ".coverage",
+        ".hypothesis/constants/006b559781a41f7f",
+        ".hypothesis/constants/0175637d9e298755",
+        ".hypothesis/constants/02fb3c1b426206d7",
+        ".hypothesis/constants/031f85f1c11bb00b",
+        ".hypothesis/constants/03d65cf548ce3b23",
+        ".hypothesis/constants/0628f2618034526e",
+        ".hypothesis/constants/0799a57e5d15899f",
+        ".hypothesis/constants/07b8446a052edf99"
+      ],
+      "tags": [
+        "module-claude",
+        "module-hypothesis"
+      ]
     },
     {
-      "id": "US-601",
-      "title": "CLI: spiral federate-init — Initialize Sub-Project with Namespace and Parent Link",
-      "priority": "medium",
-      "description": "Create CLI command to bootstrap federated sub-project prd.json with namespace prefix validation and parent project linking. Generates pre-configured prd.json with federation metadata for sub-projects in multi-repo SPIRAL setups.",
+      "id": "US-606",
+      "title": "Dashboard Endpoint: GET /api/dashboard/error-breakdown by Phase and Category",
+      "priority": "high",
+      "description": "Add dashboard HTTP endpoint that aggregates results.tsv failures by phase (R/T/S/M/I/V/C) and error category (timeout, oom, validation_error, model_error, file_conflict), returns JSON for error heatmap widget at localhost:5299. Helps operators diagnose phase-specific bottlenecks.",
       "acceptanceCriteria": [
-        "Implement lib/spiral/commands/federate_init.py accepting `spiral federate-init --namespace myproject --parent ../parent/prd.json`; validate namespace format (alphanumeric+hyphen, max 20 chars); generate ./prd.json with namespace-prefixed story IDs (e.g., MYPROJECT-001)",
-        "Assert generated prd.json has `federation.namespace` and `federation.parent_path` metadata fields; reject invalid namespace with error message: `'Invalid namespace: contains spaces'`",
-        "Add tests/test_federate_init.py with test_valid_namespace_generates_prd(), test_invalid_namespace_rejected(), and test_parent_path_resolution_validates_file_exists()"
+        "Endpoint GET /api/dashboard/error-breakdown?iterations=5 returns JSON: {phases: {R: {timeout: 3, model_error: 1}, I: {oom: 2, ...}}, total_errors: X} aggregated from results.tsv status='failed' and error_type columns",
+        "UI widget renders stacked bar chart at localhost:5299/dashboard#errors showing error count per phase; clicking phase bar drills into error categories with story IDs",
+        "Endpoint supports ?iteration=N to filter single iteration, defaults to last 5; validates N is integer ≥1"
       ],
       "technicalNotes": [],
       "dependencies": [],
@@ -2763,6 +2867,23 @@
       "passes": false,
       "_source": "ai-example",
       "model": "haiku"
+    },
+    {
+      "id": "US-607",
+      "title": "CLI: show-worker-logs — Aggregate and Stream Parallel Worker Worktree Logs",
+      "priority": "medium",
+      "description": "Add a CLI command to aggregate logs from all parallel worker worktrees (.spiral-workers/worker-*/) into a unified, time-sorted report. Enables debugging of worker failures, race conditions, and inconsistent prd.json output across workers.",
+      "acceptanceCriteria": [
+        "Implement `spiral show-worker-logs [--worker-id ID] [--phase PHASE]` CLI in lib/spiral/cli.py; reads .spiral-workers/worker-*/logs/*.log and merges by ISO timestamp",
+        "Output format: tab-separated [worker_id|timestamp|phase|log_level|message]; support --worker-id and --phase filters; stream to stdout with optional --output file.log",
+        "Integration test: spawn 2 parallel workers via run_parallel_ralph.sh, verify logs from both workers merge without duplicates in time order, --worker-id=worker-1 filter returns only that worker"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
     }
   ]
 }
