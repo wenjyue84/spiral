@@ -92,6 +92,7 @@ module = [
     "quality.*", "lib.quality.*",
     "research.*", "lib.research.*",
     "resilience.*", "lib.resilience.*",
+    "context.*", "lib.context.*",
 ]
 warn_return_any = false
 disallow_any_generics = false

@@ -67,9 +67,7 @@ def get_alerts_manager() -> AlertsConnectionManager:
     return _alerts_manager
 
 
-async def broadcast_cost_alert(
-    current_cost: float, ceiling: float, severity: str = "warning"
-) -> None:
+async def broadcast_cost_alert(current_cost: float, ceiling: float, severity: str = "warning") -> None:
     """Broadcast a cost alert message.
 
     Args:

@@ -70,8 +70,7 @@ def record_iteration(
     ts = datetime.now(timezone.utc).isoformat()
     with _connect(db_path) as conn:
         conn.execute(
-            "INSERT INTO iterations (iteration_N, timestamp, phase, duration_sec, tokens_spent)"
-            " VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO iterations (iteration_N, timestamp, phase, duration_sec, tokens_spent) VALUES (?, ?, ?, ?, ?)",
             (iteration_n, ts, phase, duration_sec, tokens_spent),
         )
         conn.commit()
@@ -88,8 +87,7 @@ def record_story(
     """Insert a story-attempt row into the stories table."""
     with _connect(db_path) as conn:
         conn.execute(
-            "INSERT INTO stories (story_id, iteration_N, phase, status, retry_count)"
-            " VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO stories (story_id, iteration_N, phase, status, retry_count) VALUES (?, ?, ?, ?, ?)",
             (story_id, iteration_n, phase, status, retry_count),
         )
         conn.commit()
@@ -105,8 +103,7 @@ def record_worker(
     ts = datetime.now(timezone.utc).isoformat()
     with _connect(db_path) as conn:
         conn.execute(
-            "INSERT INTO workers (worker_id, timestamp, memory_mb, lock_wait_ms)"
-            " VALUES (?, ?, ?, ?)",
+            "INSERT INTO workers (worker_id, timestamp, memory_mb, lock_wait_ms) VALUES (?, ?, ?, ?)",
             (worker_id, ts, memory_mb, lock_wait_ms),
         )
         conn.commit()

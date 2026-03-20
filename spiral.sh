@@ -1041,6 +1041,7 @@ source "$SPIRAL_HOME/lib/phases/phase_v_validate.sh"
 source "$SPIRAL_HOME/lib/phases/phase_c_check_done.sh"
 source "$SPIRAL_HOME/lib/phases/phase_r_research.sh"
 source "$SPIRAL_HOME/lib/phases/phase_rt_parallel.sh"
+source "$SPIRAL_HOME/lib/phases/phase_x_contextbuild.sh"
 source "$SPIRAL_HOME/lib/modes/mode_replay.sh"
 source "$SPIRAL_HOME/lib/plugin_system.sh"
 source "$SPIRAL_HOME/lib/crash_capture.sh"
@@ -1351,6 +1352,7 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
   _PHASE_DUR_M=0
   _PHASE_DUR_I=0
   _PHASE_DUR_V=0
+  _PHASE_DUR_X=0
   _PHASE_DUR_C=0
   # Clean stale endtime files from prior runs to prevent negative phase durations
   rm -f "$SCRATCH_DIR/_phase_R_${SPIRAL_ITER}.endtime" "$SCRATCH_DIR/_phase_T_${SPIRAL_ITER}.endtime" 2>/dev/null || true
@@ -1423,6 +1425,8 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
 
   run_phase_merge || continue
   log_spiral_event "phase_end" "\"phase\":\"M\",\"iteration\":$SPIRAL_ITER,\"model\":\"$SPIRAL_MERGE_MODEL\""
+
+  run_phase_context_build
 
   run_phase_gate_and_implement || continue
 

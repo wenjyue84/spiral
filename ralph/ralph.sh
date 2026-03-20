@@ -2747,6 +2747,21 @@ $_FILE_CTX"
         fi
       fi
 
+      # ── Phase X: Repo map / symbol map injection ────────────────────────────
+      _REPO_MAP_FILE="${SPIRAL_SCRATCH_DIR:-.spiral}/_repo_map_${NEXT_STORY}.md"
+      if [[ "${SPIRAL_REPO_MAP:-false}" == "true" && -f "$_REPO_MAP_FILE" ]]; then
+        _REPO_MAP_CONTENT=$(cat "$_REPO_MAP_FILE" 2>/dev/null || true)
+        if [[ -n "$_REPO_MAP_CONTENT" ]]; then
+          RALPH_USER_PROMPT="$RALPH_USER_PROMPT
+
+---
+
+$_REPO_MAP_CONTENT"
+          echo "  [repo-map] Symbol map injected for $NEXT_STORY"
+          log_ralph_event "repo_map_injected" "\"story_id\":\"$NEXT_STORY\""
+        fi
+      fi
+
       # ── Retry context injection with observation masking (US-241) ────────────
       # On attempt 2+, prepend a concise brief so the agent doesn't need to hunt
       # through progress.txt to find what the previous attempt learned.

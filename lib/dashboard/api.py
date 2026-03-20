@@ -293,9 +293,7 @@ async def error_breakdown(
         "phases": {},
         "total_errors": 0,
         "iterations_filter": (
-            {"mode": "single", "iteration": iteration}
-            if iteration is not None
-            else {"mode": "last_n", "n": iterations}
+            {"mode": "single", "iteration": iteration} if iteration is not None else {"mode": "last_n", "n": iterations}
         ),
     }
 

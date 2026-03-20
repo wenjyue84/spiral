@@ -3031,7 +3031,7 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "sonnet",
       "filesTouch": [
@@ -3050,7 +3050,7 @@
         "module:github",
         "module:hypothesis"
       ],
-      "last_attempted": "2026-03-20T15:57:42Z"
+      "last_attempted": "2026-03-20T16:06:46Z"
     },
     {
       "id": "US-617",
@@ -3067,24 +3067,120 @@
       "estimatedComplexity": "medium",
       "passes": false,
       "_source": "ai-example",
-      "model": "sonnet"
+      "model": "sonnet",
+      "filesTouch": [
+        ".claude/hooks/verify_story_acceptance.py",
+        ".coverage",
+        ".hypothesis/constants/0144005a67236799",
+        ".hypothesis/constants/0158f9921b55208e",
+        ".hypothesis/constants/016af87f794a90e9",
+        ".hypothesis/constants/01831d6f995783ed",
+        ".hypothesis/constants/044aa4a97dd3204b",
+        ".hypothesis/constants/06ee3234b07f7d66",
+        ".hypothesis/constants/087180ea5c6680fc",
+        ".hypothesis/constants/0ad243c8c6e11ffb"
+      ],
+      "tags": [
+        "module:claude",
+        "module:hypothesis"
+      ]
     },
     {
       "id": "US-618",
-      "title": "CLI: spiral show-research-cache-stats — Measure Phase R Gemini cache hit rate",
+      "title": "Integration Test: Research Cache Hit Rate with Sub-Project Namespacing",
       "priority": "medium",
-      "description": "New CLI command to analyze Phase R research cache effectiveness, showing total Gemini API queries, cache hit rate percentage, and estimated token savings from cache reuse.",
+      "description": "Verify Phase R research cache correctly deduplicates queries across sub-project boundaries using namespaced cache keys. Test that identical research requests from different sub_projects hit the cache appropriately and that cache invalidation respects sub_project scope.",
       "acceptanceCriteria": [
-        "Command `spiral show-research-cache-stats` reads .spiral/research_cache.json and results.tsv, outputs JSON with {total_queries, cache_hits, hit_rate_pct, gemini_calls_avoided, tokens_saved_est}",
-        "Integration test in tests/test_research_cache_stats.py with fixture cache file; asserts hit_rate_pct calculated correctly (e.g., 50% for 2 hits / 4 queries)",
-        "Command integrated into main.py CLI entry point with --format json|table option"
+        "Create integration test in tests/ that mocks Gemini API, then executes Phase R twice with identical query strings from different sub_project values; verify second call returns cached result without API invocation",
+        "Verify _research_cache.json keys include sub_project namespace (e.g., cache key format: '{sub_project}:{query_hash}')",
+        "Assert results.tsv records cache hit/miss status in new 'cache_status' column with values: 'miss', 'hit', 'expired'"
       ],
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
       "_source": "ai-example",
-      "model": "sonnet"
+      "model": "sonnet",
+      "filesTouch": [
+        ".claude/scheduled_tasks.lock",
+        ".coverage",
+        ".hypothesis/constants/19b92a82c7a5fbb7",
+        ".hypothesis/constants/be82d7f330748f87",
+        ".hypothesis/examples/04e6b3400353b141/2786903576343a97",
+        ".hypothesis/examples/04e6b3400353b141/d16a108f0ffe00c6",
+        ".hypothesis/examples/04e6b3400353b141/d7017880e970832b",
+        ".hypothesis/examples/04e6b3400353b141/f803b9c7972945f2",
+        ".hypothesis/examples/2786903576343a97/b8e62a5f48c3ded1",
+        ".hypothesis/examples/d16a108f0ffe00c6/6e1139ecd06edebb"
+      ],
+      "tags": [
+        "module:claude",
+        "module:hypothesis"
+      ]
+    },
+    {
+      "id": "US-619",
+      "title": "CLI: spiral estimate-time-to-completion — Velocity-Based ETA and Cost Projection",
+      "priority": "medium",
+      "description": "Provide operators with real-time estimates of remaining time and cost based on story completion velocity derived from results.tsv. Enables better resource planning and stakeholder communication during long SPIRAL runs.",
+      "acceptanceCriteria": [
+        "Command `spiral estimate-time-to-completion` reads results.tsv and current prd.json, calculates stories-per-hour velocity, and outputs: 'X stories remaining, Y hours to completion (assuming current velocity), $Z projected cost'",
+        "Tested via `pytest tests/test_estimate_time_to_completion.py` using fixture results.tsv with 50+ story attempts; ETA calculation validates against manual velocity computation",
+        "Dashboard home view displays estimated completion time and projected cost in a card, updated every 10s during active SPIRAL runs"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "filesTouch": [
+        ".github/actions/lint-shell/action.yml",
+        ".github/actions/setup-uv/action.yml",
+        ".github/workflows/ci.yml",
+        ".github/workflows/release.yml",
+        ".github/workflows/spiral.yml",
+        ".hypothesis/constants/006b559781a41f7f",
+        ".hypothesis/constants/0158f9921b55208e",
+        ".hypothesis/constants/0175637d9e298755",
+        ".hypothesis/constants/02fb3c1b426206d7",
+        ".hypothesis/constants/031f85f1c11bb00b"
+      ],
+      "tags": [
+        "module:github",
+        "module:hypothesis"
+      ]
+    },
+    {
+      "id": "US-620",
+      "title": "Integration Test: Quick-Test Mode — Full Phase Loop in <30 Seconds",
+      "priority": "medium",
+      "description": "Provide rapid feedback loop for engineers modifying SPIRAL core phases (M, I, S). Single pytest command runs R→T→S→M→I→V→C with 2-story minimal prd.json and full mock Claude API fixtures, enabling <30s regression testing.",
+      "acceptanceCriteria": [
+        "Run `pytest tests/integration/quick.py::test_full_loop_happy_path -v` executes all 7 phases with minimal prd.json (2 stories), completes in <30 seconds, all phases report pass status",
+        "Mock fixtures auto-inject Claude API responses for Phase R (Gemini research), Phase S (story validation), and Phase I (code generation); no external API calls",
+        "Assert final state: prd.json has both stories with status='pass', results.tsv has 2 rows with story_id matching input, commit_sha populated from Phase I"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "filesTouch": [
+        ".claude/hooks/verify_story_acceptance.py",
+        ".claude/scheduled_tasks.lock",
+        ".coverage",
+        ".hypothesis/constants/0144005a67236799",
+        ".hypothesis/constants/016af87f794a90e9",
+        ".hypothesis/constants/01831d6f995783ed",
+        ".hypothesis/constants/044aa4a97dd3204b",
+        ".hypothesis/constants/06ee3234b07f7d66",
+        ".hypothesis/constants/087180ea5c6680fc",
+        ".hypothesis/constants/0ad243c8c6e11ffb"
+      ],
+      "tags": [
+        "module:claude",
+        "module:hypothesis"
+      ]
     }
   ]
 }

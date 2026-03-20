@@ -58,10 +58,7 @@ def merge_prds(
                 continue
 
             if sid in seen_ids:
-                duplicates.append(
-                    f"Duplicate story ID '{sid}' in projects "
-                    f"'{seen_ids[sid]}' and '{project_name}'"
-                )
+                duplicates.append(f"Duplicate story ID '{sid}' in projects '{seen_ids[sid]}' and '{project_name}'")
             else:
                 seen_ids[sid] = project_name
 

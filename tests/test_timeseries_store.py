@@ -8,7 +8,6 @@ Acceptance Criteria:
 
 import csv
 import sqlite3
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -18,7 +17,6 @@ from lib.dashboard.timeseries_store import (
     query_timeseries,
     record_iteration,
     record_iteration_from_results_tsv,
-    record_story,
     record_worker,
 )
 
@@ -91,10 +89,24 @@ class TestRecordIteration:
         self._write_tsv(
             tmp_tsv,
             [
-                {"story_id": "US-001", "iteration": "5", "phase": "I", "status": "passed",
-                 "retry_count": "0", "impl_secs": "10.0", "tokens_used": "500"},
-                {"story_id": "US-002", "iteration": "5", "phase": "I", "status": "failed",
-                 "retry_count": "1", "impl_secs": "8.0", "tokens_used": "300"},
+                {
+                    "story_id": "US-001",
+                    "iteration": "5",
+                    "phase": "I",
+                    "status": "passed",
+                    "retry_count": "0",
+                    "impl_secs": "10.0",
+                    "tokens_used": "500",
+                },
+                {
+                    "story_id": "US-002",
+                    "iteration": "5",
+                    "phase": "I",
+                    "status": "failed",
+                    "retry_count": "1",
+                    "impl_secs": "8.0",
+                    "tokens_used": "300",
+                },
             ],
         )
         record_iteration_from_results_tsv(iteration_n=5, results_tsv=tmp_tsv, db_path=tmp_db)
@@ -110,16 +122,21 @@ class TestRecordIteration:
         self._write_tsv(
             tmp_tsv,
             [
-                {"story_id": "US-003", "iteration": "7", "phase": "I", "status": "passed",
-                 "retry_count": "0", "impl_secs": "15.5", "tokens_used": "1000"},
+                {
+                    "story_id": "US-003",
+                    "iteration": "7",
+                    "phase": "I",
+                    "status": "passed",
+                    "retry_count": "0",
+                    "impl_secs": "15.5",
+                    "tokens_used": "1000",
+                },
             ],
         )
         record_iteration_from_results_tsv(iteration_n=7, results_tsv=tmp_tsv, db_path=tmp_db)
 
         conn = _connect(tmp_db)
-        row = conn.execute(
-            "SELECT duration_sec, tokens_spent FROM iterations WHERE iteration_N = 7"
-        ).fetchone()
+        row = conn.execute("SELECT duration_sec, tokens_spent FROM iterations WHERE iteration_N = 7").fetchone()
         assert row is not None
         assert row[0] == pytest.approx(15.5, abs=0.01)
         assert row[1] == 1000
@@ -129,10 +146,24 @@ class TestRecordIteration:
         self._write_tsv(
             tmp_tsv,
             [
-                {"story_id": "US-010", "iteration": "1", "phase": "I", "status": "passed",
-                 "retry_count": "0", "impl_secs": "5.0", "tokens_used": "200"},
-                {"story_id": "US-011", "iteration": "2", "phase": "I", "status": "passed",
-                 "retry_count": "0", "impl_secs": "5.0", "tokens_used": "200"},
+                {
+                    "story_id": "US-010",
+                    "iteration": "1",
+                    "phase": "I",
+                    "status": "passed",
+                    "retry_count": "0",
+                    "impl_secs": "5.0",
+                    "tokens_used": "200",
+                },
+                {
+                    "story_id": "US-011",
+                    "iteration": "2",
+                    "phase": "I",
+                    "status": "passed",
+                    "retry_count": "0",
+                    "impl_secs": "5.0",
+                    "tokens_used": "200",
+                },
             ],
         )
         record_iteration_from_results_tsv(iteration_n=1, results_tsv=tmp_tsv, db_path=tmp_db)
@@ -150,9 +181,7 @@ class TestRecordIteration:
     def test_programmatic_record_iteration(self, tmp_db: Path) -> None:
         record_iteration(iteration_n=3, phase="R", duration_sec=45.0, tokens_spent=800, db_path=tmp_db)
         conn = _connect(tmp_db)
-        row = conn.execute(
-            "SELECT phase, duration_sec, tokens_spent FROM iterations WHERE iteration_N = 3"
-        ).fetchone()
+        row = conn.execute("SELECT phase, duration_sec, tokens_spent FROM iterations WHERE iteration_N = 3").fetchone()
         assert row is not None
         assert row[0] == "R"
         assert row[1] == pytest.approx(45.0)

@@ -148,9 +148,7 @@ def extract_failed_stories(
 
         # Latest failure reason (from failure_root_cause column if present)
         failure_reasons = [
-            a.get("failure_root_cause", "").strip()
-            for a in rejects
-            if a.get("failure_root_cause", "").strip()
+            a.get("failure_root_cause", "").strip() for a in rejects if a.get("failure_root_cause", "").strip()
         ]
 
         suggestion = _suggest(story_id, attempts, retry_count, source)
@@ -217,8 +215,7 @@ def format_markdown(report: dict[str, Any]) -> str:
         lines.append("|-------|-------|--------|--------|--------------|")
         for tb in entry["token_burns"]:
             lines.append(
-                f"| {tb['retry']} | {tb['model']} | {tb['status']} "
-                f"| {tb['tokens']:,} | {tb['duration_sec']} |"
+                f"| {tb['retry']} | {tb['model']} | {tb['status']} | {tb['tokens']:,} | {tb['duration_sec']} |"
             )
         lines.append("")
 

@@ -100,9 +100,7 @@ def test_run_federated_merge_writes_output(tmp_path: Path) -> None:
     )
 
     output = tmp_path / "merged-prd.json"
-    exit_code = run_federated_merge(
-        ["auth", "api", "payments"], output, base_dir=tmp_path
-    )
+    exit_code = run_federated_merge(["auth", "api", "payments"], output, base_dir=tmp_path)
 
     assert exit_code == 0
     assert output.exists()
@@ -135,16 +133,12 @@ def test_run_federated_merge_duplicate_exits_1(tmp_path: Path) -> None:
 
 def test_run_federated_merge_missing_dir_exits_1(tmp_path: Path) -> None:
     """Exit code 1 when a sub-project directory doesn't exist."""
-    exit_code = run_federated_merge(
-        ["nonexistent"], tmp_path / "out.json", base_dir=tmp_path
-    )
+    exit_code = run_federated_merge(["nonexistent"], tmp_path / "out.json", base_dir=tmp_path)
     assert exit_code == 1
 
 
 def test_run_federated_merge_missing_prd_exits_1(tmp_path: Path) -> None:
     """Exit code 1 when a sub-project directory exists but has no prd.json."""
     (tmp_path / "empty_project").mkdir()
-    exit_code = run_federated_merge(
-        ["empty_project"], tmp_path / "out.json", base_dir=tmp_path
-    )
+    exit_code = run_federated_merge(["empty_project"], tmp_path / "out.json", base_dir=tmp_path)
     assert exit_code == 1

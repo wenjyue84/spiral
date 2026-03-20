@@ -8,11 +8,9 @@ Verifies:
 
 from __future__ import annotations
 
-import os
 import subprocess
 import textwrap
 from pathlib import Path
-from typing import Any
 
 
 def _to_unix_path(p: Path) -> str:

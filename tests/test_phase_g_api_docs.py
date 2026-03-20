@@ -10,8 +10,6 @@ import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from lib.observability.auto_release import embed_git_frontmatter_in_docs, generate_api_docs
 
 

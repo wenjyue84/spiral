@@ -58,10 +58,7 @@ def test_read_current_cost_from_results_tsv(tmp_spiral_dir: Path, monkeypatch) -
     # Create mock results.tsv
     results_file = tmp_spiral_dir / "results.tsv"
     results_file.write_text(
-        "story_id\testimated_cost_usd\tstatus\n"
-        "US-1\t5.0\tpassed\n"
-        "US-2\t3.5\tpassed\n"
-        "US-3\t2.1\tpassed\n"
+        "story_id\testimated_cost_usd\tstatus\nUS-1\t5.0\tpassed\nUS-2\t3.5\tpassed\nUS-3\t2.1\tpassed\n"
     )
 
     total = read_current_cost()
@@ -73,11 +70,7 @@ def test_read_current_cost_with_fallback_column(tmp_spiral_dir: Path, monkeypatc
     monkeypatch.chdir(tmp_spiral_dir.parent)
 
     results_file = tmp_spiral_dir / "results.tsv"
-    results_file.write_text(
-        "story_id\tcost\tstatus\n"
-        "US-1\t7.5\tpassed\n"
-        "US-2\t2.5\tpassed\n"
-    )
+    results_file.write_text("story_id\tcost\tstatus\nUS-1\t7.5\tpassed\nUS-2\t2.5\tpassed\n")
 
     total = read_current_cost()
     assert total == pytest.approx(10.0, rel=0.01)
@@ -89,10 +82,7 @@ def test_read_current_cost_skips_invalid_rows(tmp_spiral_dir: Path, monkeypatch)
 
     results_file = tmp_spiral_dir / "results.tsv"
     results_file.write_text(
-        "story_id\testimated_cost_usd\tstatus\n"
-        "US-1\t5.0\tpassed\n"
-        "US-2\tinvalid\tpassed\n"
-        "US-3\t3.0\tpassed\n"
+        "story_id\testimated_cost_usd\tstatus\nUS-1\t5.0\tpassed\nUS-2\tinvalid\tpassed\nUS-3\t3.0\tpassed\n"
     )
 
     total = read_current_cost()
@@ -107,38 +97,28 @@ def test_check_cost_no_ceiling_no_alert(monkeypatch) -> None:
     assert severity == ""
 
 
-def test_check_cost_warning_at_80_percent(
-    tmp_spiral_dir: Path, monkeypatch
-) -> None:
+def test_check_cost_warning_at_80_percent(tmp_spiral_dir: Path, monkeypatch) -> None:
     """Test warning alert at 80% cost usage."""
     monkeypatch.chdir(tmp_spiral_dir.parent)
     monkeypatch.setenv("SPIRAL_COST_CEILING", "100.0")
 
     # Create results with $80 spent
     results_file = tmp_spiral_dir / "results.tsv"
-    results_file.write_text(
-        "story_id\testimated_cost_usd\tstatus\n"
-        "US-1\t80.0\tpassed\n"
-    )
+    results_file.write_text("story_id\testimated_cost_usd\tstatus\nUS-1\t80.0\tpassed\n")
 
     should_alert, severity = check_cost_thresholds()
     assert should_alert is True
     assert severity == "warning"
 
 
-def test_check_cost_critical_at_95_percent(
-    tmp_spiral_dir: Path, monkeypatch
-) -> None:
+def test_check_cost_critical_at_95_percent(tmp_spiral_dir: Path, monkeypatch) -> None:
     """Test critical alert at 95% cost usage."""
     monkeypatch.chdir(tmp_spiral_dir.parent)
     monkeypatch.setenv("SPIRAL_COST_CEILING", "100.0")
 
     # Create results with $95 spent
     results_file = tmp_spiral_dir / "results.tsv"
-    results_file.write_text(
-        "story_id\testimated_cost_usd\tstatus\n"
-        "US-1\t95.0\tpassed\n"
-    )
+    results_file.write_text("story_id\testimated_cost_usd\tstatus\nUS-1\t95.0\tpassed\n")
 
     should_alert, severity = check_cost_thresholds()
     assert should_alert is True
@@ -152,29 +132,21 @@ def test_check_cost_no_alert_below_80(tmp_spiral_dir: Path, monkeypatch) -> None
 
     # Create results with $50 spent (50%)
     results_file = tmp_spiral_dir / "results.tsv"
-    results_file.write_text(
-        "story_id\testimated_cost_usd\tstatus\n"
-        "US-1\t50.0\tpassed\n"
-    )
+    results_file.write_text("story_id\testimated_cost_usd\tstatus\nUS-1\t50.0\tpassed\n")
 
     should_alert, severity = check_cost_thresholds()
     assert should_alert is False
     assert severity == ""
 
 
-def test_check_cost_critical_takes_precedence(
-    tmp_spiral_dir: Path, monkeypatch
-) -> None:
+def test_check_cost_critical_takes_precedence(tmp_spiral_dir: Path, monkeypatch) -> None:
     """Test critical is returned over warning when usage >= 95%."""
     monkeypatch.chdir(tmp_spiral_dir.parent)
     monkeypatch.setenv("SPIRAL_COST_CEILING", "100.0")
 
     # Create results with $96 spent (96% > 95%)
     results_file = tmp_spiral_dir / "results.tsv"
-    results_file.write_text(
-        "story_id\testimated_cost_usd\tstatus\n"
-        "US-1\t96.0\tpassed\n"
-    )
+    results_file.write_text("story_id\testimated_cost_usd\tstatus\nUS-1\t96.0\tpassed\n")
 
     should_alert, severity = check_cost_thresholds()
     assert should_alert is True

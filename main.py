@@ -24,6 +24,7 @@ Subcommands:
   replay                  Re-run a failed phase with DEBUG=1 and full state capture (US-539)
   phase-timing-report     Generate phase timing report with SLA breach analysis (US-546)
   analyze-failures        Categorize retry failure root causes and recommend tuning (US-547)
+  extract-failed-stories  Generate triage report from results.tsv (US-613)
   validate-commits        Detect orphan stories and squash-commit patterns (US-554)
   monitor                 Unified monitoring snapshot for progress checks
 """
@@ -2468,6 +2469,25 @@ def cmd_analyze_failures(args) -> None:
         print(f"Recommendation: {result['recommendation']}")
 
 
+def cmd_extract_failed_stories(args: argparse.Namespace) -> None:
+    """Generate triage report from results.tsv (US-613).
+
+    Usage: spiral extract-failed-stories [--min-retries N] [--format json|markdown]
+    """
+    from extract_failed_stories import extract_failed_stories, format_markdown  # type: ignore[import-untyped]
+
+    results_path = Path(getattr(args, "results", "results.tsv"))
+    min_retries = getattr(args, "min_retries", 1)
+    output_format = getattr(args, "output_format", "json")
+
+    report = extract_failed_stories(results_path=results_path, min_retries=min_retries)
+
+    if output_format == "markdown":
+        print(format_markdown(report))
+    else:
+        print(json.dumps(report, indent=2))
+
+
 def cmd_detect_anomalies(args) -> None:
     """Detect stories with unusual token-spend patterns (US-544).
 
@@ -3107,6 +3127,32 @@ def main():
         help="Repo root directory (default: .)",
     )
 
+    # ── extract-failed-stories subcommand (US-613) ─────────────────────────────
+    extract_failed_parser = subparsers.add_parser(
+        "extract-failed-stories",
+        help="Generate triage report from results.tsv (US-613)",
+    )
+    extract_failed_parser.add_argument(
+        "--min-retries",
+        type=int,
+        default=1,
+        metavar="N",
+        help="Minimum retry count to include (default: 1)",
+    )
+    extract_failed_parser.add_argument(
+        "--format",
+        dest="output_format",
+        choices=["json", "markdown"],
+        default="json",
+        help="Output format (default: json)",
+    )
+    extract_failed_parser.add_argument(
+        "--results",
+        default="results.tsv",
+        metavar="TSV",
+        help="Path to results.tsv (default: results.tsv)",
+    )
+
     # ── detect-anomalies subcommand (US-544) ─────────────────────────────────────
     detect_anomalies_parser = subparsers.add_parser(
         "detect-anomalies",
@@ -3247,6 +3293,8 @@ def main():
             sys.exit(0)
     elif args.command == "phase-audit":
         cmd_phase_audit(args)
+    elif args.command == "extract-failed-stories":
+        cmd_extract_failed_stories(args)
     elif args.command == "detect-anomalies":
         cmd_detect_anomalies(args)
     elif args.command == "phase-timing-report":

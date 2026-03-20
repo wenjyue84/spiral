@@ -4,7 +4,6 @@
 import os
 import textwrap
 from pathlib import Path
-from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 

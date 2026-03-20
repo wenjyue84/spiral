@@ -10,8 +10,8 @@ Tests:
 import pytest
 from fastapi.testclient import TestClient
 
-from lib.dashboard.api import app
 from lib.dashboard.alerts_broadcaster import broadcast_cost_alert, get_alerts_manager
+from lib.dashboard.api import app
 
 
 class MockWebSocket:

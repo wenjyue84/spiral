@@ -61,6 +61,13 @@ SPIRAL_INTERLEAVED_THINKING="${SPIRAL_INTERLEAVED_THINKING:-false}"
 # Options: true (enable), false (disabled, default)
 SPIRAL_EPISODIC_MEMORY="${SPIRAL_EPISODIC_MEMORY:-false}"
 
+# ── Phase X: Repo map / symbol map context injection ───────────────────────
+# When true, Phase X parses filesTouch entries and generates per-story symbol
+# maps (exports, imports, test neighbors, callers, boundaries). Injected into
+# Ralph's user prompt at zero LLM cost.
+SPIRAL_REPO_MAP="${SPIRAL_REPO_MAP:-false}"
+SPIRAL_REPO_MAP_MAX_LINES="${SPIRAL_REPO_MAP_MAX_LINES:-150}"
+
 # ── Phase-specific model defaults ────────────────────────────────────────────
 # Each non-implementation phase can use a cheaper model (haiku is ~15x cheaper
 # than sonnet). Phase I continues to use SPIRAL_MODEL_ROUTING for escalation.
