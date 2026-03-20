@@ -1541,3 +1541,39 @@ This user story is for a local repository automation script, not a Frappe applic
     *   **File Paths**: Ensure paths to `pyproject.toml` and `spiral-ui/package.json` are correctly resolved from the script's execution location.
     *   **Idempotency**: If the script runs when versions are already correct, it should ideally do nothing or re-apply the same version without error.
 
+
+## Pre-analysis for US-591 (Gemini 2.5 Pro)
+Based on my analysis of the user story and project structure, here is a technical brief for the implementing agent.
+
+***
+
+**Technical Brief: US-591 Real-Time Cost Alerts**
+
+**Disclaimer:** The provided project context is for "Spiral" (a Python/TypeScript application), not a Frappe/lhdn_payroll_integration app. This brief proceeds with that understanding.
+
+**1. Python Files to Modify:**
+*   `lib/cost_check.py`: Most likely place to implement the cost threshold detection logic against `SPIRAL_COST_CEILING`.
+*   `lib/websocket_alerts.py` (New File): To house the WebSocket server logic, manage client connections, and handle message broadcasting.
+*   `main.py` or App Entrypoint: To initialize and mount the `/ws/alerts` WebSocket endpoint.
+
+**2. Frappe DocTypes / Hooks:**
+*   None. The project is not a Frappe application. The implementation will use Python web libraries for the backend and React for the frontend.
+
+**3. Recommended Implementation Approach:**
+*   **Backend (Python/WebSocket):**
+    1.  Choose an async-compatible web framework already in the project (check `pyproject.toml` for `fastapi`, `aiohttp`, etc.) or add one.
+    2.  Create the `/ws/alerts` endpoint. It will accept new connections and add them to a globally accessible list of active clients.
+    3.  Modify the "Phase I" cost evaluation logic in `lib/cost_check.py` to compare costs against the `SPIRAL_COST_CEILING` environment variable.
+    4.  When the 80% or 95% threshold is breached, trigger a broadcast function that sends the JSON payload to all active WebSocket clients.
+*   **Frontend (React/TypeScript):**
+    1.  Create the `spiral-ui/src/components/AlertsPanel.tsx` component.
+    2.  This component will use the browser's `WebSocket` API (or a hook library like `use-websocket`) to connect to the `/ws/alerts` endpoint on mount.
+    3.  On receiving a message, it will update an internal state array of alerts, causing a re-render to display the new alert with a timestamp.
+    4.  Use a `useEffect` to trigger a `setTimeout` for the 10-second auto-dismissal. Add an `onClick` handler for manual dismissal.
+
+**4. Edge Cases & Gotchas:**
+*   **Authentication:** The `/ws/alerts` endpoint must be secured using the same authentication strategy as the rest of the application.
+*   **Connection Stability:** The client-side code must gracefully handle WebSocket disconnects and implement a reconnection strategy.
+*   **Scalability:** If many clients connect, direct broadcasting from the main process could be a bottleneck. Consider a Redis Pub/Sub channel to decouple alert generation from broadcasting.
+*   **Configuration:** Do not hardcode the 80%/95% thresholds; they should be configurable.
+
