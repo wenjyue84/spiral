@@ -721,3 +721,33 @@ FAILED diagnosis-block gate: [Security Test] Auth/Permission Access Control for 
 - [x] Orphan count printed in Phase G exit summary (e.g., "(3 orphan commits detected)")
 - [x] All 5 tests pass; mypy --strict clean; ruff clean
 - [x] Story marked as passes: true in prd.json
+## Iteration - Story: US-581 Add sub_project column to results.tsv ResultsRecord
+
+### What was implemented
+- Created lib/results_tsv.py with ResultsRecord dataclass
+  - sub_project field added as last column (str, default empty string)
+  - parse_results_tsv() function with backward-compatibility for old TSV files
+  - write_results_tsv() and write_results_row() for serialization
+- Created tests/test_results_tsv.py with 7 tests:
+  - test_record_creation_with_sub_project: creates record with sub_project='foo'
+  - test_record_default_sub_project_empty: defaults to empty string
+  - test_parse_old_tsv_without_sub_project: backward-compat with old schema
+  - test_parse_missing_file_returns_empty: graceful error handling
+  - test_round_trip_with_sub_project: write/read preserves sub_project='foo'
+  - test_round_trip_empty_sub_project: write/read preserves empty string
+  - test_round_trip_multiple_records_different_sub_projects: multiple values
+
+### Patterns discovered
+- DictReader with missing columns returns None for those columns; use .get(field, '') for backward-compat
+- csv.DictWriter with extrasaction='ignore' allows extra fields in dict without error
+- asdict() from dataclasses converts dataclass to dict for CSV writing
+
+### Gotchas
+- None—straightforward implementation with clear acceptance criteria
+
+### Acceptance Criteria Met
+- [x] ResultsRecord dataclass has sub_project field (str, default '')
+- [x] Existing TSV rows without sub_project parse without error
+- [x] Round-trip test passes: write sub_project='foo', read back, assert sub_project == 'foo'
+- [x] All 7 tests pass; mypy --strict clean; ruff clean
+- [x] Story marked as passes: true in prd.json
