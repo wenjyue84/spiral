@@ -688,6 +688,7 @@ Based on the user story, here is a technical brief for the implementation:
 *   **Path Normalization:** Ensure all file paths are normalized (e.g., using `os.path.normpath`) before comparison to avoid false negatives.
 *   **Error Handling:** The script must gracefully handle missing `prd.json`, malformed JSON, and failed `git` commands.
 *   **Commit Scope:** The logic must correctly identify the exact set of commits that constitute the "Phase M merge" to avoid analyzing unrelated changes.
+<<<<<<< Updated upstream
 ## Iteration 1 - Sun, Mar 22, 2026  3:58:29 AM
 FAILED diff-guard: Integration Test Harness: Master Suite for Full SPIRAL R→C Loop with Mock API (ID: US-693) — 403 lines > 200 limit — attempt 1/3
 
@@ -717,4 +718,31 @@ FAILED diff-guard: Integration Test Harness: Master Suite for Full SPIRAL R→C 
 *   **Test Isolation:** Ensure generated artifacts (`prd.json`, `.spiral/` directory) are created in a temporary directory (`tmp_path`) and cleaned up after each test run to prevent side effects.
 *   **Mock Accuracy:** The mock API responses must precisely match the real API schemas, or the application's parsing logic will fail.
 *   **Execution Context:** The `subprocess` must be invoked from the project root to ensure `spiral.sh` finds all necessary relative paths.
+=======
 
+## Pre-analysis for US-693 (Gemini 2.5 Pro)
+This technical brief is for implementing an integration test for a command-line tool, based on the provided JSON. The user story does not involve a Frappe application as initially mentioned.
+
+**Project:** `spiral` CLI tool
+**User Story:** US-693: Integration Test Harness for Full SPIRAL R→C Loop
+
+**1. Python Files to Modify:**
+*   **Create:** `tests/integration/test_spiral_full_loop.py` - This new file will contain the main test suite.
+*   **Modify:** `tests/conftest.py` - Add `mock_claude_api` and `mock_gemini_api` fixtures here to intercept external API calls.
+
+**2. Frappe DocTypes & Hooks:**
+*   None. This project is a Python command-line tool, not a Frappe application. The implementation should focus on the file system and shell process orchestration.
+
+**3. Recommended Implementation Approach:**
+*   Use `pytest` and the `pytest-mock` plugin.
+*   In `tests/conftest.py`, create fixtures `mock_claude_api` and `mock_gemini_api` using `mocker.patch` to mock the specific API client functions called by the `spiral` tool.
+*   In `tests/integration/test_spiral_full_loop.py`, write a test that uses Python's `subprocess.run` to execute `bash spiral.sh` with the required arguments (`--gate proceed` and seed stories).
+*   The test should set up a temporary directory with the necessary input files (seed stories) before running the script.
+*   After the script finishes, read and assert the contents of output files: `prd.json`, `results.tsv`, and `.spiral/_checkpoint.json` to verify state and results.
+
+**4. Edge Cases & Gotchas:**
+*   **Mocking:** Identify the correct API call targets within the `spiral` source code to patch.
+*   **State Isolation:** Use pytest's `tmp_path` fixture to ensure the test runs in an isolated directory, preventing side effects.
+*   **Process Output:** Capture `stdout` from the `spiral.sh` script to validate that all R→C phases executed in the correct sequence.
+*   **Test Data:** The test must programmatically create the "5 seed stories" as files in the temporary directory before execution.
+>>>>>>> Stashed changes
