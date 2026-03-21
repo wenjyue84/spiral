@@ -11,18 +11,14 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-import pytest
-
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "lib"))
 
 from commands.show_worker_logs import (  # noqa: E402
-    LogEntry,
     find_worker_logs,
     format_output,
     parse_worker_logs,
     show_worker_logs,
 )
-
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -135,9 +131,7 @@ def test_two_workers_merge_in_time_order(tmp_path: Path) -> None:
 
     # Verify time ordering: timestamps should be non-decreasing
     timestamps = [e.timestamp for e in entries]
-    assert timestamps == sorted(timestamps), (
-        f"Entries not in time order: {timestamps}"
-    )
+    assert timestamps == sorted(timestamps), f"Entries not in time order: {timestamps}"
 
     # Verify interleaving: worker-1 and worker-2 entries are mixed
     worker_ids = [e.worker_id for e in entries]
@@ -166,9 +160,7 @@ def test_no_duplicate_lines(tmp_path: Path) -> None:
     entries = parse_worker_logs(logs)
 
     # Should deduplicate — same worker_id + timestamp + message
-    assert len(entries) == 3, (
-        f"Expected 3 deduplicated entries, got {len(entries)}"
-    )
+    assert len(entries) == 3, f"Expected 3 deduplicated entries, got {len(entries)}"
 
 
 def test_log_level_extraction(tmp_path: Path) -> None:

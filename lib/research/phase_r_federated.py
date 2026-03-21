@@ -49,9 +49,7 @@ def merge_federated_research(
             sid = story_copy.get("id", "")
             if sid:
                 if sid in seen_ids:
-                    conflicts.append(
-                        f"Story ID '{sid}' appears in both '{seen_ids[sid]}' and '{sub_project}'"
-                    )
+                    conflicts.append(f"Story ID '{sid}' appears in both '{seen_ids[sid]}' and '{sub_project}'")
                 else:
                     seen_ids[sid] = sub_project
 
@@ -159,9 +157,7 @@ def main(argv: list[str] | None = None) -> int:
     except (json.JSONDecodeError, OSError):
         story_count = 0
 
-    print(
-        f"Merged {story_count} stories from {len(sub_projects)} sub-projects -> {output_path}"
-    )
+    print(f"Merged {story_count} stories from {len(sub_projects)} sub-projects -> {output_path}")
     return 0
 
 

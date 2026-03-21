@@ -17,8 +17,6 @@ import sys
 from pathlib import Path
 from typing import Any, cast
 
-import pytest
-
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 
 
@@ -27,13 +25,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 
 def _load_federated_prd(sub_project: str) -> dict[str, Any]:
     """Load a federated PRD fixture by sub-project name."""
-    fixture_path = (
-        Path(__file__).resolve().parent
-        / "fixtures"
-        / "federation"
-        / sub_project
-        / "prd.json"
-    )
+    fixture_path = Path(__file__).resolve().parent / "fixtures" / "federation" / sub_project / "prd.json"
     with open(fixture_path, encoding="utf-8") as f:
         return cast(dict[str, Any], json.load(f))
 

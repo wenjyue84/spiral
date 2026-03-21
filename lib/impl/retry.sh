@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# lib/impl/retry.sh — Phase I sub-stage: RETRY LOGIC
+# lib/impl/retry.sh -- Phase I sub-stage: RETRY LOGIC
 #
 # Manages the per-story attempt counter and enforces the 3-retry-skip rule.
 # Called by phase_i_implement.sh after each ralph worker invocation.
@@ -18,8 +18,8 @@
 #   - Attempt 4+: skip
 #
 # Inputs:
-#   story_id        — story that just failed
-#   $PRD_FILE       — prd.json (read + write retries field)
+#   story_id        -- story that just failed
+#   $PRD_FILE       -- prd.json (read + write retries field)
 #
 # Outputs:
 #   $PRD_FILE (retries incremented; _skipped added at threshold)
@@ -64,7 +64,7 @@ invoke_exhaustion_analyzer() {
 
 # handle_story_failure <story_id> <current_retries> [failure_reason]
 # Records the failure reason as an anti-pattern on the story (Strategy 1).
-# Returns 0 always (non-fatal — caller decides skip vs retry).
+# Returns 0 always (non-fatal -- caller decides skip vs retry).
 #
 # When SPIRAL_ANTI_PATTERN_INJECT=true (default), appends failure_reason to
 # _antiPatterns[] in prd.json so the next retry prompt shows a "FORBIDDEN
@@ -100,6 +100,8 @@ handle_story_failure() {
 get_failed_files_for_story() {
   local story_id="$1"
   local results_tsv="${2:-results.tsv}"
+  local script_dir
+  script_dir="$(dirname "${BASH_SOURCE[0]}")"
 
   if [[ ! -f "$results_tsv" ]]; then
     echo ""
@@ -107,41 +109,14 @@ get_failed_files_for_story() {
   fi
 
   local failed_json
-  failed_json=$(uv run python - <<PYEOF 2>/dev/null
-import csv, json, sys
-
-story_id = '$story_id'
-results_path = '$results_tsv'
-
-try:
-    with open(results_path, encoding='utf-8', errors='replace') as f:
-        reader = csv.DictReader(f, delimiter='\t')
-        records = list(reader)
-    for record in reversed(records):
-        if record.get('story_id') == story_id:
-            ff = record.get('failed_files', '')
-            if ff:
-                try:
-                    files = json.loads(ff)
-                    if isinstance(files, list) and files:
-                        print(json.dumps(files))
-                        sys.exit(0)
-                except (json.JSONDecodeError, ValueError):
-                    pass
-except Exception:
-    pass
-print('')
-PYEOF
-) || failed_json=""
-
+  failed_json=$(uv run python "${script_dir}/file_aware_retry.py" get "$results_tsv" "$story_id" 2>/dev/null) || failed_json=""
   echo "$failed_json"
 }
 
 # build_files_only_args <failed_files_json>
-# Converts a JSON array like '["src/a.py","lib/b.sh"]' into individual args
-# suitable for appending to a ralph command as --files-only <f1> <f2> ...
-# Prints each file on a separate line; caller joins as needed.
-# Returns "" if input is empty or invalid JSON (caller falls back to full retry).
+# Converts a JSON array like '["src/a.py","lib/b.sh"]' into a space-separated
+# string suitable for passing as --files-only args to a ralph command.
+# Returns "" if input is empty or invalid (caller falls back to full retry).
 build_files_only_args() {
   local failed_files_json="$1"
 
@@ -150,15 +125,14 @@ build_files_only_args() {
     return 0
   fi
 
-  uv run python - <<PYEOF 2>/dev/null || echo ""
+  local files_str
+  files_str=$(uv run python -c "
 import json, sys
-
 try:
-    files = json.loads('$failed_files_json')
-    for f in files:
-        if f:
-            print(f)
+    files = json.loads(sys.argv[1])
+    print(' '.join(str(f) for f in files if f))
 except Exception:
-    pass
-PYEOF
+    print('')
+" "$failed_files_json" 2>/dev/null) || files_str=""
+  echo "$files_str"
 }

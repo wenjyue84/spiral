@@ -15,7 +15,6 @@ Acceptance Criteria:
 
 from __future__ import annotations
 
-import csv
 import json
 import os
 import subprocess
@@ -95,9 +94,7 @@ class TestFederatedScript:
         """lib/run_parallel_ralph_federated.sh must delegate to run_parallel_ralph.sh."""
         script = SPIRAL_HOME / "lib" / "run_parallel_ralph_federated.sh"
         content = script.read_text(encoding="utf-8")
-        assert "run_parallel_ralph.sh" in content, (
-            "Federated script must delegate to run_parallel_ralph.sh"
-        )
+        assert "run_parallel_ralph.sh" in content, "Federated script must delegate to run_parallel_ralph.sh"
 
     def test_federated_script_references_sub_project(self) -> None:
         """lib/run_parallel_ralph_federated.sh must reference sub_project field."""
@@ -109,10 +106,12 @@ class TestFederatedScript:
         """lib/run_parallel_ralph_federated.sh must document worker-{sub_project}-N naming."""
         script = SPIRAL_HOME / "lib" / "run_parallel_ralph_federated.sh"
         content = script.read_text(encoding="utf-8")
-        assert "worker-{sub_project}" in content or "worker-{sub_project}-N" in content or \
-               "worker-{_sp}" in content or "{sub_project}-{N}" in content, (
-            "Script must document worker-{sub_project}-N worktree naming"
-        )
+        assert (
+            "worker-{sub_project}" in content
+            or "worker-{sub_project}-N" in content
+            or "worker-{_sp}" in content
+            or "{sub_project}-{N}" in content
+        ), "Script must document worker-{sub_project}-N worktree naming"
 
 
 class TestFederatedPartition5Stories:
@@ -143,9 +142,7 @@ class TestFederatedPartition5Stories:
         prd_file.write_text(json.dumps(_prd(stories), indent=2), encoding="utf-8")
         return prd_file
 
-    def test_partition_succeeds_with_5x5_stories(
-        self, federated_prd_5x5: Path, tmp_path: Path
-    ) -> None:
+    def test_partition_succeeds_with_5x5_stories(self, federated_prd_5x5: Path, tmp_path: Path) -> None:
         """AC3: partition_prd.py --federated succeeds with 5 api + 5 frontend stories."""
         outdir = tmp_path / "workers"
         outdir.mkdir()
@@ -171,9 +168,7 @@ class TestFederatedPartition5Stories:
         assert (outdir / "worker-frontend-1.json").exists(), "worker-frontend-1.json not created"
         assert (outdir / "worker-frontend-2.json").exists(), "worker-frontend-2.json not created"
 
-    def test_no_standard_worker_files_in_federated_mode(
-        self, federated_prd_5x5: Path, tmp_path: Path
-    ) -> None:
+    def test_no_standard_worker_files_in_federated_mode(self, federated_prd_5x5: Path, tmp_path: Path) -> None:
         """AC3: No generic worker_N.json files created in federated mode."""
         outdir = tmp_path / "workers"
         outdir.mkdir()
@@ -182,9 +177,7 @@ class TestFederatedPartition5Stories:
         assert not (outdir / "worker_1.json").exists(), "Standard worker_1.json must not exist in federated mode"
         assert not (outdir / "worker_2.json").exists(), "Standard worker_2.json must not exist in federated mode"
 
-    def test_api_workers_contain_only_api_stories(
-        self, federated_prd_5x5: Path, tmp_path: Path
-    ) -> None:
+    def test_api_workers_contain_only_api_stories(self, federated_prd_5x5: Path, tmp_path: Path) -> None:
         """AC2: Each api worker processes only stories with sub_project='api'."""
         outdir = tmp_path / "workers"
         outdir.mkdir()
@@ -196,18 +189,10 @@ class TestFederatedPartition5Stories:
                 continue
             prd_data: dict[str, Any] = json.loads(worker_file.read_text(encoding="utf-8"))
             pending = [s for s in prd_data["userStories"] if not s.get("passes")]
-            invalid = [
-                s["id"]
-                for s in pending
-                if s.get("sub_project") not in ("api", None)
-            ]
-            assert not invalid, (
-                f"worker-api-{worker_num} contains non-api stories: {invalid}"
-            )
+            invalid = [s["id"] for s in pending if s.get("sub_project") not in ("api", None)]
+            assert not invalid, f"worker-api-{worker_num} contains non-api stories: {invalid}"
 
-    def test_frontend_workers_contain_only_frontend_stories(
-        self, federated_prd_5x5: Path, tmp_path: Path
-    ) -> None:
+    def test_frontend_workers_contain_only_frontend_stories(self, federated_prd_5x5: Path, tmp_path: Path) -> None:
         """AC2: Each frontend worker processes only stories with sub_project='frontend'."""
         outdir = tmp_path / "workers"
         outdir.mkdir()
@@ -219,18 +204,10 @@ class TestFederatedPartition5Stories:
                 continue
             prd_data = json.loads(worker_file.read_text(encoding="utf-8"))
             pending = [s for s in prd_data["userStories"] if not s.get("passes")]
-            invalid = [
-                s["id"]
-                for s in pending
-                if s.get("sub_project") not in ("frontend", None)
-            ]
-            assert not invalid, (
-                f"worker-frontend-{worker_num} contains non-frontend stories: {invalid}"
-            )
+            invalid = [s["id"] for s in pending if s.get("sub_project") not in ("frontend", None)]
+            assert not invalid, f"worker-frontend-{worker_num} contains non-frontend stories: {invalid}"
 
-    def test_all_5_api_stories_distributed_across_api_workers(
-        self, federated_prd_5x5: Path, tmp_path: Path
-    ) -> None:
+    def test_all_5_api_stories_distributed_across_api_workers(self, federated_prd_5x5: Path, tmp_path: Path) -> None:
         """AC3: All 5 api stories appear across api workers (no stories dropped)."""
         outdir = tmp_path / "workers"
         outdir.mkdir()
@@ -247,9 +224,7 @@ class TestFederatedPartition5Stories:
                     api_story_ids.add(s["id"])
 
         expected = {"US-001", "US-002", "US-003", "US-004", "US-005"}
-        assert api_story_ids == expected, (
-            f"Not all api stories distributed. Missing: {expected - api_story_ids}"
-        )
+        assert api_story_ids == expected, f"Not all api stories distributed. Missing: {expected - api_story_ids}"
 
     def test_all_5_frontend_stories_distributed_across_frontend_workers(
         self, federated_prd_5x5: Path, tmp_path: Path
@@ -274,9 +249,7 @@ class TestFederatedPartition5Stories:
             f"Not all frontend stories distributed. Missing: {expected - frontend_story_ids}"
         )
 
-    def test_no_cross_project_file_contamination(
-        self, federated_prd_5x5: Path, tmp_path: Path
-    ) -> None:
+    def test_no_cross_project_file_contamination(self, federated_prd_5x5: Path, tmp_path: Path) -> None:
         """AC3: git diff shows no cross-project file changes — api files not in frontend workers."""
         outdir = tmp_path / "workers"
         outdir.mkdir()
@@ -292,9 +265,7 @@ class TestFederatedPartition5Stories:
                 if not s.get("passes") and s.get("sub_project") == "api":
                     files = s.get("filesTouch", [])
                     frontend_files = [f for f in files if "frontend/" in f]
-                    assert not frontend_files, (
-                        f"api worker story {s['id']} has frontend/ files: {frontend_files}"
-                    )
+                    assert not frontend_files, f"api worker story {s['id']} has frontend/ files: {frontend_files}"
 
         # frontend workers must not contain api filesTouch patterns
         for worker_num in (1, 2):
@@ -306,9 +277,7 @@ class TestFederatedPartition5Stories:
                 if not s.get("passes") and s.get("sub_project") == "frontend":
                     files = s.get("filesTouch", [])
                     api_files = [f for f in files if f.startswith("api/")]
-                    assert not api_files, (
-                        f"frontend worker story {s['id']} has api/ files: {api_files}"
-                    )
+                    assert not api_files, f"frontend worker story {s['id']} has api/ files: {api_files}"
 
 
 class TestResultsTsvSubProjectColumn:
@@ -316,7 +285,7 @@ class TestResultsTsvSubProjectColumn:
 
     def test_results_tsv_has_sub_project_field_in_schema(self) -> None:
         """ResultsRecord dataclass includes sub_project field."""
-        from results_tsv import ResultsRecord, HEADER
+        from results_tsv import HEADER, ResultsRecord
 
         assert "sub_project" in HEADER, "sub_project must be in HEADER"
         record = ResultsRecord(
@@ -337,7 +306,7 @@ class TestResultsTsvSubProjectColumn:
 
     def test_results_tsv_write_read_preserves_sub_project(self, tmp_path: Path) -> None:
         """Writing and reading results.tsv preserves sub_project column values."""
-        from results_tsv import ResultsRecord, write_results_tsv, parse_results_tsv
+        from results_tsv import ResultsRecord, parse_results_tsv, write_results_tsv
 
         records = [
             ResultsRecord(
@@ -388,13 +357,11 @@ class TestResultsTsvSubProjectColumn:
         for r in api_records:
             assert r.sub_project == "api", f"{r.story_id} has wrong sub_project: {r.sub_project!r}"
         for r in frontend_records:
-            assert r.sub_project == "frontend", (
-                f"{r.story_id} has wrong sub_project: {r.sub_project!r}"
-            )
+            assert r.sub_project == "frontend", f"{r.story_id} has wrong sub_project: {r.sub_project!r}"
 
     def test_results_tsv_sub_project_empty_for_non_federated(self, tmp_path: Path) -> None:
         """Non-federated stories have empty sub_project (backward compatible)."""
-        from results_tsv import ResultsRecord, write_results_tsv, parse_results_tsv
+        from results_tsv import ResultsRecord, parse_results_tsv, write_results_tsv
 
         record = ResultsRecord(
             timestamp="2026-01-01T00:00:00Z",

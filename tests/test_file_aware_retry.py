@@ -13,17 +13,13 @@ import csv
 import json
 import os
 import sys
-import tempfile
 from pathlib import Path
-
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib", "impl"))
 
-from results_tsv import HEADER, ResultsRecord
 from file_aware_retry import extract_failed_files, get_failed_files_for_story
-
+from results_tsv import HEADER, ResultsRecord
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -31,8 +27,17 @@ from file_aware_retry import extract_failed_files, get_failed_files_for_story
 def _write_results_tsv(path: Path, rows: list[dict[str, str]]) -> None:
     """Write a minimal results.tsv with header + rows."""
     fieldnames = [
-        "timestamp", "spiral_iter", "ralph_iter", "story_id", "story_title",
-        "status", "duration_sec", "model", "retry_num", "commit_sha", "run_id",
+        "timestamp",
+        "spiral_iter",
+        "ralph_iter",
+        "story_id",
+        "story_title",
+        "status",
+        "duration_sec",
+        "model",
+        "retry_num",
+        "commit_sha",
+        "run_id",
         "failed_files",
     ]
     with open(path, "w", encoding="utf-8", newline="") as f:
@@ -97,9 +102,7 @@ class TestExtractFailedFiles:
         """Detects FAILED tests/test_foo.py patterns."""
         stderr = tmp_path / "stderr.txt"
         stderr.write_text(
-            "FAILED tests/test_utils.py::test_add\n"
-            "FAILED tests/test_merge.py::test_dedup\n"
-            "1 error in setup\n",
+            "FAILED tests/test_utils.py::test_add\nFAILED tests/test_merge.py::test_dedup\n1 error in setup\n",
             encoding="utf-8",
         )
         files = extract_failed_files(str(stderr))
@@ -122,8 +125,7 @@ class TestExtractFailedFiles:
         """Same file appearing twice is returned only once."""
         stderr = tmp_path / "stderr.txt"
         stderr.write_text(
-            "FAILED tests/test_foo.py::test_a\n"
-            "FAILED tests/test_foo.py::test_b\n",
+            "FAILED tests/test_foo.py::test_a\nFAILED tests/test_foo.py::test_b\n",
             encoding="utf-8",
         )
         files = extract_failed_files(str(stderr))
@@ -149,15 +151,25 @@ class TestGetFailedFilesForStory:
         """Returns the failed_files from the last failed row for a story."""
         results = tmp_path / "results.tsv"
         expected = ["src/main.py", "lib/utils.py", "tests/test_utils.py"]
-        _write_results_tsv(results, [
-            {
-                "timestamp": "2026-01-01T00:00:00Z", "spiral_iter": "1",
-                "ralph_iter": "1", "story_id": "US-597", "story_title": "Test",
-                "status": "failed", "duration_sec": "10", "model": "haiku",
-                "retry_num": "0", "commit_sha": "abc", "run_id": "run-1",
-                "failed_files": json.dumps(expected),
-            }
-        ])
+        _write_results_tsv(
+            results,
+            [
+                {
+                    "timestamp": "2026-01-01T00:00:00Z",
+                    "spiral_iter": "1",
+                    "ralph_iter": "1",
+                    "story_id": "US-597",
+                    "story_title": "Test",
+                    "status": "failed",
+                    "duration_sec": "10",
+                    "model": "haiku",
+                    "retry_num": "0",
+                    "commit_sha": "abc",
+                    "run_id": "run-1",
+                    "failed_files": json.dumps(expected),
+                }
+            ],
+        )
         files = get_failed_files_for_story(str(results), "US-597")
         assert sorted(files) == sorted(expected)
 
@@ -166,22 +178,39 @@ class TestGetFailedFilesForStory:
         results = tmp_path / "results.tsv"
         first_files = ["src/a.py"]
         last_files = ["src/b.py", "lib/c.py"]
-        _write_results_tsv(results, [
-            {
-                "timestamp": "2026-01-01T00:00:00Z", "spiral_iter": "1",
-                "ralph_iter": "1", "story_id": "US-597", "story_title": "Test",
-                "status": "failed", "duration_sec": "10", "model": "haiku",
-                "retry_num": "0", "commit_sha": "abc", "run_id": "run-1",
-                "failed_files": json.dumps(first_files),
-            },
-            {
-                "timestamp": "2026-01-01T00:01:00Z", "spiral_iter": "1",
-                "ralph_iter": "1", "story_id": "US-597", "story_title": "Test",
-                "status": "failed", "duration_sec": "15", "model": "sonnet",
-                "retry_num": "1", "commit_sha": "def", "run_id": "run-1",
-                "failed_files": json.dumps(last_files),
-            },
-        ])
+        _write_results_tsv(
+            results,
+            [
+                {
+                    "timestamp": "2026-01-01T00:00:00Z",
+                    "spiral_iter": "1",
+                    "ralph_iter": "1",
+                    "story_id": "US-597",
+                    "story_title": "Test",
+                    "status": "failed",
+                    "duration_sec": "10",
+                    "model": "haiku",
+                    "retry_num": "0",
+                    "commit_sha": "abc",
+                    "run_id": "run-1",
+                    "failed_files": json.dumps(first_files),
+                },
+                {
+                    "timestamp": "2026-01-01T00:01:00Z",
+                    "spiral_iter": "1",
+                    "ralph_iter": "1",
+                    "story_id": "US-597",
+                    "story_title": "Test",
+                    "status": "failed",
+                    "duration_sec": "15",
+                    "model": "sonnet",
+                    "retry_num": "1",
+                    "commit_sha": "def",
+                    "run_id": "run-1",
+                    "failed_files": json.dumps(last_files),
+                },
+            ],
+        )
         files = get_failed_files_for_story(str(results), "US-597")
         assert sorted(files) == sorted(last_files)
 
@@ -203,15 +232,25 @@ class TestGetFailedFilesForStory:
     def test_returns_empty_for_unknown_story(self, tmp_path: Path) -> None:
         """Returns [] when story_id doesn't match any row."""
         results = tmp_path / "results.tsv"
-        _write_results_tsv(results, [
-            {
-                "timestamp": "2026-01-01T00:00:00Z", "spiral_iter": "1",
-                "ralph_iter": "1", "story_id": "US-100", "story_title": "Other",
-                "status": "failed", "duration_sec": "10", "model": "haiku",
-                "retry_num": "0", "commit_sha": "abc", "run_id": "run-1",
-                "failed_files": '["src/a.py"]',
-            }
-        ])
+        _write_results_tsv(
+            results,
+            [
+                {
+                    "timestamp": "2026-01-01T00:00:00Z",
+                    "spiral_iter": "1",
+                    "ralph_iter": "1",
+                    "story_id": "US-100",
+                    "story_title": "Other",
+                    "status": "failed",
+                    "duration_sec": "10",
+                    "model": "haiku",
+                    "retry_num": "0",
+                    "commit_sha": "abc",
+                    "run_id": "run-1",
+                    "failed_files": '["src/a.py"]',
+                }
+            ],
+        )
         files = get_failed_files_for_story(str(results), "US-597")
         assert files == []
 
@@ -230,9 +269,7 @@ class TestFileAwareRetryIntegration:
         Verify that get_failed_files_for_story returns exactly those 3 files.
         """
         # 10-file story (filesTouch)
-        all_files = [
-            f"src/module_{i}.py" for i in range(10)
-        ]
+        all_files = [f"src/module_{i}.py" for i in range(10)]
         assert len(all_files) == 10
 
         # 3 files that failed
@@ -241,15 +278,25 @@ class TestFileAwareRetryIntegration:
 
         # Write results.tsv with one failed row recording the 3 failed files
         results = tmp_path / "results.tsv"
-        _write_results_tsv(results, [
-            {
-                "timestamp": "2026-01-01T00:00:00Z", "spiral_iter": "1",
-                "ralph_iter": "1", "story_id": "US-597", "story_title": "10-file story",
-                "status": "failed", "duration_sec": "120", "model": "haiku",
-                "retry_num": "0", "commit_sha": "abc123", "run_id": "run-1",
-                "failed_files": json.dumps(failed),
-            }
-        ])
+        _write_results_tsv(
+            results,
+            [
+                {
+                    "timestamp": "2026-01-01T00:00:00Z",
+                    "spiral_iter": "1",
+                    "ralph_iter": "1",
+                    "story_id": "US-597",
+                    "story_title": "10-file story",
+                    "status": "failed",
+                    "duration_sec": "120",
+                    "model": "haiku",
+                    "retry_num": "0",
+                    "commit_sha": "abc123",
+                    "run_id": "run-1",
+                    "failed_files": json.dumps(failed),
+                }
+            ],
+        )
 
         # Retry reads only the 3 failed files
         retry_files = get_failed_files_for_story(str(results), "US-597")

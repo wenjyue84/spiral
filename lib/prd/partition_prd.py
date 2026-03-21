@@ -326,7 +326,9 @@ def main() -> int:
                 print(f"[partition] Sub-project '{sub_proj}': no pending stories")
                 continue
 
-            print(f"[partition] Sub-project '{sub_proj}': {len(proj_completed)} completed, {len(proj_pending)} pending → {args.workers} workers")
+            print(
+                f"[partition] Sub-project '{sub_proj}': {len(proj_completed)} completed, {len(proj_pending)} pending → {args.workers} workers"
+            )
 
             # Partition this sub_project's stories
             buckets = assign_stories(proj_pending, args.workers, prd=prd)
@@ -352,7 +354,9 @@ def main() -> int:
                 pcount_str = " ".join(
                     f"{p}:{c}" for p, c in sorted(priority_counts.items(), key=lambda kv: PRIORITY_RANK.get(kv[0], 2))
                 )
-                print(f"[partition] Worker-{sub_proj}-{worker_num}: {len(bucket)} stories [{id_list}] ({pcount_str}) → {out_path}")
+                print(
+                    f"[partition] Worker-{sub_proj}-{worker_num}: {len(bucket)} stories [{id_list}] ({pcount_str}) → {out_path}"
+                )
     else:
         # Standard partitioning (non-federated)
         buckets = assign_stories(pending, args.workers, prd=prd)

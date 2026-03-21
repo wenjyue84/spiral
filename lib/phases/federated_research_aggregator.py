@@ -43,18 +43,14 @@ def aggregate_federated_research(
     for sub_project, path in sub_project_outputs.items():
         p = Path(path)
         if not p.exists():
-            warnings.append(
-                f"[R/federated] Missing research output for sub-project '{sub_project}': {p}"
-            )
+            warnings.append(f"[R/federated] Missing research output for sub-project '{sub_project}': {p}")
             continue
 
         try:
             with open(p, encoding="utf-8") as f:
                 data = json.load(f)
         except (json.JSONDecodeError, OSError) as exc:
-            warnings.append(
-                f"[R/federated] Invalid JSON for sub-project '{sub_project}': {exc}"
-            )
+            warnings.append(f"[R/federated] Invalid JSON for sub-project '{sub_project}': {exc}")
             continue
 
         stories = data.get("stories", [])
@@ -79,17 +75,13 @@ def aggregate_federated_research(
     return {"stories": all_stories}, warnings
 
 
-def _build_sub_project_map(
-    outputs_dir: Path, sub_projects: list[str]
-) -> Mapping[str, Path]:
+def _build_sub_project_map(outputs_dir: Path, sub_projects: list[str]) -> Mapping[str, Path]:
     """Build mapping of sub_project -> expected output file path."""
     return {sp: outputs_dir / f"_research_{sp}.json" for sp in sub_projects}
 
 
 def main() -> None:  # pragma: no cover
-    parser = argparse.ArgumentParser(
-        description="Aggregate federated per-sub-project research outputs"
-    )
+    parser = argparse.ArgumentParser(description="Aggregate federated per-sub-project research outputs")
     parser.add_argument(
         "--outputs-dir",
         required=True,
@@ -122,10 +114,7 @@ def main() -> None:  # pragma: no cover
         json.dump(merged, f, indent=2)
 
     story_count = len(merged.get("stories", []))
-    print(
-        f"[R/federated] Aggregated {story_count} stories from "
-        f"{len(args.sub_projects)} sub-projects → {out_path}"
-    )
+    print(f"[R/federated] Aggregated {story_count} stories from {len(args.sub_projects)} sub-projects → {out_path}")
 
 
 if __name__ == "__main__":

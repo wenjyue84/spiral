@@ -13,8 +13,6 @@ import json
 import sys
 from pathlib import Path
 
-import pytest
-
 # Add lib/ to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "lib"))
 
@@ -22,7 +20,6 @@ from phases.federated_research_aggregator import (  # noqa: E402
     _build_sub_project_map,
     aggregate_federated_research,
 )
-
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -92,14 +89,10 @@ def test_sub_project_field_on_all_stories(tmp_path: Path) -> None:
         [{"id": "RS-2", "title": "Dark mode", "description": "Add dark mode theme"}],
     )
 
-    merged, _ = aggregate_federated_research(
-        _build_sub_project_map(tmp_path, ["api", "frontend"])
-    )
+    merged, _ = aggregate_federated_research(_build_sub_project_map(tmp_path, ["api", "frontend"]))
 
     for story in merged["stories"]:
-        assert story.get("sub_project") in ("api", "frontend"), (
-            f"Story {story.get('id')} missing or wrong sub_project"
-        )
+        assert story.get("sub_project") in ("api", "frontend"), f"Story {story.get('id')} missing or wrong sub_project"
 
 
 def test_duplicate_id_across_sub_projects_produces_conflict_warning(
@@ -121,18 +114,14 @@ def test_duplicate_id_across_sub_projects_produces_conflict_warning(
         ],
     )
 
-    merged, warnings = aggregate_federated_research(
-        _build_sub_project_map(tmp_path, ["api", "frontend"])
-    )
+    merged, warnings = aggregate_federated_research(_build_sub_project_map(tmp_path, ["api", "frontend"]))
 
     # Both stories still included
     assert len(merged["stories"]) == 2
 
     # Conflict warning emitted
     dup_warnings = [w for w in warnings if "Duplicate story ID" in w and "RS-10" in w]
-    assert len(dup_warnings) == 1, (
-        f"Expected exactly one duplicate warning for RS-10, got: {warnings}"
-    )
+    assert len(dup_warnings) == 1, f"Expected exactly one duplicate warning for RS-10, got: {warnings}"
     assert "api" in dup_warnings[0]
     assert "frontend" in dup_warnings[0]
 
@@ -150,12 +139,8 @@ def test_phase_m_dedup_handles_cross_project_stories(tmp_path: Path) -> None:
     candidate_same = "Add API rate limiting"  # exact match
     candidate_different = "Implement user avatars in dashboard"
 
-    assert is_duplicate(candidate_same, [existing_title]), (
-        "Exact title match should be flagged as duplicate"
-    )
-    assert not is_duplicate(candidate_different, [existing_title]), (
-        "Unrelated title should not be flagged as duplicate"
-    )
+    assert is_duplicate(candidate_same, [existing_title]), "Exact title match should be flagged as duplicate"
+    assert not is_duplicate(candidate_different, [existing_title]), "Unrelated title should not be flagged as duplicate"
 
 
 def test_missing_sub_project_output_produces_warning(tmp_path: Path) -> None:
@@ -166,9 +151,7 @@ def test_missing_sub_project_output_produces_warning(tmp_path: Path) -> None:
     )
     # 'frontend' output intentionally not written
 
-    merged, warnings = aggregate_federated_research(
-        _build_sub_project_map(tmp_path, ["api", "frontend"])
-    )
+    merged, warnings = aggregate_federated_research(_build_sub_project_map(tmp_path, ["api", "frontend"]))
 
     # api stories still included
     assert len(merged["stories"]) == 2
@@ -189,9 +172,7 @@ def test_invalid_json_output_produces_warning(tmp_path: Path) -> None:
         _make_stories("frontend", 2),
     )
 
-    merged, warnings = aggregate_federated_research(
-        _build_sub_project_map(tmp_path, ["api", "frontend"])
-    )
+    merged, warnings = aggregate_federated_research(_build_sub_project_map(tmp_path, ["api", "frontend"]))
 
     # frontend stories still included
     assert len(merged["stories"]) == 2
@@ -219,9 +200,7 @@ def test_no_cross_contamination_between_sub_projects(tmp_path: Path) -> None:
         _make_stories("frontend", 2),
     )
 
-    merged, _ = aggregate_federated_research(
-        _build_sub_project_map(tmp_path, ["api", "frontend"])
-    )
+    merged, _ = aggregate_federated_research(_build_sub_project_map(tmp_path, ["api", "frontend"]))
 
     for story in merged["stories"]:
         sub = story["sub_project"]

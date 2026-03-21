@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import json
 import os
-import sys
 import subprocess
+import sys
 from pathlib import Path
-from typing import Any
 
 # Ensure lib/ is importable
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
@@ -60,13 +59,15 @@ class TestFederatedWorkers:
     def test_federated_partition_prd_creates_sub_project_workers(self, tmp_path):
         """AC: partition_prd.py with --federated creates worker-{sub_project}-{N}.json files."""
         # Create federated prd.json with api and frontend sub-projects
-        prd = _make_prd([
-            _make_story("US-001", sub_project="api"),
-            _make_story("US-002", sub_project="api"),
-            _make_story("US-003", sub_project="frontend"),
-            _make_story("US-004", sub_project="frontend"),
-            _make_story("US-005", sub_project="frontend"),
-        ])
+        prd = _make_prd(
+            [
+                _make_story("US-001", sub_project="api"),
+                _make_story("US-002", sub_project="api"),
+                _make_story("US-003", sub_project="frontend"),
+                _make_story("US-004", sub_project="frontend"),
+                _make_story("US-005", sub_project="frontend"),
+            ]
+        )
         prd_file = _write_prd(tmp_path / "prd.json", prd)
         outdir = tmp_path / "workers"
         outdir.mkdir()
@@ -77,9 +78,12 @@ class TestFederatedWorkers:
             [
                 "python",
                 str(spiral_home / "lib" / "prd" / "partition_prd.py"),
-                "--prd", prd_file,
-                "--workers", "2",
-                "--outdir", str(outdir),
+                "--prd",
+                prd_file,
+                "--workers",
+                "2",
+                "--outdir",
+                str(outdir),
                 "--federated",
             ],
             capture_output=True,
@@ -101,12 +105,14 @@ class TestFederatedWorkers:
 
     def test_federated_partition_prd_routes_stories_by_sub_project(self, tmp_path):
         """AC: partition_prd.py --federated routes stories to matching sub_project workers."""
-        prd = _make_prd([
-            _make_story("US-001", sub_project="api"),
-            _make_story("US-002", sub_project="api"),
-            _make_story("US-003", sub_project="frontend"),
-            _make_story("US-004", sub_project="frontend"),
-        ])
+        prd = _make_prd(
+            [
+                _make_story("US-001", sub_project="api"),
+                _make_story("US-002", sub_project="api"),
+                _make_story("US-003", sub_project="frontend"),
+                _make_story("US-004", sub_project="frontend"),
+            ]
+        )
         prd_file = _write_prd(tmp_path / "prd.json", prd)
         outdir = tmp_path / "workers"
         outdir.mkdir()
@@ -117,9 +123,12 @@ class TestFederatedWorkers:
             [
                 "python",
                 str(spiral_home / "lib" / "prd" / "partition_prd.py"),
-                "--prd", prd_file,
-                "--workers", "2",
-                "--outdir", str(outdir),
+                "--prd",
+                prd_file,
+                "--workers",
+                "2",
+                "--outdir",
+                str(outdir),
                 "--federated",
             ],
             capture_output=True,
@@ -144,10 +153,12 @@ class TestFederatedWorkers:
         # This is a conceptual test since we can't run the full bash script in pytest
         # Instead, verify the federated detection logic would work
 
-        prd = _make_prd([
-            _make_story("US-001", sub_project="api"),
-            _make_story("US-002", sub_project="frontend"),
-        ])
+        prd = _make_prd(
+            [
+                _make_story("US-001", sub_project="api"),
+                _make_story("US-002", sub_project="frontend"),
+            ]
+        )
         prd_file = _write_prd(tmp_path / "prd.json", prd)
 
         # Read PRD and check for sub_project field in pending stories
@@ -162,11 +173,13 @@ class TestFederatedWorkers:
 
     def test_federated_partition_with_mixed_and_default_sub_projects(self, tmp_path):
         """AC: partition_prd.py handles stories with and without sub_project field correctly."""
-        prd = _make_prd([
-            _make_story("US-001", sub_project="api"),
-            _make_story("US-002"),  # No sub_project
-            _make_story("US-003", sub_project="api"),
-        ])
+        prd = _make_prd(
+            [
+                _make_story("US-001", sub_project="api"),
+                _make_story("US-002"),  # No sub_project
+                _make_story("US-003", sub_project="api"),
+            ]
+        )
         prd_file = _write_prd(tmp_path / "prd.json", prd)
         outdir = tmp_path / "workers"
         outdir.mkdir()
@@ -177,9 +190,12 @@ class TestFederatedWorkers:
             [
                 "python",
                 str(spiral_home / "lib" / "prd" / "partition_prd.py"),
-                "--prd", prd_file,
-                "--workers", "2",
-                "--outdir", str(outdir),
+                "--prd",
+                prd_file,
+                "--workers",
+                "2",
+                "--outdir",
+                str(outdir),
             ],
             capture_output=True,
             text=True,
@@ -196,10 +212,12 @@ class TestFederatedWorkers:
 
     def test_federated_no_cross_project_contamination(self, tmp_path):
         """AC: Federated partition ensures no cross-project file contamination in filesTouch."""
-        prd = _make_prd([
-            _make_story("US-001", sub_project="api", filesTouch=["api/handler.py"]),
-            _make_story("US-002", sub_project="frontend", filesTouch=["frontend/page.tsx"]),
-        ])
+        prd = _make_prd(
+            [
+                _make_story("US-001", sub_project="api", filesTouch=["api/handler.py"]),
+                _make_story("US-002", sub_project="frontend", filesTouch=["frontend/page.tsx"]),
+            ]
+        )
         prd_file = _write_prd(tmp_path / "prd.json", prd)
         outdir = tmp_path / "workers"
         outdir.mkdir()
@@ -210,9 +228,12 @@ class TestFederatedWorkers:
             [
                 "python",
                 str(spiral_home / "lib" / "prd" / "partition_prd.py"),
-                "--prd", prd_file,
-                "--workers", "2",
-                "--outdir", str(outdir),
+                "--prd",
+                prd_file,
+                "--workers",
+                "2",
+                "--outdir",
+                str(outdir),
                 "--federated",
             ],
             capture_output=True,

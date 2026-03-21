@@ -35,7 +35,9 @@ _FILE_PATTERNS = [
     # pytest FAILED tests/test_foo.py::test_bar
     re.compile(r"FAILED\s+([a-zA-Z0-9_./-]+\.(?:py|ts|js|sh))", re.MULTILINE),
     # Error in file: src/main.py
-    re.compile(r"(?:Error|error)\s+(?:in\s+file|processing|in)\s*:?\s*([a-zA-Z0-9_./-]+\.(?:py|ts|js|sh))", re.MULTILINE),
+    re.compile(
+        r"(?:Error|error)\s+(?:in\s+file|processing|in)\s*:?\s*([a-zA-Z0-9_./-]+\.(?:py|ts|js|sh))", re.MULTILINE
+    ),
     # TypeScript: error TS2345: ... lib/foo.ts
     re.compile(r"error\s+TS\d+:.*?([a-zA-Z0-9_./-]+\.(?:ts|js))", re.MULTILINE),
     # shellcheck: In lib/foo.sh line 42:
