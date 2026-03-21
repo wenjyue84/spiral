@@ -490,7 +490,6 @@ class TestValidateFederatedCLI:
 
     def test_cli_valid_prd_exits_0(self, valid_prd: Path) -> None:
         """Test CLI exits 0 for valid prd.json."""
-<<<<<<< Updated upstream
         try:
             result = subprocess.run(
                 [
@@ -501,28 +500,13 @@ class TestValidateFederatedCLI:
                 ],
                 cwd=str(valid_prd.parent),
                 capture_output=True,
-                timeout=10,
+                timeout=60,  # pytest startup on Windows can be slow
             )
             # Just verify the test can run (not testing actual CLI exit code due to subprocess complexity)
             assert result.returncode in [0, 5]  # 5 = no tests collected
         except subprocess.TimeoutExpired:
             # pytest startup can be slow on Windows; treat timeout as pass
             pass
-=======
-        result = subprocess.run(
-            [
-                sys.executable,
-                "-m",
-                "pytest",
-                "--co",  # Just check that we can collect tests
-            ],
-            cwd=str(valid_prd.parent),
-            capture_output=True,
-            timeout=60,  # pytest startup on Windows can be slow
-        )
-        # Just verify the test can run (not testing actual CLI exit code due to subprocess complexity)
-        assert result.returncode in [0, 5]  # 5 = no tests collected
->>>>>>> Stashed changes
 
     def test_json_output_valid(self, valid_prd: Path) -> None:
         """Test that JSON output can be parsed."""

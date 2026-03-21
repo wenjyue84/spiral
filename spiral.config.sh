@@ -183,8 +183,7 @@ SPIRAL_MAX_RESEARCH_STORIES=5
 # ── AI suggestion cap: max Phase A stories generated per iteration ────────────
 # Phase A runs after Phase R and adds AI-generated story candidates.
 # Set to 0 to stop generating new stories and focus on clearing the backlog.
-# Was 2, but backlog keeps growing while stories time out during baseline counting.
-SPIRAL_MAX_AI_SUGGEST=0
+SPIRAL_MAX_AI_SUGGEST=5
 
 # ── Phase S: Message Batches API validation (US-390) ──────────────────────
 # Set to 1 to submit Phase S validation requests to the Anthropic Message
