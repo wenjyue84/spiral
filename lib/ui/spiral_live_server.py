@@ -345,6 +345,12 @@ class SpiralLiveServer:
             await self._handle_research_sources(path, writer)
             return
 
+        # --- Project progress (/{project}/progress) ---
+        m_prog = re.match(r"^/([^/?]+)/progress$", path)
+        if m_prog and method == "GET":
+            await self._handle_project_progress(m_prog.group(1), writer)
+            return
+
         # --- Project dashboard ---
         m2 = re.match(r"^/([^/?]+)$", path)
         if m2 and method == "GET":
@@ -679,6 +685,82 @@ class SpiralLiveServer:
         sources = extract_sources(data)
         await self._send_json(writer, 200, {"sources": sources})
 
+    async def _handle_project_progress(self, project_name: str, writer: asyncio.StreamWriter) -> None:
+        """Return progress summary for a project by reading its prd.json."""
+        # Resolve project root
+        root = ""
+        combined: dict[str, dict] = {}  # type: ignore[type-arg]
+        registry_path = os.path.join(os.path.expanduser("~"), ".spiral", "ui-projects.json")
+        try:
+            with open(registry_path, encoding="utf-8") as f:
+                reg = json.load(f)
+            for name, r in reg.items():
+                combined[name] = {"name": name, "root": str(r)}
+        except (OSError, json.JSONDecodeError, TypeError):
+            pass
+        combined.update(self._projects)
+        if project_name in combined:
+            root = combined[project_name].get("root", "")
+
+        if not root:
+            await self._send_error(writer, 404, f"Project '{project_name}' not registered")
+            return
+
+        # Normalize Git Bash paths (/c/Users/...) to Windows (C:/Users/...)
+        if re.match(r"^/[a-zA-Z]/", root):
+            root = root[1].upper() + ":" + root[2:]
+
+        prd_path = os.path.join(root, "prd.json")
+        try:
+            with open(prd_path, encoding="utf-8") as f:
+                prd = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            await self._send_error(writer, 500, f"Cannot read prd.json at {prd_path}")
+            return
+
+        stories = prd.get("userStories", [])
+        total = len(stories)
+        passed = sum(1 for s in stories if s.get("passes"))
+        pending = sum(1 for s in stories if not s.get("passes") and not s.get("_skipped") and not s.get("_decomposed"))
+        skipped = sum(1 for s in stories if s.get("_skipped"))
+        pass_pct = round(passed / total * 100, 1) if total else 0.0
+
+        # Read checkpoint for iteration info
+        checkpoint_path = os.path.join(root, ".spiral", "_checkpoint.json")
+        iteration = 0
+        run_id = ""
+        try:
+            with open(checkpoint_path, encoding="utf-8") as f:
+                cp = json.load(f)
+            iteration = cp.get("iteration", 0)
+            run_id = cp.get("run_id", "")
+        except (OSError, json.JSONDecodeError):
+            pass
+
+        # Build pending stories list
+        pending_stories = [
+            {"id": s.get("id", "?"), "title": s.get("title", ""), "priority": s.get("priority", 99)}
+            for s in stories
+            if not s.get("passes") and not s.get("_skipped") and not s.get("_decomposed")
+        ]
+        pending_stories.sort(key=lambda x: x["priority"])
+
+        progress_html = _PROGRESS_HTML.replace("{{PROJECT}}", escape(project_name))
+        progress_html = progress_html.replace("{{TOTAL}}", str(total))
+        progress_html = progress_html.replace("{{PASSED}}", str(passed))
+        progress_html = progress_html.replace("{{PENDING}}", str(pending))
+        progress_html = progress_html.replace("{{SKIPPED}}", str(skipped))
+        progress_html = progress_html.replace("{{PASS_PCT}}", str(pass_pct))
+        progress_html = progress_html.replace("{{ITERATION}}", str(iteration))
+        progress_html = progress_html.replace("{{RUN_ID}}", escape(run_id))
+
+        rows = ""
+        for s in pending_stories:
+            rows += f'<tr><td>{escape(str(s["id"]))}</td><td>{escape(s["title"])}</td><td>{s["priority"]}</td></tr>\n'
+        progress_html = progress_html.replace("{{PENDING_ROWS}}", rows if rows else '<tr><td colspan="3">All stories complete!</td></tr>')
+
+        await self._send_html(writer, 200, progress_html)
+
     async def _handle_index(self, writer: asyncio.StreamWriter) -> None:
         """Return HTML index listing registered projects."""
         # Merge persistent registry (~/.spiral/ui-projects.json) with in-memory projects
@@ -776,6 +858,60 @@ class SpiralLiveServer:
 
 
 # ── HTML Templates ────────────────────────────────────────────────────────────
+
+_PROGRESS_HTML = """\
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SPIRAL Progress — {{PROJECT}}</title>
+<meta http-equiv="refresh" content="30">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',monospace;background:#0d1117;color:#c9d1d9;padding:2rem}
+h1{color:#58a6ff;margin-bottom:.5rem;font-size:1.4rem}
+h2{color:#8b949e;margin-bottom:1rem;font-size:1rem;font-weight:normal}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1rem;margin-bottom:2rem}
+.stat{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:1rem;text-align:center}
+.stat-value{font-size:2rem;font-weight:bold;color:#e6edf3}
+.stat-label{font-size:.75rem;color:#8b949e;margin-top:.25rem}
+.stat-pass .stat-value{color:#56d364}
+.stat-pct .stat-value{color:#58a6ff}
+.stat-pending .stat-value{color:#e3b341}
+.stat-skip .stat-value{color:#8b949e}
+.progress-bar{background:#21262d;border-radius:4px;height:24px;margin-bottom:2rem;overflow:hidden;position:relative}
+.progress-fill{background:linear-gradient(90deg,#238636,#56d364);height:100%;transition:width .5s;border-radius:4px}
+.progress-text{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:.8rem;font-weight:bold;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.5)}
+table{width:100%;border-collapse:collapse;background:#161b22;border:1px solid #30363d;border-radius:8px;overflow:hidden}
+th{background:#21262d;color:#8b949e;text-align:left;padding:.5rem .75rem;font-size:.75rem;text-transform:uppercase}
+td{padding:.5rem .75rem;border-top:1px solid #30363d;font-size:.85rem}
+tr:hover td{background:#1c2128}
+.back{color:#58a6ff;text-decoration:none;font-size:.85rem;display:inline-block;margin-bottom:1rem}
+.back:hover{text-decoration:underline}
+.meta{color:#8b949e;font-size:.75rem;margin-bottom:1.5rem}
+</style>
+</head>
+<body>
+<a class="back" href="/">&larr; All projects</a> &middot; <a class="back" href="/{{PROJECT}}">Live dashboard</a>
+<h1>{{PROJECT}} — Progress</h1>
+<p class="meta">Run {{RUN_ID}} &middot; Iteration {{ITERATION}} &middot; Auto-refreshes every 30s</p>
+<div class="stats">
+  <div class="stat stat-pass"><div class="stat-value">{{PASSED}}</div><div class="stat-label">Passed</div></div>
+  <div class="stat stat-pending"><div class="stat-value">{{PENDING}}</div><div class="stat-label">Pending</div></div>
+  <div class="stat stat-skip"><div class="stat-value">{{SKIPPED}}</div><div class="stat-label">Skipped</div></div>
+  <div class="stat stat-pct"><div class="stat-value">{{PASS_PCT}}%</div><div class="stat-label">Pass Rate</div></div>
+</div>
+<div class="progress-bar"><div class="progress-fill" style="width:{{PASS_PCT}}%"></div><div class="progress-text">{{PASSED}} / {{TOTAL}}</div></div>
+<h2>Pending Stories</h2>
+<table>
+<thead><tr><th>ID</th><th>Title</th><th>Priority</th></tr></thead>
+<tbody>
+{{PENDING_ROWS}}
+</tbody>
+</table>
+</body>
+</html>
+"""
 
 _INDEX_HTML = """\
 <!DOCTYPE html>

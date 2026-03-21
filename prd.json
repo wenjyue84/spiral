@@ -11,22 +11,6 @@
   ],
   "userStories": [
     {
-      "id": "US-660",
-      "title": "Integration Test - Phase M Federated Story Conflict Detection and Rollback",
-      "priority": "high",
-      "description": "Test Phase M's ability to detect and report when federated sub-projects have conflicting stories (same target files). Verify that Phase M rejects merge of conflicting stories and marks them for manual resolution, with proper state cleanup and results.tsv logging.",
-      "acceptanceCriteria": [
-        "Create tests/integration_federated_conflict_detection.py with two sub-projects modifying same file path",
-        "Inject conflicting stories into prd.json for Phase M; assert merge rejects with conflict error in results.tsv status=rejected",
-        "Assert prd.json rolls back (stories remain in pending, _source preserved) and conflict report written to .spiral/conflicts.json"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": true,
-      "model": "sonnet"
-    },
-    {
       "id": "US-640",
       "title": "Phase G: Extract Story-to-Commit Mappings from Git History",
       "priority": "medium",
@@ -41,8 +25,7 @@
       "estimatedComplexity": "small",
       "passes": false,
       "_source": "ai-example",
-      "model": "haiku",
-      "_failureReason": "oversized_diff"
+      "model": "haiku"
     },
     {
       "id": "US-641",
@@ -246,6 +229,22 @@
       "model": "haiku"
     },
     {
+      "id": "US-663",
+      "title": "Integration Test: SPIRAL Crash Recovery — Restore State from Checkpoint and Resume",
+      "priority": "medium",
+      "description": "Validates that SPIRAL can recover from mid-phase crashes using .spiral/_checkpoint.json. Simulates crash during Phase I, restarts with --resume-from-checkpoint, and verifies story loop continues without re-executing completed phases.",
+      "acceptanceCriteria": [
+        "Test file tests/integration/test_spiral_crash_recovery.py: start SPIRAL, inject crash during Phase I after story 3 of 5, verify .spiral/_checkpoint.json persists {phase: 'I', completed_stories: ['US-001', 'US-002', 'US-003']}",
+        "Restart with spiral.sh --resume-from-checkpoint skips Phase R/T, resumes Phase I at US-004 without re-running previous stories",
+        "Assert results.tsv consistency: prior 3 story rows unchanged, new rows appended after recovery without duplicates"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
       "id": "US-647",
       "title": "Dashboard Endpoint: Worker Resource Usage Metrics via /api/dashboard/worker-resources",
       "priority": "low",
@@ -260,8 +259,23 @@
       "estimatedComplexity": "small",
       "passes": true,
       "_source": "ai-example",
-      "model": "sonnet",
-      "last_attempted": "2026-03-21T09:05:55Z"
+      "model": "sonnet"
+    },
+    {
+      "id": "US-660",
+      "title": "Integration Test - Phase M Federated Story Conflict Detection and Rollback",
+      "priority": "high",
+      "description": "Test Phase M's ability to detect and report when federated sub-projects have conflicting stories (same target files). Verify that Phase M rejects merge of conflicting stories and marks them for manual resolution, with proper state cleanup and results.tsv logging.",
+      "acceptanceCriteria": [
+        "Create tests/integration_federated_conflict_detection.py with two sub-projects modifying same file path",
+        "Inject conflicting stories into prd.json for Phase M; assert merge rejects with conflict error in results.tsv status=rejected",
+        "Assert prd.json rolls back (stories remain in pending, _source preserved) and conflict report written to .spiral/conflicts.json"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "sonnet"
     },
     {
       "id": "US-659",
