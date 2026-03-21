@@ -1393,3 +1393,19 @@ Here is a technical brief for implementing story US-597.
 
 ### Gotchas
 - SPIRAL may reset passes=false in prd.json across iterations even when story is fully implemented; re-marking is fine since all files exist and tests pass
+
+## Iteration 19 - Story: US-597 File-Aware Retry Strategy
+
+### What was implemented
+- lib/results_tsv.py: Added parse_failed_files_from_stderr() and get_last_failed_files() functions
+- lib/impl/retry.sh: Added get_failed_files_for_story() and build_files_only_args() bash helpers (delegate to file_aware_retry.py CLI)
+- tests/test_file_aware_retry.py: Already existed with 19 tests; all pass
+
+### Patterns discovered
+- file_aware_retry.py already existed in lib/impl/ from a prior attempt; tests already existed too
+- retry.sh had CRLF line endings + em dash characters causing shellcheck SC1017 failure; fixed by converting to LF and replacing em dashes with --
+- Heredoc approach (<<PYEOF) in bash is fragile on Windows (CRLF); delegating to Python CLI scripts is cleaner
+
+### Gotchas
+- Pre-commit shellcheck on retry.sh requires LF line endings (not CRLF) -- Windows editors can corrupt this
+- Em dash characters (—) in bash comments trigger shellcheck encoding errors; use -- instead
