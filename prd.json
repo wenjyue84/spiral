@@ -11,37 +11,37 @@
   ],
   "userStories": [
     {
-      "id": "US-638",
-      "title": "Integration Test: E2E SPIRAL Loop with Federated prd.json and Parallel Workers",
+      "id": "US-643",
+      "title": "CLI: spiral archive-checkpoint -- Create Recoverable State Backup for Crash Recovery",
       "priority": "high",
-      "description": "End-to-end test executing full SPIRAL R→C on federated prd.json with 2 sub-projects (6 stories total), mocked Gemini research API, and 2 parallel mock workers. Validates phase orchestration, worker isolation, results.tsv sub_project column, and final prd.json consistency.",
+      "description": "New CLI command to snapshot SPIRAL state (prd.json, results.tsv, .spiral/ directory) into a tar.gz archive for recovery after system failure or manual rollback.",
       "acceptanceCriteria": [
-        "tests/test_spiral_e2e_federated.py: mocks $SPIRAL_RESEARCH_API returning canned Gemini output, spawns 2 workers via lib/run_parallel_ralph.sh with isolated worktrees and PRD slices",
-        "After completion: prd.json has correct merged stories, results.tsv has 6+ rows with sub_project column populated, no prd.json corruption from concurrent writes",
-        "All phases execute in order (R→T→S→M→I→V→C), phase_id and duration_ms recorded for each story attempt"
+        "Command `spiral archive-checkpoint --output backup-iter-5.tar.gz` creates compressed archive including prd.json, results.tsv, .spiral/, .spiral-workers/ with manifest.json",
+        "Manifest.json includes: {iteration: 5, timestamp: '2026-03-21T14:30:00Z', total_stories: 10, passing_stories: 7, archive_size_mb: 2.4}",
+        "Integration test: archive checkpoint, corrupt prd.json, restore from archive, verify all files recover with identical checksums"
       ],
       "technicalNotes": [],
       "dependencies": [],
-      "estimatedComplexity": "medium",
+      "estimatedComplexity": "small",
       "passes": true,
       "_source": "ai-example",
       "model": "sonnet",
-      "last_attempted": "2026-03-21T04:07:39Z"
+      "last_attempted": "2026-03-21T05:03:18Z"
     },
     {
-      "id": "US-639",
-      "title": "CLI: spiral lint-prd -- Validate Schema, IDs, Dependencies, and Completeness",
+      "id": "US-644",
+      "title": "Integration Test: Cross-Phase Data Flow Validation with Output Schema Assertions",
       "priority": "high",
-      "description": "New CLI command performing comprehensive prd.json validation: schema compliance, story ID uniqueness, US-XXX naming convention, field completeness, and circular dependency detection. Output JSON report with all issues grouped by category.",
+      "description": "End-to-end test that runs SPIRAL phases sequentially (R→T→S→M→I→V) and validates that each phase's output is correctly consumed by the next phase without schema mismatches.",
       "acceptanceCriteria": [
-        "Command spiral lint-prd outputs JSON: {valid: false, errors: [{type: 'schema', message: 'Missing field: acceptance_criteria'}, {type: 'duplicate_id', story_id: 'US-123'}, {type: 'circular_dep', cycle: ['US-45', 'US-67', 'US-45']}]}",
-        "lib/prd/lint_prd.py: validates prd.json against prd.schema.json, detects duplicate story IDs, checks US-\\d{3} naming, detects circular dependencies via topological sort",
-        "tests/test_lint_prd.py: 5 test prd.json fixtures (valid, duplicate IDs, circular deps, missing fields, naming violations), asserts all issues detected correctly"
+        "Test mocks Claude/Gemini APIs, runs phases with output capture, asserts Phase R _research_output.json contains required fields (story_id, research_summary), Phase T test_stories_output.json matches story schema, Phase S _validated_stories.json has _status field",
+        "Detects schema violations (missing required fields, type mismatches) and reports error with file:function:line context (e.g., 'phase_s.py:validate_story():line 42: missing _status')",
+        "Test creates mock phase outputs intentionally missing one field, asserts next phase correctly rejects it with actionable error message"
       ],
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": true,
+      "passes": false,
       "_source": "ai-example",
       "model": "sonnet"
     },
@@ -95,6 +95,93 @@
       "passes": false,
       "_source": "ai-example",
       "model": "haiku"
+    },
+    {
+      "id": "US-645",
+      "title": "Dashboard Endpoint: Historical Cost Trends by Iteration via /api/dashboard/cost-history",
+      "priority": "medium",
+      "description": "Add time-series dashboard endpoint that tracks total SPIRAL token spend and cost per iteration for trend analysis and budget forecasting.",
+      "acceptanceCriteria": [
+        "Endpoint GET /api/dashboard/cost-history returns JSON array: [{iteration: 1, total_tokens: 50000, total_cost: 0.50, cumulative_cost: 0.50}, ...] sorted by iteration",
+        "Data sourced from results.tsv grouped by iteration_num; cost calculated from (tokens × model_rate); cumulative_cost is running total",
+        "Integration test runs SPIRAL for 2 iterations with mock API, asserts cost-history endpoint shows both iterations with cost monotonically increasing"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-646",
+      "title": "Phase I: Model Escalation Explainability Report with Categorized Reason Codes",
+      "priority": "medium",
+      "description": "Track and log why each story was escalated to a stronger model (haiku→sonnet→opus) with categorized reason codes (token_limit, syntax_error, timeout, api_error) for dashboard analysis.",
+      "acceptanceCriteria": [
+        "Phase I writes to .spiral/escalations.json: [{story: 'US-001', attempt: 1, model_used: 'haiku', reason: 'token_limit', tokens_haiku: 95000, retry_model: 'sonnet'}, ...] one entry per escalation",
+        "Dashboard endpoint GET /api/dashboard/escalation-breakdown returns {token_limit: 12, syntax_error: 8, timeout: 3, api_error: 2} with total_escalations: 25",
+        "Test with 3 mock story failures (one token overrun, one syntax, one timeout), asserts escalations.json has correct reason_code for each"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-647",
+      "title": "Dashboard Endpoint: Worker Resource Usage Metrics via /api/dashboard/worker-resources",
+      "priority": "low",
+      "description": "Track and expose real-time worker process resource usage (peak memory, CPU utilization, story count) from worker heartbeats for performance bottleneck identification.",
+      "acceptanceCriteria": [
+        "Endpoint GET /api/dashboard/worker-resources returns [{worker_id: 'worker-1', memory_peak_mb: 480, avg_cpu_percent: 65, stories_completed: 3, uptime_seconds: 340}, ...] updated every 5s from .spiral/worker_heartbeats.json",
+        "Integration test spawns 2 workers, polls /api/dashboard/worker-resources during story implementation, asserts memory and CPU metrics are non-zero and reflect workload",
+        "Test verifies metrics persist in .spiral/worker-resources-history.json for post-run analysis with timestamp and resource snapshots"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-638",
+      "title": "Integration Test: E2E SPIRAL Loop with Federated prd.json and Parallel Workers",
+      "priority": "high",
+      "description": "End-to-end test executing full SPIRAL R→C on federated prd.json with 2 sub-projects (6 stories total), mocked Gemini research API, and 2 parallel mock workers. Validates phase orchestration, worker isolation, results.tsv sub_project column, and final prd.json consistency.",
+      "acceptanceCriteria": [
+        "tests/test_spiral_e2e_federated.py: mocks $SPIRAL_RESEARCH_API returning canned Gemini output, spawns 2 workers via lib/run_parallel_ralph.sh with isolated worktrees and PRD slices",
+        "After completion: prd.json has correct merged stories, results.tsv has 6+ rows with sub_project column populated, no prd.json corruption from concurrent writes",
+        "All phases execute in order (R→T→S→M→I→V→C), phase_id and duration_ms recorded for each story attempt"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "sonnet",
+      "last_attempted": "2026-03-21T04:07:39Z",
+      "_scopeCreep": true
+    },
+    {
+      "id": "US-639",
+      "title": "CLI: spiral lint-prd -- Validate Schema, IDs, Dependencies, and Completeness",
+      "priority": "high",
+      "description": "New CLI command performing comprehensive prd.json validation: schema compliance, story ID uniqueness, US-XXX naming convention, field completeness, and circular dependency detection. Output JSON report with all issues grouped by category.",
+      "acceptanceCriteria": [
+        "Command spiral lint-prd outputs JSON: {valid: false, errors: [{type: 'schema', message: 'Missing field: acceptance_criteria'}, {type: 'duplicate_id', story_id: 'US-123'}, {type: 'circular_dep', cycle: ['US-45', 'US-67', 'US-45']}]}",
+        "lib/prd/lint_prd.py: validates prd.json against prd.schema.json, detects duplicate story IDs, checks US-\\d{3} naming, detects circular dependencies via topological sort",
+        "tests/test_lint_prd.py: 5 test prd.json fixtures (valid, duplicate IDs, circular deps, missing fields, naming violations), asserts all issues detected correctly"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "sonnet"
     },
     {
       "id": "US-390",

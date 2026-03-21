@@ -3350,6 +3350,63 @@ def main():
         help="Path to prd.json (default: prd.json)",
     )
 
+    # ── archive-checkpoint subcommand (US-643) ───────────────────────────────
+    archive_parser = subparsers.add_parser(
+        "archive-checkpoint",
+        help="Snapshot SPIRAL state into a tar.gz archive for crash recovery (US-643)",
+    )
+    archive_subs = archive_parser.add_subparsers(dest="archive_command")
+
+    archive_create_parser = archive_subs.add_parser(
+        "create",
+        help="Create a checkpoint archive (default action when --output is given)",
+    )
+    archive_create_parser.add_argument(
+        "--output",
+        required=True,
+        metavar="FILE",
+        help="Destination .tar.gz path (e.g. backup-iter-5.tar.gz)",
+    )
+    archive_create_parser.add_argument(
+        "--no-workers",
+        action="store_true",
+        help="Exclude .spiral-workers/ from the archive",
+    )
+
+    archive_restore_parser = archive_subs.add_parser(
+        "restore",
+        help="Restore files from a checkpoint archive",
+    )
+    archive_restore_parser.add_argument(
+        "archive",
+        metavar="FILE",
+        help="Path to the .tar.gz archive to restore",
+    )
+    archive_restore_parser.add_argument(
+        "--root",
+        default=".",
+        metavar="DIR",
+        help="Project root to restore into (default: current directory)",
+    )
+
+    archive_manifest_parser = archive_subs.add_parser(
+        "manifest",
+        help="Print manifest.json from an archive without extracting",
+    )
+    archive_manifest_parser.add_argument(
+        "archive",
+        metavar="FILE",
+        help="Path to the .tar.gz archive",
+    )
+
+    # Also support shorthand: spiral archive-checkpoint --output FILE
+    archive_parser.add_argument(
+        "--output",
+        default="",
+        metavar="FILE",
+        help="Shorthand: create archive at FILE (same as 'create --output FILE')",
+    )
+
     # ── lint-prd subcommand (US-639) ─────────────────────────────────────────
     lint_prd_parser = subparsers.add_parser(
         "lint-prd",
@@ -3467,6 +3524,8 @@ def main():
         cmd_show_worker_logs(args)
     elif args.command == "validate-federated-order":
         cmd_validate_federated_order(args)
+    elif args.command == "archive-checkpoint":
+        cmd_archive_checkpoint(args)
     elif args.command == "lint-prd":
         cmd_lint_prd(args)
     else:
@@ -3637,6 +3696,56 @@ def cmd_lint_prd(args: argparse.Namespace) -> None:
     report = lint_prd(prd_data, schema_path)
     print(json.dumps(report, indent=2))
     sys.exit(0 if report.get("valid") else 1)
+
+
+def cmd_archive_checkpoint(args: argparse.Namespace) -> None:
+    """Create or restore a SPIRAL state checkpoint archive (US-643).
+
+    Usage:
+      spiral archive-checkpoint --output backup-iter-5.tar.gz
+      spiral archive-checkpoint create --output backup-iter-5.tar.gz [--no-workers]
+      spiral archive-checkpoint restore <FILE> [--root DIR]
+      spiral archive-checkpoint manifest <FILE>
+    """
+    sys.path.insert(0, str(Path(__file__).parent / "lib" / "commands"))
+    from archive_checkpoint import archive, read_manifest, restore  # type: ignore[import-untyped]
+
+    root = Path(__file__).parent
+
+    # Shorthand: `spiral archive-checkpoint --output FILE`
+    shorthand_output: str = getattr(args, "output", "") or ""
+    archive_command: str | None = getattr(args, "archive_command", None)
+
+    if archive_command == "restore":
+        archive_path = Path(args.archive)
+        restore_root = Path(getattr(args, "root", "."))
+        try:
+            verified = restore(archive_path, restore_root)
+            print(json.dumps({"status": "ok", "restored_files": len(verified)}, indent=2))
+        except (FileNotFoundError, ValueError) as exc:
+            print(json.dumps({"status": "error", "message": str(exc)}, indent=2))
+            sys.exit(1)
+
+    elif archive_command == "manifest":
+        manifest = read_manifest(Path(args.archive))
+        print(json.dumps(manifest, indent=2))
+
+    elif archive_command == "create" or shorthand_output:
+        output_str = (
+            args.output if archive_command == "create" else shorthand_output
+        )
+        output_path = Path(output_str)
+        include_workers = not getattr(args, "no_workers", False)
+        manifest = archive(root, output_path, include_workers=include_workers)
+        print(json.dumps(manifest, indent=2))
+        print(f"\nArchive created: {output_path}", file=sys.stderr)
+
+    else:
+        # No sub-command and no --output: print help
+        import argparse as _ap
+
+        _ap.ArgumentParser(prog="spiral archive-checkpoint").print_help()
+        sys.exit(0)
 
 
 if __name__ == "__main__":
