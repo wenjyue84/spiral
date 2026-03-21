@@ -11,23 +11,6 @@
   ],
   "userStories": [
     {
-      "id": "US-657",
-      "title": "WebSocket Endpoint: /ws/story-updates -- Real-Time Story Phase Change Broadcasting",
-      "priority": "medium",
-      "description": "Broadcast story phase transitions via WebSocket to enable real-time dashboard updates without polling. Clients subscribe to story ID changes and receive phase transition events as they occur.",
-      "acceptanceCriteria": [
-        "When Phase C logs story status change (e.g., transition from phase='S' to phase='M'), /ws/story-updates broadcasts JSON: {story_id: 'US-001', from_phase: 'S', to_phase: 'M', timestamp: '2026-03-21T14:32:01Z'}'",
-        "Clients can subscribe with message {type: 'subscribe', story_ids: ['US-001', 'US-002']} or {type: 'subscribe', story_ids: '*'} for all updates",
-        "Integration test mocks Phase C updating prd.json story phase, verifies /ws/story-updates sends broadcast to 2 connected clients, clients receive correct message format"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": true,
-      "model": "sonnet",
-      "last_attempted": "2026-03-21T16:14:26Z"
-    },
-    {
       "id": "US-661",
       "title": "CLI: spiral validate-phase-outputs -- Comprehensive Phase Output Schema Validation",
       "priority": "medium",
@@ -170,6 +153,101 @@
       "estimatedComplexity": "small",
       "passes": false,
       "model": "haiku"
+    },
+    {
+      "id": "US-676",
+      "title": "Phase G: Auto-Generate README.md Feature Section from Completed Stories",
+      "priority": "medium",
+      "description": "Phase G scans completed stories from prd.json and automatically generates a formatted 'Features' section for README.md. Creates .spiral/phase-g-readme-snippet.md containing markdown ready for project maintainers to append. Closes the loop between story completion and user-facing documentation.",
+      "acceptanceCriteria": [
+        "Phase G creates function generate_readme_features() in lib/phases/phase-g.sh that reads prd.json status='completed' stories and generates markdown bullet points with story titles and descriptions",
+        "Output file .spiral/phase-g-readme-snippet.md contains valid markdown '## Features' section with entries for each completed story",
+        "Integration test with fixture of 5 completed stories verifies output markdown is syntactically valid and contains exactly 5 feature entries matching prd.json"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-677",
+      "title": "Dashboard Endpoint: GET /api/dashboard/escalation-success-rates - Model Retry Recovery Analysis",
+      "priority": "medium",
+      "description": "New dashboard endpoint analyzes results.tsv to compute model escalation success rates across story attempts. Returns percentage of stories passing on haiku vs recovering via sonnet vs requiring opus. Reveals model routing effectiveness and identifies patterns requiring escalation.",
+      "acceptanceCriteria": [
+        "Endpoint returns JSON: {haiku_success_rate: 0.72, sonnet_recovery_rate: 0.18, opus_final_rate: 0.10, total_stories_analyzed: 320} derived from results.tsv retry sequences grouped by final model used",
+        "Success rates computed by categorizing stories: haiku_success = stories with retry_count=0 and model='haiku', sonnet_recovery = stories with retry_count≥1 and final model='sonnet', opus_final = final model='opus'",
+        "Integration test with fixture of 10 stories (7 pass haiku, 2 pass sonnet, 1 requires opus) verifies endpoint computes 0.70/0.20/0.10 rates accurately"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-678",
+      "title": "Research Source Authority Scoring - Track Gemini Query Confidence",
+      "priority": "medium",
+      "description": "Score Phase R story sources by Gemini confidence and cache freshness to prioritize high-authority stories in Phase M merge and expose reliability metrics on dashboard.",
+      "acceptanceCriteria": [
+        "_research_output.json includes confidence_score (0.0-1.0) per source, derived from Gemini response certainty indicators (presence of hedging language, source diversity count)",
+        "Phase S validation prioritizes high-confidence stories (confidence_score > 0.8) for merge over low-confidence ones (< 0.5)",
+        "Dashboard endpoint GET /api/dashboard/source-authority returns {\"stories\": [{\"id\": \"US-123\", \"confidence\": 0.85, \"source_count\": 3}]} for last iteration"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-679",
+      "title": "CLI: spiral validate-changelog -- Verify CHANGELOG.md Covers All Completed Stories",
+      "priority": "medium",
+      "description": "Validate that CHANGELOG.md generated by Phase G includes entries for all stories marked as completed in prd.json and results.tsv. Closes the gap between Phase G generation and output verification.",
+      "acceptanceCriteria": [
+        "Parse CHANGELOG.md and extract all story IDs matching pattern US-\\d{3}; load prd.json and results.tsv to collect completed stories",
+        "Report output as JSON: {\"missing_stories\": [\"US-123\", ...], \"found\": N, \"expected\": M, \"coverage_percent\": X}",
+        "CLI command spiral validate-changelog -c CHANGELOG.md -p prd.json exits 0 if 100% coverage, 1 if gaps exist"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-680",
+      "title": "Dashboard Endpoint: GET /api/dashboard/export -- Snapshot Export of All Current Metrics",
+      "priority": "medium",
+      "description": "Add a single aggregation endpoint that exports all live dashboard metrics (costs, throughput, retries, workers, errors) as JSON snapshot. Enables offline trend analysis and metric archival.",
+      "acceptanceCriteria": [
+        "Aggregate existing endpoints into single response: {\"timestamp\": \"ISO-8601\", \"costs\": {...}, \"throughput\": {...}, \"retry_patterns\": {...}, \"workers\": {...}}",
+        "Support optional query param ?format=csv to export metrics table for BI tool ingestion",
+        "Include cumulative metrics: total_cost, total_stories_passed, avg_retry_count, worker_utilization_percent"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-681",
+      "title": "CLI: spiral check-phase-order-violations -- Detect Out-of-Order Story Implementation vs Dependencies",
+      "priority": "medium",
+      "description": "Verify stories were implemented only after their declared dependencies completed. Catches integration bugs where dependent stories may have been coded against incomplete interfaces.",
+      "acceptanceCriteria": [
+        "Parse prd.json depends_on fields and results.tsv timestamps; detect if child story completed before all parent stories",
+        "Output JSON violations: {\"violations\": [{\"story\": \"US-123\", \"completed_at\": \"T1\", \"blocked_on\": \"US-120\", \"blocker_completed_at\": \"T2\" (later than T1)}]}",
+        "CLI: spiral check-phase-order-violations -p prd.json -r results.tsv, exit code 1 if violations found, 0 if clean"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false
     },
     {
       "id": "US-674",
@@ -1485,6 +1563,22 @@
       "tags": []
     },
     {
+      "id": "US-675",
+      "title": "CLI: spiral trace-dependencies <story-id> - Federated Cross-Project Dependency Resolver",
+      "priority": "high",
+      "description": "New CLI command that recursively resolves and visualizes a story's full dependency chain across federated sub-projects. Detects circular dependencies, displays file paths, and marks sub-project boundaries. Critical for multi-project workflows where US-001 in project-a may depend on PROJECT-B-US-005.",
+      "acceptanceCriteria": [
+        "Command spiral trace-dependencies US-001 outputs tree showing all transitive dependencies with sub_project labels, file paths, and clear project boundaries (e.g., US-001 → [PROJECT-B] US-005 → [PROJECT-C] US-008)",
+        "Detects circular dependencies and reports error with cycle path: 'Circular dependency detected: US-001 → US-002 → US-001'",
+        "Output as JSON: {story_id: 'US-001', dependencies: [{story_id: 'PROJECT-B-US-005', sub_project: 'project-b', depth: 1, files: ['src/auth.py']}], has_cycle: false} for dashboard integration"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "sonnet"
+    },
+    {
       "id": "US-578",
       "title": "[Security Test] CLI: validate-federated — Input Safety & Output Sanitization",
       "priority": "high",
@@ -2052,6 +2146,23 @@
       "model": "haiku",
       "_scopeCreep": true,
       "tags": []
+    },
+    {
+      "id": "US-657",
+      "title": "WebSocket Endpoint: /ws/story-updates -- Real-Time Story Phase Change Broadcasting",
+      "priority": "medium",
+      "description": "Broadcast story phase transitions via WebSocket to enable real-time dashboard updates without polling. Clients subscribe to story ID changes and receive phase transition events as they occur.",
+      "acceptanceCriteria": [
+        "When Phase C logs story status change (e.g., transition from phase='S' to phase='M'), /ws/story-updates broadcasts JSON: {story_id: 'US-001', from_phase: 'S', to_phase: 'M', timestamp: '2026-03-21T14:32:01Z'}'",
+        "Clients can subscribe with message {type: 'subscribe', story_ids: ['US-001', 'US-002']} or {type: 'subscribe', story_ids: '*'} for all updates",
+        "Integration test mocks Phase C updating prd.json story phase, verifies /ws/story-updates sends broadcast to 2 connected clients, clients receive correct message format"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "sonnet",
+      "last_attempted": "2026-03-21T16:14:26Z"
     },
     {
       "id": "US-655",
@@ -3890,102 +4001,6 @@
         "contextWindow": 10
       },
       "tags": []
-    },
-    {
-      "id": "US-675",
-      "title": "CLI: spiral trace-dependencies <story-id> - Federated Cross-Project Dependency Resolver",
-      "priority": "high",
-      "description": "New CLI command that recursively resolves and visualizes a story's full dependency chain across federated sub-projects. Detects circular dependencies, displays file paths, and marks sub-project boundaries. Critical for multi-project workflows where US-001 in project-a may depend on PROJECT-B-US-005.",
-      "acceptanceCriteria": [
-        "Command spiral trace-dependencies US-001 outputs tree showing all transitive dependencies with sub_project labels, file paths, and clear project boundaries (e.g., US-001 → [PROJECT-B] US-005 → [PROJECT-C] US-008)",
-        "Detects circular dependencies and reports error with cycle path: 'Circular dependency detected: US-001 → US-002 → US-001'",
-        "Output as JSON: {story_id: 'US-001', dependencies: [{story_id: 'PROJECT-B-US-005', sub_project: 'project-b', depth: 1, files: ['src/auth.py']}], has_cycle: false} for dashboard integration"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": true,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-676",
-      "title": "Phase G: Auto-Generate README.md Feature Section from Completed Stories",
-      "priority": "medium",
-      "description": "Phase G scans completed stories from prd.json and automatically generates a formatted 'Features' section for README.md. Creates .spiral/phase-g-readme-snippet.md containing markdown ready for project maintainers to append. Closes the loop between story completion and user-facing documentation.",
-      "acceptanceCriteria": [
-        "Phase G creates function generate_readme_features() in lib/phases/phase-g.sh that reads prd.json status='completed' stories and generates markdown bullet points with story titles and descriptions",
-        "Output file .spiral/phase-g-readme-snippet.md contains valid markdown '## Features' section with entries for each completed story",
-        "Integration test with fixture of 5 completed stories verifies output markdown is syntactically valid and contains exactly 5 feature entries matching prd.json"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-677",
-      "title": "Dashboard Endpoint: GET /api/dashboard/escalation-success-rates - Model Retry Recovery Analysis",
-      "priority": "medium",
-      "description": "New dashboard endpoint analyzes results.tsv to compute model escalation success rates across story attempts. Returns percentage of stories passing on haiku vs recovering via sonnet vs requiring opus. Reveals model routing effectiveness and identifies patterns requiring escalation.",
-      "acceptanceCriteria": [
-        "Endpoint returns JSON: {haiku_success_rate: 0.72, sonnet_recovery_rate: 0.18, opus_final_rate: 0.10, total_stories_analyzed: 320} derived from results.tsv retry sequences grouped by final model used",
-        "Success rates computed by categorizing stories: haiku_success = stories with retry_count=0 and model='haiku', sonnet_recovery = stories with retry_count≥1 and final model='sonnet', opus_final = final model='opus'",
-        "Integration test with fixture of 10 stories (7 pass haiku, 2 pass sonnet, 1 requires opus) verifies endpoint computes 0.70/0.20/0.10 rates accurately"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-678",
-      "title": "Research Source Authority Scoring - Track Gemini Query Confidence",
-      "priority": "medium",
-      "description": "Score Phase R story sources by Gemini confidence and cache freshness to prioritize high-authority stories in Phase M merge and expose reliability metrics on dashboard.",
-      "acceptanceCriteria": [
-        "_research_output.json includes confidence_score (0.0-1.0) per source, derived from Gemini response certainty indicators (presence of hedging language, source diversity count)",
-        "Phase S validation prioritizes high-confidence stories (confidence_score > 0.8) for merge over low-confidence ones (< 0.5)",
-        "Dashboard endpoint GET /api/dashboard/source-authority returns {\"stories\": [{\"id\": \"US-123\", \"confidence\": 0.85, \"source_count\": 3}]} for last iteration"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-679",
-      "title": "CLI: spiral validate-changelog -- Verify CHANGELOG.md Covers All Completed Stories",
-      "priority": "medium",
-      "description": "Validate that CHANGELOG.md generated by Phase G includes entries for all stories marked as completed in prd.json and results.tsv. Closes the gap between Phase G generation and output verification.",
-      "acceptanceCriteria": [
-        "Parse CHANGELOG.md and extract all story IDs matching pattern US-\\d{3}; load prd.json and results.tsv to collect completed stories",
-        "Report output as JSON: {\"missing_stories\": [\"US-123\", ...], \"found\": N, \"expected\": M, \"coverage_percent\": X}",
-        "CLI command spiral validate-changelog -c CHANGELOG.md -p prd.json exits 0 if 100% coverage, 1 if gaps exist"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-680",
-      "title": "Dashboard Endpoint: GET /api/dashboard/export -- Snapshot Export of All Current Metrics",
-      "priority": "medium",
-      "description": "Add a single aggregation endpoint that exports all live dashboard metrics (costs, throughput, retries, workers, errors) as JSON snapshot. Enables offline trend analysis and metric archival.",
-      "acceptanceCriteria": [
-        "Aggregate existing endpoints into single response: {\"timestamp\": \"ISO-8601\", \"costs\": {...}, \"throughput\": {...}, \"retry_patterns\": {...}, \"workers\": {...}}",
-        "Support optional query param ?format=csv to export metrics table for BI tool ingestion",
-        "Include cumulative metrics: total_cost, total_stories_passed, avg_retry_count, worker_utilization_percent"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
     }
   ]
 }
