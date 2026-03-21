@@ -1,4 +1,32 @@
-## Iteration [Current] - Story: US-671 CLI show-story-lineage
+## Iteration [Current] - Story: US-676 Phase G README Features Generator
+
+### What was implemented
+- **lib/phases/phase-g.sh** — New bash file with `generate_readme_features()` function
+  - Reads `prd.json` via Python (paths via sys.argv for Git-bash→Windows compat)
+  - Filters stories where `passes == true` and not `_decomposed`
+  - Writes `## Features` markdown section to `.spiral/phase-g-readme-snippet.md`
+  - Env vars: `SPIRAL_PRD_PATH`, `SPIRAL_HOME`, `SPIRAL_PYTHON`
+
+- **tests/phase_g_readme.bats** — 7 bats integration tests
+  - Fixture of 5 completed + 1 incomplete story
+  - Verifies: file created, `## Features` header present, exactly 5 entries, all titles, no incomplete stories, descriptions included, error on missing prd.json
+
+### Patterns discovered
+- Shell files with `set -euo pipefail` must be sourced with `set +euo pipefail` guard in bats setup()
+- Bats teardown uses Python shutil.rmtree for Windows temp dir cleanup
+- Python bin resolved via `$SPIRAL_HOME/.venv/Scripts/python.exe` (Windows) or `.venv/bin/python` (Unix)
+
+### Gotchas
+- `_decomposed: true` stories (parent of sub-stories) must be excluded along with `passes: false` stories
+
+### Acceptance Criteria Mapping
+1. ✅ `generate_readme_features()` in `lib/phases/phase-g.sh` reads completed stories → markdown bullets
+2. ✅ `.spiral/phase-g-readme-snippet.md` contains valid `## Features` section
+3. ✅ Integration test: 5-story fixture → exactly 5 entries (7 bats tests total, all pass)
+
+---
+
+## Iteration [Previous] - Story: US-671 CLI show-story-lineage
 
 ### What was implemented
 - **lib/show_story_lineage.py** — Story decomposition lineage tree module (mypy strict compliant)
