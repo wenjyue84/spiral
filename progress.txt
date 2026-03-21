@@ -1004,3 +1004,46 @@ This is not a Frappe application; it's an internal Python-based development tool
 *   **Invalid Dependencies:** The graph may contain dependencies on stories that do not exist. Validate dependencies and report errors.
 *   **File I/O:** Ensure robust error handling for reading/writing `prd.json`.
 
+
+## Iteration [Current] - Story: US-698 Phase M Story Reordering by Dependency Graph
+
+### What was implemented
+- **lib/story_reorder.py** — Topological sort module using Kahn's algorithm (151 lines, mypy strict compliant)
+  - `build_dep_graph(stories)` — Build adjacency list {story_id: [dependency_ids]}
+  - `topological_sort(stories, dep_graph)` — Kahn's algorithm implementation:
+    - Computes in-degree for each story
+    - Processes stories with zero in-degree first
+    - Handles cycles gracefully by placing them at end in original order
+  - `reorder_stories(stories)` — Convenience wrapper for Phase M
+  - `build_dependency_graph(stories)` — Returns {story_id: set[dependency_ids]} for CLI output
+
+- **main.py** — CLI command already wired (parser at ~line 3623, handler at ~line 4319)
+  - `cmd_show_merge_order()` — Shows pending stories in merge order with ASCII tree
+  - `--json` flag outputs {id, title, priority, dependencies, dependents} per story
+  - Displays dependency justification for each story
+
+- **tests/test_story_reorder.py** — 13 comprehensive tests (178 lines)
+  - TestBuildDepGraph: 5 tests (empty, no deps, with deps, orphan deps, missing ID)
+  - TestTopologicalSort: 8 tests (empty, single, no deps, linear chain, diamond DAG, cycles, complex DAG, fields preserved)
+
+### Patterns discovered
+- Kahn's algorithm: maintain in-degree dict, process nodes with zero in-degree in order
+- Cyclic stories naturally fall out as unprocessed nodes at end (no special cycle detection needed)
+- Type safety: `dict[str, list[str]]` for adjacency list (Python 3.13 union syntax)
+- Test fixture pattern: use `_story()` helper with optional deps parameter
+
+### Gotchas
+- mypy strict mode requires explicit return type annotations: `-> dict[str, Any]` not just `dict`
+- When filtering story_ids from mixed dict entries, use explicit list comprehension, not dict comprehension on .get() results (can produce None keys)
+- Topological sort preserves all fields on story dicts (don't strip during reorder)
+
+### Acceptance Criteria Mapping
+1. ✅ `lib/story_reorder.py` implements `topological_sort(stories, dep_graph)` using Kahn's algorithm
+   - Implemented and tested with 8 distinct test cases including linear chains, diamond DAGs, cycles
+2. ✅ `reorder_stories()` available for Phase M integration
+   - Convenience wrapper ready; Phase M integration (calling before merge_prd.py) pending Phase M code changes
+3. ✅ CLI `spiral show-merge-order` displays reordered list with ASCII tree showing dependency justification
+   - Handler function exists in main.py, shows "depends on: [...]" annotation per story
+
+All tests pass (13/13), mypy strict compliant, 329 total lines (under 400 limit).
+
