@@ -39,8 +39,9 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "sonnet"
+      "passes": true,
+      "model": "opus",
+      "last_attempted": "2026-03-21T08:42:31Z"
     },
     {
       "id": "US-640",

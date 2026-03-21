@@ -1808,3 +1808,54 @@ This user story is for a frontend React component, not a Frappe/Python applicati
 *   **Data Integrity:** The component must gracefully handle malformed data from the API, such as links pointing to non-existent nodes.
 *   **Styling:** Node/edge styling should clearly differentiate projects and dependency types. Ensure text labels do not overlap and remain readable.
 
+## Iteration 1 - Sat, Mar 21, 2026  4:42:29 PM
+FAILED diff-guard: Integration Test - Phase M Federated Story Conflict Detection and Rollback (ID: US-660) — 299 lines > 200 limit — attempt 1/3
+
+
+## Pre-analysis for US-660 (Gemini 2.5 Pro)
+Based on the user story JSON, here is a technical brief for the implementation task. The analysis assumes the context is the `spiral` project, as indicated by the story's content and file paths, not a Frappe application.
+
+**Project:** Spiral
+**Story:** US-660: Integration Test for Federated Story Conflict Detection
+
+**1. Primary Files to Modify/Create:**
+*   **Create:** `tests/integration_federated_conflict_detection.py`. This is the main deliverable and will contain the new integration test case.
+*   **Reference/Analyze:** `lib/conflict_detector.py` and/or `lib/conflict_preflight.py`. These modules likely contain the core business logic for identifying conflicting file modifications between stories. The new test will be designed to trigger and validate this logic.
+*   **Reference/Analyze:** The main script that orchestrates the phases (e.g., `main.py` or a script for "Phase M"). This will be invoked by the test to run the story processing logic.
+
+**2. Key Entities & Hooks (Spiral Context):**
+*   **Core Object:** The "story" JSON object within the `prd.json` file. The test will involve crafting specific story objects.
+*   **Key Fields:** Pay attention to how a story is associated with a "federated sub-project" and its "target files". This is the basis for the conflict.
+*   **Triggering Mechanism:** The test will invoke "Phase M" of the Spiral pipeline, which is the "hook" that triggers the merge and conflict detection process.
+
+**3. Implementation Approach:**
+1.  **Test Setup:** In `tests/integration_federated_conflict_detection.py`, create a test function that sets up a temporary environment with a mock `prd.json`.
+2.  **Conflict Seeding:** Programmatically add at least two story entries to the mock `prd.json`. These stories must originate from different "federated sub-projects" but target the exact same file path for modification.
+3.  **Execution:** Invoke the "Phase M" processing logic on the mock `prd.json`.
+4.  **Assertions:**
+    *   Verify that the `results.tsv` file is updated with a `status=rejected` and a clear conflict error message for the stories.
+    *   Confirm that the `prd.json` file is rolled back to its pre-run state (i.e., stories are not merged).
+    *   Assert that a conflict report is generated at `.spiral/conflicts.json` and contains the correct conflict details.
+
+**4. Edge Cases & Gotchas:**
+*   **Rollback Integrity:** The test must strictly verify that no partial changes from the conflicting stories are left behind. The state of `prd.json` should be identical to its state before the run.
+*   **Federated Source:** Ensure the test data correctly models how a story's federated origin is represented in the JSON schema.
+*   **Report Formatting:** The assertions should validate the exact format and content of the error messages in `results.tsv` and the structure of `.spiral/conflicts.json`.
+*   **Test Isolation:** Use temporary directories and files for all artifacts (`prd.json`, `results.tsv`, `.spiral/conflicts.json`) to ensure the test is hermetic and does not interfere with the project's actual files.
+
+
+## Iteration 2 - Story: US-660 Integration Test - Phase M Federated Story Conflict Detection and Rollback
+
+### What was implemented
+- tests/integration_federated_conflict_detection.py: 4 tests covering federated conflict detection
+  - test_federated_conflict_detected: build_conflict_matrix finds shared files across sub_projects
+  - test_conflict_detector_finds_overlap: detect_conflicts() returns overlap pairs
+  - test_rejected_in_results_tsv: ResultsRecord with status=rejected written to TSV
+  - test_rollback_and_conflict_report: prd.json unchanged after conflict, .spiral/conflicts.json written
+
+### Patterns discovered
+- Field name is filesTouch (not filesToTouch) — extract_story_files falls back to it when technicalNotes is empty
+- Attempt 1 failed oversized_diff (299 lines). Compact approach: 132 lines total by reusing existing modules directly
+
+### Gotchas
+- merge_conflict_detector.extract_story_files checks technicalNotes first (regex for "File to edit:"), falls back to filesTouch only when technicalNotes is empty/absent
