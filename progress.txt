@@ -1,4 +1,47 @@
-## Iteration [Current] - Story: US-685 CLI: check-federated-deps -- Detect Circular Dependencies and Orphans
+## Iteration [Current] - Story: US-691 Phase M: Federated File Conflict Detector
+
+### What was implemented
+- **lib/conflict_detector.py** — Rewritten to implement federated conflict detection (110 lines, mypy strict compliant)
+  - `extract_files_from_commit(commit_hash)` — Extracts file paths from git commits using `git show --name-only`
+  - `detect_federated_conflicts(stories)` — Tracks (file_path, sub_project_id) tuples and detects collisions
+  - `write_conflict_report(conflicts, path)` — Writes .spiral/merge_conflicts.json with proper structure
+  - `log_conflicts(conflicts, errors, log_file)` — Appends conflict records to JSONL log
+  - Returns exit code 1 on collisions (blocks Phase M merge), 0 if no conflicts
+
+- **lib/phases/phase_m_merge.sh** — Updated to enforce merge blocking
+  - Checks exit code from conflict_detector.py
+  - Blocks Phase M with error message if collisions detected
+  - Outputs human-readable conflict summary before aborting
+
+- **tests/test_conflict_detector_federated.py** — 17 comprehensive tests
+  - TestExtractFederatedConflicts: 10 tests (no conflicts, collisions, filtering, error messages)
+  - TestWriteConflictReport: 3 tests (file generation, empty list, directory creation)
+  - TestIntegrationPhaseM: 4 tests (acceptance criteria mapping, merge blocking behavior)
+
+### Patterns discovered
+- File extraction from stories uses filesTouch (technicalNotes fallback for future git commit parsing)
+- Conflict detection compares (file_path, sub_project_id) tuples; same file with same project = no collision
+- Filtering: incomplete stories only (not passes, not _decomposed, not _skipped)
+- Exit code 1 blocks Phase M merge; error messages include file path and sub-project names
+- Report structure: [{file_path, sub_projects: [proj1, proj2], conflict_type: 'file_collision'}]
+
+### Gotchas
+- git show --name-only may fail on missing commits; graceful fallback to empty set
+- Sub-project tracking uses _source field from prd.json; empty string is valid
+- Phase M should abort (return 1) on conflicts to prevent corrupting state
+- Report path uses .spiral subdirectory relative to prd.json location
+
+### Acceptance Criteria Mapping
+1. ✅ Extract files from implementation commits tracking sub_project_id
+   - detect_federated_conflicts() extracts from stories and tracks (file_path, sub_project_id)
+2. ✅ Detect collisions and write .spiral/merge_conflicts.json with proper structure
+   - write_conflict_report() generates [{file_path, sub_projects, conflict_type}] format
+3. ✅ Block Phase M merge with exit code 1 and proper error message format
+   - Phase M merge script checks exit code and aborts with "File {path} modified by..." message
+
+---
+
+## Iteration [Previous] - Story: US-685 CLI: check-federated-deps -- Detect Circular Dependencies and Orphans
 
 ### What was implemented
 - **lib/check_federated_deps.py** — New validation module (175 lines, mypy strict compliant)
@@ -600,4 +643,3 @@ Based on the user story, here is a technical brief for the implementation:
 *   **Path Normalization:** Ensure all file paths are normalized (e.g., using `os.path.normpath`) before comparison to avoid false negatives.
 *   **Error Handling:** The script must gracefully handle missing `prd.json`, malformed JSON, and failed `git` commands.
 *   **Commit Scope:** The logic must correctly identify the exact set of commits that constitute the "Phase M merge" to avoid analyzing unrelated changes.
-
