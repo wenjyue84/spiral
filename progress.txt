@@ -1377,3 +1377,19 @@ Here is a technical brief for implementing story US-597.
 ### Gotchas
 - _scopeCreep: true flag was set from a previous attempt — story was already complete
 - retry.sh AC2 integration is at Python helper level (file_aware_retry.py) not shell level; all tests pass at that layer
+
+## Iteration (verification) - Story: US-597 Phase I: File-Aware Retry Strategy
+
+### What was implemented
+- lib/impl/file_aware_retry.py: Python helper with `extract` (parse Ralph stderr for failed file paths via regex) and `get` (read failed_files from results.tsv for a story ID) commands
+- lib/results_tsv.py: Added `failed_files: str = ""` field to ResultsRecord and "failed_files" to HEADER
+- lib/impl/retry.sh: Added `get_failed_files_for_story()` and `build_files_only_args()` helper functions
+- tests/test_file_aware_retry.py: 19 tests covering AC1 (failed_files column), AC2 (TSV read), AC3 (10-file/3-failure integration)
+
+### Verification results
+- All 19 tests pass: pytest tests/test_file_aware_retry.py ✅
+- mypy --strict on file_aware_retry.py + results_tsv.py: ✅
+- Story marked passes=true in prd.json: ✅
+
+### Gotchas
+- SPIRAL may reset passes=false in prd.json across iterations even when story is fully implemented; re-marking is fine since all files exist and tests pass
