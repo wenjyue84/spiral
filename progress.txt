@@ -1,4 +1,26 @@
-## Iteration [Current] - Story: US-676 Phase G README Features Generator
+## Iteration [Current] - Story: US-698 Phase M Story Reordering by Dependency Graph
+
+### What was implemented
+- **lib/story_reorder.py** — Already existed with `topological_sort(stories, dep_graph)`, `build_dep_graph()`, `reorder_stories()` using Kahn's algorithm. All 13 tests pass.
+- **lib/prd/merge_stories.py** — Added topological reordering of SPIRAL_PENDING stories after merge:
+  - Computes `_lib_dir` as `lib/` (parent of `lib/prd/`) and adds to sys.path for import
+  - Separates pending vs done stories, calls `reorder_stories()` on pending
+  - Reconstructs `prd["userStories"] = pending (topologically ordered) + done`
+  - Try/except fallback to `full_sort_key` if import fails
+  - Replaces the old `prd["userStories"].sort(key=full_sort_key)` call
+- **main.py** — Already had `spiral show-merge-order` CLI command (AC3 was pre-existing)
+
+### Patterns discovered
+- `lib/prd/` files can't import `lib/` modules directly without explicit sys.path manipulation
+- Use `os.path.dirname(os.path.dirname(os.path.abspath(__file__)))` to get `lib/` from within `lib/prd/`
+- `mypy --strict` flags unused `# type: ignore` comments — only add when module truly lacks types
+
+### Gotchas
+- `reorder_stories()` raises ValueError for empty input — guard with `if _pending:` before calling
+- The old `full_sort_key` sort (done_rank, priority_rank, dep_count) is kept only as fallback now
+- Pre-existing test_merge.py failure: `detect_conflicts` import error in conflict_detector — unrelated to US-698
+
+## Iteration [Previous] - Story: US-676 Phase G README Features Generator
 
 ### What was implemented
 - **lib/phases/phase-g.sh** — New bash file with `generate_readme_features()` function
@@ -951,6 +973,7 @@ Okay, here is the technical brief for the Claude agent.
 >>>>>>> Stashed changes
 
 ## Pre-analysis for US-698 (Gemini 2.5 Pro)
+<<<<<<< Updated upstream
 This technical brief is for user story US-698 concerning the internal 'SPIRAL' DevOps project, not a Frappe application. The goal is to topologically sort development stories based on their dependencies.
 
 **1. Python Files to Modify:**
@@ -1046,4 +1069,30 @@ This is not a Frappe application; it's an internal Python-based development tool
    - Handler function exists in main.py, shows "depends on: [...]" annotation per story
 
 All tests pass (13/13), mypy strict compliant, 329 total lines (under 400 limit).
+=======
+This is a Python CLI tool, not a Frappe application; there are no DocTypes or hooks involved. The primary data structure is the `prd.json` file.
+
+**Technical Brief for US-698**
+
+1.  **Files to Modify:**
+    *   `lib/story_reorder.py`: Create or modify this file to house the `topological_sort` function as specified.
+    *   `main.py`: This is the likely orchestrator for "Phase M" and the main CLI entry point. It will need to be modified to call the reordering logic before the merge process begins.
+    *   `spiral.sh` / `Taskfile.yml`: The main entry point for CLI commands. A new command, `show-merge-order`, will need to be added here, which will call the logic in `main.py`.
+
+2.  **Key Data Structures:**
+    *   `prd.json`: This file is the source of truth, containing the `SPIRAL_PENDING` list of stories to be sorted and the `dep_graph` which defines the dependencies between them.
+
+3.  **Implementation Approach:**
+    *   Implement Kahn's algorithm for topological sorting in `lib/story_reorder.py`. The function should accept a list of story objects and a dependency graph.
+    *   In `main.py`, before the merge logic is executed, read the pending stories and the dependency graph from `prd.json`.
+    *   Call the `topological_sort` function to get the optimal merge order.
+    *   Update the `SPIRAL_PENDING` list in `prd.json` with the new, sorted order.
+    *   For the CLI command, reuse the sorting logic but instead of modifying `prd.json`, format the output as an ASCII tree to display the sorted list and their dependencies.
+
+4.  **Edge Cases & Gotchas:**
+    *   **Circular Dependencies:** Kahn's algorithm can detect cycles. The implementation must handle this gracefully, erroring out with a clear message indicating which stories form the cycle.
+    *   **Invalid Graph:** The code should validate that the stories listed in the dependency graph exist in the pending stories list to prevent key errors.
+    *   **CLI Output:** Formatting the ASCII dependency tree for `spiral show-merge-order` can be complex. Ensure it's clear and accurately reflects the justification for each story's position.
+    *   **Atomicity:** The modification of `prd.json` should be atomic to prevent corruption if the process is interrupted. Consider writing to a temporary file first.
+>>>>>>> Stashed changes
 

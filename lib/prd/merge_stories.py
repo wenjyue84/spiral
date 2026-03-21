@@ -421,8 +421,25 @@ def main() -> int:
 
     prd["userStories"] = existing_stories + added_entries
 
-    # ── Post-merge sort: priority order so ralph picks highest-priority first ──
-    prd["userStories"].sort(key=full_sort_key)
+    # ── US-698: Topological reorder pending stories by dependency graph ────────
+    # Reorder SPIRAL_PENDING stories using Kahn's algorithm so dependencies are
+    # merged before the stories that depend on them.
+    _lib_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _lib_dir not in sys.path:
+        sys.path.insert(0, _lib_dir)
+    try:
+        from story_reorder import reorder_stories as _reorder_stories
+
+        _pending = [s for s in prd["userStories"] if not _is_done(s)]
+        _done = [s for s in prd["userStories"] if _is_done(s)]
+        if _pending:
+            _pending = _reorder_stories(_pending)
+        prd["userStories"] = _pending + _done
+        print(f"[merge] Topological reorder: {len(_pending)} pending stories ordered by dependency graph")
+    except Exception as _exc:
+        # Fallback: priority sort if topological reorder unavailable
+        print(f"[merge] WARNING: topological reorder skipped ({type(_exc).__name__}: {_exc})")
+        prd["userStories"].sort(key=full_sort_key)
 
     # ── Transaction-safe write: journal both files for crash recovery ─────────
     scratch_dir = os.environ.get("SPIRAL_SCRATCH_DIR", ".spiral")

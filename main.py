@@ -34,6 +34,7 @@ Subcommands:
   check-federated-deps    Detect circular dependencies and orphans in multi-repo prd.json (US-685)
   trace-dependencies      Resolve and visualize full dependency chain for a story (US-675)
   show-story-lineage      Show story decomposition lineage tree with status and tokens (US-671)
+  show-merge-order        Show pending stories in topologically sorted merge order (US-698)
   list-federation         Display sub-project configuration and story allocation summary (US-665)
   validate-governance     Enforce per-project story quotas and ID patterns (US-672)
 """
@@ -3807,6 +3808,8 @@ def main():
         cmd_show_merge_order(args)
     elif args.command == "show-story-lineage":
         cmd_show_story_lineage(args)
+    elif args.command == "show-merge-order":
+        cmd_show_merge_order(args)
     elif args.command == "list-federation":
         cmd_list_federation(args)
     elif args.command == "validate-governance":
@@ -4445,6 +4448,70 @@ def cmd_show_story_lineage(args: argparse.Namespace) -> None:
     else:
         tree_str = format_tree(root)
         print(tree_str, end="")
+
+    sys.exit(0)
+
+
+def cmd_show_merge_order(args: argparse.Namespace) -> None:
+    """Show pending stories in topologically sorted merge order (US-698).
+
+    Usage: spiral show-merge-order [--prd FILE] [--json]
+
+    Without --json: prints ASCII tree with story titles and dependencies.
+    With --json: outputs machine-readable JSON: {id, title, dependencies, index_in_order}
+    """
+    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    from story_reorder import build_dep_graph, reorder_stories  # type: ignore[import-untyped]
+
+    prd_path = Path(getattr(args, "prd", "prd.json"))
+    output_json: bool = getattr(args, "output_json", False)
+
+    stories = _load_prd(prd_path)
+
+    # Filter to pending (incomplete) stories only
+    pending_stories = [s for s in stories if isinstance(s, dict) and not s.get("passes")]
+
+    if not pending_stories:
+        if output_json:
+            print(json.dumps({"pending_stories": []}))
+        else:
+            print("No pending stories.")
+        sys.exit(0)
+
+    # Reorder by dependencies
+    try:
+        ordered = reorder_stories(pending_stories)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    if output_json:
+        result = []
+        for idx, story in enumerate(ordered):
+            result.append({
+                "id": story.get("id", ""),
+                "title": story.get("title", ""),
+                "dependencies": story.get("dependencies", []),
+                "index_in_order": idx,
+            })
+        print(json.dumps(result, indent=2))
+    else:
+        # Format as ASCII tree with dependency annotations
+        build_dep_graph(ordered)  # Just verify the graph
+        for idx, story in enumerate(ordered):
+            sid = story.get("id", "")
+            title = story.get("title", "")
+            deps = story.get("dependencies", [])
+
+            # Show dependency chain if any
+            if deps:
+                deps_str = ", depends on " + ", ".join(str(d) for d in deps)
+            else:
+                deps_str = ""
+
+            # Format: index + story ID + title + dependencies
+            marker = "├── " if idx < len(ordered) - 1 else "└── "
+            print(f"{marker}{sid} — {title}{deps_str}")
 
     sys.exit(0)
 
