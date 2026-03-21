@@ -40,9 +40,11 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
-      "model": "haiku"
+      "model": "haiku",
+      "_failureReason": "oversized_diff",
+      "last_attempted": "2026-03-21T09:58:00Z"
     },
     {
       "id": "US-642",

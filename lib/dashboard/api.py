@@ -7,6 +7,7 @@ Exposes:
 - GET /api/timeline — Story timeline endpoint with phase swimlanes
 - GET /api/dashboard/research-sources — Research source credibility tracking endpoint
 - GET /api/dashboard/overview — Unified cross-project metrics endpoint
+- GET /api/dashboard/phase-cost-breakdown — Token/cost per phase from results.tsv (US-641)
 - WebSocket /ws/cost — Real-time cost delta streaming endpoint
 - WebSocket /ws/timeline — Real-time phase transition events
 - WebSocket /ws/overview — Real-time cross-project overview updates
@@ -258,6 +259,48 @@ async def research_sources_endpoint() -> dict[str, Any]:
             "total_sources": 0,
             "error": f"Error processing research sources: {str(e)}",
         }
+
+
+# Per-token cost rates by model family (US-641)
+_PHASE_COST_RATE: dict[str, float] = {"haiku": 2.5e-7, "sonnet": 3e-6, "opus": 1.5e-5}
+
+
+@app.get("/api/dashboard/phase-cost-breakdown")
+async def phase_cost_breakdown() -> dict[str, Any]:
+    """Token/cost breakdown per phase from results.tsv (US-641).
+
+    Groups all implementation records as 'Phase I' (results.tsv has no phase_id column).
+    Returns model distribution percentages, total tokens, and estimated cost per phase.
+    """
+    from ..results_tsv import parse_results_tsv
+
+    records = parse_results_tsv("results.tsv")
+    phases: dict[str, dict[str, Any]] = {}
+    for r in records:
+        phase = "Phase I"
+        tokens = sum(
+            int(v) if v else 0
+            for v in (r.cache_read_tokens, r.cache_creation_tokens, r.review_tokens)
+        )
+        model = r.model or "haiku"
+        rate = _PHASE_COST_RATE.get(model.lower().split("-")[0], _PHASE_COST_RATE["haiku"])
+        if phase not in phases:
+            phases[phase] = {"tokens": 0, "cost": 0.0, "count": 0, "models": {}}
+        phases[phase]["tokens"] += tokens
+        phases[phase]["cost"] += tokens * rate
+        phases[phase]["count"] += 1
+        phases[phase]["models"][model] = phases[phase]["models"].get(model, 0) + 1
+    result = []
+    for phase, d in phases.items():
+        n = d["count"] or 1
+        result.append({
+            "phase": phase,
+            "token_count": d["tokens"],
+            "cost_usd": round(d["cost"], 6),
+            "model_dist": {m: round(c / n, 4) for m, c in d["models"].items()},
+            "story_count": d["count"],
+        })
+    return {"phases": result}
 
 
 @app.get("/api/dashboard/error-breakdown")
