@@ -1568,3 +1568,22 @@ Based on the user story, this task is for the **SPIRAL** project, not a Frappe a
 *   **Worker Isolation**: Ensure the `run_parallel_ralph.sh` script properly creates and uses isolated worktrees for each worker so they don't interfere.
 *   **Cleanup**: Use `pytest` fixtures (`tmp_path`) to manage temporary directories and ensure they are cleaned up post-test, even on failure.
 
+
+## Iteration - Story: US-643 CLI: spiral archive-checkpoint
+
+### What was implemented
+- lib/commands/archive_checkpoint.py: archive(), restore(), read_manifest() with SHA-256 checksums
+  - archive() creates tar.gz with prd.json, results.tsv, .spiral/, .spiral-workers/, manifest.json
+  - manifest includes iteration (from .spiral/_checkpoint.json), timestamp, total_stories, passing_stories, archive_size_mb
+  - restore() extracts and verifies SHA-256 checksums, raises ValueError on mismatch
+- main.py: archive-checkpoint subparser (create/restore/manifest + --output shorthand); cmd_archive_checkpoint handler
+- tests/test_archive_checkpoint.py: 9 integration tests, all passing
+
+### Patterns discovered
+- tarfile.extractall filter="data" is available on Python 3.12+ but raises TypeError on older versions — wrap in try/except TypeError for graceful fallback
+- Unused type: ignore comments cause mypy --strict to fail with [unused-ignore] — remove them when the error goes away
+
+### Verification results
+- All 9 tests pass ✅
+- mypy --strict on archive_checkpoint.py: ✅
+- Story marked passes=true in prd.json ✅
