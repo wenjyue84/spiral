@@ -11,23 +11,6 @@
   ],
   "userStories": [
     {
-      "id": "US-644",
-      "title": "Integration Test: Cross-Phase Data Flow Validation with Output Schema Assertions",
-      "priority": "high",
-      "description": "End-to-end test that runs SPIRAL phases sequentially (R→T→S→M→I→V) and validates that each phase's output is correctly consumed by the next phase without schema mismatches.",
-      "acceptanceCriteria": [
-        "Test mocks Claude/Gemini APIs, runs phases with output capture, asserts Phase R _research_output.json contains required fields (story_id, research_summary), Phase T test_stories_output.json matches story schema, Phase S _validated_stories.json has _status field",
-        "Detects schema violations (missing required fields, type mismatches) and reports error with file:function:line context (e.g., 'phase_s.py:validate_story():line 42: missing _status')",
-        "Test creates mock phase outputs intentionally missing one field, asserts next phase correctly rejects it with actionable error message"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": true,
-      "_source": "ai-example",
-      "model": "sonnet"
-    },
-    {
       "id": "US-648",
       "title": "Phase G: Generate Dynamic API Documentation Index Page from pdoc Outputs",
       "priority": "high",
@@ -42,9 +25,7 @@
       "estimatedComplexity": "small",
       "passes": true,
       "_source": "ai-example",
-      "model": "sonnet",
-      "_failureReason": "oversized_diff",
-      "last_attempted": "2026-03-21T06:09:16Z"
+      "model": "sonnet"
     },
     {
       "id": "US-649",
@@ -62,6 +43,40 @@
       "passes": false,
       "_source": "ai-example",
       "model": "sonnet"
+    },
+    {
+      "id": "US-653",
+      "title": "CLI: spiral federation-health-check -- Validate Multi-Project Dependencies and Detect Cycles",
+      "priority": "high",
+      "description": "Validate federated prd.json sub-project references, detect circular cross-project dependencies, and suggest namespace fixes. Scans prd.json for sub_project fields and validates all cross-project story ID references are resolvable.",
+      "acceptanceCriteria": [
+        "Detects when referenced sub_project doesn't exist in workspace and outputs actionable error: 'Story US-PROJ1-001 references unknown sub_project: proj1'",
+        "Identifies circular cross-project story dependencies with cycle path reporting: 'Circular dependency: PROJ1-001 → PROJ2-005 → PROJ1-003 → PROJ1-001'",
+        "Validates story ID namespace matches sub_project field prefix (e.g., story with sub_project: 'payment' must have ID PAYMENT-###, not US-###) and suggests corrections"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-654",
+      "title": "Integration Test: Phase M Federated Merge Respects Cross-Project Story Dependency Order",
+      "priority": "high",
+      "description": "Mock Phase S validated stories output with cross-project dependencies and verify Phase M merge enforces correct ordering constraints. Tests that stories from different sub-projects merge in dependency-respecting order without violating constraints.",
+      "acceptanceCriteria": [
+        "Load mock Phase S output with story A (sub_project: 'proj1') depending on story B (sub_project: 'proj2'); Phase M detects cross-project dependency and respects merge order",
+        "Test assertion fails if Phase M would place A before B in merged prd.json; passes only when dependency order maintained and result is valid",
+        "Validates merged prd.json groups stories by sub_project internally while preserving cross-project dependency references in depends_on field"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
     },
     {
       "id": "US-640",
@@ -200,6 +215,40 @@
       "model": "sonnet"
     },
     {
+      "id": "US-655",
+      "title": "Dashboard Endpoint: GET /api/dashboard/retry-analysis -- Phase-Wise Retry Distribution and Rate Analysis",
+      "priority": "medium",
+      "description": "Aggregate retry counts by phase from results.tsv to identify failure clustering patterns. Returns JSON with retry statistics grouped by phase to support heatmap and bottleneck visualization.",
+      "acceptanceCriteria": [
+        "Endpoint queries results.tsv, calculates retry_count distribution grouped by phase (R/T/S/M/I/V), returns JSON with count/mean/median/max per phase",
+        "Response includes per-phase retry rates (total_retries/total_stories) sorted descending: [{phase: 'I', retry_rate: 0.35, story_count: 7}, ...]",
+        "Test mocks results.tsv with 15 stories across phases with varying retry counts (0-5); validates endpoint aggregation matches expected distribution"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-656",
+      "title": "CLI: spiral federated-rebase -- Auto-Fix Story ID Namespace Mismatches in Multi-Project prd.json",
+      "priority": "medium",
+      "description": "Detect stories with sub_project field that don't match story ID namespace prefixes (e.g., story 'US-001' assigned to sub_project 'payment'). Offer --dry-run preview and --apply corrections with backup.",
+      "acceptanceCriteria": [
+        "federated-rebase --dry-run on prd.json with story 'US-001' (sub_project: 'payment') suggests fix: 'PAYMENT-001' with mapping {old_id: 'US-001', new_id: 'PAYMENT-001', sub_project: 'payment'}'",
+        "--apply flag rewrites mismatched story IDs to match namespace prefix and updates all cross-project references in prd.json, writes .backup file before modification",
+        "Test with 5 stories (3 mismatched: US-001→PAYMENT-001, US-002→SHIPMENT-001, etc.; 2 already correct) verifies --dry-run output and --apply updates only broken entries"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
       "id": "US-647",
       "title": "Dashboard Endpoint: Worker Resource Usage Metrics via /api/dashboard/worker-resources",
       "priority": "low",
@@ -213,6 +262,23 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-644",
+      "title": "Integration Test: Cross-Phase Data Flow Validation with Output Schema Assertions",
+      "priority": "high",
+      "description": "End-to-end test that runs SPIRAL phases sequentially (R→T→S→M→I→V) and validates that each phase's output is correctly consumed by the next phase without schema mismatches.",
+      "acceptanceCriteria": [
+        "Test mocks Claude/Gemini APIs, runs phases with output capture, asserts Phase R _research_output.json contains required fields (story_id, research_summary), Phase T test_stories_output.json matches story schema, Phase S _validated_stories.json has _status field",
+        "Detects schema violations (missing required fields, type mismatches) and reports error with file:function:line context (e.g., 'phase_s.py:validate_story():line 42: missing _status')",
+        "Test creates mock phase outputs intentionally missing one field, asserts next phase correctly rejects it with actionable error message"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
       "_source": "ai-example",
       "model": "sonnet"
     },
