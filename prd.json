@@ -25,8 +25,7 @@
       "estimatedComplexity": "small",
       "passes": true,
       "_source": "ai-example",
-      "model": "haiku",
-      "last_attempted": "2026-03-21T15:41:27Z"
+      "model": "haiku"
     },
     {
       "id": "US-657",
@@ -165,6 +164,70 @@
         "spiral show-story-lineage US-123 prints ASCII tree with indentation, status emoji (✓/✗/⏳), token count per node",
         "lib/cli/show_story_lineage.py recursively follows prd.json stories[].meta._decomposed array and outputs tree structure",
         "spiral show-story-lineage US-123 --json outputs {id, title, status, tokens, children:[...]} for dashboard consumption"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-672",
+      "title": "Federated Governance Validator: Enforce Per-Project Story Quotas and ID Patterns",
+      "priority": "medium",
+      "description": "CLI command validates federated prd.json stories against per-project governance rules (max stories per iteration, ID namespace patterns, allowed phases). Reads governance.json and outputs violations grouped by project.",
+      "acceptanceCriteria": [
+        "lib/cli/validate_federated_governance.py loads governance.json with rules: {project_id, max_stories_per_iteration, id_pattern_regex, allowed_phases}",
+        "spiral validate-governance prd.json governance.json outputs violations: 'US-PROJ-200: exceeds quota (5 active, max=3)'",
+        "Exit code 1 if violations found, 0 if all stories pass project rules; support --json for structured output"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-675",
+      "title": "Phase G: Generate Markdown API Documentation for Bash and JavaScript Modules",
+      "priority": "medium",
+      "description": "Extend Phase G to support multi-language API doc generation. Extract function signatures and descriptions from bash scripts (via regex parsing of function comments) and JavaScript (via JSDoc), then generate a unified markdown API reference with cross-links.",
+      "acceptanceCriteria": [
+        "lib/phases/phase_g/bash_doc_extractor.py parses lib/*.sh and ralph/ralph.sh, extracting function names and comment blocks matching pattern `# @desc <text>`",
+        "lib/phases/phase_g/js_doc_extractor.py extracts JSDoc from dashboard React components and spiralui source, outputs markdown with signatures",
+        "tests/test_phase_g_multilang_docs.py validates generated API.md contains at least 5 bash functions and 3 JS exports with proper signatures"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-676",
+      "title": "CLI: spiral estimated-completion -- Project Completion ETA Calculator from Velocity",
+      "priority": "medium",
+      "description": "Add CLI command that reads results.tsv, calculates per-iteration story completion velocity (last 3 iterations), and projects remaining work against remaining stories in prd.json to estimate completion date. Output JSON with ETA and velocity metrics.",
+      "acceptanceCriteria": [
+        "Command `spiral estimated-completion --output json` reads results.tsv and prd.json, outputs {stories_remaining: N, avg_velocity_stories_per_iter: X.Y, eta_iterations: Z, eta_date: YYYY-MM-DD}",
+        "Velocity calculation excludes first iteration and uses only completed stories (status=passed or skipped)",
+        "tests/test_cli_estimated_completion.py validates output with fixture results.tsv containing 6 iterations of data"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-667",
+      "title": "Dashboard: Export Metrics to CSV/JSON/Prometheus — GET /api/dashboard/export?format=csv",
+      "priority": "low",
+      "description": "Adds export capability to dashboard for downloading aggregated results.tsv metrics in CSV, JSON, and Prometheus OpenMetrics formats. Enables external monitoring, offline analysis, and integration with APM platforms.",
+      "acceptanceCriteria": [
+        "Endpoint GET /api/dashboard/export?format=csv&iteration_min=1&iteration_max=5 returns CSV: iteration,story_id,phase,model,tokens,duration,status",
+        "Format=prometheus returns OpenMetrics with metadata: '# HELP spiral_story_tokens_total Total tokens per story\\n spiral_story_tokens_total{story_id=\"US-001\",model=\"haiku\"} 1245'",
+        "Supports filters: iteration range, story status, sub_project; includes metadata row: export_timestamp, spiral_version, row_count"
       ],
       "technicalNotes": [],
       "dependencies": [],
@@ -2123,6 +2186,24 @@
       "passes": true,
       "_source": "ai-example",
       "model": "haiku"
+    },
+    {
+      "id": "US-656",
+      "title": "CLI: spiral federated-rebase -- Auto-Fix Story ID Namespace Mismatches in Multi-Project prd.json",
+      "priority": "medium",
+      "description": "Detect stories with sub_project field that don't match story ID namespace prefixes (e.g., story 'US-001' assigned to sub_project 'payment'). Offer --dry-run preview and --apply corrections with backup.",
+      "acceptanceCriteria": [
+        "federated-rebase --dry-run on prd.json with story 'US-001' (sub_project: 'payment') suggests fix: 'PAYMENT-001' with mapping {old_id: 'US-001', new_id: 'PAYMENT-001', sub_project: 'payment'}'",
+        "--apply flag rewrites mismatched story IDs to match namespace prefix and updates all cross-project references in prd.json, writes .backup file before modification",
+        "Test with 5 stories (3 mismatched: US-001→PAYMENT-001, US-002→SHIPMENT-001, etc.; 2 already correct) verifies --dry-run output and --apply updates only broken entries"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku",
+      "_skipped": true
     },
     {
       "id": "US-645",
