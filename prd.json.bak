@@ -11,22 +11,6 @@
   ],
   "userStories": [
     {
-      "id": "US-669",
-      "title": "Integration Test: Phase I Cost Guard Prevents Oversized Story Decomposition",
-      "priority": "high",
-      "description": "Verify Phase I checks predicted story cost against SPIRAL_COST_CEILING before decomposing. Test mocks lib.cost_predictor.predict_story_cost to return cost exceeding ceiling and asserts story marked skip without decomposition attempt.",
-      "acceptanceCriteria": [
-        "tests/test_phase_i_cost_guard.py mocks predict_story_cost() returning cost > SPIRAL_COST_CEILING env var",
-        "Run phase_i subprocess with test story, assert story._status=skip and skip_reason='cost_exceeded' in results.tsv",
-        "Verify lib/impl/decompose.sh is NOT called (confirm via mock call count or log absence)"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": true,
-      "model": "haiku"
-    },
-    {
       "id": "US-646",
       "title": "Phase I: Model Escalation Explainability Report with Categorized Reason Codes",
       "priority": "medium",
@@ -39,7 +23,7 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "haiku"
     },
@@ -224,6 +208,22 @@
       "model": "haiku"
     },
     {
+      "id": "US-670",
+      "title": "Dashboard Endpoint: Phase Bottleneck Analyzer — Rank Phases by Duration Variance",
+      "priority": "medium",
+      "description": "HTTP GET /api/dashboard/bottlenecks endpoint that analyzes results.tsv phase timing columns, ranks phases by average duration and coefficient of variance, and returns phase metrics with story count for optimization targeting.",
+      "acceptanceCriteria": [
+        "lib/dashboard/bottleneck_analyzer.py::BottleneckAnalyzer.analyze() returns list of {phase, avg_duration_ms, variance, story_count}",
+        "GET /api/dashboard/bottlenecks returns JSON sorted by avg_duration_ms descending, includes only phases with >0 stories",
+        "Dashboard /profile tab displays bottleneck data in bar chart (phase vs duration) with top-3 highlighted"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
       "id": "US-667",
       "title": "Dashboard: Export Metrics to CSV/JSON/Prometheus — GET /api/dashboard/export?format=csv",
       "priority": "low",
@@ -237,6 +237,22 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-669",
+      "title": "Integration Test: Phase I Cost Guard Prevents Oversized Story Decomposition",
+      "priority": "high",
+      "description": "Verify Phase I checks predicted story cost against SPIRAL_COST_CEILING before decomposing. Test mocks lib.cost_predictor.predict_story_cost to return cost exceeding ceiling and asserts story marked skip without decomposition attempt.",
+      "acceptanceCriteria": [
+        "tests/test_phase_i_cost_guard.py mocks predict_story_cost() returning cost > SPIRAL_COST_CEILING env var",
+        "Run phase_i subprocess with test story, assert story._status=skip and skip_reason='cost_exceeded' in results.tsv",
+        "Verify lib/impl/decompose.sh is NOT called (confirm via mock call count or log absence)"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
       "model": "haiku"
     },
     {
