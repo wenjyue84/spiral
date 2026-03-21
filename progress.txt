@@ -1,4 +1,46 @@
-## Iteration [Current] - Story: US-650 CLI: spiral cost-forecast
+## Iteration [Current] - Story: US-655 Dashboard Endpoint: GET /api/dashboard/retry-analysis
+
+### What was implemented
+- **lib/retry_analysis.py** — New module for computing retry statistics from results.tsv
+  - `load_results(path)` — reads results.tsv into row dicts
+  - `compute_retry_stats(results) -> dict[phase][count/mean/median/max/retry_rate/story_count]` — aggregates retry counts by phase
+  - `compute_retry_rates(results) -> list[{phase, retry_rate, story_count}]` — returns phases sorted by retry_rate descending
+
+- **spiral-ui/server.ts** — Added REST endpoint
+  - GET /api/dashboard/retry-analysis
+  - Reads results.tsv and computes per-phase retry statistics
+  - Returns JSON with {phases: [...stats...], retry_rates: [...sorted...], total_stories, total_retries}
+  - Gracefully handles missing results.tsv file (returns empty response)
+
+- **tests/test_retry_analysis.py** — 16 comprehensive tests across 4 classes
+  - TestLoadResults: 3 tests (missing file, empty file, single row)
+  - TestComputeRetryStats: 6 tests (empty, single phase, multi-phase, missing phase, invalid retry_count, retry_rate calc)
+  - TestComputeRetryRates: 4 tests (empty, single phase, sorted descending, required fields)
+  - TestRetryAnalysisIntegration: 3 tests (15 stories across 6 phases, zero retries, high retries)
+
+### Patterns discovered
+- results.tsv uses `retry_count` column (integer); parsed from TSV with fallback to 0 on error
+- Phase names in results.tsv are uppercase (R/T/S/M/I/V); missing phase field defaults to "UNKNOWN"
+- Retry rate formula: total_retries_in_phase / stories_in_phase (can exceed 1.0 for phases with many retries)
+- spiral-ui endpoint pattern: read file, parse JSON/TSV, aggregate, return JSON with graceful fallback for missing files
+
+### Gotchas
+- Windows Python requires `encoding='utf-8'` on all file opens
+- mypy strict mode requires explicit return types; unused `type: ignore` comments trigger errors
+- retry_count parsing must handle missing/invalid values gracefully (default to 0)
+- Statistics module (mean/median) requires non-empty list; early guard for empty stats
+
+### Acceptance Criteria Mapping
+1. ✅ Endpoint queries results.tsv, calculates retry_count distribution grouped by phase
+   - Implemented in spiral-ui/server.ts endpoint, reads results.tsv and aggregates by phase
+2. ✅ Response includes per-phase retry rates (total_retries/total_stories) sorted descending
+   - compute_retry_rates() returns sorted list with {phase, retry_rate, story_count}
+3. ✅ Test mocks results.tsv with 15 stories across phases with varying retry counts
+   - TestRetryAnalysisIntegration::test_integration_15_stories_across_phases validates full aggregation
+
+---
+
+## Iteration [Previous] - Story: US-650 CLI: spiral cost-forecast
 
 ### What was implemented
 - **lib/cost_forecast.py** — New module for velocity-based cost forecasting

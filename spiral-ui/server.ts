@@ -199,6 +199,124 @@ app.get('/api/dashboard/worker-swimlanes', (req, res) => {
   }
 });
 
+// Retry analysis endpoint (US-655)
+app.get('/api/dashboard/retry-analysis', (req, res) => {
+  const resultsFile = join(resolve('.'), 'results.tsv');
+
+  try {
+    if (!existsSync(resultsFile)) {
+      return res.json({
+        phases: [],
+        retry_rates: [],
+        total_stories: 0,
+        total_retries: 0
+      });
+    }
+
+    const content = readFileSync(resultsFile, 'utf-8');
+    const lines = content.trim().split('\n');
+    if (lines.length < 2) {
+      return res.json({
+        phases: [],
+        retry_rates: [],
+        total_stories: 0,
+        total_retries: 0
+      });
+    }
+
+    // Parse TSV header
+    const headers = lines[0].split('\t');
+    const phaseIdx = headers.indexOf('phase');
+    const retryIdx = headers.indexOf('retry_count');
+
+    if (phaseIdx === -1 || retryIdx === -1) {
+      return res.json({
+        phases: [],
+        retry_rates: [],
+        total_stories: 0,
+        total_retries: 0
+      });
+    }
+
+    // Parse data rows and compute stats
+    interface PhaseStats {
+      count: number;
+      retries: number[];
+      total_retries: number;
+    }
+    const phaseStats: Record<string, PhaseStats> = {};
+    let totalRetries = 0;
+
+    for (let i = 1; i < lines.length; i++) {
+      const parts = lines[i].split('\t');
+      const phase = (parts[phaseIdx] || 'UNKNOWN').toUpperCase();
+      let retryCount = 0;
+      try {
+        retryCount = parseInt(parts[retryIdx] || '0', 10);
+      } catch (e) {
+        retryCount = 0;
+      }
+
+      if (!phaseStats[phase]) {
+        phaseStats[phase] = { count: 0, retries: [], total_retries: 0 };
+      }
+      phaseStats[phase].count++;
+      phaseStats[phase].retries.push(retryCount);
+      phaseStats[phase].total_retries += retryCount;
+      totalRetries += retryCount;
+    }
+
+    // Compute stats per phase
+    interface PhaseStatsOutput {
+      phase: string;
+      count: number;
+      mean: number;
+      median: number;
+      max: number;
+      retry_rate: number;
+      story_count: number;
+    }
+    const phases: PhaseStatsOutput[] = [];
+
+    for (const [phase, stats] of Object.entries(phaseStats)) {
+      const retries = stats.retries.sort((a, b) => a - b);
+      const mean = retries.reduce((a, b) => a + b, 0) / retries.length;
+      const median = retries[Math.floor(retries.length / 2)];
+      const max = Math.max(...retries);
+      const retryRate = stats.total_retries / stats.count;
+
+      phases.push({
+        phase,
+        count: stats.count,
+        mean: parseFloat(mean.toFixed(4)),
+        median,
+        max,
+        retry_rate: parseFloat(retryRate.toFixed(4)),
+        story_count: stats.count
+      });
+    }
+
+    // Sort by retry_rate descending
+    const retryRates = phases
+      .sort((a, b) => b.retry_rate - a.retry_rate)
+      .map(p => ({
+        phase: p.phase,
+        retry_rate: p.retry_rate,
+        story_count: p.story_count
+      }));
+
+    res.json({
+      phases,
+      retry_rates: retryRates,
+      total_stories: lines.length - 1,
+      total_retries: totalRetries
+    });
+  } catch (e) {
+    console.error('[retry-analysis] Error reading results.tsv:', e);
+    res.status(500).json({ error: 'Failed to read results data' });
+  }
+});
+
 // Start server
 server.listen(PORT, () => {
   console.log(`[${new Date().toISOString()}] SPIRAL WebSocket server listening on port ${PORT}`);
