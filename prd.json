@@ -187,22 +187,6 @@
       }
     },
     {
-      "id": "US-677",
-      "title": "Dashboard Endpoint: GET /api/dashboard/escalation-success-rates - Model Retry Recovery Analysis",
-      "priority": "medium",
-      "description": "New dashboard endpoint analyzes results.tsv to compute model escalation success rates across story attempts. Returns percentage of stories passing on haiku vs recovering via sonnet vs requiring opus. Reveals model routing effectiveness and identifies patterns requiring escalation.",
-      "acceptanceCriteria": [
-        "Endpoint returns JSON: {haiku_success_rate: 0.72, sonnet_recovery_rate: 0.18, opus_final_rate: 0.10, total_stories_analyzed: 320} derived from results.tsv retry sequences grouped by final model used",
-        "Success rates computed by categorizing stories: haiku_success = stories with retry_count=0 and model='haiku', sonnet_recovery = stories with retry_count≥1 and final model='sonnet', opus_final = final model='opus'",
-        "Integration test with fixture of 10 stories (7 pass haiku, 2 pass sonnet, 1 requires opus) verifies endpoint computes 0.70/0.20/0.10 rates accurately"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
       "id": "US-688",
       "title": "Phase G Output Validator: Validate CHANGELOG.md Schema Compliance",
       "priority": "high",
@@ -4091,6 +4075,331 @@
       "_phaseI": {
         "diagnosisBlock": "## Current State\n- Existing Phase G tests mock git-cliff for CHANGELOG generation\n- Federated tests already exist with fixture PRDs containing cross-project dependencies\n- Phase G currently generates CHANGELOG from git commits, not from prd.json directly\n- Tests for federated scenarios already exist with multi-project story structures\n\n## Problem Identified\nNeed to create an integration test (US-697) that validates Phase G correctly generates CHANGELOG.md for federated prd.json scenarios, respecting dependency ordering where dependent stories appear after their dependencies (including cross-project deps).\n\n## Planned Changes\n1. Create `tests/test_federated_phase_g.py` with test class `TestFederatedChangelogDependencyOrdering`\n2. Implement `test_federated_changelog_respects_dependency_order()` that:\n   - Creates a federated prd.json with 2 sub-projects (api, webapp) with 3 stories each\n   - Includes cross-project dependencies (webapp story depends on api story)\n   - Mocks CHANGELOG generation to focus on story ordering logic\n   - Validates all 6 stories appear with namespace prefixes (e.g., \"api/US-001\")\n   - Verifies dependency order: stories appear after their dependencies\n3. Add helper function to extract and validate story ordering from CHANGELOG content\n\nLet me implement this:\nNow let me run the quality checks to ensure the code passes all tests and linting:\nPerfect! All tests pass. Let me now commit the changes and mark the story as complete:\nPerfect! Let me verify the overall completion progress:\n## Summary"
       }
+    },
+    {
+      "id": "US-698",
+      "title": "Phase M Story Reordering by Dependency Graph for Optimal Merge Order",
+      "priority": "high",
+      "description": "Topologically sort pending stories by dependency graph before merge to minimize implementation conflicts and rework. Stories should be merged after their dependencies are satisfied.",
+      "acceptanceCriteria": [
+        "lib/story_reorder.py implements topological_sort(stories: list, dep_graph: dict) -> ordered_stories using Kahn's algorithm",
+        "Phase M calls reorder_stories() before merge_prd.py, applies returned order to SPIRAL_PENDING stories in prd.json",
+        "CLI spiral show-merge-order displays reordered list with ASCII tree showing dependency justification for each story"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-03-21T23:18:36Z"
+    },
+    {
+      "id": "US-699",
+      "title": "Cost Ceiling Burn-Down Predictor CLI Command",
+      "priority": "high",
+      "description": "Project SPIRAL_COST_CEILING breach timing based on cost-per-iteration velocity from results.tsv using linear regression. Support iteration count and calendar date forecasts.",
+      "acceptanceCriteria": [
+        "spiral forecast-ceiling CLI reads results.tsv, computes cost trend via numpy.polyfit(), outputs 'Breach projected in N.M iterations'",
+        "--until-date flag returns calendar date prediction: 'Ceiling breach projected 2026-04-18 at $X/iteration burn rate'",
+        "Flags if trend is ambiguous (< 5 data points) with confidence interval in output"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-701",
+      "title": "Phase R: Query Deduplication Cache by Gemini Research Hash",
+      "priority": "high",
+      "description": "Implement caching layer in Phase R that skips duplicate Gemini API calls by hashing research queries and storing results. Reduces API cost and latency when multiple stories request similar research topics.",
+      "acceptanceCriteria": [
+        "Module lib/phases/research_query_cache.py with function get_or_research(query: str, query_context: dict, gemini_client) -> ResearchResult that hashes query+context, checks .spiral/research_cache.json, returns cached result if hit or makes new API call on miss",
+        "Cache is keyed by SHA256(query + str(sorted context)) to ensure identical queries with same context return cached results; cache file includes timestamp, source, and usage_count for metrics",
+        "Integration test tests/test_research_query_cache.py verifies: duplicate queries skip API calls (2 identical calls → 1 API request), different queries make separate calls, cache hits are recorded in results.tsv with cache_hit: true flag"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-704",
+      "title": "[Security Test] Verify SPIRAL_COST_CEILING budget enforcement from US-498",
+      "priority": "high",
+      "description": "Write security/boundary tests verifying the pre-Phase I budget check introduced in US-498 correctly enforces SPIRAL_COST_CEILING. Tests confirm Phase I is blocked when estimated cost exceeds the ceiling and that prd.json is not corrupted during rollback. The CI workflow files listed in technicalNotes of US-498 are unrelated artifacts — do not test them.",
+      "acceptanceCriteria": [
+        "Test verifies Phase I is skipped when mocked estimated cost exceeds SPIRAL_COST_CEILING",
+        "Test verifies the lowest-priority pending story is removed from the run queue on rollback",
+        "Test verifies prd.json story records are intact (no data loss) after a budget-triggered rollback",
+        "uv run pytest tests/test_cost_ceiling_security.py -v exits 0 with all tests passing"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_cost_ceiling_security.py (create new — budget enforcement boundary tests)",
+        "Locate enforcement logic first: grep -r 'SPIRAL_COST_CEILING' lib/ spiral.sh to find the exact function/section to test",
+        "Mock SPIRAL_COST_CEILING to a very low value (e.g. 0.01) in tests to force the enforcement path without real API calls",
+        "Test command: uv run pytest tests/test_cost_ceiling_security.py -v",
+        "Test command: uv run pytest tests/ -k cost_ceiling -v"
+      ],
+      "dependencies": [
+        "US-498"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-705",
+      "title": "[Integration Test] gen_changelog.py: Happy Path and Edge Cases",
+      "priority": "high",
+      "description": "Write integration tests for lib/gen_changelog.py (US-604). Cover: parsing commit messages for US-NNN/UT-NNN story IDs, categorising by conventional-commit type (feat/fix/docs/refactor), producing valid markdown with sections, and logging a warning when a commit has no story ID.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_gen_changelog.py -v exits 0 with all tests passing",
+        "At least one test asserts the generated markdown contains a section header matching a conventional-commit type (feat/fix/docs/refactor)",
+        "At least one test asserts a warning is emitted for a commit message that contains no US-NNN/UT-NNN tag"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_gen_changelog.py (new file — create integration tests for gen_changelog.py)",
+        "File to read: lib/gen_changelog.py (understand public API before writing tests)",
+        "Test command: uv run pytest tests/test_gen_changelog.py -v",
+        "Use stdlib only (no external services); mock git log output with in-process fixture strings",
+        "Trim to max 3 ACs — keep error/edge case and section-header assertions"
+      ],
+      "dependencies": [
+        "US-604"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-706",
+      "title": "[Integration Test] verify_story_acceptance hook: Commit Tag Enforcement",
+      "priority": "high",
+      "description": "Write integration tests for .claude/hooks/verify_story_acceptance.py (US-604). Cover: rejecting a commit message that lacks a story ID tag, accepting a well-formed message with a US-NNN tag, and handling malformed input gracefully.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_verify_story_acceptance.py -v exits 0 with all tests passing",
+        "At least one test asserts the hook exits non-zero (or raises) for a commit message without a story ID tag",
+        "At least one test asserts the hook exits zero for a commit message containing a valid US-NNN tag"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_verify_story_acceptance.py (new file — create integration tests for the hook)",
+        "File to read: .claude/hooks/verify_story_acceptance.py (understand acceptance logic before writing tests)",
+        "Test command: uv run pytest tests/test_verify_story_acceptance.py -v",
+        "Invoke the hook by importing its main callable directly; do not rely on subprocess or git daemon",
+        "No external services required — all inputs are plain strings"
+      ],
+      "dependencies": [
+        "US-604"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-707",
+      "title": "[Security Test] SPIRAL Phase Loop: No Credential Leakage in State Files",
+      "priority": "high",
+      "description": "Write security-focused tests verifying that the SPIRAL phase loop (R→T→S→M→I→V→C) does not leak API keys, tokens, or passwords into intermediate state files (_research_output.json, _validated_stories.json, _checkpoint.json, results.tsv). Also verify that phase transition errors do not expose secrets in log output.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_security_us633.py::test_no_credentials_in_state_files -v passes",
+        "uv run pytest tests/test_security_us633.py::test_no_credentials_in_error_output -v passes",
+        "uv run pytest tests/test_security_us633.py -v --tb=short exits 0 with all tests collected"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_security_us633.py (new file — create security test module)",
+        "Test command: uv run pytest tests/test_security_us633.py -v --tb=short",
+        "SPIRAL is a CLI tool, not HTTP — 401/403 ACs do not apply; focus on credential leakage into .spiral/ scratch files and log streams",
+        "Patterns to check for: ANTHROPIC_API_KEY, GEMINI_API_KEY, bearer tokens, password= substrings in JSON state files written by phases R, T, S, M",
+        "Use monkeypatch or os.environ fixtures to inject dummy secrets, run phase helpers, then assert secret values absent from output files"
+      ],
+      "dependencies": [
+        "US-633"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-708",
+      "title": "[Security Test] File-Aware Retry: Path Traversal and Data Leakage Guards",
+      "priority": "high",
+      "description": "Add security tests to tests/test_file_aware_retry.py verifying that the file-aware retry logic from US-597 rejects path-traversal entries in failed-file lists and does not expose sensitive environment variables (API keys, tokens) in retry error output. SPIRAL is a local CLI tool, so security concerns are file-system safety and log hygiene — not HTTP auth.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_file_aware_retry.py -k 'security' -v exits 0 with at least 2 tests collected",
+        "test_security_no_path_traversal asserts that passing ['../../../etc/passwd'] as a failed_files list raises ValueError or is sanitised before retry executes",
+        "test_security_no_sensitive_data_in_errors asserts that retry error messages do not match r'(sk-|ANTHROPIC_API_KEY|password|token)' when those env vars are set in os.environ"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_file_aware_retry.py (add test_security_no_path_traversal and test_security_no_sensitive_data_in_errors at module bottom)",
+        "Test command: uv run pytest tests/test_file_aware_retry.py -k 'security' -v",
+        "Inspect lib/impl/file_aware_retry.py to find the function that accepts the failed_files list — validate or sanitise inputs there if not already done",
+        "For the data-leakage test: use monkeypatch.setenv('ANTHROPIC_API_KEY', 'sk-test-secret'), trigger a retry failure path, and assert the captured exception str/log output does not contain 'sk-test-secret'",
+        "Do NOT create tests/test_results_tsv.py or tests/test_test_file_aware_retry.py — scope is limited to one test file"
+      ],
+      "dependencies": [
+        "US-597"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-709",
+      "title": "Integration tests: validate CI workflow YAML structure and lint-shell action",
+      "priority": "high",
+      "description": "Write integration tests covering the GitHub Actions files introduced in US-459 (.github/actions/lint-shell, setup-uv, and the main CI workflow). Tests must parse each YAML, assert required jobs/steps exist, and verify the lint-shell action script runs without external services.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_integration_us459.py -v exits 0 with all tests passing",
+        "Test covers happy path: lint-shell action YAML contains 'runs' key with at least one step",
+        "Test covers error case: missing required input to setup-uv action raises a detectable schema violation or assertion error",
+        "Tests run offline with no GitHub API calls (use local file reads only)"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_integration_us459.py (new file — create integration test module)",
+        "File to edit: tests/conftest.py (add fixture: yaml_file(path) that loads a .github YAML as a dict)",
+        "Test command: uv run pytest tests/test_integration_us459.py -v",
+        "Test command: uv run pytest tests/test_integration_us459.py -k 'error' -v  (edge-case subset)",
+        "Load YAML with PyYAML (already a dev dep); assert top-level keys like 'on', 'jobs', 'runs' exist; no network calls needed",
+        "If PyYAML is not available: uv add pyyaml --dev"
+      ],
+      "dependencies": [
+        "US-459"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-710",
+      "title": "Security Test: Validate GitHub Actions permission scope in US-460 CI files",
+      "priority": "high",
+      "description": "Write security tests that parse the GitHub Actions YAML files introduced by US-460 and assert that each workflow declares minimal permissions, uses pinned action SHAs, and does not embed sensitive literals. These tests run in the existing pytest suite via uv.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_security_us460.py::test_workflow_permissions_minimal -v exits 0, verifying each workflow YAML contains an explicit top-level 'permissions:' block with no write-all",
+        "uv run pytest tests/test_security_us460.py::test_no_hardcoded_secrets -v exits 0, confirming no YAML value matches common secret patterns (token, password, key followed by a literal string)",
+        "uv run pytest tests/test_security_us460.py::test_actions_pinned_to_sha -v exits 0, verifying every 'uses:' line references a full 40-char commit SHA and not a mutable tag"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_security_us460.py (create new — three test functions listed in ACs)",
+        "File to read: .github/workflows/ci.yml, .github/workflows/spiral.yml, .github/actions/lint-shell/action.yml (read-only fixtures for assertions)",
+        "Test command: uv run pytest tests/test_security_us460.py -v",
+        "Use PyYAML (already available via uv) to load each YAML file; glob .github/workflows/*.yml and .github/actions/*/action.yml to build the fixture list",
+        "Do NOT test HTTP 401/403 — there is no web server; the security surface here is CI configuration hygiene"
+      ],
+      "dependencies": [
+        "US-460"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-711",
+      "title": "Phase V: Test Execution Time Performance Regression Detector",
+      "priority": "medium",
+      "description": "Phase V validation now tracks individual test execution times from pytest JSON output. Compare current iteration test times to baseline (previous iteration). Flag tests that slowed >10% as 'performance regression' and fail validation if any regressions found. Store baseline in .spiral/performance_baseline.json.",
+      "acceptanceCriteria": [
+        "Phase V parses pytest JSON output (--json-report flag) to extract per-test duration_ms",
+        "Compares current iteration test times to .spiral/performance_baseline.json; flags tests with >10% slowdown as regression",
+        "Validation fails if any regressions found; baseline updates at end of iteration if no regressions"
+      ],
+      "technicalNotes": [
+        "File: lib/phases/phase_v_performance.py (new module with parse_pytest_times() and compare_to_baseline() functions)",
+        "Test: uv run pytest tests/test_phase_v_performance.py::test_detect_slowdown_regression -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-712",
+      "title": "CLI: spiral show-slowest-stories — Identify Bottleneck Stories by Total Duration",
+      "priority": "medium",
+      "description": "New CLI command that reads results.tsv and identifies stories with longest cumulative duration across all phases. Groups stories by total_duration_seconds, shows which phases consumed most time per story (R/T/S/M/I/V breakdown). Helps identify scope creep and optimization targets.",
+      "acceptanceCriteria": [
+        "Command reads results.tsv and sums duration_sec per story_id across all phases",
+        "Outputs sorted table: story_id, total_duration_sec, phase_breakdown (show phase with longest duration per story)",
+        "Test validates top 5 slowest stories are correctly ranked and includes Phase I as expected bottleneck"
+      ],
+      "technicalNotes": [
+        "File: lib/cli/show_slowest_stories.py (new CLI command using pandas.read_csv to aggregate by story_id)",
+        "Test: uv run pytest tests/test_cli_slowest_stories.py::test_slowest_stories_top5 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-713",
+      "title": "CLI: spiral federated-cost-report — Per-Sub-Project Cost Breakdown by Phase",
+      "priority": "medium",
+      "description": "New CLI command for federated prd.json projects. Reads results.tsv and groups costs by (sub_project, phase). Outputs markdown table showing cost distribution across sub-projects (for billing/allocation) and per-phase cost contribution (for bottleneck analysis). Useful for multi-org SPIRAL runs.",
+      "acceptanceCriteria": [
+        "Command groups results.tsv rows by sub_project and phase, summing tokens_used and cost_usd per group",
+        "Outputs markdown table: sub_project | phase_r_cost | phase_i_cost | total_cost (sorted by descending total_cost)",
+        "Test validates cost sum across all rows matches total from results.tsv and handles missing sub_project column gracefully"
+      ],
+      "technicalNotes": [
+        "File: lib/cli/federated_cost_report.py (new command using pandas.groupby(by=['sub_project', 'phase']).sum())",
+        "Test: uv run pytest tests/test_cli_federated_cost.py::test_cost_report_by_phase_aggregation -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-714",
+      "title": "[E2E Test] Dependency Graph Visualization UI (US-659)",
+      "priority": "medium",
+      "description": "Write a Playwright E2E test covering the user flow introduced by US-659. The test navigates to the dashboard, waits for the dependency graph to load from /api/dashboard/cross-project-dependency-graph, and asserts that project nodes and directional edges are visible. This ensures the React visualization component renders correctly in a real browser.",
+      "acceptanceCriteria": [
+        "Running `uv run pytest tests/e2e/test_dependency_graph_us659.py -v` exits 0 in headless mode",
+        "Test asserts at least one SVG node element is visible after the graph finishes loading",
+        "Test asserts at least one directional edge element is present between two nodes",
+        "Test verifies a zoom or pan interaction completes without JS console errors"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/e2e/test_dependency_graph_us659.py (new file — create it)",
+        "Test command: uv run pytest tests/e2e/test_dependency_graph_us659.py -v",
+        "The component under test is the dependency graph component added by US-659 in spiral-ui/src/components/",
+        "Use page.wait_for_selector() to wait for the SVG graph container before asserting on nodes/edges",
+        "If /api/dashboard/cross-project-dependency-graph is unavailable, intercept with page.route() to return a minimal fixture with 2 nodes and 1 edge"
+      ],
+      "dependencies": [
+        "US-659"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-715",
+      "title": "Perf Test Fixtures: Federated prd.json + Mock APIs for US-638",
+      "priority": "medium",
+      "description": "Create all test fixtures and mock stubs needed by the US-638 E2E performance benchmark: a federated prd.json with 2 sub-projects (6 stories total), a mock Gemini research API response file, and a conftest.py fixture that wires up 2 mock parallel workers via subprocess mocking.",
+      "acceptanceCriteria": [
+        "tests/fixtures/federated_prd_us638.json exists, is valid per prd.schema.json, and contains exactly 2 sub-project keys each with 3 stories: uv run python lib/prd_schema.py tests/fixtures/federated_prd_us638.json",
+        "conftest.py exposes a mock_gemini_api fixture that returns canned JSON without network calls: uv run pytest tests/test_perf_e2e_us638.py -k 'mock_gemini' --collect-only -q",
+        "conftest.py exposes a mock_workers fixture that spawns 2 no-op worker processes and exits 0: uv run pytest tests/test_perf_e2e_us638.py -k 'mock_workers' --collect-only -q"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/conftest.py (add mock_gemini_api and mock_workers fixtures)",
+        "File to edit: tests/fixtures/federated_prd_us638.json (create new fixture; mirror schema from prd.json with sub_project field on each story)",
+        "Test command: uv run python lib/prd_schema.py tests/fixtures/federated_prd_us638.json",
+        "Mock Gemini: patch the env var or HTTP call used in lib/phases/research.sh / the Python research caller so no real network request fires"
+      ],
+      "dependencies": [
+        "US-638"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
     }
   ]
 }

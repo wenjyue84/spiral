@@ -10,7 +10,14 @@ Story: US-617
 from __future__ import annotations
 
 import re
+import sys
+from pathlib import Path
 from typing import Any
+
+# Import story_reorder from parent lib directory
+_LIB_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_LIB_DIR))
+from story_reorder import build_dep_graph, topological_sort  # noqa: E402
 
 # Pattern to detect cross-project story ID references in description text.
 # Matches: "depends on US-123", "requires US-B5", "after US-42", etc.
@@ -30,108 +37,33 @@ def _extract_referenced_ids(text: str) -> list[str]:
     return ids
 
 
-def _build_dep_graph(stories: list[dict[str, Any]]) -> dict[str, set[str]]:
-    """Build a dependency graph: story_id -> set of story_ids it depends on.
+def _build_dep_graph_with_descriptions(stories: list[dict[str, Any]]) -> dict[str, list[str]]:
+    """Build a dependency graph including description-based cross-story references.
 
-    Scans description and dependencies fields for cross-story references.
-    Only includes dependencies that correspond to known story IDs in the list.
+    This extends the basic dependency graph by scanning descriptions for references
+    like "depends on US-123" or "requires US-B5". Used for federated PRD scenarios
+    where story IDs may be scattered across descriptions.
+
+    Returns dict mapping story_id to list of dependency_ids.
     """
-    known_ids = {s.get("id", "") for s in stories if s.get("id")}
+    # Start with the base graph from story_reorder
+    graph: dict[str, list[str]] = build_dep_graph(stories)
 
-    graph: dict[str, set[str]] = {s["id"]: set() for s in stories if s.get("id")}
+    # Now enhance it by scanning descriptions for textual references
+    known_ids = {s.get("id", "") for s in stories if s.get("id")}
 
     for story in stories:
         sid = story.get("id", "")
-        if not sid:
+        if not sid or sid not in graph:
             continue
-
-        # Check explicit dependencies field first
-        explicit_deps = story.get("dependencies", [])
-        for dep in explicit_deps:
-            dep_str = str(dep).strip()
-            if dep_str in known_ids and dep_str != sid:
-                graph[sid].add(dep_str)
 
         # Scan description for textual references
         description = story.get("description", "")
         for ref_id in _extract_referenced_ids(description):
-            if ref_id in known_ids and ref_id != sid:
-                graph[sid].add(ref_id)
+            if ref_id in known_ids and ref_id != sid and ref_id not in graph.get(sid, []):
+                graph[sid].append(ref_id)
 
     return graph
-
-
-def _topological_sort(
-    stories: list[dict[str, Any]],
-    graph: dict[str, set[str]],
-) -> list[dict[str, Any]]:
-    """Kahn's algorithm for topological sort with cycle detection.
-
-    Raises ValueError with a cycle description if a circular dependency is detected.
-    Returns stories in dependency-first order (dependencies before dependents).
-    """
-    story_map = {s["id"]: s for s in stories if s.get("id")}
-
-    # Count in-degrees (how many stories depend ON each story — i.e., predecessors)
-    # We want dependencies first, so edges go: "depends_on -> dependent"
-    # In-degree of a node = number of its own dependencies that haven't been processed
-    in_degree: dict[str, int] = {sid: len(deps) for sid, deps in graph.items()}
-
-    # Reverse graph: for each dependency, which stories depend on it?
-    reverse: dict[str, list[str]] = {sid: [] for sid in graph}
-    for sid, deps in graph.items():
-        for dep in deps:
-            if dep in reverse:
-                reverse[dep].append(sid)
-
-    # Start with stories that have no unresolved dependencies
-    queue = sorted(sid for sid, count in in_degree.items() if count == 0)
-    result: list[dict[str, Any]] = []
-
-    while queue:
-        sid = queue.pop(0)
-        result.append(story_map[sid])
-        # Reduce in-degree for all stories that depended on this one
-        for dependent in sorted(reverse.get(sid, [])):
-            in_degree[dependent] -= 1
-            if in_degree[dependent] == 0:
-                queue.append(dependent)
-
-    if len(result) != len(stories):
-        # Find a cycle to report
-        unprocessed = [sid for sid in in_degree if story_map.get(sid) not in result]
-        cycle = _find_cycle(unprocessed, graph)
-        raise ValueError(f"circular dependency: {cycle}")
-
-    return result
-
-
-def _find_cycle(candidates: list[str], graph: dict[str, set[str]]) -> str:
-    """Find and format a cycle among the candidate story IDs."""
-    visited: set[str] = set()
-    path: list[str] = []
-
-    def dfs(node: str) -> str | None:
-        if node in path:
-            cycle_start = path.index(node)
-            return "\u2192".join(path[cycle_start:] + [node])
-        if node in visited:
-            return None
-        visited.add(node)
-        path.append(node)
-        for neighbor in sorted(graph.get(node, [])):
-            result = dfs(neighbor)
-            if result:
-                return result
-        path.pop()
-        return None
-
-    for start in sorted(candidates):
-        result = dfs(start)
-        if result:
-            return result
-
-    return " -> ".join(candidates[:3]) + " (cycle)"
 
 
 def order_federated_stories_by_dependency(stories: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -149,7 +81,7 @@ def order_federated_stories_by_dependency(stories: list[dict[str, Any]]) -> list
 
     Raises:
         ValueError: If a circular dependency is detected, with message like
-                    'circular dependency: US-A1\u2192US-B1\u2192US-A1'.
+                    'circular dependency: US-A1→US-B1→US-A1'.
     """
     if not stories:
         return []
@@ -161,6 +93,7 @@ def order_federated_stories_by_dependency(stories: list[dict[str, Any]]) -> list
     if not id_stories:
         return list(stories)
 
-    graph = _build_dep_graph(id_stories)
-    sorted_stories = _topological_sort(id_stories, graph)
-    return sorted_stories + no_id_stories
+    graph = _build_dep_graph_with_descriptions(id_stories)
+    sorted_stories = topological_sort(id_stories, graph)
+    result: list[dict[str, Any]] = sorted_stories + no_id_stories
+    return result

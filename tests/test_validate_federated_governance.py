@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import json
+
+# Add lib to path
+import sys
 import tempfile
 from pathlib import Path
 
 import pytest
-
-# Add lib to path
-import sys
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
 

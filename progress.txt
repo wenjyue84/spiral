@@ -949,3 +949,26 @@ Okay, here is the technical brief for the Claude agent.
 *   **UI Feedback:** The UI must clearly indicate loading/saving states and provide feedback on success or failure of the save/test operations.
 
 >>>>>>> Stashed changes
+
+## Pre-analysis for US-698 (Gemini 2.5 Pro)
+This technical brief is for user story US-698 concerning the internal 'SPIRAL' DevOps project, not a Frappe application. The goal is to topologically sort development stories based on their dependencies.
+
+**1. Python Files to Modify:**
+*   `lib/story_reorder.py`: A new file to house the `topological_sort` function.
+*   `main.py` or a similar orchestrator script: To integrate the reordering logic into the "Phase M" workflow before the `merge_prd.py` step is executed.
+*   `main.py` (likely): To add the new `spiral show-merge-order` CLI command and its display logic.
+
+**2. Data Structures & Hooks Involved:**
+*   `prd.json`: This file acts as the primary database. The implementation will read the list of stories from the `SPIRAL_PENDING` key and update it in place.
+*   The core data structure is the dependency graph, presumably stored within or alongside the stories in `prd.json`.
+*   No Frappe DocTypes or `hooks.py` files are relevant to this task.
+
+**3. Recommended Implementation Approach:**
+*   Implement Kahn's algorithm for topological sorting in `lib/story_reorder.py` as specified in the acceptance criteria.
+*   The main workflow script must be modified to load stories and the dependency graph from `prd.json`, call the sorting function, and then save the reordered list back to the file.
+*   For the CLI, create a new command that reads the ordered data and formats it into an ASCII tree to visualize the dependencies and the resulting merge order.
+
+**4. Edge Cases & Gotchas:**
+*   **Circular Dependencies:** The sorting algorithm must detect dependency cycles and raise a clear error, identifying the stories involved in the cycle.
+*   **Atomic Operations:** The read-modify-write operation on `prd.json` should be atomic to prevent data corruption from concurrent processes.
+*   **Graph Integrity:** The code should handle cases where a story's dependency does not exist in the list of pending stories.

@@ -3619,6 +3619,24 @@ def main():
         help="Output machine-readable JSON instead of ASCII tree",
     )
 
+    # ── show-merge-order subcommand (US-698) ──────────────────────────────────────
+    merge_order_parser = subparsers.add_parser(
+        "show-merge-order",
+        help="Show pending stories in topologically sorted merge order (US-698)",
+    )
+    merge_order_parser.add_argument(
+        "--prd",
+        default="prd.json",
+        metavar="FILE",
+        help="Path to prd.json (default: prd.json)",
+    )
+    merge_order_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="output_json",
+        help="Output machine-readable JSON instead of ASCII tree",
+    )
+
     # ── validate-governance subcommand (US-672) ─────────────────────────────────
     validate_gov_parser = subparsers.add_parser(
         "validate-governance",
@@ -3785,6 +3803,8 @@ def main():
         cmd_check_federated_deps(args)
     elif args.command == "trace-dependencies":
         cmd_trace_dependencies(args)
+    elif args.command == "show-merge-order":
+        cmd_show_merge_order(args)
     elif args.command == "show-story-lineage":
         cmd_show_story_lineage(args)
     elif args.command == "list-federation":
@@ -4292,6 +4312,89 @@ def cmd_trace_dependencies(args: argparse.Namespace) -> None:
             cycle_str = " -> ".join(root.cycle_path)
             print(f"\nCircular dependency detected: {cycle_str}", file=sys.stderr)
             sys.exit(2)
+
+    sys.exit(0)
+
+
+def cmd_show_merge_order(args: argparse.Namespace) -> None:
+    """Show pending stories in topologically sorted merge order (US-698).
+
+    Usage: spiral show-merge-order [--prd FILE] [--json]
+
+    Without --json: prints ASCII tree showing pending stories in dependency-first order
+    with dependency justification for each story.
+
+    With --json: outputs machine-readable JSON:
+        [{id, title, dependencies, dependents}]
+    """
+    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    from story_reorder import build_dep_graph, topological_sort  # type: ignore[import-untyped]
+
+    prd_path = Path(getattr(args, "prd", "prd.json"))
+    output_json = getattr(args, "output_json", False)
+
+    if not prd_path.exists():
+        print(f"Error: {prd_path} not found", file=sys.stderr)
+        sys.exit(1)
+
+    stories = _load_prd(prd_path)
+
+    # Filter to pending stories only (passes=false)
+    pending_stories = [s for s in stories if not s.get("passes", False) and s.get("id")]
+
+    if not pending_stories:
+        print("No pending stories found.")
+        sys.exit(0)
+
+    # Build dependency graph and topologically sort
+    graph = build_dep_graph(pending_stories)
+    try:
+        reordered = topological_sort(pending_stories, graph)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    if output_json:
+        # Output machine-readable JSON with dependency info
+        output_data = []
+        for story in reordered:
+            sid = story.get("id", "")
+            deps = graph.get(sid, [])
+            # Find dependents: stories that depend on this one
+            dependents = [s_id for s_id, deps_list in graph.items() if sid in deps_list]
+            output_data.append(
+                {
+                    "id": sid,
+                    "title": story.get("title", ""),
+                    "priority": story.get("priority", ""),
+                    "dependencies": deps,
+                    "dependents": dependents,
+                }
+            )
+        print(json.dumps(output_data, indent=2))
+    else:
+        # Print ASCII tree with dependency justification
+        print("\nPending stories in topological merge order (dependencies first):\n")
+        for i, story in enumerate(reordered, 1):
+            sid = story.get("id", "")
+            title = story.get("title", "")
+            priority = story.get("priority", "")
+            deps = graph.get(sid, [])
+
+            # Format the tree line
+            if i == len(reordered):
+                prefix = "└── "
+            else:
+                prefix = "├── "
+
+            # Build dependency annotation
+            dep_str = ""
+            if deps:
+                dep_str = f" (depends on: {', '.join(sorted(deps))})"
+
+            print(f"{prefix}[{sid}] {title} ({priority}){dep_str}")
+
+        print()
 
     sys.exit(0)
 
