@@ -1,3 +1,20 @@
+## Iteration - Story: US-626 Integration Test: validate-federated Comprehensive
+
+### What was implemented
+- lib/commands/validate_federated.py: Added `_validate_required_fields()` (missing description check with fix suggestions), `_find_orphan_decomposed()` (orphan sub-story detection), updated `_validate_ids()` to include "Fix:" hints, added `"file"` key to report dict
+- tests/test_validate_federated_comprehensive.py: 5 integration tests covering AC1 (missing description, malformed US-111-xyz ID, orphan/unresolved dep), AC2 (circular dependency cycle path US-111-a→US-201-b), AC3 (actionable error messages with story ID + fix suggestion + file path)
+
+### Verification results
+- All 5 new tests pass: pytest tests/test_validate_federated_comprehensive.py ✅
+- All 18 existing tests still pass: pytest tests/test_validate_federated.py ✅
+- mypy --strict on both files: ✅
+- Story marked passes=true in prd.json: ✅
+
+### Patterns discovered
+- validate_federated() report now includes "file" key (str path to prd.json) — update assertions that check exact report keys
+- _find_orphan_decomposed checks _decomposedFrom field pointing to non-existent parent ID
+- Fix suggestions appended with ". Fix: ..." suffix — asserting "Fix" in error messages is the pattern
+
 ## Iteration - Story: US-607 CLI: show-worker-logs
 
 ### What was implemented
