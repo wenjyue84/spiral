@@ -33,6 +33,7 @@ Subcommands:
   cost-forecast           Forecast remaining budget and timeline from results.tsv velocity (US-650)
   check-federated-deps    Detect circular dependencies and orphans in multi-repo prd.json (US-685)
   trace-dependencies      Resolve and visualize full dependency chain for a story (US-675)
+  list-federation         Display sub-project configuration and story allocation summary (US-665)
 """
 
 import argparse
@@ -3546,6 +3547,24 @@ def main():
         help="Treat namespace conflicts as errors",
     )
 
+    # ── list-federation subcommand (US-665) ──────────────────────────────────
+    list_fed_parser = subparsers.add_parser(
+        "list-federation",
+        help="Display sub-project configuration and story allocation summary (US-665)",
+    )
+    list_fed_parser.add_argument(
+        "--config",
+        default=".spiral/federation.toml",
+        metavar="FILE",
+        help="Path to federation.toml (default: .spiral/federation.toml)",
+    )
+    list_fed_parser.add_argument(
+        "--prd",
+        default="prd.json",
+        metavar="FILE",
+        help="Path to prd.json (default: prd.json)",
+    )
+
     # ── trace-dependencies subcommand (US-675) ────────────────────────────────
     trace_deps_parser = subparsers.add_parser(
         "trace-dependencies",
@@ -3713,6 +3732,8 @@ def main():
         cmd_check_federated_deps(args)
     elif args.command == "trace-dependencies":
         cmd_trace_dependencies(args)
+    elif args.command == "list-federation":
+        cmd_list_federation(args)
     elif args.command == "validate-phase-outputs":
         cmd_validate_phase_outputs(args)
     else:
@@ -4044,6 +4065,62 @@ def cmd_check_federated_deps(args: argparse.Namespace) -> None:
     print(json.dumps(result, indent=2))
 
     sys.exit(0 if result["valid"] else 1)
+
+
+def cmd_list_federation(args: argparse.Namespace) -> None:
+    """Display sub-project configuration and story allocation summary (US-665).
+
+    Usage: spiral list-federation [--config .spiral/federation.toml] [--prd prd.json]
+
+    Outputs JSON:
+        {sub_projects: [{name, story_count, workers}], total_stories, total_workers}
+
+    Exit code 1 if federation.toml missing or prd.json sub_project fields
+    are inconsistent with config.
+    """
+    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    from list_federation import (  # type: ignore[import-untyped]
+        build_summary,
+        count_stories_by_project,
+        load_federation_config,
+        validate_consistency,
+    )
+
+    config_path = Path(getattr(args, "config", ".spiral/federation.toml"))
+    prd_path = Path(getattr(args, "prd", "prd.json"))
+
+    # Load federation config (exit 1 if missing)
+    try:
+        config = load_federation_config(config_path)
+    except FileNotFoundError as e:
+        print(json.dumps({"error": str(e)}), file=sys.stderr)
+        sys.exit(1)
+
+    # Load prd.json (exit 1 if missing or invalid)
+    if not prd_path.exists():
+        print(json.dumps({"error": f"File not found: {prd_path}"}), file=sys.stderr)
+        sys.exit(1)
+    try:
+        with open(prd_path, encoding="utf-8") as f:
+            prd = json.load(f)
+    except json.JSONDecodeError as e:
+        print(json.dumps({"error": f"Invalid JSON: {e}"}), file=sys.stderr)
+        sys.exit(1)
+
+    stories: list[dict] = prd.get("userStories", [])
+    story_counts = count_stories_by_project(stories)
+
+    # Validate consistency (exit 1 if mismatch)
+    config_names = {p["name"] for p in config["sub_projects"]}
+    story_names = set(story_counts.keys())
+    errors = validate_consistency(config_names, story_names)
+    if errors:
+        print(json.dumps({"error": "Inconsistency detected", "details": errors}), file=sys.stderr)
+        sys.exit(1)
+
+    summary = build_summary(config, story_counts)
+    print(json.dumps(summary, indent=2))
+    sys.exit(0)
 
 
 def cmd_trace_dependencies(args: argparse.Namespace) -> None:

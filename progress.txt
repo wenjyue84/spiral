@@ -462,7 +462,6 @@
 
 
 ## Pre-analysis for US-675 (Gemini 2.5 Pro)
-<<<<<<< Updated upstream
 This brief outlines the implementation of a CLI command, `spiral trace-dependencies`, not a Frappe feature. The user story context appears mismatched with the project's nature.
 
 **1. Primary Files for Modification:**
@@ -485,36 +484,6 @@ This brief outlines the implementation of a CLI command, `spiral trace-dependenc
 *   **Missing/Orphan Dependencies:** Handle cases where a dependency points to a non-existent story ID.
 *   **Cross-Project ID Parsing:** The logic must parse federated story IDs like `PROJECT-B-US-005` to locate the correct sub-project and its data file.
 *   **Performance:** For very deep dependency chains, the recursive algorithm could hit recursion depth limits if not managed carefully.
-=======
-Here is the technical brief for implementing the `trace-dependencies` command in the Spiral CLI project.
-
-***
-
-**Project:** Spiral CLI (Python-based command-line tool)
-**Objective:** Implement `spiral trace-dependencies <story-id>` to resolve and visualize federated dependency chains.
-
-**1. Files to Modify:**
-*   `main.py`: To register the new `trace-dependencies` CLI command, likely using a library like `argparse` or `Click`. This will be the entry point.
-*   `lib/dependency_graph.py`: The core logic for dependency resolution should be added here. This file likely contains existing graph-related utilities. A new function, e.g., `resolve_federated_dependencies`, will be needed.
-*   `lib/check_dag.py`: This file can be leveraged or extended for the new, more complex circular dependency detection across projects.
-
-**2. Key Data Structures / "DocTypes":**
-*   **Story JSON:** The primary data model is the story format itself (`prd.json`), containing the `id` and `dependencies` array.
-*   **Federated Project Config:** A mechanism is needed to map a project prefix (e.g., `PROJECT-B`) to its file path. This may require a new configuration file (`spiral.config.json`) or convention.
-
-**3. Implementation Approach:**
-1.  Define the new command in `main.py` that accepts a `story_id`.
-2.  Implement a resolver function that uses a Depth-First Search (DFS) traversal to recursively walk the dependency graph.
-3.  The resolver must parse story IDs (e.g., `PROJECT-B-US-005`) to locate and load story data from different project directories based on the federated project configuration.
-4.  During traversal, maintain a `visited` set for the current recursion path to detect cycles.
-5.  Build the JSON output structure as defined in the acceptance criteria, tracking `depth`, `sub_project`, and `files`.
-6.  Add a separate formatter to present the result as a human-readable tree for the console.
-
-**4. Edge Cases & Gotchas:**
-*   **Circular Dependencies:** Ensure cycle detection correctly identifies paths that cross project boundaries (e.g., A -> B -> A).
-*   **Missing/Malformed Data:** The resolver must gracefully handle missing story files or dependencies that don't resolve to a known project.
-*   **Configuration Management:** The strategy for defining and locating federated projects is the main undefined variable and a potential blocker. The implementation will need to assume a clear lookup mechanism.
->>>>>>> Stashed changes
 
 ---
 
@@ -714,3 +683,41 @@ This technical brief is for implementing an integration test for a command-line 
 *   **State Isolation:** Use pytest's `tmp_path` fixture to ensure the test runs in an isolated directory, preventing side effects.
 *   **Process Output:** Capture `stdout` from the `spiral.sh` script to validate that all R→C phases executed in the correct sequence.
 *   **Test Data:** The test must programmatically create the "5 seed stories" as files in the temporary directory before execution.
+
+
+## Pre-analysis for US-697 (Gemini 2.5 Pro)
+This is not a Frappe/Python user story. The context and user story JSON point to the "Spiral" project, a Python-based tool for managing software development workflows. The technical brief will address the actual story provided for the Spiral project.
+
+***
+
+### **Technical Brief: US-697**
+
+**Objective:** Add an integration test for federated changelog generation, ensuring it respects cross-project dependencies.
+
+**1. Files to Modify:**
+*   **Create New Test File:** `tests/test_federated_phase_g.py`.
+*   **Potential Logic Files (for reference/import):**
+    *   `lib/release_notes.py`: Likely contains the core logic for generating `CHANGELOG.md`.
+    *   `lib/dependency_graph.py`: The module responsible for building and sorting the story dependency graph.
+    *   `lib/federated.py`: Contains logic for handling federated `prd.json` files.
+
+**2. Involved Components (Not Frappe DocTypes):**
+*   **Federated `prd.json`:** The test will need to create a mock federated `prd.json` structure, simulating multiple sub-projects.
+*   **Dependency Graph:** The core component to be tested is the logic that builds a global dependency graph from federated story files.
+*   **Changelog Generator:** The process that consumes the sorted dependency graph to produce the final `CHANGELOG.md`.
+
+**3. Implementation Approach:**
+1.  In `tests/test_federated_phase_g.py`, create a test function `test_federated_changelog_respects_dependency_order`.
+2.  Use a temporary directory structure (`pytest.tmp_path`) to mock two sub-projects (`sub1`, `sub2`).
+3.  Generate `prd.json` for each sub-project, defining stories where at least one story in `sub1` depends on a story in `sub2` (e.g., `dependencies: ["sub2/US-102"]`).
+4.  Invoke the changelog generation function from `lib/release_notes.py`, pointing it to the root of the temporary federated project structure.
+5.  Read the generated `CHANGELOG.md`.
+6.  Assert that all stories from both sub-projects are present and correctly namespaced (e.g., `sub1/US-101`).
+7.  Verify that the story order in the changelog correctly reflects the cross-project dependencies (a dependent story must appear after its dependency).
+
+**4. Edge Cases & Gotchas:**
+*   The dependency parser must correctly resolve the `project_name/story_id` syntax.
+*   Ensure the test correctly sets up the federated project structure so the system can discover and merge the `prd.json` files.
+*   The test should clean up all temporary files and directories it creates.
+*   Consider asserting that an invalid or circular cross-project dependency is handled gracefully (e.g., raises an exception), though this could be a separate test case.
+
