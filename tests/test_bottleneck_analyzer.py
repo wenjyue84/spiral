@@ -6,8 +6,6 @@ import csv
 import tempfile
 from pathlib import Path
 
-import pytest
-
 from lib.dashboard.bottleneck_analyzer import BottleneckAnalyzer
 
 
