@@ -174,6 +174,33 @@ Fix any failures before proceeding to commit. This prevents CI failures from ruf
 mypy strict (`-> None` missing on test methods), shellcheck/shfmt, and syntax errors in new files.
 If pre-commit is not installed, run: `uv run pre-commit install`.
 
+### Known Gotchas (Prevent Common Failures)
+
+**Post-implementation gates** — After your code is staged, these gates run automatically. If any fails, ALL your work is reverted:
+- **Secret scan**: Staged files scanned for API keys/tokens (gitleaks). Never hardcode secrets.
+- **Diff size guard**: Total added+deleted lines must be < SPIRAL_MAX_DIFF_LINES (~400). Budget for ruff formatter expansion (+30-50%).
+- **Scope guard**: If SPIRAL_STRICT_SCOPE_GUARD=true, changes must only touch files in `filesTouch`. Safe when filesTouch is empty.
+
+**Pre-commit hooks that commonly fail:**
+- **ruff I001**: Import sorting. Put stdlib first, then third-party, then local. Use `from __future__` first if needed.
+- **ruff F401**: Unused imports. Remove any import you don't use.
+- **mypy strict**: ALL functions need explicit return types (including `-> None` on test methods). No bare `Any` — use `dict[str, Any]` instead.
+- **shellcheck/shfmt**: Shell scripts must use LF line endings (not CRLF). Use `--` not em dashes in comments. Indent with 2 spaces.
+
+**Windows Python encoding:**
+- ALWAYS open files with `encoding='utf-8'`: `open(path, encoding='utf-8')`
+- Without this, Windows defaults to cp1252 which crashes on unicode characters in prd.json and progress.txt.
+
+**Ruff formatter expands code:**
+- Compact dict-per-line and list comprehensions get expanded to multi-line by `ruff format`.
+- Budget ~30-50% more lines than your raw code for the formatted version.
+- Run `uv run ruff format <file>` before measuring your diff size.
+
+**Import paths:**
+- `lib/impl/` has no `__init__.py` — import as `from lib.impl.module_name import X`, NOT `from .module_name import X`.
+- Tests use `sys.path.insert(0, ...)` in conftest.py. New test files in `tests/` auto-inherit this.
+- For `lib/` modules, import as `from lib.module import X` or `from lib.subpackage.module import X`.
+
 ### 8. Commit Changes
 ```bash
 rtk git add -A

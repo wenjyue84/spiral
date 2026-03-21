@@ -96,6 +96,53 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString(), clients: clients.size });
 });
 
+// Escalation breakdown endpoint (US-646)
+app.get('/api/dashboard/escalation-breakdown', (req, res) => {
+  const escalationsFile = join(resolve('.'), '.spiral', 'escalations.json');
+
+  try {
+    if (!existsSync(escalationsFile)) {
+      // Return empty breakdown if no escalations yet
+      return res.json({
+        token_limit: 0,
+        syntax_error: 0,
+        timeout: 0,
+        api_error: 0,
+        total_escalations: 0
+      });
+    }
+
+    const content = readFileSync(escalationsFile, 'utf-8');
+    const escalations = JSON.parse(content) as Array<{ reason: string }>;
+
+    // Count by reason code
+    const breakdown: Record<string, number> = {
+      token_limit: 0,
+      syntax_error: 0,
+      timeout: 0,
+      api_error: 0
+    };
+
+    for (const entry of escalations) {
+      const reason = entry.reason || 'api_error';
+      if (reason in breakdown) {
+        breakdown[reason]++;
+      }
+    }
+
+    res.json({
+      token_limit: breakdown.token_limit,
+      syntax_error: breakdown.syntax_error,
+      timeout: breakdown.timeout,
+      api_error: breakdown.api_error,
+      total_escalations: escalations.length
+    });
+  } catch (e) {
+    console.error('[escalation-breakdown] Error reading escalations.json:', e);
+    res.status(500).json({ error: 'Failed to read escalation data' });
+  }
+});
+
 // Start server
 server.listen(PORT, () => {
   console.log(`[${new Date().toISOString()}] SPIRAL WebSocket server listening on port ${PORT}`);

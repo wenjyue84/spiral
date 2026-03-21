@@ -1,0 +1,45 @@
+## Iteration [Current] - Story: US-646 Model Escalation Explainability Report
+
+### What was implemented
+- **lib/impl/escalation_tracker.py** — New module to track and categorize model escalations
+  - `detect_reason_code()` — Analyzes stderr output to identify escalation reason (token_limit, syntax_error, timeout, api_error)
+  - `write_escalation()` — Writes escalation entries to .spiral/escalations.json
+  - CLI interface for logging escalations from Ralph retry logic
+  - Handles empty/missing data gracefully with sensible defaults
+
+- **spiral-ui/server.ts** — Added REST API endpoint
+  - GET /api/dashboard/escalation-breakdown — Returns categorized counts of escalations by reason code
+  - Reads .spiral/escalations.json and aggregates counts
+  - Returns {token_limit, syntax_error, timeout, api_error, total_escalations}
+  - Gracefully handles missing escalations file (returns zeros)
+
+- **tests/test_escalation_tracking.py** — Comprehensive test suite with 10 tests
+  - TestDetectReasonCode: 6 tests covering all reason code detection patterns
+  - TestWriteEscalation: 3 tests for file I/O and appending behavior
+  - TestEscalationBreakdown: 1 integration test with 3 mock failures (token_limit, syntax_error, timeout)
+  - All tests use pytest fixtures and tmp_path for isolation
+
+### Patterns discovered
+- The project uses .spiral/ as the scratch directory for runtime artifacts
+- spiral-ui runs on port 5299 with Express/TypeScript server
+- Escalation entries include: story, attempt, model_used, reason, tokens_used, retry_model, timestamp (ISO8601 UTC)
+- Reason codes form a closed set (validated enum): token_limit, syntax_error, timeout, api_error
+- Tests follow pytest patterns with class-based organization and return type annotations (-> None)
+
+### Gotchas
+- Windows Python requires `encoding='utf-8'` on all file operations to avoid cp1252 crashes
+- mypy strict mode requires explicit return type annotations on all functions/methods
+- Ruff lint checks for unused imports (must remove os import if unused)
+- The escalations.json file is created on first write; endpoint gracefully handles missing file
+
+### Acceptance Criteria Mapping
+1. ✅ Phase I writes to .spiral/escalations.json with correct schema
+   - Implemented via `write_escalation()` with {story, attempt, model_used, reason, tokens_used, retry_model, timestamp}
+
+2. ✅ Dashboard endpoint GET /api/dashboard/escalation-breakdown returns categorized counts
+   - Implemented in spiral-ui/server.ts at /api/dashboard/escalation-breakdown
+   - Returns {token_limit, syntax_error, timeout, api_error, total_escalations}
+
+3. ✅ Test with 3 mock story failures (token_limit, syntax_error, timeout)
+   - TestEscalationBreakdown::test_count_by_reason_code creates exactly 3 mock failures
+   - Verifies counts match expected values and all 3 entries recorded
