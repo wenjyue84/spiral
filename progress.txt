@@ -1284,6 +1284,7 @@ This story implements a cost-saving retry mechanism. The agent "Ralph" fails on 
 
 ## Pre-analysis for US-597 (Gemini 2.5 Pro)
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 Here is a technical brief for the Claude agent based on the provided user story.
 
 ***
@@ -1424,6 +1425,8 @@ Here is a technical brief for implementing story US-597.
 - Pre-commit shellcheck on retry.sh requires LF line endings (not CRLF) -- Windows editors can corrupt this
 - Em dash characters (—) in bash comments trigger shellcheck encoding errors; use -- instead
 =======
+=======
+>>>>>>> Stashed changes
 ### Technical Brief: US-597 File-Aware Retry Strategy
 
 **Objective:** Implement a file-aware retry mechanism where a failed execution only re-processes the specific files that caused the failure, based on parsing stderr logs.
@@ -1451,4 +1454,7 @@ Here is a technical brief for implementing story US-597.
 *   **Shell Parsing:** `retry.sh` needs a reliable method (like `jq`) for parsing the JSON array from the TSV column to avoid issues with escaping and special characters.
 *   **Empty Results:** The logic must handle cases where the `failed_files` column is empty or malformed.
 
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
