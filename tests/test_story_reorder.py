@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+from typing import Any
+
+import pytest
+
 from lib.story_reorder import build_dep_graph, topological_sort
 
 
-def _story(sid: str, deps: list[str] | None = None) -> dict:
+def _story(sid: str, deps: list[str] | None = None) -> dict[str, Any]:
     """Helper to create a story dict."""
     return {
         "id": sid,
@@ -49,9 +53,13 @@ class TestBuildDepGraph:
         graph = build_dep_graph(stories)
         assert graph["US-002"] == ["US-001"]
 
-    def test_invalid_story_entries_skipped(self) -> None:
-        """Non-dict entries are skipped."""
-        stories = [_story("US-001"), "invalid", None, _story("US-002")]
+    def test_story_without_id_skipped(self) -> None:
+        """Stories without id are skipped."""
+        stories: list[dict[str, Any]] = [
+            _story("US-001"),
+            {"title": "No ID Story"},
+            _story("US-002"),
+        ]
         graph = build_dep_graph(stories)
         assert "US-001" in graph
         assert "US-002" in graph
@@ -151,7 +159,7 @@ class TestTopologicalSort:
 
     def test_all_fields_preserved(self) -> None:
         """Sort preserves all story fields."""
-        stories = [
+        stories: list[dict[str, Any]] = [
             {
                 "id": "US-001",
                 "title": "First",

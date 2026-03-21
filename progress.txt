@@ -972,3 +972,35 @@ This technical brief is for user story US-698 concerning the internal 'SPIRAL' D
 *   **Circular Dependencies:** The sorting algorithm must detect dependency cycles and raise a clear error, identifying the stories involved in the cycle.
 *   **Atomic Operations:** The read-modify-write operation on `prd.json` should be atomic to prevent data corruption from concurrent processes.
 *   **Graph Integrity:** The code should handle cases where a story's dependency does not exist in the list of pending stories.
+## Iteration 1 - Sun, Mar 22, 2026  7:29:08 AM
+FAILED diagnosis-block gate: Phase M Story Reordering by Dependency Graph for Optimal Merge Order (ID: US-698) — no diagnosis block found — attempt 1/3
+
+
+## Pre-analysis for US-698 (Gemini 2.5 Pro)
+This is not a Frappe application; it's an internal Python-based development tool named "Spiral". The technical brief for the "Claude Code" agent is as follows:
+
+**Project:** Spiral Development Tool
+**Goal:** Implement topological story sorting to optimize the merge order.
+
+**1. Core Files to Modify:**
+*   **Create `lib/story_reorder.py`:** This new file will house the main `topological_sort` function, implementing Kahn's algorithm as specified.
+*   **Modify `main.py` (or orchestrator script):** The main application logic that runs the merge process ("Phase M") must be altered. This script will now:
+    1.  Load `prd.json`.
+    2.  Call `lib.story_reorder.py.topological_sort()`.
+    3.  Update the `SPIRAL_PENDING` list in the loaded JSON structure.
+    4.  Pass the reordered data to the existing `merge_prd.py` script.
+*   **Modify `main.py` (CLI entrypoint):** Add a new CLI command `show-merge-order` that utilizes the sorting function to display the calculated order and dependency justifications.
+
+**2. Frappe DocTypes / Hooks:**
+*   None. This is a standalone Python script-based tool. The primary data structure is the `prd.json` file, which contains the `SPIRAL_PENDING` list of stories and the dependency graph.
+
+**3. Implementation Approach:**
+*   **Sorting:** Implement Kahn's algorithm in `topological_sort`. The function should take the list of stories and a dependency graph, then return the sorted list.
+*   **Integration:** Locate the function responsible for the merging process. Inject a call to your new `topological_sort` function before the step that executes `merge_prd.py`.
+*   **CLI Command:** Use the project's existing CLI framework (e.g., `argparse`, `click`) in `main.py` to register `show-merge-order`. This command should format the output clearly, showing each story and its dependencies.
+
+**4. Edge Cases & Gotchas:**
+*   **Dependency Cycles:** Kahn's algorithm can detect cycles. Your implementation must gracefully handle and report cycles in the dependency graph, as this would prevent a valid sort.
+*   **Invalid Dependencies:** The graph may contain dependencies on stories that do not exist. Validate dependencies and report errors.
+*   **File I/O:** Ensure robust error handling for reading/writing `prd.json`.
+
