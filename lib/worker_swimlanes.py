@@ -40,11 +40,13 @@ def compute_swimlane_data(
 
         # Single worker for now; multi-worker support when workers write to phase_trace
         if phases_list:
-            swimlanes.append({
-                "worker_id": 0,
-                "iteration": iter_num,
-                "phases": _format_phases(phases_list),
-            })
+            swimlanes.append(
+                {
+                    "worker_id": 0,
+                    "iteration": iter_num,
+                    "phases": _format_phases(phases_list),
+                }
+            )
 
     return swimlanes
 
@@ -68,12 +70,14 @@ def _format_phases(phases_list: list[dict[str, Any]]) -> list[dict[str, Any]]:
         start_time = datetime.now(timezone.utc).isoformat()
         status = "skipped" if "Skipping" in label else "success"
 
-        formatted.append({
-            "phase_name": phase_name,
-            "duration_ms": duration_ms,
-            "start_time": start_time,
-            "status": status,
-        })
+        formatted.append(
+            {
+                "phase_name": phase_name,
+                "duration_ms": duration_ms,
+                "start_time": start_time,
+                "status": status,
+            }
+        )
         current_ms += duration_ms
 
     return formatted

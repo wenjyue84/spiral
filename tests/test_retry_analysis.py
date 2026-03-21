@@ -8,7 +8,6 @@ from pathlib import Path
 # Add lib directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
 
-import pytest
 
 from retry_analysis import compute_retry_rates, compute_retry_stats, load_results
 

@@ -17,8 +17,6 @@ import time
 from pathlib import Path
 from typing import Any
 
-import pytest
-
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "lib"))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "lib", "core"))
 
@@ -95,9 +93,7 @@ def _write_checkpoint(
 
 def _write_tsv(path: Path, rows: list[dict[str, str]]) -> None:
     with open(path, "w", encoding="utf-8", newline="") as f:
-        writer = csv.DictWriter(
-            f, fieldnames=_TSV_HEADER, delimiter="\t", extrasaction="ignore", lineterminator="\n"
-        )
+        writer = csv.DictWriter(f, fieldnames=_TSV_HEADER, delimiter="\t", extrasaction="ignore", lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
 
@@ -186,9 +182,7 @@ class TestCheckpointPersistence:
         )
 
         data = json.loads(ckpt_path.read_text(encoding="utf-8"))
-        assert data["storyId"] == "US-004", (
-            "Checkpoint must record US-004 as the next story to resume at"
-        )
+        assert data["storyId"] == "US-004", "Checkpoint must record US-004 as the next story to resume at"
         assert len(data["completed_stories"]) == 3, "Exactly 3 stories were completed before crash"
 
     def test_checkpoint_missing_without_crash(self, tmp_path: Path) -> None:
@@ -230,9 +224,7 @@ class TestCheckpointResumeLogic:
         ckpt_phase = data["phase"]
 
         # Phase I must come after R (Research) and T (Test Synthesis)
-        assert PHASE_ORDER[ckpt_phase] > PHASE_ORDER["R"], (
-            f"Resume phase '{ckpt_phase}' must be after Research (R)"
-        )
+        assert PHASE_ORDER[ckpt_phase] > PHASE_ORDER["R"], f"Resume phase '{ckpt_phase}' must be after Research (R)"
         assert PHASE_ORDER[ckpt_phase] > PHASE_ORDER["T"], (
             f"Resume phase '{ckpt_phase}' must be after Test Synthesis (T)"
         )
@@ -327,9 +319,7 @@ class TestResultsTsvConsistency:
             assert actual["timestamp"] == expected["timestamp"], (
                 f"Row {i}: timestamp changed for {expected['story_id']}"
             )
-            assert actual["status"] == expected["status"], (
-                f"Row {i}: status changed for {expected['story_id']}"
-            )
+            assert actual["status"] == expected["status"], f"Row {i}: status changed for {expected['story_id']}"
 
     def test_new_rows_appended_after_recovery(self, tmp_path: Path) -> None:
         """Rows for US-004 and US-005 must appear after the pre-crash rows."""
@@ -358,9 +348,7 @@ class TestResultsTsvConsistency:
         assert "US-004" in story_ids, "US-004 must be appended after recovery"
         assert "US-005" in story_ids, "US-005 must be appended after recovery"
         # Post-recovery rows come after pre-crash rows in file order
-        assert story_ids.index("US-004") > story_ids.index("US-003"), (
-            "US-004 must appear after US-003 in results.tsv"
-        )
+        assert story_ids.index("US-004") > story_ids.index("US-003"), "US-004 must appear after US-003 in results.tsv"
 
     def test_no_duplicate_rows_after_recovery(self, tmp_path: Path) -> None:
         """No duplicate (story_id, timestamp) pairs exist after recovery."""
@@ -386,8 +374,7 @@ class TestResultsTsvConsistency:
         all_rows = _read_tsv(results_path)
         dedup_keys = [(r["story_id"], r["timestamp"]) for r in all_rows]
         assert len(dedup_keys) == len(set(dedup_keys)), (
-            f"Duplicate (story_id, timestamp) pairs found: "
-            f"{[k for k in dedup_keys if dedup_keys.count(k) > 1]}"
+            f"Duplicate (story_id, timestamp) pairs found: {[k for k in dedup_keys if dedup_keys.count(k) > 1]}"
         )
 
     def test_duplicate_row_detection(self, tmp_path: Path) -> None:
