@@ -259,6 +259,7 @@
 
 
 ## Pre-analysis for US-675 (Gemini 2.5 Pro)
+<<<<<<< Updated upstream
 This brief outlines the implementation of a CLI command, `spiral trace-dependencies`, not a Frappe feature. The user story context appears mismatched with the project's nature.
 
 **1. Primary Files for Modification:**
@@ -281,4 +282,67 @@ This brief outlines the implementation of a CLI command, `spiral trace-dependenc
 *   **Missing/Orphan Dependencies:** Handle cases where a dependency points to a non-existent story ID.
 *   **Cross-Project ID Parsing:** The logic must parse federated story IDs like `PROJECT-B-US-005` to locate the correct sub-project and its data file.
 *   **Performance:** For very deep dependency chains, the recursive algorithm could hit recursion depth limits if not managed carefully.
+=======
+Here is the technical brief for implementing the `trace-dependencies` command in the Spiral CLI project.
+
+***
+
+**Project:** Spiral CLI (Python-based command-line tool)
+**Objective:** Implement `spiral trace-dependencies <story-id>` to resolve and visualize federated dependency chains.
+
+**1. Files to Modify:**
+*   `main.py`: To register the new `trace-dependencies` CLI command, likely using a library like `argparse` or `Click`. This will be the entry point.
+*   `lib/dependency_graph.py`: The core logic for dependency resolution should be added here. This file likely contains existing graph-related utilities. A new function, e.g., `resolve_federated_dependencies`, will be needed.
+*   `lib/check_dag.py`: This file can be leveraged or extended for the new, more complex circular dependency detection across projects.
+
+**2. Key Data Structures / "DocTypes":**
+*   **Story JSON:** The primary data model is the story format itself (`prd.json`), containing the `id` and `dependencies` array.
+*   **Federated Project Config:** A mechanism is needed to map a project prefix (e.g., `PROJECT-B`) to its file path. This may require a new configuration file (`spiral.config.json`) or convention.
+
+**3. Implementation Approach:**
+1.  Define the new command in `main.py` that accepts a `story_id`.
+2.  Implement a resolver function that uses a Depth-First Search (DFS) traversal to recursively walk the dependency graph.
+3.  The resolver must parse story IDs (e.g., `PROJECT-B-US-005`) to locate and load story data from different project directories based on the federated project configuration.
+4.  During traversal, maintain a `visited` set for the current recursion path to detect cycles.
+5.  Build the JSON output structure as defined in the acceptance criteria, tracking `depth`, `sub_project`, and `files`.
+6.  Add a separate formatter to present the result as a human-readable tree for the console.
+
+**4. Edge Cases & Gotchas:**
+*   **Circular Dependencies:** Ensure cycle detection correctly identifies paths that cross project boundaries (e.g., A -> B -> A).
+*   **Missing/Malformed Data:** The resolver must gracefully handle missing story files or dependencies that don't resolve to a known project.
+*   **Configuration Management:** The strategy for defining and locating federated projects is the main undefined variable and a potential blocker. The implementation will need to assume a clear lookup mechanism.
+>>>>>>> Stashed changes
+
+---
+
+## Iteration [30] - Story: US-661 CLI: spiral validate-phase-outputs
+
+### What was implemented
+- **lib/schemas/phase_R.schema.json** — Schema for _research_output.json (requires stories array with title/description/acceptanceCriteria/priority)
+- **lib/schemas/phase_T.schema.json** — Schema for _test_stories_output.json (same structure as R)
+- **lib/schemas/phase_S.schema.json** — Schema for _validated_stories.json (same structure as R)
+- **lib/schemas/phase_M.schema.json** — Schema for prd.json (requires userStories array with id/title/passes)
+- **lib/spiral/validate_phase_outputs.py** — Core validation module
+  - `PHASE_FILE_MAP` maps R→_research_output.json, T→_test_stories_output.json, S→_validated_stories.json, M→../prd.json
+  - `_validate_object()` — recursive lightweight JSON Schema-like validator (no external deps)
+  - `validate_phase(phase, spiral_dir, schema_dir)` → `{valid, phase, errors: [{file, line, expected, got}]}`
+  - `validate_phases(phases, spiral_dir, schema_dir)` — validate list or all phases
+  - `format_text_report(results)` — human-readable [ok]/[fail] output
+- **main.py** — Added `validate-phase-outputs` subparser with `--phase R|T|S|M`, `--spiral-dir`, `--schema-dir`, `--format json|text`
+- **tests/test_validate_phase_outputs.py** — 21 tests across 5 classes, all passing
+
+### Patterns discovered
+- Phase M outputs to prd.json (parent of .spiral/), not a .spiral/ file — use PHASE_FILE_MAP with "../prd.json"
+- mypy --strict passes on validate_phase_outputs.py cleanly
+- ruff format auto-reformats long list comprehensions to single-line
+
+### Gotchas
+- Phase M path resolution: `spiral_path.parent / relative_file[3:]` for "../prd.json"
+- Schema files must exist in lib/schemas/ before validation can run (no auto-creation)
+- ruff format touches test files with long argument lists — run format before committing
+
+### Acceptance Criteria Mapping
+1. ✅ lib/spiral/validate_phase_outputs.py with schema matchers for each phase output type
+2. ✅ CLI command `spiral validate-phase-outputs [--phase R|T|S|M]` validates .spiral/ output files against lib/schemas/phase_*.schema.json
+3. ✅ JSON output {valid, phase, errors: [{file, line, expected, got}]} and --format text for human-readable report
 

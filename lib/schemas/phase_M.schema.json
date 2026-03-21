@@ -1,0 +1,17 @@
+{
+  "description": "Phase M (Merge) output: prd.json",
+  "required": ["userStories"],
+  "properties": {
+    "userStories": {
+      "type": "array",
+      "items": {
+        "required": ["id", "title", "passes"],
+        "properties": {
+          "id": {"type": "string"},
+          "title": {"type": "string"},
+          "passes": {"type": "boolean"}
+        }
+      }
+    }
+  }
+}

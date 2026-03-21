@@ -1,0 +1,18 @@
+{
+  "description": "Phase T (Test Synthesis) output: _test_stories_output.json",
+  "required": ["stories"],
+  "properties": {
+    "stories": {
+      "type": "array",
+      "items": {
+        "required": ["title", "description", "acceptanceCriteria", "priority"],
+        "properties": {
+          "title": {"type": "string"},
+          "description": {"type": "string"},
+          "acceptanceCriteria": {"type": "array"},
+          "priority": {"type": "string", "enum": ["high", "medium", "low"]}
+        }
+      }
+    }
+  }
+}

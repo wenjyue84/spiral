@@ -3552,6 +3552,38 @@ def main():
         help="Output machine-readable JSON instead of ASCII tree",
     )
 
+    # ── validate-phase-outputs subcommand (US-661) ────────────────────────────
+    validate_phase_parser = subparsers.add_parser(
+        "validate-phase-outputs",
+        help="Validate .spiral/ phase output files against schemas (US-661)",
+    )
+    validate_phase_parser.add_argument(
+        "--phase",
+        metavar="PHASE",
+        choices=["R", "T", "S", "M"],
+        default=None,
+        help="Phase to validate: R, T, S, or M (default: all phases)",
+    )
+    validate_phase_parser.add_argument(
+        "--spiral-dir",
+        metavar="DIR",
+        default=".spiral",
+        help="Directory containing phase output files (default: .spiral)",
+    )
+    validate_phase_parser.add_argument(
+        "--schema-dir",
+        metavar="DIR",
+        default="lib/schemas",
+        help="Directory containing schema files (default: lib/schemas)",
+    )
+    validate_phase_parser.add_argument(
+        "--format",
+        choices=["json", "text"],
+        default="json",
+        dest="output_format",
+        help="Output format: json (default) or text",
+    )
+
     args = parser.parse_args()
 
     if args.command == "init":
@@ -3662,6 +3694,8 @@ def main():
         cmd_cost_forecast(args)
     elif args.command == "trace-dependencies":
         cmd_trace_dependencies(args)
+    elif args.command == "validate-phase-outputs":
+        cmd_validate_phase_outputs(args)
     else:
         parser.print_help()
         sys.exit(0)
@@ -4001,6 +4035,51 @@ def cmd_trace_dependencies(args: argparse.Namespace) -> None:
             sys.exit(2)
 
     sys.exit(0)
+
+
+def cmd_validate_phase_outputs(args: argparse.Namespace) -> None:
+    """Validate .spiral/ phase output files against schemas (US-661).
+
+    Usage: spiral validate-phase-outputs [--phase R|T|S|M] [--format json|text]
+           [--spiral-dir DIR] [--schema-dir DIR]
+
+    Validates _research_output.json (R), _test_stories_output.json (T),
+    _validated_stories.json (S), and prd.json (M) against lib/schemas/phase_*.schema.json.
+
+    JSON output: [{valid, phase, errors: [{file, line, expected, got}]}]
+    Text output: human-readable pass/fail per phase with error details.
+    """
+    sys.path.insert(0, str(Path(__file__).parent / "lib" / "spiral"))
+    from validate_phase_outputs import (  # type: ignore[import-untyped]
+        format_text_report,
+        validate_phase,
+        validate_phases,
+    )
+
+    phase: str | None = getattr(args, "phase", None)
+    spiral_dir: str = getattr(args, "spiral_dir", ".spiral")
+    schema_dir: str = getattr(args, "schema_dir", "lib/schemas")
+    output_format: str = getattr(args, "output_format", "json")
+
+    if phase:
+        results = [validate_phase(phase, spiral_dir=spiral_dir, schema_dir=schema_dir)]
+    else:
+        results = validate_phases(spiral_dir=spiral_dir, schema_dir=schema_dir)
+
+    all_valid = all(r["valid"] for r in results)
+
+    if output_format == "text":
+        print(format_text_report(results))
+    else:
+        print(json.dumps(results, indent=2))
+
+    if not all_valid:
+        failed = [r["phase"] for r in results if not r["valid"]]
+        print(f"[fail] Validation failed for phase(s): {', '.join(failed)}", file=sys.stderr)
+        sys.exit(1)
+    else:
+        print(f"[ok] All {len(results)} phase(s) valid", file=sys.stderr)
+        sys.exit(0)
 
 
 if __name__ == "__main__":
