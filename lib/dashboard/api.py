@@ -278,10 +278,7 @@ async def phase_cost_breakdown() -> dict[str, Any]:
     phases: dict[str, dict[str, Any]] = {}
     for r in records:
         phase = "Phase I"
-        tokens = sum(
-            int(v) if v else 0
-            for v in (r.cache_read_tokens, r.cache_creation_tokens, r.review_tokens)
-        )
+        tokens = sum(int(v) if v else 0 for v in (r.cache_read_tokens, r.cache_creation_tokens, r.review_tokens))
         model = r.model or "haiku"
         rate = _PHASE_COST_RATE.get(model.lower().split("-")[0], _PHASE_COST_RATE["haiku"])
         if phase not in phases:
@@ -293,13 +290,15 @@ async def phase_cost_breakdown() -> dict[str, Any]:
     result = []
     for phase, d in phases.items():
         n = d["count"] or 1
-        result.append({
-            "phase": phase,
-            "token_count": d["tokens"],
-            "cost_usd": round(d["cost"], 6),
-            "model_dist": {m: round(c / n, 4) for m, c in d["models"].items()},
-            "story_count": d["count"],
-        })
+        result.append(
+            {
+                "phase": phase,
+                "token_count": d["tokens"],
+                "cost_usd": round(d["cost"], 6),
+                "model_dist": {m: round(c / n, 4) for m, c in d["models"].items()},
+                "story_count": d["count"],
+            }
+        )
     return {"phases": result}
 
 
@@ -319,10 +318,7 @@ async def cost_history() -> dict[str, Any]:
             iter_num = int(r.spiral_iter)
         except (ValueError, TypeError):
             continue
-        tokens = sum(
-            int(v) if v else 0
-            for v in (r.cache_read_tokens, r.cache_creation_tokens, r.review_tokens)
-        )
+        tokens = sum(int(v) if v else 0 for v in (r.cache_read_tokens, r.cache_creation_tokens, r.review_tokens))
         model = r.model or "haiku"
         rate = _PHASE_COST_RATE.get(model.lower().split("-")[0], _PHASE_COST_RATE["haiku"])
         if iter_num not in iter_data:
@@ -335,12 +331,14 @@ async def cost_history() -> dict[str, Any]:
     for iter_num in sorted(iter_data.keys()):
         d = iter_data[iter_num]
         cumulative += d["cost"]
-        result.append({
-            "iteration": iter_num,
-            "total_tokens": d["tokens"],
-            "total_cost": round(d["cost"], 6),
-            "cumulative_cost": round(cumulative, 6),
-        })
+        result.append(
+            {
+                "iteration": iter_num,
+                "total_tokens": d["tokens"],
+                "total_cost": round(d["cost"], 6),
+                "cumulative_cost": round(cumulative, 6),
+            }
+        )
     return {"history": result}
 
 

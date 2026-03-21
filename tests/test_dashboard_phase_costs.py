@@ -21,7 +21,9 @@ def _make_tsv(tmp_path, rows):  # type: ignore[no-untyped-def]
     return p
 
 
-def _row(story_id: str = "US-001", model: str = "haiku", read: int = 1000, creation: int = 500, review: int = 200) -> dict:  # type: ignore[type-arg]
+def _row(
+    story_id: str = "US-001", model: str = "haiku", read: int = 1000, creation: int = 500, review: int = 200
+) -> dict:  # type: ignore[type-arg]
     return {
         "timestamp": "2024-01-01T00:00:00",
         "spiral_iter": "1",

@@ -137,24 +137,28 @@ class TestLoadHistory:
         """Test loading valid results.tsv."""
         tsv_path = tmp_path / "results.tsv"
         with open(tsv_path, "w", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, delimiter="\t", fieldnames=[
-                "story_id", "story_title", "retry_num", "status", "duration_sec"
-            ])
+            writer = csv.DictWriter(
+                f, delimiter="\t", fieldnames=["story_id", "story_title", "retry_num", "status", "duration_sec"]
+            )
             writer.writeheader()
-            writer.writerow({
-                "story_id": "US-001",
-                "story_title": "Add auth",
-                "retry_num": "0",
-                "status": "pass",
-                "duration_sec": "120",
-            })
-            writer.writerow({
-                "story_id": "US-002",
-                "story_title": "Fix bug",
-                "retry_num": "2",
-                "status": "pass",
-                "duration_sec": "300",
-            })
+            writer.writerow(
+                {
+                    "story_id": "US-001",
+                    "story_title": "Add auth",
+                    "retry_num": "0",
+                    "status": "pass",
+                    "duration_sec": "120",
+                }
+            )
+            writer.writerow(
+                {
+                    "story_id": "US-002",
+                    "story_title": "Fix bug",
+                    "retry_num": "2",
+                    "status": "pass",
+                    "duration_sec": "300",
+                }
+            )
 
         history = load_story_history(tsv_path)
         assert len(history) == 2
@@ -243,17 +247,19 @@ class TestPredictComplexity:
 
         # Create results.tsv
         with open(results_path, "w", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, delimiter="\t", fieldnames=[
-                "story_id", "story_title", "retry_num", "status", "duration_sec"
-            ])
+            writer = csv.DictWriter(
+                f, delimiter="\t", fieldnames=["story_id", "story_title", "retry_num", "status", "duration_sec"]
+            )
             writer.writeheader()
-            writer.writerow({
-                "story_id": "US-001",
-                "story_title": "Dashboard setup",
-                "retry_num": "1",
-                "status": "pass",
-                "duration_sec": "120",
-            })
+            writer.writerow(
+                {
+                    "story_id": "US-001",
+                    "story_title": "Dashboard setup",
+                    "retry_num": "1",
+                    "status": "pass",
+                    "duration_sec": "120",
+                }
+            )
 
         result = predict_story_complexity(
             story_id="US-100",
@@ -285,18 +291,20 @@ class TestPredictComplexity:
 
         # Create results with high-retry stories
         with open(results_path, "w", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, delimiter="\t", fieldnames=[
-                "story_id", "story_title", "retry_num", "status", "duration_sec"
-            ])
+            writer = csv.DictWriter(
+                f, delimiter="\t", fieldnames=["story_id", "story_title", "retry_num", "status", "duration_sec"]
+            )
             writer.writeheader()
             for i in range(5):
-                writer.writerow({
-                    "story_id": f"US-{i:03d}",
-                    "story_title": "Complex feature",
-                    "retry_num": "2",
-                    "status": "pass",
-                    "duration_sec": "300",
-                })
+                writer.writerow(
+                    {
+                        "story_id": f"US-{i:03d}",
+                        "story_title": "Complex feature",
+                        "retry_num": "2",
+                        "status": "pass",
+                        "duration_sec": "300",
+                    }
+                )
 
         result = predict_story_complexity(
             story_id="US-999",
@@ -344,18 +352,20 @@ def fixture_15_stories(tmp_path: Path) -> tuple[Path, Path]:
     # Create results.tsv with varying retry counts
     retry_counts = [0, 0, 1, 1, 2, 2, 2, 3, 3, 3, 1, 2, 3, 0, 1]
     with open(results_path, "w", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, delimiter="\t", fieldnames=[
-            "story_id", "story_title", "retry_num", "status", "duration_sec"
-        ])
+        writer = csv.DictWriter(
+            f, delimiter="\t", fieldnames=["story_id", "story_title", "retry_num", "status", "duration_sec"]
+        )
         writer.writeheader()
         for i, retry_count in enumerate(retry_counts):
-            writer.writerow({
-                "story_id": f"US-{i:03d}",
-                "story_title": prd_data["userStories"][i]["description"],
-                "retry_num": str(retry_count),
-                "status": "pass",
-                "duration_sec": str(100 + retry_count * 50),
-            })
+            writer.writerow(
+                {
+                    "story_id": f"US-{i:03d}",
+                    "story_title": prd_data["userStories"][i]["description"],
+                    "retry_num": str(retry_count),
+                    "status": "pass",
+                    "duration_sec": str(100 + retry_count * 50),
+                }
+            )
 
     return prd_path, results_path
 

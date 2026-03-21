@@ -95,13 +95,15 @@ def load_story_history(results_tsv_path: Path) -> list[dict[str, Any]]:
             reader = csv.DictReader(f, delimiter="\t")
             for row in reader:
                 if row and row.get("story_id"):
-                    stories.append({
-                        "story_id": row.get("story_id", ""),
-                        "story_title": row.get("story_title", ""),
-                        "retry_num": int(row.get("retry_num", 0)),
-                        "status": row.get("status", ""),
-                        "duration_sec": int(row.get("duration_sec", 0)),
-                    })
+                    stories.append(
+                        {
+                            "story_id": row.get("story_id", ""),
+                            "story_title": row.get("story_title", ""),
+                            "retry_num": int(row.get("retry_num", 0)),
+                            "status": row.get("status", ""),
+                            "duration_sec": int(row.get("duration_sec", 0)),
+                        }
+                    )
     except (OSError, csv.Error, ValueError):
         pass
 
@@ -173,12 +175,14 @@ def find_similar_stories(
         similarity = cosine_similarity(target_embedding, story_embedding)
 
         if similarity > 0:  # Only include if there's some similarity
-            scored_stories.append({
-                "id": story.get("story_id", ""),
-                "similarity": round(similarity, 2),
-                "avg_retries": story.get("retry_num", 0),
-                "tokens": story.get("duration_sec", 0) * 100,  # Rough estimate
-            })
+            scored_stories.append(
+                {
+                    "id": story.get("story_id", ""),
+                    "similarity": round(similarity, 2),
+                    "avg_retries": story.get("retry_num", 0),
+                    "tokens": story.get("duration_sec", 0) * 100,  # Rough estimate
+                }
+            )
 
     # Sort by similarity descending, return top-k
     scored_stories.sort(key=lambda x: x["similarity"], reverse=True)

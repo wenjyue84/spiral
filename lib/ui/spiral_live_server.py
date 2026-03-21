@@ -764,8 +764,10 @@ class SpiralLiveServer:
 
         rows = ""
         for s in pending_stories:
-            rows += f'<tr><td>{escape(str(s["id"]))}</td><td>{escape(s["title"])}</td><td>{s["priority"]}</td></tr>\n'
-        progress_html = progress_html.replace("{{PENDING_ROWS}}", rows if rows else '<tr><td colspan="3">All stories complete!</td></tr>')
+            rows += f"<tr><td>{escape(str(s['id']))}</td><td>{escape(s['title'])}</td><td>{s['priority']}</td></tr>\n"
+        progress_html = progress_html.replace(
+            "{{PENDING_ROWS}}", rows if rows else '<tr><td colspan="3">All stories complete!</td></tr>'
+        )
 
         await self._send_html(writer, 200, progress_html)
 

@@ -6,12 +6,11 @@ import json
 import sys
 from pathlib import Path
 
-import pytest
-
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "lib" / "impl"))
 
-from lib.federated_merge_prd import merge_prds
 from phase_m_federated_order import order_federated_stories_by_dependency
+
+from lib.federated_merge_prd import merge_prds
 
 
 def _write_prd(path: Path, stories: list) -> None:  # type: ignore[type-arg]
@@ -151,11 +150,13 @@ def test_three_way_cross_project_chain(tmp_path: Path) -> None:
         tmp_path / "proj3" / "prd.json",
         [{"id": "US-C", "title": "C", "dependencies": []}],
     )
-    merged, errors = merge_prds({
-        "proj1": tmp_path / "proj1",
-        "proj2": tmp_path / "proj2",
-        "proj3": tmp_path / "proj3",
-    })
+    merged, errors = merge_prds(
+        {
+            "proj1": tmp_path / "proj1",
+            "proj2": tmp_path / "proj2",
+            "proj3": tmp_path / "proj3",
+        }
+    )
     assert errors == []
     ordered = order_federated_stories_by_dependency(merged["userStories"])
     ids = [s["id"] for s in ordered]

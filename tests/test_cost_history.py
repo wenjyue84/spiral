@@ -48,7 +48,8 @@ def _row(
 
 
 def test_cost_history_empty(
-    tmp_path: pytest.fixture, monkeypatch: pytest.MonkeyPatch  # type: ignore[valid-type]
+    tmp_path: pytest.fixture,
+    monkeypatch: pytest.MonkeyPatch,  # type: ignore[valid-type]
 ) -> None:
     """Empty results.tsv → history list is empty."""
     monkeypatch.chdir(tmp_path)
@@ -59,7 +60,8 @@ def test_cost_history_empty(
 
 
 def test_cost_history_single_iteration(
-    tmp_path: pytest.fixture, monkeypatch: pytest.MonkeyPatch  # type: ignore[valid-type]
+    tmp_path: pytest.fixture,
+    monkeypatch: pytest.MonkeyPatch,  # type: ignore[valid-type]
 ) -> None:
     """Single iteration: total_cost > 0, cumulative_cost == total_cost."""
     monkeypatch.chdir(tmp_path)
@@ -77,7 +79,8 @@ def test_cost_history_single_iteration(
 
 
 def test_cost_history_multiple_iterations_sorted_cumulative(
-    tmp_path: pytest.fixture, monkeypatch: pytest.MonkeyPatch  # type: ignore[valid-type]
+    tmp_path: pytest.fixture,
+    monkeypatch: pytest.MonkeyPatch,  # type: ignore[valid-type]
 ) -> None:
     """Two iterations: sorted by iteration, cumulative_cost is monotonically increasing."""
     monkeypatch.chdir(tmp_path)
