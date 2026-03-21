@@ -515,6 +515,44 @@ async def timeseries_endpoint(
     }
 
 
+@app.get("/api/dashboard/bottlenecks")
+async def bottlenecks_endpoint() -> dict[str, Any]:
+    """Phase bottleneck analyzer endpoint (US-670).
+
+    Analyzes results.tsv to rank phases by average duration and coefficient of variance.
+    Useful for identifying phases with high variability that need optimization.
+
+    Returns JSON with:
+        {
+            "phases": [
+                {
+                    "phase": "I",
+                    "avg_duration_ms": 5000.5,
+                    "variance": 0.456,
+                    "story_count": 23
+                },
+                ...
+            ]
+        }
+    """
+    from .bottleneck_analyzer import BottleneckAnalyzer
+
+    results_path = Path(".spiral/results.tsv")
+    response: dict[str, Any] = {"phases": []}
+
+    if not results_path.exists():
+        return response
+
+    try:
+        analyzer = BottleneckAnalyzer(results_path)
+        phases = analyzer.analyze()
+        response["phases"] = phases
+    except Exception as e:
+        logger.error(f"[/api/dashboard/bottlenecks] Error: {e}")
+
+    return response
+
+
 @app.get("/api/dashboard/phase-bottlenecks")
 async def phase_bottlenecks_endpoint(
     iteration_min: Optional[int] = None,
