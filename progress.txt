@@ -227,3 +227,28 @@
    - test_prd_with_cycle_halts_merge asserts result.has_error is True
 
 
+
+## Pre-analysis for US-675 (Gemini 2.5 Pro)
+This brief outlines the implementation of a CLI command, `spiral trace-dependencies`, not a Frappe feature. The user story context appears mismatched with the project's nature.
+
+**1. Primary Files for Modification:**
+*   `main.py`: To add the new `trace-dependencies` command, likely using a CLI framework like `argparse` or `click`.
+*   `lib/dependency_graph.py`: A new file to house the core logic for dependency resolution, graph building, and cycle detection.
+*   `lib/constants.py`: May need updates for story file names (e.g., `prd.json`) or other constants.
+
+**2. Frappe DocTypes/Hooks:**
+*   None. This is a Python-based command-line tool, not a Frappe/ERPNext application. No DocTypes or hooks are involved.
+
+**3. Recommended Implementation Approach:**
+*   Use a graph data structure (e.g., an adjacency list) to represent the dependency web.
+*   Implement a Depth-First Search (DFS) traversal algorithm starting from the given story ID to find all transitive dependencies.
+*   The main data source will be `prd.json` and potentially other `*.json` files in federated sub-projects. The logic must be able to parse these.
+*   The DFS implementation should maintain a visited set for the current traversal path to detect cycles.
+*   Create two output formatters: one for the human-readable tree and another for the specified JSON structure.
+
+**4. Edge Cases & Gotchas:**
+*   **Circular Dependencies:** The DFS must correctly identify and report the path of any dependency cycle.
+*   **Missing/Orphan Dependencies:** Handle cases where a dependency points to a non-existent story ID.
+*   **Cross-Project ID Parsing:** The logic must parse federated story IDs like `PROJECT-B-US-005` to locate the correct sub-project and its data file.
+*   **Performance:** For very deep dependency chains, the recursive algorithm could hit recursion depth limits if not managed carefully.
+
