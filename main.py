@@ -31,6 +31,7 @@ Subcommands:
   federated-status        Aggregate story status across federated sub-projects (US-629)
   monitor                 Unified monitoring snapshot for progress checks
   cost-forecast           Forecast remaining budget and timeline from results.tsv velocity (US-650)
+  trace-dependencies      Resolve and visualize full dependency chain for a story (US-675)
 """
 
 import argparse
@@ -3528,6 +3529,29 @@ def main():
         help="Number of recent iterations to use for velocity (default: 5)",
     )
 
+    # ── trace-dependencies subcommand (US-675) ────────────────────────────────
+    trace_deps_parser = subparsers.add_parser(
+        "trace-dependencies",
+        help="Resolve and visualize full dependency chain for a story (US-675)",
+    )
+    trace_deps_parser.add_argument(
+        "story_id",
+        metavar="STORY_ID",
+        help="Story ID to trace (e.g. US-001 or PROJECT-B-US-005)",
+    )
+    trace_deps_parser.add_argument(
+        "--prd",
+        default="prd.json",
+        metavar="FILE",
+        help="Path to prd.json (default: prd.json)",
+    )
+    trace_deps_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="output_json",
+        help="Output machine-readable JSON instead of ASCII tree",
+    )
+
     args = parser.parse_args()
 
     if args.command == "init":
@@ -3636,6 +3660,8 @@ def main():
         cmd_predict_story_complexity(args)
     elif args.command == "cost-forecast":
         cmd_cost_forecast(args)
+    elif args.command == "trace-dependencies":
+        cmd_trace_dependencies(args)
     else:
         parser.print_help()
         sys.exit(0)
@@ -3926,6 +3952,55 @@ def cmd_cost_forecast(args: argparse.Namespace) -> None:
     except Exception as exc:
         print(json.dumps({"error": str(exc)}), file=sys.stderr)
         sys.exit(1)
+
+
+def cmd_trace_dependencies(args: argparse.Namespace) -> None:
+    """Resolve and visualize full dependency chain for a story (US-675).
+
+    Usage: spiral trace-dependencies STORY_ID [--prd FILE] [--json]
+
+    Without --json: prints ASCII tree with sub_project labels, file paths,
+    and cycle markers.
+
+    With --json: outputs machine-readable JSON:
+        {story_id, dependencies: [{story_id, sub_project, depth, files}],
+         has_cycle, [cycle_path]}
+    """
+    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    from trace_dependencies import (  # type: ignore[import-untyped]
+        format_tree,
+        to_json_output,
+        trace_deps,
+    )
+
+    prd_path = Path(getattr(args, "prd", "prd.json"))
+    story_id: str = args.story_id
+    output_json: bool = getattr(args, "output_json", False)
+
+    stories = _load_prd(prd_path)
+    stories_by_id = {s["id"]: s for s in stories if isinstance(s, dict) and "id" in s}
+
+    if story_id not in stories_by_id:
+        print(
+            json.dumps({"error": f"Story '{story_id}' not found in {prd_path}"}),
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    root = trace_deps(story_id, stories_by_id)
+
+    if output_json:
+        output = to_json_output(root)
+        print(json.dumps(output, indent=2))
+    else:
+        tree_str = format_tree(root)
+        print(tree_str, end="")
+        if root.has_cycle:
+            cycle_str = " -> ".join(root.cycle_path)
+            print(f"\nCircular dependency detected: {cycle_str}", file=sys.stderr)
+            sys.exit(2)
+
+    sys.exit(0)
 
 
 if __name__ == "__main__":
