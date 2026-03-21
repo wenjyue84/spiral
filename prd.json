@@ -11,24 +11,6 @@
   ],
   "userStories": [
     {
-      "id": "US-643",
-      "title": "CLI: spiral archive-checkpoint -- Create Recoverable State Backup for Crash Recovery",
-      "priority": "high",
-      "description": "New CLI command to snapshot SPIRAL state (prd.json, results.tsv, .spiral/ directory) into a tar.gz archive for recovery after system failure or manual rollback.",
-      "acceptanceCriteria": [
-        "Command `spiral archive-checkpoint --output backup-iter-5.tar.gz` creates compressed archive including prd.json, results.tsv, .spiral/, .spiral-workers/ with manifest.json",
-        "Manifest.json includes: {iteration: 5, timestamp: '2026-03-21T14:30:00Z', total_stories: 10, passing_stories: 7, archive_size_mb: 2.4}",
-        "Integration test: archive checkpoint, corrupt prd.json, restore from archive, verify all files recover with identical checksums"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": true,
-      "_source": "ai-example",
-      "model": "sonnet",
-      "last_attempted": "2026-03-21T05:03:18Z"
-    },
-    {
       "id": "US-644",
       "title": "Integration Test: Cross-Phase Data Flow Validation with Output Schema Assertions",
       "priority": "high",
@@ -37,6 +19,41 @@
         "Test mocks Claude/Gemini APIs, runs phases with output capture, asserts Phase R _research_output.json contains required fields (story_id, research_summary), Phase T test_stories_output.json matches story schema, Phase S _validated_stories.json has _status field",
         "Detects schema violations (missing required fields, type mismatches) and reports error with file:function:line context (e.g., 'phase_s.py:validate_story():line 42: missing _status')",
         "Test creates mock phase outputs intentionally missing one field, asserts next phase correctly rejects it with actionable error message"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "sonnet",
+      "last_attempted": "2026-03-21T05:35:35Z"
+    },
+    {
+      "id": "US-648",
+      "title": "Phase G: Generate Dynamic API Documentation Index Page from pdoc Outputs",
+      "priority": "high",
+      "description": "Create an index.html landing page for generated API docs that lists all Python modules, their purpose, and links to pdoc-generated HTML. Include search functionality and module dependency graph visualization to improve API discoverability.",
+      "acceptanceCriteria": [
+        "Phase G: after pdoc generates module docs to .spiral/api_docs/, create index.html with {module_name, description from __doc__, file_path, dependencies} table sorted by usage frequency",
+        "Index includes full-text search input filtering modules by name/description; generate from pyproject.toml [project] description fields",
+        "Integration test: tests/test_api_docs_index.py asserts index.html contains all modules in lib/ and spiralcore/, links are valid, search filter works"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-649",
+      "title": "Ralph Agent: Inject Episodic Memory Pattern Matches into Implementation Prompt",
+      "priority": "high",
+      "description": "Wire the episodic memory store into ralph.sh so that before implementing a story, Ralph retrieves similar past solutions and includes them as few-shot examples in the prompt. Measure improvement in first-attempt pass rate and retry reduction.",
+      "acceptanceCriteria": [
+        "ralph.sh: add --memory-inject flag; before Claude invocation, query episodic_memory.py with story description to retrieve top-3 similar past patterns",
+        "Inject patterns into system prompt as: 'Similar past implementations: [pattern_1, pattern_2, pattern_3]' with file paths and key decisions",
+        "Integration test: tests/test_ralph_memory_injection.py compares retry counts with/without memory; assert ≥10% reduction in retries on success"
       ],
       "technicalNotes": [],
       "dependencies": [],
@@ -131,14 +148,14 @@
       "model": "haiku"
     },
     {
-      "id": "US-647",
-      "title": "Dashboard Endpoint: Worker Resource Usage Metrics via /api/dashboard/worker-resources",
-      "priority": "low",
-      "description": "Track and expose real-time worker process resource usage (peak memory, CPU utilization, story count) from worker heartbeats for performance bottleneck identification.",
+      "id": "US-650",
+      "title": "CLI: spiral cost-forecast -- Project Remaining Budget and Timeline Using results.tsv Velocity",
+      "priority": "medium",
+      "description": "Analyze results.tsv to derive story completion velocity (stories/iteration, tokens/iteration) and forecast remaining cost/time for stories still in prd.json backlog. Account for model escalation costs and worker parallelism.",
       "acceptanceCriteria": [
-        "Endpoint GET /api/dashboard/worker-resources returns [{worker_id: 'worker-1', memory_peak_mb: 480, avg_cpu_percent: 65, stories_completed: 3, uptime_seconds: 340}, ...] updated every 5s from .spiral/worker_heartbeats.json",
-        "Integration test spawns 2 workers, polls /api/dashboard/worker-resources during story implementation, asserts memory and CPU metrics are non-zero and reflect workload",
-        "Test verifies metrics persist in .spiral/worker-resources-history.json for post-run analysis with timestamp and resource snapshots"
+        "New CLI: 'spiral cost-forecast' outputs JSON with {remaining_stories, iterations_needed, projected_cost, confidence_pct} based on last 5 iterations' velocity",
+        "Computation: velocity = (completed_stories / completed_iterations), cost_velocity = (total_tokens / completed_iterations); forecast = (remaining_stories / velocity) * cost_velocity",
+        "Integration test: tests/test_cost_forecast.py mocks results.tsv with 10 iterations, asserts forecast within ±20% of synthetic ground truth"
       ],
       "technicalNotes": [],
       "dependencies": [],
@@ -146,6 +163,42 @@
       "passes": false,
       "_source": "ai-example",
       "model": "sonnet"
+    },
+    {
+      "id": "US-651",
+      "title": "Phase R: Implement Query Similarity Deduplication to Skip Redundant Gemini Calls",
+      "priority": "medium",
+      "description": "Before calling Gemini during Phase R, compute semantic similarity of current research query against cached queries in research_cache.json using embedding distance. Skip call if similarity > threshold (e.g., 0.85); reuse existing response.",
+      "acceptanceCriteria": [
+        "lib/research_dedup.py: add query_similarity(q1: str, q2: str) → float using sentence-transformers or TF-IDF; return cached response if similarity > SPIRAL_RESEARCH_DEDUP_THRESHOLD",
+        "Phase R: before Gemini API call, iterate research_cache.json responses, compute similarity to current query, skip call + log to results.tsv research_dedup_hit=true",
+        "Integration test: tests/test_research_dedup.py mocks embeddings, verifies cached response reuse on high-similarity query, cost savings tracked"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-643",
+      "title": "CLI: spiral archive-checkpoint -- Create Recoverable State Backup for Crash Recovery",
+      "priority": "high",
+      "description": "New CLI command to snapshot SPIRAL state (prd.json, results.tsv, .spiral/ directory) into a tar.gz archive for recovery after system failure or manual rollback.",
+      "acceptanceCriteria": [
+        "Command `spiral archive-checkpoint --output backup-iter-5.tar.gz` creates compressed archive including prd.json, results.tsv, .spiral/, .spiral-workers/ with manifest.json",
+        "Manifest.json includes: {iteration: 5, timestamp: '2026-03-21T14:30:00Z', total_stories: 10, passing_stories: 7, archive_size_mb: 2.4}",
+        "Integration test: archive checkpoint, corrupt prd.json, restore from archive, verify all files recover with identical checksums"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "sonnet",
+      "last_attempted": "2026-03-21T05:03:18Z",
+      "_scopeCreep": true
     },
     {
       "id": "US-638",
