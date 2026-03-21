@@ -138,8 +138,9 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-03-21T22:13:23Z"
     },
     {
       "id": "US-672",
@@ -4078,87 +4079,6 @@
       "_phaseI": {
         "diagnosisBlock": "## Current State\n- Existing Phase G tests mock git-cliff for CHANGELOG generation\n- Federated tests already exist with fixture PRDs containing cross-project dependencies\n- Phase G currently generates CHANGELOG from git commits, not from prd.json directly\n- Tests for federated scenarios already exist with multi-project story structures\n\n## Problem Identified\nNeed to create an integration test (US-697) that validates Phase G correctly generates CHANGELOG.md for federated prd.json scenarios, respecting dependency ordering where dependent stories appear after their dependencies (including cross-project deps).\n\n## Planned Changes\n1. Create `tests/test_federated_phase_g.py` with test class `TestFederatedChangelogDependencyOrdering`\n2. Implement `test_federated_changelog_respects_dependency_order()` that:\n   - Creates a federated prd.json with 2 sub-projects (api, webapp) with 3 stories each\n   - Includes cross-project dependencies (webapp story depends on api story)\n   - Mocks CHANGELOG generation to focus on story ordering logic\n   - Validates all 6 stories appear with namespace prefixes (e.g., \"api/US-001\")\n   - Verifies dependency order: stories appear after their dependencies\n3. Add helper function to extract and validate story ordering from CHANGELOG content\n\nLet me implement this:\nNow let me run the quality checks to ensure the code passes all tests and linting:\nPerfect! All tests pass. Let me now commit the changes and mark the story as complete:\nPerfect! Let me verify the overall completion progress:\n## Summary"
       }
-    },
-    {
-      "id": "US-699",
-      "title": "Dashboard Alert Configuration Panel: Real-Time Threshold Editor with Test Preview",
-      "priority": "high",
-      "description": "Build dashboard UI for configurable alert thresholds (cost ceiling, token burn rate, story throughput). Allow users to set limits, preview alerting behavior with test data, and persist settings to spiral.config.sh without restarting SPIRAL.",
-      "acceptanceCriteria": [
-        "Dashboard /config page with threshold inputs for SPIRAL_ALERT_COST_PER_PHASE, SPIRAL_ALERT_TOKEN_RATE, SPIRAL_ALERT_STORY_COUNT; save button writes updates to spiral.config.sh",
-        "Test Preview button simulates alert conditions (cost spike, token burn) and displays WebSocket /ws/alerts notifications in real-time without triggering actual phase gates",
-        "Threshold indicators on main dashboard show current values vs limits with color coding (green < 70%, yellow 70-90%, red > 90%)"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku",
-      "last_attempted": "2026-03-21T21:35:44Z"
-    },
-    {
-      "id": "US-700",
-      "title": "CLI: spiral init-federation — Interactive Multi-Project Bootstrap with Namespace Validation",
-      "priority": "high",
-      "description": "Interactive CLI wizard for setting up federated SPIRAL projects. Prompts for sub-project paths, story ID namespaces, generates routing.yaml, and merges sub-project prd.json files while detecting ID conflicts and validating file path patterns.",
-      "acceptanceCriteria": [
-        "CLI: spiral init-federation --interactive prompts for sub-project count/paths and ID ranges (US-100-199, US-200-299, etc.); validates no overlapping ranges; generates routing.yaml with file patterns",
-        "Merges sub-project prd.json files into federated prd.json with _sub_project field populated; detects and reports duplicate story IDs before merge completes",
-        "Validation command: spiral federated-status shows routing rules, story allocation per sub-project, and routing conflicts with actionable error messages"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-701",
-      "title": "Integration Test: Federated Multi-Worker Isolation Under Load (50+ Stories, 3 Workers)",
-      "priority": "high",
-      "description": "E2E integration test validating federated worker isolation with stress conditions. Spawns 3 parallel workers across federated sub-projects processing 50+ mixed stories, verifies prd.json.sub_project consistency and results.tsv accuracy under network/file contention.",
-      "acceptanceCriteria": [
-        "tests/test_federated_workers_stress.py spawns SPIRAL_WORKERS=3 with federated prd.json, processes 50 stories (mix of test-fix/research/seed); workers isolated in separate git worktrees per lib/run_parallel_ralph.sh",
-        "Assertions verify: no story processed by >1 worker, prd.json.sub_project unchanged per story, results.tsv.sub_project field matches story._sub_project, worktree cleanup on completion",
-        "Stress scenarios: slow git pulls (mock delay), file conflicts in shared _spiral/, cost tracking consistency across workers; test asserts recovery without prd.json/results.tsv corruption"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-707",
-      "title": "Integration Test: Track Story State Mutations Across Phase R→M→I Execution",
-      "priority": "high",
-      "description": "Add end-to-end integration test that injects a mock story in Phase R research output, traces its mutations through Phase M merge validation, and Phase I decomposition. Validates story._source progression and adds lineage tracking.",
-      "acceptanceCriteria": [
-        "Create tests/integration/test_cross_phase_lineage.py that runs mock Phase R→M→I pipeline; assert story._source progression is research→validated→test-fix and lineage field tracks parent/decomposed_from",
-        "Verify results.tsv records all phase timestamps (phase_r_end, phase_m_end, phase_i_end) and sub_phase column captures decomposition path",
-        "Test assertion: story retry count increments only on Phase I failures, not on Phase R/M transitions"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-708",
-      "title": "Integration Test: Federated Workers Maintain Isolated Worktree State Without prd.json Cross-Contamination",
-      "priority": "high",
-      "description": "End-to-end integration test spawning 2 parallel workers, assigning each a different sub-project story slice, and verifying isolated worktrees produce clean merged prd.json with correct sub_project field on completion.",
-      "acceptanceCriteria": [
-        "Test spins up workers 1 and 2 with sliced prd.json; verifies isolated git worktrees at .spiral-workers/worker-1/prd.json and worker-2/prd.json; after completion, merges both outputs and asserts no duplicate story IDs",
-        "Each completed story in results.tsv has correct sub_project column value matching assigned sub-project; no cross-project story IDs in worker outputs",
-        "Test assertion: .spiral-workers/ is cleaned up post-merge, no stale lock files in .spiral/, git worktree prune succeeds with no dangling references"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
     }
   ]
 }
