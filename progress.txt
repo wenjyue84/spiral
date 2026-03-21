@@ -1,3 +1,26 @@
+## Iteration - Story: US-636 Phase I: Distribute Federated Stories to Workers by Sub-Project
+
+### What was implemented
+- Created lib/run_parallel_ralph_federated.sh: dedicated entry point for federated mode
+  - Validates PRD has sub_project fields before proceeding
+  - Logs per-sub-project story counts and worker-{sub_project}-N naming convention
+  - Delegates to run_parallel_ralph.sh which auto-detects federated mode
+- Created tests/test_federated_partition_5_stories.py: integration test with 5+5 stories
+  - TestFederatedScript: validates the bash script exists, references sub_project, delegates correctly
+  - TestFederatedPartition5Stories: 5 api + 5 frontend stories across 2 workers each
+  - TestResultsTsvSubProjectColumn: verifies sub_project column in results.tsv write/read cycle
+  - 17 tests all passing
+
+### Patterns discovered
+- Story IDs must follow (US|UT)-NNN pattern (prd_schema.py validates this); sub_project tracked via field
+- run_parallel_ralph.sh already has federated mode embedded (_FEDERATED_MODE detection); the new script is a validated entry point
+- partition_prd.py --federated creates worker-{sub_project}-{N}.json files, NOT worker_{N}.json
+- results_tsv.py already had sub_project: str = "" field in ResultsRecord
+
+### Gotchas
+- Concurrent SPIRAL iterations may implement the same story; my implementation matched the automated run exactly
+- The script uses exec to delegate rather than calling as subprocess (avoids double shell overhead)
+
 ## Iteration - Story: US-637 Phase R: Parallelize Gemini Research by Sub-Project (FIXED)
 
 ### What was actually missing
