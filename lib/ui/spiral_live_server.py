@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """spiral_live_server.py — Live streaming server for SPIRAL worker output via SSE.
 
-Serves an HTTP server on port 5299 (SPIRAL_UI_PORT) with:
+Serves an HTTP server on port 5300 (SPIRAL_DASHBOARD_PORT) with:
   - GET /api/worker-stream/{worker_id}  → SSE stream of worker stdout+stderr
   - POST /api/worker-start              → Start a worker subprocess, return worker_id
   - POST /api/register-project          → Register project info
-  - GET /{project_name}                 → Live dashboard HTML
+  - GET /{project_name}                 → 302 redirect to Vite React dashboard
   - GET /                               → Index page listing projects
 
 SSE event format:
@@ -14,8 +14,13 @@ SSE event format:
 
 stdlib-only — no external dependencies.
 
+PORT SEPARATION (do NOT change without updating both servers):
+  - Port 5299: Vite React dashboard (spiral-ui/) — full UI with 11 tabs
+  - Port 5300: This Python SSE server — worker streaming APIs + redirect to Vite
+  Never start this server on port 5299; that port belongs to the Vite dev server.
+
 Usage:
-    python lib/spiral_live_server.py [--port 5299] [--host 0.0.0.0]
+    python lib/spiral_live_server.py [--port 5300] [--host 0.0.0.0]
 """
 
 from __future__ import annotations
@@ -351,7 +356,10 @@ class SpiralLiveServer:
             await self._handle_project_progress(m_prog.group(1), writer)
             return
 
-        # --- Project dashboard ---
+        # --- Project dashboard (redirect to Vite React app) ---
+        # The full dashboard with 11 tabs (progress, tokens, skills, constitution,
+        # etc.) lives in the Vite React app on port 5299. This server only handles
+        # SSE/API endpoints, so redirect /{project} to the React app.
         m2 = re.match(r"^/([^/?]+)$", path)
         if m2 and method == "GET":
             await self._handle_project_dashboard(m2.group(1), writer)
@@ -784,27 +792,40 @@ class SpiralLiveServer:
         await self._send_html(writer, 200, html)
 
     async def _handle_project_dashboard(self, project_name: str, writer: asyncio.StreamWriter) -> None:
-        """Return per-project live dashboard HTML."""
-        active_workers = [w for w in self._workers.values()]
-        worker_cards = ""
-        for w in active_workers:
-            wid = escape(w.worker_id)
-            status_cls = (
-                "status-running"
-                if w.status == "running"
-                else ("status-passed" if w.status == "passed" else "status-failed")
-            )
-            worker_cards += (
-                _WORKER_CARD_TMPL.replace("{{WID}}", wid)
-                .replace("{{STATUS_CLS}}", status_cls)
-                .replace("{{STATUS}}", escape(w.status))
-            )
-        if not worker_cards:
-            worker_cards = '<p class="no-workers">No active workers. Start SPIRAL to see live output here.</p>'
-        html = _DASHBOARD_HTML.replace("{{PROJECT}}", escape(project_name)).replace("{{WORKER_CARDS}}", worker_cards)
-        await self._send_html(writer, 200, html)
+        """Redirect to the Vite React dashboard which has the full UI (11 tabs).
+
+        The full project dashboard (progress, tokens, skills, constitution, etc.)
+        lives in the Vite React app (spiral-ui/, port 5299 by default). This Python
+        server only handles SSE streaming APIs and worker management — it should NOT
+        render its own dashboard HTML for /{project_name} routes.
+
+        Previously this method rendered a basic HTML page with only worker cards,
+        which caused confusion when users visited port 5300 expecting the full
+        tabbed dashboard. The redirect ensures users always land on the correct UI
+        regardless of which port they visit.
+        """
+        # Resolve the Vite React dashboard port from env, defaulting to 5299.
+        # SPIRAL_VITE_PORT is the canonical var; SPIRAL_UI_PORT kept for compat.
+        vite_port = os.environ.get("SPIRAL_VITE_PORT") or os.environ.get("SPIRAL_UI_PORT", "5299")
+        redirect_url = f"http://localhost:{vite_port}/{urllib.parse.quote(project_name)}"
+        await self._send_redirect(writer, redirect_url)
 
     # ── Low-level response helpers ────────────────────────────────────────────
+
+    async def _send_redirect(self, writer: asyncio.StreamWriter, url: str) -> None:
+        """Send a 302 Found redirect to the given URL."""
+        body = f'<a href="{escape(url)}">Redirecting to dashboard…</a>'.encode("utf-8")
+        response = (
+            "HTTP/1.1 302 Found\r\n"
+            f"Location: {url}\r\n"
+            "Content-Type: text/html; charset=utf-8\r\n"
+            f"Content-Length: {len(body)}\r\n"
+            "Connection: close\r\n"
+            "\r\n"
+        )
+        writer.write(response.encode("utf-8"))
+        writer.write(body)
+        await writer.drain()
 
     async def _send_html(self, writer: asyncio.StreamWriter, status: int, html: str) -> None:
         body = html.encode("utf-8")
@@ -1067,18 +1088,31 @@ def main() -> int:
     )
     parser.add_argument("--host", default="0.0.0.0", help="Bind address (default: 0.0.0.0)")
 
-    # Support both SPIRAL_DASHBOARD_PORT (5300) and SPIRAL_UI_PORT (5299) for port configuration
-    # SPIRAL_DASHBOARD_PORT takes precedence (US-481 spec), falls back to SPIRAL_UI_PORT for compatibility
-    default_port_str = __import__("os").environ.get("SPIRAL_DASHBOARD_PORT") or __import__("os").environ.get(
-        "SPIRAL_UI_PORT", "5300"
-    )
+    # PORT ALLOCATION:
+    #   5299 = Vite React dashboard (spiral-ui/) — DO NOT use for this server
+    #   5300 = This Python SSE server (default)
+    # SPIRAL_DASHBOARD_PORT overrides the default. SPIRAL_UI_PORT is legacy compat.
+    default_port_str = __import__("os").environ.get("SPIRAL_DASHBOARD_PORT") or "5300"
     parser.add_argument(
         "--port",
         type=int,
         default=int(default_port_str),
-        help="Port to listen on (default: $SPIRAL_DASHBOARD_PORT, $SPIRAL_UI_PORT, or 5300)",
+        help="Port to listen on (default: $SPIRAL_DASHBOARD_PORT or 5300)",
     )
     args = parser.parse_args()
+
+    # Guard: warn if started on the Vite React dashboard port (5299) to prevent
+    # this server from shadowing the full tabbed UI. This was the root cause of
+    # the dashboard showing a bare worker page instead of the 11-tab React app.
+    vite_port = int(os.environ.get("SPIRAL_VITE_PORT", "5299"))
+    if args.port == vite_port:
+        print(
+            f"[spiral_live_server] WARNING: Port {args.port} is reserved for the "
+            f"Vite React dashboard (spiral-ui/). This server should run on a "
+            f"different port (default 5300). The React dashboard will not be "
+            f"reachable while this server occupies port {args.port}.",
+            flush=True,
+        )
 
     server = SpiralLiveServer(host=args.host, port=args.port)
     try:
