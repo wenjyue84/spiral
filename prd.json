@@ -39,8 +39,10 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "_failureReason": "oversized_diff",
+      "last_attempted": "2026-03-21T08:15:26Z"
     },
     {
       "id": "US-660",

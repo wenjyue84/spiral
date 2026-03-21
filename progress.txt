@@ -1753,3 +1753,58 @@ FAILED diff-guard: Integration Test - Phase T Test Failure Parsing with Mock Tes
 
 ### Gotchas
 - Attempt 1 failed with 299 lines > 200 diff guard. Compact style + direct function testing (no subprocess for most tests) kept attempt 2 at 175 lines post-format
+## Iteration 1 - Sat, Mar 21, 2026  4:15:24 PM
+FAILED diff-guard: Dashboard React Component - Story Dependency Graph Visualization (ID: US-659) — 402 lines > 200 limit — attempt 1/3
+
+
+## Iteration - Story: US-659 Dashboard React Component - Story Dependency Graph Visualization
+
+### What was implemented
+- spiral-ui/src/components/DependencyGraphChart.tsx (new, 111 lines): SVG-based graph component
+  - Fetches from /api/dashboard/cross-project-dependency-graph?name=X on mount
+  - Renders nodes colored by sub_project (7 colors), edges as directed arrows
+  - Click node: inline detail panel shows ID, title, project badge, pass/pending status
+  - Click edge: inline detail panel shows blockage reason and from→to project path
+- spiral-ui/vite.config.ts: Added GET /api/dashboard/cross-project-dependency-graph endpoint
+  - Reads prd.json, filters stories with sub_project field
+  - Finds cross-project deps (s.dependencies pointing to stories in different sub_project)
+  - Returns { sub_projects, nodes, edges } JSON
+
+### Patterns discovered
+- Attempt 1 failed "oversized_diff" (402 lines). Compact SVG approach (no D3/recharts) = 111+35=146 lines
+- For cross-project graph: column-per-project layout is simpler than force-directed and stays compact
+- TypeScript discriminated unions (type: 'node' | 'edge') cleanly narrow sel.data without casts
+- tsc available at spiral-ui/node_modules/.bin/tsc (not global)
+
+### Gotchas
+- D3.js not installed; using plain SVG is sufficient and much more compact
+- vite.config.ts interfaces must be declared inline (no imports from other modules)
+
+## Pre-analysis for US-659 (Gemini 2.5 Pro)
+This user story is for a frontend React component, not a Frappe/Python application. Here is the technical brief based on the provided JSON:
+
+**Subject: Technical Brief for US-659: Story Dependency Graph Visualization**
+
+**1. Files to Modify:**
+*   **New File:** `spiral-ui/src/components/DependencyGraphChart.tsx` will contain the core D3.js visualization logic.
+*   **New File (Recommended):** A file like `spiral-ui/src/api/dashboardApi.ts` to handle the `fetch` call to the backend endpoint.
+*   **Existing File:** An existing dashboard/container component (e.g., `spiral-ui/src/pages/ProjectDashboard.tsx`) will need to be modified to import and render the new `DependencyGraphChart` component.
+
+**2. Involved APIs / Data:**
+*   This story consumes the existing REST API endpoint: `/api/dashboard/cross-project-dependency-graph`.
+*   No Frappe DocTypes or hooks are involved; this is a pure frontend implementation.
+*   The component will expect a JSON response with a graph structure, likely `{ nodes: [], links: [] }`.
+
+**3. Recommended Implementation Approach:**
+*   Utilize **D3.js** directly for its flexibility with force-directed graphs and zoom/pan capabilities, as `recharts` is less suited for this type of network visualization.
+*   Use a `useEffect` hook to fetch graph data when the component mounts.
+*   Implement a D3 force simulation (`d3.forceSimulation`) to calculate the layout of nodes and edges.
+*   Render the graph using SVG elements.
+*   Handle user interaction by attaching `onClick` event handlers to node and edge elements to display details in a modal or side-panel component.
+
+**4. Edge Cases & Gotchas:**
+*   **Performance:** Large, dense graphs can be slow. Ensure the D3 simulation is optimized and consider rendering optimizations if performance becomes an issue with large project data.
+*   **Interactivity:** Zoom and pan logic needs to be smooth. Clicks on overlapping nodes/edges must be handled correctly.
+*   **Data Integrity:** The component must gracefully handle malformed data from the API, such as links pointing to non-existent nodes.
+*   **Styling:** Node/edge styling should clearly differentiate projects and dependency types. Ensure text labels do not overlap and remain readable.
+

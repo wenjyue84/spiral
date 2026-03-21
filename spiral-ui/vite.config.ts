@@ -1863,6 +1863,41 @@ function spiralApiPlugin() {
         }
       });
 
+      // ── GET /api/dashboard/cross-project-dependency-graph ───────────────────
+      server.middlewares.use('/api/dashboard/cross-project-dependency-graph', (req: IncomingMessage, res: ServerResponse, next: () => void) => {
+        if (req.method !== 'GET') { next(); return; }
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Content-Type', 'application/json');
+        const url = new URL(req.url ?? '', 'http://localhost');
+        const name = url.searchParams.get('name') ?? '';
+        const reg = readRegistry();
+        const root = name ? (reg[name] ?? PROJECT_ROOT) : PROJECT_ROOT;
+        try {
+          interface PS { id: string; title?: string; passes?: boolean; sub_project?: string; dependencies?: string[]; }
+          const prdPath = path.join(root, 'prd.json');
+          if (!fs.existsSync(prdPath)) { res.end(JSON.stringify({ sub_projects: [], nodes: [], edges: [] })); return; }
+          const stories: PS[] = (JSON.parse(fs.readFileSync(prdPath, 'utf8')) as { userStories?: PS[] }).userStories ?? [];
+          const sm = new Map(stories.map(s => [s.id, s]));
+          const nodes = stories.filter(s => s.sub_project).map(s => ({ id: s.id, title: s.title ?? s.id, sub_project: s.sub_project as string, passes: s.passes ?? false }));
+          const edges: Array<{ from: string; to: string; from_project: string; to_project: string; reason: string }> = [];
+          for (const s of stories) {
+            const sp = s.sub_project;
+            if (!sp) continue;
+            for (const dep of (s.dependencies ?? [])) {
+              const d = sm.get(dep);
+              if (d?.sub_project && d.sub_project !== sp) {
+                edges.push({ from: dep, to: s.id, from_project: d.sub_project, to_project: sp, reason: `${s.id} requires ${dep}` });
+              }
+            }
+          }
+          const sub_projects = [...new Set(nodes.map(n => n.sub_project))];
+          res.end(JSON.stringify({ sub_projects, nodes, edges }));
+        } catch (e) {
+          res.statusCode = 500;
+          res.end(JSON.stringify({ error: String(e) }));
+        }
+      });
+
       // ── GET /api/tests?name=X — list all pytest test IDs ────────────────────
       server.middlewares.use('/api/tests', (req: IncomingMessage, res: ServerResponse, next: () => void) => {
         if (req.method !== 'GET') { next(); return; }
