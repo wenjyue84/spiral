@@ -161,7 +161,10 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-03-21T22:39:22Z"
+      "last_attempted": "2026-03-21T22:39:22Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n- Spiral has federation support with lib/list_federation.py\n- CLI commands follow a pattern: lib module → main.py subparser + handler\n- Recent stories (US-671, US-670) show the pattern for validation/analysis features\n\n## Problem Identified\nUS-672 requires validating federated prd.json stories against governance rules (quotas, ID patterns, allowed phases). This validator will help enforce multi-project constraints.\n\n## Planned Changes\n1. **lib/validate_federated_governance.py** — Load governance.json and validate stories\n   - GovernanceRule dataclass with project_id, max_stories, id_pattern, allowed_phases\n   - validate_stories() checks story count, ID patterns, and phases\n   - Output violations grouped by project, support --json flag\n2. **main.py** — Add subparser and handler\n   - Add 'validate-governance' subparser with prd.json and governance.json positional args\n   - Add cmd_validate_federated_governance() handler\n   - Exit code 1 if violations, 0 if all pass\n\nLet me create the implementation:\nI have two test failures. Let me fix them:\n\n1. The first failure shows the code is counting 3 active stories instead of 4 in one project. Let me check if there's an issue with how I'm handling the sub_project field.\n2. The second failure shows the projects are sorted alphabetically, but the test expected a different order.\n\nLet me fix the tests:\nI found the bug! When a sub_project is `None`, converting it to string gives `\"None\"` (the string), which is truthy. Let me fix this:\nExcellent! All 28 tests pass. Now let me verify type checking and run the full test suite:\nPerfect! All tests pass. Now let me mark the story as complete in prd.json and commit:\nExcellent! US-672 is complete. Here's a summary of what was implemented:\n\n## US-672: Federated Governance Validator ✅"
+      }
     },
     {
       "id": "US-676",
