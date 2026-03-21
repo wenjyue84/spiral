@@ -42,7 +42,7 @@ SPIRAL_THINKING_EFFORT="${SPIRAL_THINKING_EFFORT:-high}"
 #   10000-49999 = high (default)
 #   50000+     = max
 # Minimum 1024 when >0 (Anthropic API floor). spiral-doctor validates this.
-SPIRAL_THINKING_BUDGET_TOKENS="${SPIRAL_THINKING_BUDGET_TOKENS:-10000}"
+SPIRAL_THINKING_BUDGET_TOKENS="${SPIRAL_THINKING_BUDGET_TOKENS:-200000}"
 
 # ── Programmatic tool calling (US-339) ──────────────────────────────────────
 # Enable code_execution_20250825 tool for orchestrated multi-tool calls in sandboxed
@@ -58,7 +58,7 @@ SPIRAL_PROGRAMMATIC_TOOLS="${SPIRAL_PROGRAMMATIC_TOOLS:-auto}"
 # When enabled, Claude reasons between tool calls rather than only before the first one.
 # Options: true (enable), false (disabled, default)
 # This doubles token consumption but enables more sophisticated multi-step planning.
-SPIRAL_INTERLEAVED_THINKING="${SPIRAL_INTERLEAVED_THINKING:-false}"
+SPIRAL_INTERLEAVED_THINKING="${SPIRAL_INTERLEAVED_THINKING:-true}"
 
 # Enable episodic memory injection into Ralph worker context. When true, queries
 # .spiral/episodic_memory.db for top-3 similar past implementations by story title
@@ -71,7 +71,7 @@ SPIRAL_EPISODIC_MEMORY="${SPIRAL_EPISODIC_MEMORY:-false}"
 # When true, Phase X parses filesTouch entries and generates per-story symbol
 # maps (exports, imports, test neighbors, callers, boundaries). Injected into
 # Ralph's user prompt at zero LLM cost.
-SPIRAL_REPO_MAP="${SPIRAL_REPO_MAP:-false}"
+SPIRAL_REPO_MAP="${SPIRAL_REPO_MAP:-true}"
 SPIRAL_REPO_MAP_MAX_LINES="${SPIRAL_REPO_MAP_MAX_LINES:-150}"
 
 # ── Phase-specific model defaults ────────────────────────────────────────────
@@ -102,9 +102,14 @@ SPIRAL_MERGE_MODEL="haiku"      # Phase M: merge decisions (future — currently
 # vague ACs, add exact file paths + test commands, split stories touching 3+
 # files. Costs one extra Claude call per eligible story but prevents 2-3 retry
 # cycles in Phase I. Set to true to opt in.
-SPIRAL_STORY_ENRICHMENT="${SPIRAL_STORY_ENRICHMENT:-false}"
+SPIRAL_STORY_ENRICHMENT="${SPIRAL_STORY_ENRICHMENT:-true}"
 # Model for enrichment pass. sonnet is default; set to opus for maximum quality.
 SPIRAL_STORY_ENRICHMENT_MODEL="${SPIRAL_STORY_ENRICHMENT_MODEL:-sonnet}"
+
+# ── Context injection mode (US-280) ──────────────────────────────────────────
+# diff = inject git diff of filesTouch paths (empty for new files)
+# full = inject complete file contents of filesTouch targets
+SPIRAL_CONTEXT_MODE="full"
 
 # ── Research focus prompt ────────────────────────────────────────────────────
 # Guides Gemini + Claude in Phase R toward relevant context
@@ -411,4 +416,12 @@ SPIRAL_OTEL_EMIT_MESSAGES="${SPIRAL_OTEL_EMIT_MESSAGES:-false}"
 #   redact (entire field removed, not pattern-matched).
 #   Default: gen_ai.input.messages,gen_ai.output.messages
 # SPIRAL_OTEL_SCRUB_FIELDS="gen_ai.input.messages,gen_ai.output.messages"
-export SPIRAL_MAX_DIFF_LINES=200
+export SPIRAL_MAX_DIFF_LINES=400
+
+# ── Dashboard port allocation ────────────────────────────────────────────────
+# Two servers run side-by-side. NEVER swap these ports.
+#   Port 5299: Vite React dashboard (spiral-ui/) — full 11-tab UI
+#   Port 5300: Python SSE server (spiral_live_server.py) — worker streaming + API
+# spiral_live_server.py has a hard guard that refuses to start on SPIRAL_VITE_PORT.
+# SPIRAL_VITE_PORT="5299"           # Vite dev server (spiral-ui/)
+# SPIRAL_DASHBOARD_PORT="5300"      # Python SSE server (spiral_live_server.py)

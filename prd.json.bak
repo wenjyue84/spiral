@@ -11,74 +11,6 @@
   ],
   "userStories": [
     {
-      "id": "US-649",
-      "title": "Ralph Agent: Inject Episodic Memory Pattern Matches into Implementation Prompt",
-      "priority": "high",
-      "description": "Wire the episodic memory store into ralph.sh so that before implementing a story, Ralph retrieves similar past solutions and includes them as few-shot examples in the prompt. Measure improvement in first-attempt pass rate and retry reduction.",
-      "acceptanceCriteria": [
-        "ralph.sh: add --memory-inject flag; before Claude invocation, query episodic_memory.py with story description to retrieve top-3 similar past patterns",
-        "Inject patterns into system prompt as: 'Similar past implementations: [pattern_1, pattern_2, pattern_3]' with file paths and key decisions",
-        "Integration test: tests/test_ralph_memory_injection.py compares retry counts with/without memory; assert ≥10% reduction in retries on success"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": true,
-      "_source": "ai-example",
-      "model": "sonnet"
-    },
-    {
-      "id": "US-653",
-      "title": "CLI: spiral federation-health-check -- Validate Multi-Project Dependencies and Detect Cycles",
-      "priority": "high",
-      "description": "Validate federated prd.json sub-project references, detect circular cross-project dependencies, and suggest namespace fixes. Scans prd.json for sub_project fields and validates all cross-project story ID references are resolvable.",
-      "acceptanceCriteria": [
-        "Detects when referenced sub_project doesn't exist in workspace and outputs actionable error: 'Story US-PROJ1-001 references unknown sub_project: proj1'",
-        "Identifies circular cross-project story dependencies with cycle path reporting: 'Circular dependency: PROJ1-001 → PROJ2-005 → PROJ1-003 → PROJ1-001'",
-        "Validates story ID namespace matches sub_project field prefix (e.g., story with sub_project: 'payment' must have ID PAYMENT-###, not US-###) and suggests corrections"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "haiku"
-    },
-    {
-      "id": "US-654",
-      "title": "Integration Test: Phase M Federated Merge Respects Cross-Project Story Dependency Order",
-      "priority": "high",
-      "description": "Mock Phase S validated stories output with cross-project dependencies and verify Phase M merge enforces correct ordering constraints. Tests that stories from different sub-projects merge in dependency-respecting order without violating constraints.",
-      "acceptanceCriteria": [
-        "Load mock Phase S output with story A (sub_project: 'proj1') depending on story B (sub_project: 'proj2'); Phase M detects cross-project dependency and respects merge order",
-        "Test assertion fails if Phase M would place A before B in merged prd.json; passes only when dependency order maintained and result is valid",
-        "Validates merged prd.json groups stories by sub_project internally while preserving cross-project dependency references in depends_on field"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "haiku"
-    },
-    {
-      "id": "US-640",
-      "title": "Phase G: Extract Story-to-Commit Mappings from Git History",
-      "priority": "medium",
-      "description": "Implement commit message parser extracting US-XXX story IDs from git history, creating bidirectional mapping (story ID ↔ commits). Detects orphaned commits. Core utility for Phase G CHANGELOG generation linking commits to stories.",
-      "acceptanceCriteria": [
-        "lib/prd/extract_story_commits.py: function story_commits_from_git(repo_path) returns Dict[str, List[str]] mapping story_id to commit SHAs matching US-\\d{3} pattern in messages",
-        "Detects orphaned commits (matching git tag/branch pattern US-XXX-* but story not in prd.json) and logs warnings",
-        "tests/test_extract_story_commits.py: fixture repo with 5 stories and 8 commits, validates mappings correct and 2 orphans detected"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "haiku"
-    },
-    {
       "id": "US-641",
       "title": "Dashboard Endpoint: GET /api/dashboard/phase-cost-breakdown -- Token/Cost per Phase",
       "priority": "medium",
@@ -91,7 +23,7 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "haiku"
     },
@@ -248,19 +180,182 @@
       "model": "sonnet"
     },
     {
-      "id": "US-647",
-      "title": "Dashboard Endpoint: Worker Resource Usage Metrics via /api/dashboard/worker-resources",
-      "priority": "low",
-      "description": "Track and expose real-time worker process resource usage (peak memory, CPU utilization, story count) from worker heartbeats for performance bottleneck identification.",
+      "id": "US-661",
+      "title": "CLI: spiral validate-phase-outputs -- Comprehensive Phase Output Schema Validation",
+      "priority": "medium",
+      "description": "Add CLI command to validate intermediate phase output JSON files (_research_output.json, _test_stories_output.json, _validated_stories.json) against their schemas. Reports schema violations with file paths and remediation hints for debugging phase execution issues.",
       "acceptanceCriteria": [
-        "Endpoint GET /api/dashboard/worker-resources returns [{worker_id: 'worker-1', memory_peak_mb: 480, avg_cpu_percent: 65, stories_completed: 3, uptime_seconds: 340}, ...] updated every 5s from .spiral/worker_heartbeats.json",
-        "Integration test spawns 2 workers, polls /api/dashboard/worker-resources during story implementation, asserts memory and CPU metrics are non-zero and reflect workload",
-        "Test verifies metrics persist in .spiral/worker-resources-history.json for post-run analysis with timestamp and resource snapshots"
+        "Implement lib/spiral/validate_phase_outputs.py with schema matchers for each phase output type",
+        "CLI command 'spiral validate-phase-outputs [--phase R|T|S|M]' checks .spiral/ output files against lib/schemas/phase_*.schema.json",
+        "Output JSON format {valid: bool, phase: string, errors: [{file, line, expected, got}]} or --format text for human-readable report"
       ],
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-662",
+      "title": "Dashboard React Component - Real-Time Worker Phase Swimlane Timeline",
+      "priority": "medium",
+      "description": "Build React component that renders worker execution timeline from /api/workers/<id>/queue endpoint. Display each worker as a horizontal swimlane with phase blocks showing start/end times, status (running/completed/failed), and token cost tooltips for bottleneck analysis.",
+      "acceptanceCriteria": [
+        "Create spiral-ui/src/components/WorkerTimelineChart.tsx polling /api/workers/*/queue every 1s during iteration",
+        "Render horizontal swimlanes (worker-1, worker-2, worker-3) with phase blocks colored by status (blue=running, green=done, red=failed)",
+        "Tooltip on phase block shows phase name, duration, tokens used, and model used (haiku/sonnet/opus)"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-663",
+      "title": "Integration Test: SPIRAL Crash Recovery — Restore State from Checkpoint and Resume",
+      "priority": "medium",
+      "description": "Validates that SPIRAL can recover from mid-phase crashes using .spiral/_checkpoint.json. Simulates crash during Phase I, restarts with --resume-from-checkpoint, and verifies story loop continues without re-executing completed phases.",
+      "acceptanceCriteria": [
+        "Test file tests/integration/test_spiral_crash_recovery.py: start SPIRAL, inject crash during Phase I after story 3 of 5, verify .spiral/_checkpoint.json persists {phase: 'I', completed_stories: ['US-001', 'US-002', 'US-003']}",
+        "Restart with spiral.sh --resume-from-checkpoint skips Phase R/T, resumes Phase I at US-004 without re-running previous stories",
+        "Assert results.tsv consistency: prior 3 story rows unchanged, new rows appended after recovery without duplicates"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-664",
+      "title": "Dashboard Endpoint: Phase Bottleneck Analysis — Identify Time-Consuming Phases per Iteration",
+      "priority": "medium",
+      "description": "Analyzes results.tsv to detect phases consuming disproportionate wall-clock time. Returns per-phase metrics with percentile breakdown and automated optimization recommendations to help operators balance SPIRAL load.",
+      "acceptanceCriteria": [
+        "Endpoint GET /api/dashboard/phase-bottlenecks returns {phases: [{name: 'Phase I', totalTime: 3600, avgPerStory: 720, percentOfIteration: 45, recommendation: 'increase workers'}, ...]}",
+        "Supports filters: ?iteration_min=1&iteration_max=10&story_status=failed to narrow analysis to specific subsets",
+        "Test: identifies phase with max totalTime across iterations and asserts recommendation field contains actionable text like 'parallelize' or 'reduce scope'"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-665",
+      "title": "CLI: spiral list-federation — Display Sub-Project Configuration and Story Allocation Summary",
+      "priority": "medium",
+      "description": "CLI command that reads .spiral/federation.toml and prd.json to summarize federated setup: sub-project names, story counts per project, and worker allocations. Helps operators verify federation configuration at a glance.",
+      "acceptanceCriteria": [
+        "Command spiral list-federation outputs JSON: {sub_projects: [{name: 'frontend', story_count: 12, workers: 2}, {name: 'backend', story_count: 8, workers: 1}], total_stories: 20, total_workers: 3}",
+        "Returns exit code 1 if federation.toml missing or prd.json sub_project field inconsistent with config",
+        "Test: validates output counts match prd.json tallies, JSON matches federation schema, empty sub_project defaults to 'default'"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-660",
+      "title": "Integration Test - Phase M Federated Story Conflict Detection and Rollback",
+      "priority": "high",
+      "description": "Test Phase M's ability to detect and report when federated sub-projects have conflicting stories (same target files). Verify that Phase M rejects merge of conflicting stories and marks them for manual resolution, with proper state cleanup and results.tsv logging.",
+      "acceptanceCriteria": [
+        "Create tests/integration_federated_conflict_detection.py with two sub-projects modifying same file path",
+        "Inject conflicting stories into prd.json for Phase M; assert merge rejects with conflict error in results.tsv status=rejected",
+        "Assert prd.json rolls back (stories remain in pending, _source preserved) and conflict report written to .spiral/conflicts.json"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-659",
+      "title": "Dashboard React Component - Story Dependency Graph Visualization",
+      "priority": "high",
+      "description": "Build React component that visualizes story dependency relationships from /api/dashboard/cross-project-dependency-graph endpoint. Display project nodes as circles and story dependencies as directional edges, with zoom/pan interactions for large federated projects.",
+      "acceptanceCriteria": [
+        "Create spiral-ui/src/components/DependencyGraphChart.tsx using D3.js or recharts",
+        "Component fetches graph from /api/dashboard/cross-project-dependency-graph and renders nodes colored by project, edges showing story blocking relationships",
+        "Click on edge shows blockage reason; click on node shows story details panel"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-658",
+      "title": "Integration Test - Phase T Test Failure Parsing with Mock Test Output",
+      "priority": "high",
+      "description": "Add integration test for Phase T that mocks failing pytest/vitest output to validate test-failure detection and test-fix story generation. Tests the complete phase T workflow: parse test output → extract failure reasons → create stories with correct priority and _source.",
+      "acceptanceCriteria": [
+        "Create tests/integration_phase_t_mock_tests.py that mocks subprocess output from pytest with 3+ failures",
+        "Assert Phase T creates test-fix stories in prd.json with _source='test-fix' and failure reason in description",
+        "Assert test-fix stories are prioritized above research stories in Phase M merge order"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-654",
+      "title": "Integration Test: Phase M Federated Merge Respects Cross-Project Story Dependency Order",
+      "priority": "high",
+      "description": "Mock Phase S validated stories output with cross-project dependencies and verify Phase M merge enforces correct ordering constraints. Tests that stories from different sub-projects merge in dependency-respecting order without violating constraints.",
+      "acceptanceCriteria": [
+        "Load mock Phase S output with story A (sub_project: 'proj1') depending on story B (sub_project: 'proj2'); Phase M detects cross-project dependency and respects merge order",
+        "Test assertion fails if Phase M would place A before B in merged prd.json; passes only when dependency order maintained and result is valid",
+        "Validates merged prd.json groups stories by sub_project internally while preserving cross-project dependency references in depends_on field"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-653",
+      "title": "CLI: spiral federation-health-check -- Validate Multi-Project Dependencies and Detect Cycles",
+      "priority": "high",
+      "description": "Validate federated prd.json sub-project references, detect circular cross-project dependencies, and suggest namespace fixes. Scans prd.json for sub_project fields and validates all cross-project story ID references are resolvable.",
+      "acceptanceCriteria": [
+        "Detects when referenced sub_project doesn't exist in workspace and outputs actionable error: 'Story US-PROJ1-001 references unknown sub_project: proj1'",
+        "Identifies circular cross-project story dependencies with cycle path reporting: 'Circular dependency: PROJ1-001 → PROJ2-005 → PROJ1-003 → PROJ1-001'",
+        "Validates story ID namespace matches sub_project field prefix (e.g., story with sub_project: 'payment' must have ID PAYMENT-###, not US-###) and suggests corrections"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "haiku",
+      "_scopeCreep": true
+    },
+    {
+      "id": "US-649",
+      "title": "Ralph Agent: Inject Episodic Memory Pattern Matches into Implementation Prompt",
+      "priority": "high",
+      "description": "Wire the episodic memory store into ralph.sh so that before implementing a story, Ralph retrieves similar past solutions and includes them as few-shot examples in the prompt. Measure improvement in first-attempt pass rate and retry reduction.",
+      "acceptanceCriteria": [
+        "ralph.sh: add --memory-inject flag; before Claude invocation, query episodic_memory.py with story description to retrieve top-3 similar past patterns",
+        "Inject patterns into system prompt as: 'Similar past implementations: [pattern_1, pattern_2, pattern_3]' with file paths and key decisions",
+        "Integration test: tests/test_ralph_memory_injection.py compares retry counts with/without memory; assert ≥10% reduction in retries on success"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
       "_source": "ai-example",
       "model": "sonnet"
     },
@@ -1981,6 +2076,23 @@
       "tags": []
     },
     {
+      "id": "US-640",
+      "title": "Phase G: Extract Story-to-Commit Mappings from Git History",
+      "priority": "medium",
+      "description": "Implement commit message parser extracting US-XXX story IDs from git history, creating bidirectional mapping (story ID ↔ commits). Detects orphaned commits. Core utility for Phase G CHANGELOG generation linking commits to stories.",
+      "acceptanceCriteria": [
+        "lib/prd/extract_story_commits.py: function story_commits_from_git(repo_path) returns Dict[str, List[str]] mapping story_id to commit SHAs matching US-\\d{3} pattern in messages",
+        "Detects orphaned commits (matching git tag/branch pattern US-XXX-* but story not in prd.json) and logs warnings",
+        "tests/test_extract_story_commits.py: fixture repo with 5 stories and 8 commits, validates mappings correct and 2 orphans detected"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
       "id": "US-589",
       "title": "Dashboard Endpoint: Model Escalation Heatmap — Analyze haiku→sonnet→opus Retry Patterns from results.tsv",
       "priority": "medium",
@@ -3473,6 +3585,23 @@
       "_passedCommit": "6805d1e212ea3590bfd1be0020a47d1418f2731b",
       "_failureReason": "story_cost_ceiling",
       "tags": []
+    },
+    {
+      "id": "US-647",
+      "title": "Dashboard Endpoint: Worker Resource Usage Metrics via /api/dashboard/worker-resources",
+      "priority": "low",
+      "description": "Track and expose real-time worker process resource usage (peak memory, CPU utilization, story count) from worker heartbeats for performance bottleneck identification.",
+      "acceptanceCriteria": [
+        "Endpoint GET /api/dashboard/worker-resources returns [{worker_id: 'worker-1', memory_peak_mb: 480, avg_cpu_percent: 65, stories_completed: 3, uptime_seconds: 340}, ...] updated every 5s from .spiral/worker_heartbeats.json",
+        "Integration test spawns 2 workers, polls /api/dashboard/worker-resources during story implementation, asserts memory and CPU metrics are non-zero and reflect workload",
+        "Test verifies metrics persist in .spiral/worker-resources-history.json for post-run analysis with timestamp and resource snapshots"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "sonnet"
     },
     {
       "id": "US-457",

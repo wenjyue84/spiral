@@ -78,6 +78,8 @@ Every input you receive has a trust level:
     - If Chrome DevTools MCP tools are NOT available, skip this step entirely (static analysis only)
     - **Do NOT start a pinchtab server here** — pinchtab is a shell-driven tool for Phase V E2E assertions, not for inline agent checks. Chrome DevTools MCP is the right tool inside an agent turn.
 14. **Anti-patterns**: If the story JSON contains a `_antiPatterns` array, each entry is a previously-tried implementation approach that FAILED. Do NOT repeat any of them — not even partially. Look at the list before planning and choose a fundamentally different strategy. If in doubt, pick the simplest possible approach that directly satisfies the acceptance criteria.
+15. **Diff size budget**: Your implementation must produce fewer than ~350 total added+deleted lines in the staged diff (the system enforces a hard limit). For stories creating new files: keep implementation files under 120 lines and test files under 100 lines. Prefer reusing existing utilities over writing new helpers. If the story scope feels too large, implement the minimal viable version that satisfies acceptance criteria.
+16. **Port allocation**: Port 5299 = Vite React dashboard (spiral-ui/). Port 5300 = Python SSE server (spiral_live_server.py). NEVER start spiral_live_server.py on port 5299 — it shadows the full React dashboard and breaks the UI. If you need to launch the server, omit `--port` to use the default (5300).
 
 ## Diagnosis Block (Required Before File Edits)
 

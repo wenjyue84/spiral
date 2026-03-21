@@ -11,23 +11,6 @@
   ],
   "userStories": [
     {
-      "id": "US-642",
-      "title": "CLI: spiral predict-story-complexity -- Score Difficulty from Past Patterns",
-      "priority": "medium",
-      "description": "New CLI command computing semantic similarity between story description and historical stories in results.tsv, outputting complexity score (1-10) and similar past story references. Helps triage stories and select initial model for Phase I.",
-      "acceptanceCriteria": [
-        "Command spiral predict-story-complexity US-123 outputs JSON: {story_id: 'US-123', score: 7, label: 'medium', similar: [{id: 'US-45', similarity: 0.87, avg_retries: 2, tokens: 85000}]}",
-        "lib/routing/complexity_scorer.py: computes embeddings for story description, retrieves top-3 cosine-similar stories from results.tsv, derives score from retry_count and token patterns",
-        "tests/test_story_complexity.py: 15-story fixture, asserts score 1-10, validates high scores correlate with retry_count ≥ 2 in training data"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": true,
-      "_source": "ai-example",
-      "model": "haiku"
-    },
-    {
       "id": "US-645",
       "title": "Dashboard Endpoint: Historical Cost Trends by Iteration via /api/dashboard/cost-history",
       "priority": "medium",
@@ -42,7 +25,8 @@
       "estimatedComplexity": "small",
       "passes": false,
       "_source": "ai-example",
-      "model": "sonnet"
+      "model": "sonnet",
+      "last_attempted": "2026-03-21T10:59:41Z"
     },
     {
       "id": "US-646",
@@ -187,70 +171,6 @@
         "Create spiral-ui/src/components/WorkerTimelineChart.tsx polling /api/workers/*/queue every 1s during iteration",
         "Render horizontal swimlanes (worker-1, worker-2, worker-3) with phase blocks colored by status (blue=running, green=done, red=failed)",
         "Tooltip on phase block shows phase name, duration, tokens used, and model used (haiku/sonnet/opus)"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-663",
-      "title": "Integration Test: SPIRAL Crash Recovery — Restore State from Checkpoint and Resume",
-      "priority": "medium",
-      "description": "Validates that SPIRAL can recover from mid-phase crashes using .spiral/_checkpoint.json. Simulates crash during Phase I, restarts with --resume-from-checkpoint, and verifies story loop continues without re-executing completed phases.",
-      "acceptanceCriteria": [
-        "Test file tests/integration/test_spiral_crash_recovery.py: start SPIRAL, inject crash during Phase I after story 3 of 5, verify .spiral/_checkpoint.json persists {phase: 'I', completed_stories: ['US-001', 'US-002', 'US-003']}",
-        "Restart with spiral.sh --resume-from-checkpoint skips Phase R/T, resumes Phase I at US-004 without re-running previous stories",
-        "Assert results.tsv consistency: prior 3 story rows unchanged, new rows appended after recovery without duplicates"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-664",
-      "title": "Dashboard Endpoint: Phase Bottleneck Analysis — Identify Time-Consuming Phases per Iteration",
-      "priority": "medium",
-      "description": "Analyzes results.tsv to detect phases consuming disproportionate wall-clock time. Returns per-phase metrics with percentile breakdown and automated optimization recommendations to help operators balance SPIRAL load.",
-      "acceptanceCriteria": [
-        "Endpoint GET /api/dashboard/phase-bottlenecks returns {phases: [{name: 'Phase I', totalTime: 3600, avgPerStory: 720, percentOfIteration: 45, recommendation: 'increase workers'}, ...]}",
-        "Supports filters: ?iteration_min=1&iteration_max=10&story_status=failed to narrow analysis to specific subsets",
-        "Test: identifies phase with max totalTime across iterations and asserts recommendation field contains actionable text like 'parallelize' or 'reduce scope'"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-665",
-      "title": "CLI: spiral list-federation — Display Sub-Project Configuration and Story Allocation Summary",
-      "priority": "medium",
-      "description": "CLI command that reads .spiral/federation.toml and prd.json to summarize federated setup: sub-project names, story counts per project, and worker allocations. Helps operators verify federation configuration at a glance.",
-      "acceptanceCriteria": [
-        "Command spiral list-federation outputs JSON: {sub_projects: [{name: 'frontend', story_count: 12, workers: 2}, {name: 'backend', story_count: 8, workers: 1}], total_stories: 20, total_workers: 3}",
-        "Returns exit code 1 if federation.toml missing or prd.json sub_project field inconsistent with config",
-        "Test: validates output counts match prd.json tallies, JSON matches federation schema, empty sub_project defaults to 'default'"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-666",
-      "title": "Integration Test: Mock Claude API Fixture Quality Assurance — Validate Realistic Coverage",
-      "priority": "medium",
-      "description": "Validates that mock Claude responses in test fixtures realistically simulate API behavior: token estimates, error conditions, and edge cases. Ensures mock library covers all phases and error scenarios with sufficient diversity.",
-      "acceptanceCriteria": [
-        "Test file tests/lib/test_mock_claude_fixture_quality.py: validate mock token counts ±5% of real API, assert error cases present (TimeoutError, RateLimitError, InvalidRequestError) per phase",
-        "Coverage check: all phases (R, T, S, M, I, V, C) have mocks with ≥2 error scenarios each; total coverage score >90%",
-        "Quality utility flag_fixture_issues() returns list of gaps: missing phases, unrealistic token counts, under-represented errors"
       ],
       "technicalNotes": [],
       "dependencies": [],
@@ -2073,6 +1993,23 @@
       "model": "haiku",
       "_scopeCreep": true,
       "tags": []
+    },
+    {
+      "id": "US-642",
+      "title": "CLI: spiral predict-story-complexity -- Score Difficulty from Past Patterns",
+      "priority": "medium",
+      "description": "New CLI command computing semantic similarity between story description and historical stories in results.tsv, outputting complexity score (1-10) and similar past story references. Helps triage stories and select initial model for Phase I.",
+      "acceptanceCriteria": [
+        "Command spiral predict-story-complexity US-123 outputs JSON: {story_id: 'US-123', score: 7, label: 'medium', similar: [{id: 'US-45', similarity: 0.87, avg_retries: 2, tokens: 85000}]}",
+        "lib/routing/complexity_scorer.py: computes embeddings for story description, retrieves top-3 cosine-similar stories from results.tsv, derives score from retry_count and token patterns",
+        "tests/test_story_complexity.py: 15-story fixture, asserts score 1-10, validates high scores correlate with retry_count ≥ 2 in training data"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "haiku"
     },
     {
       "id": "US-641",

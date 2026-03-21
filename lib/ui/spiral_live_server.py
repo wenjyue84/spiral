@@ -1101,18 +1101,23 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    # Guard: warn if started on the Vite React dashboard port (5299) to prevent
-    # this server from shadowing the full tabbed UI. This was the root cause of
-    # the dashboard showing a bare worker page instead of the 11-tab React app.
+    # HARD GUARD: refuse to start on the Vite React dashboard port (5299).
+    # This was the root cause of the dashboard showing a bare worker page instead
+    # of the full 11-tab React app — two Python SSE servers ran on 5299+5300,
+    # shadowing the Vite dev server entirely. Use SPIRAL_VITE_PORT to change
+    # the reserved port if needed. Pass --force to override (not recommended).
     vite_port = int(os.environ.get("SPIRAL_VITE_PORT", "5299"))
     if args.port == vite_port:
         print(
-            f"[spiral_live_server] WARNING: Port {args.port} is reserved for the "
-            f"Vite React dashboard (spiral-ui/). This server should run on a "
-            f"different port (default 5300). The React dashboard will not be "
-            f"reachable while this server occupies port {args.port}.",
+            f"[spiral_live_server] ERROR: Port {args.port} is reserved for the "
+            f"Vite React dashboard (spiral-ui/). This SSE server must run on a "
+            f"different port (default 5300). Starting on {args.port} would shadow "
+            f"the full tabbed dashboard, showing only a bare worker page.\n"
+            f"  Fix: use --port 5300 (or omit --port to use the default)\n"
+            f"  Override: set SPIRAL_VITE_PORT to a different value if 5299 is not your Vite port",
             flush=True,
         )
+        return 1
 
     server = SpiralLiveServer(host=args.host, port=args.port)
     try:
