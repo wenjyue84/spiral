@@ -1923,3 +1923,32 @@ FAILED diff-guard: Dashboard Endpoint: GET /api/dashboard/phase-cost-breakdown -
 ### Gotchas
 - The acceptance criterion says lib/ui/spiral_live_server.py but the real FastAPI app is lib/dashboard/api.py — test confirms correct location
 - Phase R cost = 0 since results.tsv only records Phase I; "Phase I >= Phase R" assertion is trivially true
+
+## Pre-analysis for US-642 (Gemini 2.5 Pro)
+Based on the user story `US-642`, here is a technical brief for the implementation agent:
+
+**Objective**: Create a CLI command `spiral predict-story-complexity` that scores a user story's difficulty by comparing it to historical data.
+
+**File Modifications**:
+*   **`spiral/cli.py` (or similar)**: To add the new `click` command definition for `predict-story-complexity`.
+*   **`lib/routing/complexity_scorer.py`**: A new file to house the core scoring logic.
+*   **`tests/test_story_complexity.py`**: A new test file for unit and integration tests.
+*   **`pyproject.toml`**: To add new dependencies like `pandas`, `scikit-learn`, and `sentence-transformers`.
+
+**Frappe Context**:
+*   This is a pure Python CLI task. No Frappe DocTypes or hooks are involved.
+
+**Implementation Approach**:
+1.  **CLI Command**: In `spiral/cli.py`, define a command that accepts a `story_id`.
+2.  **Data Handling**: In `complexity_scorer.py`, use `pandas` to read and parse `results.tsv`.
+3.  **Embeddings**: Use a library like `sentence-transformers` to generate embeddings for the input story's description and all historical descriptions from the TSV.
+4.  **Similarity Search**: Employ `sklearn.metrics.pairwise.cosine_similarity` to find the top 3 most similar past stories.
+5.  **Scoring Algorithm**: Develop a function that maps the `avg_retries` and `tokens` of similar stories to a 1-10 complexity score. High retries/tokens should correlate with a higher score.
+6.  **Output**: The command should print a JSON object to stdout with the required structure.
+
+**Edge Cases & Gotchas**:
+*   The source for the *input* story's description (e.g., `US-123`) is not specified; assume it's fetched from a local file like `prd.json`.
+*   The command must handle a missing or empty `results.tsv` file gracefully.
+*   Ensure the embedding model is downloaded efficiently and cached locally.
+*   The scoring logic must be robust against stories with no clear historical precedent.
+

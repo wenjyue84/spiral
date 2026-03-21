@@ -3479,6 +3479,29 @@ def main():
         help="Path to prd.schema.json (optional)",
     )
 
+    # ── predict-story-complexity subcommand (US-642) ──────────────────────────────
+    predict_complexity_parser = subparsers.add_parser(
+        "predict-story-complexity",
+        help="Score story difficulty from semantic similarity to past patterns (US-642)",
+    )
+    predict_complexity_parser.add_argument(
+        "story_id",
+        metavar="STORY_ID",
+        help="Story ID to predict complexity for (e.g., US-123)",
+    )
+    predict_complexity_parser.add_argument(
+        "--prd",
+        default="prd.json",
+        metavar="FILE",
+        help="Path to prd.json (default: prd.json)",
+    )
+    predict_complexity_parser.add_argument(
+        "--results",
+        default="results.tsv",
+        metavar="FILE",
+        help="Path to results.tsv (default: results.tsv)",
+    )
+
     args = parser.parse_args()
 
     if args.command == "init":
@@ -3583,6 +3606,8 @@ def main():
         cmd_archive_checkpoint(args)
     elif args.command == "lint-prd":
         cmd_lint_prd(args)
+    elif args.command == "predict-story-complexity":
+        cmd_predict_story_complexity(args)
     else:
         parser.print_help()
         sys.exit(0)
@@ -3751,6 +3776,58 @@ def cmd_lint_prd(args: argparse.Namespace) -> None:
     report = lint_prd(prd_data, schema_path)
     print(json.dumps(report, indent=2))
     sys.exit(0 if report.get("valid") else 1)
+
+
+def cmd_predict_story_complexity(args: argparse.Namespace) -> None:
+    """Score story difficulty from semantic similarity to past patterns (US-642).
+
+    Usage: spiral predict-story-complexity <story_id> [--prd FILE] [--results FILE]
+    Outputs JSON: {story_id, score: 1-10, label, similar: [{id, similarity, avg_retries, tokens}]}
+    """
+    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    sys.path.insert(0, str(Path(__file__).parent / "lib" / "routing"))
+    from routing.complexity_scorer import predict_story_complexity  # type: ignore[import-untyped]
+
+    story_id = getattr(args, "story_id", "")
+    prd_path = Path(getattr(args, "prd", "prd.json"))
+    results_tsv_path = Path(getattr(args, "results", "results.tsv"))
+
+    if not story_id:
+        print(json.dumps({"error": "story_id required"}), file=sys.stderr)
+        sys.exit(1)
+
+    # Load story description from prd.json
+    story_description = ""
+    if prd_path.exists():
+        try:
+            with open(prd_path, encoding="utf-8") as f:
+                prd_data = json.load(f)
+                for story in prd_data.get("userStories", []):
+                    if story.get("id") == story_id:
+                        story_description = story.get("description", "")
+                        break
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    if not story_description:
+        print(
+            json.dumps({"error": f"Story {story_id} not found in {prd_path}"}),
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    try:
+        result = predict_story_complexity(
+            story_id=story_id,
+            story_description=story_description,
+            prd_path=prd_path,
+            results_tsv_path=results_tsv_path,
+        )
+        print(json.dumps(result, indent=2))
+        sys.exit(0)
+    except Exception as exc:
+        print(json.dumps({"error": str(exc)}), file=sys.stderr)
+        sys.exit(1)
 
 
 def cmd_archive_checkpoint(args: argparse.Namespace) -> None:
