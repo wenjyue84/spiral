@@ -1,3 +1,25 @@
+## Iteration - Story: US-607 CLI: show-worker-logs
+
+### What was implemented
+- lib/commands/show_worker_logs.py: New module with log parsing, filtering, dedup, and TSV output
+  - Scans .spiral/workers/ and .spiral-workers/ for worker log files
+  - Parses timestamps, phase letters, log levels from raw worker output
+  - Outputs tab-separated [worker_id|timestamp|phase|log_level|message]
+  - Supports --worker-id and --phase filters, --output file redirect
+  - Deduplicates by (timestamp, message) across files
+- main.py: Added show-worker-logs subcommand parser and cmd_show_worker_logs handler
+- tests/test_show_worker_logs.py: 9 tests covering both acceptance criteria
+  - Output format validation, worker-id/phase filters, file output
+  - 2-worker merge in time order, dedup, log level extraction, edge cases
+
+### Patterns discovered
+- Worker logs live at $SCRATCH_DIR/workers/worker_N.log (from run_parallel_ralph.sh)
+- Also in .spiral-workers/worker-N/ subdirectories (worktree layout)
+- Log lines are unstructured raw stdout/stderr from Ralph — regex parsing needed
+
+### Gotchas
+- Dedup key should use (timestamp, message) not (worker_id, timestamp, message) to catch same log line appearing in multiple files with different worker IDs
+
 ## Iteration - Story: US-636 Phase I: Distribute Federated Stories to Workers by Sub-Project
 
 ### What was implemented
