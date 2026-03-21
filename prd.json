@@ -11,23 +11,6 @@
   ],
   "userStories": [
     {
-      "id": "US-653",
-      "title": "CLI: spiral federation-health-check -- Validate Multi-Project Dependencies and Detect Cycles",
-      "priority": "high",
-      "description": "Validate federated prd.json sub-project references, detect circular cross-project dependencies, and suggest namespace fixes. Scans prd.json for sub_project fields and validates all cross-project story ID references are resolvable.",
-      "acceptanceCriteria": [
-        "Detects when referenced sub_project doesn't exist in workspace and outputs actionable error: 'Story US-PROJ1-001 references unknown sub_project: proj1'",
-        "Identifies circular cross-project story dependencies with cycle path reporting: 'Circular dependency: PROJ1-001 → PROJ2-005 → PROJ1-003 → PROJ1-001'",
-        "Validates story ID namespace matches sub_project field prefix (e.g., story with sub_project: 'payment' must have ID PAYMENT-###, not US-###) and suggests corrections"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": true,
-      "_source": "ai-example",
-      "model": "haiku"
-    },
-    {
       "id": "US-654",
       "title": "Integration Test: Phase M Federated Merge Respects Cross-Project Story Dependency Order",
       "priority": "high",
@@ -42,9 +25,7 @@
       "estimatedComplexity": "small",
       "passes": true,
       "_source": "ai-example",
-      "model": "haiku",
-      "_failureReason": "oversized_diff",
-      "last_attempted": "2026-03-21T07:20:03Z"
+      "model": "haiku"
     },
     {
       "id": "US-658",
@@ -61,6 +42,22 @@
       "estimatedComplexity": "small",
       "passes": false,
       "model": "sonnet"
+    },
+    {
+      "id": "US-659",
+      "title": "Dashboard React Component - Story Dependency Graph Visualization",
+      "priority": "high",
+      "description": "Build React component that visualizes story dependency relationships from /api/dashboard/cross-project-dependency-graph endpoint. Display project nodes as circles and story dependencies as directional edges, with zoom/pan interactions for large federated projects.",
+      "acceptanceCriteria": [
+        "Create spiral-ui/src/components/DependencyGraphChart.tsx using D3.js or recharts",
+        "Component fetches graph from /api/dashboard/cross-project-dependency-graph and renders nodes colored by project, edges showing story blocking relationships",
+        "Click on edge shows blockage reason; click on node shows story details panel"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
     },
     {
       "id": "US-640",
@@ -264,6 +261,24 @@
       "passes": false,
       "_source": "ai-example",
       "model": "sonnet"
+    },
+    {
+      "id": "US-653",
+      "title": "CLI: spiral federation-health-check -- Validate Multi-Project Dependencies and Detect Cycles",
+      "priority": "high",
+      "description": "Validate federated prd.json sub-project references, detect circular cross-project dependencies, and suggest namespace fixes. Scans prd.json for sub_project fields and validates all cross-project story ID references are resolvable.",
+      "acceptanceCriteria": [
+        "Detects when referenced sub_project doesn't exist in workspace and outputs actionable error: 'Story US-PROJ1-001 references unknown sub_project: proj1'",
+        "Identifies circular cross-project story dependencies with cycle path reporting: 'Circular dependency: PROJ1-001 → PROJ2-005 → PROJ1-003 → PROJ1-001'",
+        "Validates story ID namespace matches sub_project field prefix (e.g., story with sub_project: 'payment' must have ID PAYMENT-###, not US-###) and suggests corrections"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "haiku",
+      "_scopeCreep": true
     },
     {
       "id": "US-649",
