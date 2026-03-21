@@ -303,6 +303,47 @@ async def phase_cost_breakdown() -> dict[str, Any]:
     return {"phases": result}
 
 
+@app.get("/api/dashboard/cost-history")
+async def cost_history() -> dict[str, Any]:
+    """Historical cost trends by iteration from results.tsv (US-645).
+
+    Groups results.tsv records by spiral_iter and computes total tokens,
+    estimated cost, and running cumulative cost per iteration, sorted ascending.
+    """
+    from ..results_tsv import parse_results_tsv
+
+    records = parse_results_tsv("results.tsv")
+    iter_data: dict[int, dict[str, Any]] = {}
+    for r in records:
+        try:
+            iter_num = int(r.spiral_iter)
+        except (ValueError, TypeError):
+            continue
+        tokens = sum(
+            int(v) if v else 0
+            for v in (r.cache_read_tokens, r.cache_creation_tokens, r.review_tokens)
+        )
+        model = r.model or "haiku"
+        rate = _PHASE_COST_RATE.get(model.lower().split("-")[0], _PHASE_COST_RATE["haiku"])
+        if iter_num not in iter_data:
+            iter_data[iter_num] = {"tokens": 0, "cost": 0.0}
+        iter_data[iter_num]["tokens"] += tokens
+        iter_data[iter_num]["cost"] += tokens * rate
+
+    result = []
+    cumulative = 0.0
+    for iter_num in sorted(iter_data.keys()):
+        d = iter_data[iter_num]
+        cumulative += d["cost"]
+        result.append({
+            "iteration": iter_num,
+            "total_tokens": d["tokens"],
+            "total_cost": round(d["cost"], 6),
+            "cumulative_cost": round(cumulative, 6),
+        })
+    return {"history": result}
+
+
 @app.get("/api/dashboard/error-breakdown")
 async def error_breakdown(
     iterations: int = 5,
