@@ -1,3 +1,41 @@
+## Iteration [Current] - Story: US-685 CLI: spiral check-federated-deps
+
+### What was implemented
+- **lib/check_federated_deps.py** — Federated dependency validator (was untracked, now committed)
+  - `_infer_sub_project()` — infers project prefix from story ID or explicit sub_project field
+  - `find_all_cycles()` — DFS cycle detector, returns full paths like [US-001, US-002, US-001]
+  - `find_orphans()` — identifies missing dependencies referenced but not in graph
+  - `check_namespaces()` — validates story ID prefixes match sub_project field
+  - `validate()` — main function returning {valid, cycles, orphans, namespaces, namespace_valid}
+
+- **main.py** — CLI integration (already present, confirmed working)
+  - `check-federated-deps` subcommand with --strict flag
+  - `cmd_check_federated_deps()` handler with JSON output and exit codes (0=valid, 1=invalid)
+
+- **tests/test_check_federated_deps.py** — Comprehensive test suite (26 tests, all passing)
+  - TestFindAllCycles: 7 tests (no cycles, 2-node, 3-node, multiple, with external deps, empty)
+  - TestFindOrphans: 6 tests (no orphans, single, multiple, mixed, empty, no deps field)
+  - TestCheckNamespaces: 4 tests (valid, inferred, conflicts, empty)
+  - TestValidate: 9 tests (valid, cycles, orphans, both, namespace conflicts strict/non-strict, empty, missing key, multi-project, complex graph)
+
+### Patterns discovered
+- Story IDs like "PROJECT-B-US-005" are parsed by splitting on US/UT marker; everything before is the namespace
+- Cycle detection uses DFS with path tracking; cycle paths end with duplicate start node: [A, B, C, A]
+- Namespace validation checks explicit sub_project against inferred prefix (case-sensitive, must match exactly)
+- CLI command returns JSON with exit 0 if valid, exit 1 if issues (cycles/orphans/namespace conflicts in strict mode)
+
+### Gotchas
+- Test had casing mismatch: ID "PROJECT-B-US-003" with sub_project="project-b" (lowercase) is a conflict
+  - Fixed by using uppercase "PROJECT-B" to match ID prefix
+- _infer_sub_project checks explicit field BEFORE parsing ID, so it returns the explicit value if present
+
+### Acceptance Criteria Mapping
+1. ✅ Command outputs JSON with keys: cycles, orphans, namespaces (plus valid, namespace_valid)
+2. ✅ Detects A→B→C→A cycles with full path; returns exit code 1 if issues, 0 if valid
+3. ✅ Handles federated prd.json with sub_project and cross-project dependencies
+
+---
+
 ## Iteration [Current] - Story: US-663 Integration Test: SPIRAL Crash Recovery
 
 ### What was implemented
@@ -395,4 +433,31 @@ Here is the technical brief for implementing the `trace-dependencies` command in
 
 ## Iteration 1 - Sun, Mar 22, 2026  1:11:49 AM
 FAILED diff-guard: Dashboard React Component - Real-Time Worker Phase Swimlane Timeline (ID: US-662) — 254 lines > 200 limit — attempt 1/3
+
+
+## Pre-analysis for US-685 (Gemini 2.5 Pro)
+### Technical Brief: US-685 - Federated Dependency Checker
+
+**Project Context:** This user story pertains to the `spiral` Python CLI project, not a Frappe application. The goal is to add a new command to validate a `prd.json` file, which acts as a dependency graph.
+
+**File Modifications:**
+*   **Create:** `lib/check_federated_deps.py` to house the core validation logic (cycle detection, orphan checks).
+*   **Modify:** `main.py` (or the project's CLI entrypoint, possibly using `click` or `argparse`) to register the new `spiral check-federated-deps` command and call the new library function.
+*   **Reference/Update:** `lib/dependency_graph.py` may contain existing graph utilities to reuse or may need updates to support the federated model.
+
+**DocTypes & Hooks:**
+*   None. This is not a Frappe project. The primary data structure is the `prd.json` file, not a DocType.
+
+**Implementation Approach:**
+1.  **Graph Construction:** Load `prd.json` into a unified directed graph (adjacency list is suitable). The graph must resolve `depends_on` entries across different `sub_project` scopes.
+2.  **Cycle Detection:** Implement a Depth First Search (DFS) traversal. Use a `visiting` and `visited` set to detect back edges, which indicate a cycle. If a cycle is found, store the path.
+3.  **Orphan/Namespace Validation:**
+    *   **Orphans:** Iterate through all dependencies of each story; report any dependency ID that does not exist as a node in the graph.
+    *   **Namespaces:** Validate that story IDs are correctly prefixed according to their `sub_project` value.
+4.  **CLI Output:** The command should output a single JSON object with `cycles`, `orphans`, and `namespaces` keys. Exit with code `1` if any validations fail, `0` otherwise.
+
+**Gotchas & Edge Cases:**
+*   The logic must handle a unified namespace where a story in `projectA` can depend on a story in `projectB`.
+*   Ensure robust error handling for malformed or missing `prd.json` files.
+*   The cycle detection algorithm must correctly report the full path of the circular dependency.
 

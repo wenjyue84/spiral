@@ -31,6 +31,7 @@ Subcommands:
   federated-status        Aggregate story status across federated sub-projects (US-629)
   monitor                 Unified monitoring snapshot for progress checks
   cost-forecast           Forecast remaining budget and timeline from results.tsv velocity (US-650)
+  check-federated-deps    Detect circular dependencies and orphans in multi-repo prd.json (US-685)
   trace-dependencies      Resolve and visualize full dependency chain for a story (US-675)
 """
 
@@ -3529,6 +3530,22 @@ def main():
         help="Number of recent iterations to use for velocity (default: 5)",
     )
 
+    # ── check-federated-deps subcommand (US-685) ───────────────────────────────
+    check_federated_parser = subparsers.add_parser(
+        "check-federated-deps",
+        help="Detect circular dependencies and orphans in multi-repo prd.json (US-685)",
+    )
+    check_federated_parser.add_argument(
+        "prd",
+        metavar="PRD",
+        help="Path to prd.json",
+    )
+    check_federated_parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Treat namespace conflicts as errors",
+    )
+
     # ── trace-dependencies subcommand (US-675) ────────────────────────────────
     trace_deps_parser = subparsers.add_parser(
         "trace-dependencies",
@@ -3692,6 +3709,8 @@ def main():
         cmd_predict_story_complexity(args)
     elif args.command == "cost-forecast":
         cmd_cost_forecast(args)
+    elif args.command == "check-federated-deps":
+        cmd_check_federated_deps(args)
     elif args.command == "trace-dependencies":
         cmd_trace_dependencies(args)
     elif args.command == "validate-phase-outputs":
@@ -3986,6 +4005,45 @@ def cmd_cost_forecast(args: argparse.Namespace) -> None:
     except Exception as exc:
         print(json.dumps({"error": str(exc)}), file=sys.stderr)
         sys.exit(1)
+
+
+def cmd_check_federated_deps(args: argparse.Namespace) -> None:
+    """Detect circular dependencies and orphans in federated prd.json (US-685).
+
+    Usage: spiral check-federated-deps prd.json [--strict]
+
+    Outputs JSON with keys:
+        - cycles: list of cycle paths (e.g. [['US-001', 'US-002', 'US-001']])
+        - orphans: list of missing story IDs
+        - namespaces: dict of {namespace: [story_ids]}
+        - valid: bool (true if no issues, false otherwise)
+        - namespace_valid: bool (true if no namespace conflicts)
+
+    Exit code 1 if any issues found, 0 if valid.
+    """
+    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    from check_federated_deps import validate  # type: ignore[import-untyped]
+
+    prd_path = Path(getattr(args, "prd", "prd.json"))
+    strict = getattr(args, "strict", False)
+
+    if not prd_path.exists():
+        result = {"error": f"File not found: {prd_path}", "valid": False}
+        print(json.dumps(result), file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        with open(prd_path, encoding="utf-8") as f:
+            prd = json.load(f)
+    except json.JSONDecodeError as e:
+        result = {"error": f"Invalid JSON: {e}", "valid": False}
+        print(json.dumps(result), file=sys.stderr)
+        sys.exit(1)
+
+    result = validate(prd, strict=strict)
+    print(json.dumps(result, indent=2))
+
+    sys.exit(0 if result["valid"] else 1)
 
 
 def cmd_trace_dependencies(args: argparse.Namespace) -> None:
