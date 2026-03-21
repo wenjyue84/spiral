@@ -10,6 +10,8 @@ Usage:
     python lib/spiral_dashboard.py --tui --prd prd.json
 """
 
+from __future__ import annotations
+
 import argparse
 import csv
 import json
@@ -21,6 +23,7 @@ from collections import defaultdict
 from datetime import datetime
 from html import escape
 from statistics import median
+from typing import Any
 
 # Optional Textual imports (only if --tui is used)
 try:
@@ -42,15 +45,16 @@ configure_utf8_stdout()
 # ── Data Loaders ─────────────────────────────────────────────────────────────
 
 
-def load_prd(path: str) -> dict:
+def load_prd(path: str) -> dict[str, Any]:
     """Load prd.json, return full dict. Returns empty structure if missing."""
     if not os.path.isfile(path):
         return {"userStories": []}
     with open(path, encoding="utf-8", errors="replace") as f:
-        return json.load(f)
+        result: dict[str, Any] = json.load(f)
+        return result
 
 
-def load_results(path: str) -> list[dict]:
+def load_results(path: str) -> list[dict[str, Any]]:
     """Load results.tsv, coerce numeric fields. Returns [] if missing."""
     if not os.path.isfile(path):
         return []
@@ -79,26 +83,28 @@ def load_results(path: str) -> list[dict]:
     return rows
 
 
-def load_retries(path: str) -> dict:
+def load_retries(path: str) -> dict[str, Any]:
     """Load retry-counts.json. Returns {} if missing."""
     if not os.path.isfile(path):
         return {}
     with open(path, encoding="utf-8", errors="replace") as f:
-        return json.load(f)
+        result: dict[str, Any] = json.load(f)
+        return result
 
 
-def load_iter_summary(path: str) -> dict:
+def load_iter_summary(path: str) -> dict[str, Any]:
     """Load _iteration_summary.json. Returns {} if missing or invalid."""
     if not os.path.isfile(path):
         return {}
     try:
         with open(path, encoding="utf-8", errors="replace") as f:
-            return json.load(f)
+            result: dict[str, Any] = json.load(f)
+            return result
     except (json.JSONDecodeError, OSError):
         return {}
 
 
-def load_agent_telemetry(path: str, max_rows: int = 200) -> list[dict]:
+def load_agent_telemetry(path: str, max_rows: int = 200) -> list[dict[str, Any]]:
     """Load agent-telemetry.jsonl (US-253). Returns [] if missing or unreadable.
 
     Each row has: ts, workerId, storyId, fromPhase, toPhase, durationMs,
@@ -106,7 +112,7 @@ def load_agent_telemetry(path: str, max_rows: int = 200) -> list[dict]:
     """
     if not os.path.isfile(path):
         return []
-    rows: list[dict] = []
+    rows: list[dict[str, Any]] = []
     try:
         with open(path, encoding="utf-8", errors="replace") as f:
             for line in f:
@@ -151,7 +157,7 @@ def _get_manual_skip_ids() -> set[str]:
 # ── Metrics Computation ──────────────────────────────────────────────────────
 
 
-def compute_overview(prd: dict, results: list[dict]) -> dict:
+def compute_overview(prd: dict[str, Any], results: list[dict[str, Any]]) -> dict[str, Any]:
     stories = prd.get("userStories", [])
     total = len(stories)
     passed = sum(1 for s in stories if s.get("passes"))
@@ -198,7 +204,7 @@ def compute_overview(prd: dict, results: list[dict]) -> dict:
     }
 
 
-def compute_velocity(results: list[dict]) -> list[dict]:
+def compute_velocity(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
     if not results:
         return []
     by_iter = defaultdict(list)
@@ -223,7 +229,7 @@ def compute_velocity(results: list[dict]) -> list[dict]:
     return velocity
 
 
-def compute_status_breakdown(prd: dict, results: list[dict]) -> dict:
+def compute_status_breakdown(prd: dict[str, Any], results: list[dict[str, Any]]) -> dict[str, Any]:
     stories = prd.get("userStories", [])
     story_status = {
         "passed": sum(1 for s in stories if s.get("passes")),
@@ -239,7 +245,7 @@ def compute_status_breakdown(prd: dict, results: list[dict]) -> dict:
     return {"stories": story_status, "attempts": dict(attempt_status)}
 
 
-def compute_model_performance(results: list[dict]) -> list[dict]:
+def compute_model_performance(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
     if not results:
         return []
     by_model = defaultdict(list)
@@ -266,7 +272,7 @@ def compute_model_performance(results: list[dict]) -> list[dict]:
     return perf
 
 
-def compute_resource_usage(results: list[dict]) -> list[dict]:
+def compute_resource_usage(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Compute median and p95 resource usage per model tier (US-158).
 
     Returns a list of dicts with keys: model, count, median_wall_s,
@@ -275,7 +281,7 @@ def compute_resource_usage(results: list[dict]) -> list[dict]:
     """
     if not results:
         return []
-    by_model: dict[str, list[dict]] = defaultdict(list)
+    by_model: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for r in results:
         by_model[r.get("model", "unknown")].append(r)
 
@@ -303,7 +309,7 @@ def compute_resource_usage(results: list[dict]) -> list[dict]:
     return usage
 
 
-def compute_retry_analysis(results: list[dict]) -> list[dict]:
+def compute_retry_analysis(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
     if not results:
         return []
     by_attempt = defaultdict(list)
@@ -325,7 +331,7 @@ def compute_retry_analysis(results: list[dict]) -> list[dict]:
     return analysis
 
 
-def compute_bottlenecks(results: list[dict], retries: dict, prd: dict) -> dict:
+def compute_bottlenecks(results: list[dict[str, Any]], retries: dict[str, Any], prd: dict[str, Any]) -> dict[str, Any]:
     # Most retried stories
     story_titles = {s["id"]: s.get("title", "") for s in prd.get("userStories", [])}
     top_retried = sorted(retries.items(), key=lambda x: x[1], reverse=True)[:5]
@@ -351,7 +357,7 @@ def compute_bottlenecks(results: list[dict], retries: dict, prd: dict) -> dict:
     return {"most_retried": most_retried, "longest_duration": longest}
 
 
-def compute_failure_reasons(prd: dict) -> list[dict]:
+def compute_failure_reasons(prd: dict[str, Any]) -> list[dict[str, Any]]:
     """Return list of stories that have a _failureReason set."""
     stories = prd.get("userStories", [])
     return [
@@ -365,7 +371,7 @@ def compute_failure_reasons(prd: dict) -> list[dict]:
     ]
 
 
-def compute_iteration_velocity(results: list[dict]) -> dict:
+def compute_iteration_velocity(results: list[dict[str, Any]]) -> dict[int, int]:
     """Return {iter: count} dict — stories with status=='keep' per spiral_iter."""
     by_iter: dict[int, int] = {}
     for r in results:
@@ -380,13 +386,13 @@ def compute_iteration_velocity(results: list[dict]) -> dict:
     return by_iter
 
 
-def compute_epics(prd: dict) -> list[dict]:
+def compute_epics(prd: dict[str, Any]) -> list[dict[str, Any]]:
     """Compute per-epic stats: name, total stories, % complete."""
     stories = prd.get("userStories", [])
     epics_meta = prd.get("epics", []) if isinstance(prd.get("epics"), list) else []
     epic_title_map = {e["id"]: e.get("title", e["id"]) for e in epics_meta if isinstance(e, dict) and "id" in e}
 
-    groups: dict[str, list[dict]] = {}
+    groups: dict[str, list[dict[str, Any]]] = {}
     for s in stories:
         eid = s.get("epicId", "")
         if not eid:
@@ -423,7 +429,7 @@ def compute_epics(prd: dict) -> list[dict]:
     return result
 
 
-def detect_orphaned_worktrees(workers_dir: str = ".spiral-workers") -> list[dict]:
+def detect_orphaned_worktrees(workers_dir: str = ".spiral-workers") -> list[dict[str, Any]]:
     """Detect orphaned git worktrees by cross-referencing PID files with live processes.
 
     Scans ``.spiral-workers/worker-N/worker.pid`` files.  For each, checks if the
@@ -432,7 +438,7 @@ def detect_orphaned_worktrees(workers_dir: str = ".spiral-workers") -> list[dict
 
     Returns list of dicts: {worker_dir, path, pid, suggested_cmd}.
     """
-    orphans = []
+    orphans: list[dict[str, Any]] = []
     if not os.path.isdir(workers_dir):
         return orphans
 
@@ -476,7 +482,7 @@ def detect_orphaned_worktrees(workers_dir: str = ".spiral-workers") -> list[dict
     return orphans
 
 
-def compute_decomposition(prd: dict) -> dict:
+def compute_decomposition(prd: dict[str, Any]) -> dict[str, Any]:
     stories = prd.get("userStories", [])
     parents = [s for s in stories if s.get("_decomposed")]
     children = [s for s in stories if s.get("_decomposedFrom")]
@@ -505,7 +511,7 @@ def compute_decomposition(prd: dict) -> dict:
     }
 
 
-def compute_stale_stories(prd: dict, stale_days: int | None = None) -> dict[str, int]:
+def compute_stale_stories(prd: dict[str, Any], stale_days: int | None = None) -> dict[str, int]:
     """Return a mapping of story_id → age_in_days for stale pending stories.
 
     A story is stale when it is pending (not passed/decomposed/skipped) and its
@@ -539,7 +545,7 @@ def compute_stale_stories(prd: dict, stale_days: int | None = None) -> dict[str,
     return stale
 
 
-def compute_token_forecast(results: list[dict], daily_limit: int | None = None) -> dict | None:
+def compute_token_forecast(results: list[dict[str, Any]], daily_limit: int | None = None) -> dict[str, Any] | None:
     """Compute API token burn rate and forecast exhaustion time.
 
     Uses a rolling 1-hour window of rows that have ``input_tokens``/``output_tokens``
@@ -565,7 +571,7 @@ def compute_token_forecast(results: list[dict], daily_limit: int | None = None) 
     now = datetime.now(timezone.utc)
     cutoff = now - timedelta(seconds=3600)
 
-    recent_rows = []
+    recent_rows: list[dict[str, Any]] = []
     for r in results:
         ts_raw = r.get("timestamp", "")
         if not ts_raw:
@@ -590,7 +596,7 @@ def compute_token_forecast(results: list[dict], daily_limit: int | None = None) 
         return None
 
     # Tokens burned in the 1-hour window ≈ burn rate per hour
-    burn_rate_per_hour = sum(r["tokens"] for r in recent_rows)
+    burn_rate_per_hour = sum(int(r["tokens"]) for r in recent_rows)
     if burn_rate_per_hour <= 0:
         return None
 
@@ -616,7 +622,7 @@ def compute_token_forecast(results: list[dict], daily_limit: int | None = None) 
     }
 
 
-def compute_story_attempts(prd: dict, results: list[dict]) -> dict:
+def compute_story_attempts(prd: dict[str, Any], results: list[dict[str, Any]]) -> dict[str, Any]:
     """Group results by story_id and build per-story attempt history.
 
     Returns {story_id: [attempt_rows...]} dict, one entry per story in prd.
@@ -627,7 +633,7 @@ def compute_story_attempts(prd: dict, results: list[dict]) -> dict:
     stale_map = compute_stale_stories(prd)
 
     # Group results by story_id
-    by_story: defaultdict[str, list[dict]] = defaultdict(list)
+    by_story: defaultdict[str, list[dict[str, Any]]] = defaultdict(list)
     for r in results:
         sid = r.get("story_id", "")
         if sid:
@@ -651,7 +657,7 @@ def compute_story_attempts(prd: dict, results: list[dict]) -> dict:
             status = "manual_skip"
         else:
             status = "pending"
-        entry: dict = {
+        entry: dict[str, Any] = {
             "story_id": sid,
             "title": story.get("title", ""),
             "status": status,
@@ -668,7 +674,7 @@ def compute_story_attempts(prd: dict, results: list[dict]) -> dict:
 # ── SVG Velocity Chart ───────────────────────────────────────────────────────
 
 
-def _render_velocity_svg(iteration_velocity: dict) -> str:
+def _render_velocity_svg(iteration_velocity: dict[int, int]) -> str:
     """Render an inline SVG bar chart of stories completed per SPIRAL iteration."""
     if not iteration_velocity:
         return '<div class="no-data">No iteration data yet</div>'
@@ -743,7 +749,10 @@ def find_latest_screenshot(scratch_dir: str) -> str | None:
 
 
 def generate_insights(
-    overview: dict, model_perf: list[dict], retry_analysis: list[dict], bottlenecks: dict
+    overview: dict[str, Any],
+    model_perf: list[dict[str, Any]],
+    retry_analysis: list[dict[str, Any]],
+    bottlenecks: dict[str, Any],
 ) -> list[str]:
     insights = []
 
@@ -827,27 +836,27 @@ def _render_activity_feed(sections: list[str]) -> str:
 
 
 def render_html(
-    overview: dict,
-    velocity: list[dict],
-    status: dict,
-    model_perf: list[dict],
-    retry_analysis: list[dict],
-    bottlenecks: dict,
-    decomposition: dict,
+    overview: dict[str, Any],
+    velocity: list[dict[str, Any]],
+    status: dict[str, Any],
+    model_perf: list[dict[str, Any]],
+    retry_analysis: list[dict[str, Any]],
+    bottlenecks: dict[str, Any],
+    decomposition: dict[str, Any],
     insights: list[str],
     screenshot_path: str | None = None,
-    iteration_velocity: dict | None = None,
-    epics: list[dict] | None = None,
+    iteration_velocity: dict[int, int] | None = None,
+    epics: list[dict[str, Any]] | None = None,
     activity_sections: list[str] | None = None,
-    failure_reasons: list[dict] | None = None,
-    story_attempts: dict | None = None,
+    failure_reasons: list[dict[str, Any]] | None = None,
+    story_attempts: dict[str, Any] | None = None,
     refresh_secs: int = 0,
-    orphaned_worktrees: list[dict] | None = None,
-    token_forecast: dict | None = None,
-    resource_usage: list[dict] | None = None,
-    iter_summary: dict | None = None,
-    quality_scores: dict | None = None,
-    agent_telemetry: list[dict] | None = None,
+    orphaned_worktrees: list[dict[str, Any]] | None = None,
+    token_forecast: dict[str, Any] | None = None,
+    resource_usage: list[dict[str, Any]] | None = None,
+    iter_summary: dict[str, Any] | None = None,
+    quality_scores: dict[str, Any] | None = None,
+    agent_telemetry: list[dict[str, Any]] | None = None,
 ) -> str:
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     max_vel = max((v["kept"] for v in velocity), default=1) or 1
@@ -1425,13 +1434,13 @@ if HAS_TEXTUAL:
         """Live log tail panel showing ralph-run.log from selected worker."""
 
         log_path = reactive("")
-        auto_refresh = reactive(True)
+        auto_refresh_enabled = reactive(True)
         refresh_interval = reactive(2.0)
 
         def __init__(self, log_path: str = ""):
             super().__init__()
             self.log_path = log_path
-            self.auto_refresh = True
+            self.auto_refresh_enabled = True
 
         def render(self) -> str:
             """Render the current log content."""
@@ -1450,9 +1459,9 @@ if HAS_TEXTUAL:
         """Text widget showing SPIRAL stories with navigation."""
 
         selected_index = reactive(0)
-        stories: list[dict] = []
+        stories: list[dict[str, Any]] = []
 
-        def __init__(self, stories: list[dict]):
+        def __init__(self, stories: list[dict[str, Any]]):
             super().__init__()
             self.stories = stories
             self.selected_index = 0
@@ -1491,13 +1500,13 @@ if HAS_TEXTUAL:
                 self.selected_index -= 1
                 self.refresh()
 
-        def get_selected_story(self) -> dict | None:
+        def get_selected_story(self) -> dict[str, Any] | None:
             """Get currently selected story."""
             if 0 <= self.selected_index < len(self.stories):
                 return self.stories[self.selected_index]
             return None
 
-    class SpiralDashboardApp(App):
+    class SpiralDashboardApp(App[None]):
         """Interactive Textual TUI for monitoring SPIRAL runs."""
 
         BINDINGS = [
@@ -1509,11 +1518,11 @@ if HAS_TEXTUAL:
             Binding("enter", "show_detail", "Detail"),
         ]
 
-        def __init__(self, prd: dict, scratch_dir: str = ".spiral"):
+        def __init__(self, prd: dict[str, Any], scratch_dir: str = ".spiral"):
             super().__init__()
             self.prd = prd
             self.scratch_dir = scratch_dir
-            self.stories: list[dict] = prd.get("userStories", [])
+            self.stories: list[dict[str, Any]] = prd.get("userStories", [])
             self.selected_worker_id = ""
             self.paused = False
 
@@ -1625,12 +1634,12 @@ def main() -> int:
                 table.add_column("Priority", style="yellow")
                 table.add_column("Status", style="green")
                 for story in stories:
-                    status = "✓" if story.get("passes") else "✗" if story.get("_skipped") else "⏳"
+                    story_status = "✓" if story.get("passes") else "✗" if story.get("_skipped") else "⏳"
                     table.add_row(
                         story.get("id", "?"),
                         story.get("title", "")[:50],
                         story.get("priority", "?"),
-                        status,
+                        story_status,
                     )
                 console.print(table)
             return 0
@@ -1659,7 +1668,7 @@ def main() -> int:
     # Load quality scores from checkpoint (US-248)
     checkpoint_path = os.path.join(args.scratch_dir, "_checkpoint.json")
     _ckpt = load_iter_summary(checkpoint_path)  # returns {} on missing/invalid
-    quality_scores: dict = _ckpt.get("_qualityScores", {}) if _ckpt else {}
+    quality_scores: dict[str, Any] = _ckpt.get("_qualityScores", {}) if _ckpt else {}
 
     # Compute metrics
     overview = compute_overview(prd, results)

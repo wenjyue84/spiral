@@ -430,7 +430,7 @@ class SpiralLiveServer:
             if root:
                 heartbeat_dir = os.path.join(root, ".spiral", "workers")
 
-        workers = []
+        workers: list[dict[str, Any]] = []
         now = time.time()
         for hb_file in glob.glob(os.path.join(heartbeat_dir, "worker_*.heartbeat")):
             try:
@@ -457,7 +457,7 @@ class SpiralLiveServer:
         scratch_dir = ".spiral"
         now = time.time()
         timeout_threshold_sec = 300  # 5 minutes
-        workers = []
+        workers: list[dict[str, Any]] = []
 
         # Scan .spiral-workers/ directory for worker-N subdirectories
         if not os.path.isdir(workers_dir):
@@ -539,7 +539,7 @@ class SpiralLiveServer:
             workers.append(worker_entry)
 
         # Sort by worker_id for consistent ordering
-        workers.sort(key=lambda w: w.get("worker_id", ""))
+        workers.sort(key=lambda w: str(w.get("worker_id", "")))
         await self._send_json(writer, 200, workers)
 
     async def _handle_system_memory(self, writer: asyncio.StreamWriter) -> None:
@@ -741,7 +741,7 @@ class SpiralLiveServer:
         self,
         writer: asyncio.StreamWriter,
         status: int,
-        data: dict,  # type: ignore[type-arg]
+        data: Any,
     ) -> None:
         body = json.dumps(data).encode("utf-8")
         phrase = {200: "OK", 400: "Bad Request", 404: "Not Found", 409: "Conflict", 500: "Internal Server Error"}.get(
