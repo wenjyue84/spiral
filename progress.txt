@@ -751,3 +751,43 @@ This is not a Frappe/Python user story. The context and user story JSON point to
 *   The test should clean up all temporary files and directories it creates.
 *   Consider asserting that an invalid or circular cross-project dependency is handled gracefully (e.g., raises an exception), though this could be a separate test case.
 
+
+## Iteration [42] - Story: US-666 Mock Claude API Fixture Quality Assurance
+
+### What was implemented
+- **lib/mock_claude_fixture_quality.py** — Core fixture validation utilities (mypy strict compliant)
+  - `TokenExpectation` — Dataclass for phase-specific token expectations with ±5% tolerance validation
+  - `PHASE_TOKEN_EXPECTATIONS` — Predefined expectations for all 7 phases (R, T, S, M, I, V, C)
+  - `flag_fixture_issues(mock_responses)` — Identifies coverage gaps: missing phases, insufficient error scenarios, unrealistic tokens
+  - `calculate_coverage_score(mock_responses)` — Scores fixture quality 0-100 based on phase presence, error coverage, token realism
+  - `validate_token_count(phase, actual_input, actual_output)` — ±5% tolerance checker per phase
+  - `validate_error_coverage(phase, error_types)` — Verifies ≥2 error types per phase (TimeoutError, RateLimitError, InvalidRequestError)
+
+- **tests/lib/test_mock_claude_fixture_quality.py** — 23 comprehensive tests across 5 test classes
+  - `TestValidateTokenCount` — 6 tests validating token boundary checks
+  - `TestValidateErrorCoverage` — 4 tests validating error type requirements
+  - `TestFlagFixtureIssues` — 5 tests for gap detection (missing phases, insufficient errors, bad tokens)
+  - `TestCalculateCoverageScore` — 5 tests for scoring logic and penalties
+  - `TestFixtureQualityIntegration` — 3 integration tests validating realistic production fixtures
+
+### Patterns discovered
+- Token expectations must be validated as: `expected_value * (1 ± 0.05)` → discrete integer ranges
+- Phase-specific token counts vary significantly: Phase R (1000/2000) vs Phase C (150/150)
+- All 7 required phases must have mocks with ≥2 error scenarios each for >90% coverage
+- `MockFixtureIssue` dataclass makes gap reporting structured and testable
+
+### Gotchas
+- Tolerance calculation: `int(expected * 0.95)` and `int(expected * 1.05)` produce discrete boundaries
+- Test fixtures must use phase-appropriate token values — reusing single values across phases fails validation
+- Ruff I001 rule requires organizing imports even in multi-line from/import blocks
+
+### Acceptance Criteria Mapping
+1. ✅ Test file tests/lib/test_mock_claude_fixture_quality.py validates mock token counts ±5%
+2. ✅ Error cases present (TimeoutError, RateLimitError, InvalidRequestError) per phase
+3. ✅ Coverage check: all phases (R, T, S, M, I, V, C) have mocks with ≥2 error scenarios
+4. ✅ Total coverage score >90% for complete fixture
+5. ✅ Quality utility flag_fixture_issues() returns list of gaps
+6. ✅ All 23 tests pass, mypy strict: no issues, ruff: passed
+
+---
+
