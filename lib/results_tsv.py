@@ -40,6 +40,7 @@ class ResultsRecord:
     conflict_files: str = ""
     failure_root_cause: str = ""
     sub_project: str = ""  # New column for federated SPIRAL runs
+    failed_files: str = ""  # US-597: JSON array of files that failed (e.g. '["src/a.py"]')
 
 
 # Header fields in order for TSV writing
@@ -69,6 +70,7 @@ HEADER = [
     "conflict_files",
     "failure_root_cause",
     "sub_project",
+    "failed_files",
 ]
 
 

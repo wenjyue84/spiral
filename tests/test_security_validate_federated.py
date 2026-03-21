@@ -225,7 +225,15 @@ class TestCLIInvocationSafety:
     def test_cli_valid_prd_exits_zero(self, tmp_path: Path) -> None:
         """Valid PRD should exit with code 0."""
         prd_file = tmp_path / "prd.json"
-        prd_file.write_text(json.dumps({"userStories": [{"id": "US-001", "title": "Test", "passes": False}]}))
+        prd_file.write_text(
+            json.dumps(
+                {
+                    "userStories": [
+                        {"id": "US-001", "title": "Test", "description": "A valid test story.", "passes": False}
+                    ]
+                }
+            )
+        )
 
         result = subprocess.run(
             [sys.executable, "main.py", "validate-federated", "--prd", str(prd_file)],
