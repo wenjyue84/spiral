@@ -62,6 +62,25 @@ run_phase_research() {
       GEMINI_RESEARCH=$("$JQ" -r '.gemini_research // .content // .' <<<"$_TOPIC_CACHE_RESULT" 2>/dev/null || echo "$_TOPIC_CACHE_RESULT")
       _RESEARCH_TOPIC_CACHED=1
     fi
+
+    # ── Query similarity deduplication (US-651): check for near-duplicate prior queries ──
+    if [[ -z "$_RESEARCH_TOPIC_CACHED" ]]; then
+      _DEDUP_CACHE="$SCRATCH_DIR/research_cache.json"
+      # Fall back to .spiral/research_cache.json if scratch copy not present
+      [[ ! -f "$_DEDUP_CACHE" ]] && _DEDUP_CACHE=".spiral/research_cache.json"
+      if [[ -f "$_DEDUP_CACHE" ]]; then
+        _DEDUP_RESULT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/research_dedup.py" \
+          --query "$_RESEARCH_TOPIC" \
+          --cache-path "$_DEDUP_CACHE" 2>/dev/null || echo "")
+        if [[ -n "$_DEDUP_RESULT" ]]; then
+          echo "  [R] Similarity dedup hit — reusing near-duplicate cached Gemini research (US-651)"
+          GEMINI_RESEARCH=$("$JQ" -r '.gemini_research // .content // .' <<<"$_DEDUP_RESULT" 2>/dev/null || echo "$_DEDUP_RESULT")
+          _RESEARCH_TOPIC_CACHED=1
+          log_spiral_event "research_dedup_hit" \
+            "\"event_type\":\"research_dedup_hit\",\"query\":\"${_RESEARCH_TOPIC:0:60}\",\"iteration\":$SPIRAL_ITER" 2>/dev/null || true
+        fi
+      fi
+    fi
   fi
 
   # ── Gemini web research (optional, configured via SPIRAL_GEMINI_PROMPT) ──
