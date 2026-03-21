@@ -3350,6 +3350,25 @@ def main():
         help="Path to prd.json (default: prd.json)",
     )
 
+    # ── lint-prd subcommand (US-639) ─────────────────────────────────────────
+    lint_prd_parser = subparsers.add_parser(
+        "lint-prd",
+        help="Validate prd.json schema, IDs, naming, and circular deps (US-639)",
+    )
+    lint_prd_parser.add_argument(
+        "prd",
+        nargs="?",
+        default="prd.json",
+        metavar="PRD",
+        help="Path to prd.json (default: prd.json)",
+    )
+    lint_prd_parser.add_argument(
+        "--schema",
+        default="",
+        metavar="SCHEMA",
+        help="Path to prd.schema.json (optional)",
+    )
+
     args = parser.parse_args()
 
     if args.command == "init":
@@ -3448,6 +3467,8 @@ def main():
         cmd_show_worker_logs(args)
     elif args.command == "validate-federated-order":
         cmd_validate_federated_order(args)
+    elif args.command == "lint-prd":
+        cmd_lint_prd(args)
     else:
         parser.print_help()
         sys.exit(0)
@@ -3574,6 +3595,48 @@ def cmd_validate_federated_order(args: argparse.Namespace) -> None:
     print(json.dumps(result, indent=2))
     if violations:
         sys.exit(1)
+
+
+def cmd_lint_prd(args: argparse.Namespace) -> None:
+    """Validate prd.json schema, IDs, naming, and circular deps (US-639).
+
+    Usage: spiral lint-prd [prd.json] [--schema prd.schema.json]
+    Outputs JSON: {valid: bool, errors: [{type, ...}, ...]}
+    """
+    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    from prd.lint_prd import lint_prd  # type: ignore[import-untyped]
+
+    prd_path = Path(getattr(args, "prd", "prd.json"))
+    schema_path: str | None = getattr(args, "schema", "") or None
+
+    if not prd_path.exists():
+        print(
+            json.dumps(
+                {
+                    "valid": False,
+                    "errors": [{"type": "schema", "message": f"File not found: {prd_path}"}],
+                }
+            )
+        )
+        sys.exit(1)
+
+    try:
+        with open(prd_path, encoding="utf-8") as f:
+            prd_data = json.load(f)
+    except json.JSONDecodeError as exc:
+        print(
+            json.dumps(
+                {
+                    "valid": False,
+                    "errors": [{"type": "schema", "message": f"Invalid JSON: {exc}"}],
+                }
+            )
+        )
+        sys.exit(1)
+
+    report = lint_prd(prd_data, schema_path)
+    print(json.dumps(report, indent=2))
+    sys.exit(0 if report.get("valid") else 1)
 
 
 if __name__ == "__main__":
