@@ -1731,3 +1731,25 @@ FAILED diff-guard: Integration Test: Phase M Federated Merge Respects Cross-Proj
 ### Gotchas
 - Keep test files under ~160 lines to stay safely under the 200-line diff guard limit
 - Import path: `from lib.federated_merge_prd import merge_prds` works directly; phase_m_federated_order needs sys.path.insert for lib/impl/
+## Iteration 1 - Sat, Mar 21, 2026  3:44:38 PM
+FAILED diff-guard: Integration Test - Phase T Test Failure Parsing with Mock Test Output (ID: US-658) — 299 lines > 200 limit — attempt 1/3
+
+
+## Iteration 2 - Story: US-658 Integration Test - Phase T Test Failure Parsing with Mock Test Output
+
+### What was implemented
+- tests/integration_phase_t_mock_tests.py: 6 tests covering Phase T workflow
+  - test_aggregate_extracts_only_failures: verifies 3 FAIL/ERROR extracted, PASS filtered
+  - test_find_recent_reports: discovers and orders report dirs newest-first
+  - test_dedup_skips_existing_titles: word-overlap dedup works correctly
+  - test_result_to_story_source_and_description: _source starts with "test-synthesis:", failure reason in AC
+  - test_result_to_story_priority_by_category: unit=medium, integration/regression=high
+  - test_testfix_prioritized_above_research: merge CLI puts test-fix Group 1 before research Group 2
+
+### Patterns discovered
+- synthesize_tests.result_to_story puts error message in acceptanceCriteria (not description)
+- _source format is "test-synthesis:{test_id}", not plain "test-fix" (merge_stories tags it later)
+- Ruff formatter expands compact dict-per-line to multi-line (~120→175 lines); budget accordingly for diff guard
+
+### Gotchas
+- Attempt 1 failed with 299 lines > 200 diff guard. Compact style + direct function testing (no subprocess for most tests) kept attempt 2 at 175 lines post-format
