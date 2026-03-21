@@ -24,8 +24,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-03-21T11:38:20Z"
+      "model": "haiku"
     },
     {
       "id": "US-646",
@@ -175,6 +174,70 @@
       "estimatedComplexity": "small",
       "passes": false,
       "model": "sonnet"
+    },
+    {
+      "id": "US-664",
+      "title": "Dashboard Endpoint: Phase Bottleneck Analysis — Identify Time-Consuming Phases per Iteration",
+      "priority": "medium",
+      "description": "Analyzes results.tsv to detect phases consuming disproportionate wall-clock time. Returns per-phase metrics with percentile breakdown and automated optimization recommendations to help operators balance SPIRAL load.",
+      "acceptanceCriteria": [
+        "Endpoint GET /api/dashboard/phase-bottlenecks returns {phases: [{name: 'Phase I', totalTime: 3600, avgPerStory: 720, percentOfIteration: 45, recommendation: 'increase workers'}, ...]}",
+        "Supports filters: ?iteration_min=1&iteration_max=10&story_status=failed to narrow analysis to specific subsets",
+        "Test: identifies phase with max totalTime across iterations and asserts recommendation field contains actionable text like 'parallelize' or 'reduce scope'"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-665",
+      "title": "CLI: spiral list-federation — Display Sub-Project Configuration and Story Allocation Summary",
+      "priority": "medium",
+      "description": "CLI command that reads .spiral/federation.toml and prd.json to summarize federated setup: sub-project names, story counts per project, and worker allocations. Helps operators verify federation configuration at a glance.",
+      "acceptanceCriteria": [
+        "Command spiral list-federation outputs JSON: {sub_projects: [{name: 'frontend', story_count: 12, workers: 2}, {name: 'backend', story_count: 8, workers: 1}], total_stories: 20, total_workers: 3}",
+        "Returns exit code 1 if federation.toml missing or prd.json sub_project field inconsistent with config",
+        "Test: validates output counts match prd.json tallies, JSON matches federation schema, empty sub_project defaults to 'default'"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-666",
+      "title": "Integration Test: Mock Claude API Fixture Quality Assurance — Validate Realistic Coverage",
+      "priority": "medium",
+      "description": "Validates that mock Claude responses in test fixtures realistically simulate API behavior: token estimates, error conditions, and edge cases. Ensures mock library covers all phases and error scenarios with sufficient diversity.",
+      "acceptanceCriteria": [
+        "Test file tests/lib/test_mock_claude_fixture_quality.py: validate mock token counts ±5% of real API, assert error cases present (TimeoutError, RateLimitError, InvalidRequestError) per phase",
+        "Coverage check: all phases (R, T, S, M, I, V, C) have mocks with ≥2 error scenarios each; total coverage score >90%",
+        "Quality utility flag_fixture_issues() returns list of gaps: missing phases, unrealistic token counts, under-represented errors"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-667",
+      "title": "Dashboard: Export Metrics to CSV/JSON/Prometheus — GET /api/dashboard/export?format=csv",
+      "priority": "low",
+      "description": "Adds export capability to dashboard for downloading aggregated results.tsv metrics in CSV, JSON, and Prometheus OpenMetrics formats. Enables external monitoring, offline analysis, and integration with APM platforms.",
+      "acceptanceCriteria": [
+        "Endpoint GET /api/dashboard/export?format=csv&iteration_min=1&iteration_max=5 returns CSV: iteration,story_id,phase,model,tokens,duration,status",
+        "Format=prometheus returns OpenMetrics with metadata: '# HELP spiral_story_tokens_total Total tokens per story\\n spiral_story_tokens_total{story_id=\"US-001\",model=\"haiku\"} 1245'",
+        "Supports filters: iteration range, story status, sub_project; includes metadata row: export_timestamp, spiral_version, row_count"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
     },
     {
       "id": "US-668",
@@ -2008,6 +2071,24 @@
       "model": "haiku",
       "_scopeCreep": true,
       "tags": []
+    },
+    {
+      "id": "US-656",
+      "title": "CLI: spiral federated-rebase -- Auto-Fix Story ID Namespace Mismatches in Multi-Project prd.json",
+      "priority": "medium",
+      "description": "Detect stories with sub_project field that don't match story ID namespace prefixes (e.g., story 'US-001' assigned to sub_project 'payment'). Offer --dry-run preview and --apply corrections with backup.",
+      "acceptanceCriteria": [
+        "federated-rebase --dry-run on prd.json with story 'US-001' (sub_project: 'payment') suggests fix: 'PAYMENT-001' with mapping {old_id: 'US-001', new_id: 'PAYMENT-001', sub_project: 'payment'}'",
+        "--apply flag rewrites mismatched story IDs to match namespace prefix and updates all cross-project references in prd.json, writes .backup file before modification",
+        "Test with 5 stories (3 mismatched: US-001→PAYMENT-001, US-002→SHIPMENT-001, etc.; 2 already correct) verifies --dry-run output and --apply updates only broken entries"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku",
+      "_skipped": true
     },
     {
       "id": "US-645",
