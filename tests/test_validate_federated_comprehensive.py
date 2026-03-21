@@ -10,11 +10,8 @@ import json
 import sys
 from pathlib import Path
 
-import pytest
-
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib" / "commands"))
 from validate_federated import validate_federated
-
 
 # ── AC1: Invalid inputs detected ─────────────────────────────────────────────
 
@@ -178,9 +175,7 @@ def test_all_error_types_are_actionable(tmp_path: Path) -> None:
     # AC3: missing-description error includes story ID
     desc_errors = [e for e in errors if "description" in e.lower()]
     assert len(desc_errors) >= 1, "Should have at least one missing-description error"
-    assert any("repo-a:US-001" in e for e in desc_errors), (
-        "Missing-description error must identify the story ID"
-    )
+    assert any("repo-a:US-001" in e for e in desc_errors), "Missing-description error must identify the story ID"
 
     # AC3: invalid-ID error includes the bad ID and a fix suggestion
     id_errors = [e for e in errors if "US-111-xyz" in e]

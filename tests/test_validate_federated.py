@@ -21,18 +21,21 @@ def valid_prd(tmp_path: Path) -> Path:
             {
                 "id": "repo-a:US-001",
                 "title": "Story from repo-a",
+                "description": "A valid story from repo-a",
                 "priority": "high",
                 "passes": False,
             },
             {
                 "id": "repo-b:US-002",
                 "title": "Story from repo-b",
+                "description": "A valid story from repo-b",
                 "priority": "medium",
                 "passes": False,
             },
             {
                 "id": "US-003",
                 "title": "Story in main namespace",
+                "description": "A valid story in the main namespace",
                 "priority": "low",
                 "passes": False,
             },
@@ -155,11 +158,13 @@ def test_cycle_detection(tmp_path: Path) -> None:
             {
                 "id": "repo-a:US-001",
                 "title": "Story A",
+                "description": "Story A depends on Story B",
                 "dependencies": ["repo-b:US-002"],
             },
             {
                 "id": "repo-b:US-002",
                 "title": "Story B",
+                "description": "Story B has no dependencies",
                 "dependencies": [],
             },
         ],
@@ -215,8 +220,8 @@ def test_id_format_and_duplicates(tmp_path: Path) -> None:
     valid_prd_data = {
         "schemaVersion": 1,
         "userStories": [
-            {"id": "repo-a:US-001", "title": "Story 1"},
-            {"id": "repo-b:US-002", "title": "Story 2"},
+            {"id": "repo-a:US-001", "title": "Story 1", "description": "First valid story"},
+            {"id": "repo-b:US-002", "title": "Story 2", "description": "Second valid story"},
         ],
     }
     valid_file = tmp_path / "valid.json"
@@ -333,9 +338,9 @@ class TestValidateFederatedModule:
         prd_data = {
             "schemaVersion": 1,
             "userStories": [
-                {"id": "repo-a:US-001", "title": "Namespaced story"},
-                {"id": "US-002", "title": "Non-namespaced story"},
-                {"id": "repo-b:UT-003", "title": "Test story with namespace"},
+                {"id": "repo-a:US-001", "title": "Namespaced story", "description": "A namespaced story"},
+                {"id": "US-002", "title": "Non-namespaced story", "description": "A non-namespaced story"},
+                {"id": "repo-b:UT-003", "title": "Test story with namespace", "description": "A test story"},
             ],
         }
         prd_file = tmp_path / "mixed.json"
@@ -388,9 +393,10 @@ class TestValidateFederatedModule:
                 {
                     "id": "repo-a:US-001",
                     "title": "Story with dict dependency",
+                    "description": "Story that uses dict-format dependency",
                     "dependencies": [{"id": "repo-b:US-002"}],
                 },
-                {"id": "repo-b:US-002", "title": "Dependency target"},
+                {"id": "repo-b:US-002", "title": "Dependency target", "description": "The dependency target"},
             ],
         }
         prd_file = tmp_path / "dict_deps.json"
