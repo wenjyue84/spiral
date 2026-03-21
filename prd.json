@@ -23,9 +23,10 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-03-21T09:27:01Z"
     },
     {
       "id": "US-641",
@@ -179,87 +180,6 @@
       "passes": false,
       "_source": "ai-example",
       "model": "haiku"
-    },
-    {
-      "id": "US-657",
-      "title": "WebSocket Endpoint: /ws/story-updates -- Real-Time Story Phase Change Broadcasting",
-      "priority": "medium",
-      "description": "Broadcast story phase transitions via WebSocket to enable real-time dashboard updates without polling. Clients subscribe to story ID changes and receive phase transition events as they occur.",
-      "acceptanceCriteria": [
-        "When Phase C logs story status change (e.g., transition from phase='S' to phase='M'), /ws/story-updates broadcasts JSON: {story_id: 'US-001', from_phase: 'S', to_phase: 'M', timestamp: '2026-03-21T14:32:01Z'}'",
-        "Clients can subscribe with message {type: 'subscribe', story_ids: ['US-001', 'US-002']} or {type: 'subscribe', story_ids: '*'} for all updates",
-        "Integration test mocks Phase C updating prd.json story phase, verifies /ws/story-updates sends broadcast to 2 connected clients, clients receive correct message format"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-661",
-      "title": "CLI: spiral validate-phase-outputs -- Comprehensive Phase Output Schema Validation",
-      "priority": "medium",
-      "description": "Add CLI command to validate intermediate phase output JSON files (_research_output.json, _test_stories_output.json, _validated_stories.json) against their schemas. Reports schema violations with file paths and remediation hints for debugging phase execution issues.",
-      "acceptanceCriteria": [
-        "Implement lib/spiral/validate_phase_outputs.py with schema matchers for each phase output type",
-        "CLI command 'spiral validate-phase-outputs [--phase R|T|S|M]' checks .spiral/ output files against lib/schemas/phase_*.schema.json",
-        "Output JSON format {valid: bool, phase: string, errors: [{file, line, expected, got}]} or --format text for human-readable report"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-662",
-      "title": "Dashboard React Component - Real-Time Worker Phase Swimlane Timeline",
-      "priority": "medium",
-      "description": "Build React component that renders worker execution timeline from /api/workers/<id>/queue endpoint. Display each worker as a horizontal swimlane with phase blocks showing start/end times, status (running/completed/failed), and token cost tooltips for bottleneck analysis.",
-      "acceptanceCriteria": [
-        "Create spiral-ui/src/components/WorkerTimelineChart.tsx polling /api/workers/*/queue every 1s during iteration",
-        "Render horizontal swimlanes (worker-1, worker-2, worker-3) with phase blocks colored by status (blue=running, green=done, red=failed)",
-        "Tooltip on phase block shows phase name, duration, tokens used, and model used (haiku/sonnet/opus)"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-663",
-      "title": "Integration Test: SPIRAL Crash Recovery — Restore State from Checkpoint and Resume",
-      "priority": "medium",
-      "description": "Validates that SPIRAL can recover from mid-phase crashes using .spiral/_checkpoint.json. Simulates crash during Phase I, restarts with --resume-from-checkpoint, and verifies story loop continues without re-executing completed phases.",
-      "acceptanceCriteria": [
-        "Test file tests/integration/test_spiral_crash_recovery.py: start SPIRAL, inject crash during Phase I after story 3 of 5, verify .spiral/_checkpoint.json persists {phase: 'I', completed_stories: ['US-001', 'US-002', 'US-003']}",
-        "Restart with spiral.sh --resume-from-checkpoint skips Phase R/T, resumes Phase I at US-004 without re-running previous stories",
-        "Assert results.tsv consistency: prior 3 story rows unchanged, new rows appended after recovery without duplicates"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-647",
-      "title": "Dashboard Endpoint: Worker Resource Usage Metrics via /api/dashboard/worker-resources",
-      "priority": "low",
-      "description": "Track and expose real-time worker process resource usage (peak memory, CPU utilization, story count) from worker heartbeats for performance bottleneck identification.",
-      "acceptanceCriteria": [
-        "Endpoint GET /api/dashboard/worker-resources returns [{worker_id: 'worker-1', memory_peak_mb: 480, avg_cpu_percent: 65, stories_completed: 3, uptime_seconds: 340}, ...] updated every 5s from .spiral/worker_heartbeats.json",
-        "Integration test spawns 2 workers, polls /api/dashboard/worker-resources during story implementation, asserts memory and CPU metrics are non-zero and reflect workload",
-        "Test verifies metrics persist in .spiral/worker-resources-history.json for post-run analysis with timestamp and resource snapshots"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": true,
-      "_source": "ai-example",
-      "model": "sonnet"
     },
     {
       "id": "US-660",
@@ -3570,6 +3490,23 @@
       "_passedCommit": "6805d1e212ea3590bfd1be0020a47d1418f2731b",
       "_failureReason": "story_cost_ceiling",
       "tags": []
+    },
+    {
+      "id": "US-647",
+      "title": "Dashboard Endpoint: Worker Resource Usage Metrics via /api/dashboard/worker-resources",
+      "priority": "low",
+      "description": "Track and expose real-time worker process resource usage (peak memory, CPU utilization, story count) from worker heartbeats for performance bottleneck identification.",
+      "acceptanceCriteria": [
+        "Endpoint GET /api/dashboard/worker-resources returns [{worker_id: 'worker-1', memory_peak_mb: 480, avg_cpu_percent: 65, stories_completed: 3, uptime_seconds: 340}, ...] updated every 5s from .spiral/worker_heartbeats.json",
+        "Integration test spawns 2 workers, polls /api/dashboard/worker-resources during story implementation, asserts memory and CPU metrics are non-zero and reflect workload",
+        "Test verifies metrics persist in .spiral/worker-resources-history.json for post-run analysis with timestamp and resource snapshots"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "sonnet"
     },
     {
       "id": "US-457",
