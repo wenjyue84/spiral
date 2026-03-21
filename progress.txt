@@ -1,3 +1,25 @@
+## Iteration - Story: US-638 Integration Test: E2E SPIRAL Loop with Federated prd.json and Parallel Workers
+
+### What was implemented
+- tests/test_spiral_e2e_federated.py: 18 tests across 5 test classes
+  - TestResearchAPIMock: verifies SPIRAL_RESEARCH_API env var + canned Gemini output parsing
+  - TestTwoWorkersMerge: slice_prd batch + merge_batch_results + merge_worker_results CLI
+  - TestResultsTsvSubProject: 6+ rows with sub_project column verified
+  - TestNoPrdCorruption: atomic_write_json concurrency + schema validation
+  - TestPhaseExecutionOrder: R→T→S→M→I→V→C order + phase_id/duration_ms in log
+
+### Patterns discovered
+- Story IDs must match (US|UT)-NNN (exactly 3 digits, no letters) — pre-commit hook validates this
+- Windows WinError 5 (access denied) on os.rename is expected during concurrent atomic writes — not file corruption
+- NEVER use `rtk read prd.json | jq` for prd.json updates — rtk filters/truncates output, destroying stories
+  - Safe pattern: `python -c "import json; prd=json.load(open('prd.json')); ...; json.dump(prd, open('prd.json','w'))"`
+- merge_worker_results CLI only promotes stories that already exist in the main prd.json (main_ids check)
+
+### Verification results
+- All 18 tests pass: pytest tests/test_spiral_e2e_federated.py ✅
+- mypy --strict on test file: ✅
+- prd.json schema valid: 124 stories ✅
+
 ## Iteration - Story: US-639 CLI: spiral lint-prd
 
 ### What was implemented
@@ -1484,6 +1506,37 @@ Here is a technical brief for implementing story US-597.
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
+
+## Pre-analysis for US-638 (Gemini 2.5 Pro)
+Based on the user story, this task is for the **SPIRAL** project, not a Frappe application. Here is the technical brief for implementing the E2E test:
+
+**Project:** SPIRAL
+**Objective:** Create an integration test (`tests/test_spiral_e2e_federated.py`) to validate the parallel processing of a federated `prd.json`.
+
+**1. Files to Modify:**
+*   **`tests/test_spiral_e2e_federated.py`**: (New file) The main test case will be implemented here.
+*   **`lib/run_parallel_ralph.sh`**: This script will be invoked by the test to run workers. May need inspection to understand its arguments for parallel execution and worktree isolation.
+*   **`lib/phase_orchestrator.py`** (Likely): The core logic for phase transitions (R->C) resides here. The test will implicitly verify its behavior.
+*   **`lib/results_logger.py`** (Likely): Logic for writing to `results.tsv`. The test will assert on the output of this module.
+
+**2. Core Components Involved:**
+*   **Data Files**: `prd.json` (as the central data store), `results.tsv` (for logging metrics).
+*   **Configuration**: The test will need a fixture `prd.json` with a federated structure (e.g., `{"sub_projects": {"proj1": [...], "proj2": [...]}}`).
+*   **Environment**: `$SPIRAL_RESEARCH_API` environment variable needs to be mocked.
+
+**3. Implementation Approach:**
+1.  Create `tests/test_spiral_e2e_federated.py` using the `pytest` framework.
+2.  In the test setup, prepare a federated `prd.json` fixture with 2 sub-projects and 6 total stories.
+3.  Use `unittest.mock.patch.dict` to set a mock value for the `$SPIRAL_RESEARCH_API` environment variable.
+4.  Use the `subprocess` module to call `lib/run_parallel_ralph.sh`, configuring it to run 2 parallel workers.
+5.  After the subprocess finishes, assert that the final `prd.json` is consistent and contains the merged results.
+6.  Read `results.tsv` (e.g., with pandas) and assert that it contains rows for all stories and that the `sub_project` column is correctly populated.
+
+**4. Gotchas & Edge Cases:**
+*   **Concurrency**: The test must verify that no race conditions corrupt `prd.json` or `results.tsv` during concurrent writes from the two workers.
+*   **Worker Isolation**: Ensure the `run_parallel_ralph.sh` script properly creates and uses isolated worktrees for each worker so they don't interfere.
+*   **Cleanup**: Use `pytest` fixtures (`tmp_path`) to manage temporary directories and ensure they are cleaned up post-test, even on failure.
+
 
 ## Pre-analysis for US-638 (Gemini 2.5 Pro)
 Based on the user story, this task is for the **SPIRAL** project, not a Frappe application. Here is the technical brief for implementing the E2E test:
