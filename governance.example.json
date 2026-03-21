@@ -1,0 +1,22 @@
+{
+  "rules": [
+    {
+      "project_id": "web",
+      "max_stories_per_iteration": 3,
+      "id_pattern_regex": "^WEB-\\d+$",
+      "allowed_phases": ["I", "V"]
+    },
+    {
+      "project_id": "api",
+      "max_stories_per_iteration": 5,
+      "id_pattern_regex": "^API-\\d+$",
+      "allowed_phases": ["I", "V", "C"]
+    },
+    {
+      "project_id": "default",
+      "max_stories_per_iteration": 10,
+      "id_pattern_regex": "^US-\\d+$",
+      "allowed_phases": []
+    }
+  ]
+}

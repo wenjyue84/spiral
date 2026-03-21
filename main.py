@@ -35,6 +35,7 @@ Subcommands:
   trace-dependencies      Resolve and visualize full dependency chain for a story (US-675)
   show-story-lineage      Show story decomposition lineage tree with status and tokens (US-671)
   list-federation         Display sub-project configuration and story allocation summary (US-665)
+  validate-governance     Enforce per-project story quotas and ID patterns (US-672)
 """
 
 import argparse
@@ -3618,6 +3619,28 @@ def main():
         help="Output machine-readable JSON instead of ASCII tree",
     )
 
+    # ── validate-governance subcommand (US-672) ─────────────────────────────────
+    validate_gov_parser = subparsers.add_parser(
+        "validate-governance",
+        help="Enforce per-project story quotas and ID patterns (US-672)",
+    )
+    validate_gov_parser.add_argument(
+        "prd",
+        metavar="PRD",
+        help="Path to prd.json",
+    )
+    validate_gov_parser.add_argument(
+        "governance",
+        metavar="GOVERNANCE",
+        help="Path to governance.json with rules",
+    )
+    validate_gov_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="output_json",
+        help="Output machine-readable JSON instead of text",
+    )
+
     # ── validate-phase-outputs subcommand (US-661) ────────────────────────────
     validate_phase_parser = subparsers.add_parser(
         "validate-phase-outputs",
@@ -3766,6 +3789,8 @@ def main():
         cmd_show_story_lineage(args)
     elif args.command == "list-federation":
         cmd_list_federation(args)
+    elif args.command == "validate-governance":
+        cmd_validate_federated_governance(args)
     elif args.command == "validate-phase-outputs":
         cmd_validate_phase_outputs(args)
     else:
@@ -4153,6 +4178,73 @@ def cmd_list_federation(args: argparse.Namespace) -> None:
     summary = build_summary(config, story_counts)
     print(json.dumps(summary, indent=2))
     sys.exit(0)
+
+
+def cmd_validate_federated_governance(args: argparse.Namespace) -> None:
+    """Enforce per-project story quotas and ID patterns (US-672).
+
+    Usage: spiral validate-governance prd.json governance.json [--json]
+
+    Validates prd.json stories against governance rules (quotas, ID patterns, phases).
+
+    Without --json: prints violations grouped by project.
+    Example:
+        [violations] Governance rule violations:
+
+        Project: web-app
+          US-WEB-001: exceeds quota (5 active, max=3)
+          US-WRONG-002: ID does not match pattern '^WEB-\\d+$'
+
+    With --json: outputs machine-readable violations:
+        {violations: {web-app: [{type, story_id, message}]}}
+
+    Exit code 1 if violations found, 0 if all pass.
+    """
+    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    from validate_federated_governance import (  # type: ignore[import-untyped]
+        format_json_report,
+        format_text_report,
+        load_governance_rules,
+        validate_stories,
+    )
+
+    prd_path = Path(args.prd)
+    governance_path = Path(args.governance)
+    output_json: bool = getattr(args, "output_json", False)
+
+    # Load governance rules
+    try:
+        rules = load_governance_rules(governance_path)
+    except FileNotFoundError as e:
+        print(json.dumps({"error": str(e)}), file=sys.stderr)
+        sys.exit(1)
+    except (json.JSONDecodeError, ValueError) as e:
+        print(json.dumps({"error": f"Invalid governance.json: {e}"}), file=sys.stderr)
+        sys.exit(1)
+
+    # Load prd.json
+    if not prd_path.exists():
+        print(json.dumps({"error": f"File not found: {prd_path}"}), file=sys.stderr)
+        sys.exit(1)
+    try:
+        with open(prd_path, encoding="utf-8") as f:
+            prd = json.load(f)
+    except json.JSONDecodeError as e:
+        print(json.dumps({"error": f"Invalid JSON: {e}"}), file=sys.stderr)
+        sys.exit(1)
+
+    stories: list[dict] = prd.get("userStories", [])
+    violations = validate_stories(stories, rules)
+
+    if output_json:
+        print(format_json_report(violations))
+    else:
+        print(format_text_report(violations), file=sys.stderr)
+
+    if violations:
+        sys.exit(1)
+    else:
+        sys.exit(0)
 
 
 def cmd_trace_dependencies(args: argparse.Namespace) -> None:

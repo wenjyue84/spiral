@@ -143,7 +143,8 @@
       "last_attempted": "2026-03-21T22:13:23Z",
       "_phaseI": {
         "diagnosisBlock": "## Current State\n\nReading the Spiral codebase structure and prd.json schema to understand story decomposition format and CLI patterns.\nNow let me verify the decomposition structure in prd.json once more:\n## Current State\nSpiral has trace-dependencies command showing recursive dependency chains. Now implementing show-story-lineage to show story decomposition hierarchies (parent→children).\n\nprd.json structure:\n- Parent stories: `_decomposed: true`\n- Child stories: `_decomposedFrom: \"PARENT_ID\"`\n- Status in `passes` field (true/false/null)\n- Token counts in results.tsv\n\n## Problem Identified\nNeed `spiral show-story-lineage US-123` command that:\n1. Recursively builds tree from parent story showing all children\n2. Displays ASCII tree with status emoji (✓/✗/⏳) and token counts\n3. Supports `--json` flag for dashboard\n\n## Planned Changes\n1. **lib/show_story_lineage.py** (NEW) — LineageNode class + tree building functions\n2. **main.py** — Add show-story-lineage subparser + cmd_show_story_lineage() handler\n3. **tests/test_show_story_lineage.py** (NEW) — Comprehensive tests\n\n---\n\nNow implementing:\nPerfect! Implementation complete. Here's what was accomplished:\n\n## Summary - US-671: show-story-lineage CLI Command"
-      }
+      },
+      "_scopeCreep": true
     },
     {
       "id": "US-672",
@@ -158,8 +159,9 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-03-21T22:39:22Z"
     },
     {
       "id": "US-676",
