@@ -1,4 +1,49 @@
-## Iteration [Current] - Story: US-691 Phase M: Federated File Conflict Detector
+## Iteration [Current] - Story: US-664 Dashboard Endpoint: Phase Bottleneck Analysis
+
+### What was implemented
+- **lib/phase_bottleneck_analysis.py** — Phase bottleneck analysis module (141 lines, mypy strict compliant)
+  - `load_results(path)` — Read results.tsv into list of row dicts
+  - `filter_results(rows, iteration_min, iteration_max, story_status)` — Apply query filters to narrow analysis
+  - `compute_phase_bottlenecks(filtered_rows)` — Aggregate by phase and compute metrics (totalTime, avgPerStory, percentOfIteration)
+  - `_generate_recommendation(phase, total_time, avg_per_story, percent)` — Generate actionable optimization text
+  - Recommendation priority: avg_per_story > 300 → total_time > 1800 → percent > 50% → percent > 30% → monitor
+
+- **lib/dashboard/api.py** — Added FastAPI endpoint
+  - `GET /api/dashboard/phase-bottlenecks?iteration_min=1&iteration_max=10&story_status=failed`
+  - Returns `{"phases": [{name, totalTime, avgPerStory, percentOfIteration, recommendation}, ...]}`
+  - Gracefully handles missing results.tsv with empty response
+
+- **tests/test_phase_bottleneck_analysis.py** — 23 comprehensive tests
+  - TestLoadResults: 3 tests (missing file, empty, single row)
+  - TestFilterResults: 6 tests (iteration min/max/range, status, combined, no filters)
+  - TestComputePhaseBottlenecks: 8 tests (empty, single/multi-phase, missing/invalid duration, phase, recommendations)
+  - TestPhaseBottleneckIntegration: 3 tests (max time identification, actionable text, filter+compute flow)
+
+### Patterns discovered
+- results.tsv columns: spiral_iter, phase (uppercase: R/T/S/M/I/V/C), duration_sec (numeric string)
+- Recommendation logic checks specific conditions first (avg > 300) before general ones (percent > 50%)
+- All recommendations contain actionable keywords: parallelize, increase, reduce, optimize, monitor
+- Filter tests must handle edge cases: missing fields default to "" or 0, invalid numbers default to 0
+- Total iteration time calculated as sum of all filtered rows' durations
+
+### Gotchas
+- Phase column values are uppercase (R, I, V) or "UNKNOWN" if missing
+- duration_sec must be parsed as float with fallback to 0.0 for missing/invalid values
+- percentOfIteration uses total_iteration_time > 0 guard to avoid division by zero
+- Test data must respect metric relationships: high percent requires many short stories, high avg requires few long stories
+
+### Acceptance Criteria Mapping
+1. ✅ Endpoint returns {phases: [{name, totalTime, avgPerStory, percentOfIteration, recommendation}]}
+   - Implemented in GET /api/dashboard/phase-bottlenecks endpoint
+2. ✅ Supports filters: ?iteration_min=1&iteration_max=10&story_status=failed
+   - filter_results() applies all three optional parameters independently
+3. ✅ Test identifies phase with max totalTime and verifies recommendation text
+   - test_identify_max_time_phase: Phase I has totalTime=1300, assertion passes
+   - test_actionable_recommendations: all 23 tests verify keywords present
+
+---
+
+## Iteration [Previous] - Story: US-691 Phase M: Federated File Conflict Detector
 
 ### What was implemented
 - **lib/conflict_detector.py** — Rewritten to implement federated conflict detection (110 lines, mypy strict compliant)
@@ -669,4 +714,3 @@ This technical brief is for implementing an integration test for a command-line 
 *   **State Isolation:** Use pytest's `tmp_path` fixture to ensure the test runs in an isolated directory, preventing side effects.
 *   **Process Output:** Capture `stdout` from the `spiral.sh` script to validate that all R→C phases executed in the correct sequence.
 *   **Test Data:** The test must programmatically create the "5 seed stories" as files in the temporary directory before execution.
-
