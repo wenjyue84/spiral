@@ -11,15 +11,14 @@
   ],
   "userStories": [
     {
-      "id": "US-668",
-      "title": "Phase G: Generate Release Notes from Completed Stories with Semantic Versioning",
+      "id": "US-669",
+      "title": "Integration Test: Phase I Cost Guard Prevents Oversized Story Decomposition",
       "priority": "high",
-      "description": "Extract stories with _status=completed from prd.json, group by source, and compile into RELEASE_NOTES.md with version header from semantic calculator. Output should include story ID, title, and acceptance criteria summary.",
+      "description": "Verify Phase I checks predicted story cost against SPIRAL_COST_CEILING before decomposing. Test mocks lib.cost_predictor.predict_story_cost to return cost exceeding ceiling and asserts story marked skip without decomposition attempt.",
       "acceptanceCriteria": [
-        "lib/phases/phase_g_release_notes.py reads stories where _status=completed and creates RELEASE_NOTES.md",
-        "Group stories by _source (test-fix, research, seed) with section headers",
-        "Include semantic version header from lib/phase_g_semantic_bumper.py version output",
-        "Each story entry format: '- US-123: Title (X tokens, Y cost)' with AC bullets"
+        "tests/test_phase_i_cost_guard.py mocks predict_story_cost() returning cost > SPIRAL_COST_CEILING env var",
+        "Run phase_i subprocess with test story, assert story._status=skip and skip_reason='cost_exceeded' in results.tsv",
+        "Verify lib/impl/decompose.sh is NOT called (confirm via mock call count or log absence)"
       ],
       "technicalNotes": [],
       "dependencies": [],
@@ -111,24 +110,6 @@
       "passes": false,
       "_source": "ai-example",
       "model": "haiku"
-    },
-    {
-      "id": "US-656",
-      "title": "CLI: spiral federated-rebase -- Auto-Fix Story ID Namespace Mismatches in Multi-Project prd.json",
-      "priority": "medium",
-      "description": "Detect stories with sub_project field that don't match story ID namespace prefixes (e.g., story 'US-001' assigned to sub_project 'payment'). Offer --dry-run preview and --apply corrections with backup.",
-      "acceptanceCriteria": [
-        "federated-rebase --dry-run on prd.json with story 'US-001' (sub_project: 'payment') suggests fix: 'PAYMENT-001' with mapping {old_id: 'US-001', new_id: 'PAYMENT-001', sub_project: 'payment'}'",
-        "--apply flag rewrites mismatched story IDs to match namespace prefix and updates all cross-project references in prd.json, writes .backup file before modification",
-        "Test with 5 stories (3 mismatched: US-001→PAYMENT-001, US-002→SHIPMENT-001, etc.; 2 already correct) verifies --dry-run output and --apply updates only broken entries"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "haiku",
-      "_skipped": true
     },
     {
       "id": "US-657",
@@ -256,6 +237,23 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-668",
+      "title": "Phase G: Generate Release Notes from Completed Stories with Semantic Versioning",
+      "priority": "high",
+      "description": "Extract stories with _status=completed from prd.json, group by source, and compile into RELEASE_NOTES.md with version header from semantic calculator. Output should include story ID, title, and acceptance criteria summary.",
+      "acceptanceCriteria": [
+        "lib/phases/phase_g_release_notes.py reads stories where _status=completed and creates RELEASE_NOTES.md",
+        "Group stories by _source (test-fix, research, seed) with section headers",
+        "Include semantic version header from lib/phase_g_semantic_bumper.py version output",
+        "Each story entry format: '- US-123: Title (X tokens, Y cost)' with AC bullets"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -2073,6 +2071,24 @@
       "model": "haiku",
       "_scopeCreep": true,
       "tags": []
+    },
+    {
+      "id": "US-656",
+      "title": "CLI: spiral federated-rebase -- Auto-Fix Story ID Namespace Mismatches in Multi-Project prd.json",
+      "priority": "medium",
+      "description": "Detect stories with sub_project field that don't match story ID namespace prefixes (e.g., story 'US-001' assigned to sub_project 'payment'). Offer --dry-run preview and --apply corrections with backup.",
+      "acceptanceCriteria": [
+        "federated-rebase --dry-run on prd.json with story 'US-001' (sub_project: 'payment') suggests fix: 'PAYMENT-001' with mapping {old_id: 'US-001', new_id: 'PAYMENT-001', sub_project: 'payment'}'",
+        "--apply flag rewrites mismatched story IDs to match namespace prefix and updates all cross-project references in prd.json, writes .backup file before modification",
+        "Test with 5 stories (3 mismatched: US-001→PAYMENT-001, US-002→SHIPMENT-001, etc.; 2 already correct) verifies --dry-run output and --apply updates only broken entries"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku",
+      "_skipped": true
     },
     {
       "id": "US-645",

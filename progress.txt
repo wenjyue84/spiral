@@ -1,4 +1,39 @@
-## Iteration [Current] - Story: US-646 Model Escalation Explainability Report
+## Iteration [Current] - Story: US-650 CLI: spiral cost-forecast
+
+### What was implemented
+- **lib/cost_forecast.py** — New module for velocity-based cost forecasting
+  - `load_results(path)` — reads results.tsv into row dicts
+  - `compute_velocity(rows, last_n_iterations=5)` — computes story completion velocity and token cost velocity from last N iterations
+  - `forecast(prd_path, results_path, last_n=5)` — returns {remaining_stories, iterations_needed, projected_cost, confidence_pct}
+  - Confidence scales linearly with available iterations vs requested window (0% at 0, 100% at last_n+)
+
+- **main.py** — Added `cost-forecast` subcommand
+  - `spiral cost-forecast [--prd FILE] [--results FILE] [--last-n N]`
+  - Outputs JSON: {remaining_stories, iterations_needed, projected_cost, confidence_pct}
+  - Added subparser, dispatch branch, and `cmd_cost_forecast()` handler
+
+- **tests/test_cost_forecast.py** — 10 tests across TestComputeVelocity and TestForecast
+  - Key: test_basic_10_iteration_forecast confirms ±20% accuracy against ground truth
+
+### Patterns discovered
+- results.tsv token columns: cache_read_tokens + cache_creation_tokens + review_tokens = total
+- PASS_STATUSES = {"keep", "pass", "success"} — "reject" rows excluded from velocity
+- Rejected story tokens ARE counted in cost_velocity (they still consume API budget)
+- Confidence calculation: completed_iterations / last_n * 100, capped at 100%
+
+### Gotchas
+- Windows Python requires `encoding='utf-8'` on all file opens (cp1252 crash)
+- mypy strict requires `dict[str, float | int]` return type (not just dict)
+- Pre-existing mypy failures exist in token_guard.py and batch_validate.py — not related to this story
+
+### Acceptance Criteria Mapping
+1. ✅ CLI outputs JSON with {remaining_stories, iterations_needed, projected_cost, confidence_pct}
+2. ✅ Computation uses velocity = completed/iterations and cost_velocity = tokens/iterations
+3. ✅ Integration test with 10 mock iterations asserts within ±20% of ground truth
+
+---
+
+## Iteration [Previous] - Story: US-646 Model Escalation Explainability Report
 
 ### What was implemented
 - **lib/impl/escalation_tracker.py** — New module to track and categorize model escalations

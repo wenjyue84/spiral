@@ -11,23 +11,6 @@
   ],
   "userStories": [
     {
-      "id": "US-646",
-      "title": "Phase I: Model Escalation Explainability Report with Categorized Reason Codes",
-      "priority": "medium",
-      "description": "Track and log why each story was escalated to a stronger model (haiku→sonnet→opus) with categorized reason codes (token_limit, syntax_error, timeout, api_error) for dashboard analysis.",
-      "acceptanceCriteria": [
-        "Phase I writes to .spiral/escalations.json: [{story: 'US-001', attempt: 1, model_used: 'haiku', reason: 'token_limit', tokens_haiku: 95000, retry_model: 'sonnet'}, ...] one entry per escalation",
-        "Dashboard endpoint GET /api/dashboard/escalation-breakdown returns {token_limit: 12, syntax_error: 8, timeout: 3, api_error: 2} with total_escalations: 25",
-        "Test with 3 mock story failures (one token overrun, one syntax, one timeout), asserts escalations.json has correct reason_code for each"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": true,
-      "_source": "ai-example",
-      "model": "haiku"
-    },
-    {
       "id": "US-650",
       "title": "CLI: spiral cost-forecast -- Project Remaining Budget and Timeline Using results.tsv Velocity",
       "priority": "medium",
@@ -40,9 +23,10 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
-      "model": "sonnet"
+      "model": "sonnet",
+      "last_attempted": "2026-03-21T12:21:10Z"
     },
     {
       "id": "US-651",
@@ -190,54 +174,6 @@
       "estimatedComplexity": "small",
       "passes": false,
       "model": "sonnet"
-    },
-    {
-      "id": "US-666",
-      "title": "Integration Test: Mock Claude API Fixture Quality Assurance — Validate Realistic Coverage",
-      "priority": "medium",
-      "description": "Validates that mock Claude responses in test fixtures realistically simulate API behavior: token estimates, error conditions, and edge cases. Ensures mock library covers all phases and error scenarios with sufficient diversity.",
-      "acceptanceCriteria": [
-        "Test file tests/lib/test_mock_claude_fixture_quality.py: validate mock token counts ±5% of real API, assert error cases present (TimeoutError, RateLimitError, InvalidRequestError) per phase",
-        "Coverage check: all phases (R, T, S, M, I, V, C) have mocks with ≥2 error scenarios each; total coverage score >90%",
-        "Quality utility flag_fixture_issues() returns list of gaps: missing phases, unrealistic token counts, under-represented errors"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-670",
-      "title": "Dashboard Endpoint: Phase Bottleneck Analyzer — Rank Phases by Duration Variance",
-      "priority": "medium",
-      "description": "HTTP GET /api/dashboard/bottlenecks endpoint that analyzes results.tsv phase timing columns, ranks phases by average duration and coefficient of variance, and returns phase metrics with story count for optimization targeting.",
-      "acceptanceCriteria": [
-        "lib/dashboard/bottleneck_analyzer.py::BottleneckAnalyzer.analyze() returns list of {phase, avg_duration_ms, variance, story_count}",
-        "GET /api/dashboard/bottlenecks returns JSON sorted by avg_duration_ms descending, includes only phases with >0 stories",
-        "Dashboard /profile tab displays bottleneck data in bar chart (phase vs duration) with top-3 highlighted"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-667",
-      "title": "Dashboard: Export Metrics to CSV/JSON/Prometheus — GET /api/dashboard/export?format=csv",
-      "priority": "low",
-      "description": "Adds export capability to dashboard for downloading aggregated results.tsv metrics in CSV, JSON, and Prometheus OpenMetrics formats. Enables external monitoring, offline analysis, and integration with APM platforms.",
-      "acceptanceCriteria": [
-        "Endpoint GET /api/dashboard/export?format=csv&iteration_min=1&iteration_max=5 returns CSV: iteration,story_id,phase,model,tokens,duration,status",
-        "Format=prometheus returns OpenMetrics with metadata: '# HELP spiral_story_tokens_total Total tokens per story\\n spiral_story_tokens_total{story_id=\"US-001\",model=\"haiku\"} 1245'",
-        "Supports filters: iteration range, story status, sub_project; includes metadata row: export_timestamp, spiral_version, row_count"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
     },
     {
       "id": "US-669",
@@ -2089,22 +2025,21 @@
       "tags": []
     },
     {
-      "id": "US-656",
-      "title": "CLI: spiral federated-rebase -- Auto-Fix Story ID Namespace Mismatches in Multi-Project prd.json",
+      "id": "US-646",
+      "title": "Phase I: Model Escalation Explainability Report with Categorized Reason Codes",
       "priority": "medium",
-      "description": "Detect stories with sub_project field that don't match story ID namespace prefixes (e.g., story 'US-001' assigned to sub_project 'payment'). Offer --dry-run preview and --apply corrections with backup.",
+      "description": "Track and log why each story was escalated to a stronger model (haiku→sonnet→opus) with categorized reason codes (token_limit, syntax_error, timeout, api_error) for dashboard analysis.",
       "acceptanceCriteria": [
-        "federated-rebase --dry-run on prd.json with story 'US-001' (sub_project: 'payment') suggests fix: 'PAYMENT-001' with mapping {old_id: 'US-001', new_id: 'PAYMENT-001', sub_project: 'payment'}'",
-        "--apply flag rewrites mismatched story IDs to match namespace prefix and updates all cross-project references in prd.json, writes .backup file before modification",
-        "Test with 5 stories (3 mismatched: US-001→PAYMENT-001, US-002→SHIPMENT-001, etc.; 2 already correct) verifies --dry-run output and --apply updates only broken entries"
+        "Phase I writes to .spiral/escalations.json: [{story: 'US-001', attempt: 1, model_used: 'haiku', reason: 'token_limit', tokens_haiku: 95000, retry_model: 'sonnet'}, ...] one entry per escalation",
+        "Dashboard endpoint GET /api/dashboard/escalation-breakdown returns {token_limit: 12, syntax_error: 8, timeout: 3, api_error: 2} with total_escalations: 25",
+        "Test with 3 mock story failures (one token overrun, one syntax, one timeout), asserts escalations.json has correct reason_code for each"
       ],
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
-      "model": "haiku",
-      "_skipped": true
+      "model": "haiku"
     },
     {
       "id": "US-645",

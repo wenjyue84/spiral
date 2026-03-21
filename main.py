@@ -30,6 +30,7 @@ Subcommands:
   validate-federated-order  Report merge order and dependency violations for federated PRD (US-617)
   federated-status        Aggregate story status across federated sub-projects (US-629)
   monitor                 Unified monitoring snapshot for progress checks
+  cost-forecast           Forecast remaining budget and timeline from results.tsv velocity (US-650)
 """
 
 import argparse
@@ -3502,6 +3503,31 @@ def main():
         help="Path to results.tsv (default: results.tsv)",
     )
 
+    # ── cost-forecast subcommand (US-650) ─────────────────────────────────────
+    cost_forecast_parser = subparsers.add_parser(
+        "cost-forecast",
+        help="Forecast remaining budget and timeline from results.tsv velocity (US-650)",
+    )
+    cost_forecast_parser.add_argument(
+        "--prd",
+        default="prd.json",
+        metavar="FILE",
+        help="Path to prd.json (default: prd.json)",
+    )
+    cost_forecast_parser.add_argument(
+        "--results",
+        default="results.tsv",
+        metavar="FILE",
+        help="Path to results.tsv (default: results.tsv)",
+    )
+    cost_forecast_parser.add_argument(
+        "--last-n",
+        type=int,
+        default=5,
+        metavar="N",
+        help="Number of recent iterations to use for velocity (default: 5)",
+    )
+
     args = parser.parse_args()
 
     if args.command == "init":
@@ -3608,6 +3634,8 @@ def main():
         cmd_lint_prd(args)
     elif args.command == "predict-story-complexity":
         cmd_predict_story_complexity(args)
+    elif args.command == "cost-forecast":
+        cmd_cost_forecast(args)
     else:
         parser.print_help()
         sys.exit(0)
@@ -3876,6 +3904,28 @@ def cmd_archive_checkpoint(args: argparse.Namespace) -> None:
 
         _ap.ArgumentParser(prog="spiral archive-checkpoint").print_help()
         sys.exit(0)
+
+
+def cmd_cost_forecast(args: argparse.Namespace) -> None:
+    """Forecast remaining budget and timeline from results.tsv velocity (US-650).
+
+    Usage: spiral cost-forecast [--prd FILE] [--results FILE] [--last-n N]
+    Outputs JSON: {remaining_stories, iterations_needed, projected_cost, confidence_pct}
+    """
+    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    from cost_forecast import forecast  # type: ignore[import-untyped]
+
+    prd_path = Path(getattr(args, "prd", "prd.json"))
+    results_path = Path(getattr(args, "results", "results.tsv"))
+    last_n = int(getattr(args, "last_n", 5))
+
+    try:
+        result = forecast(prd_path=prd_path, results_path=results_path, last_n=last_n)
+        print(json.dumps(result, indent=2))
+        sys.exit(0)
+    except Exception as exc:
+        print(json.dumps({"error": str(exc)}), file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
