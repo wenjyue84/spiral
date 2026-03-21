@@ -100,10 +100,68 @@ def get_failed_files_for_story(results_tsv_path: str, story_id: str) -> list[str
     return []
 
 
+def store_failed_files(results_tsv_path: str, story_id: str, failed_files_json: str) -> bool:
+    """
+    Update the last row for story_id in results.tsv, setting failed_files column.
+
+    If the column doesn't exist, appends it to the header.
+    Returns True if a row was found and updated, False otherwise.
+    """
+    try:
+        with open(results_tsv_path, encoding="utf-8", errors="replace") as f:
+            lines = f.readlines()
+
+        if not lines:
+            return False
+
+        header_parts = lines[0].rstrip("\n\r").split("\t")
+
+        # Find or add failed_files column
+        if "failed_files" not in header_parts:
+            header_parts.append("failed_files")
+            lines[0] = "\t".join(header_parts) + "\n"
+
+        failed_idx = header_parts.index("failed_files")
+
+        story_id_idx = -1
+        for i, h in enumerate(header_parts):
+            if h == "story_id":
+                story_id_idx = i
+                break
+
+        if story_id_idx == -1:
+            return False
+
+        # Find last row matching story_id
+        last_row_idx = -1
+        for i in range(1, len(lines)):
+            row = lines[i].rstrip("\n\r").split("\t")
+            if len(row) > story_id_idx and row[story_id_idx] == story_id:
+                last_row_idx = i
+
+        if last_row_idx == -1:
+            return False
+
+        row = lines[last_row_idx].rstrip("\n\r").split("\t")
+        while len(row) <= failed_idx:
+            row.append("")
+        row[failed_idx] = failed_files_json
+        lines[last_row_idx] = "\t".join(row) + "\n"
+
+        with open(results_tsv_path, "w", encoding="utf-8") as f:
+            f.writelines(lines)
+
+        return True
+
+    except (OSError, ValueError, IndexError):
+        return False
+
+
 def main() -> None:
     if len(sys.argv) < 2:
         print("Usage: file_aware_retry.py extract <stderr_file>", file=sys.stderr)
         print("       file_aware_retry.py get <results_tsv> <story_id>", file=sys.stderr)
+        print("       file_aware_retry.py store <results_tsv> <story_id> <json>", file=sys.stderr)
         sys.exit(1)
 
     cmd = sys.argv[1]
@@ -121,6 +179,12 @@ def main() -> None:
             return
         files = get_failed_files_for_story(sys.argv[2], sys.argv[3])
         print(json.dumps(files))
+
+    elif cmd == "store":
+        if len(sys.argv) < 5:
+            return
+        ok = store_failed_files(sys.argv[2], sys.argv[3], sys.argv[4])
+        sys.exit(0 if ok else 1)
 
     else:
         print("[]")

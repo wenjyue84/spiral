@@ -92,3 +92,73 @@ handle_story_failure() {
   fi
   return 0
 }
+
+# get_failed_files_for_story <story_id> [results_tsv_path]
+# Reads results.tsv and returns a JSON array string of failed files from the
+# most recent failed attempt for the given story. Returns "" if none found.
+# Used by callers to build --files-only flag for Ralph retries (US-597).
+get_failed_files_for_story() {
+  local story_id="$1"
+  local results_tsv="${2:-results.tsv}"
+
+  if [[ ! -f "$results_tsv" ]]; then
+    echo ""
+    return 0
+  fi
+
+  local failed_json
+  failed_json=$(uv run python - <<PYEOF 2>/dev/null
+import csv, json, sys
+
+story_id = '$story_id'
+results_path = '$results_tsv'
+
+try:
+    with open(results_path, encoding='utf-8', errors='replace') as f:
+        reader = csv.DictReader(f, delimiter='\t')
+        records = list(reader)
+    for record in reversed(records):
+        if record.get('story_id') == story_id:
+            ff = record.get('failed_files', '')
+            if ff:
+                try:
+                    files = json.loads(ff)
+                    if isinstance(files, list) and files:
+                        print(json.dumps(files))
+                        sys.exit(0)
+                except (json.JSONDecodeError, ValueError):
+                    pass
+except Exception:
+    pass
+print('')
+PYEOF
+) || failed_json=""
+
+  echo "$failed_json"
+}
+
+# build_files_only_args <failed_files_json>
+# Converts a JSON array like '["src/a.py","lib/b.sh"]' into individual args
+# suitable for appending to a ralph command as --files-only <f1> <f2> ...
+# Prints each file on a separate line; caller joins as needed.
+# Returns "" if input is empty or invalid JSON (caller falls back to full retry).
+build_files_only_args() {
+  local failed_files_json="$1"
+
+  if [[ -z "$failed_files_json" || "$failed_files_json" == "[]" ]]; then
+    echo ""
+    return 0
+  fi
+
+  uv run python - <<PYEOF 2>/dev/null || echo ""
+import json, sys
+
+try:
+    files = json.loads('$failed_files_json')
+    for f in files:
+        if f:
+            print(f)
+except Exception:
+    pass
+PYEOF
+}

@@ -135,16 +135,10 @@
       "_source": "ai-example",
       "model": "sonnet",
       "filesTouch": [
-        ".claude/hooks/verify_story_acceptance.py",
-        ".coverage",
-        ".hypothesis/constants/0144005a67236799",
-        ".hypothesis/constants/016af87f794a90e9",
-        ".hypothesis/constants/01831d6f995783ed",
-        ".hypothesis/constants/044aa4a97dd3204b",
-        ".hypothesis/constants/06ee3234b07f7d66",
-        ".hypothesis/constants/087180ea5c6680fc",
-        ".hypothesis/constants/0ad243c8c6e11ffb",
-        ".hypothesis/constants/0dcb44a91ae6f1ae"
+        "lib/impl/file_aware_retry.py",
+        "lib/results_tsv.py",
+        "lib/impl/retry.sh",
+        "tests/test_file_aware_retry.py"
       ],
       "tags": [
         "module-claude",

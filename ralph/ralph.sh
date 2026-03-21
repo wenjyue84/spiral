@@ -98,12 +98,19 @@ while [[ $# -gt 0 ]]; do
       SPIRAL_CACHE_TTL="$2"
       shift 2
       ;;
+    --files-only)
+      RALPH_FILES_ONLY="$2"
+      shift 2
+      ;;
     *)
       MAX_ITERATIONS="$1"
       shift
       ;;
   esac
 done
+
+# Default files-only to empty (disabled)
+RALPH_FILES_ONLY="${RALPH_FILES_ONLY:-}"
 
 # Validate AI tool
 if [[ "$AI_TOOL" != "amp" && "$AI_TOOL" != "claude" && "$AI_TOOL" != "codex" && "$AI_TOOL" != "qwen" && "$AI_TOOL" != "auto" ]]; then
@@ -2696,6 +2703,22 @@ $SPIRAL_REPLAY_HINT"
 
 This SPIRAL iteration is focused on **$RALPH_FOCUS**. Keep this theme in mind while implementing the assigned story. Prioritize approaches that align with this focus area."
       echo "  [focus] Focus context injected into user prompt: \"$RALPH_FOCUS\""
+    fi
+
+    # ── US-597: File-aware retry — restrict re-implementation to failed files only ──
+    if [[ -n "${RALPH_FILES_ONLY:-}" ]]; then
+      RALPH_USER_PROMPT="$RALPH_USER_PROMPT
+
+---
+
+## File-Aware Retry — Failed Files Only
+
+This is a targeted retry. The previous attempt failed on specific files. **Only re-implement these files**; do not touch any other files:
+
+$RALPH_FILES_ONLY
+
+Skip files not in this list even if they seem related."
+      echo "  [files-only] Retry restricted to failed files: $RALPH_FILES_ONLY"
     fi
 
     # ── US-353: Plan cache injection (suggested_approach) ──────────────────

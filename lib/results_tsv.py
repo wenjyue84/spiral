@@ -7,6 +7,8 @@ results.tsv files with proper backward-compatibility for missing columns.
 """
 
 import csv
+import json
+import re
 from dataclasses import asdict, dataclass
 from typing import TextIO
 
@@ -72,6 +74,52 @@ HEADER = [
     "sub_project",
     "failed_files",
 ]
+
+
+def parse_failed_files_from_stderr(stderr: str) -> list[str]:
+    """
+    Extract file paths from Ralph stderr output (US-597).
+
+    Matches lines like:
+      Error processing file: src/main.py
+      Failed to implement: lib/utils.py
+      ERROR: src/api/routes.py — ...
+
+    Returns a deduplicated, sorted list of unique file paths found.
+    """
+    patterns = [
+        r"Error processing file:\s+([\w./\\-]+)",
+        r"Failed to implement:\s+([\w./\\-]+)",
+        r"ERROR:\s+([\w./\\-]+\.(?:py|sh|ts|js|json|yaml|yml|md))",
+        r"FAILED:\s+([\w./\\-]+)",
+    ]
+    found: set[str] = set()
+    for pattern in patterns:
+        for match in re.finditer(pattern, stderr, re.IGNORECASE | re.MULTILINE):
+            path = match.group(1).strip().rstrip("—:,")
+            if path:
+                found.add(path)
+    return sorted(found)
+
+
+def get_last_failed_files(results_path: str, story_id: str) -> list[str]:
+    """
+    Read results.tsv and return the failed_files list from the most recent
+    failed attempt for the given story_id (US-597).
+
+    Returns an empty list if no matching record exists or failed_files is empty/invalid.
+    """
+    records = parse_results_tsv(results_path)
+    # Find the last record for this story that has a non-empty failed_files
+    for record in reversed(records):
+        if record.story_id == story_id and record.failed_files:
+            try:
+                files = json.loads(record.failed_files)
+                if isinstance(files, list) and files:
+                    return [str(f) for f in files]
+            except (json.JSONDecodeError, ValueError):
+                pass
+    return []
 
 
 def parse_results_tsv(path: str) -> list[ResultsRecord]:
