@@ -1879,3 +1879,24 @@ FAILED diff-guard: Phase G: Extract Story-to-Commit Mappings from Git History (I
 ### Gotchas
 - Use `git add <files> && git diff --cached --stat` to verify final diff size before committing
 - The vite.config.ts endpoint block must remain under ~30 lines to budget room for test file
+
+## Iteration 2 - Story: US-640 Phase G: Extract Story-to-Commit Mappings from Git History
+
+### What was implemented
+- lib/prd/extract_story_commits.py (42 lines): story_commits_from_git(repo_path, known_ids=None)
+  - Runs git log --format=%H %s and extracts (?:US|UT)-\d{3} patterns
+  - Returns dict[str, list[str]] via setdefault pattern (mypy-safe, no defaultdict needed)
+  - Logs WARNING for orphaned commits when known_ids provided
+- tests/test_extract_story_commits.py (88 lines): 6 tests with temp git repo fixture
+  - 8 commits: US-001 (×2), US-002, US-003 (×2), US-004, US-005, US-099 (orphan), US-098 (orphan)
+
+### Patterns discovered
+- diff-guard limit is 200 lines total added; previous attempt hit 336 lines
+- setdefault pattern avoids mypy strict issues with defaultdict typing
+- Logger name for caplog is prd.extract_story_commits (module __name__ when imported from lib/ on sys.path)
+- git init without -b flag is safer for older git versions
+
+### Verification results
+- All 6 tests pass: pytest tests/test_extract_story_commits.py ✅
+- mypy --strict on extract_story_commits.py: ✅
+- Story marked passes=true in prd.json ✅
