@@ -1,3 +1,33 @@
+## Iteration [Current] - Story: US-665 CLI list-federation
+
+### What was implemented
+- **lib/list_federation.py** — Federation config summarizer (mypy strict compliant)
+  - `load_federation_config(path)` — reads federation.toml via tomllib, parses [[sub_projects]] array
+  - `count_stories_by_project(stories)` — groups by sub_project, empty/None/whitespace → "default"
+  - `validate_consistency(config_projects, story_projects)` — detects prd.json sub_project not in config; "default" always allowed
+  - `build_summary(config, story_counts)` — builds {sub_projects, total_stories, total_workers}; appends extra prd projects not in config with workers=0
+
+- **main.py** — Added `list-federation` subparser + `cmd_list_federation()` handler
+  - Exit 1 if federation.toml missing, prd.json invalid, or inconsistency detected
+
+- **tests/test_list_federation.py** — 22 tests across 4 classes (100% pass)
+
+### Patterns discovered
+- `tomllib` is available in Python 3.13 stdlib (no external dep needed)
+- `[[sub_projects]]` is the TOML array-of-tables syntax for federation config
+- "default" sub_project is always valid even if not in config — prevents false positives
+
+### Gotchas
+- `pytest.raises(FileNotFoundError, match="...")` must match the actual error string not just assume it contains the filename
+- ruff auto-removes unused imports (tomllib, patch) from test files — let it fix them with --fix
+
+### Acceptance Criteria Mapping
+1. ✅ Outputs {sub_projects: [{name, story_count, workers}], total_stories, total_workers}
+2. ✅ Exit code 1 if federation.toml missing or sub_project inconsistent with config
+3. ✅ Tests validate counts match prd.json tallies, JSON schema, empty sub_project → 'default'
+
+---
+
 ## Iteration [Current] - Story: US-664 Dashboard Endpoint: Phase Bottleneck Analysis
 
 ### What was implemented
