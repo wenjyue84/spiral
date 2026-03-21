@@ -11,24 +11,6 @@
   ],
   "userStories": [
     {
-      "id": "US-650",
-      "title": "CLI: spiral cost-forecast -- Project Remaining Budget and Timeline Using results.tsv Velocity",
-      "priority": "medium",
-      "description": "Analyze results.tsv to derive story completion velocity (stories/iteration, tokens/iteration) and forecast remaining cost/time for stories still in prd.json backlog. Account for model escalation costs and worker parallelism.",
-      "acceptanceCriteria": [
-        "New CLI: 'spiral cost-forecast' outputs JSON with {remaining_stories, iterations_needed, projected_cost, confidence_pct} based on last 5 iterations' velocity",
-        "Computation: velocity = (completed_stories / completed_iterations), cost_velocity = (total_tokens / completed_iterations); forecast = (remaining_stories / velocity) * cost_velocity",
-        "Integration test: tests/test_cost_forecast.py mocks results.tsv with 10 iterations, asserts forecast within ±20% of synthetic ground truth"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": true,
-      "_source": "ai-example",
-      "model": "sonnet",
-      "_scopeCreep": true
-    },
-    {
       "id": "US-651",
       "title": "Phase R: Implement Query Similarity Deduplication to Skip Redundant Gemini Calls",
       "priority": "medium",
@@ -41,7 +23,7 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "sonnet"
     },
@@ -216,6 +198,22 @@
         "spiral show-story-lineage US-123 prints ASCII tree with indentation, status emoji (✓/✗/⏳), token count per node",
         "lib/cli/show_story_lineage.py recursively follows prd.json stories[].meta._decomposed array and outputs tree structure",
         "spiral show-story-lineage US-123 --json outputs {id, title, status, tokens, children:[...]} for dashboard consumption"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-672",
+      "title": "Federated Governance Validator: Enforce Per-Project Story Quotas and ID Patterns",
+      "priority": "medium",
+      "description": "CLI command validates federated prd.json stories against per-project governance rules (max stories per iteration, ID namespace patterns, allowed phases). Reads governance.json and outputs violations grouped by project.",
+      "acceptanceCriteria": [
+        "lib/cli/validate_federated_governance.py loads governance.json with rules: {project_id, max_stories_per_iteration, id_pattern_regex, allowed_phases}",
+        "spiral validate-governance prd.json governance.json outputs violations: 'US-PROJ-200: exceeds quota (5 active, max=3)'",
+        "Exit code 1 if violations found, 0 if all stories pass project rules; support --json for structured output"
       ],
       "technicalNotes": [],
       "dependencies": [],
@@ -2087,6 +2085,24 @@
       "model": "haiku",
       "_scopeCreep": true,
       "tags": []
+    },
+    {
+      "id": "US-650",
+      "title": "CLI: spiral cost-forecast -- Project Remaining Budget and Timeline Using results.tsv Velocity",
+      "priority": "medium",
+      "description": "Analyze results.tsv to derive story completion velocity (stories/iteration, tokens/iteration) and forecast remaining cost/time for stories still in prd.json backlog. Account for model escalation costs and worker parallelism.",
+      "acceptanceCriteria": [
+        "New CLI: 'spiral cost-forecast' outputs JSON with {remaining_stories, iterations_needed, projected_cost, confidence_pct} based on last 5 iterations' velocity",
+        "Computation: velocity = (completed_stories / completed_iterations), cost_velocity = (total_tokens / completed_iterations); forecast = (remaining_stories / velocity) * cost_velocity",
+        "Integration test: tests/test_cost_forecast.py mocks results.tsv with 10 iterations, asserts forecast within ±20% of synthetic ground truth"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "sonnet",
+      "_scopeCreep": true
     },
     {
       "id": "US-646",
