@@ -354,7 +354,7 @@
 ### Patterns discovered
 - DFS over  is non-deterministic in Python — cycle path start node varies by run
 - Tests must use set equality and cycle_path[0]==cycle_path[-1] checks (NOT count of specific node)
--  passes for lib/*.py modules when using  + 
+-  passes for lib/*.py modules when using  +
 - Ruff auto-format changed the long f-string in validate_prd_for_merge; let it format
 
 ### Gotchas
@@ -490,3 +490,56 @@ This brief outlines the implementation plan for a new `spiral` CLI command to va
 *   The "federated" structure means `depends_on` values can reference stories in other sub-projects defined in the same `prd.json`. The graph must resolve these correctly.
 *   Handle potential performance issues with very large, complex `prd.json` files.
 
+## Iteration 1 - Sun, Mar 22, 2026  2:39:17 AM
+FAILED diff-guard: Integration Test: Parallel Worker Worktree Isolation — Verify No Cross-Worker File Conflicts (ID: US-687) — 612 lines > 200 limit — attempt 1/3
+
+
+## Pre-analysis for US-687 (Gemini 2.5 Pro)
+Based on the user story JSON for **US-687**, here is a technical brief for the implementation agent.
+
+**Note:** The user story describes an integration test for a command-line tool called "Spiral" that manages parallel `git` worktrees. It does not appear related to the Frappe or `lhdn_payroll_integration` context. The brief below is based on the JSON data provided.
+
+---
+
+**Technical Brief: US-687 - Parallel Worker Worktree Isolation Test**
+
+1.  **Python Files to Modify:**
+    *   **Primary:** Create a new test file at `tests/integration/test_parallel_workers_isolation.py`.
+    *   **Supporting:** Potentially add helper functions to existing core files like `spiral/runner.py` or a new `spiral/testing_utils.py` to facilitate setting up the test scenario and cleaning up artifacts.
+
+2.  **Frappe DocTypes / Hooks Involved:**
+    *   No Frappe DocTypes or hooks are relevant. The core components are the Spiral application's process runner, worker management logic, and its use of the `git` command-line tool.
+
+3.  **Recommended Implementation Approach:**
+    *   The new integration test should use Python's `subprocess` or a similar library to invoke the main Spiral executable (`main.py` or `spiral.sh`).
+    *   It must be configured to run with 3 parallel workers and fed 3 simple, distinct story definitions that each create and commit a new file (e.g., `utils_A.py`, `utils_B.py`, `utils_C.py`).
+    *   After the main process completes, the test will perform assertions by executing shell commands to:
+        *   Verify the three new files exist in the main branch.
+        *   Check the `git log` for three distinct merge commits.
+        *   Confirm the worker directories (`.spiral/workers/worker-*`) contain isolated `.git` worktree metadata files.
+        *   Parse the `results.tsv` output file to ensure 3 successful story completions are recorded with unique worker IDs.
+
+4.  **Edge Cases & Gotchas:**
+    *   **State & Cleanup:** The test will create significant on-disk artifacts (git worktrees, commits, files). It must implement robust `try...finally` blocks or `pytest` fixtures to ensure the Git repository is cleaned and restored to its original state, even if assertions fail.
+    *   **Concurrency:** The test must reliably wait for all three parallel worker processes to fully complete before beginning verification to avoid race conditions.
+    *   **Environment Dependency:** The test runner's environment must have `git` installed and available in its `PATH`.
+
+
+---
+
+## Iteration [Current] - Story: US-687 Integration Test: Parallel Worker Worktree Isolation
+
+### What was implemented
+- **tests/integration/test_parallel_workers_isolation.py** — 7 tests across 3 classes (142 lines)
+  - TestWorktreeIsolation: 2 tests — isolated .git dirs, separate HEAD per worker
+  - TestFileConflictFree: 2 tests — each worker modifies unique file, main has all 3, no conflict markers
+  - TestResultsTsvDistinct: 3 tests — distinct worker_ids, no duplicate SHAs, merge commits on main
+  - Uses real git worktrees (git init + git worktree add) in tmp_path for true isolation testing
+
+### Patterns discovered
+- First merge into empty main is fast-forward by default; use --no-ff to guarantee merge commits
+- git worktree add creates a .git file (not directory) pointing back to main repo's .git/worktrees/
+
+### Gotchas
+- Previous attempt (sonnet) failed with 612-line diff (>200 limit). Kept to 142 lines by avoiding helpers/fixtures bloat
+- Windows git needs explicit GIT_AUTHOR_NAME/EMAIL env vars in subprocess for commit operations in tmp dirs
