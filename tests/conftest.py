@@ -344,3 +344,119 @@ def mock_claude_client():
     Tests can instantiate with custom response data or error modes.
     """
     return MockClaudeClient()
+
+
+# ── US-693: Mock API fixtures for full SPIRAL loop integration tests ──────────
+
+
+class MockClaudeAPI:
+    """Mock Claude API with configurable response for Phase R/S/I testing."""
+
+    def __init__(self, response_data: dict[str, object] | None = None) -> None:
+        """Initialize mock Claude API.
+
+        Args:
+            response_data: Pre-recorded API response dict
+        """
+        self.response_data = response_data or self._default_response()
+        self.call_count = 0
+
+    @staticmethod
+    def _default_response() -> dict[str, object]:
+        """Default Phase R research response with story candidates."""
+        return {
+            "stories": [
+                {
+                    "id": "US-100",
+                    "title": "Research Story 1",
+                    "description": "Discovered from research phase",
+                    "priority": "high",
+                    "_source": "research",
+                    "acceptanceCriteria": ["Criterion A", "Criterion B"],
+                }
+            ]
+        }
+
+    def messages_create(self, **kwargs: object) -> dict[str, object]:
+        """Mock messages.create() API call.
+
+        Returns:
+            Dict with mocked Claude response
+        """
+        self.call_count += 1
+        return {
+            "id": f"msg_{self.call_count}",
+            "type": "message",
+            "role": "assistant",
+            "content": [{"type": "text", "text": json.dumps(self.response_data)}],
+            "model": "claude-3-5-sonnet-20241022",
+            "stop_reason": "end_turn",
+            "usage": {"input_tokens": 150, "output_tokens": 200},
+        }
+
+
+class MockGeminiAPI:
+    """Mock Gemini API with configurable response for Phase R web search."""
+
+    def __init__(self, response_data: dict[str, object] | None = None) -> None:
+        """Initialize mock Gemini API.
+
+        Args:
+            response_data: Pre-recorded API response dict
+        """
+        self.response_data = response_data or self._default_response()
+        self.call_count = 0
+
+    @staticmethod
+    def _default_response() -> dict[str, object]:
+        """Default Gemini web search response."""
+        return {
+            "candidates": [
+                {
+                    "content": {
+                        "parts": [
+                            {
+                                "text": json.dumps(
+                                    {
+                                        "research_findings": [
+                                            {
+                                                "title": "Web Research Story 1",
+                                                "url": "https://research.example.com",
+                                                "summary": "Found via web research",
+                                            }
+                                        ]
+                                    }
+                                )
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+
+    def generate_content(self, **kwargs: object) -> dict[str, object]:
+        """Mock generate_content() API call.
+
+        Returns:
+            Dict with mocked Gemini response
+        """
+        self.call_count += 1
+        return self.response_data
+
+
+@pytest.fixture
+def mock_claude_api() -> MockClaudeAPI:
+    """Fixture: Provide a MockClaudeAPI for Phase R/S/I integration testing.
+
+    Returns a mock Claude API that simulates API responses without external calls.
+    """
+    return MockClaudeAPI()
+
+
+@pytest.fixture
+def mock_gemini_api() -> MockGeminiAPI:
+    """Fixture: Provide a MockGeminiAPI for Phase R web search integration testing.
+
+    Returns a mock Gemini API that simulates web search responses without external calls.
+    """
+    return MockGeminiAPI()
