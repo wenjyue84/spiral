@@ -201,6 +201,30 @@ class EpisodicMemory:
         return float(dot_product / (mag1 * mag2))
 
 
+    def query_by_text(self, text: str, k: int = 3) -> list[dict[str, Any]]:
+        """Retrieve top-k similar patterns by free-text query.
+
+        Args:
+            text: Query text (e.g., story title or description).
+            k: Number of similar patterns to return.
+
+        Returns:
+            List of similar records ranked by cosine similarity.
+        """
+        records = self._load_all_records()
+        if not records:
+            return []
+
+        query_embedding = self._embed({"_query": text})
+        similarities: list[tuple[float, dict[str, Any]]] = []
+        for rec in records:
+            sim = self._cosine_similarity(query_embedding, self._embed(rec))
+            similarities.append((sim, rec))
+
+        similarities.sort(reverse=True, key=lambda x: x[0])
+        return [rec for _sim, rec in similarities[:k]]
+
+
 def list_recent(
     limit: int = 20,
     db_path: str | None = None,
@@ -237,3 +261,27 @@ def get_similar_patterns(
     """
     mem = EpisodicMemory(memory_path)
     return mem.get_similar(story_id, k=k)
+
+
+if __name__ == "__main__":
+    import argparse
+
+    _parser = argparse.ArgumentParser(description="Episodic memory CLI")
+    _sub = _parser.add_subparsers(dest="cmd")
+    _q = _sub.add_parser("query", help="Query by text similarity")
+    _q.add_argument("--text", required=True, help="Query text (story title/description)")
+    _q.add_argument("--top-k", type=int, default=3)
+    _q.add_argument("--memory-path", default=".spiral/episodic_memory.jsonl")
+    _args = _parser.parse_args()
+
+    if _args.cmd == "query":
+        _mem = EpisodicMemory(_args.memory_path)
+        _results = _mem.query_by_text(_args.text, k=_args.top_k)
+        _parts: list[str] = []
+        for _r in _results:
+            _sid = _r.get("story_id", "?")
+            _approach = str(_r.get("approach", _r.get("title", "")))[:80]
+            _files = str(_r.get("files_touched", ""))
+            _parts.append(f"{_sid}: {_approach}" + (f" | files: {_files}" if _files else ""))
+        if _parts:
+            print("\n".join(_parts))

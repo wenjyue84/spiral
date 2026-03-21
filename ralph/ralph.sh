@@ -102,6 +102,10 @@ while [[ $# -gt 0 ]]; do
       RALPH_FILES_ONLY="$2"
       shift 2
       ;;
+    --memory-inject)
+      RALPH_MEMORY_INJECT=true
+      shift
+      ;;
     *)
       MAX_ITERATIONS="$1"
       shift
@@ -111,6 +115,8 @@ done
 
 # Default files-only to empty (disabled)
 RALPH_FILES_ONLY="${RALPH_FILES_ONLY:-}"
+# Default memory inject to false (opt-in via --memory-inject flag)
+RALPH_MEMORY_INJECT="${RALPH_MEMORY_INJECT:-false}"
 
 # Validate AI tool
 if [[ "$AI_TOOL" != "amp" && "$AI_TOOL" != "claude" && "$AI_TOOL" != "codex" && "$AI_TOOL" != "qwen" && "$AI_TOOL" != "auto" ]]; then
@@ -2743,6 +2749,29 @@ $_PC_INJECT"
           log_ralph_event "plan_cache_miss" "\"story_id\":\"$NEXT_STORY\""
         fi
         rm -f "$_PC_STORY_TMP" 2>/dev/null || true
+      fi
+    fi
+
+    # ── US-649: Memory injection via --memory-inject flag ────────────────────────
+    if [[ "${RALPH_MEMORY_INJECT:-false}" == "true" && -n "${STORY_TITLE:-}" ]]; then
+      _MEM_PY="$SPIRAL_HOME/lib/episodic_memory.py"
+      _MEM_JSONL="${SPIRAL_SCRATCH_DIR:-.spiral}/episodic_memory.jsonl"
+      if [[ -f "$_MEM_PY" && -f "$_MEM_JSONL" ]]; then
+        _MEM_RAW=$("${SPIRAL_PYTHON:-python3}" "$_MEM_PY" query \
+          --text "$STORY_TITLE" --memory-path "$_MEM_JSONL" --top-k 3 2>/dev/null || true)
+        if [[ -n "$_MEM_RAW" ]]; then
+          RALPH_USER_PROMPT="$RALPH_USER_PROMPT
+
+---
+
+## Similar past implementations: [$_MEM_RAW]
+
+(Reference only — do not copy verbatim.)"
+          echo "  [memory-inject] Similar past implementations injected for $NEXT_STORY"
+          log_ralph_event "memory_inject_hit" "\"story_id\":\"$NEXT_STORY\""
+        else
+          echo "  [memory-inject] No similar patterns found for $NEXT_STORY — skipping injection"
+        fi
       fi
     fi
 
