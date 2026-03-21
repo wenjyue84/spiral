@@ -156,22 +156,6 @@
       "model": "sonnet"
     },
     {
-      "id": "US-678",
-      "title": "Research Source Authority Scoring - Track Gemini Query Confidence",
-      "priority": "medium",
-      "description": "Score Phase R story sources by Gemini confidence and cache freshness to prioritize high-authority stories in Phase M merge and expose reliability metrics on dashboard.",
-      "acceptanceCriteria": [
-        "_research_output.json includes confidence_score (0.0-1.0) per source, derived from Gemini response certainty indicators (presence of hedging language, source diversity count)",
-        "Phase S validation prioritizes high-confidence stories (confidence_score > 0.8) for merge over low-confidence ones (< 0.5)",
-        "Dashboard endpoint GET /api/dashboard/source-authority returns {\"stories\": [{\"id\": \"US-123\", \"confidence\": 0.85, \"source_count\": 3}]} for last iteration"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
       "id": "US-674",
       "title": "Phase G: Install Pre-Commit Hook to Enforce Story ID Tags in Commit Messages",
       "priority": "high",
@@ -3989,24 +3973,9 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": true,
-      "model": "haiku"
-    },
-    {
-      "id": "US-686",
-      "title": "CLI: spiral cost-by-model -- Analyze Token Spend and Cost Breakdown by Model Tier",
-      "priority": "medium",
-      "description": "CLI command that analyzes results.tsv and reports token/cost breakdown by model tier (haiku, sonnet, opus), model escalation rates, and most expensive stories to help users understand cost drivers.",
-      "acceptanceCriteria": [
-        "Command: `spiral cost-by-model results.tsv --format json --group-by phase` outputs: `{\"haiku\": {count, tokens, cost}, \"sonnet\": {...}, \"opus\": {...}, \"escalation_rate\": 0.25}`",
-        "Includes per-phase breakdown (which model used most in Phase I vs Phase T) and escalation percentage (haiku→sonnet, sonnet→opus)",
-        "Identify top-5 most expensive stories and their model escalation path for cost optimization insights"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
       "passes": false,
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-03-21T18:07:45Z"
     },
     {
       "id": "US-687",
@@ -4017,54 +3986,6 @@
         "Test launches 3 workers with staggered Phase I stories; each modifies a separate file (utils_A.py, utils_B.py, utils_C.py). Assert after all workers complete, main branch contains all 3 files and diff shows no conflicts.",
         "Test file: tests/integration/test_parallel_workers_isolation.py; verify .spiral-workers/worker-{1,2,3}/.git directories are isolated (no shared refs, separate HEAD).",
         "Assert results.tsv shows 3 stories with distinct worker_id and no duplicate commit SHAs; verify git log main has 3 merge commits (one per worker)."
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-688",
-      "title": "CLI: spiral explain-cost-spike — Root Cause Analysis for Cost Anomalies",
-      "priority": "medium",
-      "description": "New CLI command that identifies stories with unusually high costs (> 2σ from phase mean) and explains why. Outputs root causes: retry count, model escalation (haiku→sonnet→opus), long decomposition, research time, etc.",
-      "acceptanceCriteria": [
-        "Command: uv run spiral explain-cost-spike [--phase PHASE] [--iteration N] outputs table with: story_id | total_cost | z_score | top_reason | retry_count | model_escalations | research_duration_sec.",
-        "Parses results.tsv; computes per-phase cost mean/stddev from historical data; flags z_score > 2.0.",
-        "Test: create results.tsv with 10 stories (mean $100, 1 story $500); assert explain-cost-spike returns story with z_score=4.0 and reason='3 model escalations'."
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-689",
-      "title": "Integration Test: Ralph Context Window Guard — Verify Story Tokens Within Model Limit",
-      "priority": "medium",
-      "description": "Add integration test verifying that Phase I's decomposition respects Claude's token limit. Ralph estimates story context tokens and fails early if context + response budget > model_limit * 0.8 (20% safety margin).",
-      "acceptanceCriteria": [
-        "Test creates story with 80,000-token description (mock tokenizer); Phase I calls lib/impl/decompose.sh; assert it calculates context tokens and raises error 'Context (80k) exceeds limit (128k * 0.8) for haiku model'.",
-        "Test file: tests/integration/test_phase_i_token_guard.py; mock token_counter fixture to return exact count.",
-        "Test also verifies that decomposition auto-escalates to sonnet if haiku context budget exceeded; sonnet limit is 200k tokens."
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-690",
-      "title": "Integration Test: Phase R Semantic Similarity Clustering with Threshold Tuning",
-      "priority": "medium",
-      "description": "Add integration test verifying that Phase R groups research queries by semantic similarity before calling Gemini, reducing redundant API calls. Test tunes similarity threshold to validate cost savings vs accuracy tradeoff.",
-      "acceptanceCriteria": [
-        "Test creates 5 stories: 3 about 'authentication middleware' + 2 about 'JWT tokens' + 0 outliers. Mock Gemini API; run Phase R with similarity_threshold=0.85. Assert Gemini called exactly 2 times (1 for auth cluster, 1 for JWT cluster).",
-        "Test file: tests/integration/test_phase_r_similarity_cluster.py; use sentence-transformers mock for semantic embeddings.",
-        "Test runs again with threshold=0.95 (stricter); assert Gemini called 3 times (clusters split). Assert results.tsv has research_cache_cluster_id field showing which cluster each story joined."
       ],
       "technicalNotes": [],
       "dependencies": [],
