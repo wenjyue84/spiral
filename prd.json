@@ -120,7 +120,10 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-03-21T21:52:22Z"
+      "last_attempted": "2026-03-21T21:52:22Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n\nReading prd.json shows **US-670** as the next incomplete story. It requires:\n1. `BottleneckAnalyzer` class with `analyze()` method\n2. `GET /api/dashboard/bottlenecks` endpoint \n3. Analysis of results.tsv phase timing data\n\nLet me check the existing code structure and results.tsv format:\n## Problem Identified\n\nUS-670 requires a new bottleneck analyzer module different from US-664. It needs:\n1. Analysis by **variance** (coefficient of variance), not just mean duration\n2. Returns `{phase, avg_duration_ms, variance, story_count}`\n3. Endpoint at `GET /api/dashboard/bottlenecks` (different from phase-bottlenecks)\n4. Sorted by avg_duration_ms descending\n5. Only phases with > 0 stories\n\n## Planned Changes\n\n1. **lib/dashboard/bottleneck_analyzer.py** (new)\n   - `BottleneckAnalyzer` class with `analyze()` method\n   - Calculate average duration in ms, coefficient of variance, and story count per phase\n   - Return sorted by avg_duration_ms descending\n\n2. **lib/dashboard/api.py** (update)\n   - Add `GET /api/dashboard/bottlenecks` endpoint using BottleneckAnalyzer\n\n3. **tests/test_bottleneck_analyzer.py** (new)\n   - Test variance calculation, sorting, filtering\n\nLet me implement:\n## Summary"
+      }
     },
     {
       "id": "US-671",
