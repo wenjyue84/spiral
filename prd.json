@@ -11,21 +11,68 @@
   ],
   "userStories": [
     {
-      "id": "US-684",
-      "title": "Integration Test: Phase S Batch Story Validation -- Verify Claude API Batching",
+      "id": "US-687",
+      "title": "Integration Test: Parallel Worker Worktree Isolation — Verify No Cross-Worker File Conflicts",
       "priority": "high",
-      "description": "Test that Phase S properly batches similar stories and calls Claude API once per batch, not once per story. This validates the batch optimization is working correctly and reduces API calls.",
+      "description": "Verify that 3 parallel workers each have isolated git worktrees, and file changes in worker-1 don't corrupt worker-2's worktree or cause unexpected merge conflicts on main branch.",
       "acceptanceCriteria": [
-        "Test file `tests/integration/test_phase_s_batch.py` mocks 5 similar stories (same epic) in prd.json and verifies `claude.messages.create()` is called once, not 5 times",
-        "Mock Claude API response includes validation results for all 5 stories; assert each story correctly receives its validation status in prd.json",
-        "Measure API call reduction: batch mode should call API N/5 times (or less) vs sequential mode"
+        "Test launches 3 workers with staggered Phase I stories; each modifies a separate file (utils_A.py, utils_B.py, utils_C.py). Assert after all workers complete, main branch contains all 3 files and diff shows no conflicts.",
+        "Test file: tests/integration/test_parallel_workers_isolation.py; verify .spiral-workers/worker-{1,2,3}/.git directories are isolated (no shared refs, separate HEAD).",
+        "Assert results.tsv shows 3 stories with distinct worker_id and no duplicate commit SHAs; verify git log main has 3 merge commits (one per worker)."
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-688",
+      "title": "Phase G Output Validator: Validate CHANGELOG.md Schema Compliance",
+      "priority": "high",
+      "description": "Add validation that generated CHANGELOG.md and pdoc outputs match expected schemas before Phase G commit. Validates CHANGELOG format (H1 'Changelog', H2 versions, semver), pdoc HTML structure, and integration with Phase G orchestration.",
+      "acceptanceCriteria": [
+        "lib/validate_phase_g.py implements validate_changelog_schema() checking for H1 'Changelog', H2 versions matching semver, and entry format '## vX.Y.Z: Date'",
+        "Validates pdoc HTML output contains required sections: module docstring, function list (>= 3 expected functions), class list, with valid HTML structure",
+        "Phase G calls lib.validate_phase_g.validate_all_outputs(changelog_path, pdoc_dir) and logs validation failures to .spiral/_phase_g_validation.json with rollback on schema mismatch"
       ],
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true,
-      "model": "sonnet",
-      "last_attempted": "2026-03-21T17:57:20Z"
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-691",
+      "title": "Phase M: Federated File Conflict Detector — Report Cross-Sub-Project File Collisions",
+      "priority": "high",
+      "description": "Enhance Phase M merge logic to detect file-level collisions when multiple sub-projects modify the same file path. Generate conflict report and prevent merge if collisions would corrupt state.",
+      "acceptanceCriteria": [
+        "During Phase M merge, extract modified file paths from each story's implementation commits using git show --name-only; track (file_path, sub_project_id) tuples from prd.json _source field",
+        "Detect collisions: same file_path with different sub_project_id values; write .spiral/merge_conflicts.json with structure [{file_path, sub_projects: [proj1, proj2], conflict_type: 'file_collision'}]",
+        "Block Phase M merge if collisions exist with error message: 'File {path} modified by stories US-{id1} (sub_project: {proj1}) and US-{id2} (sub_project: {proj2}); manual resolution required' and exit code 1"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-693",
+      "title": "Integration Test Harness: Master Suite for Full SPIRAL R→C Loop with Mock API",
+      "priority": "high",
+      "description": "Create unified integration test harness (tests/integration/test_spiral_full_loop.py) that runs complete SPIRAL orchestration from Phase R through Phase C using mocked Claude and Gemini API responses. This validates end-to-end phase sequencing, state transitions, and output schema consistency without calling external APIs.",
+      "acceptanceCriteria": [
+        "Test creates mock_claude_api fixture and mock_gemini_api fixture in conftest.py, runs bash spiral.sh with 5 seed stories and --gate proceed, validates all 7 phases execute in correct order (R→T→S→M→I→V→C)",
+        "Assert prd.json is updated post-Phase M, results.tsv contains one row per story with model/tokens/status fields populated, and final Phase V reports all stories passed",
+        "Verify state file .spiral/_checkpoint.json contains correct iteration count and final phase name (V or C)"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
     },
     {
       "id": "US-664",
@@ -154,6 +201,71 @@
       "estimatedComplexity": "small",
       "passes": false,
       "model": "sonnet"
+    },
+    {
+      "id": "US-689",
+      "title": "Dashboard Endpoint: GET /api/dashboard/cost-anomalies -- Flag Unusual Story Spend",
+      "priority": "medium",
+      "description": "Real-time anomaly detection endpoint that identifies stories with token spend exceeding phase baselines by >2 standard deviations. Analyzes reason_code patterns from Phase I retry escalation to surface root causes.",
+      "acceptanceCriteria": [
+        "GET /api/dashboard/cost-anomalies reads results.tsv, calculates per-phase mean/stddev from last 10 iterations, returns JSON array with [story_id, phase, tokens, mean_phase, stddev, reason_codes, anomaly_severity] for all stories where tokens > mean + 2*stddev",
+        "WebSocket /ws/cost-anomalies broadcasts new anomalies in real-time as Phase I completes stories, including 5-min moving average to reduce noise",
+        "Dashboard React component at src/components/CostAnomalyAlert.tsx displays anomaly list sorted by severity with drill-down into story retry history"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-690",
+      "title": "CLI: spiral extract-orphan-commits -- Triage Commits Missing Story IDs",
+      "priority": "medium",
+      "description": "Scan git history for commits without story ID prefix and generate actionable triage report. Detects common patterns (merge commits, system commits) and suggests manual re-tagging strategies.",
+      "acceptanceCriteria": [
+        "Command `spiral extract-orphan-commits --since=2w --output=orphan_report.json` scans last 2 weeks of commits, outputs JSON with [commit_hash, author, message, category] where category is one of: 'missing_story_id', 'expected_orphan' (matches patterns: squash, merge, revert, chore), 'ambiguous'",
+        "For ambiguous commits, include suggested_story_id based on message keyword matching with confidence score (0-1)",
+        "Report includes remediation command: `git rebase -i <base_sha> --exec 'git commit --amend -m [US-XXX] ...'` for each missing_story_id commit"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-692",
+      "title": "Cost Anomaly Detector: CLI Command spiral detect-anomalies",
+      "priority": "medium",
+      "description": "Implement statistical outlier detection on results.tsv to flag stories with unusual token spend patterns. Use median absolute deviation (MAD) to identify cost anomalies and categorize root causes.",
+      "acceptanceCriteria": [
+        "Implement lib/cost_anomalies.py detect_spending_anomalies(results_df) using MAD z-score (threshold > 2.5); return DataFrame with columns: story_id, tokens, z_score, anomaly_reason",
+        "Wire CLI command spiral detect-anomalies --output json to write .spiral/cost_anomalies.json listing {story_id, tokens, z_score, anomaly_reason} where reason ∈ {retry_escalation_sonnet, retry_escalation_opus, worker_timeout_retry, implementation_retry}",
+        "Add dashboard endpoint GET /api/dashboard/cost-anomalies returning anomaly count, top 5 anomalies, and anomaly trend (anomalies_per_iteration)"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-684",
+      "title": "Integration Test: Phase S Batch Story Validation -- Verify Claude API Batching",
+      "priority": "high",
+      "description": "Test that Phase S properly batches similar stories and calls Claude API once per batch, not once per story. This validates the batch optimization is working correctly and reduces API calls.",
+      "acceptanceCriteria": [
+        "Test file `tests/integration/test_phase_s_batch.py` mocks 5 similar stories (same epic) in prd.json and verifies `claude.messages.create()` is called once, not 5 times",
+        "Mock Claude API response includes validation results for all 5 stories; assert each story correctly receives its validation status in prd.json",
+        "Measure API call reduction: batch mode should call API N/5 times (or less) vs sequential mode"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "sonnet",
+      "last_attempted": "2026-03-21T17:57:20Z"
     },
     {
       "id": "US-674",
@@ -1485,6 +1597,23 @@
       "model": "sonnet"
     },
     {
+      "id": "US-685",
+      "title": "CLI: spiral check-federated-deps -- Detect Circular Dependencies and Orphans in Multi-Repo prd.json",
+      "priority": "high",
+      "description": "New CLI command that validates federated prd.json for dependency graph issues: circular dependencies (A→B→C→A), orphan stories (missing sub-project references), and namespace conflicts.",
+      "acceptanceCriteria": [
+        "Command: `spiral check-federated-deps prd.json --strict` outputs JSON with keys: `cycles` (list of cycle paths), `orphans` (stories with missing dependencies), `namespaces` (validation of story ID prefixes)",
+        "Detects and reports A→B→C→A cycles with full path array; returns exit code 1 if any issues found, 0 if valid",
+        "Handles federated prd.json structure with sub_project column and cross-project `depends_on` field"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-03-21T18:07:45Z"
+    },
+    {
       "id": "US-578",
       "title": "[Security Test] CLI: validate-federated — Input Safety & Output Sanitization",
       "priority": "high",
@@ -2076,6 +2205,7 @@
       "priority": "medium",
       "description": "Build React component that renders worker execution timeline from /api/workers/<id>/queue endpoint. Display each worker as a horizontal swimlane with phase blocks showing start/end times, status (running/completed/failed), and token cost tooltips for bottleneck analysis.",
       "acceptanceCriteria": [
+        "Create spiral-ui/src/components/WorkerTimelineChart.tsx polling /api/workers/*/queue every 1s during iteration",
         "Render horizontal swimlanes (worker-1, worker-2, worker-3) with phase blocks colored by status (blue=running, green=done, red=failed)",
         "Tooltip on phase block shows phase name, duration, tokens used, and model used (haiku/sonnet/opus)"
       ],
@@ -3958,41 +4088,6 @@
         "contextWindow": 10
       },
       "tags": []
-    },
-    {
-      "id": "US-685",
-      "title": "CLI: spiral check-federated-deps -- Detect Circular Dependencies and Orphans in Multi-Repo prd.json",
-      "priority": "high",
-      "description": "New CLI command that validates federated prd.json for dependency graph issues: circular dependencies (A→B→C→A), orphan stories (missing sub-project references), and namespace conflicts.",
-      "acceptanceCriteria": [
-        "Command: `spiral check-federated-deps prd.json --strict` outputs JSON with keys: `cycles` (list of cycle paths), `orphans` (stories with missing dependencies), `namespaces` (validation of story ID prefixes)",
-        "Detects and reports A→B→C→A cycles with full path array; returns exit code 1 if any issues found, 0 if valid",
-        "Handles federated prd.json structure with sub_project column and cross-project `depends_on` field"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-03-21T18:07:45Z"
-    },
-    {
-      "id": "US-687",
-      "title": "Integration Test: Parallel Worker Worktree Isolation — Verify No Cross-Worker File Conflicts",
-      "priority": "high",
-      "description": "Verify that 3 parallel workers each have isolated git worktrees, and file changes in worker-1 don't corrupt worker-2's worktree or cause unexpected merge conflicts on main branch.",
-      "acceptanceCriteria": [
-        "Test launches 3 workers with staggered Phase I stories; each modifies a separate file (utils_A.py, utils_B.py, utils_C.py). Assert after all workers complete, main branch contains all 3 files and diff shows no conflicts.",
-        "Test file: tests/integration/test_parallel_workers_isolation.py; verify .spiral-workers/worker-{1,2,3}/.git directories are isolated (no shared refs, separate HEAD).",
-        "Assert results.tsv shows 3 stories with distinct worker_id and no duplicate commit SHAs; verify git log main has 3 merge commits (one per worker)."
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": true,
-      "model": "sonnet",
-      "_failureReason": "oversized_diff",
-      "last_attempted": "2026-03-21T18:39:19Z"
     }
   ]
 }
