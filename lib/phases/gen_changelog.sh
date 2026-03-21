@@ -51,6 +51,15 @@ phase_gen_changelog() {
   # Detect orphan commits (no story ID pattern US-NNN or UT-NNN)
   _log_orphan_commits "$spiral_home" "$warnings_file"
 
+  # Validate CHANGELOG schema compliance (US-688)
+  _validate_changelog_schema "$spiral_home" "$output_file"
+  local _validate_rc=$?
+  if [[ "$_validate_rc" -ne 0 ]]; then
+    echo "[phase-g] Schema validation failed — rolling back CHANGELOG.md" >&2
+    rm -f "$output_file"
+    return 1
+  fi
+
   return 0
 }
 
@@ -92,6 +101,43 @@ _log_orphan_commits() {
   fi
 }
 
+# _validate_changelog_schema: Run lib/validate_phase_g.py to validate CHANGELOG.md
+#
+# Calls validate_all_outputs() via the module CLI, logging results to
+# .spiral/_phase_g_validation.json. Skips silently if Python is unavailable.
+#
+# Returns: 0 on pass or unavailable, 1 on schema violation
+_validate_changelog_schema() {
+  local spiral_home="$1"
+  local changelog_path="$2"
+  local python_bin="${SPIRAL_PYTHON:-python3}"
+  local validate_script="${spiral_home}/lib/validate_phase_g.py"
+  local pdoc_dir="${spiral_home}/.spiral/docs/api"
+  local scratch_dir="${spiral_home}/.spiral"
+
+  if [[ ! -f "$validate_script" ]]; then
+    echo "[phase-g] WARNING: lib/validate_phase_g.py not found — skipping validation"
+    return 0
+  fi
+
+  if ! command -v "$python_bin" &>/dev/null && ! $python_bin --version &>/dev/null 2>&1; then
+    echo "[phase-g] WARNING: Python not available — skipping schema validation"
+    return 0
+  fi
+
+  echo "[phase-g] Validating CHANGELOG schema..."
+  if $python_bin "$validate_script" \
+    --changelog "$changelog_path" \
+    --pdoc-dir "$pdoc_dir" \
+    --scratch-dir "$scratch_dir"; then
+    echo "[phase-g] CHANGELOG schema validation passed"
+    return 0
+  else
+    return 1
+  fi
+}
+
 # Export functions for use in spiral.sh
 export -f phase_gen_changelog
 export -f _log_orphan_commits
+export -f _validate_changelog_schema

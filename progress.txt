@@ -543,3 +543,34 @@ Based on the user story JSON for **US-687**, here is a technical brief for the i
 ### Gotchas
 - Previous attempt (sonnet) failed with 612-line diff (>200 limit). Kept to 142 lines by avoiding helpers/fixtures bloat
 - Windows git needs explicit GIT_AUTHOR_NAME/EMAIL env vars in subprocess for commit operations in tmp dirs
+
+---
+
+## Iteration [Current] - Story: US-688 Phase G Output Validator: Validate CHANGELOG.md Schema Compliance
+
+### What was implemented
+- **lib/validate_phase_g.py** — New module with three public functions:
+  - `validate_changelog_schema(changelog_path)` — checks H1 'Changelog', H2 semver entries (`## v1.2.3:`), and date suffix format; returns `{valid, errors}`
+  - `validate_pdoc_html(pdoc_dir)` — checks HTML files for `<html>` tag, module docstring section, >= 3 function definitions (excludes class entries), and class list; returns `{valid, errors}`
+  - `validate_all_outputs(changelog_path, pdoc_dir, *, scratch_dir)` — runs both validators, writes `.spiral/_phase_g_validation.json`, returns bool; pdoc validation skipped (not an error) if pdoc_dir is None or missing
+
+- **lib/phases/gen_changelog.sh** — Added `_validate_changelog_schema()` helper called after CHANGELOG.md is generated:
+  - Calls `lib/validate_phase_g.py` CLI with `--changelog`, `--pdoc-dir`, `--scratch-dir`
+  - On validation failure: logs rollback message and deletes CHANGELOG.md (returns 1)
+  - Gracefully skips if validate_phase_g.py or Python not available
+
+- **tests/test_phase_g_validator.py** — 23 tests across 3 classes:
+  - TestValidateChangelogSchema: 7 tests (valid, missing file, missing H1, non-semver H2, missing date suffix, no H2, multiple versions)
+  - TestValidatePdocHtml: 8 tests (valid, nonexistent dir, empty dir, missing html tag, missing docstring, too few functions, missing class, multi-file)
+  - TestValidateAllOutputs: 8 tests (true when valid, false on invalid, writes log on failure/success, skips pdoc when missing/None, log schema keys, rollback signal)
+
+### Patterns discovered
+- `_count_functions` must match `<dt id="...">def ` (content starts with def) to exclude class entries from function count
+- mypy strict: `dict[str, Any]` values are `Any` — use `bool(x) and bool(y)` to produce explicit `bool`, not `Any`
+- pdoc dir is optional in validate_all_outputs; missing dir sets `pdoc.skipped=True` in log (not a failure)
+- `SPIRAL_PYTHON` variable is available in gen_changelog.sh context (set by spiral.sh before sourcing)
+
+### Acceptance Criteria Mapping
+1. ✅ validate_changelog_schema() checks H1 'Changelog', H2 semver, '## vX.Y.Z: Date' format
+2. ✅ validate_pdoc_html() checks module docstring, function list >= 3, class list, valid HTML
+3. ✅ validate_all_outputs() logs to .spiral/_phase_g_validation.json; gen_changelog.sh rolls back CHANGELOG.md on schema mismatch
