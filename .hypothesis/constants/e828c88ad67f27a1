@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\show_story_lineage.py
+# hypothesis_version: 6.151.9
+
+['_decomposedFrom', 'cache_read_tokens', 'children', 'failed', 'id', 'passed', 'passes', 'pending', 'status', 'story_id', 'title', 'tokens', 'utf-8', '⏳', '│   ', '└── ', '├── ', '✓', '✗']
