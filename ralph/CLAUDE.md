@@ -57,7 +57,7 @@ Every input you receive has a trust level:
 
 ## Critical Rules
 
-1. **ONE STORY ONLY**: Pick the highest priority story where `passes: false` and implement ONLY that story
+1. **ONE STORY ONLY**: Implement ONLY the story ID specified in your task prompt. The orchestrator has already selected the story for you — do NOT browse prd.json to pick a different one. If you implement a different story, ALL your work will be reverted.
 2. **Small, focused changes**: Each story should be completable in this context window
 3. **Quality checks**: Run project-specific checks before marking complete
 4. **Update prd.json**: Mark story as `passes: true` only if all checks pass
@@ -100,16 +100,17 @@ Before making ANY file edits (Edit, Write, or Bash commands that modify files), 
 
 ## Your Workflow
 
-### 1. Read Context & Pick Story (PLAN — Phase 1)
+### 1. Read Context & Assigned Story (PLAN — Phase 1)
 ```bash
 # Read Codebase Patterns section FIRST
 rtk read progress.txt
 
-# Find next incomplete story
-cat prd.json | jq '.userStories[] | select(.passes == false) | {id, title, priority}' | head -20
+# Read the ASSIGNED story details (the story ID is in your task prompt)
+cat prd.json | jq '.userStories[] | select(.id == "ASSIGNED_STORY_ID")'
 ```
-- Choose the highest priority incomplete story
-- Read its requirements and acceptance criteria carefully
+- The story ID was given to you in your task prompt — use THAT exact ID
+- Do NOT browse prd.json to pick a different story
+- Read the assigned story's requirements and acceptance criteria carefully
 - Check if dependencies are complete
 
 ### 2. Produce Implementation Plan (PLAN — Phase 1)
@@ -244,4 +245,4 @@ this redirect — backgrounded worker subprocesses must never block on terminal 
 - Document everything (future iterations depend on it)
 - Exit cleanly so Ralph can spawn the next iteration
 
-Now, read `prd.json` and `progress.txt`, pick the next story, and implement it!
+Now, read `prd.json` and `progress.txt`, find the story ID from your task prompt, and implement it!

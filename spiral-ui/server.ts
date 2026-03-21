@@ -143,6 +143,62 @@ app.get('/api/dashboard/escalation-breakdown', (req, res) => {
   }
 });
 
+// Worker swimlane visualization data endpoint (US-652)
+app.get('/api/dashboard/worker-swimlanes', (req, res) => {
+  const traceFile = join(resolve('.'), '.spiral', 'phase-trace-data.json');
+
+  try {
+    if (!existsSync(traceFile)) {
+      return res.json([]);
+    }
+
+    const content = readFileSync(traceFile, 'utf-8');
+    const traceData = JSON.parse(content) as { iterations: Array<{ iter: number; phases: Array<any> }> };
+
+    // Format swimlane data: worker_id 0, per-iteration phases with duration
+    const swimlanes: Array<{
+      worker_id: number;
+      iteration: number;
+      phases: Array<{
+        phase_name: string;
+        duration_ms: number;
+        start_time: string;
+        status: string;
+      }>;
+    }> = [];
+
+    for (const iterData of traceData.iterations || []) {
+      const phases = [];
+      for (const phaseData of iterData.phases || []) {
+        const label = phaseData.label || '';
+        const lines = phaseData.lines || [];
+        const duration_ms = Math.max(50, lines.length * 100);
+        const status = label.includes('Skipping') ? 'skipped' : 'success';
+
+        phases.push({
+          phase_name: phaseData.phase || 'UNKNOWN',
+          duration_ms,
+          start_time: new Date().toISOString(),
+          status
+        });
+      }
+
+      if (phases.length > 0) {
+        swimlanes.push({
+          worker_id: 0,
+          iteration: iterData.iter || 0,
+          phases
+        });
+      }
+    }
+
+    res.json(swimlanes);
+  } catch (e) {
+    console.error('[worker-swimlanes] Error loading phase trace:', e);
+    res.status(500).json({ error: 'Failed to read phase trace data' });
+  }
+});
+
 // Start server
 server.listen(PORT, () => {
   console.log(`[${new Date().toISOString()}] SPIRAL WebSocket server listening on port ${PORT}`);

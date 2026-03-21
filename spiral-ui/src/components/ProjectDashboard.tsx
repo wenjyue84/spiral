@@ -2504,6 +2504,28 @@ interface TrendPoint {
   cumTotal: number;
 }
 
+interface RecentStoryCall {
+  ts: string;
+  model: string;
+  tier: string;
+  input: number;
+  output: number;
+  total: number;
+}
+
+interface RecentlyCompletedStory {
+  story_id: string;
+  title: string;
+  models: string[];
+  input: number;
+  output: number;
+  total: number;
+  usd: number;
+  callCount: number;
+  lastTs: string;
+  calls: RecentStoryCall[];
+}
+
 interface TokenStats {
   total: { input: number; output: number; tokens: number; usd: number };
   avgPerStory: number;
@@ -2512,6 +2534,7 @@ interface TokenStats {
   byStory: TokenStoryRow[];
   byPhase: TokenPhaseRow[];
   trend: TrendPoint[];
+  recentlyCompleted?: RecentlyCompletedStory[];
 }
 
 // ── TokenTab component ────────────────────────────────────────────────────────
@@ -2650,6 +2673,117 @@ function TokenTab({ projectName, tokenBurn }: { projectName: string; tokenBurn?:
           <div className="text-[10px] text-amber-400 mt-0.5">{fmtUsd(s.mostExpensive?.usd ?? 0)}</div>
         </div>
       </div>
+
+      {/* ── A2) Recently Completed Stories ─────────────────────────────── */}
+      {s.recentlyCompleted && s.recentlyCompleted.length > 0 && (
+        <div>
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+            Recently Completed Stories
+            <span className="ml-2 text-[10px] font-normal text-slate-400">
+              (newest first — {s.recentlyCompleted.length} stories)
+            </span>
+          </div>
+          <div className="space-y-2">
+            {s.recentlyCompleted.map(rc => {
+              const maxCallTotal = Math.max(1, ...rc.calls.map(c => c.total));
+              return (
+                <div key={rc.story_id} className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                  {/* Story header */}
+                  <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-emerald-50 to-white border-b border-slate-100">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="font-mono text-sm font-bold text-emerald-700">{rc.story_id}</span>
+                      <span className="text-xs text-slate-600 truncate" title={rc.title}>{rc.title}</span>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+                      {rc.models.map(m => (
+                        <span key={m} className={`inline-block text-[10px] px-2 py-0.5 rounded-full border font-medium ${MODEL_TIER_STYLE[m] ?? MODEL_TIER_STYLE['unknown']}`}>
+                          {m}
+                        </span>
+                      ))}
+                      <span className="text-[10px] text-slate-400 ml-1">
+                        {new Date(rc.lastTs).toLocaleString([], { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Token summary row */}
+                  <div className="grid grid-cols-5 gap-3 px-4 py-2.5 text-xs bg-slate-50/50">
+                    <div>
+                      <div className="text-[10px] text-slate-400 uppercase">Input</div>
+                      <div className="font-semibold text-slate-700">{fmtK(rc.input)}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-slate-400 uppercase">Output</div>
+                      <div className="font-semibold text-slate-700">{fmtK(rc.output)}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-slate-400 uppercase">Total</div>
+                      <div className="font-bold text-violet-700">{fmtK(rc.total)}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-slate-400 uppercase">Cost</div>
+                      <div className="font-semibold text-emerald-700">{fmtUsd(rc.usd)}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-slate-400 uppercase">API Calls</div>
+                      <div className="font-semibold text-slate-700">{rc.callCount}</div>
+                    </div>
+                  </div>
+
+                  {/* Per-call breakdown table */}
+                  {rc.calls.length > 0 && (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-[11px]">
+                        <thead className="bg-slate-50 text-slate-400">
+                          <tr>
+                            <th className="text-left px-3 py-1.5 font-medium">Time</th>
+                            <th className="text-left px-3 py-1.5 font-medium">Model</th>
+                            <th className="text-right px-3 py-1.5 font-medium">Input</th>
+                            <th className="text-right px-3 py-1.5 font-medium">Output</th>
+                            <th className="text-right px-3 py-1.5 font-medium">Total</th>
+                            <th className="px-3 py-1.5 w-24 font-medium">Share</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50">
+                          {rc.calls.map((c, i) => {
+                            const callPct = maxCallTotal > 0 ? Math.round((c.total / maxCallTotal) * 100) : 0;
+                            return (
+                              <tr key={i} className="hover:bg-slate-50">
+                                <td className="px-3 py-1 text-slate-400 whitespace-nowrap">
+                                  {c.ts ? new Date(c.ts).toLocaleString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
+                                </td>
+                                <td className="px-3 py-1">
+                                  <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${MODEL_TIER_STYLE[c.tier] ?? MODEL_TIER_STYLE['unknown']}`}>
+                                    {c.tier}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-1 text-right text-slate-500">{fmtK(c.input)}</td>
+                                <td className="px-3 py-1 text-right text-slate-500">{fmtK(c.output)}</td>
+                                <td className="px-3 py-1 text-right font-medium text-slate-700">{fmtK(c.total)}</td>
+                                <td className="px-3 py-1">
+                                  <div className="flex items-center gap-1">
+                                    <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                                      <div className={`h-full rounded-full ${
+                                        c.tier === 'haiku' ? 'bg-sky-400' :
+                                        c.tier === 'sonnet' ? 'bg-violet-500' :
+                                        c.tier === 'opus' ? 'bg-amber-500' : 'bg-slate-400'
+                                      }`} style={{ width: `${callPct}%` }} />
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ── B) Model Breakdown ───────────────────────────────────────────── */}
       {sortedModels.length > 0 && (

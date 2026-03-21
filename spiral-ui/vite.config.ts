@@ -897,29 +897,62 @@ function spiralApiPlugin() {
           const lastSeen = new Date().toISOString();
 
           // Last completed story + recently completed feed + per-story attempt history from results.tsv
-          let lastCompletedStory: { id: string; title: string; timestamp: string; model: string; duration: number } | null = null;
-          const recentlyCompleted: { id: string; title: string; timestamp: string; model: string; duration: number }[] = [];
+          type CompletedEntry = { id: string; title: string; timestamp: string; model: string; duration: number; retryCount: number; totalTokens: number; totalDuration: number };
+          let lastCompletedStory: CompletedEntry | null = null;
+          const recentlyCompleted: CompletedEntry[] = [];
           const storyAttemptsMap: Record<string, { timestamp: string; status: string; model: string; duration: number; commitSha: string }[]> = {};
+          // Track per-story aggregates and completed stories per iteration
+          const storyAggregates: Record<string, { attempts: number; totalTokens: number; totalDuration: number }> = {};
+          const completedByIter: Record<number, string[]> = {};
           const tsvPath = path.join(root, 'results.tsv');
           if (fs.existsSync(tsvPath)) {
             try {
               const tsvLines = fs.readFileSync(tsvPath, 'utf8').split('\n').filter(Boolean);
+              // Parse header to find column indices
+              const headers = tsvLines[0].split('\t');
+              const colIdx = (name: string) => headers.indexOf(name);
+              const iTimestamp = colIdx('timestamp'), iSpiralIter = colIdx('spiral_iter'),
+                    iStoryId = colIdx('story_id'), iStoryTitle = colIdx('story_title'),
+                    iStatus = colIdx('status'), iDuration = colIdx('duration_sec'),
+                    iModel = colIdx('model'), iCommitSha = colIdx('commit_sha'),
+                    iCacheRead = colIdx('cache_read_tokens'), iCacheCreation = colIdx('cache_creation_tokens'),
+                    iReview = colIdx('review_tokens'),
+                    iInput = colIdx('input_tokens'), iOutput = colIdx('output_tokens');
+
               for (let i = 1; i < tsvLines.length; i++) {
                 const cols = tsvLines[i].split('\t');
-                const sid = cols[3] ?? '';
+                const sid = cols[iStoryId] ?? '';
+                const duration = parseInt(cols[iDuration]) || 0;
+                const tokens = (parseInt(cols[iCacheRead]) || 0) + (parseInt(cols[iCacheCreation]) || 0) + (parseInt(cols[iReview]) || 0)
+                  + (iInput >= 0 ? (parseInt(cols[iInput]) || 0) : 0) + (iOutput >= 0 ? (parseInt(cols[iOutput]) || 0) : 0);
                 const attempt = {
-                  timestamp: cols[0] ?? '',
-                  status: cols[5] ?? '',
-                  model: cols[7] ?? '',
-                  duration: parseInt(cols[6]) || 0,
-                  commitSha: cols[9] ?? '',
+                  timestamp: cols[iTimestamp] ?? '',
+                  status: cols[iStatus] ?? '',
+                  model: cols[iModel] ?? '',
+                  duration,
+                  commitSha: cols[iCommitSha] ?? '',
                 };
                 if (sid) {
                   if (!storyAttemptsMap[sid]) storyAttemptsMap[sid] = [];
                   storyAttemptsMap[sid].push(attempt);
+                  // Aggregate per-story stats
+                  if (!storyAggregates[sid]) storyAggregates[sid] = { attempts: 0, totalTokens: 0, totalDuration: 0 };
+                  storyAggregates[sid].attempts += 1;
+                  storyAggregates[sid].totalTokens += tokens;
+                  storyAggregates[sid].totalDuration += duration;
                 }
-                if (cols[5] === 'keep') {
-                  const entry = { id: sid, title: cols[4], timestamp: cols[0], model: cols[7] ?? '', duration: parseInt(cols[6]) || 0 };
+                if ((cols[iStatus] ?? '') === 'keep') {
+                  const iterNum = parseInt(cols[iSpiralIter]) || 0;
+                  if (!completedByIter[iterNum]) completedByIter[iterNum] = [];
+                  completedByIter[iterNum].push(sid);
+                  const agg = storyAggregates[sid] ?? { attempts: 0, totalTokens: 0, totalDuration: 0 };
+                  const entry: CompletedEntry = {
+                    id: sid, title: cols[iStoryTitle] ?? '', timestamp: cols[iTimestamp] ?? '',
+                    model: cols[iModel] ?? '', duration,
+                    retryCount: Math.max(0, agg.attempts - 1),
+                    totalTokens: agg.totalTokens,
+                    totalDuration: agg.totalDuration,
+                  };
                   lastCompletedStory = entry;
                   recentlyCompleted.push(entry);
                 }
@@ -939,9 +972,15 @@ function spiralApiPlugin() {
           if (recentlyCompleted.length === 0 && progress) {
             const passedStories = (progress as { stories: { id: string; title: string; passes: boolean; completedAt: string | null }[] }).stories
               .filter((s: { passes: boolean; completedAt: string | null }) => s.passes && s.completedAt)
-              .map((s: { id: string; title: string; completedAt: string | null }) => ({
-                id: s.id, title: s.title, timestamp: s.completedAt!, model: '', duration: 0,
-              }))
+              .map((s: { id: string; title: string; completedAt: string | null }) => {
+                const agg = storyAggregates[s.id];
+                return {
+                  id: s.id, title: s.title, timestamp: s.completedAt!, model: '', duration: 0,
+                  retryCount: agg ? Math.max(0, agg.attempts - 1) : 0,
+                  totalTokens: agg?.totalTokens ?? 0,
+                  totalDuration: agg?.totalDuration ?? 0,
+                };
+              })
               .sort((a: { timestamp: string }, b: { timestamp: string }) => b.timestamp.localeCompare(a.timestamp))
               .slice(0, 10);
             recentlyCompleted.push(...passedStories);
@@ -957,7 +996,13 @@ function spiralApiPlugin() {
               const e = ev as { event?: string; storyId?: string; ts?: string; model?: string };
               if (e.event === 'story_passed' && e.ts) {
                 if (!lastCompletedStory || e.ts > lastCompletedStory.timestamp) {
-                  lastCompletedStory = { id: e.storyId ?? '', title: '', timestamp: e.ts, model: e.model ?? '', duration: 0 };
+                  const agg = storyAggregates[e.storyId ?? ''];
+                  lastCompletedStory = {
+                    id: e.storyId ?? '', title: '', timestamp: e.ts, model: e.model ?? '', duration: 0,
+                    retryCount: agg ? Math.max(0, agg.attempts - 1) : 0,
+                    totalTokens: agg?.totalTokens ?? 0,
+                    totalDuration: agg?.totalDuration ?? 0,
+                  };
                 }
               }
             }
@@ -1309,7 +1354,8 @@ function spiralApiPlugin() {
           return;
         }
 
-        // Default: list all workers
+        // Default: list all workers — merges data from .spiral/workers/ (queue/log)
+        // and .spiral-workers/worker-N/.heartbeat (live metrics)
         const url = new URL(req.url ?? '', 'http://localhost');
         const name = url.searchParams.get('name') ?? '';
 
@@ -1321,38 +1367,140 @@ function spiralApiPlugin() {
           return;
         }
 
+        interface EnrichedWorker {
+          id: number;
+          hasLog: boolean;
+          hasHeartbeat: boolean;
+          hasJson: boolean;
+          queue_depth: number;
+          status: string;
+          // Heartbeat fields
+          mem_mb: number | null;
+          node_mem_mb: number | null;
+          pid: number | null;
+          node_pid: number | null;
+          phase: string | null;
+          completed: number;
+          current_story: string | null;
+          heartbeat_ts: number | null;
+          heartbeat_age_sec: number | null;
+          last_progress_time: number | null;
+          state: string;
+          paused: boolean;
+          status_reason: string;
+          // Queue fields
+          current_task: { story_id: string; started_at: string } | null;
+          queued_stories: string[];
+          uptime: number | null;
+          started_at: string | null;
+        }
+
         const workersDir = path.join(root, '.spiral', 'workers');
-        const workerMap = new Map<number, { id: number; hasLog: boolean; hasHeartbeat: boolean; hasJson: boolean; queue_depth: number; status: string }>();
+        const worktreeDir = path.join(root, '.spiral-workers');
+        const scratchDir = path.join(root, '.spiral');
+        const nowSec = Date.now() / 1000;
+        const workerMap = new Map<number, EnrichedWorker>();
+
+        const makeDefault = (id: number): EnrichedWorker => ({
+          id, hasLog: false, hasHeartbeat: false, hasJson: false,
+          queue_depth: 0, status: 'unknown',
+          mem_mb: null, node_mem_mb: null, pid: null, node_pid: null,
+          phase: null, completed: 0, current_story: null,
+          heartbeat_ts: null, heartbeat_age_sec: null, last_progress_time: null,
+          state: 'queued', paused: false, status_reason: '',
+          current_task: null, queued_stories: [], uptime: null, started_at: null,
+        });
+
         try {
+          // 1. Scan .spiral/workers/ for log and queue JSON files
           if (fs.existsSync(workersDir)) {
             for (const f of fs.readdirSync(workersDir)) {
-              const mLog  = f.match(/^worker_(\d+)\.log$/);
+              const mLog = f.match(/^worker_(\d+)\.log$/);
               const mJson = f.match(/^worker_(\d+)\.json$/);
               if (mLog) {
                 const id = parseInt(mLog[1]);
-                const existing = workerMap.get(id);
-                workerMap.set(id, { id, hasLog: true, hasHeartbeat: fs.existsSync(path.join(workersDir, `worker_${id}.heartbeat`)), hasJson: existing?.hasJson ?? false, queue_depth: existing?.queue_depth ?? 0, status: existing?.status ?? 'unknown' });
+                const w = workerMap.get(id) ?? makeDefault(id);
+                w.hasLog = true;
+                w.hasHeartbeat = fs.existsSync(path.join(workersDir, `worker_${id}.heartbeat`));
+                workerMap.set(id, w);
               } else if (mJson) {
                 const id = parseInt(mJson[1]);
-                const existing = workerMap.get(id);
-                let queueDepth = existing?.queue_depth ?? 0;
-                let status = existing?.status ?? 'unknown';
+                const w = workerMap.get(id) ?? makeDefault(id);
+                w.hasJson = true;
                 try {
                   const raw = JSON.parse(fs.readFileSync(path.join(workersDir, f), 'utf8')) as {
-                    current_task?: unknown;
-                    queue?: unknown[];
-                    status?: string;
+                    current_task?: { story_id: string; started_at: string } | null;
+                    queue?: { story_id: string }[];
+                    uptime?: number;
+                    phase?: string;
                   };
-                  queueDepth = (raw.queue ?? []).length;
-                  status = raw.current_task ? 'running' : (raw.status ?? 'idle');
-                } catch { /* ignore malformed JSON */ }
-                workerMap.set(id, { id, hasLog: existing?.hasLog ?? false, hasHeartbeat: existing?.hasHeartbeat ?? fs.existsSync(path.join(workersDir, `worker_${id}.heartbeat`)), hasJson: true, queue_depth: queueDepth, status });
+                  w.current_task = raw.current_task ?? null;
+                  w.queued_stories = (raw.queue ?? []).map(q => q.story_id);
+                  w.queue_depth = w.queued_stories.length;
+                  w.uptime = raw.uptime ?? null;
+                  w.status = raw.current_task ? 'running' : 'idle';
+                  if (raw.current_task?.started_at) w.started_at = raw.current_task.started_at;
+                  if (raw.phase) w.phase = raw.phase;
+                } catch { /* ignore */ }
+                workerMap.set(id, w);
               }
             }
           }
-        } catch { /* ignore */ }
-        const workers = [...workerMap.values()];
 
+          // 2. Scan .spiral-workers/ for heartbeat files (live metrics)
+          if (fs.existsSync(worktreeDir)) {
+            for (const subdir of fs.readdirSync(worktreeDir)) {
+              const idMatch = subdir.match(/^worker-(\d+)$/);
+              if (!idMatch) continue;
+              const id = parseInt(idMatch[1]);
+              const hbFile = path.join(worktreeDir, subdir, '.heartbeat');
+              if (!fs.existsSync(hbFile)) {
+                // Worktree exists but no heartbeat — queued
+                const w = workerMap.get(id) ?? makeDefault(id);
+                if (w.state === 'unknown' || !w.hasHeartbeat) w.state = 'queued';
+                workerMap.set(id, w);
+                continue;
+              }
+              try {
+                const hb = JSON.parse(fs.readFileSync(hbFile, 'utf8')) as {
+                  pid?: number; storyId?: string; ts?: number; completed?: number;
+                  phase?: string; memMb?: number; nodeMemMb?: number; nodePid?: number;
+                  last_progress_time?: number;
+                };
+                const w = workerMap.get(id) ?? makeDefault(id);
+                w.hasHeartbeat = true;
+                w.pid = hb.pid ?? null;
+                w.node_pid = hb.nodePid ?? null;
+                w.mem_mb = hb.memMb ?? null;
+                w.node_mem_mb = hb.nodeMemMb ?? null;
+                w.phase = hb.phase ?? w.phase;
+                w.completed = hb.completed ?? 0;
+                w.current_story = hb.storyId ?? null;
+                w.heartbeat_ts = hb.ts ?? null;
+                w.last_progress_time = hb.last_progress_time ?? null;
+                if (hb.ts) {
+                  w.heartbeat_age_sec = Math.floor(nowSec - hb.ts);
+                  // Check pause state
+                  const pauseFile = path.join(scratchDir, `_worker_pause_${id}`);
+                  if (fs.existsSync(pauseFile)) {
+                    w.state = 'paused';
+                    w.paused = true;
+                    w.status_reason = 'Paused — memory pressure';
+                  } else if (w.heartbeat_age_sec > 300) {
+                    w.state = 'timeout';
+                    w.status_reason = `No heartbeat for ${w.heartbeat_age_sec}s`;
+                  } else {
+                    w.state = 'alive';
+                    w.status = 'running';
+                  }
+                }
+                workerMap.set(id, w);
+              } catch { /* ignore */ }
+            }
+          }
+        } catch { /* ignore */ }
+
+        const workers = [...workerMap.values()];
         workers.sort((a, b) => a.id - b.id);
         res.end(JSON.stringify({ workers }));
       });
@@ -1661,6 +1809,21 @@ function spiralApiPlugin() {
             } catch { /* ignore */ }
           }
 
+          // ── 3b. Parse prd.json for passes status ────────────────────────────
+          interface PrdStoryMin { id: string; passes?: boolean; title?: string }
+          const prdPath = path.join(root, 'prd.json');
+          const passedSet = new Set<string>();
+          const prdTitleMap: Record<string, string> = {};
+          if (fs.existsSync(prdPath)) {
+            try {
+              const prdData = JSON.parse(fs.readFileSync(prdPath, 'utf8')) as { userStories?: PrdStoryMin[] };
+              for (const s of prdData.userStories ?? []) {
+                if (s.passes) passedSet.add(s.id);
+                if (s.title) prdTitleMap[s.id] = s.title;
+              }
+            } catch { /* ignore */ }
+          }
+
           // ── 4. Build output structures ────────────────────────────────────────
 
           // Helper: extract model tier from full model name
@@ -1736,6 +1899,50 @@ function spiralApiPlugin() {
           const avgPerStory = byStory.length > 0 ? Math.round(totalTokens / byStory.length) : 0;
           const mostExpensive = [...byStory].sort((a, b) => b.usd - a.usd)[0] ?? null;
 
+          // ── 5. Recently completed stories with per-call breakdown ────────────
+          // Group raw metric records by story_id, filter for passed stories,
+          // sort by most recent timestamp descending
+          const callsByStory = new Map<string, Array<{ ts: string; model: string; tier: string; input: number; output: number; total: number }>>();
+          for (const r of rawMetrics) {
+            const sid = r.story_id ?? 'unknown';
+            const model = r.model ?? 'unknown';
+            if (model === 'unknown' || !r.total_tokens) continue; // skip zero-token "unknown" rows
+            if (!callsByStory.has(sid)) callsByStory.set(sid, []);
+            callsByStory.get(sid)!.push({
+              ts: r.ts ?? '',
+              model,
+              tier: modelTier(model),
+              input: r.input_tokens ?? 0,
+              output: r.output_tokens ?? 0,
+              total: r.total_tokens ?? 0,
+            });
+          }
+
+          const recentlyCompleted = [...callsByStory.entries()]
+            .filter(([sid]) => passedSet.has(sid))
+            .map(([sid, calls]) => {
+              const models = [...new Set(calls.map(c => c.tier))];
+              const totalInput = calls.reduce((s, c) => s + c.input, 0);
+              const totalOutput = calls.reduce((s, c) => s + c.output, 0);
+              const totalTokens = calls.reduce((s, c) => s + c.total, 0);
+              const lastTs = calls.reduce((latest, c) => c.ts > latest ? c.ts : latest, '');
+              const costRec = storyCosts[sid];
+              return {
+                story_id: sid,
+                title: prdTitleMap[sid] ?? tsvTitleMap[sid] ?? '',
+                models,
+                input: totalInput,
+                output: totalOutput,
+                total: totalTokens,
+                usd: costRec?.estimated_usd ?? 0,
+                callCount: calls.length,
+                lastTs,
+                calls: calls.sort((a, b) => a.ts.localeCompare(b.ts)),
+              };
+            })
+            .sort((a, b) => b.lastTs.localeCompare(a.lastTs))
+            .slice(0, 15);
+
           res.end(JSON.stringify({
             total: { input: totalInput, output: totalOutput, tokens: totalTokens, usd: totalUsd },
             avgPerStory,
@@ -1744,6 +1951,7 @@ function spiralApiPlugin() {
             byStory: byStory.slice(0, 20), // top 20
             byPhase,
             trend: trendPoints,
+            recentlyCompleted,
           }));
         } catch (e) {
           res.statusCode = 500;

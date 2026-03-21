@@ -54,10 +54,7 @@ class TestCommitHookInstaller:
             )
 
             # Install the hook
-            installer_path = (
-                Path(__file__).parent.parent
-                / "lib/phases/phase_g/commit_hook_installer.sh"
-            )
+            installer_path = Path(__file__).parent.parent / "lib/phases/phase_g/commit_hook_installer.sh"
             bash_path = shutil.which("bash")
             if not bash_path:
                 raise RuntimeError("bash not found in PATH")
@@ -105,10 +102,7 @@ class TestCommitHookInstaller:
             text=True,
         )
 
-        assert result.returncode == 0, (
-            f"Commit should succeed with valid prefix. "
-            f"stderr: {result.stderr}"
-        )
+        assert result.returncode == 0, f"Commit should succeed with valid prefix. stderr: {result.stderr}"
 
     def test_valid_commit_with_ut_prefix(self, temp_git_repo: Path) -> None:
         """Test commit with valid UT-NNN: prefix is accepted."""
@@ -132,10 +126,7 @@ class TestCommitHookInstaller:
             text=True,
         )
 
-        assert result.returncode == 0, (
-            f"Commit should succeed with valid UT prefix. "
-            f"stderr: {result.stderr}"
-        )
+        assert result.returncode == 0, f"Commit should succeed with valid UT prefix. stderr: {result.stderr}"
 
     def test_invalid_commit_missing_prefix(self, temp_git_repo: Path) -> None:
         """Test commit without story ID prefix is rejected."""
@@ -159,16 +150,11 @@ class TestCommitHookInstaller:
             text=True,
         )
 
-        assert (
-            result.returncode != 0
-        ), "Commit should fail without story ID prefix"
+        assert result.returncode != 0, "Commit should fail without story ID prefix"
         assert "Commit message must start with" in result.stderr, (
-            f"Error message should explain requirement. "
-            f"stderr: {result.stderr}"
+            f"Error message should explain requirement. stderr: {result.stderr}"
         )
-        assert "US-NNN:" in result.stderr and "UT-NNN:" in result.stderr, (
-            "Error message should show valid formats"
-        )
+        assert "US-NNN:" in result.stderr and "UT-NNN:" in result.stderr, "Error message should show valid formats"
 
     def test_invalid_commit_wrong_format(self, temp_git_repo: Path) -> None:
         """Test commit with wrong story ID format is rejected."""
@@ -192,9 +178,7 @@ class TestCommitHookInstaller:
             text=True,
         )
 
-        assert (
-            result.returncode != 0
-        ), "Commit should fail with wrong format"
+        assert result.returncode != 0, "Commit should fail with wrong format"
         assert "Commit message must start with" in result.stderr
 
     def test_error_message_displayed(self, temp_git_repo: Path) -> None:
@@ -221,6 +205,5 @@ class TestCommitHookInstaller:
 
         expected_error = "Commit message must start with US-NNN: or UT-NNN:"
         assert expected_error in result.stderr, (
-            f"Error message '{expected_error}' should be in stderr. "
-            f"Got: {result.stderr}"
+            f"Error message '{expected_error}' should be in stderr. Got: {result.stderr}"
         )

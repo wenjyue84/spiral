@@ -144,3 +144,4 @@
 3. ✅ Integration test asserts SPIRAL logs cycle and halts Phase M merge
    - test_prd_with_cycle_logs_halt_message asserts 'Phase M' and 'CIRCULAR_DEPENDENCY' in stdout
    - test_prd_with_cycle_halts_merge asserts result.has_error is True
+

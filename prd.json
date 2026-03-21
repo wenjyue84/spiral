@@ -11,22 +11,6 @@
   ],
   "userStories": [
     {
-      "id": "US-674",
-      "title": "Phase G: Install Pre-Commit Hook to Enforce Story ID Tags in Commit Messages",
-      "priority": "high",
-      "description": "Add git hook installer to Phase G that enforces all commits include story ID prefix (US-NNN: or UT-NNN:) in the commit message. Prevents orphan commits without story references and improves traceability in Phase G's commit-to-story mapping.",
-      "acceptanceCriteria": [
-        "lib/phases/phase_g/commit_hook_installer.sh creates/updates .git/hooks/prepare-commit-msg to validate message matches regex ^(US|UT)-[0-9]+:",
-        "Hook rejects commits with exit code 1 if message missing story ID, displays error 'Commit message must start with US-NNN: or UT-NNN:'",
-        "tests/test_phase_g_commit_hook.py creates temporary git repo, triggers hook with valid (US-123: fix) and invalid (forgot prefix) messages, asserts rejection"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": true,
-      "model": "haiku"
-    },
-    {
       "id": "US-652",
       "title": "Dashboard: Worker Utilization Swimlane Chart -- Phase Duration Distribution per Worker Across Iterations",
       "priority": "medium",
@@ -39,7 +23,7 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "sonnet"
     },
@@ -221,6 +205,22 @@
       "model": "haiku"
     },
     {
+      "id": "US-675",
+      "title": "Phase G: Generate Markdown API Documentation for Bash and JavaScript Modules",
+      "priority": "medium",
+      "description": "Extend Phase G to support multi-language API doc generation. Extract function signatures and descriptions from bash scripts (via regex parsing of function comments) and JavaScript (via JSDoc), then generate a unified markdown API reference with cross-links.",
+      "acceptanceCriteria": [
+        "lib/phases/phase_g/bash_doc_extractor.py parses lib/*.sh and ralph/ralph.sh, extracting function names and comment blocks matching pattern `# @desc <text>`",
+        "lib/phases/phase_g/js_doc_extractor.py extracts JSDoc from dashboard React components and spiralui source, outputs markdown with signatures",
+        "tests/test_phase_g_multilang_docs.py validates generated API.md contains at least 5 bash functions and 3 JS exports with proper signatures"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
       "id": "US-667",
       "title": "Dashboard: Export Metrics to CSV/JSON/Prometheus — GET /api/dashboard/export?format=csv",
       "priority": "low",
@@ -234,6 +234,22 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-674",
+      "title": "Phase G: Install Pre-Commit Hook to Enforce Story ID Tags in Commit Messages",
+      "priority": "high",
+      "description": "Add git hook installer to Phase G that enforces all commits include story ID prefix (US-NNN: or UT-NNN:) in the commit message. Prevents orphan commits without story references and improves traceability in Phase G's commit-to-story mapping.",
+      "acceptanceCriteria": [
+        "lib/phases/phase_g/commit_hook_installer.sh creates/updates .git/hooks/prepare-commit-msg to validate message matches regex ^(US|UT)-[0-9]+:",
+        "Hook rejects commits with exit code 1 if message missing story ID, displays error 'Commit message must start with US-NNN: or UT-NNN:'",
+        "tests/test_phase_g_commit_hook.py creates temporary git repo, triggers hook with valid (US-123: fix) and invalid (forgot prefix) messages, asserts rejection"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
       "model": "haiku"
     },
     {

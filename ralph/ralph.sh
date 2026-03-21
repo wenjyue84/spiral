@@ -2684,7 +2684,8 @@ $_TOOL_EXAMPLES_MD"
     fi
 
     # Minimal user prompt — the system prompt has all instructions
-    RALPH_USER_PROMPT="Implement the next incomplete story from prd.json now. Read prd.json and progress.txt, pick the highest priority story where passes is false, and implement it."
+    # CRITICAL: Pin the story ID so Ralph cannot self-select a different story.
+    RALPH_USER_PROMPT="Implement story **${NEXT_STORY}** (\"${STORY_TITLE}\") from prd.json now. This is the story assigned to you by the SPIRAL orchestrator — do NOT pick a different story. Read prd.json for the full details of ${NEXT_STORY}, read progress.txt for codebase context, then implement ${NEXT_STORY} only."
 
     # ── US-251: Replay hint injected into system prompt (not user prompt) ────
     # SPIRAL_REPLAY_HINT is set by spiral.sh --hint during --replay mode.
