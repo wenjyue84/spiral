@@ -1969,3 +1969,45 @@ Based on the user story `US-642`, here is a technical brief for the implementati
 ### Gotchas
 - ResultsRecord uses spiral_iter (str), not iteration_num — must int() convert with try/except
 - cumulative_cost[last] == sum of all total_cost values; floating point precision requires round(x, 6)
+
+## Iteration - Story: US-668 Phase G: Generate Release Notes from Completed Stories with Semantic Versioning
+
+### What was implemented
+- lib/phases/phase_g_release_notes.py: New module with main function generate_release_notes()
+  - load_prd(): Reads prd.json and returns parsed dictionary
+  - get_story_metadata(): Retrieves token/cost data for stories from results.tsv
+  - format_story_entry(): Formats single story as "- US-123: Title (X tokens)" with AC sub-bullets
+  - generate_release_notes(): Main orchestrator that:
+    - Filters stories with passes=true from prd.json
+    - Groups by _source field (test-fix, research, ai-example, test-story, seed)
+    - Gets semantic version from CHANGELOG.md via phase_g_version_bump.parse_version_from_changelog()
+    - Generates RELEASE_NOTES.md with version header and grouped stories
+  - main(): Entry point for standalone execution
+- tests/test_phase_g_release_notes.py: 13 comprehensive tests
+  - TestLoadPrd: tests PRD loading
+  - TestFormatStoryEntry: tests story formatting with various metadata
+  - TestGetStoryMetadata: tests metadata retrieval from results.tsv
+  - TestGenerateReleaseNotesHappyPath: tests all 4 acceptance criteria
+  - TestGenerateReleaseNotesErrorHandling: tests error cases and edge cases
+  - All 13 tests pass
+- prd.json: Updated US-668 to passes=true
+
+### Patterns discovered
+- _source field is only present on some completed stories; default to "seed" for missing sources
+- Results.tsv can be parsed using lib.results_tsv.parse_results_tsv() which returns list of ResultsRecord objects
+- Grouping by _source uses predefined source_names dict for friendly section titles
+- Stories with passes=false are excluded from release notes (only completed stories included)
+- Semantic version comes from CHANGELOG.md header (format: ## [X.Y.Z] or ## X.Y.Z)
+
+### Verification results
+- All 13 tests pass: pytest tests/test_phase_g_release_notes.py ✅
+- mypy --strict on both files: ✅
+- ruff check and fix: ✅ (1 auto-fix: removed unused import)
+- Story marked passes=true in prd.json: ✅
+- Commit: 8cd419f4 "feat: US-668 Phase G: Generate Release Notes" ✅
+
+### Acceptance criteria met
+- [x] AC1: lib/phases/phase_g_release_notes.py reads stories where passes=true and creates RELEASE_NOTES.md
+- [x] AC2: Groups stories by _source (test-fix, research, seed, ai-example, test-story) with section headers
+- [x] AC3: Includes semantic version header extracted from lib/phases/phase_g_version_bump.py version output
+- [x] AC4: Each story entry formatted as "- US-123: Title (X tokens)" with acceptance criteria as sub-bullets
