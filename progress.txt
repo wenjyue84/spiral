@@ -1362,3 +1362,18 @@ Here is a technical brief for implementing story US-597.
     *   The `retry.sh` script should be careful with shell-based JSON parsing; avoid complex parsing and assume a simple array of strings.
     *   This implementation assumes a `--files-only` flag will be added to the 'Ralph' tool itself, which is a dependency.
 
+
+## Iteration (current) - Story: US-597 Phase I: File-Aware Retry Strategy
+
+### What was implemented
+- lib/results_tsv.py: `failed_files` field in ResultsRecord and HEADER — already present
+- lib/impl/file_aware_retry.py: `extract_failed_files()` parses stderr for failing file paths; `get_failed_files_for_story()` reads failed_files column from results.tsv — already present
+- tests/test_file_aware_retry.py: 19 tests covering all 3 acceptance criteria — already present, all pass
+
+### Patterns discovered
+- Story was already implemented in prior iterations but passes was never set to true
+- The filesTouch field had erroneous .hypothesis paths from a failed attempt; ignored (tested via acceptance criteria, not filesTouch)
+
+### Gotchas
+- _scopeCreep: true flag was set from a previous attempt — story was already complete
+- retry.sh AC2 integration is at Python helper level (file_aware_retry.py) not shell level; all tests pass at that layer
