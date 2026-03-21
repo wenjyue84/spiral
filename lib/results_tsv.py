@@ -42,7 +42,11 @@ class ResultsRecord:
     conflict_files: str = ""
     failure_root_cause: str = ""
     sub_project: str = ""  # New column for federated SPIRAL runs
+<<<<<<< Updated upstream
     failed_files: str = ""  # US-597: JSON array of files that failed (e.g. '["src/a.py"]')
+=======
+    failed_files: str = ""  # JSON array of files that caused failure (e.g. '["src/a.py"]')
+>>>>>>> Stashed changes
 
 
 # Header fields in order for TSV writing

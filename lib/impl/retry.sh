@@ -62,6 +62,44 @@ invoke_exhaustion_analyzer() {
   return 0
 }
 
+# capture_failed_files_from_stderr <stderr_file>
+# Parses a Ralph stderr file for file-path failure signals.
+# Outputs a JSON array string (e.g. '["src/a.py","lib/b.py"]') to stdout.
+# Returns "[]" on any error.
+capture_failed_files_from_stderr() {
+  local stderr_file="${1:-}"
+  local helper_script
+  helper_script="$(dirname "${BASH_SOURCE[0]}")/file_aware_retry.py"
+
+  if [[ ! -f "$helper_script" || ! -f "$stderr_file" ]]; then
+    echo "[]"
+    return 0
+  fi
+
+  local result
+  result=$(uv run python "$helper_script" extract "$stderr_file" 2>/dev/null || echo "[]")
+  echo "${result:-[]}"
+}
+
+# get_previous_failed_files <story_id> [results_tsv]
+# Reads the failed_files JSON array from the last results.tsv row for story_id.
+# Outputs a JSON array string to stdout.
+get_previous_failed_files() {
+  local story_id="${1:-}"
+  local results_tsv="${2:-results.tsv}"
+  local helper_script
+  helper_script="$(dirname "${BASH_SOURCE[0]}")/file_aware_retry.py"
+
+  if [[ ! -f "$helper_script" || -z "$story_id" || ! -f "$results_tsv" ]]; then
+    echo "[]"
+    return 0
+  fi
+
+  local result
+  result=$(uv run python "$helper_script" get "$results_tsv" "$story_id" 2>/dev/null || echo "[]")
+  echo "${result:-[]}"
+}
+
 # handle_story_failure <story_id> <current_retries> [failure_reason]
 # Records the failure reason as an anti-pattern on the story (Strategy 1).
 # Returns 0 always (non-fatal -- caller decides skip vs retry).

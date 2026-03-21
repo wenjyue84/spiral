@@ -1246,17 +1246,17 @@ append_result() {
   local duration_sec=$((STORY_END - STORY_START))
   local model_col="${EFFECTIVE_MODEL:-${EFFECTIVE_TOOL:-unknown}}"
   if [[ ! -f "$RESULTS_FILE" ]]; then
-    printf 'timestamp\tspiral_iter\tralph_iter\tstory_id\tstory_title\tstatus\tduration_sec\tmodel\tretry_num\tcommit_sha\trun_id\tcache_hit\tcache_read_tokens\tcache_creation_tokens\treview_tokens\twall_seconds\tuser_cpu_s\tsys_cpu_s\tpeak_rss_kb\tbatch_id\tdecompose_secs\timpl_secs\tverify_secs\tretry_escalation_count\tfailure_root_cause\n' >"$RESULTS_FILE"
+    printf 'timestamp\tspiral_iter\tralph_iter\tstory_id\tstory_title\tstatus\tduration_sec\tmodel\tretry_num\tcommit_sha\trun_id\tcache_hit\tcache_read_tokens\tcache_creation_tokens\treview_tokens\twall_seconds\tuser_cpu_s\tsys_cpu_s\tpeak_rss_kb\tbatch_id\tdecompose_secs\timpl_secs\tverify_secs\tretry_escalation_count\tfailure_root_cause\tfailed_files\n' >"$RESULTS_FILE"
   fi
   local safe_title="${STORY_TITLE//$'\t'/ }"
-  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
     "$ts" "${SPIRAL_ITER:-0}" "$ITERATION" "$NEXT_STORY" "$safe_title" \
     "$status" "$duration_sec" "$model_col" "$RETRY_NOW" "$commit_sha" "${SPIRAL_RUN_ID:-}" \
     "${_CACHE_HIT:-false}" "${_CACHE_READ_TOKENS:-0}" "${_CACHE_CREATION_TOKENS:-0}" "${_REVIEW_TOKENS:-0}" \
     "${_WALL_SEC:-0}" "${_USER_CPU_S:-0}" "${_SYS_CPU_S:-0}" "${_PEAK_RSS_KB:-0}" \
     "${STORY_BATCH_ID:-}" \
     "${_DECOMPOSE_SECS:-0}" "${_IMPL_SECS:-0}" "${_VERIFY_SECS:-0}" "${_RETRY_ESCALATION_COUNT:-0}" \
-    "${_FAILURE_ROOT_CAUSE:-}" \
+    "${_FAILURE_ROOT_CAUSE:-}" "${_FAILED_FILES:-}" \
     >>"$RESULTS_FILE"
 }
 
@@ -2435,6 +2435,7 @@ while [[ $ITERATION -lt $MAX_ITERATIONS ]]; do
   _IMPL_SECS=0              # reset per-story; set by AI invocation phase (US-521)
   _VERIFY_SECS=0            # reset per-story; set by verification phase (US-521)
   _RETRY_ESCALATION_COUNT=0 # reset per-story; increment when model escalates (US-521)
+  _FAILED_FILES=""          # reset per-story; JSON array of files that failed (US-597)
   if declare -f reset_phase_timings >/dev/null 2>&1; then
     reset_phase_timings
   fi

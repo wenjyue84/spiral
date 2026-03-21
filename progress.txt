@@ -1270,6 +1270,7 @@ This story implements a cost-saving retry mechanism. The agent "Ralph" fails on 
 
 
 ## Pre-analysis for US-597 (Gemini 2.5 Pro)
+<<<<<<< Updated upstream
 Here is a technical brief for the Claude agent based on the provided user story.
 
 ***
@@ -1409,3 +1410,32 @@ Here is a technical brief for implementing story US-597.
 ### Gotchas
 - Pre-commit shellcheck on retry.sh requires LF line endings (not CRLF) -- Windows editors can corrupt this
 - Em dash characters (—) in bash comments trigger shellcheck encoding errors; use -- instead
+=======
+### Technical Brief: US-597 File-Aware Retry Strategy
+
+**Objective:** Implement a file-aware retry mechanism where a failed execution only re-processes the specific files that caused the failure, based on parsing stderr logs.
+
+**1. Python Files to Modify:**
+*   `lib/spiral/runner.py`: This is the likely orchestrator for "Phase I" execution. It will need modification to capture stderr from the subprocess it runs (likely "Ralph").
+*   `lib/spiral/results.py`: This module probably handles writing to `results.tsv`. It needs to be updated to add and populate a new `failed_files` column.
+*   `lib/analyze_failures.py`: A good candidate for placing the stderr parsing logic. A new function could be added here to extract failed file paths using regex, which `runner.py` would then call.
+*   `ralph/main.py` (or similar): The "Ralph" tool itself must be modified to accept and act upon a new `--files-only` command-line argument.
+*   `tests/integration/test_retry_logic.py`: A new integration test file should be created to verify the end-to-end functionality as per the acceptance criteria.
+
+**2. Frappe DocTypes / Hooks:**
+*   This user story does not involve any Frappe DocTypes or hooks. The implementation is confined to the backend Python scripts and shell wrappers of the Spiral/Ralph execution engine.
+
+**3. Implementation Approach:**
+1.  **Modify Runner:** In `lib/spiral/runner.py`, capture the `stderr` stream from the subprocess call.
+2.  **Add Log Parser:** Create a function in `lib/analyze_failures.py` that takes the stderr string as input and uses a regex (e.g., `(?i)error in file:\s*['\"](src/[^'\" ]+)['\"]`) to extract a list of failed file paths.
+3.  **Update Results:** In `lib/spiral/results.py`, add the `failed_files` column to `results.tsv`. The runner will pass the extracted file list, which should be stored as a JSON formatted string (e.g., `["src/main.py", "lib/utils.py"]`).
+4.  **Update Retry Script:** Modify `lib/impl/retry.sh` to read the `failed_files` column. Use a command-line tool like `jq` to parse the JSON array.
+5.  **Conditional Execution:** In `retry.sh`, if the `failed_files` array is not empty, construct and pass the `--files-only` flag with the file list to the Ralph command. If empty, proceed with the default full retry.
+
+**4. Edge Cases & Gotchas:**
+*   **Regex Fragility:** The filename-matching regex must be robust enough to handle different error formats in the stderr log.
+*   **Non-File Failures:** The system can fail for reasons not tied to a specific file (e.g., timeout, setup error). The `failed_files` list will be empty in this case, and the retry script must gracefully fall back to a full, standard retry.
+*   **Shell Parsing:** `retry.sh` needs a reliable method (like `jq`) for parsing the JSON array from the TSV column to avoid issues with escaping and special characters.
+*   **Empty Results:** The logic must handle cases where the `failed_files` column is empty or malformed.
+
+>>>>>>> Stashed changes
