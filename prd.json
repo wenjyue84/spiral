@@ -11,25 +11,6 @@
   ],
   "userStories": [
     {
-      "id": "US-661",
-      "title": "CLI: spiral validate-phase-outputs -- Comprehensive Phase Output Schema Validation",
-      "priority": "medium",
-      "description": "Add CLI command to validate intermediate phase output JSON files (_research_output.json, _test_stories_output.json, _validated_stories.json) against their schemas. Reports schema violations with file paths and remediation hints for debugging phase execution issues.",
-      "acceptanceCriteria": [
-        "Implement lib/spiral/validate_phase_outputs.py with schema matchers for each phase output type",
-        "CLI command 'spiral validate-phase-outputs [--phase R|T|S|M]' checks .spiral/ output files against lib/schemas/phase_*.schema.json",
-        "Output JSON format {valid: bool, phase: string, errors: [{file, line, expected, got}]} or --format text for human-readable report"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": true,
-      "model": "sonnet",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- `lib/spiral/` has Python modules but no `validate_phase_outputs.py`\n- `lib/schemas/` doesn't exist\n- Phase output files: `.spiral/_research_output.json`, `_test_stories_output.json`, `_validated_stories.json`; Phase M outputs to `prd.json`\n- `main.py` follows a pattern: subparser registered in `main()`, handler `cmd_*` at bottom\n\n## Problem Identified\nUS-661 needs: (1) schema files for phase outputs, (2) `lib/spiral/validate_phase_outputs.py` with validation logic, (3) CLI command `validate-phase-outputs [--phase R|T|S|M] [--format json|text]`\n\n## Planned Changes\n- Create `lib/schemas/phase_R.schema.json`, `phase_T.schema.json`, `phase_S.schema.json`, `phase_M.schema.json`\n- Create `lib/spiral/validate_phase_outputs.py` with `validate_phase()`, `validate_phases()`, `format_text_report()`\n- Modify `main.py`: add subparser after `trace-dependencies` and dispatch handler\n- Create `tests/test_validate_phase_outputs.py`\nNow add the CLI command to main.py. First, find the exact insertion points:\nNow add the dispatch handler and the `cmd_validate_phase_outputs` function:\nNow add the `cmd_validate_phase_outputs` function at the end of main.py (before `if __name__ == \"__main__\"`):\nNow write the tests:\nNow run the tests:\nAll 21 tests pass. Now run mypy and lint:\nAll 21 pass. Now verify the CLI works end-to-end:\nCLI works perfectly. Now mark story as complete and commit:\nNow append to progress.txt:\nI need to also stage the main.py changes:\nThis is a JSONL events log file with a merge conflict. I'll resolve it by keeping both sides (it's an append-only log):\nDone. Here's a summary of what was implemented for **US-661**:\n\n### Implemented"
-      }
-    },
-    {
       "id": "US-662",
       "title": "Dashboard React Component - Real-Time Worker Phase Swimlane Timeline",
       "priority": "medium",
@@ -43,9 +24,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "_failureReason": "oversized_diff",
-      "last_attempted": "2026-03-21T17:11:53Z"
+      "model": "haiku"
     },
     {
       "id": "US-663",
@@ -248,6 +227,22 @@
         "Parse prd.json depends_on fields and results.tsv timestamps; detect if child story completed before all parent stories",
         "Output JSON violations: {\"violations\": [{\"story\": \"US-123\", \"completed_at\": \"T1\", \"blocked_on\": \"US-120\", \"blocker_completed_at\": \"T2\" (later than T1)}]}",
         "CLI: spiral check-phase-order-violations -p prd.json -r results.tsv, exit code 1 if violations found, 0 if clean"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-682",
+      "title": "Dashboard Component: Story Retry Cost Escalation Heatmap",
+      "priority": "medium",
+      "description": "Visualize per-story retry costs and model escalation patterns. Helps identify stories that escalated from haiku→sonnet→opus and their cost deltas, enabling targeted optimization.",
+      "acceptanceCriteria": [
+        "Parse results.tsv grouped by story_id; calculate cost_delta per story (first_attempt_cost vs final_success_cost) and escalation_chain (e.g., 'haiku→sonnet→opus')",
+        "Display matrix: rows=top 15 stories by cost_delta, columns=[story_id, tokens, cost_delta, escalation_chain, reason_codes], sorted descending by cost_delta",
+        "Visual highlight: red if cost_delta > $1, yellow if > $0.50, green otherwise; tooltip shows retry timeline and per-phase token breakdown"
       ],
       "technicalNotes": [],
       "dependencies": [],
@@ -2152,6 +2147,25 @@
       "model": "haiku",
       "_scopeCreep": true,
       "tags": []
+    },
+    {
+      "id": "US-661",
+      "title": "CLI: spiral validate-phase-outputs -- Comprehensive Phase Output Schema Validation",
+      "priority": "medium",
+      "description": "Add CLI command to validate intermediate phase output JSON files (_research_output.json, _test_stories_output.json, _validated_stories.json) against their schemas. Reports schema violations with file paths and remediation hints for debugging phase execution issues.",
+      "acceptanceCriteria": [
+        "Implement lib/spiral/validate_phase_outputs.py with schema matchers for each phase output type",
+        "CLI command 'spiral validate-phase-outputs [--phase R|T|S|M]' checks .spiral/ output files against lib/schemas/phase_*.schema.json",
+        "Output JSON format {valid: bool, phase: string, errors: [{file, line, expected, got}]} or --format text for human-readable report"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "sonnet",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n- `lib/spiral/` has Python modules but no `validate_phase_outputs.py`\n- `lib/schemas/` doesn't exist\n- Phase output files: `.spiral/_research_output.json`, `_test_stories_output.json`, `_validated_stories.json`; Phase M outputs to `prd.json`\n- `main.py` follows a pattern: subparser registered in `main()`, handler `cmd_*` at bottom\n\n## Problem Identified\nUS-661 needs: (1) schema files for phase outputs, (2) `lib/spiral/validate_phase_outputs.py` with validation logic, (3) CLI command `validate-phase-outputs [--phase R|T|S|M] [--format json|text]`\n\n## Planned Changes\n- Create `lib/schemas/phase_R.schema.json`, `phase_T.schema.json`, `phase_S.schema.json`, `phase_M.schema.json`\n- Create `lib/spiral/validate_phase_outputs.py` with `validate_phase()`, `validate_phases()`, `format_text_report()`\n- Modify `main.py`: add subparser after `trace-dependencies` and dispatch handler\n- Create `tests/test_validate_phase_outputs.py`\nNow add the CLI command to main.py. First, find the exact insertion points:\nNow add the dispatch handler and the `cmd_validate_phase_outputs` function:\nNow add the `cmd_validate_phase_outputs` function at the end of main.py (before `if __name__ == \"__main__\"`):\nNow write the tests:\nNow run the tests:\nAll 21 tests pass. Now run mypy and lint:\nAll 21 pass. Now verify the CLI works end-to-end:\nCLI works perfectly. Now mark story as complete and commit:\nNow append to progress.txt:\nI need to also stage the main.py changes:\nThis is a JSONL events log file with a merge conflict. I'll resolve it by keeping both sides (it's an append-only log):\nDone. Here's a summary of what was implemented for **US-661**:\n\n### Implemented"
+      }
     },
     {
       "id": "US-657",
