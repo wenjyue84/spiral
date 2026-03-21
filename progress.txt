@@ -1,4 +1,49 @@
-## Iteration [Current] - Story: US-665 CLI list-federation
+## Iteration [Current] - Story: US-670 Dashboard Endpoint Phase Bottleneck Analyzer
+
+### What was implemented
+- **lib/dashboard/bottleneck_analyzer.py** — Phase variance analyzer (82 lines, mypy strict compliant)
+  - `BottleneckAnalyzer` class with configurable results.tsv path
+  - `analyze()` method computes:
+    - `avg_duration_ms`: average story duration in milliseconds
+    - `variance`: coefficient of variance (std dev / mean) rounded to 3 decimals
+    - `story_count`: number of stories per phase
+  - Filters: only includes phases with story_count > 0
+  - Sorting: by avg_duration_ms descending
+  - Handles edge cases: zero durations (skipped), single-sample variance (0.0), missing/invalid data
+
+- **lib/dashboard/api.py** — Added GET /api/dashboard/bottlenecks endpoint
+  - Returns JSON: `{"phases": [...]}`
+  - Each phase dict: `{phase, avg_duration_ms, variance, story_count}`
+  - Gracefully handles missing results.tsv with empty response
+
+- **tests/test_bottleneck_analyzer.py** — 18 comprehensive tests organized in 6 test classes
+  - TestBottleneckAnalyzerBasics: 3 tests (init, paths, missing file)
+  - TestBottleneckAnalyzerCalculations: 3 tests (single/multi-story, sorting)
+  - TestBottleneckAnalyzerFiltering: 5 tests (zero duration, invalid data, missing fields)
+  - TestBottleneckAnalyzerPhaseHandling: 4 tests (normalization, defaults, whitespace)
+  - TestBottleneckAnalyzerRounding: 2 tests (ms to 1 decimal, variance to 3 decimals)
+  - TestBottleneckAnalyzerIntegration: 3 tests (full workflow, empty file, malformed data)
+
+### Patterns discovered
+- `statistics.stdev()` requires len >= 2; single sample gets variance=0
+- Coefficient of variance = std dev / mean (useful for detecting outlier variance)
+- CSV DictReader preserves field order; empty values parse as empty strings ""
+- Phase values in results.tsv: R, T, S, M, I, V, C (uppercase); missing → "UNKNOWN"
+
+### Gotchas
+- Duration must be > 0 to be included (zero values skipped entirely)
+- Single-story phases have zero variance (not None or NaN)
+- Type annotation: return type must include str for "phase" key, not just int|float
+- Test fixture for missing duration_sec: write field to fieldnames with empty value "", not omit
+
+### Acceptance Criteria Mapping
+1. ✅ BottleneckAnalyzer.analyze() returns list[dict] with {phase, avg_duration_ms, variance, story_count}
+2. ✅ GET /api/dashboard/bottlenecks returns JSON sorted by avg_duration_ms descending
+3. ✅ Only includes phases with story_count > 0
+
+---
+
+## Iteration [Previous] - Story: US-665 CLI list-federation
 
 ### What was implemented
 - **lib/list_federation.py** — Federation config summarizer (mypy strict compliant)
