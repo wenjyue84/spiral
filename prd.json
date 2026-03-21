@@ -79,7 +79,10 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "sonnet",
-      "last_attempted": "2026-03-21T20:55:05Z"
+      "last_attempted": "2026-03-21T20:55:05Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n- No `lib/list_federation.py` exists\n- `main.py` has no `list-federation` subcommand  \n- `.spiral/federation.toml` doesn't exist (needs graceful error handling)\n- Pattern: lib modules are typed Python; main.py adds subparser + `cmd_` handler\n\n## Problem Identified\nUS-665 needs `spiral list-federation` to read `.spiral/federation.toml` + `prd.json`, count stories by sub_project, validate consistency, and output structured JSON.\n\n## Planned Changes\n1. **`lib/list_federation.py`** (new) — `load_federation_config()`, `count_stories_by_project()`, `validate_consistency()`, `build_summary()`\n2. **`main.py`** — add `list-federation` subparser + `cmd_list_federation()` handler\n3. **`tests/test_list_federation.py`** (new) — 10+ tests covering all 3 acceptance criteria\n\nNow executing:\nNow add the test file:\nNow add the CLI command to main.py. Let me find the right insertion points:\nNow I'll add the CLI subcommand and handler. First, add to the usage docstring and add the subparser after `check-federated-deps`:\nNow add the subparser after the `check-federated-deps` block:\nNow add the dispatch and handler. First the dispatch:\nNow find a good place to insert the handler function (after `cmd_check_federated_deps`):\nNow run the tests:\nOne test failure — the regex matches filename \"federation.toml\" but the temp file is \"missing.toml\". Fix the match pattern:\nAll 22 tests pass. Now run type checking and linting:\nAll 22 pass. Now mark prd.json and commit:\nMerge conflicts in `calibration.jsonl` and `progress.txt`. Let me resolve them:\nNow update progress.txt with learnings:\nDone. Here's a summary:\n\n**US-665: `spiral list-federation`** — implemented and passing.\n\n### Files created/modified:"
+      }
     },
     {
       "id": "US-666",
