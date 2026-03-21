@@ -40,9 +40,11 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
-      "model": "sonnet"
+      "model": "sonnet",
+      "_failureReason": "oversized_diff",
+      "last_attempted": "2026-03-21T06:09:16Z"
     },
     {
       "id": "US-649",
