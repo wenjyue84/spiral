@@ -85,10 +85,11 @@ Each story MUST:
 - Have a specific, actionable title (no generic "Extend X", "Refactor Y", or "Add tests for Z")
 - Address one of the project goals concretely
 - Include 2-3 acceptance criteria with real details: file paths, function names, CLI commands, or test assertions
+- Include filesTouch (list of exact file paths to create or modify) and technicalNotes (with at least one file path and one test command)
 - Be implementable in under 200 lines of code (small or medium scope)
 
 Output ONLY valid JSON — no explanation, no markdown:
-{{"stories": [{{"title": "...", "priority": "medium", "description": "...", "acceptanceCriteria": ["ac1", "ac2"], "estimatedComplexity": "small", "_source": "ai-example"}}]}}"""
+{{"stories": [{{"title": "...", "priority": "medium", "description": "...", "acceptanceCriteria": ["ac1", "ac2"], "technicalNotes": ["File to edit: path/to/file.py (function_name)", "Test command: uv run pytest tests/test_X.py -v"], "filesTouch": ["path/to/file.py", "tests/test_file.py"], "estimatedComplexity": "small", "_source": "ai-example"}}]}}"""
 
 
 def _suggest_via_llm(

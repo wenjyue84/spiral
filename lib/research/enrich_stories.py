@@ -72,6 +72,7 @@ Story object schema:
     "File to edit: path/to/file.py (function_name)",
     "Test command: uv run pytest tests/test_X.py::test_name -v"
   ],
+  "filesTouch": ["path/to/file.py", "tests/test_file.py"],
   "dependencies": [],
   "estimatedComplexity": "small|medium"
 }}
@@ -81,17 +82,19 @@ Rules:
 - Max 4 acceptance criteria per story
 - Each AC must be runnable/checkable with a single shell command
 - technicalNotes MUST include at least one file path and one test command
+- filesTouch MUST list every file the story creates or modifies (implementation + test files)
 - If splitting, each sub-story must independently satisfy its own acceptance criteria
 - Preserve the original _source, dependencies, and priority fields
 """
 
 
 def _should_enrich(story: dict[str, Any]) -> bool:
-    """Return True if the story needs enrichment (medium complexity or sparse technicalNotes)."""
+    """Return True if the story needs enrichment (medium complexity, sparse technicalNotes, or no filesTouch)."""
     complexity = story.get("estimatedComplexity", "")
     tech_notes = story.get("technicalNotes") or []
-    # Enrich if: medium+ complexity OR fewer than 2 technicalNotes items
-    return complexity in ("medium", "large") or len(tech_notes) < 2
+    files_to_touch = story.get("filesTouch") or []
+    # Enrich if: medium+ complexity OR sparse technicalNotes OR no filesTouch
+    return complexity in ("medium", "large") or len(tech_notes) < 2 or len(files_to_touch) == 0
 
 
 def _claude_cmd() -> str:

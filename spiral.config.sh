@@ -42,6 +42,8 @@ SPIRAL_THINKING_EFFORT="${SPIRAL_THINKING_EFFORT:-high}"
 #   10000-49999 = high (default)
 #   50000+     = max
 # Minimum 1024 when >0 (Anthropic API floor). spiral-doctor validates this.
+# Any value ≥50000 maps to --effort max (unlimited thinking). The number is
+# NOT passed as a token cap — it only selects the effort level.
 SPIRAL_THINKING_BUDGET_TOKENS="${SPIRAL_THINKING_BUDGET_TOKENS:-200000}"
 
 # ── Programmatic tool calling (US-339) ──────────────────────────────────────

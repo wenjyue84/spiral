@@ -11,38 +11,21 @@
   ],
   "userStories": [
     {
-      "id": "US-642",
-      "title": "CLI: spiral predict-story-complexity -- Score Difficulty from Past Patterns",
-      "priority": "medium",
-      "description": "New CLI command computing semantic similarity between story description and historical stories in results.tsv, outputting complexity score (1-10) and similar past story references. Helps triage stories and select initial model for Phase I.",
+      "id": "US-668",
+      "title": "Phase G: Generate Release Notes from Completed Stories with Semantic Versioning",
+      "priority": "high",
+      "description": "Extract stories with _status=completed from prd.json, group by source, and compile into RELEASE_NOTES.md with version header from semantic calculator. Output should include story ID, title, and acceptance criteria summary.",
       "acceptanceCriteria": [
-        "Command spiral predict-story-complexity US-123 outputs JSON: {story_id: 'US-123', score: 7, label: 'medium', similar: [{id: 'US-45', similarity: 0.87, avg_retries: 2, tokens: 85000}]}",
-        "lib/routing/complexity_scorer.py: computes embeddings for story description, retrieves top-3 cosine-similar stories from results.tsv, derives score from retry_count and token patterns",
-        "tests/test_story_complexity.py: 15-story fixture, asserts score 1-10, validates high scores correlate with retry_count ≥ 2 in training data"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": true,
-      "_source": "ai-example",
-      "model": "haiku"
-    },
-    {
-      "id": "US-645",
-      "title": "Dashboard Endpoint: Historical Cost Trends by Iteration via /api/dashboard/cost-history",
-      "priority": "medium",
-      "description": "Add time-series dashboard endpoint that tracks total SPIRAL token spend and cost per iteration for trend analysis and budget forecasting.",
-      "acceptanceCriteria": [
-        "Endpoint GET /api/dashboard/cost-history returns JSON array: [{iteration: 1, total_tokens: 50000, total_cost: 0.50, cumulative_cost: 0.50}, ...] sorted by iteration",
-        "Data sourced from results.tsv grouped by iteration_num; cost calculated from (tokens × model_rate); cumulative_cost is running total",
-        "Integration test runs SPIRAL for 2 iterations with mock API, asserts cost-history endpoint shows both iterations with cost monotonically increasing"
+        "lib/phases/phase_g_release_notes.py reads stories where _status=completed and creates RELEASE_NOTES.md",
+        "Group stories by _source (test-fix, research, seed) with section headers",
+        "Include semantic version header from lib/phase_g_semantic_bumper.py version output",
+        "Each story entry format: '- US-123: Title (X tokens, Y cost)' with AC bullets"
       ],
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "sonnet"
+      "passes": true,
+      "model": "haiku"
     },
     {
       "id": "US-646",
@@ -144,7 +127,8 @@
       "estimatedComplexity": "small",
       "passes": false,
       "_source": "ai-example",
-      "model": "haiku"
+      "model": "haiku",
+      "_skipped": true
     },
     {
       "id": "US-657",
@@ -251,6 +235,22 @@
         "Test file tests/lib/test_mock_claude_fixture_quality.py: validate mock token counts ±5% of real API, assert error cases present (TimeoutError, RateLimitError, InvalidRequestError) per phase",
         "Coverage check: all phases (R, T, S, M, I, V, C) have mocks with ≥2 error scenarios each; total coverage score >90%",
         "Quality utility flag_fixture_issues() returns list of gaps: missing phases, unrealistic token counts, under-represented errors"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-667",
+      "title": "Dashboard: Export Metrics to CSV/JSON/Prometheus — GET /api/dashboard/export?format=csv",
+      "priority": "low",
+      "description": "Adds export capability to dashboard for downloading aggregated results.tsv metrics in CSV, JSON, and Prometheus OpenMetrics formats. Enables external monitoring, offline analysis, and integration with APM platforms.",
+      "acceptanceCriteria": [
+        "Endpoint GET /api/dashboard/export?format=csv&iteration_min=1&iteration_max=5 returns CSV: iteration,story_id,phase,model,tokens,duration,status",
+        "Format=prometheus returns OpenMetrics with metadata: '# HELP spiral_story_tokens_total Total tokens per story\\n spiral_story_tokens_total{story_id=\"US-001\",model=\"haiku\"} 1245'",
+        "Supports filters: iteration range, story status, sub_project; includes metadata row: export_timestamp, spiral_version, row_count"
       ],
       "technicalNotes": [],
       "dependencies": [],
@@ -2073,6 +2073,41 @@
       "model": "haiku",
       "_scopeCreep": true,
       "tags": []
+    },
+    {
+      "id": "US-645",
+      "title": "Dashboard Endpoint: Historical Cost Trends by Iteration via /api/dashboard/cost-history",
+      "priority": "medium",
+      "description": "Add time-series dashboard endpoint that tracks total SPIRAL token spend and cost per iteration for trend analysis and budget forecasting.",
+      "acceptanceCriteria": [
+        "Endpoint GET /api/dashboard/cost-history returns JSON array: [{iteration: 1, total_tokens: 50000, total_cost: 0.50, cumulative_cost: 0.50}, ...] sorted by iteration",
+        "Data sourced from results.tsv grouped by iteration_num; cost calculated from (tokens × model_rate); cumulative_cost is running total",
+        "Integration test runs SPIRAL for 2 iterations with mock API, asserts cost-history endpoint shows both iterations with cost monotonically increasing"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "sonnet",
+      "_scopeCreep": true
+    },
+    {
+      "id": "US-642",
+      "title": "CLI: spiral predict-story-complexity -- Score Difficulty from Past Patterns",
+      "priority": "medium",
+      "description": "New CLI command computing semantic similarity between story description and historical stories in results.tsv, outputting complexity score (1-10) and similar past story references. Helps triage stories and select initial model for Phase I.",
+      "acceptanceCriteria": [
+        "Command spiral predict-story-complexity US-123 outputs JSON: {story_id: 'US-123', score: 7, label: 'medium', similar: [{id: 'US-45', similarity: 0.87, avg_retries: 2, tokens: 85000}]}",
+        "lib/routing/complexity_scorer.py: computes embeddings for story description, retrieves top-3 cosine-similar stories from results.tsv, derives score from retry_count and token patterns",
+        "tests/test_story_complexity.py: 15-story fixture, asserts score 1-10, validates high scores correlate with retry_count ≥ 2 in training data"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "haiku"
     },
     {
       "id": "US-641",

@@ -196,6 +196,7 @@ def story_to_prd_entry(story: dict[str, Any], story_id: str) -> dict[str, Any]:
         "description": story.get("description", ""),
         "acceptanceCriteria": story.get("acceptanceCriteria", []),
         "technicalNotes": story.get("technicalNotes", []),
+        "filesTouch": story.get("filesTouch", []),
         "dependencies": story.get("dependencies", []),
         "estimatedComplexity": story.get("estimatedComplexity", "medium"),
         "passes": False,
