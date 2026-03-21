@@ -1,3 +1,19 @@
+## Iteration (verification) - Story: US-597 Phase I: File-Aware Retry Strategy
+
+### What was implemented
+- lib/results_tsv.py: already had `failed_files: str = ""` in ResultsRecord and HEADER
+- lib/impl/file_aware_retry.py: already implemented `extract_failed_files()` (regex parsing of Ralph stderr) and `get_failed_files_for_story()` (reads failed_files from results.tsv)
+- tests/test_file_aware_retry.py: 19 tests covering all 3 ACs, all passing
+
+### Verification results
+- All 19 tests pass: pytest tests/test_file_aware_retry.py ✅
+- mypy --strict on file_aware_retry.py and results_tsv.py: ✅
+- Story marked passes=true in prd.json ✅
+
+### Patterns discovered
+- When passes=false, always run tests first before assuming unimplemented — prior iterations may have already completed the work
+- file_aware_retry.py uses 5 regex patterns to detect: pytest FAILED, mypy errors, generic error-in-file, TypeScript TS errors, shellcheck "In file.sh line" patterns
+
 ## Iteration - Story: US-626 Integration Test: validate-federated Comprehensive
 
 ### What was implemented
