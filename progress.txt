@@ -109,3 +109,38 @@
 - lib/research_dedup.py mypy strict passes because sklearn imports are inside function body (lazy)
 - ruff isort: put sys.path.insert BEFORE local imports in test files
 - Test thresholds for TF-IDF similarity need to be 0.4-0.5 (not 0.85) to get reliable hits in unit tests
+
+---
+
+## Iteration [Current] - Story: US-673 Integration Test: Phase S Rejects Federated Stories with Circular Dependencies
+
+### What was implemented
+- **lib/phase_s_dep_check.py** — New module for Phase S circular dependency checking
+  -  dataclass: error, cycle_path, message, has_error property
+  -  — DFS with gray/black coloring; returns path like ['US-100', 'US-101', 'US-100']
+  -  — calls find_cycle_path, logs and returns ValidationResult
+  -  — checks prd['userStories'] for cycles, logs 'Phase M merge HALTED' if found
+
+- **tests/test_phase_s_circular_deps.py** — 10 integration tests across 2 classes
+  - TestCircularDepDetection: 7 tests (mutual cycle, closed path, both nodes, valid chain, 3-node, empty, message)
+  - TestPrdForMerge: 3 tests (cycle halts merge, no cycle allows merge, logs halt message)
+
+### Patterns discovered
+- DFS over  is non-deterministic in Python — cycle path start node varies by run
+- Tests must use set equality and cycle_path[0]==cycle_path[-1] checks (NOT count of specific node)
+-  passes for lib/*.py modules when using  + 
+- Ruff auto-format changed the long f-string in validate_prd_for_merge; let it format
+
+### Gotchas
+- Inner recursive  function with explicit return type annotation required for mypy strict
+- ValidationResult import in test was unused (ruff F401); removed it since tests only use the functions
+- Set iteration order for story_ids means cycle DFS may start at any node
+
+### Acceptance Criteria Mapping
+1. ✅ tests/test_phase_s_circular_deps.py creates prd.json with US-100->US-101->US-100, runs Phase S validation
+   - TestPrdForMerge.test_prd_with_cycle_halts_merge does exactly this
+2. ✅ Phase S returns ValidationResult with CIRCULAR_DEPENDENCY error and cycle_path
+   - detect_circular_deps() returns ValidationResult(error='CIRCULAR_DEPENDENCY', cycle_path=[...])
+3. ✅ Integration test asserts SPIRAL logs cycle and halts Phase M merge
+   - test_prd_with_cycle_logs_halt_message asserts 'Phase M' and 'CIRCULAR_DEPENDENCY' in stdout
+   - test_prd_with_cycle_halts_merge asserts result.has_error is True

@@ -11,23 +11,6 @@
   ],
   "userStories": [
     {
-      "id": "US-646",
-      "title": "Phase I: Model Escalation Explainability Report with Categorized Reason Codes",
-      "priority": "medium",
-      "description": "Track and log why each story was escalated to a stronger model (haiku→sonnet→opus) with categorized reason codes (token_limit, syntax_error, timeout, api_error) for dashboard analysis.",
-      "acceptanceCriteria": [
-        "Phase I writes to .spiral/escalations.json: [{story: 'US-001', attempt: 1, model_used: 'haiku', reason: 'token_limit', tokens_haiku: 95000, retry_model: 'sonnet'}, ...] one entry per escalation",
-        "Dashboard endpoint GET /api/dashboard/escalation-breakdown returns {token_limit: 12, syntax_error: 8, timeout: 3, api_error: 2} with total_escalations: 25",
-        "Test with 3 mock story failures (one token overrun, one syntax, one timeout), asserts escalations.json has correct reason_code for each"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": true,
-      "_source": "ai-example",
-      "model": "haiku"
-    },
-    {
       "id": "US-650",
       "title": "CLI: spiral cost-forecast -- Project Remaining Budget and Timeline Using results.tsv Velocity",
       "priority": "medium",
@@ -40,9 +23,10 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
-      "model": "sonnet"
+      "model": "sonnet",
+      "_scopeCreep": true
     },
     {
       "id": "US-651",
@@ -216,6 +200,22 @@
         "lib/dashboard/bottleneck_analyzer.py::BottleneckAnalyzer.analyze() returns list of {phase, avg_duration_ms, variance, story_count}",
         "GET /api/dashboard/bottlenecks returns JSON sorted by avg_duration_ms descending, includes only phases with >0 stories",
         "Dashboard /profile tab displays bottleneck data in bar chart (phase vs duration) with top-3 highlighted"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-671",
+      "title": "CLI: spiral show-story-lineage — ASCII Tree of Story Decomposition Hierarchy",
+      "priority": "medium",
+      "description": "CLI command that accepts a story ID and recursively traverses _decomposed array in prd.json to print an ASCII tree showing parent→child relationships with status, token count, and cost. Supports --json flag for dashboard integration.",
+      "acceptanceCriteria": [
+        "spiral show-story-lineage US-123 prints ASCII tree with indentation, status emoji (✓/✗/⏳), token count per node",
+        "lib/cli/show_story_lineage.py recursively follows prd.json stories[].meta._decomposed array and outputs tree structure",
+        "spiral show-story-lineage US-123 --json outputs {id, title, status, tokens, children:[...]} for dashboard consumption"
       ],
       "technicalNotes": [],
       "dependencies": [],
@@ -2087,6 +2087,23 @@
       "model": "haiku",
       "_scopeCreep": true,
       "tags": []
+    },
+    {
+      "id": "US-646",
+      "title": "Phase I: Model Escalation Explainability Report with Categorized Reason Codes",
+      "priority": "medium",
+      "description": "Track and log why each story was escalated to a stronger model (haiku→sonnet→opus) with categorized reason codes (token_limit, syntax_error, timeout, api_error) for dashboard analysis.",
+      "acceptanceCriteria": [
+        "Phase I writes to .spiral/escalations.json: [{story: 'US-001', attempt: 1, model_used: 'haiku', reason: 'token_limit', tokens_haiku: 95000, retry_model: 'sonnet'}, ...] one entry per escalation",
+        "Dashboard endpoint GET /api/dashboard/escalation-breakdown returns {token_limit: 12, syntax_error: 8, timeout: 3, api_error: 2} with total_escalations: 25",
+        "Test with 3 mock story failures (one token overrun, one syntax, one timeout), asserts escalations.json has correct reason_code for each"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "haiku"
     },
     {
       "id": "US-656",
