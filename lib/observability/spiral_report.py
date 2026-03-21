@@ -11,14 +11,17 @@ Usage:
     python lib/spiral_report.py [--results PATH] [--last-n N] [--json]
 """
 
+from __future__ import annotations
+
 import argparse
 import csv
 import json
 import sys
 from collections import defaultdict
+from typing import Any
 
 
-def load_results(path, last_n=0):
+def load_results(path: str, last_n: int = 0) -> list[dict[str, Any]]:
     """Load results.tsv and return list of row dicts."""
     rows = []
     with open(path, encoding="utf-8", errors="replace") as f:
@@ -37,7 +40,7 @@ def load_results(path, last_n=0):
     return rows
 
 
-def section_summary(rows):
+def section_summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
     """1. Session Summary — totals and status breakdown."""
     if not rows:
         return {"total": 0}
@@ -76,7 +79,7 @@ def section_summary(rows):
     }
 
 
-def section_velocity(rows):
+def section_velocity(rows: list[dict[str, Any]]) -> dict[str, Any]:
     """2. Velocity Trend — stories kept per hour, text bar chart."""
     # Group by spiral_iter
     iters: defaultdict[int, dict[str, int]] = defaultdict(lambda: {"keep": 0, "total": 0, "duration": 0})
@@ -106,7 +109,7 @@ def section_velocity(rows):
     return {"text": "\n".join(lines), "per_iter": dict(iters)}
 
 
-def section_duration(rows):
+def section_duration(rows: list[dict[str, Any]]) -> dict[str, Any]:
     """3. Duration Stats — average duration by status."""
     durations = defaultdict(list)
     for r in rows:
@@ -134,7 +137,7 @@ def section_duration(rows):
     }
 
 
-def section_models(rows):
+def section_models(rows: list[dict[str, Any]]) -> dict[str, Any]:
     """4. Model Breakdown — attempts per model, success rate."""
     model_stats: defaultdict[str, dict[str, int]] = defaultdict(lambda: {"total": 0, "keep": 0})
     for r in rows:
@@ -155,7 +158,7 @@ def section_models(rows):
     return {"text": "\n".join(lines), "by_model": {k: dict(v) for k, v in model_stats.items()}}
 
 
-def section_retries(rows):
+def section_retries(rows: list[dict[str, Any]]) -> dict[str, Any]:
     """5. Retry Analysis — success rate by attempt number."""
     retry_stats: defaultdict[str, dict[str, int]] = defaultdict(lambda: {"total": 0, "keep": 0})
     for r in rows:
@@ -177,7 +180,7 @@ def section_retries(rows):
     return {"text": "\n".join(lines), "by_attempt": {k: dict(v) for k, v in retry_stats.items()}}
 
 
-def section_cache_savings(rows):
+def section_cache_savings(rows: list[dict[str, Any]]) -> dict[str, Any]:
     """6. Prompt Cache Savings — cache hit rate and estimated cost reduction."""
     # Anthropic sonnet pricing: $3/M input. Cache reads cost 10% → 90% savings per cached token.
     PRICING = {
@@ -251,7 +254,7 @@ def section_cache_savings(rows):
     }
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="SPIRAL experiment report")
     parser.add_argument("--results", default="results.tsv", help="Path to results.tsv")
     parser.add_argument("--last-n", type=int, default=0, help="Only analyze last N rows")

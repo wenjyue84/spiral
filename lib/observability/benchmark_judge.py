@@ -116,7 +116,7 @@ Respond ONLY with JSON:
     }
 
 
-def main():
+def main() -> int:
     """Main benchmark judge entry point."""
     parser = argparse.ArgumentParser(description="Score benchmark implementations")
     parser.add_argument("--story-id", required=True, help="Story ID (e.g., US-001)")

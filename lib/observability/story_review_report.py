@@ -722,7 +722,7 @@ function toggleCompleted() {{
 # ── CLI ──────────────────────────────────────────────────────────────────────
 
 
-def main():
+def main() -> str:
     parser = argparse.ArgumentParser(description="Generate SPIRAL story review HTML report")
     parser.add_argument("--prd", required=True, help="Path to prd.json")
     parser.add_argument("--iter", type=int, default=0, help="Current spiral iteration number")

@@ -71,24 +71,25 @@ def classify_story(title: str) -> str:
 
 def _tokens_from_duration(duration_sec: float) -> float:
     """Estimate total tokens from wall-clock duration (mirrors cost_project.py)."""
-    output = duration_sec * TOKENS_PER_SEC_OUTPUT
-    return output * (1 + INPUT_OUTPUT_RATIO)
+    output = duration_sec * float(TOKENS_PER_SEC_OUTPUT)
+    return float(output * (1 + float(INPUT_OUTPUT_RATIO)))
 
 
 def _cost_from_tokens(total_tokens: float, model_raw: str) -> float:
     """Estimate USD cost from total tokens and model string."""
     model = _normalise_model(model_raw)
     p = PRICING[model]
-    output = total_tokens / (1 + INPUT_OUTPUT_RATIO)
+    ratio = float(INPUT_OUTPUT_RATIO)
+    output = total_tokens / (1 + ratio)
     input_ = total_tokens - output
-    return (input_ / 1_000_000) * p["input"] + (output / 1_000_000) * p["output"]
+    return float((input_ / 1_000_000) * float(p["input"]) + (output / 1_000_000) * float(p["output"]))
 
 
 def _normalise_model(raw: str) -> str:
     raw_lower = raw.strip().lower() if raw else ""
     for key in PRICING:
         if key in raw_lower:
-            return key
+            return str(key)
     return "sonnet"
 
 

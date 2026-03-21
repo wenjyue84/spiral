@@ -32,7 +32,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 __all__ = [
     "ModelTier",
@@ -187,7 +187,7 @@ def estimate_tokens(text: str) -> int:
     if not text:
         return 0
     try:
-        import tiktoken  # type: ignore[import]
+        import tiktoken
 
         enc = tiktoken.get_encoding("cl100k_base")
         return len(enc.encode(text))
@@ -263,7 +263,7 @@ class LlmRouter:
             prompt_tokens=prompt_tokens,
             events_file=events_file,
         )
-        return result["model"]
+        return str(result["model"])
 
     def route_context(
         self,
@@ -483,7 +483,7 @@ def _load_story(story_id: str, prd_path: str) -> dict[str, Any]:
 
     for s in prd.get("userStories", []):
         if s.get("id") == story_id:
-            return s  # type: ignore[return-value]
+            return cast(dict[str, Any], s)
 
     print(
         json.dumps({"error": f"story {story_id!r} not found in {prd_path}"}),

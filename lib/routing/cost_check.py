@@ -18,6 +18,7 @@ import argparse
 import csv
 import os
 import sys
+from typing import Any
 
 # Anthropic 2025 pricing per million tokens (input / output)
 # Source: technicalNotes in US-043
@@ -52,7 +53,7 @@ def normalise_model(raw: str) -> str:
     return DEFAULT_MODEL
 
 
-def compute_row_cost(row: dict) -> float:
+def compute_row_cost(row: dict[str, Any]) -> float:
     """Estimate USD cost for a single results.tsv row."""
     model = normalise_model(row.get("model", ""))
     pricing = PRICING[model]

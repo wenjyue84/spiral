@@ -11,11 +11,12 @@ import csv
 import json
 import os
 from collections import defaultdict
+from typing import Any
 
 
-def _read_routing_events(events_path: str) -> list[dict]:
+def _read_routing_events(events_path: str) -> list[dict[str, Any]]:
     """Read route_story_assigned events from spiral_events.jsonl."""
-    events: list[dict] = []
+    events: list[dict[str, Any]] = []
     if not os.path.isfile(events_path):
         return events
     with open(events_path, encoding="utf-8") as fh:
@@ -32,9 +33,9 @@ def _read_routing_events(events_path: str) -> list[dict]:
     return events
 
 
-def _read_results_tsv(results_path: str) -> list[dict]:
+def _read_results_tsv(results_path: str) -> list[dict[str, Any]]:
     """Read results.tsv rows."""
-    rows: list[dict] = []
+    rows: list[dict[str, Any]] = []
     if not os.path.isfile(results_path):
         return rows
     with open(results_path, encoding="utf-8") as fh:
@@ -44,7 +45,7 @@ def _read_results_tsv(results_path: str) -> list[dict]:
     return rows
 
 
-def analyze(events_path: str, results_path: str) -> dict:
+def analyze(events_path: str, results_path: str) -> dict[str, Any]:
     """Compute per-tier metrics.
 
     Returns a dict with keys: tiers (list of tier dicts), baseline_tokens, actual_tokens, savings_pct.
@@ -61,7 +62,7 @@ def analyze(events_path: str, results_path: str) -> dict:
         story_complexity[sid] = ev.get("complexity_score", 0)
 
     # Group results by model tier
-    tier_stats: dict[str, dict] = defaultdict(
+    tier_stats: dict[str, dict[str, Any]] = defaultdict(
         lambda: {
             "samples": 0,
             "total_tokens": 0,
@@ -99,22 +100,26 @@ def analyze(events_path: str, results_path: str) -> dict:
     baseline_total = 0
 
     for tier_name in ["haiku", "sonnet", "opus"]:
-        stats = tier_stats.get(tier_name)
-        if stats is None or stats["samples"] == 0:
+        tier_stats_entry = tier_stats.get(tier_name)
+        if tier_stats_entry is None or tier_stats_entry["samples"] == 0:
             continue
-        mean_tokens = stats["total_tokens"] // stats["samples"]
-        success_rate = stats["passes"] / stats["samples"] if stats["samples"] > 0 else 0.0
+        mean_tokens = tier_stats_entry["total_tokens"] // tier_stats_entry["samples"]
+        success_rate = (
+            tier_stats_entry["passes"] / tier_stats_entry["samples"]
+            if tier_stats_entry["samples"] > 0
+            else 0.0
+        )
         tiers.append(
             {
                 "model_tier": tier_name,
-                "samples": stats["samples"],
+                "samples": tier_stats_entry["samples"],
                 "mean_tokens": mean_tokens,
                 "success_rate": round(success_rate, 3),
             }
         )
-        actual_total += stats["total_tokens"]
+        actual_total += tier_stats_entry["total_tokens"]
         # Baseline: if all stories used sonnet
-        baseline_total += stats["samples"] * _TIER_TOKEN_ESTIMATE["sonnet"]
+        baseline_total += tier_stats_entry["samples"] * _TIER_TOKEN_ESTIMATE["sonnet"]
 
     savings_pct = 0.0
     if baseline_total > 0:
@@ -128,7 +133,7 @@ def analyze(events_path: str, results_path: str) -> dict:
     }
 
 
-def format_table(metrics: dict) -> str:
+def format_table(metrics: dict[str, Any]) -> str:
     """Format metrics as a plain-text table."""
     tiers = metrics.get("tiers", [])
     if not tiers:

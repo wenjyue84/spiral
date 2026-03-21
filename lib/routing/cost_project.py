@@ -47,15 +47,15 @@ def normalise_model(raw: str) -> str:
     raw_lower = raw.strip().lower() if raw else ""
     for key in PRICING:
         if key in raw_lower:
-            return key
+            return str(key)
     return DEFAULT_MODEL
 
 
 def _total_tokens_from_duration(duration_sec: float) -> float:
     """Total (input + output) tokens estimated from wall-clock duration."""
-    output = duration_sec * TOKENS_PER_SEC_OUTPUT
-    input_ = output * INPUT_OUTPUT_RATIO
-    return input_ + output
+    output = duration_sec * float(TOKENS_PER_SEC_OUTPUT)
+    input_ = output * float(INPUT_OUTPUT_RATIO)
+    return float(input_ + output)
 
 
 def compute_mean_tokens(results_path: str) -> tuple[float, float, int]:
@@ -107,9 +107,10 @@ def project_cost(total_tokens: float, model: str) -> float:
     m = normalise_model(model)
     p = PRICING[m]
     # Split into input/output using the same ratio as cost_check.py
-    output = total_tokens / (1 + INPUT_OUTPUT_RATIO)
+    ratio = float(INPUT_OUTPUT_RATIO)
+    output = total_tokens / (1 + ratio)
     input_ = total_tokens - output
-    return (input_ / 1_000_000) * p["input"] + (output / 1_000_000) * p["output"]
+    return float((input_ / 1_000_000) * float(p["input"]) + (output / 1_000_000) * float(p["output"]))
 
 
 def format_table(

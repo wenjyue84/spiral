@@ -24,7 +24,7 @@ import os
 import secrets
 import sys
 import time
-from typing import Optional
+from typing import Optional, cast
 
 # ── Subprocess semantic convention attributes ──────────────────────────────────
 _SUBPROCESS_COMMAND = "subprocess.command"
@@ -66,7 +66,7 @@ def _create_privacy_scrubber(emit_messages: bool = False) -> object:
     Create a PrivacyScrubber span processor with configuration from environment.
     """
     try:
-        from lib.privacy_scrubber import DEFAULT_SCRUB_FIELDS, DEFAULT_SCRUB_PATTERNS, PrivacyScrubber
+        from lib.security.privacy_scrubber import DEFAULT_SCRUB_FIELDS, DEFAULT_SCRUB_PATTERNS, PrivacyScrubber
 
         patterns = DEFAULT_SCRUB_PATTERNS.copy()
         scrub_fields = list(DEFAULT_SCRUB_FIELDS)
@@ -121,8 +121,10 @@ def _emit_completed_span(
         # Apply privacy scrubbing before export (US-348)
         emit_messages = os.environ.get("SPIRAL_OTEL_EMIT_MESSAGES", "").lower() in ("true", "1", "yes")
         try:
+            from opentelemetry.sdk.trace import SpanProcessor as _SpanProcessor
+
             scrubber = _create_privacy_scrubber(emit_messages=emit_messages)
-            provider.add_span_processor(scrubber)
+            provider.add_span_processor(cast(_SpanProcessor, scrubber))
         except Exception:
             pass
 

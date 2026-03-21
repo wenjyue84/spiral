@@ -46,7 +46,7 @@ import secrets
 import sys
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Optional, cast
 
 # Ensure lib/ is on the import path (for direct script execution)
 sys.path.insert(0, str(Path(__file__).parent))
@@ -116,7 +116,7 @@ def _create_privacy_scrubber(emit_messages: bool = False) -> object:
     - SPIRAL_OTEL_SCRUB_PATTERNS: Comma-separated list of pattern names to enable
     - SPIRAL_OTEL_SCRUB_FIELDS: Comma-separated list of attribute names to fully redact
     """
-    from lib.privacy_scrubber import DEFAULT_SCRUB_FIELDS, DEFAULT_SCRUB_PATTERNS, PrivacyScrubber
+    from lib.security.privacy_scrubber import DEFAULT_SCRUB_FIELDS, DEFAULT_SCRUB_PATTERNS, PrivacyScrubber
 
     patterns = DEFAULT_SCRUB_PATTERNS.copy()
     scrub_fields = list(DEFAULT_SCRUB_FIELDS)
@@ -153,11 +153,12 @@ def _make_tracer() -> tuple[object, object]:
     endpoint = _otlp_endpoint()
     if endpoint:
         from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+        from opentelemetry.sdk.trace import SpanProcessor as _SpanProcessor
 
         # Apply privacy scrubbing before export (US-348)
         emit_messages = os.environ.get("SPIRAL_OTEL_EMIT_MESSAGES", "").lower() in ("true", "1", "yes")
         scrubber = _create_privacy_scrubber(emit_messages=emit_messages)
-        provider.add_span_processor(scrubber)
+        provider.add_span_processor(cast(_SpanProcessor, scrubber))
 
         exporter = OTLPSpanExporter(endpoint=endpoint)
         provider.add_span_processor(BatchSpanProcessor(exporter))
@@ -198,12 +199,13 @@ def _emit_completed_span(
     endpoint = _otlp_endpoint()
     if endpoint:
         from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+        from opentelemetry.sdk.trace import SpanProcessor as _SpanProcessor
         from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 
         # Apply privacy scrubbing before export (US-348)
         emit_messages = os.environ.get("SPIRAL_OTEL_EMIT_MESSAGES", "").lower() in ("true", "1", "yes")
         scrubber = _create_privacy_scrubber(emit_messages=emit_messages)
-        provider.add_span_processor(scrubber)
+        provider.add_span_processor(cast(_SpanProcessor, scrubber))
 
         exporter = OTLPSpanExporter(endpoint=endpoint)
         provider.add_span_processor(SimpleSpanProcessor(exporter))

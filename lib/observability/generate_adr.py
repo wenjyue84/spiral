@@ -194,7 +194,7 @@ def _call_claude(prompt: str, model: str = "haiku") -> str:
 def _update_prd_adr_path(prd_path: str, story_id: str, adr_path: str) -> None:
     """Atomically record _adrPath on the story entry in prd.json."""
     sys.path.insert(0, _HERE)
-    from prd_lock import prd_locked  # type: ignore[import]
+    from prd_lock import prd_locked
 
     with prd_locked(prd_path, timeout=10) as prd:
         for story in prd.get("userStories", []):

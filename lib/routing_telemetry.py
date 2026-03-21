@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 from datetime import datetime, timezone
+from typing import Any
 
 
 def emit_routing_event(
@@ -32,7 +33,7 @@ def emit_routing_event(
 
 def emit_routing_events(
     events_path: str,
-    events: list[dict],
+    events: list[dict[str, Any]],
 ) -> None:
     """Emit multiple routing telemetry events."""
     for ev in events:

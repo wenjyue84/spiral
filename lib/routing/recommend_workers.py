@@ -13,6 +13,7 @@ Thresholds:
 import json
 import os
 import sys
+from typing import Any
 
 sys.path.insert(0, os.path.dirname(__file__))
 from spiral_io import configure_utf8_stdout
@@ -20,7 +21,7 @@ from spiral_io import configure_utf8_stdout
 configure_utf8_stdout()
 
 
-def recommend_workers(stories: list[dict]) -> tuple[int, int, int]:
+def recommend_workers(stories: list[dict[str, Any]]) -> tuple[int, int, int]:
     """Compute recommended worker count from pending story independence.
 
     Args:

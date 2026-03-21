@@ -15,6 +15,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import Any
 
 sys.path.insert(0, os.path.dirname(__file__))
 from spiral_io import append_jsonl
@@ -44,7 +45,7 @@ def main() -> int:
         return 1
 
     # Index stories by ID for quick lookup
-    story_map: dict[str, dict] = {}
+    story_map: dict[str, dict[str, Any]] = {}
     for story in prd.get("userStories", []):
         story_map[story["id"]] = story
 

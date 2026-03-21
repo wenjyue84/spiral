@@ -22,7 +22,7 @@ import os
 import sys
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 sys.path.insert(0, os.path.dirname(__file__))
 from spiral_io import append_jsonl
@@ -49,9 +49,9 @@ def record_calibration(
     append_jsonl(str(output_file), record)
 
 
-def load_calibration_file(calibration_file: str) -> List[Dict]:
+def load_calibration_file(calibration_file: str) -> List[Dict[str, Any]]:
     """Load all calibration records from JSONL file."""
-    records = []
+    records: List[Dict[str, Any]] = []
     path = Path(calibration_file)
     if not path.exists():
         return records
@@ -68,7 +68,7 @@ def load_calibration_file(calibration_file: str) -> List[Dict]:
     return records
 
 
-def compute_calibration_report(calibration_file: str, prd_file: Optional[str] = None) -> Dict:
+def compute_calibration_report(calibration_file: str, prd_file: Optional[str] = None) -> Dict[str, Any]:
     """Compute calibration statistics: median durations, underestimated stories."""
     records = load_calibration_file(calibration_file)
 
@@ -147,7 +147,7 @@ def compute_calibration_report(calibration_file: str, prd_file: Optional[str] = 
     }
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Track actual vs estimated story complexity")
     subparsers = parser.add_subparsers(dest="command", required=True)
 

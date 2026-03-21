@@ -1,9 +1,12 @@
 # lib/route_stories.py
+from __future__ import annotations
+
 import argparse
 import json
 import os
 import re
 import tempfile
+from typing import Any, Optional
 
 # Simple keyword-based fallback complexity classifier (no ML dependencies, instant)
 _COMPLEX_PATTERNS = re.compile(
@@ -27,7 +30,7 @@ _SCORING_PATTERNS: list[tuple[re.Pattern[str], int]] = [
 ]
 
 
-def score_story_complexity(story: dict) -> int:
+def score_story_complexity(story: dict[str, Any]) -> int:
     """Score a story's complexity (0-100) via regex on acceptance criteria.
 
     Base score is 30 (medium).  Each pattern match adds/subtracts points.
@@ -56,14 +59,14 @@ def _keyword_complexity(title: str) -> str:
     return "complex" if _COMPLEX_PATTERNS.search(title) else "simple"
 
 
-def _try_load_semantic_router():
+def _try_load_semantic_router() -> Optional[Any]:
     """Load SemanticRouter with a 10-second timeout guard. Returns None on failure."""
     import threading
 
-    result = [None]
-    error = [None]
+    result: list[Optional[Any]] = [None]
+    error: list[Optional[Exception]] = [None]
 
-    def _load():
+    def _load() -> None:
         try:
             try:
                 from .semantic_router import create_complexity_router
@@ -85,7 +88,7 @@ def _try_load_semantic_router():
     return result[0]
 
 
-def route_stories(prd_path, profile):
+def route_stories(prd_path: str, profile: str) -> None:
     """
     Analyzes each pending story in the PRD file and annotates it with a recommended model.
     Uses regex-based complexity scoring on acceptance criteria (US-453).
@@ -101,7 +104,7 @@ def route_stories(prd_path, profile):
         return
 
     stories_to_update = 0
-    telemetry_events: list[dict] = []
+    telemetry_events: list[dict[str, Any]] = []
 
     for story in prd.get("userStories", []):
         # Only route stories that are not yet done
@@ -157,7 +160,7 @@ def route_stories(prd_path, profile):
             pass  # telemetry module not available -- skip silently
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Route stories in prd.json to optimal models.")
     parser.add_argument("--prd", required=True, help="Path to the prd.json file.")
     parser.add_argument("--profile", required=True, help="The model routing profile (e.g., 'auto', 'opus', 'sonnet').")
