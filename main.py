@@ -7,6 +7,7 @@ Subcommands:
   estimate                Show pre-flight API cost projection for pending stories
   graph                   Generate Mermaid dependency graph from prd.json
   validate-federated      Validate federated prd.json structure (US-514)
+  federation-health-check Validate federated PRD: sub_projects, cycles, ID namespaces (US-653)
   config                  Configuration utilities
     export-env            Export spiral.config.sh SPIRAL_* variables as a .env file
   worktree                Git worktree management utilities
@@ -1131,6 +1132,41 @@ def cmd_federated_status(args) -> None:
         output = format_table_output(data)
 
     print(output)
+
+
+def cmd_federation_health_check(args) -> None:
+    """Validate federated PRD structure: sub_project refs, cycles, namespace (US-653)."""
+    sys.path.insert(0, str(Path(__file__).parent / "lib" / "commands"))
+    from federation_health_check import federation_health_check  # type: ignore[import]
+
+    prd_path = Path(getattr(args, "prd", "prd.json"))
+    if not prd_path.is_absolute():
+        prd_path = Path.cwd() / prd_path
+
+    output_path = getattr(args, "output", "")
+
+    report = federation_health_check(prd_path)
+
+    # Write report to file if specified
+    if output_path:
+        output_file = Path(output_path)
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(report, f, indent=2)
+        print(f"Report written to {output_path}")
+
+    # Always print to stdout
+    print(json.dumps(report, indent=2))
+
+    # Exit with appropriate code
+    if report["valid"]:
+        print("[ok] Federation health check passed", file=sys.stderr)
+        sys.exit(0)
+    else:
+        print(f"[fail] Federation health check failed: {len(report['errors'])} error(s)", file=sys.stderr)
+        for error in report["errors"]:
+            print(f"  - {error}", file=sys.stderr)
+        sys.exit(1)
 
 
 def cmd_diagnose(args) -> None:
@@ -2861,6 +2897,23 @@ def main():
         help="Path to write JSON report (optional; prints to stdout if omitted)",
     )
 
+    federation_health_parser = subparsers.add_parser(
+        "federation-health-check",
+        help="Validate federated PRD: sub_project refs, circular deps, ID namespaces (US-653)",
+    )
+    federation_health_parser.add_argument(
+        "--prd",
+        type=str,
+        default="prd.json",
+        help="Path to prd.json (default: prd.json)",
+    )
+    federation_health_parser.add_argument(
+        "--output",
+        type=str,
+        default="",
+        help="Path to write JSON report (optional; prints to stdout if omitted)",
+    )
+
     validate_tsv_parser = subparsers.add_parser(
         "validate-results-tsv",
         help="Validate results.tsv data quality against prd.json (US-571)",
@@ -3456,6 +3509,8 @@ def main():
         cmd_namespace_check(args)
     elif args.command == "validate-federated":
         cmd_validate_federated(args)
+    elif args.command == "federation-health-check":
+        cmd_federation_health_check(args)
     elif args.command == "validate-results-tsv":
         cmd_validate_results_tsv(args)
     elif args.command == "federated-status":
@@ -3731,9 +3786,7 @@ def cmd_archive_checkpoint(args: argparse.Namespace) -> None:
         print(json.dumps(manifest, indent=2))
 
     elif archive_command == "create" or shorthand_output:
-        output_str = (
-            args.output if archive_command == "create" else shorthand_output
-        )
+        output_str = args.output if archive_command == "create" else shorthand_output
         output_path = Path(output_str)
         include_workers = not getattr(args, "no_workers", False)
         manifest = archive(root, output_path, include_workers=include_workers)
