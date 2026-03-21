@@ -78,3 +78,34 @@
 3. ✅ Test with 3 mock story failures (token_limit, syntax_error, timeout)
    - TestEscalationBreakdown::test_count_by_reason_code creates exactly 3 mock failures
    - Verifies counts match expected values and all 3 entries recorded
+
+---
+
+## Iteration [Current] - Story: US-651 Phase R Query Similarity Deduplication
+
+### What was implemented
+- **lib/research_dedup.py** — New module for TF-IDF-based query similarity deduplication
+  - `query_similarity(q1, q2) -> float` — TF-IDF cosine similarity via sklearn; identical=1.0, orthogonal≈0.0
+  - `find_cached_response(query, cache_path, threshold) -> dict | None` — iterates .spiral/research_cache.json, returns best entry above threshold
+  - `SPIRAL_RESEARCH_DEDUP_THRESHOLD` — configurable via env var (default 0.85)
+  - CLI: `python lib/research_dedup.py --query QUERY [--threshold N] [--cache-path PATH]` (exit 0=hit, 1=miss)
+
+- **lib/phases/phase_r_research.sh** — Added dedup check between topic-level exact cache and Gemini call
+  - If exact cache misses, checks .spiral/research_cache.json (or scratch copy) for similarity match
+  - On hit: reuses cached gemini_research, sets _RESEARCH_TOPIC_CACHED=1, logs research_dedup_hit event
+
+- **tests/test_research_dedup.py** — 14 tests across 3 classes
+  - TestQuerySimilarity: 6 tests (identical=1.0, empty=0.0, similar high, dissimilar low, symmetric, unit interval)
+  - TestFindCachedResponse: 6 tests (no file, empty cache, high-sim hit, low-sim miss, corrupt, best-of-N)
+  - TestResearchDedupCostTracking: 2 tests verifying dedup hit skips mock Gemini call
+
+### Patterns discovered
+- research_cache.json entries have: {topic, result, fetched_ts, expires_at}; result is a dict (usually {gemini_research: ...})
+- Phase R uses _RESEARCH_TOPIC_CACHED to gate the Gemini call; set it to 1 to skip
+- TF-IDF is sufficient for dedup; no need for sentence-transformers at this integration point
+- sklearn TfidfVectorizer raises ValueError on empty vocabulary (handled with try/except → 0.0)
+
+### Gotchas
+- lib/research_dedup.py mypy strict passes because sklearn imports are inside function body (lazy)
+- ruff isort: put sys.path.insert BEFORE local imports in test files
+- Test thresholds for TF-IDF similarity need to be 0.4-0.5 (not 0.85) to get reliable hits in unit tests
