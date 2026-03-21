@@ -1,3 +1,30 @@
+## Iteration [Current] - Story: US-663 Integration Test: SPIRAL Crash Recovery
+
+### What was implemented
+- **tests/integration/__init__.py** — New integration test subdirectory
+- **tests/integration/test_spiral_crash_recovery.py** — 14 tests across 3 classes
+  - TestCheckpointPersistence: verifies checkpoint writes phase='I', completed_stories, storyId='US-004'
+  - TestCheckpointResumeLogic: verifies PHASE_ORDER ensures R/T are skipped; iter arithmetic (SPIRAL_ITER = ckpt_iter - 1)
+  - TestResultsTsvConsistency: 5 tests verifying pre-crash rows intact, new rows appended, no duplicates
+
+### Patterns discovered
+- `completed_stories` is not in the actual checkpoint schema — it's an annotation field; state machine validates phase/iter/ts only, ignores unknown fields
+- `_write_checkpoint()` helper: accepts `completed_stories` as optional kwarg, stores it in the JSON (extra fields pass state machine validation)
+- spiral_startup.sh iter arithmetic: `SPIRAL_ITER = ckpt_iter - 1` so the for-loop increment brings it back to ckpt_iter
+- PHASE_ORDER in state_machine.py: `R=0, T=1, S=2, M=3, G=4, I=5, V=6, C=7` — I is beyond R and T
+
+### Gotchas
+- xdist parallel workers sometimes fail with OOM on Windows (pre-existing, not caused by this story)
+- `tests/integration/` subdirectory requires `__init__.py` for pytest to discover tests correctly
+- TSV append uses `open(..., 'a')` with `csv.DictWriter` without `writeheader()` — only the initial write needs the header
+
+### Acceptance Criteria Mapping
+1. ✅ Checkpoint persists {phase: 'I', completed_stories: ['US-001','US-002','US-003']}
+2. ✅ Resume logic: PHASE_ORDER['I'] > PHASE_ORDER['R'] and ['T']; iter arithmetic matches spiral_startup.sh
+3. ✅ results.tsv: 3 pre-crash rows unchanged, US-004/US-005 appended, no duplicate keys
+
+---
+
 ## Iteration [Current] - Story: US-662 Dashboard React Component - Real-Time Worker Phase Swimlane Timeline
 
 ### What was implemented
