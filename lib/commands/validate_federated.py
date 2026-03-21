@@ -40,15 +40,72 @@ def _validate_ids(prd_dict: dict[str, Any]) -> list[str]:
         if ":" in story_id:
             # Namespaced ID - validate full format
             if not id_pattern.match(story_id):
-                errors.append(f"Invalid ID format: {story_id!r} (expected format: 'namespace:(US|UT)-NNN')")
+                errors.append(
+                    f"Invalid ID format: {story_id!r} (expected format: 'namespace:(US|UT)-NNN')."
+                    f" Fix: Rename to match 'namespace:(US|UT)-NNN' pattern (e.g., 'my-repo:US-001')."
+                )
         else:
             # Non-namespaced ID - validate base format (US-NNN or UT-NNN)
             base_pattern = re.compile(r"^(US|UT)-\d{3}$")
             if not base_pattern.match(story_id):
                 errors.append(
-                    f"Invalid ID format: {story_id!r} (expected format: '(US|UT)-NNN' or 'namespace:(US|UT)-NNN')"
+                    f"Invalid ID format: {story_id!r} (expected format: '(US|UT)-NNN' or 'namespace:(US|UT)-NNN')."
+                    f" Fix: Rename to match '(US|UT)-NNN' or 'namespace:(US|UT)-NNN' pattern."
                 )
 
+    return errors
+
+
+def _validate_required_fields(prd_dict: dict[str, Any], prd_path: Path) -> list[str]:
+    """Check that all stories have required fields.
+
+    Required fields: description
+
+    Args:
+        prd_dict: Parsed prd.json
+        prd_path: Path to prd.json (included in error messages for actionability)
+
+    Returns:
+        List of actionable error strings (empty if all required fields are present)
+    """
+    errors: list[str] = []
+    for story in prd_dict.get("userStories", []):
+        story_id = story.get("id", "<unknown>")
+        if not story.get("description"):
+            errors.append(
+                f"Story '{story_id}' is missing required field 'description' in {prd_path}."
+                f" Fix: Add a 'description' field to story '{story_id}' explaining what it implements."
+            )
+    return errors
+
+
+def _find_orphan_decomposed(prd_dict: dict[str, Any], prd_path: Path) -> list[str]:
+    """Detect orphan sub-stories whose parent is missing.
+
+    A story with '_decomposedFrom' pointing to a parent ID that does not
+    exist in this prd.json is an orphan — the parent was removed or the
+    sub-story is mis-filed.
+
+    Args:
+        prd_dict: Parsed prd.json
+        prd_path: Path to prd.json (included in error messages for actionability)
+
+    Returns:
+        List of actionable error strings (empty if all decomposed stories have parents)
+    """
+    errors: list[str] = []
+    available_ids = {s.get("id") for s in prd_dict.get("userStories", []) if s.get("id")}
+
+    for story in prd_dict.get("userStories", []):
+        story_id = story.get("id", "<unknown>")
+        parent_id = story.get("_decomposedFrom")
+        if parent_id and parent_id not in available_ids:
+            errors.append(
+                f"Orphan story '{story_id}' in {prd_path}: '_decomposedFrom' references"
+                f" parent '{parent_id}' which does not exist."
+                f" Fix: add parent story '{parent_id}' to {prd_path}"
+                f" or remove '_decomposedFrom' from story '{story_id}'."
+            )
     return errors
 
 
@@ -101,7 +158,10 @@ def _find_unresolved_deps(prd_dict: dict[str, Any]) -> list[str]:
                 # Handle dependency objects with 'id' field
                 dep_id = dep_id.get("id", "")
             if isinstance(dep_id, str) and dep_id not in available_ids:
-                errors.append(f"Unresolved dependency: {story_id!r} depends_on {dep_id!r} (not found in prd.json)")
+                errors.append(
+                    f"Unresolved dependency: {story_id!r} depends_on {dep_id!r} (not found in prd.json)."
+                    f" Fix: Add story {dep_id!r} to prd.json or remove this dependency."
+                )
 
     return errors
 
@@ -231,17 +291,20 @@ def validate_federated(prd_path: Path) -> dict[str, Any]:
 
     # Run all validation checks
     id_errors = _validate_ids(prd_dict)
+    field_errors = _validate_required_fields(prd_dict, prd_path)
+    orphan_errors = _find_orphan_decomposed(prd_dict, prd_path)
     dup_errors = _find_duplicates(prd_dict)
     dep_errors = _find_unresolved_deps(prd_dict)
     cycles = _detect_cycles(prd_dict)
 
-    all_errors = id_errors + dup_errors + dep_errors
+    all_errors = id_errors + field_errors + orphan_errors + dup_errors + dep_errors
     valid = len(all_errors) == 0 and len(cycles) == 0
 
     return {
         "valid": valid,
         "errors": all_errors,
         "cycles": cycles,
+        "file": str(prd_path),
     }
 
 

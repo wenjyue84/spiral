@@ -3312,6 +3312,31 @@ def main():
         help="Base directory containing sub-project dirs (default: current directory)",
     )
 
+    # ── show-worker-logs subcommand (US-607) ────────────────────────────────
+    show_logs_parser = subparsers.add_parser(
+        "show-worker-logs",
+        help="Aggregate and stream parallel worker worktree logs (US-607)",
+    )
+    show_logs_parser.add_argument(
+        "--worker-id",
+        default=None,
+        metavar="ID",
+        dest="worker_id",
+        help="Filter to a specific worker (e.g. worker-1)",
+    )
+    show_logs_parser.add_argument(
+        "--phase",
+        default=None,
+        metavar="PHASE",
+        help="Filter to a specific phase letter (e.g. I, R, T)",
+    )
+    show_logs_parser.add_argument(
+        "--output",
+        default=None,
+        metavar="FILE",
+        help="Write output to FILE instead of (in addition to) stdout",
+    )
+
     # ── validate-federated-order subcommand (US-617) ────────────────────────
     val_fed_order_parser = subparsers.add_parser(
         "validate-federated-order",
@@ -3419,6 +3444,8 @@ def main():
         cmd_monitor(args)
     elif args.command == "federated-merge-prd":
         cmd_federated_merge_prd(args)
+    elif args.command == "show-worker-logs":
+        cmd_show_worker_logs(args)
     elif args.command == "validate-federated-order":
         cmd_validate_federated_order(args)
     else:
@@ -3475,6 +3502,20 @@ def cmd_monitor(args: argparse.Namespace) -> None:
         print(f"  Needs attention: {attn}")
         for d in result.get("diagnostics", []):
             print(f"  [{d.get('severity', '?')}] {d.get('message', '')}")
+
+
+def cmd_show_worker_logs(args: argparse.Namespace) -> None:
+    """Aggregate and stream parallel worker worktree logs (US-607).
+
+    Usage: spiral show-worker-logs [--worker-id ID] [--phase PHASE] [--output FILE]
+    """
+    from lib.commands.show_worker_logs import show_worker_logs
+
+    show_worker_logs(
+        worker_id=getattr(args, "worker_id", None),
+        phase=getattr(args, "phase", None),
+        output_path=getattr(args, "output", None),
+    )
 
 
 def cmd_federated_merge_prd(args: argparse.Namespace) -> None:
