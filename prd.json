@@ -11,20 +11,21 @@
   ],
   "userStories": [
     {
-      "id": "US-673",
-      "title": "Integration Test: Phase S Rejects Federated Stories with Circular Dependencies",
+      "id": "US-674",
+      "title": "Phase G: Install Pre-Commit Hook to Enforce Story ID Tags in Commit Messages",
       "priority": "high",
-      "description": "Add integration test that validates SPIRAL's Phase S catches circular dependency chains across federated sub-projects. Create a mock prd.json where Story A (proj-a) depends on Story B (proj-b) which depends on Story A, verify Phase S reports the cycle with path.",
+      "description": "Add git hook installer to Phase G that enforces all commits include story ID prefix (US-NNN: or UT-NNN:) in the commit message. Prevents orphan commits without story references and improves traceability in Phase G's commit-to-story mapping.",
       "acceptanceCriteria": [
-        "tests/test_phase_s_circular_deps.py creates prd.json with stories: US-100 (proj-a) -> US-101 (proj-b) -> US-100, runs Phase S validation",
-        "Phase S returns ValidationResult with CIRCULAR_DEPENDENCY error and cycle_path = ['US-100', 'US-101', 'US-100']",
-        "Integration test asserts SPIRAL logs cycle and halts Phase M merge until dependency removed"
+        "lib/phases/phase_g/commit_hook_installer.sh creates/updates .git/hooks/prepare-commit-msg to validate message matches regex ^(US|UT)-[0-9]+:",
+        "Hook rejects commits with exit code 1 if message missing story ID, displays error 'Commit message must start with US-NNN: or UT-NNN:'",
+        "tests/test_phase_g_commit_hook.py creates temporary git repo, triggers hook with valid (US-123: fix) and invalid (forgot prefix) messages, asserts rejection"
       ],
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true,
-      "model": "sonnet"
+      "passes": false,
+      "model": "haiku",
+      "last_attempted": "2026-03-21T13:45:47Z"
     },
     {
       "id": "US-652",
@@ -173,68 +174,21 @@
       "model": "haiku"
     },
     {
-      "id": "US-670",
-      "title": "Dashboard Endpoint: Phase Bottleneck Analyzer — Rank Phases by Duration Variance",
-      "priority": "medium",
-      "description": "HTTP GET /api/dashboard/bottlenecks endpoint that analyzes results.tsv phase timing columns, ranks phases by average duration and coefficient of variance, and returns phase metrics with story count for optimization targeting.",
+      "id": "US-673",
+      "title": "Integration Test: Phase S Rejects Federated Stories with Circular Dependencies",
+      "priority": "high",
+      "description": "Add integration test that validates SPIRAL's Phase S catches circular dependency chains across federated sub-projects. Create a mock prd.json where Story A (proj-a) depends on Story B (proj-b) which depends on Story A, verify Phase S reports the cycle with path.",
       "acceptanceCriteria": [
-        "lib/dashboard/bottleneck_analyzer.py::BottleneckAnalyzer.analyze() returns list of {phase, avg_duration_ms, variance, story_count}",
-        "GET /api/dashboard/bottlenecks returns JSON sorted by avg_duration_ms descending, includes only phases with >0 stories",
-        "Dashboard /profile tab displays bottleneck data in bar chart (phase vs duration) with top-3 highlighted"
+        "tests/test_phase_s_circular_deps.py creates prd.json with stories: US-100 (proj-a) -> US-101 (proj-b) -> US-100, runs Phase S validation",
+        "Phase S returns ValidationResult with CIRCULAR_DEPENDENCY error and cycle_path = ['US-100', 'US-101', 'US-100']",
+        "Integration test asserts SPIRAL logs cycle and halts Phase M merge until dependency removed"
       ],
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-671",
-      "title": "CLI: spiral show-story-lineage — ASCII Tree of Story Decomposition Hierarchy",
-      "priority": "medium",
-      "description": "CLI command that accepts a story ID and recursively traverses _decomposed array in prd.json to print an ASCII tree showing parent→child relationships with status, token count, and cost. Supports --json flag for dashboard integration.",
-      "acceptanceCriteria": [
-        "spiral show-story-lineage US-123 prints ASCII tree with indentation, status emoji (✓/✗/⏳), token count per node",
-        "lib/cli/show_story_lineage.py recursively follows prd.json stories[].meta._decomposed array and outputs tree structure",
-        "spiral show-story-lineage US-123 --json outputs {id, title, status, tokens, children:[...]} for dashboard consumption"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-672",
-      "title": "Federated Governance Validator: Enforce Per-Project Story Quotas and ID Patterns",
-      "priority": "medium",
-      "description": "CLI command validates federated prd.json stories against per-project governance rules (max stories per iteration, ID namespace patterns, allowed phases). Reads governance.json and outputs violations grouped by project.",
-      "acceptanceCriteria": [
-        "lib/cli/validate_federated_governance.py loads governance.json with rules: {project_id, max_stories_per_iteration, id_pattern_regex, allowed_phases}",
-        "spiral validate-governance prd.json governance.json outputs violations: 'US-PROJ-200: exceeds quota (5 active, max=3)'",
-        "Exit code 1 if violations found, 0 if all stories pass project rules; support --json for structured output"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-667",
-      "title": "Dashboard: Export Metrics to CSV/JSON/Prometheus — GET /api/dashboard/export?format=csv",
-      "priority": "low",
-      "description": "Adds export capability to dashboard for downloading aggregated results.tsv metrics in CSV, JSON, and Prometheus OpenMetrics formats. Enables external monitoring, offline analysis, and integration with APM platforms.",
-      "acceptanceCriteria": [
-        "Endpoint GET /api/dashboard/export?format=csv&iteration_min=1&iteration_max=5 returns CSV: iteration,story_id,phase,model,tokens,duration,status",
-        "Format=prometheus returns OpenMetrics with metadata: '# HELP spiral_story_tokens_total Total tokens per story\\n spiral_story_tokens_total{story_id=\"US-001\",model=\"haiku\"} 1245'",
-        "Supports filters: iteration range, story status, sub_project; includes metadata row: export_timestamp, spiral_version, row_count"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "sonnet",
+      "_scopeCreep": true
     },
     {
       "id": "US-669",
@@ -2136,24 +2090,6 @@
       "passes": true,
       "_source": "ai-example",
       "model": "haiku"
-    },
-    {
-      "id": "US-656",
-      "title": "CLI: spiral federated-rebase -- Auto-Fix Story ID Namespace Mismatches in Multi-Project prd.json",
-      "priority": "medium",
-      "description": "Detect stories with sub_project field that don't match story ID namespace prefixes (e.g., story 'US-001' assigned to sub_project 'payment'). Offer --dry-run preview and --apply corrections with backup.",
-      "acceptanceCriteria": [
-        "federated-rebase --dry-run on prd.json with story 'US-001' (sub_project: 'payment') suggests fix: 'PAYMENT-001' with mapping {old_id: 'US-001', new_id: 'PAYMENT-001', sub_project: 'payment'}'",
-        "--apply flag rewrites mismatched story IDs to match namespace prefix and updates all cross-project references in prd.json, writes .backup file before modification",
-        "Test with 5 stories (3 mismatched: US-001→PAYMENT-001, US-002→SHIPMENT-001, etc.; 2 already correct) verifies --dry-run output and --apply updates only broken entries"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "haiku",
-      "_skipped": true
     },
     {
       "id": "US-645",

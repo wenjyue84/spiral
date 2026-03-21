@@ -3,3 +3,5 @@ export { default as PhaseTimingBars } from './PhaseTimingBars';
 export { default as StoriesListAccordion } from './StoriesListAccordion';
 export { default as RecentActivityFeed } from './RecentActivityFeed';
 export { default as ErrorBreakdownChart } from './ErrorBreakdownChart';
+export { default as CollapsibleSection } from './CollapsibleSection';
+export { default as FailureRetryDashboard } from './FailureRetryDashboard';

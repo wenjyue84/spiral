@@ -124,8 +124,8 @@ function StoryRow({ s }: { s: StoryEntry }) {
   );
 }
 
-export default function StoriesListAccordion({ data }: { data: StoryEntry[] }) {
-  const [filter, setFilter] = useState<Filter>('all');
+export default function StoriesListAccordion({ data, defaultFilter = 'all' }: { data: StoryEntry[]; defaultFilter?: Filter }) {
+  const [filter, setFilter] = useState<Filter>(defaultFilter);
   const [search, setSearch] = useState('');
 
   const filtered = data.filter(s => {
