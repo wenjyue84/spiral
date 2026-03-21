@@ -25,8 +25,7 @@
       "estimatedComplexity": "small",
       "passes": true,
       "_source": "ai-example",
-      "model": "haiku",
-      "last_attempted": "2026-03-21T06:47:31Z"
+      "model": "haiku"
     },
     {
       "id": "US-654",
@@ -172,6 +171,90 @@
         "lib/research_dedup.py: add query_similarity(q1: str, q2: str) → float using sentence-transformers or TF-IDF; return cached response if similarity > SPIRAL_RESEARCH_DEDUP_THRESHOLD",
         "Phase R: before Gemini API call, iterate research_cache.json responses, compute similarity to current query, skip call + log to results.tsv research_dedup_hit=true",
         "Integration test: tests/test_research_dedup.py mocks embeddings, verifies cached response reuse on high-similarity query, cost savings tracked"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-652",
+      "title": "Dashboard: Worker Utilization Swimlane Chart -- Phase Duration Distribution per Worker Across Iterations",
+      "priority": "medium",
+      "description": "Create a timeline visualization showing each worker's time spent in each phase (R/T/S/M/I/V/C) across iterations. Identify phase bottlenecks and worker imbalances. Export as interactive HTML/SVG from dashboard API.",
+      "acceptanceCriteria": [
+        "Dashboard endpoint: GET /api/dashboard/worker-swimlanes returns JSON: [{worker_id, iteration, phases: [{phase_name, duration_ms, start_time, status}]}]",
+        "Dashboard UI: render swimlane chart with workers on Y-axis, time on X-axis, colored bars per phase; hover shows duration and story ID",
+        "Integration test: tests/test_worker_swimlanes.py mocks results.tsv with 3 workers across 2 iterations, asserts swimlane JSON schema and phase duration summation"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-655",
+      "title": "Dashboard Endpoint: GET /api/dashboard/retry-analysis -- Phase-Wise Retry Distribution and Rate Analysis",
+      "priority": "medium",
+      "description": "Aggregate retry counts by phase from results.tsv to identify failure clustering patterns. Returns JSON with retry statistics grouped by phase to support heatmap and bottleneck visualization.",
+      "acceptanceCriteria": [
+        "Endpoint queries results.tsv, calculates retry_count distribution grouped by phase (R/T/S/M/I/V), returns JSON with count/mean/median/max per phase",
+        "Response includes per-phase retry rates (total_retries/total_stories) sorted descending: [{phase: 'I', retry_rate: 0.35, story_count: 7}, ...]",
+        "Test mocks results.tsv with 15 stories across phases with varying retry counts (0-5); validates endpoint aggregation matches expected distribution"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-656",
+      "title": "CLI: spiral federated-rebase -- Auto-Fix Story ID Namespace Mismatches in Multi-Project prd.json",
+      "priority": "medium",
+      "description": "Detect stories with sub_project field that don't match story ID namespace prefixes (e.g., story 'US-001' assigned to sub_project 'payment'). Offer --dry-run preview and --apply corrections with backup.",
+      "acceptanceCriteria": [
+        "federated-rebase --dry-run on prd.json with story 'US-001' (sub_project: 'payment') suggests fix: 'PAYMENT-001' with mapping {old_id: 'US-001', new_id: 'PAYMENT-001', sub_project: 'payment'}'",
+        "--apply flag rewrites mismatched story IDs to match namespace prefix and updates all cross-project references in prd.json, writes .backup file before modification",
+        "Test with 5 stories (3 mismatched: US-001→PAYMENT-001, US-002→SHIPMENT-001, etc.; 2 already correct) verifies --dry-run output and --apply updates only broken entries"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-657",
+      "title": "WebSocket Endpoint: /ws/story-updates -- Real-Time Story Phase Change Broadcasting",
+      "priority": "medium",
+      "description": "Broadcast story phase transitions via WebSocket to enable real-time dashboard updates without polling. Clients subscribe to story ID changes and receive phase transition events as they occur.",
+      "acceptanceCriteria": [
+        "When Phase C logs story status change (e.g., transition from phase='S' to phase='M'), /ws/story-updates broadcasts JSON: {story_id: 'US-001', from_phase: 'S', to_phase: 'M', timestamp: '2026-03-21T14:32:01Z'}'",
+        "Clients can subscribe with message {type: 'subscribe', story_ids: ['US-001', 'US-002']} or {type: 'subscribe', story_ids: '*'} for all updates",
+        "Integration test mocks Phase C updating prd.json story phase, verifies /ws/story-updates sends broadcast to 2 connected clients, clients receive correct message format"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-647",
+      "title": "Dashboard Endpoint: Worker Resource Usage Metrics via /api/dashboard/worker-resources",
+      "priority": "low",
+      "description": "Track and expose real-time worker process resource usage (peak memory, CPU utilization, story count) from worker heartbeats for performance bottleneck identification.",
+      "acceptanceCriteria": [
+        "Endpoint GET /api/dashboard/worker-resources returns [{worker_id: 'worker-1', memory_peak_mb: 480, avg_cpu_percent: 65, stories_completed: 3, uptime_seconds: 340}, ...] updated every 5s from .spiral/worker_heartbeats.json",
+        "Integration test spawns 2 workers, polls /api/dashboard/worker-resources during story implementation, asserts memory and CPU metrics are non-zero and reflect workload",
+        "Test verifies metrics persist in .spiral/worker-resources-history.json for post-run analysis with timestamp and resource snapshots"
       ],
       "technicalNotes": [],
       "dependencies": [],

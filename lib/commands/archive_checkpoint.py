@@ -11,7 +11,6 @@ import hashlib
 import json
 import os
 import tarfile
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -171,10 +170,7 @@ def restore(archive_path: Path, root: Path) -> dict[str, str]:
         if abs_path.exists() and abs_path.is_file():
             actual = _compute_sha256(abs_path)
             if actual != expected_sha:
-                raise ValueError(
-                    f"Checksum mismatch for {rel_path}: "
-                    f"expected {expected_sha}, got {actual}"
-                )
+                raise ValueError(f"Checksum mismatch for {rel_path}: expected {expected_sha}, got {actual}")
             verified[rel_path] = actual
 
     return verified

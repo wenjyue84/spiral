@@ -33,7 +33,6 @@ from phase_schemas import (
     validate_phase_t_output,
 )
 
-
 # ---------------------------------------------------------------------------
 # Fixtures / helpers
 # ---------------------------------------------------------------------------
@@ -238,9 +237,7 @@ class TestSchemaViolationContext:
             del story[field]
             with pytest.raises(SchemaError) as exc_info:
                 validate_phase_r_output({"stories": [story]})
-            assert field in str(exc_info.value), (
-                f"Error message should name field '{field}': {exc_info.value!r}"
-            )
+            assert field in str(exc_info.value), f"Error message should name field '{field}': {exc_info.value!r}"
 
     def test_error_message_names_story_index(self) -> None:
         """Error message includes story index to locate the bad story."""
@@ -248,9 +245,7 @@ class TestSchemaViolationContext:
         del stories[1]["description"]  # second story is bad
         with pytest.raises(SchemaError) as exc_info:
             validate_phase_r_output({"stories": stories})
-        assert "[1]" in str(exc_info.value), (
-            f"Error message should reference story index 1: {exc_info.value!r}"
-        )
+        assert "[1]" in str(exc_info.value), f"Error message should reference story index 1: {exc_info.value!r}"
 
     def test_wrong_type_for_stories_key_reports_context(self) -> None:
         with pytest.raises(SchemaError) as exc_info:
@@ -379,12 +374,7 @@ class TestCrossPhaseDataFlow:
         assert len(r_data["stories"]) == 2
 
         # Simulate Phase S output (stories that passed validation)
-        s_output = {
-            "stories": [
-                {**s, "_source": s.get("_source", "research")}
-                for s in r_data["stories"]
-            ]
-        }
+        s_output = {"stories": [{**s, "_source": s.get("_source", "research")} for s in r_data["stories"]]}
         s_file = tmp_path / "_validated_stories.json"
         _write_json(s_file, s_output)
 
@@ -460,10 +450,7 @@ class TestCrossPhaseDataFlow:
         s_data = load_and_validate(s_file, "S")
 
         # Phase M output (prd.json patch)
-        prd_stories = [
-            _prd_story(id=f"US-{100 + i}", title=st["title"])
-            for i, st in enumerate(s_data["stories"])
-        ]
+        prd_stories = [_prd_story(id=f"US-{100 + i}", title=st["title"]) for i, st in enumerate(s_data["stories"])]
         prd_file = tmp_path / "prd.json"
         _write_json(prd_file, {"userStories": prd_stories})
         prd_data = load_and_validate(prd_file, "M")

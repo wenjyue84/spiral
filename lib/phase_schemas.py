@@ -18,7 +18,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-
 # ---------------------------------------------------------------------------
 # Required fields per phase output (story-level)
 # ---------------------------------------------------------------------------
@@ -93,10 +92,7 @@ def _validate_story_fields(
     for field in required:
         if field not in story:
             location = _caller_location(extra_depth=1)
-            raise SchemaError(
-                f"{location}: story[{index}] missing required field '{field}' "
-                f"(phase {phase} output)"
-            )
+            raise SchemaError(f"{location}: story[{index}] missing required field '{field}' (phase {phase} output)")
         if not isinstance(story[field], str) and not isinstance(story[field], bool):
             # Accept str and bool; id/passes/title are str or bool
             pass  # type flexibility — only check presence
@@ -174,32 +170,19 @@ def validate_phase_m_output(data: Any) -> None:
         SchemaError: with file:function():line context on first violation.
     """
     if not isinstance(data, dict):
-        raise SchemaError(
-            "phase_m.py:validate_m_output(): root must be a JSON object, "
-            f"got {type(data).__name__}"
-        )
+        raise SchemaError(f"phase_m.py:validate_m_output(): root must be a JSON object, got {type(data).__name__}")
     if "userStories" not in data:
-        raise SchemaError(
-            "phase_m.py:validate_m_output(): missing required top-level key 'userStories'"
-        )
+        raise SchemaError("phase_m.py:validate_m_output(): missing required top-level key 'userStories'")
     stories = data["userStories"]
     if not isinstance(stories, list):
-        raise SchemaError(
-            f"phase_m.py:validate_m_output(): 'userStories' must be a list, "
-            f"got {type(stories).__name__}"
-        )
+        raise SchemaError(f"phase_m.py:validate_m_output(): 'userStories' must be a list, got {type(stories).__name__}")
     for i, story in enumerate(stories):
         if not isinstance(story, dict):
-            raise SchemaError(
-                f"phase_m.py:validate_m_output(): story[{i}] must be a dict"
-            )
+            raise SchemaError(f"phase_m.py:validate_m_output(): story[{i}] must be a dict")
         for field in PHASE_M_STORY_REQUIRED:
             if field not in story:
                 location = _caller_location()
-                raise SchemaError(
-                    f"{location}: story[{i}] missing required field '{field}' "
-                    f"(phase M prd.json output)"
-                )
+                raise SchemaError(f"{location}: story[{i}] missing required field '{field}' (phase M prd.json output)")
 
 
 def validate_phase_output(phase: str, data: Any) -> None:

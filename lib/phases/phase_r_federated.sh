@@ -60,12 +60,12 @@ run_phase_research_federated() {
   fi
 
   # ── Split into array ──────────────────────────────────────────────────────
-  IFS=',' read -ra _SUB_PROJ_ARRAY <<< "$_FED_SUB_PROJECTS"
+  IFS=',' read -ra _SUB_PROJ_ARRAY <<<"$_FED_SUB_PROJECTS"
 
   # ── Spawn parallel Gemini calls per sub-project ───────────────────────────
   declare -A _FED_PIDS
   for _SP in "${_SUB_PROJ_ARRAY[@]}"; do
-    _SP="${_SP// /}"  # trim spaces
+    _SP="${_SP// /}" # trim spaces
     [[ -z "$_SP" ]] && continue
 
     local _SP_OUTPUT="${_FED_SCRATCH}/_research_${_SP}.json"
@@ -122,7 +122,7 @@ ${_SP_RESEARCH}"
       ) >"$_OUT_TMP" || true
 
       # Extract JSON from synthesis output
-      if "$SPIRAL_PYTHON" - "$_OUT_TMP" "$_SP_OUTPUT" 2>/dev/null <<'PYEOF'
+      if "$SPIRAL_PYTHON" - "$_OUT_TMP" "$_SP_OUTPUT" 2>/dev/null <<'PYEOF'; then
 import json, re, sys
 content = open(sys.argv[1], encoding='utf-8').read()
 content = re.sub(r'```[a-z]*\n?', '', content).strip()
@@ -146,7 +146,6 @@ except Exception:
     pass
 sys.exit(1)
 PYEOF
-      then
         echo "  [R-fed:${_SP}] Synthesis complete"
       else
         echo "  [R-fed:${_SP}] JSON extraction failed — writing empty output"

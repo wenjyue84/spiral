@@ -105,9 +105,7 @@ def analyze(events_path: str, results_path: str) -> dict[str, Any]:
             continue
         mean_tokens = tier_stats_entry["total_tokens"] // tier_stats_entry["samples"]
         success_rate = (
-            tier_stats_entry["passes"] / tier_stats_entry["samples"]
-            if tier_stats_entry["samples"] > 0
-            else 0.0
+            tier_stats_entry["passes"] / tier_stats_entry["samples"] if tier_stats_entry["samples"] > 0 else 0.0
         )
         tiers.append(
             {

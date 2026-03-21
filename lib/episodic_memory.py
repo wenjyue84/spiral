@@ -200,7 +200,6 @@ class EpisodicMemory:
 
         return float(dot_product / (mag1 * mag2))
 
-
     def query_by_text(self, text: str, k: int = 3) -> list[dict[str, Any]]:
         """Retrieve top-k similar patterns by free-text query.
 

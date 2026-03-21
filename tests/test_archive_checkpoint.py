@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -13,7 +12,6 @@ import pytest
 # Add lib/commands to path for direct imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib" / "commands"))
 from archive_checkpoint import archive, read_manifest, restore  # type: ignore[import-untyped]
-
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -43,9 +41,7 @@ def _make_project(tmp_path: Path) -> Path:
 
     # results.tsv
     (root / "results.tsv").write_text(
-        "story_id\tmodel\tstatus\n"
-        "US-001\tsonnet\tpass\n"
-        "US-002\tsonnet\tpass\n",
+        "story_id\tmodel\tstatus\nUS-001\tsonnet\tpass\nUS-002\tsonnet\tpass\n",
         encoding="utf-8",
     )
 
@@ -53,9 +49,7 @@ def _make_project(tmp_path: Path) -> Path:
     spiral_dir = root / ".spiral"
     spiral_dir.mkdir()
     checkpoint = {"iteration": 5, "phase": "I", "timestamp": "2026-03-21T10:00:00Z"}
-    (spiral_dir / "_checkpoint.json").write_text(
-        json.dumps(checkpoint), encoding="utf-8"
-    )
+    (spiral_dir / "_checkpoint.json").write_text(json.dumps(checkpoint), encoding="utf-8")
     (spiral_dir / "audit.log").write_text("some log content", encoding="utf-8")
 
     return root
@@ -178,8 +172,8 @@ def test_restore_raises_on_missing_archive(tmp_path: Path) -> None:
 
 def test_restore_detects_checksum_mismatch(tmp_path: Path) -> None:
     """AC3: restore raises ValueError if a restored file has wrong checksum (tampered archive)."""
-    import tarfile
     import io
+    import tarfile
 
     root = _make_project(tmp_path)
     output = tmp_path / "backup.tar.gz"
@@ -188,6 +182,7 @@ def test_restore_detects_checksum_mismatch(tmp_path: Path) -> None:
     # Tamper with the archive: replace prd.json with different content but keep old checksum in manifest
     tampered = tmp_path / "tampered.tar.gz"
     import shutil
+
     shutil.copy(output, tampered)
 
     # Read current manifest
@@ -257,6 +252,4 @@ def test_archive_workers_included_by_default(tmp_path: Path) -> None:
     with tarfile.open(output, "r:gz") as tar:
         names = tar.getnames()
 
-    assert any(n.startswith(".spiral-workers") for n in names), (
-        ".spiral-workers should be included by default"
-    )
+    assert any(n.startswith(".spiral-workers") for n in names), ".spiral-workers should be included by default"

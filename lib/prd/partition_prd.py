@@ -379,7 +379,8 @@ def main() -> int:
                 p = s.get("priority", "medium")
                 worker_priority_counts[p] = worker_priority_counts.get(p, 0) + 1
             pcount_str = " ".join(
-                f"{p}:{c}" for p, c in sorted(worker_priority_counts.items(), key=lambda kv: PRIORITY_RANK.get(kv[0], 2))
+                f"{p}:{c}"
+                for p, c in sorted(worker_priority_counts.items(), key=lambda kv: PRIORITY_RANK.get(kv[0], 2))
             )
             print(f"[partition] Worker {worker_num}: {len(bucket)} stories [{id_list}] ({pcount_str}) → {out_path}")
 

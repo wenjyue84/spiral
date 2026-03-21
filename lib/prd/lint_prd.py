@@ -138,7 +138,9 @@ def lint_prd(prd: object, schema_path: str | None = None) -> dict[str, object]:
         if not isinstance(sid, str) or sid not in all_ids:
             continue
         deps_raw = story.get("dependencies", [])
-        deps: list[str] = [d for d in (deps_raw if isinstance(deps_raw, list) else []) if isinstance(d, str) and d in all_ids]
+        deps: list[str] = [
+            d for d in (deps_raw if isinstance(deps_raw, list) else []) if isinstance(d, str) and d in all_ids
+        ]
         graph[sid] = deps
 
     cycle = _find_cycle_path(graph)

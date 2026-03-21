@@ -13,10 +13,20 @@ from lib.episodic_memory import EpisodicMemory
 def mem_with_patterns(tmp_path: Path) -> EpisodicMemory:
     """Episodic memory pre-populated with implementation patterns."""
     mem = EpisodicMemory(str(tmp_path / "episodic.jsonl"))
-    mem.write("US-10", {"approach": "add retry logic with exponential backoff", "outcome": "pass", "files_touched": "lib/retry.py"})
-    mem.write("US-11", {"approach": "implement retry backoff for API calls", "outcome": "pass", "files_touched": "lib/api_client.py"})
-    mem.write("US-12", {"approach": "fix database connection pool timeout", "outcome": "pass", "files_touched": "lib/db.py"})
-    mem.write("US-13", {"approach": "add caching layer with TTL expiry", "outcome": "pass", "files_touched": "lib/cache.py"})
+    mem.write(
+        "US-10",
+        {"approach": "add retry logic with exponential backoff", "outcome": "pass", "files_touched": "lib/retry.py"},
+    )
+    mem.write(
+        "US-11",
+        {"approach": "implement retry backoff for API calls", "outcome": "pass", "files_touched": "lib/api_client.py"},
+    )
+    mem.write(
+        "US-12", {"approach": "fix database connection pool timeout", "outcome": "pass", "files_touched": "lib/db.py"}
+    )
+    mem.write(
+        "US-13", {"approach": "add caching layer with TTL expiry", "outcome": "pass", "files_touched": "lib/cache.py"}
+    )
     return mem
 
 
