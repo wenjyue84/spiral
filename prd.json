@@ -11,23 +11,6 @@
   ],
   "userStories": [
     {
-      "id": "US-654",
-      "title": "Integration Test: Phase M Federated Merge Respects Cross-Project Story Dependency Order",
-      "priority": "high",
-      "description": "Mock Phase S validated stories output with cross-project dependencies and verify Phase M merge enforces correct ordering constraints. Tests that stories from different sub-projects merge in dependency-respecting order without violating constraints.",
-      "acceptanceCriteria": [
-        "Load mock Phase S output with story A (sub_project: 'proj1') depending on story B (sub_project: 'proj2'); Phase M detects cross-project dependency and respects merge order",
-        "Test assertion fails if Phase M would place A before B in merged prd.json; passes only when dependency order maintained and result is valid",
-        "Validates merged prd.json groups stories by sub_project internally while preserving cross-project dependency references in depends_on field"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": true,
-      "_source": "ai-example",
-      "model": "haiku"
-    },
-    {
       "id": "US-658",
       "title": "Integration Test - Phase T Test Failure Parsing with Mock Test Output",
       "priority": "high",
@@ -41,9 +24,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "sonnet",
-      "_failureReason": "oversized_diff",
-      "last_attempted": "2026-03-21T07:44:40Z"
+      "model": "sonnet"
     },
     {
       "id": "US-659",
@@ -60,6 +41,22 @@
       "estimatedComplexity": "medium",
       "passes": false,
       "model": "haiku"
+    },
+    {
+      "id": "US-660",
+      "title": "Integration Test - Phase M Federated Story Conflict Detection and Rollback",
+      "priority": "high",
+      "description": "Test Phase M's ability to detect and report when federated sub-projects have conflicting stories (same target files). Verify that Phase M rejects merge of conflicting stories and marks them for manual resolution, with proper state cleanup and results.tsv logging.",
+      "acceptanceCriteria": [
+        "Create tests/integration_federated_conflict_detection.py with two sub-projects modifying same file path",
+        "Inject conflicting stories into prd.json for Phase M; assert merge rejects with conflict error in results.tsv status=rejected",
+        "Assert prd.json rolls back (stories remain in pending, _source preserved) and conflict report written to .spiral/conflicts.json"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "sonnet"
     },
     {
       "id": "US-640",
@@ -263,6 +260,23 @@
       "passes": false,
       "_source": "ai-example",
       "model": "sonnet"
+    },
+    {
+      "id": "US-654",
+      "title": "Integration Test: Phase M Federated Merge Respects Cross-Project Story Dependency Order",
+      "priority": "high",
+      "description": "Mock Phase S validated stories output with cross-project dependencies and verify Phase M merge enforces correct ordering constraints. Tests that stories from different sub-projects merge in dependency-respecting order without violating constraints.",
+      "acceptanceCriteria": [
+        "Load mock Phase S output with story A (sub_project: 'proj1') depending on story B (sub_project: 'proj2'); Phase M detects cross-project dependency and respects merge order",
+        "Test assertion fails if Phase M would place A before B in merged prd.json; passes only when dependency order maintained and result is valid",
+        "Validates merged prd.json groups stories by sub_project internally while preserving cross-project dependency references in depends_on field"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "haiku"
     },
     {
       "id": "US-653",

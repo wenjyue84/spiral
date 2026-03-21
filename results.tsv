@@ -3,3 +3,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-03-20T04:47:20Z	5	1	US-567	[Security Test] Auth/Permission Access Control for US-516	reject	247	sonnet	1		69bcb83e3c28	true	888284	57060	0	0	0	0	0
 2026-03-21T06:09:14Z	5	2	US-648	Phase G: Generate Dynamic API Documentation Index Page from pdoc Outputs	reject	395	opus	1		69be18f91588	false	0	0	0	0	0	0	0		0	0	0	0
 2026-03-21T07:20:01Z	8	1	US-654	Integration Test: Phase M Federated Merge Respects Cross-Project Story Dependency Order	reject	624	haiku	1		69be18f91588	false	0	0	0	0	0	0	0		0	0	0	0		
+2026-03-21T07:44:38Z	9	1	US-658	Integration Test - Phase T Test Failure Parsing with Mock Test Output	reject	456	sonnet	1		69be18f91588	false	0	0	0	0	0	0	0		0	0	0	0		
