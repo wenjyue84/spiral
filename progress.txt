@@ -1,4 +1,50 @@
-## Iteration [Current] - Story: US-670 Dashboard Endpoint Phase Bottleneck Analyzer
+## Iteration [Current] - Story: US-671 CLI show-story-lineage
+
+### What was implemented
+- **lib/show_story_lineage.py** — Story decomposition lineage tree module (mypy strict compliant)
+  - `LineageNode` dataclass for tree nodes with story_id, title, passes status, tokens, and children
+  - `build_lineage_tree(story_id, stories_by_id, token_counts)` — Recursively builds decomposition tree from parent to all children
+  - `format_tree(node, prefix, is_last)` — ASCII tree formatting with indentation, status emoji (✓/✗/⏳), and token counts
+  - `to_json_output(node)` — JSON serialization for dashboard with {id, title, status, tokens, children:[...]}
+  - `_load_token_counts(results_tsv)` — Loads token counts from results.tsv, uses cache_read_tokens with fallback to cache_creation_tokens
+
+- **main.py** — Added show-story-lineage CLI command
+  - New subparser with STORY_ID positional arg, --prd, --results, and --json flags
+  - `cmd_show_story_lineage(args)` handler that loads prd.json, token counts, builds tree, and outputs ASCII or JSON
+  - Updated docstring to include new command
+
+- **tests/test_show_story_lineage.py** — 29 comprehensive tests across 10 test classes
+  - TestStatusEmoji: 3 tests (✓ for passed, ✗ for failed, ⏳ for pending)
+  - TestLineageNodeBasics: 2 tests (node creation, node with children)
+  - TestLoadTokenCounts: 5 tests (empty file, cache_read, fallback creation, multiple rows, missing fields)
+  - TestBuildLineageTreeBasics: 5 tests (single node, one child, multiple children, nested 3-level tree, missing story)
+  - TestBuildLineageTreeWithTokens: 2 tests (tokens propagated, missing tokens default to 0)
+  - TestFormatTree: 5 tests (single node, with children, status emojis, zero tokens omitted, nested tree)
+  - TestToJsonOutput: 5 tests (single node, status values, with children, nested tree, serializable)
+  - TestIntegration: 2 tests (build and format flow, build and JSON flow)
+
+### Patterns discovered
+- Story decomposition: parent has `_decomposed: true`, children have `_decomposedFrom: "PARENT_ID"`
+- Token counts from results.tsv: prefer cache_read_tokens, fallback to cache_creation_tokens if zero
+- Status mapping: passes=True → "passed", passes=False → "failed", passes=None → "pending"
+- ASCII tree indentation: root at depth 0, children with `├──` or `└──` connectors, nested prefix handling
+
+### Gotchas
+- Empty/zero token counts should not be displayed (0 tokens omitted from output)
+- `_load_token_counts` must handle missing TSV file gracefully (returns empty dict)
+- Child stories found by filtering: all stories where `_decomposedFrom == story_id`
+- TreeNode children must be collected in order of story definition (not depth-first recursive)
+
+### Acceptance Criteria Mapping
+1. ✅ ASCII tree with indentation, status emoji (✓/✗/⏳), token count per node
+2. ✅ Recursively follows prd.json stories[]._decomposedFrom array
+3. ✅ --json outputs {id, title, status, tokens, children:[...]} for dashboard
+
+All tests pass (29/29), mypy strict mode compliant.
+
+---
+
+## Iteration [Previous] - Story: US-670 Dashboard Endpoint Phase Bottleneck Analyzer
 
 ### What was implemented
 - **lib/dashboard/bottleneck_analyzer.py** — Phase variance analyzer (82 lines, mypy strict compliant)
