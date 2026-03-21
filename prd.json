@@ -39,9 +39,9 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": true,
+      "passes": false,
       "model": "haiku",
-      "last_attempted": "2026-03-21T19:44:03Z"
+      "last_attempted": "2026-03-21T19:51:04Z"
     },
     {
       "id": "US-664",
@@ -170,22 +170,6 @@
       "estimatedComplexity": "small",
       "passes": false,
       "model": "sonnet"
-    },
-    {
-      "id": "US-689",
-      "title": "Dashboard Endpoint: GET /api/dashboard/cost-anomalies -- Flag Unusual Story Spend",
-      "priority": "medium",
-      "description": "Real-time anomaly detection endpoint that identifies stories with token spend exceeding phase baselines by >2 standard deviations. Analyzes reason_code patterns from Phase I retry escalation to surface root causes.",
-      "acceptanceCriteria": [
-        "GET /api/dashboard/cost-anomalies reads results.tsv, calculates per-phase mean/stddev from last 10 iterations, returns JSON array with [story_id, phase, tokens, mean_phase, stddev, reason_codes, anomaly_severity] for all stories where tokens > mean + 2*stddev",
-        "WebSocket /ws/cost-anomalies broadcasts new anomalies in real-time as Phase I completes stories, including 5-min moving average to reduce noise",
-        "Dashboard React component at src/components/CostAnomalyAlert.tsx displays anomaly list sorted by severity with drill-down into story retry history"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
     },
     {
       "id": "US-688",
@@ -4059,54 +4043,6 @@
       "tags": []
     },
     {
-      "id": "US-694",
-      "title": "Phase G: Publish Generated Changelog to GitHub Releases API with Story Metadata",
-      "priority": "medium",
-      "description": "After Phase G generates CHANGELOG.md, automatically publish it to GitHub Releases using the GitHub API with semantic versioning tags and story IDs embedded in the release body.",
-      "acceptanceCriteria": [
-        "Create lib/phases/phase_g_github_release.py that reads CHANGELOG.md and POSTs to GitHub API using PyGithub with GITHUB_TOKEN env var",
-        "Release tag format is semantic version (e.g., v1.2.3) and release body includes story IDs from commits (e.g., 'Stories: US-123, US-124')",
-        "Add --skip-github-release flag to spiral.sh; default behavior publishes unless flag set or GITHUB_TOKEN missing"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-695",
-      "title": "Integration Test: Phase 0 CLARIFY with Mocked Interactive Input and Validation",
-      "priority": "medium",
-      "description": "Add comprehensive integration test for Phase 0 CLARIFY that mocks readline input, tests constitution validation, and verifies abort/restart flow without interactive prompts.",
-      "acceptanceCriteria": [
-        "tests/test_phase_0_clarify_integration.py with pytest fixtures mocking user input for constitution/focus/stories prompts",
-        "Test assert constitution is validated before proceeding to Phase R; test abort reverts state and allows restart from Phase 0",
-        "Verify invalid constitution input triggers retry loop and only proceeds after valid input"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-696",
-      "title": "CLI: spiral infer-subprojects — Auto-Detect Sub-Project Boundaries from Story File Paths",
-      "priority": "medium",
-      "description": "Analyze file paths in prd.json stories to automatically infer sub-project boundaries using directory prefix clustering. Output suggested namespace mapping and detect overlaps/conflicts.",
-      "acceptanceCriteria": [
-        "Implement lib/spiral/infer_subprojects.py that groups stories by common file path prefixes (e.g., 'backend/', 'frontend/', 'api/')",
-        "CLI command: spiral infer-subprojects outputs JSON with {inferred_subprojects: [{name, file_patterns, story_count}], overlapping_stories: []}",
-        "Test with 3+ sub-projects: verify correct boundary detection and report any stories with conflicting path assignments"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
       "id": "US-697",
       "title": "Integration Test: Federated Phase G with Cross-Project CHANGELOG and Dependency Ordering",
       "priority": "high",
@@ -4115,54 +4051,6 @@
         "Test file tests/test_federated_phase_g.py with test_federated_changelog_respects_dependency_order() creates federated prd.json with 2 sub-projects each containing 3 stories with cross-project dependencies",
         "Assert generated .spiral/CHANGELOG.md contains all 6 stories with sub-project namespace prefixes (e.g., 'sub1/US-101')",
         "Assert CHANGELOG story order respects declared cross-project dependencies (dependent stories appear after their dependencies)"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-698",
-      "title": "CLI: spiral phase-g-metrics -- Extract Phase G Execution Metrics and Doc Coverage",
-      "priority": "medium",
-      "description": "Wire CLI command to extract Phase G metrics from generated artifacts: CHANGELOG version, API doc page count, function count from pdoc, and Phase G execution duration from results.tsv. Output JSON for dashboard integration.",
-      "acceptanceCriteria": [
-        "Command spiral phase-g-metrics --format json outputs JSON with keys: changelog_version, api_docs_path, doc_pages_count, api_endpoints_count, phase_g_duration_ms",
-        "doc_pages_count is computed by counting .html files in .spiral/docs/ directory",
-        "api_endpoints_count derived by parsing pdoc index.html for <a> tags pointing to function docs"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-690",
-      "title": "CLI: spiral extract-orphan-commits -- Triage Commits Missing Story IDs",
-      "priority": "medium",
-      "description": "Scan git history for commits without story ID prefix and generate actionable triage report. Detects common patterns (merge commits, system commits) and suggests manual re-tagging strategies.",
-      "acceptanceCriteria": [
-        "Command `spiral extract-orphan-commits --since=2w --output=orphan_report.json` scans last 2 weeks of commits, outputs JSON with [commit_hash, author, message, category] where category is one of: 'missing_story_id', 'expected_orphan' (matches patterns: squash, merge, revert, chore), 'ambiguous'",
-        "For ambiguous commits, include suggested_story_id based on message keyword matching with confidence score (0-1)",
-        "Report includes remediation command: `git rebase -i <base_sha> --exec 'git commit --amend -m [US-XXX] ...'` for each missing_story_id commit"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-692",
-      "title": "Cost Anomaly Detector: CLI Command spiral detect-anomalies",
-      "priority": "medium",
-      "description": "Implement statistical outlier detection on results.tsv to flag stories with unusual token spend patterns. Use median absolute deviation (MAD) to identify cost anomalies and categorize root causes.",
-      "acceptanceCriteria": [
-        "Implement lib/cost_anomalies.py detect_spending_anomalies(results_df) using MAD z-score (threshold > 2.5); return DataFrame with columns: story_id, tokens, z_score, anomaly_reason",
-        "Wire CLI command spiral detect-anomalies --output json to write .spiral/cost_anomalies.json listing {story_id, tokens, z_score, anomaly_reason} where reason ∈ {retry_escalation_sonnet, retry_escalation_opus, worker_timeout_retry, implementation_retry}",
-        "Add dashboard endpoint GET /api/dashboard/cost-anomalies returning anomaly count, top 5 anomalies, and anomaly trend (anomalies_per_iteration)"
       ],
       "technicalNotes": [],
       "dependencies": [],
