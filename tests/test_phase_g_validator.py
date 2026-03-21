@@ -13,8 +13,6 @@ import os
 import sys
 from pathlib import Path
 
-import pytest
-
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 
 from validate_phase_g import (
@@ -106,7 +104,9 @@ class TestValidateChangelogSchema:
         _write(cl, content)
         result = validate_changelog_schema(cl)
         assert result["valid"] is False
-        assert any("semver" in e or "vX.Y.Z" in e or "v1.2.3" in e.lower() or "does not match" in e for e in result["errors"])
+        assert any(
+            "semver" in e or "vX.Y.Z" in e or "v1.2.3" in e.lower() or "does not match" in e for e in result["errors"]
+        )
 
     def test_h2_semver_without_date_returns_error(self, tmp_path: Path) -> None:
         """H2 with semver but missing date suffix returns error."""
@@ -233,13 +233,7 @@ class TestValidatePdocHtml:
             '<dt id="a.f2">def f2()</dt>'
             "</dl></body></html>"
         )
-        html_b = (
-            "<html><body>"
-            "<dl>"
-            '<dt id="b.f3">def f3()</dt>'
-            '<dt id="b.C">class MyClass</dt>'
-            "</dl></body></html>"
-        )
+        html_b = '<html><body><dl><dt id="b.f3">def f3()</dt><dt id="b.C">class MyClass</dt></dl></body></html>'
         _write(tmp_path / "module_a.html", html_a)
         _write(tmp_path / "module_b.html", html_b)
         result = validate_pdoc_html(tmp_path)
@@ -307,9 +301,7 @@ class TestValidateAllOutputs:
         _write(cl, _VALID_CHANGELOG)
         scratch = tmp_path / ".spiral"
 
-        result = validate_all_outputs(
-            cl, tmp_path / "nonexistent_pdoc", scratch_dir=scratch
-        )
+        result = validate_all_outputs(cl, tmp_path / "nonexistent_pdoc", scratch_dir=scratch)
         assert result is True
 
         log_path = scratch / "_phase_g_validation.json"

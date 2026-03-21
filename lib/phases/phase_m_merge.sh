@@ -150,7 +150,24 @@ run_phase_merge() {
       echo "  [M] Detecting file conflicts between pending stories..."
       "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/conflict_detector.py" \
         --prd "$PRD_FILE" \
-        --log-file "$_CONFLICT_LOG" || true
+        --log-file "$_CONFLICT_LOG"
+      _CONFLICT_EXIT=$?
+
+      if [[ $_CONFLICT_EXIT -eq 1 ]]; then
+        echo ""
+        echo "  [CONFLICT] File collisions detected across sub-projects!"
+        if [[ -f "$SCRATCH_DIR/.spiral/merge_conflicts.json" ]]; then
+          "$JQ" '.[]' "$SCRATCH_DIR/.spiral/merge_conflicts.json" | while read -r conflict; do
+            _FILE=$(echo "$conflict" | "$JQ" -r '.file_path')
+            _PROJECTS=$(echo "$conflict" | "$JQ" -r '.sub_projects | join(", ")')
+            echo "  [CONFLICT] File $_FILE modified by sub-projects: $_PROJECTS"
+          done
+        fi
+        echo "  [CONFLICT] Phase M ABORTED — manual resolution required."
+        write_checkpoint "$SPIRAL_ITER" "M"
+        ADDED=0
+        return 1
+      fi
 
       # ── Phase M: Infer dependencies from filesTouch overlap ─────────────────
       _HINTS_FILE="$SCRATCH_DIR/_dependency_hints.json"

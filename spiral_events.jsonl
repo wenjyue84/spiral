@@ -1731,3 +1731,35 @@
 {"ts": "2026-03-21T18:09:58.993336+00:00", "type": "route_story_assigned", "story_id": "US-677", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
 {"ts": "2026-03-21T18:09:58.993744+00:00", "type": "route_story_assigned", "story_id": "US-685", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
 {"ts": "2026-03-21T18:09:58.994188+00:00", "type": "route_story_assigned", "story_id": "US-687", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
+{"event_type": "prd_io_error", "timestamp": "2026-03-21T18:50:31.906978+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-3479\\\\popen-gw1\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
+{"ts": "2026-03-21T18:56:15.646235+00:00", "type": "route_story_assigned", "story_id": "US-688", "complexity_score": 45, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-21T18:56:15.647066+00:00", "type": "route_story_assigned", "story_id": "US-691", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-21T18:56:15.647676+00:00", "type": "route_story_assigned", "story_id": "US-693", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-21T18:56:15.648252+00:00", "type": "route_story_assigned", "story_id": "US-664", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-21T18:56:15.648798+00:00", "type": "route_story_assigned", "story_id": "US-665", "complexity_score": 45, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-21T18:56:15.649359+00:00", "type": "route_story_assigned", "story_id": "US-666", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-21T18:56:15.649934+00:00", "type": "route_story_assigned", "story_id": "US-670", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-21T18:56:15.650509+00:00", "type": "route_story_assigned", "story_id": "US-671", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-21T18:56:15.651140+00:00", "type": "route_story_assigned", "story_id": "US-672", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-21T18:56:15.651715+00:00", "type": "route_story_assigned", "story_id": "US-676", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-21T18:56:15.652278+00:00", "type": "route_story_assigned", "story_id": "US-677", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-21T18:56:15.652883+00:00", "type": "route_story_assigned", "story_id": "US-689", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-21T18:56:15.653463+00:00", "type": "route_story_assigned", "story_id": "US-690", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-21T18:56:15.654015+00:00", "type": "route_story_assigned", "story_id": "US-692", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-21T18:56:15.654547+00:00", "type": "route_story_assigned", "story_id": "US-694", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"event_type": "prd_io_error", "timestamp": "2026-03-21T19:08:57.324713+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-3484\\\\popen-gw1\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
+{"ts": "2026-03-21T19:20:24.297651+00:00", "type": "route_story_assigned", "story_id": "US-691", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-21T19:20:24.298767+00:00", "type": "route_story_assigned", "story_id": "US-693", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-21T19:20:24.299228+00:00", "type": "route_story_assigned", "story_id": "US-664", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-21T19:20:24.299636+00:00", "type": "route_story_assigned", "story_id": "US-665", "complexity_score": 45, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-21T19:20:24.300077+00:00", "type": "route_story_assigned", "story_id": "US-666", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-21T19:20:24.300612+00:00", "type": "route_story_assigned", "story_id": "US-670", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-21T19:20:24.301117+00:00", "type": "route_story_assigned", "story_id": "US-671", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-21T19:20:24.301542+00:00", "type": "route_story_assigned", "story_id": "US-672", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-21T19:20:24.301972+00:00", "type": "route_story_assigned", "story_id": "US-676", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-21T19:20:24.302364+00:00", "type": "route_story_assigned", "story_id": "US-677", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-21T19:20:24.302754+00:00", "type": "route_story_assigned", "story_id": "US-689", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-21T19:20:24.303153+00:00", "type": "route_story_assigned", "story_id": "US-690", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-21T19:20:24.303519+00:00", "type": "route_story_assigned", "story_id": "US-692", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-21T19:20:24.304010+00:00", "type": "route_story_assigned", "story_id": "US-694", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-21T19:20:24.304578+00:00", "type": "route_story_assigned", "story_id": "US-695", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}

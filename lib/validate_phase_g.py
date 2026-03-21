@@ -64,15 +64,9 @@ def validate_changelog_schema(changelog_path: str | Path) -> dict[str, Any]:
     else:
         for h2 in h2_lines:
             if not _SEMVER_H2_RE.match(h2):
-                errors.append(
-                    f"H2 section does not match semver: {h2!r}"
-                    " (expected '## vX.Y.Z: ...')"
-                )
+                errors.append(f"H2 section does not match semver: {h2!r} (expected '## vX.Y.Z: ...')")
             elif not _ENTRY_FORMAT_RE.match(h2):
-                errors.append(
-                    f"H2 entry missing date/description suffix: {h2!r}"
-                    " (expected '## vX.Y.Z: Date')"
-                )
+                errors.append(f"H2 entry missing date/description suffix: {h2!r} (expected '## vX.Y.Z: Date')")
 
     return {"valid": len(errors) == 0, "errors": errors}
 
@@ -97,9 +91,7 @@ def _count_functions(html: str) -> int:
     """
     # pdoc3: <dt id="module.func_name">def func_name ...
     # Must contain 'def ' in the element text (excludes class entries)
-    func_dts = re.findall(
-        r'<dt\s[^>]*id="[^"]+"\s*>[^<]*def\s+\w+', html, re.IGNORECASE
-    )
+    func_dts = re.findall(r'<dt\s[^>]*id="[^"]+"\s*>[^<]*def\s+\w+', html, re.IGNORECASE)
     if func_dts:
         return len(func_dts)
     # Fallback: raw 'def name(' patterns (e.g. in code blocks)
@@ -148,9 +140,7 @@ def validate_pdoc_html(pdoc_dir: str | Path) -> dict[str, Any]:
             continue
 
         if "<html" not in content.lower():
-            errors.append(
-                f"{html_file.name}: missing <html> tag (invalid HTML structure)"
-            )
+            errors.append(f"{html_file.name}: missing <html> tag (invalid HTML structure)")
             # Still accumulate content so other checks run
         combined += content
 
@@ -164,9 +154,7 @@ def validate_pdoc_html(pdoc_dir: str | Path) -> dict[str, Any]:
     # Function list (>= 3)
     func_count = _count_functions(combined)
     if func_count < 3:
-        errors.append(
-            f"Function list has {func_count} function(s); expected >= 3"
-        )
+        errors.append(f"Function list has {func_count} function(s); expected >= 3")
 
     # Class list
     if not _has_class_list(combined):
@@ -234,9 +222,7 @@ def validate_all_outputs(
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Validate Phase G outputs (CHANGELOG.md schema + pdoc HTML)."
-    )
+    parser = argparse.ArgumentParser(description="Validate Phase G outputs (CHANGELOG.md schema + pdoc HTML).")
     parser.add_argument("--changelog", required=True, help="Path to CHANGELOG.md")
     parser.add_argument(
         "--pdoc-dir",

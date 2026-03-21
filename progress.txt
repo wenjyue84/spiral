@@ -574,3 +574,30 @@ Based on the user story JSON for **US-687**, here is a technical brief for the i
 1. ✅ validate_changelog_schema() checks H1 'Changelog', H2 semver, '## vX.Y.Z: Date' format
 2. ✅ validate_pdoc_html() checks module docstring, function list >= 3, class list, valid HTML
 3. ✅ validate_all_outputs() logs to .spiral/_phase_g_validation.json; gen_changelog.sh rolls back CHANGELOG.md on schema mismatch
+
+## Pre-analysis for US-691 (Gemini 2.5 Pro)
+Based on the user story, here is a technical brief for the implementation:
+
+**Project:** Spiral - Federated Merge Conflict Detection
+
+**1. Primary Files to Modify:**
+*   `lib/conflict_detector.py`: This is the most probable location for the new logic. Its name directly aligns with the story's goal of detecting collisions.
+*   `lib/conflict_preflight.py`: A likely candidate for *calling* the new detection logic. This script probably runs checks before a merge process is initiated.
+*   `spiral.sh` or a similar orchestration script: This script likely defines the "Phase M" workflow and will need to be modified to invoke the Python conflict detector at the correct stage.
+
+**2. Involved DocTypes/Hooks:**
+*   This is a standalone Python application, not a Frappe app. The core data structure is `prd.json`, a file that tracks project-related data, including stories and their source sub-projects. No Frappe DocTypes or hooks are involved.
+
+**3. Implementation Approach:**
+1.  **Data Loading:** The script should parse `prd.json` to access the list of stories being merged.
+2.  **File Path Extraction:** For each story, retrieve its associated commit(s). Use `subprocess.run` to execute `git show --name-only --format="" <commit-hash>` for each commit to get a list of modified files.
+3.  **Collision Mapping:** Create a dictionary to map each file path to a list of the sub-project IDs that modified it (e.g., `{'path/to/file.py': ['projA', 'projB']}`). The `sub_project_id` is derived from the `_source` field in `prd.json` for each story.
+4.  **Conflict Detection:** Iterate through the map. If any file path has more than one unique sub-project ID associated with it, a conflict exists.
+5.  **Reporting & Exit:** If conflicts are found, write the details to `.spiral/merge_conflicts.json` as specified in the acceptance criteria. Print a formatted error message to `stderr` and exit with a status code of 1 to block the merge.
+
+**4. Edge Cases & Gotchas:**
+*   **Performance:** Executing `git show` per commit could be slow. Consider using `git diff-tree --no-commit-id --name-only -r <commit1> <commit2>` to get file lists for commit ranges if applicable.
+*   **Path Normalization:** Ensure all file paths are normalized (e.g., using `os.path.normpath`) before comparison to avoid false negatives.
+*   **Error Handling:** The script must gracefully handle missing `prd.json`, malformed JSON, and failed `git` commands.
+*   **Commit Scope:** The logic must correctly identify the exact set of commits that constitute the "Phase M merge" to avoid analyzing unrelated changes.
+
