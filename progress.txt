@@ -1,3 +1,42 @@
+## Iteration [Current] - Story: US-657 WebSocket Endpoint: /ws/story-updates
+
+### What was implemented
+- **lib/dashboard/story_broadcaster.py** — New module for story phase change broadcasting
+  - `StoryUpdatesManager` class with per-client subscription filters
+  - `connect(ws)` / `disconnect(ws)` — register/unregister connections
+  - `subscribe(ws, story_ids)` — accepts list of story IDs or `'*'` for all
+  - `broadcast_phase_change(story_id, from_phase, to_phase, timestamp)` — sends to matching subscribers
+  - Module-level `broadcast_phase_change()` helper using singleton manager
+  - `get_story_updates_manager()` — singleton factory
+
+- **lib/dashboard/api.py** — Added `/ws/story-updates` WebSocket endpoint
+  - Clients send `{type: 'subscribe', story_ids: [...] or '*'}` to subscribe
+  - Broadcasts `{story_id, from_phase, to_phase, timestamp}` to subscribed clients
+  - Added import and __all__ export for `get_story_updates_manager`
+
+- **tests/test_ws_story_updates.py** — 12 tests across 2 classes
+  - TestStoryUpdatesManager: 8 unit tests (wildcard, specific, filtering, timestamp, disconnect)
+  - TestStoryUpdatesIntegration: 4 integration tests (2-client broadcast, filtered subscriptions, singleton, subscribe message formats)
+
+### Patterns discovered
+- Pre-commit mypy hook runs `--strict lib/` only, NOT `tests/` — test files don't need mypy compliance
+- `MockWebSocket` pattern matches existing `test_ws_alerts.py` — implement `accept()`, `send_json()`, `close()`
+- Subscription dict: `dict[WebSocket, set[str]]` — `{'*'}` means wildcard, any set of IDs means filtered
+
+### Gotchas
+- Test file had `import json` that was unused — ruff I001/F401 flagged it; remove before commit
+- `asyncio.Lock()` needed for thread-safe mutation of subscription dict under concurrent connections
+
+### Acceptance Criteria Mapping
+1. ✅ /ws/story-updates broadcasts {story_id, from_phase, to_phase, timestamp} on phase change
+   - Implemented in StoryUpdatesManager.broadcast_phase_change()
+2. ✅ Clients subscribe with {type: 'subscribe', story_ids: [...] or '*'}
+   - Handled in websocket_story_updates_endpoint() via subscribe() call
+3. ✅ Integration test with 2 connected clients verifies both receive broadcast
+   - TestStoryUpdatesIntegration::test_two_clients_both_receive_phase_change_broadcast
+
+---
+
 ## Iteration [Current] - Story: US-655 Dashboard Endpoint: GET /api/dashboard/retry-analysis
 
 ### What was implemented
@@ -186,4 +225,5 @@
 3. ✅ Integration test asserts SPIRAL logs cycle and halts Phase M merge
    - test_prd_with_cycle_logs_halt_message asserts 'Phase M' and 'CIRCULAR_DEPENDENCY' in stdout
    - test_prd_with_cycle_halts_merge asserts result.has_error is True
+
 

@@ -30,6 +30,7 @@ from ..research_source_scorer import extract_sources
 from ..spiral.dashboard.aggregator import aggregate_overview
 from .alerts_broadcaster import get_alerts_manager
 from .cost_broadcaster import get_manager
+from .story_broadcaster import get_story_updates_manager
 from .timeline import get_timeline_manager, parse_timeline
 from .timeseries_store import query_timeseries
 
@@ -712,5 +713,37 @@ async def websocket_overview_endpoint(websocket: WebSocket) -> None:
         logger.error(f"[ws/overview] Error: {e}")
 
 
+@app.websocket("/ws/story-updates")
+async def websocket_story_updates_endpoint(websocket: WebSocket) -> None:
+    """WebSocket endpoint for real-time story phase change events.
+
+    Clients connect and send a subscribe message:
+        {"type": "subscribe", "story_ids": ["US-001", "US-002"]}
+        {"type": "subscribe", "story_ids": "*"}
+
+    Server then broadcasts phase change events matching the subscription:
+        {"story_id": "US-001", "from_phase": "S", "to_phase": "M", "timestamp": "..."}
+    """
+    manager = get_story_updates_manager()
+    await manager.connect(websocket)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            try:
+                msg = json.loads(data)
+                if msg.get("type") == "subscribe":
+                    story_ids = msg.get("story_ids", [])
+                    await manager.subscribe(websocket, story_ids)
+                    logger.debug(f"[ws/story-updates] Subscribed to: {story_ids}")
+            except Exception:
+                logger.debug(f"[ws/story-updates] Received non-JSON or invalid message: {data}")
+    except WebSocketDisconnect:
+        await manager.disconnect(websocket)
+        logger.debug("[ws/story-updates] Client disconnected")
+    except Exception as e:
+        await manager.disconnect(websocket)
+        logger.error(f"[ws/story-updates] Error: {e}")
+
+
 # Export for use in tests and main application
-__all__ = ["app", "get_manager", "get_timeline_manager", "get_alerts_manager"]
+__all__ = ["app", "get_manager", "get_timeline_manager", "get_alerts_manager", "get_story_updates_manager"]
