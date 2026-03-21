@@ -515,6 +515,63 @@ async def timeseries_endpoint(
     }
 
 
+@app.get("/api/dashboard/phase-bottlenecks")
+async def phase_bottlenecks_endpoint(
+    iteration_min: Optional[int] = None,
+    iteration_max: Optional[int] = None,
+    story_status: Optional[str] = None,
+) -> dict[str, Any]:
+    """Phase bottleneck analysis endpoint (US-664).
+
+    Analyzes results.tsv to detect phases consuming disproportionate wall-clock time.
+
+    Query Parameters:
+        iteration_min: Minimum spiral_iter (inclusive)
+        iteration_max: Maximum spiral_iter (inclusive)
+        story_status: Filter by status field (exact match)
+
+    Returns JSON with:
+        {
+            "phases": [
+                {
+                    "name": "Phase I",
+                    "totalTime": 3600.0,
+                    "avgPerStory": 720.0,
+                    "percentOfIteration": 45.0,
+                    "recommendation": "increase workers"
+                },
+                ...
+            ]
+        }
+    """
+    from ..phase_bottleneck_analysis import (
+        compute_phase_bottlenecks,
+        filter_results,
+        load_results,
+    )
+
+    results_path = Path(".spiral/results.tsv")
+    response: dict[str, Any] = {"phases": []}
+
+    if not results_path.exists():
+        return response
+
+    try:
+        rows = load_results(results_path)
+        filtered = filter_results(
+            rows,
+            iteration_min=iteration_min,
+            iteration_max=iteration_max,
+            story_status=story_status,
+        )
+        bottlenecks = compute_phase_bottlenecks(filtered)
+        response["phases"] = bottlenecks
+    except Exception as e:
+        logger.error(f"[/api/dashboard/phase-bottlenecks] Error: {e}")
+
+    return response
+
+
 @app.websocket("/ws/cost")
 async def websocket_cost_endpoint(websocket: WebSocket) -> None:
     """WebSocket endpoint for real-time cost delta streaming.
