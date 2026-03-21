@@ -1,3 +1,23 @@
+## Iteration [Current] - Story: US-662 Dashboard React Component - Real-Time Worker Phase Swimlane Timeline
+
+### What was implemented
+- **spiral-ui/src/components/WorkerTimelineChart.tsx** — New React component (107 lines)
+  - Polls `/api/workers/${id}/queue` every 1s for worker-1, worker-2, worker-3 using Promise.allSettled
+  - Renders horizontal swimlanes per worker with phase blocks colored by status (blue=running, green=done, red=failed)
+  - Native `title` attribute tooltips show phase name, duration, tokens, model
+  - Gracefully shows "idle" when no phases, "No worker data available" when endpoint not yet implemented
+
+### Patterns discovered
+- Previous attempt failed at 254 lines (diff-guard); kept this to 107 lines by using title attribute for tooltips instead of custom component
+- Promise.allSettled allows graceful degradation when some worker endpoints return 404
+- SPIRAL_MAX_DIFF_LINES is now 400 in spiral.config.sh (was 200 at time of first attempt)
+
+### Gotchas
+- TypeScript strict: unused variables in catch blocks require empty `catch { }` syntax
+- Component renders without data (no server endpoint yet) by checking `r.ok` before parsing JSON
+
+---
+
 ## Iteration [28+1] - Story: US-675 CLI: spiral trace-dependencies
 
 ### What was implemented
@@ -345,4 +365,7 @@ Here is the technical brief for implementing the `trace-dependencies` command in
 1. ✅ lib/spiral/validate_phase_outputs.py with schema matchers for each phase output type
 2. ✅ CLI command `spiral validate-phase-outputs [--phase R|T|S|M]` validates .spiral/ output files against lib/schemas/phase_*.schema.json
 3. ✅ JSON output {valid, phase, errors: [{file, line, expected, got}]} and --format text for human-readable report
+
+## Iteration 1 - Sun, Mar 22, 2026  1:11:49 AM
+FAILED diff-guard: Dashboard React Component - Real-Time Worker Phase Swimlane Timeline (ID: US-662) — 254 lines > 200 limit — attempt 1/3
 

@@ -42,8 +42,10 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "_failureReason": "oversized_diff",
+      "last_attempted": "2026-03-21T17:11:53Z"
     },
     {
       "id": "US-663",
