@@ -75,7 +75,8 @@ def _jira_get(url: str, auth_header: str) -> dict[str, Any]:
     )
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
-            return json.loads(resp.read().decode("utf-8"))
+            result: dict[str, Any] = json.loads(resp.read().decode("utf-8"))
+            return result
     except urllib.error.HTTPError as exc:
         body = exc.read().decode("utf-8", errors="replace")
         raise RuntimeError(f"Jira API error {exc.code}: {body}") from exc
@@ -145,7 +146,7 @@ def _extract_description(issue: dict[str, Any]) -> str:
 def _adf_to_text(node: dict[str, Any]) -> str:
     """Recursively extract plain text from an ADF node."""
     if node.get("type") == "text":
-        return node.get("text", "")
+        return str(node.get("text", ""))
     parts: list[str] = []
     for child in node.get("content") or []:
         parts.append(_adf_to_text(child))
@@ -211,7 +212,8 @@ def _load_prd(prd_path: str) -> dict[str, Any]:
     if not path.exists():
         raise FileNotFoundError(f"prd.json not found at {prd_path!r}")
     with open(path, encoding="utf-8") as fh:
-        return json.load(fh)
+        result: dict[str, Any] = json.load(fh)
+        return result
 
 
 # ── Public API ────────────────────────────────────────────────────────────────

@@ -19,6 +19,7 @@ import argparse
 import json
 import os
 import sys
+from typing import Any
 
 sys.path.insert(0, os.path.dirname(__file__))
 from check_dag import find_cycles
@@ -29,7 +30,7 @@ from story_helpers import get_files_to_touch
 configure_utf8_stdout()
 
 
-def jaccard(a: set, b: set) -> float:
+def jaccard(a: set[str], b: set[str]) -> float:
     """Jaccard similarity: |A ∩ B| / |A ∪ B|. Returns 0.0 if union is empty."""
     union = a | b
     if not union:
@@ -38,7 +39,7 @@ def jaccard(a: set, b: set) -> float:
 
 
 def infer_dependencies(
-    stories: list[dict],
+    stories: list[dict[str, Any]],
 ) -> tuple[list[tuple[str, str]], list[tuple[str, str, float]]]:
     """
     Compare file-touch overlap for all pairs of pending stories.
@@ -75,7 +76,7 @@ def infer_dependencies(
     return strong, weak
 
 
-def apply_strong_deps(prd: dict, strong: list[tuple[str, str]]) -> tuple[int, int]:
+def apply_strong_deps(prd: dict[str, Any], strong: list[tuple[str, str]]) -> tuple[int, int]:
     """
     Apply strong dependency edges to prd stories without creating cycles.
 
@@ -94,8 +95,8 @@ def apply_strong_deps(prd: dict, strong: list[tuple[str, str]]) -> tuple[int, in
         if story_a is None or story_b is None:
             continue
 
-        deps_a: list = story_a.setdefault("dependencies", [])
-        deps_b: list = story_b.setdefault("dependencies", [])
+        deps_a: list[str] = story_a.setdefault("dependencies", [])
+        deps_b: list[str] = story_b.setdefault("dependencies", [])
 
         # Skip if either direction already recorded
         if b_id in deps_a or a_id in deps_b:
@@ -147,8 +148,8 @@ def main() -> int:
     errors = validate_prd(prd)
     if errors:
         print("[infer_deps] ERROR: PRD schema validation failed:", file=sys.stderr)
-        for e in errors:
-            print(f"  - {e}", file=sys.stderr)
+        for err in errors:
+            print(f"  - {err}", file=sys.stderr)
         return 1
 
     stories = prd.get("userStories", [])

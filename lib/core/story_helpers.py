@@ -29,5 +29,6 @@ def priority_key(story: dict[str, Any]) -> int:
     """
     if "priorityScore" in story:
         return 100 - int(story["priorityScore"])
-    score = PRIORITY_SCORE_DEFAULT.get(story.get("priority", "medium"), 40)
+    priority: str = story.get("priority", "medium") or "medium"
+    score: int = PRIORITY_SCORE_DEFAULT.get(priority, 40)
     return 100 - score

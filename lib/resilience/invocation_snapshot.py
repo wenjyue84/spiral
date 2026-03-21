@@ -90,7 +90,8 @@ def read_snapshot(base_dir: str, story_id: str) -> dict[str, Any] | None:
     if not os.path.isfile(path):
         return None
     with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)  # type: ignore[no-any-return]
+        result: dict[str, Any] = json.load(f)
+        return result
 
 
 def list_snapshots(base_dir: str) -> list[dict[str, Any]]:

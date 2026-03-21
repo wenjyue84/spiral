@@ -45,7 +45,8 @@ def load_queue(queue_path: str) -> list[dict[str, Any]]:
     try:
         with open(queue_path, encoding="utf-8") as f:
             data: dict[str, Any] = json.load(f)
-        return data.get("stories", [])  # type: ignore[no-any-return]
+        stories: list[dict[str, Any]] = data.get("stories", [])
+        return stories
     except (json.JSONDecodeError, OSError):
         return []
 

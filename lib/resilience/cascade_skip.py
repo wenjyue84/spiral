@@ -63,7 +63,7 @@ def main() -> int:
         atomic_write_json(args.prd, prd)
 
         for sid in newly:
-            story = next((s for s in prd.get("userStories", []) if s.get("id") == sid), {})
+            story: dict[str, object] = next((s for s in prd.get("userStories", []) if s.get("id") == sid), {})
             reason = story.get("_failureReason", "")
             print(f"[cascade_skip]   x {sid} — {reason}")
         print(f"[cascade_skip] {len(newly)} story/stories cascaded as _skipped")

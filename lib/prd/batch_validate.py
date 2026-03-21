@@ -41,14 +41,14 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
 try:
-    from anthropic import Anthropic  # type: ignore[import-untyped]
+    from anthropic import Anthropic
 except ImportError:
-    Anthropic = None  # type: ignore[assignment,misc]
+    Anthropic = None
 
 try:
     from llm_client import stream_completion
 except ImportError:
-    stream_completion = None  # type: ignore[assignment,misc]
+    stream_completion = None
 
 __all__ = [
     "build_batch_requests",

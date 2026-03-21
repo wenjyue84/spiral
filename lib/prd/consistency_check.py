@@ -230,7 +230,7 @@ def flag_stories_in_prd(
     }
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Self-consistency hallucination check for story generation")
     parser.add_argument(
         "mode",

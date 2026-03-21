@@ -55,8 +55,9 @@ def _load_prd_stories(prd_path: str | Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
     with open(path, encoding="utf-8") as f:
-        data = json.load(f)
-    return data.get("userStories", [])
+        data: dict[str, Any] = json.load(f)
+    stories: list[dict[str, Any]] = data.get("userStories", [])
+    return stories
 
 
 def _extract_story_ids(text: str) -> list[str]:

@@ -18,7 +18,7 @@ def _validate_float(text: str) -> bool:
         return False
 
 
-def create_config_file(config):
+def create_config_file(config: dict[str, object]) -> None:
     """Creates the spiral.config.sh file from a dictionary of settings."""
     content = "#!/bin/bash\n\n# Spiral Configuration\n\n"
     for key, value in config.items():
@@ -29,7 +29,7 @@ def create_config_file(config):
     print("✅ Created spiral.config.sh")
 
 
-def setup_wizard():
+def setup_wizard() -> None:
     """Runs the interactive setup wizard."""
     print("🌀 Welcome to the Spiral setup wizard!")
 

@@ -246,8 +246,8 @@ def main() -> None:
     if len(sys.argv) < 2:
         print("Usage: python -m lib.error_catalog <ERROR_CODE> [details]")
         print("\nAvailable codes:")
-        for code, entry in sorted(ERROR_CATALOG.items()):
-            print(f"  {code}  [{entry.category}]  exit={entry.exit_code}  {entry.message}")
+        for code, cat_entry in sorted(ERROR_CATALOG.items()):
+            print(f"  {code}  [{cat_entry.category}]  exit={cat_entry.exit_code}  {cat_entry.message}")
         sys.exit(0)
     code = sys.argv[1].upper()
     details = " ".join(sys.argv[2:]) if len(sys.argv) > 2 else ""

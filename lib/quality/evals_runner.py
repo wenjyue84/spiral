@@ -13,7 +13,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import yaml  # type: ignore[import-untyped]
+import yaml
 
 
 @dataclass

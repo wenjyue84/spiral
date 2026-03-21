@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent / "tests"))
 from evals.runner import EvalsRunner
 
 
-def main():
+def main() -> None:
     """Main entry point for evals runner."""
     # Find evals directory relative to tests/
     project_root = Path(__file__).parent.parent.parent

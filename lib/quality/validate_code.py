@@ -3,7 +3,7 @@ import subprocess
 import sys
 
 
-def validate_code(file_path):
+def validate_code(file_path: str) -> float:
     """
     Runs pylint on a given file and returns a score.
     A score of 10.0 is perfect.

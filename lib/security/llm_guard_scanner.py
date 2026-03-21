@@ -55,7 +55,7 @@ class ScanResult:
     source: str  # label for the content source (e.g. "gemini_research")
     duration_ms: int  # wall-clock time for the scan in milliseconds
 
-    def as_event_fields(self) -> dict:
+    def as_event_fields(self) -> dict[str, object]:
         """Return fields suitable for embedding in a JSONL event."""
         return {
             "source": self.source,

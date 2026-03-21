@@ -58,7 +58,8 @@ def _load_prd(prd_path: str) -> dict[str, Any]:
     if not path.exists():
         raise FileNotFoundError(f"prd.json not found at {prd_path!r}")
     with open(path, encoding="utf-8") as fh:
-        return json.load(fh)
+        result: dict[str, Any] = json.load(fh)
+        return result
 
 
 def _next_story_id(existing_stories: list[dict[str, Any]]) -> str:

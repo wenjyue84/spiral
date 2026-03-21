@@ -61,7 +61,7 @@ def create_chunks(lines: List[str], size: int, overlap: int) -> List[str]:
     return chunks
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Extract semantically relevant code chunks from a file.")
     parser.add_argument("--file", required=True, help="Path to the source code file.")
     parser.add_argument("--task", required=True, help="The task description to match against.")

@@ -19,6 +19,7 @@ import json
 import os
 import sys
 from collections import deque
+from typing import Any
 
 sys.path.insert(0, os.path.dirname(__file__))
 from spiral_io import configure_utf8_stdout
@@ -65,7 +66,7 @@ class SpiralPhaseStateMachine:
     'M'
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.current: str | None = None
         self.iteration: int = 0
         self.history: list[tuple[int, str]] = []  # (iteration, phase) pairs
@@ -100,7 +101,7 @@ class SpiralPhaseStateMachine:
             return True
         return PHASE_ORDER[phase] > PHASE_ORDER[self.current]
 
-    def validate_checkpoint(self, checkpoint: dict) -> list[str]:
+    def validate_checkpoint(self, checkpoint: dict[str, Any]) -> list[str]:
         """Validate a checkpoint dict against state machine rules."""
         errors = []
         ckpt_iter = checkpoint.get("iter")
@@ -213,7 +214,7 @@ class StoryLifecycle:
 # -- PRD Story State Inference -------------------------------------------------
 
 
-def infer_story_state(story: dict) -> str:
+def infer_story_state(story: dict[str, Any]) -> str:
     """Infer the lifecycle state of a story from its prd.json fields."""
     if story.get("_decomposed"):
         return "decomposed"
@@ -222,7 +223,7 @@ def infer_story_state(story: dict) -> str:
     return "pending"
 
 
-def validate_story_states(prd: dict) -> list[str]:
+def validate_story_states(prd: dict[str, Any]) -> list[str]:
     """
     Validate that all story states in a PRD are consistent with lifecycle rules.
     Returns a list of error strings (empty = valid).
@@ -280,7 +281,7 @@ def validate_story_states(prd: dict) -> list[str]:
 
 
 def cascade_skip(
-    prd: dict,
+    prd: dict[str, Any],
     events_path: str | None = None,
     iteration: int = 0,
     run_id: str = "",
@@ -300,14 +301,16 @@ def cascade_skip(
     import datetime
 
     stories = prd.get("userStories", [])
-    id_map: dict[str, dict] = {s["id"]: s for s in stories if isinstance(s, dict) and "id" in s}
+    id_map: dict[str, dict[str, Any]] = {s["id"]: s for s in stories if isinstance(s, dict) and "id" in s}
 
     # Build reverse adjacency: dep_id → set of story IDs that declare dep_id
     reverse: dict[str, set[str]] = {}
     for story in stories:
         if not isinstance(story, dict):
             continue
-        sid = story.get("id")
+        sid: str | None = story.get("id")
+        if sid is None:
+            continue
         for dep in story.get("dependencies", []):
             if dep not in reverse:
                 reverse[dep] = set()
@@ -317,11 +320,11 @@ def cascade_skip(
     queue: deque[tuple[str, str]] = deque()  # (story_id, triggering_dep_id)
     for story in stories:
         if isinstance(story, dict) and story.get("_skipped") and story.get("id"):
-            sid = story["id"]
-            for dependent in reverse.get(sid, set()):
+            seed_sid: str = str(story["id"])
+            for dependent in reverse.get(seed_sid, set()):
                 dep_story = id_map.get(dependent)
                 if dep_story and not dep_story.get("_skipped"):
-                    queue.append((dependent, sid))
+                    queue.append((dependent, seed_sid))
 
     newly_cascaded: list[str] = []
 

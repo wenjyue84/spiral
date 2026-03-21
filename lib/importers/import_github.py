@@ -90,7 +90,8 @@ def _graphql_request(query: str, variables: dict[str, Any], token: str) -> dict[
     )
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
-            return json.loads(resp.read().decode("utf-8"))
+            result: dict[str, Any] = json.loads(resp.read().decode("utf-8"))
+            return result
     except urllib.error.HTTPError as exc:
         body = exc.read().decode("utf-8", errors="replace")
         raise RuntimeError(f"GitHub API error {exc.code}: {body}") from exc
@@ -213,7 +214,8 @@ def _load_prd(prd_path: str) -> dict[str, Any]:
     if not path.exists():
         raise FileNotFoundError(f"prd.json not found at {prd_path!r}")
     with open(path, encoding="utf-8") as fh:
-        return json.load(fh)
+        result2: dict[str, Any] = json.load(fh)
+        return result2
 
 
 # ── Public API ────────────────────────────────────────────────────────────────

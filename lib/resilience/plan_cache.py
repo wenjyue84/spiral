@@ -243,7 +243,8 @@ def main() -> int:
 
     def _load_story(path: str) -> dict[str, Any]:
         with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)  # type: ignore[no-any-return]
+            result: dict[str, Any] = json.load(f)
+            return result
 
     if args.command == "store":
         story = _load_story(args.story_json)

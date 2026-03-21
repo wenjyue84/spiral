@@ -314,11 +314,11 @@ def main() -> int:
             print("[partition] WARNING: --federated specified but no sub_project fields found in pending stories")
             sub_projects = {"default"}
 
-        sub_projects = sorted(list(sub_projects))
-        print(f"[partition] Federated mode: detected sub_projects: {sub_projects}")
+        sorted_sub_projects = sorted(list(sub_projects))
+        print(f"[partition] Federated mode: detected sub_projects: {sorted_sub_projects}")
 
         # Partition each sub_project independently
-        for sub_proj in sub_projects:
+        for sub_proj in sorted_sub_projects:
             proj_pending = [s for s in pending if s.get("sub_project", "default") == sub_proj]
             proj_completed = [s for s in completed if s.get("sub_project", "default") == sub_proj]
 
@@ -374,12 +374,12 @@ def main() -> int:
             os.replace(tmp, out_path)
             story_ids = [s["id"] for s in bucket]
             id_list = ", ".join(story_ids[:5]) + ("..." if len(story_ids) > 5 else "")
-            priority_counts: dict[str, int] = {}
+            worker_priority_counts: dict[str, int] = {}
             for s in bucket:
                 p = s.get("priority", "medium")
-                priority_counts[p] = priority_counts.get(p, 0) + 1
+                worker_priority_counts[p] = worker_priority_counts.get(p, 0) + 1
             pcount_str = " ".join(
-                f"{p}:{c}" for p, c in sorted(priority_counts.items(), key=lambda kv: PRIORITY_RANK.get(kv[0], 2))
+                f"{p}:{c}" for p, c in sorted(worker_priority_counts.items(), key=lambda kv: PRIORITY_RANK.get(kv[0], 2))
             )
             print(f"[partition] Worker {worker_num}: {len(bucket)} stories [{id_list}] ({pcount_str}) → {out_path}")
 

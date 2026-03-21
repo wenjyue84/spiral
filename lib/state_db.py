@@ -300,12 +300,12 @@ class StateDB:
         )
         self.con.commit()
         row = self.con.execute("SELECT count FROM retry_counts WHERE story_id = ?", (story_id,)).fetchone()
-        return row[0] if row else 1
+        return int(row[0]) if row else 1
 
     def get_retry_count(self, story_id: str) -> int:
         """Get retry count for a single story."""
         row = self.con.execute("SELECT count FROM retry_counts WHERE story_id = ?", (story_id,)).fetchone()
-        return row[0] if row else 0
+        return int(row[0]) if row else 0
 
     def get_retry_counts(self) -> dict[str, int]:
         """Get all retry counts, falling back to retry-counts.json if empty."""

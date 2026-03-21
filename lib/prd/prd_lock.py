@@ -272,7 +272,8 @@ def prd_locked(
         # ── Lock held: read prd.json (with transient I/O retry) ─────────
         def _read() -> dict[str, Any]:
             with open(prd_path, encoding="utf-8") as f:
-                return json.load(f)  # type: ignore[return-value]
+                result: dict[str, Any] = json.load(f)
+            return result
 
         prd = _retry_io(_read, events_path=events_path)
 

@@ -361,8 +361,8 @@ def write_prd_validated(prd_path: str, new_content_path: str) -> int:
         all_errors = validate_jsonschema(new_prd, schema_file)
     # Always run stdlib cross-story checks; errors are already in /pointer — message format
     stdlib_errors = validate_prd(new_prd)
-    for e in stdlib_errors:
-        all_errors.append(f"SCHEMA ERROR: {e}")
+    for stdlib_err in stdlib_errors:
+        all_errors.append(f"SCHEMA ERROR: {stdlib_err}")
 
     if all_errors:
         print(f"[schema] {new_content_path} \u2014 {len(all_errors)} validation error(s):", file=sys.stderr)

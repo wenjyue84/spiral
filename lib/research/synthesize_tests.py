@@ -18,7 +18,7 @@ import tempfile
 from typing import Any
 
 try:
-    import yaml as _yaml  # type: ignore[import-untyped]
+    import yaml as _yaml
 
     HAS_YAML = True
 except ImportError:

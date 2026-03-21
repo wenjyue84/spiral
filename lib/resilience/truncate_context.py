@@ -82,7 +82,7 @@ CORE_FIELDS: frozenset[str] = frozenset(
 
 def _count_tokens_tiktoken(text: str) -> int:
     """Count tokens using tiktoken cl100k_base (exact for GPT/Claude models)."""
-    import tiktoken  # type: ignore[import]
+    import tiktoken
 
     enc = tiktoken.get_encoding("cl100k_base")
     return len(enc.encode(text))

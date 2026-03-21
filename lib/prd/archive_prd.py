@@ -9,6 +9,8 @@ Usage:
   python lib/archive_prd.py [--prd prd.json] [--archive prd-archive.json] [--dry-run]
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import os
@@ -18,12 +20,12 @@ sys.path.insert(0, os.path.dirname(__file__))
 from spiral_io import atomic_write_json
 
 
-def is_archivable(story):
+def is_archivable(story: dict[str, object]) -> bool:
     """True if story should be moved to the archive."""
     return story.get("passes") is True and not story.get("_decomposed", False)
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Archive completed stories from prd.json")
     parser.add_argument("--prd", default="prd.json", help="Path to prd.json (default: prd.json)")
     parser.add_argument(

@@ -70,7 +70,8 @@ def detect_stack(project_root: str | Path | None = None) -> StackResult:
         indicator_file    str   — the file that triggered detection
         detected          bool  — True if a stack was found, False if only defaults
     """
-    root = Path(project_root or os.environ.get("SPIRAL_PROJECT_ROOT", ".")).resolve()
+    _root_str: str | Path = project_root or os.environ.get("SPIRAL_PROJECT_ROOT") or "."
+    root = Path(_root_str).resolve()
 
     for indicators, lang, validate_cmd, pkg_mgr in _STACK_DEFS:
         for indicator in indicators:
@@ -104,7 +105,8 @@ def load_or_detect(
     Cache file: <cache_dir>/detected_stack.json  (default: .spiral/)
     Cache is invalidated if the project_root changes or the cache is missing.
     """
-    root = Path(project_root or os.environ.get("SPIRAL_PROJECT_ROOT", ".")).resolve()
+    _root_str2: str | Path = project_root or os.environ.get("SPIRAL_PROJECT_ROOT") or "."
+    root = Path(_root_str2).resolve()
     scratch = Path(cache_dir or ".spiral")
     cache_file = scratch / "detected_stack.json"
 

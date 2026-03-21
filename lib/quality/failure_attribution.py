@@ -357,23 +357,23 @@ def main() -> int:
         if args.format == "json":
             print(json.dumps(chain, indent=2))
         else:
-            total = chain.get("total_failures", 0)  # type: ignore
-            local = chain.get("local_failures", 0)  # type: ignore
-            cascade = chain.get("cascade_failures", 0)  # type: ignore
+            total = chain.get("total_failures", 0)
+            local = chain.get("local_failures", 0)
+            cascade = chain.get("cascade_failures", 0)
             print(f"Total failures: {total}")
             print(f"  Local: {local}, Cascade: {cascade}")
-            chains_list = chain.get("chains", [])  # type: ignore
+            chains_list = chain.get("chains", [])
             for idx, chain_item in enumerate(chains_list, 1):
-                root_w = chain_item.get("root_worker", "?")  # type: ignore
-                root_s = chain_item.get("root_story", "?")  # type: ignore
+                root_w = chain_item.get("root_worker", "?")
+                root_s = chain_item.get("root_story", "?")
                 print(f"\nChain {idx} (root: worker {root_w}, story {root_s}):")
-                failures = chain_item.get("failures", [])  # type: ignore
+                failures = chain_item.get("failures", [])
                 for failure_item in failures:
-                    f_type = failure_item.get("failure_type", "unknown")  # type: ignore
-                    f_id = failure_item.get("worker_id", "?")  # type: ignore
-                    s_id = failure_item.get("story_id", "?")  # type: ignore
-                    f_err = failure_item.get("error_message", "")[:60]  # type: ignore
-                    f_res = failure_item.get("contended_resource")  # type: ignore
+                    f_type = failure_item.get("failure_type", "unknown")
+                    f_id = failure_item.get("worker_id", "?")
+                    s_id = failure_item.get("story_id", "?")
+                    f_err = failure_item.get("error_message", "")[:60]
+                    f_res = failure_item.get("contended_resource")
                     indent = "  " if f_type == "local" else "    -> "
                     print(f"{indent}{f_type.upper()}: worker {f_id} ({s_id}) — {f_err}")
                     if f_res:

@@ -30,7 +30,7 @@ import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 sys.path.insert(0, os.path.dirname(__file__))
 from spiral_io import atomic_write_json, configure_utf8_stdout
@@ -87,7 +87,7 @@ _BASE64_PATTERN = re.compile(
     re.ASCII,
 )
 
-_COMPILED_PATTERNS: list[tuple[re.Pattern, str]] = [
+_COMPILED_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(raw, re.IGNORECASE), name) for raw, name in _RAW_PATTERNS
 ]
 
@@ -132,7 +132,7 @@ def scan_for_injection(text: str) -> tuple[bool, Optional[str]]:
     return False, None
 
 
-def _story_text_fragments(story: dict) -> list[str]:
+def _story_text_fragments(story: dict[str, Any]) -> list[str]:
     """Extract all text fragments from a story for scanning."""
     fragments: list[str] = []
     for field in _STORY_TEXT_FIELDS:
@@ -156,7 +156,7 @@ def scan_prd_stories(
     audit_log: str = "security-audit.jsonl",
     update_prd: bool = False,
     allow_unsafe: bool = False,
-) -> tuple[list[str], list[dict]]:
+) -> tuple[list[str], list[dict[str, Any]]]:
     """Scan all incomplete stories in *prd_path* for injection patterns.
 
     Args:
@@ -169,11 +169,11 @@ def scan_prd_stories(
         (blocked_ids, audit_entries)
     """
     prd_file = Path(prd_path)
-    prd = json.loads(prd_file.read_text(encoding="utf-8"))
-    stories: list[dict] = prd.get("userStories", [])
+    prd: dict[str, Any] = json.loads(prd_file.read_text(encoding="utf-8"))
+    stories: list[dict[str, Any]] = prd.get("userStories", [])
 
     blocked_ids: list[str] = []
-    audit_entries: list[dict] = []
+    audit_entries: list[dict[str, Any]] = []
 
     for story in stories:
         if story.get("passes", False):
