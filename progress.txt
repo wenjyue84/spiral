@@ -1,3 +1,16 @@
+## Iteration (final) - Story: US-597 Phase I: File-Aware Retry Strategy
+
+### What was implemented
+- lib/impl/file_aware_retry.py: Added `store_failed_files()` + `store` CLI subcommand that updates last results.tsv row with failed_files JSON
+- lib/phases/phase_i_implement.sh: Integrated file-aware retry — reads previous failed_files → exports RALPH_FILES_ONLY; captures failed files from stderr after failure → stores in results.tsv
+- lib/results_tsv.py: Resolved merge conflict in failed_files field comment (two concurrent workers)
+- All 19 tests pass, mypy clean, 119/119 stories passing
+
+### Patterns discovered
+- Concurrent Ralph workers can cause merge conflicts — always check for conflict markers after parallel runs
+- RALPH_FILES_ONLY env var is the cleanest way to pass failed_files to ralph (set before call, unset after; survives ralph arg processing via `:-` default)
+- `store` subcommand exits 1 if story not found (callers use `|| true`)
+
 ## Iteration (verification) - Story: US-597 Phase I: File-Aware Retry Strategy
 
 ### What was implemented
