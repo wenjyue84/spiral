@@ -11,23 +11,6 @@
   ],
   "userStories": [
     {
-      "id": "US-640",
-      "title": "Phase G: Extract Story-to-Commit Mappings from Git History",
-      "priority": "medium",
-      "description": "Implement commit message parser extracting US-XXX story IDs from git history, creating bidirectional mapping (story ID ↔ commits). Detects orphaned commits. Core utility for Phase G CHANGELOG generation linking commits to stories.",
-      "acceptanceCriteria": [
-        "lib/prd/extract_story_commits.py: function story_commits_from_git(repo_path) returns Dict[str, List[str]] mapping story_id to commit SHAs matching US-\\d{3} pattern in messages",
-        "Detects orphaned commits (matching git tag/branch pattern US-XXX-* but story not in prd.json) and logs warnings",
-        "tests/test_extract_story_commits.py: fixture repo with 5 stories and 8 commits, validates mappings correct and 2 orphans detected"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": true,
-      "_source": "ai-example",
-      "model": "haiku"
-    },
-    {
       "id": "US-641",
       "title": "Dashboard Endpoint: GET /api/dashboard/phase-cost-breakdown -- Token/Cost per Phase",
       "priority": "medium",
@@ -42,9 +25,7 @@
       "estimatedComplexity": "small",
       "passes": true,
       "_source": "ai-example",
-      "model": "haiku",
-      "_failureReason": "oversized_diff",
-      "last_attempted": "2026-03-21T09:58:00Z"
+      "model": "haiku"
     },
     {
       "id": "US-642",
@@ -261,6 +242,22 @@
       "estimatedComplexity": "small",
       "passes": false,
       "model": "haiku"
+    },
+    {
+      "id": "US-665",
+      "title": "CLI: spiral list-federation — Display Sub-Project Configuration and Story Allocation Summary",
+      "priority": "medium",
+      "description": "CLI command that reads .spiral/federation.toml and prd.json to summarize federated setup: sub-project names, story counts per project, and worker allocations. Helps operators verify federation configuration at a glance.",
+      "acceptanceCriteria": [
+        "Command spiral list-federation outputs JSON: {sub_projects: [{name: 'frontend', story_count: 12, workers: 2}, {name: 'backend', story_count: 8, workers: 1}], total_stories: 20, total_workers: 3}",
+        "Returns exit code 1 if federation.toml missing or prd.json sub_project field inconsistent with config",
+        "Test: validates output counts match prd.json tallies, JSON matches federation schema, empty sub_project defaults to 'default'"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
     },
     {
       "id": "US-660",
@@ -2077,6 +2074,23 @@
       "model": "haiku",
       "_scopeCreep": true,
       "tags": []
+    },
+    {
+      "id": "US-640",
+      "title": "Phase G: Extract Story-to-Commit Mappings from Git History",
+      "priority": "medium",
+      "description": "Implement commit message parser extracting US-XXX story IDs from git history, creating bidirectional mapping (story ID ↔ commits). Detects orphaned commits. Core utility for Phase G CHANGELOG generation linking commits to stories.",
+      "acceptanceCriteria": [
+        "lib/prd/extract_story_commits.py: function story_commits_from_git(repo_path) returns Dict[str, List[str]] mapping story_id to commit SHAs matching US-\\d{3} pattern in messages",
+        "Detects orphaned commits (matching git tag/branch pattern US-XXX-* but story not in prd.json) and logs warnings",
+        "tests/test_extract_story_commits.py: fixture repo with 5 stories and 8 commits, validates mappings correct and 2 orphans detected"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "haiku"
     },
     {
       "id": "US-589",
