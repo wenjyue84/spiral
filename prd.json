@@ -21,18 +21,11 @@
         "Include semantic version header from lib/phase_g_semantic_bumper.py version output",
         "Each story entry format: '- US-123: Title (X tokens, Y cost)' with AC bullets"
       ],
-      "technicalNotes": [
-        "Read prd.json for stories with passes:true. Group by _source field. Use lib/phase_g_semantic_bumper.py for version header if it exists, else hardcode v0.1.0. Write RELEASE_NOTES.md to project root. Keep implementation <100 lines. Use csv.DictReader on results.tsv for token/cost data per story."
-      ],
+      "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-03-21T11:16:12Z",
-      "filesTouch": [
-        "lib/phases/phase_g_release_notes.py",
-        "tests/test_phase_g_release_notes.py"
-      ]
+      "model": "haiku"
     },
     {
       "id": "US-646",
@@ -44,18 +37,12 @@
         "Dashboard endpoint GET /api/dashboard/escalation-breakdown returns {token_limit: 12, syntax_error: 8, timeout: 3, api_error: 2} with total_escalations: 25",
         "Test with 3 mock story failures (one token overrun, one syntax, one timeout), asserts escalations.json has correct reason_code for each"
       ],
-      "technicalNotes": [
-        "Follow pattern in lib/dashboard/api.py for endpoint. Write escalations to .spiral/escalations.json. Parse results.tsv for model column changes between retries. Keep implementation <120 lines."
-      ],
+      "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
       "_source": "ai-example",
-      "model": "haiku",
-      "filesTouch": [
-        "lib/quality/escalation_tracker.py",
-        "tests/test_escalation_tracker.py"
-      ]
+      "model": "haiku"
     },
     {
       "id": "US-650",
@@ -67,19 +54,12 @@
         "Computation: velocity = (completed_stories / completed_iterations), cost_velocity = (total_tokens / completed_iterations); forecast = (remaining_stories / velocity) * cost_velocity",
         "Integration test: tests/test_cost_forecast.py mocks results.tsv with 10 iterations, asserts forecast within ±20% of synthetic ground truth"
       ],
-      "technicalNotes": [
-        "Follow cmd_calibration_report pattern in main.py. Parse results.tsv with csv.DictReader. Add subparser at bottom of build_parser(). Use existing parse_results_tsv helper if available. Keep implementation <120 lines."
-      ],
+      "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
       "_source": "ai-example",
-      "model": "sonnet",
-      "filesTouch": [
-        "lib/spiral/cmd_cost_forecast.py",
-        "main.py",
-        "tests/test_cost_forecast.py"
-      ]
+      "model": "sonnet"
     },
     {
       "id": "US-651",
@@ -91,18 +71,12 @@
         "Phase R: before Gemini API call, iterate research_cache.json responses, compute similarity to current query, skip call + log to results.tsv research_dedup_hit=true",
         "Integration test: tests/test_research_dedup.py mocks embeddings, verifies cached response reuse on high-similarity query, cost savings tracked"
       ],
-      "technicalNotes": [
-        "Use TF-IDF only (sklearn.feature_extraction.text.TfidfVectorizer + cosine_similarity). Do NOT use sentence-transformers -- it is not in dependencies. Cache in .spiral/research_cache.json. Gate behind SPIRAL_RESEARCH_DEDUP_THRESHOLD (default 0.85)."
-      ],
+      "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
       "_source": "ai-example",
-      "model": "sonnet",
-      "filesTouch": [
-        "lib/research_dedup.py",
-        "tests/test_research_dedup.py"
-      ]
+      "model": "sonnet"
     },
     {
       "id": "US-652",
@@ -111,20 +85,15 @@
       "description": "Create a timeline visualization showing each worker's time spent in each phase (R/T/S/M/I/V/C) across iterations. Identify phase bottlenecks and worker imbalances. Export as interactive HTML/SVG from dashboard API.",
       "acceptanceCriteria": [
         "Dashboard endpoint: GET /api/dashboard/worker-swimlanes returns JSON: [{worker_id, iteration, phases: [{phase_name, duration_ms, start_time, status}]}]",
-        "Integration test: tests/test_dashboard_worker_swimlanes.py mocks results.tsv with 3 workers across 2 iterations, asserts swimlane JSON schema and phase duration summation"
+        "Dashboard UI: render swimlane chart with workers on Y-axis, time on X-axis, colored bars per phase; hover shows duration and story ID",
+        "Integration test: tests/test_worker_swimlanes.py mocks results.tsv with 3 workers across 2 iterations, asserts swimlane JSON schema and phase duration summation"
       ],
-      "technicalNotes": [
-        "Endpoint only -- no React component. Parse results.tsv for worker_id patterns. Return JSON array of worker phase timings. React component is a separate story (US-662). Keep endpoint <40 lines."
-      ],
+      "technicalNotes": [],
       "dependencies": [],
-      "estimatedComplexity": "small",
+      "estimatedComplexity": "medium",
       "passes": false,
       "_source": "ai-example",
-      "model": "sonnet",
-      "filesTouch": [
-        "lib/dashboard/api.py",
-        "tests/test_dashboard_worker_swimlanes.py"
-      ]
+      "model": "sonnet"
     },
     {
       "id": "US-655",
@@ -136,18 +105,12 @@
         "Response includes per-phase retry rates (total_retries/total_stories) sorted descending: [{phase: 'I', retry_rate: 0.35, story_count: 7}, ...]",
         "Test mocks results.tsv with 15 stories across phases with varying retry counts (0-5); validates endpoint aggregation matches expected distribution"
       ],
-      "technicalNotes": [
-        "Add @app.get('/api/dashboard/retry-analysis') to lib/dashboard/api.py following existing endpoint pattern (see phase-cost-breakdown at line 268). Parse results.tsv retry_num column. Return JSON with per-phase aggregation. Keep endpoint function <40 lines."
-      ],
+      "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
       "_source": "ai-example",
-      "model": "haiku",
-      "filesTouch": [
-        "lib/dashboard/api.py",
-        "tests/test_dashboard_retry_analysis.py"
-      ]
+      "model": "haiku"
     },
     {
       "id": "US-656",
@@ -165,8 +128,7 @@
       "passes": false,
       "_source": "ai-example",
       "model": "haiku",
-      "_skipped": true,
-      "_failureReason": "Rewriting story IDs across prd.json is destructive and untestable in isolation. Skipped by design."
+      "_skipped": true
     },
     {
       "id": "US-657",
@@ -178,20 +140,11 @@
         "Clients can subscribe with message {type: 'subscribe', story_ids: ['US-001', 'US-002']} or {type: 'subscribe', story_ids: '*'} for all updates",
         "Integration test mocks Phase C updating prd.json story phase, verifies /ws/story-updates sends broadcast to 2 connected clients, clients receive correct message format"
       ],
-      "technicalNotes": [
-        "Follow /ws/cost pattern in api.py (line 519). Create StoryUpdateManager similar to ConnectionManager in cost_broadcaster.py. Broadcast when prd.json story phase changes."
-      ],
-      "dependencies": [
-        "US-646"
-      ],
+      "technicalNotes": [],
+      "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
-      "model": "sonnet",
-      "filesTouch": [
-        "lib/dashboard/api.py",
-        "lib/dashboard/story_broadcaster.py",
-        "tests/test_ws_story_updates.py"
-      ]
+      "model": "sonnet"
     },
     {
       "id": "US-661",
@@ -203,18 +156,11 @@
         "CLI command 'spiral validate-phase-outputs [--phase R|T|S|M]' checks .spiral/ output files against lib/schemas/phase_*.schema.json",
         "Output JSON format {valid: bool, phase: string, errors: [{file, line, expected, got}]} or --format text for human-readable report"
       ],
-      "technicalNotes": [
-        "Follow cmd_phase_audit pattern in main.py. Check .spiral/ output files exist and contain valid JSON. Phase outputs: _research_output.json (R), _test_stories_output.json (T), _validated_stories.json (S). Keep implementation <100 lines."
-      ],
+      "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
-      "model": "sonnet",
-      "filesTouch": [
-        "lib/spiral/validate_phase_outputs.py",
-        "main.py",
-        "tests/test_validate_phase_outputs.py"
-      ]
+      "model": "sonnet"
     },
     {
       "id": "US-662",
@@ -226,19 +172,91 @@
         "Render horizontal swimlanes (worker-1, worker-2, worker-3) with phase blocks colored by status (blue=running, green=done, red=failed)",
         "Tooltip on phase block shows phase name, duration, tokens used, and model used (haiku/sonnet/opus)"
       ],
-      "technicalNotes": [
-        "Depends on US-652 endpoint. Use same pattern as StoryDependencyGraph component. Plain SVG, no D3. Poll /api/dashboard/worker-swimlanes every 2s."
-      ],
-      "dependencies": [
-        "US-652"
-      ],
+      "technicalNotes": [],
+      "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
-      "model": "haiku",
-      "filesTouch": [
-        "spiral-ui/src/components/WorkerTimeline.tsx",
-        "spiral-ui/src/components/__tests__/WorkerTimeline.test.tsx"
-      ]
+      "model": "haiku"
+    },
+    {
+      "id": "US-663",
+      "title": "Integration Test: SPIRAL Crash Recovery — Restore State from Checkpoint and Resume",
+      "priority": "medium",
+      "description": "Validates that SPIRAL can recover from mid-phase crashes using .spiral/_checkpoint.json. Simulates crash during Phase I, restarts with --resume-from-checkpoint, and verifies story loop continues without re-executing completed phases.",
+      "acceptanceCriteria": [
+        "Test file tests/integration/test_spiral_crash_recovery.py: start SPIRAL, inject crash during Phase I after story 3 of 5, verify .spiral/_checkpoint.json persists {phase: 'I', completed_stories: ['US-001', 'US-002', 'US-003']}",
+        "Restart with spiral.sh --resume-from-checkpoint skips Phase R/T, resumes Phase I at US-004 without re-running previous stories",
+        "Assert results.tsv consistency: prior 3 story rows unchanged, new rows appended after recovery without duplicates"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-664",
+      "title": "Dashboard Endpoint: Phase Bottleneck Analysis — Identify Time-Consuming Phases per Iteration",
+      "priority": "medium",
+      "description": "Analyzes results.tsv to detect phases consuming disproportionate wall-clock time. Returns per-phase metrics with percentile breakdown and automated optimization recommendations to help operators balance SPIRAL load.",
+      "acceptanceCriteria": [
+        "Endpoint GET /api/dashboard/phase-bottlenecks returns {phases: [{name: 'Phase I', totalTime: 3600, avgPerStory: 720, percentOfIteration: 45, recommendation: 'increase workers'}, ...]}",
+        "Supports filters: ?iteration_min=1&iteration_max=10&story_status=failed to narrow analysis to specific subsets",
+        "Test: identifies phase with max totalTime across iterations and asserts recommendation field contains actionable text like 'parallelize' or 'reduce scope'"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-665",
+      "title": "CLI: spiral list-federation — Display Sub-Project Configuration and Story Allocation Summary",
+      "priority": "medium",
+      "description": "CLI command that reads .spiral/federation.toml and prd.json to summarize federated setup: sub-project names, story counts per project, and worker allocations. Helps operators verify federation configuration at a glance.",
+      "acceptanceCriteria": [
+        "Command spiral list-federation outputs JSON: {sub_projects: [{name: 'frontend', story_count: 12, workers: 2}, {name: 'backend', story_count: 8, workers: 1}], total_stories: 20, total_workers: 3}",
+        "Returns exit code 1 if federation.toml missing or prd.json sub_project field inconsistent with config",
+        "Test: validates output counts match prd.json tallies, JSON matches federation schema, empty sub_project defaults to 'default'"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-666",
+      "title": "Integration Test: Mock Claude API Fixture Quality Assurance — Validate Realistic Coverage",
+      "priority": "medium",
+      "description": "Validates that mock Claude responses in test fixtures realistically simulate API behavior: token estimates, error conditions, and edge cases. Ensures mock library covers all phases and error scenarios with sufficient diversity.",
+      "acceptanceCriteria": [
+        "Test file tests/lib/test_mock_claude_fixture_quality.py: validate mock token counts ±5% of real API, assert error cases present (TimeoutError, RateLimitError, InvalidRequestError) per phase",
+        "Coverage check: all phases (R, T, S, M, I, V, C) have mocks with ≥2 error scenarios each; total coverage score >90%",
+        "Quality utility flag_fixture_issues() returns list of gaps: missing phases, unrealistic token counts, under-represented errors"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-667",
+      "title": "Dashboard: Export Metrics to CSV/JSON/Prometheus — GET /api/dashboard/export?format=csv",
+      "priority": "low",
+      "description": "Adds export capability to dashboard for downloading aggregated results.tsv metrics in CSV, JSON, and Prometheus OpenMetrics formats. Enables external monitoring, offline analysis, and integration with APM platforms.",
+      "acceptanceCriteria": [
+        "Endpoint GET /api/dashboard/export?format=csv&iteration_min=1&iteration_max=5 returns CSV: iteration,story_id,phase,model,tokens,duration,status",
+        "Format=prometheus returns OpenMetrics with metadata: '# HELP spiral_story_tokens_total Total tokens per story\\n spiral_story_tokens_total{story_id=\"US-001\",model=\"haiku\"} 1245'",
+        "Supports filters: iteration range, story status, sub_project; includes metadata row: export_timestamp, spiral_version, row_count"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
     },
     {
       "id": "US-660",
