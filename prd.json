@@ -24,8 +24,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "sonnet",
-      "last_attempted": "2026-03-21T18:56:26Z"
+      "model": "sonnet"
     },
     {
       "id": "US-691",
@@ -170,6 +169,86 @@
       "estimatedComplexity": "small",
       "passes": false,
       "model": "sonnet"
+    },
+    {
+      "id": "US-677",
+      "title": "Dashboard Endpoint: GET /api/dashboard/escalation-success-rates - Model Retry Recovery Analysis",
+      "priority": "medium",
+      "description": "New dashboard endpoint analyzes results.tsv to compute model escalation success rates across story attempts. Returns percentage of stories passing on haiku vs recovering via sonnet vs requiring opus. Reveals model routing effectiveness and identifies patterns requiring escalation.",
+      "acceptanceCriteria": [
+        "Endpoint returns JSON: {haiku_success_rate: 0.72, sonnet_recovery_rate: 0.18, opus_final_rate: 0.10, total_stories_analyzed: 320} derived from results.tsv retry sequences grouped by final model used",
+        "Success rates computed by categorizing stories: haiku_success = stories with retry_count=0 and model='haiku', sonnet_recovery = stories with retry_count≥1 and final model='sonnet', opus_final = final model='opus'",
+        "Integration test with fixture of 10 stories (7 pass haiku, 2 pass sonnet, 1 requires opus) verifies endpoint computes 0.70/0.20/0.10 rates accurately"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-689",
+      "title": "Dashboard Endpoint: GET /api/dashboard/cost-anomalies -- Flag Unusual Story Spend",
+      "priority": "medium",
+      "description": "Real-time anomaly detection endpoint that identifies stories with token spend exceeding phase baselines by >2 standard deviations. Analyzes reason_code patterns from Phase I retry escalation to surface root causes.",
+      "acceptanceCriteria": [
+        "GET /api/dashboard/cost-anomalies reads results.tsv, calculates per-phase mean/stddev from last 10 iterations, returns JSON array with [story_id, phase, tokens, mean_phase, stddev, reason_codes, anomaly_severity] for all stories where tokens > mean + 2*stddev",
+        "WebSocket /ws/cost-anomalies broadcasts new anomalies in real-time as Phase I completes stories, including 5-min moving average to reduce noise",
+        "Dashboard React component at src/components/CostAnomalyAlert.tsx displays anomaly list sorted by severity with drill-down into story retry history"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-690",
+      "title": "CLI: spiral extract-orphan-commits -- Triage Commits Missing Story IDs",
+      "priority": "medium",
+      "description": "Scan git history for commits without story ID prefix and generate actionable triage report. Detects common patterns (merge commits, system commits) and suggests manual re-tagging strategies.",
+      "acceptanceCriteria": [
+        "Command `spiral extract-orphan-commits --since=2w --output=orphan_report.json` scans last 2 weeks of commits, outputs JSON with [commit_hash, author, message, category] where category is one of: 'missing_story_id', 'expected_orphan' (matches patterns: squash, merge, revert, chore), 'ambiguous'",
+        "For ambiguous commits, include suggested_story_id based on message keyword matching with confidence score (0-1)",
+        "Report includes remediation command: `git rebase -i <base_sha> --exec 'git commit --amend -m [US-XXX] ...'` for each missing_story_id commit"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-692",
+      "title": "Cost Anomaly Detector: CLI Command spiral detect-anomalies",
+      "priority": "medium",
+      "description": "Implement statistical outlier detection on results.tsv to flag stories with unusual token spend patterns. Use median absolute deviation (MAD) to identify cost anomalies and categorize root causes.",
+      "acceptanceCriteria": [
+        "Implement lib/cost_anomalies.py detect_spending_anomalies(results_df) using MAD z-score (threshold > 2.5); return DataFrame with columns: story_id, tokens, z_score, anomaly_reason",
+        "Wire CLI command spiral detect-anomalies --output json to write .spiral/cost_anomalies.json listing {story_id, tokens, z_score, anomaly_reason} where reason ∈ {retry_escalation_sonnet, retry_escalation_opus, worker_timeout_retry, implementation_retry}",
+        "Add dashboard endpoint GET /api/dashboard/cost-anomalies returning anomaly count, top 5 anomalies, and anomaly trend (anomalies_per_iteration)"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-694",
+      "title": "CLI: spiral federation-collisions -- Detect Duplicate Story IDs Across Sub-Projects",
+      "priority": "medium",
+      "description": "Implement new CLI command that scans prd.json for duplicate story IDs across federation sub-projects and reports collisions with remediation steps. Supports --namespace-prefix validation (e.g., US-* for main, SP-* for sub-project) and outputs structured JSON report.",
+      "acceptanceCriteria": [
+        "Command spiral federation-collisions scans prd.json, identifies duplicate US-XXX IDs in different sub_project fields, outputs JSON with {collisions: [{story_id, sub_projects: [...]}, ...]} and exits code 1 if violations found",
+        "Support --fix-namespaces flag that automatically remaps conflicting IDs using sub-project prefixes (e.g., US-100 → SP-100 for sub-project 'SP')",
+        "Test validates command detects collisions in sample prd.json and suggests remediation via --dry-run output"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
     },
     {
       "id": "US-687",
