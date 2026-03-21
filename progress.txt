@@ -837,3 +837,41 @@ This is not a Frappe/Python user story. The context and user story JSON point to
 ---
 
 
+<<<<<<< Updated upstream
+=======
+## Pre-analysis for US-699 (Gemini 2.5 Pro)
+Okay, here is the technical brief for the Claude agent.
+
+**Project:** SPIRAL (Not a Frappe/ERPNext project)
+**Objective:** Implement US-699, a real-time dashboard for editing and testing alert thresholds.
+
+**1. Files to Modify:**
+*   **Backend:**
+    *   `spiral/api.py` or `main.py`: To add new HTTP endpoints for getting/setting configurations.
+    *   `spiral/config.py`: To add logic for reading from and safely writing to `spiral.config.sh`.
+    *   `spiral/websocket.py`: To enhance the `/ws/alerts` handler for a test/preview mode.
+    *   `spiral.config.sh`: Target file for configuration persistence.
+*   **Frontend:**
+    *   `spiral-ui/src/pages/ConfigPage.js` (New File): Create a new page/component for the configuration UI.
+    *   `spiral-ui/src/App.js`: To add the new `/config` route.
+    *   `spiral-ui/src/pages/DashboardPage.js`: To add the threshold indicators.
+    *   `spiral-ui/src/services/api.js`: To add functions for interacting with the new backend endpoints.
+
+**2. Involved Components (No Frappe DocTypes):**
+*   **Backend API:** A new set of REST endpoints (e.g., `GET /api/thresholds`, `POST /api/thresholds`, `POST /api/thresholds/test`).
+*   **Configuration Service:** A Python module responsible for parsing and dynamically updating the `spiral.config.sh` file.
+*   **WebSocket Service:** The existing `/ws/alerts` service will be used to push simulated alert notifications.
+
+**3. Implementation Approach:**
+1.  **Backend:** Create an API endpoint in `api.py` that accepts POST requests with the new threshold values. This endpoint will call a new function in `config.py`.
+2.  **Config Update:** The `config.py` function must read `spiral.config.sh`, replace the values for `SPIRAL_ALERT_COST_PER_PHASE`, `SPIRAL_ALERT_TOKEN_RATE`, and `SPIRAL_ALERT_STORY_COUNT` using regex or line-by-line parsing, and write the file back. The running application must be signaled (e.g., SIGHUP or a file watcher) to reload the configuration without a restart.
+3.  **Frontend:** Build a React form on a new `/config` page that fetches current values on load and posts updates on save.
+4.  **Test Preview:** Create a `POST /api/thresholds/test` endpoint that uses the core alerting logic (but bypasses actual gates) to generate sample notifications and broadcasts them via the `/ws/alerts` WebSocket. The frontend will listen for these and display them.
+
+**4. Gotchas & Edge Cases:**
+*   **Config Reload:** The biggest challenge is making the running Python process reload `spiral.config.sh` without restarting. A file watcher that triggers a config reload in the main process is a robust solution.
+*   **Security:** Input must be strictly validated as numerical to prevent shell injection when writing to `spiral.config.sh`.
+*   **Concurrency:** Use a file lock when writing to `spiral.config.sh` to prevent race conditions from multiple users or processes.
+*   **UI Feedback:** The UI must clearly indicate loading/saving states and provide feedback on success or failure of the save/test operations.
+
+>>>>>>> Stashed changes

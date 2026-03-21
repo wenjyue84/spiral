@@ -33,6 +33,7 @@ Subcommands:
   cost-forecast           Forecast remaining budget and timeline from results.tsv velocity (US-650)
   check-federated-deps    Detect circular dependencies and orphans in multi-repo prd.json (US-685)
   trace-dependencies      Resolve and visualize full dependency chain for a story (US-675)
+  show-story-lineage      Show story decomposition lineage tree with status and tokens (US-671)
   list-federation         Display sub-project configuration and story allocation summary (US-665)
 """
 
@@ -3588,6 +3589,35 @@ def main():
         help="Output machine-readable JSON instead of ASCII tree",
     )
 
+    # ── show-story-lineage subcommand (US-671) ────────────────────────────────
+    lineage_parser = subparsers.add_parser(
+        "show-story-lineage",
+        help="Show story decomposition lineage tree with status and tokens (US-671)",
+    )
+    lineage_parser.add_argument(
+        "story_id",
+        metavar="STORY_ID",
+        help="Root story ID to show lineage for (e.g. US-528)",
+    )
+    lineage_parser.add_argument(
+        "--prd",
+        default="prd.json",
+        metavar="FILE",
+        help="Path to prd.json (default: prd.json)",
+    )
+    lineage_parser.add_argument(
+        "--results",
+        default="results.tsv",
+        metavar="FILE",
+        help="Path to results.tsv for token counts (default: results.tsv)",
+    )
+    lineage_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="output_json",
+        help="Output machine-readable JSON instead of ASCII tree",
+    )
+
     # ── validate-phase-outputs subcommand (US-661) ────────────────────────────
     validate_phase_parser = subparsers.add_parser(
         "validate-phase-outputs",
@@ -3732,6 +3762,8 @@ def main():
         cmd_check_federated_deps(args)
     elif args.command == "trace-dependencies":
         cmd_trace_dependencies(args)
+    elif args.command == "show-story-lineage":
+        cmd_show_story_lineage(args)
     elif args.command == "list-federation":
         cmd_list_federation(args)
     elif args.command == "validate-phase-outputs":
@@ -4168,6 +4200,56 @@ def cmd_trace_dependencies(args: argparse.Namespace) -> None:
             cycle_str = " -> ".join(root.cycle_path)
             print(f"\nCircular dependency detected: {cycle_str}", file=sys.stderr)
             sys.exit(2)
+
+    sys.exit(0)
+
+
+def cmd_show_story_lineage(args: argparse.Namespace) -> None:
+    """Show story decomposition lineage tree with status and tokens (US-671).
+
+    Usage: spiral show-story-lineage STORY_ID [--prd FILE] [--results FILE] [--json]
+
+    Without --json: prints ASCII tree with status emoji (✓/✗/⏳) and token counts.
+    Example:
+        ✓ US-528 (45000 tokens)
+        ├── ✓ US-529 (30000 tokens)
+        └── ✗ US-530 (15000 tokens)
+
+    With --json: outputs machine-readable JSON:
+        {id, title, status, tokens, children: [{...}]}
+    """
+    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    from show_story_lineage import (  # type: ignore[import-untyped]
+        _load_token_counts,
+        build_lineage_tree,
+        format_tree,
+        to_json_output,
+    )
+
+    prd_path = Path(getattr(args, "prd", "prd.json"))
+    results_path = Path(getattr(args, "results", "results.tsv"))
+    story_id: str = args.story_id
+    output_json: bool = getattr(args, "output_json", False)
+
+    stories = _load_prd(prd_path)
+    stories_by_id = {s["id"]: s for s in stories if isinstance(s, dict) and "id" in s}
+
+    if story_id not in stories_by_id:
+        print(
+            json.dumps({"error": f"Story '{story_id}' not found in {prd_path}"}),
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    token_counts = _load_token_counts(results_path)
+    root = build_lineage_tree(story_id, stories_by_id, token_counts)
+
+    if output_json:
+        output = to_json_output(root)
+        print(json.dumps(output, indent=2))
+    else:
+        tree_str = format_tree(root)
+        print(tree_str, end="")
 
     sys.exit(0)
 
