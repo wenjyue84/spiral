@@ -714,6 +714,14 @@ run_phase_gate_and_implement() {
                 _STORY_BUDGET=$(get_story_timeout "$_NEXT_SID")
                 # Floor: never less than 600s per story
                 [[ "${_STORY_BUDGET:-0}" -lt 600 ]] && _STORY_BUDGET=600
+                # US-597: File-aware retry — read previous failed files and pass to ralph
+                _PREV_FAILED_FILES=$(get_previous_failed_files "${_NEXT_SID:-}" "results.tsv")
+                if [[ "$_PREV_FAILED_FILES" != "[]" && -n "$_PREV_FAILED_FILES" ]]; then
+                  export RALPH_FILES_ONLY="$_PREV_FAILED_FILES"
+                  echo "  [I] File-aware retry: $_NEXT_SID — restricting to failed files only"
+                else
+                  export RALPH_FILES_ONLY=""
+                fi
                 # US-279: capture stderr to temp file for crash persistence
                 _STDERR_CAPTURE=$(mktemp -p "$SCRATCH_DIR" _ralph_stderr_XXXXXX.txt 2>/dev/null || echo "$SCRATCH_DIR/_ralph_stderr_$$.txt")
                 if [[ "${_STORY_BUDGET:-0}" -gt 0 ]] && command -v timeout &>/dev/null; then
@@ -730,8 +738,17 @@ run_phase_gate_and_implement() {
                 # US-279: capture crash traceback on non-zero exit
                 if [[ "$_I_EXIT" -ne 0 ]]; then
                   capture_crash "$_NEXT_SID" "$_I_EXIT" "sequential" "$_STDERR_CAPTURE"
+                  # US-597: capture failed files from stderr and store in results.tsv
+                  _CAPTURED_FAILED=$(capture_failed_files_from_stderr "$_STDERR_CAPTURE")
+                  if [[ "$_CAPTURED_FAILED" != "[]" && -n "$_CAPTURED_FAILED" ]]; then
+                    uv run python "$SPIRAL_HOME/lib/impl/file_aware_retry.py" store \
+                      "results.tsv" "${_NEXT_SID:-}" "$_CAPTURED_FAILED" 2>/dev/null || true
+                    echo "  [I] File-aware retry: stored failed files for ${_NEXT_SID:-}"
+                  fi
                 fi
                 rm -f "$_STDERR_CAPTURE" 2>/dev/null || true
+                # US-597: reset file-aware retry env var after ralph invocation
+                unset RALPH_FILES_ONLY
                 # US-219: emit action span for the LLM implementation call
                 STORY_TRACEPARENT="$_STORY_TP" "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/observability/otel_spans.py" emit-action \
                   --type llm_query --duration-s "$_I_ELAPSED" --story-id "$_NEXT_SID" 2>/dev/null || true
