@@ -39,7 +39,7 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": true,
+      "passes": false,
       "model": "haiku",
       "last_attempted": "2026-03-21T19:51:04Z"
     },
@@ -4055,7 +4055,7 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     }
   ]
