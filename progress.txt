@@ -1,3 +1,46 @@
+## Iteration [Current] - Story: US-685 CLI: check-federated-deps -- Detect Circular Dependencies and Orphans
+
+### What was implemented
+- **lib/check_federated_deps.py** — New validation module (175 lines, mypy strict compliant)
+  - `find_all_cycles(stories)` — DFS-based cycle detection, returns list of cycle paths
+  - `find_orphans(stories)` — finds missing dependency references
+  - `check_namespaces(stories)` — validates story ID prefixes vs explicit sub_project
+  - `validate(prd, strict=False)` — orchestrates all checks, returns {cycles, orphans, namespaces, valid, namespace_valid}
+  - `_infer_from_id(story)` and `_infer_sub_project(story)` — namespace inference helpers
+
+- **main.py** — Added CLI command
+  - `check-federated-deps` subparser with `prd` positional arg and `--strict` flag
+  - `cmd_check_federated_deps()` handler — loads prd.json, calls validate(), outputs JSON, exit 0/1
+
+- **tests/test_check_federated_deps.py** — 26 comprehensive tests
+  - TestFindAllCycles: 6 tests (no cycles, simple 2-node, 3-node, multiple independent, with external deps, empty)
+  - TestFindOrphans: 6 tests (no orphans, single/multiple, mixed valid/orphan, empty, no deps field)
+  - TestCheckNamespaces: 4 tests (valid, inferred, conflict explicit vs inferred, empty)
+  - TestValidate: 10 tests (valid prd, with cycles/orphans/both, namespace conflicts strict/non-strict, empty, federated, complex)
+
+### Patterns discovered
+- Cycle detection needs DFS with ancestor tracking (frozenset) to detect paths at discovery time
+- Multiple independent cycles must be deduplicated using frozenset(cycle[:-1]) to avoid reporting same cycle twice
+- Namespace validation: only flag conflict if inferred prefix EXISTS AND differs from explicit sub_project
+- Exit codes: 0 if valid, 1 if any issues (cycles, orphans, or strict namespace violations)
+- Pre-commit hook failures in external pip packages don't block project commits; focus on your code's linting
+
+### Gotchas
+- When story ID like "US-001" has explicit sub_project "core", that's NOT a conflict (inferred is "")
+- Only flag namespace conflict if inferred from ID (has project prefix) differs from explicit
+- ruff auto-corrects test case string literals (e.g., "project-b" → "PROJECT-B") for case consistency
+- Test file auto-cleanup: removed unused json and pytest imports to pass ruff lint
+
+### Acceptance Criteria Mapping
+1. ✅ Command: `spiral check-federated-deps prd.json --strict` outputs JSON with keys: cycles, orphans, namespaces
+   - Implemented in cmd_check_federated_deps() and validate() function
+2. ✅ Detects A→B→C→A cycles with full path array; returns exit code 1 if issues, 0 if valid
+   - find_all_cycles() returns list[list[str]] with cycle paths like [['US-001', 'US-002', 'US-001']]
+3. ✅ Handles federated prd.json with sub_project and cross-project depends_on
+   - Namespace inference from ID prefix (PROJECT-B-US-005 → PROJECT-B) works across projects
+
+---
+
 ## Iteration [Current] - Story: US-684 Integration Test: Phase S Batch Story Validation
 
 ### What was implemented
