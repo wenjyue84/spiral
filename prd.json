@@ -181,7 +181,10 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "sonnet",
-      "last_attempted": "2026-03-21T22:59:56Z"
+      "last_attempted": "2026-03-21T22:59:56Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\nNo `lib/phases/phase-g.sh` exists. There is `lib/phases/gen_changelog.sh` (changelog generation for Phase G), but no README features generator.\n\n## Problem Identified\nUS-676 requires a `generate_readme_features()` function in `lib/phases/phase-g.sh` that reads `prd.json` for `passes=true` stories and produces a `## Features` markdown snippet at `.spiral/phase-g-readme-snippet.md`.\n\n## Planned Changes\n1. Create `lib/phases/phase-g.sh` — shell file with `generate_readme_features()` using Python for JSON parsing\n2. Create `tests/phase_g_readme.bats` — bats integration test with 5-story fixture, verifying header + exactly 5 entries\nNow let's run the bats tests:\nAll 7 tests pass. Now run shellcheck on the new file:\nClean. Now mark the story as passing and commit:\nNow append to progress.txt:\n**US-676 complete.** Summary:\n\n- **`lib/phases/phase-g.sh`** — `generate_readme_features()` bash function that reads `prd.json`, filters `passes=true` stories, and writes a `## Features` markdown section to `.spiral/phase-g-readme-snippet.md`\n- **`tests/phase_g_readme.bats`** — 7 bats integration tests with a 5-completed-story fixture; all 7 pass\n- shellcheck and shfmt both clean\n- `prd.json` marked `passes: true` for US-676"
+      }
     },
     {
       "id": "US-677",
