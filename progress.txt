@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 ## Iteration [Current] - Story: US-685 CLI: spiral check-federated-deps
 
 ### What was implemented
@@ -33,6 +34,30 @@
 1. ✅ Command outputs JSON with keys: cycles, orphans, namespaces (plus valid, namespace_valid)
 2. ✅ Detects A→B→C→A cycles with full path; returns exit code 1 if issues, 0 if valid
 3. ✅ Handles federated prd.json with sub_project and cross-project dependencies
+=======
+## Iteration [Current] - Story: US-684 Integration Test: Phase S Batch Story Validation
+
+### What was implemented
+- **tests/integration/test_phase_s_batch.py** — 11 tests across 3 classes
+  - TestBatchApiCallCount: verifies build_batch_requests(5) produces 5 requests, submit_batch called once (not 5 times)
+  - TestBatchValidationResults: all-accept, mixed accept/reject, rejection reason preservation, errored-result defaults
+  - TestApiCallReduction: batch=1 call vs sequential=5 calls, 5x reduction factor verified
+
+### Patterns discovered
+- `lib/batch_validate.py` is a stub that exec's `lib/prd/batch_validate.py` — import from `lib/` via sys.path.insert
+- `patch.object(bv, "submit_batch", ...)` correctly patches the module-level function after exec-based import
+- `parse_batch_results` returns `accepted=True` for errored/canceled/expired results (non-fatal default)
+- `build_batch_requests` uses `story.get("_custom_id", f"story-{i}")` for correlation IDs
+
+### Gotchas
+- `set[int] | None` syntax works in Python 3.13 without __future__ annotations
+- The lib stub exec pattern means patch.object on the imported module works correctly
+
+### Acceptance Criteria Mapping
+1. ✅ 5 similar stories → submit_batch called once (test_five_stories_one_submit_call)
+2. ✅ Mock response → each story gets correct accept/reject status (test_all_five_stories_accepted, test_mixed_accept_reject_status)
+3. ✅ Batch=1 call vs sequential=5 calls, N/5 reduction verified (test_batch_one_call_vs_sequential_five)
+>>>>>>> Stashed changes
 
 ---
 
@@ -436,6 +461,7 @@ FAILED diff-guard: Dashboard React Component - Real-Time Worker Phase Swimlane T
 
 
 ## Pre-analysis for US-685 (Gemini 2.5 Pro)
+<<<<<<< Updated upstream
 ### Technical Brief: US-685 - Federated Dependency Checker
 
 **Project Context:** This user story pertains to the `spiral` Python CLI project, not a Frappe application. The goal is to add a new command to validate a `prd.json` file, which acts as a dependency graph.
@@ -460,4 +486,29 @@ FAILED diff-guard: Dashboard React Component - Real-Time Worker Phase Swimlane T
 *   The logic must handle a unified namespace where a story in `projectA` can depend on a story in `projectB`.
 *   Ensure robust error handling for malformed or missing `prd.json` files.
 *   The cycle detection algorithm must correctly report the full path of the circular dependency.
+=======
+**Subject: Technical Brief for US-685: Federated Dependency Checker**
+
+This brief outlines the implementation plan for a new `spiral` CLI command to validate dependency graphs in `prd.json`.
+
+**1. Python Files to Modify:**
+*   **`main.py`**: The most likely entry point for adding the new `check-federated-deps` CLI command and its arguments (`--strict`).
+*   **`lib/check_dag.py` / `lib/dependency_graph.py`**: These files are highly relevant. Analyze them first. They may contain existing graph logic that can be extended or reused for this command.
+*   **Create `lib/federated_validator.py`**: Create a new module to encapsulate the specific validation logic: building the graph, detecting cycles, and finding orphans.
+
+**2. Frappe DocTypes / Hooks:**
+*   None. The user story pertains to a Python CLI tool (`spiral`), not a Frappe application. The project context seems to be unrelated to Frappe.
+
+**3. Implementation Approach:**
+*   Use a directed graph data structure to model the `depends_on` relationships between stories. A dictionary where keys are story IDs and values are lists of dependency IDs is a good starting point.
+*   Implement a Depth-First Search (DFS) traversal to detect cycles. Maintain visited and recursion stacks to identify back edges.
+*   For orphan detection, iterate through all dependencies and ensure a corresponding story node exists in the graph.
+*   The logic must parse and handle federated story IDs (e.g., `sub_project:US-123`).
+*   The command should output a JSON object with `cycles`, `orphans`, and `namespaces` keys and exit with 1 on failure or 0 on success.
+
+**4. Edge Cases & Gotchas:**
+*   Ensure the cycle detection algorithm reports the full, unambiguous path of the cycle.
+*   The "federated" structure means `depends_on` values can reference stories in other sub-projects defined in the same `prd.json`. The graph must resolve these correctly.
+*   Handle potential performance issues with very large, complex `prd.json` files.
+>>>>>>> Stashed changes
 
