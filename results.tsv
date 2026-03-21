@@ -5,3 +5,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-03-21T07:20:01Z	8	1	US-654	Integration Test: Phase M Federated Merge Respects Cross-Project Story Dependency Order	reject	624	haiku	1		69be18f91588	false	0	0	0	0	0	0	0		0	0	0	0		
 2026-03-21T07:44:38Z	9	1	US-658	Integration Test - Phase T Test Failure Parsing with Mock Test Output	reject	456	sonnet	1		69be18f91588	false	0	0	0	0	0	0	0		0	0	0	0		
 2026-03-21T08:15:24Z	10	1	US-659	Dashboard React Component - Story Dependency Graph Visualization	reject	589	haiku	1		69be18f91588	false	0	0	0	0	0	0	0		0	0	0	0		
+2026-03-21T08:42:29Z	11	1	US-660	Integration Test - Phase M Federated Story Conflict Detection and Rollback	reject	438	sonnet	1		69be18f91588	false	0	0	0	0	0	0	0		0	0	0	0		

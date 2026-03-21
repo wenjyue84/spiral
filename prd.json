@@ -11,22 +11,6 @@
   ],
   "userStories": [
     {
-      "id": "US-659",
-      "title": "Dashboard React Component - Story Dependency Graph Visualization",
-      "priority": "high",
-      "description": "Build React component that visualizes story dependency relationships from /api/dashboard/cross-project-dependency-graph endpoint. Display project nodes as circles and story dependencies as directional edges, with zoom/pan interactions for large federated projects.",
-      "acceptanceCriteria": [
-        "Create spiral-ui/src/components/DependencyGraphChart.tsx using D3.js or recharts",
-        "Component fetches graph from /api/dashboard/cross-project-dependency-graph and renders nodes colored by project, edges showing story blocking relationships",
-        "Click on edge shows blockage reason; click on node shows story details panel"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": true,
-      "model": "haiku"
-    },
-    {
       "id": "US-660",
       "title": "Integration Test - Phase M Federated Story Conflict Detection and Rollback",
       "priority": "high",
@@ -40,8 +24,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "opus",
-      "last_attempted": "2026-03-21T08:42:31Z"
+      "model": "sonnet"
     },
     {
       "id": "US-640",
@@ -246,6 +229,22 @@
       "model": "sonnet"
     },
     {
+      "id": "US-662",
+      "title": "Dashboard React Component - Real-Time Worker Phase Swimlane Timeline",
+      "priority": "medium",
+      "description": "Build React component that renders worker execution timeline from /api/workers/<id>/queue endpoint. Display each worker as a horizontal swimlane with phase blocks showing start/end times, status (running/completed/failed), and token cost tooltips for bottleneck analysis.",
+      "acceptanceCriteria": [
+        "Create spiral-ui/src/components/WorkerTimelineChart.tsx polling /api/workers/*/queue every 1s during iteration",
+        "Render horizontal swimlanes (worker-1, worker-2, worker-3) with phase blocks colored by status (blue=running, green=done, red=failed)",
+        "Tooltip on phase block shows phase name, duration, tokens used, and model used (haiku/sonnet/opus)"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
       "id": "US-647",
       "title": "Dashboard Endpoint: Worker Resource Usage Metrics via /api/dashboard/worker-resources",
       "priority": "low",
@@ -261,6 +260,22 @@
       "passes": false,
       "_source": "ai-example",
       "model": "sonnet"
+    },
+    {
+      "id": "US-659",
+      "title": "Dashboard React Component - Story Dependency Graph Visualization",
+      "priority": "high",
+      "description": "Build React component that visualizes story dependency relationships from /api/dashboard/cross-project-dependency-graph endpoint. Display project nodes as circles and story dependencies as directional edges, with zoom/pan interactions for large federated projects.",
+      "acceptanceCriteria": [
+        "Create spiral-ui/src/components/DependencyGraphChart.tsx using D3.js or recharts",
+        "Component fetches graph from /api/dashboard/cross-project-dependency-graph and renders nodes colored by project, edges showing story blocking relationships",
+        "Click on edge shows blockage reason; click on node shows story details panel"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "haiku"
     },
     {
       "id": "US-658",
