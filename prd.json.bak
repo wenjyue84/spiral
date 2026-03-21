@@ -11,23 +11,6 @@
   ],
   "userStories": [
     {
-      "id": "US-641",
-      "title": "Dashboard Endpoint: GET /api/dashboard/phase-cost-breakdown -- Token/Cost per Phase",
-      "priority": "medium",
-      "description": "New HTTP endpoint aggregating results.tsv into per-phase (R,T,S,M,I,V,C) token counts, cost breakdown, and model distribution (haiku/sonnet/opus percentages). Identifies which phases drive highest cost and guides optimization efforts.",
-      "acceptanceCriteria": [
-        "lib/ui/spiral_live_server.py: GET /api/dashboard/phase-cost-breakdown returns {phases: [{phase: 'Phase I', token_count: 150000, cost_usd: 2.25, model_dist: {haiku: 0.3, sonnet: 0.6, opus: 0.1}, story_count: 15}]}",
-        "Aggregates results.tsv via ResultsRecord.parse(), groups by phase_id column, sums tokens and cost_usd per phase",
-        "tests/test_dashboard_phase_costs.py: populates 20-row results.tsv fixture, calls endpoint, asserts Phase I cost ≥ Phase R, model percentages sum to 1.0"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": true,
-      "_source": "ai-example",
-      "model": "haiku"
-    },
-    {
       "id": "US-642",
       "title": "CLI: spiral predict-story-complexity -- Score Difficulty from Past Patterns",
       "priority": "medium",
@@ -40,7 +23,7 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "haiku"
     },
@@ -258,6 +241,22 @@
       "estimatedComplexity": "small",
       "passes": false,
       "model": "sonnet"
+    },
+    {
+      "id": "US-666",
+      "title": "Integration Test: Mock Claude API Fixture Quality Assurance — Validate Realistic Coverage",
+      "priority": "medium",
+      "description": "Validates that mock Claude responses in test fixtures realistically simulate API behavior: token estimates, error conditions, and edge cases. Ensures mock library covers all phases and error scenarios with sufficient diversity.",
+      "acceptanceCriteria": [
+        "Test file tests/lib/test_mock_claude_fixture_quality.py: validate mock token counts ±5% of real API, assert error cases present (TimeoutError, RateLimitError, InvalidRequestError) per phase",
+        "Coverage check: all phases (R, T, S, M, I, V, C) have mocks with ≥2 error scenarios each; total coverage score >90%",
+        "Quality utility flag_fixture_issues() returns list of gaps: missing phases, unrealistic token counts, under-represented errors"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
     },
     {
       "id": "US-660",
@@ -2074,6 +2073,23 @@
       "model": "haiku",
       "_scopeCreep": true,
       "tags": []
+    },
+    {
+      "id": "US-641",
+      "title": "Dashboard Endpoint: GET /api/dashboard/phase-cost-breakdown -- Token/Cost per Phase",
+      "priority": "medium",
+      "description": "New HTTP endpoint aggregating results.tsv into per-phase (R,T,S,M,I,V,C) token counts, cost breakdown, and model distribution (haiku/sonnet/opus percentages). Identifies which phases drive highest cost and guides optimization efforts.",
+      "acceptanceCriteria": [
+        "lib/ui/spiral_live_server.py: GET /api/dashboard/phase-cost-breakdown returns {phases: [{phase: 'Phase I', token_count: 150000, cost_usd: 2.25, model_dist: {haiku: 0.3, sonnet: 0.6, opus: 0.1}, story_count: 15}]}",
+        "Aggregates results.tsv via ResultsRecord.parse(), groups by phase_id column, sums tokens and cost_usd per phase",
+        "tests/test_dashboard_phase_costs.py: populates 20-row results.tsv fixture, calls endpoint, asserts Phase I cost ≥ Phase R, model percentages sum to 1.0"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "haiku"
     },
     {
       "id": "US-640",

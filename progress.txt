@@ -1952,3 +1952,20 @@ Based on the user story `US-642`, here is a technical brief for the implementati
 *   Ensure the embedding model is downloaded efficiently and cached locally.
 *   The scoring logic must be robust against stories with no clear historical precedent.
 
+
+## Iteration 1 - Story: US-645 Dashboard Endpoint: Historical Cost Trends by Iteration
+
+### What was implemented
+- lib/dashboard/api.py: Added GET /api/dashboard/cost-history endpoint (~41 lines)
+  - Groups results.tsv records by spiral_iter (int conversion with try/except)
+  - Reuses existing _PHASE_COST_RATE dict for cost estimation
+  - Returns sorted [{iteration, total_tokens, total_cost, cumulative_cost}] with running total
+- tests/test_cost_history.py (new, 100 lines): 3 tests covering empty TSV, single iteration, multi-iteration cumulative
+
+### Patterns discovered
+- New test file is "untracked" — git diff --stat HEAD only shows modified files; untracked new files show 0 in diff stat until staged
+- Total diff: 41 (api) + 100 (test) = 141 lines — under 200-line limit
+
+### Gotchas
+- ResultsRecord uses spiral_iter (str), not iteration_num — must int() convert with try/except
+- cumulative_cost[last] == sum of all total_cost values; floating point precision requires round(x, 6)

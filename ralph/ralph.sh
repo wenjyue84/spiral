@@ -3548,8 +3548,10 @@ ACTION: Fix the critical issues listed above before marking passes=true."
         do_story_reset "$PRE_STORY_SHA"
         $JQ "(.userStories[] | select(.id == \"$NEXT_STORY\") | .passes) = false" "$PRD_FILE" >"${PRD_FILE}.tmp"
         mv "${PRD_FILE}.tmp" "$PRD_FILE"
-        $JQ "(.userStories[] | select(.id == \"$NEXT_STORY\") | ._failureReason) = \"oversized_diff\"" "$PRD_FILE" >"${PRD_FILE}.tmp"
+        $JQ --arg sid "$NEXT_STORY" --arg reason "oversized_diff: produced ${LAST_DIFF_LINES} lines but limit is ${SPIRAL_MAX_DIFF_LINES}. Keep total insertions+deletions under ${SPIRAL_MAX_DIFF_LINES} lines." \
+          '(.userStories[] | select(.id == $sid) | ._failureReason) = $reason' "$PRD_FILE" >"${PRD_FILE}.tmp"
         mv "${PRD_FILE}.tmp" "$PRD_FILE"
+        accumulate_anti_pattern "oversized_diff"
         increment_retry "$NEXT_STORY"
         RETRY_NOW=$(get_retry_count "$NEXT_STORY")
         echo "[retry] $NEXT_STORY attempt $RETRY_NOW/$MAX_RETRIES (diff size gate failed: ${LAST_DIFF_LINES} lines)"
