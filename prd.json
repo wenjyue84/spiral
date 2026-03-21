@@ -25,8 +25,7 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "_source": "ai-example",
-      "model": "sonnet",
-      "last_attempted": "2026-03-21T05:35:35Z"
+      "model": "sonnet"
     },
     {
       "id": "US-648",
@@ -173,6 +172,40 @@
         "lib/research_dedup.py: add query_similarity(q1: str, q2: str) → float using sentence-transformers or TF-IDF; return cached response if similarity > SPIRAL_RESEARCH_DEDUP_THRESHOLD",
         "Phase R: before Gemini API call, iterate research_cache.json responses, compute similarity to current query, skip call + log to results.tsv research_dedup_hit=true",
         "Integration test: tests/test_research_dedup.py mocks embeddings, verifies cached response reuse on high-similarity query, cost savings tracked"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-652",
+      "title": "Dashboard: Worker Utilization Swimlane Chart -- Phase Duration Distribution per Worker Across Iterations",
+      "priority": "medium",
+      "description": "Create a timeline visualization showing each worker's time spent in each phase (R/T/S/M/I/V/C) across iterations. Identify phase bottlenecks and worker imbalances. Export as interactive HTML/SVG from dashboard API.",
+      "acceptanceCriteria": [
+        "Dashboard endpoint: GET /api/dashboard/worker-swimlanes returns JSON: [{worker_id, iteration, phases: [{phase_name, duration_ms, start_time, status}]}]",
+        "Dashboard UI: render swimlane chart with workers on Y-axis, time on X-axis, colored bars per phase; hover shows duration and story ID",
+        "Integration test: tests/test_worker_swimlanes.py mocks results.tsv with 3 workers across 2 iterations, asserts swimlane JSON schema and phase duration summation"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-647",
+      "title": "Dashboard Endpoint: Worker Resource Usage Metrics via /api/dashboard/worker-resources",
+      "priority": "low",
+      "description": "Track and expose real-time worker process resource usage (peak memory, CPU utilization, story count) from worker heartbeats for performance bottleneck identification.",
+      "acceptanceCriteria": [
+        "Endpoint GET /api/dashboard/worker-resources returns [{worker_id: 'worker-1', memory_peak_mb: 480, avg_cpu_percent: 65, stories_completed: 3, uptime_seconds: 340}, ...] updated every 5s from .spiral/worker_heartbeats.json",
+        "Integration test spawns 2 workers, polls /api/dashboard/worker-resources during story implementation, asserts memory and CPU metrics are non-zero and reflect workload",
+        "Test verifies metrics persist in .spiral/worker-resources-history.json for post-run analysis with timestamp and resource snapshots"
       ],
       "technicalNotes": [],
       "dependencies": [],
