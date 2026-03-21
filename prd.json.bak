@@ -11,57 +11,6 @@
   ],
   "userStories": [
     {
-      "id": "US-651",
-      "title": "Phase R: Implement Query Similarity Deduplication to Skip Redundant Gemini Calls",
-      "priority": "medium",
-      "description": "Before calling Gemini during Phase R, compute semantic similarity of current research query against cached queries in research_cache.json using embedding distance. Skip call if similarity > threshold (e.g., 0.85); reuse existing response.",
-      "acceptanceCriteria": [
-        "lib/research_dedup.py: add query_similarity(q1: str, q2: str) → float using sentence-transformers or TF-IDF; return cached response if similarity > SPIRAL_RESEARCH_DEDUP_THRESHOLD",
-        "Phase R: before Gemini API call, iterate research_cache.json responses, compute similarity to current query, skip call + log to results.tsv research_dedup_hit=true",
-        "Integration test: tests/test_research_dedup.py mocks embeddings, verifies cached response reuse on high-similarity query, cost savings tracked"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": true,
-      "_source": "ai-example",
-      "model": "sonnet"
-    },
-    {
-      "id": "US-652",
-      "title": "Dashboard: Worker Utilization Swimlane Chart -- Phase Duration Distribution per Worker Across Iterations",
-      "priority": "medium",
-      "description": "Create a timeline visualization showing each worker's time spent in each phase (R/T/S/M/I/V/C) across iterations. Identify phase bottlenecks and worker imbalances. Export as interactive HTML/SVG from dashboard API.",
-      "acceptanceCriteria": [
-        "Dashboard endpoint: GET /api/dashboard/worker-swimlanes returns JSON: [{worker_id, iteration, phases: [{phase_name, duration_ms, start_time, status}]}]",
-        "Dashboard UI: render swimlane chart with workers on Y-axis, time on X-axis, colored bars per phase; hover shows duration and story ID",
-        "Integration test: tests/test_worker_swimlanes.py mocks results.tsv with 3 workers across 2 iterations, asserts swimlane JSON schema and phase duration summation"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "sonnet"
-    },
-    {
-      "id": "US-655",
-      "title": "Dashboard Endpoint: GET /api/dashboard/retry-analysis -- Phase-Wise Retry Distribution and Rate Analysis",
-      "priority": "medium",
-      "description": "Aggregate retry counts by phase from results.tsv to identify failure clustering patterns. Returns JSON with retry statistics grouped by phase to support heatmap and bottleneck visualization.",
-      "acceptanceCriteria": [
-        "Endpoint queries results.tsv, calculates retry_count distribution grouped by phase (R/T/S/M/I/V), returns JSON with count/mean/median/max per phase",
-        "Response includes per-phase retry rates (total_retries/total_stories) sorted descending: [{phase: 'I', retry_rate: 0.35, story_count: 7}, ...]",
-        "Test mocks results.tsv with 15 stories across phases with varying retry counts (0-5); validates endpoint aggregation matches expected distribution"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "haiku"
-    },
-    {
       "id": "US-657",
       "title": "WebSocket Endpoint: /ws/story-updates -- Real-Time Story Phase Change Broadcasting",
       "priority": "medium",
@@ -74,8 +23,9 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
-      "model": "sonnet"
+      "passes": true,
+      "model": "sonnet",
+      "last_attempted": "2026-03-21T16:14:26Z"
     },
     {
       "id": "US-661",
@@ -222,20 +172,37 @@
       "model": "haiku"
     },
     {
-      "id": "US-667",
-      "title": "Dashboard: Export Metrics to CSV/JSON/Prometheus — GET /api/dashboard/export?format=csv",
-      "priority": "low",
-      "description": "Adds export capability to dashboard for downloading aggregated results.tsv metrics in CSV, JSON, and Prometheus OpenMetrics formats. Enables external monitoring, offline analysis, and integration with APM platforms.",
+      "id": "US-674",
+      "title": "Phase G: Install Pre-Commit Hook to Enforce Story ID Tags in Commit Messages",
+      "priority": "high",
+      "description": "Add git hook installer to Phase G that enforces all commits include story ID prefix (US-NNN: or UT-NNN:) in the commit message. Prevents orphan commits without story references and improves traceability in Phase G's commit-to-story mapping.",
       "acceptanceCriteria": [
-        "Endpoint GET /api/dashboard/export?format=csv&iteration_min=1&iteration_max=5 returns CSV: iteration,story_id,phase,model,tokens,duration,status",
-        "Format=prometheus returns OpenMetrics with metadata: '# HELP spiral_story_tokens_total Total tokens per story\\n spiral_story_tokens_total{story_id=\"US-001\",model=\"haiku\"} 1245'",
-        "Supports filters: iteration range, story status, sub_project; includes metadata row: export_timestamp, spiral_version, row_count"
+        "lib/phases/phase_g/commit_hook_installer.sh creates/updates .git/hooks/prepare-commit-msg to validate message matches regex ^(US|UT)-[0-9]+:",
+        "Hook rejects commits with exit code 1 if message missing story ID, displays error 'Commit message must start with US-NNN: or UT-NNN:'",
+        "tests/test_phase_g_commit_hook.py creates temporary git repo, triggers hook with valid (US-123: fix) and invalid (forgot prefix) messages, asserts rejection"
       ],
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
+    },
+    {
+      "id": "US-673",
+      "title": "Integration Test: Phase S Rejects Federated Stories with Circular Dependencies",
+      "priority": "high",
+      "description": "Add integration test that validates SPIRAL's Phase S catches circular dependency chains across federated sub-projects. Create a mock prd.json where Story A (proj-a) depends on Story B (proj-b) which depends on Story A, verify Phase S reports the cycle with path.",
+      "acceptanceCriteria": [
+        "tests/test_phase_s_circular_deps.py creates prd.json with stories: US-100 (proj-a) -> US-101 (proj-b) -> US-100, runs Phase S validation",
+        "Phase S returns ValidationResult with CIRCULAR_DEPENDENCY error and cycle_path = ['US-100', 'US-101', 'US-100']",
+        "Integration test asserts SPIRAL logs cycle and halts Phase M merge until dependency removed"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "sonnet",
+      "_scopeCreep": true
     },
     {
       "id": "US-669",
@@ -2087,6 +2054,58 @@
       "tags": []
     },
     {
+      "id": "US-655",
+      "title": "Dashboard Endpoint: GET /api/dashboard/retry-analysis -- Phase-Wise Retry Distribution and Rate Analysis",
+      "priority": "medium",
+      "description": "Aggregate retry counts by phase from results.tsv to identify failure clustering patterns. Returns JSON with retry statistics grouped by phase to support heatmap and bottleneck visualization.",
+      "acceptanceCriteria": [
+        "Endpoint queries results.tsv, calculates retry_count distribution grouped by phase (R/T/S/M/I/V), returns JSON with count/mean/median/max per phase",
+        "Response includes per-phase retry rates (total_retries/total_stories) sorted descending: [{phase: 'I', retry_rate: 0.35, story_count: 7}, ...]",
+        "Test mocks results.tsv with 15 stories across phases with varying retry counts (0-5); validates endpoint aggregation matches expected distribution"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-652",
+      "title": "Dashboard: Worker Utilization Swimlane Chart -- Phase Duration Distribution per Worker Across Iterations",
+      "priority": "medium",
+      "description": "Create a timeline visualization showing each worker's time spent in each phase (R/T/S/M/I/V/C) across iterations. Identify phase bottlenecks and worker imbalances. Export as interactive HTML/SVG from dashboard API.",
+      "acceptanceCriteria": [
+        "Dashboard endpoint: GET /api/dashboard/worker-swimlanes returns JSON: [{worker_id, iteration, phases: [{phase_name, duration_ms, start_time, status}]}]",
+        "Dashboard UI: render swimlane chart with workers on Y-axis, time on X-axis, colored bars per phase; hover shows duration and story ID",
+        "Integration test: tests/test_worker_swimlanes.py mocks results.tsv with 3 workers across 2 iterations, asserts swimlane JSON schema and phase duration summation"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "sonnet",
+      "_scopeCreep": true
+    },
+    {
+      "id": "US-651",
+      "title": "Phase R: Implement Query Similarity Deduplication to Skip Redundant Gemini Calls",
+      "priority": "medium",
+      "description": "Before calling Gemini during Phase R, compute semantic similarity of current research query against cached queries in research_cache.json using embedding distance. Skip call if similarity > threshold (e.g., 0.85); reuse existing response.",
+      "acceptanceCriteria": [
+        "lib/research_dedup.py: add query_similarity(q1: str, q2: str) → float using sentence-transformers or TF-IDF; return cached response if similarity > SPIRAL_RESEARCH_DEDUP_THRESHOLD",
+        "Phase R: before Gemini API call, iterate research_cache.json responses, compute similarity to current query, skip call + log to results.tsv research_dedup_hit=true",
+        "Integration test: tests/test_research_dedup.py mocks embeddings, verifies cached response reuse on high-similarity query, cost savings tracked"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
       "id": "US-650",
       "title": "CLI: spiral cost-forecast -- Project Remaining Budget and Timeline Using results.tsv Velocity",
       "priority": "medium",
@@ -2120,24 +2139,6 @@
       "passes": true,
       "_source": "ai-example",
       "model": "haiku"
-    },
-    {
-      "id": "US-656",
-      "title": "CLI: spiral federated-rebase -- Auto-Fix Story ID Namespace Mismatches in Multi-Project prd.json",
-      "priority": "medium",
-      "description": "Detect stories with sub_project field that don't match story ID namespace prefixes (e.g., story 'US-001' assigned to sub_project 'payment'). Offer --dry-run preview and --apply corrections with backup.",
-      "acceptanceCriteria": [
-        "federated-rebase --dry-run on prd.json with story 'US-001' (sub_project: 'payment') suggests fix: 'PAYMENT-001' with mapping {old_id: 'US-001', new_id: 'PAYMENT-001', sub_project: 'payment'}'",
-        "--apply flag rewrites mismatched story IDs to match namespace prefix and updates all cross-project references in prd.json, writes .backup file before modification",
-        "Test with 5 stories (3 mismatched: US-001→PAYMENT-001, US-002→SHIPMENT-001, etc.; 2 already correct) verifies --dry-run output and --apply updates only broken entries"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "haiku",
-      "_skipped": true
     },
     {
       "id": "US-645",
@@ -3889,6 +3890,102 @@
         "contextWindow": 10
       },
       "tags": []
+    },
+    {
+      "id": "US-675",
+      "title": "CLI: spiral trace-dependencies <story-id> - Federated Cross-Project Dependency Resolver",
+      "priority": "high",
+      "description": "New CLI command that recursively resolves and visualizes a story's full dependency chain across federated sub-projects. Detects circular dependencies, displays file paths, and marks sub-project boundaries. Critical for multi-project workflows where US-001 in project-a may depend on PROJECT-B-US-005.",
+      "acceptanceCriteria": [
+        "Command spiral trace-dependencies US-001 outputs tree showing all transitive dependencies with sub_project labels, file paths, and clear project boundaries (e.g., US-001 → [PROJECT-B] US-005 → [PROJECT-C] US-008)",
+        "Detects circular dependencies and reports error with cycle path: 'Circular dependency detected: US-001 → US-002 → US-001'",
+        "Output as JSON: {story_id: 'US-001', dependencies: [{story_id: 'PROJECT-B-US-005', sub_project: 'project-b', depth: 1, files: ['src/auth.py']}], has_cycle: false} for dashboard integration"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-676",
+      "title": "Phase G: Auto-Generate README.md Feature Section from Completed Stories",
+      "priority": "medium",
+      "description": "Phase G scans completed stories from prd.json and automatically generates a formatted 'Features' section for README.md. Creates .spiral/phase-g-readme-snippet.md containing markdown ready for project maintainers to append. Closes the loop between story completion and user-facing documentation.",
+      "acceptanceCriteria": [
+        "Phase G creates function generate_readme_features() in lib/phases/phase-g.sh that reads prd.json status='completed' stories and generates markdown bullet points with story titles and descriptions",
+        "Output file .spiral/phase-g-readme-snippet.md contains valid markdown '## Features' section with entries for each completed story",
+        "Integration test with fixture of 5 completed stories verifies output markdown is syntactically valid and contains exactly 5 feature entries matching prd.json"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-677",
+      "title": "Dashboard Endpoint: GET /api/dashboard/escalation-success-rates - Model Retry Recovery Analysis",
+      "priority": "medium",
+      "description": "New dashboard endpoint analyzes results.tsv to compute model escalation success rates across story attempts. Returns percentage of stories passing on haiku vs recovering via sonnet vs requiring opus. Reveals model routing effectiveness and identifies patterns requiring escalation.",
+      "acceptanceCriteria": [
+        "Endpoint returns JSON: {haiku_success_rate: 0.72, sonnet_recovery_rate: 0.18, opus_final_rate: 0.10, total_stories_analyzed: 320} derived from results.tsv retry sequences grouped by final model used",
+        "Success rates computed by categorizing stories: haiku_success = stories with retry_count=0 and model='haiku', sonnet_recovery = stories with retry_count≥1 and final model='sonnet', opus_final = final model='opus'",
+        "Integration test with fixture of 10 stories (7 pass haiku, 2 pass sonnet, 1 requires opus) verifies endpoint computes 0.70/0.20/0.10 rates accurately"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-678",
+      "title": "Research Source Authority Scoring - Track Gemini Query Confidence",
+      "priority": "medium",
+      "description": "Score Phase R story sources by Gemini confidence and cache freshness to prioritize high-authority stories in Phase M merge and expose reliability metrics on dashboard.",
+      "acceptanceCriteria": [
+        "_research_output.json includes confidence_score (0.0-1.0) per source, derived from Gemini response certainty indicators (presence of hedging language, source diversity count)",
+        "Phase S validation prioritizes high-confidence stories (confidence_score > 0.8) for merge over low-confidence ones (< 0.5)",
+        "Dashboard endpoint GET /api/dashboard/source-authority returns {\"stories\": [{\"id\": \"US-123\", \"confidence\": 0.85, \"source_count\": 3}]} for last iteration"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-679",
+      "title": "CLI: spiral validate-changelog -- Verify CHANGELOG.md Covers All Completed Stories",
+      "priority": "medium",
+      "description": "Validate that CHANGELOG.md generated by Phase G includes entries for all stories marked as completed in prd.json and results.tsv. Closes the gap between Phase G generation and output verification.",
+      "acceptanceCriteria": [
+        "Parse CHANGELOG.md and extract all story IDs matching pattern US-\\d{3}; load prd.json and results.tsv to collect completed stories",
+        "Report output as JSON: {\"missing_stories\": [\"US-123\", ...], \"found\": N, \"expected\": M, \"coverage_percent\": X}",
+        "CLI command spiral validate-changelog -c CHANGELOG.md -p prd.json exits 0 if 100% coverage, 1 if gaps exist"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-680",
+      "title": "Dashboard Endpoint: GET /api/dashboard/export -- Snapshot Export of All Current Metrics",
+      "priority": "medium",
+      "description": "Add a single aggregation endpoint that exports all live dashboard metrics (costs, throughput, retries, workers, errors) as JSON snapshot. Enables offline trend analysis and metric archival.",
+      "acceptanceCriteria": [
+        "Aggregate existing endpoints into single response: {\"timestamp\": \"ISO-8601\", \"costs\": {...}, \"throughput\": {...}, \"retry_patterns\": {...}, \"workers\": {...}}",
+        "Support optional query param ?format=csv to export metrics table for BI tool ingestion",
+        "Include cumulative metrics: total_cost, total_stories_passed, avg_retry_count, worker_utilization_percent"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
     }
   ]
 }
