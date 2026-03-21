@@ -209,9 +209,7 @@ def calculate_coverage_score(mock_responses: dict[str, Any]) -> float:
     return max(0.0, min(100.0, score))
 
 
-def validate_token_count(
-    phase: str, actual_input: int, actual_output: int
-) -> tuple[bool, str]:
+def validate_token_count(phase: str, actual_input: int, actual_output: int) -> tuple[bool, str]:
     """Validate token count for a phase is within ±5% of expected.
 
     Args:

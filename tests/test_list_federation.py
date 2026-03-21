@@ -32,7 +32,7 @@ def make_toml_bytes(sub_projects: list[dict]) -> bytes:
     for proj in sub_projects:
         lines.append("[[sub_projects]]")
         lines.append(f'name = "{proj["name"]}"')
-        lines.append(f'workers = {proj["workers"]}')
+        lines.append(f"workers = {proj['workers']}")
         lines.append("")
     return "\n".join(lines).encode()
 
@@ -51,9 +51,7 @@ class TestLoadFederationConfig:
             load_federation_config(tmp_path / "missing.toml")
 
     def test_valid_config_returns_sub_projects(self, tmp_path: Path) -> None:
-        toml_bytes = make_toml_bytes(
-            [{"name": "frontend", "workers": 2}, {"name": "backend", "workers": 1}]
-        )
+        toml_bytes = make_toml_bytes([{"name": "frontend", "workers": 2}, {"name": "backend", "workers": 1}])
         config_path = tmp_path / "federation.toml"
         config_path.write_bytes(toml_bytes)
         result = load_federation_config(config_path)
@@ -201,9 +199,7 @@ class TestBuildSummary:
         assert summary["total_stories"] == 8
 
     def test_total_workers_sums_all_projects(self) -> None:
-        config = make_config(
-            [{"name": "a", "workers": 2}, {"name": "b", "workers": 3}, {"name": "c", "workers": 1}]
-        )
+        config = make_config([{"name": "a", "workers": 2}, {"name": "b", "workers": 3}, {"name": "c", "workers": 1}])
         counts = {"a": 1, "b": 1, "c": 1}
         summary = build_summary(config, counts)
         assert summary["total_workers"] == 6

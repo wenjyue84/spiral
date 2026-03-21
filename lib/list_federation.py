@@ -88,9 +88,7 @@ def validate_consistency(
         if proj == "default":
             continue
         if proj not in config_projects:
-            errors.append(
-                f"prd.json references sub_project '{proj}' not defined in federation.toml"
-            )
+            errors.append(f"prd.json references sub_project '{proj}' not defined in federation.toml")
     return errors
 
 
