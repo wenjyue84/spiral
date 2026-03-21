@@ -100,7 +100,10 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-03-21T21:16:44Z"
+      "last_attempted": "2026-03-21T21:16:44Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n\n**Existing Mock Fixtures:**\n- `conftest.py` has `MockClaudeClient`, `MockClaudeAPI`, `MockGeminiAPI` fixtures\n- Project uses standard `unittest.mock` patterns in tests\n- Tests cover multiple phases (R, T, S, M, I, V, C)\n\n**Gap:**\n- No validation of mock fixture quality (token counts, error scenarios, coverage)\n- No test to verify mocks simulate realistic API behavior\n- No utility to detect fixture gaps per phase\n\n## Problem Identified\n\nNeed to create a test file that validates mock Claude responses are realistic, covering all phases with diverse error scenarios and accurate token counts within ±5% tolerance.\n\n## Planned Changes\n\n1. **Create `lib/mock_claude_fixture_quality.py`**\n   - Define phase-specific token expectations and error scenarios\n   - Implement `flag_fixture_issues()` to identify gaps\n   - Implement token count validators and error coverage checkers\n   - Calculate overall fixture quality coverage score\n\n2. **Create `tests/lib/test_mock_claude_fixture_quality.py`**\n   - Test token counts ±5% accuracy across phases\n   - Validate error scenarios (TimeoutError, RateLimitError, InvalidRequestError) per phase\n   - Assert ≥2 error scenarios per phase\n   - Verify coverage score >90%\n   - Test `flag_fixture_issues()` output for gap detection\n\n---\n\nNow implementing:\nNow let me run the tests to verify everything works:\nI see the issues. The token validation needs to calculate the ±5% bounds, and the test fixtures need to use phase-appropriate values. Let me fix these:\nGreat! All tests pass. Now let me run type checking and other quality checks:\nPerfect! Now let me commit the changes:\n## Summary"
+      }
     },
     {
       "id": "US-670",
