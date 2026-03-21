@@ -1898,6 +1898,33 @@ function spiralApiPlugin() {
         }
       });
 
+      // ── GET /api/dashboard/worker-resources — worker CPU/memory metrics ────────
+      server.middlewares.use('/api/dashboard/worker-resources', (req: IncomingMessage, res: ServerResponse, next: () => void) => {
+        if (req.method !== 'GET') { next(); return; }
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Content-Type', 'application/json');
+        const name = new URL(req.url ?? '', 'http://localhost').searchParams.get('name') ?? '';
+        const root = name ? (readRegistry()[name] ?? PROJECT_ROOT) : PROJECT_ROOT;
+        const sd = path.join(root, '.spiral');
+        try {
+          interface WH { worker_id?: string; memory_peak_mb?: number; avg_cpu_percent?: number; stories_completed?: number; uptime_seconds?: number; }
+          const hbFile = path.join(sd, 'worker_heartbeats.json');
+          const metrics = fs.existsSync(hbFile)
+            ? Object.entries(JSON.parse(fs.readFileSync(hbFile, 'utf8')) as Record<string, WH>).map(([wid, d]) => ({
+                worker_id: String(d.worker_id ?? wid), memory_peak_mb: Number(d.memory_peak_mb ?? 0),
+                avg_cpu_percent: Number(d.avg_cpu_percent ?? 0), stories_completed: Number(d.stories_completed ?? 0),
+                uptime_seconds: Number(d.uptime_seconds ?? 0),
+              }))
+            : [];
+          const histFile = path.join(sd, 'worker-resources-history.json');
+          let hist: Array<{ timestamp: string; workers: typeof metrics }> = [];
+          if (fs.existsSync(histFile)) { try { hist = JSON.parse(fs.readFileSync(histFile, 'utf8')) as typeof hist; } catch { /* */ } }
+          hist.push({ timestamp: new Date().toISOString(), workers: metrics });
+          try { fs.writeFileSync(histFile, JSON.stringify(hist, null, 2)); } catch { /* */ }
+          res.end(JSON.stringify(metrics));
+        } catch (e) { res.statusCode = 500; res.end(JSON.stringify({ error: String(e) })); }
+      });
+
       // ── GET /api/tests?name=X — list all pytest test IDs ────────────────────
       server.middlewares.use('/api/tests', (req: IncomingMessage, res: ServerResponse, next: () => void) => {
         if (req.method !== 'GET') { next(); return; }
