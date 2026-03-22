@@ -194,6 +194,12 @@ SPIRAL_MAX_RESEARCH_STORIES=5
 # Set to 0 to stop generating new stories and focus on clearing the backlog.
 SPIRAL_MAX_AI_SUGGEST=5
 
+# ── Dead weight detection: auto-archive stories stuck 5+ iterations ─────────────
+# Tracks _pending_iterations counter per story. Stories exceeding this threshold
+# are marked _archived: true with _archiveReason to prevent backlog bloat.
+# Archived stories remain in prd.json for audit but are excluded from Phase I dispatch.
+SPIRAL_DEAD_WEIGHT_THRESHOLD=5
+
 # ── Phase S: Message Batches API validation (US-390) ──────────────────────
 # Set to 1 to submit Phase S validation requests to the Anthropic Message
 # Batches API (50% cost reduction vs sequential, async up to 10k stories).
