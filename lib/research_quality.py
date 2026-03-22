@@ -96,11 +96,7 @@ def aggregate_research_quality(
         ResearchQualityResult with aggregated metrics.
     """
     # Find all research-sourced stories
-    research_stories = {
-        s["id"]: s
-        for s in prd.get("userStories", [])
-        if s.get("_source") == "research"
-    }
+    research_stories = {s["id"]: s for s in prd.get("userStories", []) if s.get("_source") == "research"}
 
     if not research_stories:
         return ResearchQualityResult(

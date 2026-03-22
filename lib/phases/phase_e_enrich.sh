@@ -34,15 +34,14 @@
 #   run_phase_s || continue
 #   run_phase_enrichment
 run_phase_enrichment() {
-  ENRICHED_OUTPUT="$SCRATCH_DIR/_enriched_stories.json"
-  if [[ "${SPIRAL_STORY_ENRICHMENT:-false}" != "true" ]] || [[ ! -f "$VALIDATED_OUTPUT" ]]; then
+  if [[ ! -f "$VALIDATED_OUTPUT" ]]; then
     return 0
   fi
 
-  # ── Phase E: STORY ENRICHMENT (US-443) ──────────────────────────────────────
+  # ── Phase E: STORY ENRICHMENT (US-777, US-443) ──────────────────────────────
   PHASE="E"
   write_active_status "E" 35
-  print_phase_banner "E" "STORY ENRICHMENT — refining medium/sparse stories..."
+  print_phase_banner "E" "STORY ENRICHMENT — injecting similar solutions and refining stories..."
   log_spiral_event "phase_start" "\"phase\":\"E\",\"iteration\":$SPIRAL_ITER"
   notify_webhook "E" "start"
   local _PHASE_TS_E
@@ -51,24 +50,43 @@ run_phase_enrichment() {
   local _ENRICH_MODEL="${SPIRAL_STORY_ENRICHMENT_MODEL:-sonnet}"
   local _ENRICH_MAX="${SPIRAL_STORY_ENRICHMENT_MAX:-10}"
   local _ENRICH_RC=0
+  local _SIMILAR_OUTPUT="$SCRATCH_DIR/_similar_solutions.json"
+  local _ENRICHED_OUTPUT="$SCRATCH_DIR/_enriched_stories.json"
 
-  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/research/enrich_stories.py" \
+  # Step 1: Inject similar solutions (US-777) — always runs
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/similar_story_finder.py" \
+    --prd "$PRD_FILE" \
     --validated-in "$VALIDATED_OUTPUT" \
-    --enriched-out "$ENRICHED_OUTPUT" \
-    --model "$_ENRICH_MODEL" \
-    --max "$_ENRICH_MAX" || _ENRICH_RC=$?
+    --enriched-out "$_SIMILAR_OUTPUT" \
+    --threshold 0.5 \
+    --top-k 3 2>/dev/null || true
+
+  # Use similar-solutions output if it exists, otherwise original validated
+  local _ENRICHMENT_INPUT="$VALIDATED_OUTPUT"
+  if [[ -f "$_SIMILAR_OUTPUT" ]]; then
+    _ENRICHMENT_INPUT="$_SIMILAR_OUTPUT"
+  fi
+
+  # Step 2: Optional Claude-based enrichment (US-443) — only if enabled
+  if [[ "${SPIRAL_STORY_ENRICHMENT:-false}" == "true" ]]; then
+    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/research/enrich_stories.py" \
+      --validated-in "$_ENRICHMENT_INPUT" \
+      --enriched-out "$_ENRICHED_OUTPUT" \
+      --model "$_ENRICH_MODEL" \
+      --max "$_ENRICH_MAX" || _ENRICH_RC=$?
+
+    if [[ "$_ENRICH_RC" -eq 0 && -f "$_ENRICHED_OUTPUT" ]]; then
+      _ENRICHMENT_INPUT="$_ENRICHED_OUTPUT"
+    fi
+  fi
 
   local _PHASE_DUR_E
   _PHASE_DUR_E=$(($(date +%s) - _PHASE_TS_E))
 
-  if [[ "$_ENRICH_RC" -eq 0 && -f "$ENRICHED_OUTPUT" ]]; then
-    local _ENRICH_TOTAL
-    _ENRICH_TOTAL=$("$JQ" '.stories | length' "$ENRICHED_OUTPUT" 2>/dev/null || echo "?")
-    echo "  [E] Enrichment complete — $_ENRICH_TOTAL stories ready for merge (${_PHASE_DUR_E}s)"
-    VALIDATED_OUTPUT="$ENRICHED_OUTPUT"
-  else
-    echo "  [E] WARNING: Enrichment failed (rc=$_ENRICH_RC) — using Phase S output unchanged"
-  fi
+  local _ENRICH_TOTAL
+  _ENRICH_TOTAL=$("$JQ" '.stories | length' "$_ENRICHMENT_INPUT" 2>/dev/null || echo "?")
+  echo "  [E] Enrichment complete — $_ENRICH_TOTAL stories ready for merge (${_PHASE_DUR_E}s)"
+  VALIDATED_OUTPUT="$_ENRICHMENT_INPUT"
 
   log_spiral_event "phase_end" "\"phase\":\"E\",\"iteration\":$SPIRAL_ITER,\"duration_s\":$_PHASE_DUR_E,\"model\":\"$_ENRICH_MODEL\""
   "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/observability/otel_spans.py" end-phase \

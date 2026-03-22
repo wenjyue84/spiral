@@ -71,11 +71,7 @@ class TestAggregation:
 
     def test_returns_zero_for_missing_results_tsv(self) -> None:
         """Missing results.tsv returns zero metrics (graceful fallback)."""
-        prd: dict[str, Any] = {
-            "userStories": [
-                {"id": "US-500", "title": "Test", "_source": "research"}
-            ]
-        }
+        prd: dict[str, Any] = {"userStories": [{"id": "US-500", "title": "Test", "_source": "research"}]}
         with TemporaryDirectory() as tmpdir:
             tsv = Path(tmpdir) / "nonexistent.tsv"
             result = aggregate_research_quality(prd, tsv)
@@ -101,15 +97,9 @@ class TestAggregation:
                     delimiter="\t",
                 )
                 writer.writeheader()
-                writer.writerow(
-                    {"story_id": "US-500", "retry_num": "0", "status": "passed"}
-                )
-                writer.writerow(
-                    {"story_id": "US-501", "retry_num": "3", "status": "failed"}
-                )
-                writer.writerow(
-                    {"story_id": "US-600", "retry_num": "1", "status": "passed"}
-                )
+                writer.writerow({"story_id": "US-500", "retry_num": "0", "status": "passed"})
+                writer.writerow({"story_id": "US-501", "retry_num": "3", "status": "failed"})
+                writer.writerow({"story_id": "US-600", "retry_num": "1", "status": "passed"})
 
             result = aggregate_research_quality(prd, tsv)
             assert result.total_stories == 2  # Only research stories
@@ -119,11 +109,7 @@ class TestAggregation:
 
     def test_tracks_max_retry_for_multiple_rows(self) -> None:
         """If story appears multiple times, use max retry_num."""
-        prd: dict[str, Any] = {
-            "userStories": [
-                {"id": "US-500", "title": "Story", "_source": "research"}
-            ]
-        }
+        prd: dict[str, Any] = {"userStories": [{"id": "US-500", "title": "Story", "_source": "research"}]}
         with TemporaryDirectory() as tmpdir:
             tsv = Path(tmpdir) / "results.tsv"
             with open(tsv, "w", newline="", encoding="utf-8") as f:
@@ -134,26 +120,16 @@ class TestAggregation:
                 )
                 writer.writeheader()
                 # Story attempted multiple times
-                writer.writerow(
-                    {"story_id": "US-500", "retry_num": "0", "status": "failed"}
-                )
-                writer.writerow(
-                    {"story_id": "US-500", "retry_num": "1", "status": "failed"}
-                )
-                writer.writerow(
-                    {"story_id": "US-500", "retry_num": "2", "status": "passed"}
-                )
+                writer.writerow({"story_id": "US-500", "retry_num": "0", "status": "failed"})
+                writer.writerow({"story_id": "US-500", "retry_num": "1", "status": "failed"})
+                writer.writerow({"story_id": "US-500", "retry_num": "2", "status": "passed"})
 
             result = aggregate_research_quality(prd, tsv)
             assert result.scores_by_story["US-500"] == 50  # max retry_num = 2
 
     def test_skips_stories_not_in_research_sourced_list(self) -> None:
         """Non-research stories in results.tsv are ignored."""
-        prd: dict[str, Any] = {
-            "userStories": [
-                {"id": "US-500", "title": "Research", "_source": "research"}
-            ]
-        }
+        prd: dict[str, Any] = {"userStories": [{"id": "US-500", "title": "Research", "_source": "research"}]}
         with TemporaryDirectory() as tmpdir:
             tsv = Path(tmpdir) / "results.tsv"
             with open(tsv, "w", newline="", encoding="utf-8") as f:
@@ -163,12 +139,8 @@ class TestAggregation:
                     delimiter="\t",
                 )
                 writer.writeheader()
-                writer.writerow(
-                    {"story_id": "US-600", "retry_num": "5", "status": "failed"}
-                )
-                writer.writerow(
-                    {"story_id": "US-500", "retry_num": "0", "status": "passed"}
-                )
+                writer.writerow({"story_id": "US-600", "retry_num": "5", "status": "failed"})
+                writer.writerow({"story_id": "US-500", "retry_num": "0", "status": "passed"})
 
             result = aggregate_research_quality(prd, tsv)
             assert len(result.scores_by_story) == 1
@@ -177,10 +149,7 @@ class TestAggregation:
     def test_median_calculation(self) -> None:
         """Median is correctly calculated for score distribution."""
         prd: dict[str, Any] = {
-            "userStories": [
-                {"id": f"US-{500 + i}", "title": f"Story {i}", "_source": "research"}
-                for i in range(3)
-            ]
+            "userStories": [{"id": f"US-{500 + i}", "title": f"Story {i}", "_source": "research"} for i in range(3)]
         }
         with TemporaryDirectory() as tmpdir:
             tsv = Path(tmpdir) / "results.tsv"
@@ -191,15 +160,9 @@ class TestAggregation:
                     delimiter="\t",
                 )
                 writer.writeheader()
-                writer.writerow(
-                    {"story_id": "US-500", "retry_num": "0", "status": "passed"}
-                )  # score 100
-                writer.writerow(
-                    {"story_id": "US-501", "retry_num": "1", "status": "passed"}
-                )  # score 70
-                writer.writerow(
-                    {"story_id": "US-502", "retry_num": "3", "status": "failed"}
-                )  # score 30
+                writer.writerow({"story_id": "US-500", "retry_num": "0", "status": "passed"})  # score 100
+                writer.writerow({"story_id": "US-501", "retry_num": "1", "status": "passed"})  # score 70
+                writer.writerow({"story_id": "US-502", "retry_num": "3", "status": "failed"})  # score 30
 
             result = aggregate_research_quality(prd, tsv)
             assert result.median_score == 70.0  # Median of [30, 70, 100]
@@ -221,12 +184,8 @@ class TestAggregation:
                     delimiter="\t",
                 )
                 writer.writeheader()
-                writer.writerow(
-                    {"story_id": "US-500", "retry_num": "0", "status": "passed"}
-                )
-                writer.writerow(
-                    {"story_id": "US-501", "retry_num": "2", "status": "failed"}
-                )
+                writer.writerow({"story_id": "US-500", "retry_num": "0", "status": "passed"})
+                writer.writerow({"story_id": "US-501", "retry_num": "2", "status": "failed"})
 
             result = aggregate_research_quality(prd, tsv)
             assert "US-500" in result.stories_by_status["passed"]

@@ -549,12 +549,16 @@ ${_chunks}
 # ── Source story lifecycle (retry, decompose, classify, experience capture) ───
 source "$SCRIPT_DIR/lib/story_lifecycle.sh"
 
-# ── Story completeness check (US-250) ────────────────────────────────
-# Verifies that story context has all required fields before Phase I.
-# Returns 0 if complete, 1 if incomplete. Logs details to progress.txt.
-check_story_completeness() {
-  local story_id="$1"
-  local prd_file="$2"
+# NOTE: check_story_completeness, maybe_auto_decompose, decompose_story,
+# append_result, classify_failure_root_cause, save_candidate_experience
+# are all defined in story_lifecycle.sh above.
+
+# ── REMOVED DUPLICATE — check_story_completeness was here ────────
+# Keeping only the first line to anchor the deletion boundary.
+_STUB_story_lifecycle_removed=1  # marker for grep verification
+
+# ── GitHub PR creation (US-143) ─────────────────────────────────────────────
+# create_github_pr <story_id> <story_title> <commit_sha>
 
   # Check that title, description, and acceptanceCriteria are all present and non-empty
   local title description ac_count

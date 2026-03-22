@@ -2,13 +2,12 @@
 
 import json
 import os
-import tempfile
-from pathlib import Path
-
-import pytest
 
 # Import the module under test
 import sys
+import tempfile
+
+import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 from flaky_detector import (

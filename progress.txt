@@ -2386,3 +2386,38 @@ Based on the user story JSON, here is a technical brief for the implementation:
 *   **Intent Preservation:** The prompt engineering must be precise to ensure the model only adjusts for compliance without altering the story's original goal.
 *   **State Management:** The `_rewritten: true` flag must be correctly passed along the processing pipeline after the rewrite is performed.
 
+
+
+## Pre-analysis for US-777 (Gemini 2.5 Pro)
+Based on the user story, here is a technical brief for the implementation:
+
+This task is a pure Python/Shell script modification and does not involve Frappe DocTypes or hooks, despite the prompt's mention. The context is the `spiral` project, a command-line tool.
+
+**1. Files to Modify:**
+
+*   **Create:** `lib/similar_story_finder.py` - This new file will contain the core TF-IDF-based search logic.
+*   **Edit:** `spiral.sh` - The main orchestrator script. The "Phase E" section needs to be updated to invoke the new Python script.
+*   **Reference:** `lib/merge_stories.py` - This existing file should be used to import and reuse its TF-IDF and similarity calculation utilities.
+
+**2. Implementation Approach:**
+
+1.  **`lib/similar_story_finder.py`:**
+    *   Create a function `find_similar(story, completed_stories)` that takes the current story object and a list of completed stories.
+    *   Use TF-IDF vectorization utilities from `lib/merge_stories.py` to compare the `description` and `title` of the current story against all completed stories.
+    *   Filter for matches with a cosine similarity score > 0.5.
+    *   Sort the results by score and take the top 3.
+    *   Extract the solution file paths from the matched stories (assuming a field like `modified_files` exists on solved stories) and return them as a list.
+    *   Add a `if __name__ == "__main__"` guard to make the script executable, reading JSON from stdin and printing the resulting file list to stdout.
+
+2.  **`spiral.sh` (Phase E):**
+    *   Before enriching the prompt for the agent, add a step to call `python lib/similar_story_finder.py`.
+    *   Use `jq` to filter the main `prd.json` file for stories where `.passes == true` and pass this data to the script's standard input.
+    *   Pipe the current story being processed to the script as well.
+    *   Read the file paths from the script's stdout and use `jq` again to inject them into the current story's JSON at `._enrichment.similar_solutions`.
+
+**3. Gotchas & Edge Cases:**
+
+*   The system must gracefully handle cases where no similar stories are found; the script should return an empty list, and the `_enrichment.similar_solutions` field should be empty or omitted.
+*   The exact field name containing the solution file paths in completed stories needs to be confirmed (e.g., `modified_files`, `solution.files`).
+*   Ensure the story being processed is excluded from its own similarity search.
+*   The downstream agent prompt for "Ralph" must be updated to conditionally use the `_enrichment.similar_solutions` field only when it's present and not empty.

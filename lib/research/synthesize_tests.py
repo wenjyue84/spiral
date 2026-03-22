@@ -26,9 +26,9 @@ except ImportError:
 
 sys.path.insert(0, os.path.dirname(__file__))
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+from flaky_detector import is_flaky_test
 from prd_schema import validate_prd
 from spiral_io import atomic_write_json, configure_utf8_stdout
-from flaky_detector import is_flaky_test, get_flaky_tests
 
 configure_utf8_stdout()
 
@@ -158,8 +158,7 @@ def extract_test_source(test_id: str, repo_root: str) -> str | None:
 
 
 def aggregate_failures(
-    report_paths: list[str], exclude_flaky: bool = True, spiral_home: str | None = None,
-    record_results: bool = True
+    report_paths: list[str], exclude_flaky: bool = True, spiral_home: str | None = None, record_results: bool = True
 ) -> tuple[list[dict[str, Any]], list[str], list[str]]:
     """
     Load multiple reports, union all FAIL/ERROR results, deduplicate by test ID.
@@ -192,6 +191,7 @@ def aggregate_failures(
                 if tid:
                     passed = r.get("status") not in ("FAIL", "ERROR")
                     from flaky_detector import record_test_result
+
                     record_test_result(tid, passed, spiral_home=spiral_home)
 
         for r in batch:
