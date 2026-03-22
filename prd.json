@@ -11,25 +11,6 @@
   ],
   "userStories": [
     {
-      "id": "US-744",
-      "title": "Phase I: Automatic File-Level Scope Reduction for Oversized Implementations",
-      "priority": "high",
-      "description": "When Ralph implementation fails with token overage, auto-detect non-critical files and resubmit with reduced scope before escalating model. Reduces retry cost and iteration time.",
-      "acceptanceCriteria": [
-        "Phase I detects oversized stories via token prediction; calls lib/scope_reducer.py to identify non-critical files (tests, docs, examples) and mark as 'deferred'",
-        "Ralph retries with reduced scope and {deferred_files, token_budget} in prompt; logs both attempts to results.tsv with 'scope_reduced' tag",
-        "Integration test verifies 5KB story reduced to 3KB, retried, and succeeded without escalating to sonnet"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": true,
-      "model": "sonnet",
-      "last_attempted": "2026-03-22T12:45:01Z",
-      "_failureReason": "oversized_diff",
-      "_lastDiffLines": 1217
-    },
-    {
       "id": "US-748",
       "title": "Create Keep-a-Changelog Schema Validator Module",
       "priority": "high",
@@ -47,8 +28,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-03-22T12:58:18Z"
     },
     {
       "id": "US-749",
@@ -264,101 +246,23 @@
       "model": "haiku"
     },
     {
-      "id": "US-745",
-      "title": "CLI: spiral story-genealogy — Visualize Decomposition Cost Hierarchy with Per-Branch Spend",
-      "priority": "medium",
-      "description": "Display decomposition tree with cumulative token costs per branch. Identifies wasteful decompositions and guides future scoping decisions.",
+      "id": "US-744",
+      "title": "Phase I: Automatic File-Level Scope Reduction for Oversized Implementations",
+      "priority": "high",
+      "description": "When Ralph implementation fails with token overage, auto-detect non-critical files and resubmit with reduced scope before escalating model. Reduces retry cost and iteration time.",
       "acceptanceCriteria": [
-        "CLI `spiral story-genealogy <story_id>` renders ASCII tree with {story, tokens, cost, children} per node; marks inefficient branches with ⚠️ when parent_cost < 80% of children_sum",
-        "Computes genealogy from results.tsv by tracing story_id lineage and parent_story references across iterations",
-        "Output supports --sort-by cost|tokens|depth and --filter min-depth=N for targeted analysis"
+        "Phase I detects oversized stories via token prediction; calls lib/scope_reducer.py to identify non-critical files (tests, docs, examples) and mark as 'deferred'",
+        "Ralph retries with reduced scope and {deferred_files, token_budget} in prompt; logs both attempts to results.tsv with 'scope_reduced' tag",
+        "Integration test verifies 5KB story reduced to 3KB, retried, and succeeded without escalating to sonnet"
       ],
       "technicalNotes": [],
       "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-755",
-      "title": "CLI: spiral cost-breakdown-by-model -- Show Token Spend and Cost per Claude Model (Haiku/Sonnet/Opus)",
-      "priority": "medium",
-      "description": "Implement a CLI command that parses results.tsv to aggregate and display total tokens, API costs, and story count for each model (haiku, sonnet, opus). Useful for understanding whether model escalation strategy is cost-effective and detecting runaway costs in specific models.",
-      "acceptanceCriteria": [
-        "CLI command 'spiral cost-breakdown-by-model' outputs table: Model | Stories | Tokens | Cost USD | Avg Cost/Story",
-        "Correctly parses results.tsv model column and sums tokens, cost columns grouped by model",
-        "Handles empty results.tsv gracefully and reports zero if no stories run yet"
-      ],
-      "technicalNotes": [
-        "File to create: lib/cli/cost_breakdown_by_model.py (function: parse_results_tsv, aggregate_by_model, format_table)",
-        "File to create: tests/test_cost_breakdown_by_model.py (test_valid_results_tsv, test_empty_results, test_model_grouping)",
-        "Test command: uv run pytest tests/test_cost_breakdown_by_model.py::test_model_grouping -v",
-        "CLI test: bash -c 'spiral cost-breakdown-by-model' (or update spiral.sh CLI router)"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-746",
-      "title": "Performance test: US-460 dashboard metrics stay within 20% baseline",
-      "priority": "medium",
-      "description": "Write a pytest performance benchmark in tests/test_perf_us460.py that measures the key timing metrics for the SPIRAL self-monitoring dashboard implemented in US-460 (token burn rate, story throughput, model escalation heatmap). The test captures a hardcoded baseline and fails if any measured operation degrades more than 20%, preventing silent regressions as the codebase grows.",
-      "acceptanceCriteria": [
-        "uv run pytest tests/test_perf_us460.py -v exits 0 when dashboard operations complete within 120% of baseline",
-        "uv run pytest tests/test_perf_us460.py -v exits non-zero when a mock sleep of baseline*1.25 is injected",
-        "Test prints a summary line matching 'BASELINE: <metric>=<value>ms' to stdout for each measured operation",
-        "uv run pytest tests/ -k perf_us460 -v discovers and runs the new benchmark without errors"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_perf_us460.py (create new — perf benchmark; use time.perf_counter() for sub-ms resolution)",
-        "Reference US-460 source: .github/workflows/spiral.yml and .github/workflows/ci.yml for the operations being timed",
-        "Hardcode baseline constants at top of file (e.g. BASELINE_MS = 200); assert elapsed < BASELINE_MS * 1.20",
-        "Test command: uv run pytest tests/test_perf_us460.py -v",
-        "Full suite check: uv run pytest tests/ -k perf_us460 -v"
-      ],
-      "dependencies": [
-        "US-460"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "tags": [
-        "performance",
-        "auto-generated"
-      ],
-      "model": "haiku"
-    },
-    {
-      "id": "US-747",
-      "title": "[Performance Test] Benchmark /profile endpoint response time",
-      "priority": "medium",
-      "description": "Write a pytest performance benchmark for the /profile endpoint introduced in US-522. The test imports the Flask app from lib/dashboard/api.py, issues 10 consecutive GET /profile requests against a fixture results.tsv, and asserts mean response time stays under 500 ms. This establishes a regression baseline so future changes cannot silently degrade analytics latency.",
-      "acceptanceCriteria": [
-        "uv run pytest tests/test_perf_profile.py::test_profile_mean_response_under_500ms -v exits 0 with a fixture results.tsv of at least 50 rows",
-        "uv run pytest tests/test_perf_profile.py::test_profile_response_structure -v exits 0 verifying JSON keys 'mean_phase_durations', 'slowest_stories', 'escalation_frequency' are present",
-        "uv run pytest tests/test_perf_profile.py -v fails (non-zero) when results.tsv is replaced with a 5000-row file and a 20% stricter threshold is applied",
-        "uv run pytest tests/test_perf_profile.py -v passes in under 30 seconds total"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_perf_profile.py (new file — create performance test module)",
-        "File to edit: tests/fixtures/results_50rows.tsv (new fixture — 50-row sample matching results.tsv schema: story_id, phase, model, tokens, cost, duration_s, status)",
-        "Test command: uv run pytest tests/test_perf_profile.py -v --tb=short",
-        "Test command: uv run pytest tests/test_perf_profile.py::test_profile_mean_response_under_500ms -v",
-        "Use Flask test client (app.test_client()) — no live server needed. Import app from lib/dashboard/api.py.",
-        "Measure wall time with time.perf_counter() around 10 client.get('/profile') calls; assert mean < 0.5.",
-        "results.tsv columns (tab-separated): story_id, phase, model, tokens, cost, duration_s, status — match existing schema exactly."
-      ],
-      "dependencies": [
-        "US-522"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "tags": [
-        "performance",
-        "auto-generated"
-      ],
-      "model": "haiku"
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "sonnet",
+      "last_attempted": "2026-03-22T12:45:01Z",
+      "_failureReason": "oversized_diff",
+      "_lastDiffLines": 1217
     },
     {
       "id": "US-732",

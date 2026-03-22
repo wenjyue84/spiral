@@ -11,31 +11,6 @@
   ],
   "userStories": [
     {
-      "id": "US-732",
-      "title": "Phase G: Deploy CHANGELOG and pdoc Outputs to GitHub Pages via Deploy Docs CLI",
-      "priority": "high",
-      "description": "Wire Phase G output deployment: push generated CHANGELOG.md and pdoc HTML to gh-pages branch using git worktree to avoid merge conflicts. Includes spiral deploy-docs CLI command for manual trigger from CI/CD.",
-      "acceptanceCriteria": [
-        "Phase G creates .spiral/changelog-output/ with CHANGELOG.md and pdoc/ subdirectory containing index.html and module docs",
-        "CLI command spiral deploy-docs --branch gh-pages creates isolated git worktree, copies outputs, commits, and pushes to gh-pages without force push",
-        "Integration test verifies gh-pages branch has valid docs/index.html and CHANGELOG.md with 3+ story entries after successful Phase G"
-      ],
-      "technicalNotes": [
-        "File to create: lib/phases/g_deploy.sh (use git worktree for gh-pages management, similar to worker logic in lib/run_parallel_ralph.sh)",
-        "File to modify: spiral.sh (add g_deploy phase invocation after Phase G validates outputs)",
-        "Test command: uv run pytest tests/test_phase_g_deploy_integration.py -v && tests/bats-core/bin/bats tests/test_deploy_docs.bats"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": true,
-      "model": "sonnet",
-      "last_attempted": "2026-03-22T10:47:26Z",
-      "_scopeCreep": true,
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\nThe codebase has `lib/observability/auto_release.py` which generates CHANGELOG.md and pdoc API docs. There's no `deploy-docs` CLI command, no `lib/phases/g_deploy.sh`, no `lib/commands/deploy_docs.py`, and no `tests/test_phase_g_deploy_integration.py`.\n\n## Problem Identified\nUS-732 requires:\n1. A `deploy_docs.py` Python module that handles deploying docs to a gh-pages branch via git worktree\n2. A `deploy-docs` CLI subcommand in `main.py`\n3. Integration tests (`tests/test_phase_g_deploy_integration.py`)\n4. A bats test file (`tests/test_deploy_docs.bats`)\n\n## Planned Changes\n- **NEW `lib/commands/deploy_docs.py`**: Core logic — creates `.spiral/changelog-output/` directory structure, manages git worktree for gh-pages, copies outputs, commits without force push\n- **MODIFY `main.py`**: Add `deploy-docs` subcommand parser + dispatch + `cmd_deploy_docs` handler\n- **NEW `tests/test_phase_g_deploy_integration.py`**: pytest integration tests with git repo fixture verifying the 3 acceptance criteria\n- **NEW `tests/test_deploy_docs.bats`**: Bats shell tests for the CLI command\nNow let me add the CLI command to main.py. First, let me read the relevant sections:\nNow let me add the parser and dispatch for `deploy-docs`. First let me find the exact location where to add the parser (after explain-retry):\nNow add the dispatch case. Let me find the right location:\nNow add the `cmd_deploy_docs` function. Let me find where to add it (at the end of the file before `if __name__ == \"__main__\"`):\nNow let me create the integration test:\nNow let me create the bats test file:\nNow let's run the pytest tests to verify they pass:\nAll 14 tests pass. Now let's run the type checker and linter:\nNow let's run the full test suite one more time to confirm everything is clean:\n14/14 pass. Now let's update prd.json and commit:\nNow let's update progress.txt and commit:\nThe deploy_docs.py, test files, and progress.txt already match the committed versions. Only main.py has differences due to the concurrent SPIRAL run making additional changes. Let me commit just the prd.json update (which marks US-732 as passing):\nThe story is already committed by the concurrent SPIRAL runner. Let me verify the tests pass from the current state:\n**US-732 is complete.** Here's a summary:\n\n---\n\n## Summary"
-      }
-    },
-    {
       "id": "US-744",
       "title": "Phase I: Automatic File-Level Scope Reduction for Oversized Implementations",
       "priority": "high",
@@ -48,32 +23,114 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "sonnet"
+      "passes": true,
+      "model": "sonnet",
+      "last_attempted": "2026-03-22T12:45:01Z",
+      "_failureReason": "oversized_diff",
+      "_lastDiffLines": 1217
     },
     {
-      "id": "US-733",
-      "title": "[Security Test] CLI lint-prd: Verify No Auth/Permission Bypass (US-639)",
+      "id": "US-748",
+      "title": "Create Keep-a-Changelog Schema Validator Module",
       "priority": "high",
-      "description": "Write security tests verifying that the lint-prd CLI command introduced in US-639 does not expose sensitive data in error responses and correctly handles malformed or adversarial prd.json inputs. These tests guard against information leakage and input-validation bypasses in the validation pipeline.",
+      "description": "Implement a Python validator module that checks a CHANGELOG.md file for Keep-a-Changelog compliance and verifies semantic version increments. This is the reusable library layer that Phase G integration tests will import.",
       "acceptanceCriteria": [
-        "Running `uv run pytest tests/ -k us_639_security -v` exits 0 with all tests passing",
-        "Test asserts that error output from lint-prd never contains substrings matching token/password patterns (regex: `(token|password|secret|key)\\s*[:=]\\s*\\S+`)",
-        "Test asserts that a prd.json with a circular dependency chain causes lint-prd to exit non-zero and emit a structured JSON error (not a raw Python traceback)",
-        "Test asserts that a prd.json containing an oversized field (>1MB string) does not cause an unhandled exception or memory crash"
+        "uv run pytest tests/test_changelog_schema_validator.py::test_changelog_schema_compliance -v passes with a well-formed CHANGELOG.md fixture",
+        "uv run pytest tests/test_changelog_schema_validator.py::test_semver_bump_logic -v passes verifying major/minor/patch rules from complexity_scores",
+        "uv run pytest tests/test_changelog_schema_validator.py -v exits 0 with all tests green"
       ],
       "technicalNotes": [
-        "File to edit: tests/test_lint_prd_security.py (new file — create security test module for US-639)",
-        "File to edit: lib/prd_schema.py (validate_prd or equivalent entry point — confirm it sanitises error messages before returning)",
-        "Test command: uv run pytest tests/test_lint_prd_security.py -v",
-        "Use `subprocess.run(['uv', 'run', 'python', '-m', 'lib.prd_schema', 'prd.json'], capture_output=True)` to invoke lint-prd in tests and inspect stdout/stderr",
-        "Circular dependency fixture: two stories where US-A depends on US-B and US-B depends on US-A"
+        "File to create: lib/validators/changelog_schema.py (functions: validate_changelog_format(path: str) -> bool, validate_version_incrementing(old_ver: str, new_ver: str, scores: list) -> bool)",
+        "File to create: tests/test_changelog_schema_validator.py (test_changelog_schema_compliance, test_semver_bump_logic)",
+        "Test command: uv run pytest tests/test_changelog_schema_validator.py -v",
+        "semver bump rule: major if >5 stories have complexity_score>=critical threshold, minor if >10 total stories, patch otherwise; encode as constants in the module"
       ],
-      "dependencies": [
-        "US-639"
-      ],
+      "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true,
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-749",
+      "title": "Dashboard: Implement worker_swimlane.py with phase status logic",
+      "priority": "high",
+      "description": "Create lib/dashboard/worker_swimlane.py with functions that read .spiral/_checkpoint.json and worker heartbeat files to determine each active worker's current phase, start time, and estimated remaining time. This is the data layer for the swimlane endpoint.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_worker_swimlane.py::test_get_worker_phase_status -v passes",
+        "uv run pytest tests/test_worker_swimlane.py::test_estimate_phase_remaining_time -v passes",
+        "get_worker_phase_status() returns dict with keys: worker_id, current_phase, phase_start_time, estimated_completion_seconds"
+      ],
+      "technicalNotes": [
+        "File to create: lib/dashboard/worker_swimlane.py (functions: get_worker_phase_status, estimate_phase_remaining_time)",
+        "File to create: tests/test_worker_swimlane.py (unit tests with mocked checkpoint/heartbeat files)",
+        "Test command: uv run pytest tests/test_worker_swimlane.py -v",
+        "Read .spiral/_checkpoint.json for phase state; read .spiral-workers/worker-N/heartbeat.json for per-worker timing; return empty list if no workers active"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-750",
+      "title": "Dashboard: Add GET /api/dashboard/worker-phase-swimlane route to api.py",
+      "priority": "high",
+      "description": "Wire the worker swimlane data layer into the dashboard API by adding a GET /api/dashboard/worker-phase-swimlane route to lib/dashboard/api.py that returns JSON suitable for rendering a swimlane chart. Depends on worker_swimlane.py being implemented first.",
+      "acceptanceCriteria": [
+        "curl -s http://localhost:5299/api/dashboard/worker-phase-swimlane returns HTTP 200 with Content-Type application/json",
+        "Response JSON contains a top-level 'workers' array; each element has worker_id, current_phase, phase_start_time, estimated_completion_seconds",
+        "uv run pytest tests/test_worker_swimlane_endpoint.py -v passes"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/dashboard/api.py (add route handler for GET /api/dashboard/worker-phase-swimlane, import get_worker_phase_status from lib.dashboard.worker_swimlane)",
+        "File to create: tests/test_worker_swimlane_endpoint.py (integration test using Flask test client)",
+        "Test command: uv run pytest tests/test_worker_swimlane_endpoint.py -v",
+        "Return {\"workers\": []} with HTTP 200 when no workers are active; never return 500 on missing checkpoint files"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-751",
+      "title": "Add Federated Load Test Fixture: 30-Story Multi-Subproject PRD",
+      "priority": "high",
+      "description": "Create a JSON test fixture representing a federated prd.json with 3 sub-projects (frontend, backend, infra), 10 stories each, to support worker isolation integration tests.",
+      "acceptanceCriteria": [
+        "tests/fixtures/federated_load_test_prd.json exists and contains exactly 30 stories with sub_project values of 'frontend', 'backend', or 'infra'",
+        "uv run python -c \"import json; d=json.load(open('tests/fixtures/federated_load_test_prd.json')); assert len(d['stories'])==30\" exits 0",
+        "Each sub_project bucket contains exactly 10 stories: uv run python -c \"import json,collections; d=json.load(open('tests/fixtures/federated_load_test_prd.json')); c=collections.Counter(s['sub_project'] for s in d['stories']); assert all(v==10 for v in c.values())\" exits 0"
+      ],
+      "technicalNotes": [
+        "File to create: tests/fixtures/federated_load_test_prd.json (root-level stories array, 30 entries with sub_project field)",
+        "Test command: uv run python -c \"import json,collections; d=json.load(open('tests/fixtures/federated_load_test_prd.json')); c=collections.Counter(s['sub_project'] for s in d['stories']); assert all(v==10 for v in c.values()), c\"",
+        "Each story entry must include: id, title, sub_project, passes=false, _source='ai-example'"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-752",
+      "title": "Integration Test: Verify Worker Sub-Project Isolation Under 3-Worker Federated Load",
+      "priority": "high",
+      "description": "Write a pytest integration test that uses the federated fixture PRD and verifies each worker only implements stories within its assigned sub_project, with no cross-contamination in results.tsv and no prd.json corruption.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_federated_worker_isolation_load.py::test_sub_project_fidelity -v exits 0",
+        "After test run, no story row in results.tsv has a sub_project value differing from its prd.json assignment: verified by test assertion",
+        "Test completes without AssertionError indicating cross-worker file conflicts or duplicate story IDs in results.tsv"
+      ],
+      "technicalNotes": [
+        "File to create: tests/test_federated_worker_isolation_load.py (test_sub_project_fidelity, test_no_results_corruption)",
+        "Depends on: tests/fixtures/federated_load_test_prd.json (created in sibling story)",
+        "Test command: uv run pytest tests/test_federated_worker_isolation_load.py -v --timeout=120",
+        "Use subprocess or monkeypatch to simulate 3-worker slice assignment via lib/slice_prd.py; assert each slice contains only one sub_project value"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
       "model": "haiku"
     },
     {
@@ -149,6 +206,64 @@
       "model": "haiku"
     },
     {
+      "id": "US-753",
+      "title": "[Security Test] Validate SPIRAL_COST_CEILING budget gate cannot be bypassed",
+      "priority": "high",
+      "description": "Write security-focused tests for the pre-Phase I budget check introduced in US-498. Verify that SPIRAL_COST_CEILING is strictly enforced and cannot be silently bypassed, that the rollback/skip prompts trigger correctly when the ceiling is exceeded, and that no sensitive config values (API keys, tokens) appear in budget check output.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_cost_ceiling_security.py -v exits 0 with all tests passing",
+        "Test verifies Phase I is blocked when estimated pending-story cost exceeds SPIRAL_COST_CEILING",
+        "Test verifies SPIRAL_COST_CEILING unset or 0 does not silently permit unlimited spending (raises error or prompts)",
+        "Test verifies no API key or token strings appear in budget-check warning/error output"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_cost_ceiling_security.py (new file — create security tests for US-498 budget gate)",
+        "File to edit: lib/cost_tracker.py or lib/spiral/cost_tracker.py (function that computes estimated cost and enforces ceiling)",
+        "Test command: uv run pytest tests/test_cost_ceiling_security.py -v",
+        "Test command: uv run pytest tests/ -k 'cost_ceiling or budget_gate' -v",
+        "Mock SPIRAL_COST_CEILING via monkeypatch/os.environ; test boundary values: 0, negative, exactly-at-limit, one-cent-over-limit",
+        "Confirm no secrets leak: assert that captured stdout/stderr from budget check contains no strings matching known env var patterns (API_KEY, TOKEN, SECRET)"
+      ],
+      "dependencies": [
+        "US-498"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "security",
+        "auto-generated"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-754",
+      "title": "[Security Test] Harden validate_results_tsv against malformed/malicious input",
+      "priority": "high",
+      "description": "Add security-focused tests for lib/spiral/validate_results_tsv.py (US-570). The validator must handle adversarial inputs — path-like story_ids, binary data, and oversized fields — without leaking internal paths or raising unhandled exceptions. Ensures error responses contain only structured dicts, never raw tracebacks.",
+      "acceptanceCriteria": [
+        "validate() returns a dict with an 'errors' key (no exception raised) when given a TSV row with a path-traversal story_id like '../../etc/passwd'",
+        "validate() returns a dict with an 'errors' key (no exception raised) when given binary/null-byte content as input",
+        "No returned error string contains an absolute filesystem path (checked via assertion that no error value matches r'^[A-Za-z]:\\\\' or '^/')",
+        "uv run pytest tests/test_validate_results_tsv_security.py -v exits 0 with all tests passing"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_validate_results_tsv_security.py (new file — create security test suite)",
+        "File to edit: lib/spiral/validate_results_tsv.py (validate function — wrap internals in try/except, scrub absolute paths from error messages)",
+        "Test command: uv run pytest tests/test_validate_results_tsv_security.py -v",
+        "Use pytest.parametrize to cover: path-traversal story_id, null-byte in field, 10 000-char field value, empty TSV"
+      ],
+      "dependencies": [
+        "US-570"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "security",
+        "auto-generated"
+      ],
+      "model": "haiku"
+    },
+    {
       "id": "US-745",
       "title": "CLI: spiral story-genealogy — Visualize Decomposition Cost Hierarchy with Per-Branch Spend",
       "priority": "medium",
@@ -165,64 +280,46 @@
       "model": "haiku"
     },
     {
-      "id": "US-746",
-      "title": "Dashboard: Phase Timing SLA Breach Alert Component with Auto-Suggested Optimizations",
+      "id": "US-755",
+      "title": "CLI: spiral cost-breakdown-by-model -- Show Token Spend and Cost per Claude Model (Haiku/Sonnet/Opus)",
       "priority": "medium",
-      "description": "Alert dashboard when phase execution exceeds configurable SLA threshold. Suggest context-aware optimizations (batch size tuning, worker scaling, operation skipping) based on bottleneck analysis.",
+      "description": "Implement a CLI command that parses results.tsv to aggregate and display total tokens, API costs, and story count for each model (haiku, sonnet, opus). Useful for understanding whether model escalation strategy is cost-effective and detecting runaway costs in specific models.",
       "acceptanceCriteria": [
-        "Phase completion triggers SLA check against SPIRAL_PHASE_SLA_MS config; publishes alert via /ws/phase-alerts with {phase, duration_ms, threshold_ms, breach_percent}",
-        "Dashboard alert card displays breach and suggests optimization: 'Phase R took 2.5h (SLA 1h) — try: SPIRAL_GEMINI_BATCH_SIZE=5 (from 3) or add --skip-research-cache=false'",
-        "Integration test mocks Phase R duration 150% of SLA and asserts optimization suggestions include at least 1 config tuning recommendation"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-737",
-      "title": "Regression Test: SPIRAL Happy Path Full Loop (US-553)",
-      "priority": "medium",
-      "description": "Write a regression test that executes a full SPIRAL iteration (Phase R→T→S→M→I→V→C) with mocked Claude API calls and a minimal synthetic PRD. The test verifies that all phases run sequentially, at least one story transitions to a completion status, and no phase is skipped. Guards against future regressions in core orchestration introduced by US-553.",
-      "acceptanceCriteria": [
-        "uv run pytest tests/ -k us_553 -v exits 0 and reports the new test as PASSED",
-        "uv run pytest tests/ -k us_553 -v exits non-zero (FAILED) when Phase I is artificially disabled (e.g., patched to raise an exception), proving the test is not trivially passing"
+        "CLI command 'spiral cost-breakdown-by-model' outputs table: Model | Stories | Tokens | Cost USD | Avg Cost/Story",
+        "Correctly parses results.tsv model column and sums tokens, cost columns grouped by model",
+        "Handles empty results.tsv gracefully and reports zero if no stories run yet"
       ],
       "technicalNotes": [
-        "File to edit: tests/test_us553_happy_path.py (new file — create integration test class with mocked Claude API using unittest.mock.patch targeting the Claude CLI subprocess call)",
-        "Use a temp directory with a minimal prd.json (1 story, status=pending) and spiral.config.sh pointing SPIRAL_VALIDATE_CMD to 'true' so validation always passes",
-        "Mock external calls: patch subprocess calls to claude CLI to return a canned success response; use pytest tmp_path fixture for isolation",
-        "Test command: uv run pytest tests/test_us553_happy_path.py -v",
-        "Verify phase execution order by asserting log output or checkpoint state in .spiral/_checkpoint.json after the run"
+        "File to create: lib/cli/cost_breakdown_by_model.py (function: parse_results_tsv, aggregate_by_model, format_table)",
+        "File to create: tests/test_cost_breakdown_by_model.py (test_valid_results_tsv, test_empty_results, test_model_grouping)",
+        "Test command: uv run pytest tests/test_cost_breakdown_by_model.py::test_model_grouping -v",
+        "CLI test: bash -c 'spiral cost-breakdown-by-model' (or update spiral.sh CLI router)"
       ],
-      "dependencies": [
-        "US-553"
-      ],
-      "estimatedComplexity": "medium",
+      "dependencies": [],
+      "estimatedComplexity": "small",
       "passes": false,
       "model": "haiku"
     },
     {
-      "id": "US-738",
-      "title": "[Performance Test] lib: Worker Load Balancer Story Distribution Speed",
+      "id": "US-746",
+      "title": "Performance test: US-460 dashboard metrics stay within 20% baseline",
       "priority": "medium",
-      "description": "Write a performance benchmark verifying that the story-to-worker assignment optimizer (US-562) distributes stories within acceptable latency. Benchmark measures assignment time across varying story counts and worker pool sizes. The test must fail if assignment time regresses beyond a hardcoded threshold.",
+      "description": "Write a pytest performance benchmark in tests/test_perf_us460.py that measures the key timing metrics for the SPIRAL self-monitoring dashboard implemented in US-460 (token burn rate, story throughput, model escalation heatmap). The test captures a hardcoded baseline and fails if any measured operation degrades more than 20%, preventing silent regressions as the codebase grows.",
       "acceptanceCriteria": [
-        "uv run pytest tests/test_perf_us562_load_balancer.py -v exits 0",
-        "Benchmark asserts mean assignment time for 100 stories across 4 workers is under 50ms",
-        "Test fails (non-zero exit) when a deliberately slow stub is injected to simulate a 25% regression"
+        "uv run pytest tests/test_perf_us460.py -v exits 0 when dashboard operations complete within 120% of baseline",
+        "uv run pytest tests/test_perf_us460.py -v exits non-zero when a mock sleep of baseline*1.25 is injected",
+        "Test prints a summary line matching 'BASELINE: <metric>=<value>ms' to stdout for each measured operation",
+        "uv run pytest tests/ -k perf_us460 -v discovers and runs the new benchmark without errors"
       ],
       "technicalNotes": [
-        "File to edit: tests/test_perf_us562_load_balancer.py (new file — create performance benchmark)",
-        "Test command: uv run pytest tests/test_perf_us562_load_balancer.py -v",
-        "Import the balancer callable from wherever US-562 placed it (likely lib/load_balancer.py or lib/worker_balancer.py); check that module exists before writing imports",
-        "Use time.perf_counter() around the assignment call; parametrize with story_counts=[10,100,500] and worker_counts=[1,2,4,8]",
-        "Hardcode the threshold (50ms for 100 stories / 4 workers) rather than a relative baseline to avoid flaky tests",
-        "Regression stub: monkeypatch the complexity scorer to sleep(0.001) per story, assert test detects the slowdown and fails"
+        "File to edit: tests/test_perf_us460.py (create new — perf benchmark; use time.perf_counter() for sub-ms resolution)",
+        "Reference US-460 source: .github/workflows/spiral.yml and .github/workflows/ci.yml for the operations being timed",
+        "Hardcode baseline constants at top of file (e.g. BASELINE_MS = 200); assert elapsed < BASELINE_MS * 1.20",
+        "Test command: uv run pytest tests/test_perf_us460.py -v",
+        "Full suite check: uv run pytest tests/ -k perf_us460 -v"
       ],
       "dependencies": [
-        "US-562"
+        "US-460"
       ],
       "estimatedComplexity": "small",
       "passes": false,
@@ -233,142 +330,60 @@
       "model": "haiku"
     },
     {
-      "id": "US-739",
-      "title": "[Perf Test] Phase I: Federated Story-to-Worker Routing by Sub-Project",
+      "id": "US-747",
+      "title": "[Performance Test] Benchmark /profile endpoint response time",
       "priority": "medium",
-      "description": "Write a performance benchmark for US-636's sub-project federated worker routing. The benchmark captures baseline latency for story distribution and fails if response time degrades more than 20% from that baseline. This ensures the federated routing feature remains performant as the codebase evolves.",
+      "description": "Write a pytest performance benchmark for the /profile endpoint introduced in US-522. The test imports the Flask app from lib/dashboard/api.py, issues 10 consecutive GET /profile requests against a fixture results.tsv, and asserts mean response time stays under 500 ms. This establishes a regression baseline so future changes cannot silently degrade analytics latency.",
       "acceptanceCriteria": [
-        "uv run pytest tests/test_perf_us636.py -v exits 0 and reports baseline metrics",
-        "Test fails when simulated routing latency exceeds 120% of recorded baseline",
-        "Benchmark covers at least 50 routing operations per sub-project namespace",
-        "Test output includes per-sub-project timing breakdown in stdout"
+        "uv run pytest tests/test_perf_profile.py::test_profile_mean_response_under_500ms -v exits 0 with a fixture results.tsv of at least 50 rows",
+        "uv run pytest tests/test_perf_profile.py::test_profile_response_structure -v exits 0 verifying JSON keys 'mean_phase_durations', 'slowest_stories', 'escalation_frequency' are present",
+        "uv run pytest tests/test_perf_profile.py -v fails (non-zero) when results.tsv is replaced with a 5000-row file and a 20% stricter threshold is applied",
+        "uv run pytest tests/test_perf_profile.py -v passes in under 30 seconds total"
       ],
       "technicalNotes": [
-        "File to edit: tests/test_perf_us636.py (new file — create benchmark module)",
-        "File to edit: lib/run_parallel_ralph.sh (worker launch section, for timing hooks if needed)",
-        "Test command: uv run pytest tests/test_perf_us636.py -v --tb=short",
-        "Use time.perf_counter() around the routing call; store baseline in a JSON fixture at tests/fixtures/perf_baseline_us636.json",
-        "Import routing logic from lib/slice_prd.py or equivalent sub-project partitioning function"
+        "File to edit: tests/test_perf_profile.py (new file — create performance test module)",
+        "File to edit: tests/fixtures/results_50rows.tsv (new fixture — 50-row sample matching results.tsv schema: story_id, phase, model, tokens, cost, duration_s, status)",
+        "Test command: uv run pytest tests/test_perf_profile.py -v --tb=short",
+        "Test command: uv run pytest tests/test_perf_profile.py::test_profile_mean_response_under_500ms -v",
+        "Use Flask test client (app.test_client()) — no live server needed. Import app from lib/dashboard/api.py.",
+        "Measure wall time with time.perf_counter() around 10 client.get('/profile') calls; assert mean < 0.5.",
+        "results.tsv columns (tab-separated): story_id, phase, model, tokens, cost, duration_s, status — match existing schema exactly."
       ],
       "dependencies": [
-        "US-636"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-740",
-      "title": "[E2E Test] Dashboard: Worker Phase Swimlane Chart visible and labeled",
-      "priority": "medium",
-      "description": "Write a Playwright E2E test that navigates to the spiral-ui dashboard and verifies the worker phase swimlane chart introduced by US-652. The test must assert the chart renders worker rows, phase labels (R/T/S/M/I/V/C), and at least one duration segment.",
-      "acceptanceCriteria": [
-        "Running `uv run pytest tests/test_e2e_us652_swimlane.py -v` exits 0 with at least 1 test collected",
-        "Test navigates to http://localhost:5299 and asserts the swimlane chart container is present in the DOM",
-        "Test asserts all 7 phase labels (R, T, S, M, I, V, C) are visible within the chart",
-        "Test asserts at least one worker row element is rendered with a non-zero width duration segment"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_e2e_us652_swimlane.py (new file — create Playwright test)",
-        "File to edit: tests/conftest.py (add base_url fixture pointing to http://localhost:5299 if not present)",
-        "Test command: uv run pytest tests/test_e2e_us652_swimlane.py -v",
-        "Use playwright-pytest: `from playwright.sync_api import Page` with `page.goto(base_url)`",
-        "Chart container selector: look for data-testid='worker-swimlane-chart' or the CSS class added in US-652",
-        "Phase labels selector: query for elements containing text R, T, S, M, I, V, C within the chart",
-        "Run spiral-ui server before test: ensure `http://localhost:5299` is reachable or skip with pytest.mark.skipif"
-      ],
-      "dependencies": [
-        "US-652"
+        "US-522"
       ],
       "estimatedComplexity": "small",
       "passes": false,
       "tags": [
-        "e2e",
+        "performance",
         "auto-generated"
       ],
       "model": "haiku"
     },
     {
-      "id": "US-741",
-      "title": "[Regression Test] CLI: predict-story-complexity scores and references",
-      "priority": "medium",
-      "description": "Write a regression test for US-642's predict-story-complexity CLI command. The test must verify the command exits 0, outputs a numeric complexity score between 1 and 10, and lists at least one similar past story reference. Guards against accidental removal or breakage of the feature.",
+      "id": "US-732",
+      "title": "Phase G: Deploy CHANGELOG and pdoc Outputs to GitHub Pages via Deploy Docs CLI",
+      "priority": "high",
+      "description": "Wire Phase G output deployment: push generated CHANGELOG.md and pdoc HTML to gh-pages branch using git worktree to avoid merge conflicts. Includes spiral deploy-docs CLI command for manual trigger from CI/CD.",
       "acceptanceCriteria": [
-        "uv run pytest tests/ -k us_642 -v exits 0 with at least one test collected and passing",
-        "Test invokes `python main.py predict-story-complexity` with a sample description and asserts stdout contains a score field in range 1-10",
-        "Test asserts stdout contains at least one past story reference (e.g. a US- or UT- ID)",
-        "Test fails (exit non-zero) when the predict-story-complexity handler is monkey-patched to raise NotImplementedError"
+        "Phase G creates .spiral/changelog-output/ with CHANGELOG.md and pdoc/ subdirectory containing index.html and module docs",
+        "CLI command spiral deploy-docs --branch gh-pages creates isolated git worktree, copies outputs, commits, and pushes to gh-pages without force push",
+        "Integration test verifies gh-pages branch has valid docs/index.html and CHANGELOG.md with 3+ story entries after successful Phase G"
       ],
       "technicalNotes": [
-        "File to edit: tests/test_predict_story_complexity.py (new file — create regression test module)",
-        "File to edit: lib/predict_story_complexity.py or main.py (read only — understand CLI entry point and output schema before writing assertions)",
-        "Test command: uv run pytest tests/test_predict_story_complexity.py -v",
-        "Use subprocess.run(['uv', 'run', 'python', 'main.py', 'predict-story-complexity', '--description', 'add login button'], capture_output=True, text=True) and assert returncode==0",
-        "Assert re.search(r'score[\":\\s]+([0-9]|10)', result.stdout) and int(match.group(1)) in range(1,11)",
-        "If results.tsv is empty the command may skip references — seed a minimal fixture row in the test or skip reference assertion conditionally"
+        "File to create: lib/phases/g_deploy.sh (use git worktree for gh-pages management, similar to worker logic in lib/run_parallel_ralph.sh)",
+        "File to modify: spiral.sh (add g_deploy phase invocation after Phase G validates outputs)",
+        "Test command: uv run pytest tests/test_phase_g_deploy_integration.py -v && tests/bats-core/bin/bats tests/test_deploy_docs.bats"
       ],
-      "dependencies": [
-        "US-642"
-      ],
+      "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-742",
-      "title": "Regression Test: Mark crash recovery tests with us_526 for discoverability",
-      "priority": "medium",
-      "description": "The crash recovery tests in tests/test_crash_recovery.py already cover US-526 behaviour (detached HEAD recovery, clean worktree after recovery, no-op on clean branch, nonexistent worktree error) but are not discoverable via `pytest -k us_526`. Add pytest markers or rename test functions to include `us_526` so the regression suite can be targeted by story ID.",
-      "acceptanceCriteria": [
-        "Running `uv run pytest tests/test_crash_recovery.py -k us_526 -v` exits 0 and reports at least 2 tests collected",
-        "Running `uv run pytest tests/ -k us_526 -v` exits 0 with the same tests collected",
-        "Existing test logic is not modified — only markers or name prefixes are added"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_crash_recovery.py (class TestDetachedHeadRecovery — add @pytest.mark.us_526 decorator to each test method, or rename methods to include us_526_ prefix, e.g. test_us526_detached_head_triggers_recovery)",
-        "Add `us_526 = pytest.mark.us_526` marker registration to pyproject.toml [tool.pytest.ini_options] markers list if not already present, to avoid PytestUnknownMarkWarning",
-        "File to edit: pyproject.toml ([tool.pytest.ini_options] markers section)",
-        "Test command: uv run pytest tests/test_crash_recovery.py -k us_526 -v --tb=short",
-        "Test command: uv run pytest tests/ -k us_526 -v --co (collect-only to verify discovery without running)"
-      ],
-      "dependencies": [
-        "US-526"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "tags": [
-        "regression",
-        "auto-generated"
-      ],
-      "model": "haiku"
-    },
-    {
-      "id": "US-743",
-      "title": "[Regression Test] Velocity model regression test for US-352 cost estimation",
-      "priority": "medium",
-      "description": "Write regression tests that guard against future breakage of US-352's velocity model. US-352 added linear regression over results.tsv telemetry (model, tokens, cost, duration, pass_rate per story_type) to produce data-driven cost estimates. Tests must verify the regression fitting runs correctly, returns sensible per-type projections, and degrades gracefully when results.tsv is absent or has too few rows.",
-      "acceptanceCriteria": [
-        "uv run pytest tests/ -k us_352 -v exits 0 with at least 2 tests collected and passing",
-        "Test with a 10-row inline CSV fixture produces estimate output that differs from the static fallback values",
-        "Test with an empty or missing results.tsv does not raise an exception and returns the static fallback"
-      ],
-      "technicalNotes": [
-        "Inspect lib/ and main.py first to locate the regression-fitting function introduced by US-352 before writing any test",
-        "File to edit: tests/test_us352_velocity_model.py (new module — create this file)",
-        "Use a small inline StringIO CSV fixture (10 rows, varied story_type) rather than the real results.tsv to keep tests hermetic and fast",
-        "Assert on output dict structure (story_type keys mapping to mean_tokens/mean_duration/pass_rate) not on exact float values",
-        "Test command: uv run pytest tests/test_us352_velocity_model.py -v"
-      ],
-      "dependencies": [
-        "US-352"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "tags": [
-        "regression",
-        "auto-generated"
-      ],
-      "model": "haiku"
+      "passes": true,
+      "model": "sonnet",
+      "last_attempted": "2026-03-22T10:47:26Z",
+      "_scopeCreep": true,
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\nThe codebase has `lib/observability/auto_release.py` which generates CHANGELOG.md and pdoc API docs. There's no `deploy-docs` CLI command, no `lib/phases/g_deploy.sh`, no `lib/commands/deploy_docs.py`, and no `tests/test_phase_g_deploy_integration.py`.\n\n## Problem Identified\nUS-732 requires:\n1. A `deploy_docs.py` Python module that handles deploying docs to a gh-pages branch via git worktree\n2. A `deploy-docs` CLI subcommand in `main.py`\n3. Integration tests (`tests/test_phase_g_deploy_integration.py`)\n4. A bats test file (`tests/test_deploy_docs.bats`)\n\n## Planned Changes\n- **NEW `lib/commands/deploy_docs.py`**: Core logic — creates `.spiral/changelog-output/` directory structure, manages git worktree for gh-pages, copies outputs, commits without force push\n- **MODIFY `main.py`**: Add `deploy-docs` subcommand parser + dispatch + `cmd_deploy_docs` handler\n- **NEW `tests/test_phase_g_deploy_integration.py`**: pytest integration tests with git repo fixture verifying the 3 acceptance criteria\n- **NEW `tests/test_deploy_docs.bats`**: Bats shell tests for the CLI command\nNow let me add the CLI command to main.py. First, let me read the relevant sections:\nNow let me add the parser and dispatch for `deploy-docs`. First let me find the exact location where to add the parser (after explain-retry):\nNow add the dispatch case. Let me find the right location:\nNow add the `cmd_deploy_docs` function. Let me find where to add it (at the end of the file before `if __name__ == \"__main__\"`):\nNow let me create the integration test:\nNow let me create the bats test file:\nNow let's run the pytest tests to verify they pass:\nAll 14 tests pass. Now let's run the type checker and linter:\nNow let's run the full test suite one more time to confirm everything is clean:\n14/14 pass. Now let's update prd.json and commit:\nNow let's update progress.txt and commit:\nThe deploy_docs.py, test files, and progress.txt already match the committed versions. Only main.py has differences due to the concurrent SPIRAL run making additional changes. Let me commit just the prd.json update (which marks US-732 as passing):\nThe story is already committed by the concurrent SPIRAL runner. Let me verify the tests pass from the current state:\n**US-732 is complete.** Here's a summary:\n\n---\n\n## Summary"
+      }
     },
     {
       "id": "US-729",
@@ -1931,6 +1946,31 @@
       "_phaseI": {
         "diagnosisBlock": "## Current State\n`check_dag.py` uses Kahn's topological sort on `dependencies` field. US-725 needs a separate `validate_scc.py` using Tarjan's SCC on `_dependencies` field, with JSON output `{acyclic, cycles}` and a `validate-scc-cycles` CLI subcommand.\n\n## Problem Identified\nNo `validate-scc-cycles` CLI command exists. Story uses `_dependencies` field (not `dependencies`), requires Tarjan's SCC algorithm, and structured JSON output with cycle paths.\n\n## Planned Changes\n1. Create `lib/validate_scc.py` — Tarjan's SCC algorithm on `_dependencies`, returns `{acyclic, cycles, cycle_paths}`\n2. Edit `main.py` — Add parser + dispatch + `cmd_validate_scc_cycles()` function\n3. Create `tests/test_validate_scc.py` — Integration tests: 3-node cycle, linear DAG, empty prd\nNow add the parser registration and command function to `main.py`:\nNow add the `cmd_validate_scc_cycles` function. Let me find a good place to insert it:\nNow write the integration test:\nAll 18 tests pass. Let me run mypy and pre-commit checks:\nLet me rewrite the type annotations properly using `Any` for JSON data:\nThe cleanest fix is to use `Any` for the JSON data, which is the standard practice:\nAll 18 pass. Now run pre-commit:\nThe mypy failures are pre-existing in `lib/resilience/token_guard.py` and `lib/prd/batch_validate.py` — not in my new files. My files pass all checks. Let me run a broader test to confirm no regressions:\nAll passing. Now mark the story and commit:\nDone. Here's what was implemented for **US-725**:\n\n**`lib/validate_scc.py`** — Tarjan's SCC algorithm reading `story._dependencies`:\n- `build_graph()` — builds adjacency list, filters unknown deps\n- `tarjan_scc()` — iterative Tarjan's algorithm (SCCs > 1 node or self-loops = cycles)\n- `find_cycles()` — orchestrates and returns `{acyclic, cycles, cycle_paths}`\n\n**`main.py`** — New `validate-scc-cycles` subcommand:\n- `spiral validate-scc-cycles [prd.json]` → JSON output, exit 0 (acyclic) or 1 (cycles)\n- Prints cycle paths to stderr: `US-101 → US-102 → US-103 → US-101`\n\n**`tests/test_validate_scc.py`** — 18 tests all passing:\n- Unit tests for graph building, Tarjan's algorithm, cycle detection\n- CLI integration tests via subprocess (3-node cycle, linear DAG, missing file)\nAll the failures are **pre-existing issues** in `main.py` (E501 long lines, F841/F811 unused variables) and pre-existing mypy errors in `lib/resilience/token_guard.py` and `lib/prd/batch_validate.py`. None of the errors are in the files I created (`lib/validate_scc.py`, `tests/test_validate_scc.py`).\n\nThe story is already committed and marked `passes: true`. The pre-commit failures are from existing technical debt in `main.py` unrelated to US-725. The implementation is complete and all 18 tests pass."
       }
+    },
+    {
+      "id": "US-733",
+      "title": "[Security Test] CLI lint-prd: Verify No Auth/Permission Bypass (US-639)",
+      "priority": "high",
+      "description": "Write security tests verifying that the lint-prd CLI command introduced in US-639 does not expose sensitive data in error responses and correctly handles malformed or adversarial prd.json inputs. These tests guard against information leakage and input-validation bypasses in the validation pipeline.",
+      "acceptanceCriteria": [
+        "Running `uv run pytest tests/ -k us_639_security -v` exits 0 with all tests passing",
+        "Test asserts that error output from lint-prd never contains substrings matching token/password patterns (regex: `(token|password|secret|key)\\s*[:=]\\s*\\S+`)",
+        "Test asserts that a prd.json with a circular dependency chain causes lint-prd to exit non-zero and emit a structured JSON error (not a raw Python traceback)",
+        "Test asserts that a prd.json containing an oversized field (>1MB string) does not cause an unhandled exception or memory crash"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_lint_prd_security.py (new file — create security test module for US-639)",
+        "File to edit: lib/prd_schema.py (validate_prd or equivalent entry point — confirm it sanitises error messages before returning)",
+        "Test command: uv run pytest tests/test_lint_prd_security.py -v",
+        "Use `subprocess.run(['uv', 'run', 'python', '-m', 'lib.prd_schema', 'prd.json'], capture_output=True)` to invoke lint-prd in tests and inspect stdout/stderr",
+        "Circular dependency fixture: two stories where US-A depends on US-B and US-B depends on US-A"
+      ],
+      "dependencies": [
+        "US-639"
+      ],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "haiku"
     },
     {
       "id": "US-578",
