@@ -4134,8 +4134,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "sonnet",
-      "last_attempted": "2026-03-22T00:19:35Z"
+      "model": "sonnet"
     },
     {
       "id": "US-704",
@@ -4345,6 +4344,73 @@
       "estimatedComplexity": "small",
       "passes": false,
       "model": "haiku"
+    },
+    {
+      "id": "US-713",
+      "title": "CLI: spiral federated-cost-report — Per-Sub-Project Cost Breakdown by Phase",
+      "priority": "medium",
+      "description": "New CLI command for federated prd.json projects. Reads results.tsv and groups costs by (sub_project, phase). Outputs markdown table showing cost distribution across sub-projects (for billing/allocation) and per-phase cost contribution (for bottleneck analysis). Useful for multi-org SPIRAL runs.",
+      "acceptanceCriteria": [
+        "Command groups results.tsv rows by sub_project and phase, summing tokens_used and cost_usd per group",
+        "Outputs markdown table: sub_project | phase_r_cost | phase_i_cost | total_cost (sorted by descending total_cost)",
+        "Test validates cost sum across all rows matches total from results.tsv and handles missing sub_project column gracefully"
+      ],
+      "technicalNotes": [
+        "File: lib/cli/federated_cost_report.py (new command using pandas.groupby(by=['sub_project', 'phase']).sum())",
+        "Test: uv run pytest tests/test_cli_federated_cost.py::test_cost_report_by_phase_aggregation -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-714",
+      "title": "[E2E Test] Dependency Graph Visualization UI (US-659)",
+      "priority": "medium",
+      "description": "Write a Playwright E2E test covering the user flow introduced by US-659. The test navigates to the dashboard, waits for the dependency graph to load from /api/dashboard/cross-project-dependency-graph, and asserts that project nodes and directional edges are visible. This ensures the React visualization component renders correctly in a real browser.",
+      "acceptanceCriteria": [
+        "Running `uv run pytest tests/e2e/test_dependency_graph_us659.py -v` exits 0 in headless mode",
+        "Test asserts at least one SVG node element is visible after the graph finishes loading",
+        "Test asserts at least one directional edge element is present between two nodes",
+        "Test verifies a zoom or pan interaction completes without JS console errors"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/e2e/test_dependency_graph_us659.py (new file — create it)",
+        "Test command: uv run pytest tests/e2e/test_dependency_graph_us659.py -v",
+        "The component under test is the dependency graph component added by US-659 in spiral-ui/src/components/",
+        "Use page.wait_for_selector() to wait for the SVG graph container before asserting on nodes/edges",
+        "If /api/dashboard/cross-project-dependency-graph is unavailable, intercept with page.route() to return a minimal fixture with 2 nodes and 1 edge"
+      ],
+      "dependencies": [
+        "US-659"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-715",
+      "title": "Perf Test Fixtures: Federated prd.json + Mock APIs for US-638",
+      "priority": "medium",
+      "description": "Create all test fixtures and mock stubs needed by the US-638 E2E performance benchmark: a federated prd.json with 2 sub-projects (6 stories total), a mock Gemini research API response file, and a conftest.py fixture that wires up 2 mock parallel workers via subprocess mocking.",
+      "acceptanceCriteria": [
+        "tests/fixtures/federated_prd_us638.json exists, is valid per prd.schema.json, and contains exactly 2 sub-project keys each with 3 stories: uv run python lib/prd_schema.py tests/fixtures/federated_prd_us638.json",
+        "conftest.py exposes a mock_gemini_api fixture that returns canned JSON without network calls: uv run pytest tests/test_perf_e2e_us638.py -k 'mock_gemini' --collect-only -q",
+        "conftest.py exposes a mock_workers fixture that spawns 2 no-op worker processes and exits 0: uv run pytest tests/test_perf_e2e_us638.py -k 'mock_workers' --collect-only -q"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/conftest.py (add mock_gemini_api and mock_workers fixtures)",
+        "File to edit: tests/fixtures/federated_prd_us638.json (create new fixture; mirror schema from prd.json with sub_project field on each story)",
+        "Test command: uv run python lib/prd_schema.py tests/fixtures/federated_prd_us638.json",
+        "Mock Gemini: patch the env var or HTTP call used in lib/phases/research.sh / the Python research caller so no real network request fires"
+      ],
+      "dependencies": [
+        "US-638"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
     }
   ]
 }

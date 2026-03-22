@@ -1,3 +1,33 @@
+## Iteration [Current] - Story: US-701 Phase R Query Deduplication Cache by Gemini Research Hash
+
+### What was implemented
+- **lib/phases/research_query_cache.py** — New module with `ResearchResult` TypedDict and `get_or_research()`:
+  - `_compute_hash(query, query_context)` — SHA256(query + str(sorted(context.items())))
+  - `_load_cache(cache_path)` / `_save_cache(cache, cache_path)` — atomic JSON read/write
+  - `_record_cache_hit(results_tsv, query_hash)` — appends cache_hit=true row to results.tsv
+  - `get_or_research(query, query_context, gemini_client, *, cache_path, results_tsv)` — main function
+  - Cache entry format: {content, timestamp, source, usage_count}
+- **tests/test_research_query_cache.py** — 19 tests covering all 3 ACs
+
+### Patterns discovered
+- `lib/phases/` dir has no `__init__.py` — tests use `sys.path.insert(0, ".../lib/phases")` like other phase tests
+- `lib/phases/research_cache.py` (existing) uses `.spiral/research_cache.json` with SHA256[:16] keys — new module uses full SHA256 keys (no collision)
+- TypedDict constructors work fine in mypy strict: `ResearchResult(content=..., cached=..., query_hash=...)`
+- Use `datetime.datetime.now(datetime.timezone.utc)` instead of deprecated `utcnow()`
+
+### Gotchas
+- `_save_cache` needs `if cache_dir:` guard before `os.makedirs` (empty dirname when cache_path is bare filename)
+- `_record_cache_hit` must check `not exists or size==0` to avoid duplicate header in existing TSV
+
+### Acceptance Criteria Mapping
+1. ✅ `get_or_research(query, query_context, gemini_client) -> ResearchResult` with SHA256 hash key, `.spiral/research_cache.json` storage with timestamp/source/usage_count
+2. ✅ Cache keyed by SHA256(query + str(sorted(context.items())))
+3. ✅ 2 identical calls → 1 API request; different queries → separate calls; cache_hit: true in results.tsv
+
+All 19 tests pass, mypy --strict clean.
+
+---
+
 ## Iteration [Current] - Story: US-699 Cost Ceiling Burn-Down Predictor CLI Command
 
 ### What was implemented
