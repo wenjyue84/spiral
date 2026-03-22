@@ -12,13 +12,16 @@ from __future__ import annotations
 import csv
 import json
 import os
+import re
 import sys
 from pathlib import Path
+
+import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib", "impl"))
 
-from file_aware_retry import extract_failed_files, get_failed_files_for_story
+from file_aware_retry import extract_failed_files, get_failed_files_for_story, sanitize_failed_files
 from results_tsv import HEADER, ResultsRecord
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -337,3 +340,42 @@ def test_get_failed_files_reads_tsv(tmp_path: Path) -> None:
 def test_10_file_story_3_file_retry_integration(tmp_path: Path) -> None:
     """AC3: 10-file story, 3-file failure, retry processes only 3 files (~30% cost)."""
     TestFileAwareRetryIntegration().test_10_file_story_3_file_retry(tmp_path)
+
+
+def test_security_no_path_traversal() -> None:
+    """Path traversal entries are sanitised out of the failed_files list."""
+    result = sanitize_failed_files(
+        ["../../../etc/passwd", "/absolute/path.py", "src/valid.py", "lib/ok.sh"]
+    )
+    assert "../../../etc/passwd" not in result, "Path traversal must be rejected"
+    assert "/absolute/path.py" not in result, "Absolute paths must be rejected"
+    assert "src/valid.py" in result, "Safe relative paths must be kept"
+    assert "lib/ok.sh" in result, "Safe relative paths must be kept"
+
+
+def test_security_no_sensitive_data_in_errors(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Retry error output does not expose env var secrets (sk-, ANTHROPIC_API_KEY, password, token)."""
+    secret = "sk-test-secret-12345"
+    monkeypatch.setenv("ANTHROPIC_API_KEY", secret)
+    monkeypatch.setenv("password", "test-password-secret")
+    monkeypatch.setenv("token", "test-token-value")
+
+    # Stderr that contains the secret (simulates a misconfigured tool leaking it)
+    stderr_file = tmp_path / "stderr.txt"
+    stderr_file.write_text(
+        f"Error: ANTHROPIC_API_KEY={secret}\n"
+        "FAILED tests/test_utils.py::test_add\n"
+        "lib/merge_stories.py:42: error: Type mismatch\n",
+        encoding="utf-8",
+    )
+
+    # extract_failed_files must return only file paths, never the secret
+    files = extract_failed_files(str(stderr_file))
+    output = json.dumps(files)
+
+    assert not re.search(r"(sk-|ANTHROPIC_API_KEY|password|token)", output), (
+        f"Retry output contains credential pattern: {output!r}"
+    )
+    assert secret not in output, f"Secret leaked into retry output: {output!r}"

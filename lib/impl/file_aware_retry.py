@@ -102,6 +102,23 @@ def get_failed_files_for_story(results_tsv_path: str, story_id: str) -> list[str
     return []
 
 
+def sanitize_failed_files(files: list[str]) -> list[str]:
+    """
+    Filter failed_files list to remove path traversal and absolute paths.
+
+    Any entry containing '..' (path traversal), starting with '/' or '\\'
+    (Unix/Windows absolute), or resolving as an absolute path is dropped
+    silently. Returns the safe subset.
+    """
+    safe: list[str] = []
+    for f in files:
+        p = Path(f)
+        if ".." in p.parts or p.is_absolute() or f.startswith("/") or f.startswith("\\"):
+            continue
+        safe.append(f)
+    return safe
+
+
 def store_failed_files(results_tsv_path: str, story_id: str, failed_files_json: str) -> bool:
     """
     Update the last row for story_id in results.tsv, setting failed_files column.
