@@ -4364,6 +4364,159 @@
       "estimatedComplexity": "small",
       "passes": false,
       "model": "haiku"
+    },
+    {
+      "id": "US-714",
+      "title": "Perf Benchmark: E2E SPIRAL R→C Timing + results.tsv Validation for US-638",
+      "priority": "medium",
+      "description": "Write the pytest performance benchmark that runs a full SPIRAL R→C loop against the federated prd.json fixture with 2 mock workers, records wall-clock time for each phase, asserts the total does not exceed a stored baseline by more than 20%, and validates that results.tsv contains a sub_project column and that prd.json stories are all marked done.",
+      "acceptanceCriteria": [
+        "Benchmark completes and produces a timing JSON artifact under .spiral/perf_baseline_us638.json: uv run pytest tests/test_perf_e2e_us638.py::test_e2e_timing -v",
+        "Test fails with a clear message when injected 25% slowdown is applied (mutation): uv run pytest tests/test_perf_e2e_us638.py::test_e2e_timing_regression -v",
+        "results.tsv contains a sub_project column with correct values for all 6 mock stories after the run: uv run pytest tests/test_perf_e2e_us638.py::test_results_tsv_schema -v",
+        "All 6 stories in prd.json are status=done after the mock run: uv run pytest tests/test_perf_e2e_us638.py::test_prd_final_state -v"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_perf_e2e_us638.py (create; four test functions listed in ACs)",
+        "File to edit: tests/conftest.py (consume mock_gemini_api and mock_workers fixtures from sibling story)",
+        "Test command: uv run pytest tests/test_perf_e2e_us638.py -v --tb=short",
+        "Baseline file .spiral/perf_baseline_us638.json: write on first run (when file absent), assert on subsequent runs",
+        "Regression test: monkeypatch time.sleep or the phase timer to inject artificial 25% overhead"
+      ],
+      "dependencies": [
+        "US-638"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-715",
+      "title": "[Test] Episodic Memory Pattern Store - Storage and Similarity Retrieval",
+      "priority": "medium",
+      "description": "Write pytest integration tests for the episodic memory backend introduced in US-596. Verify that patterns can be stored after a retry attempt and retrieved via similarity search with correct scoring. This ensures the retrieval mechanism is exercised end-to-end before Ralph begins injecting past solutions into prompts.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_episodic_memory.py -v exits 0 with all tests passing",
+        "Test asserts that storing a pattern then querying with semantically similar text returns the stored entry",
+        "Test asserts that querying with unrelated text returns no results or a score below the similarity threshold",
+        "Test asserts the retrieved entry contains the fields needed for prompt injection (e.g. pattern text, story_id, score)"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_episodic_memory.py (add test_store_and_retrieve_similar, test_dissimilar_returns_empty, test_retrieved_entry_schema)",
+        "Test command: uv run pytest tests/test_episodic_memory.py -v",
+        "Locate the episodic memory module written in US-596 (likely lib/episodic_memory.py or lib/ralph/episodic_memory.py) and import it directly in tests",
+        "Do not use a headless browser — this is a pure Python backend module; pytest is the correct harness"
+      ],
+      "dependencies": [
+        "US-596"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-716",
+      "title": "[Regression Test] Phase M: Topological Sort Guards Dependency Order",
+      "priority": "medium",
+      "description": "Write a regression test that verifies Phase M merges federated stories in dependency-first order (US-617). The test must import the sort function from lib/impl/phase_m_federated_order.py directly and assert that a story with a declared dependency is always positioned after its dependency in the merged output. Test must be detectable by the `-k us_617` pytest filter.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/ -k us_617 -v exits 0 with at least one collected test",
+        "Test asserts that a story declaring dependency D appears after D in the sorted output list",
+        "Temporarily removing the topological sort call (simulated via monkeypatch) causes the test to fail",
+        "Test is named test_us617_* or marked with @pytest.mark.parametrize covering at least a 3-story chain"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_phase_m_federated_order.py (new file — add regression tests for US-617 topological sort)",
+        "File to edit: lib/impl/phase_m_federated_order.py (read to confirm the public sort function signature before writing test imports)",
+        "Test command: uv run pytest tests/test_phase_m_federated_order.py -k us_617 -v",
+        "Import the sort function directly: from lib.impl.phase_m_federated_order import sort_federated_stories (adjust to actual function name)",
+        "Use a simple fixture: three stories A→B→C where C depends on B depends on A; assert output order is [A, B, C]",
+        "Monkeypatch fixture: replace sort function with identity (lambda x: x) and assert the test then fails to confirm the guard works"
+      ],
+      "dependencies": [
+        "US-617"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-717",
+      "title": "[E2E Test] CLI: spiral federated-status outputs unified dashboard",
+      "priority": "medium",
+      "description": "Write an end-to-end test for the `spiral federated-status` CLI command introduced in US-629. The test sets up a fixture federated PRD with two sub-project paths, stubs their results.tsv files, runs the CLI command, and asserts the output contains correct aggregated story counts and cost totals in both JSON and table modes.",
+      "acceptanceCriteria": [
+        "Running `spiral federated-status --format json` against a fixture federated PRD exits 0 and outputs valid JSON with keys `sub_projects`, `total_stories`, and `total_cost_usd`",
+        "Running `spiral federated-status --format table` prints a row per sub-project with columns for pending/passed/failed story counts",
+        "When a sub-project path is missing its results.tsv the command exits non-zero and prints an error containing the missing path",
+        "Test passes via: uv run pytest tests/test_e2e_federated_status.py -v"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_e2e_federated_status.py (new file — create E2E test module)",
+        "File to edit: tests/fixtures/federated_prd.json (new fixture — minimal federated PRD with two sub_project_path entries)",
+        "File to edit: tests/fixtures/sub_project_a/results.tsv (new fixture — 3-row TSV with model/tokens/cost/status columns)",
+        "Test command: uv run pytest tests/test_e2e_federated_status.py -v",
+        "Test command: uv run pytest tests/test_e2e_federated_status.py::test_missing_results_tsv -v",
+        "Use subprocess.run to invoke the CLI: `python main.py federated-status --format json --prd tests/fixtures/federated_prd.json`",
+        "Assert JSON output with json.loads(); assert table output by checking stdout lines contain sub-project directory names"
+      ],
+      "dependencies": [
+        "US-629"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-718",
+      "title": "[Perf Test] US-636: Sub-project worker distribution benchmark",
+      "priority": "medium",
+      "description": "Write a performance benchmark for US-636's federated story distribution logic. Captures baseline timing for routing stories to dedicated sub-project workers and asserts no more than 20% regression from that baseline.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_perf_us636.py -v exits 0 with baseline captured",
+        "uv run pytest tests/test_perf_us636.py -v fails if routing time degrades >20% vs baseline",
+        "Test file asserts sub-project isolation: no cross-project file paths appear in worker assignments",
+        "uv run pytest tests/ -k us_636 -v completes under 30 seconds"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_perf_us636.py (new file — create benchmark fixture and regression assertions)",
+        "File to edit: lib/run_parallel_ralph.sh (reference only — read worker routing logic to identify what to time)",
+        "Test command: uv run pytest tests/test_perf_us636.py -v",
+        "Test command: uv run pytest tests/ -k us_636 -v",
+        "Benchmark approach: use time.perf_counter() around the story-to-worker routing call; store baseline in a module-level constant; assert elapsed < baseline * 1.20",
+        "Sub-project isolation check: mock a federated prd.json with 2 sub_projects; assert each worker receives only stories whose sub_project matches its namespace"
+      ],
+      "dependencies": [
+        "US-636"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-719",
+      "title": "[Performance Test] Phase R: Benchmark Parallel Gemini Research per Sub-Project",
+      "priority": "medium",
+      "description": "Write a performance benchmark test that measures execution time of Phase R's parallel Gemini research calls per sub-project, as implemented in US-637. The test mocks Gemini calls to avoid API costs, captures a timing baseline, and asserts that total research time does not degrade more than 20% from that baseline. It also verifies _research_output.json is keyed by sub_project.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_perf_phase_r_parallel.py -v exits 0 and prints per-sub-project timing breakdown",
+        "_research_output.json produced by the benchmarked call contains one key per sub_project with a list of story dicts",
+        "Test fails with AssertionError if total research duration exceeds median_baseline * 1.20",
+        "Gemini API calls are mocked so the test runs offline with no real API cost"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_perf_phase_r_parallel.py (create — performance harness for US-637 Phase R parallelization)",
+        "Use unittest.mock.patch or pytest-mock to stub the Gemini call function; return fixture research results instantly",
+        "Compute baseline as the median of 3 back-to-back mocked runs; store as a module-level constant",
+        "Assert _research_output.json structure: top-level keys are sub_project strings, values are non-empty lists",
+        "Test command: uv run pytest tests/test_perf_phase_r_parallel.py -v -s"
+      ],
+      "dependencies": [
+        "US-637"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
     }
   ]
 }
