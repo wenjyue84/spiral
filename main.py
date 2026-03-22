@@ -3690,6 +3690,19 @@ def main():
         help="Output machine-readable JSON instead of text",
     )
 
+    # ── validate-scc-cycles subcommand (US-725) ───────────────────────────────
+    validate_scc_parser = subparsers.add_parser(
+        "validate-scc-cycles",
+        help="Detect circular dependencies in prd.json story graph using Tarjan's SCC (US-725)",
+    )
+    validate_scc_parser.add_argument(
+        "prd",
+        metavar="PRD",
+        nargs="?",
+        default="prd.json",
+        help="Path to prd.json (default: prd.json)",
+    )
+
     # ── validate-phase-outputs subcommand (US-661) ────────────────────────────
     validate_phase_parser = subparsers.add_parser(
         "validate-phase-outputs",
@@ -3848,6 +3861,8 @@ def main():
         cmd_validate_federated_governance(args)
     elif args.command == "validate-phase-outputs":
         cmd_validate_phase_outputs(args)
+    elif args.command == "validate-scc-cycles":
+        cmd_validate_scc_cycles(args)
     else:
         parser.print_help()
         sys.exit(0)
@@ -4623,6 +4638,50 @@ def cmd_validate_phase_outputs(args: argparse.Namespace) -> None:
     else:
         print(f"[ok] All {len(results)} phase(s) valid", file=sys.stderr)
         sys.exit(0)
+
+
+def cmd_validate_scc_cycles(args: argparse.Namespace) -> None:
+    """Detect circular dependencies in prd.json story graph using Tarjan's SCC (US-725).
+
+    Usage: spiral validate-scc-cycles [prd.json]
+
+    Reads story._dependencies field to build a directed graph, then runs Tarjan's
+    strongly-connected-components algorithm to find cycles.
+
+    Outputs JSON:
+        {
+            "acyclic": true | false,
+            "cycles": [[story_id, ...], ...],
+            "cycle_paths": ["US-101 → US-102 → US-103 → US-101", ...]
+        }
+
+    Exit code 1 if cycles detected, 0 if acyclic.
+    """
+    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    from validate_scc import find_cycles  # type: ignore[import-untyped]
+
+    prd_path = Path(getattr(args, "prd", "prd.json"))
+
+    if not prd_path.exists():
+        print(json.dumps({"error": f"File not found: {prd_path}", "acyclic": False}), file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        with open(prd_path, encoding="utf-8") as f:
+            prd = json.load(f)
+    except json.JSONDecodeError as e:
+        print(json.dumps({"error": f"Invalid JSON: {e}", "acyclic": False}), file=sys.stderr)
+        sys.exit(1)
+
+    result = find_cycles(prd)
+    print(json.dumps(result, indent=2))
+
+    if not result["acyclic"]:
+        for path in result.get("cycle_paths", []):
+            print(f"  cycle: {path}", file=sys.stderr)
+        sys.exit(1)
+
+    sys.exit(0)
 
 
 if __name__ == "__main__":

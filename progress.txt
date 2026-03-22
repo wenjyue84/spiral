@@ -1321,3 +1321,55 @@ This is a Python CLI tool, not a Frappe application; there are no DocTypes or ho
 2. ✅ Happy path: lint-shell YAML has 'runs' key with >=1 step (TestLintShellActionYaml)
 3. ✅ Error case: missing inputs → AssertionError (test_missing_inputs_raises_assertion, test_missing_specific_input_raises_assertion)
 4. ✅ Tests run offline, local file reads only (no network calls)
+
+## Pre-analysis for US-725 (Gemini 2.5 Pro)
+Here is a technical brief for implementing user story US-725.
+
+**Project:** Spiral (Python CLI Tool)
+**Story:** US-725: Detect Circular Dependencies in Story Graph
+
+**1. Python Files to Modify:**
+*   **`main.py`**: To add the new `validate-scc-cycles` command definition, likely using a framework like `click` or `argparse`.
+*   **`lib/dependency_graph.py`** or **new `lib/scc_detector.py`**: This file should contain the core logic. It will load `prd.json`, build the graph, and implement Tarjan's SCC algorithm.
+*   **`tests/test_validate_scc.py`** (New File): For integration tests verifying cycle detection and acyclic graph validation.
+
+**2. Frappe DocTypes / Data Structures:**
+*   This is a Python CLI project, not a Frappe application.
+*   The primary data source is **`prd.json`**, which contains the story dependency graph. The command will parse the `_dependencies` array for each story object.
+
+**3. Implementation Approach:**
+1.  Define a new command in `main.py` that accepts the path to `prd.json`.
+2.  Create a dedicated function that reads `prd.json` and builds a directed graph (adjacency list is fine).
+3.  Implement Tarjan's strongly connected components (SCC) algorithm to find all cycles.
+4.  The command should output a JSON object `{ "acyclic": <bool>, "cycles": [[<story_id>], ...] }`.
+5.  Use `sys.exit(1)` if any cycles are found, otherwise `sys.exit(0)`.
+
+**4. Edge Cases & Gotchas:**
+*   Ensure robust error handling for a missing or malformed `prd.json`.
+*   The graph logic must handle stories with no dependencies (`_dependencies: []`).
+*   A story might depend on a non-existent story ID; this should be handled gracefully.
+*   The cycle detection output should clearly list the story IDs involved in each circular path.
+
+
+---
+
+## Iteration [Current] - Story: US-725 CLI: spiral validate-scc-cycles -- Detect Circular Dependencies in Federated Story Graph
+
+### What was implemented
+- **lib/validate_scc.py** — Tarjan's SCC algorithm on `_dependencies` field; exports `build_graph`, `tarjan_scc`, `_find_cycle_path`, `find_cycles`; returns `{acyclic, cycles, cycle_paths}`
+- **main.py** — Added `validate-scc-cycles` subparser (optional prd arg, default `prd.json`), dispatch in main(), and `cmd_validate_scc_cycles()` function
+- **tests/test_validate_scc.py** — 18 tests: unit tests for `build_graph`, `tarjan_scc`, `find_cycles`; CLI integration tests via subprocess
+
+### Patterns discovered
+- `_dependencies` is distinct from `dependencies`; must explicitly ignore the `dependencies` field to avoid false positives
+- Tarjan's SCC finds SCCs; self-loops are single-node SCCs where node ∈ its own neighbor list
+- For cycle path formatting: DFS within the SCC subgraph from the first node, closing back to start
+- mypy strict requires `Any` for JSON data (dict[str, Any] not dict[str, object]) to avoid attr-defined errors on __iter__
+
+### Gotchas
+- Pre-existing mypy errors in lib/resilience/token_guard.py and lib/prd/batch_validate.py (not related to this story)
+
+### Acceptance Criteria Mapping
+1. ✅ CLI reads prd.json, builds directed graph from `_dependencies`, runs SCC, outputs `{acyclic, cycles, cycle_paths}`
+2. ✅ If cycles detected, exit code=1 and cycle paths printed to stderr (e.g. "US-101 → US-102 → US-103 → US-101")
+3. ✅ Integration tests: 3-story cycle found, linear DAG returns cycles=[], CLI exit codes verified
