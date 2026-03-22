@@ -1,7 +1,12 @@
-"""Integration tests for US-459: End-to-end SPIRAL runner with mock Claude API.
+"""Integration tests for US-459: CI workflow YAML structure, lint-shell action, and E2E runner.
 
-Tests verify that the SPIRAL runner works correctly with mocked Claude API responses,
-covering both the happy path (success) and error case (failure with retry).
+Tests verify:
+- .github/actions/lint-shell/action.yml has 'runs' key with at least one step (US-709 happy path)
+- .github/actions/setup-uv/action.yml input validation raises AssertionError on missing inputs (US-709 error case)
+- .github/workflows/ci.yml top-level structure is valid (on, jobs keys present)
+- SPIRAL runner works correctly with mocked Claude API responses (happy path and retry)
+
+All tests run offline using local file reads only. No GitHub API calls.
 """
 
 import json
@@ -10,6 +15,9 @@ import sys
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
+
+import pytest
+import yaml
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 from spiral_io import atomic_write_json, configure_utf8_stdout
@@ -253,3 +261,113 @@ def test_error_case_mocked_claude_failure_triggers_retry(tmp_path: Path) -> None
     """AC2: Error case test with mocked Claude failure and retry trigger."""
     test_obj = TestIntegrationUS459()
     test_obj.test_error_case_mocked_claude_failure_triggers_retry(tmp_path)
+
+
+# ── US-709: CI workflow YAML structure tests ────────────────────────────────
+
+_REPO_ROOT = Path(__file__).parent.parent
+_LINT_SHELL_YAML = _REPO_ROOT / ".github" / "actions" / "lint-shell" / "action.yml"
+_SETUP_UV_YAML = _REPO_ROOT / ".github" / "actions" / "setup-uv" / "action.yml"
+_CI_WORKFLOW_YAML = _REPO_ROOT / ".github" / "workflows" / "ci.yml"
+
+
+def _load_action_yaml(path: Path) -> dict[str, Any]:
+    """Load a GitHub Actions YAML file as a dict (offline, no API calls)."""
+    with open(path, encoding="utf-8") as f:
+        data = yaml.safe_load(f)
+    assert isinstance(data, dict), f"Expected dict at top level of {path}"
+    return data
+
+
+def _validate_action_has_input(action: dict[str, Any], input_name: str) -> None:
+    """Assert that a composite action YAML declares the named input."""
+    assert "inputs" in action, f"Action must have 'inputs' key (missing input {input_name!r})"
+    assert input_name in action["inputs"], f"Action must declare input {input_name!r}"
+
+
+class TestLintShellActionYaml:
+    """Happy-path structural checks for .github/actions/lint-shell/action.yml (US-709)."""
+
+    @pytest.fixture(autouse=True)
+    def load(self) -> None:
+        self.action: dict[str, Any] = _load_action_yaml(_LINT_SHELL_YAML)
+
+    def test_file_exists(self) -> None:
+        assert _LINT_SHELL_YAML.is_file(), f"Expected {_LINT_SHELL_YAML} to exist"
+
+    def test_runs_key_exists(self) -> None:
+        """Happy path: lint-shell action YAML contains 'runs' key."""
+        assert "runs" in self.action
+
+    def test_runs_using_composite(self) -> None:
+        assert self.action["runs"].get("using") == "composite"
+
+    def test_runs_has_steps(self) -> None:
+        assert "steps" in self.action["runs"]
+
+    def test_at_least_one_step(self) -> None:
+        """Happy path: lint-shell action has at least one step."""
+        steps = self.action["runs"]["steps"]
+        assert isinstance(steps, list)
+        assert len(steps) >= 1, "lint-shell action must have at least one step"
+
+
+class TestSetupUvActionYaml:
+    """Happy-path and error-case checks for .github/actions/setup-uv/action.yml (US-709)."""
+
+    @pytest.fixture(autouse=True)
+    def load(self) -> None:
+        self.action: dict[str, Any] = _load_action_yaml(_SETUP_UV_YAML)
+
+    def test_file_exists(self) -> None:
+        assert _SETUP_UV_YAML.is_file(), f"Expected {_SETUP_UV_YAML} to exist"
+
+    def test_runs_key_exists(self) -> None:
+        assert "runs" in self.action
+
+    def test_inputs_key_exists(self) -> None:
+        assert "inputs" in self.action
+
+    def test_python_version_input_declared(self) -> None:
+        _validate_action_has_input(self.action, "python-version")
+
+    def test_missing_inputs_raises_assertion(self) -> None:
+        """Error case: removing 'inputs' raises AssertionError (schema violation)."""
+        action_no_inputs = {k: v for k, v in self.action.items() if k != "inputs"}
+        with pytest.raises(AssertionError, match="inputs"):
+            _validate_action_has_input(action_no_inputs, "python-version")
+
+    def test_missing_specific_input_raises_assertion(self) -> None:
+        """Error case: missing 'python-version' key inside inputs raises AssertionError."""
+        action_modified = dict(self.action)
+        inputs_without_pv = {k: v for k, v in self.action["inputs"].items() if k != "python-version"}
+        action_modified["inputs"] = inputs_without_pv
+        with pytest.raises(AssertionError, match="python-version"):
+            _validate_action_has_input(action_modified, "python-version")
+
+
+class TestCiWorkflowYaml:
+    """Structural checks for .github/workflows/ci.yml (US-709)."""
+
+    @pytest.fixture(autouse=True)
+    def load(self) -> None:
+        self.workflow: dict[str, Any] = _load_action_yaml(_CI_WORKFLOW_YAML)
+
+    def test_file_exists(self) -> None:
+        assert _CI_WORKFLOW_YAML.is_file(), f"Expected {_CI_WORKFLOW_YAML} to exist"
+
+    def test_on_trigger_exists(self) -> None:
+        # PyYAML may parse 'on:' as the boolean True key — accept either form
+        keys_as_str = {str(k) for k in self.workflow}
+        assert "on" in keys_as_str or "True" in keys_as_str, "Workflow must have an 'on' trigger key"
+
+    def test_jobs_key_exists(self) -> None:
+        assert "jobs" in self.workflow
+
+    def test_has_at_least_one_job(self) -> None:
+        jobs = self.workflow["jobs"]
+        assert isinstance(jobs, dict)
+        assert len(jobs) >= 1
+
+    def test_lint_shell_job_present(self) -> None:
+        assert "lint-shell" in self.workflow["jobs"], "CI workflow must include 'lint-shell' job"
