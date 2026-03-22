@@ -74,14 +74,23 @@ This mirrors the same checks run in CI (`.github/workflows/`), shifting feedback
 Phase 0: CLARIFY  (startup only, interactive — skipped with --gate proceed/skip)
   └─ Constitution → Focus → Clarify → Stories → Options
 
-Phase R: RESEARCH     → Gemini web search + Claude synthesis → _research_output.json
-Phase T: TEST SYNTH   → Scan test failures → _test_stories_output.json
+Phase A: AI SUGGEST   → Per-iteration story candidates + test story generation
+Phase R: RESEARCH     → Gemini web search + Claude synthesis (parallel with T)
+Phase T: TEST SYNTH   → Scan test failures (parallel with R)
 Phase S: STORY VALID  → Constitution/goal/dedup checks → _validated_stories.json
+Phase E: ENRICHMENT   → Populate hints & context on validated stories
 Phase M: MERGE        → Patch prd.json (capped by SPIRAL_MAX_PENDING)
+Phase X: CONTEXT BUILD→ Dependency inference
+Phase G: GATE         → Human checkpoint (skipped with --gate proceed)
 Phase I: IMPLEMENT    → Decompose → Ralph workers → Retry (haiku→sonnet→opus) → Commit/Revert
 Phase V: VALIDATE     → Run SPIRAL_VALIDATE_CMD (pytest) + optional screenshots
-Phase C: CHECK DONE   → All pass? Exit. Else loop to Phase R.
+Phase C: CHECK DONE   → All pass? Exit. Else continue.
+Phase L: LEARNING     → Episodic memory extraction (optional, SPIRAL_EPISODIC_MEMORY)
+→ Loop back to Phase A
 ```
+
+> **CRITICAL**: The phase order above is the source of truth. If you change it,
+> update ALL copies listed in the comment block at spiral.sh line ~1390.
 
 ### Key Components
 

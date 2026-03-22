@@ -84,6 +84,7 @@ export const PHASES: Phase[] = [
     outputs: ['_validated_stories.json', '_story_rejected.json'],
     x: 400, y: 340,
   },
+{    id: 'E', label: 'Phase E', subtitle: 'Enrichment — populate hints & context',    zone: 'pipeline', script: 'lib/phases/phase_e_enrich.sh',    inputs: ['_validated_stories.json', 'prd.json'],    outputs: ['prd.json (enriched hints)'],    x: 400, y: 420,  },
   {
     id: 'M', label: 'Phase M', subtitle: 'Merge → prd.json',
     zone: 'pipeline', script: 'lib/merge_stories.py',
@@ -91,6 +92,7 @@ export const PHASES: Phase[] = [
     outputs: ['prd.json (patched)', '_research_overflow.json'],
     x: 400, y: 460,
   },
+{    id: 'X', label: 'Phase X', subtitle: 'Context Build — dependency inference',    zone: 'pipeline', script: 'lib/phases/phase_x_contextbuild.sh',    inputs: ['prd.json'],    outputs: ['prd.json (deps inferred)'],    x: 400, y: 540,  },
   {
     id: 'G', label: 'Phase G', subtitle: 'Gate (human checkpoint)',
     zone: 'decision',
@@ -119,6 +121,7 @@ export const PHASES: Phase[] = [
     outputs: [],
     x: 400, y: 860,
   },
+{    id: 'L', label: 'Phase L', subtitle: 'Learning — episodic memory extraction',    zone: 'pipeline', script: 'lib/phases/phase_l_learning.sh',    inputs: ['prd.json', 'results.tsv', 'retry-counts.json'],    outputs: ['.spiral/episodic_memory.jsonl'],    skipCondition: 'SPIRAL_EPISODIC_MEMORY=false',    x: 400, y: 940,  },
   {
     id: 'D', label: 'Phase D', subtitle: 'AI Suggestions — always loops back to Phase A',
     zone: 'decision',

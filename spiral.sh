@@ -1045,6 +1045,7 @@ source "$SPIRAL_HOME/lib/phases/phase_0_clarify.sh"
 source "$SPIRAL_HOME/lib/phases/phase_m_merge.sh"
 source "$SPIRAL_HOME/lib/phases/phase_i_implement.sh"
 source "$SPIRAL_HOME/lib/phases/phase_v_validate.sh"
+source "$SPIRAL_HOME/lib/phases/phase_p_push.sh"
 source "$SPIRAL_HOME/lib/phases/phase_c_check_done.sh"
 source "$SPIRAL_HOME/lib/phases/phase_r_research.sh"
 source "$SPIRAL_HOME/lib/phases/phase_rt_parallel.sh"
@@ -1351,6 +1352,7 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
   _PHASE_DUR_M=0
   _PHASE_DUR_I=0
   _PHASE_DUR_V=0
+  _PHASE_DUR_P=0
   _PHASE_DUR_X=0
   _PHASE_DUR_C=0
   # Clean stale endtime files from prior runs to prevent negative phase durations
@@ -1384,6 +1386,22 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
     echo "  [CAPACITY] $PENDING pending stories exceed limit of $CAPACITY_LIMIT."
     echo "  [CAPACITY] Skipping Phase R only (no web research for new stories) — T/M still run to catch regressions."
   fi
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # CANONICAL PHASE EXECUTION ORDER (source of truth):
+  #   A → R+T → S → E(enrich) → M → X(context) → G+I → V → C → L(learn)
+  #
+  # If you change this order, update ALL copies:
+  #   - spiral-ui/src/components/ProjectDashboard.tsx  (PHASE_ORDER, PHASE_NAMES, PHASE_COLORS)
+  #   - spiral-ui/src/data/phases.ts                   (PHASES array)
+  #   - spiral-ui/src/components/analytics/ErrorBreakdownChart.tsx (PHASE_ORDER)
+  #   - lib/core/state_machine.py                      (PHASE_ORDER, PHASE_NAMES)
+  #   - lib/dashboard/timeline.py                      (PHASE_ORDER, PHASE_NAMES)
+  #   - lib/spiral_helpers.sh                           (PHASE_ORDER)
+  #   - lib/spiral_assert.sh                            (PHASE_ORDER)
+  #   - tests/test_spiral_e2e_federated.py              (PHASES_IN_ORDER)
+  #   - tests/test_timeline_endpoint.py                 (test_phase_order_contains_all_phases)
+  # ══════════════════════════════════════════════════════════════════════════
 
   # ── Phase A: AI STORY SUGGESTIONS ──────────────────────────────────────────
   # Runs once per iteration before Phase R.
@@ -1430,6 +1448,8 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
   run_phase_gate_and_implement || continue
 
   run_phase_validate || continue
+
+  run_phase_push
 
   run_phase_check_done
   echo "  [C] Looping back to Phase R"
