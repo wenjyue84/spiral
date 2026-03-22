@@ -204,9 +204,10 @@ class TestAggregateFailures:
         return str(run / "report.json")
 
     def test_empty_report_list(self):
-        failures, names = aggregate_failures([])
+        failures, names, excluded_flaky = aggregate_failures([])
         assert failures == []
         assert names == []
+        assert excluded_flaky == []
 
     def test_single_failure(self, tmp_path):
         path = self._make_report(
@@ -216,7 +217,7 @@ class TestAggregateFailures:
                 {"id": "test.foo", "status": "FAIL", "name": "test_foo"},
             ],
         )
-        failures, names = aggregate_failures([path])
+        failures, names, excluded_flaky = aggregate_failures([path])
         assert len(failures) == 1
         assert failures[0]["id"] == "test.foo"
 
@@ -237,7 +238,7 @@ class TestAggregateFailures:
                 {"id": "test.bar", "status": "ERROR", "name": "test_bar"},
             ],
         )
-        failures, names = aggregate_failures([p1, p2])
+        failures, names, excluded_flaky = aggregate_failures([p1, p2])
         ids = [f["id"] for f in failures]
         assert ids.count("test.foo") == 1
         assert "test.bar" in ids
@@ -252,7 +253,7 @@ class TestAggregateFailures:
                 {"id": "test.fail", "status": "FAIL", "name": "test_fail"},
             ],
         )
-        failures, _ = aggregate_failures([path])
+        failures, _, excluded_flaky = aggregate_failures([path])
         assert len(failures) == 1
         assert failures[0]["id"] == "test.fail"
 
@@ -260,7 +261,7 @@ class TestAggregateFailures:
         run = tmp_path / "bad-run"
         run.mkdir(parents=True)
         (run / "report.json").write_text("not json", encoding="utf-8")
-        failures, _ = aggregate_failures([str(run / "report.json")])
+        failures, _, excluded_flaky = aggregate_failures([str(run / "report.json")])
         assert failures == []
 
 

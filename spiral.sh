@@ -133,6 +133,7 @@ CHANGELOG_MODE=0                             # 1 = generate CHANGELOG.md via git
 SHOW_DOCS_MODE=0                             # 1 = list generated API docs and exit (--changelog)
 STALE_REPORT_MODE=0                          # 1 = print stale stories and exit (--stale-report)
 FLAKY_REPORT_MODE=0                          # 1 = print flaky test quarantine report and exit (--flaky-tests report)
+SHOW_FLAKY_TESTS_MODE=0                      # 1 = print flaky tests from test synthesis history and exit (--show-flaky-tests)
 CALIBRATION_REPORT_MODE=0                    # 1 = print calibration report and exit (--calibration-report)
 SPIRAL_LOG_LEVEL="${SPIRAL_LOG_LEVEL:-INFO}" # DEBUG|INFO|WARN|ERROR (case-insensitive)
 
@@ -294,6 +295,10 @@ while [[ $# -gt 0 ]]; do
         exit 1
       fi
       ;;
+    --show-flaky-tests)
+      SHOW_FLAKY_TESTS_MODE=1
+      shift
+      ;;
     --calibration-report)
       CALIBRATION_REPORT_MODE=1
       shift
@@ -360,6 +365,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --show-docs                List generated API documentation with story ID mappings and exit"
       echo "  --stale-report             Print stories inactive beyond SPIRAL_STALE_DAYS (default: 7) and exit"
       echo "  --flaky-tests report       Print quarantined flaky test registry and exit"
+      echo "  --show-flaky-tests         Print tests failing <50% across last 5 iterations (excluded from Phase T) and exit"
       echo "  --calibration-report       Print actual vs estimated complexity calibration data and exit"
       echo "  --list-plugins             List all loaded plugins and their hooks, then exit"
       echo "  --log-level DEBUG|INFO|WARN|ERROR  Output verbosity (default: INFO; can also set SPIRAL_LOG_LEVEL env var)"
@@ -930,6 +936,24 @@ if [[ "$FLAKY_REPORT_MODE" -eq 1 ]]; then
   fi
   source "$_FLAKY_LIB"
   flaky_report
+  exit 0
+fi
+
+# ── --show-flaky-tests: print flaky tests from test synthesis history and exit
+if [[ "$SHOW_FLAKY_TESTS_MODE" -eq 1 ]]; then
+  echo ""
+  echo "  Flaky Tests — Failing <50% of last 5 iterations (excluded from Phase T)"
+  echo "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo ""
+  _FLAKY_TESTS=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/flaky_detector.py" list_with_rates 2>/dev/null || echo "")
+  if [[ -z "$_FLAKY_TESTS" ]]; then
+    echo "  No flaky tests detected."
+  else
+    while IFS= read -r _line; do
+      echo "  $_line"
+    done <<<"$_FLAKY_TESTS"
+  fi
+  echo ""
   exit 0
 fi
 

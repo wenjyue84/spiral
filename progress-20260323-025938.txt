@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 ## Iteration [Current] - Story: US-767 Integration Test: file_aware_retry
 
 ### What was implemented
@@ -2323,34 +2324,5 @@ This brief outlines the implementation plan for scoring research-sourced stories
 *   **Filtering:** Ensure all data processing functions strictly filter for stories where `_source == "research"`.
 *   **Initial State:** The `get_average_score` function should handle cases where no scored stories exist yet (e.g., return "N/A" or a default value).
 *   **State Passing:** The `retry_count` for a given story must be reliably tracked and passed as an argument to the scoring script from `spiral.sh`.
-
-
-## Pre-analysis for US-774 (Gemini 2.5 Pro)
-Here is a technical brief for the user story, based on the provided JSON.
-
-**Technical Brief: US-774 Flaky Test Detection**
-
-*   **Context:** This story is for the "Spiral" command-line tool. It is not related to Frappe or the `lhdn_payroll_integration` app. The primary goal is to implement a system to detect and exclude intermittently failing tests from the story generation process.
-
-*   **Python Files to Modify:**
-    *   `lib/flaky_detector.py` (New file): To contain the core logic for reading/writing test history and identifying flaky tests based on the failure rate (<50% over the last 5 iterations).
-    *   `spiral.sh` (Existing file): To be modified to orchestrate calls to the flaky detector during "Phase T" and to add the new `spiral show-flaky-tests` CLI command.
-    *   `lib/generate_test_stories.py` (Likely candidate): This is the probable location to integrate the exclusion logic, preventing stories from being generated for detected flaky tests.
-    *   `tests/test_flaky_detector.py` (New file): Unit tests to validate the detection algorithm as per the acceptance criteria.
-
-*   **Frappe DocTypes / Hooks Involved:**
-    *   None. This project is a Python/shell-based command-line tool.
-
-*   **Recommended Implementation Approach:**
-    1.  Define a clear JSON structure for `.spiral/test_failure_history.json` to store results per test case.
-    2.  Implement a `FlakyDetector` class in `lib/flaky_detector.py` with methods to update the history file after a test run and a method to return a list of flaky tests.
-    3.  Modify the test execution step in `spiral.sh` to call the new Python script to record the latest pass/fail results.
-    4.  In the story generation phase, call the detector to get the flaky test list and filter them out, logging each exclusion.
-    5.  Add a command handler to `spiral.sh` for `show-flaky-tests` that invokes the detector to print a formatted report.
-
-*   **Edge Cases & Gotchas:**
-    *   The logic must gracefully handle the initial run when the history file does not exist.
-    *   Ensure the failure rate calculation is robust for tests with fewer than 5 historical data points.
-    *   The definition of a "test" needs to be consistent between the test runner and the history tracking.
-    *   If parallel execution is possible, file locking on `test_failure_history.json` may be necessary to prevent race conditions.
-
+=======
+>>>>>>> Stashed changes

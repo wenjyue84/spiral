@@ -5077,7 +5077,8 @@
         "core-flow",
         "phase-t"
       ],
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-03-22T19:11:04Z"
     },
     {
       "id": "US-776",

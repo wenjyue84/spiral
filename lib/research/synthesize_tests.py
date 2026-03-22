@@ -25,8 +25,10 @@ except ImportError:
     HAS_YAML = False
 
 sys.path.insert(0, os.path.dirname(__file__))
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from prd_schema import validate_prd
 from spiral_io import atomic_write_json, configure_utf8_stdout
+from flaky_detector import is_flaky_test, get_flaky_tests
 
 configure_utf8_stdout()
 
@@ -155,14 +157,20 @@ def extract_test_source(test_id: str, repo_root: str) -> str | None:
     return None
 
 
-def aggregate_failures(report_paths: list[str]) -> tuple[list[dict[str, Any]], list[str]]:
+def aggregate_failures(
+    report_paths: list[str], exclude_flaky: bool = True, spiral_home: str | None = None,
+    record_results: bool = True
+) -> tuple[list[dict[str, Any]], list[str], list[str]]:
     """
     Load multiple reports, union all FAIL/ERROR results, deduplicate by test ID.
-    Returns (failures_list, report_names_used).
+    Optionally exclude flaky tests (AC1: tests failing <50% are excluded).
+    Record all test results to flaky detector for history tracking.
+    Returns (failures_list, report_names_used, excluded_flaky_tests).
     """
     seen_ids: set[str] = set()
     failures: list[dict[str, Any]] = []
     report_names: list[str] = []
+    excluded_flaky: list[str] = []
 
     for path in report_paths:
         try:
@@ -175,17 +183,37 @@ def aggregate_failures(report_paths: list[str]) -> tuple[list[dict[str, Any]], l
         all_results = report.get("all_results", [])
         batch = [r for r in all_results if r.get("status") in ("FAIL", "ERROR")]
         new_count = 0
+        skipped_flaky = 0
+
+        # Record all test results (pass/fail) to flaky detector for history tracking
+        if record_results:
+            for r in all_results:
+                tid = r.get("id", "")
+                if tid:
+                    passed = r.get("status") not in ("FAIL", "ERROR")
+                    from flaky_detector import record_test_result
+                    record_test_result(tid, passed, spiral_home=spiral_home)
+
         for r in batch:
             tid = r.get("id", "")
             if tid and tid not in seen_ids:
-                seen_ids.add(tid)
-                failures.append(r)
-                new_count += 1
+                # Check if test is flaky and should be excluded
+                if exclude_flaky and is_flaky_test(tid, spiral_home=spiral_home):
+                    excluded_flaky.append(tid)
+                    skipped_flaky += 1
+                else:
+                    seen_ids.add(tid)
+                    failures.append(r)
+                    new_count += 1
 
         report_names.append(report_dir)
-        print(f"[synthesize] Report {report_dir}: {new_count} new failures (running pool: {len(failures)})")
+        status_msg = f"[synthesize] Report {report_dir}: {new_count} new failures"
+        if skipped_flaky:
+            status_msg += f" ({skipped_flaky} flaky tests excluded)"
+        status_msg += f" (running pool: {len(failures)})"
+        print(status_msg)
 
-    return failures, report_names
+    return failures, report_names, excluded_flaky
 
 
 def result_to_story(result: dict[str, Any], repo_root: str | None = None) -> dict[str, Any]:
@@ -336,9 +364,17 @@ def main() -> int:
         print(f"[synthesize] Wrote 0 stories → {args.output}")
         return 0
 
-    # Aggregate failures from all recent reports (dedup by test ID)
-    failures, report_names = aggregate_failures(report_paths)
+    # Aggregate failures from all recent reports (dedup by test ID, exclude flaky tests)
+    failures, report_names, excluded_flaky = aggregate_failures(
+        report_paths, exclude_flaky=True, spiral_home=os.environ.get("SPIRAL_HOME")
+    )
     print(f"[synthesize] Aggregated {len(failures)} unique failures from {len(report_names)} report(s)")
+    if excluded_flaky:
+        print(f"[synthesize] Excluded {len(excluded_flaky)} flaky tests from story generation")
+        for test_id in excluded_flaky[:5]:
+            print(f"  - {test_id}")
+        if len(excluded_flaky) > 5:
+            print(f"  ... and {len(excluded_flaky) - 5} more")
 
     repo_root = os.path.abspath(args.repo_root)
 
