@@ -1,4 +1,25 @@
-## Iteration [Current] - Story: US-760 Security Tests for CI Workflows
+## Iteration [Current] - Story: US-767 Integration Test: file_aware_retry
+
+### What was implemented
+- **Story marked complete** — tests/test_file_aware_retry.py was already fully implemented in US-759 iteration with all 21 tests passing
+- Fixed duplicate story ID: US-770 (second occurrence) → US-1000 to resolve prd.json schema validation
+
+### Patterns discovered
+- Test file was complete from prior iteration; this story was pending prd.json flag update
+- Pre-existing duplicate ID issue was blocking schema validation
+
+### Acceptance Criteria Mapping
+1. ✅ Happy-path test: test_10_file_story_3_file_retry, test_10_file_story_3_file_retry_integration verify retry targets known failed files (AC1)
+2. ✅ Edge-case tests: test_returns_empty_when_no_failed_files_column, test_returns_empty_for_missing_tsv verify retry skips when no failures (AC2)
+3. ✅ uv run pytest tests/test_file_aware_retry.py -v exits 0 with all 21 tests passing (AC3)
+
+### Notes
+- All integration tests were already written in prior iteration; only needed passes flag and duplicate ID fix
+- prd.json validation now passes (207 stories, no duplicates)
+
+---
+
+## Iteration [Previous] - Story: US-760 Security Tests for CI Workflows
 
 ### What was implemented
 - **tests/test_ci_security.py** (new) — 4 security tests verifying CI workflows don't leak secrets:
@@ -2084,3 +2105,27 @@ Implement `pytest` integration tests to verify that the file-aware retry mechani
 *   Test the scenario where a run succeeds (no failed files). `get_files_to_retry()` should return an empty list.
 *   Ensure tests are isolated and do not rely on a persistent `results.tsv` state between runs. Use temporary files.
 *   Note: This is a standard Python project using `pytest`, not a Frappe application. No DocTypes or Frappe hooks are involved.
+
+## Pre-analysis for US-767 (Gemini 2.5 Pro)
+Subject: Technical Brief for US-767: Integration Tests for `file_aware_retry`
+
+This brief outlines the implementation plan for creating integration tests for the file-aware retry mechanism.
+
+**1. Files to Modify:**
+*   **Primary:** `tests/test_file_aware_retry.py` (create or add to this file).
+*   **Reference:** `lib/impl/file_aware_retry.py` (this is the module under test).
+
+**2. Frappe Context:**
+*   Despite the context provided, the technical details in the story (pytest, shell scripts) confirm this is a standalone Python script, not a Frappe application. No DocTypes or Frappe hooks are involved.
+
+**3. Implementation Approach:**
+*   Use `pytest` to write the tests.
+*   The key is to mock the subprocess call to `lib/impl/retry.sh` using `unittest.mock` or `pytest.monkeypatch` to isolate the test from the shell script execution.
+*   **Happy Path Test:** Simulate a failed run by providing a list of file paths. Call the main function from `file_aware_retry.py` and assert that the mocked subprocess was called with arguments containing *only* those failed files.
+*   **Edge Case Test:** Simulate a run with no failed files. Call the main function and assert the mocked subprocess was *not* called.
+
+**4. Gotchas & Watchpoints:**
+*   The mock must correctly capture the arguments passed to the subprocess to verify the file list.
+*   Tests should not depend on external services or live CLI execution.
+*   Ensure the test environment and any temporary files are cleaned up properly using pytest fixtures like `tmp_path`.
+
