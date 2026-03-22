@@ -1,4 +1,33 @@
-## Iteration [Current] - Story: US-734 Integration Tests: CHANGELOG Generation Logic in gen_changelog.py
+## Iteration [Current] - Story: US-754 Security Tests for validate_results_tsv
+
+### What was implemented
+- **tests/test_validate_results_tsv_security.py** (new) — 11 parametrized security tests covering:
+  - TestPathTraversal: 4 parametrized tests for path-traversal story_ids (../../etc/passwd, ..\\..\\windows\\system32, etc.)
+  - TestBinaryContent: 2 tests for null-byte and binary garbage in fields
+  - TestOversizedFields: 1 test for 10,000+ char fields
+  - TestEmptyAndMalformed: 2 tests for empty TSV and malformed JSON
+  - TestNoPathLeakage: 1 comprehensive test verifying no absolute paths in errors/warnings
+  - TestReturnStructure: 1 test verifying dict structure and no exceptions
+
+### Patterns discovered
+- validate_results_tsv.py already has robust error handling via try/except around JSON loading (lines 56-61) and TSV reading (lines 83-102)
+- `errors="replace"` parameter when opening files safely handles binary/null-byte content without raising exceptions
+- Parametrized tests with @pytest.mark.parametrize cover multiple similar cases concisely
+- All error messages in validate_results_tsv.py are already safe (no absolute path leakage detected)
+
+### Gotchas
+- Mixing bytes and string literals in Python causes SyntaxError; must use bytes for entire content when writing binary files
+- The validate_results_tsv.py implementation was already security-hardened from prior work; tests just needed to be added to verify
+
+### Acceptance Criteria Mapping
+1. ✅ validate() returns dict with errors key (no exception) for path-traversal inputs — TestPathTraversal (4 tests)
+2. ✅ validate() handles binary/null-byte content safely — TestBinaryContent (2 tests)
+3. ✅ No error strings contain absolute filesystem paths — TestNoPathLeakage (1 test) + all others verify
+4. ✅ uv run pytest tests/test_validate_results_tsv_security.py -v exits 0 with 11 passing tests
+
+---
+
+## Iteration [Previous] - Story: US-734 Integration Tests: CHANGELOG Generation Logic in gen_changelog.py
 
 ### What was implemented
 - **tests/test_gen_changelog.py** (already complete) — 7 tests passing:
@@ -1937,4 +1966,3 @@ FAILED diff-guard: [Security Test] Results TSV: No Sensitive Data in Telemetry R
 3. ✅ Test checks HEADER against frozenset of forbidden credential column names
 ## Iteration 1 - Sun, Mar 22, 2026 11:38:39 PM
 FAILED diff-guard: Security tests for validate_results_tsv (US-570) (ID: US-736) — 455 lines > 400 limit — attempt 1/3
-
