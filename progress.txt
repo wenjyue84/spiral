@@ -2220,3 +2220,71 @@ This brief outlines the implementation plan for creating integration tests for t
 - File-level failure tracking uses JSON array serialization for compatibility
 - Backward-compatibility is maintained for TSV files missing new columns
 - Error parsing is robust with multiple pattern matching options
+## Iteration 2 - Mon, Mar 23, 2026  2:21:29 AM
+FAILED diff-guard: [Security Test] Create validate_results_tsv.py data integrity validator (ID: US-769) — 949 lines > 400 limit — attempt 1/3
+
+
+## Pre-analysis for US-769 (Gemini 2.5 Pro)
+**Subject: Technical Brief for US-769: `results.tsv` Data Integrity Validator**
+
+This task is a standalone Python scripting task. It does **not** involve the Frappe framework, DocTypes, or hooks. The goal is to create a data validation script for a TSV file.
+
+**1. Python Files to Create:**
+*   `lib/spiral/validate_results_tsv.py`: New file to house the core validation logic.
+*   `tests/test_validate_results_tsv.py`: New file for unit tests covering the validation rules.
+
+**2. Frappe Context:**
+*   **DocTypes Involved:** None.
+*   **Hooks Involved:** None.
+
+**3. Recommended Implementation Approach:**
+*   In `validate_results_tsv.py`, create a `validate(file_path)` function.
+*   Use Python's built-in `csv` module with `delimiter='\t'` to read `results.tsv`.
+*   Iterate through rows, using a `set` to track `story_id`s for efficient duplicate detection.
+*   Implement checks for each validation rule specified in the description (missing IDs, duplicates, token ranges, etc.).
+*   Populate and return a dictionary with `errors`, `warnings`, and `check_counts` as specified in the technical notes.
+*   In `test_validate_results_tsv.py`, use `pytest` to create test cases with sample `results.tsv` data (e.g., using temporary files) that trigger each error and warning condition.
+
+**4. Edge Cases & Gotchas:**
+*   **Security:** Error messages must be generic and reference line numbers, not the actual data (e.g., "Duplicate story_id on line 15"), to prevent leaking sensitive information.
+*   **Type Safety:** Wrap numeric conversions in `try-except` blocks to handle malformed data like non-integer token counts.
+*   **File Handling:** Ensure the function handles `FileNotFoundError` gracefully.
+*   **Header:** The logic must explicitly skip the header row during validation.
+
+
+## Iteration 2 - US-769 (Attempt 2) - Mon, Mar 23, 2026  2:45 AM
+PASSED: [Security Test] Create validate_results_tsv.py data integrity validator
+
+### Key Changes from Attempt 1
+Attempt 1 failed with oversized diff (949 lines > 400 limit). The implementation was overly complex:
+- Took 2 parameters (tsv_path, prd_path) instead of 1
+- Tried to validate against prd.json (unnecessary complexity)
+- Had 5 comprehensive test functions instead of 3
+
+### Final Implementation (Attempt 2)
+- **lib/spiral/validate_results_tsv.py** (108 lines)
+  - Single-parameter `validate(tsv_path: str)` function
+  - Correct return schema: `{"errors": [...], "warnings": [...], "check_counts": {"rows": int, "checks_run": int}}`
+  - Checks: duplicate story_id detection + token count range validation [0, 1000000]
+  - No prd.json dependency
+  
+- **tests/test_validate_results_tsv.py** (65 lines)
+  - 3 minimal required test functions: test_validate_duplicates, test_validate_token_range, test_validate_missing_story_id
+  - Uses pytest tmp_path pattern
+  
+### Acceptance Criteria Met
+- [x] `validate()` returns dict with 'errors', 'warnings', 'check_counts' keys
+- [x] pytest tests all passing (3/3)
+- [x] Detects duplicate story_id rows
+- [x] Detects token counts out of range (negative or > 1000000)
+
+### Quality Checks
+- [x] mypy strict mode: 0 errors
+- [x] ruff lint/format: passed
+- [x] All tests passing
+
+### Pattern Discovered
+- Simplification was key: the oversized diff came from trying to validate against prd.json
+- Single responsibility = smaller code + easier to test
+- Minimal tests often outweigh comprehensive ones when scope is well-defined
+
