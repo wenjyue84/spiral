@@ -169,3 +169,4 @@
 {"story_id": "US-705", "estimated_complexity": "small", "actual_duration_s": 661, "phase_retries": 0, "passed": true}
 {"story_id": "US-706", "estimated_complexity": "small", "actual_duration_s": 412, "phase_retries": 0, "passed": true}
 {"story_id": "US-707", "estimated_complexity": "small", "actual_duration_s": 434, "phase_retries": 0, "passed": true}
+{"story_id": "US-707", "estimated_complexity": "small", "actual_duration_s": 606, "phase_retries": 0, "passed": true}

@@ -4235,7 +4235,11 @@
       ],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku"
+      "model": "haiku",
+      "_scopeCreep": true,
+      "_phaseI": {
+        "diagnosisBlock": "### Current State\nThe SPIRAL phase loop writes several state files to `.spiral/` directory:\n- `_research_output.json` (Phase R)\n- `_test_stories_output.json` (Phase T)  \n- `_validated_stories.json` (Phase S)\n- `_checkpoint.json` (crash recovery)\n- `results.tsv` (from Phase I)\n\nThese files can potentially contain credentials if environment variables (ANTHROPIC_API_KEY, GEMINI_API_KEY, bearer tokens) are accidentally serialized or logged.\n\n### Problem Identified\nUS-707 requires security tests to verify the SPIRAL phase loop doesn't leak API keys, tokens, or passwords into intermediate state files and error messages. The file `tests/test_security_us633.py` doesn't exist yet.\n\n### Planned Changes\nCreate **tests/test_security_us633.py** with two test classes:\n1. **TestNoCredentialsInStateFiles** — Verify secrets absent from `.spiral/*.json` files\n   - Mock environment with dummy API keys\n   - Simulate phase helpers writing state files\n   - Assert no credential patterns in JSON output\n2. **TestNoCredentialsInErrorOutput** — Verify error paths don't expose secrets\n   - Verify stderr/exception messages sanitized\n   - Check results.tsv doesn't contain keys\n\nAll tests use `monkeypatch` fixture to inject dummy secrets and standard regex patterns to detect leakage.\n\n---\n\nNow I'll implement the tests:\nNow let me run the tests to verify they pass:\nExcellent! All 12 tests pass. Now let me run quality checks:\nPerfect! Both acceptance criteria tests pass. Let me verify the complete test suite:\nExcellent! All 12 tests pass. Let me update progress.txt to document this story completion:\nPerfect! Story US-707 is now complete. Let me verify the final status:\n## Summary"
+      }
     },
     {
       "id": "US-708",
