@@ -61,6 +61,11 @@ run_phase_validate() {
     log_spiral_event "phase_v_skipped" "\"reason\":\"no_new_passes\",\"passes_before\":$_PASSES_BEFORE_I,\"passes_after\":$_PASSES_AFTER_I,\"iteration\":$SPIRAL_ITER"
     write_checkpoint "$SPIRAL_ITER" "V"
   else
+    # ── US-782: Failure attribution (baseline captured in spiral.sh before Phase I) ──
+    _TEST_BASELINE_EXISTS=0
+    if [[ -f "$_TEST_BASELINE_FILE" ]]; then
+      _TEST_BASELINE_EXISTS=1
+    fi
     # ── Build effective validate command: incremental or full suite (US-131) ──
     _EFFECTIVE_VALIDATE_CMD="$SPIRAL_VALIDATE_CMD"
     if [[ "${SPIRAL_INCREMENTAL_VALIDATE:-false}" == "true" && -n "${PRE_RALPH_PRD_JSON:-}" ]]; then
@@ -197,6 +202,54 @@ for s in subdirs:
         sys.exit(0)
 print("  [V] No report found")
 PYEOF
+
+    # ── US-782: Attribution of newly-failed tests to the story (if baseline exists) ──
+    if [[ "$_TEST_BASELINE_EXISTS" -eq 1 ]] && [[ -f "$_TEST_BASELINE_FILE" ]]; then
+      echo "  [V] Attributing newly-failed tests to stories (US-782)..."
+
+      # Find the freshest test report
+      _NEW_REPORT_FILE=""
+      if [[ -d "$SPIRAL_REPORTS_DIR" ]]; then
+        _NEW_REPORT_FILE=$(find "$SPIRAL_REPORTS_DIR" -name "report.json" -type f | sort -r | head -1)
+      fi
+
+      if [[ -f "$_NEW_REPORT_FILE" ]]; then
+        # Get list of changed files from the current story (if available)
+        # This is populated by Ralph during Phase I
+        _CHANGED_FILES_FILE="$SCRATCH_DIR/_changed_files_${SPIRAL_ITER}.txt"
+        if [[ ! -f "$_CHANGED_FILES_FILE" && -n "$_ACTIVE_STORY_ID" ]]; then
+          # Fallback: extract filesTouch from the story in prd.json
+          "$JQ" -r --arg id "$_ACTIVE_STORY_ID" \
+            '.userStories[] | select(.id == $id) | .filesTouch // [] | .[]' \
+            "$PRD_FILE" >"$_CHANGED_FILES_FILE" 2>/dev/null || true
+        fi
+
+        if [[ -f "$_CHANGED_FILES_FILE" ]]; then
+          _ATTRIBUTION_OUTPUT="$SCRATCH_DIR/attribution_iter_${SPIRAL_ITER}.json"
+
+          # Run test_blame.py to attribute failures
+          "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/test_blame.py" \
+            --baseline-results "$_TEST_BASELINE_FILE" \
+            --new-results "$_NEW_REPORT_FILE" \
+            --changed-files "$_CHANGED_FILES_FILE" \
+            --story-id "${_ACTIVE_STORY_ID:-unknown}" \
+            --output "$_ATTRIBUTION_OUTPUT" 2>/dev/null || true
+
+          if [[ -f "$_ATTRIBUTION_OUTPUT" ]]; then
+            # Extract newly failed tests and update story's _failureReason
+            _NEWLY_FAILED_TESTS=$("$JQ" -r '.newly_failed_tests | join(", ")' "$_ATTRIBUTION_OUTPUT" 2>/dev/null || echo "")
+            if [[ -n "$_NEWLY_FAILED_TESTS" && -n "$_ACTIVE_STORY_ID" ]]; then
+              # Update story's _failureReason field with broken test names
+              "$JQ" --arg id "$_ACTIVE_STORY_ID" --arg reason "$_NEWLY_FAILED_TESTS" \
+                '(.userStories[] | select(.id == $id) | ._failureReason) |= $reason' \
+                "$PRD_FILE" >"$PRD_FILE.tmp" && mv "$PRD_FILE.tmp" "$PRD_FILE"
+              echo "  [V] Attributed failures to story $_ACTIVE_STORY_ID: $_NEWLY_FAILED_TESTS"
+            fi
+            echo "  [V] Attribution report: $_ ATTRIBUTION_OUTPUT"
+          fi
+        fi
+      fi
+    fi
 
     # ── Optional: Lighthouse audit ──────────────────────────────────────────
     if [[ "${SPIRAL_LIGHTHOUSE:-0}" == "1" ]] && command -v npx &>/dev/null; then

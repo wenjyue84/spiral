@@ -11,65 +11,6 @@
   ],
   "userStories": [
     {
-      "id": "US-754",
-      "title": "[Security Test] Harden validate_results_tsv against malformed/malicious input",
-      "priority": "high",
-      "description": "Add security-focused tests for lib/spiral/validate_results_tsv.py (US-570). The validator must handle adversarial inputs — path-like story_ids, binary data, and oversized fields — without leaking internal paths or raising unhandled exceptions. Ensures error responses contain only structured dicts, never raw tracebacks.",
-      "acceptanceCriteria": [
-        "validate() returns a dict with an 'errors' key (no exception raised) when given a TSV row with a path-traversal story_id like '../../etc/passwd'",
-        "validate() returns a dict with an 'errors' key (no exception raised) when given binary/null-byte content as input",
-        "No returned error string contains an absolute filesystem path (checked via assertion that no error value matches r'^[A-Za-z]:\\\\' or '^/')",
-        "uv run pytest tests/test_validate_results_tsv_security.py -v exits 0 with all tests passing"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_validate_results_tsv_security.py (new file — create security test suite)",
-        "File to edit: lib/spiral/validate_results_tsv.py (validate function — wrap internals in try/except, scrub absolute paths from error messages)",
-        "Test command: uv run pytest tests/test_validate_results_tsv_security.py -v",
-        "Use pytest.parametrize to cover: path-traversal story_id, null-byte in field, 10 000-char field value, empty TSV"
-      ],
-      "dependencies": [
-        "US-570"
-      ],
-      "estimatedComplexity": "small",
-      "passes": true,
-      "tags": [
-        "security",
-        "auto-generated"
-      ],
-      "model": "haiku"
-    },
-    {
-      "id": "US-758",
-      "title": "[Integration Test] Phase G: Test gen_changelog.py Commit Parsing",
-      "priority": "high",
-      "description": "Write integration tests for lib/gen_changelog.py (implemented in US-604). Cover commit message parsing for story IDs (US-NNN, UT-NNN), changelog section categorization by type (feat/fix/docs/refactor), and warning logging for commits missing story IDs. All tests must run offline without external services or git-cliff binary.",
-      "acceptanceCriteria": [
-        "uv run pytest tests/test_gen_changelog.py -v --tb=short exits 0 with all tests passing",
-        "Happy path: commit message 'feat(US-604): add changelog' appears in the correct section in generated markdown output",
-        "Edge case: commit without a story ID triggers a logged warning and is excluded from all sections",
-        "uv run pytest tests/test_gen_changelog.py -v --tb=short completes with no network or subprocess calls to git-cliff"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_gen_changelog.py (create — integration tests for lib/gen_changelog.py)",
-        "File to edit: lib/gen_changelog.py (read public API and parse_commits / categorize functions before writing tests)",
-        "Test command: uv run pytest tests/test_gen_changelog.py -v --tb=short",
-        "Use unittest.mock or pytest monkeypatch to stub any subprocess/git calls so tests run fully offline",
-        "Story ID regex to exercise: r'(US|UT)-\\d+' matched against commit subject lines",
-        "Do NOT create tests/test_test_gen_changelog.py — that path in the original notes is a generation artifact",
-        "Ignore .hypothesis/constants/* paths in technicalNotes — those are hypothesis cache files, not source files"
-      ],
-      "dependencies": [
-        "US-604"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "tags": [
-        "integration",
-        "auto-generated"
-      ],
-      "model": "haiku"
-    },
-    {
       "id": "US-759",
       "title": "[Integration Test] File-Aware Retry: Verify Failed-File Tracking and Selective Re-implementation",
       "priority": "high",
@@ -92,7 +33,7 @@
         "US-597"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -117,7 +58,7 @@
         "US-460"
       ],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "tags": [
         "security",
         "auto-generated"
@@ -147,7 +88,7 @@
         "US-639"
       ],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -170,7 +111,7 @@
         "US-597"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -193,8 +134,65 @@
         "US-597"
       ],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
+    },
+    {
+      "id": "US-769",
+      "title": "[Security Test] Create validate_results_tsv.py data integrity validator",
+      "priority": "high",
+      "description": "Create lib/spiral/validate_results_tsv.py with a validate() function that checks results.tsv for data quality issues: missing story_ids, duplicate rows, out-of-range token counts, invalid phase durations, and unknown model names. The function returns a structured dict with keys 'errors', 'warnings', and 'check_counts'. Ensures no sensitive data is leaked in validation output.",
+      "acceptanceCriteria": [
+        "uv run python -c \"from lib.spiral.validate_results_tsv import validate; r = validate('results.tsv'); assert 'errors' in r and 'warnings' in r and 'check_counts' in r\" exits 0",
+        "uv run pytest tests/test_validate_results_tsv.py -v exits 0 with all tests passing",
+        "validate() appends an error entry when results.tsv contains duplicate story_id rows",
+        "validate() appends an error entry when any token count column is negative or exceeds 1000000"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/spiral/validate_results_tsv.py (validate function — new file; accepts path str, returns dict)",
+        "File to edit: tests/test_validate_results_tsv.py (test_validate_duplicates, test_validate_token_range, test_validate_missing_story_id — new file)",
+        "Test command: uv run pytest tests/test_validate_results_tsv.py -v",
+        "Test command: uv run pytest tests/ -k us_570 -v",
+        "results.tsv expected columns: story_id, phase, model, tokens_in, tokens_out, cost_usd, duration_s, status",
+        "Return schema: {\"errors\": [str], \"warnings\": [str], \"check_counts\": {\"rows\": int, \"checks_run\": int}}",
+        "Do not log or surface raw row values in error messages to avoid leaking sensitive data"
+      ],
+      "dependencies": [
+        "US-570"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-770",
+      "title": "[Security Test] Dashboard output must not leak API tokens or credentials",
+      "priority": "high",
+      "description": "Write security tests verifying the SPIRAL self-monitoring dashboard (US-460) does not expose sensitive data such as API keys or bearer tokens in its output files. The dashboard writes token burn rate and throughput data to results.tsv and .spiral/ — these files must be scrubbed of credentials. Note: US-460 is a CLI/file-based dashboard; 401/403 HTTP tests are not applicable.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_batch_validate.py::test_dashboard_no_token_leak -v exits 0",
+        "uv run pytest tests/test_batch_validate.py::test_dashboard_output_no_sensitive_keys -v exits 0",
+        "Dashboard output files (results.tsv, .spiral/*.json) contain no strings matching r'(sk-ant-|Bearer\\s|ANTHROPIC_API_KEY)' pattern",
+        "uv run pytest tests/test_batch_validate.py -k dashboard_security -v exits 0"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_batch_validate.py (add test_dashboard_no_token_leak, test_dashboard_output_no_sensitive_keys functions)",
+        "Test command: uv run pytest tests/test_batch_validate.py -k dashboard_security -v",
+        "Sensitive pattern to check in output files: re.compile(r'sk-ant-|Bearer\\s+\\w+|ANTHROPIC_API_KEY\\s*=')",
+        "Dashboard output targets: results.tsv, .spiral/_checkpoint.json, any file written by US-460 dashboard logic",
+        "US-460 source files are GitHub Actions YAMLs — dashboard implementation logic is in spiral.sh or lib/; grep for dashboard-related write paths before writing tests"
+      ],
+      "dependencies": [
+        "US-460"
+      ],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "tags": [
+        "security",
+        "auto-generated"
+      ],
+      "model": "haiku",
+      "_scopeCreep": true
     },
     {
       "id": "US-755",
@@ -2120,6 +2118,65 @@
       "_phaseI": {
         "diagnosisBlock": "## Current State\n`check_dag.py` uses Kahn's topological sort on `dependencies` field. US-725 needs a separate `validate_scc.py` using Tarjan's SCC on `_dependencies` field, with JSON output `{acyclic, cycles}` and a `validate-scc-cycles` CLI subcommand.\n\n## Problem Identified\nNo `validate-scc-cycles` CLI command exists. Story uses `_dependencies` field (not `dependencies`), requires Tarjan's SCC algorithm, and structured JSON output with cycle paths.\n\n## Planned Changes\n1. Create `lib/validate_scc.py` — Tarjan's SCC algorithm on `_dependencies`, returns `{acyclic, cycles, cycle_paths}`\n2. Edit `main.py` — Add parser + dispatch + `cmd_validate_scc_cycles()` function\n3. Create `tests/test_validate_scc.py` — Integration tests: 3-node cycle, linear DAG, empty prd\nNow add the parser registration and command function to `main.py`:\nNow add the `cmd_validate_scc_cycles` function. Let me find a good place to insert it:\nNow write the integration test:\nAll 18 tests pass. Let me run mypy and pre-commit checks:\nLet me rewrite the type annotations properly using `Any` for JSON data:\nThe cleanest fix is to use `Any` for the JSON data, which is the standard practice:\nAll 18 pass. Now run pre-commit:\nThe mypy failures are pre-existing in `lib/resilience/token_guard.py` and `lib/prd/batch_validate.py` — not in my new files. My files pass all checks. Let me run a broader test to confirm no regressions:\nAll passing. Now mark the story and commit:\nDone. Here's what was implemented for **US-725**:\n\n**`lib/validate_scc.py`** — Tarjan's SCC algorithm reading `story._dependencies`:\n- `build_graph()` — builds adjacency list, filters unknown deps\n- `tarjan_scc()` — iterative Tarjan's algorithm (SCCs > 1 node or self-loops = cycles)\n- `find_cycles()` — orchestrates and returns `{acyclic, cycles, cycle_paths}`\n\n**`main.py`** — New `validate-scc-cycles` subcommand:\n- `spiral validate-scc-cycles [prd.json]` → JSON output, exit 0 (acyclic) or 1 (cycles)\n- Prints cycle paths to stderr: `US-101 → US-102 → US-103 → US-101`\n\n**`tests/test_validate_scc.py`** — 18 tests all passing:\n- Unit tests for graph building, Tarjan's algorithm, cycle detection\n- CLI integration tests via subprocess (3-node cycle, linear DAG, missing file)\nAll the failures are **pre-existing issues** in `main.py` (E501 long lines, F841/F811 unused variables) and pre-existing mypy errors in `lib/resilience/token_guard.py` and `lib/prd/batch_validate.py`. None of the errors are in the files I created (`lib/validate_scc.py`, `tests/test_validate_scc.py`).\n\nThe story is already committed and marked `passes: true`. The pre-commit failures are from existing technical debt in `main.py` unrelated to US-725. The implementation is complete and all 18 tests pass."
       }
+    },
+    {
+      "id": "US-758",
+      "title": "[Integration Test] Phase G: Test gen_changelog.py Commit Parsing",
+      "priority": "high",
+      "description": "Write integration tests for lib/gen_changelog.py (implemented in US-604). Cover commit message parsing for story IDs (US-NNN, UT-NNN), changelog section categorization by type (feat/fix/docs/refactor), and warning logging for commits missing story IDs. All tests must run offline without external services or git-cliff binary.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_gen_changelog.py -v --tb=short exits 0 with all tests passing",
+        "Happy path: commit message 'feat(US-604): add changelog' appears in the correct section in generated markdown output",
+        "Edge case: commit without a story ID triggers a logged warning and is excluded from all sections",
+        "uv run pytest tests/test_gen_changelog.py -v --tb=short completes with no network or subprocess calls to git-cliff"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_gen_changelog.py (create — integration tests for lib/gen_changelog.py)",
+        "File to edit: lib/gen_changelog.py (read public API and parse_commits / categorize functions before writing tests)",
+        "Test command: uv run pytest tests/test_gen_changelog.py -v --tb=short",
+        "Use unittest.mock or pytest monkeypatch to stub any subprocess/git calls so tests run fully offline",
+        "Story ID regex to exercise: r'(US|UT)-\\d+' matched against commit subject lines",
+        "Do NOT create tests/test_test_gen_changelog.py — that path in the original notes is a generation artifact",
+        "Ignore .hypothesis/constants/* paths in technicalNotes — those are hypothesis cache files, not source files"
+      ],
+      "dependencies": [
+        "US-604"
+      ],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "tags": [
+        "integration",
+        "auto-generated"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-754",
+      "title": "[Security Test] Harden validate_results_tsv against malformed/malicious input",
+      "priority": "high",
+      "description": "Add security-focused tests for lib/spiral/validate_results_tsv.py (US-570). The validator must handle adversarial inputs — path-like story_ids, binary data, and oversized fields — without leaking internal paths or raising unhandled exceptions. Ensures error responses contain only structured dicts, never raw tracebacks.",
+      "acceptanceCriteria": [
+        "validate() returns a dict with an 'errors' key (no exception raised) when given a TSV row with a path-traversal story_id like '../../etc/passwd'",
+        "validate() returns a dict with an 'errors' key (no exception raised) when given binary/null-byte content as input",
+        "No returned error string contains an absolute filesystem path (checked via assertion that no error value matches r'^[A-Za-z]:\\\\' or '^/')",
+        "uv run pytest tests/test_validate_results_tsv_security.py -v exits 0 with all tests passing"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_validate_results_tsv_security.py (new file — create security test suite)",
+        "File to edit: lib/spiral/validate_results_tsv.py (validate function — wrap internals in try/except, scrub absolute paths from error messages)",
+        "Test command: uv run pytest tests/test_validate_results_tsv_security.py -v",
+        "Use pytest.parametrize to cover: path-traversal story_id, null-byte in field, 10 000-char field value, empty TSV"
+      ],
+      "dependencies": [
+        "US-570"
+      ],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "tags": [
+        "security",
+        "auto-generated"
+      ],
+      "model": "haiku"
     },
     {
       "id": "US-753",
@@ -5158,6 +5215,547 @@
         "contextWindow": 10
       },
       "tags": []
+    },
+    {
+      "id": "US-791",
+      "title": "Phase A: Constitution-Aware Story Generation with Quality Scoring",
+      "priority": "high",
+      "description": "Score AI-generated story candidates against the constitution before proposing them to Phase S. Low-score candidates are filtered pre-validation, reducing wasted Phase S cycles and improving story quality from the source.",
+      "acceptanceCriteria": [
+        "Phase A loads constitution.md and scores each generated story candidate (0-100) based on alignment with non-negotiable rules and production-value principle",
+        "Stories scoring below configurable threshold (SPIRAL_AI_SUGGEST_MIN_SCORE, default 40) are discarded with a log entry explaining why",
+        "Unit test verifies a story violating constitution (e.g. no user-facing value) scores below threshold and is filtered out",
+        "Integration test confirms Phase A output contains only stories that pass the quality gate"
+      ],
+      "technicalNotes": [
+        "File to create: lib/story_quality_scorer.py",
+        "File to edit: spiral.sh Phase A section",
+        "Config: SPIRAL_AI_SUGGEST_MIN_SCORE in spiral.config.sh"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "tags": [
+        "core-flow",
+        "phase-a"
+      ],
+      "model": "sonnet",
+      "_scopeCreep": true
+    },
+    {
+      "id": "US-771",
+      "title": "Phase A: Cross-Iteration Dedup Memory - Skip Previously Rejected Story Patterns",
+      "priority": "medium",
+      "description": "Track fingerprints of stories rejected by Phase S across iterations. When Phase A generates a new candidate that matches a previously rejected pattern (>80% similarity), skip it automatically.",
+      "acceptanceCriteria": [
+        "Phase A writes rejected story fingerprints to .spiral/rejected_patterns.json after Phase S rejects them",
+        "New candidates matching >80% Jaccard similarity to rejected patterns are skipped with log entry",
+        "Rejected patterns file is pruned to last 100 entries to prevent unbounded growth",
+        "Unit test verifies a near-duplicate of a rejected story is detected and skipped"
+      ],
+      "technicalNotes": [
+        "File to create: lib/rejected_pattern_cache.py",
+        "File to edit: spiral.sh Phase A and Phase S sections"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "core-flow",
+        "phase-a"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-772",
+      "title": "Phase R: Research Quality Feedback Loop - Score Stories by Implementation Outcome",
+      "priority": "high",
+      "description": "After Phase I completes a research-sourced story, tag it with implementation metrics (pass/fail, retry count, cost). Aggregate scores per research prompt to identify which strategies yield implementable stories.",
+      "acceptanceCriteria": [
+        "Stories with _source=research gain a _research_quality_score field after Phase I (0-100 based on retry count)",
+        "Phase R logs average research quality score from last 3 iterations before generating new queries",
+        "CLI command spiral show-research-quality displays per-iteration research effectiveness trend",
+        "Unit test verifies scoring formula: 1-try pass=100, 3-retry=30"
+      ],
+      "technicalNotes": [
+        "File to create: lib/research_quality.py",
+        "File to edit: spiral.sh Phase I post-implementation hook and Phase R"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "tags": [
+        "core-flow",
+        "phase-r"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-773",
+      "title": "Phase R: Semantic Query Dedup - Skip Research When Query Matches Prior Cache",
+      "priority": "medium",
+      "description": "Hash research queries semantically. If a new query is >90% similar to a cached result from last 3 iterations, reuse the cached result instead of making a new API call.",
+      "acceptanceCriteria": [
+        "Research queries are hashed using TF-IDF vectors and stored in .spiral/research_cache.json with TTL",
+        "Queries with >0.90 cosine similarity to a cached entry return the cached result with log entry",
+        "Cache entries older than SPIRAL_RESEARCH_CACHE_TTL (default 5 iterations) are pruned",
+        "Unit test verifies cache hit for paraphrased query and miss for novel query"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/research_cache.py",
+        "Reuse: lib/merge_stories.py TF-IDF utilities"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "tags": [
+        "core-flow",
+        "phase-r"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-774",
+      "title": "Phase T: Flaky Test Detection - Skip Story Generation for Intermittent Failures",
+      "priority": "high",
+      "description": "Track test failure history across iterations. Tests failing <50% of the time across last 5 iterations are flagged flaky and excluded from story generation.",
+      "acceptanceCriteria": [
+        "Phase T maintains .spiral/test_failure_history.json tracking each test pass/fail per iteration",
+        "Tests failing <50% of tracked iterations are excluded from story generation with log entry",
+        "CLI command spiral show-flaky-tests lists all detected flaky tests with failure rates",
+        "Unit test verifies a test that failed 1/5 iterations is flagged flaky and excluded"
+      ],
+      "technicalNotes": [
+        "File to create: lib/flaky_detector.py",
+        "File to edit: spiral.sh Phase T"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "tags": [
+        "core-flow",
+        "phase-t"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-775",
+      "title": "Phase T: Root Cause Clustering - Group Related Test Failures into Single Fix Story",
+      "priority": "medium",
+      "description": "When multiple tests fail from the same module, cluster them into a single root-cause story instead of N individual stories.",
+      "acceptanceCriteria": [
+        "Phase T groups test failures by source file; 3+ failures from same source produce 1 clustered story",
+        "Clustered story title: [Root Cause] Fix {module} causing {N} test failures",
+        "Individual test names listed in acceptanceCriteria for Ralph verification",
+        "Unit test verifies 5 failures from tests/test_merge.py produce 1 story, not 5"
+      ],
+      "technicalNotes": [
+        "File to create: lib/test_failure_clustering.py",
+        "File to edit: spiral.sh Phase T"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "core-flow",
+        "phase-t"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-776",
+      "title": "Phase S: Proactive Story Rewriting - Fix Non-Compliant Stories Instead of Rejecting",
+      "priority": "high",
+      "description": "When a story fails constitution check, use haiku to rewrite title and ACs to comply, then re-validate. Preserves story intent while meeting compliance.",
+      "acceptanceCriteria": [
+        "Phase S attempts a rewrite pass using haiku before rejecting constitution-failing stories",
+        "Rewrite preserves original description but adjusts title and ACs to meet constitution rules",
+        "Rewritten stories proceed with _rewritten: true flag; max 1 rewrite attempt per story",
+        "Unit test verifies a vague story gets rewritten with concrete ACs and passes re-validation"
+      ],
+      "technicalNotes": [
+        "File to create: lib/story_rewriter.py",
+        "File to edit: spiral.sh Phase S"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "tags": [
+        "core-flow",
+        "phase-s"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-777",
+      "title": "Phase E: Similar Past Implementation Injection - Enrich with Analogous Solved Examples",
+      "priority": "high",
+      "description": "Search completed stories for similar titles/descriptions and inject their solution file paths as enrichment hints, so Ralph learns from past successes.",
+      "acceptanceCriteria": [
+        "Phase E searches passed stories using TF-IDF similarity (threshold 0.5) for analogous implementations",
+        "Top 3 similar stories have file paths injected into _enrichment.similar_solutions field",
+        "Ralph prompt references _enrichment.similar_solutions when available",
+        "Unit test verifies a caching story finds a similar passed caching story"
+      ],
+      "technicalNotes": [
+        "File to create: lib/similar_story_finder.py",
+        "File to edit: spiral.sh Phase E",
+        "Reuse: lib/merge_stories.py TF-IDF utilities"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "tags": [
+        "core-flow",
+        "phase-e"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-778",
+      "title": "Phase E: Priority-Aware Enrichment - Enrich High-Priority Stories First",
+      "priority": "medium",
+      "description": "Reorder the enrichment queue so critical/high-priority stories are enriched before medium/low, ensuring the most important work gets the best context.",
+      "acceptanceCriteria": [
+        "Phase E sorts enrichment queue by priority (critical > high > medium > low) before processing",
+        "When SPIRAL_STORY_ENRICHMENT_MAX is reached, only highest-priority stories are enriched",
+        "Log shows enrichment order with priority level",
+        "Unit test verifies 3 medium + 2 high stories with max=3 results in both high stories enriched"
+      ],
+      "technicalNotes": [
+        "File to edit: spiral.sh Phase E"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "core-flow",
+        "phase-e"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-779",
+      "title": "Phase M: Dead Weight Detection - Auto-Archive Stories Stuck 5+ Iterations",
+      "priority": "high",
+      "description": "Track how many iterations each pending story survives without progress. Auto-archive stories stuck 5+ iterations to prevent backlog bloat.",
+      "acceptanceCriteria": [
+        "Phase M tracks _pending_iterations counter on each non-passed story, incrementing each iteration",
+        "Stories exceeding SPIRAL_DEAD_WEIGHT_THRESHOLD (default 5) are marked _archived: true with _archiveReason",
+        "Archived stories excluded from Phase I dispatch but remain in prd.json for audit",
+        "CLI command spiral show-archived lists auto-archived stories with stall duration",
+        "Unit test verifies a story stuck for 6 iterations gets auto-archived"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/merge_stories.py",
+        "File to edit: spiral.sh Phase M",
+        "Config: SPIRAL_DEAD_WEIGHT_THRESHOLD in spiral.config.sh"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "core-flow",
+        "phase-m"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-780",
+      "title": "Phase M: Source-Aware Merge Weighting - Prioritize Sources with Higher Pass Rates",
+      "priority": "medium",
+      "description": "Track pass rate by _source field. Use historical pass rates to weight merge priority so higher-success sources get merged first.",
+      "acceptanceCriteria": [
+        "Phase M calculates pass rate per _source from all stories before merging new candidates",
+        "Within same priority tier, stories from higher-pass-rate sources are merged first",
+        "Log shows source weights with pass rate percentages",
+        "Unit test verifies research story (80% rate) merged before ai-example (40%) at same priority"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/merge_stories.py"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "core-flow",
+        "phase-m"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-781",
+      "title": "Phase X: Context Explosion Guard - Cap and Summarize When Story Touches 15+ Files",
+      "priority": "medium",
+      "description": "When dependency inference finds >15 files, summarize with file paths + key function signatures instead of full content injection, preventing context window overflow.",
+      "acceptanceCriteria": [
+        "Phase X detects stories exceeding SPIRAL_CONTEXT_FILE_CAP (default 15) files",
+        "Oversized contexts get summarized: file paths + top 3 function signatures per file",
+        "Log warning about context explosion with file count",
+        "Unit test verifies a 20-file story gets summarized context"
+      ],
+      "technicalNotes": [
+        "File to create: lib/context_summarizer.py",
+        "File to edit: spiral.sh Phase X",
+        "Config: SPIRAL_CONTEXT_FILE_CAP in spiral.config.sh"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "tags": [
+        "core-flow",
+        "phase-x"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-782",
+      "title": "Phase V: Blame Attribution - Correlate Failing Tests to the Story That Broke Them",
+      "priority": "high",
+      "description": "After validation, diff test results against pre-implementation baseline. Attribute new failures to the specific story that caused them for targeted revert.",
+      "acceptanceCriteria": [
+        "Phase V captures test baseline before Phase I, stored in .spiral/test_baseline.json",
+        "Newly-failing tests are attributed to the story that changed relevant files (via git diff)",
+        "Attribution logged with story ID, broken test names, and changed files",
+        "Story _failureReason field includes specific broken test names",
+        "Unit test verifies correct blame when a story changes lib/foo.py and test_foo fails"
+      ],
+      "technicalNotes": [
+        "File to create: lib/test_blame.py",
+        "File to edit: spiral.sh Phase V"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "tags": [
+        "core-flow",
+        "phase-v"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-783",
+      "title": "Phase C: Diminishing Returns Exit - Stop Loop When Cost-Per-Pass Exceeds Threshold",
+      "priority": "high",
+      "description": "Track cost-per-new-pass across iterations. If it doubles 3 consecutive times, exit with diagnostic instead of burning budget.",
+      "acceptanceCriteria": [
+        "Phase C calculates cost-per-new-pass each iteration from results.tsv",
+        "Exit triggered when cost-per-pass doubles 3 consecutive iterations with diagnostic report",
+        "Threshold configurable: SPIRAL_DIMINISHING_RETURNS_MULTIPLIER (default 2.0)",
+        "Unit test verifies exit when cost-per-pass goes $1 -> $2 -> $4 -> $8"
+      ],
+      "technicalNotes": [
+        "File to create: lib/diminishing_returns.py",
+        "File to edit: spiral.sh Phase C"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "core-flow",
+        "phase-c"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-784",
+      "title": "Phase C: Partial Completion Report - Exit with Diagnostic When Stuck Stories Remain",
+      "priority": "medium",
+      "description": "Exit after N zero-progress iterations with structured diagnostic: what passed, what is stuck, and root-cause guess per stuck story.",
+      "acceptanceCriteria": [
+        "Phase C tracks consecutive zero-progress iterations",
+        "After SPIRAL_MAX_STUCK_ITERATIONS (default 5) zero-progress iterations, exit with .spiral/completion_report.json",
+        "Report includes: total passed, stuck story IDs with retry counts, suggested actions",
+        "Unit test verifies exit after 5 zero-progress iterations with correct report"
+      ],
+      "technicalNotes": [
+        "File to create: lib/completion_report.py",
+        "File to edit: spiral.sh Phase C",
+        "Note: enhances existing SPIRAL_CONSECUTIVE_FAIL_ABORT with diagnostic report"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "core-flow",
+        "phase-c"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-785",
+      "title": "Phase L: Retry Pattern Analysis - Extract What Makes Stories Easy vs Hard",
+      "priority": "high",
+      "description": "Cluster completed stories by retry count and extract common traits of 1-try passes vs 5-retry failures. Store patterns in episodic memory for future runs.",
+      "acceptanceCriteria": [
+        "Phase L groups passed stories by retry count (0, 1, 2, 3+) and extracts common traits per group",
+        "Traits include: average AC count, description length, common tags, common file patterns",
+        "Patterns saved to .spiral/learned_patterns.json with iteration timestamp",
+        "CLI command spiral show-patterns displays easy vs hard story comparison",
+        "Unit test verifies pattern extraction from mix of 1-try and 3-retry stories"
+      ],
+      "technicalNotes": [
+        "File to create: lib/pattern_analyzer.py",
+        "File to edit: spiral.sh Phase L"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "tags": [
+        "core-flow",
+        "phase-l"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-786",
+      "title": "Phase L: Model Effectiveness Tracking - Record Which Model Solved Which Story Types",
+      "priority": "medium",
+      "description": "Track haiku/sonnet/opus success rates by complexity score. Tune Phase I routing thresholds so the right model is used from the start.",
+      "acceptanceCriteria": [
+        "Phase L records which model solved each story along with complexity score",
+        "Data aggregated into .spiral/model_effectiveness.json: per-model success rate by complexity bracket",
+        "Phase I consults model_effectiveness.json to choose starting model",
+        "Unit test verifies effectiveness data correctly shows haiku success rate by bracket"
+      ],
+      "technicalNotes": [
+        "File to create: lib/model_effectiveness.py",
+        "File to edit: spiral.sh Phase L and Phase I"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "tags": [
+        "core-flow",
+        "phase-l"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-787",
+      "title": "Phase I: Partial Victory Commit - Save Working ACs When Full Story Fails",
+      "priority": "high",
+      "description": "When a story fails because 1 of N acceptance criteria cannot be met, commit the passing ACs and decompose only the failing ones into sub-stories.",
+      "acceptanceCriteria": [
+        "After failed Ralph run, Phase I evaluates each AC individually",
+        "Passing ACs are committed as partial implementation with _partial: true flag",
+        "Failing ACs decomposed into sub-stories with parent ID in dependencies",
+        "Log: US-XXX: 2/3 ACs passed, committing partial. Decomposing AC-3 into US-YYY",
+        "Unit test verifies 3-AC story with 2 passing results in partial commit + 1 sub-story"
+      ],
+      "technicalNotes": [
+        "File to create: lib/impl/partial_victory.py",
+        "File to edit: spiral.sh Phase I",
+        "File to edit: ralph/ralph.sh for AC-level reporting"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "tags": [
+        "core-flow",
+        "phase-i"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-788",
+      "title": "Phase I: Stuck Story Diagnosis - Classify Repeated Failures by Root Cause",
+      "priority": "high",
+      "description": "After 3 identical failures, classify root cause: model-resolvable, scope-too-large, missing-knowledge, or external-dependency. Skip futile retries and suggest targeted action.",
+      "acceptanceCriteria": [
+        "Phase I detects 3+ failures with >70% error message overlap on same story",
+        "Failures classified into: model-resolvable, scope-too-large, missing-knowledge, external-dependency",
+        "Classification stored in _stuckDiagnosis field with recommended action",
+        "External-dependency stories auto-skipped with log entry",
+        "Unit test verifies classification of 3 identical timeout errors as scope-too-large"
+      ],
+      "technicalNotes": [
+        "File to create: lib/impl/stuck_diagnosis.py",
+        "File to edit: spiral.sh Phase I"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "tags": [
+        "core-flow",
+        "phase-i"
+      ],
+      "model": "haiku"
+    },
+    {
+      "title": "Phase I: Stuck Story Diagnosis - Classify Repeated Failures by Root Cause",
+      "priority": "high",
+      "description": "After 3 identical failures, classify root cause: model-resolvable, scope-too-large, missing-knowledge, or external-dependency. Skip futile retries and suggest targeted action.",
+      "acceptanceCriteria": [
+        "Phase I detects 3+ failures with >70% error message overlap on same story",
+        "Failures classified into: model-resolvable, scope-too-large, missing-knowledge, external-dependency",
+        "Classification stored in _stuckDiagnosis field with recommended action",
+        "External-dependency stories auto-skipped with log entry",
+        "Unit test verifies classification of 3 identical timeout errors as scope-too-large"
+      ],
+      "technicalNotes": [
+        "File to create: lib/impl/stuck_diagnosis.py",
+        "File to edit: spiral.sh Phase I"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "core-flow",
+        "phase-i"
+      ],
+      "id": "US-789",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1000",
+      "title": "Phase A: Constitution-Aware Story Generation with Quality Scoring",
+      "priority": "high",
+      "description": "Score AI-generated story candidates against the constitution before proposing them to Phase S. Low-score candidates are filtered pre-validation, reducing wasted Phase S cycles and improving story quality from the source.",
+      "acceptanceCriteria": [
+        "Phase A loads constitution.md and scores each generated story candidate (0-100) based on alignment with non-negotiable rules and production-value principle",
+        "Stories scoring below configurable threshold (SPIRAL_AI_SUGGEST_MIN_SCORE, default 40) are discarded with a log entry explaining why",
+        "Unit test verifies a story violating constitution (e.g. no user-facing value) scores below threshold and is filtered out",
+        "Integration test confirms Phase A output contains only stories that pass the quality gate"
+      ],
+      "technicalNotes": [
+        "File to create: lib/story_quality_scorer.py",
+        "File to edit: spiral.sh Phase A section",
+        "Config: SPIRAL_AI_SUGGEST_MIN_SCORE in spiral.config.sh"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "tags": [
+        "core-flow",
+        "phase-a"
+      ],
+      "model": "sonnet"
+    },
+    {
+      "id": "US-790",
+      "title": "Phase A: Constitution-Aware Story Generation with Quality Scoring",
+      "priority": "high",
+      "description": "Score AI-generated story candidates against the constitution before proposing them to Phase S. Low-score candidates are filtered pre-validation, reducing wasted Phase S cycles and improving story quality from the source.",
+      "acceptanceCriteria": [
+        "Phase A loads constitution.md and scores each generated story candidate (0-100) based on alignment with non-negotiable rules and production-value principle",
+        "Stories scoring below configurable threshold (SPIRAL_AI_SUGGEST_MIN_SCORE, default 40) are discarded with a log entry explaining why",
+        "Unit test verifies a story violating constitution (e.g. no user-facing value) scores below threshold and is filtered out",
+        "Integration test confirms Phase A output contains only stories that pass the quality gate"
+      ],
+      "technicalNotes": [
+        "File to create: lib/story_quality_scorer.py",
+        "File to edit: spiral.sh Phase A section",
+        "Config: SPIRAL_AI_SUGGEST_MIN_SCORE in spiral.config.sh"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "tags": [
+        "core-flow",
+        "phase-a"
+      ],
+      "model": "sonnet"
     }
   ]
 }

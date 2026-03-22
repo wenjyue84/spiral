@@ -1472,6 +1472,50 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
 
   run_phase_context_build
 
+  # ── US-782: Capture test baseline before Phase I ────────────────────────────
+  # This captures the state of the test suite before any implementation work.
+  _TEST_BASELINE_FILE="$SCRATCH_DIR/test_baseline_iter_${SPIRAL_ITER}.json"
+  if [[ ! -f "$_TEST_BASELINE_FILE" ]] && [[ "$RALPH_RAN" -eq 0 ]]; then
+    echo ""
+    echo "  [baseline] Capturing test baseline before Phase I (US-782)..."
+    _BASELINE_CAPTURE_CMD="$SPIRAL_VALIDATE_CMD"
+    # Ensure we have JSON output for parsing
+    if ! echo "$_BASELINE_CAPTURE_CMD" | grep -q "json"; then
+      _BASELINE_CAPTURE_CMD="$_BASELINE_CAPTURE_CMD --json-report=$SCRATCH_DIR/_baseline_report.json"
+    fi
+    (cd "$REPO_ROOT" && eval "$_BASELINE_CAPTURE_CMD" 2>&1) >/dev/null 2>&1 || true
+    # Parse pytest report.json (if available) into our baseline format
+    if [[ -f "$SCRATCH_DIR/_baseline_report.json" ]]; then
+      "$SPIRAL_PYTHON" - <<'PYEOF' >"$_TEST_BASELINE_FILE" 2>/dev/null || true
+import json
+import sys
+import os
+from datetime import datetime, timezone
+try:
+    baseline_path = "$SCRATCH_DIR/_baseline_report.json"
+    if os.path.exists(baseline_path):
+        with open(baseline_path, "r") as f:
+            report = json.load(f)
+        baseline = {
+            "baseline_timestamp": datetime.now(timezone.utc).isoformat(),
+            "tests": {}
+        }
+        for test in report.get("tests", []):
+            nodeid = test.get("nodeid", "")
+            outcome = test.get("outcome", "unknown")
+            if nodeid:
+                baseline["tests"][nodeid] = outcome
+        print(json.dumps(baseline, indent=2))
+    else:
+        print("{\"baseline_timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\", \"tests\": {}}")
+except Exception as e:
+    print(json.dumps({"baseline_timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)", "tests": {}, "error": str(e)}))
+PYEOF
+    fi
+    [[ -f "$_TEST_BASELINE_FILE" ]] && echo "  [baseline] Baseline captured: $_TEST_BASELINE_FILE" || true
+  fi
+  export _TEST_BASELINE_FILE
+
   run_phase_gate_and_implement || continue
 
   run_phase_validate || continue

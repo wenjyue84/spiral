@@ -251,6 +251,8 @@ def story_to_prd_entry(story: dict[str, Any], story_id: str) -> dict[str, Any]:
         tags.append("bugfix")
     if tags:
         entry["tags"] = tags
+    # Initialize _pending_iterations counter (US-779)
+    entry["_pending_iterations"] = 0
     return entry
 
 
@@ -312,8 +314,41 @@ def main() -> int:
     existing_titles = [s.get("title", "") for s in existing_stories]
     existing_epics = [s.get("epicId", "") for s in existing_stories]
 
+<<<<<<< Updated upstream
     current_pending = sum(1 for s in existing_stories if not s.get("passes") and not s.get("_archived"))
     print(f"[merge] prd.json: {len(existing_stories)} existing stories ({current_pending} pending)")
+=======
+    # ── US-779: Dead weight detection — track iterations and auto-archive stuck stories ───
+    dead_weight_threshold = int(os.environ.get("SPIRAL_DEAD_WEIGHT_THRESHOLD", "5"))
+    archived_this_iteration = 0
+    dead_weight_changes_made = False
+    for story in existing_stories:
+        if not story.get("passes"):  # Only track pending stories
+            if story.get("_archived"):
+                # Already archived, keep it as-is
+                continue
+            # Increment iteration counter (first appearance = 0 → 1)
+            story["_pending_iterations"] = story.get("_pending_iterations", 0) + 1
+            pending_iters = story["_pending_iterations"]
+            dead_weight_changes_made = True
+            # Check if exceeded threshold
+            if pending_iters >= dead_weight_threshold:
+                story["_archived"] = True
+                story["_archiveReason"] = f"Stuck {pending_iters} iterations (threshold: {dead_weight_threshold})"
+                archived_this_iteration += 1
+                print(
+                    f"[merge] Auto-archive [{story['id']}] {story['title'][:60]} (pending {pending_iters} iterations)"
+                )
+
+    current_pending = sum(1 for s in existing_stories if not s.get("passes") and not s.get("_archived"))
+    total_archived = sum(1 for s in existing_stories if s.get("_archived"))
+    print(
+        f"[merge] prd.json: {len(existing_stories)} existing stories "
+        f"({current_pending} pending, {total_archived} archived)"
+    )
+    if archived_this_iteration:
+        print(f"[merge] Auto-archived {archived_this_iteration} dead-weight stories this iteration")
+>>>>>>> Stashed changes
 
     # ── US-545: Detect file conflicts among pending stories ───────────────────
     _file_conflicts, _conflict_errors = detect_federated_conflicts(existing_stories)
@@ -341,6 +376,7 @@ def main() -> int:
                 print(f"[merge]   {_fc.get('file_path', '?')}: sub_projects={_fc.get('sub_projects', [])}")
 
     # Compute effective cap: min(max_new, remaining room under max_pending)
+    # Note: current_pending already excludes archived stories (see above)
     effective_cap = args.max_new
     if args.max_pending > 0:
         room = max(0, args.max_pending - current_pending)
@@ -456,14 +492,13 @@ def main() -> int:
             seen_titles.append(title)
             seen_epics.append(cand_epic)
 
-    if not new_stories and not (args.overflow_out and leftover_research):
-        # No overflow to write and no new stories
+    if not new_stories and not (args.overflow_out and leftover_research) and not dead_weight_changes_made:
+        # No overflow to write and no new stories and no dead weight changes
         if args.overflow_out:
             atomic_write_json(args.overflow_out, {"stories": leftover_research})
             print("[merge] Overflow: cleared (all candidates consumed or cap not reached)")
-        if not new_stories:
-            print("[merge] No new stories to add — prd.json unchanged")
-            return 0
+        print("[merge] No new stories to add — prd.json unchanged")
+        return 0
 
     # ── Assign IDs and patch prd.json atomically ──────────────────────────────
     next_num = find_next_id(existing_stories)
@@ -520,10 +555,11 @@ def main() -> int:
         print(f"[merge] Added by source: {parts}")
 
     total_after = len(prd["userStories"])
-    pending_after = sum(1 for s in prd["userStories"] if not s.get("passes"))
+    pending_after = sum(1 for s in prd["userStories"] if not s.get("passes") and not s.get("_archived"))
+    archived_after = sum(1 for s in prd["userStories"] if s.get("_archived"))
     print(
         f"[merge] Done: added {len(added_entries)} stories. "
-        f"prd.json now has {total_after} total ({pending_after} pending)."
+        f"prd.json now has {total_after} total ({pending_after} pending, {archived_after} archived)."
     )
     return 0
 

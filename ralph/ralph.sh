@@ -549,39 +549,10 @@ ${_chunks}
 # ── Source story lifecycle (retry, decompose, classify, experience capture) ───
 source "$SCRIPT_DIR/lib/story_lifecycle.sh"
 
-# NOTE: check_story_completeness, maybe_auto_decompose, decompose_story,
+# Functions now in story_lifecycle.sh: maybe_auto_decompose, decompose_story,
 # append_result, classify_failure_root_cause, save_candidate_experience
-# are all defined in story_lifecycle.sh above.
-
-# ── REMOVED DUPLICATE — check_story_completeness was here ────────
-# Keeping only the first line to anchor the deletion boundary.
-_STUB_story_lifecycle_removed=1  # marker for grep verification
 
 # ── GitHub PR creation (US-143) ─────────────────────────────────────────────
-# create_github_pr <story_id> <story_title> <commit_sha>
-
-  # Check that title, description, and acceptanceCriteria are all present and non-empty
-  local title description ac_count
-  title=$($JQ -r ".userStories[] | select(.id == \"$story_id\") | .title // empty" "$prd_file" | tr -d '\r')
-  description=$($JQ -r ".userStories[] | select(.id == \"$story_id\") | .description // empty" "$prd_file" | tr -d '\r')
-  ac_count=$($JQ -r ".userStories[] | select(.id == \"$story_id\") | .acceptanceCriteria // [] | length" "$prd_file" | tr -d '\r')
-
-  if [[ -z "$title" || -z "$description" || "$ac_count" -eq 0 ]]; then
-    echo "  [completeness] INCOMPLETE: title=$([[ -n "$title" ]] && echo "✓" || echo "✗"), description=$([[ -n "$description" ]] && echo "✓" || echo "✗"), acceptanceCriteria=$([[ "$ac_count" -gt 0 ]] && echo "✓" || echo "✗")"
-    return 1
-  fi
-
-  return 0
-}
-
-# ── Auto-decompose at retry threshold ────────────────────────────
-# Called after increment_retry. Triggers early decomposition when retry_count
-# reaches SPIRAL_DECOMPOSE_THRESHOLD (default 2) — before MAX_RETRIES is hit.
-# Returns 0 if auto-decomposition was triggered (caller should `continue`),
-# Returns 1 if threshold not met, disabled, or decomposition failed.
-maybe_auto_decompose() {
-  local story_id="$1" retry_now="$2" model="${3:-sonnet}"
-  local threshold="${SPIRAL_DECOMPOSE_THRESHOLD:-2}"
 
   # Disabled when threshold is 0
   if [[ "$threshold" -eq 0 ]]; then
