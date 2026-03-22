@@ -201,6 +201,14 @@ SPIRAL_MAX_RESEARCH_STORIES=5
 # Set to 0 to stop generating new stories and focus on clearing the backlog.
 SPIRAL_MAX_AI_SUGGEST=5
 
+# ── AI suggestion quality threshold: filter low-quality stories (US-790) ─────────
+# Stories scoring below this threshold are discarded before Phase S validation.
+# Score (0-100) based on: production value (35%), constitution alignment (25%),
+# acceptance criteria quality (25%), scope clarity (15%).
+# Tier 1 (user-facing): ~90, Tier 2 (reliability): ~75, Tier 3 (power user): ~60, Tier 4 (infra): ~20.
+# Default 40 filters out infrastructure-only and poorly-scoped stories.
+SPIRAL_AI_SUGGEST_MIN_SCORE=40
+
 # ── Dead weight detection: auto-archive stories stuck 5+ iterations ─────────────
 # Tracks _pending_iterations counter per story. Stories exceeding this threshold
 # are marked _archived: true with _archiveReason to prevent backlog bloat.

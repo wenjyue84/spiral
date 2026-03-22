@@ -1464,6 +1464,36 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
     --out "$TEST_STORY_CANDIDATES" \
     --min-complexity "$SPIRAL_TEST_STORY_MIN_COMPLEXITY" || true
 
+  # ── Phase A: Quality scoring filter (US-790) ────────────────────────────────
+  # Filter AI-generated stories by constitution alignment and production value.
+  AI_SUGGEST_FILTERED="$SCRATCH_DIR/_ai_suggest_filtered.json"
+  TEST_STORIES_FILTERED="$SCRATCH_DIR/_test_story_candidates_filtered.json"
+  AI_QUALITY_LOG="$SCRATCH_DIR/_ai_suggest_quality_filter.log"
+  if [[ -f "$AI_SUGGEST_OUTPUT" ]]; then
+    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/story_quality_scorer.py" \
+      --prd "$PRD_FILE" \
+      --input "$AI_SUGGEST_OUTPUT" \
+      --output "$AI_SUGGEST_FILTERED" \
+      --min-score "$SPIRAL_AI_SUGGEST_MIN_SCORE" \
+      --constitution "$SPIRAL_HOME/.specify/memory/constitution.md" \
+      --log "$AI_QUALITY_LOG" || true
+    # Use filtered output if it exists and has content, else use original
+    if [[ -f "$AI_SUGGEST_FILTERED" ]] && [[ -s "$AI_SUGGEST_FILTERED" ]]; then
+      cp "$AI_SUGGEST_FILTERED" "$AI_SUGGEST_OUTPUT"
+    fi
+  fi
+  if [[ -f "$TEST_STORY_CANDIDATES" ]]; then
+    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/story_quality_scorer.py" \
+      --prd "$PRD_FILE" \
+      --input "$TEST_STORY_CANDIDATES" \
+      --output "$TEST_STORIES_FILTERED" \
+      --min-score "$SPIRAL_AI_SUGGEST_MIN_SCORE" \
+      --constitution "$SPIRAL_HOME/.specify/memory/constitution.md" || true
+    if [[ -f "$TEST_STORIES_FILTERED" ]] && [[ -s "$TEST_STORIES_FILTERED" ]]; then
+      cp "$TEST_STORIES_FILTERED" "$TEST_STORY_CANDIDATES"
+    fi
+  fi
+
   # ── Record goals hash before Phase R (US-323: goal-hijack detection) ──────
   _GOALS_HASH_FILE="$SCRATCH_DIR/_goals_hash"
   _GOALS_SNAPSHOT_FILE="$SCRATCH_DIR/_goals_before.json"

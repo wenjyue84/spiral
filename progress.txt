@@ -517,3 +517,36 @@ Story US-788 marked as passes=true. All acceptance criteria met:
 - Failure messages extracted from results.tsv status column (last 3 failed attempts)
 - If external-dependency classified, story marked as _skipped to prevent futile retries
 - Works seamlessly with existing Phase I flow and partial victory mechanism
+
+## Pre-analysis for US-789 (Gemini 2.5 Pro)
+Here is a technical brief for implementing the user story.
+
+***
+
+**Project Type:** This is a Python/Shell application, not a Frappe/ERPNext project. The implementation will involve a Python script orchestrated by a shell script (`spiral.sh`).
+
+**Python Files to Modify:**
+*   `lib/impl/stuck_diagnosis.py` (Create): This new file will contain the primary logic for analyzing repeated failures, comparing error messages, and classifying the root cause.
+*   `spiral.sh` (Modify): The main shell script will be updated to track failure counts. After 3 failures for a story, it will call the new `stuck_diagnosis.py` script. It will then read the classification result and act upon it (e.g., skip the story).
+*   `main.py` (Potentially): As the orchestrator, it may need modification to recognize and handle the new `_stuckDiagnosis` field on stories.
+
+**Data Source / State Files:**
+*   `prd.json`: This file, which appears to hold the story data, will be the source for reading failure history (error messages) and the target for writing the `_stuckDiagnosis` result.
+*   `retry-counts.json`: This likely tracks the failure count per story and will be the trigger for the diagnosis.
+
+**Recommended Implementation Approach:**
+1.  In `spiral.sh`, modify the main story processing loop. Before a retry attempt, check the story's failure count from `retry-counts.json`.
+2.  If the count is >= 3, execute `python lib/impl/stuck_diagnosis.py <story_id>`.
+3.  The `stuck_diagnosis.py` script will:
+    a. Read `prd.json` to get the error messages for the specified story.
+    b. Use a text similarity library (e.g., `difflib.SequenceMatcher`) to confirm the last 3 errors are >70% similar.
+    c. Apply heuristics (keyword matching) to classify the error (e.g., "timeout" -> `scope-too-large`).
+    d. Print the resulting classification (e.g., "external-dependency") to standard output.
+4.  The `spiral.sh` script will capture the output and use a tool like `jq` to update the `_stuckDiagnosis` field for the story in `prd.json`.
+5.  Add a conditional check in `spiral.sh`: if the diagnosis is `external-dependency`, log it and skip to the next story.
+
+**Edge Cases & Gotchas:**
+*   **Error Normalization:** Error messages may contain volatile data (timestamps, hashes). Normalize them before comparison to ensure accurate similarity scoring.
+*   **State Management:** Ensure that reading the failure count and updating the JSON state (`prd.json`) are handled safely to prevent race conditions or data loss.
+*   **Classification Logic:** The initial keyword-based classification will be a set of heuristics. It should be designed to be easily extensible as new failure patterns are identified.
+
