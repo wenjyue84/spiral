@@ -1,4 +1,34 @@
-## Iteration [Current] - Story: US-758 Integration Test: Phase G Test gen_changelog.py Commit Parsing
+## Iteration [Current] - Story: US-759 Integration Tests: File-Aware Retry Failed-File Tracking
+
+### What was implemented
+- **tests/test_file_aware_retry.py** (already complete) — 21 integration tests all passing:
+  - TestResultsTsvSchema: 3 tests for failed_files column in HEADER and ResultsRecord
+  - TestExtractFailedFiles: 5 tests for parsing stderr to extract failed file paths (pytest FAILED, mypy errors, TypeScript errors, shellcheck errors)
+  - TestGetFailedFilesForStory: 5 tests for reading failed_files from results.tsv
+  - TestFileAwareRetryIntegration: 1 test for 10-file story with 3-file retry scenario (AC3)
+  - Security tests: 2 tests for path traversal sanitization and credential filtering
+- **tests/test_results_tsv.py** (existing) — 9 tests all passing, verifying failed_files column integration
+
+### Patterns discovered
+- extract_failed_files() pattern-matches stderr for common error formats (mypy, pytest, TypeScript, shellcheck)
+- get_failed_files_for_story() reads from results.tsv and returns the failed_files JSON array from the LAST failed row
+- sanitize_failed_files() filters path traversal and absolute paths from failed_files list before writing
+- store_failed_files() updates results.tsv with failed files, adding column to header if needed
+
+### Gotchas
+- Tests were already written and passing; this iteration was verification and prd.json flag update
+- Extract function deduplicates file paths while preserving order
+- get_failed_files_for_story returns [] for missing TSV, missing column, or unknown story_id (safe fallback)
+
+### Acceptance Criteria Mapping
+1. ✅ 21 tests passing in test_file_aware_retry.py covering extract_failed_files and get_failed_files_for_story
+2. ✅ Test asserts failed files persist across retries: test_returns_failed_files_for_story + test_10_file_story_3_file_retry_integration
+3. ✅ Edge case tests: test_returns_empty_when_no_failed_files_column, test_returns_empty_for_unknown_story
+4. ✅ Both test files run together (30 tests total) with no collection errors
+
+---
+
+## Iteration [Previous] - Story: US-758 Integration Test: Phase G Test gen_changelog.py Commit Parsing
 
 ### What was implemented
 - **tests/test_gen_changelog.py** (already complete) — 7 integration tests all passing:
@@ -1993,3 +2023,32 @@ FAILED diff-guard: [Security Test] Results TSV: No Sensitive Data in Telemetry R
 3. ✅ Test checks HEADER against frozenset of forbidden credential column names
 ## Iteration 1 - Sun, Mar 22, 2026 11:38:39 PM
 FAILED diff-guard: Security tests for validate_results_tsv (US-570) (ID: US-736) — 455 lines > 400 limit — attempt 1/3
+
+## Pre-analysis for US-759 (Gemini 2.5 Pro)
+Here is a technical brief for the Claude Code agent based on the user story.
+
+**Project:** Spiral (Python Application)
+**Story:** US-759 - Integration Test for File-Aware Retry
+
+**Objective:**
+Implement `pytest` integration tests to verify that the file-aware retry mechanism correctly tracks failed files and that subsequent retries selectively re-implement only those files.
+
+**1. Python Files to Modify:**
+*   `tests/test_file_aware_retry.py`: Add new integration test functions.
+*   `tests/test_results_tsv.py`: Add tests to verify the output format.
+
+**2. Key Source Files (for reference):**
+*   `lib/impl/file_aware_retry.py`: Contains the core logic (`track_failed_files`, `get_files_to_retry`).
+*   `lib/results_tsv.py`: Logic for writing failed file paths to the `results.tsv` output.
+
+**3. Implementation Approach:**
+*   In `test_file_aware_retry.py`, simulate a failed run by calling `track_failed_files()` with a mock list of file paths.
+*   Assert that `get_files_to_retry()` returns the identical list of paths.
+*   In `test_results_tsv.py`, use a `pytest` fixture (e.g., `tmp_path`) to create a temporary `results.tsv`.
+*   Call the relevant function from `lib/results_tsv.py` to write a result row containing failed file data.
+*   Read the temporary file and assert the "failed files" column is correctly populated.
+
+**4. Edge Cases & Gotchas:**
+*   Test the scenario where a run succeeds (no failed files). `get_files_to_retry()` should return an empty list.
+*   Ensure tests are isolated and do not rely on a persistent `results.tsv` state between runs. Use temporary files.
+*   Note: This is a standard Python project using `pytest`, not a Frappe application. No DocTypes or Frappe hooks are involved.
