@@ -1,4 +1,21 @@
-## Iteration [Current] - Story: US-744 Phase I Scope Reduction (attempt 2, opus fix)
+## Iteration [Current] - Story: US-734 Integration Tests: CHANGELOG Generation Logic
+
+### What was implemented
+- Verified existing `tests/test_gen_changelog.py` (7 tests) already satisfies all 4 acceptance criteria
+- Tests cover: STORY_ID_PATTERN matching (US-NNN/UT-NNN), find_orphan_commits, write_orphan_warnings, generate_changelog with section headers
+- All quality gates pass: mypy --strict, ruff, pytest 7/7
+- Marked story as `passes: true` — implementation was done in a prior iteration but never marked complete
+
+### Patterns discovered
+- Stories can be left `passes: false` even when implementation is complete — always check existing state before re-implementing
+- The test file existed from a prior iteration with all ACs met; the failure was just the status update
+
+### Gotchas
+- xdist workers can hit MemoryError on this Windows machine; use `-o "addopts="` to override if needed
+
+---
+
+## Iteration [Previous] - Story: US-744 Phase I Scope Reduction (attempt 2, opus fix)
 
 ### What was implemented
 - Fixed mypy strict errors in `tests/test_scope_reducer.py` (unused type: ignore, incorrect list() call on object type)

@@ -25,7 +25,16 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "sonnet",
-      "last_attempted": "2026-03-22T12:30:55Z"
+      "last_attempted": "2026-03-22T12:30:55Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n- `lib/scope_reducer.py` exists with working reduce_scope/estimate/identify functions (16 unit tests pass)\n- `lib/results_tsv.py` has `scope_tag` field for `scope_reduced` tracking\n- `lib/impl/retry.sh` has `try_scope_reduction()` bash helper\n- **mypy strict fails** on `tests/test_scope_reducer.py` (3 errors: unused type-ignore, type mismatch)\n- Missing integration test for the full scope-reduction → retry → results.tsv flow (AC #2 and #3 incomplete)\n\n## Problem Identified\n1. mypy strict errors block quality gates\n2. Integration test doesn't cover retry flow with results.tsv `scope_reduced` tag logging\n3. Story `passes: false` despite code being committed\n\n## Planned Changes\n- Fix mypy errors in `tests/test_scope_reducer.py` (lines 154, 183)\n- Add integration test covering: 5KB story → scope reduction → retry succeeds at same model tier → both attempts logged to results.tsv with scope_reduced tag\n- Run quality checks (mypy, ruff, pytest)\n- Mark US-744 passes: true in prd.json\nNow add the integration test for the full retry flow at the end of the file:\nNow run quality checks:\nAll 17 tests pass (16 existing + 1 new integration test). Now mark the story as passes: true:\nNow append progress notes:\nNow run pre-commit checks:\nPre-commit modified some files. Let me re-run to see if it's clean now:\nAll checks pass. Now commit:\nStory US-744 is complete. Here's what was done:\n\n**Problem:** Previous haiku attempt created all the code correctly but left mypy strict errors unfixed, causing quality gate failure.\n\n**Changes:**\n1. **`tests/test_scope_reducer.py`** — Fixed 3 mypy strict errors (unused `type: ignore` comments, `list()` on `object` type needing `isinstance` guard). Added `TestScopeReductionRetryIntegration::test_5kb_story_reduced_retried_no_escalation` integration test covering the full flow: 5KB story → scope_reducer → retry at same model (haiku) → results.tsv with `scope_reduced` tag → no escalation to sonnet.\n2. **`prd.json`** — Marked US-744 `passes: true`\n3. **`progress.txt`** — Documented learnings\n\nAll 17 tests pass, mypy strict clean, ruff clean."
+      },
+      "_contextStats": {
+        "tokensBeforeMasking": 539,
+        "tokensAfterMasking": 539,
+        "reductionPct": 0,
+        "contextWindow": 10
+      }
     },
     {
       "id": "US-734",
@@ -49,8 +58,9 @@
         "US-604"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "sonnet"
+      "passes": true,
+      "model": "opus",
+      "last_attempted": "2026-03-22T18:00:00Z"
     },
     {
       "id": "US-735",
