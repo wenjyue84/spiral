@@ -194,3 +194,4 @@
 {"story_id": "US-779", "estimated_complexity": "small", "actual_duration_s": 684, "phase_retries": 0, "passed": true}
 {"story_id": "US-782", "estimated_complexity": "medium", "actual_duration_s": 860, "phase_retries": 0, "passed": true}
 {"story_id": "US-783", "estimated_complexity": "small", "actual_duration_s": 496, "phase_retries": 0, "passed": true}
+{"story_id": "US-785", "estimated_complexity": "medium", "actual_duration_s": 551, "phase_retries": 0, "passed": true}

@@ -323,6 +323,90 @@
       "model": "haiku"
     },
     {
+      "id": "US-763",
+      "title": "[E2E Test] Dashboard AlertsPanel receives WebSocket cost-ceiling alerts",
+      "priority": "medium",
+      "description": "Write an end-to-end Playwright test verifying the user flow introduced by US-591: a browser client connects to /ws/alerts, cumulative-cost and phase-budget threshold alerts are streamed, and the AlertsPanel in the spiral-ui dashboard (localhost:5299) renders each alert within 2 seconds. This validates operator visibility during long SPIRAL runs.",
+      "acceptanceCriteria": [
+        "AlertsPanel is visible in the dashboard and shows at least one alert after a mock WebSocket message is injected: `uv run pytest tests/test_e2e_us591_alerts.py::test_alerts_panel_visible -v`",
+        "WebSocket client connecting to ws://localhost:5299/ws/alerts receives a JSON alert within 2 s of cumulative cost crossing 80 % of SPIRAL_COST_CEILING: `uv run pytest tests/test_e2e_us591_alerts.py::test_cost_ceiling_alert_streamed -v`",
+        "Full E2E suite passes headless: `uv run pytest tests/test_e2e_us591_alerts.py -v`"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_e2e_us591_alerts.py (new file — Playwright-pytest E2E test for US-591 AlertsPanel)",
+        "File to edit: spiral-ui/src/components/AlertsPanel.tsx or AlertsPanel.jsx (locate existing component; add data-testid='alerts-panel' if missing so Playwright can query it)",
+        "Test command: uv run pytest tests/test_e2e_us591_alerts.py -v",
+        "Use playwright-pytest fixture `page` to navigate to http://localhost:5299, inject a fake WebSocket message via `page.evaluate()` or intercept with `page.route()`, then assert `page.locator('[data-testid=alerts-panel]')` contains the alert text",
+        "If spiral-ui is not running during CI, mock the WebSocket server with a lightweight asyncio server started as a pytest fixture on port 5299"
+      ],
+      "dependencies": [
+        "US-591"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "e2e",
+        "auto-generated"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-764",
+      "title": "[Regression Test] Auto-Decompose Triggers After 3 Phase I Failures",
+      "priority": "medium",
+      "description": "Create tests/test_phase_i_decompose.py with a regression test that mocks Ralph subprocess failures and verifies the auto-decompose feature fires correctly after 3 consecutive Phase I failures on an oversized story. The test validates that prd.json gains properly chained sub-stories and results.tsv records the decomposition event. This guards against future breakage of US-569.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_phase_i_decompose.py::test_auto_decompose_triggers_after_triple_failure -v exits 0",
+        "Test asserts prd.json contains at least 2 sub-stories with _decomposedFrom pointing to the parent story ID after 3 simulated Ralph failures",
+        "Test asserts results.tsv contains a row with status=decomposed for the parent story after the third failure",
+        "Temporarily removing or stubbing out the auto-decompose call in the implementation causes the test to fail"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_phase_i_decompose.py (create new — test_auto_decompose_triggers_after_triple_failure)",
+        "Reference: lib/impl/decompose.sh or equivalent Python module that performs auto-decompose logic to know what to mock",
+        "Mock Ralph subprocess via unittest.mock.patch('subprocess.run') returning non-zero exit codes 3 times in sequence",
+        "Load a minimal fixture prd.json with one oversized story (estimatedComplexity=large) into a tmp_path directory",
+        "Test command: uv run pytest tests/test_phase_i_decompose.py::test_auto_decompose_triggers_after_triple_failure -v",
+        "Test command (full suite check): uv run pytest tests/ -k us_569 -v"
+      ],
+      "dependencies": [
+        "US-569"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-765",
+      "title": "[E2E Test] Dashboard live metrics visible in browser (US-460)",
+      "priority": "medium",
+      "description": "Write a Playwright end-to-end test that launches the spiral-ui dashboard at localhost:5299 and asserts that the live token burn rate, story throughput, and model escalation panels are visible. This validates the user-facing output of US-460. The test must pass in headless mode.",
+      "acceptanceCriteria": [
+        "Running `uv run pytest tests/test_e2e_dashboard.py -v` exits 0 with all assertions passing",
+        "Test asserts that a token burn-rate metric element is present in the DOM (e.g. text matching 'tok/s' or 'tokens')",
+        "Test asserts that a story throughput element is present (e.g. text matching 'stories/hr' or throughput panel)",
+        "Test passes in headless Playwright (no GUI required)"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_e2e_dashboard.py (create new — Playwright test using sync_playwright)",
+        "File to edit: pyproject.toml ([tool.pytest.ini_options] or [project.optional-dependencies]) to add playwright dep if missing",
+        "Test command: uv run pytest tests/test_e2e_dashboard.py -v",
+        "Dashboard runs at http://localhost:5299 — start it with `python spiral_ui.py` or equivalent before the test, or use a pytest fixture to launch it",
+        "Use `from playwright.sync_api import sync_playwright` — install via `uv add playwright` if not present",
+        "Do NOT test .github/workflows files — those are CI artefacts from US-460, not the dashboard UI"
+      ],
+      "dependencies": [
+        "US-460"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "e2e",
+        "auto-generated"
+      ],
+      "model": "haiku"
+    },
+    {
       "id": "US-752",
       "title": "Integration Test: Verify Worker Sub-Project Isolation Under 3-Worker Federated Load",
       "priority": "high",
@@ -5159,6 +5243,30 @@
       "_scopeCreep": true
     },
     {
+      "id": "US-771",
+      "title": "Phase A: Cross-Iteration Dedup Memory - Skip Previously Rejected Story Patterns",
+      "priority": "medium",
+      "description": "Track fingerprints of stories rejected by Phase S across iterations. When Phase A generates a new candidate that matches a previously rejected pattern (>80% similarity), skip it automatically.",
+      "acceptanceCriteria": [
+        "Phase A writes rejected story fingerprints to .spiral/rejected_patterns.json after Phase S rejects them",
+        "New candidates matching >80% Jaccard similarity to rejected patterns are skipped with log entry",
+        "Rejected patterns file is pruned to last 100 entries to prevent unbounded growth",
+        "Unit test verifies a near-duplicate of a rejected story is detected and skipped"
+      ],
+      "technicalNotes": [
+        "File to create: lib/rejected_pattern_cache.py",
+        "File to edit: spiral.sh Phase A and Phase S sections"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "core-flow",
+        "phase-a"
+      ],
+      "model": "haiku"
+    },
+    {
       "id": "US-772",
       "title": "Phase R: Research Quality Feedback Loop - Score Stories by Implementation Outcome",
       "priority": "high",
@@ -5183,6 +5291,30 @@
       "model": "haiku"
     },
     {
+      "id": "US-773",
+      "title": "Phase R: Semantic Query Dedup - Skip Research When Query Matches Prior Cache",
+      "priority": "medium",
+      "description": "Hash research queries semantically. If a new query is >90% similar to a cached result from last 3 iterations, reuse the cached result instead of making a new API call.",
+      "acceptanceCriteria": [
+        "Research queries are hashed using TF-IDF vectors and stored in .spiral/research_cache.json with TTL",
+        "Queries with >0.90 cosine similarity to a cached entry return the cached result with log entry",
+        "Cache entries older than SPIRAL_RESEARCH_CACHE_TTL (default 5 iterations) are pruned",
+        "Unit test verifies cache hit for paraphrased query and miss for novel query"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/research_cache.py",
+        "Reuse: lib/merge_stories.py TF-IDF utilities"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "tags": [
+        "core-flow",
+        "phase-r"
+      ],
+      "model": "haiku"
+    },
+    {
       "id": "US-774",
       "title": "Phase T: Flaky Test Detection - Skip Story Generation for Intermittent Failures",
       "priority": "high",
@@ -5200,6 +5332,30 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
+      "tags": [
+        "core-flow",
+        "phase-t"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-775",
+      "title": "Phase T: Root Cause Clustering - Group Related Test Failures into Single Fix Story",
+      "priority": "medium",
+      "description": "When multiple tests fail from the same module, cluster them into a single root-cause story instead of N individual stories.",
+      "acceptanceCriteria": [
+        "Phase T groups test failures by source file; 3+ failures from same source produce 1 clustered story",
+        "Clustered story title: [Root Cause] Fix {module} causing {N} test failures",
+        "Individual test names listed in acceptanceCriteria for Ralph verification",
+        "Unit test verifies 5 failures from tests/test_merge.py produce 1 story, not 5"
+      ],
+      "technicalNotes": [
+        "File to create: lib/test_failure_clustering.py",
+        "File to edit: spiral.sh Phase T"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
       "tags": [
         "core-flow",
         "phase-t"
@@ -5256,6 +5412,29 @@
       "model": "haiku"
     },
     {
+      "id": "US-778",
+      "title": "Phase E: Priority-Aware Enrichment - Enrich High-Priority Stories First",
+      "priority": "medium",
+      "description": "Reorder the enrichment queue so critical/high-priority stories are enriched before medium/low, ensuring the most important work gets the best context.",
+      "acceptanceCriteria": [
+        "Phase E sorts enrichment queue by priority (critical > high > medium > low) before processing",
+        "When SPIRAL_STORY_ENRICHMENT_MAX is reached, only highest-priority stories are enriched",
+        "Log shows enrichment order with priority level",
+        "Unit test verifies 3 medium + 2 high stories with max=3 results in both high stories enriched"
+      ],
+      "technicalNotes": [
+        "File to edit: spiral.sh Phase E"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "core-flow",
+        "phase-e"
+      ],
+      "model": "haiku"
+    },
+    {
       "id": "US-779",
       "title": "Phase M: Dead Weight Detection - Auto-Archive Stories Stuck 5+ Iterations",
       "priority": "high",
@@ -5278,6 +5457,54 @@
       "tags": [
         "core-flow",
         "phase-m"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-780",
+      "title": "Phase M: Source-Aware Merge Weighting - Prioritize Sources with Higher Pass Rates",
+      "priority": "medium",
+      "description": "Track pass rate by _source field. Use historical pass rates to weight merge priority so higher-success sources get merged first.",
+      "acceptanceCriteria": [
+        "Phase M calculates pass rate per _source from all stories before merging new candidates",
+        "Within same priority tier, stories from higher-pass-rate sources are merged first",
+        "Log shows source weights with pass rate percentages",
+        "Unit test verifies research story (80% rate) merged before ai-example (40%) at same priority"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/merge_stories.py"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "core-flow",
+        "phase-m"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-781",
+      "title": "Phase X: Context Explosion Guard - Cap and Summarize When Story Touches 15+ Files",
+      "priority": "medium",
+      "description": "When dependency inference finds >15 files, summarize with file paths + key function signatures instead of full content injection, preventing context window overflow.",
+      "acceptanceCriteria": [
+        "Phase X detects stories exceeding SPIRAL_CONTEXT_FILE_CAP (default 15) files",
+        "Oversized contexts get summarized: file paths + top 3 function signatures per file",
+        "Log warning about context explosion with file count",
+        "Unit test verifies a 20-file story gets summarized context"
+      ],
+      "technicalNotes": [
+        "File to create: lib/context_summarizer.py",
+        "File to edit: spiral.sh Phase X",
+        "Config: SPIRAL_CONTEXT_FILE_CAP in spiral.config.sh"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "tags": [
+        "core-flow",
+        "phase-x"
       ],
       "model": "haiku"
     },
@@ -5331,6 +5558,31 @@
       "model": "haiku"
     },
     {
+      "id": "US-784",
+      "title": "Phase C: Partial Completion Report - Exit with Diagnostic When Stuck Stories Remain",
+      "priority": "medium",
+      "description": "Exit after N zero-progress iterations with structured diagnostic: what passed, what is stuck, and root-cause guess per stuck story.",
+      "acceptanceCriteria": [
+        "Phase C tracks consecutive zero-progress iterations",
+        "After SPIRAL_MAX_STUCK_ITERATIONS (default 5) zero-progress iterations, exit with .spiral/completion_report.json",
+        "Report includes: total passed, stuck story IDs with retry counts, suggested actions",
+        "Unit test verifies exit after 5 zero-progress iterations with correct report"
+      ],
+      "technicalNotes": [
+        "File to create: lib/completion_report.py",
+        "File to edit: spiral.sh Phase C",
+        "Note: enhances existing SPIRAL_CONSECUTIVE_FAIL_ABORT with diagnostic report"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "core-flow",
+        "phase-c"
+      ],
+      "model": "haiku"
+    },
+    {
       "id": "US-785",
       "title": "Phase L: Retry Pattern Analysis - Extract What Makes Stories Easy vs Hard",
       "priority": "high",
@@ -5353,8 +5605,31 @@
         "core-flow",
         "phase-l"
       ],
-      "model": "haiku",
-      "last_attempted": "2026-03-22T21:43:05Z"
+      "model": "haiku"
+    },
+    {
+      "id": "US-786",
+      "title": "Phase L: Model Effectiveness Tracking - Record Which Model Solved Which Story Types",
+      "priority": "medium",
+      "description": "Track haiku/sonnet/opus success rates by complexity score. Tune Phase I routing thresholds so the right model is used from the start.",
+      "acceptanceCriteria": [
+        "Phase L records which model solved each story along with complexity score",
+        "Data aggregated into .spiral/model_effectiveness.json: per-model success rate by complexity bracket",
+        "Phase I consults model_effectiveness.json to choose starting model",
+        "Unit test verifies effectiveness data correctly shows haiku success rate by bracket"
+      ],
+      "technicalNotes": [
+        "File to create: lib/model_effectiveness.py",
+        "File to edit: spiral.sh Phase L and Phase I"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "tags": [
+        "core-flow",
+        "phase-l"
+      ],
+      "model": "haiku"
     },
     {
       "id": "US-787",
