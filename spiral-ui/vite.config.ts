@@ -52,8 +52,8 @@ function parseConfigSh(configPath: string): Record<string, string> {
   return result;
 }
 
-/** Resolve constitution path from config or fall back to .specify/memory/constitution.md */
-function readConstitution(projectRoot: string, config: Record<string, string>): string {
+/** Resolve constitution file path from config or fall back to .specify/memory/constitution.md */
+function resolveConstitutionPath(projectRoot: string, config: Record<string, string>): string {
   const candidates = [
     config['SPIRAL_SPECKIT_CONSTITUTION'] ? path.join(projectRoot, config['SPIRAL_SPECKIT_CONSTITUTION']) : '',
     path.join(projectRoot, '.specify', 'memory', 'constitution.md'),
@@ -61,11 +61,56 @@ function readConstitution(projectRoot: string, config: Record<string, string>): 
   ].filter(Boolean);
 
   for (const p of candidates) {
-    if (fs.existsSync(p)) {
-      try { return fs.readFileSync(p, 'utf8'); } catch { /* ignore */ }
-    }
+    if (fs.existsSync(p)) return p;
+  }
+  return candidates[1] ?? '';
+}
+
+/** Read constitution content */
+function readConstitution(projectRoot: string, config: Record<string, string>): string {
+  const p = resolveConstitutionPath(projectRoot, config);
+  if (p) {
+    try { return fs.readFileSync(p, 'utf8'); } catch { /* ignore */ }
   }
   return '';
+}
+
+interface ConstitutionVersion {
+  sha: string;
+  shortSha: string;
+  date: string;
+  relativeDate: string;
+  subject: string;
+  author: string;
+}
+
+/** Get git log history for the constitution file */
+function getConstitutionVersions(projectRoot: string, filePath: string, maxCount = 50): ConstitutionVersion[] {
+  try {
+    const relPath = path.relative(projectRoot, filePath).replace(/\\/g, '/');
+    const proc = spawnSync('git', [
+      'log', `--max-count=${maxCount}`,
+      '--format=%H|%h|%aI|%ar|%s|%an',
+      '--follow', '--', relPath,
+    ], { cwd: projectRoot, encoding: 'utf8', timeout: 10000 });
+    if (proc.status !== 0 || !proc.stdout) return [];
+    return proc.stdout.trim().split('\n').filter(Boolean).map(line => {
+      const [sha, shortSha, date, relativeDate, subject, author] = line.split('|');
+      return { sha, shortSha, date, relativeDate, subject, author };
+    });
+  } catch { return []; }
+}
+
+/** Read constitution file content at a specific git commit */
+function readConstitutionAtVersion(projectRoot: string, filePath: string, sha: string): string {
+  try {
+    const relPath = path.relative(projectRoot, filePath).replace(/\\/g, '/');
+    const proc = spawnSync('git', ['show', `${sha}:${relPath}`], {
+      cwd: projectRoot, encoding: 'utf8', timeout: 10000,
+    });
+    if (proc.status !== 0) return '';
+    return proc.stdout;
+  } catch { return ''; }
 }
 
 /** Query git log for the latest commit timestamp per story ID. Returns a map of storyId → ISO timestamp. */
@@ -178,6 +223,51 @@ function spiralApiPlugin() {
             res.end(JSON.stringify({ error: String(e) }));
           }
         });
+      });
+
+      // ── GET /api/constitution-versions — git history of constitution.md ───
+      server.middlewares.use('/api/constitution-versions', (req, res, next) => {
+        if (req.method !== 'GET') { next(); return; }
+        try {
+          const url = new URL(req.url ?? '/', 'http://localhost');
+          const projName = url.searchParams.get('name');
+          const root = projName ? (readRegistry()[projName] ?? PROJECT_ROOT) : PROJECT_ROOT;
+          const config = parseConfigSh(path.join(root, 'spiral.config.sh'));
+          const filePath = resolveConstitutionPath(root, config);
+          const versions = filePath ? getConstitutionVersions(root, filePath) : [];
+          res.setHeader('Content-Type', 'application/json');
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          res.end(JSON.stringify({ versions }));
+        } catch (e) {
+          res.statusCode = 500;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ error: String(e) }));
+        }
+      });
+
+      // ── GET /api/constitution-version?name=X&sha=Y — content at commit ────
+      server.middlewares.use('/api/constitution-version', (req, res, next) => {
+        if (req.method !== 'GET') { next(); return; }
+        // Avoid matching /api/constitution-versions (longer path)
+        const urlPath = (req.url ?? '').split('?')[0];
+        if (urlPath !== '/api/constitution-version') { next(); return; }
+        try {
+          const url = new URL(req.url ?? '/', 'http://localhost');
+          const projName = url.searchParams.get('name');
+          const sha = url.searchParams.get('sha');
+          if (!sha) { res.statusCode = 400; res.end(JSON.stringify({ error: 'sha required' })); return; }
+          const root = projName ? (readRegistry()[projName] ?? PROJECT_ROOT) : PROJECT_ROOT;
+          const config = parseConfigSh(path.join(root, 'spiral.config.sh'));
+          const filePath = resolveConstitutionPath(root, config);
+          const content = filePath ? readConstitutionAtVersion(root, filePath, sha) : '';
+          res.setHeader('Content-Type', 'application/json');
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          res.end(JSON.stringify({ content, sha }));
+        } catch (e) {
+          res.statusCode = 500;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ error: String(e) }));
+        }
       });
 
       // ── GET /api/skills — list skill .md files from ralph/skills/ ──────────
