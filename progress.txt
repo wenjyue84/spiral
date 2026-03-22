@@ -1,3 +1,27 @@
+## Iteration [Current] - Story: US-744 Phase I: Automatic File-Level Scope Reduction
+
+### What was implemented
+- **lib/scope_reducer.py** (new) — `estimate_story_size()`, `identify_noncritical_files()`, `reduce_scope()` + CLI
+- **tests/test_scope_reducer.py** (new) — 16 tests covering estimate, identify, reduce (5KB→3KB), no-mutation
+- **lib/phases/phase_i_implement.sh** — Added scope reduction block before single-worker ralph dispatch: estimates story size, calls scope_reducer.py reduce if > SPIRAL_SCOPE_BUDGET (default 5000 chars), patches temp PRD with reduced story, exports SPIRAL_SCOPE_TAG=scope_reduced, cleans up after ralph
+- **ralph/ralph.sh** — Added `scope_tag` column to `append_result()` header and data row; reads from `$SPIRAL_SCOPE_TAG` env var
+
+### Patterns discovered
+- `scope_reducer.py` CLI: `estimate <file>` → int; `reduce <file> [--budget N]` → JSON with `reduced_story` and `deferred_files`
+- `export SPIRAL_SCOPE_TAG` propagates to ralph subprocess; `unset SPIRAL_SCOPE_TAG` after invocation prevents leakage to next story
+- Non-critical files: tests/, docs/, examples/, fixtures/, *.md, *.spec.ts, CHANGELOG, README
+
+### Gotchas
+- phase_i_implement.sh had CRLF line endings on Windows — must convert to LF before pre-commit shellcheck passes
+- `[[ "$_SR_SIZE" =~ ^[0-9]+$ ]]` guard is required before arithmetic comparison to avoid shellcheck error on uninitialized/non-numeric values
+
+### Acceptance Criteria Mapping
+1. ✅ Phase I detects oversized stories via `estimate_story_size()`; calls `scope_reducer.py reduce`; marks as `_deferred_files`
+2. ✅ Ralph gets reduced scope via temp PRD; logs `scope_tag=scope_reduced` to results.tsv via `SPIRAL_SCOPE_TAG` env var
+3. ✅ Integration test: `test_5kb_story_reduced_to_3kb` verifies 5KB → ≤3KB reduction (16/16 tests pass)
+
+---
+
 ## Iteration [Current] - Story: US-733 Security Tests for lint-prd CLI
 
 ### What was implemented
