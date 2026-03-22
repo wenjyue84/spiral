@@ -32,6 +32,7 @@ def slice_prd(prd: dict, batch_size: int) -> dict:
 
     - All stories with ``passes == True`` are always included.
     - Decomposed parents (``_decomposed == True``) are always included.
+    - Archived stories (``_archived == True``) are always excluded (US-779).
     - Pending stories are sorted by priority then original order, and only
       the first *batch_size* are kept.
     - If *batch_size* <= 0, the original dict is returned unchanged.
@@ -45,6 +46,9 @@ def slice_prd(prd: dict, batch_size: int) -> dict:
     pending: list[tuple[int, dict]] = []  # (original_index, story)
 
     for idx, story in enumerate(stories):
+        # US-779: Skip archived stories from dispatch
+        if story.get("_archived") is True:
+            continue
         if story.get("passes") is True or story.get("_decomposed") is True:
             kept.append(story)
         else:

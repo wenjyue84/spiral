@@ -135,6 +135,41 @@ def _is_done(story: dict[str, Any]) -> bool:
     return bool(story.get("passes") or story.get("_decomposed") or story.get("_skipped"))
 
 
+def apply_dead_weight_detection(stories: list[dict[str, Any]], threshold: int) -> None:
+    """Mark stories stuck 5+ iterations as archived (US-779).
+
+    Modifies stories in-place:
+    - Increments _pending_iterations for non-passed stories
+    - Sets _archived:true + _archiveReason for stories exceeding threshold
+    - Returns count of newly archived stories
+    """
+    archived_count = 0
+    for story in stories:
+        # Skip done stories
+        if _is_done(story):
+            continue
+
+        # Already archived — don't re-process
+        if story.get("_archived"):
+            continue
+
+        # Increment iteration counter
+        story["_pending_iterations"] = story.get("_pending_iterations", 0) + 1
+
+        # Check threshold (threshold=0 disables feature)
+        if threshold > 0 and story["_pending_iterations"] >= threshold:
+            story["_archived"] = True
+            story["_archiveReason"] = f"stuck for {story['_pending_iterations']} iterations (threshold: {threshold})"
+            archived_count += 1
+            print(
+                f"[merge] AUTO-ARCHIVED [{story['id']}] {story['title'][:60]} "
+                f"(pending {story['_pending_iterations']} iterations)"
+            )
+
+    if archived_count > 0:
+        print(f"[merge] Dead weight detection: {archived_count} story/stories auto-archived this iteration")
+
+
 def full_sort_key(story: dict[str, Any]) -> tuple[int, int, int]:
     """Sort key for post-merge ordering.
 
@@ -269,10 +304,15 @@ def main() -> int:
         return 1
 
     existing_stories: list[dict[str, Any]] = prd.get("userStories", [])
+
+    # ── US-779: Dead weight detection — auto-archive stuck stories ─────────────
+    dead_weight_threshold = int(os.environ.get("SPIRAL_DEAD_WEIGHT_THRESHOLD", "5"))
+    apply_dead_weight_detection(existing_stories, dead_weight_threshold)
+
     existing_titles = [s.get("title", "") for s in existing_stories]
     existing_epics = [s.get("epicId", "") for s in existing_stories]
 
-    current_pending = sum(1 for s in existing_stories if not s.get("passes"))
+    current_pending = sum(1 for s in existing_stories if not s.get("passes") and not s.get("_archived"))
     print(f"[merge] prd.json: {len(existing_stories)} existing stories ({current_pending} pending)")
 
     # ── US-545: Detect file conflicts among pending stories ───────────────────

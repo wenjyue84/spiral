@@ -2074,6 +2074,48 @@ def cmd_show_slowest_stories(args: argparse.Namespace) -> None:
     print(output)
 
 
+def cmd_show_archived(args: argparse.Namespace) -> None:
+    """List auto-archived stories stuck 5+ iterations (US-779).
+
+    Usage: spiral show-archived [--prd prd.json] [--json]
+    """
+    prd_path = Path(getattr(args, "prd_file", None) or "prd.json")
+    if not prd_path.is_absolute():
+        prd_path = Path.cwd() / prd_path
+
+    if not prd_path.exists():
+        print(f"Error: {prd_path} not found", file=sys.stderr)
+        sys.exit(1)
+
+    with open(prd_path, encoding="utf-8") as f:
+        prd = json.load(f)
+
+    stories = prd.get("userStories", [])
+    archived = [s for s in stories if s.get("_archived") is True]
+
+    if not archived:
+        print("No archived stories found.")
+        return
+
+    # Check if JSON output requested
+    if getattr(args, "json_output", False):
+        print(json.dumps(archived, indent=2))
+        return
+
+    # Human-readable table format
+    print(f"\n{'ID':<8} {'Iterations':<12} {'Priority':<10} {'Title':<50} {'Reason':<30}")
+    print("-" * 120)
+    for story in archived:
+        story_id = story.get("id", "?")
+        iterations = story.get("_pending_iterations", 0)
+        priority = story.get("priority", "?")
+        title = story.get("title", "?")[:50]
+        reason = story.get("_archiveReason", "unknown")[:30]
+        print(f"{story_id:<8} {iterations:<12} {priority:<10} {title:<50} {reason:<30}")
+
+    print(f"\nTotal: {len(archived)} archived story/stories")
+
+
 def cmd_replay(args) -> None:
     """Re-run a SPIRAL phase with DEBUG=1 and full state capture (US-539).
 
@@ -3168,6 +3210,25 @@ def main():
         help="Number of slowest stories to display (default: 5)",
     )
 
+    # ── show-archived subcommand (US-779) ─────────────────────────────────────────
+    archived_parser = subparsers.add_parser(
+        "show-archived",
+        help="List auto-archived stories stuck 5+ iterations (US-779)",
+    )
+    archived_parser.add_argument(
+        "--prd",
+        dest="prd_file",
+        default="prd.json",
+        metavar="FILE",
+        help="Path to prd.json (default: prd.json)",
+    )
+    archived_parser.add_argument(
+        "--json",
+        dest="json_output",
+        action="store_true",
+        help="Output as JSON (default: table)",
+    )
+
     # ── replay subcommand (US-539) ───────────────────────────────────────────────
     replay_parser = subparsers.add_parser(
         "replay",
@@ -3950,6 +4011,8 @@ def main():
         cmd_show_blockers(args)
     elif args.command == "show-slowest-stories":
         cmd_show_slowest_stories(args)
+    elif args.command == "show-archived":
+        cmd_show_archived(args)
     elif args.command == "replay":
         cmd_replay(args)
     elif args.command == "analyze-batch-potential":

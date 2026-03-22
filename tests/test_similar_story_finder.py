@@ -4,13 +4,7 @@ Unit tests for lib/similar_story_finder.py
 Tests TF-IDF similarity detection for finding analogous past implementations.
 """
 
-import json
-import os
-import tempfile
-from pathlib import Path
 from typing import Any
-
-import pytest
 
 from lib.similar_story_finder import (
     create_searchable_text,
@@ -107,9 +101,7 @@ class TestFindSimilarStories:
             },
         ]
 
-        similar = find_similar_stories(
-            candidate, passed_stories, threshold=0.3, top_k=3
-        )
+        similar = find_similar_stories(candidate, passed_stories, threshold=0.3, top_k=3)
 
         assert len(similar) > 0
         assert similar[0]["id"] == "US-900"
@@ -130,15 +122,11 @@ class TestFindSimilarStories:
         ]
 
         # Very high threshold filters out
-        similar = find_similar_stories(
-            candidate, passed_stories, threshold=0.99, top_k=3
-        )
+        similar = find_similar_stories(candidate, passed_stories, threshold=0.99, top_k=3)
         assert len(similar) == 0
 
         # Low threshold includes
-        similar = find_similar_stories(
-            candidate, passed_stories, threshold=0.0, top_k=3
-        )
+        similar = find_similar_stories(candidate, passed_stories, threshold=0.0, top_k=3)
         assert len(similar) > 0
 
     def test_top_k_limit(self) -> None:
@@ -148,14 +136,9 @@ class TestFindSimilarStories:
             "description": "Cache management",
         }
 
-        passed_stories = [
-            {"id": f"US-{i}", "title": f"Story {i}", "description": "Cache related"}
-            for i in range(10)
-        ]
+        passed_stories = [{"id": f"US-{i}", "title": f"Story {i}", "description": "Cache related"} for i in range(10)]
 
-        similar = find_similar_stories(
-            candidate, passed_stories, threshold=0.0, top_k=3
-        )
+        similar = find_similar_stories(candidate, passed_stories, threshold=0.0, top_k=3)
 
         assert len(similar) <= 3
 
@@ -168,12 +151,8 @@ class TestFindSimilarStories:
     def test_empty_candidate_text(self) -> None:
         """Handles candidate with no searchable text."""
         candidate = {"title": "", "description": ""}
-        passed_stories = [
-            {"id": "US-900", "title": "Test", "description": "Test story"}
-        ]
-        similar = find_similar_stories(
-            candidate, passed_stories, threshold=0.5, top_k=3
-        )
+        passed_stories = [{"id": "US-900", "title": "Test", "description": "Test story"}]
+        similar = find_similar_stories(candidate, passed_stories, threshold=0.5, top_k=3)
         assert similar == []
 
 
@@ -201,9 +180,7 @@ class TestEnrichWithSimilarSolutions:
             }
         ]
 
-        enriched = enrich_with_similar_solutions(
-            validated, passed, similarity_threshold=0.1, top_k=3
-        )
+        enriched = enrich_with_similar_solutions(validated, passed, similarity_threshold=0.1, top_k=3)
 
         assert len(enriched) == 1
         assert "_enrichment" in enriched[0]
@@ -230,9 +207,7 @@ class TestEnrichWithSimilarSolutions:
             }
         ]
 
-        enriched = enrich_with_similar_solutions(
-            validated, passed, similarity_threshold=0.2, top_k=1
-        )
+        enriched = enrich_with_similar_solutions(validated, passed, similarity_threshold=0.2, top_k=1)
 
         similar = enriched[0]["_enrichment"]["similar_solutions"][0]
         assert "lib/cache.py" in similar["files"]
@@ -256,9 +231,7 @@ class TestEnrichWithSimilarSolutions:
             }
         ]
 
-        enriched = enrich_with_similar_solutions(
-            validated, passed, similarity_threshold=0.99, top_k=3
-        )
+        enriched = enrich_with_similar_solutions(validated, passed, similarity_threshold=0.99, top_k=3)
 
         assert "_enrichment" in enriched[0]
         assert "similar_solutions" not in enriched[0]["_enrichment"]

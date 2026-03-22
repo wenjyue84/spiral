@@ -164,6 +164,13 @@ SPIRAL_POOL_RECLAIM_INTERVAL="${SPIRAL_POOL_RECLAIM_INTERVAL:-30}"
 # nearly clear, keeping the pending gap under control.
 SPIRAL_MAX_PENDING=15
 
+# ── Dead weight threshold: auto-archive stories stuck N+ iterations ────────────
+# When a non-passed story survives more than this many iterations without progress,
+# it's automatically marked _archived:true to prevent backlog bloat (US-779).
+# Phase I skips archived stories but they remain in prd.json for audit.
+# Default: 5 iterations. Set to 0 to disable dead weight detection.
+SPIRAL_DEAD_WEIGHT_THRESHOLD=5
+
 # ── Total story count assertion ceiling ───────────────────────────────────────
 # Spiral has 264 total stories (243 done + 21 pending + room for research).
 # Override the default of 200 to prevent abort on assert.

@@ -80,9 +80,7 @@ def find_similar_stories(
         print(f"WARNING: TF-IDF vectorization failed: {e}", file=sys.stderr)
         return []
 
-    similar_with_scores = [
-        (passed_stories[i], float(similarities[i])) for i in range(len(passed_stories))
-    ]
+    similar_with_scores = [(passed_stories[i], float(similarities[i])) for i in range(len(passed_stories))]
     similar_with_scores.sort(key=lambda x: x[1], reverse=True)
 
     results = [s for s, score in similar_with_scores if score >= threshold][:top_k]
@@ -129,9 +127,7 @@ def enrich_with_similar_solutions(
         enriched_story = dict(story)
         enriched_story.setdefault("_enrichment", {})
 
-        similar = find_similar_stories(
-            story, passed_stories, threshold=similarity_threshold, top_k=top_k
-        )
+        similar = find_similar_stories(story, passed_stories, threshold=similarity_threshold, top_k=top_k)
 
         if similar:
             similar_solutions = []
@@ -156,9 +152,7 @@ def enrich_with_similar_solutions(
 
 def main() -> int:
     """Main entry point."""
-    parser = argparse.ArgumentParser(
-        description="Find similar passed stories and inject as enrichment hints"
-    )
+    parser = argparse.ArgumentParser(description="Find similar passed stories and inject as enrichment hints")
     parser.add_argument("--prd", required=True, help="Path to prd.json")
     parser.add_argument("--validated-in", required=True, help="Path to validated stories")
     parser.add_argument("--enriched-out", required=True, help="Output path for enriched stories")

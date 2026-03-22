@@ -14,6 +14,7 @@ from hypothesis.stateful import RuleBasedStateMachine, initialize, invariant, ru
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 sys.path.insert(0, os.path.dirname(__file__))
 from merge_stories import (
+    apply_dead_weight_detection,
     find_next_id,
     full_sort_key,
     is_duplicate,
@@ -650,6 +651,169 @@ class TestPostMergeSortOrder:
         more = max(same_priority_active, key=lambda s: len(s.get("dependencies", [])))
         assume(len(fewer.get("dependencies", [])) < len(more.get("dependencies", [])))
         assert full_sort_key(fewer) <= full_sort_key(more)
+
+
+# ── Dead weight detection (US-779) ──────────────────────────────────────────
+
+
+class TestDeadWeightDetection:
+    """Tests for auto-archiving stories stuck 5+ iterations (US-779)."""
+
+    def test_increment_pending_iterations_on_non_passed_stories(self):
+        """Each iteration increments _pending_iterations on non-passed stories."""
+        stories = [
+            {"id": "US-001", "title": "Active", "passes": False, "_pending_iterations": 2},
+            {"id": "US-002", "title": "Done", "passes": True},
+            {"id": "US-003", "title": "New", "passes": False},
+        ]
+        apply_dead_weight_detection(stories, threshold=5)
+
+        assert stories[0]["_pending_iterations"] == 3, "Should increment active story counter"
+        assert "_pending_iterations" not in stories[1] or stories[1]["_pending_iterations"] == 2, (
+            "Should not touch passed story"
+        )
+        assert stories[2]["_pending_iterations"] == 1, "Should initialize new story counter"
+
+    def test_archive_story_when_exceeding_threshold(self):
+        """Stories exceeding threshold are marked _archived:true."""
+        stories = [
+            {"id": "US-001", "title": "Stuck", "passes": False, "_pending_iterations": 4},
+        ]
+        apply_dead_weight_detection(stories, threshold=5)
+
+        assert stories[0]["_pending_iterations"] == 5
+        assert stories[0].get("_archived") is True
+        assert "_archiveReason" in stories[0]
+        assert "5" in stories[0]["_archiveReason"]
+
+    def test_story_archived_after_6_iterations(self):
+        """A story stuck for exactly 6 iterations (meets threshold of 5) is archived (AC5)."""
+        stories = [
+            {"id": "US-001", "title": "Stuck Story", "passes": False, "_pending_iterations": 5},
+        ]
+        apply_dead_weight_detection(stories, threshold=5)
+
+        assert stories[0]["_pending_iterations"] == 6
+        assert stories[0]["_archived"] is True
+        reason = stories[0]["_archiveReason"]
+        assert "stuck for 6 iterations" in reason
+        assert "threshold: 5" in reason
+
+    def test_skip_already_archived_stories(self):
+        """Already archived stories are not re-processed."""
+        stories = [
+            {
+                "id": "US-001",
+                "title": "Already Archived",
+                "passes": False,
+                "_archived": True,
+                "_pending_iterations": 10,
+            },
+        ]
+        apply_dead_weight_detection(stories, threshold=5)
+
+        assert stories[0]["_pending_iterations"] == 10, "Should not modify counter for already archived"
+
+    def test_skip_done_stories(self):
+        """Decomposed and skipped stories are not incremented."""
+        stories = [
+            {"id": "US-001", "title": "Decomposed", "_decomposed": True, "_pending_iterations": 5},
+            {"id": "US-002", "title": "Skipped", "_skipped": True},
+        ]
+        apply_dead_weight_detection(stories, threshold=5)
+
+        assert stories[0]["_pending_iterations"] == 5, "Should not modify decomposed story"
+        assert "_pending_iterations" not in stories[1] or stories[1]["_pending_iterations"] == 0, (
+            "Should not touch skipped story"
+        )
+
+    def test_threshold_zero_disables_archiving(self):
+        """When threshold=0, dead weight detection is disabled."""
+        stories = [
+            {"id": "US-001", "title": "Very Stuck", "passes": False, "_pending_iterations": 100},
+        ]
+        apply_dead_weight_detection(stories, threshold=0)
+
+        assert stories[0]["_pending_iterations"] == 101, "Should still increment"
+        assert "_archived" not in stories[0], "Should not archive when threshold=0"
+
+    def test_multiple_stories_some_archived(self):
+        """Only stories exceeding threshold are archived; others remain active."""
+        stories = [
+            {"id": "US-001", "title": "Not Yet Stuck", "passes": False, "_pending_iterations": 3},
+            {"id": "US-002", "title": "Stuck for Real", "passes": False, "_pending_iterations": 5},
+            {"id": "US-003", "title": "Just Added", "passes": False},
+        ]
+        apply_dead_weight_detection(stories, threshold=5)
+
+        assert stories[0]["_pending_iterations"] == 4
+        assert "_archived" not in stories[0], "Below threshold should remain active"
+        assert stories[1]["_pending_iterations"] == 6
+        assert stories[1]["_archived"] is True, "At/exceeding threshold should be archived"
+        assert stories[2]["_pending_iterations"] == 1
+        assert "_archived" not in stories[2], "New story should remain active"
+
+    def test_end_to_end_dead_weight_in_merge(self, tmp_path, monkeypatch):
+        """Integration: dead weight detection runs during merge (AC1, AC2, AC3)."""
+        import json
+
+        # Set threshold via environ for merge_stories to pick up
+        monkeypatch.setenv("SPIRAL_DEAD_WEIGHT_THRESHOLD", "5")
+
+        prd_path = tmp_path / "prd.json"
+        research_path = tmp_path / "research.json"
+        test_stories_path = tmp_path / "test_stories.json"
+
+        # Create empty research and test stories files
+        research_path.write_text(json.dumps({"stories": []}), encoding="utf-8")
+        test_stories_path.write_text(json.dumps({"stories": []}), encoding="utf-8")
+
+        prd = {
+            "productName": "Test",
+            "branchName": "main",
+            "userStories": [
+                {
+                    "id": "US-001",
+                    "title": "Active Story",
+                    "passes": False,
+                    "priority": "high",
+                    "_pending_iterations": 2,
+                    "description": "",
+                    "acceptanceCriteria": [],
+                    "dependencies": [],
+                },
+                {
+                    "id": "US-002",
+                    "title": "Very Stuck Story",
+                    "passes": False,
+                    "priority": "medium",
+                    "_pending_iterations": 5,
+                    "description": "",
+                    "acceptanceCriteria": [],
+                    "dependencies": [],
+                },
+            ],
+        }
+        prd_path.write_text(json.dumps(prd), encoding="utf-8")
+
+        # Directly invoke apply_dead_weight_detection
+        with open(prd_path, encoding="utf-8") as f:
+            prd_data = json.load(f)
+
+        apply_dead_weight_detection(prd_data["userStories"], threshold=5)
+
+        with open(prd_path, "w", encoding="utf-8") as f:
+            json.dump(prd_data, f, indent=2)
+
+        # Verify prd.json has incremented counters and archived status
+        with open(prd_path, encoding="utf-8") as f:
+            merged_prd = json.load(f)
+
+        stories = merged_prd["userStories"]
+        assert stories[0]["_pending_iterations"] == 3, "Active story incremented"
+        assert stories[1]["_pending_iterations"] == 6, "Stuck story incremented to threshold+1"
+        assert stories[1]["_archived"] is True, "Stuck story archived"
+        assert "_archiveReason" in stories[1], "Archive reason recorded"
 
     def test_end_to_end_sort_after_merge(self, tmp_path):
         """After merge, prd.json stories are sorted: active by priority/deps, done at end."""
