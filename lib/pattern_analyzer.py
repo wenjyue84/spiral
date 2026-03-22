@@ -19,7 +19,7 @@ from typing import Any
 def load_prd(prd_path: str) -> list[dict[str, Any]]:
     """Load prd.json and return all stories."""
     try:
-        with open(prd_path, "r") as f:
+        with open(prd_path, "r", encoding="utf-8") as f:
             data: Any = json.load(f)
             stories = data.get("userStories", [])
             return stories if isinstance(stories, list) else []
@@ -30,7 +30,7 @@ def load_prd(prd_path: str) -> list[dict[str, Any]]:
 def load_retry_counts(retry_path: str) -> dict[str, int]:
     """Load retry-counts.json mapping story IDs to retry counts."""
     try:
-        with open(retry_path, "r") as f:
+        with open(retry_path, "r", encoding="utf-8") as f:
             data: Any = json.load(f)
             return data if isinstance(data, dict) else {}
     except (FileNotFoundError, json.JSONDecodeError):
@@ -222,7 +222,7 @@ def save_patterns(
     output_dir = Path(output_path).parent
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    with open(output_path, "w") as f:
+    with open(output_path, "w", encoding="utf-8") as f:
         json.dump(patterns, f, indent=2)
 
 
@@ -233,7 +233,7 @@ def show_patterns(output_path: str) -> None:
         print("     Run spiral.sh to generate patterns from completed stories.")
         return
 
-    with open(output_path, "r") as f:
+    with open(output_path, "r", encoding="utf-8") as f:
         patterns = json.load(f)
 
     print("")
