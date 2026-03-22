@@ -135,7 +135,9 @@ def detect_conflicts(stories: list[dict[str, Any]]) -> list[dict[str, Any]]:
             files_b = get_files_to_touch(b)
             overlap = sorted(files_a & files_b)
             if overlap:
-                results.append({"storyA": a.get("id", ""), "storyB": b.get("id", ""), "conflict_files": "|".join(overlap)})
+                results.append(
+                    {"storyA": a.get("id", ""), "storyB": b.get("id", ""), "conflict_files": "|".join(overlap)}
+                )
     return results
 
 

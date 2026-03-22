@@ -29,9 +29,7 @@ def parse_pytest_times(report: dict[str, Any]) -> dict[str, float]:
     return times
 
 
-def compare_to_baseline(
-    current: dict[str, float], baseline_path: str
-) -> list[dict[str, object]]:
+def compare_to_baseline(current: dict[str, float], baseline_path: str) -> list[dict[str, object]]:
     """Compare current test durations to stored baseline; return regressions.
 
     A regression is any test that takes >10% longer than its baseline value.

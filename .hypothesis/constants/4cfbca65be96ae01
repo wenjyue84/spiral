@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\conflict_detector.py
+# hypothesis_version: 6.151.9
+
+['--log-file', '--name-only', '--prd', '--pretty=format:', '.spiral', 'Path to prd.json', 'UNKNOWN', '__main__', '_decomposed', '_skipped', '_source', 'a', 'conflict_files', 'conflict_type', 'conflicts', 'core', 'error', 'event', 'file_collision', 'file_path', 'git', 'id', 'merge_conflicts.json', 'passes', 'show', 'storyA', 'storyB', 'sub_projects', 'total', 'ts', 'userStories', 'utf-8', 'w', '|']

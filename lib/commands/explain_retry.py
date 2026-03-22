@@ -201,7 +201,4 @@ def suggest_decomposition(
         label_a = f"{dir_a}/" if len(files_a) > 1 else files_a[0]
         label_b = f"{dir_b}/" if len(files_b) > 1 else files_b[0]
 
-    return (
-        f"Split into 2 stories: {story_id}A ({label_a} modules) "
-        f"and {story_id}B ({label_b} modules)"
-    )
+    return f"Split into 2 stories: {story_id}A ({label_a} modules) and {story_id}B ({label_b} modules)"

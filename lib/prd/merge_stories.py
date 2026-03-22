@@ -288,9 +288,7 @@ def main() -> int:
                 continue
             for i in range(len(subs)):
                 for j in range(i + 1, len(subs)):
-                    _pairwise.append(
-                        {"storyA": str(subs[i]), "storyB": str(subs[j]), "conflict_files": fpath}
-                    )
+                    _pairwise.append({"storyA": str(subs[i]), "storyB": str(subs[j]), "conflict_files": fpath})
         if _pairwise:
             _results_tsv = os.path.join(os.path.dirname(os.path.abspath(args.prd)), "results.tsv")
             try:

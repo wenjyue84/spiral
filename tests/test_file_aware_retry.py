@@ -344,18 +344,14 @@ def test_10_file_story_3_file_retry_integration(tmp_path: Path) -> None:
 
 def test_security_no_path_traversal() -> None:
     """Path traversal entries are sanitised out of the failed_files list."""
-    result = sanitize_failed_files(
-        ["../../../etc/passwd", "/absolute/path.py", "src/valid.py", "lib/ok.sh"]
-    )
+    result = sanitize_failed_files(["../../../etc/passwd", "/absolute/path.py", "src/valid.py", "lib/ok.sh"])
     assert "../../../etc/passwd" not in result, "Path traversal must be rejected"
     assert "/absolute/path.py" not in result, "Absolute paths must be rejected"
     assert "src/valid.py" in result, "Safe relative paths must be kept"
     assert "lib/ok.sh" in result, "Safe relative paths must be kept"
 
 
-def test_security_no_sensitive_data_in_errors(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_security_no_sensitive_data_in_errors(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Retry error output does not expose env var secrets (sk-, ANTHROPIC_API_KEY, password, token)."""
     secret = "sk-test-secret-12345"
     monkeypatch.setenv("ANTHROPIC_API_KEY", secret)

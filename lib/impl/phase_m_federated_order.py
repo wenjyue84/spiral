@@ -107,7 +107,8 @@ def order_federated_stories_by_dependency(stories: list[dict[str, Any]]) -> list
 
 
 def _detect_cycle(
-    graph: dict[str, list[str]], known_ids: set[str],
+    graph: dict[str, list[str]],
+    known_ids: set[str],
 ) -> list[str] | None:
     """Return cycle path if a circular dependency exists, else None."""
     WHITE, GRAY, BLACK = 0, 1, 2

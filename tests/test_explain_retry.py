@@ -13,8 +13,6 @@ import json
 import sys
 from pathlib import Path
 
-import pytest
-
 # Add lib/ to path so imports work without installing the package
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
 

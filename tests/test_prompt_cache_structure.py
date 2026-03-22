@@ -179,6 +179,7 @@ class TestSystemPromptStability:
         ralph_sh = (Path(__file__).parent.parent / "ralph" / "ralph.sh").read_text(encoding="utf-8")
         assert "RALPH_FOCUS" in ralph_sh, "RALPH_FOCUS must be referenced in ralph.sh"
 
+
 class TestSystemPromptIdenticalAcrossStories:
     """Two consecutive calls with different stories produce identical system prompts."""
 

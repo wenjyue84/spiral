@@ -12,6 +12,6 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-03-21T18:39:17Z	34	1	US-687	Integration Test: Parallel Worker Worktree Isolation — Verify No Cross-Worker File Conflicts	reject	560	sonnet	1		69be18f91588	false	0	0	0	0	0	0	0		0	0	0	0
 2026-03-21T19:58:29Z	37	1	US-693	Integration Test Harness: Master Suite for Full SPIRAL R→C Loop with Mock API	reject	861	haiku	1		69be18f91588	false	0	0	0	0	0	0	0		0	0	0	0
 2026-03-21T23:29:08Z	47	1	US-698	Phase M Story Reordering by Dependency Graph for Optimal Merge Order	reject	631	haiku	1		69be18f91588	false	0	0	0	0	0	0	0		0	0	0	0
-2026-03-22T04:25:35Z	2	1	US-711	Phase V: Test Execution Time Performance Regression Detector	reject	398	haiku	1		69bf5b352739	false	0	0	0	0	0	0	0		0	0	0	0		
-2026-03-22T06:17:28Z	5	2	US-714	Perf Benchmark: E2E SPIRAL R→C Timing + results.tsv Validation for US-638	reject	664	haiku	1		69bf5b352739	false	0	0	0	0	0	0	0		0	0	0	0	unknown	
-2026-03-22T11:47:01Z	2	3	US-744	Phase I: Automatic File-Level Scope Reduction for Oversized Implementations	reject	1143	sonnet	1		69bfc63e2725	false	0	0	0	0	0	0	0		0	0	0	0	unknown	
+2026-03-22T04:25:35Z	2	1	US-711	Phase V: Test Execution Time Performance Regression Detector	reject	398	haiku	1		69bf5b352739	false	0	0	0	0	0	0	0		0	0	0	0
+2026-03-22T06:17:28Z	5	2	US-714	Perf Benchmark: E2E SPIRAL R→C Timing + results.tsv Validation for US-638	reject	664	haiku	1		69bf5b352739	false	0	0	0	0	0	0	0		0	0	0	0	unknown
+2026-03-22T11:47:01Z	2	3	US-744	Phase I: Automatic File-Level Scope Reduction for Oversized Implementations	reject	1143	sonnet	1		69bfc63e2725	false	0	0	0	0	0	0	0		0	0	0	0	unknown

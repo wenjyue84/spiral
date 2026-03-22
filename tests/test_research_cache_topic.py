@@ -1,14 +1,12 @@
 """Tests for lib/phases/research_cache.py — Topic-level research cache (US-519)."""
 
+import importlib.util
 import json
 import os
 import shutil
-import sys
 import tempfile
 import time
 from pathlib import Path
-
-import importlib.util
 
 _rc_path = os.path.join(os.path.dirname(__file__), "..", "lib", "phases", "research_cache.py")
 _spec = importlib.util.spec_from_file_location("phases_research_cache", _rc_path)
