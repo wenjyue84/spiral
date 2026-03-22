@@ -4415,8 +4415,10 @@
         "US-638"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "_failureReason": "oversized_diff",
+      "last_attempted": "2026-03-22T06:17:40Z"
     },
     {
       "id": "US-725",
