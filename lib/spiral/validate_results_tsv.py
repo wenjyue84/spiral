@@ -137,13 +137,13 @@ def validate(tsv_path: str, prd_path: str) -> ValidationResult:
                 token_count = int(token_count_str)
                 if not (TOKEN_COUNT_MIN <= token_count <= TOKEN_COUNT_MAX):
                     errors.append(
-                        f"Row {total_rows_checked}: token_count {token_count} "
+                        f"Row {total_rows_checked}: token_count "
                         f"outside [{TOKEN_COUNT_MIN}, {TOKEN_COUNT_MAX}]"
                     )
                 else:
                     passed_checks += 1
             except ValueError:
-                errors.append(f"Row {total_rows_checked}: token_count '{token_count_str}' is not an integer")
+                errors.append(f"Row {total_rows_checked}: token_count is not a valid integer")
         else:
             warnings.append(f"Row {total_rows_checked}: token_count field is empty")
 
@@ -154,13 +154,13 @@ def validate(tsv_path: str, prd_path: str) -> ValidationResult:
                 duration = int(duration_str)
                 if not (DURATION_MIN <= duration <= DURATION_MAX):
                     errors.append(
-                        f"Row {total_rows_checked}: phase_duration_ms {duration} "
+                        f"Row {total_rows_checked}: phase_duration_ms "
                         f"outside [{DURATION_MIN}, {DURATION_MAX}]"
                     )
                 else:
                     passed_checks += 1
             except ValueError:
-                errors.append(f"Row {total_rows_checked}: phase_duration_ms '{duration_str}' is not an integer")
+                errors.append(f"Row {total_rows_checked}: phase_duration_ms is not a valid integer")
         else:
             warnings.append(f"Row {total_rows_checked}: phase_duration_ms field is empty")
 

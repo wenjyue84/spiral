@@ -1935,3 +1935,6 @@ FAILED diff-guard: [Security Test] Results TSV: No Sensitive Data in Telemetry R
 1. ✅ `uv run pytest tests/test_results_tsv.py -k security -v` exits 0 with 2 passing tests
 2. ✅ Test injects credential-like strings (`sk-SHOULDNOTAPPEAR`, `hunter2-NOSECRET`) and asserts absent from TSV
 3. ✅ Test checks HEADER against frozenset of forbidden credential column names
+## Iteration 1 - Sun, Mar 22, 2026 11:38:39 PM
+FAILED diff-guard: Security tests for validate_results_tsv (US-570) (ID: US-736) — 455 lines > 400 limit — attempt 1/3
+

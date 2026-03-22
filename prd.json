@@ -54,8 +54,11 @@
         "US-570"
       ],
       "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "_failureReason": "oversized_diff",
+      "_lastDiffLines": 455,
+      "last_attempted": "2026-03-22T15:38:41Z"
     },
     {
       "id": "US-753",
