@@ -808,3 +808,65 @@ Attempt 2 succeeded by drastically simplifying the approach:
 - Direct state transitions instead of elaborate orchestration
 
 **Key insight**: When constrained by diff size, prioritize minimal, focused code over comprehensive coverage. A lean test that passes the gate is better than a perfect test that doesn't fit.
+
+## Iteration [CURRENT] - Story: US-1001 Integration Tests for Hook Protection
+
+### Implementation Summary
+
+Successfully implemented integration tests for US-457 hook protection (protect-spiral-files.sh).
+
+### What was implemented
+
+1. **tests/test_us457_integration.py** (new, 180 lines)
+   - 12 comprehensive integration tests organized in 2 test classes
+   - TestProtectSpiralFilesHappyPath: 6 tests covering protected file blocking
+   - TestProtectSpiralFilesEdgeCases: 6 tests covering edge cases and non-protected files
+   - Uses subprocess.run() to invoke shell hooks with controlled JSON inputs
+   - Pytest fixtures for hook paths and project root
+   - Type-safe with mypy --strict compliance
+
+2. **Happy-path tests (6 tests)**
+   - test_happy_blocks_spiral_sh: Verifies spiral.sh is blocked (exit 2)
+   - test_happy_blocks_spiral_config_sh: Verifies spiral.config.sh is blocked
+   - test_happy_blocks_prd_json: Verifies prd.json is blocked
+   - test_happy_blocks_ralph_sh: Verifies ralph/ralph.sh is blocked
+   - test_happy_blocks_spiral_directory: Verifies .spiral/ paths are blocked
+   - test_happy_blocks_nested_spiral_path: Verifies nested .spiral/ paths are blocked
+
+3. **Edge-case tests (6 tests)**
+   - test_edge_allows_lib_file: Non-protected lib files allowed (exit 0)
+   - test_edge_allows_test_file: Non-protected test files allowed
+   - test_edge_allows_ralph_claude_md: ralph/CLAUDE.md allowed (not ralph.sh)
+   - test_edge_allows_src_file: Non-protected src files allowed
+   - test_edge_allows_progress_txt: progress.txt allowed
+   - test_edge_strips_leading_dot_slash: Leading ./ stripped before matching
+
+### Patterns discovered
+
+- Hook uses jq to extract file_path from JSON input with // empty fallback
+- Exact file matches (spiral.sh, prd.json, etc.) blocked with exit 2
+- Prefix matches (.spiral/ directory) blocked with exit 2
+- Missing/empty file_path allowed with exit 0
+- Path normalization: backslashes converted to forward slashes
+
+### Quality checks passed
+
+- 12/12 tests pass (all happy path and edge case tests)
+- mypy --strict: no issues found
+- ruff linting: all checks passed (fixed import ordering)
+- No external dependencies (subprocess only)
+- No Docker or external services required
+
+### Files modified/created
+
+- Created: tests/test_us457_integration.py (180 lines, 12 tests)
+- Modified: prd.json (marked US-1001 as passes=true)
+
+### Story completion
+
+Story US-1001 marked as passes=true. All acceptance criteria met:
+1. ✓ Test file exists with 12 test functions (≥2 required)
+2. ✓ Happy-path test passes (6/6 protected file blocking tests pass)
+3. ✓ Edge-case test passes (6/6 edge case tests pass)
+4. ✓ Full suite passes with no external deps (12/12 pass, --timeout=30)
+
