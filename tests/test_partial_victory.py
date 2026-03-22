@@ -12,14 +12,8 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from lib.impl.partial_victory import (
-    add_sub_stories,
-    count_passing_acs,
-    create_ac_sub_stories,
-    find_next_id,
-    get_failing_ac_indices,
     handle_partial_victory,
     has_passing_acs,
-    mark_story_as_partial,
     parse_ac_report,
 )
 
@@ -105,9 +99,7 @@ class TestIntegration:
         }
         report_file.write_text(json.dumps(report), encoding="utf-8")
 
-        success = handle_partial_victory(
-            "US-100", str(report_file), str(prd_file)
-        )
+        success = handle_partial_victory("US-100", str(report_file), str(prd_file))
         assert success is True
 
         updated = json.loads(prd_file.read_text(encoding="utf-8"))

@@ -314,12 +314,7 @@ def main() -> int:
     existing_titles = [s.get("title", "") for s in existing_stories]
     existing_epics = [s.get("epicId", "") for s in existing_stories]
 
-<<<<<<< Updated upstream
-    current_pending = sum(1 for s in existing_stories if not s.get("passes") and not s.get("_archived"))
-    print(f"[merge] prd.json: {len(existing_stories)} existing stories ({current_pending} pending)")
-=======
     # ── US-779: Dead weight detection — track iterations and auto-archive stuck stories ───
-    dead_weight_threshold = int(os.environ.get("SPIRAL_DEAD_WEIGHT_THRESHOLD", "5"))
     archived_this_iteration = 0
     dead_weight_changes_made = False
     for story in existing_stories:
@@ -348,7 +343,6 @@ def main() -> int:
     )
     if archived_this_iteration:
         print(f"[merge] Auto-archived {archived_this_iteration} dead-weight stories this iteration")
->>>>>>> Stashed changes
 
     # ── US-545: Detect file conflicts among pending stories ───────────────────
     _file_conflicts, _conflict_errors = detect_federated_conflicts(existing_stories)

@@ -76,9 +76,7 @@ def get_failing_ac_indices(
     ac_evaluation: list[dict[str, Any]],
 ) -> list[int]:
     """Return list of indices for ACs that failed."""
-    return [
-        i for i, ac in enumerate(ac_evaluation) if not ac.get("passed", False)
-    ]
+    return [i for i, ac in enumerate(ac_evaluation) if not ac.get("passed", False)]
 
 
 def find_next_id(stories: list[dict[str, Any]]) -> int:
@@ -117,13 +115,11 @@ def create_ac_sub_stories(
         sub_story = {
             "id": sub_story_id,
             "title": f"[Sub] {parent_title} - AC {ac_idx + 1}",
-            "description": f"Part of partially-implemented {parent_id}. "
-            f"Acceptance criterion: {ac_text}",
+            "description": f"Part of partially-implemented {parent_id}. Acceptance criterion: {ac_text}",
             "acceptanceCriteria": [ac_text],
             "technicalNotes": [
                 f"This sub-story was decomposed from {parent_id} (partial victory)",
-                f"The parent story passed {len(ac_evaluation) - len(failing_ac_indices)} "
-                f"of {len(ac_evaluation)} ACs",
+                f"The parent story passed {len(ac_evaluation) - len(failing_ac_indices)} of {len(ac_evaluation)} ACs",
             ],
             "dependencies": [],
             "estimatedComplexity": "small",
@@ -138,9 +134,7 @@ def create_ac_sub_stories(
     return sub_stories
 
 
-def mark_story_as_partial(
-    prd_file: str, story_id: str, ac_count: int, failing_count: int
-) -> bool:
+def mark_story_as_partial(prd_file: str, story_id: str, ac_count: int, failing_count: int) -> bool:
     """
     Mark story with _partial: true and record AC counts.
     Returns: True on success, False on error.
@@ -221,9 +215,7 @@ def handle_partial_victory(
 
     # Check if at least one AC passed
     if not has_passing_acs(ac_evaluation):
-        print(
-            f"  [partial-victory] No passing ACs found — cannot process partial victory"
-        )
+        print("  [partial-victory] No passing ACs found — cannot process partial victory")
         return False
 
     # Get counts
@@ -277,9 +269,7 @@ def handle_partial_victory(
 
     # Log the partial victory
     sub_story_ids = [s["id"] for s in sub_stories]
-    print(
-        f"  [partial-victory] {story_id}: {passing_count}/{len(ac_evaluation)} ACs passed"
-    )
+    print(f"  [partial-victory] {story_id}: {passing_count}/{len(ac_evaluation)} ACs passed")
     for sub_id in sub_story_ids:
         print(f"  [partial-victory]   Decomposed: {sub_id}")
 

@@ -171,10 +171,7 @@ def attribute_test_to_file(test_name: str, changed_files: List[str]) -> Tuple[Op
 
 
 def blame_tests(
-    baseline_results: Dict[str, Any],
-    new_results: Dict[str, Any],
-    changed_files: List[str],
-    story_id: str
+    baseline_results: Dict[str, Any], new_results: Dict[str, Any], changed_files: List[str], story_id: str
 ) -> Dict[str, Any]:
     """
     Main blame attribution logic.
@@ -199,48 +196,23 @@ def blame_tests(
     attribution = []
     for test_name in newly_failed:
         matched_file, confidence = attribute_test_to_file(test_name, changed_files)
-        attribution.append({
-            "test": test_name,
-            "likely_source": matched_file,
-            "confidence": confidence
-        })
+        attribution.append({"test": test_name, "likely_source": matched_file, "confidence": confidence})
 
     return {
         "story_id": story_id,
         "newly_failed_tests": newly_failed,
         "changed_files": changed_files,
-        "attribution": attribution
+        "attribution": attribution,
     }
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Attribute failing tests to the story that broke them"
-    )
-    parser.add_argument(
-        "--baseline-results",
-        required=True,
-        help="Path to baseline test results JSON"
-    )
-    parser.add_argument(
-        "--new-results",
-        required=True,
-        help="Path to new test results JSON"
-    )
-    parser.add_argument(
-        "--changed-files",
-        required=True,
-        help="Path to file listing changed files (one per line)"
-    )
-    parser.add_argument(
-        "--story-id",
-        required=True,
-        help="Story ID (e.g., US-782)"
-    )
-    parser.add_argument(
-        "--output",
-        help="Output file for attribution results (default: stdout)"
-    )
+    parser = argparse.ArgumentParser(description="Attribute failing tests to the story that broke them")
+    parser.add_argument("--baseline-results", required=True, help="Path to baseline test results JSON")
+    parser.add_argument("--new-results", required=True, help="Path to new test results JSON")
+    parser.add_argument("--changed-files", required=True, help="Path to file listing changed files (one per line)")
+    parser.add_argument("--story-id", required=True, help="Story ID (e.g., US-782)")
+    parser.add_argument("--output", help="Output file for attribution results (default: stdout)")
 
     args = parser.parse_args()
 

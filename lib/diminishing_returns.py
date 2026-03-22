@@ -110,9 +110,7 @@ def detect_diminishing_returns(
     A valid sequence requires 3 consecutive iterations with cost_per_pass data,
     and each iteration's cost >= previous_cost * multiplier.
     """
-    sorted_iters = sorted(
-        [it for it, cost in cost_per_pass.items() if cost is not None]
-    )
+    sorted_iters = sorted([it for it, cost in cost_per_pass.items() if cost is not None])
 
     if len(sorted_iters) < 3:
         return False, []
@@ -183,9 +181,7 @@ def generate_diagnostic_report(
                 trend = "→ stable"
 
         cpp_str = f"${cpp:.2f}" if cpp is not None else "N/A"
-        lines.append(
-            f"  {iter_num:9d} │ {passes:14d} │ ${cost:9.4f} │ {cpp_str:9s} │ {trend}"
-        )
+        lines.append(f"  {iter_num:9d} │ {passes:14d} │ ${cost:9.4f} │ {cpp_str:9s} │ {trend}")
 
         if cpp is not None:
             prev_cpp = cpp
@@ -212,9 +208,7 @@ def generate_diagnostic_report(
     return "\n".join(lines)
 
 
-def check_diminishing_returns(
-    results_path: str, multiplier: float = 2.0
-) -> tuple[bool, str]:
+def check_diminishing_returns(results_path: str, multiplier: float = 2.0) -> tuple[bool, str]:
     """
     Main entry point: check if SPIRAL should exit due to diminishing returns.
 
@@ -235,8 +229,6 @@ def check_diminishing_returns(
     cost_per_pass = calculate_cost_per_pass(iteration_data)
     detected, sequence = detect_diminishing_returns(cost_per_pass, multiplier)
 
-    report = generate_diagnostic_report(
-        iteration_data, cost_per_pass, detected, sequence
-    )
+    report = generate_diagnostic_report(iteration_data, cost_per_pass, detected, sequence)
 
     return detected, report

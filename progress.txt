@@ -634,3 +634,35 @@ Here is a technical brief for implementing the user story.
 *   **State Management:** Ensure that reading the failure count and updating the JSON state (`prd.json`) are handled safely to prevent race conditions or data loss.
 *   **Classification Logic:** The initial keyword-based classification will be a set of heuristics. It should be designed to be easily extensible as new failure patterns are identified.
 
+
+## Pre-analysis for US-755 (Gemini 2.5 Pro)
+Based on the user story JSON, this is a regression test for a Python/shell-based workflow orchestrator, not a Frappe application.
+
+**Project:** SPIRAL (Workflow Orchestration Tool)
+**Goal:** Create a regression test to ensure the R-T-S-M phase sequence.
+
+**Technical Brief for Claude:**
+
+**1. Files to Modify:**
+*   **Create New:** `tests/test_regression_us553.py`. This will contain the new test case.
+*   **Potentially Edit:** `tests/conftest.py` to add a reusable `mock_claude_api` fixture if one doesn't already exist.
+
+**2. Key Components (Not Frappe):**
+*   **Orchestrator:** `spiral.sh` is the main entry point that drives the process.
+*   **Configuration:** `prd.json` is used to seed the workflow with an input story.
+*   **State/Logging:** The sequence of executed phases is likely recorded in `.spiral/_checkpoint.json` or a similar log file.
+
+**3. Implementation Approach:**
+1.  Define a test `test_phase_rtsm_sequence` in `tests/test_regression_us553.py`.
+2.  Use a `pytest` fixture (e.g., `tmp_path`) to create an isolated test directory.
+3.  Inside the test, create a dummy `prd.json` file with one pending story.
+4.  Mock the external Claude API call. The `technicalNotes` suggest using `unittest.mock.patch` to intercept the subprocess or HTTP call made by the orchestrator.
+5.  Invoke the main workflow, likely by running `spiral.sh` as a subprocess.
+6.  After execution, read the generated phase-call log file.
+7.  Assert that the recorded phases are exactly `['Research', 'Test-Synth', 'Story-Validate', 'Merge']` in that specific order.
+
+**4. Gotchas & Edge Cases:**
+*   The primary challenge is mocking the API call from a subprocess. Ensure the mock is correctly patched in the environment where the script executes.
+*   The test must be atomic and clean up after itself. Use `tmp_path` for all file I/O (`prd.json`, logs) to prevent side effects.
+*   The test must fail if any phase is skipped or the order is incorrect. A direct list comparison is better than four separate "contains" checks.
+

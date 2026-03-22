@@ -98,9 +98,7 @@ class TestExtractTraits:
 
         traits = extract_traits(story)
         assert traits["ac_count"] == 3
-        assert traits["description_length"] == len(
-            "This is a test description with some content"
-        )
+        assert traits["description_length"] == len("This is a test description with some content")
         assert set(traits["tags"]) == {"feature", "core"}
         assert set(traits["file_patterns"]) == {"lib", "tests"}
 
@@ -152,9 +150,7 @@ class TestExtractFilePatterns:
 
     def test_extract_from_description(self) -> None:
         """Test extracting patterns from description text."""
-        story = {
-            "description": "Modify lib/foo.py and tests/bar.py to fix the issue"
-        }
+        story = {"description": "Modify lib/foo.py and tests/bar.py to fix the issue"}
 
         patterns = extract_file_patterns(story)
         assert set(patterns) == {"lib", "tests"}

@@ -138,9 +138,7 @@ def aggregate_traits(
             all_tags[tag] = all_tags.get(tag, 0) + 1
 
     threshold = len(traits_list) * 0.5
-    common_tags = sorted(
-        [tag for tag, count in all_tags.items() if count >= threshold]
-    )
+    common_tags = sorted([tag for tag, count in all_tags.items() if count >= threshold])
 
     # Find common file patterns (appear in >50% of stories)
     all_patterns: dict[str, int] = {}
@@ -148,9 +146,7 @@ def aggregate_traits(
         for pattern in traits["file_patterns"]:
             all_patterns[pattern] = all_patterns.get(pattern, 0) + 1
 
-    common_patterns = sorted(
-        [p for p, count in all_patterns.items() if count >= threshold]
-    )
+    common_patterns = sorted([p for p, count in all_patterns.items() if count >= threshold])
 
     return {
         "count": len(stories),
@@ -161,9 +157,7 @@ def aggregate_traits(
     }
 
 
-def analyze_patterns(
-    prd_path: str, retry_path: str, iteration: int = 0
-) -> dict[str, Any]:
+def analyze_patterns(prd_path: str, retry_path: str, iteration: int = 0) -> dict[str, Any]:
     """Main analysis function: cluster stories and extract patterns."""
     stories = load_prd(prd_path)
     retry_counts = load_retry_counts(retry_path)
@@ -200,12 +194,8 @@ def generate_insights(clusters: dict[str, list[dict[str, Any]]]) -> dict[str, An
 
     # Compare average AC count: easy vs hard
     if easy_stories and hard_stories:
-        easy_acs = [
-            len(s.get("acceptanceCriteria", []) or []) for s in easy_stories
-        ]
-        hard_acs = [
-            len(s.get("acceptanceCriteria", []) or []) for s in hard_stories
-        ]
+        easy_acs = [len(s.get("acceptanceCriteria", []) or []) for s in easy_stories]
+        hard_acs = [len(s.get("acceptanceCriteria", []) or []) for s in hard_stories]
         easy_avg_ac = sum(easy_acs) / len(easy_acs)
         hard_avg_ac = sum(hard_acs) / len(hard_acs)
 
@@ -215,9 +205,7 @@ def generate_insights(clusters: dict[str, list[dict[str, Any]]]) -> dict[str, An
     return insights
 
 
-def save_patterns(
-    patterns: dict[str, Any], output_path: str
-) -> None:
+def save_patterns(patterns: dict[str, Any], output_path: str) -> None:
     """Save learned patterns to .spiral/learned_patterns.json."""
     output_dir = Path(output_path).parent
     output_dir.mkdir(parents=True, exist_ok=True)

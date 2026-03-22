@@ -1,14 +1,11 @@
 """Tests for dead weight detection and auto-archival (US-779)."""
 
 import json
-import os
 import subprocess
 import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
-
-import pytest
 
 
 def _make_valid_prd(stories: list[dict[str, Any]] | None = None) -> dict[str, Any]:

@@ -12,7 +12,6 @@ Stories below SPIRAL_AI_SUGGEST_MIN_SCORE are filtered out before Phase S valida
 """
 
 import json
-import sys
 from pathlib import Path
 from typing import Any, TypedDict
 
@@ -99,9 +98,7 @@ def score_production_value(story: dict[str, Any]) -> tuple[float, list[str]]:
     return base_score, reasons
 
 
-def score_constitution_alignment(
-    story: dict[str, Any], constitution_text: str
-) -> tuple[float, list[str]]:
+def score_constitution_alignment(story: dict[str, Any], constitution_text: str) -> tuple[float, list[str]]:
     """Score alignment with constitution non-negotiable rules.
 
     Constitution defines:
@@ -263,9 +260,7 @@ def score_scope_clarity(story: dict[str, Any]) -> tuple[float, list[str]]:
     return min(score, 100.0), reasons
 
 
-def score_story(
-    story: dict[str, Any], constitution_text: str = ""
-) -> ScoringBreakdown:
+def score_story(story: dict[str, Any], constitution_text: str = "") -> ScoringBreakdown:
     """Score a story across all dimensions."""
     production_score, pv_reasons = score_production_value(story)
     constitution_score, ca_reasons = score_constitution_alignment(story, constitution_text)
@@ -287,9 +282,7 @@ def score_story(
         + scope_score * weights["scope_clarity"]
     )
 
-    all_reasons = (
-        pv_reasons + ca_reasons + ac_reasons + scope_reasons
-    )
+    all_reasons = pv_reasons + ca_reasons + ac_reasons + scope_reasons
 
     return ScoringBreakdown(
         total_score=round(total_score, 1),

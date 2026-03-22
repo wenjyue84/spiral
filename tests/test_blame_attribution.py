@@ -5,13 +5,12 @@ Tests the core attribution logic that matches failing tests to changed source fi
 """
 
 import json
-import tempfile
-from pathlib import Path
-
-import pytest
 
 # Import the blame attribution functions
 import sys
+import tempfile
+from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
 from test_blame import (
     attribute_test_to_file,
@@ -214,7 +213,7 @@ class TestIntegration:
                 "tests": {
                     "tests/test_merge.py::test_dedup": "passed",
                     "tests/test_merge.py::test_priority": "passed",
-                }
+                },
             }
             baseline_file = tmppath / "baseline.json"
             baseline_file.write_text(json.dumps(baseline_data))
@@ -234,12 +233,7 @@ class TestIntegration:
             changed_files_file.write_text("lib/merge.py\nlib/prio.py\n")
 
             # Run attribution
-            result = blame_tests(
-                baseline_data,
-                new_data,
-                ["lib/merge.py", "lib/prio.py"],
-                "US-123"
-            )
+            result = blame_tests(baseline_data, new_data, ["lib/merge.py", "lib/prio.py"], "US-123")
 
             assert result["story_id"] == "US-123"
             assert "tests/test_merge.py::test_priority" in result["newly_failed_tests"]

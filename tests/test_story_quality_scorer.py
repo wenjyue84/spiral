@@ -10,10 +10,7 @@ Tests the scoring logic across all four dimensions:
 """
 
 import json
-import tempfile
 from pathlib import Path
-
-import pytest
 
 from lib.story_quality_scorer import (
     filter_stories,
