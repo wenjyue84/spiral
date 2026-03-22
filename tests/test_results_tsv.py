@@ -132,3 +132,35 @@ class TestRoundTrip:
         assert parsed[0].sub_project == "frontend"
         assert parsed[1].sub_project == "backend"
         assert parsed[2].sub_project == ""
+
+
+class TestSecurityResultsTsv:
+    """Security tests: no sensitive data in telemetry schema or written rows."""
+
+    # Exact column names that would indicate credential storage
+    _FORBIDDEN_COLS = frozenset(
+        ["password", "secret", "api_key", "auth_token", "token", "credential", "private_key", "access_key"]
+    )
+
+    def test_security_no_credential_columns_in_header(self) -> None:
+        """HEADER must not contain any credential-named columns."""
+        for col in HEADER:
+            assert col not in self._FORBIDDEN_COLS, f"Credential-named column found in HEADER: {col}"
+
+    def test_security_credential_values_absent_from_written_tsv(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        """Extra credential-keyed dict entries are excluded by extrasaction='ignore'."""
+        path = str(tmp_path / "results.tsv")
+        row = {col: "safe" for col in HEADER}
+        row["story_id"] = "US-SEC-001"
+        # Inject credential-like keys outside the schema
+        row["api_key"] = "sk-SHOULDNOTAPPEAR"
+        row["password"] = "hunter2-NOSECRET"
+        with open(path, "w", encoding="utf-8", newline="") as f:
+            writer = csv.DictWriter(
+                f, fieldnames=HEADER, delimiter="\t", extrasaction="ignore", lineterminator="\n"
+            )
+            writer.writeheader()
+            writer.writerow(row)
+        content = open(path, encoding="utf-8").read()
+        assert "SHOULDNOTAPPEAR" not in content
+        assert "NOSECRET" not in content

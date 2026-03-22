@@ -54,8 +54,11 @@
         "US-597"
       ],
       "estimatedComplexity": "small",
-      "passes": false,
-      "model": "sonnet"
+      "passes": true,
+      "model": "sonnet",
+      "_failureReason": "oversized_diff",
+      "_lastDiffLines": 870,
+      "last_attempted": "2026-03-22T15:23:18Z"
     },
     {
       "id": "US-736",
