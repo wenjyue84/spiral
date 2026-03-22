@@ -4550,12 +4550,14 @@ def cmd_show_merge_order(args: argparse.Namespace) -> None:
     if output_json:
         result = []
         for idx, story in enumerate(ordered):
-            result.append({
-                "id": story.get("id", ""),
-                "title": story.get("title", ""),
-                "dependencies": story.get("dependencies", []),
-                "index_in_order": idx,
-            })
+            result.append(
+                {
+                    "id": story.get("id", ""),
+                    "title": story.get("title", ""),
+                    "dependencies": story.get("dependencies", []),
+                    "index_in_order": idx,
+                }
+            )
         print(json.dumps(result, indent=2))
     else:
         # Format as ASCII tree with dependency annotations

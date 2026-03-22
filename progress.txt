@@ -1232,4 +1232,3 @@ This is a Python CLI tool, not a Frappe application; there are no DocTypes or ho
     *   **CLI Output:** Formatting the ASCII dependency tree for `spiral show-merge-order` can be complex. Ensure it's clear and accurately reflects the justification for each story's position.
     *   **Atomicity:** The modification of `prd.json` should be atomic to prevent corruption if the process is interrupted. Consider writing to a temporary file first.
 >>>>>>> Stashed changes
-

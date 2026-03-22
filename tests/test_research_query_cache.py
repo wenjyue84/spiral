@@ -19,8 +19,7 @@ from unittest.mock import MagicMock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib", "phases"))
 
-from research_query_cache import ResearchResult, _compute_hash, get_or_research
-
+from research_query_cache import _compute_hash, get_or_research
 
 # ── _compute_hash tests ───────────────────────────────────────────────────────
 
@@ -81,8 +80,11 @@ class TestGetOrResearch:
         """First call on an empty cache hits Gemini exactly once."""
         client = self._client("content A")
         result = get_or_research(
-            "spiral query", {}, client,
-            cache_path=self.cache_path, results_tsv=self.results_tsv,
+            "spiral query",
+            {},
+            client,
+            cache_path=self.cache_path,
+            results_tsv=self.results_tsv,
         )
         assert result["content"] == "content A"
         assert result["cached"] is False
@@ -93,17 +95,21 @@ class TestGetOrResearch:
         client = self._client("cached content")
 
         r1 = get_or_research(
-            "identical query", {"ctx": "value"}, client,
-            cache_path=self.cache_path, results_tsv=self.results_tsv,
+            "identical query",
+            {"ctx": "value"},
+            client,
+            cache_path=self.cache_path,
+            results_tsv=self.results_tsv,
         )
         r2 = get_or_research(
-            "identical query", {"ctx": "value"}, client,
-            cache_path=self.cache_path, results_tsv=self.results_tsv,
+            "identical query",
+            {"ctx": "value"},
+            client,
+            cache_path=self.cache_path,
+            results_tsv=self.results_tsv,
         )
 
-        assert client.call_count == 1, (
-            f"Expected 1 Gemini API call, got {client.call_count}"
-        )
+        assert client.call_count == 1, f"Expected 1 Gemini API call, got {client.call_count}"
         assert r1["content"] == "cached content"
         assert r2["content"] == "cached content"
         assert r1["cached"] is False
@@ -114,8 +120,11 @@ class TestGetOrResearch:
         client = self._client("result")
         for _ in range(3):
             get_or_research(
-                "same query", {}, client,
-                cache_path=self.cache_path, results_tsv=self.results_tsv,
+                "same query",
+                {},
+                client,
+                cache_path=self.cache_path,
+                results_tsv=self.results_tsv,
             )
         assert client.call_count == 1
 
@@ -126,12 +135,18 @@ class TestGetOrResearch:
         client: MagicMock = MagicMock(side_effect=["result A", "result B"])
 
         r1 = get_or_research(
-            "query A", {}, client,
-            cache_path=self.cache_path, results_tsv=self.results_tsv,
+            "query A",
+            {},
+            client,
+            cache_path=self.cache_path,
+            results_tsv=self.results_tsv,
         )
         r2 = get_or_research(
-            "query B", {}, client,
-            cache_path=self.cache_path, results_tsv=self.results_tsv,
+            "query B",
+            {},
+            client,
+            cache_path=self.cache_path,
+            results_tsv=self.results_tsv,
         )
 
         assert client.call_count == 2
@@ -145,12 +160,18 @@ class TestGetOrResearch:
         client: MagicMock = MagicMock(side_effect=["res 1", "res 2"])
 
         get_or_research(
-            "q", {"x": 1}, client,
-            cache_path=self.cache_path, results_tsv=self.results_tsv,
+            "q",
+            {"x": 1},
+            client,
+            cache_path=self.cache_path,
+            results_tsv=self.results_tsv,
         )
         get_or_research(
-            "q", {"x": 2}, client,
-            cache_path=self.cache_path, results_tsv=self.results_tsv,
+            "q",
+            {"x": 2},
+            client,
+            cache_path=self.cache_path,
+            results_tsv=self.results_tsv,
         )
 
         assert client.call_count == 2
@@ -163,13 +184,19 @@ class TestGetOrResearch:
 
         # First call: miss — no TSV row written
         get_or_research(
-            "my query", {}, client,
-            cache_path=self.cache_path, results_tsv=self.results_tsv,
+            "my query",
+            {},
+            client,
+            cache_path=self.cache_path,
+            results_tsv=self.results_tsv,
         )
         # Second call: hit — TSV row written
         get_or_research(
-            "my query", {}, client,
-            cache_path=self.cache_path, results_tsv=self.results_tsv,
+            "my query",
+            {},
+            client,
+            cache_path=self.cache_path,
+            results_tsv=self.results_tsv,
         )
 
         assert os.path.exists(self.results_tsv), "results.tsv must be created"
@@ -186,8 +213,11 @@ class TestGetOrResearch:
 
         for _ in range(4):  # 1 miss + 3 hits
             get_or_research(
-                "repeated query", {}, client,
-                cache_path=self.cache_path, results_tsv=self.results_tsv,
+                "repeated query",
+                {},
+                client,
+                cache_path=self.cache_path,
+                results_tsv=self.results_tsv,
             )
 
         with open(self.results_tsv, encoding="utf-8", newline="") as f:
@@ -201,8 +231,11 @@ class TestGetOrResearch:
         """A cache miss must NOT write to results.tsv."""
         client = self._client("content")
         get_or_research(
-            "unique query", {}, client,
-            cache_path=self.cache_path, results_tsv=self.results_tsv,
+            "unique query",
+            {},
+            client,
+            cache_path=self.cache_path,
+            results_tsv=self.results_tsv,
         )
         # Either file doesn't exist or has no data rows
         if os.path.exists(self.results_tsv):
@@ -217,8 +250,11 @@ class TestGetOrResearch:
         """Cache entry must store content, timestamp, source, and usage_count."""
         client = self._client("research content")
         get_or_research(
-            "query", {}, client,
-            cache_path=self.cache_path, results_tsv=self.results_tsv,
+            "query",
+            {},
+            client,
+            cache_path=self.cache_path,
+            results_tsv=self.results_tsv,
         )
 
         with open(self.cache_path, encoding="utf-8") as f:
@@ -237,8 +273,11 @@ class TestGetOrResearch:
 
         for _ in range(4):  # 1 miss + 3 hits
             get_or_research(
-                "q", {}, client,
-                cache_path=self.cache_path, results_tsv=self.results_tsv,
+                "q",
+                {},
+                client,
+                cache_path=self.cache_path,
+                results_tsv=self.results_tsv,
             )
 
         with open(self.cache_path, encoding="utf-8") as f:
@@ -250,8 +289,11 @@ class TestGetOrResearch:
         """Returned ResearchResult includes the SHA256 query_hash."""
         client = self._client("content")
         result = get_or_research(
-            "q", {"k": "v"}, client,
-            cache_path=self.cache_path, results_tsv=self.results_tsv,
+            "q",
+            {"k": "v"},
+            client,
+            cache_path=self.cache_path,
+            results_tsv=self.results_tsv,
         )
         expected = _compute_hash("q", {"k": "v"})
         assert result["query_hash"] == expected
@@ -263,8 +305,11 @@ class TestGetOrResearch:
         deep_cache = os.path.join(self.test_dir, "deep", "nested", "cache.json")
         client = self._client("result")
         result = get_or_research(
-            "q", {}, client,
-            cache_path=deep_cache, results_tsv=self.results_tsv,
+            "q",
+            {},
+            client,
+            cache_path=deep_cache,
+            results_tsv=self.results_tsv,
         )
         assert result["content"] == "result"
         assert os.path.exists(deep_cache)
@@ -276,8 +321,11 @@ class TestGetOrResearch:
             f.write("not valid json {{{{")
         client = self._client("fresh result")
         result = get_or_research(
-            "q", {}, client,
-            cache_path=self.cache_path, results_tsv=self.results_tsv,
+            "q",
+            {},
+            client,
+            cache_path=self.cache_path,
+            results_tsv=self.results_tsv,
         )
         assert result["content"] == "fresh result"
         assert result["cached"] is False

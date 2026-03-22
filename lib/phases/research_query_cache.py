@@ -36,7 +36,6 @@ import json
 import os
 from typing import Any, TypedDict
 
-
 # Default paths (can be overridden in tests)
 _DEFAULT_CACHE_FILE = os.path.join(".spiral", "research_cache.json")
 _DEFAULT_RESULTS_TSV = "results.tsv"
@@ -123,30 +122,28 @@ def _record_cache_hit(results_tsv: str, query_hash: str) -> None:
     """
     ts = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     row = [
-        ts,               # timestamp
-        "",               # spiral_iter
-        "",               # ralph_iter
+        ts,  # timestamp
+        "",  # spiral_iter
+        "",  # ralph_iter
         query_hash[:16],  # story_id — short hash for traceability
         "research_query_cache_hit",  # story_title
-        "cache_hit",      # status
-        "0",              # duration_sec
-        "n/a",            # model
-        "0",              # retry_num
-        "",               # commit_sha
-        "",               # run_id
-        "true",           # cache_hit  ← key field
-        "0",              # cache_read_tokens
-        "0",              # cache_creation_tokens
-        "0",              # review_tokens
-        "0",              # wall_seconds
-        "0",              # user_cpu_s
-        "0",              # sys_cpu_s
-        "0",              # peak_rss_kb
-        "",               # batch_id
+        "cache_hit",  # status
+        "0",  # duration_sec
+        "n/a",  # model
+        "0",  # retry_num
+        "",  # commit_sha
+        "",  # run_id
+        "true",  # cache_hit  ← key field
+        "0",  # cache_read_tokens
+        "0",  # cache_creation_tokens
+        "0",  # review_tokens
+        "0",  # wall_seconds
+        "0",  # user_cpu_s
+        "0",  # sys_cpu_s
+        "0",  # peak_rss_kb
+        "",  # batch_id
     ]
-    needs_header = (
-        not os.path.exists(results_tsv) or os.path.getsize(results_tsv) == 0
-    )
+    needs_header = not os.path.exists(results_tsv) or os.path.getsize(results_tsv) == 0
     results_dir = os.path.dirname(results_tsv)
     if results_dir:
         os.makedirs(results_dir, exist_ok=True)

@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
-
 from lib.story_reorder import build_dep_graph, topological_sort
 
 
