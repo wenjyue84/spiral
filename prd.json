@@ -4418,7 +4418,16 @@
       "passes": true,
       "model": "haiku",
       "_failureReason": "oversized_diff",
-      "last_attempted": "2026-03-22T06:17:40Z"
+      "last_attempted": "2026-03-22T06:17:40Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\nUS-714 needs a new `tests/test_perf_e2e_us638.py` file with exactly 4 test functions.\n\n## Problem Identified\nPrevious attempt wrote 624 lines (diff guard is 400). Need a compact version using inline helpers instead of duplicating the full infrastructure from `test_spiral_e2e_federated.py`.\n\n## Planned Changes\n- **Create:** `tests/test_perf_e2e_us638.py` with ~130 lines total\n  - `test_e2e_timing` — mock SPIRAL R→C loop, write `.spiral/perf_baseline_us638.json`\n  - `test_e2e_timing_regression` — verify 25% slowdown exceeds 20% threshold\n  - `test_results_tsv_schema` — 6-row TSV with correct sub_project values\n  - `test_prd_final_state` — all 6 stories pass=True after mock run\nAll 4 tests pass. Now run mypy and check diff size.\n186 lines — well within the 400-line guard. Now update prd.json and commit.\nUS-714 complete. 4 tests pass, mypy strict clean, 186 lines (well under the 400-line diff guard).\n\n**Summary:**\n- `test_e2e_timing` — mock SPIRAL R→C loop, writes `.spiral/perf_baseline_us638.json` artifact\n- `test_e2e_timing_regression` — verifies 25% slowdown (1250ms) correctly exceeds 20% threshold (1200ms)\n- `test_results_tsv_schema` — 6-row TSV with alpha/beta sub_project values validated per story\n- `test_prd_final_state` — all 6 federated prd.json stories marked `passes=True`"
+      },
+      "_contextStats": {
+        "tokensBeforeMasking": 238,
+        "tokensAfterMasking": 237,
+        "reductionPct": 0,
+        "contextWindow": 10
+      }
     },
     {
       "id": "US-725",
