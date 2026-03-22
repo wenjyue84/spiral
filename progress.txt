@@ -29,3 +29,70 @@
 *   Flaky tests appearing in the new run could be incorrectly attributed to the story.
 *   A single file change may break numerous unrelated tests, which could create noisy attribution reports.
 
+
+## Iteration [CURRENT] - Story: US-782 Phase V Blame Attribution
+
+### Implementation Summary
+
+Successfully implemented test blame attribution to correlate newly failing tests with stories.
+
+### What was implemented
+
+1. **lib/test_blame.py** (new, 295 lines)
+   - Core attribution logic module
+   - Functions: parse_test_results, find_newly_failed_tests, extract_test_file, extract_source_file, attribute_test_to_file, blame_tests
+   - Handles multiple test result formats (pytest report.json and custom dict)
+   - Naming convention: test_X matches lib/X.py (strips test_ prefix)
+   - Confidence scoring: high (exact match), medium (single file fallback), low (no match)
+
+2. **spiral.sh** (modified)
+   - Added baseline capture before Phase I (line 1477+)
+   - Captures full test suite output using SPIRAL_VALIDATE_CMD
+   - Parses pytest report.json into JSON baseline format
+   - Stores in .spiral/test_baseline_iter_N.json
+   - Exports _TEST_BASELINE_FILE for Phase V
+
+3. **lib/phases/phase_v_validate.sh** (modified)
+   - Added failure attribution after tests run (line 196+)
+   - Invokes lib/test_blame.py after validation complete
+   - Extracts changed files from story filesTouch array
+   - Updates story's _failureReason field with broken test names
+   - Logs attribution output to .spiral/attribution_iter_N.json
+
+4. **tests/test_blame_attribution.py** (new, 240 lines)
+   - 21 comprehensive unit tests (all passing)
+   - Test classes: TestExtractTestFile, TestExtractSourceFile, TestParseTestResults, TestFindNewlyFailedTests, TestAttributeTestToFile, TestBlameTests, TestIntegration
+   - Covers core logic, edge cases, and full end-to-end workflow
+
+### Patterns discovered
+
+- Pytest report.json structure uses "tests" as list of objects with "nodeid" and "outcome" fields
+- Naming convention: tests strip "test_" prefix before matching to source files
+- Single changed file triggers fallback match with "medium" confidence
+- Multiple changed files require exact name match for "high" confidence
+- Tests properly handle both pytest native format and custom baseline format
+
+### Quality checks passed
+
+- 21/21 unit tests pass
+- mypy --strict: no issues (type checking complete)
+- ruff check: all linting passed
+- shellcheck: no errors in modified shell files
+- Integration tests verify end-to-end attribution workflow
+
+### Files modified/created
+
+- Created: lib/test_blame.py (295 lines, main attribution logic)
+- Modified: spiral.sh (added ~27 lines for baseline capture)
+- Modified: lib/phases/phase_v_validate.sh (added ~35 lines for attribution)
+- Created: tests/test_blame_attribution.py (240 lines, unit tests)
+
+### Story completion
+
+Story US-782 marked as passes=true. All acceptance criteria met:
+1. ✓ Baseline captured before Phase I in .spiral/test_baseline_iter_N.json
+2. ✓ Newly-failing tests attributed via git diff + naming conventions
+3. ✓ Attribution logged with story ID, broken tests, changed files
+4. ✓ Story _failureReason field updated with specific test names
+5. ✓ Unit test verifies test_foo.py::test_bar matches lib/foo.py (test_ prefix stripped)
+
