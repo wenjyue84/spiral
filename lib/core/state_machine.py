@@ -35,16 +35,29 @@ class InvalidTransition(Exception):
 
 # -- Phase State Machine ------------------------------------------------------
 
-PHASE_ORDER = {"R": 0, "T": 1, "S": 2, "M": 3, "G": 4, "I": 5, "V": 6, "C": 7}
+# Canonical phase execution order — must match spiral.sh main loop:
+#   A → R+T → S → E(enrich) → M → X(context) → G+I → V → C → L(learn)
+PHASE_ORDER = {
+    "A": 0, "R": 1, "T": 2, "S": 3, "E": 4, "M": 5,
+    "X": 6, "G": 7, "I": 8, "V": 9, "C": 10, "L": 11,
+}
 PHASE_NAMES = {
+    "A": "AI Suggestions",
+    "A": "AI Suggestions",
     "R": "Research",
     "T": "Test Synthesis",
     "S": "Story Validate",
+    "E": "Enrichment",
+    "E": "Enrichment",
     "M": "Merge",
+    "X": "Context Build",
+    "X": "Context Build",
     "G": "Gate",
     "I": "Implement",
     "V": "Validate",
     "C": "Check Done",
+    "L": "Learning",
+    "L": "Learning",
 }
 
 
@@ -53,17 +66,17 @@ class SpiralPhaseStateMachine:
     Enforces the phase ordering invariant within a single SPIRAL iteration.
 
     Rules:
-    - Phases must advance monotonically: R < T < M < G < I < V < C
+    - Phases must advance monotonically: A < R < T < S < E < M < X < G < I < V < C < L
     - Skipping phases is allowed (e.g., skip T if no test reports)
     - Going backward is NEVER allowed within an iteration
-    - new_iteration() resets to allow starting from R again
+    - new_iteration() resets to allow starting from A again
 
     >>> sm = SpiralPhaseStateMachine()
+    >>> sm.transition("A")
     >>> sm.transition("R")
     >>> sm.transition("T")
-    >>> sm.transition("M")
     >>> sm.current
-    'M'
+    'T'
     """
 
     def __init__(self) -> None:

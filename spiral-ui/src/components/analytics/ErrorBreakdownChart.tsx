@@ -18,7 +18,7 @@ const CATEGORY_COLORS: Record<string, { bg: string; text: string; label: string 
 };
 const DEFAULT_COLOR = { bg: 'bg-slate-400', text: 'text-slate-600', label: '' };
 
-const PHASE_ORDER = ['R', 'T', 'S', 'M', 'I', 'V', 'C'];
+const PHASE_ORDER = ['A', 'R', 'T', 'S', 'E', 'M', 'X', 'I', 'V', 'C', 'L'];
 
 // ── Component ─────────────────────────────────────────────────────────────────
 

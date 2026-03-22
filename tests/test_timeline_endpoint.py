@@ -454,7 +454,7 @@ class TestTimelineConstants:
 
     def test_phase_order_contains_all_phases(self) -> None:
         """Test PHASE_ORDER contains expected phases."""
-        assert PHASE_ORDER == ["R", "T", "S", "M", "G", "I", "V", "C"]
+        assert PHASE_ORDER == ["A", "R", "T", "S", "E", "M", "X", "G", "I", "V", "C", "L"]
 
     def test_phase_names_all_phases(self) -> None:
         """Test PHASE_NAMES has entries for all phases."""

@@ -17,17 +17,26 @@ from fastapi import WebSocket
 
 logger = logging.getLogger(__name__)
 
-# Phase order in SPIRAL pipeline
-PHASE_ORDER = ["R", "T", "S", "M", "G", "I", "V", "C"]
+# Canonical phase execution order — must match spiral.sh main loop:
+#   A → R+T → S → E(enrich) → M → X(context) → G+I → V → C → L(learn)
+PHASE_ORDER = ["A", "R", "T", "S", "E", "M", "X", "G", "I", "V", "C", "L"]
 PHASE_NAMES = {
+    "A": "AI Suggestions",
+    "A": "AI Suggestions",
     "R": "Research",
     "T": "Test Synthesis",
     "S": "Story Validate",
+    "E": "Enrichment",
+    "E": "Enrichment",
     "M": "Merge",
+    "X": "Context Build",
     "G": "Human Gate",
+    "X": "Context Build",
     "I": "Implement",
     "V": "Validate",
     "C": "Check Done",
+    "L": "Learning",
+    "L": "Learning",
 }
 
 

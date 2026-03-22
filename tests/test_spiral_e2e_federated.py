@@ -33,7 +33,7 @@ configure_utf8_stdout()
 # Constants
 # ---------------------------------------------------------------------------
 
-PHASES_IN_ORDER = ["R", "T", "S", "M", "I", "V", "C"]
+PHASES_IN_ORDER = ["A", "R", "T", "S", "E", "M", "X", "G", "I", "V", "C", "L"]
 
 # Story IDs must match pattern (US|UT)-NNN (exactly 3 digits).
 # Using US-9xx range to avoid collisions with real project stories.
@@ -492,7 +492,7 @@ class TestPhaseExecutionOrder:
 
     def test_phase_order_is_correct(self) -> None:
         """PHASES_IN_ORDER constant matches the documented R→T→S→M→I→V→C order."""
-        assert PHASES_IN_ORDER == ["R", "T", "S", "M", "I", "V", "C"]
+        assert PHASES_IN_ORDER == ["A", "R", "T", "S", "E", "M", "X", "G", "I", "V", "C", "L"]
 
     def test_phase_execution_log_records_all_phases(self, tmp_path: Path) -> None:
         """A phase execution log records all 7 phases in order with duration_ms."""
@@ -514,7 +514,7 @@ class TestPhaseExecutionOrder:
         with open(log_path, encoding="utf-8") as f:
             loaded = json.load(f)
 
-        assert len(loaded) == 7
+        assert len(loaded) == len(PHASES_IN_ORDER)
         for i, entry in enumerate(loaded):
             assert entry["phase_id"] == PHASES_IN_ORDER[i], f"Phase order wrong at index {i}"
             assert isinstance(entry["duration_ms"], int)
@@ -562,7 +562,7 @@ class TestPhaseExecutionOrder:
         with open(log_path, encoding="utf-8") as f:
             loaded = json.load(f)
 
-        assert len(loaded) == 14  # 7 phases × 2 iterations
+        assert len(loaded) == len(PHASES_IN_ORDER) * 2  # 7 phases × 2 iterations
 
         for iter_num in (1, 2):
             iter_entries = [e for e in loaded if e["iteration"] == iter_num]

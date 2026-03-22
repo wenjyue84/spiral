@@ -109,7 +109,7 @@ spiral_assert_phase_order() {
   local current_phase="$1"
   local last_phase_file="${SCRATCH_DIR:-/tmp}/_last_phase"
 
-  declare -A PHASE_ORDER=([R]=1 [T]=2 [M]=3 [G]=4 [I]=5 [V]=6 [C]=7)
+  declare -A PHASE_ORDER=([A]=1 [R]=2 [T]=3 [S]=4 [E]=5 [M]=6 [X]=7 [G]=8 [I]=9 [V]=10 [C]=11 [L]=12)
 
   if [[ -f "$last_phase_file" ]]; then
     local last_phase
@@ -117,7 +117,7 @@ spiral_assert_phase_order() {
     local last_ord="${PHASE_ORDER[$last_phase]:-0}"
     local curr_ord="${PHASE_ORDER[$current_phase]:-0}"
     # Phase order must increase within an iteration, or reset (C → R on new iteration)
-    if [[ "$curr_ord" -le "$last_ord" && "$current_phase" != "R" ]]; then
+    if [[ "$curr_ord" -le "$last_ord" && "$current_phase" != "A" ]]; then
       _spiral_assert_fail "phase_order" "Phase went backward: $last_phase → $current_phase"
       _assert_return
     fi
