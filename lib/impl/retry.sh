@@ -151,6 +151,52 @@ get_failed_files_for_story() {
   echo "$failed_json"
 }
 
+# try_scope_reduction <story_json_file> [budget_chars]
+# Attempts to reduce story scope by deferring non-critical files (tests, docs, examples).
+# Calls lib/scope_reducer.py reduce and writes the reduced story JSON to stdout.
+# Returns 0 and prints reduced story JSON when reduction occurred (deferred > 0).
+# Returns 1 if no reduction was possible (story already within budget or no noncritical files).
+#
+# Usage (US-744):
+#   reduced_json=$(try_scope_reduction story_file.json 3000) && ...
+try_scope_reduction() {
+  local story_file="${1:-}"
+  local budget="${2:-3000}"
+  local scope_reducer
+  scope_reducer="$(dirname "${BASH_SOURCE[0]}")/../scope_reducer.py"
+
+  if [[ ! -f "$scope_reducer" || ! -f "$story_file" ]]; then
+    echo "[Phase I / scope] scope_reducer.py or story file not found, skipping" >&2
+    return 1
+  fi
+
+  local result
+  result=$(uv run python "$scope_reducer" reduce "$story_file" --budget "$budget" 2>/dev/null) || {
+    echo "[Phase I / scope] scope_reducer.py failed for $story_file" >&2
+    return 1
+  }
+
+  local deferred_count
+  deferred_count=$(printf '%s' "$result" | uv run python -c "
+import json,sys
+d=json.load(sys.stdin)
+print(len(d.get('deferred_files',[])))
+" 2>/dev/null) || deferred_count=0
+
+  if [[ "$deferred_count" -gt 0 ]]; then
+    echo "[Phase I / scope] Deferred $deferred_count non-critical files for scope reduction" >&2
+    printf '%s' "$result" | uv run python -c "
+import json,sys
+d=json.load(sys.stdin)
+print(json.dumps(d['reduced_story']))
+" 2>/dev/null
+    return 0
+  else
+    echo "[Phase I / scope] No non-critical files found to defer" >&2
+    return 1
+  fi
+}
+
 # build_files_only_args <failed_files_json>
 # Converts a JSON array like '["src/a.py","lib/b.sh"]' into a space-separated
 # string suitable for passing as --files-only args to a ralph command.

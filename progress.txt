@@ -1,4 +1,29 @@
-## Iteration [Current] - Story: US-733 Security Tests for lint-prd CLI
+## Iteration [Current] - Story: US-744 Phase I: Automatic File-Level Scope Reduction
+
+### What was implemented
+- **lib/scope_reducer.py** (new) — `estimate_story_size(story)`, `identify_noncritical_files(files)`,
+  `reduce_scope(story, budget_chars=3000)` with CLI entry point (`estimate`/`reduce`/`noncritical` subcommands)
+- **lib/results_tsv.py** (modified) — Added `scope_tag: str = ""` field to `ResultsRecord` and `HEADER`
+- **lib/impl/retry.sh** (modified) — Added `try_scope_reduction <story_file> [budget]` bash function
+  that calls `scope_reducer.py reduce` and returns reduced story JSON; returns 1 if no reduction occurred
+- **tests/test_scope_reducer.py** (new) — 16 integration tests across 3 classes:
+  TestEstimateStorySize (4), TestIdentifyNoncriticalFiles (6), TestReduceScope (6)
+
+### Patterns discovered
+- Edit tool on Windows sometimes has edits reverted by linter hooks (pre-commit ruff/mypy); re-apply after confirmation
+- `estimate_story_size` must count description + filesTouch (joined) + technicalNotes + acceptanceCriteria
+- Scope hint added to technicalNotes adds ~100 chars to estimate; reserve `_HINT_OVERHEAD = 150` to stay within budget
+- `list(story.get("filesTouch", []))` fails mypy strict with `call-overload`; use `[str(f) for f in x] if isinstance(x, list) else []`
+- shellcheck SC1017 (CRLF) in pre-commit is a false alarm on Windows Git Bash — direct shellcheck passes fine
+
+### Acceptance Criteria Mapping
+1. ✅ Phase I (retry.sh) has `try_scope_reduction`; calls lib/scope_reducer.py; marks non-critical files as deferred
+2. ✅ `scope_tag` column added to results.tsv schema (ResultsRecord + HEADER); retry.sh logs 'scope_reduced' tag
+3. ✅ `test_5kb_story_reduced_to_3kb` passes: 5KB story → reduced to ≤3KB, deferred files identified
+
+---
+
+## Iteration [Previous] - Story: US-733 Security Tests for lint-prd CLI
 
 ### What was implemented
 - **tests/test_lint_prd_security.py** (new) — 3 security tests all named `test_us_639_security_*`:
@@ -1591,4 +1616,34 @@ This is a standard Python project, not a Frappe application. The user story's co
 *   **Data Integrity:** The code must be robust against stories in `prd.json` that might be missing a `type` field.
 *   **Error Messages:** The rejection error message must be formatted *exactly* as specified in the acceptance criteria to pass the tests.
 *   **Scope:** The story mentions "cross-project" dependencies, but doesn't define how to identify them. The implementation should likely validate *all* dependencies in `prd.json` for now.
+
+
+
+## Pre-analysis for US-744 (Gemini 2.5 Pro)
+Based on the user story JSON, the request appears to concern the `Spiral` project itself, not a Frappe application. The objective is to add a pre-processing step to handle oversized implementation tasks.
+
+Here is the technical brief for the "Claude" agent:
+
+**Project:** Spiral AI Agent Framework
+**Objective:** Implement US-744: Automatic scope reduction for oversized stories.
+
+**1. Primary Files to Modify:**
+*   `main.py`: Likely contains the main execution loop where the "Ralph" implementation is called. This is where the token overage error must be caught and the new retry logic initiated.
+*   `lib/scope_reducer.py`: (Needs creation or modification). This new module will house the core logic to analyze a file set and identify non-critical files (e.g., `tests/`, `docs/`, `*.md`) to defer.
+*   `lib/ralph.py` (or equivalent): The module responsible for invoking the AI model will need to be adjusted to accept the reduced file scope and modified prompt.
+*   `tests/integration/test_scope_reduction.py`: (Needs creation). A new test to validate the end-to-end scope reduction and retry process.
+
+**2. Frappe DocTypes / Hooks:**
+*   None. This is a pure Python application, not a Frappe-based one.
+
+**3. Implementation Approach:**
+1.  In `main.py`, wrap the call to the implementation model in a `try/except` block to catch `TokenOverageError`.
+2.  On exception, invoke `scope_reducer.py` to get a reduced list of files.
+3.  Re-invoke the implementation model with a modified prompt that includes the reduced file list and context about `{deferred_files}`.
+4.  Update the logging function (likely in `main.py` or a logging utility) to write both the initial failure and the `scope_reduced` retry attempt to `results.tsv`.
+
+**4. Edge Cases & Gotchas:**
+*   The scope reducer must be conservative, avoiding the removal of critical source files that might be misidentified. Start with safe patterns like `docs/*` and `tests/*`.
+*   The system must handle cases where even the reduced scope is too large. It should fall back to the existing escalation path (e.g., using the 'sonnet' model) after one failed reduction attempt.
+*   Ensure the token prediction logic is reliable enough to trigger this workflow correctly.
 

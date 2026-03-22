@@ -43,6 +43,7 @@ class ResultsRecord:
     failure_root_cause: str = ""
     sub_project: str = ""  # New column for federated SPIRAL runs
     failed_files: str = ""  # US-597: JSON array of files that failed (e.g. '["src/a.py"]')
+    scope_tag: str = ""  # US-744: 'scope_reduced' when scope reduction was applied
 
 
 # Header fields in order for TSV writing
@@ -73,6 +74,7 @@ HEADER = [
     "failure_root_cause",
     "sub_project",
     "failed_files",
+    "scope_tag",
 ]
 
 
