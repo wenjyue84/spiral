@@ -11,8 +11,6 @@ import json
 import subprocess
 from unittest import mock
 
-import pytest
-
 from lib.impl.validate_ralph_output import (
     _detect_tools,
     _parse_cargo_error,
@@ -317,6 +315,7 @@ class TestValidateSyntaxCli:
     @mock.patch("subprocess.run")
     def test_cli_failure_prints_json(self, mock_run: mock.MagicMock) -> None:
         """CLI should print JSON error dict on failure."""
+
         # Inner subprocess (tsc) fails
         def side_effect_fn(*args: object, **kwargs: object) -> mock.MagicMock:  # noqa: ARG001
             return mock.MagicMock(

@@ -152,9 +152,7 @@ def format_markdown_table(
     lines.append("|---|---|---|---|")
 
     for sub_project, phase_r, phase_i, total in rows:
-        lines.append(
-            f"| {sub_project} | ${phase_r:.4f} | ${phase_i:.4f} | ${total:.4f} |"
-        )
+        lines.append(f"| {sub_project} | ${phase_r:.4f} | ${phase_i:.4f} | ${total:.4f} |")
 
     # Add totals row
     total_r = sum(row[1] for row in rows)

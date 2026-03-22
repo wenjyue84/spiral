@@ -1,4 +1,34 @@
-## Iteration [Current] - Story: US-733 Security Tests for lint-prd CLI
+## Iteration [Current] - Story: US-748 Create Keep-a-Changelog Schema Validator Module
+
+### What was implemented
+- **lib/validators/__init__.py** (new) — Package marker for validators submodule
+- **lib/validators/changelog_schema.py** (new) — Two core validation functions:
+  - `validate_changelog_format(path: str) -> bool` — Checks Keep-a-Changelog compliance: file exists, has "# Changelog" heading, contains version headers, and has standard sections (Added, Changed, Deprecated, Removed, Fixed, Security)
+  - `validate_version_incrementing(old_ver: str, new_ver: str, scores: list) -> bool` — Validates semver bumps based on complexity scores; major if >5 critical (score>=5), minor if >10 stories, patch otherwise
+  - Constants: CRITICAL_SCORE_THRESHOLD=5, MAJOR_BUMP_CRITICAL_COUNT=5, MINOR_BUMP_TOTAL_COUNT=10
+- **tests/test_changelog_schema_validator.py** (new) — 16 comprehensive tests:
+  - 6 compliance tests: well-formed fixture, missing heading, missing version header, missing sections, file not found, case-insensitive sections
+  - 10 semver tests: major/minor/patch bumps, incorrect versions, invalid formats, boundary conditions, empty scores, missing complexity_score key
+
+### Patterns discovered
+- Keep-a-Changelog format uses "# Changelog" heading (case-insensitive "### Section" subsections)
+- Semantic versioning logic: count critical stories (score >= threshold) and total stories, then apply if/elif/else rules
+- mypy strict requires explicit type hints on list/dict with complex nesting; use `list[dict[str, Any]]` for flexibility
+- Regex patterns with `re.MULTILINE | re.IGNORECASE` flags match case-insensitive section headers
+
+### Gotchas
+- Test had off-by-one boundary error: exactly 5 critical stories is NOT > 5, so falls through to patch, not minor
+- Keep-a-Changelog requires at least one standard section, not just headers
+- Path.read_text encoding must be utf-8 (not system default)
+
+### Acceptance Criteria Mapping
+1. ✅ `uv run pytest tests/test_changelog_schema_validator.py::test_changelog_schema_compliance_well_formed -v` passes with well-formed fixture
+2. ✅ `uv run pytest tests/test_changelog_schema_validator.py::test_semver_bump_logic_major_bump -v` passes verifying major/minor/patch rules
+3. ✅ All 16 tests pass: `uv run pytest tests/test_changelog_schema_validator.py -v` exits 0
+
+---
+
+## Iteration [Previous] - Story: US-733 Security Tests for lint-prd CLI
 
 ### What was implemented
 - **tests/test_lint_prd_security.py** (new) — 3 security tests all named `test_us_639_security_*`:
@@ -1650,4 +1680,3 @@ This story concerns the core "Ralph" agent orchestration, not a Frappe applicati
 *   **Over-reduction Risk**: The reducer's heuristics could mistakenly defer a critical file. The initial version should be conservative, targeting obvious non-essentials like documentation, tests, and examples.
 *   **Retry Loop**: The scope reduction should only be attempted once per task. A failure on the second attempt must proceed to the standard escalation path (e.g., switching to Sonnet) without re-reducing.
 *   **Token Prediction**: The feature's entrypoint relies on token prediction. If the prediction is significantly wrong, the reduction may not trigger when needed. The error handling must still catch actual overages regardless of prediction.
-

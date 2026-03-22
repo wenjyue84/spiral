@@ -83,9 +83,7 @@ def test_us_639_security_no_credential_leakage(tmp_path: Path) -> None:
 
     combined_output = result.stdout + result.stderr
     # Linter must not echo back the credential values
-    assert not _CRED_PATTERN.search(combined_output), (
-        f"Credential pattern found in lint-prd output:\n{combined_output}"
-    )
+    assert not _CRED_PATTERN.search(combined_output), f"Credential pattern found in lint-prd output:\n{combined_output}"
 
 
 # ── Test 2: Circular dep → non-zero exit, structured JSON, no traceback ───────
@@ -113,9 +111,7 @@ def test_us_639_security_circular_dep_exits_nonzero_structured_json(tmp_path: Pa
     result = _run_lint_prd(prd_file)
 
     # Must exit non-zero
-    assert result.returncode != 0, (
-        f"Expected non-zero exit for circular deps, got {result.returncode}"
-    )
+    assert result.returncode != 0, f"Expected non-zero exit for circular deps, got {result.returncode}"
 
     # stdout must be valid JSON — not a raw Python traceback
     assert "Traceback (most recent call last)" not in result.stdout, (
@@ -129,15 +125,11 @@ def test_us_639_security_circular_dep_exits_nonzero_structured_json(tmp_path: Pa
 
     # At least one circular_dep error
     circ_errors = [e for e in report["errors"] if e.get("type") == "circular_dep"]
-    assert len(circ_errors) >= 1, (
-        f"Expected circular_dep error, got: {report['errors']}"
-    )
+    assert len(circ_errors) >= 1, f"Expected circular_dep error, got: {report['errors']}"
 
     # The cycle must include both US-001 and US-002
     cycle = circ_errors[0].get("cycle", [])
-    assert "US-001" in cycle and "US-002" in cycle, (
-        f"Cycle does not contain expected story IDs: {cycle}"
-    )
+    assert "US-001" in cycle and "US-002" in cycle, f"Cycle does not contain expected story IDs: {cycle}"
 
 
 # ── Test 3: Oversized field → no crash, valid JSON output ────────────────────
@@ -167,8 +159,7 @@ def test_us_639_security_oversized_field_no_crash(tmp_path: Path) -> None:
     # Must not crash with an unhandled exception (exit code 2 is acceptable for
     # validation errors; we only disallow uncontrolled crashes)
     assert result.returncode in (0, 1, 2), (
-        f"Unexpected exit code {result.returncode} — possible unhandled exception.\n"
-        f"stderr: {result.stderr[:500]}"
+        f"Unexpected exit code {result.returncode} — possible unhandled exception.\nstderr: {result.stderr[:500]}"
     )
 
     # stdout must be valid JSON — not a crash dump or traceback

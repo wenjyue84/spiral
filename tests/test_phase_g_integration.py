@@ -7,12 +7,10 @@ using mocks to enable testing without external tool dependencies (git-cliff, pdo
 from __future__ import annotations
 
 import subprocess
-import sys
 from pathlib import Path
 from unittest import mock
 
 import pytest
-
 from observability.auto_release import generate_api_docs, generate_changelog, run_command
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────

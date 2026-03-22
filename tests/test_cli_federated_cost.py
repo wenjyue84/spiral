@@ -305,31 +305,39 @@ class TestIntegration:
         with tempfile.TemporaryDirectory() as tmpdir:
             tsv_path = Path(tmpdir) / "results.tsv"
             with open(tsv_path, "w") as f:
-                writer = csv.DictWriter(f, delimiter="\t", fieldnames=[
-                    "story_id",
-                    "sub_project",
-                    "phase",
-                    "model",
-                    "cache_read_tokens",
-                    "cache_creation_tokens",
-                ])
+                writer = csv.DictWriter(
+                    f,
+                    delimiter="\t",
+                    fieldnames=[
+                        "story_id",
+                        "sub_project",
+                        "phase",
+                        "model",
+                        "cache_read_tokens",
+                        "cache_creation_tokens",
+                    ],
+                )
                 writer.writeheader()
-                writer.writerow({
-                    "story_id": "US-1",
-                    "sub_project": "proj1",
-                    "phase": "R",
-                    "model": "sonnet",
-                    "cache_read_tokens": "500000",
-                    "cache_creation_tokens": "500000",
-                })
-                writer.writerow({
-                    "story_id": "US-2",
-                    "sub_project": "proj1",
-                    "phase": "I",
-                    "model": "sonnet",
-                    "cache_read_tokens": "250000",
-                    "cache_creation_tokens": "250000",
-                })
+                writer.writerow(
+                    {
+                        "story_id": "US-1",
+                        "sub_project": "proj1",
+                        "phase": "R",
+                        "model": "sonnet",
+                        "cache_read_tokens": "500000",
+                        "cache_creation_tokens": "500000",
+                    }
+                )
+                writer.writerow(
+                    {
+                        "story_id": "US-2",
+                        "sub_project": "proj1",
+                        "phase": "I",
+                        "model": "sonnet",
+                        "cache_read_tokens": "250000",
+                        "cache_creation_tokens": "250000",
+                    }
+                )
 
             output = federated_cost_report(tsv_path)
             assert "| proj1 |" in output
@@ -359,10 +367,12 @@ class TestIntegration:
         total_aggregated = sum(g["cost_usd"] for g in groups.values())
 
         # Total from individual rows
-        total_individual = sum(_calculate_cost(
-            int(r.get("cache_read_tokens", 0) or 0) +
-            int(r.get("cache_creation_tokens", 0) or 0),
-            r.get("model", "sonnet")
-        ) for r in rows)
+        total_individual = sum(
+            _calculate_cost(
+                int(r.get("cache_read_tokens", 0) or 0) + int(r.get("cache_creation_tokens", 0) or 0),
+                r.get("model", "sonnet"),
+            )
+            for r in rows
+        )
 
         assert abs(total_aggregated - total_individual) < 0.001

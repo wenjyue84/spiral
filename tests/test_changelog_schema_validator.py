@@ -15,7 +15,6 @@ from lib.validators.changelog_schema import (
     validate_version_incrementing,
 )
 
-
 # ─ test_changelog_schema_compliance ──────────────────────────────────────
 
 

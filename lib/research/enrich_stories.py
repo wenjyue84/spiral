@@ -282,7 +282,10 @@ def enrich_stories(
         eligible = sum(1 for s in stories if _should_enrich(s))
         skipped = max(0, eligible - max_enrich)
         if skipped > 0:
-            print(f"  [E] Batch limit reached: {skipped} eligible stories passed through unchanged (max={max_enrich})", flush=True)
+            print(
+                f"  [E] Batch limit reached: {skipped} eligible stories passed through unchanged (max={max_enrich})",
+                flush=True,
+            )
 
     atomic_write_json(enriched_path, {"stories": output_stories})
     return enriched_count, split_count

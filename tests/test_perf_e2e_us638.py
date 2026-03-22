@@ -15,8 +15,6 @@ import time
 from pathlib import Path
 from typing import Any
 
-import pytest
-
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -33,12 +31,34 @@ SUB_PROJECTS: dict[str, str] = {
 }
 
 _RESULTS_HEADER = [
-    "timestamp", "spiral_iter", "ralph_iter", "story_id", "story_title",
-    "status", "duration_sec", "model", "retry_num", "commit_sha", "run_id",
-    "cache_hit", "cache_read_tokens", "cache_creation_tokens", "review_tokens",
-    "wall_seconds", "user_cpu_s", "sys_cpu_s", "peak_rss_kb", "batch_id",
-    "votes_accept", "votes_reject", "conflict_files", "failure_root_cause",
-    "sub_project", "failed_files", "phase_id", "duration_ms",
+    "timestamp",
+    "spiral_iter",
+    "ralph_iter",
+    "story_id",
+    "story_title",
+    "status",
+    "duration_sec",
+    "model",
+    "retry_num",
+    "commit_sha",
+    "run_id",
+    "cache_hit",
+    "cache_read_tokens",
+    "cache_creation_tokens",
+    "review_tokens",
+    "wall_seconds",
+    "user_cpu_s",
+    "sys_cpu_s",
+    "peak_rss_kb",
+    "batch_id",
+    "votes_accept",
+    "votes_reject",
+    "conflict_files",
+    "failure_root_cause",
+    "sub_project",
+    "failed_files",
+    "phase_id",
+    "duration_ms",
 ]
 
 # ---------------------------------------------------------------------------
@@ -72,16 +92,18 @@ def _make_prd(stories: list[dict[str, Any]]) -> dict[str, Any]:
 
 def _make_row(story_id: str, sub_project: str, duration_ms: int = 1000) -> dict[str, str]:
     row: dict[str, str] = {h: "" for h in _RESULTS_HEADER}
-    row.update({
-        "timestamp": "2026-01-01T00:00:00Z",
-        "story_id": story_id,
-        "story_title": f"Story {story_id}",
-        "status": "pass",
-        "sub_project": sub_project,
-        "phase_id": "I",
-        "duration_ms": str(duration_ms),
-        "duration_sec": str(duration_ms / 1000),
-    })
+    row.update(
+        {
+            "timestamp": "2026-01-01T00:00:00Z",
+            "story_id": story_id,
+            "story_title": f"Story {story_id}",
+            "status": "pass",
+            "sub_project": sub_project,
+            "phase_id": "I",
+            "duration_ms": str(duration_ms),
+            "duration_sec": str(duration_ms / 1000),
+        }
+    )
     return row
 
 
@@ -146,8 +168,7 @@ def test_e2e_timing_regression(tmp_path: Path) -> None:
 
     is_regression = injected_ms > threshold_ms
     assert is_regression, (
-        f"Regression not detected: {injected_ms}ms should exceed "
-        f"{threshold_ms:.0f}ms (baseline {baseline_ms}ms + 20%)"
+        f"Regression not detected: {injected_ms}ms should exceed {threshold_ms:.0f}ms (baseline {baseline_ms}ms + 20%)"
     )
 
 
@@ -163,9 +184,7 @@ def test_results_tsv_schema(tmp_path: Path) -> None:
         sid = rec["story_id"]
         assert rec.get("sub_project"), f"Empty sub_project for {sid}"
         expected = SUB_PROJECTS.get(sid, "")
-        assert rec["sub_project"] == expected, (
-            f"{sid}: expected sub_project={expected!r}, got {rec['sub_project']!r}"
-        )
+        assert rec["sub_project"] == expected, f"{sid}: expected sub_project={expected!r}, got {rec['sub_project']!r}"
 
 
 def test_prd_final_state(tmp_path: Path) -> None:

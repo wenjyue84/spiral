@@ -34,7 +34,7 @@ setup() {
   git -C "$TEST_DIR" init
   git -C "$TEST_DIR" config user.email "test@test.com"
   git -C "$TEST_DIR" config user.name "Test"
-  echo "# Test" > "${TEST_DIR}/README.md"
+  echo "# Test" >"${TEST_DIR}/README.md"
   git -C "$TEST_DIR" add README.md
   git -C "$TEST_DIR" commit -m "chore: initial commit"
 

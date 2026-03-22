@@ -38,8 +38,18 @@ class InvalidTransition(Exception):
 # Canonical phase execution order — must match spiral.sh main loop:
 #   A → R+T → S → E(enrich) → M → X(context) → G+I → V → C → L(learn)
 PHASE_ORDER = {
-    "A": 0, "R": 1, "T": 2, "S": 3, "E": 4, "M": 5,
-    "X": 6, "G": 7, "I": 8, "V": 9, "C": 10, "L": 11,
+    "A": 0,
+    "R": 1,
+    "T": 2,
+    "S": 3,
+    "E": 4,
+    "M": 5,
+    "X": 6,
+    "G": 7,
+    "I": 8,
+    "V": 9,
+    "C": 10,
+    "L": 11,
 }
 PHASE_NAMES = {
     "A": "AI Suggestions",

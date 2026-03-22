@@ -61,16 +61,13 @@ def validate_changelog_format(path: str) -> bool:
     # Should have at least one standard section (case-insensitive)
     standard_sections = ["Added", "Changed", "Deprecated", "Removed", "Fixed", "Security"]
     has_section = any(
-        re.search(rf"^###\s+{section}", content, re.MULTILINE | re.IGNORECASE)
-        for section in standard_sections
+        re.search(rf"^###\s+{section}", content, re.MULTILINE | re.IGNORECASE) for section in standard_sections
     )
 
     return has_section
 
 
-def validate_version_incrementing(
-    old_ver: str, new_ver: str, scores: list[dict[str, Any]]
-) -> bool:
+def validate_version_incrementing(old_ver: str, new_ver: str, scores: list[dict[str, Any]]) -> bool:
     """Verify semantic version increment is correct based on story complexity.
 
     Semver bump rules:
@@ -96,9 +93,7 @@ def validate_version_incrementing(
         return False
 
     # Count stories by complexity
-    critical_count = sum(
-        1 for s in scores if s.get("complexity_score", 0) >= CRITICAL_SCORE_THRESHOLD
-    )
+    critical_count = sum(1 for s in scores if s.get("complexity_score", 0) >= CRITICAL_SCORE_THRESHOLD)
     total_count = len(scores)
 
     # Determine expected bump type
@@ -115,11 +110,7 @@ def validate_version_incrementing(
     else:
         # Patch bump expected
         expected_patch = old_parts[2] + 1
-        if (
-            new_parts[0] != old_parts[0]
-            or new_parts[1] != old_parts[1]
-            or new_parts[2] != expected_patch
-        ):
+        if new_parts[0] != old_parts[0] or new_parts[1] != old_parts[1] or new_parts[2] != expected_patch:
             return False
 
     return True
