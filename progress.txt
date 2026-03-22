@@ -1,3 +1,25 @@
+## Iteration [Current] - Story: US-744 Phase I Scope Reduction (attempt 2, opus fix)
+
+### What was implemented
+- Fixed mypy strict errors in `tests/test_scope_reducer.py` (unused type: ignore, incorrect list() call on object type)
+- Added `TestScopeReductionRetryIntegration::test_5kb_story_reduced_retried_no_escalation` integration test that covers the full end-to-end flow: 5KB story → scope_reducer → retry at same model (haiku) → results.tsv with scope_reduced tag → no escalation to sonnet
+- All 17 tests pass (16 existing + 1 new integration test)
+
+### Patterns discovered
+- Previous attempt (haiku) created all the code and tests correctly but left mypy strict errors unfixed — quality gate failure
+- `dict[str, object]` values need isinstance() guards before passing to list(), not `# type: ignore`
+
+### Gotchas
+- mypy strict flags `list(story["filesTouch"])` when story type is `dict[str, object]` — need `isinstance(ft, list)` guard
+- ruff catches unused imports even inside test methods (F401)
+
+### Acceptance Criteria Mapping
+1. ✅ Phase I detects oversized stories; calls scope_reducer.py; marks deferred (lib/scope_reducer.py + retry.sh try_scope_reduction)
+2. ✅ Ralph retries with reduced scope; logs scope_reduced tag to results.tsv (ResultsRecord.scope_tag + integration test)
+3. ✅ Integration test: 5KB→3KB reduction, retry succeeds at haiku without escalating to sonnet (17/17 tests pass)
+
+---
+
 ## Iteration [Current] - Story: US-733 Security Tests for lint-prd CLI
 
 ### What was implemented
@@ -1621,3 +1643,30 @@ This technical brief is for implementing the user story within the Spiral framew
 *   Ensure the token prediction logic is reasonably accurate to avoid triggering this process unnecessarily.
 *   The retry attempt must be clearly linked to the original failed attempt in `results.tsv` for accurate analysis.
 
+
+
+## Pre-analysis for US-744 (Gemini 2.5 Pro)
+**Technical Brief: US-744 Scope Reduction**
+
+This story concerns the core "Ralph" agent orchestration, not a Frappe application. The goal is to add a cost-saving step before model escalation when a context window is exceeded.
+
+**1. Python Files to Modify:**
+*   **`main.py`**: The primary orchestration logic. This is the most likely place to catch the token overage exception and implement the retry-with-reduced-scope logic.
+*   **`lib/scope_reducer.py`**: A new or heavily modified file containing the core logic to analyze a file list and identify non-critical assets (e.g., based on path patterns like `tests/`, `docs/`, or extensions like `.md`).
+*   **`lib/llm_client.py` (or equivalent)**: The module responsible for building the final prompt will need to be updated to include the `{deferred_files, token_budget}` information on retries.
+*   **Result Logging Module (likely in `main.py` or a dedicated `lib/` logger)**: The code that writes to `results.tsv` must be modified to log the `scope_reduced` tag and details for both the initial failure and the subsequent retry.
+
+**2. Frappe DocTypes / Hooks Involved:**
+*   None. The project structure and story details point to a standalone Python agent framework, not a Frappe application.
+
+**3. Recommended Implementation Approach:**
+1.  In `main.py`, wrap the call that executes the implementation in a `try...except` block targeting the token limit error.
+2.  In the `except` block, invoke `lib.scope_reducer.py` with the list of files from the failed task.
+3.  The reducer should return two lists: a reduced list of critical files and a list of deferred files.
+4.  If scope reduction was successful, `main.py` should re-trigger the implementation with the reduced file list and an updated prompt context explaining the change.
+5.  Ensure the result logger is called after both the initial failure and the retry attempt to record the full sequence.
+
+**4. Edge Cases & Gotchas:**
+*   **Over-reduction Risk**: The reducer's heuristics could mistakenly defer a critical file. The initial version should be conservative, targeting obvious non-essentials like documentation, tests, and examples.
+*   **Retry Loop**: The scope reduction should only be attempted once per task. A failure on the second attempt must proceed to the standard escalation path (e.g., switching to Sonnet) without re-reducing.
+*   **Token Prediction**: The feature's entrypoint relies on token prediction. If the prediction is significantly wrong, the reduction may not trigger when needed. The error handling must still catch actual overages regardless of prediction.
