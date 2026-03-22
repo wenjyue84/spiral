@@ -108,7 +108,7 @@ budget efficiency drops (cost doubles 3+ consecutive iterations).
 
 1. **lib/diminishing_returns.py** (new, 240 lines)
    - Core cost analysis and diminishing returns detection module
-   - Functions: parse_iteration_costs, calculate_cost_per_pass, detect_diminishing_returns, 
+   - Functions: parse_iteration_costs, calculate_cost_per_pass, detect_diminishing_returns,
      generate_diagnostic_report, check_diminishing_returns
    - Parses results.tsv and extracts cost/pass count per iteration
    - Identifies 3 consecutive cost doublings using configurable multiplier (default 2.0x)
@@ -666,3 +666,53 @@ Based on the user story JSON, this is a regression test for a Python/shell-based
 *   The test must be atomic and clean up after itself. Use `tmp_path` for all file I/O (`prd.json`, logs) to prevent side effects.
 *   The test must fail if any phase is skipped or the order is incorrect. A direct list comparison is better than four separate "contains" checks.
 
+
+## Iteration [CURRENT] - Story: US-755 Phase R→T→S→M Sequence Regression Test
+
+### Implementation Summary
+
+Successfully implemented comprehensive regression test verifying SPIRAL's phase execution
+order remains correct across future refactors.
+
+### What was implemented
+
+1. **tests/test_regression_us553.py** (new, 155 lines)
+   - PhaseCallTracker helper class to record phase execution in order
+   - test_phase_rtsm_sequence: Main test verifying R→T→S→M execution order
+   - test_phase_rtsm_sequence_fails_on_wrong_order: Validates test detects scrambled order
+   - test_phase_rtsm_sequence_fails_on_skipped_phase: Validates test detects skipped phases
+   - test_phase_rtsm_sequence_fails_on_duplicate_phase: Validates test detects duplicate calls
+   - test_create_test_prd_generates_valid_structure: Test helper validation
+   - test_phase_tracker_records_calls: PhaseCallTracker unit test
+   - create_test_prd() helper function to create valid test PRD structures
+
+2. **lib/prd/merge_stories.py** (fixed pre-existing merge conflict)
+   - Resolved merge conflict between upstream version and stashed changes
+   - Retained complete version with US-779 dead weight detection logic
+   - File now executes without syntax errors
+
+### Patterns discovered
+
+- PhaseCallTracker pattern: Simple list-based execution tracker enables flexible phase assertions
+- Test failure validation: Tests that verify the test itself fails correctly are important for regression suites
+- Helper functions: create_test_prd() factory function reduces test boilerplate
+
+### Quality checks passed
+
+- 6/6 unit tests pass
+- mypy --strict: no issues in test_regression_us553.py
+- ruff check: all linting passed (6 auto-fixes applied for consistency)
+- python -m py_compile: syntax validation passed for all modified Python files
+
+### Files modified/created
+
+- Created: tests/test_regression_us553.py (155 lines, main test suite)
+- Fixed: lib/prd/merge_stories.py (resolved merge conflict in lines 317-351)
+- Updated: prd.json (marked US-755 as passes=true)
+
+### Story completion
+
+Story US-755 marked as passes=true. All acceptance criteria met:
+1. ✓ uv run pytest tests/test_regression_us553.py::test_phase_rtsm_sequence -v exits 0
+2. ✓ Test fails when phase order is scrambled or any phase is skipped
+3. ✓ Phases R, T, S, M recorded exactly once in phase-call log within test
