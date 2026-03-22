@@ -11,22 +11,6 @@
   ],
   "userStories": [
     {
-      "id": "US-728",
-      "title": "CLI: spiral explain-retry <story_id> - Analyze Retry Pattern and Suggest Decomposition",
-      "priority": "high",
-      "description": "Read results.tsv for a given story_id, show full retry sequence (model escalations, durations, error messages), analyze error patterns, and suggest atomic sub-story decomposition based on failed file patterns",
-      "acceptanceCriteria": [
-        "CLI command: spiral explain-retry US-123 outputs JSON array with fields: attempt, model, tokens, duration_sec, status, error_category; example: attempt=1, model='haiku', tokens=5000, status='failed', error_category='scope_overrun'",
-        "Decomposition suggestion engine analyzes error messages and suggests: 'Split into 2 stories: US-123A (lib/a.py modules) and US-123B (lib/b.py modules)' based on file-level error patterns",
-        "Integration test: 3-attempt retry sequence (haiku→sonnet→opus) with known decomposition, suggestion accuracy validated against expected breakdown"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": true,
-      "model": "sonnet"
-    },
-    {
       "id": "US-729",
       "title": "Federation: Cross-Project Story Dependency Type Validation Rules Engine",
       "priority": "high",
@@ -39,8 +23,9 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "sonnet"
+      "passes": true,
+      "model": "sonnet",
+      "last_attempted": "2026-03-22T09:48:09Z"
     },
     {
       "id": "US-732",
@@ -135,199 +120,21 @@
       "model": "sonnet"
     },
     {
-      "id": "US-736",
-      "title": "Security tests for validate_results_tsv (US-570)",
+      "id": "US-728",
+      "title": "CLI: spiral explain-retry <story_id> - Analyze Retry Pattern and Suggest Decomposition",
       "priority": "high",
-      "description": "Write security-focused tests for lib/spiral/validate_results_tsv.py (implemented in US-570). Tests verify that the validator safely handles malformed input, does not leak sensitive data in error output, and rejects path-traversal or injection attempts in story_id/model fields.",
+      "description": "Read results.tsv for a given story_id, show full retry sequence (model escalations, durations, error messages), analyze error patterns, and suggest atomic sub-story decomposition based on failed file patterns",
       "acceptanceCriteria": [
-        "uv run pytest tests/test_security_validate_results_tsv.py -v exits 0 with all tests passing",
-        "Validator error dict contains no raw file content, tokens, or credential-like strings when given malicious input (asserted via string scan in test)",
-        "Validator rejects story_id values containing shell metacharacters or path separators without raising unhandled exceptions",
-        "Validator returns structured errors (not exceptions) for every invalid input fixture in the test file"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_security_validate_results_tsv.py (create new — security test suite)",
-        "File to edit: lib/spiral/validate_results_tsv.py (validate function — read before editing; add input sanitisation only if tests reveal gaps)",
-        "Test command: uv run pytest tests/test_security_validate_results_tsv.py -v",
-        "Fixtures to cover: empty file, story_id with '../', story_id with ';rm -rf', model name with embedded newline, token_count of -1, duplicate rows with sensitive-looking values like 'password=abc'",
-        "US-570 must be merged first so validate() is importable"
-      ],
-      "dependencies": [
-        "US-570"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-737",
-      "title": "Integration tests for CI/CD workflow configuration (US-459)",
-      "priority": "high",
-      "description": "Write integration tests verifying the GitHub Actions workflow and action configurations introduced in US-459. Tests must validate YAML structure, required fields, and action step ordering without calling external services or triggering live CI runs.",
-      "acceptanceCriteria": [
-        "uv run pytest tests/integration/test_us459_ci_workflows.py -v exits 0 with all tests passing",
-        "Tests cover the happy-path (valid workflow YAML parses and contains required keys) and at least one error case (missing required field raises an assertion)",
-        "Tests run with no network access and no GitHub credentials required"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/integration/test_us459_ci_workflows.py (create — write test functions using PyYAML to load and assert on workflow files)",
-        "File to edit: tests/integration/__init__.py (ensure package exists)",
-        "Test command: uv run pytest tests/integration/test_us459_ci_workflows.py -v",
-        "Load each workflow YAML with `import yaml; yaml.safe_load(Path('.github/workflows/ci.yml').read_text())` and assert required top-level keys ('on', 'jobs') are present",
-        "For the error-case test, construct a minimal dict missing a required key and assert the validator/helper raises AssertionError or similar"
-      ],
-      "dependencies": [
-        "US-459"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "tags": [
-        "integration",
-        "auto-generated"
-      ],
-      "model": "sonnet"
-    },
-    {
-      "id": "US-738",
-      "title": "Security Test: Verify US-460 Workflow Files Follow Least-Privilege Permissions",
-      "priority": "high",
-      "description": "Write static security tests that parse the GitHub Actions workflow YAML files introduced in US-460 and assert they follow least-privilege principles: no write-all permission scopes, no hardcoded secrets, and all env vars sourced from ${{ secrets.* }}. These tests guard against CI/CD security regressions.",
-      "acceptanceCriteria": [
-        "uv run pytest tests/test_us460_security.py -v exits 0 with all tests passing",
-        "Test asserts no workflow file sets top-level permissions to write-all",
-        "Test scans raw YAML for hardcoded token patterns (ghp_, ghs_, glpat-) and fails if any found",
-        "Test confirms all env var values referencing credentials use ${{ secrets.* }} syntax"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_us460_security.py (create new — parametrize over all workflow files)",
-        "Test command: uv run pytest tests/test_us460_security.py -v",
-        "Parse workflow files with PyYAML (already in uv deps); glob .github/workflows/*.yml and .github/actions/**/*.yml",
-        "Use re.search(r'(ghp_|ghs_|glpat-)[A-Za-z0-9]+', raw_text) to detect hardcoded tokens",
-        "Check parsed dict: assert top-level permissions key (if present) is not 'write-all' and job-level permissions are scoped"
-      ],
-      "dependencies": [
-        "US-460"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "tags": [
-        "security",
-        "auto-generated"
-      ],
-      "model": "haiku"
-    },
-    {
-      "id": "US-739",
-      "title": "[Integration Test] US-457: SPIRAL file protection hooks for multi-repo worktrees",
-      "priority": "high",
-      "description": "Write integration tests for the Claude hooks introduced in US-457: protect-spiral-files.sh and worktree_audit.sh. Tests confirm that SPIRAL core files are guarded from accidental modification during parallel worktree operations and that stale worktrees are correctly detected — no external services required.",
-      "acceptanceCriteria": [
-        "uv run pytest tests/test_us457_hooks.py::test_protect_spiral_files_blocks_modification -v exits 0",
-        "uv run pytest tests/test_us457_hooks.py::test_worktree_audit_detects_stale_worktree -v exits 0",
-        "uv run pytest tests/test_us457_hooks.py -v completes with all tests passing and no external services needed"
-      ],
-      "technicalNotes": [
-        "File to create: tests/test_us457_hooks.py (new integration test module)",
-        "File to reference: .claude/hooks/protect-spiral-files.sh (invoke via subprocess to exercise hook logic)",
-        "File to reference: .claude/hooks/worktree_audit.sh (invoke via subprocess to exercise audit logic)",
-        "Test command: uv run pytest tests/test_us457_hooks.py -v",
-        "Use pytest tmp_path fixture for isolated filesystem state; mock .claude/worktrees/ with fake entries to simulate stale worktree scenario",
-        "Assert subprocess return codes: protect hook should exit non-zero when a protected path is targeted; audit hook should print stale entry names to stdout"
-      ],
-      "dependencies": [
-        "US-457"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "tags": [
-        "integration",
-        "auto-generated"
-      ],
-      "model": "haiku"
-    },
-    {
-      "id": "US-726",
-      "title": "Phase G: Extract Story-Commit Deduplication Report for Release Notes Validation",
-      "priority": "medium",
-      "description": "During Phase G, parse git log and identify when a single story is referenced by multiple commits (e.g., commit + revert + recommit). Generate deduplication report to catch bad release note patterns and alert maintainers to manual review edges cases.",
-      "acceptanceCriteria": [
-        "Phase G calls new lib/analyze_story_commits.py which reads git log, groups commits by story_id prefix (US-NNN), returns {story_id: [commit_shas], dedup_status: 'clean'|'duplicated'}",
-        "Output written to .spiral/_story_commit_dedup_report.json; Phase G validation warns if any story_id has >2 commits referencing it",
-        "Integration test verifies repo with 3 commits for US-123 (initial + revert + recommit) produces dedup_status='duplicated' and blocks Phase G until manually resolved"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-727",
-      "title": "Dashboard Endpoint: GET /api/dashboard/complexity-retry-correlation -- Scatter Plot of Token Spend vs Retry Count",
-      "priority": "medium",
-      "description": "New dashboard endpoint and React component showing scatter plot of stories: X-axis=initial_tokens_spent, Y-axis=total_retries, color=model_chain (haiku→sonnet→opus). Helps identify which story types require escalation and consume disproportionate cost.",
-      "acceptanceCriteria": [
-        "New endpoint in lib/dashboard/api.py returns GET /api/dashboard/complexity-retry-correlation with data: [{story_id, initial_tokens, retry_count, model_escalation_chain: 'haiku'|'sonnet'|'opus'}]",
-        "Dashboard React component renders in <ComplexityHeatmap/> with hoverable tooltips showing story title, cost breakdown, and model progression",
-        "Integration test mocks results.tsv with 10 stories across complexity ranges, verifies endpoint returns correct scatter data and component renders without errors"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-730",
-      "title": "Integration Test: Phase T Graceful Error Handling for Malformed Test Output",
-      "priority": "medium",
-      "description": "Add mock test fixtures with corrupted output (missing newlines, truncated JSON, invalid UTF-8) to verify Phase T parsing doesn't crash and gracefully logs actionable errors",
-      "acceptanceCriteria": [
-        "Test fixture directory tests/fixtures/malformed_test_output/ with 3+ edge cases: truncated JUnit XML, missing EOF newline, invalid UTF-8 byte sequences",
-        "Phase T logs structured error with story_id, error_type (parse_error|truncation|encoding), line number, and remediation hint to stderr without crashing SPIRAL",
-        "SPIRAL continues to Phase S; results.tsv adds error_type column; error appears in GET /api/dashboard/error-breakdown endpoint grouped by category"
+        "CLI command: spiral explain-retry US-123 outputs JSON array with fields: attempt, model, tokens, duration_sec, status, error_category; example: attempt=1, model='haiku', tokens=5000, status='failed', error_category='scope_overrun'",
+        "Decomposition suggestion engine analyzes error messages and suggests: 'Split into 2 stories: US-123A (lib/a.py modules) and US-123B (lib/b.py modules)' based on file-level error patterns",
+        "Integration test: 3-attempt retry sequence (haiku→sonnet→opus) with known decomposition, suggestion accuracy validated against expected breakdown"
       ],
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-731",
-      "title": "CLI: spiral merge-preview --dry-run for Safe Phase M Simulation",
-      "priority": "medium",
-      "description": "Add --dry-run flag to merge CLI that runs Phase M logic (deduplicate, prioritize, detect conflicts) without modifying prd.json, showing impact analysis and conflict report",
-      "acceptanceCriteria": [
-        "CLI: spiral merge-preview --dry-run outputs JSON with: deduplicated_count, merge_order (story ID array), conflicts (array with pairs), estimated_cost_impact_usd; prd.json remains unmodified",
-        "Conflict detection identifies file-level collisions: 'US-123 and US-456 both modify lib/spiral/phases/__init__.py (lines 50-120 overlap); manual resolution needed'",
-        "Integration test: prd.json MD5 checksum identical before/after merge-preview --dry-run; results.tsv untouched; output includes at least 1 deduplication and 1 conflict example"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-740",
-      "title": "CLI: spiral cost-forecast with Velocity Model Projection and Budget Burn Analysis",
-      "priority": "medium",
-      "description": "New CLI command that derives velocity model from results.tsv (cost-per-story, tokens-per-story), projects remaining iterations within SPIRAL_COST_CEILING, and alerts if projected spend exceeds budget. Powers decision-making on iteration count and model routing.",
-      "acceptanceCriteria": [
-        "CLI command spiral cost-forecast --iterations-remaining 5 --cost-ceiling 100 outputs: Projected cost: $Y, Avg cost/story: $X, Iterations possible: N, Risk level: Z%",
-        "Velocity model computed from results.tsv median of last 10 successful stories (cost_usd column), used to extrapolate total spend",
-        "Alert triggered if projected spend > ceiling: 'WARNING: Projected spend ($Y) exceeds ceiling ($Z). Consider reducing iterations or using haiku model routing.'"
-      ],
-      "technicalNotes": [
-        "File to create: lib/spiral/cost_forecast.py (parse results.tsv with pandas, compute median cost/story from cost_usd column, extrapolate)",
-        "File to modify: lib/cli.py (add subcommand 'cost-forecast' with --iterations-remaining and --cost-ceiling args, call cost_forecast module)",
-        "Test command: uv run pytest tests/test_cost_forecast.py -v && uv run python -m lib.spiral.cost_forecast --help"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "sonnet",
+      "_scopeCreep": true
     },
     {
       "id": "US-691",
