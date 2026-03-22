@@ -22,17 +22,14 @@ class TestCISecurityPatterns:
 
     # Regex patterns to detect unsafe secret access
     BARE_SECRET_PATTERN = re.compile(
-        r'\$(?!{)[A-Z_]+',  # $VARIABLE (not ${...})
-        re.IGNORECASE
+        r"\$(?!{)[A-Z_]+",  # $VARIABLE (not ${...})
+        re.IGNORECASE,
     )
     UNSAFE_ECHO_PATTERN = re.compile(
-        r'echo\s+\$(?!{)[A-Z_]+',  # echo $VARIABLE (not echo ${{ ... }})
-        re.IGNORECASE
+        r"echo\s+\$(?!{)[A-Z_]+",  # echo $VARIABLE (not echo ${{ ... }})
+        re.IGNORECASE,
     )
-    SENSITIVE_KEY_PATTERN = re.compile(
-        r'\b(TOKEN|PASSWORD|KEY|SECRET|API_KEY|AUTH|CRED)\b',
-        re.IGNORECASE
-    )
+    SENSITIVE_KEY_PATTERN = re.compile(r"\b(TOKEN|PASSWORD|KEY|SECRET|API_KEY|AUTH|CRED)\b", re.IGNORECASE)
 
     def _find_all_workflow_files(self) -> list[Path]:
         """Find all workflow YAML files to test."""
@@ -58,7 +55,7 @@ class TestCISecurityPatterns:
             return run_blocks
 
         # Check for jobs
-        jobs: Any = workflow_content.get('jobs', {})
+        jobs: Any = workflow_content.get("jobs", {})
         if not isinstance(jobs, dict):
             return run_blocks
 
@@ -66,7 +63,7 @@ class TestCISecurityPatterns:
             if not isinstance(job, dict):
                 continue
 
-            steps: Any = job.get('steps', [])
+            steps: Any = job.get("steps", [])
             if not isinstance(steps, list):
                 continue
 
@@ -74,7 +71,7 @@ class TestCISecurityPatterns:
                 if not isinstance(step, dict):
                     continue
 
-                run_block: Any = step.get('run')
+                run_block: Any = step.get("run")
                 if run_block and isinstance(run_block, str):
                     run_blocks.append(run_block)
 
@@ -93,7 +90,7 @@ class TestCISecurityPatterns:
 
         for workflow_file in workflow_files:
             try:
-                with open(workflow_file, 'r', encoding='utf-8') as f:
+                with open(workflow_file, "r", encoding="utf-8") as f:
                     content = yaml.safe_load(f)
 
                 if content is None:
@@ -103,9 +100,7 @@ class TestCISecurityPatterns:
 
                 for run_block in run_blocks:
                     if self.UNSAFE_ECHO_PATTERN.search(run_block):
-                        violations.append(
-                            f"{workflow_file}: Found unsafe echo pattern in run block"
-                        )
+                        violations.append(f"{workflow_file}: Found unsafe echo pattern in run block")
             except yaml.YAMLError as e:
                 violations.append(f"{workflow_file}: Failed to parse YAML: {e}")
 
@@ -124,14 +119,23 @@ class TestCISecurityPatterns:
         # GitHub Actions provides standard environment variables
         # that are safe to reference without masking
         standard_github_env_vars = {
-            'GITHUB_STEP_SUMMARY', 'GITHUB_OUTPUT', 'GITHUB_ENV', 'GITHUB_STATE',
-            'PATH', 'HOME', 'RUNNER_OS', 'RUNNER_ARCH', 'RUNNER_TEMP',
-            'CI', 'ACTIONS_ID_TOKEN_REQUEST_TOKEN', 'ACTIONS_ID_TOKEN_REQUEST_URL',
+            "GITHUB_STEP_SUMMARY",
+            "GITHUB_OUTPUT",
+            "GITHUB_ENV",
+            "GITHUB_STATE",
+            "PATH",
+            "HOME",
+            "RUNNER_OS",
+            "RUNNER_ARCH",
+            "RUNNER_TEMP",
+            "CI",
+            "ACTIONS_ID_TOKEN_REQUEST_TOKEN",
+            "ACTIONS_ID_TOKEN_REQUEST_URL",
         }
 
         for workflow_file in workflow_files:
             try:
-                with open(workflow_file, 'r', encoding='utf-8') as f:
+                with open(workflow_file, "r", encoding="utf-8") as f:
                     content = yaml.safe_load(f)
 
                 if content is None:
@@ -146,23 +150,21 @@ class TestCISecurityPatterns:
 
                     # Remove all safe patterns first:
                     # 1. ${{ ... }} expressions (all forms)
-                    safe_pattern = r'\$\{\{[^}]+\}\}'
-                    cleaned = re.sub(safe_pattern, '', run_block)
+                    safe_pattern = r"\$\{\{[^}]+\}\}"
+                    cleaned = re.sub(safe_pattern, "", run_block)
 
                     # 2. Standard GitHub environment variables
                     for env_var in standard_github_env_vars:
-                        cleaned = re.sub(rf'\${env_var}\b', '', cleaned)
+                        cleaned = re.sub(rf"\${env_var}\b", "", cleaned)
 
                     # Check if any remaining bare $ variables look like secrets
                     # (all caps, containing SECRET, TOKEN, PASSWORD, KEY, etc.)
-                    matches = re.finditer(r'\$([A-Z_]+)', cleaned)
-                    secret_keywords = ['SECRET', 'TOKEN', 'PASSWORD', 'KEY', 'API', 'AUTH']
+                    matches = re.finditer(r"\$([A-Z_]+)", cleaned)
+                    secret_keywords = ["SECRET", "TOKEN", "PASSWORD", "KEY", "API", "AUTH"]
                     for match in matches:
                         var_name = match.group(1)
                         if any(keyword in var_name for keyword in secret_keywords):
-                            violations.append(
-                                f"{workflow_file}: Found bare secret reference: ${var_name}"
-                            )
+                            violations.append(f"{workflow_file}: Found bare secret reference: ${var_name}")
             except yaml.YAMLError as e:
                 violations.append(f"{workflow_file}: Failed to parse YAML: {e}")
 
@@ -181,7 +183,7 @@ class TestCISecurityPatterns:
 
         for workflow_file in workflow_files:
             try:
-                with open(workflow_file, 'r', encoding='utf-8') as f:
+                with open(workflow_file, "r", encoding="utf-8") as f:
                     content = yaml.safe_load(f)
 
                 if content is None:
@@ -196,25 +198,23 @@ class TestCISecurityPatterns:
                     # - Inside strings (quoted values)
 
                     # Remove all ${{ }} expressions
-                    safe_cleaned = re.sub(r'\$\{\{[^}]+\}\}', '', run_block)
+                    safe_cleaned = re.sub(r"\$\{\{[^}]+\}\}", "", run_block)
 
                     # Check for bare key names being echoed or passed unsafely
                     # Pattern: word boundary + key name + word boundary
                     # But exclude cases where it's in a string context or comment
-                    lines = safe_cleaned.split('\n')
+                    lines = safe_cleaned.split("\n")
 
                     for line in lines:
                         # Skip comments
-                        if line.strip().startswith('#'):
+                        if line.strip().startswith("#"):
                             continue
 
                         # Look for potentially unsafe references
                         # (KEY_NAME env var or TOKEN being echoed)
-                        if re.search(r'echo.*\b(TOKEN|PASSWORD|KEY|SECRET|API_KEY)\b', line, re.IGNORECASE):
-                            if not re.search(r'echo.*::\w+', line):  # Not a GitHub masked output
-                                violations.append(
-                                    f"{workflow_file}: Found bare sensitive key name in: {line.strip()}"
-                                )
+                        if re.search(r"echo.*\b(TOKEN|PASSWORD|KEY|SECRET|API_KEY)\b", line, re.IGNORECASE):
+                            if not re.search(r"echo.*::\w+", line):  # Not a GitHub masked output
+                                violations.append(f"{workflow_file}: Found bare sensitive key name in: {line.strip()}")
             except yaml.YAMLError as e:
                 violations.append(f"{workflow_file}: Failed to parse YAML: {e}")
 
