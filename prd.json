@@ -63,7 +63,8 @@
         "security",
         "auto-generated"
       ],
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-03-22T17:27:02Z"
     },
     {
       "id": "US-766",
@@ -88,8 +89,10 @@
         "US-639"
       ],
       "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "_failureReason": "oversized_diff",
+      "_lastDiffLines": 453
     },
     {
       "id": "US-767",
