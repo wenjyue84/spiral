@@ -283,6 +283,12 @@ export SPIRAL_STORY_TIMEOUT_LARGE=2400
 unset SPIRAL_STORY_COST_HARD_USD
 unset SPIRAL_STORY_COST_WARN_USD
 
+# ── Diminishing returns detection (US-783) ───────────────────────────────────
+# Phase C checks cost-per-new-pass. If it exceeds this multiplier 3 consecutive
+# times, SPIRAL exits cleanly with diagnostic (avoids budget waste).
+# Default 2.0 = exit when cost per story doubles 3 consecutive iterations.
+SPIRAL_DIMINISHING_RETURNS_MULTIPLIER="${SPIRAL_DIMINISHING_RETURNS_MULTIPLIER:-2.0}"
+
 # ── Specialist prompt file (optional) ────────────────────────────────────────
 # Path to a static prompt file used as fallback when Gemini is unavailable.
 # Leave empty unless you have a domain-specific specialist prompt.

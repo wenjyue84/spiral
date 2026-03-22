@@ -165,6 +165,42 @@ run_phase_check_done() {
 
   # Clear checkpoint before next iteration (crash in next iter starts that iter fresh)
   rm -f "$CHECKPOINT_FILE"
+
+  # ── US-783: Check for diminishing returns before looping ──────────────────────
+  if [[ -f "$REPO_ROOT/results.tsv" ]]; then
+    _DR_MULTIPLIER="${SPIRAL_DIMINISHING_RETURNS_MULTIPLIER:-2.0}"
+    _DR_OUTPUT=$("$SPIRAL_PYTHON" - <<PYEOF 2>/dev/null || echo ""
+import sys
+sys.path.insert(0, "$SPIRAL_HOME")
+from lib.diminishing_returns import check_diminishing_returns
+should_exit, report = check_diminishing_returns("$REPO_ROOT/results.tsv", $_DR_MULTIPLIER)
+if should_exit:
+  print(report)
+  sys.exit(42)  # Signal to exit
+else:
+  print(report) if report else None
+  sys.exit(0)
+PYEOF
+)
+    _DR_RC=$?
+    if [[ $_DR_RC -eq 42 ]]; then
+      echo "$_DR_OUTPUT"
+      echo "  [C] Exiting due to diminishing returns — budget saved!"
+      prd_stats
+      SESSION_END=$(date +%s)
+      SESSION_MINUTES=$(((SESSION_END - SESSION_START) / 60))
+      echo ""
+      echo "  ╔══════════════════════════════════════════════════════╗"
+      echo "  ║  SPIRAL stopped: diminishing returns detected        ║"
+      echo "  ║  Stories: $DONE/$TOTAL complete ($PENDING pending)   ║"
+      echo "  ║  Session: ${SESSION_MINUTES}m, $SPIRAL_ITER iterations              ║"
+      echo "  ╚══════════════════════════════════════════════════════╝"
+      exit 0
+    elif [[ $_DR_RC -eq 0 && -n "$_DR_OUTPUT" ]]; then
+      echo "$_DR_OUTPUT"
+    fi
+  fi
+
   prd_stats
   echo "  [C] Not done yet — $PENDING stories remaining"
   if [[ "${RALPH_PROGRESS:-0}" -gt 0 ]]; then
