@@ -1,4 +1,36 @@
-## Iteration [Current] - Story: US-759 Integration Tests: File-Aware Retry Failed-File Tracking
+## Iteration [Current] - Story: US-760 Security Tests for CI Workflows
+
+### What was implemented
+- **tests/test_ci_security.py** (new) — 4 security tests verifying CI workflows don't leak secrets:
+  - test_no_echo_bare_secret_pattern: Parses all workflow YAML files; asserts no `echo $SECRET` patterns in run: blocks
+  - test_secrets_use_correct_syntax: Verifies secrets use `${{ secrets.* }}` syntax, not bare `$VARIABLE` references; whitelists standard GitHub env vars (GITHUB_STEP_SUMMARY, GITHUB_OUTPUT, etc.)
+  - test_no_sensitive_key_names_bare: Checks that sensitive key names (TOKEN, PASSWORD, KEY, SECRET, API_KEY, AUTH) don't appear bare in run: steps without masking
+  - test_command_exits_zero: Verifies pytest exits 0
+
+### Patterns discovered
+- PyYAML `.safe_load()` parses workflow YAML; extract run: blocks from jobs[*].steps[*].run
+- GitHub Actions provides standard env vars (GITHUB_STEP_SUMMARY, GITHUB_OUTPUT, etc.) that are safe to reference without the ${{ }} syntax
+- Distinguish between user-defined secrets (should use ${{ secrets.* }}) and GitHub's standard environment variables
+- Parametrize test data (secret keywords, GitHub env vars) to avoid hardcoding lists multiple times
+
+### Gotchas
+- Initial test was too aggressive in flagging bare variables like `$GITHUB_STEP_SUMMARY` — refined to whitelist standard GitHub Actions env vars
+- Long line (121 chars) exceeded ruff limit (120); split into a separate variable to improve readability
+- Import sort order matters for ruff: stdlib first, then typing, then third-party (yaml)
+
+### Acceptance Criteria Mapping
+1. ✅ test_no_echo_bare_secret_pattern: Parses each workflow YAML and asserts no `echo $SECRET` patterns (AC1)
+2. ✅ test_secrets_use_correct_syntax: All secrets use `${{ secrets.* }}` syntax only, not env vars (AC2)
+3. ✅ test_command_exits_zero: uv run pytest tests/test_ci_security.py -v exits 0 (AC3)
+4. ✅ test_no_sensitive_key_names_bare: No TOKEN/PASSWORD/KEY/SECRET appear bare in run: steps (AC4)
+
+### Note
+- prd.json has pre-existing duplicate story ID (US-770 appears twice), blocking schema validation for prd.json updates
+- Test file committed successfully; story completion in prd.json pending duplicate ID fix
+
+---
+
+## Iteration [Previous] - Story: US-759 Integration Tests: File-Aware Retry Failed-File Tracking
 
 ### What was implemented
 - **tests/test_file_aware_retry.py** (already complete) — 21 integration tests all passing:
