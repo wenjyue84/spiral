@@ -1,4 +1,48 @@
-## Iteration [Current] - Story: US-767 Integration Test: file_aware_retry
+## Iteration [Current] - Story: US-777 Phase E: Similar Past Implementation Injection
+
+### What was implemented
+- **lib/similar_story_finder.py** — TF-IDF-based story similarity finder (193 lines)
+  - Uses scikit-learn TfidfVectorizer + cosine similarity to find analogous implementations
+  - Extracts file paths from passed stories' filesTouch and technicalNotes
+  - Injects top 3 similar stories into _enrichment.similar_solutions field
+  - Handles edge cases: empty PRD, no passed stories, low similarity scores
+- **lib/phases/phase_e_enrich.sh** — Updated Phase E enrichment orchestration
+  - Calls similar_story_finder.py before optional Claude-based enrichment (US-443)
+  - Similar solutions injection is always-on (0.5 threshold, top 3)
+  - Gracefully falls back if injection fails; preserves original stories
+- **ralph/CLAUDE.md** — Added enrichment hints documentation
+  - New rule 14 explains how to use _enrichment.similar_solutions when available
+  - Links enrichment field to phase E output for Ralph awareness
+  - Shifted anti-patterns rule to #15
+- **tests/test_similar_story_finder.py** — Comprehensive unit test suite (316 lines, 18 tests)
+  - TestCreateSearchableText: story text extraction for TF-IDF
+  - TestExtractFilePaths: file path extraction from stories
+  - TestFindSimilarStories: TF-IDF matching including caching story similarity AC
+  - TestEnrichWithSimilarSolutions: enrichment field injection
+  - TestGetPassedStories: PRD passed story extraction
+
+### Patterns discovered
+- TF-IDF vectorization uses lower-case, English stop-word removal, 500 max features
+- Similarity threshold of 0.5 avoids false positives while catching relevant stories
+- File extraction combines filesTouch array + parsed technicalNotes "File to edit/create:" entries
+- Phase E now chains: similar_solutions → optional Claude enrichment → Phase M input
+- Ralph doesn't need code changes; enrichment is provided in story JSON from Phase E
+
+### Gotchas
+- json.load() returns Any in mypy strict mode; use cast() to satisfy type checker
+- Test data needs sufficient word overlap for TF-IDF to detect similarity (adjusted test titles)
+- Empty passed stories or empty candidate text gracefully return no results
+- Pre-commit hooks removed unused imports from unrelated files (flaky_detector.py, etc.)
+
+### Acceptance Criteria Mapping
+1. ✅ Phase E searches with TF-IDF similarity (threshold 0.5 in similar_story_finder.py, AC1)
+2. ✅ Top 3 similar stories' file paths injected to _enrichment.similar_solutions (AC2)
+3. ✅ Ralph prompt references enrichment hints in rule 14 (AC3)
+4. ✅ test_caching_story_finds_similar_caching_story verifies cache story similarity (AC4)
+
+---
+
+## Iteration [Previous] - Story: US-767 Integration Test: file_aware_retry
 
 ### What was implemented
 - **Story marked complete** — tests/test_file_aware_retry.py was already fully implemented in US-759 iteration with all 21 tests passing
