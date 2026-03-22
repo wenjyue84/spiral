@@ -1,4 +1,31 @@
-## Iteration [Current] - Story: US-754 Security Tests for validate_results_tsv
+## Iteration [Current] - Story: US-758 Integration Test: Phase G Test gen_changelog.py Commit Parsing
+
+### What was implemented
+- **tests/test_gen_changelog.py** (already complete) — 7 integration tests all passing:
+  - test_pattern_matches_us_id / test_pattern_matches_ut_id / test_pattern_no_match_plain_commit: STORY_ID_PATTERN regex coverage for US-NNN and UT-NNN
+  - test_find_orphan_commits_detects_missing_story_id: Edge case AC3 — commits without story IDs are detected and logged as warnings
+  - test_find_orphan_commits_empty_when_all_have_story_ids: Happy path — all commits with story IDs return empty orphan list
+  - test_write_orphan_warnings_creates_file_with_entries: Warning file generation with hash+subject lines
+  - test_generate_changelog_markdown_contains_section_headers: AC2 — generated CHANGELOG.md contains conventional-commit section headers (feat, fix, docs, refactor)
+
+### Patterns discovered
+- All subprocess calls (git log, git-cliff) are mocked with side_effect callables to ensure offline execution
+- MagicMock return objects with .returncode=0 and .stdout attributes satisfy subprocess.run interface
+- patch("lib.gen_changelog.subprocess.run") targets module-level import; side_effect receives cmd list and **kwargs
+
+### Gotchas
+- Implementation and tests were already complete from prior iteration (US-734); just needed passes flag update to true
+- Tests use fake cliff output (### feat, ### fix sections) instead of actual cliff.toml group names (Features, Bug Fixes) — acceptable since binary is mocked
+
+### Acceptance Criteria Mapping
+1. ✅ uv run pytest tests/test_gen_changelog.py -v --tb=short exits 0 with all tests passing (7/7 pass)
+2. ✅ Happy path: conventional-commit sections in generated markdown (test_generate_changelog_markdown_contains_section_headers)
+3. ✅ Edge case: commits without story ID trigger logged warning and are excluded (test_find_orphan_commits_detects_missing_story_id)
+4. ✅ Tests run offline/mocked: no network or real git-cliff subprocess calls
+
+---
+
+## Iteration [Previous] - Story: US-754 Security Tests for validate_results_tsv
 
 ### What was implemented
 - **tests/test_validate_results_tsv_security.py** (new) — 11 parametrized security tests covering:
