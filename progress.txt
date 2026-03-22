@@ -1,3 +1,47 @@
+## Iteration [Current] - Story: US-699 Cost Ceiling Burn-Down Predictor CLI Command
+
+### What was implemented
+- **lib/forecast_ceiling.py** — New module implementing SPIRAL_COST_CEILING breach forecasting (mypy strict compliant)
+  - `load_results(path)` — Load results.tsv into list of row dicts
+  - `compute_cost_per_iteration(rows)` — Aggregate tokens per spiral_iter
+  - `forecast_breach(cost_ceiling, iter_tokens)` — Use numpy.polyfit() for linear trend regression
+    - Projects when cumulative cost exceeds ceiling using quadratic formula solver
+    - Returns: {breach_iteration, confidence (high/low), data_points, burn_rate}
+    - Low confidence flag: < 5 data points
+  - `to_calendar_date(breach_iteration, iter_tokens)` — Convert iteration count to calendar date
+  - `format_forecast(result, cost_ceiling, until_date)` — Human-readable output
+  - `forecast_ceiling_cli()` — CLI entry point returning JSON with message and optional date
+
+- **main.py** — Added `forecast-ceiling` subcommand:
+  - Positional arg: CEILING (USD amount, e.g., 50.0)
+  - Flags: --prd FILE, --results FILE, --until-date
+  - Outputs both human-readable message and JSON with full forecast data
+  - Registered in docstring and command dispatch
+
+- **tests/test_forecast_ceiling.py** — 22 comprehensive tests across 8 test classes:
+  - All tests pass; covers load/compute/forecast workflows, edge cases, CLI integration
+
+### Patterns discovered
+- numpy.polyfit(x, y, 1) returns [slope, intercept] for linear fit
+- Cumulative cost formula: integral = (slope/2)*x^2 + intercept*x (parabola)
+- Cost proxy = sum of cache_read_tokens + cache_creation_tokens + review_tokens
+- Confidence: <5 data points = "low", >=5 = "high"
+
+### Gotchas
+- numpy.polyfit with flat data triggers RankWarning (expected)
+- Flat trend projects breach_iteration >50, not -1
+- File handling on Windows requires close() before unlink()
+
+### Acceptance Criteria Mapping
+1. ✅ `spiral forecast-ceiling CEILING` reads results.tsv, computes trend via numpy.polyfit()
+2. ✅ Outputs 'Breach projected in N.M iterations' format
+3. ✅ --until-date flag returns calendar date prediction
+4. ✅ Flags trend ambiguity (< 5 data points) with confidence indicator
+
+All 22 tests pass, mypy --strict compliant.
+
+---
+
 ## Iteration [Current] - Story: US-698 Phase M Story Reordering by Dependency Graph
 
 ### What was implemented
