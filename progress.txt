@@ -1,4 +1,21 @@
-## Iteration [Current] - Story: US-728 CLI explain-retry: Analyze Retry Pattern and Suggest Decomposition
+## Iteration [Current] - Story: US-729 DependencyTypeValidator
+
+### What was implemented
+- **lib/phases/validate.py** (new) — `DependencyTypeValidator` class with rules dict `{feature: [infrastructure], infrastructure: [], database: [infrastructure]}`; `validate(stories)` returns list of violation strings with rule ID (DEP_TYPE_SRC_TGT), allowed list, and remediation guidance
+- **tests/test_dep_type_validator.py** (new) — 18 integration tests: feature→database rejected (DEP_TYPE_FEATURE_DATABASE), infrastructure→feature rejected (DEP_TYPE_INFRASTRUCTURE_FEATURE), feature→infrastructure passes; edge cases (no type, unresolved deps, empty list, remediation text)
+
+### Patterns discovered
+- `lib/phases/` contains both Python modules and bash stubs; Python validators live here
+- Stories without a `type` field are silently skipped (not a violation)
+- mypy strict passes on new code if `from __future__ import annotations` is used with `dict[str, list[str]] | None`
+
+### Gotchas
+- prd.json uses cp1252 encoding on Windows — always open with `encoding='utf-8'`
+- The compiled `validate.cpython-313.pyc` existed before the source; creating the `.py` file properly resolved this
+
+---
+
+## Iteration [Previous] - Story: US-728 CLI explain-retry: Analyze Retry Pattern and Suggest Decomposition
 
 ### What was implemented
 - **lib/commands/explain_retry.py** (new) — Core logic:
@@ -1502,4 +1519,31 @@ Here is the technical brief for user story US-728.
     *   Error message parsing must be robust; file paths may not always be present or consistently formatted.
     *   If no clear pattern is found, the suggestion should indicate that automated decomposition is not possible.
     *   For performance, stream the `results.tsv` file rather than loading it entirely into memory.
+
+
+## Pre-analysis for US-729 (Gemini 2.5 Pro)
+**Subject: Technical Brief for US-729: Dependency Validation Engine**
+
+This is a standard Python project, not a Frappe application. The user story's context (file paths, data files) does not align with the Frappe framework.
+
+**1. Files to Modify:**
+*   `lib/phases/validate.py`: Primary implementation location. A new `DependencyTypeValidator` class should be added here to encapsulate the validation logic.
+*   `prd.json`: This file is the data source. The validator will need to read and parse this file to get the list of stories and their dependencies.
+*   `tests/test_validation.py` (or a new test file): Add integration tests to verify the validator correctly rejects invalid dependencies and accepts valid ones, checking for specific error messages.
+
+**2. Frappe DocTypes / Hooks:**
+*   None. This is not a Frappe app. No DocTypes or hooks are involved.
+
+**3. Implementation Approach:**
+1.  Define a class `DependencyTypeValidator` in `lib/phases/validate.py`.
+2.  Store the dependency rules in a class attribute, e.g., `RULES = {'feature': ['infrastructure'], 'infrastructure': [], 'database': ['infrastructure']}`.
+3.  The main validation method will load `prd.json`, iterate through each story, and check its `dependencies`.
+4.  For each dependency, it will look up the types of both the source and target stories.
+5.  If the target's type is not in the allowed list for the source's type (per `RULES`), it should raise a `ValueError` with the precise message format specified in the acceptance criteria.
+6.  This new validator must be invoked during the "Phase S" validation sequence.
+
+**4. Edge Cases & Gotchas:**
+*   **Data Integrity:** The code must be robust against stories in `prd.json` that might be missing a `type` field.
+*   **Error Messages:** The rejection error message must be formatted *exactly* as specified in the acceptance criteria to pass the tests.
+*   **Scope:** The story mentions "cross-project" dependencies, but doesn't define how to identify them. The implementation should likely validate *all* dependencies in `prd.json` for now.
 
