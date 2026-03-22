@@ -450,6 +450,33 @@ run_phase_gate_and_implement() {
                     --iteration "$SPIRAL_ITER" \
                     --phase "I" 2>/dev/null || true
                   rm -f "$_SNAP_STORY_TMP" 2>/dev/null || true
+                  # ── US-744: Scope reduction -- detect oversized stories before dispatch ──
+                  _DISPATCH_PRD="$PRD_FILE"
+                  _SR_TMP_PRD=""
+                  unset SPIRAL_SCOPE_TAG
+                  if [[ -f "$SPIRAL_HOME/lib/scope_reducer.py" && -n "$_NEXT_SID" ]]; then
+                    _SR_STORY_TMP=$(mktemp -p "$SCRATCH_DIR" _sr_story_XXXXXX.json 2>/dev/null || echo "$SCRATCH_DIR/_sr_story_$$.json")
+                    "$JQ" --arg id "$_NEXT_SID" '.userStories[] | select(.id == $id)' "$PRD_FILE" >"$_SR_STORY_TMP" 2>/dev/null || true
+                    _SR_SIZE=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/scope_reducer.py" estimate "$_SR_STORY_TMP" 2>/dev/null || echo "0")
+                    _SR_BUDGET="${SPIRAL_SCOPE_BUDGET:-5000}"
+                    if [[ "$_SR_SIZE" =~ ^[0-9]+$ ]] && [[ "$_SR_SIZE" -gt "$_SR_BUDGET" ]]; then
+                      echo "  [US-744] Story $_NEXT_SID: ${_SR_SIZE} chars > budget ${_SR_BUDGET} -- applying scope reduction"
+                      _SR_OUTPUT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/scope_reducer.py" reduce "$_SR_STORY_TMP" --budget "$_SR_BUDGET" 2>/dev/null || echo "{}")
+                      _SR_DEFERRED=$(echo "$_SR_OUTPUT" | "$JQ" '.deferred_files | length' 2>/dev/null || echo "0")
+                      if [[ "$_SR_DEFERRED" =~ ^[0-9]+$ ]] && [[ "$_SR_DEFERRED" -gt 0 ]]; then
+                        _SR_TMP_PRD=$(mktemp -p "$SCRATCH_DIR" _sr_prd_XXXXXX.json 2>/dev/null || echo "$SCRATCH_DIR/_sr_prd_$$.json")
+                        _SR_STORY=$(echo "$_SR_OUTPUT" | "$JQ" '.reduced_story')
+                        "$JQ" --arg id "$_NEXT_SID" --argjson rs "$_SR_STORY" \
+                          '(.userStories[] | select(.id == $id)) = $rs' "$PRD_FILE" >"$_SR_TMP_PRD" 2>/dev/null || _SR_TMP_PRD=""
+                        if [[ -n "$_SR_TMP_PRD" && -s "$_SR_TMP_PRD" ]]; then
+                          _DISPATCH_PRD="$_SR_TMP_PRD"
+                          export SPIRAL_SCOPE_TAG="scope_reduced"
+                          echo "  [US-744] Deferred ${_SR_DEFERRED} non-critical file(s); retrying with reduced scope"
+                        fi
+                      fi
+                    fi
+                    rm -f "$_SR_STORY_TMP" 2>/dev/null || true
+                  fi
                   _I_EXIT=0
                   _I_START=$(date +%s)
                   _STORY_BUDGET=$(get_story_timeout "$_NEXT_SID")
@@ -458,9 +485,9 @@ run_phase_gate_and_implement() {
                   _I_STDOUT_FILE=$(mktemp -p "$SCRATCH_DIR" _ralph_out_XXXXXX.log 2>/dev/null || echo "$SCRATCH_DIR/_ralph_out_$$.log")
                   if [[ "${_STORY_BUDGET:-0}" -gt 0 ]] && command -v timeout &>/dev/null; then
                     echo "  [I] Budget: ${_STORY_BUDGET}s for $_NEXT_SID"
-                    timeout --kill-after=30 "${_STORY_BUDGET}" bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $_DRY_RUN_FLAG 2>&1 | tee "$_I_STDOUT_FILE" || _I_EXIT=$?
+                    timeout --kill-after=30 "${_STORY_BUDGET}" bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$_DISPATCH_PRD" --tool "$_RALPH_TOOL" $_DRY_RUN_FLAG 2>&1 | tee "$_I_STDOUT_FILE" || _I_EXIT=$?
                   else
-                    bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$PRD_FILE" --tool "$_RALPH_TOOL" $_DRY_RUN_FLAG 2>&1 | tee "$_I_STDOUT_FILE" || _I_EXIT=$?
+                    bash "$SPIRAL_RALPH" "$RALPH_MAX_ITERS" --prd "$_DISPATCH_PRD" --tool "$_RALPH_TOOL" $_DRY_RUN_FLAG 2>&1 | tee "$_I_STDOUT_FILE" || _I_EXIT=$?
                   fi
                   _I_ELAPSED=$(($(date +%s) - _I_START))
                   # US-362: Finish snapshot with returncode and stdout head
@@ -470,6 +497,9 @@ run_phase_gate_and_implement() {
                     --returncode "$_I_EXIT" \
                     --stdout-head "${_SNAP_STDOUT_HEAD:-}" 2>/dev/null || true
                   rm -f "$_I_STDOUT_FILE" 2>/dev/null || true
+                  # US-744: clean up scope-reduction temp files
+                  rm -f "$_SR_TMP_PRD" 2>/dev/null || true
+                  unset SPIRAL_SCOPE_TAG
                   if [[ "$_I_EXIT" -eq 124 ]]; then
                     echo "  [I] WARNING: Ralph timed out after ${_I_ELAPSED}s (budget: ${_STORY_BUDGET}s)"
                     log_spiral_event "phase_timeout" "\"phase\":\"I\",\"story_id\":\"$_NEXT_SID\",\"iteration\":$SPIRAL_ITER,\"duration_ms\":$((_I_ELAPSED * 1000)),\"timeout_s\":${_STORY_BUDGET}"

@@ -167,11 +167,28 @@ SPIRAL runs in two stages: a **one-time startup** to align on goals and stories,
   │       (auto-approved; constitution still enforced)              │
   │     • Source breakdown: research=N/M | test-fix=N/M | ...       │
   │                            │                                    │
+  │  E) ENRICHMENT                                                  │
+  │     Populate hints, context, and filesToTouch on validated       │
+  │     stories before merge (stack detection, codebase scanning)   │
+  │                            │                                    │
   │  M) MERGE                                                       │
   │     Patch prd.json                                              │
   │     Priority: test-fix/test-story > research > ai-example       │
   │     Source summary: [merge] Added by source: test-fix=N, ...   │
   │     Overflow → _research_overflow.json (next iteration)         │
+  │                            │                                    │
+  │  X) CONTEXT BUILD                                               │
+  │     Infer dependencies between stories from filesToTouch overlap │
+  │     Detect file conflicts between pending stories               │
+  └──────────────────────────────┬──────────────────────────────────┘
+                                 │
+  ┌──────────────────────────────▼──────────────────────────────────┐
+  │  GATE  (human checkpoint)                                       │
+  │                                                                 │
+  │  G) GATE                                                        │
+  │     Interactive: proceed / skip / quit                           │
+  │     Story review report generated for inspection                │
+  │     Skipped with --gate proceed or --gate skip                  │
   └──────────────────────────────┬──────────────────────────────────┘
                                  │
   ┌──────────────────────────────▼──────────────────────────────────┐
@@ -192,9 +209,19 @@ SPIRAL runs in two stages: a **one-time startup** to align on goals and stories,
   │       Results saved to .spiral/test-suites/<type>/results/      │
   │       Source 5 test stories populate suite commands when done   │
   │                            │                                    │
+  │  P) PUSH                                                        │
+  │     Push commits to origin/main (best-effort, non-blocking)     │
+  │                            │                                    │
   │  C) CHECK DONE                                                  │
-  │     Always loops back to A to discover more stories             │
-  │     Loop exits only when the time limit set in Phase 0 is hit  │
+  │     All pass? → exit. Else continue to Phase L.                 │
+  │     DLQ promotion for exhausted stories (max retries exceeded)  │
+  │                            │                                    │
+  │  L) LEARNING  (optional — SPIRAL_EPISODIC_MEMORY=true)          │
+  │     Extract episodic memories from the iteration                │
+  │     Patterns, anti-patterns, model performance observations     │
+  │     Feeds back into future iterations for smarter decisions     │
+  │                            │                                    │
+  │     ↳ Loop back to Phase A                                      │
   └─────────────────────────────────────────────────────────────────┘
 ```
 
