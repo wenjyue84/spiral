@@ -156,9 +156,7 @@ class TestSecurityResultsTsv:
         row["api_key"] = "sk-SHOULDNOTAPPEAR"
         row["password"] = "hunter2-NOSECRET"
         with open(path, "w", encoding="utf-8", newline="") as f:
-            writer = csv.DictWriter(
-                f, fieldnames=HEADER, delimiter="\t", extrasaction="ignore", lineterminator="\n"
-            )
+            writer = csv.DictWriter(f, fieldnames=HEADER, delimiter="\t", extrasaction="ignore", lineterminator="\n")
             writer.writeheader()
             writer.writerow(row)
         content = open(path, encoding="utf-8").read()

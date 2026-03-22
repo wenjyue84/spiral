@@ -351,9 +351,7 @@ class TestNoSecretsLeakage:
             "super_secret_password",
         ]
         for sensitive_value in forbidden_values:
-            assert sensitive_value not in result_str, (
-                f"Result dict contains sensitive value: {sensitive_value}"
-            )
+            assert sensitive_value not in result_str, f"Result dict contains sensitive value: {sensitive_value}"
 
     def test_budget_check_output_when_printed_contains_no_secrets(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
@@ -379,9 +377,7 @@ class TestNoSecretsLeakage:
         captured = capsys.readouterr()
 
         # Verify secret doesn't appear in stdout
-        assert "test_secret_xyz_9999" not in captured.out, (
-            "Secret value leaked into stdout from budget check"
-        )
+        assert "test_secret_xyz_9999" not in captured.out, "Secret value leaked into stdout from budget check"
 
     def test_budget_check_never_includes_filepath_secrets(self, tmp_path: Path) -> None:
         """Verify that file paths containing sensitive patterns aren't included in output."""

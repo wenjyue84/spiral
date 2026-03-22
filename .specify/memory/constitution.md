@@ -27,7 +27,9 @@ Phase R: RESEARCH          — Gemini web pre-fetch → Claude agent → story c
 Phase T: TEST SYNTHESIS    — scan test-reports/ failures → regression story candidates
   (R and T run in parallel)
 Phase S: STORY VALIDATE    — constitution check, goal-alignment, dedup
+Phase E: ENRICHMENT        — populate hints & context on validated stories (optional)
 Phase M: MERGE             — patch prd.json, priority: test-fix > research > ai-example
+Phase X: CONTEXT BUILD     — per-story symbol maps from filesTouch (zero LLM cost, optional: SPIRAL_REPO_MAP)
 Phase G: HUMAN GATE        — optional checkpoint (skipped with --gate proceed)
 ```
 
@@ -46,6 +48,8 @@ Phase V: VALIDATE
   └─ Persistent suites (smoke, regression, security, perf)
 Phase P: PUSH             — push commits to origin/main
 Phase C: CHECK DONE       — all pass? exit. else loop back to Phase A
+Phase L: LEARNING          — episodic memory extraction (optional: SPIRAL_EPISODIC_MEMORY)
+  └─ Extracts patterns from results.tsv + retry-counts into .spiral/episodic_memory.jsonl
 ```
 
 Every story carries a `_source` field: seed (user), ai-example (AI-picked), research,
@@ -53,7 +57,7 @@ test-fix (regression), test-story (generated tests). Phase V builds a persistent
 suite that grows more comprehensive each iteration.
 
 ## Core Invariants (Never Break These)
-1. **Phase ordering** — 0 → A → R/T → S → M → G → I → V → P → C → (loop to A). Stories must not introduce shortcuts that skip phases.
+1. **Phase ordering** — 0 → A → R+T → S → E → M → X → G+I → V → P → C → L → (loop to A). Stories must not introduce shortcuts that skip phases.
 2. **Clarify first** — Phase 0 establishes constitution, focus, and scope before any implementation begins.
 3. **Git ratchet** — Committed state must always pass quality gates. No story may weaken the gate chain.
 4. **Story atomicity** — Each story is one independent unit. Stories must not have hidden co-dependencies.
