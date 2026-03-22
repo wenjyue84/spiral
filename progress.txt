@@ -1,4 +1,22 @@
-## Iteration [Current] - Story: US-704 Security Test for SPIRAL_COST_CEILING Budget Enforcement
+## Iteration [Current] - Story: US-705 Integration Test gen_changelog.py Happy Path and Edge Cases
+
+### What was implemented
+- **tests/test_gen_changelog.py** — Rewrote to test `lib/gen_changelog.py` (Python) instead of bash script
+  - 7 tests, all passing; uses `unittest.mock.patch` on `lib.gen_changelog.subprocess.run`
+  - `test_pattern_*` — STORY_ID_PATTERN matches US-NNN/UT-NNN, rejects plain commits
+  - `test_find_orphan_commits_*` — mocked git log detects orphan commits (AC3)
+  - `test_write_orphan_warnings_*` — warnings file created with hash+subject lines
+  - `test_generate_changelog_*` — fake cliff side_effect writes CHANGELOG.md with ### feat/fix/docs/refactor (AC2)
+
+### Patterns discovered
+- Pre-existing mypy errors in `lib/resilience/token_guard.py` and `lib/prd/batch_validate.py` (not caused by this story)
+- Old test_gen_changelog.py tested the bash script via subprocess and failed on Windows; replaced with Python-native mocks
+
+### Gotchas
+- Tests for bash scripts via subprocess are fragile on Windows (path conversion, chmod issues, command -v checks)
+- Always prefer mocking `subprocess.run` at `lib.<module>.subprocess.run` for Python module tests
+
+## Iteration [Previous] - Story: US-704 Security Test for SPIRAL_COST_CEILING Budget Enforcement
 
 ### What was implemented
 - **tests/test_cost_ceiling_security.py** — Comprehensive security tests for cost ceiling enforcement (US-498 dependency)
