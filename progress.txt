@@ -1,4 +1,27 @@
-## Iteration [Current] - Story: US-707 [Security Test] SPIRAL Phase Loop No Credential Leakage
+## Iteration [Current] - Story: US-708 [Security Test] File-Aware Retry: Path Traversal and Data Leakage Guards
+
+### What was implemented
+- **lib/impl/file_aware_retry.py** — added `sanitize_failed_files(files: list[str]) -> list[str]` that filters out path traversal (`..` in parts) and absolute paths (both POSIX `/` and Windows absolute via `is_absolute()` + leading `/`/`\`)
+- **tests/test_file_aware_retry.py** — added `import re`, `import pytest`, imported `sanitize_failed_files`, added two module-level security tests:
+  - `test_security_no_path_traversal`: calls `sanitize_failed_files(['../../../etc/passwd', '/absolute/path.py', 'src/valid.py'])`, asserts traversal/absolute entries removed and safe paths kept
+  - `test_security_no_sensitive_data_in_errors`: monkeypatches ANTHROPIC_API_KEY='sk-test-secret', creates stderr with the secret embedded, calls `extract_failed_files`, asserts output doesn't match `r'(sk-|ANTHROPIC_API_KEY|password|token)'`
+
+### Patterns discovered
+- On Windows, `Path('/absolute/path.py').is_absolute()` returns False (no drive letter) — must also check `f.startswith('/')` explicitly
+- `extract_failed_files` only matches file extensions (.py, .ts, .sh etc.) so credential values in stderr are naturally excluded — but the test provides a regression guard
+
+### Gotchas
+- git merge conflict in `prd.json` and `spiral_events.jsonl` from prior SPIRAL run; resolved by staging prd.json (our version) and `git checkout --theirs spiral_events.jsonl`
+- 21 tests pass after additions (no regressions)
+
+### Acceptance Criteria Mapping
+1. ✅ `uv run pytest tests/test_file_aware_retry.py -k 'security' -v` exits 0 with 2 tests
+2. ✅ `test_security_no_path_traversal` rejects `['../../../etc/passwd']` and absolute paths
+3. ✅ `test_security_no_sensitive_data_in_errors` checks output vs `r'(sk-|ANTHROPIC_API_KEY|password|token)'`
+
+---
+
+## Iteration [Previous] - Story: US-707 [Security Test] SPIRAL Phase Loop No Credential Leakage
 
 ### What was implemented
 - **tests/test_security_us633.py** — Comprehensive security tests for credential leakage in state files (US-707)
