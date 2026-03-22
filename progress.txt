@@ -1,4 +1,40 @@
-## Iteration [Current] - Story: US-749 Dashboard: Implement worker_swimlane.py with phase status logic
+## Iteration [Current] - Story: US-750 Dashboard: Add GET /api/dashboard/worker-phase-swimlane route to api.py
+
+### What was implemented
+- **lib/dashboard/api.py** (edit) — Wired worker swimlane data layer into FastAPI:
+  - Added import: `from .worker_swimlane import get_worker_phase_status`
+  - Updated module docstring to list new endpoint
+  - New `@app.get("/api/dashboard/worker-phase-swimlane")` route that returns `{"workers": [list]}` from `get_worker_phase_status(".")`
+  - Route gracefully handles errors: catches all exceptions and returns empty workers list instead of 500 error
+  - Returns HTTP 200 with Content-Type application/json in all cases
+- **tests/test_worker_swimlane_endpoint.py** (new) — 7 integration tests using FastAPI TestClient:
+  - HTTP 200 response with application/json content type
+  - Valid JSON with "workers" array
+  - Empty workers array when no checkpoint exists
+  - Worker dict structure validation (worker_id, current_phase, phase_start_time, estimated_completion_seconds)
+  - Never crashes on missing files; always returns graceful response
+  - JSON serializability
+  - Error handling behavior (empty workers on exception)
+
+### Patterns discovered
+- FastAPI @app.get() routes are async functions returning dict[str, Any]
+- TestClient from fastapi.testclient is the standard way to test FastAPI endpoints
+- Error handling in endpoints: wrap in try/except and return sensible default (empty workers) rather than raising
+- Content-Type is automatically set to application/json by FastAPI for dict returns
+
+### Gotchas
+- TestClient doesn't support monkeypatching the spiral_home parameter directly; tests use actual .spiral directory if it exists
+- FastAPI automatically sets Content-Type header; no explicit setting needed
+- response.json() returns dict directly; response.text returns JSON string
+
+### Acceptance Criteria Mapping
+1. ✅ curl returns HTTP 200 with Content-Type application/json — test_returns_http_200_with_json_content_type
+2. ✅ Response JSON contains workers array with required fields — test_worker_dict_has_required_fields, test_returns_valid_json_with_workers_array
+3. ✅ `uv run pytest tests/test_worker_swimlane_endpoint.py -v` passes — All 7 tests pass
+
+---
+
+## Iteration [Previous] - Story: US-749 Dashboard: Implement worker_swimlane.py with phase status logic
 
 ### What was implemented
 - **lib/dashboard/worker_swimlane.py** (existing) — Verified complete implementation with two core functions:

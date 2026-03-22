@@ -8,6 +8,7 @@ Exposes:
 - GET /api/dashboard/research-sources — Research source credibility tracking endpoint
 - GET /api/dashboard/overview — Unified cross-project metrics endpoint
 - GET /api/dashboard/phase-cost-breakdown — Token/cost per phase from results.tsv (US-641)
+- GET /api/dashboard/worker-phase-swimlane — Worker phase status for swimlane chart (US-750)
 - WebSocket /ws/cost — Real-time cost delta streaming endpoint
 - WebSocket /ws/timeline — Real-time phase transition events
 - WebSocket /ws/overview — Real-time cross-project overview updates
@@ -33,6 +34,7 @@ from .cost_broadcaster import get_manager
 from .story_broadcaster import get_story_updates_manager
 from .timeline import get_timeline_manager, parse_timeline
 from .timeseries_store import query_timeseries
+from .worker_swimlane import get_worker_phase_status
 
 logger = logging.getLogger(__name__)
 
@@ -743,6 +745,37 @@ def _discover_results_paths() -> list[Path]:
         candidates.append(worker_tsv)
 
     return [p for p in candidates if p.exists()]
+
+
+@app.get("/api/dashboard/worker-phase-swimlane")
+async def worker_phase_swimlane() -> dict[str, Any]:
+    """Worker phase status endpoint for swimlane chart rendering (US-750).
+
+    Returns current phase and time estimates for each active worker.
+    Used by the dashboard to render a swimlane chart showing parallel worker progress.
+
+    Returns:
+        {
+            "workers": [
+                {
+                    "worker_id": "worker-1",
+                    "current_phase": "Phase I",
+                    "phase_start_time": 1234567890.5,
+                    "estimated_completion_seconds": 300.5
+                }
+            ]
+        }
+
+    Returns {"workers": []} with HTTP 200 if no workers are active.
+    Never returns error; always returns valid JSON response.
+    """
+    try:
+        workers = get_worker_phase_status(".")
+        return {"workers": workers}
+    except Exception as e:
+        logger.error(f"[/api/dashboard/worker-phase-swimlane] Error: {e}")
+        # Return empty workers list on error instead of crashing
+        return {"workers": []}
 
 
 @app.get("/api/dashboard/overview")
