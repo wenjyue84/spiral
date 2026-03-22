@@ -11,28 +11,6 @@
   ],
   "userStories": [
     {
-      "id": "US-735",
-      "title": "[Security Test] Results TSV: No Sensitive Data in Telemetry Rows",
-      "priority": "high",
-      "description": "Write security tests verifying that results.tsv (updated by US-597 to include per-file retry columns) never persists sensitive values such as API tokens, passwords, or secrets. Telemetry rows must only contain story IDs, model names, costs, durations, and status fields.",
-      "acceptanceCriteria": [
-        "uv run pytest tests/test_results_tsv.py -k security -v exits 0 with at least 1 passing test",
-        "Test injects a mock row containing credential-like strings and asserts they are absent from the written TSV",
-        "Test asserts TSV column headers match the allowed schema and contain no credential-named columns"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_results_tsv.py (add TestSecurityResultsTsv class)",
-        "Source to inspect: lib/results_tsv.py (find write_row or append function to understand all written fields)",
-        "Test command: uv run pytest tests/test_results_tsv.py -k security -v"
-      ],
-      "dependencies": [
-        "US-597"
-      ],
-      "estimatedComplexity": "small",
-      "passes": true,
-      "model": "sonnet"
-    },
-    {
       "id": "US-736",
       "title": "Security tests for validate_results_tsv (US-570)",
       "priority": "high",
@@ -55,10 +33,7 @@
       ],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "_failureReason": "oversized_diff",
-      "_lastDiffLines": 455,
-      "last_attempted": "2026-03-22T15:38:41Z"
+      "model": "haiku"
     },
     {
       "id": "US-753",
@@ -202,6 +177,32 @@
         "security",
         "auto-generated"
       ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-766",
+      "title": "[Security Test] CLI lint-prd: No Sensitive Data Leak on Validation Errors",
+      "priority": "high",
+      "description": "Write security-focused pytest tests for the `spiral lint-prd` CLI command introduced in US-639. Because lint-prd is a local CLI tool (not HTTP), security concerns are input sanitization, safe error output, and no token/path leakage in printed reports. Tests must be runnable in CI with no side effects.",
+      "acceptanceCriteria": [
+        "Running `uv run pytest tests/ -k us_639_security -v` exits 0 with all tests passing",
+        "Test verifies lint-prd output contains no secret-like strings (regex: `(token|password|secret|api.?key)` case-insensitive) when given a malformed prd.json",
+        "Test verifies lint-prd does not follow symlinks or resolve paths outside the repo root (path-traversal guard)",
+        "Test verifies lint-prd exits non-zero and prints a structured error (not a raw Python traceback) when prd.json contains circular dependency references"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_security_us639.py (create new test module)",
+        "File to edit: lib/prd_schema.py (verify error messages do not embed raw exception details)",
+        "Test command: uv run pytest tests/test_security_us639.py -v --tb=short",
+        "Use `tmp_path` pytest fixture to create throwaway prd.json fixtures; never mutate real prd.json",
+        "Circular dep fixture: story A depends on B, B depends on A — expect non-zero exit and JSON error output",
+        "Secret-leak fixture: inject `{\"apiKey\": \"sk-secret123\"}` into prd.json metadata and assert output does not echo it"
+      ],
+      "dependencies": [
+        "US-639"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
       "model": "haiku"
     },
     {
@@ -2128,6 +2129,28 @@
       "_phaseI": {
         "diagnosisBlock": "## Current State\n`check_dag.py` uses Kahn's topological sort on `dependencies` field. US-725 needs a separate `validate_scc.py` using Tarjan's SCC on `_dependencies` field, with JSON output `{acyclic, cycles}` and a `validate-scc-cycles` CLI subcommand.\n\n## Problem Identified\nNo `validate-scc-cycles` CLI command exists. Story uses `_dependencies` field (not `dependencies`), requires Tarjan's SCC algorithm, and structured JSON output with cycle paths.\n\n## Planned Changes\n1. Create `lib/validate_scc.py` — Tarjan's SCC algorithm on `_dependencies`, returns `{acyclic, cycles, cycle_paths}`\n2. Edit `main.py` — Add parser + dispatch + `cmd_validate_scc_cycles()` function\n3. Create `tests/test_validate_scc.py` — Integration tests: 3-node cycle, linear DAG, empty prd\nNow add the parser registration and command function to `main.py`:\nNow add the `cmd_validate_scc_cycles` function. Let me find a good place to insert it:\nNow write the integration test:\nAll 18 tests pass. Let me run mypy and pre-commit checks:\nLet me rewrite the type annotations properly using `Any` for JSON data:\nThe cleanest fix is to use `Any` for the JSON data, which is the standard practice:\nAll 18 pass. Now run pre-commit:\nThe mypy failures are pre-existing in `lib/resilience/token_guard.py` and `lib/prd/batch_validate.py` — not in my new files. My files pass all checks. Let me run a broader test to confirm no regressions:\nAll passing. Now mark the story and commit:\nDone. Here's what was implemented for **US-725**:\n\n**`lib/validate_scc.py`** — Tarjan's SCC algorithm reading `story._dependencies`:\n- `build_graph()` — builds adjacency list, filters unknown deps\n- `tarjan_scc()` — iterative Tarjan's algorithm (SCCs > 1 node or self-loops = cycles)\n- `find_cycles()` — orchestrates and returns `{acyclic, cycles, cycle_paths}`\n\n**`main.py`** — New `validate-scc-cycles` subcommand:\n- `spiral validate-scc-cycles [prd.json]` → JSON output, exit 0 (acyclic) or 1 (cycles)\n- Prints cycle paths to stderr: `US-101 → US-102 → US-103 → US-101`\n\n**`tests/test_validate_scc.py`** — 18 tests all passing:\n- Unit tests for graph building, Tarjan's algorithm, cycle detection\n- CLI integration tests via subprocess (3-node cycle, linear DAG, missing file)\nAll the failures are **pre-existing issues** in `main.py` (E501 long lines, F841/F811 unused variables) and pre-existing mypy errors in `lib/resilience/token_guard.py` and `lib/prd/batch_validate.py`. None of the errors are in the files I created (`lib/validate_scc.py`, `tests/test_validate_scc.py`).\n\nThe story is already committed and marked `passes: true`. The pre-commit failures are from existing technical debt in `main.py` unrelated to US-725. The implementation is complete and all 18 tests pass."
       }
+    },
+    {
+      "id": "US-735",
+      "title": "[Security Test] Results TSV: No Sensitive Data in Telemetry Rows",
+      "priority": "high",
+      "description": "Write security tests verifying that results.tsv (updated by US-597 to include per-file retry columns) never persists sensitive values such as API tokens, passwords, or secrets. Telemetry rows must only contain story IDs, model names, costs, durations, and status fields.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_results_tsv.py -k security -v exits 0 with at least 1 passing test",
+        "Test injects a mock row containing credential-like strings and asserts they are absent from the written TSV",
+        "Test asserts TSV column headers match the allowed schema and contain no credential-named columns"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_results_tsv.py (add TestSecurityResultsTsv class)",
+        "Source to inspect: lib/results_tsv.py (find write_row or append function to understand all written fields)",
+        "Test command: uv run pytest tests/test_results_tsv.py -k security -v"
+      ],
+      "dependencies": [
+        "US-597"
+      ],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "sonnet"
     },
     {
       "id": "US-734",
