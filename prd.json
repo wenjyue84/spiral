@@ -11,22 +11,6 @@
   ],
   "userStories": [
     {
-      "id": "US-729",
-      "title": "Federation: Cross-Project Story Dependency Type Validation Rules Engine",
-      "priority": "high",
-      "description": "Add phase-S validator that enforces story dependency type constraints (e.g., 'feature stories cannot depend on infrastructure'), with clear error messages and remediation guidance",
-      "acceptanceCriteria": [
-        "lib/phases/validate.py implements DependencyTypeValidator with rules dict: {feature: [infrastructure], infrastructure: [], database: [infrastructure]}; validates all cross-project dependencies in prd.json",
-        "Phase S rejects violations with message: 'Story US-123 (type: feature) cannot depend on US-456 (type: infrastructure); allowed: {list}'; includes remediation suggestion",
-        "Integration test: 2 invalid patterns (feature→database, infrastructure→feature) rejected, 1 valid pattern (feature→infrastructure) passes; error codes match expected validation rule IDs"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": true,
-      "model": "sonnet"
-    },
-    {
       "id": "US-732",
       "title": "Phase G: Deploy CHANGELOG and pdoc Outputs to GitHub Pages via Deploy Docs CLI",
       "priority": "high",
@@ -43,6 +27,23 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
+      "passes": true,
+      "model": "sonnet",
+      "last_attempted": "2026-03-22T10:50:26Z"
+    },
+    {
+      "id": "US-744",
+      "title": "Phase I: Automatic File-Level Scope Reduction for Oversized Implementations",
+      "priority": "high",
+      "description": "When Ralph implementation fails with token overage, auto-detect non-critical files and resubmit with reduced scope before escalating model. Reduces retry cost and iteration time.",
+      "acceptanceCriteria": [
+        "Phase I detects oversized stories via token prediction; calls lib/scope_reducer.py to identify non-critical files (tests, docs, examples) and mark as 'deferred'",
+        "Ralph retries with reduced scope and {deferred_files, token_budget} in prompt; logs both attempts to results.tsv with 'scope_reduced' tag",
+        "Integration test verifies 5KB story reduced to 3KB, retried, and succeeded without escalating to sonnet"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
       "passes": false,
       "model": "sonnet"
     },
@@ -68,7 +69,7 @@
         "US-639"
       ],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -144,194 +145,105 @@
       "model": "haiku"
     },
     {
-      "id": "US-737",
-      "title": "Integration tests for CI/CD workflow configuration (US-459)",
-      "priority": "high",
-      "description": "Write integration tests verifying the GitHub Actions workflow and action configurations introduced in US-459. Tests must validate YAML structure, required fields, and action step ordering without calling external services or triggering live CI runs.",
+      "id": "US-745",
+      "title": "CLI: spiral story-genealogy — Visualize Decomposition Cost Hierarchy with Per-Branch Spend",
+      "priority": "medium",
+      "description": "Display decomposition tree with cumulative token costs per branch. Identifies wasteful decompositions and guides future scoping decisions.",
       "acceptanceCriteria": [
-        "uv run pytest tests/integration/test_us459_ci_workflows.py -v exits 0 with all tests passing",
-        "Tests cover the happy-path (valid workflow YAML parses and contains required keys) and at least one error case (missing required field raises an assertion)",
-        "Tests run with no network access and no GitHub credentials required"
+        "CLI `spiral story-genealogy <story_id>` renders ASCII tree with {story, tokens, cost, children} per node; marks inefficient branches with ⚠️ when parent_cost < 80% of children_sum",
+        "Computes genealogy from results.tsv by tracing story_id lineage and parent_story references across iterations",
+        "Output supports --sort-by cost|tokens|depth and --filter min-depth=N for targeted analysis"
       ],
-      "technicalNotes": [
-        "File to edit: tests/integration/test_us459_ci_workflows.py (create — write test functions using PyYAML to load and assert on workflow files)",
-        "File to edit: tests/integration/__init__.py (ensure package exists)",
-        "Test command: uv run pytest tests/integration/test_us459_ci_workflows.py -v",
-        "Load each workflow YAML with `import yaml; yaml.safe_load(Path('.github/workflows/ci.yml').read_text())` and assert required top-level keys ('on', 'jobs') are present",
-        "For the error-case test, construct a minimal dict missing a required key and assert the validator/helper raises AssertionError or similar"
-      ],
-      "dependencies": [
-        "US-459"
-      ],
+      "technicalNotes": [],
+      "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
-      "tags": [
-        "integration",
-        "auto-generated"
+      "model": "haiku"
+    },
+    {
+      "id": "US-746",
+      "title": "Dashboard: Phase Timing SLA Breach Alert Component with Auto-Suggested Optimizations",
+      "priority": "medium",
+      "description": "Alert dashboard when phase execution exceeds configurable SLA threshold. Suggest context-aware optimizations (batch size tuning, worker scaling, operation skipping) based on bottleneck analysis.",
+      "acceptanceCriteria": [
+        "Phase completion triggers SLA check against SPIRAL_PHASE_SLA_MS config; publishes alert via /ws/phase-alerts with {phase, duration_ms, threshold_ms, breach_percent}",
+        "Dashboard alert card displays breach and suggests optimization: 'Phase R took 2.5h (SLA 1h) — try: SPIRAL_GEMINI_BATCH_SIZE=5 (from 3) or add --skip-research-cache=false'",
+        "Integration test mocks Phase R duration 150% of SLA and asserts optimization suggestions include at least 1 config tuning recommendation"
       ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
       "model": "sonnet"
+    },
+    {
+      "id": "US-737",
+      "title": "Regression Test: SPIRAL Happy Path Full Loop (US-553)",
+      "priority": "medium",
+      "description": "Write a regression test that executes a full SPIRAL iteration (Phase R→T→S→M→I→V→C) with mocked Claude API calls and a minimal synthetic PRD. The test verifies that all phases run sequentially, at least one story transitions to a completion status, and no phase is skipped. Guards against future regressions in core orchestration introduced by US-553.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/ -k us_553 -v exits 0 and reports the new test as PASSED",
+        "uv run pytest tests/ -k us_553 -v exits non-zero (FAILED) when Phase I is artificially disabled (e.g., patched to raise an exception), proving the test is not trivially passing"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_us553_happy_path.py (new file — create integration test class with mocked Claude API using unittest.mock.patch targeting the Claude CLI subprocess call)",
+        "Use a temp directory with a minimal prd.json (1 story, status=pending) and spiral.config.sh pointing SPIRAL_VALIDATE_CMD to 'true' so validation always passes",
+        "Mock external calls: patch subprocess calls to claude CLI to return a canned success response; use pytest tmp_path fixture for isolation",
+        "Test command: uv run pytest tests/test_us553_happy_path.py -v",
+        "Verify phase execution order by asserting log output or checkpoint state in .spiral/_checkpoint.json after the run"
+      ],
+      "dependencies": [
+        "US-553"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
     },
     {
       "id": "US-738",
-      "title": "Security Test: Verify US-460 Workflow Files Follow Least-Privilege Permissions",
-      "priority": "high",
-      "description": "Write static security tests that parse the GitHub Actions workflow YAML files introduced in US-460 and assert they follow least-privilege principles: no write-all permission scopes, no hardcoded secrets, and all env vars sourced from ${{ secrets.* }}. These tests guard against CI/CD security regressions.",
+      "title": "[Performance Test] lib: Worker Load Balancer Story Distribution Speed",
+      "priority": "medium",
+      "description": "Write a performance benchmark verifying that the story-to-worker assignment optimizer (US-562) distributes stories within acceptable latency. Benchmark measures assignment time across varying story counts and worker pool sizes. The test must fail if assignment time regresses beyond a hardcoded threshold.",
       "acceptanceCriteria": [
-        "uv run pytest tests/test_us460_security.py -v exits 0 with all tests passing",
-        "Test asserts no workflow file sets top-level permissions to write-all",
-        "Test scans raw YAML for hardcoded token patterns (ghp_, ghs_, glpat-) and fails if any found",
-        "Test confirms all env var values referencing credentials use ${{ secrets.* }} syntax"
+        "uv run pytest tests/test_perf_us562_load_balancer.py -v exits 0",
+        "Benchmark asserts mean assignment time for 100 stories across 4 workers is under 50ms",
+        "Test fails (non-zero exit) when a deliberately slow stub is injected to simulate a 25% regression"
       ],
       "technicalNotes": [
-        "File to edit: tests/test_us460_security.py (create new — parametrize over all workflow files)",
-        "Test command: uv run pytest tests/test_us460_security.py -v",
-        "Parse workflow files with PyYAML (already in uv deps); glob .github/workflows/*.yml and .github/actions/**/*.yml",
-        "Use re.search(r'(ghp_|ghs_|glpat-)[A-Za-z0-9]+', raw_text) to detect hardcoded tokens",
-        "Check parsed dict: assert top-level permissions key (if present) is not 'write-all' and job-level permissions are scoped"
+        "File to edit: tests/test_perf_us562_load_balancer.py (new file — create performance benchmark)",
+        "Test command: uv run pytest tests/test_perf_us562_load_balancer.py -v",
+        "Import the balancer callable from wherever US-562 placed it (likely lib/load_balancer.py or lib/worker_balancer.py); check that module exists before writing imports",
+        "Use time.perf_counter() around the assignment call; parametrize with story_counts=[10,100,500] and worker_counts=[1,2,4,8]",
+        "Hardcode the threshold (50ms for 100 stories / 4 workers) rather than a relative baseline to avoid flaky tests",
+        "Regression stub: monkeypatch the complexity scorer to sleep(0.001) per story, assert test detects the slowdown and fails"
       ],
       "dependencies": [
-        "US-460"
+        "US-562"
       ],
       "estimatedComplexity": "small",
       "passes": false,
       "tags": [
-        "security",
+        "performance",
         "auto-generated"
       ],
       "model": "haiku"
     },
     {
-      "id": "US-739",
-      "title": "[Integration Test] US-457: SPIRAL file protection hooks for multi-repo worktrees",
+      "id": "US-729",
+      "title": "Federation: Cross-Project Story Dependency Type Validation Rules Engine",
       "priority": "high",
-      "description": "Write integration tests for the Claude hooks introduced in US-457: protect-spiral-files.sh and worktree_audit.sh. Tests confirm that SPIRAL core files are guarded from accidental modification during parallel worktree operations and that stale worktrees are correctly detected — no external services required.",
+      "description": "Add phase-S validator that enforces story dependency type constraints (e.g., 'feature stories cannot depend on infrastructure'), with clear error messages and remediation guidance",
       "acceptanceCriteria": [
-        "uv run pytest tests/test_us457_hooks.py::test_protect_spiral_files_blocks_modification -v exits 0",
-        "uv run pytest tests/test_us457_hooks.py::test_worktree_audit_detects_stale_worktree -v exits 0",
-        "uv run pytest tests/test_us457_hooks.py -v completes with all tests passing and no external services needed"
-      ],
-      "technicalNotes": [
-        "File to create: tests/test_us457_hooks.py (new integration test module)",
-        "File to reference: .claude/hooks/protect-spiral-files.sh (invoke via subprocess to exercise hook logic)",
-        "File to reference: .claude/hooks/worktree_audit.sh (invoke via subprocess to exercise audit logic)",
-        "Test command: uv run pytest tests/test_us457_hooks.py -v",
-        "Use pytest tmp_path fixture for isolated filesystem state; mock .claude/worktrees/ with fake entries to simulate stale worktree scenario",
-        "Assert subprocess return codes: protect hook should exit non-zero when a protected path is targeted; audit hook should print stale entry names to stdout"
-      ],
-      "dependencies": [
-        "US-457"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "tags": [
-        "integration",
-        "auto-generated"
-      ],
-      "model": "haiku"
-    },
-    {
-      "id": "US-726",
-      "title": "Phase G: Extract Story-Commit Deduplication Report for Release Notes Validation",
-      "priority": "medium",
-      "description": "During Phase G, parse git log and identify when a single story is referenced by multiple commits (e.g., commit + revert + recommit). Generate deduplication report to catch bad release note patterns and alert maintainers to manual review edges cases.",
-      "acceptanceCriteria": [
-        "Phase G calls new lib/analyze_story_commits.py which reads git log, groups commits by story_id prefix (US-NNN), returns {story_id: [commit_shas], dedup_status: 'clean'|'duplicated'}",
-        "Output written to .spiral/_story_commit_dedup_report.json; Phase G validation warns if any story_id has >2 commits referencing it",
-        "Integration test verifies repo with 3 commits for US-123 (initial + revert + recommit) produces dedup_status='duplicated' and blocks Phase G until manually resolved"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-727",
-      "title": "Dashboard Endpoint: GET /api/dashboard/complexity-retry-correlation -- Scatter Plot of Token Spend vs Retry Count",
-      "priority": "medium",
-      "description": "New dashboard endpoint and React component showing scatter plot of stories: X-axis=initial_tokens_spent, Y-axis=total_retries, color=model_chain (haiku→sonnet→opus). Helps identify which story types require escalation and consume disproportionate cost.",
-      "acceptanceCriteria": [
-        "New endpoint in lib/dashboard/api.py returns GET /api/dashboard/complexity-retry-correlation with data: [{story_id, initial_tokens, retry_count, model_escalation_chain: 'haiku'|'sonnet'|'opus'}]",
-        "Dashboard React component renders in <ComplexityHeatmap/> with hoverable tooltips showing story title, cost breakdown, and model progression",
-        "Integration test mocks results.tsv with 10 stories across complexity ranges, verifies endpoint returns correct scatter data and component renders without errors"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-730",
-      "title": "Integration Test: Phase T Graceful Error Handling for Malformed Test Output",
-      "priority": "medium",
-      "description": "Add mock test fixtures with corrupted output (missing newlines, truncated JSON, invalid UTF-8) to verify Phase T parsing doesn't crash and gracefully logs actionable errors",
-      "acceptanceCriteria": [
-        "Test fixture directory tests/fixtures/malformed_test_output/ with 3+ edge cases: truncated JUnit XML, missing EOF newline, invalid UTF-8 byte sequences",
-        "Phase T logs structured error with story_id, error_type (parse_error|truncation|encoding), line number, and remediation hint to stderr without crashing SPIRAL",
-        "SPIRAL continues to Phase S; results.tsv adds error_type column; error appears in GET /api/dashboard/error-breakdown endpoint grouped by category"
+        "lib/phases/validate.py implements DependencyTypeValidator with rules dict: {feature: [infrastructure], infrastructure: [], database: [infrastructure]}; validates all cross-project dependencies in prd.json",
+        "Phase S rejects violations with message: 'Story US-123 (type: feature) cannot depend on US-456 (type: infrastructure); allowed: {list}'; includes remediation suggestion",
+        "Integration test: 2 invalid patterns (feature→database, infrastructure→feature) rejected, 1 valid pattern (feature→infrastructure) passes; error codes match expected validation rule IDs"
       ],
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-731",
-      "title": "CLI: spiral merge-preview --dry-run for Safe Phase M Simulation",
-      "priority": "medium",
-      "description": "Add --dry-run flag to merge CLI that runs Phase M logic (deduplicate, prioritize, detect conflicts) without modifying prd.json, showing impact analysis and conflict report",
-      "acceptanceCriteria": [
-        "CLI: spiral merge-preview --dry-run outputs JSON with: deduplicated_count, merge_order (story ID array), conflicts (array with pairs), estimated_cost_impact_usd; prd.json remains unmodified",
-        "Conflict detection identifies file-level collisions: 'US-123 and US-456 both modify lib/spiral/phases/__init__.py (lines 50-120 overlap); manual resolution needed'",
-        "Integration test: prd.json MD5 checksum identical before/after merge-preview --dry-run; results.tsv untouched; output includes at least 1 deduplication and 1 conflict example"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-740",
-      "title": "CLI: spiral cost-forecast with Velocity Model Projection and Budget Burn Analysis",
-      "priority": "medium",
-      "description": "New CLI command that derives velocity model from results.tsv (cost-per-story, tokens-per-story), projects remaining iterations within SPIRAL_COST_CEILING, and alerts if projected spend exceeds budget. Powers decision-making on iteration count and model routing.",
-      "acceptanceCriteria": [
-        "CLI command spiral cost-forecast --iterations-remaining 5 --cost-ceiling 100 outputs: Projected cost: $Y, Avg cost/story: $X, Iterations possible: N, Risk level: Z%",
-        "Velocity model computed from results.tsv median of last 10 successful stories (cost_usd column), used to extrapolate total spend",
-        "Alert triggered if projected spend > ceiling: 'WARNING: Projected spend ($Y) exceeds ceiling ($Z). Consider reducing iterations or using haiku model routing.'"
-      ],
-      "technicalNotes": [
-        "File to create: lib/spiral/cost_forecast.py (parse results.tsv with pandas, compute median cost/story from cost_usd column, extrapolate)",
-        "File to modify: lib/cli.py (add subcommand 'cost-forecast' with --iterations-remaining and --cost-ceiling args, call cost_forecast module)",
-        "Test command: uv run pytest tests/test_cost_forecast.py -v && uv run python -m lib.spiral.cost_forecast --help"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-741",
-      "title": "WebSocket /ws/alerts Backend: Broadcast Cost and Phase Alerts",
-      "priority": "medium",
-      "description": "Create WebSocket endpoint /ws/alerts in the dashboard API server that broadcasts real-time alert events when Phase I projected cost exceeds SPIRAL_COST_CEILING or a worker crash is detected. Backend manages connected clients and emits structured JSON events.",
-      "acceptanceCriteria": [
-        "GET ws://localhost:5299/ws/alerts accepts WebSocket connections and echoes {\"event\": \"ping\"} keepalive every 30s",
-        "Emitting a cost_ceiling_breach event via the internal queue delivers {\"event\": \"cost_ceiling_breach\", \"current\": 99.50, \"ceiling\": 100.00, \"phase\": \"Phase I\"} to all connected clients",
-        "uv run pytest tests/test_ws_alerts.py -v passes with zero failures"
-      ],
-      "technicalNotes": [
-        "File to create: lib/api/ws_alerts.py (WebSocket handler using websockets library; maintain connected clients in a module-level set; expose async emit_alert(payload: dict) coroutine for use by Phase I)",
-        "File to edit: lib/api/server.py (register /ws/alerts route; import and start ws_alerts client set on server startup)",
-        "Test command: uv run pytest tests/test_ws_alerts.py -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "sonnet",
+      "_scopeCreep": true
     },
     {
       "id": "US-728",
