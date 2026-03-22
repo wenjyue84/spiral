@@ -2175,3 +2175,48 @@ This brief outlines the implementation plan for creating integration tests for t
 ### Gotchas
 - Diagnosis block MUST be output as plain text BEFORE any tool calls that modify files
 - AC2 is subtle: it requires testing the "no files failed" case specifically, not just "missing column"
+
+## Iteration [2026-03-23] - Story: US-768 - Integration Tests for results_tsv File-Level Failure Data
+
+### What was implemented
+- Added TestFileLevelFailureData class to tests/test_results_tsv.py with 14 comprehensive tests
+- Tests cover writing failed-story rows with file-level data (failed_files as JSON array)
+- Tests cover reading back and parsing failed_files JSON correctly
+- Tests for get_last_failed_files() function:
+  - Happy path: returns most recent failed_files for a story
+  - No matching story: returns empty list
+  - All PASS records: returns empty list
+  - Invalid JSON handling: gracefully handles corrupted JSON
+- Tests for parse_failed_files_from_stderr() with multiple error patterns:
+  - 'Error processing file:' pattern
+  - 'Failed to implement:' pattern
+  - 'ERROR: file' pattern
+  - 'FAILED: file' pattern
+  - Deduplication and sorting verification
+  - Empty stderr handling
+- Column presence verification tests for failed_files and scope_tag in HEADER
+
+### Test Coverage
+- All 23 tests passing (including pre-existing tests)
+- mypy strict mode compliance achieved
+- No linting or type checking errors
+
+### Issues Fixed
+- Fixed duplicate story ID: US-770 appeared twice. Changed second occurrence (Phase A story) to US-790
+- Resolved merge conflicts in calibration.jsonl, prd.json, progress.txt, results.tsv
+
+### Acceptance Criteria Met
+- [x] tests/test_results_tsv.py contains tests that write failed-story rows with file-level data
+- [x] tests/test_results_tsv.py contains tests that read back and verify file-level failure data
+- [x] uv run pytest tests/test_results_tsv.py -v exits 0 with all tests passing
+
+### Key Functions Tested
+- write_results_tsv() - writes ResultsRecord with failed_files field
+- parse_results_tsv() - reads TSV back and preserves failed_files JSON
+- get_last_failed_files() - retrieves most recent failed_files for a story
+- parse_failed_files_from_stderr() - extracts file paths from error output
+
+### Patterns Discovered
+- File-level failure tracking uses JSON array serialization for compatibility
+- Backward-compatibility is maintained for TSV files missing new columns
+- Error parsing is robust with multiple pattern matching options
