@@ -1,44 +1,63 @@
-## Iteration [Current] - Story: US-777 Phase E: Similar Past Implementation Injection
+## Iteration [Current] - Story: US-779 Phase M: Dead Weight Detection - Auto-Archive Stories Stuck 5+ Iterations
 
 ### What was implemented
-- **lib/similar_story_finder.py** — TF-IDF-based story similarity finder (193 lines)
-  - Uses scikit-learn TfidfVectorizer + cosine similarity to find analogous implementations
-  - Extracts file paths from passed stories' filesTouch and technicalNotes
-  - Injects top 3 similar stories into _enrichment.similar_solutions field
-  - Handles edge cases: empty PRD, no passed stories, low similarity scores
-- **lib/phases/phase_e_enrich.sh** — Updated Phase E enrichment orchestration
-  - Calls similar_story_finder.py before optional Claude-based enrichment (US-443)
-  - Similar solutions injection is always-on (0.5 threshold, top 3)
-  - Gracefully falls back if injection fails; preserves original stories
-- **ralph/CLAUDE.md** — Added enrichment hints documentation
-  - New rule 14 explains how to use _enrichment.similar_solutions when available
-  - Links enrichment field to phase E output for Ralph awareness
-  - Shifted anti-patterns rule to #15
-- **tests/test_similar_story_finder.py** — Comprehensive unit test suite (316 lines, 18 tests)
-  - TestCreateSearchableText: story text extraction for TF-IDF
-  - TestExtractFilePaths: file path extraction from stories
-  - TestFindSimilarStories: TF-IDF matching including caching story similarity AC
-  - TestEnrichWithSimilarSolutions: enrichment field injection
-  - TestGetPassedStories: PRD passed story extraction
+- **spiral.config.sh** — Added SPIRAL_DEAD_WEIGHT_THRESHOLD configuration
+  - Default: 5 iterations before auto-archiving
+  - Set to 0 to disable dead weight detection
+  - Used by Phase M during merge to detect stuck stories
+
+- **lib/prd/merge_stories.py** — Dead weight detection logic (35-line function + integration)
+  - New apply_dead_weight_detection() function with full type annotations
+  - Increments _pending_iterations counter on non-passed, non-archived stories
+  - Marks stories exceeding threshold with _archived:true + _archiveReason field
+  - Integrated into main() after loading prd.json (AC1, AC2)
+  - Also fixed current_pending counter to exclude archived stories from future merges
+
+- **lib/prd/slice_prd.py** — Phase I dispatch filtering
+  - Updated slice_prd() to exclude _archived:true stories from dispatch (AC3)
+  - Archived stories remain in prd.json for audit trail
+  - Maintains proper ordering: done stories, then batch-selected pending, archived excluded
+
+- **main.py** — CLI command for listing archived stories (AC4)
+  - New cmd_show_archived() function (40 lines)
+  - Supports both human-readable table and JSON output (--json flag)
+  - Shows ID, iteration count, priority, title, and archive reason
+  - Proper argument parser registration: archived_parser subcommand + handler dispatch
+  - Full type annotations (args: argparse.Namespace) → None
+
+- **tests/test_merge_stories.py** — Comprehensive test coverage (9 tests, 240 lines)
+  - TestDeadWeightDetection class with unit and integration tests (AC5)
+  - test_increment_pending_iterations_on_non_passed_stories: counter increments correctly
+  - test_archive_story_when_exceeding_threshold: archiving triggers at threshold
+  - test_story_archived_after_6_iterations: direct test of AC5 scenario (story stuck 6 iters)
+  - test_skip_already_archived_stories: idempotency (don't re-archive)
+  - test_skip_done_stories: passes/decomposed/_skipped skip incrementing
+  - test_threshold_zero_disables_archiving: feature toggle works
+  - test_multiple_stories_some_archived: selective archiving in mixed PRD
+  - test_end_to_end_dead_weight_in_merge: integration with apply_dead_weight_detection()
+  - test_end_to_end_sort_after_merge: does not break existing sort order
+  - All 9 tests + 59 existing tests pass (68 total)
 
 ### Patterns discovered
-- TF-IDF vectorization uses lower-case, English stop-word removal, 500 max features
-- Similarity threshold of 0.5 avoids false positives while catching relevant stories
-- File extraction combines filesTouch array + parsed technicalNotes "File to edit/create:" entries
-- Phase E now chains: similar_solutions → optional Claude enrichment → Phase M input
-- Ralph doesn't need code changes; enrichment is provided in story JSON from Phase E
+- Phase M runs before Phase I, so dead weight detection naturally gates dispatch
+- _pending_iterations counter is self-documenting (shows iteration count at archive time)
+- Threshold as env var allows per-run customization without code changes
+- Archived stories preserved in prd.json enable root cause analysis and audit logs
+- CLI integration follows main.py pattern: cmd_* function + subparser + dispatch handler
 
 ### Gotchas
-- json.load() returns Any in mypy strict mode; use cast() to satisfy type checker
-- Test data needs sufficient word overlap for TF-IDF to detect similarity (adjusted test titles)
-- Empty passed stories or empty candidate text gracefully return no results
-- Pre-commit hooks removed unused imports from unrelated files (flaky_detector.py, etc.)
+- story.get("_archived") checks for exact True (not truthy), preventing string/int confusion
+- Must exclude archived from current_pending count to prevent future merges from re-counting them
+- slice_prd() must skip archived before checking passes (one skip covers both done + archived)
+- apply_dead_weight_detection() modifies stories in-place; no return value (idiomatic Python)
+- Test uses monkeypatch for env var instead of subprocess (faster, more reliable on Windows)
 
 ### Acceptance Criteria Mapping
-1. ✅ Phase E searches with TF-IDF similarity (threshold 0.5 in similar_story_finder.py, AC1)
-2. ✅ Top 3 similar stories' file paths injected to _enrichment.similar_solutions (AC2)
-3. ✅ Ralph prompt references enrichment hints in rule 14 (AC3)
-4. ✅ test_caching_story_finds_similar_caching_story verifies cache story similarity (AC4)
+1. ✅ Phase M tracks _pending_iterations counter (apply_dead_weight_detection in merge_stories.py)
+2. ✅ Stories exceeding SPIRAL_DEAD_WEIGHT_THRESHOLD (default 5) marked _archived:true + _archiveReason
+3. ✅ Archived stories excluded from Phase I dispatch (slice_prd.py) but remain in prd.json
+4. ✅ CLI command 'spiral show-archived' lists auto-archived stories with stall duration
+5. ✅ Unit test verifies story stuck 6 iterations gets auto-archived (test_story_archived_after_6_iterations)
 
 ---
 
