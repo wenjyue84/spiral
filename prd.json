@@ -5097,12 +5097,15 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "tags": [
         "core-flow",
         "phase-s"
       ],
-      "model": "haiku"
+      "model": "haiku",
+      "_failureReason": "oversized_diff",
+      "_lastDiffLines": 447,
+      "last_attempted": "2026-03-22T19:41:43Z"
     },
     {
       "id": "US-777",

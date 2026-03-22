@@ -542,6 +542,29 @@ def validate_stories(
                 if phrase in story_text:
                     rejection_reason = f'Violates constitution: "{phrase}"'
                     break
+            # Attempt rewrite before rejection (US-776)
+            if rejection_reason and not story.get("_rewritten"):
+                api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+                if api_key:
+                    try:
+                        from story_rewriter import rewrite_story
+
+                        rewritten = rewrite_story(story, api_key)
+                        if rewritten:
+                            # Re-validate rewritten story
+                            story = rewritten
+                            title = story.get("title", "").strip()
+                            rejection_reason = None
+                            # Re-check constitution on rewritten story
+                            story_text = (title + " " + story.get("description", "")).lower()
+                            for phrase in forbidden_phrases:
+                                if phrase in story_text:
+                                    rejection_reason = f'Violates constitution after rewrite: "{phrase}"'
+                                    break
+                            if not rejection_reason:
+                                print(f"  [S] REWRITTEN: {story.get('id', '')!r} fixed constitution violation")
+                    except ImportError:
+                        pass  # story_rewriter not available
 
         # 2. Goal alignment check
         # Skipped for: test-fix, test-story (auto-approved; constitution still runs)

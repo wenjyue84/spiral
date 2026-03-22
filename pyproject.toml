@@ -93,6 +93,7 @@ module = [
     "research.*", "lib.research.*",
     "resilience.*", "lib.resilience.*",
     "context.*", "lib.context.*",
+    "lib.story_rewriter",
 ]
 warn_return_any = false
 disallow_any_generics = false
