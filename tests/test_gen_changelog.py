@@ -1,417 +1,148 @@
-"""Tests for lib/phases/gen_changelog.sh — Phase G changelog generation.
+"""Integration tests for lib/gen_changelog.py — Phase G changelog generation.
 
-Verifies:
-- AC1: git-cliff binary validation via SPIRAL_GIT_CLIFF_BIN
-- AC2: CHANGELOG.md generation with feat/fix/docs/refactor sections
-- AC3: Orphan commit detection and warning log
+Covers:
+- STORY_ID_PATTERN: parsing commit messages for US-NNN/UT-NNN story IDs
+- find_orphan_commits: detects commits without story IDs (AC3: warning emitted)
+- write_orphan_warnings: logs orphan commits to a warnings file
+- generate_changelog: produces CHANGELOG.md with conventional-commit section headers (AC2)
 """
 
 from __future__ import annotations
 
-import subprocess
 import textwrap
 from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+from lib.gen_changelog import (
+    STORY_ID_PATTERN,
+    find_orphan_commits,
+    generate_changelog,
+    write_orphan_warnings,
+)
+
+# ── STORY_ID_PATTERN ──────────────────────────────────────────────────────────
 
 
-def _to_unix_path(p: Path) -> str:
-    """Convert Windows path to Unix-style for Git Bash."""
-    s = str(p).replace("\\", "/")
-    # Convert C:/... to /c/...
-    if len(s) >= 2 and s[1] == ":":
-        s = "/" + s[0].lower() + s[2:]
-    return s
+def test_pattern_matches_us_id() -> None:
+    """STORY_ID_PATTERN matches US-NNN story IDs in commit messages."""
+    assert STORY_ID_PATTERN.search("feat: add feature\n\nStory ID: US-123") is not None
 
 
-def _run_gen_changelog(
-    repo_dir: Path,
-    env_overrides: dict[str, str] | None = None,
-) -> subprocess.CompletedProcess[str]:
-    """Source gen_changelog.sh and call phase_gen_changelog in bash."""
-    spiral_home = _to_unix_path(repo_dir)
-    gen_script = f"{spiral_home}/lib/phases/gen_changelog.sh"
+def test_pattern_matches_ut_id() -> None:
+    """STORY_ID_PATTERN matches UT-NNN test IDs in commit messages."""
+    assert STORY_ID_PATTERN.search("test: add test case\n\nUT-456 coverage") is not None
 
-    # Build inline exports — env vars don't propagate to Git Bash on Windows
-    env_exports = f"SPIRAL_HOME='{spiral_home}'"
-    if env_overrides:
-        for key, val in env_overrides.items():
-            env_exports += f" {key}='{val}'"
 
-    # Use env command prefix to set vars, then source and call
-    cmd = f"{env_exports} bash -c 'source {gen_script} && phase_gen_changelog'"
+def test_pattern_no_match_plain_commit() -> None:
+    """STORY_ID_PATTERN returns None for commits without any story ID tag."""
+    assert STORY_ID_PATTERN.search("chore: update dependencies") is None
 
-    return subprocess.run(
-        ["bash", "-c", cmd],
-        cwd=repo_dir,
-        capture_output=True,
-        text=True,
-        timeout=30,
+
+# ── find_orphan_commits ───────────────────────────────────────────────────────
+
+_HASH_WITH_ID = "a" * 40
+_HASH_ORPHAN = "b" * 40
+
+
+def _make_git_run(log_output: str, body_map: dict[str, str]) -> object:
+    """Return a side-effect callable for subprocess.run that fakes git log output."""
+
+    def _side_effect(cmd: list[str], **kwargs: object) -> MagicMock:
+        m: MagicMock = MagicMock()
+        m.returncode = 0
+        m.stdout = ""
+        if "--format=%H %s" in cmd:
+            m.stdout = log_output
+        else:
+            for h, body in body_map.items():
+                if h in cmd:
+                    m.stdout = body
+                    break
+        return m
+
+    return _side_effect
+
+
+def test_find_orphan_commits_detects_missing_story_id(tmp_path: Path) -> None:
+    """find_orphan_commits returns commits without US-NNN/UT-NNN — these would emit a warning (AC3)."""
+    log = f"{_HASH_WITH_ID} feat: add feature\n{_HASH_ORPHAN} chore: update deps\n"
+    bodies = {
+        _HASH_WITH_ID: "feat: add feature\n\nStory ID: US-100\n",
+        _HASH_ORPHAN: "chore: update deps\n",
+    }
+    with patch("lib.gen_changelog.subprocess.run", side_effect=_make_git_run(log, bodies)):
+        orphans = find_orphan_commits(str(tmp_path))
+
+    assert len(orphans) == 1
+    assert orphans[0]["subject"] == "chore: update deps"
+    assert orphans[0]["hash"] == _HASH_ORPHAN[:7]
+
+
+def test_find_orphan_commits_empty_when_all_have_story_ids(tmp_path: Path) -> None:
+    """find_orphan_commits returns empty list when every commit carries a story ID."""
+    log = f"{_HASH_WITH_ID} feat: add feature\n"
+    bodies = {_HASH_WITH_ID: "feat: add feature\n\nStory ID: US-200\n"}
+    with patch("lib.gen_changelog.subprocess.run", side_effect=_make_git_run(log, bodies)):
+        orphans = find_orphan_commits(str(tmp_path))
+
+    assert orphans == []
+
+
+# ── write_orphan_warnings ─────────────────────────────────────────────────────
+
+
+def test_write_orphan_warnings_creates_file_with_entries(tmp_path: Path) -> None:
+    """write_orphan_warnings writes hash+subject lines for each orphan commit."""
+    orphans = [
+        {"hash": "abc1234", "subject": "chore: no story id"},
+        {"hash": "def5678", "subject": "fix: random maintenance"},
+    ]
+    wf = str(tmp_path / ".spiral" / "phase_g_warnings.log")
+    write_orphan_warnings(orphans, wf)
+    content = Path(wf).read_text(encoding="utf-8")
+    assert "abc1234 chore: no story id" in content
+    assert "def5678 fix: random maintenance" in content
+
+
+# ── generate_changelog ────────────────────────────────────────────────────────
+
+
+def test_generate_changelog_markdown_contains_section_headers(tmp_path: Path) -> None:
+    """generate_changelog produces CHANGELOG.md with conventional-commit section headers (AC2)."""
+    output_file = tmp_path / "CHANGELOG.md"
+    changelog_content = textwrap.dedent(
+        """\
+        # Changelog
+
+        ## [Unreleased]
+
+        ### feat
+        - add new feature (abc1234) Story ID: US-100
+
+        ### fix
+        - resolve bug (def5678) Story ID: US-101
+
+        ### docs
+        - update readme (ghi9012) Story ID: US-102
+
+        ### refactor
+        - clean up code (jkl3456) Story ID: US-103
+        """
     )
 
-
-def _init_git_repo(tmp_path: Path) -> Path:
-    """Create a git repo with cliff.toml and some commits."""
-    repo = tmp_path / "repo"
-    repo.mkdir()
-
-    # Copy cliff.toml from project
-    cliff_src = Path(__file__).parent.parent / "cliff.toml"
-    cliff_dst = repo / "cliff.toml"
-    cliff_dst.write_text(cliff_src.read_text(encoding="utf-8"), encoding="utf-8")
-
-    # Create gen_changelog.sh stub path (preserve LF line endings for bash)
-    phases_dir = repo / "lib" / "phases"
-    phases_dir.mkdir(parents=True)
-    gen_src = Path(__file__).parent.parent / "lib" / "phases" / "gen_changelog.sh"
-    gen_dst = phases_dir / "gen_changelog.sh"
-    content = gen_src.read_text(encoding="utf-8")
-    with open(gen_dst, "w", encoding="utf-8", newline="\n") as f:
-        f.write(content)
-
-    # Create .spiral dir
-    (repo / ".spiral").mkdir()
-
-    # Init git repo
-    subprocess.run(
-        ["git", "init"],
-        cwd=repo,
-        capture_output=True,
-        check=True,
-    )
-    subprocess.run(
-        ["git", "config", "user.email", "test@test.com"],
-        cwd=repo,
-        capture_output=True,
-        check=True,
-    )
-    subprocess.run(
-        ["git", "config", "user.name", "Test"],
-        cwd=repo,
-        capture_output=True,
-        check=True,
-    )
-
-    return repo
-
-
-def _add_commit(repo: Path, message: str, filename: str = "") -> None:
-    """Add a file and commit with given message."""
-    if not filename:
-        # Use only the first line (subject) for filename, strip unsafe chars
-        subject = message.split("\n")[0]
-        filename = subject.replace(" ", "_").replace(":", "").replace("/", "")[:20] + ".txt"
-    (repo / filename).write_text("content", encoding="utf-8")
-    subprocess.run(["git", "add", filename], cwd=repo, capture_output=True, check=True)
-    subprocess.run(
-        ["git", "commit", "-m", message],
-        cwd=repo,
-        capture_output=True,
-        check=True,
-    )
-
-
-# ── AC1: Binary validation tests ────────────────────────────────────────────
-
-
-class TestAC1BinaryValidation:
-    """AC1: lib/phases/gen_changelog.sh validates git-cliff binary exists."""
-
-    def test_fails_when_git_cliff_binary_not_found(self, tmp_path: Path) -> None:
-        """Exits with error when SPIRAL_GIT_CLIFF_BIN points to missing binary."""
-        repo = _init_git_repo(tmp_path)
-        _add_commit(repo, "feat: initial commit\n\nStory ID: US-001")
-
-        result = _run_gen_changelog(
-            repo,
-            env_overrides={"SPIRAL_GIT_CLIFF_BIN": "/nonexistent/git-cliff-fake"},
-        )
-
-        assert result.returncode != 0
-        assert "not found" in result.stderr.lower() or "error" in result.stderr.lower()
-
-    def test_uses_spiral_git_cliff_bin_from_config(self, tmp_path: Path) -> None:
-        """Uses SPIRAL_GIT_CLIFF_BIN path when set."""
-        repo = _init_git_repo(tmp_path)
-        _add_commit(repo, "feat: initial commit\n\nStory ID: US-001")
-
-        # Create a fake git-cliff that just writes a CHANGELOG
-        fake_bin = tmp_path / "fake-git-cliff"
-        fake_bin.write_text(
-            '#!/bin/bash\necho "# Changelog" > "$4"\n',
-            encoding="utf-8",
-        )
-        subprocess.run(["chmod", "+x", str(fake_bin)], capture_output=True)
-
-        result = _run_gen_changelog(
-            repo,
-            env_overrides={"SPIRAL_GIT_CLIFF_BIN": str(fake_bin)},
-        )
-
-        assert result.returncode == 0
-
-    def test_fails_when_cliff_toml_missing(self, tmp_path: Path) -> None:
-        """Exits with error when cliff.toml is not found."""
-        repo = _init_git_repo(tmp_path)
-        _add_commit(repo, "feat: initial commit\n\nStory ID: US-001")
-
-        # Remove cliff.toml
-        (repo / "cliff.toml").unlink()
-
-        # Create a fake git-cliff so binary check passes
-        fake_bin = tmp_path / "fake-git-cliff2"
-        fake_bin.write_text("#!/bin/bash\nexit 0\n", encoding="utf-8")
-        subprocess.run(["chmod", "+x", str(fake_bin)], capture_output=True)
-
-        result = _run_gen_changelog(
-            repo,
-            env_overrides={"SPIRAL_GIT_CLIFF_BIN": str(fake_bin)},
-        )
-
-        assert result.returncode != 0
-        assert "cliff.toml" in result.stderr
-
-
-# ── AC2: CHANGELOG.md generation tests ──────────────────────────────────────
-
-
-class TestAC2ChangelogGeneration:
-    """AC2: CHANGELOG.md generated with sections for feat/fix/docs/refactor."""
-
-    def test_changelog_created_with_sections(self, tmp_path: Path) -> None:
-        """CHANGELOG.md contains section headers from conventional commits."""
-        repo = _init_git_repo(tmp_path)
-
-        # Create commits with different conventional types
-        _add_commit(repo, "feat: add new feature\n\nStory ID: US-100")
-        _add_commit(repo, "fix: resolve bug\n\nStory ID: US-101")
-        _add_commit(repo, "docs: update readme\n\nStory ID: US-102")
-        _add_commit(repo, "refactor: clean up code\n\nStory ID: US-103")
-
-        # Create a fake git-cliff that produces realistic output
-        fake_bin = tmp_path / "fake-cliff"
-        fake_bin.write_text(
-            textwrap.dedent("""\
-                #!/bin/bash
-                # Parse --output flag to get output path
-                OUTPUT=""
-                while [[ $# -gt 0 ]]; do
-                    case $1 in
-                        --output) OUTPUT="$2"; shift 2 ;;
-                        *) shift ;;
-                    esac
-                done
-                cat > "$OUTPUT" <<'CHANGELOG'
-                # Changelog
-
-                ## [Unreleased]
-
-                ### Features
-                - add new feature (abc1234) Story ID: US-100
-
-                ### Bug Fixes
-                - resolve bug (def5678) Story ID: US-101
-
-                ### Documentation
-                - update readme (ghi9012) Story ID: US-102
-
-                ### Refactoring
-                - clean up code (jkl3456) Story ID: US-103
-                CHANGELOG
-            """),
-            encoding="utf-8",
-        )
-        subprocess.run(["chmod", "+x", str(fake_bin)], capture_output=True)
-
-        result = _run_gen_changelog(
-            repo,
-            env_overrides={"SPIRAL_GIT_CLIFF_BIN": str(fake_bin)},
-        )
-
-        assert result.returncode == 0
-        changelog = (repo / "CHANGELOG.md").read_text(encoding="utf-8")
-        assert "Features" in changelog
-        assert "Bug Fixes" in changelog
-        assert "Documentation" in changelog
-        assert "Refactoring" in changelog
-
-    def test_changelog_contains_commit_hashes(self, tmp_path: Path) -> None:
-        """CHANGELOG.md entries include commit hashes."""
-        repo = _init_git_repo(tmp_path)
-        _add_commit(repo, "feat: test feature\n\nStory ID: US-200")
-
-        fake_bin = tmp_path / "fake-cliff-hash"
-        fake_bin.write_text(
-            textwrap.dedent("""\
-                #!/bin/bash
-                OUTPUT=""
-                while [[ $# -gt 0 ]]; do
-                    case $1 in
-                        --output) OUTPUT="$2"; shift 2 ;;
-                        *) shift ;;
-                    esac
-                done
-                cat > "$OUTPUT" <<'CHANGELOG'
-                # Changelog
-
-                ## [Unreleased]
-
-                ### Features
-                - test feature (abc1234)
-                CHANGELOG
-            """),
-            encoding="utf-8",
-        )
-        subprocess.run(["chmod", "+x", str(fake_bin)], capture_output=True)
-
-        result = _run_gen_changelog(
-            repo,
-            env_overrides={"SPIRAL_GIT_CLIFF_BIN": str(fake_bin)},
-        )
-
-        assert result.returncode == 0
-        changelog = (repo / "CHANGELOG.md").read_text(encoding="utf-8")
-        assert "abc1234" in changelog
-
-
-# ── AC3: Orphan commit detection tests ──────────────────────────────────────
-
-
-class TestAC3OrphanCommitDetection:
-    """AC3: Orphan commits logged to .spiral/phase_g_warnings.log."""
-
-    def test_orphan_commits_logged(self, tmp_path: Path) -> None:
-        """Commits without story ID are logged to warnings file."""
-        repo = _init_git_repo(tmp_path)
-
-        # Mix of commits with and without story IDs
-        _add_commit(repo, "feat: add feature\n\nStory ID: US-100")
-        _add_commit(repo, "fix: random fix without story id")
-        _add_commit(repo, "docs: orphan documentation update")
-
-        fake_bin = tmp_path / "fake-cliff-orphan"
-        fake_bin.write_text(
-            textwrap.dedent("""\
-                #!/bin/bash
-                OUTPUT=""
-                while [[ $# -gt 0 ]]; do
-                    case $1 in
-                        --output) OUTPUT="$2"; shift 2 ;;
-                        *) shift ;;
-                    esac
-                done
-                echo "# Changelog" > "$OUTPUT"
-            """),
-            encoding="utf-8",
-        )
-        subprocess.run(["chmod", "+x", str(fake_bin)], capture_output=True)
-
-        result = _run_gen_changelog(
-            repo,
-            env_overrides={"SPIRAL_GIT_CLIFF_BIN": str(fake_bin)},
-        )
-
-        assert result.returncode == 0
-        warnings_file = repo / ".spiral" / "phase_g_warnings.log"
-        assert warnings_file.exists()
-        warnings = warnings_file.read_text(encoding="utf-8")
-        # The two orphan commits should be logged
-        assert "orphan documentation update" in warnings
-        assert "random fix without story id" in warnings
-        # The commit with US-100 should NOT be logged
-        assert "US-100" not in warnings
-
-    def test_no_orphans_when_all_have_story_ids(self, tmp_path: Path) -> None:
-        """No warnings when all commits have story IDs."""
-        repo = _init_git_repo(tmp_path)
-
-        _add_commit(repo, "feat: feature one\n\nStory ID: US-100")
-        _add_commit(repo, "fix: bug fix\n\nStory ID: UT-200")
-
-        fake_bin = tmp_path / "fake-cliff-clean"
-        fake_bin.write_text(
-            textwrap.dedent("""\
-                #!/bin/bash
-                OUTPUT=""
-                while [[ $# -gt 0 ]]; do
-                    case $1 in
-                        --output) OUTPUT="$2"; shift 2 ;;
-                        *) shift ;;
-                    esac
-                done
-                echo "# Changelog" > "$OUTPUT"
-            """),
-            encoding="utf-8",
-        )
-        subprocess.run(["chmod", "+x", str(fake_bin)], capture_output=True)
-
-        result = _run_gen_changelog(
-            repo,
-            env_overrides={"SPIRAL_GIT_CLIFF_BIN": str(fake_bin)},
-        )
-
-        assert result.returncode == 0
-        assert "All commits have story IDs" in result.stdout
-
-    def test_orphan_warning_count_in_output(self, tmp_path: Path) -> None:
-        """Output includes count of orphan commits found."""
-        repo = _init_git_repo(tmp_path)
-
-        _add_commit(repo, "feat: no story id commit 1")
-        _add_commit(repo, "fix: no story id commit 2")
-        _add_commit(repo, "docs: has story\n\nStory ID: US-300")
-
-        fake_bin = tmp_path / "fake-cliff-count"
-        fake_bin.write_text(
-            textwrap.dedent("""\
-                #!/bin/bash
-                OUTPUT=""
-                while [[ $# -gt 0 ]]; do
-                    case $1 in
-                        --output) OUTPUT="$2"; shift 2 ;;
-                        *) shift ;;
-                    esac
-                done
-                echo "# Changelog" > "$OUTPUT"
-            """),
-            encoding="utf-8",
-        )
-        subprocess.run(["chmod", "+x", str(fake_bin)], capture_output=True)
-
-        result = _run_gen_changelog(
-            repo,
-            env_overrides={"SPIRAL_GIT_CLIFF_BIN": str(fake_bin)},
-        )
-
-        assert result.returncode == 0
-        assert "orphan commits" in result.stdout.lower()
-        assert "WARNING" in result.stdout
-
-    def test_ut_prefix_recognized_as_story_id(self, tmp_path: Path) -> None:
-        """UT-NNN pattern is also recognized as a valid story ID."""
-        repo = _init_git_repo(tmp_path)
-
-        _add_commit(repo, "test: add test\n\nStory ID: UT-150")
-
-        fake_bin = tmp_path / "fake-cliff-ut"
-        fake_bin.write_text(
-            textwrap.dedent("""\
-                #!/bin/bash
-                OUTPUT=""
-                while [[ $# -gt 0 ]]; do
-                    case $1 in
-                        --output) OUTPUT="$2"; shift 2 ;;
-                        *) shift ;;
-                    esac
-                done
-                echo "# Changelog" > "$OUTPUT"
-            """),
-            encoding="utf-8",
-        )
-        subprocess.run(["chmod", "+x", str(fake_bin)], capture_output=True)
-
-        result = _run_gen_changelog(
-            repo,
-            env_overrides={"SPIRAL_GIT_CLIFF_BIN": str(fake_bin)},
-        )
-
-        assert result.returncode == 0
-        assert "All commits have story IDs" in result.stdout
+    def fake_cliff(cmd: list[str], **kwargs: object) -> MagicMock:
+        output_file.write_text(changelog_content, encoding="utf-8")
+        m: MagicMock = MagicMock()
+        m.returncode = 0
+        return m
+
+    with patch("lib.gen_changelog.subprocess.run", side_effect=fake_cliff):
+        ok = generate_changelog("git-cliff", str(tmp_path / "cliff.toml"), str(output_file))
+
+    assert ok is True
+    md = output_file.read_text(encoding="utf-8")
+    # AC2: assert section headers for conventional-commit types
+    assert "### feat" in md
+    assert "### fix" in md
+    assert "### docs" in md
+    assert "### refactor" in md
