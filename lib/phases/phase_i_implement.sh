@@ -524,6 +524,42 @@ run_phase_gate_and_implement() {
                         --prd "$PRD_FILE" \
                         2>/dev/null || true
                     fi
+
+                    # US-788: Stuck Story Diagnosis — detect repeated identical failures
+                    _RETRY_COUNT=$("$JQ" -r --arg id "$_NEXT_SID" '.[$id] // 0' "$REPO_ROOT/retry-counts.json" 2>/dev/null || echo 0)
+                    if [[ $_RETRY_COUNT -ge 3 ]]; then
+                      echo "  [stuck-diagnosis] $_NEXT_SID failed 3+ times, diagnosing root cause..."
+                      # Extract failure messages from the last 3 attempts in results.tsv
+                      _FAILURE_TMPDIR=$(mktemp -d -p "$SCRATCH_DIR" stuck_XXXXXX 2>/dev/null || echo "$SCRATCH_DIR/stuck_$$")
+                      mkdir -p "$_FAILURE_TMPDIR"
+
+                      # Get the last 3 failure messages for this story from results.tsv
+                      awk -F'\t' -v sid="$_NEXT_SID" 'NR>1 && $4 == sid && $6 != "passed" { print $0 }' "$RESULTS_FILE" 2>/dev/null | \
+                        tail -3 | \
+                        awk -F'\t' '{print $6 ": " $0}' > "${_FAILURE_TMPDIR}/failures.txt" 2>/dev/null || true
+
+                      if [[ -f "${_FAILURE_TMPDIR}/failures.txt" && -s "${_FAILURE_TMPDIR}/failures.txt" ]]; then
+                        "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/impl/stuck_diagnosis.py" \
+                          --story-id "$_NEXT_SID" \
+                          --failures "${_FAILURE_TMPDIR}/failures.txt" \
+                          --prd "$PRD_FILE" \
+                          2>/dev/null || true
+
+                        # Check if classified as external-dependency and mark as skipped
+                        _DIAGNOSIS=$("$JQ" -r --arg id "$_NEXT_SID" '.userStories[] | select(.id == $id) | ._stuckDiagnosis // empty' "$PRD_FILE" 2>/dev/null)
+                        if [[ -n "$_DIAGNOSIS" ]]; then
+                          _DIAG_CLASS=$(printf '%s' "$_DIAGNOSIS" | "$JQ" -r '.classification // "unknown"' 2>/dev/null)
+                          if [[ "$_DIAG_CLASS" == "external-dependency" ]]; then
+                            echo "  [stuck-diagnosis] $_NEXT_SID: external-dependency detected — skipping story"
+                            _DIAG_ACTION=$(printf '%s' "$_DIAGNOSIS" | "$JQ" -r '.recommended_action // ""' 2>/dev/null)
+                            "$JQ" --arg id "$_NEXT_SID" --arg action "$_DIAG_ACTION" \
+                              '(.userStories[] | select(.id == $id)) |= (. + {"_skipped": true, "_stuckDiagnosisSkipped": true})' \
+                              "$PRD_FILE" >"${PRD_FILE}.tmp" && mv "${PRD_FILE}.tmp" "$PRD_FILE" || true
+                          fi
+                        fi
+                      fi
+                      rm -rf "$_FAILURE_TMPDIR" 2>/dev/null || true
+                    fi
                   fi
 
                   "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/observability/otel_spans.py" end-story \

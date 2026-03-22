@@ -393,3 +393,34 @@ Story US-787 marked as passes=true. All acceptance criteria met:
 - Partial victory handler is non-blocking: if report missing, skips partial victory processing
 - Sub-stories created with estimatedComplexity="small" for quick resolution
 - _decomposedFrom tracking enables future analysis of partial victory patterns
+
+## Pre-analysis for US-788 (Gemini 2.5 Pro)
+This technical brief is for implementing story US-788 within the Spiral project. Note: The context appears to be for a CLI/automation tool, not a Frappe application.
+
+**1. Files to Modify:**
+*   **Create:** `lib/stuck_diagnosis.py` - This will house the core classification logic.
+*   **Modify:** `spiral.sh` - The main execution script. The change will be in the story processing loop to invoke the diagnosis after repeated failures.
+*   **Modify:** A Python script managing the main story processing loop, likely `main.py` or a similar orchestrator called by `spiral.sh`, to handle state and call the new module.
+*   **Potentially Modify:** `prd.schema.json` - To officially add the `_stuckDiagnosis` field to the story JSON schema.
+
+**2. Involved DocTypes/Hooks:**
+*   This is not a Frappe project. The primary data structure is the story JSON object. The `_stuckDiagnosis` field will be added to this JSON to store the classification result and recommended action.
+
+**3. Implementation Approach:**
+1.  In `lib/stuck_diagnosis.py`, create a function `diagnose(story_id, failures)`.
+2.  This function will implement a classifier based on the content of the `failures` (an array of error message strings).
+    *   `scope-too-large`: Check for timeout errors or excessively long execution times.
+    *   `external-dependency`: Grep for network error patterns (e.g., "Could not resolve host", HTTP 5xx codes).
+    *   `missing-knowledge`: Look for import errors or undefined references related to domain concepts.
+    *   `model-resolvable`: Default for syntax errors, logical flaws, etc.
+3.  In the main processing loop (`spiral.sh`/`main.py`), after a story attempt fails, update a failure counter and log the error message for that story.
+4.  If the failure count for a story reaches 3, call the `diagnose()` function.
+5.  Update the story's JSON object with a `_stuckDiagnosis` field containing the result.
+6.  If the diagnosis is `external-dependency`, modify the loop to skip this story in subsequent runs, logging the reason.
+
+**4. Edge Cases & Gotchas:**
+*   **Error Similarity Metric:** The ">70% overlap" requires a robust string comparison. A simple diff or Levenshtein distance on error log content should be sufficient. Avoid over-engineering.
+*   **State Persistence:** Failure history and counts must be persisted between runs, likely by updating the main `prd.json` file or a separate state file (e.g., `spiral_events.jsonl`).
+*   **Classifier Ambiguity:** The classification rules will need refinement. Initially, focus on clear signals (e.g., "Timeout" => `scope-too-large`). The distinction between `model-resolvable` and `missing-knowledge` can be nuanced.
+*   **Circular Dependency:** Ensure that the diagnosis process itself doesn't trigger the same failure conditions it's trying to analyze.
+

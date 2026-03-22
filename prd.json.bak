@@ -5453,7 +5453,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "tags": [
         "core-flow",
         "phase-m"
@@ -5526,7 +5526,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "tags": [
         "core-flow",
         "phase-v"
@@ -5550,7 +5550,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "tags": [
         "core-flow",
         "phase-c"
@@ -5600,12 +5600,13 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "tags": [
         "core-flow",
         "phase-l"
       ],
-      "model": "haiku"
+      "model": "haiku",
+      "_scopeCreep": true
     },
     {
       "id": "US-786",
@@ -5650,7 +5651,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "tags": [
         "core-flow",
         "phase-i"
