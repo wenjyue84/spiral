@@ -96,3 +96,76 @@ Story US-782 marked as passes=true. All acceptance criteria met:
 4. ✓ Story _failureReason field updated with specific test names
 5. ✓ Unit test verifies test_foo.py::test_bar matches lib/foo.py (test_ prefix stripped)
 
+
+## Iteration [CURRENT] - Story: US-783 Phase C Diminishing Returns Exit
+
+### Implementation Summary
+
+Successfully implemented cost-per-pass tracking in Phase C to detect and exit SPIRAL when
+budget efficiency drops (cost doubles 3+ consecutive iterations).
+
+### What was implemented
+
+1. **lib/diminishing_returns.py** (new, 240 lines)
+   - Core cost analysis and diminishing returns detection module
+   - Functions: parse_iteration_costs, calculate_cost_per_pass, detect_diminishing_returns, 
+     generate_diagnostic_report, check_diminishing_returns
+   - Parses results.tsv and extracts cost/pass count per iteration
+   - Identifies 3 consecutive cost doublings using configurable multiplier (default 2.0x)
+   - Generates formatted diagnostic table with cost trend visualization
+   - Type-safe with mypy --strict compliance
+
+2. **spiral.config.sh** (modified)
+   - Added SPIRAL_DIMINISHING_RETURNS_MULTIPLIER config variable (default 2.0)
+   - Positioned after cost ceiling section with explanatory comment
+   - Allows per-session override via environment variable
+
+3. **lib/phases/phase_c_check_done.sh** (modified, ~30 lines added)
+   - Integrated diminishing returns check after check_done decision
+   - Calls lib/diminishing_returns.py via Python subprocess
+   - Exits cleanly with diagnostic report if threshold exceeded
+   - Prints cost trend table in human-readable ASCII format
+   - Logs to .spiral/results.tsv for next iteration
+
+4. **tests/test_diminishing_returns.py** (new, 260 lines)
+   - 20 comprehensive unit tests organized in 6 test classes:
+     * TestParseIterationCosts: parsing results.tsv into iteration data
+     * TestCalculateCostPerPass: cost calculation with edge cases
+     * TestDetectDiminishingReturns: 3-doubling detection with None values
+     * TestGenerateDiagnosticReport: report formatting and content
+     * TestCheckDiminishingReturns: integration tests
+   - Covers main path: $1→$2→$4→$8 triggers exit
+   - Edge cases: no data, single iteration, stable costs, custom multipliers
+   - Uses pytest fixture for temporary file cleanup on Windows
+
+### Patterns discovered
+
+- Cost estimation from results.tsv: cache_read_tokens * 0.0008 + cache_creation_tokens * 0.001 (USD)
+- Diminishing returns requires 3+ consecutive iterations with valid (non-None) cost data
+- Window-based detection: slide across sorted iterations, check consecutive triads
+- Diagnostic output follows ASCII table format for terminal readability
+- Phase C cleanup: remove checkpoint file before next iteration loop
+
+### Quality checks passed
+
+- 20/20 unit tests pass (mypy --strict, ruff, pytest)
+- mypy --strict: type-safe with Optional[float] and dict[int, dict[str, int | float]] annotations
+- ruff check: all linting passed (removed unused import)
+- shellcheck --severity=error: phase_c_check_done.sh validated
+- Test coverage: happy path, edge cases (no passes, None values, insufficient iterations)
+
+### Files modified/created
+
+- Created: lib/diminishing_returns.py (240 lines)
+- Modified: spiral.config.sh (9 lines added)
+- Modified: lib/phases/phase_c_check_done.sh (30 lines added after prd_stats)
+- Created: tests/test_diminishing_returns.py (260 lines, 20 tests)
+
+### Story completion
+
+Story US-783 marked as passes=true. All acceptance criteria met:
+1. ✓ Phase C calculates cost-per-new-pass each iteration from results.tsv
+2. ✓ Exit triggered when cost-per-pass doubles 3 consecutive iterations
+3. ✓ Threshold configurable: SPIRAL_DIMINISHING_RETURNS_MULTIPLIER (default 2.0)
+4. ✓ Unit test verifies exit when cost-per-pass goes $1 -> $2 -> $4 -> $8
+
