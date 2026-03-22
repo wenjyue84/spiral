@@ -39,6 +39,7 @@ Subcommands:
   show-merge-order        Show pending stories in topologically sorted merge order (US-698)
   list-federation         Display sub-project configuration and story allocation summary (US-665)
   validate-governance     Enforce per-project story quotas and ID patterns (US-672)
+  federated-cost-report   Per-sub-project cost breakdown by phase (US-713)
 """
 
 import argparse
@@ -3370,6 +3371,18 @@ def main():
         help="Output machine-readable JSON instead of table format",
     )
 
+    # ── federated-cost-report subcommand (US-713) ───────────────────────────────
+    federated_cost_report_parser = subparsers.add_parser(
+        "federated-cost-report",
+        help="Per-sub-project cost breakdown by phase (US-713)",
+    )
+    federated_cost_report_parser.add_argument(
+        "--results",
+        default="results.tsv",
+        metavar="PATH",
+        help="Path to results.tsv (default: results.tsv)",
+    )
+
     # ── memory subcommand (US-350) ──────────────────────────────────────────────
     memory_parser = subparsers.add_parser(
         "memory",
@@ -3813,6 +3826,8 @@ def main():
         cmd_validate_results_tsv(args)
     elif args.command == "federated-status":
         cmd_federated_status(args)
+    elif args.command == "federated-cost-report":
+        cmd_federated_cost_report(args)
     elif args.command == "config":
         config_command = getattr(args, "config_command", None)
         if config_command == "export-env":
@@ -3932,6 +3947,28 @@ def cmd_federated_status(args: argparse.Namespace) -> None:
         else:
             print(format_table(results))
     except FileNotFoundError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def cmd_federated_cost_report(args: argparse.Namespace) -> None:
+    """Per-sub-project cost breakdown by phase (US-713).
+
+    Usage: spiral federated-cost-report [--results PATH]
+    Outputs markdown table grouped by (sub_project, phase).
+    """
+    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    from cli.federated_cost_report import federated_cost_report  # type: ignore[import-untyped]
+
+    results_path = Path(getattr(args, "results", "results.tsv"))
+
+    try:
+        output = federated_cost_report(results_path)
+        print(output)
+    except FileNotFoundError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
