@@ -11,31 +11,6 @@
   ],
   "userStories": [
     {
-      "id": "US-736",
-      "title": "Security tests for validate_results_tsv (US-570)",
-      "priority": "high",
-      "description": "Write security-focused tests for lib/spiral/validate_results_tsv.py (implemented in US-570). Tests verify that the validator safely handles malformed input, does not leak sensitive data in error output, and rejects path-traversal or injection attempts in story_id/model fields.",
-      "acceptanceCriteria": [
-        "uv run pytest tests/test_security_validate_results_tsv.py -v exits 0 with all tests passing",
-        "Validator error dict contains no raw file content, tokens, or credential-like strings when given malicious input (asserted via string scan in test)",
-        "Validator rejects story_id values containing shell metacharacters or path separators without raising unhandled exceptions",
-        "Validator returns structured errors (not exceptions) for every invalid input fixture in the test file"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_security_validate_results_tsv.py (create new — security test suite)",
-        "File to edit: lib/spiral/validate_results_tsv.py (validate function — read before editing; add input sanitisation only if tests reveal gaps)",
-        "Test command: uv run pytest tests/test_security_validate_results_tsv.py -v",
-        "Fixtures to cover: empty file, story_id with '../', story_id with ';rm -rf', model name with embedded newline, token_count of -1, duplicate rows with sensitive-looking values like 'password=abc'",
-        "US-570 must be merged first so validate() is importable"
-      ],
-      "dependencies": [
-        "US-570"
-      ],
-      "estimatedComplexity": "small",
-      "passes": true,
-      "model": "haiku"
-    },
-    {
       "id": "US-753",
       "title": "[Security Test] Validate SPIRAL_COST_CEILING budget gate cannot be bypassed",
       "priority": "high",
@@ -58,12 +33,13 @@
         "US-498"
       ],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "tags": [
         "security",
         "auto-generated"
       ],
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-03-22T15:48:17Z"
     },
     {
       "id": "US-754",
@@ -206,6 +182,29 @@
       "model": "haiku"
     },
     {
+      "id": "US-767",
+      "title": "[Integration Test] file_aware_retry: Track Failed Files and Retry Only Those",
+      "priority": "high",
+      "description": "Write integration tests for lib/impl/file_aware_retry.py (US-597). Verify that failed files are identified during a Phase I run and that the retry step only re-implements those specific files, not the full story set. Tests must run without external services.",
+      "acceptanceCriteria": [
+        "tests/test_file_aware_retry.py contains a happy-path test: given a known set of failed files, the retry function only targets those files",
+        "tests/test_file_aware_retry.py contains an edge-case test: when no files failed, retry skips re-implementation entirely",
+        "uv run pytest tests/test_file_aware_retry.py -v exits 0 with all tests passing"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_file_aware_retry.py (add integration tests for file_aware_retry module)",
+        "Study lib/impl/file_aware_retry.py to identify the public API under test (function signatures, return types)",
+        "Mock any subprocess calls to lib/impl/retry.sh to avoid requiring a live Claude CLI",
+        "Test command: uv run pytest tests/test_file_aware_retry.py -v"
+      ],
+      "dependencies": [
+        "US-597"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
       "id": "US-755",
       "title": "[Regression Test] US-553 Phase Sequence: Phases R→T→S→M Execute in Order",
       "priority": "medium",
@@ -276,145 +275,6 @@
       ],
       "estimatedComplexity": "medium",
       "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-761",
-      "title": "[Regression Test] Ralph: Episodic Memory Injected into Prompt (US-649)",
-      "priority": "medium",
-      "description": "Write a regression test that verifies ralph.sh retrieves episodic memory matches and injects them as few-shot examples into the implementation prompt before executing a story. The test must fail if the memory retrieval call is removed or its output is no longer forwarded to the prompt builder.",
-      "acceptanceCriteria": [
-        "uv run pytest tests/test_us649_episodic_memory.py -v exits 0 with feature present",
-        "Test fails (non-zero) when episodic memory retrieval is stubbed to return an empty list",
-        "Test asserts that at least one retrieved memory snippet appears verbatim in the constructed prompt string",
-        "uv run pytest tests/ -k us_649 -v passes with no collection errors"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_us649_episodic_memory.py (new regression test module)",
-        "Inspect ralph/ralph.sh or lib/episodic_memory.py to locate the retrieval call and prompt assembly site before writing the test",
-        "Test command: uv run pytest tests/test_us649_episodic_memory.py -v",
-        "Use monkeypatch or unittest.mock to stub the retrieval function; assert prompt contains injected examples when stubs return fixtures",
-        "Check for an existing episodic memory module: grep -r 'episodic' lib/ ralph/ to find the exact function name"
-      ],
-      "dependencies": [
-        "US-649"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-762",
-      "title": "Regression Test: CLI trace-dependencies federated dep resolution",
-      "priority": "medium",
-      "description": "Write regression tests to guard against future breakage of US-675 (spiral trace-dependencies CLI). Tests must cover successful dependency chain resolution for a known story, circular dependency detection, and cross-project boundary marking in output. Tests invoke the CLI via subprocess so they fail if the feature is removed.",
-      "acceptanceCriteria": [
-        "uv run pytest tests/test_trace_dependencies.py -v exits 0 with at least 2 passing tests",
-        "subprocess call to `python main.py trace-dependencies <id>` on a fixture prd with linear deps returns exit code 0 and prints a tree-like dependency list to stdout",
-        "subprocess call to `python main.py trace-dependencies <id>` on a fixture prd with a circular dep returns non-zero exit code and prints 'circular' in stderr or stdout",
-        "Deleting or stubbing out the trace-dependencies handler in main.py causes at least one test to fail (verified by reading the test assertions)"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_trace_dependencies.py (new file — create all regression tests for US-675 here)",
-        "File to edit: tests/fixtures/prd_trace_deps.json (new fixture — minimal prd.json with a 2-level dep chain and a separate circular dep pair)",
-        "Test command: uv run pytest tests/test_trace_dependencies.py -v",
-        "Test command: uv run pytest tests/ -k trace_dependencies -v",
-        "Use subprocess.run(['python','main.py','trace-dependencies','US-001'], capture_output=True) and assert on returncode, stdout",
-        "Circular dep fixture: story A depends on B, B depends on A — assert returncode != 0 or 'circular' in combined output"
-      ],
-      "dependencies": [
-        "US-675"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "tags": [
-        "regression",
-        "auto-generated"
-      ],
-      "model": "haiku"
-    },
-    {
-      "id": "US-763",
-      "title": "[E2E Test] Dashboard AlertsPanel receives WebSocket cost-ceiling alerts",
-      "priority": "medium",
-      "description": "Write an end-to-end Playwright test verifying the user flow introduced by US-591: a browser client connects to /ws/alerts, cumulative-cost and phase-budget threshold alerts are streamed, and the AlertsPanel in the spiral-ui dashboard (localhost:5299) renders each alert within 2 seconds. This validates operator visibility during long SPIRAL runs.",
-      "acceptanceCriteria": [
-        "AlertsPanel is visible in the dashboard and shows at least one alert after a mock WebSocket message is injected: `uv run pytest tests/test_e2e_us591_alerts.py::test_alerts_panel_visible -v`",
-        "WebSocket client connecting to ws://localhost:5299/ws/alerts receives a JSON alert within 2 s of cumulative cost crossing 80 % of SPIRAL_COST_CEILING: `uv run pytest tests/test_e2e_us591_alerts.py::test_cost_ceiling_alert_streamed -v`",
-        "Full E2E suite passes headless: `uv run pytest tests/test_e2e_us591_alerts.py -v`"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_e2e_us591_alerts.py (new file — Playwright-pytest E2E test for US-591 AlertsPanel)",
-        "File to edit: spiral-ui/src/components/AlertsPanel.tsx or AlertsPanel.jsx (locate existing component; add data-testid='alerts-panel' if missing so Playwright can query it)",
-        "Test command: uv run pytest tests/test_e2e_us591_alerts.py -v",
-        "Use playwright-pytest fixture `page` to navigate to http://localhost:5299, inject a fake WebSocket message via `page.evaluate()` or intercept with `page.route()`, then assert `page.locator('[data-testid=alerts-panel]')` contains the alert text",
-        "If spiral-ui is not running during CI, mock the WebSocket server with a lightweight asyncio server started as a pytest fixture on port 5299"
-      ],
-      "dependencies": [
-        "US-591"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "tags": [
-        "e2e",
-        "auto-generated"
-      ],
-      "model": "haiku"
-    },
-    {
-      "id": "US-764",
-      "title": "[Regression Test] Auto-Decompose Triggers After 3 Phase I Failures",
-      "priority": "medium",
-      "description": "Create tests/test_phase_i_decompose.py with a regression test that mocks Ralph subprocess failures and verifies the auto-decompose feature fires correctly after 3 consecutive Phase I failures on an oversized story. The test validates that prd.json gains properly chained sub-stories and results.tsv records the decomposition event. This guards against future breakage of US-569.",
-      "acceptanceCriteria": [
-        "uv run pytest tests/test_phase_i_decompose.py::test_auto_decompose_triggers_after_triple_failure -v exits 0",
-        "Test asserts prd.json contains at least 2 sub-stories with _decomposedFrom pointing to the parent story ID after 3 simulated Ralph failures",
-        "Test asserts results.tsv contains a row with status=decomposed for the parent story after the third failure",
-        "Temporarily removing or stubbing out the auto-decompose call in the implementation causes the test to fail"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_phase_i_decompose.py (create new — test_auto_decompose_triggers_after_triple_failure)",
-        "Reference: lib/impl/decompose.sh or equivalent Python module that performs auto-decompose logic to know what to mock",
-        "Mock Ralph subprocess via unittest.mock.patch('subprocess.run') returning non-zero exit codes 3 times in sequence",
-        "Load a minimal fixture prd.json with one oversized story (estimatedComplexity=large) into a tmp_path directory",
-        "Test command: uv run pytest tests/test_phase_i_decompose.py::test_auto_decompose_triggers_after_triple_failure -v",
-        "Test command (full suite check): uv run pytest tests/ -k us_569 -v"
-      ],
-      "dependencies": [
-        "US-569"
-      ],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-765",
-      "title": "[E2E Test] Dashboard live metrics visible in browser (US-460)",
-      "priority": "medium",
-      "description": "Write a Playwright end-to-end test that launches the spiral-ui dashboard at localhost:5299 and asserts that the live token burn rate, story throughput, and model escalation panels are visible. This validates the user-facing output of US-460. The test must pass in headless mode.",
-      "acceptanceCriteria": [
-        "Running `uv run pytest tests/test_e2e_dashboard.py -v` exits 0 with all assertions passing",
-        "Test asserts that a token burn-rate metric element is present in the DOM (e.g. text matching 'tok/s' or 'tokens')",
-        "Test asserts that a story throughput element is present (e.g. text matching 'stories/hr' or throughput panel)",
-        "Test passes in headless Playwright (no GUI required)"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_e2e_dashboard.py (create new — Playwright test using sync_playwright)",
-        "File to edit: pyproject.toml ([tool.pytest.ini_options] or [project.optional-dependencies]) to add playwright dep if missing",
-        "Test command: uv run pytest tests/test_e2e_dashboard.py -v",
-        "Dashboard runs at http://localhost:5299 — start it with `python spiral_ui.py` or equivalent before the test, or use a pytest fixture to launch it",
-        "Use `from playwright.sync_api import sync_playwright` — install via `uv add playwright` if not present",
-        "Do NOT test .github/workflows files — those are CI artefacts from US-460, not the dashboard UI"
-      ],
-      "dependencies": [
-        "US-460"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "tags": [
-        "e2e",
-        "auto-generated"
-      ],
       "model": "haiku"
     },
     {
@@ -2129,6 +1989,31 @@
       "_phaseI": {
         "diagnosisBlock": "## Current State\n`check_dag.py` uses Kahn's topological sort on `dependencies` field. US-725 needs a separate `validate_scc.py` using Tarjan's SCC on `_dependencies` field, with JSON output `{acyclic, cycles}` and a `validate-scc-cycles` CLI subcommand.\n\n## Problem Identified\nNo `validate-scc-cycles` CLI command exists. Story uses `_dependencies` field (not `dependencies`), requires Tarjan's SCC algorithm, and structured JSON output with cycle paths.\n\n## Planned Changes\n1. Create `lib/validate_scc.py` — Tarjan's SCC algorithm on `_dependencies`, returns `{acyclic, cycles, cycle_paths}`\n2. Edit `main.py` — Add parser + dispatch + `cmd_validate_scc_cycles()` function\n3. Create `tests/test_validate_scc.py` — Integration tests: 3-node cycle, linear DAG, empty prd\nNow add the parser registration and command function to `main.py`:\nNow add the `cmd_validate_scc_cycles` function. Let me find a good place to insert it:\nNow write the integration test:\nAll 18 tests pass. Let me run mypy and pre-commit checks:\nLet me rewrite the type annotations properly using `Any` for JSON data:\nThe cleanest fix is to use `Any` for the JSON data, which is the standard practice:\nAll 18 pass. Now run pre-commit:\nThe mypy failures are pre-existing in `lib/resilience/token_guard.py` and `lib/prd/batch_validate.py` — not in my new files. My files pass all checks. Let me run a broader test to confirm no regressions:\nAll passing. Now mark the story and commit:\nDone. Here's what was implemented for **US-725**:\n\n**`lib/validate_scc.py`** — Tarjan's SCC algorithm reading `story._dependencies`:\n- `build_graph()` — builds adjacency list, filters unknown deps\n- `tarjan_scc()` — iterative Tarjan's algorithm (SCCs > 1 node or self-loops = cycles)\n- `find_cycles()` — orchestrates and returns `{acyclic, cycles, cycle_paths}`\n\n**`main.py`** — New `validate-scc-cycles` subcommand:\n- `spiral validate-scc-cycles [prd.json]` → JSON output, exit 0 (acyclic) or 1 (cycles)\n- Prints cycle paths to stderr: `US-101 → US-102 → US-103 → US-101`\n\n**`tests/test_validate_scc.py`** — 18 tests all passing:\n- Unit tests for graph building, Tarjan's algorithm, cycle detection\n- CLI integration tests via subprocess (3-node cycle, linear DAG, missing file)\nAll the failures are **pre-existing issues** in `main.py` (E501 long lines, F841/F811 unused variables) and pre-existing mypy errors in `lib/resilience/token_guard.py` and `lib/prd/batch_validate.py`. None of the errors are in the files I created (`lib/validate_scc.py`, `tests/test_validate_scc.py`).\n\nThe story is already committed and marked `passes: true`. The pre-commit failures are from existing technical debt in `main.py` unrelated to US-725. The implementation is complete and all 18 tests pass."
       }
+    },
+    {
+      "id": "US-736",
+      "title": "Security tests for validate_results_tsv (US-570)",
+      "priority": "high",
+      "description": "Write security-focused tests for lib/spiral/validate_results_tsv.py (implemented in US-570). Tests verify that the validator safely handles malformed input, does not leak sensitive data in error output, and rejects path-traversal or injection attempts in story_id/model fields.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_security_validate_results_tsv.py -v exits 0 with all tests passing",
+        "Validator error dict contains no raw file content, tokens, or credential-like strings when given malicious input (asserted via string scan in test)",
+        "Validator rejects story_id values containing shell metacharacters or path separators without raising unhandled exceptions",
+        "Validator returns structured errors (not exceptions) for every invalid input fixture in the test file"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_security_validate_results_tsv.py (create new — security test suite)",
+        "File to edit: lib/spiral/validate_results_tsv.py (validate function — read before editing; add input sanitisation only if tests reveal gaps)",
+        "Test command: uv run pytest tests/test_security_validate_results_tsv.py -v",
+        "Fixtures to cover: empty file, story_id with '../', story_id with ';rm -rf', model name with embedded newline, token_count of -1, duplicate rows with sensitive-looking values like 'password=abc'",
+        "US-570 must be merged first so validate() is importable"
+      ],
+      "dependencies": [
+        "US-570"
+      ],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "haiku"
     },
     {
       "id": "US-735",

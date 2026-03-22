@@ -304,3 +304,138 @@ class TestSkipPathBlocksImplementation:
         assert result["would_exceed"] is True
         assert result["current_spend_usd"] >= 0.0
         assert result["total_projected_usd"] > 0.0001
+
+
+# ---------------------------------------------------------------------------
+# Security: No secrets leakage
+# ---------------------------------------------------------------------------
+
+
+class TestNoSecretsLeakage:
+    """Verify that sensitive environment variables do not leak into budget check output."""
+
+    _SENSITIVE_PATTERNS = [
+        r"[A-Z_]*API[_]*KEY",
+        r"[A-Z_]*TOKEN[_]*",
+        r"[A-Z_]*SECRET[_]*",
+        r"[A-Z_]*PASSWORD[_]*",
+        r"sk_[a-zA-Z0-9]{20,}",  # Stripe-like keys
+        r"ghp_[a-zA-Z0-9]{20,}",  # GitHub PAT-like
+    ]
+
+    def test_budget_check_result_dict_contains_no_secrets(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Verify the BudgetCheckResult dict never includes sensitive values."""
+        prd_path = _make_prd(tmp_path)
+        results_path = _make_empty_results_tsv(tmp_path)
+
+        # Set fake sensitive env vars
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "sk_test_sensitive_key_12345")
+        monkeypatch.setenv("GITHUB_TOKEN", "ghp_test_token_secret_67890")
+        monkeypatch.setenv("DATABASE_PASSWORD", "super_secret_password")
+
+        result = check_budget_gate(
+            prd_file=prd_path,
+            results_tsv=results_path,
+            cost_ceiling_usd=99999.0,
+        )
+
+        # Convert result to string representation
+        result_str = json.dumps(result)
+
+        # Verify no sensitive values appear
+        forbidden_values = [
+            "sk_test_sensitive_key_12345",
+            "ghp_test_token_secret_67890",
+            "super_secret_password",
+        ]
+        for sensitive_value in forbidden_values:
+            assert sensitive_value not in result_str, (
+                f"Result dict contains sensitive value: {sensitive_value}"
+            )
+
+    def test_budget_check_output_when_printed_contains_no_secrets(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """Verify that printing the budget check result doesn't leak secrets."""
+        import json as json_module
+
+        prd_path = _make_prd(tmp_path)
+        results_path = _make_empty_results_tsv(tmp_path)
+
+        # Set fake sensitive env vars
+        monkeypatch.setenv("SPIRAL_COST_CEILING", "10.00")
+        monkeypatch.setenv("SECRET_API_KEY", "test_secret_xyz_9999")
+
+        result = check_budget_gate(
+            prd_file=prd_path,
+            results_tsv=results_path,
+            cost_ceiling_usd=10.0,
+        )
+
+        # Print like the CLI does
+        print(json_module.dumps(result, indent=2))
+        captured = capsys.readouterr()
+
+        # Verify secret doesn't appear in stdout
+        assert "test_secret_xyz_9999" not in captured.out, (
+            "Secret value leaked into stdout from budget check"
+        )
+
+    def test_budget_check_never_includes_filepath_secrets(self, tmp_path: Path) -> None:
+        """Verify that file paths containing sensitive patterns aren't included in output."""
+        # Create a prd file in a path with sensitive-looking name (within tmp_path)
+        sensitive_path = tmp_path / "ANTHROPIC_API_KEY_backup"
+        sensitive_path.mkdir(parents=True, exist_ok=True)
+        prd_path = sensitive_path / "prd.json"
+
+        with open(prd_path, "w", encoding="utf-8") as f:
+            json.dump({"userStories": []}, f)
+
+        results_path = sensitive_path / "results.tsv"
+        with open(results_path, "w", encoding="utf-8") as f:
+            f.write("story_id\tstatus\tmodel\tduration_sec\n")
+
+        result = check_budget_gate(
+            prd_file=prd_path,
+            results_tsv=results_path,
+            cost_ceiling_usd=10.0,
+        )
+
+        result_str = json.dumps(result)
+        # The result dict should NOT leak file paths with sensitive names
+        # Specifically, ANTHROPIC_API_KEY should not appear in output
+        assert "ANTHROPIC_API_KEY_backup" not in result_str, (
+            "Directory name with sensitive pattern leaked into result dict"
+        )
+
+    def test_zero_and_none_ceiling_do_not_leak_in_error_state(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Verify that special ceiling values (0, None) don't cause error leakage."""
+        prd_path = _make_prd(tmp_path)
+        results_path = _make_empty_results_tsv(tmp_path)
+
+        # Set a fake secret in the environment
+        monkeypatch.setenv("SECRET_TOKEN", "fake_secret_token_abc123")
+
+        # Test with None ceiling (disabled budget gate)
+        result = check_budget_gate(
+            prd_file=prd_path,
+            results_tsv=results_path,
+            cost_ceiling_usd=None,
+        )
+
+        result_str = json.dumps(result)
+        assert "fake_secret_token_abc123" not in result_str
+
+        # Test with 0 ceiling (disabled budget gate)
+        result = check_budget_gate(
+            prd_file=prd_path,
+            results_tsv=results_path,
+            cost_ceiling_usd=0.0,
+        )
+
+        result_str = json.dumps(result)
+        assert "fake_secret_token_abc123" not in result_str
