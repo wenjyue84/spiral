@@ -30,7 +30,7 @@ class TestShouldEnrich:
     """_should_enrich() should return True only for eligible stories."""
 
     def test_small_with_notes_is_not_enriched(self):
-        s = _story(estimatedComplexity="small", technicalNotes=["note1", "note2"])
+        s = _story(estimatedComplexity="small", technicalNotes=["note1", "note2"], filesTouch=["src/foo.py"])
         assert _should_enrich(s) is False
 
     def test_medium_is_enriched(self):

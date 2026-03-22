@@ -16,6 +16,7 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
+MODEL_ROUTING_SH = ROOT / "ralph" / "lib" / "model_routing.sh"
 RALPH_SH = ROOT / "ralph" / "ralph.sh"
 CONFIG_SH = ROOT / "spiral.config.sh"
 TEMPLATE_SH = ROOT / "templates" / "spiral.config.example.sh"
@@ -32,18 +33,18 @@ def _parse_function_case_patterns() -> dict[str, int]:
     This avoids subprocess/encoding issues on Windows by testing the
     logic via static analysis of the case statement.
     """
-    content = _read(RALPH_SH)
+    content = _read(MODEL_ROUTING_SH)
     match = re.search(
         r"supports_adaptive_thinking\(\)\s*\{(.*?)\n\}",
         content,
         re.DOTALL,
     )
-    assert match, "supports_adaptive_thinking function not found in ralph.sh"
+    assert match, "supports_adaptive_thinking function not found in model_routing.sh"
     body = match.group(1)
 
     # Extract case arms: pattern) return N ;;
     patterns: dict[str, int] = {}
-    for arm_match in re.finditer(r"([\w|*-]+(?:\|[\w|*-]+)*)\)\s*return\s+(\d+)\s*;;", body):
+    for arm_match in re.finditer(r"([\w*-]+(?:\s*\|\s*[\w*-]+)*)\)\s*return\s+(\d+)\s*;;", body):
         pattern_str = arm_match.group(1)
         return_code = int(arm_match.group(2))
         for pat in pattern_str.split("|"):
@@ -70,7 +71,7 @@ class TestSupportsAdaptiveThinking:
     """AC1-3: Function returns correct result for each model family."""
 
     def test_function_exists_in_ralph_sh(self) -> None:
-        content = _read(RALPH_SH)
+        content = _read(MODEL_ROUTING_SH)
         assert "supports_adaptive_thinking()" in content
 
     def test_opus_short_alias_returns_0(self) -> None:

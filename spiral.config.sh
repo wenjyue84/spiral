@@ -7,7 +7,7 @@
 SPIRAL_PYTHON="/c/Users/Jyue/Documents/1-projects/Software Projects/Spiral/.venv/Scripts/python.exe"
 
 # ── Test / validation command ────────────────────────────────────────────────
-SPIRAL_VALIDATE_CMD="uv run pytest tests/ -v --tb=short -n 2"
+SPIRAL_VALIDATE_CMD="uv run pytest tests/ -v --tb=short -n 6"
 
 # ── Phase V timeout (seconds) ─────────────────────────────────────────────
 # Default 300s is too short for 2900+ tests. Increased to 600s.

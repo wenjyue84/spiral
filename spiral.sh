@@ -449,6 +449,9 @@ fi
 # Apply config with defaults
 SPIRAL_PYTHON="${SPIRAL_PYTHON:-python3}"
 
+# Ensure lib/ is on PYTHONPATH so subdirectory scripts can import spiral_io etc.
+export PYTHONPATH="${SPIRAL_HOME}/lib${PYTHONPATH:+:$PYTHONPATH}"
+
 # ── spiral-core Rust binary (hot-path replacement for Python scripts) ─────────
 # If the binary exists in $SPIRAL_HOME/lib/, use it; else fall back to Python.
 # Build with: (cd $SPIRAL_HOME/lib/spiral-core && cargo build --release && cp target/release/spiral-core* $SPIRAL_HOME/lib/)

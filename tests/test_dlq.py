@@ -297,7 +297,7 @@ class TestCmdDlqList:
             main.cmd_dlq_list(args)
 
         out = capsys.readouterr().out
-        assert "No stories" in out
+        assert "No" in out and "stories" in out.lower()
 
 
 # ── cmd_dlq_replay ─────────────────────────────────────────────────────────

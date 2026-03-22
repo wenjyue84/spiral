@@ -100,6 +100,9 @@ def count_tokens(text: str) -> int:
     Uses tiktoken cl100k_base when available; falls back to a 4-char/token
     approximation so the function works without optional dependencies.
     """
+    # Skip tiktoken for very large strings (slow on >100K chars)
+    if len(text) > 100_000:
+        return _count_tokens_approx(text)
     try:
         return _count_tokens_tiktoken(text)
     except (ImportError, Exception):

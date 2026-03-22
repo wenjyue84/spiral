@@ -124,6 +124,21 @@ def detect_federated_conflicts(stories: list[dict[str, Any]]) -> tuple[list[dict
     return conflicts, error_messages
 
 
+def detect_conflicts(stories: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    pending = [s for s in stories if not s.get("passes") and not s.get("_decomposed") and not s.get("_skipped")]
+    results: list[dict[str, Any]] = []
+    for i, a in enumerate(pending):
+        files_a = get_files_to_touch(a)
+        if not files_a:
+            continue
+        for b in pending[i + 1 :]:
+            files_b = get_files_to_touch(b)
+            overlap = sorted(files_a & files_b)
+            if overlap:
+                results.append({"storyA": a.get("id", ""), "storyB": b.get("id", ""), "conflict_files": "|".join(overlap)})
+    return results
+
+
 def write_conflict_report(conflicts: list[dict[str, Any]], path: str) -> None:
     """Write structured JSON conflict report to .spiral/merge_conflicts.json."""
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)

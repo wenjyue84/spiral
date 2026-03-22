@@ -28,11 +28,15 @@
 run_phase_check_done() {
   # ── Phase P: PUSH ──────────────────────────────────────────────────────────
   echo ""
-  echo "  [Phase P] PUSH — pushing commits to origin/main..."
-  if git -C "$REPO_ROOT" push origin main 2>&1; then
-    echo "  [P] Pushed to origin/main successfully"
+  if [[ "${DRY_RUN:-0}" -eq 1 ]]; then
+    echo "  [Phase P] PUSH — skipped (--dry-run)"
   else
-    echo "  [P] WARNING: Push to origin/main failed (check remote/connectivity)"
+    echo "  [Phase P] PUSH — pushing commits to origin/main..."
+    if git -C "$REPO_ROOT" push origin main 2>&1; then
+      echo "  [P] Pushed to origin/main successfully"
+    else
+      echo "  [P] WARNING: Push to origin/main failed (check remote/connectivity)"
+    fi
   fi
 
   # ── Phase C: CHECK DONE ─────────────────────────────────────────────────────

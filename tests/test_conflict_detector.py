@@ -166,7 +166,7 @@ class TestIntegration:
         ]
         conflicts = cd.detect_conflicts(stories)
         log_file = str(tmp_path / "conflict_report.jsonl")
-        cd.log_conflicts(conflicts, log_file)
+        cd.log_conflicts(conflicts, [], log_file)
 
         with open(log_file, encoding="utf-8") as f:
             lines = f.readlines()
