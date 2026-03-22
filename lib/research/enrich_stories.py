@@ -23,6 +23,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 from typing import Any
 
 sys.path.insert(0, os.path.dirname(__file__))
@@ -215,10 +216,12 @@ def enrich_stories(
     enriched_path: str,
     model: str = "sonnet",
     dry_run: bool = False,
+    max_enrich: int = 0,
 ) -> tuple[int, int]:
     """
     Read validated stories, enrich eligible ones, write output.
     Returns (enriched_count, split_count).
+    max_enrich: cap on stories to enrich per call (0 = unlimited).
     """
     if not os.path.isfile(validated_path):
         print(f"  [E] ERROR: {validated_path} not found", file=sys.stderr)
@@ -236,25 +239,50 @@ def enrich_stories(
     output_stories: list[dict[str, Any]] = []
     enriched_count = 0
     split_count = 0
+    enrich_budget = max_enrich if max_enrich > 0 else len(stories)
+    # Wall-clock timeout: write whatever we have and exit cleanly (default 600s)
+    _enrichment_timeout = int(os.environ.get("SPIRAL_ENRICHMENT_TIMEOUT", "600"))
+    _enrich_start = time.monotonic()
 
-    for story in stories:
+    for i, story in enumerate(stories, 1):
+        if time.monotonic() - _enrich_start > _enrichment_timeout:
+            print(
+                f"  [E] Wall-clock timeout ({_enrichment_timeout}s) — "
+                f"writing {len(output_stories)} stories collected so far",
+                flush=True,
+            )
+            # Passthrough remaining stories unenriched
+            output_stories.extend(stories[i - 1 :])
+            break
         if _should_enrich(story):
+            if enrich_budget <= 0:
+                output_stories.append(story)  # passthrough — budget exhausted
+                continue
             title = story.get("title", "?")
             print(
-                f"  [E] Enriching: {title[:70]!r} (complexity={story.get('estimatedComplexity', '?')}, "
-                f"notes={len(story.get('technicalNotes') or [])})"
+                f"  [E] [{i}/{len(stories)}] Enriching: {title[:70]!r} "
+                f"(complexity={story.get('estimatedComplexity', '?')}, "
+                f"notes={len(story.get('technicalNotes') or [])})",
+                flush=True,
             )
             result = _enrich_one(story, model, dry_run=dry_run)
+            enrich_budget -= 1
             if len(result) > 1:
                 split_count += 1
                 enriched_count += len(result)
-                print(f"  [E]   → split into {len(result)} stories")
+                print(f"  [E]   → split into {len(result)} stories", flush=True)
             elif result and result[0] is not story:
                 enriched_count += 1
-                print("  [E]   → enriched")
+                print("  [E]   → enriched", flush=True)
             output_stories.extend(result)
         else:
             output_stories.append(story)  # passthrough — small + well-specified
+
+    if max_enrich > 0:
+        eligible = sum(1 for s in stories if _should_enrich(s))
+        skipped = max(0, eligible - max_enrich)
+        if skipped > 0:
+            print(f"  [E] Batch limit reached: {skipped} eligible stories passed through unchanged (max={max_enrich})", flush=True)
 
     atomic_write_json(enriched_path, {"stories": output_stories})
     return enriched_count, split_count
@@ -266,6 +294,7 @@ def main() -> int:
     parser.add_argument("--enriched-out", required=True, help="Output path for enriched stories")
     parser.add_argument("--model", default="sonnet", help="Claude model (default: sonnet)")
     parser.add_argument("--dry-run", action="store_true", help="Print plan without calling Claude")
+    parser.add_argument("--max", type=int, default=0, help="Max stories to enrich per iteration (0=unlimited)")
     args = parser.parse_args()
 
     enriched, split = enrich_stories(
@@ -273,9 +302,10 @@ def main() -> int:
         enriched_path=args.enriched_out,
         model=args.model,
         dry_run=args.dry_run,
+        max_enrich=args.max,
     )
 
-    print(f"  [E] Done: {enriched} stories enriched/split ({split} splits)")
+    print(f"  [E] Done: {enriched} stories enriched/split ({split} splits)", flush=True)
     return 0
 
 

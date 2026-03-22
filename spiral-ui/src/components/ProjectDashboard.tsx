@@ -1391,7 +1391,17 @@ function WorkerConsole({ workerId, projectName, workerMeta }: { workerId: number
   );
 }
 
-function WorkersTab({ projectName, activeStory }: { projectName: string; activeStory: ActiveStoryInfo | null }) {
+function WorkersTab({
+  projectName,
+  activeStory,
+  currentPhase,
+  isRunning,
+}: {
+  projectName: string;
+  activeStory: ActiveStoryInfo | null;
+  currentPhase: string | null;
+  isRunning: boolean;
+}) {
   const [workers, setWorkers] = useState<WorkerInfo[]>([]);
   const [systemMemory, setSystemMemory] = useState<SystemMemoryInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1424,6 +1434,48 @@ function WorkersTab({ projectName, activeStory }: { projectName: string; activeS
 
   if (loading) return <div className="p-6 text-sm text-slate-500">Loading workers…</div>;
   if (fetchError) return <div className="p-6 text-sm text-red-500">Error: {fetchError}</div>;
+
+  // Phase-aware idle detection
+  const allQueuedOrDefault = workers.length > 0 && workers.every(w => w.state === 'queued' || (!w.hasLog && !w.hasHeartbeat));
+  const inNonWorkerPhase = isRunning && currentPhase != null && currentPhase !== 'I';
+
+  // SPIRAL is running but not in Phase I — workers are expected to be idle
+  if (inNonWorkerPhase && allQueuedOrDefault) {
+    const phaseName = PHASE_LABELS[currentPhase] ?? `Phase ${currentPhase}`;
+    return (
+      <div className="p-6 space-y-4">
+        <ActiveStoryBanner activeStory={activeStory} />
+        <SystemMemoryPanel memory={systemMemory} />
+        <div className="text-center text-slate-500 py-10">
+          <div className="text-2xl mb-2">⏳</div>
+          <div className="text-sm font-medium text-slate-600 mb-1">Workers idle</div>
+          <div className="text-xs text-slate-400 max-w-sm mx-auto">
+            SPIRAL is currently <span className="font-semibold text-blue-600">{phaseName}</span>. Workers are only active during the <span className="font-semibold">Implementing</span> phase.
+          </div>
+          <div className="text-[11px] text-slate-400 mt-2">
+            {workers.length} worker{workers.length !== 1 ? 's' : ''} will resume when Phase I starts
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // SPIRAL is idle but stale worker files exist from a previous run
+  if (!isRunning && allQueuedOrDefault && workers.length > 0) {
+    return (
+      <div className="p-6 space-y-4">
+        <SystemMemoryPanel memory={systemMemory} />
+        <div className="text-center text-slate-500 py-10">
+          <div className="text-2xl mb-2">👷</div>
+          <div className="text-sm font-medium">No active workers</div>
+          <div className="text-xs mt-1 text-slate-400">
+            SPIRAL is idle. {workers.length} worker file{workers.length !== 1 ? 's exist' : ' exists'} from a previous run.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (workers.length === 0) {
     return (
       <div className="p-6 space-y-4">
@@ -3545,7 +3597,7 @@ export default function ProjectDashboard() {
       <main className="flex-1 overflow-hidden">
         {activeTab === 'progress'     && <div className="h-full overflow-y-auto"><ProgressTab data={data} projectName={projectName ?? ''} onRefresh={load} activeStory={activeStory} /></div>}
         {activeTab === 'phase-trace'  && <div className="h-full overflow-y-auto"><PhaseTraceTab projectName={projectName ?? ''} stories={data.progress?.stories ?? []} activeStory={activeStory} /></div>}
-        {activeTab === 'workers'      && <div className="h-full overflow-y-auto"><WorkersTab projectName={projectName ?? ''} activeStory={activeStory} /></div>}
+        {activeTab === 'workers'      && <div className="h-full overflow-y-auto"><WorkersTab projectName={projectName ?? ''} activeStory={activeStory} currentPhase={data?.activeStatus?.phase ?? null} isRunning={isRunning} /></div>}
         {activeTab === 'tokens'       && <div className="h-full overflow-y-auto"><TokenTab projectName={projectName ?? ''} tokenBurn={data.tokenBurn} /></div>}
         {activeTab === 'graph'        && (
           <div className="h-full overflow-hidden">

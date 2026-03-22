@@ -19,7 +19,7 @@ print_phase_banner() {
     R | T) color="$_C_BLUE" ;;
     I) color="$_C_YELLOW" ;;
     V) color="$_C_GREEN" ;;
-    S | M | C | A | G) color="$_C_CYAN" ;;
+    S | E | M | C | A | G) color="$_C_CYAN" ;;
     *) color="" ;;
   esac
   if [[ "$_USE_COLOR" -eq 1 ]]; then

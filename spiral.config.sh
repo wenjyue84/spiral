@@ -107,6 +107,8 @@ SPIRAL_MERGE_MODEL="haiku"      # Phase M: merge decisions (future — currently
 SPIRAL_STORY_ENRICHMENT="${SPIRAL_STORY_ENRICHMENT:-true}"
 # Model for enrichment pass. sonnet is default; set to opus for maximum quality.
 SPIRAL_STORY_ENRICHMENT_MODEL="${SPIRAL_STORY_ENRICHMENT_MODEL:-sonnet}"
+# Max stories to enrich per iteration (0=unlimited). Default: 10.
+SPIRAL_STORY_ENRICHMENT_MAX="${SPIRAL_STORY_ENRICHMENT_MAX:-10}"
 
 # ── Context injection mode (US-280) ──────────────────────────────────────────
 # diff = inject git diff of filesTouch paths (empty for new files)

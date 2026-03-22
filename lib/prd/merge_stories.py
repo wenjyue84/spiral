@@ -22,7 +22,7 @@ from typing import Any
 from pydantic import ValidationError
 
 sys.path.insert(0, os.path.dirname(__file__))
-from conflict_detector import detect_conflicts
+from conflict_detector import detect_federated_conflicts
 from llm_models import ResearchOutput, log_validation_error
 from merge_results_tsv import HEADER as RESULTS_HEADER
 from prd_schema import validate_prd
@@ -275,7 +275,7 @@ def main() -> int:
     print(f"[merge] prd.json: {len(existing_stories)} existing stories ({current_pending} pending)")
 
     # ── US-545: Detect file conflicts among pending stories ───────────────────
-    _file_conflicts = detect_conflicts(existing_stories)
+    _file_conflicts = detect_federated_conflicts(existing_stories)
     if _file_conflicts:
         _results_tsv = os.path.join(os.path.dirname(os.path.abspath(args.prd)), "results.tsv")
         _log_conflicts_to_results(_results_tsv, _file_conflicts)

@@ -706,10 +706,10 @@ function spiralApiPlugin() {
           }
 
           // Inject placeholder phases for the full pipeline so every iteration shows all stages
-          const FULL_PIPELINE = ['A', 'R', 'T', 'S', 'M', 'I', 'V', 'P', 'C'];
+          const FULL_PIPELINE = ['A', 'R', 'T', 'S', 'E', 'M', 'I', 'V', 'P', 'C'];
           const PIPELINE_LABELS: Record<string, string> = {
             A: 'AI Suggestions', R: 'Research', T: 'Test Synthesis', S: 'Story Validate',
-            M: 'Merge', I: 'Implement', V: 'Validate', P: 'Push', C: 'Check Done',
+            E: 'Story Enrichment', M: 'Merge', I: 'Implement', V: 'Validate', P: 'Push', C: 'Check Done',
           };
 
           // Phases that have EVER fired a phase_start event across all iterations.
