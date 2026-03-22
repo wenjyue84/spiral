@@ -23,9 +23,115 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "model": "sonnet",
-      "last_attempted": "2026-03-22T11:24:22Z"
+      "last_attempted": "2026-03-22T12:45:01Z",
+      "_failureReason": "oversized_diff",
+      "_lastDiffLines": 1217
+    },
+    {
+      "id": "US-748",
+      "title": "Create Keep-a-Changelog Schema Validator Module",
+      "priority": "high",
+      "description": "Implement a Python validator module that checks a CHANGELOG.md file for Keep-a-Changelog compliance and verifies semantic version increments. This is the reusable library layer that Phase G integration tests will import.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_changelog_schema_validator.py::test_changelog_schema_compliance -v passes with a well-formed CHANGELOG.md fixture",
+        "uv run pytest tests/test_changelog_schema_validator.py::test_semver_bump_logic -v passes verifying major/minor/patch rules from complexity_scores",
+        "uv run pytest tests/test_changelog_schema_validator.py -v exits 0 with all tests green"
+      ],
+      "technicalNotes": [
+        "File to create: lib/validators/changelog_schema.py (functions: validate_changelog_format(path: str) -> bool, validate_version_incrementing(old_ver: str, new_ver: str, scores: list) -> bool)",
+        "File to create: tests/test_changelog_schema_validator.py (test_changelog_schema_compliance, test_semver_bump_logic)",
+        "Test command: uv run pytest tests/test_changelog_schema_validator.py -v",
+        "semver bump rule: major if >5 stories have complexity_score>=critical threshold, minor if >10 total stories, patch otherwise; encode as constants in the module"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-749",
+      "title": "Dashboard: Implement worker_swimlane.py with phase status logic",
+      "priority": "high",
+      "description": "Create lib/dashboard/worker_swimlane.py with functions that read .spiral/_checkpoint.json and worker heartbeat files to determine each active worker's current phase, start time, and estimated remaining time. This is the data layer for the swimlane endpoint.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_worker_swimlane.py::test_get_worker_phase_status -v passes",
+        "uv run pytest tests/test_worker_swimlane.py::test_estimate_phase_remaining_time -v passes",
+        "get_worker_phase_status() returns dict with keys: worker_id, current_phase, phase_start_time, estimated_completion_seconds"
+      ],
+      "technicalNotes": [
+        "File to create: lib/dashboard/worker_swimlane.py (functions: get_worker_phase_status, estimate_phase_remaining_time)",
+        "File to create: tests/test_worker_swimlane.py (unit tests with mocked checkpoint/heartbeat files)",
+        "Test command: uv run pytest tests/test_worker_swimlane.py -v",
+        "Read .spiral/_checkpoint.json for phase state; read .spiral-workers/worker-N/heartbeat.json for per-worker timing; return empty list if no workers active"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-750",
+      "title": "Dashboard: Add GET /api/dashboard/worker-phase-swimlane route to api.py",
+      "priority": "high",
+      "description": "Wire the worker swimlane data layer into the dashboard API by adding a GET /api/dashboard/worker-phase-swimlane route to lib/dashboard/api.py that returns JSON suitable for rendering a swimlane chart. Depends on worker_swimlane.py being implemented first.",
+      "acceptanceCriteria": [
+        "curl -s http://localhost:5299/api/dashboard/worker-phase-swimlane returns HTTP 200 with Content-Type application/json",
+        "Response JSON contains a top-level 'workers' array; each element has worker_id, current_phase, phase_start_time, estimated_completion_seconds",
+        "uv run pytest tests/test_worker_swimlane_endpoint.py -v passes"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/dashboard/api.py (add route handler for GET /api/dashboard/worker-phase-swimlane, import get_worker_phase_status from lib.dashboard.worker_swimlane)",
+        "File to create: tests/test_worker_swimlane_endpoint.py (integration test using Flask test client)",
+        "Test command: uv run pytest tests/test_worker_swimlane_endpoint.py -v",
+        "Return {\"workers\": []} with HTTP 200 when no workers are active; never return 500 on missing checkpoint files"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-751",
+      "title": "Add Federated Load Test Fixture: 30-Story Multi-Subproject PRD",
+      "priority": "high",
+      "description": "Create a JSON test fixture representing a federated prd.json with 3 sub-projects (frontend, backend, infra), 10 stories each, to support worker isolation integration tests.",
+      "acceptanceCriteria": [
+        "tests/fixtures/federated_load_test_prd.json exists and contains exactly 30 stories with sub_project values of 'frontend', 'backend', or 'infra'",
+        "uv run python -c \"import json; d=json.load(open('tests/fixtures/federated_load_test_prd.json')); assert len(d['stories'])==30\" exits 0",
+        "Each sub_project bucket contains exactly 10 stories: uv run python -c \"import json,collections; d=json.load(open('tests/fixtures/federated_load_test_prd.json')); c=collections.Counter(s['sub_project'] for s in d['stories']); assert all(v==10 for v in c.values())\" exits 0"
+      ],
+      "technicalNotes": [
+        "File to create: tests/fixtures/federated_load_test_prd.json (root-level stories array, 30 entries with sub_project field)",
+        "Test command: uv run python -c \"import json,collections; d=json.load(open('tests/fixtures/federated_load_test_prd.json')); c=collections.Counter(s['sub_project'] for s in d['stories']); assert all(v==10 for v in c.values()), c\"",
+        "Each story entry must include: id, title, sub_project, passes=false, _source='ai-example'"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-752",
+      "title": "Integration Test: Verify Worker Sub-Project Isolation Under 3-Worker Federated Load",
+      "priority": "high",
+      "description": "Write a pytest integration test that uses the federated fixture PRD and verifies each worker only implements stories within its assigned sub_project, with no cross-contamination in results.tsv and no prd.json corruption.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_federated_worker_isolation_load.py::test_sub_project_fidelity -v exits 0",
+        "After test run, no story row in results.tsv has a sub_project value differing from its prd.json assignment: verified by test assertion",
+        "Test completes without AssertionError indicating cross-worker file conflicts or duplicate story IDs in results.tsv"
+      ],
+      "technicalNotes": [
+        "File to create: tests/test_federated_worker_isolation_load.py (test_sub_project_fidelity, test_no_results_corruption)",
+        "Depends on: tests/fixtures/federated_load_test_prd.json (created in sibling story)",
+        "Test command: uv run pytest tests/test_federated_worker_isolation_load.py -v --timeout=120",
+        "Use subprocess or monkeypatch to simulate 3-worker slice assignment via lib/slice_prd.py; assert each slice contains only one sub_project value"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
     },
     {
       "id": "US-734",
@@ -100,6 +206,64 @@
       "model": "haiku"
     },
     {
+      "id": "US-753",
+      "title": "[Security Test] Validate SPIRAL_COST_CEILING budget gate cannot be bypassed",
+      "priority": "high",
+      "description": "Write security-focused tests for the pre-Phase I budget check introduced in US-498. Verify that SPIRAL_COST_CEILING is strictly enforced and cannot be silently bypassed, that the rollback/skip prompts trigger correctly when the ceiling is exceeded, and that no sensitive config values (API keys, tokens) appear in budget check output.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_cost_ceiling_security.py -v exits 0 with all tests passing",
+        "Test verifies Phase I is blocked when estimated pending-story cost exceeds SPIRAL_COST_CEILING",
+        "Test verifies SPIRAL_COST_CEILING unset or 0 does not silently permit unlimited spending (raises error or prompts)",
+        "Test verifies no API key or token strings appear in budget-check warning/error output"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_cost_ceiling_security.py (new file — create security tests for US-498 budget gate)",
+        "File to edit: lib/cost_tracker.py or lib/spiral/cost_tracker.py (function that computes estimated cost and enforces ceiling)",
+        "Test command: uv run pytest tests/test_cost_ceiling_security.py -v",
+        "Test command: uv run pytest tests/ -k 'cost_ceiling or budget_gate' -v",
+        "Mock SPIRAL_COST_CEILING via monkeypatch/os.environ; test boundary values: 0, negative, exactly-at-limit, one-cent-over-limit",
+        "Confirm no secrets leak: assert that captured stdout/stderr from budget check contains no strings matching known env var patterns (API_KEY, TOKEN, SECRET)"
+      ],
+      "dependencies": [
+        "US-498"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "security",
+        "auto-generated"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-754",
+      "title": "[Security Test] Harden validate_results_tsv against malformed/malicious input",
+      "priority": "high",
+      "description": "Add security-focused tests for lib/spiral/validate_results_tsv.py (US-570). The validator must handle adversarial inputs — path-like story_ids, binary data, and oversized fields — without leaking internal paths or raising unhandled exceptions. Ensures error responses contain only structured dicts, never raw tracebacks.",
+      "acceptanceCriteria": [
+        "validate() returns a dict with an 'errors' key (no exception raised) when given a TSV row with a path-traversal story_id like '../../etc/passwd'",
+        "validate() returns a dict with an 'errors' key (no exception raised) when given binary/null-byte content as input",
+        "No returned error string contains an absolute filesystem path (checked via assertion that no error value matches r'^[A-Za-z]:\\\\' or '^/')",
+        "uv run pytest tests/test_validate_results_tsv_security.py -v exits 0 with all tests passing"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_validate_results_tsv_security.py (new file — create security test suite)",
+        "File to edit: lib/spiral/validate_results_tsv.py (validate function — wrap internals in try/except, scrub absolute paths from error messages)",
+        "Test command: uv run pytest tests/test_validate_results_tsv_security.py -v",
+        "Use pytest.parametrize to cover: path-traversal story_id, null-byte in field, 10 000-char field value, empty TSV"
+      ],
+      "dependencies": [
+        "US-570"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "security",
+        "auto-generated"
+      ],
+      "model": "haiku"
+    },
+    {
       "id": "US-745",
       "title": "CLI: spiral story-genealogy — Visualize Decomposition Cost Hierarchy with Per-Branch Spend",
       "priority": "medium",
@@ -113,6 +277,87 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-755",
+      "title": "CLI: spiral cost-breakdown-by-model -- Show Token Spend and Cost per Claude Model (Haiku/Sonnet/Opus)",
+      "priority": "medium",
+      "description": "Implement a CLI command that parses results.tsv to aggregate and display total tokens, API costs, and story count for each model (haiku, sonnet, opus). Useful for understanding whether model escalation strategy is cost-effective and detecting runaway costs in specific models.",
+      "acceptanceCriteria": [
+        "CLI command 'spiral cost-breakdown-by-model' outputs table: Model | Stories | Tokens | Cost USD | Avg Cost/Story",
+        "Correctly parses results.tsv model column and sums tokens, cost columns grouped by model",
+        "Handles empty results.tsv gracefully and reports zero if no stories run yet"
+      ],
+      "technicalNotes": [
+        "File to create: lib/cli/cost_breakdown_by_model.py (function: parse_results_tsv, aggregate_by_model, format_table)",
+        "File to create: tests/test_cost_breakdown_by_model.py (test_valid_results_tsv, test_empty_results, test_model_grouping)",
+        "Test command: uv run pytest tests/test_cost_breakdown_by_model.py::test_model_grouping -v",
+        "CLI test: bash -c 'spiral cost-breakdown-by-model' (or update spiral.sh CLI router)"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-746",
+      "title": "Performance test: US-460 dashboard metrics stay within 20% baseline",
+      "priority": "medium",
+      "description": "Write a pytest performance benchmark in tests/test_perf_us460.py that measures the key timing metrics for the SPIRAL self-monitoring dashboard implemented in US-460 (token burn rate, story throughput, model escalation heatmap). The test captures a hardcoded baseline and fails if any measured operation degrades more than 20%, preventing silent regressions as the codebase grows.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_perf_us460.py -v exits 0 when dashboard operations complete within 120% of baseline",
+        "uv run pytest tests/test_perf_us460.py -v exits non-zero when a mock sleep of baseline*1.25 is injected",
+        "Test prints a summary line matching 'BASELINE: <metric>=<value>ms' to stdout for each measured operation",
+        "uv run pytest tests/ -k perf_us460 -v discovers and runs the new benchmark without errors"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_perf_us460.py (create new — perf benchmark; use time.perf_counter() for sub-ms resolution)",
+        "Reference US-460 source: .github/workflows/spiral.yml and .github/workflows/ci.yml for the operations being timed",
+        "Hardcode baseline constants at top of file (e.g. BASELINE_MS = 200); assert elapsed < BASELINE_MS * 1.20",
+        "Test command: uv run pytest tests/test_perf_us460.py -v",
+        "Full suite check: uv run pytest tests/ -k perf_us460 -v"
+      ],
+      "dependencies": [
+        "US-460"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "performance",
+        "auto-generated"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-747",
+      "title": "[Performance Test] Benchmark /profile endpoint response time",
+      "priority": "medium",
+      "description": "Write a pytest performance benchmark for the /profile endpoint introduced in US-522. The test imports the Flask app from lib/dashboard/api.py, issues 10 consecutive GET /profile requests against a fixture results.tsv, and asserts mean response time stays under 500 ms. This establishes a regression baseline so future changes cannot silently degrade analytics latency.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_perf_profile.py::test_profile_mean_response_under_500ms -v exits 0 with a fixture results.tsv of at least 50 rows",
+        "uv run pytest tests/test_perf_profile.py::test_profile_response_structure -v exits 0 verifying JSON keys 'mean_phase_durations', 'slowest_stories', 'escalation_frequency' are present",
+        "uv run pytest tests/test_perf_profile.py -v fails (non-zero) when results.tsv is replaced with a 5000-row file and a 20% stricter threshold is applied",
+        "uv run pytest tests/test_perf_profile.py -v passes in under 30 seconds total"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_perf_profile.py (new file — create performance test module)",
+        "File to edit: tests/fixtures/results_50rows.tsv (new fixture — 50-row sample matching results.tsv schema: story_id, phase, model, tokens, cost, duration_s, status)",
+        "Test command: uv run pytest tests/test_perf_profile.py -v --tb=short",
+        "Test command: uv run pytest tests/test_perf_profile.py::test_profile_mean_response_under_500ms -v",
+        "Use Flask test client (app.test_client()) — no live server needed. Import app from lib/dashboard/api.py.",
+        "Measure wall time with time.perf_counter() around 10 client.get('/profile') calls; assert mean < 0.5.",
+        "results.tsv columns (tab-separated): story_id, phase, model, tokens, cost, duration_s, status — match existing schema exactly."
+      ],
+      "dependencies": [
+        "US-522"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "performance",
+        "auto-generated"
+      ],
       "model": "haiku"
     },
     {
