@@ -11,27 +11,6 @@
   ],
   "userStories": [
     {
-      "id": "US-752",
-      "title": "Integration Test: Verify Worker Sub-Project Isolation Under 3-Worker Federated Load",
-      "priority": "high",
-      "description": "Write a pytest integration test that uses the federated fixture PRD and verifies each worker only implements stories within its assigned sub_project, with no cross-contamination in results.tsv and no prd.json corruption.",
-      "acceptanceCriteria": [
-        "uv run pytest tests/test_federated_worker_isolation_load.py::test_sub_project_fidelity -v exits 0",
-        "After test run, no story row in results.tsv has a sub_project value differing from its prd.json assignment: verified by test assertion",
-        "Test completes without AssertionError indicating cross-worker file conflicts or duplicate story IDs in results.tsv"
-      ],
-      "technicalNotes": [
-        "File to create: tests/test_federated_worker_isolation_load.py (test_sub_project_fidelity, test_no_results_corruption)",
-        "Depends on: tests/fixtures/federated_load_test_prd.json (created in sibling story)",
-        "Test command: uv run pytest tests/test_federated_worker_isolation_load.py -v --timeout=120",
-        "Use subprocess or monkeypatch to simulate 3-worker slice assignment via lib/slice_prd.py; assert each slice contains only one sub_project value"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": true,
-      "model": "haiku"
-    },
-    {
       "id": "US-734",
       "title": "Integration Tests: CHANGELOG Generation Logic in gen_changelog.py",
       "priority": "high",
@@ -53,8 +32,9 @@
         "US-604"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "sonnet"
+      "passes": true,
+      "model": "sonnet",
+      "last_attempted": "2026-03-22T15:04:59Z"
     },
     {
       "id": "US-735",
@@ -296,111 +276,24 @@
       "model": "haiku"
     },
     {
-      "id": "US-757",
-      "title": "Write pytest integration test for /ws/cost WebSocket cost-delta broadcast",
-      "priority": "medium",
-      "description": "Create a pytest integration test that connects a WebSocket client to /ws/cost, triggers a simulated Phase I completion event by calling lib/dashboard/cost_broadcaster.py directly, and asserts a JSON cost-delta message is received within 2 seconds. The test must be deterministic and not require a full SPIRAL loop.",
+      "id": "US-752",
+      "title": "Integration Test: Verify Worker Sub-Project Isolation Under 3-Worker Federated Load",
+      "priority": "high",
+      "description": "Write a pytest integration test that uses the federated fixture PRD and verifies each worker only implements stories within its assigned sub_project, with no cross-contamination in results.tsv and no prd.json corruption.",
       "acceptanceCriteria": [
-        "uv run pytest tests/test_ws_cost_e2e.py -v exits 0 with the new test passing",
-        "Test asserts the received WebSocket message is valid JSON containing at least one cost-delta field (e.g. 'delta' or 'total')",
-        "Test asserts message is received within 2 seconds of triggering the broadcaster",
-        "Test does not start a full SPIRAL loop — drives cost_broadcaster.py directly"
+        "uv run pytest tests/test_federated_worker_isolation_load.py::test_sub_project_fidelity -v exits 0",
+        "After test run, no story row in results.tsv has a sub_project value differing from its prd.json assignment: verified by test assertion",
+        "Test completes without AssertionError indicating cross-worker file conflicts or duplicate story IDs in results.tsv"
       ],
       "technicalNotes": [
-        "File to edit: tests/test_ws_cost_e2e.py (create new file — asyncio pytest test using websockets or httpx-ws to connect to /ws/cost)",
-        "File to edit: lib/dashboard/cost_broadcaster.py (read broadcast() or equivalent public function to invoke it in the test fixture)",
-        "Test command: uv run pytest tests/test_ws_cost_e2e.py -v",
-        "Use pytest-asyncio and asyncio.wait_for() with timeout=2.0 to enforce the 2-second assertion",
-        "If the server must be running, use an asyncio fixture to start it on a random port and tear it down after the test"
+        "File to create: tests/test_federated_worker_isolation_load.py (test_sub_project_fidelity, test_no_results_corruption)",
+        "Depends on: tests/fixtures/federated_load_test_prd.json (created in sibling story)",
+        "Test command: uv run pytest tests/test_federated_worker_isolation_load.py -v --timeout=120",
+        "Use subprocess or monkeypatch to simulate 3-worker slice assignment via lib/slice_prd.py; assert each slice contains only one sub_project value"
       ],
-      "dependencies": [
-        "US-583"
-      ],
+      "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-761",
-      "title": "[Regression Test] Ralph: Episodic Memory Injected into Prompt (US-649)",
-      "priority": "medium",
-      "description": "Write a regression test that verifies ralph.sh retrieves episodic memory matches and injects them as few-shot examples into the implementation prompt before executing a story. The test must fail if the memory retrieval call is removed or its output is no longer forwarded to the prompt builder.",
-      "acceptanceCriteria": [
-        "uv run pytest tests/test_us649_episodic_memory.py -v exits 0 with feature present",
-        "Test fails (non-zero) when episodic memory retrieval is stubbed to return an empty list",
-        "Test asserts that at least one retrieved memory snippet appears verbatim in the constructed prompt string",
-        "uv run pytest tests/ -k us_649 -v passes with no collection errors"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_us649_episodic_memory.py (new regression test module)",
-        "Inspect ralph/ralph.sh or lib/episodic_memory.py to locate the retrieval call and prompt assembly site before writing the test",
-        "Test command: uv run pytest tests/test_us649_episodic_memory.py -v",
-        "Use monkeypatch or unittest.mock to stub the retrieval function; assert prompt contains injected examples when stubs return fixtures",
-        "Check for an existing episodic memory module: grep -r 'episodic' lib/ ralph/ to find the exact function name"
-      ],
-      "dependencies": [
-        "US-649"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-762",
-      "title": "Regression Test: CLI trace-dependencies federated dep resolution",
-      "priority": "medium",
-      "description": "Write regression tests to guard against future breakage of US-675 (spiral trace-dependencies CLI). Tests must cover successful dependency chain resolution for a known story, circular dependency detection, and cross-project boundary marking in output. Tests invoke the CLI via subprocess so they fail if the feature is removed.",
-      "acceptanceCriteria": [
-        "uv run pytest tests/test_trace_dependencies.py -v exits 0 with at least 2 passing tests",
-        "subprocess call to `python main.py trace-dependencies <id>` on a fixture prd with linear deps returns exit code 0 and prints a tree-like dependency list to stdout",
-        "subprocess call to `python main.py trace-dependencies <id>` on a fixture prd with a circular dep returns non-zero exit code and prints 'circular' in stderr or stdout",
-        "Deleting or stubbing out the trace-dependencies handler in main.py causes at least one test to fail (verified by reading the test assertions)"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_trace_dependencies.py (new file — create all regression tests for US-675 here)",
-        "File to edit: tests/fixtures/prd_trace_deps.json (new fixture — minimal prd.json with a 2-level dep chain and a separate circular dep pair)",
-        "Test command: uv run pytest tests/test_trace_dependencies.py -v",
-        "Test command: uv run pytest tests/ -k trace_dependencies -v",
-        "Use subprocess.run(['python','main.py','trace-dependencies','US-001'], capture_output=True) and assert on returncode, stdout",
-        "Circular dep fixture: story A depends on B, B depends on A — assert returncode != 0 or 'circular' in combined output"
-      ],
-      "dependencies": [
-        "US-675"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "tags": [
-        "regression",
-        "auto-generated"
-      ],
-      "model": "haiku"
-    },
-    {
-      "id": "US-763",
-      "title": "[E2E Test] Dashboard AlertsPanel receives WebSocket cost-ceiling alerts",
-      "priority": "medium",
-      "description": "Write an end-to-end Playwright test verifying the user flow introduced by US-591: a browser client connects to /ws/alerts, cumulative-cost and phase-budget threshold alerts are streamed, and the AlertsPanel in the spiral-ui dashboard (localhost:5299) renders each alert within 2 seconds. This validates operator visibility during long SPIRAL runs.",
-      "acceptanceCriteria": [
-        "AlertsPanel is visible in the dashboard and shows at least one alert after a mock WebSocket message is injected: `uv run pytest tests/test_e2e_us591_alerts.py::test_alerts_panel_visible -v`",
-        "WebSocket client connecting to ws://localhost:5299/ws/alerts receives a JSON alert within 2 s of cumulative cost crossing 80 % of SPIRAL_COST_CEILING: `uv run pytest tests/test_e2e_us591_alerts.py::test_cost_ceiling_alert_streamed -v`",
-        "Full E2E suite passes headless: `uv run pytest tests/test_e2e_us591_alerts.py -v`"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_e2e_us591_alerts.py (new file — Playwright-pytest E2E test for US-591 AlertsPanel)",
-        "File to edit: spiral-ui/src/components/AlertsPanel.tsx or AlertsPanel.jsx (locate existing component; add data-testid='alerts-panel' if missing so Playwright can query it)",
-        "Test command: uv run pytest tests/test_e2e_us591_alerts.py -v",
-        "Use playwright-pytest fixture `page` to navigate to http://localhost:5299, inject a fake WebSocket message via `page.evaluate()` or intercept with `page.route()`, then assert `page.locator('[data-testid=alerts-panel]')` contains the alert text",
-        "If spiral-ui is not running during CI, mock the WebSocket server with a lightweight asyncio server started as a pytest fixture on port 5299"
-      ],
-      "dependencies": [
-        "US-591"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "tags": [
-        "e2e",
-        "auto-generated"
-      ],
+      "passes": true,
       "model": "haiku"
     },
     {
