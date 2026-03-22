@@ -34,8 +34,7 @@
       ],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-03-22T16:20:26Z"
+      "model": "haiku"
     },
     {
       "id": "US-760",
