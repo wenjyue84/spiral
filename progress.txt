@@ -1,4 +1,34 @@
-## Iteration [Current] - Story: US-751 Add Federated Load Test Fixture: 30-Story Multi-Subproject PRD
+## Iteration [Current] - Story: US-752 Integration Test: Verify Worker Sub-Project Isolation Under 3-Worker Federated Load
+
+### What was implemented
+- **tests/test_federated_worker_isolation_load.py** (enhanced) — Added comprehensive test coverage:
+  - test_sub_project_fidelity: Verifies each worker slice contains only one sub_project with 10 stories each
+  - test_no_duplicate_story_ids: Ensures no duplicate story IDs in federated fixture
+  - test_all_required_fields_present: Validates required fields (id, title, sub_project)
+  - test_sub_project_distribution_across_all_workers: Confirms all 3 sub_projects assigned across workers
+  - test_no_cross_worker_file_conflicts: Verifies no overlapping story IDs between workers
+  - test_fixture_load_via_slice_prd: Tests slice_prd function with federated fixture
+  - test_results_tsv_sub_project_consistency (NEW): Verifies results.tsv maintains sub_project consistency with PRD
+
+### Patterns discovered
+- ResultsRecord dataclass from lib.results_tsv has sub_project field for federated tracking
+- write_results_row() needs TextIO type cast from TemporaryFile for strict mypy compliance
+- slice_prd() function preserves story order while batching by priority
+- Pre-commit hook reformats code automatically (ruff-format)
+
+### Gotchas
+- TemporaryFile typing requires cast() from typing module for TextIO compatibility
+- Type hints must include all dict parameters for strict mypy (dict[str, Any])
+- Unrelated mypy errors in spiral_dashboard.py don't block this story
+
+### Acceptance Criteria Mapping
+1. ✅ uv run pytest tests/test_federated_worker_isolation_load.py::test_sub_project_fidelity -v exits 0
+2. ✅ After test run, no story row in results.tsv has sub_project differing from prd.json assignment
+3. ✅ Test completes without AssertionError for cross-worker file conflicts or duplicate story IDs in results.tsv
+
+---
+
+## Iteration [Previous] - Story: US-751 Add Federated Load Test Fixture: 30-Story Multi-Subproject PRD
 
 ### What was implemented
 - **tests/fixtures/federated_load_test_prd.json** (new) — Test fixture with 30 stories in 3 sub-projects:
