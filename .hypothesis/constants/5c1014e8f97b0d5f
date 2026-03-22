@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\research_quality.py
+# hypothesis_version: 6.151.9
+
+[0.0, 2.0, 100, '\nScore Distribution:', '30-49', '50-69', '70-89', '90-100', '=', '_source', 'failed', 'id', 'passed', 'research', 'retry_num', 'spiral_iter', 'status', 'story_id', 'unknown', 'userStories', 'utf-8']

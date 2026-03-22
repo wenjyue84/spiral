@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\prd\slice_prd.py
+# hypothesis_version: 6.151.9
+
+['--output', '-o', 'Path to prd.json', '__main__', '_archived', '_decomposed', '_decomposedFrom', '_decomposedInto', '_skipped', 'batch_size', 'batched_prd', 'command', 'full_prd', 'id', 'low', 'merge', 'passes', 'prd', 'priority', 'replace', 'slice', 'userStories', 'utf-8', 'w']
