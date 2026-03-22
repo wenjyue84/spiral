@@ -53,17 +53,26 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+# ── Path resolution ──────────────────────────────────────────────────────────
+# SPIRAL_HOME = where the tool lives (main.py, lib/, ralph/, templates/)
+# PROJECT_ROOT = the user's project directory (prd.json, results.tsv, .spiral/)
+SPIRAL_HOME = Path(os.environ.get("SPIRAL_HOME", str(Path(__file__).parent)))
+PROJECT_ROOT = Path.cwd()
+
 # Add lib/ to path for local imports
-sys.path.insert(0, str(Path(__file__).parent / "lib"))
+sys.path.insert(0, str(SPIRAL_HOME / "lib"))
 from episodic_memory import list_recent  # noqa: E402
 
-SPIRAL_SH = Path(__file__).parent / "spiral.sh"
-PRD_FILE = Path(__file__).parent / "prd.json"
-RESULTS_TSV = Path(__file__).parent / "results.tsv"
-RETRY_COUNTS = Path(__file__).parent / "retry-counts.json"
-SCRATCH_DIR = Path(__file__).parent / ".spiral"
+# Tool paths (in SPIRAL_HOME)
+SPIRAL_SH = SPIRAL_HOME / "spiral.sh"
+
+# Project paths (in user's project directory)
+PRD_FILE = PROJECT_ROOT / "prd.json"
+RESULTS_TSV = PROJECT_ROOT / "results.tsv"
+RETRY_COUNTS = PROJECT_ROOT / "retry-counts.json"
+SCRATCH_DIR = PROJECT_ROOT / ".spiral"
 CHECKPOINT_FILE = SCRATCH_DIR / "_checkpoint.json"
-CALIBRATION_FILE = Path(__file__).parent / "calibration.jsonl"
+CALIBRATION_FILE = PROJECT_ROOT / "calibration.jsonl"
 DLQ_AUDIT_LOG = SCRATCH_DIR / "audit.log"
 
 # ── ANSI colour helpers ───────────────────────────────────────────────────────
@@ -710,7 +719,7 @@ def cmd_estimate(args):
 
     # ── Handle --report flag (US-437): print velocity model table and exit ────
     if getattr(args, "report", False):
-        vm_path = Path(__file__).parent / "lib" / "velocity_model.py"
+        vm_path = SPIRAL_HOME / "lib" / "velocity_model.py"
         spec = _ilu.spec_from_file_location("velocity_model", vm_path)
         if spec is None or spec.loader is None:
             print("ERROR: lib/velocity_model.py not found.")
@@ -724,7 +733,7 @@ def cmd_estimate(args):
         print(report)
         _sys.exit(0)
 
-    cost_project_path = Path(__file__).parent / "lib" / "cost_project.py"
+    cost_project_path = SPIRAL_HOME / "lib" / "cost_project.py"
     spec = _ilu.spec_from_file_location("cost_project", cost_project_path)
     if spec is None or spec.loader is None:
         print("ERROR: lib/cost_project.py not found.")
@@ -752,7 +761,7 @@ def cmd_estimate(args):
 
     # ── Token guard summary (US-408) ──────────────────────────────────────
     # Report how many pending stories would exceed the context budget.
-    token_guard_path = Path(__file__).parent / "lib" / "token_guard.py"
+    token_guard_path = SPIRAL_HOME / "lib" / "token_guard.py"
     if token_guard_path.exists():
         tg_spec = _ilu.spec_from_file_location("token_guard", token_guard_path)
         if tg_spec is not None and tg_spec.loader is not None:
@@ -777,7 +786,7 @@ def cmd_search(args) -> None:
     """Search prd.json stories by natural language query."""
     import sys as _sys
 
-    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
     from search_stories import format_table, search_stories  # type: ignore[import-untyped]
 
     results = search_stories(
@@ -801,7 +810,7 @@ def cmd_search(args) -> None:
 
 def cmd_import_github(args) -> None:
     """Import GitHub Issues as SPIRAL user stories into prd.json."""
-    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
     from import_github import import_github_issues  # type: ignore[import-untyped]
 
     token = os.environ.get("GITHUB_TOKEN", "").strip()
@@ -853,7 +862,7 @@ def cmd_import_github(args) -> None:
 
 def cmd_import_jira(args) -> None:
     """Import Jira issues as SPIRAL user stories into prd.json."""
-    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
     from import_jira import import_jira_issues  # type: ignore[import-untyped]
 
     email = os.environ.get("JIRA_USER_EMAIL", "").strip()
@@ -924,7 +933,7 @@ def cmd_import_jira(args) -> None:
 
 def cmd_import_csv(args) -> None:
     """Bulk-import user stories from a CSV file into prd.json."""
-    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
     from import_csv import import_csv_stories  # type: ignore[import-untyped]
 
     delimiter = args.delimiter.encode("raw_unicode_escape").decode("unicode_escape")
@@ -965,7 +974,7 @@ def cmd_import_csv(args) -> None:
 
 def cmd_graph(args) -> None:
     """Generate Mermaid dependency graph from prd.json."""
-    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
     from pathlib import Path as _Path
 
     from dependency_graph import cmd_graph as _graph  # type: ignore[import-untyped]
@@ -977,7 +986,7 @@ def cmd_graph(args) -> None:
 
 def _diagnose_cache_hit_rate() -> dict:
     """US-338: Analyze prompt cache hit rate from results.tsv."""
-    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
     from prompt_cache_analysis import analyze_cache_hit_rate
 
     if not RESULTS_TSV.exists():
@@ -997,7 +1006,7 @@ def _diagnose_cache_hit_rate() -> dict:
 
 def cmd_namespace_check(args) -> None:
     """Validate story ID namespacing in federated prd.json (US-503)."""
-    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
     from namespace_check import check_namespaces  # type: ignore[import]
     from spiral_io import atomic_write_json  # type: ignore[import]
 
@@ -1046,7 +1055,7 @@ def cmd_namespace_check(args) -> None:
 
 def cmd_validate_federated(args) -> None:
     """Validate federated prd.json structure (US-514)."""
-    sys.path.insert(0, str(Path(__file__).parent / "lib" / "commands"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib" / "commands"))
     from validate_federated import validate_federated  # type: ignore[import]
 
     prd_path = Path(getattr(args, "prd", "prd.json"))
@@ -1081,7 +1090,7 @@ def cmd_validate_federated(args) -> None:
 
 def cmd_validate_results_tsv(args) -> None:
     """Validate results.tsv data quality against prd.json (US-571)."""
-    sys.path.insert(0, str(Path(__file__).parent / "lib" / "spiral"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib" / "spiral"))
     from validate_results_tsv import validate  # type: ignore[import]
 
     tsv_path = getattr(args, "tsv", "results.tsv")
@@ -1114,7 +1123,7 @@ def cmd_validate_results_tsv(args) -> None:
 
 def cmd_federated_status(args) -> None:
     """Aggregate story status across federated sub-projects (US-629)."""
-    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
     from federated_status import (  # type: ignore[import]
         aggregate_federated_stories,
         format_json_output,
@@ -1148,7 +1157,7 @@ def cmd_federated_status(args) -> None:
 
 def cmd_federation_health_check(args) -> None:
     """Validate federated PRD structure: sub_project refs, cycles, namespace (US-653)."""
-    sys.path.insert(0, str(Path(__file__).parent / "lib" / "commands"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib" / "commands"))
     from federation_health_check import federation_health_check  # type: ignore[import]
 
     prd_path = Path(getattr(args, "prd", "prd.json"))
@@ -1183,7 +1192,7 @@ def cmd_federation_health_check(args) -> None:
 
 def cmd_diagnose(args) -> None:
     """Print a causal failure chain for a spiral run (uses failure_attribution.py)."""
-    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
     from failure_attribution import FailureAttributor  # type: ignore[import]
 
     # Resolve checkpoint: use --checkpoint if given, else find by run-id, else default
@@ -1433,7 +1442,7 @@ def cmd_export_report(args) -> None:
 
 def cmd_compact_prd(args) -> None:
     """Strip transient runtime fields from completed/skipped stories in prd.json."""
-    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
     from compact_prd import compact_prd  # type: ignore[import-untyped]
 
     prd_path = str(PRD_FILE)
@@ -1687,8 +1696,9 @@ def cmd_dlq_replay(args) -> None:
 
 def cmd_init(args):  # noqa: ARG001
     """Run the interactive setup wizard."""
-    setup_py = Path(__file__).parent / "lib" / "setup.py"
-    result = subprocess.run([sys.executable, str(setup_py)], check=False)
+    setup_py = SPIRAL_HOME / "lib" / "tools" / "setup.py"
+    env = {**os.environ, "SPIRAL_HOME": str(SPIRAL_HOME)}
+    result = subprocess.run([sys.executable, str(setup_py)], env=env, check=False)
     sys.exit(result.returncode)
 
 
@@ -1995,7 +2005,7 @@ def cmd_complexity_trend(args) -> None:
     Usage: spiral complexity-trend --phase I --output trend-report.csv
            spiral complexity-trend --phase I --format json
     """
-    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
     from complexity_trend import run_trend  # type: ignore[import-untyped]
 
     history = getattr(args, "history", "results.tsv")
@@ -2047,7 +2057,7 @@ def cmd_show_slowest_stories(args: argparse.Namespace) -> None:
 
     Usage: spiral show-slowest-stories [--results results.tsv] [--top 5]
     """
-    sys.path.insert(0, str(Path(__file__).parent / "lib" / "commands"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib" / "commands"))
     from show_slowest_stories import show_slowest_stories  # type: ignore[import-untyped]
 
     results_tsv_path = Path(getattr(args, "results_tsv", "results.tsv"))
@@ -2068,7 +2078,7 @@ def cmd_replay(args) -> None:
 
     Usage: spiral replay --phase R --iteration 3 [--prd prd.json] [--scratch-dir .spiral]
     """
-    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
     from phase_replay import run_phase_replay  # type: ignore[import-untyped]
 
     phase: str = args.phase
@@ -2083,7 +2093,7 @@ def cmd_replay(args) -> None:
     if not scratch_dir.is_absolute():
         scratch_dir = Path.cwd() / scratch_dir
 
-    repo_dir = Path(__file__).parent
+    repo_dir = PROJECT_ROOT
 
     state = run_phase_replay(
         phase=phase,
@@ -2105,7 +2115,7 @@ def cmd_analyze_batch_potential(args) -> None:
 
     Usage: spiral analyze-batch-potential [prd.json] [--pending-only] [--max-batch-size N]
     """
-    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
     from batch_optimizer import batch_potential  # type: ignore[import-untyped]
 
     prd_path = Path(getattr(args, "prd_file", None) or "prd.json")
@@ -2142,7 +2152,7 @@ def cmd_phase_audit(args) -> None:
 
     Usage: spiral phase-audit --compare-last [--phase=PHASE] [--scratch-dir .spiral]
     """
-    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
     from phase_audit import run_phase_audit  # type: ignore[import-untyped]
 
     phase = getattr(args, "phase", "S")
@@ -2164,7 +2174,7 @@ def cmd_worktree_audit(args) -> None:
     """
     import time
 
-    repo_root = Path(__file__).parent
+    repo_root = PROJECT_ROOT
     worktree_base = repo_root / ".spiral-workers"
     fix_mode: bool = getattr(args, "fix", False)
     json_mode: bool = getattr(args, "json_output", False)
@@ -2457,9 +2467,9 @@ def cmd_config_export_env(args) -> None:
     if config_env:
         config_file = Path(config_env)
     else:
-        # Try cwd first (how spiral.sh resolves it), then next to main.py
+        # Try cwd first (how spiral.sh resolves it), then fall back to SPIRAL_HOME
         cwd_config = Path.cwd() / "spiral.config.sh"
-        config_file = cwd_config if cwd_config.exists() else Path(__file__).parent / "spiral.config.sh"
+        config_file = cwd_config if cwd_config.exists() else SPIRAL_HOME / "spiral.config.sh"
 
     if not config_file.exists():
         print(
@@ -2542,7 +2552,7 @@ def cmd_phase_timing_report(args) -> None:
 
     Usage: spiral phase-timing-report --format json [--history results.tsv] [--sla 300]
     """
-    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
     from perf_analyzer import analyze_phase_timings  # type: ignore[import-untyped]
 
     history_path = getattr(args, "history", "results.tsv")
@@ -2557,7 +2567,7 @@ def cmd_analyze_failures(args) -> None:
 
     Usage: spiral analyze-failures --format json [--repo .]
     """
-    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
     from analyze_failures import FailureAnalyzer  # type: ignore[import-untyped]
 
     repo_root = Path(getattr(args, "repo", "."))
@@ -2598,7 +2608,7 @@ def cmd_categorize_failures(args: argparse.Namespace) -> None:
 
     Usage: spiral categorize-failures [iteration] [--results results.tsv]
     """
-    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
     from failure_categorizer import categorize_iteration  # type: ignore[import-untyped]
 
     iteration = getattr(args, "iteration", None)
@@ -2613,7 +2623,7 @@ def cmd_detect_anomalies(args) -> None:
 
     Usage: spiral detect-anomalies [--history results.tsv] [--zscore 2.0]
     """
-    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
     from cost_anomaly_detector import detect_anomalies  # type: ignore[import-untyped]
 
     history_path = getattr(args, "history", "results.tsv")
@@ -2628,7 +2638,7 @@ def cmd_validate_commits(args) -> None:
 
     Usage: spiral validate-commits --json [--prd prd.json] [--repo .]
     """
-    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
     from validate_commits import validate_commits  # type: ignore[import-untyped]
 
     prd_path = getattr(args, "prd", "prd.json")
@@ -3989,7 +3999,7 @@ def cmd_federated_status(args: argparse.Namespace) -> None:
 
     Usage: spiral federated-status [--prd PATH] [--worker-base-dir PATH] [--json]
     """
-    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
     from federated_status import aggregate_federated_status, format_table  # type: ignore[import-untyped]
 
     prd_path = Path(getattr(args, "prd", "prd.json"))
@@ -4014,7 +4024,7 @@ def cmd_federated_cost_report(args: argparse.Namespace) -> None:
     Usage: spiral federated-cost-report [--results PATH]
     Outputs markdown table grouped by (sub_project, phase).
     """
-    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
     from cli.federated_cost_report import federated_cost_report  # type: ignore[import-untyped]
 
     results_path = Path(getattr(args, "results", "results.tsv"))
@@ -4034,7 +4044,7 @@ def cmd_monitor(args: argparse.Namespace) -> None:
     """Run unified monitoring snapshot and print results."""
     from monitor import run_monitor
 
-    project_root = Path(__file__).parent
+    project_root = PROJECT_ROOT
     port = getattr(args, "port", 5299)
     use_json = getattr(args, "json", True)
 
@@ -4091,7 +4101,7 @@ def cmd_validate_federated_order(args: argparse.Namespace) -> None:
 
     Usage: spiral validate-federated-order [prd.json]
     """
-    sys.path.insert(0, str(Path(__file__).parent / "lib" / "impl"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib" / "impl"))
     from phase_m_federated_order import order_federated_stories_by_dependency  # type: ignore[import-untyped]
 
     prd_path = Path(getattr(args, "prd", "prd.json"))
@@ -4135,7 +4145,7 @@ def cmd_lint_prd(args: argparse.Namespace) -> None:
     Usage: spiral lint-prd [prd.json] [--schema prd.schema.json]
     Outputs JSON: {valid: bool, errors: [{type, ...}, ...]}
     """
-    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
     from prd.lint_prd import lint_prd  # type: ignore[import-untyped]
 
     prd_path = Path(getattr(args, "prd", "prd.json"))
@@ -4177,8 +4187,8 @@ def cmd_predict_story_complexity(args: argparse.Namespace) -> None:
     Usage: spiral predict-story-complexity <story_id> [--prd FILE] [--results FILE]
     Outputs JSON: {story_id, score: 1-10, label, similar: [{id, similarity, avg_retries, tokens}]}
     """
-    sys.path.insert(0, str(Path(__file__).parent / "lib"))
-    sys.path.insert(0, str(Path(__file__).parent / "lib" / "routing"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib" / "routing"))
     from routing.complexity_scorer import predict_story_complexity  # type: ignore[import-untyped]
 
     story_id = getattr(args, "story_id", "")
@@ -4232,10 +4242,10 @@ def cmd_archive_checkpoint(args: argparse.Namespace) -> None:
       spiral archive-checkpoint restore <FILE> [--root DIR]
       spiral archive-checkpoint manifest <FILE>
     """
-    sys.path.insert(0, str(Path(__file__).parent / "lib" / "commands"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib" / "commands"))
     from archive_checkpoint import archive, read_manifest, restore  # type: ignore[import-untyped]
 
-    root = Path(__file__).parent
+    root = PROJECT_ROOT
 
     # Shorthand: `spiral archive-checkpoint --output FILE`
     shorthand_output: str = getattr(args, "output", "") or ""
@@ -4277,7 +4287,7 @@ def cmd_cost_forecast(args: argparse.Namespace) -> None:
     Usage: spiral cost-forecast [--prd FILE] [--results FILE] [--last-n N]
     Outputs JSON: {remaining_stories, iterations_needed, projected_cost, confidence_pct}
     """
-    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
     from cost_forecast import forecast  # type: ignore[import-untyped]
 
     prd_path = Path(getattr(args, "prd", "prd.json"))
@@ -4299,7 +4309,7 @@ def cmd_forecast_ceiling(args: argparse.Namespace) -> None:
     Usage: spiral forecast-ceiling CEILING [--prd FILE] [--results FILE] [--until-date]
     Outputs JSON with forecast result, message, and optional calendar date.
     """
-    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
     from forecast_ceiling import forecast_ceiling_cli  # type: ignore[import-untyped]
 
     ceiling = float(getattr(args, "ceiling", 0.0))
@@ -4337,7 +4347,7 @@ def cmd_check_federated_deps(args: argparse.Namespace) -> None:
 
     Exit code 1 if any issues found, 0 if valid.
     """
-    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
     from check_federated_deps import validate  # type: ignore[import-untyped]
 
     prd_path = Path(getattr(args, "prd", "prd.json"))
@@ -4373,7 +4383,7 @@ def cmd_list_federation(args: argparse.Namespace) -> None:
     Exit code 1 if federation.toml missing or prd.json sub_project fields
     are inconsistent with config.
     """
-    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
     from list_federation import (  # type: ignore[import-untyped]
         build_summary,
         count_stories_by_project,
@@ -4438,7 +4448,7 @@ def cmd_validate_federated_governance(args: argparse.Namespace) -> None:
 
     Exit code 1 if violations found, 0 if all pass.
     """
-    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
     from validate_federated_governance import (  # type: ignore[import-untyped]
         format_json_report,
         format_text_report,
@@ -4497,7 +4507,7 @@ def cmd_trace_dependencies(args: argparse.Namespace) -> None:
         {story_id, dependencies: [{story_id, sub_project, depth, files}],
          has_cycle, [cycle_path]}
     """
-    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
     from trace_dependencies import (  # type: ignore[import-untyped]
         format_tree,
         to_json_output,
@@ -4545,7 +4555,7 @@ def cmd_show_merge_order(args: argparse.Namespace) -> None:
     With --json: outputs machine-readable JSON:
         [{id, title, dependencies, dependents}]
     """
-    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
     from story_reorder import build_dep_graph, topological_sort  # type: ignore[import-untyped]
 
     prd_path = Path(getattr(args, "prd", "prd.json"))
@@ -4631,7 +4641,7 @@ def cmd_show_story_lineage(args: argparse.Namespace) -> None:
     With --json: outputs machine-readable JSON:
         {id, title, status, tokens, children: [{...}]}
     """
-    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
     from show_story_lineage import (  # type: ignore[import-untyped]
         _load_token_counts,
         build_lineage_tree,
@@ -4675,7 +4685,7 @@ def cmd_show_merge_order(args: argparse.Namespace) -> None:
     Without --json: prints ASCII tree with story titles and dependencies.
     With --json: outputs machine-readable JSON: {id, title, dependencies, index_in_order}
     """
-    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
     from story_reorder import build_dep_graph, reorder_stories  # type: ignore[import-untyped]
 
     prd_path = Path(getattr(args, "prd", "prd.json"))
@@ -4745,7 +4755,7 @@ def cmd_validate_phase_outputs(args: argparse.Namespace) -> None:
     JSON output: [{valid, phase, errors: [{file, line, expected, got}]}]
     Text output: human-readable pass/fail per phase with error details.
     """
-    sys.path.insert(0, str(Path(__file__).parent / "lib" / "spiral"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib" / "spiral"))
     from validate_phase_outputs import (  # type: ignore[import-untyped]
         format_text_report,
         validate_phase,
@@ -4795,7 +4805,7 @@ def cmd_validate_scc_cycles(args: argparse.Namespace) -> None:
 
     Exit code 1 if cycles detected, 0 if acyclic.
     """
-    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
     from validate_scc import find_cycles  # type: ignore[import-untyped]
 
     prd_path = Path(getattr(args, "prd", "prd.json"))
@@ -4836,7 +4846,7 @@ def cmd_explain_retry(args: argparse.Namespace) -> None:
           "status": "failed", "error_category": "scope_overrun"}, ...]
         Decomposition: Split into 2 stories: US-123A (lib/ modules) and US-123B (tests/ modules)
     """
-    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
     from commands.explain_retry import explain_retry_sequence, suggest_decomposition  # type: ignore[import-untyped]
 
     story_id: str = args.story_id
@@ -4874,7 +4884,7 @@ def cmd_deploy_docs(args: argparse.Namespace) -> None:
         spiral deploy-docs --branch gh-pages
         spiral deploy-docs --branch gh-pages --dry-run
     """
-    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
     from commands.deploy_docs import deploy_to_gh_pages, prepare_changelog_output  # type: ignore[import-untyped]
 
     spiral_home = Path(getattr(args, "spiral_home", ".")).resolve()
