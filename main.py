@@ -37,6 +37,7 @@ Subcommands:
   trace-dependencies      Resolve and visualize full dependency chain for a story (US-675)
   show-story-lineage      Show story decomposition lineage tree with status and tokens (US-671)
   show-merge-order        Show pending stories in topologically sorted merge order (US-698)
+  show-research-quality   Display research quality feedback loop metrics and trends (US-772)
   list-federation         Display sub-project configuration and story allocation summary (US-665)
   validate-governance     Enforce per-project story quotas and ID patterns (US-672)
   federated-cost-report   Per-sub-project cost breakdown by phase (US-713)
@@ -3735,6 +3736,37 @@ def main():
         help="Output machine-readable JSON instead of ASCII tree",
     )
 
+    # ── show-research-quality subcommand (US-772) ──────────────────────────────────
+    research_quality_parser = subparsers.add_parser(
+        "show-research-quality",
+        help="Display research quality feedback loop metrics and trends (US-772)",
+    )
+    research_quality_parser.add_argument(
+        "--prd",
+        default="prd.json",
+        metavar="FILE",
+        help="Path to prd.json (default: prd.json)",
+    )
+    research_quality_parser.add_argument(
+        "--results",
+        default="results.tsv",
+        metavar="FILE",
+        help="Path to results.tsv (default: results.tsv)",
+    )
+    research_quality_parser.add_argument(
+        "--last-n-iterations",
+        type=int,
+        default=3,
+        metavar="N",
+        help="Number of recent iterations to include in trend (default: 3)",
+    )
+    research_quality_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="output_json",
+        help="Output machine-readable JSON instead of text report",
+    )
+
     # ── validate-governance subcommand (US-672) ─────────────────────────────────
     validate_gov_parser = subparsers.add_parser(
         "validate-governance",
@@ -3977,6 +4009,8 @@ def main():
         cmd_show_story_lineage(args)
     elif args.command == "show-merge-order":
         cmd_show_merge_order(args)
+    elif args.command == "show-research-quality":
+        cmd_show_research_quality(args)
     elif args.command == "list-federation":
         cmd_list_federation(args)
     elif args.command == "validate-governance":
@@ -4673,6 +4707,102 @@ def cmd_show_story_lineage(args: argparse.Namespace) -> None:
     else:
         tree_str = format_tree(root)
         print(tree_str, end="")
+
+    sys.exit(0)
+
+
+def cmd_show_research_quality(args: argparse.Namespace) -> None:
+    """Display research quality feedback loop metrics and trends (US-772).
+
+    Usage: spiral show-research-quality [--prd FILE] [--results FILE] [--last-n-iterations N] [--json]
+
+    Shows:
+    - AC1: Total research-sourced stories with quality scores
+    - AC2: Average research quality score from last 3 iterations (Phase R logging input)
+    - Trend over time showing research strategy effectiveness
+
+    Without --json: prints text report with metrics and distribution.
+    With --json: outputs machine-readable JSON with aggregated metrics and trends.
+    """
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
+    from research_quality import (  # type: ignore[import-untyped]
+        aggregate_research_quality,
+        format_research_quality_report,
+        get_research_quality_trend,
+    )
+
+    prd_path = Path(getattr(args, "prd", "prd.json"))
+    results_path = Path(getattr(args, "results", "results.tsv"))
+    last_n = getattr(args, "last_n_iterations", 3)
+    output_json: bool = getattr(args, "output_json", False)
+
+    # Load prd.json
+    try:
+        with open(prd_path, encoding="utf-8") as f:
+            prd = json.load(f)
+    except FileNotFoundError:
+        print(
+            json.dumps({"error": f"PRD file not found: {prd_path}"}),
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    except json.JSONDecodeError as e:
+        print(
+            json.dumps({"error": f"Invalid JSON in {prd_path}: {e}"}),
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    # Aggregate research quality from results.tsv
+    try:
+        result = aggregate_research_quality(prd, results_path)
+    except Exception as e:
+        print(
+            json.dumps({"error": f"Error aggregating research quality: {e}"}),
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    # Get trend from last N iterations
+    try:
+        trends = get_research_quality_trend(results_path, iterations=last_n)
+    except Exception as e:
+        print(
+            json.dumps({"error": f"Error extracting research quality trend: {e}"}),
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    if output_json:
+        # Machine-readable JSON output
+        output = {
+            "total_stories": result.total_stories,
+            "average_score": round(result.average_score, 2),
+            "median_score": round(result.median_score, 2),
+            "passed_count": len(result.stories_by_status["passed"]),
+            "failed_count": len(result.stories_by_status["failed"]),
+            "scores_by_story": result.scores_by_story,
+            "trend": [
+                {
+                    "iteration": t.iteration,
+                    "average_score": round(t.average_score, 2),
+                    "story_count": t.story_count,
+                }
+                for t in trends
+            ],
+        }
+        print(json.dumps(output, indent=2))
+    else:
+        # Human-readable text report
+        print(format_research_quality_report(result))
+
+        if trends:
+            print("\nTrend (last {} iterations):".format(len(trends)))
+            for trend in trends:
+                msg = f"  Iteration {trend.iteration}: avg={trend.average_score:.1f}/100 ({trend.story_count} stories)"
+                print(msg)
+        else:
+            print("\nNo research stories in recent results.tsv entries.")
 
     sys.exit(0)
 

@@ -18,4 +18,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-03-22T12:44:58Z	2	2	US-744	Phase I: Automatic File-Level Scope Reduction for Oversized Implementations	reject	838	opus	2		69bfda3e495e	false	0	0	0	0	0	0	0		0	0	0	0	unknown
 2026-03-22T15:23:16Z	4	1	US-735	[Security Test] Results TSV: No Sensitive Data in Telemetry Rows	reject	576	sonnet	1		69bffd1d5c0d	false	0	0	0	0	0	0	0		0	0	0	0
 2026-03-22T15:38:39Z	5	1	US-736	Security tests for validate_results_tsv (US-570)	reject	394	haiku	1		69bffd1d5c0d	false	0	0	0	0	0	0	0		0	0	0	0
-2026-03-22T17:43:40Z	12	1	US-767	[Integration Test] file_aware_retry: Track Failed Files and Retry Only Those	reject	283	haiku	1		69bffd1d5c0d	false	0	0	0	0	0	0	0		0	0	0	0		
+2026-03-22T17:43:40Z	12	1	US-767	[Integration Test] file_aware_retry: Track Failed Files and Retry Only Those	reject	283	haiku	1		69bffd1d5c0d	false	0	0	0	0	0	0	0		0	0	0	0

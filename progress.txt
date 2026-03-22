@@ -2267,11 +2267,11 @@ Attempt 1 failed with oversized diff (949 lines > 400 limit). The implementation
   - Correct return schema: `{"errors": [...], "warnings": [...], "check_counts": {"rows": int, "checks_run": int}}`
   - Checks: duplicate story_id detection + token count range validation [0, 1000000]
   - No prd.json dependency
-  
+
 - **tests/test_validate_results_tsv.py** (65 lines)
   - 3 minimal required test functions: test_validate_duplicates, test_validate_token_range, test_validate_missing_story_id
   - Uses pytest tmp_path pattern
-  
+
 ### Acceptance Criteria Met
 - [x] `validate()` returns dict with 'errors', 'warnings', 'check_counts' keys
 - [x] pytest tests all passing (3/3)
@@ -2288,3 +2288,38 @@ Attempt 1 failed with oversized diff (949 lines > 400 limit). The implementation
 - Single responsibility = smaller code + easier to test
 - Minimal tests often outweigh comprehensive ones when scope is well-defined
 
+
+## Pre-analysis for US-772 (Gemini 2.5 Pro)
+**Subject: Technical Brief for US-772: Research Quality Feedback Loop**
+
+This brief outlines the implementation plan for scoring research-sourced stories based on their implementation outcome.
+
+**1. Python Files to Modify:**
+
+*   **`lib/research_quality.py` (Create):** This new module will contain all the business logic.
+    *   `calculate_and_save_score(story_id, retry_count)`: Finds the story in `prd.json`, applies the scoring formula, and updates the JSON file.
+    *   `get_average_score(iterations)`: Reads `prd.json`, filters for recent research stories, calculates the average `_research_quality_score`, and returns it.
+    *   `display_effectiveness_trend()`: Aggregates scores by iteration and prints a formatted trend report.
+*   **`spiral.sh` (Modify):** This shell script will be orchestrated to call the new Python logic.
+
+**2. Frappe DocTypes & Hooks (Analogues):**
+
+*   **DocType:** The "story" JSON object within the `prd.json` file is the equivalent data structure. It will be modified to include a `_research_quality_score` integer field.
+*   **Hooks:**
+    *   **Phase I Post-Implementation Hook:** In `spiral.sh`, after a story is implemented, a call must be made to `lib/research_quality.py` to score the result.
+    *   **Phase R Pre-Generation Hook:** In the "Phase R" section of `spiral.sh`, a call must be made to get the average quality score before new work is generated.
+
+**3. Recommended Implementation Approach:**
+
+1.  Create `lib/research_quality.py`. Implement a main entrypoint that uses `argparse` to dispatch to the functions described above (`score`, `get-average`, `show-trend`).
+2.  The scoring formula should be `score = max(0, 100 - (retry_count - 1) * 35)`. This logic must only apply if the story's `_source` field is `research`.
+3.  In `spiral.sh`, find the end of the Phase I workflow and add: `python lib/research_quality.py score --story-id $STORY_ID --retries $RETRY_COUNT`.
+4.  In `spiral.sh`, find the start of the Phase R workflow and add: `LATEST_RESEARCH_SCORE=$(python lib/research_quality.py get-average)`.
+5.  Add a new command to `spiral.sh`: `elif [ "$1" == "show-research-quality" ]; then python lib/research_quality.py show-trend`.
+
+**4. Edge Cases & Gotchas:**
+
+*   **Data Integrity:** The `prd.json` file is a single point of failure. The Python script must use atomic file writes (write to temp file, then rename) to prevent corruption.
+*   **Filtering:** Ensure all data processing functions strictly filter for stories where `_source == "research"`.
+*   **Initial State:** The `get_average_score` function should handle cases where no scored stories exist yet (e.g., return "N/A" or a default value).
+*   **State Passing:** The `retry_count` for a given story must be reliably tracked and passed as an argument to the scoring script from `spiral.sh`.

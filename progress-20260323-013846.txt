@@ -2086,4 +2086,3 @@ Implement `pytest` integration tests to verify that the file-aware retry mechani
 *   Note: This is a standard Python project using `pytest`, not a Frappe application. No DocTypes or Frappe hooks are involved.
 ## Iteration 1 - Mon, Mar 23, 2026  1:27:00 AM
 FAILED diff-guard: [Security Test] CLI lint-prd: No Sensitive Data Leak on Validation Errors (ID: US-766) — 453 lines > 400 limit — attempt 1/3
-
