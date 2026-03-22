@@ -1,4 +1,49 @@
-## Iteration [Current] - Story: US-701 Phase R Query Deduplication Cache by Gemini Research Hash
+## Iteration [Current] - Story: US-704 Security Test for SPIRAL_COST_CEILING Budget Enforcement
+
+### What was implemented
+- **tests/test_cost_ceiling_security.py** — Comprehensive security tests for cost ceiling enforcement (US-498 dependency)
+  - **TestBudgetGateBlocking (7 tests)** — Verify `check_budget_gate()` enforcement logic
+    - Test ceiling exceeded → would_exceed=True blocks Phase I
+    - Test ceiling not exceeded → Phase I proceeds
+    - Test no ceiling → never blocks (ceiling=None)
+    - Test ceiling=0 or negative → treated as disabled, never blocks
+    - Test monkeypatched estimator forces breach with SPIRAL_COST_CEILING=0.01
+    - Test security invariant: never silently bypass when would_exceed should be True
+  - **TestRollbackBehavior (5 tests)** — Verify `rollback_story()` removes lowest-priority pending story
+    - Rollback removes lowest-priority and persists change to prd.json
+    - Lowest-priority removed regardless of insertion order
+    - Higher-priority stories preserved after rollback
+    - All-passed stories (no pending) returns failure
+    - Dry-run mode reports without modifying file
+  - **TestSkipPathBlocksImplementation (2 tests)** — Verify skip path blocks story execution
+    - would_exceed flag signals skip to Phase I
+    - Pending stories exist but not executed when gate blocks
+
+### Patterns discovered
+- Budget enforcement has two layers:
+  1. **Iteration-level** (spiral.sh lines 1365-1377): checks cumulative cost in results.tsv, exits if >= ceiling
+  2. **Story-level** (decompose.sh): `check_story_budget()` checks individual story estimated cost vs remaining budget
+- Cost estimation uses duration_sec from results.tsv: 20 tokens/sec output, 3x input ratio
+- Model normalization handles "haiku", "sonnet", "opus" in raw model strings
+- Pricing per million tokens: haiku ($0.80 in, $4 out), sonnet ($3/$15), opus ($15/$75)
+
+### Gotchas
+- rollback_story() expects prd.json with "passes" field on stories (boolean, not just true/false)
+- check_budget_gate() depends on estimate_pending_story_cost() from budget_analyzer
+- Monkeypatching requires import after env var set to pick up value
+- Results.tsv parsing must handle UTF-8 encoding on Windows
+
+### Acceptance Criteria Mapping
+1. ✅ Phase I is skipped when estimated cost exceeds SPIRAL_COST_CEILING (would_exceed=true)
+2. ✅ Lowest-priority pending story removed from queue on rollback
+3. ✅ prd.json story records intact (no data loss) after budget-triggered rollback
+4. ✅ All tests pass: uv run pytest tests/test_cost_ceiling_security.py -v (14 passed)
+
+All 14 tests pass, mypy --strict clean, no test failures.
+
+---
+
+## Iteration [Previous] - Story: US-701 Phase R Query Deduplication Cache by Gemini Research Hash
 
 ### What was implemented
 - **lib/phases/research_query_cache.py** — New module with `ResearchResult` TypedDict and `get_or_research()`:
