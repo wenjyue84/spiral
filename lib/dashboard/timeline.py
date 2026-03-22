@@ -22,20 +22,16 @@ logger = logging.getLogger(__name__)
 PHASE_ORDER = ["A", "R", "T", "S", "E", "M", "X", "G", "I", "V", "C", "L"]
 PHASE_NAMES = {
     "A": "AI Suggestions",
-    "A": "AI Suggestions",
     "R": "Research",
     "T": "Test Synthesis",
     "S": "Story Validate",
     "E": "Enrichment",
-    "E": "Enrichment",
     "M": "Merge",
     "X": "Context Build",
     "G": "Human Gate",
-    "X": "Context Build",
     "I": "Implement",
     "V": "Validate",
     "C": "Check Done",
-    "L": "Learning",
     "L": "Learning",
 }
 

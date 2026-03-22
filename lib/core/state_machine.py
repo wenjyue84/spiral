@@ -43,20 +43,16 @@ PHASE_ORDER = {
 }
 PHASE_NAMES = {
     "A": "AI Suggestions",
-    "A": "AI Suggestions",
     "R": "Research",
     "T": "Test Synthesis",
     "S": "Story Validate",
     "E": "Enrichment",
-    "E": "Enrichment",
     "M": "Merge",
-    "X": "Context Build",
     "X": "Context Build",
     "G": "Gate",
     "I": "Implement",
     "V": "Validate",
     "C": "Check Done",
-    "L": "Learning",
     "L": "Learning",
 }
 

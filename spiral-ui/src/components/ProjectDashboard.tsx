@@ -1724,18 +1724,21 @@ const PHASE_COLORS: Record<string, { bg: string; border: string; text: string; d
   R:   { bg: 'bg-blue-50',    border: 'border-blue-200',    text: 'text-blue-700',    dot: 'bg-blue-500' },
   T:   { bg: 'bg-violet-50',  border: 'border-violet-200',  text: 'text-violet-700',  dot: 'bg-violet-500' },
   S:   { bg: 'bg-cyan-50',    border: 'border-cyan-200',    text: 'text-cyan-700',    dot: 'bg-cyan-500' },
+  E:   { bg: 'bg-sky-50',     border: 'border-sky-200',     text: 'text-sky-700',     dot: 'bg-sky-500' },
   M:   { bg: 'bg-amber-50',   border: 'border-amber-200',   text: 'text-amber-700',   dot: 'bg-amber-500' },
+  X:   { bg: 'bg-lime-50',    border: 'border-lime-200',    text: 'text-lime-700',    dot: 'bg-lime-500' },
   I:   { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700', dot: 'bg-emerald-500' },
   V:   { bg: 'bg-teal-50',    border: 'border-teal-200',    text: 'text-teal-700',    dot: 'bg-teal-500' },
   P:   { bg: 'bg-purple-50',  border: 'border-purple-200',  text: 'text-purple-700',  dot: 'bg-purple-500' },
   C:   { bg: 'bg-rose-50',    border: 'border-rose-200',    text: 'text-rose-700',    dot: 'bg-rose-500' },
+  L:   { bg: 'bg-fuchsia-50', border: 'border-fuchsia-200', text: 'text-fuchsia-700', dot: 'bg-fuchsia-500' },
   D:   { bg: 'bg-orange-50',  border: 'border-orange-200',  text: 'text-orange-700',  dot: 'bg-orange-500' },
 };
 
 const PHASE_NAMES: Record<string, string> = {
   '0': 'Clarify (Session Setup)', A: 'AI Suggestions', R: 'Research', T: 'Test Synthesis',
-  S: 'Story Validate', M: 'Merge',
-  I: 'Implement', V: 'Validate', P: 'Push', C: 'Check Done', D: 'Loop Decision',
+  S: 'Story Validate', E: 'Enrichment', M: 'Merge', X: 'Context Build',
+  I: 'Implement', V: 'Validate', P: 'Push', C: 'Check Done', L: 'Learning', D: 'Loop Decision',
 };
 
 const SUBSTEP_NAMES: Record<string, string> = {
@@ -1747,11 +1750,11 @@ const SUBSTEP_NAMES: Record<string, string> = {
 
 /** Canonical phase order — phases sort by this index in the timeline. */
 const PHASE_ORDER: Record<string, number> = {
-  '0': 0, A: 1, R: 2, T: 3, S: 4, M: 5, I: 6, V: 7, P: 8, C: 9, D: 10,
+  '0': 0, A: 1, R: 2, T: 3, S: 4, E: 5, M: 6, X: 7, I: 8, V: 9, P: 10, C: 11, L: 12, D: 13,
 };
 
 const PHASE_ENABLED_DEFAULTS: Record<string, boolean> = {
-  A: true, R: false, T: true, S: true, M: true, I: true, V: true, P: true, C: true,
+  A: true, R: false, T: true, S: true, E: true, M: true, X: true, I: true, V: true, P: true, C: true, L: true,
 };
 
 // Story shape inside phase output files
@@ -2612,7 +2615,7 @@ const MODEL_TIER_STYLE: Record<string, string> = {
 
 const PHASE_FULL_NAMES: Record<string, string> = {
   '0': 'Clarify', A: 'AI Suggestions', R: 'Research', T: 'Test Synthesis',
-  S: 'Story Validate', M: 'Merge', I: 'Implement', V: 'Validate',
+  S: 'Story Validate', E: 'Enrichment', M: 'Merge', X: 'Context Build', I: 'Implement', V: 'Validate',
   P: 'Push', C: 'Check Done', D: 'Loop Decision',
 };
 
