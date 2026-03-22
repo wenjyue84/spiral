@@ -705,11 +705,14 @@ function spiralApiPlugin() {
             iter.phases = [...phaseMap.values()];
           }
 
-          // Inject placeholder phases for the full pipeline so every iteration shows all stages
-          const FULL_PIPELINE = ['A', 'R', 'T', 'S', 'E', 'M', 'I', 'V', 'P', 'C'];
+          // Inject placeholder phases for the full pipeline so every iteration shows all stages.
+          // Canonical phase execution order — must match spiral.sh main loop:
+          //   A → R+T → S → E(enrich) → M → X(context) → G+I → V → C → L(learn)
+          const FULL_PIPELINE = ['A', 'R', 'T', 'S', 'E', 'M', 'X', 'I', 'V', 'P', 'C', 'L'];
           const PIPELINE_LABELS: Record<string, string> = {
             A: 'AI Suggestions', R: 'Research', T: 'Test Synthesis', S: 'Story Validate',
-            E: 'Story Enrichment', M: 'Merge', I: 'Implement', V: 'Validate', P: 'Push', C: 'Check Done',
+            E: 'Story Enrichment', M: 'Merge', X: 'Context Build', I: 'Implement',
+            V: 'Validate', P: 'Push', C: 'Check Done', L: 'Learning',
           };
 
           // Phases that have EVER fired a phase_start event across all iterations.
