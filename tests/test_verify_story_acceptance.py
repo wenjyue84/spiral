@@ -12,6 +12,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 from unittest.mock import Mock, patch
 
 import pytest
@@ -52,7 +53,7 @@ class TestGetCurrentStory:
 
     def test_find_story_by_id(self, tmp_path: Path) -> None:
         """Should find story with matching ID."""
-        prd_content = {
+        prd_content: dict[str, Any] = {
             "userStories": [
                 {"id": "US-380", "title": "Story A"},
                 {"id": "US-381", "title": "Story B"},
@@ -68,7 +69,7 @@ class TestGetCurrentStory:
 
     def test_return_none_when_story_not_found(self, tmp_path: Path) -> None:
         """Should return None if story ID not found."""
-        prd_content = {"userStories": []}
+        prd_content: dict[str, Any] = {"userStories": []}
         with patch.object(vsa, "load_prd_json", return_value=prd_content):
             result = vsa.get_current_story(tmp_path, "US-999")
             assert result is None
@@ -257,7 +258,7 @@ class TestMainHook:
         monkeypatch.setattr("sys.stdin", Mock(read=Mock(return_value="{}")))
         monkeypatch.setenv("SPIRAL_CURRENT_STORY_ID", "US-380")
 
-        story = {
+        story: dict[str, Any] = {
             "id": "US-380",
             "acceptanceCriteria": ["File should exist"],
             "filesTouch": ["missing_file.py"],
@@ -280,7 +281,7 @@ class TestMainHook:
         monkeypatch.setattr("sys.stdin", Mock(read=Mock(return_value="{}")))
         monkeypatch.setenv("SPIRAL_CURRENT_STORY_ID", "US-380")
 
-        story = {
+        story: dict[str, Any] = {
             "id": "US-380",
             "acceptanceCriteria": ["File should be modified"],
             "filesTouch": ["lib/module.py"],
@@ -308,7 +309,7 @@ class TestMainHook:
         monkeypatch.setattr("sys.stdin", Mock(read=Mock(return_value="{}")))
         monkeypatch.setenv("SPIRAL_CURRENT_STORY_ID", "US-380")
 
-        story = {
+        story: dict[str, Any] = {
             "id": "US-380",
             "acceptanceCriteria": ["Tests should pass"],
             "filesTouch": ["tests/test_file.py"],
@@ -337,7 +338,7 @@ class TestMainHook:
         monkeypatch.setattr("sys.stdin", Mock(read=Mock(return_value="{}")))
         monkeypatch.setenv("SPIRAL_CURRENT_STORY_ID", "US-380")
 
-        story = {
+        story: dict[str, Any] = {
             "id": "US-380",
             "acceptanceCriteria": ["All checks pass"],
             "filesTouch": ["lib/module.py", "tests/test_file.py"],
@@ -360,7 +361,7 @@ class TestIntegration:
 
     def test_with_real_prd_structure(self, tmp_path: Path) -> None:
         """Should work with realistic prd.json structure."""
-        prd_content = {
+        prd_content: dict[str, Any] = {
             "userStories": [
                 {
                     "id": "US-380",
