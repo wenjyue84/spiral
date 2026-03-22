@@ -534,9 +534,9 @@ run_phase_gate_and_implement() {
                       mkdir -p "$_FAILURE_TMPDIR"
 
                       # Get the last 3 failure messages for this story from results.tsv
-                      awk -F'\t' -v sid="$_NEXT_SID" 'NR>1 && $4 == sid && $6 != "passed" { print $0 }' "$RESULTS_FILE" 2>/dev/null | \
-                        tail -3 | \
-                        awk -F'\t' '{print $6 ": " $0}' > "${_FAILURE_TMPDIR}/failures.txt" 2>/dev/null || true
+                      awk -F'\t' -v sid="$_NEXT_SID" 'NR>1 && $4 == sid && $6 != "passed" { print $0 }' "$RESULTS_FILE" 2>/dev/null |
+                        tail -3 |
+                        awk -F'\t' '{print $6 ": " $0}' >"${_FAILURE_TMPDIR}/failures.txt" 2>/dev/null || true
 
                       if [[ -f "${_FAILURE_TMPDIR}/failures.txt" && -s "${_FAILURE_TMPDIR}/failures.txt" ]]; then
                         "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/impl/stuck_diagnosis.py" \

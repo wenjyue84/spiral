@@ -169,7 +169,8 @@ run_phase_check_done() {
   # ── US-783: Check for diminishing returns before looping ──────────────────────
   if [[ -f "$REPO_ROOT/results.tsv" ]]; then
     _DR_MULTIPLIER="${SPIRAL_DIMINISHING_RETURNS_MULTIPLIER:-2.0}"
-    _DR_OUTPUT=$("$SPIRAL_PYTHON" - <<PYEOF 2>/dev/null || echo ""
+    _DR_OUTPUT=$(
+      "$SPIRAL_PYTHON" - <<PYEOF 2>/dev/null || echo ""
 import sys
 sys.path.insert(0, "$SPIRAL_HOME")
 from lib.diminishing_returns import check_diminishing_returns
@@ -181,7 +182,7 @@ else:
   print(report) if report else None
   sys.exit(0)
 PYEOF
-)
+    )
     _DR_RC=$?
     if [[ $_DR_RC -eq 42 ]]; then
       echo "$_DR_OUTPUT"

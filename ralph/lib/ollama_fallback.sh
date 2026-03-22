@@ -20,7 +20,8 @@ user = open(sys.argv[2]).read()
 model = sys.argv[3]
 print(json.dumps({'model': model, 'messages': [{'role': 'system', 'content': system}, {'role': 'user', 'content': user}], 'stream': False, 'temperature': 0.1}))
 " "$sys_file" "$usr_file" "$model" 2>/dev/null) || {
-    echo "  [ollama] ERROR: failed to build JSON payload"; return 1
+    echo "  [ollama] ERROR: failed to build JSON payload"
+    return 1
   }
   local response
   response=$(curl -sf -X POST "${host}/chat/completions" \
@@ -31,9 +32,11 @@ print(json.dumps({'model': model, 'messages': [{'role': 'system', 'content': sys
     echo "  [ollama] ERROR: connection refused (curl exit 7) -- is Ollama running at ${host}?"
     return 1
   elif [[ "$curl_rc" -eq 28 ]]; then
-    echo "  [ollama] ERROR: connection timed out (curl exit 28)"; return 1
+    echo "  [ollama] ERROR: connection timed out (curl exit 28)"
+    return 1
   elif [[ "$curl_rc" -ne 0 ]]; then
-    echo "  [ollama] ERROR: curl failed (exit $curl_rc)"; return 1
+    echo "  [ollama] ERROR: curl failed (exit $curl_rc)"
+    return 1
   fi
   local content
   content=$(echo "$response" | python3 -c "
@@ -96,7 +99,8 @@ apply_local_fallback_policy() {
           "\"story_id\":\"${NEXT_STORY:-}\",\"reason\":\"${reason}\",\"model_used\":\"${model}\",\"original_error\":\"${reason}\",\"policy\":\"${policy}\""
         echo "  [ollama] Local fallback succeeded"
       else
-        _rc=1; >"$rl_out"
+        _rc=1
+        >"$rl_out"
         log_spiral_event "local_fallback_failed" \
           "\"story_id\":\"${NEXT_STORY:-}\",\"reason\":\"${reason}\",\"model_used\":\"${model}\",\"original_error\":\"${reason}\",\"policy\":\"${policy}\""
         echo "  [ollama] Local fallback failed -- story will be retried later"
