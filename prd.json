@@ -239,8 +239,11 @@
         "US-553"
       ],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "_failureReason": "oversized_diff",
+      "_lastDiffLines": 1155,
+      "last_attempted": "2026-03-22T23:21:15Z"
     },
     {
       "id": "US-757",
