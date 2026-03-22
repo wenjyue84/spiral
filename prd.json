@@ -4289,8 +4289,7 @@
       ],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "sonnet",
-      "last_attempted": "2026-03-22T01:54:23Z"
+      "model": "sonnet"
     },
     {
       "id": "US-710",
@@ -4500,6 +4499,72 @@
       "estimatedComplexity": "small",
       "passes": false,
       "model": "haiku"
+    },
+    {
+      "id": "US-719",
+      "title": "[Performance Test] Phase R: Benchmark Parallel Gemini Research per Sub-Project",
+      "priority": "medium",
+      "description": "Write a performance benchmark test that measures execution time of Phase R's parallel Gemini research calls per sub-project, as implemented in US-637. The test mocks Gemini calls to avoid API costs, captures a timing baseline, and asserts that total research time does not degrade more than 20% from that baseline. It also verifies _research_output.json is keyed by sub_project.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_perf_phase_r_parallel.py -v exits 0 and prints per-sub-project timing breakdown",
+        "_research_output.json produced by the benchmarked call contains one key per sub_project with a list of story dicts",
+        "Test fails with AssertionError if total research duration exceeds median_baseline * 1.20",
+        "Gemini API calls are mocked so the test runs offline with no real API cost"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_perf_phase_r_parallel.py (create — performance harness for US-637 Phase R parallelization)",
+        "Use unittest.mock.patch or pytest-mock to stub the Gemini call function; return fixture research results instantly",
+        "Compute baseline as the median of 3 back-to-back mocked runs; store as a module-level constant",
+        "Assert _research_output.json structure: top-level keys are sub_project strings, values are non-empty lists",
+        "Test command: uv run pytest tests/test_perf_phase_r_parallel.py -v -s"
+      ],
+      "dependencies": [
+        "US-637"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-720",
+      "title": "[E2E Test] Dashboard: Verify /api/timeline Swimlane Endpoint Response",
+      "priority": "medium",
+      "description": "Write an end-to-end test for the `/api/timeline?iterations=N` endpoint introduced by US-540. The test verifies that the endpoint returns correctly structured iteration/phase-grouped story attempt data, enabling swimlane visualization in the dashboard UI.",
+      "acceptanceCriteria": [
+        "GET /api/timeline?iterations=5 returns HTTP 200 with a JSON array where each element contains `iteration`, `phase`, and `stories` fields",
+        "At least one response entry has a `phase` value matching a known SPIRAL phase (e.g. RESEARCH, IMPLEMENT, or VALIDATE)",
+        "Playwright test navigates to the dashboard at localhost:5299, waits for swimlane rows to render, and asserts at least one phase label is visible",
+        "uv run pytest tests/test_e2e_us540_timeline.py -v exits 0 with all assertions passing"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_e2e_us540_timeline.py (create new — top-level test module)",
+        "Use httpx or requests to call http://localhost:5299/api/timeline?iterations=5 and assert response schema",
+        "Use playwright.sync_api to open dashboard page and assert `.swimlane` or phase-labeled rows are present in DOM",
+        "Test command: uv run pytest tests/test_e2e_us540_timeline.py -v",
+        "Fallback test command if server not running: uv run pytest tests/ -k us_540 -v --ignore=tests/test_e2e_us540_timeline.py"
+      ],
+      "dependencies": [
+        "US-540"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-721",
+      "title": "Phase G: Generate Breaking Changes Report from Story Commits",
+      "priority": "medium",
+      "description": "Extract and analyze story commits to detect breaking API changes, database schema changes, and config format changes. Generate BREAKING_CHANGES.md with categorized changes and migration guidance.",
+      "acceptanceCriteria": [
+        "CLI command `spiral detect-breaking-changes <iteration>` parses story commits and identifies files matching patterns: migrations/, schema.sql, config.*.example, *.breaking.ts",
+        "Output file BREAKING_CHANGES.md includes: (1) database migrations with rollback instructions, (2) API signature changes with examples, (3) config format changes with conversion guide",
+        "Integration test in tests/test_phase_g_breaking_changes.py verifies detection of mock migration and schema changes from sample commits"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
     }
   ]
 }

@@ -1294,3 +1294,30 @@ This is a Python CLI tool, not a Frappe application; there are no DocTypes or ho
     *   **CLI Output:** Formatting the ASCII dependency tree for `spiral show-merge-order` can be complex. Ensure it's clear and accurately reflects the justification for each story's position.
     *   **Atomicity:** The modification of `prd.json` should be atomic to prevent corruption if the process is interrupted. Consider writing to a temporary file first.
 >>>>>>> Stashed changes
+
+---
+
+## Iteration [53+1] - Story: US-709 Integration tests: CI workflow YAML structure and lint-shell action
+
+### What was implemented
+- **tests/test_integration_us459.py** — Appended 3 new test classes (16 new tests) to existing file:
+  - TestLintShellActionYaml: 5 tests validating lint-shell action YAML structure (runs key, composite, steps)
+  - TestSetupUvActionYaml: 6 tests — happy path (runs/inputs/python-version) + error cases (missing inputs → AssertionError)
+  - TestCiWorkflowYaml: 5 tests validating ci.yml has 'on' trigger, 'jobs', and 'lint-shell' job
+- **tests/conftest.py** — Added yaml_file() fixture for offline YAML loading
+
+### Patterns discovered
+- tests/test_integration_us459.py already existed with E2E mock-Claude tests; new YAML tests were appended (not replaced)
+- PyYAML parses 'on:' YAML key as boolean True in some contexts — handle with {str(k) for k in workflow}
+- `True in dict_with_str_keys` causes mypy "non-overlapping container check" — use str conversion instead
+- Callable return type for pytest fixtures: annotate as `Callable[[str], dict[str, Any]]` to satisfy mypy strict
+
+### Gotchas
+- conftest.py had 22 pre-existing mypy errors (pre-strict adoption); only add typed new code
+- ruff: import sorting matters — add stdlib/third-party imports in correct order
+
+### Acceptance Criteria Mapping
+1. ✅ uv run pytest tests/test_integration_us459.py -v exits 0 (22 passed)
+2. ✅ Happy path: lint-shell YAML has 'runs' key with >=1 step (TestLintShellActionYaml)
+3. ✅ Error case: missing inputs → AssertionError (test_missing_inputs_raises_assertion, test_missing_specific_input_raises_assertion)
+4. ✅ Tests run offline, local file reads only (no network calls)
