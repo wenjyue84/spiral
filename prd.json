@@ -11,58 +11,6 @@
   ],
   "userStories": [
     {
-      "id": "US-744",
-      "title": "Phase I: Automatic File-Level Scope Reduction for Oversized Implementations",
-      "priority": "high",
-      "description": "When Ralph implementation fails with token overage, auto-detect non-critical files and resubmit with reduced scope before escalating model. Reduces retry cost and iteration time.",
-      "acceptanceCriteria": [
-        "Phase I detects oversized stories via token prediction; calls lib/scope_reducer.py to identify non-critical files (tests, docs, examples) and mark as 'deferred'",
-        "Ralph retries with reduced scope and {deferred_files, token_budget} in prompt; logs both attempts to results.tsv with 'scope_reduced' tag",
-        "Integration test verifies 5KB story reduced to 3KB, retried, and succeeded without escalating to sonnet"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": true,
-      "model": "sonnet",
-      "last_attempted": "2026-03-22T12:30:55Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- `lib/scope_reducer.py` exists with working reduce_scope/estimate/identify functions (16 unit tests pass)\n- `lib/results_tsv.py` has `scope_tag` field for `scope_reduced` tracking\n- `lib/impl/retry.sh` has `try_scope_reduction()` bash helper\n- **mypy strict fails** on `tests/test_scope_reducer.py` (3 errors: unused type-ignore, type mismatch)\n- Missing integration test for the full scope-reduction → retry → results.tsv flow (AC #2 and #3 incomplete)\n\n## Problem Identified\n1. mypy strict errors block quality gates\n2. Integration test doesn't cover retry flow with results.tsv `scope_reduced` tag logging\n3. Story `passes: false` despite code being committed\n\n## Planned Changes\n- Fix mypy errors in `tests/test_scope_reducer.py` (lines 154, 183)\n- Add integration test covering: 5KB story → scope reduction → retry succeeds at same model tier → both attempts logged to results.tsv with scope_reduced tag\n- Run quality checks (mypy, ruff, pytest)\n- Mark US-744 passes: true in prd.json\nNow add the integration test for the full retry flow at the end of the file:\nNow run quality checks:\nAll 17 tests pass (16 existing + 1 new integration test). Now mark the story as passes: true:\nNow append progress notes:\nNow run pre-commit checks:\nPre-commit modified some files. Let me re-run to see if it's clean now:\nAll checks pass. Now commit:\nStory US-744 is complete. Here's what was done:\n\n**Problem:** Previous haiku attempt created all the code correctly but left mypy strict errors unfixed, causing quality gate failure.\n\n**Changes:**\n1. **`tests/test_scope_reducer.py`** — Fixed 3 mypy strict errors (unused `type: ignore` comments, `list()` on `object` type needing `isinstance` guard). Added `TestScopeReductionRetryIntegration::test_5kb_story_reduced_retried_no_escalation` integration test covering the full flow: 5KB story → scope_reducer → retry at same model (haiku) → results.tsv with `scope_reduced` tag → no escalation to sonnet.\n2. **`prd.json`** — Marked US-744 `passes: true`\n3. **`progress.txt`** — Documented learnings\n\nAll 17 tests pass, mypy strict clean, ruff clean."
-      },
-      "_contextStats": {
-        "tokensBeforeMasking": 539,
-        "tokensAfterMasking": 539,
-        "reductionPct": 0,
-        "contextWindow": 10
-      }
-    },
-    {
-      "id": "US-734",
-      "title": "Integration Tests: CHANGELOG Generation Logic in gen_changelog.py",
-      "priority": "high",
-      "description": "Write integration tests for lib/gen_changelog.py covering commit parsing, story ID extraction, type categorisation, and markdown output. These tests validate the core CHANGELOG generation behaviour introduced in US-604 without requiring external services.",
-      "acceptanceCriteria": [
-        "uv run pytest tests/test_gen_changelog.py -v exits 0 with at least 4 passing tests",
-        "Tests cover happy path: commits with US-NNN/UT-NNN IDs appear in correct markdown sections (feat/fix/docs/refactor)",
-        "Tests cover edge case: commits without story IDs produce a warning log entry and are excluded from sections",
-        "Tests run without network access or a live git-cliff binary (mock subprocess or use fixture commits)"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_gen_changelog.py (new file — create integration tests for lib/gen_changelog.py)",
-        "File to edit: lib/gen_changelog.py (read-only reference — understand parse_commits(), categorise(), render_markdown() signatures)",
-        "Test command: uv run pytest tests/test_gen_changelog.py -v",
-        "Use pytest tmp_path fixture to write a temporary git repo or fake commit list; do not call git-cliff binary directly — stub subprocess.run if needed",
-        "Check cliff.toml for expected section headings so test assertions match the real template"
-      ],
-      "dependencies": [
-        "US-604"
-      ],
-      "estimatedComplexity": "medium",
-      "passes": true,
-      "model": "opus",
-      "last_attempted": "2026-03-22T18:00:00Z"
-    },
-    {
       "id": "US-735",
       "title": "[Security Test] Results TSV: No Sensitive Data in Telemetry Rows",
       "priority": "high",
@@ -82,10 +30,7 @@
       ],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "sonnet",
-      "_failureReason": "oversized_diff",
-      "_lastDiffLines": 470,
-      "last_attempted": "2026-03-22T12:41:08Z"
+      "model": "sonnet"
     },
     {
       "id": "US-736",
@@ -113,6 +58,149 @@
       "model": "haiku"
     },
     {
+      "id": "US-747",
+      "title": "Create mock Claude API client and pre-recorded response fixture library",
+      "priority": "high",
+      "description": "Build a reusable mock Claude client class and a set of pre-recorded JSON response fixtures so integration tests can run Phase R/S/I without real API calls. This is the infrastructure layer that test stories depend on.",
+      "acceptanceCriteria": [
+        "File tests/fixtures/mock_claude_client.py exists and exports a MockClaudeClient class with a configurable response queue",
+        "File tests/fixtures/responses/ contains at least 3 pre-recorded JSON fixture files (phase_r_success.json, phase_s_success.json, phase_i_success.json)",
+        "uv run pytest tests/test_mock_claude_client.py -v passes with 0 failures",
+        "MockClaudeClient raises a descriptive error when the response queue is exhausted"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/fixtures/mock_claude_client.py (MockClaudeClient class — create new)",
+        "File to edit: tests/fixtures/responses/phase_r_success.json (pre-recorded Phase R response — create new)",
+        "File to edit: tests/fixtures/responses/phase_s_success.json (pre-recorded Phase S response — create new)",
+        "File to edit: tests/fixtures/responses/phase_i_success.json (pre-recorded Phase I response — create new)",
+        "File to edit: tests/test_mock_claude_client.py (unit tests for mock client — create new)",
+        "Test command: uv run pytest tests/test_mock_claude_client.py -v --tb=short",
+        "MockClaudeClient should accept a list of response dicts in its constructor and pop one per call to simulate sequential API calls"
+      ],
+      "dependencies": [
+        "US-476"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-748",
+      "title": "[Security Test] validate_results_tsv handles adversarial input safely",
+      "priority": "high",
+      "description": "Write security-focused tests for lib/spiral/validate_results_tsv.py (created by US-570). Verify the validator rejects malformed/adversarial input without leaking sensitive data in error messages and without crashing on edge cases like null bytes, oversized fields, or path traversal strings.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_validate_results_tsv_security.py -v exits 0 with all tests passing",
+        "Validator returns structured error dict (not an exception/traceback) when given a TSV row containing null bytes or 10 000-char fields",
+        "Error dict returned by validate() contains no file-system paths, env vars, or stack trace strings",
+        "validate() called with a path string containing '../../../etc/passwd' raises ValueError or returns an error entry — it does not open the file"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_validate_results_tsv_security.py (new file — create security test suite)",
+        "File to edit: lib/spiral/validate_results_tsv.py (validate function — add input sanitisation if missing)",
+        "Test command: uv run pytest tests/test_validate_results_tsv_security.py -v",
+        "Scope: validate_results_tsv has no HTTP layer so there are no 401/403 codes; security surface is adversarial file content and path inputs",
+        "Use pytest.raises(ValueError) or assert 'errors' in result for path-traversal AC"
+      ],
+      "dependencies": [
+        "US-570"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "security",
+        "auto-generated"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-749",
+      "title": "Integration Test: API docs auto-generation via pdoc (US-458)",
+      "priority": "high",
+      "description": "Write integration tests verifying that the pdoc-based API documentation generation introduced in US-458 produces output correctly. Tests must run locally without external services using a small fixture Python module. Covers the happy path and at least one error/edge case (e.g. missing module, import error).",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_auto_api_docs.py -v passes with at least 2 test functions",
+        "A happy-path test asserts that pdoc produces HTML or Markdown output for a fixture module",
+        "An edge-case test asserts graceful failure or non-zero exit when given a non-existent module path",
+        "Tests complete without network access or manual pre-setup"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_auto_api_docs.py (create — happy-path and edge-case for pdoc invocation)",
+        "Reference US-458 source: .github/workflows/release.yml (api-docs generation step)",
+        "Use subprocess.run with a fixture module in tests/fixtures/ or tmp_path to drive pdoc",
+        "Test command: uv run pytest tests/test_auto_api_docs.py -v"
+      ],
+      "dependencies": [
+        "US-458"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "integration",
+        "auto-generated"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-750",
+      "title": "[Security Test] Verify CI workflow permissions and secret handling for US-460",
+      "priority": "high",
+      "description": "Write security tests that parse the GitHub Actions YAML files introduced in US-460 and assert they do not leak secrets, pin all external actions to immutable commit SHAs, and declare minimal permissions. These structural checks catch CI security misconfigurations before they reach production.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_security_us460.py::test_no_secret_echo -v passes (no secrets echoed in run: blocks)",
+        "uv run pytest tests/test_security_us460.py::test_actions_pinned_to_sha -v passes (all uses: refs are 40-char hex SHAs)",
+        "uv run pytest tests/test_security_us460.py::test_workflow_permissions_minimal -v passes (no write-all or missing top-level permissions block)",
+        "uv run pytest tests/test_security_us460.py -v exits 0 with 0 failures"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_security_us460.py (create new — security test suite for US-460 CI workflows)",
+        "Files under test (read-only, do not modify): .github/workflows/ci.yml, .github/workflows/spiral.yml, .github/actions/lint-shell/action.yml, .github/actions/setup-uv/action.yml",
+        "Parse YAML with PyYAML (available via uv): import yaml; data = yaml.safe_load(open(path).read())",
+        "Secret-echo check: walk all 'run:' strings in every job step; assert no line matches r'echo.*\\$\\{\\{\\s*secrets\\.' pattern",
+        "SHA-pin check: for each 'uses:' value matching 'owner/repo@ref', assert re.fullmatch(r'[0-9a-f]{40}', ref) is not None",
+        "Permissions check: top-level or per-job 'permissions:' must exist and must not contain 'write-all'; absence of block means inherited defaults — flag as failure",
+        "Test command: uv run pytest tests/test_security_us460.py -v"
+      ],
+      "dependencies": [
+        "US-460"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "security",
+        "auto-generated"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-751",
+      "title": "[Security Test] Verify no credential leakage in model routing logic (US-452)",
+      "priority": "high",
+      "description": "Write security tests to verify that the dynamic model routing introduced in US-452 does not leak API keys, tokens, or credentials in logs, responses, or error messages. The model routing optimization must handle errors without exposing sensitive configuration values.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_security_us452.py::test_no_api_key_in_routing_response -v passes",
+        "uv run pytest tests/test_security_us452.py::test_no_credentials_in_error_output -v passes",
+        "uv run pytest tests/test_security_us452.py -v shows all tests collected and passing"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_security_us452.py (new file — security tests for US-452 model routing)",
+        "Test command: uv run pytest tests/test_security_us452.py -v",
+        "Mock Claude API calls using unittest.mock.patch to avoid real credential usage in tests",
+        "Assert that captured log output and returned error strings contain no substring matching r'(sk-|api[_-]?key|token|password)' pattern",
+        "Reference: lib/route.py or equivalent model-routing module introduced by US-452 for import targets"
+      ],
+      "dependencies": [
+        "US-452"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "security",
+        "auto-generated"
+      ],
+      "model": "haiku"
+    },
+    {
       "id": "US-745",
       "title": "CLI: spiral story-genealogy — Visualize Decomposition Cost Hierarchy with Per-Branch Spend",
       "priority": "medium",
@@ -127,6 +215,205 @@
       "estimatedComplexity": "small",
       "passes": false,
       "model": "haiku"
+    },
+    {
+      "id": "US-752",
+      "title": "Dashboard: Implement API Token Authentication Middleware",
+      "priority": "medium",
+      "description": "Add authentication layer to dashboard API endpoints to validate OAuth tokens and API keys before processing requests. Protects /api/dashboard/* and /ws/* endpoints from unauthorized access.",
+      "acceptanceCriteria": [
+        "Dashboard server validates Bearer token in Authorization header (via middleware) before routing to /api/dashboard/* endpoints",
+        "GET /api/dashboard/costs-by-project returns 401 Unauthorized if token is invalid or missing",
+        "WebSocket /ws/cost and /ws/alerts endpoints reject connections without valid token parameter (?token=xyz)"
+      ],
+      "technicalNotes": [
+        "File to create: lib/dashboard/auth_middleware.py with validate_token(token: str) -> bool function",
+        "File to edit: lib/dashboard/app.py (wire middleware before route handlers)",
+        "Test command: uv run pytest tests/test_dashboard_auth.py::test_unauthorized_request_401 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-753",
+      "title": "Ralph Agent: Inject Phase V Test Failures into Implementation Context",
+      "priority": "medium",
+      "description": "Enhance Ralph's implementation prompt to include concrete test failure output from Phase V (pytest, playwright), giving the implementation agent error messages and stack traces to inform fixes.",
+      "acceptanceCriteria": [
+        "Ralph reads Phase V validation output (test logs) and extracts up to 3 top failure messages with error context",
+        "Ralph's generated prompt includes 'Recent test failures:' section before the task description, showing failure output inline",
+        "Integration test verifies that mock test output is correctly extracted and appears in Ralph's prompt string"
+      ],
+      "technicalNotes": [
+        "File to create: lib/ralph_context_builder.py with add_test_failures_to_context(phase_v_output: str) function",
+        "File to edit: lib/impl/retry.sh (call context builder before invoking ralph.sh)",
+        "Test command: uv run pytest tests/test_ralph_test_context.py::test_failing_tests_injected_in_prompt -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-754",
+      "title": "Integration Test: Cost Predictor Accuracy Validation Against Historical results.tsv",
+      "priority": "medium",
+      "description": "Validate that the KNN cost predictor CLI accurately estimates story costs by comparing predictions against actual results.tsv outcomes. Measures model quality via MAPE and flags retraining needs.",
+      "acceptanceCriteria": [
+        "Load historical results.tsv with 10+ completed stories; predict cost for each using cost-predictor CLI",
+        "Compare predicted vs actual tokens/cost; calculate MAPE (mean absolute percentage error) < 30%",
+        "If MAPE > 30%, integration test logs warning with suggestion to retrain model or adjust KNN parameters"
+      ],
+      "technicalNotes": [
+        "File to create: lib/cost_predictor_validator.py with validate_predictions(predictions, actuals) -> float (returns MAPE)",
+        "File to create: tests/test_cost_predictor_validation.py with fixtures for mock results.tsv data",
+        "Test command: uv run pytest tests/test_cost_predictor_validation.py::test_predictor_mape_within_threshold -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-746",
+      "title": "[Perf Test] Benchmark SPIRAL dashboard token/throughput metrics (US-460)",
+      "priority": "medium",
+      "description": "Write a performance benchmark test for the SPIRAL self-monitoring dashboard introduced in US-460. The test must capture a baseline for token burn rate and story throughput calculations, then assert that subsequent runs do not degrade more than 20% from that baseline.",
+      "acceptanceCriteria": [
+        "Running `uv run pytest tests/test_perf_us460.py -v` exits 0 and prints a baseline timing line",
+        "Test asserts elapsed time is within 120% of captured baseline (hardcoded constant in the test file)",
+        "Test is discoverable via `uv run pytest tests/ -k us_460 -v` and appears in the collected test list"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_perf_us460.py (create new file with test_dashboard_token_throughput_baseline)",
+        "Reference US-460 source files for what to import/call: .github/workflows/spiral.yml is the entry point; the Python logic under test lives in lib/ (dashboard helpers, if any)",
+        "Test command: uv run pytest tests/test_perf_us460.py -v",
+        "If no importable Python dashboard module exists yet, benchmark the CLI status command: `time python main.py status` and assert wall-clock < 5s as the threshold",
+        "Baseline constant should be defined as BASELINE_MS = 2000 at the top of the test file so it is easy to update"
+      ],
+      "dependencies": [
+        "US-460"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "performance",
+        "auto-generated"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-755",
+      "title": "[Test] Episodic Memory Pattern Store - Pytest Coverage for US-596",
+      "priority": "medium",
+      "description": "Write pytest tests covering the episodic memory backend introduced in US-596. The feature stores implementation patterns from Ralph retry attempts and retrieves similar ones via similarity search. Tests must verify store, retrieve, and similarity-threshold behaviour using the existing pytest suite (no browser required — this is a pure Python backend feature).",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_episodic_memory.py -v exits 0 with at least one test covering pattern storage (store then retrieve round-trip)",
+        "uv run pytest tests/test_episodic_memory.py -v covers similarity search: a stored pattern is returned when queried with semantically similar text, absent when below threshold",
+        "uv run pytest tests/test_episodic_memory.py -v covers empty-store edge case: retrieval on an empty store returns an empty list without raising"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_episodic_memory.py (add test_store_and_retrieve, test_similarity_threshold, test_empty_store)",
+        "Test command: uv run pytest tests/test_episodic_memory.py -v --tb=short",
+        "US-596 source: the episodic memory module likely lives in lib/ (grep for 'episodic' or 'pattern_store' to locate the exact path before writing tests)",
+        "Do NOT use Playwright or any browser automation — this is a CLI/Python backend project"
+      ],
+      "dependencies": [
+        "US-596"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "e2e",
+        "auto-generated"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-756",
+      "title": "Regression Test: CLI spiral trace-dependencies resolves federated deps",
+      "priority": "medium",
+      "description": "Write a pytest regression test that guards the observable behaviour of US-675: the `spiral trace-dependencies <story-id>` CLI command. The test must verify recursive dependency resolution, circular-dependency detection, and sub-project boundary markers so any future breakage causes an immediate CI failure.",
+      "acceptanceCriteria": [
+        "Running `uv run pytest tests/test_us675_trace_dependencies.py -v` exits 0 with all tests passing",
+        "`trace-dependencies US-001` returns a non-empty dependency chain that includes file paths",
+        "`trace-dependencies` with a circular dependency in the fixture data exits non-zero or raises a clear error",
+        "Removing or stubbing out the trace-dependencies implementation causes at least one test in the file to fail"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_us675_trace_dependencies.py (create new file with regression fixtures)",
+        "File to edit: lib/spiral/cli.py or spiral.sh (locate trace-dependencies entry point to understand invokable surface)",
+        "Test command: uv run pytest tests/test_us675_trace_dependencies.py -v",
+        "Use subprocess or direct function import to invoke the command; prefer function-level import if the logic lives in a Python module",
+        "Create minimal fixture data (2-3 stories with explicit dependency links) inside the test file — no external fixture files needed"
+      ],
+      "dependencies": [
+        "US-675"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "regression",
+        "auto-generated"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-757",
+      "title": "[E2E Test] Verify CI workflow changes from US-460 are valid and lint-free",
+      "priority": "medium",
+      "description": "Write integration tests that validate the CI workflow YAML files introduced or modified by US-460 (lint-shell action, setup-uv action, ci.yml, release.yml, spiral.yml). These tests assert structural correctness of the workflow configs and that required jobs/steps are present. There is no browser UI to navigate; US-460 touched GitHub Actions YAML files only.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_us460_workflows.py -v exits 0 with all tests passing",
+        "Test asserts .github/workflows/ci.yml contains a 'lint-shell' job or step reference",
+        "Test asserts .github/actions/setup-uv/action.yml has a valid 'runs' section with 'using' key",
+        "Test asserts .github/workflows/spiral.yml exists and is parseable YAML"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_us460_workflows.py (create new — load each YAML with PyYAML and assert on required keys)",
+        "File to edit: tests/test_batch_validate.py (add a marker test `test_us460_placeholder` so `-k us_460` resolves)",
+        "Test command: uv run pytest tests/test_us460_workflows.py -v",
+        "Use `import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))` pattern — no browser or Playwright needed",
+        "Do NOT write a Playwright/browser test; the source feature is CI config, not a web UI"
+      ],
+      "dependencies": [
+        "US-460"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "e2e",
+        "auto-generated"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-744",
+      "title": "Phase I: Automatic File-Level Scope Reduction for Oversized Implementations",
+      "priority": "high",
+      "description": "When Ralph implementation fails with token overage, auto-detect non-critical files and resubmit with reduced scope before escalating model. Reduces retry cost and iteration time.",
+      "acceptanceCriteria": [
+        "Phase I detects oversized stories via token prediction; calls lib/scope_reducer.py to identify non-critical files (tests, docs, examples) and mark as 'deferred'",
+        "Ralph retries with reduced scope and {deferred_files, token_budget} in prompt; logs both attempts to results.tsv with 'scope_reduced' tag",
+        "Integration test verifies 5KB story reduced to 3KB, retried, and succeeded without escalating to sonnet"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "sonnet",
+      "last_attempted": "2026-03-22T12:30:55Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n- `lib/scope_reducer.py` exists with working reduce_scope/estimate/identify functions (16 unit tests pass)\n- `lib/results_tsv.py` has `scope_tag` field for `scope_reduced` tracking\n- `lib/impl/retry.sh` has `try_scope_reduction()` bash helper\n- **mypy strict fails** on `tests/test_scope_reducer.py` (3 errors: unused type-ignore, type mismatch)\n- Missing integration test for the full scope-reduction → retry → results.tsv flow (AC #2 and #3 incomplete)\n\n## Problem Identified\n1. mypy strict errors block quality gates\n2. Integration test doesn't cover retry flow with results.tsv `scope_reduced` tag logging\n3. Story `passes: false` despite code being committed\n\n## Planned Changes\n- Fix mypy errors in `tests/test_scope_reducer.py` (lines 154, 183)\n- Add integration test covering: 5KB story → scope reduction → retry succeeds at same model tier → both attempts logged to results.tsv with scope_reduced tag\n- Run quality checks (mypy, ruff, pytest)\n- Mark US-744 passes: true in prd.json\nNow add the integration test for the full retry flow at the end of the file:\nNow run quality checks:\nAll 17 tests pass (16 existing + 1 new integration test). Now mark the story as passes: true:\nNow append progress notes:\nNow run pre-commit checks:\nPre-commit modified some files. Let me re-run to see if it's clean now:\nAll checks pass. Now commit:\nStory US-744 is complete. Here's what was done:\n\n**Problem:** Previous haiku attempt created all the code correctly but left mypy strict errors unfixed, causing quality gate failure.\n\n**Changes:**\n1. **`tests/test_scope_reducer.py`** — Fixed 3 mypy strict errors (unused `type: ignore` comments, `list()` on `object` type needing `isinstance` guard). Added `TestScopeReductionRetryIntegration::test_5kb_story_reduced_retried_no_escalation` integration test covering the full flow: 5KB story → scope_reducer → retry at same model (haiku) → results.tsv with `scope_reduced` tag → no escalation to sonnet.\n2. **`prd.json`** — Marked US-744 `passes: true`\n3. **`progress.txt`** — Documented learnings\n\nAll 17 tests pass, mypy strict clean, ruff clean."
+      },
+      "_contextStats": {
+        "tokensBeforeMasking": 539,
+        "tokensAfterMasking": 539,
+        "reductionPct": 0,
+        "contextWindow": 10
+      }
     },
     {
       "id": "US-732",
@@ -1714,6 +2001,32 @@
       "_phaseI": {
         "diagnosisBlock": "## Current State\n`check_dag.py` uses Kahn's topological sort on `dependencies` field. US-725 needs a separate `validate_scc.py` using Tarjan's SCC on `_dependencies` field, with JSON output `{acyclic, cycles}` and a `validate-scc-cycles` CLI subcommand.\n\n## Problem Identified\nNo `validate-scc-cycles` CLI command exists. Story uses `_dependencies` field (not `dependencies`), requires Tarjan's SCC algorithm, and structured JSON output with cycle paths.\n\n## Planned Changes\n1. Create `lib/validate_scc.py` — Tarjan's SCC algorithm on `_dependencies`, returns `{acyclic, cycles, cycle_paths}`\n2. Edit `main.py` — Add parser + dispatch + `cmd_validate_scc_cycles()` function\n3. Create `tests/test_validate_scc.py` — Integration tests: 3-node cycle, linear DAG, empty prd\nNow add the parser registration and command function to `main.py`:\nNow add the `cmd_validate_scc_cycles` function. Let me find a good place to insert it:\nNow write the integration test:\nAll 18 tests pass. Let me run mypy and pre-commit checks:\nLet me rewrite the type annotations properly using `Any` for JSON data:\nThe cleanest fix is to use `Any` for the JSON data, which is the standard practice:\nAll 18 pass. Now run pre-commit:\nThe mypy failures are pre-existing in `lib/resilience/token_guard.py` and `lib/prd/batch_validate.py` — not in my new files. My files pass all checks. Let me run a broader test to confirm no regressions:\nAll passing. Now mark the story and commit:\nDone. Here's what was implemented for **US-725**:\n\n**`lib/validate_scc.py`** — Tarjan's SCC algorithm reading `story._dependencies`:\n- `build_graph()` — builds adjacency list, filters unknown deps\n- `tarjan_scc()` — iterative Tarjan's algorithm (SCCs > 1 node or self-loops = cycles)\n- `find_cycles()` — orchestrates and returns `{acyclic, cycles, cycle_paths}`\n\n**`main.py`** — New `validate-scc-cycles` subcommand:\n- `spiral validate-scc-cycles [prd.json]` → JSON output, exit 0 (acyclic) or 1 (cycles)\n- Prints cycle paths to stderr: `US-101 → US-102 → US-103 → US-101`\n\n**`tests/test_validate_scc.py`** — 18 tests all passing:\n- Unit tests for graph building, Tarjan's algorithm, cycle detection\n- CLI integration tests via subprocess (3-node cycle, linear DAG, missing file)\nAll the failures are **pre-existing issues** in `main.py` (E501 long lines, F841/F811 unused variables) and pre-existing mypy errors in `lib/resilience/token_guard.py` and `lib/prd/batch_validate.py`. None of the errors are in the files I created (`lib/validate_scc.py`, `tests/test_validate_scc.py`).\n\nThe story is already committed and marked `passes: true`. The pre-commit failures are from existing technical debt in `main.py` unrelated to US-725. The implementation is complete and all 18 tests pass."
       }
+    },
+    {
+      "id": "US-734",
+      "title": "Integration Tests: CHANGELOG Generation Logic in gen_changelog.py",
+      "priority": "high",
+      "description": "Write integration tests for lib/gen_changelog.py covering commit parsing, story ID extraction, type categorisation, and markdown output. These tests validate the core CHANGELOG generation behaviour introduced in US-604 without requiring external services.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_gen_changelog.py -v exits 0 with at least 4 passing tests",
+        "Tests cover happy path: commits with US-NNN/UT-NNN IDs appear in correct markdown sections (feat/fix/docs/refactor)",
+        "Tests cover edge case: commits without story IDs produce a warning log entry and are excluded from sections",
+        "Tests run without network access or a live git-cliff binary (mock subprocess or use fixture commits)"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_gen_changelog.py (new file — create integration tests for lib/gen_changelog.py)",
+        "File to edit: lib/gen_changelog.py (read-only reference — understand parse_commits(), categorise(), render_markdown() signatures)",
+        "Test command: uv run pytest tests/test_gen_changelog.py -v",
+        "Use pytest tmp_path fixture to write a temporary git repo or fake commit list; do not call git-cliff binary directly — stub subprocess.run if needed",
+        "Check cliff.toml for expected section headings so test assertions match the real template"
+      ],
+      "dependencies": [
+        "US-604"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "opus",
+      "last_attempted": "2026-03-22T18:00:00Z"
     },
     {
       "id": "US-733",
