@@ -183,12 +183,12 @@ SPIRAL runs in two stages: a **one-time startup** to align on goals and stories,
   └──────────────────────────────┬──────────────────────────────────┘
                                  │
   ┌──────────────────────────────▼──────────────────────────────────┐
-  │  GATE  (human checkpoint)                                       │
+  │  GATE  (default: auto-proceed)                                   │
   │                                                                 │
   │  G) GATE                                                        │
-  │     Interactive: proceed / skip / quit                           │
+  │     Default: auto-proceed (no pause)                             │
   │     Story review report generated for inspection                │
-  │     Skipped with --gate proceed or --gate skip                  │
+  │     Use --gate interactive for manual proceed/skip/quit prompt  │
   └──────────────────────────────┬──────────────────────────────────┘
                                  │
   ┌──────────────────────────────▼──────────────────────────────────┐
@@ -249,7 +249,7 @@ See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for full phase reference and 
 bash spiral.sh [max_iters] [options]
 
 Options:
-  --gate proceed|skip|quit   Auto-answer gate prompts (default: interactive)
+  --gate proceed|skip|quit   Gate mode (default: proceed — auto-approve)
   --ralph-iters N            Max inner implementation iterations (default: 120)
   --ralph-workers N          Parallel worktree workers (default: 1)
   --skip-research            Skip Phase R (web research)

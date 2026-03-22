@@ -81,7 +81,7 @@ Phase S: STORY VALID  → Constitution/goal/dedup checks → _validated_stories.
 Phase E: ENRICHMENT   → Populate hints & context on validated stories
 Phase M: MERGE        → Patch prd.json (capped by SPIRAL_MAX_PENDING)
 Phase X: CONTEXT BUILD→ Dependency inference
-Phase G: GATE         → Human checkpoint (skipped with --gate proceed)
+Phase G: GATE         → Human checkpoint (default: auto-proceed; --gate interactive for manual)
 Phase I: IMPLEMENT    → Decompose → Ralph workers → Retry (haiku→sonnet→opus) → Commit/Revert
 Phase V: VALIDATE     → Run SPIRAL_VALIDATE_CMD (pytest) + optional screenshots
 Phase C: CHECK DONE   → All pass? Exit. Else continue.

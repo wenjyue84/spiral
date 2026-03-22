@@ -1,27 +1,3 @@
-## Iteration [Current] - Story: US-744 Phase I: Automatic File-Level Scope Reduction
-
-### What was implemented
-- **lib/scope_reducer.py** (new) — `estimate_story_size()`, `identify_noncritical_files()`, `reduce_scope()` + CLI
-- **tests/test_scope_reducer.py** (new) — 16 tests covering estimate, identify, reduce (5KB→3KB), no-mutation
-- **lib/phases/phase_i_implement.sh** — Added scope reduction block before single-worker ralph dispatch: estimates story size, calls scope_reducer.py reduce if > SPIRAL_SCOPE_BUDGET (default 5000 chars), patches temp PRD with reduced story, exports SPIRAL_SCOPE_TAG=scope_reduced, cleans up after ralph
-- **ralph/ralph.sh** — Added `scope_tag` column to `append_result()` header and data row; reads from `$SPIRAL_SCOPE_TAG` env var
-
-### Patterns discovered
-- `scope_reducer.py` CLI: `estimate <file>` → int; `reduce <file> [--budget N]` → JSON with `reduced_story` and `deferred_files`
-- `export SPIRAL_SCOPE_TAG` propagates to ralph subprocess; `unset SPIRAL_SCOPE_TAG` after invocation prevents leakage to next story
-- Non-critical files: tests/, docs/, examples/, fixtures/, *.md, *.spec.ts, CHANGELOG, README
-
-### Gotchas
-- phase_i_implement.sh had CRLF line endings on Windows — must convert to LF before pre-commit shellcheck passes
-- `[[ "$_SR_SIZE" =~ ^[0-9]+$ ]]` guard is required before arithmetic comparison to avoid shellcheck error on uninitialized/non-numeric values
-
-### Acceptance Criteria Mapping
-1. ✅ Phase I detects oversized stories via `estimate_story_size()`; calls `scope_reducer.py reduce`; marks as `_deferred_files`
-2. ✅ Ralph gets reduced scope via temp PRD; logs `scope_tag=scope_reduced` to results.tsv via `SPIRAL_SCOPE_TAG` env var
-3. ✅ Integration test: `test_5kb_story_reduced_to_3kb` verifies 5KB → ≤3KB reduction (16/16 tests pass)
-
----
-
 ## Iteration [Current] - Story: US-733 Security Tests for lint-prd CLI
 
 ### What was implemented
@@ -1616,35 +1592,32 @@ This is a standard Python project, not a Frappe application. The user story's co
 *   **Error Messages:** The rejection error message must be formatted *exactly* as specified in the acceptance criteria to pass the tests.
 *   **Scope:** The story mentions "cross-project" dependencies, but doesn't define how to identify them. The implementation should likely validate *all* dependencies in `prd.json` for now.
 
-## Iteration 3 - Sun, Mar 22, 2026  7:47:01 PM
-FAILED diff-guard: Phase I: Automatic File-Level Scope Reduction for Oversized Implementations (ID: US-744) — 463 lines > 400 limit — attempt 1/3
 
 
 ## Pre-analysis for US-744 (Gemini 2.5 Pro)
-This is not a Frappe project; it's a Python-based command-line developer tool. The implementation will focus on the local application's retry and scoping logic.
+This technical brief is for implementing the user story within the Spiral framework, not a Frappe application as the story's content and project structure relate to the Spiral tool itself.
 
-**Technical Brief for Claude**
+**Technical Brief: US-744 Scope Reduction**
 
-*   **Objective:** Implement a retry mechanism for `oversized_diff` errors by reducing the file scope before escalating to a more powerful model.
+**1. Primary Files to Modify:**
+*   `main.py`: The main orchestration logic that handles model selection, execution, and failure/retry loops will need modification to intercept token-limit failures.
+*   `lib/scope_reducer.py`: This new or existing file will contain the core logic for analyzing the file set and identifying non-critical files (tests, docs) to defer.
+*   `lib/log_utils.py` (or similar): The function responsible for writing to `results.tsv` must be updated to include the new `scope_reduced` tag and log both attempts.
+*   `tests/test_integration.py` (or a new test file): An integration test is required to validate the end-to-end scope reduction and retry flow.
 
-*   **Files to Modify:**
-    *   `main.py`: The main orchestration script. The error handling logic that catches the `oversized_diff` failure and initiates the retry process will be added here.
-    *   `lib/scope_reducer.py`: A new or existing file. This will contain the core logic for identifying and filtering non-essential files (e.g., tests, docs) from the implementation scope.
-    *   `lib/ralph.py` (Hypothetical): The module that invokes the 'Ralph' agent. It will need to be modified to accept the reduced file scope and pass context about deferred files into the new prompt.
-    *   `lib/reporting.py` (Hypothetical): The module responsible for writing to `results.tsv`. It must be updated to add the `scope_reduced` tag to the log entries.
+**2. Involved DocTypes & Hooks:**
+*   This is not a Frappe application. The "hooks" are internal to the Spiral application's failure handling logic within `main.py`, specifically the point where a token overage error is caught and before the model is escalated.
 
-*   **Frappe Dependencies:**
-    *   None. This is a standalone Python application, not a Frappe app.
+**3. Recommended Implementation Approach:**
+1.  In `main.py`, modify the error handling for the implementation step. Add a condition to check for a token overage error.
+2.  If a token error occurs, call `lib.scope_reducer.py` with the current file scope.
+3.  The `scope_reducer` should return a new, smaller list of files.
+4.  Re-run the implementation with this reduced scope and inject the list of `{deferred_files}` into the prompt context for the retry.
+5.  Update the logging mechanism to record the initial failure and the subsequent `scope_reduced` retry attempt in `results.tsv`.
 
-*   **Implementation Approach:**
-    1.  In `main.py`, modify the `try/except` block that handles agent implementation failures.
-    2.  Add a specific check for the `_failureReason == 'oversized_diff'`.
-    3.  On match, call `scope_reducer.py` with the list of files from the failed attempt.
-    4.  The `scope_reducer` should return a new, smaller list of critical files.
-    5.  Re-invoke the agent from `main.py`, passing the reduced file list and adding a `deferred_files` list to the prompt context.
-    6.  Update the logging function to record both the initial failure and the retry attempt in `results.tsv`, tagging both with `scope_reduced`.
-
-*   **Gotchas:**
-    *   The `scope_reducer.py` logic must be conservative to avoid removing files essential for implementation, which would cause a different failure.
-    *   Ensure the retry attempt does not accidentally get stuck in a loop if the reduced scope is still too large. Implement a single-retry limit for this mechanism.
+**4. Edge Cases & Gotchas:**
+*   The system must still escalate to a more powerful model (e.g., Sonnet) if the retry with the reduced scope also fails.
+*   The definition of "non-critical" files in `scope_reducer.py` must be precise to avoid removing essential code, which would guarantee the retry fails.
+*   Ensure the token prediction logic is reasonably accurate to avoid triggering this process unnecessarily.
+*   The retry attempt must be clearly linked to the original failed attempt in `results.tsv` for accurate analysis.
 

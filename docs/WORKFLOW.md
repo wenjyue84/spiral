@@ -162,7 +162,7 @@ flowchart TD
 | T | Test Synthesis | `lib/synthesize_tests.py` | `test-reports/` | `_test_stories_output.json` | Memory pressure |
 | S | Story Validate | `lib/validate_stories.py` | All candidate files, `prd.json` goals | `_validated_stories.json`, `_story_rejected.json` | — |
 | M | Merge | `lib/merge_stories.py` | `_validated_stories.json`, overflow | `prd.json` (patched), `_research_overflow.json` | — |
-| G | Gate | (interactive) | — | User decision | `--gate proceed` |
+| G | Gate | (auto-proceed by default) | — | User decision | Default: auto-proceed; `--gate interactive` for manual |
 | I | Implement | `ralph/ralph.sh` | `prd.json` | `prd.json` (passes:true), `results.tsv` | — |
 | V | Validate | `lib/test_suite_manager.py` + `SPIRAL_VALIDATE_CMD` | Test suite + prd.json | `test-reports/`, `.spiral/test-suites/` | — |
 | C | Check Done | `lib/check_done.py` | `prd.json`, `test-reports/` | Exit 0 (done) or Exit 1 (loop) | — |

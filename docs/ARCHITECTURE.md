@@ -89,7 +89,7 @@ See [`docs/phase-0-clarify.md`](phase-0-clarify.md) for the full guide.
 |---|---|
 | **File** | `lib/phases/phase_0_clarify.sh` |
 | **When** | Once at launch, before the loop |
-| **Skipped when** | `--gate proceed` or `--gate skip` (non-interactive mode) |
+| **Skipped when** | Default (`--gate proceed`) or `--gate skip` |
 | **Resume** | Skipped if `.spiral/_phase_0_done` marker exists |
 | **Output** | `.spiral/_clarify_output.json`, initial stories added to `prd.json` |
 

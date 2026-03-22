@@ -99,7 +99,7 @@ export SPIRAL_RUN_ID
 
 # ── Argument parsing ─────────────────────────────────────────────────────────
 MAX_SPIRAL_ITERS=20
-GATE_DEFAULT="" # empty = interactive; "proceed"|"skip"|"quit" = auto
+GATE_DEFAULT="proceed" # "proceed" = auto (default); "skip"|"quit"|"" (empty = interactive)
 STATUS_ONLY=0   # 1 = print session state and exit (--status)
 RALPH_MAX_ITERS=120
 SKIP_RESEARCH=1                              # 1 = skip Phase R (Claude web research); T and M still run (default off; enable via UI toggle or SKIP_RESEARCH=0 in spiral.config.sh)
@@ -328,7 +328,7 @@ while [[ $# -gt 0 ]]; do
       echo "Usage: bash spiral.sh [max_iters] [options]"
       echo ""
       echo "Options:"
-      echo "  --gate proceed|skip|quit   Auto-answer gate prompts (default: interactive)"
+      echo "  --gate proceed|skip|quit   Gate mode (default: proceed — auto-approve)"
       echo "  --ralph-iters N            Max inner implementation iterations (default: 120)"
       echo "  --ralph-workers N          Parallel worktree workers (default: 1)"
       echo "  --skip-research            Skip Phase R (web research)"
