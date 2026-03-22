@@ -22,6 +22,7 @@ from typing import Any
 from pydantic import ValidationError
 
 sys.path.insert(0, os.path.dirname(__file__))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from conflict_detector import detect_federated_conflicts
 from llm_models import ResearchOutput, log_validation_error
 from merge_results_tsv import HEADER as RESULTS_HEADER
@@ -275,13 +276,21 @@ def main() -> int:
     print(f"[merge] prd.json: {len(existing_stories)} existing stories ({current_pending} pending)")
 
     # ── US-545: Detect file conflicts among pending stories ───────────────────
-    _file_conflicts = detect_federated_conflicts(existing_stories)
+    _file_conflicts, _conflict_errors = detect_federated_conflicts(existing_stories)
     if _file_conflicts:
-        _results_tsv = os.path.join(os.path.dirname(os.path.abspath(args.prd)), "results.tsv")
-        _log_conflicts_to_results(_results_tsv, _file_conflicts)
-        print(f"[merge] File conflicts detected: {len(_file_conflicts)} pair(s) share implementation files")
-        for _c in _file_conflicts:
-            print(f"[merge]   {_c['storyA']} <-> {_c['storyB']}: {_c['conflict_files']}")
+        _pairwise: list[dict[str, Any]] = []
+        for _fc in _file_conflicts:
+            subs = _fc.get("sub_projects", [])
+            fpath = _fc.get("file_path", "")
+            for i in range(len(subs)):
+                for j in range(i + 1, len(subs)):
+                    _pairwise.append({"storyA": subs[i], "storyB": subs[j], "conflict_files": fpath})
+        if _pairwise:
+            _results_tsv = os.path.join(os.path.dirname(os.path.abspath(args.prd)), "results.tsv")
+            _log_conflicts_to_results(_results_tsv, _pairwise)
+        print(f"[merge] File conflicts detected: {len(_file_conflicts)} file(s) with cross-project collisions")
+        for _fc in _file_conflicts:
+            print(f"[merge]   {_fc['file_path']}: sub_projects={_fc['sub_projects']}")
 
     # Compute effective cap: min(max_new, remaining room under max_pending)
     effective_cap = args.max_new

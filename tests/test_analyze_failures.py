@@ -166,13 +166,15 @@ def test_recommendation_when_scope_exceeded_over_30_pct(tmp_path: Path) -> None:
 def test_recommendation_healthy_when_evenly_distributed(tmp_path: Path) -> None:
     """When no category exceeds 30%, recommendation says distribution is healthy."""
     tsv = tmp_path / "results.tsv"
+    # Use categories without special lower thresholds (api_rate_limit and
+    # validation_timeout trigger at >20%, which 25% would exceed).
     _write_results(
         tsv,
         [
             _make_row("US-001", "A", "fail", "scope_exceeded"),
-            _make_row("US-002", "B", "fail", "api_rate_limit"),
-            _make_row("US-003", "C", "fail", "type_error"),
-            _make_row("US-004", "D", "fail", "validation_timeout"),
+            _make_row("US-002", "B", "fail", "type_error"),
+            _make_row("US-003", "C", "fail", "syntax_error"),
+            _make_row("US-004", "D", "fail", "unknown"),
         ],
     )
 

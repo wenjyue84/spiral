@@ -43,7 +43,7 @@ from typing import Any
 try:
     from anthropic import Anthropic
 except ImportError:
-    Anthropic = None
+    Anthropic = None  # type: ignore[misc,assignment]
 
 try:
     from llm_client import stream_completion

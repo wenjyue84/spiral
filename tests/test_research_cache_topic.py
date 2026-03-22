@@ -8,14 +8,18 @@ import tempfile
 import time
 from pathlib import Path
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib", "phases"))
+import importlib.util
 
-from research_cache import (
-    cache_clear_expired,
-    cache_init,
-    cache_research_result,
-    lookup_cached_research,
-)
+_rc_path = os.path.join(os.path.dirname(__file__), "..", "lib", "phases", "research_cache.py")
+_spec = importlib.util.spec_from_file_location("phases_research_cache", _rc_path)
+assert _spec and _spec.loader
+_rc = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_rc)
+
+cache_clear_expired = _rc.cache_clear_expired
+cache_init = _rc.cache_init
+cache_research_result = _rc.cache_research_result
+lookup_cached_research = _rc.lookup_cached_research
 
 
 class TestTopicLevelCache:

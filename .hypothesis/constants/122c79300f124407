@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\retry_analysis.py
+# hypothesis_version: 6.151.9
+
+[0.0, 'UNKNOWN', 'count', 'max', 'mean', 'median', 'phase', 'retry_count', 'retry_rate', 'story_count', 'utf-8']

@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\observability\auto_release.py
+# hypothesis_version: 6.151.9
+
+['(US-\\d+|UT-\\d+)', '*.html', '---', '--config', '--docformat', '--format=%H%n%s%n%aI', '--format=%aI', '--output', '--output-directory', '--title', '-1', '.spiral', '.spiral/docs/api', 'CHANGELOG.md', 'HEAD', '__main__', 'cliff.toml', 'git', 'git-cliff', 'google', 'lib', 'log', 'pdoc', 'r', 'rev-parse', 'unknown', 'utf-8', 'w']

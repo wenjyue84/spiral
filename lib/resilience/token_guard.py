@@ -94,7 +94,7 @@ def count_tokens_anthropic(messages: list[dict[str, Any]], model: str) -> int | 
         client = anthropic.Anthropic(api_key=api_key)
         response = client.beta.messages.count_tokens(
             model=_resolve_model(model),
-            messages=messages,
+            messages=messages,  # type: ignore[arg-type]
             betas=["token-counting-2024-11-01"],
         )
         return int(response.input_tokens)

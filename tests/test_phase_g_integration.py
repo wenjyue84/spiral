@@ -13,9 +13,7 @@ from unittest import mock
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "lib" / "observability"))
-
-from auto_release import generate_api_docs, generate_changelog, run_command
+from observability.auto_release import generate_api_docs, generate_changelog, run_command
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -111,7 +109,7 @@ class TestChangelogGeneration:
         config_path = git_repo_with_commits / "cliff.toml"
         config_path.write_text('[changelog]\nheader = "# Changelog"\n[git]\nconventional_commits = true\n')
 
-        with mock.patch("auto_release.subprocess.run") as mock_run:
+        with mock.patch("observability.auto_release.subprocess.run") as mock_run:
             mock_run.return_value = mock.MagicMock(returncode=0)
 
             generate_changelog(config=str(config_path), output=str(changelog_path))
@@ -129,7 +127,7 @@ class TestChangelogGeneration:
         config_path = git_repo_empty / "cliff.toml"
         config_path.write_text('[changelog]\nheader = "# Changelog"\n[git]\nconventional_commits = true\n')
 
-        with mock.patch("auto_release.subprocess.run") as mock_run:
+        with mock.patch("observability.auto_release.subprocess.run") as mock_run:
             mock_run.return_value = mock.MagicMock(returncode=0)
 
             # Should not raise even with empty repo
@@ -143,7 +141,7 @@ class TestChangelogGeneration:
         config_path = git_repo_with_commits / "cliff.toml"
         config_path.write_text('[changelog]\nheader = "# Changelog"\n[git]\nconventional_commits = true\n')
 
-        with mock.patch("auto_release.subprocess.run") as mock_run:
+        with mock.patch("observability.auto_release.subprocess.run") as mock_run:
             mock_run.return_value = mock.MagicMock(returncode=0)
 
             generate_changelog(config=str(config_path), output=str(custom_output))
@@ -166,15 +164,16 @@ class TestApiDocsGeneration:
         (lib_dir / "__init__.py").write_text("")
         (lib_dir / "example.py").write_text('"""Example module."""\ndef sample(): pass\n')
 
-        with mock.patch("auto_release.subprocess.run") as mock_run:
+        with mock.patch("observability.auto_release.subprocess.run") as mock_run:
             mock_run.return_value = mock.MagicMock(returncode=0)
 
             generate_api_docs(source_dir="lib", output_dir=str(output_dir), title="Test API Docs")
 
-            # Verify pdoc was called with correct arguments
-            mock_run.assert_called_once()
-            call_args = mock_run.call_args[0][0]
-            assert "pdoc" in call_args
+            # Verify pdoc was called (first call; additional git calls follow)
+            calls = [c[0][0] for c in mock_run.call_args_list if c[0]]
+            pdoc_calls = [c for c in calls if "pdoc" in c]
+            assert len(pdoc_calls) >= 1
+            call_args = pdoc_calls[0]
             assert "lib" in call_args
             assert str(output_dir) in call_args
             assert "Test API Docs" in call_args
@@ -188,14 +187,16 @@ class TestApiDocsGeneration:
 
         custom_output = git_repo_with_commits / "custom_docs"
 
-        with mock.patch("auto_release.subprocess.run") as mock_run:
+        with mock.patch("observability.auto_release.subprocess.run") as mock_run:
             mock_run.return_value = mock.MagicMock(returncode=0)
 
             generate_api_docs(source_dir="lib", output_dir=str(custom_output), title="Custom Docs")
 
-            # Verify custom output path was passed to pdoc
-            call_args = mock_run.call_args[0][0]
-            assert str(custom_output) in call_args
+            # Verify custom output path was passed to pdoc (first call)
+            calls = [c[0][0] for c in mock_run.call_args_list if c[0]]
+            pdoc_calls = [c for c in calls if "pdoc" in c]
+            assert len(pdoc_calls) >= 1
+            assert str(custom_output) in pdoc_calls[0]
 
 
 class TestPhaseGOrchestration:
@@ -213,18 +214,18 @@ class TestPhaseGOrchestration:
         config_path = git_repo_with_commits / "cliff.toml"
         config_path.write_text('[changelog]\nheader = "# Changelog"\n[git]\nconventional_commits = true\n')
 
-        with mock.patch("auto_release.subprocess.run") as mock_run:
+        with mock.patch("observability.auto_release.subprocess.run") as mock_run:
             mock_run.return_value = mock.MagicMock(returncode=0)
 
             # Run both generation functions (as Phase G would)
             generate_changelog(config=str(config_path), output=str(changelog_path))
             generate_api_docs(source_dir="lib", output_dir=str(docs_path))
 
-            # Verify both tools were called
-            assert mock_run.call_count == 2
-            calls = [call[0][0] for call in mock_run.call_args_list]
-            assert any("git-cliff" in str(call) for call in calls)
-            assert any("pdoc" in str(call) for call in calls)
+            # Verify both tools were called (additional git calls may follow)
+            assert mock_run.call_count >= 2
+            calls = [c[0][0] for c in mock_run.call_args_list if c[0]]
+            assert any("git-cliff" in str(c) for c in calls)
+            assert any("pdoc" in str(c) for c in calls)
 
     def test_phase_g_handles_empty_commit_log(self, git_repo_empty: Path) -> None:
         """Verify Phase G handles empty commit log gracefully."""
@@ -232,7 +233,7 @@ class TestPhaseGOrchestration:
         config_path = git_repo_empty / "cliff.toml"
         config_path.write_text('[changelog]\nheader = "# Changelog"\n[git]\nconventional_commits = true\n')
 
-        with mock.patch("auto_release.subprocess.run") as mock_run:
+        with mock.patch("observability.auto_release.subprocess.run") as mock_run:
             mock_run.return_value = mock.MagicMock(returncode=0)
 
             # Should handle empty repo without errors
@@ -254,7 +255,7 @@ class TestPhaseGErrorHandling:
         config_path = git_repo_with_commits / "cliff.toml"
         config_path.write_text('[changelog]\nheader = "# Changelog"\n[git]\nconventional_commits = true\n')
 
-        with mock.patch("auto_release.subprocess.run") as mock_run:
+        with mock.patch("observability.auto_release.subprocess.run") as mock_run:
             mock_run.return_value = mock.MagicMock(returncode=1)  # Simulate failure
 
             with pytest.raises(RuntimeError, match="Failed to"):
@@ -266,7 +267,7 @@ class TestPhaseGErrorHandling:
         lib_dir.mkdir()
         (lib_dir / "__init__.py").write_text("")
 
-        with mock.patch("auto_release.subprocess.run") as mock_run:
+        with mock.patch("observability.auto_release.subprocess.run") as mock_run:
             mock_run.return_value = mock.MagicMock(returncode=1)  # Simulate failure
 
             with pytest.raises(RuntimeError, match="Failed to"):
@@ -285,7 +286,7 @@ def test_changelog_generated_from_commits(git_repo_with_commits: Path) -> None:
     config_path = git_repo_with_commits / "cliff.toml"
     config_path.write_text('[changelog]\nheader = "# Changelog"\n[git]\nconventional_commits = true\n')
 
-    with mock.patch("auto_release.subprocess.run") as mock_run:
+    with mock.patch("observability.auto_release.subprocess.run") as mock_run:
         mock_run.return_value = mock.MagicMock(returncode=0)
 
         generate_changelog(config=str(config_path), output=str(changelog_path))
@@ -309,14 +310,15 @@ def test_api_docs_generated_by_pdoc(git_repo_with_commits: Path) -> None:
     (lib_dir / "__init__.py").write_text("")
     (lib_dir / "example.py").write_text('"""Example module."""\ndef sample(): pass\n')
 
-    with mock.patch("auto_release.subprocess.run") as mock_run:
+    with mock.patch("observability.auto_release.subprocess.run") as mock_run:
         mock_run.return_value = mock.MagicMock(returncode=0)
 
         generate_api_docs(source_dir="lib", output_dir=str(output_dir), title="Test API Docs")
 
-        mock_run.assert_called_once()
-        call_args = mock_run.call_args[0][0]
-        assert "pdoc" in call_args
+        calls = [c[0][0] for c in mock_run.call_args_list if c[0]]
+        pdoc_calls = [c for c in calls if "pdoc" in c]
+        assert len(pdoc_calls) >= 1
+        call_args = pdoc_calls[0]
         assert "lib" in call_args
         assert str(output_dir) in call_args
         assert "Test API Docs" in call_args
@@ -331,7 +333,7 @@ def test_phase_g_handles_empty_commit_log(git_repo_empty: Path) -> None:
     config_path = git_repo_empty / "cliff.toml"
     config_path.write_text('[changelog]\nheader = "# Changelog"\n[git]\nconventional_commits = true\n')
 
-    with mock.patch("auto_release.subprocess.run") as mock_run:
+    with mock.patch("observability.auto_release.subprocess.run") as mock_run:
         mock_run.return_value = mock.MagicMock(returncode=0)
 
         generate_changelog(config=str(config_path), output=str(changelog_path))
