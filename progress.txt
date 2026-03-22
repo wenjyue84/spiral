@@ -1795,3 +1795,32 @@ This is a pure Python data-gathering task. It does not involve any Frappe DocTyp
 *   Handle potential `FileNotFoundError` if `_checkpoint.json` or `heartbeat.json` are not present.
 *   Gracefully manage malformed JSON in the status files.
 *   The logic for `estimate_phase_remaining_time` is not fully specified; it will require making assumptions or using historical data about phase durations, which should be clearly documented.
+
+## Pre-analysis for US-752 (Gemini 2.5 Pro)
+This brief is for a Python project, not a Frappe application. The user story describes a test for a task-runner system called Spiral.
+
+**Project:** Spiral (Python Task Runner)
+**Story:** US-752: Federated Worker Isolation Test
+
+**1. Python Files to Create/Reference:**
+*   **Create:** `tests/test_federated_worker_isolation_load.py`
+*   **Reference (for calling):** `lib/slice_prd.py` to partition the main data file.
+*   **Reference (for execution):** The main worker script (`main.py` or `spiral.sh`), which will be invoked by the test using `subprocess`.
+
+**2. Key Data Structures (Not Frappe DocTypes):**
+*   **Input Data:** `prd.json` (the "Product Requirement Document" defining tasks/stories) and its test-specific version, `tests/fixtures/federated_load_test_prd.json`.
+*   **Output Data:** `results.tsv`, a tab-separated file where workers log their results.
+
+**3. Recommended Implementation Approach:**
+1.  Create the new test file `tests/test_federated_worker_isolation_load.py`.
+2.  Implement a pytest fixture to prepare a clean environment, using the `federated_load_test_prd.json` as the source `prd.json`.
+3.  The test logic should first call `lib/slice_prd.py` to split the `prd.json` into three distinct files based on the `sub_project` field.
+4.  Use Python's `subprocess` module to launch three parallel worker processes, each pointing to one of the sliced PRD files.
+5.  After the workers finish, read `results.tsv` and the original fixture file.
+6.  Assert that every story in `results.tsv` retains its correct `sub_project` assignment and that no duplicate stories were processed.
+
+**4. Edge Cases & Gotchas:**
+*   **Race Conditions:** The test must verify that parallel workers don't corrupt `results.tsv`. The application should implement file locking; the test will validate this implicitly.
+*   **State Management:** Ensure no state leaks between workers. Each subprocess should be isolated.
+*   **Test Cleanup:** Use a `tmp_path` fixture or similar to ensure temporary PRD slices and results files are deleted after the test run.
+

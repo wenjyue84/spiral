@@ -5,7 +5,7 @@ from __future__ import annotations
 import collections
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, TextIO, cast
 
 import pytest
 
@@ -16,15 +16,15 @@ class TestFederatedWorkerIsolation:
     """Tests for worker sub-project isolation under federated load."""
 
     @pytest.fixture
-    def federated_prd(self) -> dict[str, Any]:
+    def federated_prd(self: "TestFederatedWorkerIsolation") -> dict[str, Any]:
         """Load federated load test fixture."""
         fixture_path = Path(__file__).parent / "fixtures" / "federated_load_test_prd.json"
         with open(fixture_path, encoding="utf-8") as f:
-            data = json.load(f)
+            data: dict[str, Any] = json.load(f)
         # Convert 'stories' to 'userStories' for slice_prd compatibility
         return {"userStories": data["stories"]}
 
-    def test_sub_project_fidelity(self, federated_prd: dict) -> None:
+    def test_sub_project_fidelity(self, federated_prd: dict[str, Any]) -> None:
         """Verify each worker receives stories from only one sub_project.
 
         Simulates 3-worker distribution: each worker gets ~10 stories.
@@ -57,9 +57,7 @@ class TestFederatedWorkerIsolation:
             sub_projects = {s["sub_project"] for s in worker_prd["userStories"]}
 
             # Each worker should have exactly one sub_project
-            assert (
-                len(sub_projects) == 1
-            ), f"Worker {worker_id} has cross-contamination: sub_projects={sub_projects}"
+            assert len(sub_projects) == 1, f"Worker {worker_id} has cross-contamination: sub_projects={sub_projects}"
 
             # Verify we have all 3 sub-projects represented across workers
             assert list(sub_projects)[0] in ["frontend", "backend", "infra"]
@@ -71,9 +69,7 @@ class TestFederatedWorkerIsolation:
         id_counts = collections.Counter(story_ids)
 
         duplicates = [sid for sid, count in id_counts.items() if count > 1]
-        assert (
-            not duplicates
-        ), f"Duplicate story IDs found: {duplicates}"
+        assert not duplicates, f"Duplicate story IDs found: {duplicates}"
 
     def test_all_required_fields_present(self, federated_prd: dict[str, Any]) -> None:
         """Verify each story has required fields for federated distribution."""
@@ -109,9 +105,7 @@ class TestFederatedWorkerIsolation:
 
         # All 3 sub-projects must be represented
         all_assigned = set(worker_sub_projects.values())
-        assert all_assigned == {"frontend", "backend", "infra"}, (
-            f"Not all sub-projects assigned: {all_assigned}"
-        )
+        assert all_assigned == {"frontend", "backend", "infra"}, f"Not all sub-projects assigned: {all_assigned}"
 
     def test_no_cross_worker_file_conflicts(self, federated_prd: dict[str, Any]) -> None:
         """Verify no cross-worker story ID conflicts when sliced.
@@ -136,9 +130,7 @@ class TestFederatedWorkerIsolation:
         for w1 in range(1, num_workers + 1):
             for w2 in range(w1 + 1, num_workers + 1):
                 overlap = worker_story_ids[w1] & worker_story_ids[w2]
-                assert (
-                    not overlap
-                ), f"Workers {w1} and {w2} share story IDs: {overlap}"
+                assert not overlap, f"Workers {w1} and {w2} share story IDs: {overlap}"
 
     def test_fixture_load_via_slice_prd(self, federated_prd: dict[str, Any]) -> None:
         """Verify federated fixture works with slice_prd function.
@@ -154,3 +146,65 @@ class TestFederatedWorkerIsolation:
             # Sliced PRD should contain at most batch_size pending stories
             # All stories are pending (passes=False) in the fixture
             assert len(sliced["userStories"]) <= batch_size
+
+    def test_results_tsv_sub_project_consistency(self, federated_prd: dict[str, Any]) -> None:
+        """Verify results.tsv records maintain sub_project consistency with PRD.
+
+        When writing story telemetry to results.tsv, the sub_project field
+        must match the story's sub_project from the original PRD.
+        Acceptance: No story row in results.tsv differs from its prd.json assignment.
+        """
+        import tempfile
+
+        from lib.results_tsv import HEADER, ResultsRecord, parse_results_tsv, write_results_row
+
+        prd = federated_prd
+        batch_size = 10
+        sliced = slice_prd(prd, batch_size)
+
+        # Create a map of story_id -> sub_project from the sliced PRD
+        story_sub_projects: dict[str, str] = {
+            s["id"]: s.get("sub_project", "") for s in sliced.get("userStories", []) if "id" in s
+        }
+
+        # Write mock results.tsv entries
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".tsv", delete=False, encoding="utf-8", newline="") as f:
+            temp_path = f.name
+
+            # Write header
+            header_line = "\t".join(HEADER)
+            f.write(header_line + "\n")
+
+            # Write a record for each sliced story
+            for story_id, sub_project in story_sub_projects.items():
+                record = ResultsRecord(
+                    timestamp="2026-03-22T00:00:00Z",
+                    spiral_iter="1",
+                    ralph_iter="1",
+                    story_id=story_id,
+                    story_title=f"Test: {story_id}",
+                    status="success",
+                    duration_sec="10.5",
+                    model="haiku",
+                    retry_num="0",
+                    commit_sha="abc1234",
+                    run_id="run-1",
+                    sub_project=sub_project,
+                )
+                # Cast f to TextIO for type checking compatibility
+                write_results_row(cast(TextIO, f), record)
+
+        try:
+            # Read back and verify sub_project consistency
+            records = parse_results_tsv(temp_path)
+            for record in records:
+                if record.story_id in story_sub_projects:
+                    expected_sub_project = story_sub_projects[record.story_id]
+                    actual_sub_project = record.sub_project
+                    assert actual_sub_project == expected_sub_project, (
+                        f"Story {record.story_id}: expected sub_project '{expected_sub_project}', "
+                        f"got '{actual_sub_project}'"
+                    )
+        finally:
+            # Cleanup
+            Path(temp_path).unlink(missing_ok=True)

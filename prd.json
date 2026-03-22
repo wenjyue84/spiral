@@ -11,68 +11,6 @@
   ],
   "userStories": [
     {
-      "id": "US-749",
-      "title": "Dashboard: Implement worker_swimlane.py with phase status logic",
-      "priority": "high",
-      "description": "Create lib/dashboard/worker_swimlane.py with functions that read .spiral/_checkpoint.json and worker heartbeat files to determine each active worker's current phase, start time, and estimated remaining time. This is the data layer for the swimlane endpoint.",
-      "acceptanceCriteria": [
-        "uv run pytest tests/test_worker_swimlane.py::test_get_worker_phase_status -v passes",
-        "uv run pytest tests/test_worker_swimlane.py::test_estimate_phase_remaining_time -v passes",
-        "get_worker_phase_status() returns dict with keys: worker_id, current_phase, phase_start_time, estimated_completion_seconds"
-      ],
-      "technicalNotes": [
-        "File to create: lib/dashboard/worker_swimlane.py (functions: get_worker_phase_status, estimate_phase_remaining_time)",
-        "File to create: tests/test_worker_swimlane.py (unit tests with mocked checkpoint/heartbeat files)",
-        "Test command: uv run pytest tests/test_worker_swimlane.py -v",
-        "Read .spiral/_checkpoint.json for phase state; read .spiral-workers/worker-N/heartbeat.json for per-worker timing; return empty list if no workers active"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": true,
-      "model": "haiku"
-    },
-    {
-      "id": "US-750",
-      "title": "Dashboard: Add GET /api/dashboard/worker-phase-swimlane route to api.py",
-      "priority": "high",
-      "description": "Wire the worker swimlane data layer into the dashboard API by adding a GET /api/dashboard/worker-phase-swimlane route to lib/dashboard/api.py that returns JSON suitable for rendering a swimlane chart. Depends on worker_swimlane.py being implemented first.",
-      "acceptanceCriteria": [
-        "curl -s http://localhost:5299/api/dashboard/worker-phase-swimlane returns HTTP 200 with Content-Type application/json",
-        "Response JSON contains a top-level 'workers' array; each element has worker_id, current_phase, phase_start_time, estimated_completion_seconds",
-        "uv run pytest tests/test_worker_swimlane_endpoint.py -v passes"
-      ],
-      "technicalNotes": [
-        "File to edit: lib/dashboard/api.py (add route handler for GET /api/dashboard/worker-phase-swimlane, import get_worker_phase_status from lib.dashboard.worker_swimlane)",
-        "File to create: tests/test_worker_swimlane_endpoint.py (integration test using Flask test client)",
-        "Test command: uv run pytest tests/test_worker_swimlane_endpoint.py -v",
-        "Return {\"workers\": []} with HTTP 200 when no workers are active; never return 500 on missing checkpoint files"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": true,
-      "model": "haiku"
-    },
-    {
-      "id": "US-751",
-      "title": "Add Federated Load Test Fixture: 30-Story Multi-Subproject PRD",
-      "priority": "high",
-      "description": "Create a JSON test fixture representing a federated prd.json with 3 sub-projects (frontend, backend, infra), 10 stories each, to support worker isolation integration tests.",
-      "acceptanceCriteria": [
-        "tests/fixtures/federated_load_test_prd.json exists and contains exactly 30 stories with sub_project values of 'frontend', 'backend', or 'infra'",
-        "uv run python -c \"import json; d=json.load(open('tests/fixtures/federated_load_test_prd.json')); assert len(d['stories'])==30\" exits 0",
-        "Each sub_project bucket contains exactly 10 stories: uv run python -c \"import json,collections; d=json.load(open('tests/fixtures/federated_load_test_prd.json')); c=collections.Counter(s['sub_project'] for s in d['stories']); assert all(v==10 for v in c.values())\" exits 0"
-      ],
-      "technicalNotes": [
-        "File to create: tests/fixtures/federated_load_test_prd.json (root-level stories array, 30 entries with sub_project field)",
-        "Test command: uv run python -c \"import json,collections; d=json.load(open('tests/fixtures/federated_load_test_prd.json')); c=collections.Counter(s['sub_project'] for s in d['stories']); assert all(v==10 for v in c.values()), c\"",
-        "Each story entry must include: id, title, sub_project, passes=false, _source='ai-example'"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": true,
-      "model": "haiku"
-    },
-    {
       "id": "US-752",
       "title": "Integration Test: Verify Worker Sub-Project Isolation Under 3-Worker Federated Load",
       "priority": "high",
@@ -90,8 +28,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-03-22T14:51:13Z"
     },
     {
       "id": "US-734",
@@ -334,52 +273,65 @@
       "model": "haiku"
     },
     {
-      "id": "US-756",
-      "title": "[Regression Test] US-553 Phase Completion: I→V→C Workers Finish and Story Passes",
-      "priority": "medium",
-      "description": "Write a regression test verifying that SPIRAL's last three phases (Implement, Validate, Check-Done) complete successfully, workers exit cleanly, and the seeded story reaches 'done' status. Guards against regressions in the implementation engine and completion-check logic.",
+      "id": "US-749",
+      "title": "Dashboard: Implement worker_swimlane.py with phase status logic",
+      "priority": "high",
+      "description": "Create lib/dashboard/worker_swimlane.py with functions that read .spiral/_checkpoint.json and worker heartbeat files to determine each active worker's current phase, start time, and estimated remaining time. This is the data layer for the swimlane endpoint.",
       "acceptanceCriteria": [
-        "uv run pytest tests/test_regression_us553.py::test_phase_ivc_completion -v exits 0 and reports 1 passed",
-        "Test fails if the seeded story does not reach status 'done' in prd.json after the mocked loop completes",
-        "Test fails if any worker subprocess exits with a non-zero code during the mocked Phase I run"
+        "uv run pytest tests/test_worker_swimlane.py::test_get_worker_phase_status -v passes",
+        "uv run pytest tests/test_worker_swimlane.py::test_estimate_phase_remaining_time -v passes",
+        "get_worker_phase_status() returns dict with keys: worker_id, current_phase, phase_start_time, estimated_completion_seconds"
       ],
       "technicalNotes": [
-        "File to edit: tests/test_regression_us553.py (new function test_phase_ivc_completion in same file as sibling test)",
-        "Test command: uv run pytest tests/test_regression_us553.py::test_phase_ivc_completion -v",
-        "Mock the ralph/ralph.sh subprocess to exit 0 and write a minimal passing result; verify prd.json story status field is updated to 'done' after Phase C",
-        "Use tmp_path fixture for an isolated prd.json copy so tests do not mutate the real backlog",
-        "Check results.tsv for a row with status='done' as the final AC verification"
+        "File to create: lib/dashboard/worker_swimlane.py (functions: get_worker_phase_status, estimate_phase_remaining_time)",
+        "File to create: tests/test_worker_swimlane.py (unit tests with mocked checkpoint/heartbeat files)",
+        "Test command: uv run pytest tests/test_worker_swimlane.py -v",
+        "Read .spiral/_checkpoint.json for phase state; read .spiral-workers/worker-N/heartbeat.json for per-worker timing; return empty list if no workers active"
       ],
-      "dependencies": [
-        "US-553"
-      ],
+      "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
-      "id": "US-757",
-      "title": "Write pytest integration test for /ws/cost WebSocket cost-delta broadcast",
-      "priority": "medium",
-      "description": "Create a pytest integration test that connects a WebSocket client to /ws/cost, triggers a simulated Phase I completion event by calling lib/dashboard/cost_broadcaster.py directly, and asserts a JSON cost-delta message is received within 2 seconds. The test must be deterministic and not require a full SPIRAL loop.",
+      "id": "US-750",
+      "title": "Dashboard: Add GET /api/dashboard/worker-phase-swimlane route to api.py",
+      "priority": "high",
+      "description": "Wire the worker swimlane data layer into the dashboard API by adding a GET /api/dashboard/worker-phase-swimlane route to lib/dashboard/api.py that returns JSON suitable for rendering a swimlane chart. Depends on worker_swimlane.py being implemented first.",
       "acceptanceCriteria": [
-        "uv run pytest tests/test_ws_cost_e2e.py -v exits 0 with the new test passing",
-        "Test asserts the received WebSocket message is valid JSON containing at least one cost-delta field (e.g. 'delta' or 'total')",
-        "Test asserts message is received within 2 seconds of triggering the broadcaster",
-        "Test does not start a full SPIRAL loop — drives cost_broadcaster.py directly"
+        "curl -s http://localhost:5299/api/dashboard/worker-phase-swimlane returns HTTP 200 with Content-Type application/json",
+        "Response JSON contains a top-level 'workers' array; each element has worker_id, current_phase, phase_start_time, estimated_completion_seconds",
+        "uv run pytest tests/test_worker_swimlane_endpoint.py -v passes"
       ],
       "technicalNotes": [
-        "File to edit: tests/test_ws_cost_e2e.py (create new file — asyncio pytest test using websockets or httpx-ws to connect to /ws/cost)",
-        "File to edit: lib/dashboard/cost_broadcaster.py (read broadcast() or equivalent public function to invoke it in the test fixture)",
-        "Test command: uv run pytest tests/test_ws_cost_e2e.py -v",
-        "Use pytest-asyncio and asyncio.wait_for() with timeout=2.0 to enforce the 2-second assertion",
-        "If the server must be running, use an asyncio fixture to start it on a random port and tear it down after the test"
+        "File to edit: lib/dashboard/api.py (add route handler for GET /api/dashboard/worker-phase-swimlane, import get_worker_phase_status from lib.dashboard.worker_swimlane)",
+        "File to create: tests/test_worker_swimlane_endpoint.py (integration test using Flask test client)",
+        "Test command: uv run pytest tests/test_worker_swimlane_endpoint.py -v",
+        "Return {\"workers\": []} with HTTP 200 when no workers are active; never return 500 on missing checkpoint files"
       ],
-      "dependencies": [
-        "US-583"
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-751",
+      "title": "Add Federated Load Test Fixture: 30-Story Multi-Subproject PRD",
+      "priority": "high",
+      "description": "Create a JSON test fixture representing a federated prd.json with 3 sub-projects (frontend, backend, infra), 10 stories each, to support worker isolation integration tests.",
+      "acceptanceCriteria": [
+        "tests/fixtures/federated_load_test_prd.json exists and contains exactly 30 stories with sub_project values of 'frontend', 'backend', or 'infra'",
+        "uv run python -c \"import json; d=json.load(open('tests/fixtures/federated_load_test_prd.json')); assert len(d['stories'])==30\" exits 0",
+        "Each sub_project bucket contains exactly 10 stories: uv run python -c \"import json,collections; d=json.load(open('tests/fixtures/federated_load_test_prd.json')); c=collections.Counter(s['sub_project'] for s in d['stories']); assert all(v==10 for v in c.values())\" exits 0"
       ],
-      "estimatedComplexity": "medium",
-      "passes": false,
+      "technicalNotes": [
+        "File to create: tests/fixtures/federated_load_test_prd.json (root-level stories array, 30 entries with sub_project field)",
+        "Test command: uv run python -c \"import json,collections; d=json.load(open('tests/fixtures/federated_load_test_prd.json')); c=collections.Counter(s['sub_project'] for s in d['stories']); assert all(v==10 for v in c.values()), c\"",
+        "Each story entry must include: id, title, sub_project, passes=false, _source='ai-example'"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
       "model": "haiku"
     },
     {
