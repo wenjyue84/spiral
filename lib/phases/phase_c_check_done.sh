@@ -208,6 +208,9 @@ PYEOF
     echo "  [C] Velocity: ~${RALPH_PROGRESS} stories/iter | ~${ITERS_LEFT} more iters to completion"
   fi
 
+  # ── Phase L: LEARNING — analyze retry patterns ──────────────────────────
+  run_phase_learn
+
   # ── Tier 2: Full re-validation between iterations ──────────────────────
   spiral_assert_prd_valid "$PRD_FILE"
   spiral_assert_no_orphan_tmpfiles

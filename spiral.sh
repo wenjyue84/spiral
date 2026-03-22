@@ -135,6 +135,7 @@ STALE_REPORT_MODE=0                          # 1 = print stale stories and exit 
 FLAKY_REPORT_MODE=0                          # 1 = print flaky test quarantine report and exit (--flaky-tests report)
 SHOW_FLAKY_TESTS_MODE=0                      # 1 = print flaky tests from test synthesis history and exit (--show-flaky-tests)
 CALIBRATION_REPORT_MODE=0                    # 1 = print calibration report and exit (--calibration-report)
+SHOW_PATTERNS_MODE=0                         # 1 = display learned retry patterns and exit (--show-patterns)
 SPIRAL_LOG_LEVEL="${SPIRAL_LOG_LEVEL:-INFO}" # DEBUG|INFO|WARN|ERROR (case-insensitive)
 
 while [[ $# -gt 0 ]]; do
@@ -303,6 +304,10 @@ while [[ $# -gt 0 ]]; do
       CALIBRATION_REPORT_MODE=1
       shift
       ;;
+    --show-patterns)
+      SHOW_PATTERNS_MODE=1
+      shift
+      ;;
     --log-level)
       SPIRAL_LOG_LEVEL="${2^^}" # normalise to upper-case
       shift 2
@@ -367,6 +372,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --flaky-tests report       Print quarantined flaky test registry and exit"
       echo "  --show-flaky-tests         Print tests failing <50% across last 5 iterations (excluded from Phase T) and exit"
       echo "  --calibration-report       Print actual vs estimated complexity calibration data and exit"
+      echo "  --show-patterns            Display learned retry patterns (0-retry vs 3+ retry stories) and exit"
       echo "  --list-plugins             List all loaded plugins and their hooks, then exit"
       echo "  --log-level DEBUG|INFO|WARN|ERROR  Output verbosity (default: INFO; can also set SPIRAL_LOG_LEVEL env var)"
       echo "  --status                   Print session state and story counts, then exit"
@@ -970,6 +976,13 @@ if [[ "$CALIBRATION_REPORT_MODE" -eq 1 ]]; then
   exit 0
 fi
 
+# ── --show-patterns: display learned retry patterns and exit ────────────────
+if [[ "$SHOW_PATTERNS_MODE" -eq 1 ]]; then
+  _PATTERNS_FILE="$REPO_ROOT/.spiral/learned_patterns.json"
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/pattern_analyzer.py" show "$_PATTERNS_FILE" 2>/dev/null || true
+  exit 0
+fi
+
 # ── Schema version check ────────────────────────────────────────────────────
 _PRD_SCHEMA_VER=$("$JQ" -r '.schemaVersion // empty' "$PRD_FILE" 2>/dev/null || echo "")
 if [[ -n "$_PRD_SCHEMA_VER" ]] && [[ "$_PRD_SCHEMA_VER" -gt 1 ]] 2>/dev/null; then
@@ -1074,6 +1087,7 @@ source "$SPIRAL_HOME/lib/phases/phase_i_implement.sh"
 source "$SPIRAL_HOME/lib/phases/phase_v_validate.sh"
 source "$SPIRAL_HOME/lib/phases/phase_p_push.sh"
 source "$SPIRAL_HOME/lib/phases/phase_c_check_done.sh"
+source "$SPIRAL_HOME/lib/phases/phase_l_learn.sh"
 source "$SPIRAL_HOME/lib/phases/phase_r_research.sh"
 source "$SPIRAL_HOME/lib/phases/phase_rt_parallel.sh"
 source "$SPIRAL_HOME/lib/phases/phase_x_contextbuild.sh"
