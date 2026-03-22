@@ -104,6 +104,9 @@ def count_tokens_anthropic(messages: list[dict[str, Any]], model: str) -> int | 
 
 def _count_tokens_approx(text: str) -> int:
     """Approximate token count using tiktoken or 4-char heuristic."""
+    # For very large strings, skip tiktoken (slow on >100K chars) and use heuristic
+    if len(text) > 100_000:
+        return max(1, len(text) // 4)
     try:
         import tiktoken
 

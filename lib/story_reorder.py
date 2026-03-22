@@ -15,6 +15,7 @@ Usage (Python API):
 
 from __future__ import annotations
 
+import heapq
 from typing import Any
 
 
@@ -64,30 +65,45 @@ def topological_sort(
     story_ids = set(story_by_id.keys())
 
     # Compute in-degree (number of unmet dependencies)
-    in_degree: dict[str, int] = {sid: 0 for sid in story_ids}
-    for sid in story_ids:
+    in_degree: dict[str, int] = {sid: 0 for sid in story_by_id}
+    for sid in story_by_id:
         for dep_id in dep_graph.get(sid, []):
             if dep_id in story_ids:
                 in_degree[sid] += 1
 
-    # Queue: stories with no unmet dependencies
-    queue = [sid for sid in story_ids if in_degree[sid] == 0]
+    # Priority-aware queue: among ready stories, pick highest priority first.
+    # Heap entries: (priority_rank, dep_count, insertion_order, story_id)
+    _prio_rank = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+
+    def _heap_key(sid: str, seq: int) -> tuple[int, int, int, str]:
+        s = story_by_id[sid]
+        p = s.get("priority", "medium") or "medium"
+        rank = _prio_rank.get(p, 2)
+        deps = len(s.get("dependencies", []))
+        return (rank, deps, seq, sid)
+
+    seq = 0
+    heap: list[tuple[int, int, int, str]] = []
+    for sid in story_by_id:
+        if in_degree[sid] == 0:
+            heapq.heappush(heap, _heap_key(sid, seq))
+            seq += 1
     result: list[str] = []
 
-    while queue:
-        # Pop a story with no unmet dependencies
-        current = queue.pop(0)
+    while heap:
+        _, _, _, current = heapq.heappop(heap)
         result.append(current)
 
         # For each story that depends on current, decrement in-degree
-        for sid in story_ids:
+        for sid in story_by_id:
             if current in dep_graph.get(sid, []):
                 in_degree[sid] -= 1
                 if in_degree[sid] == 0:
-                    queue.append(sid)
+                    heapq.heappush(heap, _heap_key(sid, seq))
+                    seq += 1
 
     # Collect stories with cycles (unprocessed) in original order
-    remaining = [sid for sid in story_ids if sid not in result]
+    remaining = [sid for sid in story_by_id if sid not in result]
     original_order: list[str] = []
     for s in stories:
         if isinstance(s, dict) and "id" in s:

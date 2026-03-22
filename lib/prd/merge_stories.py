@@ -280,17 +280,27 @@ def main() -> int:
     if _file_conflicts:
         _pairwise: list[dict[str, Any]] = []
         for _fc in _file_conflicts:
+            if not isinstance(_fc, dict):
+                continue
             subs = _fc.get("sub_projects", [])
             fpath = _fc.get("file_path", "")
+            if not isinstance(subs, list):
+                continue
             for i in range(len(subs)):
                 for j in range(i + 1, len(subs)):
-                    _pairwise.append({"storyA": subs[i], "storyB": subs[j], "conflict_files": fpath})
+                    _pairwise.append(
+                        {"storyA": str(subs[i]), "storyB": str(subs[j]), "conflict_files": fpath}
+                    )
         if _pairwise:
             _results_tsv = os.path.join(os.path.dirname(os.path.abspath(args.prd)), "results.tsv")
-            _log_conflicts_to_results(_results_tsv, _pairwise)
+            try:
+                _log_conflicts_to_results(_results_tsv, _pairwise)
+            except (TypeError, KeyError) as _e:
+                print(f"[merge] WARNING: conflict logging failed: {_e}")
         print(f"[merge] File conflicts detected: {len(_file_conflicts)} file(s) with cross-project collisions")
         for _fc in _file_conflicts:
-            print(f"[merge]   {_fc['file_path']}: sub_projects={_fc['sub_projects']}")
+            if isinstance(_fc, dict):
+                print(f"[merge]   {_fc.get('file_path', '?')}: sub_projects={_fc.get('sub_projects', [])}")
 
     # Compute effective cap: min(max_new, remaining room under max_pending)
     effective_cap = args.max_new

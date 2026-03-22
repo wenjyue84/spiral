@@ -108,9 +108,9 @@ class TestCheckpointPhaseDurations:
 
     def test_phase_durations_invalid_phase_key(self):
         sm = SpiralPhaseStateMachine()
-        durations = {"R": 10, "X": 5}
+        durations = {"R": 10, "ZZ": 5}
         errors = sm.validate_checkpoint(self._base_checkpoint(phaseDurations=durations))
-        assert any("'X' is not a valid phase" in e for e in errors)
+        assert any("'ZZ' is not a valid phase" in e for e in errors)
 
     def test_phase_durations_negative_value(self):
         sm = SpiralPhaseStateMachine()

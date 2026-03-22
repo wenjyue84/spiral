@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\commands\deploy_docs.py
+# hypothesis_version: 6.151.9
+
+['# Changelog', '## Unreleased', '--force', '--heads', '--list', '--orphan', '--porcelain', '-A', '-b', '-m', '.git', '.nojekyll', '.spiral', 'CHANGELOG.md', 'Untitled', '_decomposed', 'add', 'api', 'branch', 'changelog-output', 'commit', 'docs', 'gh-pages', 'gh-pages-deploy', 'git', 'id', 'index.html', 'ls-remote', 'origin', 'passes', 'pdoc', 'push', 'remove', 'status', 'title', 'userStories', 'utf-8', 'workers', 'worktree']

@@ -29,7 +29,7 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "sonnet",
-      "last_attempted": "2026-03-22T10:50:26Z"
+      "last_attempted": "2026-03-22T10:47:26Z"
     },
     {
       "id": "US-744",
@@ -224,6 +224,144 @@
       "passes": false,
       "tags": [
         "performance",
+        "auto-generated"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-739",
+      "title": "[Perf Test] Phase I: Federated Story-to-Worker Routing by Sub-Project",
+      "priority": "medium",
+      "description": "Write a performance benchmark for US-636's sub-project federated worker routing. The benchmark captures baseline latency for story distribution and fails if response time degrades more than 20% from that baseline. This ensures the federated routing feature remains performant as the codebase evolves.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_perf_us636.py -v exits 0 and reports baseline metrics",
+        "Test fails when simulated routing latency exceeds 120% of recorded baseline",
+        "Benchmark covers at least 50 routing operations per sub-project namespace",
+        "Test output includes per-sub-project timing breakdown in stdout"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_perf_us636.py (new file — create benchmark module)",
+        "File to edit: lib/run_parallel_ralph.sh (worker launch section, for timing hooks if needed)",
+        "Test command: uv run pytest tests/test_perf_us636.py -v --tb=short",
+        "Use time.perf_counter() around the routing call; store baseline in a JSON fixture at tests/fixtures/perf_baseline_us636.json",
+        "Import routing logic from lib/slice_prd.py or equivalent sub-project partitioning function"
+      ],
+      "dependencies": [
+        "US-636"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-740",
+      "title": "[E2E Test] Dashboard: Worker Phase Swimlane Chart visible and labeled",
+      "priority": "medium",
+      "description": "Write a Playwright E2E test that navigates to the spiral-ui dashboard and verifies the worker phase swimlane chart introduced by US-652. The test must assert the chart renders worker rows, phase labels (R/T/S/M/I/V/C), and at least one duration segment.",
+      "acceptanceCriteria": [
+        "Running `uv run pytest tests/test_e2e_us652_swimlane.py -v` exits 0 with at least 1 test collected",
+        "Test navigates to http://localhost:5299 and asserts the swimlane chart container is present in the DOM",
+        "Test asserts all 7 phase labels (R, T, S, M, I, V, C) are visible within the chart",
+        "Test asserts at least one worker row element is rendered with a non-zero width duration segment"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_e2e_us652_swimlane.py (new file — create Playwright test)",
+        "File to edit: tests/conftest.py (add base_url fixture pointing to http://localhost:5299 if not present)",
+        "Test command: uv run pytest tests/test_e2e_us652_swimlane.py -v",
+        "Use playwright-pytest: `from playwright.sync_api import Page` with `page.goto(base_url)`",
+        "Chart container selector: look for data-testid='worker-swimlane-chart' or the CSS class added in US-652",
+        "Phase labels selector: query for elements containing text R, T, S, M, I, V, C within the chart",
+        "Run spiral-ui server before test: ensure `http://localhost:5299` is reachable or skip with pytest.mark.skipif"
+      ],
+      "dependencies": [
+        "US-652"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "e2e",
+        "auto-generated"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-741",
+      "title": "[Regression Test] CLI: predict-story-complexity scores and references",
+      "priority": "medium",
+      "description": "Write a regression test for US-642's predict-story-complexity CLI command. The test must verify the command exits 0, outputs a numeric complexity score between 1 and 10, and lists at least one similar past story reference. Guards against accidental removal or breakage of the feature.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/ -k us_642 -v exits 0 with at least one test collected and passing",
+        "Test invokes `python main.py predict-story-complexity` with a sample description and asserts stdout contains a score field in range 1-10",
+        "Test asserts stdout contains at least one past story reference (e.g. a US- or UT- ID)",
+        "Test fails (exit non-zero) when the predict-story-complexity handler is monkey-patched to raise NotImplementedError"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_predict_story_complexity.py (new file — create regression test module)",
+        "File to edit: lib/predict_story_complexity.py or main.py (read only — understand CLI entry point and output schema before writing assertions)",
+        "Test command: uv run pytest tests/test_predict_story_complexity.py -v",
+        "Use subprocess.run(['uv', 'run', 'python', 'main.py', 'predict-story-complexity', '--description', 'add login button'], capture_output=True, text=True) and assert returncode==0",
+        "Assert re.search(r'score[\":\\s]+([0-9]|10)', result.stdout) and int(match.group(1)) in range(1,11)",
+        "If results.tsv is empty the command may skip references — seed a minimal fixture row in the test or skip reference assertion conditionally"
+      ],
+      "dependencies": [
+        "US-642"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-742",
+      "title": "Regression Test: Mark crash recovery tests with us_526 for discoverability",
+      "priority": "medium",
+      "description": "The crash recovery tests in tests/test_crash_recovery.py already cover US-526 behaviour (detached HEAD recovery, clean worktree after recovery, no-op on clean branch, nonexistent worktree error) but are not discoverable via `pytest -k us_526`. Add pytest markers or rename test functions to include `us_526` so the regression suite can be targeted by story ID.",
+      "acceptanceCriteria": [
+        "Running `uv run pytest tests/test_crash_recovery.py -k us_526 -v` exits 0 and reports at least 2 tests collected",
+        "Running `uv run pytest tests/ -k us_526 -v` exits 0 with the same tests collected",
+        "Existing test logic is not modified — only markers or name prefixes are added"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_crash_recovery.py (class TestDetachedHeadRecovery — add @pytest.mark.us_526 decorator to each test method, or rename methods to include us_526_ prefix, e.g. test_us526_detached_head_triggers_recovery)",
+        "Add `us_526 = pytest.mark.us_526` marker registration to pyproject.toml [tool.pytest.ini_options] markers list if not already present, to avoid PytestUnknownMarkWarning",
+        "File to edit: pyproject.toml ([tool.pytest.ini_options] markers section)",
+        "Test command: uv run pytest tests/test_crash_recovery.py -k us_526 -v --tb=short",
+        "Test command: uv run pytest tests/ -k us_526 -v --co (collect-only to verify discovery without running)"
+      ],
+      "dependencies": [
+        "US-526"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "regression",
+        "auto-generated"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-743",
+      "title": "[Regression Test] Velocity model regression test for US-352 cost estimation",
+      "priority": "medium",
+      "description": "Write regression tests that guard against future breakage of US-352's velocity model. US-352 added linear regression over results.tsv telemetry (model, tokens, cost, duration, pass_rate per story_type) to produce data-driven cost estimates. Tests must verify the regression fitting runs correctly, returns sensible per-type projections, and degrades gracefully when results.tsv is absent or has too few rows.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/ -k us_352 -v exits 0 with at least 2 tests collected and passing",
+        "Test with a 10-row inline CSV fixture produces estimate output that differs from the static fallback values",
+        "Test with an empty or missing results.tsv does not raise an exception and returns the static fallback"
+      ],
+      "technicalNotes": [
+        "Inspect lib/ and main.py first to locate the regression-fitting function introduced by US-352 before writing any test",
+        "File to edit: tests/test_us352_velocity_model.py (new module — create this file)",
+        "Use a small inline StringIO CSV fixture (10 rows, varied story_type) rather than the real results.tsv to keep tests hermetic and fast",
+        "Assert on output dict structure (story_type keys mapping to mean_tokens/mean_duration/pass_rate) not on exact float values",
+        "Test command: uv run pytest tests/test_us352_velocity_model.py -v"
+      ],
+      "dependencies": [
+        "US-352"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "regression",
         "auto-generated"
       ],
       "model": "haiku"

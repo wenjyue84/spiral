@@ -33,6 +33,8 @@
     ]),
     'description': '',
     'estimatedComplexity': 'medium',
+    'filesTouch': list([
+    ]),
     'id': 'US-101',
     'passes': False,
     'priority': 'critical',
@@ -52,6 +54,8 @@
     ]),
     'description': 'Implement feature X for improved UX',
     'estimatedComplexity': 'medium',
+    'filesTouch': list([
+    ]),
     'id': 'US-100',
     'passes': False,
     'priority': 'high',
@@ -74,6 +78,8 @@
     ]),
     'description': 'A detailed description of what needs to be implemented',
     'estimatedComplexity': 'large',
+    'filesTouch': list([
+    ]),
     'id': 'US-999',
     'passes': False,
     'priority': 'high',

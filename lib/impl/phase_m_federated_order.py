@@ -94,6 +94,46 @@ def order_federated_stories_by_dependency(stories: list[dict[str, Any]]) -> list
         return list(stories)
 
     graph = _build_dep_graph_with_descriptions(id_stories)
+
+    # Check for cycles before sorting
+    known_ids = {s["id"] for s in id_stories}
+    cycle = _detect_cycle(graph, known_ids)
+    if cycle is not None:
+        raise ValueError(f"circular dependency: {'\u2192'.join(cycle)}")
+
     sorted_stories = topological_sort(id_stories, graph)
     result: list[dict[str, Any]] = sorted_stories + no_id_stories
     return result
+
+
+def _detect_cycle(
+    graph: dict[str, list[str]], known_ids: set[str],
+) -> list[str] | None:
+    """Return cycle path if a circular dependency exists, else None."""
+    WHITE, GRAY, BLACK = 0, 1, 2
+    color: dict[str, int] = {sid: WHITE for sid in known_ids}
+    path: list[str] = []
+
+    def dfs(u: str) -> list[str] | None:
+        color[u] = GRAY
+        path.append(u)
+        for v in graph.get(u, []):
+            if v not in known_ids:
+                continue
+            if color[v] == GRAY:
+                cycle_start = path.index(v)
+                return path[cycle_start:] + [v]
+            if color[v] == WHITE:
+                result = dfs(v)
+                if result is not None:
+                    return result
+        path.pop()
+        color[u] = BLACK
+        return None
+
+    for sid in sorted(known_ids):
+        if color[sid] == WHITE:
+            result = dfs(sid)
+            if result is not None:
+                return result
+    return None

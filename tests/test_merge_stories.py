@@ -748,9 +748,11 @@ class TestPostMergeSortOrder:
         done_indices = [i for i, s in enumerate(all_stories) if s.get("passes")]
         assert max(active_indices) < min(done_indices), "Active stories must come before done"
 
-        # Active priority order: critical, medium, medium, low
+        # Topological + priority order: US-003 (medium, deps=[US-001,US-002])
+        # depends on US-002 (low), so US-002 must come before US-003.
+        # Expected: critical, medium(0deps), low(0deps), medium(2deps)
         active_priorities = [s["priority"] for s in active]
-        assert active_priorities == ["critical", "medium", "medium", "low"]
+        assert active_priorities == ["critical", "medium", "low", "medium"]
 
         # The two medium stories: fewer deps (0) before more deps (2)
         medium_stories = [s for s in active if s["priority"] == "medium"]
