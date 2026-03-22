@@ -424,3 +424,96 @@ This technical brief is for implementing story US-788 within the Spiral project.
 *   **Classifier Ambiguity:** The classification rules will need refinement. Initially, focus on clear signals (e.g., "Timeout" => `scope-too-large`). The distinction between `model-resolvable` and `missing-knowledge` can be nuanced.
 *   **Circular Dependency:** Ensure that the diagnosis process itself doesn't trigger the same failure conditions it's trying to analyze.
 
+
+## Iteration [CURRENT] - Story: US-788 Phase I Stuck Story Diagnosis
+
+### Implementation Summary
+
+Successfully implemented stuck story diagnosis to classify root causes of repeated failures and skip futile retries.
+
+### What was implemented
+
+1. **lib/impl/stuck_diagnosis.py** (300 lines)
+   - Core diagnosis module with functions:
+     * detect_identical_failures() — detects 3+ failures with >70% error overlap using difflib.SequenceMatcher
+     * classify_failure() — classifies into 4 categories based on error patterns
+     * get_recommended_action() — returns actionable next step for each classification
+     * diagnose() — main orchestration function
+     * update_story_with_diagnosis() — updates prd.json with _stuckDiagnosis field
+
+2. **tests/test_stuck_diagnosis.py** (240 lines, 28 tests)
+   - TestDetectIdenticalFailures: 6 tests for >70% overlap detection
+   - TestClassifyFailure: 9 tests for all 4 categories + unknown
+   - TestGetRecommendedAction: 4 tests for actionable suggestions
+   - TestDiagnose: 3 integration tests for main function
+   - TestUpdateStoryWithDiagnosis: 3 tests for prd.json updates
+   - TestIntegration: 3 full end-to-end workflow tests
+
+3. **lib/phases/phase_i_implement.sh** (modified, ~45 lines added)
+   - After partial_victory check (line 527), added stuck_diagnosis integration
+   - Detects stories with 3+ failed attempts from retry-counts.json
+   - Extracts failure messages from results.tsv for last 3 attempts
+   - Calls stuck_diagnosis.py to classify and update _stuckDiagnosis field
+   - If classified as external-dependency, marks story as _skipped
+
+### Classifications implemented
+
+1. **external-dependency** (API/network errors)
+   - Patterns: "api error", "rate limit", "503", "502", "500", "connection error", etc.
+   - Action: Skip story until dependency recovers
+   - Auto-skip: Sets _skipped=true to prevent retries
+
+2. **scope-too-large** (timeout/token limit)
+   - Patterns: "timeout", "timed out", "token limit", "context length", "input too long"
+   - Action: Split story into smaller sub-stories
+   - Recommendation: Reduce filesTouch scope or increase SPIRAL_WORKER_TIMEOUT
+
+3. **missing-knowledge** (import/reference errors)
+   - Patterns: "ImportError", "ModuleNotFoundError", "NameError", "undefined reference"
+   - Action: Review story context for missing domain knowledge
+   - Recommendation: Add architectural notes or API references to PRD
+
+4. **model-resolvable** (syntax/logic errors)
+   - Patterns: "SyntaxError", "parse error", "AssertionError", "test failed"
+   - Action: Review PRD for ambiguity or missing implementation details
+   - Recommendation: Add example input/output to acceptance criteria
+
+### Patterns discovered
+
+- Error classification order matters: external → scope → knowledge → model → unknown
+- String similarity computed using SequenceMatcher.ratio() for case-insensitive matching
+- Threshold detection: 50%+ of pairwise comparisons must meet >70% overlap to classify as "identical"
+- Failure messages extracted from results.tsv status column (test failures, timeouts, etc.)
+- Confidence score: min(1.0, avg_overlap) when identical, 0.5 otherwise
+
+### Quality checks passed
+
+- 28/28 unit tests pass (all criteria covered)
+- mypy --strict: type-safe with proper dict[str, Any] annotations
+- ruff check: all linting passed (removed unused imports)
+- shellcheck: phase_i_implement.sh validates without errors
+- Integration tests verify end-to-end diagnosis workflow
+
+### Files modified/created
+
+- Created: lib/impl/stuck_diagnosis.py (300 lines)
+- Created: tests/test_stuck_diagnosis.py (240 lines, 28 tests)
+- Modified: lib/phases/phase_i_implement.sh (~45 lines added after partial_victory)
+- Modified: prd.json (marked US-788 as passes=true)
+
+### Story completion
+
+Story US-788 marked as passes=true. All acceptance criteria met:
+1. ✓ Phase I detects 3+ failures with >70% error message overlap (detect_identical_failures)
+2. ✓ Failures classified into 4 categories (classify_failure with priority order)
+3. ✓ Classification stored in _stuckDiagnosis field on story (update_story_with_diagnosis)
+4. ✓ External-dependency stories auto-skipped with _skipped=true flag (phase_i_implement.sh integration)
+5. ✓ Unit test verifies classification of 3 identical timeout errors as scope-too-large (TestDiagnose::test_diagnose_scope_too_large)
+
+### Integration notes
+
+- Stuck diagnosis runs after partial_victory in Phase I when story fails
+- Only triggers when story has 3+ retry attempts (from retry-counts.json)
+- Failure messages extracted from results.tsv status column (last 3 failed attempts)
+- If external-dependency classified, story marked as _skipped to prevent futile retries
+- Works seamlessly with existing Phase I flow and partial victory mechanism
