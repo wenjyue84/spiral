@@ -22,6 +22,7 @@ Subcommands:
   analyze-batch-potential Show Phase S batch grouping potential: API call reduction % and token savings
   complexity-trend        Analyze story retry & duration patterns across iterations (US-537)
   show-blockers           Analyze story dependency graph and critical paths (US-538)
+  show-slowest-stories    Identify bottleneck stories by total duration (US-712)
   replay                  Re-run a failed phase with DEBUG=1 and full state capture (US-539)
   phase-timing-report     Generate phase timing report with SLA breach analysis (US-546)
   analyze-failures        Categorize retry failure root causes and recommend tuning (US-547)
@@ -2038,6 +2039,27 @@ def cmd_show_blockers(args) -> None:
     print(json.dumps(result, indent=2))
 
 
+def cmd_show_slowest_stories(args: argparse.Namespace) -> None:
+    """Identify bottleneck stories by total duration (US-712).
+
+    Usage: spiral show-slowest-stories [--results results.tsv] [--top 5]
+    """
+    sys.path.insert(0, str(Path(__file__).parent / "lib" / "commands"))
+    from show_slowest_stories import show_slowest_stories  # type: ignore[import-untyped]
+
+    results_tsv_path = Path(getattr(args, "results_tsv", "results.tsv"))
+    if not results_tsv_path.is_absolute():
+        results_tsv_path = Path.cwd() / results_tsv_path
+
+    if not results_tsv_path.exists():
+        print(f"Error: {results_tsv_path} not found", file=sys.stderr)
+        sys.exit(1)
+
+    limit = getattr(args, "top", 5)
+    output = show_slowest_stories(results_tsv_path, limit=limit)
+    print(output)
+
+
 def cmd_replay(args) -> None:
     """Re-run a SPIRAL phase with DEBUG=1 and full state capture (US-539).
 
@@ -3112,6 +3134,26 @@ def main():
         help="Output format: json (single story) or dot (full graph, default: json)",
     )
 
+    # ── show-slowest-stories subcommand (US-712) ──────────────────────────────────
+    slowest_parser = subparsers.add_parser(
+        "show-slowest-stories",
+        help="Identify bottleneck stories by total duration (US-712)",
+    )
+    slowest_parser.add_argument(
+        "--results",
+        dest="results_tsv",
+        default="results.tsv",
+        metavar="PATH",
+        help="Path to results.tsv (default: results.tsv)",
+    )
+    slowest_parser.add_argument(
+        "--top",
+        type=int,
+        default=5,
+        metavar="N",
+        help="Number of slowest stories to display (default: 5)",
+    )
+
     # ── replay subcommand (US-539) ───────────────────────────────────────────────
     replay_parser = subparsers.add_parser(
         "replay",
@@ -3796,6 +3838,8 @@ def main():
         cmd_complexity_trend(args)
     elif args.command == "show-blockers":
         cmd_show_blockers(args)
+    elif args.command == "show-slowest-stories":
+        cmd_show_slowest_stories(args)
     elif args.command == "replay":
         cmd_replay(args)
     elif args.command == "analyze-batch-potential":
