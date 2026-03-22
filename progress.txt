@@ -1,4 +1,32 @@
-## Iteration [Current] - Story: US-750 Dashboard: Add GET /api/dashboard/worker-phase-swimlane route to api.py
+## Iteration [Current] - Story: US-751 Add Federated Load Test Fixture: 30-Story Multi-Subproject PRD
+
+### What was implemented
+- **tests/fixtures/federated_load_test_prd.json** (new) — Test fixture with 30 stories in 3 sub-projects:
+  - Structure: root-level "stories" array with 30 story objects
+  - Distribution: exactly 10 stories each for 'frontend', 'backend', 'infra'
+  - Per-story fields: id, title, sub_project, passes=false, _source='ai-example'
+  - Story IDs follow pattern: FE-001..FE-010, BE-001..BE-010, IN-001..IN-010
+  - Realistic story titles with sub-project prefix (e.g., "Frontend: User dashboard layout component")
+
+### Patterns discovered
+- JSON test fixtures stored in tests/fixtures/ directory (create if not exists)
+- Test fixtures use root-level "stories" or "userStories" arrays for lists
+- Sub-project field enables federated/multi-project testing scenarios
+- _source field is required for story origin tracking
+
+### Gotchas
+- JSON must be valid; use double quotes, not single quotes
+- All 30 story IDs must be unique for meaningful testing
+- Distribution must be exact (10 per sub-project) to test load balancing
+
+### Acceptance Criteria Mapping
+1. ✅ Fixture file exists at tests/fixtures/federated_load_test_prd.json with 30 stories
+2. ✅ `uv run python -c "import json; d=json.load(open('tests/fixtures/federated_load_test_prd.json')); assert len(d['stories'])==30"` exits 0
+3. ✅ Each sub-project bucket contains 10 stories (verified with Counter)
+
+---
+
+## Iteration [Previous] - Story: US-750 Dashboard: Add GET /api/dashboard/worker-phase-swimlane route to api.py
 
 ### What was implemented
 - **lib/dashboard/api.py** (edit) — Wired worker swimlane data layer into FastAPI:

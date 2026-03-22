@@ -1,0 +1,214 @@
+{
+  "stories": [
+    {
+      "id": "FE-001",
+      "title": "Frontend: User dashboard layout component",
+      "sub_project": "frontend",
+      "passes": false,
+      "_source": "ai-example"
+    },
+    {
+      "id": "FE-002",
+      "title": "Frontend: Authentication form validation",
+      "sub_project": "frontend",
+      "passes": false,
+      "_source": "ai-example"
+    },
+    {
+      "id": "FE-003",
+      "title": "Frontend: Theme switching toggle",
+      "sub_project": "frontend",
+      "passes": false,
+      "_source": "ai-example"
+    },
+    {
+      "id": "FE-004",
+      "title": "Frontend: Responsive navigation menu",
+      "sub_project": "frontend",
+      "passes": false,
+      "_source": "ai-example"
+    },
+    {
+      "id": "FE-005",
+      "title": "Frontend: API integration service",
+      "sub_project": "frontend",
+      "passes": false,
+      "_source": "ai-example"
+    },
+    {
+      "id": "FE-006",
+      "title": "Frontend: Error boundary component",
+      "sub_project": "frontend",
+      "passes": false,
+      "_source": "ai-example"
+    },
+    {
+      "id": "FE-007",
+      "title": "Frontend: Modal dialog system",
+      "sub_project": "frontend",
+      "passes": false,
+      "_source": "ai-example"
+    },
+    {
+      "id": "FE-008",
+      "title": "Frontend: Data table pagination",
+      "sub_project": "frontend",
+      "passes": false,
+      "_source": "ai-example"
+    },
+    {
+      "id": "FE-009",
+      "title": "Frontend: Search input with debounce",
+      "sub_project": "frontend",
+      "passes": false,
+      "_source": "ai-example"
+    },
+    {
+      "id": "FE-010",
+      "title": "Frontend: Toast notification system",
+      "sub_project": "frontend",
+      "passes": false,
+      "_source": "ai-example"
+    },
+    {
+      "id": "BE-001",
+      "title": "Backend: User authentication API",
+      "sub_project": "backend",
+      "passes": false,
+      "_source": "ai-example"
+    },
+    {
+      "id": "BE-002",
+      "title": "Backend: Database connection pool",
+      "sub_project": "backend",
+      "passes": false,
+      "_source": "ai-example"
+    },
+    {
+      "id": "BE-003",
+      "title": "Backend: Session management middleware",
+      "sub_project": "backend",
+      "passes": false,
+      "_source": "ai-example"
+    },
+    {
+      "id": "BE-004",
+      "title": "Backend: REST API endpoints",
+      "sub_project": "backend",
+      "passes": false,
+      "_source": "ai-example"
+    },
+    {
+      "id": "BE-005",
+      "title": "Backend: Caching layer with Redis",
+      "sub_project": "backend",
+      "passes": false,
+      "_source": "ai-example"
+    },
+    {
+      "id": "BE-006",
+      "title": "Backend: Error handling and logging",
+      "sub_project": "backend",
+      "passes": false,
+      "_source": "ai-example"
+    },
+    {
+      "id": "BE-007",
+      "title": "Backend: Rate limiting implementation",
+      "sub_project": "backend",
+      "passes": false,
+      "_source": "ai-example"
+    },
+    {
+      "id": "BE-008",
+      "title": "Backend: Database schema migration",
+      "sub_project": "backend",
+      "passes": false,
+      "_source": "ai-example"
+    },
+    {
+      "id": "BE-009",
+      "title": "Backend: Background job queue",
+      "sub_project": "backend",
+      "passes": false,
+      "_source": "ai-example"
+    },
+    {
+      "id": "BE-010",
+      "title": "Backend: Health check endpoint",
+      "sub_project": "backend",
+      "passes": false,
+      "_source": "ai-example"
+    },
+    {
+      "id": "IN-001",
+      "title": "Infrastructure: Kubernetes deployment config",
+      "sub_project": "infra",
+      "passes": false,
+      "_source": "ai-example"
+    },
+    {
+      "id": "IN-002",
+      "title": "Infrastructure: Docker image optimization",
+      "sub_project": "infra",
+      "passes": false,
+      "_source": "ai-example"
+    },
+    {
+      "id": "IN-003",
+      "title": "Infrastructure: CI/CD pipeline setup",
+      "sub_project": "infra",
+      "passes": false,
+      "_source": "ai-example"
+    },
+    {
+      "id": "IN-004",
+      "title": "Infrastructure: Load balancer configuration",
+      "sub_project": "infra",
+      "passes": false,
+      "_source": "ai-example"
+    },
+    {
+      "id": "IN-005",
+      "title": "Infrastructure: Monitoring and alerting",
+      "sub_project": "infra",
+      "passes": false,
+      "_source": "ai-example"
+    },
+    {
+      "id": "IN-006",
+      "title": "Infrastructure: Database backup strategy",
+      "sub_project": "infra",
+      "passes": false,
+      "_source": "ai-example"
+    },
+    {
+      "id": "IN-007",
+      "title": "Infrastructure: Network security groups",
+      "sub_project": "infra",
+      "passes": false,
+      "_source": "ai-example"
+    },
+    {
+      "id": "IN-008",
+      "title": "Infrastructure: Log aggregation setup",
+      "sub_project": "infra",
+      "passes": false,
+      "_source": "ai-example"
+    },
+    {
+      "id": "IN-009",
+      "title": "Infrastructure: SSL certificate management",
+      "sub_project": "infra",
+      "passes": false,
+      "_source": "ai-example"
+    },
+    {
+      "id": "IN-010",
+      "title": "Infrastructure: Disaster recovery plan",
+      "sub_project": "infra",
+      "passes": false,
+      "_source": "ai-example"
+    }
+  ]
+}
