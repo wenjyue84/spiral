@@ -1437,6 +1437,11 @@ if HAS_TEXTUAL:
         auto_refresh_enabled = reactive(True)
         refresh_interval = reactive(2.0)
 
+        @property
+        def auto_refresh(self) -> bool:
+            """Alias for auto_refresh_enabled (backward compat)."""
+            return bool(self.auto_refresh_enabled)
+
         def __init__(self, log_path: str = ""):
             super().__init__()
             self.log_path = log_path
