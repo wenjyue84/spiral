@@ -31,6 +31,7 @@ Subcommands:
   federated-status        Aggregate story status across federated sub-projects (US-629)
   monitor                 Unified monitoring snapshot for progress checks
   cost-forecast           Forecast remaining budget and timeline from results.tsv velocity (US-650)
+  forecast-ceiling        Forecast SPIRAL_COST_CEILING breach timing from cost trend (US-699)
   check-federated-deps    Detect circular dependencies and orphans in multi-repo prd.json (US-685)
   trace-dependencies      Resolve and visualize full dependency chain for a story (US-675)
   show-story-lineage      Show story decomposition lineage tree with status and tokens (US-671)
@@ -3534,6 +3535,35 @@ def main():
         help="Number of recent iterations to use for velocity (default: 5)",
     )
 
+    # ── forecast-ceiling subcommand (US-699) ──────────────────────────────────
+    forecast_ceiling_parser = subparsers.add_parser(
+        "forecast-ceiling",
+        help="Forecast SPIRAL_COST_CEILING breach timing from cost trend (US-699)",
+    )
+    forecast_ceiling_parser.add_argument(
+        "ceiling",
+        type=float,
+        metavar="CEILING",
+        help="Cost ceiling in USD (e.g., 100.0)",
+    )
+    forecast_ceiling_parser.add_argument(
+        "--prd",
+        default="prd.json",
+        metavar="FILE",
+        help="Path to prd.json (default: prd.json)",
+    )
+    forecast_ceiling_parser.add_argument(
+        "--results",
+        default="results.tsv",
+        metavar="FILE",
+        help="Path to results.tsv (default: results.tsv)",
+    )
+    forecast_ceiling_parser.add_argument(
+        "--until-date",
+        action="store_true",
+        help="Include calendar date prediction in output",
+    )
+
     # ── check-federated-deps subcommand (US-685) ───────────────────────────────
     check_federated_parser = subparsers.add_parser(
         "check-federated-deps",
@@ -3800,6 +3830,8 @@ def main():
         cmd_predict_story_complexity(args)
     elif args.command == "cost-forecast":
         cmd_cost_forecast(args)
+    elif args.command == "forecast-ceiling":
+        cmd_forecast_ceiling(args)
     elif args.command == "check-federated-deps":
         cmd_check_federated_deps(args)
     elif args.command == "trace-dependencies":
@@ -4101,6 +4133,36 @@ def cmd_cost_forecast(args: argparse.Namespace) -> None:
 
     try:
         result = forecast(prd_path=prd_path, results_path=results_path, last_n=last_n)
+        print(json.dumps(result, indent=2))
+        sys.exit(0)
+    except Exception as exc:
+        print(json.dumps({"error": str(exc)}), file=sys.stderr)
+        sys.exit(1)
+
+
+def cmd_forecast_ceiling(args: argparse.Namespace) -> None:
+    """Forecast SPIRAL_COST_CEILING breach timing from cost trend (US-699).
+
+    Usage: spiral forecast-ceiling CEILING [--prd FILE] [--results FILE] [--until-date]
+    Outputs JSON with forecast result, message, and optional calendar date.
+    """
+    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    from forecast_ceiling import forecast_ceiling_cli  # type: ignore[import-untyped]
+
+    ceiling = float(getattr(args, "ceiling", 0.0))
+    prd_path = Path(getattr(args, "prd", "prd.json"))
+    results_path = Path(getattr(args, "results", "results.tsv"))
+    until_date = bool(getattr(args, "until_date", False))
+
+    try:
+        result = forecast_ceiling_cli(
+            cost_ceiling=ceiling,
+            prd_path=prd_path,
+            results_path=results_path,
+            until_date=until_date,
+        )
+        # Print message first, then full JSON
+        print(result["message"])
         print(json.dumps(result, indent=2))
         sys.exit(0)
     except Exception as exc:
