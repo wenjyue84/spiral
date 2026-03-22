@@ -11,31 +11,6 @@
   ],
   "userStories": [
     {
-      "id": "US-748",
-      "title": "Create Keep-a-Changelog Schema Validator Module",
-      "priority": "high",
-      "description": "Implement a Python validator module that checks a CHANGELOG.md file for Keep-a-Changelog compliance and verifies semantic version increments. This is the reusable library layer that Phase G integration tests will import.",
-      "acceptanceCriteria": [
-        "uv run pytest tests/test_changelog_schema_validator.py::test_changelog_schema_compliance -v passes with a well-formed CHANGELOG.md fixture",
-        "uv run pytest tests/test_changelog_schema_validator.py::test_semver_bump_logic -v passes verifying major/minor/patch rules from complexity_scores",
-        "uv run pytest tests/test_changelog_schema_validator.py -v exits 0 with all tests green"
-      ],
-      "technicalNotes": [
-        "File to create: lib/validators/changelog_schema.py (functions: validate_changelog_format(path: str) -> bool, validate_version_incrementing(old_ver: str, new_ver: str, scores: list) -> bool)",
-        "File to create: tests/test_changelog_schema_validator.py (test_changelog_schema_compliance, test_semver_bump_logic)",
-        "Test command: uv run pytest tests/test_changelog_schema_validator.py -v",
-        "semver bump rule: major if >5 stories have complexity_score>=critical threshold, minor if >10 total stories, patch otherwise; encode as constants in the module"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-03-22T12:58:18Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- Story is incomplete (passes: false, last attempted 2026-03-22T12:58:18Z)\n- Need to create a Python validator module for CHANGELOG.md compliance\n- Need comprehensive test coverage with semver bump logic\n\n## Problem Identified\nMissing implementation of changelog schema validation functions and their tests. Must implement:\n1. `validate_changelog_format(path: str) -> bool` — Keep-a-Changelog compliance\n2. `validate_version_incrementing(old_ver: str, new_ver: str, scores: list) -> bool` — semver logic\n\n## Planned Changes\n1. Create `lib/validators/changelog_schema.py` with two functions and semver constants\n2. Create `tests/test_changelog_schema_validator.py` with compliance and semver tests\n3. Run pytest to verify all tests pass\n4. Run quality checks (mypy --strict, lint)\n5. Commit and mark passes=true\n\nLet me check the existing structure first:\nNow let me create the validators module and tests. I'll start by creating the validators directory and the schema module:\nNow let me run the tests to verify all pass:\nExcellent! All 16 tests pass. Now let me verify the specific acceptance criteria tests:\nPerfect! All checks pass. Let me run the full test suite one more time to confirm all acceptance criteria are met:\nExcellent! All tests pass. Now let me update prd.json to mark this story as complete:\nPerfect! Story **US-748** is now complete. Let me verify pre-commit passes:\nExcellent! All 16 tests pass. Let me verify the final state:\nPerfect! **Story US-748 is now complete.** Here's the summary:\n\n## Implementation Summary"
-      }
-    },
-    {
       "id": "US-749",
       "title": "Dashboard: Implement worker_swimlane.py with phase status logic",
       "priority": "high",
@@ -53,8 +28,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-03-22T14:32:52Z"
     },
     {
       "id": "US-750",
@@ -249,6 +225,62 @@
       "model": "haiku"
     },
     {
+      "id": "US-758",
+      "title": "[Integration Test] Phase G: Test gen_changelog.py Commit Parsing",
+      "priority": "high",
+      "description": "Write integration tests for lib/gen_changelog.py (implemented in US-604). Cover commit message parsing for story IDs (US-NNN, UT-NNN), changelog section categorization by type (feat/fix/docs/refactor), and warning logging for commits missing story IDs. All tests must run offline without external services or git-cliff binary.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_gen_changelog.py -v --tb=short exits 0 with all tests passing",
+        "Happy path: commit message 'feat(US-604): add changelog' appears in the correct section in generated markdown output",
+        "Edge case: commit without a story ID triggers a logged warning and is excluded from all sections",
+        "uv run pytest tests/test_gen_changelog.py -v --tb=short completes with no network or subprocess calls to git-cliff"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_gen_changelog.py (create — integration tests for lib/gen_changelog.py)",
+        "File to edit: lib/gen_changelog.py (read public API and parse_commits / categorize functions before writing tests)",
+        "Test command: uv run pytest tests/test_gen_changelog.py -v --tb=short",
+        "Use unittest.mock or pytest monkeypatch to stub any subprocess/git calls so tests run fully offline",
+        "Story ID regex to exercise: r'(US|UT)-\\d+' matched against commit subject lines",
+        "Do NOT create tests/test_test_gen_changelog.py — that path in the original notes is a generation artifact",
+        "Ignore .hypothesis/constants/* paths in technicalNotes — those are hypothesis cache files, not source files"
+      ],
+      "dependencies": [
+        "US-604"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "integration",
+        "auto-generated"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-748",
+      "title": "Create Keep-a-Changelog Schema Validator Module",
+      "priority": "high",
+      "description": "Implement a Python validator module that checks a CHANGELOG.md file for Keep-a-Changelog compliance and verifies semantic version increments. This is the reusable library layer that Phase G integration tests will import.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_changelog_schema_validator.py::test_changelog_schema_compliance -v passes with a well-formed CHANGELOG.md fixture",
+        "uv run pytest tests/test_changelog_schema_validator.py::test_semver_bump_logic -v passes verifying major/minor/patch rules from complexity_scores",
+        "uv run pytest tests/test_changelog_schema_validator.py -v exits 0 with all tests green"
+      ],
+      "technicalNotes": [
+        "File to create: lib/validators/changelog_schema.py (functions: validate_changelog_format(path: str) -> bool, validate_version_incrementing(old_ver: str, new_ver: str, scores: list) -> bool)",
+        "File to create: tests/test_changelog_schema_validator.py (test_changelog_schema_compliance, test_semver_bump_logic)",
+        "Test command: uv run pytest tests/test_changelog_schema_validator.py -v",
+        "semver bump rule: major if >5 stories have complexity_score>=critical threshold, minor if >10 total stories, patch otherwise; encode as constants in the module"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-03-22T12:58:18Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n- Story is incomplete (passes: false, last attempted 2026-03-22T12:58:18Z)\n- Need to create a Python validator module for CHANGELOG.md compliance\n- Need comprehensive test coverage with semver bump logic\n\n## Problem Identified\nMissing implementation of changelog schema validation functions and their tests. Must implement:\n1. `validate_changelog_format(path: str) -> bool` — Keep-a-Changelog compliance\n2. `validate_version_incrementing(old_ver: str, new_ver: str, scores: list) -> bool` — semver logic\n\n## Planned Changes\n1. Create `lib/validators/changelog_schema.py` with two functions and semver constants\n2. Create `tests/test_changelog_schema_validator.py` with compliance and semver tests\n3. Run pytest to verify all tests pass\n4. Run quality checks (mypy --strict, lint)\n5. Commit and mark passes=true\n\nLet me check the existing structure first:\nNow let me create the validators module and tests. I'll start by creating the validators directory and the schema module:\nNow let me run the tests to verify all pass:\nExcellent! All 16 tests pass. Now let me verify the specific acceptance criteria tests:\nPerfect! All checks pass. Let me run the full test suite one more time to confirm all acceptance criteria are met:\nExcellent! All tests pass. Now let me update prd.json to mark this story as complete:\nPerfect! Story **US-748** is now complete. Let me verify pre-commit passes:\nExcellent! All 16 tests pass. Let me verify the final state:\nPerfect! **Story US-748 is now complete.** Here's the summary:\n\n## Implementation Summary"
+      }
+    },
+    {
       "id": "US-744",
       "title": "Phase I: Automatic File-Level Scope Reduction for Oversized Implementations",
       "priority": "high",
@@ -264,8 +296,7 @@
       "passes": true,
       "model": "sonnet",
       "last_attempted": "2026-03-22T12:45:01Z",
-      "_failureReason": "oversized_diff",
-      "_lastDiffLines": 1217
+      "_failureReason": "oversized_diff"
     },
     {
       "id": "US-732",

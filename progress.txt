@@ -1,4 +1,32 @@
-## Iteration [Current] - Story: US-748 Create Keep-a-Changelog Schema Validator Module
+## Iteration [Current] - Story: US-749 Dashboard: Implement worker_swimlane.py with phase status logic
+
+### What was implemented
+- **lib/dashboard/worker_swimlane.py** (existing) — Verified complete implementation with two core functions:
+  - `get_worker_phase_status(spiral_home: str) -> list[dict[str, Any]]` — Reads `.spiral/_checkpoint.json` for global phase/time state; scans `.spiral-workers/worker-N/.heartbeat` files for per-worker status; returns list of dicts with worker_id, current_phase, phase_start_time, estimated_completion_seconds
+  - `estimate_phase_remaining_time(elapsed_sec: float, complexity: str) -> float` — Heuristic-based time estimator using timing models by complexity (small/medium/large/critical); returns 0 if past max time
+- **tests/test_worker_swimlane.py** (existing) — 18 comprehensive tests all passing:
+  - TestGetWorkerPhaseStatus: 9 tests covering no checkpoint, no workers, single/multiple workers, phase override, malformed files, missing fields
+  - TestEstimatePhaseRemainingTime: 9 tests covering early phase estimates, past typical/max time, case insensitivity, unknown complexity defaults, zero elapsed, never negative
+
+### Patterns discovered
+- glob.glob() with star patterns (`worker-*`) efficiently discovers worker directories
+- Always use `encoding="utf-8"` when reading .spiral files (includes checkpoint and heartbeat)
+- Phase timing models use tuple pairs (typical_sec, max_sec) for flexibility; interpolate linearly in early phase, apply 20% diminishing return after typical
+- Worker phase from heartbeat overrides checkpoint phase (worker-local state takes precedence)
+
+### Gotchas
+- Malformed JSON in heartbeat files is skipped gracefully — doesn't fail entire scan
+- Elapsed time calculation uses `time.time() - phase_start_time` (monotonic would be better but compatible with existing checkpoint timestamps)
+- Estimated remaining time is rounded to 1 decimal for API response cleanliness
+
+### Acceptance Criteria Mapping
+1. ✅ `uv run pytest tests/test_worker_swimlane.py::TestGetWorkerPhaseStatus -v` — 9 tests pass
+2. ✅ `uv run pytest tests/test_worker_swimlane.py::TestEstimatePhaseRemainingTime -v` — 9 tests pass
+3. ✅ `get_worker_phase_status()` returns dict with keys: worker_id, current_phase, phase_start_time, estimated_completion_seconds — verified via test assertions
+
+---
+
+## Iteration [Previous] - Story: US-748 Create Keep-a-Changelog Schema Validator Module
 
 ### What was implemented
 - **lib/validators/__init__.py** (new) — Package marker for validators submodule
@@ -1680,3 +1708,26 @@ This story concerns the core "Ralph" agent orchestration, not a Frappe applicati
 *   **Over-reduction Risk**: The reducer's heuristics could mistakenly defer a critical file. The initial version should be conservative, targeting obvious non-essentials like documentation, tests, and examples.
 *   **Retry Loop**: The scope reduction should only be attempted once per task. A failure on the second attempt must proceed to the standard escalation path (e.g., switching to Sonnet) without re-reducing.
 *   **Token Prediction**: The feature's entrypoint relies on token prediction. If the prediction is significantly wrong, the reduction may not trigger when needed. The error handling must still catch actual overages regardless of prediction.
+
+## Pre-analysis for US-749 (Gemini 2.5 Pro)
+**Technical Brief: US-749 Dashboard Data Layer**
+
+This is a pure Python data-gathering task. It does not involve any Frappe DocTypes or hooks. The goal is to create a data provider for a worker status dashboard.
+
+**Files to Create/Modify:**
+*   `lib/dashboard/worker_swimlane.py`: New file to house the core logic.
+*   `tests/test_worker_swimlane.py`: New file for unit tests.
+
+**Implementation Approach:**
+1.  **`get_worker_phase_status()` function:**
+    *   Read the global phase from `.spiral/_checkpoint.json`.
+    *   Glob scan the `.spiral-workers/` directory to find all active worker directories (e.g., `worker-1`, `worker-2`).
+    *   For each worker, read its `heartbeat.json` to extract `start_time` and other relevant timing metrics.
+    *   Combine this information to return a list of dictionaries, each conforming to the required output structure.
+    *   Call the `estimate_phase_remaining_time()` function internally.
+
+**Edge Cases & Gotchas:**
+*   Return an empty list `[]` if the `.spiral-workers/` directory is empty or missing.
+*   Handle potential `FileNotFoundError` if `_checkpoint.json` or `heartbeat.json` are not present.
+*   Gracefully manage malformed JSON in the status files.
+*   The logic for `estimate_phase_remaining_time` is not fully specified; it will require making assumptions or using historical data about phase durations, which should be clearly documented.
