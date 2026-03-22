@@ -2129,3 +2129,49 @@ This brief outlines the implementation plan for creating integration tests for t
 *   Tests should not depend on external services or live CLI execution.
 *   Ensure the test environment and any temporary files are cleaned up properly using pytest fixtures like `tmp_path`.
 
+## Iteration 1 - Mon, Mar 23, 2026  1:43:40 AM
+FAILED diagnosis-block gate: [Integration Test] file_aware_retry: Track Failed Files and Retry Only Those (ID: US-767) — no diagnosis block found — attempt 1/3
+
+
+## Pre-analysis for US-767 (Gemini 2.5 Pro)
+Subject: Technical Brief for US-767: Integration Tests for `file_aware_retry`
+
+This brief outlines the implementation plan for creating integration tests for the file-aware retry mechanism.
+
+**1. Files to Modify:**
+*   **Primary:** `tests/test_file_aware_retry.py` (create or add to this file).
+*   **Reference:** `lib/impl/file_aware_retry.py` (this is the module under test).
+
+**2. Frappe Context:**
+*   Despite the context provided, the technical details in the story (pytest, shell scripts) confirm this is a standalone Python script, not a Frappe application. No DocTypes or Frappe hooks are involved.
+
+**3. Implementation Approach:**
+*   Use `pytest` to write the tests.
+*   The key is to mock the subprocess call to `lib/impl/retry.sh` using `unittest.mock` or `pytest.monkeypatch` to isolate the test from the shell script execution.
+*   **Happy Path Test:** Simulate a failed run by providing a list of file paths. Call the main function from `file_aware_retry.py` and assert that the mocked subprocess was called with arguments containing *only* those failed files.
+*   **Edge Case Test:** Simulate a run with no failed files. Call the main function and assert the mocked subprocess was *not* called.
+
+**4. Gotchas & Watchpoints:**
+*   The mock must correctly capture the arguments passed to the subprocess to verify the file list.
+*   Tests should not depend on external services or live CLI execution.
+*   Ensure the test environment and any temporary files are cleaned up properly using pytest fixtures like `tmp_path`.
+
+
+---
+
+## Iteration [Current] - Story: US-767 [Integration Test] file_aware_retry
+
+### What was implemented
+- **tests/test_file_aware_retry.py** — Added 2 new tests to satisfy AC2 explicitly:
+  - `TestGetFailedFilesForStory::test_returns_empty_when_failed_files_is_empty_list`: edge-case test where failed_files="[]" in TSV returns [] (retry skips)
+  - `test_no_failed_files_skips_retry`: module-level wrapper for pytest discovery
+- Total: 21 → 23 tests, all passing
+
+### Patterns discovered
+- Previous attempt failed only due to missing diagnosis block (not test failures)
+- AC2 "when no files failed, retry skips" requires explicit test for failed_files="[]" in TSV row
+- The function already handles this case (last_failed.strip() in ("", "[]") → return [])
+
+### Gotchas
+- Diagnosis block MUST be output as plain text BEFORE any tool calls that modify files
+- AC2 is subtle: it requires testing the "no files failed" case specifically, not just "missing column"

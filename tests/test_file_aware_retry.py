@@ -257,6 +257,36 @@ class TestGetFailedFilesForStory:
         files = get_failed_files_for_story(str(results), "US-597")
         assert files == []
 
+    def test_returns_empty_when_failed_files_is_empty_list(self, tmp_path: Path) -> None:
+        """Edge case (AC2): when no files failed, retry skips re-implementation entirely.
+
+        If failed_files is '[]' in the TSV, get_failed_files_for_story returns []
+        so the caller (retry.sh) knows there is nothing to re-implement.
+        """
+        results = tmp_path / "results.tsv"
+        _write_results_tsv(
+            results,
+            [
+                {
+                    "timestamp": "2026-01-01T00:00:00Z",
+                    "spiral_iter": "1",
+                    "ralph_iter": "1",
+                    "story_id": "US-597",
+                    "story_title": "Test",
+                    "status": "failed",
+                    "duration_sec": "10",
+                    "model": "haiku",
+                    "retry_num": "0",
+                    "commit_sha": "abc",
+                    "run_id": "run-1",
+                    "failed_files": "[]",  # empty — no files failed
+                }
+            ],
+        )
+        files = get_failed_files_for_story(str(results), "US-597")
+        # Empty list means retry.sh receives no file targets and skips re-implementation
+        assert files == [], f"Expected [] when no files failed, got: {files}"
+
 
 class TestFileAwareRetryIntegration:
     """
@@ -340,6 +370,11 @@ def test_get_failed_files_reads_tsv(tmp_path: Path) -> None:
 def test_10_file_story_3_file_retry_integration(tmp_path: Path) -> None:
     """AC3: 10-file story, 3-file failure, retry processes only 3 files (~30% cost)."""
     TestFileAwareRetryIntegration().test_10_file_story_3_file_retry(tmp_path)
+
+
+def test_no_failed_files_skips_retry(tmp_path: Path) -> None:
+    """AC2: when no files failed (failed_files=[]), retry targets nothing and is skipped."""
+    TestGetFailedFilesForStory().test_returns_empty_when_failed_files_is_empty_list(tmp_path)
 
 
 def test_security_no_path_traversal() -> None:
