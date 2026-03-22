@@ -512,6 +512,20 @@ run_phase_gate_and_implement() {
                     '.userStories[] | select(.id == $id) | .passes // false' "$PRD_FILE" 2>/dev/null || echo "false")
                   _STORY_STATUS="failed"
                   [[ "$_STORY_PASSES" == "true" ]] && _STORY_STATUS="passed"
+
+                  # US-787: Partial Victory Commit — check for partial victory opportunity
+                  if [[ "$_STORY_PASSES" != "true" ]]; then
+                    _AC_REPORT="$SCRATCH_DIR/ac_reports/${_NEXT_SID}.json"
+                    if [[ -f "$_AC_REPORT" ]]; then
+                      echo "  [partial-victory] Checking AC evaluation for $_NEXT_SID..."
+                      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/impl/partial_victory.py" \
+                        --story-id "$_NEXT_SID" \
+                        --ac-report "$_AC_REPORT" \
+                        --prd "$PRD_FILE" \
+                        2>/dev/null || true
+                    fi
+                  fi
+
                   "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/observability/otel_spans.py" end-story \
                     --story-id "$_NEXT_SID" --status "$_STORY_STATUS" --scratch-dir "$SCRATCH_DIR" 2>/dev/null || true
                   # US-318/US-341: emit invoke_agent span for worker lifecycle with cache token attributes

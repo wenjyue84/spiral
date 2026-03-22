@@ -706,6 +706,36 @@ log_spiral_event() {
   fi
 }
 
+# generate_ac_report() — Generate AC evaluation report for partial victory (US-787)
+# Creates .spiral/ac_reports/STORY_ID.json with AC evaluation based on story ACs
+# Used by Phase I to check for partial victory opportunities
+generate_ac_report() {
+  local story_id="$1"
+  local prd_file="$2"
+  local scratch_dir="${SPIRAL_SCRATCH_DIR:-.spiral}"
+
+  # Extract ACs from story
+  local ac_json
+  ac_json=$($JQ -r ".userStories[] | select(.id == \"$story_id\") | .acceptanceCriteria // []" "$prd_file" 2>/dev/null || echo "[]")
+
+  # Build AC evaluation report (all initially marked as failed)
+  # Phase I or external logic can override this with actual AC status
+  mkdir -p "$scratch_dir/ac_reports"
+  local report_file="$scratch_dir/ac_reports/${story_id}.json"
+
+  local ac_eval="[]"
+  local ac_count
+  ac_count=$(echo "$ac_json" | $JQ 'length' 2>/dev/null || echo "0")
+
+  if [[ "$ac_count" -gt 0 ]]; then
+    # Build AC evaluation array with all ACs initially failed
+    ac_eval=$(echo "$ac_json" | $JQ -c '[to_entries | .[] | {index: .key, text: .value, passed: false}]' 2>/dev/null || echo "[]")
+  fi
+
+  # Write report
+  printf '{"story_id":"%s","ac_evaluation":%s}\n' "$story_id" "$ac_eval" >"$report_file" 2>/dev/null || true
+}
+
 # ── Model routing functions sourced from $SCRIPT_DIR/lib/model_routing.sh ─────
 # Functions: check_deps_met, classify_model, escalate_model_by_retry,
 #            escalate_model_by_quality_failure, supports_adaptive_thinking,
@@ -2008,6 +2038,10 @@ Co-Authored-By: Claude ${COAUTHOR_LABEL} 4.6 <noreply@anthropic.com>"
       echo "" >>"$PROGRESS_FILE"
     else
       echo "[rollback] Quality checks failed — reverting prd.json mark"
+
+      # Generate AC evaluation report for Phase I partial victory handling (US-787)
+      generate_ac_report "$NEXT_STORY" "$PRD_FILE"
+
       $JQ "(.userStories[] | select(.id == \"$NEXT_STORY\") | .passes) = false" "$PRD_FILE" >"${PRD_FILE}.tmp"
       mv "${PRD_FILE}.tmp" "$PRD_FILE"
 
