@@ -41,6 +41,7 @@ Subcommands:
   validate-governance     Enforce per-project story quotas and ID patterns (US-672)
   federated-cost-report   Per-sub-project cost breakdown by phase (US-713)
   explain-retry           Analyze retry sequence and suggest decomposition for a story (US-728)
+  deploy-docs             Deploy CHANGELOG and pdoc outputs to GitHub Pages branch (US-732)
 """
 
 import argparse
@@ -3813,6 +3814,35 @@ def main():
         help="Skip decomposition suggestion, output retry sequence only",
     )
 
+    # ── deploy-docs subcommand (US-732) ────────────────────────────────────────
+    deploy_docs_parser = subparsers.add_parser(
+        "deploy-docs",
+        help="Deploy CHANGELOG and pdoc outputs to GitHub Pages branch (US-732)",
+    )
+    deploy_docs_parser.add_argument(
+        "--branch",
+        default="gh-pages",
+        metavar="BRANCH",
+        help="Target branch for docs deployment (default: gh-pages)",
+    )
+    deploy_docs_parser.add_argument(
+        "--prd",
+        default="prd.json",
+        metavar="FILE",
+        help="Path to prd.json (default: prd.json)",
+    )
+    deploy_docs_parser.add_argument(
+        "--spiral-home",
+        default=".",
+        metavar="DIR",
+        help="Project root directory (default: current directory)",
+    )
+    deploy_docs_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Stage and commit but skip the push to remote",
+    )
+
     args = parser.parse_args()
 
     if args.command == "init":
@@ -3947,6 +3977,8 @@ def main():
         cmd_validate_scc_cycles(args)
     elif args.command == "explain-retry":
         cmd_explain_retry(args)
+    elif args.command == "deploy-docs":
+        cmd_deploy_docs(args)
     else:
         parser.print_help()
         sys.exit(0)
@@ -4826,6 +4858,38 @@ def cmd_explain_retry(args: argparse.Namespace) -> None:
         suggestion = suggest_decomposition(story_id, results_path)
         if suggestion:
             print(f"\nDecomposition: {suggestion}")
+
+    sys.exit(0)
+
+
+def cmd_deploy_docs(args: argparse.Namespace) -> None:
+    """Deploy CHANGELOG and pdoc outputs to GitHub Pages branch (US-732).
+
+    Usage: spiral deploy-docs [--branch BRANCH] [--prd FILE] [--spiral-home DIR] [--dry-run]
+
+    Stages .spiral/changelog-output/ with CHANGELOG.md and pdoc/ subdirectory,
+    then deploys to the target branch via isolated git worktree (no force push).
+
+    Example:
+        spiral deploy-docs --branch gh-pages
+        spiral deploy-docs --branch gh-pages --dry-run
+    """
+    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    from commands.deploy_docs import deploy_to_gh_pages, prepare_changelog_output  # type: ignore[import-untyped]
+
+    spiral_home = Path(getattr(args, "spiral_home", ".")).resolve()
+    prd_path = Path(getattr(args, "prd", "prd.json"))
+    if not prd_path.is_absolute():
+        prd_path = spiral_home / prd_path
+    branch: str = getattr(args, "branch", "gh-pages")
+    dry_run: bool = getattr(args, "dry_run", False)
+
+    try:
+        prepare_changelog_output(spiral_home, prd_path)
+        deploy_to_gh_pages(spiral_home, branch=branch, dry_run=dry_run)
+    except RuntimeError as exc:
+        print(f"[deploy-docs] ERROR: {exc}", file=sys.stderr)
+        sys.exit(1)
 
     sys.exit(0)
 

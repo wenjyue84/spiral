@@ -1,4 +1,49 @@
-## Iteration [Current] - Story: US-729 DependencyTypeValidator
+## Iteration [Current] - Story: US-733 Security Tests for lint-prd CLI
+
+### What was implemented
+- **tests/test_lint_prd_security.py** (new) — 3 security tests all named `test_us_639_security_*`:
+  - `test_us_639_security_no_credential_leakage`: prd with credentials in description; verifies combined stdout+stderr doesn't match `(token|password|secret|key)\s*[:=]\s*\S+`
+  - `test_us_639_security_circular_dep_exits_nonzero_structured_json`: circular prd; asserts returncode!=0, stdout is valid JSON, no traceback, errors list has circular_dep type
+  - `test_us_639_security_oversized_field_no_crash`: 1MB+ description; asserts returncode in {0,1,2}, no traceback, valid JSON output
+
+### Patterns discovered
+- `uv run python -m lib.prd.lint_prd <path>` works (lib/prd/__init__.py exists); use `sys.executable` for venv compatibility
+- lint_prd never echoes back field values in error messages — test provides regression guard
+- `-k us_639_security` matches test function names when all 3 tests have that prefix
+
+### Gotchas
+- Use `sys.executable` (not hard-coded `"python"`) in subprocess calls for correct venv interpreter
+
+### Acceptance Criteria Mapping
+1. ✅ `uv run pytest tests/ -k us_639_security -v` exits 0 with 3 passing tests
+2. ✅ Error output never matches credential pattern
+3. ✅ Circular dep → non-zero exit + structured JSON (not traceback)
+4. ✅ Oversized field (>1MB) → no crash, valid JSON output
+
+---
+
+## Iteration [Previous] - Story: US-732 Deploy CHANGELOG and pdoc to GitHub Pages
+
+### What was implemented
+- **lib/commands/deploy_docs.py** (new) — `prepare_changelog_output(spiral_home, prd_path)` copies CHANGELOG.md and .spiral/docs/api/ into .spiral/changelog-output/; auto-generates minimal CHANGELOG from prd.json if missing; creates placeholder pdoc/index.html if no pdoc dir exists. `deploy_to_gh_pages(spiral_home, branch, worktree_dir, dry_run)` uses git worktree for isolated branch management, commits + pushes without force push, always cleans up worktree
+- **main.py** — Added `deploy-docs` subcommand parser (--branch, --prd, --spiral-home, --dry-run), dispatch, and `cmd_deploy_docs` handler
+- **tests/test_phase_g_deploy_integration.py** (new) — 14 integration tests across 3 classes: TestPrepareChangelogOutput (6 tests for AC1), TestDeployToGhPages (4 tests for AC2), TestGhPagesBranchContent (4 tests for AC3)
+- **tests/test_deploy_docs.bats** (new) — 7 bats shell tests for the CLI command
+
+### Patterns discovered
+- Use `git worktree add --orphan -b BRANCH DIR` to create a new orphan branch in a worktree (when branch doesn't exist yet)
+- Use `git worktree add DIR BRANCH` when branch already exists
+- Always check `git branch --list BRANCH` and `git ls-remote --heads origin BRANCH` to distinguish new vs existing branches
+- Worktree cleanup: `git worktree remove --force DIR` then `shutil.rmtree` in a finally block
+
+### Gotchas
+- mypy strict: `subprocess.run` typed as `CompletedProcess[str]` only when `text=True` — must type-hint return explicitly
+- `ruff` I001: sys.path.insert before third-party import causes import-sort violation — move sys.path before all imports
+- Unused `type: ignore[import-untyped]` on deploy_docs import is flagged by mypy strict if the module has proper type annotations
+
+---
+
+## Iteration [Previous] - Story: US-729 DependencyTypeValidator
 
 ### What was implemented
 - **lib/phases/validate.py** (new) — `DependencyTypeValidator` class with rules dict `{feature: [infrastructure], infrastructure: [], database: [infrastructure]}`; `validate(stories)` returns list of violation strings with rule ID (DEP_TYPE_SRC_TGT), allowed list, and remediation guidance
