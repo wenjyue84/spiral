@@ -1,4 +1,31 @@
-## Iteration [Current] - Story: US-714 Perf Benchmark E2E SPIRAL R→C Timing + results.tsv Validation
+## Iteration [Current] - Story: US-728 CLI explain-retry: Analyze Retry Pattern and Suggest Decomposition
+
+### What was implemented
+- **lib/commands/explain_retry.py** (new) — Core logic:
+  - `explain_retry_sequence(story_id, results_tsv_path)` → list of dicts with fields: attempt, model, tokens, duration_sec, status, error_category
+  - `suggest_decomposition(story_id, results_tsv_path)` → string suggestion based on failed_files column patterns
+  - `scope_overrun` category: detected from "diff guard exceeded" / "too many files" root cause text, OR heuristic (haiku + retry_num==1 + duration>300s)
+  - `tokens` = sum of cache_read_tokens + cache_creation_tokens + review_tokens
+- **main.py** — Added `explain-retry` subcommand (docstring, parser, dispatch, `cmd_explain_retry` handler)
+- **tests/test_explain_retry.py** (new) — 8 integration tests: 3-attempt haiku→sonnet→opus escalation, field presence, missing story, scope_overrun heuristic, decomposition from 2 directories, format check, empty failed_files, missing story
+
+### Patterns discovered
+- `categorize_message()` returns `Any` from mypy's POV → wrap in `str()` to satisfy `--strict`
+- `failed_files` column contains JSON array string (e.g. `'["lib/a.py"]'`) — use json.loads()
+- Top-level directory grouping from Path.parts[0] cleanly separates lib/ vs tests/ vs src/ etc.
+
+### Gotchas
+- mypy strict: `no-any-return` on `categorize_message()` calls — fixed with explicit `str()` cast
+- `sys.path.insert(0, ...)` needed in lib/commands/explain_retry.py for standalone usage
+
+### Acceptance Criteria Mapping
+1. ✅ CLI `spiral explain-retry US-123` outputs JSON array with attempt/model/tokens/duration_sec/status/error_category
+2. ✅ Decomposition suggestion: "Split into 2 stories: US-NNNA (lib/ modules) and US-NNNB (tests/ modules)"
+3. ✅ Integration test with 3-attempt haiku→sonnet→opus sequence, decomposition accuracy validated
+
+---
+
+## Iteration [Previous] - Story: US-714 Perf Benchmark E2E SPIRAL R→C Timing + results.tsv Validation
 
 ### What was implemented
 - **tests/test_perf_e2e_us638.py** (186 lines) — 4 test functions for US-714:
@@ -1445,4 +1472,34 @@ This user story is for a pure Python/pytest project, not Frappe. The context see
     *   The baseline test requires file I/O and conditional logic (create if not exists, else read and compare).
     *   Ensure test isolation. Each test function should start with a clean state (e.g., a fresh copy of the `prd.json` fixture) to prevent side effects.
     *   The `monkeypatch` target for the regression test must be chosen carefully to ensure it actually impacts the measured wall-clock time.
+
+
+## Pre-analysis for US-728 (Gemini 2.5 Pro)
+Here is the technical brief for user story US-728.
+
+**Technical Brief: US-728 `spiral explain-retry` CLI Command**
+
+*   **Objective:** Implement a CLI command `spiral explain-retry <story_id>` that reads `results.tsv`, outputs the full retry history for a given story, and suggests a decomposition strategy based on failure patterns.
+
+*   **Affected Files:**
+    *   `main.py`: Modify to add the new `explain-retry` subcommand to the main CLI argument parser.
+    *   `lib/retry_analyzer.py` (New File): Create this file to contain the core logic for parsing `results.tsv`, analyzing failure patterns, and generating the decomposition suggestion.
+    *   `tests/test_retry_analyzer.py` (New File): Create an integration test to validate the command's JSON output and the accuracy of the decomposition suggestion, using a pre-defined `results.tsv`.
+
+*   **Frappe Context:**
+    *   This story pertains to the `spiral` Python CLI tool, not a Frappe application. No Frappe DocTypes or hooks are relevant.
+
+*   **Implementation Approach:**
+    1.  In `main.py`, add the `explain-retry` command which accepts a `story_id` argument.
+    2.  In `lib/retry_analyzer.py`, create a function that reads `results.tsv` row by row (using the `csv` module with a tab delimiter).
+    3.  Filter for the specified `story_id`, collecting all attempts into a list of dictionaries matching the required JSON format.
+    4.  Implement a decomposition suggestion engine that uses regex to extract file paths from error messages across failed attempts.
+    5.  Group failures by common file paths/directories to propose splitting the story.
+    6.  The main function in `main.py` will call this analysis function and print the resulting JSON.
+
+*   **Edge Cases & Gotchas:**
+    *   Gracefully handle cases where `results.tsv` is missing or the `story_id` is not found.
+    *   Error message parsing must be robust; file paths may not always be present or consistently formatted.
+    *   If no clear pattern is found, the suggestion should indicate that automated decomposition is not possible.
+    *   For performance, stream the `results.tsv` file rather than loading it entirely into memory.
 

@@ -40,6 +40,7 @@ Subcommands:
   list-federation         Display sub-project configuration and story allocation summary (US-665)
   validate-governance     Enforce per-project story quotas and ID patterns (US-672)
   federated-cost-report   Per-sub-project cost breakdown by phase (US-713)
+  explain-retry           Analyze retry sequence and suggest decomposition for a story (US-728)
 """
 
 import argparse
@@ -3790,6 +3791,28 @@ def main():
         help="Output format: json (default) or text",
     )
 
+    # ── explain-retry subcommand (US-728) ─────────────────────────────────────
+    explain_retry_parser = subparsers.add_parser(
+        "explain-retry",
+        help="Analyze retry sequence and suggest decomposition for a story (US-728)",
+    )
+    explain_retry_parser.add_argument(
+        "story_id",
+        metavar="STORY_ID",
+        help="Story ID to analyze (e.g., US-123)",
+    )
+    explain_retry_parser.add_argument(
+        "--results",
+        default="results.tsv",
+        metavar="FILE",
+        help="Path to results.tsv (default: results.tsv)",
+    )
+    explain_retry_parser.add_argument(
+        "--no-decompose",
+        action="store_true",
+        help="Skip decomposition suggestion, output retry sequence only",
+    )
+
     args = parser.parse_args()
 
     if args.command == "init":
@@ -3922,6 +3945,8 @@ def main():
         cmd_validate_phase_outputs(args)
     elif args.command == "validate-scc-cycles":
         cmd_validate_scc_cycles(args)
+    elif args.command == "explain-retry":
+        cmd_explain_retry(args)
     else:
         parser.print_help()
         sys.exit(0)
@@ -4761,6 +4786,46 @@ def cmd_validate_scc_cycles(args: argparse.Namespace) -> None:
         for path in result.get("cycle_paths", []):
             print(f"  cycle: {path}", file=sys.stderr)
         sys.exit(1)
+
+    sys.exit(0)
+
+
+def cmd_explain_retry(args: argparse.Namespace) -> None:
+    """Analyze retry sequence and suggest decomposition for a story (US-728).
+
+    Usage: spiral explain-retry US-123 [--results PATH] [--no-decompose]
+
+    Reads results.tsv for all attempts of the given story_id and outputs:
+    - JSON array with fields: attempt, model, tokens, duration_sec, status, error_category
+    - Decomposition suggestion based on file-level error patterns (unless --no-decompose)
+
+    Example output:
+        [{"attempt": 1, "model": "haiku", "tokens": 5000, "duration_sec": 320.0,
+          "status": "failed", "error_category": "scope_overrun"}, ...]
+        Decomposition: Split into 2 stories: US-123A (lib/ modules) and US-123B (tests/ modules)
+    """
+    sys.path.insert(0, str(Path(__file__).parent / "lib"))
+    from commands.explain_retry import explain_retry_sequence, suggest_decomposition  # type: ignore[import-untyped]
+
+    story_id: str = args.story_id
+    results_path = Path(getattr(args, "results", "results.tsv"))
+    no_decompose: bool = getattr(args, "no_decompose", False)
+
+    sequence = explain_retry_sequence(story_id, results_path)
+
+    if not sequence:
+        print(
+            json.dumps({"error": f"No retry records found for story {story_id}"}),
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    print(json.dumps(sequence, indent=2))
+
+    if not no_decompose:
+        suggestion = suggest_decomposition(story_id, results_path)
+        if suggestion:
+            print(f"\nDecomposition: {suggestion}")
 
     sys.exit(0)
 
