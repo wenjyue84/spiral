@@ -1,3 +1,42 @@
+## Iteration - Story: US-1047 Federation: Detect Circular Story Dependencies with Cycle Path Reporting
+
+### What was implemented
+- lib/federation/cycle_detector.py: find_cycles(prd_dict) function using DFS
+  - Returns list[list[str]] where each inner list is a complete cycle path [a, b, ..., a]
+  - Finds ALL cycles, not just the first one (unlike detect_circular_dependencies in federation_health_check)
+  - Properly handles self-loops, disconnected components, and complex multi-cycle graphs
+- CLI command spiral federation-check-cycles
+  - Already wired up in main.py (argparse and elif clause existed)
+  - Outputs YAML with "cycles:" property listing all detected paths
+  - Exits with non-zero if cycles found, success code (0) if none
+- tests/test_federation_cycles.py: 9 comprehensive unit tests
+  - test_no_cycles: linear chains have no cycles
+  - test_simple_two_node_cycle: A→B→A
+  - test_three_node_cycle: A→B→C→A (cross-project)
+  - test_two_separate_cycles: 2 independent cycles in different sub-projects (AC3 requirement)
+  - test_cycle_with_external_deps: cycles with unrelated dependencies
+  - test_self_loop: story depending on itself
+  - test_empty_prd: handles missing userStories gracefully
+  - test_prd_with_missing_user_stories: handles missing key gracefully
+  - test_complex_multiple_cycles: 3+ cycles with acyclic parts
+
+### Patterns discovered
+- DFS with recursion stack (rec_stack set) correctly detects back edges
+- Cycle path format: [node1, node2, ..., node_n, node1] — first and last are identical
+- Deduplication check: `if cycle not in cycles` prevents duplicate cycle reports
+- find_cycles() returns empty list for acyclic graphs (no false positives)
+- All cycles must be closed loops; if a node is in the cycle, it must appear at start and end
+
+### Acceptance criteria verification
+- AC1: ✓ find_cycles(prd_dict) returns list[list[str]] with cycle paths (not booleans)
+- AC2: ✓ CLI spiral federation-check-cycles outputs YAML with cycles property, exits non-zero if found
+- AC3: ✓ test_two_separate_cycles validates detection of 2 separate cycles in different sub-projects
+
+All tests passing: 9/9 ✓
+Type checking: mypy --strict ✓
+Linting: ruff check ✓
+Integration: CLI command works end-to-end with YAML output ✓
+
 ## Iteration - Story: US-1045 Dashboard Story Retry Exhaustion Analyzer
 
 ### What was implemented
