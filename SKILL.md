@@ -1,6 +1,10 @@
 ---
 name: spiral
-version: 4.2.28
+<<<<<<< Updated upstream
+version: 4.2.38
+=======
+version: 4.2.39
+>>>>>>> Stashed changes
 description: >
   Run the SPIRAL autonomous development loop on any project. Handles setup,
   generates prd.json and spiral.config.sh if missing, then launches the

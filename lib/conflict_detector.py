@@ -75,7 +75,7 @@ def detect_federated_conflicts(stories: list[dict[str, Any]]) -> tuple[list[dict
 
     for story in pending:
         story_id = story.get("id", "UNKNOWN")
-        sub_project = story.get("_source", "")  # sub_project_id from _source field
+        sub_project = story.get("sub_project", "")  # sub_project_id from sub_project field
 
         # Try to get files from technicalNotes first (may contain commit hashes)
         files: set[str] = set()

@@ -484,3 +484,37 @@ Diff size: 264 lines < 400 limit ✓
 All tests passing: 10/10 ✓
 Type checking: mypy --strict ✓
 Linting: ruff check ✓
+
+## Pre-analysis for US-1072 (Gemini 2.5 Pro)
+Here is the technical brief for US-1072.
+
+**Analysis:** The user story and project structure indicate this is a custom Python application, not a Frappe/ERPNext app. The plan below is based on the "Spiral" project structure.
+
+---
+
+### Technical Brief: US-1072 Federated Merge Conflict Test
+
+**Objective:** Create a Python integration test to validate that "Phase M" correctly detects and handles file conflicts during a federated merge of parallel worker outputs.
+
+**1. Files to Modify:**
+*   **New File:** `tests/integration/test_phase_m_federated_merge.py` - This will contain the new `pytest`-based integration test.
+*   **Primary Module Under Test:** `lib/phase_m.py` - Contains the core merge logic to be invoked and validated.
+*   **Supporting Module:** `lib/conflict_detector.py` - Contains the business logic for identifying conflicts. The test will need to create a scenario that this module can identify.
+
+**2. Key Project Components Involved:**
+*   **Data Model:** `prd.json` - The central JSON file defining stories and tasks. The test must generate a version of this file with conflicting entries.
+*   **File Structure:** The test must simulate the worker output directories (e.g., `.spiral/workers/worker-A/`, `.spiral/workers/worker-B/`) and create mock modified files within them to trigger the conflict.
+
+**3. Recommended Implementation Approach:**
+1.  Use a `pytest` fixture (e.g., `tmp_path`) to create an isolated directory for the test run.
+2.  Programmatically generate a base `prd.json` and a mock file that will be the source of the conflict.
+3.  Set up two worker subdirectories, each containing a modified version of the mock file and a `prd.json` referencing that change.
+4.  Invoke the main entry point for the Phase M merge logic from `lib/phase_m.py`, pointing it to the test directory.
+5.  Assert that the conflict is detected and reported in the expected output (e.g., `results.tsv` or logs).
+6.  Assert that the final, merged `prd.json` correctly applies the merge strategy (e.g., excludes the conflicting stories).
+
+**4. Edge Cases & Gotchas:**
+*   The test must be fully atomic, creating and cleaning up its own temporary file structures.
+*   Ensure the definition of a "conflict" (e.g., overlapping file paths in story manifests) is clearly understood from `lib/conflict_detector.py` to create a valid trigger.
+*   The test must validate the consistency of the main `prd.json` and the individual worker `prd.json` files post-merge to ensure no data corruption.
+
