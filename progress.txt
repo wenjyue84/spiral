@@ -352,3 +352,32 @@ Diff size: 119 insertions(+), 496 deletions(-) — under 400 limit ✓
 - mypy --strict requires `from __future__ import annotations` for PEP 604 unions in Python < 3.10
 - The PLC0415 noqa suppresses ruff's import-outside-toplevel for lazy imports inside endpoints
 - Test uses `from lib.escalation_predictor import ...` (not `from escalation_predictor`) because rootdir is set to tests/ by pyproject.toml but sys.path includes project root via conftest
+
+## Iteration - Story: US-1064 Integration Test: Federated Worker Isolation — Verify No Cross-Worker prd.json Corruption
+
+### What was implemented
+- tests/integration/test_federated_worker_isolation_us1064.py: New integration test file with 3 comprehensive tests
+  - test_fixture_creates_3_sub_projects (AC1): Verifies federated prd.json fixture loads with 3 sub-projects (app-v1, api-v2, web-v3), each with 5 stories, distributed correctly with no cross-contamination
+  - test_worker_isolation_structure_integrity (AC2): Simulates sequential worker modifications (worker-0 marks app-v1 stories passed, worker-1 marks api-v2 passed, worker-2 marks web-v3 passed); verifies structure is stable, all 15 stories remain, no top-level corruption
+  - test_worker_sub_project_fidelity_after_merge (AC3): Creates 3 worker PRDs (one per sub-project), merges them via merge_worker_results; verifies all 15 stories have passes=true, each sub-project maintains its 5 stories (no leakage), and stories remain in correct sub-project buckets
+
+### Patterns discovered
+- Federated prd.json structure: includes "subProjects": ["app-v1", "api-v2", "web-v3"] array + stories with sub_project field
+- Story IDs must follow (US|UT)-NNN pattern for schema validation (not prefixed with sub-project name)
+- Sequential worker simulation avoids Windows file locking issues (multiprocessing causes PermissionError on temp file ops)
+- merge_worker_results.main() integrates seamlessly with test fixtures; validates PRD schema before merge
+- All 3 ACs verified with passing tests; no corruption detected in final merged state
+
+### Gotchas
+- Initial attempt used ProcessPoolExecutor which triggered Windows file locking (PermissionError) — switched to sequential simulation
+- Story ID format strict: "app-v1-US-001" fails schema validation; use "US-001" with sub_project field instead
+- ruff fixed 2 linting errors (unused import, etc.) after initial creation
+
+### Acceptance criteria verification
+- AC1: ✓ Fixture creates 3 sub-projects with 5 stories each, verified distribution
+- AC2: ✓ Structure remains stable across sequential worker modifications, no corruption
+- AC3: ✓ Phase M merge preserves sub-project boundaries, all stories in correct buckets
+
+All tests passing: 3/3 ✓
+Type checking: mypy --strict ✓
+Linting: ruff check ✓
