@@ -236,6 +236,32 @@ def enrich_stories(
         atomic_write_json(enriched_path, {"stories": []})
         return 0, 0
 
+    # Priority-aware sorting: enrich high-priority stories first
+    # Priority order: critical > high > medium > low
+    priority_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+
+    def _priority_sort_key(story: dict[str, Any]) -> tuple[int, int]:
+        """Return sort key: (priority_rank, original_index) to preserve order within priority."""
+        priority = story.get("priority", "medium")
+        rank = priority_order.get(priority, 999)
+        return (rank, stories.index(story))
+
+    sorted_stories = sorted(stories, key=_priority_sort_key)
+
+    # Log enrichment order for stories that will be enriched
+    eligible_for_enrichment = [s for s in sorted_stories if _should_enrich(s)]
+    if eligible_for_enrichment:
+        priority_groups = {}
+        for story in eligible_for_enrichment:
+            p = story.get("priority", "medium")
+            if p not in priority_groups:
+                priority_groups[p] = 0
+            priority_groups[p] += 1
+        for priority in ["critical", "high", "medium", "low"]:
+            if priority in priority_groups:
+                count = priority_groups[priority]
+                print(f"  [E] Enrichment order: {count} {priority}-priority stories", flush=True)
+
     output_stories: list[dict[str, Any]] = []
     enriched_count = 0
     split_count = 0
@@ -244,7 +270,7 @@ def enrich_stories(
     _enrichment_timeout = int(os.environ.get("SPIRAL_ENRICHMENT_TIMEOUT", "600"))
     _enrich_start = time.monotonic()
 
-    for i, story in enumerate(stories, 1):
+    for i, story in enumerate(sorted_stories, 1):
         if time.monotonic() - _enrich_start > _enrichment_timeout:
             print(
                 f"  [E] Wall-clock timeout ({_enrichment_timeout}s) — "
@@ -252,7 +278,7 @@ def enrich_stories(
                 flush=True,
             )
             # Passthrough remaining stories unenriched
-            output_stories.extend(stories[i - 1 :])
+            output_stories.extend(sorted_stories[i - 1 :])
             break
         if _should_enrich(story):
             if enrich_budget <= 0:
@@ -260,7 +286,7 @@ def enrich_stories(
                 continue
             title = story.get("title", "?")
             print(
-                f"  [E] [{i}/{len(stories)}] Enriching: {title[:70]!r} "
+                f"  [E] [{i}/{len(sorted_stories)}] Enriching: {title[:70]!r} "
                 f"(complexity={story.get('estimatedComplexity', '?')}, "
                 f"notes={len(story.get('technicalNotes') or [])})",
                 flush=True,
