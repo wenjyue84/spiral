@@ -116,8 +116,12 @@ class TestEnrichStoriesIntegration:
     """enrich_stories() integration tests using temp files."""
 
     def test_small_well_specified_stories_pass_through(self):
-        """Small stories with 2+ technicalNotes should not be enriched (no Claude call)."""
-        story = _story(estimatedComplexity="small", technicalNotes=["note1", "note2"])
+        """Small stories with 2+ technicalNotes and filesTouch should not be enriched (no Claude call)."""
+        story = _story(
+            estimatedComplexity="small",
+            technicalNotes=["note1", "note2"],
+            filesTouch=["lib/x.py", "tests/test_x.py"],
+        )
 
         with tempfile.TemporaryDirectory() as tmpdir:
             validated = os.path.join(tmpdir, "validated.json")
@@ -163,3 +167,74 @@ class TestEnrichStoriesIntegration:
         assert len(result["stories"]) == 1
         assert result["stories"][0].get("_enriched") is True
         assert enrich_count == 1
+
+    def test_priority_aware_enrichment_order(self):
+        """Test that high-priority stories are enriched before medium/low when budget is limited."""
+        # Create 5 stories: 3 medium-priority, 2 high-priority
+        # Each needs enrichment (no filesTouch set)
+        stories = [
+            _story(title="Medium 1", priority="medium", estimatedComplexity="medium", technicalNotes=[]),
+            _story(title="High 1", priority="high", estimatedComplexity="medium", technicalNotes=[]),
+            _story(title="Medium 2", priority="medium", estimatedComplexity="medium", technicalNotes=[]),
+            _story(title="High 2", priority="high", estimatedComplexity="medium", technicalNotes=[]),
+            _story(title="Medium 3", priority="medium", estimatedComplexity="medium", technicalNotes=[]),
+        ]
+
+        def mock_enrich(story: dict) -> str:
+            enriched = dict(story)
+            enriched["_enriched"] = True
+            enriched["technicalNotes"] = ["File to edit: lib/x.py", "Test command: pytest"]
+            enriched["filesTouch"] = ["lib/x.py"]
+            return json.dumps({"action": "enrich", "story": enriched})
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            validated = os.path.join(tmpdir, "validated.json")
+            enriched_out = os.path.join(tmpdir, "enriched.json")
+
+            with open(validated, "w", encoding="utf-8") as f:
+                json.dump({"stories": stories}, f)
+
+            # Track which stories are enriched
+            enriched_order = []
+
+            def track_enrichment(prompt: str, model: str) -> str:
+                # Extract story title from prompt
+                try:
+                    if "High 1" in prompt:
+                        enriched_order.append("High 1")
+                    elif "High 2" in prompt:
+                        enriched_order.append("High 2")
+                    elif "Medium 1" in prompt:
+                        enriched_order.append("Medium 1")
+                    elif "Medium 2" in prompt:
+                        enriched_order.append("Medium 2")
+                    elif "Medium 3" in prompt:
+                        enriched_order.append("Medium 3")
+                except Exception:
+                    pass
+                # Return a generic enriched story
+                return json.dumps(
+                    {
+                        "action": "enrich",
+                        "story": {
+                            "title": "Enriched",
+                            "priority": "medium",
+                            "description": "test",
+                            "acceptanceCriteria": ["test"],
+                            "technicalNotes": ["File to edit: lib/x.py", "Test command: pytest"],
+                            "dependencies": [],
+                            "estimatedComplexity": "small",
+                            "_enriched": True,
+                        },
+                    }
+                )
+
+            with patch("lib.research.enrich_stories.call_claude", side_effect=track_enrichment):
+                # With max_enrich=3, should enrich both high-priority stories (2), then 1 medium
+                enrich_count, split_count = enrich_stories(validated, enriched_out, model="sonnet", max_enrich=3)
+
+        # Verify both high-priority stories were enriched before medium ones
+        # The first 2 enriched should be High priority stories
+        assert len(enriched_order) <= 3, f"Should enrich at most 3 stories, enriched {len(enriched_order)}"
+        high_enriched = [s for s in enriched_order if "High" in s]
+        assert len(high_enriched) == 2, f"Both high-priority stories should be enriched, got {high_enriched}"
