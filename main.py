@@ -30,6 +30,7 @@ Subcommands:
   analyze-failures        Categorize retry failure root causes and recommend tuning (US-547)
   extract-failed-stories  Generate triage report from results.tsv (US-613)
   validate-commits        Detect orphan stories and squash-commit patterns (US-554)
+  list-orphan-commits     List commits lacking US-/UT- story ID tags (US-1029)
   validate-federated-order  Report merge order and dependency violations for federated PRD (US-617)
   federated-status        Aggregate story status across federated sub-projects (US-629)
   monitor                 Unified monitoring snapshot for progress checks
@@ -2697,6 +2698,66 @@ def cmd_detect_anomalies(args) -> None:
     print(json.dumps(result, indent=2))
 
 
+def cmd_list_orphan_commits(args: argparse.Namespace) -> None:
+    """List commits lacking US-/UT- story ID tags (US-1029).
+
+    Usage: spiral list-orphan-commits [--format json|text]
+    """
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
+    from gen_changelog import find_orphan_commits  # type: ignore[import-untyped]
+
+    output_format = getattr(args, "format", "json")
+
+    # Get commits from git log
+    try:
+        log_result = subprocess.run(
+            ["git", "log", "--format=%H|%s|%ai", "--no-merges"],
+            cwd=".",
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if log_result.returncode != 0:
+            print("Error: Could not query git log", file=sys.stderr)
+            sys.exit(1)
+
+        # Parse git log output into commit dicts
+        commits: list[dict] = []
+        for line in log_result.stdout.strip().split("\n"):
+            if not line.strip():
+                continue
+            parts = line.split("|")
+            if len(parts) >= 3:
+                commit_hash = parts[0].strip()
+                message = parts[1].strip()
+                date = parts[2].strip()
+                if commit_hash and message:
+                    commits.append({
+                        "commit": commit_hash[:7],
+                        "message": message,
+                        "date": date,
+                    })
+
+        # Find orphans
+        orphans = find_orphan_commits(commits)
+
+        # Output in requested format
+        if output_format == "json":
+            print(json.dumps(orphans, indent=2))
+        else:  # text format
+            for orphan in orphans:
+                short_hash = orphan.get("commit", "")
+                date = orphan.get("date", "")
+                message = orphan.get("message", "")
+                print(f"{short_hash} {date} {message}")
+
+        sys.exit(0)
+
+    except (subprocess.TimeoutExpired, OSError) as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+
 def cmd_validate_commits(args) -> None:
     """Detect orphan stories and squash-commit patterns (US-554).
 
@@ -4117,6 +4178,18 @@ def main():
         help="Skip decomposition suggestion, output retry sequence only",
     )
 
+    # ── list-orphan-commits subcommand (US-1029) ──────────────────────────────────
+    list_orphan_commits_parser = subparsers.add_parser(
+        "list-orphan-commits",
+        help="List commits lacking US-/UT- story ID tags (US-1029)",
+    )
+    list_orphan_commits_parser.add_argument(
+        "--format",
+        choices=["json", "text"],
+        default="json",
+        help="Output format: json (default) or text",
+    )
+
     # ── deploy-docs subcommand (US-732) ────────────────────────────────────────
     deploy_docs_parser = subparsers.add_parser(
         "deploy-docs",
@@ -4286,6 +4359,8 @@ def main():
         cmd_validate_scc_cycles(args)
     elif args.command == "explain-retry":
         cmd_explain_retry(args)
+    elif args.command == "list-orphan-commits":
+        cmd_list_orphan_commits(args)
     elif args.command == "deploy-docs":
         cmd_deploy_docs(args)
     else:
