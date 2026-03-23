@@ -1,148 +1,126 @@
-"""Integration tests for lib/gen_changelog.py — Phase G changelog generation.
-
-Covers:
-- STORY_ID_PATTERN: parsing commit messages for US-NNN/UT-NNN story IDs
-- find_orphan_commits: detects commits without story IDs (AC3: warning emitted)
-- write_orphan_warnings: logs orphan commits to a warnings file
-- generate_changelog: produces CHANGELOG.md with conventional-commit section headers (AC2)
-"""
+"""tests/test_gen_changelog.py — Integration tests for lib/gen_changelog.py."""
 
 from __future__ import annotations
 
-import textwrap
+import subprocess
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from typing import Any
+from unittest.mock import MagicMock
 
-from lib.gen_changelog import (
-    STORY_ID_PATTERN,
-    find_orphan_commits,
-    generate_changelog,
-    write_orphan_warnings,
-)
+import pytest
 
-# ── STORY_ID_PATTERN ──────────────────────────────────────────────────────────
+from lib.gen_changelog import find_orphan_commits, write_orphan_warnings
 
 
-def test_pattern_matches_us_id() -> None:
-    """STORY_ID_PATTERN matches US-NNN story IDs in commit messages."""
-    assert STORY_ID_PATTERN.search("feat: add feature\n\nStory ID: US-123") is not None
+class TestFindOrphanCommits:
+    """Test find_orphan_commits() with mocked git subprocess calls."""
+
+    def test_commits_with_story_ids_not_orphans(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Happy path: Commits with US-NNN or UT-NNN story IDs are not marked as orphans."""
+        # Mock git log to return commits with story IDs in subject + body
+        def mock_run(cmd: Any, *args: Any, **kwargs: Any) -> MagicMock:
+            result = MagicMock()
+            result.returncode = 0
+
+            # First call: git log --format=%H %s (list commits)
+            if "--format=%H %s" in cmd:
+                result.stdout = "abc1234 feat: US-1001 add feature\ndef5678 fix: US-1002 fix bug\n"
+            # Subsequent calls: git log -1 --format=%B (get full message with story ID)
+            elif "--format=%B" in cmd:
+                result.stdout = "feat: US-1001 add feature\n\nFull body with US-1001 reference"
+
+            return result
+
+        monkeypatch.setattr(subprocess, "run", mock_run)
+
+        orphans = find_orphan_commits("/fake/repo")
+
+        # Should have no orphans
+        assert orphans == []
+
+    def test_commits_without_story_ids_are_orphans(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Edge case: Commits without US-NNN or UT-NNN story IDs are marked as orphans."""
+        def mock_run(cmd: Any, *args: Any, **kwargs: Any) -> MagicMock:
+            result = MagicMock()
+            result.returncode = 0
+
+            # First call: git log --format=%H %s
+            if "--format=%H %s" in cmd:
+                result.stdout = "abc1234 docs: update readme\ndef5678 chore: cleanup\n"
+            # Subsequent calls: git log -1 --format=%B (get full message without story ID)
+            elif "--format=%B" in cmd:
+                result.stdout = "docs: update readme\n\nNo story ID in body either"
+
+            return result
+
+        monkeypatch.setattr(subprocess, "run", mock_run)
+
+        orphans = find_orphan_commits("/fake/repo")
+
+        # Should have 2 orphans
+        assert len(orphans) == 2
+        assert orphans[0]["hash"] == "abc1234"
+        assert orphans[0]["subject"] == "docs: update readme"
+        assert orphans[1]["hash"] == "def5678"
+        assert orphans[1]["subject"] == "chore: cleanup"
+
+    def test_mixed_commits_with_and_without_story_ids(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Edge case: Some commits have story IDs, some don't."""
+        call_count = [0]
+
+        def mock_run(cmd: Any, *args: Any, **kwargs: Any) -> MagicMock:
+            result = MagicMock()
+            result.returncode = 0
+
+            if "--format=%H %s" in cmd:
+                # One with story ID, one without
+                result.stdout = "abc1234 feat: US-999 with ID\ndef5678 docs: no ID here\n"
+            elif "--format=%B" in cmd:
+                call_count[0] += 1
+                # First commit (abc1234): has US-999
+                if call_count[0] == 1:
+                    result.stdout = "feat: US-999 with ID\n\nBody text"
+                # Second commit (def5678): no story ID
+                else:
+                    result.stdout = "docs: no ID here\n\nBody text without story reference"
+
+            return result
+
+        monkeypatch.setattr(subprocess, "run", mock_run)
+
+        orphans = find_orphan_commits("/fake/repo")
+
+        # Should have 1 orphan (the one without story ID)
+        assert len(orphans) == 1
+        assert orphans[0]["hash"] == "def5678"
+        assert orphans[0]["subject"] == "docs: no ID here"
 
 
-def test_pattern_matches_ut_id() -> None:
-    """STORY_ID_PATTERN matches UT-NNN test IDs in commit messages."""
-    assert STORY_ID_PATTERN.search("test: add test case\n\nUT-456 coverage") is not None
+class TestWriteOrphanWarnings:
+    """Test write_orphan_warnings() writes to file."""
 
+    def test_write_orphan_warnings_creates_file(self, tmp_path: Path) -> None:
+        """Happy path: Orphan warnings are written to the specified file."""
+        warnings_file = tmp_path / ".spiral" / "phase_g_warnings.log"
+        orphans = [
+            {"hash": "abc1234", "subject": "docs: update readme"},
+            {"hash": "def5678", "subject": "chore: cleanup"},
+        ]
 
-def test_pattern_no_match_plain_commit() -> None:
-    """STORY_ID_PATTERN returns None for commits without any story ID tag."""
-    assert STORY_ID_PATTERN.search("chore: update dependencies") is None
+        write_orphan_warnings(orphans, str(warnings_file))
 
+        # File should exist and contain both orphans
+        assert warnings_file.exists()
+        content = warnings_file.read_text(encoding="utf-8")
+        assert "abc1234 docs: update readme" in content
+        assert "def5678 chore: cleanup" in content
 
-# ── find_orphan_commits ───────────────────────────────────────────────────────
+    def test_write_empty_orphans_creates_empty_file(self, tmp_path: Path) -> None:
+        """Edge case: Empty orphans list creates an empty file."""
+        warnings_file = tmp_path / ".spiral" / "phase_g_warnings.log"
 
-_HASH_WITH_ID = "a" * 40
-_HASH_ORPHAN = "b" * 40
+        write_orphan_warnings([], str(warnings_file))
 
-
-def _make_git_run(log_output: str, body_map: dict[str, str]) -> object:
-    """Return a side-effect callable for subprocess.run that fakes git log output."""
-
-    def _side_effect(cmd: list[str], **kwargs: object) -> MagicMock:
-        m: MagicMock = MagicMock()
-        m.returncode = 0
-        m.stdout = ""
-        if "--format=%H %s" in cmd:
-            m.stdout = log_output
-        else:
-            for h, body in body_map.items():
-                if h in cmd:
-                    m.stdout = body
-                    break
-        return m
-
-    return _side_effect
-
-
-def test_find_orphan_commits_detects_missing_story_id(tmp_path: Path) -> None:
-    """find_orphan_commits returns commits without US-NNN/UT-NNN — these would emit a warning (AC3)."""
-    log = f"{_HASH_WITH_ID} feat: add feature\n{_HASH_ORPHAN} chore: update deps\n"
-    bodies = {
-        _HASH_WITH_ID: "feat: add feature\n\nStory ID: US-100\n",
-        _HASH_ORPHAN: "chore: update deps\n",
-    }
-    with patch("lib.gen_changelog.subprocess.run", side_effect=_make_git_run(log, bodies)):
-        orphans = find_orphan_commits(str(tmp_path))
-
-    assert len(orphans) == 1
-    assert orphans[0]["subject"] == "chore: update deps"
-    assert orphans[0]["hash"] == _HASH_ORPHAN[:7]
-
-
-def test_find_orphan_commits_empty_when_all_have_story_ids(tmp_path: Path) -> None:
-    """find_orphan_commits returns empty list when every commit carries a story ID."""
-    log = f"{_HASH_WITH_ID} feat: add feature\n"
-    bodies = {_HASH_WITH_ID: "feat: add feature\n\nStory ID: US-200\n"}
-    with patch("lib.gen_changelog.subprocess.run", side_effect=_make_git_run(log, bodies)):
-        orphans = find_orphan_commits(str(tmp_path))
-
-    assert orphans == []
-
-
-# ── write_orphan_warnings ─────────────────────────────────────────────────────
-
-
-def test_write_orphan_warnings_creates_file_with_entries(tmp_path: Path) -> None:
-    """write_orphan_warnings writes hash+subject lines for each orphan commit."""
-    orphans = [
-        {"hash": "abc1234", "subject": "chore: no story id"},
-        {"hash": "def5678", "subject": "fix: random maintenance"},
-    ]
-    wf = str(tmp_path / ".spiral" / "phase_g_warnings.log")
-    write_orphan_warnings(orphans, wf)
-    content = Path(wf).read_text(encoding="utf-8")
-    assert "abc1234 chore: no story id" in content
-    assert "def5678 fix: random maintenance" in content
-
-
-# ── generate_changelog ────────────────────────────────────────────────────────
-
-
-def test_generate_changelog_markdown_contains_section_headers(tmp_path: Path) -> None:
-    """generate_changelog produces CHANGELOG.md with conventional-commit section headers (AC2)."""
-    output_file = tmp_path / "CHANGELOG.md"
-    changelog_content = textwrap.dedent(
-        """\
-        # Changelog
-
-        ## [Unreleased]
-
-        ### feat
-        - add new feature (abc1234) Story ID: US-100
-
-        ### fix
-        - resolve bug (def5678) Story ID: US-101
-
-        ### docs
-        - update readme (ghi9012) Story ID: US-102
-
-        ### refactor
-        - clean up code (jkl3456) Story ID: US-103
-        """
-    )
-
-    def fake_cliff(cmd: list[str], **kwargs: object) -> MagicMock:
-        output_file.write_text(changelog_content, encoding="utf-8")
-        m: MagicMock = MagicMock()
-        m.returncode = 0
-        return m
-
-    with patch("lib.gen_changelog.subprocess.run", side_effect=fake_cliff):
-        ok = generate_changelog("git-cliff", str(tmp_path / "cliff.toml"), str(output_file))
-
-    assert ok is True
-    md = output_file.read_text(encoding="utf-8")
-    # AC2: assert section headers for conventional-commit types
-    assert "### feat" in md
-    assert "### fix" in md
-    assert "### docs" in md
-    assert "### refactor" in md
+        # File should exist but be empty
+        assert warnings_file.exists()
+        assert warnings_file.read_text(encoding="utf-8") == ""

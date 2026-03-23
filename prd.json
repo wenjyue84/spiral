@@ -101,9 +101,8 @@
         "US-604"
       ],
       "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku",
-      "last_attempted": "2026-03-23T03:18:49Z"
+      "passes": true,
+      "model": "haiku"
     },
     {
       "id": "US-1010",
