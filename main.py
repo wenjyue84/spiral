@@ -23,6 +23,7 @@ Subcommands:
   complexity-trend        Analyze story retry & duration patterns across iterations (US-537)
   show-blockers           Analyze story dependency graph and critical paths (US-538)
   show-slowest-stories    Identify bottleneck stories by total duration (US-712)
+  show-dead-features      List all detected dead features across stories (US-1006)
   replay                  Re-run a failed phase with DEBUG=1 and full state capture (US-539)
   phase-timing-report     Generate phase timing report with SLA breach analysis (US-546)
   analyze-failures        Categorize retry failure root causes and recommend tuning (US-547)
@@ -2073,6 +2074,68 @@ def cmd_show_slowest_stories(args: argparse.Namespace) -> None:
     print(output)
 
 
+def cmd_show_dead_features(args: argparse.Namespace) -> None:
+    """List all detected dead features across stories (US-1006).
+
+    Usage: spiral show-dead-features [--prd prd.json] [--format json|table]
+
+    Displays functions/classes that were added but never imported or called.
+    """
+    prd_path = Path(getattr(args, "prd_file", None) or "prd.json")
+    if not prd_path.is_absolute():
+        prd_path = Path.cwd() / prd_path
+
+    if not prd_path.exists():
+        print(f"Error: {prd_path} not found", file=sys.stderr)
+        sys.exit(1)
+
+    stories = _load_prd(prd_path)
+    fmt = getattr(args, "format", "table")
+
+    # Collect all dead features across stories
+    all_dead_features: dict[str, list[dict]] = {}
+    total_dead_count = 0
+
+    for story in stories:
+        dead_features_data = story.get("_deadFeatures")
+        if dead_features_data and isinstance(dead_features_data, dict):
+            dead_list = dead_features_data.get("dead_features", [])
+            if dead_list:
+                all_dead_features[story["id"]] = dead_list
+                total_dead_count += len(dead_list)
+
+    if fmt == "json":
+        # JSON output
+        output = {
+            "total_dead_features": total_dead_count,
+            "stories_with_dead_features": len(all_dead_features),
+            "dead_features_by_story": all_dead_features,
+        }
+        print(json.dumps(output, indent=2))
+    else:
+        # Table output (default)
+        if not all_dead_features:
+            print("✓ No dead features detected")
+            return
+
+        print(f"\n📊 Dead Features Report ({total_dead_count} total)")
+        print("=" * 80)
+
+        for story_id, features in sorted(all_dead_features.items()):
+            print(f"\n  {story_id}: {len(features)} dead feature(s)")
+            for feature in features:
+                name = feature.get("name", "?")
+                file_path = feature.get("file", "?")
+                line_num = feature.get("line", "?")
+                definition = feature.get("definition", "")
+                print(f"    • {name} @ {file_path}:{line_num}")
+                if definition and definition.strip():
+                    print(f"      {definition.strip()}")
+
+        print(f"\n{'=' * 80}")
+        print(f"Total: {total_dead_count} dead features in {len(all_dead_features)} stories")
+
+
 def cmd_replay(args) -> None:
     """Re-run a SPIRAL phase with DEBUG=1 and full state capture (US-539).
 
@@ -3256,6 +3319,25 @@ def main():
         help="Output format: json or table (default: table)",
     )
 
+    # ── show-dead-features subcommand (US-1006) ──────────────────────────────────
+    dead_features_parser = subparsers.add_parser(
+        "show-dead-features",
+        help="List all detected dead features across stories (US-1006)",
+    )
+    dead_features_parser.add_argument(
+        "--prd",
+        dest="prd_file",
+        default="prd.json",
+        metavar="PATH",
+        help="Path to prd.json (default: prd.json)",
+    )
+    dead_features_parser.add_argument(
+        "--format",
+        choices=["json", "table"],
+        default="table",
+        help="Output format: json or table (default: table)",
+    )
+
     # ── replay subcommand (US-539) ───────────────────────────────────────────────
     replay_parser = subparsers.add_parser(
         "replay",
@@ -4009,6 +4091,8 @@ def main():
         cmd_show_slowest_stories(args)
     elif args.command == "show-ac-results":
         cmd_show_ac_results(args)
+    elif args.command == "show-dead-features":
+        cmd_show_dead_features(args)
     elif args.command == "replay":
         cmd_replay(args)
     elif args.command == "analyze-batch-potential":

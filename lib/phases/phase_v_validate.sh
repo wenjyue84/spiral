@@ -431,6 +431,64 @@ PYEOF
       fi
     fi
 
+    # ── Dead Feature Detector (US-1006) ─────────────────────────────────────
+    # After tests pass, scan newly added functions/classes for dead features.
+    # A dead feature is a function/class defined but never imported/called.
+    if [[ "$_VALIDATE_EXIT" -eq 0 ]]; then
+      echo "  [V] Scanning for dead features in newly added code..."
+
+      # For each newly passed story, run dead feature detection
+      _DEAD_FEATURES_FOUND=0
+      mapfile -t _NEWLY_PASSED_STORIES < <(
+        "$JQ" -r '.userStories[] | select(.passes == true) | .id' "$PRD_FILE" 2>/dev/null || true
+      ) || true
+
+      for _story_id in "${_NEWLY_PASSED_STORIES[@]}"; do
+        # Get filesTouch entries for this story
+        _FILES_TOUCHED_STR=$("$JQ" -r --arg id "$_story_id" \
+          '.userStories[] | select(.id == $id) | .filesTouch // [] | join(" ")' \
+          "$PRD_FILE" 2>/dev/null || echo "")
+
+        if [[ -n "$_FILES_TOUCHED_STR" ]]; then
+          # Run dead feature detector
+          _DEAD_FEATURES_RESULT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/dead_feature_detector.py" \
+            --story-id "$_story_id" \
+            --changed-files $_FILES_TOUCHED_STR \
+            --repo-root "$REPO_ROOT" 2>&1 || echo '{"story_id":"'$_story_id'","total_features":0,"dead_features":[]}')
+
+          # Extract dead features count
+          _DEAD_COUNT=$(echo "$_DEAD_FEATURES_RESULT" | "$JQ" '.total_features // 0' 2>/dev/null || echo 0)
+
+          # Store results in story _deadFeatures field
+          if [[ "$_DEAD_COUNT" -gt 0 ]]; then
+            "$JQ" --arg id "$_story_id" \
+              --argjson results "$_DEAD_FEATURES_RESULT" \
+              '(.userStories[] | select(.id == $id) | ._deadFeatures) = $results' \
+              "$PRD_FILE" >"$PRD_FILE.tmp" 2>/dev/null && mv "$PRD_FILE.tmp" "$PRD_FILE" || true
+
+            echo "  [V] Dead features detected in $_story_id: $_DEAD_COUNT features"
+            _DEAD_FEATURES_FOUND=1
+            log_spiral_event "phase_v_dead_features" \
+              "\"story_id\":\"$_story_id\",\"count\":$_DEAD_COUNT,\"iteration\":$SPIRAL_ITER"
+
+            # Hard block if SPIRAL_STRICT_DEAD_FEATURE is enabled
+            if [[ "${SPIRAL_STRICT_DEAD_FEATURE:-false}" == "true" ]]; then
+              echo "  [V] FAIL: Dead features detected and SPIRAL_STRICT_DEAD_FEATURE=true"
+              _VALIDATE_EXIT=1
+              break
+            else
+              echo "  [V] WARN: Dead features detected (soft warning; set SPIRAL_STRICT_DEAD_FEATURE=true to block)"
+            fi
+          fi
+        fi
+      done
+
+      if [[ "$_DEAD_FEATURES_FOUND" -eq 1 && "_VALIDATE_EXIT" -eq 0 ]]; then
+        log_spiral_event "phase_v_dead_features_warning" \
+          "\"total_stories_checked\":${#_NEWLY_PASSED_STORIES[@]},\"iteration\":$SPIRAL_ITER"
+      fi
+    fi
+
     write_checkpoint "$SPIRAL_ITER" "V"
   fi
   run_phase_hook POST "V" || true

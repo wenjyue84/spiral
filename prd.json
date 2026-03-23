@@ -11,6 +11,210 @@
   ],
   "userStories": [
     {
+      "title": "Phase V: Dead Feature Detector - Find Unreachable New Code After Implementation",
+      "priority": "high",
+      "description": "After Phase V tests pass, scan new Python functions/classes added by the story. If a function is only defined but never imported or called from any entry point (spiral.sh, main.py, tests), flag it as a dead feature. Prevents 'code exists but does nothing' implementations.",
+      "acceptanceCriteria": [
+        "lib/dead_feature_detector.py exists with detect_dead_features(story_id, changed_files) returning list of DeadFeature(name, file, line)",
+        "Extracts new function/class definitions from git diff (def xxx, class xxx patterns)",
+        "Searches entire codebase for references to each new symbol; symbols found only at definition site are dead features",
+        "Excludes test_ functions (discovered by pytest) and __init__.py re-exports from dead feature detection",
+        "Phase V in spiral.sh calls dead_feature_detector after pytest; dead features recorded in story _deadFeatures field",
+        "Default soft warning (no block); SPIRAL_STRICT_DEAD_FEATURE=true in spiral.config.sh enables hard block",
+        "CLI command spiral show-dead-features lists all detected dead features across stories",
+        "Unit test: function defined in lib/foo.py but never imported anywhere is detected as dead"
+      ],
+      "technicalNotes": [
+        "File to create: lib/dead_feature_detector.py",
+        "File to edit: spiral.sh Phase V section",
+        "File to edit: spiral.config.sh (add SPIRAL_STRICT_DEAD_FEATURE=false)",
+        "File to edit: main.py (add show-dead-features subcommand)",
+        "Use subprocess git diff + grep for symbol detection"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "core-flow",
+        "phase-v",
+        "quality-gate"
+      ],
+      "id": "US-1006",
+      "passes": false,
+      "model": "haiku",
+      "last_attempted": "2026-03-23T01:50:06Z"
+    },
+    {
+      "title": "Phase V: Functional Reachability Verifier - Confirm New Code is Wired into the Loop",
+      "priority": "high",
+      "description": "For Phase-enhancement stories (title contains 'Phase X:'), verify that new Python modules are actually called from spiral.sh in the corresponding phase section. Catches implementations that exist but are never integrated into the autonomous loop.",
+      "acceptanceCriteria": [
+        "lib/reachability_verifier.py exists with verify_reachability(story, changed_files) returning {reachable: bool, call_sites: list, missing: list}",
+        "Parses story title to extract target phase (e.g. 'Phase E:' maps to Phase E section in spiral.sh)",
+        "Searches spiral.sh and main.py for calls to new Python modules (python/uv run patterns, import statements)",
+        "reachable=false when new module has zero call sites in any entry point",
+        "Phase V in spiral.sh calls reachability_verifier; results recorded in story _reachabilityCheck field",
+        "Default soft warning; SPIRAL_STRICT_REACHABILITY=true enables hard block",
+        "Unit test: Phase E story adds lib/foo.py but spiral.sh has no call to it -> detected as unreachable",
+        "Unit test: spiral.sh contains 'uv run python lib/foo.py' -> detected as reachable"
+      ],
+      "technicalNotes": [
+        "File to create: lib/reachability_verifier.py",
+        "File to edit: spiral.sh Phase V section",
+        "File to edit: spiral.config.sh (add SPIRAL_STRICT_REACHABILITY=false)",
+        "Regex for phase section detection in spiral.sh: Phase [A-Z] comment blocks",
+        "Non-phase stories (CLI tools, dashboard) skip this check"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "core-flow",
+        "phase-v",
+        "quality-gate"
+      ],
+      "id": "US-1007",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "title": "Phase C: Phase Timing Baseline and Regression Detector",
+      "priority": "high",
+      "description": "Record execution time baseline (P50/P90) for each SPIRAL phase from the last 10 iterations. After each iteration, check if any phase exceeded 2x its P90 baseline. Flags performance regression before it compounds across iterations.",
+      "acceptanceCriteria": [
+        "lib/perf_baseline.py exists with update_baseline(phase_timings) and check_regression(current_timings, baseline) functions",
+        "Baseline stored in .spiral/perf_baseline.json: per-phase P50 and P90 from last 10 iterations (rolling window)",
+        "Regression detected when current_duration > P90 * SPIRAL_PERF_REGRESSION_MULTIPLIER (default 2.0)",
+        "First run with no baseline: records timing data only, no regression check",
+        "Phase C in spiral.sh calls check_regression before loop continuation; results in .spiral/perf_regression_report.json",
+        "Default soft warning with log: 'Phase I regression: 833s (P90: 400s, 2.1x)'; SPIRAL_STRICT_PERF_CHECK=true enables hard block",
+        "CLI command spiral show-perf-baseline displays per-phase P50/P90 timing baselines",
+        "Unit test: Phase I at 900s with P90=400s (2.25x) detected as regression; 600s (1.5x) is not"
+      ],
+      "technicalNotes": [
+        "File to create: lib/perf_baseline.py",
+        "File to edit: spiral.sh Phase C section",
+        "File to edit: spiral.config.sh (add SPIRAL_PERF_REGRESSION_MULTIPLIER=2.0)",
+        "File to edit: main.py (add show-perf-baseline subcommand)",
+        "Phase timings already collected in _iteration_summary.json; reuse that data"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "core-flow",
+        "phase-c",
+        "quality-gate"
+      ],
+      "id": "US-1008",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1009",
+      "title": "[Integration Test] gen_changelog.py: CHANGELOG generation from story commits",
+      "priority": "high",
+      "description": "Write integration tests for lib/gen_changelog.py (implemented in US-604). Tests must cover parsing commit messages for story IDs (US-NNN, UT-NNN), categorising by conventional-commit type, producing markdown sections, and warning on commits with no story ID.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_gen_changelog.py -v passes with at least one happy-path test and one edge-case test",
+        "Tests do not require external services, network access, or a real git repository",
+        "A commit with no story ID triggers a warning (assert logged or returned in result)"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_gen_changelog.py (new file — test generate_changelog or equivalent public function)",
+        "File to edit: lib/gen_changelog.py (read first; mock git calls with monkeypatch or tmp_path fixtures)",
+        "Test command: uv run pytest tests/test_gen_changelog.py -v",
+        "Use pytest tmp_path or a fixture that provides a fake list of commit dicts; do not shell out to git"
+      ],
+      "dependencies": [
+        "US-604"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1010",
+      "title": "[Security Test] Phase I: File-Aware Retry — Block Unauthorized Access",
+      "priority": "high",
+      "description": "Write security tests verifying that the file-aware retry logic introduced in US-597 does not expose sensitive data or allow unauthorized access. Tests should confirm that retry state files and results TSV are not readable by unauthorized callers and that error responses never leak tokens or passwords.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_file_aware_retry.py -k security -v exits 0 with at least one passing test",
+        "Error responses from retry logic contain no token, password, or secret strings: uv run pytest tests/test_file_aware_retry.py -k no_leak -v",
+        "Retry state written to disk is not world-readable: uv run python -c \"import stat, os; m=os.stat('lib/impl/file_aware_retry.py').st_mode; assert not (m & stat.S_IROTH)\" || true",
+        "uv run pytest tests/test_file_aware_retry.py tests/test_results_tsv.py -v exits 0"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_file_aware_retry.py (add security test class TestFileAwareRetrySecurity)",
+        "File to edit: tests/test_results_tsv.py (add test_no_sensitive_data_in_tsv)",
+        "Test command: uv run pytest tests/test_file_aware_retry.py tests/test_results_tsv.py -v",
+        "Test command: uv run pytest tests/test_file_aware_retry.py -k security -v",
+        "Check that retry error messages are sanitized before being written to results.tsv or logged"
+      ],
+      "dependencies": [
+        "US-597"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1011",
+      "title": "Security Test: Verify CI workflow files have minimal permissions and pinned actions",
+      "priority": "high",
+      "description": "Write pytest-based security tests that statically analyse the GitHub Actions workflow and action YAML files introduced or modified in US-460. Tests confirm that actions are pinned to full commit SHAs (no floating tags), workflow-level permissions are explicitly scoped to least-privilege, and no plaintext secrets or tokens appear in any workflow file.",
+      "acceptanceCriteria": [
+        "All workflow YAML files under .github/ declare explicit `permissions:` blocks with no `write-all` scope: `uv run pytest tests/test_security_ci_workflows.py::test_workflows_have_explicit_permissions -v` exits 0",
+        "Every `uses:` action reference in .github/ is pinned to a full 40-char commit SHA (not a branch or semver tag): `uv run pytest tests/test_security_ci_workflows.py::test_actions_pinned_to_sha -v` exits 0",
+        "No YAML file under .github/ contains a bare secret string matching common patterns (password=, token=, api_key=): `uv run pytest tests/test_security_ci_workflows.py::test_no_plaintext_secrets -v` exits 0"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_security_ci_workflows.py (new file — create it)",
+        "Glob target files: glob.glob('.github/**/*.yml', recursive=True) + glob.glob('.github/**/*.yaml', recursive=True)",
+        "Parse YAML with PyYAML (already available via uv); do not shell-exec workflow files",
+        "For SHA-pin check: regex r'uses:\\s+[^@]+@([0-9a-f]{40})' must match every `uses:` line",
+        "For permissions check: load top-level `permissions` key per workflow; assert value is a dict (not the string 'write-all')",
+        "Test command: uv run pytest tests/test_security_ci_workflows.py -v",
+        "Test command (full suite): uv run pytest tests/ -v --tb=short"
+      ],
+      "dependencies": [
+        "US-460"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "security",
+        "auto-generated"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-1012",
+      "title": "[Integration Test] Verify episodic memory store for Ralph workers (US-350)",
+      "priority": "high",
+      "description": "Write integration tests for the SQLite FTS5 episodic memory store introduced in US-350. Tests must cover the happy path (store a 'story-type → approach → outcome' record and retrieve top-3 relevant results via FTS5 search) and at least one error/edge case (empty store or duplicate entry). All tests must run with pytest fixtures only — no external services or manual setup.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_episodic_memory.py -v -k us_350 exits 0 with ≥1 happy-path test covering store + FTS5 retrieve",
+        "uv run pytest tests/test_episodic_memory.py -v -k us_350 exits 0 with ≥1 edge-case test (empty store returns [] without raising)",
+        "uv run pytest tests/test_episodic_memory.py -v -k us_350 completes in a clean environment with no external services"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_episodic_memory.py (new file — integration tests for US-350; name test functions with 'us_350' so -k filter matches)",
+        "File to reference: locate the US-350 module via: grep -r 'episodic' lib/ --include='*.py' -l",
+        "Test command: uv run pytest tests/test_episodic_memory.py -v -k us_350",
+        "Use tmp_path pytest fixture for an isolated SQLite DB per test — avoids shared state",
+        "Happy-path test: insert 3+ records, query a related string, assert top-3 results returned in relevance order",
+        "Edge-case test: query against empty FTS5 table, assert empty list returned (not an exception)"
+      ],
+      "dependencies": [
+        "US-350"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "integration",
+        "auto-generated"
+      ],
+      "model": "haiku"
+    },
+    {
       "id": "US-773",
       "title": "Phase R: Semantic Query Dedup - Skip Research When Query Matches Prior Cache",
       "priority": "medium",
@@ -78,79 +282,6 @@
       "tags": [
         "core-flow",
         "phase-e"
-      ],
-      "model": "haiku"
-    },
-    {
-      "id": "US-780",
-      "title": "Phase M: Source-Aware Merge Weighting - Prioritize Sources with Higher Pass Rates",
-      "priority": "medium",
-      "description": "Track pass rate by _source field. Use historical pass rates to weight merge priority so higher-success sources get merged first.",
-      "acceptanceCriteria": [
-        "Phase M calculates pass rate per _source from all stories before merging new candidates",
-        "Within same priority tier, stories from higher-pass-rate sources are merged first",
-        "Log shows source weights with pass rate percentages",
-        "Unit test verifies research story (80% rate) merged before ai-example (40%) at same priority"
-      ],
-      "technicalNotes": [
-        "File to edit: lib/merge_stories.py"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "tags": [
-        "core-flow",
-        "phase-m"
-      ],
-      "model": "haiku"
-    },
-    {
-      "id": "US-781",
-      "title": "Phase X: Context Explosion Guard - Cap and Summarize When Story Touches 15+ Files",
-      "priority": "medium",
-      "description": "When dependency inference finds >15 files, summarize with file paths + key function signatures instead of full content injection, preventing context window overflow.",
-      "acceptanceCriteria": [
-        "Phase X detects stories exceeding SPIRAL_CONTEXT_FILE_CAP (default 15) files",
-        "Oversized contexts get summarized: file paths + top 3 function signatures per file",
-        "Log warning about context explosion with file count",
-        "Unit test verifies a 20-file story gets summarized context"
-      ],
-      "technicalNotes": [
-        "File to create: lib/context_summarizer.py",
-        "File to edit: spiral.sh Phase X",
-        "Config: SPIRAL_CONTEXT_FILE_CAP in spiral.config.sh"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "tags": [
-        "core-flow",
-        "phase-x"
-      ],
-      "model": "haiku"
-    },
-    {
-      "id": "US-784",
-      "title": "Phase C: Partial Completion Report - Exit with Diagnostic When Stuck Stories Remain",
-      "priority": "medium",
-      "description": "Exit after N zero-progress iterations with structured diagnostic: what passed, what is stuck, and root-cause guess per stuck story.",
-      "acceptanceCriteria": [
-        "Phase C tracks consecutive zero-progress iterations",
-        "After SPIRAL_MAX_STUCK_ITERATIONS (default 5) zero-progress iterations, exit with .spiral/completion_report.json",
-        "Report includes: total passed, stuck story IDs with retry counts, suggested actions",
-        "Unit test verifies exit after 5 zero-progress iterations with correct report"
-      ],
-      "technicalNotes": [
-        "File to create: lib/completion_report.py",
-        "File to edit: spiral.sh Phase C",
-        "Note: enhances existing SPIRAL_CONSECUTIVE_FAIL_ABORT with diagnostic report"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "tags": [
-        "core-flow",
-        "phase-c"
       ],
       "model": "haiku"
     },
@@ -2216,6 +2347,105 @@
         "phase-a"
       ],
       "model": "sonnet"
+    },
+    {
+      "title": "Phase V: AC Assertion Extractor - Parse Acceptance Criteria into Executable Checks",
+      "priority": "high",
+      "description": "Extract executable verification assertions from AC text (e.g. 'exits 0', 'file X exists', 'JSON contains field Y'). Generate per-story assertion files that can be programmatically verified, closing the gap between 'tests pass' and 'AC actually satisfied'.",
+      "acceptanceCriteria": [
+        "lib/ac_assertion_extractor.py exists with extract_assertions(story) returning list of Assertion objects with type, command, expected_result fields",
+        "Supports 5 assertion patterns: exit_code (exits 0), file_exists (File to create: X), test_command (uv run pytest X), json_field (contains field Y), log_grep (log entry/output matching)",
+        "ACs that cannot be parsed into executable assertions are tagged manual_review (not silently skipped)",
+        "Output written to .spiral/ac_checks/{story_id}.json with assertion list and extraction metadata",
+        "Unit test verifies correct extraction of 3+ assertion types from real AC text samples",
+        "Unit test verifies unparseable AC is tagged manual_review with original text preserved"
+      ],
+      "technicalNotes": [
+        "File to create: lib/ac_assertion_extractor.py",
+        "Regex patterns for each assertion type; order matters (most specific first)",
+        "Assertion dataclass: {type, raw_ac, command, expected, extracted: bool}"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "core-flow",
+        "phase-v",
+        "quality-gate"
+      ],
+      "id": "US-1004",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "title": "Phase V: AC Verification Runner - Execute Extracted Assertions Post-Implementation",
+      "priority": "high",
+      "description": "After pytest passes in Phase V, run an additional AC assertion verification pass. Execute each extracted assertion independently, report per-AC pass/fail results, and fail the story if zero assertions pass.",
+      "acceptanceCriteria": [
+        "lib/ac_verification_runner.py exists with run_assertions(story_id, assertions_file) returning {passed: int, failed: int, skipped: int, details: list}",
+        "Each assertion executes independently with 30s timeout; one failure does not skip others",
+        "Results written to story _acVerification field: {total, passed, failed, skipped, details}",
+        "Phase V in spiral.sh calls ac_verification_runner after pytest passes; if failed > 0 and passed == 0: story fails; if mixed: warn but allow; if all skipped: no effect",
+        "SPIRAL_AC_VERIFY config in spiral.config.sh (default true) controls whether AC verification runs",
+        "CLI command spiral show-ac-results {story_id} displays per-AC verification results",
+        "Unit test: 3 assertions (2 pass, 1 fail) produces correct result counts and does not crash"
+      ],
+      "technicalNotes": [
+        "File to create: lib/ac_verification_runner.py",
+        "File to edit: spiral.sh Phase V section",
+        "File to edit: spiral.config.sh (add SPIRAL_AC_VERIFY=true)",
+        "File to edit: main.py (add show-ac-results subcommand)",
+        "Uses subprocess.run with timeout=30 for command assertions"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "core-flow",
+        "phase-v",
+        "quality-gate"
+      ],
+      "id": "US-1005",
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-03-23T01:10:22Z",
+      "_acVerification": {
+        "story_id": "US-1005",
+        "total": 3,
+        "passed": 2,
+        "failed": 1,
+        "skipped": 0,
+        "details": [
+          {
+            "index": 0,
+            "type": "exit_code",
+            "raw_ac": "exits with 0",
+            "command": "exit 0",
+            "status": "passed",
+            "return_code": 0,
+            "stdout": "",
+            "stderr": ""
+          },
+          {
+            "index": 1,
+            "type": "exit_code",
+            "raw_ac": "exits with 1",
+            "command": "exit 1",
+            "status": "failed",
+            "return_code": 1,
+            "stdout": "",
+            "stderr": ""
+          },
+          {
+            "index": 2,
+            "type": "file_exists",
+            "raw_ac": "file exists",
+            "command": "test -f /etc/hosts",
+            "status": "passed",
+            "return_code": 0,
+            "stdout": "",
+            "stderr": ""
+          }
+        ]
+      }
     },
     {
       "id": "US-1001",
@@ -5598,201 +5828,6 @@
         "contextWindow": 10
       },
       "tags": []
-    },
-    {
-      "title": "Phase V: AC Assertion Extractor - Parse Acceptance Criteria into Executable Checks",
-      "priority": "high",
-      "description": "Extract executable verification assertions from AC text (e.g. 'exits 0', 'file X exists', 'JSON contains field Y'). Generate per-story assertion files that can be programmatically verified, closing the gap between 'tests pass' and 'AC actually satisfied'.",
-      "acceptanceCriteria": [
-        "lib/ac_assertion_extractor.py exists with extract_assertions(story) returning list of Assertion objects with type, command, expected_result fields",
-        "Supports 5 assertion patterns: exit_code (exits 0), file_exists (File to create: X), test_command (uv run pytest X), json_field (contains field Y), log_grep (log entry/output matching)",
-        "ACs that cannot be parsed into executable assertions are tagged manual_review (not silently skipped)",
-        "Output written to .spiral/ac_checks/{story_id}.json with assertion list and extraction metadata",
-        "Unit test verifies correct extraction of 3+ assertion types from real AC text samples",
-        "Unit test verifies unparseable AC is tagged manual_review with original text preserved"
-      ],
-      "technicalNotes": [
-        "File to create: lib/ac_assertion_extractor.py",
-        "Regex patterns for each assertion type; order matters (most specific first)",
-        "Assertion dataclass: {type, raw_ac, command, expected, extracted: bool}"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "tags": [
-        "core-flow",
-        "phase-v",
-        "quality-gate"
-      ],
-      "id": "US-1004",
-      "passes": true,
-      "model": "haiku"
-    },
-    {
-      "title": "Phase V: AC Verification Runner - Execute Extracted Assertions Post-Implementation",
-      "priority": "high",
-      "description": "After pytest passes in Phase V, run an additional AC assertion verification pass. Execute each extracted assertion independently, report per-AC pass/fail results, and fail the story if zero assertions pass.",
-      "acceptanceCriteria": [
-        "lib/ac_verification_runner.py exists with run_assertions(story_id, assertions_file) returning {passed: int, failed: int, skipped: int, details: list}",
-        "Each assertion executes independently with 30s timeout; one failure does not skip others",
-        "Results written to story _acVerification field: {total, passed, failed, skipped, details}",
-        "Phase V in spiral.sh calls ac_verification_runner after pytest passes; if failed > 0 and passed == 0: story fails; if mixed: warn but allow; if all skipped: no effect",
-        "SPIRAL_AC_VERIFY config in spiral.config.sh (default true) controls whether AC verification runs",
-        "CLI command spiral show-ac-results {story_id} displays per-AC verification results",
-        "Unit test: 3 assertions (2 pass, 1 fail) produces correct result counts and does not crash"
-      ],
-      "technicalNotes": [
-        "File to create: lib/ac_verification_runner.py",
-        "File to edit: spiral.sh Phase V section",
-        "File to edit: spiral.config.sh (add SPIRAL_AC_VERIFY=true)",
-        "File to edit: main.py (add show-ac-results subcommand)",
-        "Uses subprocess.run with timeout=30 for command assertions"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "tags": [
-        "core-flow",
-        "phase-v",
-        "quality-gate"
-      ],
-      "id": "US-1005",
-      "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-03-23T01:10:22Z",
-      "_acVerification": {
-        "story_id": "US-1005",
-        "total": 3,
-        "passed": 2,
-        "failed": 1,
-        "skipped": 0,
-        "details": [
-          {
-            "index": 0,
-            "type": "exit_code",
-            "raw_ac": "exits with 0",
-            "command": "exit 0",
-            "status": "passed",
-            "return_code": 0,
-            "stdout": "",
-            "stderr": ""
-          },
-          {
-            "index": 1,
-            "type": "exit_code",
-            "raw_ac": "exits with 1",
-            "command": "exit 1",
-            "status": "failed",
-            "return_code": 1,
-            "stdout": "",
-            "stderr": ""
-          },
-          {
-            "index": 2,
-            "type": "file_exists",
-            "raw_ac": "file exists",
-            "command": "test -f /etc/hosts",
-            "status": "passed",
-            "return_code": 0,
-            "stdout": "",
-            "stderr": ""
-          }
-        ]
-      }
-    },
-    {
-      "title": "Phase V: Dead Feature Detector - Find Unreachable New Code After Implementation",
-      "priority": "high",
-      "description": "After Phase V tests pass, scan new Python functions/classes added by the story. If a function is only defined but never imported or called from any entry point (spiral.sh, main.py, tests), flag it as a dead feature. Prevents 'code exists but does nothing' implementations.",
-      "acceptanceCriteria": [
-        "lib/dead_feature_detector.py exists with detect_dead_features(story_id, changed_files) returning list of DeadFeature(name, file, line)",
-        "Extracts new function/class definitions from git diff (def xxx, class xxx patterns)",
-        "Searches entire codebase for references to each new symbol; symbols found only at definition site are dead features",
-        "Excludes test_ functions (discovered by pytest) and __init__.py re-exports from dead feature detection",
-        "Phase V in spiral.sh calls dead_feature_detector after pytest; dead features recorded in story _deadFeatures field",
-        "Default soft warning (no block); SPIRAL_STRICT_DEAD_FEATURE=true in spiral.config.sh enables hard block",
-        "CLI command spiral show-dead-features lists all detected dead features across stories",
-        "Unit test: function defined in lib/foo.py but never imported anywhere is detected as dead"
-      ],
-      "technicalNotes": [
-        "File to create: lib/dead_feature_detector.py",
-        "File to edit: spiral.sh Phase V section",
-        "File to edit: spiral.config.sh (add SPIRAL_STRICT_DEAD_FEATURE=false)",
-        "File to edit: main.py (add show-dead-features subcommand)",
-        "Use subprocess git diff + grep for symbol detection"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "tags": [
-        "core-flow",
-        "phase-v",
-        "quality-gate"
-      ],
-      "id": "US-1006",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "title": "Phase V: Functional Reachability Verifier - Confirm New Code is Wired into the Loop",
-      "priority": "high",
-      "description": "For Phase-enhancement stories (title contains 'Phase X:'), verify that new Python modules are actually called from spiral.sh in the corresponding phase section. Catches implementations that exist but are never integrated into the autonomous loop.",
-      "acceptanceCriteria": [
-        "lib/reachability_verifier.py exists with verify_reachability(story, changed_files) returning {reachable: bool, call_sites: list, missing: list}",
-        "Parses story title to extract target phase (e.g. 'Phase E:' maps to Phase E section in spiral.sh)",
-        "Searches spiral.sh and main.py for calls to new Python modules (python/uv run patterns, import statements)",
-        "reachable=false when new module has zero call sites in any entry point",
-        "Phase V in spiral.sh calls reachability_verifier; results recorded in story _reachabilityCheck field",
-        "Default soft warning; SPIRAL_STRICT_REACHABILITY=true enables hard block",
-        "Unit test: Phase E story adds lib/foo.py but spiral.sh has no call to it -> detected as unreachable",
-        "Unit test: spiral.sh contains 'uv run python lib/foo.py' -> detected as reachable"
-      ],
-      "technicalNotes": [
-        "File to create: lib/reachability_verifier.py",
-        "File to edit: spiral.sh Phase V section",
-        "File to edit: spiral.config.sh (add SPIRAL_STRICT_REACHABILITY=false)",
-        "Regex for phase section detection in spiral.sh: Phase [A-Z] comment blocks",
-        "Non-phase stories (CLI tools, dashboard) skip this check"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "tags": [
-        "core-flow",
-        "phase-v",
-        "quality-gate"
-      ],
-      "id": "US-1007",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "title": "Phase C: Phase Timing Baseline and Regression Detector",
-      "priority": "high",
-      "description": "Record execution time baseline (P50/P90) for each SPIRAL phase from the last 10 iterations. After each iteration, check if any phase exceeded 2x its P90 baseline. Flags performance regression before it compounds across iterations.",
-      "acceptanceCriteria": [
-        "lib/perf_baseline.py exists with update_baseline(phase_timings) and check_regression(current_timings, baseline) functions",
-        "Baseline stored in .spiral/perf_baseline.json: per-phase P50 and P90 from last 10 iterations (rolling window)",
-        "Regression detected when current_duration > P90 * SPIRAL_PERF_REGRESSION_MULTIPLIER (default 2.0)",
-        "First run with no baseline: records timing data only, no regression check",
-        "Phase C in spiral.sh calls check_regression before loop continuation; results in .spiral/perf_regression_report.json",
-        "Default soft warning with log: 'Phase I regression: 833s (P90: 400s, 2.1x)'; SPIRAL_STRICT_PERF_CHECK=true enables hard block",
-        "CLI command spiral show-perf-baseline displays per-phase P50/P90 timing baselines",
-        "Unit test: Phase I at 900s with P90=400s (2.25x) detected as regression; 600s (1.5x) is not"
-      ],
-      "technicalNotes": [
-        "File to create: lib/perf_baseline.py",
-        "File to edit: spiral.sh Phase C section",
-        "File to edit: spiral.config.sh (add SPIRAL_PERF_REGRESSION_MULTIPLIER=2.0)",
-        "File to edit: main.py (add show-perf-baseline subcommand)",
-        "Phase timings already collected in _iteration_summary.json; reuse that data"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "tags": [
-        "core-flow",
-        "phase-c",
-        "quality-gate"
-      ],
-      "id": "US-1008",
-      "passes": false,
-      "model": "haiku"
     }
   ]
 }

@@ -1071,3 +1071,32 @@ Here is a concise technical brief for implementing the semantic query cache feat
 *   **TTL:** Ensure the TTL logic correctly prunes entries older than the configured number of iterations.
 *   **Dependencies:** Confirm the TF-IDF utility in `lib/merge_stories.py` can be easily reused or adapted without side effects.
 
+
+## Pre-analysis for US-1006 (Gemini 2.5 Pro)
+This technical brief outlines the implementation plan for the "Dead Feature Detector" story.
+
+**Project Scope:** This is a Python/Shell scripting task for a CI tool, not a Frappe project. No Frappe DocTypes or hooks are involved.
+
+**Files to Modify:**
+*   **Create:** `lib/dead_feature_detector.py`
+*   **Modify:** `spiral.sh` (to call the detector in Phase V)
+*   **Modify:** `main.py` (to add a `show-dead-features` CLI command)
+*   **Modify:** `spiral.config.sh` (to add the `SPIRAL_STRICT_DEAD_FEATURE` flag)
+
+**Recommended Implementation Approach:**
+1.  **`lib/dead_feature_detector.py`**:
+    *   Implement `detect_dead_features(changed_files)`.
+    *   Use `subprocess` to run `git diff` on the provided files to find new lines matching `^\s*def\s+` and `^\s*class\s+`.
+    *   For each new symbol, use a robust `grep` or similar tool to search for its usage across the entire codebase.
+    *   A symbol is "dead" if it's only found at its definition site.
+2.  **`spiral.sh`**:
+    *   In the "Phase V" section, after tests pass, execute the `dead_feature_detector.py` script.
+    *   Check the value of `SPIRAL_STRICT_DEAD_FEATURE` from `spiral.config.sh` to determine if the build should fail upon detecting dead features.
+3.  **`main.py`**:
+    *   Add a `show-dead-features` subcommand that scans story files for the `_deadFeatures` field and prints a consolidated report.
+
+**Edge Cases & Gotchas:**
+*   **Dynamic Usage:** Static analysis via `grep` will miss symbols used dynamically (e.g., `getattr`), potentially leading to false positives.
+*   **Search Specificity:** Simple text searches for common function names (e.g., `run`) can cause false negatives. The search must be as precise as possible.
+*   **Exclusions:** Be careful to correctly exclude test functions (`def test_*`) and symbols re-exported in `__init__.py` files.
+

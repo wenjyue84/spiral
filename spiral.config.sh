@@ -99,6 +99,13 @@ SPIRAL_MERGE_MODEL="haiku"      # Phase M: merge decisions (future — currently
 # SPIRAL_CODEQL_BLOCKING="false"             # true = block on HIGH/CRITICAL
 # SPIRAL_CODEQL_KEEP_DB="false"              # true = keep DB for debugging
 
+# ── Dead Feature Detector (US-1006) ──────────────────────────────────────────
+# Phase V scan to find newly added functions/classes that are never imported or
+# called from the codebase. Prevents "code exists but doesn't work" implementations.
+# Default false = soft warning (logged but does not block)
+# Set to true to hard block: Phase V fails if any dead features detected
+SPIRAL_STRICT_DEAD_FEATURE="${SPIRAL_STRICT_DEAD_FEATURE:-false}"
+
 # ── Story enrichment pass (US-443) ────────────────────────────────────────────
 # After Phase S validation, optionally refine medium/sparse stories: rewrite
 # vague ACs, add exact file paths + test commands, split stories touching 3+
