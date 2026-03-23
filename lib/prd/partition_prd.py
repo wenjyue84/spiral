@@ -24,6 +24,7 @@ from typing import Any
 sys.path.insert(0, os.path.dirname(__file__))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from constants import PRIORITY_RANK
+from hot_file_registry import get_hot_files
 from prd_schema import validate_prd
 from spiral_io import configure_utf8_stdout
 from story_helpers import get_files_to_touch, priority_key
@@ -81,11 +82,15 @@ def assign_stories(
     n_workers: int,
     prd: dict[str, Any] | None = None,
     use_complexity: bool = True,
+    hot_files: set[str] | None = None,
 ) -> list[list[dict[str, Any]]]:
     """
     Assign pending stories to n worker buckets:
     1. Sort all pending stories by priority (critical first).
     2. Co-locate a story with its already-assigned pending dependency's worker.
+    2b. Hot-file co-location: if story touches a hot file (historically
+        conflict-prone), force co-locate with the worker already assigned
+        that hot file. Stronger than regular file overlap.
     3. Co-locate a story with a worker that already touches the same files.
     4a. If complexity scoring is available and n_workers >= 2: use complexity
         band round-robin to spread load (low/high bands → even workers,
@@ -97,6 +102,7 @@ def assign_stories(
 
     pending_ids = {s["id"] for s in pending}
     _prd = prd or {}
+    _hot_files = hot_files or set()
 
     # Sort by priority so high-priority stories get bucket assignment before low-priority
     pending_sorted = sorted(pending, key=priority_key)
@@ -104,6 +110,7 @@ def assign_stories(
     buckets: list[list[dict[str, Any]]] = [[] for _ in range(n_workers)]
     assignments: dict[str, int] = {}  # story_id → bucket index
     file_to_worker: dict[str, int] = {}  # file_path → bucket index
+    hot_file_to_worker: dict[str, int] = {}  # hot_file → bucket index (hard constraint)
 
     # Pre-compute complexity scores if available and beneficial
     _use_complexity_bands = use_complexity and _COMPLEXITY_AVAILABLE and n_workers >= 2
@@ -138,21 +145,31 @@ def assign_stories(
                 assigned_worker = assignments[dep_id]
                 break
 
-        # 2. File-overlap co-location: co-locate with a worker touching the same files
+        # 2b. Hot-file co-location (hard constraint): stories touching historically
+        #     conflict-prone files MUST go to the same worker as other stories
+        #     touching those hot files. Checked before regular file overlap.
         files_hint = get_files_to_touch(story)
+        if assigned_worker is None and _hot_files:
+            story_hot = files_hint & _hot_files
+            for hf in story_hot:
+                if hf in hot_file_to_worker:
+                    assigned_worker = hot_file_to_worker[hf]
+                    break
+
+        # 3. File-overlap co-location: co-locate with a worker touching the same files
         if assigned_worker is None:
             for f in files_hint:
                 if f in file_to_worker:
                     assigned_worker = file_to_worker[f]
                     break
 
-        # 3. Complexity band assignment (when no co-location constraint applies)
+        # 4. Complexity band assignment (when no co-location constraint applies)
         if assigned_worker is None and _use_complexity_bands:
             score = compute_story_complexity(story, _prd)
             band = complexity_band(score)
             assigned_worker = _band_worker(band)
 
-        # 4. Least-loaded fallback
+        # 5. Least-loaded fallback
         if assigned_worker is None:
             assigned_worker = min(range(n_workers), key=lambda i: len(buckets[i]))
 
@@ -162,6 +179,8 @@ def assign_stories(
         # Register all files for this story with the assigned worker
         for f in files_hint:
             file_to_worker.setdefault(f, assigned_worker)
+            if f in _hot_files:
+                hot_file_to_worker.setdefault(f, assigned_worker)
 
     # ── Rebalance: cap per-worker and redistribute to starving workers ──────
     max_per_worker = math.ceil(len(pending) / n_workers)
@@ -221,6 +240,8 @@ def main() -> int:
     parser.add_argument("--workers", type=int, default=0, help="Number of workers")
     parser.add_argument("--outdir", default="", help="Output directory for worker prd files")
     parser.add_argument("--federated", action="store_true", help="Enable federated sub_project-aware partitioning")
+    parser.add_argument("--hot-files-registry", default="", help="Path to .spiral/hot_files.json for hot-file co-location")
+    parser.add_argument("--hot-files-threshold", type=int, default=2, help="Min conflict weight to flag as hot")
 
     # Query modes
     parser.add_argument(
@@ -299,6 +320,13 @@ def main() -> int:
         print("[partition] No pending stories — nothing to partition")
         return 0
 
+    # ── Load hot file registry for co-location constraints ─────────────────
+    _hot: set[str] = set()
+    if args.hot_files_registry:
+        _hot = get_hot_files(args.hot_files_registry, args.hot_files_threshold)
+        if _hot:
+            print(f"[partition] Hot files loaded: {len(_hot)} file(s) above threshold {args.hot_files_threshold}")
+
     # ── Federated partitioning (group by sub_project) ──────────────────────
     os.makedirs(args.outdir, exist_ok=True)
 
@@ -331,7 +359,7 @@ def main() -> int:
             )
 
             # Partition this sub_project's stories
-            buckets = assign_stories(proj_pending, args.workers, prd=prd)
+            buckets = assign_stories(proj_pending, args.workers, prd=prd, hot_files=_hot)
 
             # Write worker files for this sub_project
             for i, bucket in enumerate(buckets):
@@ -359,7 +387,7 @@ def main() -> int:
                 )
     else:
         # Standard partitioning (non-federated)
-        buckets = assign_stories(pending, args.workers, prd=prd)
+        buckets = assign_stories(pending, args.workers, prd=prd, hot_files=_hot)
 
         for i, bucket in enumerate(buckets):
             worker_num = i + 1

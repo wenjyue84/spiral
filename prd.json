@@ -96,7 +96,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "tags": [
         "core-flow",
         "phase-r"
@@ -6190,7 +6190,8 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-03-23T08:56:47Z"
     }
   ]
 }

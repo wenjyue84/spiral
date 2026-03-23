@@ -158,6 +158,7 @@ export default function AnalyticsTab({ projectName }: { projectName: string }) {
         bottlenecks={bottlenecks}
         modelPerformance={modelPerformance}
         retryAnalysis={retryAnalysis}
+        storiesList={storiesList}
         onStoryClick={setSelectedStoryId}
       />
 

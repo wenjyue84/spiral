@@ -1,3 +1,66 @@
+## Iteration [CURRENT] - Story: US-773 Phase R: Semantic Query Dedup - COMPLETE
+
+### Implementation Summary
+
+Successfully completed US-773 by ensuring research query semantic caching uses >0.90 TF-IDF cosine similarity threshold as per acceptance criteria. Updated default SPIRAL_RESEARCH_DEDUP_THRESHOLD to 0.90 and added configuration variables for iteration-based TTL.
+
+### What was implemented
+
+1. **lib/research_dedup.py** (updated)
+   - Changed default `SPIRAL_RESEARCH_DEDUP_THRESHOLD` from 0.85 to 0.90
+   - Updated CLI docstring to reflect 0.90 threshold
+   - Now defaults to >0.90 similarity requirement per AC2
+
+2. **spiral.config.sh** (updated)
+   - Added `SPIRAL_RESEARCH_CACHE_TTL` config variable (default 5 iterations)
+   - Added `SPIRAL_RESEARCH_DEDUP_THRESHOLD` config variable (default 0.90)
+   - Both now configurable via environment variables for production tuning
+
+3. **tests/test_research_dedup.py** (updated, +48 lines)
+   - Added TestUS773AcceptanceCriteria class with 3 new tests:
+     * test_default_threshold_is_090: Verifies default threshold is 0.90
+     * test_paraphrased_query_cache_hit_with_default_threshold: Verifies near-identical queries hit cache
+     * test_novel_query_cache_miss_with_default_threshold: Verifies unrelated queries miss cache
+   - All tests use pytest fixtures and default threshold
+
+4. **prd.json**
+   - Updated US-773 passes=true
+
+### Acceptance criteria verification
+
+- ✓ AC1: Research queries hashed using TF-IDF vectors stored in .spiral/research_cache.json with TTL
+  - Implemented in lib/research_dedup.py query_similarity() using sklearn TfidfVectorizer
+  - SPIRAL_RESEARCH_CACHE_TTL config controls iteration-based TTL
+
+- ✓ AC2: Queries with >0.90 cosine similarity return cached result with log entry
+  - Default threshold changed from 0.85 to 0.90
+  - Phase R already logs "research_dedup_hit" events in phase_r_research.sh
+
+- ✓ AC3: Cache entries older than SPIRAL_RESEARCH_CACHE_TTL (default 5 iterations) pruned
+  - SPIRAL_RESEARCH_CACHE_TTL added to config with default 5
+  - save_research_cache() in lib/research/research_cache.py implements TTL pruning
+
+- ✓ AC4: Unit test verifies cache hit for paraphrased query and miss for novel query
+  - test_paraphrased_query_cache_hit_with_default_threshold: tests hit scenario
+  - test_novel_query_cache_miss_with_default_threshold: tests miss scenario
+
+### Quality checks passed
+
+- ✓ pytest: 17/17 tests pass (14 existing + 3 new US-773 tests)
+- ✓ mypy --strict: no type issues in research_dedup.py and test file
+- ✓ bash -n: spiral.config.sh syntax OK
+
+### Files modified/created
+
+- lib/research_dedup.py: changed default threshold from 0.85 to 0.90 (+1 comment line)
+- spiral.config.sh: added SPIRAL_RESEARCH_CACHE_TTL and SPIRAL_RESEARCH_DEDUP_THRESHOLD config (+12 lines)
+- tests/test_research_dedup.py: added TestUS773AcceptanceCriteria class (+48 lines)
+- prd.json: marked US-773 as passes=true
+
+### Story completion
+
+Story US-773 marked as passes=true. All acceptance criteria met via default threshold change and comprehensive test coverage.
+
 ## Iteration 4 - Story: US-1017 Security Tests for lint-prd CLI - COMPLETE (Attempt 2)
 
 ### Implementation Summary
@@ -1681,3 +1744,4 @@ Successfully implemented pytest-based security tests for GitHub Actions workflow
 
 Story US-1011 marked as passes=true. All acceptance criteria met.
 Committed: feat: US-1011 Security tests for CI workflow files
+

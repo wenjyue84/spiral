@@ -139,10 +139,26 @@ export default function FailureRetryDashboard({ failureReasons, bottlenecks, mod
   const displayFailures = showAll ? visibleFailures : visibleFailures.slice(0, 5);
   const hasBottlenecks = bottlenecks.mostRetried.length > 0 || bottlenecks.longest.length > 0;
 
-  // Build retry history — stories with 2+ attempts, sorted by attempt count desc
+  // Build retry count lookup from bottlenecks + failureReasons (retry-counts.json data)
+  const retryCountLookup = new Map<string, number>();
+  for (const b of bottlenecks.mostRetried) retryCountLookup.set(b.id, b.retries);
+  for (const f of failureReasons) if (f.retryCount > 0) retryCountLookup.set(f.id, f.retryCount);
+
+  // Retry history — all stories with attempts or retry counts, sorted by most recent first
+  const [retrySort, setRetrySort] = useState<'recent' | 'count'>('recent');
   const retriedStories = (storiesList ?? [])
-    .filter(s => s.attempts.length >= 2)
-    .sort((a, b) => b.attempts.length - a.attempts.length);
+    .filter(s => s.attempts.length >= 1 || (retryCountLookup.get(s.id) ?? 0) >= 1)
+    .sort((a, b) => {
+      if (retrySort === 'recent') {
+        const aTs = a.attempts.length > 0 ? a.attempts[a.attempts.length - 1].timestamp : '';
+        const bTs = b.attempts.length > 0 ? b.attempts[b.attempts.length - 1].timestamp : '';
+        return bTs.localeCompare(aTs); // newest first
+      }
+      // sort by count
+      const aMax = Math.max(a.attempts.length, retryCountLookup.get(a.id) ?? 0);
+      const bMax = Math.max(b.attempts.length, retryCountLookup.get(b.id) ?? 0);
+      return bMax - aMax;
+    });
 
   return (
     <div className="space-y-3">
@@ -335,6 +351,16 @@ export default function FailureRetryDashboard({ failureReasons, bottlenecks, mod
               Retry History
               <span className="ml-1.5 text-violet-500 normal-case font-normal">{retriedStories.length} stories retried</span>
             </div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setRetrySort('recent')}
+                className={`text-[10px] px-2 py-0.5 rounded ${retrySort === 'recent' ? 'bg-violet-100 text-violet-700 font-medium' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
+              >Most Recent</button>
+              <button
+                onClick={() => setRetrySort('count')}
+                className={`text-[10px] px-2 py-0.5 rounded ${retrySort === 'count' ? 'bg-violet-100 text-violet-700 font-medium' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
+              >Most Retried</button>
+            </div>
           </div>
           <div className="rounded-lg border border-slate-200 overflow-hidden">
             <table className="w-full text-[11px]">
@@ -349,17 +375,18 @@ export default function FailureRetryDashboard({ failureReasons, bottlenecks, mod
                   <th className="text-right px-2 py-1">Total Time</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
-                {retriedStories.slice(0, retryHistoryLimit).map(story => {
-                  const isExpanded = expandedRetryStory === story.id;
-                  const attempts = [...story.attempts].sort((a, b) => a.retryNum - b.retryNum);
-                  const models = [...new Set(attempts.map(a => a.model))];
-                  const totalDuration = attempts.reduce((s, a) => s + a.durationSec, 0);
-                  const lastAttempt = attempts[attempts.length - 1];
-                  const finalOutcome = story.passes ? 'passed' : story._decomposed ? 'decomposed' : story._skipped ? 'skipped' : lastAttempt?.status ?? 'pending';
+              {retriedStories.slice(0, retryHistoryLimit).map(story => {
+                const isExpanded = expandedRetryStory === story.id;
+                const attempts = [...story.attempts].sort((a, b) => a.retryNum - b.retryNum);
+                const models = [...new Set(attempts.map(a => a.model))];
+                const totalDuration = attempts.reduce((s, a) => s + a.durationSec, 0);
+                const lastAttempt = attempts[attempts.length - 1];
+                const finalOutcome = story.passes ? 'passed' : story._decomposed ? 'decomposed' : story._skipped ? 'skipped' : lastAttempt?.status ?? 'pending';
+                const retryJsonCount = retryCountLookup.get(story.id) ?? 0;
+                const displayCount = Math.max(attempts.length, retryJsonCount);
 
-                  return (
-                    <tbody key={story.id} className={isExpanded ? 'bg-slate-25' : ''}>
+                return (
+                  <tbody key={story.id}>
                       <tr
                         className="hover:bg-slate-50 cursor-pointer border-b border-slate-100"
                         onClick={() => setExpandedRetryStory(isExpanded ? null : story.id)}
@@ -378,7 +405,10 @@ export default function FailureRetryDashboard({ failureReasons, bottlenecks, mod
                         </td>
                         <td className="px-2 py-1.5 text-slate-600 max-w-[180px] truncate hidden lg:table-cell" title={story.title}>{story.title}</td>
                         <td className="px-2 py-1.5 text-center">
-                          <span className={attempts.length >= 4 ? 'text-red-600 font-bold' : attempts.length >= 3 ? 'text-amber-600 font-bold' : 'text-slate-600'}>{attempts.length}</span>
+                          <span className={displayCount >= 4 ? 'text-red-600 font-bold' : displayCount >= 3 ? 'text-amber-600 font-bold' : 'text-slate-600'}>
+                            {displayCount}
+                            {retryJsonCount > attempts.length && <span className="text-[9px] text-slate-400 font-normal ml-0.5">({attempts.length} logged)</span>}
+                          </span>
                         </td>
                         <td className="px-2 py-1.5">
                           <div className="flex items-center gap-0.5">
@@ -451,10 +481,9 @@ export default function FailureRetryDashboard({ failureReasons, bottlenecks, mod
                           </td>
                         </tr>
                       )}
-                    </tbody>
-                  );
-                })}
-              </tbody>
+                  </tbody>
+                );
+              })}
             </table>
           </div>
           {retriedStories.length > retryHistoryLimit && (

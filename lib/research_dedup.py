@@ -6,7 +6,7 @@ enough (cosine TF-IDF similarity >= SPIRAL_RESEARCH_DEDUP_THRESHOLD), it
 returns the cached research result, skipping the Gemini API call entirely.
 
 Usage (CLI):
-    python lib/research_dedup.py --query QUERY [--threshold 0.85] [--cache-path .spiral/research_cache.json]
+    python lib/research_dedup.py --query QUERY [--threshold 0.90] [--cache-path .spiral/research_cache.json]
 
 Exit codes:
     0 — cache hit found (JSON printed to stdout)
@@ -21,8 +21,8 @@ import os
 import sys
 from typing import Any
 
-# Default threshold — configurable via SPIRAL_RESEARCH_DEDUP_THRESHOLD env var
-SPIRAL_RESEARCH_DEDUP_THRESHOLD: float = float(os.environ.get("SPIRAL_RESEARCH_DEDUP_THRESHOLD", "0.85"))
+# Default threshold — configurable via SPIRAL_RESEARCH_DEDUP_THRESHOLD env var (default 0.90 per US-773)
+SPIRAL_RESEARCH_DEDUP_THRESHOLD: float = float(os.environ.get("SPIRAL_RESEARCH_DEDUP_THRESHOLD", "0.90"))
 
 _DEFAULT_CACHE_PATH = os.path.join(".spiral", "research_cache.json")
 

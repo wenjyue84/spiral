@@ -139,8 +139,25 @@ SPIRAL_GEMINI_PROMPT="Focus on: (1) preventing stories from getting stuck — DL
 SPIRAL_STORY_PREFIX="US"
 
 # ── Parallel worker settings ─────────────────────────────────────────────────
-# Dynamic worker count (1-3) will be auto-selected once US-009 is implemented.
-# Until then, leave unset and pass --ralph-workers on the command line.
+# 3 workers (32GB RAM). Uses hot-file registry + sequential merge + file
+# inference to minimize inter-worker merge conflicts.
+SPIRAL_RALPH_WORKERS="${SPIRAL_RALPH_WORKERS:-3}"
+
+# ── Conflict minimization (Strategies 1-3) ───────────────────────────────────
+# Strategy 1: Hot File Registry — track historically conflict-prone files.
+# Files with conflict weight >= threshold are hard co-located to same worker.
+SPIRAL_HOT_FILE_THRESHOLD="${SPIRAL_HOT_FILE_THRESHOLD:-2}"
+# Halve hot-file weight every N iterations (decay prevents stale constraints)
+SPIRAL_HOT_FILE_DECAY_ITERS="${SPIRAL_HOT_FILE_DECAY_ITERS:-5}"
+
+# Strategy 2: Auto-populate filesTouch via static analysis before partitioning.
+# Parses story text for file/module refs, resolves against Phase X repo map.
+SPIRAL_INFER_FILES_TO_TOUCH="${SPIRAL_INFER_FILES_TO_TOUCH:-true}"
+
+# Strategy 3: Sequential merge with rebase (merge worker 1 → rebase worker 2 →
+# merge worker 2 → etc). Resolves inter-worker conflicts inline instead of
+# discarding entire workers. Workers merged in order of passed story count.
+SPIRAL_SEQUENTIAL_MERGE="${SPIRAL_SEQUENTIAL_MERGE:-true}"
 
 # Per-worker memory budget (MB) for pre-spawn gate. Gate requires
 # (remaining_workers * this + 512) MB free before launching each worker.
@@ -382,6 +399,17 @@ SPIRAL_PRD_STREAM_THRESHOLD_KB=2048 # streaming jq path has a bug; keep on in-me
 # 0 = disabled (Phase R always runs). Default: 0.
 # Example: SPIRAL_RESEARCH_CACHE_TTL_HOURS=6  # reuse research for up to 6h
 SPIRAL_RESEARCH_CACHE_TTL_HOURS=4
+
+# ── Query-level semantic cache TTL (US-773) ──────────────────────────────
+# Number of iterations to retain cached research query results (based on iteration number).
+# Queries >0.90 semantically similar to a cached result return cached response instead of
+# making a new API call. Default 5 = retain results from last 5 iterations.
+SPIRAL_RESEARCH_CACHE_TTL="${SPIRAL_RESEARCH_CACHE_TTL:-5}"
+
+# ── Query dedup similarity threshold (US-773) ─────────────────────────────
+# TF-IDF cosine similarity threshold for research query dedup. Queries with similarity
+# >= threshold return cached result instead of calling Gemini. Default 0.90 (90% match).
+SPIRAL_RESEARCH_DEDUP_THRESHOLD="${SPIRAL_RESEARCH_DEDUP_THRESHOLD:-0.90}"
 
 # ── Cosine-similarity research cache threshold (US-403) ───────────────────
 # When a Phase R query misses the exact-match cache, sentence embeddings

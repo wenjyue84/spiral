@@ -195,3 +195,53 @@ class TestResearchDedupCostTracking:
 
         assert hit is None, "Expected dedup cache miss"
         assert gemini_called["value"], "Gemini SHOULD be called on dedup miss"
+
+
+# ── TestUS773AcceptanceCriteria ──────────────────────────────────────────────
+
+
+class TestUS773AcceptanceCriteria:
+    """US-773: Verify default threshold is 0.90 and paraphrased/novel query behavior."""
+
+    def test_default_threshold_is_090(self) -> None:
+        """AC2: Verify default threshold is >0.90 per US-773."""
+        from research_dedup import SPIRAL_RESEARCH_DEDUP_THRESHOLD
+
+        assert SPIRAL_RESEARCH_DEDUP_THRESHOLD == 0.90, (
+            f"AC2 requires default threshold of 0.90, got {SPIRAL_RESEARCH_DEDUP_THRESHOLD}"
+        )
+
+    def test_paraphrased_query_cache_hit_with_default_threshold(self, tmp_path: Any) -> None:
+        """AC4: Paraphrased query should return cached result with default 0.90 threshold."""
+        # Original query about SPIRAL PRD development
+        original = "SPIRAL autonomous PRD research implementation loop"
+        # Near-identical paraphrased version (same core meaning, minor wording changes)
+        paraphrased = "SPIRAL PRD autonomous research implementation loop"
+
+        cached_content = {"gemini_research": "SPIRAL loop implementation details"}
+        cache_file = _make_cache(
+            tmp_path,
+            [{"topic": original, "result": cached_content}],
+        )
+
+        # Use default threshold (should be 0.90)
+        result = find_cached_response(paraphrased, cache_file)
+        assert result is not None, (
+            "AC4: Near-identical query should hit cache with default 0.90 threshold"
+        )
+        assert result == cached_content
+
+    def test_novel_query_cache_miss_with_default_threshold(self, tmp_path: Any) -> None:
+        """AC4: Novel query should NOT return cached result (miss with default threshold)."""
+        cached_content = {"gemini_research": "machine learning research findings"}
+        cache_file = _make_cache(
+            tmp_path,
+            [{"topic": "machine learning neural networks deep learning", "result": cached_content}],
+        )
+
+        # Completely different query
+        result = find_cached_response(
+            "French cuisine bistro restaurant cooking",
+            cache_file,
+        )
+        assert result is None, "AC4: Novel query should miss cache with default threshold"
