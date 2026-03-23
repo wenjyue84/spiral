@@ -39,9 +39,9 @@
         "quality-gate"
       ],
       "id": "US-1006",
-      "passes": false,
+      "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-03-23T01:50:06Z"
+      "last_attempted": "2026-03-23T12:00:00Z"
     },
     {
       "title": "Phase V: Functional Reachability Verifier - Confirm New Code is Wired into the Loop",
