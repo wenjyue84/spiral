@@ -11,24 +11,6 @@
   ],
   "userStories": [
     {
-      "id": "US-1083",
-      "title": "CLI: spiral federation-impact-analyze — Transitive Dependency Blast Radius Report",
-      "priority": "high",
-      "description": "Analyze and report which stories in other sub-projects will be transitively affected when a specified sub-project changes. Surface critical paths and circular dependencies.",
-      "acceptanceCriteria": [
-        "lib/federation_impact_analyzer.py implements transitive_closure(sub_project_id) on story dependency DAG from prd.json; detects cycles safely",
-        "CLI: spiral federation-impact-analyze auth-service outputs {affected_sub_projects: [string], critical_stories: [US-NNN], cycle_detected: bool}",
-        "Integration test on 4-subproject fixture verifies blast radius accuracy; handles cross-project transitive deps and reports 0 cycles"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": true,
-      "_source": "ai-example",
-      "model": "sonnet",
-      "last_attempted": "2026-03-23T22:47:16Z"
-    },
-    {
       "id": "US-1084",
       "title": "Phase V: Architectural Constraint Validator - Enforce Design Rules",
       "priority": "high",
@@ -41,9 +23,44 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "sonnet",
+      "last_attempted": "2026-03-23T23:04:46Z"
+    },
+    {
+      "id": "US-1085",
+      "title": "Phase V: Integrate CHANGELOG.md Validation as Pre-Commit Check",
+      "priority": "high",
+      "description": "Phase V test suite should validate generated CHANGELOG.md follows Keep-a-Changelog format, verify story IDs match prd.json completed stories, and fail the phase if orphan commits exist. Ensures documentation quality before story is marked complete.",
+      "acceptanceCriteria": [
+        "lib/phases/phase_v.py loads CHANGELOG.md and validates against Keep-a-Changelog JSON schema",
+        "test_phase_v_changelog.py verifies story IDs in CHANGELOG exist in prd.json and have status=complete",
+        "Phase V fails when orphan commits detected via git log --grep='US-' comparison"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
       "passes": false,
       "_source": "ai-example",
       "model": "sonnet"
+    },
+    {
+      "id": "US-1086",
+      "title": "Integration Test: End-to-End Federated SPIRAL Loop with File Conflict Simulation",
+      "priority": "high",
+      "description": "Run full R→C loop with 3 parallel workers modifying overlapping files. Mock Claude API returns conflicting implementations. Verify Phase M conflict detection, Phase I isolation enforcement, no prd.json corruption, and conflict timing recorded in results.tsv.",
+      "acceptanceCriteria": [
+        "tests/test_e2e_federated_conflicts.py seeds 2 sub-projects with 6 stories, 3 workers, Phase R→C with mock Claude returning 30% file overlap",
+        "Phase M detects file collisions, Phase I routes to conflict resolution, workers finish without deadlock or prd.json corruption",
+        "results.tsv includes worker_id, conflict_file_count, phase_timing columns; verify conflict resolution cost <200 tokens"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
     },
     {
       "id": "US-1059",
@@ -165,21 +182,22 @@
       "model": "sonnet"
     },
     {
-      "id": "US-1082",
-      "title": "Phase G: Incremental CHANGELOG Append Mode with --append-changelog Flag",
-      "priority": "medium",
-      "description": "Add --append-changelog flag to spiral.sh so Phase G appends new story entries to existing CHANGELOG.md instead of overwriting. Useful for incremental SPIRAL runs on the same repository.",
+      "id": "US-1083",
+      "title": "CLI: spiral federation-impact-analyze — Transitive Dependency Blast Radius Report",
+      "priority": "high",
+      "description": "Analyze and report which stories in other sub-projects will be transitively affected when a specified sub-project changes. Surface critical paths and circular dependencies.",
       "acceptanceCriteria": [
-        "spiral.sh accepts --append-changelog flag. When set, lib/gen_changelog.py checks if CHANGELOG.md exists and appends new '## [Iteration N] - YYYY-MM-DD HH:MM UTC' section, preserving old entries",
-        "Integration test tests/test_gen_changelog.py: run gen_changelog.py twice with different story commits, verify second run appends new iteration header without duplicating old entries",
-        "Commits are deduplicated by SHA to prevent redundant entries in append mode"
+        "lib/federation_impact_analyzer.py implements transitive_closure(sub_project_id) on story dependency DAG from prd.json; detects cycles safely",
+        "CLI: spiral federation-impact-analyze auth-service outputs {affected_sub_projects: [string], critical_stories: [US-NNN], cycle_detected: bool}",
+        "Integration test on 4-subproject fixture verifies blast radius accuracy; handles cross-project transitive deps and reports 0 cycles"
       ],
       "technicalNotes": [],
       "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
+      "estimatedComplexity": "medium",
+      "passes": true,
       "_source": "ai-example",
-      "model": "sonnet"
+      "model": "sonnet",
+      "last_attempted": "2026-03-23T22:47:16Z"
     },
     {
       "id": "US-1081",
@@ -6486,6 +6504,23 @@
       "estimatedComplexity": "small",
       "passes": true,
       "tags": []
+    },
+    {
+      "id": "US-1082",
+      "title": "Phase G: Incremental CHANGELOG Append Mode with --append-changelog Flag",
+      "priority": "medium",
+      "description": "Add --append-changelog flag to spiral.sh so Phase G appends new story entries to existing CHANGELOG.md instead of overwriting. Useful for incremental SPIRAL runs on the same repository.",
+      "acceptanceCriteria": [
+        "spiral.sh accepts --append-changelog flag. When set, lib/gen_changelog.py checks if CHANGELOG.md exists and appends new '## [Iteration N] - YYYY-MM-DD HH:MM UTC' section, preserving old entries",
+        "Integration test tests/test_gen_changelog.py: run gen_changelog.py twice with different story commits, verify second run appends new iteration header without duplicating old entries",
+        "Commits are deduplicated by SHA to prevent redundant entries in append mode"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
     }
   ]
 }
