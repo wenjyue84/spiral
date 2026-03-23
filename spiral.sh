@@ -1270,7 +1270,7 @@ PYEOF
   # ── Core file integrity hash (end of iteration) ────────────────────────────
   # Verify no orchestration file was modified during this iteration.
   # SKIP when SPIRAL_PROJECT_ROOT == SPIRAL_HOME (self-referential: SPIRAL developing itself)
-  if [[ -f "$_CORE_HASH_FILE" && "$(cd "$REPO_ROOT" && pwd)" != "$(cd "$SPIRAL_HOME" && pwd)" ]]; then
+  if [[ -f "$_CORE_HASH_FILE" && "$REPO_ROOT" != "$SPIRAL_HOME" ]]; then
     if ! sha256sum -c "$_CORE_HASH_FILE" >/dev/null 2>&1; then
       echo ""
       echo "  ╔══════════════════════════════════════════════════════╗"
