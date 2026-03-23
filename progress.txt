@@ -967,3 +967,30 @@ Story US-771 marked as passes=true. All acceptance criteria met:
 - Cache accumulates across multiple SPIRAL runs in same repo (persistent at .spiral/)
 - Filtering is non-blocking: if cache is missing/corrupt, gracefully passes through all candidates
 - No breaking changes to existing phases or CLI commands
+
+## Pre-analysis for US-1004 (Gemini 2.5 Pro)
+### Technical Brief: US-1004 AC Assertion Extractor
+
+**Objective:** Implement a Python script to parse textual Acceptance Criteria (AC) from a user story into a structured, machine-readable format for automated verification.
+
+**1. Files to Modify/Create:**
+*   **Create:** `lib/ac_assertion_extractor.py` - This new file will contain the core extraction logic.
+*   **Create:** `tests/test_ac_assertion_extractor.py` - To house unit tests verifying the parsing logic for various assertion types and the fallback mechanism.
+
+**2. Frappe DocTypes & Hooks:**
+*   None. This story is for a pure Python backend script within the "Spiral" project tooling. It does not involve the Fraeppe framework, DocTypes, or hooks.
+
+**3. Implementation Approach:**
+1.  Define a Python `dataclass` named `Assertion` in `lib/ac_assertion_extractor.py` with fields: `type: str`, `raw_ac: str`, `command: str`, `expected: str`, `extracted: bool`.
+2.  Implement the main function `extract_assertions(story: dict) -> list[Assertion]`.
+3.  Inside this function, iterate through each string in the story's `acceptanceCriteria` list.
+4.  Use a list of ordered, specific regular expressions to match patterns for `exit_code`, `file_exists`, `test_command`, `json_field`, and `log_grep`.
+5.  If a pattern matches, create an `Assertion` instance with the extracted data. If no pattern matches, create one with `type='manual_review'` and `extracted=False`.
+6.  A helper function should serialize the list of `Assertion` objects to a JSON file at `.spiral/ac_checks/{story_id}.json`.
+
+**4. Edge Cases & Gotchas:**
+*   **Regex Order:** The order of regex matching is critical. More specific patterns (e.g., `File to create: X`) must be checked before more generic ones (`output matching`) to prevent incorrect parsing.
+*   **Noisy ACs:** ACs may be phrased in ways that are difficult to parse. The `manual_review` tag is the designated fallback and should capture the original text for human intervention.
+*   **File System:** The script must ensure the output directory (`.spiral/ac_checks/`) exists before attempting to write the JSON file.
+*   **Input Validation:** The `extract_assertions` function should validate that its input `story` object contains the expected `id` and `acceptanceCriteria` keys.
+
