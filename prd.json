@@ -27,7 +27,16 @@
       "model": "haiku",
       "last_attempted": "2026-03-23T15:52:56Z",
       "_failureReason": "oversized_diff",
-      "_lastDiffLines": 552
+      "_lastDiffLines": 552,
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\nThe `validate_quota()` function in `lib/spiral/phase_m.py` is already implemented, all 22 unit tests pass, and `ResultsRecord` in `lib/results_tsv.py` already has `quota_exceeded` and `quota_source` fields. The previous attempt failed only because of the missing diagnosis block gate.\n\n## Problem Identified\nUS-1050 implementation already exists from a previous attempt (committed to disk but not marked `passes: true`). Need to verify all acceptance criteria are met, run type checking, and mark the story complete.\n\n## Planned Changes\n- Verify AC2: Check that the shell phase_m_merge.sh handles Python ValueError → exit 1\n- Run mypy on lib/spiral/phase_m.py to ensure type compliance\n- Mark US-1050 as passes: true in prd.json\nUS-1050 is already `passes: true` — it was validated by the outer loop. Moving to the next incomplete story: **US-1051**.\nNow I have a clear picture. Let me plan the implementation.\n\n## Current State"
+      },
+      "_contextStats": {
+        "tokensBeforeMasking": 347,
+        "tokensAfterMasking": 346,
+        "reductionPct": 0,
+        "contextWindow": 10
+      }
     },
     {
       "id": "US-1051",

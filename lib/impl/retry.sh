@@ -116,16 +116,34 @@ handle_story_failure() {
 
   echo "[Phase I / retry] Story $story_id failed (attempt $((retries + 1)))"
 
-  # Strategy 1: anti-pattern accumulation
+  # Strategy 1: anti-pattern accumulation (structured with category)
   if [[ "${SPIRAL_ANTI_PATTERN_INJECT:-true}" == "true" && -n "$failure_reason" && -f "$prd_file" ]]; then
     # Truncate to 200 chars and strip characters unsafe for jq --arg
     local truncated
     truncated=$(printf '%s' "$failure_reason" | head -c 200 | tr -d '\n\r"\\')
+
+    # Classify failure category from the reason text
+    local category="unknown"
+    case "$failure_reason" in
+      *oversized_diff*|*diff\ size*|*too\ large*) category="oversized_diff" ;;
+      *TypeError*|*type\ error*|*mypy*) category="type_error" ;;
+      *lint*|*ruff*|*shellcheck*|*shfmt*) category="lint_error" ;;
+      *test*fail*|*pytest*|*FAILED*|*assertion*) category="test_fail" ;;
+      *import*|*ModuleNotFoundError*) category="import_error" ;;
+      *timeout*|*timed\ out*) category="timeout" ;;
+      *) category="runtime_error" ;;
+    esac
+
     if [[ -n "$truncated" ]]; then
       "$jq_bin" --arg sid "$story_id" --arg note "$truncated" \
-        '(.userStories[] | select(.id == $sid) | ._antiPatterns) |= (. // []) + [$note]' \
+        --arg cat "$category" --argjson attempt "$((retries + 1))" \
+        '(.userStories[] | select(.id == $sid) | ._antiPatterns) |= (. // []) + [{
+          "attempt": $attempt,
+          "approach": $note,
+          "category": $cat
+        }]' \
         "$prd_file" >"${prd_file}.tmp" && mv "${prd_file}.tmp" "$prd_file" || true
-      echo "[Phase I / retry] Anti-pattern recorded for $story_id: ${truncated:0:60}..."
+      echo "[Phase I / retry] Anti-pattern recorded for $story_id [$cat]: ${truncated:0:60}..."
     fi
   fi
   return 0
