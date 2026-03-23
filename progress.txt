@@ -1892,3 +1892,33 @@ This story concerns the core "Ralph" agent orchestration, not a Frappe applicati
 *   **Token Prediction**: The feature's entrypoint relies on token prediction. If the prediction is significantly wrong, the reduction may not trigger when needed. The error handling must still catch actual overages regardless of prediction.
 ## Iteration 1 - Sun, Mar 22, 2026  8:41:06 PM
 FAILED diff-guard: [Security Test] Results TSV: No Sensitive Data in Telemetry Rows (ID: US-735) — 470 lines > 400 limit — attempt 1/3
+
+## Pre-analysis for US-1027 (Gemini 2.5 Pro)
+Here is the technical brief for story US-1027:
+
+**Subject:** Technical Brief for US-1027: Benchmark Phase R Cache Savings
+
+This brief outlines the implementation plan for creating a benchmark test to validate the latency savings of the Phase R research cache.
+
+**1. Files to Modify:**
+*   `lib/phases/phase_r_research.py`: Modify to introduce an environment variable toggle that allows disabling the cache mechanism for the baseline run.
+*   `tests/test_research_cache_benchmark.py`: Create this new file to contain the latency benchmark test.
+
+**2. Frappe DocTypes/Hooks Involved:**
+*   None. This task is a backend performance benchmark and does not directly interact with any Frappe DocTypes or hooks.
+
+**3. Recommended Implementation Approach:**
+1.  In `lib/phases/phase_r_research.py`, gate the caching logic with a check for an environment variable, e.g., `if os.getenv("SPIRAL_RESEARCH_CACHE_ENABLED", "true").lower() == "true":`.
+2.  In the new test file, create an `async` test function `test_cache_latency_savings`.
+3.  Use `unittest.mock.patch` to mock the underlying Gemini API call. Replace its implementation with a fixed `await asyncio.sleep(0.05)` to simulate a deterministic 50ms network latency.
+4.  Use `time.perf_counter()` to measure execution times.
+5.  **Cached Run:** Time the execution of the Phase R logic over 6 iterations with the cache enabled.
+6.  **Uncached Run:** Using `unittest.mock.patch.dict`, set the `SPIRAL_RESEARCH_CACHE_ENABLED` environment variable to `"false"` and time the same 6 iterations.
+7.  Print the cached time, uncached time, and percentage saved to `stdout`.
+8.  Assert that `cached_time <= uncached_time * 0.70`.
+
+**4. Edge Cases & Gotchas:**
+*   The test must be asynchronous (`async def`) to correctly `await` the mocked sleep and match the async nature of the code being tested.
+*   Ensure the mock patch target correctly points to the function that makes the actual Gemini HTTP call.
+*   Use `unittest.mock.patch.dict` for setting the environment variable to ensure it's scoped only to the baseline run and doesn't leak.
+

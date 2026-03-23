@@ -49,10 +49,11 @@ run_phase_research() {
   fi
 
   # ── Topic-level research cache (US-520): lookup cached result for this topic ──
+  # Cache can be disabled via SPIRAL_RESEARCH_CACHE_ENABLED=0 (US-1027: benchmarking)
   GEMINI_RESEARCH=""
   _PHASE_R_PRE_MODEL="none" # US-206: track which model served Phase R pre-research
   _RESEARCH_TOPIC_CACHED=""
-  if [[ -n "$SPIRAL_GEMINI_PROMPT" ]]; then
+  if [[ -n "$SPIRAL_GEMINI_PROMPT" ]] && [[ "${SPIRAL_RESEARCH_CACHE_ENABLED:-1}" == "1" ]]; then
     # Derive research topic from SPIRAL_GEMINI_PROMPT (or use a default)
     _RESEARCH_TOPIC="${SPIRAL_GEMINI_PROMPT:0:100}" # First 100 chars as topic identifier
     _TOPIC_CACHE_RESULT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/phases/research_cache.py" --lookup "$_RESEARCH_TOPIC" 2>/dev/null || echo "")
@@ -81,6 +82,8 @@ run_phase_research() {
         fi
       fi
     fi
+  elif [[ "${SPIRAL_RESEARCH_CACHE_ENABLED:-1}" == "0" ]]; then
+    echo "  [R] Research cache disabled (SPIRAL_RESEARCH_CACHE_ENABLED=0)"
   fi
 
   # ── Gemini web research (optional, configured via SPIRAL_GEMINI_PROMPT) ──

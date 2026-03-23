@@ -411,6 +411,11 @@ SPIRAL_RESEARCH_CACHE_TTL="${SPIRAL_RESEARCH_CACHE_TTL:-5}"
 # >= threshold return cached result instead of calling Gemini. Default 0.90 (90% match).
 SPIRAL_RESEARCH_DEDUP_THRESHOLD="${SPIRAL_RESEARCH_DEDUP_THRESHOLD:-0.90}"
 
+# ── Research query cache enable/disable toggle (US-1027) ─────────────────
+# When set to 0, disables all semantic caching in Phase R. Used for benchmarking
+# baseline latency without cache. Default 1 = cache enabled (normal operation).
+SPIRAL_RESEARCH_CACHE_ENABLED="${SPIRAL_RESEARCH_CACHE_ENABLED:-1}"
+
 # ── Cosine-similarity research cache threshold (US-403) ───────────────────
 # When a Phase R query misses the exact-match cache, sentence embeddings
 # (MiniLM) are compared. Hits above this threshold return the cached result.

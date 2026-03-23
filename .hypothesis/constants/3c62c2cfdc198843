@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\ac_assertion_extractor.py
+# hypothesis_version: 6.151.9
+
+['+00:00', '--output-dir', '--prd-file', '--story-id', '.spiral/ac_checks', 'Output directory', 'Path to prd.json', 'UNKNOWN', 'Z', '__main__', 'acceptanceCriteria', 'exit_code', 'exit_code_0', 'extracted', 'extracted_assertions', 'extraction_metadata', 'field_exists', 'file_exists', 'found', 'id', 'json_field', 'log_grep', 'manual_review', 'match_found', 'prd.json', 'raw_ac', 'seconds', 'story_id', 'test $? -ne 0', 'test_command', 'timestamp', 'total_ac_items', 'total_assertions', 'true', 'userStories', 'w']

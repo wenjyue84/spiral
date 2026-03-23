@@ -50,9 +50,8 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": true,
-      "model": "haiku",
-      "_scopeCreep": true
+      "passes": false,
+      "model": "haiku"
     },
     {
       "id": "US-1027",
@@ -71,7 +70,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": true,
+      "passes": false,
       "model": "haiku"
     },
     {
@@ -581,7 +580,7 @@
       "_failureReason": "oversized_diff"
     },
     {
-      "id": "US-1032",
+      "id": "US-752",
       "title": "Dashboard: Implement API Token Authentication Middleware",
       "priority": "medium",
       "description": "Add authentication layer to dashboard API endpoints to validate OAuth tokens and API keys before processing requests. Protects /api/dashboard/* and /ws/* endpoints from unauthorized access.",
@@ -597,7 +596,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true,
+      "passes": false,
       "model": "haiku"
     },
     {
@@ -617,7 +616,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true,
+      "passes": false,
       "model": "sonnet"
     },
     {
@@ -637,7 +636,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true,
+      "passes": false,
       "model": "sonnet"
     },
     {
@@ -688,7 +687,7 @@
         "US-596"
       ],
       "estimatedComplexity": "small",
-      "passes": true,
+      "passes": false,
       "tags": [
         "e2e",
         "auto-generated"
@@ -717,7 +716,7 @@
         "US-675"
       ],
       "estimatedComplexity": "small",
-      "passes": true,
+      "passes": false,
       "tags": [
         "regression",
         "auto-generated"
@@ -754,7 +753,7 @@
       "model": "haiku"
     },
     {
-      "id": "US-1033",
+      "id": "US-744",
       "title": "Phase I: Automatic File-Level Scope Reduction for Oversized Implementations",
       "priority": "high",
       "description": "When Ralph implementation fails with token overage, auto-detect non-critical files and resubmit with reduced scope before escalating model. Reduces retry cost and iteration time.",
@@ -3182,7 +3181,7 @@
       "model": "haiku"
     },
     {
-      "id": "US-1034",
+      "id": "US-754",
       "title": "[Security Test] Harden validate_results_tsv against malformed/malicious input",
       "priority": "high",
       "description": "Add security-focused tests for lib/spiral/validate_results_tsv.py (US-570). The validator must handle adversarial inputs — path-like story_ids, binary data, and oversized fields — without leaking internal paths or raising unhandled exceptions. Ensures error responses contain only structured dicts, never raw tracebacks.",
@@ -3210,7 +3209,7 @@
       "model": "haiku"
     },
     {
-      "id": "US-1035",
+      "id": "US-753",
       "title": "[Security Test] Validate SPIRAL_COST_CEILING budget gate cannot be bypassed",
       "priority": "high",
       "description": "Write security-focused tests for the pre-Phase I budget check introduced in US-498. Verify that SPIRAL_COST_CEILING is strictly enforced and cannot be silently bypassed, that the rollback/skip prompts trigger correctly when the ceiling is exceeded, and that no sensitive config values (API keys, tokens) appear in budget check output.",
@@ -5613,7 +5612,7 @@
       }
     },
     {
-      "id": "US-1036",
+      "id": "US-755",
       "title": "[Regression Test] US-553 Phase Sequence: Phases R→T→S→M Execute in Order",
       "priority": "medium",
       "description": "Write a regression test verifying that SPIRAL's first four phases (Research, Test-Synth, Story-Validate, Merge) execute in correct sequential order during a single iteration with a mocked Claude API. Guards against orchestration regressions introduced by future refactors to spiral.sh or lib/phases/.",
@@ -5637,7 +5636,7 @@
       "model": "haiku"
     },
     {
-      "id": "US-1037",
+      "id": "US-756",
       "title": "[Regression Test] US-553 Phase Completion: I→V→C Workers Finish and Story Passes",
       "priority": "medium",
       "description": "Write a regression test verifying that SPIRAL's last three phases (Implement, Validate, Check-Done) complete successfully, workers exit cleanly, and the seeded story reaches 'done' status. Guards against regressions in the implementation engine and completion-check logic.",
