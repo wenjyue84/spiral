@@ -469,6 +469,11 @@ SPIRAL_AC_VERIFY=true
 # Set to true to enable hard block: story fails if dead features found.
 SPIRAL_STRICT_DEAD_FEATURE=false
 
+# ── Reachability Verifier (US-1007) ────────────────────────────────────────
+# Verify new Python modules for Phase stories are wired into spiral.sh/main.py.
+# Default is soft warning (logs but does not block). Set to true to hard-block.
+SPIRAL_STRICT_REACHABILITY=false
+
 # ── Dashboard port allocation ────────────────────────────────────────────────
 # Two servers run side-by-side. NEVER swap these ports.
 #   Port 5299: Vite React dashboard (spiral-ui/) — full 11-tab UI
