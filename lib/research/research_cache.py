@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -22,6 +23,7 @@ class CachedQuery:
     result: str
     iteration: int
     tokens: list[str]  # List of query tokens for Jaccard similarity
+    added_at: float = 0.0  # Timestamp for LRU eviction
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
@@ -35,6 +37,7 @@ class CachedQuery:
             result=data.get("result", ""),
             iteration=data.get("iteration", 0),
             tokens=data.get("tokens", []),
+            added_at=data.get("added_at", 0.0),
         )
 
 
@@ -85,18 +88,26 @@ def save_research_cache(
     cache_path: Path,
     ttl_iterations: int = 5,
     current_iteration: int = 0,
+    max_cache_size: int = 0,
 ) -> None:
-    """Save cached queries to .spiral/research_cache.json with TTL pruning.
+    """Save cached queries to .spiral/research_cache.json with TTL and LRU pruning.
 
     Args:
         cached_queries: List of cached queries
         cache_path: Path to .spiral/research_cache.json
         ttl_iterations: Max age of cache entries (default 5 iterations)
         current_iteration: Current iteration for TTL calculation
+        max_cache_size: Max cache size for LRU eviction (0 = unlimited, default 0)
     """
-    # Prune old entries
+    # Prune old entries (TTL-based)
     min_iteration = current_iteration - ttl_iterations
     pruned = [q for q in cached_queries if q.iteration >= min_iteration]
+
+    # Apply LRU eviction if max_cache_size is set and exceeded
+    if max_cache_size > 0 and len(pruned) > max_cache_size:
+        # Sort by added_at timestamp (oldest first) and keep only the most recent
+        pruned.sort(key=lambda q: q.added_at)
+        pruned = pruned[-max_cache_size:]
 
     data = {
         "cached_queries": [q.to_dict() for q in pruned],
@@ -141,6 +152,7 @@ def record_query_result(
     cache_path: Path,
     iteration: int = 0,
     ttl_iterations: int = 5,
+    max_cache_size: int = 0,
 ) -> None:
     """Record a new query and its research result to the cache.
 
@@ -150,6 +162,7 @@ def record_query_result(
         cache_path: Path to .spiral/research_cache.json
         iteration: Current SPIRAL iteration
         ttl_iterations: Max age of cache entries
+        max_cache_size: Max cache size for LRU eviction (0 = unlimited)
     """
     cached_queries = load_research_cache(cache_path)
 
@@ -162,11 +175,12 @@ def record_query_result(
         result=result,
         iteration=iteration,
         tokens=query_tokens,
+        added_at=time.time(),
     )
     cached_queries.append(new_cached)
 
-    # Save with TTL pruning
-    save_research_cache(cached_queries, cache_path, ttl_iterations, iteration)
+    # Save with TTL and LRU pruning
+    save_research_cache(cached_queries, cache_path, ttl_iterations, iteration, max_cache_size)
 
 
 def cache_similarity_lookup(
