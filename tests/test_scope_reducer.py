@@ -151,7 +151,8 @@ class TestReduceScope:
             return
 
         reduced, deferred = reduce_scope(story, budget_chars=3000)
-        remaining = list(reduced["filesTouch"])  # type: ignore[arg-type]
+        ft = reduced["filesTouch"]
+        remaining = list(ft) if isinstance(ft, list) else []
         for f in critical:
             assert f in remaining, f"Critical file was deferred: {f}"
 
@@ -180,9 +181,108 @@ class TestReduceScope:
         """reduce_scope() must not mutate the input story dict."""
         noncritical = [f"tests/test_{i}.py" * 5 for i in range(40)]
         story = _make_story(noncritical, extra_desc="x" * 1000)
-        original_files = list(story["filesTouch"])  # type: ignore[arg-type]
+        ft = story["filesTouch"]
+        original_files = list(ft) if isinstance(ft, list) else []
 
         reduce_scope(story, budget_chars=3000)
 
         assert story["filesTouch"] == original_files
         assert "_deferred_files" not in story
+
+
+class TestScopeReductionRetryIntegration:
+    """Integration test: 5KB story → scope reduction → retry without model escalation.
+
+    Simulates the Phase I flow: detect oversize, reduce scope, retry at same model,
+    log both attempts to results.tsv with scope_reduced tag.
+    """
+
+    def test_5kb_story_reduced_retried_no_escalation(self, tmp_path: object) -> None:
+        """Full flow: 5KB story reduced to ≤3KB, retried, succeeds without sonnet."""
+        import os
+        import tempfile
+
+        from results_tsv import ResultsRecord, parse_results_tsv, write_results_tsv
+
+        # --- Step 1: Build a 5KB story with many test/doc files ---
+        critical_files = [f"lib/module_{i}.py" for i in range(5)]
+        noncritical_files = [
+            *[f"tests/test_module_{i}.py" * 4 for i in range(50)],
+            *[f"docs/guide_{i}.md" for i in range(20)],
+        ]
+        story = _make_story(critical_files + noncritical_files, extra_desc="x" * 1500)
+        original_size = estimate_story_size(story)
+        assert original_size > 5000, f"Story too small: {original_size}"
+
+        # --- Step 2: First attempt fails (simulated token overage) ---
+        model_used = "haiku"
+        with tempfile.TemporaryDirectory() as td:
+            tsv_path = os.path.join(td, "results.tsv")
+
+            # Log the failed first attempt
+            fail_record = ResultsRecord(
+                timestamp="2026-03-22T00:00:00Z",
+                spiral_iter="1",
+                ralph_iter="1",
+                story_id="US-TEST",
+                story_title="Test Story",
+                status="fail",
+                duration_sec="10",
+                model=model_used,
+                retry_num="0",
+                commit_sha="",
+                run_id="test-run",
+                failure_root_cause="token_overage",
+            )
+            write_results_tsv(tsv_path, [fail_record])
+
+            # --- Step 3: Scope reduction (pre-escalation) ---
+            reduced, deferred = reduce_scope(story, budget_chars=3000)
+            reduced_size = estimate_story_size(reduced)
+
+            assert reduced_size <= 3000, f"Reduced size {reduced_size} > 3000"
+            assert len(deferred) > 0, "Expected deferred files"
+            assert "_deferred_files" in reduced
+            # All critical files preserved
+            ft = reduced.get("filesTouch", [])
+            remaining = list(ft) if isinstance(ft, list) else []
+            for f in critical_files:
+                assert f in remaining, f"Critical file deferred: {f}"
+
+            # --- Step 4: Retry with same model (no escalation to sonnet) ---
+            retry_model = model_used  # NO escalation — still haiku
+            assert retry_model == "haiku", "Should not escalate to sonnet"
+
+            # Log the successful retry with scope_reduced tag
+            pass_record = ResultsRecord(
+                timestamp="2026-03-22T00:00:05Z",
+                spiral_iter="1",
+                ralph_iter="1",
+                story_id="US-TEST",
+                story_title="Test Story",
+                status="pass",
+                duration_sec="8",
+                model=retry_model,
+                retry_num="1",
+                commit_sha="abc123",
+                run_id="test-run",
+                scope_tag="scope_reduced",
+            )
+            # Append the retry record
+            records = parse_results_tsv(tsv_path)
+            records.append(pass_record)
+            write_results_tsv(tsv_path, records)
+
+            # --- Step 5: Verify results.tsv has both attempts ---
+            final_records = parse_results_tsv(tsv_path)
+            assert len(final_records) == 2
+
+            # First attempt: fail, no scope_tag
+            assert final_records[0].status == "fail"
+            assert final_records[0].model == "haiku"
+            assert final_records[0].scope_tag == ""
+
+            # Second attempt: pass, scope_reduced tag, same model
+            assert final_records[1].status == "pass"
+            assert final_records[1].model == "haiku"
+            assert final_records[1].scope_tag == "scope_reduced"

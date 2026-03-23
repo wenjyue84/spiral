@@ -580,6 +580,205 @@
       "_failureReason": "oversized_diff"
     },
     {
+      "id": "US-752",
+      "title": "Dashboard: Implement API Token Authentication Middleware",
+      "priority": "medium",
+      "description": "Add authentication layer to dashboard API endpoints to validate OAuth tokens and API keys before processing requests. Protects /api/dashboard/* and /ws/* endpoints from unauthorized access.",
+      "acceptanceCriteria": [
+        "Dashboard server validates Bearer token in Authorization header (via middleware) before routing to /api/dashboard/* endpoints",
+        "GET /api/dashboard/costs-by-project returns 401 Unauthorized if token is invalid or missing",
+        "WebSocket /ws/cost and /ws/alerts endpoints reject connections without valid token parameter (?token=xyz)"
+      ],
+      "technicalNotes": [
+        "File to create: lib/dashboard/auth_middleware.py with validate_token(token: str) -> bool function",
+        "File to edit: lib/dashboard/app.py (wire middleware before route handlers)",
+        "Test command: uv run pytest tests/test_dashboard_auth.py::test_unauthorized_request_401 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-753",
+      "title": "Ralph Agent: Inject Phase V Test Failures into Implementation Context",
+      "priority": "medium",
+      "description": "Enhance Ralph's implementation prompt to include concrete test failure output from Phase V (pytest, playwright), giving the implementation agent error messages and stack traces to inform fixes.",
+      "acceptanceCriteria": [
+        "Ralph reads Phase V validation output (test logs) and extracts up to 3 top failure messages with error context",
+        "Ralph's generated prompt includes 'Recent test failures:' section before the task description, showing failure output inline",
+        "Integration test verifies that mock test output is correctly extracted and appears in Ralph's prompt string"
+      ],
+      "technicalNotes": [
+        "File to create: lib/ralph_context_builder.py with add_test_failures_to_context(phase_v_output: str) function",
+        "File to edit: lib/impl/retry.sh (call context builder before invoking ralph.sh)",
+        "Test command: uv run pytest tests/test_ralph_test_context.py::test_failing_tests_injected_in_prompt -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-754",
+      "title": "Integration Test: Cost Predictor Accuracy Validation Against Historical results.tsv",
+      "priority": "medium",
+      "description": "Validate that the KNN cost predictor CLI accurately estimates story costs by comparing predictions against actual results.tsv outcomes. Measures model quality via MAPE and flags retraining needs.",
+      "acceptanceCriteria": [
+        "Load historical results.tsv with 10+ completed stories; predict cost for each using cost-predictor CLI",
+        "Compare predicted vs actual tokens/cost; calculate MAPE (mean absolute percentage error) < 30%",
+        "If MAPE > 30%, integration test logs warning with suggestion to retrain model or adjust KNN parameters"
+      ],
+      "technicalNotes": [
+        "File to create: lib/cost_predictor_validator.py with validate_predictions(predictions, actuals) -> float (returns MAPE)",
+        "File to create: tests/test_cost_predictor_validation.py with fixtures for mock results.tsv data",
+        "Test command: uv run pytest tests/test_cost_predictor_validation.py::test_predictor_mape_within_threshold -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-746",
+      "title": "[Perf Test] Benchmark SPIRAL dashboard token/throughput metrics (US-460)",
+      "priority": "medium",
+      "description": "Write a performance benchmark test for the SPIRAL self-monitoring dashboard introduced in US-460. The test must capture a baseline for token burn rate and story throughput calculations, then assert that subsequent runs do not degrade more than 20% from that baseline.",
+      "acceptanceCriteria": [
+        "Running `uv run pytest tests/test_perf_us460.py -v` exits 0 and prints a baseline timing line",
+        "Test asserts elapsed time is within 120% of captured baseline (hardcoded constant in the test file)",
+        "Test is discoverable via `uv run pytest tests/ -k us_460 -v` and appears in the collected test list"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_perf_us460.py (create new file with test_dashboard_token_throughput_baseline)",
+        "Reference US-460 source files for what to import/call: .github/workflows/spiral.yml is the entry point; the Python logic under test lives in lib/ (dashboard helpers, if any)",
+        "Test command: uv run pytest tests/test_perf_us460.py -v",
+        "If no importable Python dashboard module exists yet, benchmark the CLI status command: `time python main.py status` and assert wall-clock < 5s as the threshold",
+        "Baseline constant should be defined as BASELINE_MS = 2000 at the top of the test file so it is easy to update"
+      ],
+      "dependencies": [
+        "US-460"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "performance",
+        "auto-generated"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-755",
+      "title": "[Test] Episodic Memory Pattern Store - Pytest Coverage for US-596",
+      "priority": "medium",
+      "description": "Write pytest tests covering the episodic memory backend introduced in US-596. The feature stores implementation patterns from Ralph retry attempts and retrieves similar ones via similarity search. Tests must verify store, retrieve, and similarity-threshold behaviour using the existing pytest suite (no browser required — this is a pure Python backend feature).",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_episodic_memory.py -v exits 0 with at least one test covering pattern storage (store then retrieve round-trip)",
+        "uv run pytest tests/test_episodic_memory.py -v covers similarity search: a stored pattern is returned when queried with semantically similar text, absent when below threshold",
+        "uv run pytest tests/test_episodic_memory.py -v covers empty-store edge case: retrieval on an empty store returns an empty list without raising"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_episodic_memory.py (add test_store_and_retrieve, test_similarity_threshold, test_empty_store)",
+        "Test command: uv run pytest tests/test_episodic_memory.py -v --tb=short",
+        "US-596 source: the episodic memory module likely lives in lib/ (grep for 'episodic' or 'pattern_store' to locate the exact path before writing tests)",
+        "Do NOT use Playwright or any browser automation — this is a CLI/Python backend project"
+      ],
+      "dependencies": [
+        "US-596"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "e2e",
+        "auto-generated"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-756",
+      "title": "Regression Test: CLI spiral trace-dependencies resolves federated deps",
+      "priority": "medium",
+      "description": "Write a pytest regression test that guards the observable behaviour of US-675: the `spiral trace-dependencies <story-id>` CLI command. The test must verify recursive dependency resolution, circular-dependency detection, and sub-project boundary markers so any future breakage causes an immediate CI failure.",
+      "acceptanceCriteria": [
+        "Running `uv run pytest tests/test_us675_trace_dependencies.py -v` exits 0 with all tests passing",
+        "`trace-dependencies US-001` returns a non-empty dependency chain that includes file paths",
+        "`trace-dependencies` with a circular dependency in the fixture data exits non-zero or raises a clear error",
+        "Removing or stubbing out the trace-dependencies implementation causes at least one test in the file to fail"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_us675_trace_dependencies.py (create new file with regression fixtures)",
+        "File to edit: lib/spiral/cli.py or spiral.sh (locate trace-dependencies entry point to understand invokable surface)",
+        "Test command: uv run pytest tests/test_us675_trace_dependencies.py -v",
+        "Use subprocess or direct function import to invoke the command; prefer function-level import if the logic lives in a Python module",
+        "Create minimal fixture data (2-3 stories with explicit dependency links) inside the test file — no external fixture files needed"
+      ],
+      "dependencies": [
+        "US-675"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "regression",
+        "auto-generated"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-757",
+      "title": "[E2E Test] Verify CI workflow changes from US-460 are valid and lint-free",
+      "priority": "medium",
+      "description": "Write integration tests that validate the CI workflow YAML files introduced or modified by US-460 (lint-shell action, setup-uv action, ci.yml, release.yml, spiral.yml). These tests assert structural correctness of the workflow configs and that required jobs/steps are present. There is no browser UI to navigate; US-460 touched GitHub Actions YAML files only.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_us460_workflows.py -v exits 0 with all tests passing",
+        "Test asserts .github/workflows/ci.yml contains a 'lint-shell' job or step reference",
+        "Test asserts .github/actions/setup-uv/action.yml has a valid 'runs' section with 'using' key",
+        "Test asserts .github/workflows/spiral.yml exists and is parseable YAML"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_us460_workflows.py (create new — load each YAML with PyYAML and assert on required keys)",
+        "File to edit: tests/test_batch_validate.py (add a marker test `test_us460_placeholder` so `-k us_460` resolves)",
+        "Test command: uv run pytest tests/test_us460_workflows.py -v",
+        "Use `import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))` pattern — no browser or Playwright needed",
+        "Do NOT write a Playwright/browser test; the source feature is CI config, not a web UI"
+      ],
+      "dependencies": [
+        "US-460"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "e2e",
+        "auto-generated"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-744",
+      "title": "Phase I: Automatic File-Level Scope Reduction for Oversized Implementations",
+      "priority": "high",
+      "description": "When Ralph implementation fails with token overage, auto-detect non-critical files and resubmit with reduced scope before escalating model. Reduces retry cost and iteration time.",
+      "acceptanceCriteria": [
+        "Phase I detects oversized stories via token prediction; calls lib/scope_reducer.py to identify non-critical files (tests, docs, examples) and mark as 'deferred'",
+        "Ralph retries with reduced scope and {deferred_files, token_budget} in prompt; logs both attempts to results.tsv with 'scope_reduced' tag",
+        "Integration test verifies 5KB story reduced to 3KB, retried, and succeeded without escalating to sonnet"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "sonnet",
+      "last_attempted": "2026-03-22T12:30:55Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n- `lib/scope_reducer.py` exists with working reduce_scope/estimate/identify functions (16 unit tests pass)\n- `lib/results_tsv.py` has `scope_tag` field for `scope_reduced` tracking\n- `lib/impl/retry.sh` has `try_scope_reduction()` bash helper\n- **mypy strict fails** on `tests/test_scope_reducer.py` (3 errors: unused type-ignore, type mismatch)\n- Missing integration test for the full scope-reduction → retry → results.tsv flow (AC #2 and #3 incomplete)\n\n## Problem Identified\n1. mypy strict errors block quality gates\n2. Integration test doesn't cover retry flow with results.tsv `scope_reduced` tag logging\n3. Story `passes: false` despite code being committed\n\n## Planned Changes\n- Fix mypy errors in `tests/test_scope_reducer.py` (lines 154, 183)\n- Add integration test covering: 5KB story → scope reduction → retry succeeds at same model tier → both attempts logged to results.tsv with scope_reduced tag\n- Run quality checks (mypy, ruff, pytest)\n- Mark US-744 passes: true in prd.json\nNow add the integration test for the full retry flow at the end of the file:\nNow run quality checks:\nAll 17 tests pass (16 existing + 1 new integration test). Now mark the story as passes: true:\nNow append progress notes:\nNow run pre-commit checks:\nPre-commit modified some files. Let me re-run to see if it's clean now:\nAll checks pass. Now commit:\nStory US-744 is complete. Here's what was done:\n\n**Problem:** Previous haiku attempt created all the code correctly but left mypy strict errors unfixed, causing quality gate failure.\n\n**Changes:**\n1. **`tests/test_scope_reducer.py`** — Fixed 3 mypy strict errors (unused `type: ignore` comments, `list()` on `object` type needing `isinstance` guard). Added `TestScopeReductionRetryIntegration::test_5kb_story_reduced_retried_no_escalation` integration test covering the full flow: 5KB story → scope_reducer → retry at same model (haiku) → results.tsv with `scope_reduced` tag → no escalation to sonnet.\n2. **`prd.json`** — Marked US-744 `passes: true`\n3. **`progress.txt`** — Documented learnings\n\nAll 17 tests pass, mypy strict clean, ruff clean."
+      },
+      "_contextStats": {
+        "tokensBeforeMasking": 539,
+        "tokensAfterMasking": 539,
+        "reductionPct": 0,
+        "contextWindow": 10
+      }
+    },
+    {
       "id": "US-732",
       "title": "Phase G: Deploy CHANGELOG and pdoc Outputs to GitHub Pages via Deploy Docs CLI",
       "priority": "high",

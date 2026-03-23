@@ -123,7 +123,7 @@ class TestSpiralDashboardTUI:
 
         panel = LogPanel("")
         assert panel.log_path == ""
-        assert panel.auto_refresh is True
+        assert panel.auto_refresh_enabled is True
 
     def test_log_panel_with_missing_file(self):
         """Test LogPanel gracefully handles missing log files."""
