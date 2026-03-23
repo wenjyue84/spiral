@@ -11,7 +11,6 @@ import glob
 import re
 from pathlib import Path
 
-import pytest
 import yaml
 
 
@@ -55,9 +54,7 @@ class TestWorkflowsHaveExplicitPermissions:
 
             # Check top-level permissions key exists
             if "permissions" not in data:
-                failures.append(
-                    f"{workflow_file}: Missing top-level `permissions:` block"
-                )
+                failures.append(f"{workflow_file}: Missing top-level `permissions:` block")
                 continue
 
             permissions = data["permissions"]
@@ -76,9 +73,7 @@ class TestWorkflowsHaveExplicitPermissions:
 
             # If dict, should not be empty
             if isinstance(permissions, dict) and not permissions:
-                failures.append(
-                    f"{workflow_file}: `permissions:` dict is empty; must declare scopes"
-                )
+                failures.append(f"{workflow_file}: `permissions:` dict is empty; must declare scopes")
                 continue
 
         assert not failures, "\n".join(failures)
@@ -96,9 +91,7 @@ class TestActionsPinnedToSha:
         # Pattern: [dash?] uses: owner/action@[40 hex chars]
         # Must allow both lowercase and uppercase hex digits
         # The `-` is optional YAML list item prefix
-        sha_pattern = re.compile(
-            r"^\s*-?\s*uses:\s+[^@]+@([0-9a-fA-F]{40})\s*(?:#.*)?$"
-        )
+        sha_pattern = re.compile(r"^\s*-?\s*uses:\s+[^@]+@([0-9a-fA-F]{40})\s*(?:#.*)?$")
 
         # Patterns for non-SHA references that are ALLOWED
         # (local actions via ./.github/actions/... or ../.github/actions/... are allowed)
@@ -138,9 +131,7 @@ class TestActionsPinnedToSha:
 
                 # Check if this line has a full 40-char SHA
                 if not sha_pattern.match(line):
-                    failures.append(
-                        f"{workflow_file}:{line_num}: Action not pinned to full SHA: {line.strip()}"
-                    )
+                    failures.append(f"{workflow_file}:{line_num}: Action not pinned to full SHA: {line.strip()}")
 
         assert not failures, "\n".join(failures)
 
@@ -182,8 +173,6 @@ class TestNoPlaintextSecrets:
                 # Check against secret patterns
                 for pattern in secret_patterns:
                     if pattern.search(line):
-                        failures.append(
-                            f"{workflow_file}:{line_num}: Potential plaintext secret: {line.strip()}"
-                        )
+                        failures.append(f"{workflow_file}:{line_num}: Potential plaintext secret: {line.strip()}")
 
         assert not failures, "\n".join(failures)

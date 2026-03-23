@@ -74,7 +74,7 @@ run_phase_check_done() {
 
         if [[ "${SPIRAL_STRICT_PERF_CHECK:-false}" == "true" ]]; then
           echo "  [C] ERROR: SPIRAL_STRICT_PERF_CHECK=true blocks on performance regression"
-          exit 9  # ERR_PERF_REGRESSION
+          exit 9 # ERR_PERF_REGRESSION
         fi
       fi
     fi

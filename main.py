@@ -2898,16 +2898,12 @@ def cmd_show_perf_baseline(args: argparse.Namespace) -> None:
                 p90_val = p90[phase]
                 limit = p90_val * 2.0
 
-                print(
-                    f"{phase:<8} {p50_val:<12.1f} {p90_val:<12.1f} {limit:>12.1f}"
-                )
+                print(f"{phase:<8} {p50_val:<12.1f} {p90_val:<12.1f} {limit:>12.1f}")
 
             total_p50 = sum(p50.values())
             total_p90 = sum(p90.values())
             print("─" * 70)
-            print(
-                f"{'TOTAL':<8} {total_p50:<12.1f} {total_p90:<12.1f} {total_p90 * 2.0:>12.1f}"
-            )
+            print(f"{'TOTAL':<8} {total_p50:<12.1f} {total_p90:<12.1f} {total_p90 * 2.0:>12.1f}")
         else:
             print("No baseline data available")
 

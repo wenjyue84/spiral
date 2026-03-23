@@ -11,37 +11,6 @@
   ],
   "userStories": [
     {
-      "id": "US-1011",
-      "title": "Security Test: Verify CI workflow files have minimal permissions and pinned actions",
-      "priority": "high",
-      "description": "Write pytest-based security tests that statically analyse the GitHub Actions workflow and action YAML files introduced or modified in US-460. Tests confirm that actions are pinned to full commit SHAs (no floating tags), workflow-level permissions are explicitly scoped to least-privilege, and no plaintext secrets or tokens appear in any workflow file.",
-      "acceptanceCriteria": [
-        "All workflow YAML files under .github/ declare explicit `permissions:` blocks with no `write-all` scope: `uv run pytest tests/test_security_ci_workflows.py::test_workflows_have_explicit_permissions -v` exits 0",
-        "Every `uses:` action reference in .github/ is pinned to a full 40-char commit SHA (not a branch or semver tag): `uv run pytest tests/test_security_ci_workflows.py::test_actions_pinned_to_sha -v` exits 0",
-        "No YAML file under .github/ contains a bare secret string matching common patterns (password=, token=, api_key=): `uv run pytest tests/test_security_ci_workflows.py::test_no_plaintext_secrets -v` exits 0"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_security_ci_workflows.py (new file — create it)",
-        "Glob target files: glob.glob('.github/**/*.yml', recursive=True) + glob.glob('.github/**/*.yaml', recursive=True)",
-        "Parse YAML with PyYAML (already available via uv); do not shell-exec workflow files",
-        "For SHA-pin check: regex r'uses:\\s+[^@]+@([0-9a-f]{40})' must match every `uses:` line",
-        "For permissions check: load top-level `permissions` key per workflow; assert value is a dict (not the string 'write-all')",
-        "Test command: uv run pytest tests/test_security_ci_workflows.py -v",
-        "Test command (full suite): uv run pytest tests/ -v --tb=short"
-      ],
-      "dependencies": [
-        "US-460"
-      ],
-      "estimatedComplexity": "small",
-      "passes": true,
-      "tags": [
-        "security",
-        "auto-generated"
-      ],
-      "model": "haiku",
-      "last_attempted": "2026-03-23T04:49:16Z"
-    },
-    {
       "id": "US-1012",
       "title": "[Integration Test] Verify episodic memory store for Ralph workers (US-350)",
       "priority": "high",
@@ -63,7 +32,7 @@
         "US-350"
       ],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "tags": [
         "integration",
         "auto-generated"
@@ -387,6 +356,35 @@
         "US-591"
       ],
       "estimatedComplexity": "medium",
+      "passes": false,
+      "tags": [
+        "e2e",
+        "auto-generated"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-1023",
+      "title": "[E2E Test] Validate CI workflow YAML structure introduced in US-460",
+      "priority": "medium",
+      "description": "Write integration/structural tests for the CI workflow YAML files added or modified in US-460 (.github/workflows/ and .github/actions/). These tests assert that required jobs, steps, and action inputs exist and are well-formed, providing regression coverage for the CI pipeline structure.",
+      "acceptanceCriteria": [
+        "Test file tests/test_us460_ci_structure.py exists and all tests pass: `uv run pytest tests/test_us460_ci_structure.py -v`",
+        "Tests assert that .github/workflows/ci.yml contains a lint-shell job with shellcheck and shfmt steps: `uv run pytest tests/test_us460_ci_structure.py::test_ci_yml_lint_shell_job -v`",
+        "Tests assert that .github/actions/lint-shell/action.yml defines required inputs (shell-files or equivalent): `uv run pytest tests/test_us460_ci_structure.py::test_lint_shell_action_inputs -v`",
+        "Tests assert that .github/actions/setup-uv/action.yml defines a working uv setup step: `uv run pytest tests/test_us460_ci_structure.py::test_setup_uv_action -v`"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_us460_ci_structure.py (new file — create YAML-parsing tests using PyYAML or ruamel.yaml)",
+        "Source YAML files under test: .github/actions/lint-shell/action.yml, .github/actions/setup-uv/action.yml, .github/workflows/ci.yml",
+        "Test command: uv run pytest tests/test_us460_ci_structure.py -v",
+        "Use `import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))` to load and assert on structure — no browser/Playwright needed since US-460 source files are CI YAML, not a UI dashboard",
+        "Note: story title says 'self-monitoring dashboard' but US-460 source files are CI workflow YAMLs — implement as structural YAML tests, not browser E2E"
+      ],
+      "dependencies": [
+        "US-460"
+      ],
+      "estimatedComplexity": "small",
       "passes": false,
       "tags": [
         "e2e",
@@ -2660,6 +2658,37 @@
           }
         ]
       }
+    },
+    {
+      "id": "US-1011",
+      "title": "Security Test: Verify CI workflow files have minimal permissions and pinned actions",
+      "priority": "high",
+      "description": "Write pytest-based security tests that statically analyse the GitHub Actions workflow and action YAML files introduced or modified in US-460. Tests confirm that actions are pinned to full commit SHAs (no floating tags), workflow-level permissions are explicitly scoped to least-privilege, and no plaintext secrets or tokens appear in any workflow file.",
+      "acceptanceCriteria": [
+        "All workflow YAML files under .github/ declare explicit `permissions:` blocks with no `write-all` scope: `uv run pytest tests/test_security_ci_workflows.py::test_workflows_have_explicit_permissions -v` exits 0",
+        "Every `uses:` action reference in .github/ is pinned to a full 40-char commit SHA (not a branch or semver tag): `uv run pytest tests/test_security_ci_workflows.py::test_actions_pinned_to_sha -v` exits 0",
+        "No YAML file under .github/ contains a bare secret string matching common patterns (password=, token=, api_key=): `uv run pytest tests/test_security_ci_workflows.py::test_no_plaintext_secrets -v` exits 0"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_security_ci_workflows.py (new file — create it)",
+        "Glob target files: glob.glob('.github/**/*.yml', recursive=True) + glob.glob('.github/**/*.yaml', recursive=True)",
+        "Parse YAML with PyYAML (already available via uv); do not shell-exec workflow files",
+        "For SHA-pin check: regex r'uses:\\s+[^@]+@([0-9a-f]{40})' must match every `uses:` line",
+        "For permissions check: load top-level `permissions` key per workflow; assert value is a dict (not the string 'write-all')",
+        "Test command: uv run pytest tests/test_security_ci_workflows.py -v",
+        "Test command (full suite): uv run pytest tests/ -v --tb=short"
+      ],
+      "dependencies": [
+        "US-460"
+      ],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "tags": [
+        "security",
+        "auto-generated"
+      ],
+      "model": "haiku",
+      "last_attempted": "2026-03-23T04:49:16Z"
     },
     {
       "id": "US-1009",

@@ -17,6 +17,7 @@ class TestFindOrphanCommits:
 
     def test_commits_with_story_ids_not_orphans(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Happy path: Commits with US-NNN or UT-NNN story IDs are not marked as orphans."""
+
         # Mock git log to return commits with story IDs in subject + body
         def mock_run(cmd: Any, *args: Any, **kwargs: Any) -> MagicMock:
             result = MagicMock()
@@ -40,6 +41,7 @@ class TestFindOrphanCommits:
 
     def test_commits_without_story_ids_are_orphans(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Edge case: Commits without US-NNN or UT-NNN story IDs are marked as orphans."""
+
         def mock_run(cmd: Any, *args: Any, **kwargs: Any) -> MagicMock:
             result = MagicMock()
             result.returncode = 0

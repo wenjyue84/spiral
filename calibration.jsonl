@@ -209,3 +209,4 @@
 {"story_id": "US-1009", "estimated_complexity": "small", "actual_duration_s": 1200, "phase_retries": 0, "passed": true}
 {"story_id": "US-1010", "estimated_complexity": "small", "actual_duration_s": 702, "phase_retries": 0, "passed": true}
 {"story_id": "US-1011", "estimated_complexity": "small", "actual_duration_s": 464, "phase_retries": 0, "passed": true}
+{"story_id": "US-1011", "estimated_complexity": "small", "actual_duration_s": 1202, "phase_retries": 0, "passed": true}

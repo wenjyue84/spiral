@@ -41,7 +41,7 @@ import argparse
 import json
 import statistics
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 
 def update_baseline(
@@ -101,9 +101,7 @@ def update_baseline(
 
     if phases:
         # Add to rolling window
-        baseline["rolling_window"].append(
-            {"iteration": iteration_num, "phases": phases}
-        )
+        baseline["rolling_window"].append({"iteration": iteration_num, "phases": phases})
 
         # Keep only last N iterations
         if len(baseline["rolling_window"]) > window_size:
@@ -122,9 +120,9 @@ def update_baseline(
         for phase_name, timings in phase_timings.items():
             if timings:
                 baseline["p50"][phase_name] = statistics.median(timings)
-                baseline["p90"][phase_name] = statistics.quantiles(
-                    timings, n=10, method="inclusive"
-                )[8]  # 90th percentile
+                baseline["p90"][phase_name] = statistics.quantiles(timings, n=10, method="inclusive")[
+                    8
+                ]  # 90th percentile
 
     return baseline
 
@@ -211,10 +209,7 @@ def check_regression(
         "regressions": regressions,
         "summary": (
             f"Phase regression detected ({len(regressions)} phase(s)): "
-            + ", ".join(
-                f"{r['phase']} ({r['current']}s vs P90 {r['p90']}s, {r['ratio']}x)"
-                for r in regressions
-            )
+            + ", ".join(f"{r['phase']} ({r['current']}s vs P90 {r['p90']}s, {r['ratio']}x)" for r in regressions)
             if regressions
             else "No regression detected"
         ),
@@ -225,9 +220,7 @@ def check_regression(
 
 def main() -> None:
     """CLI entry point."""
-    parser = argparse.ArgumentParser(
-        description="Phase C: Performance Baseline and Regression Detector"
-    )
+    parser = argparse.ArgumentParser(description="Phase C: Performance Baseline and Regression Detector")
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
 
     # update subcommand
@@ -244,9 +237,7 @@ def main() -> None:
         default=Path(".spiral/perf_baseline.json"),
         help="Path to baseline JSON file",
     )
-    update_parser.add_argument(
-        "--window-size", type=int, default=10, help="Rolling window size"
-    )
+    update_parser.add_argument("--window-size", type=int, default=10, help="Rolling window size")
 
     # check subcommand
     check_parser = subparsers.add_parser("check", help="Check for regression")

@@ -162,3 +162,78 @@ def test_empty_store_returns_empty_context() -> None:
         mem = EpisodicMemory(path)
         results = mem.query_by_text("anything at all", k=3)
         assert results == [], "Empty store should return empty list"
+
+
+# ── Tests for US-350 with pytest fixtures ────────────────────────────────────
+
+
+from pathlib import Path
+
+
+class TestEpisodicMemoryUS350:
+    """Integration tests for episodic memory store with pytest tmp_path fixtures."""
+
+    def test_us_350_write_and_retrieve_similar(self, tmp_path: Path) -> None:
+        """Happy path: store multiple records and retrieve top-k similar results (US-350).
+
+        Tests that:
+        1. Records can be written to JSONL store
+        2. get_similar() returns top-k results by embedding distance
+        3. Results are ranked by relevance (highest similarity first)
+        """
+        memory_file = tmp_path / "episodic_memory.jsonl"
+        mem = EpisodicMemory(str(memory_file))
+
+        # Write 3 records with related content
+        mem.write(
+            "US-1001",
+            {
+                "approach": "Use regex pattern matching for tokenization",
+                "outcome": "pass",
+                "files_touched": ["lib/parser.py"],
+            },
+        )
+        mem.write(
+            "US-1002",
+            {
+                "approach": "Implement regex-based tokenizer to split strings",
+                "outcome": "pass",
+                "files_touched": ["lib/tokenizer.py"],
+            },
+        )
+        mem.write(
+            "US-1003",
+            {
+                "approach": "Rewrite database migration script in SQL",
+                "outcome": "fail",
+                "files_touched": ["migrations/001.sql"],
+            },
+        )
+
+        # Retrieve top-3 similar to US-1001
+        similar = mem.get_similar("US-1001", k=3)
+
+        # Assertions
+        assert isinstance(similar, list), "get_similar should return a list"
+        assert len(similar) > 0, "Should return at least one similar record"
+        assert len(similar) <= 3, "Should return at most k=3 records"
+        # US-1002 should rank higher than US-1003 (both share regex/tokeniz tokens)
+        if len(similar) > 0:
+            assert similar[0].get("story_id") == "US-1002", "US-1002 should rank first (closest similarity to US-1001)"
+
+    def test_us_350_empty_store_returns_empty_list(self, tmp_path: Path) -> None:
+        """Edge case: querying empty store returns [] not exception (US-350).
+
+        Tests that:
+        1. get_similar() on non-existent JSONL file returns [] not FileNotFoundError
+        2. Querying non-existent story_id returns []
+        """
+        memory_file = tmp_path / "episodic_memory.jsonl"
+        mem = EpisodicMemory(str(memory_file))
+
+        # Query should not raise, should return empty list
+        result = mem.get_similar("US-9999", k=3)
+
+        # Assertions
+        assert result == [], "Empty store should return empty list, not raise"
+        assert isinstance(result, list), "Result should be list type"

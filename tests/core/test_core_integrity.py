@@ -49,36 +49,20 @@ class TestProtectHookIntegrity:
     """Verify the PreToolUse hook has the env-var gate and protected paths."""
 
     def test_hook_has_env_gate(self) -> None:
-        hook = (REPO_ROOT / ".claude/hooks/protect-spiral-files.sh").read_text(
-            encoding="utf-8"
-        )
-        assert "SPIRAL_WORKER_ACTIVE" in hook, (
-            "Hook must check SPIRAL_WORKER_ACTIVE env var"
-        )
+        hook = (REPO_ROOT / ".claude/hooks/protect-spiral-files.sh").read_text(encoding="utf-8")
+        assert "SPIRAL_WORKER_ACTIVE" in hook, "Hook must check SPIRAL_WORKER_ACTIVE env var"
 
     def test_hook_protects_lib(self) -> None:
-        hook = (REPO_ROOT / ".claude/hooks/protect-spiral-files.sh").read_text(
-            encoding="utf-8"
-        )
-        assert '"lib/"' in hook or "'lib/'" in hook, (
-            "Hook must protect lib/ directory"
-        )
+        hook = (REPO_ROOT / ".claude/hooks/protect-spiral-files.sh").read_text(encoding="utf-8")
+        assert '"lib/"' in hook or "'lib/'" in hook, "Hook must protect lib/ directory"
 
     def test_hook_protects_ralph(self) -> None:
-        hook = (REPO_ROOT / ".claude/hooks/protect-spiral-files.sh").read_text(
-            encoding="utf-8"
-        )
-        assert '"ralph/"' in hook or "'ralph/'" in hook, (
-            "Hook must protect ralph/ directory"
-        )
+        hook = (REPO_ROOT / ".claude/hooks/protect-spiral-files.sh").read_text(encoding="utf-8")
+        assert '"ralph/"' in hook or "'ralph/'" in hook, "Hook must protect ralph/ directory"
 
     def test_hook_protects_itself(self) -> None:
-        hook = (REPO_ROOT / ".claude/hooks/protect-spiral-files.sh").read_text(
-            encoding="utf-8"
-        )
-        assert '".claude/hooks/"' in hook or "'.claude/hooks/'" in hook, (
-            "Hook must protect its own directory"
-        )
+        hook = (REPO_ROOT / ".claude/hooks/protect-spiral-files.sh").read_text(encoding="utf-8")
+        assert '".claude/hooks/"' in hook or "'.claude/hooks/'" in hook, "Hook must protect its own directory"
 
 
 class TestRalphWorkerFlag:
@@ -86,9 +70,7 @@ class TestRalphWorkerFlag:
 
     def test_ralph_exports_worker_flag(self) -> None:
         ralph = (REPO_ROOT / "ralph/ralph.sh").read_text(encoding="utf-8")
-        assert "SPIRAL_WORKER_ACTIVE" in ralph, (
-            "ralph.sh must export SPIRAL_WORKER_ACTIVE=1 before claude invocation"
-        )
+        assert "SPIRAL_WORKER_ACTIVE" in ralph, "ralph.sh must export SPIRAL_WORKER_ACTIVE=1 before claude invocation"
 
 
 class TestPrdSchemaValid:
@@ -116,17 +98,9 @@ class TestCommandAllowlist:
     """Verify the command allowlist blocks dangerous operations."""
 
     def test_allowlist_blocks_rm_rf(self) -> None:
-        allowlist = (REPO_ROOT / "lib/command_allowlist.sh").read_text(
-            encoding="utf-8"
-        )
-        assert "rm -rf" in allowlist, (
-            "Command allowlist must explicitly deny 'rm -rf'"
-        )
+        allowlist = (REPO_ROOT / "lib/command_allowlist.sh").read_text(encoding="utf-8")
+        assert "rm -rf" in allowlist, "Command allowlist must explicitly deny 'rm -rf'"
 
     def test_allowlist_blocks_force_push(self) -> None:
-        allowlist = (REPO_ROOT / "lib/command_allowlist.sh").read_text(
-            encoding="utf-8"
-        )
-        assert "git push --force" in allowlist, (
-            "Command allowlist must explicitly deny 'git push --force'"
-        )
+        allowlist = (REPO_ROOT / "lib/command_allowlist.sh").read_text(encoding="utf-8")
+        assert "git push --force" in allowlist, "Command allowlist must explicitly deny 'git push --force'"

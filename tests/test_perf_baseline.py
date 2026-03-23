@@ -5,8 +5,6 @@ tests/test_perf_baseline.py — Unit tests for lib/perf_baseline.py
 import json
 from pathlib import Path
 
-import pytest
-
 from lib.perf_baseline import check_regression, update_baseline
 
 
@@ -133,9 +131,7 @@ class TestCheckRegression:
         with open(iteration_file, "w") as f:
             json.dump(iteration_data, f)
 
-        has_regression, report = check_regression(
-            iteration_file, baseline_file, multiplier=2.0
-        )
+        has_regression, report = check_regression(iteration_file, baseline_file, multiplier=2.0)
 
         assert has_regression is False
         assert len(report["regressions"]) == 0
@@ -165,9 +161,7 @@ class TestCheckRegression:
         with open(iteration_file, "w") as f:
             json.dump(iteration_data, f)
 
-        has_regression, report = check_regression(
-            iteration_file, baseline_file, multiplier=2.0
-        )
+        has_regression, report = check_regression(iteration_file, baseline_file, multiplier=2.0)
 
         assert has_regression is True
         assert len(report["regressions"]) == 1
@@ -202,9 +196,7 @@ class TestCheckRegression:
         with open(iteration_file, "w") as f:
             json.dump(iteration_data, f)
 
-        has_regression, report = check_regression(
-            iteration_file, baseline_file, multiplier=2.0
-        )
+        has_regression, report = check_regression(iteration_file, baseline_file, multiplier=2.0)
 
         assert has_regression is True
         assert len(report["regressions"]) == 1
@@ -234,15 +226,11 @@ class TestCheckRegression:
             json.dump(iteration_data, f)
 
         # With 2.0x multiplier: 150 < 200 → no regression
-        has_regression, report = check_regression(
-            iteration_file, baseline_file, multiplier=2.0
-        )
+        has_regression, report = check_regression(iteration_file, baseline_file, multiplier=2.0)
         assert has_regression is False
 
         # With 1.4x multiplier: 150 > 140 → regression
-        has_regression, report = check_regression(
-            iteration_file, baseline_file, multiplier=1.4
-        )
+        has_regression, report = check_regression(iteration_file, baseline_file, multiplier=1.4)
         assert has_regression is True
 
 
