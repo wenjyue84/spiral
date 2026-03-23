@@ -1494,6 +1494,33 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
     fi
   fi
 
+  # ── Phase A: Cross-iteration dedup filter (US-771) ────────────────────────────
+  # Skip AI-generated and test story candidates that match previously rejected
+  # patterns (>80% Jaccard similarity). Reduces wasted API calls and validation cycles.
+  REJECTED_PATTERNS_CACHE="$SPIRAL_HOME/.spiral/rejected_patterns.json"
+  AI_SUGGEST_DEDUP="$SCRATCH_DIR/_ai_suggest_dedup.json"
+  TEST_STORIES_DEDUP="$SCRATCH_DIR/_test_story_candidates_dedup.json"
+  if [[ -f "$AI_SUGGEST_OUTPUT" ]]; then
+    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/filter_rejected_patterns.py" \
+      --candidates "$AI_SUGGEST_OUTPUT" \
+      --cache "$REJECTED_PATTERNS_CACHE" \
+      --output "$AI_SUGGEST_DEDUP" \
+      --threshold 0.8 || true
+    if [[ -f "$AI_SUGGEST_DEDUP" ]] && [[ -s "$AI_SUGGEST_DEDUP" ]]; then
+      cp "$AI_SUGGEST_DEDUP" "$AI_SUGGEST_OUTPUT"
+    fi
+  fi
+  if [[ -f "$TEST_STORY_CANDIDATES" ]]; then
+    "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/filter_rejected_patterns.py" \
+      --candidates "$TEST_STORY_CANDIDATES" \
+      --cache "$REJECTED_PATTERNS_CACHE" \
+      --output "$TEST_STORIES_DEDUP" \
+      --threshold 0.8 || true
+    if [[ -f "$TEST_STORIES_DEDUP" ]] && [[ -s "$TEST_STORIES_DEDUP" ]]; then
+      cp "$TEST_STORIES_DEDUP" "$TEST_STORY_CANDIDATES"
+    fi
+  fi
+
   # ── Record goals hash before Phase R (US-323: goal-hijack detection) ──────
   _GOALS_HASH_FILE="$SCRATCH_DIR/_goals_hash"
   _GOALS_SNAPSHOT_FILE="$SCRATCH_DIR/_goals_before.json"

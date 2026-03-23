@@ -144,6 +144,15 @@ run_phase_s() {
     _S_TOTAL=$((_S_ACCEPTED + _S_REJECTED))
     log_spiral_event "phase_s_result" "\"iteration\":$SPIRAL_ITER,\"accepted\":$_S_ACCEPTED,\"rejected\":$_S_REJECTED,\"total\":$_S_TOTAL"
 
+    # ── US-771: Record rejected pattern fingerprints for cross-iteration dedup ──
+    if [[ -f "$SCRATCH_DIR/_story_rejected.json" ]] && [[ "$_S_REJECTED" -gt 0 ]]; then
+      local rejected_patterns_file="$spiral_home/.spiral/rejected_patterns.json"
+      "$spiral_python" "$spiral_home/lib/record_rejected_patterns.py" \
+        --rejected-stories "$SCRATCH_DIR/_story_rejected.json" \
+        --cache-file "$rejected_patterns_file" \
+        --iteration "$SPIRAL_ITER" || true
+    fi
+
     write_checkpoint "$SPIRAL_ITER" "S"
   fi
 
