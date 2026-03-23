@@ -398,14 +398,20 @@ def main() -> int:
 
     print(f"[synthesize] Generated {len(candidates)} new story candidates from test failures")
 
+    # Apply test failure clustering: group 3+ failures from same source into 1 root-cause story
+    clustered_candidates = cluster_failures(candidates)
+    if len(clustered_candidates) < len(candidates):
+        print(f"[synthesize] Clustered failures: {len(candidates)} -> {len(clustered_candidates)} stories")
+
+
     if args.output_format == "yaml":
         # AC4: omit null fields and use block scalars for compact YAML
-        filtered_candidates = [_filter_none(s) for s in candidates]
+        filtered_candidates = [_filter_none(s) for s in clustered_candidates]
         _atomic_write_yaml(args.output, {"stories": filtered_candidates})
-        print(f"[synthesize] Wrote {len(candidates)} stories (YAML) → {args.output}")
+        print(f"[synthesize] Wrote {len(clustered_candidates)} stories (YAML) → {args.output}")
     else:
-        atomic_write_json(args.output, {"stories": candidates})
-        print(f"[synthesize] Wrote {len(candidates)} stories → {args.output}")
+        atomic_write_json(args.output, {"stories": clustered_candidates})
+        print(f"[synthesize] Wrote {len(clustered_candidates)} stories → {args.output}")
     return 0
 
 

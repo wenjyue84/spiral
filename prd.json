@@ -119,12 +119,13 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "tags": [
         "core-flow",
         "phase-t"
       ],
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-03-23T13:17:05Z"
     },
     {
       "id": "US-778",
@@ -220,131 +221,6 @@
         "core-flow",
         "phase-c"
       ],
-      "model": "haiku"
-    },
-    {
-      "id": "US-1013",
-      "title": "Add Token Overflow Guard to Phase I Retry Logic",
-      "priority": "medium",
-      "description": "Add a token_count guard in lib/impl/retry.py that detects when a Claude response exceeds SPIRAL_MAX_TOKENS and triggers model escalation (haiku→sonnet→opus). This prevents runaway token consumption and ensures the retry loop handles overflow gracefully.",
-      "acceptanceCriteria": [
-        "lib/impl/retry.py raises or returns a token overflow signal when response token count exceeds SPIRAL_MAX_TOKENS",
-        "Model escalation sequence haiku→sonnet→opus is triggered on overflow detection (verifiable via unit test)",
-        "After 3 retry exhaustion, story state is preserved and no worktree corruption occurs"
-      ],
-      "technicalNotes": [
-        "File to edit: lib/impl/retry.py (model escalation logic, add token_count guard before escalation step)",
-        "File to edit: lib/impl/checkpoint.py (save last_error field to .spiral/_checkpoint.json on overflow)",
-        "Test command: uv run pytest tests/test_retry.py -v -k token_overflow"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1038",
-      "title": "Create ralph_self_review.py with suggest_optimizations()",
-      "priority": "medium",
-      "description": "Create lib/impl/ralph_self_review.py implementing suggest_optimizations(story_id, implementation_diff) that calls Claude to review a git diff and returns up to 3 structured optimization suggestions. This isolates the Claude invocation and response parsing from integration concerns.",
-      "acceptanceCriteria": [
-        "File lib/impl/ralph_self_review.py exists and suggest_optimizations(story_id, diff_str) returns a dict matching {\"optimizations\": [{\"file\": str, \"line\": int, \"suggestion\": str, \"confidence\": float}]} with at most 3 items",
-        "uv run python -c \"from lib.impl.ralph_self_review import suggest_optimizations; r = suggest_optimizations('US-001', 'diff --git a/x.py'); assert isinstance(r, dict) and 'optimizations' in r\" exits 0",
-        "uv run pytest tests/test_ralph_self_review.py -v passes with tests covering empty diff, valid diff with suggestions, and malformed Claude response"
-      ],
-      "technicalNotes": [
-        "File to edit: lib/impl/ralph_self_review.py (new file — suggest_optimizations function)",
-        "File to edit: tests/test_ralph_self_review.py (new file — unit tests with mocked Claude responses)",
-        "Test command: uv run pytest tests/test_ralph_self_review.py -v",
-        "Use subprocess to call Claude CLI with a structured prompt; parse JSON from stdout; cap results at 3 items; return empty list on parse error"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1040",
-      "title": "CLI: spiral velocity-burndown - Generate ASCII Burndown Chart from results.tsv with Trend Forecast",
-      "priority": "medium",
-      "description": "Generates ASCII burndown chart showing stories completed per iteration vs velocity trend. Projects completion date using moving average velocity with confidence intervals.",
-      "acceptanceCriteria": [
-        "`spiral velocity-burndown --iterations 10 --format ascii` outputs chart with: cumulative stories completed, daily velocity (3-iteration moving avg), trend line, forecast completion date",
-        "`--export csv --output burndown.csv` generates CSV with columns: iteration, stories_completed, velocity, confidence_90pct_upper, confidence_90pct_lower",
-        "Integration test: `pytest tests/test_velocity_burndown.py -v` mocks results.tsv with 10 iterations; chart renders without errors and forecast is within ±2 iterations"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-1043",
-      "title": "Add model_escalation_report.py: Parse results.tsv for escalation chains",
-      "priority": "medium",
-      "description": "Create lib/cli/model_escalation_report.py that reads results.tsv, groups rows by story_id, detects model tier changes across retries, and returns a structured dict with per-story escalation metrics. This is the pure data layer with no CLI concerns.",
-      "acceptanceCriteria": [
-        "lib/cli/model_escalation_report.py exists and exports parse_escalation_chains(tsv_path) returning a list of dicts with keys: story_id, haiku_tokens, sonnet_tokens, opus_tokens, total_cost, escalation_count",
-        "uv run pytest tests/test_model_escalation_report.py::test_parse_escalation_chains -v passes with a fixture results.tsv containing at least one multi-model story",
-        "Stories with retry_count == 0 or single-model retries are excluded from output"
-      ],
-      "technicalNotes": [
-        "File to edit: lib/cli/model_escalation_report.py (new file — create parse_escalation_chains function)",
-        "results.tsv columns: story_id, model, tokens_in, tokens_out, cost_usd, retry_count — use csv.DictReader with delimiter='\\t'",
-        "Group rows by story_id, accumulate tokens per model tier (haiku/sonnet/opus), flag escalation when model column changes across sorted retry rows",
-        "Test command: uv run pytest tests/test_model_escalation_report.py -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1044",
-      "title": "Dashboard Endpoint: GET /api/dashboard/worker-current-status",
-      "priority": "medium",
-      "description": "Add a Flask route that reads per-worker status.json heartbeat files and returns real-time phase progress for all active parallel workers. Enables operators to spot stalled workers without SSH access.",
-      "acceptanceCriteria": [
-        "curl -s http://localhost:5299/api/dashboard/worker-current-status returns HTTP 200 and a JSON array (empty array when no workers are active)",
-        "Each array element contains exactly the keys: worker_id, current_phase, elapsed_seconds, estimated_total_seconds, status_emoji, last_heartbeat_utc",
-        "Workers whose .spiral-workers/worker-*/status.json file is missing or unreadable are silently skipped (no 500 error)",
-        "uv run pytest tests/test_dashboard_worker_status.py -v passes with at least one test covering the empty-workers case and one covering a mocked status.json file"
-      ],
-      "technicalNotes": [
-        "File to edit: dashboard/server.py (add @app.route('/api/dashboard/worker-current-status') after existing routes; use glob.glob('.spiral-workers/worker-*/status.json') to discover workers)",
-        "File to create: tests/test_dashboard_worker_status.py (use tmp_path fixture to create mock status.json files; test empty dir returns [], test valid file returns correct keys)",
-        "Test command: uv run pytest tests/test_dashboard_worker_status.py -v",
-        "elapsed_seconds = (datetime.utcnow() - datetime.fromisoformat(last_heartbeat_utc)).total_seconds(); wrap each file read in try/except so a corrupt file does not abort the whole response",
-        "status_emoji mapping suggestion: 'running'→'⚙️', 'done'→'✅', 'error'→'❌', 'idle'→'💤'"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1039",
-      "title": "Hook self-review into Phase I and log suggestions to results.tsv",
-      "priority": "medium",
-      "description": "After Ralph successfully implements a story, call suggest_optimizations() and auto-apply patches with confidence >0.85 via git apply, then append all suggestions to results.tsv under a new post_review_suggestions column. Lower-confidence suggestions are logged only.",
-      "acceptanceCriteria": [
-        "results.tsv gains a post_review_suggestions column; after a dry-run Phase I pass, the column contains a JSON-serialized list (may be empty [])",
-        "uv run pytest tests/test_phase_i_self_review.py -v passes, verifying auto-apply is called when confidence >0.85 and skipped when <=0.85",
-        "uv run python -c \"import csv; rows=list(csv.DictReader(open('results.tsv','newline='))); assert all('post_review_suggestions' in r for r in rows)\" exits 0 after a spiral dry-run"
-      ],
-      "technicalNotes": [
-        "File to edit: lib/impl/commit_revert.sh or spiral.sh Phase I block (post-ralph hook insertion point)",
-        "File to edit: lib/impl/ralph_self_review.py (add apply_suggestion helper using git apply)",
-        "File to edit: tests/test_phase_i_self_review.py (new integration test)",
-        "Test command: uv run pytest tests/test_phase_i_self_review.py -v",
-        "Guard the hook behind SPIRAL_SELF_REVIEW=1 env var so existing runs are unaffected"
-      ],
-      "dependencies": [
-        "US-1038"
-      ],
-      "estimatedComplexity": "medium",
-      "passes": false,
       "model": "haiku"
     },
     {
@@ -6399,21 +6275,48 @@
       "tags": []
     },
     {
-      "id": "US-1045",
-      "title": "Dashboard API: POST /api/alerts/phase-duration-anomaly endpoint",
-      "priority": "medium",
-      "description": "Add HTTP endpoint that accepts a phase execution record, reads historical durations from results.tsv, and returns an anomaly alert when duration exceeds μ + 2σ over the past 5 iterations. This is the pure backend computation layer with no UI concerns.",
+      "id": "US-1043",
+      "title": "Phase I Automatic Story Decomposition on Triple Retry Exhaustion with Validation",
+      "priority": "high",
+      "description": "Implement automatic story decomposition when Phase I retry loop exhausts all 3 escalation levels (haiku→sonnet→opus). Decomposes into 4 atomic sub-stories with file-level scope reduction, validates decomposition doesn't exceed prd.json story limits, and records decomposition metadata for learning.",
       "acceptanceCriteria": [
-        "POST /api/alerts/phase-duration-anomaly with body {phase_name, duration_ms, iteration} returns 200 JSON {alert_id, severity, message, suggested_action} where severity is 'ok' when duration <= μ+2σ",
-        "When fewer than 2 historical rows exist for the phase in results.tsv, endpoint returns severity='info' with message 'insufficient history' instead of erroring",
-        "uv run pytest tests/test_phase_duration_anomaly.py -v passes with cases: no history, normal duration, anomalous duration (>2σ)"
+        "lib/impl/auto_decompose.py: function decompose_exhausted_story(story_id, prd, max_stories_ceiling) decomposes into 4 sub-stories, each with _parent_id, _decomposed_from_iteration fields; returns new prd with sub-stories inserted",
+        "Phase I calls auto_decompose before final retry exhaustion; adds sub-stories to prd.json merge queue; original story marked with _decomposed: true, _decomposed_count: 4",
+        "Integration test: fail 1 story 3 times with increasing models, assert prd.json contains 4 child stories with correct _parent_id, each gets re-queued for Phase I, at least 1 child passes"
       ],
-      "technicalNotes": [
-        "File to edit: lib/dashboard_api/alerts.py (new file — compute_phase_anomaly function reads results.tsv, filters by phase_name, computes mean+stdev over last 5 iterations)",
-        "File to edit: lib/dashboard_api/app.py (register_routes — add POST /api/alerts/phase-duration-anomaly route pointing to alerts.py handler)",
-        "Test command: uv run pytest tests/test_phase_duration_anomaly.py -v",
-        "results.tsv columns: iteration, phase, duration_ms, model, tokens, cost, status — filter by phase column, read duration_ms"
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1044",
+      "title": "Federation: File Conflict Detection Across Sub-Projects with Patch Visualization",
+      "priority": "high",
+      "description": "Detect when 2+ sub-projects plan to modify the same file, generate conflict report with visual diff and suggest resolution strategy",
+      "acceptanceCriteria": [
+        "lib/federation/conflict_detector.py: implement detect_file_conflicts(prd_dict) analyzing all stories by sub_project, returning list of FileConflict(file_path, sub_projects_set, story_ids_list, suggested_resolution)",
+        "CLI: spiral federation-conflict-check outputs YAML report listing conflicts with story IDs, file paths, and merge order recommendation; runs as pre-Phase M gate",
+        "Integration test: tests/test_federation_conflict.py with federated fixture (2 sub-projects touching 3 common files); asserts all conflicts detected and resolution hints are actionable"
       ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1045",
+      "title": "Dashboard: Story Retry Exhaustion Analyzer - GET /api/dashboard/stuck-stories",
+      "priority": "high",
+      "description": "Identify stories stuck in retry loop with 3+ attempts, analyze model escalation pattern (haiku→sonnet→opus), and suggest atomic decomposition strategy",
+      "acceptanceCriteria": [
+        "api.py: GET /api/dashboard/stuck-stories returns JSON array with {story_id, attempt_count, last_model_tried, escalation_chain (e.g. 'haiku→sonnet→opus'), original_token_count}",
+        "lib/stuck_story_analyzer.py: implement analyze_exhaustion(results_tsv_path) filtering results.tsv rows where attempt_count >= 3, extracting model sequence from model column across rows",
+        "Dashboard UI: display stuck story table with 'Suggest Decomposition' button that generates breakdown hints based on original_description and touch_file_count; test with 5-retry fixture story"
+      ],
+      "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": false,
@@ -6421,13 +6324,29 @@
     },
     {
       "id": "US-1046",
-      "title": "Dashboard Metric: cost_per_passing_story Efficiency Trend with Regression Alert",
+      "title": "Phase G: Inject Story Metadata into CHANGELOG Frontmatter",
       "priority": "medium",
-      "description": "Track cost/story_passed across iterations (lower is better). Rising trend signals decomposition issues or model drift. Broadcast regression alerts via WebSocket.",
+      "description": "Enhance git-cliff CHANGELOG generation to include story metadata (US-NNN, cost tokens, duration, model used) in YAML frontmatter for better traceability and cost analysis",
       "acceptanceCriteria": [
-        "Compute metric: iteration_total_cost / iteration_stories_passed. Store timeseries in .spiral/metrics.json",
-        "Endpoint GET /api/dashboard/efficiency-trend returns [{iteration: 1, cost_per_pass: 15.3, delta_pct: null}, {iteration: 2, cost_per_pass: 12.1, delta_pct: -21}]",
-        "WebSocket /ws/alerts broadcasts {type: 'efficiency_regression', iteration: 3, delta_pct: +18, threshold: 10} when cost/pass increases >10%"
+        "gen_changelog.py: implement extract_story_metadata(commit_sha) function that reads story_id from commit message and looks up cost/duration/model from results.tsv row",
+        "CHANGELOG.md includes YAML frontmatter block on each story section with fields: story_id, tokens_used, duration_seconds, models_escalated (as comma-list)",
+        "tests/test_gen_changelog_metadata.py validates frontmatter schema and asserts all required fields present; test with results.tsv fixture containing 3 stories"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1047",
+      "title": "Federation: Detect Circular Story Dependencies with Cycle Path Reporting",
+      "priority": "high",
+      "description": "Enhance federated prd.json cycle detection to report the actual dependency path (A→B→C→A) instead of just boolean. CLI output shows cycles in graph format for debugging multi-repo deadlocks.",
+      "acceptanceCriteria": [
+        "lib/federation/cycle_detector.py find_cycles(prd_dict) returns list[list[str]] where each inner list is a cycle path (e.g., [['US-100', 'US-101', 'US-100']])",
+        "CLI spiral federation-check-cycles outputs YAML with cycles property listing paths, exits with non-zero if cycles found",
+        "Test validates detection on federated prd.json with 2 separate cycles in different sub-projects"
       ],
       "technicalNotes": [],
       "dependencies": [],
@@ -6436,20 +6355,84 @@
       "model": "haiku"
     },
     {
-      "id": "US-1047",
-      "title": "CLI: spiral validate-federation-integrity -- Scan prd.json + results.tsv Cross-Consistency",
+      "id": "US-1048",
+      "title": "Dashboard: Alert Rules Engine with Cost and Duration Thresholds",
       "priority": "medium",
-      "description": "Validate federated project coherence: all results stories exist in prd, all sub_project refs are valid, no orphans or duplicates. Detects data corruption early.",
+      "description": "Implement configurable alert rules engine that evaluates cost/timing thresholds per-phase and emits real-time alerts via /ws/alerts. Rules defined in spiral.config.sh SPIRAL_ALERT_RULES as YAML.",
       "acceptanceCriteria": [
-        "Checks: (1) every results.tsv story_id exists in prd.json, (2) every prd.json sub_project_name has ≥1 assigned story, (3) no duplicate story_ids, (4) no null sub_project refs in federated mode",
-        "Output: 'Validated: 248 stories, 4 sub-projects, 0 errors' or list errors: [{type: 'orphan_story', story_id: 'US-999', detail: 'in results.tsv but not prd.json'}]",
-        "Support --fix to auto-remove orphans with backup archive; exit code 1 on errors"
+        "New lib/alert_rules.py exports AlertRuleEvaluator class with evaluate(phase_data) → list[Alert] returning fired rules",
+        "CLI spiral validate-alert-rules validates SPIRAL_ALERT_RULES YAML syntax and rule expressions",
+        "Dashboard /ws/alerts WebSocket broadcasts alerts with {rule_id, threshold, actual_value, phase, timestamp} when thresholds breach"
       ],
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
       "model": "haiku"
+    },
+    {
+      "id": "US-1049",
+      "title": "Integration Test: Ralph Worker Subprocess Memory Exhaustion Escalation",
+      "priority": "medium",
+      "description": "Test Ralph's behavior when implementation subprocess consumes excessive memory. Verify escalation from haiku→sonnet and recording of memory_exhausted event in results.tsv for observability.",
+      "acceptanceCriteria": [
+        "New tests/integration/test_ralph_memory_limit.py mocks subprocess memory usage tracker to report >2GB at iteration 1, passes at iteration 2 with sonnet",
+        "ralph/ralph.sh escalates model when subprocess_memory_mb > 2000 and retries, logs escalation reason to results.tsv with status=escalated_sonnet",
+        "Test validates that story eventually passes without hitting opus or failure state"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1050",
+      "title": "Federation Quota Governor: Phase M Enforces Per-SubProject Story Limits",
+      "priority": "high",
+      "description": "Implement sub-project story quota enforcement in Phase M merge logic. Add SPIRAL_QUOTA_<SUBPROJECT>=N config option (e.g. SPIRAL_QUOTA_FRONTEND=30). Phase M rejects prd.json merge if any sub-project exceeds its quota, logs quota_exceeded event to results.tsv.",
+      "acceptanceCriteria": [
+        "lib/phases/phase_m.py reads SPIRAL_QUOTA_* config and validates story counts per sub_project in prd.json before merge",
+        "Phase M exits with status 1 and logs 'Quota exceeded for frontend: 35/30' when threshold breached",
+        "results.tsv ResultsRecord includes quota_exceeded boolean and quota_source string (e.g. 'frontend quota 30')"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1051",
+      "title": "Dashboard Persistence: SQLite Historical Metrics Store for 7-Day Trends",
+      "priority": "high",
+      "description": "Build lib/metrics_store.py with SQLiteMetricsStore class that persists phase timing and cost data from results.tsv into timestamped rows. Add GET /api/dashboard/metrics?start_date=2026-03-20&end_date=2026-03-27 endpoint to query time-series trend data for cost burn rate and phase throughput visualization.",
+      "acceptanceCriteria": [
+        "MetricsStore.insert_from_results_tsv() ingests results.tsv rows and stores (iteration, phase, cost_tokens, duration_sec, timestamp) in metrics.db",
+        "Endpoint returns JSON array of metrics tuples; query for 7-day range executes in < 100ms",
+        "Dashboard frontend can plot cost trend line from response data without additional processing"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1052",
+      "title": "Phase G: Generate impact_metrics.json with Per-Story File and Complexity Metrics",
+      "priority": "medium",
+      "description": "Add Phase G output artifact tracking file count, lines changed, and dependency graph density per completed story. Enables impact analysis and documentation of story scope.",
+      "acceptanceCriteria": [
+        "Phase G generates impact_metrics.json with schema: {story_id, files_changed_count, lines_added, lines_removed, dependency_count, commit_hash}",
+        "Add lib/gen_impact_metrics.py with function extract_story_impact(story_id, git_repo) parsing results.tsv and git log",
+        "Integration test validates impact_metrics.json for 5-story sample and assert all completed stories have metrics > 0"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
     }
   ]
 }
