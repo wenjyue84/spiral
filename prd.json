@@ -158,40 +158,6 @@
       "model": "sonnet"
     },
     {
-      "id": "US-1066",
-      "title": "CLI: spiral debug-worker-state — Dump Live Worker State and Diagnostics",
-      "priority": "medium",
-      "description": "Add CLI command to inspect current state of all parallel workers: worktree paths, prd.json slices, process IDs, memory usage, current phase/story. Outputs JSON for parsing by dashboards or manual troubleshooting during federated SPIRAL runs.",
-      "acceptanceCriteria": [
-        "Command `spiral debug-worker-state` returns JSON with worker_id, pid, worktree_path, current_story_id, phase, memory_mb, prd_slice_size for each active worker",
-        "Correctly identifies detached worker HEAD states and reports in diagnostics section",
-        "Integration test verifies output format matches schema and worker data is consistent with actual filesystem state"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "sonnet"
-    },
-    {
-      "id": "US-1074",
-      "title": "Phase G: Link CHANGELOG Entries to GitHub Issues and PRs via Commit Messages",
-      "priority": "medium",
-      "description": "Extend gen_changelog.py to parse commit messages for GitHub issue/PR references (#123, closes #456) and automatically link CHANGELOG entries to GitHub URLs for traceability.",
-      "acceptanceCriteria": [
-        "Extend lib/gen_changelog.py:extract_github_refs() to parse #issue and closes #PR patterns from commit messages",
-        "CHANGELOG.md entries include markdown links: [#123](https://github.com/org/repo/issues/123) for referenced issues",
-        "Integration test in tests/test_gen_changelog.py validates 5+ sample commits with mixed issue/PR references"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "sonnet"
-    },
-    {
       "id": "US-1069",
       "title": "CLI: spiral preflight-check -- Validate SPIRAL Runtime Dependencies and Configuration",
       "priority": "high",
@@ -6313,23 +6279,6 @@
       "estimatedComplexity": "small",
       "passes": true,
       "tags": []
-    },
-    {
-      "id": "US-1075",
-      "title": "Dashboard Endpoint: GET /api/dashboard/phase-variance — Phase Duration Anomaly Detection",
-      "priority": "medium",
-      "description": "Calculate mean and standard deviation of phase durations across all iterations. Detect and flag phases exceeding 2-sigma (anomalies) to identify bottlenecks or degradation.",
-      "acceptanceCriteria": [
-        "Endpoint GET /api/dashboard/phase-variance returns JSON: {phases: [{name, mean_s, stddev, current_s, z_score, is_anomaly}]}",
-        "Reads results.tsv to compute phase_duration_s statistics per phase_name; caches result 60s via functools.lru_cache",
-        "Integration test test_dashboard_phase_variance.py mocks results.tsv with 10 iterations; verifies anomaly detection logic"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "sonnet"
     }
   ]
 }

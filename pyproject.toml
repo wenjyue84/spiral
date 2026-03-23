@@ -69,6 +69,7 @@ dev = [
     "import-linter>=2.1",
     "py-spy>=0.3",
     "pdoc>=14.0",
+    "playwright>=1.40.0",
 ]
 
 [tool.importlinter]

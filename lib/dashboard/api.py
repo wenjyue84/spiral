@@ -958,5 +958,60 @@ async def escalation_predictions_endpoint() -> dict[str, Any]:
         return {"stories": []}
 
 
+@app.get("/api/dashboard/costs-by-project")
+async def costs_by_project_endpoint() -> dict[str, Any]:
+    """Story costs grouped by sub_project with phase information (US-1076).
+
+    Returns story-level cost data organized by sub_project, including
+    cost breakdowns and phase labels for dashboard card rendering.
+
+    Returns JSON:
+        {
+            "story_cards": [
+                {
+                    "story_id": "US-123",
+                    "sub_project": "frontend",
+                    "total_cost": 0.35,
+                    "status": "passed",
+                    "attempt_count": 2,
+                    "model": "sonnet"
+                }
+            ]
+        }
+    """
+    from ..results_tsv import parse_results_tsv
+
+    try:
+        records = parse_results_tsv("results.tsv")
+        story_data: dict[str, dict[str, Any]] = {}
+
+        for r in records:
+            story_id = r.story_id or "unknown"
+            if story_id not in story_data:
+                story_data[story_id] = {
+                    "story_id": story_id,
+                    "sub_project": r.sub_project or "default",
+                    "total_cost": 0.0,
+                    "status": r.status or "unknown",
+                    "attempt_count": 0,
+                    "model": r.model or "haiku",
+                }
+
+            # Calculate cost
+            tokens = sum(int(v) if v else 0 for v in (r.cache_read_tokens, r.cache_creation_tokens, r.review_tokens))
+            model = r.model or "haiku"
+            rate = _PHASE_COST_RATE.get(model.lower().split("-")[0], _PHASE_COST_RATE["haiku"])
+            story_data[story_id]["total_cost"] += tokens * rate
+            story_data[story_id]["attempt_count"] += 1
+
+        # Sort by cost descending and limit to top stories
+        story_cards = sorted(story_data.values(), key=lambda x: x["total_cost"], reverse=True)[:50]
+
+        return {"story_cards": story_cards}
+    except Exception as e:
+        logger.error(f"[/api/dashboard/costs-by-project] Error: {e}")
+        return {"story_cards": []}
+
+
 # Export for use in tests and main application
 __all__ = ["app", "get_manager", "get_timeline_manager", "get_alerts_manager", "get_story_updates_manager"]
