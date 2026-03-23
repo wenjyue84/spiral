@@ -41,10 +41,7 @@
       "id": "US-1006",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-03-23T12:00:00Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\nI found story **US-1006: Phase V: Dead Feature Detector** is incomplete. The core detector module `lib/dead_feature_detector.py` has been written but integration work remains:\n\n1. ✅ `lib/dead_feature_detector.py` exists with core detection logic\n2. ❌ Phase V integration in `spiral.sh` (needs to call detector after pytest)\n3. ❌ Configuration flag in `spiral.config.sh`\n4. ❌ CLI command in `main.py` (show-dead-features)\n5. ❌ Unit tests\n\n## Problem Identified\n\nUS-1006 requires integrating the dead feature detector into Phase V's validation workflow. After pytest passes, the detector must identify newly added functions/classes that are never referenced elsewhere in the codebase. Results are stored in `story._deadFeatures` and optionally block on `SPIRAL_STRICT_DEAD_FEATURE=true`.\n\n## Planned Changes\n\n1. **spiral.config.sh** — Add `SPIRAL_STRICT_DEAD_FEATURE=false`\n2. **lib/phases/phase_v_validate.sh** — Call dead feature detector after pytest passes; store results in `story._deadFeatures`\n3. **main.py** — Add `show-dead-features` CLI command to list all dead features\n4. **tests/test_dead_feature_detector.py** — Add unit tests (main path + edge cases)\n\n---\n\nLet me execute the plan:\nNow I'll add the missing integrations. First, add the configuration flag:\nNow let me run the tests to verify everything works:\n## Summary"
-      }
+      "last_attempted": "2026-03-23T01:44:24Z"
     },
     {
       "title": "Phase V: Functional Reachability Verifier - Confirm New Code is Wired into the Loop",
@@ -287,6 +284,119 @@
         "phase-e"
       ],
       "model": "haiku"
+    },
+    {
+      "id": "US-780",
+      "title": "Phase M: Source-Aware Merge Weighting - Prioritize Sources with Higher Pass Rates",
+      "priority": "medium",
+      "description": "Track pass rate by _source field. Use historical pass rates to weight merge priority so higher-success sources get merged first.",
+      "acceptanceCriteria": [
+        "Phase M calculates pass rate per _source from all stories before merging new candidates",
+        "Within same priority tier, stories from higher-pass-rate sources are merged first",
+        "Log shows source weights with pass rate percentages",
+        "Unit test verifies research story (80% rate) merged before ai-example (40%) at same priority"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/merge_stories.py"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "core-flow",
+        "phase-m"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-781",
+      "title": "Phase X: Context Explosion Guard - Cap and Summarize When Story Touches 15+ Files",
+      "priority": "medium",
+      "description": "When dependency inference finds >15 files, summarize with file paths + key function signatures instead of full content injection, preventing context window overflow.",
+      "acceptanceCriteria": [
+        "Phase X detects stories exceeding SPIRAL_CONTEXT_FILE_CAP (default 15) files",
+        "Oversized contexts get summarized: file paths + top 3 function signatures per file",
+        "Log warning about context explosion with file count",
+        "Unit test verifies a 20-file story gets summarized context"
+      ],
+      "technicalNotes": [
+        "File to create: lib/context_summarizer.py",
+        "File to edit: spiral.sh Phase X",
+        "Config: SPIRAL_CONTEXT_FILE_CAP in spiral.config.sh"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "tags": [
+        "core-flow",
+        "phase-x"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-784",
+      "title": "Phase C: Partial Completion Report - Exit with Diagnostic When Stuck Stories Remain",
+      "priority": "medium",
+      "description": "Exit after N zero-progress iterations with structured diagnostic: what passed, what is stuck, and root-cause guess per stuck story.",
+      "acceptanceCriteria": [
+        "Phase C tracks consecutive zero-progress iterations",
+        "After SPIRAL_MAX_STUCK_ITERATIONS (default 5) zero-progress iterations, exit with .spiral/completion_report.json",
+        "Report includes: total passed, stuck story IDs with retry counts, suggested actions",
+        "Unit test verifies exit after 5 zero-progress iterations with correct report"
+      ],
+      "technicalNotes": [
+        "File to create: lib/completion_report.py",
+        "File to edit: spiral.sh Phase C",
+        "Note: enhances existing SPIRAL_CONSECUTIVE_FAIL_ABORT with diagnostic report"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "core-flow",
+        "phase-c"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-1013",
+      "title": "Add Token Overflow Guard to Phase I Retry Logic",
+      "priority": "medium",
+      "description": "Add a token_count guard in lib/impl/retry.py that detects when a Claude response exceeds SPIRAL_MAX_TOKENS and triggers model escalation (haiku→sonnet→opus). This prevents runaway token consumption and ensures the retry loop handles overflow gracefully.",
+      "acceptanceCriteria": [
+        "lib/impl/retry.py raises or returns a token overflow signal when response token count exceeds SPIRAL_MAX_TOKENS",
+        "Model escalation sequence haiku→sonnet→opus is triggered on overflow detection (verifiable via unit test)",
+        "After 3 retry exhaustion, story state is preserved and no worktree corruption occurs"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/impl/retry.py (model escalation logic, add token_count guard before escalation step)",
+        "File to edit: lib/impl/checkpoint.py (save last_error field to .spiral/_checkpoint.json on overflow)",
+        "Test command: uv run pytest tests/test_retry.py -v -k token_overflow"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1014",
+      "title": "Integration Test: Phase I Token Overflow Triggers Escalation and Checkpoint",
+      "priority": "medium",
+      "description": "Add an integration test that mocks a Claude API response exceeding 100K tokens, verifies Phase I escalates the model on retry, and confirms .spiral/_checkpoint.json is written with a last_error field. This ensures the overflow guard added in retry.py is exercised end-to-end.",
+      "acceptanceCriteria": [
+        "Mock fixture in test_phase_i_token_overflow.py returns a 100K+ token response and test confirms overflow signal is raised",
+        "After mock overflow, .spiral/_checkpoint.json contains a last_error field (verifiable by reading the file in the test)",
+        "uv run pytest tests/integration/test_phase_i_token_overflow.py -v exits 0 with all assertions passing"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/integration/test_phase_i_token_overflow.py (new file, add mock Claude fixture returning oversized response)",
+        "Test command: uv run pytest tests/integration/test_phase_i_token_overflow.py -v",
+        "Depends on token overflow guard story being merged first so retry.py has the token_count guard to trigger"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
     },
     {
       "id": "US-752",

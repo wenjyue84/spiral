@@ -27,6 +27,7 @@ export interface StoryAttempt {
   model: string;
   duration: number;
   commitSha: string;
+  failureRootCause?: string;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -72,8 +73,10 @@ export default function StoryDetailPanel({ story, allStories, attempts, onClose 
     return () => document.removeEventListener('keydown', handleKey);
   }, [onClose]);
 
-  // Find the commit SHA from the last passing attempt
-  const passedCommit = attempts?.find(a => a.status === 'pass')?.commitSha ?? null;
+  // Find the passing attempt (for commit SHA and completing model)
+  const passedAttempt = attempts?.find(a => a.status === 'pass') ?? null;
+  const passedCommit = passedAttempt?.commitSha ?? null;
+  const completingModel = passedAttempt?.model ?? null;
 
   // Dependency status lookup
   const storyMap = new Map(allStories.map(s => [s.id, s]));
@@ -214,6 +217,11 @@ export default function StoryDetailPanel({ story, allStories, attempts, onClose 
                             a.status === 'reject' ? 'bg-red-100 text-red-700' :
                             'bg-slate-100 text-slate-500'
                           }`}>{a.status}</span>
+                          {a.status === 'reject' && a.failureRootCause && (
+                            <div className="mt-1 text-[10px] text-red-600 leading-snug max-w-[200px] truncate" title={a.failureRootCause}>
+                              {a.failureRootCause}
+                            </div>
+                          )}
                         </td>
                         <td className="px-2.5 py-1.5 text-right text-slate-500">
                           {a.duration >= 60 ? `${Math.floor(a.duration / 60)}m ${a.duration % 60}s` : `${a.duration}s`}
