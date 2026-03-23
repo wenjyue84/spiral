@@ -9,6 +9,7 @@ Subcommands:
   validate-federated      Validate federated prd.json structure (US-514)
   federation-health-check Validate federated PRD: sub_projects, cycles, ID namespaces (US-653)
   federation-conflict-check Detect file conflicts across sub-projects with resolution hints (US-1044)
+  federation-check-cycles Detect circular dependencies with cycle paths (US-1047)
   config                  Configuration utilities
     export-env            Export spiral.config.sh SPIRAL_* variables as a .env file
   worktree                Git worktree management utilities
@@ -1226,6 +1227,40 @@ def cmd_federation_conflict_check(args: argparse.Namespace) -> None:
         sys.exit(1)
     else:
         print("[ok] No file conflicts detected.", file=sys.stderr)
+
+
+def cmd_federation_check_cycles(args: argparse.Namespace) -> None:
+    """Detect circular dependencies in federated prd.json with cycle paths (US-1047)."""
+    import yaml  # type: ignore[import]
+
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
+    from federation.cycle_detector import find_cycles  # type: ignore[import]
+
+    prd_path = Path(getattr(args, "prd", "prd.json"))
+    if not prd_path.is_absolute():
+        prd_path = Path.cwd() / prd_path
+
+    with open(prd_path, encoding="utf-8") as f:
+        prd_dict = json.load(f)
+
+    cycles = find_cycles(prd_dict)
+    report = {"cycles": cycles}
+    yaml_output = yaml.dump(report, sort_keys=False, allow_unicode=True)
+    print(yaml_output)
+
+    output_path = getattr(args, "output", "")
+    if output_path:
+        out = Path(output_path)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        with open(out, "w", encoding="utf-8") as f:
+            f.write(yaml_output)
+        print(f"Report written to {output_path}", file=sys.stderr)
+
+    if cycles:
+        print(f"[warn] {len(cycles)} cycle(s) detected.", file=sys.stderr)
+        sys.exit(1)
+    else:
+        print("[ok] No cycles detected.", file=sys.stderr)
 
 
 def cmd_diagnose(args) -> None:
@@ -3309,6 +3344,17 @@ def main():
         "--output", type=str, default="", help="Path to write YAML report (optional)"
     )
 
+    federation_cycles_parser = subparsers.add_parser(
+        "federation-check-cycles",
+        help="Detect circular dependencies with cycle paths (US-1047)",
+    )
+    federation_cycles_parser.add_argument(
+        "--prd", type=str, default="prd.json", help="Path to prd.json (default: prd.json)"
+    )
+    federation_cycles_parser.add_argument(
+        "--output", type=str, default="", help="Path to write YAML report (optional)"
+    )
+
     validate_tsv_parser = subparsers.add_parser(
         "validate-results-tsv",
         help="Validate results.tsv data quality against prd.json (US-571)",
@@ -4299,6 +4345,8 @@ def main():
         cmd_federation_health_check(args)
     elif args.command == "federation-conflict-check":
         cmd_federation_conflict_check(args)
+    elif args.command == "federation-check-cycles":
+        cmd_federation_check_cycles(args)
     elif args.command == "validate-results-tsv":
         cmd_validate_results_tsv(args)
     elif args.command == "federated-status":

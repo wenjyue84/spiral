@@ -24,8 +24,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
-      "model": "haiku",
-      "last_attempted": "2026-03-23T15:26:13Z"
+      "model": "haiku"
     },
     {
       "id": "US-1050",
@@ -192,6 +191,86 @@
         "gen_changelog.py: implement extract_story_metadata(commit_sha) function that reads story_id from commit message and looks up cost/duration/model from results.tsv row",
         "CHANGELOG.md includes YAML frontmatter block on each story section with fields: story_id, tokens_used, duration_seconds, models_escalated (as comma-list)",
         "tests/test_gen_changelog_metadata.py validates frontmatter schema and asserts all required fields present; test with results.tsv fixture containing 3 stories"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1048",
+      "title": "Dashboard: Alert Rules Engine with Cost and Duration Thresholds",
+      "priority": "medium",
+      "description": "Implement configurable alert rules engine that evaluates cost/timing thresholds per-phase and emits real-time alerts via /ws/alerts. Rules defined in spiral.config.sh SPIRAL_ALERT_RULES as YAML.",
+      "acceptanceCriteria": [
+        "New lib/alert_rules.py exports AlertRuleEvaluator class with evaluate(phase_data) → list[Alert] returning fired rules",
+        "CLI spiral validate-alert-rules validates SPIRAL_ALERT_RULES YAML syntax and rule expressions",
+        "Dashboard /ws/alerts WebSocket broadcasts alerts with {rule_id, threshold, actual_value, phase, timestamp} when thresholds breach"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1049",
+      "title": "Integration Test: Ralph Worker Subprocess Memory Exhaustion Escalation",
+      "priority": "medium",
+      "description": "Test Ralph's behavior when implementation subprocess consumes excessive memory. Verify escalation from haiku→sonnet and recording of memory_exhausted event in results.tsv for observability.",
+      "acceptanceCriteria": [
+        "New tests/integration/test_ralph_memory_limit.py mocks subprocess memory usage tracker to report >2GB at iteration 1, passes at iteration 2 with sonnet",
+        "ralph/ralph.sh escalates model when subprocess_memory_mb > 2000 and retries, logs escalation reason to results.tsv with status=escalated_sonnet",
+        "Test validates that story eventually passes without hitting opus or failure state"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1052",
+      "title": "Phase G: Generate impact_metrics.json with Per-Story File and Complexity Metrics",
+      "priority": "medium",
+      "description": "Add Phase G output artifact tracking file count, lines changed, and dependency graph density per completed story. Enables impact analysis and documentation of story scope.",
+      "acceptanceCriteria": [
+        "Phase G generates impact_metrics.json with schema: {story_id, files_changed_count, lines_added, lines_removed, dependency_count, commit_hash}",
+        "Add lib/gen_impact_metrics.py with function extract_story_impact(story_id, git_repo) parsing results.tsv and git log",
+        "Integration test validates impact_metrics.json for 5-story sample and assert all completed stories have metrics > 0"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1053",
+      "title": "Dashboard Endpoint: GET /api/dashboard/phase-sequence-health - Detect Phase Order Violations",
+      "priority": "medium",
+      "description": "New HTTP endpoint validating phase execution sequence in results.tsv. Returns violations when phase order deviates from canonical R→T→S→M→X→G→I→V→C, catching orchestrator bugs.",
+      "acceptanceCriteria": [
+        "GET /api/dashboard/phase-sequence-health returns {violations: [{iteration, expected_phase, actual_phase}]} if violations exist, else {violations: []}",
+        "Add lib/phase_sequence_validator.py: validate_phase_order(results_df) checks phase_id sequence per iteration matches spiral.sh line 1390 definition",
+        "Integration test with mocked results.tsv containing injected phase violations verifies endpoint detects and reports them with correct iteration numbers"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1054",
+      "title": "CLI: spiral worker-assignments -- Export Story-to-Worker Implementation Timeline",
+      "priority": "medium",
+      "description": "New CLI command generating worker_assignments.tsv mapping stories to implementing workers with timing. Enables worker performance analysis and federated project capacity planning.",
+      "acceptanceCriteria": [
+        "CLI 'spiral worker-assignments' generates worker_assignments.tsv: story_id,worker_id,phase_start,phase_end,total_duration_sec,retry_count,final_model",
+        "Extract worker_id and timing from results.tsv; output tab-separated with header row and sort by story_id",
+        "Integration test with 3-worker SPIRAL run verifies all completed stories appear and duration_sec matches phase timing delta"
       ],
       "technicalNotes": [],
       "dependencies": [],
@@ -6459,6 +6538,21 @@
         "contextWindow": 10
       },
       "tags": []
+    },
+    {
+      "id": "US-1058",
+      "title": "Dashboard Cost Forecasting Accuracy Validator CLI Command",
+      "priority": "medium",
+      "description": "Add CLI command spiral forecast-accuracy that compares cost predictions from the KNN predictor against actual costs in results.tsv, reports prediction error metrics, and identifies retraining candidates.",
+      "acceptanceCriteria": [
+        "Command reads results.tsv historical data, runs predict-cost KNN model on held-out test subset (20% of rows), and outputs JSON report with Mean Absolute Error (MAE) and Root Mean Squared Error (RMSE)",
+        "Identifies top 5 stories with worst predictions (prediction error >50% actual cost), flags them as retraining candidates with details on model failure mode",
+        "Output JSON schema includes: accuracy_metrics (mae, rmse), prediction_distribution (histogram of error bins), retraining_candidates (story_id, predicted, actual, error_pct)"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false
     }
   ]
 }

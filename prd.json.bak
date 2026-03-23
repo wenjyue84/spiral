@@ -11,144 +11,104 @@
   ],
   "userStories": [
     {
-      "id": "US-1028",
-      "title": "Add find_orphan_commits() Function to lib/gen_changelog.py",
+      "id": "US-1047",
+      "title": "Federation: Detect Circular Story Dependencies with Cycle Path Reporting",
       "priority": "high",
-      "description": "Add find_orphan_commits(commits: list[dict]) -> list[dict] to lib/gen_changelog.py that filters out commits lacking US-/UT- story ID tags. Add pytest tests covering tagged vs untagged commit detection. This is the core detection logic consumed by the CLI subcommand in the companion story.",
+      "description": "Enhance federated prd.json cycle detection to report the actual dependency path (A→B→C→A) instead of just boolean. CLI output shows cycles in graph format for debugging multi-repo deadlocks.",
       "acceptanceCriteria": [
-        "uv run pytest tests/test_gen_changelog.py -v -k orphan passes: mock git log with 3 US-/UT-tagged commits and 2 untagged returns exactly 2 orphans",
-        "Each returned dict has exactly the keys: commit, message, date, reason (reason value is 'no-story-id')",
-        "Function uses re.search(r'(US|UT)-\\d+', message, re.IGNORECASE) — commits without a match are returned as orphans",
-        "uv run python -c \"from lib.gen_changelog import find_orphan_commits; assert find_orphan_commits([]) == []\" exits 0"
+        "lib/federation/cycle_detector.py find_cycles(prd_dict) returns list[list[str]] where each inner list is a cycle path (e.g., [['US-100', 'US-101', 'US-100']])",
+        "CLI spiral federation-check-cycles outputs YAML with cycles property listing paths, exits with non-zero if cycles found",
+        "Test validates detection on federated prd.json with 2 separate cycles in different sub-projects"
       ],
-      "technicalNotes": [
-        "File to edit: lib/gen_changelog.py (add find_orphan_commits(commits: list[dict]) -> list[dict] near existing changelog helpers)",
-        "File to edit: tests/test_gen_changelog.py (add test_find_orphan_commits_returns_untagged and test_find_orphan_commits_empty_input)",
-        "Test command: uv run pytest tests/test_gen_changelog.py -v -k orphan",
-        "Each input dict is expected to have keys: commit (hash), message (subject), date (ISO string); pass through all keys plus add reason='no-story-id'"
-      ],
+      "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true,
+      "passes": false,
       "model": "haiku",
-      "last_attempted": "2026-03-23T10:11:51Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- Story US-1028 is the highest priority incomplete story\n- Need to add `find_orphan_commits()` function to lib/gen_changelog.py that filters commits lacking US-/UT- story ID tags\n- Function should return list of dicts with keys: commit, message, date, reason (reason='no-story-id')\n- Need comprehensive test coverage\n\n## Problem Identified\nThe function doesn't exist. Need to implement find_orphan_commits() that:\n1. Detects commits without US-/UT- tags using regex r'(US|UT)-\\d+'\n2. Returns matching untagged commits as orphans\n3. Passes test coverage for tagged vs untagged detection\n\n## Planned Changes\n1. Add find_orphan_commits() function to lib/gen_changelog.py\n2. Add tests to tests/test_gen_changelog.py:\n   - test_find_orphan_commits_returns_untagged (3 tagged + 2 untagged = 2 orphans)\n   - test_find_orphan_commits_empty_input (empty input = empty output)\n3. Verify function handles all keys properly and uses correct regex pattern\n\nNow let me read the existing files to understand the current structure:\nLet me check the current implementation more carefully. I see the function already exists but with a different signature. Let me understand what needs to change:\nNow I understand. The current function has a different signature - it takes a repo_path and calls git subprocess. The new function should take a list of dicts and just do filtering. Let me implement this:\nLet me re-read the file:\nGood! I can see the function has already been updated to the new signature. Now I need to check and update the tests. Let me look at what tests are currently there:\nPerfect! The tests have already been updated too. Let me verify the implementation is correct by running the tests:\nGreat! All tests pass. Let me verify the other acceptance criteria:\nLet me verify the regex pattern uses IGNORECASE as specified in the acceptance criteria:\nPerfect! The regex is correctly using IGNORECASE. Let me verify all acceptance criteria one more time with a comprehensive check:\nExcellent! All tests pass. Let me verify the acceptance criteria one final time:\n\n1. ✅ Test for 3 tagged + 2 untagged commits returns exactly 2 orphans: `test_find_orphan_commits_returns_untagged` PASSED\n2. ✅ Returned dicts have keys: commit, message, date, reason (reason='no-story-id'): verified in tests\n3. ✅ Uses regex r'(US|UT)-\\d+' with re.IGNORECASE: confirmed in code\n4. ✅ Empty input returns empty list: `test_find_orphan_commits_empty_input` PASSED\n\nAll acceptance criteria are met! Now let me mark the story as complete and commit:\nNow let me run quality checks before committing:\nLet me wait for pre-commit to complete:\nPerfect! All checks pass. Now let me commit the changes:\nPerfect! Let me verify the commit was created:\nLet me verify the story was marked as complete in prd.json:\nExcellent! Story US-1028 is now complete. Let me check the next highest priority incomplete story:\nThe next incomplete story is US-1029 (Add list-orphan-commits CLI Subcommand). Let me get its full details:\n## Current State"
-      }
+      "last_attempted": "2026-03-23T15:26:13Z"
     },
     {
-      "id": "US-1029",
-      "title": "Add list-orphan-commits CLI Subcommand to main.py",
+      "id": "US-1050",
+      "title": "Federation Quota Governor: Phase M Enforces Per-SubProject Story Limits",
       "priority": "high",
-      "description": "Expose find_orphan_commits via a 'list-orphan-commits' subcommand in main.py with --format json|text output modes. Phase G validation calls this subcommand to surface stray commits before CHANGELOG generation. Depends on find_orphan_commits existing in lib/gen_changelog.py.",
+      "description": "Implement sub-project story quota enforcement in Phase M merge logic. Add SPIRAL_QUOTA_<SUBPROJECT>=N config option (e.g. SPIRAL_QUOTA_FRONTEND=30). Phase M rejects prd.json merge if any sub-project exceeds its quota, logs quota_exceeded event to results.tsv.",
       "acceptanceCriteria": [
-        "uv run python main.py list-orphan-commits --format json exits 0 and outputs a JSON array where every element has keys: commit, message, date, reason",
-        "uv run python main.py list-orphan-commits --format text exits 0 and prints one human-readable summary line per orphan commit",
-        "uv run python main.py list-orphan-commits --help exits 0 and lists the --format option with json|text choices"
+        "lib/phases/phase_m.py reads SPIRAL_QUOTA_* config and validates story counts per sub_project in prd.json before merge",
+        "Phase M exits with status 1 and logs 'Quota exceeded for frontend: 35/30' when threshold breached",
+        "results.tsv ResultsRecord includes quota_exceeded boolean and quota_source string (e.g. 'frontend quota 30')"
       ],
-      "technicalNotes": [
-        "File to edit: main.py (add 'list-orphan-commits' subcommand with --format json|text argparse argument; import find_orphan_commits from lib.gen_changelog)",
-        "Collect commits via: subprocess.run(['git','log','--pretty=format:%H|%s|%ai'], capture_output=True, text=True) then split each line on '|' into {commit, message, date}",
-        "Test command: uv run python main.py list-orphan-commits --format json",
-        "Text format: one line per orphan as '<short-hash> <date> <message>' — no JSON wrapping"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": true,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1030",
-      "title": "GET /api/dashboard/phase-burn-rate: Burn Rate Calculation from results.tsv",
-      "priority": "high",
-      "description": "HTTP endpoint that reads results.tsv, groups rows by active phase, and returns current tokens/sec plus a 30-second lagging average. Enables cost-overrun detection by exposing per-phase token velocity as a REST resource.",
-      "acceptanceCriteria": [
-        "GET /api/dashboard/phase-burn-rate returns JSON: {phase, tokens_per_sec, lagging_avg_30s, phase_total_tokens, phase_elapsed_sec} with HTTP 200",
-        "Given results.tsv rows for Phase R totalling 3000 tokens over 120 s, endpoint returns tokens_per_sec within ±10% of 25.0",
-        "If results.tsv has no rows for a currently active phase, endpoint returns {phase: null, tokens_per_sec: 0, lagging_avg_30s: 0, phase_total_tokens: 0, phase_elapsed_sec: 0}",
-        "uv run pytest tests/test_phase_burn_rate.py -v passes with zero failures"
-      ],
-      "technicalNotes": [
-        "File to edit: lib/dashboard/phase_burn_rate.py (calculate_burn_rate) — create module; parse results.tsv rows (tab-separated: story_id, phase, model, tokens, cost, duration, status, timestamp), filter to active phase, compute delta_tokens/delta_time and 30 s rolling window average",
-        "File to edit: lib/dashboard/routes.py (register_routes) — add GET /api/dashboard/phase-burn-rate handler that calls calculate_burn_rate() and returns json.dumps(result)",
-        "Test command: uv run pytest tests/test_phase_burn_rate.py -v",
-        "results.tsv columns (0-indexed): 0=story_id, 1=phase, 2=model, 3=tokens, 4=cost, 5=duration_sec, 6=status, 7=timestamp_iso"
-      ],
+      "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": false,
       "model": "haiku"
     },
     {
-      "id": "US-1031",
-      "title": "WebSocket /ws/phase-burn-rate: Stream Burn Rate Updates Every 5 Seconds",
+      "id": "US-1051",
+      "title": "Dashboard Persistence: SQLite Historical Metrics Store for 7-Day Trends",
       "priority": "high",
-      "description": "WebSocket endpoint that pushes phase burn rate payloads to connected clients every 5 seconds while a phase is active. Depends on the burn rate calculation introduced in the companion REST story. Enables the dashboard UI to display live token velocity without polling.",
+      "description": "Build lib/metrics_store.py with SQLiteMetricsStore class that persists phase timing and cost data from results.tsv into timestamped rows. Add GET /api/dashboard/metrics?start_date=2026-03-20&end_date=2026-03-27 endpoint to query time-series trend data for cost burn rate and phase throughput visualization.",
       "acceptanceCriteria": [
-        "WebSocket client connecting to ws://localhost:<port>/ws/phase-burn-rate receives a JSON message within 6 seconds of connection",
-        "When no phase is active (phase: null), the WebSocket still emits heartbeat messages at the 5 s cadence rather than silently stalling",
-        "Disconnecting a WebSocket client stops the background emit loop for that connection with no unhandled exceptions in server logs",
-        "uv run pytest tests/test_phase_burn_rate_ws.py -v passes with zero failures"
+        "MetricsStore.insert_from_results_tsv() ingests results.tsv rows and stores (iteration, phase, cost_tokens, duration_sec, timestamp) in metrics.db",
+        "Endpoint returns JSON array of metrics tuples; query for 7-day range executes in < 100ms",
+        "Dashboard frontend can plot cost trend line from response data without additional processing"
       ],
-      "technicalNotes": [
-        "File to edit: lib/dashboard/ws_handlers.py (phase_burn_rate_handler) — create async handler; call calculate_burn_rate() in a loop with asyncio.sleep(5), send json.dumps(result) to websocket, catch websocket disconnect to break loop",
-        "File to edit: lib/dashboard/routes.py (register_routes) — register WebSocket route /ws/phase-burn-rate pointing to phase_burn_rate_handler",
-        "Test command: uv run pytest tests/test_phase_burn_rate_ws.py -v",
-        "Use the same calculate_burn_rate() function from lib/dashboard/phase_burn_rate.py — do not duplicate parsing logic"
-      ],
-      "dependencies": [
-        "US-1030"
-      ],
+      "technicalNotes": [],
+      "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": false,
       "model": "haiku"
     },
     {
-      "id": "US-775",
-      "title": "Phase T: Root Cause Clustering - Group Related Test Failures into Single Fix Story",
-      "priority": "medium",
-      "description": "When multiple tests fail from the same module, cluster them into a single root-cause story instead of N individual stories.",
+      "id": "US-1055",
+      "title": "Phase G Integration Test - CHANGELOG Generation with Mock Story Commits",
+      "priority": "high",
+      "description": "Add integration test that verifies Phase G can parse commits tagged with story IDs (US-NNN format) and generate valid CHANGELOG.md sections with proper markdown structure and semantic versioning.",
       "acceptanceCriteria": [
-        "Phase T groups test failures by source file; 3+ failures from same source produce 1 clustered story",
-        "Clustered story title: [Root Cause] Fix {module} causing {N} test failures",
-        "Individual test names listed in acceptanceCriteria for Ralph verification",
-        "Unit test verifies 5 failures from tests/test_merge.py produce 1 story, not 5"
+        "Test creates mock git history with 5 commits tagged with US-NNN story IDs in commit messages, validates gen_changelog.py correctly parses and groups them by version",
+        "Generated CHANGELOG.md conforms to Keep-a-Changelog schema with version headers, date stamps, and category sections (Added/Fixed/Changed)",
+        "Integration test file at tests/test_phase_g_changelog_generation.py runs successfully with pytest and achieves 90%+ coverage of lib/gen_changelog.py"
       ],
-      "technicalNotes": [
-        "File to create: lib/test_failure_clustering.py",
-        "File to edit: spiral.sh Phase T"
-      ],
+      "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
-      "tags": [
-        "core-flow",
-        "phase-t"
-      ],
-      "model": "haiku"
+      "_source": "ai-example",
+      "model": "sonnet"
     },
     {
-      "id": "US-778",
-      "title": "Phase E: Priority-Aware Enrichment - Enrich High-Priority Stories First",
-      "priority": "medium",
-      "description": "Reorder the enrichment queue so critical/high-priority stories are enriched before medium/low, ensuring the most important work gets the best context.",
+      "id": "US-1056",
+      "title": "Dashboard Authentication Enforcement Test Suite",
+      "priority": "high",
+      "description": "Add security tests verifying all dashboard HTTP endpoints and WebSocket connections enforce authentication and authorization checks, blocking unauthenticated and under-authorized requests.",
       "acceptanceCriteria": [
-        "Phase E sorts enrichment queue by priority (critical > high > medium > low) before processing",
-        "When SPIRAL_STORY_ENRICHMENT_MAX is reached, only highest-priority stories are enriched",
-        "Log shows enrichment order with priority level",
-        "Unit test verifies 3 medium + 2 high stories with max=3 results in both high stories enriched"
+        "Test suite verifies GET /api/dashboard/*, POST /api/dashboard/* endpoints return 401 Unauthorized without valid auth token",
+        "WebSocket endpoints /ws/cost and /ws/phase-burn-rate reject unauthenticated connection attempts and close with 1008 Policy Violation",
+        "Test file tests/test_dashboard_auth_enforcement.py includes 8+ test cases covering auth token validation, expired tokens, and permission scope checks"
       ],
-      "technicalNotes": [
-        "File to edit: spiral.sh Phase E"
-      ],
+      "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
-      "tags": [
-        "core-flow",
-        "phase-e"
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1057",
+      "title": "Federated prd.json Schema Validator with Cross-Project Duplicate Detection",
+      "priority": "high",
+      "description": "Create lib/federated_schema_validator.py that validates multi-subproject prd.json structure, detects duplicate story IDs across subprojects, and validates namespace prefixes match subproject configuration.",
+      "acceptanceCriteria": [
+        "Validator rejects prd.json where same US-NNN story ID appears in multiple subprojects and returns error report with duplicate locations",
+        "Validator enforces namespace prefix rules: stories in subproject 'makan' must start with 'MAKAN-' prefix; outputs validation error with suggested fix",
+        "CLI command spiral validate-federated-schema prd.json outputs JSON report with pass/fail status, error count, and suggestions; exits with code 1 on validation failure"
       ],
-      "model": "haiku"
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
     },
     {
       "id": "US-780",
@@ -224,23 +184,133 @@
       "model": "haiku"
     },
     {
-      "id": "US-1013",
-      "title": "Add Token Overflow Guard to Phase I Retry Logic",
+      "id": "US-1046",
+      "title": "Phase G: Inject Story Metadata into CHANGELOG Frontmatter",
       "priority": "medium",
-      "description": "Add a token_count guard in lib/impl/retry.py that detects when a Claude response exceeds SPIRAL_MAX_TOKENS and triggers model escalation (haiku→sonnet→opus). This prevents runaway token consumption and ensures the retry loop handles overflow gracefully.",
+      "description": "Enhance git-cliff CHANGELOG generation to include story metadata (US-NNN, cost tokens, duration, model used) in YAML frontmatter for better traceability and cost analysis",
       "acceptanceCriteria": [
-        "lib/impl/retry.py raises or returns a token overflow signal when response token count exceeds SPIRAL_MAX_TOKENS",
-        "Model escalation sequence haiku→sonnet→opus is triggered on overflow detection (verifiable via unit test)",
-        "After 3 retry exhaustion, story state is preserved and no worktree corruption occurs"
+        "gen_changelog.py: implement extract_story_metadata(commit_sha) function that reads story_id from commit message and looks up cost/duration/model from results.tsv row",
+        "CHANGELOG.md includes YAML frontmatter block on each story section with fields: story_id, tokens_used, duration_seconds, models_escalated (as comma-list)",
+        "tests/test_gen_changelog_metadata.py validates frontmatter schema and asserts all required fields present; test with results.tsv fixture containing 3 stories"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1030",
+      "title": "GET /api/dashboard/phase-burn-rate: Burn Rate Calculation from results.tsv",
+      "priority": "high",
+      "description": "HTTP endpoint that reads results.tsv, groups rows by active phase, and returns current tokens/sec plus a 30-second lagging average. Enables cost-overrun detection by exposing per-phase token velocity as a REST resource.",
+      "acceptanceCriteria": [
+        "GET /api/dashboard/phase-burn-rate returns JSON: {phase, tokens_per_sec, lagging_avg_30s, phase_total_tokens, phase_elapsed_sec} with HTTP 200",
+        "Given results.tsv rows for Phase R totalling 3000 tokens over 120 s, endpoint returns tokens_per_sec within ±10% of 25.0",
+        "If results.tsv has no rows for a currently active phase, endpoint returns {phase: null, tokens_per_sec: 0, lagging_avg_30s: 0, phase_total_tokens: 0, phase_elapsed_sec: 0}",
+        "uv run pytest tests/test_phase_burn_rate.py -v passes with zero failures"
       ],
       "technicalNotes": [
-        "File to edit: lib/impl/retry.py (model escalation logic, add token_count guard before escalation step)",
-        "File to edit: lib/impl/checkpoint.py (save last_error field to .spiral/_checkpoint.json on overflow)",
-        "Test command: uv run pytest tests/test_retry.py -v -k token_overflow"
+        "File to edit: lib/dashboard/phase_burn_rate.py (calculate_burn_rate) — create module; parse results.tsv rows (tab-separated: story_id, phase, model, tokens, cost, duration, status, timestamp), filter to active phase, compute delta_tokens/delta_time and 30 s rolling window average",
+        "File to edit: lib/dashboard/routes.py (register_routes) — add GET /api/dashboard/phase-burn-rate handler that calls calculate_burn_rate() and returns json.dumps(result)",
+        "Test command: uv run pytest tests/test_phase_burn_rate.py -v",
+        "results.tsv columns (0-indexed): 0=story_id, 1=phase, 2=model, 3=tokens, 4=cost, 5=duration_sec, 6=status, 7=timestamp_iso"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1041",
+      "title": "Add categorize_test_failure() to phase_t.py and error_category to ResultsRecord",
+      "priority": "high",
+      "description": "Implement categorize_test_failure() in lib/spiral/phase_t.py using pattern-matching on pytest output lines to return one of four category strings. Also add an error_category field to ResultsRecord so Phase T can attach the category to each failure record.",
+      "acceptanceCriteria": [
+        "categorize_test_failure() exists in lib/spiral/phase_t.py and returns 'syntax_error' for SyntaxError/IndentationError output, 'assertion_failure' for AssertionError, 'timeout' for TimeoutExpired/Timeout, and 'integration_failure' for all other input",
+        "ResultsRecord in lib/spiral/results.py (or equivalent dataclass) has an error_category: str = '' field",
+        "uv run python -c \"from lib.spiral.phase_t import categorize_test_failure; assert categorize_test_failure('SyntaxError: invalid syntax') == 'syntax_error'\" exits 0",
+        "uv run pytest tests/ -v --tb=short exits 0 (no regressions)"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/spiral/phase_t.py (add categorize_test_failure function — match SyntaxError/IndentationError → syntax_error, AssertionError → assertion_failure, TimeoutExpired/Timeout → timeout, else → integration_failure)",
+        "File to edit: lib/spiral/results.py (add error_category: str = '' field to ResultsRecord dataclass)",
+        "Test command: uv run python -c \"from lib.spiral.phase_t import categorize_test_failure; assert categorize_test_failure('SyntaxError: invalid syntax') == 'syntax_error'\"",
+        "Test command: uv run pytest tests/ -v --tb=short"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "sonnet",
+      "last_attempted": "2026-03-23T11:30:23Z"
+    },
+    {
+      "id": "US-1042",
+      "title": "Integration Tests: Phase T error categorization covers all 4 categories",
+      "priority": "high",
+      "description": "Write tests/test_phase_t_error_categorization.py with one test per error category (syntax_error, assertion_failure, timeout, integration_failure), each passing a representative mock pytest output string to categorize_test_failure() and asserting the expected return value.",
+      "acceptanceCriteria": [
+        "tests/test_phase_t_error_categorization.py exists with exactly 4 test functions, one per error category",
+        "Each test imports categorize_test_failure from lib.spiral.phase_t and passes a realistic mock pytest output string",
+        "uv run pytest tests/test_phase_t_error_categorization.py -v exits 0 with all 4 tests passing",
+        "uv run pytest tests/ -v --tb=short exits 0 (no regressions)"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_phase_t_error_categorization.py (new file — 4 test functions: test_syntax_error, test_assertion_failure, test_timeout, test_integration_failure)",
+        "Mock strings to use: 'SyntaxError: invalid syntax', 'AssertionError: assert 1 == 2', 'TimeoutExpired: Command timed out', 'ConnectionRefusedError: [Errno 111]'",
+        "Test command: uv run pytest tests/test_phase_t_error_categorization.py -v",
+        "Test command: uv run pytest tests/ -v --tb=short"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1028",
+      "title": "Add find_orphan_commits() Function to lib/gen_changelog.py",
+      "priority": "high",
+      "description": "Add find_orphan_commits(commits: list[dict]) -> list[dict] to lib/gen_changelog.py that filters out commits lacking US-/UT- story ID tags. Add pytest tests covering tagged vs untagged commit detection. This is the core detection logic consumed by the CLI subcommand in the companion story.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_gen_changelog.py -v -k orphan passes: mock git log with 3 US-/UT-tagged commits and 2 untagged returns exactly 2 orphans",
+        "Each returned dict has exactly the keys: commit, message, date, reason (reason value is 'no-story-id')",
+        "Function uses re.search(r'(US|UT)-\\d+', message, re.IGNORECASE) — commits without a match are returned as orphans",
+        "uv run python -c \"from lib.gen_changelog import find_orphan_commits; assert find_orphan_commits([]) == []\" exits 0"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/gen_changelog.py (add find_orphan_commits(commits: list[dict]) -> list[dict] near existing changelog helpers)",
+        "File to edit: tests/test_gen_changelog.py (add test_find_orphan_commits_returns_untagged and test_find_orphan_commits_empty_input)",
+        "Test command: uv run pytest tests/test_gen_changelog.py -v -k orphan",
+        "Each input dict is expected to have keys: commit (hash), message (subject), date (ISO string); pass through all keys plus add reason='no-story-id'"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-03-23T10:11:51Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n- Story US-1028 is the highest priority incomplete story\n- Need to add `find_orphan_commits()` function to lib/gen_changelog.py that filters commits lacking US-/UT- story ID tags\n- Function should return list of dicts with keys: commit, message, date, reason (reason='no-story-id')\n- Need comprehensive test coverage\n\n## Problem Identified\nThe function doesn't exist. Need to implement find_orphan_commits() that:\n1. Detects commits without US-/UT- tags using regex r'(US|UT)-\\d+'\n2. Returns matching untagged commits as orphans\n3. Passes test coverage for tagged vs untagged detection\n\n## Planned Changes\n1. Add find_orphan_commits() function to lib/gen_changelog.py\n2. Add tests to tests/test_gen_changelog.py:\n   - test_find_orphan_commits_returns_untagged (3 tagged + 2 untagged = 2 orphans)\n   - test_find_orphan_commits_empty_input (empty input = empty output)\n3. Verify function handles all keys properly and uses correct regex pattern\n\nNow let me read the existing files to understand the current structure:\nLet me check the current implementation more carefully. I see the function already exists but with a different signature. Let me understand what needs to change:\nNow I understand. The current function has a different signature - it takes a repo_path and calls git subprocess. The new function should take a list of dicts and just do filtering. Let me implement this:\nLet me re-read the file:\nGood! I can see the function has already been updated to the new signature. Now I need to check and update the tests. Let me look at what tests are currently there:\nPerfect! The tests have already been updated too. Let me verify the implementation is correct by running the tests:\nGreat! All tests pass. Let me verify the other acceptance criteria:\nLet me verify the regex pattern uses IGNORECASE as specified in the acceptance criteria:\nPerfect! The regex is correctly using IGNORECASE. Let me verify all acceptance criteria one more time with a comprehensive check:\nExcellent! All tests pass. Let me verify the acceptance criteria one final time:\n\n1. ✅ Test for 3 tagged + 2 untagged commits returns exactly 2 orphans: `test_find_orphan_commits_returns_untagged` PASSED\n2. ✅ Returned dicts have keys: commit, message, date, reason (reason='no-story-id'): verified in tests\n3. ✅ Uses regex r'(US|UT)-\\d+' with re.IGNORECASE: confirmed in code\n4. ✅ Empty input returns empty list: `test_find_orphan_commits_empty_input` PASSED\n\nAll acceptance criteria are met! Now let me mark the story as complete and commit:\nNow let me run quality checks before committing:\nLet me wait for pre-commit to complete:\nPerfect! All checks pass. Now let me commit the changes:\nPerfect! Let me verify the commit was created:\nLet me verify the story was marked as complete in prd.json:\nExcellent! Story US-1028 is now complete. Let me check the next highest priority incomplete story:\nThe next incomplete story is US-1029 (Add list-orphan-commits CLI Subcommand). Let me get its full details:\n## Current State"
+      }
+    },
+    {
+      "id": "US-1029",
+      "title": "Add list-orphan-commits CLI Subcommand to main.py",
+      "priority": "high",
+      "description": "Expose find_orphan_commits via a 'list-orphan-commits' subcommand in main.py with --format json|text output modes. Phase G validation calls this subcommand to surface stray commits before CHANGELOG generation. Depends on find_orphan_commits existing in lib/gen_changelog.py.",
+      "acceptanceCriteria": [
+        "uv run python main.py list-orphan-commits --format json exits 0 and outputs a JSON array where every element has keys: commit, message, date, reason",
+        "uv run python main.py list-orphan-commits --format text exits 0 and prints one human-readable summary line per orphan commit",
+        "uv run python main.py list-orphan-commits --help exits 0 and lists the --format option with json|text choices"
+      ],
+      "technicalNotes": [
+        "File to edit: main.py (add 'list-orphan-commits' subcommand with --format json|text argparse argument; import find_orphan_commits from lib.gen_changelog)",
+        "Collect commits via: subprocess.run(['git','log','--pretty=format:%H|%s|%ai'], capture_output=True, text=True) then split each line on '|' into {commit, message, date}",
+        "Test command: uv run python main.py list-orphan-commits --format json",
+        "Text format: one line per orphan as '<short-hash> <date> <message>' — no JSON wrapping"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -2565,6 +2635,92 @@
       "last_attempted": "2026-03-23T01:10:22Z"
     },
     {
+      "id": "US-1043",
+      "title": "Phase I Automatic Story Decomposition on Triple Retry Exhaustion with Validation",
+      "priority": "high",
+      "description": "Implement automatic story decomposition when Phase I retry loop exhausts all 3 escalation levels (haiku→sonnet→opus). Decomposes into 4 atomic sub-stories with file-level scope reduction, validates decomposition doesn't exceed prd.json story limits, and records decomposition metadata for learning.",
+      "acceptanceCriteria": [
+        "lib/impl/auto_decompose.py: function decompose_exhausted_story(story_id, prd, max_stories_ceiling) decomposes into 4 sub-stories, each with _parent_id, _decomposed_from_iteration fields; returns new prd with sub-stories inserted",
+        "Phase I calls auto_decompose before final retry exhaustion; adds sub-stories to prd.json merge queue; original story marked with _decomposed: true, _decomposed_count: 4",
+        "Integration test: fail 1 story 3 times with increasing models, assert prd.json contains 4 child stories with correct _parent_id, each gets re-queued for Phase I, at least 1 child passes"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "sonnet",
+      "last_attempted": "2026-03-23T13:56:00Z"
+    },
+    {
+      "id": "US-1044",
+      "title": "Federation: File Conflict Detection Across Sub-Projects with Patch Visualization",
+      "priority": "high",
+      "description": "Detect when 2+ sub-projects plan to modify the same file, generate conflict report with visual diff and suggest resolution strategy",
+      "acceptanceCriteria": [
+        "lib/federation/conflict_detector.py: implement detect_file_conflicts(prd_dict) analyzing all stories by sub_project, returning list of FileConflict(file_path, sub_projects_set, story_ids_list, suggested_resolution)",
+        "CLI: spiral federation-conflict-check outputs YAML report listing conflicts with story IDs, file paths, and merge order recommendation; runs as pre-Phase M gate",
+        "Integration test: tests/test_federation_conflict.py with federated fixture (2 sub-projects touching 3 common files); asserts all conflicts detected and resolution hints are actionable"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "sonnet",
+      "_failureReason": "oversized_diff",
+      "last_attempted": "2026-03-23T14:16:52Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n`conflict_detector.py` was created in attempt 1 but the diff was 416 lines total. The test file `tests/test_federation_conflict.py` doesn't exist, and `main.py` doesn't have the `federation-conflict-check` CLI command yet.\n\n## Problem Identified\nTwo pieces are missing: the CLI command wiring in `main.py` and the integration test. The diff overran 400 lines in attempt 1, meaning the test file was too verbose.\n\n## Planned Changes\n- `main.py`: Add compact `cmd_federation_conflict_check()` handler (~20 lines), subparser registration (~10 lines), dispatch case (~2 lines), docstring line (~1 line)\n- `tests/test_federation_conflict.py`: Compact test ~70 lines covering AC3 (federated fixture with 2 sub-projects, 3 common files; assert all conflicts detected and resolution hints are non-empty)\n\nNow executing:\nGood, the docstring already has it. Let me check lines around 1190 for the right insertion point:\nBoth the function and docstring already exist from attempt 1! Let me check the subparser and dispatch:\nAll main.py changes from attempt 1 are there! Let me check git status:\nEverything already exists from attempt 1! Let me check the current diff size:\nBoth files exist. Now let me check git status properly and understand what needs to happen:\nGood - the 3 new files are already staged. Let me check the diff size of staged content + main.py:\nThe limit is 400 lines. My estimate is ~353. Let me run quality checks and format the files:\nYou've hit your limit · resets 1am (Asia/Kuala_Lumpur)"
+      },
+      "_contextStats": {
+        "tokensBeforeMasking": 333,
+        "tokensAfterMasking": 332,
+        "reductionPct": 0,
+        "contextWindow": 10
+      }
+    },
+    {
+      "id": "US-1045",
+      "title": "Dashboard: Story Retry Exhaustion Analyzer - GET /api/dashboard/stuck-stories",
+      "priority": "high",
+      "description": "Identify stories stuck in retry loop with 3+ attempts, analyze model escalation pattern (haiku→sonnet→opus), and suggest atomic decomposition strategy",
+      "acceptanceCriteria": [
+        "api.py: GET /api/dashboard/stuck-stories returns JSON array with {story_id, attempt_count, last_model_tried, escalation_chain (e.g. 'haiku→sonnet→opus'), original_token_count}",
+        "lib/stuck_story_analyzer.py: implement analyze_exhaustion(results_tsv_path) filtering results.tsv rows where attempt_count >= 3, extracting model sequence from model column across rows",
+        "Dashboard UI: display stuck story table with 'Suggest Decomposition' button that generates breakdown hints based on original_description and touch_file_count; test with 5-retry fixture story"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "sonnet",
+      "last_attempted": "2026-03-23T15:09:33Z"
+    },
+    {
+      "id": "US-1031",
+      "title": "WebSocket /ws/phase-burn-rate: Stream Burn Rate Updates Every 5 Seconds",
+      "priority": "high",
+      "description": "WebSocket endpoint that pushes phase burn rate payloads to connected clients every 5 seconds while a phase is active. Depends on the burn rate calculation introduced in the companion REST story. Enables the dashboard UI to display live token velocity without polling.",
+      "acceptanceCriteria": [
+        "WebSocket client connecting to ws://localhost:<port>/ws/phase-burn-rate receives a JSON message within 6 seconds of connection",
+        "When no phase is active (phase: null), the WebSocket still emits heartbeat messages at the 5 s cadence rather than silently stalling",
+        "Disconnecting a WebSocket client stops the background emit loop for that connection with no unhandled exceptions in server logs",
+        "uv run pytest tests/test_phase_burn_rate_ws.py -v passes with zero failures"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/dashboard/ws_handlers.py (phase_burn_rate_handler) — create async handler; call calculate_burn_rate() in a loop with asyncio.sleep(5), send json.dumps(result) to websocket, catch websocket disconnect to break loop",
+        "File to edit: lib/dashboard/routes.py (register_routes) — register WebSocket route /ws/phase-burn-rate pointing to phase_burn_rate_handler",
+        "Test command: uv run pytest tests/test_phase_burn_rate_ws.py -v",
+        "Use the same calculate_burn_rate() function from lib/dashboard/phase_burn_rate.py — do not duplicate parsing logic"
+      ],
+      "dependencies": [
+        "US-1030"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-03-23T12:47:55Z"
+    },
+    {
       "id": "US-1012",
       "title": "[Integration Test] Verify episodic memory store for Ralph workers (US-350)",
       "priority": "high",
@@ -3873,6 +4029,63 @@
       "model": "haiku",
       "_failureReason": "oversized_diff",
       "last_attempted": "2026-03-22T02:24:59Z"
+    },
+    {
+      "id": "US-775",
+      "title": "Phase T: Root Cause Clustering - Group Related Test Failures into Single Fix Story",
+      "priority": "medium",
+      "description": "When multiple tests fail from the same module, cluster them into a single root-cause story instead of N individual stories.",
+      "acceptanceCriteria": [
+        "Phase T groups test failures by source file; 3+ failures from same source produce 1 clustered story",
+        "Clustered story title: [Root Cause] Fix {module} causing {N} test failures",
+        "Individual test names listed in acceptanceCriteria for Ralph verification",
+        "Unit test verifies 5 failures from tests/test_merge.py produce 1 story, not 5"
+      ],
+      "technicalNotes": [
+        "File to create: lib/test_failure_clustering.py",
+        "File to edit: spiral.sh Phase T"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "tags": [
+        "core-flow",
+        "phase-t"
+      ],
+      "model": "haiku",
+      "last_attempted": "2026-03-23T13:17:05Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n\nLooking at stories and memory. US-778 is the first cleanest incomplete story: \"Phase E: Priority-Aware Enrichment\" - a small change to sort enrichment queue by priority.\n\n## Problem Identified\n\nPhase E currently doesn't prioritize high-priority stories for enrichment. When enrichment budget is exhausted, some medium/low stories get enriched while high/critical ones don't. Need to sort by priority before processing.\n\n## Planned Changes\n\n1. **lib/spiral/phase_e.py** — Add priority sorting to enrichment queue\n2. **spiral.sh** — Update Phase E call to pass sorted stories\n3. **tests/test_phase_e_enrichment.py** — Add unit test for priority-based enrichment\n4. **Logging** — Add log entry showing enrichment order\n\nLet me now examine the current Phase E implementation:\nNow let me read the test file to understand the testing pattern:\nNow I'll implement the changes. First, let me modify the enrich_stories.py file to add priority sorting:\nNow let me add a unit test for the priority-aware enrichment:\nLet me simplify the test to be more reliable:\nNow let me run the tests to verify the implementation:\nI see the issue - my logging is appearing even for stories that shouldn't be enriched. Let me refine the logging to only show it for stories that will actually be enriched:\nLet me re-apply the changes more carefully:\nNow let me run the failing test again:\nLooking at the test failure, the issue is that the test story doesn't have `filesTouch` set, so `_should_enrich()` returns True. Let me check the existing test more carefully:\nThe edits didn't apply. Let me rewrite the entire function more carefully:\nThe test is failing because the story doesn't have `filesTouch` set. According to `_should_enrich()`, stories without `filesTouch` are enriched even if they're small. Let me fix the test to include `filesTouch`:\nLet me read the entire file and rewrite it with the changes:\nNow let me add the priority test back to the test file:\nPerfect! All tests pass. Now let me commit these changes:\nNow let me update the prd.json to mark US-778 as complete:\n## Summary"
+      },
+      "_contextStats": {
+        "tokensBeforeMasking": 66,
+        "tokensAfterMasking": 65,
+        "reductionPct": 1,
+        "contextWindow": 10
+      }
+    },
+    {
+      "id": "US-778",
+      "title": "Phase E: Priority-Aware Enrichment - Enrich High-Priority Stories First",
+      "priority": "medium",
+      "description": "Reorder the enrichment queue so critical/high-priority stories are enriched before medium/low, ensuring the most important work gets the best context.",
+      "acceptanceCriteria": [
+        "Phase E sorts enrichment queue by priority (critical > high > medium > low) before processing",
+        "When SPIRAL_STORY_ENRICHMENT_MAX is reached, only highest-priority stories are enriched",
+        "Log shows enrichment order with priority level",
+        "Unit test verifies 3 medium + 2 high stories with max=3 results in both high stories enriched"
+      ],
+      "technicalNotes": [
+        "File to edit: spiral.sh Phase E"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "tags": [
+        "core-flow",
+        "phase-e"
+      ],
+      "model": "haiku"
     },
     {
       "id": "US-1032",
@@ -6246,132 +6459,6 @@
         "contextWindow": 10
       },
       "tags": []
-    },
-    {
-      "id": "US-1038",
-      "title": "Create ralph_self_review.py with suggest_optimizations()",
-      "priority": "medium",
-      "description": "Create lib/impl/ralph_self_review.py implementing suggest_optimizations(story_id, implementation_diff) that calls Claude to review a git diff and returns up to 3 structured optimization suggestions. This isolates the Claude invocation and response parsing from integration concerns.",
-      "acceptanceCriteria": [
-        "File lib/impl/ralph_self_review.py exists and suggest_optimizations(story_id, diff_str) returns a dict matching {\"optimizations\": [{\"file\": str, \"line\": int, \"suggestion\": str, \"confidence\": float}]} with at most 3 items",
-        "uv run python -c \"from lib.impl.ralph_self_review import suggest_optimizations; r = suggest_optimizations('US-001', 'diff --git a/x.py'); assert isinstance(r, dict) and 'optimizations' in r\" exits 0",
-        "uv run pytest tests/test_ralph_self_review.py -v passes with tests covering empty diff, valid diff with suggestions, and malformed Claude response"
-      ],
-      "technicalNotes": [
-        "File to edit: lib/impl/ralph_self_review.py (new file — suggest_optimizations function)",
-        "File to edit: tests/test_ralph_self_review.py (new file — unit tests with mocked Claude responses)",
-        "Test command: uv run pytest tests/test_ralph_self_review.py -v",
-        "Use subprocess to call Claude CLI with a structured prompt; parse JSON from stdout; cap results at 3 items; return empty list on parse error"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1039",
-      "title": "Hook self-review into Phase I and log suggestions to results.tsv",
-      "priority": "medium",
-      "description": "After Ralph successfully implements a story, call suggest_optimizations() and auto-apply patches with confidence >0.85 via git apply, then append all suggestions to results.tsv under a new post_review_suggestions column. Lower-confidence suggestions are logged only.",
-      "acceptanceCriteria": [
-        "results.tsv gains a post_review_suggestions column; after a dry-run Phase I pass, the column contains a JSON-serialized list (may be empty [])",
-        "uv run pytest tests/test_phase_i_self_review.py -v passes, verifying auto-apply is called when confidence >0.85 and skipped when <=0.85",
-        "uv run python -c \"import csv; rows=list(csv.DictReader(open('results.tsv','newline='))); assert all('post_review_suggestions' in r for r in rows)\" exits 0 after a spiral dry-run"
-      ],
-      "technicalNotes": [
-        "File to edit: lib/impl/commit_revert.sh or spiral.sh Phase I block (post-ralph hook insertion point)",
-        "File to edit: lib/impl/ralph_self_review.py (add apply_suggestion helper using git apply)",
-        "File to edit: tests/test_phase_i_self_review.py (new integration test)",
-        "Test command: uv run pytest tests/test_phase_i_self_review.py -v",
-        "Guard the hook behind SPIRAL_SELF_REVIEW=1 env var so existing runs are unaffected"
-      ],
-      "dependencies": [
-        "US-1038"
-      ],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1040",
-      "title": "CLI: spiral velocity-burndown - Generate ASCII Burndown Chart from results.tsv with Trend Forecast",
-      "priority": "medium",
-      "description": "Generates ASCII burndown chart showing stories completed per iteration vs velocity trend. Projects completion date using moving average velocity with confidence intervals.",
-      "acceptanceCriteria": [
-        "`spiral velocity-burndown --iterations 10 --format ascii` outputs chart with: cumulative stories completed, daily velocity (3-iteration moving avg), trend line, forecast completion date",
-        "`--export csv --output burndown.csv` generates CSV with columns: iteration, stories_completed, velocity, confidence_90pct_upper, confidence_90pct_lower",
-        "Integration test: `pytest tests/test_velocity_burndown.py -v` mocks results.tsv with 10 iterations; chart renders without errors and forecast is within ±2 iterations"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-1041",
-      "title": "Add categorize_test_failure() to phase_t.py and error_category to ResultsRecord",
-      "priority": "high",
-      "description": "Implement categorize_test_failure() in lib/spiral/phase_t.py using pattern-matching on pytest output lines to return one of four category strings. Also add an error_category field to ResultsRecord so Phase T can attach the category to each failure record.",
-      "acceptanceCriteria": [
-        "categorize_test_failure() exists in lib/spiral/phase_t.py and returns 'syntax_error' for SyntaxError/IndentationError output, 'assertion_failure' for AssertionError, 'timeout' for TimeoutExpired/Timeout, and 'integration_failure' for all other input",
-        "ResultsRecord in lib/spiral/results.py (or equivalent dataclass) has an error_category: str = '' field",
-        "uv run python -c \"from lib.spiral.phase_t import categorize_test_failure; assert categorize_test_failure('SyntaxError: invalid syntax') == 'syntax_error'\" exits 0",
-        "uv run pytest tests/ -v --tb=short exits 0 (no regressions)"
-      ],
-      "technicalNotes": [
-        "File to edit: lib/spiral/phase_t.py (add categorize_test_failure function — match SyntaxError/IndentationError → syntax_error, AssertionError → assertion_failure, TimeoutExpired/Timeout → timeout, else → integration_failure)",
-        "File to edit: lib/spiral/results.py (add error_category: str = '' field to ResultsRecord dataclass)",
-        "Test command: uv run python -c \"from lib.spiral.phase_t import categorize_test_failure; assert categorize_test_failure('SyntaxError: invalid syntax') == 'syntax_error'\"",
-        "Test command: uv run pytest tests/ -v --tb=short"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-1042",
-      "title": "Integration Tests: Phase T error categorization covers all 4 categories",
-      "priority": "high",
-      "description": "Write tests/test_phase_t_error_categorization.py with one test per error category (syntax_error, assertion_failure, timeout, integration_failure), each passing a representative mock pytest output string to categorize_test_failure() and asserting the expected return value.",
-      "acceptanceCriteria": [
-        "tests/test_phase_t_error_categorization.py exists with exactly 4 test functions, one per error category",
-        "Each test imports categorize_test_failure from lib.spiral.phase_t and passes a realistic mock pytest output string",
-        "uv run pytest tests/test_phase_t_error_categorization.py -v exits 0 with all 4 tests passing",
-        "uv run pytest tests/ -v --tb=short exits 0 (no regressions)"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_phase_t_error_categorization.py (new file — 4 test functions: test_syntax_error, test_assertion_failure, test_timeout, test_integration_failure)",
-        "Mock strings to use: 'SyntaxError: invalid syntax', 'AssertionError: assert 1 == 2', 'TimeoutExpired: Command timed out', 'ConnectionRefusedError: [Errno 111]'",
-        "Test command: uv run pytest tests/test_phase_t_error_categorization.py -v",
-        "Test command: uv run pytest tests/ -v --tb=short"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1043",
-      "title": "Add model_escalation_report.py: Parse results.tsv for escalation chains",
-      "priority": "medium",
-      "description": "Create lib/cli/model_escalation_report.py that reads results.tsv, groups rows by story_id, detects model tier changes across retries, and returns a structured dict with per-story escalation metrics. This is the pure data layer with no CLI concerns.",
-      "acceptanceCriteria": [
-        "lib/cli/model_escalation_report.py exists and exports parse_escalation_chains(tsv_path) returning a list of dicts with keys: story_id, haiku_tokens, sonnet_tokens, opus_tokens, total_cost, escalation_count",
-        "uv run pytest tests/test_model_escalation_report.py::test_parse_escalation_chains -v passes with a fixture results.tsv containing at least one multi-model story",
-        "Stories with retry_count == 0 or single-model retries are excluded from output"
-      ],
-      "technicalNotes": [
-        "File to edit: lib/cli/model_escalation_report.py (new file — create parse_escalation_chains function)",
-        "results.tsv columns: story_id, model, tokens_in, tokens_out, cost_usd, retry_count — use csv.DictReader with delimiter='\\t'",
-        "Group rows by story_id, accumulate tokens per model tier (haiku/sonnet/opus), flag escalation when model column changes across sorted retry rows",
-        "Test command: uv run pytest tests/test_model_escalation_report.py -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
     }
   ]
 }
