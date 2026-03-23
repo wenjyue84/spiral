@@ -50,6 +50,36 @@ run_phase_check_done() {
   # ── US-227: Promote exhausted stories to DLQ state ────────────────────────
   "$SPIRAL_PYTHON" "$SPIRAL_HOME/main.py" dlq promote 2>/dev/null || true
 
+  # ── US-1008: Phase Timing Baseline and Regression Detector ────────────────
+  _PERF_CHECK_RC=0
+  if [[ "${DRY_RUN:-0}" -ne 1 ]]; then
+    if [[ -f "$SCRATCH_DIR/_iteration_summary.json" ]]; then
+      # Update baseline from current iteration
+      "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/perf_baseline.py" update \
+        --iteration-summary "$SCRATCH_DIR/_iteration_summary.json" \
+        --baseline-file "$SCRATCH_DIR/perf_baseline.json" \
+        >/dev/null 2>&1 || true
+
+      # Check for performance regression
+      _MULT="${SPIRAL_PERF_REGRESSION_MULTIPLIER:-2.0}"
+      _PERF_REPORT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/perf_baseline.py" check \
+        --iteration-summary "$SCRATCH_DIR/_iteration_summary.json" \
+        --baseline-file "$SCRATCH_DIR/perf_baseline.json" \
+        --multiplier "$_MULT" \
+        --report-file "$SCRATCH_DIR/perf_regression_report.json" 2>&1) || _PERF_CHECK_RC=$?
+
+      if [[ $_PERF_CHECK_RC -eq 1 ]]; then
+        echo "  [C] ⚠️  Performance Regression Detected:"
+        echo "$_PERF_REPORT" | "$SPIRAL_PYTHON" -c "import sys, json; r=json.load(sys.stdin); print('    ' + r.get('summary', 'unknown regression'))"
+
+        if [[ "${SPIRAL_STRICT_PERF_CHECK:-false}" == "true" ]]; then
+          echo "  [C] ERROR: SPIRAL_STRICT_PERF_CHECK=true blocks on performance regression"
+          exit 9  # ERR_PERF_REGRESSION
+        fi
+      fi
+    fi
+  fi
+
   _CHECK_DONE_RC=0
   if [[ -n "$SPIRAL_CORE_BIN" ]]; then
     "$SPIRAL_CORE_BIN" check-done \

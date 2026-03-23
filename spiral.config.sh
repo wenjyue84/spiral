@@ -106,6 +106,15 @@ SPIRAL_MERGE_MODEL="haiku"      # Phase M: merge decisions (future — currently
 # Set to true to hard block: Phase V fails if any dead features detected
 SPIRAL_STRICT_DEAD_FEATURE="${SPIRAL_STRICT_DEAD_FEATURE:-false}"
 
+# ── Phase Timing Regression Detector (US-1008) ───────────────────────────────
+# Records execution time baseline (P50/P90) for each SPIRAL phase from the last 10
+# iterations. After each iteration, checks if any phase exceeded 2x its P90 baseline.
+# Default false = soft warning (logged but does not block)
+# Set to true to hard block: Phase C fails if regression detected
+SPIRAL_STRICT_PERF_CHECK="${SPIRAL_STRICT_PERF_CHECK:-false}"
+# Regression threshold multiplier (default 2.0 = 2x P90 baseline)
+SPIRAL_PERF_REGRESSION_MULTIPLIER="${SPIRAL_PERF_REGRESSION_MULTIPLIER:-2.0}"
+
 # ── Story enrichment pass (US-443) ────────────────────────────────────────────
 # After Phase S validation, optionally refine medium/sparse stories: rewrite
 # vague ACs, add exact file paths + test commands, split stories touching 3+

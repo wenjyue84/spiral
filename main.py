@@ -24,6 +24,7 @@ Subcommands:
   show-blockers           Analyze story dependency graph and critical paths (US-538)
   show-slowest-stories    Identify bottleneck stories by total duration (US-712)
   show-dead-features      List all detected dead features across stories (US-1006)
+  show-perf-baseline      Display per-phase performance baseline statistics (US-1008)
   replay                  Re-run a failed phase with DEBUG=1 and full state capture (US-539)
   phase-timing-report     Generate phase timing report with SLA breach analysis (US-546)
   analyze-failures        Categorize retry failure root causes and recommend tuning (US-547)
@@ -2856,6 +2857,61 @@ def cmd_show_dead_features(args: argparse.Namespace) -> None:
             print("✓ No dead features detected")
 
 
+def cmd_show_perf_baseline(args: argparse.Namespace) -> None:
+    """Display performance baseline statistics per phase (US-1008).
+
+    Usage: spiral show-perf-baseline [--format json|table]
+    """
+    baseline_file = Path(".spiral/perf_baseline.json")
+
+    if not baseline_file.exists():
+        print("No performance baseline found — run at least one iteration first")
+        sys.exit(1)
+
+    try:
+        with open(baseline_file, encoding="utf-8") as f:
+            baseline = json.load(f)
+    except (json.JSONDecodeError, OSError) as e:
+        print(f"Error loading perf_baseline.json: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    output_format = getattr(args, "format", "table")
+    p50 = baseline.get("p50", {})
+    p90 = baseline.get("p90", {})
+    window_size = len(baseline.get("rolling_window", []))
+
+    if output_format == "json":
+        print(json.dumps(baseline, indent=2))
+    else:
+        # Table format
+        print("\n⏱ Phase Performance Baseline")
+        print("=" * 70)
+        print(f"Baseline computed from {window_size} iteration(s)")
+        print()
+
+        if p50 and p90:
+            print(f"{'Phase':<8} {'P50 (s)':<12} {'P90 (s)':<12} {'Limit (2x)':>12}")
+            print("─" * 70)
+
+            for phase in sorted(p50.keys()):
+                p50_val = p50[phase]
+                p90_val = p90[phase]
+                limit = p90_val * 2.0
+
+                print(
+                    f"{phase:<8} {p50_val:<12.1f} {p90_val:<12.1f} {limit:>12.1f}"
+                )
+
+            total_p50 = sum(p50.values())
+            total_p90 = sum(p90.values())
+            print("─" * 70)
+            print(
+                f"{'TOTAL':<8} {total_p50:<12.1f} {total_p90:<12.1f} {total_p90 * 2.0:>12.1f}"
+            )
+        else:
+            print("No baseline data available")
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="spiral",
@@ -3390,6 +3446,18 @@ def main():
         help="Path to prd.json (default: prd.json)",
     )
     dead_features_parser.add_argument(
+        "--format",
+        choices=["json", "table"],
+        default="table",
+        help="Output format: json or table (default: table)",
+    )
+
+    # ── show-perf-baseline subcommand (US-1008) ───────────────────────────────────
+    perf_baseline_parser = subparsers.add_parser(
+        "show-perf-baseline",
+        help="Display per-phase performance baseline statistics (US-1008)",
+    )
+    perf_baseline_parser.add_argument(
         "--format",
         choices=["json", "table"],
         default="table",
@@ -4151,6 +4219,8 @@ def main():
         cmd_show_ac_results(args)
     elif args.command == "show-dead-features":
         cmd_show_dead_features(args)
+    elif args.command == "show-perf-baseline":
+        cmd_show_perf_baseline(args)
     elif args.command == "replay":
         cmd_replay(args)
     elif args.command == "analyze-batch-potential":

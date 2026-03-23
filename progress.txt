@@ -1,5 +1,84 @@
 
-## Iteration [CURRENT] - Story: US-1005 Phase V AC Verification Runner
+## Iteration [CURRENT] - Story: US-1008 Phase C: Phase Timing Baseline and Regression Detector
+
+### Implementation Summary
+
+Successfully implemented performance baseline tracking and regression detection to catch phase timing regressions early. Records P50/P90 from rolling window of 10 iterations, detects when any phase exceeds 2x P90 baseline threshold.
+
+### What was implemented
+
+1. **lib/perf_baseline.py** (245 lines)
+   - update_baseline(iteration_summary_file, baseline_file, window_size=10) function
+   - Maintains rolling window of last 10 iterations, computes P50 and P90 per phase
+   - check_regression(iteration_summary_file, baseline_file, multiplier=2.0) function
+   - Returns (has_regression, report) with detailed regression analysis per phase
+   - CLI entry points: update and check subcommands with configurable multiplier
+   - Graceful handling of missing baseline (first iteration) and partial phase data
+
+2. **tests/test_perf_baseline.py** (230 lines)
+   - 10 test methods across 3 test classes
+   - TestUpdateBaseline: creates baseline, rolling window, missing files
+   - TestCheckRegression: no baseline, within threshold, exceeds threshold, multiple phases, custom multiplier
+   - TestEdgeCases: missing files, partial phases
+   - All tests use tmp_path fixtures, no external dependencies
+
+3. **spiral.config.sh**
+   - Added SPIRAL_STRICT_PERF_CHECK="${SPIRAL_STRICT_PERF_CHECK:-false}" config flag (default disabled)
+   - Added SPIRAL_PERF_REGRESSION_MULTIPLIER="${SPIRAL_PERF_REGRESSION_MULTIPLIER:-2.0}" (default 2.0x)
+   - Allows soft warning (default) or hard block (when SPIRAL_STRICT_PERF_CHECK=true)
+
+4. **main.py**
+   - Added cmd_show_perf_baseline(args) function (60 lines)
+   - Added show-perf-baseline subparser with --format {json|table}
+   - Displays per-phase P50/P90 baselines in table format with 2x threshold column
+   - JSON output for scripting and dashboard integration
+   - Updated help text to list show-perf-baseline command
+
+5. **lib/phases/phase_c_check_done.sh**
+   - Added Phase C performance regression check (30 lines)
+   - Calls perf_baseline.py update after each iteration
+   - Calls perf_baseline.py check with configurable multiplier
+   - Writes .spiral/perf_regression_report.json on regression detection
+   - Soft warning by default; SPIRAL_STRICT_PERF_CHECK=true enables hard block (exit 9)
+
+### Patterns discovered
+
+- Percentile computation: statistics.quantiles() with method='inclusive' for P90 (90th percentile)
+- Rolling window: maintains list of {iteration, phases} dicts, auto-truncates to N=10
+- Regression ratio: current_duration / P90 for human-readable "2.08x" reports
+- Graceful degradation: missing baseline treated as "first iteration" (no regression check)
+- Config gating: SPIRAL_STRICT_PERF_CHECK allows soft warning vs hard block on regression
+
+### Quality checks passed
+
+- mypy --strict: no type issues (full type safety with Dict, List, Tuple, Optional)
+- shellcheck --severity=error: no shell syntax errors
+- python -m py_compile: syntax OK on main.py
+- 10/10 unit tests passed (tmp_path fixtures, no network/external deps)
+- Manual verification: baseline creation, regression detection, edge cases all working
+
+### Files created/modified
+
+- Created: lib/perf_baseline.py (245 lines, fully typed)
+- Created: tests/test_perf_baseline.py (230 lines, 10 test methods)
+- Modified: spiral.config.sh (added 2 config variables)
+- Modified: main.py (added cmd_show_perf_baseline, parser, dispatch, help text)
+- Modified: lib/phases/phase_c_check_done.sh (added regression check section)
+- Modified: prd.json (US-1008 marked passes=true)
+
+### Story completion
+
+Story US-1008 marked as passes=true. All acceptance criteria met:
+1. ✓ lib/perf_baseline.py with update_baseline() and check_regression() functions
+2. ✓ Baseline stored in .spiral/perf_baseline.json with rolling window (last 10 iters)
+3. ✓ P50 and P90 computed per phase, regression when current > P90 * SPIRAL_PERF_REGRESSION_MULTIPLIER
+4. ✓ First iteration with no baseline: records data only, no regression check
+5. ✓ Phase C calls check_regression before loop continuation; results in .spiral/perf_regression_report.json
+6. ✓ Default soft warning; SPIRAL_STRICT_PERF_CHECK=true enables hard block (exit 9)
+7. ✓ CLI command spiral show-perf-baseline with table/JSON output
+8. ✓ Unit tests: 10 tests across baseline creation, regression detection, edge cases; all pass
+
+## Previous: Story: US-1005 Phase V AC Verification Runner
 
 ### Implementation Summary
 
