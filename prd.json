@@ -11,53 +11,6 @@
   ],
   "userStories": [
     {
-      "id": "US-1069",
-      "title": "CLI: spiral preflight-check -- Validate SPIRAL Runtime Dependencies and Configuration",
-      "priority": "high",
-      "description": "Comprehensive pre-flight validator that checks all prerequisites before running SPIRAL. Validates constitution.md, prd.json schema, system dependencies (bash 4+, node 20+, python 3.13+, docker), and outputs remediation hints.",
-      "acceptanceCriteria": [
-        "CLI command 'spiral preflight-check' validates constitution.md exists, prd.json conforms to schema, spiral.config.sh defines SPIRAL_VALIDATE_CMD and SPIRAL_COST_CEILING, outputs JSON with check_name/status/remediation for each check",
-        "System checks verify: bash --version >= 4, node --version >= 20, python3 --version >= 3.13, docker available, jq in ./ralph/jq.exe or PATH. Checks directory writability for .spiral/ and .spiral-workers/",
-        "Exit code 0 when all checks pass, 1 on any failure. Summary line: 'All checks passed - ready to run SPIRAL' or 'X checks failed - see hints above'. Implements in lib/spiral/preflight.py"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": true,
-      "_source": "ai-example",
-      "model": "sonnet",
-      "last_attempted": "2026-03-23T18:00:30Z"
-    },
-    {
-      "id": "US-1070",
-      "title": "Integration Test: Phase Data Integrity Validator -- Verify Output Schemas and State Transitions",
-      "priority": "high",
-      "description": "Run SPIRAL loop iteration and assert each phase output conforms to expected schema. Catches data corruption, orphaned references, and invalid state transitions early. Validates R→T→S→M→I→V→C data flow.",
-      "acceptanceCriteria": [
-        "Phase R output: research_results.json is valid JSON with array of {query, source, relevance_score (0-1), text}. Phase T: test_failures.json has valid exit_code (1-255), error_category in ['compile','runtime','timeout','assertion'], test_id matches UT-\\d+",
-        "Phase S: validated_stories.json contains only stories with constitution_score >= 0.7 and unique story_ids. Phase M: git diff --name-only shows only modified files, no path traversal (../ not allowed), commit message contains US-\\d+ or UT-\\d+",
-        "Implements tests/test_phase_data_integrity.py with assertions: assert_research_schema_valid(), assert_test_failures_no_duplicates(), assert_merge_files_safe(). Test runs on mock SPIRAL iteration with sample prd.json"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": true,
-      "_source": "ai-example",
-      "model": "haiku",
-      "_failureReason": "oversized_diff",
-      "_lastDiffLines": 6810,
-      "last_attempted": "2026-03-23T19:02:04Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\nPrevious attempt 1 of US-1070 failed with oversized diff (6810 lines > 400 limit). The story requires creating integration tests for Phase data integrity validation across R→T→S→M outputs.\n\nThe learning from progress.txt shows that previous iteration (US-1069) revealed: \"Don't add type: ignore[import-untyped] comments when pyproject.toml has ignore_missing_imports=true — mypy flags them as unused\"\n\n## Problem Identified\n\nAttempt 1 likely created an oversized test file by being too comprehensive. Need to implement a **minimal, focused test suite** that validates the 3 acceptance criteria without inflating the diff beyond 400 lines:\n- AC1: Research & test failure schema validation\n- AC2: Story validation & merge safety checks\n- AC3: Three assertion functions in a single test file\n\n## Planned Changes\n\n**File: `tests/test_phase_data_integrity.py`**\n- Minimal JSON fixtures for each phase output (research_results.json, test_failures.json, validated_stories.json)\n- Three test functions: test_research_schema_valid(), test_test_failures_no_duplicates(), test_merge_files_safe()\n- Focus only on schema compliance, not comprehensive edge case coverage\n- Keep test file under 300 lines total\n\n**Strategy:** Minimize by:\n1. Single test file only (no helper modules)\n2. Reuse simple dict/list fixtures (no complex factories)\n3. Assert schema constraints directly (no verbose test utilities)\n4. Skip non-critical edge cases\n\n---\nNow let me create a minimal test file focused on the three acceptance criteria:\nPerfect! All 9 tests pass. Now let me commit the changes and update prd.json to mark US-1070 as complete:\n## ✅ US-1070 Complete"
-      },
-      "_contextStats": {
-        "tokensBeforeMasking": 307,
-        "tokensAfterMasking": 303,
-        "reductionPct": 1,
-        "contextWindow": 10
-      }
-    },
-    {
       "id": "US-1071",
       "title": "Dashboard Endpoint: GET /api/dashboard/blocked-stories -- Dependency Blocker Analysis",
       "priority": "high",
@@ -72,7 +25,8 @@
       "estimatedComplexity": "small",
       "passes": false,
       "_source": "ai-example",
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-03-23T19:12:37Z"
     },
     {
       "id": "US-1072",
@@ -90,6 +44,23 @@
       "passes": false,
       "_source": "ai-example",
       "model": "haiku"
+    },
+    {
+      "id": "US-1073",
+      "title": "Phase M: Auto-Resolve Federated File Conflicts with Three-Way Merge Strategy",
+      "priority": "high",
+      "description": "Extend Phase M merge logic to automatically resolve file-level collisions across sub-projects using three-way merge (main vs. worker-A vs. worker-B), with rollback to manual resolution on conflict.",
+      "acceptanceCriteria": [
+        "lib/phase_m/conflict_resolver.py implements three_way_merge(base_content, version_a, version_b) returning merged_content or ConflictMarker",
+        "Phase M detects collisions, attempts auto-resolution, and commits resolved versions with 'Auto-resolved federated conflict' commit message",
+        "Integration test in tests/integration/test_phase_m_federated_resolve.py simulates 3-worker federated run with file collisions, verifies all resolved or marked for manual review"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
     },
     {
       "id": "US-1059",
@@ -192,6 +163,70 @@
       "passes": false,
       "_source": "ai-example",
       "model": "sonnet"
+    },
+    {
+      "id": "US-1074",
+      "title": "Phase G: Link CHANGELOG Entries to GitHub Issues and PRs via Commit Messages",
+      "priority": "medium",
+      "description": "Extend gen_changelog.py to parse commit messages for GitHub issue/PR references (#123, closes #456) and automatically link CHANGELOG entries to GitHub URLs for traceability.",
+      "acceptanceCriteria": [
+        "Extend lib/gen_changelog.py:extract_github_refs() to parse #issue and closes #PR patterns from commit messages",
+        "CHANGELOG.md entries include markdown links: [#123](https://github.com/org/repo/issues/123) for referenced issues",
+        "Integration test in tests/test_gen_changelog.py validates 5+ sample commits with mixed issue/PR references"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1069",
+      "title": "CLI: spiral preflight-check -- Validate SPIRAL Runtime Dependencies and Configuration",
+      "priority": "high",
+      "description": "Comprehensive pre-flight validator that checks all prerequisites before running SPIRAL. Validates constitution.md, prd.json schema, system dependencies (bash 4+, node 20+, python 3.13+, docker), and outputs remediation hints.",
+      "acceptanceCriteria": [
+        "CLI command 'spiral preflight-check' validates constitution.md exists, prd.json conforms to schema, spiral.config.sh defines SPIRAL_VALIDATE_CMD and SPIRAL_COST_CEILING, outputs JSON with check_name/status/remediation for each check",
+        "System checks verify: bash --version >= 4, node --version >= 20, python3 --version >= 3.13, docker available, jq in ./ralph/jq.exe or PATH. Checks directory writability for .spiral/ and .spiral-workers/",
+        "Exit code 0 when all checks pass, 1 on any failure. Summary line: 'All checks passed - ready to run SPIRAL' or 'X checks failed - see hints above'. Implements in lib/spiral/preflight.py"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "sonnet",
+      "last_attempted": "2026-03-23T18:00:30Z"
+    },
+    {
+      "id": "US-1070",
+      "title": "Integration Test: Phase Data Integrity Validator -- Verify Output Schemas and State Transitions",
+      "priority": "high",
+      "description": "Run SPIRAL loop iteration and assert each phase output conforms to expected schema. Catches data corruption, orphaned references, and invalid state transitions early. Validates R→T→S→M→I→V→C data flow.",
+      "acceptanceCriteria": [
+        "Phase R output: research_results.json is valid JSON with array of {query, source, relevance_score (0-1), text}. Phase T: test_failures.json has valid exit_code (1-255), error_category in ['compile','runtime','timeout','assertion'], test_id matches UT-\\d+",
+        "Phase S: validated_stories.json contains only stories with constitution_score >= 0.7 and unique story_ids. Phase M: git diff --name-only shows only modified files, no path traversal (../ not allowed), commit message contains US-\\d+ or UT-\\d+",
+        "Implements tests/test_phase_data_integrity.py with assertions: assert_research_schema_valid(), assert_test_failures_no_duplicates(), assert_merge_files_safe(). Test runs on mock SPIRAL iteration with sample prd.json"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "haiku",
+      "_failureReason": "oversized_diff",
+      "_lastDiffLines": 6810,
+      "last_attempted": "2026-03-23T19:02:04Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n\nPrevious attempt 1 of US-1070 failed with oversized diff (6810 lines > 400 limit). The story requires creating integration tests for Phase data integrity validation across R→T→S→M outputs.\n\nThe learning from progress.txt shows that previous iteration (US-1069) revealed: \"Don't add type: ignore[import-untyped] comments when pyproject.toml has ignore_missing_imports=true — mypy flags them as unused\"\n\n## Problem Identified\n\nAttempt 1 likely created an oversized test file by being too comprehensive. Need to implement a **minimal, focused test suite** that validates the 3 acceptance criteria without inflating the diff beyond 400 lines:\n- AC1: Research & test failure schema validation\n- AC2: Story validation & merge safety checks\n- AC3: Three assertion functions in a single test file\n\n## Planned Changes\n\n**File: `tests/test_phase_data_integrity.py`**\n- Minimal JSON fixtures for each phase output (research_results.json, test_failures.json, validated_stories.json)\n- Three test functions: test_research_schema_valid(), test_test_failures_no_duplicates(), test_merge_files_safe()\n- Focus only on schema compliance, not comprehensive edge case coverage\n- Keep test file under 300 lines total\n\n**Strategy:** Minimize by:\n1. Single test file only (no helper modules)\n2. Reuse simple dict/list fixtures (no complex factories)\n3. Assert schema constraints directly (no verbose test utilities)\n4. Skip non-critical edge cases\n\n---\nNow let me create a minimal test file focused on the three acceptance criteria:\nPerfect! All 9 tests pass. Now let me commit the changes and update prd.json to mark US-1070 as complete:\n## ✅ US-1070 Complete"
+      },
+      "_contextStats": {
+        "tokensBeforeMasking": 307,
+        "tokensAfterMasking": 303,
+        "reductionPct": 1,
+        "contextWindow": 10
+      }
     },
     {
       "id": "US-1063",
