@@ -702,3 +702,32 @@ ruff check: ✓
 All 26 tests passing ✓
 mypy --strict: ✓
 ruff check: ✓
+
+## Iteration 17 - Story: US-1085 Phase V: Integrate CHANGELOG.md Validation as Pre-Commit Check
+
+### What was implemented
+- lib/phases/phase_v.py (83 lines):
+  - extract_story_ids(changelog_path): regex-finds US-/UT- IDs in CHANGELOG.md
+  - validate_changelog_stories(changelog_path, prd_path): checks format + IDs are passes=True
+  - find_orphan_commits(prd_path): git log --oneline --all, flags commits with non-completed IDs
+  - Reuses lib/validators/changelog_schema.validate_changelog_format for format checks
+- tests/test_phase_v_changelog.py (10 tests): extract, validate, orphan-commit scenarios
+
+### Patterns discovered
+- Previous attempt (533 lines) failed diff-guard; this approach reuses existing changelog_schema.py
+  instead of duplicating validation logic, keeping both files minimal
+- pythonpath=[".", "lib"] in pyproject.toml means `from lib.phases.phase_v import` works correctly
+- lib/phases/ is a namespace package (no __init__.py); Python 3.3+ handles this transparently
+
+### Gotchas
+- ruff F401: always remove unused `import pytest` when no @pytest.mark decorators are used
+- MagicMock for subprocess.run: set returncode and stdout directly on the mock return value
+
+### Acceptance criteria verification
+- AC1: ✓ validate_changelog_stories uses validate_changelog_format from changelog_schema.py
+- AC2: ✓ test_validate_orphan_id_not_in_prd, test_validate_incomplete_story_is_orphan
+- AC3: ✓ test_find_orphan_commits_detects_incomplete_id, test_find_orphan_commits_none_when_all_complete
+
+All 10 tests passing ✓
+mypy --strict: ✓
+ruff check: ✓

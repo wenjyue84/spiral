@@ -44,9 +44,12 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
-      "model": "sonnet"
+      "model": "sonnet",
+      "_failureReason": "oversized_diff",
+      "_lastDiffLines": 533,
+      "last_attempted": "2026-03-23T23:34:20Z"
     },
     {
       "id": "US-1086",
