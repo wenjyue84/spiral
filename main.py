@@ -4365,6 +4365,36 @@ def main():
         help="Path to prd.json, relative to spiral-home (default: prd.json)",
     )
 
+    federation_audit_parser = subparsers.add_parser(
+        "federation-audit",
+        help="Query federation audit trail (US-1077)",
+    )
+    federation_audit_parser.add_argument(
+        "--last",
+        type=int,
+        default=20,
+        metavar="N",
+        help="Show last N audit entries (default: 20)",
+    )
+    federation_audit_parser.add_argument(
+        "--sub-project",
+        default="",
+        metavar="NAME",
+        help="Filter by sub-project name",
+    )
+    federation_audit_parser.add_argument(
+        "--filter",
+        default="",
+        metavar="ACTION",
+        help="Filter by action (merge, reject, quota_violation)",
+    )
+    federation_audit_parser.add_argument(
+        "--audit-path",
+        default=".spiral/federation_audit.jsonl",
+        metavar="PATH",
+        help="Path to audit log file (default: .spiral/federation_audit.jsonl)",
+    )
+
     args = parser.parse_args()
 
     if args.command == "init":
