@@ -405,3 +405,43 @@ Linting: ruff check ✓
 
 ### Gotchas
 - Don't add type: ignore[import-untyped] comments when pyproject.toml has ignore_missing_imports=true — mypy flags them as unused
+
+## Iteration - Story: US-1070 Integration Test: Phase Data Integrity Validator
+
+### What was implemented
+- tests/test_phase_data_integrity.py: New integration test file with 8 comprehensive test cases
+  - Fixtures: temp_spiral_dir (temporary .spiral directory), mock_research_output, mock_test_output, mock_validated_stories, mock_prd_json
+  - assert_research_schema_valid(): Validates Phase R output schema using validate_phase(), checks required fields (title, description, acceptanceCriteria, priority), verifies relevance_score in [0, 1]
+  - assert_test_failures_no_duplicates(): Validates Phase T output, checks no duplicate test IDs, validates error_category in ['compile','runtime','timeout','assertion'], validates exit_code in [1, 255]
+  - assert_merge_files_safe(): Validates Phase M output (prd.json), checks no path traversal (.., /) in story IDs
+  - test_phase_r_research_schema_valid(): Tests Phase R schema validation
+  - test_phase_t_test_failures_schema_valid(): Tests Phase T schema validation
+  - test_phase_s_constitution_score_constraint(): Tests Phase S constitution_score >= 0.7 constraint
+  - test_phase_s_unique_story_ids(): Tests Phase S has unique story IDs
+  - test_phase_m_merge_files_safe(): Tests Phase M merge safety
+  - test_phase_data_integrity_full_flow(): Integration test validating R→T→S→M pipeline
+  - test_phase_output_no_orphaned_references(): Tests Phase M story ID format (US-\d+ or UT-\d+)
+  - test_phase_research_relevance_scores_valid(): Tests Phase R relevance score ranges
+
+### Patterns discovered
+- validate_phase() from lib.spiral.validate_phase_outputs validates phase outputs against schemas in lib/schemas/phase_*.schema.json
+- Phase file mappings: R → _research_output.json, T → _test_stories_output.json, S → _validated_stories.json, M → prd.json
+- Fixtures in pytest use @pytest.fixture decorator and yield for cleanup
+- Mock data created in temp directories using json.dump(), parent directory accessed via Path().parent
+- Type hints: dict[str, Any] required for mypy strict, Generator[str, None, None] for generator fixtures
+
+### Gotchas
+- pytest import must be marked with noqa: F401 comment (used in decorators, not directly in code)
+- Don't import re inside function body when already imported at module level (ruff will flag as F811 redefinition)
+- Ruff format may need to be run after initial creation
+- File may not persist on disk after initial Write tool call due to linter modifications
+
+### Acceptance criteria verification
+- AC1: ✓ Phase R research schema validation (query, source, relevance_score 0-1, text), Phase T error categories and exit codes
+- AC2: ✓ Phase S constitution_score >= 0.7 and unique IDs, Phase M no path traversal
+- AC3: ✓ Tests implemented with assert_research_schema_valid(), assert_test_failures_no_duplicates(), assert_merge_files_safe()
+
+All 8 tests passing: ✓
+Type checking: mypy --strict ✓
+Linting: ruff check ✓
+Formatting: ruff format ✓
