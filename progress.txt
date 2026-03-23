@@ -444,3 +444,44 @@ Attempt 1 failed with 6810-line oversized diff. Attempt 2 focused on:
 All tests passing: 9/9 ✓
 Type checking: mypy --strict ✓
 Diff size: 264 lines < 400 limit ✓
+
+## Iteration - Story: US-1071 Dashboard Endpoint: GET /api/dashboard/blocked-stories -- Dependency Blocker Analysis
+
+### What was implemented
+- lib/blocker_analyzer.py: New analyzer module with analyze_blocked_stories() function
+  - Parses prd.json dependency graph and results.tsv to identify blocked stories
+  - Calculates estimated unblock ETA from median story completion time
+  - Returns {blocked_stories: [{id, reason, blocking_story_ids, estimated_unblock_hours}]}
+  - Helper functions: _get_passed_stories() and _get_story_completion_times()
+
+- lib/dashboard/api.py: Added two new endpoints
+  - GET /api/dashboard/blocked-stories: REST endpoint returning blocked stories JSON
+  - WebSocket /ws/blocker-changes: Real-time blocker status changes streamed every 5 seconds
+  - Added asyncio import for WebSocket polling loop
+
+- tests/test_blocker_analyzer.py: 10 comprehensive unit tests
+  - Test blocked story identification with unmet dependencies
+  - Test ETA calculation from median completion times
+  - Test graceful error handling for missing files
+  - Test response schema validation
+
+### Patterns discovered
+- Dependency blocking logic: a story is blocked if ANY of its dependencies is not passed
+- ETA calculation uses median of all passing story durations (converted to hours)
+- WebSocket polling every 5 seconds works efficiently for detecting dependency completion
+- TSV parsing handles missing files gracefully (returns empty sets/lists)
+
+### Gotchas
+- When a story has multiple records in results.tsv, it's only in passed_stories set if ANY record has status='passed'
+- Median calculation needs at least one passing story; defaults to 1.0 hour if no data
+- WebSocket endpoint needs authentication check with case-insensitive header names (x-api-key)
+
+### Acceptance criteria verification
+- AC1: ✓ Endpoint returns {blocked_stories: [{id, reason, blocking_story_ids, estimated_unblock_hours}]} structure
+- AC2: ✓ Marks stories blocked if all dependencies not passed; calculates ETA from median completion time
+- AC3: ✓ WebSocket /ws/blocker-changes streams real-time blocker status changes every 5 seconds
+
+All tests passing: 10/10 ✓
+Type checking: mypy --strict ✓
+Linting: ruff check ✓
+
