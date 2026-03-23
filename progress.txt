@@ -405,3 +405,42 @@ Linting: ruff check ✓
 
 ### Gotchas
 - Don't add type: ignore[import-untyped] comments when pyproject.toml has ignore_missing_imports=true — mypy flags them as unused
+
+## Iteration 4 - Story: US-1070 Integration Test: Phase Data Integrity Validator (Attempt 2 of 3)
+
+### What was implemented
+- tests/test_phase_data_integrity.py: New integration test file (264 lines, under 400-line diff limit)
+  - assert_research_schema_valid(): validates Phase R research_results.json with {query, source, relevance_score (0-1), text}
+  - assert_test_failures_no_duplicates(): validates Phase T test_failures.json with exit_code (1-255), error_category in valid set, test_id matches UT-\d+
+  - assert_merge_files_safe(): validates Phase M merge safety (no path traversal, commit message contains story ID)
+  - assert_validated_stories_schema(): validates Phase S validated_stories.json with constitution_score >= 0.7 and unique story_ids
+- 9 total tests: 4 positive (valid schema) + 5 negative (invalid inputs)
+- All tests passing (9/9), mypy --strict clean, python syntax valid
+
+### Strategy that worked
+Attempt 1 failed with 6810-line oversized diff. Attempt 2 focused on:
+1. Single test file only (no helper modules)
+2. Reuse simple dict/list fixtures inline (no complex factories)
+3. Assert schema constraints directly (no verbose test utilities)
+4. Skip non-critical edge cases
+- Result: 264-line file (under 400-line limit) with focused, readable test coverage
+
+### Patterns discovered
+- Raw string prefix (r""") needed for docstrings with regex patterns (UT-\d+)
+- Test functions require -> None return type annotation for mypy --strict
+- Phase output fixtures can be simple dicts with required fields, no need for complex builders
+- Schema validation can be done with assertions (0.7 <= score <= 1.0) rather than separate validation functions
+
+### Gotchas
+- Docstring with \d pattern needs raw string (r""") to avoid SyntaxWarning
+- pyproject.toml has ignore_missing_imports=true, so don't add type: ignore[import-untyped] comments
+- Pytest needs --override-ini="addopts=" on Windows to disable parallel execution flags
+
+### Acceptance criteria verification
+- AC1: ✓ Phase R and T output schemas validated with proper field constraints
+- AC2: ✓ Phase S and M output schemas validated (constitution_score >= 0.7, no path traversal, story ID in commit)
+- AC3: ✓ test_phase_data_integrity.py with assert_*() functions, 9 tests on mock SPIRAL iteration data
+
+All tests passing: 9/9 ✓
+Type checking: mypy --strict ✓
+Diff size: 264 lines < 400 limit ✓
