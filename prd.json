@@ -11,77 +11,6 @@
   ],
   "userStories": [
     {
-      "title": "Phase V: Functional Reachability Verifier - Confirm New Code is Wired into the Loop",
-      "priority": "high",
-      "description": "For Phase-enhancement stories (title contains 'Phase X:'), verify that new Python modules are actually called from spiral.sh in the corresponding phase section. Catches implementations that exist but are never integrated into the autonomous loop.",
-      "acceptanceCriteria": [
-        "lib/reachability_verifier.py exists with verify_reachability(story, changed_files) returning {reachable: bool, call_sites: list, missing: list}",
-        "Parses story title to extract target phase (e.g. 'Phase E:' maps to Phase E section in spiral.sh)",
-        "Searches spiral.sh and main.py for calls to new Python modules (python/uv run patterns, import statements)",
-        "reachable=false when new module has zero call sites in any entry point",
-        "Phase V in spiral.sh calls reachability_verifier; results recorded in story _reachabilityCheck field",
-        "Default soft warning; SPIRAL_STRICT_REACHABILITY=true enables hard block",
-        "Unit test: Phase E story adds lib/foo.py but spiral.sh has no call to it -> detected as unreachable",
-        "Unit test: spiral.sh contains 'uv run python lib/foo.py' -> detected as reachable"
-      ],
-      "technicalNotes": [
-        "File to create: lib/reachability_verifier.py",
-        "File to edit: spiral.sh Phase V section",
-        "File to edit: spiral.config.sh (add SPIRAL_STRICT_REACHABILITY=false)",
-        "Regex for phase section detection in spiral.sh: Phase [A-Z] comment blocks",
-        "Non-phase stories (CLI tools, dashboard) skip this check"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "tags": [
-        "core-flow",
-        "phase-v",
-        "quality-gate"
-      ],
-      "id": "US-1007",
-      "passes": true,
-      "model": "haiku"
-    },
-    {
-      "title": "Phase C: Phase Timing Baseline and Regression Detector",
-      "priority": "high",
-      "description": "Record execution time baseline (P50/P90) for each SPIRAL phase from the last 10 iterations. After each iteration, check if any phase exceeded 2x its P90 baseline. Flags performance regression before it compounds across iterations.",
-      "acceptanceCriteria": [
-        "lib/perf_baseline.py exists with update_baseline(phase_timings) and check_regression(current_timings, baseline) functions",
-        "Baseline stored in .spiral/perf_baseline.json: per-phase P50 and P90 from last 10 iterations (rolling window)",
-        "Regression detected when current_duration > P90 * SPIRAL_PERF_REGRESSION_MULTIPLIER (default 2.0)",
-        "First run with no baseline: records timing data only, no regression check",
-        "Phase C in spiral.sh calls check_regression before loop continuation; results in .spiral/perf_regression_report.json",
-        "Default soft warning with log: 'Phase I regression: 833s (P90: 400s, 2.1x)'; SPIRAL_STRICT_PERF_CHECK=true enables hard block",
-        "CLI command spiral show-perf-baseline displays per-phase P50/P90 timing baselines",
-        "Unit test: Phase I at 900s with P90=400s (2.25x) detected as regression; 600s (1.5x) is not"
-      ],
-      "technicalNotes": [
-        "File to create: lib/perf_baseline.py",
-        "File to edit: spiral.sh Phase C section",
-        "File to edit: spiral.config.sh (add SPIRAL_PERF_REGRESSION_MULTIPLIER=2.0)",
-        "File to edit: main.py (add show-perf-baseline subcommand)",
-        "Phase timings already collected in _iteration_summary.json; reuse that data"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "tags": [
-        "core-flow",
-        "phase-c",
-        "quality-gate"
-      ],
-      "id": "US-1008",
-      "passes": true,
-      "model": "haiku",
-      "_contextStats": {
-        "tokensBeforeMasking": 718,
-        "tokensAfterMasking": 712,
-        "reductionPct": 0,
-        "contextWindow": 10
-      },
-      "_failureReason": "DIAGNOSIS_BLOCK_MISSING: Diagnosis block required before making changes. Please output your diagnosis first.\n\nBefore making ANY file edits, output a diagnosis block with these exact headers:\n\n## Current State\n[describe the relevant current state of the code]\n\n## Problem Identified\n[what you are solving for this story]\n\n## Planned Changes\n[bullet list of specific files and changes you will make]\n\nOutput this block as plain text BEFORE calling Edit, Write, or any Bash command that modifies files."
-    },
-    {
       "id": "US-1009",
       "title": "[Integration Test] gen_changelog.py: CHANGELOG generation from story commits",
       "priority": "high",
@@ -102,7 +31,8 @@
       ],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-03-23T03:18:49Z"
     },
     {
       "id": "US-1010",
@@ -186,6 +116,31 @@
         "integration",
         "auto-generated"
       ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-1017",
+      "title": "[Security Test] lint-prd CLI: Safe Error Handling and No Info Leakage",
+      "priority": "high",
+      "description": "Write security-focused tests for the `spiral lint-prd` CLI command introduced in US-639. Verify the command handles malformed, adversarial, and edge-case prd.json inputs safely — exiting cleanly without leaking stack traces, internal paths, or sensitive runtime data in error output.",
+      "acceptanceCriteria": [
+        "Running `uv run python main.py lint-prd` with a syntactically invalid prd.json exits non-zero and prints a user-facing error with no Python traceback",
+        "Running `uv run python main.py lint-prd` with a prd.json containing a field value of 50000+ characters completes without crashing or hanging",
+        "Error output from `uv run python main.py lint-prd` contains no absolute filesystem paths or environment variable values",
+        "Running `uv run pytest tests/test_security_us639.py -v` exits 0 with all tests passing"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_security_us639.py (new file — create security test suite for lint-prd CLI)",
+        "Test command: uv run pytest tests/test_security_us639.py -v",
+        "Use subprocess.run(['uv', 'run', 'python', 'main.py', 'lint-prd', '--prd', '<tmpfile>'], capture_output=True) to invoke CLI and assert on stdout/stderr",
+        "Adversarial inputs to cover: empty JSON {}, missing required top-level keys, story ID not matching US-NNN pattern, circular dependency chain, oversized string field (50k chars)",
+        "Check returncode != 0 and 'Traceback' not in stderr for error cases"
+      ],
+      "dependencies": [
+        "US-639"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
       "model": "haiku"
     },
     {
@@ -392,6 +347,102 @@
       "estimatedComplexity": "small",
       "passes": false,
       "model": "haiku"
+    },
+    {
+      "id": "US-1016",
+      "title": "[E2E Test] Timeline endpoint streams iteration+phase swimlane data",
+      "priority": "medium",
+      "description": "Write a Playwright E2E test verifying the /api/timeline?iterations=N endpoint introduced by US-540. The test confirms the endpoint returns structured iteration/phase swimlane data and that the dashboard UI renders the swimlane elements visible in a headless browser.",
+      "acceptanceCriteria": [
+        "GET /api/timeline?iterations=3 returns HTTP 200 with JSON body containing a top-level `iterations` array of length 3",
+        "Each iteration object contains a `phase` key and a `stories` array with at least one entry having `storyId` and `status` fields",
+        "Playwright test navigates to the dashboard page and asserts at least one element matching `[data-testid='swimlane']` or `.swimlane` is visible",
+        "uv run pytest tests/test_e2e_us540_timeline.py -v exits 0 with all assertions passing"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_e2e_us540_timeline.py (new file — create Playwright test using playwright.sync_api)",
+        "File to edit: tests/conftest.py (add `base_url` fixture if not present, pointing to spiral-ui at http://localhost:5299)",
+        "Test command: uv run pytest tests/test_e2e_us540_timeline.py -v",
+        "Test command: uv run pytest tests/ -k us_540 -v",
+        "Use `requests.get` for the API assertion AC and `playwright.sync_api.sync_playwright` for the browser AC; keep both in the same test file under separate test functions"
+      ],
+      "dependencies": [
+        "US-540"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "title": "Phase V: Functional Reachability Verifier - Confirm New Code is Wired into the Loop",
+      "priority": "high",
+      "description": "For Phase-enhancement stories (title contains 'Phase X:'), verify that new Python modules are actually called from spiral.sh in the corresponding phase section. Catches implementations that exist but are never integrated into the autonomous loop.",
+      "acceptanceCriteria": [
+        "lib/reachability_verifier.py exists with verify_reachability(story, changed_files) returning {reachable: bool, call_sites: list, missing: list}",
+        "Parses story title to extract target phase (e.g. 'Phase E:' maps to Phase E section in spiral.sh)",
+        "Searches spiral.sh and main.py for calls to new Python modules (python/uv run patterns, import statements)",
+        "reachable=false when new module has zero call sites in any entry point",
+        "Phase V in spiral.sh calls reachability_verifier; results recorded in story _reachabilityCheck field",
+        "Default soft warning; SPIRAL_STRICT_REACHABILITY=true enables hard block",
+        "Unit test: Phase E story adds lib/foo.py but spiral.sh has no call to it -> detected as unreachable",
+        "Unit test: spiral.sh contains 'uv run python lib/foo.py' -> detected as reachable"
+      ],
+      "technicalNotes": [
+        "File to create: lib/reachability_verifier.py",
+        "File to edit: spiral.sh Phase V section",
+        "File to edit: spiral.config.sh (add SPIRAL_STRICT_REACHABILITY=false)",
+        "Regex for phase section detection in spiral.sh: Phase [A-Z] comment blocks",
+        "Non-phase stories (CLI tools, dashboard) skip this check"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "core-flow",
+        "phase-v",
+        "quality-gate"
+      ],
+      "id": "US-1007",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "title": "Phase C: Phase Timing Baseline and Regression Detector",
+      "priority": "high",
+      "description": "Record execution time baseline (P50/P90) for each SPIRAL phase from the last 10 iterations. After each iteration, check if any phase exceeded 2x its P90 baseline. Flags performance regression before it compounds across iterations.",
+      "acceptanceCriteria": [
+        "lib/perf_baseline.py exists with update_baseline(phase_timings) and check_regression(current_timings, baseline) functions",
+        "Baseline stored in .spiral/perf_baseline.json: per-phase P50 and P90 from last 10 iterations (rolling window)",
+        "Regression detected when current_duration > P90 * SPIRAL_PERF_REGRESSION_MULTIPLIER (default 2.0)",
+        "First run with no baseline: records timing data only, no regression check",
+        "Phase C in spiral.sh calls check_regression before loop continuation; results in .spiral/perf_regression_report.json",
+        "Default soft warning with log: 'Phase I regression: 833s (P90: 400s, 2.1x)'; SPIRAL_STRICT_PERF_CHECK=true enables hard block",
+        "CLI command spiral show-perf-baseline displays per-phase P50/P90 timing baselines",
+        "Unit test: Phase I at 900s with P90=400s (2.25x) detected as regression; 600s (1.5x) is not"
+      ],
+      "technicalNotes": [
+        "File to create: lib/perf_baseline.py",
+        "File to edit: spiral.sh Phase C section",
+        "File to edit: spiral.config.sh (add SPIRAL_PERF_REGRESSION_MULTIPLIER=2.0)",
+        "File to edit: main.py (add show-perf-baseline subcommand)",
+        "Phase timings already collected in _iteration_summary.json; reuse that data"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "core-flow",
+        "phase-c",
+        "quality-gate"
+      ],
+      "id": "US-1008",
+      "passes": true,
+      "model": "haiku",
+      "_contextStats": {
+        "tokensBeforeMasking": 718,
+        "tokensAfterMasking": 712,
+        "reductionPct": 0,
+        "contextWindow": 10
+      },
+      "_failureReason": "DIAGNOSIS_BLOCK_MISSING: Diagnosis block required before making changes. Please output your diagnosis first.\n\nBefore making ANY file edits, output a diagnosis block with these exact headers:\n\n## Current State\n[describe the relevant current state of the code]\n\n## Problem Identified\n[what you are solving for this story]\n\n## Planned Changes\n[bullet list of specific files and changes you will make]\n\nOutput this block as plain text BEFORE calling Edit, Write, or any Bash command that modifies files."
     },
     {
       "title": "Phase V: Dead Feature Detector - Find Unreachable New Code After Implementation",
@@ -5970,31 +6021,6 @@
         "contextWindow": 10
       },
       "tags": []
-    },
-    {
-      "id": "US-1016",
-      "title": "[E2E Test] Timeline endpoint streams iteration+phase swimlane data",
-      "priority": "medium",
-      "description": "Write a Playwright E2E test verifying the /api/timeline?iterations=N endpoint introduced by US-540. The test confirms the endpoint returns structured iteration/phase swimlane data and that the dashboard UI renders the swimlane elements visible in a headless browser.",
-      "acceptanceCriteria": [
-        "GET /api/timeline?iterations=3 returns HTTP 200 with JSON body containing a top-level `iterations` array of length 3",
-        "Each iteration object contains a `phase` key and a `stories` array with at least one entry having `storyId` and `status` fields",
-        "Playwright test navigates to the dashboard page and asserts at least one element matching `[data-testid='swimlane']` or `.swimlane` is visible",
-        "uv run pytest tests/test_e2e_us540_timeline.py -v exits 0 with all assertions passing"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_e2e_us540_timeline.py (new file — create Playwright test using playwright.sync_api)",
-        "File to edit: tests/conftest.py (add `base_url` fixture if not present, pointing to spiral-ui at http://localhost:5299)",
-        "Test command: uv run pytest tests/test_e2e_us540_timeline.py -v",
-        "Test command: uv run pytest tests/ -k us_540 -v",
-        "Use `requests.get` for the API assertion AC and `playwright.sync_api.sync_playwright` for the browser AC; keep both in the same test file under separate test functions"
-      ],
-      "dependencies": [
-        "US-540"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
     }
   ]
 }

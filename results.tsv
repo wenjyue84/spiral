@@ -23,3 +23,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-03-22T23:21:13Z	4	1	US-756	[Regression Test] US-553 Phase Completion: I→V→C Workers Finish and Story Passes	reject	487	haiku	1		69c06a2c7ae	false	0	0	0	0	0	0	0		0	0	0	0
 2026-03-23T00:51:20Z	2	3	US-773	Phase R: Semantic Query Dedup - Skip Research When Query Matches Prior Cache	reject	601	haiku	1		69c082cb1db7	false	0	0	0	0	0	0	0		0	0	0	0	unknown
 2026-03-23T02:26:56Z	2	1	US-1007	Phase V: Functional Reachability Verifier - Confirm New Code is Wired into the Loop	reject	750	haiku	1		69c0980a429	false	0	0	0	0	0	0	0		0	0	0	0		
+2026-03-23T03:47:31Z	5	1	US-1009	[Integration Test] gen_changelog.py: CHANGELOG generation from story commits	reject	722	haiku	1		69c0980a429	false	0	0	0	0	0	0	0		0	0	0	0		
