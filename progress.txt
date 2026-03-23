@@ -264,3 +264,24 @@ Type checking: mypy --strict ✓
 Shell linting: shellcheck --severity=error ✓
 Diff size: 119 insertions(+), 496 deletions(-) — under 400 limit ✓
 
+
+## Iteration - Story: US-1051 Dashboard Persistence: SQLite Historical Metrics Store for 7-Day Trends
+
+### What was implemented
+- lib/metrics_store.py: SQLiteMetricsStore class with:
+  - insert_from_results_tsv(results_tsv) -> int: ingests TSV rows, stores (iteration, phase, cost_tokens, duration_sec, timestamp) in metrics.db
+  - query_by_date_range(start_date, end_date) -> list[dict]: date-filtered query with index
+  - cost_tokens = cache_read_tokens + cache_creation_tokens + review_tokens
+- lib/dashboard/api.py: GET /api/dashboard/metrics?start_date=...&end_date=... endpoint (US-1051)
+  - Defaults to last 7 days if no dates provided
+  - Returns JSON array of metrics tuples ready for cost trend line plotting
+- tests/test_metrics_store.py: 12 tests covering all 3 ACs (insert, performance, schema)
+
+### Patterns discovered
+- lib/metrics_store.py lives at lib/ level (not lib/dashboard/) — standalone utility
+- datetime/timezone must be explicitly imported in api.py (not auto-imported)
+- SQLite CREATE INDEX on timestamp column makes 7-day range queries fast (<100ms)
+
+### Gotchas
+- Always add `from datetime import datetime, timezone` to api.py module-level imports when using datetime in endpoint functions
+- The PLC0415 noqa comment suppresses ruff's C0415 (import-outside-toplevel) for the lazy import inside the endpoint
