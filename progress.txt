@@ -1,4 +1,66 @@
-## Iteration [CURRENT] - Story: US-1027 Benchmark Phase R Research Cache Latency Savings
+## Iteration [CURRENT] - Story: US-1028 Add find_orphan_commits() Function to lib/gen_changelog.py
+
+### Implementation Summary
+
+Successfully implemented US-1028 by creating a pure function find_orphan_commits(commits: list[dict]) -> list[dict] that filters commits lacking US-/UT- story ID tags. Refactored existing code to decouple orphan detection logic from git subprocess calls.
+
+### What was implemented
+
+1. **lib/gen_changelog.py** (refactored, +18 lines)
+   - Replaced find_orphan_commits(repo_path: str) with find_orphan_commits(commits: list[dict[str, str]]) -> list[dict[str, str]]
+     * Now a pure function that filters commit dicts instead of querying git
+     * Takes commits with keys: commit, message, date
+     * Returns orphans with keys: commit, message, date, reason='no-story-id'
+   - Updated STORY_ID_PATTERN to compile with re.IGNORECASE flag
+   - Refactored run() function to:
+     * Build list of commits from git log output
+     * Call pure find_orphan_commits() function
+   - Updated write_orphan_warnings() to work with new dict structure (commit/message keys)
+
+2. **tests/test_gen_changelog.py** (completely rewritten, +122 lines)
+   - Removed old subprocess-mocking tests (incompatible with new pure function)
+   - Added 5 new tests for pure function behavior:
+     * test_find_orphan_commits_returns_untagged: 3 tagged + 2 untagged → 2 orphans ✓
+     * test_find_orphan_commits_empty_input: empty list → empty list ✓
+     * test_find_orphan_commits_all_tagged: all tagged commits → empty list ✓
+     * test_find_orphan_commits_case_insensitive: lowercase story IDs detected ✓
+     * test_find_orphan_commits_story_id_in_body: story IDs in message body detected ✓
+   - Added tests for write_orphan_warnings() with new dict structure
+   - All 7 tests passing
+
+### Acceptance criteria verification
+
+- ✓ AC1: uv run pytest tests/test_gen_changelog.py -v -k orphan passes: Mock git log with 3 US-/UT-tagged and 2 untagged commits returns exactly 2 orphans
+  - test_find_orphan_commits_returns_untagged validates this: 5 commits (3 tagged, 2 untagged) → returns exactly 2 orphans
+
+- ✓ AC2: Each returned dict has exactly the keys: commit, message, date, reason (reason value is 'no-story-id')
+  - Verified: orphan dicts have exactly these 4 keys with reason='no-story-id'
+
+- ✓ AC3: Function uses re.search(r'(US|UT)-\\d+', message, re.IGNORECASE)
+  - STORY_ID_PATTERN compiled with re.IGNORECASE flag
+  - Used via STORY_ID_PATTERN.search(message) in find_orphan_commits()
+
+- ✓ AC4: uv run python -c "from lib.gen_changelog import find_orphan_commits; assert find_orphan_commits([]) == []" exits 0
+  - Verified: find_orphan_commits([]) returns []
+
+### Quality checks passed
+
+- ✓ pytest: 7/7 tests pass (all gen_changelog tests)
+- ✓ mypy --strict: no type errors in lib/gen_changelog.py or tests/test_gen_changelog.py
+- ✓ Code follows existing patterns and type annotation standards
+- ✓ prd.json: updated US-1028 to passes=true
+
+### Patterns discovered
+
+- Pure functions are easier to test than subprocess-based functions
+- Case-insensitive regex patterns require explicit re.IGNORECASE flag
+- Refactoring subprocess logic out of pure functions allows better testability
+
+### Story completion
+
+Story US-1028 marked as passes=true. All acceptance criteria fully met via pure function that filters commit dicts by story ID presence, with comprehensive test coverage validating all edge cases.
+
+## Iteration [PREVIOUS] - Story: US-1027 Benchmark Phase R Research Cache Latency Savings
 
 ### Implementation Summary
 
