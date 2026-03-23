@@ -1,3 +1,28 @@
+## Iteration - Story: US-1063 Phase E: Wire Episodic Memory Pattern Retrieval into Story Enrichment
+
+### What was implemented
+- lib/episodic_memory.py: Added `retrieve(description, top_k=3)` method returning records with `similarity_score` field
+  - Builds query embedding from description text, computes cosine similarity against all stored records
+  - Returns top_k records with `similarity_score` (float, 0–1) injected into each dict
+- lib/research/enrich_stories.py: Added `_get_episodic_memory()` + `_inject_past_patterns()` helpers
+  - `_get_episodic_memory()`: lazy import of EpisodicMemory from lib dir, reads SPIRAL_EPISODIC_MEMORY env var (default .spiral/episodic_memory.jsonl), returns None on any error
+  - `_inject_past_patterns()`: calls mem.retrieve(description, top_k=3), injects into story['enrichment']['past_patterns'], silently no-ops on failure
+  - Injected into BOTH enrichment path (after _enrich_one) and passthrough path (small/well-specified stories)
+- ralph/CLAUDE.md: Added item 15 documenting enrichment.past_patterns field for implementation agents
+- tests/test_phase_e_episodic_patterns.py: 2 integration tests verifying injection and graceful no-op
+
+### Patterns discovered
+- EpisodicMemory._embed() processes ALL string values in a record (story_id, timestamp, description, etc.)
+  - Long descriptions (15+ tokens) dominate over noise from story_id/timestamp → similarity > 0.7 achievable
+  - Identical descriptions yield ~0.9 cosine similarity (not 1.0) because record has extra timestamp tokens
+- SPIRAL_EPISODIC_MEMORY env var controls memory file path in enrich_stories; use monkeypatch.setenv in tests
+- lib/research/enrich_stories.py imports spiral_io from lib/research/ dir; episodic_memory.py is in lib/ dir
+  - Use `os.path.dirname(os.path.dirname(os.path.abspath(__file__)))` to get lib/ parent for sys.path
+
+### Gotchas
+- EpisodicMemory inject must happen AFTER _enrich_one() for enrichment path (Claude's response replaces story fields)
+- For passthrough path (else branch), inject before appending to output_stories
+
 ## Iteration - Story: US-1050 Federation Quota Governor: Phase M Enforces Per-SubProject Story Limits
 
 ### What was implemented
