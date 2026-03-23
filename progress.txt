@@ -518,3 +518,57 @@ Here is the technical brief for US-1072.
 *   Ensure the definition of a "conflict" (e.g., overlapping file paths in story manifests) is clearly understood from `lib/conflict_detector.py` to create a valid trigger.
 *   The test must validate the consistency of the main `prd.json` and the individual worker `prd.json` files post-merge to ensure no data corruption.
 
+
+## Iteration - Story: US-1077 Federation Audit Trail: Track Sub-Project Story Assignments and Quota Violations with CLI Query
+
+### What was implemented
+- lib/federation_audit.py: New module with audit trail management (60 lines)
+  - write_audit_entry(action, story_id, sub_project, reason, tokens_spent, audit_path) appends JSONL entries to .spiral/federation_audit.jsonl
+  - parse_audit_log(audit_path) reads and parses JSONL audit entries, gracefully handles missing files
+  - Timestamp stored in ISO 8601 format (datetime.now(timezone.utc).isoformat())
+
+- Phase M integration:
+  - lib/spiral/phase_m.py: validate_quota() now logs 'quota_violation' action entries when quota exceeded
+  - lib/prd/merge_stories.py: Audit logging added for merge/reject actions:
+    * 'merge' action logged when story added to new_stories (test-synthesis, promoted, research)
+    * 'reject' action logged for skipped stories (duplicate_title, focus_mismatch, cap_reached)
+    * Graceful error handling: audit logging wrapped in try/except to never block merge process
+
+- CLI command: spiral federation-audit [--last N] [--sub-project NAME] [--filter ACTION] [--audit-path PATH]
+  - main.py: Added subparser + cmd_federation_audit() function
+  - Displays audit entries in formatted table: Timestamp, Story ID, Sub-Project, Action, Reason, Tokens
+  - Filtering by sub-project (case-insensitive) and action type
+  - Exits with status 1 if any quota_violation entries found (AC3)
+  - Gracefully handles missing audit file: "No audit entries found" message
+
+- tests/test_federation_audit.py: 10 unit tests covering all functionality
+  - test_write_audit_entry_creates_jsonl: JSONL format and directory creation
+  - test_write_multiple_entries: Appending behavior
+  - test_parse_audit_log_*: Empty file, nonexistent file, malformed lines
+  - test_write_audit_entry_all_actions: All three action types (merge, reject, quota_violation)
+  - test_parse_audit_log_preserves_order: Entry ordering maintained
+  - test_quota_violation_action: Quota violation event logging (AC1)
+
+### Patterns discovered
+- JSONL audit format: one JSON object per line, no multi-line entries
+- Audit logging should be fail-safe: wrapped in try/except blocks to never block merge operations
+- Sub-project field can be empty string in stories without sub_project designation
+- Action types: 'merge', 'reject', 'quota_violation' (AC1 requirement)
+- Reason field provides context: 'duplicate_title', 'focus_mismatch', 'cap_reached', 'test_synthesis', 'promoted_test_story', 'research'
+- tokens_spent field set to 0 for all audit entries (resource tracking placeholder for future use)
+
+### Gotchas
+- Unused import fix: removed `import os` from federation_audit.py (not needed, Path handles dir creation)
+- Ruff formatter changed spacing in main.py and phase_m.py after edits
+- CLI command registration requires BOTH subparser definition AND dispatch case in main()
+- Python bytecode caching: Use python3 -B or clear __pycache__ if command registration changes aren't recognized
+- Exit status 1 on quota violations is critical for US-1077 AC3
+
+### Acceptance criteria verification
+- AC1: ✓ .spiral/federation_audit.jsonl JSONL format with {timestamp, story_id, sub_project, action, reason, tokens_spent}
+- AC2: ✓ lib/federation_audit.py with write_audit_entry() and parse_audit_log() functions
+- AC3: ✓ CLI spiral federation-audit --last 20 --sub-project frontend --filter quota_violation outputs table, exits 1 if violations found
+
+All tests passing: 10/10 ✓
+Type checking: mypy --strict ✓
+Linting: ruff check ✓
