@@ -8,6 +8,7 @@ Subcommands:
   graph                   Generate Mermaid dependency graph from prd.json
   validate-federated      Validate federated prd.json structure (US-514)
   federation-health-check Validate federated PRD: sub_projects, cycles, ID namespaces (US-653)
+  federation-conflict-check Detect file conflicts across sub-projects with resolution hints (US-1044)
   config                  Configuration utilities
     export-env            Export spiral.config.sh SPIRAL_* variables as a .env file
   worktree                Git worktree management utilities
@@ -1191,6 +1192,40 @@ def cmd_federation_health_check(args) -> None:
         for error in report["errors"]:
             print(f"  - {error}", file=sys.stderr)
         sys.exit(1)
+
+
+def cmd_federation_conflict_check(args: argparse.Namespace) -> None:
+    """Detect file conflicts across sub-projects and output a YAML report (US-1044)."""
+    import yaml  # type: ignore[import]
+
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
+    from federation.conflict_detector import detect_file_conflicts  # type: ignore[import]
+
+    prd_path = Path(getattr(args, "prd", "prd.json"))
+    if not prd_path.is_absolute():
+        prd_path = Path.cwd() / prd_path
+
+    with open(prd_path, encoding="utf-8") as f:
+        prd_dict = json.load(f)
+
+    conflicts = detect_file_conflicts(prd_dict)
+    report = {"conflict_count": len(conflicts), "conflicts": [c.to_dict() for c in conflicts]}
+    yaml_output = yaml.dump(report, sort_keys=False, allow_unicode=True)
+    print(yaml_output)
+
+    output_path = getattr(args, "output", "")
+    if output_path:
+        out = Path(output_path)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        with open(out, "w", encoding="utf-8") as f:
+            f.write(yaml_output)
+        print(f"Report written to {output_path}", file=sys.stderr)
+
+    if conflicts:
+        print(f"[warn] {len(conflicts)} file conflict(s) detected.", file=sys.stderr)
+        sys.exit(1)
+    else:
+        print("[ok] No file conflicts detected.", file=sys.stderr)
 
 
 def cmd_diagnose(args) -> None:
@@ -3263,6 +3298,17 @@ def main():
         help="Path to write JSON report (optional; prints to stdout if omitted)",
     )
 
+    federation_conflict_parser = subparsers.add_parser(
+        "federation-conflict-check",
+        help="Detect file conflicts across sub-projects with resolution hints (US-1044)",
+    )
+    federation_conflict_parser.add_argument(
+        "--prd", type=str, default="prd.json", help="Path to prd.json (default: prd.json)"
+    )
+    federation_conflict_parser.add_argument(
+        "--output", type=str, default="", help="Path to write YAML report (optional)"
+    )
+
     validate_tsv_parser = subparsers.add_parser(
         "validate-results-tsv",
         help="Validate results.tsv data quality against prd.json (US-571)",
@@ -4251,6 +4297,8 @@ def main():
         cmd_validate_federated(args)
     elif args.command == "federation-health-check":
         cmd_federation_health_check(args)
+    elif args.command == "federation-conflict-check":
+        cmd_federation_conflict_check(args)
     elif args.command == "validate-results-tsv":
         cmd_validate_results_tsv(args)
     elif args.command == "federated-status":
