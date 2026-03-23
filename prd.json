@@ -152,7 +152,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "tags": [
         "core-flow",
         "phase-e"
