@@ -31,7 +31,10 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-03-23T10:11:51Z"
+      "last_attempted": "2026-03-23T10:11:51Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n- Story US-1028 is the highest priority incomplete story\n- Need to add `find_orphan_commits()` function to lib/gen_changelog.py that filters commits lacking US-/UT- story ID tags\n- Function should return list of dicts with keys: commit, message, date, reason (reason='no-story-id')\n- Need comprehensive test coverage\n\n## Problem Identified\nThe function doesn't exist. Need to implement find_orphan_commits() that:\n1. Detects commits without US-/UT- tags using regex r'(US|UT)-\\d+'\n2. Returns matching untagged commits as orphans\n3. Passes test coverage for tagged vs untagged detection\n\n## Planned Changes\n1. Add find_orphan_commits() function to lib/gen_changelog.py\n2. Add tests to tests/test_gen_changelog.py:\n   - test_find_orphan_commits_returns_untagged (3 tagged + 2 untagged = 2 orphans)\n   - test_find_orphan_commits_empty_input (empty input = empty output)\n3. Verify function handles all keys properly and uses correct regex pattern\n\nNow let me read the existing files to understand the current structure:\nLet me check the current implementation more carefully. I see the function already exists but with a different signature. Let me understand what needs to change:\nNow I understand. The current function has a different signature - it takes a repo_path and calls git subprocess. The new function should take a list of dicts and just do filtering. Let me implement this:\nLet me re-read the file:\nGood! I can see the function has already been updated to the new signature. Now I need to check and update the tests. Let me look at what tests are currently there:\nPerfect! The tests have already been updated too. Let me verify the implementation is correct by running the tests:\nGreat! All tests pass. Let me verify the other acceptance criteria:\nLet me verify the regex pattern uses IGNORECASE as specified in the acceptance criteria:\nPerfect! The regex is correctly using IGNORECASE. Let me verify all acceptance criteria one more time with a comprehensive check:\nExcellent! All tests pass. Let me verify the acceptance criteria one final time:\n\n1. ✅ Test for 3 tagged + 2 untagged commits returns exactly 2 orphans: `test_find_orphan_commits_returns_untagged` PASSED\n2. ✅ Returned dicts have keys: commit, message, date, reason (reason='no-story-id'): verified in tests\n3. ✅ Uses regex r'(US|UT)-\\d+' with re.IGNORECASE: confirmed in code\n4. ✅ Empty input returns empty list: `test_find_orphan_commits_empty_input` PASSED\n\nAll acceptance criteria are met! Now let me mark the story as complete and commit:\nNow let me run quality checks before committing:\nLet me wait for pre-commit to complete:\nPerfect! All checks pass. Now let me commit the changes:\nPerfect! Let me verify the commit was created:\nLet me verify the story was marked as complete in prd.json:\nExcellent! Story US-1028 is now complete. Let me check the next highest priority incomplete story:\nThe next incomplete story is US-1029 (Add list-orphan-commits CLI Subcommand). Let me get its full details:\n## Current State"
+      }
     },
     {
       "id": "US-1029",
@@ -51,7 +54,7 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -6243,6 +6246,132 @@
         "contextWindow": 10
       },
       "tags": []
+    },
+    {
+      "id": "US-1038",
+      "title": "Create ralph_self_review.py with suggest_optimizations()",
+      "priority": "medium",
+      "description": "Create lib/impl/ralph_self_review.py implementing suggest_optimizations(story_id, implementation_diff) that calls Claude to review a git diff and returns up to 3 structured optimization suggestions. This isolates the Claude invocation and response parsing from integration concerns.",
+      "acceptanceCriteria": [
+        "File lib/impl/ralph_self_review.py exists and suggest_optimizations(story_id, diff_str) returns a dict matching {\"optimizations\": [{\"file\": str, \"line\": int, \"suggestion\": str, \"confidence\": float}]} with at most 3 items",
+        "uv run python -c \"from lib.impl.ralph_self_review import suggest_optimizations; r = suggest_optimizations('US-001', 'diff --git a/x.py'); assert isinstance(r, dict) and 'optimizations' in r\" exits 0",
+        "uv run pytest tests/test_ralph_self_review.py -v passes with tests covering empty diff, valid diff with suggestions, and malformed Claude response"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/impl/ralph_self_review.py (new file — suggest_optimizations function)",
+        "File to edit: tests/test_ralph_self_review.py (new file — unit tests with mocked Claude responses)",
+        "Test command: uv run pytest tests/test_ralph_self_review.py -v",
+        "Use subprocess to call Claude CLI with a structured prompt; parse JSON from stdout; cap results at 3 items; return empty list on parse error"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1039",
+      "title": "Hook self-review into Phase I and log suggestions to results.tsv",
+      "priority": "medium",
+      "description": "After Ralph successfully implements a story, call suggest_optimizations() and auto-apply patches with confidence >0.85 via git apply, then append all suggestions to results.tsv under a new post_review_suggestions column. Lower-confidence suggestions are logged only.",
+      "acceptanceCriteria": [
+        "results.tsv gains a post_review_suggestions column; after a dry-run Phase I pass, the column contains a JSON-serialized list (may be empty [])",
+        "uv run pytest tests/test_phase_i_self_review.py -v passes, verifying auto-apply is called when confidence >0.85 and skipped when <=0.85",
+        "uv run python -c \"import csv; rows=list(csv.DictReader(open('results.tsv','newline='))); assert all('post_review_suggestions' in r for r in rows)\" exits 0 after a spiral dry-run"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/impl/commit_revert.sh or spiral.sh Phase I block (post-ralph hook insertion point)",
+        "File to edit: lib/impl/ralph_self_review.py (add apply_suggestion helper using git apply)",
+        "File to edit: tests/test_phase_i_self_review.py (new integration test)",
+        "Test command: uv run pytest tests/test_phase_i_self_review.py -v",
+        "Guard the hook behind SPIRAL_SELF_REVIEW=1 env var so existing runs are unaffected"
+      ],
+      "dependencies": [
+        "US-1038"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1040",
+      "title": "CLI: spiral velocity-burndown - Generate ASCII Burndown Chart from results.tsv with Trend Forecast",
+      "priority": "medium",
+      "description": "Generates ASCII burndown chart showing stories completed per iteration vs velocity trend. Projects completion date using moving average velocity with confidence intervals.",
+      "acceptanceCriteria": [
+        "`spiral velocity-burndown --iterations 10 --format ascii` outputs chart with: cumulative stories completed, daily velocity (3-iteration moving avg), trend line, forecast completion date",
+        "`--export csv --output burndown.csv` generates CSV with columns: iteration, stories_completed, velocity, confidence_90pct_upper, confidence_90pct_lower",
+        "Integration test: `pytest tests/test_velocity_burndown.py -v` mocks results.tsv with 10 iterations; chart renders without errors and forecast is within ±2 iterations"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1041",
+      "title": "Add categorize_test_failure() to phase_t.py and error_category to ResultsRecord",
+      "priority": "high",
+      "description": "Implement categorize_test_failure() in lib/spiral/phase_t.py using pattern-matching on pytest output lines to return one of four category strings. Also add an error_category field to ResultsRecord so Phase T can attach the category to each failure record.",
+      "acceptanceCriteria": [
+        "categorize_test_failure() exists in lib/spiral/phase_t.py and returns 'syntax_error' for SyntaxError/IndentationError output, 'assertion_failure' for AssertionError, 'timeout' for TimeoutExpired/Timeout, and 'integration_failure' for all other input",
+        "ResultsRecord in lib/spiral/results.py (or equivalent dataclass) has an error_category: str = '' field",
+        "uv run python -c \"from lib.spiral.phase_t import categorize_test_failure; assert categorize_test_failure('SyntaxError: invalid syntax') == 'syntax_error'\" exits 0",
+        "uv run pytest tests/ -v --tb=short exits 0 (no regressions)"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/spiral/phase_t.py (add categorize_test_failure function — match SyntaxError/IndentationError → syntax_error, AssertionError → assertion_failure, TimeoutExpired/Timeout → timeout, else → integration_failure)",
+        "File to edit: lib/spiral/results.py (add error_category: str = '' field to ResultsRecord dataclass)",
+        "Test command: uv run python -c \"from lib.spiral.phase_t import categorize_test_failure; assert categorize_test_failure('SyntaxError: invalid syntax') == 'syntax_error'\"",
+        "Test command: uv run pytest tests/ -v --tb=short"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1042",
+      "title": "Integration Tests: Phase T error categorization covers all 4 categories",
+      "priority": "high",
+      "description": "Write tests/test_phase_t_error_categorization.py with one test per error category (syntax_error, assertion_failure, timeout, integration_failure), each passing a representative mock pytest output string to categorize_test_failure() and asserting the expected return value.",
+      "acceptanceCriteria": [
+        "tests/test_phase_t_error_categorization.py exists with exactly 4 test functions, one per error category",
+        "Each test imports categorize_test_failure from lib.spiral.phase_t and passes a realistic mock pytest output string",
+        "uv run pytest tests/test_phase_t_error_categorization.py -v exits 0 with all 4 tests passing",
+        "uv run pytest tests/ -v --tb=short exits 0 (no regressions)"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_phase_t_error_categorization.py (new file — 4 test functions: test_syntax_error, test_assertion_failure, test_timeout, test_integration_failure)",
+        "Mock strings to use: 'SyntaxError: invalid syntax', 'AssertionError: assert 1 == 2', 'TimeoutExpired: Command timed out', 'ConnectionRefusedError: [Errno 111]'",
+        "Test command: uv run pytest tests/test_phase_t_error_categorization.py -v",
+        "Test command: uv run pytest tests/ -v --tb=short"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1043",
+      "title": "Add model_escalation_report.py: Parse results.tsv for escalation chains",
+      "priority": "medium",
+      "description": "Create lib/cli/model_escalation_report.py that reads results.tsv, groups rows by story_id, detects model tier changes across retries, and returns a structured dict with per-story escalation metrics. This is the pure data layer with no CLI concerns.",
+      "acceptanceCriteria": [
+        "lib/cli/model_escalation_report.py exists and exports parse_escalation_chains(tsv_path) returning a list of dicts with keys: story_id, haiku_tokens, sonnet_tokens, opus_tokens, total_cost, escalation_count",
+        "uv run pytest tests/test_model_escalation_report.py::test_parse_escalation_chains -v passes with a fixture results.tsv containing at least one multi-model story",
+        "Stories with retry_count == 0 or single-model retries are excluded from output"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/cli/model_escalation_report.py (new file — create parse_escalation_chains function)",
+        "results.tsv columns: story_id, model, tokens_in, tokens_out, cost_usd, retry_count — use csv.DictReader with delimiter='\\t'",
+        "Group rows by story_id, accumulate tokens per model tier (haiku/sonnet/opus), flag escalation when model column changes across sorted retry rows",
+        "Test command: uv run pytest tests/test_model_escalation_report.py -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
     }
   ]
 }

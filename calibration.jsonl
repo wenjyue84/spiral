@@ -214,4 +214,8 @@
 {"story_id": "US-1017", "estimated_complexity": "small", "actual_duration_s": 982, "phase_retries": 0, "passed": true}
 {"story_id": "US-1026", "estimated_complexity": "medium", "actual_duration_s": 1801, "phase_retries": 0, "passed": true}
 {"story_id": "US-1027", "estimated_complexity": "medium", "actual_duration_s": 1015, "phase_retries": 0, "passed": true}
+<<<<<<< Updated upstream
 {"story_id": "US-1028", "estimated_complexity": "small", "actual_duration_s": 736, "phase_retries": 0, "passed": true}
+=======
+{"story_id": "US-1028", "estimated_complexity": "small", "actual_duration_s": 404, "phase_retries": 0, "passed": true}
+>>>>>>> Stashed changes
