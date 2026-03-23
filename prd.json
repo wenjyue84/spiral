@@ -68,7 +68,16 @@
       "model": "haiku",
       "_failureReason": "oversized_diff",
       "_lastDiffLines": 499,
-      "last_attempted": "2026-03-23T08:32:48Z"
+      "last_attempted": "2026-03-23T08:32:48Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n- Test file `tests/test_security_us639.py` exists with 131 lines of tests\n- Attempt 1 created a 499-line diff (oversized, rejected)\n- File calls `lib/prd/lint_prd.py` directly, but story requires testing `main.py lint-prd` CLI\n- Missing tests for: oversized field values, explicit no-traceback verification, no-path verification\n\n## Problem Identified\nStory US-1017 requires security tests for lint-prd CLI that:\n1. Verify no Python tracebacks in error output\n2. Handle 50000+ character fields without crashing\n3. Exclude filesystem paths and env vars from output\n4. Exit non-zero on invalid PRD\n\nThe first attempt failed by adding too many lines (~500 lines added). Need minimal addition (<400 lines).\n\n## Planned Changes\n- **File: tests/test_security_us639.py** (modify existing, ADD ~60-80 lines minimum)\n  - Add 3 focused tests for missing criteria using `main.py lint-prd` CLI\n  - Keep each test 5-10 lines\n  - Test 1: Oversized field (50k+ chars) → no crash, returns valid JSON\n  - Test 2: Invalid JSON → no traceback in stderr\n  - Test 3: Invalid JSON → no absolute paths in output\n\nLet me read the full existing test file to see what I can reuse:\nNow I'll add the minimum necessary tests to satisfy the missing acceptance criteria. I'll keep additions minimal:\nNow let me check the total diff size:\nGreat! The diff is only 61 lines. Now let me run the tests to verify they pass:\nExcellent! All 7 tests pass. Now let me run the full quality checks:\nLet me clear the mypy cache and retry:\nLet me try a different approach - just run mypy on the test file directly:\nGreat! Mypy passes. Now let's check linting:\nPerfect! Now let me verify the CLI actually works as expected:\nPerfect! The CLI works correctly - returns valid JSON with no tracebacks. Now let me update prd.json to mark the story as passed:\nNow let me commit the changes:\nNow let me update progress.txt with the completion notes:\nPerfect! Let me verify the final status and run one more comprehensive test:\nLet me check the current working directory state more carefully:\nI see the issue - the test file changes weren't included in the commit. Let me re-apply the edits:\nI see - the edits didn't actually apply. Let me use the Write tool to replace the entire file with all 7 tests:\nNow let me verify the file has all 7 tests and run them:\nPerfect! All 7 tests pass. Now let me commit these changes properly:\nExcellent! Now let me verify the final state:\nPerfect! Let me do one final comprehensive test run:\nPerfect! **Story US-1017 is complete.** Here's the summary:\n\n## Completion Summary"
+      },
+      "_contextStats": {
+        "tokensBeforeMasking": 78,
+        "tokensAfterMasking": 77,
+        "reductionPct": 1,
+        "contextWindow": 10
+      }
     },
     {
       "id": "US-773",
@@ -6140,6 +6149,48 @@
         "contextWindow": 10
       },
       "tags": []
+    },
+    {
+      "id": "US-1024",
+      "title": "Integration Test: Haiku→Sonnet Escalation with results.tsv Validation",
+      "priority": "medium",
+      "description": "Add an integration test that injects a mock Claude CLI stub into PATH, causing Phase I retry logic to receive a token-limit error on the haiku attempt and succeed on sonnet. Verifies automatic model escalation and that both attempts are correctly recorded in results.tsv. Provides a regression guard for the escalation path without live API calls.",
+      "acceptanceCriteria": [
+        "Mock Claude CLI stub (bash script in tmp bin dir, prepended to PATH) returns exit 1 with stderr 'token_limit_exceeded' on attempt 1 (haiku) and exit 0 on attempt 2 (sonnet)",
+        "After retry logic executes under test, the target story entry in prd.json has status='completed' and model='sonnet'",
+        "results.tsv contains exactly 2 rows for the story: haiku/failed/attempt=1 and sonnet/passed/attempt=2; sonnet row completion_tokens > 0",
+        "uv run pytest tests/test_phase_i_escalation.py -v exits with code 0 with no skipped tests"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_phase_i_escalation.py (new file — pytest integration test using tmp_path fixture; write stub script, prepend to PATH via monkeypatch, invoke retry logic via subprocess)",
+        "File to edit: lib/impl/retry.sh (read only — locate haiku→sonnet escalation branch and results.tsv write call to know which env vars to set in test)",
+        "Stub script pattern: write a bash script counting invocations via a tmp counter file; invocation 1 exits 1 with error text, invocation 2 exits 0",
+        "Test command: uv run pytest tests/test_phase_i_escalation.py -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1025",
+      "title": "Integration Test: Phase G SemVer Calculation Is Deterministic from results.tsv",
+      "priority": "high",
+      "description": "Validate that Phase G's semver bump calculation produces the same result across 3 consecutive calls given identical mocked results.tsv retry counts and complexity scores. Ensures the bump logic is pure and not affected by timestamps, ordering, or external state.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_phase_g_semver_determinism.py::test_deterministic_three_runs -v passes: invoking the semver calculation function 3 times with the same mocked results.tsv yields identical version strings each time",
+        "uv run pytest tests/test_phase_g_semver_determinism.py::test_minor_vs_patch_threshold -v passes: 2+ stories with retry_count>=3 produces minor bump; 0 such stories produces patch bump only"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_phase_g_semver_determinism.py (new file — test_deterministic_three_runs, test_minor_vs_patch_threshold)",
+        "File to edit: lib/phases/g_deploy.sh or lib/phase_g.py (expose semver calculation as a callable/importable function for isolated testing)",
+        "Test command: uv run pytest tests/test_phase_g_semver_determinism.py -v --tb=short",
+        "Write results.tsv fixture as a tempfile with columns: story_id, retry_count, complexity; call calculation logic 3 times; assert all 3 outputs are equal"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
     }
   ]
 }
