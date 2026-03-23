@@ -11,39 +11,6 @@
   ],
   "userStories": [
     {
-      "title": "Phase V: Dead Feature Detector - Find Unreachable New Code After Implementation",
-      "priority": "high",
-      "description": "After Phase V tests pass, scan new Python functions/classes added by the story. If a function is only defined but never imported or called from any entry point (spiral.sh, main.py, tests), flag it as a dead feature. Prevents 'code exists but does nothing' implementations.",
-      "acceptanceCriteria": [
-        "lib/dead_feature_detector.py exists with detect_dead_features(story_id, changed_files) returning list of DeadFeature(name, file, line)",
-        "Extracts new function/class definitions from git diff (def xxx, class xxx patterns)",
-        "Searches entire codebase for references to each new symbol; symbols found only at definition site are dead features",
-        "Excludes test_ functions (discovered by pytest) and __init__.py re-exports from dead feature detection",
-        "Phase V in spiral.sh calls dead_feature_detector after pytest; dead features recorded in story _deadFeatures field",
-        "Default soft warning (no block); SPIRAL_STRICT_DEAD_FEATURE=true in spiral.config.sh enables hard block",
-        "CLI command spiral show-dead-features lists all detected dead features across stories",
-        "Unit test: function defined in lib/foo.py but never imported anywhere is detected as dead"
-      ],
-      "technicalNotes": [
-        "File to create: lib/dead_feature_detector.py",
-        "File to edit: spiral.sh Phase V section",
-        "File to edit: spiral.config.sh (add SPIRAL_STRICT_DEAD_FEATURE=false)",
-        "File to edit: main.py (add show-dead-features subcommand)",
-        "Use subprocess git diff + grep for symbol detection"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "tags": [
-        "core-flow",
-        "phase-v",
-        "quality-gate"
-      ],
-      "id": "US-1006",
-      "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-03-23T01:44:24Z"
-    },
-    {
       "title": "Phase V: Functional Reachability Verifier - Confirm New Code is Wired into the Loop",
       "priority": "high",
       "description": "For Phase-enhancement stories (title contains 'Phase X:'), verify that new Python modules are actually called from spiral.sh in the corresponding phase section. Catches implementations that exist but are never integrated into the autonomous loop.",
@@ -73,10 +40,7 @@
       ],
       "id": "US-1007",
       "passes": true,
-      "model": "haiku",
-      "_failureReason": "oversized_diff",
-      "_lastDiffLines": 746,
-      "last_attempted": "2026-03-23T02:26:59Z"
+      "model": "haiku"
     },
     {
       "title": "Phase C: Phase Timing Baseline and Regression Detector",
@@ -400,6 +364,61 @@
       "estimatedComplexity": "small",
       "passes": false,
       "model": "sonnet"
+    },
+    {
+      "id": "US-1015",
+      "title": "Phase G: Validate prd.json Stories Against CHANGELOG.md — Detect Unreleased/Missing Changes",
+      "priority": "medium",
+      "description": "Add Phase G validation step comparing completed stories in prd.json against CHANGELOG.md entries, flagging missing stories unless marked with _skip_changelog=true in prd.json.",
+      "acceptanceCriteria": [
+        "Phase G scans all stories with status=passed, searches CHANGELOG.md for story ID (e.g., US-123), reports unreleased stories to .spiral/phase_g_changelog_coverage.json",
+        "Stories tagged _skip_changelog=true bypass validation; validation accepts markdown format: '- US-123: description'",
+        "Exit code 1 if unreleased stories found, 0 if all accounted; output JSON: {unreleased_stories: [{id, title}], summary: {total: int, missing: int}}"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/phases/phase_g.sh, call validate_changelog_coverage.py before Phase G completion",
+        "File to edit: lib/validate_changelog_coverage.py (new), parse CHANGELOG.md with regex (US-\\d{3}), compare against prd.json",
+        "Test command: uv run pytest tests/test_changelog_coverage.py -v",
+        "Handle CHANGELOG.md missing gracefully; treat as 0 released stories"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "title": "Phase V: Dead Feature Detector - Find Unreachable New Code After Implementation",
+      "priority": "high",
+      "description": "After Phase V tests pass, scan new Python functions/classes added by the story. If a function is only defined but never imported or called from any entry point (spiral.sh, main.py, tests), flag it as a dead feature. Prevents 'code exists but does nothing' implementations.",
+      "acceptanceCriteria": [
+        "lib/dead_feature_detector.py exists with detect_dead_features(story_id, changed_files) returning list of DeadFeature(name, file, line)",
+        "Extracts new function/class definitions from git diff (def xxx, class xxx patterns)",
+        "Searches entire codebase for references to each new symbol; symbols found only at definition site are dead features",
+        "Excludes test_ functions (discovered by pytest) and __init__.py re-exports from dead feature detection",
+        "Phase V in spiral.sh calls dead_feature_detector after pytest; dead features recorded in story _deadFeatures field",
+        "Default soft warning (no block); SPIRAL_STRICT_DEAD_FEATURE=true in spiral.config.sh enables hard block",
+        "CLI command spiral show-dead-features lists all detected dead features across stories",
+        "Unit test: function defined in lib/foo.py but never imported anywhere is detected as dead"
+      ],
+      "technicalNotes": [
+        "File to create: lib/dead_feature_detector.py",
+        "File to edit: spiral.sh Phase V section",
+        "File to edit: spiral.config.sh (add SPIRAL_STRICT_DEAD_FEATURE=false)",
+        "File to edit: main.py (add show-dead-features subcommand)",
+        "Use subprocess git diff + grep for symbol detection"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "tags": [
+        "core-flow",
+        "phase-v",
+        "quality-gate"
+      ],
+      "id": "US-1006",
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-03-23T01:44:24Z",
+      "_scopeCreep": true
     },
     {
       "id": "US-752",
