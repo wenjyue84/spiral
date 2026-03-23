@@ -47,9 +47,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 
-def run_assertions(
-    story_id: str, assertions_file: Path, timeout: int = 30
-) -> Dict[str, Any]:
+def run_assertions(story_id: str, assertions_file: Path, timeout: int = 30) -> Dict[str, Any]:
     """
     Execute extracted assertions independently, collect results.
 
@@ -240,9 +238,7 @@ def run_assertions(
 
 def main() -> None:
     """CLI entry point."""
-    parser = argparse.ArgumentParser(
-        description="Execute extracted AC assertions and report results"
-    )
+    parser = argparse.ArgumentParser(description="Execute extracted AC assertions and report results")
     parser.add_argument(
         "--story-id",
         required=True,

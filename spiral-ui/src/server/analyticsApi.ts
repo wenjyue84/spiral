@@ -13,6 +13,7 @@ interface TsvRow {
   review_tokens: number; wall_seconds: number;
   user_cpu_s: number; sys_cpu_s: number; peak_rss_kb: number;
   batch_id: string; input_tokens: number; output_tokens: number;
+  failure_root_cause: string;
 }
 
 interface PrdStory {
@@ -120,6 +121,7 @@ export function handleAnalytics(root: string, res: ServerResponse): void {
             batch_id: row['batch_id'] ?? '',
             input_tokens: parseInt(row['input_tokens']) || 0,
             output_tokens: parseInt(row['output_tokens']) || 0,
+            failure_root_cause: row['failure_root_cause'] ?? '',
           });
         }
       }
@@ -654,7 +656,7 @@ export function handleAnalytics(root: string, res: ServerResponse): void {
         lastAttempted: s.last_attempted ?? null,
       };
     }
-    const storyAttempts: Record<string, Array<{ timestamp: string; status: string; model: string; duration: number; commitSha: string }>> = {};
+    const storyAttempts: Record<string, Array<{ timestamp: string; status: string; model: string; duration: number; commitSha: string; failureRootCause: string }>> = {};
     for (const sid of bottleneckIds) {
       const rows = (attemptsByStory.get(sid) ?? [])
         .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
@@ -666,6 +668,7 @@ export function handleAnalytics(root: string, res: ServerResponse): void {
           model: r.model,
           duration: Math.round(r.duration_sec),
           commitSha: r.commit_sha,
+          failureRootCause: r.failure_root_cause,
         }));
       }
     }

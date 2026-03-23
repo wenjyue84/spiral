@@ -355,9 +355,7 @@ class TestFilterCandidates:
                     "description": "Old description",
                 },
             ]
-            kept, skipped = filter_candidates_by_rejected_patterns(
-                candidates, cache_path, similarity_threshold=0.8
-            )
+            kept, skipped = filter_candidates_by_rejected_patterns(candidates, cache_path, similarity_threshold=0.8)
             assert len(kept) == 1
             assert kept[0]["id"] == "US-NEW-1"
             assert "US-NEW-2" in skipped
@@ -393,7 +391,9 @@ class TestFilterCandidates:
                 },
             ]
             kept, skipped = filter_candidates_by_rejected_patterns(
-                candidates, cache_path, similarity_threshold=0.7  # Lower threshold
+                candidates,
+                cache_path,
+                similarity_threshold=0.7,  # Lower threshold
             )
             # Should remove due to high similarity
             assert len(kept) <= 1

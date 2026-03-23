@@ -88,9 +88,7 @@ def extract_story_features(story: dict[str, Any]) -> set[str]:
     return features
 
 
-def fingerprint_story(
-    story: dict[str, Any], rejection_reason: str = "", iteration: int = 0
-) -> StoryFingerprint:
+def fingerprint_story(story: dict[str, Any], rejection_reason: str = "", iteration: int = 0) -> StoryFingerprint:
     """Create a fingerprint of a story for rejection tracking."""
     return StoryFingerprint(
         story_id=story.get("id", ""),
@@ -115,9 +113,7 @@ def load_rejected_patterns(cache_path: Path) -> list[StoryFingerprint]:
         return []
 
 
-def save_rejected_patterns(
-    patterns: list[StoryFingerprint], cache_path: Path, max_entries: int = 100
-) -> None:
+def save_rejected_patterns(patterns: list[StoryFingerprint], cache_path: Path, max_entries: int = 100) -> None:
     """Save rejected patterns to cache file, pruning to max_entries."""
     # Keep only the most recent max_entries patterns
     pruned = patterns[-max_entries:]

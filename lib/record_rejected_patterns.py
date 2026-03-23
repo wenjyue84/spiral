@@ -21,9 +21,7 @@ def main(args: list[str] | None = None) -> int:
     Returns:
         0 on success, 1 on error
     """
-    parser = argparse.ArgumentParser(
-        description="Record rejected story patterns for cross-iteration dedup (US-771)"
-    )
+    parser = argparse.ArgumentParser(description="Record rejected story patterns for cross-iteration dedup (US-771)")
     parser.add_argument("--rejected-stories", required=True, help="Path to _story_rejected.json")
     parser.add_argument("--cache-file", required=True, help="Path to rejected_patterns.json cache")
     parser.add_argument("--iteration", type=int, default=0, help="Current SPIRAL iteration")

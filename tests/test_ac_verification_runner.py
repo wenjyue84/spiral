@@ -25,9 +25,7 @@ def temp_assertions_dir() -> Generator[Path, None, None]:
         yield Path(tmpdir)
 
 
-def create_assertions_file(
-    temp_dir: Path, story_id: str, assertions: list[Dict[str, Any]]
-) -> Path:
+def create_assertions_file(temp_dir: Path, story_id: str, assertions: list[Dict[str, Any]]) -> Path:
     """Helper to create an assertions JSON file."""
     assertions_file = temp_dir / f"{story_id}.json"
     data = {
@@ -147,7 +145,7 @@ class TestACVerificationRunnerMixedResults:
             {
                 "type": "file_exists",
                 "raw_ac": "file sys.executable exists",
-                "command": "python3 -c \"import sys; import os; assert os.path.exists(sys.executable)\"",
+                "command": 'python3 -c "import sys; import os; assert os.path.exists(sys.executable)"',
                 "expected": "file_exists",
                 "extracted": True,
             },

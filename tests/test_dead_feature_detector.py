@@ -88,9 +88,7 @@ class TestExtractNewDefinitions:
             )
 
             # No new changes, so should get empty dict
-            result = extract_new_definitions(
-                "US-1000", ["test.py"], repo_root=tmpdir
-            )
+            result = extract_new_definitions("US-1000", ["test.py"], repo_root=tmpdir)
             assert isinstance(result, dict)
 
     def test_extract_definitions_function(self) -> None:
@@ -137,9 +135,7 @@ class TestExtractNewDefinitions:
             # Add new function
             test_file.write_text("def new_function():\n    pass\n")
 
-            result = extract_new_definitions(
-                "US-1000", ["test.py"], repo_root=tmpdir
-            )
+            result = extract_new_definitions("US-1000", ["test.py"], repo_root=tmpdir)
             assert "test.py" in result
             assert len(result["test.py"]) > 0
             # Should find new_function
@@ -190,9 +186,7 @@ class TestExtractNewDefinitions:
             # Add new class
             test_file.write_text("class NewClass:\n    pass\n")
 
-            result = extract_new_definitions(
-                "US-1000", ["test.py"], repo_root=tmpdir
-            )
+            result = extract_new_definitions("US-1000", ["test.py"], repo_root=tmpdir)
             assert "test.py" in result
             names = [item[0] for item in result["test.py"]]
             assert "NewClass" in names
@@ -338,9 +332,7 @@ class TestDetectDeadFeatures:
     def test_detect_returns_structure(self) -> None:
         """detect_dead_features returns correct structure."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = detect_dead_features(
-                "US-1000", [], repo_root=tmpdir
-            )
+            result = detect_dead_features("US-1000", [], repo_root=tmpdir)
             assert isinstance(result, dict)
             assert "story_id" in result
             assert result["story_id"] == "US-1000"
@@ -352,9 +344,7 @@ class TestDetectDeadFeatures:
     def test_detect_empty_changes(self) -> None:
         """detect_dead_features handles empty file list gracefully."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = detect_dead_features(
-                "US-1001", [], repo_root=tmpdir
-            )
+            result = detect_dead_features("US-1001", [], repo_root=tmpdir)
             assert result["total_features"] == 0
             assert result["dead_features"] == []
             assert "dead features found" in result["summary"]
@@ -362,17 +352,13 @@ class TestDetectDeadFeatures:
     def test_detect_non_python_files(self) -> None:
         """detect_dead_features skips non-Python files."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = detect_dead_features(
-                "US-1002", ["readme.txt", "script.sh"], repo_root=tmpdir
-            )
+            result = detect_dead_features("US-1002", ["readme.txt", "script.sh"], repo_root=tmpdir)
             assert result["total_features"] == 0
 
     def test_detect_json_serializable(self) -> None:
         """detect_dead_features result is JSON-serializable."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = detect_dead_features(
-                "US-1003", [], repo_root=tmpdir
-            )
+            result = detect_dead_features("US-1003", [], repo_root=tmpdir)
             # Should not raise
             json_str = json.dumps(result)
             assert isinstance(json_str, str)
@@ -423,16 +409,11 @@ class TestIntegration:
             )
 
             # Add some code
-            init_file.write_text(
-                "def used_func():\n    pass\n"
-                "def unused_func():\n    pass\n"
-            )
+            init_file.write_text("def used_func():\n    pass\ndef unused_func():\n    pass\n")
             caller = tmpdir_path / "caller.py"
             caller.write_text("from lib import used_func\nused_func()\n")
 
-            result = detect_dead_features(
-                "US-1004", ["lib.py"], repo_root=tmpdir
-            )
+            result = detect_dead_features("US-1004", ["lib.py"], repo_root=tmpdir)
 
             # Should complete without error
             assert isinstance(result, dict)

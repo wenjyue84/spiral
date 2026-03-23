@@ -41,7 +41,10 @@
       "id": "US-1006",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-03-23T12:00:00Z"
+      "last_attempted": "2026-03-23T12:00:00Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n\nI found story **US-1006: Phase V: Dead Feature Detector** is incomplete. The core detector module `lib/dead_feature_detector.py` has been written but integration work remains:\n\n1. ✅ `lib/dead_feature_detector.py` exists with core detection logic\n2. ❌ Phase V integration in `spiral.sh` (needs to call detector after pytest)\n3. ❌ Configuration flag in `spiral.config.sh`\n4. ❌ CLI command in `main.py` (show-dead-features)\n5. ❌ Unit tests\n\n## Problem Identified\n\nUS-1006 requires integrating the dead feature detector into Phase V's validation workflow. After pytest passes, the detector must identify newly added functions/classes that are never referenced elsewhere in the codebase. Results are stored in `story._deadFeatures` and optionally block on `SPIRAL_STRICT_DEAD_FEATURE=true`.\n\n## Planned Changes\n\n1. **spiral.config.sh** — Add `SPIRAL_STRICT_DEAD_FEATURE=false`\n2. **lib/phases/phase_v_validate.sh** — Call dead feature detector after pytest passes; store results in `story._deadFeatures`\n3. **main.py** — Add `show-dead-features` CLI command to list all dead features\n4. **tests/test_dead_feature_detector.py** — Add unit tests (main path + edge cases)\n\n---\n\nLet me execute the plan:\nNow I'll add the missing integrations. First, add the configuration flag:\nNow let me run the tests to verify everything works:\n## Summary"
+      }
     },
     {
       "title": "Phase V: Functional Reachability Verifier - Confirm New Code is Wired into the Loop",

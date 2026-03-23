@@ -21,9 +21,7 @@ def main(args: list[str] | None = None) -> int:
     Returns:
         0 on success, 1 on error
     """
-    parser = argparse.ArgumentParser(
-        description="Filter Phase A candidates to skip rejected patterns (US-771)"
-    )
+    parser = argparse.ArgumentParser(description="Filter Phase A candidates to skip rejected patterns (US-771)")
     parser.add_argument("--candidates", required=True, help="Path to candidate JSON file")
     parser.add_argument("--cache", required=True, help="Path to rejected_patterns.json cache")
     parser.add_argument("--output", required=True, help="Path to write filtered candidates")

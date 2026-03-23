@@ -354,7 +354,7 @@ def extract_assertions(story: Dict[str, Any]) -> Dict[str, Any]:
     # Build metadata
     total_ac = len([ac for ac in ac_list if isinstance(ac, str) and ac.strip()])
     # Use isoformat with timespec='seconds' and replace +00:00 with Z for consistency
-    timestamp = datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z')
+    timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
     return {
         "story_id": story_id,
@@ -372,9 +372,7 @@ def extract_assertions(story: Dict[str, Any]) -> Dict[str, Any]:
 
 def main() -> None:
     """Parse CLI args and extract assertions from story."""
-    parser = argparse.ArgumentParser(
-        description="Extract executable assertions from acceptance criteria"
-    )
+    parser = argparse.ArgumentParser(description="Extract executable assertions from acceptance criteria")
     parser.add_argument("--story-id", required=True, help="Story ID (e.g., US-1004)")
     parser.add_argument("--prd-file", default="prd.json", help="Path to prd.json")
     parser.add_argument("--output-dir", default=".spiral/ac_checks", help="Output directory")

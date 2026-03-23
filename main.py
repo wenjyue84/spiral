@@ -2785,12 +2785,8 @@ def cmd_show_ac_results(args: argparse.Namespace) -> None:
                 status = detail.get("status", "unknown")
                 raw_ac = detail.get("raw_ac", "")[:80]
 
-                status_symbol = {"passed": "✓", "failed": "✗", "skipped": "⊘", "timeout": "⏱"}[
-                    status
-                ]
-                print(
-                    f"  [{idx}] {status_symbol} {assertion_type:15} {raw_ac}"
-                )
+                status_symbol = {"passed": "✓", "failed": "✗", "skipped": "⊘", "timeout": "⏱"}[status]
+                print(f"  [{idx}] {status_symbol} {assertion_type:15} {raw_ac}")
 
                 if status in ("failed", "timeout"):
                     stderr = detail.get("stderr", "")

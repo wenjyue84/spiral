@@ -8,7 +8,6 @@ Cache entries older than SPIRAL_RESEARCH_CACHE_TTL are pruned automatically.
 from __future__ import annotations
 
 import json
-import math
 import re
 from dataclasses import asdict, dataclass
 from pathlib import Path

@@ -90,12 +90,8 @@ def extract_new_definitions(
 
             # Check for function or class definition
             stripped = line[1:].strip()
-            match_func = re.match(
-                r"^def\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(", stripped
-            )
-            match_class = re.match(
-                r"^class\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*[\(:]?", stripped
-            )
+            match_func = re.match(r"^def\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(", stripped)
+            match_class = re.match(r"^class\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*[\(:]?", stripped)
 
             if match_func:
                 name = match_func.group(1)
@@ -126,9 +122,7 @@ def extract_new_definitions(
     return definitions
 
 
-def search_codebase(
-    symbol_name: str, repo_root: str = ".", exclude_files: Optional[Set[str]] = None
-) -> bool:
+def search_codebase(symbol_name: str, repo_root: str = ".", exclude_files: Optional[Set[str]] = None) -> bool:
     """
     Search entire codebase for references to a symbol.
 
@@ -193,9 +187,7 @@ def search_codebase(
         return True
 
 
-def find_dead_features(
-    story_id: str, changed_files: List[str], repo_root: str = "."
-) -> List[DeadFeature]:
+def find_dead_features(story_id: str, changed_files: List[str], repo_root: str = ".") -> List[DeadFeature]:
     """
     Find dead features in changed files.
 
@@ -227,9 +219,7 @@ def find_dead_features(
     return dead_features
 
 
-def detect_dead_features(
-    story_id: str, changed_files: List[str], repo_root: str = "."
-) -> Dict[str, Any]:
+def detect_dead_features(story_id: str, changed_files: List[str], repo_root: str = ".") -> Dict[str, Any]:
     """
     Main function to detect dead features and return structured results.
 
@@ -266,9 +256,7 @@ def detect_dead_features(
 
 def main() -> None:
     """CLI entry point."""
-    parser = argparse.ArgumentParser(
-        description="Detect dead features in changed files"
-    )
+    parser = argparse.ArgumentParser(description="Detect dead features in changed files")
     parser.add_argument(
         "--story-id",
         required=True,

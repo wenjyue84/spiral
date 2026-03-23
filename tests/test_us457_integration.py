@@ -145,10 +145,8 @@ class TestProtectSpiralFilesEdgeCases:
         exit_code, stdout, stderr = run_hook(hook_script, "progress.txt")
         assert exit_code == 0
 
-
     def test_edge_strips_leading_dot_slash(self, hook_script: Path) -> None:
         """Leading ./ should be stripped before matching."""
         exit_code, stdout, stderr = run_hook(hook_script, "./prd.json")
         assert exit_code == 2, "Expected protected file to be blocked even with ./"
         assert "BLOCKED" in stderr
-

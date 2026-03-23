@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import os
 import sys
 from pathlib import Path
@@ -12,13 +11,10 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib", "research"))
 
 from research_cache import (
-    CachedQuery,
-    compute_query_vector,
     get_cached_result,
     jaccard_similarity,
     load_research_cache,
     record_query_result,
-    save_research_cache,
     tokenize,
 )
 
@@ -75,9 +71,7 @@ class TestCacheHitParaphrased:
         # Record original query
         original = "how to learn Python programming"
         original_result = "Python is a great language for beginners"
-        record_query_result(
-            original, original_result, cache_path, iteration=0, ttl_iterations=5
-        )
+        record_query_result(original, original_result, cache_path, iteration=0, ttl_iterations=5)
 
         # Query with paraphrase
         paraphrased = "Python programming tutorial for beginners"
@@ -95,14 +89,10 @@ class TestCacheMissNovelQuery:
         cache_path = tmp_path / "research_cache.json"
 
         # Record a query
-        record_query_result(
-            "Python tutorial", "Content", cache_path, iteration=0, ttl_iterations=5
-        )
+        record_query_result("Python tutorial", "Content", cache_path, iteration=0, ttl_iterations=5)
 
         # Query completely different topic
-        is_hit, result = get_cached_result(
-            "how to cook pasta", cache_path, similarity_threshold=0.90
-        )
+        is_hit, result = get_cached_result("how to cook pasta", cache_path, similarity_threshold=0.90)
 
         assert is_hit is False
         assert result == ""
