@@ -2411,3 +2411,4 @@
 {"ts": "2026-03-23T13:24:14.202909+00:00", "type": "route_story_assigned", "story_id": "US-1052", "complexity_score": 65, "model_tier": "sonnet", "estimated_tokens": 0}
 {"ts": "2026-03-23T13:24:14.203238+00:00", "type": "route_story_assigned", "story_id": "US-1053", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
 {"event_type": "prd_io_error", "timestamp": "2026-03-23T13:25:34.613873+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-4687\\\\popen-gw2\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
+{"event_type": "prd_io_error", "timestamp": "2026-03-23T13:59:46.774732+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-4696\\\\popen-gw2\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
