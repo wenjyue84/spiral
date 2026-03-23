@@ -1,4 +1,73 @@
 
+## Iteration [CURRENT] - Story: US-1004 Phase V AC Assertion Extractor
+
+### Implementation Summary
+
+Successfully implemented AC assertion extraction to parse acceptance criteria text into executable verification checks. Bridges gap between "tests pass" and "acceptance criteria actually satisfied."
+
+### What was implemented
+
+1. **lib/ac_assertion_extractor.py** (new, 420 lines)
+   - Assertion dataclass: type, raw_ac, command, expected, extracted fields
+   - 5 extraction functions with regex patterns:
+     * extract_exit_code: "exits with 0", "exit code 1", "exits non-zero"
+     * extract_file_exists: "File to create: X", "creates file X", "file X is created"
+     * extract_test_command: "uv run pytest X", "pytest X", "run tests in X"
+     * extract_json_field: "contains field Y", "returns field X in JSON", "output includes X"
+     * extract_log_grep: "log entry matching X", "logs contain X", "prints X", "error message X appears"
+   - Pattern priority: test_command > file_exists > exit_code > json_field > log_grep
+   - Case-insensitive matching with support for quoted strings
+   - Unparseable AC tagged with extracted=False in manual_review array
+   - CLI entry point for batch processing
+   - Output to .spiral/ac_checks/{story_id}.json with metadata
+
+2. **tests/test_ac_assertion_extractor.py** (new, 400 lines, 50 tests)
+   - 8 test classes: TestExtractExitCode, TestExtractFileExists, TestExtractTestCommand, 
+     TestExtractJsonField, TestExtractLogGrep, TestExtractAssertions, TestExtractorPriority, 
+     TestEdgeCases
+   - 50 comprehensive tests covering:
+     * All 5 assertion types with multiple pattern variations
+     * Mixed multi-type ACs in single story
+     * Unparseable AC detection and tagging
+     * Edge cases: quoted strings, special chars, missing fields, blank items
+     * Metadata timestamp format and serialization
+   - All 50/50 tests passing
+
+### Patterns discovered
+
+- Exit code patterns: case-insensitive, supports "exits", "exit code", non-zero variants
+- File path patterns: allow dots and slashes, stop at comma/semicolon/parens
+- Test paths: support uv run pytest, pytest, vitest, jest, bats patterns
+- Quoted strings: regex alternation with single/double quotes for patterns like "error occurred"
+- Timestamp format: ISO 8601 with Z suffix (2026-03-23T10:15:30Z)
+- Priority matters: test_command extracted first prevents ambiguous interpretation
+
+### Quality checks passed
+
+- 50/50 unit tests pass (100% success rate)
+- mypy --strict: no type issues (full type safety with Optional, Any, Dict)
+- ruff check: all linting passed (removed unused imports, fixed line length)
+- prd.json schema validation: valid
+- All acceptance criteria verified by tests
+
+### Files created/modified
+
+- Created: lib/ac_assertion_extractor.py (420 lines)
+- Created: tests/test_ac_assertion_extractor.py (400 lines)
+- Modified: prd.json (marked US-1004 passes=true)
+
+### Story completion
+
+Story US-1004 marked as passes=true. All acceptance criteria met:
+1. ✓ lib/ac_assertion_extractor.py created with extract_assertions(story) returning Assertion objects
+2. ✓ 5 assertion patterns implemented: exit_code, file_exists, test_command, json_field, log_grep
+3. ✓ Unparseable AC tagged as manual_review (not silently skipped)
+4. ✓ Output to .spiral/ac_checks/{story_id}.json with assertion list and extraction metadata
+5. ✓ Unit tests verify extraction of 5+ assertion types from realistic AC samples
+6. ✓ Unit tests verify unparseable AC tagged with extracted=False and original text preserved
+7. ✓ All quality gates passed (mypy --strict, ruff, pytest 50/50)
+
+
 ## Pre-analysis for US-782 (Gemini 2.5 Pro)
 ### Technical Brief: US-782 Blame Attribution
 
