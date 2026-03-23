@@ -173,6 +173,61 @@ def generate_changelog_segment(
     return "".join(lines)
 
 
+def calculate_next_version_from_results_tsv(
+    previous_tag: str, results_tsv_path: str
+) -> str:
+    """Calculate next SemVer version based on retry_count from results.tsv.
+
+    Deterministic calculation: reads results.tsv and counts stories with
+    retry_count >= 3. If count >= 2, bumps minor version. Otherwise, bumps patch.
+
+    This function is pure (deterministic) — identical inputs always produce
+    identical outputs, independent of timestamps or system state.
+
+    Args:
+        previous_tag: Previous version tag, e.g. "v1.2.3" or "1.2.3".
+        results_tsv_path: Path to results.tsv file with columns:
+                         story_id, retry_count, [other columns ignored]
+
+    Returns:
+        Next version string WITHOUT the 'v' prefix, e.g. "1.1.0" or "1.0.1".
+
+    Raises:
+        ValueError: If version tag is invalid or retry_count cannot be parsed.
+        FileNotFoundError: If results.tsv does not exist.
+    """
+    import csv
+
+    major, minor, patch = _parse_version(previous_tag)
+
+    # Read results.tsv and count stories with retry_count >= 3
+    results_path = Path(results_tsv_path)
+    if not results_path.exists():
+        raise FileNotFoundError(f"results.tsv not found: {results_tsv_path}")
+
+    retry_count_threshold_stories = 0
+    with open(results_path, encoding="utf-8") as f:
+        reader = csv.DictReader(f, delimiter="\t")
+        if reader is None:
+            raise ValueError(f"Failed to parse results.tsv: {results_tsv_path}")
+
+        for row in reader:
+            try:
+                retry_count = int(row.get("retry_count", "0"))
+                if retry_count >= 3:
+                    retry_count_threshold_stories += 1
+            except (ValueError, TypeError) as e:
+                raise ValueError(
+                    f"Invalid retry_count in results.tsv: {row.get('retry_count')}"
+                ) from e
+
+    # Determine bump tier: >= 2 stories with retry_count >= 3 → minor, else → patch
+    if retry_count_threshold_stories >= 2:
+        return f"{major}.{minor + 1}.0"
+    else:
+        return f"{major}.{minor}.{patch + 1}"
+
+
 # ── CLI entrypoint ───────────────────────────────────────────────────────────
 
 
