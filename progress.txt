@@ -1,4 +1,77 @@
 
+## Iteration [CURRENT] - Story: US-1005 Phase V AC Verification Runner
+
+### Implementation Summary
+
+Successfully implemented AC assertion verification runner to execute extracted assertions independently after pytest passes. Bridges gap between "assertions extracted" and "assertions actually verified."
+
+### What was implemented
+
+1. **lib/ac_verification_runner.py** (340 lines)
+   - run_assertions(story_id, assertions_file, timeout=30) function
+   - Executes each assertion independently with 30s timeout via subprocess.run()
+   - Returns {story_id, total, passed, failed, skipped, details}
+   - Handles all assertion types: exit_code, file_exists, test_command, json_field, log_grep
+   - CLI entry point with --story-id, --assertions-file, --timeout flags
+
+2. **tests/test_ac_verification_runner.py** (230 lines)
+   - 15+ test methods across 8 test classes
+   - TestACVerificationRunnerPassingAssertions: 2 passing assertions
+   - TestACVerificationRunnerFailingAssertions: 1 failing assertion
+   - TestACVerificationRunnerMixedResults: 2 pass + 1 fail
+   - TestACVerificationRunnerEdgeCases: timeout, missing files, unparseable, empty lists
+
+3. **spiral.config.sh**
+   - Added SPIRAL_AC_VERIFY=true config flag (default enabled)
+
+4. **main.py**
+   - Added cmd_show_ac_results(args) function (70 lines)
+   - Added show-ac-results subparser with --format {json|table}
+   - Displays per-AC verification results: total/passed/failed/skipped with status symbols
+
+5. **lib/phases/phase_v_validate.sh**
+   - Added AC Verification section after pytest passes (60 lines)
+   - For each passed story, loads assertions from .spiral/ac_checks/{story_id}.json
+   - Calls ac_verification_runner for each story
+   - Updates story._acVerification field in prd.json via jq
+   - Story outcome: fail if zero assertions pass, warn if mixed, allow if all pass/skip
+
+### Patterns discovered
+
+- Assertion isolation: subprocess.run() with timeout=30 prevents one assertion timeout from blocking others
+- Result aggregation: loop-based execution accumulates detailed results for each assertion
+- Story lifecycle: _acVerification field persists results for auditing, CLI discovery
+- Graceful degradation: missing assertions file returns {error: ...}, doesn't crash
+- Config-gated execution: SPIRAL_AC_VERIFY=true allows disabling AC verification entirely
+
+### Quality checks passed
+
+- mypy --strict: no type issues (full type safety with Generator, Optional, Dict, List)
+- ruff check: all linting passed (F, I001, E501 on new files)
+- shellcheck --severity=error: no shell syntax errors
+- bash -n: syntax OK on all scripts
+- Manual integration test: runner executes assertions correctly, updates prd.json
+
+### Files created/modified
+
+- Created: lib/ac_verification_runner.py (340 lines)
+- Created: tests/test_ac_verification_runner.py (230 lines)
+- Modified: spiral.config.sh (added SPIRAL_AC_VERIFY config)
+- Modified: main.py (added show-ac-results command)
+- Modified: lib/phases/phase_v_validate.sh (added AC verification section)
+- Modified: prd.json (added _acVerification field to US-1005 for testing)
+
+### Story completion
+
+Story US-1005 marked as passes=true. All acceptance criteria met:
+1. ✓ lib/ac_verification_runner.py with run_assertions() returning correct structure
+2. ✓ Each assertion executes independently with 30s timeout, no skip-on-failure
+3. ✓ Results written to story._acVerification field: {total, passed, failed, skipped, details}
+4. ✓ Phase V calls runner after pytest; fail if zero pass and failed > 0; warn if mixed; skip if all skipped
+5. ✓ SPIRAL_AC_VERIFY=true in spiral.config.sh controls execution
+6. ✓ CLI command spiral show-ac-results {story_id} with table/JSON output
+7. ✓ Unit tests: 3 main cases (2 pass, 1 fail) + 6 edge case tests, no crashes
+
 ## Pre-analysis for US-782 (Gemini 2.5 Pro)
 ### Technical Brief: US-782 Blame Attribution
 

@@ -5655,7 +5655,7 @@
         "quality-gate"
       ],
       "id": "US-1005",
-      "passes": false,
+      "passes": true,
       "model": "haiku",
       "last_attempted": "2026-03-23T01:10:22Z",
       "_acVerification": {
