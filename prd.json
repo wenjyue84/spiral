@@ -72,8 +72,11 @@
         "quality-gate"
       ],
       "id": "US-1007",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "_failureReason": "oversized_diff",
+      "_lastDiffLines": 746,
+      "last_attempted": "2026-03-23T02:26:59Z"
     },
     {
       "title": "Phase C: Phase Timing Baseline and Regression Detector",

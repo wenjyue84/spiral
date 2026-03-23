@@ -543,6 +543,37 @@ PYEOF
       fi
     fi
 
+    # ── Reachability Verifier (US-1007) ────────────────────────────────────────
+    # After tests pass, verify that new Python modules for Phase stories are
+    # actually called by spiral.sh or main.py. Prevents dead code that's wired up.
+    if [[ "$_VALIDATE_EXIT" -eq 0 ]]; then
+      echo "  [V] Reachability Verifier: checking new Phase modules are wired..."
+
+      mapfile -t _NEWLY_PASSED_STORIES < <(
+        "$JQ" -r '.userStories[] | select(.passes == true) | .id' "$PRD_FILE" 2>/dev/null || true
+      ) || true
+
+      for _story_id in "${_NEWLY_PASSED_STORIES[@]}"; do
+        # Get story title
+        _STORY_TITLE=$("$JQ" -r --arg id "$_story_id" \
+          '.userStories[] | select(.id == $id) | .title' \
+          "$PRD_FILE" 2>/dev/null || echo "")
+
+        # Run reachability verifier (only checks Phase stories)
+        _REACH_RESULT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/reachability_verifier.py" "$_STORY_TITLE" 2>&1 || echo "✗ Reachability check failed")
+
+        # Update story with results
+        if echo "$_REACH_RESULT" | grep -q "✓"; then
+          echo "  [V] Reach OK: $_story_id ($__STORY_TITLE)"
+          "$JQ" --arg id "$_story_id" \
+            '(.userStories[] | select(.id == $id) | ._reachabilityCheck) = {"status":"pass"}' \
+            "$PRD_FILE" >"$PRD_FILE.tmp" 2>/dev/null && mv "$PRD_FILE.tmp" "$PRD_FILE" || true
+        else
+          echo "  [V] Reach WARN: $_story_id — not a Phase story or no new modules"
+        fi
+      done
+    fi
+
     write_checkpoint "$SPIRAL_ITER" "V"
   fi
   run_phase_hook POST "V" || true

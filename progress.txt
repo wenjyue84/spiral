@@ -1299,3 +1299,87 @@ This task involves creating a Python script to detect "dead" Python code—new f
 *   Exclude test functions (`def test_*`) and symbols re-exported in `__init__.py` files from detection.
 *   The simple regex for `def/class` might be brittle. Consider using Python's `ast` module for more robust parsing if time permits.
 >>>>>>> Stashed changes
+## Iteration 1 - Mon, Mar 23, 2026 10:26:56 AM
+FAILED diff-guard: Phase V: Functional Reachability Verifier - Confirm New Code is Wired into the Loop (ID: US-1007) — 746 lines > 400 limit — attempt 1/3
+
+
+## Pre-analysis for US-1007 (Gemini 2.5 Pro)
+This user story is about internal tooling for a command-line application, not a Frappe/Python app. The technical brief should focus on shell scripting and Python file parsing.
+
+**Technical Brief for Claude Code**
+
+**Objective:** Implement a "reachability verifier" to ensure new Python modules for "Phase" stories are called by the main `spiral.sh` entry point.
+
+**Files to Modify:**
+*   **Create:** `lib/reachability_verifier.py`
+*   **Modify:** `spiral.sh` (to call the verifier in Phase V)
+*   **Modify:** `spiral.config.sh` (to add a feature flag)
+
+**DocTypes & Hooks Involved:**
+*   None. This is not a Frappe project. The primary artifacts are shell scripts and Python files.
+
+**Implementation Approach:**
+1.  In `lib/reachability_verifier.py`, create a `verify_reachability(story, changed_files)` function.
+2.  The function should first check if the story title matches the "Phase X:" pattern. If not, return a successful state immediately.
+3.  If it is a phase story, scan the contents of `spiral.sh` and `main.py`.
+4.  Search for the filenames of any new `.py` files from `changed_files` within the entry point scripts. Look for patterns like `python lib/new_module.py` or `import new_module`.
+5.  Return `{reachable: bool, call_sites: list}`.
+6.  In `spiral.sh`, under the `## Phase V` section, add a call to `python lib/reachability_verifier.py`.
+7.  Use the script's output to update a `_reachabilityCheck` field in the story's JSON file.
+8.  Add `SPIRAL_STRICT_REACHABILITY=false` to `spiral.config.sh` to control failure behavior (warn vs. block).
+
+**Gotchas & Edge Cases:**
+*   Ensure the script correctly handles stories that aren't "Phase" enhancements (skips them).
+*   The call-site detection logic must be robust enough to find different invocation methods (e.g., `python`, `uv run`).
+*   The shell script needs a reliable way (e.g., using `jq`) to read the verifier's output and patch the story JSON file.
+
+
+## Iteration 2 - Story: US-1007 Phase V Functional Reachability Verifier
+
+### Implementation Summary
+
+Successfully implemented reachability verifier to ensure new Python modules for Phase stories are actually called by spiral.sh or main.py. Prevents dead code that's defined but never wired into the execution loop.
+
+### What was implemented
+
+1. **lib/reachability_verifier.py** (97 lines)
+   - get_new_python_files(story_branch) — extracts newly added .py files from git diff
+   - find_calls(entry_point_file, module_name) — searches spiral.sh/main.py for import patterns
+   - verify_reachability(story_title) — main function that checks Phase stories only
+   - Skips non-Phase stories (returns "not_a_phase_story")
+   - Returns {reachable: bool, modules_checked: list, call_sites: dict}
+   - Searches for patterns: "import module", "from module", "lib/module.py", "lib.module"
+
+2. **lib/phases/phase_v_validate.sh** (+31 lines)
+   - Added reachability verifier section after dead feature detection
+   - Iterates over newly passed stories
+   - Calls python lib/reachability_verifier.py with story title
+   - Updates story._reachabilityCheck field in prd.json
+   - Logs results for audit trail
+
+3. **spiral.config.sh** (+4 lines)
+   - Added SPIRAL_STRICT_REACHABILITY=false flag
+   - Enables hard-block mode if set to true (planned for future enforcement)
+
+### Patterns discovered
+
+- Two-stage verification: Dead Feature Detector finds code that should exist, Reachability Verifier confirms it's wired
+- Phase story filtering: Title prefix check "Phase X:" distinguishes system stories from feature stories
+- Pattern-based search: Regex matching handles multiple import styles without AST overhead
+- Minimal integration: 31 shell lines + 1 config line = low touch to Phase V orchestration
+
+### Constraints observed from attempt 1
+
+- Previous attempt (746 lines) failed oversized diff check (400 line limit)
+- Solution: Keep verifier compact (97 lines), integrate lightly into Phase V (+31 lines)
+- Total diff: 169 insertions, well under limit
+- Follow dead feature detector pattern for consistency
+
+### Quality checks passed
+
+- Python syntax: py_compile successful
+- Reachability logic: tested with Phase V story (returns pass)
+- Reachability logic: tested with non-Phase story (returns pass with skip reason)
+- Line count: 169 insertions < 400 limit (PASSED)
+- Windows compatibility: converted line endings to Unix format via dos2unix
+
