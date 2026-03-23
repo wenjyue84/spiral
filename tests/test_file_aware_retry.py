@@ -410,3 +410,19 @@ def test_security_no_sensitive_data_in_errors(monkeypatch: pytest.MonkeyPatch, t
         f"Retry output contains credential pattern: {output!r}"
     )
     assert secret not in output, f"Secret leaked into retry output: {output!r}"
+
+
+def test_no_leak_retry_output(tmp_path: Path) -> None:
+    """AC2: extract_failed_files output never leaks tokens, passwords, or secrets."""
+    stderr_file = tmp_path / "stderr.txt"
+    stderr_file.write_text(
+        "ANTHROPIC_API_KEY=sk-ant-secret999\n"
+        "password=hunter2\n"
+        "FAILED tests/test_core.py::test_run\n"
+        "lib/core.py:10: error: Name 'x' not defined\n",
+        encoding="utf-8",
+    )
+    files = extract_failed_files(str(stderr_file))
+    serialized = json.dumps(files)
+    for forbidden in ("sk-", "secret", "password", "hunter2", "ANTHROPIC_API_KEY"):
+        assert forbidden not in serialized, f"Sensitive pattern {forbidden!r} leaked into retry output"

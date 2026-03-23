@@ -367,3 +367,18 @@ Error processing file: src/c.py
     def test_scope_tag_column_in_header(self) -> None:
         """scope_tag column is present in HEADER (US-744)."""
         assert "scope_tag" in HEADER
+
+
+def test_no_sensitive_data_in_tsv(tmp_path: Path) -> None:
+    """Secrets injected outside schema columns never appear in written TSV rows."""
+    path = str(tmp_path / "results.tsv")
+    row = {col: "safe_value" for col in HEADER}
+    row["story_id"] = "US-SEC-NO-LEAK"
+    row["api_key"] = "sk-LEAKTEST"
+    row["password"] = "hunter2-LEAKTEST"
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=HEADER, delimiter="\t", extrasaction="ignore", lineterminator="\n")
+        writer.writeheader()
+        writer.writerow(row)
+    content = open(path, encoding="utf-8").read()
+    assert "LEAKTEST" not in content, "Credential value leaked into TSV output"
