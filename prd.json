@@ -127,7 +127,7 @@
       "model": "haiku",
       "last_attempted": "2026-03-23T13:17:05Z",
       "_phaseI": {
-        "diagnosisBlock": "## Current State\n\n- US-775 is Phase T: Root Cause Clustering (grouping related test failures)\n- Previous attempt generated 6396 lines of diff (drastically over the 400-line limit)\n- Currently at attempt 2/3; if it fails again, memory feedback says to decompose into sub-stories\n\n## Problem Identified\n\nThe previous implementation approach was too broad, likely:\n1. Modifying too much of spiral.sh Phase T at once\n2. Over-engineering the clustering logic\n3. Including too much context in the diff\n\nThe fix is to implement ONLY the core clustering module in isolation with minimal spiral.sh changes.\n\n## Planned Changes\n\n1. **Create `lib/test_failure_clustering.py`** (~120 lines):\n   - Single function `cluster_failures(failures: list) -> list` that groups failures by source file\n   - Returns clustered story dicts with root-cause title format\n   - Pure Python, no shell dependencies\n\n2. **Add minimal tests** `tests/test_failure_clustering.py` (~80 lines):\n   - Single unit test verifying 5 failures from same file → 1 clustered story\n   - Test passes mock failure data through clustering function\n\n3. **Modify `spiral.sh` Phase T** (~5 lines):\n   - Single import/call to the Python clustering function\n   - No rewrite of Phase T logic, just insert clustering step\n\n**Target total diff: <350 lines**\n\nLet me implement this now:\nNow I'll create the clustering module with a minimal, focused implementation:\nPerfect! I've successfully implemented US-775 on attempt 2. Here's what was completed:\n\n## Summary"
+        "diagnosisBlock": "## Current State\n\nLooking at stories and memory. US-778 is the first cleanest incomplete story: \"Phase E: Priority-Aware Enrichment\" - a small change to sort enrichment queue by priority.\n\n## Problem Identified\n\nPhase E currently doesn't prioritize high-priority stories for enrichment. When enrichment budget is exhausted, some medium/low stories get enriched while high/critical ones don't. Need to sort by priority before processing.\n\n## Planned Changes\n\n1. **lib/spiral/phase_e.py** — Add priority sorting to enrichment queue\n2. **spiral.sh** — Update Phase E call to pass sorted stories\n3. **tests/test_phase_e_enrichment.py** — Add unit test for priority-based enrichment\n4. **Logging** — Add log entry showing enrichment order\n\nLet me now examine the current Phase E implementation:\nNow let me read the test file to understand the testing pattern:\nNow I'll implement the changes. First, let me modify the enrich_stories.py file to add priority sorting:\nNow let me add a unit test for the priority-aware enrichment:\nLet me simplify the test to be more reliable:\nNow let me run the tests to verify the implementation:\nI see the issue - my logging is appearing even for stories that shouldn't be enriched. Let me refine the logging to only show it for stories that will actually be enriched:\nLet me re-apply the changes more carefully:\nNow let me run the failing test again:\nLooking at the test failure, the issue is that the test story doesn't have `filesTouch` set, so `_should_enrich()` returns True. Let me check the existing test more carefully:\nThe edits didn't apply. Let me rewrite the entire function more carefully:\nThe test is failing because the story doesn't have `filesTouch` set. According to `_should_enrich()`, stories without `filesTouch` are enriched even if they're small. Let me fix the test to include `filesTouch`:\nLet me read the entire file and rewrite it with the changes:\nNow let me add the priority test back to the test file:\nPerfect! All tests pass. Now let me commit these changes:\nNow let me update the prd.json to mark US-778 as complete:\n## Summary"
       },
       "_contextStats": {
         "tokensBeforeMasking": 66,
@@ -6452,6 +6452,22 @@
         "GET /api/dashboard/phase-sequence-health returns {violations: [{iteration, expected_phase, actual_phase}]} if violations exist, else {violations: []}",
         "Add lib/phase_sequence_validator.py: validate_phase_order(results_df) checks phase_id sequence per iteration matches spiral.sh line 1390 definition",
         "Integration test with mocked results.tsv containing injected phase violations verifies endpoint detects and reports them with correct iteration numbers"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1054",
+      "title": "CLI: spiral worker-assignments -- Export Story-to-Worker Implementation Timeline",
+      "priority": "medium",
+      "description": "New CLI command generating worker_assignments.tsv mapping stories to implementing workers with timing. Enables worker performance analysis and federated project capacity planning.",
+      "acceptanceCriteria": [
+        "CLI 'spiral worker-assignments' generates worker_assignments.tsv: story_id,worker_id,phase_start,phase_end,total_duration_sec,retry_count,final_model",
+        "Extract worker_id and timing from results.tsv; output tab-separated with header row and sort by story_id",
+        "Integration test with 3-worker SPIRAL run verifies all completed stories appear and duration_sec matches phase timing delta"
       ],
       "technicalNotes": [],
       "dependencies": [],

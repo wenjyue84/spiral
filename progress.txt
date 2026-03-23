@@ -35,3 +35,26 @@ This is a standard Python WebSocket task, not a Frappe-specific implementation.
 - **Dependency:** Do not re-implement the burn rate logic; import and use the function from `phase_burn_rate.py`.
 - **Validation:** Success is defined by all tests passing in `tests/test_phase_burn_rate_ws.py`.
 
+
+## Iteration - Story: US-778 Phase E Priority-Aware Enrichment
+
+### What was implemented
+- Added priority sorting to enrich_stories() in lib/research/enrich_stories.py
+- Stories now sorted by priority (critical > high > medium > low) before enrichment queue is processed
+- When SPIRAL_STORY_ENRICHMENT_MAX budget is exhausted, high-priority stories are enriched first
+- Added logging to show enrichment order with priority level counts
+- Fixed test_small_well_specified_stories_pass_through by adding filesTouch to test story
+- Added new unit test test_priority_aware_enrichment_order that verifies priority-based ordering
+
+### Patterns discovered
+- enrich_stories() function uses _should_enrich() to filter eligible stories
+- Priority sorting happens after loading stories but before the enrichment loop
+- Logging occurs only for stories that will actually be enriched (not all stories)
+- Test suite uses mock patches to avoid calling actual Claude API
+- Priority order: "critical" (0) > "high" (1) > "medium" (2) > "low" (3)
+
+### Gotchas
+- filesTouch field is required for stories to not be marked for enrichment
+- Original test was missing filesTouch which caused it to fail unexpectedly
+- Edit tool had issues initially, so full file rewrite was used instead
+

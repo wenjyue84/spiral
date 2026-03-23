@@ -220,3 +220,4 @@
 {"story_id": "US-1028", "estimated_complexity": "small", "actual_duration_s": 404, "phase_retries": 0, "passed": true}
 >>>>>>> Stashed changes
 {"story_id": "US-775", "estimated_complexity": "small", "actual_duration_s": 981, "phase_retries": 0, "passed": true}
+{"story_id": "US-775", "estimated_complexity": "small", "actual_duration_s": 628, "phase_retries": 0, "passed": true}
