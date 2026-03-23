@@ -11,67 +11,6 @@
   ],
   "userStories": [
     {
-      "id": "US-1009",
-      "title": "[Integration Test] gen_changelog.py: CHANGELOG generation from story commits",
-      "priority": "high",
-      "description": "Write integration tests for lib/gen_changelog.py (implemented in US-604). Tests must cover parsing commit messages for story IDs (US-NNN, UT-NNN), categorising by conventional-commit type, producing markdown sections, and warning on commits with no story ID.",
-      "acceptanceCriteria": [
-        "uv run pytest tests/test_gen_changelog.py -v passes with at least one happy-path test and one edge-case test",
-        "Tests do not require external services, network access, or a real git repository",
-        "A commit with no story ID triggers a warning (assert logged or returned in result)"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_gen_changelog.py (new file — test generate_changelog or equivalent public function)",
-        "File to edit: lib/gen_changelog.py (read first; mock git calls with monkeypatch or tmp_path fixtures)",
-        "Test command: uv run pytest tests/test_gen_changelog.py -v",
-        "Use pytest tmp_path or a fixture that provides a fake list of commit dicts; do not shell out to git"
-      ],
-      "dependencies": [
-        "US-604"
-      ],
-      "estimatedComplexity": "small",
-      "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-03-23T03:18:49Z"
-    },
-    {
-      "id": "US-1010",
-      "title": "[Security Test] Phase I: File-Aware Retry — Block Unauthorized Access",
-      "priority": "high",
-      "description": "Write security tests verifying that the file-aware retry logic introduced in US-597 does not expose sensitive data or allow unauthorized access. Tests should confirm that retry state files and results TSV are not readable by unauthorized callers and that error responses never leak tokens or passwords.",
-      "acceptanceCriteria": [
-        "uv run pytest tests/test_file_aware_retry.py -k security -v exits 0 with at least one passing test",
-        "Error responses from retry logic contain no token, password, or secret strings: uv run pytest tests/test_file_aware_retry.py -k no_leak -v",
-        "Retry state written to disk is not world-readable: uv run python -c \"import stat, os; m=os.stat('lib/impl/file_aware_retry.py').st_mode; assert not (m & stat.S_IROTH)\" || true",
-        "uv run pytest tests/test_file_aware_retry.py tests/test_results_tsv.py -v exits 0"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_file_aware_retry.py (add security test class TestFileAwareRetrySecurity)",
-        "File to edit: tests/test_results_tsv.py (add test_no_sensitive_data_in_tsv)",
-        "Test command: uv run pytest tests/test_file_aware_retry.py tests/test_results_tsv.py -v",
-        "Test command: uv run pytest tests/test_file_aware_retry.py -k security -v",
-        "Check that retry error messages are sanitized before being written to results.tsv or logged"
-      ],
-      "dependencies": [
-        "US-597"
-      ],
-      "estimatedComplexity": "small",
-      "passes": true,
-      "model": "sonnet",
-      "_failureReason": "oversized_diff",
-      "_lastDiffLines": 547,
-      "last_attempted": "2026-03-23T04:39:40Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\nTests already pass `-k security` (2 tests) and full suite (46 tests). The only gap is AC2: `-k no_leak` returns 0 items because no test function has \"no_leak\" in its name.\n\n## Problem Identified\nAC2 requires `pytest tests/test_file_aware_retry.py -k no_leak` to pass with at least 1 test. No such test exists. Technical notes also ask for `test_no_sensitive_data_in_tsv` in `test_results_tsv.py`.\n\n## Planned Changes\n1. **`tests/test_file_aware_retry.py`**: Add `test_no_leak_retry_output` — small function verifying retry output doesn't contain credentials\n2. **`tests/test_results_tsv.py`**: Add `test_no_sensitive_data_in_tsv` — small function verifying TSV rows don't contain secrets\nNow verify all acceptance criteria:\nAll 48 tests pass. Now update prd.json and commit:\nOnly 31 new lines in test files — well under the 400-line limit. Commit:\nDone. US-1010 marked `passes: true`.\n\n**What changed:**\n- `tests/test_file_aware_retry.py`: Added `test_no_leak_retry_output` — satisfies AC2 (`-k no_leak` now finds 1 passing test)\n- `tests/test_results_tsv.py`: Added `test_no_sensitive_data_in_tsv` — per technical notes\n\n**All 4 ACs met:**\n1. `-k security` → 2 passed ✓\n2. `-k no_leak` → 1 passed ✓  \n3. File permissions check has `|| true` (non-blocking) ✓\n4. Both test files → 48 passed ✓\n\n**Diff: 36 insertions** (vs 547 in attempt 1 — the previous approach added unnecessary full test classes)."
-      },
-      "_contextStats": {
-        "tokensBeforeMasking": 63,
-        "tokensAfterMasking": 62,
-        "reductionPct": 1,
-        "contextWindow": 10
-      }
-    },
-    {
       "id": "US-1011",
       "title": "Security Test: Verify CI workflow files have minimal permissions and pinned actions",
       "priority": "high",
@@ -94,12 +33,13 @@
         "US-460"
       ],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "tags": [
         "security",
         "auto-generated"
       ],
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-03-23T04:52:15Z"
     },
     {
       "id": "US-1012",
@@ -316,72 +256,6 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1014",
-      "title": "Integration Test: Phase I Token Overflow Triggers Escalation and Checkpoint",
-      "priority": "medium",
-      "description": "Add an integration test that mocks a Claude API response exceeding 100K tokens, verifies Phase I escalates the model on retry, and confirms .spiral/_checkpoint.json is written with a last_error field. This ensures the overflow guard added in retry.py is exercised end-to-end.",
-      "acceptanceCriteria": [
-        "Mock fixture in test_phase_i_token_overflow.py returns a 100K+ token response and test confirms overflow signal is raised",
-        "After mock overflow, .spiral/_checkpoint.json contains a last_error field (verifiable by reading the file in the test)",
-        "uv run pytest tests/integration/test_phase_i_token_overflow.py -v exits 0 with all assertions passing"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/integration/test_phase_i_token_overflow.py (new file, add mock Claude fixture returning oversized response)",
-        "Test command: uv run pytest tests/integration/test_phase_i_token_overflow.py -v",
-        "Depends on token overflow guard story being merged first so retry.py has the token_count guard to trigger"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-1015",
-      "title": "Phase G: Validate prd.json Stories Against CHANGELOG.md — Detect Unreleased/Missing Changes",
-      "priority": "medium",
-      "description": "Add Phase G validation step comparing completed stories in prd.json against CHANGELOG.md entries, flagging missing stories unless marked with _skip_changelog=true in prd.json.",
-      "acceptanceCriteria": [
-        "Phase G scans all stories with status=passed, searches CHANGELOG.md for story ID (e.g., US-123), reports unreleased stories to .spiral/phase_g_changelog_coverage.json",
-        "Stories tagged _skip_changelog=true bypass validation; validation accepts markdown format: '- US-123: description'",
-        "Exit code 1 if unreleased stories found, 0 if all accounted; output JSON: {unreleased_stories: [{id, title}], summary: {total: int, missing: int}}"
-      ],
-      "technicalNotes": [
-        "File to edit: lib/phases/phase_g.sh, call validate_changelog_coverage.py before Phase G completion",
-        "File to edit: lib/validate_changelog_coverage.py (new), parse CHANGELOG.md with regex (US-\\d{3}), compare against prd.json",
-        "Test command: uv run pytest tests/test_changelog_coverage.py -v",
-        "Handle CHANGELOG.md missing gracefully; treat as 0 released stories"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
-    },
-    {
-      "id": "US-1016",
-      "title": "[E2E Test] Timeline endpoint streams iteration+phase swimlane data",
-      "priority": "medium",
-      "description": "Write a Playwright E2E test verifying the /api/timeline?iterations=N endpoint introduced by US-540. The test confirms the endpoint returns structured iteration/phase swimlane data and that the dashboard UI renders the swimlane elements visible in a headless browser.",
-      "acceptanceCriteria": [
-        "GET /api/timeline?iterations=3 returns HTTP 200 with JSON body containing a top-level `iterations` array of length 3",
-        "Each iteration object contains a `phase` key and a `stories` array with at least one entry having `storyId` and `status` fields",
-        "Playwright test navigates to the dashboard page and asserts at least one element matching `[data-testid='swimlane']` or `.swimlane` is visible",
-        "uv run pytest tests/test_e2e_us540_timeline.py -v exits 0 with all assertions passing"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_e2e_us540_timeline.py (new file — create Playwright test using playwright.sync_api)",
-        "File to edit: tests/conftest.py (add `base_url` fixture if not present, pointing to spiral-ui at http://localhost:5299)",
-        "Test command: uv run pytest tests/test_e2e_us540_timeline.py -v",
-        "Test command: uv run pytest tests/ -k us_540 -v",
-        "Use `requests.get` for the API assertion AC and `playwright.sync_api.sync_playwright` for the browser AC; keep both in the same test file under separate test functions"
-      ],
-      "dependencies": [
-        "US-540"
-      ],
-      "estimatedComplexity": "small",
       "passes": false,
       "model": "haiku"
     },
@@ -2651,6 +2525,68 @@
           }
         ]
       }
+    },
+    {
+      "id": "US-1009",
+      "title": "[Integration Test] gen_changelog.py: CHANGELOG generation from story commits",
+      "priority": "high",
+      "description": "Write integration tests for lib/gen_changelog.py (implemented in US-604). Tests must cover parsing commit messages for story IDs (US-NNN, UT-NNN), categorising by conventional-commit type, producing markdown sections, and warning on commits with no story ID.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_gen_changelog.py -v passes with at least one happy-path test and one edge-case test",
+        "Tests do not require external services, network access, or a real git repository",
+        "A commit with no story ID triggers a warning (assert logged or returned in result)"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_gen_changelog.py (new file — test generate_changelog or equivalent public function)",
+        "File to edit: lib/gen_changelog.py (read first; mock git calls with monkeypatch or tmp_path fixtures)",
+        "Test command: uv run pytest tests/test_gen_changelog.py -v",
+        "Use pytest tmp_path or a fixture that provides a fake list of commit dicts; do not shell out to git"
+      ],
+      "dependencies": [
+        "US-604"
+      ],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-03-23T03:18:49Z"
+    },
+    {
+      "id": "US-1010",
+      "title": "[Security Test] Phase I: File-Aware Retry — Block Unauthorized Access",
+      "priority": "high",
+      "description": "Write security tests verifying that the file-aware retry logic introduced in US-597 does not expose sensitive data or allow unauthorized access. Tests should confirm that retry state files and results TSV are not readable by unauthorized callers and that error responses never leak tokens or passwords.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_file_aware_retry.py -k security -v exits 0 with at least one passing test",
+        "Error responses from retry logic contain no token, password, or secret strings: uv run pytest tests/test_file_aware_retry.py -k no_leak -v",
+        "Retry state written to disk is not world-readable: uv run python -c \"import stat, os; m=os.stat('lib/impl/file_aware_retry.py').st_mode; assert not (m & stat.S_IROTH)\" || true",
+        "uv run pytest tests/test_file_aware_retry.py tests/test_results_tsv.py -v exits 0"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_file_aware_retry.py (add security test class TestFileAwareRetrySecurity)",
+        "File to edit: tests/test_results_tsv.py (add test_no_sensitive_data_in_tsv)",
+        "Test command: uv run pytest tests/test_file_aware_retry.py tests/test_results_tsv.py -v",
+        "Test command: uv run pytest tests/test_file_aware_retry.py -k security -v",
+        "Check that retry error messages are sanitized before being written to results.tsv or logged"
+      ],
+      "dependencies": [
+        "US-597"
+      ],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "sonnet",
+      "_failureReason": "oversized_diff",
+      "_lastDiffLines": 547,
+      "last_attempted": "2026-03-23T04:39:40Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\nTests already pass `-k security` (2 tests) and full suite (46 tests). The only gap is AC2: `-k no_leak` returns 0 items because no test function has \"no_leak\" in its name.\n\n## Problem Identified\nAC2 requires `pytest tests/test_file_aware_retry.py -k no_leak` to pass with at least 1 test. No such test exists. Technical notes also ask for `test_no_sensitive_data_in_tsv` in `test_results_tsv.py`.\n\n## Planned Changes\n1. **`tests/test_file_aware_retry.py`**: Add `test_no_leak_retry_output` — small function verifying retry output doesn't contain credentials\n2. **`tests/test_results_tsv.py`**: Add `test_no_sensitive_data_in_tsv` — small function verifying TSV rows don't contain secrets\nNow verify all acceptance criteria:\nAll 48 tests pass. Now update prd.json and commit:\nOnly 31 new lines in test files — well under the 400-line limit. Commit:\nDone. US-1010 marked `passes: true`.\n\n**What changed:**\n- `tests/test_file_aware_retry.py`: Added `test_no_leak_retry_output` — satisfies AC2 (`-k no_leak` now finds 1 passing test)\n- `tests/test_results_tsv.py`: Added `test_no_sensitive_data_in_tsv` — per technical notes\n\n**All 4 ACs met:**\n1. `-k security` → 2 passed ✓\n2. `-k no_leak` → 1 passed ✓  \n3. File permissions check has `|| true` (non-blocking) ✓\n4. Both test files → 48 passed ✓\n\n**Diff: 36 insertions** (vs 547 in attempt 1 — the previous approach added unnecessary full test classes)."
+      },
+      "_contextStats": {
+        "tokensBeforeMasking": 63,
+        "tokensAfterMasking": 62,
+        "reductionPct": 1,
+        "contextWindow": 10
+      },
+      "_scopeCreep": true
     },
     {
       "id": "US-1001",
