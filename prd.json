@@ -64,8 +64,11 @@
         "US-639"
       ],
       "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "_failureReason": "oversized_diff",
+      "_lastDiffLines": 499,
+      "last_attempted": "2026-03-23T08:32:48Z"
     },
     {
       "id": "US-773",
