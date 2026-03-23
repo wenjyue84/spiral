@@ -58,3 +58,19 @@ This is a standard Python WebSocket task, not a Frappe-specific implementation.
 - Original test was missing filesTouch which caused it to fail unexpectedly
 - Edit tool had issues initially, so full file rewrite was used instead
 
+
+## Iteration - Story: US-1043 Phase I Automatic Story Decomposition on Triple Retry Exhaustion with Validation
+
+### What was implemented
+- lib/impl/auto_decompose.py: decompose_exhausted_story() function with ceiling enforcement, 4 sub-story generation, _parent_id/_decomposed_from_iteration fields, parent marked _decomposed=True/_decomposed_count=4
+- tests/test_auto_decompose.py: 10 tests covering AC1 (sub-story fields) and AC3 (triple retry exhaustion simulation using _next_model from retry.py)
+- Both files already existed on disk as untracked files; all 10 tests pass, mypy strict clean
+
+### Patterns discovered
+- _next_model() in lib/impl/retry.py returns None when ladder exhausted (after opus), which is the trigger point for decomposition
+- Story ceiling check: current_count + NUM_SUB_STORIES > ceiling raises ValueError with "ceiling" in message
+- Sub-stories use round-robin distribution of filesTouch and acceptanceCriteria from parent
+
+### Gotchas
+- Files were already created in a prior session but never committed or marked passes=true
+- prd.json must be read with encoding='utf-8' on Windows (not default cp1252)
