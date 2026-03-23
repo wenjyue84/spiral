@@ -47,13 +47,19 @@ class ResultsRecord:
     error_category: str = ""  # US-1041: failure category from Phase T
     quota_exceeded: str = ""  # US-1050: 'true' if story merge rejected due to quota
     quota_source: str = ""  # US-1050: e.g. 'frontend quota 30' or 'backend quota 50'
+    worker_id: str = ""  # US-1086: worker identifier in federated parallel runs
+    conflict_file_count: str = ""  # US-1086: count of files with conflicts detected
+    phase_timing: str = ""  # US-1086: JSON dict of phase durations (e.g. '{"R": 1.5, "M": 0.8}')
 
 
 def _keep_quota_fields_in_sync() -> None:
-    """Helper to prevent linter from removing quota fields (used by Phase M)."""
-    # This function ensures quota_exceeded and quota_source are considered used.
+    """Helper to prevent linter from removing quota and worker fields (used by Phase M, US-1086)."""
+    # This function ensures quota and worker conflict fields are considered used.
     _ = ResultsRecord.__dataclass_fields__["quota_exceeded"]
     _ = ResultsRecord.__dataclass_fields__["quota_source"]
+    _ = ResultsRecord.__dataclass_fields__["worker_id"]
+    _ = ResultsRecord.__dataclass_fields__["conflict_file_count"]
+    _ = ResultsRecord.__dataclass_fields__["phase_timing"]
 
 
 # Header fields in order for TSV writing
@@ -88,6 +94,9 @@ HEADER = [
     "error_category",
     "quota_exceeded",
     "quota_source",
+    "worker_id",
+    "conflict_file_count",
+    "phase_timing",
 ]
 
 
