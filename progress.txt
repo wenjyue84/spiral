@@ -1519,3 +1519,21 @@ Successfully implemented reachability verifier to ensure new Python modules for 
 ## Iteration 1 - Mon, Mar 23, 2026 11:47:31 AM
 FAILED diff-guard: [Integration Test] gen_changelog.py: CHANGELOG generation from story commits (ID: US-1009) — 2471 lines > 400 limit — attempt 1/3
 
+## Iteration 1 - Mon, Mar 23, 2026 12:39:33 PM
+FAILED diff-guard: [Security Test] Phase I: File-Aware Retry — Block Unauthorized Access (ID: US-1010) — 547 lines > 400 limit — attempt 1/3
+
+
+## Iteration 2 - Story: US-1010 [Security Test] Phase I: File-Aware Retry — Block Unauthorized Access
+
+### What was implemented
+- Added `test_no_leak_retry_output` to `tests/test_file_aware_retry.py` (13 lines): verifies `extract_failed_files` output never contains credential patterns
+- Added `test_no_sensitive_data_in_tsv` to `tests/test_results_tsv.py` (12 lines): verifies extra credential-keyed dict entries are excluded from TSV output
+
+### Patterns discovered
+- AC2 only requires a test *named* `no_leak` to exist and pass; existing security logic already worked
+- Minimal fix: 2 small module-level functions (total ~25 lines) — no new classes needed
+
+### Gotchas
+- Attempt 1 failed (547 lines): created full security test classes unnecessarily
+- The existing tests already covered the logic; only name-based discovery was missing
+- Total diff: 36 insertions (well under 400-line limit)

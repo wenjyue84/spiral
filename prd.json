@@ -60,7 +60,16 @@
       "model": "sonnet",
       "_failureReason": "oversized_diff",
       "_lastDiffLines": 547,
-      "last_attempted": "2026-03-23T04:39:40Z"
+      "last_attempted": "2026-03-23T04:39:40Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\nTests already pass `-k security` (2 tests) and full suite (46 tests). The only gap is AC2: `-k no_leak` returns 0 items because no test function has \"no_leak\" in its name.\n\n## Problem Identified\nAC2 requires `pytest tests/test_file_aware_retry.py -k no_leak` to pass with at least 1 test. No such test exists. Technical notes also ask for `test_no_sensitive_data_in_tsv` in `test_results_tsv.py`.\n\n## Planned Changes\n1. **`tests/test_file_aware_retry.py`**: Add `test_no_leak_retry_output` — small function verifying retry output doesn't contain credentials\n2. **`tests/test_results_tsv.py`**: Add `test_no_sensitive_data_in_tsv` — small function verifying TSV rows don't contain secrets\nNow verify all acceptance criteria:\nAll 48 tests pass. Now update prd.json and commit:\nOnly 31 new lines in test files — well under the 400-line limit. Commit:\nDone. US-1010 marked `passes: true`.\n\n**What changed:**\n- `tests/test_file_aware_retry.py`: Added `test_no_leak_retry_output` — satisfies AC2 (`-k no_leak` now finds 1 passing test)\n- `tests/test_results_tsv.py`: Added `test_no_sensitive_data_in_tsv` — per technical notes\n\n**All 4 ACs met:**\n1. `-k security` → 2 passed ✓\n2. `-k no_leak` → 1 passed ✓  \n3. File permissions check has `|| true` (non-blocking) ✓\n4. Both test files → 48 passed ✓\n\n**Diff: 36 insertions** (vs 547 in attempt 1 — the previous approach added unnecessary full test classes)."
+      },
+      "_contextStats": {
+        "tokensBeforeMasking": 63,
+        "tokensAfterMasking": 62,
+        "reductionPct": 1,
+        "contextWindow": 10
+      }
     },
     {
       "id": "US-1011",
