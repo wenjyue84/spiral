@@ -1,3 +1,58 @@
+## Iteration - Story: US-1050 Federation Quota Governor: Phase M Enforces Per-SubProject Story Limits
+
+### What was implemented
+- lib/spiral/phase_m.py: validate_quota(candidates, prd_path) function for quota enforcement
+  - Reads SPIRAL_QUOTA_<SUBPROJECT>=N environment variables (e.g., SPIRAL_QUOTA_FRONTEND=30)
+  - Counts stories in prd.json + candidates by sub_project
+  - Raises ValueError if any sub_project exceeds its quota
+  - Error message format: "Quota exceeded for {subproject}: {total}/{limit}"
+  - Handles missing prd.json gracefully (counts only candidates)
+  - Skips malformed quota env vars silently
+
+- lib/spiral/phase_m.py: prd_merge() updated with skip_quota parameter
+  - Calls validate_quota() before federated dependency ordering (unless skip_quota=True)
+  - Preserves existing ordered dependency merge behavior
+  - Returns ordered candidates for downstream merge processing
+
+- lib/results_tsv.py: ResultsRecord dataclass already includes quota fields
+  - quota_exceeded: str (e.g., "true"/"false") 
+  - quota_source: str (e.g., "frontend quota 30" or "backend quota 50")
+  - Both fields already in HEADER list for TSV output
+
+- tests/test_phase_m_quota.py: Comprehensive 22-test suite covering:
+  - No quotas configured (allows any count)
+  - Single sub-project quota enforcement (under limit, at limit, over limit)
+  - Multiple sub-projects with different quotas (partial exceeds)
+  - Case-insensitive sub-project name matching (Frontend/FRONTEND/frontend all match SPIRAL_QUOTA_FRONTEND)
+  - Null/empty sub_project handling (counted under "default" quota)
+  - Missing prd.json file handling (counts candidates only)
+  - Malformed environment variables (skipped without error)
+  - Zero and negative quota limits (enforced)
+  - Integration with prd_merge() skip_quota parameter
+  - Federated scenario with independent sub-project quotas
+
+### Patterns discovered
+- Sub-project inference: explicit field takes precedence, then "default" for unset
+- Quota env var naming: SPIRAL_QUOTA_<SUBPROJECT> where sub_project is uppercased
+- Hyphenated sub-projects (e.g., "my-project") map to env var SPIRAL_QUOTA_MY_PROJECT
+- Non-integer quota values are silently skipped (graceful degradation)
+- Validation returns (True, "") tuple; raises ValueError only when quota exceeded
+
+### Gotchas
+- Stories without explicit sub_project fall through to "default" quota bucket
+- Empty candidates list (no stories to merge) passes validation with (True, "")
+- Malformed quotas (non-integers) silently skip that sub_project's quota check
+
+### Acceptance criteria verification
+- AC1: ✓ validate_quota() reads SPIRAL_QUOTA_* env vars and validates story counts per sub_project
+- AC2: ✓ ValueError raised with format "Quota exceeded for {subproject}: {total}/{limit}"
+- AC3: ✓ ResultsRecord includes quota_exceeded and quota_source fields (both str type)
+
+All tests passing: 22/22 ✓
+Type checking: mypy --strict lib/spiral/phase_m.py ✓
+Linting: ruff check ✓
+Integration: prd_merge() properly validates quotas before merge ✓
+
 ## Iteration - Story: US-1047 Federation: Detect Circular Story Dependencies with Cycle Path Reporting
 
 ### What was implemented

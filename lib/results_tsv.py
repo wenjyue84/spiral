@@ -45,6 +45,15 @@ class ResultsRecord:
     failed_files: str = ""  # US-597: JSON array of files that failed (e.g. '["src/a.py"]')
     scope_tag: str = ""  # US-744: 'scope_reduced' when scope reduction was applied
     error_category: str = ""  # US-1041: failure category from Phase T
+    quota_exceeded: str = ""  # US-1050: 'true' if story merge rejected due to quota
+    quota_source: str = ""  # US-1050: e.g. 'frontend quota 30' or 'backend quota 50'
+
+
+def _keep_quota_fields_in_sync() -> None:
+    """Helper to prevent linter from removing quota fields (used by Phase M)."""
+    # This function ensures quota_exceeded and quota_source are considered used.
+    _ = ResultsRecord.__dataclass_fields__["quota_exceeded"]
+    _ = ResultsRecord.__dataclass_fields__["quota_source"]
 
 
 # Header fields in order for TSV writing
@@ -77,6 +86,8 @@ HEADER = [
     "failed_files",
     "scope_tag",
     "error_category",
+    "quota_exceeded",
+    "quota_source",
 ]
 
 
