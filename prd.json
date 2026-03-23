@@ -37,7 +37,10 @@
         "integration",
         "auto-generated"
       ],
-      "model": "haiku"
+      "model": "haiku",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n- `lib/episodic_memory.py` exists with JSONL-based memory store\n- Module provides: `write(story_id, pattern_dict)`, `get_similar(story_id, k=3)`, `query_by_text(text, k=3)`\n- No integration tests exist yet\n- Existing tests in project use pytest with monkeypatch and tmp_path fixtures\n\n## Problem Identified\nNeed to write integration tests for episodic memory module covering:\n1. Happy path: store records and retrieve via similarity search\n2. Edge case: empty store returns [] without raising\n3. Use pytest fixtures only, no external services\n\n## Planned Changes\n\n**File: tests/test_episodic_memory.py** (new file)\n- Class TestEpisodicMemoryUS350:\n  - `test_us_350_write_and_retrieve_similar` (happy path): write 3+ records, query by story_id, verify top-3 results returned in relevance order\n  - `test_us_350_empty_store_returns_empty_list` (edge case): query empty store, assert returns [] not exception\n  - `test_us_350_query_by_text` (additional): write records, query by text string, verify results by text similarity\n\n---\n\nNow let me implement the tests:\nI see the file already exists with some tests. I need to add new tests with 'us_350' in their names to match the story's `-k us_350` filter requirement. Let me update the file to add the required tests:\nNow let me run the tests to verify they pass:\nPerfect! The US-350 tests pass. Let me now run the full test suite and type checks:"
+      }
     },
     {
       "id": "US-1017",
