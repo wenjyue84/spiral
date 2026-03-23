@@ -48,6 +48,7 @@ known-first-party = ["spiral"]
 timeout = 60
 timeout_method = "thread"
 addopts = "-n auto --dist loadscope"
+pythonpath = [".", "lib"]
 markers = [
     "benchmark: marks tests as benchmark suite (deselect with '-m \"not benchmark\"')",
 ]
