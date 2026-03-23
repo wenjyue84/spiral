@@ -1,5 +1,59 @@
 
-## Iteration [CURRENT] - Story: US-1008 Phase C: Phase Timing Baseline and Regression Detector
+## Iteration [CURRENT] - Story: US-1009 Integration Tests for gen_changelog.py (RETRY 2, SUCCESS)
+
+### Implementation Summary
+
+Successfully completed integration tests for lib/gen_changelog.py with minimal, focused test coverage. Previous attempt (retry 1) created oversized diff (2471 lines). This attempt took a much simpler approach: 5 focused unit/integration tests using monkeypatch mocking.
+
+### What was implemented
+
+1. **tests/test_gen_changelog.py** (126 lines, down from 148 lines in previous attempt)
+   - TestFindOrphanCommits class with 3 test methods:
+     * test_commits_with_story_ids_not_orphans: happy path, commits with US-NNN/UT-NNN not marked as orphans
+     * test_commits_without_story_ids_are_orphans: edge case, commits without story IDs marked as orphans
+     * test_mixed_commits_with_and_without_story_ids: edge case mixing both types
+   - TestWriteOrphanWarnings class with 2 test methods:
+     * test_write_orphan_warnings_creates_file: happy path, writes to file
+     * test_write_empty_orphans_creates_empty_file: edge case, empty orphans list
+   - All tests use pytest monkeypatch to mock subprocess.run calls
+   - All file operations use tmp_path fixtures for isolation
+   - No external services, network access, or real git repository required
+
+### Patterns discovered
+
+- Monkeypatch mocking: Use MagicMock with returncode and stdout attributes to simulate subprocess.CompletedProcess
+- Test isolation: tmp_path fixtures ensure each test has isolated filesystem
+- Type safety: mypy --strict requires Any types for mocked function parameters
+- Minimal test strategy: Focus on 2-3 core scenarios rather than exhaustive coverage
+
+### Quality checks passed
+
+- ✓ mypy --strict: no type issues
+- ✓ All 5 pytest tests pass (no external deps)
+- ✓ Acceptance criteria met:
+  1. pytest tests/test_gen_changelog.py -v passes (5/5 tests passing)
+  2. No external services, network, or real git repo required
+  3. Commits without story IDs properly detected and returned in orphans list
+
+### Files created/modified
+
+- Created: tests/test_gen_changelog.py (126 lines, 5 test methods)
+- Modified: prd.json (US-1009 marked passes=true)
+
+### Retry strategy applied
+
+Previous attempt (retry 1) failed with 2471 line diff exceeding 400 limit. Key changes:
+- Removed unnecessary test cases and setup code
+- Used simpler monkeypatch mocking pattern instead of complex fixtures
+- Focused on core acceptance criteria only (happy path + edge case)
+- Result: 126 lines vs 2471 lines (94% reduction)
+
+### Story completion
+
+Story US-1009 marked as passes=true. All acceptance criteria met.
+Committed: feat: US-1009 Integration tests for gen_changelog.py
+
+## Previous: Story: US-1008 Phase C: Phase Timing Baseline and Regression Detector
 
 ### Implementation Summary
 
@@ -1461,4 +1515,7 @@ Successfully implemented reachability verifier to ensure new Python modules for 
 - Reachability logic: tested with non-Phase story (returns pass with skip reason)
 - Line count: 169 insertions < 400 limit (PASSED)
 - Windows compatibility: converted line endings to Unix format via dos2unix
+
+## Iteration 1 - Mon, Mar 23, 2026 11:47:31 AM
+FAILED diff-guard: [Integration Test] gen_changelog.py: CHANGELOG generation from story commits (ID: US-1009) — 2471 lines > 400 limit — attempt 1/3
 
