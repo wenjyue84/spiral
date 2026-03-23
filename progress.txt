@@ -1,0 +1,10 @@
+## Iteration - Story: US-1041 Add categorize_test_failure() to phase_t.py and error_category to ResultsRecord
+
+### What was implemented
+- Both implementations already existed: categorize_test_failure() in lib/spiral/phase_t.py and error_category field in ResultsRecord in lib/results_tsv.py
+- Story only needed passes=true marking after verifying all 4 AC checks passed
+
+### Patterns discovered
+- ResultsRecord lives in lib/results_tsv.py (not lib/spiral/results.py)
+- Tests run with --override-ini="addopts=" to skip xdist parallel flags (broken on Windows)
+- 5 test files fail collection due to missing imports; ignore them when running the suite locally
