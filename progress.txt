@@ -603,3 +603,32 @@ Linting: ruff check ✓
 - AC1: ✓ OomGuard with 1MB limit kills 10MB subprocess (proves mechanism works for any limit)
 - AC2: ✓ OOM_GUARD_TRIGGERED logged to TSV memory_event column
 - AC3: ✓ Caller runs second subprocess successfully after OOM event
+
+## Iteration - Story: US-1080 Integration Test: Phase M Merge Story ID Ordering Consistency Under Parallel Writes
+
+### What was implemented
+- tests/test_phase_m_ordering.py: 10 parametrized tests (seeds 0..9) that:
+  1. Create a prd.json with 99 passed base stories (US-001..US-099)
+  2. Generate 30 unique candidate stories across 5 sub-projects
+  3. Shuffle and split into 3 disjoint 10-story slices simulating parallel workers
+  4. Run 3 sequential merges via lib/prd/merge_stories.py subprocess
+  5. Assert final prd.json has exactly 30 new stories (US-100..US-129) in numerically sorted order with no duplicates
+
+### Patterns discovered
+- SPIRAL_MAX_RESEARCH_STORIES env var caps research candidates per iteration (default 5 in local env)
+  Must set to "0" in subprocess env to disable the cap for test scenarios needing >5 candidates per merge
+- merge_stories.py has DUPLICATE dead weight logic: apply_dead_weight_detection() + second for-loop both increment _pending_iterations. Per merge: 2 increments per pending story
+- Topological sort (story_reorder.py) preserves insertion order when all stories have same priority and no deps (seq tiebreaker). This guarantees US-100..US-129 stay in numeric order after each sequential merge
+- Empty epicId="" on candidates bypasses the stricter same-epic Jaccard threshold (0.45 vs 0.6)
+- UID-based titles (f"UID{uid}-...") give near-zero Jaccard similarity between any pair, preventing false deduplication
+
+### Gotchas
+- pytest runs with -n 4 --dist loadscope by default; use --override-ini="addopts=" to run single test without xdist
+- SPIRAL_MAX_RESEARCH_STORIES=5 was set in local environment, causing capping from 10 → 5 candidates per worker
+- Story ID ordering assertion: only check new stories (ID >= 100), not all stories (done stories come after pending)
+- Dead weight threshold must be set high (100+) when running multiple merges in a test to prevent archiving
+
+### Acceptance criteria verification
+- AC1: ✓ 30 stories across 5 sub-projects, 3 workers with disjoint slices of 10
+- AC2: ✓ len(new_stories)==30, no duplicate IDs, actual_nums==list(range(100,130))
+- AC3: ✓ @pytest.mark.parametrize("seed", range(10)) with _misordered_diff() helper for diagnostics

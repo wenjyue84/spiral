@@ -11,24 +11,6 @@
   ],
   "userStories": [
     {
-      "id": "US-1079",
-      "title": "Integration Test: Worker Memory Usage Monitoring Under High Load -- Verify OOM Guard Prevents Crashes",
-      "priority": "high",
-      "description": "Integration test validating that SPIRAL's memory monitoring prevents runaway Ralph worker processes from exhausting system RAM. Simulates memory-intensive story implementations and verifies worker gracefully degrades or triggers cleanup before OOM.",
-      "acceptanceCriteria": [
-        "Test launches single worker with SPIRAL_MAX_WORKER_MEMORY=512MB config, submits story that allocates 400MB in subprocess",
-        "Worker detects memory pressure, logs 'OOM_GUARD_TRIGGERED' event to results.tsv memory_event column, kills subprocess gracefully",
-        "Worker remains alive after OOM guard event and processes next story without manual intervention"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": true,
-      "_source": "ai-example",
-      "model": "haiku",
-      "last_attempted": "2026-03-23T21:44:59Z"
-    },
-    {
       "id": "US-1080",
       "title": "Integration Test: Phase M Merge Story ID Ordering Consistency Under Parallel Writes",
       "priority": "high",
@@ -41,9 +23,10 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
-      "model": "sonnet"
+      "model": "sonnet",
+      "last_attempted": "2026-03-23T22:11:28Z"
     },
     {
       "id": "US-1081",
@@ -180,6 +163,41 @@
       "passes": false,
       "_source": "ai-example",
       "model": "sonnet"
+    },
+    {
+      "id": "US-1082",
+      "title": "Phase G: Incremental CHANGELOG Append Mode with --append-changelog Flag",
+      "priority": "medium",
+      "description": "Add --append-changelog flag to spiral.sh so Phase G appends new story entries to existing CHANGELOG.md instead of overwriting. Useful for incremental SPIRAL runs on the same repository.",
+      "acceptanceCriteria": [
+        "spiral.sh accepts --append-changelog flag. When set, lib/gen_changelog.py checks if CHANGELOG.md exists and appends new '## [Iteration N] - YYYY-MM-DD HH:MM UTC' section, preserving old entries",
+        "Integration test tests/test_gen_changelog.py: run gen_changelog.py twice with different story commits, verify second run appends new iteration header without duplicating old entries",
+        "Commits are deduplicated by SHA to prevent redundant entries in append mode"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1079",
+      "title": "Integration Test: Worker Memory Usage Monitoring Under High Load -- Verify OOM Guard Prevents Crashes",
+      "priority": "high",
+      "description": "Integration test validating that SPIRAL's memory monitoring prevents runaway Ralph worker processes from exhausting system RAM. Simulates memory-intensive story implementations and verifies worker gracefully degrades or triggers cleanup before OOM.",
+      "acceptanceCriteria": [
+        "Test launches single worker with SPIRAL_MAX_WORKER_MEMORY=512MB config, submits story that allocates 400MB in subprocess",
+        "Worker detects memory pressure, logs 'OOM_GUARD_TRIGGERED' event to results.tsv memory_event column, kills subprocess gracefully",
+        "Worker remains alive after OOM guard event and processes next story without manual intervention"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "haiku",
+      "last_attempted": "2026-03-23T21:44:59Z"
     },
     {
       "id": "US-1077",
