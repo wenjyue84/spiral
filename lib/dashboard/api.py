@@ -873,5 +873,46 @@ async def websocket_story_updates_endpoint(websocket: WebSocket) -> None:
         logger.error(f"[ws/story-updates] Error: {e}")
 
 
+@app.get("/api/dashboard/stuck-stories")
+async def stuck_stories_endpoint() -> list[dict[str, Any]]:
+    """Story retry exhaustion analyzer endpoint (US-1045).
+
+    Identifies stories stuck in retry loops (3+ attempts), reporting model
+    escalation patterns and original token usage for decomposition planning.
+
+    Returns JSON array:
+        [{
+            "story_id": "US-123",
+            "attempt_count": 4,
+            "last_model_tried": "opus",
+            "escalation_chain": "haiku→sonnet→opus",
+            "original_token_count": 15000
+        }]
+
+    Returns empty list if no stories are stuck or results.tsv is absent.
+    """
+    from ..stuck_story_analyzer import analyze_exhaustion
+
+    results_paths = _discover_results_paths()
+    if not results_paths:
+        return []
+
+    try:
+        stuck = analyze_exhaustion(str(results_paths[0]))
+        return [
+            {
+                "story_id": s.story_id,
+                "attempt_count": s.attempt_count,
+                "last_model_tried": s.last_model_tried,
+                "escalation_chain": s.escalation_chain,
+                "original_token_count": s.original_token_count,
+            }
+            for s in stuck
+        ]
+    except Exception as e:
+        logger.error(f"[/api/dashboard/stuck-stories] Error: {e}")
+        return []
+
+
 # Export for use in tests and main application
 __all__ = ["app", "get_manager", "get_timeline_manager", "get_alerts_manager", "get_story_updates_manager"]

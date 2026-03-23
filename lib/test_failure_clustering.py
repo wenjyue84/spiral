@@ -14,7 +14,7 @@ def extract_source_file(test_id: str) -> str:
 
     Example: 'tests.unit.module.test_file.TestClass.test_method'
     Returns:  'tests/unit/module/test_file.py'
-    
+
     Pattern: parts before Test* (class) are the module path.
     """
     parts = test_id.split(".")
