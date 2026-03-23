@@ -201,3 +201,4 @@
 {"story_id": "US-755", "estimated_complexity": "medium", "actual_duration_s": 677, "phase_retries": 0, "passed": true}
 {"story_id": "US-756", "estimated_complexity": "medium", "actual_duration_s": 879, "phase_retries": 0, "passed": true}
 {"story_id": "US-1001", "estimated_complexity": "small", "actual_duration_s": 824, "phase_retries": 0, "passed": true}
+{"story_id": "US-771", "estimated_complexity": "small", "actual_duration_s": 525, "phase_retries": 0, "passed": true}

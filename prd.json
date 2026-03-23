@@ -32,8 +32,7 @@
         "core-flow",
         "phase-a"
       ],
-      "model": "haiku",
-      "last_attempted": "2026-03-23T00:04:30Z"
+      "model": "haiku"
     },
     {
       "id": "US-773",
@@ -246,6 +245,145 @@
       ],
       "estimatedComplexity": "medium",
       "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-761",
+      "title": "[Regression Test] Ralph: Episodic Memory Injected into Prompt (US-649)",
+      "priority": "medium",
+      "description": "Write a regression test that verifies ralph.sh retrieves episodic memory matches and injects them as few-shot examples into the implementation prompt before executing a story. The test must fail if the memory retrieval call is removed or its output is no longer forwarded to the prompt builder.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_us649_episodic_memory.py -v exits 0 with feature present",
+        "Test fails (non-zero) when episodic memory retrieval is stubbed to return an empty list",
+        "Test asserts that at least one retrieved memory snippet appears verbatim in the constructed prompt string",
+        "uv run pytest tests/ -k us_649 -v passes with no collection errors"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_us649_episodic_memory.py (new regression test module)",
+        "Inspect ralph/ralph.sh or lib/episodic_memory.py to locate the retrieval call and prompt assembly site before writing the test",
+        "Test command: uv run pytest tests/test_us649_episodic_memory.py -v",
+        "Use monkeypatch or unittest.mock to stub the retrieval function; assert prompt contains injected examples when stubs return fixtures",
+        "Check for an existing episodic memory module: grep -r 'episodic' lib/ ralph/ to find the exact function name"
+      ],
+      "dependencies": [
+        "US-649"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-762",
+      "title": "Regression Test: CLI trace-dependencies federated dep resolution",
+      "priority": "medium",
+      "description": "Write regression tests to guard against future breakage of US-675 (spiral trace-dependencies CLI). Tests must cover successful dependency chain resolution for a known story, circular dependency detection, and cross-project boundary marking in output. Tests invoke the CLI via subprocess so they fail if the feature is removed.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_trace_dependencies.py -v exits 0 with at least 2 passing tests",
+        "subprocess call to `python main.py trace-dependencies <id>` on a fixture prd with linear deps returns exit code 0 and prints a tree-like dependency list to stdout",
+        "subprocess call to `python main.py trace-dependencies <id>` on a fixture prd with a circular dep returns non-zero exit code and prints 'circular' in stderr or stdout",
+        "Deleting or stubbing out the trace-dependencies handler in main.py causes at least one test to fail (verified by reading the test assertions)"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_trace_dependencies.py (new file — create all regression tests for US-675 here)",
+        "File to edit: tests/fixtures/prd_trace_deps.json (new fixture — minimal prd.json with a 2-level dep chain and a separate circular dep pair)",
+        "Test command: uv run pytest tests/test_trace_dependencies.py -v",
+        "Test command: uv run pytest tests/ -k trace_dependencies -v",
+        "Use subprocess.run(['python','main.py','trace-dependencies','US-001'], capture_output=True) and assert on returncode, stdout",
+        "Circular dep fixture: story A depends on B, B depends on A — assert returncode != 0 or 'circular' in combined output"
+      ],
+      "dependencies": [
+        "US-675"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "regression",
+        "auto-generated"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-763",
+      "title": "[E2E Test] Dashboard AlertsPanel receives WebSocket cost-ceiling alerts",
+      "priority": "medium",
+      "description": "Write an end-to-end Playwright test verifying the user flow introduced by US-591: a browser client connects to /ws/alerts, cumulative-cost and phase-budget threshold alerts are streamed, and the AlertsPanel in the spiral-ui dashboard (localhost:5299) renders each alert within 2 seconds. This validates operator visibility during long SPIRAL runs.",
+      "acceptanceCriteria": [
+        "AlertsPanel is visible in the dashboard and shows at least one alert after a mock WebSocket message is injected: `uv run pytest tests/test_e2e_us591_alerts.py::test_alerts_panel_visible -v`",
+        "WebSocket client connecting to ws://localhost:5299/ws/alerts receives a JSON alert within 2 s of cumulative cost crossing 80 % of SPIRAL_COST_CEILING: `uv run pytest tests/test_e2e_us591_alerts.py::test_cost_ceiling_alert_streamed -v`",
+        "Full E2E suite passes headless: `uv run pytest tests/test_e2e_us591_alerts.py -v`"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_e2e_us591_alerts.py (new file — Playwright-pytest E2E test for US-591 AlertsPanel)",
+        "File to edit: spiral-ui/src/components/AlertsPanel.tsx or AlertsPanel.jsx (locate existing component; add data-testid='alerts-panel' if missing so Playwright can query it)",
+        "Test command: uv run pytest tests/test_e2e_us591_alerts.py -v",
+        "Use playwright-pytest fixture `page` to navigate to http://localhost:5299, inject a fake WebSocket message via `page.evaluate()` or intercept with `page.route()`, then assert `page.locator('[data-testid=alerts-panel]')` contains the alert text",
+        "If spiral-ui is not running during CI, mock the WebSocket server with a lightweight asyncio server started as a pytest fixture on port 5299"
+      ],
+      "dependencies": [
+        "US-591"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "e2e",
+        "auto-generated"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-764",
+      "title": "[Regression Test] Auto-Decompose Triggers After 3 Phase I Failures",
+      "priority": "medium",
+      "description": "Create tests/test_phase_i_decompose.py with a regression test that mocks Ralph subprocess failures and verifies the auto-decompose feature fires correctly after 3 consecutive Phase I failures on an oversized story. The test validates that prd.json gains properly chained sub-stories and results.tsv records the decomposition event. This guards against future breakage of US-569.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_phase_i_decompose.py::test_auto_decompose_triggers_after_triple_failure -v exits 0",
+        "Test asserts prd.json contains at least 2 sub-stories with _decomposedFrom pointing to the parent story ID after 3 simulated Ralph failures",
+        "Test asserts results.tsv contains a row with status=decomposed for the parent story after the third failure",
+        "Temporarily removing or stubbing out the auto-decompose call in the implementation causes the test to fail"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_phase_i_decompose.py (create new — test_auto_decompose_triggers_after_triple_failure)",
+        "Reference: lib/impl/decompose.sh or equivalent Python module that performs auto-decompose logic to know what to mock",
+        "Mock Ralph subprocess via unittest.mock.patch('subprocess.run') returning non-zero exit codes 3 times in sequence",
+        "Load a minimal fixture prd.json with one oversized story (estimatedComplexity=large) into a tmp_path directory",
+        "Test command: uv run pytest tests/test_phase_i_decompose.py::test_auto_decompose_triggers_after_triple_failure -v",
+        "Test command (full suite check): uv run pytest tests/ -k us_569 -v"
+      ],
+      "dependencies": [
+        "US-569"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-765",
+      "title": "[E2E Test] Dashboard live metrics visible in browser (US-460)",
+      "priority": "medium",
+      "description": "Write a Playwright end-to-end test that launches the spiral-ui dashboard at localhost:5299 and asserts that the live token burn rate, story throughput, and model escalation panels are visible. This validates the user-facing output of US-460. The test must pass in headless mode.",
+      "acceptanceCriteria": [
+        "Running `uv run pytest tests/test_e2e_dashboard.py -v` exits 0 with all assertions passing",
+        "Test asserts that a token burn-rate metric element is present in the DOM (e.g. text matching 'tok/s' or 'tokens')",
+        "Test asserts that a story throughput element is present (e.g. text matching 'stories/hr' or throughput panel)",
+        "Test passes in headless Playwright (no GUI required)"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_e2e_dashboard.py (create new — Playwright test using sync_playwright)",
+        "File to edit: pyproject.toml ([tool.pytest.ini_options] or [project.optional-dependencies]) to add playwright dep if missing",
+        "Test command: uv run pytest tests/test_e2e_dashboard.py -v",
+        "Dashboard runs at http://localhost:5299 — start it with `python spiral_ui.py` or equivalent before the test, or use a pytest fixture to launch it",
+        "Use `from playwright.sync_api import sync_playwright` — install via `uv add playwright` if not present",
+        "Do NOT test .github/workflows files — those are CI artefacts from US-460, not the dashboard UI"
+      ],
+      "dependencies": [
+        "US-460"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "e2e",
+        "auto-generated"
+      ],
       "model": "haiku"
     },
     {
