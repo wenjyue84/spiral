@@ -44,6 +44,7 @@ class ResultsRecord:
     sub_project: str = ""  # New column for federated SPIRAL runs
     failed_files: str = ""  # US-597: JSON array of files that failed (e.g. '["src/a.py"]')
     scope_tag: str = ""  # US-744: 'scope_reduced' when scope reduction was applied
+    error_category: str = ""  # US-1041: failure category from Phase T
 
 
 # Header fields in order for TSV writing
@@ -75,6 +76,7 @@ HEADER = [
     "sub_project",
     "failed_files",
     "scope_tag",
+    "error_category",
 ]
 
 
