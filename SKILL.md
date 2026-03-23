@@ -1,9 +1,9 @@
 ---
 name: spiral
 <<<<<<< Updated upstream
-version: 4.2.46
-=======
 version: 4.2.47
+=======
+version: 4.2.48
 >>>>>>> Stashed changes
 description: >
   Run the SPIRAL autonomous development loop on any project. Handles setup,
