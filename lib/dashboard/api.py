@@ -914,5 +914,49 @@ async def stuck_stories_endpoint() -> list[dict[str, Any]]:
         return []
 
 
+@app.get("/api/dashboard/escalation-predictions")
+async def escalation_predictions_endpoint() -> dict[str, Any]:
+    """Model escalation prediction endpoint (US-1058).
+
+    Returns predictions for all stories in results.tsv sorted by escalation likelihood.
+
+    Response format:
+        {
+            "stories": [
+                {
+                    "story_id": "US-123",
+                    "current_model": "haiku",
+                    "predicted_model": "sonnet",
+                    "confidence_pct": 87.5,
+                    "tokens_until_escalation": 12000
+                }
+            ]
+        }
+    """
+    from ..escalation_predictor import predict_all_stories  # noqa: PLC0415
+
+    results_paths = _discover_results_paths()
+    if not results_paths:
+        return {"stories": []}
+
+    try:
+        predictions = predict_all_stories(results_paths[0])
+        return {
+            "stories": [
+                {
+                    "story_id": p.story_id,
+                    "current_model": p.current_model,
+                    "predicted_model": p.predicted_model,
+                    "confidence_pct": p.confidence_pct,
+                    "tokens_until_escalation": p.tokens_until_escalation,
+                }
+                for p in predictions
+            ]
+        }
+    except Exception as e:
+        logger.error(f"[/api/dashboard/escalation-predictions] Error: {e}")
+        return {"stories": []}
+
+
 # Export for use in tests and main application
 __all__ = ["app", "get_manager", "get_timeline_manager", "get_alerts_manager", "get_story_updates_manager"]

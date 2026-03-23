@@ -4329,6 +4329,24 @@ def main():
         help="Stage and commit but skip the push to remote",
     )
 
+    # ── predict-model-escalation subcommand (US-1058) ──────────────────────────
+    predict_esc_parser = subparsers.add_parser(
+        "predict-model-escalation",
+        help="Predict next-attempt model escalation for a story from results.tsv (US-1058)",
+    )
+    predict_esc_parser.add_argument(
+        "--story-id",
+        required=True,
+        metavar="STORY_ID",
+        help="Story ID to predict (e.g., US-123)",
+    )
+    predict_esc_parser.add_argument(
+        "--results",
+        default="results.tsv",
+        metavar="FILE",
+        help="Path to results.tsv (default: results.tsv)",
+    )
+
     args = parser.parse_args()
 
     if args.command == "init":
@@ -4479,9 +4497,50 @@ def main():
         cmd_deploy_docs(args)
     elif args.command == "validate-federated-schema":
         cmd_validate_federated_schema(args)
+    elif args.command == "predict-model-escalation":
+        cmd_predict_model_escalation(args)
     else:
         parser.print_help()
         sys.exit(0)
+
+
+def cmd_predict_model_escalation(args: argparse.Namespace) -> None:
+    """Predict next-attempt model escalation for a story (US-1058).
+
+    Usage: spiral predict-model-escalation --story-id US-123 [--results results.tsv]
+
+    Reads results.tsv, fits linear regression to token_count vs attempt_number,
+    and predicts whether the next attempt will exceed model thresholds:
+      haiku → sonnet at 50,000 tokens
+      sonnet → opus   at 150,000 tokens
+
+    Output: JSON with story_id, current_model, predicted_model, confidence_pct,
+            tokens_until_escalation.
+    """
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
+    from escalation_predictor import format_prediction, predict_for_story  # type: ignore[import-untyped]
+
+    story_id = args.story_id
+    results_path = Path(getattr(args, "results", "results.tsv"))
+
+    pred = predict_for_story(story_id, results_path)
+    if pred is None:
+        print(
+            json.dumps({"error": f"No data for story {story_id} in {results_path}"}),
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    result = {
+        "story_id": pred.story_id,
+        "current_model": pred.current_model,
+        "predicted_model": pred.predicted_model,
+        "confidence_pct": pred.confidence_pct,
+        "tokens_until_escalation": pred.tokens_until_escalation,
+        "attempt_count": pred.attempt_count,
+    }
+    print(json.dumps(result, indent=2))
+    print(f"\n{format_prediction(pred)}", file=sys.stderr)
 
 
 def cmd_validate_federated_schema(args: argparse.Namespace) -> None:

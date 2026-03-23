@@ -301,3 +301,29 @@ Diff size: 119 insertions(+), 496 deletions(-) — under 400 limit ✓
 ### Gotchas
 - Committing with unresolved conflicts (spiral_events.jsonl) blocks git commit; must resolve first
 - mypy --strict passes cleanly for the new module with `dict[str, str] | None` type annotation
+
+## Iteration - Story: US-1058 Model Escalation Prediction Engine with Dashboard Endpoint
+
+### What was implemented
+- lib/escalation_predictor.py: New module with predict_for_story(), predict_all_stories(), format_prediction()
+  - Linear regression on (attempt_number → total_tokens) using stdlib only (no numpy/scipy)
+  - Thresholds: haiku→sonnet at 50K tokens, sonnet→opus at 150K tokens
+  - Confidence = R² × 100, boosted by overshoot ratio when prediction exceeds threshold
+  - Single-point data capped at 60% confidence
+- lib/dashboard/api.py: GET /api/dashboard/escalation-predictions endpoint added before __all__
+  - Returns {stories: [{story_id, current_model, predicted_model, confidence_pct, tokens_until_escalation}]}
+  - Sorted by escalation likelihood (escalating first, then by confidence desc)
+- main.py: predict-model-escalation --story-id CLI subcommand added
+  - Subparser at line ~4332, dispatch + cmd_predict_model_escalation() handler
+- tests/test_escalation_predictor.py: 11 tests covering all 3 ACs
+
+### Patterns discovered
+- Use stdlib math/csv only for regression — no numpy/scipy needed for linear fit of a few points
+- results.tsv total tokens = cache_read_tokens + cache_creation_tokens + review_tokens
+- Dashboard endpoint uses _discover_results_paths() helper (already in api.py) to find TSV
+- cmd_* functions in main.py use sys.path.insert + lazy import pattern for lib modules
+
+### Gotchas
+- mypy --strict requires `from __future__ import annotations` for PEP 604 unions in Python < 3.10
+- The PLC0415 noqa suppresses ruff's import-outside-toplevel for lazy imports inside endpoints
+- Test uses `from lib.escalation_predictor import ...` (not `from escalation_predictor`) because rootdir is set to tests/ by pyproject.toml but sys.path includes project root via conftest
