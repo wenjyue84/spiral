@@ -267,7 +267,8 @@ if errors:
 spiral_assert_iteration_progress() {
   local zero_count="${1:-0}"
   local max_zero="${2:-3}"
-  if [[ "$zero_count" -ge "$max_zero" ]]; then
+  # max_zero=0 means disabled — skip the check entirely
+  if [[ "$max_zero" -gt 0 && "$zero_count" -ge "$max_zero" ]]; then
     _spiral_assert_fail "iteration_progress" "No progress for $zero_count consecutive iterations (limit: $max_zero)"
     _assert_return
   fi

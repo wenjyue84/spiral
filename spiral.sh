@@ -1269,7 +1269,8 @@ PYEOF
 
   # ── Core file integrity hash (end of iteration) ────────────────────────────
   # Verify no orchestration file was modified during this iteration.
-  if [[ -f "$_CORE_HASH_FILE" ]]; then
+  # SKIP when SPIRAL_PROJECT_ROOT == SPIRAL_HOME (self-referential: SPIRAL developing itself)
+  if [[ -f "$_CORE_HASH_FILE" && "$(cd "$REPO_ROOT" && pwd)" != "$(cd "$SPIRAL_HOME" && pwd)" ]]; then
     if ! sha256sum -c "$_CORE_HASH_FILE" >/dev/null 2>&1; then
       echo ""
       echo "  ╔══════════════════════════════════════════════════════╗"
@@ -1283,6 +1284,8 @@ PYEOF
       echo "  Run 'git diff' to inspect and 'git checkout -- <file>' to restore."
       spiral_exit E500 "Core file integrity check failed"
     fi
+  elif [[ -f "$_CORE_HASH_FILE" ]]; then
+    echo "  [integrity] Skipped (self-referential project — SPIRAL developing itself)"
   fi
 
   echo "  [C] Looping back to Phase R"
