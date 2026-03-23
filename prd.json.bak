@@ -11,23 +11,6 @@
   ],
   "userStories": [
     {
-      "id": "US-1047",
-      "title": "Federation: Detect Circular Story Dependencies with Cycle Path Reporting",
-      "priority": "high",
-      "description": "Enhance federated prd.json cycle detection to report the actual dependency path (A→B→C→A) instead of just boolean. CLI output shows cycles in graph format for debugging multi-repo deadlocks.",
-      "acceptanceCriteria": [
-        "lib/federation/cycle_detector.py find_cycles(prd_dict) returns list[list[str]] where each inner list is a cycle path (e.g., [['US-100', 'US-101', 'US-100']])",
-        "CLI spiral federation-check-cycles outputs YAML with cycles property listing paths, exits with non-zero if cycles found",
-        "Test validates detection on federated prd.json with 2 separate cycles in different sub-projects"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku",
-      "last_attempted": "2026-03-23T15:26:13Z"
-    },
-    {
       "id": "US-1050",
       "title": "Federation Quota Governor: Phase M Enforces Per-SubProject Story Limits",
       "priority": "high",
@@ -40,8 +23,20 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-03-23T15:52:56Z",
+      "_failureReason": "oversized_diff",
+      "_lastDiffLines": 552,
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\nThe `validate_quota()` function in `lib/spiral/phase_m.py` is already implemented, all 22 unit tests pass, and `ResultsRecord` in `lib/results_tsv.py` already has `quota_exceeded` and `quota_source` fields. The previous attempt failed only because of the missing diagnosis block gate.\n\n## Problem Identified\nUS-1050 implementation already exists from a previous attempt (committed to disk but not marked `passes: true`). Need to verify all acceptance criteria are met, run type checking, and mark the story complete.\n\n## Planned Changes\n- Verify AC2: Check that the shell phase_m_merge.sh handles Python ValueError → exit 1\n- Run mypy on lib/spiral/phase_m.py to ensure type compliance\n- Mark US-1050 as passes: true in prd.json\nUS-1050 is already `passes: true` — it was validated by the outer loop. Moving to the next incomplete story: **US-1051**.\nNow I have a clear picture. Let me plan the implementation.\n\n## Current State"
+      },
+      "_contextStats": {
+        "tokensBeforeMasking": 347,
+        "tokensAfterMasking": 346,
+        "reductionPct": 0,
+        "contextWindow": 10
+      }
     },
     {
       "id": "US-1051",
@@ -56,7 +51,7 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -72,7 +67,7 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "sonnet"
     },
@@ -111,93 +106,107 @@
       "model": "sonnet"
     },
     {
-      "id": "US-780",
-      "title": "Phase M: Source-Aware Merge Weighting - Prioritize Sources with Higher Pass Rates",
-      "priority": "medium",
-      "description": "Track pass rate by _source field. Use historical pass rates to weight merge priority so higher-success sources get merged first.",
+      "id": "US-1058",
+      "title": "Model Escalation Prediction Engine with Dashboard Endpoint",
+      "priority": "high",
+      "description": "Predict when stories will escalate to sonnet/opus models based on token spend trajectory. Helps forecast implementation complexity and cost before Phase I completes. Provides CLI analyzer and real-time dashboard endpoint.",
       "acceptanceCriteria": [
-        "Phase M calculates pass rate per _source from all stories before merging new candidates",
-        "Within same priority tier, stories from higher-pass-rate sources are merged first",
-        "Log shows source weights with pass rate percentages",
-        "Unit test verifies research story (80% rate) merged before ai-example (40%) at same priority"
+        "CLI spiral predict-model-escalation --story-id US-123 reads results.tsv for that story's attempts, fits exponential/linear regression to token_count vs attempt_number, predicts if next attempt will exceed model thresholds (haiku→sonnet at 50K tokens, sonnet→opus at 150K)",
+        "GET /api/dashboard/escalation-predictions endpoint returns {stories: [{story_id, current_model, predicted_model, confidence_pct, tokens_until_escalation}]} sorted by escalation likelihood",
+        "Integration test: Feed 5-story progression chain (haiku→sonnet→opus) to predictor, verify it correctly predicts next model for each story with >85% confidence on obvious progressions"
       ],
-      "technicalNotes": [
-        "File to edit: lib/merge_stories.py"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "tags": [
-        "core-flow",
-        "phase-m"
-      ],
-      "model": "haiku"
-    },
-    {
-      "id": "US-781",
-      "title": "Phase X: Context Explosion Guard - Cap and Summarize When Story Touches 15+ Files",
-      "priority": "medium",
-      "description": "When dependency inference finds >15 files, summarize with file paths + key function signatures instead of full content injection, preventing context window overflow.",
-      "acceptanceCriteria": [
-        "Phase X detects stories exceeding SPIRAL_CONTEXT_FILE_CAP (default 15) files",
-        "Oversized contexts get summarized: file paths + top 3 function signatures per file",
-        "Log warning about context explosion with file count",
-        "Unit test verifies a 20-file story gets summarized context"
-      ],
-      "technicalNotes": [
-        "File to create: lib/context_summarizer.py",
-        "File to edit: spiral.sh Phase X",
-        "Config: SPIRAL_CONTEXT_FILE_CAP in spiral.config.sh"
-      ],
+      "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": false,
-      "tags": [
-        "core-flow",
-        "phase-x"
-      ],
-      "model": "haiku"
+      "_source": "ai-example",
+      "model": "sonnet"
     },
     {
-      "id": "US-784",
-      "title": "Phase C: Partial Completion Report - Exit with Diagnostic When Stuck Stories Remain",
+      "id": "US-1059",
+      "title": "Results TSV Incremental Archival with Historical Query CLI",
       "priority": "medium",
-      "description": "Exit after N zero-progress iterations with structured diagnostic: what passed, what is stuck, and root-cause guess per stuck story.",
+      "description": "Prevent results.tsv unbounded growth by archiving old rows to timestamped files while maintaining query ability. Keeps rolling 500-row window in active results.tsv for dashboard performance.",
       "acceptanceCriteria": [
-        "Phase C tracks consecutive zero-progress iterations",
-        "After SPIRAL_MAX_STUCK_ITERATIONS (default 5) zero-progress iterations, exit with .spiral/completion_report.json",
-        "Report includes: total passed, stuck story IDs with retry counts, suggested actions",
-        "Unit test verifies exit after 5 zero-progress iterations with correct report"
+        "CLI spiral archive-results --older-than 30 moves rows with timestamp < 30 days to .spiral/archive/results-{YYYY-MM-DD}.tsv, maintains active results.tsv with last 500 rows",
+        "CLI spiral query-archive --story-id US-123 searches both .spiral/archive/*.tsv and active results.tsv, returns all matching rows with archive filename noted",
+        "Integration test: Archive 1000 rows, verify 500 remain in active file, query-archive finds old stories, dashboard endpoints still compute trends correctly"
       ],
-      "technicalNotes": [
-        "File to create: lib/completion_report.py",
-        "File to edit: spiral.sh Phase C",
-        "Note: enhances existing SPIRAL_CONSECUTIVE_FAIL_ABORT with diagnostic report"
-      ],
+      "technicalNotes": [],
       "dependencies": [],
-      "estimatedComplexity": "small",
+      "estimatedComplexity": "medium",
       "passes": false,
-      "tags": [
-        "core-flow",
-        "phase-c"
-      ],
-      "model": "haiku"
+      "_source": "ai-example",
+      "model": "sonnet"
     },
     {
-      "id": "US-1046",
-      "title": "Phase G: Inject Story Metadata into CHANGELOG Frontmatter",
+      "id": "US-1060",
+      "title": "Episodic Memory Relevance Scorer with Similarity-Based Ranking",
       "priority": "medium",
-      "description": "Enhance git-cliff CHANGELOG generation to include story metadata (US-NNN, cost tokens, duration, model used) in YAML frontmatter for better traceability and cost analysis",
+      "description": "Score episodic memory patterns by semantic similarity to current story, ensuring Ralph receives most relevant past implementation examples. Improves implementation quality via better context injection.",
       "acceptanceCriteria": [
-        "gen_changelog.py: implement extract_story_metadata(commit_sha) function that reads story_id from commit message and looks up cost/duration/model from results.tsv row",
-        "CHANGELOG.md includes YAML frontmatter block on each story section with fields: story_id, tokens_used, duration_seconds, models_escalated (as comma-list)",
-        "tests/test_gen_changelog_metadata.py validates frontmatter schema and asserts all required fields present; test with results.tsv fixture containing 3 stories"
+        "Function lib/episodic_memory.py:get_similar_patterns(story_desc, top_k=3) computes cosine similarity of story description against all stored pattern embeddings, returns top_k patterns ranked by similarity score",
+        "Ralph CLAUDE.md prompt modified to inject top 3 similar patterns with scores (e.g., '90% similar: Past pattern X fixed Y by Z')",
+        "Integration test: Store 5 episodic patterns (e.g., API auth fix, DB migration, UI bug), call get_similar_patterns with auth-related story, verify top result is auth pattern with >80% similarity"
       ],
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": false,
+      "_source": "ai-example",
+      "model": "opus"
+    },
+    {
+      "id": "US-1061",
+      "title": "Federated Sub-Project Health Aggregator Dashboard Endpoint",
+      "priority": "medium",
+      "description": "Unified monitoring dashboard for multi-repo federation showing per-sub-project story metrics, cost breakdown, and iteration-to-completion trends. Enables quick health assessment of federated projects.",
+      "acceptanceCriteria": [
+        "GET /api/dashboard/federation-health endpoint queries results.tsv grouped by sub_project column (inferred from story ID prefix), returns {sub_projects: [{name: 'api', pass_count: 5, fail_count: 1, total_cost: 123.45, avg_iterations_to_pass: 2.3}]}",
+        "Sub-project names extracted via stable prefix rule (story ID 'api-US-123' → sub_project 'api'); unmapped stories grouped under 'default'",
+        "Integration test: Import federated prd.json with 'api', 'web', 'db' sub-projects, run SPIRAL 3 iterations, verify endpoint shows correct per-project metrics and cost breakdown"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
       "model": "sonnet"
+    },
+    {
+      "id": "US-1062",
+      "title": "Phase S Story Validation Confidence Scorer for Enrichment Prioritization",
+      "priority": "medium",
+      "description": "Score each story (0-100) for validation likelihood based on complexity signals, dependency graph depth, and description hints. Helps Phase E prioritize enrichment and Phase S make rewrite-vs-reject decisions.",
+      "acceptanceCriteria": [
+        "CLI spiral score-stories-for-validation analyzes prd.json, scores each story based on: (1) keyword complexity in description (control flow, concurrency, database = higher), (2) dependency_count (each dep -5 points), (3) file_change_hints from prior Phase E (complex patterns -10 points); outputs 0-100 range",
+        "Adds _validation_confidence field to each story in prd.json in-place; simple stories (e.g., 'add button') score >80, complex stories (e.g., 'implement distributed cache with monitoring') score <50",
+        "Integration test: Score 10 curated stories with known complexity, verify 95%+ accuracy vs manual labeling; run Phase S with scored prd.json and verify low-confidence stories receive more enrichment"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1047",
+      "title": "Federation: Detect Circular Story Dependencies with Cycle Path Reporting",
+      "priority": "high",
+      "description": "Enhance federated prd.json cycle detection to report the actual dependency path (A→B→C→A) instead of just boolean. CLI output shows cycles in graph format for debugging multi-repo deadlocks.",
+      "acceptanceCriteria": [
+        "lib/federation/cycle_detector.py find_cycles(prd_dict) returns list[list[str]] where each inner list is a cycle path (e.g., [['US-100', 'US-101', 'US-100']])",
+        "CLI spiral federation-check-cycles outputs YAML with cycles property listing paths, exits with non-zero if cycles found",
+        "Test validates detection on federated prd.json with 2 separate cycles in different sub-projects"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "haiku",
+      "_failureReason": "DIAGNOSIS_BLOCK_MISSING: Diagnosis block required before making changes. Please output your diagnosis first.\n\nBefore making ANY file edits, output a diagnosis block with these exact headers:\n\n## Current State\n[describe the relevant current state of the code]\n\n## Problem Identified\n[what you are solving for this story]\n\n## Planned Changes\n[bullet list of specific files and changes you will make]\n\nOutput this block as plain text BEFORE calling Edit, Write, or any Bash command that modifies files.",
+      "_scopeCreep": true
     },
     {
       "id": "US-1030",
@@ -2693,7 +2702,8 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "sonnet",
-      "last_attempted": "2026-03-23T15:09:33Z"
+      "last_attempted": "2026-03-23T15:09:33Z",
+      "_scopeCreep": true
     },
     {
       "id": "US-1031",

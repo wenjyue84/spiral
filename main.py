@@ -7,6 +7,7 @@ Subcommands:
   estimate                Show pre-flight API cost projection for pending stories
   graph                   Generate Mermaid dependency graph from prd.json
   validate-federated      Validate federated prd.json structure (US-514)
+  validate-federated-schema Validate cross-project duplicate IDs and namespace prefixes (US-1057)
   federation-health-check Validate federated PRD: sub_projects, cycles, ID namespaces (US-653)
   federation-conflict-check Detect file conflicts across sub-projects with resolution hints (US-1044)
   federation-check-cycles Detect circular dependencies with cycle paths (US-1047)
@@ -3355,6 +3356,23 @@ def main():
         "--output", type=str, default="", help="Path to write YAML report (optional)"
     )
 
+    validate_fed_schema_parser = subparsers.add_parser(
+        "validate-federated-schema",
+        help="Validate cross-project duplicate IDs and namespace prefixes (US-1057)",
+    )
+    validate_fed_schema_parser.add_argument(
+        "prd",
+        nargs="?",
+        default="prd.json",
+        help="Path to prd.json (default: prd.json)",
+    )
+    validate_fed_schema_parser.add_argument(
+        "--namespace",
+        action="append",
+        metavar="NAME:PREFIX",
+        help="Override namespace rules, e.g. --namespace makan:MAKAN-",
+    )
+
     validate_tsv_parser = subparsers.add_parser(
         "validate-results-tsv",
         help="Validate results.tsv data quality against prd.json (US-571)",
@@ -4459,9 +4477,49 @@ def main():
         cmd_list_orphan_commits(args)
     elif args.command == "deploy-docs":
         cmd_deploy_docs(args)
+    elif args.command == "validate-federated-schema":
+        cmd_validate_federated_schema(args)
     else:
         parser.print_help()
         sys.exit(0)
+
+
+def cmd_validate_federated_schema(args: argparse.Namespace) -> None:
+    """Validate cross-project duplicate IDs and namespace prefixes (US-1057).
+
+    Usage: spiral validate-federated-schema [prd.json] [--namespace NAME:PREFIX]
+
+    Outputs JSON report with pass/fail status, error_count, errors, suggestions.
+    Exit code 1 if any validation errors found.
+    """
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
+    from federated_schema_validator import validate  # type: ignore[import-untyped]
+
+    prd_path = Path(getattr(args, "prd", "prd.json"))
+    if not prd_path.exists():
+        print(json.dumps({"error": f"File not found: {prd_path}"}), file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        with open(prd_path, encoding="utf-8") as f:
+            prd_dict = json.load(f)
+    except json.JSONDecodeError as e:
+        print(json.dumps({"error": f"Invalid JSON: {e}"}), file=sys.stderr)
+        sys.exit(1)
+
+    namespace_rules: dict[str, str] | None = None
+    raw_namespaces = getattr(args, "namespace", None)
+    if raw_namespaces:
+        namespace_rules = {}
+        for entry in raw_namespaces:
+            if ":" in entry:
+                name, prefix = entry.split(":", 1)
+                namespace_rules[name] = prefix
+
+    result = validate(prd_dict, namespace_rules)
+    print(json.dumps(result, indent=2))
+    if not result["pass"]:
+        sys.exit(1)
 
 
 def cmd_federated_status(args: argparse.Namespace) -> None:
