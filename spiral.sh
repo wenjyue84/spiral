@@ -1250,6 +1250,17 @@ PYEOF
 
   run_phase_gate_and_implement || continue
 
+  # Re-hash core files after Phase I commits (self-referential projects modify lib/*.py)
+  if [[ -f "$_CORE_HASH_FILE" ]]; then
+    {
+      sha256sum "$SPIRAL_HOME/spiral.sh" \
+        "$SPIRAL_HOME"/lib/*.py "$SPIRAL_HOME"/lib/*.sh \
+        "$SPIRAL_HOME"/ralph/*.sh "$SPIRAL_HOME"/ralph/*.md \
+        "$SPIRAL_HOME"/.claude/hooks/*.sh "$SPIRAL_HOME"/.claude/hooks/*.py \
+        2>/dev/null || true
+    } >"$_CORE_HASH_FILE"
+  fi
+
   run_phase_validate || continue
 
   run_phase_push
