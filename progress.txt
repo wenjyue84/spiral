@@ -1,3 +1,47 @@
+## Iteration - Story: US-1045 Dashboard Story Retry Exhaustion Analyzer
+
+### What was implemented
+- lib/stuck_story_analyzer.py: analyze_exhaustion(results_tsv_path) function that identifies stories with 3+ retry attempts
+  - Reads results.tsv and groups by story_id
+  - Filters for attempt_count >= 3
+  - Builds escalation_chain string from model column (e.g. "haiku→sonnet→opus")
+  - Extracts original_token_count from cache_read_tokens + review_tokens
+  - Returns list of StuckStory dataclass objects sorted by attempt_count descending
+- lib/dashboard/api.py: GET /api/dashboard/stuck-stories endpoint
+  - Returns JSON array of stuck stories with all required fields
+  - Gracefully handles missing results.tsv files
+  - Uses _discover_results_paths() to find results files
+- tests/test_stuck_story_analyzer.py: 12 comprehensive tests
+  - test_single_attempt_story_excluded: stories with <3 attempts filtered out
+  - test_three_attempt_story_included: 3-attempt stories included
+  - test_escalation_chain_built_correctly: models chained with → separator
+  - test_last_model_tried_is_correct: last model from final attempt
+  - test_token_count_extracted: token sums calculated correctly
+  - test_five_retry_fixture_story: full AC3 fixture test with 5 retries
+  - test_multiple_stuck_stories_sorted_by_attempts: sorting by attempt_count desc
+  - test_nonexistent_results_file: handles missing files gracefully
+  - test_empty_results_file: handles empty files gracefully
+  - test_results_file_with_header_only: handles headers-only files
+  - test_stuck_story_dataclass_fields: dataclass structure verified
+  - test_api_endpoint_integration_with_fixture: integration test for AC3 fixture
+
+### Patterns discovered
+- StuckStory dataclass stores analysis results with proper type hints
+- analyze_exhaustion() groups by story_id first, then calculates metrics
+- API endpoints use _discover_results_paths() helper for both primary and worker results.tsv files
+- Token extraction priority: cache_read_tokens > review_tokens (sum both)
+- Escalation chain arrow character: → (U+2192 right arrow, not ASCII)
+
+### Acceptance criteria verification
+- AC1: ✓ API endpoint returns JSON array with all required fields (story_id, attempt_count, last_model_tried, escalation_chain, original_token_count)
+- AC2: ✓ analyze_exhaustion() implemented, filters 3+ attempts, builds escalation chains
+- AC3: ✓ 5-retry fixture story test validates API can process multi-retry scenarios (decomposition metadata ready for UI)
+
+All tests passing: 12/12 ✓
+Type checking: mypy --strict ✓
+Pre-commit hooks: ✓
+
+
 ## Iteration - Story: US-1041 Add categorize_test_failure() to phase_t.py and error_category to ResultsRecord
 
 ### What was implemented
