@@ -1,4 +1,68 @@
-## Iteration [CURRENT] - Story: US-1025 Integration Test - Phase G SemVer Determinism - COMPLETE
+## Iteration [CURRENT] - Story: US-1026 Test Phase R Research Cache Hit/Miss Counting and LRU Eviction
+
+### Implementation Summary
+
+Successfully implemented US-1026 by adding LRU eviction support to the research cache and writing comprehensive integration tests that verify cache deduplication and LRU eviction behavior.
+
+### What was implemented
+
+1. **lib/research/research_cache.py** (modified, +30 lines)
+   - Added `added_at: float = 0.0` timestamp field to CachedQuery dataclass for LRU tracking
+   - Updated `to_dict()` and `from_dict()` methods to handle the new timestamp field
+   - Modified `save_research_cache()` to accept `max_cache_size` parameter (0 = unlimited)
+   - Implemented LRU eviction: when cache exceeds max_cache_size, sorts by added_at timestamp and keeps only newest entries
+   - Updated `record_query_result()` to set `added_at=time.time()` and accept `max_cache_size` parameter
+   - Added `import time` for timestamp generation
+
+2. **tests/test_research_cache.py** (modified, +170 lines)
+   - Added `TestCacheDeduplication` class with `test_cache_deduplication()` method:
+     * Processes 10 stories with 6 identical queries and 4 unique ones
+     * Verifies cache correctly returns 5 cache hits (from 6 identical queries)
+     * Verifies exactly 5 API calls are made (for 5 unique queries)
+   - Added `TestLRUEviction` class with `test_lru_eviction()` method:
+     * Creates 100 cached queries with staggered timestamps
+     * Fills cache to 100 entries with max_cache_size=100
+     * Adds entry #101, triggering LRU eviction
+     * Verifies oldest (query #0) is removed from cache
+     * Verifies newest (query #101) is in cache
+     * Verifies intermediate entries (query #1) are preserved
+
+### Acceptance criteria verification
+
+- ✓ AC1: test_cache_deduplication verifies cache hit/miss counting
+  - 10 stories submitted with 6 identical queries
+  - Results: 5 cache hits (from 6 identical) + 5 API calls (5 unique queries)
+  - All assertions pass
+
+- ✓ AC2: test_lru_eviction verifies LRU eviction behavior
+  - Cache filled to 100 entries with max_cache_size=100
+  - Entry #101 added, triggering eviction
+  - Oldest entry (query #0) correctly removed
+  - Newest entry (query #101) present in cache
+  - All assertions pass
+
+### Quality checks passed
+
+- ✓ pytest: Both test_cache_deduplication and test_lru_eviction PASSED
+- ✓ No type errors in lib/research/research_cache.py changes
+- ✓ Code follows existing patterns and style conventions
+- ✓ Tests use appropriate fixtures and imports
+
+### Files modified/created
+
+- lib/research/research_cache.py: Added LRU eviction support (+30 lines including timestamp field)
+- tests/test_research_cache.py: Added two new test classes with comprehensive test functions (+170 lines)
+
+### Story completion notes
+
+Story US-1026 implementation is COMPLETE. Both acceptance criteria are fully satisfied:
+- Cache deduplication counting works correctly
+- LRU eviction correctly removes oldest entries when cache capacity is exceeded
+- Tests are independent of external dependencies (fully mocked/self-contained)
+
+Note: prd.json has pre-existing schema errors (duplicate story IDs: US-752, US-744, US-754, US-753, US-755, US-756) preventing story status from being marked as passes=true in the JSON file. The implementation is complete and tested; this is a data quality issue in prd.json unrelated to this story.
+
+## Iteration [PREVIOUS] - Story: US-1025 Integration Test - Phase G SemVer Determinism - COMPLETE
 
 ### Implementation Summary
 
@@ -1828,4 +1892,3 @@ This story concerns the core "Ralph" agent orchestration, not a Frappe applicati
 *   **Token Prediction**: The feature's entrypoint relies on token prediction. If the prediction is significantly wrong, the reduction may not trigger when needed. The error handling must still catch actual overages regardless of prediction.
 ## Iteration 1 - Sun, Mar 22, 2026  8:41:06 PM
 FAILED diff-guard: [Security Test] Results TSV: No Sensitive Data in Telemetry Rows (ID: US-735) — 470 lines > 400 limit — attempt 1/3
-
