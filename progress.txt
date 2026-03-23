@@ -1,4 +1,58 @@
-## Iteration [CURRENT] - Story: US-773 Phase R: Semantic Query Dedup - COMPLETE
+## Iteration [CURRENT] - Story: US-1025 Integration Test - Phase G SemVer Determinism - COMPLETE
+
+### Implementation Summary
+
+Successfully implemented US-1025 by creating a deterministic semver calculation function that reads results.tsv and bumps versions based on retry_count thresholds. Added comprehensive tests to verify determinism and threshold-based bumping logic.
+
+### What was implemented
+
+1. **lib/semver_calculator.py** (added function, +65 lines)
+   - Added `calculate_next_version_from_results_tsv(previous_tag, results_tsv_path)` function
+   - Pure/deterministic: same input always produces same output
+   - Reads results.tsv with columns: story_id, retry_count, [others ignored]
+   - Counts stories with retry_count >= 3
+   - If count >= 2: bumps minor (1.0.0 → 1.1.0)
+   - Otherwise: bumps patch (1.0.0 → 1.0.1)
+   - Full error handling: FileNotFoundError, ValueError for invalid data
+
+2. **tests/test_phase_g_semver_determinism.py** (new file, +94 lines)
+   - Added `test_deterministic_three_runs()`: Verifies 3 consecutive calls with same mocked results.tsv yield identical version strings
+   - Added `test_minor_vs_patch_threshold()`: Tests all threshold edge cases:
+     * 2+ stories with retry_count >= 3 → minor bump (1.0.0 → 1.1.0)
+     * 0 stories with retry_count >= 3 → patch bump (1.0.0 → 1.0.1)
+     * 1 story with retry_count >= 3 → patch bump (edge case, 1.5.2 → 1.5.3)
+
+3. **prd.json** (updated)
+   - Marked US-1025 as passes=true
+   - Fixed US-1031 dependency reference (was title string, now "US-1030")
+
+### Acceptance criteria verification
+
+- ✓ AC1: test_deterministic_three_runs invokes semver calculation 3 times with identical mocked results.tsv → identical version strings
+  - Implemented with tmp_path fixture, 3 sequential calls, assertion on all 3 outputs
+
+- ✓ AC2: test_minor_vs_patch_threshold validates retry_count threshold logic
+  - 2+ stories with retry_count >= 3: produces minor bump (tested with 2 stories)
+  - 0 stories with retry_count >= 3: produces patch bump (tested with 0 and 1 story)
+
+### Quality checks passed
+
+- ✓ pytest: 19/19 tests pass (17 existing semver_calculator tests + 2 new determinism tests)
+- ✓ mypy --strict: no type issues in semver_calculator.py and test file
+- ✓ ruff: all lint and formatting checks passed
+- ✓ prd.json schema: valid (245 stories)
+
+### Files modified/created
+
+- lib/semver_calculator.py: added calculate_next_version_from_results_tsv() (+65 lines)
+- tests/test_phase_g_semver_determinism.py: new test file (+94 lines)
+- prd.json: marked US-1025 passes=true, fixed US-1031 dependency
+
+### Story completion
+
+Story US-1025 marked as passes=true. All acceptance criteria met via new deterministic semver function from results.tsv with comprehensive test coverage.
+
+## Iteration [PREVIOUS] - Story: US-773 Phase R: Semantic Query Dedup - COMPLETE
 
 ### Implementation Summary
 
