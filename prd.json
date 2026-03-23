@@ -47,7 +47,10 @@
       "passes": true,
       "_source": "ai-example",
       "model": "haiku",
-      "last_attempted": "2026-03-23T19:33:08Z"
+      "last_attempted": "2026-03-23T19:33:08Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n- `lib/conflict_detector.py` exists and has `detect_federated_conflicts()` function to detect file collisions across sub-projects\n- `lib/spiral/phase_m.py` has `prd_merge()` function but doesn't currently call conflict detection\n- Integration tests exist in `tests/integration/` with a clear pattern for federated testing\n- Existing US-1064 test validates worker isolation but doesn't test file conflict scenarios\n\n## Problem Identified\nUS-1072 requires an integration test that validates Phase M correctly handles conflicts when multiple sub-projects modify overlapping files. Specifically, the test needs to:\n1. Create a federated prd.json with stories from sub-project-A and sub-project-B that touch the same file\n2. Assert that conflicts are detected in Phase M\n3. Validate merge strategy is applied consistently\n4. Assert no cross-worker prd.json corruption\n\n## Planned Changes\n- Create `tests/integration/test_phase_m_federated_merge_us1072.py` with 3 comprehensive tests:\n  1. Test conflict detection when two sub-projects modify the same file\n  2. Test merge strategy (first-in-wins) is applied correctly\n  3. Test no cross-worker prd.json corruption after merge\n- Verify that `detect_federated_conflicts()` is properly called during merge\n- Run all 3 tests with pytest and verify they pass with mypy --strict clean\n\nLet me create the integration test:\nNow let me run the tests to verify they pass:\nLet me run the tests with the Windows override:\nLet me read the full conflict_detector.py file to understand how it works:\nLet me check what the story_helpers module does:\nLet me check the story_helpers files:\nI see the issue. The `detect_federated_conflicts()` function is using `_source` field when it should be using `sub_project` field. Let me fix the conflict_detector:\nNow let me run the tests again:\nLet me fix the third test - the issue is that I'm marking stories as passed, which filters them out:\nLet me run the tests again:\nGreat! Now let me run the quality checks:\nNow let me check ruff linting:\nLet me run ruff check directly:\nLet me fix the unused variable:\nLet me run ruff again:\nLet me run the tests one more time to verify everything works:\nNow let me mark the story as complete in prd.json:\nNow let me commit the changes:\nNow let me update progress.txt with implementation notes:\nLet me commit the progress.txt update:\nLet me verify the story is marked as complete:\nPerfect! Let me run a final verification to ensure everything is working correctly:\n## Summary"
+      }
     },
     {
       "id": "US-1073",
@@ -130,6 +133,57 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1065",
+      "title": "Integration Test: Phase R Research Query Deduplication Cache Effectiveness",
+      "priority": "medium",
+      "description": "Add integration test validating that Phase R deduplication cache skips redundant Gemini queries, measuring actual cache hit rate and latency savings. Uses mock Gemini responses and results.tsv to verify >30% latency improvement claimed in Phase R optimization.",
+      "acceptanceCriteria": [
+        "Test creates fixture with 5 identical research queries across multiple stories, verifies Phase R processes only 1 Gemini call and caches remaining 4",
+        "Assert results.tsv shows research_cache_hit_count=4 and research_cache_miss_count=1 for iteration",
+        "Benchmark test measures latency: verify cached queries execute in <100ms vs 2000ms+ for uncached"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1066",
+      "title": "CLI: spiral debug-worker-state — Dump Live Worker State and Diagnostics",
+      "priority": "medium",
+      "description": "Add CLI command to inspect current state of all parallel workers: worktree paths, prd.json slices, process IDs, memory usage, current phase/story. Outputs JSON for parsing by dashboards or manual troubleshooting during federated SPIRAL runs.",
+      "acceptanceCriteria": [
+        "Command `spiral debug-worker-state` returns JSON with worker_id, pid, worktree_path, current_story_id, phase, memory_mb, prd_slice_size for each active worker",
+        "Correctly identifies detached worker HEAD states and reports in diagnostics section",
+        "Integration test verifies output format matches schema and worker data is consistent with actual filesystem state"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1074",
+      "title": "Phase G: Link CHANGELOG Entries to GitHub Issues and PRs via Commit Messages",
+      "priority": "medium",
+      "description": "Extend gen_changelog.py to parse commit messages for GitHub issue/PR references (#123, closes #456) and automatically link CHANGELOG entries to GitHub URLs for traceability.",
+      "acceptanceCriteria": [
+        "Extend lib/gen_changelog.py:extract_github_refs() to parse #issue and closes #PR patterns from commit messages",
+        "CHANGELOG.md entries include markdown links: [#123](https://github.com/org/repo/issues/123) for referenced issues",
+        "Integration test in tests/test_gen_changelog.py validates 5+ sample commits with mixed issue/PR references"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
       "passes": false,
       "_source": "ai-example",
       "model": "sonnet"
@@ -6256,6 +6310,23 @@
       "estimatedComplexity": "small",
       "passes": true,
       "tags": []
+    },
+    {
+      "id": "US-1075",
+      "title": "Dashboard Endpoint: GET /api/dashboard/phase-variance — Phase Duration Anomaly Detection",
+      "priority": "medium",
+      "description": "Calculate mean and standard deviation of phase durations across all iterations. Detect and flag phases exceeding 2-sigma (anomalies) to identify bottlenecks or degradation.",
+      "acceptanceCriteria": [
+        "Endpoint GET /api/dashboard/phase-variance returns JSON: {phases: [{name, mean_s, stddev, current_s, z_score, is_anomaly}]}",
+        "Reads results.tsv to compute phase_duration_s statistics per phase_name; caches result 60s via functools.lru_cache",
+        "Integration test test_dashboard_phase_variance.py mocks results.tsv with 10 iterations; verifies anomaly detection logic"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
     }
   ]
 }
