@@ -4347,6 +4347,24 @@ def main():
         help="Path to results.tsv (default: results.tsv)",
     )
 
+    # ── preflight-check subcommand (US-1069) ────────────────────────────────
+    preflight_parser = subparsers.add_parser(
+        "preflight-check",
+        help="Validate SPIRAL runtime dependencies and configuration (US-1069)",
+    )
+    preflight_parser.add_argument(
+        "--spiral-home",
+        default=".",
+        metavar="DIR",
+        help="SPIRAL project root directory (default: current directory)",
+    )
+    preflight_parser.add_argument(
+        "--prd",
+        default="prd.json",
+        metavar="FILE",
+        help="Path to prd.json, relative to spiral-home (default: prd.json)",
+    )
+
     args = parser.parse_args()
 
     if args.command == "init":
@@ -4499,6 +4517,8 @@ def main():
         cmd_validate_federated_schema(args)
     elif args.command == "predict-model-escalation":
         cmd_predict_model_escalation(args)
+    elif args.command == "preflight-check":
+        cmd_preflight_check(args)
     else:
         parser.print_help()
         sys.exit(0)
@@ -5489,6 +5509,45 @@ def cmd_deploy_docs(args: argparse.Namespace) -> None:
         sys.exit(1)
 
     sys.exit(0)
+
+
+def cmd_preflight_check(args: argparse.Namespace) -> None:
+    """Validate SPIRAL runtime dependencies and configuration (US-1069).
+
+    Usage: spiral preflight-check [--spiral-home DIR] [--prd FILE]
+
+    Validates:
+    - constitution.md exists
+    - prd.json conforms to schema
+    - spiral.config.sh defines SPIRAL_VALIDATE_CMD and SPIRAL_COST_CEILING
+    - bash >= 4, node >= 20, python3 >= 3.13, docker available, jq present
+    - .spiral/ and .spiral-workers/ are writable
+
+    Outputs JSON array with check_name/status/remediation for each check,
+    then a summary line. Exits 0 if all pass, 1 if any fail.
+    """
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
+    from spiral.preflight import run_checks  # type: ignore[import-untyped]
+
+    spiral_home = Path(getattr(args, "spiral_home", ".")).resolve()
+    prd_path = Path(getattr(args, "prd", "prd.json"))
+
+    results = run_checks(spiral_home=spiral_home, prd_path=prd_path)
+    print(json.dumps(results, indent=2))
+
+    failed = [r for r in results if r["status"] == "fail"]
+    total = len(results)
+    passed = total - len(failed)
+
+    print()
+    if not failed:
+        print(f"All checks passed ({passed}/{total}) - ready to run SPIRAL")
+        sys.exit(0)
+
+    print(f"{len(failed)} checks failed - see hints above")
+    for r in failed:
+        print(f"  - {r['check_name']}: {r['remediation']}")
+    sys.exit(1)
 
 
 if __name__ == "__main__":

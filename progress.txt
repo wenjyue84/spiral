@@ -381,3 +381,27 @@ Diff size: 119 insertions(+), 496 deletions(-) — under 400 limit ✓
 All tests passing: 3/3 ✓
 Type checking: mypy --strict ✓
 Linting: ruff check ✓
+
+## Iteration - Story: US-1069 CLI: spiral preflight-check -- Validate SPIRAL Runtime Dependencies and Configuration
+
+### What was implemented
+- lib/spiral/preflight.py: New module with run_checks(), main() CLI entry point
+  - CheckResult TypedDict with check_name/status/remediation fields
+  - _check_constitution(): verifies .specify/memory/constitution.md or constitution.md exists
+  - _check_prd_schema(): loads prd.json and validates via lib/prd/prd_schema.py
+  - _check_config_var(): checks spiral.config.sh exports SPIRAL_VALIDATE_CMD/SPIRAL_COST_CEILING
+  - _check_tool_version(): generic version-threshold checker for bash/node/python3
+  - _check_docker(): docker available + daemon running
+  - _check_jq(): ralph/jq.exe or jq in PATH
+  - _check_dir_writable(): .spiral/ and .spiral-workers/ are writable
+  - Exit code 0 all pass, 1 any fail; summary line per AC3
+- main.py: Added preflight-check subparser + cmd_preflight_check() dispatch function
+- tests/test_preflight.py: 32 tests covering all 3 ACs
+
+### Patterns discovered
+- mypy ignore_missing_imports=true in pyproject.toml means type:ignore on dynamic imports is flagged as unused-ignore
+- type: ignore comments on dynamic lazy imports inside functions should be omitted when ignore_missing_imports=true covers them globally
+- _parse_version() regex extracts first dotted version from any tool --version output
+
+### Gotchas
+- Don't add type: ignore[import-untyped] comments when pyproject.toml has ignore_missing_imports=true — mypy flags them as unused
