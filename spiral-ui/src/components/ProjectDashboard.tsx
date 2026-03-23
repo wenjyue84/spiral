@@ -6,6 +6,7 @@ import AnalyticsTab from './AnalyticsTab';
 import StoryDetailPanel, { type StoryAttempt, formatMYT, timeAgo } from './StoryDetailPanel';
 import { CONFIG_FIELDS } from '../data/configSchema';
 import { useSSE, type SSEEvent } from '../hooks/useSSE';
+import PhaseTraceTab from './PhaseTraceTab';
 
 // Config description lookup for tooltips in Settings tab
 const CONFIG_DESCRIPTIONS: Record<string, { label: string; description: string }> = Object.fromEntries(
@@ -15,7 +16,7 @@ void CONFIG_DESCRIPTIONS; // used for future tooltip integration
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-interface Story {
+export interface Story {
   id: string;
   title: string;
   description?: string;
@@ -86,7 +87,7 @@ interface ActiveStatus {
   story_title?: string;
 }
 
-interface ActiveStoryInfo {
+export interface ActiveStoryInfo {
   storyId: string | null;
   title: string | null;
 }

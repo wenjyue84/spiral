@@ -72,7 +72,10 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku"
+      "model": "haiku",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n\nLooking at the git status and prd.json, there are multiple high-priority incomplete stories. The first is **US-1027: Benchmark Phase R Research Cache Latency Savings (≥30% Target)**.\n\nThis story requires:\n1. Creating a new benchmark test that measures Phase R execution time with and without cache\n2. Adding an env-var toggle to disable cache in Phase R for baseline measurements\n3. Asserting ≥30% latency improvement for repeated queries\n4. Printing benchmark results to stdout\n\n## Problem Identified\n\nNeed to implement a latency benchmark test that validates the Phase R research cache provides at least 30% speedup on repeated queries by comparing cached vs uncached execution paths.\n\n## Planned Changes\n\n- **lib/phases/phase_r_research.py**: Add `SPIRAL_RESEARCH_CACHE_ENABLED` env-var toggle to allow disabling cache for baseline measurements\n- **tests/test_research_cache_benchmark.py** (new file): Write benchmark test with mocked Gemini calls (50ms each) that:\n  - Runs Phase R with 6 repeated queries twice (cache warm)\n  - Runs Phase R with cache disabled as baseline\n  - Asserts cached_time ≤ uncached_time * 0.70\n  - Prints cached_ms, uncached_ms, pct_saved to stdout\n\nLet me start by reading the current Phase R implementation:\nNow I'll create the benchmark test. First, let me check what test utilities already exist:\nPerfect! I have successfully implemented story **US-1027: Benchmark Phase R Research Cache Latency Savings (≥30% Target)**.\n\n## Implementation Summary"
+      }
     },
     {
       "id": "US-1028",
