@@ -21,4 +21,4 @@ timestamp	spiral_iter	ralph_iter	story_id	story_title	status	duration_sec	model	
 2026-03-22T17:43:40Z	12	1	US-767	[Integration Test] file_aware_retry: Track Failed Files and Retry Only Those	reject	283	haiku	1		69bffd1d5c0d	false	0	0	0	0	0	0	0		0	0	0	0
 2026-03-22T19:41:41Z	18	1	US-776	Phase S: Proactive Story Rewriting - Fix Non-Compliant Stories Instead of Rejecting	reject	604	haiku	1		69bffd1d5c0d	false	0	0	0	0	0	0	0		0	0	0	0
 2026-03-22T23:21:13Z	4	1	US-756	[Regression Test] US-553 Phase Completion: I→V→C Workers Finish and Story Passes	reject	487	haiku	1		69c06a2c7ae	false	0	0	0	0	0	0	0		0	0	0	0
-2026-03-23T00:51:20Z	2	3	US-773	Phase R: Semantic Query Dedup - Skip Research When Query Matches Prior Cache	reject	601	haiku	1		69c082cb1db7	false	0	0	0	0	0	0	0		0	0	0	0	unknown	
+2026-03-23T00:51:20Z	2	3	US-773	Phase R: Semantic Query Dedup - Skip Research When Query Matches Prior Cache	reject	601	haiku	1		69c082cb1db7	false	0	0	0	0	0	0	0		0	0	0	0	unknown

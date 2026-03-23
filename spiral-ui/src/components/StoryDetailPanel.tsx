@@ -258,11 +258,18 @@ export default function StoryDetailPanel({ story, allStories, attempts, onClose 
             </div>
           )}
 
-          {/* Completion time */}
+          {/* Completion time + completing model */}
           {story.completedAt && (
             <div>
               <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-1">Completed</div>
-              <span className="text-xs text-emerald-700">{formatMYT(story.completedAt)}</span>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-emerald-700">{formatMYT(story.completedAt)}</span>
+                {completingModel && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 font-mono font-medium">
+                    {completingModel}
+                  </span>
+                )}
+              </div>
             </div>
           )}
         </div>

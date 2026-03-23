@@ -2273,4 +2273,24 @@
 {"ts": "2026-03-23T01:10:15.043127+00:00", "type": "route_story_assigned", "story_id": "US-1008", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
 {"ts": "2026-03-23T01:10:15.043496+00:00", "type": "route_story_assigned", "story_id": "US-1009", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
 {"event_type": "prd_io_error", "timestamp": "2026-03-23T01:16:17.080547+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-4348\\\\popen-gw2\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
+<<<<<<< Updated upstream
 {"event_type": "prd_io_error", "timestamp": "2026-03-23T01:53:09.601069+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-4369\\\\popen-gw2\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
+=======
+{"event_type": "prd_io_error", "timestamp": "2026-03-23T01:46:03.775647+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-4363\\\\popen-gw2\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
+{"event_type": "prd_io_error", "timestamp": "2026-03-23T01:47:20.773705+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-4364\\\\popen-gw1\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
+{"ts": "2026-03-23T01:49:58.059505+00:00", "type": "route_story_assigned", "story_id": "US-1006", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-23T01:49:58.062349+00:00", "type": "route_story_assigned", "story_id": "US-1007", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-23T01:49:58.062970+00:00", "type": "route_story_assigned", "story_id": "US-1008", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-23T01:49:58.063493+00:00", "type": "route_story_assigned", "story_id": "US-1009", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-23T01:49:58.064002+00:00", "type": "route_story_assigned", "story_id": "US-1010", "complexity_score": 45, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-23T01:49:58.064561+00:00", "type": "route_story_assigned", "story_id": "US-1011", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-23T01:49:58.065510+00:00", "type": "route_story_assigned", "story_id": "US-1012", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-23T01:49:58.066092+00:00", "type": "route_story_assigned", "story_id": "US-773", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-23T01:49:58.066685+00:00", "type": "route_story_assigned", "story_id": "US-775", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-23T01:49:58.067340+00:00", "type": "route_story_assigned", "story_id": "US-778", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-23T01:49:58.067914+00:00", "type": "route_story_assigned", "story_id": "US-780", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-23T01:49:58.068397+00:00", "type": "route_story_assigned", "story_id": "US-781", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-23T01:49:58.068886+00:00", "type": "route_story_assigned", "story_id": "US-784", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-23T01:49:58.069478+00:00", "type": "route_story_assigned", "story_id": "US-1013", "complexity_score": 30, "model_tier": "haiku", "estimated_tokens": 0}
+{"ts": "2026-03-23T01:49:58.070074+00:00", "type": "route_story_assigned", "story_id": "US-1014", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
+>>>>>>> Stashed changes

@@ -463,6 +463,12 @@ export SPIRAL_MAX_DIFF_LINES=400
 # reports per-AC pass/fail results. Story fails only if zero assertions pass.
 SPIRAL_AC_VERIFY=true
 
+# ── Phase V: Dead Feature Detection (US-1006) ─────────────────────────────────
+# When true, Phase V detects newly added Python functions/classes that are never
+# called or imported (dead code). Default is soft warning (logs but does not block).
+# Set to true to enable hard block: story fails if dead features found.
+SPIRAL_STRICT_DEAD_FEATURE=false
+
 # ── Dashboard port allocation ────────────────────────────────────────────────
 # Two servers run side-by-side. NEVER swap these ports.
 #   Port 5299: Vite React dashboard (spiral-ui/) — full 11-tab UI

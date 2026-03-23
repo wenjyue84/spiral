@@ -2794,6 +2794,68 @@ def cmd_show_ac_results(args: argparse.Namespace) -> None:
                         print(f"        Error: {stderr[:60]}")
 
 
+def cmd_show_dead_features(args: argparse.Namespace) -> None:
+    """Display dead features detected in a story (US-1006).
+
+    Usage: spiral show-dead-features <story_id> [--format json|table]
+    """
+    story_id: str = getattr(args, "story_id", "")
+    if not story_id:
+        print("Error: story_id is required", file=sys.stderr)
+        sys.exit(1)
+
+    # Load prd.json to get the story
+    try:
+        prd_path = Path("prd.json")
+        with open(prd_path, encoding="utf-8") as f:
+            prd = json.load(f)
+    except (json.JSONDecodeError, FileNotFoundError) as e:
+        print(f"Error loading prd.json: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Find the story
+    story = None
+    for s in prd.get("userStories", []):
+        if s.get("id") == story_id:
+            story = s
+            break
+
+    if not story:
+        print(f"Error: Story {story_id} not found in prd.json", file=sys.stderr)
+        sys.exit(1)
+
+    # Get dead features results from story metadata
+    dead_features_data = story.get("_deadFeatures", {})
+    output_format = getattr(args, "format", "table")
+
+    if output_format == "json":
+        print(json.dumps(dead_features_data, indent=2))
+    else:
+        # Table format
+        total = dead_features_data.get("total_features", 0)
+        dead_features = dead_features_data.get("dead_features", [])
+        summary = dead_features_data.get("summary", "no data")
+
+        print(f"\n{story_id} — Dead Feature Detection Results")
+        print("=" * 60)
+        print(f"Summary: {summary}")
+        print()
+
+        if total > 0:
+            print("Dead Features:")
+            for df in dead_features:
+                name = df.get("name", "unknown")
+                file = df.get("file", "unknown")
+                line = df.get("line", 0)
+                definition = df.get("definition", "")[:60]
+
+                print(f"  • {name:30} ({file}:{line})")
+                if definition:
+                    print(f"    Definition: {definition}")
+        else:
+            print("✓ No dead features detected")
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="spiral",

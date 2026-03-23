@@ -1098,7 +1098,7 @@ Story JSON: $STORY_JSON"
       fi
       (
         unset CLAUDECODE
-        export SPIRAL_WORKER_ACTIVE=1  # Tell PreToolUse hook this is a Ralph worker
+        export SPIRAL_WORKER_ACTIVE=1 # Tell PreToolUse hook this is a Ralph worker
         "${_GNU_TIME_CMD[@]+"${_GNU_TIME_CMD[@]}"}" claude -p "$RALPH_USER_PROMPT" \
           $CLAUDE_MODEL_FLAG \
           $CLAUDE_EFFORT_FLAG \

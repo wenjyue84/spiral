@@ -11,6 +11,14 @@
 
 set -euo pipefail
 
+# ── Environment variable gate ────────────────────────────────────────────────
+# Only enforce protection when running inside a SPIRAL worker (Ralph).
+# When the user edits files manually via Claude Code, SPIRAL_WORKER_ACTIVE is
+# absent and the hook exits immediately -- no files are blocked.
+if [[ "${SPIRAL_WORKER_ACTIVE:-}" != "1" ]]; then
+  exit 0
+fi
+
 # ── Protected paths ──────────────────────────────────────────────────────────
 # Exact file matches and directory prefixes that ralph workers must not modify.
 PROTECTED_FILES=(
@@ -19,10 +27,19 @@ PROTECTED_FILES=(
   "prd.json"
   "prd.schema.json"
   "ralph/ralph.sh"
+  ".pre-commit-config.yaml"
+  "constitution.md"
+  "pyproject.toml"
 )
 
 PROTECTED_PREFIXES=(
   ".spiral/"
+  "lib/"
+  "ralph/"
+  ".claude/hooks/"
+  ".github/"
+  "tests/core/"
+  ".specify/"
 )
 
 # ── Read tool input from stdin ───────────────────────────────────────────────

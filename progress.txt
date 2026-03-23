@@ -1072,6 +1072,7 @@ Here is a concise technical brief for implementing the semantic query cache feat
 *   **Dependencies:** Confirm the TF-IDF utility in `lib/merge_stories.py` can be easily reused or adapted without side effects.
 
 
+<<<<<<< Updated upstream
 ## Pre-analysis for US-1006 (Gemini 2.5 Pro)
 This technical brief outlines the implementation plan for the "Dead Feature Detector" story.
 
@@ -1263,4 +1264,38 @@ Story US-1006 marked as passes=true. All acceptance criteria met:
 - CLI command provides visibility into detected dead features
 - Configuration allows users to enforce strict mode (block on dead features) if desired
 - Non-blocking by default to allow gradual adoption and iterative refinement
+=======
 
+## Pre-analysis for US-1006 (Gemini 2.5 Pro)
+Here is a technical brief for the Claude Code agent.
+
+---
+
+**Subject:** Implement Dead Feature Detector for Spiral (US-1006)
+
+**Overview:**
+This task involves creating a Python script to detect "dead" Python code—new functions or classes added for a story that are never imported or called. This acts as a quality gate to prevent shipping unused code.
+
+**Files to Modify:**
+*   **Create:** `lib/dead_feature_detector.py`
+*   **Modify:** `spiral.sh` (the main workflow script)
+*   **Modify:** `main.py` (the main CLI entry point)
+*   **Modify:** `spiral.config.sh` (for feature flag)
+
+**Frappe Context:**
+*   This is a command-line tool, not a Frappe application. No DocTypes or Frappe hooks are involved.
+
+**Implementation Plan:**
+1.  **`lib/dead_feature_detector.py`:** Create a main function `detect_dead_features`.
+    *   Use `subprocess` to run `git diff` against the target branch to identify new `def` and `class` definitions.
+    *   For each new symbol, search the entire codebase for its usage.
+    *   A symbol is "dead" if it's only found at its definition line.
+2.  **`spiral.sh`:** In the "Phase V" section, after tests pass, execute the detector script. Write the list of dead features to a `_deadFeatures` field in the story's JSON file.
+3.  **`main.py`:** Add a `show-dead-features` subcommand that reads story files and prints a consolidated report.
+4.  **`spiral.config.sh`:** Add `SPIRAL_STRICT_DEAD_FEATURE=false`. The `spiral.sh` script should check this variable to either block on detection (if `true`) or just warn.
+
+**Gotchas & Edge Cases:**
+*   The `grep`-based symbol search specified in the notes will miss dynamic usage (e.g., `getattr`).
+*   Exclude test functions (`def test_*`) and symbols re-exported in `__init__.py` files from detection.
+*   The simple regex for `def/class` might be brittle. Consider using Python's `ast` module for more robust parsing if time permits.
+>>>>>>> Stashed changes

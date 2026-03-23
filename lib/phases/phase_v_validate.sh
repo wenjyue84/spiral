@@ -237,6 +237,60 @@ run_phase_validate() {
       done
     fi
 
+    # ── Optional: Dead Feature Detection (US-1006) ────────────────────────────────
+    # After pytest passes, scan for newly added functions/classes that are never
+    # imported or called anywhere. Prevents code that exists but doesn't work.
+    _DFD_FAILED=0
+    if [[ "$_VALIDATE_EXIT" -eq 0 ]]; then
+      echo "  [V] Dead Feature Detection: scanning for unreachable new code..."
+
+      mapfile -t _PASSED_STORIES < <(
+        "$JQ" -r '.userStories[] | select(.passes == true) | .id' "$PRD_FILE" 2>/dev/null || true
+      ) || true
+
+      for _story_id in "${_PASSED_STORIES[@]}"; do
+        # Get filesTouch for this story
+        _FILES_TO_SCAN=()
+        while IFS= read -r _ft_entry; do
+          [[ -n "$_ft_entry" ]] && _FILES_TO_SCAN+=("$_ft_entry")
+        done < <("$JQ" -r --arg id "$_story_id" \
+          '.userStories[] | select(.id == $id) | .filesTouch // [] | .[]' \
+          "$PRD_FILE" 2>/dev/null || true)
+
+        if [[ ${#_FILES_TO_SCAN[@]} -gt 0 ]]; then
+          # Run dead feature detector
+          _DFD_RESULTS=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/dead_feature_detector.py" \
+            --story-id "$_story_id" \
+            --changed-files "${_FILES_TO_SCAN[@]}" \
+            --repo-root "$REPO_ROOT" 2>&1 || echo '{"error":"detector failed"}')
+
+          # Parse results
+          _DFD_TOTAL=$(echo "$_DFD_RESULTS" | "$JQ" '.total_features // 0' 2>/dev/null || echo 0)
+          _DFD_SUMMARY=$(echo "$_DFD_RESULTS" | "$JQ" -r '.summary // "unknown"' 2>/dev/null || echo "unknown")
+
+          # Update story with dead feature detection results
+          if [[ "$_DFD_TOTAL" -gt 0 ]]; then
+            "$JQ" --arg id "$_story_id" \
+              --argjson results "$_DFD_RESULTS" \
+              '(.userStories[] | select(.id == $id) | ._deadFeatures) = $results' \
+              "$PRD_FILE" >"$PRD_FILE.tmp" 2>/dev/null && mv "$PRD_FILE.tmp" "$PRD_FILE" || true
+
+            if [[ "${SPIRAL_STRICT_DEAD_FEATURE:-false}" == "true" ]]; then
+              # Hard block: story fails if dead features found
+              echo "  [V] DFD FAIL: $_story_id — $_DFD_SUMMARY (SPIRAL_STRICT_DEAD_FEATURE=true)"
+              _DFD_FAILED=1
+              _VALIDATE_EXIT=1
+            else
+              # Soft warning: log but allow
+              echo "  [V] DFD WARN: $_story_id — $_DFD_SUMMARY (soft warning)"
+            fi
+          elif [[ "$_DFD_TOTAL" -eq 0 ]]; then
+            echo "  [V] DFD OK: $_story_id — 0 dead features"
+          fi
+        fi
+      done
+    fi
+
     # Print summary from the freshest report
     "$SPIRAL_PYTHON" - <<PYEOF
 import os, json, sys

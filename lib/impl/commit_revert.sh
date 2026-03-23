@@ -210,6 +210,18 @@ commit_or_revert() {
     echo "[Phase I / commit] $story_id passed — merging $worker_branch"
     # TODO: implement merge + quality gate assertion
 
+    # ── Protected-path audit (second defense after PreToolUse hook) ──
+    # Catches modifications even if the hook was bypassed via Bash tool.
+    local _PROTECTED_RE="^(spiral\.sh|spiral\.config\.sh|constitution\.md|pyproject\.toml|\.pre-commit-config\.yaml|lib/|ralph/|\.claude/hooks/|\.github/|\.specify/|tests/core/)"
+    local _touched_protected
+    _touched_protected=$(git diff --name-only HEAD 2>/dev/null | grep -E "$_PROTECTED_RE" || true)
+    if [[ -n "$_touched_protected" ]]; then
+      echo "[Phase I / BLOCKED] $story_id touched protected core files — auto-reverting:"
+      echo "$_touched_protected" | sed 's/^/  - /'
+      git checkout -- . 2>/dev/null || true
+      passes="false"
+    fi
+
     # ── Episodic memory write (non-fatal) ────────────────────────────
     if [[ "${SPIRAL_EPISODIC_MEMORY:-false}" == "true" ]]; then
       _approach="$(grep -A 15 "Story:.*${story_id}" "${SPIRAL_ROOT:-./}/progress.txt" 2>/dev/null | tail -15 | tr '\n' ' ' | cut -c1-300)"
