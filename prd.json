@@ -114,6 +114,74 @@
       "model": "sonnet"
     },
     {
+      "id": "US-1062",
+      "title": "Phase S Story Validation Confidence Scorer for Enrichment Prioritization",
+      "priority": "medium",
+      "description": "Score each story (0-100) for validation likelihood based on complexity signals, dependency graph depth, and description hints. Helps Phase E prioritize enrichment and Phase S make rewrite-vs-reject decisions.",
+      "acceptanceCriteria": [
+        "CLI spiral score-stories-for-validation analyzes prd.json, scores each story based on: (1) keyword complexity in description (control flow, concurrency, database = higher), (2) dependency_count (each dep -5 points), (3) file_change_hints from prior Phase E (complex patterns -10 points); outputs 0-100 range",
+        "Adds _validation_confidence field to each story in prd.json in-place; simple stories (e.g., 'add button') score >80, complex stories (e.g., 'implement distributed cache with monitoring') score <50",
+        "Integration test: Score 10 curated stories with known complexity, verify 95%+ accuracy vs manual labeling; run Phase S with scored prd.json and verify low-confidence stories receive more enrichment"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1065",
+      "title": "Integration Test: Phase R Research Query Deduplication Cache Effectiveness",
+      "priority": "medium",
+      "description": "Add integration test validating that Phase R deduplication cache skips redundant Gemini queries, measuring actual cache hit rate and latency savings. Uses mock Gemini responses and results.tsv to verify >30% latency improvement claimed in Phase R optimization.",
+      "acceptanceCriteria": [
+        "Test creates fixture with 5 identical research queries across multiple stories, verifies Phase R processes only 1 Gemini call and caches remaining 4",
+        "Assert results.tsv shows research_cache_hit_count=4 and research_cache_miss_count=1 for iteration",
+        "Benchmark test measures latency: verify cached queries execute in <100ms vs 2000ms+ for uncached"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1066",
+      "title": "CLI: spiral debug-worker-state — Dump Live Worker State and Diagnostics",
+      "priority": "medium",
+      "description": "Add CLI command to inspect current state of all parallel workers: worktree paths, prd.json slices, process IDs, memory usage, current phase/story. Outputs JSON for parsing by dashboards or manual troubleshooting during federated SPIRAL runs.",
+      "acceptanceCriteria": [
+        "Command `spiral debug-worker-state` returns JSON with worker_id, pid, worktree_path, current_story_id, phase, memory_mb, prd_slice_size for each active worker",
+        "Correctly identifies detached worker HEAD states and reports in diagnostics section",
+        "Integration test verifies output format matches schema and worker data is consistent with actual filesystem state"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1074",
+      "title": "Phase G: Link CHANGELOG Entries to GitHub Issues and PRs via Commit Messages",
+      "priority": "medium",
+      "description": "Extend gen_changelog.py to parse commit messages for GitHub issue/PR references (#123, closes #456) and automatically link CHANGELOG entries to GitHub URLs for traceability.",
+      "acceptanceCriteria": [
+        "Extend lib/gen_changelog.py:extract_github_refs() to parse #issue and closes #PR patterns from commit messages",
+        "CHANGELOG.md entries include markdown links: [#123](https://github.com/org/repo/issues/123) for referenced issues",
+        "Integration test in tests/test_gen_changelog.py validates 5+ sample commits with mixed issue/PR references"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
       "id": "US-1069",
       "title": "CLI: spiral preflight-check -- Validate SPIRAL Runtime Dependencies and Configuration",
       "priority": "high",

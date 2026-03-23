@@ -125,12 +125,12 @@ handle_story_failure() {
     # Classify failure category from the reason text
     local category="unknown"
     case "$failure_reason" in
-      *oversized_diff*|*diff\ size*|*too\ large*) category="oversized_diff" ;;
-      *TypeError*|*type\ error*|*mypy*) category="type_error" ;;
-      *lint*|*ruff*|*shellcheck*|*shfmt*) category="lint_error" ;;
-      *test*fail*|*pytest*|*FAILED*|*assertion*) category="test_fail" ;;
-      *import*|*ModuleNotFoundError*) category="import_error" ;;
-      *timeout*|*timed\ out*) category="timeout" ;;
+      *oversized_diff* | *diff\ size* | *too\ large*) category="oversized_diff" ;;
+      *TypeError* | *type\ error* | *mypy*) category="type_error" ;;
+      *lint* | *ruff* | *shellcheck* | *shfmt*) category="lint_error" ;;
+      *test*fail* | *pytest* | *FAILED* | *assertion*) category="test_fail" ;;
+      *import* | *ModuleNotFoundError*) category="import_error" ;;
+      *timeout* | *timed\ out*) category="timeout" ;;
       *) category="runtime_error" ;;
     esac
 

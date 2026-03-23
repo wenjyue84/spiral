@@ -40,7 +40,7 @@
   - Returns ordered candidates for downstream merge processing
 
 - lib/results_tsv.py: ResultsRecord dataclass already includes quota fields
-  - quota_exceeded: str (e.g., "true"/"false") 
+  - quota_exceeded: str (e.g., "true"/"false")
   - quota_source: str (e.g., "frontend quota 30" or "backend quota 50")
   - Both fields already in HEADER list for TSV output
 
@@ -484,4 +484,3 @@ Diff size: 264 lines < 400 limit ✓
 All tests passing: 10/10 ✓
 Type checking: mypy --strict ✓
 Linting: ruff check ✓
-
