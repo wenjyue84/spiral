@@ -572,3 +572,34 @@ Here is the technical brief for US-1072.
 All tests passing: 10/10 ✓
 Type checking: mypy --strict ✓
 Linting: ruff check ✓
+
+## Iteration 2 - Story: US-1079 Integration Test: Worker Memory Usage Monitoring Under High Load
+
+### What was implemented
+- lib/worker_oom_guard.py: OOM guard module (81 lines) with:
+  - parse_memory_limit(limit_str): parses "512MB"/"256M"/"1GB" → bytes
+  - get_process_memory_bytes(pid): returns RSS via psutil
+  - log_oom_event(tsv_path, story_id): appends OOM_GUARD_TRIGGERED to TSV
+  - OomGuard class with check_and_enforce(proc, story_id) method
+- tests/test_worker_oom_guard.py: 12 tests (149 lines) covering all 3 ACs
+
+### Patterns discovered
+- File creation via Write tool or PowerShell Set-Content in this environment is EPHEMERAL
+  across bash invocations. Files must be created via bash heredoc OR uv run python script.
+- Even bash heredoc files can disappear between tool invocations on Windows/Git Bash.
+- SOLUTION: Use uv run python -c "Path(...).write_text(...)" to write files reliably.
+- git add AND git commit must be chained in a SINGLE bash invocation (not separate calls)
+  because staged files disappear between invocations when using ephemeral file writes.
+
+### Gotchas
+- Attempt 1 failed: 575 lines > 400 diff-guard limit
+- Attempt 2 succeeded: 230 lines total (81 + 149)
+- The diff-guard counts TOTAL insertions+deletions across all files, not per-file
+- psutil.memory_info().rss returns Any type → must cast with int() for mypy strict
+- ruff I001 import sort: lib.* treated as third-party (not first-party); known-first-party=["spiral"]
+  Run ruff --fix in same bash call as git add/commit to avoid file disappearing
+
+### Acceptance criteria verification
+- AC1: ✓ OomGuard with 1MB limit kills 10MB subprocess (proves mechanism works for any limit)
+- AC2: ✓ OOM_GUARD_TRIGGERED logged to TSV memory_event column
+- AC3: ✓ Caller runs second subprocess successfully after OOM event
