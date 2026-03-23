@@ -8,3 +8,30 @@
 - ResultsRecord lives in lib/results_tsv.py (not lib/spiral/results.py)
 - Tests run with --override-ini="addopts=" to skip xdist parallel flags (broken on Windows)
 - 5 test files fail collection due to missing imports; ignore them when running the suite locally
+
+
+## Pre-analysis for US-1031 (Gemini 2.5 Pro)
+This is a standard Python WebSocket task, not a Frappe-specific implementation.
+
+**1. Files to Modify:**
+- `lib/dashboard/routes.py`: To register the new WebSocket endpoint.
+- `lib/dashboard/ws_handlers.py`: To create the handler that manages the WebSocket lifecycle and data streaming.
+- `tests/test_phase_burn_rate_ws.py`: The target test suite for validation.
+
+**2. Involved Components:**
+- No Frappe DocTypes or hooks are involved.
+- The core logic relies on the `calculate_burn_rate` function from `lib/dashboard/phase_burn_rate.py`.
+
+**3. Implementation Approach:**
+- In `routes.py`, add a WebSocket route `/ws/phase-burn-rate` that maps to a new `phase_burn_rate_handler` function.
+- In `ws_handlers.py`, implement the async `phase_burn_rate_handler`.
+- Inside the handler, enter an `asyncio` loop that runs every 5 seconds.
+- In each iteration, call the existing `calculate_burn_rate()` function.
+- Send the JSON-serialized result through the active WebSocket connection.
+
+**4. Edge Cases & Gotchas:**
+- **Graceful Disconnect:** The loop must be wrapped in a `try...except` block to catch WebSocket disconnect exceptions and break the loop cleanly.
+- **Heartbeat:** If no phase is active, the WebSocket must still send a heartbeat message every 5 seconds, rather than going silent.
+- **Dependency:** Do not re-implement the burn rate logic; import and use the function from `phase_burn_rate.py`.
+- **Validation:** Success is defined by all tests passing in `tests/test_phase_burn_rate_ws.py`.
+
