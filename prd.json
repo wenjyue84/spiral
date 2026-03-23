@@ -11,35 +11,14 @@
   ],
   "userStories": [
     {
-      "id": "US-1071",
-      "title": "Dashboard Endpoint: GET /api/dashboard/blocked-stories -- Dependency Blocker Analysis",
+      "id": "US-1076",
+      "title": "Integration Test: Dashboard UI Rendering with Playwright - Verify Real-Time Cost Updates",
       "priority": "high",
-      "description": "Add dashboard endpoint that identifies stories unable to proceed due to unmet federated dependencies, showing what blocks them and estimated unblock time for proactive triage.",
+      "description": "Add end-to-end Playwright tests to validate dashboard frontend renders correctly, WebSocket /ws/cost connects and streams updates every 5s, and story cards display accurate cost breakdowns from /api/dashboard/costs-by-project.",
       "acceptanceCriteria": [
-        "Endpoint returns JSON: {blocked_stories: [{id, reason, blocking_story_ids, estimated_unblock_hours}]} by parsing prd.json dependency graph and results.tsv timestamps",
-        "Marks stories as blocked if all dependencies are not in status=passed; calculates unblock ETA from median story completion time",
-        "WebSocket /ws/blocker-changes streams real-time blocker status changes when dependencies complete"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": true,
-      "_source": "ai-example",
-      "model": "haiku",
-      "last_attempted": "2026-03-23T19:12:37Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\nLooking at prd.json, there are 5 incomplete stories with highest priority being US-1071 (high priority, last attempted 2026-03-23). The other two high-priority stories (US-1072, US-1073) are dependent features for federated conflict resolution.\n\nUS-1071 requires:\n1. A blocked-stories analyzer that examines dependency graphs and timestamps\n2. A REST endpoint /api/dashboard/blocked-stories returning {blocked_stories: []}\n3. A WebSocket /ws/blocker-changes for real-time updates\n\n## Problem Identified\n\nNeed to implement dashboard dependency blocker analysis that:\n- Parses prd.json dependency graph and results.tsv\n- Identifies stories unable to proceed due to unmet dependencies\n- Calculates ETA based on median story completion time\n- Streams real-time updates via WebSocket\n\n## Planned Changes\n\n- **lib/blocker_analyzer.py** — New analyzer module with analyze_blocked_stories() function\n- **lib/dashboard/api.py** — Add GET /api/dashboard/blocked-stories endpoint\n- **lib/dashboard/ws_handlers.py** — Add async phase_blocker_changes_handler() for WebSocket\n- **lib/dashboard/routes.py** — Register /ws/blocker-changes route\n- **tests/test_blocker_analyzer.py** — Unit tests for blocking logic, ETA calculation, dependency parsing\n\n---\n\nLet me start implementation:\nPerfect! All tests pass. Let me commit the implementation:\nPerfect! I have successfully implemented **US-1071: Dashboard Endpoint: GET /api/dashboard/blocked-stories -- Dependency Blocker Analysis**.\n\n## Summary of Implementation"
-      }
-    },
-    {
-      "id": "US-1072",
-      "title": "Integration Test: Phase M Federated Merge with File Conflict Detection and Auto-Resolution",
-      "priority": "high",
-      "description": "Add integration test that validates Phase M correctly handles parallel stories from multiple sub-projects that modify overlapping files, with conflict detection and safe merge strategies.",
-      "acceptanceCriteria": [
-        "Test runs 3 workers on federated prd.json where sub-project-A and sub-project-B both touch same file; asserts Phase M detects conflict in lib/phase_m.py and reports in results.tsv",
-        "Validates merge strategy (e.g., first-in-wins, manual review flagged) is applied consistently; prd.json post-merge reflects only non-conflicting stories",
-        "Asserts no cross-worker prd.json corruption; both .spiral/workers/worker-*/prd.json and main prd.json stay consistent"
+        "Create tests/dashboard_e2e.py with Playwright fixtures that launch dashboard on localhost:5299 and verify page load time <2s",
+        "Test that /ws/cost WebSocket endpoint receives cost delta updates and DOM updates within 6s of results.tsv file change",
+        "Verify /api/dashboard/costs-by-project renders ≥3 story cards with sub_project, cost, and phase labels; assert values match results.tsv"
       ],
       "technicalNotes": [],
       "dependencies": [],
@@ -47,30 +26,24 @@
       "passes": true,
       "_source": "ai-example",
       "model": "haiku",
-      "last_attempted": "2026-03-23T19:33:08Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- `lib/conflict_detector.py` exists and has `detect_federated_conflicts()` function to detect file collisions across sub-projects\n- `lib/spiral/phase_m.py` has `prd_merge()` function but doesn't currently call conflict detection\n- Integration tests exist in `tests/integration/` with a clear pattern for federated testing\n- Existing US-1064 test validates worker isolation but doesn't test file conflict scenarios\n\n## Problem Identified\nUS-1072 requires an integration test that validates Phase M correctly handles conflicts when multiple sub-projects modify overlapping files. Specifically, the test needs to:\n1. Create a federated prd.json with stories from sub-project-A and sub-project-B that touch the same file\n2. Assert that conflicts are detected in Phase M\n3. Validate merge strategy is applied consistently\n4. Assert no cross-worker prd.json corruption\n\n## Planned Changes\n- Create `tests/integration/test_phase_m_federated_merge_us1072.py` with 3 comprehensive tests:\n  1. Test conflict detection when two sub-projects modify the same file\n  2. Test merge strategy (first-in-wins) is applied correctly\n  3. Test no cross-worker prd.json corruption after merge\n- Verify that `detect_federated_conflicts()` is properly called during merge\n- Run all 3 tests with pytest and verify they pass with mypy --strict clean\n\nLet me create the integration test:\nNow let me run the tests to verify they pass:\nLet me run the tests with the Windows override:\nLet me read the full conflict_detector.py file to understand how it works:\nLet me check what the story_helpers module does:\nLet me check the story_helpers files:\nI see the issue. The `detect_federated_conflicts()` function is using `_source` field when it should be using `sub_project` field. Let me fix the conflict_detector:\nNow let me run the tests again:\nLet me fix the third test - the issue is that I'm marking stories as passed, which filters them out:\nLet me run the tests again:\nGreat! Now let me run the quality checks:\nNow let me check ruff linting:\nLet me run ruff check directly:\nLet me fix the unused variable:\nLet me run ruff again:\nLet me run the tests one more time to verify everything works:\nNow let me mark the story as complete in prd.json:\nNow let me commit the changes:\nNow let me update progress.txt with implementation notes:\nLet me commit the progress.txt update:\nLet me verify the story is marked as complete:\nPerfect! Let me run a final verification to ensure everything is working correctly:\n## Summary"
-      }
+      "last_attempted": "2026-03-23T19:56:07Z"
     },
     {
-      "id": "US-1073",
-      "title": "Phase M: Auto-Resolve Federated File Conflicts with Three-Way Merge Strategy",
+      "id": "US-1077",
+      "title": "Federation Audit Log: Track Sub-Project Story Assignments and Quota Violations with CLI Query",
       "priority": "high",
-      "description": "Extend Phase M merge logic to automatically resolve file-level collisions across sub-projects using three-way merge (main vs. worker-A vs. worker-B), with rollback to manual resolution on conflict.",
+      "description": "Implement audit trail that records every story merge/reject/quota-violation event in Phase M, enabling post-hoc debugging of federation issues and compliance tracking across sub-projects.",
       "acceptanceCriteria": [
-        "lib/phase_m/conflict_resolver.py implements three_way_merge(base_content, version_a, version_b) returning merged_content or ConflictMarker",
-        "Phase M detects collisions, attempts auto-resolution, and commits resolved versions with 'Auto-resolved federated conflict' commit message",
-        "Integration test in tests/integration/test_phase_m_federated_resolve.py simulates 3-worker federated run with file collisions, verifies all resolved or marked for manual review"
+        "Phase M writes JSONL entries to .spiral/federation_audit.jsonl on each merge action: {timestamp, story_id, sub_project, action: 'merge'|'reject'|'quota_violation', reason, tokens_spent}",
+        "Create lib/federation_audit.py with functions write_audit_entry() and parse_audit_log()",
+        "CLI: spiral federation-audit --last 20 --sub-project frontend --filter quota_violation outputs human-readable table; exit 1 if any violations found"
       ],
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": true,
+      "passes": false,
       "_source": "ai-example",
-      "model": "sonnet",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- `lib/phase_m/` directory does not exist\n- `lib/conflict_detector.py` exists with `detect_federated_conflicts()` that detects file collisions but only blocks merges, no auto-resolution\n- Previous story US-1072 added conflict detection tests\n- `tests/integration/` exists with the US-1072 test as a pattern\n\n## Problem Identified\nUS-1073 requires:\n1. `lib/phase_m/conflict_resolver.py` with `three_way_merge()` function returning merged content or `ConflictMarker`\n2. Phase M auto-resolution with \"Auto-resolved federated conflict\" commit message\n3. Integration test simulating 3-worker federated run with file collisions\n\n## Planned Changes\n- Create `lib/phase_m/__init__.py` (empty module marker)\n- Create `lib/phase_m/conflict_resolver.py` with `ConflictMarker` dataclass and `three_way_merge()` \n- Create `tests/integration/test_phase_m_federated_resolve.py` with 3-worker simulation tests\nNow I'll create the implementation:\nNow create the integration test:\n14/14 tests pass. Now run mypy and lint:\nNow fix the `extend` with `None` type issue (lines 155-156). Let me look at that region:\nAll checks pass. Run the full test suite one more time to confirm:\n14/14 pass. Now update prd.json and document progress:\nDone. Here's a summary:\n\n**US-1073 implemented and committed.**\n\n### What was built"
-      }
+      "model": "haiku"
     },
     {
       "id": "US-1059",
@@ -156,6 +129,119 @@
       "passes": false,
       "_source": "ai-example",
       "model": "sonnet"
+    },
+    {
+      "id": "US-1066",
+      "title": "CLI: spiral debug-worker-state — Dump Live Worker State and Diagnostics",
+      "priority": "medium",
+      "description": "Add CLI command to inspect current state of all parallel workers: worktree paths, prd.json slices, process IDs, memory usage, current phase/story. Outputs JSON for parsing by dashboards or manual troubleshooting during federated SPIRAL runs.",
+      "acceptanceCriteria": [
+        "Command `spiral debug-worker-state` returns JSON with worker_id, pid, worktree_path, current_story_id, phase, memory_mb, prd_slice_size for each active worker",
+        "Correctly identifies detached worker HEAD states and reports in diagnostics section",
+        "Integration test verifies output format matches schema and worker data is consistent with actual filesystem state"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1074",
+      "title": "Phase G: Link CHANGELOG Entries to GitHub Issues and PRs via Commit Messages",
+      "priority": "medium",
+      "description": "Extend gen_changelog.py to parse commit messages for GitHub issue/PR references (#123, closes #456) and automatically link CHANGELOG entries to GitHub URLs for traceability.",
+      "acceptanceCriteria": [
+        "Extend lib/gen_changelog.py:extract_github_refs() to parse #issue and closes #PR patterns from commit messages",
+        "CHANGELOG.md entries include markdown links: [#123](https://github.com/org/repo/issues/123) for referenced issues",
+        "Integration test in tests/test_gen_changelog.py validates 5+ sample commits with mixed issue/PR references"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1075",
+      "title": "Dashboard Endpoint: GET /api/dashboard/phase-variance — Phase Duration Anomaly Detection",
+      "priority": "medium",
+      "description": "Calculate mean and standard deviation of phase durations across all iterations. Detect and flag phases exceeding 2-sigma (anomalies) to identify bottlenecks or degradation.",
+      "acceptanceCriteria": [
+        "Endpoint GET /api/dashboard/phase-variance returns JSON: {phases: [{name, mean_s, stddev, current_s, z_score, is_anomaly}]}",
+        "Reads results.tsv to compute phase_duration_s statistics per phase_name; caches result 60s via functools.lru_cache",
+        "Integration test test_dashboard_phase_variance.py mocks results.tsv with 10 iterations; verifies anomaly detection logic"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1071",
+      "title": "Dashboard Endpoint: GET /api/dashboard/blocked-stories -- Dependency Blocker Analysis",
+      "priority": "high",
+      "description": "Add dashboard endpoint that identifies stories unable to proceed due to unmet federated dependencies, showing what blocks them and estimated unblock time for proactive triage.",
+      "acceptanceCriteria": [
+        "Endpoint returns JSON: {blocked_stories: [{id, reason, blocking_story_ids, estimated_unblock_hours}]} by parsing prd.json dependency graph and results.tsv timestamps",
+        "Marks stories as blocked if all dependencies are not in status=passed; calculates unblock ETA from median story completion time",
+        "WebSocket /ws/blocker-changes streams real-time blocker status changes when dependencies complete"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "haiku",
+      "last_attempted": "2026-03-23T19:12:37Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n\nLooking at prd.json, there are 5 incomplete stories with highest priority being US-1071 (high priority, last attempted 2026-03-23). The other two high-priority stories (US-1072, US-1073) are dependent features for federated conflict resolution.\n\nUS-1071 requires:\n1. A blocked-stories analyzer that examines dependency graphs and timestamps\n2. A REST endpoint /api/dashboard/blocked-stories returning {blocked_stories: []}\n3. A WebSocket /ws/blocker-changes for real-time updates\n\n## Problem Identified\n\nNeed to implement dashboard dependency blocker analysis that:\n- Parses prd.json dependency graph and results.tsv\n- Identifies stories unable to proceed due to unmet dependencies\n- Calculates ETA based on median story completion time\n- Streams real-time updates via WebSocket\n\n## Planned Changes\n\n- **lib/blocker_analyzer.py** — New analyzer module with analyze_blocked_stories() function\n- **lib/dashboard/api.py** — Add GET /api/dashboard/blocked-stories endpoint\n- **lib/dashboard/ws_handlers.py** — Add async phase_blocker_changes_handler() for WebSocket\n- **lib/dashboard/routes.py** — Register /ws/blocker-changes route\n- **tests/test_blocker_analyzer.py** — Unit tests for blocking logic, ETA calculation, dependency parsing\n\n---\n\nLet me start implementation:\nPerfect! All tests pass. Let me commit the implementation:\nPerfect! I have successfully implemented **US-1071: Dashboard Endpoint: GET /api/dashboard/blocked-stories -- Dependency Blocker Analysis**.\n\n## Summary of Implementation"
+      }
+    },
+    {
+      "id": "US-1072",
+      "title": "Integration Test: Phase M Federated Merge with File Conflict Detection and Auto-Resolution",
+      "priority": "high",
+      "description": "Add integration test that validates Phase M correctly handles parallel stories from multiple sub-projects that modify overlapping files, with conflict detection and safe merge strategies.",
+      "acceptanceCriteria": [
+        "Test runs 3 workers on federated prd.json where sub-project-A and sub-project-B both touch same file; asserts Phase M detects conflict in lib/phase_m.py and reports in results.tsv",
+        "Validates merge strategy (e.g., first-in-wins, manual review flagged) is applied consistently; prd.json post-merge reflects only non-conflicting stories",
+        "Asserts no cross-worker prd.json corruption; both .spiral/workers/worker-*/prd.json and main prd.json stay consistent"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "haiku",
+      "last_attempted": "2026-03-23T19:33:08Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n- `lib/conflict_detector.py` exists and has `detect_federated_conflicts()` function to detect file collisions across sub-projects\n- `lib/spiral/phase_m.py` has `prd_merge()` function but doesn't currently call conflict detection\n- Integration tests exist in `tests/integration/` with a clear pattern for federated testing\n- Existing US-1064 test validates worker isolation but doesn't test file conflict scenarios\n\n## Problem Identified\nUS-1072 requires an integration test that validates Phase M correctly handles conflicts when multiple sub-projects modify overlapping files. Specifically, the test needs to:\n1. Create a federated prd.json with stories from sub-project-A and sub-project-B that touch the same file\n2. Assert that conflicts are detected in Phase M\n3. Validate merge strategy is applied consistently\n4. Assert no cross-worker prd.json corruption\n\n## Planned Changes\n- Create `tests/integration/test_phase_m_federated_merge_us1072.py` with 3 comprehensive tests:\n  1. Test conflict detection when two sub-projects modify the same file\n  2. Test merge strategy (first-in-wins) is applied correctly\n  3. Test no cross-worker prd.json corruption after merge\n- Verify that `detect_federated_conflicts()` is properly called during merge\n- Run all 3 tests with pytest and verify they pass with mypy --strict clean\n\nLet me create the integration test:\nNow let me run the tests to verify they pass:\nLet me run the tests with the Windows override:\nLet me read the full conflict_detector.py file to understand how it works:\nLet me check what the story_helpers module does:\nLet me check the story_helpers files:\nI see the issue. The `detect_federated_conflicts()` function is using `_source` field when it should be using `sub_project` field. Let me fix the conflict_detector:\nNow let me run the tests again:\nLet me fix the third test - the issue is that I'm marking stories as passed, which filters them out:\nLet me run the tests again:\nGreat! Now let me run the quality checks:\nNow let me check ruff linting:\nLet me run ruff check directly:\nLet me fix the unused variable:\nLet me run ruff again:\nLet me run the tests one more time to verify everything works:\nNow let me mark the story as complete in prd.json:\nNow let me commit the changes:\nNow let me update progress.txt with implementation notes:\nLet me commit the progress.txt update:\nLet me verify the story is marked as complete:\nPerfect! Let me run a final verification to ensure everything is working correctly:\n## Summary"
+      }
+    },
+    {
+      "id": "US-1073",
+      "title": "Phase M: Auto-Resolve Federated File Conflicts with Three-Way Merge Strategy",
+      "priority": "high",
+      "description": "Extend Phase M merge logic to automatically resolve file-level collisions across sub-projects using three-way merge (main vs. worker-A vs. worker-B), with rollback to manual resolution on conflict.",
+      "acceptanceCriteria": [
+        "lib/phase_m/conflict_resolver.py implements three_way_merge(base_content, version_a, version_b) returning merged_content or ConflictMarker",
+        "Phase M detects collisions, attempts auto-resolution, and commits resolved versions with 'Auto-resolved federated conflict' commit message",
+        "Integration test in tests/integration/test_phase_m_federated_resolve.py simulates 3-worker federated run with file collisions, verifies all resolved or marked for manual review"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "sonnet",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n- `lib/phase_m/` directory does not exist\n- `lib/conflict_detector.py` exists with `detect_federated_conflicts()` that detects file collisions but only blocks merges, no auto-resolution\n- Previous story US-1072 added conflict detection tests\n- `tests/integration/` exists with the US-1072 test as a pattern\n\n## Problem Identified\nUS-1073 requires:\n1. `lib/phase_m/conflict_resolver.py` with `three_way_merge()` function returning merged content or `ConflictMarker`\n2. Phase M auto-resolution with \"Auto-resolved federated conflict\" commit message\n3. Integration test simulating 3-worker federated run with file collisions\n\n## Planned Changes\n- Create `lib/phase_m/__init__.py` (empty module marker)\n- Create `lib/phase_m/conflict_resolver.py` with `ConflictMarker` dataclass and `three_way_merge()` \n- Create `tests/integration/test_phase_m_federated_resolve.py` with 3-worker simulation tests\nNow I'll create the implementation:\nNow create the integration test:\n14/14 tests pass. Now run mypy and lint:\nNow fix the `extend` with `None` type issue (lines 155-156). Let me look at that region:\nAll checks pass. Run the full test suite one more time to confirm:\n14/14 pass. Now update prd.json and document progress:\nDone. Here's a summary:\n\n**US-1073 implemented and committed.**\n\n### What was built"
+      }
     },
     {
       "id": "US-1069",
