@@ -39,7 +39,7 @@
         "auto-generated"
       ],
       "model": "haiku",
-      "last_attempted": "2026-03-23T04:52:15Z"
+      "last_attempted": "2026-03-23T04:49:16Z"
     },
     {
       "id": "US-1012",
@@ -257,6 +257,141 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1018",
+      "title": "[E2E Test] Cross-Phase Schema Validation: Research → TestSynth → StoryValid",
+      "priority": "medium",
+      "description": "Write integration tests that run phases R, T, and S sequentially using fixture inputs and assert that each phase's JSON output matches the schema expected by the next phase. Validates the R→T→S data handoff introduced in US-644.",
+      "acceptanceCriteria": [
+        "Phase R produces _research_output.json with required keys (stories, sources, timestamp); assert with: uv run pytest tests/test_cross_phase_rts.py::test_research_output_schema -v",
+        "Phase T consumes _research_output.json and produces _test_stories_output.json with valid story objects; assert with: uv run pytest tests/test_cross_phase_rts.py::test_test_synth_output_schema -v",
+        "Phase S consumes _test_stories_output.json and produces _validated_stories.json with no schema errors; assert with: uv run pytest tests/test_cross_phase_rts.py::test_story_valid_output_schema -v",
+        "All three phase-handoff assertions pass together: uv run pytest tests/test_cross_phase_rts.py -v"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_cross_phase_rts.py (new file — phase R/T/S schema handoff tests)",
+        "File to edit: tests/fixtures/phase_outputs.py (new file — minimal valid fixture dicts for each phase output)",
+        "Test command: uv run pytest tests/test_cross_phase_rts.py -v",
+        "Use lib/prd_schema.py or jsonschema to validate output shapes; mock external API calls with pytest monkeypatch"
+      ],
+      "dependencies": [
+        "US-644"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1019",
+      "title": "[E2E Test] Cross-Phase Schema Validation: Merge → Implement → Validate",
+      "priority": "medium",
+      "description": "Write integration tests that run phases M, I, and V sequentially using fixture inputs and assert that prd.json patches, implementation commits, and validation results are correctly chained. Validates the M→I→V data handoff introduced in US-644.",
+      "acceptanceCriteria": [
+        "Phase M consumes _validated_stories.json and patches prd.json without schema errors; assert with: uv run pytest tests/test_cross_phase_miv.py::test_merge_output_schema -v",
+        "Phase V consumes implementation output and produces a pass/fail result consumable by Phase C; assert with: uv run pytest tests/test_cross_phase_miv.py::test_validate_output_schema -v",
+        "Full M→I→V handoff test passes end-to-end: uv run pytest tests/test_cross_phase_miv.py -v"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_cross_phase_miv.py (new file — phase M/I/V schema handoff tests)",
+        "File to edit: tests/fixtures/phase_outputs.py (add M/I/V fixture dicts if not already present)",
+        "Test command: uv run pytest tests/test_cross_phase_miv.py -v",
+        "Phase I (implement) is expensive to run fully — stub it with a fixture that returns a commit hash and changed-files list; only validate the contract, not real implementation"
+      ],
+      "dependencies": [
+        "US-644"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1020",
+      "title": "[Regression] Phase I Ralph Subprocess Timeout: Capture and Retry Escalation",
+      "priority": "medium",
+      "description": "Write a regression test guarding against future breakage of US-628 timeout resilience in Phase I. The test simulates a hanging Ralph subprocess, verifies partial stdout/stderr is captured before timeout, confirms the error is logged with story context, and asserts retry escalation is triggered. This prevents silent regression if timeout handling is removed or bypassed.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_phase_i_timeout.py -v exits 0 with at least 1 test collected and passing",
+        "Test mocks a subprocess that hangs past timeout and asserts TimeoutExpired (or equivalent) is caught, not propagated to caller",
+        "Test asserts partial stdout/stderr bytes captured before timeout appear in the returned result or captured log output",
+        "Test asserts retry escalation fires after timeout (retry counter incremented or next model tier selected)"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_phase_i_timeout.py (new file — regression tests for US-628)",
+        "Read lib/impl/retry.sh and lib/impl/commit_revert.sh first to locate exact timeout-handling code paths before writing mocks",
+        "Use unittest.mock.patch to make subprocess.run or subprocess.Popen raise subprocess.TimeoutExpired(cmd='ralph', timeout=60, output=b'partial', stderr=b'partial err') with pre-filled partial output bytes",
+        "Add pytest marker: @pytest.mark.us_628 so -k us_628 selects it",
+        "Test command: uv run pytest tests/test_phase_i_timeout.py -v",
+        "Regression guard: temporarily comment out timeout catch block and confirm test reports FAILED"
+      ],
+      "dependencies": [
+        "US-628"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "tags": [
+        "regression",
+        "auto-generated"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-1021",
+      "title": "[Performance Test] Phase I: Sub-Project Worker Distribution Benchmarks",
+      "priority": "medium",
+      "description": "Write a pytest-benchmark test measuring the story-routing performance of the federated sub-project distribution logic introduced in US-636. The test must capture a baseline latency, assert that routing N stories to M sub-project workers completes within an acceptable threshold, and fail if any future run regresses by more than 20%.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_perf_us636.py -v exits 0 and prints benchmark timings",
+        "Benchmark asserts routing 50 stories across 3 sub-projects completes in under 2 seconds",
+        "Test fails (non-zero exit) when a simulated 25% slowdown is injected via monkeypatch",
+        "Baseline threshold is stored as a constant in the test file, not hardcoded inline"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_perf_us636.py (new file — create benchmark using pytest-benchmark or time.perf_counter)",
+        "File to edit: lib/run_parallel_ralph.sh or the Python equivalent that routes stories to workers (identify the routing function touched by US-636)",
+        "Test command: uv run pytest tests/test_perf_us636.py -v --tb=short",
+        "Test command: uv run pytest tests/test_perf_us636.py -v -k 'regression' to run only the regression-guard test",
+        "Use unittest.mock or monkeypatch to inject a sleep() in the routing path to verify the 20% degradation guard actually fails"
+      ],
+      "dependencies": [
+        "US-636"
+      ],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "performance",
+        "auto-generated"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-1022",
+      "title": "[E2E Test] Dashboard AlertsPanel WebSocket Cost Alert Stream (US-591)",
+      "priority": "medium",
+      "description": "Write a Playwright E2E test covering the user flow from US-591: a WebSocket /ws/alerts endpoint streams cost threshold alerts to the dashboard AlertsPanel. The test simulates cumulative cost exceeding 80% of SPIRAL_COST_CEILING and asserts the AlertsPanel renders the alert in real-time in a headless browser.",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_integration_us591.py -v exits 0 with all tests passing",
+        "Test connects to /ws/alerts WebSocket and receives a JSON alert payload when mocked cost exceeds 80% of SPIRAL_COST_CEILING",
+        "Test navigates to dashboard in headless Playwright and asserts AlertsPanel element is visible and contains alert text",
+        "grep -q 'ws/alerts' tests/test_integration_us591.py returns 0 (endpoint is explicitly tested)"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_integration_us591.py (create new — E2E test for US-591 WebSocket alerts)",
+        "Test command: uv run pytest tests/test_integration_us591.py -v",
+        "Locate the /ws/alerts server implementation in spiral_ui/ or the dashboard server module to understand the JSON message schema before writing assertions",
+        "Use Playwright page.expect_websocket() or a direct websockets client; mock SPIRAL_COST_CEILING via env var or monkeypatch so no real SPIRAL run is needed",
+        "Alert trigger condition: cumulative_cost > 0.8 * SPIRAL_COST_CEILING — inject a fixture that sets a low ceiling and a cost value above the 80% mark"
+      ],
+      "dependencies": [
+        "US-591"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "tags": [
+        "e2e",
+        "auto-generated"
+      ],
       "model": "haiku"
     },
     {

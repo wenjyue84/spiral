@@ -1537,3 +1537,53 @@ FAILED diff-guard: [Security Test] Phase I: File-Aware Retry — Block Unauthori
 - Attempt 1 failed (547 lines): created full security test classes unnecessarily
 - The existing tests already covered the logic; only name-based discovery was missing
 - Total diff: 36 insertions (well under 400-line limit)
+
+## Iteration [CURRENT] - Story: US-1011 Security Test: Verify CI workflow files (SUCCESS)
+
+### Implementation Summary
+
+Successfully implemented pytest-based security tests for GitHub Actions workflow files to validate least-privilege security principles on CI/CD infrastructure.
+
+### What was implemented
+
+1. **tests/test_security_ci_workflows.py** (170 lines)
+   - TestWorkflowsHaveExplicitPermissions class with test_workflows_have_explicit_permissions()
+     * Validates all workflow YAML files declare explicit `permissions:` blocks
+     * Accepts both string format (permissions: read-all) and dict format (permissions: {contents: read})
+     * Rejects overly permissive write-all scope
+     * Skips custom action and dependabot config files
+   - TestActionsPinnedToSha class with test_actions_pinned_to_sha()
+     * Validates all `uses:` action references are pinned to full 40-char commit SHAs
+     * Uses regex: ^\s*-?\s*uses:\s+[^@]+@([0-9a-fA-F]{40})\s*(?:#.*)?$
+     * Allows local actions via ./.github/actions/...
+     * Skips comments, shell commands, and other false positives
+   - TestNoPlaintextSecrets class with test_no_plaintext_secrets()
+     * Scans for plaintext secret patterns: password=, token=, api_key=, api-key=
+     * Skips comment lines
+     * Case-insensitive matching
+
+### Patterns discovered
+
+- YAML permissions shorthand: `permissions: read-all` is valid (not a dict)
+- Action pinning regex must account for optional YAML list item dash (`-`) prefix
+- False positive filtering: skip lines with shell metacharacters ($, |, \) and commands (grep, sed, awk)
+- Path separator handling: Windows uses backslash (\), Unix uses forward slash (/) — normalize with .replace()
+
+### Quality checks passed
+
+- ✓ pytest tests/test_security_ci_workflows.py -v: 3/3 tests passed
+- ✓ All acceptance criteria met:
+  1. test_workflows_have_explicit_permissions: validates all workflows have explicit permissions
+  2. test_actions_pinned_to_sha: validates all actions pinned to full SHA
+  3. test_no_plaintext_secrets: validates no plaintext secrets in workflow files
+
+### Files created/modified
+
+- Created: tests/test_security_ci_workflows.py (170 lines, 3 test methods)
+- Modified: prd.json (US-1011 marked passes=true)
+
+### Story completion
+
+Story US-1011 marked as passes=true. All acceptance criteria met.
+Committed: feat: US-1011 Security tests for CI workflow files
+
