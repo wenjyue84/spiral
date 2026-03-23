@@ -26,7 +26,10 @@
       "passes": true,
       "_source": "ai-example",
       "model": "haiku",
-      "last_attempted": "2026-03-23T19:12:37Z"
+      "last_attempted": "2026-03-23T19:12:37Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n\nLooking at prd.json, there are 5 incomplete stories with highest priority being US-1071 (high priority, last attempted 2026-03-23). The other two high-priority stories (US-1072, US-1073) are dependent features for federated conflict resolution.\n\nUS-1071 requires:\n1. A blocked-stories analyzer that examines dependency graphs and timestamps\n2. A REST endpoint /api/dashboard/blocked-stories returning {blocked_stories: []}\n3. A WebSocket /ws/blocker-changes for real-time updates\n\n## Problem Identified\n\nNeed to implement dashboard dependency blocker analysis that:\n- Parses prd.json dependency graph and results.tsv\n- Identifies stories unable to proceed due to unmet dependencies\n- Calculates ETA based on median story completion time\n- Streams real-time updates via WebSocket\n\n## Planned Changes\n\n- **lib/blocker_analyzer.py** — New analyzer module with analyze_blocked_stories() function\n- **lib/dashboard/api.py** — Add GET /api/dashboard/blocked-stories endpoint\n- **lib/dashboard/ws_handlers.py** — Add async phase_blocker_changes_handler() for WebSocket\n- **lib/dashboard/routes.py** — Register /ws/blocker-changes route\n- **tests/test_blocker_analyzer.py** — Unit tests for blocking logic, ETA calculation, dependency parsing\n\n---\n\nLet me start implementation:\nPerfect! All tests pass. Let me commit the implementation:\nPerfect! I have successfully implemented **US-1071: Dashboard Endpoint: GET /api/dashboard/blocked-stories -- Dependency Blocker Analysis**.\n\n## Summary of Implementation"
+      }
     },
     {
       "id": "US-1072",
