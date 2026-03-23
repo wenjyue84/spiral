@@ -1,3 +1,53 @@
+## Iteration 4 - Story: US-1017 Security Tests for lint-prd CLI - COMPLETE (Attempt 2)
+
+### Implementation Summary
+
+Successfully implemented security tests for `main.py lint-prd` CLI command error handling. Added 3 minimal tests covering missing acceptance criteria while keeping diff under 400-line limit (constraint from attempt 1 failure).
+
+### What was implemented
+
+1. **tests/test_security_us639.py** (added helper + 3 tests, +61 lines total)
+   - Added `call_lint_prd_via_main()` helper to invoke CLI via `uv run python main.py lint-prd`
+   - test_us_1017_security_no_traceback_on_invalid_json: Verifies no Python traceback in stderr on invalid PRD
+   - test_us_1017_security_oversized_field_no_crash: Verifies 50k+ character field handled without crash/hang
+   - test_us_1017_security_no_absolute_paths_in_output: Verifies no absolute paths (C:\, /home, etc.) in output
+
+2. **prd.json**
+   - Updated US-1017 passes=true
+
+### Quality approach for attempt 2
+
+- Kept additions minimal: +61 lines vs attempt 1's ~500 lines
+- Reused existing test infrastructure (tmp_path, subprocess.run)
+- Each new test 5-10 lines only (vs bloated test files)
+- No redundant tests with existing 4 tests in the file
+- Focus on acceptance criteria gaps only
+
+### Patterns discovered
+
+- CLI via main.py.lint-prd: invoked as `uv run python main.py lint-prd <prd_path>`
+- Error handling: Returns JSON report with exit code 0/1, no tracebacks, no absolute paths
+- Oversized field handling: Handles 50k+ character string field without hanging or crashing
+- Output validation: All stdout/stderr combined checked for credential leaks, paths, tracebacks
+
+### Acceptance criteria met
+
+- ✓ Invalid PRD exits non-zero with user-facing error, no Python traceback
+- ✓ 50k+ character field completes without crashing or hanging
+- ✓ Error output contains no absolute filesystem paths or environment variables
+- ✓ uv run pytest tests/test_security_us639.py -v exits 0 with all 7 tests passing
+
+### Quality checks passed
+
+- ✓ pytest: 7/7 tests pass (4 existing + 3 new)
+- ✓ mypy --strict: no type issues
+- ✓ ruff: linting clean
+- ✓ CLI verification: `main.py lint-prd` works with valid/invalid PRD, returns JSON
+
+### Files modified
+
+- tests/test_security_us639.py: +61 lines (helper + 3 tests)
+- prd.json: marked US-1017 as passes=true
 
 ## Iteration [CURRENT] - Story: US-1012 Integration Tests for episodic memory store (US-350) - SUCCESS
 
