@@ -26,6 +26,16 @@ def call_lint_prd(prd_path: Path) -> tuple[str, int]:
     return result.stdout, result.returncode
 
 
+def call_lint_prd_via_main(prd_path: Path) -> tuple[str, str, int]:
+    """Call main.py lint-prd and return (stdout, stderr, exit_code)."""
+    result = subprocess.run(
+        ["uv", "run", "python", "main.py", "lint-prd", str(prd_path)],
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout, result.stderr, result.returncode
+
+
 class TestSecurityUs639:
     """Security-focused tests for lint-prd CLI (US-639)."""
 
@@ -128,3 +138,54 @@ class TestSecurityUs639:
 
         # Assert: exit should be non-zero for invalid prd.json
         assert exit_code != 0, "Expected non-zero exit for invalid prd.json"
+
+    def test_us_1017_security_no_traceback_on_invalid_json(self, tmp_path: Path) -> None:
+        """Test verifies no Python traceback in stderr when PRD is invalid (US-1017)."""
+        prd_file = tmp_path / "invalid.json"
+        invalid_prd = {"productName": "Test"}  # missing required fields
+        prd_file.write_text(json.dumps(invalid_prd))
+
+        stdout, stderr, exit_code = call_lint_prd_via_main(prd_file)
+        assert exit_code != 0, "Expected non-zero exit for invalid PRD"
+        assert "Traceback" not in stderr, f"Python traceback leaked in stderr: {stderr}"
+        assert "Traceback" not in stdout, f"Python traceback leaked in stdout: {stdout}"
+
+    def test_us_1017_security_oversized_field_no_crash(self, tmp_path: Path) -> None:
+        """Test verifies lint-prd handles 50k+ char field without crashing (US-1017)."""
+        prd_file = tmp_path / "oversized.json"
+        oversized_prd = {
+            "productName": "Test",
+            "branchName": "main",
+            "userStories": [
+                {
+                    "id": "US-001",
+                    "title": "x" * 50001,  # 50k+ characters
+                    "passes": False,
+                    "acceptanceCriteria": [],
+                    "dependencies": [],
+                }
+            ],
+        }
+        prd_file.write_text(json.dumps(oversized_prd))
+
+        stdout, stderr, exit_code = call_lint_prd_via_main(prd_file)
+        # Should complete (exit normally) and return valid JSON
+        try:
+            report = json.loads(stdout)
+            assert isinstance(report, dict), "Output should be valid JSON"
+            assert "valid" in report, "Report should have 'valid' field"
+        except json.JSONDecodeError:
+            pytest.fail(f"Output is not valid JSON: {stdout}")
+
+    def test_us_1017_security_no_absolute_paths_in_output(self, tmp_path: Path) -> None:
+        """Test verifies error output contains no absolute filesystem paths (US-1017)."""
+        prd_file = tmp_path / "invalid.json"
+        invalid_prd = {"productName": "Test"}
+        prd_file.write_text(json.dumps(invalid_prd))
+
+        stdout, stderr, exit_code = call_lint_prd_via_main(prd_file)
+        output = stdout + stderr
+        # Check for absolute paths (C:\, /home, /usr, etc.)
+        abs_path_patterns = [r"^[A-Za-z]:\\", r"^/home/", r"^/usr/", r"^/var/"]
+        for pattern in abs_path_patterns:
+            assert not re.search(pattern, output, re.MULTILINE), f"Absolute path detected in output: {pattern}"
