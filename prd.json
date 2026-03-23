@@ -11,61 +11,6 @@
   ],
   "userStories": [
     {
-      "id": "US-1056",
-      "title": "Dashboard Authentication Enforcement Test Suite",
-      "priority": "high",
-      "description": "Add security tests verifying all dashboard HTTP endpoints and WebSocket connections enforce authentication and authorization checks, blocking unauthenticated and under-authorized requests.",
-      "acceptanceCriteria": [
-        "Test suite verifies GET /api/dashboard/*, POST /api/dashboard/* endpoints return 401 Unauthorized without valid auth token",
-        "WebSocket endpoints /ws/cost and /ws/phase-burn-rate reject unauthenticated connection attempts and close with 1008 Policy Violation",
-        "Test file tests/test_dashboard_auth_enforcement.py includes 8+ test cases covering auth token validation, expired tokens, and permission scope checks"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": true,
-      "_source": "ai-example",
-      "model": "sonnet",
-      "_scopeCreep": true
-    },
-    {
-      "id": "US-1057",
-      "title": "Federated prd.json Schema Validator with Cross-Project Duplicate Detection",
-      "priority": "high",
-      "description": "Create lib/federated_schema_validator.py that validates multi-subproject prd.json structure, detects duplicate story IDs across subprojects, and validates namespace prefixes match subproject configuration.",
-      "acceptanceCriteria": [
-        "Validator rejects prd.json where same US-NNN story ID appears in multiple subprojects and returns error report with duplicate locations",
-        "Validator enforces namespace prefix rules: stories in subproject 'makan' must start with 'MAKAN-' prefix; outputs validation error with suggested fix",
-        "CLI command spiral validate-federated-schema prd.json outputs JSON report with pass/fail status, error count, and suggestions; exits with code 1 on validation failure"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": true,
-      "_source": "ai-example",
-      "model": "sonnet"
-    },
-    {
-      "id": "US-1058",
-      "title": "Model Escalation Prediction Engine with Dashboard Endpoint",
-      "priority": "high",
-      "description": "Predict when stories will escalate to sonnet/opus models based on token spend trajectory. Helps forecast implementation complexity and cost before Phase I completes. Provides CLI analyzer and real-time dashboard endpoint.",
-      "acceptanceCriteria": [
-        "CLI spiral predict-model-escalation --story-id US-123 reads results.tsv for that story's attempts, fits exponential/linear regression to token_count vs attempt_number, predicts if next attempt will exceed model thresholds (haiku→sonnet at 50K tokens, sonnet→opus at 150K)",
-        "GET /api/dashboard/escalation-predictions endpoint returns {stories: [{story_id, current_model, predicted_model, confidence_pct, tokens_until_escalation}]} sorted by escalation likelihood",
-        "Integration test: Feed 5-story progression chain (haiku→sonnet→opus) to predictor, verify it correctly predicts next model for each story with >85% confidence on obvious progressions"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": true,
-      "_source": "ai-example",
-      "model": "sonnet",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- `results.tsv` has columns: timestamp, spiral_iter, ralph_iter, story_id, story_title, status, duration_sec, model, retry_num, + token columns\n- `lib/dashboard/api.py` has existing endpoints up to line ~950, `__all__` at line 950\n- `main.py` has existing CLI commands following a `cmd_*` + `subparsers.add_parser` pattern\n- No `predict-model-escalation` command or `escalation-predictions` endpoint exists yet\n\n## Problem Identified\nUS-1058 needs: (1) a Python prediction module, (2) a dashboard API endpoint, (3) a CLI command, and (4) an integration test.\n\n## Planned Changes\n- **`lib/escalation_predictor.py`** — New module: reads results.tsv by story_id, fits regression on token_count vs attempt_number, predicts next model with confidence\n- **`lib/dashboard/api.py`** — Add `GET /api/dashboard/escalation-predictions` before `__all__`\n- **`main.py`** — Add `predict-model-escalation --story-id` CLI subcommand + `cmd_predict_model_escalation` function\n- **`tests/test_escalation_predictor.py`** — Integration test with 5-story progression chain\nNow let me look at the end of subparsers section to know where to add the new subcommand:\nNow I have everything I need. Let me implement:\nNow add the dashboard endpoint:\nNow add the CLI subcommand to main.py. First add the subparser, then the dispatch, then the handler:\nNow add the handler function (right before `cmd_validate_federated_schema`):\nNow write the integration test:\n11/11 passed. Now run mypy:\nCLI works. Now mark the story as passing and update prd.json:\nNow update progress.txt and commit:\nUS-1058 is done. Here's a summary:\n\n**US-1058 — Model Escalation Prediction Engine** ✓\n\n- **`lib/escalation_predictor.py`** — Pure-stdlib linear regression engine. Reads `results.tsv`, fits token_count vs attempt_number, predicts escalation past thresholds (haiku→sonnet @50K, sonnet→opus @150K). Confidence = R² × 100, boosted by overshoot ratio.\n- **`lib/dashboard/api.py`** — `GET /api/dashboard/escalation-predictions` endpoint returning predictions sorted by escalation likelihood.\n- **`main.py`** — `spiral predict-model-escalation --story-id US-xxx` CLI subcommand.\n- **`tests/test_escalation_predictor.py`** — 11 tests, all passing, including AC3's 5-story haiku→sonnet→opus progression chain verified at >85% confidence."
-      }
-    },
-    {
       "id": "US-1063",
       "title": "Phase E: Wire Episodic Memory Pattern Retrieval into Story Enrichment",
       "priority": "high",
@@ -80,7 +25,8 @@
       "estimatedComplexity": "small",
       "passes": false,
       "_source": "ai-example",
-      "model": "sonnet"
+      "model": "sonnet",
+      "last_attempted": "2026-03-23T16:48:36Z"
     },
     {
       "id": "US-1064",
@@ -91,6 +37,40 @@
         "Test fixture loads federated prd.json with 3 sub-projects (app-v1, api-v2, web-v3), distributes stories to 3 workers, verifies each worker modifies only its sub-project stories",
         "Assert prd.json checksum is stable across workers; no cross-contamination of sub-project fields",
         "Verify worker-0 modifies only app-v1.* stories, worker-1 only api-v2.*, worker-2 only web-v3.* after Phase M merge"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-1069",
+      "title": "CLI: spiral preflight-check -- Validate SPIRAL Runtime Dependencies and Configuration",
+      "priority": "high",
+      "description": "Comprehensive pre-flight validator that checks all prerequisites before running SPIRAL. Validates constitution.md, prd.json schema, system dependencies (bash 4+, node 20+, python 3.13+, docker), and outputs remediation hints.",
+      "acceptanceCriteria": [
+        "CLI command 'spiral preflight-check' validates constitution.md exists, prd.json conforms to schema, spiral.config.sh defines SPIRAL_VALIDATE_CMD and SPIRAL_COST_CEILING, outputs JSON with check_name/status/remediation for each check",
+        "System checks verify: bash --version >= 4, node --version >= 20, python3 --version >= 3.13, docker available, jq in ./ralph/jq.exe or PATH. Checks directory writability for .spiral/ and .spiral-workers/",
+        "Exit code 0 when all checks pass, 1 on any failure. Summary line: 'All checks passed - ready to run SPIRAL' or 'X checks failed - see hints above'. Implements in lib/spiral/preflight.py"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1070",
+      "title": "Integration Test: Phase Data Integrity Validator -- Verify Output Schemas and State Transitions",
+      "priority": "high",
+      "description": "Run SPIRAL loop iteration and assert each phase output conforms to expected schema. Catches data corruption, orphaned references, and invalid state transitions early. Validates R→T→S→M→I→V→C data flow.",
+      "acceptanceCriteria": [
+        "Phase R output: research_results.json is valid JSON with array of {query, source, relevance_score (0-1), text}. Phase T: test_failures.json has valid exit_code (1-255), error_category in ['compile','runtime','timeout','assertion'], test_id matches UT-\\d+",
+        "Phase S: validated_stories.json contains only stories with constitution_score >= 0.7 and unique story_ids. Phase M: git diff --name-only shows only modified files, no path traversal (../ not allowed), commit message contains US-\\d+ or UT-\\d+",
+        "Implements tests/test_phase_data_integrity.py with assertions: assert_research_schema_valid(), assert_test_failures_no_duplicates(), assert_merge_files_safe(). Test runs on mock SPIRAL iteration with sample prd.json"
       ],
       "technicalNotes": [],
       "dependencies": [],
@@ -219,6 +199,125 @@
       "model": "sonnet"
     },
     {
+      "id": "US-1071",
+      "title": "Dashboard Endpoint: GET /api/dashboard/federation-health -- Multi-Project Audit Report with Remediation",
+      "priority": "medium",
+      "description": "Single endpoint providing federation health snapshot: circular dependencies, sub-project quota usage, file collisions, orphan stories. Returns actionable remediation suggestions.",
+      "acceptanceCriteria": [
+        "Endpoint returns JSON with: {circular_deps: [{cycle: [subproject_ids], path: 'A→B→C→A'}], quota_usage: {subproject: {used: int, limit: int, pct: float}}, file_collisions: [{file, subprojects}], orphan_stories: [{id, reason}]}. Circular deps detected via SCC algorithm on federated dependency graph",
+        "For each orphan story, suggests: 'Story US-123 has no parent (depth=0) - assign parent via prd.json _depends_on or consider archiving'. File collision summary: 'lib/auth.py modified by subproject A and B - requires manual merge'",
+        "Endpoint available at localhost:5299/api/dashboard/federation-health with response time < 500ms. Data cached 30s with refresh_at timestamp. Implements in spiral_ui/api.py in get_federation_health() route"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1072",
+      "title": "CLI: spiral cost-breakdown -- Historical Phase-Level Cost Analysis with Anomaly Detection",
+      "priority": "medium",
+      "description": "Parse results.tsv to compute average tokens/cost per phase with iteration-over-iteration trends. Flags cost anomalies and suggests optimization targets based on historical patterns.",
+      "acceptanceCriteria": [
+        "Output table: Phase | Avg Tokens | Avg Cost | # Iterations | Trend | Recommendation. Calculates trends from last 5 iterations vs prior 5. Flags ↑ if delta > +20%, ↓ if < -20%, → if stable. Example: Phase R cache hit rate 25% suggests 'Enable query deduplication to target 40%+'",
+        "Implements in lib/cost_analysis.py: parse_results_tsv() returns list[ResultsRecord], compute_phase_stats(phase: str, window: int=5) returns {phase, avg_tokens, avg_cost, trend_pct, recommendation}. Detects anomaly if cost outlier > 2σ from mean",
+        "CLI command: spiral cost-breakdown [--phase PHASE] [--iterations N] [--format csv|table]. Output includes 'Recommendations: 3 phases > cost threshold. Phase R trending up 35% - investigate cache efficiency'"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "haiku"
+    },
+    {
+      "id": "US-1073",
+      "title": "Phase G: Federated API Compatibility Report Generator with Migration Guides",
+      "priority": "medium",
+      "description": "Compare pdoc API outputs across sub-project versions in federated prd.json. Auto-detect breaking changes (removed functions, signature changes) and generate api-compatibility.md with before/after migration examples.",
+      "acceptanceCriteria": [
+        "Implements lib/gen_api_compat.py: detect_breaking_changes(current_pdoc_json, prior_pdoc_json) detects removed functions, added required params (not optional), changed return types. Output: list[{change_type, function_name, before_signature, after_signature}]",
+        "Generates .spiral/docs/api-compatibility.md with sections: ## Subproject X | Version A → B | Breaking Changes: N | ### Removed: [list with migration code] | ### Changed: [before→after diff]. Example: 'removed: authenticate(username, password) → use authenticate_oauth(client_id)'",
+        "Phase G integrates: lib/gen_changelog.py calls gen_api_compat.detect_breaking_changes() for each sub-project pair (current vs git HEAD~1). Writes api-compatibility.md, deploys to GitHub Pages alongside CHANGELOG.md and API docs"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1068",
+      "title": "CLI: spiral validate-changelog-schema -- Enforce Keep-a-Changelog v1.1 Format",
+      "priority": "low",
+      "description": "Validate CHANGELOG.md generated by Phase G conforms to Keep-a-Changelog v1.1 schema. Checks version headers, entry structure, date formats, and release notes organization.",
+      "acceptanceCriteria": [
+        "spiral validate-changelog-schema CHANGELOG.md validates schema via lib/validate_changelog.py and reports line-by-line errors",
+        "Detects missing version headers ('## [X.Y.Z] - YYYY-MM-DD'), malformed entries, and invalid semantic version patterns",
+        "Returns exit code 0 on valid schema; code 1 with error details on violations; integrates into Phase G validation"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1056",
+      "title": "Dashboard Authentication Enforcement Test Suite",
+      "priority": "high",
+      "description": "Add security tests verifying all dashboard HTTP endpoints and WebSocket connections enforce authentication and authorization checks, blocking unauthenticated and under-authorized requests.",
+      "acceptanceCriteria": [
+        "Test suite verifies GET /api/dashboard/*, POST /api/dashboard/* endpoints return 401 Unauthorized without valid auth token",
+        "WebSocket endpoints /ws/cost and /ws/phase-burn-rate reject unauthenticated connection attempts and close with 1008 Policy Violation",
+        "Test file tests/test_dashboard_auth_enforcement.py includes 8+ test cases covering auth token validation, expired tokens, and permission scope checks"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1057",
+      "title": "Federated prd.json Schema Validator with Cross-Project Duplicate Detection",
+      "priority": "high",
+      "description": "Create lib/federated_schema_validator.py that validates multi-subproject prd.json structure, detects duplicate story IDs across subprojects, and validates namespace prefixes match subproject configuration.",
+      "acceptanceCriteria": [
+        "Validator rejects prd.json where same US-NNN story ID appears in multiple subprojects and returns error report with duplicate locations",
+        "Validator enforces namespace prefix rules: stories in subproject 'makan' must start with 'MAKAN-' prefix; outputs validation error with suggested fix",
+        "CLI command spiral validate-federated-schema prd.json outputs JSON report with pass/fail status, error count, and suggestions; exits with code 1 on validation failure"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
+      "id": "US-1058",
+      "title": "Model Escalation Prediction Engine with Dashboard Endpoint",
+      "priority": "high",
+      "description": "Predict when stories will escalate to sonnet/opus models based on token spend trajectory. Helps forecast implementation complexity and cost before Phase I completes. Provides CLI analyzer and real-time dashboard endpoint.",
+      "acceptanceCriteria": [
+        "CLI spiral predict-model-escalation --story-id US-123 reads results.tsv for that story's attempts, fits exponential/linear regression to token_count vs attempt_number, predicts if next attempt will exceed model thresholds (haiku→sonnet at 50K tokens, sonnet→opus at 150K)",
+        "GET /api/dashboard/escalation-predictions endpoint returns {stories: [{story_id, current_model, predicted_model, confidence_pct, tokens_until_escalation}]} sorted by escalation likelihood",
+        "Integration test: Feed 5-story progression chain (haiku→sonnet→opus) to predictor, verify it correctly predicts next model for each story with >85% confidence on obvious progressions"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "sonnet"
+    },
+    {
       "id": "US-1050",
       "title": "Federation Quota Governor: Phase M Enforces Per-SubProject Story Limits",
       "priority": "high",
@@ -233,18 +332,7 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-03-23T15:52:56Z",
-      "_failureReason": "oversized_diff",
-      "_lastDiffLines": 552,
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\nThe `validate_quota()` function in `lib/spiral/phase_m.py` is already implemented, all 22 unit tests pass, and `ResultsRecord` in `lib/results_tsv.py` already has `quota_exceeded` and `quota_source` fields. The previous attempt failed only because of the missing diagnosis block gate.\n\n## Problem Identified\nUS-1050 implementation already exists from a previous attempt (committed to disk but not marked `passes: true`). Need to verify all acceptance criteria are met, run type checking, and mark the story complete.\n\n## Planned Changes\n- Verify AC2: Check that the shell phase_m_merge.sh handles Python ValueError → exit 1\n- Run mypy on lib/spiral/phase_m.py to ensure type compliance\n- Mark US-1050 as passes: true in prd.json\nUS-1050 is already `passes: true` — it was validated by the outer loop. Moving to the next incomplete story: **US-1051**.\nNow I have a clear picture. Let me plan the implementation.\n\n## Current State"
-      },
-      "_contextStats": {
-        "tokensBeforeMasking": 347,
-        "tokensAfterMasking": 346,
-        "reductionPct": 0,
-        "contextWindow": 10
-      }
+      "last_attempted": "2026-03-23T15:52:56Z"
     },
     {
       "id": "US-1051",
@@ -293,9 +381,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "_failureReason": "DIAGNOSIS_BLOCK_MISSING: Diagnosis block required before making changes. Please output your diagnosis first.\n\nBefore making ANY file edits, output a diagnosis block with these exact headers:\n\n## Current State\n[describe the relevant current state of the code]\n\n## Problem Identified\n[what you are solving for this story]\n\n## Planned Changes\n[bullet list of specific files and changes you will make]\n\nOutput this block as plain text BEFORE calling Edit, Write, or any Bash command that modifies files.",
-      "_scopeCreep": true
+      "model": "haiku"
     },
     {
       "id": "US-1030",
@@ -385,10 +471,7 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-03-23T10:11:51Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- Story US-1028 is the highest priority incomplete story\n- Need to add `find_orphan_commits()` function to lib/gen_changelog.py that filters commits lacking US-/UT- story ID tags\n- Function should return list of dicts with keys: commit, message, date, reason (reason='no-story-id')\n- Need comprehensive test coverage\n\n## Problem Identified\nThe function doesn't exist. Need to implement find_orphan_commits() that:\n1. Detects commits without US-/UT- tags using regex r'(US|UT)-\\d+'\n2. Returns matching untagged commits as orphans\n3. Passes test coverage for tagged vs untagged detection\n\n## Planned Changes\n1. Add find_orphan_commits() function to lib/gen_changelog.py\n2. Add tests to tests/test_gen_changelog.py:\n   - test_find_orphan_commits_returns_untagged (3 tagged + 2 untagged = 2 orphans)\n   - test_find_orphan_commits_empty_input (empty input = empty output)\n3. Verify function handles all keys properly and uses correct regex pattern\n\nNow let me read the existing files to understand the current structure:\nLet me check the current implementation more carefully. I see the function already exists but with a different signature. Let me understand what needs to change:\nNow I understand. The current function has a different signature - it takes a repo_path and calls git subprocess. The new function should take a list of dicts and just do filtering. Let me implement this:\nLet me re-read the file:\nGood! I can see the function has already been updated to the new signature. Now I need to check and update the tests. Let me look at what tests are currently there:\nPerfect! The tests have already been updated too. Let me verify the implementation is correct by running the tests:\nGreat! All tests pass. Let me verify the other acceptance criteria:\nLet me verify the regex pattern uses IGNORECASE as specified in the acceptance criteria:\nPerfect! The regex is correctly using IGNORECASE. Let me verify all acceptance criteria one more time with a comprehensive check:\nExcellent! All tests pass. Let me verify the acceptance criteria one final time:\n\n1. ✅ Test for 3 tagged + 2 untagged commits returns exactly 2 orphans: `test_find_orphan_commits_returns_untagged` PASSED\n2. ✅ Returned dicts have keys: commit, message, date, reason (reason='no-story-id'): verified in tests\n3. ✅ Uses regex r'(US|UT)-\\d+' with re.IGNORECASE: confirmed in code\n4. ✅ Empty input returns empty list: `test_find_orphan_commits_empty_input` PASSED\n\nAll acceptance criteria are met! Now let me mark the story as complete and commit:\nNow let me run quality checks before committing:\nLet me wait for pre-commit to complete:\nPerfect! All checks pass. Now let me commit the changes:\nPerfect! Let me verify the commit was created:\nLet me verify the story was marked as complete in prd.json:\nExcellent! Story US-1028 is now complete. Let me check the next highest priority incomplete story:\nThe next incomplete story is US-1029 (Add list-orphan-commits CLI Subcommand). Let me get its full details:\n## Current State"
-      }
+      "last_attempted": "2026-03-23T10:11:51Z"
     },
     {
       "id": "US-1029",
@@ -430,8 +513,7 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-03-23T09:14:57Z",
-      "_scopeCreep": true
+      "last_attempted": "2026-03-23T09:14:57Z"
     },
     {
       "id": "US-1026",
@@ -452,8 +534,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "_scopeCreep": true
+      "model": "haiku"
     },
     {
       "id": "US-1027",
@@ -473,10 +554,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\nLooking at the git status and prd.json, there are multiple high-priority incomplete stories. The first is **US-1027: Benchmark Phase R Research Cache Latency Savings (≥30% Target)**.\n\nThis story requires:\n1. Creating a new benchmark test that measures Phase R execution time with and without cache\n2. Adding an env-var toggle to disable cache in Phase R for baseline measurements\n3. Asserting ≥30% latency improvement for repeated queries\n4. Printing benchmark results to stdout\n\n## Problem Identified\n\nNeed to implement a latency benchmark test that validates the Phase R research cache provides at least 30% speedup on repeated queries by comparing cached vs uncached execution paths.\n\n## Planned Changes\n\n- **lib/phases/phase_r_research.py**: Add `SPIRAL_RESEARCH_CACHE_ENABLED` env-var toggle to allow disabling cache for baseline measurements\n- **tests/test_research_cache_benchmark.py** (new file): Write benchmark test with mocked Gemini calls (50ms each) that:\n  - Runs Phase R with 6 repeated queries twice (cache warm)\n  - Runs Phase R with cache disabled as baseline\n  - Asserts cached_time ≤ uncached_time * 0.70\n  - Prints cached_ms, uncached_ms, pct_saved to stdout\n\nLet me start by reading the current Phase R implementation:\nNow I'll create the benchmark test. First, let me check what test utilities already exist:\nPerfect! I have successfully implemented story **US-1027: Benchmark Phase R Research Cache Latency Savings (≥30% Target)**.\n\n## Implementation Summary"
-      }
+      "model": "haiku"
     },
     {
       "title": "Phase V: Functional Reachability Verifier - Confirm New Code is Wired into the Loop",
@@ -540,14 +618,7 @@
       ],
       "id": "US-1008",
       "passes": true,
-      "model": "haiku",
-      "_contextStats": {
-        "tokensBeforeMasking": 718,
-        "tokensAfterMasking": 712,
-        "reductionPct": 0,
-        "contextWindow": 10
-      },
-      "_failureReason": "DIAGNOSIS_BLOCK_MISSING: Diagnosis block required before making changes. Please output your diagnosis first.\n\nBefore making ANY file edits, output a diagnosis block with these exact headers:\n\n## Current State\n[describe the relevant current state of the code]\n\n## Problem Identified\n[what you are solving for this story]\n\n## Planned Changes\n[bullet list of specific files and changes you will make]\n\nOutput this block as plain text BEFORE calling Edit, Write, or any Bash command that modifies files."
+      "model": "haiku"
     },
     {
       "title": "Phase V: Dead Feature Detector - Find Unreachable New Code After Implementation",
@@ -580,8 +651,7 @@
       "id": "US-1006",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-03-23T01:44:24Z",
-      "_scopeCreep": true
+      "last_attempted": "2026-03-23T01:44:24Z"
     },
     {
       "id": "US-752",
@@ -686,10 +756,7 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-03-22T12:58:18Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- Story is incomplete (passes: false, last attempted 2026-03-22T12:58:18Z)\n- Need to create a Python validator module for CHANGELOG.md compliance\n- Need comprehensive test coverage with semver bump logic\n\n## Problem Identified\nMissing implementation of changelog schema validation functions and their tests. Must implement:\n1. `validate_changelog_format(path: str) -> bool` — Keep-a-Changelog compliance\n2. `validate_version_incrementing(old_ver: str, new_ver: str, scores: list) -> bool` — semver logic\n\n## Planned Changes\n1. Create `lib/validators/changelog_schema.py` with two functions and semver constants\n2. Create `tests/test_changelog_schema_validator.py` with compliance and semver tests\n3. Run pytest to verify all tests pass\n4. Run quality checks (mypy --strict, lint)\n5. Commit and mark passes=true\n\nLet me check the existing structure first:\nNow let me create the validators module and tests. I'll start by creating the validators directory and the schema module:\nNow let me run the tests to verify all pass:\nExcellent! All 16 tests pass. Now let me verify the specific acceptance criteria tests:\nPerfect! All checks pass. Let me run the full test suite one more time to confirm all acceptance criteria are met:\nExcellent! All tests pass. Now let me update prd.json to mark this story as complete:\nPerfect! Story **US-748** is now complete. Let me verify pre-commit passes:\nExcellent! All 16 tests pass. Let me verify the final state:\nPerfect! **Story US-748 is now complete.** Here's the summary:\n\n## Implementation Summary"
-      }
+      "last_attempted": "2026-03-22T12:58:18Z"
     },
     {
       "id": "US-744",
@@ -706,8 +773,7 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "sonnet",
-      "last_attempted": "2026-03-22T12:45:01Z",
-      "_failureReason": "oversized_diff"
+      "last_attempted": "2026-03-22T12:45:01Z"
     },
     {
       "id": "US-1033",
@@ -724,16 +790,7 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "sonnet",
-      "last_attempted": "2026-03-22T12:30:55Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- `lib/scope_reducer.py` exists with working reduce_scope/estimate/identify functions (16 unit tests pass)\n- `lib/results_tsv.py` has `scope_tag` field for `scope_reduced` tracking\n- `lib/impl/retry.sh` has `try_scope_reduction()` bash helper\n- **mypy strict fails** on `tests/test_scope_reducer.py` (3 errors: unused type-ignore, type mismatch)\n- Missing integration test for the full scope-reduction → retry → results.tsv flow (AC #2 and #3 incomplete)\n\n## Problem Identified\n1. mypy strict errors block quality gates\n2. Integration test doesn't cover retry flow with results.tsv `scope_reduced` tag logging\n3. Story `passes: false` despite code being committed\n\n## Planned Changes\n- Fix mypy errors in `tests/test_scope_reducer.py` (lines 154, 183)\n- Add integration test covering: 5KB story → scope reduction → retry succeeds at same model tier → both attempts logged to results.tsv with scope_reduced tag\n- Run quality checks (mypy, ruff, pytest)\n- Mark US-744 passes: true in prd.json\nNow add the integration test for the full retry flow at the end of the file:\nNow run quality checks:\nAll 17 tests pass (16 existing + 1 new integration test). Now mark the story as passes: true:\nNow append progress notes:\nNow run pre-commit checks:\nPre-commit modified some files. Let me re-run to see if it's clean now:\nAll checks pass. Now commit:\nStory US-744 is complete. Here's what was done:\n\n**Problem:** Previous haiku attempt created all the code correctly but left mypy strict errors unfixed, causing quality gate failure.\n\n**Changes:**\n1. **`tests/test_scope_reducer.py`** — Fixed 3 mypy strict errors (unused `type: ignore` comments, `list()` on `object` type needing `isinstance` guard). Added `TestScopeReductionRetryIntegration::test_5kb_story_reduced_retried_no_escalation` integration test covering the full flow: 5KB story → scope_reducer → retry at same model (haiku) → results.tsv with `scope_reduced` tag → no escalation to sonnet.\n2. **`prd.json`** — Marked US-744 `passes: true`\n3. **`progress.txt`** — Documented learnings\n\nAll 17 tests pass, mypy strict clean, ruff clean."
-      },
-      "_contextStats": {
-        "tokensBeforeMasking": 539,
-        "tokensAfterMasking": 539,
-        "reductionPct": 0,
-        "contextWindow": 10
-      }
+      "last_attempted": "2026-03-22T12:30:55Z"
     },
     {
       "id": "US-732",
@@ -754,11 +811,7 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "sonnet",
-      "last_attempted": "2026-03-22T10:47:26Z",
-      "_scopeCreep": true,
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\nThe codebase has `lib/observability/auto_release.py` which generates CHANGELOG.md and pdoc API docs. There's no `deploy-docs` CLI command, no `lib/phases/g_deploy.sh`, no `lib/commands/deploy_docs.py`, and no `tests/test_phase_g_deploy_integration.py`.\n\n## Problem Identified\nUS-732 requires:\n1. A `deploy_docs.py` Python module that handles deploying docs to a gh-pages branch via git worktree\n2. A `deploy-docs` CLI subcommand in `main.py`\n3. Integration tests (`tests/test_phase_g_deploy_integration.py`)\n4. A bats test file (`tests/test_deploy_docs.bats`)\n\n## Planned Changes\n- **NEW `lib/commands/deploy_docs.py`**: Core logic — creates `.spiral/changelog-output/` directory structure, manages git worktree for gh-pages, copies outputs, commits without force push\n- **MODIFY `main.py`**: Add `deploy-docs` subcommand parser + dispatch + `cmd_deploy_docs` handler\n- **NEW `tests/test_phase_g_deploy_integration.py`**: pytest integration tests with git repo fixture verifying the 3 acceptance criteria\n- **NEW `tests/test_deploy_docs.bats`**: Bats shell tests for the CLI command\nNow let me add the CLI command to main.py. First, let me read the relevant sections:\nNow let me add the parser and dispatch for `deploy-docs`. First let me find the exact location where to add the parser (after explain-retry):\nNow add the dispatch case. Let me find the right location:\nNow add the `cmd_deploy_docs` function. Let me find where to add it (at the end of the file before `if __name__ == \"__main__\"`):\nNow let me create the integration test:\nNow let me create the bats test file:\nNow let's run the pytest tests to verify they pass:\nAll 14 tests pass. Now let's run the type checker and linter:\nNow let's run the full test suite one more time to confirm everything is clean:\n14/14 pass. Now let's update prd.json and commit:\nNow let's update progress.txt and commit:\nThe deploy_docs.py, test files, and progress.txt already match the committed versions. Only main.py has differences due to the concurrent SPIRAL run making additional changes. Let me commit just the prd.json update (which marks US-732 as passing):\nThe story is already committed by the concurrent SPIRAL runner. Let me verify the tests pass from the current state:\n**US-732 is complete.** Here's a summary:\n\n---\n\n## Summary"
-      }
+      "last_attempted": "2026-03-22T10:47:26Z"
     },
     {
       "id": "US-729",
@@ -774,8 +827,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "sonnet",
-      "_scopeCreep": true
+      "model": "sonnet"
     },
     {
       "id": "US-728",
@@ -791,8 +843,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "sonnet",
-      "_scopeCreep": true
+      "model": "sonnet"
     },
     {
       "id": "US-691",
@@ -825,8 +876,7 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-03-21T19:51:04Z",
-      "_passedCommit": "8ed2e12dafd9209544a3534c0012eb70e587c066"
+      "last_attempted": "2026-03-21T19:51:04Z"
     },
     {
       "id": "US-688",
@@ -907,8 +957,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "sonnet",
-      "_scopeCreep": true
+      "model": "sonnet"
     },
     {
       "id": "US-669",
@@ -1023,8 +1072,7 @@
       "estimatedComplexity": "small",
       "passes": true,
       "_source": "ai-example",
-      "model": "haiku",
-      "_scopeCreep": true
+      "model": "haiku"
     },
     {
       "id": "US-649",
@@ -1093,8 +1141,7 @@
       "passes": true,
       "_source": "ai-example",
       "model": "sonnet",
-      "last_attempted": "2026-03-21T05:03:18Z",
-      "_scopeCreep": true
+      "last_attempted": "2026-03-21T05:03:18Z"
     },
     {
       "id": "US-638",
@@ -1112,8 +1159,7 @@
       "passes": true,
       "_source": "ai-example",
       "model": "sonnet",
-      "last_attempted": "2026-03-21T04:07:39Z",
-      "_scopeCreep": true
+      "last_attempted": "2026-03-21T04:07:39Z"
     },
     {
       "id": "US-639",
@@ -1171,7 +1217,6 @@
       "passes": true,
       "_source": "ai-example",
       "model": "haiku",
-      "_passedCommit": "a4b0413d8e92e3a469044904522e07366350962d",
       "tags": []
     },
     {
@@ -1245,8 +1290,7 @@
         "module-hypothesis",
         "module-hypothesis"
       ],
-      "last_attempted": "2026-03-19T02:49:03Z",
-      "_passedCommit": "8270f68efbe6a577266c4063cb8ccaab03d3e8af"
+      "last_attempted": "2026-03-19T02:49:03Z"
     },
     {
       "id": "US-471",
@@ -1284,8 +1328,7 @@
         "module-hypothesis",
         "module-lib"
       ],
-      "last_attempted": "2026-03-19T03:31:26Z",
-      "_passedCommit": "df8d0149b07fba31d7d07d9631a80087370cf7a0"
+      "last_attempted": "2026-03-19T03:31:26Z"
     },
     {
       "id": "US-472",
@@ -1322,8 +1365,7 @@
         "module-lib",
         "module-hypothesis",
         "module-lib"
-      ],
-      "_passedCommit": "df8d0149b07fba31d7d07d9631a80087370cf7a0"
+      ]
     },
     {
       "id": "US-476",
@@ -1357,8 +1399,7 @@
         "module-hypothesis",
         "module-hypothesis",
         "module-hypothesis"
-      ],
-      "_passedCommit": "df8d0149b07fba31d7d07d9631a80087370cf7a0"
+      ]
     },
     {
       "id": "US-480",
@@ -1390,8 +1431,7 @@
         "module-tests",
         "module-lib",
         "module-tests"
-      ],
-      "_passedCommit": "df8d0149b07fba31d7d07d9631a80087370cf7a0"
+      ]
     },
     {
       "id": "US-481",
@@ -1411,7 +1451,6 @@
       "_source": "ai-example",
       "model": "haiku",
       "last_attempted": "2026-03-19T04:28:19Z",
-      "_scopeCreep": true,
       "tags": []
     },
     {
@@ -1530,8 +1569,7 @@
         "module-hypothesis",
         "module-hypothesis",
         "module-hypothesis"
-      ],
-      "_scopeCreep": true
+      ]
     },
     {
       "id": "US-497",
@@ -1604,8 +1642,7 @@
         "module-github",
         "module-hypothesis"
       ],
-      "last_attempted": "2026-03-19T13:06:38Z",
-      "_scopeCreep": true
+      "last_attempted": "2026-03-19T13:06:38Z"
     },
     {
       "id": "US-502",
@@ -1790,7 +1827,6 @@
       "passes": true,
       "model": "sonnet",
       "last_attempted": "2026-03-19T23:04:22Z",
-      "_scopeCreep": true,
       "tags": []
     },
     {
@@ -1836,8 +1872,7 @@
         "module-tests",
         "module-tests",
         "module-tests"
-      ],
-      "_passedCommit": "052f0e49a93abe005d353b5b850c17ec27b17b84"
+      ]
     },
     {
       "id": "US-602",
@@ -1871,8 +1906,7 @@
       "tags": [
         "module-hypothesis",
         "module-hypothesis"
-      ],
-      "_scopeCreep": true
+      ]
     },
     {
       "id": "US-604",
@@ -1912,8 +1946,7 @@
         "module-claude",
         "module-hypothesis"
       ],
-      "last_attempted": "2026-03-20T15:45:47Z",
-      "_scopeCreep": true
+      "last_attempted": "2026-03-20T15:45:47Z"
     },
     {
       "id": "US-605",
@@ -2015,8 +2048,7 @@
         "module-github",
         "module-hypothesis"
       ],
-      "last_attempted": "2026-03-20T16:06:46Z",
-      "_scopeCreep": true
+      "last_attempted": "2026-03-20T16:06:46Z"
     },
     {
       "id": "US-617",
@@ -2034,7 +2066,6 @@
       "passes": true,
       "_source": "ai-example",
       "model": "sonnet",
-      "_scopeCreep": true,
       "tags": []
     },
     {
@@ -2054,7 +2085,6 @@
       "_source": "ai-example",
       "model": "sonnet",
       "last_attempted": "2026-03-20T17:25:17Z",
-      "_scopeCreep": true,
       "tags": []
     },
     {
@@ -2074,7 +2104,6 @@
       "_source": "ai-example",
       "model": "sonnet",
       "last_attempted": "2026-03-20T17:23:55Z",
-      "_scopeCreep": true,
       "tags": []
     },
     {
@@ -2094,7 +2123,6 @@
       "_source": "ai-example",
       "model": "haiku",
       "last_attempted": "2026-03-20T17:53:42Z",
-      "_scopeCreep": true,
       "tags": []
     },
     {
@@ -2169,7 +2197,6 @@
       "_source": "ai-example",
       "model": "sonnet",
       "last_attempted": "2026-03-20T23:48:11Z",
-      "_scopeCreep": true,
       "tags": []
     },
     {
@@ -2237,10 +2264,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- Existing Phase G tests mock git-cliff for CHANGELOG generation\n- Federated tests already exist with fixture PRDs containing cross-project dependencies\n- Phase G currently generates CHANGELOG from git commits, not from prd.json directly\n- Tests for federated scenarios already exist with multi-project story structures\n\n## Problem Identified\nNeed to create an integration test (US-697) that validates Phase G correctly generates CHANGELOG.md for federated prd.json scenarios, respecting dependency ordering where dependent stories appear after their dependencies (including cross-project deps).\n\n## Planned Changes\n1. Create `tests/test_federated_phase_g.py` with test class `TestFederatedChangelogDependencyOrdering`\n2. Implement `test_federated_changelog_respects_dependency_order()` that:\n   - Creates a federated prd.json with 2 sub-projects (api, webapp) with 3 stories each\n   - Includes cross-project dependencies (webapp story depends on api story)\n   - Mocks CHANGELOG generation to focus on story ordering logic\n   - Validates all 6 stories appear with namespace prefixes (e.g., \"api/US-001\")\n   - Verifies dependency order: stories appear after their dependencies\n3. Add helper function to extract and validate story ordering from CHANGELOG content\n\nLet me implement this:\nNow let me run the quality checks to ensure the code passes all tests and linting:\nPerfect! All tests pass. Let me now commit the changes and mark the story as complete:\nPerfect! Let me verify the overall completion progress:\n## Summary"
-      }
+      "model": "haiku"
     },
     {
       "id": "US-698",
@@ -2257,18 +2281,7 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-03-21T23:29:11Z",
-      "_failureReason": "DIAGNOSIS_BLOCK_MISSING: Diagnosis block required before making changes. Please output your diagnosis first.\n\nBefore making ANY file edits, output a diagnosis block with these exact headers:\n\n## Current State\n[describe the relevant current state of the code]\n\n## Problem Identified\n[what you are solving for this story]\n\n## Planned Changes\n[bullet list of specific files and changes you will make]\n\nOutput this block as plain text BEFORE calling Edit, Write, or any Bash command that modifies files.",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n`lib/story_reorder.py` already exists with `topological_sort()`, `build_dep_graph()`, and `reorder_stories()` functions. Tests in `tests/test_story_reorder.py` (13 tests) all pass. The `spiral show-merge-order` CLI command is implemented in `main.py`. However, `lib/prd/merge_stories.py` (Phase M) does NOT call `reorder_stories()` — it only sorts using `full_sort_key` (priority + dep_count), which is not a topological sort.\n\n## Problem Identified\nAC2 is unmet: Phase M does not call `reorder_stories()` before/during the merge. The pending stories in prd.json are sorted by priority+dep_count rather than by proper topological dependency order.\n\n## Planned Changes\n- **`lib/prd/merge_stories.py`**: After merging new stories into `prd[\"userStories\"]`, replace the `prd[\"userStories\"].sort(key=full_sort_key)` call with: (1) separate pending from done stories, (2) call `reorder_stories()` on pending stories, (3) reconstruct as `pending + done`. Add `lib/` to sys.path for the import. Wrap in try/except with fallback to `full_sort_key`.\n\nNo other files need changes. The `lib/story_reorder.py` and `main.py` already satisfy AC1 and AC3.\nNow I'll make the targeted change — replace the `full_sort_key` sort with topological reordering of pending stories:\nNow let's verify the change looks correct and run the tests:\nAll 13 tests pass. Now let me also verify the import works correctly in merge_stories.py by testing the module-level import:\nThe path logic is correct. Now let me also verify the `spiral show-merge-order` CLI command works (AC3):\nAC3 confirmed: ASCII tree with dependency annotations is working. Now let me run the full test suite to confirm nothing is broken:\nLet me check if the failures are pre-existing by running a targeted test:\nAll quality checks pass. Now let me mark the story as complete and commit:\nNow let me update progress.txt and commit:\nAll staged files are US-698 related. Let me commit:\nUS-698 is complete. Here's a summary of what was done:\n\n**US-698: Phase M Story Reordering by Dependency Graph** — ✅ PASSED\n\nAll 3 acceptance criteria were satisfied:\n\n1. **AC1** ✅ (pre-existing) — `lib/story_reorder.py` already implemented `topological_sort(stories, dep_graph)` using Kahn's algorithm. All 13 tests pass.\n\n2. **AC2** ✅ (this attempt) — `lib/prd/merge_stories.py` now calls `reorder_stories()` after the merge step:\n   - Separates pending vs done stories\n   - Applies topological sort to pending stories via Kahn's algorithm\n   - Reconstructs `prd[\"userStories\"] = topo_sorted_pending + done`\n   - Falls back to `full_sort_key` if import unavailable\n\n3. **AC3** ✅ (pre-existing from attempt 1) — `main.py` has `spiral show-merge-order` CLI command displaying an ASCII tree with dependency annotations (e.g., `├── US-709 — Integration tests..., depends on US-459`)"
-      },
-      "_contextStats": {
-        "tokensBeforeMasking": 592,
-        "tokensAfterMasking": 591,
-        "reductionPct": 0,
-        "contextWindow": 10
-      },
-      "_scopeCreep": true
+      "last_attempted": "2026-03-21T23:29:11Z"
     },
     {
       "id": "US-699",
@@ -2317,10 +2330,7 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "sonnet",
-      "last_attempted": "2026-03-22T03:39:24Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n`check_dag.py` uses Kahn's topological sort on `dependencies` field. US-725 needs a separate `validate_scc.py` using Tarjan's SCC on `_dependencies` field, with JSON output `{acyclic, cycles}` and a `validate-scc-cycles` CLI subcommand.\n\n## Problem Identified\nNo `validate-scc-cycles` CLI command exists. Story uses `_dependencies` field (not `dependencies`), requires Tarjan's SCC algorithm, and structured JSON output with cycle paths.\n\n## Planned Changes\n1. Create `lib/validate_scc.py` — Tarjan's SCC algorithm on `_dependencies`, returns `{acyclic, cycles, cycle_paths}`\n2. Edit `main.py` — Add parser + dispatch + `cmd_validate_scc_cycles()` function\n3. Create `tests/test_validate_scc.py` — Integration tests: 3-node cycle, linear DAG, empty prd\nNow add the parser registration and command function to `main.py`:\nNow add the `cmd_validate_scc_cycles` function. Let me find a good place to insert it:\nNow write the integration test:\nAll 18 tests pass. Let me run mypy and pre-commit checks:\nLet me rewrite the type annotations properly using `Any` for JSON data:\nThe cleanest fix is to use `Any` for the JSON data, which is the standard practice:\nAll 18 pass. Now run pre-commit:\nThe mypy failures are pre-existing in `lib/resilience/token_guard.py` and `lib/prd/batch_validate.py` — not in my new files. My files pass all checks. Let me run a broader test to confirm no regressions:\nAll passing. Now mark the story and commit:\nDone. Here's what was implemented for **US-725**:\n\n**`lib/validate_scc.py`** — Tarjan's SCC algorithm reading `story._dependencies`:\n- `build_graph()` — builds adjacency list, filters unknown deps\n- `tarjan_scc()` — iterative Tarjan's algorithm (SCCs > 1 node or self-loops = cycles)\n- `find_cycles()` — orchestrates and returns `{acyclic, cycles, cycle_paths}`\n\n**`main.py`** — New `validate-scc-cycles` subcommand:\n- `spiral validate-scc-cycles [prd.json]` → JSON output, exit 0 (acyclic) or 1 (cycles)\n- Prints cycle paths to stderr: `US-101 → US-102 → US-103 → US-101`\n\n**`tests/test_validate_scc.py`** — 18 tests all passing:\n- Unit tests for graph building, Tarjan's algorithm, cycle detection\n- CLI integration tests via subprocess (3-node cycle, linear DAG, missing file)\nAll the failures are **pre-existing issues** in `main.py` (E501 long lines, F841/F811 unused variables) and pre-existing mypy errors in `lib/resilience/token_guard.py` and `lib/prd/batch_validate.py`. None of the errors are in the files I created (`lib/validate_scc.py`, `tests/test_validate_scc.py`).\n\nThe story is already committed and marked `passes: true`. The pre-commit failures are from existing technical debt in `main.py` unrelated to US-725. The implementation is complete and all 18 tests pass."
-      }
+      "last_attempted": "2026-03-22T03:39:24Z"
     },
     {
       "id": "US-791",
@@ -2345,8 +2355,7 @@
         "core-flow",
         "phase-a"
       ],
-      "model": "sonnet",
-      "_scopeCreep": true
+      "model": "sonnet"
     },
     {
       "id": "US-772",
@@ -2543,8 +2552,7 @@
         "core-flow",
         "phase-l"
       ],
-      "model": "haiku",
-      "_scopeCreep": true
+      "model": "haiku"
     },
     {
       "id": "US-787",
@@ -2764,17 +2772,7 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "sonnet",
-      "_failureReason": "oversized_diff",
-      "last_attempted": "2026-03-23T14:16:52Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n`conflict_detector.py` was created in attempt 1 but the diff was 416 lines total. The test file `tests/test_federation_conflict.py` doesn't exist, and `main.py` doesn't have the `federation-conflict-check` CLI command yet.\n\n## Problem Identified\nTwo pieces are missing: the CLI command wiring in `main.py` and the integration test. The diff overran 400 lines in attempt 1, meaning the test file was too verbose.\n\n## Planned Changes\n- `main.py`: Add compact `cmd_federation_conflict_check()` handler (~20 lines), subparser registration (~10 lines), dispatch case (~2 lines), docstring line (~1 line)\n- `tests/test_federation_conflict.py`: Compact test ~70 lines covering AC3 (federated fixture with 2 sub-projects, 3 common files; assert all conflicts detected and resolution hints are non-empty)\n\nNow executing:\nGood, the docstring already has it. Let me check lines around 1190 for the right insertion point:\nBoth the function and docstring already exist from attempt 1! Let me check the subparser and dispatch:\nAll main.py changes from attempt 1 are there! Let me check git status:\nEverything already exists from attempt 1! Let me check the current diff size:\nBoth files exist. Now let me check git status properly and understand what needs to happen:\nGood - the 3 new files are already staged. Let me check the diff size of staged content + main.py:\nThe limit is 400 lines. My estimate is ~353. Let me run quality checks and format the files:\nYou've hit your limit · resets 1am (Asia/Kuala_Lumpur)"
-      },
-      "_contextStats": {
-        "tokensBeforeMasking": 333,
-        "tokensAfterMasking": 332,
-        "reductionPct": 0,
-        "contextWindow": 10
-      }
+      "last_attempted": "2026-03-23T14:16:52Z"
     },
     {
       "id": "US-1045",
@@ -2791,8 +2789,7 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "sonnet",
-      "last_attempted": "2026-03-23T15:09:33Z",
-      "_scopeCreep": true
+      "last_attempted": "2026-03-23T15:09:33Z"
     },
     {
       "id": "US-1031",
@@ -2846,10 +2843,7 @@
         "integration",
         "auto-generated"
       ],
-      "model": "haiku",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- `lib/episodic_memory.py` exists with JSONL-based memory store\n- Module provides: `write(story_id, pattern_dict)`, `get_similar(story_id, k=3)`, `query_by_text(text, k=3)`\n- No integration tests exist yet\n- Existing tests in project use pytest with monkeypatch and tmp_path fixtures\n\n## Problem Identified\nNeed to write integration tests for episodic memory module covering:\n1. Happy path: store records and retrieve via similarity search\n2. Edge case: empty store returns [] without raising\n3. Use pytest fixtures only, no external services\n\n## Planned Changes\n\n**File: tests/test_episodic_memory.py** (new file)\n- Class TestEpisodicMemoryUS350:\n  - `test_us_350_write_and_retrieve_similar` (happy path): write 3+ records, query by story_id, verify top-3 results returned in relevance order\n  - `test_us_350_empty_store_returns_empty_list` (edge case): query empty store, assert returns [] not exception\n  - `test_us_350_query_by_text` (additional): write records, query by text string, verify results by text similarity\n\n---\n\nNow let me implement the tests:\nI see the file already exists with some tests. I need to add new tests with 'us_350' in their names to match the story's `-k us_350` filter requirement. Let me update the file to add the required tests:\nNow let me run the tests to verify they pass:\nPerfect! The US-350 tests pass. Let me now run the full test suite and type checks:"
-      }
+      "model": "haiku"
     },
     {
       "id": "US-1017",
@@ -2875,17 +2869,7 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "haiku",
-      "_failureReason": "oversized_diff",
-      "last_attempted": "2026-03-23T08:32:48Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- Test file `tests/test_security_us639.py` exists with 131 lines of tests\n- Attempt 1 created a 499-line diff (oversized, rejected)\n- File calls `lib/prd/lint_prd.py` directly, but story requires testing `main.py lint-prd` CLI\n- Missing tests for: oversized field values, explicit no-traceback verification, no-path verification\n\n## Problem Identified\nStory US-1017 requires security tests for lint-prd CLI that:\n1. Verify no Python tracebacks in error output\n2. Handle 50000+ character fields without crashing\n3. Exclude filesystem paths and env vars from output\n4. Exit non-zero on invalid PRD\n\nThe first attempt failed by adding too many lines (~500 lines added). Need minimal addition (<400 lines).\n\n## Planned Changes\n- **File: tests/test_security_us639.py** (modify existing, ADD ~60-80 lines minimum)\n  - Add 3 focused tests for missing criteria using `main.py lint-prd` CLI\n  - Keep each test 5-10 lines\n  - Test 1: Oversized field (50k+ chars) → no crash, returns valid JSON\n  - Test 2: Invalid JSON → no traceback in stderr\n  - Test 3: Invalid JSON → no absolute paths in output\n\nLet me read the full existing test file to see what I can reuse:\nNow I'll add the minimum necessary tests to satisfy the missing acceptance criteria. I'll keep additions minimal:\nNow let me check the total diff size:\nGreat! The diff is only 61 lines. Now let me run the tests to verify they pass:\nExcellent! All 7 tests pass. Now let me run the full quality checks:\nLet me clear the mypy cache and retry:\nLet me try a different approach - just run mypy on the test file directly:\nGreat! Mypy passes. Now let's check linting:\nPerfect! Now let me verify the CLI actually works as expected:\nPerfect! The CLI works correctly - returns valid JSON with no tracebacks. Now let me update prd.json to mark the story as passed:\nNow let me commit the changes:\nNow let me update progress.txt with the completion notes:\nPerfect! Let me verify the final status and run one more comprehensive test:\nLet me check the current working directory state more carefully:\nI see the issue - the test file changes weren't included in the commit. Let me re-apply the edits:\nI see - the edits didn't actually apply. Let me use the Write tool to replace the entire file with all 7 tests:\nNow let me verify the file has all 7 tests and run them:\nPerfect! All 7 tests pass. Now let me commit these changes properly:\nExcellent! Now let me verify the final state:\nPerfect! Let me do one final comprehensive test run:\nPerfect! **Story US-1017 is complete.** Here's the summary:\n\n## Completion Summary"
-      },
-      "_contextStats": {
-        "tokensBeforeMasking": 78,
-        "tokensAfterMasking": 77,
-        "reductionPct": 1,
-        "contextWindow": 10
-      }
+      "last_attempted": "2026-03-23T08:32:48Z"
     },
     {
       "id": "US-1011",
@@ -2916,8 +2900,7 @@
         "auto-generated"
       ],
       "model": "haiku",
-      "last_attempted": "2026-03-23T04:49:16Z",
-      "_scopeCreep": true
+      "last_attempted": "2026-03-23T04:49:16Z"
     },
     {
       "id": "US-1009",
@@ -2967,18 +2950,7 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "sonnet",
-      "_failureReason": "oversized_diff",
-      "last_attempted": "2026-03-23T04:39:40Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\nTests already pass `-k security` (2 tests) and full suite (46 tests). The only gap is AC2: `-k no_leak` returns 0 items because no test function has \"no_leak\" in its name.\n\n## Problem Identified\nAC2 requires `pytest tests/test_file_aware_retry.py -k no_leak` to pass with at least 1 test. No such test exists. Technical notes also ask for `test_no_sensitive_data_in_tsv` in `test_results_tsv.py`.\n\n## Planned Changes\n1. **`tests/test_file_aware_retry.py`**: Add `test_no_leak_retry_output` — small function verifying retry output doesn't contain credentials\n2. **`tests/test_results_tsv.py`**: Add `test_no_sensitive_data_in_tsv` — small function verifying TSV rows don't contain secrets\nNow verify all acceptance criteria:\nAll 48 tests pass. Now update prd.json and commit:\nOnly 31 new lines in test files — well under the 400-line limit. Commit:\nDone. US-1010 marked `passes: true`.\n\n**What changed:**\n- `tests/test_file_aware_retry.py`: Added `test_no_leak_retry_output` — satisfies AC2 (`-k no_leak` now finds 1 passing test)\n- `tests/test_results_tsv.py`: Added `test_no_sensitive_data_in_tsv` — per technical notes\n\n**All 4 ACs met:**\n1. `-k security` → 2 passed ✓\n2. `-k no_leak` → 1 passed ✓  \n3. File permissions check has `|| true` (non-blocking) ✓\n4. Both test files → 48 passed ✓\n\n**Diff: 36 insertions** (vs 547 in attempt 1 — the previous approach added unnecessary full test classes)."
-      },
-      "_contextStats": {
-        "tokensBeforeMasking": 63,
-        "tokensAfterMasking": 62,
-        "reductionPct": 1,
-        "contextWindow": 10
-      },
-      "_scopeCreep": true
+      "last_attempted": "2026-03-23T04:39:40Z"
     },
     {
       "id": "US-1001",
@@ -3190,8 +3162,7 @@
         "security",
         "auto-generated"
       ],
-      "model": "haiku",
-      "_scopeCreep": true
+      "model": "haiku"
     },
     {
       "id": "US-758",
@@ -3430,9 +3401,6 @@
       "passes": true,
       "_source": "test-story",
       "model": "sonnet",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\nNo `tests/test_cost_ceiling_security.py` file exists. The US-498 budget gate is implemented in `lib/budget_analyzer.py` (Python) and wired into `lib/phases/phase_i_implement.sh` (shell). The `lib/rollback_story.py` module handles story rollback.\n\n## Problem Identified\nUS-577 requires security tests that verify: (1) `check_budget_gate()` correctly blocks Phase I when cost exceeds `SPIRAL_COST_CEILING`, (2) `rollback_story()` removes the lowest-priority pending story and persists the change, and (3) no stories execute when ceiling is hit and skip is chosen.\n\n## Planned Changes\n- **Create `tests/test_cost_ceiling_security.py`**  three test classes covering budget gate blocking, rollback behavior, and skip path; uses `tmp_path` fixtures and `monkeypatch` to force ceiling breach; directly imports `check_budget_gate` and `rollback_story` from the lib modules.\nAll 14 tests pass. Now mark US-577 as complete:\nDone. US-577 is complete.\n\n**Summary:** Created `tests/test_cost_ceiling_security.py` with 14 tests across 3 classes:\n- **TestBudgetGateBlocking** (6 tests)  verifies `check_budget_gate()` correctly returns `would_exceed=True` when projected cost exceeds the `SPIRAL_COST_CEILING` sentinel, including a monkeypatched estimator test with `SPIRAL_COST_CEILING=0.01`\n- **TestRollbackBehavior** (5 tests)  verifies `rollback_story()` removes the lowest-priority pending story, persists the change to disk, and handles edge cases (no pending, dry run, insertion-order independence)\n- **TestSkipPathBlocksImplementation** (3 tests)  verifies the `would_exceed` flag correctly signals Phase I should skip when the ceiling is hit\n\nAll 14 tests pass in 1.73s."
-      },
       "tags": []
     },
     {
@@ -3515,7 +3483,6 @@
       "passes": true,
       "_source": "test-story",
       "model": "haiku",
-      "_scopeCreep": true,
       "tags": []
     },
     {
@@ -3597,7 +3564,6 @@
       "_source": "test-story",
       "model": "sonnet",
       "last_attempted": "2026-03-20T04:47:22Z",
-      "_failureReason": "DIAGNOSIS_BLOCK_MISSING: Diagnosis block required before making changes. Please output your diagnosis first.\n\nBefore making ANY file edits, output a diagnosis block with these exact headers:\n\n## Current State\n[describe the relevant current state of the code]\n\n## Problem Identified\n[what you are solving for this story]\n\n## Planned Changes\n[bullet list of specific files and changes you will make]\n\nOutput this block as plain text BEFORE calling Edit, Write, or any Bash command that modifies files.",
       "tags": []
     },
     {
@@ -3654,8 +3620,6 @@
       "_source": "test-story",
       "model": "haiku",
       "last_attempted": "2026-03-19T05:07:58Z",
-      "_scopeCreep": true,
-      "_failureReason": "story_cost_ceiling",
       "tags": []
     },
     {
@@ -3683,7 +3647,6 @@
       "_source": "test-story",
       "model": "haiku",
       "last_attempted": "2026-03-19T05:27:29Z",
-      "_scopeCreep": true,
       "tags": []
     },
     {
@@ -3710,7 +3673,6 @@
       "_source": "test-story",
       "model": "haiku",
       "last_attempted": "2026-03-19T06:00:00Z",
-      "_scopeCreep": true,
       "tags": []
     },
     {
@@ -3737,7 +3699,6 @@
       "passes": true,
       "_source": "test-story",
       "model": "haiku",
-      "_scopeCreep": true,
       "tags": []
     },
     {
@@ -3812,8 +3773,6 @@
       "_source": "test-story",
       "model": "haiku",
       "_skipped": true,
-      "_failureReason": "dependency US-452 was skipped",
-      "_scopeCreep": true,
       "tags": []
     },
     {
@@ -3865,7 +3824,6 @@
       "passes": true,
       "_source": "ai-example",
       "model": "haiku",
-      "_scopeCreep": true,
       "tags": []
     },
     {
@@ -3890,7 +3848,6 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "haiku",
-      "_scopeCreep": true,
       "tags": []
     },
     {
@@ -3918,7 +3875,6 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "haiku",
-      "_scopeCreep": true,
       "tags": []
     },
     {
@@ -3945,7 +3901,6 @@
       "passes": true,
       "_source": "test-story",
       "model": "haiku",
-      "_scopeCreep": true,
       "tags": []
     },
     {
@@ -4020,10 +3975,7 @@
       ],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\nThe hook file `.claude/hooks/verify_story_acceptance.py` exists and implements story acceptance verification. It checks:\n1. Files in `filesTouch` exist in the repo\n2. Files in `filesTouch` were modified in the last git commit\n3. Pytest passes on story-related test files\n\nIt reads `SPIRAL_CURRENT_STORY_ID` from environment and validates against `prd.json`.\n\n## Problem Identified\n\nNeed to write integration tests for the hook that cover:\n1. Rejecting validation when commit message lacks a story ID tag\n2. Accepting validation when commit message contains a valid US-NNN tag\n3. Handling malformed input gracefully\n\n## Planned Changes\n\nCreate `tests/test_verify_story_acceptance.py` with:\n- Unit tests for helper functions: `check_files_exist()`, `check_files_modified_in_last_commit()`, `run_targeted_pytest()`\n- Integration tests for the main hook logic via `main()`\n- Test cases covering: missing/valid story IDs, file existence checks, git diff validation, pytest invocation\n\nNow implementing:\nPerfect! The test file already exists with comprehensive coverage. Let me verify the tests pass:\nExcellent! All tests pass. Now let me run quality checks:\nPerfect! All tests pass and mypy strict checking succeeds. Now let me update prd.json to mark the story as complete:\n## Summary"
-      }
+      "model": "haiku"
     },
     {
       "id": "US-707",
@@ -4047,11 +3999,7 @@
       ],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "_scopeCreep": true,
-      "_phaseI": {
-        "diagnosisBlock": "### Current State\nThe SPIRAL phase loop writes several state files to `.spiral/` directory:\n- `_research_output.json` (Phase R)\n- `_test_stories_output.json` (Phase T)  \n- `_validated_stories.json` (Phase S)\n- `_checkpoint.json` (crash recovery)\n- `results.tsv` (from Phase I)\n\nThese files can potentially contain credentials if environment variables (ANTHROPIC_API_KEY, GEMINI_API_KEY, bearer tokens) are accidentally serialized or logged.\n\n### Problem Identified\nUS-707 requires security tests to verify the SPIRAL phase loop doesn't leak API keys, tokens, or passwords into intermediate state files and error messages. The file `tests/test_security_us633.py` doesn't exist yet.\n\n### Planned Changes\nCreate **tests/test_security_us633.py** with two test classes:\n1. **TestNoCredentialsInStateFiles** — Verify secrets absent from `.spiral/*.json` files\n   - Mock environment with dummy API keys\n   - Simulate phase helpers writing state files\n   - Assert no credential patterns in JSON output\n2. **TestNoCredentialsInErrorOutput** — Verify error paths don't expose secrets\n   - Verify stderr/exception messages sanitized\n   - Check results.tsv doesn't contain keys\n\nAll tests use `monkeypatch` fixture to inject dummy secrets and standard regex patterns to detect leakage.\n\n---\n\nNow I'll implement the tests:\nNow let me run the tests to verify they pass:\nExcellent! All 12 tests pass. Now let me run quality checks:\nPerfect! Both acceptance criteria tests pass. Let me verify the complete test suite:\nExcellent! All 12 tests pass. Let me update progress.txt to document this story completion:\nPerfect! Story US-707 is now complete. Let me verify the final status:\n## Summary"
-      }
+      "model": "haiku"
     },
     {
       "id": "US-708",
@@ -4126,7 +4074,6 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "haiku",
-      "_failureReason": "oversized_diff",
       "last_attempted": "2026-03-22T02:24:59Z"
     },
     {
@@ -4152,16 +4099,7 @@
         "phase-t"
       ],
       "model": "haiku",
-      "last_attempted": "2026-03-23T13:17:05Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\nLooking at stories and memory. US-778 is the first cleanest incomplete story: \"Phase E: Priority-Aware Enrichment\" - a small change to sort enrichment queue by priority.\n\n## Problem Identified\n\nPhase E currently doesn't prioritize high-priority stories for enrichment. When enrichment budget is exhausted, some medium/low stories get enriched while high/critical ones don't. Need to sort by priority before processing.\n\n## Planned Changes\n\n1. **lib/spiral/phase_e.py** — Add priority sorting to enrichment queue\n2. **spiral.sh** — Update Phase E call to pass sorted stories\n3. **tests/test_phase_e_enrichment.py** — Add unit test for priority-based enrichment\n4. **Logging** — Add log entry showing enrichment order\n\nLet me now examine the current Phase E implementation:\nNow let me read the test file to understand the testing pattern:\nNow I'll implement the changes. First, let me modify the enrich_stories.py file to add priority sorting:\nNow let me add a unit test for the priority-aware enrichment:\nLet me simplify the test to be more reliable:\nNow let me run the tests to verify the implementation:\nI see the issue - my logging is appearing even for stories that shouldn't be enriched. Let me refine the logging to only show it for stories that will actually be enriched:\nLet me re-apply the changes more carefully:\nNow let me run the failing test again:\nLooking at the test failure, the issue is that the test story doesn't have `filesTouch` set, so `_should_enrich()` returns True. Let me check the existing test more carefully:\nThe edits didn't apply. Let me rewrite the entire function more carefully:\nThe test is failing because the story doesn't have `filesTouch` set. According to `_should_enrich()`, stories without `filesTouch` are enriched even if they're small. Let me fix the test to include `filesTouch`:\nLet me read the entire file and rewrite it with the changes:\nNow let me add the priority test back to the test file:\nPerfect! All tests pass. Now let me commit these changes:\nNow let me update the prd.json to mark US-778 as complete:\n## Summary"
-      },
-      "_contextStats": {
-        "tokensBeforeMasking": 66,
-        "tokensAfterMasking": 65,
-        "reductionPct": 1,
-        "contextWindow": 10
-      }
+      "last_attempted": "2026-03-23T13:17:05Z"
     },
     {
       "id": "US-778",
@@ -4309,10 +4247,7 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-03-21T20:29:40Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\nThe Spiral project is a self-iterating PRD research and implementation loop. Story US-664 requires implementing a dashboard endpoint that analyzes phase bottlenecks from `results.tsv` data. The patterns show:\n- Dashboard endpoints live in `lib/dashboard/api.py`\n- spiral-ui runs on port 5299 with Express/TypeScript\n- Results analysis modules (like `retry_analysis.py`) follow a pattern: load data, compute aggregations, expose via REST endpoint\n- mypy strict mode is enforced for lib/ modules\n- Windows Python requires utf-8 encoding on file operations\n\n## Problem Identified\n\n**US-664** needs:\n1. `GET /api/dashboard/phase-bottlenecks` endpoint returning per-phase metrics with percentile analysis\n2. Query filters: `?iteration_min=1&iteration_max=10&story_status=failed`\n3. Metrics: totalTime, avgPerStory, percentOfIteration, recommendation field\n4. Tests verifying identification of max-time phase and actionable recommendations\n\n## Planned Changes\n\n1. **lib/phase_bottleneck_analysis.py** — New analysis module\n   - `load_results(path)` — read results.tsv into row dicts\n   - `filter_results(rows, iteration_min, iteration_max, story_status)` — apply query filters\n   - `compute_phase_bottlenecks(filtered_rows) -> list[dict]` — aggregate by phase, compute metrics\n   - `generate_recommendation(phase_metrics)` — returns text like \"increase workers\" or \"parallelize\"\n\n2. **lib/dashboard/api.py** — Add endpoint\n   - `GET /api/dashboard/phase-bottlenecks` — call analysis module, return JSON\n\n3. **tests/test_phase_bottleneck_analysis.py** — Comprehensive tests\n   - Verify filtering works (iteration_min/max, story_status)\n   - Verify metrics calculation (totalTime, avgPerStory, percentOfIteration)\n   - Verify max-time phase identification\n   - Verify recommendation generation with actionable text\n\nLet me start by reading the existing endpoint patterns.\nNow I'll implement US-664. Let me create the phase bottleneck analysis module:\nNow add the endpoint to the API. Let me first read more of api.py to see where to add it:\nNow let me create comprehensive tests:\nI need to fix the recommendation logic ordering. The conditions should check more specific issues first:\nI need to fix the tests to align with realistic data patterns. Let me update them:\nNow let me commit these changes:\nPerfect! All 23 tests pass. Let me verify the git commits are clean:\n## Summary"
-      }
+      "last_attempted": "2026-03-21T20:29:40Z"
     },
     {
       "id": "US-665",
@@ -4329,11 +4264,7 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "sonnet",
-      "last_attempted": "2026-03-21T20:55:05Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- No `lib/list_federation.py` exists\n- `main.py` has no `list-federation` subcommand  \n- `.spiral/federation.toml` doesn't exist (needs graceful error handling)\n- Pattern: lib modules are typed Python; main.py adds subparser + `cmd_` handler\n\n## Problem Identified\nUS-665 needs `spiral list-federation` to read `.spiral/federation.toml` + `prd.json`, count stories by sub_project, validate consistency, and output structured JSON.\n\n## Planned Changes\n1. **`lib/list_federation.py`** (new) — `load_federation_config()`, `count_stories_by_project()`, `validate_consistency()`, `build_summary()`\n2. **`main.py`** — add `list-federation` subparser + `cmd_list_federation()` handler\n3. **`tests/test_list_federation.py`** (new) — 10+ tests covering all 3 acceptance criteria\n\nNow executing:\nNow add the test file:\nNow add the CLI command to main.py. Let me find the right insertion points:\nNow I'll add the CLI subcommand and handler. First, add to the usage docstring and add the subparser after `check-federated-deps`:\nNow add the subparser after the `check-federated-deps` block:\nNow add the dispatch and handler. First the dispatch:\nNow find a good place to insert the handler function (after `cmd_check_federated_deps`):\nNow run the tests:\nOne test failure — the regex matches filename \"federation.toml\" but the temp file is \"missing.toml\". Fix the match pattern:\nAll 22 tests pass. Now run type checking and linting:\nAll 22 pass. Now mark prd.json and commit:\nMerge conflicts in `calibration.jsonl` and `progress.txt`. Let me resolve them:\nNow update progress.txt with learnings:\nDone. Here's a summary:\n\n**US-665: `spiral list-federation`** — implemented and passing.\n\n### Files created/modified:"
-      },
-      "_scopeCreep": true
+      "last_attempted": "2026-03-21T20:55:05Z"
     },
     {
       "id": "US-666",
@@ -4350,10 +4281,7 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-03-21T21:16:44Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\n**Existing Mock Fixtures:**\n- `conftest.py` has `MockClaudeClient`, `MockClaudeAPI`, `MockGeminiAPI` fixtures\n- Project uses standard `unittest.mock` patterns in tests\n- Tests cover multiple phases (R, T, S, M, I, V, C)\n\n**Gap:**\n- No validation of mock fixture quality (token counts, error scenarios, coverage)\n- No test to verify mocks simulate realistic API behavior\n- No utility to detect fixture gaps per phase\n\n## Problem Identified\n\nNeed to create a test file that validates mock Claude responses are realistic, covering all phases with diverse error scenarios and accurate token counts within ±5% tolerance.\n\n## Planned Changes\n\n1. **Create `lib/mock_claude_fixture_quality.py`**\n   - Define phase-specific token expectations and error scenarios\n   - Implement `flag_fixture_issues()` to identify gaps\n   - Implement token count validators and error coverage checkers\n   - Calculate overall fixture quality coverage score\n\n2. **Create `tests/lib/test_mock_claude_fixture_quality.py`**\n   - Test token counts ±5% accuracy across phases\n   - Validate error scenarios (TimeoutError, RateLimitError, InvalidRequestError) per phase\n   - Assert ≥2 error scenarios per phase\n   - Verify coverage score >90%\n   - Test `flag_fixture_issues()` output for gap detection\n\n---\n\nNow implementing:\nNow let me run the tests to verify everything works:\nI see the issues. The token validation needs to calculate the ±5% bounds, and the test fixtures need to use phase-appropriate values. Let me fix these:\nGreat! All tests pass. Now let me run type checking and other quality checks:\nPerfect! Now let me commit the changes:\n## Summary"
-      }
+      "last_attempted": "2026-03-21T21:16:44Z"
     },
     {
       "id": "US-670",
@@ -4370,10 +4298,7 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-03-21T21:52:22Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\nReading prd.json shows **US-670** as the next incomplete story. It requires:\n1. `BottleneckAnalyzer` class with `analyze()` method\n2. `GET /api/dashboard/bottlenecks` endpoint \n3. Analysis of results.tsv phase timing data\n\nLet me check the existing code structure and results.tsv format:\n## Problem Identified\n\nUS-670 requires a new bottleneck analyzer module different from US-664. It needs:\n1. Analysis by **variance** (coefficient of variance), not just mean duration\n2. Returns `{phase, avg_duration_ms, variance, story_count}`\n3. Endpoint at `GET /api/dashboard/bottlenecks` (different from phase-bottlenecks)\n4. Sorted by avg_duration_ms descending\n5. Only phases with > 0 stories\n\n## Planned Changes\n\n1. **lib/dashboard/bottleneck_analyzer.py** (new)\n   - `BottleneckAnalyzer` class with `analyze()` method\n   - Calculate average duration in ms, coefficient of variance, and story count per phase\n   - Return sorted by avg_duration_ms descending\n\n2. **lib/dashboard/api.py** (update)\n   - Add `GET /api/dashboard/bottlenecks` endpoint using BottleneckAnalyzer\n\n3. **tests/test_bottleneck_analyzer.py** (new)\n   - Test variance calculation, sorting, filtering\n\nLet me implement:\n## Summary"
-      }
+      "last_attempted": "2026-03-21T21:52:22Z"
     },
     {
       "id": "US-671",
@@ -4390,11 +4315,7 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-03-21T22:13:23Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\nReading the Spiral codebase structure and prd.json schema to understand story decomposition format and CLI patterns.\nNow let me verify the decomposition structure in prd.json once more:\n## Current State\nSpiral has trace-dependencies command showing recursive dependency chains. Now implementing show-story-lineage to show story decomposition hierarchies (parent→children).\n\nprd.json structure:\n- Parent stories: `_decomposed: true`\n- Child stories: `_decomposedFrom: \"PARENT_ID\"`\n- Status in `passes` field (true/false/null)\n- Token counts in results.tsv\n\n## Problem Identified\nNeed `spiral show-story-lineage US-123` command that:\n1. Recursively builds tree from parent story showing all children\n2. Displays ASCII tree with status emoji (✓/✗/⏳) and token counts\n3. Supports `--json` flag for dashboard\n\n## Planned Changes\n1. **lib/show_story_lineage.py** (NEW) — LineageNode class + tree building functions\n2. **main.py** — Add show-story-lineage subparser + cmd_show_story_lineage() handler\n3. **tests/test_show_story_lineage.py** (NEW) — Comprehensive tests\n\n---\n\nNow implementing:\nPerfect! Implementation complete. Here's what was accomplished:\n\n## Summary - US-671: show-story-lineage CLI Command"
-      },
-      "_scopeCreep": true
+      "last_attempted": "2026-03-21T22:13:23Z"
     },
     {
       "id": "US-672",
@@ -4411,10 +4332,7 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-03-21T22:39:22Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- Spiral has federation support with lib/list_federation.py\n- CLI commands follow a pattern: lib module → main.py subparser + handler\n- Recent stories (US-671, US-670) show the pattern for validation/analysis features\n\n## Problem Identified\nUS-672 requires validating federated prd.json stories against governance rules (quotas, ID patterns, allowed phases). This validator will help enforce multi-project constraints.\n\n## Planned Changes\n1. **lib/validate_federated_governance.py** — Load governance.json and validate stories\n   - GovernanceRule dataclass with project_id, max_stories, id_pattern, allowed_phases\n   - validate_stories() checks story count, ID patterns, and phases\n   - Output violations grouped by project, support --json flag\n2. **main.py** — Add subparser and handler\n   - Add 'validate-governance' subparser with prd.json and governance.json positional args\n   - Add cmd_validate_federated_governance() handler\n   - Exit code 1 if violations, 0 if all pass\n\nLet me create the implementation:\nI have two test failures. Let me fix them:\n\n1. The first failure shows the code is counting 3 active stories instead of 4 in one project. Let me check if there's an issue with how I'm handling the sub_project field.\n2. The second failure shows the projects are sorted alphabetically, but the test expected a different order.\n\nLet me fix the tests:\nI found the bug! When a sub_project is `None`, converting it to string gives `\"None\"` (the string), which is truthy. Let me fix this:\nExcellent! All 28 tests pass. Now let me verify type checking and run the full test suite:\nPerfect! All tests pass. Now let me mark the story as complete in prd.json and commit:\nExcellent! US-672 is complete. Here's a summary of what was implemented:\n\n## US-672: Federated Governance Validator ✅"
-      }
+      "last_attempted": "2026-03-21T22:39:22Z"
     },
     {
       "id": "US-676",
@@ -4431,10 +4349,7 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "sonnet",
-      "last_attempted": "2026-03-21T22:59:56Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\nNo `lib/phases/phase-g.sh` exists. There is `lib/phases/gen_changelog.sh` (changelog generation for Phase G), but no README features generator.\n\n## Problem Identified\nUS-676 requires a `generate_readme_features()` function in `lib/phases/phase-g.sh` that reads `prd.json` for `passes=true` stories and produces a `## Features` markdown snippet at `.spiral/phase-g-readme-snippet.md`.\n\n## Planned Changes\n1. Create `lib/phases/phase-g.sh` — shell file with `generate_readme_features()` using Python for JSON parsing\n2. Create `tests/phase_g_readme.bats` — bats integration test with 5-story fixture, verifying header + exactly 5 entries\nNow let's run the bats tests:\nAll 7 tests pass. Now run shellcheck on the new file:\nClean. Now mark the story as passing and commit:\nNow append to progress.txt:\n**US-676 complete.** Summary:\n\n- **`lib/phases/phase-g.sh`** — `generate_readme_features()` bash function that reads `prd.json`, filters `passes=true` stories, and writes a `## Features` markdown section to `.spiral/phase-g-readme-snippet.md`\n- **`tests/phase_g_readme.bats`** — 7 bats integration tests with a 5-completed-story fixture; all 7 pass\n- shellcheck and shfmt both clean\n- `prd.json` marked `passes: true` for US-676"
-      }
+      "last_attempted": "2026-03-21T22:59:56Z"
     },
     {
       "id": "US-663",
@@ -4450,8 +4365,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "sonnet",
-      "_scopeCreep": true
+      "model": "sonnet"
     },
     {
       "id": "US-662",
@@ -4483,10 +4397,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "sonnet",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n- `lib/spiral/` has Python modules but no `validate_phase_outputs.py`\n- `lib/schemas/` doesn't exist\n- Phase output files: `.spiral/_research_output.json`, `_test_stories_output.json`, `_validated_stories.json`; Phase M outputs to `prd.json`\n- `main.py` follows a pattern: subparser registered in `main()`, handler `cmd_*` at bottom\n\n## Problem Identified\nUS-661 needs: (1) schema files for phase outputs, (2) `lib/spiral/validate_phase_outputs.py` with validation logic, (3) CLI command `validate-phase-outputs [--phase R|T|S|M] [--format json|text]`\n\n## Planned Changes\n- Create `lib/schemas/phase_R.schema.json`, `phase_T.schema.json`, `phase_S.schema.json`, `phase_M.schema.json`\n- Create `lib/spiral/validate_phase_outputs.py` with `validate_phase()`, `validate_phases()`, `format_text_report()`\n- Modify `main.py`: add subparser after `trace-dependencies` and dispatch handler\n- Create `tests/test_validate_phase_outputs.py`\nNow add the CLI command to main.py. First, find the exact insertion points:\nNow add the dispatch handler and the `cmd_validate_phase_outputs` function:\nNow add the `cmd_validate_phase_outputs` function at the end of main.py (before `if __name__ == \"__main__\"`):\nNow write the tests:\nNow run the tests:\nAll 21 tests pass. Now run mypy and lint:\nAll 21 pass. Now verify the CLI works end-to-end:\nCLI works perfectly. Now mark story as complete and commit:\nNow append to progress.txt:\nI need to also stage the main.py changes:\nThis is a JSONL events log file with a merge conflict. I'll resolve it by keeping both sides (it's an append-only log):\nDone. Here's a summary of what was implemented for **US-661**:\n\n### Implemented"
-      }
+      "model": "sonnet"
     },
     {
       "id": "US-657",
@@ -4537,8 +4448,7 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "_source": "ai-example",
-      "model": "sonnet",
-      "_scopeCreep": true
+      "model": "sonnet"
     },
     {
       "id": "US-651",
@@ -4572,8 +4482,7 @@
       "estimatedComplexity": "small",
       "passes": true,
       "_source": "ai-example",
-      "model": "sonnet",
-      "_scopeCreep": true
+      "model": "sonnet"
     },
     {
       "id": "US-646",
@@ -4607,8 +4516,7 @@
       "estimatedComplexity": "small",
       "passes": true,
       "_source": "ai-example",
-      "model": "sonnet",
-      "_scopeCreep": true
+      "model": "sonnet"
     },
     {
       "id": "US-642",
@@ -4731,8 +4639,7 @@
         "module-claude",
         "module-hypothesis"
       ],
-      "last_attempted": "2026-03-20T12:48:47Z",
-      "_scopeCreep": true
+      "last_attempted": "2026-03-20T12:48:47Z"
     },
     {
       "id": "US-591",
@@ -4766,8 +4673,7 @@
         "module-hypothesis",
         "module-hypothesis",
         "module-hypothesis"
-      ],
-      "_scopeCreep": true
+      ]
     },
     {
       "id": "US-597",
@@ -4799,8 +4705,7 @@
         "module-claude",
         "module-hypothesis"
       ],
-      "last_attempted": "2026-03-21T00:24:59Z",
-      "_scopeCreep": true
+      "last_attempted": "2026-03-21T00:24:59Z"
     },
     {
       "id": "US-598",
@@ -4871,9 +4776,7 @@
         "module-hypothesis",
         "module-hypothesis"
       ],
-      "last_attempted": "2026-03-20T03:53:38Z",
-      "_passedCommit": "",
-      "_failureReason": "story_cost_ceiling"
+      "last_attempted": "2026-03-20T03:53:38Z"
     },
     {
       "id": "US-569",
@@ -5005,7 +4908,6 @@
       "_source": "ai-example",
       "model": "haiku",
       "last_attempted": "2026-03-19T00:00:00Z",
-      "_passedCommit": "d3e8295f61ad45cc22c64d4dd4ee3ba1a58c8ee2",
       "filesTouch": [
         ".github/actions/lint-shell/action.yml",
         ".github/actions/setup-uv/action.yml",
@@ -5059,8 +4961,7 @@
         "module-github",
         "module-github",
         "module-github"
-      ],
-      "_passedCommit": "9fb5999af9697ec44d825c3e6fde4afbe4966bb6"
+      ]
     },
     {
       "id": "US-460",
@@ -5098,8 +4999,7 @@
         "module-github",
         "module-hypothesis",
         "module-lib"
-      ],
-      "_passedCommit": "9fb5999af9697ec44d825c3e6fde4afbe4966bb6"
+      ]
     },
     {
       "id": "US-519",
@@ -5120,7 +5020,6 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "haiku",
-      "_scopeCreep": true,
       "tags": []
     },
     {
@@ -5164,7 +5063,6 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "sonnet",
-      "_scopeCreep": true,
       "tags": []
     },
     {
@@ -5183,11 +5081,6 @@
       "passes": true,
       "model": "haiku",
       "_decomposed": true,
-      "_decomposedInto": [
-        "US-529",
-        "US-530"
-      ],
-      "_scopeCreep": true,
       "filesTouch": [
         ".claude/hooks/verify_story_acceptance.py",
         ".coverage",
@@ -5207,8 +5100,7 @@
         "module-hypothesis",
         "module-claude",
         "module-hypothesis"
-      ],
-      "_passedCommit": ""
+      ]
     },
     {
       "id": "US-529",
@@ -5230,7 +5122,6 @@
       "estimatedComplexity": "medium",
       "_source": "research",
       "passes": true,
-      "_decomposedFrom": "US-528",
       "model": "haiku",
       "tags": []
     },
@@ -5511,8 +5402,7 @@
         "module-hypothesis",
         "module-github",
         "module-hypothesis"
-      ],
-      "_passedCommit": ""
+      ]
     },
     {
       "id": "US-555",
@@ -5548,8 +5438,7 @@
         "module-hypothesis",
         "module-claude",
         "module-hypothesis"
-      ],
-      "_passedCommit": ""
+      ]
     },
     {
       "id": "US-556",
@@ -5585,8 +5474,7 @@
         "module-hypothesis",
         "module-claude",
         "module-hypothesis"
-      ],
-      "_passedCommit": ""
+      ]
     },
     {
       "id": "US-584",
@@ -5610,7 +5498,6 @@
       "_source": "ai-example",
       "model": "sonnet",
       "last_attempted": "2026-03-20T08:16:00Z",
-      "_scopeCreep": true,
       "tags": []
     },
     {
@@ -5714,17 +5601,7 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "haiku",
-      "_failureReason": "oversized_diff",
-      "last_attempted": "2026-03-22T04:25:39Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n`lib/phases/phase_v_performance.py` and `tests/test_phase_v_performance.py` don't exist. Previous attempt was oversized (1474 lines).\n\n## Problem Identified\nNeed minimal implementation of `parse_pytest_times()` and `compare_to_baseline()` with a single targeted test.\n\n## Planned Changes\n- `lib/phases/phase_v_performance.py` (~50 lines): two functions + `run_performance_check()`\n- `tests/test_phase_v_performance.py` (~40 lines): `test_detect_slowdown_regression` + 1-2 edge cases\n- Total: ~90 lines, well under 400 limit\nAll 4 tests pass. Now run type checking and verify diff size:\nNow check diff size before marking complete:\nOnly 2 new files, untracked. The diff will be small. Now mark the story as passing and commit:\nDone. US-711 implemented and committed.\n\n**Summary:**\n- `lib/phases/phase_v_performance.py` (~102 lines): `parse_pytest_times()` extracts test durations from pytest JSON report, `compare_to_baseline()` flags >10% slowdowns, `run_performance_check()` orchestrates and updates baseline\n- `tests/test_phase_v_performance.py` (~60 lines): 4 tests including the required `test_detect_slowdown_regression`\n- Total diff: ~140 lines (well under 400 limit — was 1474 last attempt)\n- All tests pass, mypy strict clean"
-      },
-      "_contextStats": {
-        "tokensBeforeMasking": 85,
-        "tokensAfterMasking": 84,
-        "reductionPct": 1,
-        "contextWindow": 10
-      }
+      "last_attempted": "2026-03-22T04:25:39Z"
     },
     {
       "id": "US-712",
@@ -5744,10 +5621,7 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-03-22T04:52:21Z",
-      "_phaseI": {
-        "diagnosisBlock": "### Current State\n- Results.tsv exists with columns: timestamp, spiral_iter, ralph_iter, story_id, story_title, status, duration_sec, model, retry_num, commit_sha, run_id, and various token/performance fields\n- **Phase column is NOT currently in results.tsv** - the phase_bottleneck_analysis.py code reads it but it doesn't exist yet\n- Existing CLI commands are registered in main.py and typically live in lib/*.py or lib/commands/\n- Story estimates \"small\" complexity\n- Story was last attempted at 2026-03-22T04:52:21Z with no passes status\n\n### Problem Identified\nThe story US-712 requires:1. A CLI command \"show-slowest-stories\" that reads results.tsv\n2. Sums duration_sec per story_id across all iterations\n3. Outputs a sorted table with story_id, total_duration_sec, and phase_breakdown\n4. The phase_breakdown should show \"phase with longest duration per story\"\n\n**The core issue**: Results.tsv doesn't have a \"phase\" column currently. I have two options:\n- **Option A**: Assume phases aren't tracked yet and create a simplified version that just shows total duration (simpler, matches AC1/AC3 but not AC2)\n- **Option B**: Add a phase column to results.tsv (complex, requires migration)\n\nLooking at AC3: \"Test validates top 5 slowest stories are correctly ranked and includes Phase I as expected bottleneck\" - this suggests Phase I times are meaningful data that should be visible. But since there's no phase column in results.tsv, I'll implement Option A: create the command that aggregates duration per story_id and sorts them, with a placeholder for phase_breakdown.\n\n### Planned Changes\n1. **lib/commands/show_slowest_stories.py** (new) — Module with `show_slowest_stories()` function that:\n   - Reads results.tsv\n   - Groups by story_id and sums duration_sec\n   - Sorts by total_duration_sec descending\n   - Returns list of dicts with story_id, total_duration_sec, phase_breakdown (TBD)\n\n2. **main.py** — Add CLI command registration:\n   - Add subparser for \"show-slowest-stories\"\n   - Add handler function `cmd_show_slowest_stories()`\n   - Update docstring\n\n3. **tests/test_cli_slowest_stories.py** (new) — Comprehensive tests:\n   - `test_slowest_stories_top5()` — validates top 5 are correctly ranked\n   - Edge cases: empty file, single story, multiple iterations\n\nNow I'll execute this plan.\nNow I'll create the implementation. First, let me create the main module:\nNow I'll commit the changes:\n## Summary"
-      }
+      "last_attempted": "2026-03-22T04:52:21Z"
     },
     {
       "id": "US-713",
@@ -5767,10 +5641,7 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-03-22T05:25:28Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\n`results.tsv` exists with 20 columns but lacks \"phase\", \"sub_project\", \"cost_usd\", and \"tokens_used\" columns. The federated_status.py module already demonstrates how to calculate tokens (cache_read + cache_creation) and cost from models.\n\n## Problem Identified\n\nStory US-713 requires a new CLI command `spiral federated-cost-report` that groups results.tsv by sub_project and phase, summing costs. Since results.tsv doesn't yet have phase and sub_project columns, the implementation must handle missing columns gracefully (treating missing sub_project as \"default\", and computing phase from context if needed).\n\n## Planned Changes\n\n1. **lib/cli/__init__.py** — Create package init\n2. **lib/cli/federated_cost_report.py** — New module with:\n   - `read_results_tsv()` — Load CSV with error handling\n   - `calculate_tokens_and_cost()` — Compute from existing columns using federated_status.py patterns\n   - `aggregate_by_group()` — Group by (sub_project, phase) and sum\n   - `format_markdown_table()` — Output markdown table sorted by total_cost desc\n   - Handle missing columns gracefully (default sub_project=\"default\", phase inferred or \"unknown\")\n\n3. **main.py** — Add `federated-cost-report` CLI command handler\n4. **tests/test_cli_federated_cost.py** — Test suite covering: aggregation, cost calculation, markdown output, missing column handling\n\n---\n\nNow implementing:\nI see the issue. Let me fix the token calculation to handle invalid values more gracefully by processing each token column separately:"
-      }
+      "last_attempted": "2026-03-22T05:25:28Z"
     },
     {
       "id": "US-755",
@@ -5983,13 +5854,6 @@
       "_source": "test-story",
       "model": "haiku",
       "last_attempted": "2026-03-20T07:09:28Z",
-      "_failureReason": "story_cost_ceiling",
-      "_contextStats": {
-        "tokensBeforeMasking": 637,
-        "tokensAfterMasking": 637,
-        "reductionPct": 0,
-        "contextWindow": 10
-      },
       "tags": []
     },
     {
@@ -6015,7 +5879,6 @@
       "passes": true,
       "model": "haiku",
       "last_attempted": "2026-03-20T07:19:55Z",
-      "_passedCommit": "dfbefc0e03eed673c89be39ab8e69f05f5df8e6d",
       "tags": []
     },
     {
@@ -6072,7 +5935,6 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "haiku",
-      "_scopeCreep": true,
       "tags": []
     },
     {
@@ -6144,7 +6006,6 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "haiku",
-      "_scopeCreep": true,
       "tags": []
     },
     {
@@ -6196,7 +6057,6 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "haiku",
-      "_scopeCreep": true,
       "tags": []
     },
     {
@@ -6248,7 +6108,6 @@
       "estimatedComplexity": "small",
       "_source": "research",
       "passes": true,
-      "_decomposedFrom": "US-528",
       "model": "haiku",
       "tags": []
     },
@@ -6331,8 +6190,6 @@
       "passes": true,
       "_source": "test-story",
       "model": "haiku",
-      "_passedCommit": "6805d1e212ea3590bfd1be0020a47d1418f2731b",
-      "_failureReason": "story_cost_ceiling",
       "tags": []
     },
     {
@@ -6359,17 +6216,7 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "haiku",
-      "_failureReason": "oversized_diff",
-      "last_attempted": "2026-03-22T06:17:40Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\nUS-714 needs a new `tests/test_perf_e2e_us638.py` file with exactly 4 test functions.\n\n## Problem Identified\nPrevious attempt wrote 624 lines (diff guard is 400). Need a compact version using inline helpers instead of duplicating the full infrastructure from `test_spiral_e2e_federated.py`.\n\n## Planned Changes\n- **Create:** `tests/test_perf_e2e_us638.py` with ~130 lines total\n  - `test_e2e_timing` — mock SPIRAL R→C loop, write `.spiral/perf_baseline_us638.json`\n  - `test_e2e_timing_regression` — verify 25% slowdown exceeds 20% threshold\n  - `test_results_tsv_schema` — 6-row TSV with correct sub_project values\n  - `test_prd_final_state` — all 6 stories pass=True after mock run\nAll 4 tests pass. Now run mypy and check diff size.\n186 lines — well within the 400-line guard. Now update prd.json and commit.\nUS-714 complete. 4 tests pass, mypy strict clean, 186 lines (well under the 400-line diff guard).\n\n**Summary:**\n- `test_e2e_timing` — mock SPIRAL R→C loop, writes `.spiral/perf_baseline_us638.json` artifact\n- `test_e2e_timing_regression` — verifies 25% slowdown (1250ms) correctly exceeds 20% threshold (1200ms)\n- `test_results_tsv_schema` — 6-row TSV with alpha/beta sub_project values validated per story\n- `test_prd_final_state` — all 6 federated prd.json stories marked `passes=True`"
-      },
-      "_contextStats": {
-        "tokensBeforeMasking": 238,
-        "tokensAfterMasking": 237,
-        "reductionPct": 0,
-        "contextWindow": 10
-      }
+      "last_attempted": "2026-03-22T06:17:40Z"
     },
     {
       "id": "US-647",
@@ -6425,8 +6272,7 @@
         "module-devcontainer",
         "module-github"
       ],
-      "last_attempted": "2026-03-18T16:56:51Z",
-      "_passedCommit": "9fb5999af9697ec44d825c3e6fde4afbe4966bb6"
+      "last_attempted": "2026-03-18T16:56:51Z"
     },
     {
       "id": "US-452",
@@ -6487,11 +6333,6 @@
       "dependencies": [],
       "estimatedComplexity": "large",
       "passes": true,
-      "_failureReason": "story_too_large_for_single_invocation â€” manually decomposed into 4 sub-stories after 7+ failed attempts across haiku/sonnet/opus; each sub-story is scoped to 1-2 files",
-      "_antiPatterns": [
-        "Attempting all 4 components in one invocation â€” always exceeds 100 tool call budget",
-        "Reading full ralph.sh (2800+ lines) without a grep anchor â€” burns 10+ tool calls on navigation alone"
-      ],
       "tags": []
     },
     {
@@ -6514,18 +6355,7 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "last_attempted": "2026-03-17T02:38:32Z",
-      "_failureReason": "story_cost_ceiling",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\nUS-352 implementation fully committed (commits 02e8077, 82bf242). All 23 tests pass. prd.json shows `passes: false` due to orchestrator resets.\n\n## Problem Identified\nprd.json `passes` field keeps getting reset between iterations. Need to flip it to `true`.\n\n## Planned Changes\n- prd.json: set US-352 `passes` to `true`\n- Commit the change\nUS-352 is done. All 23 tests pass, `passes: true` committed. Implementation was already in place from prior iterations  just needed the flag flip."
-      },
-      "_contextStats": {
-        "tokensBeforeMasking": 485,
-        "tokensAfterMasking": 483,
-        "reductionPct": 0,
-        "contextWindow": 10
-      },
       "model": "haiku",
-      "_passedCommit": "7302434d4b28ef89925fb7a4d5f18565b86bb42d",
       "tags": []
     },
     {
@@ -6547,34 +6377,7 @@
       "estimatedComplexity": "small",
       "passes": true,
       "last_attempted": "2026-03-17T03:26:38Z",
-      "_failureReason": "story_cost_ceiling",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\nUS-382's implementation was fully committed in b3e27bb. Composite actions exist and all workflows reference them.\n\n## Problem Identified\nThe story was marked `passes: false` only because the previous agent exceeded the cost ceiling  not because the implementation was incorrect.\n\n## Planned Changes\n- Mark US-382 `passes: true` in prd.json\n- Document in progress.txt\nNow append the completion note and commit.\nUS-382 is complete. The implementation was already done in commit b3e27bb (attempt 2)  it only failed due to cost ceiling, not incorrect work. Validated and marked `passes: true`."
-      },
-      "_contextStats": {
-        "tokensBeforeMasking": 377,
-        "tokensAfterMasking": 375,
-        "reductionPct": 0,
-        "contextWindow": 10
-      },
       "tags": []
-    },
-    {
-      "id": "US-1068",
-      "title": "CLI: spiral validate-changelog-schema -- Enforce Keep-a-Changelog v1.1 Format",
-      "priority": "low",
-      "description": "Validate CHANGELOG.md generated by Phase G conforms to Keep-a-Changelog v1.1 schema. Checks version headers, entry structure, date formats, and release notes organization.",
-      "acceptanceCriteria": [
-        "spiral validate-changelog-schema CHANGELOG.md validates schema via lib/validate_changelog.py and reports line-by-line errors",
-        "Detects missing version headers ('## [X.Y.Z] - YYYY-MM-DD'), malformed entries, and invalid semantic version patterns",
-        "Returns exit code 0 on valid schema; code 1 with error details on violations; integrates into Phase G validation"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "sonnet"
     }
   ]
 }
