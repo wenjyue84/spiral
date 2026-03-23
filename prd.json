@@ -11,27 +11,6 @@
   ],
   "userStories": [
     {
-      "id": "US-1081",
-      "title": "Integration Test: Phase V Test Timeout Triggers Story Rollback and Retry Escalation",
-      "priority": "high",
-      "description": "Add integration test that verifies SPIRAL gracefully handles Phase V test execution timeouts by rolling back implementation, incrementing retry counter, and escalating model (haiku→sonnet→opus). Tests error recovery path with state consistency.",
-      "acceptanceCriteria": [
-        "Mock Phase V with 60s timeout; verify SPIRAL reverts worktree to pre-implementation state via git checkout HEAD and records timeout_status in results.tsv",
-        "Verify story retry counter increments and SPIRAL_MODEL_ROUTING escalates from haiku to sonnet on retry; re-implementation proceeds with sonnet",
-        "Integration test runs 3-story federated prd.json: story A times out (rollback), story B succeeds, story C fails normally; final prd.json state matches expected and results.tsv complete"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": true,
-      "_source": "ai-example",
-      "model": "sonnet",
-      "last_attempted": "2026-03-23T22:31:41Z",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\nThe codebase has `lib/impl/retry.py` with `execute_ralph` which handles timeouts and model escalation, and `lib/results_tsv.py` with `ResultsRecord`. Tests exist for the individual components (`test_ralph_timeout.py`) but no integration test covering the full timeout→rollback→retry-escalation flow with a 3-story federated prd.json.\n\n## Problem Identified\nUS-1081 needs an integration test that verifies: (1) timeout triggers git rollback + results.tsv `timeout` status, (2) retry counter increments + model escalates haiku→sonnet, (3) 3-story scenario where A times out, B succeeds, C fails — final prd.json and results.tsv match expected state.\n\n## Planned Changes\n- **Create `tests/test_phase_v_timeout_rollback.py`** (~200 lines): Integration test with a mini-orchestrator (`_run_story`) that calls `execute_ralph` with mocked subprocess, handles timeout by running `git checkout HEAD -- .`, updating retry-counts and prd.json model, and recording to results.tsv. Three test classes cover AC1, AC2, and AC3.\nThe issue: `git checkout HEAD -- .` only reverts tracked files; the `draft_impl.py` test file was untracked. Fix: add the test file to the initial commit, then modify it to simulate an implementation attempt.\n`prd.json` is untracked in the temp repo. Fix: filter out untracked `??` entries when checking if worktree is clean — only tracked changes matter for rollback verification.\nAll 5 tests pass. Now run the full quality checks.\n5/5 passing. Now mark the story complete and commit.\nDone. US-1081 is complete.\n\n**Summary:**\n- Created `tests/test_phase_v_timeout_rollback.py` with 5 integration tests across 3 classes\n- **AC1**: `test_worktree_clean_after_timeout_rollback` — modifies a tracked file, runs `execute_ralph` with `TimeoutExpired`, verifies `git checkout HEAD -- .` restores the worktree; `test_timeout_status_recorded_in_tsv` — verifies `status='timeout'` is recorded\n- **AC2**: `test_retry_counter_increments` and `test_model_escalates_haiku_to_sonnet` — verify retry_counts goes 0→1 and prd.json model field updates to `'sonnet'`\n- **AC3**: `test_three_story_final_state` — runs A (timeout), B (success), C (fail) through the mini-orchestrator; asserts prd.json passes/model fields and results.tsv 3-row output all match expected state\n\nKey gotcha: `git checkout HEAD -- .` only reverts tracked files; the test must include the target file in the initial git commit, and when asserting worktree cleanliness, filter out untracked `??` entries from `git status --porcelain`."
-      }
-    },
-    {
       "id": "US-1083",
       "title": "CLI: spiral federation-impact-analyze — Transitive Dependency Blast Radius Report",
       "priority": "high",
@@ -40,6 +19,24 @@
         "lib/federation_impact_analyzer.py implements transitive_closure(sub_project_id) on story dependency DAG from prd.json; detects cycles safely",
         "CLI: spiral federation-impact-analyze auth-service outputs {affected_sub_projects: [string], critical_stories: [US-NNN], cycle_detected: bool}",
         "Integration test on 4-subproject fixture verifies blast radius accuracy; handles cross-project transitive deps and reports 0 cycles"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "sonnet",
+      "last_attempted": "2026-03-23T22:47:16Z"
+    },
+    {
+      "id": "US-1084",
+      "title": "Phase V: Architectural Constraint Validator - Enforce Design Rules",
+      "priority": "high",
+      "description": "Add pluggable validators to Phase V that enforce project-specific architecture constraints (no circular imports, max file size, naming conventions, layer violations). Fail stories that violate rules instead of proceeding to Phase C.",
+      "acceptanceCriteria": [
+        "Implement lib/arch_validators.py: base class ArchValidator with validate(code_diff) -> List[Violation]; include builtins: MaxFileSize, NoCircularImports, LayerAccess",
+        "Phase V loads validators from SPIRAL_ARCH_VALIDATORS env var array and runs all before pytest; rejects story if any validator returns violations",
+        "Integration test: story adds 5MB file when MAX_FILE_SIZE=1MB is set → Phase V fails with arch_validation_failed=true, violation_type='MaxFileSize'"
       ],
       "technicalNotes": [],
       "dependencies": [],
@@ -183,6 +180,27 @@
       "passes": false,
       "_source": "ai-example",
       "model": "sonnet"
+    },
+    {
+      "id": "US-1081",
+      "title": "Integration Test: Phase V Test Timeout Triggers Story Rollback and Retry Escalation",
+      "priority": "high",
+      "description": "Add integration test that verifies SPIRAL gracefully handles Phase V test execution timeouts by rolling back implementation, incrementing retry counter, and escalating model (haiku→sonnet→opus). Tests error recovery path with state consistency.",
+      "acceptanceCriteria": [
+        "Mock Phase V with 60s timeout; verify SPIRAL reverts worktree to pre-implementation state via git checkout HEAD and records timeout_status in results.tsv",
+        "Verify story retry counter increments and SPIRAL_MODEL_ROUTING escalates from haiku to sonnet on retry; re-implementation proceeds with sonnet",
+        "Integration test runs 3-story federated prd.json: story A times out (rollback), story B succeeds, story C fails normally; final prd.json state matches expected and results.tsv complete"
+      ],
+      "technicalNotes": [],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": true,
+      "_source": "ai-example",
+      "model": "sonnet",
+      "last_attempted": "2026-03-23T22:31:41Z",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\nThe codebase has `lib/impl/retry.py` with `execute_ralph` which handles timeouts and model escalation, and `lib/results_tsv.py` with `ResultsRecord`. Tests exist for the individual components (`test_ralph_timeout.py`) but no integration test covering the full timeout→rollback→retry-escalation flow with a 3-story federated prd.json.\n\n## Problem Identified\nUS-1081 needs an integration test that verifies: (1) timeout triggers git rollback + results.tsv `timeout` status, (2) retry counter increments + model escalates haiku→sonnet, (3) 3-story scenario where A times out, B succeeds, C fails — final prd.json and results.tsv match expected state.\n\n## Planned Changes\n- **Create `tests/test_phase_v_timeout_rollback.py`** (~200 lines): Integration test with a mini-orchestrator (`_run_story`) that calls `execute_ralph` with mocked subprocess, handles timeout by running `git checkout HEAD -- .`, updating retry-counts and prd.json model, and recording to results.tsv. Three test classes cover AC1, AC2, and AC3.\nThe issue: `git checkout HEAD -- .` only reverts tracked files; the `draft_impl.py` test file was untracked. Fix: add the test file to the initial commit, then modify it to simulate an implementation attempt.\n`prd.json` is untracked in the temp repo. Fix: filter out untracked `??` entries when checking if worktree is clean — only tracked changes matter for rollback verification.\nAll 5 tests pass. Now run the full quality checks.\n5/5 passing. Now mark the story complete and commit.\nDone. US-1081 is complete.\n\n**Summary:**\n- Created `tests/test_phase_v_timeout_rollback.py` with 5 integration tests across 3 classes\n- **AC1**: `test_worktree_clean_after_timeout_rollback` — modifies a tracked file, runs `execute_ralph` with `TimeoutExpired`, verifies `git checkout HEAD -- .` restores the worktree; `test_timeout_status_recorded_in_tsv` — verifies `status='timeout'` is recorded\n- **AC2**: `test_retry_counter_increments` and `test_model_escalates_haiku_to_sonnet` — verify retry_counts goes 0→1 and prd.json model field updates to `'sonnet'`\n- **AC3**: `test_three_story_final_state` — runs A (timeout), B (success), C (fail) through the mini-orchestrator; asserts prd.json passes/model fields and results.tsv 3-row output all match expected state\n\nKey gotcha: `git checkout HEAD -- .` only reverts tracked files; the test must include the target file in the initial git commit, and when asserting worktree cleanliness, filter out untracked `??` entries from `git status --porcelain`."
+      }
     },
     {
       "id": "US-1080",

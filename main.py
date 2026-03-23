@@ -4395,6 +4395,23 @@ def main():
         help="Path to audit log file (default: .spiral/federation_audit.jsonl)",
     )
 
+    # ── federation-impact-analyze subcommand (US-1083) ────────────────────
+    impact_parser = subparsers.add_parser(
+        "federation-impact-analyze",
+        help="Transitive dependency blast radius report for a sub-project (US-1083)",
+    )
+    impact_parser.add_argument(
+        "sub_project",
+        metavar="SUB_PROJECT",
+        help="Sub-project ID to analyze (e.g. auth-service)",
+    )
+    impact_parser.add_argument(
+        "--prd",
+        default="prd.json",
+        metavar="FILE",
+        help="Path to prd.json (default: prd.json)",
+    )
+
     args = parser.parse_args()
 
     if args.command == "init":
@@ -4549,9 +4566,38 @@ def main():
         cmd_predict_model_escalation(args)
     elif args.command == "preflight-check":
         cmd_preflight_check(args)
+    elif args.command == "federation-impact-analyze":
+        cmd_federation_impact_analyze(args)
     else:
         parser.print_help()
         sys.exit(0)
+
+
+def cmd_federation_impact_analyze(args: argparse.Namespace) -> None:
+    """Transitive dependency blast radius report for a sub-project (US-1083).
+
+    Usage: spiral federation-impact-analyze <sub_project> [--prd prd.json]
+
+    Outputs JSON: {affected_sub_projects: [...], critical_stories: [...], cycle_detected: bool}
+    """
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
+    from federation_impact_analyzer import transitive_closure  # type: ignore[import-untyped]
+
+    prd_path = Path(getattr(args, "prd", "prd.json"))
+    if not prd_path.is_absolute():
+        prd_path = Path.cwd() / prd_path
+
+    if not prd_path.exists():
+        print(json.dumps({"error": f"File not found: {prd_path}"}), file=sys.stderr)
+        sys.exit(1)
+
+    with open(prd_path, encoding="utf-8") as f:
+        prd_dict = json.load(f)
+
+    stories = prd_dict.get("userStories", [])
+    sub_project_id: str = args.sub_project
+    result = transitive_closure(sub_project_id, stories)
+    print(json.dumps(result, indent=2))
 
 
 def cmd_predict_model_escalation(args: argparse.Namespace) -> None:
