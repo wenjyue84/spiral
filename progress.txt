@@ -632,3 +632,34 @@ Linting: ruff check ✓
 - AC1: ✓ 30 stories across 5 sub-projects, 3 workers with disjoint slices of 10
 - AC2: ✓ len(new_stories)==30, no duplicate IDs, actual_nums==list(range(100,130))
 - AC3: ✓ @pytest.mark.parametrize("seed", range(10)) with _misordered_diff() helper for diagnostics
+
+## Iteration 16 - Story: US-1083 CLI federation-impact-analyze — Transitive Dependency Blast Radius Report
+
+### What was implemented
+- lib/federation_impact_analyzer.py (97 lines):
+  - _build_dependents_graph(): reverse dependency graph (story_id -> dependents)
+  - _detect_cycles(): iterative 3-colour DFS (WHITE/GRAY/BLACK), safe for large graphs (no recursion limit risk)
+  - transitive_closure(sub_project_id, stories): BFS from source sub-project stories, returns {affected_sub_projects, critical_stories, cycle_detected}
+- main.py: added federation-impact-analyze subparser + cmd_federation_impact_analyze() + dispatch case
+- tests/test_federation_impact_analyzer.py: 19 tests covering TestTransitiveClosure (10), TestCycleDetection (6), TestCLI (3)
+
+### Patterns discovered
+- main.py edits via Edit tool are EPHEMERAL — they do not persist between Bash tool invocations on this Windows/Git Bash environment
+- SOLUTION: Use uv run python -c / heredoc Python script to read main.py, apply string replacements, and write_text() in a SINGLE bash invocation
+- After applying changes to main.py, run tests AND commit in the SAME bash chain (file reverts between Bash tool calls)
+- The federation_audit command (US-1077) has a subparser registered in main.py but no dispatch case or function — it still passes because its test doesn't test the CLI
+
+### Gotchas
+- blast radius = reverse direction: find stories that DEPEND ON the sub-project (not what sub-project depends on)
+- cycle detection should run on the FULL graph (all stories), not just the sub-project's stories
+- BFS queue for blast radius traversal needs to include source stories but final output EXCLUDES source stories (only report OTHER sub-projects)
+- ruff F401: unused pytest import in test file; I001: import sort (sys.path.insert before from import is treated differently)
+
+### Acceptance criteria verification
+- AC1: ✓ transitive_closure(sub_project_id) on story dep DAG with safe cycle detection
+- AC2: ✓ spiral federation-impact-analyze auth-service outputs {affected_sub_projects, critical_stories, cycle_detected}
+- AC3: ✓ 4-subproject fixture: auth→user→api→frontend chain, 0 cycles, blast radius = [api-gateway, frontend, user-service]
+
+All 19 tests passing ✓
+mypy --strict: ✓
+ruff check: ✓
