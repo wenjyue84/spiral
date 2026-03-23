@@ -870,3 +870,100 @@ Story US-1001 marked as passes=true. All acceptance criteria met:
 3. ✓ Edge-case test passes (6/6 edge case tests pass)
 4. ✓ Full suite passes with no external deps (12/12 pass, --timeout=30)
 
+
+## Iteration [CURRENT] - Story: US-771 Phase A Cross-Iteration Dedup Memory
+
+### Implementation Summary
+
+Successfully implemented cross-iteration rejection pattern caching to prevent re-suggesting
+stories that were previously rejected by Phase S. Tracks fingerprints of rejected stories
+and filters Phase A candidates matching >80% Jaccard similarity.
+
+### What was implemented
+
+1. **lib/rejected_pattern_cache.py** (new, 230 lines)
+   - Core rejection pattern caching module with functions:
+     * tokenize() — text tokenization for similarity calculation
+     * jaccard_similarity() — compute Jaccard similarity between token sets
+     * extract_story_features() — extract tokens from title, description, tags
+     * fingerprint_story() — create compact story representation for caching
+     * load_rejected_patterns() — load cache from .spiral/rejected_patterns.json
+     * save_rejected_patterns() — save cache with automatic pruning (max 100 entries)
+     * should_skip_candidate() — check if candidate matches rejected pattern (>80% similarity)
+     * filter_candidates_by_rejected_patterns() — bulk filter operation for multiple candidates
+     * record_rejected_story() — add rejected story to cache
+
+2. **lib/record_rejected_patterns.py** (new, 60 lines)
+   - Post-Phase S script to record rejected story fingerprints
+   - Reads from .spiral/_story_rejected.json (written by Phase S)
+   - Updates .spiral/rejected_patterns.json with fingerprints and iteration numbers
+   - Called from Phase S via run_phase_story_validate() function
+
+3. **lib/filter_rejected_patterns.py** (new, 80 lines)
+   - Phase A filtering script to remove candidates matching rejected patterns
+   - Loads cache from .spiral/rejected_patterns.json
+   - Filters candidates using >80% Jaccard similarity threshold
+   - Outputs filtered candidates to temporary JSON files
+   - Logs skipped candidates with similarity scores
+
+4. **tests/test_rejected_pattern_cache.py** (new, 350 lines)
+   - 29 comprehensive unit tests organized in 8 test classes:
+     * TestTokenize (4 tests) — text tokenization edge cases
+     * TestJaccardSimilarity (5 tests) — similarity calculation
+     * TestExtractStoryFeatures (5 tests) — feature extraction from stories
+     * TestFingerprintStory (2 tests) — story fingerprinting
+     * TestShouldSkipCandidate (5 tests) — similarity-based filtering
+     * TestSaveLoadPatterns (4 tests) — cache persistence and pruning
+     * TestRecordRejectedStory (2 tests) — recording rejected stories
+     * TestFilterCandidates (3 tests) — bulk filtering operations
+
+5. **spiral.sh** (modified, ~30 lines added)
+   - Added Phase A dedup filter after quality scoring (lines 1497-1520)
+   - Filters both AI-suggest and test-story candidates
+   - Uses lib/filter_rejected_patterns.py with 0.8 threshold
+   - Gracefully handles missing cache file (no-op on first iteration)
+
+6. **lib/phases/phase_s_story_validate.sh** (modified, ~8 lines added)
+   - Records rejected pattern fingerprints after Phase S validation (lines 148-154)
+   - Calls lib/record_rejected_patterns.py with rejected stories file
+   - Maintains persistent cache at .spiral/rejected_patterns.json
+
+### Patterns discovered
+
+- Jaccard similarity for token-based matching is robust to word order and minor variations
+- Cache pruning to 100 entries balances memory vs. historical coverage (covers ~10 iterations)
+- 80% threshold filters near-duplicates while allowing genuinely different stories
+- Feature extraction from title + description + tags captures story identity well
+- Cache file location .spiral/rejected_patterns.json persists across SPIRAL iterations
+
+### Quality checks passed
+
+✓ 29/29 unit tests pass (all scenarios covered)
+✓ mypy --strict: type-safe (rejected_pattern_cache.py, record_rejected_patterns.py, filter_rejected_patterns.py)
+✓ ruff check: all linting passed (no errors)
+✓ shellcheck --severity=error: phase_s_story_validate.sh and spiral.sh pass validation
+
+### Files modified/created
+
+- Created: lib/rejected_pattern_cache.py (230 lines)
+- Created: lib/record_rejected_patterns.py (60 lines)
+- Created: lib/filter_rejected_patterns.py (80 lines)
+- Created: tests/test_rejected_pattern_cache.py (350 lines)
+- Modified: spiral.sh (30 lines added at lines 1497-1520)
+- Modified: lib/phases/phase_s_story_validate.sh (8 lines added at lines 148-154)
+
+### Story completion
+
+Story US-771 marked as passes=true. All acceptance criteria met:
+1. ✓ Phase S writes rejected story fingerprints to .spiral/rejected_patterns.json after validation
+2. ✓ New candidates matching >80% Jaccard similarity are automatically skipped with log entry
+3. ✓ Rejected patterns file is pruned to last 100 entries to prevent unbounded growth
+4. ✓ Unit test verifies near-duplicate of rejected story is detected and skipped (test_skip_near_duplicate)
+
+### Integration notes
+
+- Cross-iteration dedup is passive: only filters when rejected_patterns.json exists
+- First SPIRAL iteration has no cache, second iteration filters against first iteration's rejections
+- Cache accumulates across multiple SPIRAL runs in same repo (persistent at .spiral/)
+- Filtering is non-blocking: if cache is missing/corrupt, gracefully passes through all candidates
+- No breaking changes to existing phases or CLI commands
