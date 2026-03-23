@@ -89,6 +89,33 @@ Rules:
 """
 
 
+def _get_episodic_memory() -> Any:
+    """Return EpisodicMemory instance, or None if unavailable."""
+    try:
+        _lib_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if _lib_dir not in sys.path:
+            sys.path.insert(0, _lib_dir)
+        from episodic_memory import EpisodicMemory  # noqa: PLC0415
+        mem_path = os.environ.get("SPIRAL_EPISODIC_MEMORY", ".spiral/episodic_memory.jsonl")
+        return EpisodicMemory(mem_path)
+    except Exception:
+        return None
+
+
+def _inject_past_patterns(story: dict[str, Any], mem: Any) -> dict[str, Any]:
+    """Inject episodic memory patterns into story['enrichment']['past_patterns']."""
+    desc = story.get("description", "")
+    if not desc:
+        return story
+    try:
+        patterns = mem.retrieve(desc, top_k=3)
+        if patterns:
+            story.setdefault("enrichment", {})["past_patterns"] = patterns
+    except Exception:
+        pass
+    return story
+
+
 def _should_enrich(story: dict[str, Any]) -> bool:
     """Return True if the story needs enrichment (medium complexity, sparse technicalNotes, or no filesTouch)."""
     complexity = story.get("estimatedComplexity", "")
@@ -266,6 +293,7 @@ def enrich_stories(
     enriched_count = 0
     split_count = 0
     enrich_budget = max_enrich if max_enrich > 0 else len(stories)
+    _epi_mem = _get_episodic_memory()
     # Wall-clock timeout: write whatever we have and exit cleanly (default 600s)
     _enrichment_timeout = int(os.environ.get("SPIRAL_ENRICHMENT_TIMEOUT", "600"))
     _enrich_start = time.monotonic()
@@ -300,8 +328,12 @@ def enrich_stories(
             elif result and result[0] is not story:
                 enriched_count += 1
                 print("  [E]   → enriched", flush=True)
+            if _epi_mem is not None:
+                result = [_inject_past_patterns(s, _epi_mem) for s in result]
             output_stories.extend(result)
         else:
+            if _epi_mem is not None:
+                story = _inject_past_patterns(story, _epi_mem)
             output_stories.append(story)  # passthrough — small + well-specified
 
     if max_enrich > 0:

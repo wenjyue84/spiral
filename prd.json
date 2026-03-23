@@ -23,10 +23,10 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "sonnet",
-      "last_attempted": "2026-03-23T16:48:36Z"
+      "last_attempted": "2026-03-23T17:35:16Z"
     },
     {
       "id": "US-1064",
@@ -182,91 +182,6 @@
       "model": "sonnet"
     },
     {
-      "id": "US-1067",
-      "title": "CLI: spiral estimate-federated-cost — Pre-Run Cost Prediction for Multi-Project PRD",
-      "priority": "medium",
-      "description": "Add CLI command to estimate total cost (tokens + API spend) before SPIRAL loop starts on federated prd.json, breaking down by sub-project and phase using complexity model from results.tsv. Prevents cost ceiling overruns by providing visibility upfront.",
-      "acceptanceCriteria": [
-        "Command `spiral estimate-federated-cost prd.json` outputs JSON with total_estimated_cost, per_subproject breakdown (app_v1: {phases: {phase_r: $cost}, total: $cost}), and per-phase aggregate",
-        "Uses results.tsv historical data: derives per-story average token cost by complexity score and model routing pattern",
-        "Integration test compares estimated vs actual cost for federated run, verifies <20% estimation error"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "sonnet"
-    },
-    {
-      "id": "US-1071",
-      "title": "Dashboard Endpoint: GET /api/dashboard/federation-health -- Multi-Project Audit Report with Remediation",
-      "priority": "medium",
-      "description": "Single endpoint providing federation health snapshot: circular dependencies, sub-project quota usage, file collisions, orphan stories. Returns actionable remediation suggestions.",
-      "acceptanceCriteria": [
-        "Endpoint returns JSON with: {circular_deps: [{cycle: [subproject_ids], path: 'A→B→C→A'}], quota_usage: {subproject: {used: int, limit: int, pct: float}}, file_collisions: [{file, subprojects}], orphan_stories: [{id, reason}]}. Circular deps detected via SCC algorithm on federated dependency graph",
-        "For each orphan story, suggests: 'Story US-123 has no parent (depth=0) - assign parent via prd.json _depends_on or consider archiving'. File collision summary: 'lib/auth.py modified by subproject A and B - requires manual merge'",
-        "Endpoint available at localhost:5299/api/dashboard/federation-health with response time < 500ms. Data cached 30s with refresh_at timestamp. Implements in spiral_ui/api.py in get_federation_health() route"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "sonnet"
-    },
-    {
-      "id": "US-1072",
-      "title": "CLI: spiral cost-breakdown -- Historical Phase-Level Cost Analysis with Anomaly Detection",
-      "priority": "medium",
-      "description": "Parse results.tsv to compute average tokens/cost per phase with iteration-over-iteration trends. Flags cost anomalies and suggests optimization targets based on historical patterns.",
-      "acceptanceCriteria": [
-        "Output table: Phase | Avg Tokens | Avg Cost | # Iterations | Trend | Recommendation. Calculates trends from last 5 iterations vs prior 5. Flags ↑ if delta > +20%, ↓ if < -20%, → if stable. Example: Phase R cache hit rate 25% suggests 'Enable query deduplication to target 40%+'",
-        "Implements in lib/cost_analysis.py: parse_results_tsv() returns list[ResultsRecord], compute_phase_stats(phase: str, window: int=5) returns {phase, avg_tokens, avg_cost, trend_pct, recommendation}. Detects anomaly if cost outlier > 2σ from mean",
-        "CLI command: spiral cost-breakdown [--phase PHASE] [--iterations N] [--format csv|table]. Output includes 'Recommendations: 3 phases > cost threshold. Phase R trending up 35% - investigate cache efficiency'"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "haiku"
-    },
-    {
-      "id": "US-1073",
-      "title": "Phase G: Federated API Compatibility Report Generator with Migration Guides",
-      "priority": "medium",
-      "description": "Compare pdoc API outputs across sub-project versions in federated prd.json. Auto-detect breaking changes (removed functions, signature changes) and generate api-compatibility.md with before/after migration examples.",
-      "acceptanceCriteria": [
-        "Implements lib/gen_api_compat.py: detect_breaking_changes(current_pdoc_json, prior_pdoc_json) detects removed functions, added required params (not optional), changed return types. Output: list[{change_type, function_name, before_signature, after_signature}]",
-        "Generates .spiral/docs/api-compatibility.md with sections: ## Subproject X | Version A → B | Breaking Changes: N | ### Removed: [list with migration code] | ### Changed: [before→after diff]. Example: 'removed: authenticate(username, password) → use authenticate_oauth(client_id)'",
-        "Phase G integrates: lib/gen_changelog.py calls gen_api_compat.detect_breaking_changes() for each sub-project pair (current vs git HEAD~1). Writes api-compatibility.md, deploys to GitHub Pages alongside CHANGELOG.md and API docs"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "sonnet"
-    },
-    {
-      "id": "US-1068",
-      "title": "CLI: spiral validate-changelog-schema -- Enforce Keep-a-Changelog v1.1 Format",
-      "priority": "low",
-      "description": "Validate CHANGELOG.md generated by Phase G conforms to Keep-a-Changelog v1.1 schema. Checks version headers, entry structure, date formats, and release notes organization.",
-      "acceptanceCriteria": [
-        "spiral validate-changelog-schema CHANGELOG.md validates schema via lib/validate_changelog.py and reports line-by-line errors",
-        "Detects missing version headers ('## [X.Y.Z] - YYYY-MM-DD'), malformed entries, and invalid semantic version patterns",
-        "Returns exit code 0 on valid schema; code 1 with error details on violations; integrates into Phase G validation"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "sonnet"
-    },
-    {
       "id": "US-1056",
       "title": "Dashboard Authentication Enforcement Test Suite",
       "priority": "high",
@@ -331,8 +246,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-03-23T15:52:56Z"
+      "model": "haiku"
     },
     {
       "id": "US-1051",
@@ -425,8 +339,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "sonnet",
-      "last_attempted": "2026-03-23T11:30:23Z"
+      "model": "sonnet"
     },
     {
       "id": "US-1042",
@@ -470,8 +383,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-03-23T10:11:51Z"
+      "model": "haiku"
     },
     {
       "id": "US-1029",
@@ -512,8 +424,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-03-23T09:14:57Z"
+      "model": "haiku"
     },
     {
       "id": "US-1026",
@@ -650,8 +561,7 @@
       ],
       "id": "US-1006",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-03-23T01:44:24Z"
+      "model": "haiku"
     },
     {
       "id": "US-752",
@@ -755,8 +665,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-03-22T12:58:18Z"
+      "model": "haiku"
     },
     {
       "id": "US-744",
@@ -772,8 +681,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "sonnet",
-      "last_attempted": "2026-03-22T12:45:01Z"
+      "model": "sonnet"
     },
     {
       "id": "US-1033",
@@ -789,8 +697,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "sonnet",
-      "last_attempted": "2026-03-22T12:30:55Z"
+      "model": "sonnet"
     },
     {
       "id": "US-732",
@@ -810,8 +717,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "sonnet",
-      "last_attempted": "2026-03-22T10:47:26Z"
+      "model": "sonnet"
     },
     {
       "id": "US-729",
@@ -875,8 +781,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-03-21T19:51:04Z"
+      "model": "haiku"
     },
     {
       "id": "US-688",
@@ -924,8 +829,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "sonnet",
-      "last_attempted": "2026-03-21T17:57:20Z"
+      "model": "sonnet"
     },
     {
       "id": "US-674",
@@ -1140,8 +1044,7 @@
       "estimatedComplexity": "small",
       "passes": true,
       "_source": "ai-example",
-      "model": "sonnet",
-      "last_attempted": "2026-03-21T05:03:18Z"
+      "model": "sonnet"
     },
     {
       "id": "US-638",
@@ -1158,8 +1061,7 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "_source": "ai-example",
-      "model": "sonnet",
-      "last_attempted": "2026-03-21T04:07:39Z"
+      "model": "sonnet"
     },
     {
       "id": "US-639",
@@ -1254,8 +1156,7 @@
         "module-lib",
         "module-hypothesis",
         "module-lib"
-      ],
-      "last_attempted": "2026-03-19T02:00:58Z"
+      ]
     },
     {
       "id": "US-467",
@@ -1289,8 +1190,7 @@
         "module-hypothesis",
         "module-hypothesis",
         "module-hypothesis"
-      ],
-      "last_attempted": "2026-03-19T02:49:03Z"
+      ]
     },
     {
       "id": "US-471",
@@ -1327,8 +1227,7 @@
         "module-lib",
         "module-hypothesis",
         "module-lib"
-      ],
-      "last_attempted": "2026-03-19T03:31:26Z"
+      ]
     },
     {
       "id": "US-472",
@@ -1450,7 +1349,6 @@
       "passes": true,
       "_source": "ai-example",
       "model": "haiku",
-      "last_attempted": "2026-03-19T04:28:19Z",
       "tags": []
     },
     {
@@ -1603,8 +1501,7 @@
         "module-hypothesis",
         "module-hypothesis",
         "module-hypothesis"
-      ],
-      "last_attempted": "2026-03-19T12:47:04Z"
+      ]
     },
     {
       "id": "US-498",
@@ -1641,8 +1538,7 @@
         "module-hypothesis",
         "module-github",
         "module-hypothesis"
-      ],
-      "last_attempted": "2026-03-19T13:06:38Z"
+      ]
     },
     {
       "id": "US-502",
@@ -1826,7 +1722,6 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "sonnet",
-      "last_attempted": "2026-03-19T23:04:22Z",
       "tags": []
     },
     {
@@ -1863,7 +1758,6 @@
       "passes": true,
       "_source": "ai-example",
       "model": "haiku",
-      "last_attempted": "2026-03-20T10:19:25Z",
       "filesTouch": [
         "prd.json",
         "tests/test_episodic_memory.py"
@@ -1890,7 +1784,6 @@
       "passes": true,
       "_source": "ai-example",
       "model": "sonnet",
-      "last_attempted": "2026-03-20T14:34:27Z",
       "filesTouch": [
         ".hypothesis/constants/0144005a67236799",
         ".hypothesis/constants/016af87f794a90e9",
@@ -1945,8 +1838,7 @@
         "module-hypothesis",
         "module-claude",
         "module-hypothesis"
-      ],
-      "last_attempted": "2026-03-20T15:45:47Z"
+      ]
     },
     {
       "id": "US-605",
@@ -2047,8 +1939,7 @@
       "tags": [
         "module-github",
         "module-hypothesis"
-      ],
-      "last_attempted": "2026-03-20T16:06:46Z"
+      ]
     },
     {
       "id": "US-617",
@@ -2084,7 +1975,6 @@
       "passes": true,
       "_source": "ai-example",
       "model": "sonnet",
-      "last_attempted": "2026-03-20T17:25:17Z",
       "tags": []
     },
     {
@@ -2103,7 +1993,6 @@
       "passes": true,
       "_source": "ai-example",
       "model": "sonnet",
-      "last_attempted": "2026-03-20T17:23:55Z",
       "tags": []
     },
     {
@@ -2122,7 +2011,6 @@
       "passes": true,
       "_source": "ai-example",
       "model": "haiku",
-      "last_attempted": "2026-03-20T17:53:42Z",
       "tags": []
     },
     {
@@ -2159,7 +2047,6 @@
       "passes": true,
       "_source": "ai-example",
       "model": "haiku",
-      "last_attempted": "2026-03-20T18:35:23Z",
       "tags": []
     },
     {
@@ -2196,7 +2083,6 @@
       "passes": true,
       "_source": "ai-example",
       "model": "sonnet",
-      "last_attempted": "2026-03-20T23:48:11Z",
       "tags": []
     },
     {
@@ -2247,8 +2133,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-03-21T18:07:45Z"
+      "model": "haiku"
     },
     {
       "id": "US-697",
@@ -2280,8 +2165,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-03-21T23:29:11Z"
+      "model": "haiku"
     },
     {
       "id": "US-699",
@@ -2329,8 +2213,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "sonnet",
-      "last_attempted": "2026-03-22T03:39:24Z"
+      "model": "sonnet"
     },
     {
       "id": "US-791",
@@ -2737,8 +2620,7 @@
       ],
       "id": "US-1005",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-03-23T01:10:22Z"
+      "model": "haiku"
     },
     {
       "id": "US-1043",
@@ -2754,8 +2636,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "sonnet",
-      "last_attempted": "2026-03-23T13:56:00Z"
+      "model": "sonnet"
     },
     {
       "id": "US-1044",
@@ -2771,8 +2652,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "sonnet",
-      "last_attempted": "2026-03-23T14:16:52Z"
+      "model": "sonnet"
     },
     {
       "id": "US-1045",
@@ -2788,8 +2668,7 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "sonnet",
-      "last_attempted": "2026-03-23T15:09:33Z"
+      "model": "sonnet"
     },
     {
       "id": "US-1031",
@@ -2813,8 +2692,7 @@
       ],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-03-23T12:47:55Z"
+      "model": "haiku"
     },
     {
       "id": "US-1012",
@@ -2868,8 +2746,7 @@
       ],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-03-23T08:32:48Z"
+      "model": "haiku"
     },
     {
       "id": "US-1011",
@@ -2899,8 +2776,7 @@
         "security",
         "auto-generated"
       ],
-      "model": "haiku",
-      "last_attempted": "2026-03-23T04:49:16Z"
+      "model": "haiku"
     },
     {
       "id": "US-1009",
@@ -2923,8 +2799,7 @@
       ],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-03-23T03:18:49Z"
+      "model": "haiku"
     },
     {
       "id": "US-1010",
@@ -2949,8 +2824,7 @@
       ],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "sonnet",
-      "last_attempted": "2026-03-23T04:39:40Z"
+      "model": "sonnet"
     },
     {
       "id": "US-1001",
@@ -3563,7 +3437,6 @@
       "passes": true,
       "_source": "test-story",
       "model": "sonnet",
-      "last_attempted": "2026-03-20T04:47:22Z",
       "tags": []
     },
     {
@@ -3619,7 +3492,6 @@
       "passes": true,
       "_source": "test-story",
       "model": "haiku",
-      "last_attempted": "2026-03-19T05:07:58Z",
       "tags": []
     },
     {
@@ -3646,7 +3518,6 @@
       "passes": true,
       "_source": "test-story",
       "model": "haiku",
-      "last_attempted": "2026-03-19T05:27:29Z",
       "tags": []
     },
     {
@@ -3672,7 +3543,6 @@
       "passes": true,
       "_source": "test-story",
       "model": "haiku",
-      "last_attempted": "2026-03-19T06:00:00Z",
       "tags": []
     },
     {
@@ -3926,8 +3796,7 @@
       ],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-03-22T00:40:08Z"
+      "model": "haiku"
     },
     {
       "id": "US-705",
@@ -4073,8 +3942,7 @@
       ],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-03-22T02:24:59Z"
+      "model": "haiku"
     },
     {
       "id": "US-775",
@@ -4098,8 +3966,7 @@
         "core-flow",
         "phase-t"
       ],
-      "model": "haiku",
-      "last_attempted": "2026-03-23T13:17:05Z"
+      "model": "haiku"
     },
     {
       "id": "US-778",
@@ -4246,8 +4113,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-03-21T20:29:40Z"
+      "model": "haiku"
     },
     {
       "id": "US-665",
@@ -4263,8 +4129,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "sonnet",
-      "last_attempted": "2026-03-21T20:55:05Z"
+      "model": "sonnet"
     },
     {
       "id": "US-666",
@@ -4280,8 +4145,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-03-21T21:16:44Z"
+      "model": "haiku"
     },
     {
       "id": "US-670",
@@ -4297,8 +4161,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-03-21T21:52:22Z"
+      "model": "haiku"
     },
     {
       "id": "US-671",
@@ -4314,8 +4177,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-03-21T22:13:23Z"
+      "model": "haiku"
     },
     {
       "id": "US-672",
@@ -4331,8 +4193,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-03-21T22:39:22Z"
+      "model": "haiku"
     },
     {
       "id": "US-676",
@@ -4348,8 +4209,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "sonnet",
-      "last_attempted": "2026-03-21T22:59:56Z"
+      "model": "sonnet"
     },
     {
       "id": "US-663",
@@ -4413,8 +4273,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "sonnet",
-      "last_attempted": "2026-03-21T16:14:26Z"
+      "model": "sonnet"
     },
     {
       "id": "US-655",
@@ -4638,8 +4497,7 @@
         "module-hypothesis",
         "module-claude",
         "module-hypothesis"
-      ],
-      "last_attempted": "2026-03-20T12:48:47Z"
+      ]
     },
     {
       "id": "US-591",
@@ -4704,8 +4562,7 @@
         "module-hypothesis",
         "module-claude",
         "module-hypothesis"
-      ],
-      "last_attempted": "2026-03-21T00:24:59Z"
+      ]
     },
     {
       "id": "US-598",
@@ -4775,8 +4632,7 @@
         "module-hypothesis",
         "module-hypothesis",
         "module-hypothesis"
-      ],
-      "last_attempted": "2026-03-20T03:53:38Z"
+      ]
     },
     {
       "id": "US-569",
@@ -4822,7 +4678,6 @@
       "passes": true,
       "_source": "ai-example",
       "model": "haiku",
-      "last_attempted": "2026-03-20T05:47:55Z",
       "tags": []
     },
     {
@@ -4907,7 +4762,6 @@
       "passes": true,
       "_source": "ai-example",
       "model": "haiku",
-      "last_attempted": "2026-03-19T00:00:00Z",
       "filesTouch": [
         ".github/actions/lint-shell/action.yml",
         ".github/actions/setup-uv/action.yml",
@@ -5041,7 +4895,6 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-03-19T17:49:51Z",
       "tags": []
     },
     {
@@ -5208,7 +5061,6 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "sonnet",
-      "last_attempted": "2026-03-19T22:01:59Z",
       "tags": []
     },
     {
@@ -5294,7 +5146,6 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-03-20T01:01:27Z",
       "tags": []
     },
     {
@@ -5312,7 +5163,6 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "opus",
-      "last_attempted": "2026-03-20T01:26:33Z",
       "tags": []
     },
     {
@@ -5497,7 +5347,6 @@
       "passes": true,
       "_source": "ai-example",
       "model": "sonnet",
-      "last_attempted": "2026-03-20T08:16:00Z",
       "tags": []
     },
     {
@@ -5600,8 +5449,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-03-22T04:25:39Z"
+      "model": "haiku"
     },
     {
       "id": "US-712",
@@ -5620,8 +5468,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-03-22T04:52:21Z"
+      "model": "haiku"
     },
     {
       "id": "US-713",
@@ -5640,8 +5487,7 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-03-22T05:25:28Z"
+      "model": "haiku"
     },
     {
       "id": "US-755",
@@ -5853,7 +5699,6 @@
       "passes": true,
       "_source": "test-story",
       "model": "haiku",
-      "last_attempted": "2026-03-20T07:09:28Z",
       "tags": []
     },
     {
@@ -5878,7 +5723,6 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-03-20T07:19:55Z",
       "tags": []
     },
     {
@@ -5909,8 +5753,7 @@
         "e2e",
         "auto-generated"
       ],
-      "model": "sonnet",
-      "last_attempted": "2026-03-20T08:04:15Z"
+      "model": "sonnet"
     },
     {
       "id": "US-517",
@@ -6136,7 +5979,6 @@
       "passes": true,
       "_source": "test-story",
       "model": "haiku",
-      "last_attempted": "2026-03-20T08:29:11Z",
       "tags": []
     },
     {
@@ -6162,7 +6004,6 @@
       "passes": true,
       "_source": "test-story",
       "model": "haiku",
-      "last_attempted": "2026-03-20T08:44:23Z",
       "tags": []
     },
     {
@@ -6215,8 +6056,7 @@
       ],
       "estimatedComplexity": "medium",
       "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-03-22T06:17:40Z"
+      "model": "haiku"
     },
     {
       "id": "US-647",
@@ -6271,8 +6111,7 @@
         "module-claude",
         "module-devcontainer",
         "module-github"
-      ],
-      "last_attempted": "2026-03-18T16:56:51Z"
+      ]
     },
     {
       "id": "US-452",
@@ -6311,7 +6150,6 @@
         "module-github",
         "module-hypothesis"
       ],
-      "last_attempted": "2026-03-18T13:38:04Z",
       "_skipped": true
     },
     {
@@ -6354,7 +6192,6 @@
       "dependencies": [],
       "estimatedComplexity": "medium",
       "passes": true,
-      "last_attempted": "2026-03-17T02:38:32Z",
       "model": "haiku",
       "tags": []
     },
@@ -6376,7 +6213,6 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "passes": true,
-      "last_attempted": "2026-03-17T03:26:38Z",
       "tags": []
     }
   ]

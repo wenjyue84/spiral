@@ -200,6 +200,36 @@ class EpisodicMemory:
 
         return float(dot_product / (mag1 * mag2))
 
+    def retrieve(self, description: str, top_k: int = 3) -> list[dict[str, Any]]:
+        """Retrieve top_k patterns most similar to description text.
+
+        Each returned dict includes a 'similarity_score' field in [0, 1].
+
+        Args:
+            description: Free-text description (e.g., story description).
+            top_k: Number of patterns to return.
+
+        Returns:
+            List of dicts ranked by cosine similarity, each with 'similarity_score'.
+        """
+        records = self._load_all_records()
+        if not records:
+            return []
+
+        query_embedding = self._embed({"_query": description})
+        similarities: list[tuple[float, dict[str, Any]]] = []
+        for rec in records:
+            sim = self._cosine_similarity(query_embedding, self._embed(rec))
+            similarities.append((sim, rec))
+
+        similarities.sort(reverse=True, key=lambda x: x[0])
+        results = []
+        for sim, rec in similarities[:top_k]:
+            entry = dict(rec)
+            entry["similarity_score"] = round(sim, 4)
+            results.append(entry)
+        return results
+
     def query_by_text(self, text: str, k: int = 3) -> list[dict[str, Any]]:
         """Retrieve top-k similar patterns by free-text query.
 
