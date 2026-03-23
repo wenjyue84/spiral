@@ -29,7 +29,7 @@
       "estimatedComplexity": "small",
       "passes": true,
       "model": "haiku",
-      "last_attempted": "2026-03-23T09:18:37Z",
+      "last_attempted": "2026-03-23T09:14:57Z",
       "_scopeCreep": true
     },
     {
@@ -231,6 +231,122 @@
         "phase-m"
       ],
       "model": "haiku"
+    },
+    {
+      "id": "US-781",
+      "title": "Phase X: Context Explosion Guard - Cap and Summarize When Story Touches 15+ Files",
+      "priority": "medium",
+      "description": "When dependency inference finds >15 files, summarize with file paths + key function signatures instead of full content injection, preventing context window overflow.",
+      "acceptanceCriteria": [
+        "Phase X detects stories exceeding SPIRAL_CONTEXT_FILE_CAP (default 15) files",
+        "Oversized contexts get summarized: file paths + top 3 function signatures per file",
+        "Log warning about context explosion with file count",
+        "Unit test verifies a 20-file story gets summarized context"
+      ],
+      "technicalNotes": [
+        "File to create: lib/context_summarizer.py",
+        "File to edit: spiral.sh Phase X",
+        "Config: SPIRAL_CONTEXT_FILE_CAP in spiral.config.sh"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "tags": [
+        "core-flow",
+        "phase-x"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-784",
+      "title": "Phase C: Partial Completion Report - Exit with Diagnostic When Stuck Stories Remain",
+      "priority": "medium",
+      "description": "Exit after N zero-progress iterations with structured diagnostic: what passed, what is stuck, and root-cause guess per stuck story.",
+      "acceptanceCriteria": [
+        "Phase C tracks consecutive zero-progress iterations",
+        "After SPIRAL_MAX_STUCK_ITERATIONS (default 5) zero-progress iterations, exit with .spiral/completion_report.json",
+        "Report includes: total passed, stuck story IDs with retry counts, suggested actions",
+        "Unit test verifies exit after 5 zero-progress iterations with correct report"
+      ],
+      "technicalNotes": [
+        "File to create: lib/completion_report.py",
+        "File to edit: spiral.sh Phase C",
+        "Note: enhances existing SPIRAL_CONSECUTIVE_FAIL_ABORT with diagnostic report"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": false,
+      "tags": [
+        "core-flow",
+        "phase-c"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-1013",
+      "title": "Add Token Overflow Guard to Phase I Retry Logic",
+      "priority": "medium",
+      "description": "Add a token_count guard in lib/impl/retry.py that detects when a Claude response exceeds SPIRAL_MAX_TOKENS and triggers model escalation (haiku→sonnet→opus). This prevents runaway token consumption and ensures the retry loop handles overflow gracefully.",
+      "acceptanceCriteria": [
+        "lib/impl/retry.py raises or returns a token overflow signal when response token count exceeds SPIRAL_MAX_TOKENS",
+        "Model escalation sequence haiku→sonnet→opus is triggered on overflow detection (verifiable via unit test)",
+        "After 3 retry exhaustion, story state is preserved and no worktree corruption occurs"
+      ],
+      "technicalNotes": [
+        "File to edit: lib/impl/retry.py (model escalation logic, add token_count guard before escalation step)",
+        "File to edit: lib/impl/checkpoint.py (save last_error field to .spiral/_checkpoint.json on overflow)",
+        "Test command: uv run pytest tests/test_retry.py -v -k token_overflow"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1024",
+      "title": "Integration Test: Haiku→Sonnet Escalation with results.tsv Validation",
+      "priority": "medium",
+      "description": "Add an integration test that injects a mock Claude CLI stub into PATH, causing Phase I retry logic to receive a token-limit error on the haiku attempt and succeed on sonnet. Verifies automatic model escalation and that both attempts are correctly recorded in results.tsv. Provides a regression guard for the escalation path without live API calls.",
+      "acceptanceCriteria": [
+        "Mock Claude CLI stub (bash script in tmp bin dir, prepended to PATH) returns exit 1 with stderr 'token_limit_exceeded' on attempt 1 (haiku) and exit 0 on attempt 2 (sonnet)",
+        "After retry logic executes under test, the target story entry in prd.json has status='completed' and model='sonnet'",
+        "results.tsv contains exactly 2 rows for the story: haiku/failed/attempt=1 and sonnet/passed/attempt=2; sonnet row completion_tokens > 0",
+        "uv run pytest tests/test_phase_i_escalation.py -v exits with code 0 with no skipped tests"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_phase_i_escalation.py (new file — pytest integration test using tmp_path fixture; write stub script, prepend to PATH via monkeypatch, invoke retry logic via subprocess)",
+        "File to edit: lib/impl/retry.sh (read only — locate haiku→sonnet escalation branch and results.tsv write call to know which env vars to set in test)",
+        "Stub script pattern: write a bash script counting invocations via a tmp counter file; invocation 1 exits 1 with error text, invocation 2 exits 0",
+        "Test command: uv run pytest tests/test_phase_i_escalation.py -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "haiku"
+    },
+    {
+      "id": "US-1018",
+      "title": "[E2E Test] Cross-Phase Schema Validation: Research → TestSynth → StoryValid",
+      "priority": "medium",
+      "description": "Write integration tests that run phases R, T, and S sequentially using fixture inputs and assert that each phase's JSON output matches the schema expected by the next phase. Validates the R→T→S data handoff introduced in US-644.",
+      "acceptanceCriteria": [
+        "Phase R produces _research_output.json with required keys (stories, sources, timestamp); assert with: uv run pytest tests/test_cross_phase_rts.py::test_research_output_schema -v",
+        "Phase T consumes _research_output.json and produces _test_stories_output.json with valid story objects; assert with: uv run pytest tests/test_cross_phase_rts.py::test_test_synth_output_schema -v",
+        "Phase S consumes _test_stories_output.json and produces _validated_stories.json with no schema errors; assert with: uv run pytest tests/test_cross_phase_rts.py::test_story_valid_output_schema -v",
+        "All three phase-handoff assertions pass together: uv run pytest tests/test_cross_phase_rts.py -v"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_cross_phase_rts.py (new file — phase R/T/S schema handoff tests)",
+        "File to edit: tests/fixtures/phase_outputs.py (new file — minimal valid fixture dicts for each phase output)",
+        "Test command: uv run pytest tests/test_cross_phase_rts.py -v",
+        "Use lib/prd_schema.py or jsonschema to validate output shapes; mock external API calls with pytest monkeypatch"
+      ],
+      "dependencies": [
+        "US-644"
+      ],
+      "estimatedComplexity": "medium",
+      "passes": false,
+      "model": "sonnet"
     },
     {
       "title": "Phase V: Functional Reachability Verifier - Confirm New Code is Wired into the Loop",
