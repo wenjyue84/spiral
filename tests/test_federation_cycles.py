@@ -1,6 +1,5 @@
 """Tests for find_cycles() cycle detection (US-1047)."""
 
-import pytest
 
 from lib.federation.cycle_detector import find_cycles
 

@@ -23,7 +23,7 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "model": "haiku"
     },
     {
@@ -2772,7 +2772,8 @@
       "estimatedComplexity": "medium",
       "passes": true,
       "model": "sonnet",
-      "last_attempted": "2026-03-23T15:09:33Z"
+      "last_attempted": "2026-03-23T15:09:33Z",
+      "_scopeCreep": true
     },
     {
       "id": "US-1031",
@@ -6552,7 +6553,8 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false
+      "passes": false,
+      "model": "sonnet"
     }
   ]
 }
