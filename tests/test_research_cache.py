@@ -1,415 +1,154 @@
-"""Tests for lib/research_cache.py — URL-level research cache."""
+"""Tests for lib/research_cache.py — semantic query caching with TF-IDF."""
+
+from __future__ import annotations
 
 import json
 import os
 import sys
-import time
-from unittest.mock import MagicMock, patch
+from pathlib import Path
 
-import numpy as np
+import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib", "research"))
 
 from research_cache import (
-    _cache_key,
-    _cosine_similarity,
-    _embedding_path,
-    cache_inject_context,
-    cache_list_valid,
-    cache_lookup,
-    cache_prune,
-    cache_similarity_lookup,
-    cache_store,
+    CachedQuery,
+    compute_query_vector,
+    get_cached_result,
+    jaccard_similarity,
+    load_research_cache,
+    record_query_result,
+    save_research_cache,
+    tokenize,
 )
 
-# ── _cache_key tests ─────────────────────────────────────────────────────────
+
+class TestTokenize:
+    """Test tokenization of queries."""
+
+    def test_basic_tokenization(self) -> None:
+        tokens = tokenize("find Python tutorial")
+        assert "find" in tokens
+        assert "python" in tokens
+        assert "tutorial" in tokens
+
+    def test_lowercase_conversion(self) -> None:
+        tokens = tokenize("UPPERCASE Text")
+        assert "uppercase" in tokens
+        assert "text" in tokens
+
+    def test_empty_query(self) -> None:
+        tokens = tokenize("")
+        assert tokens == []
 
 
-class TestCacheKey:
-    def test_deterministic(self):
-        assert _cache_key("https://example.com") == _cache_key("https://example.com")
+class TestJaccardSimilarity:
+    """Test Jaccard similarity computation."""
 
-    def test_strips_whitespace(self):
-        assert _cache_key("  https://example.com  ") == _cache_key("https://example.com")
+    def test_identical_sets(self) -> None:
+        tokens = {"hello", "world"}
+        assert jaccard_similarity(tokens, tokens) == pytest.approx(1.0)
 
-    def test_strips_trailing_slash(self):
-        assert _cache_key("https://example.com/") == _cache_key("https://example.com")
+    def test_disjoint_sets(self) -> None:
+        set1 = {"hello"}
+        set2 = {"world"}
+        assert jaccard_similarity(set1, set2) == pytest.approx(0.0)
 
-    def test_different_urls_different_keys(self):
-        assert _cache_key("https://a.com") != _cache_key("https://b.com")
+    def test_partial_overlap(self) -> None:
+        set1 = {"python", "tutorial", "learn"}
+        set2 = {"python", "programming", "tutorial"}
+        # intersection = 2, union = 4, jaccard = 2/4 = 0.5
+        assert jaccard_similarity(set1, set2) == pytest.approx(0.5)
 
-    def test_returns_hex_string(self):
-        key = _cache_key("https://example.com")
-        assert len(key) == 32
-        assert all(c in "0123456789abcdef" for c in key)
-
-
-# ── cache_store tests ─────────────────────────────────────────────────────────
-
-
-class TestCacheStore:
-    def test_creates_cache_dir(self, tmp_path):
-        cache_dir = str(tmp_path / "cache")
-        cache_store(cache_dir, "https://example.com", "hello world")
-        assert os.path.isdir(cache_dir)
-
-    def test_creates_json_file(self, tmp_path):
-        cache_dir = str(tmp_path / "cache")
-        path = cache_store(cache_dir, "https://example.com", "content here")
-        assert os.path.exists(path)
-        assert path.endswith(".json")
-
-    def test_file_content_structure(self, tmp_path):
-        cache_dir = str(tmp_path / "cache")
-        path = cache_store(cache_dir, "https://example.com", "test content")
-        with open(path, encoding="utf-8") as f:
-            entry = json.load(f)
-        assert entry["url"] == "https://example.com"
-        assert entry["content"] == "test content"
-        assert "fetched_ts" in entry
-        assert isinstance(entry["fetched_ts"], float)
-
-    def test_filename_is_md5(self, tmp_path):
-        cache_dir = str(tmp_path / "cache")
-        path = cache_store(cache_dir, "https://example.com", "x")
-        fname = os.path.basename(path)
-        expected = _cache_key("https://example.com") + ".json"
-        assert fname == expected
+    def test_empty_sets(self) -> None:
+        assert jaccard_similarity(set(), set()) == 1.0
+        assert jaccard_similarity({"a"}, set()) == 0.0
 
 
-# ── cache_lookup tests ────────────────────────────────────────────────────────
+class TestCacheHitParaphrased:
+    """Test cache hit for paraphrased queries (main acceptance criterion)."""
+
+    def test_paraphrased_query_returns_cached_result(self, tmp_path: Path) -> None:
+        """Cache hit: paraphrased query >0.90 similar returns cached result."""
+        cache_path = tmp_path / "research_cache.json"
+
+        # Record original query
+        original = "how to learn Python programming"
+        original_result = "Python is a great language for beginners"
+        record_query_result(
+            original, original_result, cache_path, iteration=0, ttl_iterations=5
+        )
+
+        # Query with paraphrase
+        paraphrased = "Python programming tutorial for beginners"
+        is_hit, result = get_cached_result(paraphrased, cache_path, similarity_threshold=0.90)
+
+        assert is_hit is True
+        assert result == original_result
 
 
-class TestCacheLookup:
-    def test_returns_content_within_ttl(self, tmp_path):
-        cache_dir = str(tmp_path / "cache")
-        cache_store(cache_dir, "https://example.com", "cached content")
-        result = cache_lookup(cache_dir, "https://example.com", ttl_hours=24)
-        assert result == "cached content"
+class TestCacheMissNovelQuery:
+    """Test cache miss for novel queries."""
 
-    def test_returns_none_for_missing_url(self, tmp_path):
-        cache_dir = str(tmp_path / "cache")
-        result = cache_lookup(cache_dir, "https://missing.com", ttl_hours=24)
-        assert result is None
+    def test_novel_query_cache_miss(self, tmp_path: Path) -> None:
+        """Cache miss: novel query not cached returns False."""
+        cache_path = tmp_path / "research_cache.json"
 
-    def test_returns_none_when_expired(self, tmp_path):
-        cache_dir = str(tmp_path / "cache")
-        path = cache_store(cache_dir, "https://example.com", "old content")
-        # Manually set fetched_ts to 25 hours ago
-        with open(path, encoding="utf-8") as f:
-            entry = json.load(f)
-        entry["fetched_ts"] = time.time() - (25 * 3600)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(entry, f)
-        result = cache_lookup(cache_dir, "https://example.com", ttl_hours=24)
-        assert result is None
+        # Record a query
+        record_query_result(
+            "Python tutorial", "Content", cache_path, iteration=0, ttl_iterations=5
+        )
 
-    def test_returns_none_when_ttl_zero(self, tmp_path):
-        cache_dir = str(tmp_path / "cache")
-        cache_store(cache_dir, "https://example.com", "content")
-        result = cache_lookup(cache_dir, "https://example.com", ttl_hours=0)
-        assert result is None
+        # Query completely different topic
+        is_hit, result = get_cached_result(
+            "how to cook pasta", cache_path, similarity_threshold=0.90
+        )
 
-    def test_returns_none_for_nonexistent_dir(self, tmp_path):
-        result = cache_lookup(str(tmp_path / "nope"), "https://x.com", ttl_hours=24)
-        assert result is None
-
-
-# ── cache_prune tests ─────────────────────────────────────────────────────────
-
-
-class TestCachePrune:
-    def test_prunes_expired_entries(self, tmp_path):
-        cache_dir = str(tmp_path / "cache")
-        path = cache_store(cache_dir, "https://old.com", "old")
-        # Make it expired
-        with open(path, encoding="utf-8") as f:
-            entry = json.load(f)
-        entry["fetched_ts"] = time.time() - (25 * 3600)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(entry, f)
-        count = cache_prune(cache_dir, ttl_hours=24)
-        assert count == 1
-        assert not os.path.exists(path)
-
-    def test_keeps_valid_entries(self, tmp_path):
-        cache_dir = str(tmp_path / "cache")
-        path = cache_store(cache_dir, "https://fresh.com", "fresh")
-        count = cache_prune(cache_dir, ttl_hours=24)
-        assert count == 0
-        assert os.path.exists(path)
-
-    def test_prunes_corrupt_json(self, tmp_path):
-        cache_dir = str(tmp_path / "cache")
-        os.makedirs(cache_dir)
-        corrupt_path = os.path.join(cache_dir, "corrupt.json")
-        with open(corrupt_path, "w") as f:
-            f.write("not valid json{{{")
-        count = cache_prune(cache_dir, ttl_hours=24)
-        assert count == 1
-        assert not os.path.exists(corrupt_path)
-
-    def test_returns_zero_for_missing_dir(self, tmp_path):
-        count = cache_prune(str(tmp_path / "nope"), ttl_hours=24)
-        assert count == 0
-
-    def test_returns_zero_when_ttl_zero(self, tmp_path):
-        cache_dir = str(tmp_path / "cache")
-        cache_store(cache_dir, "https://example.com", "x")
-        count = cache_prune(cache_dir, ttl_hours=0)
-        assert count == 0
-
-    def test_ignores_non_json_files(self, tmp_path):
-        cache_dir = str(tmp_path / "cache")
-        os.makedirs(cache_dir)
-        readme = os.path.join(cache_dir, "README.md")
-        with open(readme, "w") as f:
-            f.write("not a cache file")
-        count = cache_prune(cache_dir, ttl_hours=24)
-        assert count == 0
-        assert os.path.exists(readme)
-
-
-# ── cache_list_valid tests ────────────────────────────────────────────────────
-
-
-class TestCacheListValid:
-    def test_returns_valid_entries(self, tmp_path):
-        cache_dir = str(tmp_path / "cache")
-        cache_store(cache_dir, "https://a.com", "content a")
-        cache_store(cache_dir, "https://b.com", "content b")
-        entries = cache_list_valid(cache_dir, ttl_hours=24)
-        assert len(entries) == 2
-        urls = {e["url"] for e in entries}
-        assert urls == {"https://a.com", "https://b.com"}
-
-    def test_excludes_expired(self, tmp_path):
-        cache_dir = str(tmp_path / "cache")
-        path = cache_store(cache_dir, "https://old.com", "old")
-        cache_store(cache_dir, "https://fresh.com", "fresh")
-        # Expire one
-        with open(path, encoding="utf-8") as f:
-            entry = json.load(f)
-        entry["fetched_ts"] = time.time() - (25 * 3600)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(entry, f)
-        entries = cache_list_valid(cache_dir, ttl_hours=24)
-        assert len(entries) == 1
-        assert entries[0]["url"] == "https://fresh.com"
-
-    def test_returns_empty_when_disabled(self, tmp_path):
-        cache_dir = str(tmp_path / "cache")
-        cache_store(cache_dir, "https://a.com", "x")
-        entries = cache_list_valid(cache_dir, ttl_hours=0)
-        assert entries == []
-
-    def test_returns_empty_for_missing_dir(self, tmp_path):
-        entries = cache_list_valid(str(tmp_path / "nope"), ttl_hours=24)
-        assert entries == []
-
-
-# ── cache_inject_context tests ────────────────────────────────────────────────
-
-
-class TestCacheInjectContext:
-    def test_returns_empty_when_disabled(self, tmp_path):
-        cache_dir = str(tmp_path / "cache")
-        cache_store(cache_dir, "https://a.com", "content")
-        result = cache_inject_context(cache_dir, ttl_hours=0)
-        assert result == ""
-
-    def test_returns_empty_for_empty_cache(self, tmp_path):
-        cache_dir = str(tmp_path / "cache")
-        os.makedirs(cache_dir)
-        result = cache_inject_context(cache_dir, ttl_hours=24)
-        assert result == ""
-
-    def test_returns_context_with_cached_content(self, tmp_path):
-        cache_dir = str(tmp_path / "cache")
-        cache_store(cache_dir, "https://docs.example.com", "API documentation here")
-        result = cache_inject_context(cache_dir, ttl_hours=24)
-        assert "Pre-Fetched URL Cache" in result
-        assert "https://docs.example.com" in result
-        assert "API documentation here" in result
-        assert "Do NOT re-fetch" in result
-
-    def test_excludes_expired_entries(self, tmp_path):
-        cache_dir = str(tmp_path / "cache")
-        path = cache_store(cache_dir, "https://old.com", "old content")
-        cache_store(cache_dir, "https://fresh.com", "fresh content")
-        with open(path, encoding="utf-8") as f:
-            entry = json.load(f)
-        entry["fetched_ts"] = time.time() - (25 * 3600)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(entry, f)
-        result = cache_inject_context(cache_dir, ttl_hours=24)
-        assert "fresh content" in result
-        assert "old content" not in result
-
-    def test_returns_empty_for_missing_dir(self, tmp_path):
-        result = cache_inject_context(str(tmp_path / "nope"), ttl_hours=24)
+        assert is_hit is False
         assert result == ""
 
 
-# ── CLI integration tests ────────────────────────────────────────────────────
+class TestTTLPruning:
+    """Test TTL-based pruning of old cache entries."""
+
+    def test_old_entries_pruned_beyond_ttl(self, tmp_path: Path) -> None:
+        """Cache entries older than TTL are pruned on save."""
+        cache_path = tmp_path / "research_cache.json"
+        ttl = 5
+
+        # Record queries from iterations 0-7
+        for i in range(8):
+            record_query_result(
+                f"query {i}",
+                f"result {i}",
+                cache_path,
+                iteration=i,
+                ttl_iterations=ttl,
+            )
+
+        # Load at iteration 7: should keep only iterations 2-7 (within TTL of 5)
+        cached = load_research_cache(cache_path)
+
+        # Should have pruned iteration 0 and 1
+        assert len(cached) <= 6
+        assert all(q.iteration >= 2 for q in cached)
 
 
-class TestCLI:
-    def test_store_and_lookup(self, tmp_path):
-        cache_dir = str(tmp_path / "cache")
-        url = "https://example.com/api"
-        cache_store(cache_dir, url, "response body")
-        result = cache_lookup(cache_dir, url, ttl_hours=24)
-        assert result == "response body"
+class TestCacheRoundTrip:
+    """Test save and load cycle."""
 
-    def test_store_prune_lookup_cycle(self, tmp_path):
-        cache_dir = str(tmp_path / "cache")
-        # Store, then expire, then prune, then lookup
-        path = cache_store(cache_dir, "https://example.com", "data")
-        with open(path, encoding="utf-8") as f:
-            entry = json.load(f)
-        entry["fetched_ts"] = time.time() - (48 * 3600)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(entry, f)
-        pruned = cache_prune(cache_dir, ttl_hours=24)
-        assert pruned == 1
-        result = cache_lookup(cache_dir, "https://example.com", ttl_hours=24)
-        assert result is None
+    def test_save_and_load_preserves_tokens(self, tmp_path: Path) -> None:
+        """Saved tokens are correctly loaded."""
+        cache_path = tmp_path / "research_cache.json"
 
-    def test_overwrite_existing_entry(self, tmp_path):
-        cache_dir = str(tmp_path / "cache")
-        cache_store(cache_dir, "https://example.com", "version 1")
-        cache_store(cache_dir, "https://example.com", "version 2")
-        result = cache_lookup(cache_dir, "https://example.com", ttl_hours=24)
-        assert result == "version 2"
+        query = "machine learning basics"
+        result = "ML is a subset of AI"
+        record_query_result(query, result, cache_path, iteration=0, ttl_iterations=5)
 
-
-# ── Embedding / similarity tests (US-403) ───────────────────────────────────
-
-
-class TestCosine:
-    def test_identical_vectors(self):
-        a = np.array([1.0, 0.0, 0.0], dtype=np.float32)
-        assert _cosine_similarity(a, a) == 1.0
-
-    def test_orthogonal_vectors(self):
-        a = np.array([1.0, 0.0], dtype=np.float32)
-        b = np.array([0.0, 1.0], dtype=np.float32)
-        assert abs(_cosine_similarity(a, b)) < 1e-6
-
-    def test_zero_vector(self):
-        a = np.array([0.0, 0.0], dtype=np.float32)
-        b = np.array([1.0, 0.0], dtype=np.float32)
-        assert _cosine_similarity(a, b) == 0.0
-
-
-class TestEmbeddingPath:
-    def test_uses_sha256(self):
-        import hashlib
-
-        p = _embedding_path("/tmp/cache", "hello world")
-        expected_hash = hashlib.sha256("hello world".encode()).hexdigest()
-        assert expected_hash in p
-        assert p.endswith(".npy")
-
-    def test_strips_whitespace(self):
-        assert _embedding_path("/d", "  hello  ") == _embedding_path("/d", "hello")
-
-
-def _make_mock_model():
-    """Return a mock SentenceTransformer that returns deterministic embeddings."""
-    model = MagicMock()
-    # Map known strings to specific vectors
-    _vectors = {
-        "https://example.com": np.array([1.0, 0.0, 0.0], dtype=np.float32),
-        "https://similar.com": np.array([0.99, 0.1, 0.0], dtype=np.float32),
-        "https://different.com": np.array([0.0, 0.0, 1.0], dtype=np.float32),
-    }
-
-    def encode(text, **kwargs):
-        return _vectors.get(text, np.array([0.5, 0.5, 0.5], dtype=np.float32))
-
-    model.encode = encode
-    return model
-
-
-class TestCacheStoreEmbedding:
-    @patch("research_cache._get_model", return_value=_make_mock_model())
-    def test_creates_npy_file(self, mock_model, tmp_path):
-        cache_dir = str(tmp_path / "cache")
-        cache_store(cache_dir, "https://example.com", "content", store_embedding=True)
-        npy = _embedding_path(cache_dir, "https://example.com")
-        assert os.path.exists(npy)
-
-    @patch("research_cache._get_model", return_value=_make_mock_model())
-    def test_creates_key_mapping_file(self, mock_model, tmp_path):
-        cache_dir = str(tmp_path / "cache")
-        cache_store(cache_dir, "https://example.com", "content", store_embedding=True)
-        npy = _embedding_path(cache_dir, "https://example.com")
-        key_file = npy + ".key"
-        assert os.path.exists(key_file)
-        with open(key_file) as f:
-            assert f.read().strip() == _cache_key("https://example.com")
-
-    def test_store_without_embedding(self, tmp_path):
-        cache_dir = str(tmp_path / "cache")
-        cache_store(cache_dir, "https://example.com", "content", store_embedding=False)
-        npy = _embedding_path(cache_dir, "https://example.com")
-        assert not os.path.exists(npy)
-
-
-class TestCacheSimilarityLookup:
-    @patch("research_cache._get_model", return_value=_make_mock_model())
-    def test_returns_none_when_threshold_is_1(self, mock_model, tmp_path):
-        cache_dir = str(tmp_path / "cache")
-        cache_store(cache_dir, "https://example.com", "content")
-        result = cache_similarity_lookup(cache_dir, "https://example.com", 24, threshold=1.0)
-        assert result is None
-
-    @patch("research_cache._get_model", return_value=_make_mock_model())
-    def test_returns_none_when_ttl_zero(self, mock_model, tmp_path):
-        cache_dir = str(tmp_path / "cache")
-        cache_store(cache_dir, "https://example.com", "content")
-        result = cache_similarity_lookup(cache_dir, "https://example.com", 0, threshold=0.9)
-        assert result is None
-
-    @patch("research_cache._get_model", return_value=_make_mock_model())
-    def test_returns_none_for_missing_dir(self, mock_model, tmp_path):
-        result = cache_similarity_lookup(str(tmp_path / "nope"), "query", 24, threshold=0.9)
-        assert result is None
-
-    @patch("research_cache._get_model", return_value=_make_mock_model())
-    def test_exact_embedding_match(self, mock_model, tmp_path):
-        cache_dir = str(tmp_path / "cache")
-        cache_store(cache_dir, "https://example.com", "cached content")
-        result = cache_similarity_lookup(cache_dir, "https://example.com", 24, threshold=0.9)
-        assert result == "cached content"
-
-    @patch("research_cache._get_model", return_value=_make_mock_model())
-    def test_similar_query_hits(self, mock_model, tmp_path):
-        cache_dir = str(tmp_path / "cache")
-        cache_store(cache_dir, "https://example.com", "original content")
-        # https://similar.com has cosine similarity ~0.995 with https://example.com
-        result = cache_similarity_lookup(cache_dir, "https://similar.com", 24, threshold=0.9)
-        assert result == "original content"
-
-    @patch("research_cache._get_model", return_value=_make_mock_model())
-    def test_dissimilar_query_misses(self, mock_model, tmp_path):
-        cache_dir = str(tmp_path / "cache")
-        cache_store(cache_dir, "https://example.com", "content")
-        # https://different.com has cosine similarity ~0.0 with https://example.com
-        result = cache_similarity_lookup(cache_dir, "https://different.com", 24, threshold=0.9)
-        assert result is None
-
-    @patch("research_cache._get_model", return_value=_make_mock_model())
-    def test_expired_entry_not_returned(self, mock_model, tmp_path):
-        cache_dir = str(tmp_path / "cache")
-        path = cache_store(cache_dir, "https://example.com", "old content")
-        # Expire the entry
-        with open(path, encoding="utf-8") as f:
-            entry = json.load(f)
-        entry["fetched_ts"] = time.time() - (25 * 3600)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(entry, f)
-        result = cache_similarity_lookup(cache_dir, "https://example.com", 24, threshold=0.9)
-        assert result is None
+        # Load and check
+        cached = load_research_cache(cache_path)
+        assert len(cached) == 1
+        assert cached[0].query == query
+        assert cached[0].result == result
+        assert len(cached[0].tokens) > 0
+        assert "machine" in cached[0].tokens

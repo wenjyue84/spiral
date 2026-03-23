@@ -450,6 +450,12 @@ SPIRAL_OTEL_EMIT_MESSAGES="${SPIRAL_OTEL_EMIT_MESSAGES:-false}"
 # SPIRAL_OTEL_SCRUB_FIELDS="gen_ai.input.messages,gen_ai.output.messages"
 export SPIRAL_MAX_DIFF_LINES=400
 
+# ── Phase V: AC Verification (US-1005) ───────────────────────────────────────
+# When true, Phase V runs AC verification after pytest passes.
+# Executes extracted assertions from .spiral/ac_checks/{story_id}.json and
+# reports per-AC pass/fail results. Story fails only if zero assertions pass.
+SPIRAL_AC_VERIFY=true
+
 # ── Dashboard port allocation ────────────────────────────────────────────────
 # Two servers run side-by-side. NEVER swap these ports.
 #   Port 5299: Vite React dashboard (spiral-ui/) — full 11-tab UI

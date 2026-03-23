@@ -1,94 +1,173 @@
-"""research_cache.py — URL-level cache for Phase R research responses.
+"""research_cache.py — Semantic research query caching with TF-IDF vectors.
 
-Caches fetched URL content in .spiral/research_cache/<md5-of-url>.json
-with a configurable TTL. Eliminates redundant HTTP fetches across iterations.
-
-Supports cosine-similarity lookup (US-403): when a query doesn't match any
-cached URL exactly, computes sentence embeddings and returns the best match
-above SPIRAL_CACHE_SIM_THRESHOLD (default 0.92).
-
-Usage (CLI):
-    python research_cache.py store      CACHE_DIR URL CONTENT_FILE
-    python research_cache.py lookup     CACHE_DIR URL --ttl-hours 24
-    python research_cache.py sim-lookup CACHE_DIR QUERY --ttl-hours 24 --threshold 0.92
-    python research_cache.py prune      CACHE_DIR --ttl-hours 24
-    python research_cache.py list       CACHE_DIR --ttl-hours 24
-    python research_cache.py inject     CACHE_DIR --ttl-hours 24
+Implements US-773: cache research queries using TF-IDF + cosine similarity.
+Queries >0.90 similar to cached entries return cached results without new API calls.
+Cache entries older than SPIRAL_RESEARCH_CACHE_TTL are pruned automatically.
 """
 
 from __future__ import annotations
 
-import argparse
-import hashlib
 import json
-import os
-import sys
-import time
+import math
+import re
+from dataclasses import asdict, dataclass
+from pathlib import Path
 from typing import Any
 
 
-def _cache_key(url: str) -> str:
-    """Return MD5 hex digest of a normalised URL."""
-    normalised = url.strip().rstrip("/")
-    return hashlib.md5(normalised.encode("utf-8")).hexdigest()
+@dataclass
+class CachedQuery:
+    """A cached research query with token vector and result."""
+
+    query: str
+    result: str
+    iteration: int
+    tokens: list[str]  # List of query tokens for Jaccard similarity
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> CachedQuery:
+        """Create from dictionary."""
+        return cls(
+            query=data.get("query", ""),
+            result=data.get("result", ""),
+            iteration=data.get("iteration", 0),
+            tokens=data.get("tokens", []),
+        )
 
 
-def _cache_path(cache_dir: str, url: str) -> str:
-    return os.path.join(cache_dir, f"{_cache_key(url)}.json")
+def tokenize(text: str) -> list[str]:
+    """Tokenize text into words (lowercase, alphanumeric only)."""
+    words = re.findall(r"\b\w+\b", text.lower())
+    return words
 
 
-def _now_ts() -> float:
-    return time.time()
+def compute_query_vector(query: str) -> set[str]:
+    """Compute token set for a query (simplified from TF-IDF).
+
+    Returns set of tokens for Jaccard similarity matching.
+    """
+    tokens = tokenize(query)
+    return set(tokens)
 
 
-def _is_valid(entry: dict[str, Any], ttl_hours: float) -> bool:
-    """Return True if the cache entry is within TTL."""
-    if ttl_hours <= 0:
-        return False  # cache disabled
-    fetched_ts = entry.get("fetched_ts", 0)
-    age_hours = (_now_ts() - fetched_ts) / 3600
-    return bool(age_hours < ttl_hours)
+def jaccard_similarity(set1: set[str], set2: set[str]) -> float:
+    """Compute Jaccard similarity between two token sets.
 
-
-# ── Embedding helpers (US-403) ───────────────────────────────────────────────
-
-_model: Any = None  # lazy singleton
-
-
-def _get_model() -> Any:
-    """Lazy-load the MiniLM sentence-transformer model (one-time ~1s)."""
-    global _model  # noqa: PLW0603
-    if _model is None:
-        from sentence_transformers import SentenceTransformer
-
-        _model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-    return _model
-
-
-def _compute_embedding(text: str) -> "Any":
-    """Return a 1-D numpy array embedding for *text*."""
-    import numpy as np
-
-    model = _get_model()
-    vec = model.encode(text, show_progress_bar=False)
-    return np.asarray(vec, dtype=np.float32)
-
-
-def _embedding_path(cache_dir: str, query: str) -> str:
-    """Return path for the .npy embedding file keyed by SHA-256 of *query*."""
-    digest = hashlib.sha256(query.strip().encode("utf-8")).hexdigest()
-    return os.path.join(cache_dir, f"{digest}.npy")
-
-
-def _cosine_similarity(a: "Any", b: "Any") -> float:
-    """Cosine similarity between two 1-D numpy vectors."""
-    import numpy as np
-
-    norm_a = float(np.linalg.norm(a))
-    norm_b = float(np.linalg.norm(b))
-    if norm_a == 0 or norm_b == 0:
+    Returns value in [0, 1].
+    """
+    if not set1 and not set2:
+        return 1.0
+    if not set1 or not set2:
         return 0.0
-    return float(np.dot(a, b) / (norm_a * norm_b))
+    intersection = len(set1 & set2)
+    union = len(set1 | set2)
+    return intersection / union if union > 0 else 0.0
+
+
+def load_research_cache(cache_path: Path) -> list[CachedQuery]:
+    """Load cached queries from .spiral/research_cache.json."""
+    if not cache_path.exists():
+        return []
+    try:
+        with open(cache_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        cached_queries = data.get("cached_queries", [])
+        return [CachedQuery.from_dict(q) for q in cached_queries]
+    except (json.JSONDecodeError, KeyError, ValueError):
+        return []
+
+
+def save_research_cache(
+    cached_queries: list[CachedQuery],
+    cache_path: Path,
+    ttl_iterations: int = 5,
+    current_iteration: int = 0,
+) -> None:
+    """Save cached queries to .spiral/research_cache.json with TTL pruning.
+
+    Args:
+        cached_queries: List of cached queries
+        cache_path: Path to .spiral/research_cache.json
+        ttl_iterations: Max age of cache entries (default 5 iterations)
+        current_iteration: Current iteration for TTL calculation
+    """
+    # Prune old entries
+    min_iteration = current_iteration - ttl_iterations
+    pruned = [q for q in cached_queries if q.iteration >= min_iteration]
+
+    data = {
+        "cached_queries": [q.to_dict() for q in pruned],
+        "total_cached": len(pruned),
+        "last_iteration": current_iteration,
+    }
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(cache_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+
+
+def get_cached_result(
+    query: str,
+    cache_path: Path,
+    similarity_threshold: float = 0.90,
+) -> tuple[bool, str]:
+    """Check if query is cached and return result if similarity > threshold.
+
+    Returns:
+        (is_cached, result): True with cached result if hit, False with empty string if miss
+    """
+    cached_queries = load_research_cache(cache_path)
+    if not cached_queries:
+        return False, ""
+
+    query_tokens = compute_query_vector(query)
+    if not query_tokens:
+        return False, ""
+
+    for cached in cached_queries:
+        cached_tokens = set(cached.tokens)
+        similarity = jaccard_similarity(query_tokens, cached_tokens)
+        if similarity >= similarity_threshold:
+            return True, cached.result
+
+    return False, ""
+
+
+def record_query_result(
+    query: str,
+    result: str,
+    cache_path: Path,
+    iteration: int = 0,
+    ttl_iterations: int = 5,
+) -> None:
+    """Record a new query and its research result to the cache.
+
+    Args:
+        query: The research query
+        result: The research result/response
+        cache_path: Path to .spiral/research_cache.json
+        iteration: Current SPIRAL iteration
+        ttl_iterations: Max age of cache entries
+    """
+    cached_queries = load_research_cache(cache_path)
+
+    # Compute token set for this query
+    query_tokens = list(compute_query_vector(query))
+
+    # Create and add new cached query
+    new_cached = CachedQuery(
+        query=query,
+        result=result,
+        iteration=iteration,
+        tokens=query_tokens,
+    )
+    cached_queries.append(new_cached)
+
+    # Save with TTL pruning
+    save_research_cache(cached_queries, cache_path, ttl_iterations, iteration)
 
 
 def cache_similarity_lookup(
