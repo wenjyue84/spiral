@@ -173,9 +173,7 @@ def generate_changelog_segment(
     return "".join(lines)
 
 
-def calculate_next_version_from_results_tsv(
-    previous_tag: str, results_tsv_path: str
-) -> str:
+def calculate_next_version_from_results_tsv(previous_tag: str, results_tsv_path: str) -> str:
     """Calculate next SemVer version based on retry_count from results.tsv.
 
     Deterministic calculation: reads results.tsv and counts stories with
@@ -217,9 +215,7 @@ def calculate_next_version_from_results_tsv(
                 if retry_count >= 3:
                     retry_count_threshold_stories += 1
             except (ValueError, TypeError) as e:
-                raise ValueError(
-                    f"Invalid retry_count in results.tsv: {row.get('retry_count')}"
-                ) from e
+                raise ValueError(f"Invalid retry_count in results.tsv: {row.get('retry_count')}") from e
 
     # Determine bump tier: >= 2 stories with retry_count >= 3 → minor, else → patch
     if retry_count_threshold_stories >= 2:

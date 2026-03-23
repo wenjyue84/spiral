@@ -226,9 +226,7 @@ class TestUS773AcceptanceCriteria:
 
         # Use default threshold (should be 0.90)
         result = find_cached_response(paraphrased, cache_file)
-        assert result is not None, (
-            "AC4: Near-identical query should hit cache with default 0.90 threshold"
-        )
+        assert result is not None, "AC4: Near-identical query should hit cache with default 0.90 threshold"
         assert result == cached_content
 
     def test_novel_query_cache_miss_with_default_threshold(self, tmp_path: Any) -> None:

@@ -11,73 +11,6 @@
   ],
   "userStories": [
     {
-      "id": "US-1025",
-      "title": "Integration Test: Phase G SemVer Calculation Is Deterministic from results.tsv",
-      "priority": "high",
-      "description": "Validate that Phase G's semver bump calculation produces the same result across 3 consecutive calls given identical mocked results.tsv retry counts and complexity scores. Ensures the bump logic is pure and not affected by timestamps, ordering, or external state.",
-      "acceptanceCriteria": [
-        "uv run pytest tests/test_phase_g_semver_determinism.py::test_deterministic_three_runs -v passes: invoking the semver calculation function 3 times with the same mocked results.tsv yields identical version strings each time",
-        "uv run pytest tests/test_phase_g_semver_determinism.py::test_minor_vs_patch_threshold -v passes: 2+ stories with retry_count>=3 produces minor bump; 0 such stories produces patch bump only"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_phase_g_semver_determinism.py (new file — test_deterministic_three_runs, test_minor_vs_patch_threshold)",
-        "File to edit: lib/phases/g_deploy.sh or lib/phase_g.py (expose semver calculation as a callable/importable function for isolated testing)",
-        "Test command: uv run pytest tests/test_phase_g_semver_determinism.py -v --tb=short",
-        "Write results.tsv fixture as a tempfile with columns: story_id, retry_count, complexity; call calculation logic 3 times; assert all 3 outputs are equal"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": true,
-      "model": "haiku",
-      "last_attempted": "2026-03-23T09:14:57Z",
-      "_scopeCreep": true
-    },
-    {
-      "id": "US-1026",
-      "title": "Test Phase R Research Cache Hit/Miss Counting and LRU Eviction",
-      "priority": "high",
-      "description": "Write integration tests that verify Phase R's deduplication cache correctly counts Gemini API calls vs cache hits, and enforces LRU eviction when the cache reaches its size limit. Validates functional correctness of the research cache without any performance measurement.",
-      "acceptanceCriteria": [
-        "Test submits 10 stories with 6 identical research queries; asserts cache_hit_count == 6 and gemini_api_call_count == 4",
-        "Test fills cache to 100 entries, adds entry #101, and asserts the oldest (LRU) entry is no longer present in the cache"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_research_cache.py (new file — cache hit/eviction tests)",
-        "File to edit: lib/phases/phase_r_research.py (expose cache stats dict or call counter for testability, or read SPIRAL_CACHE_STATS env var)",
-        "Test command: uv run pytest tests/test_research_cache.py::test_cache_deduplication -v",
-        "Test command: uv run pytest tests/test_research_cache.py::test_lru_eviction -v",
-        "Mock the Gemini API call (patch the HTTP call or the research function) so tests are fast and offline; use a module-level call counter dict to track invocations"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": true,
-      "model": "haiku",
-      "_scopeCreep": true
-    },
-    {
-      "id": "US-1027",
-      "title": "Benchmark Phase R Research Cache Latency Savings (≥30% Target)",
-      "priority": "high",
-      "description": "Write a benchmark test that measures Phase R execution time with cache enabled (warm) versus a mocked uncached baseline and asserts at least 30% latency improvement for repeated queries. Results are printed to stdout so CI logs capture the savings.",
-      "acceptanceCriteria": [
-        "Test runs Phase R with 6 repeated queries with cache warm, then again with cache disabled; asserts cached_time <= uncached_time * 0.70",
-        "Benchmark prints cached_ms, uncached_ms, and pct_saved to stdout during the test run"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_research_cache_benchmark.py (new file — latency benchmark test)",
-        "File to edit: lib/phases/phase_r_research.py (add SPIRAL_RESEARCH_CACHE_ENABLED env-var toggle so cache can be disabled for the baseline run)",
-        "Test command: uv run pytest tests/test_research_cache_benchmark.py::test_cache_latency_savings -v -s",
-        "Use time.perf_counter() for timing; mock the underlying Gemini HTTP call with a fixed 50 ms asyncio.sleep or time.sleep to simulate realistic per-call latency, making the 30% threshold deterministic"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "medium",
-      "passes": true,
-      "model": "haiku",
-      "_phaseI": {
-        "diagnosisBlock": "## Current State\n\nLooking at the git status and prd.json, there are multiple high-priority incomplete stories. The first is **US-1027: Benchmark Phase R Research Cache Latency Savings (≥30% Target)**.\n\nThis story requires:\n1. Creating a new benchmark test that measures Phase R execution time with and without cache\n2. Adding an env-var toggle to disable cache in Phase R for baseline measurements\n3. Asserting ≥30% latency improvement for repeated queries\n4. Printing benchmark results to stdout\n\n## Problem Identified\n\nNeed to implement a latency benchmark test that validates the Phase R research cache provides at least 30% speedup on repeated queries by comparing cached vs uncached execution paths.\n\n## Planned Changes\n\n- **lib/phases/phase_r_research.py**: Add `SPIRAL_RESEARCH_CACHE_ENABLED` env-var toggle to allow disabling cache for baseline measurements\n- **tests/test_research_cache_benchmark.py** (new file): Write benchmark test with mocked Gemini calls (50ms each) that:\n  - Runs Phase R with 6 repeated queries twice (cache warm)\n  - Runs Phase R with cache disabled as baseline\n  - Asserts cached_time ≤ uncached_time * 0.70\n  - Prints cached_ms, uncached_ms, pct_saved to stdout\n\nLet me start by reading the current Phase R implementation:\nNow I'll create the benchmark test. First, let me check what test utilities already exist:\nPerfect! I have successfully implemented story **US-1027: Benchmark Phase R Research Cache Latency Savings (≥30% Target)**.\n\n## Implementation Summary"
-      }
-    },
-    {
       "id": "US-1028",
       "title": "Add find_orphan_commits() Function to lib/gen_changelog.py",
       "priority": "high",
@@ -96,8 +29,9 @@
       ],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-03-23T10:11:51Z"
     },
     {
       "id": "US-1029",
@@ -307,50 +241,71 @@
       "model": "haiku"
     },
     {
-      "id": "US-1024",
-      "title": "Integration Test: Haiku→Sonnet Escalation with results.tsv Validation",
-      "priority": "medium",
-      "description": "Add an integration test that injects a mock Claude CLI stub into PATH, causing Phase I retry logic to receive a token-limit error on the haiku attempt and succeed on sonnet. Verifies automatic model escalation and that both attempts are correctly recorded in results.tsv. Provides a regression guard for the escalation path without live API calls.",
+      "id": "US-1025",
+      "title": "Integration Test: Phase G SemVer Calculation Is Deterministic from results.tsv",
+      "priority": "high",
+      "description": "Validate that Phase G's semver bump calculation produces the same result across 3 consecutive calls given identical mocked results.tsv retry counts and complexity scores. Ensures the bump logic is pure and not affected by timestamps, ordering, or external state.",
       "acceptanceCriteria": [
-        "Mock Claude CLI stub (bash script in tmp bin dir, prepended to PATH) returns exit 1 with stderr 'token_limit_exceeded' on attempt 1 (haiku) and exit 0 on attempt 2 (sonnet)",
-        "After retry logic executes under test, the target story entry in prd.json has status='completed' and model='sonnet'",
-        "results.tsv contains exactly 2 rows for the story: haiku/failed/attempt=1 and sonnet/passed/attempt=2; sonnet row completion_tokens > 0",
-        "uv run pytest tests/test_phase_i_escalation.py -v exits with code 0 with no skipped tests"
+        "uv run pytest tests/test_phase_g_semver_determinism.py::test_deterministic_three_runs -v passes: invoking the semver calculation function 3 times with the same mocked results.tsv yields identical version strings each time",
+        "uv run pytest tests/test_phase_g_semver_determinism.py::test_minor_vs_patch_threshold -v passes: 2+ stories with retry_count>=3 produces minor bump; 0 such stories produces patch bump only"
       ],
       "technicalNotes": [
-        "File to edit: tests/test_phase_i_escalation.py (new file — pytest integration test using tmp_path fixture; write stub script, prepend to PATH via monkeypatch, invoke retry logic via subprocess)",
-        "File to edit: lib/impl/retry.sh (read only — locate haiku→sonnet escalation branch and results.tsv write call to know which env vars to set in test)",
-        "Stub script pattern: write a bash script counting invocations via a tmp counter file; invocation 1 exits 1 with error text, invocation 2 exits 0",
-        "Test command: uv run pytest tests/test_phase_i_escalation.py -v"
+        "File to edit: tests/test_phase_g_semver_determinism.py (new file — test_deterministic_three_runs, test_minor_vs_patch_threshold)",
+        "File to edit: lib/phases/g_deploy.sh or lib/phase_g.py (expose semver calculation as a callable/importable function for isolated testing)",
+        "Test command: uv run pytest tests/test_phase_g_semver_determinism.py -v --tb=short",
+        "Write results.tsv fixture as a tempfile with columns: story_id, retry_count, complexity; call calculation logic 3 times; assert all 3 outputs are equal"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "haiku",
+      "last_attempted": "2026-03-23T09:14:57Z",
+      "_scopeCreep": true
+    },
+    {
+      "id": "US-1026",
+      "title": "Test Phase R Research Cache Hit/Miss Counting and LRU Eviction",
+      "priority": "high",
+      "description": "Write integration tests that verify Phase R's deduplication cache correctly counts Gemini API calls vs cache hits, and enforces LRU eviction when the cache reaches its size limit. Validates functional correctness of the research cache without any performance measurement.",
+      "acceptanceCriteria": [
+        "Test submits 10 stories with 6 identical research queries; asserts cache_hit_count == 6 and gemini_api_call_count == 4",
+        "Test fills cache to 100 entries, adds entry #101, and asserts the oldest (LRU) entry is no longer present in the cache"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_research_cache.py (new file — cache hit/eviction tests)",
+        "File to edit: lib/phases/phase_r_research.py (expose cache stats dict or call counter for testability, or read SPIRAL_CACHE_STATS env var)",
+        "Test command: uv run pytest tests/test_research_cache.py::test_cache_deduplication -v",
+        "Test command: uv run pytest tests/test_research_cache.py::test_lru_eviction -v",
+        "Mock the Gemini API call (patch the HTTP call or the research function) so tests are fast and offline; use a module-level call counter dict to track invocations"
       ],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku"
+      "passes": true,
+      "model": "haiku",
+      "_scopeCreep": true
     },
     {
-      "id": "US-1018",
-      "title": "[E2E Test] Cross-Phase Schema Validation: Research → TestSynth → StoryValid",
-      "priority": "medium",
-      "description": "Write integration tests that run phases R, T, and S sequentially using fixture inputs and assert that each phase's JSON output matches the schema expected by the next phase. Validates the R→T→S data handoff introduced in US-644.",
+      "id": "US-1027",
+      "title": "Benchmark Phase R Research Cache Latency Savings (≥30% Target)",
+      "priority": "high",
+      "description": "Write a benchmark test that measures Phase R execution time with cache enabled (warm) versus a mocked uncached baseline and asserts at least 30% latency improvement for repeated queries. Results are printed to stdout so CI logs capture the savings.",
       "acceptanceCriteria": [
-        "Phase R produces _research_output.json with required keys (stories, sources, timestamp); assert with: uv run pytest tests/test_cross_phase_rts.py::test_research_output_schema -v",
-        "Phase T consumes _research_output.json and produces _test_stories_output.json with valid story objects; assert with: uv run pytest tests/test_cross_phase_rts.py::test_test_synth_output_schema -v",
-        "Phase S consumes _test_stories_output.json and produces _validated_stories.json with no schema errors; assert with: uv run pytest tests/test_cross_phase_rts.py::test_story_valid_output_schema -v",
-        "All three phase-handoff assertions pass together: uv run pytest tests/test_cross_phase_rts.py -v"
+        "Test runs Phase R with 6 repeated queries with cache warm, then again with cache disabled; asserts cached_time <= uncached_time * 0.70",
+        "Benchmark prints cached_ms, uncached_ms, and pct_saved to stdout during the test run"
       ],
       "technicalNotes": [
-        "File to edit: tests/test_cross_phase_rts.py (new file — phase R/T/S schema handoff tests)",
-        "File to edit: tests/fixtures/phase_outputs.py (new file — minimal valid fixture dicts for each phase output)",
-        "Test command: uv run pytest tests/test_cross_phase_rts.py -v",
-        "Use lib/prd_schema.py or jsonschema to validate output shapes; mock external API calls with pytest monkeypatch"
+        "File to edit: tests/test_research_cache_benchmark.py (new file — latency benchmark test)",
+        "File to edit: lib/phases/phase_r_research.py (add SPIRAL_RESEARCH_CACHE_ENABLED env-var toggle so cache can be disabled for the baseline run)",
+        "Test command: uv run pytest tests/test_research_cache_benchmark.py::test_cache_latency_savings -v -s",
+        "Use time.perf_counter() for timing; mock the underlying Gemini HTTP call with a fixed 50 ms asyncio.sleep or time.sleep to simulate realistic per-call latency, making the 30% threshold deterministic"
       ],
-      "dependencies": [
-        "US-644"
-      ],
+      "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "sonnet"
+      "passes": true,
+      "model": "haiku",
+      "_phaseI": {
+        "diagnosisBlock": "## Current State\n\nLooking at the git status and prd.json, there are multiple high-priority incomplete stories. The first is **US-1027: Benchmark Phase R Research Cache Latency Savings (≥30% Target)**.\n\nThis story requires:\n1. Creating a new benchmark test that measures Phase R execution time with and without cache\n2. Adding an env-var toggle to disable cache in Phase R for baseline measurements\n3. Asserting ≥30% latency improvement for repeated queries\n4. Printing benchmark results to stdout\n\n## Problem Identified\n\nNeed to implement a latency benchmark test that validates the Phase R research cache provides at least 30% speedup on repeated queries by comparing cached vs uncached execution paths.\n\n## Planned Changes\n\n- **lib/phases/phase_r_research.py**: Add `SPIRAL_RESEARCH_CACHE_ENABLED` env-var toggle to allow disabling cache for baseline measurements\n- **tests/test_research_cache_benchmark.py** (new file): Write benchmark test with mocked Gemini calls (50ms each) that:\n  - Runs Phase R with 6 repeated queries twice (cache warm)\n  - Runs Phase R with cache disabled as baseline\n  - Asserts cached_time ≤ uncached_time * 0.70\n  - Prints cached_ms, uncached_ms, pct_saved to stdout\n\nLet me start by reading the current Phase R implementation:\nNow I'll create the benchmark test. First, let me check what test utilities already exist:\nPerfect! I have successfully implemented story **US-1027: Benchmark Phase R Research Cache Latency Savings (≥30% Target)**.\n\n## Implementation Summary"
+      }
     },
     {
       "title": "Phase V: Functional Reachability Verifier - Confirm New Code is Wired into the Loop",
@@ -582,179 +537,6 @@
       "model": "sonnet",
       "last_attempted": "2026-03-22T12:45:01Z",
       "_failureReason": "oversized_diff"
-    },
-    {
-      "id": "US-1032",
-      "title": "Dashboard: Implement API Token Authentication Middleware",
-      "priority": "medium",
-      "description": "Add authentication layer to dashboard API endpoints to validate OAuth tokens and API keys before processing requests. Protects /api/dashboard/* and /ws/* endpoints from unauthorized access.",
-      "acceptanceCriteria": [
-        "Dashboard server validates Bearer token in Authorization header (via middleware) before routing to /api/dashboard/* endpoints",
-        "GET /api/dashboard/costs-by-project returns 401 Unauthorized if token is invalid or missing",
-        "WebSocket /ws/cost and /ws/alerts endpoints reject connections without valid token parameter (?token=xyz)"
-      ],
-      "technicalNotes": [
-        "File to create: lib/dashboard/auth_middleware.py with validate_token(token: str) -> bool function",
-        "File to edit: lib/dashboard/app.py (wire middleware before route handlers)",
-        "Test command: uv run pytest tests/test_dashboard_auth.py::test_unauthorized_request_401 -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": true,
-      "model": "haiku"
-    },
-    {
-      "id": "US-753",
-      "title": "Ralph Agent: Inject Phase V Test Failures into Implementation Context",
-      "priority": "medium",
-      "description": "Enhance Ralph's implementation prompt to include concrete test failure output from Phase V (pytest, playwright), giving the implementation agent error messages and stack traces to inform fixes.",
-      "acceptanceCriteria": [
-        "Ralph reads Phase V validation output (test logs) and extracts up to 3 top failure messages with error context",
-        "Ralph's generated prompt includes 'Recent test failures:' section before the task description, showing failure output inline",
-        "Integration test verifies that mock test output is correctly extracted and appears in Ralph's prompt string"
-      ],
-      "technicalNotes": [
-        "File to create: lib/ralph_context_builder.py with add_test_failures_to_context(phase_v_output: str) function",
-        "File to edit: lib/impl/retry.sh (call context builder before invoking ralph.sh)",
-        "Test command: uv run pytest tests/test_ralph_test_context.py::test_failing_tests_injected_in_prompt -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": true,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-754",
-      "title": "Integration Test: Cost Predictor Accuracy Validation Against Historical results.tsv",
-      "priority": "medium",
-      "description": "Validate that the KNN cost predictor CLI accurately estimates story costs by comparing predictions against actual results.tsv outcomes. Measures model quality via MAPE and flags retraining needs.",
-      "acceptanceCriteria": [
-        "Load historical results.tsv with 10+ completed stories; predict cost for each using cost-predictor CLI",
-        "Compare predicted vs actual tokens/cost; calculate MAPE (mean absolute percentage error) < 30%",
-        "If MAPE > 30%, integration test logs warning with suggestion to retrain model or adjust KNN parameters"
-      ],
-      "technicalNotes": [
-        "File to create: lib/cost_predictor_validator.py with validate_predictions(predictions, actuals) -> float (returns MAPE)",
-        "File to create: tests/test_cost_predictor_validation.py with fixtures for mock results.tsv data",
-        "Test command: uv run pytest tests/test_cost_predictor_validation.py::test_predictor_mape_within_threshold -v"
-      ],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": true,
-      "model": "sonnet"
-    },
-    {
-      "id": "US-746",
-      "title": "[Perf Test] Benchmark SPIRAL dashboard token/throughput metrics (US-460)",
-      "priority": "medium",
-      "description": "Write a performance benchmark test for the SPIRAL self-monitoring dashboard introduced in US-460. The test must capture a baseline for token burn rate and story throughput calculations, then assert that subsequent runs do not degrade more than 20% from that baseline.",
-      "acceptanceCriteria": [
-        "Running `uv run pytest tests/test_perf_us460.py -v` exits 0 and prints a baseline timing line",
-        "Test asserts elapsed time is within 120% of captured baseline (hardcoded constant in the test file)",
-        "Test is discoverable via `uv run pytest tests/ -k us_460 -v` and appears in the collected test list"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_perf_us460.py (create new file with test_dashboard_token_throughput_baseline)",
-        "Reference US-460 source files for what to import/call: .github/workflows/spiral.yml is the entry point; the Python logic under test lives in lib/ (dashboard helpers, if any)",
-        "Test command: uv run pytest tests/test_perf_us460.py -v",
-        "If no importable Python dashboard module exists yet, benchmark the CLI status command: `time python main.py status` and assert wall-clock < 5s as the threshold",
-        "Baseline constant should be defined as BASELINE_MS = 2000 at the top of the test file so it is easy to update"
-      ],
-      "dependencies": [
-        "US-460"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "tags": [
-        "performance",
-        "auto-generated"
-      ],
-      "model": "haiku"
-    },
-    {
-      "id": "US-755",
-      "title": "[Test] Episodic Memory Pattern Store - Pytest Coverage for US-596",
-      "priority": "medium",
-      "description": "Write pytest tests covering the episodic memory backend introduced in US-596. The feature stores implementation patterns from Ralph retry attempts and retrieves similar ones via similarity search. Tests must verify store, retrieve, and similarity-threshold behaviour using the existing pytest suite (no browser required — this is a pure Python backend feature).",
-      "acceptanceCriteria": [
-        "uv run pytest tests/test_episodic_memory.py -v exits 0 with at least one test covering pattern storage (store then retrieve round-trip)",
-        "uv run pytest tests/test_episodic_memory.py -v covers similarity search: a stored pattern is returned when queried with semantically similar text, absent when below threshold",
-        "uv run pytest tests/test_episodic_memory.py -v covers empty-store edge case: retrieval on an empty store returns an empty list without raising"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_episodic_memory.py (add test_store_and_retrieve, test_similarity_threshold, test_empty_store)",
-        "Test command: uv run pytest tests/test_episodic_memory.py -v --tb=short",
-        "US-596 source: the episodic memory module likely lives in lib/ (grep for 'episodic' or 'pattern_store' to locate the exact path before writing tests)",
-        "Do NOT use Playwright or any browser automation — this is a CLI/Python backend project"
-      ],
-      "dependencies": [
-        "US-596"
-      ],
-      "estimatedComplexity": "small",
-      "passes": true,
-      "tags": [
-        "e2e",
-        "auto-generated"
-      ],
-      "model": "haiku"
-    },
-    {
-      "id": "US-756",
-      "title": "Regression Test: CLI spiral trace-dependencies resolves federated deps",
-      "priority": "medium",
-      "description": "Write a pytest regression test that guards the observable behaviour of US-675: the `spiral trace-dependencies <story-id>` CLI command. The test must verify recursive dependency resolution, circular-dependency detection, and sub-project boundary markers so any future breakage causes an immediate CI failure.",
-      "acceptanceCriteria": [
-        "Running `uv run pytest tests/test_us675_trace_dependencies.py -v` exits 0 with all tests passing",
-        "`trace-dependencies US-001` returns a non-empty dependency chain that includes file paths",
-        "`trace-dependencies` with a circular dependency in the fixture data exits non-zero or raises a clear error",
-        "Removing or stubbing out the trace-dependencies implementation causes at least one test in the file to fail"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_us675_trace_dependencies.py (create new file with regression fixtures)",
-        "File to edit: lib/spiral/cli.py or spiral.sh (locate trace-dependencies entry point to understand invokable surface)",
-        "Test command: uv run pytest tests/test_us675_trace_dependencies.py -v",
-        "Use subprocess or direct function import to invoke the command; prefer function-level import if the logic lives in a Python module",
-        "Create minimal fixture data (2-3 stories with explicit dependency links) inside the test file — no external fixture files needed"
-      ],
-      "dependencies": [
-        "US-675"
-      ],
-      "estimatedComplexity": "small",
-      "passes": true,
-      "tags": [
-        "regression",
-        "auto-generated"
-      ],
-      "model": "haiku"
-    },
-    {
-      "id": "US-757",
-      "title": "[E2E Test] Verify CI workflow changes from US-460 are valid and lint-free",
-      "priority": "medium",
-      "description": "Write integration tests that validate the CI workflow YAML files introduced or modified by US-460 (lint-shell action, setup-uv action, ci.yml, release.yml, spiral.yml). These tests assert structural correctness of the workflow configs and that required jobs/steps are present. There is no browser UI to navigate; US-460 touched GitHub Actions YAML files only.",
-      "acceptanceCriteria": [
-        "uv run pytest tests/test_us460_workflows.py -v exits 0 with all tests passing",
-        "Test asserts .github/workflows/ci.yml contains a 'lint-shell' job or step reference",
-        "Test asserts .github/actions/setup-uv/action.yml has a valid 'runs' section with 'using' key",
-        "Test asserts .github/workflows/spiral.yml exists and is parseable YAML"
-      ],
-      "technicalNotes": [
-        "File to edit: tests/test_us460_workflows.py (create new — load each YAML with PyYAML and assert on required keys)",
-        "File to edit: tests/test_batch_validate.py (add a marker test `test_us460_placeholder` so `-k us_460` resolves)",
-        "Test command: uv run pytest tests/test_us460_workflows.py -v",
-        "Use `import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))` pattern — no browser or Playwright needed",
-        "Do NOT write a Playwright/browser test; the source feature is CI config, not a web UI"
-      ],
-      "dependencies": [
-        "US-460"
-      ],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "tags": [
-        "e2e",
-        "auto-generated"
-      ],
-      "model": "haiku"
     },
     {
       "id": "US-1033",
@@ -4090,6 +3872,66 @@
       "last_attempted": "2026-03-22T02:24:59Z"
     },
     {
+      "id": "US-1032",
+      "title": "Dashboard: Implement API Token Authentication Middleware",
+      "priority": "medium",
+      "description": "Add authentication layer to dashboard API endpoints to validate OAuth tokens and API keys before processing requests. Protects /api/dashboard/* and /ws/* endpoints from unauthorized access.",
+      "acceptanceCriteria": [
+        "Dashboard server validates Bearer token in Authorization header (via middleware) before routing to /api/dashboard/* endpoints",
+        "GET /api/dashboard/costs-by-project returns 401 Unauthorized if token is invalid or missing",
+        "WebSocket /ws/cost and /ws/alerts endpoints reject connections without valid token parameter (?token=xyz)"
+      ],
+      "technicalNotes": [
+        "File to create: lib/dashboard/auth_middleware.py with validate_token(token: str) -> bool function",
+        "File to edit: lib/dashboard/app.py (wire middleware before route handlers)",
+        "Test command: uv run pytest tests/test_dashboard_auth.py::test_unauthorized_request_401 -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "haiku"
+    },
+    {
+      "id": "US-753",
+      "title": "Ralph Agent: Inject Phase V Test Failures into Implementation Context",
+      "priority": "medium",
+      "description": "Enhance Ralph's implementation prompt to include concrete test failure output from Phase V (pytest, playwright), giving the implementation agent error messages and stack traces to inform fixes.",
+      "acceptanceCriteria": [
+        "Ralph reads Phase V validation output (test logs) and extracts up to 3 top failure messages with error context",
+        "Ralph's generated prompt includes 'Recent test failures:' section before the task description, showing failure output inline",
+        "Integration test verifies that mock test output is correctly extracted and appears in Ralph's prompt string"
+      ],
+      "technicalNotes": [
+        "File to create: lib/ralph_context_builder.py with add_test_failures_to_context(phase_v_output: str) function",
+        "File to edit: lib/impl/retry.sh (call context builder before invoking ralph.sh)",
+        "Test command: uv run pytest tests/test_ralph_test_context.py::test_failing_tests_injected_in_prompt -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "sonnet"
+    },
+    {
+      "id": "US-754",
+      "title": "Integration Test: Cost Predictor Accuracy Validation Against Historical results.tsv",
+      "priority": "medium",
+      "description": "Validate that the KNN cost predictor CLI accurately estimates story costs by comparing predictions against actual results.tsv outcomes. Measures model quality via MAPE and flags retraining needs.",
+      "acceptanceCriteria": [
+        "Load historical results.tsv with 10+ completed stories; predict cost for each using cost-predictor CLI",
+        "Compare predicted vs actual tokens/cost; calculate MAPE (mean absolute percentage error) < 30%",
+        "If MAPE > 30%, integration test logs warning with suggestion to retrain model or adjust KNN parameters"
+      ],
+      "technicalNotes": [
+        "File to create: lib/cost_predictor_validator.py with validate_predictions(predictions, actuals) -> float (returns MAPE)",
+        "File to create: tests/test_cost_predictor_validation.py with fixtures for mock results.tsv data",
+        "Test command: uv run pytest tests/test_cost_predictor_validation.py::test_predictor_mape_within_threshold -v"
+      ],
+      "dependencies": [],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "model": "sonnet"
+    },
+    {
       "id": "US-773",
       "title": "Phase R: Semantic Query Dedup - Skip Research When Query Matches Prior Cache",
       "priority": "medium",
@@ -5614,6 +5456,62 @@
       "_phaseI": {
         "diagnosisBlock": "## Current State\n\n`results.tsv` exists with 20 columns but lacks \"phase\", \"sub_project\", \"cost_usd\", and \"tokens_used\" columns. The federated_status.py module already demonstrates how to calculate tokens (cache_read + cache_creation) and cost from models.\n\n## Problem Identified\n\nStory US-713 requires a new CLI command `spiral federated-cost-report` that groups results.tsv by sub_project and phase, summing costs. Since results.tsv doesn't yet have phase and sub_project columns, the implementation must handle missing columns gracefully (treating missing sub_project as \"default\", and computing phase from context if needed).\n\n## Planned Changes\n\n1. **lib/cli/__init__.py** — Create package init\n2. **lib/cli/federated_cost_report.py** — New module with:\n   - `read_results_tsv()` — Load CSV with error handling\n   - `calculate_tokens_and_cost()` — Compute from existing columns using federated_status.py patterns\n   - `aggregate_by_group()` — Group by (sub_project, phase) and sum\n   - `format_markdown_table()` — Output markdown table sorted by total_cost desc\n   - Handle missing columns gracefully (default sub_project=\"default\", phase inferred or \"unknown\")\n\n3. **main.py** — Add `federated-cost-report` CLI command handler\n4. **tests/test_cli_federated_cost.py** — Test suite covering: aggregation, cost calculation, markdown output, missing column handling\n\n---\n\nNow implementing:\nI see the issue. Let me fix the token calculation to handle invalid values more gracefully by processing each token column separately:"
       }
+    },
+    {
+      "id": "US-755",
+      "title": "[Test] Episodic Memory Pattern Store - Pytest Coverage for US-596",
+      "priority": "medium",
+      "description": "Write pytest tests covering the episodic memory backend introduced in US-596. The feature stores implementation patterns from Ralph retry attempts and retrieves similar ones via similarity search. Tests must verify store, retrieve, and similarity-threshold behaviour using the existing pytest suite (no browser required — this is a pure Python backend feature).",
+      "acceptanceCriteria": [
+        "uv run pytest tests/test_episodic_memory.py -v exits 0 with at least one test covering pattern storage (store then retrieve round-trip)",
+        "uv run pytest tests/test_episodic_memory.py -v covers similarity search: a stored pattern is returned when queried with semantically similar text, absent when below threshold",
+        "uv run pytest tests/test_episodic_memory.py -v covers empty-store edge case: retrieval on an empty store returns an empty list without raising"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_episodic_memory.py (add test_store_and_retrieve, test_similarity_threshold, test_empty_store)",
+        "Test command: uv run pytest tests/test_episodic_memory.py -v --tb=short",
+        "US-596 source: the episodic memory module likely lives in lib/ (grep for 'episodic' or 'pattern_store' to locate the exact path before writing tests)",
+        "Do NOT use Playwright or any browser automation — this is a CLI/Python backend project"
+      ],
+      "dependencies": [
+        "US-596"
+      ],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "tags": [
+        "e2e",
+        "auto-generated"
+      ],
+      "model": "haiku"
+    },
+    {
+      "id": "US-756",
+      "title": "Regression Test: CLI spiral trace-dependencies resolves federated deps",
+      "priority": "medium",
+      "description": "Write a pytest regression test that guards the observable behaviour of US-675: the `spiral trace-dependencies <story-id>` CLI command. The test must verify recursive dependency resolution, circular-dependency detection, and sub-project boundary markers so any future breakage causes an immediate CI failure.",
+      "acceptanceCriteria": [
+        "Running `uv run pytest tests/test_us675_trace_dependencies.py -v` exits 0 with all tests passing",
+        "`trace-dependencies US-001` returns a non-empty dependency chain that includes file paths",
+        "`trace-dependencies` with a circular dependency in the fixture data exits non-zero or raises a clear error",
+        "Removing or stubbing out the trace-dependencies implementation causes at least one test in the file to fail"
+      ],
+      "technicalNotes": [
+        "File to edit: tests/test_us675_trace_dependencies.py (create new file with regression fixtures)",
+        "File to edit: lib/spiral/cli.py or spiral.sh (locate trace-dependencies entry point to understand invokable surface)",
+        "Test command: uv run pytest tests/test_us675_trace_dependencies.py -v",
+        "Use subprocess or direct function import to invoke the command; prefer function-level import if the logic lives in a Python module",
+        "Create minimal fixture data (2-3 stories with explicit dependency links) inside the test file — no external fixture files needed"
+      ],
+      "dependencies": [
+        "US-675"
+      ],
+      "estimatedComplexity": "small",
+      "passes": true,
+      "tags": [
+        "regression",
+        "auto-generated"
+      ],
+      "model": "haiku"
     },
     {
       "id": "US-1036",

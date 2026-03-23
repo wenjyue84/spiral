@@ -13,9 +13,7 @@ import sys
 import time
 from pathlib import Path
 from typing import Any
-from unittest.mock import patch, MagicMock
-
-import pytest
+from unittest.mock import patch
 
 # Add lib/ to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib", "research"))
@@ -23,7 +21,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib", "researc
 from research_cache import (
     get_cached_result,
     record_query_result,
-    CachedQuery,
 )
 
 
@@ -137,9 +134,9 @@ class TestCacheLatencySavings:
         print("=" * 70)
 
         # AC1: Assert cached_time <= uncached_time * 0.70 (≥30% improvement)
-        assert (
-            cached_time <= uncached_time * 0.70
-        ), f"Cache latency improvement {pct_saved:.2f}% does not meet 30% target. cached_ms={cached_ms:.2f}, uncached_ms={uncached_ms:.2f}"
+        assert cached_time <= uncached_time * 0.70, (
+            f"Cache latency improvement {pct_saved:.2f}% does not meet 30% target. cached_ms={cached_ms:.2f}, uncached_ms={uncached_ms:.2f}"
+        )
 
         # AC2: Verify benchmark results are printed to stdout (pytest -s captures them)
         assert cached_ms > 0, "Cached run should have measurable latency"

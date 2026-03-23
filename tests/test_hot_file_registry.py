@@ -16,7 +16,6 @@ from lib.prd.hot_file_registry import (
     update_registry,
 )
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -95,7 +94,9 @@ class TestScanConflictEvents:
 
     def test_malformed_lines_skipped(self, scratch: Path) -> None:
         fpath = scratch / "events.jsonl"
-        fpath.write_text('not json\n{"event":"merge_conflict_detected","conflictingFiles":["a.py"]}\n', encoding="utf-8")
+        fpath.write_text(
+            'not json\n{"event":"merge_conflict_detected","conflictingFiles":["a.py"]}\n', encoding="utf-8"
+        )
         conflicts = scan_conflict_events(str(fpath))
         assert len(conflicts) == 1
 

@@ -181,9 +181,7 @@ class TestCacheDeduplication:
         # Process each query
         for i, query in enumerate(queries):
             # Check if query is cached
-            is_cached, cached_result = get_cached_result(
-                query, cache_path, similarity_threshold=0.90
-            )
+            is_cached, cached_result = get_cached_result(query, cache_path, similarity_threshold=0.90)
 
             if is_cached:
                 # Cache hit: reuse result without API call
@@ -204,9 +202,7 @@ class TestCacheDeduplication:
 
         # Verify deduplication: 6 identical queries should give 5 cache hits + 5 API calls
         assert cache_hit_count == 5, f"Expected 5 cache hits, got {cache_hit_count}"
-        assert (
-            api_call_count == 5
-        ), f"Expected 5 API calls, got {api_call_count}"  # 5 unique queries
+        assert api_call_count == 5, f"Expected 5 API calls, got {api_call_count}"  # 5 unique queries
 
 
 class TestLRUEviction:
@@ -222,8 +218,9 @@ class TestLRUEviction:
         4. Save with max_cache_size=100
         5. Verify oldest (query #0) is gone, newest (query #100) is present
         """
-        from research_cache import CachedQuery, save_research_cache
         import time
+
+        from research_cache import CachedQuery, save_research_cache
 
         cache_path = tmp_path / "research_cache.json"
 
@@ -247,9 +244,7 @@ class TestLRUEviction:
             time.sleep(0.001)
 
         # Save cache at capacity (100 entries)
-        save_research_cache(
-            cached_queries, cache_path, ttl_iterations=5, current_iteration=0, max_cache_size=100
-        )
+        save_research_cache(cached_queries, cache_path, ttl_iterations=5, current_iteration=0, max_cache_size=100)
 
         # Verify 100 entries are saved
         loaded = load_research_cache(cache_path)
@@ -275,9 +270,7 @@ class TestLRUEviction:
         cached_queries.append(new_query)
 
         # Save with LRU eviction (max_cache_size=100)
-        save_research_cache(
-            cached_queries, cache_path, ttl_iterations=5, current_iteration=0, max_cache_size=100
-        )
+        save_research_cache(cached_queries, cache_path, ttl_iterations=5, current_iteration=0, max_cache_size=100)
 
         # Verify 100 entries still exist (oldest was evicted)
         loaded_after = load_research_cache(cache_path)

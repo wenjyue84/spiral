@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import csv
 from pathlib import Path
-from typing import Any
 
 
 def _parse_version(version_str: str) -> tuple[int, int, int]:

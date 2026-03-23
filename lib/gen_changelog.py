@@ -13,8 +13,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-# Regex pattern matching story ID prefixes US-NNN or UT-NNN
-STORY_ID_PATTERN = re.compile(r"(US|UT)-\d+")
+# Regex pattern matching story ID prefixes US-NNN or UT-NNN (case-insensitive)
+STORY_ID_PATTERN = re.compile(r"(US|UT)-\d+", re.IGNORECASE)
 
 
 def validate_git_cliff(cliff_bin: str) -> bool:
@@ -65,49 +65,24 @@ def generate_changelog(cliff_bin: str, cliff_config: str, output_file: str) -> b
         return False
 
 
-def find_orphan_commits(repo_path: str) -> list[dict[str, str]]:
-    """Scan git log for commits without a story ID (US-NNN or UT-NNN).
+def find_orphan_commits(commits: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Filter commits to return only those without a story ID (US-NNN or UT-NNN).
 
-    Returns a list of dicts with 'hash' and 'subject' keys for each orphan.
+    Args:
+        commits: List of commit dicts with keys: commit, message, date.
+
+    Returns:
+        List of dicts with keys: commit, message, date, reason='no-story-id'
+        for commits lacking a story ID tag.
     """
     orphans: list[dict[str, str]] = []
-    try:
-        log_result = subprocess.run(
-            ["git", "log", "--format=%H %s", "--no-merges"],
-            cwd=repo_path,
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-        if log_result.returncode != 0:
-            return orphans
-
-        for line in log_result.stdout.strip().split("\n"):
-            if not line.strip():
-                continue
-            parts = line.split(" ", 1)
-            if len(parts) < 2:
-                continue
-            commit_hash, subject = parts[0], parts[1]
-
-            # Get full commit message (subject + body)
-            body_result = subprocess.run(
-                ["git", "log", "-1", "--format=%B", commit_hash],
-                cwd=repo_path,
-                capture_output=True,
-                text=True,
-                timeout=10,
-            )
-            full_message = body_result.stdout if body_result.returncode == 0 else ""
-
-            if not STORY_ID_PATTERN.search(full_message):
-                # Truncate hash to short form for display
-                short_hash = commit_hash[:7]
-                orphans.append({"hash": short_hash, "subject": subject})
-
-    except (subprocess.TimeoutExpired, OSError):
-        pass
-
+    for commit_dict in commits:
+        message = commit_dict.get("message", "")
+        if not STORY_ID_PATTERN.search(message):
+            # Include all original keys plus reason
+            orphan: dict[str, str] = dict(commit_dict)
+            orphan["reason"] = "no-story-id"
+            orphans.append(orphan)
     return orphans
 
 
@@ -117,7 +92,9 @@ def write_orphan_warnings(orphans: list[dict[str, str]], warnings_file: str) -> 
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         for orphan in orphans:
-            f.write(f"{orphan['hash']} {orphan['subject']}\n")
+            commit_hash = orphan.get("commit", "")
+            message = orphan.get("message", "")
+            f.write(f"{commit_hash} {message}\n")
 
 
 def run(
@@ -160,13 +137,50 @@ def run(
 
     print(f"[phase-g] CHANGELOG.md generated at {output_file}")
 
-    # Detect orphan commits
-    orphans = find_orphan_commits(spiral_home)
+    # Detect orphan commits by querying git log
+    try:
+        log_result = subprocess.run(
+            ["git", "log", "--format=%H%n%s%n%ai", "--no-merges"],
+            cwd=spiral_home,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if log_result.returncode != 0:
+            print("[phase-g] WARNING: Could not query git log", file=sys.stderr)
+            return 0
 
-    if orphans:
-        write_orphan_warnings(orphans, warnings_file)
-        print(f"[phase-g] WARNING: {len(orphans)} orphan commits (no story ID) logged to {warnings_file}")
-    else:
-        print("[phase-g] All commits have story IDs")
+        # Parse git log output into commit dicts
+        commits: list[dict[str, str]] = []
+        lines = log_result.stdout.strip().split("\n")
+        i = 0
+        while i < len(lines):
+            if i + 2 < len(lines):
+                commit_hash = lines[i].strip()
+                message = lines[i + 1].strip()
+                date = lines[i + 2].strip()
+                if commit_hash and message:
+                    commits.append(
+                        {
+                            "commit": commit_hash[:7],
+                            "message": message,
+                            "date": date,
+                        }
+                    )
+                i += 3
+            else:
+                break
+
+        # Filter to find orphans
+        orphans = find_orphan_commits(commits)
+
+        if orphans:
+            write_orphan_warnings(orphans, warnings_file)
+            print(f"[phase-g] WARNING: {len(orphans)} orphan commits (no story ID) logged to {warnings_file}")
+        else:
+            print("[phase-g] All commits have story IDs")
+
+    except (subprocess.TimeoutExpired, OSError) as exc:
+        print(f"[phase-g] ERROR: Could not query git log: {exc}", file=sys.stderr)
 
     return 0

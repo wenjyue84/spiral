@@ -240,7 +240,9 @@ def main() -> int:
     parser.add_argument("--workers", type=int, default=0, help="Number of workers")
     parser.add_argument("--outdir", default="", help="Output directory for worker prd files")
     parser.add_argument("--federated", action="store_true", help="Enable federated sub_project-aware partitioning")
-    parser.add_argument("--hot-files-registry", default="", help="Path to .spiral/hot_files.json for hot-file co-location")
+    parser.add_argument(
+        "--hot-files-registry", default="", help="Path to .spiral/hot_files.json for hot-file co-location"
+    )
     parser.add_argument("--hot-files-threshold", type=int, default=2, help="Min conflict weight to flag as hot")
 
     # Query modes

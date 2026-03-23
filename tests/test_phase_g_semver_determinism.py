@@ -10,7 +10,6 @@ import csv
 import os
 import sys
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 
