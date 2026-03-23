@@ -285,3 +285,19 @@ Diff size: 119 insertions(+), 496 deletions(-) — under 400 limit ✓
 ### Gotchas
 - Always add `from datetime import datetime, timezone` to api.py module-level imports when using datetime in endpoint functions
 - The PLC0415 noqa comment suppresses ruff's C0415 (import-outside-toplevel) for the lazy import inside the endpoint
+
+## Iteration - Story: US-1057 Federated prd.json Schema Validator with Cross-Project Duplicate Detection
+
+### What was implemented
+- lib/federated_schema_validator.py: detect_duplicates(), validate_namespace_prefixes(), validate(), main() CLI entry
+- tests/test_federated_schema_validator.py: 11 tests covering all 3 ACs (all pass)
+- main.py: validate-federated-schema subparser + elif handler + cmd_validate_federated_schema()
+
+### Patterns discovered
+- Namespace rules inferred from prd_dict["subProjects"] list, supporting both {name, namespace_prefix} dicts and plain strings
+- main.py CLI commands use sys.path.insert + lazy import pattern for lib modules
+- spiral_events.jsonl had a merge conflict from stashed changes; resolved by keeping both sides
+
+### Gotchas
+- Committing with unresolved conflicts (spiral_events.jsonl) blocks git commit; must resolve first
+- mypy --strict passes cleanly for the new module with `dict[str, str] | None` type annotation
