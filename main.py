@@ -2663,6 +2663,78 @@ def cmd_validate_commits(args) -> None:
     sys.exit(1 if result["orphans"] else 0)
 
 
+def cmd_show_ac_results(args: argparse.Namespace) -> None:
+    """Display per-AC verification results (US-1005).
+
+    Usage: spiral show-ac-results <story_id> [--results results.tsv] [--format json|table]
+    """
+    story_id: str = getattr(args, "story_id", "")
+    if not story_id:
+        print("Error: story_id is required", file=sys.stderr)
+        sys.exit(1)
+
+    # Load prd.json to get the story
+    try:
+        prd_path = Path("prd.json")
+        with open(prd_path, encoding="utf-8") as f:
+            prd = json.load(f)
+    except (json.JSONDecodeError, FileNotFoundError) as e:
+        print(f"Error loading prd.json: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Find the story
+    story = None
+    for s in prd.get("userStories", []):
+        if s.get("id") == story_id:
+            story = s
+            break
+
+    if not story:
+        print(f"Error: Story {story_id} not found in prd.json", file=sys.stderr)
+        sys.exit(1)
+
+    # Get AC verification results from story metadata
+    ac_verification = story.get("_acVerification", {})
+    output_format = getattr(args, "format", "table")
+
+    if output_format == "json":
+        print(json.dumps(ac_verification, indent=2))
+    else:
+        # Table format
+        total = ac_verification.get("total", 0)
+        passed = ac_verification.get("passed", 0)
+        failed = ac_verification.get("failed", 0)
+        skipped = ac_verification.get("skipped", 0)
+        details = ac_verification.get("details", [])
+
+        print(f"\n{story_id} — AC Verification Results")
+        print("=" * 60)
+        print(f"Total:   {total}")
+        print(f"Passed:  {passed}")
+        print(f"Failed:  {failed}")
+        print(f"Skipped: {skipped}")
+        print()
+
+        if details:
+            for detail in details:
+                idx = detail.get("index", -1)
+                assertion_type = detail.get("type", "unknown")
+                status = detail.get("status", "unknown")
+                raw_ac = detail.get("raw_ac", "")[:80]
+
+                status_symbol = {"passed": "✓", "failed": "✗", "skipped": "⊘", "timeout": "⏱"}[
+                    status
+                ]
+                print(
+                    f"  [{idx}] {status_symbol} {assertion_type:15} {raw_ac}"
+                )
+
+                if status in ("failed", "timeout"):
+                    stderr = detail.get("stderr", "")
+                    if stderr:
+                        print(f"        Error: {stderr[:60]}")
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="spiral",
@@ -3165,6 +3237,23 @@ def main():
         default=5,
         metavar="N",
         help="Number of slowest stories to display (default: 5)",
+    )
+
+    # ── show-ac-results subcommand (US-1005) ──────────────────────────────────────
+    ac_results_parser = subparsers.add_parser(
+        "show-ac-results",
+        help="Display per-AC verification results (US-1005)",
+    )
+    ac_results_parser.add_argument(
+        "story_id",
+        metavar="STORY_ID",
+        help="Story ID to display AC results for (e.g. US-1005)",
+    )
+    ac_results_parser.add_argument(
+        "--format",
+        choices=["json", "table"],
+        default="table",
+        help="Output format: json or table (default: table)",
     )
 
     # ── replay subcommand (US-539) ───────────────────────────────────────────────
@@ -3918,6 +4007,8 @@ def main():
         cmd_show_blockers(args)
     elif args.command == "show-slowest-stories":
         cmd_show_slowest_stories(args)
+    elif args.command == "show-ac-results":
+        cmd_show_ac_results(args)
     elif args.command == "replay":
         cmd_replay(args)
     elif args.command == "analyze-batch-potential":

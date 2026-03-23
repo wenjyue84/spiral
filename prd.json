@@ -5657,7 +5657,46 @@
       "id": "US-1005",
       "passes": false,
       "model": "haiku",
-      "last_attempted": "2026-03-23T01:10:22Z"
+      "last_attempted": "2026-03-23T01:10:22Z",
+      "_acVerification": {
+        "story_id": "US-1005",
+        "total": 3,
+        "passed": 2,
+        "failed": 1,
+        "skipped": 0,
+        "details": [
+          {
+            "index": 0,
+            "type": "exit_code",
+            "raw_ac": "exits with 0",
+            "command": "exit 0",
+            "status": "passed",
+            "return_code": 0,
+            "stdout": "",
+            "stderr": ""
+          },
+          {
+            "index": 1,
+            "type": "exit_code",
+            "raw_ac": "exits with 1",
+            "command": "exit 1",
+            "status": "failed",
+            "return_code": 1,
+            "stdout": "",
+            "stderr": ""
+          },
+          {
+            "index": 2,
+            "type": "file_exists",
+            "raw_ac": "file exists",
+            "command": "test -f /etc/hosts",
+            "status": "passed",
+            "return_code": 0,
+            "stdout": "",
+            "stderr": ""
+          }
+        ]
+      }
     },
     {
       "title": "Phase V: Dead Feature Detector - Find Unreachable New Code After Implementation",

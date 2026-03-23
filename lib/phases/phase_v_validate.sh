@@ -185,6 +185,58 @@ run_phase_validate() {
       (cd "$REPO_ROOT" && eval "$_EFFECTIVE_VALIDATE_CMD" 2>&1) || _VALIDATE_EXIT=$?
     fi
 
+    # ── Optional: AC Verification (US-1005) ────────────────────────────────────
+    # After pytest passes, run AC verification on extracted assertions.
+    # Only runs if SPIRAL_AC_VERIFY=true and pytest passed.
+    if [[ "${SPIRAL_AC_VERIFY:-true}" == "true" && "$_VALIDATE_EXIT" -eq 0 ]]; then
+      echo "  [V] AC Verification: checking extracted acceptance criteria..."
+
+      # For each newly passed story, run AC verification if assertions exist
+      _AC_VERIFY_FAILED=0
+      mapfile -t _PASSED_STORIES < <(
+        "$JQ" -r '.userStories[] | select(.passes == true) | .id' "$PRD_FILE" 2>/dev/null || true
+      ) || true
+
+      for _story_id in "${_PASSED_STORIES[@]}"; do
+        _AC_CHECKS_FILE="$SCRATCH_DIR/ac_checks/${_story_id}.json"
+        if [[ -f "$_AC_CHECKS_FILE" ]]; then
+          # Run AC verification for this story
+          _AC_RESULTS=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/ac_verification_runner.py" \
+            --story-id "$_story_id" \
+            --assertions-file "$_AC_CHECKS_FILE" \
+            --timeout 30 2>&1 || echo '{"error":"runner failed"}')
+
+          # Parse results
+          _AC_PASSED=$(echo "$_AC_RESULTS" | "$JQ" '.passed // 0' 2>/dev/null || echo 0)
+          _AC_FAILED=$(echo "$_AC_RESULTS" | "$JQ" '.failed // 0' 2>/dev/null || echo 0)
+          _AC_SKIPPED=$(echo "$_AC_RESULTS" | "$JQ" '.skipped // 0' 2>/dev/null || echo 0)
+          _AC_TOTAL=$(echo "$_AC_RESULTS" | "$JQ" '.total // 0' 2>/dev/null || echo 0)
+
+          # Update story with AC verification results
+          if [[ "$_AC_TOTAL" -gt 0 ]]; then
+            "$JQ" --arg id "$_story_id" \
+              --argjson results "$_AC_RESULTS" \
+              '(.userStories[] | select(.id == $id) | ._acVerification) = $results' \
+              "$PRD_FILE" >"$PRD_FILE.tmp" 2>/dev/null && mv "$PRD_FILE.tmp" "$PRD_FILE" || true
+          fi
+
+          # Determine if AC verification failed
+          if [[ "$_AC_FAILED" -gt 0 && "$_AC_PASSED" -eq 0 ]]; then
+            # Zero assertions passed — story fails
+            echo "  [V] AC FAIL: $_story_id — $_AC_FAILED/$_AC_TOTAL assertions failed, 0 passed"
+            _AC_VERIFY_FAILED=1
+            _VALIDATE_EXIT=1
+          elif [[ "$_AC_FAILED" -gt 0 && "$_AC_PASSED" -gt 0 ]]; then
+            # Mixed results — warn but allow
+            echo "  [V] AC WARN: $_story_id — $_AC_PASSED/$_AC_TOTAL passed, $_AC_FAILED failed (mixed results allowed)"
+          elif [[ "$_AC_PASSED" -gt 0 ]]; then
+            # All assertions passed
+            echo "  [V] AC OK: $_story_id — $_AC_PASSED/$_AC_TOTAL assertions passed"
+          fi
+        fi
+      done
+    fi
+
     # Print summary from the freshest report
     "$SPIRAL_PYTHON" - <<PYEOF
 import os, json, sys
