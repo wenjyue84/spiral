@@ -74,3 +74,25 @@ This is a standard Python WebSocket task, not a Frappe-specific implementation.
 ### Gotchas
 - Files were already created in a prior session but never committed or marked passes=true
 - prd.json must be read with encoding='utf-8' on Windows (not default cp1252)
+
+## Iteration - Story: US-1045 Dashboard: Story Retry Exhaustion Analyzer
+
+### What was implemented
+- lib/stuck_story_analyzer.py already existed from attempt 1 with correct logic (StuckStory dataclass, analyze_exhaustion function)
+- All 11 unit tests already passed from attempt 1
+- Missing piece: the API endpoint was not in lib/dashboard/api.py (attempt 1 left a .rej file)
+- Added GET /api/dashboard/stuck-stories endpoint to lib/dashboard/api.py (before __all__ line)
+- Created spiral-ui/src/components/analytics/StuckStoriesPanel.tsx — stuck story table with 'Suggest Decomposition' button
+- Exported StuckStoriesPanel from analytics/index.ts
+- Added <StuckStoriesPanel /> to AnalyticsTab.tsx (TIER 1 section)
+
+### Patterns discovered
+- The .rej file in lib/dashboard/ indicated patch failure from attempt 1 — always check for .rej files as symptoms of failed patch attempts
+- System reminder notifications showing "file modified by linter" are misleading — they show context not deletions; verify with grep before re-editing
+- lib/dashboard/api.py registers routes at module load time; test by importing and checking app.routes
+- StuckStory dataclass (not dict) is returned by analyze_exhaustion; API endpoint converts to dict for JSON serialization
+- TypeScript: StuckStoriesPanel fetches /api/dashboard/stuck-stories directly (self-contained), no props needed
+
+### Gotchas
+- Don't verify edits by checking system reminder "changed" sections — use grep or direct python check instead
+- The route order in api.py matters: add before __all__ line

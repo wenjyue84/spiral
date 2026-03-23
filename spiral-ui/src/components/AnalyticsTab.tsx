@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { AgentTelemetryTable, PhaseTimingBars, StoriesListAccordion, RecentActivityFeed, CollapsibleSection, FailureRetryDashboard } from './analytics';
+import { AgentTelemetryTable, PhaseTimingBars, StoriesListAccordion, RecentActivityFeed, CollapsibleSection, FailureRetryDashboard, StuckStoriesPanel } from './analytics';
 import StoryDetailPanel, { type StoryForPanel, type StoryAttempt } from './StoryDetailPanel';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -161,6 +161,9 @@ export default function AnalyticsTab({ projectName }: { projectName: string }) {
         storiesList={storiesList}
         onStoryClick={setSelectedStoryId}
       />
+
+      {/* ── TIER 1: Stuck Stories (retry exhaustion) ─────────────────────── */}
+      <StuckStoriesPanel />
 
       {/* ── TIER 2: Velocity + Phase Timings (side-by-side) ──────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">

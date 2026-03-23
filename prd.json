@@ -6340,8 +6340,8 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "medium",
-      "passes": false,
-      "model": "haiku",
+      "passes": true,
+      "model": "sonnet",
       "last_attempted": "2026-03-23T15:09:33Z"
     },
     {
