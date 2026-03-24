@@ -140,7 +140,8 @@
       "passes": false,
       "_source": "ai-example",
       "model": "sonnet",
-      "_validation_confidence": 95
+      "_validation_confidence": 95,
+      "last_attempted": "2026-03-24T06:32:13Z"
     },
     {
       "id": "US-1066",
