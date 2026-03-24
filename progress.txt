@@ -899,3 +899,28 @@ This user story pertains to the 'Spiral' Python CLI tool, not a Frappe applicati
 - AC3 ✓ 95%+ accuracy on 10 curated stories (test_accuracy_95_percent_on_curated_set: 100% accuracy)
 
 All 9 tests passing: 9/9 ✓
+
+## Iteration - Story: US-1066 CLI: spiral debug-worker-state — Dump Live Worker State and Diagnostics
+
+### What was implemented
+- lib/debug_worker_state.py (already existed from prior attempt): dump_worker_state() scans .spiral-workers/worker-N/, reads .heartbeat JSON (pid, storyId, phase, memMb), counts pending stories in prd.json slice, detects detached git HEAD via git symbolic-ref
+- tests/test_debug_worker_state.py (already existed): 9 integration tests covering schema validation, filesystem consistency, detached HEAD detection, prd_slice_size counting, and JSON serialization
+- main.py (already registered): debug-worker-state subcommand with --workers-dir flag, cmd_debug_worker_state() handler
+
+### Patterns discovered
+- Both the library and test files were already created by a prior iteration but story was left passes=false
+- All 9 tests passed immediately without changes needed; story needed only passes=true update
+- .heartbeat JSON format: {pid, storyId, phase, memMb, ts, completed, nodeMemMb, nodePid, last_progress_time}
+- git symbolic-ref --quiet HEAD returns non-zero when HEAD is detached (used for detached HEAD detection)
+
+### Gotchas
+- When prior implementations exist but passes=false, always run tests first before modifying code
+
+### Acceptance criteria verification
+- AC1: ✓ dump_worker_state() returns worker_id, pid, worktree_path, current_story_id, phase, memory_mb, prd_slice_size
+- AC2: ✓ _is_detached_head() uses git symbolic-ref; detached workers reported in diagnostics[{worker_id, issue, detail}]
+- AC3: ✓ 9 integration tests verify schema, filesystem consistency, detached HEAD detection
+
+All 9 tests passing ✓
+mypy --strict: ✓
+ruff check: ✓
