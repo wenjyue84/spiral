@@ -78,9 +78,10 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
-      "model": "opus"
+      "model": "opus",
+      "last_attempted": "2026-03-24T04:58:10Z"
     },
     {
       "id": "US-1061",
@@ -142,40 +143,6 @@
         "Command `spiral debug-worker-state` returns JSON with worker_id, pid, worktree_path, current_story_id, phase, memory_mb, prd_slice_size for each active worker",
         "Correctly identifies detached worker HEAD states and reports in diagnostics section",
         "Integration test verifies output format matches schema and worker data is consistent with actual filesystem state"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "sonnet"
-    },
-    {
-      "id": "US-1074",
-      "title": "Phase G: Link CHANGELOG Entries to GitHub Issues and PRs via Commit Messages",
-      "priority": "medium",
-      "description": "Extend gen_changelog.py to parse commit messages for GitHub issue/PR references (#123, closes #456) and automatically link CHANGELOG entries to GitHub URLs for traceability.",
-      "acceptanceCriteria": [
-        "Extend lib/gen_changelog.py:extract_github_refs() to parse #issue and closes #PR patterns from commit messages",
-        "CHANGELOG.md entries include markdown links: [#123](https://github.com/org/repo/issues/123) for referenced issues",
-        "Integration test in tests/test_gen_changelog.py validates 5+ sample commits with mixed issue/PR references"
-      ],
-      "technicalNotes": [],
-      "dependencies": [],
-      "estimatedComplexity": "small",
-      "passes": false,
-      "_source": "ai-example",
-      "model": "sonnet"
-    },
-    {
-      "id": "US-1082",
-      "title": "Phase G: Incremental CHANGELOG Append Mode with --append-changelog Flag",
-      "priority": "medium",
-      "description": "Add --append-changelog flag to spiral.sh so Phase G appends new story entries to existing CHANGELOG.md instead of overwriting. Useful for incremental SPIRAL runs on the same repository.",
-      "acceptanceCriteria": [
-        "spiral.sh accepts --append-changelog flag. When set, lib/gen_changelog.py checks if CHANGELOG.md exists and appends new '## [Iteration N] - YYYY-MM-DD HH:MM UTC' section, preserving old entries",
-        "Integration test tests/test_gen_changelog.py: run gen_changelog.py twice with different story commits, verify second run appends new iteration header without duplicating old entries",
-        "Commits are deduplicated by SHA to prevent redundant entries in append mode"
       ],
       "technicalNotes": [],
       "dependencies": [],

@@ -276,20 +276,24 @@ def list_recent(
 
 
 def get_similar_patterns(
-    story_id: str, memory_path: str = ".spiral/episodic_memory.jsonl", k: int = 3
+    story_desc: str,
+    top_k: int = 3,
+    memory_path: str = ".spiral/episodic_memory.jsonl",
 ) -> list[dict[str, Any]]:
-    """Convenience function for Phase I: get similar patterns by story_id.
+    """Return top_k episodic patterns ranked by cosine similarity to story_desc.
+
+    Each returned dict includes a ``similarity_score`` field (float, 0-1).
 
     Args:
-        story_id: Story to find similar patterns for.
+        story_desc: Free-text story description to match against.
+        top_k: Number of patterns to return.
         memory_path: Path to episodic memory JSONL.
-        k: Number of patterns to return.
 
     Returns:
-        List of similar patterns (top-k ranked by embedding distance).
+        List of pattern dicts ranked by similarity, each with ``similarity_score``.
     """
     mem = EpisodicMemory(memory_path)
-    return mem.get_similar(story_id, k=k)
+    return mem.retrieve(story_desc, top_k=top_k)
 
 
 if __name__ == "__main__":

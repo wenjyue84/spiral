@@ -172,13 +172,14 @@ def test_ttl_expiration() -> None:
 
 
 def test_get_similar_patterns_function() -> None:
-    """Test the convenience function get_similar_patterns()."""
+    """Test the convenience function get_similar_patterns() with description text."""
     with tempfile.TemporaryDirectory() as td:
         jsonl_path = os.path.join(td, "episodic.jsonl")
         mem = EpisodicMemory(jsonl_path)
         mem.write("US-100", {"approach": "logging implementation", "outcome": "pass"})
         mem.write("US-101", {"approach": "structured logging system", "outcome": "pass"})
 
-        # Test via convenience function
-        results = get_similar_patterns("US-100", memory_path=jsonl_path, k=2)
+        # Test via convenience function (now takes description text, not story_id)
+        results = get_similar_patterns("logging framework implementation", top_k=2, memory_path=jsonl_path)
         assert len(results) >= 1, "Convenience function should return results"
+        assert "similarity_score" in results[0], "Results should include similarity_score"
