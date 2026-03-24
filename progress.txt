@@ -924,3 +924,37 @@ All 9 tests passing: 9/9 ✓
 All 9 tests passing ✓
 mypy --strict: ✓
 ruff check: ✓
+
+## Iteration - Story: US-1066 CLI: spiral debug-worker-state — Dump Live Worker State and Diagnostics
+
+### What was implemented
+- lib/debug_worker_state.py (136 lines): dump_worker_state(workers_base) function
+  - Scans .spiral-workers/worker-N/ directories
+  - Reads .heartbeat JSON: pid, storyId→current_story_id, phase, memMb→memory_mb
+  - Counts pending (passes!=True) stories in worker prd.json → prd_slice_size
+  - Checks git symbolic-ref for detached HEAD → adds to diagnostics section
+  - Returns {"workers": [...], "diagnostics": [...]}
+- main.py: Added `debug-worker-state` subcommand with --workers-dir flag
+  - cmd_debug_worker_state() handler prints JSON and exits 0
+  - Registered in subparsers + dispatch elif chain
+- tests/test_debug_worker_state.py (185 lines): 9 integration tests
+  - Output schema keys verified (workers, diagnostics)
+  - All 7 required worker fields verified
+  - Filesystem consistency: worktree_path is absolute, prd_slice_size counts pending
+  - Detached HEAD detection via mocked subprocess.run
+  - Missing heartbeat defaults to 0/unknown
+  - Multiple workers sorted by worker_id
+
+### Patterns discovered
+- Heartbeat files use "memMb" (not "memory_mb") and "storyId" (not "current_story_id") — align field mapping in new code
+- git symbolic-ref --quiet HEAD exits non-zero for detached HEAD; use rev-parse --short HEAD to get the SHA
+- Pre-commit mypy runs on all 341 files; pre-existing errors in lib/research/research_cache.py, lib/ui/spiral_dashboard.py etc don't block new code
+
+### Acceptance criteria verification
+- AC1: ✓ dump_worker_state() returns worker_id, pid, worktree_path, current_story_id, phase, memory_mb, prd_slice_size
+- AC2: ✓ _is_detached_head() detects detached HEAD via git symbolic-ref and reports in diagnostics with issue="detached_head"
+- AC3: ✓ 9 integration tests cover schema, filesystem consistency, edge cases (missing hb, no workers dir, sorted order)
+
+All 9 tests passing ✓
+mypy --strict: ✓ (new files clean; pre-existing errors in other modules)
+ruff check: ✓
