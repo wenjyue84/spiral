@@ -464,8 +464,16 @@ def validate_stories(
             all_candidates.append(story)
 
     # ── Semantic dedup pass (US-371) ─────────────────────────────────────────
-    sem_threshold = float(os.environ.get("SPIRAL_SEMANTIC_DEDUP_THRESHOLD", "0.85"))
+    # In end-game mode (>90% complete), use a lower threshold so stories covering
+    # distinct sub-systems can still enter without being blocked by saturation.
     existing_stories = prd.get("userStories", [])
+    done_count = sum(1 for s in existing_stories if s.get("passes") is True)
+    total_count = len(existing_stories)
+    done_pct = done_count / total_count if total_count > 0 else 0.0
+    if done_pct > 0.90:
+        sem_threshold = float(os.environ.get("SPIRAL_ENDGAME_DEDUP_THRESHOLD", "0.70"))
+    else:
+        sem_threshold = float(os.environ.get("SPIRAL_SEMANTIC_DEDUP_THRESHOLD", "0.85"))
     all_candidates, pre_rejected = _semantic_dedup_pass(all_candidates, existing_stories, sem_threshold)
 
     accepted: list[dict] = []

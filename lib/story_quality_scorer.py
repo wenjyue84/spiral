@@ -36,13 +36,17 @@ def load_constitution(constitution_path: str) -> str:
         return ""
 
 
-def score_production_value(story: dict[str, Any]) -> tuple[float, list[str]]:
+def score_production_value(story: dict[str, Any], endgame: bool = False) -> tuple[float, list[str]]:
     """Score production value based on Tier 1-4 principles.
 
     Tier 1 (highest): User-facing, visible, demonstrable, reduces API spend
     Tier 2: Reliability, correctness, crash recovery
     Tier 3: Power user features, CLI flags, config options
     Tier 4: Infrastructure, observability (lowest)
+
+    In endgame mode (>90% stories complete), Tier 4 infrastructure stories are
+    elevated to 40.0 (the passing floor) since hardening work IS high-priority
+    at the end of a project.
     """
     reasons: list[str] = []
     base_score = 40.0  # Default: medium
@@ -62,6 +66,9 @@ def score_production_value(story: dict[str, Any]) -> tuple[float, list[str]]:
         "structure",
     ]
     if any(kw in description for kw in tier4_keywords):
+        if endgame:
+            reasons.append("Story focuses on infrastructure/observability (Tier 4) — elevated in endgame mode")
+            return 40.0, reasons  # Elevated: infra IS high priority at project completion
         reasons.append("Story focuses on infrastructure/observability (Tier 4)")
         return 20.0, reasons
 
@@ -260,9 +267,9 @@ def score_scope_clarity(story: dict[str, Any]) -> tuple[float, list[str]]:
     return min(score, 100.0), reasons
 
 
-def score_story(story: dict[str, Any], constitution_text: str = "") -> ScoringBreakdown:
+def score_story(story: dict[str, Any], constitution_text: str = "", endgame: bool = False) -> ScoringBreakdown:
     """Score a story across all dimensions."""
-    production_score, pv_reasons = score_production_value(story)
+    production_score, pv_reasons = score_production_value(story, endgame=endgame)
     constitution_score, ca_reasons = score_constitution_alignment(story, constitution_text)
     ac_score, ac_reasons = score_acceptance_criteria_quality(story)
     scope_score, scope_reasons = score_scope_clarity(story)
@@ -298,6 +305,7 @@ def filter_stories(
     stories: list[dict[str, Any]],
     min_score: float = 40,
     constitution_text: str = "",
+    endgame: bool = False,
 ) -> tuple[list[dict[str, Any]], list[tuple[str, float, list[str]]]]:
     """Filter stories by quality score.
 
@@ -309,7 +317,7 @@ def filter_stories(
     filtered: list[tuple[str, float, list[str]]] = []
 
     for story in stories:
-        breakdown = score_story(story, constitution_text)
+        breakdown = score_story(story, constitution_text, endgame=endgame)
         story_id = story.get("id", "unknown")
 
         if breakdown["total_score"] >= min_score:
@@ -334,6 +342,11 @@ def main() -> None:
         help="Path to constitution.md (optional)",
     )
     parser.add_argument("--log", help="Path to log filtered stories")
+    parser.add_argument(
+        "--endgame",
+        action="store_true",
+        help="Endgame mode: elevate Tier 4 infrastructure story scores (for use when >90%% stories complete)",
+    )
 
     args = parser.parse_args()
 
@@ -353,7 +366,7 @@ def main() -> None:
         return
 
     stories = input_data if isinstance(input_data, list) else input_data.get("stories", [])
-    passing, filtered = filter_stories(stories, args.min_score, constitution_text)
+    passing, filtered = filter_stories(stories, args.min_score, constitution_text, endgame=args.endgame)
 
     # Write output
     with open(args.output, "w", encoding="utf-8") as f:

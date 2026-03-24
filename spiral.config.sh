@@ -278,6 +278,13 @@ SPIRAL_VALIDATION_VOTES="${SPIRAL_VALIDATION_VOTES:-3}"
 # Set to 0 to disable semantic dedup entirely.
 SPIRAL_SEMANTIC_DEDUP_THRESHOLD="${SPIRAL_SEMANTIC_DEDUP_THRESHOLD:-0.85}"
 
+# ── End-game dedup threshold (anti-plateau strategy) ────────────────────────
+# When done/total > 0.90 (end-game mode), Phase S uses this lower threshold so
+# stories covering distinct sub-systems of already-implemented features can
+# still enter the pipeline. Quality scoring still applies — only dedup is relaxed.
+# 0.70 allows different-module coverage while blocking near-verbatim duplicates.
+SPIRAL_ENDGAME_DEDUP_THRESHOLD="${SPIRAL_ENDGAME_DEDUP_THRESHOLD:-0.70}"
+
 # ── Worker env allowlist (US-359) ──────────────────────────────────────────
 # Comma-separated list of env var names/prefixes passed to worker subprocesses.
 # Suffix * for prefix match (e.g. SPIRAL_* matches SPIRAL_WORKER_ID, SPIRAL_PYTHON).
