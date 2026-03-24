@@ -48,7 +48,7 @@ def append_iteration_section(
     changelog_path: str | Path,
     timestamp: str | None = None,
     append_mode: bool = True,
-) -> None:
+) -> int:
     """Append (or write) an iteration section to CHANGELOG.md.
 
     Section format::
@@ -70,6 +70,9 @@ def append_iteration_section(
             ``YYYY-MM-DD HH:MM UTC`` format.
         append_mode: If True, append to existing content and deduplicate by SHA.
             If False, overwrite the file.
+
+    Returns:
+        Number of new commit entries written (0 if all were deduplicated).
     """
     if timestamp is None:
         timestamp = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -85,13 +88,14 @@ def append_iteration_section(
     new_commits = [c for c in commits if c.get("commit", "")[:7] not in seen_shas]
 
     if not new_commits and append_mode:
-        return  # Nothing new to add
+        return 0  # Nothing new to add
 
     lines = "".join(f"- {c['commit'][:7]} {c.get('message', '')}\n" for c in new_commits)
     new_section = f"## [Iteration {iteration}] - {timestamp}\n\n{lines}\n"
 
     content = (existing_content + new_section) if (append_mode and existing_content) else new_section
     path.write_text(content, encoding="utf-8")
+    return len(new_commits)
 
 
 def extract_github_refs(message: str) -> list[int]:
@@ -218,8 +222,13 @@ def write_orphan_warnings(orphans: list[dict[str, str]], warnings_file: str) -> 
 def run(
     spiral_home: str,
     cliff_bin: str | None = None,
+    append_mode: bool = False,
+    iteration: int = 1,
 ) -> int:
     """Generate CHANGELOG.md via git-cliff and log orphan commits.
+
+    When append_mode=True, appends a new iteration section instead of
+    overwriting via git-cliff.
 
     Returns 0 on success, 1 on failure.
     """
@@ -229,6 +238,44 @@ def run(
     cliff_config = os.path.join(spiral_home, "cliff.toml")
     output_file = os.path.join(spiral_home, "CHANGELOG.md")
     warnings_file = os.path.join(spiral_home, ".spiral", "phase_g_warnings.log")
+
+    if append_mode:
+        # In append mode: collect commits from git log and append new section
+        try:
+            log_result = subprocess.run(
+                ["git", "log", "--format=%H%n%s%n%ai", "--no-merges"],
+                cwd=spiral_home,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            if log_result.returncode != 0:
+                print("[phase-g] WARNING: Could not query git log", file=sys.stderr)
+                return 1
+
+            commits: list[dict[str, str]] = []
+            lines = log_result.stdout.strip().split("\n")
+            i = 0
+            while i + 2 < len(lines):
+                commit_hash = lines[i].strip()
+                message = lines[i + 1].strip()
+                date = lines[i + 2].strip()
+                if commit_hash and message:
+                    commits.append(
+                        {
+                            "commit": commit_hash[:7],
+                            "message": message,
+                            "date": date,
+                        }
+                    )
+                i += 3
+
+            count = append_iteration_section(commits, iteration, Path(output_file))
+            print(f"[phase-g] Appended {count} new commit(s) to {output_file}")
+        except (subprocess.TimeoutExpired, OSError) as exc:
+            print(f"[phase-g] ERROR: Could not query git log: {exc}", file=sys.stderr)
+            return 1
+        return 0
 
     # Validate git-cliff binary
     if not validate_git_cliff(cliff_bin):
@@ -268,8 +315,8 @@ def run(
             print("[phase-g] WARNING: Could not query git log", file=sys.stderr)
             return 0
 
-        # Parse git log output into commit dicts
-        commits: list[dict[str, str]] = []
+        # Parse git log output into commit dicts for orphan detection
+        log_commits: list[dict[str, str]] = []
         lines = log_result.stdout.strip().split("\n")
         i = 0
         while i < len(lines):
@@ -278,7 +325,7 @@ def run(
                 message = lines[i + 1].strip()
                 date = lines[i + 2].strip()
                 if commit_hash and message:
-                    commits.append(
+                    log_commits.append(
                         {
                             "commit": commit_hash[:7],
                             "message": message,
@@ -290,7 +337,7 @@ def run(
                 break
 
         # Filter to find orphans
-        orphans = find_orphan_commits(commits)
+        orphans = find_orphan_commits(log_commits)
 
         if orphans:
             write_orphan_warnings(orphans, warnings_file)
@@ -302,3 +349,39 @@ def run(
         print(f"[phase-g] ERROR: Could not query git log: {exc}", file=sys.stderr)
 
     return 0
+
+
+def main() -> None:
+    """CLI entry point for gen_changelog.py.
+
+    Usage:
+        python gen_changelog.py [--append-changelog] [--iteration N] SPIRAL_HOME
+    """
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Phase G: CHANGELOG generation")
+    parser.add_argument("spiral_home", nargs="?", default=".", help="SPIRAL project root")
+    parser.add_argument(
+        "--append-changelog",
+        action="store_true",
+        help="Append new iteration section to existing CHANGELOG.md (deduplicates by SHA)",
+    )
+    parser.add_argument(
+        "--iteration",
+        type=int,
+        default=None,
+        help="Iteration number for the section header (auto-detected if omitted)",
+    )
+    args = parser.parse_args()
+
+    sys.exit(
+        run(
+            spiral_home=args.spiral_home,
+            append_mode=args.append_changelog,
+            iteration=args.iteration if args.iteration is not None else 1,
+        )
+    )
+
+
+if __name__ == "__main__":
+    main()

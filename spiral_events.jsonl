@@ -2844,3 +2844,4 @@
 {"ts": "2026-03-24T07:04:47.382543+00:00", "type": "route_story_assigned", "story_id": "US-1066", "complexity_score": 65, "model_tier": "sonnet", "estimated_tokens": 0}
 {"ts": "2026-03-24T07:04:47.383306+00:00", "type": "route_story_assigned", "story_id": "US-1074", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
 {"ts": "2026-03-24T07:04:47.383996+00:00", "type": "route_story_assigned", "story_id": "US-1082", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-24T07:50:59.694568+00:00", "type": "route_story_assigned", "story_id": "US-1082", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}

@@ -30,6 +30,14 @@ if [[ "$CHANGELOG_MODE" -eq 1 ]]; then
   exit $?
 fi
 
+# ── --append-changelog: append new iteration section to CHANGELOG.md ────────
+if [[ "${APPEND_CHANGELOG:-0}" -eq 1 ]]; then
+  _AC_ITER="${SPIRAL_ITERATION:-1}"
+  "$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/gen_changelog.py" \
+    --append-changelog --iteration "$_AC_ITER" "$REPO_ROOT"
+  exit $?
+fi
+
 # ── --show-docs: list generated API documentation and exit ────────────────────
 if [[ "$SHOW_DOCS_MODE" -eq 1 ]]; then
   source "$SPIRAL_HOME/lib/phases/documentation.sh"

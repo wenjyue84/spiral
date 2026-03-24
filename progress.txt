@@ -997,3 +997,31 @@ All 18 tests passing ✓, mypy strict ✓, ruff ✓
 - AC3 ✓ test_sha_deduplication_prevents_redundant_entries: same SHA not duplicated across runs
 
 All 23 tests passing ✓, mypy --strict ✓, ruff ✓
+
+## Iteration - Story: US-1082 Phase G: Incremental CHANGELOG Append Mode with --append-changelog Flag
+
+### What was implemented
+- lib/gen_changelog.py: Added _extract_shas_from_changelog(path) -> set[str] using _SHA_LINE_PATTERN
+- lib/gen_changelog.py: Updated append_iteration_section() return type from None to int; returns count of new commits written
+- lib/gen_changelog.py: Added run() append_mode=True branch that reads git log and calls append_iteration_section()
+- lib/gen_changelog.py: Added main() CLI entry with --append-changelog and --iteration flags
+- lib/cli_subcommands.sh: Added APPEND_CHANGELOG=1 handler that calls gen_changelog.py --append-changelog
+- tests/test_gen_changelog.py: Added TestAppendChangelog class (5 tests) covering first-run, append, SHA dedup, extract_shas
+
+### Patterns discovered
+- Prior attempt had already added _extract_shas_from_changelog and append_iteration_section stubs (different API from my initial plan)
+- Original append_iteration_section uses write_text (overwrite with concatenated content) not file append
+- _SHA_LINE_PATTERN matches "- <sha7> message" format; more precise than generic hex token matching
+- When all commits are deduplicated, function returns early (no header written) - test verifies this
+
+### Gotchas
+- File had duplicate function definitions from prior attempt + my edits; removed my duplicates, kept original stubs
+- commits variable was defined twice in run() (different if-branches); renamed second to log_commits for mypy
+- append_iteration_section previously returned None; updated to return int for use in run() count
+
+### Acceptance criteria verification
+- AC1: ✓ spiral.sh accepts --append-changelog (already wired); lib/cli_subcommands.sh dispatches to gen_changelog.py --append-changelog; append_iteration_section() preserves old entries via read+concatenate
+- AC2: ✓ TestAppendChangelog.test_second_run_appends_new_iteration_header verifies two separate runs produce two iteration headers
+- AC3: ✓ SHA deduplication via _extract_shas_from_changelog + seen_shas filter; test_sha_deduplication_prevents_redundant_entries verifies no duplicate entries
+
+All 23 tests passing ✓, mypy --strict ✓ (gen_changelog.py), ruff ✓
