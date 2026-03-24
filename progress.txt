@@ -958,3 +958,22 @@ ruff check: ✓
 All 9 tests passing ✓
 mypy --strict: ✓ (new files clean; pre-existing errors in other modules)
 ruff check: ✓
+
+## Iteration - Story: US-1074 Phase G: Link CHANGELOG Entries to GitHub Issues and PRs via Commit Messages
+
+### What was implemented
+- lib/gen_changelog.py: Added GITHUB_REF_PATTERN regex, extract_github_refs(message) -> list[int], format_github_links(message, repo_url) -> str
+  - extract_github_refs(): parses #NNN, closes/close/fixes/fixed/resolves #NNN patterns; returns sorted deduplicated list
+  - format_github_links(): replaces bare #NNN with [#NNN](repo_url/issues/NNN); skips already-formatted [#NNN] via lookbehind
+- tests/test_gen_changelog.py: Added TestExtractGithubRefs (8 tests) and TestFormatGithubLinks (3 tests); 18 total tests
+
+### Patterns discovered
+- re.sub with lookbehind (?<!\[) correctly skips markdown links without double-replacing
+- Keyword pattern group(1) and bare #NNN group(2) in same regex; use group(1) or group(2) to get the number
+
+### Acceptance criteria verification
+- AC1 ✓ extract_github_refs() in lib/gen_changelog.py parses #issue and closes #PR patterns
+- AC2 ✓ format_github_links() produces [#NNN](url/issues/NNN) markdown links for CHANGELOG entries
+- AC3 ✓ 8 integration tests (5+ required) cover bare ref, closes/fixes/resolves, multiple, dedup, empty, mixed
+
+All 18 tests passing ✓, mypy strict ✓, ruff ✓

@@ -16,6 +16,54 @@ from pathlib import Path
 # Regex pattern matching story ID prefixes US-NNN or UT-NNN (case-insensitive)
 STORY_ID_PATTERN = re.compile(r"(US|UT)-\d+", re.IGNORECASE)
 
+# Regex for GitHub issue/PR references: "closes #123", "fixes #456", bare "#789"
+# Group 1: keyword-prefixed number; Group 2: bare #NNN (not preceded by "[")
+GITHUB_REF_PATTERN = re.compile(
+    r"(?:closes?|fixed?|fixes?|resolves?)\s+#(\d+)|(?<!\[)#(\d+)",
+    re.IGNORECASE,
+)
+
+
+def extract_github_refs(message: str) -> list[int]:
+    """Parse GitHub issue/PR references from a commit message.
+
+    Matches patterns:
+    - closes/close/fixed/fixes/resolves #NNN  (keyword-prefixed)
+    - bare #NNN  (not already inside a markdown link like [#NNN])
+
+    Returns:
+        Sorted, deduplicated list of integer issue/PR numbers found.
+    """
+    refs: set[int] = set()
+    for m in GITHUB_REF_PATTERN.finditer(message):
+        num_str = m.group(1) or m.group(2)
+        refs.add(int(num_str))
+    return sorted(refs)
+
+
+def format_github_links(message: str, repo_url: str) -> str:
+    """Replace bare #NNN references in text with markdown links.
+
+    e.g. "#123" -> "[#123](https://github.com/org/repo/issues/123)"
+
+    Already-formatted links ([#123](...)) are not double-replaced because
+    the lookbehind in GITHUB_REF_PATTERN skips # preceded by "[".
+
+    Args:
+        message: Text containing GitHub issue/PR references.
+        repo_url: Base GitHub repo URL, e.g. "https://github.com/org/repo".
+
+    Returns:
+        Text with bare #NNN references replaced by markdown links.
+    """
+    base = repo_url.rstrip("/")
+
+    def _replace(m: re.Match[str]) -> str:
+        num = m.group(1)
+        return f"[#{num}]({base}/issues/{num})"
+
+    return re.sub(r"(?<!\[)#(\d+)", _replace, message)
+
 
 def validate_git_cliff(cliff_bin: str) -> bool:
     """Check that the git-cliff binary exists and is callable.

@@ -4,7 +4,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from lib.gen_changelog import find_orphan_commits, write_orphan_warnings
+from lib.gen_changelog import (
+    extract_github_refs,
+    find_orphan_commits,
+    format_github_links,
+    write_orphan_warnings,
+)
 
 
 class TestFindOrphanCommits:
@@ -103,3 +108,70 @@ class TestWriteOrphanWarnings:
         # File should exist but be empty
         assert warnings_file.exists()
         assert warnings_file.read_text(encoding="utf-8") == ""
+
+
+class TestExtractGithubRefs:
+    """Integration tests for extract_github_refs() with mixed issue/PR commit messages."""
+
+    def test_bare_hash_reference(self) -> None:
+        """Sample 1: Bare #NNN reference is extracted."""
+        refs = extract_github_refs("feat: US-1001 add login page, refs #123")
+        assert refs == [123]
+
+    def test_closes_pattern(self) -> None:
+        """Sample 2: 'closes #NNN' keyword pattern is extracted."""
+        refs = extract_github_refs("fix: closes #456 handle null pointer")
+        assert refs == [456]
+
+    def test_fixes_pattern(self) -> None:
+        """Sample 3: 'fixes #NNN' keyword pattern is extracted."""
+        refs = extract_github_refs("fix: US-1002 fixes #789")
+        assert refs == [789]
+
+    def test_resolves_pattern(self) -> None:
+        """Sample 4: 'resolves #NNN' keyword pattern is extracted."""
+        refs = extract_github_refs("chore: resolves #321")
+        assert refs == [321]
+
+    def test_multiple_refs_in_one_commit(self) -> None:
+        """Sample 5: Multiple #NNN refs in one commit message are all extracted."""
+        refs = extract_github_refs("feat: US-1003 closes #111, fixes #222 and #333")
+        assert refs == [111, 222, 333]
+
+    def test_no_refs_returns_empty(self) -> None:
+        """Sample 6: Commit with no GitHub refs returns empty list."""
+        refs = extract_github_refs("docs: update readme")
+        assert refs == []
+
+    def test_duplicate_refs_deduplicated(self) -> None:
+        """Sample 7: Same ref appearing twice is returned only once."""
+        refs = extract_github_refs("fix: closes #100, also fixes #100")
+        assert refs == [100]
+
+    def test_mixed_keyword_and_bare_refs(self) -> None:
+        """Sample 8: Mix of closes/fixes and bare #NNN refs all extracted."""
+        refs = extract_github_refs("fix: closes #50 and #60, resolves #70")
+        assert refs == [50, 60, 70]
+
+
+class TestFormatGithubLinks:
+    """Tests for format_github_links() — CHANGELOG entry link injection."""
+
+    REPO = "https://github.com/org/repo"
+
+    def test_bare_ref_becomes_link(self) -> None:
+        """Bare #NNN is replaced with a markdown link."""
+        result = format_github_links("feat: fixes #123 in login page", self.REPO)
+        assert "[#123](https://github.com/org/repo/issues/123)" in result
+
+    def test_already_formatted_not_double_replaced(self) -> None:
+        """Already-formatted [#NNN](...) links are left untouched."""
+        msg = "feat: [#123](https://github.com/org/repo/issues/123)"
+        result = format_github_links(msg, self.REPO)
+        assert result == msg
+
+    def test_multiple_refs_formatted(self) -> None:
+        """All bare #NNN refs in a message get markdown links."""
+        result = format_github_links("feat: closes #10 and #20", self.REPO)
+        assert "[#10](https://github.com/org/repo/issues/10)" in result
+        assert "[#20](https://github.com/org/repo/issues/20)" in result

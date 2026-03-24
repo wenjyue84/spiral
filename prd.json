@@ -176,10 +176,11 @@
       "technicalNotes": [],
       "dependencies": [],
       "estimatedComplexity": "small",
-      "passes": false,
+      "passes": true,
       "_source": "ai-example",
       "model": "sonnet",
-      "_validation_confidence": 100
+      "_validation_confidence": 100,
+      "last_attempted": "2026-03-24T07:28:27Z"
     },
     {
       "id": "US-1082",
