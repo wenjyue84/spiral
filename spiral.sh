@@ -130,6 +130,7 @@ RESET_CHECKPOINT=0                           # 1 = remove _checkpoint.json and s
 MIGRATE_MODE=0                               # 1 = run prd.json schema migration and exit (--migrate)
 ARCHIVE_MODE=0                               # 1 = archive completed stories and exit (--archive-done)
 CHANGELOG_MODE=0                             # 1 = generate CHANGELOG.md via git-cliff and exit
+APPEND_CHANGELOG=0                           # 1 = append new iteration section to CHANGELOG.md (--append-changelog)
 SHOW_DOCS_MODE=0                             # 1 = list generated API docs and exit (--changelog)
 STALE_REPORT_MODE=0                          # 1 = print stale stories and exit (--stale-report)
 FLAKY_REPORT_MODE=0                          # 1 = print flaky test quarantine report and exit (--flaky-tests report)
@@ -278,6 +279,10 @@ while [[ $# -gt 0 ]]; do
       CHANGELOG_MODE=1
       shift
       ;;
+    --append-changelog)
+      APPEND_CHANGELOG=1
+      shift
+      ;;
     --show-docs)
       SHOW_DOCS_MODE=1
       shift
@@ -367,6 +372,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --migrate                  Migrate prd.json to current schema version and exit"
       echo "  --archive-done             Archive completed stories to prd-archive.json and exit"
       echo "  --changelog                Generate CHANGELOG.md via git-cliff and exit"
+      echo "  --append-changelog         Append new iteration section to existing CHANGELOG.md (deduplicates by SHA)"
       echo "  --show-docs                List generated API documentation with story ID mappings and exit"
       echo "  --stale-report             Print stories inactive beyond SPIRAL_STALE_DAYS (default: 7) and exit"
       echo "  --flaky-tests report       Print quarantined flaky test registry and exit"

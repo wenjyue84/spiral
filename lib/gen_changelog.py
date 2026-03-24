@@ -11,6 +11,7 @@ import os
 import re
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 # Regex pattern matching story ID prefixes US-NNN or UT-NNN (case-insensitive)
@@ -22,6 +23,75 @@ GITHUB_REF_PATTERN = re.compile(
     r"(?:closes?|fixed?|fixes?|resolves?)\s+#(\d+)|(?<!\[)#(\d+)",
     re.IGNORECASE,
 )
+
+
+# Regex matching commit SHA lines in append-mode CHANGELOG sections ("- abc1234 message")
+_SHA_LINE_PATTERN = re.compile(r"^- ([0-9a-f]{7,40})\b", re.MULTILINE)
+
+
+def _extract_shas_from_changelog(changelog_path: str | Path) -> set[str]:
+    """Read an existing CHANGELOG.md and return all 7-char commit SHAs found in it.
+
+    Only matches lines written by append_iteration_section() (format: "- <sha7> message").
+    Returns empty set if the file does not exist.
+    """
+    path = Path(changelog_path)
+    if not path.exists():
+        return set()
+    content = path.read_text(encoding="utf-8")
+    return {m.group(1)[:7] for m in _SHA_LINE_PATTERN.finditer(content)}
+
+
+def append_iteration_section(
+    commits: list[dict[str, str]],
+    iteration: int,
+    changelog_path: str | Path,
+    timestamp: str | None = None,
+    append_mode: bool = True,
+) -> None:
+    """Append (or write) an iteration section to CHANGELOG.md.
+
+    Section format::
+
+        ## [Iteration N] - YYYY-MM-DD HH:MM UTC
+
+        - abc1234 feat: US-1001 add feature
+        - def5678 fix: US-1002 fix bug
+
+    In append mode (default), existing content is preserved and commits already
+    present (matched by their 7-char SHA) are skipped to prevent duplicates.
+
+    Args:
+        commits: List of dicts with at least ``commit`` (7-char SHA) and
+            ``message`` keys.
+        iteration: Iteration number used in the section header.
+        changelog_path: Path to CHANGELOG.md to create or update.
+        timestamp: Header timestamp string. Defaults to current UTC time in
+            ``YYYY-MM-DD HH:MM UTC`` format.
+        append_mode: If True, append to existing content and deduplicate by SHA.
+            If False, overwrite the file.
+    """
+    if timestamp is None:
+        timestamp = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+
+    path = Path(changelog_path)
+    existing_content = ""
+    seen_shas: set[str] = set()
+
+    if append_mode and path.exists():
+        existing_content = path.read_text(encoding="utf-8")
+        seen_shas = _extract_shas_from_changelog(changelog_path)
+
+    new_commits = [c for c in commits if c.get("commit", "")[:7] not in seen_shas]
+
+    if not new_commits and append_mode:
+        return  # Nothing new to add
+
+    lines = "".join(f"- {c['commit'][:7]} {c.get('message', '')}\n" for c in new_commits)
+    new_section = f"## [Iteration {iteration}] - {timestamp}\n\n{lines}\n"
+
+    content = (existing_content + new_section) if (append_mode and existing_content) else new_section
+    path.write_text(content, encoding="utf-8")
 
 
 def extract_github_refs(message: str) -> list[int]:

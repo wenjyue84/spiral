@@ -977,3 +977,23 @@ ruff check: ✓
 - AC3 ✓ 8 integration tests (5+ required) cover bare ref, closes/fixes/resolves, multiple, dedup, empty, mixed
 
 All 18 tests passing ✓, mypy strict ✓, ruff ✓
+
+## Iteration - Story: US-1082 Phase G: Incremental CHANGELOG Append Mode with --append-changelog Flag
+
+### What was implemented
+- lib/gen_changelog.py: Added `_SHA_LINE_PATTERN`, `_extract_shas_from_changelog()`, `append_iteration_section()`
+  - `_extract_shas_from_changelog(path)`: reads CHANGELOG.md, returns set of 7-char SHAs found on commit lines
+  - `append_iteration_section(commits, iteration, changelog_path, timestamp, append_mode)`: writes `## [Iteration N] - YYYY-MM-DD HH:MM UTC` section; in append mode deduplicates by SHA
+- spiral.sh: Added `APPEND_CHANGELOG=0` variable, `--append-changelog)` case in flag parser, help text entry
+- tests/test_gen_changelog.py: Added `TestAppendChangelog` class with 5 tests (first run, second appends, SHA dedup, empty file, SHA extraction)
+
+### Patterns discovered
+- SHA deduplication: regex `^- ([0-9a-f]{7,40})\b` matches commit lines written by the append function; first 7 chars used as key
+- Append mode: if no new commits after dedup, skip writing entirely (no empty iteration header)
+
+### Acceptance criteria verification
+- AC1 ✓ spiral.sh accepts --append-changelog; gen_changelog.py appends new `## [Iteration N]` section preserving old entries
+- AC2 ✓ test_second_run_appends_new_iteration_header: two runs with different commits produce two sections
+- AC3 ✓ test_sha_deduplication_prevents_redundant_entries: same SHA not duplicated across runs
+
+All 23 tests passing ✓, mypy --strict ✓, ruff ✓

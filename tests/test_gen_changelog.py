@@ -5,6 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from lib.gen_changelog import (
+    _extract_shas_from_changelog,
+    append_iteration_section,
     extract_github_refs,
     find_orphan_commits,
     format_github_links,
@@ -175,3 +177,63 @@ class TestFormatGithubLinks:
         result = format_github_links("feat: closes #10 and #20", self.REPO)
         assert "[#10](https://github.com/org/repo/issues/10)" in result
         assert "[#20](https://github.com/org/repo/issues/20)" in result
+
+
+class TestAppendChangelog:
+    """Integration tests for append_iteration_section() and _extract_shas_from_changelog()."""
+
+    _COMMITS_1: list[dict[str, str]] = [
+        {"commit": "abc1234", "message": "feat: US-1001 add login"},
+        {"commit": "def5678", "message": "fix: US-1002 fix null pointer"},
+    ]
+    _COMMITS_2: list[dict[str, str]] = [
+        {"commit": "ghi9012", "message": "feat: US-1003 add dashboard"},
+    ]
+
+    def test_first_run_creates_section(self, tmp_path: Path) -> None:
+        """First append on a missing file creates the iteration header and commits."""
+        changelog = tmp_path / "CHANGELOG.md"
+        append_iteration_section(self._COMMITS_1, iteration=1, changelog_path=changelog)
+
+        content = changelog.read_text(encoding="utf-8")
+        assert "## [Iteration 1]" in content
+        assert "abc1234" in content
+        assert "def5678" in content
+
+    def test_second_run_appends_new_iteration_header(self, tmp_path: Path) -> None:
+        """Two runs with different commits produce two separate iteration sections."""
+        changelog = tmp_path / "CHANGELOG.md"
+        append_iteration_section(self._COMMITS_1, iteration=1, changelog_path=changelog)
+        append_iteration_section(self._COMMITS_2, iteration=2, changelog_path=changelog)
+
+        content = changelog.read_text(encoding="utf-8")
+        assert "## [Iteration 1]" in content
+        assert "## [Iteration 2]" in content
+        # Both commit sets present
+        assert "abc1234" in content
+        assert "ghi9012" in content
+
+    def test_sha_deduplication_prevents_redundant_entries(self, tmp_path: Path) -> None:
+        """Re-running with the same commits does not duplicate entries."""
+        changelog = tmp_path / "CHANGELOG.md"
+        append_iteration_section(self._COMMITS_1, iteration=1, changelog_path=changelog)
+        append_iteration_section(self._COMMITS_1, iteration=2, changelog_path=changelog)
+
+        content = changelog.read_text(encoding="utf-8")
+        # abc1234 appears exactly once — duplicates suppressed
+        assert content.count("abc1234") == 1
+        # Only one iteration header because second call added nothing new
+        assert "## [Iteration 2]" not in content
+
+    def test_extract_shas_from_empty_file_returns_empty(self, tmp_path: Path) -> None:
+        """_extract_shas_from_changelog returns empty set for nonexistent file."""
+        result = _extract_shas_from_changelog(tmp_path / "CHANGELOG.md")
+        assert result == set()
+
+    def test_extract_shas_finds_written_shas(self, tmp_path: Path) -> None:
+        """_extract_shas_from_changelog finds all SHAs written by append_iteration_section."""
+        changelog = tmp_path / "CHANGELOG.md"
+        append_iteration_section(self._COMMITS_1, iteration=1, changelog_path=changelog)
+        shas = _extract_shas_from_changelog(changelog)
+        assert "abc1234" in shas
+        assert "def5678" in shas
