@@ -2769,3 +2769,4 @@
 {"ts": "2026-03-23T20:36:50.053047+00:00", "type": "route_story_assigned", "story_id": "US-1065", "complexity_score": 45, "model_tier": "sonnet", "estimated_tokens": 0}
 {"ts": "2026-03-23T20:36:50.053633+00:00", "type": "route_story_assigned", "story_id": "US-1066", "complexity_score": 65, "model_tier": "sonnet", "estimated_tokens": 0}
 {"ts": "2026-03-23T20:36:50.054146+00:00", "type": "route_story_assigned", "story_id": "US-1074", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
+{"event_type": "prd_io_error", "timestamp": "2026-03-24T00:07:13.677833+00:00", "error": "[Errno 2] No such file or directory: 'C:\\\\Users\\\\Jyue\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-Jyue\\\\pytest-4895\\\\test_file_not_found0\\\\does_not_exist.json'", "errno": 2, "attempts": 1}
