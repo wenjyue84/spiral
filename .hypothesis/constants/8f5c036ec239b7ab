@@ -1,0 +1,4 @@
+# file: C:\Users\Jyue\Documents\1-projects\Software Projects\Spiral\lib\validation_confidence_scorer.py
+# hypothesis_version: 6.151.9
+
+[100, '.tmp', '?', '\\*\\*', '\\.\\./', '\\.config\\.', 'acceptanceCriteria', 'async', 'authentication', 'authorization', 'avg_score', 'cache', 'concurr', 'database', 'dependencies', 'description', 'distributed', 'encryption', 'federation', 'file_change_hints', 'filesTouch', 'id', 'lock', 'low_confidence', 'low_confidence_count', 'migrat', 'migration', 'monitor', 'mutex', 'orchestrat', 'parallel', 'pipeline', 'prd_', 'rollback', 'schema', 'scored', 'streaming', 'title', 'transaction', 'userStories', 'utf-8', 'w', 'websocket']
