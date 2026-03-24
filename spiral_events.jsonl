@@ -2806,3 +2806,12 @@
 {"ts": "2026-03-24T00:10:39.955175+00:00", "type": "route_story_assigned", "story_id": "US-1066", "complexity_score": 65, "model_tier": "sonnet", "estimated_tokens": 0}
 {"ts": "2026-03-24T00:10:39.955568+00:00", "type": "route_story_assigned", "story_id": "US-1074", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
 {"ts": "2026-03-24T00:10:39.955951+00:00", "type": "route_story_assigned", "story_id": "US-1082", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-24T03:54:38.193947+00:00", "type": "route_story_assigned", "story_id": "US-1087", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-24T03:54:38.194654+00:00", "type": "route_story_assigned", "story_id": "US-1059", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-24T03:54:38.195212+00:00", "type": "route_story_assigned", "story_id": "US-1060", "complexity_score": 80, "model_tier": "opus", "estimated_tokens": 0}
+{"ts": "2026-03-24T03:54:38.195765+00:00", "type": "route_story_assigned", "story_id": "US-1061", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-24T03:54:38.196303+00:00", "type": "route_story_assigned", "story_id": "US-1062", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-24T03:54:38.196839+00:00", "type": "route_story_assigned", "story_id": "US-1065", "complexity_score": 45, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-24T03:54:38.197371+00:00", "type": "route_story_assigned", "story_id": "US-1066", "complexity_score": 65, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-24T03:54:38.197907+00:00", "type": "route_story_assigned", "story_id": "US-1074", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
+{"ts": "2026-03-24T03:54:38.198439+00:00", "type": "route_story_assigned", "story_id": "US-1082", "complexity_score": 50, "model_tier": "sonnet", "estimated_tokens": 0}
