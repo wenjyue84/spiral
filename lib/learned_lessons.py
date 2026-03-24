@@ -33,7 +33,6 @@ from typing import Any
 
 from lib.failure_categorizer import categorize_message
 
-
 # ── Lesson data model ────────────────────────────────────────────────────────
 
 def _make_lesson(

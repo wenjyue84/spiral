@@ -6,16 +6,14 @@ chain (haiku→sonnet→opus) to verify >85% confidence on obvious progressions.
 
 from __future__ import annotations
 
-import csv
-import io
 from pathlib import Path
 
 import pytest
 
 from lib.escalation_predictor import (
-    EscalationPrediction,
     HAIKU_TO_SONNET_THRESHOLD,
     SONNET_TO_OPUS_THRESHOLD,
+    EscalationPrediction,
     predict_all_stories,
     predict_for_story,
 )

@@ -6,7 +6,9 @@ Story: US-1045
 """
 
 import json
+
 import pytest
+
 from lib.merge_dry_run import run_dry_run
 
 

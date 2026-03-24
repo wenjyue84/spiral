@@ -830,3 +830,20 @@ Integration: federation.conflict_detector properly integrated ✓
 - Mypy strict mode requires ALL local variables to have explicit type annotations (no implicit inference)
 - Pre-commit formatter may modify type annotations; verify with Read tool after Edit operations
 - Pytest config has parallel testing enabled by default; use `-o addopts=""` to disable for debugging
+
+## Iteration - Story: US-1060 Episodic Memory Relevance Scorer with Similarity-Based Ranking
+
+### What was implemented
+- lib/episodic_memory.py: Changed `get_similar_patterns()` signature from `(story_id, ...)` to `(story_desc, top_k=3, ...)`, now delegates to `retrieve()` for text-based cosine similarity with `similarity_score` in results
+- ralph/CLAUDE.md: Updated item 15 to document `get_similar_patterns(story_desc, top_k=3)` and the "90% similar: ..." display format
+- tests/test_episodic_relevance_scorer.py: 4 integration tests (auth ranking, score fields, top_k limits, empty store)
+- tests/test_ralph_episodic_memory_store.py: Updated existing test to use new description-based signature
+
+### Patterns discovered
+- The bag-of-words embedder in EpisodicMemory._embed() processes ALL string values in a record (including story_id, timestamp)
+- To achieve >80% cosine similarity with the simple token-based approach, patterns need strong token overlap in their description/approach fields
+- The `retrieve()` method already had the right behavior (text query → cosine similarity → ranked results with scores); `get_similar_patterns` just needed to delegate to it
+
+### Gotchas
+- Initial test with natural language descriptions only achieved ~62% similarity due to token dilution from non-descriptive fields (timestamps, story IDs)
+- Test patterns need distinct vocabularies to reliably test similarity ranking with the bag-of-words approach

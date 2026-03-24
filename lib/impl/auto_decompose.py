@@ -1,5 +1,10 @@
 from __future__ import annotations
-import argparse, copy, json, re, sys
+
+import argparse
+import copy
+import json
+import re
+import sys
 from pathlib import Path
 from typing import Any
 

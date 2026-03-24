@@ -8,16 +8,15 @@ from pathlib import Path
 import pytest
 
 from lib.learned_lessons import (
+    _make_lesson,
     _overlap,
     _tokenize,
     append_lesson,
     load_lessons,
+    main,
     promote_to_skill,
     query_lessons,
-    _make_lesson,
-    main,
 )
-
 
 # ── Fixtures ─────────────────────────────────────────────────────────────────
 

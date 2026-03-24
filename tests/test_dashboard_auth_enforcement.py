@@ -5,12 +5,10 @@ and authorization checks, blocking unauthenticated requests with appropriate
 error codes (401 for HTTP, 1008 for WebSocket).
 """
 
-import json
 import os
 import sys
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 

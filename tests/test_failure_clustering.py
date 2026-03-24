@@ -1,7 +1,6 @@
 """Tests for lib/test_failure_clustering.py"""
 
-import pytest
-from lib.test_failure_clustering import extract_source_file, cluster_failures
+from lib.test_failure_clustering import cluster_failures, extract_source_file
 
 
 def test_extract_source_file():
