@@ -768,3 +768,65 @@ All tests passing: 6/6 ✓
 Type checking: mypy --strict ✓  
 Linting: ruff check ✓
 
+
+## Iteration 19 - Story: US-1086 Federated Conflict Detection E2E Tests & Telemetry
+
+### What was implemented
+- lib/results_tsv.py: Extended ResultsRecord dataclass with 3 new optional fields for federated telemetry
+  - `worker_id: str = ""  # identifier in federated parallel runs`
+  - `conflict_file_count: str = ""  # count of files with conflicts detected`
+  - `phase_timing: str = ""  # JSON dict of phase durations (e.g. '{"R": 1.5, "M": 0.8}')`
+  - Updated HEADER list from 30 to 33 columns (added new fields at end)
+  - Updated _keep_quota_fields_in_sync() helper to prevent linter removal of new fields
+
+- tests/test_e2e_federated_conflicts.py: New 400+ line integration test file with 6 test methods
+  - test_fixture_seeds_2_subprojects_6_stories(): Verifies fixture creates 2 sub-projects with 6 stories
+  - test_phase_m_detects_file_collisions(): Verifies Phase M conflict detection for overlapping files
+    - Uses federation.conflict_detector.detect_file_conflicts() 
+    - Verifies 2 conflicts detected (shared/utils.ts and config/webpack.js)
+    - Each conflict includes file_path, sub_projects (set), story_ids (set)
+  - test_worker_isolation_prevents_corruption(): Verifies prd.json integrity across 3 sequential worker modifications
+  - test_results_tsv_captures_worker_metadata(): Verifies new columns written/read correctly via TSV
+  - test_conflict_resolution_cost_under_budget(): Verifies phase timing JSON and token cost tracking (<200 token budget)
+  - test_3_parallel_workers_without_deadlock(): Verifies 3 workers finish without deadlock (time < 1s)
+  
+  - Helper functions for test infrastructure:
+    - _make_story(): Creates minimal valid story dict with sub_project and filesTouch fields
+    - _make_prd_federated(): Creates federated prd.json with 2 sub-projects
+    - _write_prd()/_read_prd(): Atomic JSON I/O with utf-8 encoding
+    - _write_results_tsv()/_read_results_tsv(): TSV I/O with proper header handling and trailing column padding
+
+### Patterns discovered
+- TSV parsing requires careful handling of trailing empty columns:
+  - Using `line.strip().split("\t")` loses trailing empty columns (doesn't preserve tab count)
+  - Correct: `line.rstrip("\n").split("\t")` only removes newlines, preserves tabs
+  - After split, pad values array to header length for missing columns
+  
+- Type annotation issues with mypy --strict in test helpers:
+  - Mypy requires explicit type annotations for variables initialized without context (e.g., `records = []` → `records: list[dict[str, Any]] = []`)
+  - Dict comprehensions from `prd.get("userStories", [])` have type `list[Any]`, so set comprehensions on them need explicit type annotation
+  - Loop variables in for loops can conflict with later variable assignments in same scope (rename to avoid `no-redef` error)
+  
+- Pre-commit formatter (ruff format) can modify type annotations:
+  - Type annotations may be reformatted or appear to disappear during pre-commit run
+  - Use explicit type annotations on full expressions to ensure persistence
+  - Pytest config uses `-n 4 --dist loadscope` for parallel testing; override with `-o addopts=""` if needed
+
+### Acceptance criteria verification
+- AC1 ✓ Fixture creates 2 sub-projects with 3 stories each (6 total) — test_fixture_seeds_2_subprojects_6_stories PASSES
+- AC2 ✓ Phase M detects file collisions (shared/utils.ts, config/webpack.js) — test_phase_m_detects_file_collisions PASSES
+- AC2 ✓ Workers finish without deadlock — test_3_parallel_workers_without_deadlock PASSES
+- AC2 ✓ prd.json maintains integrity — test_worker_isolation_prevents_corruption PASSES
+- AC3 ✓ results.tsv includes worker_id, conflict_file_count, phase_timing columns — test_results_tsv_captures_worker_metadata PASSES
+- AC3 ✓ Conflict resolution cost under 200 tokens — test_conflict_resolution_cost_under_budget PASSES
+
+All 6 E2E tests passing: 6/6 ✓
+Type checking: mypy --strict (with type annotations on test helper functions) ✓
+Linting: ruff check + format ✓
+Integration: federation.conflict_detector properly integrated ✓
+
+### Gotchas
+- TSV reader must handle trailing empty columns explicitly (pad values to header length)
+- Mypy strict mode requires ALL local variables to have explicit type annotations (no implicit inference)
+- Pre-commit formatter may modify type annotations; verify with Read tool after Edit operations
+- Pytest config has parallel testing enabled by default; use `-o addopts=""` to disable for debugging
