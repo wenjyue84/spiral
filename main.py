@@ -4425,6 +4425,18 @@ def main():
         help="Path to prd.json (default: prd.json)",
     )
 
+    # ── debug-worker-state subcommand (US-1066) ────────────────────────────
+    debug_worker_parser = subparsers.add_parser(
+        "debug-worker-state",
+        help="Dump live worker state and diagnostics as JSON (US-1066)",
+    )
+    debug_worker_parser.add_argument(
+        "--workers-dir",
+        default=".spiral-workers",
+        metavar="DIR",
+        help="Directory containing worker-N subdirs (default: .spiral-workers)",
+    )
+
     args = parser.parse_args()
 
     if args.command == "init":
@@ -4583,6 +4595,8 @@ def main():
         cmd_federation_impact_analyze(args)
     elif args.command == "score-stories-for-validation":
         cmd_score_stories_for_validation(args)
+    elif args.command == "debug-worker-state":
+        cmd_debug_worker_state(args)
     else:
         parser.print_help()
         sys.exit(0)
@@ -5639,6 +5653,36 @@ def cmd_preflight_check(args: argparse.Namespace) -> None:
     for r in failed:
         print(f"  - {r['check_name']}: {r['remediation']}")
     sys.exit(1)
+
+
+def cmd_debug_worker_state(args: argparse.Namespace) -> None:
+    """Dump live worker state and diagnostics as JSON (US-1066).
+
+    Usage: spiral debug-worker-state [--workers-dir DIR]
+
+    Scans .spiral-workers/worker-N/ directories and reads .heartbeat files to
+    report per-worker state: pid, worktree_path, current_story_id, phase,
+    memory_mb, and prd_slice_size. Detached HEAD states are reported in the
+    diagnostics section.
+
+    Output JSON schema:
+      {
+        "workers": [{"worker_id", "pid", "worktree_path", "current_story_id",
+                     "phase", "memory_mb", "prd_slice_size"}, ...],
+        "diagnostics": [{"worker_id", "issue", "detail"}, ...]
+      }
+
+    Example:
+        spiral debug-worker-state
+        spiral debug-worker-state --workers-dir /path/to/.spiral-workers
+    """
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
+    from debug_worker_state import dump_worker_state  # type: ignore[import-untyped]
+
+    workers_dir: str = getattr(args, "workers_dir", ".spiral-workers")
+    state = dump_worker_state(workers_dir)
+    print(json.dumps(state, indent=2))
+    sys.exit(0)
 
 
 def cmd_score_stories_for_validation(args: argparse.Namespace) -> None:
