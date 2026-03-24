@@ -35,7 +35,13 @@ def main(args: list[str] | None = None) -> int:
     parsed = parser.parse_args(args)
 
     try:
-        # Import after arg parsing
+        # Import after arg parsing — ensure project root is on sys.path so
+        # "from lib.X" works whether the script is invoked as
+        # `python lib/filter_rejected_patterns.py` or via uv run.
+        import os
+        _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if _project_root not in sys.path:
+            sys.path.insert(0, _project_root)
         from lib.rejected_pattern_cache import (
             filter_candidates_by_rejected_patterns,
         )
@@ -82,7 +88,7 @@ def main(args: list[str] | None = None) -> int:
                 file=sys.stderr,
             )
             for story_id, reason in skipped.items():
-                print(f"    → {story_id}: {reason}", file=sys.stderr)
+                print(f"    -> {story_id}: {reason}", file=sys.stderr)
 
         return 0
 

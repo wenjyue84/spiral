@@ -368,7 +368,7 @@ def main() -> None:
                     f.write(f"  - {reason}\n")
 
     # Summary
-    print(f"Filtered stories: {len(stories)} → {len(passing)} passing (min score: {args.min_score})")
+    print(f"Filtered stories: {len(stories)} -> {len(passing)} passing (min score: {args.min_score})")
     if filtered:
         print(f"Rejected {len(filtered)} stories below threshold:")
         for story_id, score, reasons in filtered:
