@@ -847,3 +847,55 @@ Integration: federation.conflict_detector properly integrated ✓
 ### Gotchas
 - Initial test with natural language descriptions only achieved ~62% similarity due to token dilution from non-descriptive fields (timestamps, story IDs)
 - Test patterns need distinct vocabularies to reliably test similarity ranking with the bag-of-words approach
+
+## Pre-analysis for US-1062 (Gemini 2.5 Pro)
+**Subject: Technical Brief for US-1062: Story Validation Confidence Scorer**
+
+This user story pertains to the 'Spiral' Python CLI tool, not a Frappe application. All recommendations apply to the Python project structure shown.
+
+**1. Python Files to Modify:**
+*   **New File:** `lib/story_validation_scorer.py`. This will contain the core logic for parsing and scoring stories from `prd.json`.
+*   **Existing File:** `main.py`. This file likely handles argument parsing and subcommand dispatching. It will need to be modified to add the new `score-stories-for-validation` command and call the new scorer module.
+
+**2. Frappe DocTypes/Hooks Involved:**
+*   None. This is a Python CLI tool. The primary data structure is the `prd.json` file, which will be read and modified in-place.
+
+**3. Recommended Implementation Approach:**
+1.  In `lib/story_validation_scorer.py`, create a function that takes the contents of `prd.json` as input.
+2.  This function will iterate through each story, calculating a `_validation_confidence` score (0-100).
+3.  The score starts at 100 and is reduced based on:
+    *   Presence of complexity keywords in the `description` (e.g., 'database', 'concurrency').
+    *   A penalty of 5 points for each dependency in the `dependency_count`.
+    *   A penalty of 10 points for complex regex/patterns in `file_change_hints`.
+4.  Update the story object in-memory with the new `_validation_confidence` field.
+5.  In `main.py`, add the CLI subcommand which loads `prd.json`, calls the scoring function, and overwrites `prd.json` with the returned result.
+
+**4. Edge Cases & Gotchas:**
+*   **Data Safety:** The script must create a backup of `prd.json` before overwriting it to prevent data loss on error.
+*   **Heuristics:** The scoring weights for keywords and the definition of "complex patterns" in `file_change_hints` are not fully specified and will require reasonable heuristics.
+*   **Schema Errors:** The script should gracefully handle missing keys (e.g., `dependencies`) in the story objects within `prd.json`.
+
+
+## Iteration - Story: US-1062 Phase S Story Validation Confidence Scorer for Enrichment Prioritization
+
+### What was implemented
+- lib/validation_confidence_scorer.py: Already existed from a prior attempt; fixed via pre-existing test suite (9 tests all pass)
+  - score_story(): starts at 100, deducts per complexity keyword (-5 each, capped 30), per dep (-5 each, capped 30), per complex file pattern (-10 each, capped 20)
+  - score_all_stories(): reads prd.json, writes _validation_confidence field in-place via atomic temp-file write, returns summary dict
+- main.py: Added `score-stories-for-validation` subcommand with --prd flag, cmd_score_stories_for_validation() handler, subparser registration, and dispatch
+
+### Patterns discovered
+- When pre-commit runs all files, pre-existing E501/F811/F841 errors in main.py fail ruff-lint; these are not introduced by the story
+- The test file was already written; importing from lib/validation_confidence_scorer worked immediately once lib file existed
+- ruff format reformats main.py (no functional changes)
+
+### Gotchas
+- Test runs with xdist parallel mode can show apparent non-determinism; run with `-o addopts=""` to disable parallelism for clean results
+- The existing lib file uses _COMPLEX_FILE_PATTERNS (regex list) rather than just "**" wildcard check; both approaches are valid
+
+### Acceptance criteria verification
+- AC1 ✓ CLI `spiral score-stories-for-validation` analyzes prd.json, scores keywords/deps/file_hints, outputs 0-100 range
+- AC2 ✓ Writes _validation_confidence field in-place; test_simple_stories_score_above_80 + test_complex_stories_score_below_50 pass
+- AC3 ✓ 95%+ accuracy on 10 curated stories (test_accuracy_95_percent_on_curated_set: 100% accuracy)
+
+All 9 tests passing: 9/9 ✓

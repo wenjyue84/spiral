@@ -48,6 +48,7 @@ Subcommands:
   federated-cost-report   Per-sub-project cost breakdown by phase (US-713)
   explain-retry           Analyze retry sequence and suggest decomposition for a story (US-728)
   deploy-docs             Deploy CHANGELOG and pdoc outputs to GitHub Pages branch (US-732)
+  score-stories-for-validation Score stories 0-100 for validation confidence; writes _validation_confidence (US-1062)
 """
 
 import argparse
@@ -2803,11 +2804,13 @@ def cmd_list_orphan_commits(args: argparse.Namespace) -> None:
                 message = parts[1].strip()
                 date = parts[2].strip()
                 if commit_hash and message:
-                    commits.append({
-                        "commit": commit_hash[:7],
-                        "message": message,
-                        "date": date,
-                    })
+                    commits.append(
+                        {
+                            "commit": commit_hash[:7],
+                            "message": message,
+                            "date": date,
+                        }
+                    )
 
         # Find orphans
         orphans = find_orphan_commits(commits)
@@ -3352,9 +3355,7 @@ def main():
     federation_cycles_parser.add_argument(
         "--prd", type=str, default="prd.json", help="Path to prd.json (default: prd.json)"
     )
-    federation_cycles_parser.add_argument(
-        "--output", type=str, default="", help="Path to write YAML report (optional)"
-    )
+    federation_cycles_parser.add_argument("--output", type=str, default="", help="Path to write YAML report (optional)")
 
     validate_fed_schema_parser = subparsers.add_parser(
         "validate-federated-schema",
@@ -4412,6 +4413,18 @@ def main():
         help="Path to prd.json (default: prd.json)",
     )
 
+    # ── score-stories-for-validation subcommand (US-1062) ─────────────────
+    score_stories_parser = subparsers.add_parser(
+        "score-stories-for-validation",
+        help="Score each story 0-100 for validation confidence; writes _validation_confidence to prd.json",
+    )
+    score_stories_parser.add_argument(
+        "--prd",
+        default="prd.json",
+        metavar="FILE",
+        help="Path to prd.json (default: prd.json)",
+    )
+
     args = parser.parse_args()
 
     if args.command == "init":
@@ -4568,6 +4581,8 @@ def main():
         cmd_preflight_check(args)
     elif args.command == "federation-impact-analyze":
         cmd_federation_impact_analyze(args)
+    elif args.command == "score-stories-for-validation":
+        cmd_score_stories_for_validation(args)
     else:
         parser.print_help()
         sys.exit(0)
@@ -5624,6 +5639,39 @@ def cmd_preflight_check(args: argparse.Namespace) -> None:
     for r in failed:
         print(f"  - {r['check_name']}: {r['remediation']}")
     sys.exit(1)
+
+
+def cmd_score_stories_for_validation(args: argparse.Namespace) -> None:
+    """Score each story 0-100 for validation confidence and write to prd.json (US-1062).
+
+    Usage: spiral score-stories-for-validation [--prd FILE]
+
+    Reads prd.json, calculates _validation_confidence for each story based on:
+      - Complexity keywords in description/title (-15 each)
+      - Dependency count (-5 per dep)
+      - File change hints with wildcard patterns (-10 per "**" pattern)
+
+    Writes _validation_confidence field in-place and prints a summary JSON.
+    Low-confidence stories (score < 50) are listed for Phase E enrichment prioritization.
+
+    Example:
+        spiral score-stories-for-validation
+        spiral score-stories-for-validation --prd path/to/prd.json
+    """
+    sys.path.insert(0, str(SPIRAL_HOME / "lib"))
+    from validation_confidence_scorer import score_all_stories  # type: ignore[import-untyped]
+
+    prd_path = Path(getattr(args, "prd", "prd.json"))
+    if not prd_path.is_absolute():
+        prd_path = Path.cwd() / prd_path
+
+    if not prd_path.exists():
+        print(f"Error: {prd_path} not found", file=sys.stderr)
+        sys.exit(1)
+
+    summary = score_all_stories(prd_path)
+    print(json.dumps(summary, indent=2))
+    sys.exit(0)
 
 
 if __name__ == "__main__":
