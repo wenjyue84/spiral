@@ -1,3 +1,41 @@
+## Iteration - Story: US-1101 Phase E Batch Enrichment to Reduce CLI Overhead
+
+### What was implemented
+- lib/research/enrich_stories.py: Added BATCH_ENRICH_PROMPT for multi-story enrichment requests
+  - Prompt accepts list of stories with original_index field for response mapping
+  - Returns structured response with "stories" list, each entry has original_index, action, and results array
+- lib/research/enrich_stories.py: Added `_enrich_batch(stories, model, dry_run)` function
+  - Takes list of stories, calls Claude once with BATCH_ENRICH_PROMPT
+  - Returns dict[original_index -> list[enriched_stories]] for batch results
+  - Returns empty dict on failure to trigger fallback to individual enrichment
+  - Special case: skips batch processing if only 1 story (returns empty dict)
+- lib/research/enrich_stories.py: Modified `enrich_stories()` to use batch enrichment
+  - Collects eligible stories into batches of SPIRAL_ENRICH_BATCH_SIZE (default 5)
+  - Processes batches with _enrich_batch(), falls back to individual _enrich_one() on failure
+  - Tracks processed_indices to avoid duplicates and ensure all stories are in output
+- spiral.config.sh: Added SPIRAL_ENRICH_BATCH_SIZE config variable (default 5)
+  - Reduces enrichment calls from N to ceil(N/batch_size): 20 stories = 4 calls instead of 20
+  - CLI overhead: ~3s per call = 60s for 20 individual vs 12s for 4 batches
+- tests/test_enrich_stories.py: Added TestEnrichBatch class with 4 tests
+  - test_batch_enrich_multiple_stories: 3 stories in single batch
+  - test_batch_with_splits: batch with mix of splits and enrichments
+  - test_batch_enrichment_integration_10_stories_2_batches: full integration with 2 batches of 5
+  - test_batch_failure_fallback_to_individual: graceful degradation when batch fails
+
+### Patterns discovered
+- Batch response format must map original_index to results array (relative to batch)
+  - First batch: original_index 0-4, second batch: original_index 0-4 (NOT 5-9)
+  - Response "results" field is array even for single story (wrap in list)
+- Fallback mechanism: return empty dict {} from _enrich_batch to trigger individual enrichment
+  - Both batch success and fallback use same enriched_count/split_count logic
+- Priority-aware processing still works with batching: eligible_stories sorted before batching
+- batch_size=1 optimization: skip _enrich_batch entirely (return {} to use _enrich_one)
+
+### Gotchas
+- Batch response can be split or enrich action per story (not all same action)
+- Must track processed_indices from sorted_stories to avoid re-processing non-eligible stories
+- enrich_stories() accepts batch_size parameter; uses SPIRAL_ENRICH_BATCH_SIZE env var if not provided
+
 ## Iteration - Story: US-1063 Phase E: Wire Episodic Memory Pattern Retrieval into Story Enrichment
 
 ### What was implemented
@@ -1371,3 +1409,35 @@ All tests passing: 68 existing llm_router tests + 15 new calibration tests = 83 
 Type checking: mypy --strict ✓ (0 errors)
 Linting: ruff check ✓ (0 errors)
 Diff size: 653 added lines (248 implementation + 405 tests, within ~350 budget)
+
+## Pre-analysis for US-1101 (Gemini 2.5 Pro)
+Based on the user story and project structure, here is the technical brief for implementing `US-1101`.
+
+**Project:** Spiral (Python CLI Tool)
+**Objective:** Batch story enrichment to reduce Claude CLI invocation overhead.
+
+---
+
+### **Technical Implementation Brief**
+
+**1. Primary Files to Modify:**
+*   `lib/enrich_stories.py`: This is the most probable location for the core enrichment logic. The current single-story enrichment function will be here.
+*   `lib/constants.py`: The new `SPIRAL_ENRICH_BATCH_SIZE` environment variable default (5) should be defined here.
+*   `spiral.sh`: This script is noted in the story and likely contains the command that invokes the Python enrichment script. It may need modification to switch between batch and single-story modes or to pass new parameters.
+
+**2. Key Data Structures / Hooks:**
+*   **Data Structure:** `prd.json`. This file acts as the "database" for user stories. The batching process will read a group of stories from this file and the enrichment results will be written back to the corresponding story objects within it.
+*   **Process "Hook":** The enrichment process is a step in a larger workflow, likely referred to as "Phase E". The trigger is an invocation via the `spiral.sh` script, which calls the relevant Python logic.
+
+**3. Recommended Implementation Approach:**
+1.  **Batching Logic:** In `lib/enrich_stories.py`, create a new function `batch_enrich_stories`. This function should query `prd.json` for stories pending enrichment and group them into lists of `SPIRAL_ENRICH_BATCH_SIZE`.
+2.  **Prompt Construction:** For each batch, generate a single, consolidated prompt. This prompt must instruct the LLM to process each story independently and return a structured response (e.g., JSON array) with clear delimiters for each story's enrichment data.
+3.  **CLI Invocation:** The new function will call the Claude CLI once per batch, passing the consolidated prompt.
+4.  **Response Parsing:** Implement robust logic to parse the structured response from the CLI and map the enrichment data back to the correct story objects in `prd.json`.
+5.  **Fallback Mechanism:** Wrap the batch processing logic in a `try...except` block. On any failure (e.g., parsing error, CLI error), iterate through the stories in the failed batch and process them individually using the existing single-story enrichment function as a fallback.
+
+**4. Edge Cases & Gotchas:**
+*   **Context Window:** Batching too many stories may exceed the Claude model's token limit. The `SPIRAL_ENRICH_BATCH_SIZE` should be kept conservative initially.
+*   **Response Contamination:** The consolidated prompt must be carefully engineered to prevent the model from blending context between different stories in the batch.
+*   **Atomic Updates:** Ensure that updates to `prd.json` are atomic to prevent race conditions if multiple processes could potentially access it. Use file locking if necessary.
+*   **State Management:** The logic must correctly identify "pending" stories and update their state to "enriched" or "failed" to ensure stories are not processed multiple times or skipped.
