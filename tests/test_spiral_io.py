@@ -1,6 +1,7 @@
 """Tests for lib/spiral_io.py — atomic write, JSONL, safe read, UTF-8 config."""
 
 import json
+import multiprocessing
 import os
 import sys
 
@@ -11,6 +12,7 @@ from spiral_io import (
     append_jsonl,
     atomic_write_json,
     configure_utf8_stdout,
+    locked_append_jsonl,
     safe_read_json,
     safe_read_jsonl,
 )
@@ -178,3 +180,54 @@ def test_safe_read_jsonl_blank_lines(tmp_path):
 def test_configure_utf8_stdout_runs_without_error():
     # Should not raise even if streams don't support reconfigure
     configure_utf8_stdout()
+
+
+# ── locked_append_jsonl ───────────────────────────────────────────────────────
+
+
+def test_locked_append_jsonl_basic(tmp_path):
+    path = str(tmp_path / "events.jsonl")
+    locked_append_jsonl(path, {"a": 1})
+    locked_append_jsonl(path, {"b": 2})
+
+    with open(path, encoding="utf-8") as f:
+        lines = f.read().strip().splitlines()
+    assert len(lines) == 2
+    assert json.loads(lines[0]) == {"a": 1}
+    assert json.loads(lines[1]) == {"b": 2}
+
+
+def test_locked_append_jsonl_creates_parent_dirs(tmp_path):
+    path = str(tmp_path / "sub" / "dir" / "events.jsonl")
+    locked_append_jsonl(path, {"x": 1})
+    assert os.path.isfile(path)
+
+
+def _concurrent_writer(args: tuple[str, int, int]) -> None:
+    """Worker function for multiprocessing: appends *n* records to *filepath*."""
+    filepath, writer_id, n = args
+    for seq in range(n):
+        locked_append_jsonl(filepath, {"writer": writer_id, "seq": seq})
+
+
+def test_locked_append_jsonl_concurrent(tmp_path):
+    """5 concurrent writers × 100 records each = 500 total, all valid JSON."""
+    path = str(tmp_path / "events.jsonl")
+    num_writers = 5
+    records_per_writer = 100
+
+    tasks = [(path, w, records_per_writer) for w in range(num_writers)]
+    ctx = multiprocessing.get_context("spawn")
+    with ctx.Pool(num_writers) as pool:
+        pool.map(_concurrent_writer, tasks)
+
+    with open(path, encoding="utf-8") as f:
+        lines = [ln for ln in f.readlines() if ln.strip()]
+
+    assert len(lines) == num_writers * records_per_writer, (
+        f"Expected {num_writers * records_per_writer} records, got {len(lines)}"
+    )
+    for line in lines:
+        record = json.loads(line)  # raises on corrupt JSON
+        assert "writer" in record
+        assert "seq" in record

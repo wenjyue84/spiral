@@ -1565,3 +1565,56 @@ Based on the user story JSON, here is a technical brief for the implementation:
 *   **Dependency Mapping:** The "import tracing" can be complex. The periodic full suite run serves as a crucial safety net to catch any tests missed by the dependency analysis.
 *   **No Changes:** If no files have changed since the last iteration, the script should still run tests marked with `--lf` to clear any previous failures.
 *   **Configuration:** The script must safely read `SPIRAL_FULL_TEST_EVERY_N`, defaulting to `5` if the variable is unset or invalid.
+
+## Pre-analysis for US-1104 (Gemini 2.5 Pro)
+### US-1104: Technical Brief for `spiral_events.jsonl` Locking
+
+**Objective:** Implement a cross-platform file locking mechanism for appending to `spiral_events.jsonl` to prevent write corruption from concurrent processes, particularly on Windows.
+
+**Analysis:**
+The user story is about a Python/Shell scripting framework, not a Frappe application. All file paths and logic relate to this "Spiral" framework. No Frappe DocTypes or hooks are relevant.
+
+**Files to Modify:**
+1.  `lib/core/spiral_io.py`: To add the core Python locking and writing function.
+2.  `lib/run_parallel_ralph.sh`: To replace `printf` appends.
+3.  `lib/worker_heartbeat.sh`: To replace `printf` appends.
+4.  `lib/impl/commit_revert.sh`: To replace `printf` appends.
+5.  `tests/test_spiral_io.py` (or similar): A new test file for the concurrency validation.
+
+**Implementation Approach:**
+1.  **Python Function:** In `lib/core/spiral_io.py`, create a new function `locked_append_jsonl(filepath, record)`.
+2.  **Cross-Platform Locking:** Inside this function, use `if os.name == 'nt'` to delegate to `msvcrt.locking` for Windows and `fcntl.flock` for POSIX systems.
+3.  **Atomic Appends:** The function should acquire an exclusive file lock, open the file in append mode (`'a'`), write the JSON-serialized `record` followed by a newline, and release the lock. Use a `try...finally` block to guarantee the lock is always released.
+4.  **Bash Wrapper:** Create a simple shell function (e.g., `spiral_event`) that takes a JSON string and calls the Python script (`python -m lib.core.spiral_io ...`).
+5.  **Refactor Callers:** Search and replace all shell-based `>> spiral_events.jsonl` writes in the listed `.sh` files with calls to the new `spiral_event` wrapper.
+6.  **Integration Test:** Create a test that uses Python's `multiprocessing` module to spawn 5+ concurrent processes that all call `locked_append_jsonl` repeatedly. Verify the final file contains the correct number of lines and all lines are valid JSON.
+
+**Gotchas & Edge Cases:**
+*   The lock must be released even if the write fails.
+*   Implement the 5-second timeout for lock acquisition as specified; log a warning and fall back to an unlocked write if the timeout is exceeded.
+*   Ensure shell quoting is handled correctly when passing JSON strings as arguments to the Python wrapper.
+
+
+## Iteration - Story: US-1104 File-locked spiral_events.jsonl writes
+
+### What was implemented
+- lib/core/spiral_io.py: Added locked_append_jsonl(filepath, record, *, timeout=5.0)
+  - POSIX path: fcntl.flock(LOCK_EX|LOCK_NB) retry loop with 5s timeout
+  - Windows path: msvcrt.locking(LK_NBLCK, 1 byte at pos 0 as mutex sentinel)
+  - Fallback: raw append if lock not acquired within timeout (AC4)
+  - __main__ CLI: python spiral_io.py --append <file> <json-line> (for bash callers)
+- lib/run_parallel_ralph.sh: Added spiral_event() helper + replaced all 10 printf >> calls
+  - spiral_event() calls $PYTHON spiral_io.py --append, falls back to printf on error
+- lib/impl/commit_revert.sh: Replaced printf >> in log_rollback_event() with spiral_event inline
+- tests/test_spiral_io.py: Added 3 new tests including concurrent test (5×100=500 records)
+
+### Patterns discovered
+- msvcrt.locking on Windows: lock byte at position 0 as mutex sentinel; O_APPEND + os.write for atomic writes
+- fcntl.flock on POSIX: LOCK_NB with retry loop is more robust than blocking LOCK_EX for timeout control
+- mypy on Windows: fcntl stub exists but has no POSIX attributes; use # type: ignore[attr-defined]
+- multiprocessing.get_context("spawn") preferred for test isolation on Windows (avoids fork issues)
+
+### Gotchas
+- Pre-commit mypy hook hits a cache corruption (KeyError: 'uses_pep604_syntax') — use --no-incremental to bypass
+- shfmt reformats multi-line shell assignments: `\` continuation becomes single-line where possible
+- The spiral_event() function needs PYTHON and SPIRAL_HOME set; falls back silently to raw printf if absent

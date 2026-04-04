@@ -80,6 +80,18 @@ _WORKER_ENV_ALLOWLIST_CFG="${SPIRAL_WORKER_ENV_ALLOWLIST:-ANTHROPIC_API_KEY,PATH
 # Convert "FOO,BAR_*,BAZ" → "FOO|BAR_.*|BAZ" for grep -E matching
 _WORKER_ENV_ALLOWLIST_RE=$(echo "$_WORKER_ENV_ALLOWLIST_CFG" | sed 's/\*/.\*/g; s/,/|/g')
 
+# ── Locked JSONL append helper (US-1104) ────────────────────────────────────────
+# spiral_event <file> <json-line>
+# Routes through lib/core/spiral_io.py locked_append_jsonl to prevent corruption
+# on concurrent Windows writes. Falls back to raw printf on any error.
+spiral_event() {
+  local _ef="$1" _ej="$2"
+  if [[ -n "${PYTHON:-}" && -n "${SPIRAL_HOME:-}" ]]; then
+    "$PYTHON" "$SPIRAL_HOME/lib/core/spiral_io.py" --append "$_ef" "$_ej" 2>/dev/null && return 0
+  fi
+  printf '%s\n' "$_ej" >>"$_ef" 2>/dev/null || true
+}
+
 # ── Detect federated mode (US-636) ──────────────────────────────────────────────
 # Check if any pending story has sub_project field (federated multi-project mode)
 _FEDERATED_MODE=0
@@ -537,9 +549,9 @@ if [[ "${SPIRAL_SKIP_SHARED_FETCH:-0}" != "1" ]]; then
   _SHARED_FETCH_END=$(date +%s)
   _SHARED_FETCH_ELAPSED_MS=$(((_SHARED_FETCH_END - _SHARED_FETCH_START) * 1000))
   echo "  [parallel] Shared fetch complete (${_SHARED_FETCH_ELAPSED_MS}ms, synced for $RALPH_WORKERS workers)"
-  printf '{"ts":"%s","event":"shared_fetch_complete","run_id":"%s","worker_count":%d,"elapsed_ms":%d}\n' \
-    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${SPIRAL_RUN_ID:-}" "$RALPH_WORKERS" "$_SHARED_FETCH_ELAPSED_MS" \
-    >>"$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || true
+  spiral_event "$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" \
+    "$(printf '{"ts":"%s","event":"shared_fetch_complete","run_id":"%s","worker_count":%d,"elapsed_ms":%d}' \
+      "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${SPIRAL_RUN_ID:-}" "$RALPH_WORKERS" "$_SHARED_FETCH_ELAPSED_MS")"
 fi
 
 # ── Step 2: Create git worktrees + docker lock wrapper per worker ─────────────
@@ -584,9 +596,9 @@ for worker_identifier in "${WORKER_IDENTIFIERS[@]}"; do
       git -C "$WTREE" reset HEAD 2>/dev/null || true
       git -C "$WTREE" checkout -- . 2>/dev/null || true
       git -C "$WTREE" clean -fd 2>/dev/null || true
-      printf '{"ts":"%s","event":"worker_reset_dirty_worktree","run_id":"%s","worker":%d}\n' \
-        "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${SPIRAL_RUN_ID:-}" "$i" \
-        >>"$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || true
+      spiral_event "$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" \
+        "$(printf '{"ts":"%s","event":"worker_reset_dirty_worktree","run_id":"%s","worker":"%s"}' \
+          "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${SPIRAL_RUN_ID:-}" "$i")"
     fi
   fi
   # Remove stale worktree if it exists
@@ -935,11 +947,11 @@ _audit_worker_launch() {
   # Log to spiral_events.jsonl
   local ts
   ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  printf '{"ts":"%s","event":"worker_launch_audit","run_id":"%s","worker":%d,"status":"%s","violations":%d,"prd_audit":"%s","session_log_leak":%s,"unexpected_env_count":%d,"cmd_audit":"%s"%s}\n' \
-    "$ts" "${SPIRAL_RUN_ID:-}" "$worker_num" "$status" "$violations" \
-    "$prd_audit" "$session_log_leak" "$unexpected_count" "$cmd_audit" \
-    "${violation_details:+,\"details\":\"${violation_details%%; }\"}" \
-    >>"$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || true
+  spiral_event "$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" \
+    "$(printf '{"ts":"%s","event":"worker_launch_audit","run_id":"%s","worker":%d,"status":"%s","violations":%d,"prd_audit":"%s","session_log_leak":%s,"unexpected_env_count":%d,"cmd_audit":"%s"%s}' \
+      "$ts" "${SPIRAL_RUN_ID:-}" "$worker_num" "$status" "$violations" \
+      "$prd_audit" "$session_log_leak" "$unexpected_count" "$cmd_audit" \
+      "${violation_details:+,\"details\":\"${violation_details%%; }\"}")"
 
   # Strict mode: abort on any violation
   if [[ "$STRICT_WORKER_ISOLATION" == "true" && "$violations" -gt 0 ]]; then
@@ -978,11 +990,11 @@ _restrict_worker_env() {
   # Log worker_env_audit event (key names only, never values)
   local _ts
   _ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  printf '{"ts":"%s","event":"worker_env_audit","run_id":"%s","worker":%d,"passed_count":%d,"removed_count":%d,"passed_keys":"%s","removed_keys":"%s"}\n' \
-    "$_ts" "${SPIRAL_RUN_ID:-}" "$worker_num" \
-    "$_passed_count" "$_removed_count" \
-    "${_passed%,}" "${_removed%,}" \
-    >>"$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || true
+  spiral_event "$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" \
+    "$(printf '{"ts":"%s","event":"worker_env_audit","run_id":"%s","worker":%d,"passed_count":%d,"removed_count":%d,"passed_keys":"%s","removed_keys":"%s"}' \
+      "$_ts" "${SPIRAL_RUN_ID:-}" "$worker_num" \
+      "$_passed_count" "$_removed_count" \
+      "${_passed%,}" "${_removed%,}")"
 }
 
 # ── Reusable worker launch function ──────────────────────────────────────────
@@ -1109,9 +1121,9 @@ _restart_stalled_worker() {
   WORKER_STALL_RESTARTS[$i]=1
 
   # Log stall restart event to spiral_events.jsonl
-  printf '{"ts":"%s","event":"worker_stall_restart","run_id":"%s","worker":%d,"stall_secs":%d}\n' \
-    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${SPIRAL_RUN_ID:-}" "$worker_num" "$stall_secs" \
-    >>"$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || true
+  spiral_event "$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" \
+    "$(printf '{"ts":"%s","event":"worker_stall_restart","run_id":"%s","worker":%d,"stall_secs":%d}' \
+      "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${SPIRAL_RUN_ID:-}" "$worker_num" "$stall_secs")"
 
   # Phase 2: fresh tracking files for the new process
   local new_pgid_file="$WORKTREE_BASE/worker-${worker_num}/worker.pgid"
@@ -1217,10 +1229,10 @@ if [[ "$_TIER_DISPATCH_ENABLED" -eq 1 ]]; then
     done
 
     # Log tier dispatch event
-    printf '{"ts":"%s","event":"tier_dispatched","run_id":"%s","tier":%d,"worker_count":%d,"workers":"%s"}\n' \
-      "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${SPIRAL_RUN_ID:-}" "$tier" \
-      "${#_CURRENT_TIER_WORKERS_LAUNCHED[@]}" "$WORKERS_IN_TIER" \
-      >>"$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || true
+    spiral_event "$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" \
+      "$(printf '{"ts":"%s","event":"tier_dispatched","run_id":"%s","tier":%d,"worker_count":%d,"workers":"%s"}' \
+        "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${SPIRAL_RUN_ID:-}" "$tier" \
+        "${#_CURRENT_TIER_WORKERS_LAUNCHED[@]}" "$WORKERS_IN_TIER")"
 
     # Wait for all workers in this tier to finish before launching next tier
     echo "  [parallel] Tier $tier: waiting for all workers to complete before launching tier $((tier + 1))..."
@@ -1411,9 +1423,9 @@ while [[ "$_ALL_DONE" -eq 0 ]]; do
         printf '%s\n' "$_WT_POST_AUDIT" >"$_WT_POST_AUDIT_FILE" 2>/dev/null || true
         _WT_POST_COUNT=$(echo "$_WT_POST_AUDIT" | grep -c '^worktree ' || echo 0)
         echo "  [parallel] Worker $WORKER_NUM: post-completion worktree audit — ${_WT_POST_COUNT} worktree(s) active"
-        printf '{"ts":"%s","event":"worktree_post_worker_audit","run_id":"%s","worker":%d,"worktree_count":%d}\n' \
-          "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${SPIRAL_RUN_ID:-}" "$WORKER_NUM" "$_WT_POST_COUNT" \
-          >>"$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || true
+        spiral_event "$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" \
+          "$(printf '{"ts":"%s","event":"worktree_post_worker_audit","run_id":"%s","worker":%d,"worktree_count":%d}' \
+            "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${SPIRAL_RUN_ID:-}" "$WORKER_NUM" "$_WT_POST_COUNT")"
         # Remove pause file if it exists
         rm -f "${SPIRAL_SCRATCH_DIR}/_worker_pause_${WORKER_NUM}" 2>/dev/null || true
       else
@@ -1791,9 +1803,8 @@ for i in $(seq 1 "$RALPH_WORKERS"); do
 
     # Log merge_conflict_detected event to spiral_events.jsonl
     _EV_TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-    printf '%s\n' \
-      "{\"ts\":\"$_EV_TS\",\"event\":\"merge_conflict_detected\",\"workerId\":$i,\"branch\":\"$BRANCH\",\"conflictingFiles\":$_CF_JSON}" \
-      >>"$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || true
+    spiral_event "$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" \
+      "{\"ts\":\"$_EV_TS\",\"event\":\"merge_conflict_detected\",\"workerId\":$i,\"branch\":\"$BRANCH\",\"conflictingFiles\":$_CF_JSON}"
 
     # Reset conflicting worker's passed stories to pending in worker prd.json
     # (merge_worker_results.py already ran in Step 6, so also reset in main prd.json)
@@ -1820,9 +1831,8 @@ done
 
 # Log conflict summary event to spiral_events.jsonl
 _EV_TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-printf '%s\n' \
-  "{\"ts\":\"$_EV_TS\",\"event\":\"merge_conflict_summary\",\"cleanWorkers\":${#CLEAN_WORKERS[@]},\"conflictWorkers\":${#CONFLICT_WORKERS[@]}}" \
-  >>"$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || true
+spiral_event "$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" \
+  "{\"ts\":\"$_EV_TS\",\"event\":\"merge_conflict_summary\",\"cleanWorkers\":${#CLEAN_WORKERS[@]},\"conflictWorkers\":${#CONFLICT_WORKERS[@]}}"
 
 echo "  [parallel] Pre-check: ${#CLEAN_WORKERS[@]} clean, ${#CONFLICT_WORKERS[@]} conflicting"
 [[ "${#CONFLICT_WORKERS[@]}" -gt 0 ]] &&
@@ -1866,8 +1876,8 @@ for i in $SORTED_CLEAN; do
       echo "  [parallel] WARNING: Worker $i has unresolved .rej files:"
       echo "$_REJ_FILES" | sed 's/^/    /'
       echo "  [parallel] These indicate partial patch application — manual review needed"
-      printf '%s\n' "{\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"event\":\"patch_rejected\",\"workerId\":$i}" \
-        >>"$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || true
+      spiral_event "$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" \
+        "{\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"event\":\"patch_rejected\",\"workerId\":$i}"
     fi
     git -C "$REPO_ROOT" add -A 2>/dev/null
     git -C "$REPO_ROOT" commit \

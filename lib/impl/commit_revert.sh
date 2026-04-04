@@ -138,14 +138,21 @@ log_rollback_event() {
   local elapsed_ms="$3"
   local details="${4:-}"
 
-  local _ts
+  local _ts _ev_file _ev_json _py
   _ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-
+  _ev_file="${SPIRAL_SCRATCH_DIR:-./}/spiral_events.jsonl"
   # shellcheck disable=SC2059
-  printf '{"ts":"%s","event":"rollback_%s","story_id":"%s","run_id":"%s","elapsed_ms":%d%s}\n' \
+  _ev_json="$(printf '{"ts":"%s","event":"rollback_%s","story_id":"%s","run_id":"%s","elapsed_ms":%d%s}' \
     "$_ts" "$status" "$story_id" "${SPIRAL_RUN_ID:-}" "$elapsed_ms" \
-    "${details:+,\"details\":\"$details\"}" \
-    >>"${SPIRAL_SCRATCH_DIR:-./}/spiral_events.jsonl" 2>/dev/null || true
+    "${details:+,\"details\":\"$details\"}")"
+  _py="${SPIRAL_PYTHON:-${PYTHON:-uv run python}}"
+  _spiral_io="${SPIRAL_HOME:-${SPIRAL_ROOT:-.}}/lib/core/spiral_io.py"
+  if [[ -f "$_spiral_io" ]]; then
+    $_py "$_spiral_io" --append "$_ev_file" "$_ev_json" 2>/dev/null ||
+      printf '%s\n' "$_ev_json" >>"$_ev_file" 2>/dev/null || true
+  else
+    printf '%s\n' "$_ev_json" >>"$_ev_file" 2>/dev/null || true
+  fi
 }
 
 # ── DETACHED HEAD RECOVERY (US-461) ──────────────────────────────────────────
