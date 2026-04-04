@@ -50,6 +50,8 @@ class ResultsRecord:
     worker_id: str = ""  # US-1086: worker identifier in federated parallel runs
     conflict_file_count: str = ""  # US-1086: count of files with conflicts detected
     phase_timing: str = ""  # US-1086: JSON dict of phase durations (e.g. '{"R": 1.5, "M": 0.8}')
+    failure_type: str = ""  # US-1090: failure category from failure_categorizer (e.g. 'timeout', 'oom')
+    failure_message: str = ""  # US-1090: extracted error message for debugging
 
 
 def _keep_quota_fields_in_sync() -> None:
@@ -60,6 +62,13 @@ def _keep_quota_fields_in_sync() -> None:
     _ = ResultsRecord.__dataclass_fields__["worker_id"]
     _ = ResultsRecord.__dataclass_fields__["conflict_file_count"]
     _ = ResultsRecord.__dataclass_fields__["phase_timing"]
+
+
+def _keep_failure_fields_in_sync() -> None:
+    """Helper to prevent linter from removing failure categorizer fields (used by Phase I/L, US-1090)."""
+    # This function ensures failure_type and failure_message fields are considered used.
+    _ = ResultsRecord.__dataclass_fields__["failure_type"]
+    _ = ResultsRecord.__dataclass_fields__["failure_message"]
 
 
 # Header fields in order for TSV writing
@@ -97,6 +106,8 @@ HEADER = [
     "worker_id",
     "conflict_file_count",
     "phase_timing",
+    "failure_type",
+    "failure_message",
 ]
 
 

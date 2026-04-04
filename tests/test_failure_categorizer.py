@@ -1,241 +1,167 @@
-"""tests/test_failure_categorizer.py — Tests for US-608 failure categorizer.
+#!/usr/bin/env python3
+"""
+tests/test_failure_categorizer.py — Unit tests for lib/failure_categorizer.py
 
-Validates that 10 sample error messages are categorized with >80% accuracy,
-and tests the iteration-level grouping from results.tsv.
+Tests verify:
+- categorize_failure() classifies 7+ error types correctly
+- Failure message extraction works
+- Edge cases: empty input, unknown errors, multiple errors
 """
 
 from __future__ import annotations
 
-import json
-import subprocess
-import sys
-from pathlib import Path
-
-import pytest
-
-# Add lib/ to path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "lib"))
-
-from failure_categorizer import (  # noqa: E402
-    categorize_iteration,
-    categorize_message,
-)
-
-# ── Fixtures ──────────────────────────────────────────────────────────────────
-
-TSV_HEADER = (
-    "timestamp\tspiral_iter\tralph_iter\tstory_id\tstory_title\tstatus\t"
-    "duration_sec\tmodel\tretry_num\tcommit_sha\trun_id\tcache_hit\t"
-    "cache_read_tokens\tcache_creation_tokens\treview_tokens\twall_seconds\t"
-    "user_cpu_s\tsys_cpu_s\tpeak_rss_kb\tbatch_id"
-)
+from lib.failure_categorizer import categorize_failure
 
 
-def _make_tsv_row(
-    story_id: str,
-    story_title: str,
-    status: str = "fail",
-    spiral_iter: int = 1,
-    retry_num: int = 1,
-) -> str:
-    return (
-        f"2026-01-01T00:00:00Z\t{spiral_iter}\t1\t{story_id}\t{story_title}\t"
-        f"{status}\t60\tsonnet\t{retry_num}\t\t\ttrue\t0\t0\t0\t0\t0\t0\t0\t"
-    )
+class TestCategorizeFailure:
+    """Test categorize_failure() function."""
 
+    def test_importerror_classification(self) -> None:
+        """ImportError should be classified as missing_dependency."""
+        stderr = "ModuleNotFoundError: No module named 'nonexistent_lib'"
+        stdout = ""
+        failure_type, failure_message = categorize_failure(stderr, stdout)
 
-# ── Unit tests: categorize_message (10 error messages) ───────────────────────
+        assert failure_type == "missing_dependency"
+        assert "module" in failure_message.lower()
+        assert len(failure_message) <= 200
 
+    def test_syntaxerror_classification(self) -> None:
+        """SyntaxError should be classified as syntax_error."""
+        stderr = "SyntaxError: invalid syntax\n  File 'test.py', line 10\n    x = ["
+        stdout = ""
+        failure_type, failure_message = categorize_failure(stderr, stdout)
 
-# These 10 cases form the ">80% accuracy" corpus.
-# We assert all 10 so actual accuracy = 100% >= 80%.
-ERROR_MESSAGE_CASES: list[tuple[str, str]] = [
-    # test-failure
-    ("AssertionError: expected True got False", "test-failure"),
-    ("FAILED tests/test_foo.py::test_bar - assert 1 == 2", "test-failure"),
-    # compilation-error
-    ("SyntaxError: invalid syntax at line 42", "compilation-error"),
-    ("ImportError: cannot import name 'foo' from 'bar'", "compilation-error"),
-    # missing-dependency
-    ("ModuleNotFoundError: No module named 'requests'", "missing-dependency"),
-    ("npm install failed: package not found", "missing-dependency"),
-    # timeout
-    ("TimeoutError: operation timed out after 30s", "timeout"),
-    ("execution timed out: deadline exceeded", "timeout"),
-    # token-limit
-    ("out of memory: context_length exceeds max", "token-limit"),
-    ("MemoryError: token limit reached", "token-limit"),
-]
+        assert failure_type == "syntax_error"
+        assert "syntax" in failure_message.lower() or "file" in failure_message.lower()
 
+    def test_pytest_assertion_classification(self) -> None:
+        """Pytest assertion failures should be classified as test_assertion."""
+        stderr = ""
+        stdout = "FAILED tests/test_example.py::test_foo - AssertionError: expected 5, got 3"
+        failure_type, failure_message = categorize_failure(stderr, stdout)
 
-@pytest.mark.parametrize("message,expected", ERROR_MESSAGE_CASES)
-def test_categorize_message_known_errors(message: str, expected: str) -> None:
-    """Each of the 10 sample error messages must match its expected category."""
-    assert categorize_message(message) == expected
+        assert failure_type == "test_assertion"
+        assert "expected" in failure_message.lower() or "failed" in failure_message.lower()
 
+    def test_timeout_classification(self) -> None:
+        """Timeout errors should be classified as timeout."""
+        stderr = "ERROR: Execution timeout after 300 seconds\nExecution timed out"
+        stdout = ""
+        failure_type, failure_message = categorize_failure(stderr, stdout)
 
-def test_categorize_message_type_error() -> None:
-    result = categorize_message("TypeError: unsupported operand type(s) for +: 'int' and 'str'")
-    assert result == "type-error"
+        assert failure_type == "timeout"
+        assert "timeout" in failure_message.lower() or "time" in failure_message.lower()
 
+    def test_oom_classification(self) -> None:
+        """Out of memory errors should be classified as oom."""
+        stderr = "MemoryError: Out of memory when allocating 4GB\n"
+        stdout = ""
+        failure_type, failure_message = categorize_failure(stderr, stdout)
 
-def test_categorize_message_attribute_error() -> None:
-    result = categorize_message("AttributeError: 'NoneType' object has no attribute 'split'")
-    assert result == "type-error"
+        assert failure_type == "oom"
+        assert "memory" in failure_message.lower()
 
+    def test_typeerror_classification(self) -> None:
+        """TypeError should be classified as type_error."""
+        stderr = "TypeError: expected str, got int"
+        stdout = ""
+        failure_type, failure_message = categorize_failure(stderr, stdout)
 
-def test_categorize_message_other_fallback() -> None:
-    """Unknown error text should map to 'other'."""
-    result = categorize_message("something went completely wrong in an unexpected way")
-    assert result == "other"
+        assert failure_type == "type_error"
+        assert "type" in failure_message.lower() or "int" in failure_message.lower()
 
+    def test_context_overflow_classification(self) -> None:
+        """Context window overflow should be classified as context_overflow."""
+        stderr = "Error: Context window exceeded - prompt too long (200k > 180k tokens)"
+        stdout = ""
+        failure_type, failure_message = categorize_failure(stderr, stdout)
 
-def test_categorize_message_empty_string() -> None:
-    assert categorize_message("") == "other"
+        assert failure_type == "context_overflow"
+        assert "context" in failure_message.lower() or "token" in failure_message.lower()
 
+    def test_unknown_error_classification(self) -> None:
+        """Unknown errors should be classified as other."""
+        stderr = "Something went wrong with the flux capacitor"
+        stdout = ""
+        failure_type, failure_message = categorize_failure(stderr, stdout)
 
-# ── Unit tests: categorize_iteration ─────────────────────────────────────────
+        assert failure_type == "other"
+        assert len(failure_message) > 0
 
+    def test_empty_input(self) -> None:
+        """Empty input should default to other with placeholder message."""
+        stderr = ""
+        stdout = ""
+        failure_type, failure_message = categorize_failure(stderr, stdout)
 
-def test_categorize_iteration_empty_file(tmp_path: Path) -> None:
-    tsv = tmp_path / "results.tsv"
-    tsv.write_text(TSV_HEADER + "\n", encoding="utf-8")
-    result = categorize_iteration(iteration=1, results_tsv=tsv)
-    assert result == []
+        assert failure_type == "other"
+        assert failure_message == "unknown error"
 
+    def test_failure_message_truncation(self) -> None:
+        """Failure message should be truncated to 200 characters."""
+        long_error = "A" * 300
+        stderr = long_error
+        stdout = ""
+        failure_type, failure_message = categorize_failure(stderr, stdout)
 
-def test_categorize_iteration_missing_file(tmp_path: Path) -> None:
-    tsv = tmp_path / "nonexistent.tsv"
-    result = categorize_iteration(iteration=1, results_tsv=tsv)
-    assert result == []
+        assert len(failure_message) <= 200
 
+    def test_multiple_errors_first_wins(self) -> None:
+        """When multiple error types present, highest priority (earlier in check) wins."""
+        stderr = "ImportError: Cannot import module\nAnd then there was a timeout after 5 minutes"
+        stdout = ""
+        failure_type, failure_message = categorize_failure(stderr, stdout)
 
-def test_categorize_iteration_filters_by_iteration(tmp_path: Path) -> None:
-    """Only rows matching the given spiral_iter should be included."""
-    rows = [
-        _make_tsv_row("US-100", "AssertionError in test_foo", spiral_iter=1),
-        _make_tsv_row("US-200", "SyntaxError found", spiral_iter=2),
-    ]
-    tsv = tmp_path / "results.tsv"
-    tsv.write_text(TSV_HEADER + "\n" + "\n".join(rows) + "\n", encoding="utf-8")
+        # missing_dependency is checked before timeout, so it should win
+        assert failure_type == "missing_dependency"
 
-    result = categorize_iteration(iteration=1, results_tsv=tsv)
-    story_ids = [r["story"] for r in result]
-    assert story_ids == ["US-100"]
-    assert result[0]["retry1"] == "test-failure"
+    def test_case_insensitive_matching(self) -> None:
+        """Error classification should be case-insensitive."""
+        stderr = "IMPORTERROR: NO MODULE NAMED 'xyz'"
+        stdout = ""
+        failure_type, failure_message = categorize_failure(stderr, stdout)
 
+        assert failure_type == "missing_dependency"
 
-def test_categorize_iteration_multiple_retries(tmp_path: Path) -> None:
-    """Multiple rows for same story become retry1, retry2, ..."""
-    rows = [
-        _make_tsv_row("US-100", "AssertionError retry 1", spiral_iter=1, retry_num=1),
-        _make_tsv_row("US-100", "TimeoutError retry 2", spiral_iter=1, retry_num=2),
-    ]
-    tsv = tmp_path / "results.tsv"
-    tsv.write_text(TSV_HEADER + "\n" + "\n".join(rows) + "\n", encoding="utf-8")
+    def test_failure_message_from_stdout(self) -> None:
+        """Failure message should be extracted from stdout if stderr is empty."""
+        stderr = ""
+        stdout = "Test run failed with: AssertionError: Expected 10 but got 5"
+        failure_type, failure_message = categorize_failure(stderr, stdout)
 
-    result = categorize_iteration(iteration=1, results_tsv=tsv)
-    assert len(result) == 1
-    rec = result[0]
-    assert rec["story"] == "US-100"
-    assert rec["retry1"] == "test-failure"
-    assert rec["retry2"] == "timeout"
+        assert failure_type == "test_assertion"
+        assert "assertion" in failure_message.lower() or "expected" in failure_message.lower()
 
+    def test_real_world_pytest_failure(self) -> None:
+        """Real-world pytest failure output."""
+        stderr = ""
+        stdout = """
+=== FAILURES ===
+test_example.py::test_calculation FAILED
 
-def test_categorize_iteration_none_returns_all(tmp_path: Path) -> None:
-    """iteration=None includes rows from all spiral iterations."""
-    rows = [
-        _make_tsv_row("US-100", "SyntaxError", spiral_iter=1),
-        _make_tsv_row("US-200", "ModuleNotFoundError", spiral_iter=5),
-    ]
-    tsv = tmp_path / "results.tsv"
-    tsv.write_text(TSV_HEADER + "\n" + "\n".join(rows) + "\n", encoding="utf-8")
+def test_calculation():
+    result = add(2, 2)
+>   assert result == 5
+E   AssertionError: assert 4 == 5
 
-    result = categorize_iteration(iteration=None, results_tsv=tsv)
-    story_ids = [r["story"] for r in result]
-    assert "US-100" in story_ids
-    assert "US-200" in story_ids
+test_example.py:10: AssertionError
+"""
+        failure_type, failure_message = categorize_failure(stderr, stdout)
 
+        assert failure_type == "test_assertion"
+        assert "assertion" in failure_message.lower() or "failed" in failure_message.lower()
 
-def test_categorize_iteration_skips_passing_rows(tmp_path: Path) -> None:
-    """Rows with status 'pass' should not appear in output."""
-    rows = [
-        _make_tsv_row("US-100", "AssertionError", status="pass", spiral_iter=1),
-        _make_tsv_row("US-200", "SyntaxError", status="fail", spiral_iter=1),
-    ]
-    tsv = tmp_path / "results.tsv"
-    tsv.write_text(TSV_HEADER + "\n" + "\n".join(rows) + "\n", encoding="utf-8")
+    def test_real_world_import_error(self) -> None:
+        """Real-world ImportError output."""
+        stderr = """
+Traceback (most recent call last):
+  File "main.py", line 5, in <module>
+    from nonexistent_module import SomeClass
+ModuleNotFoundError: No module named 'nonexistent_module'
+"""
+        stdout = ""
+        failure_type, failure_message = categorize_failure(stderr, stdout)
 
-    result = categorize_iteration(iteration=1, results_tsv=tsv)
-    story_ids = [r["story"] for r in result]
-    assert "US-100" not in story_ids
-    assert "US-200" in story_ids
-
-
-def test_categorize_iteration_output_sorted(tmp_path: Path) -> None:
-    """Output should be sorted by story_id alphabetically."""
-    rows = [
-        _make_tsv_row("US-300", "AssertionError", spiral_iter=1),
-        _make_tsv_row("US-100", "SyntaxError", spiral_iter=1),
-        _make_tsv_row("US-200", "TimeoutError", spiral_iter=1),
-    ]
-    tsv = tmp_path / "results.tsv"
-    tsv.write_text(TSV_HEADER + "\n" + "\n".join(rows) + "\n", encoding="utf-8")
-
-    result = categorize_iteration(iteration=1, results_tsv=tsv)
-    story_ids = [r["story"] for r in result]
-    assert story_ids == sorted(story_ids)
-
-
-# ── CLI integration test ──────────────────────────────────────────────────────
-
-
-def test_cli_categorize_failures_json_output(tmp_path: Path) -> None:
-    """spiral categorize-failures <iter> outputs valid JSON list."""
-    rows = [
-        _make_tsv_row("US-111", "AssertionError in test_auth", spiral_iter=3),
-        _make_tsv_row("US-222", "ModuleNotFoundError: No module named 'foo'", spiral_iter=3),
-    ]
-    tsv = tmp_path / "results.tsv"
-    tsv.write_text(TSV_HEADER + "\n" + "\n".join(rows) + "\n", encoding="utf-8")
-
-    main_py = Path(__file__).resolve().parent.parent / "main.py"
-    proc = subprocess.run(
-        [sys.executable, str(main_py), "categorize-failures", "3", "--results", str(tsv)],
-        capture_output=True,
-        text=True,
-        timeout=30,
-    )
-    assert proc.returncode == 0, proc.stderr
-    output = json.loads(proc.stdout)
-    assert isinstance(output, list)
-    stories = {r["story"] for r in output}
-    assert "US-111" in stories
-    assert "US-222" in stories
-    us111 = next(r for r in output if r["story"] == "US-111")
-    assert us111["retry1"] == "test-failure"
-    us222 = next(r for r in output if r["story"] == "US-222")
-    assert us222["retry1"] == "missing-dependency"
-
-
-def test_cli_categorize_failures_all_iterations(tmp_path: Path) -> None:
-    """spiral categorize-failures with no iteration returns all rows."""
-    rows = [
-        _make_tsv_row("US-111", "SyntaxError", spiral_iter=1),
-        _make_tsv_row("US-222", "TimeoutError", spiral_iter=7),
-    ]
-    tsv = tmp_path / "results.tsv"
-    tsv.write_text(TSV_HEADER + "\n" + "\n".join(rows) + "\n", encoding="utf-8")
-
-    main_py = Path(__file__).resolve().parent.parent / "main.py"
-    proc = subprocess.run(
-        [sys.executable, str(main_py), "categorize-failures", "--results", str(tsv)],
-        capture_output=True,
-        text=True,
-        timeout=30,
-    )
-    assert proc.returncode == 0, proc.stderr
-    output = json.loads(proc.stdout)
-    story_ids = {r["story"] for r in output}
-    assert "US-111" in story_ids
-    assert "US-222" in story_ids
+        assert failure_type == "missing_dependency"
+        assert "module" in failure_message.lower()

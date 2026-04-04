@@ -1,242 +1,200 @@
 #!/usr/bin/env python3
 """
-lib/failure_categorizer.py — Phase I Retry Failure Categorizer (US-608).
+failure_categorizer.py — Classifies Phase I implementation failures into categories.
 
-Parses results.tsv to categorize per-story, per-retry failure types into
-one of 6 named categories based on error message keyword matching.
+Parses ralph stderr/stdout output and categorizes the root cause for smarter retries
+and better learning via Phase L. Returns standardized failure_type and failure_message
+for storage in results.tsv.
 
-Categories:
-  test-failure         — AssertionError, pytest failures, FAILED, test error
-  compilation-error    — SyntaxError, ImportError, NameError, compile error
-  missing-dependency   — ModuleNotFoundError, No module named, package not found
-  timeout              — timed out, TimeoutError, deadline exceeded
-  token-limit          — out of memory, max_tokens, context_length, OOM
-  type-error           — TypeError, AttributeError, attribute error
-  other                — fallback when no pattern matches
-
-Usage:
-    from lib.failure_categorizer import categorize_message, categorize_iteration
-    cat = categorize_message("AssertionError: expected True")   # "test-failure"
-    results = categorize_iteration(3, Path("results.tsv"))
-    # [{"story": "US-123", "retry1": "test-failure", "retry2": "token-limit"}]
+Categories (7+):
+- missing_dependency: ImportError, ModuleNotFoundError, missing package
+- syntax_error: SyntaxError, IndentationError, invalid Python/shell syntax
+- type_error: TypeError, mypy/type checker errors, type mismatch
+- test_assertion: pytest assertion failures, test timeouts, unittest errors
+- timeout: execution timeout, time limit exceeded
+- oom: Out of memory, memory exhaustion, heap overflow
+- context_overflow: Context window exceeded, prompt too long
+- other: unclassified errors
 """
 
 from __future__ import annotations
 
-import csv
-import json
-import re
-import sys
-from collections import defaultdict
-from pathlib import Path
 
-# ── Pattern registry ──────────────────────────────────────────────────────────
-# Ordered: first match wins, most specific patterns first.
-
-_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
-    (
-        "missing-dependency",
-        re.compile(
-            r"ModuleNotFoundError|No module named|package not found"
-            r"|cannot find module|npm install|dependency not found",
-            re.IGNORECASE,
-        ),
-    ),
-    (
-        "token-limit",
-        re.compile(
-            r"out of memory|max_tokens|context.?length|context.?window"
-            r"|token.?limit|memory.?error|OOM|exceeds.*max|MemoryError",
-            re.IGNORECASE,
-        ),
-    ),
-    (
-        "timeout",
-        re.compile(
-            r"timed?\s+out|TimeoutError|deadline.?exceeded|timeout.*expired"
-            r"|execution.*timed|operation.*timed",
-            re.IGNORECASE,
-        ),
-    ),
-    (
-        "compilation-error",
-        re.compile(
-            r"\bSyntaxError\b|\bImportError\b|\bNameError\b"
-            r"|compile.?error|invalid.?syntax|unexpected.?token"
-            r"|\bIndentationError\b",
-            re.IGNORECASE,
-        ),
-    ),
-    (
-        "type-error",
-        re.compile(
-            r"\bTypeError\b|\bAttributeError\b|attribute.?error"
-            r"|unsupported operand|not callable|has no attribute",
-            re.IGNORECASE,
-        ),
-    ),
-    (
-        "test-failure",
-        re.compile(
-            r"\bAssertionError\b|FAILED|test.?error|pytest|assertion.?failed"
-            r"|expected.*but.*got|test.*fail|fail.*test",
-            re.IGNORECASE,
-        ),
-    ),
-]
-
-
-def categorize_message(text: str) -> str:
-    """Return the first matching failure category for *text*, or 'other'.
+def categorize_failure(stderr: str, stdout: str) -> tuple[str, str]:
+    """
+    Classify a failure from ralph output into a category and extract error message.
 
     Args:
-        text: Error message, log line, or story title containing failure info.
+        stderr: stderr output from ralph worker
+        stdout: stdout output from ralph worker
 
     Returns:
-        One of: 'test-failure', 'compilation-error', 'missing-dependency',
-                'timeout', 'token-limit', 'type-error', 'other'
+        (failure_type, failure_message) tuple where:
+        - failure_type: one of 'missing_dependency', 'syntax_error', 'type_error',
+                       'test_assertion', 'timeout', 'oom', 'context_overflow', 'other'
+        - failure_message: extracted error message (first line of error, truncated to 200 chars)
     """
-    for category, pattern in _PATTERNS:
-        if pattern.search(text):
-            return category
+    combined = stderr + "\n" + stdout
+    failure_type = _classify(combined)
+    failure_message = _extract_message(combined, failure_type)
+    return (failure_type, failure_message)
+
+
+def _classify(output: str) -> str:
+    """
+    Determine failure category from output text.
+
+    Check patterns in order of specificity (most to least specific).
+    """
+    output_lower = output.lower()
+
+    # missing_dependency: ImportError, ModuleNotFoundError, 'No module named'
+    if any(
+        pat in output_lower
+        for pat in [
+            "importerror",
+            "modulenotfounderror",
+            "no module named",
+            "cannot import",
+            "missing dependency",
+            "not found: module",
+        ]
+    ):
+        return "missing_dependency"
+
+    # oom: memory-related errors
+    if any(
+        pat in output_lower
+        for pat in [
+            "out of memory",
+            "oom",
+            "memory error",
+            "heap overflow",
+            "cannot allocate",
+            "memoryerror",
+        ]
+    ):
+        return "oom"
+
+    # context_overflow: context window exceeded
+    if any(
+        pat in output_lower
+        for pat in [
+            "context window",
+            "context overflow",
+            "token limit",
+            "too many tokens",
+            "prompt too long",
+        ]
+    ):
+        return "context_overflow"
+
+    # timeout: timeout/deadline exceeded
+    if any(
+        pat in output_lower
+        for pat in [
+            "timeout",
+            "timed out",
+            "deadline exceeded",
+            "time limit",
+            "execution timeout",
+            "hang",
+        ]
+    ):
+        return "timeout"
+
+    # type_error: TypeError, mypy errors, type mismatch
+    if any(
+        pat in output_lower
+        for pat in [
+            "typeerror",
+            "type error",
+            "mypy",
+            "type checking",
+            "type mismatch",
+            "incompatible type",
+            "argument of type",
+        ]
+    ):
+        return "type_error"
+
+    # syntax_error: SyntaxError, IndentationError, invalid syntax
+    if any(
+        pat in output_lower
+        for pat in [
+            "syntaxerror",
+            "syntax error",
+            "indentationerror",
+            "invalid syntax",
+            "unexpected token",
+        ]
+    ):
+        return "syntax_error"
+
+    # test_assertion: pytest failures, assertion errors, test failures
+    if any(
+        pat in output_lower
+        for pat in [
+            "assert",
+            "failed",
+            "pytest",
+            "unittest",
+            "test error",
+            "assertion failure",
+            "expected",
+        ]
+    ):
+        return "test_assertion"
+
+    # default to 'other' for unclassified errors
     return "other"
 
 
-# ── results.tsv reader ────────────────────────────────────────────────────────
-
-
-def _load_results(results_tsv: Path) -> list[dict[str, str]]:
-    """Load results.tsv rows as list of dicts; returns [] if missing/malformed."""
-    if not results_tsv.exists():
-        return []
-    rows: list[dict[str, str]] = []
-    try:
-        with open(results_tsv, encoding="utf-8", errors="replace") as f:
-            reader = csv.DictReader(f, delimiter="\t")
-            for row in reader:
-                rows.append(dict(row))
-    except OSError:
-        pass
-    return rows
-
-
-# ── Per-iteration grouping ────────────────────────────────────────────────────
-
-
-def categorize_iteration(
-    iteration: int | None,
-    results_tsv: Path | None = None,
-) -> list[dict[str, str]]:
-    """Parse results.tsv and return per-story retry categorization.
-
-    For each story that has at least one failed/retried attempt in *iteration*
-    (or across all iterations if iteration is None), return a dict with:
-        {"story": "US-NNN", "retry1": "<category>", "retry2": "<category>", ...}
-
-    The category is derived from the story_title column (used as a proxy for
-    error message when no dedicated error column exists).
-
-    Args:
-        iteration: spiral_iter value to filter on; None means all iterations.
-        results_tsv: Path to results.tsv (default: results.tsv in cwd).
-
-    Returns:
-        List of dicts, one per story, sorted by story_id.
+def _extract_message(output: str, failure_type: str) -> str:
     """
-    tsv_path = results_tsv or Path("results.tsv")
-    rows = _load_results(tsv_path)
+    Extract a meaningful error message from output.
 
-    # Group failed/retried rows by story_id, preserving retry order
-    # failed_rows[story_id] = list of rows in retry_num order
-    failed_rows: dict[str, list[dict[str, str]]] = defaultdict(list)
+    Tries to find the first error line containing the failure pattern,
+    or falls back to the first non-empty line.
+    """
+    lines = output.split("\n")
 
-    for row in rows:
-        # Filter by iteration if specified
-        if iteration is not None:
-            row_iter_str = row.get("spiral_iter", "").strip()
-            try:
-                row_iter = int(row_iter_str)
-            except (ValueError, TypeError):
-                continue
-            if row_iter != iteration:
-                continue
+    # Patterns to search for the error line (by failure_type)
+    patterns = _get_patterns_for_type(failure_type)
 
-        status = (row.get("status") or "").lower()
-        if status not in ("fail", "retry", "failed", "error", "skip", "reject"):
-            continue
+    # Try to find a line matching the failure type patterns
+    for line in lines:
+        if line.strip():
+            for pat in patterns:
+                if pat in line.lower():
+                    msg = line.strip()
+                    # Truncate to 200 characters for TSV storage
+                    return msg[:200] if msg else "unknown error"
 
-        story_id = (row.get("story_id") or "").strip()
-        if not story_id:
-            continue
+    # Fallback: return the first non-empty line
+    for line in lines:
+        if line.strip():
+            msg = line.strip()
+            return msg[:200] if msg else "unknown error"
 
-        failed_rows[story_id].append(row)
-
-    # Build output records
-    result: list[dict[str, str]] = []
-    for story_id in sorted(failed_rows):
-        record: dict[str, str] = {"story": story_id}
-        # Sort attempts by retry_num, then by timestamp as tiebreak
-        attempts = sorted(
-            failed_rows[story_id],
-            key=lambda r: (
-                _safe_int(r.get("retry_num", "0")),
-                r.get("timestamp", ""),
-            ),
-        )
-        for i, attempt in enumerate(attempts, start=1):
-            # Use story_title as categorization text (best available proxy)
-            text = " ".join(
-                filter(
-                    None,
-                    [
-                        attempt.get("story_title", ""),
-                        attempt.get("status", ""),
-                    ],
-                )
-            )
-            record[f"retry{i}"] = categorize_message(text)
-        result.append(record)
-
-    return result
+    return "unknown error"
 
 
-def _safe_int(value: str) -> int:
-    try:
-        return int(value)
-    except (ValueError, TypeError):
-        return 0
-
-
-# ── CLI entry point ───────────────────────────────────────────────────────────
-
-
-def main(argv: list[str] | None = None) -> None:
-    """Standalone CLI: python -m lib.failure_categorizer [iteration] [--results TSV]."""
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Categorize Phase I retry failures by story from results.tsv")
-    parser.add_argument(
-        "iteration",
-        nargs="?",
-        type=int,
-        default=None,
-        metavar="ITERATION",
-        help="spiral_iter value to filter (omit for all iterations)",
-    )
-    parser.add_argument(
-        "--results",
-        default="results.tsv",
-        metavar="TSV",
-        help="Path to results.tsv (default: results.tsv)",
-    )
-    args = parser.parse_args(argv)
-
-    result = categorize_iteration(
-        iteration=args.iteration,
-        results_tsv=Path(args.results),
-    )
-    print(json.dumps(result, indent=2))
-
-
-if __name__ == "__main__":
-    main(sys.argv[1:])
+def _get_patterns_for_type(failure_type: str) -> list[str]:
+    """Return search patterns for a given failure type."""
+    patterns_map: dict[str, list[str]] = {
+        "missing_dependency": [
+            "importerror",
+            "modulenotfounderror",
+            "no module named",
+            "cannot import",
+        ],
+        "syntax_error": ["syntaxerror", "syntax error", "indentation"],
+        "type_error": ["typeerror", "type error", "mypy"],
+        "test_assertion": ["assert", "failed", "pytest", "unittest"],
+        "timeout": ["timeout", "timed out", "deadline"],
+        "oom": ["out of memory", "oom", "memory error"],
+        "context_overflow": ["context window", "token limit"],
+        "other": ["error", "exception"],
+    }
+    return patterns_map.get(failure_type, ["error"])
