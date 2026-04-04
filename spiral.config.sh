@@ -382,6 +382,18 @@ SPIRAL_RESEARCH_SPECIALIST_PROMPT=""
 SPIRAL_INCREMENTAL_VALIDATE=true
 # SPIRAL_TEST_PREFIX="tests/test_"
 
+# ── Full test suite frequency (US-1102) ──────────────────────────────────────
+# Force full suite every N iterations as a safety net. Default 5 = every 5th
+# iteration runs full suite regardless of what changed. Also forced on final
+# Phase C when all stories are complete. Set to 0 to disable (always incremental).
+SPIRAL_FULL_TEST_EVERY_N=5
+
+# ── Last-failed tests in incremental mode (US-1102) ──────────────────────────
+# When true, incremental pytest runs add --lf flag to also run previously
+# failing tests, helping catch regressions. Set to false to run only affected
+# tests. Ignored for vitest and other non-pytest frameworks.
+SPIRAL_USE_LAST_FAILED=true
+
 # ── Self-consistency hallucination check (US-228) ──────────────────────────
 # When true, skips consistency checks on story acceptance criteria (fast path).
 # Default false = consistency checks enabled (run prompts twice, flag divergent fields).

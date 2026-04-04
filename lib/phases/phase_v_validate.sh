@@ -66,12 +66,27 @@ run_phase_validate() {
     if [[ -f "$_TEST_BASELINE_FILE" ]]; then
       _TEST_BASELINE_EXISTS=1
     fi
-    # ── Build effective validate command: incremental or full suite (US-131) ──
+    # ── Build effective validate command: incremental or full suite (US-131, US-1102) ──
     _EFFECTIVE_VALIDATE_CMD="$SPIRAL_VALIDATE_CMD"
-    if [[ "${SPIRAL_INCREMENTAL_VALIDATE:-false}" == "true" && -n "${PRE_RALPH_PRD_JSON:-}" ]]; then
+    _FORCE_FULL_SUITE=0
+    _INCREMENTAL_RUN=0
+
+    # ── Check if we should force full suite every N iterations (US-1102) ──
+    if [[ "${SPIRAL_FULL_TEST_EVERY_N:-5}" -gt 0 ]]; then
+      _MOD=$((SPIRAL_ITER % SPIRAL_FULL_TEST_EVERY_N))
+      if [[ "$_MOD" -eq 0 ]]; then
+        _FORCE_FULL_SUITE=1
+        echo "  [V] Full suite forced (iter $SPIRAL_ITER % ${SPIRAL_FULL_TEST_EVERY_N:-5} = 0)"
+        log_spiral_event "phase_v_full_suite_forced" \
+          "\"reason\":\"iteration_frequency\",\"interval\":${SPIRAL_FULL_TEST_EVERY_N:-5},\"iteration\":$SPIRAL_ITER"
+      fi
+    fi
+
+    if [[ "${SPIRAL_INCREMENTAL_VALIDATE:-false}" == "true" && -n "${PRE_RALPH_PRD_JSON:-}" && "$_FORCE_FULL_SUITE" -eq 0 ]]; then
       # When all stories are done, always run full suite as final gate
       _PENDING_NOW=$("$JQ" '[.userStories[] | select(.passes != true)] | length' "$PRD_FILE" 2>/dev/null || echo 1)
       if [[ "$_PENDING_NOW" -eq 0 ]]; then
+        _FORCE_FULL_SUITE=1
         echo "  [V] All stories complete — running full test suite as final gate"
       else
         # Find newly passed stories vs pre-Phase-I baseline
@@ -97,6 +112,7 @@ run_phase_validate() {
             if echo "$SPIRAL_VALIDATE_CMD" | grep -q "vitest"; then
               # vitest: use --related flag to target only changed files
               _EFFECTIVE_VALIDATE_CMD="$SPIRAL_VALIDATE_CMD --related ${_FILES_TOUCHED[*]}"
+              _INCREMENTAL_RUN=1
               echo "  [V] Incremental (vitest --related): ${_FILES_TOUCHED[*]}"
               log_spiral_event "phase_v_incremental" \
                 "\"mode\":\"vitest\",\"files\":${#_FILES_TOUCHED[@]},\"stories\":${#_NEWLY_PASSED_IDS[@]},\"iteration\":$SPIRAL_ITER"
@@ -109,13 +125,43 @@ run_phase_validate() {
                 [[ -f "$REPO_ROOT/$_test_candidate" ]] && _PYTEST_TARGETS+=("$_test_candidate")
               done
               if [[ ${#_PYTEST_TARGETS[@]} -gt 0 && "$SPIRAL_VALIDATE_CMD" == *"tests/"* ]]; then
+                _INCREMENTAL_RUN=1
                 _PYTEST_TARGETS_STR="${_PYTEST_TARGETS[*]}"
                 _EFFECTIVE_VALIDATE_CMD="${SPIRAL_VALIDATE_CMD/tests\//${_PYTEST_TARGETS_STR} }"
-                echo "  [V] Incremental (pytest): ${_PYTEST_TARGETS[*]}"
+
+                # ── Add pytest --lf (last-failed) flag if enabled (US-1102) ──
+                if [[ "${SPIRAL_USE_LAST_FAILED:-true}" == "true" ]]; then
+                  _EFFECTIVE_VALIDATE_CMD="$_EFFECTIVE_VALIDATE_CMD --lf"
+                  echo "  [V] Incremental (pytest --lf): ${_PYTEST_TARGETS[*]} + last-failed"
+                else
+                  echo "  [V] Incremental (pytest): ${_PYTEST_TARGETS[*]}"
+                fi
                 log_spiral_event "phase_v_incremental" \
-                  "\"mode\":\"pytest\",\"files\":${#_PYTEST_TARGETS[@]},\"stories\":${#_NEWLY_PASSED_IDS[@]},\"iteration\":$SPIRAL_ITER"
+                  "\"mode\":\"pytest\",\"files\":${#_PYTEST_TARGETS[@]},\"stories\":${#_NEWLY_PASSED_IDS[@]},\"last_failed\":${SPIRAL_USE_LAST_FAILED:-true},\"iteration\":$SPIRAL_ITER"
               fi
             fi
+          fi
+        fi
+
+        # ── Detect changed files via git diff and map to tests (US-1102) ──
+        if [[ "$_INCREMENTAL_RUN" -eq 0 ]]; then
+          # No newly passed stories, but check git diff for other changes
+          _CHANGED_FILES=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/util/changed_files_to_tests.py" \
+            --git-diff "HEAD~1" --repo-root "$REPO_ROOT" 2>/dev/null || echo '{}')
+          _AFFECTED_TESTS=$(echo "$_CHANGED_FILES" | "$JQ" -r '.mapping.all[]? // empty' 2>/dev/null | tr '\n' ' ')
+          if [[ -n "$_AFFECTED_TESTS" ]] && echo "$SPIRAL_VALIDATE_CMD" | grep -q "pytest"; then
+            _INCREMENTAL_RUN=1
+            _EFFECTIVE_VALIDATE_CMD="${SPIRAL_VALIDATE_CMD/tests\//$_AFFECTED_TESTS }"
+
+            # ── Add pytest --lf flag if enabled (US-1102) ──
+            if [[ "${SPIRAL_USE_LAST_FAILED:-true}" == "true" ]]; then
+              _EFFECTIVE_VALIDATE_CMD="$_EFFECTIVE_VALIDATE_CMD --lf"
+              echo "  [V] Incremental (git diff + --lf): $_AFFECTED_TESTS"
+            else
+              echo "  [V] Incremental (git diff): $_AFFECTED_TESTS"
+            fi
+            log_spiral_event "phase_v_incremental_git_diff" \
+              "\"mode\":\"git_diff\",\"affected_tests\":$(echo "$_AFFECTED_TESTS" | wc -w),\"last_failed\":${SPIRAL_USE_LAST_FAILED:-true},\"iteration\":$SPIRAL_ITER"
           fi
         fi
       fi

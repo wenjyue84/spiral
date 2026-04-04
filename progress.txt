@@ -1441,3 +1441,31 @@ Based on the user story and project structure, here is the technical brief for i
 *   **Response Contamination:** The consolidated prompt must be carefully engineered to prevent the model from blending context between different stories in the batch.
 *   **Atomic Updates:** Ensure that updates to `prd.json` are atomic to prevent race conditions if multiple processes could potentially access it. Use file locking if necessary.
 *   **State Management:** The logic must correctly identify "pending" stories and update their state to "enriched" or "failed" to ensure stories are not processed multiple times or skipped.
+
+## Pre-analysis for US-1102 (Gemini 2.5 Pro)
+Based on the user story JSON, here is a technical brief for the implementation:
+
+**Subject:** Technical Brief for US-1102: Incremental Test Execution
+
+**1. Python Files/Scripts to Modify:**
+*   `lib/phases/phase_v_validate.sh`: This is the primary target. It will orchestrate the new testing logic, including detecting changed files and deciding whether to run a full or incremental test suite.
+*   `spiral.sh`: May require changes to handle the `SPIRAL_FULL_TEST_EVERY_N` environment variable and pass iteration context to Phase V.
+*   A new or existing Python script (e.g., `lib/dependency_graph.py` or `lib/infer_dependencies.py`) will be needed to implement the "import tracing" logic that maps changed source files to their corresponding test files.
+
+**2. Frappe DocTypes/Hooks Involved:**
+*   None. This user story pertains to a shell-based test automation workflow using `pytest` and `git`, not a Frappe application.
+
+**3. Recommended Implementation Approach:**
+*   In `lib/phases/phase_v_validate.sh`, maintain an iteration counter.
+*   Before running tests, check if `iteration % SPIRAL_FULL_TEST_EVERY_N == 0`. If so, force a full `pytest` run.
+*   If not a forced run, get changed files via `git diff HEAD~1 --name-only`.
+*   Pass the list of changed files to the Python dependency mapping script to get a list of affected test files.
+*   Execute `pytest` using the `--lf` flag combined with the list of affected test files.
+*   If this targeted test run passes, the phase succeeds for that iteration, skipping the full suite.
+
+**4. Edge Cases & Gotchas:**
+*   **Initial Run:** The `git diff HEAD~1` command will fail on the first commit. The script must handle this by defaulting to a full test run.
+*   **Dependency Mapping:** The "import tracing" can be complex. The periodic full suite run serves as a crucial safety net to catch any tests missed by the dependency analysis.
+*   **No Changes:** If no files have changed since the last iteration, the script should still run tests marked with `--lf` to clear any previous failures.
+*   **Configuration:** The script must safely read `SPIRAL_FULL_TEST_EVERY_N`, defaulting to `5` if the variable is unset or invalid.
+
