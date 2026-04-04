@@ -250,6 +250,35 @@ cleanup_parallel() {
   # Worktrees removed above, so .heartbeat files are cleaned automatically
   # Keep this for backward compatibility with any remaining old-style heartbeat files
   [[ -d "$HEARTBEAT_DIR" ]] && rm -f "$HEARTBEAT_DIR"/worker_*.heartbeat 2>/dev/null || true
+  # Aggressive orphaned worktree cleanup (US-1105): remove stale directories with dead PIDs
+  # This handles cases where OOM-killed or timeout workers leave behind directories
+  # that git cleanup commands couldn't remove due to lock/permission issues.
+  if [[ -d "$WORKTREE_BASE" ]]; then
+    for _orphaned in "$WORKTREE_BASE"/worker-*; do
+      [[ ! -d "$_orphaned" ]] && continue
+      _worker_id=$(basename "$_orphaned" | sed 's/^worker-//')
+      # Try to extract PID from WORKER_PIDS array if this is a known worker
+      _pid=""
+      # Standard mode: worker ID is numeric (e.g., "1", "2")
+      if [[ "$_worker_id" =~ ^[0-9]+$ ]]; then
+        _idx=$((${_worker_id} - 1))
+        _pid="${WORKER_PIDS[$_idx]:-}"
+      fi
+      # Check if PID is alive (kill -0 returns 0 if process exists)
+      if [[ -z "$_pid" ]] || ! kill -0 "$_pid" 2>/dev/null; then
+        # PID is dead or unknown — calculate size and remove
+        _size_kb=$(du -sk "$_orphaned" 2>/dev/null | awk '{print $1}')
+        _size_bytes=$((_size_kb * 1024))
+        rm -rf "$_orphaned" 2>/dev/null || true
+        if [[ ! -d "$_orphaned" ]]; then
+          spiral_event "$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" \
+            "$(printf '{"ts":"%s","event":"worktree_orphan_removed","run_id":"%s","worker":"%s","pid":"%s","size_bytes":%d}' \
+              "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${SPIRAL_RUN_ID:-}" "$_worker_id" "${_pid:-unknown}" "$_size_bytes")"
+          echo "  [parallel] Removed orphaned worktree: worker-$_worker_id (${_size_kb}KB, pid=${_pid:-unknown})"
+        fi
+      fi
+    done
+  fi
   # Clean up cgroup slices (US-259)
   for _cg_i in $(seq 1 "$RALPH_WORKERS"); do
     _cgroup_cleanup "$_cg_i" 2>/dev/null || true

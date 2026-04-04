@@ -7238,7 +7238,8 @@
       "priority": "high",
       "passes": false,
       "_source": "seed",
-      "model": "haiku"
+      "model": "haiku",
+      "last_attempted": "2026-04-04T19:44:53Z"
     },
     {
       "id": "US-1106",
