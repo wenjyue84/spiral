@@ -115,7 +115,7 @@ _write_empty_test_output() {
 
 write_checkpoint() {
   local iter="$1" phase="$2"
-  # Atomic write via tmp + mv to prevent corruption if SIGINT fires mid-write
+  # AC1: Atomic write via tmp + mv to prevent corruption if SIGINT fires mid-write
   local _ckpt_tmp
   _ckpt_tmp="${CHECKPOINT_FILE}.tmp.$$"
   printf '{"schema_version":1,"iter":%d,"phase":"%s","ts":"%s","run_id":"%s","spiralVersion":"%s","log_level":"%s","phaseDurations":{"R":%d,"T":%d,"M":%d,"I":%d,"V":%d,"C":%d}}\n' \
@@ -128,6 +128,7 @@ write_checkpoint() {
     >"$_ckpt_tmp" 2>/dev/null && mv "$_ckpt_tmp" "$CHECKPOINT_FILE" 2>/dev/null || true
 }
 
+<<<<<<< Updated upstream
 # ── load_checkpoint: validate and load checkpoint with fallback to iter 1 ────
 # Reads $CHECKPOINT_FILE, validates JSON structure, and populates CKPT_* vars.
 # Returns 0 on success, 1 if no checkpoint exists or JSON is malformed.
@@ -138,20 +139,49 @@ load_checkpoint() {
   # Validate that the file contains parseable JSON
   if ! "$JQ" -e '.' "$CHECKPOINT_FILE" >/dev/null 2>&1; then
     echo "  [checkpoint] WARNING: Malformed JSON in checkpoint — starting fresh from iter 1" >&2
+=======
+# ── Helper: load and validate checkpoint (AC2 of US-1106) ────────────────────
+# Reads $CHECKPOINT_FILE, validates JSON structure, and sets globals.
+# Returns 0 on success (sets CKPT_ITER, CKPT_PHASE, SPIRAL_ITER, SPIRAL_RUN_ID).
+# Returns 1 if no checkpoint, malformed JSON, or missing iter field (resets to iter 1).
+load_checkpoint() {
+  [[ -f "$CHECKPOINT_FILE" ]] || return 1
+
+  local _raw
+  _raw=$(cat "$CHECKPOINT_FILE" 2>/dev/null) || {
+    echo "  [checkpoint] WARNING: Cannot read checkpoint — resetting to iteration 1" >&2
+    rm -f "$CHECKPOINT_FILE"
+    return 1
+  }
+
+  # Validate JSON — reject truncated/corrupt files (simulated crash scenario)
+  if ! echo "$_raw" | "$JQ" -e . >/dev/null 2>&1; then
+    echo "  [checkpoint] WARNING: Malformed JSON in checkpoint — resetting to iteration 1" >&2
+>>>>>>> Stashed changes
     rm -f "$CHECKPOINT_FILE"
     return 1
   fi
 
+<<<<<<< Updated upstream
   CKPT_ITER=$("$JQ" -r '.iter // 0' "$CHECKPOINT_FILE" 2>/dev/null) || CKPT_ITER=""
   CKPT_PHASE=$("$JQ" -r '.phase // ""' "$CHECKPOINT_FILE" 2>/dev/null) || CKPT_PHASE=""
 
   # Validate iter is a non-negative integer
   if [[ ! "$CKPT_ITER" =~ ^[0-9]+$ ]]; then
     echo "  [checkpoint] WARNING: Checkpoint has invalid iter ('$CKPT_ITER') — starting fresh from iter 1" >&2
+=======
+  # Validate required 'iter' field is a non-negative integer
+  local _ckpt_iter _ckpt_phase
+  _ckpt_iter=$(echo "$_raw" | "$JQ" -r '.iter // empty' 2>/dev/null) || _ckpt_iter=""
+  _ckpt_phase=$(echo "$_raw" | "$JQ" -r '.phase // empty' 2>/dev/null) || _ckpt_phase=""
+  if [[ -z "$_ckpt_iter" ]] || ! [[ "$_ckpt_iter" =~ ^[0-9]+$ ]]; then
+    echo "  [checkpoint] WARNING: Checkpoint missing 'iter' field — resetting to iteration 1" >&2
+>>>>>>> Stashed changes
     rm -f "$CHECKPOINT_FILE"
     return 1
   fi
 
+<<<<<<< Updated upstream
   # Validate phase is non-empty
   if [[ -z "$CKPT_PHASE" ]]; then
     echo "  [checkpoint] WARNING: Checkpoint has empty phase field — starting fresh from iter 1" >&2
@@ -162,6 +192,39 @@ load_checkpoint() {
   CKPT_RUN_ID=$("$JQ" -r '.run_id // ""' "$CHECKPOINT_FILE" 2>/dev/null || echo "")
   CKPT_TS=$("$JQ" -r '.ts // 0' "$CHECKPOINT_FILE" 2>/dev/null || echo 0)
   CKPT_SPIRAL_VERSION=$("$JQ" -r '.spiralVersion // ""' "$CHECKPOINT_FILE" 2>/dev/null || echo "")
+=======
+  # Valid checkpoint — export globals
+  CKPT_ITER="$_ckpt_iter"
+  CKPT_PHASE="${_ckpt_phase:-}"
+  echo "  [checkpoint] Resuming from iter=$CKPT_ITER phase=$CKPT_PHASE"
+  SPIRAL_ITER=$((CKPT_ITER - 1)) # loop will increment to CKPT_ITER on first pass
+
+  # Restore run_id from checkpoint so all events share the same correlation ID
+  local _ckpt_run_id
+  _ckpt_run_id=$(echo "$_raw" | "$JQ" -r '.run_id // empty' 2>/dev/null) || _ckpt_run_id=""
+  if [[ -n "$_ckpt_run_id" ]]; then
+    SPIRAL_RUN_ID="$_ckpt_run_id"
+    export SPIRAL_RUN_ID
+  fi
+
+  # Warn if checkpoint is older than 24 hours
+  local _ckpt_ts _ckpt_age
+  _ckpt_ts=$(echo "$_raw" | "$JQ" -r '.ts // 0' 2>/dev/null) || _ckpt_ts=0
+  _ckpt_age=$(($(date +%s) - ${_ckpt_ts%.*}))
+  if [[ "$_ckpt_age" -gt 86400 ]]; then
+    local _age_hours=$((_ckpt_age / 3600))
+    echo "  [spiral] WARNING: Resuming from checkpoint written ${_age_hours}h ago. Pass --reset to start fresh." >&2
+  fi
+
+  # Warn if SPIRAL version changed since checkpoint was written
+  local _ckpt_version
+  _ckpt_version=$(echo "$_raw" | "$JQ" -r '.spiralVersion // empty' 2>/dev/null) || _ckpt_version=""
+  if [[ -n "$_ckpt_version" && "$_ckpt_version" != "${SPIRAL_VERSION:-unknown}" ]]; then
+    echo "  [checkpoint] WARNING: checkpoint written by SPIRAL $_ckpt_version, current is ${SPIRAL_VERSION:-unknown}" >&2
+  fi
+
+  echo ""
+>>>>>>> Stashed changes
   return 0
 }
 

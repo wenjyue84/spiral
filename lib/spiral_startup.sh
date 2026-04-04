@@ -281,6 +281,7 @@ export DRY_RUN
 export ALLOW_UNSAFE_STORIES
 export SPIRAL_ALLOW_EXEC_WRITES="${ALLOW_EXEC_WRITES}"
 
+<<<<<<< Updated upstream
 if load_checkpoint; then
   echo "  [checkpoint] Resuming from iter=$CKPT_ITER phase=$CKPT_PHASE"
   SPIRAL_ITER=$((CKPT_ITER - 1)) # loop will increment to CKPT_ITER on first pass
@@ -304,6 +305,10 @@ if load_checkpoint; then
 
   echo ""
 fi
+=======
+# AC2 (US-1106): load_checkpoint() validates JSON and falls back to iter 1 on malformed data
+load_checkpoint || true
+>>>>>>> Stashed changes
 
 # ── Auto-generate progress.txt skeleton on first run ─────────────────────────
 if [[ ! -f "$REPO_ROOT/progress.txt" ]]; then

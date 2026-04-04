@@ -5,13 +5,12 @@ Verifies that the cleanup logic for removing stale worker directories
 is syntactically correct and logically sound.
 """
 
-import os
 import subprocess
 
 
 def test_cleanup_logic_syntax_and_array_access() -> None:
-  """Verify the bash cleanup logic syntax and array access works correctly."""
-  bash_script = """
+    """Verify the bash cleanup logic syntax and array access works correctly."""
+    bash_script = """
 set -euo pipefail
 
 # Test array access and PID checking logic
@@ -35,19 +34,19 @@ done
 exit 0
 """
 
-  result = subprocess.run(
-    ["bash", "-c", bash_script],
-    capture_output=True,
-    text=True,
-    timeout=10,
-  )
+    result = subprocess.run(
+        ["bash", "-c", bash_script],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
 
-  assert result.returncode == 0, f"Bash script failed: {result.stderr}"
+    assert result.returncode == 0, f"Bash script failed: {result.stderr}"
 
 
 def test_worktree_directory_iteration() -> None:
-  """Verify the worktree directory iteration logic syntax is correct."""
-  bash_script = """
+    """Verify the worktree directory iteration logic syntax is correct."""
+    bash_script = """
 set -euo pipefail
 
 # Test directory iteration over worker patterns
@@ -67,19 +66,19 @@ done
 exit 0
 """
 
-  result = subprocess.run(
-    ["bash", "-c", bash_script],
-    capture_output=True,
-    text=True,
-    timeout=10,
-  )
+    result = subprocess.run(
+        ["bash", "-c", bash_script],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
 
-  assert result.returncode == 0, f"Directory iteration failed: {result.stderr}"
+    assert result.returncode == 0, f"Directory iteration failed: {result.stderr}"
 
 
 def test_pid_alive_check_logic() -> None:
-  """Verify the kill -0 PID check logic syntax is correct."""
-  bash_script = """
+    """Verify the kill -0 PID check logic syntax is correct."""
+    bash_script = """
 set -euo pipefail
 
 # Test the bash syntax for checking if a PID is alive
@@ -95,12 +94,12 @@ else
 fi
 """
 
-  result = subprocess.run(
-    ["bash", "-c", bash_script],
-    capture_output=True,
-    text=True,
-    timeout=10,
-  )
+    result = subprocess.run(
+        ["bash", "-c", bash_script],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
 
-  # The script should succeed - the non-existent PID check should work
-  assert result.returncode == 0, f"PID check failed: {result.stderr}"
+    # The script should succeed - the non-existent PID check should work
+    assert result.returncode == 0, f"PID check failed: {result.stderr}"
