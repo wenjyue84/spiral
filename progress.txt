@@ -1,3 +1,51 @@
+## Iteration - Story: US-1099 Persist pytest cache across iterations for faster Phase V reruns
+
+### What was implemented
+- lib/phases/phase_v_validate.sh: Added pytest cache persistence logic (32 lines)
+  - Creates .spiral/.pytest_cache directory if it doesn't exist
+  - Adds -o cache_dir and --import-mode=importlib flags to pytest invocations
+  - Implements cache size checking: calculates directory size in Python
+  - Prunes cache when it exceeds configured limit (default 100MB)
+  - Logs cache pruning events to spiral_events.jsonl
+- spiral.config.sh: Added two new config variables (4 lines)
+  - SPIRAL_PYTEST_CACHE_DIR=".spiral/.pytest_cache" - configurable cache location
+  - SPIRAL_PYTEST_CACHE_MAX_MB=100 - configurable size limit before pruning
+- tests/test_pytest_cache_persistence.py: Comprehensive test suite (206 lines)
+  - test_cache_directory_created: Verifies cache dir is created
+  - test_cache_persists_across_runs: Verifies cache survives across two pytest runs
+  - test_import_mode_importlib: Tests compatibility with --import-mode=importlib
+  - test_cache_size_limit: Tests cache size calculation logic
+  - test_cache_cleanup_on_size_exceeded: Tests cache pruning when size > limit
+  - test_cache_directory_config_var: Verifies config var is defined
+  - test_cache_max_mb_config_var: Verifies max_mb config var is defined
+
+### Patterns discovered
+- pytest cache configuration uses -o cache_dir=<path> syntax (not --cache-dir)
+- Cache directory path should be relative to REPO_ROOT for portability
+- Python size calculation: use os.walk() with os.path.getsize() to sum all file sizes
+- Cache persistence works best when shared location is outside git worktrees
+- Size limiting should prune entire cache when exceeded (simple rm -rf approach)
+- Cache creation is automatic when pytest runs with custom cache_dir
+
+### Gotchas
+- pytest option is -o cache_dir, not --cache-dir (the latter is unrecognized)
+- Python subprocess in bash must handle Windows paths carefully (use -c with inline code)
+- Cache size check must exit gracefully if directory doesn't exist (echo 0)
+- For worktree workers, persistent cache at repo root survives worker cleanup
+- importlib import mode is compatible with custom cache_dir flag
+
+### Acceptance criteria verification
+- AC1: ✓ Phase V adds -o cache_dir=.spiral/.pytest_cache to pytest (line 223)
+- AC2: ✓ Cache directory is persistent at .spiral/.pytest_cache (survives iterations)
+- AC3: ✓ 7 unit tests verify cache persistence, second run reuses cache
+- AC4: ✓ Cache pruning implemented at line 209-222; default 100MB limit; configurable
+
+All tests passing: 7/7 ✓
+Type checking: mypy --strict ✓
+Linting: ruff check ✓
+Shell linting: shellcheck --severity=error ✓
+Diff size: 59 lines (well within budget) ✓
+
 ## Iteration - Story: US-1109 Git operation retry with exponential backoff for index.lock failures
 
 ### What was implemented
