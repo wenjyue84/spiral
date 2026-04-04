@@ -48,6 +48,12 @@ if [[ -f "$_HEARTBEAT_HELPER" ]]; then
   source "$_HEARTBEAT_HELPER"
 fi
 
+# ── Source git retry helper for index.lock resilience (US-1109) ────────────────
+_GIT_RETRY_HELPER="$SPIRAL_HOME/lib/impl/git_retry.sh"
+if [[ -f "$_GIT_RETRY_HELPER" ]]; then
+  source "$_GIT_RETRY_HELPER"
+fi
+
 # ── Source dynamic memory pool (if available) ──────────────────────────────────
 _POOL_HELPER="$SPIRAL_HOME/lib/memory_pool.sh"
 _POOL_ENABLED=0
@@ -1729,8 +1735,8 @@ PYEOF
 fi
 
 # Commit the merged prd.json as a stable base before code patches
-git -C "$REPO_ROOT" add "$PRD_FILE" 2>/dev/null
-git -C "$REPO_ROOT" commit -m "chore(spiral): merge prd.json from $RALPH_WORKERS parallel workers" \
+git_retry 3 1 git -C "$REPO_ROOT" add "$PRD_FILE" 2>/dev/null || true
+git_retry 3 1 git -C "$REPO_ROOT" commit -m "chore(spiral): merge prd.json from $RALPH_WORKERS parallel workers" \
   2>/dev/null || true
 
 # ── Step 6.5: Detect merge conflicts via git merge-tree dry-run ──────────────
@@ -1900,8 +1906,8 @@ for i in $SORTED_CLEAN; do
   echo "  [parallel] Worker $i: applying $LINES-line patch (${SIZE} bytes)..."
 
   if git -C "$REPO_ROOT" apply --3way "$PATCH_FILE" 2>/dev/null; then
-    git -C "$REPO_ROOT" add -A 2>/dev/null
-    git -C "$REPO_ROOT" commit \
+    git_retry 3 1 git -C "$REPO_ROOT" add -A 2>/dev/null || true
+    git_retry 3 1 git -C "$REPO_ROOT" commit \
       -m "feat(spiral): worker $i parallel implementation" \
       2>/dev/null || true
     PATCHES_APPLIED=$((PATCHES_APPLIED + 1))
@@ -1919,8 +1925,8 @@ for i in $SORTED_CLEAN; do
       spiral_event "$SPIRAL_SCRATCH_DIR/spiral_events.jsonl" \
         "{\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"event\":\"patch_rejected\",\"workerId\":$i}"
     fi
-    git -C "$REPO_ROOT" add -A 2>/dev/null
-    git -C "$REPO_ROOT" commit \
+    git_retry 3 1 git -C "$REPO_ROOT" add -A 2>/dev/null || true
+    git_retry 3 1 git -C "$REPO_ROOT" commit \
       -m "feat(spiral): worker $i code (partial — .rej files need review)" \
       2>/dev/null || true
     PATCHES_APPLIED=$((PATCHES_APPLIED + 1))

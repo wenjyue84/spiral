@@ -41,6 +41,9 @@
 
 [[ "${BASH_SOURCE[0]}" == "${0}" ]] && echo "Source this file, do not execute it directly." && exit 1
 
+# Source git retry helper for index.lock resilience (US-1109)
+source "${SPIRAL_HOME:-${SPIRAL_ROOT:-.}}/lib/impl/git_retry.sh" || true
+
 # ── SNAPSHOT & RESTORE (US-343) ──────────────────────────────────────────────
 
 # create_snapshot <snapshot_dir> <repo_root>
