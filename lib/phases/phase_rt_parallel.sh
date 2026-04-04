@@ -48,6 +48,14 @@ run_phase_rt_parallel() {
     echo ""
     echo "  [R] Skipping Phase R (checkpoint: already done this iter)"
     _R_SKIP=1
+  elif [[ "${SKIP_RT:-false}" == "true" ]]; then
+    # ── US-1103: Fast-path skip R/T when no new stories merged and all pending have retries ──
+    echo ""
+    echo "  [R] Skipping Phase R (US-1103: no new stories merged and all pending have retries)"
+    echo '{"stories":[]}' >"$RESEARCH_OUTPUT"
+    touch "$_phase_r_ckpt"
+    _R_SKIP=1
+    log_spiral_event "phase_skip" "\"phase\":\"R\",\"iteration\":$SPIRAL_ITER,\"reason\":\"no_new_stories_and_all_retried\""
   elif [[ "$DRY_RUN" -eq 1 ]]; then
     echo ""
     echo "  [dry-run] skipping research agent — using empty output"
@@ -110,6 +118,13 @@ run_phase_rt_parallel() {
   if checkpoint_phase_done "T"; then
     echo "  [T] Skipping Phase T (checkpoint: already done this iter)"
     _T_SKIP=1
+  elif [[ "${SKIP_RT:-false}" == "true" ]]; then
+    # ── US-1103: Fast-path skip R/T when no new stories merged and all pending have retries ──
+    echo "  [T] Skipping Phase T (US-1103: no new stories merged and all pending have retries)"
+    _write_empty_test_output
+    touch "$_phase_t_ckpt"
+    _T_SKIP=1
+    log_spiral_event "phase_skip" "\"phase\":\"T\",\"iteration\":$SPIRAL_ITER,\"reason\":\"no_new_stories_and_all_retried\""
   elif [[ "$DRY_RUN" -eq 1 ]]; then
     echo "  [dry-run] skipping test synthesis"
     _write_empty_test_output

@@ -1047,6 +1047,7 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
 
   prd_stats
   ADDED=0               # new stories added this iter (set in Phase M; default 0 if skipped)
+  SKIP_RT=false         # set to true if Phase M merged 0 stories and all pending have retries > 0 (US-1103)
   RALPH_RAN=0           # set to 1 if ralph actually executed this iter (controls Phase V)
   RALPH_PROGRESS=0      # stories completed this iter; reset each iter for accurate velocity
   PRE_RALPH_PRD_JSON="" # snapshot of prd.json before Phase I; used by Phase V incremental (US-131)
@@ -1216,6 +1217,35 @@ while [[ $SPIRAL_ITER -lt $MAX_SPIRAL_ITERS ]]; do
 
   run_phase_merge || continue
   log_spiral_event "phase_end" "\"phase\":\"M\",\"iteration\":$SPIRAL_ITER,\"model\":\"$SPIRAL_MERGE_MODEL\""
+
+  # ── US-1103: Fast-path skip Phase R/T if no new stories and all pending have retries ──
+  if [[ "$ADDED" -eq 0 ]]; then
+    # Check if all pending stories have retries > 0 (all have been attempted before)
+    if [[ -f "$PRD_FILE" && -f "$REPO_ROOT/retry-counts.json" ]]; then
+      # Get list of pending story IDs
+      _PENDING_IDS=$("$JQ" -r '.userStories[] | select(.passes != true) | .id' "$PRD_FILE" 2>/dev/null | sort)
+      if [[ -z "$_PENDING_IDS" ]]; then
+        # No pending stories → skip R/T (nothing to research or test)
+        SKIP_RT=true
+      else
+        # Check if ALL pending stories have retries > 0
+        _ALL_HAVE_RETRIES=true
+        while IFS= read -r _STORY_ID; do
+          if [[ -n "$_STORY_ID" ]]; then
+            _RETRY_COUNT=$("$JQ" --arg sid "$_STORY_ID" '.[$sid] // 0' "$REPO_ROOT/retry-counts.json" 2>/dev/null)
+            if [[ "$_RETRY_COUNT" -eq 0 ]]; then
+              _ALL_HAVE_RETRIES=false
+              break
+            fi
+          fi
+        done <<<"$_PENDING_IDS"
+        if [[ "$_ALL_HAVE_RETRIES" == "true" ]]; then
+          SKIP_RT=true
+        fi
+      fi
+    fi
+  fi
+  export SKIP_RT
 
   run_phase_context_build
 
