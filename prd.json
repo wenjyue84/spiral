@@ -7301,9 +7301,10 @@
       "dependencies": [],
       "estimatedComplexity": "small",
       "priority": "high",
-      "passes": false,
+      "passes": true,
       "_source": "seed",
-      "model": "haiku"
+      "model": "haiku",
+      "_passedCommit": "5bc6b5f60710737d81cecd96c1ed0cf6b9822213"
     }
   ]
 }
