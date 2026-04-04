@@ -203,13 +203,44 @@ run_phase_gate_and_implement() {
           fi
         fi
 
-        # ── DAG cycle detection ──────────────────────────────────────────
+        # ── US-1089: DAG validation (cycles, orphans, deadlock ratio) ──────
         DAG_SKIP_IMPL=0
-        DAG_OUTPUT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/prd/check_dag.py" "$PRD_FILE" 2>&1) || {
-          echo "  [Phase I] WARNING: Dependency cycle detected — skipping implementation" >&2
-          echo "$DAG_OUTPUT" >&2
+        DAG_VALIDATOR_OUTPUT=$("$SPIRAL_PYTHON" "$SPIRAL_HOME/lib/dag_validator.py" "$PRD_FILE" 2>&1)
+        _DAG_EXIT=$?
+        _HAS_ISSUES=$(echo "$DAG_VALIDATOR_OUTPUT" | "$JQ" -r '.has_issues // false' 2>/dev/null || echo "false")
+        _CYCLES=$(echo "$DAG_VALIDATOR_OUTPUT" | "$JQ" -r '.cycles // []' 2>/dev/null || echo "[]")
+        _ORPHANS=$(echo "$DAG_VALIDATOR_OUTPUT" | "$JQ" -r '.orphans // []' 2>/dev/null || echo "[]")
+        _DEADLOCK_RATIO=$(echo "$DAG_VALIDATOR_OUTPUT" | "$JQ" -r '.deadlock_ratio // 0' 2>/dev/null || echo "0")
+        _SKIP_PHASE_I=$(echo "$DAG_VALIDATOR_OUTPUT" | "$JQ" -r '.skip_phase_i // false' 2>/dev/null || echo "false")
+
+        if [[ "$_HAS_ISSUES" == "true" ]]; then
+          echo "  [US-1089] DAG validation issues detected:"
+          if [[ "$(echo "$_CYCLES" | "$JQ" 'length' 2>/dev/null || echo 0)" -gt 0 ]]; then
+            echo "    Cycles: $_CYCLES"
+          fi
+          if [[ "$(echo "$_ORPHANS" | "$JQ" 'length' 2>/dev/null || echo 0)" -gt 0 ]]; then
+            echo "    Orphans: $_ORPHANS"
+          fi
+          printf '    Deadlock ratio: %.1f%%\n' "$(echo "$_DEADLOCK_RATIO * 100" | bc 2>/dev/null || echo "0")"
+        fi
+
+        if [[ "$_SKIP_PHASE_I" == "true" ]]; then
+          echo "  [US-1089] Deadlock ratio > 20% — skipping Phase I implementation"
           DAG_SKIP_IMPL=1
-        }
+          # Log structured event
+          printf '{"ts":"%s","event":"dag_deadlock_detected","iteration":%d,"deadlock_ratio":%.4f,"cycle_count":%d,"orphan_count":%d,"skip_phase_i":true}\n' \
+            "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$SPIRAL_ITER" "$_DEADLOCK_RATIO" \
+            "$(echo "$_CYCLES" | "$JQ" 'length' 2>/dev/null || echo 0)" \
+            "$(echo "$_ORPHANS" | "$JQ" 'length' 2>/dev/null || echo 0)" \
+            >>"$SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || true
+        elif [[ "$_HAS_ISSUES" == "true" ]]; then
+          echo "  [US-1089] DAG issues found (ratio ≤ 20%) — proceeding with caution"
+          printf '{"ts":"%s","event":"dag_issues_detected_low_ratio","iteration":%d,"deadlock_ratio":%.4f,"cycle_count":%d,"orphan_count":%d,"skip_phase_i":false}\n' \
+            "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$SPIRAL_ITER" "$_DEADLOCK_RATIO" \
+            "$(echo "$_CYCLES" | "$JQ" 'length' 2>/dev/null || echo 0)" \
+            "$(echo "$_ORPHANS" | "$JQ" 'length' 2>/dev/null || echo 0)" \
+            >>"$SCRATCH_DIR/spiral_events.jsonl" 2>/dev/null || true
+        fi
 
         # ── Phase I: IMPLEMENT (Ralph) ──────────────────────────────────
         PHASE="I"
